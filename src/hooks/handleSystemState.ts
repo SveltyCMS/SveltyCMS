@@ -109,9 +109,69 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
 					throw new AppError('Service initialization is taking longer than expected.', 503, 'INIT_WAIT_TIMEOUT');
 				}
 			} else if (initializationState === 'failed') {
-				// Previous initialization failed, return error immediately
-				logger.error('System initialization previously failed:', initError);
-				throw new AppError(`Service unavailable: ${initError?.message || 'Unknown initialization error'}`, 503, 'INIT_prev_FAILED');
+				// Self-Healing: Check if we should retry initialization
+				const RETRY_COOLDOWN_MS = 5000; // Retry every 5 seconds
+				const timeSinceFailure = Date.now() - (initStartTime || 0);
+
+				if (timeSinceFailure > RETRY_COOLDOWN_MS) {
+					logger.info(`[Self-Healing] Attempting to recover from previous initialization failure (failed ${timeSinceFailure}ms ago)...`);
+					initializationState = 'pending';
+					initError = null;
+					// Recursively call handleSystemState or just continue to let the next block handle 'pending'
+					// Since we are in the IDLE block, resetting to 'pending' and letting flow continue
+					// will trigger the 'pending' block in the next request, OR we can just let it fall through
+					// to the next request. A simple return resolve(event) might trigger a reload or we can just
+					// allow this request to trigger the init immediately.
+
+					// Let's reset and allow this request to trigger init immediately by falling back to 'pending' logic
+					// We need to re-evaluate the 'pending' block.
+					// safest way: just reset state, log, and throw 503 with "Retrying..." header so client refreshes
+					// OR, better: reset state and goto Phase 1 logic.
+
+					// For simplicity and safety in this flow:
+					initializationState = 'in-progress'; // Take lock immediately
+					initStartTime = Date.now();
+
+					try {
+						logger.info('[Self-Healing] Restarting initialization sequence...');
+						// Re-creation of dbInitPromise might be needed if it settled?
+						// In current architecture, dbInitPromise is a singleton in db.ts.
+						// We might need to call a reset function. Use imported dbInitPromise for now.
+						// Ideally we should call a method to restart DB init if it failed.
+						// Assuming dbInitPromise handles its own internal state or we just await it again.
+
+						// If dbInitPromise rejected, it needs to be replaced or handled.
+						// Let's assume for now we just try again.
+						const { resetDbInitPromise } = await import('@src/databases/db');
+						await resetDbInitPromise();
+
+						const { dbInitPromise: newPromise } = await import('@src/databases/db');
+
+						await Promise.race([
+							newPromise,
+							new Promise((_, reject) => setTimeout(() => reject(new Error('Recovery initialization timeout')), INIT_TIMEOUT_MS))
+						]);
+
+						systemState = getSystemState();
+						initializationState = 'complete';
+						logger.info(`[Self-Healing] System successfully recovered! State: ${systemState.overallState}`);
+					} catch (recoveryErr) {
+						initializationState = 'failed';
+						initError = recoveryErr instanceof Error ? recoveryErr : new Error(String(recoveryErr));
+						logger.error('[Self-Healing] Recovery failed:', initError);
+						throw new AppError('Service Unavailable: System recovery failed. Retrying in 5s...', 503, 'RECOVERY_FAILED');
+					}
+				} else {
+					// Cooldown active
+					logger.warn(
+						`System initialization failed. Cooldown active (${RETRY_COOLDOWN_MS - timeSinceFailure}ms remaining). Error: ${initError?.message}`
+					);
+					throw new AppError(
+						`Service Unavailable: System starting up... (${Math.ceil((RETRY_COOLDOWN_MS - timeSinceFailure) / 1000)}s)`,
+						503,
+						'INIT_COOLDOWN'
+					);
+				}
 			}
 			// If 'complete', continue to route checks below
 		}

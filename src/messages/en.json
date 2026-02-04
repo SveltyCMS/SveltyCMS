@@ -263,7 +263,7 @@
 	"mediagallery_Format": "Format",
 	"mediaConfig_description": "Media settings for the site.",
 	"mediaConfig_IMAGE_SIZE_helper": "The sizes of images that the site will generate.",
-	"mediaConfig_MEDIA_FOLDER_helper": "The folder where the site's media files will be stored. (default: 'mediaFiles')",
+	"mediaConfig_MEDIA_FOLDER_helper": "The folder where the site's media files will be stored. (default: 'mediaFolder')",
 	"mediaConfig_MEDIA_OUTPUT_FORMAT_QUALITY_helper": "Format and quality settings for media files. (default: format: 'original', quality: 80)",
 	"mediaConfig_MEDIASERVER_URL_helper": "The URL of the media server. (default is localhost as: '')",
 	"modal_token_deleted_successfully": "Token deleted successfully",

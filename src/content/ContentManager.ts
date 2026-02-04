@@ -1472,7 +1472,7 @@ class ContentManager {
 
 	// Scans the compiledCollections directory and processes each file into a Schema object
 	private async _scanAndProcessFiles(): Promise<Schema[]> {
-		const compiledDirectoryPath = import.meta.env.VITE_COLLECTIONS_FOLDER || 'compiledCollections';
+		const compiledDirectoryPath = import.meta.env.VITE_COLLECTIONS_FOLDER || '.compiledCollections';
 
 		try {
 			const fs = await getFs();
@@ -1979,7 +1979,7 @@ class ContentManager {
 	}
 
 	private _extractPathFromFilePath(filePath: string): string {
-		const compiledDir = import.meta.env.VITE_COLLECTIONS_FOLDER || 'compiledCollections';
+		const compiledDir = import.meta.env.VITE_COLLECTIONS_FOLDER || '.compiledCollections';
 		let relativePath = filePath.substring(filePath.indexOf(compiledDir) + compiledDir.length);
 		relativePath = relativePath.replace(/\.js$/, '');
 		return relativePath.startsWith('/') ? relativePath : `/${relativePath}`;

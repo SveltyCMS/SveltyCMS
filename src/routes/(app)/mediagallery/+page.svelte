@@ -412,7 +412,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 			? Array.isArray(currentSystemVirtualFolder.path)
 				? currentSystemVirtualFolder.path.join('/')
 				: currentSystemVirtualFolder.path
-			: publicEnv?.MEDIA_FOLDER || 'mediaFiles';
+			: publicEnv?.MEDIA_FOLDER || 'mediaFolder';
 		modalState.trigger(
 			ModalPrompt as any,
 			{

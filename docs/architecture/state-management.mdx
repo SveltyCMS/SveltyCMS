@@ -60,11 +60,24 @@ The `handleSystemState` hook (`src/hooks/handleSystemState.ts`) intercepts every
 
 ---
 
-## 🔮 Future Improvements: Smart State Machine
+## 🧠 Implemented Advanced Features
 
-We are planning to evolve the state machine into a more event-driven, granular system.
+### 1. Smart Self-Healing & Automatic Recovery
 
-### Proposed Features
+The system now includes a robust self-healing mechanism for initialization failures (e.g., temporary database outages):
+
+- **Automatic Retry**: If initialization fails, the system enters a temporary `FAILED` state.
+- **Cooldown Period**: Calls to the server during this state return a 503 error with a "Retrying in X seconds" message.
+- **Auto-Recovery**: After a 5-second cooldown, the next request automatically triggers a fresh initialization attempt (resetting internal promises and connection states).
+
+### 2. Lazy Initialization & Race Condition Prevention
+
+To prevent "DB not connected" errors during the bootstrapping phase:
+
+- **Lazy Proxies**: Database adapters and webhook wrappers use lazy property access (getters) rather than eager initialization. This ensures dependencies are only accessed _after_ a successful connection is established.
+- **Order-of-Operations Safety**: The system is Architected to handle out-of-order module loading gracefully without crashing the startup sequence.
+
+## 🔮 Future Improvements
 
 1.  **Granular Sub-States**:
     - Instead of a global `INITIALIZING`, track `DB_CONNECTING`, `CACHE_WARMING`, `INDEX_BUILDING`.
@@ -74,10 +87,7 @@ We are planning to evolve the state machine into a more event-driven, granular s
     - Move from polling/check-based transitions to an event bus architecture.
     - Example: `db:connected` event triggers transition to `CACHE_WARMING`.
 
-3.  **Automatic Recovery**:
-    - Self-healing mechanisms that attempt to reconnect services when in `FAILED` or `DEGRADED` states without requiring a full restart.
-
-4.  **Circuit Breakers**:
+3.  **Circuit Breakers**:
     - Automatically disable specific widgets or API endpoints if their dependent services fail, keeping the rest of the site `READY`.
 
 ---

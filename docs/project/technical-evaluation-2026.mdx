@@ -112,6 +112,12 @@ SveltyCMS uses **ParaglideJS** to treat translations as `code`, not database row
 - **Audit:** Comprehensive audit completed Jan 2026 covering Setup Wizard, Admin Dashboard, and Config modules.
 - **Key Features:** Full keyboard support for drag-and-drop, semantic tree views, and ARIA-live announcements for async operations. This positions SveltyCMS as a leader for government and public sector deployments.
 
+### 3.9 Self-Healing Architecture (New!)
+
+- **Status:** **✅ IMPLEMENTED (Adaptive Recovery)**
+- **Resiliency:** Traditional CMSs often crash loops when the database is briefly unavailable during startup (Race Conditions). SveltyCMS implements a **Self-Healing State Machine** with automatic back-off and retry strategies.
+- **Lazy Initialization:** The system uses **Lazy Proxies** for database connections. Instead of failing immediately if the DB is slow to respond, the application boots into an `IDLE` state and attempts connections only when requests are made, preventing "Death Spiral" boot loops in Kubernetes environments.
+
 ## 4. Comparative Landscape Analysis
 
 ### 4.1 Feature Matrix
@@ -128,6 +134,7 @@ SveltyCMS uses **ParaglideJS** to treat translations as `code`, not database row
 | **SCIM 2.0**       | **Native Endpoints**     | Enterprise        | Manual            | Enterprise     | Plugins    | Plugins    | Enterprise  |
 | **Audit Logs**     | **Crypto-Chain**         | Enterprise        | Manual            | Enterprise     | Plugins    | Basic      | Enterprise  |
 | **Service Guards** | **Capability-Based**     | ❌ None           | ❌ None           | ⚠️ Limited     | ❌ None    | ❌ None    | ❌ None     |
+| **Resiliency**     | **✅ Self-Healing**      | ❌ Crashing       | ⚠️ Manual Retry   | ⚠️ Limited     | ❌ N/A     | ⚠️ Caching | ✅ SaaS SLA |
 | **Accessibility**  | **✅ WCAG 2.2 AA**       | ⚠️ Partial        | ⚠️ Partial        | ⚠️ Partial     | Plugins    | ✅ Good    | ✅ Good     |
 
 ### 4.2 Vs. Strapi (The Heavyweight)
@@ -152,9 +159,16 @@ Contentful is the SaaS benchmark, but its "closed-source" nature creates vendor 
 
 - **Native vs. Gated**: Contentful gates features like SCIM, Audit Logs, and SSO behind "Enterprise" pricing. SveltyCMS provides these **natively** and for free.
 - **Performance**: While SaaS is fast, SveltyCMS's ability to run **locally** or at the **edge** (e.g., Fly.io) allows for significantly lower latency during development and specific high-performance production workloads.
-- **Control**: SveltyCMS allows for custom database adapters (MongoDB/SQL), whereas Contentful forces you into their schema and storage models.
+- **Control**: SveltyCMS allows for custom database adapters (MongoDB, MariaDB/MySQL production-ready; PostgreSQL beta), whereas Contentful forces you into their schema and storage models.
 
-### 4.6 Website Comparison Summary (Official Benchmarks)
+### 4.7 Cloud-Native Scaling & Resiliency (The Scaling Advantage)
+
+Traditional CMS monoliths often fail in auto-scaling environments (Kubernetes/AWS Fargate) due to "Thundering Herd" problems. When 50 containers start simultaneously, they hammer the database, causing connection timeouts that crash the containers, leading to a boot-loop death spiral.
+
+- **The Competitors:** Strapi and Directus often require complex "Init Container" logic or external orchestrators to manage startup sequences.
+- **SveltyCMS Advantage:** The **Self-Healing State Machine** detects connection failures and enters a low-resource `IDLE` or `WARMING` state with exponential backoff. This allows the database to recover while the CMS nodes remain healthy and responsive (serving 503s instead of crashing), ensuring smooth multi-server scaling without manual intervention.
+
+### 4.8 Website Comparison Summary (Official Benchmarks)
 
 Based on the [Official SveltyCMS Comparison](https://sveltycms.com/compare):
 
@@ -191,6 +205,7 @@ Based on the [Official SveltyCMS Comparison](https://sveltycms.com/compare):
 - **YES:** In Architecture (SvelteKit/NX), Performance (Zero-Runtime), and i18n (Paraglide).
 - **YES:** In Enterprise features. With the implementation of **SCIM Endpoints** and **Audit Logging**, it now meets the strict governance requirements of large organizations.
 - **YES:** In Accessibility. The codebase is fully verified against **WCAG 2.2 AA** standards, making it compliant by default.
+- **YES:** In Resiliency. The **Self-Healing State Machine** ensures maximum uptime by automatically recovering from transient connection failures without manual intervention.
 
 **Verdict:** SveltyCMS is the "Formula 1 Car" of CMSs: stripped down, highly engineered, and incredibly fast. For Svelte shops, it is the unequivocal best choice.
 

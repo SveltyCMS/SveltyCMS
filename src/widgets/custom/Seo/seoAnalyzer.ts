@@ -1,6 +1,15 @@
 /**
  * @file src/widgets/custom/Seo/seoAnalyzer.ts
  * @description SEO analysis engine
+ *
+ * Features:
+ * - Keyword analysis
+ * - Readability analysis
+ * - Content structure analysis
+ * - Technical SEO analysis
+ * - Social media analysis
+ * - SERP preview
+ * - Suggestions
  */
 
 import type {
@@ -20,18 +29,18 @@ export class SeoAnalyzer {
 	private transitionWords: Set<string>;
 
 	/**
-	 * Robustly remove all <script> tags and their content from input string.
-	 * Applies replacements repeatedly until no more script tags can be found,
+	 * Robustly remove all HTML tags from input string.
+	 * Applies replacements repeatedly until no more tags can be found,
 	 * preventing bypass via malformed or nested tags.
 	 */
-	private removeScriptTags(input: string): string {
+	private stripHtmlTags(input: string): string {
 		let previous: string;
 		do {
 			previous = input;
 			// Remove <script>...</script> blocks (with any whitespace/attributes)
 			input = input.replace(/<script[\s\S]*?>[\s\S]*?<\/script\s*>/gi, '');
-			// Remove standalone/orphaned <script> opening tags
-			input = input.replace(/<script[^>]*>/gi, '');
+			// Remove all other HTML tags
+			input = input.replace(/<[^>]*>/gi, '');
 		} while (input !== previous);
 		return input;
 	}
@@ -259,9 +268,7 @@ export class SeoAnalyzer {
 		let match;
 		while ((match = headingRegex.exec(content)) !== null) {
 			const level = parseInt(match[1]) as 1 | 2 | 3 | 4 | 5 | 6;
-			const text = this.removeScriptTags(match[2])
-				.replace(/<[^>]*>/g, '') // Remove other HTML tags
-				.trim();
+			const text = this.stripHtmlTags(match[2]).trim();
 			headings[`h${level}` as keyof typeof headings].push(text);
 		}
 
@@ -628,7 +635,7 @@ export class SeoAnalyzer {
 
 		let match;
 		while ((match = headingRegex.exec(content)) !== null) {
-			const headingText = match[1].replace(/<[^>]*>/g, '').toLowerCase();
+			const headingText = this.stripHtmlTags(match[1]).toLowerCase();
 			if (headingText.includes(keyword)) {
 				headingsWithKeyword.push(match[0]);
 			}

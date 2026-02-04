@@ -131,7 +131,7 @@ const paths = {
 	configDir: path.resolve(CWD, 'config'),
 	privateConfig: path.resolve(CWD, 'config/private.ts'),
 	userCollections: path.resolve(CWD, process.env.COLLECTIONS_DIR || 'config/collections'),
-	compiledCollections: path.resolve(CWD, process.env.COMPILED_COLLECTIONS_DIR || 'compiledCollections'),
+	compiledCollections: path.resolve(CWD, process.env.COMPILED_COLLECTIONS_DIR || '.compiledCollections'),
 	widgets: path.resolve(CWD, 'src/widgets')
 };
 
@@ -460,7 +460,7 @@ export default defineConfig((): UserConfig => {
 			},
 			watch: {
 				// Prevent watcher from triggering on generated/sensitive files
-				ignored: ['**/config/private.ts', '**/config/private.backup.*.ts', '**/compiledCollections/**', '**/tests/**']
+				ignored: ['**/config/private.ts', '**/config/private.backup.*.ts', '**/.compiledCollections/**', '**/tests/**']
 			}
 		},
 		ssr: {

@@ -1,0 +1,181 @@
+---
+path: 'docs/database/PostgreSQL_Implementation.mdx'
+title: 'PostgreSQL Implementation'
+description: 'PostgreSQL adapter implementation using Drizzle ORM for SveltyCMS.'
+order: 4
+icon: 'mdi:elephant'
+author: 'AI Agent'
+created: '2026-02-04'
+updated: '2026-02-04'
+tags:
+  - 'database'
+  - 'postgresql'
+  - 'drizzle'
+  - 'beta'
+---
+
+# PostgreSQL Implementation (Beta)
+
+> [!WARNING]
+> PostgreSQL support is currently in **beta**. The adapter scaffolding is complete but most module methods return "not implemented" stubs.
+
+## Overview
+
+SveltyCMS supports PostgreSQL as an alternative to MongoDB and MariaDB through the database adapter pattern. The PostgreSQL adapter uses **Drizzle ORM** with the `postgres.js` driver for optimal performance and type safety.
+
+## Architecture
+
+The PostgreSQL adapter follows the same modular pattern as the MariaDB adapter:
+
+```
+src/databases/postgresql/
+├── postgresAdapter.ts      # Entry point (re-exports adapter)
+├── connection.ts           # postgres.js connection pool management
+├── utils.ts               # Error handling and data transformation
+├── adapter/
+│   ├── index.ts           # Main adapter class with stub modules
+│   └── adapterCore.ts     # Core functionality (connect, disconnect, health)
+└── schema/
+    └── index.ts           # Drizzle ORM schema definitions
+```
+
+## Connection Configuration
+
+PostgreSQL connections are configured using standard connection parameters:
+
+```typescript
+// Environment variables
+DB_TYPE = postgresql;
+DB_HOST = localhost;
+DB_PORT = 5432;
+DB_NAME = sveltycms;
+DB_USER = postgres;
+DB_PASSWORD = your_password;
+```
+
+The connection string is built automatically:
+
+```
+postgresql://user:password@host:port/database
+```
+
+### SSL Support
+
+SSL is supported via the connection options:
+
+```typescript
+ssl: connection.ssl === true || connection.ssl === 'require' ? 'require' : undefined;
+```
+
+## Drizzle Schema
+
+The PostgreSQL schema mirrors the MariaDB schema but uses PostgreSQL-specific types:
+
+### Key Differences from MariaDB
+
+| Feature     | MariaDB                 | PostgreSQL              |
+| ----------- | ----------------------- | ----------------------- |
+| Primary Key | `varchar(36)` with UUID | `uuid()` native type    |
+| Timestamps  | `timestamp`             | `timestamp()`           |
+| JSON Fields | `json()`                | `jsonb()` (binary JSON) |
+| Enums       | String literals         | `pgEnum()` definitions  |
+
+### Schema Tables
+
+```typescript
+// Core tables defined in schema/index.ts
+-users - // User accounts
+	sessions - // Active sessions
+	tokens - // Auth tokens (password reset, email verification)
+	roles - // Permission roles
+	contentNodes - // Dynamic content entries
+	revisions - // Content revision history
+	drafts - // Unpublished drafts
+	mediaItems - // Media file metadata
+	mediaFolders - // Media organization folders
+	collections - // Collection schema definitions
+	widgets - // Widget configurations
+	themes - // Theme configurations
+	preferences - // System preferences
+	virtualFolders - // Virtual folder trees
+	auditLogs; // Audit trail entries
+```
+
+## Current Implementation Status
+
+### ✅ Implemented (Working)
+
+- **Connection Management**: Connect, disconnect, health check
+- **Schema Definition**: Full Drizzle schema with all tables
+- **Type Infrastructure**: DatabaseResult, error handling, utilities
+
+### ⏳ Stub Methods (Not Yet Implemented)
+
+The following modules return "not implemented" and need full development:
+
+| Module                | Status | Priority |
+| --------------------- | ------ | -------- |
+| `crud.*`              | Stub   | High     |
+| `auth.user.*`         | Stub   | High     |
+| `auth.session.*`      | Stub   | High     |
+| `auth.token.*`        | Stub   | High     |
+| `auth.role.*`         | Stub   | Medium   |
+| `content.*`           | Stub   | High     |
+| `media.*`             | Stub   | Medium   |
+| `systemPreferences.*` | Stub   | Medium   |
+| `themes.*`            | Stub   | Low      |
+| `widgets.*`           | Stub   | Low      |
+| `batch.*`             | Stub   | Medium   |
+
+## Usage in Setup Wizard
+
+PostgreSQL can be selected during the setup wizard as a "(Beta)" option. The connection test will work, but full CMS functionality requires completing the stub implementations.
+
+## Development Guide
+
+To contribute to the PostgreSQL adapter:
+
+### 1. Implement CRUD Module
+
+Follow the MariaDB pattern in `src/databases/mariadb/adapter/crudModule.ts`:
+
+```typescript
+// Example: Implementing findOne
+public crud = {
+  findOne: async (collection: string, query: Record<string, unknown>) => {
+    return this.wrap(async () => {
+      const table = this.getTable(collection);
+      const where = this.mapQuery(table, query);
+      const result = await this.db!.select().from(table).where(where).limit(1);
+      return result[0] || null;
+    }, 'crud.findOne');
+  },
+  // ... other methods
+};
+```
+
+### 2. Implement Auth Module
+
+See `src/databases/mariadb/modules/auth/` for reference implementations.
+
+### 3. Testing
+
+```bash
+# Run PostgreSQL-specific tests (when available)
+bun run test:integration --grep postgresql
+```
+
+## Dependencies
+
+```json
+{
+	"postgres": "^3.4.7",
+	"drizzle-orm": "^0.45.1"
+}
+```
+
+## References
+
+- [Drizzle ORM PostgreSQL Docs](https://orm.drizzle.team/docs/get-started-postgresql)
+- [postgres.js](https://github.com/porsager/postgres)
+- [MariaDB Implementation](./MariaDB_Implementation.mdx) - Reference pattern

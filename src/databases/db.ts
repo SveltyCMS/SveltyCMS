@@ -83,6 +83,17 @@ async function loadPrivateConfig(forceReload = false) {
 		return null;
 	}
 }
+// Function to reset initialization state for self-healing (retries)
+export function resetDbInitPromise() {
+	logger.warn('Resetting DB initialization promise for retry...');
+	_dbInitPromise = null;
+	initializationPromise = null;
+	adaptersLoaded = false;
+	isInitialized = false;
+	isConnected = false;
+	// We DON'T clear privateEnv to allow retry with same config
+}
+
 // Function to clear private config cache (used after setup completion)
 export function clearPrivateConfigCache(keepPrivateEnv = false) {
 	logger.debug('Clearing private config cache and initialization promises', {
@@ -299,6 +310,11 @@ async function loadAdapters() {
 				case 'mariadb': {
 					const { MariaDBAdapter } = await import('./mariadb/mariadbAdapter');
 					dbAdapter = new MariaDBAdapter() as unknown as DatabaseAdapter;
+					break;
+				}
+				case 'postgresql': {
+					const { PostgreSQLAdapter } = await import('./postgresql/postgresAdapter');
+					dbAdapter = new PostgreSQLAdapter() as unknown as DatabaseAdapter;
 					break;
 				}
 				default:

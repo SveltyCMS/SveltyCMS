@@ -77,6 +77,13 @@ export async function isSetupCompleteAsync(): Promise<boolean> {
 			return false;
 		}
 
+		// Check if database is connected before trying to access auth
+		if (typeof dbAdapter.isConnected === 'function' && !dbAdapter.isConnected()) {
+			// Database not connected yet - return false without caching
+			// This allows the check to succeed once connection is established
+			return false;
+		}
+
 		// Ensure auth is initialized before access
 		if (dbAdapter.ensureAuth) {
 			await dbAdapter.ensureAuth();

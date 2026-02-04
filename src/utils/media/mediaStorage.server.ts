@@ -35,7 +35,7 @@ export function getImageSizes() {
 	return SIZES;
 }
 
-const MEDIA_ROOT = getPublicSettingSync('MEDIA_FOLDER') ?? 'mediaFiles';
+const MEDIA_ROOT = getPublicSettingSync('MEDIA_FOLDER') ?? 'mediaFolder';
 
 /** Save buffer to storage (local or cloud) */
 export async function saveFile(buffer: Buffer, relPath: string): Promise<string> {

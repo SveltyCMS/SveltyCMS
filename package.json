@@ -120,7 +120,7 @@
 		"prettier-plugin-svelte": "^3.4.1",
 		"prettier-plugin-tailwindcss": "^0.7.2",
 		"semantic-release": "^25.0.3",
-		"svelte": "^5.49.1",
+		"svelte": "^5.49.2",
 		"svelte-awesome-color-picker": "^4.1.1",
 		"svelte-check": "^4.3.6",
 		"svelte-confetti": "^2.3.2",
@@ -136,7 +136,7 @@
 		"wait-on": "^9.0.3"
 	},
 	"dependencies": {
-		"@aws-sdk/client-s3": "^3.981.0",
+		"@aws-sdk/client-s3": "^3.982.0",
 		"@floating-ui/dom": "^1.7.5",
 		"@inlang/paraglide-js": "^2.10.0",
 		"@mapbox/mapbox-gl-geocoder": "^5.1.2",
@@ -181,7 +181,7 @@
 		"drizzle-orm": "^0.45.1",
 		"file-type": "^21.3.0",
 		"google-auth-library": "^10.5.0",
-		"googleapis": "^171.1.0",
+		"googleapis": "^171.2.0",
 		"graphql": "^16.12.0",
 		"graphql-ws": "^6.0.7",
 		"graphql-yoga": "^5.18.0",
@@ -191,7 +191,7 @@
 		"mapbox-gl": "^3.18.1",
 		"mime-types": "^3.0.2",
 		"node-os-utils": "^2.0.1",
-		"nodemailer": "^7.0.13",
+		"nodemailer": "8.0.0",
 		"pdfjs-dist": "^5.4.624",
 		"picocolors": "^1.1.1",
 		"redis": "^5.10.0",
@@ -206,7 +206,7 @@
 	"optionalDependencies": {
 		"mariadb": "^3.4.5",
 		"mongoose": "^9.1.5",
-		"mysql2": "^3.16.2",
+		"mysql2": "^3.16.3",
 		"postgres": "^3.4.8"
 	}
 }

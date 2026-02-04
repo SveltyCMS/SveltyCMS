@@ -25,9 +25,10 @@ vite.config.ts.timestamp-*
 /tmp
 trash/*
 media/*
-mediaFiles/
 mediaFolder/
 compiledCollections/*
+.compiledCollections/*
+
 logs/*
 *.pid
 *.log
@@ -59,3 +60,9 @@ yarn-error.log*
 #paraglide.js
 src/paraglide/**/*.js
 .idea
+.compiledCollections/Collections/Names.js
+.compiledCollections/Collections/Relation.js
+.compiledCollections/Collections/WidgetTest.js
+.compiledCollections/Collections/Posts/Names.js
+.compiledCollections/Collections/Posts/Posts.js
+.compiledCollections/Menu/Menu.js

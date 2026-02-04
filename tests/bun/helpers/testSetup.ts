@@ -6,23 +6,23 @@
 import { waitForServer } from './server';
 import { createTestUsers, loginAsAdmin } from './auth';
 
-/**
- * Initialize the environment (wait for server).
- */
-export async function initializeTestEnvironment(): Promise<void> {
-	await waitForServer();
-}
+// Re-export isServerAvailable for easy access from tests
+export { isServerAvailable } from './server';
 
 /**
- * Cleanup the test environment (placeholder for now).
+ * Initialize the environment (wait for server).
+ * @returns true if server is available, false otherwise
  */
+export async function initializeTestEnvironment(): Promise<boolean> {
+	return await waitForServer();
+}
+
+// Cleanup the test environment (placeholder for now).
 export async function cleanupTestEnvironment(): Promise<void> {
 	// Logic for cleaning up after tests
 }
 
-/**
- * Cleanup the test database (placeholder for now).
- */
+// Cleanup the test database (placeholder for now).
 export async function cleanupTestDatabase(): Promise<void> {
 	console.log('[cleanupTestDatabase] Starting...');
 	// 1. Call reset endpoint to clear config and cache on the server
@@ -345,9 +345,7 @@ export async function prepareAuthenticatedContext(): Promise<string> {
 	return cookie;
 }
 
-/**
- * Common test data (fixtures).
- */
+// Common test data (fixtures).
 export const testFixtures = {
 	users: {
 		admin: {

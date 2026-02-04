@@ -61,6 +61,16 @@ export function buildDatabaseConnectionString(config: DatabaseConfig): string {
 
 			return connectionString;
 		}
+		case 'postgresql': {
+			// PostgreSQL connection string
+			const port = config.port ? `:${config.port}` : ':5432';
+			const hasCredentials = config.user && config.password;
+			const user = hasCredentials ? `${encodeURIComponent(config.user)}:${encodeURIComponent(config.password)}@` : '';
+
+			const connectionString = `postgresql://${user}${config.host}${port}/${config.name}`;
+
+			return connectionString;
+		}
 		default: {
 			// TypeScript ensures exhaustive checking - this should never be reached
 			// but provides a helpful message if the schema is extended without updating this function
@@ -167,11 +177,37 @@ export async function getSetupDatabaseAdapter(config: DatabaseConfig): Promise<{
 
 			break;
 		}
+		case 'postgresql': {
+			// Mock success in TEST_MODE if host is 'mock-host' for UI audit purposes
+			if (process.env.TEST_MODE === 'true' && config.host === 'mock-host') {
+				logger.info('🛠️ Mocking PostgreSQL connection for setup in TEST_MODE');
+				const { PostgreSQLAdapter } = await import('@src/databases/postgresql/postgresAdapter');
+				dbAdapter = new PostgreSQLAdapter() as unknown as IDBAdapter;
+
+				// Mock the connect method to return success
+				dbAdapter.connect = async () => ({ success: true, data: undefined });
+				// Mock the auth setup to do nothing
+				dbAdapter.auth = { setupAuthModels: async () => {} } as IDBAdapter['auth'];
+
+				return { dbAdapter, connectionString };
+			}
+
+			const { PostgreSQLAdapter } = await import('@src/databases/postgresql/postgresAdapter');
+			dbAdapter = new PostgreSQLAdapter() as unknown as IDBAdapter;
+
+			const connectResult = await dbAdapter.connect(connectionString);
+			if (!connectResult.success) {
+				logger.error(`PostgreSQL connection failed: ${connectResult.error?.message}`, { correlationId });
+				throw new Error(`Database connection failed: ${connectResult.error?.message}`);
+			}
+
+			break;
+		}
 		default: {
 			// TypeScript ensures exhaustive checking - this should never be reached
 			const _exhaustiveCheck: never = config.type;
 			logger.error(`Unsupported database type: ${_exhaustiveCheck}`, { correlationId });
-			throw new Error(`Database type '${_exhaustiveCheck}' is not supported for setup. Supported types: mongodb, mongodb+srv, mariadb`);
+			throw new Error(`Database type '${_exhaustiveCheck}' is not supported for setup. Supported types: mongodb, mongodb+srv, mariadb, postgresql`);
 		}
 	}
 

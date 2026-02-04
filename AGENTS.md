@@ -1,580 +1,263 @@
 # AGENTS.md
 
-This file provides guidance to WARP (warp.dev) when working with code in this repository.
+This file provides comprehensive guidance to **AI Coding Assistants (Agents)** (such as Antigravity, Warp, Cursor, etc.) when working with the SveltyCMS codebase.
+
+> [!IMPORTANT]
+> **AI Agents: You MUST read this file in its entirety before performing any code modifications or architectural changes.** This document ensures you adhere to the project's strict standards for security, performance, and accessibility. For Svelte 5 rune best practices, reference [svelte.dev/llms-full.txt](https://svelte.dev/llms-full.txt), emphasizing fine-grained reactivity, deep state mutations, and avoiding legacy stores.
+
+## Table of Contents
+
+- [Project Overview](#project-overview)
+- [Core Philosophy & Focus](#core-philosophy--focus)
+- [Competitive Awareness](#competitive-awareness)
+- [Technical Standards](#technical-standards)
+- [AI Agent Best Practices](#ai-agent-best-practices)
+- [Roadmap (Missing Features)](#roadmap-missing-features)
+- [Project Structure](#project-structure)
+- [Development Commands](#development-commands)
+- [Architecture Overview](#architecture-overview)
+- [Important Patterns & Conventions](#important-patterns--conventions)
+- [Common Pitfalls](#common-pitfalls)
+- [Key Files Reference](#key-files-reference)
+- [Path Aliases](#path-aliases)
+- [Getting Help](#getting-help)
+- [Version Control](#version-control)
 
 ## Project Overview
 
-SveltyCMS is a headless CMS built with SvelteKit 2, Svelte 5, TypeScript, and Tailwind CSS v4. It provides database-agnostic architecture (MongoDB, MariaDB/MySQL, PostgreSQL planned), GraphQL/REST APIs, multi-language support via Paraglide JS, and a widget-based content modeling system.
+SveltyCMS is a powerful headless CMS built with SvelteKit 2, Svelte 5, TypeScript, Tailwind CSS v4, and Skeleton.dev v4. It features a database-agnostic architecture (MongoDB, MariaDB/MySQL production-ready; PostgreSQL beta), GraphQL/REST APIs, multi-language support via Paraglide JS (compile-time, zero-runtime), and a modular widget-based content modeling system. Designed for edge compatibility, zero-runtime overhead, and enterprise readiness.
+
+## Core Philosophy & Focus
+
+- **Data Security & Ownership**: Security is paramount—users always own their data. Implement strict protocols (e.g., no direct DB access outside adapters, secure headers).
+- **Performance & Optimization**: Target sub-millisecond latency with tree-shaking, Valibot, Vite optimizations, and <1s cold starts via progressive initialization.
+- **Universal Accessibility**: WCAG 2.2 AA and ATAG 2.0 compliant (full keyboard support, ARIA-live regions).
+- **Premium Design**: Modern UX with Skeleton.dev v4 for white-labeling and deep theming.
+- **Maximum Flexibility**: Hybrid code/GUI schemas with bi-directional sync.
+- **Developer First**: Support contributors with clear docs, tools, and Svelte 5 runes for efficient reactivity.
+
+## Competitive Awareness (Smarter, Faster, Better)
+
+SveltyCMS alwaysoutperforms competitors like Payload CMS (React/Next.js-based), Strapi (GUI-first, heavier), Directus, Sanity, WordPress, and Drupal by leveraging Svelte 5's no-runtime compilation and unique features. From the 2026 technical evaluation:
+
+| Feature           | SveltyCMS Approach                        | Why Better than Competitors                              |
+| ----------------- | ----------------------------------------- | -------------------------------------------------------- |
+| **Core Tech**     | SvelteKit/Svelte 5 (Runes)                | No VDOM/hydration tax vs. React-based (Payload, Strapi). |
+| **Cold Start**    | <1s (Progressive, self-healing)           | Faster than 3s+ in Payload/Strapi; edge-ready.           |
+| **i18n**          | Paraglide (Compiled, zero-runtime)        | Type-safe, no runtime lookups vs. i18next in rivals.     |
+| **Schemas**       | Hybrid (Code + GUI, bi-directional)       | Flexible vs. code-only (Payload) or GUI-only (Strapi).   |
+| **Multi-Tenancy** | Native (tenantId isolation)               | Core/free vs. enterprise-gated in Strapi/Contentful.     |
+| **SCIM 2.0**      | Native endpoints (RFC 7644, filters/bulk) | Automated provisioning vs. manual/enterprise in others.  |
+| **Audit Logs**    | Crypto-chained (SHA-256 tamper-evident)   | Compliance-ready vs. basic/manual in competitors.        |
+| **Accessibility** | WCAG 2.2 AA / ATAG 2.0                    | Full support vs. partial in Payload/Strapi.              |
+
+To stay ahead: Implement cleaner features (e.g., isomorphic plugins > Payload's rebuilds), benchmark Core Web Vitals, and promote "Agency OS" for low TCO.
+
+## Technical Standards
+
+- **Modern Stack**: Latest TypeScript (^5.9.3), Node.js (>=24), Svelte 5 (^5.46.4), Vite 7 (^7.3.1), Bun (3-4x faster runtime), Nx Monorepo (^22.3.3) for caching.
+- **Code Quality**: Verify with `bun run format && bun run check` before commits.
+
+| Category     | Convention           | Examples                                                   |
+| ------------ | -------------------- | ---------------------------------------------------------- |
+| Naming       | camelCase            | `dbAdapter`, `loadSettings`                                |
+|              | PascalCase           | `Auth`, `MediaService`, `Input.svelte`                     |
+|              | SCREAMING_SNAKE_CASE | `DB_TYPE`, `DEFAULT_THEME`                                 |
+| File Headers | Mandatory format     | `/** @file [path] @description [desc] features: [list] */` |
+
+## AI Agent Best Practices
+
+When generating/modifying code:
+
+1. **Prioritize Tree-shaking**: Use named exports; avoid side-effect imports.
+2. **Use Svelte 5 Runes** (per [svelte.dev/llms-full.txt](https://svelte.dev/llms-full.txt)):
+   - `$state()` for deep reactivity: `let obj = $state({ nested: { value: 1 } }); obj.nested.value = 2;` (granular updates).
+   - `$derived()` for computed: `let doubled = $derived(count * 2);`.
+   - `$effect()` for side effects: `$effect(() => console.log(count));` (avoid state updates inside to prevent loops).
+   - In classes: `class Todo { done = $state(false); constructor(text) { this.text = $state(text); } }`.
+   - Use `$state.raw` for non-mutable data; `$state.snapshot` for static copies; `$state.eager` for immediate feedback.
+   - Avoid legacy stores or reactive declarations; declare at top-level for components.
+3. **Strict Type Safety**: No `any`; use discriminated unions and Valibot for E2E validation.
+4. **Accessibility**: Ensure keyboard-navigable, ARIA-compliant components with live regions.
+5. **Database Agnosticism**: Confine logic to adapters; scope by `tenantId`.
+6. **File Headers**: Always include as defined.
+7. **Roadmap Alignment**: Prioritize gaps like full SAML/SCIM hardening; optimize for enterprise (e.g., lighter SAML deps).
+
+### Mandatory Documentation Updates
+
+> [!CAUTION]
+> **When implementing ANY new feature, you MUST update documentation.** Incomplete documentation is a blocking issue.
+
+**For ALL new features, always update:**
+
+- [ ] `docs/project/roadmap-2026.mdx` - Mark progress, add new items
+- [ ] `AGENTS.md` roadmap checklist (if feature is listed)
+- [ ] Create/update relevant MDX doc in appropriate `docs/` subdirectory
+
+**Feature-Specific Documentation:**
+
+| Feature Type                      | Primary MDX Location                                     | Also Update                                    |
+| --------------------------------- | -------------------------------------------------------- | ---------------------------------------------- |
+| Database adapters                 | `docs/database/` (e.g., `PostgreSQL_Implementation.mdx`) | `technical-evaluation-2026.mdx` feature matrix |
+| Auth/Security (SAML, OAuth, SCIM) | `docs/database/Authentication_System.mdx`                | `technical-evaluation-2026.mdx`                |
+| UI/UX features                    | `docs/guides/` or `docs/architecture/`                   | Widget docs if applicable                      |
+| Content/Preview features          | `docs/guides/` (e.g., `Live_Preview_Architecture.mdx`)   | Integration docs                               |
+| Widgets                           | `docs/widgets/` (per-widget `.mdx`)                      | `widget-system-overview.mdx`                   |
+| API endpoints                     | `docs/api/`                                              | Relevant service docs                          |
+| Performance/Infra                 | `docs/database/Performance_Architecture.mdx`             | `technical-evaluation-2026.mdx`                |
+
+**Key Documentation Files:**
+
+- `docs/database/` - Database adapters, auth, cache, performance
+- `docs/guides/` - Feature guides (Live Preview, Error Handling, etc.)
+- `docs/widgets/` - Per-widget documentation
+- `docs/project/roadmap-2026.mdx` - Roadmap and gap analysis
+- `docs/project/technical-evaluation-2026.mdx` - Competitive comparison
+
+## Roadmap (Missing Features)
+
+From the 2026 roadmap (v0.0.6, target A+ grade), prioritize these for parity/leadership (some beta/implemented; harden for production):
+
+- [/] **PostgreSQL Support (Beta)**: Adapter scaffolding complete; stub methods implemented; needs full CRUD/Auth module implementation. Timeline: Q1 2026.
+- [ ] **SQLite Support**: Lightweight adapter via Drizzle ORM for local/embedded deployments. Timeline: Q1 2026.
+- [x] **SCIM 2.0 (Beta)**: Native endpoints (/scim/v2/Users, Groups, Bulk); support filters (eq, co), PATCH ops; integrate with Okta/Azure; timeline: Q1 polish (3-4 weeks).
+- [ ] **SAML 2.0 / Enterprise SSO**: Add via @boxyhq/saml-jackson; support IdPs (Okta, Azure); config interface for assertions; timeline: Q1 (4-6 weeks).
+- [x] **Crypto-Chained Audit Logs (Implemented)**: SHA-256 tamper-evident; schema with before/after changes; harden for SOC 2/GDPR.
+- [x] **Self-Healing State Machines**: Custom Svelte store-based state machine with auto-recovery lifecycle (IDLE → READY <1s).
+- [x] **Live Preview (Iframe + Plugin)**: Enterprise handshake protocol with secure tokens; iframe + editable.website integration; see `docs/guides/Live_Preview_Architecture.mdx`.
+- [ ] **Plugin System**: Isomorphic hook-based architecture for extensibility.
+- [ ] **Real-Time Collaboration**: WebSocket-based collaborative editing with live cursors.
+- [ ] **BuzzForm Collection Builder**: Visual drag-and-drop form/collection builder (like [form.buildnbuzz.com](https://form.buildnbuzz.com/builder)); improved UX for non-technical users. Timeline: Q1 2026.
+- [ ] **MCP AI Knowledgebase Server**: Model Context Protocol server exposing CMS docs, schemas, and APIs as AI-accessible knowledge; enables AI coding assistants to understand SveltyCMS ecosystem. Timeline: Q1 2026.
+- [/] **Image Editor Enhancement**: Current implementation buggy; needs stabilization and feature improvements.
+- [/] **Collection Builder Enhancement**: Current implementation buggy; needs UX improvements and bug fixes.
+- [!] **GitHub Actions CI Fix**: Integration tests failing; needs investigation and fixes to restore green CI. **HIGH PRIORITY**
+- [ ] **Config Sync/Export Testing**: Full E2E testing of configuration sync and export functionality.
+- [ ] **Widget System Testing**: Comprehensive testing of all widgets for regressions.
+- [ ] **Collection Revisions Testing**: Full testing of revision history, rollback, and diff functionality.
+- Other Q1-Q4: ASR threat detection, full WCAG audit, Edge deployment guides.
+
+## Project Structure
+
+- **CMS (`/src`)**: Core logic, adapters, services, widgets (each with `.mdx` docs).
+- **Documentation (`/docs`)**: Guides, roadmap, evaluations.
+- **Tests (`/tests`)**: Unit (Bun), integration, E2E (Playwright).
 
 ## Development Commands
 
-### Daily Development
-
-```bash
-# Development server (auto-launches setup wizard if needed)
-bun run dev              # Preferred (fastest)
-npm run dev              # Alternative
-pnpm run dev            # Alternative
-
-# Build for production
-bun run build           # Standard build
-bun run build:verbose   # With detailed output
-bun run build:analyze   # With bundle size visualization
-
-# Preview production build
-bun run preview         # Runs on localhost:4173
-```
-
-### Code Quality
-
-```bash
-# Type checking
-bun run check           # Run once
-bun run check:watch     # Watch mode
-
-# Linting and formatting
-bun run lint            # Check code style (Prettier + ESLint)
-bun run format          # Auto-fix formatting
-```
-
-### Testing
-
-```bash
-# Unit tests (fast, no server needed)
-bun run test:unit       # Tests services, utils, stores, widgets
-
-# Integration tests (requires MongoDB/MariaDB)
-bun run test:integration  # Full lifecycle: build, start server, seed DB, test, cleanup
-
-# E2E tests (Playwright)
-bun run test:e2e        # Runs browser automation tests
-
-# All tests
-bun run test:all        # Runs all test suites sequentially
-```
-
-### Database Operations
-
-```bash
-# Drizzle ORM (MariaDB/MySQL/PostgreSQL)
-bun run db:push         # Push schema changes
-bun run db:migrate      # Run migrations
-bun run db:studio       # Open Drizzle Studio GUI
-```
-
-### Internationalization
-
-```bash
-bun run paraglide       # Compile i18n messages
-bun run translate       # Machine translate missing keys
-```
-
-### Diagnostics
-
-```bash
-bun run check:mongodb   # Test MongoDB connection
-bun run build:stats     # Generate bundle size report
-```
+| Category      | Command                    | Description                    |
+| ------------- | -------------------------- | ------------------------------ |
+| Daily Dev     | `bun run dev`              | Dev server (auto-setup wizard) |
+|               | `bun run build`            | Production build               |
+|               | `bun run preview`          | Preview on localhost:4173      |
+| Code Quality  | `bun run check`            | Type checking                  |
+|               | `bun run lint`             | Lint (Prettier + ESLint)       |
+| Testing       | `bun run test:unit`        | Unit tests                     |
+|               | `bun run test:integration` | Integration (DB required)      |
+|               | `bun run test:e2e`         | E2E (Playwright)               |
+| DB Operations | `bun run db:push`          | Push schema changes (Drizzle)  |
+| i18n          | `bun run paraglide`        | Compile messages               |
+| Diagnostics   | `bun run check:mongodb`    | Test MongoDB connection        |
 
 ## Architecture Overview
 
 ### Database Adapter Pattern (CRITICAL)
 
-SveltyCMS is **database-agnostic**. All database operations MUST use the adapter interface.
+Use `dbAdapter` for agnosticism:
 
-**✅ CORRECT - Use adapter pattern:**
+✅ Correct: `const items = await dbAdapter.crud.findMany('collection_name', filter);`
 
-```typescript
-import { dbAdapter } from '$databases/db';
+❌ Wrong: Direct `mongoose.model('Collection').find();`
 
-export async function GET({ locals }) {
-	// Access via adapter interface
-	const items = await dbAdapter.crud.findMany('collection_name', filter);
-	const user = await dbAdapter.auth.user.findOne({ email });
-	return json(items);
-}
-```
+**Key adapter interfaces:** `crud.*`, `auth.user.*`, `auth.session.*`, `auth.token.*`, `collection.*`, `media.*`, `settings.*`, `widget.*`.
 
-**❌ WRONG - Direct database access:**
+### Widget System Architecture (3-Pillar)
 
-```typescript
-import mongoose from 'mongoose';
-import { db } from 'drizzle-orm';
+1. **Definition** (`index.ts`): `createWidget()` with Valibot schema.
+2. **Input** (`Input.svelte`): Entry component.
+3. **Display** (`Display.svelte`): Render component.
 
-// Never do this - breaks database portability
-const items = await mongoose.model('Collection').find();
-const items = await db.select().from(table);
-```
-
-**Key adapter interfaces:**
-
-- `dbAdapter.crud.*` - CRUD operations for collections
-- `dbAdapter.auth.user.*` - User management
-- `dbAdapter.auth.session.*` - Session management
-- `dbAdapter.auth.token.*` - Token management
-- `dbAdapter.auth.role.*` - Role/permission management
-- `dbAdapter.collection.*` - Collection schema operations
-- `dbAdapter.media.files.*` - Media file metadata
-- `dbAdapter.media.folders.*` - Media folder organization
-- `dbAdapter.settings.*` - System settings
-- `dbAdapter.widget.*` - Widget configuration
-
-### Widget System Architecture
-
-Widgets follow a **3-pillar architecture**:
-
-1. **Definition Pillar** (`index.ts`):
-   - Created using `createWidget()` factory function
-   - Exports a typed widget factory
-   - Defines validation schema (Valibot)
-   - Specifies GuiSchema for Collection Builder UI
-   - Returns immutable `WidgetDefinition`
-
-2. **Input Pillar** (`Input.svelte`):
-   - Interactive component for data entry
-   - Used in Collection Builder and content editing
-   - Handles validation and user input
-   - Props: `{ field, value, onValueChange, ... }`
-
-3. **Display Pillar** (`Display.svelte`):
-   - Read-only component for rendering values
-   - Used in content lists and previews
-   - Optimized for performance
-   - Props: `{ field, value, ... }`
-
-**Creating a widget:**
+Example (condensed):
 
 ```typescript
-// src/widgets/myWidget/index.ts
 import { createWidget } from '@widgets/widgetFactory';
 import * as v from 'valibot';
 
-interface MyWidgetProps {
-	maxLength?: number;
-	placeholder?: string;
-}
-
-export default createWidget<MyWidgetProps>({
+export default createWidget<{ maxLength?: number }>({
 	Name: 'myWidget',
-	Icon: 'mdi:widget-icon',
-	Description: 'My custom widget',
-	inputComponentPath: '/src/widgets/myWidget/Input.svelte',
-	displayComponentPath: '/src/widgets/myWidget/Display.svelte',
 	validationSchema: (field) => v.string([v.maxLength(field.maxLength ?? 100)]),
-	defaults: { maxLength: 100, placeholder: 'Enter text...' },
-	GuiSchema: {
-		maxLength: { widget: 'number', label: 'Max Length' },
-		placeholder: { widget: 'text', label: 'Placeholder' }
-	}
+	GuiSchema: { maxLength: { widget: 'number', label: 'Max Length' } }
 });
 ```
-
-**Widget storage:**
-
-- Widget definitions: File system (`src/widgets/`)
-- Widget configuration (enabled/disabled, tenant-specific): Database (`widgets` table)
-- Widget state management: `widgetStore.svelte.ts` (Svelte 5 singleton)
 
 ### Content & Collection System
 
-**Collections** are content types defined via:
-
-- **Code**: TypeScript files in `config/collections/` (developer-friendly)
-- **GUI**: Collection Builder interface (user-friendly)
-
-**Collection compilation flow:**
-
-1. User creates/edits collection in `config/collections/*.ts`
-2. Vite watcher detects change
-3. `compile()` processes TypeScript → JavaScript
-4. Output goes to `compiledCollections/` directory
-5. HMR triggers `scanCompiledCollections()` → registers models in database
-6. Content structure types regenerated
-7. Client receives full-reload signal
-
-**Key files:**
-
-- `src/content/collectionScanner.ts` - Scans compiled collections
-- `src/content/types.ts` - TypeScript interfaces for Schema, FieldInstance, etc.
-- `src/utils/compilation/compile.ts` - Collection compilation logic
-- `vite.config.ts` - cmsWatcherPlugin handles HMR
+Hybrid code/GUI with TS → JS → DB sync.
 
 ### Middleware Pipeline (hooks.server.ts)
 
-Request processing order:
-
-1. **handleCompression** - GZIP/Brotli compression
-2. **handleStaticAssetCaching** - Skip processing for static files
-3. **handleSystemState** - Validate system health (gatekeeper)
-4. **handleRateLimit** - Abuse prevention
-5. **handleFirewall** - Threat detection
-6. **handleSetup** - Enforce setup completion
-7. **handleLocale** - i18n cookie sync
-8. **handleTheme** - SSR dark mode
-9. **handleAuthentication** - Session management
-10. **handleAuthorization** - Permission checks
-11. **handleApiRequests** - API-specific logic (RBAC, caching)
-12. **handleTokenResolution** - Replace tokens in API responses
-13. **addSecurityHeaders** - CSP, security headers
+Order: Compression → Caching → System State (self-healing) → Rate Limit → Firewall → Setup → Locale → Theme → Auth → Authorization → API Logic → Token Resolution → Security Headers.
 
 ### Multi-Tenant Architecture
 
-SveltyCMS supports optional multi-tenancy:
-
-- Enabled via `MULTI_TENANT` in `config/private.ts`
-- `tenantId` field added to collections, users, widgets, etc.
-- Tenant isolation enforced at database query level
-- API endpoints automatically scope queries by `locals.tenantId`
+Native; enabled in `config/private.ts`; Enforces isolation via `tenantId`.
 
 ### State Management
 
-**Svelte 5 Runes** are used throughout:
-
-- `$state()` - Reactive state
-- `$derived()` - Computed values
-- `$effect()` - Side effects
-
-**Key stores:**
-
-- `widgetStore.svelte.ts` - Widget registry (singleton pattern)
-- `stores/system/state.ts` - System state machine (IDLE → INITIALIZING → READY/DEGRADED/FAILED)
-- `stores/system/async.ts` - Async utilities like `waitForServiceHealthy()`
-
-### Configuration Files
-
-**IMPORTANT - Never commit sensitive data:**
-
-- `config/private.ts` - Database credentials, JWT secrets (gitignored)
-- `config/private.test.ts` - Test database config (auto-generated, gitignored)
-- `config/collections/` - User-defined collection schemas
-
-**Public configuration:**
-
-- `config/public.ts` - Public settings (safe to commit)
-- `svelte.config.js` - SvelteKit configuration
-- `vite.config.ts` - Build and dev server configuration
-- `drizzle.config.ts` - Drizzle ORM configuration
-
-### Testing Strategy
-
-**Test isolation:**
-
-- Production config: `config/private.ts` (never touched)
-- Test config: `config/private.test.ts` (dynamically generated)
-- `TEST_MODE=true` environment variable enables strict isolation
-- Test database names must include "test" or end with "\_functional"
-
-**Test structure:**
-
-- Unit tests: `tests/bun/services`, `tests/bun/utils`, `tests/bun/stores`, `tests/bun/widgets`
-- Integration tests: `tests/bun/api`, `tests/bun/databases`, `tests/bun/hooks`
-- E2E tests: `tests/playwright`
-
-**Running tests locally:**
-
-```bash
-# Unit tests only (fast)
-bun run test:unit
-
-# Integration (full lifecycle with MongoDB Memory Server)
-bun run test:integration
-
-# E2E with Playwright
-bun run test:e2e
-```
-
-## Path Aliases
-
-Defined in `svelte.config.js` and `vite.config.ts`:
-
-```typescript
-'@src'          → './src'
-'@components'   → './src/components'
-'@databases'    → './src/databases'
-'@auth'         → './src/databases/auth'
-'@config'       → './config'
-'@collections'  → './config/collections'
-'@utils'        → './src/utils'
-'@stores'       → './src/stores'
-'@widgets'      → './src/widgets'
-'@content'      → './src/content'
-'@services'     → './src/services'
-'@types'        → './src/types'
-'@themes'       → './src/themes'
-'@static'       → './static'
-'@root'         → '.'
-'@api'          → './src/routes/api'
-'@hooks'        → './src/hooks'
-'$paraglide'    → './src/paraglide'
-```
+Svelte 5 runes: `$state()` for state, `$derived()` for computations, `$effect()` for effects. Stores: `widgetStore.svelte.ts` (singleton), `stores/system/state.ts` (custom auto-recovery state machine).
 
 ## Important Patterns & Conventions
 
-### 1. Security - Never Expose Secrets
-
-**❌ NEVER do this:**
-
-```typescript
-// Importing server-only files in client components
-import { privateEnv } from '@config/private'; // BREAKS BUILD
-import { getPrivateSettingSync } from '@utils/privateSettings.server'; // BREAKS BUILD
-```
-
-**✅ Use appropriate patterns:**
-
-```typescript
-// In +page.server.ts or +server.ts
-import { privateEnv } from '@config/private'; // OK - server-only
-export async function load() {
-	return { publicData: transform(privateEnv) };
-}
-```
-
-Files ending in `.server.ts` or `.server.js` are automatically stubbed in client builds.
-
-### 2. Async Initialization
-
-Database and authentication are initialized lazily on first request. Use:
-
-```typescript
-import { dbInitPromise } from '$databases/db';
-
-// Wait for DB to be ready
-await dbInitPromise;
-```
-
-### 3. Type Safety
-
-- Use TypeScript for all new code
-- Avoid `any` type - use `unknown` and type guards
-- Leverage Valibot for runtime validation
-- Widget props must extend `WidgetProps` base interface
-
-### 4. Error Handling
-
-**Preferred pattern:**
-
-```typescript
-import { logger } from '@utils/logger';
-
-try {
-  const result = await operation();
-  return json(result);
-} catch (error) {
-  logger.error('Operation failed', { error, context: {...} });
-  return json({ error: 'Operation failed' }, { status: 500 });
-}
-```
-
-### 5. Logging
-
-Use the structured logger:
-
-```typescript
-import { logger } from '@utils/logger';
-
-logger.info('Message', { context: 'data' });
-logger.warn('Warning', { userId: '123' });
-logger.error('Error occurred', { error, stack: error.stack });
-logger.debug('Debug info', { data }); // Only in dev mode
-```
-
-### 6. Permissions
-
-Check permissions in API endpoints:
-
-```typescript
-import { hasPermissionWithRoles } from '@auth/utils';
-
-export async function POST({ locals }) {
-	const { user, roles } = locals;
-
-	if (!hasPermissionWithRoles(user, 'api:collections:write', roles)) {
-		return json({ error: 'Unauthorized' }, { status: 403 });
-	}
-
-	// Proceed with operation
-}
-```
-
-### 7. Validation
-
-Use Valibot for input validation:
-
-```typescript
-import * as v from 'valibot';
-
-const schema = v.object({
-	name: v.string([v.minLength(3)]),
-	email: v.string([v.email()]),
-	age: v.optional(v.number([v.minValue(0)]))
-});
-
-try {
-	const data = v.parse(schema, input);
-} catch (error) {
-	// Handle validation error
-}
-```
-
-### 8. Internationalization
-
-Use Paraglide for i18n:
-
-```svelte
-<script>
-	import * as m from '$paraglide/messages';
-	import { languageTag } from '$paraglide/runtime';
-</script>
-
-<h1>{m.welcome()}</h1><p>{languageTag()}</p> <!-- Current language: 'en', 'de', etc. -->
-```
-
-### 9. API Response Format
-
-Consistent API response structure:
-
-```typescript
-// Success
-return json({ data: result, message: 'Operation successful' });
-
-// Error
-return json({
-  error: 'Error message',
-  code: 'ERROR_CODE',
-  details: {...}
-}, { status: 400 });
-
-// Paginated
-return json({
-  data: items,
-  pagination: {
-    currentPage: 1,
-    pageSize: 20,
-    totalItems: 100,
-    pagesCount: 5
-  }
-});
-```
+1. **Security**: No secrets in client; use `.server.ts`.
+2. **Async Init**: Await `dbInitPromise`.
+3. **Type Safety & Validation**: Valibot schemas.
+4. **Error Handling & Logging**: Try-catch with structured logger.
+5. **Permissions**: `hasPermissionWithRoles()`.
+6. **i18n**: Paraglide messages.
+7. **API Responses**: Consistent `{ data, message }` or `{ error, code }`.
 
 ## Common Pitfalls
 
-### 1. Circular Dependencies
-
-The system uses dynamic imports to avoid circular dependencies in:
-
-- `widgetStore.svelte.ts` → widgets
-- `settingsService.ts` → database
-- `db.ts` → various services
-
-If adding new service dependencies, prefer dynamic imports for initialization:
-
-```typescript
-// ✅ Correct
-async function initService() {
-	const { someService } = await import('./someService');
-	await someService.init();
-}
-
-// ❌ Wrong
-import { someService } from './someService'; // May cause circular dependency
-```
-
-### 2. Hot Module Replacement (HMR)
-
-Vite HMR is configured for:
-
-- Collection changes: Auto-recompiles and registers models
-- Widget changes: Reloads widget store and client
-- Theme changes: Applies theme without full reload
-
-When working with these, full page reload is expected behavior.
-
-### 3. Setup Wizard
-
-On first run (no `config/private.ts`):
-
-- Setup wizard auto-opens at http://localhost:5173/setup
-- Creates database credentials and admin user
-- Generates `config/private.ts` with real credentials
-- Do NOT manually create `config/private.ts` - let the wizard handle it
-
-### 4. Database Seeding in Tests
-
-Integration tests use:
-
-1. `scripts/run-integration-tests.ts` orchestrator
-2. MongoDB Memory Server (random port)
-3. `config/private.test.ts` (auto-generated with test DB config)
-4. `scripts/seed-test-db.ts` creates test data
-5. Safety checks prevent accidental production DB seeding
-
-### 5. TypeScript Errors During Build
-
-If you see "Module not found" errors for `@src/widgets/proxy` or path aliases:
-
-- Run `bunx svelte-kit sync` to regenerate types
-- Check `tsconfig.json` paths match `svelte.config.js` aliases
-- Ensure all imports use path aliases consistently
+1.  **Circular Dependencies**: Use dynamic imports for service initialization.
+2.  **HMR Reloads**: Expected for collections/widgets. Full page reload is normal.
+3.  **Setup Wizard**: Let it generate `config/private.ts`. Do NOT create manually.
+4.  **DB Seeding**: Safety checks prevent accidental production seeding.
+5.  **TS Errors**: Run `bunx svelte-kit sync` to regenerate types.
+6.  **Competitor Parity**: Use runes for lighter UIs vs. React hydration.
 
 ## Key Files Reference
 
-**Database & Auth:**
+| Category      | Key Files                                                                    |
+| :------------ | :--------------------------------------------------------------------------- |
+| **DB & Auth** | db.ts`, `dbInterface.ts`, database adapters like mongo, drizzle, etc.        |
+| **Content**   | `types.ts`, `collectionScanner.ts`, `config/collections/`                    |
+| **Widgets**   | `widgetFactory.ts`, `widgetStore.svelte.ts`                                  |
+| **API**       | `routes/api/`, `hooks.server.ts`                                             |
+| **Services**  | `settingsService.ts`, `scheduler/`, `AuditLogService.ts`,`MetricsService.ts` |
+| **Build**     | `vite.config.ts`, `svelte.config.js`, `tailwind.config.js`                   |
 
-- `src/databases/db.ts` - Database initialization and adapter
-- `src/databases/dbInterface.ts` - Database adapter interface
-- `src/databases/auth/` - Authentication system
-- `src/databases/mongodb/` - MongoDB adapter
-- `src/databases/mariadb/` - MariaDB adapter
+## Path Aliases
 
-**Content & Collections:**
-
-- `src/content/types.ts` - Schema, FieldInstance, ContentNode types
-- `src/content/collectionScanner.ts` - Collection discovery
-- `src/content/index.ts` - ContentManager
-- `config/collections/` - User collection schemas
-- `compiledCollections/` - Compiled collection output (gitignored)
-
-**Widgets:**
-
-- `src/widgets/widgetFactory.ts` - createWidget() factory
-- `src/widgets/types.ts` - Widget type definitions
-- `src/stores/widgetStore.svelte.ts` - Widget registry
-- `src/widgets/*/` - Individual widget implementations
-
-**API Endpoints:**
-
-- `src/routes/api/` - All API endpoints
-- `src/hooks.server.ts` - Request middleware pipeline
-- `src/hooks/` - Individual middleware hooks
-
-**Services:**
-
-- `src/services/settingsService.ts` - Settings cache
-- `src/services/MetricsService.ts` - Performance metrics
-- `src/services/TelemetryService.ts` - Update checking
-- `src/services/scheduler/` - Background task scheduler
-
-**Build & Config:**
-
-- `vite.config.ts` - Vite configuration (HMR, plugins)
-- `svelte.config.js` - SvelteKit configuration
-- `tailwind.config.js` - Tailwind CSS configuration
-- `drizzle.config.ts` - Drizzle ORM configuration
+```
+@src → ./src          @components → ./src/components   @databases → ./src/databases
+@config → ./config    @utils → ./src/utils             @stores → ./src/stores
+@widgets → ./src/widgets  @services → ./src/services   $paraglide → ./src/paraglide
+```
 
 ## Getting Help
 
-- **Documentation:** `./docs/` directory
-- **GitHub Discussions:** https://github.com/SveltyCMS/SveltyCMS/discussions
-- **Discord:** https://discord.gg/qKQRB6mP
-- **Issues:** https://github.com/SveltyCMS/SveltyCMS/issues
-- **Contributing Guide:** `CONTRIBUTING.md`
-- **Security Issues:** security@sveltycms.com
+- **Documentation:** `./docs/` (incl. roadmap, evaluation); widgets have `.mdx`.
+- **GitHub:** https://github.com/SveltyCMS/SveltyCMS (Discussions, Issues).
+- **Discord:** https://discord.gg/qKQRB6mP.
+- **Website:** https://sveltycms.com (homepage), https://marketplace.sveltycms.com, https://docs.sveltycms.com, https://telemetry.sveltycms.com.
+- **Security:** security@sveltycms.com.
 
 ## Version Control
 
-- Main development branch: `next`
-- Stable release branch: `main`
-- Use conventional commits: `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`
-- Include co-author line in commits: `Co-Authored-By: Warp <agent@warp.dev>`
-- Run `bun run lint` and `bun run check` before committing
+- Branches: `next` (dev), `main` (stable).
+- Commits: Conventional (`feat:`, `fix:`, `docs:`); include `Co-Authored-By: <agent>`.
+- Pre-commit: `bun run lint && bun run check`.
+
+---
+
+_Last Updated: 2026-02-04_

@@ -43,7 +43,7 @@ export async function compile(options: CompileOptions = {}): Promise<Compilation
 
 	// Default paths
 	const userCollections = options.userCollections || path.posix.join(process.cwd(), 'config/collections');
-	const compiledCollections = options.compiledCollections || path.posix.join(process.cwd(), 'compiledCollections');
+	const compiledCollections = options.compiledCollections || path.posix.join(process.cwd(), '.compiledCollections');
 	const concurrencyLimit = options.concurrency || 5;
 
 	const result: CompilationResult = {
@@ -298,7 +298,7 @@ function transformAST(code: string, uuid: string): string {
 
 function wrapOutput(code: string, hash: string, pathRel: string): string {
 	// Add header comments
-	let out = code.replace(/(\s*\*\s*@file\s+)(.*)/, `$1compiledCollections/${pathRel}`);
+	let out = code.replace(/(\s*\*\s*@file\s+)(.*)/, `$1.compiledCollections/${pathRel}`);
 	out = out.replace(/^\/\/\s*(HASH|UUID):.*$/gm, '').trimStart();
 
 	return `// WARNING: Generated file. Do not edit.\n` + `// HASH: ${hash}\n\n` + out;

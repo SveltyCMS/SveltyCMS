@@ -29,7 +29,7 @@ export interface AuditLogEntry {
 }
 
 export class AuditLogService {
-	private readonly logDir = 'logs/audit';
+	private readonly logDir = 'logs';
 	private readonly currentLogFile = 'audit.json';
 	private lastHash: string = '0000000000000000000000000000000000000000000000000000000000000000';
 	private initialized = false;

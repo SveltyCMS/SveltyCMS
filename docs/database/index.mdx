@@ -70,10 +70,15 @@ Implementation guides for specific database backends:
    - Type-safe queries with full TypeScript support
    - **Status**: Implementation Complete (100%)
 
+6. **[PostgreSQL Implementation](./PostgreSQL_Implementation.mdx)** 🆕 (Beta)
+   - Drizzle ORM with postgres.js driver
+   - Full schema with PostgreSQL-specific types (UUID, JSONB)
+   - Connection management and health checks
+   - **Status**: Beta (adapter scaffolding complete, stub methods)
+
 **Coming Soon:**
 
-- PostgreSQL Implementation (via Drizzle ORM)
-- SQLite Implementation (via Drizzle ORM)
+- SQLite Implementation (via Drizzle ORM) - Lightweight embedded database for local development and edge deployments
 
 ---
 
@@ -86,6 +91,7 @@ Implementation guides for specific database backends:
 - **Understand authentication** → Read [Authentication System](./Authentication_System.mdx)
 - **Optimize MongoDB** → Read [MongoDB Implementation](./MongoDB_Implementation.mdx)
 - **Implement MariaDB** → Read [MariaDB Implementation](./MariaDB_Implementation.mdx)
+- **Implement PostgreSQL** → Read [PostgreSQL Implementation](./PostgreSQL_Implementation.mdx)
 - **Add a new database** → Read [Core Infrastructure](./Core_Infrastructure.mdx) section "Adding New Adapters"
 - **Check cache performance** → Read [Cache System](./Cache_System.mdx) section "Metrics"
 - **Implement permissions** → Read [Authentication System](./Authentication_System.mdx) section "Permissions"
@@ -112,11 +118,17 @@ Implementation guides for specific database backends:
 2. Review the schema design and migration system
 3. Check implementation roadmap for completion status
 
+### For PostgreSQL Users
+
+1. Read [PostgreSQL Implementation](./PostgreSQL_Implementation.mdx) for current status
+2. Note: Beta implementation - stub methods need completion
+3. Follow MariaDB pattern for contributing implementations
+
 ### For Adding New Database Support
 
 1. Read [Core Infrastructure](./Core_Infrastructure.mdx) → "Adding New Adapters"
 2. Implement the `DatabaseAdapter` interface
-3. Follow the PostgreSQL example provided
+3. Follow the PostgreSQL or MariaDB example
 4. Test against the database-agnostic tests
 
 ---

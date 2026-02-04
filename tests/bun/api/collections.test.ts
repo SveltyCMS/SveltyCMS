@@ -18,8 +18,14 @@ const API_BASE_URL = getApiBaseUrl();
 const TEST_COLLECTION_NAME = 'test_posts';
 const TEST_COLLECTION_PATH = `config/collections/${TEST_COLLECTION_NAME}.ts`;
 const TEST_COLLECTION_CONFIG = `
-import type { CollectionConfig } from '@src/types/CollectionConfig';
-export const schema: CollectionConfig = {
+/**
+ * @file config/collections/${TEST_COLLECTION_NAME}.ts
+ * @description AUTO-GENERATED FILE FOR TESTING PURPOSES.
+ * This file is created by tests/bun/api/collections.test.ts and should be automatically removed after tests complete.
+ * If found lingering, it is safe to delete.
+ */
+import type { Schema } from '@src/content/types';
+export const schema: Schema = {
 	name: '${TEST_COLLECTION_NAME}',
 	slug: '${TEST_COLLECTION_NAME}',
 	fields: [

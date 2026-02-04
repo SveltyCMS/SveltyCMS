@@ -207,7 +207,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 					const extension = ext;
 
 					// MEDIA_FOLDER may not be eagerly available; use a safe default
-					const mediaFolder = publicEnv.MEDIA_FOLDER || 'mediaFiles';
+					const mediaFolder = publicEnv.MEDIA_FOLDER || 'mediaFolder';
 					if (!mediaFolder) {
 						logger.warn('MEDIA_FOLDER not set; proceeding with defaults');
 					}
