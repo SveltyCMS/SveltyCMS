@@ -116,18 +116,26 @@ export async function seedRoles(dbAdapter: DatabaseAdapter, tenantId?: string): 
 		for (const role of defaultRoles) {
 			try {
 				// Admin role gets all permissions
+				// For tenant-scoped roles, generate unique IDs to avoid
+				// primary key collisions with roles from other tenants
 				const roleToCreate = {
 					...role,
+					_id: tenantId ? crypto.randomUUID() : role._id,
 					permissions: role._id === 'admin' ? adminPermissions : role.permissions,
 					...(tenantId && { tenantId })
 				};
 
-				await dbAdapter.auth.createRole(roleToCreate);
-				logger.debug(`✅ Role "${role.name}" seeded successfully${tenantId ? ` for tenant ${tenantId}` : ''}`);
+				const result = await dbAdapter.auth.createRole(roleToCreate);
+				// createRole returns DatabaseResult — check success instead of relying on exceptions
+				if (result && 'success' in result && !result.success) {
+					logger.warn(`Role "${role.name}" creation returned failure${tenantId ? ` for tenant ${tenantId}` : ''}: ${result.error?.message || 'unknown'}`);
+				} else {
+					logger.debug(`✅ Role "${role.name}" seeded successfully${tenantId ? ` for tenant ${tenantId}` : ''}`);
+				}
 			} catch (error) {
 				// Skip if role already exists (duplicate key error)
 				const errorMessage = error instanceof Error ? error.message : String(error);
-				if (errorMessage.includes('duplicate') || errorMessage.includes('E11000')) {
+				if (errorMessage.includes('duplicate') || errorMessage.includes('E11000') || errorMessage.includes('ER_DUP_ENTRY')) {
 					logger.debug(`ℹ️  Role "${role.name}" already exists${tenantId ? ` for tenant ${tenantId}` : ''}, skipping`);
 				} else {
 					logger.error(`Failed to seed role "${role.name}"${tenantId ? ` for tenant ${tenantId}` : ''}:`, error);

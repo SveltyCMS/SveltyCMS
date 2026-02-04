@@ -324,8 +324,9 @@ class ContentManager {
 				await this.initialize(tenantId);
 			}
 			const collections: Schema[] = [];
+
 			for (const node of this.contentNodeMap.values()) {
-				if (node.nodeType === 'collection' && node.collectionDef && (!tenantId || node.tenantId === tenantId)) {
+				if (node.nodeType === 'collection' && node.collectionDef && (!tenantId || !node.tenantId || node.tenantId === tenantId)) {
 					collections.push(node.collectionDef);
 				}
 			}
@@ -505,7 +506,7 @@ class ContentManager {
 		const children: ContentNode[] = [];
 
 		for (const node of this.contentNodeMap.values()) {
-			if (node.parentId === nodeId && (!tenantId || node.tenantId === tenantId)) {
+			if (node.parentId === nodeId && (!tenantId || !node.tenantId || node.tenantId === tenantId)) {
 				children.push({
 					_id: node._id,
 					name: node.name,
@@ -660,8 +661,8 @@ class ContentManager {
 			}
 		}
 
-		// Filter by tenantId if provided
-		if (node?.collectionDef && tenantId && node.tenantId !== tenantId) {
+		// Filter by tenantId if provided (global collections with no tenantId are available to all tenants)
+		if (node?.collectionDef && tenantId && node.tenantId && node.tenantId !== tenantId) {
 			return null;
 		}
 
@@ -704,7 +705,7 @@ class ContentManager {
 
 		const allCollections: Schema[] = [];
 		for (const node of this.contentNodeMap.values()) {
-			if (node.nodeType === 'collection' && node.collectionDef && (!tenantId || node.tenantId === tenantId)) {
+			if (node.nodeType === 'collection' && node.collectionDef && (!tenantId || !node.tenantId || node.tenantId === tenantId)) {
 				allCollections.push(node.collectionDef);
 			}
 		}
@@ -780,8 +781,8 @@ class ContentManager {
 				continue;
 			}
 
-			// Apply tenant filter
-			if (filters?.tenantId && node.tenantId !== filters.tenantId) {
+			// Apply tenant filter (global collections with no tenantId are available to all tenants)
+			if (filters?.tenantId && node.tenantId && node.tenantId !== filters.tenantId) {
 				continue;
 			}
 
@@ -954,7 +955,7 @@ class ContentManager {
 			}
 		}
 
-		if (!node?.collectionDef || (tenantId && node.tenantId !== tenantId)) {
+		if (!node?.collectionDef || (tenantId && node.tenantId && node.tenantId !== tenantId)) {
 			return null;
 		}
 
@@ -1034,7 +1035,7 @@ class ContentManager {
 			}
 		}
 
-		if (!node?.collectionDef || (tenantId && node.tenantId !== tenantId)) {
+		if (!node?.collectionDef || (tenantId && node.tenantId && node.tenantId !== tenantId)) {
 			return null;
 		}
 

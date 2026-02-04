@@ -47,7 +47,22 @@ export function getPermissionById(permissionId: string): Permission | undefined 
 
 // Check if a user has a specific permission (with roles parameter to avoid circular dependency)
 export function hasPermissionWithRoles(user: User, permissionId: string, roles: Role[]): boolean {
-	const userRole = roles.find((role) => role._id === user.role);
+	let userRole = roles.find((role) => role._id === user.role);
+
+	// Fallback: user.role may reference a default role name ('admin', 'developer', 'editor')
+	// but tenant-scoped roles have UUID IDs. Match by name instead.
+	if (!userRole) {
+		const DEFAULT_ROLE_NAMES: Record<string, string> = {
+			admin: 'Administrator',
+			developer: 'Developer',
+			editor: 'Editor'
+		};
+		const roleName = DEFAULT_ROLE_NAMES[user.role];
+		if (roleName) {
+			userRole = roles.find((role) => role.name === roleName);
+		}
+	}
+
 	if (!userRole) {
 		logger.warn('Role not found for user', { email: user.email, userRoleId: user.role, rolesAvailable: roles.map((r) => r._id) });
 		return false;

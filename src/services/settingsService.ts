@@ -22,7 +22,9 @@ type PublicEnv = InferOutput<typeof publicConfigSchema> & { PKG_VERSION?: string
 // Extract setting keys from schemas (single source of truth)
 const KNOWN_PUBLIC_KEYS = Object.keys(publicConfigSchema.entries);
 
-// Infrastructure keys that come from config file, not database
+// Infrastructure keys that come from config file, not database.
+// Must match INFRASTRUCTURE_KEYS in src/databases/db.ts to prevent
+// "split-brain" where DB values overwrite config/private.ts values.
 const INFRASTRUCTURE_KEYS = new Set([
 	'DB_TYPE',
 	'DB_HOST',
@@ -35,7 +37,8 @@ const INFRASTRUCTURE_KEYS = new Set([
 	'DB_POOL_SIZE',
 	'JWT_SECRET_KEY',
 	'ENCRYPTION_KEY',
-	'MULTI_TENANT'
+	'MULTI_TENANT',
+	'DEMO'
 ]);
 
 const KNOWN_PRIVATE_KEYS = Object.keys(privateConfigSchema.entries).filter((key) => !INFRASTRUCTURE_KEYS.has(key));
@@ -129,6 +132,14 @@ export async function loadSettingsCache(): Promise<typeof cache> {
 			}
 		}
 
+		// Safeguard: strip infrastructure keys from DB results to prevent
+		// database values from overwriting config/private.ts source of truth
+		for (const key of INFRASTRUCTURE_KEYS) {
+			if (key in privateDynamic) {
+				delete (privateDynamic as Record<string, unknown>)[key];
+			}
+		}
+
 		// Merge: infrastructure settings from config + dynamic settings from DB
 		const mergedPrivate = {
 			...privateConfig,
@@ -176,6 +187,7 @@ export async function setSettingsCache(newPrivate: PrivateEnv, newPublic: Public
 	cache.private = newPrivate;
 	cache.public = { ...newPublic, PKG_VERSION: await loadPkgVersion() };
 	cache.loaded = true;
+	cache.loadedAt = Date.now();
 }
 
 /**

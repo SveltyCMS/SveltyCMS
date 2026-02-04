@@ -95,6 +95,10 @@ const lastRotationAttempt = new Map<string, number>();
  */
 const SESSION_ROTATION_INTERVAL_MS = 15 * 60 * 1000;
 
+// Server-side dedup for demo tenant generation.
+// Prevents parallel requests (before Set-Cookie propagates) from creating multiple tenants.
+const pendingDemoTenants = new Map<string, string>();
+
 /**
  * Rate limiter for session rotation to prevent abuse.
  * Limits: 100 rotation attempts per minute per IP
@@ -416,8 +420,30 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
 				tenantId = cookies.get('demo_tenant_id') || null;
 
 				if (!tenantId) {
-					// If no demo_tenant_id cookie, generate a new one
-					tenantId = crypto.randomUUID();
+					// Server-side dedup: parallel requests from the same browser session
+					// arrive before the Set-Cookie response is sent back. Use the session
+					// cookie as a stable key to prevent multiple tenants being generated.
+					const sessionKey = cookies.get(SESSION_COOKIE_NAME) || url.hostname;
+					const existing = pendingDemoTenants.get(sessionKey);
+					if (existing) {
+						tenantId = existing;
+						logger.trace(`Reusing pending demo tenant for session: ${tenantId}`);
+					} else {
+						tenantId = crypto.randomUUID();
+						pendingDemoTenants.set(sessionKey, tenantId);
+						// Clean up after cookie has had time to propagate
+						setTimeout(() => pendingDemoTenants.delete(sessionKey), 10_000);
+						logger.info(`New demo tenant generated: ${tenantId}`);
+
+						// --- Trigger Tenant Seeding Here ---
+						try {
+							await seedDemoTenant(dbAdapter, tenantId);
+							logger.info(`✅ New demo tenant ${tenantId} seeded successfully.`);
+						} catch (e) {
+							logger.error(`Failed to seed demo tenant ${tenantId}:`, e);
+						}
+					}
+
 					// Set the cookie for future requests in this session
 					cookies.set('demo_tenant_id', tenantId, {
 						path: '/',
@@ -426,15 +452,6 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
 						sameSite: 'lax',
 						maxAge: 60 * 20 // 20 minutes for a demo session
 					});
-					logger.info(`New demo tenant generated: ${tenantId}`);
-
-					// --- Trigger Tenant Seeding Here ---
-					try {
-						await seedDemoTenant(dbAdapter, tenantId);
-						logger.info(`✅ New demo tenant ${tenantId} seeded successfully.`);
-					} catch (e) {
-						logger.error(`Failed to seed demo tenant ${tenantId}:`, e);
-					}
 				} else {
 					logger.trace(`Existing demo tenant from cookie: ${tenantId}`);
 				}
@@ -449,6 +466,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
 			}
 			locals.tenantId = tenantId;
 			logger.trace(`Tenant identified: ${tenantId}`);
+
 		}
 
 		// Step 2: Session validation
