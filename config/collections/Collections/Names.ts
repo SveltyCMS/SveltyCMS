@@ -14,7 +14,7 @@ export const schema: Schema = {
 	status: 'unpublish',
 	revision: true,
 	revisionLimit: 2, // limit  number of revisions
-	livePreview: true,
+	livePreview: '/api/preview?slug=/names/{slug}',
 
 	// Defined Fields that are used in your Collection
 	// Widget fields can be inspected for individual options

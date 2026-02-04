@@ -436,7 +436,10 @@ export const defaultPrivateSettings: Array<{ key: string; value: unknown; descri
 
 	// Roles and Permissions (previously required in private config)
 	{ key: 'ROLES', value: ['admin', 'editor', 'viewer'], description: 'List of user roles available in the system' },
-	{ key: 'PERMISSIONS', value: ['read', 'write', 'delete', 'admin'], description: 'List of permissions available in the system' }
+	{ key: 'PERMISSIONS', value: ['read', 'write', 'delete', 'admin'], description: 'List of permissions available in the system' },
+
+	// Live Preview
+	{ key: 'PREVIEW_SECRET', value: '', description: 'Secret for live preview handshake (auto-generated via /api/system/preview-secret)' }
 ];
 
 /**

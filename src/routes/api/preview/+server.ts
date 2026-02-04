@@ -1,68 +1,45 @@
 /**
  * @file src/routes/api/preview/+server.ts
- * @description Preview API endpoint for SveltyCMS
+ * @description Live preview handshake endpoint.
  *
- * Features:
- * - Preview mode enabler
- * - Preview URL generator
+ * GET /api/preview?secret=xyz&slug=/about
+ * 1. Validates secret against PREVIEW_SECRET setting
+ * 2. Sets 'cms_draft_mode' cookie (httpOnly, sameSite=none, secure, 1h maxAge)
+ * 3. 307 redirect to the slug (or returns JSON if no slug)
  */
 
-import { json } from '@sveltejs/kit';
+import { json, redirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getPrivateEnv } from '@src/databases/db';
+import { getPrivateSettingSync } from '@src/services/settingsService';
+import { logger } from '@utils/logger.server';
 
-// GET /api/preview?slug=...&collection=...
 export const GET: RequestHandler = async ({ url, cookies }) => {
 	const secret = url.searchParams.get('secret');
 	const slug = url.searchParams.get('slug');
-	const collectionName = url.searchParams.get('collection');
 
-	// 1. Validate Secret (if set in env)
-	const privateEnv = getPrivateEnv();
-	// Use optional chaining carefully - privateConfigSchema might not have PREVIEW_SECRET if not defined there,
-	// but assuming it fits the PR #358 requirement, we check if it exists or use a generic key.
-	// Use 'any' cast if strict typing blocks us for now, or just check existence.
-	const expectedSecret = (privateEnv as any)?.PREVIEW_SECRET;
+	// Validate secret against stored PREVIEW_SECRET
+	const storedSecret = getPrivateSettingSync('PREVIEW_SECRET');
 
-	if (expectedSecret && secret !== expectedSecret) {
-		return json({ message: 'Invalid preview secret' }, { status: 401 });
+	if (storedSecret && (!secret || secret !== storedSecret)) {
+		logger.warn('Preview handshake failed: invalid or missing secret');
+		return json({ error: 'Invalid preview secret' }, { status: 401 });
 	}
 
-	if (!slug || !collectionName) {
-		return json({ message: 'Missing slug or collection param' }, { status: 400 });
-	}
-
-	// 2. Fetch data (optional verification)
-	// In a real scenario, we might verify the entry exists, but typically we just
-	// set the cookie and redirect to the frontend.
-
-	// 3. Set Preview Mode Cookie
-	// This cookie tells the frontend (Next.js/SvelteKit) to bypass static generation
-	// and fetch draft data using the same SveltyCMS API.
-	cookies.set('cms_draft_mode', 'true', {
+	// Set draft mode cookie
+	cookies.set('cms_draft_mode', '1', {
 		path: '/',
 		httpOnly: true,
 		secure: url.protocol === 'https:',
-		sameSite: 'none', // Allow cross-site for iframe
+		sameSite: 'none',
 		maxAge: 60 * 60 // 1 hour
 	});
 
-	// 4. Redirect to Frontend Preview URL
-	// We need to know the frontend URL structure.
-	// Usually defined in collection schema's "livePreview" config or global config.
-	// For now, we'll assume a generic redirect pattern or return the status.
-	// But PR #358 implies a "Handshake" often involves just enabling the mode.
+	// If slug provided, redirect to the page with the cookie set
+	if (slug) {
+		throw redirect(307, slug);
+	}
 
-	// If used as a "Draft Mode enabler", we redirect.
-	// If used by the iframe just to verify, we return JSON.
-
-	// Let's assume redirection to the page with the cookie set.
-	// The frontend URL is likely passed or configured.
-
-	// For the "LivePreview.svelte" component we built, it uses an iframe directly to the frontend URL.
-	// This endpoint might be called BY the frontend or the iframe initialization.
-
-	// Let's return success for now as the specialized "Preview Handler".
+	// Otherwise return JSON confirmation (for iframe/AJAX handshake use)
 	return json({
 		success: true,
 		message: 'Draft mode enabled',

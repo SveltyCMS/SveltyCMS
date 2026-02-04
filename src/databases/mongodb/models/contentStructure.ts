@@ -27,7 +27,7 @@ export interface ContentStructureDocument extends Omit<ContentNode, 'collectionD
 	links?: Array<string>; // Array of string links for content structure
 	collectionDef?: import('@src/content/types').Schema;
 	permissions?: Record<string, Record<string, boolean>>;
-	livePreview?: boolean;
+	livePreview?: boolean | string;
 	strict?: boolean;
 	revision?: boolean;
 	description?: string;
@@ -75,7 +75,7 @@ const contentStructureSchema = new Schema<ContentStructureDocument>(
 		// Properties from ContentNode that are not in the base Mongoose Document
 		// label removed if not in ContentNode
 		permissions: Schema.Types.Mixed,
-		livePreview: { type: Boolean },
+		livePreview: { type: Schema.Types.Mixed },
 		strict: { type: Boolean },
 		revision: { type: Boolean },
 		description: { type: String },

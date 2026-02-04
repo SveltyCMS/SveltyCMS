@@ -32,7 +32,7 @@ const rolesCache = new Map<string, { data: Role[]; timestamp: number }>();
 // --- UTILITIES ---
 
 function isPublicRoute(pathname: string, method?: string): boolean {
-	const publicRoutes = ['/login', '/register', '/forgot-password', '/setup', '/api/sendMail', '/api/setup', '/api/system/version', '/api/user/login'];
+	const publicRoutes = ['/login', '/register', '/forgot-password', '/setup', '/api/sendMail', '/api/setup', '/api/system/version', '/api/user/login', '/api/preview'];
 	// Token validation endpoint is public (GET only) for registration flow
 	// Format: /api/token/{tokenValue} where tokenValue is any non-empty string (not just the list endpoint)
 	// We check that it's NOT the base /api/token route and has something after /api/token/

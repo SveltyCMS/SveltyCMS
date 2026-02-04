@@ -966,7 +966,7 @@ class ContentManager {
 			path: node.collectionDef.path,
 			fieldCount: node.collectionDef.fields?.length ?? 0,
 			hasRevisions: node.collectionDef.revision === true,
-			hasLivePreview: node.collectionDef.livePreview === true,
+			hasLivePreview: !!node.collectionDef.livePreview,
 			status: node.collectionDef.status
 		};
 
