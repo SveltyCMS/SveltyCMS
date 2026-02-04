@@ -18,7 +18,7 @@
  * - Delete folder
  */
 
-import { eq, and, or, like, inArray, count, desc, asc } from 'drizzle-orm';
+import { eq, and, or, like, inArray, isNull, count, desc, asc } from 'drizzle-orm';
 import type { MediaItem, MediaFolder, MediaMetadata, DatabaseId, DatabaseResult, PaginationOptions, PaginatedResult } from '../../../dbInterface';
 import { AdapterCore } from '../../adapter/adapterCore';
 import * as schema from '../../schema';
@@ -64,10 +64,12 @@ export class MediaModule {
 
 		getByFolder: async (folderId?: DatabaseId, options?: PaginationOptions): Promise<DatabaseResult<PaginatedResult<MediaItem>>> => {
 			return (this.core as any).wrap(async () => {
-				const conditions = folderId ? [eq(schema.mediaItems.folderId, folderId)] : [];
+				const conditions = folderId
+					? [eq(schema.mediaItems.folderId, folderId)]
+					: [isNull(schema.mediaItems.folderId)];
 
 				let q: any = this.db.select().from(schema.mediaItems);
-				if (conditions.length > 0) q = q.where(and(...conditions));
+				q = q.where(and(...conditions));
 
 				if (options?.sortField) {
 					const order = options.sortDirection === 'desc' ? desc : asc;
@@ -86,7 +88,7 @@ export class MediaModule {
 				const [countResult] = (await this.db
 					.select({ count: count() })
 					.from(schema.mediaItems)
-					.where(conditions.length > 0 ? and(...conditions) : undefined)) as any;
+					.where(and(...conditions))) as any;
 
 				const total = Number(countResult?.count || 0);
 

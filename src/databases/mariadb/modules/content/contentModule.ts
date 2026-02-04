@@ -40,23 +40,20 @@ export class ContentModule {
 		return (this.core as any).db;
 	}
 
-	private sanitizeNode(node: Partial<ContentNode> & Record<string, any>): Partial<ContentNode> {
-		// Map ContentManager field names to DB column names
-		const fieldMapping: Record<string, string> = {
-			nodeType: 'type',
-			name: 'title'
-		};
-
+	private pickValidColumns(node: Partial<ContentNode> & Record<string, any>): Partial<ContentNode> {
 		const validColumns = [
 			'_id',
 			'path',
 			'parentId',
-			'type',
+			'nodeType',
 			'status',
-			'title',
+			'name',
 			'slug',
+			'icon',
+			'description',
 			'data',
 			'metadata',
+			'translations',
 			'order',
 			'isPublished',
 			'publishedAt',
@@ -66,20 +63,11 @@ export class ContentModule {
 		];
 
 		const sanitized: any = {};
-
-		// Apply field mapping: only map if the target DB column isn't already set
-		for (const [srcField, dbColumn] of Object.entries(fieldMapping)) {
-			if (node[srcField] !== undefined && node[dbColumn] === undefined) {
-				sanitized[dbColumn] = node[srcField];
-			}
-		}
-
 		for (const key of validColumns) {
 			if (node[key] !== undefined) {
 				sanitized[key] = node[key];
 			}
 		}
-
 		return sanitized;
 	}
 
@@ -123,7 +111,7 @@ export class ContentModule {
 		upsertContentStructureNode: async (node: Omit<ContentNode, 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<ContentNode>> => {
 			return (this.core as any).wrap(async () => {
 				const id = node._id || utils.generateId();
-				const sanitized = this.sanitizeNode(node);
+				const sanitized = this.pickValidColumns(node);
 				const [existing] = await this.db.select().from(schema.contentNodes).where(eq(schema.contentNodes._id, id)).limit(1);
 
 				if (existing) {
@@ -150,7 +138,7 @@ export class ContentModule {
 			return (this.core as any).wrap(async () => {
 				const id = node._id || utils.generateId();
 				const now = new Date();
-				const sanitized = this.sanitizeNode(node);
+				const sanitized = this.pickValidColumns(node);
 				await this.db.insert(schema.contentNodes).values({
 					...sanitized,
 					_id: id,
@@ -166,7 +154,7 @@ export class ContentModule {
 			return (this.core as any).wrap(async () => {
 				const now = new Date();
 				const values = nodes.map((node) => {
-					const sanitized = this.sanitizeNode(node);
+					const sanitized = this.pickValidColumns(node);
 					return {
 						...sanitized,
 						_id: node._id || utils.generateId(),
@@ -183,7 +171,7 @@ export class ContentModule {
 
 		update: async (path: string, changes: Partial<ContentNode>): Promise<DatabaseResult<ContentNode>> => {
 			return (this.core as any).wrap(async () => {
-				const sanitized = this.sanitizeNode(changes);
+				const sanitized = this.pickValidColumns(changes);
 				await this.db
 					.update(schema.contentNodes)
 					.set({ ...sanitized, updatedAt: new Date() } as any)
@@ -197,7 +185,7 @@ export class ContentModule {
 			return (this.core as any).wrap(async () => {
 				const results: ContentNode[] = [];
 				for (const update of updates) {
-					const sanitized = this.sanitizeNode(update.changes);
+					const sanitized = this.pickValidColumns(update.changes);
 					const id = (update.changes as any)._id || utils.generateId();
 					const now = new Date();
 

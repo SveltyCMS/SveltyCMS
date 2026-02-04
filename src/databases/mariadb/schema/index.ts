@@ -118,12 +118,15 @@ export const contentNodes = mysqlTable(
 		_id: uuidPk(),
 		path: varchar('path', { length: 500 }).notNull(),
 		parentId: varchar('parentId', { length: 36 }),
-		type: varchar('type', { length: 50 }).notNull(),
+		nodeType: varchar('nodeType', { length: 50 }).notNull(),
 		status: varchar('status', { length: 50 }).notNull().default('draft'),
-		title: varchar('title', { length: 500 }),
+		name: varchar('name', { length: 500 }),
 		slug: varchar('slug', { length: 500 }),
+		icon: varchar('icon', { length: 100 }),
+		description: text('description'),
 		data: json('data'),
 		metadata: json('metadata'),
+		translations: json('translations').$type<{ languageTag: string; translationName: string }[]>().default([]),
 		order: int('order').notNull().default(0),
 		isPublished: boolean('isPublished').notNull().default(false),
 		publishedAt: datetime('publishedAt'),
@@ -133,7 +136,7 @@ export const contentNodes = mysqlTable(
 	(table) => ({
 		pathIdx: unique('path_unique').on(table.path),
 		parentIdx: index('parent_idx').on(table.parentId),
-		typeIdx: index('type_idx').on(table.type),
+		nodeTypeIdx: index('nodeType_idx').on(table.nodeType),
 		statusIdx: index('status_idx').on(table.status),
 		tenantIdx: index('tenant_idx').on(table.tenantId)
 	})

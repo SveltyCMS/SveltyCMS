@@ -194,7 +194,13 @@ export class MariaDBQueryBuilder<T extends BaseEntity> implements QueryBuilder<T
 		if (this.sortOptions.length > 0) {
 			const orderBys = this.sortOptions.map((s) => {
 				const order = s.direction === 'desc' ? desc : asc;
-				return order(this.table[s.field as string]);
+				const fieldName = s.field as string;
+				// Resolve MongoDB-convention fields (e.g. _createdAt → createdAt)
+				const column = this.table[fieldName] ?? this.table[fieldName.replace(/^_/, '')];
+				if (!column) {
+					throw new Error(`Unknown sort field: ${fieldName}`);
+				}
+				return order(column);
 			});
 			q = q.orderBy(...orderBys);
 		}
