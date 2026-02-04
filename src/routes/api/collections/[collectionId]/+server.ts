@@ -12,6 +12,7 @@
  */
 
 import { json } from '@sveltejs/kit';
+import { randomUUID } from 'crypto';
 import { getPrivateSettingSync } from '@src/services/settingsService';
 
 // Databases
@@ -87,9 +88,13 @@ export const POST = apiHandler(async ({ locals, params, request }) => {
 	if (!schema._id) throw new AppError('Collection ID is missing', 500, 'INVALID_SCHEMA');
 	const collectionModel = await dbAdapter.collection.getModel(schema._id);
 
-	// Prepare entry data with user ID
+	// Prepare entry data with user ID and required content_nodes fields
+	const entryId = randomUUID().replace(/-/g, '');
 	const entryData = {
 		...sourceData,
+		_id: entryId,
+		nodeType: 'entry',
+		path: `entries/${params.collectionId}/${entryId}`,
 		...(getPrivateSettingSync('MULTI_TENANT') && { tenantId }),
 		createdBy: user._id,
 		updatedBy: user._id,

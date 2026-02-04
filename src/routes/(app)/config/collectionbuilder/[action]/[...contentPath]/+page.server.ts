@@ -14,8 +14,10 @@
  */
 
 import fs from 'fs';
+import path from 'path';
 import prettier from 'prettier';
 import * as ts from 'typescript';
+
 import { redirect, type Actions, error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
@@ -62,6 +64,9 @@ interface WidgetDefinition {
 }
 
 type FieldsData = Record<string, FieldWithWidget>;
+
+/** Resolved path to the user collections directory (matches vite.config.ts paths.userCollections) */
+const userCollectionsPath = path.resolve(process.cwd(), process.env.COLLECTIONS_DIR || 'config/collections');
 
 // Load Prettier config
 async function getPrettierConfig() {
@@ -305,7 +310,7 @@ export const actions: Actions = {
 		try {
 			const formData = await request.formData();
 			const contentTypes = JSON.parse(formData.get('contentTypes') as string);
-			fs.unlinkSync(`${process.env.COLLECTIONS_FOLDER_TS}/${contentTypes}.ts`);
+			fs.unlinkSync(`${userCollectionsPath}/${contentTypes}.ts`);
 			await compile({ logger });
 			await contentManager.refresh();
 			return { status: 200 };
@@ -355,7 +360,15 @@ async function goThrough(object: FieldsData, fields: string): Promise<string> {
 			}
 
 			// Convert widget to string representation
-			const widgetCall = `🗑️widgets.${fieldWithWidget.widget.key}(${JSON.stringify(fieldWithWidget.widget.GuiFields, (_k, value) =>
+			const widgetFnName = fieldWithWidget.widget.key || fieldWithWidget.widget.Name || fieldWithWidget.widget.widgetId;
+			const widgetConfig: Record<string, unknown> = {};
+			for (const guiKey of Object.keys(widget.GuiSchema || {})) {
+				if (guiKey === 'permissions') continue;
+				if (fieldWithWidget[guiKey] !== undefined) {
+					widgetConfig[guiKey] = fieldWithWidget[guiKey];
+				}
+			}
+			const widgetCall = `🗑️widgets.${widgetFnName}(${JSON.stringify(widgetConfig, (_k, value) =>
 				typeof value === 'string' ? String(value.replace(/\s*🗑️\s*/g, '🗑️').trim()) : value
 			)})🗑️`;
 
@@ -462,8 +475,8 @@ export const schema: Schema = {
 		const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
 		let result = printer.printFile(transformedSourceFile);
 
-		// Clean up the 🗑️ markers and format with prettier
-		result = result.replace(/["']🗑️|🗑️["']/g, '').replace(/🗑️/g, '');
+		// Clean up the 🗑️ markers, unescape JSON quotes, and format with prettier
+		result = result.replace(/["']🗑️|🗑️["']/g, '').replace(/🗑️/g, '').replace(/\\"/g, '"');
 
 		const prettierConfig = await getPrettierConfig();
 		result = await prettier.format(result, prettierConfig);

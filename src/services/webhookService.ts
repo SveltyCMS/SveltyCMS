@@ -149,7 +149,7 @@ export class WebhookService {
 
 			const result = await db.systemPreferences.get<Webhook[]>('webhooks_config', 'system');
 
-			this.webhooksCache = result.success && result.data ? result.data : [];
+			this.webhooksCache = result.success && Array.isArray(result.data) ? result.data : [];
 			this.cacheTimestamp = Date.now();
 
 			return this.webhooksCache;
