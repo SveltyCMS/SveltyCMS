@@ -4,7 +4,7 @@
  */
 
 import { publicEnv } from '@src/stores/globalSettings.svelte';
-import { formatBytes, removeExtension } from '@utils/utils';
+import { formatBytes } from '@utils/utils';
 // import { logger } from '@utils/logger';
 
 import type { MediaBase } from './mediaModels';
@@ -78,13 +78,12 @@ export function mediaUrl(item: MediaBase, size?: string): string {
 export function buildUrl(path: string, hash: string, filename: string, ext: string, category: string, size?: string): string {
 	if (!path || !hash || !filename || !ext || !category) return '';
 
-	const base = removeExtension(filename);
-	const file = `${base}-${hash}.${ext}`;
+	const file = `${filename}-${hash}.${ext}`;
 
 	let rel: string;
 
 	if (path === 'global') {
-		rel = size ? `${category}/sizes/${size}/${file}` : `${category}/original/${file}`;
+		rel = size ? `${category}/${size}/${file}` : `${category}/original/${file}`;
 	} else if (path === 'unique') {
 		rel = `${category}/original/${file}`;
 	} else {

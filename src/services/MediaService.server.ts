@@ -383,30 +383,22 @@ export class MediaService {
 
 			logger.debug('Saving media to database', {
 				filename: cleanMedia.filename,
-				mimeType: cleanMedia.mimeType,
-				collection: 'MediaItem' // <-- Log the correct collection
+				mimeType: cleanMedia.mimeType
 			});
 
-			//  Save to 'MediaItem'
-			const result = await this.db.crud.insert<MediaItem>('MediaItem', cleanMedia);
+			// Use db-agnostic media adapter
+			const result = await this.db.media.files.upload(cleanMedia);
 
 			if (!result.success) {
 				throw result.error;
 			}
-			const mediaId = result.data._id;
+			const savedMedia = result.data;
+			const mediaId = savedMedia._id;
 
 			logger.debug('Media saved to database', {
 				mediaId,
 				processingTime: performance.now() - startTime
 			});
-
-			// Retrieve the saved media with its ID
-			const findResult = await this.db.crud.findOne<MediaItem>('MediaItem', { _id: mediaId });
-
-			if (!findResult.success) {
-				throw findResult.error;
-			}
-			const savedMedia = findResult.data;
 
 			// Cache the saved media
 			if (savedMedia) {
@@ -439,22 +431,22 @@ export class MediaService {
 		// Type-safe mapping from MediaBaseWithThumbnails to a database-ready object
 		return {
 			filename: object.filename,
-			// originalFilename: object.filename, // Removed as it's not in MediaItem/MediaBase
+			originalFilename: object.metadata?.originalFilename || object.filename,
 			hash: object.hash,
 			path: object.path,
 			size: object.size,
 			mimeType: object.mimeType,
 			thumbnails: object.thumbnails || {},
 			metadata: object.metadata || {},
-			access: object.access, // Mapped access
+			access: object.access,
 			user: object.user as DatabaseId,
-			type: object.type as any, // Cast to avoid complex union matching issues here
+			type: object.type as any,
 			width: (object as any).width,
-			height: (object as any).height
-			// createdBy: object.user as DatabaseId,
-			// updatedBy: object.user as DatabaseId,
-			// originalId: object.originalId
-		} as any; // Using any for now to bypass strict union check for insertion, relying on Runtime valid structure
+			height: (object as any).height,
+			createdBy: object.user as DatabaseId,
+			updatedBy: object.user as DatabaseId,
+			folderId: null
+		} as any;
 	}
 
 	// Updates a media item with new data
@@ -489,7 +481,7 @@ export class MediaService {
 			throw Error('Invalid id: Must be a non-empty string');
 		}
 		try {
-			const result = await this.db.crud.delete('MediaItem', id as DatabaseId);
+			const result = await this.db.media.files.delete(id as DatabaseId);
 			if (!result.success) {
 				throw result.error;
 			}
@@ -609,8 +601,7 @@ export class MediaService {
 		}
 		try {
 			const convertedIds = ids.map((id) => id as DatabaseId);
-			// Use `as unknown` to allow for complex query operators like $in
-			const result = await this.db.crud.deleteMany('MediaItem', { _id: { $in: convertedIds } } as unknown as Partial<BaseEntity>);
+			const result = await this.db.media.files.deleteMany(convertedIds);
 			if (!result.success) {
 				throw result.error;
 			}

@@ -13,19 +13,15 @@
  * server-side logic for handling file uploads.
  */
 
-// Use DB-backed public settings with safe fallbacks
-import { publicEnv } from '@src/stores/globalSettings.svelte';
 import { error, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
 // Utils
-import type { SystemVirtualFolder, QueryFilter, MediaItem } from '@root/src/databases/dbInterface';
+import type { SystemVirtualFolder, MediaItem } from '@root/src/databases/dbInterface';
 import type { DatabaseId } from '@root/src/content/types';
 import type { MediaAccess } from '@root/src/utils/media/mediaModels';
 import { MediaService } from '@src/services/MediaService.server';
-import { buildUrl } from '@utils/media/mediaUtils';
 import { moveMediaToTrash, getImageSizes } from '@utils/media/mediaStorage.server';
-import { getSanitizedFileName } from '@utils/media/mediaProcessing';
 
 // Auth
 import { dbAdapter } from '@src/databases/db';
@@ -134,52 +130,25 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		const currentFolder = folderId ? serializedVirtualFolders.find((f) => (f as Record<string, unknown>)._id === folderId) || null : null;
 		logger.trace('Current folder determined:', currentFolder);
 
-		// Fetch from all media collections including the primary MediaItem collection
-		const mediaCollections = ['MediaItem', 'media_images', 'media_documents', 'media_audio', 'media_videos'];
-		const allMediaResults: Record<string, unknown>[] = [];
+		// Use db-agnostic adapter method to fetch media
+		const mediaResult = await dbAdapter.media.files.getByFolder(
+			folderId as DatabaseId | undefined,
+			{ pageSize: 100, page: 1, sortField: 'updatedAt', sortDirection: 'desc' }
+		);
 
-		for (const collection of mediaCollections) {
-			try {
-				const query: QueryFilter<MediaItem> = {
-					folderId: folderId as DatabaseId | null,
-					// Filter out deleted items
-					$or: [{ isDeleted: { $ne: true } }, { isDeleted: { $exists: false } }]
-				};
-				const result = await dbAdapter.crud.findMany(collection, query);
+		const allMediaResults: Record<string, unknown>[] =
+			mediaResult.success && mediaResult.data
+				? (mediaResult.data.items as unknown as Record<string, unknown>[])
+				: [];
 
-				if (result.success && result.data) {
-					// Add collection type to each item for processing
-					const itemsWithType = result.data.map((item) => ({
-						...item,
-						collection: collection
-					}));
-					allMediaResults.push(...itemsWithType);
-				}
-			} catch (collectionError) {
-				// Log but don't fail if a collection doesn't exist
-				logger.warn(`Collection ${collection} not found or error fetching:`, collectionError);
-			}
-		}
-
-		logger.info(`Fetched ${allMediaResults.length} total media items from all collections`);
+		logger.info(`Fetched ${allMediaResults.length} media items for folder ${folderId || 'root'}`);
 
 		if (allMediaResults.length === 0) {
-			logger.info('No media items found in any collection');
+			logger.info('No media items found');
 		}
 
-		// Deduplicate media items by hash since same items might exist in multiple collections
-		const deduplicatedMedia = allMediaResults.reduce((acc: Record<string, unknown>[], item) => {
-			const existingItem = acc.find((existing) => existing.hash === item.hash);
-			if (!existingItem) {
-				acc.push(item);
-			}
-			return acc;
-		}, []);
-
-		logger.info(`After deduplication: ${deduplicatedMedia.length} unique media items`);
-
 		// Process and flatten media results - Filter and validate media items before processing
-		const processedMedia = deduplicatedMedia
+		const processedMedia = allMediaResults
 			.filter((item) => {
 				if (!item) return false;
 				const isValid =
@@ -201,38 +170,27 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			.map((item) => {
 				try {
 					const mediaItem = item as unknown as MediaItem;
-					// Sanitize filename to match storage strategy
-					const { fileNameWithoutExt, ext } = getSanitizedFileName(mediaItem.filename);
-					const filename = fileNameWithoutExt;
-					const extension = ext;
 
-					// MEDIA_FOLDER may not be eagerly available; use a safe default
-					const mediaFolder = publicEnv.MEDIA_FOLDER || 'mediaFolder';
-					if (!mediaFolder) {
-						logger.warn('MEDIA_FOLDER not set; proceeding with defaults');
-					}
+					// Derive public URL from stored path
+					const storedPath = mediaItem.path ?? '';
+					const publicUrl = storedPath.startsWith('/files/')
+						? storedPath
+						: storedPath.startsWith('http')
+							? storedPath
+							: `/files/${storedPath}`;
 
-					// Extract base path (e.g., 'global' from 'global/original/...')
-					const rawPath = mediaItem.path ?? 'global';
-					// Remove leading slashes and 'files/' prefix if present
-					let cleanPath = rawPath.replace(/^\/+/, '').replace(/^files\//, '');
-					// Get the first segment as the base path (e.g., 'global')
-					const basePath = cleanPath.split('/')[0] || 'global';
-
-					// Build thumbnail URL
-					// buildUrl(path, hash, fileName, format, contentTypes, size) -> Actual signature: path, hash, filename, ext, category, size
-					const thumbnailUrl = buildUrl(basePath, mediaItem.hash, filename, extension, basePath, 'thumbnail');
+					// Use DB-stored thumbnails directly (already has correct URLs from upload)
+					const thumbnails = (mediaItem.thumbnails ?? {}) as Record<string, { url: string }>;
+					const thumbnailEntry = thumbnails.thumbnail ?? thumbnails.sm ?? null;
 
 					return {
 						...mediaItem,
-						type: mediaItem.mimeType.split('/')[0], // Derive from mimeType
+						type: mediaItem.mimeType.split('/')[0],
 						path: mediaItem.path ?? 'global',
 						name: mediaItem.filename ?? 'unnamed-media',
-						// Use the item's path if available when constructing the original URL
-						url: buildUrl(basePath, mediaItem.hash, filename, extension, basePath),
-						thumbnail: {
-							url: thumbnailUrl
-						},
+						url: publicUrl,
+						thumbnail: thumbnailEntry ? { url: thumbnailEntry.url } : { url: publicUrl },
+						thumbnails,
 						width: (mediaItem as any).width ?? (mediaItem.metadata as any)?.advancedMetadata?.width,
 						height: (mediaItem as any).height ?? (mediaItem.metadata as any)?.advancedMetadata?.height
 					};
@@ -425,14 +383,13 @@ export const actions: Actions = {
 				// Continue with database deletion even if trash move fails
 			}
 
-			// Determine which collection to delete from - default to MediaItem if not specified
-			const collection = image.collection || 'MediaItem';
-			logger.info(`Deleting image from collection '${collection}': ${image._id}`);
+			// Use db-agnostic media adapter for deletion
+			logger.info(`Deleting media item: ${image._id}`);
 
-			const result = await dbAdapter.crud.delete(collection, image._id.toString());
+			const result = await dbAdapter.media.files.delete(image._id.toString());
 
 			if (result.success) {
-				logger.info('Image deleted successfully from', collection);
+				logger.info('Media item deleted successfully');
 				// TODO: Add back invalidation when upgrading SvelteKit
 				return { success: true }; // Return true on success
 			} else {
