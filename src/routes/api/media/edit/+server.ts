@@ -2,17 +2,13 @@
  * @file src/routes/api/media/edit/+server.ts
  * @description API endpoint for editing images using Sharp.js
  *
- * This endpoint handles:
- * - Direct file uploads for editing
- * - Editing existing media by mediaId
- * - Server-side image processing with Sharp.js
- * - Saving edited images with proper metadata
+ * Enterprise default: Save as new file (preserves original for recovery, versioning, audit).
+ * Optional: Overwrite original (with audit log); use when storage or workflow requires it.
  *
- * @example
- * POST /api/media/edit
  * FormData:
  *   - file: The edited image file
- *   - mediaId: (optional) Original media ID to create a variant
+ *   - mediaId: (optional) Original media ID; required when saveBehavior=overwrite
+ *   - saveBehavior: (optional) 'new' | 'overwrite'; default 'new'
  *   - operations: (optional) JSON string of operations applied
  *   - focalPoint: (optional) JSON string of focal point {x, y}
  */
@@ -29,6 +25,9 @@ import path from 'path';
 import { getPublicSetting } from '@src/services/settingsService';
 import type { DatabaseId } from '@src/content/types';
 import type { ISODateString } from '@src/content/types';
+import { auditLogService, type AuditLogEventInput, AuditEventType } from '@src/services/auditLogService';
+import { MediaService } from '@src/services/MediaService.server';
+import { saveFileToDisk } from '@src/utils/media/mediaStorage.server';
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 
@@ -55,8 +54,14 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		// Get the uploaded file
 		const file = formData.get('file') as File | null;
 		const mediaId = formData.get('mediaId') as string | null;
+		const saveBehaviorRaw = (formData.get('saveBehavior') as string | null) || 'new';
+		const saveBehavior = saveBehaviorRaw === 'overwrite' ? 'overwrite' : 'new';
 		const operationsStr = formData.get('operations') as string | null;
 		const focalPointStr = formData.get('focalPoint') as string | null;
+
+		if (saveBehavior === 'overwrite' && !mediaId) {
+			return json({ success: false, error: 'mediaId is required when saveBehavior is overwrite' }, { status: 400 });
+		}
 
 		// Validate file
 		if (!file) {
@@ -213,99 +218,153 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			return json({ success: false, error: 'Image processing failed' }, { status: 500 });
 		}
 
-		// Generate unique filename
 		const timestamp = Date.now();
 		const hash = await hashFileContent(processedBuffer);
-		const sanitizedName = file.name.replace(/\.[^/.]+$/, '').replace(/[^a-zA-Z0-9_-]/g, '_'); // Basic sanitization
-		const extension = file.type.split('/')[1] === 'jpeg' ? 'jpg' : file.type.split('/')[1];
-		const filename = `${sanitizedName}-edited-${timestamp}-${hash}.${extension}`;
-
-		// Determine save path
-		let relativePath = `${MEDIA_FOLDER}/${filename}`;
-
-		// If editing an existing media, get its folder path
-		// If editing an existing media, get its folder path
-		if (mediaId && dbAdapter) {
-			try {
-				const findResult = await dbAdapter.crud.findOne('MediaItem', { _id: mediaId as DatabaseId });
-				if (findResult.success && findResult.data) {
-					const originalMedia = findResult.data as any;
-					if (originalMedia.path) {
-						const originalDir = path.dirname(originalMedia.path);
-						relativePath = `${originalDir}/${filename}`;
-					}
-				}
-			} catch {
-				logger.warn('Could not find original media, using default path');
-			}
-		}
-
-		// Save file to disk
-		const absolutePath = path.join(process.cwd(), relativePath);
-
-		// Ensure directory exists
-		await fs.mkdir(path.dirname(absolutePath), { recursive: true });
-
-		// Write file
-		await fs.writeFile(absolutePath, processedBuffer);
-
-		// Get processed image metadata
 		const processedMetadata = await sharp(processedBuffer).metadata();
 
-		// Create media document
-		const mediaDocument: Omit<MediaImage, '_id'> = {
-			type: MediaType.Image,
-			filename,
-			mimeType: file.type,
-			size: processedBuffer.length,
-			path: relativePath,
-			url: `/${relativePath}`,
-			hash: hash,
-			width: processedMetadata.width || 0,
-			height: processedMetadata.height || 0,
-			user: userId as DatabaseId,
-			createdAt: new Date(timestamp).toISOString() as ISODateString,
-			updatedAt: new Date(timestamp).toISOString() as ISODateString,
-			metadata: {
-				focalPoint: focalPoint || undefined,
-				originalId: mediaId || undefined,
-				operations: Object.keys(operations).length > 0 ? operations : undefined,
+		// --- Overwrite path: replace original file and update document ---
+		if (saveBehavior === 'overwrite' && mediaId && dbAdapter) {
+			try {
+				const findResult = await dbAdapter.crud.findOne('MediaItem', { _id: mediaId as DatabaseId });
+				if (!findResult.success || !findResult.data) {
+					return json({ success: false, error: 'Original media not found' }, { status: 404 });
+				}
+				const originalMedia = findResult.data as any;
+				let relativePath = originalMedia.path as string | undefined;
+				if (!relativePath) {
+					return json({ success: false, error: 'Original media has no path' }, { status: 400 });
+				}
+
+				// Normalise path: strip leading slashes or /files/ prefix if present
+				relativePath = String(relativePath)
+					.replace(/^\/+/, '')
+					.replace(/^files\//, '');
+
+				// Use core media storage helper so overwrite respects MEDIA_FOLDER & cloud/local config
+				await saveFileToDisk(processedBuffer, relativePath);
+
+				const updatedMetadata = {
+					...(originalMedia.metadata || {}),
+					focalPoint: focalPoint || originalMedia.metadata?.focalPoint,
+					operations: Object.keys(operations).length > 0 ? operations : originalMedia.metadata?.operations,
+					editedBy: userId,
+					editedAt: new Date().toISOString()
+				};
+
+				const updateResult = await dbAdapter.crud.update(
+					'MediaItem',
+					mediaId as DatabaseId,
+					{
+						size: processedBuffer.length,
+						hash,
+						width: processedMetadata.width || 0,
+						height: processedMetadata.height || 0,
+						mimeType: file.type,
+						metadata: updatedMetadata,
+						updatedAt: new Date(timestamp).toISOString() as ISODateString
+					} as any
+				);
+
+				if (!updateResult.success) throw updateResult.error;
+
+				const overwriteAudit: AuditLogEventInput = {
+					eventType: AuditEventType.MEDIA_EDIT_OVERWRITE,
+					severity: 'medium',
+					actorId: userId as DatabaseId,
+					targetId: mediaId as DatabaseId,
+					targetType: 'MediaItem',
+					action: 'Overwrite original image after edit',
+					details: {
+						mediaId,
+						path: relativePath,
+						size: String(processedBuffer.length),
+						dimensions: `${processedMetadata.width}x${processedMetadata.height}`
+					},
+					result: 'success'
+				};
+				await auditLogService.logEvent(overwriteAudit);
+
+				logger.info(`Edited image overwrote original: ${relativePath}`, {
+					mediaId,
+					size: processedBuffer.length,
+					dimensions: `${processedMetadata.width}x${processedMetadata.height}`
+				});
+
+				return json({
+					success: true,
+					data: { ...originalMedia, ...updateResult.data }
+				});
+			} catch (overwriteError) {
+				logger.error('Overwrite edit failed', { error: overwriteError, mediaId });
+				return json(
+					{ success: false, error: overwriteError instanceof Error ? overwriteError.message : 'Failed to overwrite image' },
+					{ status: 500 }
+				);
+			}
+		}
+
+		// --- Save as new (default): create new file and new MediaItem ---
+		if (!dbAdapter) {
+			throw new Error('Database adapter not available');
+		}
+
+		// Reuse MediaService pipeline so edited images follow the same storage & URL scheme as normal uploads
+		const mediaService = new MediaService(dbAdapter);
+		const editedFileName = `edited-${timestamp}-${hash}.${file.type.split('/')[1] === 'jpeg' ? 'jpg' : file.type.split('/')[1]}`;
+		const editedFile = new File([processedBuffer], editedFileName, { type: file.type });
+
+		// basePath 'global' matches standard uploadMedia flow
+		const saved = await mediaService.saveMedia(editedFile, userId as string, 'public', 'global', undefined, (mediaId as DatabaseId | null) ?? null);
+
+		// Enrich metadata with edit provenance (focal point & operations)
+		try {
+			const updatedMetadata = {
+				...(saved.metadata || {}),
+				focalPoint: focalPoint || (saved.metadata as any)?.focalPoint,
+				operations: Object.keys(operations).length > 0 ? operations : (saved.metadata as any)?.operations,
 				editedBy: userId,
 				editedAt: new Date().toISOString()
-			},
-			thumbnails: {}
-		};
+			};
 
-		// Save to database
-		try {
-			if (!dbAdapter) throw new Error('Database adapter not available');
-			const result = await dbAdapter.crud.insert('MediaItem', mediaDocument as any);
-
-			if (!result.success) throw result.error;
-
-			logger.info(`Edited image saved: ${filename}`, {
-				mediaId: result.data._id,
-				originalId: mediaId,
-				size: processedBuffer.length,
-				dimensions: `${processedMetadata.width}x${processedMetadata.height}`
-			});
-
-			return json({
-				success: true,
-				data: result.data
-			});
-		} catch (dbError) {
-			logger.error('Database error saving edited image:', dbError);
-
-			// Clean up file if DB save failed
-			try {
-				await fs.unlink(absolutePath);
-			} catch {
-				/* ignore cleanup errors */
-			}
-
-			return json({ success: false, error: 'Failed to save image metadata' }, { status: 500 });
+			await dbAdapter.crud.update(
+				'MediaItem',
+				saved._id as DatabaseId,
+				{
+					metadata: updatedMetadata
+				} as any
+			);
+		} catch (metaError) {
+			logger.warn('Failed to update metadata for edited media', { metaError, mediaId: saved._id });
 		}
+
+		const newFileAudit: AuditLogEventInput = {
+			eventType: AuditEventType.MEDIA_EDIT_NEW,
+			severity: 'low',
+			actorId: userId as DatabaseId,
+			targetId: saved._id as DatabaseId,
+			targetType: 'MediaItem',
+			action: 'Save edited image as new file (original preserved)',
+			details: {
+				newMediaId: String(saved._id),
+				originalId: mediaId || '',
+				size: String(processedBuffer.length),
+				dimensions: `${processedMetadata.width}x${processedMetadata.height}`
+			},
+			result: 'success'
+		};
+		await auditLogService.logEvent(newFileAudit);
+
+		logger.info(`Edited image saved as new via MediaService: ${saved.filename}`, {
+			mediaId: saved._id,
+			originalId: mediaId,
+			size: processedBuffer.length,
+			dimensions: `${processedMetadata.width}x${processedMetadata.height}`
+		});
+
+		return json({
+			success: true,
+			data: saved
+		});
 	} catch (error) {
 		logger.error('Error in /api/media/edit:', error);
 		return json({ success: false, error: 'Internal server error' }, { status: 500 });
@@ -321,6 +380,7 @@ export const GET: RequestHandler = async () => {
 		endpoint: '/api/media/edit',
 		supportedFormats: SUPPORTED_FORMATS,
 		maxFileSize: MAX_FILE_SIZE,
+		saveBehavior: { default: 'new', options: ['new', 'overwrite'] },
 		operations: ['rotate', 'flip', 'flop', 'crop', 'resize', 'brightness', 'saturation', 'blur', 'sharpen', 'grayscale', 'watermark']
 	});
 };

@@ -622,7 +622,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 		// but the image editor needs the full path (e.g., "/files/images/xxx.jpg")
 		const fullUrl = mediaUrl(file);
 		console.log('Image URL for editor:', { originalUrl: file.url, fullUrl });
-		
+
 		if (!fullUrl) {
 			console.error('Failed to construct URL for image:', file);
 			toaster.error({ description: 'Cannot edit image: Invalid URL' });
@@ -642,11 +642,19 @@ Displays a collection of media files (images, documents, audio, video) with:
 		});
 	}
 
-	async function handleEditorSave(detail: { dataURL: string; file: File; operations?: any; focalPoint?: any; mediaId?: string }) {
-		const { file, operations, focalPoint, mediaId } = detail;
+	async function handleEditorSave(detail: {
+		dataURL: string;
+		file: File;
+		operations?: any;
+		focalPoint?: any;
+		mediaId?: string;
+		saveBehavior?: 'new' | 'overwrite';
+	}) {
+		const { file, operations, focalPoint, mediaId, saveBehavior = 'new' } = detail;
 
 		const formData = new FormData();
 		formData.append('file', file);
+		formData.append('saveBehavior', saveBehavior);
 		if (mediaId) formData.append('mediaId', mediaId);
 		if (operations) formData.append('operations', JSON.stringify(operations));
 		if (focalPoint) formData.append('focalPoint', JSON.stringify(focalPoint));
@@ -659,7 +667,13 @@ Displays a collection of media files (images, documents, audio, video) with:
 
 			if (response.ok) {
 				toaster.success({ description: 'Image saved successfully!' });
-				fetchMediaFiles(true); // Force refresh
+				// Close the image editor modal
+				modalState.close();
+				// Force a full-page reload of the media gallery so state and thumbnails
+				// are rebuilt from the server-side load (avoids any stale in-memory state).
+				if (typeof window !== 'undefined') {
+					window.location.href = '/mediagallery';
+				}
 			} else {
 				const errorData = await response.json();
 				throw new Error(errorData.error || 'Failed to save edited image');

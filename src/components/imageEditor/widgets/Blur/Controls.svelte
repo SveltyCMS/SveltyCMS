@@ -202,31 +202,34 @@ Pintura-style controls for the Blur tool with add/delete/rotate/flip functionali
 		color: white;
 	}
 
-	/* Slider */
+	/* Slider: same as Zoom (h-7 pill, 7rem track, 16px primary thumb) */
 	.slider-wrapper {
 		display: flex;
 		align-items: center;
-		gap: 0.75rem;
-		background: rgb(var(--color-surface-50) / 0.5);
-		padding: 0.25rem 0.75rem;
+		gap: 0.5rem;
+		height: 1.75rem;
+		padding: 0 0.5rem;
 		border-radius: 9999px;
-		border: 1px solid rgb(var(--color-surface-200) / 1);
-		height: 2.25rem;
-		min-width: 160px;
+		background: rgb(var(--color-surface-50) / 0.05);
+		border: 1px solid rgb(var(--color-surface-50) / 0.1);
+		width: fit-content;
+		min-width: 0;
 		flex: 1;
+		max-width: 12rem;
 	}
 
 	:global(.dark) .slider-wrapper {
-		background: rgb(var(--color-surface-900) / 0.5);
-		border-color: rgb(var(--color-surface-700) / 1);
+		background: rgb(var(--color-surface-50) / 0.05);
+		border-color: rgb(var(--color-surface-50) / 0.1);
 	}
 
 	.slider-track-container {
-		flex: 1;
+		width: 7rem;
+		flex-shrink: 0;
 		position: relative;
 		display: flex;
 		align-items: center;
-		height: 100%;
+		height: 0.25rem;
 	}
 
 	.slider {
@@ -234,16 +237,12 @@ Pintura-style controls for the Blur tool with add/delete/rotate/flip functionali
 		appearance: none;
 		width: 100%;
 		height: 4px;
-		border-radius: 2px;
-		background: rgb(var(--color-surface-300) / 1);
+		border-radius: 9999px;
+		background: rgb(var(--color-surface-500) / 0.3);
 		outline: none;
 		cursor: pointer;
 		position: absolute;
 		margin: 0;
-	}
-
-	:global(.dark) .slider {
-		background: rgb(var(--color-surface-600) / 1);
 	}
 
 	.slider::-webkit-slider-thumb {
@@ -252,12 +251,45 @@ Pintura-style controls for the Blur tool with add/delete/rotate/flip functionali
 		width: 16px;
 		height: 16px;
 		border-radius: 50%;
-		background: white;
-		border: 2px solid rgb(var(--color-primary-500) / 1);
+		background: rgb(var(--color-primary-500) / 1);
+		border: 2px solid white;
 		cursor: pointer;
-		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+		box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 		transition: transform 0.1s;
 		margin-top: -6px;
+	}
+
+	.slider::-webkit-slider-thumb:hover {
+		transform: scale(1.05);
+	}
+
+	.slider:focus {
+		outline: none;
+	}
+
+	.slider:focus::-webkit-slider-thumb {
+		box-shadow: 0 0 0 3px rgb(var(--color-primary-500) / 0.3), 0 2px 4px rgba(0, 0, 0, 0.2);
+	}
+
+	.slider::-moz-range-track {
+		height: 4px;
+		border-radius: 9999px;
+		background: rgb(var(--color-surface-500) / 0.3);
+	}
+
+	.slider::-moz-range-thumb {
+		width: 16px;
+		height: 16px;
+		border-radius: 50%;
+		background: rgb(var(--color-primary-500) / 1);
+		border: 2px solid white;
+		cursor: pointer;
+		box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+		transition: transform 0.1s;
+	}
+
+	.slider::-moz-range-thumb:hover {
+		transform: scale(1.05);
 	}
 
 	.slider-value {
@@ -266,6 +298,7 @@ Pintura-style controls for the Blur tool with add/delete/rotate/flip functionali
 		font-size: 0.75rem;
 		font-weight: 600;
 		font-family: monospace;
+		font-variant-numeric: tabular-nums;
 		color: rgb(var(--color-primary-500) / 1);
 	}
 

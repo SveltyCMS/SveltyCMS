@@ -46,9 +46,16 @@ Comprehensive image editing interface with Konva.js integration.
 	interface Props {
 		imageFile?: File | null;
 		initialImageSrc?: string;
-		mediaId?: string; // Added missing mediaId
+		mediaId?: string;
 		focalPoint?: { x: number; y: number };
-		onsave?: (detail: { dataURL: string; file: File; focalPoint?: any; mediaId?: string }) => void;
+		onsave?: (detail: {
+			dataURL: string;
+			file: File;
+			focalPoint?: any;
+			mediaId?: string;
+			operations?: Record<string, unknown>;
+			saveBehavior?: 'new' | 'overwrite';
+		}) => void;
 		oncancel?: () => void;
 	}
 
@@ -70,6 +77,8 @@ Comprehensive image editing interface with Konva.js integration.
 	let isProcessing = $state(false);
 	let error = $state<string | null>(null);
 	let preToolSnapshot = $state<string | null>(null);
+	/** Save as new file (default, enterprise-friendly) or overwrite original */
+	let saveBehavior = $state<'new' | 'overwrite'>('new');
 
 	// Derived values
 	const storeState = imageEditorStore.state;
@@ -333,8 +342,10 @@ Comprehensive image editing interface with Konva.js integration.
 
 	// Handle keyboard shortcuts
 	function handleKeyDown(event: KeyboardEvent) {
+		// Guard: avoid reading ownerDocument/tagName when target is missing (e.g. in embedded hosts)
+		const target = event?.target as HTMLElement | null;
+		if (!target?.ownerDocument) return;
 		// Skip if typing in input
-		const target = event.target as HTMLElement;
 		const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.contentEditable === 'true';
 		if (isInput) return;
 
@@ -507,10 +518,22 @@ Comprehensive image editing interface with Konva.js integration.
 		}
 	}
 
+	/** Convert data URL to Blob without fetch (avoids CSP connect-src blocking data: URLs) */
+	function dataURLToBlob(dataURL: string): Blob {
+		const [header, base64] = dataURL.split(',');
+		const mime = header.match(/:(.*?);/)?.[1] ?? 'image/png';
+		const binary = atob(base64 ?? '');
+		const bytes = new Uint8Array(binary.length);
+		for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+		return new Blob([bytes], { type: mime });
+	}
+
 	// Save
 	export async function handleSave() {
 		const { stage, file } = imageEditorStore.state;
-		if (!stage || !file) {
+		// Allow save when we have a stage and either a store file (new upload) or mediaId (editing existing media)
+		const canSave = stage && (file || mediaId);
+		if (!canSave) {
 			error = 'Nothing to save';
 			return;
 		}
@@ -553,8 +576,8 @@ Comprehensive image editing interface with Konva.js integration.
 				fileExtension = 'webp';
 			}
 
-			const response = await fetch(dataURL);
-			const blob = await response.blob();
+			// Convert data URL to Blob without fetch (CSP connect-src does not allow data:)
+			const blob = dataURLToBlob(dataURL);
 
 			const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
 			const newFileName = `edited-${timestamp}.${fileExtension}`;
@@ -567,7 +590,8 @@ Comprehensive image editing interface with Konva.js integration.
 				dataURL,
 				file: editedFile,
 				focalPoint,
-				mediaId: storeMediaId || mediaId
+				mediaId: storeMediaId || mediaId,
+				saveBehavior
 			});
 		} catch (err) {
 			logger.error('Save error:', err);
@@ -704,6 +728,26 @@ Comprehensive image editing interface with Konva.js integration.
 				<iconify-icon icon="mdi:loading" class="animate-spin text-primary-500" width="48"></iconify-icon>
 				<p class="font-medium">Processing image...</p>
 			</div>
+		</div>
+	{/if}
+
+	{#if mediaId && hasImage}
+		<div class="save-behavior-bar flex flex-wrap items-center gap-3 border-b border-surface-700 bg-surface-800/60 px-3 py-2 text-sm">
+			<span class="text-surface-400">Save as:</span>
+			<label class="flex cursor-pointer items-center gap-2">
+				<input type="radio" name="saveBehavior" value="new" bind:group={saveBehavior} class="rounded-full border-surface-600 text-primary-500" />
+				<span class={saveBehavior === 'new' ? 'text-primary-400 font-medium' : 'text-surface-300'}>New file</span>
+				<span class="text-surface-500 text-xs">(recommended)</span>
+			</label>
+			<label class="flex cursor-pointer items-center gap-2">
+				<input type="radio" name="saveBehavior" value="overwrite" bind:group={saveBehavior} class="rounded-full border-surface-600 text-primary-500" />
+				<span class={saveBehavior === 'overwrite' ? 'text-primary-400 font-medium' : 'text-surface-300'}>Overwrite original</span>
+			</label>
+			{#if saveBehavior === 'overwrite'}
+				<span class="ml-2 rounded bg-warning-500/15 px-2 py-0.5 text-warning-600 dark:text-warning-400" role="status">
+					Original file will be replaced and cannot be recovered.
+				</span>
+			{/if}
 		</div>
 	{/if}
 

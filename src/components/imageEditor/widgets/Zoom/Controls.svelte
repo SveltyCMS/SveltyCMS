@@ -161,6 +161,12 @@ Toolbar controls for the Zoom tool:
 		box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 	}
 
+	.slider::-moz-range-track {
+		height: 4px;
+		border-radius: 9999px;
+		background: rgb(var(--color-surface-500) / 0.3);
+	}
+
 	.slider::-moz-range-thumb {
 		width: 16px;
 		height: 16px;

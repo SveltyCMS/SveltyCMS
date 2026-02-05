@@ -203,14 +203,17 @@ export function createStyledTransformer(
 }
 
 /**
- * Safely attaches transformer to a node
+ * Safely attaches transformer to a node.
+ * Only runs Konva Tweens when the transformer is in a layer (avoids "node not in a layer" errors).
  */
 export function attachStyledTransformer(tr: Konva.Transformer, node?: Konva.Node | null, animated = true): void {
 	try {
+		const trInLayer = tr.getLayer() != null;
+
 		if (!node) {
 			tr.nodes([]);
 
-			if (animated) {
+			if (animated && trInLayer) {
 				tr.to({
 					opacity: 0,
 					duration: 0.15,
@@ -222,9 +225,16 @@ export function attachStyledTransformer(tr: Konva.Transformer, node?: Konva.Node
 			return;
 		}
 
+		// Konva Tween requires the node to be in a layer
+		if (node.getLayer() == null) {
+			tr.nodes([]);
+			tr.hide();
+			return;
+		}
+
 		tr.nodes([node]);
 
-		if (animated) {
+		if (animated && trInLayer) {
 			tr.opacity(0);
 			tr.show();
 			tr.to({

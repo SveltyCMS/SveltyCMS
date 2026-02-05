@@ -81,6 +81,10 @@ export enum AuditEventType {
 	DATA_IMPORT = 'data_import',
 	DATA_DELETION = 'data_deletion',
 
+	// Media edit events (enterprise: preserve originals, audit trail)
+	MEDIA_EDIT_NEW = 'media_edit_new',
+	MEDIA_EDIT_OVERWRITE = 'media_edit_overwrite',
+
 	// Security events
 	UNAUTHORIZED_ACCESS = 'unauthorized_access',
 	PRIVILEGE_ESCALATION = 'privilege_escalation',
@@ -90,6 +94,12 @@ export enum AuditEventType {
 
 // Severity levels for audit events
 export type AuditSeverity = 'low' | 'medium' | 'high' | 'critical';
+
+/** Input for logEvent: omit fields the service sets automatically */
+export type AuditLogEventInput = Omit<
+	AuditLogEntry,
+	'timestamp' | 'id' | 'created_at' | 'updated_at' | '_id' | 'createdAt' | 'updatedAt'
+>;
 
 // Query options for audit logs
 export interface AuditQueryOptions {
@@ -126,9 +136,10 @@ export class AuditLogService {
 	}
 
 	/**
-	 * Log a security-critical event
+	 * Log a security-critical event.
+	 * Caller does not need to provide _id, timestamp, createdAt, updatedAt (service/DB sets them).
 	 */
-	async logEvent(entry: Omit<AuditLogEntry, 'timestamp' | 'id' | 'created_at' | 'updated_at'>): Promise<void> {
+	async logEvent(entry: AuditLogEventInput): Promise<void> {
 		try {
 			const db = await getDbAdapter();
 			const auditEntry: Omit<AuditLogEntry, 'id'> & { created_at?: string; updated_at?: string } = {

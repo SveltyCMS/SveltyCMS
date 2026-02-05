@@ -23,7 +23,7 @@ Professional fine-tune controls with presets and categories
 		onAutoAdjust
 	}: {
 		activeAdjustment: keyof Adjustments;
-		activeCategory?: string;
+		activeCategory?: 'basic' | 'tone' | 'color' | 'detail';
 		value: number;
 		adjustments?: Adjustments;
 		showPresets?: boolean;
@@ -55,6 +55,7 @@ Professional fine-tune controls with presets and categories
 
 	// Keyboard shortcuts
 	function handleKeyDown(e: KeyboardEvent) {
+		if (!e?.target || !(e.target as Node).ownerDocument) return;
 		if ((e.target as HTMLElement).tagName === 'INPUT') return;
 
 		switch (e.key) {
@@ -176,42 +177,40 @@ Professional fine-tune controls with presets and categories
 						<iconify-icon icon={adj.icon} width="24"></iconify-icon>
 						<span class="adjustment-label">{adj.label}</span>
 						{#if hasChange}
-							<span class="change-indicator">{adjustments?.[adj.key] > 0 ? '+' : ''}{adjustments?.[adj.key]}</span>
+							{@const val = adjustments?.[adj.key] ?? 0}
+							<span class="change-indicator">{val > 0 ? '+' : ''}{val}</span>
 						{/if}
 					</button>
 				{/each}
 			</div>
 		</div>
 
-		<!-- Slider Section -->
-		<div class="slider-section">
-			<div class="slider-title">
-				<span>{config?.label || 'Adjustment'}</span>
-				<div class="flex gap-2">
-					<button class="btn btn-icon btn-sm preset-outlined-surface-500" onclick={onReset} disabled={value === 0} title="Reset to 0">
-						<iconify-icon icon="mdi:restore" width="16"></iconify-icon>
-					</button>
-				</div>
+		<!-- Slider: compact pill like Rotate (track + value + reset), fixed max-width -->
+		<div class="slider-wrapper finetune-slider">
+			<div class="slider-track-container">
+				<div class="center-tick"></div>
+				<input
+					type="range"
+					min={config?.min ?? -100}
+					max={config?.max ?? 100}
+					step={config?.step ?? 1}
+					value={value}
+					oninput={handleSliderInput}
+					class="slider"
+					aria-label={config?.label ? `${config.label} adjustment` : 'Adjustment'}
+				/>
 			</div>
-
-			<div class="slider-wrapper">
-				<div class="slider-track-container">
-					<div class="center-tick"></div>
-					<input
-						type="range"
-						min={config?.min || -100}
-						max={config?.max || 100}
-						step={config?.step || 1}
-						{value}
-						oninput={handleSliderInput}
-						class="slider"
-						aria-label="{config?.label} adjustment"
-					/>
-				</div>
-				<div class="slider-value" class:changed={value !== 0}>
-					{value > 0 ? '+' : ''}{value}
-				</div>
+			<div class="slider-value" class:changed={value !== 0} title={config?.label || 'Adjustment'}>
+				{value > 0 ? '+' : ''}{value}
 			</div>
+			<button
+				class="reset-btn"
+				onclick={onReset}
+				disabled={value === 0}
+				title="Reset to 0"
+			>
+				<iconify-icon icon="mdi:restore" width="16"></iconify-icon>
+			</button>
 		</div>
 	</div>
 
@@ -364,100 +363,144 @@ Professional fine-tune controls with presets and categories
 		text-align: center;
 	}
 
-	/* Slider Section - Enhanced */
-	.slider-section {
+	/* FineTune slider: same as Zoom (h-7 pill, 7rem track, 16px primary thumb) */
+	.finetune-slider {
 		display: flex;
-		flex-direction: column;
+		align-items: center;
 		gap: 0.5rem;
-		width: 100%;
+		height: 1.75rem;
+		padding: 0 0.5rem;
+		border-radius: 9999px;
+		background: rgb(var(--color-surface-50) / 0.05);
+		border: 1px solid rgb(var(--color-surface-50) / 0.1);
+		width: fit-content;
+		min-width: 0;
 		flex-shrink: 0;
 	}
 
-	@media (min-width: 1024px) {
-		.slider-section {
-			width: 300px;
-		}
+	:global(.dark) .finetune-slider {
+		background: rgb(var(--color-surface-50) / 0.05);
+		border-color: rgb(var(--color-surface-50) / 0.1);
 	}
 
-	.slider-wrapper {
-		display: flex;
-		align-items: center;
-		gap: 0.75rem;
-		background: rgb(var(--color-surface-50) / 0.5);
-		padding: 0.25rem 0.75rem;
-		border-radius: 9999px;
-		border: 1px solid rgb(var(--color-surface-200) / 1);
-		height: 3rem; /* Taller for easier touch */
-	}
-
-	:global(.dark) .slider-wrapper {
-		background: rgb(var(--color-surface-900) / 0.5);
-		border-color: rgb(var(--color-surface-700) / 1);
-	}
-
-	.slider-track-container {
-		flex: 1;
+	.finetune-slider .slider-track-container {
+		width: 7rem;
+		flex-shrink: 0;
 		position: relative;
 		display: flex;
 		align-items: center;
-		height: 100%;
+		height: 0.25rem;
 	}
 
-	.slider {
+	.finetune-slider .slider-value {
+		font-family: monospace;
+		font-size: 0.75rem;
+		font-weight: 600;
+		color: rgb(var(--color-surface-500) / 1);
+		min-width: 2rem;
+		text-align: right;
+		font-variant-numeric: tabular-nums;
+	}
+
+	.finetune-slider .slider-value.changed {
+		color: rgb(var(--color-primary-500) / 1);
+	}
+
+	.finetune-slider .reset-btn {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 1.5rem;
+		height: 1.5rem;
+		border-radius: 50%;
+		border: none;
+		background: transparent;
+		color: #9ca3af;
+		cursor: pointer;
+		transition: all 0.2s;
+		flex-shrink: 0;
+	}
+
+	.finetune-slider .reset-btn:hover:not(:disabled) {
+		background: rgb(var(--color-surface-50) / 0.2);
+		color: white;
+	}
+
+	.finetune-slider .reset-btn:disabled {
+		opacity: 0.35;
+		cursor: not-allowed;
+	}
+
+	.finetune-slider .slider {
 		-webkit-appearance: none;
 		appearance: none;
 		width: 100%;
-		height: 6px;
-		border-radius: 3px;
-		background: rgb(var(--color-surface-300) / 1);
+		height: 4px;
+		border-radius: 9999px;
+		background: rgb(var(--color-surface-500) / 0.3);
 		outline: none;
 		cursor: pointer;
 		position: absolute;
 		margin: 0;
 	}
 
-	:global(.dark) .slider {
-		background: rgb(var(--color-surface-600) / 1);
-	}
-
-	.slider::-webkit-slider-thumb {
+	.finetune-slider .slider::-webkit-slider-thumb {
 		-webkit-appearance: none;
 		appearance: none;
-		width: 24px;
-		height: 24px;
+		width: 16px;
+		height: 16px;
 		border-radius: 50%;
-		background: white;
-		border: 2px solid rgb(var(--color-primary-500) / 1);
+		background: rgb(var(--color-primary-500) / 1);
+		border: 2px solid white;
 		cursor: pointer;
-		box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+		box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 		transition: transform 0.1s;
-		margin-top: -9px; /* Centering */
+		margin-top: -6px;
 	}
 
-	/* Center tick */
-	.center-tick {
+	.finetune-slider .slider::-webkit-slider-thumb:hover {
+		transform: scale(1.05);
+	}
+
+	.finetune-slider .slider:focus {
+		outline: none;
+	}
+
+	.finetune-slider .slider:focus::-webkit-slider-thumb {
+		box-shadow: 0 0 0 3px rgb(var(--color-primary-500) / 0.3), 0 2px 4px rgba(0, 0, 0, 0.2);
+	}
+
+	.finetune-slider .slider::-moz-range-track {
+		height: 4px;
+		border-radius: 9999px;
+		background: rgb(var(--color-surface-500) / 0.3);
+	}
+
+	.finetune-slider .slider::-moz-range-thumb {
+		width: 16px;
+		height: 16px;
+		border-radius: 50%;
+		background: rgb(var(--color-primary-500) / 1);
+		border: 2px solid white;
+		cursor: pointer;
+		box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+		transition: transform 0.1s;
+	}
+
+	.finetune-slider .slider::-moz-range-thumb:hover {
+		transform: scale(1.05);
+	}
+
+	.finetune-slider .center-tick {
 		position: absolute;
 		left: 50%;
 		top: 50%;
 		transform: translate(-50%, -50%);
 		width: 2px;
-		height: 12px;
-		background: rgb(var(--color-surface-400) / 1);
+		height: 8px;
+		background: rgb(var(--color-surface-400) / 0.5);
 		pointer-events: none;
 		border-radius: 1px;
-	}
-
-	.slider-value {
-		font-family: monospace;
-		font-size: 0.875rem;
-		font-weight: 600;
-		color: rgb(var(--color-surface-500) / 1);
-		min-width: 2.5rem;
-		text-align: right;
-	}
-
-	.slider-value.changed {
-		color: rgb(var(--color-primary-500) / 1);
 	}
 
 	/* Footer */
@@ -473,7 +516,7 @@ Professional fine-tune controls with presets and categories
 	:global(.dark) .controls-footer {
 		border-color: rgb(var(--color-surface-700) / 1);
 	}
-
+	/* Presets */
 	.presets-scroll-container {
 		display: flex;
 		gap: 0.75rem;
@@ -482,7 +525,6 @@ Professional fine-tune controls with presets and categories
 		width: 100%;
 		scrollbar-width: none; /* Firefox */
 	}
-	
 	.presets-scroll-container::-webkit-scrollbar {
 		display: none; /* Chrome/Safari */
 	}

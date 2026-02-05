@@ -60,7 +60,8 @@ Pintura-style controls for the Blur tool with responsive design and keyboard sup
 
 	// Keyboard shortcuts
 	function handleKeyDown(e: KeyboardEvent) {
-		if (e.target && (e.target as HTMLElement).tagName === 'INPUT') return;
+		if (!e?.target || !(e.target as Node).ownerDocument) return;
+		if ((e.target as HTMLElement).tagName === 'INPUT') return;
 
 		switch (e.key) {
 			case 'r':

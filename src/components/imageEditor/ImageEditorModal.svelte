@@ -126,6 +126,7 @@ A reusable modal that wraps the main Image Editor.
 	}
 
 	function handleKeyDown(e: KeyboardEvent) {
+		if (!e?.target || !(e.target as Node).ownerDocument) return;
 		const cmdOrCtrl = e.metaKey || e.ctrlKey;
 
 		// Ctrl/Cmd+S: Save
@@ -143,9 +144,40 @@ A reusable modal that wraps the main Image Editor.
 		}
 	}
 
+	/**
+	 * Capture-phase guard: stop events with missing target so host/extension listeners
+	 * that read event.target.ownerDocument don't throw (e.g. in Cursor's embedded browser).
+	 */
+	function guardDocumentEvent(e: Event) {
+		try {
+			if (e?.target == null) {
+				e.stopImmediatePropagation();
+				e.preventDefault();
+			}
+		} catch {
+			// ignore
+		}
+	}
+
 	onMount(() => {
 		window.addEventListener('keydown', handleKeyDown);
-		return () => window.removeEventListener('keydown', handleKeyDown);
+		const doc = document;
+		const opts = { capture: true };
+		doc.addEventListener('keydown', guardDocumentEvent, opts);
+		doc.addEventListener('click', guardDocumentEvent, opts);
+		doc.addEventListener('mousedown', guardDocumentEvent, opts);
+		doc.addEventListener('mouseup', guardDocumentEvent, opts);
+		doc.addEventListener('pointerdown', guardDocumentEvent, opts);
+		doc.addEventListener('pointerup', guardDocumentEvent, opts);
+		return () => {
+			window.removeEventListener('keydown', handleKeyDown);
+			doc.removeEventListener('keydown', guardDocumentEvent, opts);
+			doc.removeEventListener('click', guardDocumentEvent, opts);
+			doc.removeEventListener('mousedown', guardDocumentEvent, opts);
+			doc.removeEventListener('mouseup', guardDocumentEvent, opts);
+			doc.removeEventListener('pointerdown', guardDocumentEvent, opts);
+			doc.removeEventListener('pointerup', guardDocumentEvent, opts);
+		};
 	});
 
 	$effect(() => {

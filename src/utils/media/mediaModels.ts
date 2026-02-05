@@ -35,6 +35,16 @@ export interface MediaMetadata {
 	focalPoint?: { x: number; y: number };
 	/** Whether a watermark has been applied to this media */
 	watermarkApplied?: boolean;
+	/** Edit provenance: original media ID when this asset was created from an edit (save as new) */
+	originalId?: string;
+	/** User ID that created this edited version */
+	editedBy?: string;
+	/** ISO date of last edit */
+	editedAt?: string;
+	/** Version index among siblings derived from the same original (1-based) */
+	versionNumber?: number;
+	/** Applied operations snapshot (crop, rotate, filters, etc.) for audit/replay */
+	operations?: Record<string, unknown>;
 	location?: {
 		latitude?: number;
 		longitude?: number;

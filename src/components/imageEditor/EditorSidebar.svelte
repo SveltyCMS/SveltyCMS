@@ -51,6 +51,7 @@ and proper active state indication.
 	}
 
 	function handleKeyDown(e: KeyboardEvent) {
+		if (!e?.target || !(e.target as Node).ownerDocument) return;
 		if (!hasImage) return;
 
 		switch (e.key) {

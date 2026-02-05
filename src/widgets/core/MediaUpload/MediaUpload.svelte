@@ -115,11 +115,19 @@ functionality for image editing and basic file information display.
 		}, 300);
 	}
 
-	async function handleEditorSave(detail: { dataURL: string; file: File; operations?: any; focalPoint?: any; mediaId?: string }) {
-		const { file, operations, focalPoint, mediaId } = detail;
+	async function handleEditorSave(detail: {
+		dataURL: string;
+		file: File;
+		operations?: any;
+		focalPoint?: any;
+		mediaId?: string;
+		saveBehavior?: 'new' | 'overwrite';
+	}) {
+		const { file, operations, focalPoint, mediaId, saveBehavior = 'new' } = detail;
 
 		const formData = new FormData();
 		formData.append('file', file);
+		formData.append('saveBehavior', saveBehavior);
 		if (mediaId) formData.append('mediaId', mediaId);
 		if (operations) formData.append('operations', JSON.stringify(operations));
 		if (focalPoint) formData.append('focalPoint', JSON.stringify(focalPoint));

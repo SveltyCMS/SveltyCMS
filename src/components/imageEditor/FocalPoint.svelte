@@ -252,6 +252,7 @@ and accessibility features.
 	}
 
 	function handleKeyDown(e: KeyboardEvent) {
+		if (!e?.target || !(e.target as Node).ownerDocument) return;
 		const step = e.shiftKey ? 10 : 1; // Larger steps with Shift
 		const imageRect = imageNode.getClientRect();
 		const pos = crosshair.position();

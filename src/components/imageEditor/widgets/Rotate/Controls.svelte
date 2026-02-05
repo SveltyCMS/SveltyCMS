@@ -61,6 +61,7 @@ Professional rotate controls with straighten and snap features
 
 	// Keyboard shortcuts
 	function handleKeyDown(e: KeyboardEvent) {
+		if (!e?.target || !(e.target as Node).ownerDocument) return;
 		if ((e.target as HTMLElement).tagName === 'INPUT') return;
 
 		const cmdOrCtrl = e.metaKey || e.ctrlKey;
@@ -121,9 +122,8 @@ Professional rotate controls with straighten and snap features
 <svelte:window onkeydown={handleKeyDown} />
 
 <div class="rotate-controls" role="toolbar" aria-label="Rotate controls">
-	<!-- Group 1: Tools (Toggles & Actions) -->
-	<div class="control-group">
-		<!-- Quick Rotate -->
+	<!-- Row 1: Tool buttons (rotate, flip, helpers) -->
+	<div class="control-row control-row-tools">
 		<div class="btn-group">
 			<button class="btn" onclick={onRotateLeft} title="Rotate Left 90° (Ctrl+←)">
 				<iconify-icon icon="mdi:rotate-left" width="20"></iconify-icon>
@@ -132,8 +132,6 @@ Professional rotate controls with straighten and snap features
 				<iconify-icon icon="mdi:rotate-right" width="20"></iconify-icon>
 			</button>
 		</div>
-
-		<!-- Flip -->
 		<div class="btn-group">
 			<button class="btn" class:active={isFlippedH} onclick={onFlipHorizontal} title="Flip Horizontal (H)">
 				<iconify-icon icon="mdi:flip-horizontal" width="20"></iconify-icon>
@@ -142,8 +140,6 @@ Professional rotate controls with straighten and snap features
 				<iconify-icon icon="mdi:flip-vertical" width="20"></iconify-icon>
 			</button>
 		</div>
-
-		<!-- Helpers -->
 		<div class="btn-group">
 			{#if onGridToggle}
 				<button class="btn" class:active={showGrid} onclick={onGridToggle} title="Toggle Grid (G)">
@@ -168,8 +164,8 @@ Professional rotate controls with straighten and snap features
 		</div>
 	</div>
 
-	<!-- Group 2: Presets -->
-	<div class="control-group">
+	<!-- Row 2: Presets + Slider -->
+	<div class="control-row control-row-slider">
 		<div class="preset-angles">
 			{#each presetAngles as angle}
 				<button class="preset-btn" class:active={Math.abs(displayAngle - angle) < 0.5} onclick={() => onRotationChange(angle)}>
@@ -177,10 +173,6 @@ Professional rotate controls with straighten and snap features
 				</button>
 			{/each}
 		</div>
-	</div>
-
-	<!-- Group 3: Slider (Refined) -->
-	<div class="control-group flex-1">
 		<div class="slider-wrapper">
 			<div class="slider-track-container">
 				<div class="center-tick"></div>
@@ -210,42 +202,35 @@ Professional rotate controls with straighten and snap features
 <style>
 	.rotate-controls {
 		display: flex;
-		flex-wrap: wrap; /* Always allow wrapping */
-		align-items: center;
-		gap: 1rem;
-		padding: 0;
-		background: transparent;
-		border: none;
+		flex-direction: column;
+		gap: 0.75rem;
+		padding: 0.75rem;
+		background: rgb(var(--color-surface-100) / 1);
+		border-top: 1px solid rgb(var(--color-surface-200) / 1);
 		width: 100%;
 	}
 
-	/* Groups of controls */
-	.control-group {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		flex-wrap: wrap;
+	:global(.dark) .rotate-controls {
+		background: rgb(var(--color-surface-800) / 1);
+		border-color: rgb(var(--color-surface-700) / 1);
 	}
 
-	/* Individual sections within groups */
-	.control-section {
+	/* Rows: tools on top, presets + slider below */
+	.control-row {
 		display: flex;
 		align-items: center;
-		gap: 0.5rem;
+		gap: 0.75rem;
+		flex-wrap: wrap;
+		width: 100%;
+	}
+
+	.control-row-tools {
 		flex-shrink: 0;
 	}
 
-	.control-label {
-		font-size: 0.75rem;
-		font-weight: 600;
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-		color: rgb(var(--color-surface-500) / 1);
-		white-space: nowrap;
-	}
-
-	:global(.dark) .control-label {
-		color: rgb(var(--color-surface-400) / 1);
+	.control-row-slider {
+		flex: 1;
+		min-height: 1.75rem;
 	}
 
 	.btn-group {
@@ -276,11 +261,6 @@ Professional rotate controls with straighten and snap features
 		background: rgba(255, 255, 255, 0.1);
 	}
 
-	.btn-group .btn.active {
-		background: #3b82f6;
-		color: white;
-	}
-
 	.btn-group .btn:last-child {
 		border-right: none;
 	}
@@ -293,6 +273,7 @@ Professional rotate controls with straighten and snap features
 	.preset-angles {
 		display: flex;
 		gap: 0.25rem;
+		flex-shrink: 0;
 	}
 
 	.preset-btn {
@@ -320,155 +301,132 @@ Professional rotate controls with straighten and snap features
 		box-shadow: 0 0 15px rgba(59, 130, 246, 0.3);
 	}
 
-	/* Enhanced Slider Styling */
+	/* Slider: same as Zoom (h-7 pill, 7rem track, 16px primary thumb) */
 	.slider-wrapper {
 		display: flex;
 		align-items: center;
-		gap: 0.75rem;
-		flex: 1;
-		min-width: 200px;
-		background: rgba(0, 0, 0, 0.2);
-		padding: 0.25rem 0.75rem;
+		gap: 0.5rem;
+		height: 1.75rem;
+		padding: 0 0.5rem;
 		border-radius: 9999px;
-		border: 1px solid rgba(255, 255, 255, 0.1);
+		background: rgb(var(--color-surface-50) / 0.05);
+		border: 1px solid rgb(var(--color-surface-50) / 0.1);
+		width: fit-content;
+		min-width: 0;
+		flex: 1;
+		max-width: 12rem;
+	}
+
+	:global(.dark) .slider-wrapper {
+		background: rgb(var(--color-surface-50) / 0.05);
+		border-color: rgb(var(--color-surface-50) / 0.1);
 	}
 
 	.slider-track-container {
-		flex: 1;
+		width: 7rem;
+		flex-shrink: 0;
 		position: relative;
 		display: flex;
 		align-items: center;
-		height: 1.5rem;
-		padding: 0 0.5rem; /* Add padding for thumb */
+		height: 0.25rem;
 	}
 
 	.slider {
 		-webkit-appearance: none;
 		appearance: none;
 		width: 100%;
-		height: 6px;
-		border-radius: 3px;
-		background: rgb(var(--color-surface-300) / 1);
+		height: 4px;
+		border-radius: 9999px;
+		background: rgb(var(--color-surface-500) / 0.3);
 		outline: none;
 		cursor: pointer;
 		position: absolute;
 		margin: 0;
 	}
 
-	:global(.dark) .slider {
-		background: rgb(var(--color-surface-600) / 1);
-	}
-
-	/* Slider Thumb - Webkit */
 	.slider::-webkit-slider-thumb {
 		-webkit-appearance: none;
 		appearance: none;
-		width: 20px;
-		height: 20px;
+		width: 16px;
+		height: 16px;
 		border-radius: 50%;
-		background: white;
-		border: 2px solid rgb(var(--color-primary-500) / 1);
+		background: rgb(var(--color-primary-500) / 1);
+		border: 2px solid white;
 		cursor: pointer;
-		box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+		box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 		transition: transform 0.1s;
-		margin-top: -7px; /* Nudge to center if needed, though usually auto-centers on height */
+		margin-top: -6px;
 	}
 
 	.slider::-webkit-slider-thumb:hover {
-		transform: scale(1.1);
-		box-shadow: 0 0 0 4px rgb(var(--color-primary-500) / 0.2);
+		transform: scale(1.05);
 	}
 
-	.slider::-webkit-slider-thumb:active {
-		background: rgb(var(--color-primary-500) / 1);
-		border-color: white;
+	.slider:focus {
+		outline: none;
 	}
 
-	/* Slider Thumb - Mozilla */
+	.slider:focus::-webkit-slider-thumb {
+		box-shadow: 0 0 0 3px rgb(var(--color-primary-500) / 0.3), 0 2px 4px rgba(0, 0, 0, 0.2);
+	}
+
+	.slider::-moz-range-track {
+		height: 4px;
+		border-radius: 9999px;
+		background: rgb(var(--color-surface-500) / 0.3);
+	}
+
 	.slider::-moz-range-thumb {
-		width: 20px;
-		height: 20px;
+		width: 16px;
+		height: 16px;
 		border-radius: 50%;
-		background: white;
-		border: 2px solid rgb(var(--color-primary-500) / 1);
+		background: rgb(var(--color-primary-500) / 1);
+		border: 2px solid white;
 		cursor: pointer;
-		box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+		box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 		transition: transform 0.1s;
 	}
 
 	.slider::-moz-range-thumb:hover {
-		transform: scale(1.1);
-		box-shadow: 0 0 0 4px rgb(var(--color-primary-500) / 0.2);
+		transform: scale(1.05);
 	}
 
-	.slider::-moz-range-thumb:active {
-		background: rgb(var(--color-primary-500) / 1);
-		border-color: white;
-	}
-
-	/* Center tick mark */
 	.center-tick {
 		position: absolute;
 		left: 50%;
 		top: 50%;
 		transform: translate(-50%, -50%);
 		width: 2px;
-		height: 10px;
-		background: rgb(var(--color-surface-400) / 1);
+		height: 8px;
+		background: rgb(var(--color-surface-400) / 0.5);
 		pointer-events: none;
 		border-radius: 1px;
 	}
 
 	.angle-display {
 		font-family: monospace;
-		font-size: 0.875rem;
+		font-size: 0.75rem;
 		font-weight: 600;
 		color: rgb(var(--color-primary-500) / 1);
-		min-width: 3.5rem;
+		min-width: 2.5rem;
 		text-align: right;
+		font-variant-numeric: tabular-nums;
 	}
 
-	.divider {
-		width: 1px;
-		height: 1.5rem;
-		background: rgb(var(--color-surface-300) / 1);
-		flex-shrink: 0;
-	}
-
-	:global(.dark) .divider {
-		background: rgb(var(--color-surface-600) / 1);
-	}
-
-	.actions {
-		display: flex;
-		gap: 0.5rem;
-		align-items: center;
-		flex-shrink: 0;
-		margin-left: auto;
-	}
-
-	/* Responsive Breakpoints */
-	@media (max-width: 1024px) {
-		/* Tablet/Mobile: Stack the main sections */
-		.rotate-controls {
-			row-gap: 1rem;
+	/* Responsive: slider row uses full width */
+	@media (max-width: 640px) {
+		.control-row-slider {
+			flex-direction: column;
+			align-items: stretch;
+			gap: 0.5rem;
 		}
 
-		/* Make slider row full width */
-		.control-group:last-of-type {
-			width: 100%;
+		.preset-angles {
+			justify-content: center;
 		}
 
 		.slider-wrapper {
-			width: 100%;
-		}
-
-		.actions {
-			margin-left: 0;
-			width: 100%;
-			justify-content: flex-end;
-			border-top: 1px solid rgb(var(--color-surface-200) / 0.5);
-			padding-top: 0.75rem;
+			min-width: 100%;
 		}
 	}
 </style>
