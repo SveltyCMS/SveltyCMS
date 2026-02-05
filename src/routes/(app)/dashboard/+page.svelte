@@ -40,6 +40,9 @@
 
 	// Lucide Icons
 
+	// Plugin Slots
+	import Slot from '@components/system/Slot.svelte';
+
 	const { data }: { data: PageData } = $props();
 
 	// Define the types for the widget registry
@@ -596,6 +599,11 @@
 					</div>
 				</div>
 			{/if}
+
+			<!-- Dashboard Injection Zone -->
+			<section class="w-full px-4 mb-8">
+				<Slot name="dashboard" />
+			</section>
 		</section>
 	</div>
 </main>

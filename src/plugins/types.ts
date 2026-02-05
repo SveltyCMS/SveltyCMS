@@ -111,9 +111,7 @@ export interface PluginEntryData {
  */
 export type PluginSSRHook = (context: PluginContext, entries: Array<Record<string, unknown>>) => Promise<PluginEntryData[]>;
 
-/**
- * UI column definition for plugin data display
- */
+// UI column definition for plugin data display
 export interface PluginColumn {
 	/** Column identifier */
 	id: string;
@@ -126,6 +124,12 @@ export interface PluginColumn {
 
 	/** Whether column is sortable */
 	sortable?: boolean;
+
+	/** Svelte component to render cell content */
+	component?: string;
+
+	/** Props to pass to the component (keys map to entry properties) */
+	props?: Record<string, string>;
 }
 
 /**
@@ -143,6 +147,38 @@ export interface PluginUIContribution {
 		icon?: string;
 		handler: string; // Name of the client-side action handler
 	}>;
+
+	/** Custom tabs/panels for the Edit Entry view */
+	editView?: {
+		tabs?: Array<{
+			id: string;
+			label: string;
+			icon: string;
+			component: any; // Svelte component or loader path
+		}>;
+		sidebar?: Array<any>; // Svelte components
+	};
+}
+
+// Injection Zones for Slot System
+export type InjectionZone = 'dashboard' | 'sidebar' | 'entry_edit' | 'config' | 'entry_list_actions';
+
+// Plugin Slot definition
+export interface PluginSlot {
+	id: string;
+	zone: InjectionZone;
+	position?: number;
+	component: () => Promise<any>; // Lazy loaded Svelte component
+	props?: Record<string, any>;
+	permissions?: string[]; // RBAC roles
+}
+
+// Lifecycle hooks for plugins to intercept CRUD operations
+export interface PluginLifecycleHooks {
+	beforeSave?: (context: PluginContext, collection: string, data: any) => Promise<any>;
+	afterSave?: (context: PluginContext, collection: string, result: any) => Promise<void>;
+	beforeDelete?: (context: PluginContext, collection: string, id: string) => Promise<void>;
+	afterDelete?: (context: PluginContext, collection: string, id: string) => Promise<void>;
 }
 
 /**
@@ -158,6 +194,9 @@ export interface Plugin {
 
 	/** SSR hook for data enrichment (optional) */
 	ssrHook?: PluginSSRHook;
+
+	/** Lifecycle hooks (CRUD interception) */
+	hooks?: PluginLifecycleHooks;
 
 	/** UI contributions (optional) */
 	ui?: PluginUIContribution;
@@ -231,6 +270,9 @@ export interface IPluginService {
 
 	/** Get SSR hooks for enabled plugins on a collection */
 	getSSRHooks(collectionId: string, tenantId?: string): Promise<PluginSSRHook[]>;
+
+	/** Get Lifecycle hooks for enabled plugins on a collection */
+	getLifecycleHooks(collectionId: string, hookName: keyof PluginLifecycleHooks, tenantId?: string): Promise<Array<Function>>;
 
 	/** Check if a plugin is enabled for a collection */
 	isEnabledForCollection(pluginId: string, collectionId: string, tenantId?: string): Promise<boolean>;

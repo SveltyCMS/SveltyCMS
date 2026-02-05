@@ -62,6 +62,9 @@ class WidgetState {
 			const newCustomWidgets: string[] = [];
 			const newDependencyMap: Record<string, string[]> = {};
 
+			logger.info(`[WidgetStore] Core modules found: ${Object.keys(coreModules).length}`);
+			logger.info(`[WidgetStore] Custom modules found: ${Object.keys(customModules).length}`);
+
 			// Process core widgets
 			for (const [path, module] of Object.entries(coreModules)) {
 				const name = path.split('/').at(-2);
@@ -149,12 +152,15 @@ class WidgetState {
 					if (this.widgetFunctions[camelCase]) return camelCase;
 					const lowerCase = name.toLowerCase();
 					if (this.widgetFunctions[lowerCase]) return lowerCase;
-					return name;
+					return null;
 				})
-				.filter((name) => this.widgetFunctions[name]);
+				.filter((name): name is string => name !== null);
 
-			const uniqueActive = [...new Set([...normalizedActive, ...newCoreWidgets])];
-			this.activeWidgets = uniqueActive;
+			// IMPORTANT: Core widgets are ALWAYS active and cannot be deactivated
+			// Merge core widgets with active widgets from database
+			const allActiveWidgets = [...new Set([...normalizedActive, ...newCoreWidgets])];
+
+			this.activeWidgets = allActiveWidgets;
 
 			// Create instances
 			const newWidgets: Record<string, any> = {};

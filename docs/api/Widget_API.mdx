@@ -122,7 +122,36 @@ GET /api/widgets/list
 
 ---
 
-### 2. Install Widget
+### 2. Get Active Widgets
+
+Returns a list of currently active widgets with enriched 3-pillar architecture metadata.
+
+**Endpoint:** `GET /api/widgets/active`
+
+**Query Parameters:**
+
+- `refresh` (optional): Set to `true` to bypass cache.
+
+**Response:**
+
+```json
+{
+	"success": true,
+	"data": {
+		"widgets": [
+			{
+				"name": "WidgetName",
+				"isCore": true,
+				"icon": "mdi:icon",
+				"inputComponentPath": "...",
+				"displayComponentPath": "..."
+			}
+		]
+	}
+}
+```
+
+### 3. Install Widget
 
 Installs a widget from the marketplace or local package.
 

@@ -157,6 +157,32 @@ class PluginRegistry implements IPluginService {
 		return hooks;
 	}
 
+	// Get Lifecycle hooks for enabled plugins on a collection
+	async getLifecycleHooks(
+		collectionId: string,
+		hookName: keyof import('./types').PluginLifecycleHooks,
+		tenantId?: string,
+		schema?: any
+	): Promise<Array<Function>> {
+		const hooks: Array<Function> = [];
+		const activeTenantId = tenantId || 'default';
+
+		for (const entry of this.plugins.values()) {
+			const plugin = entry.plugin;
+
+			// Check if plugin is enabled for this collection
+			if (!(await this.isEnabledForCollection(plugin.metadata.id, collectionId, activeTenantId, schema))) {
+				continue;
+			}
+
+			if (plugin.hooks && plugin.hooks[hookName]) {
+				hooks.push(plugin.hooks[hookName]!);
+			}
+		}
+
+		return hooks;
+	}
+
 	// Check if a plugin is enabled for a specific collection and tenant
 	async isEnabledForCollection(pluginId: string, collectionId: string, tenantId?: string, schema?: any): Promise<boolean> {
 		const plugin = this.get(pluginId);

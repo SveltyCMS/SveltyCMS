@@ -782,7 +782,7 @@
 				aria-label="Expand all categories"
 			>
 				<iconify-icon icon="mdi:unfold-more-horizontal" width={24} aria-hidden="true"></iconify-icon>
-				<span class="hidden sm:inline ml-1">Expand All</span>
+				<span class="ml-1 uppercase text-xs font-bold">Expand All</span>
 			</button>
 		</SystemTooltip>
 		<SystemTooltip title="Collapse all categories">
@@ -793,7 +793,7 @@
 				aria-label="Collapse all categories"
 			>
 				<iconify-icon icon="mdi:unfold-less-horizontal" width={24} aria-hidden="true"></iconify-icon>
-				<span class="hidden sm:inline ml-1">Collapse All</span>
+				<span class="ml-1 uppercase text-xs font-bold">Collapse All</span>
 			</button>
 		</SystemTooltip>
 	</div>
@@ -906,7 +906,8 @@
 								{@render treeNode(child, level + 1)}
 							</div>
 						{/each}
-					{:else}
+					{:else if isDragging}
+						<!-- Only show empty drop zone during active dragging -->
 						<div class="empty-drop-zone min-h-[40px]" role="none"></div>
 					{/if}
 				</div>

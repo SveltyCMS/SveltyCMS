@@ -108,7 +108,7 @@ All dynamic CMS settings organized into logical groups
 </p>
 
 {#if unconfiguredCount > 0}
-	<div class="wrapper preset-filled-error-500 mb-6">
+	<div class="wrapper preset-filled-error-500 text-surface-600 dark:text-surface-300 mb-6">
 		<div class="text-sm opacity-90">
 			<strong
 				>⚠️ Action Required: {unconfiguredCount}

@@ -120,6 +120,50 @@ interface EntryListProps {
 
 ---
 
+## Plugin Extensibility
+
+The EntryList component can be extended through plugins using the **`dashboard` injection zone** for list-level enhancements.
+
+### Plugin Integration Points
+
+Plugins can enhance the EntryList with:
+
+- **Custom Actions**: Bulk operations, export tools, workflow automation
+- **Data Visualizations**: Charts, analytics overlays, trend indicators
+- **Filtering Extensions**: Advanced search, saved filters, custom predicates
+- **UI Enhancements**: Custom columns, row decorators, status badges
+
+### Example: Bulk Export Plugin
+
+```typescript
+import type { Plugin } from '@src/plugins/types';
+import BulkExportButton from './BulkExportButton.svelte';
+
+export const exportPlugin: Plugin = {
+	metadata: {
+		id: 'bulk-exporter',
+		name: 'Bulk Export',
+		version: '1.0.0',
+		enabled: true
+	},
+	ui: {
+		slots: [
+			{
+				zone: 'dashboard',
+				slot: 'list_actions',
+				component: BulkExportButton,
+				order: 50
+			}
+		]
+	}
+};
+```
+
+> [!NOTE]
+> For comprehensive plugin development, see [Plugin Architecture](/docs/guides/Plugin_Architecture.mdx).
+
+---
+
 ## Related Documentation
 
 - [MultiButton Component](./EntryList_MultiButton.mdx)

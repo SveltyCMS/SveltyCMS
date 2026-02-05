@@ -1,0 +1,164 @@
+---
+path: guides/Plugin_Architecture.mdx
+title: Plugin Architecture
+description: Comprehensive guide to the SveltyCMS Enterprise Plugin System, including Slots, Injection Zones, and Lifecycle Hooks.
+icon: mdi:puzzle-outline
+order: 10
+author: admin
+created: 2026-02-05
+updated: 2026-02-05
+tags:
+  - plugins
+  - architecture
+  - guide
+---
+
+# Plugin Architecture
+
+SveltyCMS features a robust, enterprise-grade plugin architecture designed to allow deep customization without modifying the core codebase. This system relies on a **Slot-based** injection mechanism, centralized registration, and strict type safety.
+
+## System Overview
+
+The following diagram illustrates how plugins interact with the core Host Application:
+
+```mermaid
+graph TD
+    subgraph Plugin System
+        Registry[SlotRegistry]
+        PluginDef[Plugin Definition]
+        SlotType[PluginSlot Interface]
+    end
+
+    subgraph Host Application
+        Host[Host Component<br/>e.g. Fields.svelte]
+        SlotComp[Slot.svelte Component]
+    end
+
+    PluginDef -- Registers --> SlotType
+    SlotType -- Stored In --> Registry
+    Host -- Renders --> SlotComp
+    SlotComp -- Queries "getSlots(zone)" --> Registry
+    Registry -- Returns --> SlotType
+    SlotComp -- Renders --> Component[Plugin Component]
+
+    style Registry fill:#f9f,stroke:#333,stroke-width:2px
+    style SlotComp fill:#bbf,stroke:#333,stroke-width:2px
+    style Host fill:#dfd,stroke:#333,stroke-width:2px
+```
+
+## Core Concepts
+
+### 1. Plugins
+
+A **Plugin** is a self-contained module that defines metadata, configuration, and capabilities. It must implement the `Plugin` interface.
+
+```typescript
+export interface Plugin {
+	metadata: PluginMetadata; // Name, version, icon...
+	migrations?: PluginMigration[]; // Database changes
+	ssrHook?: PluginSSRHook; // Server-side data enrichment
+	hooks?: PluginLifecycleHooks; // CRUD interception
+	ui?: PluginUIContribution; // UI slots and actions
+	config?: PluginConfig; // Settings schema
+}
+```
+
+### 2. Slots & Injection Zones
+
+**Slots** are specific locations within `Injection Zones` where plugins can render custom components.
+
+**Available Injection Zones:**
+
+- **`entry_edit`**: In the Collection Entry Edit view (e.g., custom tabs for SEO, Previews).
+- **`dashboard`**: On the main Dashboard (e.g., Analytics widgets).
+- **`sidebar`**: In the main navigation sidebar.
+- **`config`**: In the System Configuration area.
+
+### 3. Registry
+
+The `SlotRegistry` is a singleton service that manages strictly typed slots. Plugins register their components here during initialization.
+
+## Creating a Plugin
+
+### Step 1: Define the Plugin
+
+Create a new directory in `src/plugins/your-plugin` and define your plugin object.
+
+```typescript
+// src/plugins/my-plugin/index.ts
+import type { Plugin } from '@src/plugins/types';
+
+export const myPlugin: Plugin = {
+	metadata: {
+		id: 'my-plugin',
+		name: 'My Custom Plugin',
+		version: '1.0.0',
+		description: 'Adds a custom tab to the entry editor.',
+		icon: 'mdi:star',
+		enabled: true
+	}
+	// ... capabilities
+};
+```
+
+### Step 2: Register UI Slots
+
+To add a custom tab to the Content Editor:
+
+```typescript
+// src/plugins/my-plugin/index.ts
+import { slotRegistry } from '@src/plugins/slotRegistry';
+
+// Register the slot
+slotRegistry.register({
+	id: 'my-plugin-tab',
+	zone: 'entry_edit',
+	component: () => import('./MyCustomTab.svelte'), // Lazy loaded
+	props: {
+		label: 'My Tab',
+		icon: 'mdi:star'
+	}
+});
+```
+
+### Step 3: Implement the Component
+
+Create your Svelty component. It will receive context props automatically.
+
+```svelte
+<!-- src/plugins/my-plugin/MyCustomTab.svelte -->
+<script lang="ts">
+	export let collection;
+	export let currentCollectionValue;
+	export let user;
+</script>
+
+<div class="p-4">
+	<h3>Hello from My Plugin!</h3>
+	<p>Editing: {collection.name}</p>
+</div>
+```
+
+## Lifecycle Hooks
+
+Plugins can intercept CRUD operations to validate data, trigger side effects, or modify content.
+
+```typescript
+hooks: {
+    beforeSave: async (context, collection, data) => {
+        if (collection === 'posts') {
+            data.slug = slugify(data.title);
+        }
+        return data;
+    },
+    afterDelete: async (context, collection, id) => {
+        await notifyExternalSystem(id);
+    }
+}
+```
+
+## Best Practices
+
+1.  **Lazy Loading**: Always use dynamic imports `() => import(...)` for components to keep the initial bundle size low.
+2.  **Type Safety**: Use the provided interfaces from `@src/plugins/types` to ensure compatibility.
+3.  **Isolation**: Keep your plugin styles scoped and avoid modifying global state directly.

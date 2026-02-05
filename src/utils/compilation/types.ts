@@ -16,6 +16,8 @@ export interface CompileOptions {
 	logger?: Logger;
 	/** Concurrency limit for file processing */
 	concurrency?: number;
+	/** Tenant ID for multi-tenant mode (undefined/null = global resource) */
+	tenantId?: string | null;
 }
 
 export interface Logger {
@@ -29,6 +31,7 @@ export interface ExistingFileData {
 	jsPath: string;
 	uuid: string | null;
 	hash: string | null;
+	tenantId?: string | null;
 }
 
 export interface CompilationResult {

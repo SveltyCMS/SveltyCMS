@@ -1,22 +1,37 @@
-// docs/lint-docs.ts
+/**
+ * @file tests/lint-docs.ts
+ * @description Validates the frontmatter of all .mdx files in the src/widgets and docs directories.
+ *
+ * Features:
+ * - Validates the frontmatter of all .mdx files in the src/widgets and docs directories.
+ * - Checks for missing required fields.
+ * - Checks for invalid field types.
+ * - Checks for invalid field values.
+ * - Checks for invalid field formats.
+ * - Checks for invalid field lengths.
+ * - Checks for invalid field values.
+ * - Checks for invalid field formats.
+ * - Checks for invalid field lengths.
+ */
+
 import fs from 'fs';
 import path from 'path';
-import { safeParse, object, string, array, optional, isoDate, minLength, number, union } from 'valibot';
+import { safeParse, object, string, array, optional, isoDate, minLength, number, union, pipe } from 'valibot';
 
 // --- Frontmatter Schema Definition ---
 // ISO date validator (YYYY-MM-DD)
-const isoDateString = string([isoDate()]);
+const isoDateString = pipe(string(), isoDate());
 
 const frontmatterSchema = object({
-	path: string([minLength(1)]),
-	title: string([minLength(3)]),
-	description: string([minLength(10)]),
+	path: pipe(string(), minLength(1)),
+	title: pipe(string(), minLength(3)),
+	description: pipe(string(), minLength(10)),
 	order: optional(union([number(), string()])), // can be numeric or string
 	icon: optional(string()), // e.g. mdi:form-textbox
-	author: string([minLength(2)]),
+	author: pipe(string(), minLength(2)),
 	created: isoDateString,
 	updated: isoDateString,
-	tags: array(string([minLength(2)]), [minLength(1)])
+	tags: pipe(array(pipe(string(), minLength(2))), minLength(1))
 });
 
 // --- simple frontmatter parser without extra deps ---

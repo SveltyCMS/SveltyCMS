@@ -10,16 +10,19 @@ import { initializeTestEnvironment } from '../helpers/testSetup';
 import { getApiBaseUrl } from '../helpers/server';
 import { write } from 'bun';
 import { unlink } from 'node:fs/promises';
+import { getCollectionFilePath, getCollectionDisplayPath } from '../../../src/utils/tenantPaths';
 
 const API_BASE_URL = getApiBaseUrl();
 
 // We need a collection to test against. Since CI cleans config/collections,
 // we must ensure one exists.
 const TEST_COLLECTION_NAME = 'test_posts';
-const TEST_COLLECTION_PATH = `config/collections/${TEST_COLLECTION_NAME}.ts`;
+// Use tenant path utilities for proper path resolution (defaults to legacy mode for tests)
+const TEST_COLLECTION_PATH = getCollectionFilePath(TEST_COLLECTION_NAME, undefined);
+const TEST_COLLECTION_DISPLAY_PATH = getCollectionDisplayPath(TEST_COLLECTION_NAME, undefined);
 const TEST_COLLECTION_CONFIG = `
 /**
- * @file config/collections/${TEST_COLLECTION_NAME}.ts
+ * @file ${TEST_COLLECTION_DISPLAY_PATH}
  * @description AUTO-GENERATED FILE FOR TESTING PURPOSES.
  * This file is created by tests/bun/api/collections.test.ts and should be automatically removed after tests complete.
  * If found lingering, it is safe to delete.

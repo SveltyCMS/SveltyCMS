@@ -413,6 +413,8 @@ export interface TableHeader {
 	visible: boolean;
 	width?: number;
 	sortable?: boolean;
+	component?: string;
+	props?: Record<string, string>;
 }
 
 export interface PaginationSettings {

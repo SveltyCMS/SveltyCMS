@@ -6,7 +6,7 @@ order: 6
 icon: 'mdi:domain'
 author: 'admin'
 created: '2025-11-30'
-updated: '2025-11-30'
+updated: '2026-02-05'
 tags:
   - 'architecture'
   - 'multi-tenancy'
@@ -16,7 +16,7 @@ tags:
 
 # Multi-Tenancy Architecture
 
-SveltyCMS supports a robust multi-tenancy architecture allowing a single instance to serve multiple isolated tenants.
+SveltyCMS supports a robust multi-tenancy architecture allowing a single instance to serve multiple isolated tenants with flexible resource sharing capabilities.
 
 ## Core Concepts
 
@@ -27,19 +27,128 @@ Tenants are identified via:
 1.  **Hostname**: In standard production environments, the subdomain or domain determines the tenant (e.g., `tenant1.example.com`).
 2.  **Session Cookie**: In Demo Mode, a `demo_tenant_id` cookie identifies the ephemeral tenant.
 
-### Data Isolation
+### Data Isolation Strategies
 
-Data isolation is enforced at the Database Adapter level.
+SveltyCMS supports two primary data isolation strategies that can be mixed and matched based on your requirements:
 
-- **MongoDB**: All queries include a `tenantId` filter.
-- **Redis**: Cache keys are namespaced with `tenantId`.
-- **Storage**: Media files are stored in tenant-specific folders (e.g., `uploads/{tenantId}/...`).
+#### 1. **Tenant-Specific Resources** (Full Isolation)
+
+Resources with a `tenantId` field are isolated to a specific tenant. This is the default for most user-generated content.
+
+#### 2. **Global Resources** (Shared Across Tenants)
+
+Resources without a `tenantId` (or with `tenantId: null`) are shared across all tenants. This is ideal for:
+
+- System-wide roles and permissions
+- Shared content templates
+- Global configuration settings
+- Common collections accessible to all tenants
+
+## Resource Isolation Patterns
+
+### Roles and Permissions
+
+Roles can be configured as either **global** or **tenant-specific**:
+
+```typescript
+// Global Role (shared across all tenants)
+interface GlobalRole {
+	_id: string;
+	name: string;
+	permissions: string[];
+	tenantId?: undefined; // No tenantId = global
+}
+
+// Tenant-Specific Role
+interface TenantRole {
+	_id: string;
+	name: string;
+	permissions: string[];
+	tenantId: string; // Specific tenant ID
+}
+```
+
+**Use Cases:**
+
+- **Global Roles**: System-wide roles like "Super Admin", "Content Manager", "Viewer" that apply across all tenants
+- **Tenant-Specific Roles**: Custom roles per tenant like "Acme Corp Editor", "Client A Reviewer"
+
+**Database Operations:**
+
+```typescript
+// Get all roles (global + tenant-specific)
+await dbAdapter.auth.getAllRoles(tenantId);
+
+// Get only global roles
+await dbAdapter.auth.getAllRoles(undefined);
+
+// Get tenant-specific roles
+await dbAdapter.auth.getAllRoles('tenant-123');
+```
+
+### Collections
+
+Collections can be configured as **global** or **tenant-specific**:
+
+```typescript
+// Global Collection (accessible to all tenants)
+interface GlobalCollection {
+	_id: string;
+	name: string;
+	nodeType: 'collection';
+	tenantId?: undefined; // No tenantId = global
+}
+
+// Tenant-Specific Collection
+interface TenantCollection {
+	_id: string;
+	name: string;
+	nodeType: 'collection';
+	tenantId: string; // Specific tenant ID
+}
+```
+
+**Use Cases:**
+
+- **Global Collections**: Shared resources like "Products", "Categories", "Tags" that all tenants can access
+- **Tenant-Specific Collections**: Isolated data like "Orders", "Customers", "Internal Documents"
+
+**Content Entries:**
+All entries within a collection inherit the collection's isolation strategy:
+
+```typescript
+interface CollectionEntry {
+	_id: string;
+	status?: 'published' | 'draft' | 'archived';
+	tenantId?: string; // Matches parent collection's tenantId
+	createdBy?: string;
+	updatedBy?: string;
+}
+```
+
+### System Settings
+
+System settings support an explicit `isGlobal` flag:
+
+```typescript
+interface SystemSetting {
+	key: string;
+	value: unknown;
+	isGlobal?: boolean; // true = shared across tenants
+	tenantId?: string; // undefined if isGlobal is true
+}
+```
+
+**Use Cases:**
+
+- **Global Settings**: System-wide configuration like "SMTP Server", "Default Theme", "API Rate Limits"
+- **Tenant Settings**: Per-tenant customization like "Company Logo", "Branding Colors", "Feature Flags"
 
 ## Implementation Details
 
 ### Authentication Hook
 
-The `handleAuthentication` hook (`src/hooks/handleAuthentication.ts`) is the entry point for tenant resolution.
+The `handleAuthentication` hook (`src/hooks/handleAuthentication.ts`) is the entry point for tenant resolution:
 
 1.  It checks the `MULTI_TENANT` setting.
 2.  It resolves the `tenantId` from the request (hostname or cookie).
@@ -48,18 +157,236 @@ The `handleAuthentication` hook (`src/hooks/handleAuthentication.ts`) is the ent
 
 ### Database Adapter
 
-The `DatabaseAdapter` interface requires `tenantId` for most operations.
+The `DatabaseAdapter` interface supports optional `tenantId` for most operations, enabling flexible resource isolation:
 
 ```typescript
-interface DatabaseAdapter {
-	collection: {
-		getData(collection: string, filter: any, tenantId: string): Promise<any>;
-		// ...
-	};
+interface IAuthAdapter {
+	// Roles
+	getAllRoles(tenantId?: string): Promise<Role[]>;
+	getRoleById(roleId: string, tenantId?: string): Promise<DatabaseResult<Role | null>>;
+	createRole(role: Role): Promise<DatabaseResult<Role>>;
+	updateRole(roleId: string, roleData: Partial<Role>, tenantId?: string): Promise<DatabaseResult<Role>>;
+	deleteRole(roleId: string, tenantId?: string): Promise<DatabaseResult<void>>;
+
+	// Users
+	getUserById(user_id: string, tenantId?: string): Promise<DatabaseResult<User | null>>;
+	getUserByEmail(criteria: { email: string; tenantId?: string }): Promise<DatabaseResult<User | null>>;
 	// ...
 }
 ```
 
+**Query Behavior:**
+
+- `tenantId` **provided**: Returns only resources for that specific tenant
+- `tenantId` **undefined/null**: Returns global resources (no `tenantId` field)
+- **Both**: Some operations may return both global and tenant-specific resources (e.g., roles)
+
+### Data Isolation Enforcement
+
+Data isolation is enforced at multiple levels:
+
+1. **Database Adapter Level**: All queries include `tenantId` filtering when appropriate
+   - **MongoDB**: Queries include `{ tenantId: <value> }` or `{ tenantId: { $exists: false } }` filters
+   - **Redis**: Cache keys are namespaced with `tenantId` (e.g., `tenant:123:users:456`)
+
+2. **Storage Level**: Media files are stored in tenant-specific folders
+   - Pattern: `uploads/{tenantId}/...` for tenant-specific files
+   - Pattern: `uploads/global/...` for shared assets
+
+3. **API Level**: Endpoints validate `tenantId` from `event.locals.tenantId`
+
+4. **Compilation Level**: Collection schemas are compiled with `tenantId` embedded
+   - The compilation system (`src/utils/compilation/`) automatically injects `tenantId` into compiled schemas
+   - When compiling collections, pass `tenantId` in `CompileOptions`:
+     ```typescript
+     await compile({
+     	tenantId: 'tenant-123', // Tenant-specific collection
+     	// or
+     	tenantId: null, // Global collection
+     	// or
+     	tenantId: undefined // No multi-tenancy (default)
+     });
+     ```
+   - Compiled files include tenant metadata in header comments for debugging:
+     ```javascript
+     // WARNING: Generated file. Do not edit.
+     // HASH: abc123def456
+     // TENANT_ID: tenant-123
+     ```
+
+### Directory Structure
+
+Multi-tenant mode uses a tenant-based directory structure for better organization:
+
+```
+config/
+  {tenantId}/           # Tenant-specific resources
+    collections/
+      Products.ts
+      Orders.ts
+  global/               # Shared resources
+    collections/
+      Categories.ts
+      Tags.ts
+
+.compiledCollections/
+  {tenantId}/           # Compiled tenant collections
+    Products.js
+    Orders.js
+  global/               # Compiled global collections
+    Categories.js
+    Tags.js
+```
+
+**Benefits:**
+
+- All tenant resources in one directory
+- Easy tenant backup/migration
+- Clear ownership boundaries
+- Scalable for additional tenant resources (themes, plugins, etc.)
+
+**Legacy Support:**
+
+- Single-tenant mode uses `config/collections/` (backward compatible)
+- Existing installations can migrate by moving files to `config/global/collections/`
+
 ### Configuration
 
 Multi-tenancy is enabled via the `MULTI_TENANT` private setting in `config/private.ts`.
+
+## Best Practices
+
+### When to Use Global Resources
+
+Use global resources when:
+
+- ✅ Data should be shared across all tenants (e.g., product catalog, shared templates)
+- ✅ Consistency is required across tenants (e.g., system-wide roles)
+- ✅ Reducing data duplication is important
+- ✅ Centralized management is preferred
+
+### When to Use Tenant-Specific Resources
+
+Use tenant-specific resources when:
+
+- ✅ Data must be completely isolated (e.g., customer orders, private documents)
+- ✅ Compliance requires data segregation (e.g., GDPR, HIPAA)
+- ✅ Tenants need independent customization (e.g., custom roles, workflows)
+- ✅ Data ownership is tenant-specific
+
+### Hybrid Approach
+
+Most applications benefit from a hybrid approach:
+
+```typescript
+// Example: E-commerce Platform
+{
+  // Global Resources
+  productCatalog: { tenantId: undefined }, // Shared products
+  systemRoles: { tenantId: undefined },    // Base roles
+
+  // Tenant-Specific Resources
+  orders: { tenantId: 'tenant-123' },      // Isolated orders
+  customers: { tenantId: 'tenant-123' },   // Isolated customer data
+  customRoles: { tenantId: 'tenant-123' }  // Tenant-specific roles
+}
+```
+
+## Migration from Single-Tenant to Multi-Tenant
+
+### Automatic Migration on Enable
+
+When switching from single-tenant to multi-tenant mode:
+
+1. **Primary Tenant Creation**: A primary tenant is automatically created (typically using the domain name or a configured identifier)
+
+2. **Automatic `tenantId` Assignment**: All existing resources receive the primary `tenantId`:
+
+   ```typescript
+   // Collections
+   db.collections.updateMany({ tenantId: { $exists: false } }, { $set: { tenantId: 'primary-tenant-id' } });
+
+   // Roles
+   db.roles.updateMany({ tenantId: { $exists: false } }, { $set: { tenantId: 'primary-tenant-id' } });
+
+   // Users
+   db.users.updateMany({ tenantId: { $exists: false } }, { $set: { tenantId: 'primary-tenant-id' } });
+   ```
+
+3. **100% Separation**: After migration, all resources are fully isolated to the primary tenant by default
+
+### Creating Global Resources (Post-Migration)
+
+To share resources across tenants after migration, explicitly set `tenantId` to `null`:
+
+```typescript
+// Make a role global (shared across all tenants)
+await dbAdapter.auth.updateRole(
+	roleId,
+	{
+		tenantId: null
+	},
+	'primary-tenant-id'
+);
+
+// Make a collection global
+await dbAdapter.content.nodes.update(collectionPath, {
+	tenantId: null
+});
+```
+
+### Converting Tenant-Specific to Global
+
+```typescript
+// Remove tenantId to make resource global
+await dbAdapter.crud.update('roles', roleId, {
+	tenantId: null // Explicitly set to null for global access
+});
+```
+
+### Converting Global to Tenant-Specific
+
+```typescript
+// Add tenantId to isolate resource
+await dbAdapter.crud.update('roles', roleId, {
+	tenantId: 'tenant-123'
+});
+```
+
+> **⚠️ Warning**: Converting resources between global and tenant-specific requires careful planning to avoid data access issues.
+
+### Migration Checklist
+
+When enabling multi-tenancy:
+
+- [ ] **Backup Database**: Always backup before enabling multi-tenancy
+- [ ] **Configure Primary Tenant**: Set the primary tenant identifier in configuration
+- [ ] **Run Migration Script**: Execute the tenant migration script to assign `tenantId` to all resources
+- [ ] **Verify Isolation**: Confirm all resources have `tenantId` assigned
+- [ ] **Identify Global Resources**: Determine which resources (if any) should be shared globally
+- [ ] **Update Global Resources**: Explicitly set `tenantId: null` for shared resources
+- [ ] **Test Access**: Verify tenant isolation and global resource access
+- [ ] **Update Documentation**: Document which resources are global vs tenant-specific
+
+## Security Considerations
+
+1. **Permission Checks**: Always validate that users have appropriate permissions for both global and tenant-specific resources
+2. **Cross-Tenant Access**: Prevent users from accessing resources outside their tenant (except for explicitly global resources)
+3. **Audit Logging**: Track access to both global and tenant-specific resources for compliance
+4. **Data Leakage**: Ensure queries properly filter by `tenantId` to prevent accidental cross-tenant data exposure
+
+## Performance Optimization
+
+1. **Indexing**: Create compound indexes on `tenantId` + frequently queried fields
+
+   ```javascript
+   db.collection.createIndex({ tenantId: 1, createdAt: -1 });
+   ```
+
+2. **Caching**: Use tenant-aware cache keys
+
+   ```typescript
+   const cacheKey = tenantId ? `tenant:${tenantId}:roles` : 'global:roles';
+   ```
+
+3. **Query Optimization**: Leverage global resources to reduce data duplication and improve query performance

@@ -395,6 +395,58 @@ Only visible for admin users. Shows:
 
 ---
 
+## Plugin Extensibility
+
+The Fields component supports plugin extensions through the **`entry_edit` injection zone**, allowing plugins to add custom tabs and functionality to the entry editing interface.
+
+### Plugin Slots
+
+Plugins can register components in the `entry_edit` zone to:
+
+- **Add Custom Tabs**: SEO optimization, AI content generation, preview tools
+- **Inject UI Elements**: Custom actions, metadata panels, workflow controls
+- **Extend Functionality**: Third-party integrations, analytics, custom validators
+
+### Example Plugin Integration
+
+```typescript
+// Plugin registering a custom SEO tab
+import type { Plugin } from '@src/plugins/types';
+import SEOTab from './SEOTab.svelte';
+
+export const seoPlugin: Plugin = {
+	metadata: {
+		id: 'seo-optimizer',
+		name: 'SEO Optimizer',
+		version: '1.0.0',
+		enabled: true
+	},
+	ui: {
+		slots: [
+			{
+				zone: 'entry_edit',
+				slot: 'tabs',
+				component: SEOTab,
+				order: 100
+			}
+		]
+	}
+};
+```
+
+### Available Slots in `entry_edit` Zone
+
+| Slot Name          | Location                                     | Use Case                       |
+| ------------------ | -------------------------------------------- | ------------------------------ |
+| `tabs`             | Additional tabs after Edit/Revisions/Preview | Custom editing interfaces      |
+| `header_actions`   | Header toolbar area                          | Quick actions, status controls |
+| `field_extensions` | Below field groups                           | Field-level enhancements       |
+
+> [!TIP]
+> For complete plugin development guide, see [Plugin Architecture](/docs/guides/Plugin_Architecture.mdx).
+
+---
+
 ## Best Practices
 
 1. **Field Configuration**: Always set `db_fieldName` for consistent validation keys

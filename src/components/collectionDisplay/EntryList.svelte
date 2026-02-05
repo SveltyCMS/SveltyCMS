@@ -464,6 +464,25 @@
 	const currentMode = $derived(currentStates.mode);
 	const currentCollection = $derived(currentStates.collection);
 
+	import { availablePlugins } from '@src/plugins/index';
+
+	// ... (helper to map entry data to component props)
+	function mapPluginProps(propMapping: Record<string, string> | undefined, entry: any) {
+		if (!propMapping) return {};
+		const props: Record<string, any> = {};
+		for (const [propName, entryPath] of Object.entries(propMapping)) {
+			// Simple path resolution (e.g. "pluginData.performanceScore" or just "performanceScore" if typical flat entry)
+			// Assuming pluginData structure for plugins: entry.pluginData[field]
+			if (entryPath === 'performanceScore' && entry.pluginData?.performanceScore !== undefined) {
+				props[propName] = entry.pluginData.performanceScore;
+			} else {
+				// Fallback or generic mapping
+				props[propName] = entry[entryPath];
+			}
+		}
+		return props;
+	}
+
 	// Optimized table headers with better caching
 	const tableHeaders = $derived.by((): TableHeader[] => {
 		if (!currentCollection?.fields) return [];
@@ -486,14 +505,29 @@
 		];
 
 		// Plugin Headers (Dynamic detection)
-		const hasPageSpeedData = tableData.some((entry: any) => entry.pluginData?.performanceScore !== undefined);
-		if (hasPageSpeedData) {
-			systemHeaders.unshift({
-				id: `${cacheKey}-pagespeed`,
-				label: 'PageSpeed',
-				name: 'PageSpeed',
-				visible: true
-			});
+		// Iterate over registered plugins and add their columns
+		for (const plugin of availablePlugins) {
+			if (plugin.ui?.columns) {
+				for (const col of plugin.ui.columns) {
+					// Only add if relevant? For now add all enabled plugin columns.
+					// Check if any entry actually has data for this plugin to avoid clutter?
+					// Or just always show if plugin is active. Let's show if plugin is active.
+
+					// Optional: Check if plugin is enabled for this collection?
+					// if (plugin.enabledCollections && !plugin.enabledCollections.includes(currentCollection._id)) continue;
+
+					systemHeaders.unshift({
+						id: `${plugin.metadata.id}-${col.id}`,
+						label: col.label,
+						name: col.id,
+						visible: true,
+						width: col.width ? parseInt(col.width) : undefined,
+						sortable: col.sortable,
+						component: col.component,
+						props: col.props
+					});
+				}
+			}
 		}
 
 		return [...schemaHeaders, ...systemHeaders];
@@ -1092,17 +1126,16 @@
 													<div class="flex w-full items-center justify-center">
 														<Status value={entry.status || entry.raw_status || 'draft'} />
 													</div>
-												{:else if (header as TableHeader).name === 'PageSpeed'}
-													{#if (entry as any).pluginData?.performanceScore !== undefined}
-														<PluginComponent
-															pluginId="pagespeed"
-															componentName="score"
-															score={(entry as any).pluginData.performanceScore}
-															compact={true}
-														/>
-													{:else}
-														<span class="text-surface-400 opacity-50">-</span>
-													{/if}
+												{:else if (header as TableHeader).component}
+													<!-- Dynamic Plugin Component Injection -->
+													{@const pluginId = (header as TableHeader).id.split('-')[0]}
+
+													<PluginComponent
+														{pluginId}
+														componentName={(header as TableHeader).component || ''}
+														{...mapPluginProps((header as TableHeader).props, entry)}
+														compact={true}
+													/>
 												{:else if (header as TableHeader).name === 'createdAt' || (header as TableHeader).name === 'updatedAt'}
 													<div class="flex flex-col text-xs">
 														<div class="font-semibold">

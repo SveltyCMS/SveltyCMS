@@ -8,11 +8,12 @@ import { pluginRegistry } from './registry';
 export { pluginRegistry };
 
 import { pageSpeedPlugin } from './pagespeed';
+import { editableWebsitePlugin } from './editable-website';
 import type { Plugin } from './types';
 import { logger } from '@utils/logger.server';
 
 // All available plugins
-export const availablePlugins: Plugin[] = [pageSpeedPlugin];
+export const availablePlugins: Plugin[] = [pageSpeedPlugin, editableWebsitePlugin];
 
 /**
  * Initialize plugin system

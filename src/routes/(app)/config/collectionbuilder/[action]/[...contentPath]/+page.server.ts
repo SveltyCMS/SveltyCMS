@@ -24,6 +24,7 @@ import { contentManager } from '@src/content/ContentManager';
 import { compile } from '@src/utils/compilation/compile';
 import { MigrationEngine } from '@src/services/MigrationEngine';
 import type { Schema } from '@src/content/types';
+import { getCollectionFilePath, getCollectionDisplayPath } from '@utils/tenantPaths';
 
 // Widgets
 import { widgets } from '@stores/widgetStore.svelte.ts';
@@ -222,6 +223,9 @@ export const actions: Actions = {
 
 			const imports = await goThrough(fields, fieldsData);
 
+			// Get tenant ID from request locals (set by hooks.server.ts)
+			const tenantId = (request as any).locals?.tenantId;
+
 			// Generate collection file using AST transformation
 			const content = await generateCollectionFileWithAST({
 				contentName,
@@ -230,19 +234,24 @@ export const actions: Actions = {
 				collectionDescription,
 				collectionSlug,
 				fields,
-				imports
+				imports,
+				tenantId
 			});
 
-			const collectionPath = import.meta.env.userCollectionsPath;
+			// Use tenant-aware path resolution
+			const collectionPath = getCollectionFilePath(contentName, tenantId);
+			const oldCollectionPath = originalName ? getCollectionFilePath(originalName, tenantId) : null;
 
-			if (originalName && originalName !== contentName) {
-				fs.renameSync(`${collectionPath}/${originalName}.ts`, `${process.env.COLLECTIONS_FOLDER_TS}/${contentName}.ts`);
+			if (originalName && originalName !== contentName && oldCollectionPath) {
+				fs.renameSync(oldCollectionPath, collectionPath);
 			}
-			fs.writeFileSync(`${collectionPath}/${contentName}.ts`, content);
-			await compile({ logger });
+			fs.writeFileSync(collectionPath, content);
+
+			// Compile with tenant ID
+			await compile({ logger, tenantId });
 			//await contentManager.generateContentTypes();
 			//await contentManager.generateCollectionFieldTypes();
-			await contentManager.refresh();
+			await contentManager.refresh(tenantId);
 			return { status: 200 };
 		} catch (err) {
 			const message = `Error in saveCollection action: ${err instanceof Error ? err.message : String(err)}`;
@@ -404,13 +413,17 @@ interface CollectionData {
 	collectionSlug: string;
 	fields: FieldsData;
 	imports: string;
+	tenantId?: string | null;
 }
 
 async function generateCollectionFileWithAST(data: CollectionData): Promise<string> {
 	try {
+		// Generate tenant-aware file path for header comment
+		const displayPath = getCollectionDisplayPath(data.contentName, data.tenantId);
+
 		// Create the base template with imports
 		const sourceCode = `/**
- * @file config/collections/${data.contentName}.ts
+ * @file ${displayPath}
  * @description Collection file for ${data.contentName}
  */
 

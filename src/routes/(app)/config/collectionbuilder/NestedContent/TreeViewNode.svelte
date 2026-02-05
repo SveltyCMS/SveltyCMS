@@ -167,10 +167,13 @@ Features:
 		</div>
 	{/if}
 
+	<!-- Spacer to push slug and actions to the right -->
+	<div class="flex-1 min-w-0"></div>
+
 	<!-- Slug -->
 	{#if item.slug}
-		<span class="badge bg-surface-200 dark:bg-surface-700 px-3 py-1 rounded-sm font-mono text-xs shadow-sm" aria-label="URL slug">
-			/{item.slug}
+		<span class="badge bg-surface-500 dark:bg-surface-600 text-white px-2 py-1 rounded font-mono text-xs shadow-sm mr-2" aria-label="URL slug">
+			{item.slug}
 		</span>
 	{/if}
 

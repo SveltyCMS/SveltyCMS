@@ -42,6 +42,11 @@ export class SeoAnalyzer {
 			// Remove all other HTML tags
 			input = input.replace(/<[^>]*>/gi, '');
 		} while (input !== previous);
+
+		// Final safeguard: remove any remaining angle brackets to prevent
+		// malformed or partial tags (e.g., "<script") from surviving.
+		input = input.replace(/[<>]/g, '');
+
 		return input;
 	}
 

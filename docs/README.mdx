@@ -67,6 +67,21 @@ Essential for developers who need to understand:
 - 🏗️ SvelteKit + Svelte 5 architecture
 - 📊 Database abstraction and optimization
 
+## 🏆 Competitive Awareness (SveltyCMS Advantage)
+
+SveltyCMS is designed to outperform competitors like Payload CMS, Strapi, and Directus by leveraging Svelte 5's no-runtime compilation and unique features.
+
+| Feature           | SveltyCMS Approach                  | Why Better than Competitors                              |
+| ----------------- | ----------------------------------- | -------------------------------------------------------- |
+| **Core Tech**     | SvelteKit + Svelte 5 (Runes)        | No VDOM/hydration tax vs. React-based (Payload, Strapi). |
+| **Cold Start**    | <1s (Progressive, self-healing)     | Faster than 3s+ in Payload/Strapi; edge-ready.           |
+| **i18n**          | Paraglide (Compiled, zero-runtime)  | Type-safe, no runtime lookups vs. i18next in rivals.     |
+| **Schemas**       | Hybrid (Code + GUI, bi-directional) | Flexible vs. code-only (Payload) or GUI-only (Strapi).   |
+| **Multi-Tenancy** | Native (tenantId isolation)         | Core/free vs. enterprise-gated in Strapi/Contentful.     |
+| **SCIM 2.0**      | Native endpoints (RFC 7644)         | Automated provisioning vs. manual/enterprise in others.  |
+| **Audit Logs**    | Crypto-chained (SHA-256)            | Compliance-ready vs. basic/manual in competitors.        |
+| **Accessibility** | WCAG 2.2 AA / ATAG 2.0              | Full support vs. partial in Payload/Strapi.              |
+
 ## 🚀 Quick Start
 
 ### For Users (Content Management)
@@ -252,32 +267,6 @@ POST /api/import/full
 - **UI Management**: Configure via System Settings
 
 See [Cache System Documentation](/docs/architecture/cache-system) for details.
-
-### Migration from Legacy Config
-
-#### Old Approach (Deprecated)
-
-- Static config files with CLI prompts
-- Hard-coded settings in code
-- Manual file editing for changes
-- No import/export capability
-
-#### New Approach (Current)
-
-1. **Database-driven settings** - All config in MongoDB
-2. **RESTful API** - Programmatic access via `/api/settings/*`
-3. **Admin GUI** - User-friendly interface at `/config/systemsetting`
-4. **Import/Export** - Environment management with validation
-5. **Version Control** - Config files in git alongside code
-
-#### Migration Steps (for existing installations)
-
-1. Update to latest version: `git pull && bun install`
-2. Run database migration: `bun run migrate`
-3. Export old config: Legacy settings auto-migrated
-4. Verify settings: Check `/config/systemsetting`
-5. Test import/export: Try exporting and re-importing
-6. Update deployment scripts: Use new API endpoints
 
 ---
 

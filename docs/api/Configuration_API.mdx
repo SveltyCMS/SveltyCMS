@@ -725,10 +725,38 @@ await fetch('/api/cache/clear', {
 
 For implementation details, see:
 
-- `src/routes/api/setup/test-database/+server.ts` - Database testing
+- `src/routes/api/setup/test-database/+server.ts`
+
+### 3. Set Default Theme
+
+Sets the specified theme as the default for the current tenant.
+
+**Endpoint:** `POST /api/theme/set-default`
+
+**Request Body:**
+
+```json
+{
+	"themeId": "custom-theme-id"
+}
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "theme": { ... }
+}
+```
+
 - `src/routes/api/setup/install-driver/+server.ts` - Driver installation
 - `src/routes/api/config/save-config/+server.ts` - Config persistence
 - `src/routes/api/theme/update-theme/+server.ts` - Theme management
 - `src/routes/api/cache/clear/+server.ts` - Cache clearing
 - `src/databases/themeManager.ts` - Theme manager
 - `src/databases/CacheService.ts` - Cache service
+
+```
+
+```

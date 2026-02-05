@@ -58,6 +58,9 @@
 	import { activeInputStore } from '@stores/activeInputStore.svelte';
 	import SystemTooltip from '@components/system/SystemTooltip.svelte';
 
+	// Plugin Slot System
+	import { slotRegistry } from '@src/plugins/slotRegistry';
+
 	// Token Picker
 	// Token Picker
 
@@ -325,6 +328,9 @@
 			apiUrl = `${location.origin}/api/collection/${collection.value?._id}/${(collectionValue as any).value._id}`;
 		}
 	});
+
+	// --- 7. PLUGIN SLOTS ---
+	const entryEditSlots = $derived(slotRegistry.getSlots('entry_edit'));
 </script>
 
 <h1 class="sr-only">
@@ -351,15 +357,6 @@
 			</Tabs.Trigger>
 		{/if}
 
-		{#if collection.value?.livePreview}
-			<Tabs.Trigger value="2" class="flex-1">
-				<div class="flex items-center justify-center gap-2 py-2">
-					<iconify-icon icon="mdi:eye-outline" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-					{m.Fields_preview()}
-				</div>
-			</Tabs.Trigger>
-		{/if}
-
 		{#if user?.isAdmin}
 			<Tabs.Trigger value="3" class="flex-1">
 				<div class="flex items-center justify-center gap-2 py-2">
@@ -368,6 +365,23 @@
 				</div>
 			</Tabs.Trigger>
 		{/if}
+
+		<!-- Plugin Slots Triggers -->
+		{#each entryEditSlots as slot (slot.id)}
+			{#if slot.id !== 'live_preview' || collection.value?.livePreview}
+				<Tabs.Trigger value={slot.id} class="flex-1">
+					<div class="flex items-center justify-center gap-2 py-2">
+						{#if slot.props?.icon}
+							<iconify-icon icon={slot.props.icon} width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+						{:else}
+							<iconify-icon icon="mdi:puzzle-outline" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+						{/if}
+						{slot.props?.label || slot.id}
+					</div>
+				</Tabs.Trigger>
+			{/if}
+		{/each}
+
 		<Tabs.Indicator />
 	</Tabs.List>
 
@@ -533,42 +547,6 @@
 			{/if}
 		</div>
 	</Tabs.Content>
-	<Tabs.Content value="2" class="w-full">
-		{@const hostProd = publicEnv?.HOST_PROD || 'https://localhost:5173'}
-		{@const entryId = (collectionValue as any).value?._id || 'draft'}
-		{@const previewUrl = `${hostProd}?preview=${entryId}`}
-		<div class="flex h-[600px] flex-col p-4">
-			<div class="mb-4 flex items-center justify-between gap-4">
-				<div class="flex flex-1 items-center gap-2">
-					<iconify-icon icon="mdi:open-in-new" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-					<input type="text" class="input grow text-sm" readonly value={previewUrl} />
-					<button
-						class="preset-outline-surface-500 btn-sm"
-						onclick={() => {
-							navigator.clipboard.writeText(previewUrl);
-							toaster.success({ description: 'Preview URL Copied' });
-						}}
-						aria-label="Copy preview URL"
-					>
-						<iconify-icon icon="mdi:content-copy" width="16"></iconify-icon>
-					</button>
-				</div>
-				<a href={previewUrl} target="_blank" rel="noopener noreferrer" class="preset-filled-primary-500 btn-sm">
-					<iconify-icon icon="mdi:open-in-new" width="16" class="mr-1"></iconify-icon>
-					Open
-				</a>
-			</div>
-
-			<div class="flex-1 overflow-hidden rounded-lg border border-surface-300 dark:text-surface-50">
-				<iframe src={previewUrl} title="Live Preview" class="h-full w-full" sandbox="allow-same-origin allow-scripts allow-forms allow-popups"
-				></iframe>
-			</div>
-
-			<div class="mt-2 text-center text-xs text-surface-500">
-				Preview URL: {hostProd}?preview={entryId}
-			</div>
-		</div>
-	</Tabs.Content>
 	<Tabs.Content value="3" class="w-full">
 		<div class="space-y-4 p-4">
 			<div class="flex items-center gap-2">
@@ -586,4 +564,30 @@
 			</div>
 		</div>
 	</Tabs.Content>
+
+	<!-- Plugin Slots Content -->
+	{#each entryEditSlots as slot (slot.id)}
+		{#if slot.id !== 'live_preview' || collection.value?.livePreview}
+			<Tabs.Content value={slot.id} class="w-full">
+				{#await slot.component()}
+					<div class="flex h-40 items-center justify-center">
+						<div class="h-10 w-10 animate-spin rounded-full border-4 border-surface-200 border-t-primary-500"></div>
+					</div>
+				{:then Component}
+					{#if Component.default}
+						<Component.default {collection} {currentCollectionValue} {user} {tenantId} contentLanguage={currentContentLanguage} {...slot.props} />
+					{:else}
+						<Component {collection} {currentCollectionValue} {user} {tenantId} contentLanguage={currentContentLanguage} {...slot.props} />
+					{/if}
+				{:catch error}
+					<div class="p-4">
+						<div class="rounded border border-error-500/50 bg-error-50 p-4 text-error-600 dark:bg-error-900/10 dark:text-error-400">
+							<h3 class="mb-2 font-bold">Plugin Error ({slot.id})</h3>
+							<p>{error.message}</p>
+						</div>
+					</div>
+				{/await}
+			</Tabs.Content>
+		{/if}
+	{/each}
 </Tabs>

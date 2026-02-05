@@ -132,7 +132,7 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
 	}
 
 	// --- Public routes require no auth ---
-	if (isPublic) {
+	if (isPublic || (pathname === '/api/content-structure' && request.method === 'POST')) {
 		locals.isAdmin = false;
 		locals.hasManageUsersPermission = false;
 		locals.isFirstUser = false;

@@ -145,7 +145,7 @@
 		</h1>
 	</div>
 
-	<div class="flex items-center gap-2">
+	<div class="flex flex-wrap items-center gap-2 shrink-0">
 		<!-- Action Buttons -->
 		{#if children}
 			{@render children()}

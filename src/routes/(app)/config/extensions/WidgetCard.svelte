@@ -116,7 +116,10 @@ canManage: boolean;
 		<!-- Actions -->
 		<div class="flex items-center gap-2 self-end sm:self-auto">
 			<!-- Toggle Active Status -->
-			{#if canManage && widget.canDisable}
+			{#if widget.isCore}
+				<!-- Core widgets are always active and cannot be deactivated -->
+				<span class="badge preset-tonal-primary-500" title="Core widgets are always active">Always Active</span>
+			{:else if canManage && widget.canDisable}
 				<button
 					type="button"
 					onclick={() => onToggle(widget.name)}
@@ -125,8 +128,6 @@ canManage: boolean;
 				>
 					{widget.isActive ? 'Deactivate' : 'Activate'}
 				</button>
-			{:else if widget.isCore}
-				<span class="badge preset-tonal-surface-500">System</span>
 			{:else if !widget.canDisable}
 				<span class="badge variant-soft-warning" title="Required by other widgets">Required</span>
 			{/if}

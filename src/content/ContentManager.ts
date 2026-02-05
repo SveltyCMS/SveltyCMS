@@ -1466,7 +1466,7 @@ class ContentManager {
 
 	private async _fullReload(tenantId?: string): Promise<void> {
 		const schemas = await this._scanAndProcessFiles();
-		await this._reconcileAndBuildStructure(schemas);
+		await this._reconcileAndBuildStructure(schemas, tenantId);
 		await this._populateCache(tenantId);
 	}
 
@@ -1527,7 +1527,7 @@ class ContentManager {
 	}
 
 	// Synchronizes schemas from files with the database and builds the in-memory maps
-	private async _reconcileAndBuildStructure(schemas: Schema[]): Promise<void> {
+	private async _reconcileAndBuildStructure(schemas: Schema[], tenantId?: string): Promise<void> {
 		const dbAdapter = await getDbAdapter();
 
 		// In setup mode (no database), just build in-memory structure from files only
@@ -1540,10 +1540,14 @@ class ContentManager {
 		const { generateCategoryNodesFromPaths } = await import('./utils');
 		const fileCategoryNodes = generateCategoryNodesFromPaths(schemas);
 
+		logger.debug('--- RECONCILE: SCHEMAS FROM FS ---');
+		logger.debug(JSON.stringify(schemas.map((s) => s.path)));
+		logger.debug('---------------------------------');
+
 		if (dbAdapter.ensureContent) {
 			await dbAdapter.ensureContent();
 		}
-		const dbResult = await dbAdapter.content.nodes.getStructure('flat');
+		const dbResult = await dbAdapter.content.nodes.getStructure('flat', { tenantId });
 
 		const dbNodeMap = new Map<string, ContentNode>(
 			dbResult.success
@@ -1568,7 +1572,7 @@ class ContentManager {
 
 		// Single bulk upsert with all data including parentIds
 		if (operations.length > 0) {
-			await this._bulkUpsertWithParentIds(dbAdapter, operations);
+			await this._bulkUpsertWithParentIds(dbAdapter, operations, tenantId);
 		}
 
 		// Load final structure and rebuild maps
@@ -1648,20 +1652,43 @@ class ContentManager {
 			processedPaths.add(path);
 		}
 
-		// 3. Add existing DB categories that might not be in fileCategoryNodes
+		// 3. CRITICAL FIX: Only preserve DB categories that are ancestors of current collections
+		// This prevents "ghost folders" from persisting when files are reorganized
+		const allCollectionPaths = new Set<string>();
+		for (const schema of schemas) {
+			if (schema.path) {
+				allCollectionPaths.add(schema.path);
+			}
+		}
+
+		// Build set of all ancestor paths that should exist
+		const requiredCategoryPaths = new Set<string>();
+		for (const collectionPath of allCollectionPaths) {
+			const parts = collectionPath.split('/').filter(Boolean);
+			// Add all ancestor paths (e.g., for "/Collections/Posts/Names", add "/Collections" and "/Collections/Posts")
+			for (let i = 1; i < parts.length; i++) {
+				const ancestorPath = '/' + parts.slice(0, i).join('/');
+				requiredCategoryPaths.add(ancestorPath);
+			}
+		}
+
+		// Only preserve DB categories that are required ancestors
 		for (const [path, dbNode] of dbNodeMapByPath.entries()) {
-			// CRITICAL: Only accept categories from DB if they have a valid absolute path
-			// and aren't already processed. This prevents "ID-as-path" garbage from re-infecting.
 			const isValidPath = typeof path === 'string' && path.startsWith('/') && path.length > 1;
 			const isNotUuid = !/^[0-9a-f]{32}$/i.test(path) && !/^[0-9a-f-]{36}$/i.test(path);
+			const isRequiredAncestor = requiredCategoryPaths.has(path);
 
-			if (!processedPaths.has(path) && dbNode.nodeType === 'category' && isValidPath && isNotUuid) {
+			if (!processedPaths.has(path) && dbNode.nodeType === 'category' && isValidPath && isNotUuid && isRequiredAncestor) {
+				logger.debug(`[ContentManager] Preserving DB category: ${path} (ancestor of current collections)`);
 				operations.push({
 					...dbNode,
 					_id: toDatabaseId(dbNode._id.toString()),
 					updatedAt: now
 				});
 				pathToIdMap.set(path, toDatabaseId(dbNode._id.toString()));
+			} else if (!processedPaths.has(path) && dbNode.nodeType === 'category' && isValidPath && !isRequiredAncestor) {
+				logger.info(`[ContentManager] Removing orphaned category: ${path} (no longer referenced by any collections)`);
+				// Category will be deleted by not including it in operations
 			}
 		}
 
@@ -1692,7 +1719,7 @@ class ContentManager {
 		return operations;
 	}
 
-	private async _bulkUpsertWithParentIds(dbAdapter: any, operations: ContentNode[]): Promise<void> {
+	private async _bulkUpsertWithParentIds(dbAdapter: any, operations: ContentNode[], tenantId?: string): Promise<void> {
 		const upsertOps = operations.map((op) => ({
 			path: op.path as string,
 			id: op._id.toString(),
@@ -1716,20 +1743,44 @@ class ContentManager {
 
 		await dbAdapter.content.nodes.bulkUpdate(upsertOps);
 
-		// Cleanup: Remove nodes from DB that are NOT in the current operations list
+		// Cleaning up: Remove nodes from DB that are NOT in the current operations list
 		const currentPaths = new Set(operations.map((op) => op.path));
-		const dbResult = await dbAdapter.content.nodes.getStructure('flat', {}, true);
+
+		logger.debug('--- CONTENT RECONCILE START ---');
+		logger.debug(`Current Ops Paths Count: ${currentPaths.size}`);
+		logger.debug(`Ops Paths: ${JSON.stringify(Array.from(currentPaths))}`);
+
+		const dbResult = await dbAdapter.content.nodes.getStructure('flat', { tenantId }, true);
 
 		if (dbResult.success && dbResult.data) {
-			const pathsToDelete = dbResult.data
-				.filter((node: ContentNode) => node.path && !currentPaths.has(node.path))
-				.map((node: ContentNode) => node.path);
+			const orphanedNodes = dbResult.data.filter((node: ContentNode) => node.path && !currentPaths.has(node.path));
+			logger.debug(`DB Node Count: ${dbResult.data.length}`);
+			logger.debug(`DB Paths: ${JSON.stringify(dbResult.data.map((n: any) => n.path))}`);
 
-			if (pathsToDelete.length > 0) {
-				logger.info(`[ContentManager] Cleaning up ${pathsToDelete.length} orphaned DB nodes:`, pathsToDelete);
-				await dbAdapter.content.nodes.deleteMany(pathsToDelete);
+			if (orphanedNodes.length > 0) {
+				const orphanedIds = orphanedNodes.map((node: ContentNode) => node._id.toString());
+				const orphanedPaths = orphanedNodes.map((node: ContentNode) => node.path);
+
+				logger.info(`FOUND ${orphanedNodes.length} ORPHANS for tenant ${tenantId || 'global'}: ${JSON.stringify(orphanedPaths)}`);
+
+				// FIX: Use generic CRUD to handle IDs and tenantId filtering
+				// We only include tenantId in the query if it's defined to avoid matching issues with missing fields
+				const deleteResult = await dbAdapter.crud.deleteMany('system_content_structure', {
+					_id: { $in: orphanedIds },
+					...(tenantId ? { tenantId } : {})
+				});
+				logger.info(`DELETION RESULT: ${JSON.stringify(deleteResult)}`);
+
+				// CRITICAL: Invalidate cache after deletion so the UI doesn't see stale data
+				if (typeof invalidateCategoryCache === 'function') {
+					await invalidateCategoryCache(CacheCategory.CONTENT, { tenantId });
+					logger.info('CACHE INVALIDATED');
+				}
+			} else {
+				logger.debug('NO ORPHANS FOUND');
 			}
 		}
+		logger.debug('--- CONTENT RECONCILE END ---');
 
 		// Fix any existing nodes that have mismatched IDs (from before this fix)
 		const nodesToFix = operations
@@ -1778,6 +1829,7 @@ class ContentManager {
 		}
 
 		const finalNodes = finalStructureResult.data;
+
 		// Clear and rebuild local maps with the complete database structure
 		this.contentNodeMap.clear();
 		this.pathLookupMap.clear();
@@ -1981,8 +2033,25 @@ class ContentManager {
 	private _extractPathFromFilePath(filePath: string): string {
 		const compiledDir = import.meta.env.VITE_COLLECTIONS_FOLDER || '.compiledCollections';
 		let relativePath = filePath.substring(filePath.indexOf(compiledDir) + compiledDir.length);
+
+		logger.debug(`[_extractPathFromFilePath] Original filePath: ${filePath}`);
+		logger.debug(`[_extractPathFromFilePath] After removing compiledDir: ${relativePath}`);
+
+		// Handle tenant-based structure: .compiledCollections/{tenantId}/path/to/file.js
+		// DISABLED: This logic was incorrectly treating folder names like "Collections", "Menu", "Posts"
+		// as tenant IDs and stripping them, breaking the folder hierarchy.
+		// TODO: Implement proper multi-tenant detection when multi-tenancy is fully implemented
+		// const tenantMatch = relativePath.match(/^\/([^/]+)\/(.*)/);
+		// if (tenantMatch && (tenantMatch[1] === 'global' || !tenantMatch[1].includes('.'))) {
+		// 	relativePath = '/' + tenantMatch[2];
+		// 	logger.debug(`[_extractPathFromFilePath] Tenant structure detected, path after tenant: ${relativePath}`);
+		// }
+
 		relativePath = relativePath.replace(/\.js$/, '');
-		return relativePath.startsWith('/') ? relativePath : `/${relativePath}`;
+		const finalPath = relativePath.startsWith('/') ? relativePath : `/${relativePath}`;
+
+		logger.debug(`[_extractPathFromFilePath] Final extracted path: ${finalPath}`);
+		return finalPath;
 	}
 
 	private _getElapsedTime(startTime: number): string {

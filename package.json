@@ -136,7 +136,7 @@
 		"wait-on": "^9.0.3"
 	},
 	"dependencies": {
-		"@aws-sdk/client-s3": "^3.982.0",
+		"@aws-sdk/client-s3": "^3.983.0",
 		"@floating-ui/dom": "^1.7.5",
 		"@inlang/paraglide-js": "^2.10.0",
 		"@mapbox/mapbox-gl-geocoder": "^5.1.2",
@@ -205,7 +205,7 @@
 	},
 	"optionalDependencies": {
 		"mariadb": "^3.4.5",
-		"mongoose": "^9.1.5",
+		"mongoose": "^9.1.6",
 		"mysql2": "^3.16.3",
 		"postgres": "^3.4.8"
 	}

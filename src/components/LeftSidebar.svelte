@@ -46,6 +46,9 @@
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
 	import ThemeToggle from '@components/ThemeToggle.svelte';
 
+	// Plugin Slots
+	import Slot from '@components/system/Slot.svelte';
+
 	// Skeleton components
 	import { Avatar, Menu, Portal } from '@skeletonlabs/skeleton-svelte';
 
@@ -317,6 +320,11 @@
 			{/if}
 		</button>
 	{/if}
+
+	<!-- Plugin Sidebar Items -->
+	<div class="mt-2 w-full px-1">
+		<Slot name="sidebar" />
+	</div>
 
 	<!-- Footer -->
 	<div class="mb-2 mt-auto w-full px-1">

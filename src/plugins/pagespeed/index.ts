@@ -1,6 +1,11 @@
 /**
  * @file src/plugins/pagespeed/index.ts
  * @description Google PageSpeed Insights plugin for SveltyCMS
+ *
+ * Features:
+ * - SSR hook to enrich entry list with cached PageSpeed data
+ * - Plugin component to display PageSpeed data in entry list
+ * - Plugin action to refresh PageSpeed data
  */
 
 import type { Plugin, PluginContext, PluginEntryData } from '../types';
@@ -79,7 +84,11 @@ export const pageSpeedPlugin: Plugin = {
 				id: 'performance_score',
 				label: 'Performance',
 				width: '120px',
-				sortable: false
+				sortable: false,
+				component: 'score', // Renders src/plugins/pagespeed/components/score.svelte via PluginComponent
+				props: {
+					score: 'performanceScore' // Maps entry.pluginData.performanceScore -> component prop 'score'
+				}
 			}
 		],
 		actions: [

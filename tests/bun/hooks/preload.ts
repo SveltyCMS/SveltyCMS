@@ -103,7 +103,8 @@ mock.module('@src/databases/CacheService', () => ({
 			mockCache.delete(key);
 		},
 		clearByPattern: async (pattern: string, _tenantId?: string) => {
-			const prefix = pattern.replace('*', '');
+			// Use split to correctly handle multiple wildcards
+			const prefix = pattern.split('*', 1)[0];
 			for (const key of mockCache.keys()) {
 				if (key.startsWith(prefix)) {
 					mockCache.delete(key);

@@ -168,3 +168,45 @@ export const schemaUuidTransformer =
 		};
 		return ts.visitNode(sourceFile, visitor) as ts.SourceFile;
 	};
+
+/**
+ * Transformer to inject tenantId into schema objects for multi-tenant support
+ * @param tenantId - The tenant ID to inject (null/undefined = global resource)
+ */
+export const schemaTenantIdTransformer =
+	(tenantId?: string | null): ts.TransformerFactory<ts.SourceFile> =>
+	(context) =>
+	(sourceFile) => {
+		// Skip transformation if tenantId is not provided
+		if (tenantId === undefined) {
+			return sourceFile;
+		}
+
+		const visitor = (node: ts.Node): ts.VisitResult<ts.Node> => {
+			if (ts.isObjectLiteralExpression(node)) {
+				const hasSchemaProperties = node.properties.some(
+					(prop) =>
+						ts.isPropertyAssignment(prop) &&
+						ts.isIdentifier(prop.name) &&
+						['fields', 'icon', 'status', 'revision', 'livePreview'].includes(prop.name.text)
+				);
+				if (hasSchemaProperties) {
+					const hasTenantIdProperty = node.properties.some(
+						(prop) => ts.isPropertyAssignment(prop) && ts.isIdentifier(prop.name) && prop.name.text === 'tenantId'
+					);
+					if (!hasTenantIdProperty) {
+						// Create tenantId property with appropriate value
+						const tenantIdProperty = ts.factory.createPropertyAssignment(
+							'tenantId',
+							tenantId === null
+								? ts.factory.createNull() // Global resource
+								: ts.factory.createStringLiteral(tenantId) // Tenant-specific
+						);
+						return ts.factory.updateObjectLiteralExpression(node, [tenantIdProperty, ...node.properties]);
+					}
+				}
+			}
+			return ts.visitEachChild(node, visitor, context);
+		};
+		return ts.visitNode(sourceFile, visitor) as ts.SourceFile;
+	};

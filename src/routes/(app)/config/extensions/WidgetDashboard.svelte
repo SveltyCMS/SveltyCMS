@@ -132,7 +132,12 @@ Features:
 			}
 
 			const result = await response.json();
-			widgets = result.widgets || [];
+			console.log('[WidgetDashboard] Full API response:', result);
+			console.log('[WidgetDashboard] result.widgets:', result.widgets);
+			console.log('[WidgetDashboard] result.data:', result.data);
+
+			// Try both result.widgets and result.data.widgets
+			widgets = result.widgets || result.data?.widgets || [];
 
 			console.info('Loaded widgets:', {
 				total: widgets.length,

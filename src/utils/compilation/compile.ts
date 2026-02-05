@@ -17,7 +17,14 @@ import * as ts from 'typescript';
 import { v4 as uuidv4 } from 'uuid';
 import { createHash } from 'crypto';
 import type { CompileOptions, CompilationResult, ExistingFileData, Logger } from './types';
-import { widgetTransformer, addJsExtensionTransformer, commonjsToEsModuleTransformer, schemaUuidTransformer } from './transformers';
+import {
+	widgetTransformer,
+	addJsExtensionTransformer,
+	commonjsToEsModuleTransformer,
+	schemaUuidTransformer,
+	schemaTenantIdTransformer
+} from './transformers';
+import { getCollectionsPath, getCompiledCollectionsPath, isValidTenantId } from '../tenantPaths.js';
 // Schema comparison (collectionSchemaWarnings.ts) runs at runtime in GUI/API when schemas are loaded
 // schemaWarnings in CompilationResult is populated by the collection save flow, not compilation
 
@@ -41,9 +48,14 @@ export async function compile(options: CompileOptions = {}): Promise<Compilation
 	const startTime = Date.now();
 	const logger = options.logger || defaultLogger;
 
-	// Default paths
-	const userCollections = options.userCollections || path.posix.join(process.cwd(), 'config/collections');
-	const compiledCollections = options.compiledCollections || path.posix.join(process.cwd(), '.compiledCollections');
+	// Validate tenant ID if provided
+	if (options.tenantId !== undefined && !isValidTenantId(options.tenantId)) {
+		throw new Error(`Invalid tenant ID: ${options.tenantId}`);
+	}
+
+	// Use tenant-aware paths (supports both legacy and multi-tenant modes)
+	const userCollections = options.userCollections || getCollectionsPath(options.tenantId);
+	const compiledCollections = options.compiledCollections || getCompiledCollectionsPath(options.tenantId);
 	const concurrencyLimit = options.concurrency || 5;
 
 	const result: CompilationResult = {
@@ -104,7 +116,8 @@ export async function compile(options: CompileOptions = {}): Promise<Compilation
 						existingFilesByPath,
 						existingFilesByHash,
 						sourceFileSet,
-						logger
+						logger,
+						options.tenantId
 					);
 
 					if (jsFilePath) {
@@ -233,7 +246,8 @@ async function compileFile(
 	existingByPath: Map<string, ExistingFileData>,
 	existingByHash: Map<string, ExistingFileData>,
 	sourceSet: Set<string>,
-	logger: Logger
+	logger: Logger,
+	tenantId?: string | null
 ): Promise<string | null> {
 	const srcPath = path.posix.join(srcDir, file);
 	const targetRel = file.replace(/\.(ts|js)$/, '.js');
@@ -280,8 +294,8 @@ async function compileFile(
 		? ts.transpileModule(content, { compilerOptions: { target: ts.ScriptTarget.ESNext, module: ts.ModuleKind.ESNext } })
 		: { outputText: content };
 
-	let code = transformAST(transpile.outputText, uuid);
-	code = wrapOutput(code, hash, targetRel);
+	let code = transformAST(transpile.outputText, uuid, tenantId);
+	code = wrapOutput(code, hash, targetRel, tenantId);
 
 	await fs.writeFile(targetAbs, code);
 	logSuccess(logger, `Compiled ${file} (${reason}: \x1b[33m${uuid}\x1b[0m)`);
@@ -290,18 +304,31 @@ async function compileFile(
 }
 
 const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
-function transformAST(code: string, uuid: string): string {
+function transformAST(code: string, uuid: string, tenantId?: string | null): string {
 	const source = ts.createSourceFile('temp.js', code, ts.ScriptTarget.ESNext, true, ts.ScriptKind.JS);
-	const res = ts.transform(source, [schemaUuidTransformer(uuid), widgetTransformer, addJsExtensionTransformer, commonjsToEsModuleTransformer]);
+	const res = ts.transform(source, [
+		schemaUuidTransformer(uuid),
+		schemaTenantIdTransformer(tenantId),
+		widgetTransformer,
+		addJsExtensionTransformer,
+		commonjsToEsModuleTransformer
+	]);
 	return printer.printFile(res.transformed[0]);
 }
 
-function wrapOutput(code: string, hash: string, pathRel: string): string {
+function wrapOutput(code: string, hash: string, pathRel: string, tenantId?: string | null): string {
 	// Add header comments
 	let out = code.replace(/(\s*\*\s*@file\s+)(.*)/, `$1.compiledCollections/${pathRel}`);
-	out = out.replace(/^\/\/\s*(HASH|UUID):.*$/gm, '').trimStart();
+	out = out.replace(/^\/\/\s*(HASH|UUID|TENANT_ID):.*$/gm, '').trimStart();
 
-	return `// WARNING: Generated file. Do not edit.\n` + `// HASH: ${hash}\n\n` + out;
+	let header = `// WARNING: Generated file. Do not edit.\n` + `// HASH: ${hash}\n`;
+
+	// Add tenant ID comment if in multi-tenant mode
+	if (tenantId !== undefined) {
+		header += `// TENANT_ID: ${tenantId === null ? 'global' : tenantId}\n`;
+	}
+
+	return header + `\n` + out;
 }
 
 function extractHashFromJs(content: string) {

@@ -303,6 +303,9 @@ A highly performant, accessible, and secure global search component with fuzzy m
 </script>
 
 {#if $isSearchVisible}
+	<!-- Semi-transparent backdrop -->
+	<div class="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm transition-opacity duration-200" aria-hidden="true"></div>
+
 	<div
 		class="search-component fixed inset-0 z-50 flex flex-col items-center justify-start pointer-events-none pt-[15vh] transition-opacity duration-200"
 		role="dialog"
@@ -353,7 +356,7 @@ A highly performant, accessible, and secure global search component with fuzzy m
 			<ul
 				bind:this={listElement}
 				id="search-results"
-				class="mt-4 max-h-[50vh] w-full max-w-xl overflow-y-auto rounded-lg bg-surface-50/90 dark:bg-surface-900/90 shadow-2xl backdrop-blur-sm pointer-events-auto"
+				class="mt-4 max-h-[50vh] w-full max-w-xl overflow-y-auto rounded-lg bg-surface-50 dark:bg-surface-900 shadow-2xl border border-surface-300 dark:border-surface-700 pointer-events-auto"
 				role="listbox"
 				aria-label="Search results"
 			>
@@ -430,7 +433,7 @@ A highly performant, accessible, and secure global search component with fuzzy m
 			</ul>
 		{:else if showNoResults}
 			<div
-				class="mt-4 w-full max-w-xl rounded-lg bg-surface-50/90 dark:bg-surface-900/90 p-6 text-center shadow-2xl backdrop-blur-sm pointer-events-auto"
+				class="mt-4 w-full max-w-xl rounded-lg bg-surface-50 dark:bg-surface-900 p-6 text-center shadow-2xl border border-surface-300 dark:border-surface-700 pointer-events-auto"
 				role="status"
 				aria-live="polite"
 			>
@@ -444,8 +447,8 @@ A highly performant, accessible, and secure global search component with fuzzy m
 		<!-- Help text -->
 		{#if !sanitizedQuery}
 			<div class="mt-4 w-full max-w-xl px-4 text-center text-sm pointer-events-auto">
-				<p>Start typing to search...</p>
-				<p class="mt-1 text-xs text-tertiary-500 dark:text-primary-500 font-semibold">
+				<p class="text-surface-100 dark:text-surface-200 font-medium">Start typing to search...</p>
+				<p class="mt-1 text-xs text-surface-200 dark:text-surface-300 font-semibold">
 					Use <kbd class="badge bg-surface-500 text-white px-1.5 py-0.5">↑</kbd>
 					<kbd class="badge bg-surface-500 text-white px-1.5 py-0.5">↓</kbd> to navigate,
 					<kbd class="badge bg-surface-500 text-white px-1.5 py-0.5">Enter</kbd> to select,
