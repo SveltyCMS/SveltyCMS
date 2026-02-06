@@ -1,17 +1,14 @@
 /**
  * @file tests/bun/api/setup-utils.test.ts
- * @description Unit tests for setup utility functions
+ * @description Unit tests for setup utility functions.
  *
- * Coverage:
- * - buildDatabaseConnectionString() - Connection string generation
- * - classifyDatabaseError() - Error classification and user-friendly messages
- * - Database adapter creation and initialization
- * - Error handling and edge cases
+ * Tests the core logic for database connection string building and error classification
+ * used during the initial setup process.
  */
 
 import { describe, it, expect } from 'bun:test';
-import { buildDatabaseConnectionString } from '@src/routes/api/setup/utils';
-import { classifyDatabaseError } from '@src/routes/api/setup/errorClassifier';
+import { buildDatabaseConnectionString } from '@src/routes/setup/utils';
+import { classifyDatabaseError } from '@src/routes/setup/errorClassifier';
 import type { DatabaseConfig } from '@src/databases/schemas';
 
 describe('Setup Utils - Connection String Builder', () => {

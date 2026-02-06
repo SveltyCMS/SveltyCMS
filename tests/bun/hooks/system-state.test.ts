@@ -153,8 +153,8 @@ describe('handleSystemState - State Machine Logic', () => {
 			expect(mockResolve).toHaveBeenCalledWith(event);
 		});
 
-		it('should allow /api/setup routes during IDLE state', async () => {
-			const event = createMockEvent('/api/setup/test-database');
+		it('should allow /setup/database routes during IDLE state', async () => {
+			const event = createMockEvent('/setup/database');
 			const response = await handleSystemState({ event, resolve: mockResolve });
 
 			expect(response.status).toBe(200);

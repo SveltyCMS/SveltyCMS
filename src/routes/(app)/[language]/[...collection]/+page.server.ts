@@ -43,15 +43,16 @@ import type { PageServerLoad } from './$types';
 
 // Core SveltyCMS services
 import { contentManager } from '@src/content/ContentManager';
-import { cacheService } from '@src/databases/CacheService';
-import { modifyRequest } from '@src/routes/api/collections/modifyRequest';
-import { getPublicSettingSync, getPrivateSettingSync } from '@src/services/settingsService';
+
+import { collectionService } from '@src/services/CollectionService';
+
+import { getPublicSettingSync } from '@src/services/settingsService';
 import { logger } from '@utils/logger.server';
-import type { FieldDefinition } from '@src/content/types';
+
 import type { User } from '@src/databases/auth/types';
 
 export const load: PageServerLoad = async ({ locals, params, url }) => {
-	const { user, tenantId, dbAdapter } = locals;
+	const { user, tenantId } = locals;
 	const typedUser = user as User; // Explicitly cast user to User type
 	const { language, collection } = params;
 
@@ -94,6 +95,13 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 			logger.debug(`Loading collection by UUID: \x1b[33m${collection}\x1b[0m`);
 			currentCollection = contentManager.getCollectionById(collection!, tenantId);
 
+			// SELF-HEALING: If not found, it might be a stale ContentManager after setup
+			if (!currentCollection) {
+				logger.warn(`Collection UUID ${collection} not found. Triggering ContentManager refresh...`);
+				await contentManager.refresh(tenantId);
+				currentCollection = contentManager.getCollectionById(collection!, tenantId);
+			}
+
 			// Redirect to pretty path if available (Prevents UUID -> Path flicker on client)
 			if (currentCollection && currentCollection.path) {
 				const newPath = `/${language}${currentCollection.path}${url.search}`;
@@ -105,6 +113,13 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 			const collectionPath = `/${collection}`;
 			logger.debug(`Loading collection by path: \x1b[34m${collectionPath}\x1b[0m`);
 			currentCollection = contentManager.getCollection(collectionPath, tenantId);
+
+			// SELF-HEALING: If not found, it might be a stale ContentManager after setup
+			if (!currentCollection) {
+				logger.warn(`Collection path ${collectionPath} not found. Triggering ContentManager refresh...`);
+				await contentManager.refresh(tenantId);
+				currentCollection = contentManager.getCollection(collectionPath, tenantId);
+			}
 		}
 
 		if (!currentCollection) {
@@ -139,284 +154,40 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 		const globalSearch = url.searchParams.get('search') || '';
 
 		const filterParams: Record<string, { contains: string }> = {};
-		let forceEmpty = false;
 
 		for (const [key, value] of url.searchParams.entries()) {
 			if (key.startsWith('filter_')) {
 				const filterKey = key.substring(7); // remove "filter_"
-
-				// Validate System Date fields to prevent DB cast errors on invalid inputs
 				if ((filterKey === 'createdAt' || filterKey === 'updatedAt') && value) {
 					// Check for "asda" type garbage. Valid dates or partial headers (numbers) allow pass.
 					if (isNaN(Date.parse(value)) && !/^\d+$/.test(value)) {
-						forceEmpty = true;
+						// Invalid date filter - ignore/empty logic handled in service now
 					}
 				}
 				filterParams[filterKey] = { contains: value }; // Assuming a 'contains' filter strategy
 			}
 		}
 
-		const cacheKey = `collection:${currentCollection._id}:page:${page}:size:${pageSize}:filter:${JSON.stringify(
-			filterParams
-		)}:search:${globalSearch}:sort:${JSON.stringify(sortParams)}:edit:${editEntryId || 'none'}:lang:${language}:tenant:${tenantId}`;
-
-		const cachedData = await cacheService.get(cacheKey);
-		if (cachedData) {
-			logger.debug(`Cache HIT for key: \x1b[33m${cacheKey}\x1b[0m`);
-			return cachedData;
-		}
-		logger.debug(`Cache MISS for key: \x1b[33m${cacheKey}\x1b[0m`);
+		// =================================================================
+		// 3. LOAD COLLECTION DATA (via CollectionService)
+		// =================================================================
+		// Use the centralized service for data loading to enable pre-warming and consistent caching.
+		const { entries, pagination, revisions, contentLanguage, collectionSchema } = await collectionService.getCollectionData({
+			collection: currentCollection,
+			page,
+			pageSize,
+			sort: sortParams,
+			filter: filterParams,
+			search: globalSearch,
+			language,
+			user: typedUser,
+			tenantId,
+			editEntryId: editEntryId || undefined
+		});
 
 		// =================================================================
-		// 4. LOAD PAGINATED ENTRIES (DB QUERY)
+		// 4. PREPARE FINAL RESPONSE
 		// =================================================================
-		const collectionTableName = `collection_${currentCollection._id}`;
-
-		const finalFilter: Record<string, unknown> = { ...filterParams };
-		if (getPrivateSettingSync('MULTI_TENANT')) {
-			finalFilter.tenantId = tenantId;
-		}
-
-		logger.debug(`[EntryList] Querying table: ${collectionTableName}`, { finalFilter, tenantId });
-
-		// If editing a specific entry, load only that entry
-		if (editEntryId) {
-			finalFilter._id = editEntryId;
-		}
-
-		// Build the query with search support
-		if (!dbAdapter) {
-			logger.error('Database adapter is not available.', { tenantId });
-			throw error(500, 'Database adapter is not available.');
-		}
-		let query = dbAdapter.queryBuilder(collectionTableName).where(finalFilter);
-
-		// Add global search across all collection fields if search term provided
-		if (globalSearch) {
-			// Get all field names from the collection schema
-			const searchableFields = currentCollection.fields
-				.map((field: FieldDefinition) => {
-					// Get the field name, handling both direct name and nested path
-					const fieldObj = field as Record<string, unknown>;
-					if (typeof fieldObj.name === 'string') {
-						return fieldObj.name;
-					}
-					if (typeof fieldObj.path === 'string') {
-						return fieldObj.path;
-					}
-					if (typeof fieldObj.key === 'string') {
-						return fieldObj.key;
-					}
-					if (typeof fieldObj.db_fieldName === 'string') {
-						return fieldObj.db_fieldName;
-					}
-					return null;
-				})
-				.filter((name): name is string => name !== null); // Type guard to filter nulls
-
-			// Add system fields that might contain searchable data
-			searchableFields.push('_id', 'status', 'createdBy', 'updatedBy');
-
-			logger.debug(`[Global Search] Searching for "${globalSearch}" across fields: ${searchableFields.join(', ')}`);
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			query = query.search(globalSearch, searchableFields as any);
-		}
-
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		query = query.sort(sortParams.field as any, sortParams.direction).paginate({ page, pageSize });
-
-		// Build count query (must include same filters and search)
-		let countQuery = dbAdapter.queryBuilder(collectionTableName).where(finalFilter);
-		if (globalSearch) {
-			const searchableFields = currentCollection.fields
-				.map((field: FieldDefinition) => {
-					const fieldObj = field as Record<string, unknown>;
-					return (fieldObj.name || fieldObj.path || fieldObj.key || fieldObj.db_fieldName) as string | null;
-				})
-				.filter((name): name is string => typeof name === 'string');
-			searchableFields.push('_id', 'status', 'createdBy', 'updatedBy');
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			countQuery = countQuery.search(globalSearch, searchableFields as any);
-		}
-
-		// Initialize with empty defaults
-		let entries: any[] = [];
-		let totalItems = 0;
-
-		if (!forceEmpty) {
-			const [entriesResult, countResult] = await Promise.all([query.execute(), countQuery.count()]);
-
-			if (!entriesResult.success || !countResult.success) {
-				const dbError =
-					(!entriesResult.success && 'error' in entriesResult ? entriesResult.error : undefined) ||
-					(!countResult.success && 'error' in countResult ? countResult.error : undefined) ||
-					'Unknown database error';
-
-				const errStr = typeof dbError === 'object' ? JSON.stringify(dbError) : String(dbError);
-
-				// Gracefully handle CastErrors (invalid filters) by returning empty results
-				if (errStr.includes('Cast') || errStr.includes('convert')) {
-					logger.warn('Invalid filter value caused DB error, returning empty result.', { error: dbError });
-					entries = [];
-					totalItems = 0;
-				} else {
-					logger.error('Failed to load collection entries.', { error: dbError });
-					throw error(500, `Failed to load collection entries: ${errStr}`);
-				}
-			} else {
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
-				entries = (entriesResult.data || []) as any[];
-				totalItems = countResult.data as number;
-			}
-		}
-
-		// =================================================================
-		// 5. RUN MODIFYREQUEST (Enrich entries)
-		// =================================================================
-		if (entries.length > 0) {
-			await modifyRequest({
-				data: entries,
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
-				fields: currentCollection.fields as any,
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
-				collection: currentCollection as any,
-				user: typedUser,
-				type: 'GET',
-				tenantId
-			});
-		}
-
-		// =================================================================
-		// 5.5. ENTERPRISE SSR: LANGUAGE PROJECTION FOR VIEW MODE
-		// =================================================================
-		// For list views (EntryList), project only the current language data to:
-		// 1. Reduce payload size (100s of entries × N languages → 100s of entries × 1 language)
-		// 2. Prevent EntryList from displaying wrong language data (EN on /de/ page)
-		// 3. Improve cache efficiency (language-specific cache keys)
-		//
-		// For edit mode (Fields), keep full multilingual data to enable:
-		// 1. Simultaneous translation editing across all languages
-		// 2. Per-field translation status calculation
-		// 3. Language toggle without page reload
-		if (!editEntryId) {
-			for (let i = 0; i < entries.length; i++) {
-				const entry = entries[i];
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
-				for (const field of currentCollection.fields as any[]) {
-					// eslint-disable-next-line @typescript-eslint/no-explicit-any
-					const fieldName = (field as any).db_fieldName || (field as any).label;
-					if (
-						// eslint-disable-next-line @typescript-eslint/no-explicit-any
-						(field as any).translated &&
-						// eslint-disable-next-line @typescript-eslint/no-explicit-any
-						(entry as any)[fieldName] &&
-						// eslint-disable-next-line @typescript-eslint/no-explicit-any
-						typeof (entry as any)[fieldName] === 'object' &&
-						// eslint-disable-next-line @typescript-eslint/no-explicit-any
-						!Array.isArray((entry as any)[fieldName])
-					) {
-						// ENTERPRISE BEHAVIOR: Show only the requested language
-						// If translation doesn't exist, show clear indicator instead of fallback language
-						// This prevents confusion and clearly shows which content needs translation
-						// eslint-disable-next-line @typescript-eslint/no-explicit-any
-						const value = ((entry as any)[fieldName] as any)[language];
-						// eslint-disable-next-line @typescript-eslint/no-explicit-any
-						(entry as any)[fieldName] = value !== undefined && value !== null && value !== '' ? value : '-';
-					}
-				}
-			}
-		}
-
-		// =================================================================
-		// 5.6. PLUGIN SSR HOOKS: Enrich entries with plugin data
-		// =================================================================
-		let pluginData: Record<string, any> = {};
-		if (!editEntryId && entries.length > 0) {
-			try {
-				const { pluginRegistry } = await import('@src/plugins');
-				const hooks = await pluginRegistry.getSSRHooks(currentCollection._id as string, tenantId, currentCollection);
-
-				if (hooks.length > 0) {
-					logger.debug('Running plugin SSR hooks', {
-						collectionId: currentCollection._id,
-						hooksCount: hooks.length,
-						entriesCount: entries.length
-					});
-
-					const pluginContext = {
-						user: typedUser,
-						tenantId: tenantId || 'default',
-						language,
-						dbAdapter,
-						collectionSchema: currentCollection
-					};
-
-					// Run all plugin hooks and collect their data
-					const allPluginData = await Promise.all(hooks.map((hook) => hook(pluginContext, entries)));
-
-					// Merge plugin data by entry ID
-					for (const hookData of allPluginData) {
-						for (const entryData of hookData) {
-							if (!pluginData[entryData.entryId]) {
-								pluginData[entryData.entryId] = {};
-							}
-							Object.assign(pluginData[entryData.entryId], entryData.data);
-						}
-					}
-
-					// Attach plugin data to entries
-					entries = entries.map((entry) => {
-						const pData = pluginData[entry._id as string];
-						if (pData) {
-							return { ...entry, pluginData: pData };
-						}
-						return entry;
-					});
-
-					logger.debug('Plugin SSR hooks completed', {
-						entriesWithData: Object.keys(pluginData).length
-					});
-				}
-			} catch (err) {
-				logger.warn('Failed to run plugin SSR hooks', { error: err });
-				// Don't fail page load if plugins fail
-			}
-		}
-
-		// =================================================================
-		// 6. LOAD REVISIONS (for Fields.svelte) - Direct Import
-		// =================================================================
-		let revisionsMeta = [];
-		// Only load revisions if we're in edit mode and have an entry ID
-		if (editEntryId && currentCollection.revision) {
-			try {
-				// ✅ ARCHITECTURE: Direct import from service instead of API endpoint
-				const { getRevisions } = await import('@src/services/RevisionService');
-				const revisionsResult = await getRevisions({
-					collectionId: currentCollection._id as string,
-					entryId: editEntryId as string,
-					tenantId: tenantId || '',
-					dbAdapter,
-					limit: 100
-				});
-
-				if (revisionsResult.success && revisionsResult.data) {
-					// Extract items from paginated result
-					revisionsMeta = (revisionsResult.data as any).items || [];
-				}
-			} catch (err) {
-				logger.warn('Failed to load revisions', { error: err, editEntryId });
-				// Don't fail the whole page load if revisions fail
-			}
-		}
-
-		// =================================================================
-		// 7. PREPARE FINAL DATA & SET CACHE
-		// =================================================================
-
-		// Strip all non-serializable data (functions, circular refs, etc.) from collection schema
-		// This is necessary because widgets contain validation schemas with functions
-		const collectionSchemaForClient = JSON.parse(JSON.stringify(currentCollection));
 
 		const returnData = {
 			theme: locals.theme,
@@ -432,25 +203,12 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 			hasManageUsersPermission: locals.hasManageUsersPermission,
 			roles: locals.roles,
 			siteName: getPublicSettingSync('SITE_NAME') || 'SveltyCMS',
-			contentLanguage: language,
-			collectionSchema: collectionSchemaForClient,
-			entries: entries || [],
-			pagination: {
-				totalItems: totalItems || 0,
-				pagesCount: Math.ceil((totalItems || 0) / pageSize),
-				currentPage: page,
-				pageSize: pageSize
-			},
-			revisions: revisionsMeta || []
+			contentLanguage,
+			collectionSchema,
+			entries,
+			pagination,
+			revisions
 		};
-
-		// Cache with TTL (5 minutes for dynamic content)
-		try {
-			await cacheService.set(cacheKey, returnData, 300);
-		} catch (cacheError) {
-			logger.warn('Failed to cache response', { error: cacheError });
-			// Continue without caching - non-fatal error
-		}
 
 		return returnData;
 	} catch (err) {

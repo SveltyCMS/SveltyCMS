@@ -21,6 +21,7 @@ import { setupAdminSchema, dbConfigSchema, systemSettingsSchema } from '@utils/f
 import { logger } from '@utils/logger';
 import { showToast } from '@utils/toast';
 import { goto } from '$app/navigation';
+import { deserialize } from '$app/forms';
 
 // --- Types ---
 export type SupportedDbType = 'mongodb' | 'mongodb+srv' | 'postgresql' | 'mysql' | 'mariadb' | '';
@@ -58,6 +59,12 @@ export type SystemSettings = {
 	mediaStorageType: 'local' | 's3' | 'r2' | 'cloudinary';
 	mediaFolder: string;
 	timezone: string;
+	useRedis: boolean;
+	redisHost: string;
+	redisPort: string;
+	redisPassword?: string;
+	multiTenant: boolean;
+	demoMode: boolean;
 };
 export type EmailSettings = {
 	smtpConfigured: boolean;
@@ -100,13 +107,19 @@ const initialSystemSettings: SystemSettings = {
 	contentLanguages: ['en', 'de'], // Will be populated from DB after seeding (reads from settings.json)
 	mediaStorageType: 'local',
 	mediaFolder: './mediaFolder',
-	timezone: 'UTC'
+	timezone: 'UTC',
+	useRedis: false,
+	redisHost: 'localhost',
+	redisPort: '6379',
+	redisPassword: '',
+	multiTenant: false,
+	demoMode: false
 };
 const initialEmailSettings: EmailSettings = {
 	smtpConfigured: false,
 	skipWelcomeEmail: true
 };
-// ✅ FIX: Explicitly type initialStepErrors as a Record<number, string[]>
+// Explicitly type initialStepErrors as a Record<number, string[]>
 const initialStepErrors: Record<number, string[]> = {
 	0: [], // Database config errors
 	1: [], // Admin user errors
@@ -173,7 +186,7 @@ function createSetupStore() {
 		seedingError: null as string | null
 	});
 
-	// --- Validation Logic (Moved from Page) ---
+	// --- Validation Logic ---
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const validationMap: Record<number, { schema: any; data: () => any }> = {
 		0: { schema: dbConfigSchema, data: () => wizard.dbConfig },
@@ -265,7 +278,7 @@ function createSetupStore() {
 		});
 	}
 
-	// --- Derived State (Moved from Page) ---
+	// --- Derived State ---
 	const stepCompleted = $derived<boolean[]>([
 		wizard.dbTestPassed || wizard.highestStepReached > 0,
 		wizard.highestStepReached > 1 && validateStep(1, false),
@@ -303,10 +316,10 @@ function createSetupStore() {
 	const dbConfigFingerprint = $derived<string>(JSON.stringify(wizard.dbConfig));
 	const dbConfigChangedSinceTest = $derived<boolean>(wizard.lastTestFingerprint !== null && wizard.lastTestFingerprint !== dbConfigFingerprint);
 
-	// --- API METHODS (Enterprise Service Store Pattern) ---
+	// --- API METHODS (Remote Functions / Server Functions) ---
 
 	/**
-	 * Test database connection
+	 * Test database connection - Uses SvelteKit Form Actions
 	 * @returns Promise<boolean> - true if connection successful
 	 */
 	async function testDatabaseConnection(): Promise<boolean> {
@@ -324,76 +337,61 @@ function createSetupStore() {
 		wizard.lastDbTestResult = null;
 
 		try {
-			const response = await fetch('/api/setup/test-database', {
+			// Call the SvelteKit Action
+			const formData = new FormData();
+			formData.append('config', JSON.stringify(wizard.dbConfig));
+
+			// Use fetch to call the named action
+			const response = await fetch('?/testDatabase', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(wizard.dbConfig)
+				body: formData
 			});
 
-			const data: DatabaseTestResult = await response.json();
-			wizard.lastDbTestResult = data;
+			const result = deserialize(await response.text());
+			logger.info('🔍 DB Test Action Result:', result);
 
-			if (data.success) {
-				wizard.successMessage = data.message || 'Connection successful!';
-				wizard.dbTestPassed = true;
-				wizard.lastTestFingerprint = dbConfigFingerprint;
-				wizard.errorMessage = '';
-				wizard.showDbDetails = false;
-				wizard.validationErrors = {};
-				return true;
-			} else {
-				wizard.errorMessage = data.userFriendly || data.error || 'Database connection failed.';
-				wizard.dbTestPassed = false;
-				wizard.successMessage = '';
-				wizard.showDbDetails = true;
+			// Handle both success and failure results from the action
+			if (result.type === 'success' || result.type === 'failure') {
+				const data = result.data as any;
+				wizard.lastDbTestResult = data;
 
-				// Map error classifications to field-specific errors
-				const newValidationErrors: ValidationErrors = {};
-				if (data.classification) {
-					switch (data.classification) {
-						case 'authentication_failed':
-						case 'user_not_found':
-						case 'wrong_password':
-							newValidationErrors.user = 'Please check your username';
-							newValidationErrors.password = 'Please check your password';
-							break;
-						case 'credentials_required':
-						case 'auth_required':
-						case 'likely_auth_required':
-						case 'password_required':
-							newValidationErrors.user = 'Username required';
-							newValidationErrors.password = 'Password required';
-							break;
-						case 'dns_not_found':
-						case 'connection_refused':
-							newValidationErrors.host = 'Check hostname or server status';
-							break;
-						case 'invalid_port':
-							newValidationErrors.port = 'Check port number';
-							break;
-						case 'database_not_found':
-							newValidationErrors.name = 'Database not found';
-							break;
-						case 'invalid_hostname':
-						case 'invalid_uri':
-							newValidationErrors.host = 'Invalid host/URI format';
-							break;
+				if (data?.success) {
+					wizard.successMessage = data.message || 'Connection successful!';
+					wizard.dbTestPassed = true;
+					wizard.lastTestFingerprint = dbConfigFingerprint;
+					wizard.errorMessage = '';
+					wizard.showDbDetails = false;
+					wizard.validationErrors = {};
+					return true;
+				} else {
+					wizard.errorMessage = data?.error || 'Database connection failed.';
+					wizard.dbTestPassed = false;
+					wizard.successMessage = '';
+					wizard.showDbDetails = true;
+
+					// Map server-side validation errors back to the UI
+					if (data?.details && Array.isArray(data.details)) {
+						const newErrors: Record<string, string> = {};
+						// eslint-disable-next-line @typescript-eslint/no-explicit-any
+						for (const issue of data.details as any[]) {
+							const path = issue.path?.[0]?.key as string;
+							if (path) {
+								newErrors[path] = issue.message;
+							}
+						}
+						wizard.validationErrors = { ...wizard.validationErrors, ...newErrors };
 					}
+					return false;
 				}
-
-				if (Object.keys(newValidationErrors).length > 0) {
-					wizard.validationErrors = newValidationErrors;
-				}
-
-				logger.error('Database test failed:', data);
-				return false;
 			}
+
+			return false;
 		} catch (e) {
-			const errorMsg = e instanceof Error ? e.message : 'A network error occurred.';
-			wizard.errorMessage = `Network error: ${errorMsg}`;
+			const errorMsg = e instanceof Error ? e.message : 'A server error occurred.';
+			wizard.errorMessage = `Error: ${errorMsg}`;
 			wizard.dbTestPassed = false;
 			wizard.successMessage = '';
-			logger.error('Network error during database test:', e);
+			logger.error('Error during database test server function:', e);
 			return false;
 		} finally {
 			wizard.isLoading = false;
@@ -413,13 +411,21 @@ function createSetupStore() {
 		wizard.isLoading = true;
 
 		try {
-			const response = await fetch('/api/setup/seed', {
+			// Call the SvelteKit Action
+			const formData = new FormData();
+			formData.append('config', JSON.stringify(wizard.dbConfig));
+
+			const response = await fetch('?/seedDatabase', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(wizard.dbConfig)
+				body: formData
 			});
 
-			const data: SeedDatabaseResponse = await response.json();
+			const result = deserialize(await response.text());
+			if (result.type !== 'success') {
+				showToast('Seeding failed: ' + (result as any).data?.error, 'error');
+				return false;
+			}
+			const data = result.data as any;
 
 			if (data.success) {
 				logger.debug('✅ Database initialization started');
@@ -428,73 +434,31 @@ function createSetupStore() {
 					wizard.firstCollection = data.firstCollection;
 				}
 
-				// Start polling for seeding status
-				startPollingSeedingStatus();
+				// The seeding is now parallelized on backend, no polling needed
+				wizard.isSeeding = false;
+				wizard.seedingProgress = 100;
 
 				return true;
 			} else {
 				logger.warn('⚠️  Database initialization had issues:', data.error);
-				showToast('Setup will continue, data will be created as needed.', 'info', 4000);
+				showToast(data.error || 'Seeding failed.', 'error', 4000);
 				return false;
 			}
 		} catch (error) {
-			logger.warn('⚠️  Error during database initialization:', error);
+			logger.warn('⚠️  Error during database initialization server function:', error);
 			return false;
 		} finally {
 			wizard.isLoading = false;
 		}
 	}
 
-	let pollingInterval: ReturnType<typeof setInterval> | null = null;
-
-	function startPollingSeedingStatus() {
-		if (pollingInterval) clearInterval(pollingInterval);
-
-		wizard.isSeeding = true;
-
-		checkSeedingStatus(); // Initial check
-
-		pollingInterval = setInterval(async () => {
-			const active = await checkSeedingStatus();
-			if (!active && pollingInterval) {
-				clearInterval(pollingInterval);
-				pollingInterval = null;
-			}
-		}, 2000);
-	}
-
-	async function checkSeedingStatus(): Promise<boolean> {
-		try {
-			const response = await fetch('/api/setup/status');
-			if (!response.ok) return true;
-
-			const data = await response.json();
-			wizard.isSeeding = data.isSeeding;
-			wizard.seedingProgress = data.progress;
-			wizard.seedingError = data.error;
-
-			if (data.error) {
-				showToast(`Seeding Error: ${data.error}`, 'error');
-				return false;
-			}
-
-			return data.isSeeding;
-		} catch (error) {
-			logger.error('Failed to check seeding status:', error);
-			return true; // Keep polling
-		}
-	}
-
 	/**
 	 * Complete setup process
-	 * @param onSuccess - Optional callback to run on successful completion (e.g., for redirect)
+	 * @param onSuccess - Optional callback to run on successful completion
 	 * @returns Promise<boolean> - true if setup completed successfully
 	 */
 	async function completeSetup(onSuccess?: (redirectPath: string) => void): Promise<boolean> {
-		if (wizard.isSubmitting) {
-			logger.warn('Setup already in progress');
-			return false;
-		}
+		if (wizard.isSubmitting) return false;
 
 		// Final validation of all steps
 		const step0Valid = validateStep(0, true);
@@ -508,7 +472,6 @@ function createSetupStore() {
 			if (!step0Valid) wizard.currentStep = 0;
 			else if (!step1Valid) wizard.currentStep = 1;
 			else if (!step2Valid) wizard.currentStep = 2;
-
 			return false;
 		}
 
@@ -517,26 +480,38 @@ function createSetupStore() {
 		wizard.errorMessage = '';
 
 		try {
-			const response = await fetch('/api/setup/complete', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				credentials: 'include',
-				body: JSON.stringify({
+			// Call the SvelteKit Action
+			const formData = new FormData();
+			formData.append(
+				'data',
+				JSON.stringify({
 					database: wizard.dbConfig,
 					admin: wizard.adminUser,
 					system: wizard.systemSettings,
 					firstCollection: wizard.firstCollection,
 					skipWelcomeEmail: wizard.emailSettings.skipWelcomeEmail
 				})
+			);
+
+			const response = await fetch('?/completeSetup', {
+				method: 'POST',
+				body: formData
 			});
 
-			const data: SetupCompleteResponse = await response.json();
+			const result = deserialize(await response.text());
+			if (result.type !== 'success') {
+				const errorMsg = (result as any).data?.error || 'Failed to finalize setup.';
+				showToast(errorMsg, 'error', 5000);
+				wizard.errorMessage = errorMsg;
+				return false;
+			}
+			const data = result.data as any;
 
-			if (!response.ok || !data.success) {
+			if (!data.success) {
 				const errorMsg = data.error || 'Failed to finalize setup.';
 				showToast(errorMsg, 'error', 5000);
 				wizard.errorMessage = errorMsg;
-				throw new Error(errorMsg);
+				return false;
 			}
 
 			// Success!
@@ -545,25 +520,21 @@ function createSetupStore() {
 			// Clear store
 			clear();
 
+			// Append success param to redirect path
+			const targetPath = data.redirectPath || '/en/Collections';
+
 			// Call the onSuccess callback with redirect path
-			if (onSuccess && data.redirectPath) {
-				onSuccess(data.redirectPath!);
-			} else {
-				// Fallback: direct redirect
-				if (typeof window !== 'undefined') {
-					goto(data.redirectPath || '/config/collectionbuilder');
-				}
+			if (onSuccess) {
+				onSuccess(targetPath);
+			} else if (typeof window !== 'undefined') {
+				goto(targetPath);
 			}
 
 			return true;
 		} catch (e) {
 			const errorMsg = e instanceof Error ? e.message : 'An unknown error occurred.';
 			wizard.errorMessage = errorMsg;
-
-			if (!wizard.errorMessage.includes('Failed to')) {
-				showToast(errorMsg, 'error', 5000);
-			}
-
+			showToast(errorMsg, 'error', 5000);
 			return false;
 		} finally {
 			wizard.isLoading = false;
@@ -592,7 +563,7 @@ function createSetupStore() {
 		wizard.validationErrors = clearedErrors;
 	}
 
-	// --- CLEAR METHOD (Updated) ---
+	// --- CLEAR METHOD ---
 	function clear() {
 		const initialState = {
 			dbConfig: { ...initialDbConfig },

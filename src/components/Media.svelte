@@ -156,7 +156,7 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 		error = null;
 
 		try {
-			const res = await axios.get<MediaImage[]>('/media/getAll');
+			const res = await axios.get<MediaImage[]>('/api/media');
 			files = res.data;
 			showInfoSet = new Set();
 			selectedFiles = new Set();

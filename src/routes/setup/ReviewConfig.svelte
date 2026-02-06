@@ -383,6 +383,30 @@ This component presents a summary of all configuration steps before finalizing t
 						<dd class="text-tertiary-500 dark:text-primary-500">
 							{(systemSettings as any).demoMode ? 'Enabled' : 'Disabled'}
 						</dd>
+
+						<dt
+							class="flex items-center justify-between font-medium text-black dark:text-white border-t border-slate-100 dark:border-slate-800 pt-1 mt-1"
+						>
+							Redis Caching:
+							<SystemTooltip title="In-memory caching for database queries and session data.">
+								<button
+									type="button"
+									tabindex="-1"
+									class="text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+									aria-label="Help for Redis Caching"
+								>
+									<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
+								</button>
+							</SystemTooltip>
+						</dt>
+						<dd class="text-tertiary-500 dark:text-primary-500 border-t border-slate-100 dark:border-slate-800 pt-1 mt-1">
+							{systemSettings.useRedis ? '🚀 Enabled' : 'Disabled'}
+						</dd>
+
+						{#if systemSettings.useRedis}
+							<dt class="flex items-center justify-between font-medium text-black dark:text-white">Redis Host:</dt>
+							<dd class="text-tertiary-500 dark:text-primary-500">{systemSettings.redisHost}:{systemSettings.redisPort}</dd>
+						{/if}
 					</dl>
 				</div>
 			</div>

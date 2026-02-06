@@ -67,7 +67,7 @@ export async function reinitializeSystem(force = false, waitForAuth = true): Pro
 
 ```mermaid
 sequenceDiagram
-    participant Setup as /api/setup/complete
+    participant Setup as /setup Action
     participant File as config/private.ts
     participant DB as db.ts
     participant System as initializeSystem()
@@ -141,7 +141,7 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false): Pr
 **Usage in Setup Flow:**
 
 ```typescript
-// src/routes/api/setup/complete/+server.ts
+// src/lib/server/setup/complete/+server.ts
 export const POST: RequestHandler = async ({ request }) => {
 	const setupData = await request.json();
 
@@ -155,7 +155,13 @@ export const POST: RequestHandler = async ({ request }) => {
 	await createAdminUser(userData);
 
 	// 4. Warm cache for first page load
-	await fetch(warmupUrl);
+	try {
+        const { collectionService } = await import('@src/services/CollectionService');
+        // ... (fetch collection data internally) ...
+        await collectionService.getCollectionData(...);
+    } catch (e) {
+        // ...
+    }
 
 	// User is redirected to /login - system fully operational!
 	return json({ success: true, redirect: '/login' });

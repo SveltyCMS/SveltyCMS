@@ -30,7 +30,7 @@ SveltyCMS is a powerful headless CMS built with SvelteKit 2, Svelte 5, TypeScrip
 ## Core Philosophy & Focus
 
 - **Data Security & Ownership**: Security is paramount—users always own their data. Implement strict protocols (e.g., no direct DB access outside adapters, secure headers).
-- **Performance & Optimization**: Target sub-millisecond latency with tree-shaking, Valibot, Vite optimizations, and <1s cold starts via progressive initialization.
+- **Performance & Optimization**: Target sub-millisecond latency with tree-shaking, SSR-first architecture, SvelteKit 5 Server Functions, Valibot, Vite optimizations, and <1s cold starts via progressive initialization.
 - **Universal Accessibility**: WCAG 2.2 AA and ATAG 2.0 compliant (full keyboard support, ARIA-live regions).
 - **Premium Design**: Modern UX with Skeleton.dev v4 for white-labeling and deep theming.
 - **Maximum Flexibility**: Hybrid code/GUI schemas with bi-directional sync.
@@ -77,11 +77,16 @@ When generating/modifying code:
    - In classes: `class Todo { done = $state(false); constructor(text) { this.text = $state(text); } }`.
    - Use `$state.raw` for non-mutable data; `$state.snapshot` for static copies; `$state.eager` for immediate feedback.
    - Avoid legacy stores or reactive declarations; declare at top-level for components.
-3. **Strict Type Safety**: No `any`; use discriminated unions and Valibot for E2E validation.
-4. **Accessibility**: Ensure keyboard-navigable, ARIA-compliant components with live regions.
-5. **Database Agnosticism**: Confine logic to adapters; scope by `tenantId`.
-6. **File Headers**: Always include as defined.
-7. **Roadmap Alignment**: Prioritize gaps like full SAML/SCIM hardening; optimize for enterprise (e.g., lighter SAML deps).
+3. **Leverage Modern SvelteKit Patterns**:
+   - **SSR-First**: Prioritize Server-Side Rendering for critical paths (e.g., Setup, Collection Loading) to ensure fast FCP.
+   - **Server Functions (Remote Functions)**: Prefer SvelteKit 5 Server Functions in `+page.server.ts` over standalone API routes for type safety and reduced network complexity.
+   - **Middleware Security**: Respect the sequential middleware pipeline in `hooks.server.ts`. All requests are gated by `handleSystemState` for self-healing and security.
+   - **Self-Healing State**: Use the `@stores/system` state machine (`IDLE` → `READY`) for resilient startup. reference `docs/architecture/state-management.mdx`.
+4. **Strict Type Safety**: No `any`; use discriminated unions and Valibot for E2E validation.
+5. **Accessibility**: Ensure keyboard-navigable, ARIA-compliant components with live regions.
+6. **Database Agnosticism**: Confine logic to adapters; scope by `tenantId`.
+7. **File Headers**: Always include as defined.
+8. **Roadmap Alignment**: Prioritize gaps like full SAML/SCIM hardening; optimize for enterprise (e.g., lighter SAML deps).
 
 ### Mandatory Documentation Updates
 
@@ -260,4 +265,4 @@ Svelte 5 runes: `$state()` for state, `$derived()` for computations, `$effect()`
 
 ---
 
-_Last Updated: 2026-02-04_
+\_Last Updated: 2026-02-06\_

@@ -22,26 +22,26 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
 	logger.info('🔌 Webhook Proxy Wrapper active on Database Adapter');
 
 	// --- Wrap CRUD Operations (Lazy Access) ---
-	// We use Object.defineProperty to create a getter that wraps the original
-	// This ensures we only access adapter.crud when it's actually used (after connect)
-
-	const originalCrudDescriptor = Object.getOwnPropertyDescriptor(adapter, 'crud');
+	let originalCrudDescriptor: PropertyDescriptor | undefined;
+	let proto = adapter;
+	while (proto && !originalCrudDescriptor) {
+		originalCrudDescriptor = Object.getOwnPropertyDescriptor(proto, 'crud');
+		if (originalCrudDescriptor) break;
+		proto = Object.getPrototypeOf(proto);
+	}
 
 	Object.defineProperty(adapter, 'crud', {
 		get(): ICrudAdapter {
-			// Access the original crud (will throw if not connected, which is correct behavior)
 			const originalCrud = originalCrudDescriptor?.get
 				? originalCrudDescriptor.get.call(adapter)
-				: (adapter as any)._crud || (adapter as any)._cachedCrud;
+				: (adapter as any)._crud || (adapter as any)._cachedCrud || (adapter as any).crud;
 
 			if (!originalCrud) {
 				throw new Error('CRUD adapter not available');
 			}
 
-			// Return wrapped version
-			return {
-				...originalCrud,
-
+			// Define mutations to intercept
+			const wrappedMethods: Partial<ICrudAdapter> = {
 				insert: async (collection, data) => {
 					const res = await originalCrud.insert(collection, data);
 					if (res.success && (collection.startsWith(CONTENT_COLLECTION_PREFIX) || collection === 'MediaItem')) {
@@ -64,7 +64,6 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
 				update: async (collection, id, data) => {
 					const res = await originalCrud.update(collection, id, data);
 					if (res.success && collection.startsWith(CONTENT_COLLECTION_PREFIX)) {
-						// Detect status changes for publish/unpublish events
 						let event: any = 'entry:update';
 						if ('status' in data) {
 							if (data.status === 'publish') event = 'entry:publish';
@@ -108,20 +107,36 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
 					return res;
 				}
 			};
+
+			// Return Proxy to preserve all other methods (count, findOne, etc.)
+			return new Proxy(originalCrud, {
+				get(target, prop, receiver) {
+					if (prop in wrappedMethods) {
+						return (wrappedMethods as any)[prop];
+					}
+					const value = Reflect.get(target, prop, receiver);
+					return typeof value === 'function' ? value.bind(target) : value;
+				}
+			});
 		},
 		configurable: true,
 		enumerable: true
 	});
 
 	// --- Wrap Media Operations (Lazy Access) ---
-	const originalMediaDescriptor = Object.getOwnPropertyDescriptor(adapter, 'media');
+	let originalMediaDescriptor: PropertyDescriptor | undefined;
+	let mediaProto = adapter;
+	while (mediaProto && !originalMediaDescriptor) {
+		originalMediaDescriptor = Object.getOwnPropertyDescriptor(mediaProto, 'media');
+		if (originalMediaDescriptor) break;
+		mediaProto = Object.getPrototypeOf(mediaProto);
+	}
 
 	Object.defineProperty(adapter, 'media', {
 		get(): IMediaAdapter {
-			// Access the original media (will throw if not connected, which is correct behavior)
 			const originalMedia = originalMediaDescriptor?.get
 				? originalMediaDescriptor.get.call(adapter)
-				: (adapter as any)._media || (adapter as any)._cachedMedia;
+				: (adapter as any)._media || (adapter as any)._cachedMedia || (adapter as any).media;
 
 			if (!originalMedia) {
 				throw new Error('Media adapter not available');
@@ -129,41 +144,57 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
 
 			const originalFiles = originalMedia.files;
 
-			// Return wrapped version
-			return {
-				...originalMedia,
-				files: {
-					...originalFiles,
-					upload: async (file) => {
-						const res = await originalFiles.upload(file);
-						if (res.success) {
-							webhookService.trigger('media:upload', { data: res.data });
-						}
-						return res;
-					},
-					uploadMany: async (files) => {
-						const res = await originalFiles.uploadMany(files);
-						if (res.success) {
-							res.data.forEach((file: any) => webhookService.trigger('media:upload', { data: file }));
-						}
-						return res;
-					},
-					delete: async (id) => {
-						const res = await originalFiles.delete(id);
-						if (res.success) {
-							webhookService.trigger('media:delete', { id });
-						}
-						return res;
-					},
-					deleteMany: async (ids) => {
-						const res = await originalFiles.deleteMany(ids);
-						if (res.success) {
-							webhookService.trigger('media:delete', { ids });
-						}
-						return res;
+			// Define mutations to intercept for files
+			const wrappedFiles: Partial<IMediaAdapter['files']> = {
+				upload: async (file) => {
+					const res = await originalFiles.upload(file);
+					if (res.success) {
+						webhookService.trigger('media:upload', { data: res.data });
 					}
+					return res;
+				},
+				uploadMany: async (files) => {
+					const res = await originalFiles.uploadMany(files);
+					if (res.success) {
+						res.data.forEach((file: any) => webhookService.trigger('media:upload', { data: file }));
+					}
+					return res;
+				},
+				delete: async (id) => {
+					const res = await originalFiles.delete(id);
+					if (res.success) {
+						webhookService.trigger('media:delete', { id });
+					}
+					return res;
+				},
+				deleteMany: async (ids) => {
+					const res = await originalFiles.deleteMany(ids);
+					if (res.success) {
+						webhookService.trigger('media:delete', { ids });
+					}
+					return res;
 				}
 			};
+
+			// Return Proxy for media to preserve all methods, including wrapped files
+			return new Proxy(originalMedia, {
+				get(target, prop, receiver) {
+					if (prop === 'files') {
+						// Wrap files object with its own proxy
+						return new Proxy(originalFiles, {
+							get(fTarget, fProp, fReceiver) {
+								if (fProp in wrappedFiles) {
+									return (wrappedFiles as any)[fProp];
+								}
+								const fValue = Reflect.get(fTarget, fProp, fReceiver);
+								return typeof fValue === 'function' ? fValue.bind(fTarget) : fValue;
+							}
+						});
+					}
+					const value = Reflect.get(target, prop, receiver);
+					return typeof value === 'function' ? value.bind(target) : value;
+				}
+			});
 		},
 		configurable: true,
 		enumerable: true

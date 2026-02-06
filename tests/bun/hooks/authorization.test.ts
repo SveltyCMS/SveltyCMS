@@ -114,8 +114,8 @@ describe('handleAuthorization Middleware', () => {
 			expect(mockResolve).toHaveBeenCalled();
 		});
 
-		it('should allow access to /api/setup', async () => {
-			const event = createMockEvent('/api/setup');
+		it('should allow access to /setup/test', async () => {
+			const event = createMockEvent('/setup/test');
 			await handleAuthorization({ event, resolve: mockResolve });
 
 			expect(mockResolve).toHaveBeenCalled();

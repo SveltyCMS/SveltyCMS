@@ -386,7 +386,7 @@ Key features:
 
 					<!-- Gradient Overlay for Text Readability -->
 					<div
-						class="absolute bottom-0 left-0 right-0 h-1/3 bg-gradient-to-t from-black/60 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+						class="absolute bottom-0 left-0 right-0 h-1/3 bg-linear-to-t from-black/60 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100"
 					></div>
 				</div>
 
@@ -399,10 +399,14 @@ Key features:
 
 					<!-- Metadata Badges -->
 					<div class="flex items-center gap-2 text-[10px] text-surface-500 dark:text-surface-400">
-						<span class="flex items-center gap-1 rounded bg-surface-100 px-1.5 py-0.5 font-medium uppercase tracking-wide dark:bg-surface-800">
-							{formatMimeType(file.mimeType)}
-						</span>
-						<span class="font-mono">{formatBytes(file.size)}</span>
+						<SystemTooltip title="Type" positioning={{ placement: 'top' }}>
+							<span class="flex items-center gap-1 rounded bg-surface-100 px-1.5 py-0.5 font-medium uppercase tracking-wide dark:bg-surface-800">
+								{formatMimeType(file.mimeType)}
+							</span>
+						</SystemTooltip>
+						<SystemTooltip title="Size" positioning={{ placement: 'top' }}>
+							<span class="font-mono">{formatBytes(file.size)}</span>
+						</SystemTooltip>
 					</div>
 				</div>
 			</div>

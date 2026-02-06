@@ -284,7 +284,7 @@ bun run dev
 Visit `http://localhost:5173/setup` or use the API directly:
 
 ```bash
-curl -X POST http://localhost:5173/api/setup/test-database \
+curl -X POST http://localhost:5173/setup?/testDatabase \
   -H "Content-Type: application/json" \
   -d '{
     "type": "mongodb",
@@ -525,14 +525,13 @@ graph TB
         A2 --> A3[Create Blank Config]
         A3 --> A4[Open /setup Wizard]
         A4 --> A5[User: Enter DB Config]
-        A5 --> A6[API: test-database]
+        A5 --> A6[Action: testDatabase]
         A6 -->|✓ Valid| A7[User: Select Language]
-        A7 --> A8[API: seed]
+        A7 --> A8[Action: seedDatabase]
         A8 --> A9[Write Credentials]
         A8 --> A10[Seed Settings/Themes]
         A8 --> A11[Create Collections]
-        A11 --> A12[User: Admin Form]
-        A12 --> A13[API: complete]
+        A12[User: Admin Form] --> A13[Action: completeSetup]
         A13 --> A14[Create Admin + Session]
         A13 --> A15[Init Global System]
         A13 --> A16[ContentManager Init]
@@ -578,17 +577,16 @@ graph TB
     B --> E[Open /setup in Browser]
 
     E --> F[User: DB Config]
-    F --> G[API: test-database]
+    F --> G[Action: testDatabase]
     G -->|Success| H[User: System Language]
 
-    H --> I[API: seed]
+    H --> I[Action: seedDatabase]
     I --> J[Write private.ts]
     I --> K[Seed Settings]
     I --> L[Seed Themes]
     I --> M[Seed Collections]
 
-    M --> N[User: Admin Form]
-    N --> O[API: complete]
+    N --> O[Action: completeSetup]
     O --> P[Create Admin User]
     O --> Q[Initialize Global System]
     O --> R[Initialize ContentManager]
@@ -697,7 +695,7 @@ flowchart TB
     D -->|No DB creds| E[isSetupComplete = false]
 
     E --> F{Path check}
-    F -->|/setup or /api/setup| G[Allow Request]
+    F -->|/setup| G[Allow Request]
     F -->|Other paths| H[Redirect to /setup]
 
     C -->|Check Database| I{hasAdminUsers?}
@@ -726,21 +724,21 @@ stateDiagram-v2
     DatabaseTest --> DatabaseConfig: Test failed ✗
 
     note right of DatabaseTest
-        POST /api/setup/test-database
+        POST /setup?/testDatabase
         - Validates connection
         - Installs drivers if needed
     end note
 
     note right of SeedData
-        POST /api/setup/seed
+        POST /setup?/seedDatabase
         - Writes private.ts
         - Seeds settings/themes (background)
         - Creates collections (background)
-        - Polling: /api/setup/status
+        - Polling: /api/system/health
     end note
 
     note right of Complete
-        POST /api/setup/complete
+        POST /setup?/completeSetup
         - Creates admin user
         - Initializes system
         - Sets session cookie
@@ -752,66 +750,66 @@ User completes setup wizard:
 ```
 Step 1: Database Configuration
   ↓
-Step 2: Database Test → /api/setup/test-database
+Step 2: Database Test → /setup?/testDatabase
   ↓
 Step 3: System Language Selection
   ↓
-Step 4: Seed Data → /api/setup/seed
+Step 4: Seed Data → /setup?/seedDatabase
   ↓
-Step 5: Admin User Creation → /api/setup/complete
+Step 5: Admin User Creation → /setup?/completeSetup
 ```
 
 ---
 
-### Phase 4: Database Test
+### Phase 4: Database Test (Server Function)
 
-**Endpoint: `/api/setup/test-database/+server.ts`**
+**Action: `src/routes/setup/+page.server.ts` (Action: `testDatabase`)**
 
 ```mermaid
 sequenceDiagram
     participant Client as Browser
-    participant API as /api/setup/test-database
+    participant Setup as /setup Actions
     participant PM as Package Manager
     participant Mongoose
     participant DB as MongoDB
 
-    Client->>API: POST {host, port, name, user, pass}
+    Client->>Setup: POST {host, port, name, user, pass}
 
-    Note over API: Check Driver
-    API->>Mongoose: Try import mongoose
+    Note over Setup: Check Driver
+    Setup->>Mongoose: Try import mongoose
 
     alt Driver Missing
-        API->>PM: Detect package manager (bun/npm/pnpm/yarn)
-        API->>PM: Install mongoose
+        Setup->>PM: Detect package manager (bun/npm/pnpm/yarn)
+        Setup->>PM: Install mongoose
         alt Permission Error
-            PM-->>API: EACCES ✗
-            API-->>Client: {success: false, manualCommand: "..."}
+            PM-->>Setup: EACCES ✗
+            Setup-->>Client: {success: false, manualCommand: "..."}
         else Success
-            PM-->>API: Installation complete ✓
+            PM-->>Setup: Installation complete ✓
         end
     end
 
-    Note over API: Build Connection
-    API->>API: buildConnectionString()
+    Note over Setup: Build Connection
+    Setup->>Setup: buildConnectionString()
 
-    Note over API: Test Connection
-    API->>DB: Connect with 15s timeout
+    Note over Setup: Test Connection
+    Setup->>DB: Connect with 15s timeout
 
     alt Success
-        DB-->>API: Connected ✓
-        API->>DB: Authenticate
-        DB-->>API: Auth OK ✓
-        API->>DB: Get database stats
-        DB-->>API: {collections: 0, dataSize: 0}
-        API-->>Client: {success: true, details: {...}}
+        DB-->>Setup: Connected ✓
+        Setup->>DB: Authenticate
+        DB-->>Setup: Auth OK ✓
+        Setup->>DB: Get database stats
+        DB-->>Setup: {collections: 0, dataSize: 0}
+        Setup-->>Client: {success: true, details: {...}}
     else Failure
-        DB-->>API: Connection error
-        API-->>Client: {success: false, error: "..."}
+        DB-->>Setup: Connection error
+        Setup-->>Client: {success: false, error: "..."}
     end
 ```
 
 ```typescript
-POST /api/setup/test-database
+POST /setup?/testDatabase
 Body: {
   type: "mongodb",
   host: "localhost",
@@ -848,7 +846,7 @@ Body: {
 
 ### Phase 5: Seed Database
 
-**Endpoint: `/api/setup/seed/+server.ts`**
+**Endpoint: `/setup?/seedDatabase/+server.ts`**
 
 Called when user clicks "Next" after successful DB test. This process now runs in the **background** to prevent UI timeouts and allow real-time progress tracking.
 
@@ -888,7 +886,7 @@ Called when user clicks "Next" after successful DB test. This process now runs i
 **Key Function: `seedCollectionsForSetup()`**
 
 ```typescript
-// File: src/routes/api/setup/seed.ts
+// File: src/routes/setup?/seedDatabase.ts
 
 export async function seedCollectionsForSetup(dbAdapter) {
 	// 1. Scan filesystem for compiled collections
@@ -920,7 +918,7 @@ collection_<uuid_2>      ← Second collection (e.g., Names)
 
 ### Phase 6: Complete Setup
 
-**Endpoint: `/api/setup/complete/+server.ts`**
+**Endpoint: `/setup?/completeSetup/+server.ts`**
 
 Called when user submits admin user form.
 
@@ -1223,11 +1221,11 @@ const schemaUuidTransformer =
 
 ### 2. API Endpoints
 
-| Endpoint                   | Purpose                                | Called When           |
-| -------------------------- | -------------------------------------- | --------------------- |
-| `/api/setup/test-database` | Validates DB connection                | Setup wizard (Step 2) |
-| `/api/setup/seed`          | Seeds settings, themes, collections    | Setup wizard (Step 4) |
-| `/api/setup/complete`      | Creates admin user, initializes system | Setup wizard (Step 5) |
+| Endpoint                | Purpose                                | Called When           |
+| ----------------------- | -------------------------------------- | --------------------- |
+| `/setup?/testDatabase`  | Validates DB connection                | Setup wizard (Step 2) |
+| `/setup?/seedDatabase`  | Seeds settings, themes, collections    | Setup wizard (Step 4) |
+| `/setup?/completeSetup` | Creates admin user, initializes system | Setup wizard (Step 5) |
 
 ### 3. Hooks & Middleware
 
@@ -1259,13 +1257,13 @@ IDLE → INITIALIZING → READY → DEGRADED → FAILED
          (reinit)
 ```
 
-| State            | Description                           | Allowed Routes                    |
-| ---------------- | ------------------------------------- | --------------------------------- |
-| **IDLE**         | No valid config or not initialized    | `/setup`, `/api/setup`, `/static` |
-| **INITIALIZING** | Loading config, connecting to DB      | `/api/system/health`              |
-| **READY**        | Fully operational                     | All routes                        |
-| **DEGRADED**     | Some services failed, but operational | All routes (with warnings)        |
-| **FAILED**       | Critical failure, unusable            | None (503 errors)                 |
+| State            | Description                           | Allowed Routes                                                      |
+| ---------------- | ------------------------------------- | ------------------------------------------------------------------- |
+| **IDLE**         | No valid config or not initialized    | `/setup`, `/api/system/health`, `/login`, `/static`, `/.well-known` |
+| **INITIALIZING** | Loading config, connecting to DB      | `/api/system/health`                                                |
+| **READY**        | Fully operational                     | All routes                                                          |
+| **DEGRADED**     | Some services failed, but operational | All routes (with warnings)                                          |
+| **FAILED**       | Critical failure, unusable            | None (503 errors)                                                   |
 
 ### Transition Triggers
 
@@ -1316,7 +1314,7 @@ collection_550e8400-e29b-41d4-a716-446655440000  (Only one table)
 **Location:**
 
 ```typescript
-// File: src/routes/api/setup/seed.ts
+// File: src/routes/setup?/seedDatabase.ts
 
 for (const schema of collections) {
 	await dbAdapter.collection.createModel(schema);
@@ -1352,7 +1350,7 @@ After `writePrivateConfig()` creates/updates `config/private.ts`, Vite's import 
 
 **Current Workaround:**
 
-- `/api/setup/complete` reads private.ts directly from filesystem using `fs.readFile()`
+- `/setup?/completeSetup` reads private.ts directly from filesystem using `fs.readFile()`
 - Bypasses Vite's import cache with regex parsing
 - `initializeWithFreshConfig()` forces fresh import with dynamic import
 
@@ -1381,19 +1379,19 @@ sequenceDiagram
     V->>V: Compile collections
     V->>U: Open /setup in browser
 
-    U->>API: POST /api/setup/test-database
+    U->>**API Call**: `POST /setup?/testDatabase` (SvelteKit Server Action)
     API->>DB: Test connection
     DB-->>API: Success
     API-->>U: Connection valid
 
-    U->>API: POST /api/setup/seed
+    U->>API: POST /setup?/seedDatabase
     API->>API: Write private.ts (with credentials)
     API->>DB: Seed settings
     API->>DB: Seed themes
     API->>DB: Seed collections (create models)
     API-->>U: Seed complete + firstCollection
 
-    U->>API: POST /api/setup/complete
+    U->>API: POST /setup?/completeSetup
     API->>DB: Create admin user + session
     API->>API: initializeWithFreshConfig()
     API->>CM: Initialize ContentManager
@@ -1682,12 +1680,12 @@ For CI/CD environments, SveltyCMS provides scripts that replicate the setup wiza
 
 **File:** `scripts/seed-cms.js`
 
-Mimics `/api/setup/seed` endpoint:
+Mimics `/setup?/seedDatabase` endpoint:
 
 ```javascript
-import { writePrivateConfig } from '../src/routes/api/setup/writePrivateConfig.js';
-import { initSystemFromSetup } from '../src/routes/api/setup/seed.js';
-import { getSetupDatabaseAdapter } from '../src/routes/api/setup/utils.js';
+import { writePrivateConfig } from '../src/routes/setup/writePrivateConfig.js';
+import { initSystemFromSetup } from '../src/routes/setup/seed.js';
+import { getSetupDatabaseAdapter } from '../src/routes/setup/utils.js';
 
 async function main() {
 	const dbConfig = {
@@ -1729,11 +1727,11 @@ MONGO_HOST=localhost MONGO_PORT=27017 bun run scripts/seed-cms.js
 
 **File:** `scripts/create-admin.js`
 
-Mimics `/api/setup/complete` endpoint:
+Mimics `/setup?/completeSetup` endpoint:
 
 ```javascript
 import { Auth } from '../src/databases/auth/index.js';
-import { getSetupDatabaseAdapter } from '../src/routes/api/setup/utils.js';
+import { getSetupDatabaseAdapter } from '../src/routes/setup/utils.js';
 
 async function main() {
 	const dbConfig = {
@@ -1881,7 +1879,7 @@ The system is production-ready and fully automated for both local development an
 
 ### API References
 
-- [Setup API](/docs/api/Setup_API.mdx) - Complete setup API reference
+- [Setup Actions](/docs/api/Setup_Actions_API.mdx) - Complete setup API reference
 - [Collection API](/docs/api/Collection_API.mdx) - Collection CRUD operations
 - [Authentication API](/docs/api/Authentication_2FA_API.mdx) - User authentication
 

@@ -222,7 +222,7 @@
 	<DialogManager />
 	<ToastManager position="bottom-center" />
 
-	{#if screen.isMobile}
+	{#if screen.isMobile && !page.url.pathname.includes('/setup')}
 		<Portal>
 			<FloatingNav />
 		</Portal>

@@ -113,7 +113,7 @@ export const POST = apiHandler(async ({ request, locals }) => {
 	const { user, tenantId } = locals;
 
 	// Authenticate later if not a recompile bypass
-	const isRecompile = request
+	request
 		.clone()
 		.json()
 		.then((data) => data.action === 'recompile')

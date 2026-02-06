@@ -129,12 +129,11 @@ This document provides a comprehensive overview of all API endpoints in SveltyCM
 - ✅ `GET /api/settings/export` - Export settings
 - ✅ `POST /api/settings/import` - Import settings
 
-#### Configuration API
+#### Configuration & Setup Actions
 
-- ✅ `POST /api/setup/test-database` - Test DB connection
-- ✅ `POST /api/setup/install-driver` - Install driver
-- ✅ `POST /api/setup/seed-settings` - Seed settings
-- ✅ `POST /api/setup/complete` - Complete setup
+- ✅ `POST /setup?/testDatabase` - Test DB connection
+- ✅ `POST /setup?/seedDatabase` - Seed settings
+- ✅ `POST /setup?/completeSetup` - Complete setup
 - ✅ `POST /api/config/save-config` - Save config
 - ✅ `GET /api/config/load` - Load config
 - ✅ `POST /api/config/backup` - Backup config
@@ -283,7 +282,7 @@ All documented endpoints verified to be database-agnostic:
 8. `docs/api/GraphQL_API.mdx` - GraphQL queries (700+ lines)
 9. `docs/api/Media_API.mdx` - Media management (600+ lines)
 10. `docs/api/Settings_API.mdx` - Settings management (325 lines)
-11. `docs/api/Configuration_API.mdx` - System configuration (650+ lines)
+11. `docs/api/Setup_Actions_API.mdx` - System configuration (650+ lines)
 12. `docs/api/Widget_API.mdx` - Widget system (700+ lines)
 13. `docs/api/Dashboard_API.mdx` - Monitoring & analytics (550+ lines)
 14. `docs/api/Miscellaneous_API.mdx` - Utilities (650+ lines)

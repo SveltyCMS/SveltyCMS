@@ -4,10 +4,10 @@
  */
 
 // System-wide states
-export type SystemState = 'IDLE' | 'INITIALIZING' | 'READY' | 'WARMING' | 'WARMED' | 'DEGRADED' | 'FAILED';
+export type SystemState = 'IDLE' | 'INITIALIZING' | 'READY' | 'WARMING' | 'WARMED' | 'DEGRADED' | 'FAILED' | 'SETUP' | 'MAINTENANCE';
 
 // Individual service health statuses
-export type ServiceHealth = 'healthy' | 'unhealthy' | 'initializing';
+export type ServiceHealth = 'healthy' | 'unhealthy' | 'initializing' | 'skipped' | 'maintenance';
 
 // State-specific timing metrics (up/down/idle)
 export interface StateTimingMetrics {

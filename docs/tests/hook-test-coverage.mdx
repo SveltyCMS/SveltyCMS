@@ -257,8 +257,8 @@ it('should redirect /dashboard to /setup when config missing', async () => {
 	}
 });
 
-it('should allow /api/setup route when setup incomplete', async () => {
-	const event = createMockEvent('/api/setup', false);
+it('should allow /setup route when setup incomplete', async () => {
+	const event = createMockEvent('/setup', false);
 	const response = await handleSetup({ event, resolve: mockResolve });
 
 	expect(response.status).toBe(200);

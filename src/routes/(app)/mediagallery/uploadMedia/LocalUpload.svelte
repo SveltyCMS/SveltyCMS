@@ -407,15 +407,19 @@
 					<!-- Media Type & Size (Footer) -->
 					<div class="flex grow items-center justify-between p-1 text-white font-bold">
 						<!-- Type -->
-						<div class="bg-tertiary-500 dark:bg-primary-500/50 badge flex items-center gap-1 overflow-hidden" title={file.type}>
-							<iconify-icon icon={iconName} width="12"></iconify-icon>
-							<span class="truncate text-[10px] uppercase">{formatMimeType(file.type)}</span>
-						</div>
+						<SystemTooltip title={file.type} positioning={{ placement: 'top' }}>
+							<div class="bg-tertiary-500 dark:bg-primary-500/50 badge flex items-center gap-1 overflow-hidden">
+								<iconify-icon icon={iconName} width="12"></iconify-icon>
+								<span class="truncate text-[10px] uppercase">{formatMimeType(file.type)}</span>
+							</div>
+						</SystemTooltip>
 						<!-- Size -->
-						<p class="bg-tertiary-500 dark:bg-primary-500/50 badge flex shrink-0 items-center gap-1 text-[10px]">
-							<span class="">{(file.size / 1024).toFixed(2)}</span>
-							KB
-						</p>
+						<SystemTooltip title="Size" positioning={{ placement: 'top' }}>
+							<p class="bg-tertiary-500 dark:bg-primary-500/50 badge flex shrink-0 items-center gap-1 text-[10px]">
+								<span class="">{(file.size / 1024).toFixed(2)}</span>
+								KB
+							</p>
+						</SystemTooltip>
 					</div>
 				</div>
 			{/each}

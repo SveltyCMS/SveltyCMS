@@ -89,11 +89,6 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
 		return resolve(event);
 	}
 
-	// Skip authentication check for setup API routes
-	if (url.pathname.startsWith('/api/setup')) {
-		return resolve(event);
-	}
-
 	// Dynamic check for public API endpoints based on permissions configuration
 	if (isPublicApiRoute(url.pathname, request.method)) {
 		return resolve(event);

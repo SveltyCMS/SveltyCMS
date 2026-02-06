@@ -1,6 +1,6 @@
 /**
- * @file src/routes/api/setup/setupManager.ts
- * @description Global singleton to track background setup processes.
+ * @file src/routes/setup/setupManager.ts
+ * @description Manages the setup state and progress tracking.
  */
 
 class SetupManager {

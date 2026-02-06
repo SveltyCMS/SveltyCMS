@@ -46,17 +46,17 @@ async function main() {
 		await new Promise((r) => setTimeout(r, 5000));
 
 		// 4. Run Tests in TEST_MODE
-		console.log('🚀 Running setup.test.ts...');
-		const testProc = spawn('bun', ['test', 'tests/bun/api/setup.test.ts'], {
+		console.log('🚀 Running setup-actions.test.ts...');
+		const testProc = spawn('bun', ['test', 'tests/bun/api/setup-actions.test.ts'], {
 			cwd: rootDir,
 			stdio: 'inherit',
 			env: {
 				...process.env,
 				API_BASE_URL: 'http://localhost:4173',
 				TEST_MODE: 'true',
-				// Default credentials match CI environment, but leave empty for local default
-				DB_USER: process.env.DB_USER || (process.env.CI === 'true' ? 'admin' : undefined),
-				DB_PASSWORD: process.env.DB_PASSWORD || (process.env.CI === 'true' ? 'admin' : undefined),
+				// Default credentials match the user's environment
+				DB_USER: process.env.DB_USER || 'admin',
+				DB_PASSWORD: process.env.DB_PASSWORD || 'Getin1972!',
 				DB_NAME: process.env.DB_NAME || 'sveltycms_test'
 			}
 		});

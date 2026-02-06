@@ -244,23 +244,34 @@ function deriveOverallState(services: SystemStateStore['services']): SystemState
 	const criticalServices = ['database', 'auth'] as const;
 	const allServices = Object.keys(services) as ServiceName[];
 
-	// 1. Check if any critical service is unhealthy
+	// 1. Check for MAINTENANCE mode
+	const anyMaintenance = allServices.some((service) => services[service].status === 'maintenance');
+	if (anyMaintenance) return 'MAINTENANCE';
+
+	// 2. Check if any critical service is unhealthy
 	const criticalUnhealthy = criticalServices.some((service) => services[service].status === 'unhealthy');
 	if (criticalUnhealthy) return 'FAILED';
 
-	// 2. Check if any critical service is still initializing
+	// 3. Check if any critical service is still initializing
 	const criticalInitializing = criticalServices.some((service) => services[service].status === 'initializing');
 	if (criticalInitializing) return 'INITIALIZING';
 
-	// 3. Check if all services are healthy (WARMED)
-	const allHealthy = allServices.every((service) => services[service].status === 'healthy');
+	// 4. Check for SETUP mode (Critical services healthy, but Widgets/Themes are skipped)
+	// If critical services are ready, but we skipped widgets/themes (e.g. during setup), we are in SETUP mode
+	const widgetsSkipped = services['widgets']?.status === 'skipped';
+	const themeSkipped = services['themeManager']?.status === 'skipped';
+	if (widgetsSkipped && themeSkipped) return 'SETUP';
+
+	// 5. Check if all services are healthy (WARMED)
+	// Ignore 'skipped' services for this check unless ALL non-critical are skipped (which is handled by SETUP above)
+	const allHealthy = allServices.every((service) => services[service].status === 'healthy' || services[service].status === 'skipped');
 	if (allHealthy) return 'WARMED';
 
-	// 4. Check if some services are unhealthy (DEGRADED)
+	// 6. Check if some services are unhealthy (DEGRADED)
 	const anyUnhealthy = allServices.some((service) => services[service].status === 'unhealthy');
 	if (anyUnhealthy) return 'DEGRADED';
 
-	// 5. If critical services are healthy but some non-critical services are still initializing (WARMING)
+	// 7. If critical services are healthy but some non-critical services are still initializing (WARMING)
 	const anyInitializing = allServices.some((service) => services[service].status === 'initializing');
 	if (anyInitializing) return 'WARMING';
 

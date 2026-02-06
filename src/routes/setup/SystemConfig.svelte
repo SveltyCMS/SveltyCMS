@@ -15,7 +15,7 @@
 
 	// --- PROPS ---
 	// Added $bindable() to systemSettings
-	let { systemSettings = $bindable(), validationErrors } = $props(); // Now uses imported type
+	let { systemSettings = $bindable(), validationErrors, redisAvailable = $bindable() } = $props(); // Now uses imported type
 
 	const availableLanguages: string[] = [...systemLocales];
 
@@ -186,6 +186,15 @@
 				(lang.code.toLowerCase().includes(search) || lang.name.toLowerCase().includes(search) || lang.native.toLowerCase().includes(search))
 		);
 	});
+
+	function scrollToRedis() {
+		const el = document.getElementById('redis-section');
+		if (el) {
+			el.scrollIntoView({ behavior: 'smooth' });
+			// Focus the checkbox as well
+			document.getElementById('use-redis')?.focus();
+		}
+	}
 </script>
 
 <div class="fade-in">
@@ -196,6 +205,52 @@
 	</div>
 
 	<div class="space-y-10">
+		{#if redisAvailable && !systemSettings.useRedis}
+			<div class="rounded-lg bg-primary-500 p-4 text-white shadow-lg animate-in fade-in slide-in-from-top-4 duration-500" role="alert">
+				<div class="flex items-start gap-4">
+					<div class="bg-white/20 p-2 rounded-full mt-1">
+						<iconify-icon icon="mdi:lightning-bolt" class="text-xl text-white animate-pulse"></iconify-icon>
+					</div>
+					<div class="flex-1">
+						<div class="flex items-center justify-between">
+							<h4 class="font-bold text-lg flex items-center gap-2">
+								Performance Optimization Detected
+								<span class="bg-white/30 text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider font-bold">Recommended</span>
+							</h4>
+							<button
+								type="button"
+								class="text-white/70 hover:text-white transition-colors"
+								onclick={() => (redisAvailable = false)}
+								aria-label="Dismiss recommendation"
+							>
+								<iconify-icon icon="mdi:close" width="20"></iconify-icon>
+							</button>
+						</div>
+						<p class="mt-1 text-primary-50 text-sm leading-relaxed">
+							A local Redis server was detected on this system. Enabling Redis caching can speed up data access by up to <strong>50x</strong>
+							by reducing database load.
+						</p>
+						<div class="mt-4 flex gap-3">
+							<button
+								type="button"
+								class="rounded-md bg-white px-4 py-2 text-sm font-bold text-primary-600 shadow-sm hover:bg-primary-50 transition-all active:scale-95"
+								onclick={scrollToRedis}
+							>
+								Go to Performance Settings
+							</button>
+							<button
+								type="button"
+								class="rounded-md border border-white/30 px-4 py-2 text-sm font-medium text-white hover:bg-white/10 transition-all"
+								onclick={() => (redisAvailable = false)}
+							>
+								Dismiss
+							</button>
+						</div>
+					</div>
+				</div>
+			</div>
+		{/if}
+
 		<!-- Basic Site Settings -->
 		<section>
 			<div class="grid grid-cols-1 gap-6 md:grid-cols-2">
@@ -359,7 +414,8 @@
 		<!-- Languages -->
 		<section class="space-y-6 border-t border-slate-200 pt-6 dark:border-slate-700">
 			<div class="grid grid-cols-1 gap-6 md:grid-cols-2">
-				<div class="space-y-3 rounded-md border border-slate-300/50 bg-surface-50/60 p-4 dark:border-slate-600/60 dark:bg-surface-800/40">
+				<!-- Default System Language -->
+				<div class="space-y-3 rounded border border-slate-300/50 bg-secondary-50/50 p-4 dark:border-slate-600/60 dark:bg-surface-800/40">
 					<label for="default-system-lang" class="mb-1 flex items-center gap-1 text-sm font-medium">
 						<iconify-icon icon="mdi:translate" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 						<span class="text-black dark:text-white">{m.setup_label_default_system_language?.() || 'Default System Language'}</span>
@@ -401,7 +457,7 @@
 						</div>
 
 						<div
-							class="relative flex min-h-[42px] flex-wrap items-center gap-2 rounded border border-slate-300/50 bg-surface-50 p-2 pr-16 dark:border-slate-600 dark:bg-surface-700/40"
+							class="relative flex min-h-[42px] flex-wrap items-center gap-2 rounded border border-slate-300/50 bg-surface-50/40 pr-16 dark:border-slate-600 dark:bg-surface-700/40"
 						>
 							{#each systemSettings.systemLanguages as lang (lang)}
 								<span
@@ -471,7 +527,8 @@
 						</p>
 					</div>
 				</div>
-				<div class="space-y-3 rounded-md border border-slate-300/50 bg-surface-50/60 p-4 dark:border-slate-600/60 dark:bg-surface-800/40">
+				<!-- Default Content Language -->
+				<div class="space-y-3 rounded-md border border-slate-300/50 bg-secondary-50/50 p-4 dark:border-slate-600/60 dark:bg-surface-800/40">
 					<div class="mb-1 flex items-center gap-1 text-sm font-medium">
 						<iconify-icon icon="mdi:book-open-page-variant" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"
 						></iconify-icon>
@@ -487,7 +544,7 @@
 							</button>
 						</SystemTooltip>
 					</div>
-
+					<p class="text-[10px] text-slate-500 dark:text-slate-400" id="system-lang-help">Select the primary language for your content.</p>
 					<select
 						bind:value={systemSettings.defaultContentLanguage}
 						onblur={() => handleBlur('defaultContentLanguage')}
@@ -521,7 +578,7 @@
 						<div
 							class="relative flex min-h-[42px] flex-wrap items-center gap-2 rounded border p-2 pr-16 {displayErrors.contentLanguages
 								? 'border-error-500 bg-error-50 dark:bg-error-900/20'
-								: 'border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700/40'}"
+								: 'border-slate-300/50 bg-surface-50/50 dark:border-slate-600 dark:bg-surface-700/40'}"
 						>
 							{#each systemSettings.contentLanguages as lang (lang)}
 								<span
@@ -592,6 +649,57 @@
 						{/if}
 					</div>
 				</div>
+			</div>
+		</section>
+
+		<!-- Performance Optimization (Redis) -->
+		<section id="redis-section" class="space-y-4 border-t border-slate-200 pt-6 dark:border-slate-700">
+			<div class="flex items-center gap-2">
+				<iconify-icon icon="mdi:lightning-bolt" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+				<h3 class="text-lg font-bold text-black dark:text-white">Performance Optimization</h3>
+			</div>
+
+			<div class="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-transparent space-y-4">
+				<div class="flex items-center gap-3">
+					<input
+						id="use-redis"
+						type="checkbox"
+						bind:checked={systemSettings.useRedis}
+						class="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+					/>
+					<div class="flex items-center gap-2">
+						<label for="use-redis" class="font-medium text-black dark:text-white text-sm"> Enable Redis Caching </label>
+						<SystemTooltip
+							title="Significantly improves performance by caching database queries and session data in-memory. Recommended if Redis is available."
+						>
+							<iconify-icon icon="mdi:help-circle-outline" width="16" class="text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+							></iconify-icon>
+						</SystemTooltip>
+					</div>
+				</div>
+
+				{#if systemSettings.useRedis}
+					<div class="grid grid-cols-1 gap-4 sm:grid-cols-3 pt-2 animate-in fade-in slide-in-from-top-2 duration-300">
+						<div class="space-y-1.5">
+							<label for="redis-host" class="text-xs font-semibold text-slate-500 dark:text-slate-400">Redis Host</label>
+							<input id="redis-host" bind:value={systemSettings.redisHost} type="text" placeholder="localhost" class="input text-sm py-1.5 rounded" />
+						</div>
+						<div class="space-y-1.5">
+							<label for="redis-port" class="text-xs font-semibold text-slate-500 dark:text-slate-400">Redis Port</label>
+							<input id="redis-port" bind:value={systemSettings.redisPort} type="text" placeholder="6379" class="input text-sm py-1.5 rounded" />
+						</div>
+						<div class="space-y-1.5">
+							<label for="redis-password" class="text-xs font-semibold text-slate-500 dark:text-slate-400">Redis Password (Optional)</label>
+							<input
+								id="redis-password"
+								bind:value={systemSettings.redisPassword}
+								type="password"
+								placeholder="••••••••"
+								class="input text-sm py-1.5 rounded"
+							/>
+						</div>
+					</div>
+				{/if}
 			</div>
 		</section>
 

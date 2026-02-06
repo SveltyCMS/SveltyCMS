@@ -10,6 +10,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 	import { safeParse } from 'valibot';
 	import { dbConfigSchema } from '@utils/formSchemas';
 	import SystemTooltip from '@components/system/SystemTooltip.svelte';
+	import { deserialize } from '$app/forms';
 
 	// Popup settings (click to toggle)
 
@@ -22,7 +23,9 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 		toggleDbPassword,
 		testDatabaseConnection,
 		dbConfigChangedSinceTest,
-		clearDbTestError
+		clearDbTestError,
+		errorMessage,
+		successMessage
 	} = $props();
 
 	let unsupportedDbSelected = $state(false);
@@ -162,21 +165,29 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 		installSuccess = '';
 
 		try {
-			const response = await fetch('/api/setup/install-driver', {
+			const formData = new FormData();
+			formData.append('dbType', dbType);
+
+			const response = await fetch('?/installDriver', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ dbType })
+				body: formData
 			});
 
-			const data = await response.json();
+			const result = deserialize(await response.text());
 
-			if (data.success) {
-				installSuccess = data.message || `Successfully installed driver for ${dbType}`;
-				if (data.alreadyInstalled) {
-					installSuccess = `Driver for ${dbType} is already installed`;
+			if (result.type === 'success') {
+				const data = result.data as any;
+				if (data.success) {
+					installSuccess = data.message || `Successfully installed driver for ${dbType}`;
+					if (data.alreadyInstalled) {
+						installSuccess = `Driver for ${dbType} is already installed`;
+					}
+				} else {
+					installError = data.error || `Failed to install driver for ${dbType}`;
 				}
 			} else {
-				installError = data.error || `Failed to install driver for ${dbType}`;
+				const errorMsg = (result as any).data?.error || `Failed to install driver for ${dbType}`;
+				installError = errorMsg;
 			}
 		} catch (error) {
 			installError = `Network error while installing driver: ${error instanceof Error ? error.message : String(error)}`;
@@ -600,6 +611,24 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 				role="alert"
 			>
 				{m.setup_help_database_type?.() || 'Database settings changed since last successful test. Please re-test to proceed.'}
+			</div>
+		{/if}
+		{#if errorMessage && !dbConfigChangedSinceTest}
+			<div class="mt-4 rounded-md bg-error-50 p-4 text-sm text-error-500 dark:bg-error-900/30" role="alert">
+				<div class="flex items-center gap-2 font-bold">
+					<iconify-icon icon="mdi:alert-circle" width="20"></iconify-icon>
+					Connection Failed
+				</div>
+				<div class="mt-1">{errorMessage}</div>
+			</div>
+		{/if}
+		{#if successMessage && !dbConfigChangedSinceTest}
+			<div class="mt-4 rounded-md bg-primary-500 p-4 text-sm text-white shadow-lg" role="alert">
+				<div class="flex items-center gap-2 font-bold">
+					<iconify-icon icon="mdi:check-circle" width="20" class="text-white"></iconify-icon>
+					Success!
+				</div>
+				<div class="mt-1 text-white/90 font-medium">{successMessage}</div>
 			</div>
 		{/if}
 	</form>

@@ -55,15 +55,15 @@ describe('handleApiRequests Middleware', () => {
 	});
 
 	describe('Setup API Exemption', () => {
-		it('should skip authentication for /api/setup', async () => {
-			const event = createMockEvent('/api/setup', 'POST');
+		it('should skip authentication for /setup', async () => {
+			const event = createMockEvent('/setup', 'POST');
 			await handleApiRequests({ event, resolve: mockResolve });
 
 			expect(mockResolve).toHaveBeenCalled();
 		});
 
-		it('should allow /api/setup/config without auth', async () => {
-			const event = createMockEvent('/api/setup/config', 'POST');
+		it('should allow /setup/config without auth', async () => {
+			const event = createMockEvent('/setup/config', 'POST');
 			await handleApiRequests({ event, resolve: mockResolve });
 
 			expect(mockResolve).toHaveBeenCalled();

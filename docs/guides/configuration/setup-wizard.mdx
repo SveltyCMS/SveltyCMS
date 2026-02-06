@@ -255,7 +255,7 @@ export const systemSettingsSchema = v.object({
 - Port must be valid number (for non-Atlas)
 - Credentials validated on test
 
-**API Call**: `POST /api/setup/test-database`
+**API Call**: `POST /setup?/testDatabase` (SvelteKit Server Action)
 
 **Success Criteria**:
 
@@ -305,7 +305,7 @@ stateDiagram-v2
 - Password: 8+ chars with uppercase, lowercase, number, special char
 - Confirm password must match password
 
-**API Call**: None (validated locally, sent to `/api/setup/complete`)
+**API Call**: None (validated locally, sent to `/setup?/completeSetup`)
 
 **Success Criteria**:
 
@@ -354,7 +354,7 @@ stateDiagram-v2
 - At least one content language required
 - Default languages must be in their respective arrays
 
-**API Call**: None (validated locally, sent to `/api/setup/complete`)
+**API Call**: None (validated locally, sent to `/setup?/completeSetup`)
 
 **Success Criteria**:
 
@@ -390,7 +390,7 @@ stateDiagram-v2
 - Username and password required (if configuring)
 - From address must be valid email
 
-**API Call**: `POST /api/setup/email-test`
+**API Call**: `POST /setup?/testEmail`
 
 **Success Criteria**:
 
@@ -417,10 +417,10 @@ stateDiagram-v2
 - **Auto-login**: Creates session cookie on success
 - **Smart Redirect**: Redirects to first collection or dashboard
 
-**API Calls**:
+**API Calls** (Server Actions):
 
-1. `POST /api/setup/seed` (if not already called)
-2. `POST /api/setup/complete`
+1. `POST /setup?/seedDatabase` (if not already called)
+2. `POST /setup?/completeSetup`
 
 **Success Flow**:
 
@@ -428,22 +428,23 @@ stateDiagram-v2
 sequenceDiagram
     participant U as User
     participant W as Wizard
-    participant API as API
+    participant Svr as Server Action
     participant DB as Database
     participant Sys as System
 
     U->>W: Click "Complete"
     W->>W: Validate all steps
-    W->>API: POST /api/setup/complete
-    API->>DB: Create admin user
-    API->>DB: Create session
-    API->>Sys: Initialize system
+    W->>Svr: POST /setup?/completeSetup
+    Svr->>DB: Create admin user
+    Svr->>DB: Create session
+    Svr->>Sys: Initialize system
     Sys->>Sys: Load settings
     Sys->>Sys: Register collections
-    API-->>W: Success + session cookie
+    Svr->>Svr: Pre-warm cache (CollectionService)
+    Svr-->>W: Success + session cookie
     W->>W: Clear localStorage
     W->>W: Show success toast
-    W->>U: Redirect to dashboard
+    W->>U: Redirect to dashboard (Immediate)
 ```
 
 ---
@@ -706,9 +707,12 @@ async function testDatabaseConnection() {
 
 	while (attempt < maxRetries) {
 		try {
-			const response = await fetch('/api/setup/test-database', {
+			const formData = new FormData();
+			formData.append('data', JSON.stringify(wizard.dbConfig));
+
+			const response = await fetch('/setup?/testDatabase', {
 				method: 'POST',
-				body: JSON.stringify(wizard.dbConfig)
+				body: formData
 			});
 
 			if (response.ok) return await response.json();
@@ -1207,7 +1211,7 @@ test.describe('Setup Wizard', () => {
 
 The setup wizard has comprehensive test coverage across:
 
-**API Tests** (`tests/bun/api/setup.test.ts`):
+**Setup Tests** (`tests/bun/api/setup.test.ts`):
 
 - ✅ 20 endpoint integration tests
 - ✅ Database connection validation
@@ -1243,10 +1247,10 @@ bun test --watch tests/bun/api/setup.test.ts
 
 ```typescript
 it('should test database connection successfully', async () => {
-	const response = await fetch('/api/setup/test-database', {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({
+	const formData = new FormData();
+	formData.append(
+		'config',
+		JSON.stringify({
 			type: 'mongodb',
 			host: 'localhost',
 			port: 27017,
@@ -1254,6 +1258,11 @@ it('should test database connection successfully', async () => {
 			user: 'admin',
 			password: 'secret'
 		})
+	);
+
+	const response = await fetch('/setup?/testDatabase', {
+		method: 'POST',
+		body: formData
 	});
 
 	expect(response.status).toBe(200);
@@ -1268,24 +1277,36 @@ it('should test database connection successfully', async () => {
 ```typescript
 it('should complete entire setup process', async () => {
 	// 1. Test database
-	await fetch('/api/setup/test-database', {
+	const dbForm = new FormData();
+	dbForm.append('config', JSON.stringify(dbConfig));
+	await fetch('/setup?/testDatabase', {
 		method: 'POST',
-		body: JSON.stringify(dbConfig)
+		body: dbForm
 	});
 
 	// 2. Seed database
-	const { firstCollection } = await fetch('/api/setup/seed', {
+	// Action: seedDatabase takes config too? Or uses existing.
+	// We'll assume it takes config or is called after test
+	const seedForm = new FormData();
+	seedForm.append('config', JSON.stringify(dbConfig));
+	const seedResponse = await fetch('/setup?/seedDatabase', {
 		method: 'POST',
-		body: JSON.stringify(dbConfig)
-	}).then((r) => r.json());
+		body: seedForm
+	});
+	const { firstCollection } = await seedResponse.json();
 
 	// 3. Complete setup
-	const response = await fetch('/api/setup/complete', {
-		method: 'POST',
-		body: JSON.stringify({
+	const completeForm = new FormData();
+	completeForm.append(
+		'data',
+		JSON.stringify({
 			admin: adminConfig,
 			firstCollection
 		})
+	);
+	const response = await fetch('/setup?/completeSetup', {
+		method: 'POST',
+		body: completeForm
 	});
 
 	expect(response.status).toBe(200);
@@ -1595,8 +1616,8 @@ async function nextStep() {
 
 ## Related Documentation
 
-- [Setup API Reference](/docs/api/Setup_API.mdx) - Complete API documentation
-- [Initialization Workflow](/docs/architecture/initialization-workflow.mdx) - System initialization
+- [Setup Actions Reference](/docs/api/Setup_Actions_API.mdx) - Complete API documentation
+- [Setup Actions](./api-test-coverage.mdx#setup) - Initialization workflow tests
 - [Valibot Documentation](https://valibot.dev/) - Validation library
 - [Svelte 5 Runes](https://svelte.dev/docs/svelte/what-are-runes) - Reactive state management
 

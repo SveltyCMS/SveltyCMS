@@ -12,6 +12,7 @@
 import { error } from '@sveltejs/kit';
 import type { Handle } from '@sveltejs/kit';
 import { getSystemState, isSystemReady } from '@src/stores/system/state';
+import type { SystemState } from '@src/stores/system/types';
 import { logger } from '@utils/logger.server';
 import { dbInitPromise } from '@src/databases/db';
 import { isSetupComplete } from '@utils/setupCheck';
@@ -82,8 +83,34 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
 					}
 				} else {
 					// Setup not complete - skip initialization to prevent retry loops
-					logger.info('System is IDLE and setup is not complete. Skipping DB initialization.');
+					if ((initializationState as string) !== 'complete') {
+						logger.info('System is IDLE and setup is not complete. Skipping DB initialization.');
+						initializationState = 'complete';
+					}
+				}
+			} else if (initializationState === 'complete' && setupComplete) {
+				// EDGE CASE: Setup completed recently, but previous request skipped init.
+				// We must force restart initialization!
+				logger.info('System is IDLE, init was skipped, but Setup is now COMPLETE. Restarting initialization...');
+				initializationState = 'in-progress';
+				initStartTime = Date.now();
+
+				try {
+					// Add timeout wrapper
+					await Promise.race([
+						dbInitPromise,
+						new Promise((_, reject) => setTimeout(() => reject(new Error('Initialization timeout')), INIT_TIMEOUT_MS))
+					]);
+
+					systemState = getSystemState(); // Re-fetch state after init
 					initializationState = 'complete';
+					const duration = Date.now() - initStartTime;
+					logger.info(`Initialization complete in ${duration}ms. System state: ${systemState.overallState}`);
+				} catch (err) {
+					initializationState = 'failed';
+					initError = err instanceof Error ? err : new Error(String(err));
+					logger.error('Initialization failed:', initError);
+					throw new AppError('Service initialization failed. Please check server logs.', 503, 'INIT_FAILED');
 				}
 			} else if (initializationState === 'in-progress') {
 				// Another request is already initializing, wait for it
@@ -115,33 +142,11 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
 
 				if (timeSinceFailure > RETRY_COOLDOWN_MS) {
 					logger.info(`[Self-Healing] Attempting to recover from previous initialization failure (failed ${timeSinceFailure}ms ago)...`);
-					initializationState = 'pending';
-					initError = null;
-					// Recursively call handleSystemState or just continue to let the next block handle 'pending'
-					// Since we are in the IDLE block, resetting to 'pending' and letting flow continue
-					// will trigger the 'pending' block in the next request, OR we can just let it fall through
-					// to the next request. A simple return resolve(event) might trigger a reload or we can just
-					// allow this request to trigger the init immediately.
-
-					// Let's reset and allow this request to trigger init immediately by falling back to 'pending' logic
-					// We need to re-evaluate the 'pending' block.
-					// safest way: just reset state, log, and throw 503 with "Retrying..." header so client refreshes
-					// OR, better: reset state and goto Phase 1 logic.
-
-					// For simplicity and safety in this flow:
 					initializationState = 'in-progress'; // Take lock immediately
 					initStartTime = Date.now();
 
 					try {
 						logger.info('[Self-Healing] Restarting initialization sequence...');
-						// Re-creation of dbInitPromise might be needed if it settled?
-						// In current architecture, dbInitPromise is a singleton in db.ts.
-						// We might need to call a reset function. Use imported dbInitPromise for now.
-						// Ideally we should call a method to restart DB init if it failed.
-						// Assuming dbInitPromise handles its own internal state or we just await it again.
-
-						// If dbInitPromise rejected, it needs to be replaced or handled.
-						// Let's assume for now we just try again.
 						const { resetDbInitPromise } = await import('@src/databases/db');
 						await resetDbInitPromise();
 
@@ -180,7 +185,6 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
 		if (systemState.overallState === 'IDLE') {
 			const allowedPaths = [
 				'/setup',
-				'/api/setup',
 				'/api/system/health',
 				'/api/dashboard/health',
 				'/login',
@@ -191,7 +195,8 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
 				'/_',
 				'/api/system/version',
 				'/api/system', // Allow unified system API
-				'/api/debug' // Allow debug endpoints
+				'/api/debug', // Allow debug endpoints
+				'/api/settings/public' // ✨ Allow public settings for setup UI
 			];
 			const isLocalizedSetup = /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/(setup|login|register)/.test(pathname);
 			const isAllowedRoute = allowedPaths.some((prefix) => pathname.startsWith(prefix)) || pathname === '/' || isLocalizedSetup;
@@ -208,7 +213,6 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
 				'/api/system/health',
 				'/api/dashboard/health',
 				'/setup',
-				'/api/setup',
 				'/login',
 				'/.well-known',
 				'/_',
@@ -242,22 +246,47 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
 			}
 		}
 
+		// --- State: SETUP ---
+		if (systemState.overallState === 'SETUP') {
+			const allowedPaths = ['/setup', '/api/system', '/login', '/static', '/assets', '/.well-known', '/_', '/api/debug'];
+			const isLocalizedSetup = /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/(setup|login|register)/.test(pathname);
+			const isAllowedRoute = allowedPaths.some((prefix) => pathname.startsWith(prefix)) || pathname === '/' || isLocalizedSetup;
+
+			if (isAllowedRoute) {
+				// If root is requested in SETUP mode, redirect to setup wizard
+				if (pathname === '/') {
+					logger.info('System in SETUP mode. Redirecting root to /setup');
+					return new Response(null, { status: 302, headers: { Location: '/setup' } });
+				}
+				logger.trace(`Allowing request to ${pathname} during SETUP state.`);
+				return await resolve(event);
+			}
+
+			logger.warn(`Request to ${pathname} blocked: System is in SETUP mode.`);
+			throw new AppError('System is in Setup Mode. Please complete configuration.', 503, 'SYSTEM_SETUP_MODE');
+		}
+
+		// --- State: MAINTENANCE ---
+		if (systemState.overallState === 'MAINTENANCE') {
+			// Allow health checks and admin login
+			const allowedPaths = ['/api/system/health', '/api/dashboard/health', '/login', '/api/auth/login'];
+			if (allowedPaths.some((prefix) => pathname.startsWith(prefix))) {
+				return await resolve(event);
+			}
+
+			logger.warn(`Request to ${pathname} blocked: System is in MAINTENANCE mode.`);
+			throw new AppError('System is currently under maintenance. Please try again later.', 503, 'SYSTEM_MAINTENANCE');
+		}
+
 		// --- State: Final Ready Check ---
 		const isNowReady =
 			systemState.overallState === 'READY' ||
 			systemState.overallState === 'DEGRADED' ||
 			systemState.overallState === 'WARMING' ||
-			systemState.overallState === 'WARMED';
+			systemState.overallState === 'WARMED' ||
+			(systemState.overallState as SystemState) === 'SETUP';
 		if (!isNowReady) {
-			const allowedPaths = [
-				'/api/system/health',
-				'/api/dashboard/health',
-				'/setup',
-				'/api/setup',
-				'/api/system/version',
-				'/api/system',
-				'/api/debug'
-			];
+			const allowedPaths = ['/api/system/health', '/api/dashboard/health', '/setup', '/api/system/version', '/api/system', '/api/debug'];
 			const isAllowedRoute = allowedPaths.some((prefix) => pathname.startsWith(prefix));
 
 			if (isAllowedRoute) {

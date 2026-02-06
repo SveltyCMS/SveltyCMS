@@ -164,7 +164,15 @@ export class SchedulerService {
 			// Ignore errors if stopped (likely "module runner closed")
 			if (!this.intervalId) return;
 
-			logger.error('Scheduler check failed:', error instanceof Error ? error.message : JSON.stringify(error));
+			const errorMessage = error instanceof Error ? error.message : String(error);
+
+			// Suppress "Vite module runner has been closed" errors which are common during HMR/Restarts
+			if (errorMessage.includes('Vite module runner has been closed')) {
+				logger.debug('Scheduler: Vite module runner has been closed (HMR detected)');
+				return;
+			}
+
+			logger.error('Scheduler check failed:', errorMessage);
 			if (error instanceof Error && error.stack) {
 				logger.debug(error.stack);
 			}

@@ -276,7 +276,7 @@
 		</div>
 
 		<!-- Password Requirements Box -->
-		<div class="mt-4 rounded border-l-4 border-tertiary-500 bg-white p-4 shadow-xl dark:border-primary-500 dark:bg-surface-800">
+		<div class="mt-4 rounded border border-x-6 border-tertiary-500 bg-white p-4 shadow-xl dark:border-primary-500 dark:bg-surface-800">
 			<h4 class="mb-2 text-center text-sm font-bold tracking-tight dark:text-white" id="password-reqs-heading">
 				{m.setup_help_admin_password?.() || 'Password Requirements'}
 			</h4>
@@ -364,7 +364,7 @@
 					{m.setup_help_admin_password_requirements_match?.() || 'Passwords match'}
 					<span class="sr-only">, {passwordRequirements.match ? 'complete' : 'incomplete'}.</span>
 				</li>
-				<li class="mt-2 flex items-center justify-center border-t border-slate-200 pt-2 font-bold dark:border-slate-700 dark:text-white">
+				<li class="mt-2 flex items-center justify-center border-t border-slate-700 pt-2 font-bold dark:border-slate-200 dark:text-white">
 					<span class="mr-2 inline-flex h-5 w-5 items-center justify-center">
 						<iconify-icon icon="mdi:shield-check" width="18" class="text-error-500" aria-hidden="true"></iconify-icon>
 					</span>

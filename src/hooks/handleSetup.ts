@@ -31,8 +31,8 @@ function isAllowedDuringSetup(pathname: string): boolean {
 	return (
 		pathname.startsWith('/setup') ||
 		/^\/[a-z]{2,5}(-[a-zA-Z]+)?\/setup/.test(pathname) || // Localized setup (e.g. /en/setup)
-		pathname.startsWith('/api/setup') ||
 		pathname.startsWith('/api/system') || // Allow system API during setup
+		pathname.startsWith('/api/settings/public') || // Allow public settings
 		pathname === '/api/system/version' ||
 		ASSET_REGEX.test(pathname)
 	);
@@ -96,7 +96,7 @@ export const handleSetup: Handle = async ({ event, resolve }) => {
 		// --- Step 3: Handle Complete Setup ---
 		// If setup is complete, BLOCK access to /setup routes (including localized ones)
 		const isSetupRoute = pathname.startsWith('/setup') || /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/setup/.test(pathname);
-		if (isSetupRoute && !pathname.includes('/api/setup')) {
+		if (isSetupRoute) {
 			if (!event.locals.__setupLoginRedirectLogged) {
 				logger.trace(`Setup complete. Blocking access to ${pathname}, redirecting to /login`);
 				event.locals.__setupLoginRedirectLogged = true;

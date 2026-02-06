@@ -52,14 +52,22 @@ import { logger } from '@src/utils/logger.server';
 import { cacheService } from '@src/databases/CacheService';
 
 export class MongoDBAdapter implements IDBAdapter {
-	// --- Feature Cache ---
-	private _cachedAuth?: IAuthAdapter;
-	private _cachedCrud?: ICrudAdapter;
-	private _cachedMedia?: IMediaAdapter;
-	private _cachedContent?: IContentAdapter;
-	private _cachedSystem?: ISystemAdapter;
-	private _cachedMonitoring?: IMonitoringAdapter;
-	private _cachedCollections?: any; // MongoCollectionMethods
+	// --- Feature Cache (Real Instances) ---
+	private _realAuth?: IAuthAdapter;
+	private _realCrud?: ICrudAdapter;
+	private _realMedia?: IMediaAdapter;
+	private _realContent?: IContentAdapter;
+	private _realSystem?: ISystemAdapter;
+	private _realMonitoring?: IMonitoringAdapter;
+	private _realCollections?: any;
+
+	// --- Feature Shells (Proxies) ---
+	private _shellAuth?: IAuthAdapter;
+	private _shellCrud?: ICrudAdapter;
+	private _shellMedia?: IMediaAdapter;
+	private _shellContent?: IContentAdapter;
+	private _shellSystem?: ISystemAdapter;
+	private _shellMonitoring?: IMonitoringAdapter;
 
 	// --- Lazy Initialization State ---
 	private _modelCache = new Map<string, mongoose.Model<any>>();
@@ -77,63 +85,145 @@ export class MongoDBAdapter implements IDBAdapter {
 
 	// --- Feature Getters (Lazy-loaded) ---
 
+	// --- Feature Getters (Smart Lazy-loaded) ---
+
 	public get auth(): IAuthAdapter {
-		if (!this.isConnected()) throw new Error('DB not connected');
-		if (!this._cachedAuth) throw new Error('Auth adapter not initialized. Call ensureAuth()');
-		return this._cachedAuth;
+		if (!this._shellAuth) {
+			this._shellAuth = this._createLazyProxy<IAuthAdapter>(
+				'auth',
+				() => this.ensureAuth(),
+				() => this._realAuth
+			);
+		}
+		return this._shellAuth;
 	}
 
 	public get crud(): ICrudAdapter {
-		if (!this.isConnected()) throw new Error('DB not connected');
-		if (!this._cachedCrud) throw new Error('CRUD adapter not initialized');
-		return this._cachedCrud;
+		if (!this._shellCrud) {
+			this._shellCrud = this._createLazyProxy<ICrudAdapter>(
+				'crud',
+				() => Promise.resolve(),
+				() => this._realCrud
+			);
+		}
+		return this._shellCrud;
 	}
 
 	public get media(): IMediaAdapter {
-		if (!this.isConnected()) throw new Error('DB not connected');
-		if (!this._cachedMedia) throw new Error('Media adapter not initialized. Call ensureMedia()');
-		return this._cachedMedia;
+		if (!this._shellMedia) {
+			this._shellMedia = this._createLazyProxy<IMediaAdapter>(
+				'media',
+				() => this.ensureMedia(),
+				() => this._realMedia
+			);
+		}
+		return this._shellMedia;
 	}
 
 	public get content(): IContentAdapter {
-		if (!this.isConnected()) throw new Error('DB not connected');
-		if (!this._cachedContent) throw new Error('Content adapter not initialized. Call ensureContent()');
-		return this._cachedContent;
+		if (!this._shellContent) {
+			this._shellContent = this._createLazyProxy<IContentAdapter>(
+				'content',
+				() => this.ensureContent(),
+				() => this._realContent
+			);
+		}
+		return this._shellContent;
 	}
 
 	public get systemPreferences(): ISystemAdapter['systemPreferences'] {
-		if (!this._cachedSystem) throw new Error('System adapter not initialized. Call ensureSystem()');
-		return this._cachedSystem.systemPreferences;
+		return this._getSystemShell().systemPreferences;
 	}
 
 	public get themes(): ISystemAdapter['themes'] {
-		if (!this._cachedSystem) throw new Error('System adapter not initialized. Call ensureSystem()');
-		return this._cachedSystem.themes;
+		return this._getSystemShell().themes;
 	}
 
 	public get widgets(): ISystemAdapter['widgets'] {
-		if (!this._cachedSystem) throw new Error('System adapter not initialized. Call ensureSystem()');
-		return this._cachedSystem.widgets;
+		return this._getSystemShell().widgets;
 	}
 
 	public get websiteTokens(): ISystemAdapter['websiteTokens'] {
-		if (!this._cachedSystem) throw new Error('System adapter not initialized. Call ensureSystem()');
-		return this._cachedSystem.websiteTokens;
+		return this._getSystemShell().websiteTokens;
 	}
 
 	public get systemVirtualFolder(): ISystemAdapter['systemVirtualFolder'] {
-		if (!this._cachedSystem) throw new Error('System adapter not initialized. Call ensureSystem()');
-		return this._cachedSystem.systemVirtualFolder;
+		return this._getSystemShell().systemVirtualFolder;
 	}
 
 	public get performance(): IMonitoringAdapter['performance'] {
-		if (!this._cachedMonitoring) throw new Error('Monitoring adapter not initialized. Call ensureMonitoring()');
-		return this._cachedMonitoring.performance;
+		return this._getMonitoringShell().performance;
 	}
 
 	public get cache(): IMonitoringAdapter['cache'] {
-		if (!this._cachedMonitoring) throw new Error('Monitoring adapter not initialized. Call ensureMonitoring()');
-		return this._cachedMonitoring.cache;
+		return this._getMonitoringShell().cache;
+	}
+
+	private _getSystemShell(): ISystemAdapter {
+		if (!this._shellSystem) {
+			this._shellSystem = this._createLazyProxy<ISystemAdapter>(
+				'system',
+				() => this.ensureSystem(),
+				() => this._realSystem
+			);
+		}
+		return this._shellSystem;
+	}
+
+	private _getMonitoringShell(): IMonitoringAdapter {
+		if (!this._shellMonitoring) {
+			this._shellMonitoring = this._createLazyProxy<IMonitoringAdapter>(
+				'monitoring',
+				() => this.ensureMonitoring(),
+				() => this._realMonitoring
+			);
+		}
+		return this._shellMonitoring;
+	}
+
+	private _createLazyProxy<T extends object>(name: string, ensureFn: () => Promise<void>, getReal: () => T | undefined): T {
+		return new Proxy({} as T, {
+			get: (_target, prop) => {
+				if (prop === 'then' || prop === 'catch' || prop === 'finally' || typeof prop === 'symbol') return undefined;
+
+				const real = getReal();
+				if (real && (real as any)[prop]) {
+					const value = (real as any)[prop];
+					return typeof value === 'function' ? value.bind(real) : value;
+				}
+
+				// If it's one of the known sub-objects, return another lazy proxy
+				if (
+					[
+						'systemPreferences',
+						'themes',
+						'widgets',
+						'websiteTokens',
+						'systemVirtualFolder',
+						'performance',
+						'cache',
+						'files',
+						'folders',
+						'nodes',
+						'drafts',
+						'revisions'
+					].includes(prop as string)
+				) {
+					return this._createLazyProxy(`${name}.${String(prop)}`, ensureFn, () => (getReal() as any)?.[prop]);
+				}
+
+				// Otherwise, assume it's a method and return a wrapper
+				return async (...args: any[]) => {
+					if (!this.isConnected()) throw new Error('Database not connected');
+					await ensureFn();
+					const instance = getReal();
+					if (!instance) throw new Error(`Feature "${name}" failed to initialize`);
+					const method = (instance as any)[prop];
+					if (typeof method !== 'function') throw new Error(`Method "${String(prop)}" not found on "${name}"`);
+					return method.apply(instance, args);
+				};
+			}
+		});
 	}
 
 	// --- Core Implementation ---
@@ -185,8 +275,8 @@ export class MongoDBAdapter implements IDBAdapter {
 			}
 
 			// 2. Initialize Core CRUD (Required for almost everything)
-			if (!this._cachedCrud) {
-				this._cachedCrud = await this._createCrudAdapter();
+			if (!this._realCrud) {
+				this._realCrud = await this._createCrudAdapter();
 				this._featureInit.crud = true;
 			}
 
@@ -207,7 +297,7 @@ export class MongoDBAdapter implements IDBAdapter {
 			const { composeMongoAuthAdapter } = await import('./methods/authComposition');
 			const authRegistrar = new MongoAuthModelRegistrar(mongoose);
 			await authRegistrar.setupAuthModels();
-			this._cachedAuth = composeMongoAuthAdapter();
+			this._realAuth = composeMongoAuthAdapter();
 			this._featureInit.auth = true;
 		})();
 
@@ -225,7 +315,7 @@ export class MongoDBAdapter implements IDBAdapter {
 			MongoMediaMethods.registerModels(mongoose);
 			const mediaMethods = new MongoMediaMethods(mediaModel as any);
 
-			this._cachedMedia = {
+			this._realMedia = {
 				setupMediaModels: async () => {},
 				files: {
 					upload: (f) => this.crud.insert('media', f),
@@ -276,7 +366,7 @@ export class MongoDBAdapter implements IDBAdapter {
 				new MongoCrudMethods(RevisionModel) as any
 			);
 
-			this._cachedContent = {
+			this._realContent = {
 				nodes: {
 					getStructure: (m, f, b) => this._wrapResult(() => contentMethods.getStructure(m, f, b)),
 					upsertContentStructureNode: (n) => this._wrapResult(() => contentMethods.upsertNodeByPath(n)),
@@ -340,7 +430,7 @@ export class MongoDBAdapter implements IDBAdapter {
 		if (this._initPromises.has('monitoring')) return this._initPromises.get('monitoring');
 
 		const promise = (async () => {
-			this._cachedMonitoring = {
+			this._realMonitoring = {
 				performance: {
 					getMetrics: () =>
 						this._wrapResult(async () => ({ queryCount: 0, averageQueryTime: 0, slowQueries: [], cacheHitRate: 0, connectionPoolUsage: 0 })),
@@ -376,7 +466,7 @@ export class MongoDBAdapter implements IDBAdapter {
 				import('./models') // Side-effect import for model registration
 			]);
 
-			this._cachedCollections = new MongoCollectionMethods();
+			this._realCollections = new MongoCollectionMethods();
 			this._MongoQueryBuilderConstructor = MongoQueryBuilder;
 			this._mongoDBUtils = mongoDBUtils;
 			this._featureInit.collections = true;
@@ -497,7 +587,7 @@ export class MongoDBAdapter implements IDBAdapter {
 	private _cachedSystemFolders?: any;
 
 	private async _initializeSystemAdapter(): Promise<void> {
-		this._cachedSystem = {
+		this._realSystem = {
 			systemPreferences: {
 				get: async (k, s, u) => {
 					if (!this._cachedSystemCore) {
@@ -802,28 +892,28 @@ export class MongoDBAdapter implements IDBAdapter {
 	public collection = {
 		getModel: async (id: string) => {
 			await this.ensureCollections();
-			return this._cachedCollections.getModel(id);
+			return this._realCollections.getModel(id);
 		},
 		createModel: async (s: any) => {
 			await this.ensureCollections();
-			return this._cachedCollections.createModel(s);
+			return this._realCollections.createModel(s);
 		},
 		updateModel: async (s: any) => {
 			await this.ensureCollections();
-			return this._cachedCollections.updateModel(s);
+			return this._realCollections.updateModel(s);
 		},
 		deleteModel: async (id: string) => {
 			await this.ensureCollections();
-			return this._cachedCollections.deleteModel(id);
+			return this._realCollections.deleteModel(id);
 		},
 		getSchema: async (collectionName: string) => {
 			await this.ensureCollections();
 			// Explicitly type the expected result from _wrapResult to match IDBAdapter interface
-			return this._wrapResult<import('../../content/types').Schema | null>(() => this._cachedCollections.getSchema(collectionName));
+			return this._wrapResult<import('../../content/types').Schema | null>(() => this._realCollections.getSchema(collectionName));
 		},
 		listSchemas: async () => {
 			await this.ensureCollections();
-			return this._wrapResult<import('../../content/types').Schema[]>(() => this._cachedCollections.listSchemas());
+			return this._wrapResult<import('../../content/types').Schema[]>(() => this._realCollections.listSchemas());
 		}
 	};
 

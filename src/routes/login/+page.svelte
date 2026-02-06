@@ -30,6 +30,7 @@
 	import { systemLanguage } from '@stores/store.svelte.ts';
 	import { getLanguageName } from '@utils/languageUtils';
 	import { locales as availableLocales } from '@src/paraglide/runtime';
+	import { deserialize } from '$app/forms';
 
 	// Skeleton UI
 	import { Menu, Portal } from '@skeletonlabs/skeleton-svelte';
@@ -282,12 +283,19 @@
 							type="button"
 							onclick={async () => {
 								if (confirm(m.db_error_reset_confirm())) {
-									const response = await fetch('/api/setup/reset', { method: 'POST' });
-									const result = await response.json();
-									if (result.success) {
-										window.location.href = '/setup';
+									const response = await fetch('?/resetSetup', { method: 'POST', body: new FormData() });
+									const result = deserialize(await response.text());
+
+									if (result.type === 'success') {
+										const data = result.data as any;
+										if (data.success) {
+											window.location.href = '/setup';
+										} else {
+											alert('Failed to reset setup: ' + (data.error || 'Unknown error'));
+										}
 									} else {
-										alert('Failed to reset setup: ' + result.error);
+										const errorMsg = (result as any).data?.error || 'Failed to reset setup';
+										alert('Failed to reset setup: ' + errorMsg);
 									}
 								}
 							}}

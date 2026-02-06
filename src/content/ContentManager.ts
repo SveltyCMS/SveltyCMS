@@ -1773,7 +1773,7 @@ class ContentManager {
 
 				// CRITICAL: Invalidate cache after deletion so the UI doesn't see stale data
 				if (typeof invalidateCategoryCache === 'function') {
-					await invalidateCategoryCache(CacheCategory.CONTENT, { tenantId });
+					await invalidateCategoryCache(CacheCategory.CONTENT);
 					logger.info('CACHE INVALIDATED');
 				}
 			} else {
@@ -2034,8 +2034,8 @@ class ContentManager {
 		const compiledDir = import.meta.env.VITE_COLLECTIONS_FOLDER || '.compiledCollections';
 		let relativePath = filePath.substring(filePath.indexOf(compiledDir) + compiledDir.length);
 
-		logger.debug(`[_extractPathFromFilePath] Original filePath: ${filePath}`);
-		logger.debug(`[_extractPathFromFilePath] After removing compiledDir: ${relativePath}`);
+		logger.trace(`[_extractPathFromFilePath] Original filePath: ${filePath}`);
+		logger.trace(`[_extractPathFromFilePath] After removing compiledDir: ${relativePath}`);
 
 		// Handle tenant-based structure: .compiledCollections/{tenantId}/path/to/file.js
 		// DISABLED: This logic was incorrectly treating folder names like "Collections", "Menu", "Posts"
@@ -2050,7 +2050,7 @@ class ContentManager {
 		relativePath = relativePath.replace(/\.js$/, '');
 		const finalPath = relativePath.startsWith('/') ? relativePath : `/${relativePath}`;
 
-		logger.debug(`[_extractPathFromFilePath] Final extracted path: ${finalPath}`);
+		logger.trace(`[_extractPathFromFilePath] Final extracted path: ${finalPath}`);
 		return finalPath;
 	}
 

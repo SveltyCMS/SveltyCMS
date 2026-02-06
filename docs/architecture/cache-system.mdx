@@ -318,7 +318,7 @@ This ensures the first page load is instant, providing a seamless post-setup exp
 ```mermaid
 sequenceDiagram
     participant User as User/Browser
-    participant Setup as /api/setup/complete
+    participant Setup as /setup Action
     participant DB as Database
     participant Cache as Server Cache
     participant SSR as SvelteKit SSR
@@ -328,13 +328,11 @@ sequenceDiagram
     Setup->>DB: initializeWithConfig()
     Note over DB: System becomes READY
 
-    Setup->>Cache: Warm cache: fetch(baseUrl)
-    Note over Cache,SSR: Cache warming happens<br/>BEFORE redirect
+    Setup->>Cache: Warm cache: CollectionService.getCollectionData()
+    Note over Cache,SSR: Cache warming happens<br/>via internal service call
 
-    Cache->>SSR: GET / (homepage)
-    SSR->>SSR: Server-side render
-    SSR->>DB: Load collections, menu, settings
-    SSR-->>Cache: Cached HTML response
+    Cache->>DB: Fetch collection data
+    Cache->>Cache: Store in L1/L2
 
     Cache-->>Setup: Cache warmed
 
@@ -347,38 +345,49 @@ sequenceDiagram
 **Implementation:**
 
 ```typescript
-// src/routes/api/setup/complete/+server.ts
-export const POST: RequestHandler = async ({ request, url }) => {
-	// 1. Create configuration
-	await writeConfig(fullConfig);
+// src/routes/setup/+page.server.ts
+export const actions = {
+	completeSetup: async ({ request, cookies }) => {
+		// ... (validation and user creation) ...
 
-	// 2. Initialize system (zero-restart)
-	await initializeWithConfig(fullConfig);
+		// Initialize global system
+		await initializeWithConfig(databaseConfig);
 
-	// 3. Create admin user
-	await createAdminUser(setupData.user);
+		// PRE-WARM CACHE (Fire-and-forget optimization)
+		// Trigger background fetch of first collection so it's ready when user redirects
+		(async () => {
+			try {
+				const { contentManager } = await import('@src/content/ContentManager');
+				const { collectionService } = await import('@src/services/CollectionService');
 
-	// 4. CRITICAL: Warm cache before redirecting user
-	const warmupUrl = `${url.protocol}//${url.host}/`;
-	try {
-		logger.info(`Warming cache by fetching ${warmupUrl}...`);
-		const warmupResponse = await fetch(warmupUrl);
+				// Initialize ContentManager
+				await contentManager.initialize(undefined);
+				const collections = await contentManager.getCollections();
 
-		if (warmupResponse.ok) {
-			logger.info('✅ Cache successfully warmed. First load will be instant.');
-		} else {
-			logger.warn(`Cache warming returned ${warmupResponse.status}, but continuing...`);
-		}
-	} catch (warmupError) {
-		logger.error('Cache warming failed (non-critical):', warmupError);
-		// Don't fail the setup - just log it
+				if (collections.length > 0) {
+					const firstCollection = collections[0];
+					logger.info(`🔥 Pre-warming cache for collection: ${firstCollection.name}`);
+
+					// Use internal service to warm cache (faster than fetch)
+					await collectionService.getCollectionData({
+						collection: firstCollection,
+						language: 'en',
+						user: adminUser,
+						tenantId: undefined
+					});
+				}
+			} catch (warmError) {
+				logger.warn('Cache pre-warm failed (non-critical):', warmError);
+			}
+		})();
+
+		return {
+			success: true,
+			message: 'Setup complete! 🎉',
+			redirectPath: '/en/Collections', // Immediate redirect
+			sessionId: session._id
+		};
 	}
-
-	// 5. Redirect user to login (first page will be fast!)
-	return json({
-		success: true,
-		redirect: '/login'
-	});
 };
 ```
 

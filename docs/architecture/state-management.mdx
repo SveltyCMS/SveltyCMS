@@ -45,7 +45,7 @@ The `handleSystemState` hook (`src/hooks/handleSystemState.ts`) intercepts every
 1.  **Health Checks & Static Assets**: Always allowed, regardless of state.
 2.  **IDLE State (Setup Mode)**:
     - Checks if `isSetupComplete()`.
-    - If **No**: Allows access to `/setup`, `/api/setup`, and `/login`. Blocks others.
+    - If **No**: Allows access to `/setup`, the setup **Server Functions** in `+page.server.ts`, and `/login`. Blocks others.
     - If **Yes**: Triggers initialization and transitions to `INITIALIZING`.
 3.  **INITIALIZING State**:
     - Pauses incoming requests until initialization completes (or times out).

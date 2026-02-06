@@ -58,6 +58,7 @@
 		const file = e?.dataTransfer?.files[0];
 		if (file) {
 			value = file;
+			show = false;
 			onChange?.(file);
 		}
 	}

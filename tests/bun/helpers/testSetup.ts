@@ -5,6 +5,7 @@
  */
 import { waitForServer } from './server';
 import { createTestUsers, loginAsAdmin } from './auth';
+import { SESSION_COOKIE_NAME } from '@src/databases/auth/constants';
 
 // Re-export isServerAvailable for easy access from tests
 export { isServerAvailable } from './server';
@@ -27,13 +28,12 @@ export async function cleanupTestDatabase(): Promise<void> {
 	console.log('[cleanupTestDatabase] Starting...');
 	// 1. Call reset endpoint to clear config and cache on the server
 	try {
-		const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:5173';
-		console.log('[cleanupTestDatabase] Calling reset endpoint:', API_BASE_URL);
-		await fetch(`${API_BASE_URL}/api/setup/reset`, { method: 'POST' });
-		console.log('[cleanupTestDatabase] Reset endpoint called');
+		// API_BASE_URL is usually http://localhost:5173 or 4173
+		// Reset endpoint is gone, so we rely on direct DB drop below.
+		// If needed, we could implement a reset action or route, but for now we skip.
+		console.log('[cleanupTestDatabase] Skipping server-side reset (endpoint removed). Relying on DB drop.');
 	} catch (e: any) {
-		// Ignore connection errors if server is down
-		console.log('[cleanupTestDatabase] Reset endpoint failed (ignored):', e);
+		console.log('[cleanupTestDatabase] Reset step skipped:', e);
 	}
 
 	// 3. Drop Test Database
@@ -277,46 +277,95 @@ function extractCookieValue(setCookieHeader: string): string {
 export async function prepareAuthenticatedContext(): Promise<string> {
 	const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:4173';
 
-	// Check if system is already set up
-	const statusResp = await fetch(`${API_BASE_URL}/api/setup/status`);
-	const status = await statusResp.json();
+	// Check if system is already set up via health endpoint
+	// 503/IDLE means setup needed. 200/READY means setup complete.
+	const statusResp = await fetch(`${API_BASE_URL}/api/system/health`);
+	// IDLE state returns 503, so we check status or body
+	const health = await statusResp.json().catch(() => ({ overallStatus: 'UNKNOWN' }));
 
-	if (!status.setupComplete) {
-		// System needs setup - use the Setup API
+	const setupNeeded = statusResp.status === 503 || health.overallStatus === 'IDLE';
+
+	if (setupNeeded) {
+		// System needs setup - use the Setup Actions
 		const dbConfig = {
 			type: 'mongodb',
 			host: process.env.DB_HOST || 'localhost',
-			port: parseInt(process.env.DB_PORT || '27017'),
+			port: parseInt(process.env.DB_PORT || '27017').toString(), // Browser-like FormData sends strings
 			name: process.env.DB_NAME || 'sveltycms_test',
 			user: process.env.DB_USER || '',
 			password: process.env.DB_PASSWORD || ''
 		};
 
-		// Step 1: Seed database config
-		await fetch(`${API_BASE_URL}/api/setup/seed`, {
+		// 1. Test/Set Config (This action verifies and sometimes sets state in other parts of the system)
+		const configForm = new FormData();
+		configForm.append('config', JSON.stringify(dbConfig));
+		const testRes = await fetch(`${API_BASE_URL}/setup?/testDatabase`, {
 			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify(dbConfig)
+			body: configForm,
+			headers: {
+				'x-sveltekit-action': 'true',
+				Origin: API_BASE_URL
+			}
 		});
+		if (!testRes.ok) {
+			console.error('❌ testDatabase Action failed:', await testRes.text());
+		}
 
-		// Step 2: Complete setup with admin user
-		const completeResp = await fetch(`${API_BASE_URL}/api/setup/complete`, {
+		// 2. Seed Database
+		const seedForm = new FormData();
+		seedForm.append('config', JSON.stringify(dbConfig));
+		const seedRes = await fetch(`${API_BASE_URL}/setup?/seedDatabase`, {
 			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({
-				admin: testFixtures.users.admin,
-				skipWelcomeEmail: true
-			})
+			body: seedForm,
+			headers: {
+				'x-sveltekit-action': 'true',
+				Origin: API_BASE_URL
+			}
+		});
+		if (!seedRes.ok) {
+			console.error('❌ seedDatabase Action failed:', await seedRes.text());
+		}
+
+		// 3. Complete setup with admin user and system settings
+		const completeForm = new FormData();
+		const payload = {
+			database: dbConfig,
+			admin: testFixtures.users.admin,
+			system: {
+				siteName: 'SveltyCMS Test',
+				hostProd: API_BASE_URL,
+				defaultSystemLanguage: 'en',
+				systemLanguages: ['en', 'de'],
+				defaultContentLanguage: 'en',
+				contentLanguages: ['en', 'de'],
+				mediaStorageType: 'local',
+				mediaFolder: './mediaFolder',
+				timezone: 'UTC'
+			}
+		};
+		completeForm.append('data', JSON.stringify(payload));
+
+		const completeResp = await fetch(`${API_BASE_URL}/setup?/completeSetup`, {
+			method: 'POST',
+			body: completeForm,
+			headers: {
+				'x-sveltekit-action': 'true',
+				Origin: API_BASE_URL
+			}
 		});
 
 		if (completeResp.ok) {
+			const result = await completeResp.json();
 			// Setup complete - seed additional data and extract cookie
 			await seedBasicRoles(); // Ensure theme and other data is seeded
 			const rawCookie = completeResp.headers.get('set-cookie');
 			if (rawCookie) {
-				// Extract just the cookie value, not the attributes like Path, HttpOnly, etc.
 				return extractCookieValue(rawCookie);
+			} else if (result.data?.sessionId) {
+				return `${SESSION_COOKIE_NAME}=${result.data.sessionId}`;
 			}
+		} else {
+			console.error('❌ completeSetup Action failed:', await completeResp.text());
 		}
 	}
 

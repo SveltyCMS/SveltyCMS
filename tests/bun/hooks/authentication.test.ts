@@ -58,8 +58,8 @@ describe('handleAuthentication Middleware', () => {
 			expect(mockResolve).toHaveBeenCalled();
 		});
 
-		it('should skip authentication for /api/setup', async () => {
-			const event = createMockEvent('/api/setup');
+		it('should skip authentication for /setup/test', async () => {
+			const event = createMockEvent('/setup/test');
 			await handleAuthentication({ event, resolve: mockResolve });
 			expect(mockResolve).toHaveBeenCalled();
 		});

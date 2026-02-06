@@ -3,7 +3,7 @@
  * @description Default roles for CMS initialization and fallback
  *
  * This module provides default roles that are:
- * - Seeded to database during setup wizard (see api/setup/seed.ts)
+ * - Seeded to database during setup wizard (see src/routes/setup/seed.ts)
  * - Used as fallback when database is unavailable (see hooks/handleAuthorization.ts)
  * - Following headless CMS best practices (admin, developer, editor)
  *

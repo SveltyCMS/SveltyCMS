@@ -26,8 +26,8 @@ vite.config.ts.timestamp-*
 trash/*
 media/*
 mediaFolder/
-compiledCollections/*
 .compiledCollections/*
+.compiledCollections
 
 logs/*
 *.pid

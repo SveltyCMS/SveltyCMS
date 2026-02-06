@@ -85,7 +85,7 @@ tags:
   - Import/export settings, SSE streaming
   - File: `tests/bun/api/settings.test.ts`
 
-- **Setup** - 5 endpoints, 45 tests ✅
+- **Setup** - Actions, 45 tests ✅
   - Initialize, check status, configurations
   - File: `tests/bun/api/setup.test.ts`
 
@@ -197,7 +197,7 @@ bun test tests/bun/api/widgets.test.ts
 # System Management
 bun test tests/bun/api/dashboard.test.ts
 bun test tests/bun/api/settings.test.ts
-bun test tests/bun/api/setup.test.ts
+bun test tests/bun/api/setup-actions.test.ts
 bun test tests/bun/api/theme.test.ts
 bun test tests/bun/api/miscellaneous.test.ts
 
@@ -216,14 +216,22 @@ Most API tests require:
    bun run dev  # Starts server on port 5173
    ```
 
-2. **Database Setup**
+2. **Setup Actions** (`/setup?/actionName`)
+
+- [x] POST `testDatabase`
+- [x] POST `seedDatabase`
+- [x] POST `completeSetup`
+- [x] POST `testEmail`
+- [x] POST `installDriver`
+
+3. **Database Setup**
    - Run user tests first to create test database
 
    ```bash
    bun test tests/bun/api/user.test.ts
    ```
 
-3. **Authentication**
+4. **Authentication**
    - Tests use `admin@test.com` / `Test123!` credentials
    - Session cookies managed automatically by test framework
 

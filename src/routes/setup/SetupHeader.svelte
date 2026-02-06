@@ -50,11 +50,11 @@ Displays logo, site name, language selector, and theme toggle.
 				<div class="text-xs font-medium uppercase tracking-wider text-surface-500">{m.setup_heading_badge()}</div>
 			</div>
 
-			<div class="language-selector relative">
+			<div class="language-selector relative dark:text-white">
 				<Menu positioning={{ placement: 'bottom-end', gutter: 10 }}>
 					<SystemTooltip title={m.applayout_systemlanguage?.() || 'Change system language'}>
 						<div class="inline-block">
-							<Menu.Trigger class="preset-outlined btn rounded px-2 py-1 flex items-center gap-2">
+							<Menu.Trigger class="preset-outlined-surface-500 btn">
 								<span class="font-medium">{getLanguageName(currentLanguageTag)}</span>
 								<iconify-icon icon="mdi:chevron-down" class="h-4 w-4 transition-transform group-data-[state=open]:rotate-180"></iconify-icon>
 							</Menu.Trigger>
@@ -63,9 +63,7 @@ Displays logo, site name, language selector, and theme toggle.
 
 					<Portal>
 						<Menu.Positioner>
-							<Menu.Content
-								class="card p-2 shadow-xl z-50 w-64 bg-surface-50 dark:bg-surface-800 text-black dark:text-white border border-surface-200 dark:border-surface-700"
-							>
+							<Menu.Content class="card p-2 shadow-xl z-50 w-64 bg-surface-50 dark:bg-surface-800  border border-surface-200 dark:border-surface-700">
 								<!-- Header to inform user about System Language context -->
 								<div
 									class="px-3 py-2 text-xs font-bold text-tertiary-500 dark:text-primary-500 uppercase tracking-wider text-center border-b border-surface-200 dark:border-surface-600 mb-2"
@@ -116,15 +114,20 @@ Displays logo, site name, language selector, and theme toggle.
 			<SystemTooltip title="Accessibility Help">
 				<button
 					type="button"
-					class="btn-icon btn-sm preset-outlined-surface-500 hover:variant-filled-surface"
+					class="text-black dark:text-white btn-icon rounded-full btn preset-outlined-surface-500 h-7.5 w-7.5"
 					onclick={() => modalState.trigger(AccessibilityHelp)}
 					aria-label="Accessibility Help & Shortcuts"
 				>
-					<iconify-icon icon="mdi:accessibility" width="22"></iconify-icon>
+					<iconify-icon icon="mdi:accessibility" width="24"></iconify-icon>
 				</button>
 			</SystemTooltip>
 
-			<ThemeToggle showTooltip={true} tooltipPlacement="bottom" iconSize={22} />
+			<ThemeToggle
+				showTooltip={true}
+				tooltipPlacement="bottom"
+				iconSize={24}
+				buttonClass="text-black dark:text-white rounded-full btn-icon btn preset-outlined-surface-500 h-7.5 w-7.5"
+			/>
 		</div>
 
 		<p class="w-full text-center text-sm dark:text-white sm:text-base">

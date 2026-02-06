@@ -119,6 +119,7 @@ export const privateEnv = {
 	GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET || '',
 	MULTI_TENANT: process.env.MULTI_TENANT === 'true'
 };
+export const __VIRTUAL__ = true;
 `;
 			}
 		}

@@ -128,18 +128,9 @@ describe('handleSetup Middleware', () => {
 	// ---------------------------------------------------------------------
 	describe('Allowed Routes During Setup', () => {
 		// Routes allowed by isAllowedDuringSetup():
-		// - /setup, /api/setup/*, /api/system/*
+		// - /setup, /api/system/*
 		// - ASSET_REGEX: /_app/*, /static/*, /favicon.ico, *.js, *.css, etc.
-		const allowed = [
-			'/setup',
-			'/api/setup',
-			'/api/setup/config',
-			'/api/setup/database',
-			'/_app/immutable/chunks/index.js',
-			'/static/logo.png',
-			'/api/system/version',
-			'/favicon.ico'
-		];
+		const allowed = ['/setup', '/setup/database', '/_app/immutable/chunks/index.js', '/static/logo.png', '/api/system/version', '/favicon.ico'];
 		beforeEach(() => {
 			mockConfigExists = false;
 		});

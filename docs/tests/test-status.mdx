@@ -34,32 +34,31 @@ The testing suite has been optimized for **parallel execution** and **enterprise
 
 ### Test Coverage by Category
 
-| Category                 | Status        | Pass Rate | Tests |
-| ------------------------ | ------------- | --------- | ----- |
-| **Server Hooks**         | ✅ Excellent  | 100%      | 53/53 |
-| **API - User**           | ⚠️ Failing    | ~60%      | 28/47 |
-| **API - GraphQL**        | ✅ Complete   | 100%      | 21/21 |
-| **API - Token**          | ✅ Complete   | 100%      | 12/12 |
-| **API - Website Tokens** | ✅ Complete   | 100%      | 7/7   |
-| **API - Setup**          | ❌ Failing    | 0%        | 0/45  |
-| **API - Collections**    | ✅ Complete   | 100%      | 19/19 |
-| **API - Dashboard**      | ✅ Created    | Pending   | 48/48 |
-| **API - 2FA**            | ✅ Created    | Pending   | 28/28 |
-| **API - Security**       | ✅ Created    | Pending   | 33/33 |
-| **API - Widgets**        | ✅ Created    | Pending   | 30/30 |
-| **API - Settings**       | ✅ Created    | Pending   | 31/31 |
-| **API - Import/Export**  | ✅ Created    | Pending   | 29/29 |
-| **API - Theme**          | ✅ Created    | Pending   | 24/24 |
-| **API - Miscellaneous**  | ✅ Created    | Pending   | 36/36 |
-| **Security Utils**       | ✅ Excellent  | 100%      | 8/8   |
-| **Widget Validation**    | ✅ Excellent  | 100%      | 8/8   |
-| **Cache System**         | ✅ Excellent  | 100%      | 17/17 |
-| **UI Components**        | ✅ Excellent  | 100%      | 5/5   |
-| **Content Utils**        | ✅ Excellent  | 100%      | 6/6   |
-| **Database Interface**   | 📝 Scaffolded | 0%        | 0/50+ |
-| **MongoDB Adapter**      | 📝 Scaffolded | 0%        | 0/40+ |
-| **Auth System**          | 📝 Scaffolded | 0%        | 0/50+ |
-| **Collection Builder**   | ⚠️ Partial    | 57%       | 4/7   |
+| Category                | Status        | Pass Rate | Tests |
+| ----------------------- | ------------- | --------- | ----- |
+| **Server Hooks**        | ✅ Excellent  | 100%      | 53/53 |
+| **API - User**          | ⚠️ Failing    | ~60%      | 28/47 |
+| **API - GraphQL**       | ✅ Complete   | 100%      | 21/21 |
+| **API - Token**         | ✅ Complete   | 100%      | 12/12 |
+| **Setup Actions**       | ❌ Failing    | 0%        | 0/45  |
+| **API - Collections**   | ✅ Complete   | 100%      | 19/19 |
+| **API - Dashboard**     | ✅ Created    | Pending   | 48/48 |
+| **API - 2FA**           | ✅ Created    | Pending   | 28/28 |
+| **API - Security**      | ✅ Created    | Pending   | 33/33 |
+| **API - Widgets**       | ✅ Created    | Pending   | 30/30 |
+| **API - Settings**      | ✅ Created    | Pending   | 31/31 |
+| **API - Import/Export** | ✅ Created    | Pending   | 29/29 |
+| **API - Theme**         | ✅ Created    | Pending   | 24/24 |
+| **API - Miscellaneous** | ✅ Created    | Pending   | 36/36 |
+| **Security Utils**      | ✅ Excellent  | 100%      | 8/8   |
+| **Widget Validation**   | ✅ Excellent  | 100%      | 8/8   |
+| **Cache System**        | ✅ Excellent  | 100%      | 17/17 |
+| **UI Components**       | ✅ Excellent  | 100%      | 5/5   |
+| **Content Utils**       | ✅ Excellent  | 100%      | 6/6   |
+| **Database Interface**  | 📝 Scaffolded | 0%        | 0/50+ |
+| **MongoDB Adapter**     | 📝 Scaffolded | 0%        | 0/40+ |
+| **Auth System**         | 📝 Scaffolded | 0%        | 0/50+ |
+| **Collection Builder**  | ⚠️ Partial    | 57%       | 4/7   |
 
 ---
 
@@ -100,7 +99,7 @@ The testing suite has been optimized for **parallel execution** and **enterprise
   - `handleAuthentication`: Tested via user API tests (47 tests with authentication)
   - `handleAuthorization`: Tested via collections API (19 tests with role checks)
   - `handleRateLimit`: Tested via setup API stress tests
-  - `handleSetup`: Tested via setup API tests (20 tests)
+  - **handleSetup**: Tested via Setup Actions (20 tests)
   - `handleLocale`, `handleTheme`: Tested via UI rendering tests
   - `handleStaticAssetCaching`, `addSecurityHeaders`, `handleApiRequests`: Simple middleware, tested in integration
 
@@ -630,7 +629,7 @@ bun test tests/bun/api/dashboard.test.ts -t "systemInfo"
 - ✅ Return clear results
 - ✅ Require admin authentication
 
-**4. GET /api/metrics (4 tests):**
+**4. GET /api/metrics (4 tests)::**
 
 - ✅ Get performance metrics
 - ✅ Include system metrics
@@ -1009,13 +1008,8 @@ bun test tests/bun/api/token.test.ts
 - ✅ Enforce password requirements
 - ✅ Redirect to first collection
 
-**Command:**
-
-```bash
-bun test tests/bun/api/setup.test.ts
-```
-
-**Documentation:** See [Setup API](/docs/api/Setup_API.mdx) for complete API reference
+* - **Setup Actions Tests** (`tests/bun/api/setup-actions.test.ts`) - Tests the seed action which uses scanCompiledCollections
+    **Documentation:** See [Setup Actions API](/docs/api/Setup_Actions_API.mdx) for complete API reference
 
 ---
 

@@ -1,16 +1,17 @@
 /**
- * @file src/routes/api/setup/seed.ts
- * @description Seeds the database with default system settings
+ * @file src/routes/setup/seed.ts
+ * @description Functions for seeding the database with initial data (settings, themes, collections)
+ * during the setup process.
  *
  * This replaces the static configuration files with database settings.
  * Uses database-agnostic interfaces for compatibility across different database engines.
  *
  * Collection Seeding Strategy:
  * - seedCollectionsForSetup(): Lightweight version for setup that directly reads compiled
- *   collections from filesystem and creates models. Bypasses ContentManager to avoid
- *   global dbAdapter dependency issues during setup mode.
+ * collections from filesystem and creates models. Bypasses ContentManager to avoid
+ * global dbAdapter dependency issues during setup mode.
  * - This allows ContentManager to have collections pre-cached when system fully initializes,
- *   resulting in faster redirects and better UX after setup completion.
+ * resulting in faster redirects and better UX after setup completion.
  */
 
 import { publicConfigSchema } from '@src/databases/schemas';
@@ -112,8 +113,8 @@ export async function seedRoles(dbAdapter: DatabaseAdapter, tenantId?: string): 
 		const allPermissions = getAllPermissions();
 		const adminPermissions = allPermissions.map((p) => p._id);
 
-		// Seed each default role
-		for (const role of defaultRoles) {
+		// Seed all default roles in parallel
+		const rolePromises = defaultRoles.map(async (role) => {
 			try {
 				// Admin role gets all permissions
 				const roleToCreate = {
@@ -134,7 +135,9 @@ export async function seedRoles(dbAdapter: DatabaseAdapter, tenantId?: string): 
 					throw error;
 				}
 			}
-		}
+		});
+
+		await Promise.all(rolePromises);
 
 		logger.info(`✅ Default roles seeded successfully${tenantId ? ` for tenant ${tenantId}` : ''}`);
 	} catch (error) {
@@ -190,20 +193,13 @@ export async function seedCollectionsForSetup(
 
 		logger.debug(`📦 Seeding ${totalCollections} collections (delay: ${registrationDelay}ms, testMode: ${isTestMode})`);
 
-		// Register each collection SEQUENTIALLY to prevent Mongoose registry race conditions
-		for (let i = 0; i < totalCollections; i++) {
-			const schema = collections[i];
-			setupManager.updateProgress(i, totalCollections);
+		// Register collections in parallel for maximum performance
+		// Mongoose model registration is generally thread-safe for unique names
+		const collectionPromises = collections.map(async (schema) => {
 			try {
 				const createStart = performance.now();
 				// Try to create the collection model in database
 				await dbAdapter.collection.createModel(schema);
-
-				// Small delay to ensure model registration completes before next one
-				// Reduced from 100ms: 10ms in CI, 50ms in production
-				if (i < totalCollections - 1) {
-					await new Promise((resolve) => setTimeout(resolve, registrationDelay));
-				}
 
 				const createTime = performance.now() - createStart;
 				logger.info(`✅ Created collection model: ${schema.name || 'unknown'} (${createTime.toFixed(0)}ms)`);
@@ -211,14 +207,14 @@ export async function seedCollectionsForSetup(
 
 				// Capture the first collection for redirect
 				if (!firstCollection && schema.path && schema.name) {
-					const collectionName = schema.name; // Narrow the type
-					const collectionPath = schema.path; // Narrow the type
 					firstCollection = {
-						name: collectionName,
-						path: collectionPath
+						name: schema.name,
+						path: schema.path
 					};
-					logger.debug(`First collection identified: ${collectionName} at ${collectionPath}`);
+					logger.debug(`First collection identified: ${schema.name} at ${schema.path}`);
 				}
+
+				setupManager.updateProgress(successCount + skipCount, totalCollections);
 			} catch (error) {
 				// Collection might already exist or have schema issues
 				const errorMessage = error instanceof Error ? error.message : String(error);
@@ -227,15 +223,11 @@ export async function seedCollectionsForSetup(
 					skipCount++;
 				} else {
 					logger.error(`❌ Failed to create collection '${schema.name || 'unknown'}'${tenantId ? ` for tenant ${tenantId}` : ''}: ${errorMessage}`);
-					if (typeof error === 'object' && error !== null) {
-						logger.error('Error details:', JSON.stringify(error, null, 2));
-					}
-					if (error instanceof Error && error.stack) {
-						logger.debug('Stack trace:', error.stack);
-					}
 				}
 			}
-		}
+		});
+
+		await Promise.all(collectionPromises);
 		setupManager.updateProgress(totalCollections, totalCollections);
 
 		const modelCreationTime = performance.now() - modelCreationStart;
@@ -284,19 +276,14 @@ export async function initSystemFromSetup(
 		throw new Error('Database adapter not available. Database must be initialized first.');
 	}
 
-	// Seed the database with default settings using database-agnostic interface
-	await seedSettings(adapter, tenantId, isDemoSeed);
-
-	// Seed the default theme
-	await seedDefaultTheme(adapter, tenantId);
-
-	// Seed default roles into database (from shared defaultRoles module)
-	await seedRoles(adapter, tenantId);
-
-	// Seed collections from filesystem
-	// This creates collection models in MongoDB so ContentManager can access them quickly
-	// Uses seedCollectionsForSetup() which bypasses ContentManager to avoid global dbAdapter dependency
-	const { firstCollection } = await seedCollectionsForSetup(adapter, tenantId);
+	// Run seeding steps in parallel for maximum performance
+	// seedSettings, seedDefaultTheme, and seedRoles can run concurrently
+	const [seedResults] = await Promise.all([
+		seedCollectionsForSetup(adapter, tenantId), // Seeding collections first or in parallel
+		seedSettings(adapter, tenantId, isDemoSeed),
+		seedDefaultTheme(adapter, tenantId),
+		seedRoles(adapter, tenantId)
+	]);
 
 	// Invalidate the settings cache and reload from database
 	invalidateSettingsCache();
@@ -305,7 +292,7 @@ export async function initSystemFromSetup(
 
 	logger.info(`✅ System initialization completed${tenantId ? ` for tenant ${tenantId}` : ''}`);
 
-	return { firstCollection };
+	return seedResults;
 }
 
 // Default public settings that were previously in config/public.ts

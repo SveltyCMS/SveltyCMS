@@ -30,7 +30,7 @@ import type { User } from '@src/databases/auth/types';
 import type { ISODateString } from '@databases/dbInterface';
 import { auth, dbAdapter } from '@src/databases/db';
 import { getSystemState } from '@src/stores/system/state';
-import { seedDemoTenant } from '@src/routes/api/setup/seed';
+import { seedDemoTenant } from '@src/routes/setup/seed';
 import { cacheService, SESSION_CACHE_TTL_MS } from '@src/databases/CacheService';
 import { logger } from '@utils/logger.server';
 import { metricsService } from '@src/services/MetricsService';
@@ -384,7 +384,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
 	}
 
 	// Skip public routes
-	const publicRoutes = ['/login', '/register', '/forgot-password', '/setup', '/api/setup'];
+	const publicRoutes = ['/login', '/register', '/forgot-password', '/setup', '/api/settings/public'];
 	const isLocalizedPublic = /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/(setup|login|register|forgot-password)/.test(url.pathname);
 
 	if (publicRoutes.some((r) => url.pathname.startsWith(r)) || isLocalizedPublic) {

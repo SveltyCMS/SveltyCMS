@@ -1,6 +1,6 @@
 /**
- * @file src/routes/api/setup/constants.ts
- * @description DOCUMENTATION ONLY - These constants are NOT imported anywhere
+ * @file src/routes/setup/constants.ts
+ * @description Constants used across the setup wizard and initialization process.
  *
  * ⚠️ DO NOT IMPORT THIS FILE
  * This file exists only for documentation. The actual values are:

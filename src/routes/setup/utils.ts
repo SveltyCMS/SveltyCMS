@@ -1,21 +1,16 @@
 /**
- * @file src/routes/api/setup/utils.ts
- * @description Shared utility functions for the setup API endpoints.
+ * @file src/routes/setup/utils.ts
+ * @description Core utility functions for the setup process, including database connection helpers,
+ * adapter factories, and validation logic.
  *
- * Features
- * - **Database Connection String Builder:** Constructs connection strings for supported databases.
- * - **Setup Database Adapter Factory:** Provides a centralized function to create and connect database adapters for setup operations.
- *
- * Supported Databases
- * - MongoDB (standard and Atlas SRV)
- *
- * Future Plans
- * - Extend support to PostgreSQL, MySQL, and MariaDB via Drizzle ORM.
+ * This file is part of the SveltyCMS setup wizard and handles low-level setup operations
+ * such as building connection strings and initializing database adapters during the setup phase.
  */
 
 import type { DatabaseConfig } from '@src/databases/schemas';
 import type { IDBAdapter } from '@src/databases/dbInterface';
 import { logger } from '@utils/logger';
+import { createClient } from 'redis';
 
 /**
  * Database connection string builder for supported database types.
@@ -229,4 +224,29 @@ export async function getSetupDatabaseAdapter(config: DatabaseConfig): Promise<{
 
 	logger.info(`✅ Successfully created and connected adapters for ${config.type}`, { correlationId });
 	return { dbAdapter, connectionString };
+}
+
+/**
+ * Probes for a local Redis server on port 6379.
+ * Used to suggest performance optimizations to the user during setup.
+ */
+export async function checkRedis(): Promise<boolean> {
+	const client = createClient({
+		socket: {
+			host: 'localhost',
+			port: 6379,
+			connectTimeout: 1000
+		}
+	});
+
+	try {
+		await client.connect();
+		await client.ping();
+		await client.quit();
+		logger.info('🚀 Local Redis detected during setup probe');
+		return true;
+	} catch (err) {
+		// Redis not available - silent failure, it's just a probe
+		return false;
+	}
 }

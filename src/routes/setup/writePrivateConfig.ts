@@ -1,9 +1,7 @@
 /**
- * @file src/routes/api/setup/writePrivateConfig.ts
- * @description Utility to write private.ts configuration file during setup
- *
- * ### Features
- * - Writes database credentials and security keys to private.ts
+ * @file src/routes/setup/writePrivateConfig.ts
+ * @description Utility to write the `config/private.ts` file with database credentials
+ * during the setup process.
  */
 
 import type { DatabaseConfig } from '@src/databases/schemas';
@@ -14,7 +12,10 @@ import { isSetupComplete } from '@utils/setupCheck';
  * Writes database credentials and security keys to private.ts
  * Includes safety features: backup existing file and prevent overwrite after setup
  */
-export async function writePrivateConfig(dbConfig: DatabaseConfig): Promise<void> {
+export async function writePrivateConfig(
+	dbConfig: DatabaseConfig,
+	redisConfig?: { useRedis: boolean; redisHost: string; redisPort: string; redisPassword?: string }
+): Promise<void> {
 	const fs = await import('fs/promises');
 	const path = await import('path');
 	const { randomBytes } = await import('crypto');
@@ -23,8 +24,8 @@ export async function writePrivateConfig(dbConfig: DatabaseConfig): Promise<void
 	const configFileName = process.env.TEST_MODE ? 'private.test.ts' : 'private.ts';
 	const privateConfigPath = path.resolve(process.cwd(), 'config', configFileName);
 
-	// Prevent overwrite after setup complete
-	if (isSetupComplete()) {
+	// Prevent overwrite after setup complete (unless in TEST_MODE)
+	if (isSetupComplete() && !process.env.TEST_MODE) {
 		const error = 'Cannot overwrite private.ts - setup already completed. Use reset endpoint instead.';
 		logger.error(error);
 		throw new Error(error);
@@ -66,6 +67,12 @@ export const privateEnv = {
 	MULTI_TENANT: false,
 	DEMO_MODE: false,
 
+	// --- Redis Configuration ---
+	USE_REDIS: ${redisConfig?.useRedis || false},
+	REDIS_HOST: '${redisConfig?.redisHost || 'localhost'}',
+	REDIS_PORT: ${redisConfig?.redisPort || 6379},
+	REDIS_PASSWORD: '${redisConfig?.redisPassword || ''}',
+
 	/* * NOTE: All other settings (SMTP, Google OAuth, feature flags, etc.)
 	 * are loaded dynamically from the database after the application starts.
 	 */
@@ -101,10 +108,14 @@ export const privateEnv = {
 }
 
 /**
- * Updates the private.ts file to set architectural modes (Demo / Multi-Tenant)
+ * Updates the private.ts file to set architectural modes (Demo / Multi-Tenant) and Redis configuration.
  * This is called during the final step of setup.
  */
-export async function updatePrivateConfigMode(modes: { demoMode?: boolean; multiTenant?: boolean }): Promise<void> {
+export async function updatePrivateConfigMode(modes: {
+	demoMode?: boolean;
+	multiTenant?: boolean;
+	redis?: { useRedis: boolean; redisHost: string; redisPort: string; redisPassword?: string };
+}): Promise<void> {
 	const fs = await import('fs/promises');
 	const path = await import('path');
 
@@ -152,6 +163,42 @@ export async function updatePrivateConfigMode(modes: { demoMode?: boolean; multi
 						content = content.slice(0, lastBraceIndex) + `\tDEMO_MODE: ${modes.demoMode},\n` + content.slice(lastBraceIndex);
 						modified = true;
 					}
+				}
+			}
+		}
+
+		// Update Redis Settings
+		if (modes.redis !== undefined) {
+			const redis = modes.redis;
+			const redisUpdates = [
+				{ regex: /USE_REDIS:\s*(true|false)/, value: `USE_REDIS: ${redis.useRedis}` },
+				{ regex: /REDIS_HOST:\s*'[^']*'/, value: `REDIS_HOST: '${redis.redisHost}'` },
+				{ regex: /REDIS_PORT:\s*\d+/, value: `REDIS_PORT: ${redis.redisPort}` },
+				{ regex: /REDIS_PASSWORD:\s*'[^']*'/, value: `REDIS_PASSWORD: '${redis.redisPassword || ''}'` }
+			];
+
+			let anyRedisMatch = false;
+			for (const update of redisUpdates) {
+				if (update.regex.test(content)) {
+					content = content.replace(update.regex, update.value);
+					modified = true;
+					anyRedisMatch = true;
+				}
+			}
+
+			if (!anyRedisMatch) {
+				// Insert Redis block if not found
+				const redisBlock = `
+	// --- Redis Configuration ---
+	USE_REDIS: ${redis.useRedis},
+	REDIS_HOST: '${redis.redisHost}',
+	REDIS_PORT: ${redis.redisPort},
+	REDIS_PASSWORD: '${redis.redisPassword || ''}',
+`;
+				const lastBraceIndex = content.lastIndexOf('};');
+				if (lastBraceIndex !== -1) {
+					content = content.slice(0, lastBraceIndex) + redisBlock + content.slice(lastBraceIndex);
+					modified = true;
 				}
 			}
 		}

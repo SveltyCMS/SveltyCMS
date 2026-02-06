@@ -124,7 +124,7 @@ optional actions, and smooth animations.
 					<!-- Close Button -->
 					<div class="flex justify-end pr-1">
 						<Toast.CloseTrigger
-							class="btn-icon rounded-full preset-filled-surface-100-900  transition-all text-white"
+							class="btn-icon rounded-full bg-white/20 hover:bg-white/40 shadow-sm backdrop-blur-sm transition-all text-white"
 							aria-label="Dismiss notification"
 						>
 							<iconify-icon icon="mdi:close" width={18} class="md:width-[22]"></iconify-icon>

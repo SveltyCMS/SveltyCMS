@@ -174,7 +174,7 @@ When configuration is corrupted or database was manually deleted:
 **Implementation:**
 
 ```typescript
-// /api/setup/reset/+server.ts
+// /src/routes/setup/reset/+server.ts
 export const POST: RequestHandler = async ({ locals }) => {
 	// Security check
 	const systemState = getSystemState();

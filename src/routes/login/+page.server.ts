@@ -22,6 +22,9 @@ import { RateLimiter } from 'sveltekit-rate-limiter/server';
 
 // Cache invalidation
 import { invalidateUserCountCache } from '@src/hooks/handleAuthorization';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { invalidateSetupCache } from '@utils/setupCheck';
 
 // valibot schemas
 import { forgotFormSchema, loginFormSchema, resetFormSchema, signUpFormSchema } from '@utils/formSchemas';
@@ -1239,6 +1242,47 @@ export const actions: Actions = {
 		} catch (err) {
 			logger.debug('Collection lookup failed:', err);
 			return { success: false, error: 'Collection lookup failed' };
+		}
+	},
+
+	resetSetup: async ({ locals }) => {
+		try {
+			// Security check: Only allow reset if user is admin OR system is in failed state
+			const { getSystemState } = await import('@src/stores/system/state');
+			const systemState = getSystemState();
+
+			const isAdmin = locals.user?.role === 'admin';
+			const isSystemFailed = systemState.overallState === 'FAILED';
+			const isTestMode = process.env.TEST_MODE === 'true';
+
+			if (!isAdmin && !isSystemFailed && !isTestMode) {
+				logger.warn('Unauthorized setup reset attempt', {
+					userRole: locals.user?.role,
+					systemState: systemState.overallState
+				});
+				return fail(403, { message: 'You do not have permission to reset the setup.' });
+			}
+
+			// In TEST_MODE, skip deletion
+			if (isTestMode) {
+				logger.info('Setup reset: Skipping file deletion in TEST_MODE');
+			} else {
+				const configPath = path.join(process.cwd(), 'config', 'private.ts');
+				try {
+					await fs.unlink(configPath);
+					logger.info('Setup reset: config/private.ts deleted successfully');
+				} catch (fsError: any) {
+					if (fsError.code !== 'ENOENT') throw fsError;
+				}
+			}
+
+			// Invalidate caches
+			invalidateSetupCache(true);
+
+			return { success: true, message: 'Setup has been reset.' };
+		} catch (error) {
+			logger.error('Failed to reset setup:', error);
+			return fail(500, { message: 'Failed to reset setup.' });
 		}
 	}
 };

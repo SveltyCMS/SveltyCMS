@@ -41,13 +41,17 @@ Displays real-time system state and individual service health with comprehensive
 		WARMED: { icon: '🚀', color: 'text-primary-600', label: 'Warmed Up' },
 		READY: { icon: '✅', color: 'text-primary-500', label: 'Ready' },
 		DEGRADED: { icon: '⚠️', color: 'text-warning-500', label: 'Degraded' },
-		FAILED: { icon: '❌', color: 'text-error-500', label: 'Failed' }
+		FAILED: { icon: '❌', color: 'text-error-500', label: 'Failed' },
+		SETUP: { icon: '🛠️', color: 'text-secondary-500', label: 'Setup Mode' },
+		MAINTENANCE: { icon: '🔧', color: 'text-warning-600', label: 'Maintenance' }
 	} as const;
 
 	const SERVICE_CONFIG = {
 		healthy: { color: 'preset-filled-primary-500', icon: '✓', label: 'Healthy' },
 		unhealthy: { color: 'preset-filled-error-500', icon: '✗', label: 'Unhealthy' },
 		initializing: { color: 'preset-filled-primary-500', icon: '⟳', label: 'Initializing' },
+		skipped: { color: 'preset-filled-surface-500', icon: '⏭️', label: 'Skipped' },
+		maintenance: { color: 'preset-filled-warning-500', icon: '🔧', label: 'Maintenance' },
 		unknown: { color: 'preset-filled-surface-500', icon: '?', label: 'Unknown' }
 	} as const;
 

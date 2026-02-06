@@ -62,11 +62,14 @@ async function loadPrivateConfig(forceReload = false) {
 				throw new AppError(msg, 500, 'TEST_DB_SAFETY_VIOLATION');
 			}
 
-			logger.debug('Private config loaded successfully', {
-				hasConfig: !!privateEnv,
-				dbType: privateEnv?.DB_TYPE,
-				dbHost: privateEnv?.DB_HOST ? '***' : 'missing'
-			});
+			logger.debug(
+				module.__VIRTUAL__ ? 'Using fallback configuration (Setup Mode active)' : 'Private config loaded successfully from config/private.ts',
+				{
+					hasConfig: !!privateEnv,
+					dbType: privateEnv?.DB_TYPE,
+					dbHost: privateEnv?.DB_HOST ? '***' : 'missing'
+				}
+			);
 			return privateEnv;
 		} catch (error) {
 			// Private config doesn't exist during setup - this is expected
@@ -192,7 +195,11 @@ const INFRASTRUCTURE_KEYS = new Set([
 	'JWT_SECRET_KEY',
 	'ENCRYPTION_KEY',
 	'MULTI_TENANT',
-	'DEMO'
+	'DEMO',
+	'USE_REDIS',
+	'REDIS_HOST',
+	'REDIS_PORT',
+	'REDIS_PASSWORD'
 ]);
 
 const KNOWN_PUBLIC_KEYS = publicConfigSchema && 'entries' in publicConfigSchema ? Object.keys(publicConfigSchema.entries) : [];
@@ -229,11 +236,11 @@ async function getResilience() {
 	return _resilienceInstance;
 }
 
-export async function loadSettingsFromDB(criticalOnly = false) {
+export async function loadSettingsFromDB(criticalOnly = false): Promise<boolean> {
 	try {
 		if (!dbAdapter) {
 			await invalidateSettingsCache();
-			return;
+			return false;
 		}
 
 		// Ensure system features are initialized in the adapter
@@ -266,23 +273,28 @@ export async function loadSettingsFromDB(criticalOnly = false) {
 
 		if (Object.keys(settings).length === 0 && !criticalOnly) {
 			await invalidateSettingsCache();
-			return;
+			return false;
 		}
 
 		// Get current env
 		const privateConfig = privateEnv || (await loadPrivateConfig(false));
-		if (!privateConfig) return;
+		if (!privateConfig) return false;
 
 		// Merge and cache
 		const mergedPrivate = { ...privateConfig, ...privateDynamic } as any;
 		await setSettingsCache(mergedPrivate, settings as any);
 
+		// Reconfigure CacheService to reflect potentially new Redis settings
+		await cacheService.reconfigure().catch((e) => logger.warn('Failed to reconfigure CacheService:', e));
+
 		if (!criticalOnly) {
 			logger.info('✅ Full system settings loaded and cached.');
 		}
+		return true;
 	} catch (error) {
 		if (!criticalOnly) logger.error('Failed to load settings:', error);
 		await invalidateSettingsCache();
+		return false;
 	}
 }
 
@@ -510,7 +522,7 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false): Pr
 		// Settings (required for app configuration)
 		logger.debug('Loading settings from database...');
 		const settingsStartTime = performance.now();
-		await loadSettingsFromDB();
+		const settingsLoaded = await loadSettingsFromDB();
 		const settingsTime = performance.now() - settingsStartTime;
 		logger.debug(`Settings loaded in ${settingsTime.toFixed(2)}ms`);
 
@@ -522,6 +534,18 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false): Pr
 		// Run non-blocking I/O operations in background
 		logger.debug('Scheduling non-critical I/O operations in background...');
 		setTimeout(async () => {
+			if (!settingsLoaded) {
+				logger.info('System initialized in Setup/Maintenance mode (Settings not loaded). Skipping Plugins & Widgets.');
+
+				// Explicitly mark services as skipped to trigger SETUP state
+				updateServiceHealth('widgets', 'skipped', 'Skipped in Setup Mode');
+				updateServiceHealth('themeManager', 'skipped', 'Skipped in Setup Mode');
+				updateServiceHealth('contentManager', 'skipped', 'Skipped in Setup Mode');
+
+				cacheService.setBootstrapping(false);
+				return;
+			}
+
 			const backgroundStartTime = performance.now();
 
 			// Mark non-critical services as initializing to trigger WARMING phase
@@ -954,7 +978,7 @@ export async function initConnection(dbConfig: {
 		const tempAdapter = new MongoDBAdapter();
 
 		// Build connection string like the test endpoint does
-		const { buildDatabaseConnectionString } = await import('../routes/api/setup/utils');
+		const { buildDatabaseConnectionString } = await import('@src/routes/setup/utils');
 		const connectionString = buildDatabaseConnectionString({
 			type: dbConfig.type as 'mongodb' | 'mongodb+srv',
 			host: dbConfig.host,

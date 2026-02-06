@@ -331,7 +331,13 @@ export const systemSettingsSchema = object({
 	contentLanguages: array(languageCodeSchema, 'Content languages must be an array of valid language codes.'),
 	timezone: timezoneSchema,
 	mediaStorageType: mediaStorageTypeSchema,
-	mediaFolder: mediaFolderSchema
+	mediaFolder: mediaFolderSchema,
+	useRedis: boolean(),
+	redisHost: optional(string()),
+	redisPort: optional(string()),
+	redisPassword: optional(string()),
+	multiTenant: boolean(),
+	demoMode: boolean()
 });
 
 // Type Exports

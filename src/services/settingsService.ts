@@ -35,7 +35,11 @@ const INFRASTRUCTURE_KEYS = new Set([
 	'DB_POOL_SIZE',
 	'JWT_SECRET_KEY',
 	'ENCRYPTION_KEY',
-	'MULTI_TENANT'
+	'MULTI_TENANT',
+	'USE_REDIS',
+	'REDIS_HOST',
+	'REDIS_PORT',
+	'REDIS_PASSWORD'
 ]);
 
 const KNOWN_PRIVATE_KEYS = Object.keys(privateConfigSchema.entries).filter((key) => !INFRASTRUCTURE_KEYS.has(key));

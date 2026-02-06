@@ -40,6 +40,7 @@
 	import { locales as availableLocales } from '@src/paraglide/runtime';
 
 	// --- 1. STATE MANAGEMENT (Wired to Store) ---
+	let { data } = $props();
 	const wizard = setupStore.wizard;
 	const { load: loadStore, clear: clearStore, setupPersistence: setupPersistenceFn, validateStep, seedDatabase, completeSetup } = setupStore;
 
@@ -218,7 +219,12 @@
 							toggleDbPassword={() => (showDbPassword = !showDbPassword)}
 							testDatabaseConnection={setupStore.testDatabaseConnection}
 							dbConfigChangedSinceTest={setupStore.dbConfigChangedSinceTest}
-							clearDbTestError={setupStore.clearDbTestError}
+							clearDbTestError={() => {
+								wizard.lastDbTestResult = null;
+								wizard.errorMessage = '';
+							}}
+							errorMessage={wizard.errorMessage}
+							successMessage={wizard.successMessage}
 							bind:this={dbConfigComponent}
 						/>
 					{:else if wizard.currentStep === 1}
@@ -235,7 +241,11 @@
 							}}
 						/>
 					{:else if wizard.currentStep === 2}
-						<SystemConfig bind:systemSettings={wizard.systemSettings} validationErrors={wizard.validationErrors} />
+						<SystemConfig
+							bind:systemSettings={wizard.systemSettings}
+							bind:redisAvailable={data.redisAvailable}
+							validationErrors={wizard.validationErrors}
+						/>
 					{:else if wizard.currentStep === 3}
 						<EmailConfig />
 					{:else if wizard.currentStep === 4}

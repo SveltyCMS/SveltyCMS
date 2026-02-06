@@ -11,7 +11,7 @@ import { invalidateSettingsCache } from '@src/services/settingsService';
 import { dbAdapter } from '@src/databases/db';
 import { logger } from '@utils/logger.server';
 import { getSettingGroup } from '@src/routes/(app)/config/systemsetting/settingsGroups';
-import { defaultPublicSettings, defaultPrivateSettings } from '../../setup/seed';
+import { defaultPublicSettings, defaultPrivateSettings } from '../../../setup/seed';
 import { updateVersion } from '@src/utils/server/settingsVersion';
 import { setRestartNeeded } from '@src/utils/server/restartRequired';
 

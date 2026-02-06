@@ -13,6 +13,7 @@
 	import { setupStore } from '@stores/setupStore.svelte';
 	import * as m from '@src/paraglide/messages';
 	import { showToast } from '@utils/toast';
+	import { deserialize } from '$app/forms';
 	import { safeParse } from 'valibot';
 	import { smtpConfigSchema, type SmtpConfigSchema } from '@utils/formSchemas';
 	import SystemTooltip from '@components/system/SystemTooltip.svelte';
@@ -321,37 +322,45 @@
 		testEmailSent = false;
 
 		try {
-			const response = await fetch('/api/setup/email-test', {
+			const formData = new FormData();
+			formData.append('host', smtpHost);
+			formData.append('port', String(effectivePort()));
+			formData.append('user', smtpUser);
+			formData.append('password', smtpPassword);
+			formData.append('from', smtpFrom || smtpUser);
+			formData.append('secure', String(effectiveSecure()));
+			formData.append('testEmail', wizard.adminUser.email);
+			formData.append('saveToDatabase', 'true');
+
+			const response = await fetch('?/testEmail', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					host: smtpHost,
-					port: effectivePort(),
-					user: smtpUser,
-					password: smtpPassword,
-					from: smtpFrom || smtpUser,
-					secure: effectiveSecure(),
-					testEmail: wizard.adminUser.email,
-					saveToDatabase: true
-				})
+				body: formData
 			});
 
-			const result = await response.json();
+			const result = deserialize(await response.text());
 
-			if (result.success) {
-				testSuccess = true;
-				testEmailSent = result.testEmailSent || false;
+			if (result.type === 'success') {
+				const data = result.data as any;
+				if (data.success) {
+					testSuccess = true;
+					testEmailSent = data.testEmailSent || false;
 
-				// Mark SMTP as configured in wizard state
-				wizard.emailSettings.smtpConfigured = true;
-				wizard.emailSettings.skipWelcomeEmail = false;
+					// Mark SMTP as configured in wizard state
+					wizard.emailSettings.smtpConfigured = true;
+					wizard.emailSettings.skipWelcomeEmail = false;
 
-				const message = testEmailSent
-					? `${m.setup_email_test_success()} ${m.setup_email_test_email_sent({ email: wizard.adminUser.email })}`
-					: m.setup_email_test_success();
-				showToast(message, 'success');
+					const message = testEmailSent
+						? `${m.setup_email_test_success()} ${m.setup_email_test_email_sent({ email: wizard.adminUser.email })}`
+						: m.setup_email_test_success();
+					showToast(message, 'success');
+				} else {
+					testError = data.error || 'Connection failed';
+					showToast(`${m.setup_email_test_failed()}: ${testError}`, 'error');
+				}
 			} else {
-				testError = result.error || 'Connection failed';
+				// Handle failure/error type
+				const errorMsg = (result as any).data?.error || 'Connection failed'; // Attempt to get error from failure data
+				testError = errorMsg;
 				showToast(`${m.setup_email_test_failed()}: ${testError}`, 'error');
 			}
 		} catch (error) {

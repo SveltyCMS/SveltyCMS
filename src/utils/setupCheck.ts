@@ -27,9 +27,11 @@ export function isSetupComplete(): boolean {
 		const privateConfigPath = path.join(process.cwd(), 'config', configFileName);
 
 		if (!fs.existsSync(privateConfigPath)) {
+			if (process.env.TEST_MODE) console.log(`[setupCheck] ${configFileName} NOT FOUND`);
 			setupStatus = false;
 			return setupStatus;
 		}
+		if (process.env.TEST_MODE) console.log(`[setupCheck] ${configFileName} FOUND`);
 
 		const configContent = fs.readFileSync(privateConfigPath, 'utf8');
 

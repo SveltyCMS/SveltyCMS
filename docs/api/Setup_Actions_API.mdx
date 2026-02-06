@@ -1,0 +1,161 @@
+---
+path: 'docs/api/Setup_Actions_API.mdx'
+title: 'Configuration & Setup Actions'
+description: 'Reference for SvelteKit Server Actions used for system configuration and setup, replacing traditional REST endpoints.'
+order: 10
+icon: 'mdi:cog'
+author: 'admin'
+created: '2025-10-05'
+updated: '2026-02-06'
+tags:
+  - 'api'
+  - 'configuration'
+  - 'setup'
+  - 'server-actions'
+---
+
+# Configuration & Setup Actions
+
+## Overview
+
+SveltyCMS utilizes **SvelteKit Server Actions** (often referred to as "Remote Functions") for system setup and configuration. This approach offers several advantages over traditional REST APIs:
+
+- **Type Safety**: Fully typed communication between client and server.
+- **Progressive Enhancement**: Works even without JavaScript (though JS is recommended for the wizard).
+- **Security**: Built-in CSRF protection and origin validation.
+- **Headless Agnosticism**: Logic is decoupled from the specific transport layer, making it easier to adapt.
+
+**Base Path:** `/setup`
+
+## Setup Server Actions
+
+These actions are defined in `src/routes/setup/+page.server.ts`.
+
+### 1. `testDatabase`
+
+Tests the database connection settings.
+
+**Action Name:** `?/testDatabase`
+
+**Form Data:**
+
+| Field    | Type        | Description                      |
+| -------- | ----------- | -------------------------------- |
+| `config` | JSON String | Stringified configuration object |
+
+**Config Object:**
+
+```typescript
+{
+  type: 'mongodb' | 'mariadb' | 'postgresql';
+  host: string;
+  port: number;
+  name: string;
+  user?: string;
+  password?: string;
+  // ... other db-specific options
+}
+```
+
+**Returns:**
+
+- `success: boolean`
+- `message?: string`
+- `error?: string`
+- `details?: object` (on validation error)
+
+### 2. `seedDatabase`
+
+Initializes the database schema and writes the private configuration file.
+
+**Action Name:** `?/seedDatabase`
+
+**Form Data:**
+
+| Field    | Type        | Description                                      |
+| -------- | ----------- | ------------------------------------------------ |
+| `config` | JSON String | Stringified configuration object (same as above) |
+
+**Operations:**
+
+1. Writes `config/private.ts`.
+2. Initializes the database adapter.
+3. Seeds default system settings, themes, and roles.
+
+### 3. `completeSetup`
+
+Finalizes the setup process by creating the admin user and establishing a session.
+
+**Action Name:** `?/completeSetup`
+
+**Form Data:**
+
+| Field  | Type        | Description                                                  |
+| ------ | ----------- | ------------------------------------------------------------ |
+| `data` | JSON String | Object containing `database` config and `admin` user details |
+
+**Structure:**
+
+```typescript
+{
+  database: { ...dbConfig },
+  admin: {
+    username: string;
+    email: string;
+    password: string;
+  }
+}
+```
+
+**Operations:**
+
+1. Validates admin user data.
+2. Creates Admin User.
+3. Creates Session.
+4. Initializes Global System (`initializeWithConfig`).
+5. **Pre-warms Cache**: Calls `CollectionService` internally to load initial data.
+6. Returns redirect path (`/en/Collections`).
+
+### 4. `testEmail`
+
+Tests SMTP configuration by sending a verification email.
+
+**Action Name:** `?/testEmail`
+
+**Form Data:**
+
+| Field       | Type    | Description              |
+| ----------- | ------- | ------------------------ |
+| `host`      | string  | SMTP Host                |
+| `port`      | number  | SMTP Port                |
+| `user`      | string  | SMTP User                |
+| `password`  | string  | SMTP Password            |
+| `from`      | string  | Sender Address           |
+| `secure`    | boolean | Use TLS/SSL              |
+| `testEmail` | string  | Recipient for test email |
+
+### 5. `installDriver`
+
+Automatically installs missing database drivers (e.g., `mongoose`, `mysql2`).
+
+**Action Name:** `?/installDriver`
+
+**Form Data:**
+
+| Field    | Type   | Description              |
+| -------- | ------ | ------------------------ |
+| `dbType` | string | 'mongodb', 'mysql', etc. |
+
+---
+
+## Configuration Management
+
+Configuration management after setup is typically handled via the Admin Panel actions, which interact directly with the `SettingsService` and `DbAdapter`.
+
+### Key Services
+
+- **SettingsService**: Manages system-wide settings (stored in DB).
+- **ThemeService**: Manages active themes and customization.
+- **CacheService**: Manages TTL and cache invalidation.
+
+Use the internal service layers (`import ... from '@src/services/...'`) when extending functionality, rather than calling internal API endpoints.

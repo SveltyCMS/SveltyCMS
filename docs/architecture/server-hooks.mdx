@@ -40,28 +40,30 @@ The middleware architecture is built on **core enterprise principles**:
 
 ## Current Middleware Sequence
 
+```typescript
 // src/hooks.server.ts (simplified)
 if (!building) {
-// Background Service: Telemetry
-// Runs independently of requests (Singleton pattern, 12h interval)
-import('@src/services/TelemetryService').then(({ telemetryService }) => {
-// ... startup initialization ...
-});
+	// Background Service: Telemetry
+	// Runs independently of requests (Singleton pattern, 12h interval)
+	import('@src/services/TelemetryService').then(({ telemetryService }) => {
+		// ... startup initialization ...
+	});
 }
 
 const middleware: Handle[] = [
-handleStaticAssetCaching, // 1. Static assets FIRST (skip all processing)
-handleSystemState, // 2. System readiness & state validation
-handleRateLimit, // 3. Rate limiting (abuse prevention)
-handleFirewall, // 4. Application firewall (threat detection)
-handleSetup, // 5. Setup completion enforcement
-handleLocale, // 6. Language preferences (i18n)
-handleTheme, // 7. Theme management (SSR)
-handleAuthentication, // 8. Session validation & multi-tenancy
-handleAuthorization, // 9. Role-based access control
-// handleApiRequests, // 10. Optional: API caching (commented out)
-handleTokenResolution, // 11. Token resolution
-addSecurityHeaders // 12. Security headers (defense in depth)
+	handleCompression, // 0. Compression (GZIP/Brotli)
+	handleStaticAssetCaching, // 1. Static assets FIRST (skip all processing)
+	handleSystemState, // 2. System readiness & state validation
+	handleRateLimit, // 3. Rate limiting (abuse prevention)
+	handleFirewall, // 4. Application firewall (threat detection)
+	handleSetup, // 5. Setup completion enforcement
+	handleLocale, // 6. Language preferences (i18n)
+	handleTheme, // 7. Theme management (SSR)
+	handleAuthentication, // 8. Session validation & multi-tenancy
+	handleAuthorization, // 9. Role-based access control
+	handleApiRequests, // 10. API Authorization & Caching
+	handleTokenResolution, // 11. RBAC-Aware Token resolution
+	addSecurityHeaders // 12. Security headers (defense in depth)
 ];
 
 export const handle: Handle = sequence(...middleware);
@@ -149,7 +151,7 @@ sequenceDiagram
 sequenceDiagram
     participant User as User/Browser
     participant Setup as /setup Wizard
-    participant API as /api/setup/complete
+    participant SF as Server Function: completeSetup
     participant DB as db.ts
     participant State as System State
     participant Cache as Server Cache
@@ -163,9 +165,9 @@ sequenceDiagram
     User->>Setup: Fill configuration form
     User->>Setup: Submit setup
 
-    Setup->>API: POST /api/setup/complete
-    API->>API: Write config/private.ts file
-    API->>DB: initializeWithConfig(fullConfig)
+    Setup->>SF: Call completeSetup()
+    SF->>SF: Write config/private.ts file
+    SF->>DB: initializeWithConfig(fullConfig)
     Note over DB: In-memory config passed<br/>(bypasses Vite cache)
 
     DB->>DB: privateEnv = config
@@ -245,7 +247,7 @@ export async function initializeWithConfig(config: PrivateEnv): Promise<{ status
 }
 ```
 
-**Called by:** `/api/setup/complete` endpoint after writing `config/private.ts`
+**Called by:** `completeSetup` Server Function in `src/routes/setup/+page.server.ts` after writing `config/private.ts`.
 
 **Benefits:**
 
@@ -258,9 +260,22 @@ export async function initializeWithConfig(config: PrivateEnv): Promise<{ status
 
 ## Hook Implementations
 
+### 0. handleCompression - Response Optimization
+
+**File**: `src/hooks/handleCompression.ts`
+**Purpose**: Efficiently compresses outgoing responses using GZIP or Brotli.
+
+**Key Features**:
+
+- Automatical detection of browser capability via `Accept-Encoding`.
+- Prioritizes Brotli for modern browsers, falls back to GZIP.
+- Outer-most layer to ensure the final response body is compressed before transmission.
+
+---
+
 ### 1. handleStaticAssetCaching - Performance Optimization
 
-**File**: `src/hooks/handleStaticAssetCaching.ts`  
+**File**: `src/hooks/handleStaticAssetCaching.ts`
 **Purpose**: Aggressive caching for static assets (runs FIRST for maximum performance)
 
 **Strategy**: `max-age=31536000, public, immutable` (1 year cache)
@@ -292,7 +307,7 @@ export const handleStaticAssetCaching: Handle = async ({ event, resolve }) => {
 
 ### 2. handleSystemState - System Gateway
 
-**File**: `src/hooks/handleSystemState.ts`  
+**File**: `src/hooks/handleSystemState.ts`
 **Purpose**: Validates system readiness before processing requests
 
 **State Machine**: `IDLE → INITIALIZING → READY/DEGRADED/FAILED`
@@ -311,7 +326,7 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
 
 	// Allow setup wizard and root redirect during IDLE state
 	if (systemState.overallState === 'IDLE') {
-		const allowedPaths = ['/setup', '/api/setup', '/api/system/health', '/login', '/static', '/.well-known'];
+		const allowedPaths = ['/setup', '/api/system/health', '/login', '/static', '/.well-known'];
 		if (allowedPaths.some((prefix) => pathname.startsWith(prefix)) || pathname === '/') {
 			return resolve(event);
 		}
@@ -328,7 +343,7 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
 
 	// During INITIALIZING, wait for initialization to complete
 	if (systemState.overallState === 'INITIALIZING') {
-		const allowedPaths = ['/api/system/health', '/api/dashboard/health', '/setup', '/api/setup', '/login', '/.well-known'];
+		const allowedPaths = ['/api/system/health', '/api/dashboard/health', '/setup', '/login', '/.well-known'];
 		if (allowedPaths.some((prefix) => pathname.startsWith(prefix)) || pathname === '/') {
 			return resolve(event);
 		}
@@ -346,7 +361,7 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
 	// Allow requests only when READY or DEGRADED
 	const isReady = isSystemReady();
 	if (!isReady) {
-		const allowedPaths = ['/api/system/health', '/setup', '/api/setup'];
+		const allowedPaths = ['/api/system/health', '/setup'];
 		if (allowedPaths.some((prefix) => pathname.startsWith(prefix))) {
 			return resolve(event);
 		}
@@ -369,7 +384,7 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
 
 ### 3. handleRateLimit - Abuse Prevention
 
-**File**: `src/hooks/handleRateLimit.ts`  
+**File**: `src/hooks/handleRateLimit.ts`
 **Purpose**: Distributed rate limiting with Redis support for clustered deployments
 
 **Limits**:
@@ -427,7 +442,7 @@ export const handleRateLimit: Handle = async ({ event, resolve }) => {
 
 ### 4. handleFirewall - Application Threat Detection
 
-**File**: `src/hooks/handleFirewall.ts`  
+**File**: `src/hooks/handleFirewall.ts`
 **Purpose**: Detects application-specific threats that Nginx/CDN cannot catch
 
 **What It Detects** ✅:
@@ -493,7 +508,7 @@ export const handleFirewall: Handle = async ({ event, resolve }) => {
 
 ### 5. handleSetup - Installation Gateway
 
-**File**: `src/hooks/handleSetup.ts`  
+**File**: `src/hooks/handleSetup.ts`
 **Purpose**: Ensures CMS installation is complete
 
 **Flow**: `Config Missing → Setup → Configured → Normal Operation`
@@ -511,7 +526,7 @@ export const handleSetup: Handle = async ({ event, resolve }) => {
 
 	// Config missing - redirect to setup
 	if (!configExists) {
-		const allowedDuringSetup = pathname.startsWith('/setup') || pathname.startsWith('/api/setup') || ASSET_REGEX.test(pathname);
+		const allowedDuringSetup = pathname.startsWith('/setup') || ASSET_REGEX.test(pathname);
 
 		if (allowedDuringSetup) {
 			return resolve(event, createSetupResolver());
@@ -521,7 +536,7 @@ export const handleSetup: Handle = async ({ event, resolve }) => {
 	}
 
 	// Config exists - block access to setup routes
-	if (pathname.startsWith('/setup') && !pathname.startsWith('/api/setup')) {
+	if (pathname.startsWith('/setup')) {
 		throw redirect(302, '/login');
 	}
 
@@ -545,19 +560,19 @@ The root path has special handling to provide an optimal user experience across 
 
 **Redirect Logic Sequence**:
 
-1. **No `config/private.ts`** (or empty values)
-   - `handleSetup` → Redirect to `/setup`
-   - User completes installation wizard
+1.  **No `config/private.ts`** (or empty values)
+    - `handleSetup` → Redirect to `/setup`
+    - User completes installation wizard
 
-2. **Has `config/private.ts`, no valid session**
-   - `handleSetup` → Passes through
-   - `handleAuthentication` → Sets `locals.user = null`
-   - Root `+page.server.ts` → Redirect to `/login`
+2.  **Has `config/private.ts`, no valid session**
+    - `handleSetup` → Passes through
+    - `handleAuthentication` → Sets `locals.user = null`
+    - Root `+page.server.ts` → Redirect to `/login`
 
-3. **Has `config/private.ts`, valid session**
-   - `handleSetup` → Passes through
-   - `handleAuthentication` → Sets `locals.user = User`
-   - Root `+page.server.ts` → Redirect to first collection
+3.  **Has `config/private.ts`, valid session**
+    - `handleSetup` → Passes through
+    - `handleAuthentication` → Sets `locals.user = User`
+    - Root `+page.server.ts` → Redirect to first collection
 
 **Implementation** (`src/routes/+page.server.ts`):
 
@@ -605,7 +620,7 @@ Blocking `/` during initialization would prevent these essential flows from work
 
 ### 6. handleLocale - Language Management
 
-**File**: `src/hooks/handleLocale.ts`  
+**File**: `src/hooks/handleLocale.ts`
 **Purpose**: Synchronizes language preferences from cookies to stores
 
 ```typescript
@@ -651,7 +666,7 @@ export const handleLocale: Handle = async ({ event, resolve }) => {
 
 ### 7. handleTheme - SSR Theme Management
 
-**File**: `src/hooks/handleTheme.ts`  
+**File**: `src/hooks/handleTheme.ts`
 **Purpose**: Prevents theme flickering with server-side injection
 
 ```typescript
@@ -738,10 +753,10 @@ if (multiTenant) {
 
 ---
 
-### 9. handleAuthorization - Access Control
+### 9. handleAuthorization - Role-Based Access Control
 
-**File**: `src/hooks/handleAuthorization.ts`  
-**Purpose**: Enforces role-based permissions and loads admin data conditionally
+**File**: `src/hooks/handleAuthorization.ts`
+**Purpose**: Enforces granular permissions and protects routes based on user roles.
 
 ```typescript
 export const handleAuthorization: Handle = async ({ event, resolve }) => {
@@ -750,62 +765,37 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
 	const isApi = url.pathname.startsWith('/api/');
 	const isPublic = isPublicRoute(url.pathname);
 
-	// Skip internal routes
+	// 1. Skip internal/public routes
 	if (url.pathname.startsWith('/.well-known/') || url.pathname.startsWith('/_')) {
 		return resolve(event);
 	}
 
-	// Public routes - set defaults and continue
 	if (isPublic) {
 		locals.isAdmin = false;
 		locals.hasManageUsersPermission = false;
-		locals.isFirstUser = false;
 		return resolve(event);
 	}
 
-	// Check first user status (for setup completion)
-	const userCount = await getCachedUserCount(locals.tenantId);
-	locals.isFirstUser = userCount === 0;
-
-	// Load roles (required for everyone)
+	// 2. Load roles and check admin status
 	const rolesData = await getCachedRoles(locals.tenantId);
 	locals.roles = rolesData;
 
-	// Authenticated users
 	if (user) {
-		const userRole = locals.roles.find((r) => r._id === user.role);
+		const userRole = rolesData.find((r) => r._id === user.role);
 		const isAdmin = !!userRole?.isAdmin;
 
 		locals.isAdmin = isAdmin;
-		locals.hasManageUsersPermission = isAdmin || hasPermissionByAction(user, 'manage', 'user', undefined, locals.roles);
+		locals.hasAdminPermission = isAdmin;
+		locals.hasManageUsersPermission = isAdmin || hasPermissionByAction(user, 'manage', 'user', undefined, rolesData);
 
-		// OPTIMIZATION: Only load heavy admin data when needed
-		if (
-			(isAdmin || locals.hasManageUsersPermission) &&
-			(isApi || url.pathname.includes('/admin') || url.pathname.includes('/user') || url.pathname.includes('/config'))
-		) {
-			const [allUsers, allTokens] = await Promise.all([getAdminDataCached('users', locals.tenantId), getAdminDataCached('tokens', locals.tenantId)]);
-			locals.allUsers = allUsers;
-			locals.allTokens = allTokens;
-		} else {
-			locals.allUsers = [];
-			locals.allTokens = [];
-		}
-
-		// Redirect authenticated users from public pages
-		if (isPublic && !isOAuthRoute(url.pathname) && !isApi) {
+		// Redirect authenticated users away from public pages (login/register)
+		if (isPublic && !isApi) {
 			throw redirect(302, '/');
 		}
 	} else {
-		// Unauthenticated users
-		locals.isAdmin = false;
-		locals.hasManageUsersPermission = false;
-		locals.allUsers = [];
-		locals.allTokens = [];
-
-		// Block access to protected routes
-		if (!isPublic && !locals.isFirstUser) {
-			if (isApi) throw error(401, 'Unauthorized');
+		// 3. Handle unauthenticated users
+		if (!isPublic) {
+			if (isApi) throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
 			throw redirect(302, '/login');
 		}
 	}
@@ -816,17 +806,44 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
 
 **Key Features**:
 
-- Conditional loading of heavy data (only for admins on admin routes)
-- Multi-layer caching (in-memory + Redis)
-- Deduplication prevents concurrent duplicate queries
-- Most requests skip heavy database queries
+- **Granular RBAC**: Validates actions against user roles and permissions.
+- **Tenant Isolation**: Uses `locals.tenantId` to ensure data boundaries.
+- **Efficient Redirects**: Smartly moves unauthenticated users to login or root.
 
 ---
 
-### 10. addSecurityHeaders - HTTP Security
+### 10. handleApiRequests - API Authorization & Caching
 
-**File**: `src/hooks/addSecurityHeaders.ts`  
-**Purpose**: Essential HTTP security headers
+**File**: `src/hooks/handleApiRequests.ts`
+**Purpose**: Middleware for API security, tenant-aware caching, and streaming optimization.
+
+**Key Features**:
+
+- **RBAC Enforcement**: Validates `apiEndpoint` permissions against `locals.user.role`.
+- **Intelligent Caching**: Implements per-user, per-tenant caching for GET requests (except GraphQL).
+- **Auto-Invalidation**: Automatically clears relevant cache patterns on `POST`, `PUT`, `DELETE`, or `PATCH` mutations.
+- **Streaming Safe**: Uses `response.clone()` for background cache population without delaying the client.
+- **Cache Bypass**: Supports `?refresh=true` or `?nocache=true` via query parameters.
+
+---
+
+### 11. handleTokenResolution - RBAC Token Replacement
+
+**File**: `src/hooks/tokenResolution.ts`
+**Purpose**: Processes JSON API responses to replace secure placeholders with actual data based on user permissions.
+
+**Key Features**:
+
+- **Identity-Aware**: Resolves tokens using the `locals.user` and `locals.roles` context.
+- **Selective Processing**: Only processes JSON responses from the `/api` namespace.
+- **High Performance**: Optimized transformation logic to minimize latency on large responses.
+
+---
+
+### 12. addSecurityHeaders - Defense in Depth
+
+**File**: `src/hooks/addSecurityHeaders.ts`
+**Purpose**: Hardens the application by injecting essential security headers.
 
 ```typescript
 export const addSecurityHeaders: Handle = async ({ event, resolve }) => {
@@ -852,9 +869,10 @@ export const addSecurityHeaders: Handle = async ({ event, resolve }) => {
 
 **Key Features**:
 
-- X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy
-- HSTS enforcement for HTTPS (1 year + subdomains + preload)
-- CSP managed by SvelteKit (`svelte.config.js`)
+- **Clickjacking Protection**: Enforces `SAMEORIGIN` policy via `X-Frame-Options`.
+- **MIME Sniffing Prevention**: Sets `X-Content-Type-Options: nosniff`.
+- **Privacy Control**: Configures `Referrer-Policy` to balance privacy and analytics.
+- **HSTS Enforcement**: Forces HTTPS in production for 1 year (including subdomains).
 
 ---
 
@@ -862,15 +880,15 @@ export const addSecurityHeaders: Handle = async ({ event, resolve }) => {
 
 ### handleRateLimit - DDoS Protection
 
-**File**: `src/hooks/handleRateLimit.ts`  
+**File**: `src/hooks/handleRateLimit.ts`
 **Use Case**: Add to pipeline when rate limiting is needed
 
-````typescript
+```typescript
 // Distributed store for clustered environments
 const distributedStore = {
 	async get(key: string): Promise<number | undefined> {
 		const data = await cacheService.get<{ count: number; expires: number }>(`ratelimit:${key}`);
-		return (data && data.expires > Date.now()) ? data.count : undefined;
+		return data && data.expires > Date.now() ? data.count : undefined;
 	},
 	async increment(key: string, ttlSeconds: number): Promise<number> {
 		const existing = await this.get(key);
@@ -879,28 +897,12 @@ const distributedStore = {
 		return newCount;
 	}
 };
-```typescript
-// Distributed store for clustered environments
-const distributedStore = {
-	async get(key: string): Promise<number | undefined> {
-		const data = await cacheService.get<{ count: number; expires: number }>(`ratelimit:${key}`);
-		return (data && data.expires > Date.now()) ? data.count : undefined;
-	},
-	async increment(key: string, ttlSeconds: number): Promise<number> {
-		const existing = await this.get(key);
-		const newCount = (existing || 0) + 1;
-		await cacheService.set(`ratelimit:${key}`,
-		                       { count: newCount, expires: Date.now() + ttlSeconds * 1000 },
-		                       ttlSeconds);
-		return newCount;
-	}
-};
 
 const generalLimiter = new RateLimiter({
 	IP: [500, 'm'],
 	IPUA: [500, 'm'],
 	cookie: { name: 'ratelimit', secret: JWT_SECRET, rate: [500, 'm'] },
-	store: cacheService ? distributedStore : undefined  // Redis support
+	store: cacheService ? distributedStore : undefined // Redis support
 });
 
 export const handleRateLimit: Handle = async ({ event, resolve }) => {
@@ -921,7 +923,7 @@ export const handleRateLimit: Handle = async ({ event, resolve }) => {
 
 	return resolve(event);
 };
-````
+```
 
 **Key Features**:
 
@@ -932,84 +934,12 @@ export const handleRateLimit: Handle = async ({ event, resolve }) => {
 
 ---
 
-### handleApiRequests - API Caching & Permissions
-
-**File**: `src/hooks/handleApiRequests.ts`  
-**Use Case**: Add for API-specific caching and permission enforcement
-const limiter = url.pathname.startsWith('/api/') ? apiLimiter : generalLimiter;
-
-    if (await limiter.isLimited(event)) {
-    	metricsService.incrementRateLimitViolations();
-    	throw error(429, 'Too Many Requests');
-    }
-
-    return resolve(event);
-
-};
-
-````
-
-**Benefits**:
-- **Clustered Support**: Rate limits shared across all server instances via Redis
-- **Static Asset Exemption**: CDN-cached content skips rate limiting (20% faster)
-- **Automatic Fallback**: Uses in-memory if Redis unavailable
-
----
-
-### **handleApiRequests** - API Caching & Permissions (Optional)
+### handleApiRequests - API Caching & Permissions (Optional)
 
 **File**: `src/hooks/handleApiRequests.ts`
 **Features**: Streaming optimization with non-blocking cache population
 
-```typescript
-export const handleApiRequests: Handle = async ({ event, resolve }) => {
-	if (!url.pathname.startsWith('/api/') || !locals.user) {
-		return resolve(event);
-	}
-
-	const apiEndpoint = getApiEndpoint(url.pathname);
-
-	// Authorization check
-	if (!hasApiPermission(locals.user.role, apiEndpoint)) {
-		throw error(403, 'Forbidden');
-	}
-
-	// GET requests with caching
-	if (request.method === 'GET') {
-		const cached = await cacheService.get(cacheKey, locals.tenantId);
-		if (cached) {
-			metricsService.recordApiCacheHit();
-			return new Response(JSON.stringify(cached.data), {
-				status: 200,
-				headers: { ...cached.headers, 'X-Cache': 'HIT' }
-			});
-		}
-
-		const response = await resolve(event);
-
-		// GraphQL bypass (no Response recreation)
-		if (apiEndpoint === 'graphql') {
-			response.headers.set('X-Cache': 'BYPASS');
-			return response;
-		}
-
-		// STREAMING OPTIMIZATION: Clone for background caching
-		if (response.ok) {
-			const responseClone = response.clone();
-			response.headers.set('X-Cache', 'MISS');
-
-			// Cache in background - don't block response
-			(async () => {
-				try {
-					const responseBody = await responseClone.text();
-					const responseData = JSON.parse(responseBody);
-					await cacheService.set(cacheKey, { data: responseData, headers: {...} }, TTL, tenantId);
-				} catch (err) {
-					logger.error(`Error caching: ${err}`);
-				}
-			})();
-
-```typescript
+````typescript
 export const handleApiRequests: Handle = async ({ event, resolve }) => {
 	if (!url.pathname.startsWith('/api/') || !locals.user) {
 		return resolve(event);
@@ -1069,14 +999,13 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
 
 	return response;
 };
-````
 
 **Key Features**:
+-   **Streaming Optimization**: Uses `response.clone()` for background cache population.
+-   **GraphQL Bypass**: Efficiently handles complex queries without redundant caching.
+-   **Automatic Invalidation**: Clears cache on data mutations (`POST`, `PUT`, `DELETE`).
 
-- Non-blocking streaming (background cache population)
-- Response cloning to avoid blocking client
-- GraphQL bypass for efficient handling
-- Automatic cache invalidation on mutations
+---
 
 ---
 
@@ -1086,41 +1015,77 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
 sequenceDiagram
     participant Client
     participant SvelteKit
-    participant SystemState as 1. handleSystemState
-    participant Setup as 2. handleSetup
-    participant Locale as 3. handleLocale
-    participant Theme as 4. handleTheme
-    participant Auth as 5. handleAuthentication
-    participant Authz as 6. handleAuthorization
-    participant Security as 7. addSecurityHeaders
+    participant Comp as 0. handleCompression
+    participant Static as 1. handleStaticAssetCaching
+    participant System as 2. handleSystemState
+    participant Rate as 3. handleRateLimit
+    participant FW as 4. handleFirewall
+    participant Setup as 5. handleSetup
+    participant Locale as 6. handleLocale
+    participant Theme as 7. handleTheme
+    participant Auth as 8. handleAuthentication
+    participant Authz as 9. handleAuthorization
+    participant API as 10. handleApiRequests
+    participant Token as 11. handleTokenResolution
+    participant Security as 12. addSecurityHeaders
     participant Endpoint
 
     Client->>SvelteKit: Request
-    SvelteKit->>SystemState: resolve(event)
-    alt System NOT READY
-        SystemState-->>Client: 503 Service Unavailable
+    SvelteKit->>Comp: resolve(event)
+    Comp->>Static: resolve(event)
+    alt Static Asset Detected
+        Static-->>Comp: Response (31.5ms saved)
+        Comp-->>SvelteKit: Compressed Response
+        SvelteKit-->>Client: Final Response
+    else Dynamic Request
+        Static->>System: resolve(event)
+        alt System NOT READY
+            System-->>Static: 503 Service Unavailable
+        else System READY
+            System->>Rate: resolve(event)
+            alt Rate Limit Exceeded
+                Rate-->>System: 429 Too Many Requests
+            else Allowed
+                Rate->>FW: resolve(event)
+                alt Threat Detected
+                    FW-->>Rate: 403 Forbidden
+                else Safe
+                    FW->>Setup: resolve(event)
+                    alt Setup INCOMPLETE
+                        Setup-->>FW: 302 Redirect to /setup
+                    else Setup COMPLETE
+                        Setup->>Locale: resolve(event)
+                        Locale->>Theme: resolve(event)
+                        Theme->>Auth: resolve(event)
+                        Auth->>Authz: resolve(event)
+                        alt UNAUTHORIZED
+                            Authz-->>Auth: 401/302 Response
+                        else AUTHORIZED
+                            Authz->>API: resolve(event)
+                            API->>Token: resolve(event)
+                            Token->>Security: resolve(event)
+                            Security->>Endpoint: resolve(event)
+                            Endpoint-->>Security: RAW Response
+                            Security-->>Token: Response + Headers
+                            Token-->>API: Response (Tokens Resolved)
+                            API-->>Authz: Response (Cached)
+                        end
+                        Authz-->>Auth: Response
+                        Auth-->>Theme: Response
+                        Theme-->>Locale: Response
+                        Locale-->>Setup: Response
+                    end
+                    Setup-->>FW: Response
+                end
+                FW-->>Rate: Response
+            else Rate Allowed
+                Rate-->>System: Response
+            end
+            System-->>Static: Response
+        end
+        Static-->>Comp: Response
+        Comp-->>SvelteKit: Compressed Response
     end
-    SystemState->>Setup: resolve(event)
-    alt Setup INCOMPLETE
-        Setup-->>Client: 302 Redirect to /setup
-    end
-    Setup->>Locale: resolve(event)
-    Locale->>Theme: resolve(event)
-    Theme->>Auth: resolve(event)
-    Auth->>Authz: resolve(event)
-    alt User UNAUTHORIZED
-        Authz-->>Client: 302 Redirect to /login
-    end
-    Authz->>Security: resolve(event)
-    Security->>Endpoint: resolve(event)
-    Endpoint-->>Security: Response
-    Security-->>Authz: Response
-    Authz-->>Auth: Response
-    Auth-->>Theme: Response
-    Theme-->>Locale: Response
-    Locale-->>Setup: Response
-    Setup-->>SystemState: Response
-    SystemState-->>SvelteKit: Response
     SvelteKit-->>Client: Final Response
 ```
 
@@ -1235,37 +1200,6 @@ bun test
 
 ---
 
-### 10. handleCompression - Response Compression
-
-**File**: `src/hooks/handleCompression.ts`
-**Purpose**: Compresses API responses using GZIP or Brotli for improved performance.
-
-```typescript
-export const handleCompression: Handle = async ({ event, resolve }) => {
-	const response = await resolve(event);
-
-	// Only compress API responses
-	if (!event.url.pathname.startsWith('/api/')) {
-		return response;
-	}
-
-	// Check Accept-Encoding header
-	const acceptEncoding = event.request.headers.get('accept-encoding') || '';
-
-	// ... compression logic ...
-
-	return response;
-};
-```
-
-**Key Features**:
-
-- **Algorithm Selection**: Prioritizes Brotli (`br`) over Gzip (`gzip`).
-- **Selective Compression**: Targets only API JSON responses (static assets are handled by adapter/CDN).
-- **Performance**: Reduces payload size by up to 80%, significantly improving mobile experience.
-
----
-
 ## Utility Exports
 
 Utility functions exported from `hooks.server.ts`:
@@ -1302,3 +1236,4 @@ The middleware architecture provides:
 - [Cache System](./cache-system.mdx) - CacheService implementation details
 - [Security Plugin](./security-plugin.mdx) - SecurityResponseService integration
 - [Initialization Workflow](./initialization-workflow.mdx) - System startup sequence
+````

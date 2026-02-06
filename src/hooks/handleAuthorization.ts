@@ -32,7 +32,16 @@ const rolesCache = new Map<string, { data: Role[]; timestamp: number }>();
 // --- UTILITIES ---
 
 function isPublicRoute(pathname: string, method?: string): boolean {
-	const publicRoutes = ['/login', '/register', '/forgot-password', '/setup', '/api/sendMail', '/api/setup', '/api/system/version', '/api/user/login'];
+	const publicRoutes = [
+		'/login',
+		'/register',
+		'/forgot-password',
+		'/setup',
+		'/api/sendMail',
+		'/api/system/version',
+		'/api/user/login',
+		'/api/settings/public'
+	];
 	// Token validation endpoint is public (GET only) for registration flow
 	// Format: /api/token/{tokenValue} where tokenValue is any non-empty string (not just the list endpoint)
 	// We check that it's NOT the base /api/token route and has something after /api/token/
@@ -149,7 +158,7 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
 
 	// --- Redirect to setup if database not initialized (no roles found) ---
 	const isLocalizedSetup = /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/setup/.test(pathname);
-	if (rolesData.length === 0 && !pathname.startsWith('/setup') && !pathname.startsWith('/api/setup') && !isLocalizedSetup) {
+	if (rolesData.length === 0 && !pathname.startsWith('/setup') && !isLocalizedSetup && !pathname.startsWith('/api/system')) {
 		logger.warn('No roles found in database - redirecting to setup', { pathname, tenantId: locals.tenantId });
 		if (isApi) {
 			const errorMsg = 'Service Unavailable: System not initialized. Please run setup.';

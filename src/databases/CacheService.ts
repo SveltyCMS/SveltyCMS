@@ -34,11 +34,11 @@ let CACHE_CONFIG: {
 	RETRY_DELAY: number;
 } | null = null;
 
-function getCacheConfig() {
-	if (!CACHE_CONFIG) {
+function getCacheConfig(forceReload = false) {
+	if (!CACHE_CONFIG || forceReload) {
 		const USE_REDIS = getPrivateSettingSync('USE_REDIS');
-		const REDIS_HOST = getPrivateSettingSync('REDIS_HOST');
-		const REDIS_PORT = getPrivateSettingSync('REDIS_PORT');
+		const REDIS_HOST = getPrivateSettingSync('REDIS_HOST') || 'localhost';
+		const REDIS_PORT = getPrivateSettingSync('REDIS_PORT') || 6379;
 		const REDIS_PASSWORD = getPrivateSettingSync('REDIS_PASSWORD');
 
 		CACHE_CONFIG = {
@@ -88,7 +88,11 @@ class InMemoryStore implements ICacheStore {
 			this.cache.delete(key);
 			return null;
 		}
-		return JSON.parse(item.value) as T;
+		try {
+			return JSON.parse(item.value) as T;
+		} catch {
+			return null;
+		}
 	}
 
 	async set<T>(key: string, value: T, ttlSeconds: number): Promise<void> {
@@ -111,6 +115,7 @@ class InMemoryStore implements ICacheStore {
 	async disconnect(): Promise<void> {
 		this.cache.clear();
 		if (this.interval) clearInterval(this.interval);
+		this.isInitialized = false;
 		logger.info('In-memory cache cleared.');
 	}
 
@@ -140,15 +145,20 @@ class RedisStore implements ICacheStore {
 			jitterMs: 500
 		});
 
-		await resilience.executeWithRetry(async () => {
-			const { createClient } = await import('redis');
-			this.client = createClient({ url: config.URL, password: config.PASSWORD });
-			this.client.on('error', (err) => logger.error('Redis Client Error', err));
-			this.client.on('reconnecting', () => logger.warn('Reconnecting to Redis...'));
-			await this.client.connect();
-			this.isInitialized = true;
-			logger.info('Redis client connected successfully.');
-		}, 'Redis Connection');
+		try {
+			await resilience.executeWithRetry(async () => {
+				const { createClient } = await import('redis');
+				this.client = createClient({ url: config.URL, password: config.PASSWORD });
+				this.client!.on('error', (err) => logger.error('Redis Client Error', err));
+				this.client!.on('reconnecting', () => logger.warn('Reconnecting to Redis...'));
+				await this.client!.connect();
+				this.isInitialized = true;
+				logger.info('Redis client connected successfully.');
+			}, 'Redis Connection');
+		} catch (err) {
+			this.isInitialized = false;
+			throw err;
+		}
 	}
 
 	private async ensureReady(): Promise<void> {
@@ -163,7 +173,11 @@ class RedisStore implements ICacheStore {
 	async get<T>(key: string): Promise<T | null> {
 		await this.ensureReady();
 		const value = await this.client!.get(key);
-		return value ? (JSON.parse(value) as T) : null;
+		try {
+			return value ? (JSON.parse(value) as T) : null;
+		} catch {
+			return null;
+		}
 	}
 
 	async set<T>(key: string, value: T, ttlSeconds: number): Promise<void> {
@@ -188,7 +202,13 @@ class RedisStore implements ICacheStore {
 	}
 
 	async disconnect(): Promise<void> {
-		if (this.client?.isOpen) await this.client.quit();
+		if (this.client?.isOpen) {
+			try {
+				await this.client.quit();
+			} catch (e) {
+				logger.warn('Error during Redis disconnect:', e);
+			}
+		}
 		this.isInitialized = false;
 		logger.info('Redis connection closed.');
 	}
@@ -200,7 +220,7 @@ class RedisStore implements ICacheStore {
 
 class CacheService {
 	private static instance: CacheService;
-	private store: ICacheStore;
+	private store: ICacheStore | null = null;
 	private initialized = false;
 	private initPromise: Promise<void> | null = null;
 	private prefetchPatterns: PrefetchPattern[] = [];
@@ -208,8 +228,7 @@ class CacheService {
 	private bootstrapping = true; // Default to true on startup
 
 	private constructor() {
-		const config = getCacheConfig();
-		this.store = !browser && config.USE_REDIS ? new RedisStore() : new InMemoryStore();
+		// Store is initialized lazily in initialize() to ensure settings are available
 	}
 
 	static getInstance(): CacheService {
@@ -234,14 +253,27 @@ class CacheService {
 		return this.bootstrapping;
 	}
 
-	async initialize(): Promise<void> {
-		if (this.initialized) return;
-		if (!this.initPromise) {
+	async initialize(force = false): Promise<void> {
+		if (this.initialized && !force) return;
+		if (!this.initPromise || force) {
 			this.initPromise = (async () => {
 				try {
+					// Ensure we have the latest config if forced or if store not set
+					const config = getCacheConfig(force);
+
+					// Initialize or switch store if needed
+					const desiredStoreType = !browser && config.USE_REDIS ? RedisStore : InMemoryStore;
+
+					if (!this.store || !(this.store instanceof desiredStoreType) || force) {
+						if (this.store) {
+							await this.store.disconnect();
+						}
+						this.store = new desiredStoreType();
+					}
+
 					await this.store.initialize();
 					this.initialized = true;
-					logger.info('CacheService initialized successfully.');
+					logger.info(`CacheService initialized successfully (${config.USE_REDIS ? 'Redis' : 'In-Memory'}).`);
 				} catch (error) {
 					logger.error('CacheService initialization failed:', error);
 					this.initPromise = null; // Allow retry
@@ -250,6 +282,16 @@ class CacheService {
 			})();
 		}
 		return this.initPromise;
+	}
+
+	/**
+	 * Reconfigures the cache service with new settings.
+	 * Useful after setup completion or settings update.
+	 */
+	async reconfigure(): Promise<void> {
+		logger.info('🔄 Reconfiguring CacheService...');
+		this.initialized = false;
+		return this.initialize(true);
 	}
 
 	private async ensureInitialized() {
@@ -312,7 +354,7 @@ class CacheService {
 				// or assume the fetcher is efficient.
 				// Optimization: Check cache existence first.
 				const fullKey = this.generateKey(key, tenantId);
-				const exists = await this.store.get(fullKey); // Direct store access to avoid recursion/tracking
+				const exists = await this.store!.get(fullKey); // Direct store access to avoid recursion/tracking
 				if (!exists) {
 					missingKeys.push(key);
 				}
@@ -345,7 +387,7 @@ class CacheService {
 		// Check for predictive prefetch opportunities
 		void this.checkPrefetch(key, tenantId);
 
-		return this.store.get<T>(key);
+		return this.store!.get<T>(key);
 	}
 
 	async set<T>(baseKey: string, value: T, ttlSeconds: number, tenantId?: string, category?: CacheCategory): Promise<void> {
@@ -355,7 +397,7 @@ class CacheService {
 		// Use category-specific TTL if category provided and no explicit TTL
 		const finalTTL = category && ttlSeconds === 0 ? getCategoryTTL(category) : ttlSeconds;
 
-		await this.store.set<T>(key, value, finalTTL);
+		await this.store!.set<T>(key, value, finalTTL);
 	}
 
 	// Set with automatic category-based TTL
@@ -363,19 +405,19 @@ class CacheService {
 		await this.ensureInitialized();
 		const key = this.generateKey(baseKey, tenantId);
 		const ttl = getCategoryTTL(category);
-		await this.store.set<T>(key, value, ttl);
+		await this.store!.set<T>(key, value, ttl);
 	}
 
 	async delete(baseKey: string | string[], tenantId?: string): Promise<void> {
 		await this.ensureInitialized();
 		const keys = Array.isArray(baseKey) ? baseKey.map((k) => this.generateKey(k, tenantId)) : this.generateKey(baseKey, tenantId);
-		await this.store.delete(keys);
+		await this.store!.delete(keys);
 	}
 
 	async clearByPattern(pattern: string, tenantId?: string): Promise<void> {
 		await this.ensureInitialized();
 		const keyPattern = this.generateKey(pattern, tenantId);
-		await this.store.clearByPattern(keyPattern);
+		await this.store!.clearByPattern(keyPattern);
 	}
 
 	/**
@@ -487,11 +529,13 @@ class CacheService {
 	}
 
 	getRedisClient(): RedisClientType | null {
-		return this.store.getClient();
+		return this.store ? this.store.getClient() : null;
 	}
 
 	async disconnect(): Promise<void> {
-		await this.store.disconnect();
+		if (this.store) {
+			await this.store.disconnect();
+		}
 	}
 }
 

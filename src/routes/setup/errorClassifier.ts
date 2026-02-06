@@ -1,6 +1,6 @@
 /**
- * @file src/routes/api/setup/errorClassifier.ts
- * @description Centralized database error classification for all supported DB engines.
+ * @file src/routes/setup/errorClassifier.ts
+ * @description Helper functions to classify and format database connection errors for the setup wizard UI.
  */
 
 import { logger } from '@utils/logger.server';
