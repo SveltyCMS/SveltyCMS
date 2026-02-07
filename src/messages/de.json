@@ -237,7 +237,7 @@
 	"loading_widgetInit_bottom": "Komponenten werden geladen...",
 	"logo_slogan": "mit Sveltekit Power",
 	"login_Happy_Holi": "Frohes Holi",
-	"login_demo_message": "Diese Site wird alle 10 Minuten zurückgesetzt.",
+	"login_demo_message": "Diese Site wird alle 20 Minuten zurückgesetzt.",
 	"login_demo_nextreset": "Nächster Reset in:",
 	"login_demo_title": "SveltyCMS DEMO-MODUS",
 	"login_happy_diwali": "Frohes Diwali",

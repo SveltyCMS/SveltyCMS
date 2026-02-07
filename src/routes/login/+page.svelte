@@ -74,7 +74,7 @@
 	$effect(() => {
 		// Only set initial background, don't override user interactions
 		if (active === undefined && !hasResetParams) {
-			if ((publicEnv as any)?.DEMO) {
+			if (data.demoMode) {
 				background = '#242728';
 			} else if ((publicEnv as any)?.SEASONS) {
 				background = 'white';
@@ -149,8 +149,8 @@
 		const now = new Date();
 		const minutes = now.getMinutes();
 		const seconds = now.getSeconds();
-		const timePassed = (minutes % 10) * 60 + seconds;
-		const timeRemainingInSeconds = 600 - timePassed;
+		const timePassed = (minutes % 20) * 60 + seconds;
+		const timeRemainingInSeconds = 1200 - timePassed;
 		return {
 			minutes: Math.floor(timeRemainingInSeconds / 60),
 			seconds: timeRemainingInSeconds % 60
@@ -165,7 +165,7 @@
 	// Set up the interval to update the countdown every second
 	$effect(() => {
 		let interval: ReturnType<typeof setInterval> | undefined;
-		if (getPublicSetting('DEMO' as any)) {
+		if (data.demoMode) {
 			updateTimeRemaining();
 			interval = setInterval(updateTimeRemaining, 1000);
 			return () => {

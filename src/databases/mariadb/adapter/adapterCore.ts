@@ -11,7 +11,7 @@
  */
 
 import { drizzle, type MySql2Database } from 'drizzle-orm/mysql2';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, isNull } from 'drizzle-orm';
 import mysql from 'mysql2/promise';
 import type { DatabaseCapabilities, DatabaseResult, DatabaseError } from '../../dbInterface';
 import * as schema from '../schema';
@@ -181,11 +181,21 @@ export class AdapterCore {
 		};
 	}
 
+	private snakeToCamel(str: string): string {
+		return str.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+	}
+
 	public getTable(collection: string): any {
+		// Direct lookup (already camelCase, e.g., 'mediaItems')
 		if ((schema as any)[collection]) {
 			return (schema as any)[collection];
 		}
-		// Fallback to contentNodes for dynamic collections
+		// Convert snake_case to camelCase (e.g., 'media_items' → 'mediaItems')
+		const camelKey = this.snakeToCamel(collection);
+		if ((schema as any)[camelKey]) {
+			return (schema as any)[camelKey];
+		}
+		// Fallback to contentNodes for dynamic/user-defined collections
 		return schema.contentNodes;
 	}
 
@@ -194,8 +204,13 @@ export class AdapterCore {
 
 		const conditions: any[] = [];
 		for (const [key, value] of Object.entries(query)) {
+			if (key.startsWith('$')) continue; // Skip MongoDB operators
 			if (table[key]) {
-				conditions.push(eq(table[key], value));
+				if (value === null) {
+					conditions.push(isNull(table[key]));
+				} else {
+					conditions.push(eq(table[key], value));
+				}
 			}
 		}
 

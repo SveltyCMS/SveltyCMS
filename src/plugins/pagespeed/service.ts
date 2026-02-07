@@ -88,7 +88,7 @@ export async function getCachedResult(
 	maxAgeMinutes: number = 1440
 ): Promise<PageSpeedResult | null> {
 	try {
-		const result = await dbAdapter.crud.findOne<PageSpeedResult>('plugin_pagespeed_results', {
+		const result = await dbAdapter.crud.findOne<PageSpeedResult>('pluginPagespeedResults', {
 			entryId,
 			collectionId,
 			language,
@@ -122,7 +122,7 @@ export async function getCachedResult(
 export async function storeResult(dbAdapter: IDBAdapter, result: Omit<PageSpeedResult, '_id' | 'createdAt' | 'updatedAt'>): Promise<boolean> {
 	try {
 		// Check if result already exists (update) or new (insert)
-		const existing = await dbAdapter.crud.findOne<PageSpeedResult>('plugin_pagespeed_results', {
+		const existing = await dbAdapter.crud.findOne<PageSpeedResult>('pluginPagespeedResults', {
 			entryId: result.entryId,
 			collectionId: result.collectionId,
 			language: result.language,
@@ -132,7 +132,7 @@ export async function storeResult(dbAdapter: IDBAdapter, result: Omit<PageSpeedR
 
 		if (existing.success && existing.data) {
 			// Update existing record
-			const updateResult = await dbAdapter.crud.update<PageSpeedResult>('plugin_pagespeed_results', existing.data._id, result as any);
+			const updateResult = await dbAdapter.crud.update<PageSpeedResult>('pluginPagespeedResults', existing.data._id, result as any);
 
 			if (!updateResult.success) {
 				logger.error('Failed to update PageSpeed result', { error: (updateResult as any).error });
@@ -140,7 +140,7 @@ export async function storeResult(dbAdapter: IDBAdapter, result: Omit<PageSpeedR
 			}
 		} else {
 			// Insert new record
-			const insertResult = await dbAdapter.crud.insert<PageSpeedResult>('plugin_pagespeed_results', result as any);
+			const insertResult = await dbAdapter.crud.insert<PageSpeedResult>('pluginPagespeedResults', result as any);
 
 			if (!insertResult.success) {
 				logger.error('Failed to insert PageSpeed result', { error: (insertResult as any).error });
@@ -173,7 +173,7 @@ export async function getMultipleCachedResults(
 	const results = new Map<string, PageSpeedResult>();
 
 	try {
-		const queryResult = await dbAdapter.crud.findMany<PageSpeedResult>('plugin_pagespeed_results', {
+		const queryResult = await dbAdapter.crud.findMany<PageSpeedResult>('pluginPagespeedResults', {
 			entryId: { $in: entryIds },
 			collectionId,
 			language,

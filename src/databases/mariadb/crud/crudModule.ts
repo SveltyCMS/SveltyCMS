@@ -72,7 +72,7 @@ export class CrudModule {
 	async insert<T extends BaseEntity>(collection: string, data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<T>> {
 		return (this.core as any).wrap(async () => {
 			const table = (this.core as any).getTable(collection);
-			const id = utils.generateId();
+			const id = (data as any)._id || utils.generateId();
 			const now = new Date();
 			const values = { ...data, _id: id, createdAt: now, updatedAt: now } as any;
 			await this.db.insert(table).values(values);

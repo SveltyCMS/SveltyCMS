@@ -101,7 +101,7 @@ async function main() {
 		// Helper to wait for server
 		// (Removed unused checkServer function)
 
-		const setupArgs = ['test', '--timeout', '15000', '--preload', './tests/bun/setup.ts', 'tests/bun/api/setup.test.ts'];
+		const setupArgs = ['test', '--timeout', '15000', '--preload', './tests/bun/setup.ts', 'tests/bun/api/setup-actions.test.ts'];
 
 		await new Promise<void>((resolve, reject) => {
 			const setupProcess = spawn('bun', setupArgs, {

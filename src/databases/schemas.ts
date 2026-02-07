@@ -90,6 +90,9 @@ export const privateConfigSchema = object({
 	TWITCH_TOKEN: optional(pipe(string(), minLength(1))),
 	TIKTOK_TOKEN: optional(pipe(string(), minLength(1))),
 
+	// --- Live Preview ---
+	PREVIEW_SECRET: optional(pipe(string(), minLength(32))),
+
 	// --- Firewall Configuration ---
 	FIREWALL_ENABLED: optional(boolean()),
 	FIREWALL_ALLOWED_BOTS: optional(array(string())),

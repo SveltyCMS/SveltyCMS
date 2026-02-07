@@ -202,7 +202,7 @@
 			onclick={openMediaLibrary}
 			class="w-full cursor-pointer rounded border-none bg-surface-100 p-3 transition-colors hover:bg-surface-200 dark:bg-surface-700 dark:hover:bg-surface-600"
 		>
-			+ Add Media
+			{field.placeholder || '+ Add Media'}
 		</button>
 	{/if}
 

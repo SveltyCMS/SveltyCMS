@@ -13,7 +13,7 @@ export const schema: Schema = {
 	icon: 'fluent:rename-28-filled',
 	status: 'unpublish',
 	revision: true,
-	livePreview: true,
+	livePreview: '/api/preview?slug=/posts/names/{slug}',
 
 	// Defined Fields that are used in your Collection
 	// Widget fields can be inspected for individual options

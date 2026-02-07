@@ -111,12 +111,15 @@ async function createTablesIfNotExist(connection: mysql.Pool): Promise<void> {
 			_id VARCHAR(36) PRIMARY KEY,
 			path VARCHAR(500) NOT NULL,
 			parentId VARCHAR(36),
-			type VARCHAR(50) NOT NULL,
+			nodeType VARCHAR(50) NOT NULL,
 			status VARCHAR(50) NOT NULL DEFAULT 'draft',
-			title VARCHAR(500),
+			name VARCHAR(500),
 			slug VARCHAR(500),
+			icon VARCHAR(100),
+			description TEXT,
 			data JSON,
 			metadata JSON,
+			translations JSON,
 			\`order\` INT NOT NULL DEFAULT 0,
 			isPublished BOOLEAN NOT NULL DEFAULT FALSE,
 			publishedAt DATETIME,
@@ -125,7 +128,7 @@ async function createTablesIfNotExist(connection: mysql.Pool): Promise<void> {
 			updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 			UNIQUE INDEX path_unique (path),
 			INDEX parent_idx (parentId),
-			INDEX type_idx (type),
+			INDEX nodeType_idx (nodeType),
 			INDEX status_idx (status),
 			INDEX tenant_idx (tenantId)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
@@ -269,6 +272,55 @@ async function createTablesIfNotExist(connection: mysql.Pool): Promise<void> {
 			UNIQUE INDEX token_unique (token),
 			INDEX name_idx (name),
 			INDEX tenant_idx (tenantId)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
+		// Plugin: PageSpeed Results
+		`CREATE TABLE IF NOT EXISTS plugin_pagespeed_results (
+			_id VARCHAR(36) PRIMARY KEY,
+			entryId VARCHAR(36) NOT NULL,
+			collectionId VARCHAR(36) NOT NULL,
+			tenantId VARCHAR(36),
+			language VARCHAR(10) NOT NULL DEFAULT 'en',
+			device VARCHAR(20) NOT NULL DEFAULT 'mobile',
+			url VARCHAR(2000) NOT NULL,
+			performanceScore INT NOT NULL DEFAULT 0,
+			fetchedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			INDEX entry_idx (entryId),
+			INDEX collection_idx (collectionId),
+			INDEX tenant_idx (tenantId),
+			INDEX device_idx (device)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
+		// Plugin States
+		`CREATE TABLE IF NOT EXISTS plugin_states (
+			_id VARCHAR(36) PRIMARY KEY,
+			pluginId VARCHAR(255) NOT NULL,
+			tenantId VARCHAR(36),
+			enabled BOOLEAN NOT NULL DEFAULT FALSE,
+			settings JSON,
+			updatedBy VARCHAR(36),
+			createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			INDEX plugin_idx (pluginId),
+			INDEX tenant_idx (tenantId),
+			UNIQUE INDEX plugin_tenant_unique (pluginId, tenantId)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
+		// Plugin Migrations
+		`CREATE TABLE IF NOT EXISTS plugin_migrations (
+			_id VARCHAR(36) PRIMARY KEY,
+			pluginId VARCHAR(255) NOT NULL,
+			migrationId VARCHAR(255) NOT NULL,
+			version INT NOT NULL,
+			tenantId VARCHAR(36),
+			appliedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			INDEX plugin_idx (pluginId),
+			INDEX tenant_idx (tenantId),
+			UNIQUE INDEX plugin_migration_unique (pluginId, migrationId, tenantId)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`
 	];
 

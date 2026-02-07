@@ -118,12 +118,15 @@ export const contentNodes = mysqlTable(
 		_id: uuidPk(),
 		path: varchar('path', { length: 500 }).notNull(),
 		parentId: varchar('parentId', { length: 36 }),
-		type: varchar('type', { length: 50 }).notNull(),
+		nodeType: varchar('nodeType', { length: 50 }).notNull(),
 		status: varchar('status', { length: 50 }).notNull().default('draft'),
-		title: varchar('title', { length: 500 }),
+		name: varchar('name', { length: 500 }),
 		slug: varchar('slug', { length: 500 }),
+		icon: varchar('icon', { length: 100 }),
+		description: text('description'),
 		data: json('data'),
 		metadata: json('metadata'),
+		translations: json('translations').$type<{ languageTag: string; translationName: string }[]>().default([]),
 		order: int('order').notNull().default(0),
 		isPublished: boolean('isPublished').notNull().default(false),
 		publishedAt: datetime('publishedAt'),
@@ -133,7 +136,7 @@ export const contentNodes = mysqlTable(
 	(table) => ({
 		pathIdx: unique('path_unique').on(table.path),
 		parentIdx: index('parent_idx').on(table.parentId),
-		typeIdx: index('type_idx').on(table.type),
+		nodeTypeIdx: index('nodeType_idx').on(table.nodeType),
 		statusIdx: index('status_idx').on(table.status),
 		tenantIdx: index('tenant_idx').on(table.tenantId)
 	})
@@ -313,6 +316,71 @@ export const websiteTokens = mysqlTable(
 	})
 );
 
+// Plugin: PageSpeed Results Table
+export const pluginPagespeedResults = mysqlTable(
+	'plugin_pagespeed_results',
+	{
+		_id: uuidPk(),
+		entryId: varchar('entryId', { length: 36 }).notNull(),
+		collectionId: varchar('collectionId', { length: 36 }).notNull(),
+		tenantId: tenantField(),
+		language: varchar('language', { length: 10 }).notNull().default('en'),
+		device: varchar('device', { length: 20 }).notNull().default('mobile'),
+		url: varchar('url', { length: 2000 }).notNull(),
+		performanceScore: int('performanceScore').notNull().default(0),
+		fetchedAt: datetime('fetchedAt')
+			.notNull()
+			.default(sql`CURRENT_TIMESTAMP`),
+		...timestamps
+	},
+	(table) => ({
+		entryIdx: index('entry_idx').on(table.entryId),
+		collectionIdx: index('collection_idx').on(table.collectionId),
+		tenantIdx: index('tenant_idx').on(table.tenantId),
+		deviceIdx: index('device_idx').on(table.device)
+	})
+);
+
+// Plugin States Table
+export const pluginStates = mysqlTable(
+	'plugin_states',
+	{
+		_id: uuidPk(),
+		pluginId: varchar('pluginId', { length: 255 }).notNull(),
+		tenantId: tenantField(),
+		enabled: boolean('enabled').notNull().default(false),
+		settings: json('settings'),
+		updatedBy: varchar('updatedBy', { length: 36 }),
+		...timestamps
+	},
+	(table) => ({
+		pluginIdx: index('plugin_idx').on(table.pluginId),
+		tenantIdx: index('tenant_idx').on(table.tenantId),
+		pluginTenantUnique: unique('plugin_tenant_unique').on(table.pluginId, table.tenantId)
+	})
+);
+
+// Plugin Migrations Table
+export const pluginMigrations = mysqlTable(
+	'plugin_migrations',
+	{
+		_id: uuidPk(),
+		pluginId: varchar('pluginId', { length: 255 }).notNull(),
+		migrationId: varchar('migrationId', { length: 255 }).notNull(),
+		version: int('version').notNull(),
+		tenantId: tenantField(),
+		appliedAt: datetime('appliedAt')
+			.notNull()
+			.default(sql`CURRENT_TIMESTAMP`),
+		...timestamps
+	},
+	(table) => ({
+		pluginIdx: index('plugin_idx').on(table.pluginId),
+		tenantIdx: index('tenant_idx').on(table.tenantId),
+		pluginMigrationUnique: unique('plugin_migration_unique').on(table.pluginId, table.migrationId, table.tenantId)
+	})
+);
+
 // Export all tables as a schema object for Drizzle
 export const schema = {
 	authUsers,
@@ -327,5 +395,8 @@ export const schema = {
 	mediaItems,
 	systemVirtualFolders,
 	systemPreferences,
-	websiteTokens
+	websiteTokens,
+	pluginPagespeedResults,
+	pluginStates,
+	pluginMigrations
 };

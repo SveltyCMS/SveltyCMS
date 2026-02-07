@@ -117,18 +117,26 @@ export async function seedRoles(dbAdapter: DatabaseAdapter, tenantId?: string): 
 		const rolePromises = defaultRoles.map(async (role) => {
 			try {
 				// Admin role gets all permissions
+				// For tenant-scoped roles, generate unique IDs to avoid
+				// primary key collisions with roles from other tenants
 				const roleToCreate = {
 					...role,
+					_id: tenantId ? crypto.randomUUID() : role._id,
 					permissions: role._id === 'admin' ? adminPermissions : role.permissions,
 					...(tenantId && { tenantId })
 				};
 
-				await dbAdapter.auth.createRole(roleToCreate);
-				logger.debug(`✅ Role "${role.name}" seeded successfully${tenantId ? ` for tenant ${tenantId}` : ''}`);
+				const result = await dbAdapter.auth.createRole(roleToCreate);
+				// createRole returns DatabaseResult — check success instead of relying on exceptions
+				if (result && 'success' in result && !result.success) {
+					logger.warn(`Role "${role.name}" creation returned failure${tenantId ? ` for tenant ${tenantId}` : ''}: ${result.error?.message || 'unknown'}`);
+				} else {
+					logger.debug(`✅ Role "${role.name}" seeded successfully${tenantId ? ` for tenant ${tenantId}` : ''}`);
+				}
 			} catch (error) {
 				// Skip if role already exists (duplicate key error)
 				const errorMessage = error instanceof Error ? error.message : String(error);
-				if (errorMessage.includes('duplicate') || errorMessage.includes('E11000')) {
+				if (errorMessage.includes('duplicate') || errorMessage.includes('E11000') || errorMessage.includes('ER_DUP_ENTRY')) {
 					logger.debug(`ℹ️  Role "${role.name}" already exists${tenantId ? ` for tenant ${tenantId}` : ''}, skipping`);
 				} else {
 					logger.error(`Failed to seed role "${role.name}"${tenantId ? ` for tenant ${tenantId}` : ''}:`, error);
@@ -348,8 +356,9 @@ export const defaultPublicSettings: Array<{ key: string; value: unknown; descrip
 	{ key: 'LOG_RETENTION_DAYS', value: 30, description: 'Number of days to keep log files' },
 	{ key: 'LOG_ROTATION_SIZE', value: 10485760, description: 'Maximum size of a log file in bytes before rotation (10MB)' },
 
-	// Demo Mode
-	{ key: 'DEMO', value: false, description: 'Enable demo mode (restricts certain features)' }
+	// NOTE: DEMO mode is controlled exclusively via config/private.ts (INFRASTRUCTURE_KEYS).
+	// Do NOT add a DEMO key here — it would create a split-brain where the server
+	// reads private config (true) but the client reads the DB-seeded default (false).
 ];
 
 /**
@@ -414,7 +423,10 @@ export const defaultPrivateSettings: Array<{ key: string; value: unknown; descri
 
 	// Roles and Permissions (previously required in private config)
 	{ key: 'ROLES', value: ['admin', 'editor', 'viewer'], description: 'List of user roles available in the system' },
-	{ key: 'PERMISSIONS', value: ['read', 'write', 'delete', 'admin'], description: 'List of permissions available in the system' }
+	{ key: 'PERMISSIONS', value: ['read', 'write', 'delete', 'admin'], description: 'List of permissions available in the system' },
+
+	// Live Preview
+	{ key: 'PREVIEW_SECRET', value: '', description: 'Secret for live preview handshake (auto-generated via /api/system/preview-secret)' }
 ];
 
 /**

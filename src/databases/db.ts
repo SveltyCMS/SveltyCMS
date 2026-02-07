@@ -195,11 +195,7 @@ const INFRASTRUCTURE_KEYS = new Set([
 	'JWT_SECRET_KEY',
 	'ENCRYPTION_KEY',
 	'MULTI_TENANT',
-	'DEMO',
-	'USE_REDIS',
-	'REDIS_HOST',
-	'REDIS_PORT',
-	'REDIS_PASSWORD'
+	'DEMO'
 ]);
 
 const KNOWN_PUBLIC_KEYS = publicConfigSchema && 'entries' in publicConfigSchema ? Object.keys(publicConfigSchema.entries) : [];
@@ -604,11 +600,18 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false): Pr
 		// Initialize if DEMO is true OR if MULTI_TENANT is true (to allow runtime DEMO toggling)
 		if (privateConfig?.DEMO || privateConfig?.MULTI_TENANT) {
 			import('@src/utils/demoCleanup').then(({ cleanupExpiredDemoTenants }) => {
-				logger.info('🧹 Demo Cleanup Service initialized (Interval: 5m, TTL: 60m)');
-				// Run immediately on startup
-				cleanupExpiredDemoTenants();
+				logger.info('Demo Cleanup Service initialized (Interval: 5m, Session: 20m, Cleanup TTL: 60m)');
+				// Delay initial run to allow background services to finish initializing
+				setTimeout(() => {
+					cleanupExpiredDemoTenants().catch((err) => logger.warn('[Demo Cleanup] Initial run failed:', err));
+				}, 10_000);
 				// Run every 5 minutes
-				setInterval(cleanupExpiredDemoTenants, 5 * 60 * 1000);
+				setInterval(
+					() => {
+						cleanupExpiredDemoTenants().catch((err) => logger.warn('[Demo Cleanup] Periodic run failed:', err));
+					},
+					5 * 60 * 1000
+				);
 			});
 		}
 

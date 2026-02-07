@@ -79,6 +79,11 @@ function formatValue(v: unknown): string {
 	if (typeof v === 'string') return colorMessage(v);
 	if (v instanceof Date) return `\x1b[36m${v.toISOString()}\x1b[0m`;
 	if (Array.isArray(v)) return `\x1b[33m[${v.map(formatValue).join(', ')}]\x1b[0m`;
+	if (v instanceof Error) {
+		const parts = [`message: \x1b[31m${v.message}\x1b[0m`, `name: \x1b[31m${v.name}\x1b[0m`];
+		if ((v as any).code) parts.push(`code: \x1b[31m${(v as any).code}\x1b[0m`);
+		return `\x1b[33m{${parts.join(', ')}}\x1b[0m`;
+	}
 	if (typeof v === 'object') {
 		const entries = Object.entries(v)
 			.map(([k, val]) => `${k}: ${formatValue(val)}`)
@@ -96,6 +101,12 @@ function mask(v: unknown, depth = 0): unknown {
 	if (depth > 10) return '[Depth]';
 	if (v === null || typeof v !== 'object') return v;
 	if (v instanceof Date || v instanceof RegExp) return v;
+	if (v instanceof Error) {
+		const plain: Record<string, unknown> = { message: v.message, name: v.name };
+		if (v.stack) plain.stack = v.stack;
+		if ((v as any).code) plain.code = (v as any).code;
+		return mask(plain, depth + 1);
+	}
 	if (Array.isArray(v)) return v.map((item) => mask(item, depth + 1));
 
 	const masked: Record<string, unknown> = {};

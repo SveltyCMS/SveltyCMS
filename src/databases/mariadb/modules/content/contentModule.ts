@@ -40,17 +40,20 @@ export class ContentModule {
 		return (this.core as any).db;
 	}
 
-	private sanitizeNode(node: Partial<ContentNode> & Record<string, any>): Partial<ContentNode> {
+	private pickValidColumns(node: Partial<ContentNode> & Record<string, any>): Partial<ContentNode> {
 		const validColumns = [
 			'_id',
 			'path',
 			'parentId',
-			'type',
+			'nodeType',
 			'status',
-			'title',
+			'name',
 			'slug',
+			'icon',
+			'description',
 			'data',
 			'metadata',
+			'translations',
 			'order',
 			'isPublished',
 			'publishedAt',
@@ -65,12 +68,6 @@ export class ContentModule {
 				sanitized[key] = node[key];
 			}
 		}
-
-		// Special handling: if collectionDef exists/is passed, it implies this node represents a collection.
-		// We might want to store essential collection metadata in 'data' or 'metadata' if not already there,
-		// but typically ContentManager relies on files or 'data' field.
-		// ensuring 'data' or 'metadata' is preserved if passed is key.
-
 		return sanitized;
 	}
 
@@ -114,7 +111,7 @@ export class ContentModule {
 		upsertContentStructureNode: async (node: Omit<ContentNode, 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<ContentNode>> => {
 			return (this.core as any).wrap(async () => {
 				const id = node._id || utils.generateId();
-				const sanitized = this.sanitizeNode(node);
+				const sanitized = this.pickValidColumns(node);
 				const [existing] = await this.db.select().from(schema.contentNodes).where(eq(schema.contentNodes._id, id)).limit(1);
 
 				if (existing) {
@@ -141,7 +138,7 @@ export class ContentModule {
 			return (this.core as any).wrap(async () => {
 				const id = node._id || utils.generateId();
 				const now = new Date();
-				const sanitized = this.sanitizeNode(node);
+				const sanitized = this.pickValidColumns(node);
 				await this.db.insert(schema.contentNodes).values({
 					...sanitized,
 					_id: id,
@@ -157,7 +154,7 @@ export class ContentModule {
 			return (this.core as any).wrap(async () => {
 				const now = new Date();
 				const values = nodes.map((node) => {
-					const sanitized = this.sanitizeNode(node);
+					const sanitized = this.pickValidColumns(node);
 					return {
 						...sanitized,
 						_id: node._id || utils.generateId(),
@@ -174,7 +171,7 @@ export class ContentModule {
 
 		update: async (path: string, changes: Partial<ContentNode>): Promise<DatabaseResult<ContentNode>> => {
 			return (this.core as any).wrap(async () => {
-				const sanitized = this.sanitizeNode(changes);
+				const sanitized = this.pickValidColumns(changes);
 				await this.db
 					.update(schema.contentNodes)
 					.set({ ...sanitized, updatedAt: new Date() } as any)
@@ -188,31 +185,33 @@ export class ContentModule {
 			return (this.core as any).wrap(async () => {
 				const results: ContentNode[] = [];
 				for (const update of updates) {
-					// Check if node exists
-					const [existing] = await this.db.select().from(schema.contentNodes).where(eq(schema.contentNodes.path, update.path)).limit(1);
-					const sanitized = this.sanitizeNode(update.changes);
+					const sanitized = this.pickValidColumns(update.changes);
+					const id = (update.changes as any)._id || utils.generateId();
+					const now = new Date();
 
-					if (existing) {
-						// Update existing
-						await this.db
-							.update(schema.contentNodes)
-							.set({ ...sanitized, updatedAt: new Date() } as any)
-							.where(eq(schema.contentNodes.path, update.path));
-					} else {
-						// Insert new (Upsert)
-						// Ensure we have an ID
-						const id = (update.changes as any)._id || utils.generateId();
-						const now = new Date();
-						await this.db.insert(schema.contentNodes).values({
-							...sanitized,
+					// Strip date fields from sanitized to handle them explicitly as Date objects for Drizzle
+					const { createdAt, updatedAt, publishedAt, ...sanitizedWithoutDates } = sanitized as any;
+
+					// Atomic upsert using ON DUPLICATE KEY UPDATE (path has unique constraint)
+					await this.db
+						.insert(schema.contentNodes)
+						.values({
+							...sanitizedWithoutDates,
 							_id: id,
 							path: update.path,
+							publishedAt: publishedAt ? new Date(publishedAt) : null,
 							createdAt: now,
 							updatedAt: now
-						} as any);
-					}
+						} as any)
+						.onDuplicateKeyUpdate({
+							set: {
+								...sanitizedWithoutDates,
+								publishedAt: publishedAt ? new Date(publishedAt) : undefined,
+								updatedAt: now
+							} as any
+						});
 
-					// Return updated/inserted record
+					// Return the upserted record
 					const [res] = await this.db.select().from(schema.contentNodes).where(eq(schema.contentNodes.path, update.path)).limit(1);
 					if (res) results.push(utils.convertDatesToISO(res) as unknown as ContentNode);
 				}

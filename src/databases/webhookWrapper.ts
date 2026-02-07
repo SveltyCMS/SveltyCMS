@@ -4,9 +4,8 @@
  * This ensures that all mutations (CRUD, Media) trigger the appropriate webhooks
  * regardless of which API route or service initiates the change.
  *
- * IMPORTANT: This wrapper uses lazy property access to avoid triggering
- * "DB not connected" errors during initialization. The adapter getters are only
- * accessed when the wrapped methods are actually called (after connection).
+ * IMPORTANT: Uses Proxy instead of object spread to preserve prototype methods
+ * (count, findOne, findMany, etc.) on class-based adapter instances.
  */
 
 import type { IDBAdapter, ICrudAdapter, IMediaAdapter } from './dbInterface';
@@ -118,9 +117,7 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
 					return typeof value === 'function' ? value.bind(target) : value;
 				}
 			});
-		},
-		configurable: true,
-		enumerable: true
+		}
 	});
 
 	// --- Wrap Media Operations (Lazy Access) ---
@@ -195,9 +192,7 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
 					return typeof value === 'function' ? value.bind(target) : value;
 				}
 			});
-		},
-		configurable: true,
-		enumerable: true
+		}
 	});
 
 	return adapter;

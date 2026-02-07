@@ -65,7 +65,7 @@ export const privateEnv = {
 
 	// --- Fundamental Architectural Mode ---
 	MULTI_TENANT: false,
-	DEMO_MODE: false,
+	DEMO: false,
 
 	// --- Redis Configuration ---
 	USE_REDIS: ${redisConfig?.useRedis || false},
@@ -144,23 +144,23 @@ export async function updatePrivateConfigMode(modes: {
 			}
 		}
 
-		// Update DEMO_MODE
+		// Update DEMO
 		if (modes.demoMode !== undefined) {
-			const demoModeRegex = /DEMO_MODE:\s*(true|false)/;
+			const demoModeRegex = /DEMO:\s*(true|false)/;
 			if (demoModeRegex.test(content)) {
-				content = content.replace(demoModeRegex, `DEMO_MODE: ${modes.demoMode}`);
+				content = content.replace(demoModeRegex, `DEMO: ${modes.demoMode}`);
 				modified = true;
 			} else {
 				// If not found, try to insert after MULTI_TENANT or before closing
 				const multiTenantMatch = /MULTI_TENANT:\s*(true|false),?/;
 				if (multiTenantMatch.test(content)) {
-					content = content.replace(multiTenantMatch, `$& \n\tDEMO_MODE: ${modes.demoMode},`);
+					content = content.replace(multiTenantMatch, `$& \n\tDEMO: ${modes.demoMode},`);
 					modified = true;
 				} else {
 					// Fallback: insert at end of object
 					const lastBraceIndex = content.lastIndexOf('};');
 					if (lastBraceIndex !== -1) {
-						content = content.slice(0, lastBraceIndex) + `\tDEMO_MODE: ${modes.demoMode},\n` + content.slice(lastBraceIndex);
+						content = content.slice(0, lastBraceIndex) + `\tDEMO: ${modes.demoMode},\n` + content.slice(lastBraceIndex);
 						modified = true;
 					}
 				}

@@ -240,7 +240,7 @@
 	"loading_widgetInit_bottom": "Loading components...",
 	"logo_slogan": "with Sveltekit Power",
 	"login_Happy_Holi": "Happy Holi",
-	"login_demo_message": "This site will reset every 10 min.",
+	"login_demo_message": "This site will reset every 20 min.",
 	"login_demo_nextreset": "Next reset in:",
 	"login_demo_title": "SveltyCMS DEMO MODE",
 	"login_happy_diwali": "Happy Diwali",

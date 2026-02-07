@@ -29,7 +29,7 @@ export class PreferencesModule {
 		return (this.core as any).db;
 	}
 
-	async get<T>(key: string, scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<T>> {
+	async get<T>(key: string, scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<T | null>> {
 		return (this.core as any).wrap(async () => {
 			const conditions: any[] = [eq(schema.systemPreferences.key, key)];
 			if (scope) conditions.push(eq(schema.systemPreferences.scope, scope));
@@ -41,11 +41,8 @@ export class PreferencesModule {
 				.where(and(...conditions))
 				.limit(1);
 
-			if (!result) {
-				return { success: false, message: 'Preference not found', error: utils.createDatabaseError('NOT_FOUND', 'Preference not found') };
-			}
-
-			return { success: true, data: result.value as T };
+			if (!result) return null;
+			return result.value as T;
 		}, 'GET_PREFERENCE_FAILED');
 	}
 
@@ -65,7 +62,7 @@ export class PreferencesModule {
 				prefs[result.key] = result.value as T;
 			}
 
-			return { success: true, data: prefs };
+			return prefs;
 		}, 'GET_PREFERENCES_FAILED');
 	}
 

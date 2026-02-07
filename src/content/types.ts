@@ -218,7 +218,7 @@ export interface Schema {
 	revisionLimit?: number;
 	path?: string;
 	permissions?: RolePermissions;
-	livePreview?: boolean;
+	livePreview?: boolean | string;
 	status?: StatusType;
 	links?: Array<ContentTypes>;
 	fields: FieldDefinition[];
@@ -443,5 +443,5 @@ export interface TablePaginationProps {
 }
 
 /* AUTOGEN_START: ContentTypes */
-export type ContentTypes = 'Names' | 'Relation' | 'WidgetTest' | 'Menu' | 'Posts';
+export type ContentTypes = 'Posts' | 'WidgetTest' | 'Menu' | 'Names' | 'Burton' | 'Relation';
 /* AUTOGEN_END: ContentTypes */

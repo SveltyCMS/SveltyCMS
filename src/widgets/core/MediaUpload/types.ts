@@ -24,6 +24,12 @@ export interface MediaProps {
 	 */
 	allowedTypes?: string[];
 
+	/**
+	 * Placeholder text for the add media button.
+	 * @default '+ Add Media'
+	 */
+	placeholder?: string;
+
 	// Index signature to satisfy WidgetProps constraint
 	[key: string]: unknown;
 }
