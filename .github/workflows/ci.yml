@@ -113,6 +113,15 @@ jobs:
       - name: Build Production
         run: bun run build
 
+      - name: 🔍 Preview Smoke Test
+        run: |
+          nohup bun run preview > preview.log 2>&1 &
+          echo $! > preview.pid
+          bun x wait-on http://localhost:4173 -t 30000
+          curl -f http://localhost:4173 || (cat preview.log; exit 1)
+          kill $(cat preview.pid) || true
+          rm preview.pid preview.log
+
       - name: Remove build config
         run: rm -f config/private.ts
 

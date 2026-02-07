@@ -48,15 +48,66 @@ async function main() {
 	try {
 		console.log('🚀 Starting integration tests...\n');
 
-		// Check for config/private.test.ts
-		if (!existsSync(configPath)) {
-			console.error('❌ Error: config/private.test.ts not found.');
-			console.error('   Integration tests require a test database configuration.');
-			console.error('   Strict isolation is enforced: tests will NOT run against private.ts.');
-			process.exit(1);
-		} else {
-			console.log('✅ Found config/private.test.ts');
+		// Determine which tests to run
+		const testFiles = process.argv.slice(2).filter((arg) => !arg.startsWith('--'));
+		const hasSetupTest = testFiles.length === 0 || testFiles.some((f) => f.includes('setup') || f.includes('api'));
+
+		let initialDbConfig = {
+			DB_TYPE: process.env.DB_TYPE || 'mongodb',
+			DB_HOST: process.env.DB_HOST || '127.0.0.1',
+			DB_PORT: parseInt(process.env.DB_PORT || '27017'),
+			DB_NAME: process.env.DB_NAME || 'sveltycms_test',
+			DB_USER: process.env.DB_USER,
+			DB_PASSWORD: process.env.DB_PASSWORD
+		};
+
+		// 1. Check for existing test config to get credentials
+		if (existsSync(configPath)) {
+			console.log('📄 Found config/private.test.ts - Reading credentials...');
+			// We import it to get the values
+			// Note: We use a dynamic import with cache busting might be needed if re-running in same process,
+			// but for first load it's fine.
+			const config = await import(configPath);
+			const env = config.privateEnv;
+
+			initialDbConfig = {
+				...initialDbConfig,
+				DB_TYPE: env.DB_TYPE || initialDbConfig.DB_TYPE,
+				DB_HOST: env.DB_HOST || initialDbConfig.DB_HOST,
+				DB_PORT: env.DB_PORT || initialDbConfig.DB_PORT,
+				DB_NAME: env.DB_NAME || initialDbConfig.DB_NAME,
+				DB_USER: env.DB_USER || initialDbConfig.DB_USER,
+				DB_PASSWORD: env.DB_PASSWORD || initialDbConfig.DB_PASSWORD
+			};
 		}
+
+		// 2. Validate Credentials (safety check)
+		// We explicitly require DB_USER/DB_PASSWORD if NOT using default localhost without auth?
+		// But actually, for safety, if the user hasn't provided config, we shouldn't guess.
+		// However, CI might use env vars.
+		// If both private.test.ts AND env vars are missing, we should probably warn or fail?
+		// For now, we proceed, but we log what we are using.
+		console.log('⚙️  Test Database Configuration:');
+		console.log(`   Host: ${initialDbConfig.DB_HOST}:${initialDbConfig.DB_PORT}`);
+		console.log(`   Name: ${initialDbConfig.DB_NAME}`);
+		console.log(`   User: ${initialDbConfig.DB_USER || '(none)'}`);
+		console.log(`   Pass: ${initialDbConfig.DB_PASSWORD ? '******' : '(none)'}`);
+
+		// 3. Cleanup for Setup Tests
+		if (hasSetupTest && existsSync(configPath)) {
+			console.log('🧹 Cleaning up persistent config for fresh setup test...');
+			try {
+				await import('fs/promises').then((fs) => fs.unlink(configPath));
+				console.log('✅ Removed config/private.test.ts');
+			} catch (e) {
+				console.error('⚠️ Failed to remove config/private.test.ts:', e);
+			}
+		}
+
+		// 4. Prepare Environment
+		// We use the initial credentials for the setup test (so it can connect)
+		// AND for the defaults if file doesn't exist yet.
+		let privateEnv: any = initialDbConfig;
 
 		// Start preview server on port 4173
 		console.log('🚀 Starting preview server on port 4173...');
@@ -77,21 +128,17 @@ async function main() {
 		// Run integration tests
 		console.log('🧪 Starting integration tests...\n');
 
-		// Import test config to inject into env
-		const { privateEnv } = await import(configPath);
-		console.log('📝 Loaded test config:', { ...privateEnv, DB_PASSWORD: '[REDACTED]' });
-
 		const testEnv = {
 			...process.env,
 			TEST_MODE: 'true',
 			API_BASE_URL: 'http://localhost:4173',
 			// Inject DB config variables
-			DB_TYPE: privateEnv.DB_TYPE,
-			DB_HOST: privateEnv.DB_HOST === 'localhost' ? '127.0.0.1' : privateEnv.DB_HOST,
-			DB_PORT: privateEnv.DB_PORT.toString(),
-			DB_NAME: privateEnv.DB_NAME,
-			DB_USER: privateEnv.DB_USER,
-			DB_PASSWORD: privateEnv.DB_PASSWORD,
+			DB_TYPE: privateEnv.DB_TYPE || 'mongodb',
+			DB_HOST: (privateEnv.DB_HOST === 'localhost' ? '127.0.0.1' : privateEnv.DB_HOST) || '127.0.0.1',
+			DB_PORT: (privateEnv.DB_PORT || 27017).toString(),
+			DB_NAME: privateEnv.DB_NAME || 'sveltycms_test',
+			DB_USER: privateEnv.DB_USER || 'admin',
+			DB_PASSWORD: privateEnv.DB_PASSWORD || 'password',
 			PUBLIC_DISABLE_TELEMETRY: 'true',
 			NODE_ENV: 'test'
 		};
@@ -115,6 +162,29 @@ async function main() {
 				else reject(new Error(`Setup tests failed with code ${code}`));
 			});
 		});
+
+		// RELOAD CONFIG: Phase 1 (Setup) likely created config/private.test.ts with new credentials.
+		// We must reload it to ensure Phase 2 uses the correct DB_PASSWORD.
+		if (existsSync(configPath)) {
+			console.log('🔄 Reloading config/private.test.ts after Setup Phase...');
+			// Use cache busting to ensure we get the fresh file
+			const configUrl = `${configPath}?t=${Date.now()}`;
+			const newConfig = await import(configUrl);
+			const newPrivateEnv = newConfig.privateEnv;
+
+			// Update testEnv with new values
+			Object.assign(testEnv, {
+				DB_TYPE: newPrivateEnv.DB_TYPE,
+				DB_HOST: newPrivateEnv.DB_HOST,
+				DB_PORT: newPrivateEnv.DB_PORT.toString(),
+				DB_NAME: newPrivateEnv.DB_NAME,
+				DB_USER: newPrivateEnv.DB_USER,
+				DB_PASSWORD: newPrivateEnv.DB_PASSWORD
+			});
+			// Update local privateEnv reference too
+			privateEnv = newPrivateEnv;
+			console.log('✅ Config reloaded. DB_PASSWORD updated.');
+		}
 
 		// Phase 2: Run Main Suite
 

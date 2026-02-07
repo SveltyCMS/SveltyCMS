@@ -37,40 +37,69 @@ export async function cleanupTestDatabase(): Promise<void> {
 	}
 
 	// 3. Drop Test Database
-	// Note: basic drop logic, ideally use common DB helper if available
-	const { MongoClient } = await import('mongodb');
+	if (process.env.SKIP_DB_CLEANUP === 'true') {
+		console.log('[cleanupTestDatabase] Skipping DB cleanup (SKIP_DB_CLEANUP=true).');
+		return;
+	}
+
+	// Use mongoose since it works for the app, creating consistent behavior
+	const mongooseModule = await import('mongoose');
+	const mongoose = mongooseModule.default || mongooseModule;
 	const dbName = process.env.DB_NAME || 'sveltycms_test';
 
 	let uri = process.env.MONGODB_URI;
 	if (!uri && process.env.DB_USER && process.env.DB_PASSWORD) {
 		let host = process.env.DB_HOST || 'localhost';
-		if (host === 'localhost') host = '127.0.0.1'; // Avoid DNS issues
 		const port = process.env.DB_PORT || '27017';
 		uri = `mongodb://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${host}:${port}/${dbName}?authSource=admin`;
 	}
 	if (!uri) {
-		let host = process.env.DB_HOST || '127.0.0.1';
-		if (host === 'localhost') host = '127.0.0.1';
+		let host = process.env.DB_HOST || 'localhost';
 		const port = process.env.DB_PORT || '27017';
 		uri = `mongodb://${host}:${port}/${dbName}`;
 	}
 
-	// Force hardcoded URI to rule out Env var issues - REMOVED, using generated URI with directConnection
-	// uri = `mongodb://127.0.0.1:27017/${dbName}`;
+	if (!uri.includes('directConnection=')) {
+		uri += uri.includes('?') ? '&directConnection=true' : '?directConnection=true';
+	}
 
-	const client = new MongoClient(uri, {
-		serverSelectionTimeoutMS: 5000
-	});
+	const safeUri = uri.replace(/:([^:@]+)@/, ':****@');
+	console.log(`[cleanupTestDatabase] Connecting to: ${safeUri}`);
+
 	try {
-		await client.connect();
-		console.log('[cleanupTestDatabase] Connected. Dropping DB...');
-		await client.db(dbName).dropDatabase();
-		console.log('[cleanupTestDatabase] DB Dropped.');
+		// Set strict options to avoid hanging
+		await mongoose.connect(uri, {
+			serverSelectionTimeoutMS: 5000,
+			connectTimeoutMS: 5000,
+			socketTimeoutMS: 5000,
+			family: 4 // Force IPv4 to avoid localhost issues
+		});
+
+		// Wait for ready state
+		let retries = 0;
+		while (mongoose.connection.readyState !== 1 && retries < 5) {
+			await new Promise((r) => setTimeout(r, 200));
+			retries++;
+		}
+
+		console.log(`[cleanupTestDatabase] Connected. State: ${mongoose.connection.readyState}`);
+
+		if (mongoose.connection.db) {
+			await mongoose.connection.db.dropDatabase();
+			console.log('[cleanupTestDatabase] DB Dropped.');
+		} else {
+			console.warn('[cleanupTestDatabase] Warning: mongoose.connection.db is undefined despite readyState 1.');
+		}
 	} catch (e: any) {
-		console.warn('Warning: Failed to drop test database (non-fatal):', e.message);
+		console.warn('[cleanupTestDatabase] Warning: Failed to drop test database:', e.message);
 	} finally {
-		await client.close();
-		console.log('[cleanupTestDatabase] Client closed.');
+		// Always disconnect
+		try {
+			await mongoose.disconnect();
+			console.log('[cleanupTestDatabase] Disconnected.');
+		} catch (e) {
+			// ignore disconnect error
+		}
 	}
 }
 

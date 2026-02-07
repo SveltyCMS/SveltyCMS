@@ -48,6 +48,7 @@ import { SESSION_COOKIE_NAME } from '@src/databases/auth/constants';
 
 const API_BASE_URL = getApiBaseUrl();
 
+// Verify what we are sending
 const testDbConfig: DatabaseConfig = {
 	type: 'mongodb',
 	host: process.env.DB_HOST || 'localhost',
