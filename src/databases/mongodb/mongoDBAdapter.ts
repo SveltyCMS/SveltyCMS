@@ -370,13 +370,13 @@ export class MongoDBAdapter implements IDBAdapter {
 				nodes: {
 					getStructure: (m, f, b) => this._wrapResult(() => contentMethods.getStructure(m, f, b)),
 					upsertContentStructureNode: (n) => this._wrapResult(() => contentMethods.upsertNodeByPath(n)),
-					create: (n) => this.crud.insert('content_nodes', n),
-					createMany: (n) => this.crud.insertMany('content_nodes', n),
-					update: (p, c) => this.crud.update('content_nodes', p as any, c),
+					create: (n) => this.crud.insert('system_content_structure', n),
+					createMany: (n) => this.crud.insertMany('system_content_structure', n),
+					update: (p, c) => this.crud.update('system_content_structure', p as any, c),
 					bulkUpdate: (u) => this._wrapResult(() => contentMethods.bulkUpdateNodes(u)) as any,
 					fixMismatchedNodeIds: (n) => contentMethods.fixMismatchedNodeIds(n),
-					delete: (p) => this.crud.delete('content_nodes', p as any),
-					deleteMany: (p) => this.crud.deleteMany('content_nodes', { path: { $in: p } } as any),
+					delete: (p) => this.crud.delete('system_content_structure', p as any),
+					deleteMany: (p) => this.crud.deleteMany('system_content_structure', { path: { $in: p } } as any),
 					reorder: () => this._wrapResult(async () => [] as any),
 					reorderStructure: (i) =>
 						this._wrapResult(async () => {
@@ -604,6 +604,14 @@ export class MongoDBAdapter implements IDBAdapter {
 						this._cachedSystemCore = new MongoSystemMethods(SystemPreferencesModel, SystemSettingModel);
 					}
 					return this._wrapResult(() => this._cachedSystemCore.getMany(k, s, u) as any);
+				},
+				getByCategory: async (c, s, u) => {
+					if (!this._cachedSystemCore) {
+						const { MongoSystemMethods } = await import('./methods/systemMethods');
+						const { SystemPreferencesModel, SystemSettingModel } = await import('./models');
+						this._cachedSystemCore = new MongoSystemMethods(SystemPreferencesModel, SystemSettingModel);
+					}
+					return this._wrapResult(() => this._cachedSystemCore.getByCategory(c, s, u) as any);
 				},
 				set: async (k, v, s, u) => {
 					if (!this._cachedSystemCore) {

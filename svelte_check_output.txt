@@ -1,0 +1,5 @@
+$ svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --threshold error
+Loading svelte-check in workspace: /var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS
+Getting Svelte diagnostics...
+
+svelte-check found 0 errors and 0 warnings

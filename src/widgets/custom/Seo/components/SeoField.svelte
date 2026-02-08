@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Locale } from '@src/paraglide/runtime';
+	import type { FieldInstance } from '@src/content/types';
 	import { tokenTarget } from '@src/services/token/tokenTarget';
 
 	// Lucide Icons
@@ -19,7 +20,7 @@
 		translated?: boolean;
 		lang: Locale | 'default';
 		translationPct?: number;
-		field: any;
+		field: FieldInstance;
 		onUpdate: (value: string) => void;
 		icon?: Snippet;
 	}
@@ -99,7 +100,7 @@
 				{placeholder}
 				bind:value
 				oninput={(e) => onUpdate((e.currentTarget as HTMLTextAreaElement).value)}
-				use:tokenTarget={{ name: field.db_fieldName, label: field.label, collection: field.collection }}
+				use:tokenTarget={{ name: field.db_fieldName, label: field.label, collection: field.collection as string }}
 			></textarea>
 		{:else}
 			<input
@@ -110,7 +111,7 @@
 				{placeholder}
 				bind:value
 				oninput={(e) => onUpdate((e.currentTarget as HTMLInputElement).value)}
-				use:tokenTarget={{ name: field.db_fieldName, label: field.label, collection: field.collection }}
+				use:tokenTarget={{ name: field.db_fieldName, label: field.label, collection: field.collection as string }}
 			/>
 		{/if}
 	</div>

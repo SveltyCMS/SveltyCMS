@@ -58,7 +58,7 @@ export function validateId(id: string): boolean {
  * - All other names are prefixed with `collection_` unless already present.
  */
 export function normalizeCollectionName(collection: string): string {
-	if (collection.startsWith('media_') || collection.startsWith('auth_')) {
+	if (collection.startsWith('media_') || collection.startsWith('auth_') || collection.startsWith('system_')) {
 		return collection;
 	}
 	return collection.startsWith('collection_') ? collection : `collection_${collection}`;

@@ -1,6 +1,13 @@
 /**
  * @file src/stores/system/state.ts
  * @description Core state management for the SveltyCMS system.
+ *
+ * Features:
+ * - Centralized state management for the SveltyCMS system
+ * - Service health monitoring and state transitions
+ * - Performance metrics tracking and anomaly detection
+ * - Self-learning state machine with adaptive calibration
+ * - Setup benchmarking and performance tracking
  */
 
 import { writable, derived, get } from 'svelte/store';
@@ -9,7 +16,7 @@ import { logger } from '@utils/logger';
 import type { SystemStateStore, SystemState, ServiceHealth, ServiceStatus, ServicePerformanceMetrics, ServiceName } from './types';
 export type { ServiceName };
 import { initialState } from './config';
-import { updateUptimeMetrics, trackStateTransition, calibrateAnomalyThresholds, detectAnomalies } from './metrics';
+import { updateUptimeMetrics, trackStateTransition, calibrateAnomalyThresholds, detectAnomalies, saveCurrentMetrics } from './metrics';
 
 // Create the writable store
 export const systemStateStore: Writable<SystemStateStore> = writable(initialState);
@@ -161,6 +168,9 @@ export function updateServiceHealth(serviceName: keyof SystemStateStore['service
 	const currentMetrics = updatedService.metrics;
 	if (currentMetrics.healthCheckCount > 0 && currentMetrics.healthCheckCount % 10 === 0) {
 		calibrateAnomalyThresholds(serviceName, systemStateStore);
+
+		// Proactively save metrics after calibration to ensure we remember the "learned" thresholds
+		saveCurrentMetrics(systemStateStore);
 	}
 
 	// Detect and report anomalies

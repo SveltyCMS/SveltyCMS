@@ -98,6 +98,15 @@ export function initPublicEnv(data: PublicEnv): void {
 }
 
 /**
+ * Updates the public environment store with partial data.
+ * Useful for instant UI updates after configuration changes.
+ */
+export function updatePublicEnv(data: Partial<PublicEnv>): void {
+	Object.assign(state, data);
+	logger.debug('Public environment updated locally');
+}
+
+/**
  * Type-safe getter for a specific public setting.
  */
 export function getPublicSetting<K extends keyof PublicEnv>(key: K): PublicEnv[K] {

@@ -20,7 +20,7 @@
 	import { browser } from '$app/environment';
 
 	// Skeleton v4
-	import { app } from '@stores/store.svelte';
+	import { app, toaster } from '@stores/store.svelte';
 	import { screen } from '@stores/screenSizeStore.svelte.ts';
 	import { Portal } from '@skeletonlabs/skeleton-svelte';
 	import ToastManager from '@components/system/ToastManager.svelte';
@@ -85,36 +85,43 @@
 		initializeDarkMode();
 
 		isMounted = true;
+	});
 
-		// Check for flash messages (e.g., from login redirect)
+	/**
+	 * Reactive Flash Message Detection
+	 * Watches for URL changes and checks sessionStorage for "flashMessage"
+	 * This ensures toasts appear correctly even during SPA navigation (goto).
+	 */
+	$effect(() => {
+		if (!browser || !isMounted) return;
+
+		// Depend on page.url to trigger this effect on every navigation
+		page.url.pathname;
+
 		const flashMessageJson = sessionStorage.getItem('flashMessage');
 		if (flashMessageJson) {
+			console.log('[RootLayout] Flash message detected:', flashMessageJson);
 			try {
 				const flashMessage = JSON.parse(flashMessageJson);
+				console.log('[RootLayout] Parsed flash message:', flashMessage);
 				sessionStorage.removeItem('flashMessage');
 
-				// Import toaster dynamically to avoid circular deps (though it's available in stores)
-				// We can also import it directly if we want, but dynamic is safer for layout
-				import('@stores/store.svelte').then(({ toaster }) => {
-					const opts = {
-						title: flashMessage.title,
-						description: flashMessage.description,
-						duration: flashMessage.duration || 4000
-					};
+				const opts = {
+					title: flashMessage.title,
+					description: flashMessage.description, // Use 'description' instead of 'message' for Skeleton v4
+					type: flashMessage.type,
+					duration: flashMessage.duration || 5000
+				};
 
-					// Small delay to ensure ToastManager is ready
-					setTimeout(() => {
-						if (flashMessage.type === 'success') {
-							toaster.success(opts);
-						} else if (flashMessage.type === 'warning') {
-							toaster.warning(opts);
-						} else if (flashMessage.type === 'error') {
-							toaster.error(opts);
-						} else {
-							toaster.info(opts);
-						}
-					}, 100);
-				});
+				// Small delay to ensure render cycle is complete
+				setTimeout(() => {
+					console.log('[RootLayout] Triggering toast:', flashMessage.type);
+					// Use static toaster import
+					if (flashMessage.type === 'success') toaster.success(opts);
+					else if (flashMessage.type === 'warning') toaster.warning(opts);
+					else if (flashMessage.type === 'error') toaster.error(opts);
+					else toaster.info(opts);
+				}, 100);
 			} catch (e) {
 				console.error('Failed to parse flash message:', e);
 				sessionStorage.removeItem('flashMessage');
@@ -218,10 +225,10 @@
 	<title>{siteName}</title>
 </svelte:head>
 
-{#key currentLocale}
-	<DialogManager />
-	<ToastManager position="bottom-center" />
+<DialogManager />
+<ToastManager position="bottom-center" />
 
+{#key currentLocale}
 	{#if screen.isMobile && !page.url.pathname.includes('/setup')}
 		<Portal>
 			<FloatingNav />

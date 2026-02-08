@@ -402,6 +402,7 @@
 				       dark:border-transparent dark:bg-surface-500
 				       dark:text-surface-200 dark:hover:bg-surface-400
 				       {node.children ? '' : 'bg-surface-300 dark:bg-surface-700'}
+				       {selectedId === node.id ? 'bg-primary-500/20 border-primary-500/50 dark:bg-primary-500/30' : ''}
 				       {draggedNode?.id === node.id ? 'opacity-50' : ''}
 				       {dragOverNode?.id === node.id && dropPosition === 'inside' ? 'border-primary-500 bg-primary-100 dark:bg-primary-900' : ''}
 				       {allowDragDrop && node.nodeType === 'virtual' && node.id !== 'root' ? 'cursor-move' : ''}"
@@ -440,7 +441,7 @@
 					{/if}
 
 					<!-- Badge overlay -->
-					{#if showBadges && !node.isExpanded && node.badge?.count && node.badge.count > 0}
+					{#if showBadges && node.badge?.count && node.badge.count > 0}
 						<div
 							class="absolute right-0 top-0 flex h-5 min-w-5 items-center justify-center rounded px-1.5 text-xs font-medium text-white shadow-sm
 							       {node.badge.color || 'bg-tertiary-500 dark:bg-primary-500'}"

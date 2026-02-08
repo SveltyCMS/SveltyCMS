@@ -17,11 +17,11 @@ import type { WidgetDefinition, WidgetFactory } from '@widgets/types';
 type WidgetProps = Record<string, unknown>;
 
 export type FieldConfig<TProps extends WidgetProps = WidgetProps> = {
-	widget?: any;
+	widget?: WidgetDefinition;
 	label?: string;
 	db_fieldName?: string;
-	permissions?: any;
-	[key: string]: any;
+	permissions?: Partial<Record<'read' | 'write', string[]>>;
+	[key: string]: unknown;
 } & TProps;
 
 /**

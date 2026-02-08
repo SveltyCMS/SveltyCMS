@@ -197,8 +197,8 @@ export const widgetProxy = new Proxy(registry, {
 		}
 
 		// Handle registry methods
-		if (prop in target && typeof (target as any)[prop] === 'function') {
-			return (target as any)[prop].bind(target);
+		if (prop in target && typeof target[prop as keyof WidgetRegistryImpl] === 'function') {
+			return (target[prop as keyof WidgetRegistryImpl] as Function).bind(target);
 		}
 
 		// Handle widget access

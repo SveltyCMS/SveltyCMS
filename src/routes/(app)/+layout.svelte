@@ -150,6 +150,7 @@
 
 	// Initialize avatar from user data
 	function initializeUserAvatar(user: User | null): void {
+		console.log('[AppLayout] initializeUserAvatar for user:', user?.username || 'Guest');
 		if (!user) {
 			app.avatarSrc = '/Default_User.svg';
 			return;
@@ -160,6 +161,7 @@
 		} else {
 			app.avatarSrc = '/Default_User.svg';
 		}
+		console.log('[AppLayout] Avatar source set to:', app.avatarSrc);
 	}
 
 	// =============================================
@@ -167,6 +169,7 @@
 	// =============================================
 
 	onMount(() => {
+		console.log('[AppLayout] Mounted. User:', data.user?.username || 'None');
 		if (!Array.isArray(data.contentStructure)) {
 			globalLoadingStore.startLoading(loadingOperations.initialization);
 		}

@@ -153,20 +153,33 @@ export const actions = {
 			const { invalidateSetupCache } = await import('@utils/setupCheck');
 			invalidateSetupCache(true);
 
-			// 2. Start parallel seeding
-			const { initSystemFromSetup } = await import('./seed');
+			// 2. Start background seeding (Split Strategy)
+			// Critical phases (roles/settings) are tracked by startSeeding (blocking completeSetup)
+			// Content phases are tracked by startBackgroundWork (non-blocking)
+			const { setupManager } = await import('./setupManager');
+			const { initSystemFast } = await import('./seed');
 			const { getSetupDatabaseAdapter } = await import('./utils');
 
 			const { dbAdapter } = await getSetupDatabaseAdapter(dbConfig);
-			const seedResults = await initSystemFromSetup(dbAdapter);
+
+			// Get split promises
+			const { criticalPromise, backgroundTask } = await initSystemFast(dbAdapter);
+
+			// Track critical seeding (blocking)
+			setupManager.startSeeding(async () => {
+				await criticalPromise;
+
+				// Queue background content seeding (non-blocking)
+				// This allows completeSetup to return immediately after critical data is ready
+				setupManager.startBackgroundWork(backgroundTask);
+			});
 
 			return {
 				success: true,
-				message: 'Database initialized successfully! ✨',
-				...seedResults
+				message: 'Database configuration saved. Seeding started! 🚀'
 			};
 		} catch (err) {
-			logger.error('Seeding failed:', err);
+			logger.error('Database config save failed:', err);
 			return { success: false, error: err instanceof Error ? err.message : String(err) };
 		}
 	},
@@ -175,7 +188,24 @@ export const actions = {
 	 * Completes the setup
 	 */
 	completeSetup: async ({ request, cookies }) => {
+		const setupStartTime = performance.now();
 		logger.info('🚀 Action: completeSetup called');
+
+		// Await CRITICAL seeding only (roles/settings/themes)
+		// Background content seeding continues independently
+		try {
+			const { setupManager } = await import('./setupManager');
+			const seedingPromise = setupManager.waitTillDone();
+			if (seedingPromise) {
+				logger.info('⏳ completeSetup: Waiting for critical seeding (roles/settings)...');
+				await seedingPromise;
+				logger.info('✅ completeSetup: Critical seeding finished');
+			}
+		} catch (seedError) {
+			logger.error('❌ completeSetup: Seeding failed:', seedError);
+			// Continue, as retry logic or partial state might allow completion
+		}
+
 		const formData = await request.formData();
 		const { database, admin, system = {} } = JSON.parse(formData.get('data') as string);
 
@@ -276,8 +306,13 @@ export const actions = {
 				logger.warn('Failed to persist some system settings to DB (non-critical):', dbError);
 			}
 
+			// 3.2 Invalidate setup cache so the next system checks see the finished setup
+			const { invalidateSetupCache } = await import('@src/utils/setupCheck');
+			invalidateSetupCache(true);
+
 			// Initialize global system
 			const { initializeWithConfig } = await import('@src/databases/db');
+
 			await initializeWithConfig({
 				DB_TYPE: database.type,
 				DB_HOST: database.host,
@@ -293,60 +328,44 @@ export const actions = {
 				REDIS_PASSWORD: system.redisPassword
 			} as any);
 
-			// PRE-WARM CACHE (Fire-and-forget optimization)
-			// Trigger background fetch of first collection so it's ready when user redirects
-			(async () => {
-				try {
-					const { contentManager } = await import('@src/content/ContentManager');
-					const { collectionService } = await import('@src/services/CollectionService');
+			// OPTIMIZATION: Initialize ContentManager IMMEDIATELY with skipReconciliation: true
+			// This prevents the 4s blocking delay on the subsequent redirect request.
+			// We trust the database state because we just seeded it.
+			try {
+				logger.info('🚀 [completeSetup] Pre-initializing ContentManager (fast mode)...');
+				const { contentManager } = await import('@src/content/ContentManager');
+				// skipReconciliation = true
+				await contentManager.initialize(undefined, true);
+				logger.info('✅ [completeSetup] ContentManager pre-initialized successfully.');
+			} catch (cmError) {
+				logger.warn('⚠️ [completeSetup] ContentManager pre-init failed (non-critical):', cmError);
+			}
 
-					// Determine user object for cache key context
-					let userForCache = existingUser;
-					if (!userForCache && 'authResult' in (global as any)) {
-						// Hack: we don't have easy access to authResult due to scoping,
-						// but effectively we can assume the user is the admin we just created.
-						// A better way is to fetch it again or move variable scope.
-						// Given the complexity of moving scope in this large function,
-						// let's just fetch the user by ID from session if possible?
-						// Or just use the known data since we have admin.email and 'admin' role.
-					}
+			// PRE-WARM CACHE REMOVED (Caused Race Conditions)
+			// We effectively rely on lazy loading upon the first request to /Collections
+			// The background content seeding (setupManager) handles the data.
 
-					// Easiest robust way: construct a minimal user object sufficient for modifyRequest
-					const adminUser = {
-						_id: session.user_id, // We have session._id which is usually NOT user_id, check session structure.
-						// setupAuth.createSession returns session with user_id.
-						username: admin.username,
-						email: admin.email,
-						role: 'admin',
-						locale: 'en', // Default
-						avatar: ''
-					};
-
-					// Initialize ContentManager (lazy)
-					await contentManager.initialize(undefined);
-					const collections = await contentManager.getCollections();
-
-					if (collections.length > 0) {
-						const firstCollection = collections[0];
-						logger.info(`🔥 Pre-warming cache for collection: ${firstCollection.name}`);
-
-						await collectionService.getCollectionData({
-							collection: firstCollection,
-							language: 'en', // Default setup language
-							user: adminUser as any,
-							tenantId: undefined
-						});
-					}
-				} catch (warmError) {
-					logger.warn('Cache pre-warm failed (non-critical):', warmError);
-				}
-			})();
+			const setupDuration = performance.now() - setupStartTime;
+			try {
+				const { performanceService } = await import('@src/services/PerformanceService');
+				await performanceService.recordBenchmark('setup_completion', setupDuration);
+			} catch (e) {
+				logger.warn('Failed to record completion benchmark:', e);
+			}
 
 			return {
 				success: true,
 				message: 'Setup complete! 🎉',
 				redirectPath: '/en/Collections',
-				sessionId: session._id
+				sessionId: session._id,
+				publicSettings: {
+					SITE_NAME: system.siteName || 'SveltyCMS',
+					DEFAULT_LANGUAGE: 'en',
+					MULTI_TENANT: system.multiTenant,
+					DEMO: system.demoMode,
+					USE_REDIS: system.useRedis,
+					PKG_VERSION: pkgVersion
+				}
 			};
 		} catch (err) {
 			console.error('Setup completion failed detailed:', err); // Use console.error for immediate feedback in dev

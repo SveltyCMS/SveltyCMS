@@ -707,7 +707,14 @@ export class SeoAnalyzer {
 	}
 }
 
-export async function analyzeSeo(data: any, content: string): Promise<SeoAnalysisResult> {
+interface SeoEntrySource {
+	title?: string;
+	description?: string;
+	focusKeyword?: string;
+	canonicalUrl?: string;
+}
+
+export async function analyzeSeo(data: SeoEntrySource, content: string): Promise<SeoAnalysisResult> {
 	const config: SeoAnalysisConfig = {
 		focusKeyword: data.focusKeyword || '',
 		locale: 'en',

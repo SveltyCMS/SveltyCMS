@@ -5,6 +5,7 @@ Displays logo, site name, language selector, and theme toggle.
 -->
 <script lang="ts">
 	import SiteName from '@components/SiteName.svelte';
+	import VersionCheck from '@components/VersionCheck.svelte';
 	import { Menu, Portal } from '@skeletonlabs/skeleton-svelte';
 	import SystemTooltip from '@components/system/SystemTooltip.svelte';
 	import ThemeToggle from '@components/ThemeToggle.svelte';
@@ -130,8 +131,16 @@ Displays logo, site name, language selector, and theme toggle.
 			/>
 		</div>
 
-		<p class="w-full text-center text-sm dark:text-white sm:text-base">
-			{m.setup_heading_subtitle({ siteName: siteName || 'SveltyCMS' })}
-		</p>
+		<!-- Subtitle & Version -->
+		<div class="relative w-full py-1">
+			<p class="w-full text-center text-sm dark:text-white sm:text-base">
+				{m.setup_heading_subtitle({ siteName: siteName || 'SveltyCMS' })}
+			</p>
+
+			<!-- Version Badge (Visible on mobile/tablet only) -->
+			<div class="absolute right-0 top-1/2 flex -translate-y-1/2 items-center lg:hidden">
+				<VersionCheck compact={true} />
+			</div>
+		</div>
 	</div>
 </div>

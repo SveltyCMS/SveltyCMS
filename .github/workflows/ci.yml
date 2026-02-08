@@ -115,9 +115,9 @@ jobs:
 
       - name: 🔍 Preview Smoke Test
         run: |
-          nohup bun run preview > preview.log 2>&1 &
+          nohup bun run preview --host > preview.log 2>&1 &
           echo $! > preview.pid
-          bun x wait-on http://localhost:4173 -t 30000
+          bun x wait-on http://localhost:4173 -t 90000
           curl -f http://localhost:4173 || (cat preview.log; exit 1)
           kill $(cat preview.pid) || true
           rm preview.pid preview.log
@@ -227,7 +227,7 @@ jobs:
           curl -f http://localhost:4173 || (cat preview.log; exit 1)
 
       - name: 🟢 Run Setup API Test
-        run: bun test tests/bun/api/setup.test.ts
+        run: bun test tests/bun/api/setup-actions.test.ts
         env:
           TEST_MODE: 'true'
           API_BASE_URL: 'http://localhost:4173'
@@ -252,10 +252,10 @@ jobs:
           retention-days: 7
 
   # ------------------------------------------------------------------
-  # 4. Integration Tests - MariaDB
+  # 4. Integration Tests - MariaDB (Beta)
   # ------------------------------------------------------------------
   integration-tests-mariadb:
-    name: 🔌 Integration (MariaDB)
+    name: 🔌 Integration (MariaDB) [Beta]
     needs: build
     timeout-minutes: 15
     runs-on: ubuntu-latest
@@ -602,7 +602,7 @@ jobs:
   # 7. E2E Tests - MariaDB
   # ------------------------------------------------------------------
   e2e-tests-mariadb:
-    name: 🎭 E2E (MariaDB)
+    name: 🎭 E2E (MariaDB) [Beta]
     needs: build
     timeout-minutes: 30
     runs-on: ubuntu-latest

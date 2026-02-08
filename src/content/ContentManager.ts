@@ -65,6 +65,7 @@ class ContentManager {
 	// State for robust initialization, preventing race conditions
 	private initState: 'uninitialized' | 'initializing' | 'initialized' | 'error' = 'uninitialized';
 	private initPromise: Promise<void> | null = null;
+	private initializedInSetupMode = false;
 
 	// --- Unified Data Structures (Single Source of Truth) ---
 	/** Primary map holding the complete state. Key is the node's _id. */
@@ -219,10 +220,23 @@ class ContentManager {
 	}
 
 	// Initializes the ContentManager, handling race conditions and loading data
-	public async initialize(tenantId?: string): Promise<void> {
-		// Already initialized - return immediately
+	public async initialize(tenantId?: string, skipReconciliation: boolean = false): Promise<void> {
+		// Already initialized - handle transition from setup mode
 		if (this.initState === 'initialized') {
-			return;
+			const { isSetupComplete } = await import('@utils/setupCheck');
+			if (this.initializedInSetupMode && isSetupComplete()) {
+				logger.info('[ContentManager] Setup completed after previous initialization. Forcing re-initialization...');
+				this.initState = 'uninitialized';
+				this.initPromise = null;
+				this.initializedInSetupMode = false;
+
+				// Optimization: We just finished setup seeding, so we trust the DB content.
+				// Skipping reconciliation saves ~4s of "Single-pass bulk upsert" overhead.
+				skipReconciliation = true;
+			} else {
+				// Truly already initialized
+				return;
+			}
 		}
 
 		// Already initializing - wait for existing initialization
@@ -232,8 +246,8 @@ class ContentManager {
 		}
 
 		// Start new initialization
-		logger.info('[ContentManager] Starting initialization', { tenantId });
-		this.initPromise = this._doInitialize(tenantId);
+		logger.info('[ContentManager] Starting initialization', { tenantId, skipReconciliation });
+		this.initPromise = this._doInitialize(tenantId, skipReconciliation);
 
 		try {
 			await this.initPromise;
@@ -245,7 +259,7 @@ class ContentManager {
 	}
 
 	// Core initialization logic
-	private async _doInitialize(tenantId?: string): Promise<void> {
+	private async _doInitialize(tenantId?: string, skipReconciliation: boolean = false): Promise<void> {
 		const { isSetupComplete } = await import('@utils/setupCheck');
 
 		// Guard: If setup is not complete, skip heavy content loading.
@@ -253,6 +267,7 @@ class ContentManager {
 		if (!isSetupComplete()) {
 			logger.info('Setup not complete. ContentManager skipping initialization (SETUP MODE).');
 			this.initState = 'initialized'; // Mark as initialized to prevent blocking
+			this.initializedInSetupMode = true; // Track that we are in setup-limited mode
 			this.metrics.initializationTime = 0;
 			return;
 		}
@@ -275,7 +290,7 @@ class ContentManager {
 				}
 
 				// 2. If cache fails, perform a full load from source (files and DB).
-				await this._fullReload(tenantId);
+				await this._fullReload(tenantId, skipReconciliation);
 
 				this.initState = 'initialized';
 				this.metrics.initializationTime = performance.now() - startTime;
@@ -330,7 +345,7 @@ class ContentManager {
 					collections.push(node.collectionDef);
 				}
 			}
-			return collections;
+			return collections.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 		});
 	}
 
@@ -1465,9 +1480,9 @@ class ContentManager {
 	// PRIVATE METHODS (Core Logic)
 	// ===================================================================================
 
-	private async _fullReload(tenantId?: string): Promise<void> {
+	private async _fullReload(tenantId?: string, skipReconciliation: boolean = false): Promise<void> {
 		const schemas = await this._scanAndProcessFiles();
-		await this._reconcileAndBuildStructure(schemas, tenantId);
+		await this._reconcileAndBuildStructure(schemas, tenantId, skipReconciliation);
 		await this._populateCache(tenantId);
 	}
 
@@ -1485,6 +1500,10 @@ class ContentManager {
 
 		const files = await this._recursivelyGetFiles(compiledDirectoryPath);
 		const jsFiles = files.filter((file) => file.endsWith('.js'));
+
+		// Initialize widget registry once before processing schemas
+		const { widgetRegistryService } = await import('@src/services/WidgetRegistryService');
+		await widgetRegistryService.initialize();
 
 		// Process in batches to avoid memory spikes
 		const BATCH_SIZE = 10;
@@ -1528,7 +1547,7 @@ class ContentManager {
 	}
 
 	// Synchronizes schemas from files with the database and builds the in-memory maps
-	private async _reconcileAndBuildStructure(schemas: Schema[], tenantId?: string): Promise<void> {
+	private async _reconcileAndBuildStructure(schemas: Schema[], tenantId?: string, skipReconciliation: boolean = false): Promise<void> {
 		const dbAdapter = await getDbAdapter();
 
 		// In setup mode (no database), just build in-memory structure from files only
@@ -1538,42 +1557,94 @@ class ContentManager {
 			return;
 		}
 
-		const { generateCategoryNodesFromPaths } = await import('./utils');
-		const fileCategoryNodes = generateCategoryNodesFromPaths(schemas);
-
-		logger.debug('--- RECONCILE: SCHEMAS FROM FS ---');
-		logger.debug(JSON.stringify(schemas.map((s) => s.path)));
-		logger.debug('---------------------------------');
-
 		if (dbAdapter.ensureContent) {
 			await dbAdapter.ensureContent();
 		}
-		const dbResult = await dbAdapter.content.nodes.getStructure('flat', { tenantId });
 
-		const dbNodeMap = new Map<string, ContentNode>(
-			dbResult.success
-				? dbResult.data.filter((node: ContentNode) => typeof node.path === 'string').map((node: ContentNode) => [node.path as string, node])
-				: []
-		);
+		let operations: ContentNode[] = [];
 
-		// Build operations with parentId resolution in a single pass
-		const operations = this._buildReconciliationOperations(schemas, fileCategoryNodes, dbNodeMap);
+		// CRITICAL: Mongoose models must ALWAYS be registered, even if we skip reconciliation.
+		// Otherwise we cannot query collections.
+		const modelCreationStart = performance.now();
+		const collectionsToProcess = schemas.filter((s) => 'fields' in s);
+		const BATCH_SIZE = 10;
 
-		// Ensure all Mongoose models are created/registered
-		// This is critical for CRUD operations to work!
-		for (const schema of schemas) {
-			try {
-				if ('fields' in schema) {
-					await dbAdapter.collection.createModel(schema);
-				}
-			} catch (error) {
-				logger.error(`Failed to register model for collection ${schema.name}:`, error);
-			}
+		for (let i = 0; i < collectionsToProcess.length; i += BATCH_SIZE) {
+			const batch = collectionsToProcess.slice(i, i + BATCH_SIZE);
+			await Promise.all(
+				batch.map(async (schema) => {
+					try {
+						await dbAdapter.collection.createModel(schema);
+					} catch (error) {
+						logger.error(`Failed to register model for collection ${schema.name}:`, error);
+					}
+				})
+			);
 		}
+		logger.debug(`[ContentManager] Registration of ${collectionsToProcess.length} models took ${this._getElapsedTime(modelCreationStart)}`);
 
-		// Single bulk upsert with all data including parentIds
-		if (operations.length > 0) {
-			await this._bulkUpsertWithParentIds(dbAdapter, operations, tenantId);
+		if (skipReconciliation) {
+			logger.info('[ContentManager] Skipping reconciliation (trusting DB state from seed).');
+			// We still need "operations" to help _loadFinalStructure map Schemas to Nodes.
+			// Construct a minimal set from schemas.
+			const { generateCategoryNodesFromPaths } = await import('./utils');
+			const fileCategoryNodes = generateCategoryNodesFromPaths(schemas);
+
+			// Map file categories
+			for (const cat of fileCategoryNodes.values()) {
+				operations.push(cat as ContentNode);
+			}
+			// Map file collections
+			for (const schema of schemas) {
+				operations.push({
+					_id: schema._id, // Might get normalized later
+					path: schema.path,
+					name: schema.name,
+					collectionDef: schema,
+					nodeType: 'collection'
+				} as any);
+			}
+		} else {
+			const { generateCategoryNodesFromPaths } = await import('./utils');
+			const fileCategoryNodes = generateCategoryNodesFromPaths(schemas);
+
+			logger.trace('--- RECONCILE: SCHEMAS FROM FS ---');
+			logger.trace(JSON.stringify(schemas.map((s) => s.path)));
+			logger.trace('---------------------------------');
+
+			const dbResult = await dbAdapter.content.nodes.getStructure('flat', { tenantId });
+
+			const dbNodeMap = new Map<string, ContentNode>(
+				dbResult.success
+					? dbResult.data.filter((node: ContentNode) => typeof node.path === 'string').map((node: ContentNode) => [node.path as string, node])
+					: []
+			);
+
+			// Build operations with parentId resolution in a single pass
+			operations = this._buildReconciliationOperations(schemas, fileCategoryNodes, dbNodeMap);
+
+			// CRITICAL FIX: Resolve ID conflicts before upsert
+			// Use dbNodeMap which is already built in line 1553 from `dbResult`
+			const nodesToDelete: string[] = [];
+			for (const op of operations) {
+				if (!op.path) continue;
+				const existingNode = dbNodeMap.get(op.path);
+				// op._id might be ObjectId or string, ensure string comparison
+				if (existingNode && existingNode._id.toString() !== op._id.toString()) {
+					logger.warn(`[ContentManager] ID Mismatch for path="${op.path}": DB=${existingNode._id} vs Schema=${op._id}. Deleting old node.`);
+					nodesToDelete.push(op.path);
+				}
+			}
+
+			if (nodesToDelete.length > 0) {
+				await dbAdapter.content.nodes.deleteMany(nodesToDelete);
+				logger.info(`[ContentManager] Deleted ${nodesToDelete.length} conflicting nodes to prepare for upsert.`);
+			}
+
+			// Single bulk upsert with all data including parentIds
+			if (operations.length > 0) {
+				await this._bulkUpsertWithParentIds(dbAdapter, operations, tenantId);
+			}
 		}
 
 		// Load final structure and rebuild maps
@@ -1605,7 +1676,7 @@ class ContentManager {
 			if (!schema.path) continue;
 
 			// Priority lookup: 1. By ID (most stable), 2. By Path
-			const dbNode = dbNodeMapById.get(schema._id as string) || dbNodeMapByPath.get(schema.path);
+			const dbNode = (dbNodeMapById.get(schema._id as string) || dbNodeMapByPath.get(schema.path)) as ContentNode | undefined;
 			const nodeId = toDatabaseId(schema._id as string);
 
 			operations.push({

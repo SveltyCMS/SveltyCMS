@@ -79,7 +79,7 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 			<!-- Scrollable Suggestions -->
 			<div class="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar border-t border-surface-500/20" transition:slide>
 				{#if analysisResult.suggestions.length > 0}
-					{#each analysisResult.suggestions as suggestion}
+					{#each analysisResult.suggestions as suggestion (suggestion.id)}
 						{@const suggestionIcon =
 							suggestion.type === 'error' ? 'mdi:alert-circle' : suggestion.type === 'warning' ? 'mdi:alert' : 'mdi:information'}
 						<div

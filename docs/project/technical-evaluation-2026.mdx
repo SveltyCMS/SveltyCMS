@@ -112,30 +112,35 @@ SveltyCMS uses **ParaglideJS** to treat translations as `code`, not database row
 - **Audit:** Comprehensive audit completed Jan 2026 covering Setup Wizard, Admin Dashboard, and Config modules.
 - **Key Features:** Full keyboard support for drag-and-drop, semantic tree views, and ARIA-live announcements for async operations. This positions SveltyCMS as a leader for government and public sector deployments.
 
-### 3.9 Self-Healing Architecture (New!)
+### 3.9 Self-Learning Architecture (New!)
 
-- **Status:** **✅ IMPLEMENTED (Adaptive Recovery)**
-- **Resiliency:** Traditional CMSs often crash loops when the database is briefly unavailable during startup (Race Conditions). SveltyCMS implements a **Self-Healing State Machine** with automatic back-off and retry strategies.
-- **Lazy Initialization:** The system uses **Lazy Proxies** for database connections. Instead of failing immediately if the DB is slow to respond, the application boots into an `IDLE` state and attempts connections only when requests are made, preventing "Death Spiral" boot loops in Kubernetes environments.
+- **Status:** **✅ IMPLEMENTED (Adaptive Optimization)**
+- **Resiliency:** Traditional CMSs often experience crash loops when the database is briefly unavailable during startup (Race Conditions). SveltyCMS implements a **Self-Learning State Machine** with persistent performance metrics.
+- **Adaptive Calibration:** The system records operational "baselines" (startup times, success rates) and uses **Exponential Moving Averages (EMA)** to automatically calibrate anomaly detection thresholds. This allows the system to distinguish between "normal" environmental slowness and genuine service failures.
+- **Persistent Knowledge:** By storing performance trends in the `SystemPreferences` collection, the state machine "remembers" its environment across restarts, enabling intelligent pre-warming and proactive health monitoring from the first request.
+- **Setup Benchmarking:** Automated benchmarking during the setup phase establishes a "Golden Signal" baseline for the specific hardware/cloud environment SveltyCMS is running on.
 
 ## 4. Comparative Landscape Analysis
 
 ### 4.1 Feature Matrix
 
-| Feature            | SveltyCMS                | Strapi (v5)       | PayloadCMS (v3)   | Directus (v10) | WordPress  | Drupal     | Contentful  |
-| :----------------- | :----------------------- | :---------------- | :---------------- | :------------- | :--------- | :--------- | :---------- |
-| **Core Tech**      | **SvelteKit / TS**       | Node/React        | Next.js/React     | Node/Vue       | PHP        | PHP        | SaaS / API  |
-| **Cold Start**     | **<1s (READY)**          | 5s+ (Heavy)       | 3s+ (Heavy)       | 2s+ (Medium)   | 1s+ (PHP)  | 1s+ (PHP)  | N/A (Cloud) |
-| **Startup Model**  | **Progressive**          | Monolithic        | Monolithic        | Monolithic     | Monolithic | Monolithic | SaaS        |
-| **Admin UI**       | **Svelte (Light)**       | React (Heavy)     | React (Heavy)     | Vue (Light)    | PHP/React  | PHP (Srv)  | React (Cls) |
-| **i18n**           | **Paraglide (Compiled)** | i18next (Runtime) | i18next (Runtime) | DB Fields      | plugins    | Native     | Native      |
-| **Schema**         | **Hybrid (Code/GUI)**    | GUI-First         | Code-First        | DB-First       | GUI        | GUI-First  | GUI-First   |
-| **Multi-Tenancy**  | **Native**               | Enterprise        | Native            | Native         | Multisite  | Native     | Spaces      |
-| **SCIM 2.0**       | **Native Endpoints**     | Enterprise        | Manual            | Enterprise     | Plugins    | Plugins    | Enterprise  |
-| **Audit Logs**     | **Crypto-Chain**         | Enterprise        | Manual            | Enterprise     | Plugins    | Basic      | Enterprise  |
-| **Service Guards** | **Capability-Based**     | ❌ None           | ❌ None           | ⚠️ Limited     | ❌ None    | ❌ None    | ❌ None     |
-| **Resiliency**     | **✅ Self-Healing**      | ❌ Crashing       | ⚠️ Manual Retry   | ⚠️ Limited     | ❌ N/A     | ⚠️ Caching | ✅ SaaS SLA |
-| **Accessibility**  | **✅ WCAG 2.2 AA**       | ⚠️ Partial        | ⚠️ Partial        | ⚠️ Partial     | Plugins    | ✅ Good    | ✅ Good     |
+| Feature            | SveltyCMS           | Strapi (v5)     | PayloadCMS (v3) | Directus (v10) | WordPress  | Drupal     | Contentful  |
+| :----------------- | :------------------ | :-------------- | :-------------- | :------------- | :--------- | :--------- | :---------- |
+| **Core Tech**      | **SvelteKit / TS**  | Node/React      | Next.js/React   | Node/Vue       | PHP        | PHP        | SaaS / API  |
+| **Cold Start**     | **<1s (READY)**     | 5s+ (Heavy)     | 3s+ (Heavy)     | 2s+ (Medium)   | 1s+ (PHP)  | 1s+ (PHP)  | N/A (Cloud) |
+| **Setup Pipeline** | **Background (⚡)** | Blocking (Slow) | Blocking (Slow) | Blocking       | Blocking   | Blocking   | N/A         |
+| **Startup Model**  | **Progressive**     | Monolithic      | Monolithic      | Monolithic     | Monolithic | Monolithic | SaaS        |
+
+| **Admin UI** | **Svelte (Light)** | React (Heavy) | React (Heavy) | Vue (Light) | PHP/React | PHP (Srv) | React (Cls) |
+| **i18n** | **Paraglide (Compiled)** | i18next (Runtime) | i18next (Runtime) | DB Fields | plugins | Native | Native |
+| **Schema** | **Hybrid (Code/GUI)** | GUI-First | Code-First | DB-First | GUI | GUI-First | GUI-First |
+| **Multi-Tenancy** | **Native** | Enterprise | Native | Native | Multisite | Native | Spaces |
+| **SCIM 2.0** | **Native Endpoints** | Enterprise | Manual | Enterprise | Plugins | Plugins | Enterprise |
+| **Audit Logs** | **Crypto-Chain** | Enterprise | Manual | Enterprise | Plugins | Basic | Enterprise |
+| **Service Guards** | **Capability-Based** | ❌ None | ❌ None | ⚠️ Limited | ❌ None | ❌ None | ❌ None |
+| **Resiliency** | **✅ Self-Learning** | ❌ Crashing | ⚠️ Manual Retry | ⚠️ Limited | ❌ N/A | ⚠️ Caching | ✅ SaaS SLA |
+
+| **Accessibility** | **✅ WCAG 2.2 AA** | ⚠️ Partial | ⚠️ Partial | ⚠️ Partial | Plugins | ✅ Good | ✅ Good |
 
 ### 4.2 Vs. Strapi (The Heavyweight)
 

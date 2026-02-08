@@ -495,6 +495,15 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false): Pr
 		isConnected = true;
 		updateServiceHealth('database', 'healthy', 'Database connected successfully');
 
+		// Step 3: Load historical performance metrics (Self-Learning)
+		try {
+			const { systemStateStore } = await import('@src/stores/system/state');
+			const { loadHistoricalMetrics } = await import('@src/stores/system/metrics');
+			await loadHistoricalMetrics(systemStateStore);
+		} catch (metricsError) {
+			logger.warn('[db] Failed to load historical metrics (non-critical):', metricsError);
+		}
+
 		const step2And3Time = performance.now() - step2And3StartTime;
 		logger.info(`Steps 1-2: DB connected & adapters loaded in ${step2And3Time.toFixed(2)}ms`);
 		logger.info(`Step 3: Database models setup in ${step2And3Time.toFixed(2)}ms (⚡ parallelized with connection)`);

@@ -66,6 +66,26 @@ export class PreferencesModule {
 		}, 'GET_PREFERENCES_FAILED');
 	}
 
+	async getByCategory<T>(category: string, scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<Record<string, T>>> {
+		return (this.core as any).wrap(async () => {
+			const conditions: any[] = [eq(schema.systemPreferences.visibility, category)];
+			if (scope) conditions.push(eq(schema.systemPreferences.scope, scope));
+			if (userId) conditions.push(eq(schema.systemPreferences.userId, userId));
+
+			const results = await this.db
+				.select()
+				.from(schema.systemPreferences)
+				.where(and(...conditions));
+
+			const prefs: Record<string, T> = {};
+			for (const result of results) {
+				prefs[result.key] = result.value as T;
+			}
+
+			return prefs;
+		}, 'GET_BY_CATEGORY_FAILED');
+	}
+
 	async set<T>(key: string, value: T, scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<void>> {
 		return (this.core as any).wrap(async () => {
 			const exists = await this.db.select().from(schema.systemPreferences).where(eq(schema.systemPreferences.key, key)).limit(1);

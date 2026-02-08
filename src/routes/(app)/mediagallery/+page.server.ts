@@ -131,15 +131,15 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		logger.trace('Current folder determined:', currentFolder);
 
 		// Use db-agnostic adapter method to fetch media
-		const mediaResult = await dbAdapter.media.files.getByFolder(
-			folderId as DatabaseId | undefined,
-			{ pageSize: 100, page: 1, sortField: 'updatedAt', sortDirection: 'desc' }
-		);
+		const mediaResult = await dbAdapter.media.files.getByFolder(folderId as DatabaseId | undefined, {
+			pageSize: 100,
+			page: 1,
+			sortField: 'updatedAt',
+			sortDirection: 'desc'
+		});
 
 		const allMediaResults: Record<string, unknown>[] =
-			mediaResult.success && mediaResult.data
-				? (mediaResult.data.items as unknown as Record<string, unknown>[])
-				: [];
+			mediaResult.success && mediaResult.data ? (mediaResult.data.items as unknown as Record<string, unknown>[]) : [];
 
 		logger.info(`Fetched ${allMediaResults.length} media items for folder ${folderId || 'root'}`);
 
@@ -173,11 +173,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 					// Derive public URL from stored path
 					const storedPath = mediaItem.path ?? '';
-					const publicUrl = storedPath.startsWith('/files/')
-						? storedPath
-						: storedPath.startsWith('http')
-							? storedPath
-							: `/files/${storedPath}`;
+					const publicUrl = storedPath.startsWith('/files/') ? storedPath : storedPath.startsWith('http') ? storedPath : `/files/${storedPath}`;
 
 					// Use DB-stored thumbnails directly (already has correct URLs from upload)
 					const thumbnails = (mediaItem.thumbnails ?? {}) as Record<string, { url: string }>;

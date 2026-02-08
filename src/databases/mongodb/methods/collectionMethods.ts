@@ -53,15 +53,22 @@ export class MongoCollectionMethods {
 	/**
 	 * Creates or updates a dynamic collection model from a schema
 	 */
-	async createModel(schema: Schema): Promise<void> {
+	async createModel(schema: Schema, force = false): Promise<void> {
 		const collectionId = schema._id;
 		if (!collectionId) {
 			throw new Error('Schema must have an _id field');
 		}
 
-		logger.debug(`Creating/updating collection model for: ${collectionId}`);
-
 		const modelName = `collection_${collectionId}`;
+
+		// If model already exists and we are not forcing, skip creation
+		// This significantly improves performance during parallel initialization
+		if (this.models.has(collectionId) && !force) {
+			logger.debug(`[MongoCollectionMethods] Model ${collectionId} already registered, skipping recreation.`);
+			return;
+		}
+
+		logger.debug(`${force ? 'Force updating' : 'Creating'} collection model for: ${collectionId}`);
 
 		// Force delete existing model and registry entry to ensure clean slate
 		// This is crucial for schema updates (e.g., ObjectId → String migration)
@@ -139,8 +146,8 @@ export class MongoCollectionMethods {
 		this.models.set(collectionId, { model, wrapped: wrappedModel });
 		logger.info(`Collection model created: ${collectionId} (${modelName})`);
 
-		// Create database indexes for optimal query performance
-		await this.createIndexes(model, schema);
+		// Create database indexes in background to avoid blocking system initialization
+		this.createIndexes(model, schema);
 
 		// Invalidate cache for this collection AFTER successful creation
 		await invalidateCollectionCache(`schema:collection:${collectionId}`);

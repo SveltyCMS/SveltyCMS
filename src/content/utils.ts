@@ -155,14 +155,7 @@ export async function processModule(content: string): Promise<{ schema?: Schema 
 			return null;
 		}
 
-		await widgetRegistryService.initialize();
 		const widgetsMap = widgetRegistryService.getAllWidgets();
-
-		if (widgetsMap.size === 0) {
-			logger.warn('WidgetRegistryService not initialized yet. Cannot process module.');
-			return null;
-		}
-
 		const widgetsObject = Object.fromEntries(widgetsMap.entries());
 
 		const moduleContent = `
@@ -173,14 +166,17 @@ export async function processModule(content: string): Promise<{ schema?: Schema 
 			})();
 		`;
 
-		if (typeof globalThis !== 'undefined') {
+		// Race condition safety: Only set/delete globalThis.widgets if it's not already populated
+		const alreadyPopulated = typeof globalThis !== 'undefined' && (globalThis as any).widgets;
+
+		if (!alreadyPopulated && typeof globalThis !== 'undefined') {
 			(globalThis as { widgets?: Record<string, unknown> }).widgets = widgetsObject;
 		}
 
 		const moduleFunc = new Function(moduleContent);
 		const result = moduleFunc();
 
-		if (typeof globalThis !== 'undefined') {
+		if (!alreadyPopulated && typeof globalThis !== 'undefined') {
 			delete (globalThis as { widgets?: Record<string, unknown> }).widgets;
 		}
 

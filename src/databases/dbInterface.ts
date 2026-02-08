@@ -500,11 +500,12 @@ export interface IContentAdapter {
 
 export interface ISystemAdapter {
 	systemPreferences: {
-		get<T>(key: string, scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<T>>;
+		get<T>(key: string, scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<T | null>>;
 		getMany<T>(keys: string[], scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<Record<string, T>>>;
-		set<T>(key: string, value: T, scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<void>>;
+		getByCategory<T>(category: string, scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<Record<string, T>>>;
+		set<T>(key: string, value: T, scope?: 'user' | 'system', userId?: DatabaseId, category?: string): Promise<DatabaseResult<void>>;
 		setMany<T>(
-			preferences: Array<{ key: string; value: T; scope?: 'user' | 'system'; userId?: DatabaseId; category?: 'public' | 'private' }>
+			preferences: Array<{ key: string; value: T; scope?: 'user' | 'system'; userId?: DatabaseId; category?: string }>
 		): Promise<DatabaseResult<void>>;
 		delete(key: string, scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<void>>;
 		deleteMany(keys: string[], scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<void>>;
@@ -612,7 +613,7 @@ export interface IDBAdapter extends ISystemAdapter, IMonitoringAdapter {
 	content: IContentAdapter;
 	collection: {
 		getModel(id: string): Promise<CollectionModel>;
-		createModel(schema: Schema): Promise<void>;
+		createModel(schema: Schema, force?: boolean): Promise<void>;
 		updateModel(schema: Schema): Promise<void>;
 		deleteModel(id: string): Promise<void>;
 		getSchema(collectionName: string): Promise<DatabaseResult<Schema | null>>;

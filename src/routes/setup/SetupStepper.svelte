@@ -28,6 +28,16 @@ Shows horizontal stepper on mobile, vertical stepper on desktop with legend.
 			{#each steps as step, i (i)}
 				<!-- Mobile step (button for backward navigation) -->
 				<div class="relative z-10 flex flex-1 flex-col items-center" role="listitem">
+					<!-- Connecting line to next step -->
+					{#if i < steps.length - 1}
+						<div
+							class="absolute left-1/2 top-4 -z-10 h-0.5 w-full -translate-y-1/2 sm:top-5 {stepCompleted[i]
+								? 'bg-primary-500'
+								: 'border-t-2 border-dashed border-slate-200 bg-transparent'}"
+							aria-hidden="true"
+						></div>
+					{/if}
+
 					<button
 						type="button"
 						class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 sm:h-10 sm:w-10 sm:text-sm {stepCompleted[
@@ -68,13 +78,6 @@ Shows horizontal stepper on mobile, vertical stepper on desktop with legend.
 					</div>
 				</div>
 			{/each}
-
-			<!-- Connecting lines for mobile -->
-			<div class="absolute left-12 right-12 top-8 flex h-0.5 sm:left-14 sm:right-14 sm:top-9" aria-hidden="true">
-				{#each Array.from({ length: steps.length }, (_, i) => i) as i (i)}{#if i !== steps.length - 1}<div
-							class="mx-1 h-0.5 flex-1 {stepCompleted[i] ? 'bg-primary-500' : 'border-t-2 border-dashed border-slate-200 bg-transparent'}"
-						></div>{/if}{/each}
-			</div>
 		</div>
 
 		<!-- Desktop: Vertical step indicator -->

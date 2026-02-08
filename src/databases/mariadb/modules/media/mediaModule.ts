@@ -62,11 +62,13 @@ export class MediaModule {
 			return this.crud.deleteMany('media_items', fileIds);
 		},
 
-		getByFolder: async (folderId?: DatabaseId, options?: PaginationOptions): Promise<DatabaseResult<PaginatedResult<MediaItem>>> => {
+		getByFolder: async (
+			folderId?: DatabaseId,
+			options?: PaginationOptions,
+			_recursive?: boolean
+		): Promise<DatabaseResult<PaginatedResult<MediaItem>>> => {
 			return (this.core as any).wrap(async () => {
-				const conditions = folderId
-					? [eq(schema.mediaItems.folderId, folderId)]
-					: [isNull(schema.mediaItems.folderId)];
+				const conditions = folderId ? [eq(schema.mediaItems.folderId, folderId)] : [isNull(schema.mediaItems.folderId)];
 
 				let q: any = this.db.select().from(schema.mediaItems);
 				q = q.where(and(...conditions));

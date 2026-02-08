@@ -24,9 +24,7 @@ export const createPageSpeedResultsTable: PluginMigration = {
 		if (result.success) {
 			logger.info('✅ plugin_pagespeed_results table validated');
 		} else {
-			logger.warn(
-				'⚠ plugin_pagespeed_results table not found. Run `bun run db:push` to create it from the Drizzle schema.'
-			);
+			logger.warn('⚠ plugin_pagespeed_results table not found. Run `bun run db:push` to create it from the Drizzle schema.');
 		}
 	}
 };

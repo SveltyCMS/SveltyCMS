@@ -79,9 +79,9 @@ Interactive selector with "Select" button and clear functionality
 	<div class="selection-box">
 		<span>{displayText}</span>
 		<div class="actions">
-			<button onclick={openRelationModal} aria-label="Select Entry">Select</button>
+			<button onclick={openRelationModal} aria-label="Select Entry" class="btn btn-primary">Select</button>
 			{#if value}
-				<button onclick={() => (value = null)} aria-label="Clear Selection">&times;</button>
+				<button onclick={() => (value = null)} aria-label="Clear Selection" class="btn btn-danger">&times;</button>
 			{/if}
 		</div>
 	</div>

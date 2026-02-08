@@ -81,9 +81,7 @@ export async function cleanupExpiredDemoTenants() {
 				// PaginatedResult has .items (not .data).
 				const mediaResult = await db.media.files.getByFolder(undefined, { page: 1, pageSize: 10000 });
 				if (mediaResult.success && mediaResult.data) {
-					const tenantMedia = mediaResult.data.items.filter(
-						(m) => (m as unknown as { tenantId?: string }).tenantId === tenantId
-					);
+					const tenantMedia = mediaResult.data.items.filter((m) => (m as unknown as { tenantId?: string }).tenantId === tenantId);
 
 					if (tenantMedia.length > 0) {
 						logger.debug(`[Demo Cleanup] Deleting ${tenantMedia.length} files for tenant ${tenantId}`);
@@ -130,9 +128,7 @@ export async function cleanupExpiredDemoTenants() {
 			try {
 				// Themes - list all, filter by tenantId, uninstall each
 				const allThemes = await db.themes.getAllThemes();
-				const tenantThemes = (allThemes || []).filter(
-					(t) => (t as unknown as { tenantId?: string }).tenantId === tenantId
-				);
+				const tenantThemes = (allThemes || []).filter((t) => (t as unknown as { tenantId?: string }).tenantId === tenantId);
 				for (const theme of tenantThemes) {
 					await db.themes.uninstall(theme._id);
 				}
@@ -147,9 +143,7 @@ export async function cleanupExpiredDemoTenants() {
 				// Virtual Folders - list all, filter by tenantId, delete each
 				const foldersResult = await db.systemVirtualFolder.getAll();
 				if (foldersResult.success && foldersResult.data) {
-					const tenantFolders = foldersResult.data.filter(
-						(f) => (f as unknown as { tenantId?: string }).tenantId === tenantId
-					);
+					const tenantFolders = foldersResult.data.filter((f) => (f as unknown as { tenantId?: string }).tenantId === tenantId);
 					for (const folder of tenantFolders) {
 						await db.systemVirtualFolder.delete(folder._id);
 					}

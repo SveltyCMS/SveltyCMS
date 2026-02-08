@@ -22,6 +22,7 @@ import { logger } from '@utils/logger';
 import { showToast } from '@utils/toast';
 import { goto } from '$app/navigation';
 import { deserialize } from '$app/forms';
+import { updatePublicEnv } from '@stores/globalSettings.svelte';
 
 // --- Types ---
 export type SupportedDbType = 'mongodb' | 'mongodb+srv' | 'postgresql' | 'mysql' | 'mariadb' | '';
@@ -458,7 +459,11 @@ function createSetupStore() {
 	 * @returns Promise<boolean> - true if setup completed successfully
 	 */
 	async function completeSetup(onSuccess?: (redirectPath: string) => void): Promise<boolean> {
-		if (wizard.isSubmitting) return false;
+		console.log('[SetupStore] completeSetup starting...');
+		if (wizard.isSubmitting) {
+			console.log('[SetupStore] Already submitting, skipping');
+			return false;
+		}
 
 		// Final validation of all steps
 		const step0Valid = validateStep(0, true);
@@ -493,12 +498,15 @@ function createSetupStore() {
 				})
 			);
 
+			console.log('[SetupStore] Calling ?/completeSetup action...');
 			const response = await fetch('?/completeSetup', {
 				method: 'POST',
 				body: formData
 			});
 
-			const result = deserialize(await response.text());
+			const responseText = await response.text();
+			console.log('[SetupStore] ?/completeSetup response received');
+			const result = deserialize(responseText);
 			if (result.type !== 'success') {
 				const errorMsg = (result as any).data?.error || 'Failed to finalize setup.';
 				showToast(errorMsg, 'error', 5000);
@@ -514,19 +522,36 @@ function createSetupStore() {
 				return false;
 			}
 
+			// Update the public settings store instantly for near-zero delay
+			if (data.publicSettings) {
+				console.log('[SetupStore] Updating public environment...');
+				updatePublicEnv(data.publicSettings);
+			}
+
 			// Success!
-			showToast('Setup complete! Welcome to SveltyCMS! 🎉', 'success', 3000);
+			showToast('Setup complete! Redirecting...', 'success', 2000);
 
-			// Clear store
-			clear();
+			// Use flash message for seamless transition to the dashboard
+			if (typeof window !== 'undefined') {
+				sessionStorage.setItem(
+					'flashMessage',
+					JSON.stringify({
+						type: 'success',
+						title: 'Welcome', // Changed title to differentiate
+						description: 'Welcome to SveltyCMS! 🎉',
+						duration: 5000
+					})
+				);
+				console.log('[SetupStore] Flash message set in sessionStorage');
+			}
 
-			// Append success param to redirect path
+			// Clear store state locally
 			const targetPath = data.redirectPath || '/en/Collections';
 
 			// Call the onSuccess callback with redirect path
 			if (onSuccess) {
 				onSuccess(targetPath);
-			} else if (typeof window !== 'undefined') {
+			} else {
 				goto(targetPath);
 			}
 

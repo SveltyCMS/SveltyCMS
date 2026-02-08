@@ -81,6 +81,9 @@
 
 	let heatmapMode = $state(false);
 
+	let heatmapDataTitle = $derived(renderHeatmap(title || 'Page Title'));
+	let heatmapDataDesc = $derived(renderHeatmap(description || 'Page description goes here...'));
+
 	function handleTogglePreview() {
 		ontogglePreview();
 	}
@@ -142,7 +145,7 @@
 		<div class="mb-1">
 			{#if heatmapMode}
 				<h3 class="relative text-lg font-medium leading-tight text-tertiary-500 dark:text-primary-500">
-					{#each renderHeatmap(title || 'Page Title') as { word, color }}
+					{#each heatmapDataTitle as { word, color }, i (i)}
 						<span class="relative inline-block mr-1">
 							<span
 								class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full blur-md"
@@ -163,7 +166,7 @@
 		<div>
 			{#if heatmapMode}
 				<p class="text-sm leading-normal text-surface-600 dark:text-surface-300">
-					{#each renderHeatmap(description || 'Page description goes here...') as { word, color }}
+					{#each heatmapDataDesc as { word, color }, i (i)}
 						<span class="relative inline-block mr-1">
 							<span
 								class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full blur-md"

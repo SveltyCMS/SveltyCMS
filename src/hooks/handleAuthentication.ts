@@ -466,7 +466,6 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
 			}
 			locals.tenantId = tenantId;
 			logger.trace(`Tenant identified: ${tenantId}`);
-
 		}
 
 		// Step 2: Session validation

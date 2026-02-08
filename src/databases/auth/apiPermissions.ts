@@ -73,6 +73,7 @@ export const API_PERMISSIONS: Record<string, string[]> = {
 	'api:marketplace': ['admin'], // Marketplace access
 
 	// Public/Semi-public endpoints (authenticated users)
+	'api:settings/public': ['*'], // Public system settings (version, etc.)
 	'api:sendMail': ['admin'], // Email sending (used internally, but needs auth)
 	'api:getTokensProvided': ['admin'] // Token information - admin only
 };

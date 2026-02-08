@@ -77,6 +77,15 @@ export async function scanCompiledCollections(): Promise<Schema[]> {
 	// Resolve to absolute path to ensure we look in the project root
 	const compiledDirectoryPath = path.resolve(process.cwd(), envDir);
 
+	// Pre-initialize widget registry to ensure globalThis.widgets is ready for processModule
+	try {
+		const { widgetRegistryService } = await import('@src/services/WidgetRegistryService');
+		await widgetRegistryService.initialize();
+	} catch (error) {
+		logger.error('Failed to initialize WidgetRegistryService during collection scan', error);
+		// Continue anyway, processModule might still work for some schemas or have its own fallback
+	}
+
 	try {
 		await fs.access(compiledDirectoryPath);
 	} catch {

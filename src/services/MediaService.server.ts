@@ -387,7 +387,7 @@ export class MediaService {
 			});
 
 			// Use db-agnostic media adapter
-			const result = await this.db.media.files.upload(cleanMedia);
+			const result = await this.db.media.files.upload(cleanMedia as any);
 
 			if (!result.success) {
 				throw result.error;
@@ -409,8 +409,8 @@ export class MediaService {
 
 			logger.info('Media processing completed successfully', {
 				mediaId,
-				originalUrl: (savedMedia as MediaItem).path,
-				thumbnails: Object.keys((savedMedia as MediaItem).thumbnails ?? {}),
+				originalUrl: (savedMedia as unknown as MediaItem).path,
+				thumbnails: Object.keys((savedMedia as unknown as MediaItem).thumbnails ?? {}),
 				totalProcessingTime: performance.now() - startTime
 			});
 

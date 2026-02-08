@@ -186,15 +186,6 @@
 				(lang.code.toLowerCase().includes(search) || lang.name.toLowerCase().includes(search) || lang.native.toLowerCase().includes(search))
 		);
 	});
-
-	function scrollToRedis() {
-		const el = document.getElementById('redis-section');
-		if (el) {
-			el.scrollIntoView({ behavior: 'smooth' });
-			// Focus the checkbox as well
-			document.getElementById('use-redis')?.focus();
-		}
-	}
 </script>
 
 <div class="fade-in">
@@ -206,46 +197,29 @@
 
 	<div class="space-y-10">
 		{#if redisAvailable && !systemSettings.useRedis}
-			<div class="rounded-lg bg-primary-500 p-4 text-white shadow-lg animate-in fade-in slide-in-from-top-4 duration-500" role="alert">
+			<div class="rounded-lg bg-surface-500 p-4 text-white shadow-lg animate-in fade-in slide-in-from-top-4 duration-500" role="alert">
 				<div class="flex items-start gap-4">
-					<div class="bg-white/20 p-2 rounded-full mt-1">
-						<iconify-icon icon="mdi:lightning-bolt" class="text-xl text-white animate-pulse"></iconify-icon>
-					</div>
+					<iconify-icon icon="mdi:lightning-bolt" class="bg-error-500/50 p-2 text-white rounded-full text-2xl animate-pulse"></iconify-icon>
 					<div class="flex-1">
 						<div class="flex items-center justify-between">
-							<h4 class="font-bold text-lg flex items-center gap-2">
+							<h4 class="font-bold text-lg flex items-center gap-4">
 								Performance Optimization Detected
-								<span class="bg-white/30 text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider font-bold">Recommended</span>
+								<span class="badge preset-tonal-primary rounded-full uppercase">Recommended</span>
 							</h4>
+							<!-- close button -->
 							<button
 								type="button"
-								class="text-white/70 hover:text-white transition-colors"
+								class="btn-icon rounded-full preset-outlined"
 								onclick={() => (redisAvailable = false)}
 								aria-label="Dismiss recommendation"
 							>
 								<iconify-icon icon="mdi:close" width="20"></iconify-icon>
 							</button>
 						</div>
-						<p class="mt-1 text-primary-50 text-sm leading-relaxed">
-							A local Redis server was detected on this system. Enabling Redis caching can speed up data access by up to <strong>50x</strong>
+						<p class="mt-1 text-sm leading-relaxed italic">
+							A local Redis server was detected on this system. <br />Enabling Redis caching can speed up data access by up to <strong>50x</strong>
 							by reducing database load.
 						</p>
-						<div class="mt-4 flex gap-3">
-							<button
-								type="button"
-								class="rounded-md bg-white px-4 py-2 text-sm font-bold text-primary-600 shadow-sm hover:bg-primary-50 transition-all active:scale-95"
-								onclick={scrollToRedis}
-							>
-								Go to Performance Settings
-							</button>
-							<button
-								type="button"
-								class="rounded-md border border-white/30 px-4 py-2 text-sm font-medium text-white hover:bg-white/10 transition-all"
-								onclick={() => (redisAvailable = false)}
-							>
-								Dismiss
-							</button>
-						</div>
 					</div>
 				</div>
 			</div>

@@ -129,7 +129,9 @@ export async function seedRoles(dbAdapter: DatabaseAdapter, tenantId?: string): 
 				const result = await dbAdapter.auth.createRole(roleToCreate);
 				// createRole returns DatabaseResult — check success instead of relying on exceptions
 				if (result && 'success' in result && !result.success) {
-					logger.warn(`Role "${role.name}" creation returned failure${tenantId ? ` for tenant ${tenantId}` : ''}: ${result.error?.message || 'unknown'}`);
+					logger.warn(
+						`Role "${role.name}" creation returned failure${tenantId ? ` for tenant ${tenantId}` : ''}: ${result.error?.message || 'unknown'}`
+					);
 				} else {
 					logger.debug(`✅ Role "${role.name}" seeded successfully${tenantId ? ` for tenant ${tenantId}` : ''}`);
 				}
@@ -178,9 +180,9 @@ export async function seedCollectionsForSetup(
 		const { scanCompiledCollections } = await import('@src/content/collectionScanner');
 
 		const scanStart = performance.now();
-		const collections = await scanCompiledCollections();
+		const collections = (await scanCompiledCollections()).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 		const scanTime = performance.now() - scanStart;
-		logger.debug(`⏱️  Collection scan: ${scanTime.toFixed(2)}ms (found ${collections.length})`);
+		logger.debug(`⏱️  Collection scan: ${scanTime.toFixed(2)}ms (found ${collections.length}, sorted alphabetically)`);
 
 		if (collections.length === 0) {
 			logger.info('ℹ️  No collections found in filesystem, skipping collection seeding');
@@ -194,48 +196,47 @@ export async function seedCollectionsForSetup(
 		const totalCollections = collections.length;
 		const modelCreationStart = performance.now();
 
-		// Delay between collection registrations to prevent Mongoose race conditions
-		// Use shorter delay in CI/test mode for faster builds
-		const isTestMode = process.env.TEST_MODE === 'true';
-		const registrationDelay = isTestMode ? 10 : 50; // 10ms in CI, 50ms in production
+		// Register collections in batches to optimize database operations
+		const BATCH_SIZE = 50;
+		for (let i = 0; i < collections.length; i += BATCH_SIZE) {
+			const batch = collections.slice(i, i + BATCH_SIZE);
+			const batchPromises = batch.map(async (schema) => {
+				try {
+					const createStart = performance.now();
+					// Try to create the collection model in database
+					// Setting force=false (default) to use the new idempotency check
+					await dbAdapter.collection.createModel(schema);
 
-		logger.debug(`📦 Seeding ${totalCollections} collections (delay: ${registrationDelay}ms, testMode: ${isTestMode})`);
+					const createTime = performance.now() - createStart;
+					logger.info(`✅ Created collection model: ${schema.name || 'unknown'} (${createTime.toFixed(0)}ms)`);
+					successCount++;
 
-		// Register collections in parallel for maximum performance
-		// Mongoose model registration is generally thread-safe for unique names
-		const collectionPromises = collections.map(async (schema) => {
-			try {
-				const createStart = performance.now();
-				// Try to create the collection model in database
-				await dbAdapter.collection.createModel(schema);
+					// Capture the first collection for redirect (deterministic from sorted array)
+					if (!firstCollection && collections.length > 0 && collections[0].path && collections[0].name) {
+						firstCollection = {
+							name: collections[0].name,
+							path: collections[0].path
+						};
+						logger.debug(`First collection identified: ${firstCollection.name} at ${firstCollection.path}`);
+					}
 
-				const createTime = performance.now() - createStart;
-				logger.info(`✅ Created collection model: ${schema.name || 'unknown'} (${createTime.toFixed(0)}ms)`);
-				successCount++;
-
-				// Capture the first collection for redirect
-				if (!firstCollection && schema.path && schema.name) {
-					firstCollection = {
-						name: schema.name,
-						path: schema.path
-					};
-					logger.debug(`First collection identified: ${schema.name} at ${schema.path}`);
+					setupManager.updateProgress(successCount + skipCount, totalCollections);
+				} catch (error) {
+					// Collection might already exist or have schema issues
+					const errorMessage = error instanceof Error ? error.message : String(error);
+					if (errorMessage.includes('already exists') || errorMessage.includes('duplicate')) {
+						logger.debug(`Collection '${schema.name || 'unknown'}' already exists, skipping`);
+						skipCount++;
+					} else {
+						logger.error(`❌ Failed to create collection '${schema.name || 'unknown'}'${tenantId ? ` for tenant ${tenantId}` : ''}: ${errorMessage}`);
+					}
 				}
+			});
 
-				setupManager.updateProgress(successCount + skipCount, totalCollections);
-			} catch (error) {
-				// Collection might already exist or have schema issues
-				const errorMessage = error instanceof Error ? error.message : String(error);
-				if (errorMessage.includes('already exists') || errorMessage.includes('duplicate')) {
-					logger.debug(`Collection '${schema.name || 'unknown'}' already exists, skipping`);
-					skipCount++;
-				} else {
-					logger.error(`❌ Failed to create collection '${schema.name || 'unknown'}'${tenantId ? ` for tenant ${tenantId}` : ''}: ${errorMessage}`);
-				}
-			}
-		});
+			await Promise.all(batchPromises);
+			logger.debug(`📦 Seeded batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(collections.length / BATCH_SIZE)}`);
+		}
 
-		await Promise.all(collectionPromises);
 		setupManager.updateProgress(totalCollections, totalCollections);
 
 		const modelCreationTime = performance.now() - modelCreationStart;
@@ -300,7 +301,44 @@ export async function initSystemFromSetup(
 
 	logger.info(`✅ System initialization completed${tenantId ? ` for tenant ${tenantId}` : ''}`);
 
+	logger.info(`✅ System initialization completed${tenantId ? ` for tenant ${tenantId}` : ''}`);
+
 	return seedResults;
+}
+
+// Initialize system with separate critical (sync) and content (async) phases
+// Used for instant setup completion
+export async function initSystemFast(
+	adapter: DatabaseAdapter,
+	tenantId?: string,
+	isDemoSeed = false
+): Promise<{
+	criticalPromise: Promise<any>;
+	backgroundTask: () => Promise<any>;
+}> {
+	// Critical: Settings, Default Theme, Roles (needed for Admin User creation)
+	const criticalPromise = (async () => {
+		logger.info(`🚀 Starting critical system initialization${tenantId ? ` for tenant ${tenantId}` : ''}...`);
+
+		if (!adapter) throw new Error('Database adapter not available.');
+
+		await Promise.all([seedSettings(adapter, tenantId, isDemoSeed), seedDefaultTheme(adapter, tenantId), seedRoles(adapter, tenantId)]);
+
+		// Reload settings immediately
+		invalidateSettingsCache();
+		const { loadSettingsFromDB } = await import('@src/databases/db');
+		await loadSettingsFromDB();
+
+		logger.info(`✅ Critical system initialization completed${tenantId ? ` for tenant ${tenantId}` : ''}`);
+	})();
+
+	// Background: Heavy content seeding (can happen after redirect)
+	const backgroundTask = async () => {
+		if (!adapter) return;
+		await seedCollectionsForSetup(adapter, tenantId);
+	};
+
+	return { criticalPromise, backgroundTask };
 }
 
 // Default public settings that were previously in config/public.ts
@@ -354,7 +392,7 @@ export const defaultPublicSettings: Array<{ key: string; value: unknown; descrip
 		description: 'Active logging levels (none, info, warn, error, debug, fatal, trace)'
 	},
 	{ key: 'LOG_RETENTION_DAYS', value: 30, description: 'Number of days to keep log files' },
-	{ key: 'LOG_ROTATION_SIZE', value: 10485760, description: 'Maximum size of a log file in bytes before rotation (10MB)' },
+	{ key: 'LOG_ROTATION_SIZE', value: 10485760, description: 'Maximum size of a log file in bytes before rotation (10MB)' }
 
 	// NOTE: DEMO mode is controlled exclusively via config/private.ts (INFRASTRUCTURE_KEYS).
 	// Do NOT add a DEMO key here — it would create a split-brain where the server

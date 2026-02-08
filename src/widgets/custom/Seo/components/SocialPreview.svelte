@@ -55,7 +55,7 @@ Displays a preview of the shared link for different platforms.
 
 	<!-- Platform Tabs -->
 	<div class="flex items-center gap-2 mb-6 overflow-x-auto pb-2">
-		{#each platforms as platform}
+		{#each platforms as platform (platform.id)}
 			<button
 				type="button"
 				class="btn btn-icon btn-icon-sm transition-all {activePlatform === platform.id

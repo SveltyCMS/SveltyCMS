@@ -155,7 +155,9 @@
 	}
 
 	async function handleCompleteSetup() {
+		console.log('[SetupPage] Complete Setup button clicked');
 		const success = await completeSetup((redirectPath: string) => {
+			console.log('[SetupPage] Setup successful, redirecting to:', redirectPath);
 			initialDataSnapshot = JSON.stringify(wizard);
 			goto(redirectPath);
 		});

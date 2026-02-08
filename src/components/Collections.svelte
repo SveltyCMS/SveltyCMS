@@ -139,7 +139,7 @@
 			badge = {
 				count: countCollections(node),
 				visible: true,
-				color: isExpanded ? 'bg-surface-400' : getBadgeColor(node.collectionDef?.status)
+				color: getBadgeColor(node.collectionDef?.status)
 			};
 		} else if (hasInactiveWidgets) {
 			badge = {
@@ -156,7 +156,7 @@
 			isExpanded,
 			onClick: () => selectNode(node),
 			children,
-			icon: isCategory ? 'bi:folder' : 'bi:collection',
+			icon: node.icon || (isCategory ? 'bi:folder' : 'bi:collection'),
 			badge,
 			path: !isCategory ? `/${currentLanguage}${node.path || '/' + node._id}` : undefined,
 			depth,

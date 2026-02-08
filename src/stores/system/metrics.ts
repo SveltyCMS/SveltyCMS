@@ -1,11 +1,20 @@
 /**
  * @file src/stores/system/metrics.ts
  * @description Performance metrics, anomaly detection, and reporting for the system state.
+ *
+ * Features:
+ * - Track state timing (startup/shutdown) and update metrics
+ * - Self-calibrate anomaly thresholds based on historical performance
+ * - Detect anomalies and notify if something is wrong
+ * - Load historical metrics from the database
+ * - Save current metrics to the database
+ * - Record a specific benchmark (e.g. for a setup phase)
  */
 
 import { logger } from '@utils/logger';
 import type { Writable } from 'svelte/store';
 import type { SystemStateStore, ServiceHealth, AnomalyDetection, ServiceName } from './types';
+import { performanceService } from '@src/services/PerformanceService';
 
 /**
  * Track state timing (startup/shutdown) and update metrics
@@ -278,4 +287,59 @@ export function updateUptimeMetrics(serviceName: ServiceName, store: Writable<Sy
 			}
 		};
 	});
+}
+
+/**
+ * Load historical metrics from the database and hydrate the store.
+ * This is the "Learning" part of the state machine.
+ */
+export async function loadHistoricalMetrics(store: Writable<SystemStateStore>): Promise<void> {
+	try {
+		const historicalMetrics = await performanceService.loadMetrics();
+		if (Object.keys(historicalMetrics).length === 0) return;
+
+		store.update((current) => {
+			const services = { ...current.services };
+			for (const [name, metrics] of Object.entries(historicalMetrics)) {
+				if (services[name as ServiceName]) {
+					// Merge historical data, favoring more established trends
+					services[name as ServiceName].metrics = {
+						...services[name as ServiceName].metrics,
+						...metrics,
+						// Reset volatile session-specific fields
+						initializationStartedAt: undefined,
+						initializationCompletedAt: undefined,
+						initializationDuration: undefined,
+						consecutiveFailures: 0,
+						lastHealthCheckAt: undefined
+					};
+				}
+			}
+			logger.info(`🧠 Hydrated system state with historical metrics for ${Object.keys(historicalMetrics).length} services`);
+			return { ...current, services };
+		});
+	} catch (error) {
+		logger.error('Failed to load historical metrics:', error);
+	}
+}
+
+/**
+ * Save current performance metrics to the database.
+ */
+export async function saveCurrentMetrics(store: Writable<SystemStateStore>): Promise<void> {
+	try {
+		const state = getSystemStateForSaving(store);
+		if (!state) return;
+		await performanceService.saveMetrics(state.services);
+	} catch (error) {
+		logger.error('Failed to save current metrics:', error);
+	}
+}
+
+// Helper to get state from store for saving (avoids calling get() too much)
+function getSystemStateForSaving(store: Writable<SystemStateStore>): SystemStateStore | undefined {
+	let state: SystemStateStore | undefined;
+	const unsubscribe = store.subscribe((s) => (state = s));
+	unsubscribe();
+	return state;
 }

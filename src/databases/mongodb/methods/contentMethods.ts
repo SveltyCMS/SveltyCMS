@@ -215,10 +215,23 @@ export class MongoContentMethods {
 					setOnInsert._id = targetId;
 				}
 
+				// Prepare filter: use ID if available, otherwise path + tenantId
+				const filter: any = targetId ? { _id: targetId } : { path };
+
+				// CRITICAL FIX: If we are filtering by path, we MUST also filter by tenantId
+				// to avoid hitting the unique index { tenantId: 1, path: 1 } with a duplicate
+				// or finding the wrong document in a multi-tenant setup.
+				// If tenantId is not in changes, we assume it might be null/undefined (global),
+				// but strictly speaking, updates should usually have the context.
+				// For now, if we have it in changes, we assume it's part of the unique key criteria.
+				if (!targetId && 'tenantId' in normalizedChanges) {
+					filter.tenantId = normalizedChanges.tenantId;
+				}
+
 				return {
 					updateOne: {
-						// Prefer ID if available (handles path moves), fallback to path
-						filter: targetId ? { _id: targetId } : { path },
+						// Prefer ID if available (handles path moves), fallback to path + tenantId
+						filter,
 						update: {
 							$set: { ...normalizedChanges, path, updatedAt: new Date() },
 							$setOnInsert: setOnInsert

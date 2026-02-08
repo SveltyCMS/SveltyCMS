@@ -45,6 +45,7 @@ import { logger } from '@utils/logger.server';
 interface WidgetConfig {
 	Name: string;
 	key: string;
+	widgetId?: string;
 	GuiFields: Record<string, unknown>;
 }
 
@@ -476,7 +477,10 @@ export const schema: Schema = {
 		let result = printer.printFile(transformedSourceFile);
 
 		// Clean up the 🗑️ markers, unescape JSON quotes, and format with prettier
-		result = result.replace(/["']🗑️|🗑️["']/g, '').replace(/🗑️/g, '').replace(/\\"/g, '"');
+		result = result
+			.replace(/["']🗑️|🗑️["']/g, '')
+			.replace(/🗑️/g, '')
+			.replace(/\\"/g, '"');
 
 		const prettierConfig = await getPrettierConfig();
 		result = await prettier.format(result, prettierConfig);

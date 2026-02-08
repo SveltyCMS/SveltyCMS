@@ -254,14 +254,21 @@ export function composeMongoAuthAdapter(): AuthInterface {
 		createRole: async (role: Role): Promise<DatabaseResult<Role>> => {
 			try {
 				const RoleModel = getRoleModel();
-				const newRole = await RoleModel.create(role);
+				const filter: { _id: string; tenantId?: { $exists: boolean } | string } = { _id: role._id };
+				if (role.tenantId) {
+					filter.tenantId = role.tenantId;
+				} else {
+					filter.tenantId = { $exists: false };
+				}
+
+				const upsertedRole = await RoleModel.findOneAndUpdate(filter, { $set: role }, { upsert: true, new: true, runValidators: true }).lean<Role>();
 
 				return {
 					success: true,
-					data: newRole.toObject() as Role
+					data: upsertedRole
 				};
 			} catch (err) {
-				const message = `Error creating role: ${err instanceof Error ? err.message : String(err)}`;
+				const message = `Error creating/updating role: ${err instanceof Error ? err.message : String(err)}`;
 				logger.error(message);
 				return {
 					success: false,

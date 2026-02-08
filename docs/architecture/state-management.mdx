@@ -77,6 +77,15 @@ To prevent "DB not connected" errors during the bootstrapping phase:
 - **Lazy Proxies**: Database adapters and webhook wrappers use lazy property access (getters) rather than eager initialization. This ensures dependencies are only accessed _after_ a successful connection is established.
 - **Order-of-Operations Safety**: The system is Architected to handle out-of-order module loading gracefully without crashing the startup sequence.
 
+### 3. Self-Learning Performance Metrics
+
+The system tracks its own performance and "learns" optimal operational parameters over time:
+
+- **Metrics Persistence**: Initialization durations, success rates, and performance trends are persisted to the database using `PerformanceService`.
+- **Hydration on Startup**: Learned historical metrics are loaded during system initialization to inform self-healing thresholds from the start.
+- **Adaptive Calibration**: Anomaly detection thresholds (e.g., `maxStartupTime`) are automatically calibrated based on historical Exponential Moving Averages (EMA), reducing false positives.
+- **Setup Benchmarking**: The setup process is instrumented to establish performance baselines for different environments.
+
 ## 🔮 Future Improvements
 
 1.  **Granular Sub-States**:
