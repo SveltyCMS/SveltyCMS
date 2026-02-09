@@ -58,31 +58,11 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      # Create minimal config for build (actual DB config injected at runtime)
-      - name: Create build config
-        run: |
-          cat > config/private.ts <<EOF
-          export const privateEnv = {
-            DB_TYPE: 'mongodb',
-            DB_HOST: '127.0.0.1',
-            DB_PORT: 27017,
-            DB_NAME: 'sveltycms_build',
-            DB_USER: '',
-            DB_PASSWORD: '',
-            JWT_SECRET_KEY: 'build_jwt_secret',
-            ENCRYPTION_KEY: 'build_encryption_key_32b',
-            MULTI_TENANT: false
-          } as const;
-          EOF
-
       - name: Generate SvelteKit types
         run: bunx svelte-kit sync
 
       - name: Build Production
         run: bun run build
-
-      - name: Remove build config
-        run: rm -f config/private.ts
 
       # Upload build artifacts for integration/E2E tests
       - name: Upload build artifact
@@ -181,9 +161,9 @@ jobs:
           rm -rf config/collections
           rm -f config/private.ts
 
-      - name: Create config/private.test.ts
+      - name: Create config/private.ts
         run: |
-          cat > config/private.test.ts <<EOF
+          cat > config/private.ts <<EOF
           export const privateEnv = {
             DB_TYPE: '${{ env.DB_TYPE }}',
             DB_HOST: '${{ env.DB_HOST }}',
