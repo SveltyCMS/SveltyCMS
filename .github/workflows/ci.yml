@@ -35,6 +35,8 @@ jobs:
 #    needs: unit-tests
     timeout-minutes: 10
     runs-on: ubuntu-latest
+    env:
+      NODE_ENV: production
     steps:
       - uses: actions/checkout@v4
 
@@ -114,6 +116,11 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+      mailhog:
+        image: mailhog/mailhog:latest
+        ports:
+          - 1025:1025
+          - 8025:8025
     env:
       DB_TYPE: mongodb
       DB_HOST: 127.0.0.1
@@ -121,6 +128,11 @@ jobs:
       DB_NAME: sveltycms_test
       DB_USER: admin
       DB_PASSWORD: admin
+      SMTP_HOST: localhost
+      SMTP_PORT: 1025
+      SMTP_MAIL_FROM: test@sveltycms.local
+      SMTP_SECURE: 'false'
+      NODE_ENV: production
     steps:
       - uses: actions/checkout@v4
 
@@ -181,7 +193,13 @@ jobs:
             DB_PASSWORD: '${{ env.DB_PASSWORD }}',
             JWT_SECRET_KEY: 'test_jwt_secret',
             ENCRYPTION_KEY: 'test_encryption_key',
-            MULTI_TENANT: false
+            MULTI_TENANT: false,
+            SMTP_HOST: '${{ env.SMTP_HOST }}',
+            SMTP_PORT: ${{ env.SMTP_PORT }},
+            SMTP_USER: '${{ env.SMTP_USER }}',
+            SMTP_PASS: '${{ env.SMTP_PASS }}',
+            SMTP_MAIL_FROM: '${{ env.SMTP_MAIL_FROM }}',
+            SMTP_SECURE: ${{ env.SMTP_SECURE }},
           } as const;
           EOF
 
