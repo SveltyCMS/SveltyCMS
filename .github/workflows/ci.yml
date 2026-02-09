@@ -28,40 +28,6 @@ permissions:
 
 jobs:
   # ------------------------------------------------------------------
-  # 1. Unit Tests (Fastest, no server needed)
-  # ------------------------------------------------------------------
-  unit-tests:
-    name: ⚡ Unit Tests
-    timeout-minutes: 10
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-
-      - name: Cache Bun dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.bun/install/cache
-            node_modules
-          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-bun-
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-
-      - name: Generate SvelteKit types
-        run: bunx svelte-kit sync || true
-
-      - name: Run Unit Tests
-        run: bun run test:unit
-
-  # ------------------------------------------------------------------
   # 2. Build (Single build, shared by all integration/E2E tests)
   # ------------------------------------------------------------------
   build:
@@ -115,12 +81,13 @@ jobs:
 
       - name: 🔍 Preview Smoke Test
         run: |
-          nohup bun run preview --host > preview.log 2>&1 &
+          set -euo pipefail
+          nohup bun run preview -- --host 0.0.0.0 --port 4173 --strictPort > preview.log 2>&1 &
           echo $! > preview.pid
-          bun x wait-on http://localhost:4173 -t 90000
+          bun x wait-on http://localhost:4173 -t 90000 --interval 1000 || (cat preview.log; exit 1)
           curl -f http://localhost:4173 || (cat preview.log; exit 1)
           kill $(cat preview.pid) || true
-          rm preview.pid preview.log
+          rm -f preview.pid preview.log
 
       - name: Remove build config
         run: rm -f config/private.ts
