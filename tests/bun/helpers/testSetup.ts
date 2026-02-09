@@ -5,6 +5,7 @@
  */
 import { waitForServer } from './server';
 import { createTestUsers, loginAsAdmin } from './auth';
+import { buildMongoURI } from './db';
 import { SESSION_COOKIE_NAME } from '@src/databases/auth/constants';
 
 // Re-export isServerAvailable for easy access from tests
@@ -23,83 +24,40 @@ export async function cleanupTestEnvironment(): Promise<void> {
 	// Logic for cleaning up after tests
 }
 
-// Cleanup the test database (placeholder for now).
+// Cleanup the test database - deletes all collections except users.
 export async function cleanupTestDatabase(): Promise<void> {
-	console.log('[cleanupTestDatabase] Starting...');
-	// 1. Call reset endpoint to clear config and cache on the server
-	try {
-		// API_BASE_URL is usually http://localhost:5173 or 4173
-		// Reset endpoint is gone, so we rely on direct DB drop below.
-		// If needed, we could implement a reset action or route, but for now we skip.
-		console.log('[cleanupTestDatabase] Skipping server-side reset (endpoint removed). Relying on DB drop.');
-	} catch (e: any) {
-		console.log('[cleanupTestDatabase] Reset step skipped:', e);
-	}
+	if (process.env.SKIP_DB_CLEANUP === 'true') return;
 
-	// 3. Drop Test Database
-	if (process.env.SKIP_DB_CLEANUP === 'true') {
-		console.log('[cleanupTestDatabase] Skipping DB cleanup (SKIP_DB_CLEANUP=true).');
-		return;
-	}
-
-	// Use mongoose since it works for the app, creating consistent behavior
 	const mongooseModule = await import('mongoose');
 	const mongoose = mongooseModule.default || mongooseModule;
-	const dbName = process.env.DB_NAME || 'sveltycms_test';
-
-	let uri = process.env.MONGODB_URI;
-	if (!uri && process.env.DB_USER && process.env.DB_PASSWORD) {
-		let host = process.env.DB_HOST || 'localhost';
-		const port = process.env.DB_PORT || '27017';
-		uri = `mongodb://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${host}:${port}/${dbName}?authSource=admin`;
-	}
-	if (!uri) {
-		let host = process.env.DB_HOST || 'localhost';
-		const port = process.env.DB_PORT || '27017';
-		uri = `mongodb://${host}:${port}/${dbName}`;
-	}
-
-	if (!uri.includes('directConnection=')) {
-		uri += uri.includes('?') ? '&directConnection=true' : '?directConnection=true';
-	}
-
-	const safeUri = uri.replace(/:([^:@]+)@/, ':****@');
-	console.log(`[cleanupTestDatabase] Connecting to: ${safeUri}`);
+	const uri = buildMongoURI();
 
 	try {
-		// Set strict options to avoid hanging
 		await mongoose.connect(uri, {
 			serverSelectionTimeoutMS: 5000,
 			connectTimeoutMS: 5000,
 			socketTimeoutMS: 5000,
-			family: 4 // Force IPv4 to avoid localhost issues
+			family: 4
 		});
 
-		// Wait for ready state
-		let retries = 0;
-		while (mongoose.connection.readyState !== 1 && retries < 5) {
-			await new Promise((r) => setTimeout(r, 200));
-			retries++;
+		if (!mongoose.connection.db) {
+			console.warn('[cleanupTestDatabase] Database connection not available');
+			return;
 		}
 
-		console.log(`[cleanupTestDatabase] Connected. State: ${mongoose.connection.readyState}`);
+		// Drop all collections except auth_users
+		const collections = await mongoose.connection.db.listCollections().toArray();
+		await Promise.all(
+			collections
+				.filter(col => col.name !== 'auth_users')
+				.map(col => mongoose.connection.db.collection(col.name).drop())
+		);
 
-		if (mongoose.connection.db) {
-			await mongoose.connection.db.dropDatabase();
-			console.log('[cleanupTestDatabase] DB Dropped.');
-		} else {
-			console.warn('[cleanupTestDatabase] Warning: mongoose.connection.db is undefined despite readyState 1.');
-		}
+		console.log(`[cleanupTestDatabase] Cleaned ${collections.length - 1} collections (preserved auth_users)`);
 	} catch (e: any) {
-		console.warn('[cleanupTestDatabase] Warning: Failed to drop test database:', e.message);
+		console.warn('[cleanupTestDatabase] Failed:', e.message);
 	} finally {
-		// Always disconnect
-		try {
-			await mongoose.disconnect();
-			console.log('[cleanupTestDatabase] Disconnected.');
-		} catch (e) {
-			// ignore disconnect error
-		}
+		await mongoose.disconnect().catch(() => {});
 	}
 }
 
@@ -110,20 +68,7 @@ export async function cleanupTestDatabase(): Promise<void> {
 async function seedBasicRoles(): Promise<void> {
 	const { MongoClient } = await import('mongodb');
 	const dbName = process.env.DB_NAME || 'sveltycms_test';
-
-	// Construct URI (reuse logic from cleanup)
-	let uri = process.env.MONGODB_URI;
-	if (!uri && process.env.DB_USER && process.env.DB_PASSWORD) {
-		let host = process.env.DB_HOST || '127.0.0.1';
-		if (host === 'localhost') host = '127.0.0.1';
-		const port = process.env.DB_PORT || '27017';
-		uri = `mongodb://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${host}:${port}/${dbName}?authSource=admin`;
-	} else if (!uri) {
-		let host = process.env.DB_HOST || '127.0.0.1';
-		if (host === 'localhost') host = '127.0.0.1';
-		const port = process.env.DB_PORT || '27017';
-		uri = `mongodb://${host}:${port}/${dbName}`;
-	}
+	const uri = buildMongoURI({ dbName, forceIPv4: true });
 
 	const client = new MongoClient(uri, { serverSelectionTimeoutMS: 5000 });
 	try {
