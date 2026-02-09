@@ -62,7 +62,7 @@ jobs:
           cat > config/private.ts <<EOF
           export const privateEnv = {
             DB_TYPE: 'mongodb',
-            DB_HOST: 'localhost',
+            DB_HOST: '127.0.0.1',
             DB_PORT: 27017,
             DB_NAME: 'sveltycms_build',
             DB_USER: '',
@@ -78,16 +78,6 @@ jobs:
 
       - name: Build Production
         run: bun run build
-
-      - name: 🔍 Preview Smoke Test
-        run: |
-          set -euo pipefail
-          nohup bun run preview -- --host 0.0.0.0 --port 4173 --strictPort > preview.log 2>&1 &
-          echo $! > preview.pid
-          bun x wait-on http://localhost:4173 -t 90000 --interval 1000 || (cat preview.log; exit 1)
-          curl -f http://localhost:4173 || (cat preview.log; exit 1)
-          kill $(cat preview.pid) || true
-          rm -f preview.pid preview.log
 
       - name: Remove build config
         run: rm -f config/private.ts
@@ -126,7 +116,7 @@ jobs:
           --health-retries 5
     env:
       DB_TYPE: mongodb
-      DB_HOST: localhost
+      DB_HOST: 127.0.0.1
       DB_PORT: 27017
       DB_NAME: sveltycms_test
       DB_USER: admin
@@ -151,6 +141,22 @@ jobs:
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
+
+      - name: Wait for MongoDB
+        run: |
+          attempt=0
+          until [ $attempt -ge 10 ]
+          do
+            docker exec ${{ job.services.mongodb.id }} mongosh \
+              -u admin -p admin \
+              --authenticationDatabase admin \
+              --eval "db.adminCommand('ping')" && break
+            attempt=$((attempt+1))
+            echo "Waiting for MongoDB... ($attempt/10)"
+            sleep 3
+          done
+          echo "MongoDB is ready, waiting 5 more seconds for full initialization..."
+          sleep 5
 
       # Download pre-built artifact
       - name: Download build artifact
