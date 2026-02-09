@@ -8,7 +8,7 @@
 	import { getLanguageName } from '@utils/languageUtils';
 	import { locales as systemLocales } from '@src/paraglide/runtime';
 	//  Import types from the store
-	import type { ValidationErrors } from '@stores/setupStore.svelte';
+	import type { ValidationErrors } from '@stores/setupStore.svelte.ts';
 	import { safeParse } from 'valibot';
 	import { systemSettingsSchema } from '@utils/formSchemas';
 	import SystemTooltip from '@components/system/SystemTooltip.svelte';

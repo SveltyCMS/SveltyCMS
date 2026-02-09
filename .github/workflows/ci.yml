@@ -69,6 +69,18 @@ jobs:
     needs: unit-tests
     timeout-minutes: 10
     runs-on: ubuntu-latest
+    services:
+      mongodb:
+        image: mongo:latest
+        ports: [27017:27017]
+        env:
+          MONGO_INITDB_ROOT_USERNAME: admin
+          MONGO_INITDB_ROOT_PASSWORD: admin
+        options: >-
+          --health-cmd "mongosh --eval 'db.adminCommand({ping: 1})' --quiet"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
 
@@ -99,8 +111,8 @@ jobs:
             DB_HOST: 'localhost',
             DB_PORT: 27017,
             DB_NAME: 'sveltycms_build',
-            DB_USER: '',
-            DB_PASSWORD: '',
+            DB_USER: 'admin',
+            DB_PASSWORD: 'admin',
             JWT_SECRET_KEY: 'build_jwt_secret',
             ENCRYPTION_KEY: 'build_encryption_key_32b',
             MULTI_TENANT: false

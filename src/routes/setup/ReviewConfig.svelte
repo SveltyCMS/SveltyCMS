@@ -16,7 +16,7 @@ This component presents a summary of all configuration steps before finalizing t
 	import * as m from '@src/paraglide/messages';
 
 	// Types from setupStore
-	import type { AdminUser, DbConfig, SystemSettings } from '@stores/setupStore.svelte';
+	import type { AdminUser, DbConfig, SystemSettings } from '@stores/setupStore.svelte.ts';
 	import SystemTooltip from '@components/system/SystemTooltip.svelte';
 
 	//  props

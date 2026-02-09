@@ -66,6 +66,12 @@ export function buildDatabaseConnectionString(config: DatabaseConfig): string {
 
 			return connectionString;
 		}
+		case 'sqlite': {
+			// SQLite connection "string" (file path)
+			// Ensure host is treated as directory and name as filename
+			const path = config.host.endsWith('/') ? config.host : `${config.host}/`;
+			return `${path}${config.name}`;
+		}
 		default: {
 			// TypeScript ensures exhaustive checking - this should never be reached
 			// but provides a helpful message if the schema is extended without updating this function
@@ -194,6 +200,47 @@ export async function getSetupDatabaseAdapter(config: DatabaseConfig): Promise<{
 			if (!connectResult.success) {
 				logger.error(`PostgreSQL connection failed: ${connectResult.error?.message}`, { correlationId });
 				throw new Error(`Database connection failed: ${connectResult.error?.message}`);
+			}
+
+			break;
+		}
+		case 'sqlite': {
+			// Mock success in TEST_MODE if host is 'mock-host' for UI audit
+			if (process.env.TEST_MODE === 'true' && config.host === 'mock-host') {
+				logger.info('🛠️ Mocking SQLite connection for setup in TEST_MODE');
+				// We'll create the folder/file in execution block below
+				return {
+					dbAdapter: {
+						connect: async () => ({ success: true, data: undefined }),
+						auth: { setupAuthModels: async () => {} }
+					} as unknown as IDBAdapter,
+					connectionString
+				};
+			}
+
+			// For SQLite during setup, we'll try to import a minimal adapter if it exists
+			// or just return a dummy if we are just testing connection in Wizard
+			try {
+				const { existsSync } = await import('fs');
+				if (!existsSync(connectionString) && process.env.TEST_MODE !== 'true') {
+					return {
+						dbAdapter: null as any,
+						connectionString,
+						// @ts-ignore
+						dbDoesNotExist: true,
+						error: `SQLite database file "${connectionString}" does not exist. Create it now?`
+					} as any;
+				}
+
+				const { SQLiteAdapter } = await import('@src/databases/sqlite/sqliteAdapter');
+				dbAdapter = new SQLiteAdapter() as unknown as IDBAdapter;
+				const connectResult = await dbAdapter.connect(connectionString);
+				if (!connectResult.success) {
+					throw new Error(connectResult.error?.message);
+				}
+			} catch (err: any) {
+				logger.error(`SQLite connection failed: ${err.message}`, { correlationId });
+				throw new Error(`SQLite Connection failed: ${err.message}`);
 			}
 
 			break;

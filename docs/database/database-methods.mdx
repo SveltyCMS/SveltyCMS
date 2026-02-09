@@ -6,7 +6,7 @@ order: 6
 icon: 'mdi:database-cog'
 author: 'admin'
 created: '2025-10-03'
-updated: '2025-10-03'
+updated: '2026-02-09'
 tags:
   - 'database'
   - 'mongodb'
@@ -24,10 +24,13 @@ The SveltyCMS database layer uses a modular, database-agnostic architecture with
 **Core Principle:** Database-agnostic interface with adapter pattern
 
 ```
-Frontend/API → db.ts → dbInterface → Adapter (MongoDB/SQL) → Methods → Database
+Frontend/API → db.ts → dbInterface → Adapter (MongoDB/SQL) → Modules/Methods → Database
 ```
 
-**Method Modules Location:** `src/databases/mongodb/methods/`
+**Method Modules Location:**
+
+- **MongoDB**: `src/databases/mongodb/methods/`
+- **SQL (Drizzle)**: `src/databases/sqlite/` (and variants, e.g., `sqlite/crud/`, `sqlite/modules/auth/`)
 
 ---
 
@@ -239,13 +242,11 @@ stateDiagram-v2
 
 ## Architecture Principles
 
-### 1. Database-Agnostic Design
-
 - **Frontend/API** - Never talks directly to MongoDB or SQL
 - **db.ts** - Agnostic entry point, routes to correct adapter
 - **dbInterface (IDBAdapter)** - Abstract interface for database operations
-- **Adapter** - Implements IDBAdapter for specific database (MongoDB, PostgreSQL, Drizzle, etc.)
-- **Methods** - Modular, reusable logic organized by responsibility
+- **Adapter** - Implements IDBAdapter for specific database (MongoDB, PostgreSQL, SQLite, etc.)
+- **Modules/Methods** - Modular, reusable logic organized by responsibility (CRUD, Auth, Media, etc.)
 
 **Multilingual Data Abstraction:**
 The database adapter handles storage format differences transparently:
@@ -262,36 +263,33 @@ const entry = {
 db.collection('posts').insertOne(entry);
 // Result: { title: { en: "Hello", de: "Hallo" }, ... }
 
-// Future SQL/Drizzle adapter transforms to relational:
-// posts table: id, slug, createdAt, updatedAt
-// post_translations table:
-//   - post_id, field='title', lang='en', value='Hello'
-//   - post_id, field='title', lang='de', value='Hallo'
-//   - post_id, field='description', lang='en', value='World'
-//   - post_id, field='description', lang='de', value='Welt'
+// SQL (Drizzle) adapter transforms to relational for better normalization:
+// collections table: _id, slug, createdAt, updatedAt
+// collection_<id>_translations table:
+//   - parent_id, field='title', lang='en', value='Hello'
+//   - parent_id, field='title', lang='de', value='Hallo'
+//
+// Alternatively, SQL adapters may use JSON/JSONB columns (PostgreSQL)
+// or serialized TEXT strings (SQLite) while maintaining the same object structure.
 //
 // On read: Adapter reconstructs { title: { en: "Hello", de: "Hallo" }, ... }
 ```
 
 **Key Principle:** Widgets and components never know the underlying storage format—they always receive/send the same multilingual object structure.
 
-### 2. Separation of Concerns
+Each adapter organizes its logic into modules or methods:
 
-Each method module has a single, well-defined responsibility:
-
-| Module                         | Responsibility                      |
-| ------------------------------ | ----------------------------------- |
-| **authMethods**                | Authentication model registration   |
-| **collectionMethods**          | Dynamic schema/model management     |
-| **crudMethods**                | Generic CRUD operations             |
-| **contentMethods**             | CMS-specific content workflows      |
-| **mediaMethods**               | Media file operations               |
-| **themeMethods**               | Theme installation and activation   |
-| **widgetMethods**              | Widget registration and management  |
-| **systemMethods**              | System preferences and settings     |
-| **systemVirtualFolderMethods** | Virtual folder hierarchy            |
-| **mongoDBUtils**               | Shared utilities and error handling |
-| **mongoDBCacheUtils**          | Caching utilities                   |
+| MongoDB Method Module | SQL (Drizzle) Equivalent        | Responsibility                    |
+| --------------------- | ------------------------------- | --------------------------------- |
+| **authMethods**       | `modules/auth/authModule.ts`    | Authentication & User management  |
+| **collectionMethods** | `collection/collectionModule`   | Dynamic schema/model management   |
+| **crudMethods**       | `crud/crudModule.ts`            | Generic CRUD operations           |
+| **contentMethods**    | `modules/content/contentModule` | CMS-specific content workflows    |
+| **mediaMethods**      | `modules/media/mediaModule`     | Media file operations             |
+| **themeMethods**      | `modules/themes/themesModule`   | Theme installation & activation   |
+| **widgetMethods**     | `modules/widgets/widgetsModule` | Widget registration & management  |
+| **systemMethods**     | `modules/system/` modules       | System preferences & settings     |
+| **mongoDBUtils**      | `utils.ts`                      | Shared utilities & error handling |
 
 ### 3. Dependency Injection
 

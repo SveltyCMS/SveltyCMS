@@ -6,7 +6,7 @@ order: 12
 icon: 'mdi:shield-refresh'
 author: 'admin'
 created: '2025-11-11'
-updated: '2025-11-11'
+updated: '2026-02-09'
 tags:
   - 'architecture'
   - 'database'
@@ -24,9 +24,10 @@ This is the single, canonical document for SveltyCMS database resilience. It con
 The `DatabaseResilience` system provides:
 
 - Automatic retries with exponential backoff and jitter
-- Self-healing reconnection lifecycle for MongoDB
+- Self-healing reconnection lifecycle for MongoDB and SQL (Drizzle)
 - Centralized health checks and metrics
 - Connection pool diagnostics (API + dashboard widget)
+- SQL Migration safety (Drizzle `db:push` / `runMigrations`)
 - Optional admin email notifications after persistent failure
 
 It is integrated in:
@@ -38,12 +39,13 @@ It is integrated in:
 | Feature                                           | Status         | Key Artifacts                                                                   |
 | ------------------------------------------------- | -------------- | ------------------------------------------------------------------------------- |
 | Automatic retry with exponential backoff & jitter | ✅ Implemented | `DatabaseResilience.executeWithRetry()`; used in `db.ts`, `CacheService.ts`     |
-| Promise-Based Locking (`_initPromises`)           | ✅ Implemented | `MongoDBAdapter` - Prevents race conditions during concurrent startup           |
+| Promise-Based Locking (`_initPromises`)           | ✅ Implemented | `MongoDBAdapter`, `SQLiteAdapter` - Prevents race conditions during startup     |
 | Capability-Based Guards                           | ✅ Implemented | `SchedulerService` - Declares explicit dependencies via `db.ensure<Feature>()`  |
 | Admin email notification on persistent failure    | ✅ Implemented | `databaseFailure.svelte`; notification logic in `DatabaseResilience.ts`         |
 | Connection pool diagnostics                       | ✅ Implemented | API: `/api/database/pool-diagnostics`; Widget: `DatabasePoolDiagnostics.svelte` |
-| Self-healing MongoDB reconnection                 | ✅ Implemented | Mongoose event handlers + `attemptReconnection()`                               |
+| Self-healing Reconnection                         | ✅ Implemented | MongoDB/SQL event handlers + `attemptReconnection()`                            |
 | Automatic Driver Installation & Fallback          | ✅ Implemented | `install-driver/+server.ts`; manual command on failure                          |
+| SQL Migration Strategy                            | ✅ Implemented | `runMigrations(db)` for Drizzle adapters                                        |
 | Detailed error logs download                      | ✅ Implemented | API: `/api/logs/download` (admin-only)                                          |
 
 All features above are production-ready. The "Planned Features" section later in this document only lists not-yet-implemented roadmap items (circuit breaker, adaptive backoff, distributed coordination, advanced metrics).
@@ -58,7 +60,7 @@ import { getDatabaseResilience } from '@src/databases/DatabaseResilience';
 const resilience = getDatabaseResilience();
 
 await resilience.executeWithRetry(async () => {
-	// e.g. connect to MongoDB or Redis
+	// e.g. connect to MongoDB or SQL
 }, 'Connection step');
 ```
 
@@ -169,21 +171,10 @@ Applied in:
 
 ### Self-Healing Database Reconnection
 
-The MongoDB adapter registers reconnection handlers and uses `attemptReconnection()`.
+The system handles reconnection identically across adapters using the established lifecycle events.
 
-```ts
-mongoose.connection.on('disconnected', async () => {
-	await resilience.attemptReconnection(async () => mongoose.connect(uri, opts));
-});
-
-mongoose.connection.on('error', (err) => {
-	logger.error('MongoDB connection error', { err });
-});
-
-mongoose.connection.on('reconnected', () => {
-	logger.info('MongoDB reconnected');
-});
-```
+- **MongoDB**: Mongoose connection handlers (`disconnected`, `error`, `reconnected`)
+- **SQL (Drizzle)**: Adapter-level error detection and `attemptReconnection()` in `executeWithRetry()` loops.
 
 Flow: detect → mark FAILED → backoff retries → success marks READY and tracks uptime; failure can notify admins.
 

@@ -5,12 +5,19 @@
 
 import type { DatabaseError } from '../dbInterface';
 
+import { v4 as uuidv4 } from 'uuid';
+
 // Create a standardized database error object
 export function createDatabaseError(code: string, message: string, _originalError?: unknown): DatabaseError {
 	return {
 		code,
 		message
 	};
+}
+
+// Generate a new UUID v4 for database IDs
+export function generateId(): string {
+	return uuidv4();
 }
 
 // Serialize a value for PostgreSQL storage

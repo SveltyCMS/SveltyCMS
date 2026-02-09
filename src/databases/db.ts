@@ -325,6 +325,11 @@ async function loadAdapters() {
 					dbAdapter = new PostgreSQLAdapter() as unknown as DatabaseAdapter;
 					break;
 				}
+				case 'sqlite': {
+					const { SQLiteAdapter } = await import('./sqlite/adapter');
+					dbAdapter = new SQLiteAdapter() as unknown as DatabaseAdapter;
+					break;
+				}
 				default:
 					throw new Error(`Unsupported DB_TYPE: ${config.DB_TYPE}`);
 			}
@@ -475,6 +480,16 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false): Pr
 			const authPart = hasAuth ? `${encodeURIComponent(privateConfig.DB_USER!)}:${encodeURIComponent(privateConfig.DB_PASSWORD!)}@` : '';
 			connectionString = `mysql://${authPart}${privateConfig.DB_HOST}:${privateConfig.DB_PORT}/${privateConfig.DB_NAME}`;
 			logger.debug(`Connecting to MariaDB...`);
+		} else if (privateConfig.DB_TYPE === 'sqlite') {
+			// SQLite connection string is just the file path
+			const path = privateConfig.DB_HOST.endsWith('/') ? privateConfig.DB_HOST : `${privateConfig.DB_HOST}/`;
+			connectionString = `${path}${privateConfig.DB_NAME}`;
+			logger.debug(`Connecting to SQLite...`);
+		} else if (privateConfig.DB_TYPE === 'postgresql') {
+			const hasAuth = privateConfig.DB_USER && privateConfig.DB_PASSWORD;
+			const authPart = hasAuth ? `${encodeURIComponent(privateConfig.DB_USER!)}:${encodeURIComponent(privateConfig.DB_PASSWORD!)}@` : '';
+			connectionString = `postgresql://${authPart}${privateConfig.DB_HOST}:${privateConfig.DB_PORT}/${privateConfig.DB_NAME}`;
+			logger.debug(`Connecting to PostgreSQL...`);
 		} else {
 			connectionString = '';
 		}
@@ -679,6 +694,17 @@ export async function initializeForSetup(dbConfig: {
 			const hasAuth = dbConfig.user && dbConfig.password;
 			const authPart = hasAuth ? `${encodeURIComponent(dbConfig.user!)}:${encodeURIComponent(dbConfig.password!)}@` : '';
 			connectionString = `mysql://${authPart}${dbConfig.host}:${dbConfig.port}/${dbConfig.name}`;
+		} else if (dbConfig.type === 'postgresql') {
+			const hasAuth = dbConfig.user && dbConfig.password;
+			const authPart = hasAuth ? `${encodeURIComponent(dbConfig.user!)}:${encodeURIComponent(dbConfig.password!)}@` : '';
+			connectionString = `postgresql://${authPart}${dbConfig.host}:${dbConfig.port}/${dbConfig.name}`;
+		} else if (dbConfig.type === 'sqlite') {
+			const path = dbConfig.host.endsWith('/') ? dbConfig.host : `${dbConfig.host}/`;
+			connectionString = `${path}${dbConfig.name}`;
+			if (!dbAdapter) {
+				const { SQLiteAdapter } = await import('./sqlite/adapter');
+				dbAdapter = new SQLiteAdapter() as unknown as DatabaseAdapter;
+			}
 		} else {
 			return { success: false, error: `Database type '${dbConfig.type}' not supported yet` };
 		}

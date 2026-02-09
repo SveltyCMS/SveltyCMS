@@ -27,7 +27,8 @@ const DRIVER_PACKAGES = {
 	'mongodb+srv': 'mongoose',
 	postgresql: 'postgres',
 	mysql: 'mysql2',
-	mariadb: 'mysql2'
+	mariadb: 'mysql2',
+	sqlite: 'bun:sqlite'
 } as const;
 
 type DatabaseType = keyof typeof DRIVER_PACKAGES;
@@ -72,7 +73,9 @@ export const actions = {
 		try {
 			const formData = await request.formData();
 			const configRaw = formData.get('config') as string;
+			const createIfMissing = formData.get('createIfMissing') === 'true';
 			logger.info('📦 Received config raw:', configRaw ? 'Yes (length: ' + configRaw.length + ')' : 'No');
+			logger.info('🛠 Create missing DB if needed:', createIfMissing);
 
 			if (!configRaw) {
 				logger.error('❌ Action: No config data provided in form');
@@ -82,8 +85,10 @@ export const actions = {
 			const configData = JSON.parse(configRaw);
 			logger.info('🔍 Parsed config for type:', configData?.type);
 
-			// Coerce port to number for validation (Frontend sends string "27017")
-			if (configData.port !== undefined && configData.port !== null && configData.port !== '') {
+			// Coerce port to number for validation (Frontend sends string "27017" or "")
+			if (configData.port === '' || configData.port === null) {
+				delete configData.port;
+			} else if (configData.port !== undefined) {
 				const portNum = Number(configData.port);
 				if (!isNaN(portNum)) {
 					configData.port = portNum;
@@ -102,6 +107,8 @@ export const actions = {
 			const connectionString = buildDatabaseConnectionString(dbConfig);
 			logger.info('🔗 Built connection string (obfuscated):', connectionString.replace(/:([^:]+)@/, ':****@').replace(/\/\/[^@]*@/, '//****@'));
 
+			const start = performance.now();
+
 			if (dbConfig.type === 'mongodb' || dbConfig.type === 'mongodb+srv') {
 				logger.info('🔌 Attempting MongoDB connection...');
 				const mongoose = (await import('mongoose')).default;
@@ -117,23 +124,176 @@ export const actions = {
 				logger.info('✅ Ping successful!');
 				await conn.close();
 
-				return { success: true, message: 'Database connected successfully! ✨' };
+				const latencyMs = Math.round(performance.now() - start);
+				return { success: true, message: 'Database connected successfully! ✨', latencyMs };
 			} else if (dbConfig.type === 'mariadb' || (dbConfig.type as string) === 'mysql') {
 				const mysql = (await import('mysql2/promise')).default;
-				const conn = await mysql.createConnection({
-					uri: connectionString,
-					connectTimeout: 5000
+				try {
+					const conn = await mysql.createConnection({
+						uri: connectionString,
+						connectTimeout: 5000
+					});
+					await conn.query('SELECT 1');
+					await conn.end();
+
+					const latencyMs = Math.round(performance.now() - start);
+					return { success: true, message: 'Database connected successfully! ✨', latencyMs };
+				} catch (err: any) {
+					// ER_BAD_DB_ERROR: Unknown database
+					if (err.code === 'ER_BAD_DB_ERROR') {
+						if (createIfMissing) {
+							logger.info(`🔨 Attempting to create missing MariaDB database: ${dbConfig.name}`);
+							const adminConn = await mysql.createConnection({
+								host: dbConfig.host,
+								port: dbConfig.port,
+								user: dbConfig.user,
+								password: dbConfig.password,
+								connectTimeout: 5000
+							});
+							try {
+								await adminConn.query(`CREATE DATABASE IF NOT EXISTS \`${dbConfig.name}\``);
+								await adminConn.end();
+								logger.info('✅ Database created successfully!');
+								return {
+									success: true,
+									message: `Database "${dbConfig.name}" created and connected successfully! ✨`,
+									latencyMs: Math.round(performance.now() - start)
+								};
+							} catch (createErr: any) {
+								await adminConn.end();
+								logger.error('❌ Failed to create database:', createErr);
+								return { success: false, error: `Failed to create database: ${createErr.message}` };
+							}
+						}
+						return {
+							success: false,
+							dbDoesNotExist: true,
+							error: `Database "${dbConfig.name}" does not exist. Create it now?`
+						};
+					}
+					throw err;
+				}
+			} else if (dbConfig.type === 'postgresql') {
+				const postgres = (await import('postgres')).default;
+				let sql = postgres(connectionString, {
+					connect_timeout: 5000,
+					max: 1
 				});
-				await conn.query('SELECT 1');
-				await conn.end();
+				try {
+					await sql`SELECT 1`;
+					await sql.end();
+					const latencyMs = Math.round(performance.now() - start);
+					return { success: true, message: 'Database connected successfully! ✨', latencyMs };
+				} catch (err: any) {
+					await sql.end();
+					// Handle specific "database does not exist" error (3D000)
+					if (err.code === '3D000') {
+						if (createIfMissing) {
+							logger.info(`🔨 Attempting to create missing PostgreSQL database: ${dbConfig.name}`);
+							// Connect to 'postgres' system database to create the new one
+							const adminConnectionString = `postgres://${encodeURIComponent(dbConfig.user)}:${encodeURIComponent(dbConfig.password)}@${dbConfig.host}:${dbConfig.port}/postgres`;
+							const adminSql = postgres(adminConnectionString, { connect_timeout: 5000, max: 1 });
+							try {
+								// Note: CREATE DATABASE cannot be run with parameters in most drivers, using unsafe
+								await adminSql.unsafe(`CREATE DATABASE "${dbConfig.name}"`);
+								await adminSql.end();
+								logger.info('✅ Database created successfully!');
+								return {
+									success: true,
+									message: `Database "${dbConfig.name}" created and connected successfully! ✨`,
+									latencyMs: Math.round(performance.now() - start)
+								};
+							} catch (createErr: any) {
+								await adminSql.end();
+								logger.error('❌ Failed to create database:', createErr);
+								return { success: false, error: `Failed to create database: ${createErr.message}` };
+							}
+						}
+						return {
+							success: false,
+							dbDoesNotExist: true,
+							error: `Database "${dbConfig.name}" does not exist. Create it now?`
+						};
+					}
+					throw err;
+				}
+			} else if (dbConfig.type === 'sqlite') {
+				// SQLite path is built from host and name
+				const { buildDatabaseConnectionString } = await import('./utils');
+				const dbPath = buildDatabaseConnectionString(dbConfig);
+				const start = performance.now();
 
-				return { success: true, message: 'Database connected successfully! ✨' };
+				try {
+					const path = await import('path');
+					const fs = await import('fs');
+					const dbPathResolved = path.resolve(process.cwd(), dbPath);
+					const dbDir = path.dirname(dbPathResolved);
+
+					if (!fs.existsSync(dbDir)) {
+						if (createIfMissing) {
+							fs.mkdirSync(dbDir, { recursive: true });
+						} else {
+							return { success: false, dbDoesNotExist: true, error: `Directory ${dbDir} does not exist.` };
+						}
+					}
+
+					let db: any;
+					// Environment detection to avoid protocol errors in Node.js
+					// @ts-ignore
+					const isBun = typeof Bun !== 'undefined';
+
+					try {
+						if (isBun) {
+							// Use string concatenation to avoid Node's static ESM loader errors for 'bun:' protocol
+							const { Database } = await import('bun' + ':sqlite');
+							db = new Database(dbPathResolved);
+							db.query('SELECT 1').get();
+						} else {
+							// For Node.js 22.5+ (Vite dev server usually runs in Node)
+							// @ts-ignore
+							const { DatabaseSync } = await import('node:sqlite');
+							db = new DatabaseSync(dbPathResolved);
+							db.prepare('SELECT 1').get();
+						}
+					} catch (importErr: any) {
+						logger.error('SQLite driver import/init failed:', importErr);
+						// Try better-sqlite3 as last resort if node:sqlite is not found
+						if (!isBun && (importErr.code === 'ERR_UNKNOWN_BUILTIN_MODULE' || importErr.message.includes('node:sqlite'))) {
+							try {
+								const Database = (await import('better-sqlite3')).default;
+								db = new Database(dbPathResolved);
+								db.prepare('SELECT 1').run();
+							} catch (betterErr: any) {
+								const latencyMs = Math.round(performance.now() - start);
+								return {
+									success: false,
+									error: `SQLite not available: ${importErr.message} (Is Node 22.5+ or better-sqlite3 available?)`,
+									latencyMs
+								};
+							}
+						} else {
+							const latencyMs = Math.round(performance.now() - start);
+							return {
+								success: false,
+								error: `SQLite driver error: ${importErr.message}`,
+								latencyMs
+							};
+						}
+					}
+
+					if (db) db.close();
+
+					const latencyMs = Math.round(performance.now() - start);
+					return { success: true, message: 'SQLite database connected successfully! ✨', latencyMs };
+				} catch (err: any) {
+					logger.error('SQLite test failed:', err);
+					const latencyMs = Math.round(performance.now() - start);
+					return { success: false, error: `SQLite test failed: ${err.message}`, latencyMs };
+				}
 			}
-
-			return { success: false, error: `Unsupported database type: ${dbConfig.type}` };
-		} catch (err) {
+		} catch (err: any) {
 			logger.error('Database test failed:', err);
-			return { success: false, error: err instanceof Error ? err.message : String(err) };
+			return { success: false, error: err.message || String(err) };
 		}
 	},
 
@@ -267,6 +427,13 @@ export const actions = {
 			if (!session) {
 				return { success: false, error: 'Failed to create session' };
 			}
+
+			logger.info('DEBUG: Session created:', { sessionId: session._id, userId: session.user_id });
+			logger.info('DEBUG: Setting cookie:', {
+				name: SESSION_COOKIE_NAME,
+				value: session._id,
+				secure: process.env.NODE_ENV === 'production'
+			});
 
 			// Set session cookie
 			cookies.set(SESSION_COOKIE_NAME, session._id, {
@@ -484,7 +651,7 @@ export const actions = {
 		const formData = await request.formData();
 		const dbType = formData.get('dbType') as DatabaseType;
 
-		if (!dbType || !DRIVER_PACKAGES[dbType]) {
+		if (!dbType || !DRIVER_PACKAGES[dbType] || dbType === 'sqlite') {
 			return { success: true, message: 'No driver installation needed (or invalid type).' };
 		}
 

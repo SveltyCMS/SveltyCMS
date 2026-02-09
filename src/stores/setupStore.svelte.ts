@@ -25,7 +25,7 @@ import { deserialize } from '$app/forms';
 import { updatePublicEnv } from '@stores/globalSettings.svelte';
 
 // --- Types ---
-export type SupportedDbType = 'mongodb' | 'mongodb+srv' | 'postgresql' | 'mysql' | 'mariadb' | '';
+export type SupportedDbType = 'mongodb' | 'mongodb+srv' | 'postgresql' | 'mysql' | 'mariadb' | 'sqlite' | '';
 export type ValidationErrors = Record<string, string>;
 
 export type PasswordRequirements = {
@@ -79,6 +79,7 @@ export type DatabaseTestResult = {
 	error?: string;
 	userFriendly?: string;
 	latencyMs?: number;
+	dbDoesNotExist?: boolean;
 	classification?: string;
 	details?: unknown;
 };
@@ -321,9 +322,10 @@ function createSetupStore() {
 
 	/**
 	 * Test database connection - Uses SvelteKit Form Actions
+	 * @param createIfMissing - If true, attempt to create the database if it doesn't exist
 	 * @returns Promise<boolean> - true if connection successful
 	 */
-	async function testDatabaseConnection(): Promise<boolean> {
+	async function testDatabaseConnection(createIfMissing = false): Promise<boolean> {
 		// Validate before testing
 		if (!validateStep(0, true)) {
 			wizard.errorMessage = 'Please fill in all required fields before testing.';
@@ -341,6 +343,9 @@ function createSetupStore() {
 			// Call the SvelteKit Action
 			const formData = new FormData();
 			formData.append('config', JSON.stringify(wizard.dbConfig));
+			if (createIfMissing) {
+				formData.append('createIfMissing', 'true');
+			}
 
 			// Use fetch to call the named action
 			const response = await fetch('?/testDatabase', {

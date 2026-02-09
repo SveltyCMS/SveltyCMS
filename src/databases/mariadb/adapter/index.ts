@@ -74,6 +74,22 @@ export class MariaDBAdapter extends AdapterCore implements IDBAdapter {
 		this.collection = new CollectionModule(this);
 	}
 
+	public async connect(connection: any, options?: any): Promise<DatabaseResult<void>> {
+		const result = await super.connect(connection, options);
+		if (result.success && this.pool) {
+			const { runMigrations } = await import('../migrations');
+			const migrationResult = await runMigrations(this.pool);
+			if (!migrationResult.success) {
+				return {
+					success: false,
+					message: 'Migration failed',
+					error: this.utils.createDatabaseError('MIGRATION_FAILED', migrationResult.error || 'Unknown migration error')
+				};
+			}
+		}
+		return result;
+	}
+
 	public queryBuilder = <T extends BaseEntity>(collection: string): QueryBuilder<T> => {
 		return new MariaDBQueryBuilder<T>(this as any, collection);
 	};
