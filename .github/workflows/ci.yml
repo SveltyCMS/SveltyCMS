@@ -145,6 +145,9 @@ jobs:
     needs: build
     timeout-minutes: 15
     runs-on: ubuntu-latest
+    env:
+      TEST_MODE: 'true'
+      NODE_ENV: test
     services:
       mongodb:
         image: mongo:latest
@@ -221,7 +224,7 @@ jobs:
 
       - name: Start Preview Server
         run: |
-          nohup bun run preview > preview.log 2>&1 &
+          nohup bun run preview --host 127.0.0.1 --port 4173 > preview.log 2>&1 &
           echo $! > preview.pid
           bun x wait-on http://localhost:4173 -t 90000 --interval 1000
           curl -f http://localhost:4173 || (cat preview.log; exit 1)
@@ -259,6 +262,9 @@ jobs:
     needs: build
     timeout-minutes: 15
     runs-on: ubuntu-latest
+    env:
+      TEST_MODE: 'true'
+      NODE_ENV: test
     services:
       mariadb:
         image: mariadb:11
@@ -347,7 +353,7 @@ jobs:
 
       - name: Start Preview Server
         run: |
-          nohup bun run preview > preview.log 2>&1 &
+          nohup bun run preview --host 127.0.0.1 --port 4173 > preview.log 2>&1 &
           bun x wait-on http://localhost:4173 -t 60000
 
       - name: Run Integration Tests
@@ -372,6 +378,9 @@ jobs:
     needs: build
     timeout-minutes: 15
     runs-on: ubuntu-latest
+    env:
+      TEST_MODE: 'true'
+      NODE_ENV: test
     services:
       postgres:
         image: postgres:16
@@ -459,7 +468,7 @@ jobs:
 
       - name: Start Preview Server
         run: |
-          nohup bun run preview > preview.log 2>&1 &
+          nohup bun run preview --host 127.0.0.1 --port 4173 > preview.log 2>&1 &
           bun x wait-on http://localhost:4173 -t 60000
 
       - name: Run Integration Tests
@@ -484,6 +493,9 @@ jobs:
     needs: build
     timeout-minutes: 30
     runs-on: ubuntu-latest
+    env:
+      TEST_MODE: 'true'
+      NODE_ENV: test
     services:
       mongodb:
         image: mongo:latest
@@ -559,7 +571,7 @@ jobs:
 
       - name: Start Preview Server
         run: |
-          nohup bun run preview > preview.log 2>&1 &
+          nohup bun run preview --host 127.0.0.1 --port 4173 > preview.log 2>&1 &
           bun x wait-on http://localhost:4173 -t 90000 --interval 1000
 
       - name: 🧙‍♂️ Run Setup Wizard
@@ -606,6 +618,9 @@ jobs:
     needs: build
     timeout-minutes: 30
     runs-on: ubuntu-latest
+    env:
+      TEST_MODE: 'true'
+      NODE_ENV: test
     services:
       mariadb:
         image: mariadb:11
@@ -702,7 +717,7 @@ jobs:
 
       - name: Start Preview Server
         run: |
-          nohup bun run preview > preview.log 2>&1 &
+          nohup bun run preview --host 127.0.0.1 --port 4173 > preview.log 2>&1 &
           bun x wait-on http://localhost:4173 -t 60000
 
       - name: 🧙‍♂️ Run Setup Wizard
@@ -750,6 +765,9 @@ jobs:
     needs: build
     timeout-minutes: 30
     runs-on: ubuntu-latest
+    env:
+      TEST_MODE: 'true'
+      NODE_ENV: test
     services:
       postgres:
         image: postgres:16
@@ -845,7 +863,7 @@ jobs:
 
       - name: Start Preview Server
         run: |
-          nohup bun run preview > preview.log 2>&1 &
+          nohup bun run preview --host 127.0.0.1 --port 4173 > preview.log 2>&1 &
           bun x wait-on http://localhost:4173 -t 60000
 
       - name: 🧙‍♂️ Run Setup Wizard
