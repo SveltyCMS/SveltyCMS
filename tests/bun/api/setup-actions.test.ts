@@ -255,6 +255,9 @@ describe('Setup Actions - Complete Setup', () => {
 		const data = parseActionResult(result);
 
 		expect(result.type).toBe('success');
+		if (!data.success) {
+			console.error('❌ seedDatabase failed with error:', data.error);
+		}
 		expect(data.success).toBe(true);
 		expect(data.redirectPath).toBeDefined();
 
