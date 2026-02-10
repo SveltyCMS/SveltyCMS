@@ -191,6 +191,8 @@ jobs:
         continue-on-error: true
 
       - name: Start Preview Server
+        env:
+          TEST_MODE: 'true'
         run: |
           nohup bun run preview > preview.log 2>&1 &
           echo $! > preview.pid
