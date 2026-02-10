@@ -1,0 +1,70 @@
+---
+path: 'docs/guides/development/ai-integration.mdx'
+title: 'AI Integration & RAG Architecture'
+description: 'Guide to the internal AI Knowledge Base and Remote MCP Server.'
+order: 50
+icon: 'mdi:robot'
+author: 'admin'
+created: '2026-02-07'
+updated: '2026-02-10'
+tags:
+  - 'ai'
+  - 'mcp'
+  - 'rag'
+  - 'automation'
+---
+
+# AI Integration & RAG Architecture
+
+SveltyCMS 2026 integrates with a centralized **Model Context Protocol (MCP)** server to empower the built-in AI Assistant with deep project knowledge.
+
+## Overview
+
+The system uses a **Remote Retrieval-Augmented Generation (RAG)** pipeline. Instead of hosting a heavy vector database inside the CMS repository, the CMS queries a centralized Knowledge Core hosted at `mcp.sveltycms.com`.
+
+## Architecture
+
+### 1. The Remote Knowledge Core
+
+Hosted at `mcp.sveltycms.com`, this service:
+
+- **Indexes Documentation:** Recursively tracks `docs/**/*.mdx` from the main repo.
+- **Indexes Patterns:** Maintains embeddings of core architectural files (`dbInterface.ts`, etc.).
+- **External Feeds:** Syncs with Svelte 5 and Skeleton official documentation.
+
+### 2. Client-Side Inference (Local LLM)
+
+While the _Knowledge_ is remote, the _Inference_ (Generation) remains local and private by default using **Ollama**:
+
+- **Privacy:** Your prompts and chat history stay on your server (except for the search query sent to the Knowledge Core).
+- **Cost:** Uses local models (e.g., `ministral-3`, `llama3`) via Ollama.
+- **Speed:** Zero-latency inference if running on GPU nodes.
+
+### 3. The Flow
+
+1. **User Query:** "How do I create a widget?"
+2. **Context Retrieval:** `AIService` sends the query to `https://mcp.sveltycms.com/api/v1/query`.
+3. **Augmentation:** The remote server returns relevant code snippets and docs.
+4. **Generation:** `AIService` combines the snippets with the user prompt and feeds it to the local Ollama instance.
+
+## Usage for Developers
+
+### Setup
+
+1. **Ollama:** Ensure `ollama serve` is running.
+2. **Configuration:** (Optional) Set `AI_KNOWLEDGE_API_URL` in `private.ts` if using a self-hosted knowledge core. Defaults to `https://mcp.sveltycms.com`.
+
+### Usage in Chat
+
+The built-in Dashboard AI (SveltyAgent) automatically uses this architecture.
+To use it programmatically:
+
+```typescript
+import { aiService } from '$services/AIService';
+
+const reply = await aiService.chat('How do I add a new language?');
+```
+
+## Future: Community Bot
+
+The same `mcp.sveltycms.com` server powers the SveltyCMS Discord bot, ensuring that answers given in the community chat match the documentation accessible inside the CMS.

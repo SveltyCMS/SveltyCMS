@@ -4,9 +4,8 @@
  *
  * Features:
  * - Chat with AI Assistant
- * - History of previous messages
- * - Context of the current page
- * -
+ * - History of messages
+ *
  */
 
 import { json } from '@sveltejs/kit';

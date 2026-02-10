@@ -1,0 +1,96 @@
+---
+path: 'docs/guides/legal/gdpr-compliance.mdx'
+title: 'GDPR Compliance Suite'
+description: 'Handling Right to Erasure and Data Portability in SveltyCMS.'
+order: 10
+icon: 'mdi:shield-lock'
+author: 'admin'
+created: '2026-02-10'
+updated: '2026-02-10'
+tags:
+  - 'gdpr'
+  - 'compliance'
+  - 'legal'
+  - 'security'
+---
+
+# GDPR Compliance Suite
+
+**Status:** ✅ **Available (v1.0)**
+**Updated:** 2026-02-10
+
+## Overview
+
+SveltyCMS includes a native **GDPR Compliance Suite** that automates the most complex requirements of privacy regulation: **Right to Erasure (Article 17)** and **Data Portability (Article 20)**.
+
+Unlike plugins in other CMSs, this is a core service integrated directly with the **Audit Log** system, ensuring that even when a user is deleted, the _integrity_ of the content history is preserved (crypto-chained logs) while the _identity_ is anonymized.
+
+## How to Use
+
+Navigate to **Config** -> **System Settings** -> **Privacy & GDPR**.
+
+### 1. Data Portability (Export)
+
+System Administrators can generate a full JSON export of all data associated with a specific User ID.
+
+- **Input:** User ID
+- **Output:** JSON file containing:
+  - User Profile (Email, Role, Preferences)
+  - Audit Log History (All actions performed by this user)
+  - Metadata (Export timestamp)
+
+```typescript
+import { gdprService } from '$services/GDPRService';
+
+// Generates a JSON export of all user data
+const userData = await gdprService.exportUserData(userId);
+```
+
+### 2. Right to Erasure (Anonymization)
+
+Permanently remove a user's Personal Identifiable Information (PII) without breaking content relationships.
+
+- **Action:** `soft-delete`
+- **Process:**
+  1.  User email is replaced with `deleted-HASH@anonymized.sveltycms.com`.
+  2.  Username is replaced with `ghost-HASH`.
+  3.  Auth credentials are revoked.
+  4.  **Audit Trail:** A final log entry records the erasure request.
+  5.  **Content:** Posts/Entries remain remaining but authorship is transferred to a system "Ghost User" or anonymized, preserving content integrity while removing PII.
+  6.  **Logs:** Audit logs are cryptographically immutable but the actor's mapping is anonymized.
+
+```typescript
+import { gdprService } from '$services/GDPRService';
+
+// Anonymizes user and logs the erasure request
+await gdprService.anonymizeUser(userId, 'User initiated deletion');
+```
+
+## Privacy & Cookies
+
+SveltyCMS includes a `CookieConsent` mechanism (roadmap) that blocks non-essential scripts until explicit consent is given, complying with the ePrivacy Directive.
+
+## Audit Trail
+
+All GDPR requests (Export, Erasure) are strictly logged in the **Audit Log** to prove compliance to regulators if requested.
+
+## Industry Comparison
+
+How SveltyCMS compares to other platforms for GDPR implementation:
+
+| CMS            | Right to Erasure                                     | Data Portability                   | Audit Proof                |
+| :------------- | :--------------------------------------------------- | :--------------------------------- | :------------------------- |
+| **SveltyCMS**  | **✅ Automated Service** <br>(Cascading Soft-Delete) | **✅ Native JSON Export**          | **✅ Crypto-Chained Logs** |
+| **WordPress**  | ✅ Native Tools <br>(Requires Admin Email Flow)      | ✅ Native Export <br>(Email-based) | ❌ No Native Audit Log     |
+| **Payload**    | ⚠️ Custom Hook <br>(Requires Dev Implementation)     | ❌ No Native Export                | ❌ No Native Audit Log     |
+| **Drupal**     | ✅ Modules Available <br>(GDPR Module)               | ✅ Modules Available               | ⚠️ Database Logging Only   |
+| **Strapi**     | ⚠️ Manual / Plugin <br>(Community Plugins)           | ⚠️ Manual API                      | 💲 Enterprise Only         |
+| **Contentful** | ⚠️ Manual API <br>(Scripting required)               | ⚠️ Manual API                      | 💲 Enterprise Only         |
+
+**Why it matters:**
+
+- **WordPress** relies on email confirmation loops which can be slow.
+- **Payload** is "code-first" which means _you_ have to write the GDPR logic (handlers, endpoints) yourself.
+- **Drupal** has strong module support but requires heavy configuration and maintenance.
+- **Strapi/Contentful** force developers to write custom scripts to find and delete user data across relations.
+- **SveltyCMS** handles this via a single service call (`gdprService.anonymizeUser`) that automatically handles the "Referential Integrity" of keeping content while removing the user.

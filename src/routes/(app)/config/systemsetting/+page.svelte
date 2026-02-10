@@ -28,6 +28,7 @@ All dynamic CMS settings organized into logical groups
 
 	// Import setting component
 	import GenericSettingsGroup from './GenericSettingsGroup.svelte';
+	import GDPRSettings from '@components/system/GDPRSettings.svelte';
 
 	// Get user admin status from page data (set by +page.server.ts)
 	const { data } = $props();
@@ -135,7 +136,11 @@ All dynamic CMS settings organized into logical groups
 			{#if group}
 				<div class="h-full overflow-y-auto p-6">
 					<!-- Use generic component for all groups -->
-					<GenericSettingsGroup {group} {groupsNeedingConfig} />
+					{#if group.id === 'gdpr'}
+						<GDPRSettings {group} />
+					{:else}
+						<GenericSettingsGroup {group} {groupsNeedingConfig} />
+					{/if}
 				</div>
 			{:else}
 				<div class="flex h-full items-center justify-center p-6 text-center">
