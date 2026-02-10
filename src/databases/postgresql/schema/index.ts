@@ -7,7 +7,7 @@
  * Date fields are stored as TIMESTAMP and converted to ISODateString at boundaries.
  */
 
-import { pgTable, varchar, text, timestamp, boolean, integer, json, index, unique, uuid } from 'drizzle-orm/pg-core';
+import { pgTable, varchar, text, timestamp, boolean, integer, json, index, unique, uniqueIndex } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
 // Helper for timestamps
@@ -27,7 +27,7 @@ const tenantField = () => varchar('tenantId', { length: 36 });
 export const authUsers = pgTable(
 	'auth_users',
 	{
-		_id: uuid('_id')
+		_id: varchar('_id', { length: 36 })
 			.primaryKey()
 			.default(sql`gen_random_uuid()`),
 		email: varchar('email', { length: 255 }).notNull(),
@@ -53,7 +53,7 @@ export const authUsers = pgTable(
 export const authSessions = pgTable(
 	'auth_sessions',
 	{
-		_id: uuid('_id')
+		_id: varchar('_id', { length: 36 })
 			.primaryKey()
 			.default(sql`gen_random_uuid()`),
 		user_id: varchar('user_id', { length: 36 }).notNull(),
@@ -72,7 +72,7 @@ export const authSessions = pgTable(
 export const authTokens = pgTable(
 	'auth_tokens',
 	{
-		_id: uuid('_id')
+		_id: varchar('_id', { length: 36 })
 			.primaryKey()
 			.default(sql`gen_random_uuid()`),
 		user_id: varchar('user_id', { length: 36 }).notNull(),
@@ -98,7 +98,7 @@ export const authTokens = pgTable(
 export const roles = pgTable(
 	'roles',
 	{
-		_id: uuid('_id')
+		_id: varchar('_id', { length: 36 })
 			.primaryKey()
 			.default(sql`gen_random_uuid()`),
 		name: varchar('name', { length: 255 }).notNull(),
@@ -120,7 +120,7 @@ export const roles = pgTable(
 export const contentNodes = pgTable(
 	'content_nodes',
 	{
-		_id: uuid('_id')
+		_id: varchar('_id', { length: 36 })
 			.primaryKey()
 			.default(sql`gen_random_uuid()`),
 		path: varchar('path', { length: 500 }).notNull(),
@@ -150,7 +150,7 @@ export const contentNodes = pgTable(
 export const contentDrafts = pgTable(
 	'content_drafts',
 	{
-		_id: uuid('_id')
+		_id: varchar('_id', { length: 36 })
 			.primaryKey()
 			.default(sql`gen_random_uuid()`),
 		contentId: varchar('contentId', { length: 36 }).notNull(),
@@ -173,7 +173,7 @@ export const contentDrafts = pgTable(
 export const contentRevisions = pgTable(
 	'content_revisions',
 	{
-		_id: uuid('_id')
+		_id: varchar('_id', { length: 36 })
 			.primaryKey()
 			.default(sql`gen_random_uuid()`),
 		contentId: varchar('contentId', { length: 36 }).notNull(),
@@ -196,7 +196,7 @@ export const contentRevisions = pgTable(
 export const themes = pgTable(
 	'themes',
 	{
-		_id: uuid('_id')
+		_id: varchar('_id', { length: 36 })
 			.primaryKey()
 			.default(sql`gen_random_uuid()`),
 		name: varchar('name', { length: 255 }).notNull(),
@@ -220,7 +220,7 @@ export const themes = pgTable(
 export const widgets = pgTable(
 	'widgets',
 	{
-		_id: uuid('_id')
+		_id: varchar('_id', { length: 36 })
 			.primaryKey()
 			.default(sql`gen_random_uuid()`),
 		name: varchar('name', { length: 255 }).notNull(),
@@ -241,7 +241,7 @@ export const widgets = pgTable(
 export const mediaItems = pgTable(
 	'media_items',
 	{
-		_id: uuid('_id')
+		_id: varchar('_id', { length: 36 })
 			.primaryKey()
 			.default(sql`gen_random_uuid()`),
 		filename: varchar('filename', { length: 500 }).notNull(),
@@ -272,7 +272,7 @@ export const mediaItems = pgTable(
 export const systemVirtualFolders = pgTable(
 	'system_virtual_folders',
 	{
-		_id: uuid('_id')
+		_id: varchar('_id', { length: 36 })
 			.primaryKey()
 			.default(sql`gen_random_uuid()`),
 		name: varchar('name', { length: 500 }).notNull(),
@@ -297,7 +297,7 @@ export const systemVirtualFolders = pgTable(
 export const systemPreferences = pgTable(
 	'system_preferences',
 	{
-		_id: uuid('_id')
+		_id: varchar('_id', { length: 36 })
 			.primaryKey()
 			.default(sql`gen_random_uuid()`),
 		key: varchar('key', { length: 255 }).notNull(),
@@ -309,6 +309,7 @@ export const systemPreferences = pgTable(
 		...timestamps
 	},
 	(table) => ({
+		uniqueKeyTenant: uniqueIndex('system_preferences_key_tenant_unique').on(table.key, table.tenantId),
 		keyIdx: index('system_preferences_key_idx').on(table.key),
 		scopeIdx: index('system_preferences_scope_idx').on(table.scope),
 		userIdx: index('system_preferences_user_idx').on(table.userId),
@@ -320,7 +321,7 @@ export const systemPreferences = pgTable(
 export const websiteTokens = pgTable(
 	'website_tokens',
 	{
-		_id: uuid('_id')
+		_id: varchar('_id', { length: 36 })
 			.primaryKey()
 			.default(sql`gen_random_uuid()`),
 		name: varchar('name', { length: 255 }).notNull(),

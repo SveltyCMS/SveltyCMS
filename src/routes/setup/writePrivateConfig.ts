@@ -50,7 +50,7 @@ export const privateEnv = {
 	// --- Core Database Connection ---
 	DB_TYPE: '${dbConfig.type}',
 	DB_HOST: '${dbConfig.host}',
-	DB_PORT: ${dbConfig.port},
+	DB_PORT: ${dbConfig.port || 0},
 	DB_NAME: '${dbConfig.name}',
 	DB_USER: '${dbConfig.user || ''}',
 	DB_PASSWORD: '${dbConfig.password || ''}',

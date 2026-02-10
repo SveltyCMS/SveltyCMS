@@ -6,7 +6,7 @@ order: 1
 icon: 'mdi:database-settings'
 author: 'admin'
 created: '2025-10-05'
-updated: '2025-10-05'
+updated: '2026-02-09'
 tags:
   - 'database'
   - 'infrastructure'
@@ -773,28 +773,21 @@ const tenantTheme = await themeManager.getTheme('tenant123');
 
 ### Startup Sequence (Phase-Based)
 
-```
-1. Application Starts (IDLE)
-   ↓
-2. First Request / Manual Trigger (INITIALIZING)
-   ├─ loadPrivateConfig() - In-memory config preferred
-   └─ loadAdapters() - Dynamic import based on DB_TYPE
-   ↓
-3. Critical Path Handshake (READY)
-   ├─ dbAdapter.connect() - Connection with retry
-   ├─ setupAuthModels() - Parallelized model caching
-   └─ loadSettingsFromDB() - Critical system preferences
-   ↓
-4. SYSTEM IS OPERATIONAL (READY signaled)
-   └─ Returning first request in <1s
-   ↓
-5. Background Task Scheduling (WARMING)
-   ├─ ThemeManager.initialize() - UI hydration
-   ├─ WidgetRegistry.scan() - Component discovery
-   └─ ContentManager - Remains LAZY until first use
-   ↓
-6. FULL HYDRATION (WARMED)
-   └─ All background caches and registries active
+```mermaid
+graph TD
+    A[Application Starts - IDLE] --> B[First Request / Manual Trigger - INITIALIZING]
+    B --> C[loadPrivateConfig]
+    B --> D[loadAdapters]
+    C & D --> E[Critical Path Handshake - READY]
+    E --> F[dbAdapter.connect]
+    E --> G[setupAuthModels]
+    E --> H[loadSettingsFromDB]
+    F & G & H --> I[SYSTEM OPERATIONAL - READY]
+    I --> J[Background Task Scheduling - WARMING]
+    J --> K[ThemeManager.initialize]
+    J --> L[WidgetRegistry.scan]
+    J --> M[ContentManager - LAZY]
+    K & L & M --> N[FULL HYDRATION - WARMED]
 ```
 
 ### Request Flow Example

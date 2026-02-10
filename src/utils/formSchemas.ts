@@ -230,7 +230,7 @@ export const smtpConfigSchema = object({
 // --- Database Configuration Schemas ---
 
 // Database Type Schema
-const dbTypeSchema = picklist(['mongodb', 'mongodb+srv', 'postgresql', 'mysql', 'mariadb'], 'Invalid database type');
+const dbTypeSchema = picklist(['mongodb', 'mongodb+srv', 'postgresql', 'mysql', 'mariadb', 'sqlite'], 'Invalid database type');
 
 // Database Host Schema
 const dbHostSchema = pipe(string(), trim(), minLength(1, 'Database host is required'), maxLength(255, 'Database host is too long'));
@@ -255,7 +255,7 @@ const dbNameSchema = pipe(
 	trim(),
 	minLength(1, 'Database name is required'),
 	maxLength(63, 'Database name is too long'),
-	regex(/^[a-zA-Z0-9_-]+$/, 'Database name can only contain letters, numbers, hyphens, and underscores')
+	regex(/^[a-zA-Z0-9._-]+$/, 'Database name can only contain letters, numbers, hyphens, underscores, and dots')
 );
 
 // Database User Schema (optional for MongoDB without auth)

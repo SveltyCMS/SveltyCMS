@@ -11,6 +11,8 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 	import { dbConfigSchema } from '@utils/formSchemas';
 	import SystemTooltip from '@components/system/SystemTooltip.svelte';
 	import { deserialize } from '$app/forms';
+	import { showConfirm } from '@utils/modalUtils';
+	import { setupStore } from '@stores/setupStore.svelte.ts';
 
 	// Popup settings (click to toggle)
 
@@ -155,8 +157,8 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 
 	// Expose installDatabaseDriver to parent
 	export async function installDatabaseDriver(dbType: string) {
-		if (!dbType || dbType === 'mongodb' || dbType === 'mongodb+srv') {
-			// MongoDB drivers are always available, no installation needed
+		if (!dbType || dbType === 'mongodb' || dbType === 'mongodb+srv' || dbType === 'sqlite') {
+			// MongoDB and SQLite drivers are always available, no installation needed
 			return;
 		}
 
@@ -198,7 +200,20 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 
 	async function handleTestConnection() {
 		await installDatabaseDriver(dbConfig.type);
-		await testDatabaseConnection();
+		const success = await testDatabaseConnection();
+
+		// Handle missing database confirmation
+		if (!success && setupStore.wizard.lastDbTestResult?.dbDoesNotExist) {
+			showConfirm({
+				title: m.setup_db_not_found_title({ dbName: dbConfig.name }),
+				body: m.setup_db_not_found_desc({ dbName: dbConfig.name }),
+				confirmText: m.common_confirm_yes(),
+				cancelText: m.common_confirm_no(),
+				onConfirm: async () => {
+					await testDatabaseConnection(true);
+				}
+			});
+		}
 	}
 
 	function handleTypeChange() {
@@ -227,6 +242,12 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 			case 'postgresql':
 				dbConfig.port = '5432';
 				if (dbConfig.name === 'SveltyCMS') dbConfig.name = '';
+				break;
+			case 'sqlite':
+				// SQLite uses a file path, no port
+				dbConfig.host = './';
+				dbConfig.port = '';
+				if (!dbConfig.name || dbConfig.name === 'SveltyCMS') dbConfig.name = 'cms.db';
 				break;
 			case 'mongodb+srv':
 				dbConfig.port = '';
@@ -297,14 +318,28 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 	{/if}
 
 	{#if dbConfig.type === 'postgresql'}
-		<div
-			class="mb-6 rounded border border-amber-200 bg-amber-50 p-4 text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200"
-		>
+		<div class="mb-6 rounded p-4 bg-warning-500 text-white">
 			<div class="flex items-center gap-2">
-				<iconify-icon icon="mdi:flask-outline" width="20"></iconify-icon>
-				<p class="font-semibold">PostgreSQL Beta</p>
+				<iconify-icon icon="mdi:flask-outline" width="20" class="text-error-500"></iconify-icon>
+				<p class="font-semibold">PostgreSQL - Beta</p>
 			</div>
 			<p class="mt-1 text-sm">PostgreSQL support via Drizzle is in beta. Please report any issues on GitHub.</p>
+		</div>
+	{:else if dbConfig.type === 'mariadb'}
+		<div class="mb-6 rounded p-4 bg-warning-500 text-white">
+			<div class="flex items-center gap-2">
+				<iconify-icon icon="mdi:flask-outline" width="20" class="text-error-500"></iconify-icon>
+				<p class="font-semibold">MariaDB - Beta</p>
+			</div>
+			<p class="mt-1 text-sm">MariaDB support via Drizzle is in beta. Please report any issues on GitHub.</p>
+		</div>
+	{:else if dbConfig.type === 'sqlite'}
+		<div class="mb-6 rounded p-4 bg-warning-500 text-white">
+			<div class="flex items-center gap-2">
+				<iconify-icon icon="mdi:flask-outline" width="20" class="text-error-500"></iconify-icon>
+				<p class="font-semibold">SQLite - Beta</p>
+			</div>
+			<p class="mt-1 text-sm">SQLite support via Drizzle is in beta. Perfect for local dev and edge. Please report any issues on GitHub.</p>
 		</div>
 	{:else if dbConfig.type === 'mysql'}
 		<div class="mb-6 rounded border border-blue-200 bg-blue-50 p-4 text-blue-900 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-200">
@@ -346,6 +381,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 					<option value="mongodb+srv">MongoDB Atlas (SRV)</option>
 					<option value="mariadb">MariaDB (via Drizzle) (Beta)</option>
 					<option value="postgresql">PostgreSQL (via Drizzle) (Beta)</option>
+					<option value="sqlite">SQLite (via Drizzle) (Beta)</option>
 				</select>
 				{#if isInstallingDriver}
 					<div class="mt-2 flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400" role="status">
@@ -429,7 +465,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 				{/if}
 			</div>
 
-			{#if !isAtlas}
+			{#if !isAtlas && dbConfig.type !== 'sqlite'}
 				<div>
 					<label for="db-port" class="mb-1 flex items-center gap-1 text-sm font-medium">
 						<iconify-icon icon="mdi:ethernet" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
@@ -614,9 +650,9 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 			</div>
 		{/if}
 		{#if errorMessage && !dbConfigChangedSinceTest}
-			<div class="mt-4 rounded-md bg-error-50 p-4 text-sm text-error-500 dark:bg-error-900/30" role="alert">
+			<div class="mt-4 rounded-md bg-error-500 p-4 text-sm text-white" role="alert">
 				<div class="flex items-center gap-2 font-bold">
-					<iconify-icon icon="mdi:alert-circle" width="20"></iconify-icon>
+					<iconify-icon icon="mdi:alert-circle" width="24"></iconify-icon>
 					Connection Failed
 				</div>
 				<div class="mt-1">{errorMessage}</div>

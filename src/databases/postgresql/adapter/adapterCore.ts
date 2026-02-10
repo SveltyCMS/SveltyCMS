@@ -44,19 +44,45 @@ export class AdapterCore {
 
 	async connect(connection: any, _options?: any): Promise<DatabaseResult<void>> {
 		try {
+			let options: any = {
+				max: 10,
+				connect_timeout: 10
+			};
+
 			if (typeof connection === 'string') {
-				this.sql = postgres(connection);
+				// Parse connection string manually to ensure correct parameters
+				try {
+					const url = new URL(connection);
+					options = {
+						...options,
+						host: url.hostname,
+						port: Number(url.port) || 5432,
+						user: decodeURIComponent(url.username),
+						password: decodeURIComponent(url.password),
+						database: url.pathname.slice(1), // Remove leading slash
+						ssl: url.searchParams.get('sslmode') === 'require' ? 'require' : undefined
+					};
+				} catch (e) {
+					logger.warn('Failed to parse PostgreSQL connection string, falling back to raw string (might fail auth):', e);
+					this.sql = postgres(connection);
+					this.db = drizzle(this.sql, { schema });
+					this.connected = true;
+					logger.info('Connected to PostgreSQL (String Mode)');
+					return { success: true, data: undefined };
+				}
 			} else {
-				this.sql = postgres({
+				options = {
+					...options,
 					host: connection.host,
 					port: connection.port,
 					user: connection.user,
 					password: connection.password,
 					database: connection.database,
-					ssl: connection.ssl === true || connection.ssl === 'require' ? 'require' : undefined,
-					max: 10
-				});
+					ssl: connection.ssl === true || connection.ssl === 'require' ? 'require' : undefined
+				};
 			}
+
+			this.sql = postgres(options);
 			this.db = drizzle(this.sql, { schema });
 			this.connected = true;
 			logger.info('Connected to PostgreSQL');

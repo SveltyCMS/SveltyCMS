@@ -6,7 +6,7 @@ order: 2
 icon: 'mdi:lightning-bolt'
 author: 'admin'
 created: '2025-10-05'
-updated: '2025-11-15'
+updated: '2026-02-09'
 tags:
   - 'cache'
   - 'redis'
@@ -17,7 +17,7 @@ tags:
 
 # Cache System Architecture
 
-SveltyCMS features a sophisticated **dual-layer caching system** with Redis L1 (fast, in-memory) and MongoDB L2 (persistent) caching, 8 dynamically configurable TTL categories, comprehensive performance monitoring, and predictive cache warming.
+SveltyCMS features a sophisticated **dual-layer caching system** with Redis L1 (fast, in-memory) and Database L2 (persistent) caching. Any supported database (MongoDB, MariaDB, PostgreSQL, SQLite) serves as the second persistent layer, ensuring performance and recovery even after Redis cold-starts.
 
 ---
 
@@ -42,7 +42,7 @@ SveltyCMS features a sophisticated **dual-layer caching system** with Redis L1 (
             │             │
             │             ↓
             │   ┌──────────────────────┐
-            │   │ Check MongoDB (L2)   │ ← Medium (5-10ms)
+            │   │ Check Database (L2)  │ ← Medium (5-10ms)
             │   │ Persistent Cache     │
             │   └──────────┬───────────┘
             │              │
@@ -57,8 +57,7 @@ SveltyCMS features a sophisticated **dual-layer caching system** with Redis L1 (
             │       │   │ (MongoDB/PostgreSQL) │
             │       │   └──────────┬───────────┘
             │       │              │
-            │       │              ↓
-            │       │      Store in L2 (MongoDB)
+            │       │      Store in L2 (Database)
             │       │              │
             │       └──────────────┴─────────────┐
             │                                    │
@@ -71,16 +70,16 @@ SveltyCMS features a sophisticated **dual-layer caching system** with Redis L1 (
 
 ### Performance Benefits
 
-| Layer           | Storage | Speed    | Persistence | Use Case                  |
-| --------------- | ------- | -------- | ----------- | ------------------------- |
-| **L1: Redis**   | RAM     | 1-2ms    | Session     | Hot data, frequent access |
-| **L2: MongoDB** | Disk    | 5-10ms   | Permanent   | Warm data, recovery       |
-| **Source DB**   | Disk    | 50-100ms | Permanent   | Cold data, cache miss     |
+| Layer            | Storage | Speed    | Persistence | Use Case                  |
+| ---------------- | ------- | -------- | ----------- | ------------------------- |
+| **L1: Redis**    | RAM     | 1-2ms    | Session     | Hot data, frequent access |
+| **L2: Database** | Disk    | 5-10ms   | Permanent   | Warm data, recovery       |
+| **Source DB**    | Disk    | 50-100ms | Permanent   | Cold data, cache miss     |
 
 **Cache Hit Rates**:
 
 - L1 (Redis): 85% of requests
-- L2 (MongoDB): 10% of requests
+- L2 (Database): 10% of requests
 - Source DB: 5% of requests
 
 **Average Response Time**:
@@ -100,7 +99,7 @@ SveltyCMS features a sophisticated **dual-layer caching system** with Redis L1 (
 
 ### Key Features
 
-1. **Dual-Layer Caching**: Redis L1 + MongoDB L2
+1. **Dual-Layer Caching**: Redis L1 + Database L2
 2. **8 Cache Categories**: Each with configurable TTL
 3. **Multi-Tenant Isolation**: Automatic tenant-aware keys
 4. **Dynamic TTL**: Configure TTLs via database settings
@@ -1143,16 +1142,18 @@ cacheService.registerPrefetchPattern({
 
 ### Cache Hit Rates by Category
 
-| Category | Hit Rate | Avg Hit Time | Avg Miss Time | Improvement |
-| -------- | -------- | ------------ | ------------- | ----------- |
-| SCHEMA   | 99%      | 1.5ms        | 45ms          | **97%**     |
-| WIDGET   | 97%      | 1.8ms        | 38ms          | **95%**     |
-| THEME    | 95%      | 1.6ms        | 42ms          | **96%**     |
-| CONTENT  | 85%      | 2.1ms        | 75ms          | **97%**     |
-| MEDIA    | 90%      | 1.9ms        | 55ms          | **97%**     |
-| SESSION  | 98%      | 1.2ms        | 95ms          | **99%**     |
-| USER     | 95%      | 1.7ms        | 48ms          | **96%**     |
-| API      | 80%      | 2.3ms        | 120ms         | **98%**     |
+The following statistics are typical for production environments across all supported databases (MongoDB, PostgreSQL, MariaDB, SQLite):
+
+| Category    | Hit Rate | Reason                                     |
+| ----------- | -------- | ------------------------------------------ |
+| **Schema**  | 99%      | Changes rarely after startup               |
+| **Widget**  | 95%      | Configs are shared across many records     |
+| **Theme**   | 98%      | Static design data rarely changes          |
+| **Content** | 85%      | Dynamic, but frequently accessed           |
+| **User**    | 90%      | Permissions checked on every request       |
+| **Session** | 95%      | High volume of repetitive token validation |
+| **API**     | 75%      | Custom queries with specific payloads      |
+| **Media**   | 80%      | Metadata caching for assets                |
 
 ### Overall Performance
 
@@ -1203,5 +1204,3 @@ Together, these files deliver:
 - [MongoDB Implementation](./MongoDB_Implementation.mdx) - MongoDB adapter
 
 ---
-
-_Last Updated: October 5, 2025_

@@ -1,5 +1,5 @@
 <!--
-@files src/routes/(app)/config/collectionbuilder/NestedContent/TreeViewBoard.svelte
+@file src/routes/(app)/config/collectionbuilder/NestedContent/TreeViewBoard.svelte
 @component
 **Enhanced Board component for managing nested collections using svelte-dnd-action**
 
@@ -26,7 +26,7 @@
 <script lang="ts">
 	import TreeViewNode from './TreeViewNode.svelte';
 	import type { ContentNode, DatabaseId } from '@databases/dbInterface';
-	import { dndzone } from 'svelte-dnd-action';
+	import { dndzone, SHADOW_ITEM_MARKER_PROPERTY_NAME } from 'svelte-dnd-action';
 	import { flip } from 'svelte/animate';
 	import { tick } from 'svelte';
 	import SystemTooltip from '@components/system/SystemTooltip.svelte';
@@ -294,127 +294,159 @@
 
 	// --- Drag & Drop Handlers ---
 
-	/**
-	 * Takes a recursive snapshot of all nodes in the current tree.
-	 * Used to preserve children during zone-to-zone transfers.
-	 */
-	function updateNodeSnapshot(nodes: EnhancedTreeViewItem[]) {
-		nodes.forEach((node) => {
-			nodeSnapshot.set(node.id, { ...node });
-			if (node.children) updateNodeSnapshot(node.children);
-		});
-	}
-
-	/**
-	 * Re-associates visual dnd items with their nested children from the snapshot.
-	 */
-	function rehydrateItems(items: EnhancedTreeViewItem[]): EnhancedTreeViewItem[] {
-		return items.map((item) => {
-			const snapped = nodeSnapshot.get(item.id);
-			return snapped ? { ...item, children: snapped.children || [] } : item;
-		});
-	}
-
 	function handleRootConsider(e: CustomEvent) {
 		const { items, info } = e.detail;
+
 		if (info.trigger === 'dragStarted') {
 			isDragging = true;
+			// Take snapshot of current tree state including all children
 			nodeSnapshot.clear();
-			updateNodeSnapshot(treeRoots);
+			takeSnapshot(treeRoots);
 		}
-		treeRoots = rehydrateItems(items);
+
+		// Rehydrate items from snapshot to preserve children
+		treeRoots = items.map((item: EnhancedTreeViewItem) => rehydrateItem(item));
 	}
 
 	function handleNestedConsider(e: CustomEvent, parentId: string) {
 		const { items, info } = e.detail;
+
 		if (info.trigger === 'dragStarted') {
 			isDragging = true;
 			nodeSnapshot.clear();
-			updateNodeSnapshot(treeRoots);
+			takeSnapshot(treeRoots);
 		}
 
 		const parent = findNode(treeRoots, parentId);
 		if (parent) {
-			parent.children = rehydrateItems(items);
-			treeRoots = [...treeRoots];
-
-			if (!expandedNodes.has(parentId)) {
-				expandedNodes = new Set([...expandedNodes, parentId]);
-			}
+			// Rehydrate to preserve children
+			parent.children = items.map((item: EnhancedTreeViewItem) => rehydrateItem(item));
+			treeRoots = [...treeRoots]; // Trigger reactivity
 		}
 	}
 
-	function handleFinalize(e: CustomEvent, parentId: string | null) {
+	function handleFinalize(e: CustomEvent, targetParentId: string | null) {
 		const { items: newZoneItems } = e.detail;
-		const rehydratedZoneItems = rehydrateItems(newZoneItems);
-		const movingIds = new Set(rehydratedZoneItems.map((i) => i.id));
 
-		// CYCLE DETECTION: Prevent dropping into own descendant
-		if (parentId && movingIds.size > 0) {
-			const ancestorMap = new Map<string, Set<string>>();
+		// Get IDs of items being moved
+		const movingIds = new Set<string>(newZoneItems.map((i: EnhancedTreeViewItem) => i.id));
 
-			function buildAncestorMap(nodes: EnhancedTreeViewItem[], ancestors: Set<string> = new Set()) {
-				for (const node of nodes) {
-					const nodeAncestors = new Set(ancestors);
-					ancestorMap.set(node.id, nodeAncestors);
+		// CYCLE DETECTION: Prevent dropping parent into its own child
+		if (targetParentId && movingIds.size > 0) {
+			// Check if any moved item is an ancestor of the target
+			for (const movedId of movingIds) {
+				if (isAncestorOf(movedId, targetParentId, treeRoots)) {
+					const movedNode = findNode(treeRoots, movedId);
+					announce(`Cannot move "${movedNode?.name || 'item'}" into its own sub-category`);
 
-					const childAncestors = new Set(nodeAncestors);
-					childAncestors.add(node.id);
-					buildAncestorMap(node.children, childAncestors);
-				}
-			}
-
-			buildAncestorMap(treeRoots);
-			const targetAncestors = ancestorMap.get(parentId);
-
-			if (targetAncestors) {
-				for (const movingId of movingIds) {
-					if (targetAncestors.has(movingId)) {
-						const movingNode = findNode(treeRoots, movingId);
-						announce(`Cannot move "${movingNode?.name || 'item'}" into its own sub-category`);
-
-						// Revert visual state
-						treeRoots = [...treeRoots];
-						isDragging = false;
-						return;
+					// Reset to snapshot to revert visual changes
+					if (nodeSnapshot.size > 0) {
+						treeRoots = Array.from(nodeSnapshot.values()).filter((n) => !n.parent);
 					}
+					isDragging = false;
+					return;
 				}
 			}
 		}
 
-		// Update parent references
-		rehydratedZoneItems.forEach((item) => {
-			item.parent = parentId;
-		});
+		// Create new flat list from the updated structure
+		let newTreeRoots: EnhancedTreeViewItem[];
 
-		// Remove moving items from anywhere in tree
-		const cleanList = (nodes: EnhancedTreeViewItem[]): EnhancedTreeViewItem[] => {
-			return nodes
-				.filter((n) => !movingIds.has(n.id))
-				.map((n) => ({
-					...n,
-					children: cleanList(n.children)
-				}));
-		};
-
-		const finalZoneItems = rehydratedZoneItems.map((n) => ({
-			...n,
-			children: cleanList(n.children)
-		}));
-
-		if (parentId === null) {
-			treeRoots = finalZoneItems;
+		if (targetParentId === null) {
+			// Dropped at root level - newZoneItems IS the new roots
+			newTreeRoots = newZoneItems.map((item: EnhancedTreeViewItem) => ({
+				...item,
+				parent: null,
+				children: item.children || []
+			}));
 		} else {
-			const cleanedRoots = cleanList(treeRoots);
-			treeRoots = cleanedRoots;
-			const parent = findNode(treeRoots, parentId);
-			if (parent) {
-				parent.children = finalZoneItems;
+			// Dropped into a parent - reconstruct tree
+			const targetParent = findNode(treeRoots, targetParentId);
+			if (!targetParent) {
+				isDragging = false;
+				return;
+			}
+
+			// Update target parent's children
+			targetParent.children = newZoneItems.map((item: EnhancedTreeViewItem) => ({
+				...item,
+				parent: targetParentId,
+				children: item.children || []
+			}));
+
+			// Remove moved items from their old locations elsewhere in tree
+			newTreeRoots = removeItemsFromTree(treeRoots, movingIds);
+
+			// Ensure target parent is in the tree (might have been removed if it was moved)
+			if (!findNode(newTreeRoots, targetParentId)) {
+				// Target was moved, need to add it back at root or find its new location
+				// This shouldn't happen if cycle detection works, but safety check
+				newTreeRoots = [...newTreeRoots, targetParent];
 			}
 		}
 
-		treeRoots = [...treeRoots];
+		// Update state - use structuredClone to strip Svelte 5 proxies for svelte-dnd-action compatibility
+		treeRoots = structuredClone(newTreeRoots);
+
+		// Save and notify parent
 		saveTreeData();
+
+		// Clear dragging state after a delay to let animations complete
+		setTimeout(() => {
+			isDragging = false;
+			nodeSnapshot.clear();
+		}, flipDurationMs + 50);
+	}
+
+	// Helper: Check if potentialAncestor is actually an ancestor of nodeId
+	function isAncestorOf(potentialAncestorId: string, nodeId: string, nodes: EnhancedTreeViewItem[]): boolean {
+		const targetNode = findNode(nodes, nodeId);
+		if (!targetNode) return false;
+
+		// Walk up from targetNode to see if we hit potentialAncestorId
+		let current: EnhancedTreeViewItem | null = targetNode;
+		const visited = new Set<string>();
+
+		while (current) {
+			if (current.id === potentialAncestorId) return true;
+			if (visited.has(current.id)) break; // Cycle protection
+			visited.add(current.id);
+			current = getParent(nodes, current.id);
+		}
+
+		return false;
+	}
+
+	// Helper: Remove specific items from tree while preserving structure
+	function removeItemsFromTree(nodes: EnhancedTreeViewItem[], idsToRemove: Set<string>): EnhancedTreeViewItem[] {
+		return nodes
+			.filter((n) => !idsToRemove.has(n.id))
+			.map((n) => ({
+				...n,
+				children: removeItemsFromTree(n.children || [], idsToRemove)
+			}));
+	}
+
+	// Helper: Take snapshot of entire tree
+	function takeSnapshot(nodes: EnhancedTreeViewItem[]) {
+		nodes.forEach((node) => {
+			nodeSnapshot.set(node.id, { ...node, children: [...(node.children || [])] });
+			if (node.children?.length) {
+				takeSnapshot(node.children);
+			}
+		});
+	}
+
+	// Helper: Rehydrate single item from snapshot
+	function rehydrateItem(item: EnhancedTreeViewItem): EnhancedTreeViewItem {
+		const snap = nodeSnapshot.get(item.id);
+		if (snap) {
+			return {
+				...item,
+				children: snap.children.map((child) => rehydrateItem(child))
+			};
+		}
+		return { ...item, children: item.children || [] };
 	}
 
 	function saveTreeData() {
@@ -822,14 +854,19 @@
 				flipDurationMs,
 				type: 'tree-items',
 				dragDisabled: !!searchText,
-				morphDisabled: true,
-				centreDraggedOnCursor: true
+				dropFromOthersDisabled: false,
+				centreDraggedOnCursor: false,
+				morphDisabled: false,
+				dropTargetStyle: {
+					outline: '2px dashed rgb(var(--color-primary-500))',
+					background: 'rgb(var(--color-primary-500) / 0.1)'
+				}
 			}}
 			onconsider={handleRootConsider}
 			onfinalize={(e) => handleFinalize(e, null)}
 			role="group"
 		>
-			{#each treeRoots as item (item.id)}
+			{#each treeRoots as item (item.id + (item[SHADOW_ITEM_MARKER_PROPERTY_NAME] ? '_shadow' : ''))}
 				<div
 					class="tree-node-wrapper mb-2"
 					class:hidden={!isNodeVisible(item, searchText)}
@@ -839,7 +876,7 @@
 					aria-selected="false"
 					data-item-id={item.id}
 					data-node-type={item.nodeType}
-					data-is-dnd-shadow-item={item.isDndShadowItem}
+					data-is-dnd-shadow-item={item[SHADOW_ITEM_MARKER_PROPERTY_NAME] ? true : false}
 				>
 					{@render treeNode(item, 0)}
 				</div>
@@ -882,8 +919,13 @@
 						flipDurationMs,
 						type: 'tree-items',
 						dragDisabled: !!searchText,
-						morphDisabled: true,
-						centreDraggedOnCursor: true
+						dropFromOthersDisabled: false,
+						centreDraggedOnCursor: false,
+						morphDisabled: false,
+						dropTargetStyle: {
+							outline: '2px dashed rgb(var(--color-tertiary-500))',
+							background: 'rgb(var(--color-tertiary-500) / 0.1)'
+						}
 					}}
 					onconsider={(e) => handleNestedConsider(e, item.id)}
 					onfinalize={(e) => handleFinalize(e, item.id)}
@@ -891,7 +933,7 @@
 					aria-label={`Contents of ${item.name}`}
 				>
 					{#if item.children?.length > 0}
-						{#each item.children as child (child.id)}
+						{#each item.children as child (child.id + (child[SHADOW_ITEM_MARKER_PROPERTY_NAME] ? '_shadow' : ''))}
 							<div
 								class="tree-node-wrapper mb-2"
 								class:hidden={!isNodeVisible(child, searchText)}
@@ -901,7 +943,7 @@
 								aria-selected="false"
 								data-item-id={child.id}
 								data-node-type={child.nodeType}
-								data-is-dnd-shadow-item={child.isDndShadowItem}
+								data-is-dnd-shadow-item={child[SHADOW_ITEM_MARKER_PROPERTY_NAME] ? true : false}
 							>
 								{@render treeNode(child, level + 1)}
 							</div>
@@ -946,6 +988,7 @@
 			border-color 0.2s ease;
 		border-radius: 0.5rem;
 		position: relative;
+		border: 2px dashed transparent;
 	}
 
 	.dnd-zone:empty,
@@ -982,8 +1025,8 @@
 
 	/* Drop target feedback */
 	:global(.dnd-zone.svelte-dnd-action-shadow-placeholder-active) {
-		background: rgb(var(--color-primary-500) / 0.08) !important;
-		border: 2px dashed rgb(var(--color-primary-500)) !important;
+		background: rgb(var(--color-primary-500) / 0.1) !important;
+		border-color: rgb(var(--color-primary-500)) !important;
 	}
 
 	/* Shadow item (placeholder) styling */
@@ -1016,5 +1059,21 @@
 		bottom: 0;
 		width: 2px;
 		background: rgb(var(--color-surface-300));
+	}
+
+	/* Empty drop zone visible during drag */
+	.empty-drop-zone {
+		min-height: 40px;
+		border: 2px dashed rgb(var(--color-surface-400));
+		background: rgb(var(--color-surface-200) / 0.2);
+		border-radius: 0.5rem;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	/* Hide empty drop zones when not dragging */
+	.dnd-zone:not(.is-dragging) .empty-drop-zone {
+		display: none;
 	}
 </style>

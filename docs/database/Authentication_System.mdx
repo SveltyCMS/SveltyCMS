@@ -4,9 +4,9 @@ title: 'Authentication & Authorization System'
 description: 'Complete guide to SveltyCMS authentication and authorization infrastructure covering user authentication, session management, permissions, role-based access control, OAuth integration, and 2FA security.'
 order: 3
 icon: 'mdi:shield-account'
-author: 'SveltyCMS Team'
+author: 'admin'
 created: 2024-01-15
-updated: 2024-01-15
+updated: '2026-02-09'
 tags:
   - database
   - authentication
@@ -39,34 +39,35 @@ The auth system is built on several core principles:
 
 ### Security Layers
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                     Request Layer                            │
-│  (HTTP Request with credentials/token/session)              │
-└──────────────────────┬──────────────────────────────────────┘
-                       │
-┌──────────────────────▼──────────────────────────────────────┐
-│              Layer 1: Authentication                         │
-│  Files: index.ts, googleAuth.ts, twoFactorAuth.ts, totp.ts │
-│  Purpose: Verify user identity (login, OAuth, 2FA)         │
-│  Output: Authenticated user object                          │
-└──────────────────────┬──────────────────────────────────────┘
-                       │
-┌──────────────────────▼──────────────────────────────────────┐
-│              Layer 2: Session Management                     │
-│  Files: sessionManager.ts, sessionCleanup.ts                │
-│  Purpose: Track authenticated sessions                       │
-│  Output: Valid session with user context                    │
-└──────────────────────┬──────────────────────────────────────┘
-                       │
-┌──────────────────────▼──────────────────────────────────────┐
-│              Layer 3: Authorization                          │
-│  Files: permissions.ts, corePermissions.ts, apiPermissions.ts│
-│  Purpose: Check if user can perform action                   │
-│  Output: Access granted/denied                              │
-└──────────────────────┬──────────────────────────────────────┘
-                       │
-                  [Protected Resource]
+```mermaid
+graph TD
+    subgraph Request["Request Layer"]
+        A[HTTP Request with credentials/token/session]
+    end
+
+    subgraph Auth["Layer 1: Authentication"]
+        B["AuthService (login, OAuth, 2FA)"]
+        B1["Files: index.ts, googleAuth.ts, twoFactorAuth.ts, totp.ts"]
+    end
+
+    subgraph Session["Layer 2: Session Management"]
+        C["SessionManager"]
+        C1["Files: sessionManager.ts, sessionCleanup.ts"]
+    end
+
+    subgraph Authorize["Layer 3: Authorization"]
+        D["Permissions / RBAC"]
+        D1["Files: permissions.ts, corePermissions.ts, apiPermissions.ts"]
+    end
+
+    subgraph Resource["Protected Resource"]
+        E[API Endpoints / Pages]
+    end
+
+    A --> B
+    B --> C
+    C --> D
+    D --> E
 ```
 
 ---

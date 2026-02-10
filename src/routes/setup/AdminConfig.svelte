@@ -22,7 +22,7 @@
 -->
 <script lang="ts">
 	import * as m from '@src/paraglide/messages';
-	import type { ValidationErrors } from '@stores/setupStore.svelte';
+	import type { ValidationErrors } from '@stores/setupStore.svelte.ts';
 	import { safeParse } from 'valibot';
 	import { setupAdminSchema } from '@utils/formSchemas';
 	import SystemTooltip from '@components/system/SystemTooltip.svelte';

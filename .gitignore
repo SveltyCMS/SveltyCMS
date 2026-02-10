@@ -59,6 +59,12 @@ yarn-error.log*
 
 #paraglide.js
 src/paraglide/**/*.js
+
+# Database
+*.db
+*.db-shm
+*.db-wal
+
 .idea
 .compiledCollections/Collections/Names.js
 .compiledCollections/Collections/Relation.js

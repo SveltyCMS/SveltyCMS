@@ -466,7 +466,7 @@ export default defineConfig((): UserConfig => {
 		},
 		ssr: {
 			noExternal: [],
-			external: ['bun:test', 'redis']
+			external: ['bun:sqlite', 'bun:test', 'redis']
 		},
 		resolve: {
 			alias: {

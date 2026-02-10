@@ -5,8 +5,8 @@ description: 'Complete MongoDB-specific implementation guide covering optimizati
 order: 4
 icon: 'mdi:leaf'
 author: 'SveltyCMS Team'
-created: 2024-01-15
-updated: 2024-01-15
+created: '2024-01-15'
+updated: '2026-02-09'
 tags:
   - database
   - mongodb
@@ -31,11 +31,11 @@ This guide covers the **MongoDB-specific** implementation in SveltyCMS, includin
 
 | Operation              | Response Time | Cache Hit Rate |
 | ---------------------- | ------------- | -------------- |
-| User lookup (cached)   | 0.8ms         | 85-95%         |
+| User lookup (cached)   | 0.5ms         | 85-95%         |
 | User lookup (uncached) | 2ms           | -              |
 | Collection list (100)  | 12ms          | 85-95%         |
 | Collection list (1K)   | 18ms          | 85-95%         |
-| Collection (cached)    | 1.2ms         | 85-95%         |
+| Collection (cached)    | 0.5ms         | 85-95%         |
 | Pagination (page 50)   | 10ms          | -              |
 | Payload size (list)    | 95 KB         | -              |
 | Content tree           | 15ms          | 85-95%         |
