@@ -230,7 +230,7 @@ mock.module('@sveltejs/kit', () => ({
 	};
 };
 (globalThis as any).$derived = (fn: any) => {
-	let value = typeof fn === 'function' ? fn() : fn;
+	const value = typeof fn === 'function' ? fn() : fn;
 	return {
 		get value() {
 			return value;

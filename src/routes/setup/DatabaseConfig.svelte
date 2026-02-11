@@ -368,7 +368,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 						<button
 							type="button"
 							tabindex="-1"
-							aria-label={'Help: Database Type'}
+							aria-label="Help: Database Type"
 							class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 						>
 							<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
@@ -420,7 +420,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 						<button
 							type="button"
 							tabindex="-1"
-							aria-label={'Help: Host'}
+							aria-label="Help: Host"
 							class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 						>
 							<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
@@ -474,7 +474,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 							<button
 								type="button"
 								tabindex="-1"
-								aria-label={'Help: Port'}
+								aria-label="Help: Port"
 								class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 							>
 								<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
@@ -505,7 +505,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 						<button
 							type="button"
 							tabindex="-1"
-							aria-label={'Help: Database Name'}
+							aria-label="Help: Database Name"
 							class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 						>
 							<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
@@ -541,7 +541,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 						<button
 							type="button"
 							tabindex="-1"
-							aria-label={'Help: Database User'}
+							aria-label="Help: Database User"
 							class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 						>
 							<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
@@ -578,7 +578,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 						<button
 							type="button"
 							tabindex="-1"
-							aria-label={'Help: Database Password'}
+							aria-label="Help: Database Password"
 							class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 						>
 							<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>

@@ -49,12 +49,12 @@ export async function cleanupTestDatabase(): Promise<void> {
 
 	let uri = process.env.MONGODB_URI;
 	if (!uri && process.env.DB_USER && process.env.DB_PASSWORD) {
-		let host = process.env.DB_HOST || 'localhost';
+		const host = process.env.DB_HOST || 'localhost';
 		const port = process.env.DB_PORT || '27017';
 		uri = `mongodb://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${host}:${port}/${dbName}?authSource=admin`;
 	}
 	if (!uri) {
-		let host = process.env.DB_HOST || 'localhost';
+		const host = process.env.DB_HOST || 'localhost';
 		const port = process.env.DB_PORT || '27017';
 		uri = `mongodb://${host}:${port}/${dbName}`;
 	}

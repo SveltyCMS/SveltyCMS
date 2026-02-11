@@ -29,6 +29,7 @@
 
 	import TreeView from '@components/system/TreeView.svelte';
 	import * as m from '@src/paraglide/messages';
+	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 
 	interface ExtendedContentNode extends ContentNode {
 		children?: ExtendedContentNode[];
@@ -60,7 +61,7 @@
 	let search = $state('');
 	let debouncedSearch = $state('');
 	let isSearching = $state(false);
-	let expandedNodes = $state<Set<string>>(new Set());
+	let expandedNodes = new SvelteSet<string>();
 
 	let updateDebounced = debounce.create((value: unknown) => {
 		debouncedSearch = (value as string).toLowerCase().trim();
@@ -80,7 +81,7 @@
 	let structure = $derived(contentStructure.value ?? []);
 
 	// Collection count cache
-	let countCache = new Map<string, number>();
+	let countCache = new SvelteMap<string, number>();
 
 	function countCollections(node: ExtendedContentNode): number {
 		const key = node._id;
@@ -167,7 +168,7 @@
 	function buildTree(nodes: ExtendedContentNode[]): ExtendedContentNode[] {
 		if (!nodes || nodes.length === 0) return [];
 
-		const nodeMap = new Map<string, ExtendedContentNode>();
+		const nodeMap = new SvelteMap<string, ExtendedContentNode>();
 		const roots: ExtendedContentNode[] = [];
 
 		// First pass: flattened map of all unique nodes
@@ -229,6 +230,7 @@
 	async function navigate(path: string, force = false): Promise<void> {
 		if (page.url.pathname === path && !force) return;
 		if (force || page.url.pathname === path) await invalidateAll();
+
 		await goto(path, { invalidateAll: true });
 	}
 
@@ -254,9 +256,11 @@
 	}
 
 	function toggleExpand(id: string): void {
-		const set = new Set(expandedNodes);
-		set.has(id) ? set.delete(id) : set.add(id);
-		expandedNodes = set;
+		if (expandedNodes.has(id)) {
+			expandedNodes.delete(id);
+		} else {
+			expandedNodes.add(id);
+		}
 	}
 
 	function clearSearch(): void {

@@ -23,7 +23,8 @@ Key features:
 	// Using iconify-icon web component
 	// Utils
 	import { formatBytes } from '@utils/utils';
-	import type { MediaImage, MediaBase } from '@utils/media/mediaModels';
+	import type { MediaImage, MediaBase, MediaVideo } from '@utils/media/mediaModels';
+	import { SvelteSet } from 'svelte/reactivity';
 
 	// Skeleton
 	import SystemTooltip from '@components/system/SystemTooltip.svelte';
@@ -40,7 +41,7 @@ Key features:
 		onEditImage?: (file: MediaImage) => void;
 		onUpdateImage?: (file: MediaImage) => void;
 		isSelectionMode?: boolean;
-		selectedFiles?: Set<string>;
+		selectedFiles?: Set<string> | SvelteSet<string>;
 	}
 
 	let {
@@ -50,9 +51,15 @@ Key features:
 		onBulkDelete = () => {},
 		onEditImage = () => {},
 		onUpdateImage = () => {},
-		isSelectionMode = $bindable(false),
-		selectedFiles = $bindable(new Set())
+		isSelectionMode: isSelectionModeProp = $bindable(false),
+		selectedFiles = $bindable(new SvelteSet<string>())
 	}: Props = $props();
+
+	let isSelectionMode = $state(isSelectionModeProp);
+
+	$effect(() => {
+		isSelectionMode = isSelectionModeProp;
+	});
 
 	let showInfo = $state<boolean[]>([]);
 
@@ -111,22 +118,24 @@ Key features:
 		} else {
 			selectedFiles.add(fileId);
 		}
-		selectedFiles = new Set(selectedFiles); // Trigger reactivity
 	}
 
 	function selectAll() {
-		selectedFiles = new Set(filteredFiles.map((f: MediaBase | MediaImage) => f._id?.toString() || f.filename));
+		selectedFiles.clear();
+		for (const f of filteredFiles) {
+			selectedFiles.add(f._id?.toString() || f.filename);
+		}
 	}
 
 	function deselectAll() {
-		selectedFiles = new Set();
+		selectedFiles.clear();
 	}
 
 	function handleBulkDelete() {
 		const filesToDelete = filteredFiles.filter((f: MediaBase | MediaImage) => selectedFiles.has(f._id?.toString() || f.filename));
 		if (filesToDelete.length > 0) {
 			onBulkDelete(filesToDelete);
-			selectedFiles = new Set();
+			selectedFiles.clear();
 			isSelectionMode = false;
 		}
 	}
@@ -268,9 +277,9 @@ Key features:
 								<div class="grid grid-cols-2 gap-y-1 text-xs">
 									<span class="text-surface-500">Size:</span>
 									<span class="text-right font-mono">{formatBytes(file.size)}</span>
-									{#if (file as any).width}
+									{#if file.type === 'image' && (file as MediaImage).width}
 										<span class="text-surface-500">Dimensions:</span>
-										<span class="text-right font-mono">{(file as any).width}x{(file as any).height}</span>
+										<span class="text-right font-mono">{(file as MediaImage).width}x{(file as MediaImage).height}</span>
 									{/if}
 									<span class="text-surface-500">Type:</span>
 									<span class="text-right">{formatMimeType(file.mimeType)}</span>
@@ -335,7 +344,7 @@ Key features:
 					onclick={(e) => {
 						if (!isSelectionMode && file.type === 'video') {
 							e.stopPropagation();
-							const video = file as any;
+							const video = file as MediaVideo;
 							window.open(video.url, '_blank');
 						}
 					}}
@@ -344,7 +353,7 @@ Key features:
 							if (!isSelectionMode && file.type === 'video') {
 								e.preventDefault();
 								e.stopPropagation();
-								const video = file as any;
+								const video = file as MediaVideo;
 								window.open(video.url, '_blank');
 							}
 						}

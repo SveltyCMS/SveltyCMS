@@ -167,7 +167,7 @@
 
 	// Event handlers
 	function handleLanguageSelection(lang: AvailableLanguage): void {
-		systemLanguage.set(lang as any);
+		systemLanguage.set(lang as any); // Use any to bypass strict literal check since AvailableLanguage is a string
 		languageTag = lang;
 		searchQuery = '';
 	}

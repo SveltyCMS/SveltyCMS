@@ -191,7 +191,7 @@
 					required={field?.required as boolean | undefined}
 					readonly={field?.readonly as boolean | undefined}
 					disabled={field?.disabled as boolean | undefined}
-					class="input w-full rounded-none border-none bg-white font-medium text-black outline-none focus:ring-0 dark:bg-surface-900 dark:text-primary-500 {!!validationError
+					class="input w-full rounded-none border-none bg-white font-medium text-black outline-none focus:ring-0 dark:bg-surface-900 dark:text-primary-500 {validationError
 						? 'bg-error-500-10!'
 						: ''}"
 					aria-invalid={!!validationError}

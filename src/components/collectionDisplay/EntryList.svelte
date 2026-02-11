@@ -73,6 +73,7 @@
 	import TablePagination from '@components/system/table/TablePagination.svelte';
 	import EntryListMultiButton from './EntryList_MultiButton.svelte';
 	import TranslationStatus from './TranslationStatus.svelte';
+	import Sanitize from '@src/utils/Sanitize.svelte';
 
 	// Skeleton
 	import { showDeleteConfirm, showStatusChangeConfirm } from '@utils/modalUtils';
@@ -1155,14 +1156,14 @@
 													{@const translatedValue = fieldData[currentLanguage] || Object.values(fieldData)[0] || '-'}
 													{@const debugInfo = `Field: ${(header as TableHeader).name}, Lang: ${currentLanguage}, Data: ${JSON.stringify(fieldData)}, Value: ${translatedValue}`}
 													{#if (header as TableHeader).name === 'last_name'}
-														<span title={debugInfo}>{@html translatedValue}</span>
+														<span title={debugInfo}><Sanitize html={translatedValue} profile="strict" /></span>
 													{:else}
-														{@html translatedValue}
+														<Sanitize html={translatedValue} profile="strict" />
 													{/if}
 												{:else if (header as TableHeader).name === 'plugin'}
 													<!-- <PluginComponent /> -->
 												{:else}
-													{@html entry[(header as TableHeader).name] || '-'}
+													<Sanitize html={entry[(header as TableHeader).name] || '-'} profile="strict" />
 												{/if}
 											</SystemTooltip>
 										</td>

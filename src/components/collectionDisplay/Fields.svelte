@@ -512,7 +512,7 @@
 						{@const diffObject = selectedRevision?.diff || null}
 						{#if diffObject && Object.keys(diffObject).length > 0}
 							<div class="space-y-3 font-mono text-sm">
-								{#each Object.entries(diffObject) as [key, change]}
+								{#each Object.entries(diffObject) as [key, change] (key)}
 									{@const ch = change as any}
 									<div>
 										<strong class="font-bold text-surface-600 dark:text-surface-300">{key}:</strong>

@@ -38,7 +38,7 @@ export function normalizeAvatarUrl(url: string | null | undefined): string {
 	if (url.startsWith('data:') || /^https?:\/\//i.test(url)) return url;
 	if (/^\/?Default_User\.svg$/i.test(url)) return DEFAULT_AVATAR;
 
-	let normalized = url.replace(/^https?:\/\/[^/]+/i, '').replace(/^\/+/, '/');
+	const normalized = url.replace(/^https?:\/\/[^/]+/i, '').replace(/^\/+/, '/');
 	if (normalized === '/files' || normalized === '/files/') return DEFAULT_AVATAR;
 	if (normalized.startsWith('/files/')) return normalized;
 

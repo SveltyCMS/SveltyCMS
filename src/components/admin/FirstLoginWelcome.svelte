@@ -167,7 +167,7 @@
 		<!-- Progress Indicator -->
 		<div class="mb-8 flex justify-center">
 			<div class="flex space-x-2">
-				{#each welcomeSteps as step, index}
+				{#each welcomeSteps as step, index (index)}
 					<button
 						class="h-3 w-3 rounded-full transition-colors duration-200 {index === currentStep
 							? 'bg-blue-600'

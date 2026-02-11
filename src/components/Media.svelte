@@ -33,6 +33,7 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 	import axios from 'axios';
 	import { onMount, onDestroy } from 'svelte';
 	import { fade, scale } from 'svelte/transition';
+	import { SvelteSet } from 'svelte/reactivity';
 	import * as m from '@src/paraglide/messages';
 
 	type ThumbnailSize = 'sm' | 'md' | 'lg';
@@ -56,15 +57,18 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 	let search = $state('');
 	let isLoading = $state(true);
 	let error = $state<string | null>(null);
-	let showInfoSet = $state(new Set<number>());
-	let selectedFiles = $state(new Set<string>());
-	let currentViewMode = $state<ViewMode>('grid'); // Default, synced from prop below
+	let showInfoSet = $state(new SvelteSet<number>());
+	let selectedFiles = $state(new SvelteSet<string>());
+
+	// svelte-ignore state_referenced_locally
+	let currentViewMode = $state<ViewMode>(viewMode);
+
 	let sortBy = $state<SortBy>('name');
 	let sortAscending = $state(true);
 	let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 	let prefersReducedMotion = $state(false);
 
-	// Sync viewMode prop to local state on mount
+	// Sync viewMode prop to local state
 	$effect(() => {
 		currentViewMode = viewMode;
 	});
@@ -116,13 +120,11 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 		event.stopPropagation();
 		event.preventDefault();
 
-		const newSet = new Set(showInfoSet);
-		if (newSet.has(index)) {
-			newSet.delete(index);
+		if (showInfoSet.has(index)) {
+			showInfoSet.delete(index);
 		} else {
-			newSet.add(index);
+			showInfoSet.add(index);
 		}
-		showInfoSet = newSet;
 	}
 
 	// Check if file is selected
@@ -134,18 +136,16 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 	function toggleSelection(file: MediaImage, event?: Event): void {
 		event?.stopPropagation();
 
-		const newSet = new Set(selectedFiles);
-
 		if (multiple) {
-			if (newSet.has(file.filename)) {
-				newSet.delete(file.filename);
+			if (selectedFiles.has(file.filename)) {
+				selectedFiles.delete(file.filename);
 			} else {
-				newSet.add(file.filename);
+				selectedFiles.add(file.filename);
 			}
-			selectedFiles = newSet;
 		} else {
 			// Single selection mode
-			selectedFiles = new Set([file.filename]);
+			selectedFiles.clear();
+			selectedFiles.add(file.filename);
 			handleSelect(file);
 		}
 	}
@@ -158,8 +158,8 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 		try {
 			const res = await axios.get<MediaImage[]>('/api/media');
 			files = res.data;
-			showInfoSet = new Set();
-			selectedFiles = new Set();
+			showInfoSet.clear();
+			selectedFiles.clear();
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to load media';
 			logger.error('Error fetching media:', err);
@@ -186,7 +186,7 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 
 	// Clear selection
 	function clearSelection(): void {
-		selectedFiles = new Set();
+		selectedFiles.clear();
 	}
 
 	// Handle keyboard selection

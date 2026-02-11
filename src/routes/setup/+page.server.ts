@@ -175,7 +175,7 @@ export const actions = {
 				}
 			} else if (dbConfig.type === 'postgresql') {
 				const postgres = (await import('postgres')).default;
-				let sql = postgres(connectionString, {
+				const sql = postgres(connectionString, {
 					connect_timeout: 5000,
 					max: 1
 				});

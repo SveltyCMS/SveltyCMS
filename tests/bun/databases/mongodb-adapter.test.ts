@@ -43,7 +43,7 @@ mock.module('@src/utils/logger', () => ({
 (globalThis as any).$props = () => ({});
 
 // Dynamic import to avoid module mocking issues
-// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+
 let adapterClass: typeof import('../../../src/databases/mongodb/mongoDBAdapter').MongoDBAdapter;
 let privateEnv: any;
 

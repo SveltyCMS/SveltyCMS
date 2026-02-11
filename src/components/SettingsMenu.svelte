@@ -46,6 +46,7 @@ Sidebar navigation for System Settings
 		// Update URL query param to switch groups
 		const url = new URL(page.url);
 		url.searchParams.set('group', groupId);
+
 		goto(url.toString());
 	}
 </script>

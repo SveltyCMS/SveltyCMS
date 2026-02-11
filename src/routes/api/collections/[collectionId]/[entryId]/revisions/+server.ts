@@ -47,7 +47,7 @@ export const GET = apiHandler(async ({ locals, params, url }) => {
 		throw new AppError('Failed to get revisions', 500, 'REVISION_FETCH_ERROR');
 	}
 
-	const paginatedResult = result.data;
+	const paginatedResult = (result as any).data;
 	const duration = performance.now() - start;
 	logger.info(`Revisions retrieved`, { entryId, duration: `${duration.toFixed(2)}ms` });
 

@@ -268,8 +268,8 @@ Advanced icon picker with search, pagination, and favorites.
 
 			// Add categorized
 			if (data.categories) {
-				Object.values(data.categories).forEach((categoryIcons: any) => {
-					allIcons.push(...categoryIcons);
+				Object.values(data.categories).forEach((categoryIcons: unknown) => {
+					allIcons.push(...(categoryIcons as string[]));
 				});
 			}
 

@@ -25,6 +25,7 @@ optional actions, and smooth animations.
 
 	import { Toast } from '@skeletonlabs/skeleton-svelte';
 	import { toaster } from '@stores/store.svelte.ts';
+	import Sanitize from '@src/utils/Sanitize.svelte';
 
 	interface Props {
 		/** Position of the toast container */
@@ -137,7 +138,7 @@ optional actions, and smooth animations.
 					<Toast.Description
 						class="text-sm md:text-base font-bold opacity-100 leading-tight md:leading-relaxed text-white drop-shadow-sm inline-block max-w-full whitespace-normal"
 					>
-						{@html toast.description}
+						<Sanitize html={toast.description} profile="strict" />
 					</Toast.Description>
 
 					{#if toast.action}

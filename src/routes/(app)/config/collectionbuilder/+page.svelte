@@ -76,15 +76,13 @@ None (TreeView has its own keyboard navigation)
 	let nodesToSave: Record<string, NodeOperation> = $state({});
 	let isLoading = $state(false);
 
-	
 	$effect(() => {
-    // Only update from server data if we don't have pending changes
-    // This prevents the "Save" return data from conflicting with drag operations if a save happens
-    if (data.contentStructure && Object.keys(nodesToSave).length === 0) {
-        currentConfig = data.contentStructure as unknown as ContentNode[];
-    }
-});
-	
+		// Only update from server data if we don't have pending changes
+		// This prevents the "Save" return data from conflicting with drag operations if a save happens
+		if (data.contentStructure && Object.keys(nodesToSave).length === 0) {
+			currentConfig = data.contentStructure as unknown as ContentNode[];
+		}
+	});
 
 	async function handleNodeUpdate(updatedNodes: ContentNode[]) {
 		console.debug('[CollectionBuilder] Hierarchy updated via DnD');

@@ -126,26 +126,50 @@ function mask(v: unknown, depth = 0): unknown {
 // File ops (lazy loaded)
 let stream: import('node:fs').WriteStream | null = null;
 let modules: any = null;
+let lastHash: string = '';
+const HMAC_SECRET = process.env.LOG_CHAIN_SECRET || 'svelty-cms-default-log-secret';
 
 async function getMods() {
 	if (modules) return modules;
+	const cryptoMod = await import('node:crypto');
 	modules = {
 		fs: await import('node:fs'),
 		path: await import('node:path'),
 		zlib: await import('node:zlib'),
 		stream: await import('node:stream/promises'),
-		promises: await import('node:fs/promises')
+		promises: await import('node:fs/promises'),
+		crypto: cryptoMod
 	};
 	return modules;
 }
 
+function calculateHash(prevHash: string, content: string): string {
+	const { crypto } = modules;
+	return crypto
+		.createHmac('sha256', HMAC_SECRET)
+		.update(prevHash + content)
+		.digest('hex');
+}
+
 async function ensureStream() {
-	const { path, fs } = await getMods();
+	const { path, fs, promises } = await getMods();
 	const dir = 'logs';
 	const file = path.join(dir, 'app.log');
 
 	if (!stream || stream.destroyed) {
-		await (await getMods()).promises.mkdir(dir, { recursive: true });
+		await promises.mkdir(dir, { recursive: true });
+
+		// Initialize chain from existing file if possible
+		try {
+			const content = await promises.readFile(file, 'utf8');
+			const lines = content.trim().split('\n');
+			if (lines.length > 0) {
+				const lastLine = lines[lines.length - 1];
+				const match = lastLine.match(/\[CHAIN:([a-f0-9]{64})\]/);
+				if (match) lastHash = match[1];
+			}
+		} catch (e) {}
+
 		stream = fs.createWriteStream(file, { flags: 'a' });
 	}
 	return stream;
@@ -163,6 +187,7 @@ async function rotate() {
 		const rotated = `${file}.${ts}`;
 		await promises.rename(file, rotated);
 		await promises.writeFile(file, '');
+		lastHash = ''; // Reset chain for new file
 
 		if (true) {
 			// compression enabled
@@ -183,20 +208,26 @@ let timeout: NodeJS.Timeout | null = null;
 function flush() {
 	if (!queue.length) return;
 	const batch = queue.splice(0, queue.length);
-	const lines = batch
-		.map((e) => {
-			const ts = new Date().toISOString().slice(0, 19).replace('T', ' ');
-			const icon = ICONS[e.level.toUpperCase()] ?? '●';
-			const color = LEVELS[e.level].color;
-			const masked = e.args.map((a) => mask(a));
-			const args = masked.map(formatValue).join(' ');
-			const msg = colorMessage(e.msg);
-			return `${ts} ${color}${icon} [${e.level.toUpperCase().padEnd(5)}]${RESET} ${msg} ${args}`;
-		})
-		.join('\n');
+
 	ensureStream()
-		.then((s) => {
-			if (s) rotate().finally(() => s.write(lines + '\n'));
+		.then(async (s) => {
+			if (!s) return;
+			await rotate();
+
+			for (const e of batch) {
+				const ts = new Date().toISOString().slice(0, 19).replace('T', ' ');
+				const icon = ICONS[e.level.toUpperCase()] ?? '●';
+				const color = LEVELS[e.level].color;
+				const masked = e.args.map((a) => mask(a));
+				const args = masked.map(formatValue).join(' ');
+				const msg = colorMessage(e.msg);
+
+				const plainText = `${ts} [${e.level.toUpperCase().padEnd(5)}] ${e.msg} ${JSON.stringify(masked)}`;
+				lastHash = calculateHash(lastHash, plainText);
+
+				const logLine = `${ts} ${color}${icon} [${e.level.toUpperCase().padEnd(5)}]${RESET} ${msg} ${args} [CHAIN:${lastHash}]\n`;
+				s.write(logLine);
+			}
 		})
 		.catch((err) => console.error('Log write failed:', err));
 }

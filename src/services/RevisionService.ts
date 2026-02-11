@@ -19,7 +19,7 @@ export async function getRevisions({
 	collectionId: string;
 	entryId: string;
 	tenantId: string;
-	dbAdapter: any;
+	dbAdapter: import('@src/databases/dbInterface').IDBAdapter;
 	page?: number;
 	limit?: number;
 }) {

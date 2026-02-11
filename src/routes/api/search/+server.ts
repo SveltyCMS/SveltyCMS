@@ -86,7 +86,7 @@ export const GET = apiHandler(async ({ locals, url }) => {
 		}
 
 		const searchResults: unknown[] = [];
-		let totalResults = 0;
+		const totalResults = 0;
 
 		if (!dbAdapter) {
 			logger.error('Database adapter not initialized');

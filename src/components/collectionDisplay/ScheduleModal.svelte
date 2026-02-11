@@ -113,7 +113,7 @@
 			<label class="label">
 				<span>Action</span>
 				<select class="select" bind:value={action} aria-label="Action">
-					{#each actionOptions as opt}
+					{#each actionOptions as opt (opt.value)}
 						<option value={opt.value}>{opt.label}</option>
 					{/each}
 				</select>
