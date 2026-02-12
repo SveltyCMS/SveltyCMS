@@ -151,7 +151,6 @@ const ImageResize = ImageExtension.extend({
 
 	addNodeView() {
 		return ({ editor, node, getPos }) => {
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			const nodeAttrs = (node as any).attrs as Record<string, unknown>;
 			nodeAttrs._ = null;
 

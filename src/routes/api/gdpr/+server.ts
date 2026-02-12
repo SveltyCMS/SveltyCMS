@@ -43,8 +43,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		}
 
 		return json({ error: 'Invalid action' }, { status: 400 });
-	} catch (err: any) {
-		console.error('GDPR API Error:', err);
-		return json({ error: err.message || 'Internal Server Error' }, { status: 500 });
+	} catch (err) {
+		const error = err as Error;
+		console.error('GDPR API Error:', error);
+		return json({ error: error.message || 'Internal Server Error' }, { status: 500 });
 	}
 };

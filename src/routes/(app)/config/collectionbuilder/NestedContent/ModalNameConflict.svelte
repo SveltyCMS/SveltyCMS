@@ -63,7 +63,7 @@ Features:
 			<span>Choose a suggested name:</span>
 		</label>
 		<select id="suggested-name" class="select" bind:value={selectedName} disabled={useCustomName}>
-			{#each suggestions as suggestion}
+			{#each suggestions as suggestion (suggestion)}
 				<option value={suggestion}>{suggestion}</option>
 			{/each}
 		</select>

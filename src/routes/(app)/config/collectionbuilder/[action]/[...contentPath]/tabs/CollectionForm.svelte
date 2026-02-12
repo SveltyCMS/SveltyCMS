@@ -209,7 +209,7 @@
 					{m.collection_status()}
 				</label>
 				<select id="status" bind:value={status} class="select w-full">
-					{#each statuses as statusOption}
+					{#each statuses as statusOption (statusOption)}
 						<option value={statusOption}>{statusOption}</option>
 					{/each}
 				</select>

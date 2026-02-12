@@ -103,7 +103,7 @@ canManage: boolean;
 				{#if widget.dependencies && widget.dependencies.length > 0}
 					<div class="flex flex-wrap gap-1.5 pt-1">
 						<span class="text-xs text-surface-500">Depends on:</span>
-						{#each widget.dependencies as dep}
+						{#each widget.dependencies as dep (dep)}
 							<span class="badge variant-soft-secondary text-xs">
 								{dep}
 							</span>

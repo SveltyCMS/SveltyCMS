@@ -10,14 +10,19 @@
 	import { SvelteSet } from 'svelte/reactivity';
 
 	// Props interface
+
 	interface Props {
 		parent?: unknown;
+
 		allowedTypes?: string[];
 	}
-	const {}: Props = $props();
+
+	let _props: Props = $props();
+	void _props;
 
 	let activeTab = $state<'library' | 'local' | 'remote'>('local');
 	let files = $state<(MediaBase | MediaImage)[]>([]);
+	// eslint-disable-next-line svelte/no-unnecessary-state-wrap
 	let selectedFiles = $state(new SvelteSet<string>());
 	let isLoading = $state(false);
 	let error = $state<string | null>(null);

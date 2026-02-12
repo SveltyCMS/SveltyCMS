@@ -120,7 +120,6 @@ export class TokenAdapter {
 		tenantId?: string
 	): Promise<DatabaseResult<{ success: boolean; message: string; email?: string }>> {
 		try {
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			const query: any = { token };
 			if (user_id) query.user_id = user_id;
 			if (type) query.type = type;
@@ -295,13 +294,11 @@ export class TokenAdapter {
 
 	async updateToken(token_id: string, tokenData: Partial<Token>, tenantId?: string): Promise<DatabaseResult<Token>> {
 		try {
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			const filter: any = { token: token_id };
 			if (tenantId) {
 				filter.tenantId = tenantId;
 			}
 
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			const result = (await this.TokenModel.findOneAndUpdate(filter, { $set: tokenData }, { new: true, lean: true })) as any;
 
 			if (result) {

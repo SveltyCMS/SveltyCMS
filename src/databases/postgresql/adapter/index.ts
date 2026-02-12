@@ -35,7 +35,6 @@ import { sql } from 'drizzle-orm';
  * This is a beta stub implementation. All core modules return "not implemented".
  * The adapter will be fully implemented following the MariaDB pattern.
  */
-// @ts-ignore - Beta implementation
 export class PostgreSQLAdapter extends AdapterCore {
 	private _featureInit = {
 		system: false,
@@ -136,11 +135,11 @@ export class PostgreSQLAdapter extends AdapterCore {
 				let qb = this.db!.select().from(table).where(where);
 
 				if (options?.limit) {
-					// @ts-ignore
+					// @ts-expect-error - Drizzle types
 					qb = qb.limit(options.limit);
 				}
 				if (options?.offset) {
-					// @ts-ignore
+					// @ts-expect-error - Drizzle types
 					qb = qb.offset(options.offset);
 				}
 
@@ -327,11 +326,11 @@ export class PostgreSQLAdapter extends AdapterCore {
 				let query = this.db!.select().from(schema.authUsers).orderBy(desc(schema.authUsers.createdAt));
 
 				if (options?.limit) {
-					// @ts-ignore
+					// @ts-expect-error - Drizzle types
 					query = query.limit(options.limit);
 				}
 				if (options?.offset) {
-					// @ts-ignore
+					// @ts-expect-error - Drizzle types
 					query = query.offset(options.offset);
 				}
 
@@ -347,7 +346,7 @@ export class PostgreSQLAdapter extends AdapterCore {
 				let query = this.db!.select().from(schema.roles);
 
 				if (tenantId) {
-					// @ts-ignore
+					// @ts-expect-error - Drizzle types
 					query = query.where(eq(schema.roles.tenantId, tenantId));
 				}
 
@@ -620,12 +619,12 @@ export class PostgreSQLAdapter extends AdapterCore {
 					let query = this.db!.select().from(schema.contentNodes);
 
 					if (options?.tenantId) {
-						// @ts-ignore
+						// @ts-expect-error - Drizzle types
 						query = query.where(eq(schema.contentNodes.tenantId, options.tenantId));
 					}
 
 					// Apply ordering
-					// @ts-ignore
+					// @ts-expect-error - Drizzle types
 					query = query.orderBy(asc(schema.contentNodes.order));
 
 					const nodes = await query;

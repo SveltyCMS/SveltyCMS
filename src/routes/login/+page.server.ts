@@ -339,7 +339,6 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 
 		// Rate limiter preflight check
 		if (limiter.cookieLimiter?.preflight) {
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			await limiter.cookieLimiter.preflight({ request, cookies } as any);
 		}
 
@@ -972,12 +971,11 @@ export const actions: Actions = {
 				return fail(400, { message: 'Missing required fields.' });
 			}
 
-			// Import 2FA service
 			const { getDefaultTwoFactorAuthService } = await import('@src/databases/auth/twoFactorAuth');
 			if (!auth) {
 				return fail(500, { message: 'Auth service is not initialized' });
 			}
-			const twoFactorService = getDefaultTwoFactorAuthService(auth as any); // Verify 2FA code
+			const twoFactorService = getDefaultTwoFactorAuthService(auth as unknown as import('@src/databases/dbInterface').IAuthAdapter); // Verify 2FA code
 			const result = await twoFactorService.verify2FA(userId, code);
 			if (!result.success) {
 				logger.warn('2FA verification failed during login', { userId, reason: result.message });

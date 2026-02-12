@@ -96,7 +96,7 @@
 		if (!browser || !isMounted) return;
 
 		// Depend on page.url to trigger this effect on every navigation
-		page.url.pathname;
+		void page.url.pathname;
 
 		const flashMessageJson = sessionStorage.getItem('flashMessage');
 		if (flashMessageJson) {

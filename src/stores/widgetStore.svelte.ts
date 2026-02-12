@@ -71,18 +71,19 @@ class WidgetState {
 				if (!name) continue;
 
 				try {
-					const fn = (module as any).default as WidgetFactory;
+					const fn = (module as { default: WidgetFactory }).default;
 					if (typeof fn !== 'function') continue;
 
 					const widgetName = fn.Name || name;
 					fn.Name = widgetName;
-					(fn as any).__widgetType = 'core';
+					fn.__widgetType = 'core';
 
 					newWidgetFunctions[widgetName] = fn;
 					newCoreWidgets.push(widgetName);
 
-					if ((fn as any).__dependencies && (fn as any).__dependencies.length > 0) {
-						newDependencyMap[widgetName] = (fn as any).__dependencies;
+					const deps = (fn as any).__dependencies;
+					if (deps && Array.isArray(deps) && deps.length > 0) {
+						newDependencyMap[widgetName] = deps;
 					}
 
 					if (name && name !== widgetName) {
@@ -99,18 +100,19 @@ class WidgetState {
 				if (!name) continue;
 
 				try {
-					const fn = (module as any).default as WidgetFactory;
+					const fn = (module as { default: WidgetFactory }).default;
 					if (typeof fn !== 'function') continue;
 
 					const widgetName = fn.Name || name;
 					fn.Name = widgetName;
-					(fn as any).__widgetType = 'custom';
+					fn.__widgetType = 'custom';
 
 					newWidgetFunctions[widgetName] = fn;
 					newCustomWidgets.push(widgetName);
 
-					if ((fn as any).__dependencies && (fn as any).__dependencies.length > 0) {
-						newDependencyMap[widgetName] = (fn as any).__dependencies;
+					const deps = (fn as any).__dependencies;
+					if (deps && Array.isArray(deps) && deps.length > 0) {
+						newDependencyMap[widgetName] = deps;
 					}
 
 					if (name && name !== widgetName) {
@@ -140,7 +142,7 @@ class WidgetState {
 				});
 				if (res.ok) {
 					const data = await res.json();
-					activeWidgetNames = (data.widgets || []).map((w: any) => w.name);
+					activeWidgetNames = (data.widgets || []).map((w: { name: string }) => w.name);
 				}
 			}
 
@@ -163,9 +165,10 @@ class WidgetState {
 			this.activeWidgets = allActiveWidgets;
 
 			// Create instances
-			const newWidgets: Record<string, any> = {};
+			const newWidgets: Record<string, FieldInstance> = {};
 			for (const [name, fn] of Object.entries(this.widgetFunctions)) {
-				newWidgets[name] = (fn as any)({} as any);
+				// Cast to any first to bypass complex union mismatch if necessary, or better, to its known factory signature
+				newWidgets[name] = (fn as any)({ label: name });
 			}
 			this.widgets = newWidgets;
 
@@ -220,14 +223,14 @@ class WidgetState {
 		}
 	}
 
-	async updateConfig(name: string, config: Record<string, any>) {
+	async updateConfig(name: string, config: Record<string, unknown>) {
 		const currentFn = this.widgetFunctions[name];
 		if (!currentFn || typeof currentFn !== 'function') return;
 
-		const updatedFn = Object.assign((cfg: any) => currentFn({ ...config, ...cfg }), currentFn);
+		const updatedFn = Object.assign((cfg: Record<string, unknown>) => (currentFn as any)({ ...config, ...cfg }), currentFn);
 
 		this.widgetFunctions[name] = updatedFn;
-		this.widgets[name] = updatedFn({} as any);
+		this.widgets[name] = (updatedFn as any)({ label: name });
 	}
 
 	async reload(tenantId?: string) {

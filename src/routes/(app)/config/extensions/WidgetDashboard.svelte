@@ -400,7 +400,7 @@ Features:
 
 				<!-- Badges Counts -->
 				<div class="flex flex-wrap gap-2">
-					{#each [{ value: 'all' as const, label: 'All', count: stats.total, icon: 'mdi:widgets' }, { value: 'active' as const, label: 'Active', count: stats.active, icon: 'mdi:check-circle' }, { value: 'inactive' as const, label: 'Inactive', count: stats.inactive, icon: 'mdi:pause-circle' }, { value: 'core' as const, label: 'Core', count: stats.core, icon: 'mdi:puzzle' }, { value: 'custom' as const, label: 'Custom', count: stats.custom, icon: 'mdi:puzzle-plus' }] as filter}
+					{#each [{ value: 'all' as const, label: 'All', count: stats.total, icon: 'mdi:widgets' }, { value: 'active' as const, label: 'Active', count: stats.active, icon: 'mdi:check-circle' }, { value: 'inactive' as const, label: 'Inactive', count: stats.inactive, icon: 'mdi:pause-circle' }, { value: 'core' as const, label: 'Core', count: stats.core, icon: 'mdi:puzzle' }, { value: 'custom' as const, label: 'Custom', count: stats.custom, icon: 'mdi:puzzle-plus' }] as filter (filter.value)}
 						<button
 							onclick={() => (activeFilter = filter.value)}
 							class="btn {activeFilter === filter.value ? 'preset-filled-tertiary-500 text-white' : 'preset-ghost-secondary-500 '}"

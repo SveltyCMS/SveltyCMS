@@ -129,7 +129,6 @@ export class MongoCollectionMethods {
 		});
 
 		// Create and register the model
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const model = mongoose.model(modelName, mongooseSchema) as any;
 
 		// Wrap the model for the interface

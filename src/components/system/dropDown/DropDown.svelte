@@ -32,22 +32,19 @@
 	// --- STATE ---
 	// State for dropdown expansion and selected item
 	let expanded = $state(false);
-	// Use $derived to reactively track selected prop changes
-	let currentSelected = $derived(selected);
-
-	// Effect to update currentSelected when the selected prop changes or to set initial default
-	$effect(() => {
-		if (selected !== undefined) {
-			currentSelected = selected;
-		} else if (items && items.length > 0) {
-			currentSelected = items[0];
-		} else {
-			currentSelected = undefined; // No selected item or items available
+	// Use writable derived to track selected prop changes but allow local override
+	let localSelected = $state<any>(undefined);
+	let currentSelected = {
+		get value() {
+			return localSelected ?? (selected !== undefined ? selected : items && items.length > 0 ? items[0] : undefined);
+		},
+		set value(v: any) {
+			localSelected = v;
 		}
-	});
+	};
 
 	// Derived state for filtered items
-	const filteredItems = $derived(items.filter((item: any) => item !== currentSelected));
+	const filteredItems = $derived(items.filter((item: any) => item !== currentSelected.value));
 
 	// Toggle dropdown expansion
 	function toggleExpanded() {
@@ -56,14 +53,9 @@
 
 	// Handle item selection
 	function selectItem(item: any) {
-		currentSelected = item;
+		currentSelected.value = item;
 		expanded = false;
 	}
-
-	// Effect to update currentSelected when the selected prop changes
-	$effect(() => {
-		currentSelected = selected;
-	});
 </script>
 
 <!-- Dropdown container -->
@@ -75,7 +67,7 @@
 		aria-label="Toggle Dropdown"
 		class:selected={expanded}
 	>
-		{currentSelected || label}
+		{currentSelected.value || label}
 	</button>
 </div>
 
@@ -86,7 +78,7 @@
 
 	<!-- Dropdown items -->
 	<div class="flex flex-wrap items-center justify-center gap-2">
-		{#each filteredItems as item}
+		{#each filteredItems as item (item)}
 			<button
 				onclick={() => selectItem(item)}
 				class="variant-filled-warning btn relative hover:variant-filled-secondary dark:variant-outline-warning"

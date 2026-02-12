@@ -406,6 +406,5 @@ export function composeMongoAuthAdapter(): AuthInterface {
 	};
 
 	// Return the composed adapter (TypeScript will enforce type compatibility)
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	return adapter as any as AuthInterface;
 }

@@ -66,7 +66,7 @@ Features:
 {#if modalState.active}
 	<!-- Default section -->
 	<div class="flex flex-col gap-4">
-		{#each displayProperties as property}
+		{#each displayProperties as property (property)}
 			{#if guiSchema[property]}
 				<InputSwitch
 					value={collections.targetWidget[property] ?? defaultValue(property)}

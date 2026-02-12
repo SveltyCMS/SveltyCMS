@@ -76,7 +76,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 		// Stream to response
 
-		const setHeader = (_name: string, _value: string) => {
+		const setHeader = () => {
 			// Headers will be set in Response constructor
 		};
 		const stream = await streamArchiveToResponse(archive.path, archive.filename, setHeader); // Schedule cleanup after stream ends

@@ -12,7 +12,7 @@ const TEST_TIMEOUT = 30000;
  * Helper to parse SvelteKit Server Action "devalue" serialization.
  * SvelteKit returns data as a JSON string with indexed values.
  */
-function parseActionResult(result: any): any {
+function parseActionResult(result: { type: string; data?: any }): any {
 	if (result.type === 'success' && typeof result.data === 'string') {
 		try {
 			const parsed = JSON.parse(result.data);
@@ -23,7 +23,7 @@ function parseActionResult(result: any): any {
 						if (typeof val === 'number') return values[val - 1];
 						if (Array.isArray(val)) return val.map(unmarshaler);
 						if (typeof val === 'object' && val !== null) {
-							const obj: any = {};
+							const obj: Record<string, any> = {};
 							for (const [k, v] of Object.entries(val)) {
 								obj[k] = unmarshaler(v);
 							}

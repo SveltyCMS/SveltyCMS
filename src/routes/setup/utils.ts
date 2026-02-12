@@ -226,7 +226,6 @@ export async function getSetupDatabaseAdapter(config: DatabaseConfig): Promise<{
 					return {
 						dbAdapter: null as any,
 						connectionString,
-						// @ts-ignore
 						dbDoesNotExist: true,
 						error: `SQLite database file "${connectionString}" does not exist. Create it now?`
 					} as any;
@@ -292,7 +291,7 @@ export async function checkRedis(): Promise<boolean> {
 		await client.quit();
 		logger.info('🚀 Local Redis detected during setup probe');
 		return true;
-	} catch (err) {
+	} catch {
 		// Redis not available - silent failure, it's just a probe
 		return false;
 	}

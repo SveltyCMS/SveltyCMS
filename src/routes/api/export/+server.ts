@@ -56,7 +56,7 @@ export const POST = apiHandler(async ({ request, locals }) => {
 			}
 			break;
 
-		case 'settings':
+		case 'settings': {
 			// Export settings
 			const settings = await getAllSettings();
 			exportData = {
@@ -65,8 +65,9 @@ export const POST = apiHandler(async ({ request, locals }) => {
 				data: settings
 			};
 			break;
+		}
 
-		case 'all':
+		case 'all': {
 			// Export everything
 			const allSettings = await getAllSettings();
 			const allUsers = await dbAdapter.auth.getAllUsers();
@@ -79,6 +80,7 @@ export const POST = apiHandler(async ({ request, locals }) => {
 				collections: []
 			};
 			break;
+		}
 
 		default:
 			throw new AppError('Invalid export type', 400, 'INVALID_EXPORT_TYPE');

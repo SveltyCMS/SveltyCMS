@@ -58,7 +58,7 @@
 
 <h2>New Posts:</h2>
 <ul>
-	{#each posts as post}
+	{#each posts as post (post._id)}
 		<li>{post.title} ({post._id})</li>
 	{/each}
 </ul>

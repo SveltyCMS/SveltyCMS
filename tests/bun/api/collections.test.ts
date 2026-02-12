@@ -51,7 +51,7 @@ describe('Collections & Content API', () => {
 			await write(TEST_COLLECTION_PATH, TEST_COLLECTION_CONFIG);
 			// Wait briefly for file watcher/server to pick up the new collection
 			await new Promise((r) => setTimeout(r, 1000));
-		} catch (e) {
+		} catch {
 			console.warn('Could not write test collection config. Tests might fail if no collections exist.');
 		}
 	});
@@ -60,7 +60,7 @@ describe('Collections & Content API', () => {
 	afterAll(async () => {
 		try {
 			await unlink(TEST_COLLECTION_PATH);
-		} catch (e) {
+		} catch {
 			// Ignore if file doesn't exist
 		}
 	});

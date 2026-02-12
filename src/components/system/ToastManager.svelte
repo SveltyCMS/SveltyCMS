@@ -97,7 +97,10 @@ optional actions, and smooth animations.
 	});
 </script>
 
-<Toast.Group {toaster} class="fixed z-9999 flex {position.includes('bottom') ? 'flex-col-reverse' : 'flex-col'} gap {positionClasses[position]}">
+<Toast.Group
+	toaster={toaster as any}
+	class="fixed z-9999 flex {position.includes('bottom') ? 'flex-col-reverse' : 'flex-col'} gap {positionClasses[position]}"
+>
 	{#snippet children(toast)}
 		<div in:fly={animParams} out:fade={{ duration: 200 }} class="relative" role="alert" aria-live="polite">
 			<Toast

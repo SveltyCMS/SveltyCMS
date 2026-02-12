@@ -32,6 +32,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 	// Utils & Media
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
 	import { MediaTypeEnum, type MediaBase, type MediaImage } from '@utils/media/mediaModels';
+	import { SvelteSet } from 'svelte/reactivity';
 	// Components
 	import Breadcrumb from '@components/Breadcrumb.svelte';
 	import PageTitle from '@components/PageTitle.svelte';
@@ -202,15 +203,16 @@ Displays a collection of media files (images, documents, audio, video) with:
 		}
 
 		// Listen for folder selection events
-		const handleSystemVirtualFolderSelected = (event: CustomEvent) => {
-			const { folderId } = event.detail;
+		const handleSystemVirtualFolderSelected = (event: Event) => {
+			const customEvent = event as CustomEvent;
+			const { folderId } = customEvent.detail;
 			openSystemVirtualFolder(folderId && folderId !== 'root' ? folderId : null);
 		};
 
-		document.addEventListener('systemVirtualFolderSelected', handleSystemVirtualFolderSelected as EventListener);
+		document.addEventListener('systemVirtualFolderSelected', handleSystemVirtualFolderSelected);
 
 		return () => {
-			document.removeEventListener('systemVirtualFolderSelected', handleSystemVirtualFolderSelected as EventListener);
+			document.removeEventListener('systemVirtualFolderSelected', handleSystemVirtualFolderSelected);
 		};
 	});
 
@@ -495,7 +497,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 					logger.info('Bulk delete request:', { count: filesToDelete.length });
 
 					// Track successfully deleted files
-					const successfullyDeletedIds = new Set();
+					const successfullyDeletedIds = new SvelteSet();
 					let successCount = 0;
 					let failCount = 0;
 
@@ -747,7 +749,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 				<p class="text-xs font-medium uppercase text-surface-500 dark:text-surface-50">Type</p>
 				<div class="h-11 w-20">
 					<select id="mediaType" bind:value={selectedMediaType} class="select h-full text-[10px] p-1">
-						{#each mediaTypes as type}
+						{#each mediaTypes as type (type.value)}
 							<option value={type.value}>{type.label}</option>
 						{/each}
 					</select>
@@ -888,7 +890,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 				<label for="mediaTypeMd" class="text-sm font-medium">Type</label>
 				<div class="input-group h-11">
 					<select id="mediaTypeMd" bind:value={selectedMediaType} class="select">
-						{#each mediaTypes as type}
+						{#each mediaTypes as type (type.value)}
 							<option value={type.value}>{type.label}</option>
 						{/each}
 					</select>

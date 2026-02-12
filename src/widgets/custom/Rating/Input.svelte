@@ -61,7 +61,7 @@ Interactive star rating with hover states and click selection
 			<RatingGroup.Control>
 				{@const iconFull = ((field.iconFull as string) || 'star').replace('material-symbols:', '')}
 				{@const iconEmpty = ((field.iconEmpty as string) || 'star-outline').replace('material-symbols:', '').replace('-outline', '')}
-				{#each { length: Number(field.max) || 5 } as _, i}
+				{#each { length: Number(field.max) || 5 } as _, i (i)}
 					<RatingGroup.Item index={i + 1}>
 						{#snippet empty()}
 							<iconify-icon icon={iconEmpty} width="24" class="text-surface-400"></iconify-icon>

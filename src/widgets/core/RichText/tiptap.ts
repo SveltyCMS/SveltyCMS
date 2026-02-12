@@ -46,9 +46,7 @@ export function createEditor(element: HTMLElement, content: string, language: st
 		element,
 		extensions: [
 			StarterKit.configure({
-				// @ts-ignore - Disable potentially conflicting extensions
 				link: false,
-				// @ts-ignore
 				underline: false
 			}),
 			TextStyle, // Custom extension for font-size

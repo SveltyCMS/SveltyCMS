@@ -13,7 +13,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	try {
 		await contentManager.warmEntriesCache(collectionId, entryIds, tenantId);
 		return json({ success: true });
-	} catch (err) {
+	} catch {
 		return json({ error: 'Failed to warm cache' }, { status: 500 });
 	}
 };

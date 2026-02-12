@@ -309,13 +309,14 @@
 					menuItemRefs[focusedIndex]?.focus();
 					return;
 				case 'Enter':
-				case ' ':
+				case ' ': {
 					e.preventDefault();
 					const action = availableActions[focusedIndex];
 					if (action && !(action.requiresSelection && !hasSelections)) {
 						handleAction(action.type);
 					}
 					return;
+				}
 			}
 		}
 
@@ -387,10 +388,11 @@
 					// Assuming deleteAction triggers the modal logic or actual delete.
 					await deleteAction(showDeleted);
 					break;
-				case 'schedule':
+				case 'schedule': {
 					const now = new Date().toISOString();
 					schedule(now, 'publish');
 					break;
+				}
 			}
 		} catch (error) {
 			const errMsg = (error as Error).message;

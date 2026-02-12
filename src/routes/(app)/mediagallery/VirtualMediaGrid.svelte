@@ -27,6 +27,7 @@ Implements custom virtual scrolling without external dependencies.
 	import { formatBytes } from '@utils/utils';
 
 	import type { MediaImage, MediaBase } from '@utils/media/mediaModels';
+	import { SvelteSet } from 'svelte/reactivity';
 	// import { popup } from '@skeletonlabs/skeleton-svelte';
 	import { onMount } from 'svelte';
 
@@ -64,7 +65,8 @@ Implements custom virtual scrolling without external dependencies.
 	const paddingBottom = $derived((totalRows - endRow) * itemHeight);
 
 	// Selection and operations state
-	let selectedFiles = $state<Set<string>>(new Set());
+	// eslint-disable-next-line svelte/no-unnecessary-state-wrap
+	let selectedFiles = $state(new SvelteSet<string>());
 	let isSelectionMode = $state(false);
 	let activePopup = $state<string | null>(null);
 	let showBulkEditModal = $state(false);
@@ -279,15 +281,15 @@ Implements custom virtual scrolling without external dependencies.
 		} else {
 			selectedFiles.add(fileId);
 		}
-		selectedFiles = selectedFiles;
 	}
 
 	function selectAll() {
-		selectedFiles = new Set(filteredFiles.map((f) => f._id?.toString() || f.filename));
+		selectedFiles.clear();
+		filteredFiles.forEach((f) => selectedFiles.add(f._id?.toString() || f.filename));
 	}
 
 	function deselectAll() {
-		selectedFiles = new Set();
+		selectedFiles.clear();
 	}
 
 	function handleDelete(file: MediaBase | MediaImage) {
@@ -298,7 +300,7 @@ Implements custom virtual scrolling without external dependencies.
 		const filesToDelete = filteredFiles.filter((f) => selectedFiles.has(f._id?.toString() || f.filename));
 		if (filesToDelete.length > 0) {
 			onBulkDelete(filesToDelete);
-			selectedFiles = new Set();
+			selectedFiles.clear();
 			isSelectionMode = false;
 		}
 	}
@@ -321,7 +323,7 @@ Implements custom virtual scrolling without external dependencies.
 			onBulkEdit(filesToEdit, bulkEditAction, bulkEditValue);
 			showBulkEditModal = false;
 			bulkEditValue = '';
-			selectedFiles = new Set();
+			selectedFiles.clear();
 			isSelectionMode = false;
 		}
 	}
@@ -347,7 +349,7 @@ Implements custom virtual scrolling without external dependencies.
 			<button
 				onclick={() => {
 					isSelectionMode = !isSelectionMode;
-					selectedFiles = new Set();
+					selectedFiles.clear();
 				}}
 				class="btn-sm transition-all duration-200 {isSelectionMode ? 'preset-filled-primary-500' : 'preset-tonal-surface'}"
 				aria-label="Toggle selection mode"

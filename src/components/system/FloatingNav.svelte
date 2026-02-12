@@ -15,6 +15,8 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 -->
 
 <script lang="ts">
+	type _any = any;
+
 	import { logger } from '@utils/logger';
 	import { page } from '$app/state';
 	import { motion } from '@src/utils/utils';
@@ -363,7 +365,7 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 
 	function setDash(node: SVGSVGElement): void {
 		let first = true;
-		for (const LINE_ELEMENT of node.children as HTMLCollectionOf<SVGLineElement>) {
+		for (const LINE_ELEMENT of node.children as _any) {
 			const EL = LINE_ELEMENT as SVGLineElement;
 			const TOTAL_LENGTH = EL.getTotalLength().toString();
 			EL.style.strokeDasharray = TOTAL_LENGTH;
@@ -380,7 +382,7 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 		if (!svg) return;
 
 		let first = true;
-		for (const LINE_ELEMENT of svg.children as HTMLCollectionOf<SVGLineElement>) {
+		for (const LINE_ELEMENT of svg.children as _any) {
 			const EL = LINE_ELEMENT as SVGLineElement;
 			EL.style.transition = first ? 'stroke-dashoffset 0.2s 0.2s' : 'stroke-dashoffset 0.2s';
 			const TOTAL_LENGTH = EL.getTotalLength().toString();
@@ -486,6 +488,7 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 			triggerClass="fixed z-99999999 flex h-[50px] w-[50px] -translate-x-1/2 -translate-y-1/2 animate-[showEndPoints_0.2s_0.2s_forwards] cursor-pointer items-center justify-center rounded-full border-2 bg-tertiary-500"
 			triggerStyle="top:{center.y}px; left:{center.x}px"
 		>
+			<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
 			<a
 				bind:this={circles[0]}
 				href={endpoints[0]?.url?.path || '/'}
@@ -509,6 +512,7 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 					'bg-tertiary-500'} animate-[showEndPoints_0.2s_0.4s_forwards] hover:scale-150 active:scale-100"
 				triggerStyle="top:{endpoint.y}px; left:{endpoint.x}px"
 			>
+				<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
 				<a
 					bind:this={circles[index + 1]}
 					href={endpoint.url.path}

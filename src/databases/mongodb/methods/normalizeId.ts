@@ -14,7 +14,6 @@ import type { Types } from 'mongoose';
 function isObjectId(value: unknown): value is Types.ObjectId {
 	if (!value || typeof value !== 'object') return false;
 	// Check for toHexString method (most reliable for ObjectId)
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	return typeof (value as any).toHexString === 'function';
 }
 

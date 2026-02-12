@@ -45,7 +45,7 @@ export class WebhookService {
 	/**
 	 * Dispatch an event to all subscribed webhooks
 	 */
-	public async trigger(event: WebhookEvent, payload: any) {
+	public async trigger(event: WebhookEvent, payload: unknown) {
 		// Don't block main thread
 		this._dispatch(event, payload).catch((err) => logger.error(`Error dispatching webhook event ${event}:`, err));
 	}
@@ -66,9 +66,9 @@ export class WebhookService {
 		});
 	}
 
-	private async _dispatch(event: WebhookEvent, payload: any) {
+	private async _dispatch(event: WebhookEvent, payload: unknown) {
 		const webhooks = await this.getWebhooks();
-		const matchingHooks = webhooks.filter((wh) => wh.active && (wh.events.includes(event) || wh.events.includes('*' as any)));
+		const matchingHooks = webhooks.filter((wh) => wh.active && (wh.events.includes(event) || wh.events.includes('*' as unknown as WebhookEvent)));
 
 		if (matchingHooks.length === 0) return;
 
@@ -79,7 +79,7 @@ export class WebhookService {
 		await Promise.allSettled(promises);
 	}
 
-	private async _dispatchTo(webhook: Webhook, event: WebhookEvent, payload: any) {
+	private async _dispatchTo(webhook: Webhook, event: WebhookEvent, payload: unknown) {
 		try {
 			const controller = new AbortController();
 			const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout

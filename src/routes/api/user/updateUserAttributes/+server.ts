@@ -62,7 +62,8 @@ export const PUT: RequestHandler = apiHandler(async ({ request, locals, cookies 
 	}
 
 	const body = await request.json();
-	let { user_id: userIdToUpdate, newUserData } = body;
+	let { user_id: userIdToUpdate } = body;
+	const { newUserData } = body;
 
 	// Support 'self' keyword for the current authenticated user
 	if (userIdToUpdate === 'self' && user) {

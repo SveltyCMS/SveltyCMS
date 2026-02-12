@@ -68,7 +68,7 @@
 
 		<!-- Grid -->
 		<div class="flex-1 overflow-y-auto p-6">
-			{#each ['Core', 'Custom', 'Marketplace'] as category}
+			{#each ['Core', 'Custom', 'Marketplace'] as category (category)}
 				{@const categoryKeys =
 					category === 'Core'
 						? widgets.coreWidgets
@@ -86,7 +86,7 @@
 							{category} Widgets
 						</h3>
 						<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-							{#each filteredKeys as item}
+							{#each filteredKeys as item (item)}
 								{#if item && (availableWidgets[item] as any)?.GuiSchema}
 									<button
 										onclick={() => onFormSubmit(item)}

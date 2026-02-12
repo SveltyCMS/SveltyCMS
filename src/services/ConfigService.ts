@@ -113,11 +113,11 @@ class ConfigService {
 				try {
 					// Assuming 'collections' is the system collection for schemas
 					// We use the raw crud adapter to ensure we're hitting the DB directly
-					// Cast to any to bypass strict type checking for generic 'upsert' which expects BaseEntity
+					// Cast to BaseEntity to satisfy type check
 					await dbAdapter.crud.upsert(
 						'collections',
-						{ name: item.name } as any, // Query by name
-						item.entity as any
+						{ name: item.name } as Record<string, unknown>, // Query by name
+						item.entity as any // Entity shape is dynamic per collection
 					);
 					logger.info(`Imported collection: ${item.name}`);
 				} catch (err) {
@@ -131,8 +131,8 @@ class ConfigService {
 		for (const item of changes.deleted) {
 			if (item.type === 'collection') {
 				try {
-					// Cast string uuid to DatabaseId
-					await dbAdapter.crud.delete('collections', item.uuid as any);
+					// Cast string uuid to DatabaseId if needed
+					await dbAdapter.crud.delete('collections', item.uuid as import('@src/databases/dbInterface').DatabaseId);
 					logger.info(`Deleted collection: ${item.name}`);
 				} catch (err) {
 					logger.error(`Failed to delete collection ${item.name}:`, err);
@@ -178,13 +178,15 @@ class ConfigService {
 			const collectionsResult = await dbAdapter.crud.findMany('collections', {});
 
 			if (collectionsResult.success && Array.isArray(collectionsResult.data)) {
-				for (const collection of collectionsResult.data as any[]) {
-					if (!collection._id || !collection.name) continue;
+				for (const collection of collectionsResult.data as unknown as Record<string, unknown>[]) {
+					const id = String(collection._id || '');
+					const name = String(collection.name || '');
+					if (!id || !name) continue;
 					const hash = createChecksum(collection);
-					state.set(collection._id, {
-						uuid: collection._id,
+					state.set(id, {
+						uuid: id,
 						type: 'collection',
-						name: collection.name,
+						name: name,
 						hash,
 						entity: collection
 					});

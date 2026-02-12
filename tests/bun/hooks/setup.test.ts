@@ -1,4 +1,3 @@
-// @ts-ignore
 /**
  * @file tests/bun/hooks/setup.test.ts
  * @description Comprehensive tests for handleSetup middleware with proper redirect validation.

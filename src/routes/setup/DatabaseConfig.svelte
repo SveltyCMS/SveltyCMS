@@ -178,7 +178,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 			const result = deserialize(await response.text());
 
 			if (result.type === 'success') {
-				const data = result.data as any;
+				const data = result.data as { success: boolean; message?: string; alreadyInstalled?: boolean; error?: string };
 				if (data.success) {
 					installSuccess = data.message || `Successfully installed driver for ${dbType}`;
 					if (data.alreadyInstalled) {
@@ -188,7 +188,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 					installError = data.error || `Failed to install driver for ${dbType}`;
 				}
 			} else {
-				const errorMsg = (result as any).data?.error || `Failed to install driver for ${dbType}`;
+				const errorMsg = (result as { data?: { error?: string } }).data?.error || `Failed to install driver for ${dbType}`;
 				installError = errorMsg;
 			}
 		} catch (error) {

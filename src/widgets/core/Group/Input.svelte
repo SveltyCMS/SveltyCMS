@@ -59,17 +59,22 @@ Renders grouped content in a read-only display format with collapsible functiona
 	const variant = $derived(variantClasses[field.variant as keyof typeof variantClasses] || variantClasses.default);
 
 	// State for collapsible functionality
-	let isCollapsed = $state(false);
-	$effect(() => {
-		isCollapsed = (field.collapsed as boolean) || false;
-	});
+	let localIsCollapsed = $state<boolean | undefined>(undefined);
+	let isCollapsed = {
+		get value() {
+			return localIsCollapsed ?? ((field.collapsed as boolean) || false);
+		},
+		set value(v: boolean) {
+			localIsCollapsed = v;
+		}
+	};
 
 	/**
 	 * Toggle collapse state
 	 */
 	function toggleCollapse(): void {
 		if (field.collapsible) {
-			isCollapsed = !isCollapsed;
+			isCollapsed.value = !isCollapsed.value;
 		}
 	}
 
@@ -93,7 +98,7 @@ Renders grouped content in a read-only display format with collapsible functiona
 				class="flex w-full items-center justify-between p-3 transition-colors duration-200 {variant.header} {field.collapsible
 					? 'cursor-pointer hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:hover:bg-gray-700'
 					: ''}"
-				aria-expanded={!isCollapsed}
+				aria-expanded={!isCollapsed.value}
 				aria-controls={`${fieldName}-content`}
 				onclick={toggleCollapse}
 				onkeydown={handleKeyDown}
@@ -104,7 +109,7 @@ Renders grouped content in a read-only display format with collapsible functiona
 					</h4>
 				{/if}
 
-				<div class="transition-transform duration-200 ease-in-out {isCollapsed ? 'rotate-180' : ''}">
+				<div class="transition-transform duration-200 ease-in-out {isCollapsed.value ? 'rotate-180' : ''}">
 					<iconify-icon icon="mdi:chevron-down" width={18}></iconify-icon>
 				</div>
 			</button>
@@ -122,7 +127,9 @@ Renders grouped content in a read-only display format with collapsible functiona
 	<!-- Group Content -->
 	<div
 		id={field.collapsible ? `${fieldName}-content` : undefined}
-		class="overflow-hidden transition-all duration-200 ease-in-out {variant.content} {isCollapsed ? 'max-h-0 opacity-0' : 'max-h-screen opacity-100'}"
+		class="overflow-hidden transition-all duration-200 ease-in-out {variant.content} {isCollapsed.value
+			? 'max-h-0 opacity-0'
+			: 'max-h-screen opacity-100'}"
 	>
 		{#if children}
 			{@render children()}

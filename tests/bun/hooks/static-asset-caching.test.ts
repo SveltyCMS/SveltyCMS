@@ -6,7 +6,7 @@
 
 import { describe, it, expect, beforeEach, mock } from 'bun:test';
 import { handleStaticAssetCaching, isStaticAsset, STATIC_ASSET_REGEX } from '@src/hooks/handleStaticAssetCaching';
-import type { RequestEvent, ResolveOptions } from '@sveltejs/kit';
+import type { RequestEvent } from '@sveltejs/kit';
 
 // --- Helper: Strictly Typed Mock Event ---
 function createMockEvent(pathname: string): RequestEvent {
@@ -29,7 +29,7 @@ describe('Middleware: handleStaticAssetCaching', () => {
 
 	beforeEach(() => {
 		// strictly typed mock resolve function - create fresh Response each call
-		mockResolve = mock(async (_event: RequestEvent, _opts?: ResolveOptions) => {
+		mockResolve = mock(async () => {
 			return new Response('test body');
 		});
 	});

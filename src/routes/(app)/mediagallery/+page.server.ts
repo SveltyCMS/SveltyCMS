@@ -346,7 +346,7 @@ export const actions: Actions = {
 							try {
 								await moveMediaToTrash(sizePath);
 								logger.info(`Deleted ${size} variant:`, sizePath);
-							} catch (sizeErr) {
+							} catch (_sizeErr) {
 								// File might not exist in this size folder - that's OK
 								logger.debug(`No ${size} variant found (or already deleted):`, sizePath);
 							}

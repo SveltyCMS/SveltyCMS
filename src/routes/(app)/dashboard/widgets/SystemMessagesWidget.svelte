@@ -72,7 +72,7 @@
 	{#snippet children({ data: fetchedData }: { data: FetchedData })}
 		{#if fetchedData && Array.isArray(fetchedData) && fetchedData.length > 0}
 			<div class="grid gap-2" style="max-height: calc({size.h} * 120px - 40px); overflow-y: auto;" role="list" aria-label="System messages">
-				{#each fetchedData.slice(0, 5) as message}
+				{#each fetchedData.slice(0, 5) as message (message.timestamp + message.title)}
 					<div class="rounded-lg bg-surface-100/80 px-3 py-2 text-xs dark:bg-surface-700/60" role="listitem">
 						<div class="flex items-start justify-between">
 							<strong class="text-text-900 dark:text-text-100 text-sm" aria-label="Message title">{message.title}</strong>

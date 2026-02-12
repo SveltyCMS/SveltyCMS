@@ -89,11 +89,11 @@ Sidebar navigation for System Settings
 
 					{#if isFullSidebar}
 						<div class="flex items-center gap-1">
-							{#if $groupsNeedingConfig.has(group.id)}
+							{#if groupsNeedingConfig.has(group.id)}
 								<span class="text-lg text-warning-500" title="Needs configuration">⚠️</span>
 							{/if}
 						</div>
-					{:else if $groupsNeedingConfig.has(group.id)}
+					{:else if groupsNeedingConfig.has(group.id)}
 						<!-- Dot for collapsed state -->
 						<div class="w-2 h-2 rounded-full bg-warning-500 absolute top-1 right-1"></div>
 					{/if}

@@ -17,7 +17,12 @@ import { validateTokenSyntax, extractTokenPaths, containsTokens } from './tokenU
 export { validateTokenSyntax, extractTokenPaths, containsTokens };
 
 // Recursively processes tokens in an object or array
-export async function processTokensInResponse(data: any, user: User | undefined, locale: string, context: Partial<TokenContext> = {}): Promise<any> {
+export async function processTokensInResponse(
+	data: unknown,
+	user: User | undefined,
+	locale: string,
+	context: Partial<TokenContext> & { maxDepth?: number; currentDepth?: number } = {}
+): Promise<unknown> {
 	if (!data) return data;
 
 	// Prevent infinite recursion
@@ -35,8 +40,8 @@ export async function processTokensInResponse(data: any, user: User | undefined,
 		// Skip Date objects and other non-plain objects if needed
 		if (data instanceof Date) return data;
 
-		const result: any = {};
-		for (const [key, value] of Object.entries(data)) {
+		const result: Record<string, unknown> = {};
+		for (const [key, value] of Object.entries(data as Record<string, unknown>)) {
 			result[key] = await processTokensInResponse(value, user, locale, { ...context, currentDepth: currentDepth + 1 });
 		}
 		return result;
@@ -52,7 +57,7 @@ export async function processTokensInResponse(data: any, user: User | undefined,
 			const fullContext: TokenContext = {
 				user,
 				locale,
-				system: context.system || { now: new Date().toISOString() as any }
+				system: context.system || { now: new Date().toISOString() as import('@databases/dbInterface').ISODateString }
 			};
 
 			return await replaceTokens(data, fullContext);
@@ -73,8 +78,8 @@ export async function previewTokenResolution(text: string, user: User | undefine
 		return await replaceTokens(text, {
 			user,
 			...context,
-			system: { now: new Date().toISOString() as any }
-		});
+			system: { now: new Date().toISOString() as import('@databases/dbInterface').ISODateString }
+		} as any);
 	} catch (error) {
 		logger.error('Preview resolution failed', error);
 		return 'Error resolving token';

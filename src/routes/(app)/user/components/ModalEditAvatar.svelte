@@ -44,7 +44,8 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 		parent?: any; // Loose type for now
 	}
 
-	const {}: Props = $props();
+	let _props: Props = $props();
+	void _props;
 
 	// ... (rest of code) ...
 

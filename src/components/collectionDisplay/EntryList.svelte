@@ -37,6 +37,7 @@
 	import { page } from '$app/state';
 	import { browser } from '$app/environment';
 	import { untrack } from 'svelte';
+	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 
 	// Utils
 	import { batchDeleteEntries, deleteEntry, invalidateCollectionCache, updateEntryStatus } from '@utils/apiClient';
@@ -175,7 +176,7 @@
 	async function onActionSuccess() {
 		// Clear selections
 		Object.keys(selectedMap).forEach((key) => delete selectedMap[key]);
-		SelectAll = false;
+		SelectAll.value = false;
 		// Tell SvelteKit to re-run the server load function
 		await invalidateAll();
 	}
@@ -184,14 +185,27 @@
 	// 4. KEEP REMAINING UI STATE & LOGIC (Selection, Display, etc.)
 	// =================================================================
 
-	let SelectAll: boolean = $state(false);
 	const selectedMap: Record<string, boolean> = $state({});
+	const SelectAll = {
+		get value() {
+			return tableData.length > 0 && tableData.every((_, i) => selectedMap[i.toString()]);
+		},
+		set value(v: boolean) {
+			if (v) {
+				tableData.forEach((_, i) => {
+					selectedMap[i.toString()] = true;
+				});
+			} else {
+				Object.keys(selectedMap).forEach((key) => delete selectedMap[key]);
+			}
+		}
+	};
 
 	// =================================================================
 	// 5. HOVER PRELOADING FOR EDIT MODE (Enterprise UX Optimization)
 	// =================================================================
 	let hoverPreloadTimeout: ReturnType<typeof setTimeout> | null = null;
-	const preloadedEntries = new Map();
+	const preloadedEntries = new SvelteMap<string, { data: any; timestamp: number; hoverCount: number }>();
 
 	const PRELOAD_CACHE_TTL = 30000; // ms - keep preloaded data for 30 seconds
 
@@ -200,7 +214,7 @@
 	let isPreloadEnabled = $state(true);
 
 	// Phase 2: Predictive preloading - track hover patterns
-	const hoverPatterns = new Map(); // entryId -> hover count
+	const hoverPatterns = new SvelteMap<string, number>(); // entryId -> hover count
 	const predictivePreloadQueue: string[] = [];
 
 	// Detect connection speed
@@ -210,7 +224,7 @@
 			if (conn) {
 				const checkConnection = () => {
 					const effectiveType = conn.effectiveType;
-					const saveData = conn.saveData;
+					const saveData = (conn as any).saveData;
 					isSlowConnection = saveData || effectiveType === 'slow-2g' || effectiveType === '2g';
 					isPreloadEnabled = !isSlowConnection;
 				};
@@ -565,9 +579,9 @@
 
 		if (tableHeaders.length > 0) {
 			if (settings.collectionId === currentCollId && Array.isArray(settings.displayTableHeaders) && settings.displayTableHeaders.length > 0) {
-				const schemaHeaderMap = new Map(tableHeaders.map((th) => [th.name, th]));
+				const schemaHeaderMap = new SvelteMap(tableHeaders.map((th) => [th.name, th]));
 				const reconciledHeaders: TableHeader[] = [];
-				const addedNames = new Set();
+				const addedNames = new SvelteSet();
 
 				for (const savedHeader of settings.displayTableHeaders) {
 					const schemaHeader = schemaHeaderMap.get(savedHeader.name);
@@ -596,10 +610,14 @@
 
 	const visibleTableHeaders = $derived(displayTableHeaders.filter((header) => header.visible));
 
-	let selectAllColumns = $state(true);
-	$effect(() => {
-		selectAllColumns = displayTableHeaders.length > 0 ? displayTableHeaders.every((h) => h.visible) : false;
-	});
+	const selectAllColumns = {
+		get value() {
+			return displayTableHeaders.length > 0 ? displayTableHeaders.every((h) => h.visible) : false;
+		},
+		set value(v: boolean) {
+			displayTableHeaders = displayTableHeaders.map((h) => ({ ...h, visible: v }));
+		}
+	};
 
 	const cellPaddingClass = $derived(
 		entryListPaginationSettings.density === 'compact'
@@ -626,27 +644,8 @@
 		if (currentMode === 'edit') {
 			untrack(() => {
 				Object.keys(selectedMap).forEach((key) => delete selectedMap[key]);
-				SelectAll = false;
 			});
 		}
-	});
-
-	function process_selectAllRows(selectAllState: boolean) {
-		if (!Array.isArray(tableData)) return;
-
-		untrack(() => {
-			if (selectAllState) {
-				tableData.forEach((_entry, index) => {
-					selectedMap[index.toString()] = true;
-				});
-			} else {
-				Object.keys(selectedMap).forEach((key) => delete selectedMap[key]);
-			}
-		});
-	}
-
-	$effect(() => {
-		process_selectAllRows(SelectAll);
 	});
 
 	const hasSelections = $derived.by(() => {
@@ -788,11 +787,6 @@
 		displayTableHeaders = displayTableHeaders.map((h) => (h.id === headerToToggle.id ? { ...h, visible: !h.visible } : h));
 	}
 
-	function handleSelectAllColumnsToggle() {
-		const newVisibility = selectAllColumns;
-		displayTableHeaders = displayTableHeaders.map((h) => ({ ...h, visible: newVisibility }));
-	}
-
 	function resetViewSettings() {
 		const currentCollId = currentCollection?._id;
 		if (browser && currentCollId) {
@@ -920,7 +914,8 @@
 			<div class="my-2 flex w-full flex-col items-center justify-center gap-2 sm:flex-row sm:gap-4">
 				<div class="flex items-center gap-2">
 					<label class="flex items-center">
-						<input type="checkbox" bind:checked={selectAllColumns} onchange={handleSelectAllColumnsToggle} class="mr-1" />
+						<input type="checkbox" bind:checked={selectAllColumns.value} class="mr-1" />
+
 						{m.entrylist_all()}
 					</label>
 
@@ -1009,9 +1004,9 @@
 					<tr class="divide-x divide-surface-400 border-b border-black dark:border-white">
 						<TableIcons
 							cellClass={`w-10 ${hasSelections ? 'bg-primary-500/10 dark:bg-secondary-500/20' : ''}`}
-							checked={SelectAll}
+							checked={SelectAll.value}
 							onCheck={(checked: boolean) => {
-								SelectAll = checked;
+								SelectAll.value = checked;
 							}}
 						/>
 

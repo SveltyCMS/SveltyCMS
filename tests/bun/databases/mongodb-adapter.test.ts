@@ -48,7 +48,6 @@ let adapterClass: typeof import('../../../src/databases/mongodb/mongoDBAdapter')
 let privateEnv: any;
 
 describe('MongoDB Adapter Functional Tests', () => {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	let db: any = null;
 	const testCollection = 'test_collection_' + Date.now();
 
@@ -56,7 +55,7 @@ describe('MongoDB Adapter Functional Tests', () => {
 		// Import modules dynamically to bypass mocks
 		const adapterModule = await import('../../../src/databases/mongodb/mongoDBAdapter');
 		adapterClass = adapterModule.MongoDBAdapter;
-		// @ts-ignore
+		// @ts-expect-error - Internal path
 		const configModule = await import('../../../config/private.test');
 		privateEnv = configModule.privateEnv;
 

@@ -114,8 +114,7 @@
 	];
 
 	// --- 6. CORE LOGIC & API CALLS (Now delegated to store) ---
-	// svelte-ignore non_reactive_update
-	let dbConfigComponent: any = null;
+	let dbConfigComponent: { installDatabaseDriver: (type: string) => Promise<void> } | null = $state(null);
 
 	async function focusStepContent() {
 		await tick();
@@ -128,8 +127,8 @@
 	async function nextStep() {
 		if (!setupStore.canProceed) return;
 		if (wizard.currentStep === 0) {
-			if (dbConfigComponent && typeof (dbConfigComponent as any).installDatabaseDriver === 'function') {
-				await (dbConfigComponent as any).installDatabaseDriver(wizard.dbConfig.type);
+			if (dbConfigComponent && typeof dbConfigComponent.installDatabaseDriver === 'function') {
+				await dbConfigComponent.installDatabaseDriver(wizard.dbConfig.type);
 			}
 			await seedDatabase();
 		}
@@ -168,7 +167,7 @@
 
 	// --- 7. UI HANDLERS ---
 	function selectLanguage(lang: string) {
-		app.systemLanguage = lang as any;
+		app.systemLanguage = lang as import('@src/paraglide/runtime').Locale;
 		currentLanguageTag = lang as typeof currentLanguageTag;
 	}
 </script>

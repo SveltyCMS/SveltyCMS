@@ -24,7 +24,7 @@ Key features:
 	// Utils
 	import { formatBytes } from '@utils/utils';
 	import type { MediaImage, MediaBase, MediaVideo } from '@utils/media/mediaModels';
-	import { SvelteSet } from 'svelte/reactivity';
+	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 
 	// Skeleton
 	import SystemTooltip from '@components/system/SystemTooltip.svelte';
@@ -55,13 +55,17 @@ Key features:
 		selectedFiles = $bindable(new SvelteSet<string>())
 	}: Props = $props();
 
-	let isSelectionMode = $state(isSelectionModeProp);
+	let localSelectionMode = $state<boolean | undefined>(undefined);
+	let isSelectionMode = {
+		get value() {
+			return localSelectionMode ?? isSelectionModeProp;
+		},
+		set value(v: boolean) {
+			localSelectionMode = v;
+		}
+	};
 
-	$effect(() => {
-		isSelectionMode = isSelectionModeProp;
-	});
-
-	let showInfo = $state<boolean[]>([]);
+	let showInfo = new SvelteMap<number, boolean>();
 
 	// Tag Modal State
 	let showTagModal = $state(false);
@@ -136,14 +140,9 @@ Key features:
 		if (filesToDelete.length > 0) {
 			onBulkDelete(filesToDelete);
 			selectedFiles.clear();
-			isSelectionMode = false;
+			isSelectionMode.value = false;
 		}
 	}
-
-	// Update showInfo array when filteredFiles length changes
-	$effect(() => {
-		showInfo = Array.from({ length: filteredFiles.length }, () => false);
-	});
 
 	function getThumbnails(file: MediaBase | MediaImage) {
 		return 'thumbnails' in file ? file.thumbnails || {} : {};
@@ -181,17 +180,17 @@ Key features:
 			<div class="flex items-center gap-3">
 				<button
 					onclick={() => {
-						isSelectionMode = !isSelectionMode;
-						if (!isSelectionMode) selectedFiles = new Set();
+						isSelectionMode.value = !isSelectionMode.value;
+						if (!isSelectionMode.value) selectedFiles.clear();
 					}}
-					class="btn-sm transition-all duration-200 {isSelectionMode ? 'preset-filled-primary-500' : 'preset-tonal-surface'}"
+					class="btn-sm transition-all duration-200 {isSelectionMode.value ? 'preset-filled-primary-500' : 'preset-tonal-surface'}"
 					aria-label="Toggle selection mode"
 				>
-					<iconify-icon icon={isSelectionMode ? 'mdi:check' : 'mdi:checkbox-multiple-marked-outline'} width={18}></iconify-icon>
-					<span class="text-xs font-semibold">{isSelectionMode ? 'Done' : 'Select'}</span>
+					<iconify-icon icon={isSelectionMode.value ? 'mdi:check' : 'mdi:checkbox-multiple-marked-outline'} width={18}></iconify-icon>
+					<span class="text-xs font-semibold">{isSelectionMode.value ? 'Done' : 'Select'}</span>
 				</button>
 
-				{#if isSelectionMode}
+				{#if isSelectionMode.value}
 					<div class="flex items-center gap-2 border-l border-surface-300 pl-3 dark:border-surface-600">
 						<button onclick={selectAll} class="btn-sm preset-tonal-surface hover:preset-filled-surface-500">
 							<span class="text-xs">All</span>
@@ -227,20 +226,20 @@ Key features:
 				{gridSize === 'tiny' ? 'w-32' : gridSize === 'small' ? 'w-48' : gridSize === 'medium' ? 'w-64' : 'w-80'}"
 				role="button"
 				tabindex="0"
-				onmouseenter={() => (showInfo[index] = true)}
-				onmouseleave={() => (showInfo[index] = false)}
+				onmouseenter={() => showInfo.set(index, true)}
+				onmouseleave={() => showInfo.set(index, false)}
 				onclick={() => {
-					if (isSelectionMode) toggleSelection(file);
+					if (isSelectionMode.value) toggleSelection(file);
 				}}
 				onkeydown={(e) => {
 					if (e.key === 'Enter' || e.key === ' ') {
 						e.preventDefault();
-						if (isSelectionMode) toggleSelection(file);
+						if (isSelectionMode.value) toggleSelection(file);
 					}
 				}}
 			>
 				<!-- Selection Checkbox Overlay -->
-				{#if isSelectionMode || isSelected}
+				{#if isSelectionMode.value || isSelected}
 					<div class="absolute left-3 top-3 z-20" in:scale={{ duration: 200 }}>
 						<div class="relative flex h-6 w-6 items-center justify-center rounded-full bg-white shadow-md dark:bg-surface-800">
 							<input
@@ -255,7 +254,7 @@ Key features:
 
 				<!-- Floating Actions (Reveal on Hover) -->
 				<div
-					class="absolute right-2 top-2 z-20 flex flex-col gap-1 opacity-0 transition-all duration-200 group-hover:opacity-100 {isSelectionMode
+					class="absolute right-2 top-2 z-20 flex flex-col gap-1 opacity-0 transition-all duration-200 group-hover:opacity-100 {isSelectionMode.value
 						? 'pointer-events-none'
 						: ''}"
 				>
@@ -288,7 +287,7 @@ Key features:
 						{/snippet}
 					</SystemTooltip>
 
-					{#if file.type === 'image' && !isSelectionMode}
+					{#if file.type === 'image' && !isSelectionMode.value}
 						<!-- Edit -->
 						<SystemTooltip title="Edit" positioning={{ placement: 'left' }}>
 							<button
@@ -321,7 +320,7 @@ Key features:
 					{/if}
 
 					<!-- Delete -->
-					{#if !isSelectionMode}
+					{#if !isSelectionMode.value}
 						<SystemTooltip title="Delete" positioning={{ placement: 'left' }}>
 							<button
 								onclick={(e) => {
@@ -342,7 +341,7 @@ Key features:
 				<div
 					class="relative aspect-square w-full overflow-hidden bg-surface-100 dark:bg-surface-800"
 					onclick={(e) => {
-						if (!isSelectionMode && file.type === 'video') {
+						if (!isSelectionMode.value && file.type === 'video') {
 							e.stopPropagation();
 							const video = file as MediaVideo;
 							window.open(video.url, '_blank');
@@ -350,7 +349,7 @@ Key features:
 					}}
 					onkeydown={(e) => {
 						if (e.key === 'Enter' || e.key === ' ') {
-							if (!isSelectionMode && file.type === 'video') {
+							if (!isSelectionMode.value && file.type === 'video') {
 								e.preventDefault();
 								e.stopPropagation();
 								const video = file as MediaVideo;

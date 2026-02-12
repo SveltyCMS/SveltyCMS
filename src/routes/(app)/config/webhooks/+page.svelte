@@ -28,7 +28,7 @@
 			} else {
 				showToast(result.message || 'Failed to load webhooks', 'error');
 			}
-		} catch (err) {
+		} catch (_err) {
 			showToast('Error loading webhooks', 'error');
 		} finally {
 			isLoading = false;
@@ -60,7 +60,7 @@
 			} else {
 				showToast(result.message || 'Failed to save webhook', 'error');
 			}
-		} catch (err) {
+		} catch (_err) {
 			showToast('Error saving webhook', 'error');
 		} finally {
 			isSaving = false;
@@ -77,7 +77,7 @@
 				showToast('Webhook deleted', 'success');
 				await loadWebhooks();
 			}
-		} catch (err) {
+		} catch (_err) {
 			showToast('Error deleting webhook', 'error');
 		}
 	}
@@ -92,7 +92,7 @@
 			} else {
 				showToast(result.message || 'Webhook test failed', 'error');
 			}
-		} catch (err) {
+		} catch (_err) {
 			showToast('Error testing webhook', 'error');
 		}
 	}
@@ -169,7 +169,7 @@
 						</div>
 						<div class="text-xs font-mono opacity-60 truncate mb-2">{webhook.url}</div>
 						<div class="flex flex-wrap gap-1">
-							{#each webhook.events as event}
+							{#each webhook.events as event (event)}
 								<span class="badge preset-tonal-primary text-[10px]">{event}</span>
 							{/each}
 						</div>
@@ -268,7 +268,7 @@
 					<span class="block font-bold">Trigger Events</span>
 					<p class="text-xs opacity-60 mb-2">Select which events should trigger this webhook.</p>
 					<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-						{#each eventTypes as event}
+						{#each eventTypes as event (event)}
 							<label class="flex items-center gap-2 cursor-pointer hover:bg-surface-200 dark:hover:bg-surface-700 p-2 rounded transition-colors">
 								<input type="checkbox" class="checkbox" checked={activeWebhook.events?.includes(event as any)} onchange={() => toggleEvent(event)} />
 								<span class="text-sm">{event}</span>

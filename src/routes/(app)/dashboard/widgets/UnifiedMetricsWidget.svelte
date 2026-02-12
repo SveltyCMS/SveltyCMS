@@ -388,7 +388,7 @@ for comprehensive system monitoring and performance analysis.
 					<div class="border-t pt-2">
 						<h5 class="mb-1 text-xs font-medium">Performance Bottlenecks</h5>
 						<div class="space-y-1">
-							{#each metrics.performance.bottlenecks.slice(0, 3) as bottleneck}
+							{#each metrics.performance.bottlenecks.slice(0, 3) as bottleneck (bottleneck)}
 								<div class="rounded bg-yellow-100 px-1 py-0.5 text-xs dark:bg-yellow-900/20">
 									{bottleneck}
 								</div>

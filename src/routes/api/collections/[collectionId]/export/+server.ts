@@ -60,7 +60,7 @@ export const GET = apiHandler(async ({ params, url, locals }) => {
 	const sortField = url.searchParams.get('sortField');
 	const sortDirection = (url.searchParams.get('sortDirection') as 'asc' | 'desc') || 'desc';
 
-	const queryOptions: any = {};
+	const queryOptions: Record<string, unknown> = {};
 	if (limit > 0) queryOptions.limit = Math.min(limit, 10000);
 	if (offset > 0) queryOptions.offset = offset;
 	if (sortField) queryOptions.sort = { [sortField]: sortDirection === 'asc' ? 1 : -1 };
@@ -98,7 +98,15 @@ export const GET = apiHandler(async ({ params, url, locals }) => {
 				schema: {
 					name: schema.name,
 					label: schema.label,
-					fields: schema.fields?.map((f: any) => ({ name: f.name, type: f.widget, label: f.label, required: f.required }))
+					fields: schema.fields?.map((f) => {
+						const field = f as any; // Cast once to avoid multiple errors
+						return {
+							name: field.name,
+							type: field.widget,
+							label: field.label,
+							required: field.required
+						};
+					})
 				}
 			}
 		});

@@ -23,7 +23,7 @@ export interface AuditLogEntry {
 		type: string;
 		id: string;
 	};
-	details?: Record<string, any>;
+	details?: Record<string, unknown>;
 	previousHash: string;
 	hash: string;
 }
@@ -58,8 +58,9 @@ export class AuditLogService {
 			if (!content.trim()) return [];
 
 			return JSON.parse(content);
-		} catch (e: any) {
-			if (e.code === 'ENOENT') {
+		} catch (e) {
+			const error = e as { code?: string };
+			if (error.code === 'ENOENT') {
 				return [];
 			}
 			logger.error('Failed to read audit logs', { error: e });
@@ -87,7 +88,7 @@ export class AuditLogService {
 		action: string,
 		actor: { id: string; email: string; ip: string },
 		resource: { type: string; id: string },
-		details?: Record<string, any>
+		details?: Record<string, unknown>
 	): Promise<AuditLogEntry> {
 		if (!this.initialized) await this.init();
 

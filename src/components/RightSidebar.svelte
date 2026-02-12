@@ -34,13 +34,22 @@
 	// System Logger
 	import { logger } from '@utils/logger';
 
+	interface Entry {
+		_scheduled?: string | number | Date;
+		status?: string;
+		createdBy?: string;
+		updatedBy?: string;
+		createdAt?: string;
+		updatedAt?: string;
+	}
+
 	// --- Derived from page & stores ---
 	let user = $derived(page.data.user);
 	let isAdmin = $derived(page.data.isAdmin === true);
 
 	let currentMode = $derived(mode.value);
 	let currentCollection = $derived(collection.value);
-	let currentEntry = $derived(collectionValue.value as Record<string, any> | null);
+	let currentEntry = $derived(collectionValue.value as Entry | null);
 
 	let isFormValid = $derived(validationStore.isValid);
 	let hasChanges = $derived(dataChangeStore.hasChanges);

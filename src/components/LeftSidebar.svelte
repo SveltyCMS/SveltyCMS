@@ -27,8 +27,9 @@
 	// Import necessary utilities and types
 	import { page } from '$app/state';
 	import type { Schema } from '@src/content/types'; // Import Schema type (collection definition)
+	import type { Locale } from '@src/paraglide/runtime';
+	import { locales as availableLocales, getLocale } from '@src/paraglide/runtime';
 	import { getLanguageName } from '@utils/languageUtils';
-	import { locales as availableLocales } from '@src/paraglide/runtime';
 
 	// Stores
 	import { setMode } from '@stores/collectionStore.svelte';
@@ -56,7 +57,6 @@
 
 	// Language and messaging
 	import * as m from '@src/paraglide/messages';
-	import { getLocale } from '@src/paraglide/runtime';
 
 	// Constants
 	const MOBILE_BREAKPOINT = 768;
@@ -167,7 +167,7 @@
 
 	// Event handlers
 	function handleLanguageSelection(lang: AvailableLanguage): void {
-		systemLanguage.set(lang as any); // Use any to bypass strict literal check since AvailableLanguage is a string
+		systemLanguage.set(lang as Locale);
 		languageTag = lang;
 		searchQuery = '';
 	}

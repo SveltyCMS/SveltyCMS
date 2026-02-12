@@ -108,7 +108,7 @@ and proper active state indication.
 	tabindex="0"
 >
 	<div class="sidebar-tools flex flex-1 flex-col gap-1 p-1.5 lg:p-2 max-lg:gap-0.5 max-lg:p-1 overflow-y-auto">
-		{#each tools as tool}
+		{#each tools as tool (tool.id)}
 			<button
 				class:hover:bg-primary-600={isToolActive(tool)}
 				class:cursor-not-allowed={!hasImage}

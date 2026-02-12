@@ -41,7 +41,6 @@ const validationSchema = (field: FieldInstance) => {
 
 	// Create final schema with validations
 	const baseSchema = number('Value must be a number.');
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const schema = validationActions.length > 0 ? pipe(baseSchema, ...(validationActions as any)) : baseSchema;
 
 	// If the field is not required, wrap the schema to allow it to be undefined.

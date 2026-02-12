@@ -108,30 +108,28 @@ Allows synchronization between filesystem and database, and full system backup/r
 		role="tablist"
 		aria-label="Sync Options"
 	>
-		{#each ['sync', 'backups', 'debug'] as tab}
-			{#key tab}
-				<SystemTooltip
-					title={tab === 'sync' ? 'Deploy changes' : tab === 'backups' ? 'Import/Export Data' : 'Debug Info'}
-					positioning={{ placement: 'top' }}
+		{#each ['sync', 'backups', 'debug'] as tab (tab)}
+			<SystemTooltip
+				title={tab === 'sync' ? 'Deploy changes' : tab === 'backups' ? 'Import/Export Data' : 'Debug Info'}
+				positioning={{ placement: 'top' }}
+			>
+				<button
+					class="flex-1 py-3 text-center text-sm font-medium transition-all duration-200 px-6"
+					class:!bg-tertiary-500={activeTab === tab}
+					class:!text-white={activeTab === tab}
+					class:!dark:bg-primary-500={activeTab === tab}
+					class:!dark:text-surface-900={activeTab === tab}
+					class:dark:text-surface-200={activeTab !== tab}
+					class:text-surface-700={activeTab !== tab}
+					onclick={() => (activeTab = tab as 'sync' | 'backups' | 'debug')}
+					role="tab"
+					aria-selected={activeTab === tab}
+					aria-controls="{tab}-panel"
+					id="{tab}-tab"
 				>
-					<button
-						class="flex-1 py-3 text-center text-sm font-medium transition-all duration-200 px-6"
-						class:!bg-tertiary-500={activeTab === tab}
-						class:!text-white={activeTab === tab}
-						class:!dark:bg-primary-500={activeTab === tab}
-						class:!dark:text-surface-900={activeTab === tab}
-						class:dark:text-surface-200={activeTab !== tab}
-						class:text-surface-700={activeTab !== tab}
-						onclick={() => (activeTab = tab as 'sync' | 'backups' | 'debug')}
-						role="tab"
-						aria-selected={activeTab === tab}
-						aria-controls="{tab}-panel"
-						id="{tab}-tab"
-					>
-						{tab.charAt(0).toUpperCase() + tab.slice(1)}
-					</button>
-				</SystemTooltip>
-			{/key}
+					{tab.charAt(0).toUpperCase() + tab.slice(1)}
+				</button>
+			</SystemTooltip>
 		{/each}
 	</div>
 
@@ -143,7 +141,7 @@ Allows synchronization between filesystem and database, and full system backup/r
 					<h4 class="font-bold">Sync Blocked: Unmet Requirements</h4>
 					<p class="text-sm">The following requirements must be met before you can import configuration:</p>
 					<ul class="mt-2 list-disc pl-5 text-sm">
-						{#each status.unmetRequirements as req}
+						{#each status.unmetRequirements as req (req.name + req.type)}
 							<li><strong>{req.name}</strong> ({req.type}): {req.requirement}</li>
 						{/each}
 					</ul>
@@ -199,8 +197,8 @@ Allows synchronization between filesystem and database, and full system backup/r
 								</tr>
 							</thead>
 							<tbody>
-								{#each Object.entries(status?.changes || {}) as [changeType, items]}
-									{#each items as item}
+								{#each Object.entries(status?.changes || {}) as [changeType, items] (changeType)}
+									{#each items as item (item.uuid || item.name)}
 										<tr class="border-t border-surface-200 hover:bg-surface-50 dark:text-surface-50 dark:hover:bg-surface-800/50">
 											<td>{item.name}</td>
 											<td><span class="preset-tonal-surface-500 badge capitalize">{item.type}</span></td>

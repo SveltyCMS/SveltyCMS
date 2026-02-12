@@ -57,21 +57,23 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 	let search = $state('');
 	let isLoading = $state(true);
 	let error = $state<string | null>(null);
-	let showInfoSet = $state(new SvelteSet<number>());
-	let selectedFiles = $state(new SvelteSet<string>());
+	let showInfoSet = new SvelteSet<number>();
+	let selectedFiles = new SvelteSet<string>();
 
-	// svelte-ignore state_referenced_locally
-	let currentViewMode = $state<ViewMode>(viewMode);
+	let localViewMode = $state<ViewMode | undefined>(undefined);
+	let currentViewMode = {
+		get value() {
+			return localViewMode ?? viewMode;
+		},
+		set value(v: ViewMode) {
+			localViewMode = v;
+		}
+	};
 
 	let sortBy = $state<SortBy>('name');
 	let sortAscending = $state(true);
 	let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 	let prefersReducedMotion = $state(false);
-
-	// Sync viewMode prop to local state
-	$effect(() => {
-		currentViewMode = viewMode;
-	});
 
 	// Filtered and sorted files
 	const filteredFiles = $derived.by(() => {
@@ -266,18 +268,18 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 		<!-- View mode toggle -->
 		<div class="flex gap-1 rounded-lg border border-surface-300 p-1 dark:border-surface-600" role="group" aria-label="View mode">
 			<button
-				onclick={() => (currentViewMode = 'grid')}
-				class="btn-icon btn-icon-sm {currentViewMode === 'grid' ? 'preset-filled-primary-500' : 'preset-outlined-surface-500'}"
+				onclick={() => (currentViewMode.value = 'grid')}
+				class="btn-icon btn-icon-sm {currentViewMode.value === 'grid' ? 'preset-filled-primary-500' : 'preset-outlined-surface-500'}"
 				aria-label="Grid view"
-				aria-pressed={currentViewMode === 'grid'}
+				aria-pressed={currentViewMode.value === 'grid'}
 			>
 				<iconify-icon icon="mdi:view-grid" width="18"></iconify-icon>
 			</button>
 			<button
-				onclick={() => (currentViewMode = 'list')}
-				class="btn-icon btn-icon-sm {currentViewMode === 'list' ? 'preset-filled-primary-500' : 'preset-outlined-surface-500'}"
+				onclick={() => (currentViewMode.value = 'list')}
+				class="btn-icon btn-icon-sm {currentViewMode.value === 'list' ? 'preset-filled-primary-500' : 'preset-outlined-surface-500'}"
 				aria-label="List view"
-				aria-pressed={currentViewMode === 'list'}
+				aria-pressed={currentViewMode.value === 'list'}
 			>
 				<iconify-icon icon="mdi:view-list" width="18"></iconify-icon>
 			</button>
@@ -350,7 +352,7 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 	{:else}
 		<!-- Media grid/list -->
 		<div
-			class="flex-1 overflow-auto {currentViewMode === 'grid'
+			class="flex-1 overflow-auto {currentViewMode.value === 'grid'
 				? 'grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
 				: 'flex flex-col gap-2'}"
 			role="list"
@@ -359,7 +361,7 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 			{#each filteredFiles as file, index (file.filename)}
 				{@const selected = isSelected(file.filename)}
 				<div
-					class="group card relative flex {currentViewMode === 'list'
+					class="group card relative flex {currentViewMode.value === 'list'
 						? 'flex-row items-center'
 						: 'flex-col'} overflow-hidden transition-all duration-200 {selected ? 'ring-4 ring-primary-500' : ''}"
 					role="listitem"
@@ -405,7 +407,7 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 						{#if !isInfoShown(index)}
 							<!-- Thumbnail view -->
 							<img
-								src={getThumbnailUrl(file, currentViewMode === 'list' ? 'sm' : 'md')}
+								src={getThumbnailUrl(file, currentViewMode.value === 'list' ? 'sm' : 'md')}
 								alt={file.filename}
 								class="max-h-full max-w-full rounded-md object-contain"
 								loading="lazy"

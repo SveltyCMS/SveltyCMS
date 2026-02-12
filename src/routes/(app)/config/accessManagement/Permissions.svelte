@@ -267,7 +267,7 @@ It provides the following functionality:
 						</th>
 
 						<!-- List only non-admin roles -->
-						{#each roles as role}
+						{#each roles as role (role._id)}
 							{#if !role.isAdmin}
 								<th class="py-2 dark:text-surface-50" scope="col">{role.name}</th>
 							{/if}
@@ -276,7 +276,7 @@ It provides the following functionality:
 				</thead>
 				<tbody>
 					<!-- Permission Groups -->
-					{#each groups as group}
+					{#each groups as group (group)}
 						{#if filterGroups(filteredPermissions, group).length > 0}
 							<!-- Group Name -->
 							<tr>
@@ -288,14 +288,14 @@ It provides the following functionality:
 								</td>
 							</tr>
 							<!-- Permissions within the Group -->
-							{#each filterGroups(filteredPermissions, group) as permission}
+							{#each filterGroups(filteredPermissions, group) as permission (permission._id)}
 								<tr class="divide-x border-b text-center hover:bg-surface-50 dark:hover:bg-surface-600">
 									<!-- Type -->
 									<td class="px-1 py-1 md:text-left">{permission.name}</td>
 									<!-- Action -->
 									<td class="px-1 py-1">{permission.action}</td>
 									<!-- Roles -->
-									{#each roles as role}
+									{#each roles as role (role._id)}
 										{#if !role.isAdmin}
 											<td class="">
 												<input

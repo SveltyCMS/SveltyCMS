@@ -87,7 +87,7 @@ It dynamically renders controls based on the active tool.
 		<!-- Center: Tool Strip (Scrollable) -->
 		<div class="no-scrollbar mx-2 flex flex-1 items-center justify-center gap-1 overflow-x-auto sm:gap-2">
 			{#if hasImage}
-				{#each editorWidgets as widget}
+				{#each editorWidgets as widget (widget.key)}
 					<button
 						class="group relative flex flex-col items-center justify-center gap-1 rounded-xl p-2 transition-all duration-200"
 						class:text-primary-400={activeState === widget.key}

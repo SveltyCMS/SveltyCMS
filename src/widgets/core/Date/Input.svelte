@@ -101,7 +101,7 @@ Part of the Three Pillars Architecture for widget system.
 				// Convert to ISO string at UTC midnight
 				newValue = selectedDate.toISOString();
 				validationStore.clearError(fieldName);
-			} catch (e) {
+			} catch (_e) {
 				validationStore.setError(fieldName, 'Invalid date format');
 			}
 		} else {

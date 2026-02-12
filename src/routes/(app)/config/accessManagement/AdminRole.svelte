@@ -81,7 +81,7 @@ It provides functionality to:
 					return cur;
 				});
 				setRoleData(result);
-			} catch (error) {
+			} catch (_error) {
 				showToast('Network error occurred while updating config file', 'error');
 			}
 			notification = 'Admin role changed. Click "Save" at the top to apply changes.';
@@ -114,7 +114,7 @@ It provides functionality to:
 		<!-- Dropdown to select admin role -->
 		<label for="adminRole" class="block text-sm text-surface-300">Select new Administrator Role:</label>
 		<select id="adminRole" class="input" onchange={handleRoleChange} bind:value={selectedAdminRole}>
-			{#each availableRoles as role}
+			{#each availableRoles as role (role._id)}
 				<option value={role._id}>{role.name}</option>
 			{/each}
 		</select>

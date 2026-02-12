@@ -69,7 +69,7 @@ export const POST = apiHandler(async ({ locals, params, request }) => {
 
 	const normalizedName = normalizeCollectionName(schema._id);
 	const dbEntryIds = entryIds.map((id) => id as unknown as DatabaseId);
-	const query: any = { _id: { $in: dbEntryIds } };
+	const query: Record<string, unknown> = { _id: { $in: dbEntryIds } };
 	if (getPrivateSettingSync('MULTI_TENANT')) query.tenantId = tenantId;
 
 	// Verification
@@ -78,7 +78,7 @@ export const POST = apiHandler(async ({ locals, params, request }) => {
 		throw new AppError('One or more entries do not belong to your tenant or do not exist', 403, 'FORBIDDEN');
 	}
 
-	let results: any[] = [];
+	let results: Array<{ entryId: string; success: boolean; error?: string; newId?: string }> = [];
 	let successCount = 0;
 
 	// Execute Actions
@@ -112,7 +112,7 @@ export const POST = apiHandler(async ({ locals, params, request }) => {
 			results = entryIds.map((id) => ({ entryId: id, success: false, error: res.error.message }));
 		}
 	} else if (action === 'clone') {
-		const entriesToClone: any[] = [];
+		const entriesToClone: Record<string, unknown>[] = [];
 		const originalIds: string[] = [];
 
 		for (const entry of verify.data as BaseEntity[]) {

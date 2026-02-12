@@ -1,4 +1,3 @@
-// @ts-ignore
 /**
  * @file tests/bun/helpers/testSetup.ts
  * @description Static test data and environment initialization with SAFETY GUARDS.
@@ -97,7 +96,7 @@ export async function cleanupTestDatabase(): Promise<void> {
 		try {
 			await mongoose.disconnect();
 			console.log('[cleanupTestDatabase] Disconnected.');
-		} catch (e) {
+		} catch {
 			// ignore disconnect error
 		}
 	}
@@ -408,7 +407,7 @@ export async function prepareAuthenticatedContext(): Promise<string> {
 		if (cookie) {
 			return cookie;
 		}
-	} catch (e) {
+	} catch {
 		// Login failed - user might not exist, try creating via API
 	}
 

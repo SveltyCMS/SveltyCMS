@@ -100,7 +100,7 @@ Permission-based access control component with advanced features and security.
 	const finalMessages = $derived({ ...defaultMessages, ...messages });
 
 	// Derive permissions and admin status from page data
-	const permissions = $derived((page.data?.permissions || {}) as Record<string, any>);
+	const permissions = $derived((page.data?.permissions || {}) as Record<string, { hasPermission: boolean; isRateLimited: boolean }>);
 	const isAdmin = $derived((page.data?.isAdmin || false) as boolean);
 	const isLoading = $derived((page.data?.isLoadingPermissions || false) as boolean);
 

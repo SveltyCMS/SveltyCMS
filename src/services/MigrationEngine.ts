@@ -83,9 +83,10 @@ export class MigrationEngine {
 			if (!dbAdapter) throw new Error('DB Adapter not initialized');
 			await dbAdapter.collection.updateModel(codeSchema);
 			return { success: true, message: 'Migration executed successfully.' };
-		} catch (err: any) {
-			logger.error('Migration failed', err);
-			return { success: false, message: err.message || 'Migration failed' };
+		} catch (err) {
+			const error = err as Error;
+			logger.error('Migration failed', error);
+			return { success: false, message: error.message || 'Migration failed' };
 		}
 	}
 }

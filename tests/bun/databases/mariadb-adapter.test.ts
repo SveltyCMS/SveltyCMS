@@ -37,7 +37,6 @@ let adapterClass: typeof import('../../../src/databases/mariadb/adapter').MariaD
 let privateEnv: any;
 
 describe('MariaDB Adapter Functional Tests', () => {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	let db: any = null;
 	// const testTable = 'test_users_' + Date.now(); // Note: MariaDB requires real table existence, this might fail if migrations aren't run
 
@@ -46,7 +45,7 @@ describe('MariaDB Adapter Functional Tests', () => {
 		adapterClass = adapterModule.MariaDBAdapter;
 
 		try {
-			// @ts-ignore
+			// @ts-expect-error - Internal path
 			const configModule = await import('../../../config/private.test');
 			privateEnv = configModule.privateEnv;
 		} catch {

@@ -15,7 +15,12 @@ import { logger } from '@utils/logger';
 import { canAccessCollection } from './relationResolver';
 
 // Generates token definitions for Relations fields with security checks
-export async function getRelationTokens(schema: Schema, user: User | undefined, tenantId?: string, roles?: any[]): Promise<TokenDefinition[]> {
+export async function getRelationTokens(
+	schema: Schema,
+	user: User | undefined,
+	tenantId?: string,
+	roles?: import('@src/databases/auth/types').Role[]
+): Promise<TokenDefinition[]> {
 	const tokens: TokenDefinition[] = [];
 
 	// Find all Relation fields in the schema
@@ -23,7 +28,7 @@ export async function getRelationTokens(schema: Schema, user: User | undefined, 
 
 	for (const field of relationFields) {
 		const fieldName = field.db_fieldName || field.label;
-		const widget = field.widget as any;
+		const widget = field.widget as unknown as { collection?: string; display_field?: string; multiple?: boolean };
 		const relatedCollection = widget?.collection;
 
 		if (!fieldName || !relatedCollection) continue;
@@ -53,7 +58,7 @@ export async function getRelationTokens(schema: Schema, user: User | undefined, 
 				example: `{{entry.${fieldName}.${displayField}}}`,
 				requiresPermission: `read:collection:${relatedCollection}`,
 				resolve: async (ctx: TokenContext) => {
-					const relationData = ctx.entry?.[fieldName];
+					const relationData = ctx.entry?.[fieldName] as any;
 					if (!relationData) return '';
 
 					// Handle both single and multiple relations
@@ -86,7 +91,7 @@ export async function getRelationTokens(schema: Schema, user: User | undefined, 
 					example: `{{entry.${fieldName}.${relFieldName}}}`,
 					requiresPermission: `read:collection:${relatedCollection}`,
 					resolve: async (ctx: TokenContext) => {
-						const relationData = ctx.entry?.[fieldName];
+						const relationData = ctx.entry?.[fieldName] as any;
 						if (!relationData) return '';
 
 						if (Array.isArray(relationData)) {
@@ -124,7 +129,7 @@ export async function getRelationTokens(schema: Schema, user: User | undefined, 
 					example: `{{entry.${fieldName}.all | truncate(100)}}`,
 					requiresPermission: `read:collection:${relatedCollection}`,
 					resolve: async (ctx: TokenContext) => {
-						const relationData = ctx.entry?.[fieldName];
+						const relationData = ctx.entry?.[fieldName] as any;
 						if (!relationData) return '';
 
 						if (Array.isArray(relationData)) {
@@ -147,10 +152,10 @@ export async function getRelationTokens(schema: Schema, user: User | undefined, 
 }
 
 // Helper to infer field type from widget
-function getFieldType(field: FieldInstance): 'string' | 'number' | 'date' | 'boolean' | 'any' {
+function getFieldType(field: FieldInstance): 'string' | 'number' | 'date' | 'boolean' {
 	const widgetName = field.widget?.Name;
 
-	const typeMap: Record<string, any> = {
+	const typeMap: Record<string, 'string' | 'number' | 'date' | 'boolean'> = {
 		Checkbox: 'boolean',
 		Date: 'date',
 		Number: 'number',

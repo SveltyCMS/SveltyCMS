@@ -40,7 +40,7 @@ test('Setup Wizard: Configure DB and Create Admin', async ({ page }) => {
 	try {
 		await expect(getStarted).toBeVisible({ timeout: 5000 });
 		await getStarted.click();
-	} catch (e) {
+	} catch (_e) {
 		console.log('Welcome modal not visible or already dismissed');
 	}
 

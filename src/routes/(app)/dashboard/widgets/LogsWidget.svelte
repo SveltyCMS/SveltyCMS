@@ -26,6 +26,7 @@
 	import BaseWidget from '../BaseWidget.svelte';
 	import type { TablePaginationProps, WidgetSize } from '@src/content/types';
 	import TablePagination from '@src/components/system/table/TablePagination.svelte';
+	import { SvelteURLSearchParams } from 'svelte/reactivity';
 
 	interface LogEntryDisplay {
 		timestamp: string;
@@ -79,7 +80,7 @@
 
 	// Function to construct query parameters for the endpoint
 	const getQueryParams = () => {
-		const params = new URLSearchParams();
+		const params = new SvelteURLSearchParams();
 		if (filterLevel !== 'all') params.append('level', filterLevel);
 		if (searchText) params.append('search', searchText);
 		if (startDate) params.append('startDate', startDate);
@@ -161,7 +162,7 @@
 					class="rounded border border-surface-300 bg-white px-8 py-1 text-sm text-surface-700 shadow-sm focus:border-primary-400 focus:ring-2 focus:ring-primary-200 dark:border-surface-400 dark:bg-surface-800 dark:text-surface-100 dark:focus:border-primary-500"
 					aria-label="Filter log level"
 				>
-					{#each logLevelOptions as { value, label }}
+					{#each logLevelOptions as { value, label } (value)}
 						<option {value}>{label}</option>
 					{/each}
 				</select>
@@ -195,7 +196,7 @@
 				role="list"
 				aria-label="System log entries"
 			>
-				{#each fetchedData.logs as log}
+				{#each fetchedData.logs as log (log.timestamp + log.message)}
 					<div
 						class="flex items-center gap-1 rounded border border-surface-200 bg-surface-50/50 px-1 py-1 text-xs dark:text-surface-50 dark:bg-surface-800/30"
 						role="listitem"

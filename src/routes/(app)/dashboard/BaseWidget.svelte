@@ -17,8 +17,6 @@ New Features:
 
 	// Lucide icons
 
-	export type { WidgetSize };
-
 	type Snippet<T = any> = (args: T) => any;
 
 	type ChildSnippetProps = {
@@ -386,7 +384,7 @@ New Features:
 						class="absolute right-0 top-full z-50 mt-2 w-48 rounded-md border border-surface-200 bg-white py-1 shadow-xl dark:text-surface-50 dark:bg-surface-800"
 						style="z-index: 9999; position: absolute;"
 					>
-						{#each availableSizes as s}
+						{#each availableSizes as s (getSizeLabel(s))}
 							<button
 								class="flex w-full items-center justify-between px-4 py-2 text-sm transition-colors hover:bg-surface-100 dark:hover:bg-surface-700 {size.w ===
 									s.w && size.h === s.h
@@ -442,7 +440,7 @@ New Features:
 	</section>
 	{#if resizable}
 		<div class="resize-handles pointer-events-none absolute inset-0">
-			{#each [{ dir: 'nw', classes: 'top-0 left-0 cursor-nw-resize', icon: 'clarity:drag-handle-corner-line', size: '12px', rotation: 'rotate-180' }, { dir: 'n', classes: 'top-0 left-1/2 cursor-n-resize', icon: 'mdi:drag-vertical', size: '12px', style: 'transform: translateX(-50%) rotate(90deg);', rotation: '' }, { dir: 'ne', classes: 'top-0 right-0 cursor-ne-resize', icon: 'clarity:drag-handle-corner-line', size: '12px', rotation: '-rotate-90' }, { dir: 'e', classes: 'top-1/2 right-0 cursor-e-resize', icon: 'mdi:drag-vertical', size: '12px', style: 'transform: translateY(-50%) rotate(180deg);', rotation: '' }, { dir: 'se', classes: 'bottom-0 right-0 cursor-se-resize', icon: 'clarity:drag-handle-corner-line', size: '12px', rotation: '' }, { dir: 's', classes: 'bottom-0 left-1/2 cursor-s-resize', icon: 'mdi:drag-vertical', size: '12px', style: 'transform: translateX(-50%) rotate(90deg);', rotation: '' }, { dir: 'sw', classes: 'bottom-0 left-0 cursor-sw-resize', icon: 'clarity:drag-handle-corner-line', size: '12px', rotation: 'rotate-90' }, { dir: 'w', classes: 'top-1/2 left-0 cursor-w-resize', icon: 'mdi:drag-vertical', size: '12px', style: 'transform: translateY(-50%) rotate(180deg);', rotation: '' }] as handle}
+			{#each [{ dir: 'nw', classes: 'top-0 left-0 cursor-nw-resize', icon: 'clarity:drag-handle-corner-line', size: '12px', rotation: 'rotate-180' }, { dir: 'n', classes: 'top-0 left-1/2 cursor-n-resize', icon: 'mdi:drag-vertical', size: '12px', style: 'transform: translateX(-50%) rotate(90deg);', rotation: '' }, { dir: 'ne', classes: 'top-0 right-0 cursor-ne-resize', icon: 'clarity:drag-handle-corner-line', size: '12px', rotation: '-rotate-90' }, { dir: 'e', classes: 'top-1/2 right-0 cursor-e-resize', icon: 'mdi:drag-vertical', size: '12px', style: 'transform: translateY(-50%) rotate(180deg);', rotation: '' }, { dir: 'se', classes: 'bottom-0 right-0 cursor-se-resize', icon: 'clarity:drag-handle-corner-line', size: '12px', rotation: '' }, { dir: 's', classes: 'bottom-0 left-1/2 cursor-s-resize', icon: 'mdi:drag-vertical', size: '12px', style: 'transform: translateX(-50%) rotate(90deg);', rotation: '' }, { dir: 'sw', classes: 'bottom-0 left-0 cursor-sw-resize', icon: 'clarity:drag-handle-corner-line', size: '12px', rotation: 'rotate-90' }, { dir: 'w', classes: 'top-1/2 left-0 cursor-w-resize', icon: 'mdi:drag-vertical', size: '12px', style: 'transform: translateY(-50%) rotate(180deg);', rotation: '' }] as handle (handle.dir)}
 				<div
 					class="pointer-events-auto absolute z-20 flex items-center justify-center opacity-0 transition-all duration-200 hover:scale-125 hover:opacity-100 group-hover:opacity-60 {handle.classes} {handle.rotation}"
 					style="width: 16px; height: 16px; {handle.style || ''}"

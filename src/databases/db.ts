@@ -889,7 +889,6 @@ export async function reinitializeSystem(force = false, waitForAuth = true): Pro
  * @param config - Complete private environment configuration
  * @returns Promise with initialization status
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function initializeWithConfig(config: any): Promise<{ status: string; error?: string }> {
 	try {
 		logger.info('🚀 Initializing system with provided configuration (bypassing Vite cache & filesystem)...');

@@ -252,32 +252,30 @@ None (TreeView has its own keyboard navigation)
 </script>
 
 <PageTitle name={m.collection_pagetitle()} icon="fluent-mdl2:build-definition" showBackButton={true} backUrl="/config">
-	{#snippet children()}
-		<div class="flex gap-2">
-			<button onclick={() => modalAddCategory()} class="preset-filled-tertiary-500 btn flex items-center gap-1" disabled={isLoading}>
-				<iconify-icon icon="mdi:folder-plus" width="24"></iconify-icon>
-				<span class="hidden sm:inline">{m.collection_addcategory()}</span>
-			</button>
+	<div class="flex gap-2">
+		<button onclick={() => modalAddCategory()} class="preset-filled-tertiary-500 btn flex items-center gap-1" disabled={isLoading}>
+			<iconify-icon icon="mdi:folder-plus" width="24"></iconify-icon>
+			<span class="hidden sm:inline">{m.collection_addcategory()}</span>
+		</button>
 
-			<button onclick={handleAddCollectionClick} class="preset-filled-surface-500 btn flex items-center gap-1 rounded" disabled={isLoading}>
-				<iconify-icon icon="ic:round-plus" width="24"></iconify-icon>
-				<span class="hidden sm:inline">{m.collection_add()}</span>
-			</button>
+		<button onclick={handleAddCollectionClick} class="preset-filled-surface-500 btn flex items-center gap-1 rounded" disabled={isLoading}>
+			<iconify-icon icon="ic:round-plus" width="24"></iconify-icon>
+			<span class="hidden sm:inline">{m.collection_add()}</span>
+		</button>
 
-			<button
-				onclick={handleSave}
-				class="preset-filled-primary-500 btn flex items-center gap-1"
-				disabled={isLoading || Object.keys(nodesToSave).length === 0}
-			>
-				{#if isLoading}
-					<iconify-icon icon="mdi:loading" width="24" class="animate-spin"></iconify-icon>
-				{:else}
-					<iconify-icon icon="mdi:content-save" width="24"></iconify-icon>
-				{/if}
-				<span>{m.button_save()}</span>
-			</button>
-		</div>
-	{/snippet}
+		<button
+			onclick={handleSave}
+			class="preset-filled-primary-500 btn flex items-center gap-1"
+			disabled={isLoading || Object.keys(nodesToSave).length === 0}
+		>
+			{#if isLoading}
+				<iconify-icon icon="mdi:loading" width="24" class="animate-spin"></iconify-icon>
+			{:else}
+				<iconify-icon icon="mdi:content-save" width="24"></iconify-icon>
+			{/if}
+			<span>{m.button_save()}</span>
+		</button>
+	</div>
 </PageTitle>
 
 <div class="max-h-[calc(100vh-120px)] overflow-auto p-4">

@@ -42,7 +42,7 @@ Renders: "1.234,56 €" (German) or "$1,234.56" (US) based on system language
 				style: 'currency',
 				currency: (field.currencyCode || 'EUR') as string
 			}).format(value);
-		} catch (e) {
+		} catch (_e) {
 			return 'Invalid amount';
 		}
 	});

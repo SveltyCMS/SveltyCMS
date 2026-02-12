@@ -163,11 +163,7 @@ export const POST = apiHandler(async ({ locals, params, request }) => {
 			action: 'create',
 			data: result.data,
 			timestamp: new Date().toISOString(),
-			user: {
-				_id: user._id,
-				username: user.username,
-				email: user.email
-			}
+			user: user
 		});
 	} catch (pubSubError) {
 		logger.warn('Failed to publish entryUpdated event', { error: pubSubError });

@@ -79,11 +79,11 @@
 		if (!langData) return;
 
 		// Create dependency on relevant fields only
-		langData.title;
-		langData.description;
-		langData.focusKeyword;
-		langData.canonicalUrl;
-		langData.robotsMeta;
+		void langData.title;
+		void langData.description;
+		void langData.focusKeyword;
+		void langData.canonicalUrl;
+		void langData.robotsMeta;
 
 		// Debounce slightly to avoid rapid updates
 		const timeout = setTimeout(() => {

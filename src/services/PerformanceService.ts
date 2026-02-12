@@ -71,7 +71,7 @@ export class PerformanceService {
 					const name = key.replace(this.PREFERENCE_KEY_PREFIX, '');
 					try {
 						metrics[name] = typeof value === 'string' ? JSON.parse(value) : value;
-					} catch (e) {
+					} catch {
 						logger.warn(`[PerformanceService] Failed to parse metrics for ${name}`);
 					}
 				}

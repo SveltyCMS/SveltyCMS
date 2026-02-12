@@ -66,9 +66,9 @@
 
 			const result = await response.json();
 			if (result.success && result.folders) {
-				folders = result.folders.map((folder: any) => ({
+				folders = result.folders.map((folder: SystemVirtualFolder) => ({
 					...folder,
-					path: Array.isArray(folder.path) ? folder.path : folder.path.split('/')
+					path: Array.isArray(folder.path) ? folder.path : (folder.path as string).split('/')
 				}));
 			} else {
 				throw new Error(result.error || 'Failed to fetch folders');

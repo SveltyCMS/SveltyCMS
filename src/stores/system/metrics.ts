@@ -14,7 +14,6 @@
 import { logger } from '@utils/logger';
 import type { Writable } from 'svelte/store';
 import type { SystemStateStore, ServiceHealth, AnomalyDetection, ServiceName } from './types';
-import { performanceService } from '@src/services/PerformanceService';
 
 /**
  * Track state timing (startup/shutdown) and update metrics
@@ -295,6 +294,7 @@ export function updateUptimeMetrics(serviceName: ServiceName, store: Writable<Sy
  */
 export async function loadHistoricalMetrics(store: Writable<SystemStateStore>): Promise<void> {
 	try {
+		const { performanceService } = await import('@src/services/PerformanceService');
 		const historicalMetrics = await performanceService.loadMetrics();
 		if (Object.keys(historicalMetrics).length === 0) return;
 
@@ -328,6 +328,7 @@ export async function loadHistoricalMetrics(store: Writable<SystemStateStore>): 
  */
 export async function saveCurrentMetrics(store: Writable<SystemStateStore>): Promise<void> {
 	try {
+		const { performanceService } = await import('@src/services/PerformanceService');
 		const state = getSystemStateForSaving(store);
 		if (!state) return;
 		await performanceService.saveMetrics(state.services);

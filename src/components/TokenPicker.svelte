@@ -152,7 +152,7 @@
 					const args = modDef.args.map((a, i) => rawArgs[i] ?? a.default);
 					return { def: modDef, args };
 				})
-				.filter(Boolean) as { def: ModifierMetadata; args: any[] }[];
+				.filter(Boolean) as { def: ModifierMetadata; args: unknown[] }[];
 		}
 	});
 
@@ -319,7 +319,6 @@
 						{#if openCategories[cat] || search}
 							<div transition:slide class="mt-2 space-y-1">
 								{#each tokens as t (t.token)}
-									<!-- svelte-ignore a11y_no_static_element_interactions -->
 									<div
 										class="card preset-filled-surface-500 hover:variant-soft-primary cursor-pointer p-2 transition-colors"
 										onclick={() => selectToken(t)}

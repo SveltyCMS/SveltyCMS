@@ -80,7 +80,13 @@ export class CollectionService {
 			const cachedData = await cacheService.get(cacheKey);
 			if (cachedData) {
 				logger.debug(`Cache HIT for key: \x1b[33m${cacheKey}\x1b[0m`);
-				return cachedData as any;
+				return cachedData as {
+					contentLanguage: string;
+					collectionSchema: Schema;
+					entries: CollectionEntry[];
+					pagination: { totalItems: number; pagesCount: number; currentPage: number; pageSize: number };
+					revisions: RevisionData[];
+				};
 			}
 			logger.debug(`Cache MISS for key: \x1b[33m${cacheKey}\x1b[0m`);
 		}
@@ -152,7 +158,7 @@ export class CollectionService {
 		if (entries.length > 0) {
 			await modifyRequest({
 				data: entries,
-				fields: collection.fields as any,
+				fields: collection.fields as any, // Fields has complex union, leaving cast for now but minimizing surface
 				collection: collection as any,
 				user: user,
 				type: 'GET',
@@ -163,24 +169,20 @@ export class CollectionService {
 		// 4. Language Projection (View Mode)
 		if (!editEntryId) {
 			for (let i = 0; i < entries.length; i++) {
-				const entry = entries[i];
+				const entry = entries[i] as any;
 				for (const field of collection.fields as any[]) {
-					const fieldName = (field as any).db_fieldName || (field as any).label;
-					if (
-						(field as any).translated &&
-						(entry as any)[fieldName] &&
-						typeof (entry as any)[fieldName] === 'object' &&
-						!Array.isArray((entry as any)[fieldName])
-					) {
-						const value = ((entry as any)[fieldName] as any)[language];
-						(entry as any)[fieldName] = value !== undefined && value !== null && value !== '' ? value : '-';
+					const f = field as any;
+					const fieldName = f.db_fieldName || f.label;
+					if (f.translated && entry[fieldName] && typeof entry[fieldName] === 'object' && !Array.isArray(entry[fieldName])) {
+						const value = entry[fieldName][language];
+						entry[fieldName] = value !== undefined && value !== null && value !== '' ? value : '-';
 					}
 				}
 			}
 		}
 
 		// 5. Plugin SSR Hooks
-		const pluginData: Record<string, any> = {};
+		const pluginData: Record<string, Record<string, unknown>> = {};
 		if (!editEntryId && entries.length > 0) {
 			try {
 				const { pluginRegistry } = await import('@src/plugins');

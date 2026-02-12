@@ -110,7 +110,6 @@ export const POST = apiHandler(async ({ request, cookies, locals }) => {
 		}); // Cache user in session store
 
 		const sessionCookie = auth.createSessionCookie(session._id);
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes as any);
 
 		logger.info(`User logged in successfully: ${user.email}`, { userId: user._id, tenantId });

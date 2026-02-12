@@ -217,7 +217,7 @@ Comprehensive image editing interface with Konva.js integration.
 			if (imageOrigin !== currentOrigin) {
 				img.crossOrigin = 'anonymous';
 			}
-		} catch (e) {
+		} catch (_e) {
 			img.crossOrigin = 'anonymous';
 		}
 
@@ -678,8 +678,8 @@ Comprehensive image editing interface with Konva.js integration.
 		if (typeof Konva !== 'undefined' && Konva.Image) {
 			try {
 				// Konva specific cleanup if needed
-			} catch (e) {
-				console.warn('Konva cleanup error', e);
+			} catch (_e) {
+				console.warn('Konva cleanup error', _e);
 			}
 		}
 	});

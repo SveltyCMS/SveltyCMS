@@ -324,7 +324,7 @@ and automated response visualization for enterprise security operations.
 					Active Incidents ({incidents.length})
 				</h4>
 				<div class="max-h-32 space-y-1 overflow-y-auto">
-					{#each incidents as incident}
+					{#each incidents as incident (incident.id)}
 						<div class="rounded p-2 text-xs {getIncidentPriorityClass(incident.threatLevel)}">
 							<div class="flex items-start justify-between">
 								<div class="flex-1">
@@ -339,7 +339,7 @@ and automated response visualization for enterprise security operations.
 									</div>
 									{#if incident.responseActions.length > 0}
 										<div class="mt-1">
-											{#each incident.responseActions as action}
+											{#each incident.responseActions as action (action)}
 												<span class="mr-1 inline-block rounded bg-gray-300 px-1 py-0.5 text-xs dark:bg-gray-600">
 													{action}
 												</span>

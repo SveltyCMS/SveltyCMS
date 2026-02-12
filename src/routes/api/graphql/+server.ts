@@ -214,7 +214,7 @@ async function createGraphQLSchema(dbAdapter: DatabaseAdapter, tenantId?: string
 				subscribe: (_: unknown, __: unknown, context: { pubSub: any }) => {
 					return context.pubSub.subscribe('contentStructureUpdated');
 				},
-				resolve: (payload: any) => payload
+				resolve: (payload: unknown) => payload
 			},
 			entryUpdated: {
 				subscribe: (_: unknown, _args: { collection?: string; id?: string }, context: { pubSub: any }) => {
@@ -228,7 +228,7 @@ async function createGraphQLSchema(dbAdapter: DatabaseAdapter, tenantId?: string
 					// But standard pattern: client receives event and checks if it matches.
 					return iterator;
 				},
-				resolve: (payload: any) => payload
+				resolve: (payload: unknown) => payload
 			}
 		}
 	};
@@ -277,7 +277,6 @@ async function setupGraphQL(dbAdapter: DatabaseAdapter, tenantId?: string) {
 
 // Store Yoga app promise with a relaxed, generic-any typing to avoid
 // tight coupling to Yoga's internal generics, which are noisy for our use case.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let yogaAppPromise: Promise<ReturnType<typeof createYoga<any, any>>> | null = null;
 let wsServerInitialized = false;
 
@@ -453,7 +452,7 @@ const handler = apiHandler(async (event: RequestEvent) => {
 					errors: bodyJson.errors || 'No specific GraphQL errors provided',
 					requestId: request.headers.get('x-request-id') || 'N/A'
 				});
-			} catch (parseError) {
+			} catch {
 				logger.error('GraphQL Failed (Raw Body):', {
 					status: yogaResponse.status,
 					statusText: yogaResponse.statusText,

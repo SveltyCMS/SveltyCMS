@@ -63,14 +63,12 @@ export class AIService {
 	/**
 	 * Main chat interface for the CMS Dashboard
 	 */
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	public async chat(userMessage: string, history: any[] = []) {
 		// 1. Get Context from Remote RAG
 		const contextResults = await this.searchContext(userMessage);
 
 		let contextText = '';
 		if (contextResults.length > 0) {
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			contextText = contextResults.map((r: any) => `[From ${r.source}]: ${r.text}`).join('\n\n');
 		}
 

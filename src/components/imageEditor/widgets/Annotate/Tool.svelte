@@ -277,7 +277,7 @@ Orchestrates the annotation lifecycle:
 			cleanupAnnotations(false); // Bake instead of destroy
 			transformer?.destroy();
 			transformer = null;
-		} catch (e) {
+		} catch (_e) {
 			/* ignore */
 		}
 	}

@@ -16,7 +16,7 @@ export interface ActiveTokenInput {
 		name: string;
 		label?: string;
 		collection?: string;
-		[key: string]: any;
+		[key: string]: unknown;
 	};
 	/** Optional custom insertion handler (e.g., for rich text editors) */
 	onInsert?: (token: string) => void;

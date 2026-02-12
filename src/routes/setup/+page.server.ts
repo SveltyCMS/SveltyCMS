@@ -239,7 +239,6 @@ export const actions = {
 
 					let db: any;
 					// Environment detection to avoid protocol errors in Node.js
-					// @ts-ignore
 					const isBun = typeof Bun !== 'undefined';
 
 					try {
@@ -250,7 +249,6 @@ export const actions = {
 							db.query('SELECT 1').get();
 						} else {
 							// For Node.js 22.5+ (Vite dev server usually runs in Node)
-							// @ts-ignore
 							const { DatabaseSync } = await import('node:sqlite');
 							db = new DatabaseSync(dbPathResolved);
 							db.prepare('SELECT 1').get();
@@ -263,7 +261,7 @@ export const actions = {
 								const Database = (await import('better-sqlite3')).default;
 								db = new Database(dbPathResolved);
 								db.prepare('SELECT 1').run();
-							} catch (betterErr: any) {
+							} catch (_betterErr: any) {
 								const latencyMs = Math.round(performance.now() - start);
 								return {
 									success: false,

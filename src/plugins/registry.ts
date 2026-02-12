@@ -158,13 +158,13 @@ class PluginRegistry implements IPluginService {
 	}
 
 	// Get Lifecycle hooks for enabled plugins on a collection
-	async getLifecycleHooks(
+	async getLifecycleHooks<K extends keyof import('./types').PluginLifecycleHooks>(
 		collectionId: string,
-		hookName: keyof import('./types').PluginLifecycleHooks,
+		hookName: K,
 		tenantId?: string,
 		schema?: any
-	): Promise<Array<Function>> {
-		const hooks: Array<Function> = [];
+	): Promise<Array<Exclude<import('./types').PluginLifecycleHooks[K], undefined>>> {
+		const hooks: Array<Exclude<import('./types').PluginLifecycleHooks[K], undefined>> = [];
 		const activeTenantId = tenantId || 'default';
 
 		for (const entry of this.plugins.values()) {
@@ -176,7 +176,7 @@ class PluginRegistry implements IPluginService {
 			}
 
 			if (plugin.hooks && plugin.hooks[hookName]) {
-				hooks.push(plugin.hooks[hookName]!);
+				hooks.push(plugin.hooks[hookName] as Exclude<import('./types').PluginLifecycleHooks[K], undefined>);
 			}
 		}
 
@@ -250,7 +250,7 @@ class PluginRegistry implements IPluginService {
 		try {
 			const count = await dbAdapter.crud.count(table);
 			if (count.success) return;
-		} catch (error) {
+		} catch (_error) {
 			// Expected if table doesn't exist
 		}
 

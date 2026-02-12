@@ -41,7 +41,7 @@
 		<div class="flex flex-col">
 			<label for="mediaType">Type</label>
 			<select id="mediaType" bind:value={selectedMediaType} class="input">
-				{#each mediaTypes as type}
+				{#each mediaTypes as type (type.value)}
 					<option value={type.value}>
 						<span class="uppercase">{type.value}</span>
 					</option>

@@ -284,7 +284,7 @@ Provides zoom functionality for the image editor:
 	export function cleanup() {
 		try {
 			unbindTool();
-		} catch (e) {
+		} catch (_e) {
 			/* ignore */
 		}
 	}

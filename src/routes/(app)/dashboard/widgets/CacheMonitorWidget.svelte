@@ -171,7 +171,7 @@
 							By Category
 						</h3>
 						<div class="space-y-3">
-							{#each Object.entries(metrics.byCategory).slice(0, 6) as [category, stats]}
+							{#each Object.entries(metrics.byCategory).slice(0, 6) as [category, stats] (category)}
 								<div class="group">
 									<div class="flex items-center justify-between text-xs">
 										<div class="flex items-center gap-2">
@@ -217,7 +217,7 @@
 							By Tenant
 						</h3>
 						<div class="space-y-2.5">
-							{#each Object.entries(metrics.byTenant).slice(0, 4) as [tenant, stats]}
+							{#each Object.entries(metrics.byTenant).slice(0, 4) as [tenant, stats] (tenant)}
 								<div class="flex items-center justify-between rounded-lg bg-surface-100/50 px-3 py-2 text-xs dark:bg-surface-900/30">
 									<div class="flex items-center gap-2">
 										<div class="flex h-7 w-7 items-center justify-center rounded-full bg-primary-100 dark:bg-primary-900/30">
@@ -245,7 +245,7 @@
 							Recent Cache Misses ({metrics.recentMisses.length})
 						</h3>
 						<div class="max-h-48 space-y-2 overflow-y-auto">
-							{#each metrics.recentMisses.slice().reverse() as miss}
+							{#each metrics.recentMisses.slice().reverse() as miss (miss.timestamp + miss.key)}
 								{@const timeSince = Math.floor((Date.now() - new Date(miss.timestamp).getTime()) / 1000)}
 								<div class="rounded-lg bg-white/50 px-3 py-2 text-xs dark:bg-surface-900/30">
 									<div class="flex items-start justify-between gap-2">

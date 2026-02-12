@@ -51,6 +51,7 @@ import type {
 } from '../dbInterface';
 import { logger } from '@src/utils/logger.server';
 import { cacheService } from '@src/databases/CacheService';
+import { generateId } from './methods/mongoDBUtils';
 
 export class MongoDBAdapter implements IDBAdapter {
 	// --- Feature Cache (Real Instances) ---
@@ -526,7 +527,7 @@ export class MongoDBAdapter implements IDBAdapter {
 		try {
 			if (!this.isConnected()) return { success: false, message: 'Not connected', error: { code: 'NOT_CONNECTED', message: 'DB not connected' } };
 			const client = mongoose.connection.getClient();
-			// @ts-ignore
+			// @ts-expect-error - Topology is internal
 			const pool = client?.topology?.s?.pool;
 
 			if (!pool) return { success: true, data: { total: 50, active: 0, idle: 0, waiting: 0, avgConnectionTime: 0 } };
@@ -725,7 +726,7 @@ export class MongoDBAdapter implements IDBAdapter {
 						const { ThemeModel } = await import('./models');
 						this._cachedSystemThemes = new MongoThemeMethods(ThemeModel);
 					}
-					// @ts-ignore
+					// @ts-expect-error - Method might not exist on all implementations
 					return this._wrapResult(() => this._cachedSystemThemes!.getDefault(tid));
 				},
 				ensure: async (t) => {
@@ -1025,7 +1026,7 @@ export class MongoDBAdapter implements IDBAdapter {
 	}
 
 	public readonly utils = {
-		generateId: () => require('./methods/mongoDBUtils').generateId(),
+		generateId: () => generateId(),
 		normalizePath: (path: string) => path.replace(/\\/g, '/'),
 		validateId: (id: string) => mongoose.Types.ObjectId.isValid(id),
 		createPagination: <T>(items: T[], options: PaginationOptions): PaginatedResult<T> => {

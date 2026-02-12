@@ -260,7 +260,7 @@ export async function seedCollectionsForSetup(
 			if (typeof error === 'object') {
 				try {
 					logger.error(`Error object: ${JSON.stringify(error)}`);
-				} catch (e) {
+				} catch {
 					logger.error('Could not stringify error object');
 				}
 			} else {
@@ -301,8 +301,6 @@ export async function initSystemFromSetup(
 
 	logger.info(`✅ System initialization completed${tenantId ? ` for tenant ${tenantId}` : ''}`);
 
-	logger.info(`✅ System initialization completed${tenantId ? ` for tenant ${tenantId}` : ''}`);
-
 	return seedResults;
 }
 
@@ -313,8 +311,8 @@ export async function initSystemFast(
 	tenantId?: string,
 	isDemoSeed = false
 ): Promise<{
-	criticalPromise: Promise<any>;
-	backgroundTask: () => Promise<any>;
+	criticalPromise: Promise<void>;
+	backgroundTask: () => Promise<void>;
 }> {
 	// Critical: Settings, Default Theme, Roles (needed for Admin User creation)
 	const criticalPromise = (async () => {
@@ -579,7 +577,7 @@ export async function seedSettings(dbAdapter: DatabaseAdapter, tenantId?: string
 		for (const [key, value] of Object.entries(existingSettings)) {
 			const isPublic = defaultPublicSettings.some((s) => s.key === key);
 			if (isPublic) {
-				publicSettings[key] = (value as any).value ?? value;
+				publicSettings[key] = (value as { value?: unknown }).value ?? value;
 			}
 		}
 

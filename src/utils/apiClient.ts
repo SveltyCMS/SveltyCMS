@@ -79,7 +79,7 @@ async function fetchApi<T>(endpoint: string, options: RequestInit): Promise<ApiR
 				// Some endpoints might return { success: true, ... } or just data
 				// We ensure the shape is consistent
 				return { success: true, ...data };
-			} catch (e) {
+			} catch {
 				// Fallback if response is OK but not JSON (rare)
 				logger.warn(`[API] Response OK but invalid JSON at ${endpoint}`);
 				return { success: true } as ApiResponse<T>;

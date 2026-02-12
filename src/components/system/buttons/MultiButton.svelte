@@ -68,18 +68,22 @@
 	};
 
 	const buttons = $state(props.buttons || defaultButtons);
-	let expanded = $state(false);
+	let _expanded = $state(false);
+	let expanded = {
+		get value() {
+			return mode.value === 'modify' ? _expanded : false;
+		},
+		set value(v: boolean) {
+			_expanded = v;
+		}
+	};
 
 	const defaultButton = $derived(props.defaultButton || (mode.value === 'modify' ? 'Delete' : 'Create'));
-
-	$effect(() => {
-		expanded = mode.value === 'modify' ? expanded : false;
-	});
 
 	const activeArrow = $derived(mode.value === 'modify');
 
 	function toggleExpanded() {
-		expanded = !expanded;
+		expanded.value = !expanded.value;
 	}
 </script>
 
@@ -87,7 +91,7 @@
 	<button
 		style="--color:{buttons[defaultButton].color};background-color:{buttons[defaultButton].bg_color}"
 		class="flex grow items-center justify-center rounded-l-lg md:text-lg max-md:p-[10px]!"
-		class:rounded-bl-[10px]={!expanded}
+		class:rounded-bl-[10px]={!expanded.value}
 		aria-label="Create"
 		onclick={buttons[defaultButton].fn}
 	>
@@ -110,8 +114,8 @@
 			class:!border-red-800={!activeArrow}
 		></div>
 	</button>
-	<div class="overflow-hidden rounded-b-lg transition-all" class:expanded>
-		{#each Object.keys(buttons) as button}
+	<div class="overflow-hidden rounded-b-lg transition-all" class:expanded={expanded.value}>
+		{#each Object.keys(buttons) as button (button)}
 			{#if button != defaultButton && button != 'Create' && mode.value === 'modify'}
 				<button
 					onclick={buttons[button].fn}

@@ -189,7 +189,7 @@
 					</div>
 				{/if}
 				<!-- Permissions List -->
-				{#each user.permissions as permission}
+				{#each user.permissions as permission (permission)}
 					<div class="gradient-primary badge mt-1 w-full max-w-xs text-white">
 						{permission}
 					</div>

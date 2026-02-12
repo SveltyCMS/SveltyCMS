@@ -120,7 +120,7 @@ Professional watermark controls with text, image, and advanced options
 		<div class="control-group">
 			<span class="control-label hidden md:flex">Position:</span>
 			<div class="position-grid">
-				{#each positions as pos}
+				{#each positions as pos (pos.value)}
 					<button class="position-btn" onclick={() => onPositionChange(pos.value)} title={pos.title} aria-label={pos.title}>
 						{pos.label}
 					</button>
@@ -154,7 +154,7 @@ Professional watermark controls with text, image, and advanced options
 
 			{#if onSizeChange}
 				<div class="size-presets hidden sm:flex">
-					{#each sizePresets as preset}
+					{#each sizePresets as preset (preset.value)}
 						<button
 							class="size-btn"
 							class:active={Math.abs(currentSize - preset.value) < 5}

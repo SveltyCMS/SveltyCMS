@@ -14,7 +14,7 @@ interface TokenTargetOptions {
 export function tokenTarget(node: HTMLElement, options: TokenTargetOptions) {
 	function onFocus() {
 		activeInput.set({
-			element: node as HTMLElement | null as any,
+			element: node as unknown as HTMLInputElement | HTMLTextAreaElement,
 			field: {
 				name: options.name,
 				label: options.label || options.name,

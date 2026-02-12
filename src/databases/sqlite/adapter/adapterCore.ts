@@ -44,23 +44,25 @@ export class AdapterCore {
 				fs.mkdirSync(dbDir, { recursive: true });
 			}
 
-			// @ts-ignore
 			const isBun = typeof Bun !== 'undefined';
 
 			if (isBun) {
 				// Use dynamic import with string concatenation to avoid Node's static ESM loader errors
 				const { Database } = await import('bun' + ':sqlite');
 				this.sqlite = new Database(dbPathResolved);
-				const { drizzle } = await import('drizzle-orm/bun-sqlite');
+				const drizzleModule = 'drizzle-orm/bun-sqlite';
+				const { drizzle } = await import(/* @vite-ignore */ drizzleModule);
 				this.db = drizzle(this.sqlite, { schema });
 
 				// WAL mode for better performance/concurrency
 				this.sqlite.exec('PRAGMA journal_mode = WAL;');
 			} else {
 				// Fallback to better-sqlite3 in Node.js (Vite dev)
-				const Database = (await import('better-sqlite3')).default;
+				const betterSqliteModule = 'better-sqlite3';
+				const Database = (await import(/* @vite-ignore */ betterSqliteModule)).default;
 				this.sqlite = new Database(dbPathResolved);
-				const { drizzle } = await import('drizzle-orm/better-sqlite3');
+				const drizzleModule = 'drizzle-orm/better-sqlite3';
+				const { drizzle } = await import(/* @vite-ignore */ drizzleModule);
 				this.db = drizzle(this.sqlite, { schema });
 
 				// WAL mode

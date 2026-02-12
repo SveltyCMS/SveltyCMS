@@ -252,7 +252,7 @@ Advanced permission management interface with bulk actions and presets.
 			saveToHistory();
 			updateParent();
 			showToast('Permissions imported successfully', 'success');
-		} catch (err) {
+		} catch {
 			showToast('Failed to import permissions', 'error');
 			error = 'Invalid permissions file';
 		}

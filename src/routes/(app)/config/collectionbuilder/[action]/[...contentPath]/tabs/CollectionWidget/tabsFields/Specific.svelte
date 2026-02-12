@@ -38,7 +38,7 @@ Features:
 </script>
 
 {#if modalState.active && currentGuiSchema && specificFields.length > 0}
-	{#each specificFields as property}
+	{#each specificFields as property (property)}
 		<InputSwitch
 			value={collections.targetWidget[property]}
 			onupdate={(e: { value: any }) => handleUpdate(e, property)}

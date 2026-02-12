@@ -213,7 +213,7 @@ export class BlurRegion {
 				this.overlayGroup.clearCache();
 				this.overlayGroup.cache(cacheRect);
 				this.layer.batchDraw();
-			} catch (e) {
+			} catch (_e) {
 				/* ignore cache errors */
 			}
 			this._cacheTimer = null;
@@ -402,8 +402,8 @@ export class BlurRegion {
 	cloneForBake(): Konva.Group | null {
 		try {
 			return this.overlayGroup.clone();
-		} catch (e) {
-			console.error('[BlurRegion] Clone failed:', e);
+		} catch (_e) {
+			console.error('[BlurRegion] Clone failed:', _e);
 			return null;
 		}
 	}

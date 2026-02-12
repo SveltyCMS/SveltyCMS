@@ -47,7 +47,6 @@ let privateEnv: any;
 import { testFixtures } from '../helpers/testSetup';
 
 describe('Auth System Functional Tests', () => {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	let db: any = null;
 	const testCollection = 'test_auth_verify_' + Date.now();
 
@@ -55,10 +54,10 @@ describe('Auth System Functional Tests', () => {
 		const adapterModule = await import('../../../src/databases/mongodb/mongoDBAdapter');
 		adapterClass = adapterModule.MongoDBAdapter;
 		try {
-			// @ts-ignore
+			// @ts-expect-error - Internal path
 			const configModule = await import('../../../config/private.test');
 			privateEnv = configModule.privateEnv;
-		} catch (err) {
+		} catch {
 			// Fallback to environment variables if config file is missing (CI)
 			privateEnv = {
 				DB_TYPE: process.env.DB_TYPE || 'mongodb',
@@ -107,7 +106,7 @@ describe('Auth System Functional Tests', () => {
 				console.warn('Auth Test Write Verification Exception:', writeErr.message);
 				db = null;
 			}
-		} catch (err) {
+		} catch {
 			console.warn('Auth Test Connection Failed. Skipping tests.');
 			db = null;
 		}
@@ -171,7 +170,7 @@ describe('Auth System Functional Tests', () => {
 			const result = await db.auth.createUser(userPayload);
 			expect(result.success).toBe(true);
 			expect(result.data).toBeDefined();
-			newUserId = (result.data as any)._id;
+			newUserId = (result.data as { _id: string })._id;
 			expect(newUserId).toBeDefined();
 		});
 
@@ -212,7 +211,7 @@ describe('Auth System Functional Tests', () => {
 				password: 'pw',
 				role: 'user'
 			});
-			userId = (user.data as any)._id;
+			userId = (user.data as { _id: string })._id;
 
 			const sessionData = {
 				user_id: userId,
@@ -221,7 +220,7 @@ describe('Auth System Functional Tests', () => {
 
 			const result = await db.auth.createSession(sessionData);
 			expect(result.success).toBe(true);
-			sessionId = (result.data as any)._id;
+			sessionId = (result.data as { _id: string })._id;
 			expect(sessionId).toBeDefined();
 		});
 

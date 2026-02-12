@@ -62,7 +62,7 @@ describe('Token System', () => {
 		};
 
 		const context = { user: { username: 'Bob' } } as any;
-		const processed = await processTokensInResponse(data, context.user, 'en');
+		const processed = (await processTokensInResponse(data, context.user, 'en')) as any;
 
 		expect(processed.message).toBe('Say Hello World');
 		expect(processed.nested.user).toBe('Bob');

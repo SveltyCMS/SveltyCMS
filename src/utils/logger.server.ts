@@ -168,7 +168,9 @@ async function ensureStream() {
 				const match = lastLine.match(/\[CHAIN:([a-f0-9]{64})\]/);
 				if (match) lastHash = match[1];
 			}
-		} catch (e) {}
+		} catch {
+			// Silent fail if file doesn't exist yet
+		}
 
 		stream = fs.createWriteStream(file, { flags: 'a' });
 	}
@@ -189,13 +191,11 @@ async function rotate() {
 		await promises.writeFile(file, '');
 		lastHash = ''; // Reset chain for new file
 
-		if (true) {
-			// compression enabled
-			const src = (await getMods()).fs.createReadStream(rotated);
-			const dst = (await getMods()).fs.createWriteStream(`${rotated}.gz`);
-			await sp.pipeline(src, zlib.createGzip(), dst);
-			await promises.unlink(rotated);
-		}
+		// compression enabled
+		const src = (await getMods()).fs.createReadStream(rotated);
+		const dst = (await getMods()).fs.createWriteStream(`${rotated}.gz`);
+		await sp.pipeline(src, zlib.createGzip(), dst);
+		await promises.unlink(rotated);
 	} catch (e: any) {
 		if (e.code !== 'ENOENT') console.error('Rotation failed:', e);
 	}

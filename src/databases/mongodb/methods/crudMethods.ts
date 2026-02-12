@@ -116,7 +116,6 @@ export class MongoCrudMethods<T extends BaseEntity> {
 				createdAt: nowISODateString(),
 				updatedAt: nowISODateString()
 			} as unknown as T;
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			const result = (await this.model.create(doc as any)) as any;
 			return { success: true, data: result.toObject() as T };
 		} catch (error) {
@@ -144,7 +143,6 @@ export class MongoCrudMethods<T extends BaseEntity> {
 				updatedAt: nowISODateString()
 			}));
 			const result = await this.model.insertMany(docs);
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			return { success: true, data: result.map((doc: any) => doc.toObject()) };
 		} catch (error) {
 			return {

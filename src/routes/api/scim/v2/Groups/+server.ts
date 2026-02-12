@@ -40,8 +40,8 @@ export const GET = apiHandler(async ({ url, locals }) => {
 			displayName: r.name,
 			meta: {
 				resourceType: 'Group',
-				created: (r as any).createdAt || new Date().toISOString(),
-				lastModified: (r as any).updatedAt || new Date().toISOString(),
+				created: (r as { createdAt?: string }).createdAt || new Date().toISOString(),
+				lastModified: (r as { updatedAt?: string }).updatedAt || new Date().toISOString(),
 				location: `${url.origin}/api/scim/v2/Groups/${r._id}`
 			}
 		}));
@@ -53,14 +53,15 @@ export const GET = apiHandler(async ({ url, locals }) => {
 			startIndex: 1,
 			Resources: resources
 		});
-	} catch (e: any) {
+	} catch (e) {
 		if (e instanceof AppError) throw e;
+		const error = e as Error;
 		logger.error('SCIM Groups GET error', { error: e });
 		return json(
 			{
 				schemas: [SCIM_SCHEMAS.ERROR],
 				status: '500',
-				detail: e.message || 'Internal Server Error'
+				detail: error.message || 'Internal Server Error'
 			},
 			{ status: 500 }
 		);

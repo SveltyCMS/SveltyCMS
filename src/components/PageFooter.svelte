@@ -16,10 +16,12 @@
 
 	const { user } = page.data;
 
+	const activeEntry = $derived(collections.activeValue as { createdAt?: string | number | Date; updatedAt?: string | number | Date });
+
 	// Convert ISO date string to formatted date
 	const dates = $derived({
-		created: (collections.activeValue as Record<string, any>)?.createdAt
-			? new Date((collections.activeValue as Record<string, any>).createdAt as string | number | Date).toLocaleDateString('en-US', {
+		created: activeEntry?.createdAt
+			? new Date(activeEntry.createdAt).toLocaleDateString('en-US', {
 					year: 'numeric',
 					month: '2-digit',
 					day: '2-digit',
@@ -27,8 +29,8 @@
 					minute: '2-digit'
 				})
 			: '-',
-		updated: (collections.activeValue as Record<string, any>)?.updatedAt
-			? new Date((collections.activeValue as Record<string, any>).updatedAt as string | number | Date).toLocaleDateString('en-US', {
+		updated: activeEntry?.updatedAt
+			? new Date(activeEntry.updatedAt).toLocaleDateString('en-US', {
 					year: 'numeric',
 					month: '2-digit',
 					day: '2-digit',

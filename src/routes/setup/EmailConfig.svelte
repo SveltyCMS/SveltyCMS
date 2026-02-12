@@ -188,9 +188,6 @@
 			const provider = detectProviderFromHost(smtpHost);
 			if (provider) {
 				smtpPort = provider.port;
-
-				// Show subtle feedback
-			} else {
 			}
 		}
 	});
@@ -212,7 +209,7 @@
 			return { valid: true, errors: {} };
 		} else {
 			// Extract validation errors
-			const errors: Record<string, any> = {};
+			const errors: Record<string, string> = {};
 			if (result.issues) {
 				for (const issue of result.issues) {
 					const path = issue.path?.[0]?.key as string;
@@ -229,7 +226,7 @@
 
 	// Only display errors for fields that have been touched (blurred)
 	const displayErrors = $derived.by(() => {
-		const errors: Record<string, any> = {};
+		const errors: Record<string, string> = {};
 		// Show validation errors only for touched fields
 		for (const field of touchedFields) {
 			if (localValidationErrors()[field]) {
@@ -260,35 +257,35 @@
 	// SMTP presets for dropdown
 	const presets = [
 		{
-			name: m.setup_email_preset_gmail(),
+			name: m.setup_email_preset_gmail() as string,
 			host: 'smtp.gmail.com',
 			port: 587,
 			secure: true,
 			note: m.setup_email_preset_note_gmail()
 		},
 		{
-			name: m.setup_email_preset_outlook(),
+			name: m.setup_email_preset_outlook() as string,
 			host: 'smtp.office365.com',
 			port: 587,
 			secure: true,
 			note: ''
 		},
 		{
-			name: m.setup_email_preset_sendgrid(),
+			name: m.setup_email_preset_sendgrid() as string,
 			host: 'smtp.sendgrid.net',
 			port: 587,
 			secure: true,
 			note: m.setup_email_preset_note_sendgrid()
 		},
 		{
-			name: m.setup_email_preset_mailgun(),
+			name: m.setup_email_preset_mailgun() as string,
 			host: 'smtp.mailgun.org',
 			port: 587,
 			secure: true,
 			note: ''
 		},
 		{
-			name: m.setup_email_preset_custom(),
+			name: m.setup_email_preset_custom() as string,
 			host: '',
 			port: 587,
 			secure: true,
@@ -296,12 +293,12 @@
 		}
 	];
 
-	let selectedPreset = $state(m.setup_email_preset_custom());
+	let selectedPreset = $state(m.setup_email_preset_custom() as string);
 
 	function applyPreset(presetName: string) {
 		const preset = presets.find((p) => p.name === presetName);
 		if (preset) {
-			selectedPreset = presetName as any;
+			selectedPreset = presetName;
 			smtpHost = preset.host;
 			smtpPort = preset.port;
 			useCustomPort = false;
@@ -340,7 +337,7 @@
 			const result = deserialize(await response.text());
 
 			if (result.type === 'success') {
-				const data = result.data as any;
+				const data = result.data as { success: boolean; testEmailSent?: boolean; error?: string };
 				if (data.success) {
 					testSuccess = true;
 					testEmailSent = data.testEmailSent || false;
@@ -359,7 +356,7 @@
 				}
 			} else {
 				// Handle failure/error type
-				const errorMsg = (result as any).data?.error || 'Connection failed'; // Attempt to get error from failure data
+				const errorMsg = (result as { data?: { error?: string } }).data?.error || 'Connection failed'; // Attempt to get error from failure data
 				testError = errorMsg;
 				showToast(`${m.setup_email_test_failed()}: ${testError}`, 'error');
 			}

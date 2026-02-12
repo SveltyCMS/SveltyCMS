@@ -22,6 +22,9 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 -->
 
 <script lang="ts">
+	// Svelte 5 reactive Date
+	import { SvelteDate } from 'svelte/reactivity';
+
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
@@ -65,7 +68,7 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 	// Calculate full moon date (14.77 days after new moon)
 	function findFullMoonNear(year: number, month: number, _day: number): Date {
 		const newMoon = findNewMoonNear(year, month, _day);
-		const fullMoon = new Date(newMoon);
+		const fullMoon = new SvelteDate(newMoon);
 		fullMoon.setDate(fullMoon.getDate() + 15);
 		return fullMoon;
 	}
@@ -92,7 +95,7 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 	// Dragon Boat Festival - 5th day of 5th lunar month
 	function calculateDragonBoatFestival(year: number): Date {
 		const cny = calculateChineseNewYear(year);
-		const approxDate = new Date(cny);
+		const approxDate = new SvelteDate(cny);
 		approxDate.setDate(cny.getDate() + 29.53 * 4 + 5); // 4 lunar months + 5 days
 		return approxDate;
 	}
@@ -100,7 +103,7 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 	// Mid-Autumn Festival - 15th day of 8th lunar month (full moon)
 	function calculateMidAutumnFestival(year: number): Date {
 		const cny = calculateChineseNewYear(year);
-		const approxDate = new Date(cny);
+		const approxDate = new SvelteDate(cny);
 		approxDate.setDate(cny.getDate() + 29.53 * 7.5);
 
 		// Find nearest full moon
@@ -144,7 +147,7 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 	// Navratri - Starts 20 days before Diwali
 	function calculateNavratri(year: number): Date {
 		const diwali = calculateDiwali(year);
-		const navratri = new Date(diwali);
+		const navratri = new SvelteDate(diwali);
 		navratri.setDate(diwali.getDate() - 20);
 		return navratri;
 	}
@@ -185,8 +188,8 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 	// REACTIVE STATE
 	// =====================================================================
 
-	// Use $state and $derived for reactivity in Svelte 5 runes mode
-	let currentDate = $state(new Date());
+	// Use SvelteDate for reactivity in Svelte 5 mode
+	let currentDate = new SvelteDate();
 	let year = $derived(currentDate.getFullYear());
 
 	// Calculate all festival dates for the current year
@@ -213,7 +216,7 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 
 	// Easter week (7 days)
 	let eastertideEndDate = $derived.by(() => {
-		const end = new Date(easterSunday);
+		const end = new SvelteDate(easterSunday);
 		end.setDate(easterSunday.getDate() + 6);
 		return end;
 	});

@@ -11,14 +11,15 @@
  */
 
 import { logger } from '@utils/logger';
+import { SvelteSet } from 'svelte/reactivity';
 
 /**
  * Memory-efficient store with WeakRef support for component subscribers
  */
 export function createMemoryEfficientStore<T>(initial: T) {
 	let value = $state(initial);
-	const strong = new Set<(v: T) => void>();
-	const weak = new Set<WeakRef<(v: T) => void>>();
+	const strong = new SvelteSet<(v: T) => void>();
+	const weak = new SvelteSet<WeakRef<(v: T) => void>>();
 
 	const notify = () => {
 		strong.forEach((cb) => cb(value));
@@ -111,7 +112,7 @@ export function throttledEffect(fn: () => void, deps: () => unknown[], delay = 1
  * Resource cleanup manager
  */
 export function resourceManager() {
-	const cleanups = new Set<() => void>();
+	const cleanups = new SvelteSet<() => void>();
 
 	return {
 		add(cleanup: () => void) {

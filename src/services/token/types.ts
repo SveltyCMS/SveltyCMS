@@ -19,15 +19,15 @@ export type TokenCategory = 'entry' | 'collection' | 'site' | 'user' | 'system' 
 export type TokenType = 'string' | 'number' | 'date' | 'boolean' | 'any';
 
 export interface TokenContext {
-	entry?: Record<string, any>;
+	entry?: Record<string, unknown>;
 	collection?: Schema;
 	user?: User;
-	site?: Record<string, any>;
-	system?: { now: ISODateString; [key: string]: any };
+	site?: Record<string, unknown>;
+	system?: { now: ISODateString; [key: string]: unknown };
 	locale?: string;
 	tenantId?: string;
-	roles?: any[];
-	[key: string]: any;
+	roles?: import('@src/databases/auth/types').Role[];
+	[key: string]: unknown;
 }
 
 export interface TokenDefinition {
@@ -38,7 +38,7 @@ export interface TokenDefinition {
 	type: TokenType; // New: Helps UI suggest relevant modifiers
 	example?: string;
 	requiresPermission?: string;
-	resolve: (context: TokenContext) => any | Promise<any>;
+	resolve: (context: TokenContext) => unknown | Promise<unknown>;
 }
 
 // --- Modifier Metadata for UI ---
@@ -69,7 +69,7 @@ export interface TokenRegistryConfig {
 	customTokens?: TokenDefinition[];
 	locale?: string;
 	tenantId?: string;
-	roles?: any[];
+	roles?: import('@src/databases/auth/types').Role[];
 }
 
 export interface TokenReplaceOptions {

@@ -29,7 +29,7 @@ export class GDPRService {
 	 * Right to Access (Article 20)
 	 * Exports all known data for a specific user.
 	 */
-	public async exportUserData(userId: string): Promise<Record<string, any>> {
+	public async exportUserData(userId: string): Promise<Record<string, unknown>> {
 		if (!dbAdapter) {
 			throw new Error('Database adapter is not initialized');
 		}
