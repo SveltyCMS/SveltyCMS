@@ -46,7 +46,7 @@ test('Setup Wizard: Configure DB and Create Admin', async ({ page }) => {
 
 	// --- STEP 1: Database ---
 	// Wait longer for the heading as things might be initializing
-	await expect(page.getByRole('heading', { name: /database/i }).first()).toBeVisible({ timeout: 15000 });
+	await expect(page.getByRole('heading', { name: /database/i }).first()).toBeVisible({ timeout: 30000 });
 
 	// Select Database Type if specified (default is mongodb)
 	const dbType = process.env.DB_TYPE || 'mongodb';

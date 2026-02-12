@@ -47,6 +47,33 @@ export class CollectionModule {
 		const id = schemaData._id;
 		if (!id) throw new Error('Schema must have an _id');
 
+		const tableName = `collection_${id}`;
+
+		try {
+			// Ensure physical table exists in SQLite
+			const sql = `
+				CREATE TABLE IF NOT EXISTS "${tableName}" (
+					"_id" TEXT PRIMARY KEY,
+					"tenantId" TEXT,
+					"data" TEXT NOT NULL DEFAULT '{}',
+					"status" TEXT NOT NULL DEFAULT 'draft',
+					"createdAt" INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
+					"updatedAt" INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
+				);
+			`;
+			const client = (this.core as any).getClient();
+			if (client) {
+				if (typeof client.exec === 'function') {
+					client.exec(sql);
+				} else if (typeof client.run === 'function') {
+					client.run(sql);
+				}
+			}
+		} catch (error) {
+			console.error(`Failed to create physical table ${tableName}:`, error);
+			// Continue anyway, it might fail later during CRUD but we don't want to crash the whole adapter init
+		}
+
 		const wrappedModel: CollectionModel = {
 			findOne: async (query) => {
 				const res = await this.crud.findOne(id, query as any);

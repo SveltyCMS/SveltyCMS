@@ -134,7 +134,7 @@
 		"valibot": "^1.2.0",
 		"vite": "^7.3.1",
 		"vite-bundle-visualizer": "^1.2.1",
-		"wait-on": "^9.0.3"
+		"wait-on": "^9.0.4"
 	},
 	"dependencies": {
 		"@aws-sdk/client-s3": "^3.988.0",

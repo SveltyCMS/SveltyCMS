@@ -45,7 +45,6 @@ describe('Database Interface Contract Tests', () => {
 		// Import the REAL adapter implementation directly, bypassing the mocked 'db.ts'
 		const { MongoDBAdapter } = await import('../../../src/databases/mongodb/mongoDBAdapter');
 		// Import utils to get connection string
-		// @ts-expect-error - Internal path
 		const { privateEnv } = await import('../../../config/private.test');
 
 		if (!privateEnv || !privateEnv.DB_TYPE) {

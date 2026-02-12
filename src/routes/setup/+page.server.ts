@@ -511,12 +511,7 @@ export const actions = {
 			// The background content seeding (setupManager) handles the data.
 
 			const setupDuration = performance.now() - setupStartTime;
-			try {
-				const { performanceService } = await import('@src/services/PerformanceService');
-				await performanceService.recordBenchmark('setup_completion', setupDuration);
-			} catch (e) {
-				logger.warn('Failed to record completion benchmark:', e);
-			}
+			logger.info(`🎊 [completeSetup] Setup logic finished in ${Math.round(setupDuration)}ms. Returning success response.`);
 
 			return {
 				success: true,

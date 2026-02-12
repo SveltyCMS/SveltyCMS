@@ -104,7 +104,9 @@ function privateConfigFallbackPlugin(): Plugin {
 				// File doesn't exist, use virtual module
 				return resolvedVirtualModuleId;
 			}
-			if (testPaths.some((p) => normalizedId === p || normalizedId.endsWith('config/private.test') || normalizedId.endsWith('config/private.test.ts'))) {
+			if (
+				testPaths.some((p) => normalizedId === p || normalizedId.endsWith('config/private.test') || normalizedId.endsWith('config/private.test.ts'))
+			) {
 				// Check if actual file exists
 				const testPath = path.resolve(cwd, 'config/private.test.ts');
 				if (existsSync(testPath)) {

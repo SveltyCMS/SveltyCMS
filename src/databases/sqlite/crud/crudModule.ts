@@ -31,6 +31,38 @@ export class CrudModule {
 		return (this.core as any).db;
 	}
 
+	/**
+	 * Packs fields that don't exist in the physical table into a JSON 'data' blob.
+	 * This is used for dynamic collections to support arbitrary fields without migrations.
+	 */
+	private packData(table: any, data: any): any {
+		const result: any = {};
+		const existingData = data.data || {};
+		const jsonBlob: any = typeof existingData === 'string' ? JSON.parse(existingData) : { ...existingData };
+
+		for (const [key, value] of Object.entries(data)) {
+			if (key === 'data') continue;
+			if (table[key]) {
+				result[key] = value;
+			} else {
+				jsonBlob[key] = value;
+			}
+		}
+		result.data = jsonBlob;
+		return result;
+	}
+
+	/**
+	 * Unpacks fields from the JSON 'data' blob back into the top-level object.
+	 */
+	private unpackData(row: any): any {
+		if (!row) return row;
+		const { data, ...rest } = row;
+		const jsonBlob = data ? (typeof data === 'string' ? JSON.parse(data) : data) : {};
+		// Result of convertDatesToISO is already applied before this is called or after
+		return { ...jsonBlob, ...rest };
+	}
+
 	async findOne<T extends BaseEntity>(
 		collection: string,
 		query: QueryFilter<T>,
@@ -41,7 +73,8 @@ export class CrudModule {
 			const where = (this.core as any).mapQuery(table, query);
 			const results = await this.db.select().from(table).where(where).limit(1);
 			if (results.length === 0) return null;
-			return utils.convertDatesToISO(results[0]) as T;
+			const row = utils.convertDatesToISO(results[0]);
+			return this.unpackData(row) as T;
 		}, 'CRUD_FIND_ONE_FAILED');
 	}
 
@@ -57,7 +90,7 @@ export class CrudModule {
 			if (options?.limit) q = q.limit(options.limit);
 			if (options?.offset) q = q.offset(options.offset);
 			const results = await q;
-			return utils.convertArrayDatesToISO(results) as T[];
+			return utils.convertArrayDatesToISO(results).map((row) => this.unpackData(row)) as T[];
 		}, 'CRUD_FIND_MANY_FAILED');
 	}
 
@@ -65,7 +98,7 @@ export class CrudModule {
 		return (this.core as any).wrap(async () => {
 			const table = (this.core as any).getTable(collection);
 			const results = await this.db.select().from(table).where(inArray(table._id, ids));
-			return utils.convertArrayDatesToISO(results) as T[];
+			return utils.convertArrayDatesToISO(results).map((row) => this.unpackData(row)) as T[];
 		}, 'CRUD_FIND_BY_IDS_FAILED');
 	}
 
@@ -74,10 +107,13 @@ export class CrudModule {
 			const table = (this.core as any).getTable(collection);
 			const id = (data as any)._id || utils.generateId();
 			const now = new Date();
-			const values = { ...data, _id: id, createdAt: now, updatedAt: now } as any;
-			await this.db.insert(table).values(values);
+			const packed = this.packData(table, { ...data, _id: id, createdAt: now, updatedAt: now });
+
+			await this.db.insert(table).values(packed);
+
 			const result = await this.db.select().from(table).where(eq(table._id, id)).limit(1);
-			return utils.convertDatesToISO(result[0]) as T;
+			const row = utils.convertDatesToISO(result[0]);
+			return this.unpackData(row) as T;
 		}, 'CRUD_INSERT_FAILED');
 	}
 
@@ -89,12 +125,13 @@ export class CrudModule {
 		return (this.core as any).wrap(async () => {
 			const table = (this.core as any).getTable(collection);
 			const now = new Date();
-			await this.db
-				.update(table)
-				.set({ ...data, updatedAt: now } as any)
-				.where(eq(table._id, id));
+			const packed = this.packData(table, { ...data, updatedAt: now });
+
+			await this.db.update(table).set(packed).where(eq(table._id, id));
+
 			const result = await this.db.select().from(table).where(eq(table._id, id)).limit(1);
-			return utils.convertDatesToISO(result[0]) as T;
+			const row = utils.convertDatesToISO(result[0]);
+			return this.unpackData(row) as T;
 		}, 'CRUD_UPDATE_FAILED');
 	}
 
@@ -148,16 +185,16 @@ export class CrudModule {
 			if (data.length === 0) return [];
 			const table = (this.core as any).getTable(collection);
 			const now = new Date();
-			const values = data.map((d) => ({
-				...d,
-				_id: utils.generateId(),
-				createdAt: now,
-				updatedAt: now
-			})) as any[];
+			const values = data.map((d) => {
+				const id = (d as any)._id || utils.generateId();
+				return this.packData(table, { ...d, _id: id, createdAt: now, updatedAt: now });
+			}) as any[];
+
 			await this.db.insert(table).values(values);
+
 			const ids = values.map((v) => v._id);
 			const results = await this.db.select().from(table).where(inArray(table._id, ids));
-			return utils.convertArrayDatesToISO(results) as T[];
+			return utils.convertArrayDatesToISO(results).map((row) => this.unpackData(row)) as T[];
 		}, 'CRUD_INSERT_MANY_FAILED');
 	}
 

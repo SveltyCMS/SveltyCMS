@@ -470,7 +470,7 @@
 			<!-- Selection Badge -->
 			{#if hasSelections && selectedCount > 0}
 				<span
-					class="absolute left-0.5 top-3 flex h-5 w-5 items-center justify-center rounded-full bg-surface-500 text-xs font-bold text-white animate-pulse shadow-lg"
+					class="absolute -top-2 left-3 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-surface-900 border border-white/20 text-[10px] font-bold text-white shadow-xl z-20 px-1"
 					transition:scale={{ duration: 200, easing: quintOut }}
 				>
 					{selectedCount}
@@ -504,57 +504,56 @@
 			<!-- Dropdown Menu -->
 			{#if isDropdownOpen}
 				<div
-					class="absolute right-0 top-full z-50 mt-2 w-64 overflow-hidden rounded-xl bg-surface-800 shadow-2xl ring-1 ring-black/20 backdrop-blur-md"
+					class="absolute right-0 top-full z-50 mt-2 w-64 overflow-hidden rounded-xl bg-surface-800 shadow-2xl ring-1 ring-white/10 backdrop-blur-md"
 					role="menu"
 					aria-label={m.entrylist_multibutton_available_actions()}
 					transition:scale={{ duration: 150, easing: quintOut, start: 0.95, opacity: 0 }}
 				>
-					<ul class="flex flex-col">
-						{#each availableActions as config (config.type)}
-							<li
-								class="border-b border-black/10 last:border-0 relative"
-								role="none"
-								onmouseenter={() => (hoveredAction = config.type)}
-								onmouseleave={() => (hoveredAction = null)}
-							>
-								<button
-									type="button"
-									onclick={(e) => handleOptionClick(e, config.type)}
-									role="menuitem"
-									class="group/item relative flex w-full items-center gap-3 px-4 py-3 text-left text-white transition-all duration-200"
-									aria-label="{config.label} {config.shortcut ? `(${config.shortcut})` : ''}"
+					<div class="max-h-[300px] overflow-y-auto custom-scrollbar">
+						<ul class="flex flex-col p-1">
+							{#each availableActions as config (config.type)}
+								<li
+									class="relative mb-1 last:mb-0"
+									role="none"
+									onmouseenter={() => (hoveredAction = config.type)}
+									onmouseleave={() => (hoveredAction = null)}
 								>
-									<!-- Hover Gradient Overlay -->
-									<div class="absolute inset-0 {config.gradient} opacity-0 transition-opacity duration-200 group-hover/item:opacity-100"></div>
-
-									<!-- Icon -->
-									<div
-										class="relative z-10 flex h-8 w-8 items-center justify-center rounded-full bg-surface-700 transition-transform group-hover/item:scale-110"
+									<button
+										type="button"
+										onclick={(e) => handleOptionClick(e, config.type)}
+										role="menuitem"
+										class="group/item relative flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-white transition-all duration-200 hover:bg-white/5"
+										aria-label="{config.label} {config.shortcut ? `(${config.shortcut})` : ''}"
 									>
-										<iconify-icon icon={config.icon} width="18"></iconify-icon>
-									</div>
+										<!-- Icon -->
+										<div
+											class="relative z-10 flex h-8 w-8 items-center justify-center rounded-full bg-surface-700/50 ring-1 ring-white/10 transition-transform group-hover/item:scale-110 group-active/item:scale-95"
+										>
+											<iconify-icon icon={config.icon} width="16" class={hoveredAction === config.type ? 'text-primary-400' : 'text-surface-300'}
+											></iconify-icon>
+										</div>
 
-									<!-- Label & Shortcut -->
-									<div class="relative z-10 flex-1">
-										<div class="font-semibold">{config.label}</div>
-										{#if config.shortcut}
-											<div class="text-xs text-surface-200">{config.shortcut}</div>
+										<!-- Label & Shortcut -->
+										<div class="relative z-10 flex-1 min-w-0">
+											<div class="font-medium text-sm truncate">{config.label}</div>
+											{#if config.shortcut}
+												<div class="text-[10px] text-surface-400">{config.shortcut}</div>
+											{/if}
+										</div>
+
+										<!-- Danger Badge -->
+										{#if config.dangerLevel === 'high'}
+											<span
+												class="relative z-10 flex items-center justify-center rounded-full bg-error-500/20 px-2 py-0.5 text-[10px] font-bold text-error-400 ring-1 ring-error-500/30"
+											>
+												Warn
+											</span>
 										{/if}
-									</div>
-
-									<!-- Hover Indicator -->
-									{#if hoveredAction === config.type}
-										<iconify-icon icon="mdi:chevron-right" width="18" class="relative z-10 text-white"></iconify-icon>
-									{/if}
-
-									<!-- Danger Badge -->
-									{#if config.dangerLevel === 'high'}
-										<span class="relative z-10 rounded bg-error-500/30 px-1.5 py-0.5 text-xs font-bold text-error-300">⚠️</span>
-									{/if}
-								</button>
-							</li>
-						{/each}
-					</ul>
+									</button>
+								</li>
+							{/each}
+						</ul>
+					</div>
 				</div>
 			{/if}
 		</div>
@@ -562,18 +561,18 @@
 </div>
 
 <style>
-	.menu-dropdown {
-		animation: slideDown 0.2s ease-out;
+	/* Custom scrollbar for dropdown */
+	.custom-scrollbar::-webkit-scrollbar {
+		width: 4px;
 	}
-
-	@keyframes slideDown {
-		from {
-			opacity: 0;
-			transform: translateY(-10px);
-		}
-		to {
-			opacity: 1;
-			transform: translateY(0);
-		}
+	.custom-scrollbar::-webkit-scrollbar-track {
+		background: transparent;
+	}
+	.custom-scrollbar::-webkit-scrollbar-thumb {
+		background: rgba(255, 255, 255, 0.1);
+		border-radius: 2px;
+	}
+	.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+		background: rgba(255, 255, 255, 0.2);
 	}
 </style>

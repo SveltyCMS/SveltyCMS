@@ -1586,7 +1586,24 @@ class ContentManager {
 		logger.debug(`[ContentManager] Registration of ${collectionsToProcess.length} models took ${this._getElapsedTime(modelCreationStart)}`);
 
 		if (skipReconciliation) {
-			logger.info('[ContentManager] Skipping reconciliation (trusting DB state from seed).');
+			// SAFETY CHECK: Verify that the database actually has content.
+			// If seedCollectionsForSetup failed to persist nodes or if the DB was reset,
+			// trusting the DB state would lead to an empty ContentManager (0 nodes).
+			try {
+				// Check for at least one node
+				const countResult = await dbAdapter.content.nodes.getStructure('flat', { tenantId }, true);
+				if (!countResult.success || !countResult.data || countResult.data.length === 0) {
+					logger.warn('[ContentManager] ⚠️ Skip reconciliation requested, but DB is EMPTY! Forcing reconciliation to restore content.');
+					skipReconciliation = false;
+				} else {
+					logger.info(`[ContentManager] Skipping reconciliation (trusting DB state with ${countResult.data.length} nodes).`);
+				}
+			} catch (err) {
+				logger.warn('[ContentManager] Failed to verify DB state, proceeding with requested skip settings:', err);
+			}
+		}
+
+		if (skipReconciliation) {
 			// We still need "operations" to help _loadFinalStructure map Schemas to Nodes.
 			// Construct a minimal set from schemas.
 			const { generateCategoryNodesFromPaths } = await import('./utils');

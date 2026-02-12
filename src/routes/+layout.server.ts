@@ -87,16 +87,15 @@ export const load: LayoutServerLoad = async ({ cookies, locals, url }) => {
 	let contentVersion = 0;
 
 	try {
-		// Check if ContentManager is initialized before using it
-		if (contentManager.getHealthStatus().state === 'initialized') {
-			navigationStructure = await contentManager.getNavigationStructureProgressive({
-				maxDepth: 1,
-				tenantId: locals.tenantId
-			});
-			contentVersion = contentManager.getContentVersion();
-		} else {
-			console.warn('[Layout] ContentManager not initialized, skipping navigation load');
-		}
+		// Ensure ContentManager is initialized before use to guarantee sidebar population.
+		// This is critical for the first load after setup.
+		await contentManager.initialize(locals.tenantId);
+
+		navigationStructure = await contentManager.getNavigationStructureProgressive({
+			maxDepth: 1,
+			tenantId: locals.tenantId
+		});
+		contentVersion = contentManager.getContentVersion();
 	} catch (error) {
 		console.error('[Layout] ContentManager error (preview mode?):', error);
 		// Continue with empty navigation - don't block page load

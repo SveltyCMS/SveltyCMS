@@ -54,7 +54,6 @@ describe('Auth System Functional Tests', () => {
 		const adapterModule = await import('../../../src/databases/mongodb/mongoDBAdapter');
 		adapterClass = adapterModule.MongoDBAdapter;
 		try {
-			// @ts-expect-error - Internal path
 			const configModule = await import('../../../config/private.test');
 			privateEnv = configModule.privateEnv;
 		} catch {

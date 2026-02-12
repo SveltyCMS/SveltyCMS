@@ -45,7 +45,6 @@ describe('MariaDB Adapter Functional Tests', () => {
 		adapterClass = adapterModule.MariaDBAdapter;
 
 		try {
-			// @ts-expect-error - Internal path
 			const configModule = await import('../../../config/private.test');
 			privateEnv = configModule.privateEnv;
 		} catch {

@@ -236,18 +236,18 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 				break;
 			case 'mariadb':
 				dbConfig.port = '3306';
-				// Clear default name for SQL DBs to force explicit entry (as they likely need pre-created DBs)
-				if (dbConfig.name === 'SveltyCMS') dbConfig.name = '';
+				// Change default name for SQL DBs
+				if (dbConfig.name === 'SveltyCMS' || !dbConfig.name) dbConfig.name = 'SveltyCMS_Database';
 				break;
 			case 'postgresql':
 				dbConfig.port = '5432';
-				if (dbConfig.name === 'SveltyCMS') dbConfig.name = '';
+				if (dbConfig.name === 'SveltyCMS' || !dbConfig.name) dbConfig.name = 'SveltyCMS_Database';
 				break;
 			case 'sqlite':
 				// SQLite uses a file path, no port
 				dbConfig.host = './';
 				dbConfig.port = '';
-				if (!dbConfig.name || dbConfig.name === 'SveltyCMS') dbConfig.name = 'cms.db';
+				if (!dbConfig.name || dbConfig.name === 'SveltyCMS' || dbConfig.name === 'SveltyCMS.db') dbConfig.name = 'SveltyCMS.db';
 				break;
 			case 'mongodb+srv':
 				dbConfig.port = '';
@@ -533,94 +533,96 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 				/>
 				{#if displayErrors.name}<div id="db-name-error" class="mt-1 text-xs text-error-500" role="alert">{displayErrors.name}</div>{/if}
 			</div>
-			<div>
-				<label for="db-user" class="mb-1 flex items-center gap-1 text-sm font-medium">
-					<iconify-icon icon="mdi:account-key" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-					<span class="text-black dark:text-white">{m.setup_database_user()}</span>
-					<SystemTooltip title={m.setup_help_database_user()}>
-						<button
-							type="button"
-							tabindex="-1"
-							aria-label="Help: Database User"
-							class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-						>
-							<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-						</button>
-					</SystemTooltip>
-				</label>
+			{#if dbConfig.type !== 'sqlite'}
+				<div>
+					<label for="db-user" class="mb-1 flex items-center gap-1 text-sm font-medium">
+						<iconify-icon icon="mdi:account-key" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+						<span class="text-black dark:text-white">{m.setup_database_user()}</span>
+						<SystemTooltip title={m.setup_help_database_user()}>
+							<button
+								type="button"
+								tabindex="-1"
+								aria-label="Help: Database User"
+								class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+							>
+								<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
+							</button>
+						</SystemTooltip>
+					</label>
 
-				<input
-					id="db-user"
-					name="username"
-					bind:value={dbConfig.user}
-					type="text"
-					autocomplete="username"
-					onchange={clearDbTestError}
-					onblur={() => {
-						const trimmed = dbConfig.user.trim();
-						if (trimmed !== dbConfig.user) {
-							dbConfig.user = trimmed;
-						}
-						handleBlur('user');
-					}}
-					placeholder={m.setup_database_user_placeholder?.() || 'Database username'}
-					class="input rounded {displayErrors.user ? 'border-error-500 focus:border-error-500 focus:ring-error-500' : 'border-slate-200'}"
-					aria-invalid={!!displayErrors.user}
-					aria-describedby={displayErrors.user ? 'db-user-error' : undefined}
-				/>
-				{#if displayErrors.user}<div id="db-user-error" class="mt-1 text-xs text-error-500" role="alert">{displayErrors.user}</div>{/if}
-			</div>
-			<div>
-				<label for="db-password" class="mb-1 flex items-center gap-1 text-sm font-medium">
-					<iconify-icon icon="mdi:key-variant" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-					<span class="text-black dark:text-white">{m.setup_database_password()}</span>
-					<SystemTooltip title={m.setup_help_database_password()}>
-						<button
-							type="button"
-							tabindex="-1"
-							aria-label="Help: Database Password"
-							class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-						>
-							<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-						</button>
-					</SystemTooltip>
-				</label>
-
-				<div class="relative">
 					<input
-						id="db-password"
-						name="password"
-						bind:value={dbConfig.password}
+						id="db-user"
+						name="username"
+						bind:value={dbConfig.user}
+						type="text"
+						autocomplete="username"
 						onchange={clearDbTestError}
 						onblur={() => {
-							const trimmed = dbConfig.password.trim();
-							if (trimmed !== dbConfig.password) {
-								dbConfig.password = trimmed;
+							const trimmed = dbConfig.user.trim();
+							if (trimmed !== dbConfig.user) {
+								dbConfig.user = trimmed;
 							}
-							handleBlur('password');
+							handleBlur('user');
 						}}
-						type={showDbPassword ? 'text' : 'password'}
-						autocomplete="current-password"
-						placeholder={m.setup_database_password_placeholder?.() || 'Leave blank if none'}
-						class="input w-full rounded {displayErrors.password
-							? 'border-error-500 focus:border-error-500 focus:ring-error-500'
-							: 'border-slate-200'}"
-						aria-invalid={!!displayErrors.password}
-						aria-describedby={displayErrors.password ? 'db-password-error' : undefined}
+						placeholder={m.setup_database_user_placeholder?.() || 'Database username'}
+						class="input rounded {displayErrors.user ? 'border-error-500 focus:border-error-500 focus:ring-error-500' : 'border-slate-200'}"
+						aria-invalid={!!displayErrors.user}
+						aria-describedby={displayErrors.user ? 'db-user-error' : undefined}
 					/>
-					<button
-						type="button"
-						onclick={toggleDbPassword}
-						class="absolute inset-y-0 right-0 flex min-w-10 items-center pr-3 text-slate-400 hover:text-slate-600 focus:outline-none dark:text-slate-500 dark:hover:text-slate-400"
-						aria-label={showDbPassword ? 'Hide database password' : 'Show database password'}
-					>
-						<iconify-icon icon={showDbPassword ? 'mdi:eye-off' : 'mdi:eye'} width="18" height="18" aria-hidden="true"></iconify-icon>
-					</button>
+					{#if displayErrors.user}<div id="db-user-error" class="mt-1 text-xs text-error-500" role="alert">{displayErrors.user}</div>{/if}
 				</div>
-				{#if displayErrors.password}
-					<div id="db-password-error" class="mt-1 text-xs text-error-500" role="alert">{displayErrors.password}</div>
-				{/if}
-			</div>
+				<div>
+					<label for="db-password" class="mb-1 flex items-center gap-1 text-sm font-medium">
+						<iconify-icon icon="mdi:key-variant" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+						<span class="text-black dark:text-white">{m.setup_database_password()}</span>
+						<SystemTooltip title={m.setup_help_database_password()}>
+							<button
+								type="button"
+								tabindex="-1"
+								aria-label="Help: Database Password"
+								class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+							>
+								<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
+							</button>
+						</SystemTooltip>
+					</label>
+
+					<div class="relative">
+						<input
+							id="db-password"
+							name="password"
+							bind:value={dbConfig.password}
+							onchange={clearDbTestError}
+							onblur={() => {
+								const trimmed = dbConfig.password.trim();
+								if (trimmed !== dbConfig.password) {
+									dbConfig.password = trimmed;
+								}
+								handleBlur('password');
+							}}
+							type={showDbPassword ? 'text' : 'password'}
+							autocomplete="current-password"
+							placeholder={m.setup_database_password_placeholder?.() || 'Leave blank if none'}
+							class="input w-full rounded {displayErrors.password
+								? 'border-error-500 focus:border-error-500 focus:ring-error-500'
+								: 'border-slate-200'}"
+							aria-invalid={!!displayErrors.password}
+							aria-describedby={displayErrors.password ? 'db-password-error' : undefined}
+						/>
+						<button
+							type="button"
+							onclick={toggleDbPassword}
+							class="absolute inset-y-0 right-0 flex min-w-10 items-center pr-3 text-slate-400 hover:text-slate-600 focus:outline-none dark:text-slate-500 dark:hover:text-slate-400"
+							aria-label={showDbPassword ? 'Hide database password' : 'Show database password'}
+						>
+							<iconify-icon icon={showDbPassword ? 'mdi:eye-off' : 'mdi:eye'} width="18" height="18" aria-hidden="true"></iconify-icon>
+						</button>
+					</div>
+					{#if displayErrors.password}
+						<div id="db-password-error" class="mt-1 text-xs text-error-500" role="alert">{displayErrors.password}</div>
+					{/if}
+				</div>
+			{/if}
 		</div>
 		{#if !unsupportedDbSelected}
 			<button

@@ -488,7 +488,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 				</div>
 
 				<!-- Required with Back button -->
-				<div class="-mt-2 relative flex items-center justify-center text-xs text-error-500">
+				<div class="-mt-8 relative flex items-center justify-center text-xs text-error-500">
 					{m.form_required()}
 
 					<div class="absolute right-0">

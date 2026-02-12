@@ -56,11 +56,14 @@
 	// Initialization
 	// ============================================================================
 
+	import { setContentStructure } from '@stores/collectionStore.svelte';
+
 	// Initialize public environment settings from server data
 	// Note: Only access page.data after mount to avoid hydration issues
 	$effect(() => {
-		if (browser && page.data?.settings) {
-			initPublicEnv(page.data.settings);
+		if (browser && page.data) {
+			if (page.data.settings) initPublicEnv(page.data.settings);
+			if (page.data.navigationStructure) setContentStructure(page.data.navigationStructure);
 		}
 	});
 

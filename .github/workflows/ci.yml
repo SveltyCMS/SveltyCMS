@@ -129,7 +129,7 @@ jobs:
         run: |
           nohup bun run preview --host > preview.log 2>&1 &
           echo $! > preview.pid
-          bun x wait-on http://localhost:4173 -t 90000
+          bun x wait-on http://localhost:4173 -t 90000 --interval 1000
           curl -f http://localhost:4173 || (cat preview.log; exit 1)
           kill $(cat preview.pid) || true
           rm preview.pid preview.log
@@ -360,7 +360,7 @@ jobs:
       - name: Start Preview Server
         run: |
           nohup bun run preview > preview.log 2>&1 &
-          bun x wait-on http://localhost:4173 -t 60000
+          bun x wait-on http://localhost:4173 -t 90000 --interval 1000
 
       - name: Run Integration Tests
         run: bun run test:integration:run
@@ -472,7 +472,7 @@ jobs:
       - name: Start Preview Server
         run: |
           nohup bun run preview > preview.log 2>&1 &
-          bun x wait-on http://localhost:4173 -t 60000
+          bun x wait-on http://localhost:4173 -t 90000 --interval 1000
 
       - name: Run Integration Tests
         run: bun run test:integration:run
@@ -715,7 +715,7 @@ jobs:
       - name: Start Preview Server
         run: |
           nohup bun run preview > preview.log 2>&1 &
-          bun x wait-on http://localhost:4173 -t 60000
+          bun x wait-on http://localhost:4173 -t 90000 --interval 1000
 
       - name: 🧙‍♂️ Run Setup Wizard
         run: bunx playwright test tests/playwright/setup-wizard.spec.ts --project=chromium --reporter=list
@@ -858,7 +858,7 @@ jobs:
       - name: Start Preview Server
         run: |
           nohup bun run preview > preview.log 2>&1 &
-          bun x wait-on http://localhost:4173 -t 60000
+          bun x wait-on http://localhost:4173 -t 90000 --interval 1000
 
       - name: 🧙‍♂️ Run Setup Wizard
         run: bunx playwright test tests/playwright/setup-wizard.spec.ts --project=chromium --reporter=list

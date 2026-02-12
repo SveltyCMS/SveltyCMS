@@ -55,7 +55,6 @@ describe('MongoDB Adapter Functional Tests', () => {
 		// Import modules dynamically to bypass mocks
 		const adapterModule = await import('../../../src/databases/mongodb/mongoDBAdapter');
 		adapterClass = adapterModule.MongoDBAdapter;
-		// @ts-expect-error - Internal path
 		const configModule = await import('../../../config/private.test');
 		privateEnv = configModule.privateEnv;
 
