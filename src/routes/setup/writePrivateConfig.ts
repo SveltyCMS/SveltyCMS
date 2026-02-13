@@ -116,8 +116,7 @@ export async function updatePrivateConfigMode(modes: { demoMode?: boolean; multi
 
 		// Update MULTI_TENANT
 		if (modes.multiTenant !== undefined) {
-			// Regex to find MULTI_TENANT: false/true, (or just MULTI_TENANT: ...)
-			const multiTenantRegex = /MULTI_TENANT:\s*(true|false)/;
+			const multiTenantRegex = /MULTI_TENANT\s*:\s*(true|false)/;
 			if (multiTenantRegex.test(content)) {
 				content = content.replace(multiTenantRegex, `MULTI_TENANT: ${modes.multiTenant}`);
 				modified = true;
@@ -127,19 +126,26 @@ export async function updatePrivateConfigMode(modes: { demoMode?: boolean; multi
 				if (content.includes(insertMarker)) {
 					content = content.replace(insertMarker, `${insertMarker}\n\tMULTI_TENANT: ${modes.multiTenant},`);
 					modified = true;
+				} else {
+					// Fallback: insert at end of object
+					const lastBraceIndex = content.lastIndexOf('};');
+					if (lastBraceIndex !== -1) {
+						content = content.slice(0, lastBraceIndex) + `\tMULTI_TENANT: ${modes.multiTenant},\n` + content.slice(lastBraceIndex);
+						modified = true;
+					}
 				}
 			}
 		}
 
 		// Update DEMO
 		if (modes.demoMode !== undefined) {
-			const demoModeRegex = /DEMO:\s*(true|false)/;
-			if (demoModeRegex.test(content)) {
-				content = content.replace(demoModeRegex, `DEMO: ${modes.demoMode}`);
+			const demoRegex = /DEMO\s*:\s*(true|false)/;
+			if (demoRegex.test(content)) {
+				content = content.replace(demoRegex, `DEMO: ${modes.demoMode}`);
 				modified = true;
 			} else {
 				// If not found, try to insert after MULTI_TENANT or before closing
-				const multiTenantMatch = /MULTI_TENANT:\s*(true|false),?/;
+				const multiTenantMatch = /MULTI_TENANT\s*:\s*(true|false),?/;
 				if (multiTenantMatch.test(content)) {
 					content = content.replace(multiTenantMatch, `$& \n\tDEMO: ${modes.demoMode},`);
 					modified = true;

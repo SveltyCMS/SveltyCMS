@@ -455,6 +455,10 @@ export const actions = {
 				demoMode: system.demoMode
 			});
 
+			// 3.0 Clear private config cache to ensure new modes are picked up
+			const { clearPrivateConfigCache } = await import('@src/databases/db');
+			clearPrivateConfigCache();
+
 			// 3.1 Persist system settings
 			try {
 				await dbAdapter.systemPreferences.setMany([
