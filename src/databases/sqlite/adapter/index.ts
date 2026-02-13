@@ -1,10 +1,19 @@
 /**
  * @file src/databases/sqlite/adapter/index.ts
  * @description Main SQLite adapter class.
+ *
+ * Features:
+ * - CRUD operations
+ * - Transactions
+ * - Query builder
+ * - Migrations
+ * - Multi-tenancy
  */
 
+import { eq } from 'drizzle-orm';
 import type { IDBAdapter, DatabaseResult, BaseEntity, DatabaseTransaction, QueryBuilder } from '../../dbInterface';
 import { AdapterCore } from './adapterCore';
+import * as schema from '../schema';
 import { CrudModule } from '../crud/crudModule';
 import { AuthModule } from '../modules/auth/authModule';
 import { ContentModule } from '../modules/content/contentModule';
@@ -23,6 +32,52 @@ import { SQLiteQueryBuilder } from '../queryBuilder/SQLiteQueryBuilder';
 import * as utils from '../utils';
 
 export class SQLiteAdapter extends AdapterCore implements IDBAdapter {
+	public readonly tenants = {
+		create: async (tenant: any): Promise<DatabaseResult<any>> => {
+			return this.wrap(async () => {
+				const id = tenant._id || utils.generateId();
+				const now = new Date();
+				await this.db.insert(schema.tenants).values({
+					...tenant,
+					_id: id,
+					createdAt: now,
+					updatedAt: now
+				});
+				const [result] = await this.db.select().from(schema.tenants).where(eq(schema.tenants._id, id));
+				return result;
+			}, 'TENANT_CREATE_FAILED');
+		},
+		getById: async (tenantId: string): Promise<DatabaseResult<any>> => {
+			return this.wrap(async () => {
+				const [result] = await this.db.select().from(schema.tenants).where(eq(schema.tenants._id, tenantId));
+				return result || null;
+			}, 'TENANT_GET_FAILED');
+		},
+		update: async (tenantId: string, data: any): Promise<DatabaseResult<any>> => {
+			return this.wrap(async () => {
+				const now = new Date();
+				await this.db
+					.update(schema.tenants)
+					.set({ ...data, updatedAt: now })
+					.where(eq(schema.tenants._id, tenantId));
+				const [result] = await this.db.select().from(schema.tenants).where(eq(schema.tenants._id, tenantId));
+				return result;
+			}, 'TENANT_UPDATE_FAILED');
+		},
+		delete: async (tenantId: string): Promise<DatabaseResult<void>> => {
+			return this.wrap(async () => {
+				await this.db.delete(schema.tenants).where(eq(schema.tenants._id, tenantId));
+			}, 'TENANT_DELETE_FAILED');
+		},
+		list: async (options?: any): Promise<DatabaseResult<any[]>> => {
+			return this.wrap(async () => {
+				let q = this.db.select().from(schema.tenants);
+				if (options?.limit) q = q.limit(options.limit);
+				if (options?.offset) q = q.offset(options.offset);
+				return await q;
+			}, 'TENANT_LIST_FAILED');
+		}
+	};
 	public readonly crud: CrudModule;
 	public readonly auth: AuthModule;
 	public readonly content: ContentModule;

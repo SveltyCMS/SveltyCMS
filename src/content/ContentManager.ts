@@ -68,6 +68,7 @@ class ContentManager {
 	private initState: 'uninitialized' | 'initializing' | 'initialized' | 'error' = 'uninitialized';
 	private initPromise: Promise<void> | null = null;
 	private initializedInSetupMode = false;
+	private initializedTenants = new Set<string>(); // [NEW] Track initialized tenants
 
 	// --- Unified Data Structures (Single Source of Truth) ---
 	/** Primary map holding the complete state. Key is the node's _id. */
@@ -223,21 +224,23 @@ class ContentManager {
 
 	// Initializes the ContentManager, handling race conditions and loading data
 	public async initialize(tenantId?: string, skipReconciliation: boolean = false): Promise<void> {
-		// Already initialized - handle transition from setup mode
+		// Already initialized for this tenant?
 		if (this.initState === 'initialized') {
-			const { isSetupComplete } = await import('@utils/setupCheck');
-			if (this.initializedInSetupMode && isSetupComplete()) {
-				logger.info('[ContentManager] Setup completed after previous initialization. Forcing re-initialization...');
-				this.initState = 'uninitialized';
-				this.initPromise = null;
-				this.initializedInSetupMode = false;
-
-				// Optimization: We just finished setup seeding, so we trust the DB content.
-				// Skipping reconciliation saves ~4s of "Single-pass bulk upsert" overhead.
-				skipReconciliation = true;
-			} else {
-				// Truly already initialized
-				return;
+			// If tenantId is provided, ensure it has been initialized.
+			// If no tenantId is provided (e.g. system usage), we assume initialized state is enough OR we might miss data if partial init happened.
+			// Ideally, system usage should ensure global init, but here we just check if the requested tenant is ready.
+			if (!tenantId || this.initializedTenants.has(tenantId)) {
+				const { isSetupComplete } = await import('@utils/setupCheck');
+				if (this.initializedInSetupMode && isSetupComplete()) {
+					logger.info('[ContentManager] Setup completed after previous initialization. Forcing re-initialization...');
+					this.initState = 'uninitialized';
+					this.initPromise = null;
+					this.initializedInSetupMode = false;
+					this.initializedTenants.clear();
+					skipReconciliation = true;
+				} else {
+					return;
+				}
 			}
 		}
 
@@ -286,6 +289,7 @@ class ContentManager {
 				// 1. Attempt to load from a high-speed cache (e.g., Redis).
 				if (await this._loadStateFromCache(tenantId)) {
 					this.initState = 'initialized';
+					if (tenantId) this.initializedTenants.add(tenantId);
 					this.metrics.initializationTime = performance.now() - startTime;
 					logger.info(`🚀 ContentManager initialized from cache in ${this._getElapsedTime(startTime)}`);
 					return;
@@ -295,6 +299,7 @@ class ContentManager {
 				await this._fullReload(tenantId, skipReconciliation);
 
 				this.initState = 'initialized';
+				if (tenantId) this.initializedTenants.add(tenantId);
 				this.metrics.initializationTime = performance.now() - startTime;
 				this.metrics.lastRefresh = Date.now();
 				logger.info(`📦 ContentManager fully initialized in ${this._getElapsedTime(startTime)}`);
@@ -340,14 +345,26 @@ class ContentManager {
 			if (this.initState !== 'initialized') {
 				await this.initialize(tenantId);
 			}
-			const collections: Schema[] = [];
+
+			// Collect nodes first to access the 'order' property
+			const nodes: ContentNode[] = [];
 
 			for (const node of this.contentNodeMap.values()) {
 				if (node.nodeType === 'collection' && node.collectionDef && (!tenantId || !node.tenantId || node.tenantId === tenantId)) {
-					collections.push(node.collectionDef);
+					nodes.push(node);
 				}
 			}
-			return collections.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+			// Sort nodes: Primary by order, Secondary by path (to match folder structure/sidebar)
+			nodes.sort((a, b) => {
+				const orderDiff = (a.order ?? 999) - (b.order ?? 999);
+				if (orderDiff !== 0) return orderDiff;
+				// Use path for tie-breaking to align with sidebar structure (e.g. Collections before Menu)
+				return (a.path || '').localeCompare(b.path || '');
+			});
+
+			// Return the Schema definitions
+			return nodes.map((node) => node.collectionDef!);
 		});
 	}
 
@@ -1548,8 +1565,13 @@ class ContentManager {
 	}
 
 	// Synchronizes schemas from files with the database and builds the in-memory maps
-	private async _reconcileAndBuildStructure(schemas: Schema[], tenantId?: string, skipReconciliation: boolean = false): Promise<void> {
+	private async _reconcileAndBuildStructure(allSchemas: Schema[], tenantId?: string, skipReconciliation: boolean = false): Promise<void> {
 		const dbAdapter = (await getDbAdapter()) as IDBAdapter;
+
+		// [NEW] Filter schemas relevant to the current tenant context
+		// - If tenantId is provided: Include global schemas (no tenantId) AND schemas for this tenant. Exclude other tenants.
+		// - If tenantId is missing (System Admin): Include ALL schemas.
+		const schemas = allSchemas.filter((s) => !tenantId || !s.tenantId || s.tenantId === tenantId);
 
 		// In setup mode (no database), just build in-memory structure from files only
 		if (!dbAdapter) {
@@ -1655,7 +1677,7 @@ class ContentManager {
 			}
 
 			if (nodesToDelete.length > 0) {
-				await dbAdapter.content.nodes.deleteMany(nodesToDelete);
+				await dbAdapter.content.nodes.deleteMany(nodesToDelete, { tenantId });
 				logger.info(`[ContentManager] Deleted ${nodesToDelete.length} conflicting nodes to prepare for upsert.`);
 			}
 
@@ -1666,7 +1688,7 @@ class ContentManager {
 		}
 
 		// Load final structure and rebuild maps
-		await this._loadFinalStructure(dbAdapter, operations);
+		await this._loadFinalStructure(dbAdapter, operations, tenantId);
 	}
 
 	private _buildReconciliationOperations(
@@ -1913,11 +1935,11 @@ class ContentManager {
 		logger.debug('[ContentManager] Single-pass bulk upsert and cleanup completed');
 	}
 
-	private async _loadFinalStructure(dbAdapter: IDBAdapter, operations: ContentNode[]): Promise<void> {
+	private async _loadFinalStructure(dbAdapter: IDBAdapter, operations: ContentNode[], tenantId?: string): Promise<void> {
 		// CRITICAL: Fetch the final structure from database after all phases complete
 		// This ensures we have the correct parentId relationships and MongoDB-assigned _ids
-		logger.debug('[ContentManager] Final phase: Fetching complete structure from database');
-		const finalStructureResult = await dbAdapter.content.nodes.getStructure('flat', {}, true); // bypassCache = true
+		logger.debug('[ContentManager] Final phase: Fetching complete structure from database', { tenantId });
+		const finalStructureResult = await dbAdapter.content.nodes.getStructure('flat', { tenantId }, true); // bypassCache = true
 
 		if (!finalStructureResult.success || !finalStructureResult.data) {
 			logger.error('[ContentManager] Failed to fetch final structure from database');
@@ -1926,9 +1948,27 @@ class ContentManager {
 
 		const finalNodes = finalStructureResult.data;
 
-		// Clear and rebuild local maps with the complete database structure
-		this.contentNodeMap.clear();
-		this.pathLookupMap.clear();
+		if (tenantId) {
+			// Multi-tenant merge: Remove existing nodes for this tenant to avoid stale data
+			logger.debug(`[ContentManager] Merging content for tenant ${tenantId}`);
+			// Convert to array to avoid modification during iteration issues
+			const idsToDelete: string[] = [];
+			for (const [id, node] of this.contentNodeMap.entries()) {
+				if (node.tenantId === tenantId) {
+					idsToDelete.push(id);
+				}
+			}
+			idsToDelete.forEach((id) => {
+				const node = this.contentNodeMap.get(id);
+				if (node?.path) this.pathLookupMap.delete(node.path);
+				this.contentNodeMap.delete(id);
+			});
+		} else {
+			// Global reload: Clear everything
+			logger.debug('[ContentManager] performing global content clear');
+			this.contentNodeMap.clear();
+			this.pathLookupMap.clear();
+		}
 
 		// Build maps from the final database structure
 		for (const node of finalNodes) {

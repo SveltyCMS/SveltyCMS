@@ -153,6 +153,10 @@ export class MongoDBAdapter implements IDBAdapter {
 		return this._getSystemShell().systemVirtualFolder;
 	}
 
+	public get tenants(): ISystemAdapter['tenants'] {
+		return this._getSystemShell().tenants;
+	}
+
 	public get performance(): IMonitoringAdapter['performance'] {
 		return this._getMonitoringShell().performance;
 	}
@@ -384,7 +388,11 @@ export class MongoDBAdapter implements IDBAdapter {
 						this._wrapResult(() => contentMethods.bulkUpdateNodes(u)) as Promise<DatabaseResult<import('../dbInterface').ContentNode[]>>,
 					fixMismatchedNodeIds: (n) => contentMethods.fixMismatchedNodeIds(n),
 					delete: (p) => this.crud.delete('system_content_structure', p as DatabaseId),
-					deleteMany: (p) => this.crud.deleteMany('system_content_structure', { path: { $in: p } } as any),
+					deleteMany: (p, o) => {
+						const query: any = { path: { $in: p } };
+						if (o?.tenantId) query.tenantId = o.tenantId;
+						return this.crud.deleteMany('system_content_structure', query as any);
+					},
 					reorder: () => this._wrapResult(async () => [] as import('../dbInterface').ContentNode[]),
 					reorderStructure: (i) =>
 						this._wrapResult(async () => {
@@ -593,6 +601,7 @@ export class MongoDBAdapter implements IDBAdapter {
 	private _cachedSystemWidgets?: import('./methods/widgetMethods').MongoWidgetMethods;
 	private _cachedSystemTokens?: import('./methods/websiteTokenMethods').MongoWebsiteTokenMethods;
 	private _cachedSystemFolders?: import('./methods/systemVirtualFolderMethods').MongoSystemVirtualFolderMethods;
+	private _cachedSystemTenants?: any;
 
 	private async _initializeSystemAdapter(): Promise<void> {
 		this._realSystem = {
@@ -901,6 +910,48 @@ export class MongoDBAdapter implements IDBAdapter {
 						this._cachedSystemFolders = new MongoSystemVirtualFolderMethods();
 					}
 					return this._cachedSystemFolders!.exists(p);
+				}
+			},
+			tenants: {
+				create: async (t) => {
+					if (!this._cachedSystemTenants) {
+						const { MongoTenantMethods } = await import('./methods/tenantMethods');
+						const { TenantModel } = await import('./models');
+						this._cachedSystemTenants = new MongoTenantMethods(TenantModel);
+					}
+					return this._wrapResult(() => this._cachedSystemTenants!.create(t));
+				},
+				getById: async (id) => {
+					if (!this._cachedSystemTenants) {
+						const { MongoTenantMethods } = await import('./methods/tenantMethods');
+						const { TenantModel } = await import('./models');
+						this._cachedSystemTenants = new MongoTenantMethods(TenantModel);
+					}
+					return this._wrapResult(() => this._cachedSystemTenants!.getById(id));
+				},
+				update: async (id, d) => {
+					if (!this._cachedSystemTenants) {
+						const { MongoTenantMethods } = await import('./methods/tenantMethods');
+						const { TenantModel } = await import('./models');
+						this._cachedSystemTenants = new MongoTenantMethods(TenantModel);
+					}
+					return this._wrapResult(() => this._cachedSystemTenants!.update(id, d));
+				},
+				delete: async (id) => {
+					if (!this._cachedSystemTenants) {
+						const { MongoTenantMethods } = await import('./methods/tenantMethods');
+						const { TenantModel } = await import('./models');
+						this._cachedSystemTenants = new MongoTenantMethods(TenantModel);
+					}
+					return this._wrapResult(() => this._cachedSystemTenants!.delete(id));
+				},
+				list: async (o) => {
+					if (!this._cachedSystemTenants) {
+						const { MongoTenantMethods } = await import('./methods/tenantMethods');
+						const { TenantModel } = await import('./models');
+						this._cachedSystemTenants = new MongoTenantMethods(TenantModel);
+					}
+					return this._wrapResult(() => this._cachedSystemTenants!.list(o));
 				}
 			}
 		};

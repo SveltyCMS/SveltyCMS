@@ -235,7 +235,7 @@ and preview/test functionality. Reuses TokenPicker patterns.
 	<div class="wrapper p-4">
 		<!-- Stepper Header -->
 		<div class="flex items-center justify-center gap-2 mb-8">
-			{#each steps as step}
+			{#each steps as step (step.number)}
 				<button
 					class="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200"
 					class:bg-primary-500={activeStep === step.number}
@@ -286,7 +286,7 @@ and preview/test functionality. Reuses TokenPicker patterns.
 						<div>
 							<span class="block font-medium mb-2">Trigger Type</span>
 							<div class="grid grid-cols-3 gap-3">
-								{#each [{ type: 'event', label: 'Event Hook', icon: 'mdi:flash-outline', desc: 'When content changes' }, { type: 'schedule', label: 'Schedule', icon: 'mdi:clock-outline', desc: 'At specific times' }, { type: 'manual', label: 'Manual', icon: 'mdi:gesture-tap', desc: 'Triggered by user' }] as triggerOption}
+								{#each [{ type: 'event', label: 'Event Hook', icon: 'mdi:flash-outline', desc: 'When content changes' }, { type: 'schedule', label: 'Schedule', icon: 'mdi:clock-outline', desc: 'At specific times' }, { type: 'manual', label: 'Manual', icon: 'mdi:gesture-tap', desc: 'Triggered by user' }] as triggerOption (triggerOption.type)}
 									<button
 										class="card p-3 text-center border-2 transition-all duration-200 rounded-lg"
 										class:border-primary-500={flow.trigger.type === triggerOption.type}
@@ -310,7 +310,7 @@ and preview/test functionality. Reuses TokenPicker patterns.
 								<span class="block font-medium">Select Events</span>
 								<p class="text-xs opacity-60">Choose which CMS events trigger this automation.</p>
 								<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-									{#each AUTOMATION_EVENTS as eventMeta}
+									{#each AUTOMATION_EVENTS as eventMeta (eventMeta.event)}
 										<label
 											class="flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors hover:bg-surface-200 dark:hover:bg-surface-700 border"
 											class:border-primary-400={flow.trigger.events?.includes(eventMeta.event)}
@@ -546,7 +546,7 @@ and preview/test functionality. Reuses TokenPicker patterns.
 					<div class="border-2 border-dashed border-surface-300 dark:border-surface-600 rounded-lg p-4">
 						<p class="text-sm font-medium mb-3 opacity-70">Add Operation</p>
 						<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
-							{#each OPERATION_TYPES as opType}
+							{#each OPERATION_TYPES as opType (opType.type)}
 								<button
 									class="card p-3 text-center border border-surface-300 dark:border-surface-600 hover:border-primary-500 transition-all duration-200 rounded-lg hover:scale-105"
 									onclick={() => addOperation(opType.type)}
@@ -587,7 +587,7 @@ and preview/test functionality. Reuses TokenPicker patterns.
 						<div class="flex items-center gap-2 text-sm">
 							<span class="font-medium">Trigger:</span>
 							{#if flow.trigger.type === 'event'}
-								{#each flow.trigger.events || [] as event}
+								{#each flow.trigger.events || [] as event (event)}
 									{@const meta = AUTOMATION_EVENTS.find((e) => e.event === event)}
 									<span class="badge preset-tonal-primary text-xs">
 										<iconify-icon icon={meta?.icon || 'mdi:flash'} class="mr-1"></iconify-icon>
@@ -607,7 +607,7 @@ and preview/test functionality. Reuses TokenPicker patterns.
 						<!-- Operations Chain -->
 						<div class="flex flex-wrap items-center gap-2 text-sm">
 							<span class="font-medium">Chain:</span>
-							{#each flow.operations as op, i}
+							{#each flow.operations as op, i (op.id)}
 								{@const meta = getOperationMeta(op.type)}
 								<span class="badge preset-tonal-secondary text-xs">
 									<iconify-icon icon={meta?.icon || 'mdi:cog'} class="mr-1"></iconify-icon>
@@ -671,7 +671,7 @@ and preview/test functionality. Reuses TokenPicker patterns.
 									<span class="text-xs opacity-60">({testResult.duration}ms)</span>
 								</div>
 
-								{#each testResult.operationResults as opResult, i}
+								{#each testResult.operationResults as opResult, i (i)}
 									{@const opMeta = OPERATION_TYPES.find((t) => t.type === opResult.type)}
 									<div
 										class="flex items-center gap-2 text-sm py-1.5"

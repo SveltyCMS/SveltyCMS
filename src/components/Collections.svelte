@@ -82,7 +82,7 @@
 	let structure = $derived(contentStructure.value ?? []);
 
 	// Collection count cache (non-reactive to allow mutations during derived computations)
-	let countCache = new Map<string, number>();
+	let countCache = new SvelteMap<string, number>();
 
 	function countCollections(node: ExtendedContentNode): number {
 		const key = node._id;

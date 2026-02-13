@@ -51,6 +51,9 @@ import { logger } from '@utils/logger.server';
 // Content Manager for redirects
 import { contentManager } from '@root/src/content/ContentManager';
 
+// Tenant Service
+import { tenantService } from '@src/services/TenantService';
+
 const limiter = new RateLimiter({
 	IP: [200, 'h'], // 200 requests per hour per IP
 	IPUA: [100, 'm'], // 100 requests per minute per IP+User-Agent
@@ -683,33 +686,50 @@ export const actions: Actions = {
 
 		const { email, username, password, token } = result.output;
 
-		// Security: This action ONLY works for invited users with valid tokens.
-		// First-user registration must go through /setup (enforced by hooks and load function).
-		if (!token) {
+		const multiTenant = getPrivateSettingSync('MULTI_TENANT');
+		let role = 'user';
+		let isInvited = false;
+		let tenantId: string | undefined = undefined;
+
+		// --- Scenario 1: Multi-Tenant Demo Mode (Open Signup) ---
+		if (multiTenant && !token) {
+			// In demo mode, users can sign up without a token to create their own isolated tenant.
+			// They become the 'admin' of that tenant.
+			role = 'admin';
+			tenantId = crypto.randomUUID();
+			logger.info(`Starting demo signup for new tenant: ${tenantId}`);
+		}
+		// --- Scenario 2: Invited User (Token Required) ---
+		else {
+			// Security: If not in open multi-tenant mode, OR if a token IS provided,
+			// we strictly enforce token validation.
 			if (!token) {
 				return fail(403, { message: 'A valid invitation is required to create an account.', form });
 			}
-		}
 
-		const tokenData = await auth.validateRegistrationToken(token);
-		if (!tokenData.isValid || !tokenData.details) {
+			const tokenData = await auth.validateRegistrationToken(token);
 			if (!tokenData.isValid || !tokenData.details) {
 				return fail(403, { message: 'This invitation is invalid, expired, or has already been used.', form });
 			}
-		}
 
-		// Debug: Log the token details to see what we're getting
-		logger.debug('Token validation result:', {
-			tokenData: tokenData.details,
-			role: tokenData.details.role,
-			email: tokenData.details.email
-		});
-
-		// Security: Check that the email in the form matches the one in the token record
-		if (email.toLowerCase() !== tokenData.details.email.toLowerCase()) {
+			// Security: Check that the email in the form matches the one in the token record
 			if (email.toLowerCase() !== tokenData.details.email.toLowerCase()) {
 				return fail(403, { message: 'The provided email does not match the invitation.', form });
 			}
+
+			// Use the role from the token
+			role = tokenData.details.role || 'user';
+			// Use the tenantId from the token (if any)
+			tenantId = tokenData.details.tenantId;
+			isInvited = true;
+
+			// Debug: Log the token details
+			logger.debug('Token validation result:', {
+				tokenData: tokenData.details,
+				role: role,
+				email: tokenData.details.email,
+				tenantId
+			});
 		}
 
 		try {
@@ -720,13 +740,15 @@ export const actions: Actions = {
 					email,
 					username,
 					password,
-					role: tokenData.details.role || 'user', // Use the role from the token with fallback to 'user'
+					role, // Use determined role
+					tenantId, // Assign tenantId (new for demo, or from token)
 					isRegistered: true,
 					lastAuthMethod: 'password',
 					lastActiveAt: new Date().toISOString() as ISODateString
 				},
 				{
-					expires: sessionExpires.toISOString() as ISODateString
+					expires: sessionExpires.toISOString() as ISODateString,
+					tenantId // Ensure session is also scoped to tenant if applicable
 				}
 			);
 
@@ -739,17 +761,31 @@ export const actions: Actions = {
 			}
 			const { user: newUser, session: newSession } = userAndSessionResult.data;
 
-			logger.info('User and session created successfully via token registration', {
+			logger.info(`User and session created successfully via ${isInvited ? 'token' : 'open demo'} registration`, {
 				userId: newUser._id,
 				sessionId: newSession._id,
-				email
+				email,
+				tenantId: newUser.tenantId
 			});
 
 			// Invalidate user count cache so the system knows a new user now exists
 			invalidateUserCountCache();
 
-			// Consume the invitation token immediately after use
-			await auth!.consumeRegistrationToken(token);
+			// [NEW] Create Tenant Entity if this was a new tenant signup
+			if (multiTenant && !token && tenantId) {
+				logger.info(`Creating Tenant entity for new sign-up: ${tenantId}`);
+				try {
+					await tenantService.createTenant(username || 'My Organization', newUser._id, tenantId);
+				} catch (tenantErr) {
+					logger.error('Failed to create Tenant entity after user signup', tenantErr);
+					// Non-fatal? Or should we rollback? For now, log it.
+				}
+			}
+
+			// Consume the invitation token if one was used
+			if (isInvited && token) {
+				await auth!.consumeRegistrationToken(token);
+			}
 
 			// Send welcome email (best-effort; do not fail signup on email issues)
 			try {

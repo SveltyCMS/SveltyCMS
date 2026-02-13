@@ -14,6 +14,7 @@
 
 import { sqliteTable, text, integer, index, unique } from 'drizzle-orm/sqlite-core';
 import { sql } from 'drizzle-orm';
+import type { TenantQuota, TenantUsage } from '../../dbInterface';
 
 // Helper to create UUID primary key
 const uuidPk = () => text('_id', { length: 36 }).primaryKey();
@@ -388,6 +389,37 @@ export const pluginMigrations = sqliteTable(
 	})
 );
 
+// Tenants Table
+export const tenants = sqliteTable(
+	'tenants',
+	{
+		_id: uuidPk(),
+		name: text('name', { length: 255 }).notNull(),
+		ownerId: text('ownerId', { length: 36 }).notNull(),
+		status: text('status', { length: 20 }).notNull().default('active'),
+		plan: text('plan', { length: 20 }).notNull().default('free'),
+		quota: text('quota', { mode: 'json' }).$type<TenantQuota>().notNull().default({
+			maxUsers: 10,
+			maxStorageBytes: 1073741824, // 1GB
+			maxCollections: 20,
+			maxApiRequestsPerMonth: 10000
+		}),
+		usage: text('usage', { mode: 'json' }).$type<TenantUsage>().notNull().default({
+			usersCount: 0,
+			storageBytes: 0,
+			collectionsCount: 0,
+			apiRequestsMonth: 0,
+			lastUpdated: new Date()
+		}),
+		settings: text('settings', { mode: 'json' }).default({}),
+		...timestamps
+	},
+	(table) => ({
+		nameIdx: index('tenant_name_idx').on(table.name),
+		ownerIdx: index('tenant_owner_idx').on(table.ownerId)
+	})
+);
+
 // Export all tables as a schema object for Drizzle
 export const schema = {
 	authUsers,
@@ -405,5 +437,6 @@ export const schema = {
 	websiteTokens,
 	pluginPagespeedResults,
 	pluginStates,
-	pluginMigrations
+	pluginMigrations,
+	tenants
 };

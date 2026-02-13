@@ -7,7 +7,10 @@
 - `onAddWidget` {Function} - Callback function to handle widget addition
 
 ### Features
--  
+- Widget Palette
+- Widget Search
+- Widget Categories
+- Widget Drag and Drop
 
 -->
 
@@ -71,7 +74,7 @@
 
 	<!-- Widget List -->
 	<div class="flex-1 overflow-y-auto space-y-6">
-		{#each categories as cat}
+		{#each categories as cat (cat)}
 			{@const catItems = paletteItems.filter((i) => i.category === cat)}
 			{#if catItems.length > 0}
 				<div>

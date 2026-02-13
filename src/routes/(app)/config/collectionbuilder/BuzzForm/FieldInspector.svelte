@@ -9,7 +9,9 @@
 - `onSelectField` {Function} - Callback function to handle field selection
 
 ### Features:
-- 
+- Basic Field Configuration
+- Field Permissions
+- Field Specific Settings
 
 -->
 
@@ -90,7 +92,7 @@
 				<div class="flex-1 overflow-y-auto p-4 custom-scrollbar">
 					<Tabs.Content value="general">
 						<div class="space-y-6">
-							{#each displayProperties as property}
+							{#each displayProperties as property (property)}
 								{#if guiSchema[property]}
 									<div class="space-y-1">
 										<InputSwitch

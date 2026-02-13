@@ -20,12 +20,46 @@ SveltyCMS supports a robust multi-tenancy architecture allowing a single instanc
 
 ## Core Concepts
 
+### Tenant Entity Model
+
+SveltyCMS treats tenants as first-class entities stored in the database. Each tenant record controls access, status, and resource limits.
+
+```typescript
+interface Tenant {
+	_id: string; // UUID
+	name: string;
+	status: 'active' | 'suspended' | 'pending';
+	ownerId?: string; // Link to owner User
+	plan: 'free' | 'pro' | 'enterprise';
+
+	// Resource Quotas
+	quota: {
+		maxUsers: number;
+		maxStorageBytes: number;
+		maxCollections: number;
+	};
+
+	// Current Usage (Updated via Telemetry/Hooks)
+	usage: {
+		usersCount: number;
+		storageBytes: number;
+		collectionsCount: number;
+	};
+
+	createdAt: string;
+	updatedAt: string;
+}
+```
+
 ### Tenant Identification
 
 Tenants are identified via:
 
-1.  **Hostname**: In standard production environments, the subdomain or domain determines the tenant (e.g., `tenant1.example.com`).
-2.  **Session Cookie**: In Demo Mode, a `demo_tenant_id` cookie identifies the ephemeral tenant.
+1.  **Hostname**: `tenant1.example.com` -> Resolves to Tenant ID.
+2.  **Session Cookie**: `demo_tenant_id` (Demo Mode) or `svelty_tenant` (Standard).
+3.  **API Header**: `X-Tenant-ID` (for API integration).
+
+4.  **Registration**: New users can register without a token (if configured) to create a brand new isolated tenant.
 
 ### Data Isolation Strategies
 
@@ -183,19 +217,49 @@ interface IAuthAdapter {
 
 ### Data Isolation Enforcement
 
-Data isolation is enforced at multiple levels:
+Data isolation is enforced strictly via the `safeQuery` utility and Database Adapter layers:
 
-1. **Database Adapter Level**: All queries include `tenantId` filtering when appropriate
-   - **MongoDB**: Queries include `{ tenantId: <value> }` or `{ tenantId: { $exists: false } }` filters
-   - **Redis**: Cache keys are namespaced with `tenantId` (e.g., `tenant:123:users:456`)
+1. **Strict Query Isolation (`safeQuery`)**:
+   - All database operations are wrapped in `safeQuery(query, tenantId)`.
+   - **Mechanism**: Automatically injects `{ tenantId: '...' }` into every filter.
+   - **Protection**: Throws an error if `tenantId` is missing in Multi-Tenant mode (unless explicitly `global`).
+   - Prevents accidental "find all" queries from leaking cross-tenant data.
 
-2. **Storage Level**: Media files are stored in tenant-specific folders
+   ```typescript
+   // Example in MongoDB Adapter
+   const secureFilter = safeQuery({ status: 'active' }, currentTenantId);
+   // Result: { status: 'active', tenantId: 'tenant-123' }
+   ```
+
+   ```mermaid
+   sequenceDiagram
+       participant Client
+       participant Middleware
+       participant API
+       participant SafeQuery
+       participant Database
+
+       Client->>Middleware: Request (cookie/host)
+       Middleware->>Middleware: Resolve tenantId
+       Middleware->>API: event.locals.tenantId
+       API->>SafeQuery: Query + tenantId
+       SafeQuery->>SafeQuery: Inject { tenantId: '...' }
+       SafeQuery->>Database: Secure Query
+       Database-->>API: Tenant Scoped Data
+       API-->>Client: Response
+   ```
+
+2. **Database Adapter Level**:
+   - Operations without a `tenantId` default to Global (if allowed) or throw errors.
+   - `deleteMany` and `updateMany` are scoped strictly to the tenant.
+
+3. **Storage Level**: Media files are stored in tenant-specific folders
    - Pattern: `uploads/{tenantId}/...` for tenant-specific files
    - Pattern: `uploads/global/...` for shared assets
 
-3. **API Level**: Endpoints validate `tenantId` from `event.locals.tenantId`
+4. **API Level**: Endpoints validate `tenantId` from `event.locals.tenantId`
 
-4. **Compilation Level**: Collection schemas are compiled with `tenantId` embedded
+5. **Compilation Level**: Collection schemas are compiled with `tenantId` embedded
    - The compilation system (`src/utils/compilation/`) automatically injects `tenantId` into compiled schemas
    - When compiling collections, pass `tenantId` in `CompileOptions`:
      ```typescript
@@ -390,3 +454,17 @@ When enabling multi-tenancy:
    ```
 
 3. **Query Optimization**: Leverage global resources to reduce data duplication and improve query performance
+
+## Admin Management
+
+Admins can manage tenants via the **Tenant Dashboard** (`/admin/tenants`).
+
+### Features
+
+- **List View**: View all tenants, their plans, and status.
+- **Quota Visualization**: Real-time progress bars for Users, Storage, and Collections.
+- **Status Control**: Suspend or Activate tenants instantly.
+  - **Suspended**: Users prevent from logging in; API access blocked.
+- **Create Tenant**: Provision new tenants manually with specific plans.
+
+This UI interacts directly with `TenantService`, ensuring all changes are auditable and safe.

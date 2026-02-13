@@ -46,6 +46,7 @@
 			<Section class="p-6">
 				<!-- Custom body injected here -->
 				<div class="prose prose-slate max-w-none">
+					<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 					{@html body}
 				</div>
 			</Section>

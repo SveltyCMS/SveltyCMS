@@ -34,7 +34,8 @@ The `ContentManager` is a singleton class that orchestrates the entire content l
 
 - **Singleton Pattern**: Ensures a single source of truth for content state.
 - **Versioning**: Maintains a `contentVersion` number that increments on every content update. This allows clients to poll for changes and update their UI efficiently without full reloads.
-- **Navigation Structure**: Generates a simplified navigation tree for the sidebar, optimizing payload size for initial hydration.
+- **Navigation Structure**: Generates a simplified navigation tree for the sidebar, optimized for payload size.
+- **Sorting Logic**: Collections are sorted first by **Order** (defined in DB/Schema), then by **Path** (folder structure), and finally by **Name**. This ensures consistency between the Sidebar and the `getFirstCollection` redirect logic.
 - **Optimizations**: implements internal LRU caching for collection schemas and uses batched initialization to prevent event loop blocking.
 
 ### 2. Content Index (`src/content/index.ts`)

@@ -429,8 +429,8 @@ class AutomationService {
 			}
 
 			return resolved;
-		} catch (err) {
-			// If token resolution fails, return original config
+		} catch (_err) {
+			// Token resolution unavailable, using raw config
 			logger.debug('Token resolution unavailable, using raw config');
 			return config;
 		}

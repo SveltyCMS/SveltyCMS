@@ -26,6 +26,33 @@ import type { BaseEntity, ContentNode as ContentNodeType, DatabaseId, ISODateStr
 import type { User, Session, Token, Role } from './auth/types';
 import type { WebsiteToken } from './schemas';
 
+// Tenant Types
+export interface TenantQuota {
+	maxUsers: number;
+	maxStorageBytes: number;
+	maxCollections: number;
+	maxApiRequestsPerMonth: number;
+}
+
+export interface TenantUsage {
+	usersCount: number;
+	storageBytes: number;
+	collectionsCount: number;
+	apiRequestsMonth: number;
+	lastUpdated: Date;
+}
+
+export interface Tenant extends BaseEntity {
+	_id: DatabaseId;
+	name: string;
+	ownerId: DatabaseId;
+	status: 'active' | 'suspended' | 'archived';
+	plan: 'free' | 'pro' | 'enterprise';
+	quota: TenantQuota;
+	usage: TenantUsage;
+	settings?: Record<string, unknown>;
+}
+
 export type { BaseEntity, ContentNodeType, DatabaseId, ISODateString, Schema, User, Session, Token, Role, WebsiteToken };
 
 export type ContentNode = ContentNodeType;
@@ -405,35 +432,59 @@ export interface IAuthAdapter {
 }
 
 export interface ICrudAdapter {
-	findOne<T extends BaseEntity>(collection: string, query: QueryFilter<T>, options?: { fields?: (keyof T)[] }): Promise<DatabaseResult<T | null>>;
+	findOne<T extends BaseEntity>(
+		collection: string,
+		query: QueryFilter<T>,
+		options?: { fields?: (keyof T)[]; tenantId?: string | null }
+	): Promise<DatabaseResult<T | null>>;
 	findMany<T extends BaseEntity>(
 		collection: string,
 		query: QueryFilter<T>,
-		options?: { limit?: number; offset?: number; fields?: (keyof T)[]; sort?: SortOption }
+		options?: { limit?: number; offset?: number; fields?: (keyof T)[]; sort?: SortOption; tenantId?: string | null }
 	): Promise<DatabaseResult<T[]>>;
-	insert<T extends BaseEntity>(collection: string, data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<T>>;
-	update<T extends BaseEntity>(collection: string, id: DatabaseId, data: Partial<Omit<T, 'createdAt' | 'updatedAt'>>): Promise<DatabaseResult<T>>;
-	delete(collection: string, id: DatabaseId): Promise<DatabaseResult<void>>;
-	findByIds<T extends BaseEntity>(collection: string, ids: DatabaseId[], options?: { fields?: (keyof T)[] }): Promise<DatabaseResult<T[]>>;
-	insertMany<T extends BaseEntity>(collection: string, data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>[]): Promise<DatabaseResult<T[]>>;
+	insert<T extends BaseEntity>(
+		collection: string,
+		data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>,
+		tenantId?: string | null
+	): Promise<DatabaseResult<T>>;
+	update<T extends BaseEntity>(
+		collection: string,
+		id: DatabaseId,
+		data: Partial<Omit<T, 'createdAt' | 'updatedAt'>>,
+		tenantId?: string | null
+	): Promise<DatabaseResult<T>>;
+	delete(collection: string, id: DatabaseId, tenantId?: string | null): Promise<DatabaseResult<void>>;
+	findByIds<T extends BaseEntity>(
+		collection: string,
+		ids: DatabaseId[],
+		options?: { fields?: (keyof T)[]; tenantId?: string | null }
+	): Promise<DatabaseResult<T[]>>;
+	insertMany<T extends BaseEntity>(
+		collection: string,
+		data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>[],
+		tenantId?: string | null
+	): Promise<DatabaseResult<T[]>>;
 	updateMany<T extends BaseEntity>(
 		collection: string,
 		query: QueryFilter<T>,
-		data: Partial<Omit<T, 'createdAt' | 'updatedAt'>>
+		data: Partial<Omit<T, 'createdAt' | 'updatedAt'>>,
+		tenantId?: string | null
 	): Promise<DatabaseResult<{ modifiedCount: number }>>;
-	deleteMany(collection: string, query: QueryFilter<BaseEntity>): Promise<DatabaseResult<{ deletedCount: number }>>;
+	deleteMany(collection: string, query: QueryFilter<BaseEntity>, tenantId?: string | null): Promise<DatabaseResult<{ deletedCount: number }>>;
 	upsert<T extends BaseEntity>(
 		collection: string,
 		query: QueryFilter<T>,
-		data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>
+		data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>,
+		tenantId?: string | null
 	): Promise<DatabaseResult<T>>;
 	upsertMany<T extends BaseEntity>(
 		collection: string,
-		items: Array<{ query: QueryFilter<T>; data: Omit<T, '_id' | 'createdAt' | 'updatedAt'> }>
+		items: Array<{ query: QueryFilter<T>; data: Omit<T, '_id' | 'createdAt' | 'updatedAt'> }>,
+		tenantId?: string | null
 	): Promise<DatabaseResult<T[] | { upsertedCount: number; modifiedCount: number }>>;
-	count(collection: string, query?: QueryFilter<BaseEntity>): Promise<DatabaseResult<number>>;
-	exists(collection: string, query: QueryFilter<BaseEntity>): Promise<DatabaseResult<boolean>>;
-	aggregate<R>(collection: string, pipeline: unknown[]): Promise<DatabaseResult<R[]>>;
+	count(collection: string, query?: QueryFilter<BaseEntity>, tenantId?: string | null): Promise<DatabaseResult<number>>;
+	exists(collection: string, query: QueryFilter<BaseEntity>, tenantId?: string | null): Promise<DatabaseResult<boolean>>;
+	aggregate<R>(collection: string, pipeline: unknown[], tenantId?: string | null): Promise<DatabaseResult<R[]>>;
 }
 
 export interface IMediaAdapter {
@@ -474,7 +525,7 @@ export interface IContentAdapter {
 		bulkUpdate(updates: { path: string; id?: string; changes: Partial<ContentNode> }[]): Promise<DatabaseResult<ContentNode[]>>;
 		fixMismatchedNodeIds?(nodes: { path: string; expectedId: string; changes: Partial<ContentNode> }[]): Promise<DatabaseResult<{ fixed: number }>>;
 		delete(path: string): Promise<DatabaseResult<void>>;
-		deleteMany(paths: string[]): Promise<DatabaseResult<{ deletedCount: number }>>;
+		deleteMany(paths: string[], options?: { tenantId?: string }): Promise<DatabaseResult<{ deletedCount: number }>>;
 		reorder(nodeUpdates: Array<{ path: string; newOrder: number }>): Promise<DatabaseResult<ContentNode[]>>;
 		reorderStructure(items: Array<{ id: string; parentId: string | null; order: number; path: string }>): Promise<DatabaseResult<void>>;
 	};
@@ -555,6 +606,13 @@ export interface ISystemAdapter {
 		ensure(folder: Omit<SystemVirtualFolder, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<SystemVirtualFolder>>;
 		delete(folderId: DatabaseId): Promise<DatabaseResult<void>>;
 		exists(path: string): Promise<DatabaseResult<boolean>>;
+	};
+	tenants: {
+		create(tenant: Omit<Tenant, '_id' | 'createdAt' | 'updatedAt'> & { _id?: DatabaseId }): Promise<DatabaseResult<Tenant>>;
+		getById(tenantId: DatabaseId): Promise<DatabaseResult<Tenant | null>>;
+		update(tenantId: DatabaseId, data: Partial<Omit<Tenant, '_id' | 'createdAt' | 'updatedAt'>>): Promise<DatabaseResult<Tenant>>;
+		delete(tenantId: DatabaseId): Promise<DatabaseResult<void>>;
+		list(options?: PaginationOption): Promise<DatabaseResult<Tenant[]>>;
 	};
 }
 

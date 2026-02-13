@@ -405,14 +405,14 @@
 
 					{#if !isInviteFlow}
 						<!-- Registration Token (hidden when using invite flow, always required now since first user uses /setup) -->
+						<!-- Registration Token (Optional for new users, required for invites) -->
 						<FloatingInput
 							id="tokensignUp"
 							name="token"
 							type="password"
 							tabindex={tokenTabIndex}
-							required
 							bind:value={signUpForm.data.token}
-							label={m.registration_token()}
+							label="{m.registration_token()} (Optional)"
 							minlength={32}
 							maxlength={36}
 							icon="mdi:key-chain"

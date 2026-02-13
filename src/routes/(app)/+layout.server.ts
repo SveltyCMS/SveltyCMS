@@ -76,22 +76,25 @@ export const load: LayoutServerLoad = async ({ locals, depends }) => {
 	// Store is already initialized by root layout - just use it
 
 	try {
-		await contentManager.initialize();
+		// Start initialization but don't await generic content loading for the main thread
+		// This prevents the "blank white page" issue
+		const contentPromise = contentManager.initialize().then(() => {
+			return Promise.all([contentManager.getNavigationStructure(), contentManager.getFirstCollection()]);
+		});
 
-		const [contentStructure, freshUser, firstCollection] = await Promise.all([
-			contentManager.getNavigationStructure(),
-			refreshUser(sessionUser),
-			contentManager.getFirstCollection()
-		]);
+		// User data is critical for shell, but we try to use session data if fast
+		// refreshUser is reasonably fast, so we can await it or stream it too
+		const freshUser = await refreshUser(sessionUser);
 
 		return {
 			theme: theme || DEFAULT_THEME,
-			contentStructure,
+			// Streamed data (Promises)
+			contentStructure: contentPromise.then(([structure]) => structure),
 			user: freshUser,
 			publicSettings: publicEnv, // Use the reactive store
 			cspNonce,
-			streamed: {},
-			firstCollection: firstCollection ? JSON.parse(JSON.stringify(firstCollection)) : null
+			streamed: {}, // SvelteKit streaming marker
+			firstCollection: contentPromise.then(([_, first]) => (first ? JSON.parse(JSON.stringify(first)) : null))
 		};
 	} catch (err) {
 		logger.error('Failed to load layout data', {

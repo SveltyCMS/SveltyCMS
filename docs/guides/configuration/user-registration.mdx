@@ -20,7 +20,13 @@ tags:
 
 ## Overview
 
-SveltyCMS uses a secure **invitation-based registration system** where administrators create invitation tokens that allow new users to sign up with specific roles and permissions. All users (except the first user created during setup) require an invitation token to register.
+## Overview
+
+SveltyCMS uses a secure **invitation-based registration system** where administrators create invitation tokens that allow new users to sign up with specific roles and permissions.
+
+> **Note for Multi-Tenancy**: In Multi-Tenant environments (like Demo Mode), the registration token is **optional**. Registering without a token will automatically create a **new tenant** and make you the administrator of that tenant.
+
+All users (except the first user created during setup or new tenant owners) require an invitation token to register.
 
 ## How Registration Works
 

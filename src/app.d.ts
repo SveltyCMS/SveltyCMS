@@ -30,6 +30,7 @@ declare global {
 		// interface PageData {}
 		// interface Platform {}
 		interface Locals {
+			getSession: () => Promise<import('@auth/core/types').Session | null>;
 			user: User | null;
 			collections?: unknown; // Replace with your actual Collections type if available
 			permissions: string[]; // Array of user permissions
