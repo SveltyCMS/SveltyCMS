@@ -22,121 +22,84 @@ export async function cleanupTestEnvironment(): Promise<void> {
 	// Logic for cleaning up after tests
 }
 
-// Cleanup the test database (placeholder for now).
+// Cleanup the test database (DB-agnostic).
 export async function cleanupTestDatabase(): Promise<void> {
 	console.log('[cleanupTestDatabase] Starting...');
-	// 1. Call reset endpoint to clear config and cache on the server
-	try {
-		// API_BASE_URL is usually http://localhost:5173 or 4173
-		// Reset endpoint is gone, so we rely on direct DB drop below.
-		// If needed, we could implement a reset action or route, but for now we skip.
-		console.log('[cleanupTestDatabase] Skipping server-side reset (endpoint removed). Relying on DB drop.');
-	} catch (e: any) {
-		console.log('[cleanupTestDatabase] Reset step skipped:', e);
-	}
 
-	// 3. Drop Test Database
 	if (process.env.SKIP_DB_CLEANUP === 'true') {
 		console.log('[cleanupTestDatabase] Skipping DB cleanup (SKIP_DB_CLEANUP=true).');
 		return;
 	}
 
-	// Use mongoose since it works for the app, creating consistent behavior
-	const mongooseModule = await import('mongoose');
-	const mongoose = mongooseModule.default || mongooseModule;
+	const dbType = process.env.DB_TYPE || 'mongodb';
 	const dbName = process.env.DB_NAME || 'sveltycms_test';
 
-	let uri = process.env.MONGODB_URI;
-	if (!uri && process.env.DB_USER && process.env.DB_PASSWORD) {
-		const host = process.env.DB_HOST || 'localhost';
-		const port = process.env.DB_PORT || '27017';
-		uri = `mongodb://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${host}:${port}/${dbName}?authSource=admin`;
-	}
-	if (!uri) {
-		const host = process.env.DB_HOST || 'localhost';
-		const port = process.env.DB_PORT || '27017';
-		uri = `mongodb://${host}:${port}/${dbName}`;
-	}
-
-	if (!uri.includes('directConnection=')) {
-		uri += uri.includes('?') ? '&directConnection=true' : '?directConnection=true';
-	}
-
-	const safeUri = uri.replace(/:([^:@]+)@/, ':****@');
-	console.log(`[cleanupTestDatabase] Connecting to: ${safeUri}`);
+	console.log(`[cleanupTestDatabase] Cleaning up ${dbName} (${dbType})...`);
 
 	try {
-		// Set strict options to avoid hanging
-		await mongoose.connect(uri, {
-			serverSelectionTimeoutMS: 5000,
-			connectTimeoutMS: 5000,
-			socketTimeoutMS: 5000,
-			family: 4 // Force IPv4 to avoid localhost issues
+		const { initializeForSetup, dbAdapter } = await import('@src/databases/db');
+		const setupRes = await initializeForSetup({
+			type: dbType,
+			host: process.env.DB_HOST || '127.0.0.1',
+			port: parseInt(process.env.DB_PORT || '27017'),
+			name: dbName,
+			user: process.env.DB_USER,
+			password: process.env.DB_PASSWORD
 		});
 
-		// Wait for ready state
-		let retries = 0;
-		while (mongoose.connection.readyState !== 1 && retries < 5) {
-			await new Promise((r) => setTimeout(r, 200));
-			retries++;
+		if (!setupRes.success) {
+			console.warn('[cleanupTestDatabase] Failed to initialize DB for cleanup:', setupRes.error);
+			return;
 		}
 
-		console.log(`[cleanupTestDatabase] Connected. State: ${mongoose.connection.readyState}`);
-
-		if (mongoose.connection.db) {
-			await mongoose.connection.db.dropDatabase();
-			console.log('[cleanupTestDatabase] DB Dropped.');
-		} else {
-			console.warn('[cleanupTestDatabase] Warning: mongoose.connection.db is undefined despite readyState 1.');
+		if (dbAdapter) {
+			if (dbType === 'mongodb') {
+				const mongoConn = (dbAdapter as any).client?.db(dbName);
+				if (mongoConn) {
+					await mongoConn.dropDatabase();
+					console.log('[cleanupTestDatabase] MongoDB Database Dropped.');
+				}
+			} else {
+				console.log(`[cleanupTestDatabase] DB Agnostic cleanup for ${dbType} - Disconnecting.`);
+				// For SQL databases, table-level cleanup is usually handled by Drizzle push --force or similar in CI
+				// Or we could implement a generic truncate all tables if needed.
+			}
+			await dbAdapter.disconnect();
 		}
 	} catch (e: any) {
-		console.warn('[cleanupTestDatabase] Warning: Failed to drop test database:', e.message);
-	} finally {
-		// Always disconnect
-		try {
-			await mongoose.disconnect();
-			console.log('[cleanupTestDatabase] Disconnected.');
-		} catch {
-			// ignore disconnect error
-		}
+		console.warn('[cleanupTestDatabase] Warning: Failed to cleanup test database:', e.message);
 	}
 }
 
 /**
- * Seeds basic roles into the database to ensure permissions exist.
- * This mimics what the Setup API does but faster/direct for tests.
+ * Seeds basic roles into the database (DB-agnostic).
  */
 async function seedBasicRoles(): Promise<void> {
-	const { MongoClient } = await import('mongodb');
+	const dbType = process.env.DB_TYPE || 'mongodb';
 	const dbName = process.env.DB_NAME || 'sveltycms_test';
 
-	// Construct URI (reuse logic from cleanup)
-	let uri = process.env.MONGODB_URI;
-	if (!uri && process.env.DB_USER && process.env.DB_PASSWORD) {
-		let host = process.env.DB_HOST || '127.0.0.1';
-		if (host === 'localhost') host = '127.0.0.1';
-		const port = process.env.DB_PORT || '27017';
-		uri = `mongodb://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${host}:${port}/${dbName}?authSource=admin`;
-	} else if (!uri) {
-		let host = process.env.DB_HOST || '127.0.0.1';
-		if (host === 'localhost') host = '127.0.0.1';
-		const port = process.env.DB_PORT || '27017';
-		uri = `mongodb://${host}:${port}/${dbName}`;
-	}
-
-	const client = new MongoClient(uri, { serverSelectionTimeoutMS: 5000 });
 	try {
-		await client.connect();
-		const db = client.db(dbName);
+		const { initializeForSetup, dbAdapter } = await import('@src/databases/db');
+		const setupRes = await initializeForSetup({
+			type: dbType,
+			host: process.env.DB_HOST || '127.0.0.1',
+			port: parseInt(process.env.DB_PORT || '27017'),
+			name: dbName,
+			user: process.env.DB_USER,
+			password: process.env.DB_PASSWORD
+		});
+
+		if (!setupRes.success || !dbAdapter) {
+			console.warn('[testSetup] Failed to initialize DB for seeding roles:', setupRes.error);
+			return;
+		}
 
 		// Check if admin role exists
-		const adminRole = await db.collection('auth_roles').findOne({ _id: 'admin' } as any);
-		if (!adminRole) {
+		const adminRoleRes = await dbAdapter.crud.findOne('auth_roles', { _id: 'admin' } as any);
+		if (!adminRoleRes.success || !adminRoleRes.data) {
 			console.log('[testSetup] Seeding admin role...');
-			// Hardcode commonly used permissions + 'admin' catch-all
-			// This avoids needing to import system internals
 			const permissions = ['read', 'write', 'delete', 'admin'];
-			await db.collection('auth_roles').insertOne({
+			await dbAdapter.crud.insert('auth_roles', {
 				_id: 'admin' as any,
 				name: 'Admin',
 				description: 'System Administrator',
@@ -144,45 +107,38 @@ async function seedBasicRoles(): Promise<void> {
 				isAdmin: true,
 				createdAt: new Date(),
 				updatedAt: new Date()
-			});
+			} as any);
 		}
 
 		// Seed admin user if not exists
-		await seedAdminUser(db);
+		await seedAdminUser(dbAdapter);
 
 		// Seed settings
-		await seedBasicSettings(db);
+		await seedBasicSettings(dbAdapter);
 
 		// Seed default theme
-		await seedDefaultTheme(db);
+		await seedDefaultTheme(dbAdapter);
+
+		await dbAdapter.disconnect();
 	} catch (e: any) {
-		console.warn('Warning: Failed to seed data:', e.message);
-	} finally {
-		await client.close();
+		console.warn('[testSetup] Warning: Failed to seed data:', e.message);
 	}
 }
 
 /**
- * Seeds the admin user with a properly hashed password.
- * This allows tests to authenticate without going through the setup API.
+ * Seeds the admin user (DB-agnostic).
  */
-async function seedAdminUser(db: any): Promise<void> {
+async function seedAdminUser(dbAdapter: any): Promise<void> {
 	try {
-		const existingAdmin = await db.collection('auth_users').findOne({ email: 'admin@example.com' });
-		if (!existingAdmin) {
+		const existingAdmin = await dbAdapter.crud.findOne('auth_users', { email: 'admin@example.com' });
+		if (!existingAdmin.success || !existingAdmin.data) {
 			console.log('[testSetup] Seeding admin user...');
-			const argon2 = await import('argon2');
+			const { hashPassword } = await import('../../../src/utils/password');
 			const crypto = await import('crypto');
 
-			// Hash the password using the same config as the app
-			const hashedPassword = await argon2.hash('Admin123!', {
-				memoryCost: 65536, // 64 MB
-				timeCost: 3,
-				parallelism: 4,
-				type: argon2.argon2id
-			});
+			const hashedPassword = await hashPassword('Admin123!');
 
-			await db.collection('auth_users').insertOne({
+			await dbAdapter.crud.insert('auth_users', {
 				_id: crypto.randomUUID().replace(/-/g, ''),
 				email: 'admin@example.com',
 				username: 'admin',
@@ -191,17 +147,17 @@ async function seedAdminUser(db: any): Promise<void> {
 				blocked: false,
 				createdAt: new Date(),
 				updatedAt: new Date()
-			});
+			} as any);
 		}
 	} catch (e: any) {
 		console.warn('Warning: Failed to seed admin user:', e.message);
 	}
 }
 
-async function seedBasicSettings(db: any): Promise<void> {
+async function seedBasicSettings(dbAdapter: any): Promise<void> {
 	try {
-		const existingconfig = await db.collection('system_settings').findOne({ key: 'SITE_NAME' });
-		if (!existingconfig) {
+		const existingconfig = await dbAdapter.crud.findOne('system_settings', { key: 'SITE_NAME' });
+		if (!existingconfig.success || !existingconfig.data) {
 			console.log('[testSetup] Seeding basic settings...');
 			const crypto = await import('crypto');
 			const now = new Date();
@@ -247,7 +203,9 @@ async function seedBasicSettings(db: any): Promise<void> {
 					updatedAt: now
 				}
 			];
-			await db.collection('system_settings').insertMany(settings);
+			for (const setting of settings) {
+				await dbAdapter.crud.insert('system_settings', setting as any);
+			}
 		}
 	} catch (e: any) {
 		console.warn('Warning: Failed to seed settings:', e.message);
@@ -255,17 +213,15 @@ async function seedBasicSettings(db: any): Promise<void> {
 }
 
 /**
- * Seeds the default theme into the database.
- * This matches the DEFAULT_THEME in themeManager.ts
+ * Seeds the default theme (DB-agnostic).
  */
-async function seedDefaultTheme(db: any): Promise<void> {
+async function seedDefaultTheme(dbAdapter: any): Promise<void> {
 	try {
-		// Note: collection name is 'system_theme' (singular) to match MongoDB model
-		const existingTheme = await db.collection('system_theme').findOne({ _id: '670e8b8c4d123456789abcde' });
-		if (!existingTheme) {
+		const existingTheme = await dbAdapter.crud.findOne('system_theme', { _id: '670e8b8c4d123456789abcde' } as any);
+		if (!existingTheme.success || !existingTheme.data) {
 			console.log('[testSetup] Seeding default theme...');
 			const now = new Date();
-			await db.collection('system_theme').insertOne({
+			await dbAdapter.crud.insert('system_theme', {
 				_id: '670e8b8c4d123456789abcde',
 				path: '',
 				name: 'SveltyCMSTheme',
@@ -277,7 +233,7 @@ async function seedDefaultTheme(db: any): Promise<void> {
 				},
 				createdAt: now,
 				updatedAt: now
-			});
+			} as any);
 		}
 	} catch (e: any) {
 		console.warn('Warning: Failed to seed theme:', e.message);

@@ -1,0 +1,97 @@
+---
+path: 'docs/api/Email_API.mdx'
+title: 'Email API'
+description: 'Programmatic email sending with Svelte templates.'
+order: 14
+icon: 'mdi:email-outline'
+author: 'admin'
+created: '2026-02-13'
+updated: '2026-02-13'
+tags:
+  - 'api'
+  - 'email'
+  - 'notifications'
+---
+
+# Email API Reference
+
+The Email API allows you to send templated emails programmatically. It leverages Svelte components for rendering and uses the system's configured SMTP settings for delivery.
+
+## Send Email
+
+`POST /api/sendMail`
+
+Sends a rendered email to one or more recipients.
+
+### Request Body
+
+| Parameter        | Type     | Required | Description                                              |
+| :--------------- | :------- | :------- | :------------------------------------------------------- |
+| `recipientEmail` | `string` | Yes      | Target email address.                                    |
+| `subject`        | `string` | Yes      | Subject line of the email.                               |
+| `templateName`   | `string` | Yes      | Name of the Svelte template in `src/components/emails/`. |
+| `props`          | `object` | No       | Component props to pass to the Svelte template.          |
+| `languageTag`    | `string` | No       | IETF language tag (default: `en`).                       |
+
+### Example Request
+
+```json
+{
+	"recipientEmail": "user@example.com",
+	"subject": "Reset your password",
+	"templateName": "forgottenPassword",
+	"props": {
+		"token": "abc123456",
+		"expiresIn": "2 hours"
+	}
+}
+```
+
+### Response
+
+**Success (200 OK)**
+
+```json
+{
+	"success": true,
+	"messageId": "<unique-delivery-id@smtp.yourdomain.com>",
+	"recipient": "user@example.com",
+	"status": "sent"
+}
+```
+
+**Error (400 Bad Request)**
+
+```json
+{
+	"success": false,
+	"error": "Template 'nonExistentTemplate' not found."
+}
+```
+
+## Security
+
+- **Direct API Access**: Requires an active session or a valid API Bearer token with `email:send` or `admin` permissions.
+- **Internal Access**: Used by the **[Automation System](../guides/Automation_System.mdx)** to send notifications triggered by CMS events.
+
+## Advanced Usage
+
+### Custom HTML Bodies
+
+To send a custom HTML body (e.g. from an external editor), use the `customEmail` template:
+
+```json
+{
+	"recipientEmail": "user@example.com",
+	"subject": "Special Announcement",
+	"templateName": "customEmail",
+	"props": {
+		"body": "<h1>Big News!</h1><p>Our new collection is live.</p>"
+	}
+}
+```
+
+## Related
+
+- **[Email System Guide](../guides/Email_System.mdx)**: Conceptual overview and SMTP setup.
+- **[Automation System](../guides/Automation_System.mdx)**: Triggering emails automatically.

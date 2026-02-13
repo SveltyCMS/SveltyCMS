@@ -32,88 +32,29 @@ SveltyCMS is on the path to becoming **enterprise-grade and best-in-class** for 
 
 ---
 
-## ✅ State-of-the-Art Components (What's Already Excellent)
+## 🏗️ Active Development & Critical Fences
 
-### 1. Modern Framework Stack
+While core foundations are state-of-the-art, the following items are active priorities for Q1-Q2 2026 to achieve full market leadership and stability.
 
-- ✅ **Svelte 5** (^5.46.4) - Latest with runes, snippets, fine-grained reactivity
-- ✅ **SvelteKit 2** (^2.50.0) - Latest SSR/SSG framework
-- ✅ **TypeScript** (^5.9.3) - Full type safety
-- ✅ **Vite 7** (^7.3.1) - Latest build tool with lightning-fast HMR
-- ✅ **Bun** - Modern JavaScript runtime (3-4x faster than Node)
+### 🚨 Critical Infrastructure & CI Fix ⭐⭐⭐ **HIGH PRIORITY**
 
-### 2. Modern Architecture
+**Current State:** Integration tests failing in GitHub Actions (~172 failures).
+**Goal:** Restore green CI pipeline to ensure development velocity and reliability.
 
-- ✅ **Nx Monorepo** (^22.3.3) - Enterprise-grade monorepo with intelligent caching
-- ✅ **Separation of Concerns** - Setup, CMS, Frontend apps
-- ✅ **Nx Cloud Ready** - Distributed caching and task execution
+- [ ] Investigate server connection timeouts in GitHub Actions.
+- [ ] Fix test isolation issues in `integration-tests`.
+- [ ] Stabilize Playwright E2E suite.
 
-### 3. Modern UI/Styling
+### 🔜 Modern UX & Advanced Tooling
 
-- ✅ **Tailwind CSS 4** (^4.1.18) - Latest with CSS-first configuration
-- ✅ **Skeleton UI v4** (^4.10.0) - Modern component library
-- ✅ **Floating UI** (^1.7.4) - Advanced positioning
+- 🔜 **BuzzForm Visual Builder (v1.5)** - Enhancing the recently implemented visual canvas with even more sophisticated drag-and-drop UX and real-time preview hardening.
+- 🔜 **MCP AI Knowledgebase Server** - Model Context Protocol server exposing CMS docs and schemas as AI-accessible knowledge (Q1 2026).
+- 🔧 **Image Editor Enhancement** - Stabilizing the current buggy implementation; adding cropping, filters, and focal point management.
+- 🔧 **Collection Builder UX Refinement** - Fixing edge-case bugs in schema generation and improving ergonomic field management.
 
-### 4. Modern Development Practices
+### 🔄 Hardening & Testing
 
-- ✅ **ESLint 9** (^9.39.2) - Latest flat config
-- ✅ **Prettier 3** (^3.8.0) - Code formatting
-- ✅ **TypeScript ESLint 8** (^8.53.0) - Type-aware linting
-- ✅ **Playwright** (^1.57.0) - Modern E2E testing
-
-### 5. Modern Backend Technologies
-
-- ✅ **Drizzle ORM** (^0.45.1) - Type-safe, modern ORM
-- ✅ **GraphQL Yoga** (^5.18.0) - Latest GraphQL server
-- ✅ **Redis** (^5.10.0) - Modern caching
-- ✅ **Argon2** (^0.44.0) - State-of-the-art password hashing
-
-### 6. Modern i18n
-
-- ✅ **Paraglide JS** (^2.9.0) - Type-safe, compile-time i18n (unique!)
-- ✅ **Inlang** ecosystem integration
-
-### 7. Modern Security
-
-- ✅ **2FA** - Implemented
-- ✅ **OAuth** - Google integration
-- ✅ **Field-level access control**
-- ✅ **Rate limiting** - sveltekit-rate-limiter
-- ✅ **DOMPurify** - XSS protection
-
-### 8. Modern Content Features
-
-- ✅ **TipTap 3** (^3.15.3) - Latest WYSIWYG editor
-- ✅ **Rich media handling** - Images, PDFs, videos
-- ✅ **Multi-Database Support** - **Verified & Native** support for:
-  - **MongoDB** (Enterprise NoSQL)
-  - **MariaDB/MySQL** (Relational)
-  - **PostgreSQL** (Compliance/JSONB)
-  - **SQLite** (Edge/Local)
-- ✅ **Live Preview** - Enterprise handshake protocol (iframe + editable.website plugin)
-- 🔜 **BuzzForm Collection Builder** - Visual drag-and-drop form/collection builder for improved UX (Q1 2026)
-- 🔜 **MCP AI Knowledgebase Server** - Model Context Protocol server for AI-accessible CMS knowledge (Q1 2026)
-- 🔧 **Image Editor Enhancement** - Current implementation buggy; needs stabilization and feature improvements
-- 🔧 **Collection Builder Enhancement** - Current implementation buggy; needs UX improvements and bug fixes
-- 🚨 **GitHub Actions CI Fix** - Integration tests failing; needs investigation and fixes to restore green CI (**HIGH PRIORITY**)
-- 🧪 **Config Sync/Export Testing** - Full E2E testing of configuration sync and export functionality
-- 🧪 **Widget System Testing** - Comprehensive testing of all widgets for regressions
-- 🧪 **Collection Revisions Testing** - Full testing of revision history, rollback, and diff functionality
-
-### 9. Enterprise Foundations (SOTA 2026)
-
-- ✅ **Audit Logging** - Implemented (`AuditLogService` with SHA-256 cryptographic chaining).
-- ✅ **Automated Security Response (ASR)** - Real-time threat detection (SQLi, XSS) and dynamic firewall.
-- ✅ **Ultra-Fast Startup (READY <1s)** - Optimized progressive initialization model with background seeding and setup pre-warming.
-- ✅ **Self-Learning State Machine** - Adaptive operational parameters with persistent historical metrics and auto-calibration.
-- ✅ **Plugin System** - Isomorphic hook-based architecture.
-- ✅ **SCIM 2.0 Endpoints** - Native endpoints implemented for IdP integration.
-
-### 10. Modern Inclusivity (WCAG 2.2 AA)
-
-- ✅ **Screen Reader Support** - Full semantic coverage and ARIA live regions.
-- ✅ **Keyboard Navigation** - Complete access including complex widgets (Tree Views, Drag & Drop).
-- ✅ **ATAG 2.0 Compliance** - Designed to help users with disabilities create accessible content.
+- ✅ **Hook-Based Event System** - Implemented but requires comprehensive **Bun/Playwright testing** to ensure DB-agnostic reliability across all adapters.
 
 ---
 
@@ -150,17 +91,12 @@ bun add @boxyhq/saml-jackson  // SAML as a service
 
 - ✅ Native `/api/scim/v2` endpoints verified in codebase.
 
-### 3. Audit Logging Dashboard ⭐⭐ **UI IMPROVEMENT**
+### 3. Audit Logging Dashboard
 
-**Current State:** ✅ **Backend Implemented (Crypto-Chained)**  
+**Current State:** ✅ **Implemented** (Dashboard Widget)
 **Enterprise Standard:** Tamper-evident audit trails for compliance
 
-**Gap Analysis:**
-
-- No granular tracking of mutations and API requests in dashboard
-- Competitors (Sanity, Contentful) provide searchable change histories
-
-**Timeline:** 1-2 weeks for Audit UI Views
+**Status:** The crypto-chained backend is now paired with a live visual monitoring widget.
 
 ### 4. EU/GDPR Compliance Suite ⭐⭐⭐ **CRITICAL (EU Market)**
 
@@ -197,31 +133,33 @@ bun add @boxyhq/saml-jackson  // SAML as a service
 
 ### Short-term (Q2 2026)
 
-1. **AI Integration** - Content generation, smart search
-2. **Real-time Collaboration** - Yjs + TipTap collaboration
-3. **Advanced Search** - Meilisearch or Algolia integration
+1. **Hook-Based Event System** - Hardening and E2E testing for automated workflows.
+2. **AI Integration** - Content generation, smart search via **MCP Server**.
+3. **Real-time Collaboration** - Yjs + TipTap collaboration; **Collaborative editing via Chat/Email integration**.
+4. **Advanced Search** - Meilisearch or Algolia integration.
 
 ### Medium-term (Q3-Q4 2026)
 
 1. **Edge Computing** - Multi-region deployment
 2. **Observability** - OpenTelemetry, Sentry
-3. **Workflow System** - Advanced approval processes
+3. **Visual Workflow Builder** - GUI-based workflow designer building on the Hook-Based Event System
 
 ---
 
 ## 📊 Competitor Comparison (2026)
 
-| Feature              | SveltyCMS       | Strapi 5    | Payload 3.0  | Sanity   | Contentful  |
-| :------------------- | :-------------- | :---------- | :----------- | :------- | :---------- |
-| **Framework**        | **Svelte 5** ✅ | React 18    | React 19     | React 18 | Proprietary |
-| **Database**         | **✅ Agnostic** | ✅ SQL Only | ✅ SQL/Mongo | ❌ NoSQL | ❌ NoSQL    |
-| **AI Features**      | ❌              | ⚠️ Partial  | ❌           | ✅       | ✅          |
-| **Real-time Collab** | ❌              | ❌          | ❌           | ✅       | ✅          |
-| **Edge-Ready**       | ⚠️ Partial      | ⚠️ Partial  | ✅           | ✅       | ✅          |
-| **Build Speed**      | **✅ Fastest**  | Medium      | Medium       | N/A      | N/A         |
-| **Bundle Size**      | **✅ Smallest** | Large       | Large        | N/A      | N/A         |
-| **Self-hosted**      | **✅**          | ✅          | ✅           | ❌       | ❌          |
-| **Open Source**      | **✅ BSL**      | ✅ MIT      | ✅ MIT       | ❌       | ❌          |
+| Feature              | SveltyCMS       | Strapi 5     | Payload 3.0  | Sanity   | Contentful  |
+| :------------------- | :-------------- | :----------- | :----------- | :------- | :---------- |
+| **Framework**        | **Svelte 5** ✅ | React 18     | React 19     | React 18 | Proprietary |
+| **Database**         | **✅ Agnostic** | ✅ SQL Only  | ✅ SQL/Mongo | ❌ NoSQL | ❌ NoSQL    |
+| **AI Features**      | ❌              | ⚠️ Partial   | ❌           | ✅       | ✅          |
+| **Real-time Collab** | ❌              | ❌           | ❌           | ✅       | ✅          |
+| **Edge-Ready**       | ⚠️ Partial      | ⚠️ Partial   | ✅           | ✅       | ✅          |
+| **Build Speed**      | **✅ Fastest**  | Medium       | Medium       | N/A      | N/A         |
+| **Bundle Size**      | **✅ Smallest** | Large        | Large        | N/A      | N/A         |
+| **Self-hosted**      | **✅**          | ✅           | ✅           | ❌       | ❌          |
+| **Event Hooks**      | 🔜 **Native**   | ⚠️ Lifecycle | ✅ Hooks     | ✅ GROQ  | 💲 Webhooks |
+| **Open Source**      | **✅ BSL**      | ✅ MIT       | ✅ MIT       | ❌       | ❌          |
 
 ---
 

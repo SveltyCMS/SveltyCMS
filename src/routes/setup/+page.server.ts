@@ -452,13 +452,7 @@ export const actions = {
 			const { updatePrivateConfigMode } = await import('./writePrivateConfig');
 			await updatePrivateConfigMode({
 				multiTenant: system.multiTenant,
-				demoMode: system.demoMode,
-				redis: {
-					useRedis: system.useRedis,
-					redisHost: system.redisHost,
-					redisPort: system.redisPort,
-					redisPassword: system.redisPassword
-				}
+				demoMode: system.demoMode
 			});
 
 			// 3.1 Persist system settings

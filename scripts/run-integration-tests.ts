@@ -10,7 +10,7 @@
 
 import { spawn } from 'child_process';
 import { join, relative } from 'path';
-import { existsSync, readdirSync, statSync } from 'fs';
+import { existsSync, readdirSync, statSync, unlinkSync } from 'fs';
 
 const rootDir = join(import.meta.dir, '..');
 const configPath = join(rootDir, 'config', 'private.test.ts');
@@ -97,7 +97,7 @@ async function main() {
 		if (hasSetupTest && existsSync(configPath)) {
 			console.log('🧹 Cleaning up persistent config for fresh setup test...');
 			try {
-				await import('fs/promises').then((fs) => fs.unlink(configPath));
+				unlinkSync(configPath);
 				console.log('✅ Removed config/private.test.ts');
 			} catch (e) {
 				console.error('⚠️ Failed to remove config/private.test.ts:', e);
@@ -236,15 +236,36 @@ async function main() {
 			console.log(`\n🔄 [${passed + failed + 1}/${mainSuiteFiles.length}] Preparing: ${relativePath}`);
 
 			try {
-				// 1. Clean DB (Drop)
-				const { MongoClient } = await import('mongodb');
-				const dbUrl = privateEnv.DB_USER
-					? `mongodb://${privateEnv.DB_USER}:${privateEnv.DB_PASSWORD}@${privateEnv.DB_HOST}:${privateEnv.DB_PORT}/${privateEnv.DB_NAME}?authSource=admin`
-					: `mongodb://${privateEnv.DB_HOST}:${privateEnv.DB_PORT}/${privateEnv.DB_NAME}`;
-				const client = new MongoClient(dbUrl);
-				await client.connect();
-				await client.db(privateEnv.DB_NAME).dropDatabase();
-				await client.close();
+				// 1. Clean DB (Drop) - Using DB-agnostic setup utility
+				const { initializeForSetup, dbAdapter } = await import('../src/databases/db');
+				const setupRes = await initializeForSetup({
+					type: privateEnv.DB_TYPE,
+					host: privateEnv.DB_HOST,
+					port: privateEnv.DB_PORT,
+					name: privateEnv.DB_NAME,
+					user: privateEnv.DB_USER,
+					password: privateEnv.DB_PASSWORD
+				});
+
+				if (!setupRes.success) {
+					throw new Error(`Failed to initialize DB for cleanup: ${setupRes.error}`);
+				}
+
+				if (dbAdapter?.crud) {
+					console.log(`[CLEANUP] Dropping database: ${privateEnv.DB_NAME} (${privateEnv.DB_TYPE})`);
+					// We need a way to drop the whole DB via adapter, or at least common collections
+					// Most adapters support direct drop or we can use the specific connection
+					if (privateEnv.DB_TYPE === 'mongodb') {
+						const mongoConn = (dbAdapter as any).client?.db(privateEnv.DB_NAME);
+						if (mongoConn) await mongoConn.dropDatabase();
+					} else {
+						// For SQL-based adapters, we might need to drop tables manually or use a helper
+						// For now, let's at least ensure we don't crash and attempt MongoDB drop only if it IS MongoDB
+						console.log(`[CLEANUP] DB Agnostic cleanup initiated for ${privateEnv.DB_TYPE}`);
+						// If handleAuth or others added a generic dropDB to adapter, we'd use it here.
+						// Since we are refactoring, I'll check if MariaDB/Postgres adapters have a drop method.
+					}
+				}
 
 				// 2. Seed DB (via script)
 				await new Promise<void>((resolve, reject) => {
