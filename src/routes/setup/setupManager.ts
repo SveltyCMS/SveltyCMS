@@ -10,7 +10,7 @@ class SetupManager {
 	private _seedingError: string | null = null;
 	private _seedingProgress = 0;
 	// Store the background seeding promise
-	private _seedingPromise: Promise<any> | null = null;
+	private _seedingPromise: Promise<unknown> | null = null;
 
 	private constructor() {}
 
@@ -53,7 +53,7 @@ class SetupManager {
 	/**
 	 * Starts a seeding task in the background and tracks its completion.
 	 */
-	public startSeeding(task: () => Promise<any>): void {
+	public startSeeding(task: () => Promise<unknown>): void {
 		this.isSeeding = true;
 		this._seedingPromise = (async () => {
 			try {
@@ -74,7 +74,7 @@ class SetupManager {
 	/**
 	 * Returns the current seeding promise or null.
 	 */
-	public async waitTillDone(): Promise<any> {
+	public async waitTillDone(): Promise<unknown> {
 		if (this._seedingPromise) {
 			return this._seedingPromise;
 		}
@@ -85,7 +85,7 @@ class SetupManager {
 	 * Starts a valid background task that does NOT block completeSetup.
 	 * Used for heavy content seeding that can happen post-setup.
 	 */
-	public startBackgroundWork(task: () => Promise<any>): void {
+	public startBackgroundWork(task: () => Promise<unknown>): void {
 		// Fire and forget, but handle errors
 		(async () => {
 			try {

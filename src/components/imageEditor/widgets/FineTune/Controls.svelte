@@ -88,7 +88,7 @@ Professional fine-tune controls with presets and categories
 		<!-- Category Tabs -->
 		{#if onCategoryChange}
 			<div class="category-tabs" role="tablist">
-				{#each categories as cat}
+				{#each categories as cat (cat)}
 					<button
 						class="category-tab"
 						class:active={activeCategory === cat}
@@ -140,7 +140,7 @@ Professional fine-tune controls with presets and categories
 	<!-- Presets Panel (Horizontal Scroll) -->
 	{#if showPresetsPanel && onPresetApply}
 		<div class="presets-scroll-container">
-			{#each FILTER_PRESETS as preset}
+			{#each FILTER_PRESETS as preset (preset.name)}
 				<button
 					class="preset-card"
 					onclick={() => {
@@ -163,7 +163,7 @@ Professional fine-tune controls with presets and categories
 		<!-- Adjustment Selector -->
 		<div class="adjustments-scroll">
 			<div class="adjustments-grid">
-				{#each getAdjustmentsByCategory(activeCategory as 'basic' | 'tone' | 'color' | 'detail') as adj}
+				{#each getAdjustmentsByCategory(activeCategory as 'basic' | 'tone' | 'color' | 'detail') as adj (adj.key)}
 					{@const adjConfig = getAdjustmentConfig(adj.key)}
 					{@const hasChange = (adjustments?.[adj.key] ?? 0) !== 0}
 					<button

@@ -190,7 +190,7 @@ export class ContentModule {
 					const now = new Date();
 
 					// Strip date fields from sanitized to handle them explicitly as Date objects for Drizzle
-					const { createdAt, updatedAt, publishedAt, ...sanitizedWithoutDates } = sanitized as any;
+					const { createdAt: _createdAt, updatedAt: _updatedAt, publishedAt, ...sanitizedWithoutDates } = sanitized as any;
 
 					// Atomic upsert using ON DUPLICATE KEY UPDATE (path has unique constraint)
 					await this.db

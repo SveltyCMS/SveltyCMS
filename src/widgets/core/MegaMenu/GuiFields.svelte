@@ -60,7 +60,7 @@ Interactive level configuration with add/remove level capabilities
 	</div>
 
 	<div class="levels-container space-y-4">
-		{#each value as levelFields, levelIndex}
+		{#each value as levelFields, levelIndex (levelIndex)}
 			<div
 				class="level-card rounded-lg border border-surface-200 bg-surface-50/50 dark:text-surface-50 dark:bg-surface-800/50 {levelIndex === 0
 					? 'border-primary-200! bg-primary-50/30! dark:border-primary-700! dark:bg-primary-900/20!'

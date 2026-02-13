@@ -55,7 +55,7 @@ export class AppError extends Error {
  * Type Guard: Checks if an error is a Valibot validation error.
  */
 function isValiError(err: unknown): err is ValiError<any> {
-	return typeof err === 'object' && err !== null && 'issues' in err && Array.isArray((err as any).issues);
+	return typeof err === 'object' && err !== null && 'issues' in err && Array.isArray((err as Record<string, unknown>).issues);
 }
 
 /**
@@ -63,7 +63,7 @@ function isValiError(err: unknown): err is ValiError<any> {
  * e.g., "email: Invalid email address"
  */
 function formatValibotIssues(err: ValiError<any>): string[] {
-	return err.issues.map((issue) => {
+	return err.issues.map((issue: any) => {
 		const pathKeys = issue.path?.map((p: any) => p.key).join('.');
 		return pathKeys ? `${pathKeys}: ${issue.message}` : issue.message;
 	});
@@ -149,12 +149,13 @@ export function getErrorMessage(err: unknown): string {
 	if (typeof err === 'string') return err;
 
 	// Handle SvelteKit HttpError structure manually to avoid dependency issues
-	if (typeof err === 'object' && err !== null && 'body' in err && (err as any).body?.message) {
-		return String((err as any).body.message);
+	if (typeof err === 'object' && err !== null && 'body' in err) {
+		const body = (err as Record<string, unknown>).body as Record<string, unknown>;
+		if (body?.message) return String(body.message);
 	}
 
 	if (typeof err === 'object' && err !== null) {
-		if ('message' in err) return String((err as any).message);
+		if ('message' in err) return String((err as Record<string, unknown>).message);
 
 		// If object has no message, try to stringify it for better debug info
 		try {
@@ -192,7 +193,7 @@ export function wrapError(err: unknown, message = 'An unexpected error occurred'
 
 	if (isHttpError(err)) {
 		const bodyMsg = (err as any).body?.message;
-		return new AppError(bodyMsg || message, err.status, `HTTP_${err.status}`, err);
+		return new AppError((bodyMsg as string) || message, err.status, `HTTP_${err.status}`, err);
 	}
 
 	const errorMsg = getErrorMessage(err);

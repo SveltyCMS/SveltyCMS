@@ -22,9 +22,9 @@
 			const result = deserialize(await response.text());
 
 			if (result.type === 'success') {
-				const collection = (result.data as any)?.collection;
-				if (collection?.path) {
-					await preloadData(collection.path);
+				const data = result.data as { collection?: { path?: string } };
+				if (data?.collection?.path) {
+					await preloadData(data.collection.path);
 				}
 			}
 		} catch (error) {

@@ -69,8 +69,18 @@ jobs:
     needs: unit-tests
     timeout-minutes: 10
     runs-on: ubuntu-latest
-    env:
-      NODE_ENV: production
+    services:
+      mongodb:
+        image: mongo:latest
+        ports: [27017:27017]
+        env:
+          MONGO_INITDB_ROOT_USERNAME: admin
+          MONGO_INITDB_ROOT_PASSWORD: admin
+        options: >-
+          --health-cmd "mongosh --eval 'db.adminCommand({ping: 1})' --quiet"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
 
@@ -92,11 +102,40 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      # Create minimal config for build (actual DB config injected at runtime)
+      - name: Create build config
+        run: |
+          cat > config/private.ts <<EOF
+          export const privateEnv = {
+            DB_TYPE: 'mongodb',
+            DB_HOST: 'localhost',
+            DB_PORT: 27017,
+            DB_NAME: 'sveltycms_build',
+            DB_USER: 'admin',
+            DB_PASSWORD: 'admin',
+            JWT_SECRET_KEY: 'build_jwt_secret',
+            ENCRYPTION_KEY: 'build_encryption_key_32b',
+            MULTI_TENANT: false
+          } as const;
+          EOF
+
       - name: Generate SvelteKit types
         run: bunx svelte-kit sync
 
       - name: Build Production
         run: bun run build
+
+      - name: 🔍 Preview Smoke Test
+        run: |
+          nohup bun run preview --host > preview.log 2>&1 &
+          echo $! > preview.pid
+          bun x wait-on http://localhost:4173 -t 90000 --interval 1000
+          curl -f http://localhost:4173 || (cat preview.log; exit 1)
+          kill $(cat preview.pid) || true
+          rm preview.pid preview.log
+
+      - name: Remove build config
+        run: rm -f config/private.ts
 
       # Upload build artifacts for integration/E2E tests
       - name: Upload build artifact
@@ -137,7 +176,7 @@ jobs:
           - 8025:8025
     env:
       DB_TYPE: mongodb
-      DB_HOST: 127.0.0.1
+      DB_HOST: localhost
       DB_PORT: 27017
       DB_NAME: sveltycms_test
       DB_USER: admin
@@ -168,22 +207,6 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Wait for MongoDB
-        run: |
-          attempt=0
-          until [ $attempt -ge 10 ]
-          do
-            docker exec ${{ job.services.mongodb.id }} mongosh \
-              -u admin -p admin \
-              --authenticationDatabase admin \
-              --eval "db.adminCommand('ping')" && break
-            attempt=$((attempt+1))
-            echo "Waiting for MongoDB... ($attempt/10)"
-            sleep 3
-          done
-          echo "MongoDB is ready, waiting 5 more seconds for full initialization..."
-          sleep 5
-
       # Download pre-built artifact
       - name: Download build artifact
         uses: actions/download-artifact@v4
@@ -195,9 +218,9 @@ jobs:
           rm -rf config/collections
           rm -f config/private.ts
 
-      - name: Create config/private.ts
+      - name: Create config/private.test.ts
         run: |
-          cat > config/private.ts <<EOF
+          cat > config/private.test.ts <<EOF
           export const privateEnv = {
             DB_TYPE: '${{ env.DB_TYPE }}',
             DB_HOST: '${{ env.DB_HOST }}',
@@ -357,7 +380,7 @@ jobs:
           TEST_MODE: 'true'
         run: |
           nohup bun run preview > preview.log 2>&1 &
-          bun x wait-on http://localhost:4173 -t 60000
+          bun x wait-on http://localhost:4173 -t 90000 --interval 1000
 
       - name: Run Integration Tests
         run: bun run test:integration:run
@@ -471,7 +494,7 @@ jobs:
           TEST_MODE: 'true'
         run: |
           nohup bun run preview > preview.log 2>&1 &
-          bun x wait-on http://localhost:4173 -t 60000
+          bun x wait-on http://localhost:4173 -t 90000 --interval 1000
 
       - name: Run Integration Tests
         run: bun run test:integration:run
@@ -716,7 +739,7 @@ jobs:
       - name: Start Preview Server
         run: |
           nohup bun run preview > preview.log 2>&1 &
-          bun x wait-on http://localhost:4173 -t 60000
+          bun x wait-on http://localhost:4173 -t 90000 --interval 1000
 
       - name: 🧙‍♂️ Run Setup Wizard
         run: bunx playwright test tests/playwright/setup-wizard.spec.ts --project=chromium --reporter=list
@@ -859,7 +882,7 @@ jobs:
       - name: Start Preview Server
         run: |
           nohup bun run preview > preview.log 2>&1 &
-          bun x wait-on http://localhost:4173 -t 60000
+          bun x wait-on http://localhost:4173 -t 90000 --interval 1000
 
       - name: 🧙‍♂️ Run Setup Wizard
         run: bunx playwright test tests/playwright/setup-wizard.spec.ts --project=chromium --reporter=list

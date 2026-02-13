@@ -14,7 +14,7 @@ type EnhanceOptions = {
 	onResult?: (input: { result: ActionResult; update: (opts?: { reset: boolean }) => Promise<void> }) => void | Promise<void>;
 };
 
-export class Form<T extends Record<string, any>> {
+export class Form<T extends Record<string, unknown>> {
 	data = $state<T>({} as T);
 	errors = $state<Record<string, string[]>>({});
 	submitting = $state(false);
@@ -22,7 +22,7 @@ export class Form<T extends Record<string, any>> {
 
 	constructor(
 		initialData: T,
-		private schema?: BaseSchema<any, any, any>
+		private schema?: BaseSchema<unknown, unknown, any>
 	) {
 		this.data = { ...initialData };
 	}

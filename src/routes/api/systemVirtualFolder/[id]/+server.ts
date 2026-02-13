@@ -50,7 +50,6 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 			const folderResult = await dbAdapter.systemVirtualFolder.getByParentId(null);
 			folders = folderResult.success ? folderResult.data || [] : [];
 
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			const fileQuery = { virtualFolderId: null, ...tenantFilter } as any;
 			const [imagesResult, documentsResult, audioResult, videosResult] = await Promise.all([
 				dbAdapter.crud.findMany('media_images', fileQuery),
@@ -65,7 +64,6 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 			files = [...images, ...documents, ...audio, ...videos];
 		} else {
 			// Specific folder
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			const folderResult = await dbAdapter.systemVirtualFolder.getById(id as any);
 			currentFolder = folderResult.success ? folderResult.data : null;
 
@@ -73,11 +71,9 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 				throw error(404, 'Folder not found');
 			}
 
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			const subfolderResult = await dbAdapter.systemVirtualFolder.getByParentId(id as any);
 			folders = subfolderResult.success ? subfolderResult.data || [] : [];
 
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			const fileQuery = { virtualFolderId: id, ...tenantFilter } as any;
 			const [imagesResult, documentsResult, audioResult, videosResult] = await Promise.all([
 				dbAdapter.crud.findMany('media_images', fileQuery),
@@ -95,9 +91,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 		// Process files with URL construction
 		const processedFiles = files.map((file) => {
 			try {
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
 				const originalUrl = constructMediaUrl(file as any, 'original');
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
 				const thumbnailUrl = constructMediaUrl(file as any, 'thumbnail');
 				return {
 					...file,
@@ -167,7 +161,6 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 		}
 
 		// Get the current folder to update its path
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const currentResult = await dbAdapter.systemVirtualFolder.getById(id as any);
 		if (!currentResult.success || !currentResult.data) {
 			throw error(404, 'Folder not found');
@@ -178,7 +171,6 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 		// Build new path
 		let newPath = '';
 		if (currentFolder.parentId) {
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			const parentResult = await dbAdapter.systemVirtualFolder.getById(currentFolder.parentId as any);
 			if (parentResult.success && parentResult.data) {
 				newPath = `${parentResult.data.path}/${name.trim()}`;
@@ -195,7 +187,6 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 			updatedAt: new Date().toISOString() as ISODateString
 		};
 
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const result = await dbAdapter.systemVirtualFolder.update(id as any, updateData);
 
 		if (!result.success) {
@@ -246,7 +237,6 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
 		// Check if folder has media files
 		// TODO: Add media file check when media is properly linked to folders
 
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const result = await dbAdapter.systemVirtualFolder.delete(id as any);
 
 		if (!result.success) {

@@ -56,11 +56,14 @@
 	// Initialization
 	// ============================================================================
 
+	import { setContentStructure } from '@stores/collectionStore.svelte';
+
 	// Initialize public environment settings from server data
 	// Note: Only access page.data after mount to avoid hydration issues
 	$effect(() => {
-		if (browser && page.data?.settings) {
-			initPublicEnv(page.data.settings);
+		if (browser && page.data) {
+			if (page.data.settings) initPublicEnv(page.data.settings);
+			if (page.data.navigationStructure) setContentStructure(page.data.navigationStructure);
 		}
 	});
 
@@ -96,7 +99,7 @@
 		if (!browser || !isMounted) return;
 
 		// Depend on page.url to trigger this effect on every navigation
-		page.url.pathname;
+		void page.url.pathname;
 
 		const flashMessageJson = sessionStorage.getItem('flashMessage');
 		if (flashMessageJson) {

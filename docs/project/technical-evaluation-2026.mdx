@@ -109,12 +109,17 @@ SveltyCMS uses **ParaglideJS** to treat translations as `code`, not database row
 - **Audit:** Comprehensive audit completed covering Setup Wizard and Dashboard. Full keyboard support and ARIA-live announcements included.
 - **Key Features:** Full keyboard support for drag-and-drop, semantic tree views, and ARIA-live announcements for async operations. This positions SveltyCMS as a leader for government and public sector deployments.
 
-### 3.9 Self-Learning Architecture
+### 3.9 Legal & Compliance (GDPR)
+
+- **Status:** **✅ IMPLEMENTED**
+- **Architecture:** Native "Privacy Center" module handles Data Portability (Article 20) and Right to Erasure (Article 17) via automated workflows. Integrated into System Settings for admin control.
+
+### 3.10 Self-Learning Architecture
 
 - **Status:** **✅ IMPLEMENTED (Adaptive Optimization)**
 - **Resiliency:** Implements a **Self-Learning State Machine** with persistent performance metrics to distinguish between "normal" slowness and service failures, preventing boot-loop death spirals.
 
-### 3.10 Verified Multi-Database Architecture (NEW)
+### 3.11 Verified Multi-Database Architecture (NEW)
 
 - **Status:** **✅ VERIFIED (All 4 Drivers Tested)**
 - **Significance:** Unlike competitors that lock users into one paradigm, SveltyCMS has successfully implemented and verified **Drizzle ORM** (for SQL) and **Mongoose** (for NoSQL) co-existence.

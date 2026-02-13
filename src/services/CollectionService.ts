@@ -9,18 +9,19 @@ import { cacheService } from '@src/databases/CacheService';
 import { modifyRequest } from '@src/routes/api/collections/modifyRequest';
 import { getPrivateSettingSync } from '@src/services/settingsService';
 import { logger } from '@utils/logger.server';
-import type { Schema, FieldDefinition } from '@src/content/types';
+import type { Schema, FieldDefinition, CollectionEntry, RevisionData } from '@src/content/types';
 import type { User } from '@src/databases/auth/types';
+import type { IDBAdapter } from '@src/databases/dbInterface';
 
 // Helper to get dbAdapter safely via dynamic import to avoid circular dep issues
-const getDbAdapter = async () => (await import('@src/databases/db')).dbAdapter;
+const getDbAdapter = async () => (await import('@src/databases/db')).dbAdapter as IDBAdapter;
 
 interface CollectionDataParams {
 	collection: Schema;
 	page?: number;
 	pageSize?: number;
 	sort?: { field: string; direction: 'asc' | 'desc' };
-	filter?: Record<string, any>;
+	filter?: Record<string, unknown>;
 	search?: string;
 	language: string;
 	user: User;
@@ -46,15 +47,15 @@ export class CollectionService {
 	 */
 	public async getCollectionData(params: CollectionDataParams): Promise<{
 		contentLanguage: string;
-		collectionSchema: any;
-		entries: any[];
+		collectionSchema: Schema;
+		entries: CollectionEntry[];
 		pagination: {
 			totalItems: number;
 			pagesCount: number;
 			currentPage: number;
 			pageSize: number;
 		};
-		revisions: any[];
+		revisions: RevisionData[];
 	}> {
 		const {
 			collection,
@@ -71,11 +72,6 @@ export class CollectionService {
 		} = params;
 
 		// 1. Define Cache Key
-		// SECURITY: Include user ID or Role in cache key if data depends on it.
-		// For now, modifyRequest generally handles data per-role.
-		// To be safe and support pre-warming for specific users, we'll include userId if provided,
-		// or at least role. But +page.server.ts didn't.
-		// We'll add userId to the key to fix the potential security issue identified.
 		const cacheKey = `collection:${collection._id}:page:${page}:size:${pageSize}:filter:${JSON.stringify(
 			filter
 		)}:search:${search}:sort:${JSON.stringify(sort)}:edit:${editEntryId || 'none'}:lang:${language}:tenant:${tenantId}:user:${user._id}`;
@@ -84,7 +80,13 @@ export class CollectionService {
 			const cachedData = await cacheService.get(cacheKey);
 			if (cachedData) {
 				logger.debug(`Cache HIT for key: \x1b[33m${cacheKey}\x1b[0m`);
-				return cachedData as any;
+				return cachedData as {
+					contentLanguage: string;
+					collectionSchema: Schema;
+					entries: CollectionEntry[];
+					pagination: { totalItems: number; pagesCount: number; currentPage: number; pageSize: number };
+					revisions: RevisionData[];
+				};
 			}
 			logger.debug(`Cache MISS for key: \x1b[33m${cacheKey}\x1b[0m`);
 		}
@@ -119,12 +121,10 @@ export class CollectionService {
 				.filter((name): name is string => typeof name === 'string');
 
 			searchableFields.push('_id', 'status', 'createdBy', 'updatedBy');
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			query = query.search(search, searchableFields as any);
 		}
 
 		// Sort and Paginate
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		query = query.sort(sort.field as any, sort.direction).paginate({ page, pageSize });
 
 		// Count Query
@@ -137,12 +137,11 @@ export class CollectionService {
 				})
 				.filter((name): name is string => typeof name === 'string');
 			searchableFields.push('_id', 'status', 'createdBy', 'updatedBy');
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			countQuery = countQuery.search(search, searchableFields as any);
 		}
 
 		// Execute
-		let entries: any[] = [];
+		let entries: CollectionEntry[] = [];
 		let totalItems = 0;
 
 		const [entriesResult, countResult] = await Promise.all([query.execute(), countQuery.count()]);
@@ -151,7 +150,7 @@ export class CollectionService {
 			logger.error('Failed to load collection entries', { entriesResult, countResult });
 			// Fallback to empty
 		} else {
-			entries = (entriesResult.data || []) as any[];
+			entries = (entriesResult.data || []) as unknown as CollectionEntry[];
 			totalItems = countResult.data as number;
 		}
 
@@ -159,9 +158,7 @@ export class CollectionService {
 		if (entries.length > 0) {
 			await modifyRequest({
 				data: entries,
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
-				fields: collection.fields as any,
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				fields: collection.fields as any, // Fields has complex union, leaving cast for now but minimizing surface
 				collection: collection as any,
 				user: user,
 				type: 'GET',
@@ -172,32 +169,20 @@ export class CollectionService {
 		// 4. Language Projection (View Mode)
 		if (!editEntryId) {
 			for (let i = 0; i < entries.length; i++) {
-				const entry = entries[i];
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				const entry = entries[i] as any;
 				for (const field of collection.fields as any[]) {
-					// eslint-disable-next-line @typescript-eslint/no-explicit-any
-					const fieldName = (field as any).db_fieldName || (field as any).label;
-					if (
-						// eslint-disable-next-line @typescript-eslint/no-explicit-any
-						(field as any).translated &&
-						// eslint-disable-next-line @typescript-eslint/no-explicit-any
-						(entry as any)[fieldName] &&
-						// eslint-disable-next-line @typescript-eslint/no-explicit-any
-						typeof (entry as any)[fieldName] === 'object' &&
-						// eslint-disable-next-line @typescript-eslint/no-explicit-any
-						!Array.isArray((entry as any)[fieldName])
-					) {
-						// eslint-disable-next-line @typescript-eslint/no-explicit-any
-						const value = ((entry as any)[fieldName] as any)[language];
-						// eslint-disable-next-line @typescript-eslint/no-explicit-any
-						(entry as any)[fieldName] = value !== undefined && value !== null && value !== '' ? value : '-';
+					const f = field as any;
+					const fieldName = f.db_fieldName || f.label;
+					if (f.translated && entry[fieldName] && typeof entry[fieldName] === 'object' && !Array.isArray(entry[fieldName])) {
+						const value = entry[fieldName][language];
+						entry[fieldName] = value !== undefined && value !== null && value !== '' ? value : '-';
 					}
 				}
 			}
 		}
 
 		// 5. Plugin SSR Hooks
-		let pluginData: Record<string, any> = {};
+		const pluginData: Record<string, Record<string, unknown>> = {};
 		if (!editEntryId && entries.length > 0) {
 			try {
 				const { pluginRegistry } = await import('@src/plugins');
@@ -251,7 +236,7 @@ export class CollectionService {
 		}
 
 		// 6. Revisions (For Edit Mode)
-		let revisionsMeta: any[] = [];
+		let revisionsMeta: RevisionData[] = [];
 		if (editEntryId && collection.revision) {
 			try {
 				const { getRevisions } = await import('@src/services/RevisionService');
@@ -262,8 +247,8 @@ export class CollectionService {
 					dbAdapter,
 					limit: 100
 				});
-				if (revisionsResult.success) {
-					revisionsMeta = (revisionsResult.data as any).items || [];
+				if (revisionsResult.success && 'data' in revisionsResult) {
+					revisionsMeta = ((revisionsResult.data as any).items || []) as RevisionData[];
 				}
 			} catch (e) {
 				logger.warn('Failed to load revisions', e);
@@ -271,13 +256,6 @@ export class CollectionService {
 		}
 
 		// 7. Prepare Return Data
-		// Note: The +page.server.ts returnData includes user, theme, etc.
-		// This Service should probably just return the { entries, pagination, revisions }.
-		// AND the caller (`+page.server.ts`) constructs the full response.
-		// BUT the cache in `+page.server.ts` caches the WHOLE THING.
-		// So if we want to hit that cache, we must produce that EXACT object.
-		// This means we need `theme`, `siteName` passed in or fetched.
-
 		const collectionSchemaForClient = JSON.parse(JSON.stringify(collection));
 
 		const returnData = {

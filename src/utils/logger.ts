@@ -102,7 +102,7 @@ const clientFormat =
 	IS_BROWSER && !DISABLED
 		? (msg: string) => {
 				const styles: string[] = [];
-				let formatted = msg.replace(
+				const formatted = msg.replace(
 					/\b\d+(\.\d+)?(ms|s)\b|[a-f0-9]{24}|[a-f0-9]{32}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|\/api\/[^\s]+|\btrue\b|\bfalse\b|\b\d+\b/gi,
 					(m) => {
 						const color = m.match(/ms|s|\d/)

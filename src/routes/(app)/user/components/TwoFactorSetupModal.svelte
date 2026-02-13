@@ -233,7 +233,7 @@ This modal displays the QR code for setting up 2FA and handles verification.
 					</div>
 
 					<div class="mb-3 grid grid-cols-2 gap-2">
-						{#each backupCodes as code}
+						{#each backupCodes as code (code)}
 							<div class="rounded bg-surface-200 p-2 text-center font-mono text-sm dark:bg-surface-700">
 								{code}
 							</div>

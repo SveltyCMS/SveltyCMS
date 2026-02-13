@@ -687,7 +687,7 @@ export class MediaService {
 		} finally {
 			try {
 				unlinkSync(tempFile);
-			} catch (e) {
+			} catch {
 				/* ignore */
 			}
 		}
@@ -713,7 +713,7 @@ export class MediaService {
 					unlinkSync(tempInput);
 					unlinkSync(tempOutput);
 				}
-			} catch (e) {
+			} catch {
 				/* ignore */
 			}
 		}

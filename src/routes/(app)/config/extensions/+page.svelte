@@ -27,7 +27,7 @@
 	<!-- Tab Navigation -->
 	<div class="mb-8 flex items-center justify-between border-b border-surface-200 dark:border-surface-50">
 		<div class="flex gap-2">
-			{#each tabs as tab}
+			{#each tabs as tab (tab.id)}
 				<button
 					onclick={() => (activeTab = tab.id)}
 					class="relative px-6 py-4 font-medium transition-all {activeTab === tab.id

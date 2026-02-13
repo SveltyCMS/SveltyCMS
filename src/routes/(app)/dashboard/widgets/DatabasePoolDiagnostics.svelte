@@ -161,7 +161,7 @@
 				<div class="border-t border-surface-200 pt-4 dark:text-surface-50">
 					<h4 class="mb-2 text-sm font-semibold text-surface-700 dark:text-surface-300">Recommendations</h4>
 					<ul class="space-y-2">
-						{#each diagnostics.recommendations as recommendation}
+						{#each diagnostics.recommendations as recommendation (recommendation)}
 							<li class="flex items-start gap-2 text-sm text-surface-600 dark:text-surface-50">
 								<svg
 									class="mt-0.5 h-4 w-4 shrink-0 {getRecommendationIconColor(recommendation)}"

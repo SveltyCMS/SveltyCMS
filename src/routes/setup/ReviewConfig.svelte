@@ -362,7 +362,7 @@ This component presents a summary of all configuration steps before finalizing t
 							</SystemTooltip>
 						</dt>
 						<dd class="text-tertiary-500 dark:text-primary-500">
-							{(systemSettings as any).multiTenant ? 'Enabled' : 'Disabled'}
+							{systemSettings.multiTenant ? 'Enabled' : 'Disabled'}
 						</dd>
 
 						<dt class="flex items-center justify-between font-medium text-black dark:text-white">
@@ -381,7 +381,7 @@ This component presents a summary of all configuration steps before finalizing t
 							</SystemTooltip>
 						</dt>
 						<dd class="text-tertiary-500 dark:text-primary-500">
-							{(systemSettings as any).demoMode ? 'Enabled' : 'Disabled'}
+							{systemSettings.demoMode ? 'Enabled' : 'Disabled'}
 						</dd>
 
 						<dt

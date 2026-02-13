@@ -166,6 +166,7 @@
 	"error_saving_draft": "Error saving draft.",
 	"error_wrong": "We are sorry, something went wrong.",
 	"error_skip_content": "Skip to error content",
+	"error_page_moved": "The page you're looking for doesn't exist or has been moved.",
 	"fields_api_nodata": "No Data yet",
 	"fields_revision_compare": "Compare Revision against",
 	"fields_revision_current_version": "Current version",

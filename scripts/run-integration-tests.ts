@@ -107,7 +107,7 @@ async function main() {
 		// 4. Prepare Environment
 		// We use the initial credentials for the setup test (so it can connect)
 		// AND for the defaults if file doesn't exist yet.
-		let privateEnv: any = initialDbConfig;
+		let privateEnv: typeof initialDbConfig = initialDbConfig;
 
 		// Start preview server on port 4173
 		console.log('🚀 Starting preview server on port 4173...');

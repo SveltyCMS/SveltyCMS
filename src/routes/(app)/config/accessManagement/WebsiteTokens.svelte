@@ -26,6 +26,8 @@
 	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte.ts';
 	import { showConfirm } from '@utils/modalUtils';
 
+	import { SvelteURLSearchParams, SvelteDate } from 'svelte/reactivity';
+
 	interface TableHeader {
 		label: string;
 		key: string;
@@ -115,7 +117,7 @@
 			} else {
 				toaster.error({ description: 'Failed to fetch users' });
 			}
-		} catch (error) {
+		} catch {
 			toaster.error({ description: 'An error occurred while fetching users' });
 		}
 		users = usersRef.value;
@@ -133,7 +135,7 @@
 		await globalLoadingStore.withLoading(
 			loadingOperations.tokenGeneration,
 			async () => {
-				const params = new URLSearchParams();
+				const params = new SvelteURLSearchParams();
 				params.set('page', String(currentPageVal));
 				params.set('limit', String(rowsPerPageVal));
 				params.set('sort', sortingVal.sortedBy);
@@ -160,7 +162,7 @@
 					} else {
 						toaster.error({ description: 'Failed to fetch tokens' });
 					}
-				} catch (error) {
+				} catch {
 					toaster.error({ description: 'An error occurred while fetching tokens' });
 				}
 			},
@@ -172,9 +174,9 @@
 
 	function getExpirationDate(): string | null {
 		if (expirationOption === 'never') return null;
-		if (expirationOption === 'custom') return customExpirationDate ? new Date(customExpirationDate).toISOString() : null;
+		if (expirationOption === 'custom') return customExpirationDate ? new SvelteDate(customExpirationDate).toISOString() : null;
 
-		const now = new Date();
+		const now = new SvelteDate();
 		switch (expirationOption) {
 			case '30d':
 				now.setDate(now.getDate() + 30);
@@ -228,7 +230,7 @@
 					toaster.error({ description: 'Failed to generate token' });
 				}
 			}
-		} catch (error) {
+		} catch {
 			toaster.error({ description: 'An error occurred while generating the token' });
 		}
 	}
@@ -249,7 +251,7 @@
 					} else {
 						toaster.error({ description: 'Failed to delete token' });
 					}
-				} catch (error) {
+				} catch {
 					toaster.error({ description: 'An error occurred while deleting the token' });
 				}
 			}
@@ -312,7 +314,7 @@
 
 					{#if availablePermissions.length > 0}
 						<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-							{#each availablePermissions as permission}
+							{#each availablePermissions as permission (permission._id)}
 								<label class="flex items-center space-x-2 p-2 rounded hover:bg-surface-200 dark:hover:bg-surface-700">
 									<input
 										type="checkbox"
@@ -366,7 +368,7 @@
 							onfinalize={handleDndFinalize}
 							class="flex flex-wrap justify-center gap-1 rounded-md p-2"
 						>
-							{#each displayTableHeaders as header: TableHeader (header.id)}
+							{#each displayTableHeaders as header (header.id)}
 								<button
 									class="chip {header.visible
 										? 'preset-filled-secondary-500'
@@ -407,7 +409,7 @@
 							</tr>
 						{/if}
 						<tr class="divide-x divide-preset-400 border-b border-black dark:border-white">
-							{#each displayTableHeaders.filter((h: TableHeader) => h.visible) as header: TableHeader}
+							{#each displayTableHeaders.filter((h: TableHeader) => h.visible) as header (header.id)}
 								<th aria-sort={sorting.sortedBy === header.key ? (sorting.isSorted === 1 ? 'ascending' : 'descending') : 'none'}>
 									<button
 										class="flex w-full items-center justify-center text-center font-bold text-tertiary-500 dark:text-primary-500"
@@ -437,7 +439,7 @@
 					<tbody>
 						{#each tokens as token (token._id)}
 							<tr>
-								{#each displayTableHeaders.filter((h: TableHeader) => h.visible) as header: TableHeader}
+								{#each displayTableHeaders.filter((h: TableHeader) => h.visible) as header (header.id)}
 									<td>
 										{#if header.key === 'token'}
 											<div class="flex items-center gap-2">

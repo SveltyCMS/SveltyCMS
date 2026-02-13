@@ -145,8 +145,8 @@ Orchestrates the filter modules:
 			node.clearCache();
 			node.cache();
 			layer.batchDraw();
-		} catch (e) {
-			console.warn('Failed to apply filters:', e);
+		} catch (_e) {
+			console.warn('Failed to apply filters:', _e);
 		}
 	}
 
@@ -205,7 +205,7 @@ Orchestrates the filter modules:
 	export function cleanup() {
 		try {
 			unbindTool();
-		} catch (e) {
+		} catch (_e) {
 			/* ignore */
 		}
 	}

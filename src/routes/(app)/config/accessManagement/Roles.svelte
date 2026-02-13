@@ -26,6 +26,7 @@ It provides the following functionality:
 	// Skeleton
 	import { modalState } from '@utils/modalState.svelte';
 	import { toaster } from '@stores/store.svelte.ts';
+	import { SvelteSet } from 'svelte/reactivity';
 	// Svelte DND-actions
 	import { dndzone } from 'svelte-dnd-action';
 	import { v4 as uuidv4 } from 'uuid';
@@ -37,9 +38,11 @@ It provides the following functionality:
 	// Reactive state
 	let roles: Role[] = $state([]);
 	let selectedPermissions: string[] = $state([]);
-	let selectedRoles = $state(new Set());
+	// eslint-disable-next-line svelte/no-unnecessary-state-wrap
+	let selectedRoles = $state(new SvelteSet<any>());
 	const error = $state<string | null>(null);
-	const modifiedRoles = $state(new Set());
+	// eslint-disable-next-line svelte/no-unnecessary-state-wrap
+	const modifiedRoles = $state(new SvelteSet<any>());
 	// Define DndItem type for dndzone compatibility
 	type DndItem = Role & { id: string };
 	let items: DndItem[] = $state([]);
@@ -115,7 +118,7 @@ It provides the following functionality:
 
 		roles = items;
 		// Remove id property when sending data to parent
-		const cleanedItems = items.map(({ id, ...item }: { id: string; [key: string]: any }) => item);
+		const cleanedItems = items.map(({ id: _id_unused, ...item }: { id: string; [key: string]: any }) => item);
 		setRoleData(cleanedItems);
 
 		if (updateModifiedCount) {
@@ -131,11 +134,11 @@ It provides the following functionality:
 		}
 		items = [...items];
 		roles = items;
-		selectedRoles = new Set();
+		selectedRoles.clear();
 		toaster.info({ description: 'Roles deleted. Click "Save" at the top to apply changes.' });
 
 		// Remove id property when sending data to parent
-		const cleanedItems = items.map(({ id, ...item }: { id: string; [key: string]: any }) => item);
+		const cleanedItems = items.map(({ id: _id_unused, ...item }: { id: string; [key: string]: any }) => item);
 		setRoleData(cleanedItems);
 
 		// Notify the parent about the number of changes
@@ -145,13 +148,11 @@ It provides the following functionality:
 	};
 
 	const toggleRoleSelection = (roleId: string) => {
-		const newSelection = new Set(selectedRoles);
-		if (newSelection.has(roleId)) {
-			newSelection.delete(roleId);
+		if (selectedRoles.has(roleId)) {
+			selectedRoles.delete(roleId);
 		} else {
-			newSelection.add(roleId);
+			selectedRoles.add(roleId);
 		}
-		selectedRoles = newSelection;
 	};
 
 	// DndItem type already defined above
@@ -166,7 +167,7 @@ It provides the following functionality:
 		}
 
 		// Remove id property when sending data to parent
-		const cleanedItems = items.map(({ id, ...item }: { id: string; [key: string]: any }) => item);
+		const cleanedItems = items.map(({ id: _id_unused, ...item }: { id: string; [key: string]: any }) => item);
 		setRoleData(cleanedItems);
 
 		// Notify the parent about the number of changes
@@ -185,7 +186,7 @@ It provides the following functionality:
 		}
 
 		// Remove id property when sending data to parent
-		const cleanedItems = items.map(({ id, ...item }: { id: string; [key: string]: any }) => item);
+		const cleanedItems = items.map(({ id: _id_unused, ...item }: { id: string; [key: string]: any }) => item);
 		setRoleData(cleanedItems);
 
 		// Notify the parent about the number of changes

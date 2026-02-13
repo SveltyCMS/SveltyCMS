@@ -188,7 +188,7 @@ export class MongoContentMethods {
 			logger.trace(`[bulkUpdateNodes] Processing ${updates.length} updates`);
 			const operations = updates.map(({ path, id, changes }) => {
 				// Extract _id for potential use in $setOnInsert
-				const { _id, createdAt, ...safeChanges } = changes;
+				const { _id, createdAt: _createdAt, ...safeChanges } = changes;
 
 				// Normalize parentId to string using safe helper (handles ObjectId, string, null)
 				const normalizedChanges = { ...safeChanges } as Partial<ContentNode>;
@@ -263,7 +263,6 @@ export class MongoContentMethods {
 	async reorderStructure(items: Array<{ id: string; parentId: string | null; order: number; path: string }>): Promise<DatabaseResult<void>> {
 		try {
 			// Cast model to any to access the static method we added
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			const result = await (this.nodesRepo.model as any).reorderStructure(items);
 			if (!result.success) {
 				return {

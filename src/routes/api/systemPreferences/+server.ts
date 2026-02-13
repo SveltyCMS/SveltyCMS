@@ -57,7 +57,6 @@ export const GET = apiHandler(async ({ locals, url }) => {
 			if (!dbAdapter) {
 				throw new AppError('Database adapter not available', 500, 'DB_UNAVAILABLE');
 			}
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			const result = await dbAdapter.systemPreferences.getMany(multipleKeys, 'user', userId as any);
 			if (!result.success) {
 				throw new Error(result.message);
@@ -70,7 +69,6 @@ export const GET = apiHandler(async ({ locals, url }) => {
 			if (!dbAdapter) {
 				throw new AppError('Database adapter not available', 500, 'DB_UNAVAILABLE');
 			}
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			const result = await dbAdapter.systemPreferences.get(singleKey, 'user', userId as any);
 			if (!result.success) {
 				// Return a default value for layout preferences to prevent UI breakage
@@ -113,7 +111,6 @@ export const POST = apiHandler(async ({ request, locals }) => {
 				throw new AppError('Database adapter not available', 500, 'DB_UNAVAILABLE');
 			}
 			const { key, value } = singleResult.output;
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			const result = await dbAdapter.systemPreferences.set(key, value, 'user', userId as any);
 			if (!result.success) throw new Error(result.message);
 			return json({ success: true, message: `Preference '${key}' saved.` }, { status: 200 });
@@ -125,7 +122,6 @@ export const POST = apiHandler(async ({ request, locals }) => {
 			if (!dbAdapter) {
 				throw new AppError('Database adapter not available', 500, 'DB_UNAVAILABLE');
 			}
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			const preferencesToSet = multipleResult.output.map((p) => ({ ...p, scope: 'user' as const, userId: userId as any }));
 			const result = await dbAdapter.systemPreferences.setMany(preferencesToSet);
 			if (!result.success) throw new Error(result.message);
@@ -169,7 +165,6 @@ export const DELETE = apiHandler(async ({ locals, url }) => {
 		if (!dbAdapter) {
 			throw new AppError('Database adapter not available', 500, 'DB_UNAVAILABLE');
 		}
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const result = await dbAdapter.systemPreferences.delete(key, 'user', userId as any);
 		if (!result.success) {
 			// It might not be an error if the key didn't exist, but we log it just in case.

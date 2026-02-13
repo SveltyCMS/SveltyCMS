@@ -272,7 +272,11 @@ export interface IPluginService {
 	getSSRHooks(collectionId: string, tenantId?: string): Promise<PluginSSRHook[]>;
 
 	/** Get Lifecycle hooks for enabled plugins on a collection */
-	getLifecycleHooks(collectionId: string, hookName: keyof PluginLifecycleHooks, tenantId?: string): Promise<Array<Function>>;
+	getLifecycleHooks<K extends keyof PluginLifecycleHooks>(
+		collectionId: string,
+		hookName: K,
+		tenantId?: string
+	): Promise<Array<Exclude<PluginLifecycleHooks[K], undefined>>>;
 
 	/** Check if a plugin is enabled for a collection */
 	isEnabledForCollection(pluginId: string, collectionId: string, tenantId?: string): Promise<boolean>;

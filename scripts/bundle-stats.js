@@ -11,14 +11,12 @@
  */
 
 import fs from 'node:fs/promises';
-import { createReadStream, existsSync, writeFileSync, readFileSync } from 'node:fs';
+import { existsSync, writeFileSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
-import { pipeline } from 'node:stream';
 
-const pipe = promisify(pipeline);
 const gzip = promisify(zlib.gzip);
 const brotli = promisify(zlib.brotliCompress);
 
@@ -194,7 +192,7 @@ function printHistory(history) {
 	// Need to normalize because history structure might vary (stats vs summary)
 	const normalize = (h) => h.summary || h.stats || {};
 
-	recent.forEach((entry, i) => {
+	recent.forEach((entry) => {
 		const date = new Date(entry.timestamp).toLocaleString();
 		const currentSize = normalize(entry).totalSize || 0;
 		// Find the entry strictly before this one in the *full* history for comparison
@@ -228,7 +226,7 @@ function generateReport(results) {
 		if (f.ext === '.css') stats.cssCount++;
 	});
 
-	const updatedHistory = saveHistory(stats);
+	saveHistory(stats);
 	const history = loadHistory(); // Reload to get latest
 	const prevBuild = history.length > 1 ? history[history.length - 2].summary : null;
 

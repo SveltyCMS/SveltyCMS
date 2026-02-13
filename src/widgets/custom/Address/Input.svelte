@@ -256,7 +256,7 @@ Interactive form with map, country selector, and address validation
 					class="input"
 				>
 					<option value="" disabled>Select a country</option>
-					{#each filteredCountries as country}
+					{#each filteredCountries as country (country.alpha2)}
 						<option value={country.alpha2}>
 							{countryStore.getCountryName(country.alpha2, _uiLanguage)}
 						</option>

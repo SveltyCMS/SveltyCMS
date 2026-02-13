@@ -51,15 +51,17 @@
 </script>
 
 <script lang="ts">
+	type _any = any;
 	import { logger } from '@utils/logger';
 	import TreeViewComponent from './TreeView.svelte';
 	const TreeView = TreeViewComponent;
 	import { fly, scale } from 'svelte/transition';
 	import { preloadData } from '$app/navigation';
 	import { onMount } from 'svelte';
+	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 
 	interface TreeViewProps {
-		k?: any;
+		k?: _any;
 		nodes: TreeNode[];
 		selectedId?: string | null;
 		ariaLabel?: string;
@@ -93,7 +95,7 @@
 
 	// State
 	let focusedNodeId = $state<string | null>(null);
-	let expandedNodeIds = $state(new Set<string>());
+	let expandedNodeIds = new SvelteSet<string>();
 	let draggedNode = $state<TreeNode | null>(null);
 	let dragOverNode = $state<TreeNode | null>(null);
 	let dropPosition = $state<'before' | 'after' | 'inside' | null>(null);
@@ -141,7 +143,7 @@
 
 	// Node map for lookups
 	const nodeMap = $derived.by(() => {
-		const map = new Map<string, TreeNode & { depth: number; parentId?: string }>();
+		const map = new SvelteMap<string, TreeNode & { depth: number; parentId?: string }>();
 
 		function collect(node: TreeNode, depth = 0, parentId?: string) {
 			map.set(node.id, { ...node, depth, parentId });
@@ -160,14 +162,12 @@
 
 		// Toggle expansion if node has children
 		if (node.children) {
-			const newSet = new Set(expandedNodeIds);
-			if (newSet.has(node.id)) {
-				newSet.delete(node.id);
+			if (expandedNodeIds.has(node.id)) {
+				expandedNodeIds.delete(node.id);
 			} else {
-				newSet.add(node.id);
+				expandedNodeIds.add(node.id);
 				if (onExpand) onExpand(node);
 			}
-			expandedNodeIds = newSet;
 		}
 
 		// Always call onClick if it exists (even for leaf nodes without children)

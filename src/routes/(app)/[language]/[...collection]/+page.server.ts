@@ -214,7 +214,6 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 		return returnData;
 	} catch (err) {
 		// If it's a redirect (SvelteKit standard behavior), just rethrow it without logging an error
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		if ((err as any)?.status >= 300 && (err as any)?.status < 400 && (err as any)?.location) {
 			throw err;
 		}

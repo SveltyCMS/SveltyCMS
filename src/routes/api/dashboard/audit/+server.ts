@@ -14,7 +14,7 @@ import { AppError } from '@utils/errorHandling';
 export const GET = apiHandler(async ({ url, locals }) => {
 	// Security check: Only admins can view audit logs
 	// Handle role as string or populated object
-	const userRole = locals.user?.role as any;
+	const userRole = locals.user?.role as string | { _id?: string; name?: string } | undefined;
 	const roleName = typeof userRole === 'string' ? userRole : userRole?._id || userRole?.name;
 	const isAdmin = roleName === 'admin' || locals.permissions?.includes('admin');
 
@@ -27,7 +27,7 @@ export const GET = apiHandler(async ({ url, locals }) => {
 	try {
 		const logs = await auditLogService.getLogs(limit);
 		return json(logs);
-	} catch (e: any) {
+	} catch (e) {
 		logger.error('Failed to fetch audit logs in API', { error: e });
 		throw new AppError('Failed to fetch logs', 500, 'AUDIT_LOG_ERROR');
 	}

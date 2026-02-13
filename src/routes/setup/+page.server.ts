@@ -175,7 +175,7 @@ export const actions = {
 				}
 			} else if (dbConfig.type === 'postgresql') {
 				const postgres = (await import('postgres')).default;
-				let sql = postgres(connectionString, {
+				const sql = postgres(connectionString, {
 					connect_timeout: 5000,
 					max: 1
 				});
@@ -239,7 +239,6 @@ export const actions = {
 
 					let db: any;
 					// Environment detection to avoid protocol errors in Node.js
-					// @ts-ignore
 					const isBun = typeof Bun !== 'undefined';
 
 					try {
@@ -250,7 +249,6 @@ export const actions = {
 							db.query('SELECT 1').get();
 						} else {
 							// For Node.js 22.5+ (Vite dev server usually runs in Node)
-							// @ts-ignore
 							const { DatabaseSync } = await import('node:sqlite');
 							db = new DatabaseSync(dbPathResolved);
 							db.prepare('SELECT 1').get();
@@ -263,7 +261,7 @@ export const actions = {
 								const Database = (await import('better-sqlite3')).default;
 								db = new Database(dbPathResolved);
 								db.prepare('SELECT 1').run();
-							} catch (betterErr: any) {
+							} catch (_betterErr: any) {
 								const latencyMs = Math.round(performance.now() - start);
 								return {
 									success: false,
@@ -513,12 +511,7 @@ export const actions = {
 			// The background content seeding (setupManager) handles the data.
 
 			const setupDuration = performance.now() - setupStartTime;
-			try {
-				const { performanceService } = await import('@src/services/PerformanceService');
-				await performanceService.recordBenchmark('setup_completion', setupDuration);
-			} catch (e) {
-				logger.warn('Failed to record completion benchmark:', e);
-			}
+			logger.info(`🎊 [completeSetup] Setup logic finished in ${Math.round(setupDuration)}ms. Returning success response.`);
 
 			return {
 				success: true,

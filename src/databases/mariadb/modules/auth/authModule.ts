@@ -41,7 +41,7 @@ export class AuthModule {
 		if (typeof roleIds === 'string') {
 			try {
 				roleIds = JSON.parse(roleIds);
-			} catch (e) {
+			} catch (_e) {
 				// Fallback if parsing fails
 				roleIds = [];
 			}

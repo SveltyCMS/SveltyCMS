@@ -189,7 +189,6 @@ function createSetupStore() {
 	});
 
 	// --- Validation Logic ---
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const validationMap: Record<number, { schema: any; data: () => any }> = {
 		0: { schema: dbConfigSchema, data: () => wizard.dbConfig },
 		1: { schema: setupAdminSchema, data: () => wizard.adminUser },
@@ -378,7 +377,6 @@ function createSetupStore() {
 					// Map server-side validation errors back to the UI
 					if (data?.details && Array.isArray(data.details)) {
 						const newErrors: Record<string, string> = {};
-						// eslint-disable-next-line @typescript-eslint/no-explicit-any
 						for (const issue of data.details as any[]) {
 							const path = issue.path?.[0]?.key as string;
 							if (path) {

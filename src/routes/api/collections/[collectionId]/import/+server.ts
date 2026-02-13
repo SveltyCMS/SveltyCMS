@@ -289,7 +289,7 @@ async function importEntries(collectionName: string, entries: CollectionEntry[],
 					}
 				} else {
 					// Create new entry - omit system fields that are auto-generated
-					const { _id, createdAt, updatedAt, ...insertData } = entryData;
+					const { _id: _unusedId, createdAt: _unusedCreatedAt, updatedAt: _unusedUpdatedAt, ...insertData } = entryData;
 					const createResult = await dbAdapter.crud.insert(collectionName, insertData as any);
 
 					if (createResult.success) {

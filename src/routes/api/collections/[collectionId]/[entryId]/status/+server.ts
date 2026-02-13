@@ -53,13 +53,13 @@ export const PATCH = apiHandler(async ({ locals, params, request }) => {
 	const validStatuses = Object.values(StatusTypes) as StatusType[];
 	if (!validStatuses.includes(status)) throw new AppError(`Invalid status. Must be one of: ${validStatuses.join(', ')}`, 400, 'INVALID_STATUS');
 
-	let results: any[] = [];
+	let results: Array<{ entryId: string; success: boolean; data?: unknown }> = [];
 	const normalizedName = normalizeCollectionName(schema._id);
 	const updateData = { status, updatedBy: user._id };
 
 	if (entries && Array.isArray(entries) && entries.length > 0) {
 		// Batch Status Update
-		const query: any = { _id: { $in: entries } };
+		const query: Record<string, unknown> = { _id: { $in: entries } };
 		if (getPrivateSettingSync('MULTI_TENANT')) query.tenantId = tenantId;
 
 		// --- MULTI-TENANCY SECURITY CHECK ---
@@ -74,7 +74,7 @@ export const PATCH = apiHandler(async ({ locals, params, request }) => {
 		results = entries.map((id) => ({ entryId: id, success: true }));
 	} else {
 		// Single Update
-		const query: any = { _id: entryId };
+		const query: Record<string, unknown> = { _id: entryId };
 		if (getPrivateSettingSync('MULTI_TENANT')) query.tenantId = tenantId;
 
 		const verify = await dbAdapter.crud.findOne(normalizedName, query);

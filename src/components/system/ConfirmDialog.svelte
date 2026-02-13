@@ -5,6 +5,8 @@
 -->
 
 <script lang="ts">
+	import Sanitize from '@src/utils/Sanitize.svelte';
+
 	interface Props {
 		htmlTitle?: string;
 		body?: string;
@@ -26,10 +28,10 @@
 
 <div class="space-y-4">
 	{#if htmlTitle}
-		<h3 class="h3 font-bold text-center">{@html htmlTitle}</h3>
+		<h3 class="h3 font-bold text-center"><Sanitize html={htmlTitle} profile="strict" /></h3>
 	{/if}
 	{#if body}
-		<p class="text-surface-600 dark:text-surface-50 text-center">{@html body}</p>
+		<p class="text-surface-600 dark:text-surface-50 text-center"><Sanitize html={body} profile="strict" /></p>
 	{/if}
 
 	<div class="flex justify-between gap-4 pt-4">

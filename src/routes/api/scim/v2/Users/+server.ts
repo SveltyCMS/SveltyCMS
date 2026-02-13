@@ -51,8 +51,8 @@ export const GET = apiHandler(async ({ url, locals }) => {
 			emails: [{ value: u.email, type: 'work', primary: true }],
 			meta: {
 				resourceType: 'User',
-				created: (u as any).createdAt || new Date().toISOString(),
-				lastModified: (u as any).updatedAt || new Date().toISOString(),
+				created: (u as { createdAt?: string }).createdAt || new Date().toISOString(),
+				lastModified: (u as { updatedAt?: string }).updatedAt || new Date().toISOString(),
 				location: `${url.origin}/api/scim/v2/Users/${u._id}`
 			}
 		}));
@@ -64,15 +64,16 @@ export const GET = apiHandler(async ({ url, locals }) => {
 			startIndex,
 			Resources: resources
 		});
-	} catch (e: any) {
+	} catch (e) {
 		if (e instanceof AppError) throw e;
+		const error = e as Error;
 		logger.error('SCIM Users GET error', { error: e });
 		// SCIM Error Format
 		return json(
 			{
 				schemas: [SCIM_SCHEMAS.ERROR],
 				status: '500',
-				detail: e.message || 'Internal Server Error'
+				detail: error.message || 'Internal Server Error'
 			},
 			{ status: 500 }
 		);
@@ -150,15 +151,16 @@ export const POST = apiHandler(async ({ request, url, locals }) => {
 			},
 			{ status: 201 }
 		);
-	} catch (e: any) {
+	} catch (e) {
 		if (e instanceof AppError) throw e;
+		const error = e as Error;
 		logger.error('SCIM Users POST error', { error: e });
 		return json(
 			{
 				schemas: [SCIM_SCHEMAS.ERROR],
 				status: '400',
 				scimType: 'invalidSyntax',
-				detail: e.message || 'Invalid JSON'
+				detail: error.message || 'Invalid JSON'
 			},
 			{ status: 400 }
 		);

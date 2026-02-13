@@ -76,7 +76,6 @@ async function getEmailTemplate(templateName: string): Promise<ComponentType | n
 
 	if (moduleImporter) {
 		try {
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			const module = (await moduleImporter()) as any;
 			// Assuming the default export is the Svelte component
 			return module.default as ComponentType;
@@ -92,12 +91,7 @@ async function getEmailTemplate(templateName: string): Promise<ComponentType | n
 type RenderedEmailContent = { html: string; text: string };
 
 // Renders a Svelte email component to HTML and plain text
-const renderEmailToStrings = async (
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	component: any,
-	templateNameForLog: string,
-	props?: EmailTemplateProps
-): Promise<RenderedEmailContent> => {
+const renderEmailToStrings = async (component: any, templateNameForLog: string, props?: EmailTemplateProps): Promise<RenderedEmailContent> => {
 	try {
 		// Use Svelte's server-side render function
 		const result = render(component, { props: props || {} });

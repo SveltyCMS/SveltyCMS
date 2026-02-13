@@ -260,7 +260,7 @@
 				readonly={field?.readonly as boolean | undefined}
 				minlength={field?.minLength as number | undefined}
 				maxlength={field?.maxLength as number | undefined}
-				class="input w-full flex-1 rounded-none border-none bg-white font-medium text-black outline-none focus:ring-0 dark:bg-surface-900 dark:text-primary-500 {!!validationError
+				class="input w-full flex-1 rounded-none border-none bg-white font-medium text-black outline-none focus:ring-0 dark:bg-surface-900 dark:text-primary-500 {validationError
 					? 'bg-error-500-10!'
 					: ''}"
 				aria-invalid={!!validationError}

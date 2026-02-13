@@ -61,7 +61,7 @@ A highly performant, accessible, and secure global search component with fuzzy m
 	const sanitizedQuery = $derived(searchQuery.trim().slice(0, 100)); // Limit query length for security
 
 	// Debounce function with proper TypeScript typing
-	function debounce<T extends (...args: any[]) => void>(fn: T, delay: number): (...args: Parameters<T>) => void {
+	function debounce<T extends (...args: any[]) => any>(fn: T, delay: number): (...args: Parameters<T>) => void {
 		let timeoutId: ReturnType<typeof setTimeout> | null = null;
 		return (...args: Parameters<T>) => {
 			if (timeoutId) clearTimeout(timeoutId);

@@ -18,6 +18,7 @@
 	import { ui } from '@stores/UIStore.svelte.ts';
 	import { screen } from '@stores/screenSizeStore.svelte.ts';
 	import TreeView from '@components/system/TreeView.svelte';
+	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 	import * as m from '@src/paraglide/messages';
 
 	interface RawFolder {
@@ -44,7 +45,7 @@
 
 	// Mutable state
 	let folders = $state<FolderNode[]>([]);
-	let expandedNodes = $state<Set<string>>(new Set());
+	let expandedNodes = new SvelteSet<string>();
 	let selectedFolderId = $state<string | null>(null);
 	let isEditMode = $state(false);
 	let isLoading = $state(true);
@@ -77,6 +78,7 @@
 					nodeType: 'virtual' as const,
 					order: f.order ?? 0
 				}));
+			selectedFolderId = null;
 		} catch (err) {
 			error = 'Failed to load folders';
 			logger.error('[MediaFolders] Load error:', err);
@@ -103,7 +105,7 @@
 
 		if (folders.length === 0) return [root];
 
-		const map = new Map<string, FolderNode>();
+		const map = new SvelteMap<string, FolderNode>();
 		folders.forEach((f) => map.set(f.id, { ...f, children: [], depth: 0 }));
 
 		const orphans: FolderNode[] = [];

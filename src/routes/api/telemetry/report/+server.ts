@@ -129,7 +129,7 @@ export const POST = apiHandler(async ({ request }) => {
 		const jwtSecret = (await getPrivateSettingSync('JWT_SECRET_KEY')) || 'fallback_secret';
 		const installationId = data.installation_id || createHash('sha256').update(jwtSecret).digest('hex');
 		const timestamp = data.timestamp || Date.now();
-		// eslint-disable-next-line @typescript-eslint/naming-convention
+
 		const current_version = data.current_version;
 
 		// Recompute signature to ensure authenticity

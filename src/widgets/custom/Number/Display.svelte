@@ -38,7 +38,7 @@ Renders: "1,234,567.89" (US) or "1.234.567,89" (German) based on system language
 		try {
 			// Use the browser's built-in localization for perfect formatting.
 			return new Intl.NumberFormat(lang).format(value);
-		} catch (e) {
+		} catch (_e) {
 			return 'Invalid Number';
 		}
 	});

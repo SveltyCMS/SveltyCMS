@@ -38,7 +38,9 @@
 
 	function updateStore() {
 		if (collection.value) {
-			collection.value.fields = items.map(({ _dragId, id, ...rest }: { _dragId?: string; id?: number; [key: string]: any }) => rest as FieldInstance);
+			collection.value.fields = items.map(
+				({ _dragId, id: _id, ...rest }: { _dragId?: string; id?: number; [key: string]: any }) => rest as FieldInstance
+			);
 		}
 	}
 
@@ -138,7 +140,7 @@
 <div class="space-y-6">
 	<!-- Quick Add Bar -->
 	<div class="flex flex-wrap gap-2">
-		{#each quickWidgets as qw}
+		{#each quickWidgets as qw (qw.key)}
 			<button
 				onclick={() => addQuickWidget(qw.key)}
 				class="preset-outlined-surface-500 btn flex items-center gap-1 text-xs hover:preset-filled-primary-500"

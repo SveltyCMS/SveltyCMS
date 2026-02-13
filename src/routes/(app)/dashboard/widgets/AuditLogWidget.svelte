@@ -75,7 +75,7 @@ Features:
 						</tr>
 					</thead>
 					<tbody class="divide-y divide-surface-100 dark:divide-surface-700">
-						{#each data as log}
+						{#each data as log (log._id || log.timestamp)}
 							<tr class="group hover:bg-surface-50 dark:hover:bg-surface-700/50">
 								<td class="py-2 pr-2">
 									<div class="flex flex-col">

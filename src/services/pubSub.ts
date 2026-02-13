@@ -9,5 +9,7 @@ import { createPubSub } from 'graphql-yoga';
 
 export const pubSub = createPubSub<{
 	contentStructureUpdated: [event: { version: number; timestamp: string; affectedCollections: string[]; changeType: string }];
-	entryUpdated: [event: { collection: string; id: string; action: string; data: any; timestamp: string; user?: any }];
+	entryUpdated: [
+		event: { collection: string; id: string; action: string; data: unknown; timestamp: string; user?: import('@src/databases/auth/types').User }
+	];
 }>();

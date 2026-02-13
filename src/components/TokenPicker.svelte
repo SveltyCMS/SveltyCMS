@@ -34,7 +34,7 @@
 	let mode = $state<'list' | 'configure'>('list');
 	let search = $state('');
 	let selectedToken = $state<TokenDefinition | null>(null);
-	let selectedModifiers = $state<{ def: ModifierMetadata; args: any[] }[]>([]);
+	let selectedModifiers = $state<{ def: ModifierMetadata; args: unknown[] }[]>([]);
 	let resolvedPreview = $state('');
 	let isLoadingPreview = $state(false);
 	let editablePreview = $state('');
@@ -71,8 +71,8 @@
 		let str = `{{ ${selectedToken.token}`;
 		selectedModifiers.forEach((mod) => {
 			str += ` | ${mod.def.name}`;
-			if (mod.args.length > 0 && mod.args.some((a: any) => a !== undefined && a !== '')) {
-				const argStr = mod.args.map((a: any) => (typeof a === 'string' ? `'${a}'` : String(a))).join(',');
+			if (mod.args.length > 0 && mod.args.some((a) => a !== undefined && a !== '')) {
+				const argStr = mod.args.map((a) => (typeof a === 'string' ? `'${a}'` : String(a))).join(',');
 				str += `(${argStr})`;
 			}
 		});
@@ -83,7 +83,7 @@
 	let rightPosition = $derived(ui.isRightSidebarVisible ? '340px' : '2rem');
 
 	// Debounced live preview resolution
-	let debounceTimer: any;
+	let debounceTimer: ReturnType<typeof setTimeout> | undefined;
 	$effect(() => {
 		const text = editablePreview;
 		if (!text) {
@@ -152,7 +152,7 @@
 					const args = modDef.args.map((a, i) => rawArgs[i] ?? a.default);
 					return { def: modDef, args };
 				})
-				.filter(Boolean) as { def: ModifierMetadata; args: any[] }[];
+				.filter(Boolean) as { def: ModifierMetadata; args: unknown[] }[];
 		}
 	});
 
@@ -303,7 +303,7 @@
 			</div>
 
 			<div class="scrollbar-thin flex-1 space-y-2 overflow-y-auto pr-1">
-				{#each Object.entries(filteredGroups) as [cat, tokens]}
+				{#each Object.entries(filteredGroups) as [cat, tokens] (cat)}
 					<div class="card preset-tonal p-2">
 						<button
 							onclick={() => (openCategories[cat] = !openCategories[cat])}
@@ -318,8 +318,7 @@
 
 						{#if openCategories[cat] || search}
 							<div transition:slide class="mt-2 space-y-1">
-								{#each tokens as t}
-									<!-- svelte-ignore a11y_no_static_element_interactions -->
+								{#each tokens as t (t.token)}
 									<div
 										class="card preset-filled-surface-500 hover:variant-soft-primary cursor-pointer p-2 transition-colors"
 										onclick={() => selectToken(t)}
@@ -376,7 +375,7 @@
 				{#if selectedModifiers.length > 0}
 					<div class="space-y-2">
 						<div class="text-xs font-bold uppercase opacity-50">Applied Modifiers</div>
-						{#each selectedModifiers as mod, i}
+						{#each selectedModifiers as mod, i (mod.def.name + i)}
 							<div class="card variant-ringed-surface group relative p-3">
 								<div class="mb-2 flex items-center justify-between">
 									<span class="font-bold text-secondary-500">{mod.def.label}</span>
@@ -390,12 +389,12 @@
 								</div>
 								{#if mod.def.args.length > 0}
 									<div class="space-y-2">
-										{#each mod.def.args as arg, argIdx}
+										{#each mod.def.args as arg, argIdx (arg.name)}
 											<label class="label text-xs">
 												<span class="opacity-70">{arg.name}</span>
 												{#if arg.type === 'select'}
 													<select bind:value={mod.args[argIdx]} class="select select-sm">
-														{#each arg.options ?? [] as opt}
+														{#each arg.options ?? [] as opt (opt)}
 															<option value={opt}>{opt}</option>
 														{/each}
 													</select>
@@ -417,7 +416,7 @@
 				<div>
 					<div class="mb-2 text-xs font-bold uppercase opacity-50">Add Modifier</div>
 					<div class="flex flex-wrap gap-2">
-						{#each availableModifiers as m}
+						{#each availableModifiers as m (m.name)}
 							<button onclick={() => addModifier(m)} class="chip preset-filled-surface-500 hover:variant-filled-secondary transition-colors">
 								<iconify-icon icon="mdi:plus"></iconify-icon>
 								{m.label}

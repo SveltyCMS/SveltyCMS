@@ -83,9 +83,9 @@ Displays real-time system state and individual service health with comprehensive
 	const serviceEntries = $derived(Object.entries(services));
 	const serviceCount = $derived(serviceEntries.length);
 
-	const healthyServices = $derived(serviceEntries.filter(([_, service]) => service.status === 'healthy').length);
+	const healthyServices = $derived(serviceEntries.filter(([, service]) => service.status === 'healthy').length);
 
-	const unhealthyServices = $derived(serviceEntries.filter(([_, service]) => service.status === 'unhealthy').length);
+	const unhealthyServices = $derived(serviceEntries.filter(([, service]) => service.status === 'unhealthy').length);
 
 	const formattedLastChecked = $derived(
 		formatDisplayDate(lastChecked, 'en', {

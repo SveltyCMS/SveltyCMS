@@ -7,17 +7,23 @@
 	import LocalUpload from '@src/routes/(app)/mediagallery/uploadMedia/LocalUpload.svelte';
 	import RemoteUpload from '@src/routes/(app)/mediagallery/uploadMedia/RemoteUpload.svelte';
 
+	import { SvelteSet } from 'svelte/reactivity';
+
 	// Props interface
+
 	interface Props {
-		parent?: any;
-		selectionMode?: 'single' | 'multiple';
+		parent?: unknown;
+
 		allowedTypes?: string[];
 	}
-	const { parent: _parent, selectionMode: _selectionMode = 'multiple', allowedTypes: _allowedTypes = [] }: Props = $props();
+
+	let _props: Props = $props();
+	void _props;
 
 	let activeTab = $state<'library' | 'local' | 'remote'>('local');
 	let files = $state<(MediaBase | MediaImage)[]>([]);
-	let selectedFiles = $state<Set<string>>(new Set());
+	// eslint-disable-next-line svelte/no-unnecessary-state-wrap
+	let selectedFiles = $state(new SvelteSet<string>());
 	let isLoading = $state(false);
 	let error = $state<string | null>(null);
 

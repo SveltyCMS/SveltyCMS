@@ -11,6 +11,20 @@ export default ts.config(
 	prettier,
 	...svelte.configs['flat/prettier'],
 	{
+		rules: {
+			'@typescript-eslint/no-explicit-any': 'off', // Handle via naming convention if possible, or keep on but with exceptions
+			'@typescript-eslint/no-unused-vars': [
+				'error',
+				{
+					argsIgnorePattern: '^_',
+					varsIgnorePattern: '^_',
+					caughtErrorsIgnorePattern: '^_'
+				}
+			],
+			'svelte/no-navigation-without-resolve': 'off'
+		}
+	},
+	{
 		languageOptions: {
 			globals: {
 				...globals.browser,
@@ -36,6 +50,7 @@ export default ts.config(
 	},
 	{
 		ignores: [
+			'src/paraglide/**',
 			'**/*.cjs',
 			'**/.DS_Store',
 			'**/node_modules',

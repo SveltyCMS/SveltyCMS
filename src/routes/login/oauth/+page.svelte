@@ -24,12 +24,7 @@
 
 	let token = $state('');
 	let formError = $state('');
-	let isFormValid = $state(false);
-
-	// Update form validation when token changes
-	$effect(() => {
-		isFormValid = !data.requiresToken || (token.length >= 16 && token.length <= 48);
-	});
+	const isFormValid = $derived(!data.requiresToken || (token.length >= 16 && token.length <= 48));
 
 	// Handle form submission
 	async function handleSubmit(event: SubmitEvent) {

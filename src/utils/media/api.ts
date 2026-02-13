@@ -53,7 +53,7 @@ export async function fetchWatermarks(collectionId = 'Watermarks'): Promise<Wate
 				name: it.name ?? it.title ?? `Watermark ${it._id ?? it.id}`,
 				url: it.url ?? it.image?.url
 			}));
-		} catch (e) {
+		} catch {
 			// continue to next
 		}
 	}

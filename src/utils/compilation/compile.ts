@@ -192,7 +192,7 @@ async function scanCompiledFiles(
 
 						byPath.set(relativePath, data);
 						if (hash) byHash.set(hash, data);
-					} catch (e) {
+					} catch {
 						logger.warn(`Could not read compiled file ${relativePath}`);
 					}
 				}

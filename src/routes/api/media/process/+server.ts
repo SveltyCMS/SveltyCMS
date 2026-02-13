@@ -115,7 +115,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				if (watermarkOptionsString) {
 					try {
 						watermarkOptions = JSON.parse(watermarkOptionsString);
-					} catch (e) {
+					} catch {
 						logger.warn('Could not parse watermark options', { options: watermarkOptionsString });
 					}
 				}

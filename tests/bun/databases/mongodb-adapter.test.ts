@@ -43,12 +43,11 @@ mock.module('@src/utils/logger', () => ({
 (globalThis as any).$props = () => ({});
 
 // Dynamic import to avoid module mocking issues
-// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+
 let adapterClass: typeof import('../../../src/databases/mongodb/mongoDBAdapter').MongoDBAdapter;
 let privateEnv: any;
 
 describe('MongoDB Adapter Functional Tests', () => {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	let db: any = null;
 	const testCollection = 'test_collection_' + Date.now();
 
@@ -56,7 +55,6 @@ describe('MongoDB Adapter Functional Tests', () => {
 		// Import modules dynamically to bypass mocks
 		const adapterModule = await import('../../../src/databases/mongodb/mongoDBAdapter');
 		adapterClass = adapterModule.MongoDBAdapter;
-		// @ts-ignore
 		const configModule = await import('../../../config/private.test');
 		privateEnv = configModule.privateEnv;
 

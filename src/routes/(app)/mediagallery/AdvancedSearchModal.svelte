@@ -28,6 +28,7 @@ Structure optimized for LLM integration and AI-powered search.
 <script lang="ts">
 	import type { MediaBase } from '@utils/media/mediaModels';
 	import type { SearchCriteria } from '@utils/media/advancedSearch';
+	import { SvelteSet, SvelteDate } from 'svelte/reactivity';
 
 	interface Props {
 		files: MediaBase[];
@@ -64,9 +65,9 @@ Structure optimized for LLM integration and AI-powered search.
 
 	// Search suggestions (computed from files)
 	const suggestions = $derived.by(() => {
-		const tags = new Set<string>();
-		const cameras = new Set<string>();
-		const dimensions = new Set<string>();
+		const tags = new SvelteSet<string>();
+		const cameras = new SvelteSet<string>();
+		const dimensions = new SvelteSet<string>();
 
 		files.forEach((file) => {
 			// Extract tags - handle type safety
@@ -195,7 +196,7 @@ Structure optimized for LLM integration and AI-powered search.
 						type="button"
 						class="chip preset-outlined-primary-500 hover:preset-filled-primary-500 transition-colors"
 						onclick={() => {
-							const date = new Date();
+							const date = new SvelteDate();
 							date.setDate(date.getDate() - 7);
 							formValues.uploadedAfter = date.toISOString().split('T')[0];
 							formValues.uploadedBefore = '';
@@ -208,7 +209,7 @@ Structure optimized for LLM integration and AI-powered search.
 						type="button"
 						class="chip preset-outlined-primary-500 hover:preset-filled-primary-500 transition-colors"
 						onclick={() => {
-							const date = new Date();
+							const date = new SvelteDate();
 							date.setDate(date.getDate() - 30);
 							formValues.uploadedAfter = date.toISOString().split('T')[0];
 							formValues.uploadedBefore = '';

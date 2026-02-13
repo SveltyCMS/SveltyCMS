@@ -13,6 +13,8 @@
  -->
 
 <script lang="ts">
+	import Sanitize from '@src/utils/Sanitize.svelte';
+
 	let {
 		body = '',
 		value = '',
@@ -23,7 +25,7 @@
 		body?: string;
 		value?: string;
 		type?: string;
-		close?: (result: any) => void;
+		close?: (result: unknown) => void;
 	} = $props();
 
 	// svelte-ignore state_referenced_locally
@@ -41,7 +43,7 @@
 <div class="space-y-4">
 	{#if body}
 		<article class="text-sm opacity-80">
-			{@html body}
+			<Sanitize html={body} profile="strict" />
 		</article>
 	{/if}
 

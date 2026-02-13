@@ -13,6 +13,7 @@ Features:
 
 	import { toaster } from '@stores/store.svelte';
 	import { logger } from '@utils/logger';
+	import { SvelteSet } from 'svelte/reactivity';
 
 	// Props
 	let {
@@ -160,7 +161,7 @@ Features:
 		isSaving = true;
 		try {
 			// Merge AI tags into User tags
-			const currentTags = new Set(file.metadata?.tags || []);
+			const currentTags = new SvelteSet(file.metadata?.tags || []);
 			file.metadata?.aiTags?.forEach((t) => currentTags.add(t));
 
 			const response = await fetch(`/api/media/${file._id}`, {
@@ -248,7 +249,7 @@ Features:
 
 					<div class="flex flex-wrap gap-2 mb-3">
 						{#if file.metadata?.aiTags?.length}
-							{#each file.metadata.aiTags as tag, i}
+							{#each file.metadata.aiTags as tag, i (tag)}
 								{#if editingTag?.type === 'ai' && editingTag.index === i}
 									<input
 										type="text"
@@ -316,7 +317,7 @@ Features:
 					<div class="mb-2 text-sm font-bold opacity-80">Saved Tags</div>
 					<div class="flex flex-wrap gap-2">
 						{#if file.metadata?.tags?.length}
-							{#each file.metadata.tags as tag, i}
+							{#each file.metadata.tags as tag, i (tag)}
 								{#if editingTag?.type === 'user' && editingTag.index === i}
 									<input
 										type="text"

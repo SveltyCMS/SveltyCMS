@@ -115,8 +115,16 @@ latest version available on GitHub with comprehensive status reporting.
 		return 'current';
 	}
 
+	interface VersionApiResponse {
+		status: 'disabled' | 'error' | 'success';
+		latest?: string;
+		security_issue?: boolean;
+		message?: string;
+		error?: string;
+	}
+
 	// Update status based on version comparison
-	function updateStatus(data: any) {
+	function updateStatus(data: VersionApiResponse) {
 		if (data.status === 'disabled') {
 			githubVersion = pkg;
 			badgeVariant = 'variant-filled';

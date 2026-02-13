@@ -41,7 +41,7 @@ export interface ImageEditorState {
 	imageGroup: Konva.Group | null;
 	activeState: string;
 	stateHistory: string[];
-	toolbarControls: { component: any; props: any } | null;
+	toolbarControls: ToolbarControls | null;
 	preToolSnapshot: string | null;
 	actions?: {
 		undo?: () => void;
@@ -342,7 +342,7 @@ function createImageEditorStore() {
 	function hideAllUI() {
 		if (!state.stage) return;
 
-		const uiItems = state.stage.find((node: any) => {
+		const uiItems = state.stage.find((node: Konva.Node) => {
 			const className = node.className;
 			const name = node.name() || '';
 			return (

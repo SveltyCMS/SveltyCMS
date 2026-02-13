@@ -35,6 +35,8 @@ const normalizeId = (id: string) => id.replace(/-/g, ''); // Inline function to 
 const getFs = async () => (await import('node:fs/promises')).default;
 const getDbAdapter = async () => (await import('@src/databases/db')).dbAdapter;
 
+import type { IDBAdapter } from '@src/databases/dbInterface';
+
 export interface NavigationNode {
 	_id: string;
 	name: string;
@@ -1548,7 +1550,7 @@ class ContentManager {
 
 	// Synchronizes schemas from files with the database and builds the in-memory maps
 	private async _reconcileAndBuildStructure(schemas: Schema[], tenantId?: string, skipReconciliation: boolean = false): Promise<void> {
-		const dbAdapter = await getDbAdapter();
+		const dbAdapter = (await getDbAdapter()) as IDBAdapter;
 
 		// In setup mode (no database), just build in-memory structure from files only
 		if (!dbAdapter) {
@@ -1584,7 +1586,24 @@ class ContentManager {
 		logger.debug(`[ContentManager] Registration of ${collectionsToProcess.length} models took ${this._getElapsedTime(modelCreationStart)}`);
 
 		if (skipReconciliation) {
-			logger.info('[ContentManager] Skipping reconciliation (trusting DB state from seed).');
+			// SAFETY CHECK: Verify that the database actually has content.
+			// If seedCollectionsForSetup failed to persist nodes or if the DB was reset,
+			// trusting the DB state would lead to an empty ContentManager (0 nodes).
+			try {
+				// Check for at least one node
+				const countResult = await dbAdapter.content.nodes.getStructure('flat', { tenantId }, true);
+				if (!countResult.success || !countResult.data || countResult.data.length === 0) {
+					logger.warn('[ContentManager] ⚠️ Skip reconciliation requested, but DB is EMPTY! Forcing reconciliation to restore content.');
+					skipReconciliation = false;
+				} else {
+					logger.info(`[ContentManager] Skipping reconciliation (trusting DB state with ${countResult.data.length} nodes).`);
+				}
+			} catch (err) {
+				logger.warn('[ContentManager] Failed to verify DB state, proceeding with requested skip settings:', err);
+			}
+		}
+
+		if (skipReconciliation) {
 			// We still need "operations" to help _loadFinalStructure map Schemas to Nodes.
 			// Construct a minimal set from schemas.
 			const { generateCategoryNodesFromPaths } = await import('./utils');
@@ -1792,13 +1811,13 @@ class ContentManager {
 		return operations;
 	}
 
-	private async _bulkUpsertWithParentIds(dbAdapter: any, operations: ContentNode[], tenantId?: string): Promise<void> {
+	private async _bulkUpsertWithParentIds(dbAdapter: IDBAdapter, operations: ContentNode[], tenantId?: string): Promise<void> {
 		const upsertOps = operations.map((op) => ({
 			path: op.path as string,
 			id: op._id.toString(),
 			changes: {
 				...op,
-				_id: op._id.toString(),
+				_id: op._id.toString() as any,
 				parentId: op.parentId ? op.parentId.toString() : null,
 				collectionDef: op.collectionDef
 					? ({
@@ -1811,7 +1830,7 @@ class ContentManager {
 							fields: []
 						} as Schema)
 					: undefined
-			}
+			} as any
 		}));
 
 		const bulkResult = await dbAdapter.content.nodes.bulkUpdate(upsertOps);
@@ -1846,7 +1865,7 @@ class ContentManager {
 				const deleteResult = await dbAdapter.crud.deleteMany('system_content_structure', {
 					_id: { $in: orphanedIds },
 					...(tenantId ? { tenantId } : {})
-				});
+				} as any);
 				logger.info(`DELETION RESULT: ${JSON.stringify(deleteResult)}`);
 
 				// CRITICAL: Invalidate cache after deletion so the UI doesn't see stale data
@@ -1868,7 +1887,7 @@ class ContentManager {
 				expectedId: op._id.toString(),
 				changes: {
 					...op,
-					_id: op._id.toString(),
+					_id: op._id.toString() as any,
 					parentId: op.parentId ? op.parentId.toString() : null,
 					collectionDef: op.collectionDef
 						? ({
@@ -1881,13 +1900,13 @@ class ContentManager {
 								fields: []
 							} as Schema)
 						: undefined
-				}
+				} as any
 			}));
 
 		if (nodesToFix.length > 0 && dbAdapter.content.nodes.fixMismatchedNodeIds) {
 			const fixResult = await dbAdapter.content.nodes.fixMismatchedNodeIds(nodesToFix);
-			if (fixResult.fixed > 0) {
-				logger.info(`[ContentManager] Fixed ${fixResult.fixed} nodes with mismatched IDs`);
+			if (fixResult.success && fixResult.data.fixed > 0) {
+				logger.info(`[ContentManager] Fixed ${fixResult.data.fixed} nodes with mismatched IDs`);
 			}
 		}
 
@@ -1895,7 +1914,7 @@ class ContentManager {
 		logger.debug('[ContentManager] Single-pass bulk upsert and cleanup completed');
 	}
 
-	private async _loadFinalStructure(dbAdapter: any, operations: ContentNode[]): Promise<void> {
+	private async _loadFinalStructure(dbAdapter: IDBAdapter, operations: ContentNode[]): Promise<void> {
 		// CRITICAL: Fetch the final structure from database after all phases complete
 		// This ensures we have the correct parentId relationships and MongoDB-assigned _ids
 		logger.debug('[ContentManager] Final phase: Fetching complete structure from database');
@@ -2031,7 +2050,7 @@ class ContentManager {
 	}
 
 	// 2. Fix _warmFrequentPaths - build tree directly without calling methods
-	private async _warmFrequentPaths(cacheService: any, ttl: number, tenantId?: string): Promise<void> {
+	private async _warmFrequentPaths(cacheService: Awaited<ReturnType<typeof getCacheService>>, ttl: number, tenantId?: string): Promise<void> {
 		// Cache first collection for instant access
 		const collections = Array.from(this.contentNodeMap.values()).filter((node) => node.nodeType === 'collection' && node.collectionDef);
 

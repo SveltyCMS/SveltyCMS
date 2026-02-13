@@ -130,7 +130,7 @@ export const POST = apiHandler(async ({ request, locals }) => {
 			data: result,
 			cached: false
 		});
-	} catch (err: any) {
+	} catch (err) {
 		// Re-throw AppError or SvelteKit errors
 		if (err instanceof AppError) throw err;
 		if (err && typeof err === 'object' && 'status' in err) throw err;

@@ -51,7 +51,7 @@ export class AnnotationItem {
 	}
 
 	// one-line: attach a generic event listener
-	on(event: string, cb: Function) {
+	on(event: string, cb: (evt: any) => void) {
 		this.node.on(event, cb as any);
 	}
 
@@ -64,7 +64,9 @@ export class AnnotationItem {
 	destroy() {
 		try {
 			this.node.destroy();
-		} catch (e) {}
+		} catch {
+			// ignore
+		}
 		this._onDestroy?.();
 	}
 

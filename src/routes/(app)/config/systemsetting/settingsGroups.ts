@@ -758,6 +758,17 @@ export const settingsGroups: SettingGroup[] = [
 				rows: 10
 			}
 		]
+	},
+	{
+		id: 'gdpr',
+		name: 'Privacy & GDPR',
+		icon: '🛡️',
+		description: 'Manage GDPR compliance, data exports, and right to erasure.',
+		enabled: true,
+		requiresRestart: false,
+		adminOnly: true,
+		permissionId: 'config:settings:gdpr',
+		fields: [] // Custom UI handled in +page.svelte
 	}
 ];
 

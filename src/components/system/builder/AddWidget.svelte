@@ -41,7 +41,6 @@
 		if (!selected_widget) return;
 		field.widget = { key: selected_widget, GuiFields: field.widget.GuiFields };
 		field.label = field.widget.GuiFields.label;
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		fields = [...fields, field as any];
 		addField = false;
 	}
@@ -82,7 +81,6 @@
 
 			{#if guiSchema}
 				{#each Object.entries(guiSchema) as [property, value] (property)}
-					<!-- eslint-disable-next-line @typescript-eslint/no-explicit-any -->
 					<InputSwitch
 						value={field.widget.GuiFields[property]}
 						widget={(value as any).widget}

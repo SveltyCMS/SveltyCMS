@@ -466,10 +466,10 @@
 			: ''}"
 	>
 		<div class="w-full flex max-w-none flex-wrap items-center gap-1">
-			{#each toolbarGroups as group}
+			{#each toolbarGroups as group, groupIdx (groupIdx)}
 				{#if !group.condition || group.condition()}
 					<div class="flex items-center gap-1">
-						{#each group.buttons as btn}
+						{#each group.buttons as btn (btn.label)}
 							{#if btn.type === 'dropdown'}
 								<div class="relative">
 									<SystemTooltip title={btn.label}>
@@ -507,8 +507,8 @@
 														role="grid"
 														tabindex="0"
 													>
-														{#each Array(5) as _, r}
-															{#each Array(5) as _, c}
+														{#each Array(5) as _, r (r)}
+															{#each Array(5) as _, c (c)}
 																<button
 																	class="w-8 h-8 rounded-sm border transition-colors {r < hoverRows && c < hoverCols
 																		? 'bg-blue-100 border-blue-500 dark:bg-blue-600 dark:border-blue-400'
@@ -550,7 +550,7 @@
 													</button>
 
 													<div class="mb-2 grid grid-cols-5 gap-1">
-														{#each ['#000000', '#4b5563', '#9ca3af', '#ffffff', '#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#a855f7'] as color}
+														{#each ['#000000', '#4b5563', '#9ca3af', '#ffffff', '#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#a855f7'] as color (color)}
 															<button
 																class="w-8 h-8 rounded-full border border-surface-200 dark:border-surface-600 transition-transform hover:scale-110 focus:scale-110 focus:outline-none"
 																style="background-color: {color};"
@@ -583,7 +583,7 @@
 													</div>
 												</div>
 											{:else if btn.items}
-												{#each btn.items as item}
+												{#each btn.items as item (item.label)}
 													<button
 														class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-surface-100 dark:hover:bg-surface-700/50 transition {item.active()
 															? 'text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/20'

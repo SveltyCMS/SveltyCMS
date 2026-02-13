@@ -117,7 +117,9 @@ export async function createTestUsers(): Promise<void> {
 		if (i === 0) {
 			try {
 				adminCookie = await loginAsAdmin();
-			} catch {}
+			} catch {
+				// ignore
+			}
 		}
 	}
 }

@@ -78,12 +78,24 @@ function privateConfigFallbackPlugin(): Plugin {
 		enforce: 'pre',
 		resolveId(id) {
 			const cwd = process.cwd();
-			const absPrivate = path.resolve(cwd, 'config/private');
-			const absPrivateTs = path.resolve(cwd, 'config/private.ts');
-			const absTest = path.resolve(cwd, 'config/private.test');
-			const absTestTs = path.resolve(cwd, 'config/private.test.ts');
+			const normalizedId = id.replace(/\\/g, '/');
 
-			if (id === virtualModuleId || id === absPrivate || id === absPrivateTs) {
+			// Define all possible variations of the private config path
+			const privatePaths = [
+				virtualModuleId,
+				path.join(cwd, 'config/private').replace(/\\/g, '/'),
+				path.join(cwd, 'config/private.ts').replace(/\\/g, '/'),
+				'@config/private'
+			];
+
+			const testPaths = [
+				virtualTestModuleId,
+				path.join(cwd, 'config/private.test').replace(/\\/g, '/'),
+				path.join(cwd, 'config/private.test.ts').replace(/\\/g, '/'),
+				'@config/private.test'
+			];
+
+			if (privatePaths.some((p) => normalizedId === p || normalizedId.endsWith('config/private') || normalizedId.endsWith('config/private.ts'))) {
 				// Check if actual file exists
 				const prodPath = path.resolve(cwd, 'config/private.ts');
 				if (existsSync(prodPath)) {
@@ -92,7 +104,9 @@ function privateConfigFallbackPlugin(): Plugin {
 				// File doesn't exist, use virtual module
 				return resolvedVirtualModuleId;
 			}
-			if (id === virtualTestModuleId || id === absTest || id === absTestTs) {
+			if (
+				testPaths.some((p) => normalizedId === p || normalizedId.endsWith('config/private.test') || normalizedId.endsWith('config/private.test.ts'))
+			) {
 				// Check if actual file exists
 				const testPath = path.resolve(cwd, 'config/private.test.ts');
 				if (existsSync(testPath)) {
@@ -160,11 +174,9 @@ const log = {
  */
 async function initializeCollectionsStructure() {
 	// Prevent double compilation in the same process
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	if ((globalThis as any).__COLLECTIONS_COMPILED__) {
 		return;
 	}
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	(globalThis as any).__COLLECTIONS_COMPILED__ = true;
 
 	await fs.mkdir(paths.userCollections, { recursive: true });

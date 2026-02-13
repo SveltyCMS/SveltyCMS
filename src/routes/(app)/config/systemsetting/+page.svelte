@@ -16,6 +16,7 @@ All dynamic CMS settings organized into logical groups
 
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { SvelteSet } from 'svelte/reactivity';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import PageTitle from '@components/PageTitle.svelte';
@@ -28,6 +29,7 @@ All dynamic CMS settings organized into logical groups
 
 	// Import setting component
 	import GenericSettingsGroup from './GenericSettingsGroup.svelte';
+	import GDPRSettings from '@components/system/GDPRSettings.svelte';
 
 	// Get user admin status from page data (set by +page.server.ts)
 	const { data } = $props();
@@ -40,18 +42,13 @@ All dynamic CMS settings organized into logical groups
 	const selectedGroupId = $derived(page.url.searchParams.get('group'));
 
 	// Track which groups need configuration
-	let unconfiguredCount = $state(0);
-
-	// Subscribe to changes in groups needing config (from store)
-	groupsNeedingConfig.subscribe((groups) => {
-		unconfiguredCount = groups.size;
-	});
+	const unconfiguredCount = $derived(groupsNeedingConfig.size);
 
 	// Remove filteredGroups logic as sidebar manages it externally
 
 	// Check all groups for empty fields on page load
 	async function checkAllGroupsForEmptyFields() {
-		const groupsWithEmptyFields = new Set<string>();
+		const groupsWithEmptyFields = new SvelteSet<string>();
 
 		// Check each available group
 		for (const group of availableGroups) {
@@ -82,7 +79,8 @@ All dynamic CMS settings organized into logical groups
 		}
 
 		// Update the store with all groups that need configuration
-		groupsNeedingConfig.set(groupsWithEmptyFields);
+		groupsNeedingConfig.clear();
+		groupsWithEmptyFields.forEach((id) => groupsNeedingConfig.add(id));
 	}
 
 	onMount(() => {
@@ -116,7 +114,7 @@ All dynamic CMS settings organized into logical groups
 			>
 			<p class="mt-2">
 				Please configure the following {unconfiguredCount === 1 ? 'group' : 'groups'}:
-				{#each availableGroups.filter((g) => $groupsNeedingConfig.has(g.id)) as group, i}
+				{#each availableGroups.filter((g) => groupsNeedingConfig.has(g.id)) as group, i (group.id)}
 					<span class="font-semibold">
 						{group.icon}
 						{group.name}{i < unconfiguredCount - 1 ? ', ' : ''}
@@ -135,7 +133,11 @@ All dynamic CMS settings organized into logical groups
 			{#if group}
 				<div class="h-full overflow-y-auto p-6">
 					<!-- Use generic component for all groups -->
-					<GenericSettingsGroup {group} {groupsNeedingConfig} />
+					{#if group.id === 'gdpr'}
+						<GDPRSettings {group} />
+					{:else}
+						<GenericSettingsGroup {group} {groupsNeedingConfig} />
+					{/if}
 				</div>
 			{:else}
 				<div class="flex h-full items-center justify-center p-6 text-center">

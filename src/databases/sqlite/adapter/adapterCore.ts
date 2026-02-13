@@ -3,7 +3,8 @@
  * @description Core functionality for SQLite adapter (Connection, Drizzle instance) - Bun native
  */
 
-import { eq, and, isNull } from 'drizzle-orm';
+import { eq, and, isNull, sql } from 'drizzle-orm';
+import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
 import type { DatabaseCapabilities, DatabaseResult, DatabaseError, CollectionModel } from '../../dbInterface';
 import * as schema from '../schema';
 import * as utils from '../utils';
@@ -13,6 +14,7 @@ export class AdapterCore {
 	protected db!: any;
 	protected sqlite!: any;
 	protected collectionRegistry = new Map<string, CollectionModel>();
+	protected dynamicTables = new Map<string, any>();
 	protected isConnectedBoolean: boolean = false;
 	protected config: any;
 
@@ -44,23 +46,27 @@ export class AdapterCore {
 				fs.mkdirSync(dbDir, { recursive: true });
 			}
 
-			// @ts-ignore
 			const isBun = typeof Bun !== 'undefined';
 
 			if (isBun) {
 				// Use dynamic import with string concatenation to avoid Node's static ESM loader errors
-				const { Database } = await import('bun' + ':sqlite');
+				// and Vite's build time analysis warnigns
+				const bunSqlite = 'bun' + ':sqlite';
+				const { Database } = await import(/* @vite-ignore */ bunSqlite);
 				this.sqlite = new Database(dbPathResolved);
-				const { drizzle } = await import('drizzle-orm/bun-sqlite');
+				const drizzleModule = 'drizzle-orm/bun-sqlite';
+				const { drizzle } = await import(/* @vite-ignore */ drizzleModule);
 				this.db = drizzle(this.sqlite, { schema });
 
 				// WAL mode for better performance/concurrency
 				this.sqlite.exec('PRAGMA journal_mode = WAL;');
 			} else {
 				// Fallback to better-sqlite3 in Node.js (Vite dev)
-				const Database = (await import('better-sqlite3')).default;
+				const betterSqliteModule = 'better-sqlite3';
+				const Database = (await import(/* @vite-ignore */ betterSqliteModule)).default;
 				this.sqlite = new Database(dbPathResolved);
-				const { drizzle } = await import('drizzle-orm/better-sqlite3');
+				const drizzleModule = 'drizzle-orm/better-sqlite3';
+				const { drizzle } = await import(/* @vite-ignore */ drizzleModule);
 				this.db = drizzle(this.sqlite, { schema });
 
 				// WAL mode
@@ -172,6 +178,7 @@ export class AdapterCore {
 	}
 
 	public getTable(collection: string): any {
+		// 1. Static schema tables
 		if ((schema as any)[collection]) {
 			return (schema as any)[collection];
 		}
@@ -179,7 +186,42 @@ export class AdapterCore {
 		if ((schema as any)[camelKey]) {
 			return (schema as any)[camelKey];
 		}
+
+		// 2. Dynamic collection tables (UUID-based or Name-based)
+		// We use a prefix to distinguish them from static tables
+		if (this.dynamicTables.has(collection)) {
+			return this.dynamicTables.get(collection);
+		}
+
+		// If it looks like a UUID or is a known collection name that isn't a static table,
+		// we return a dynamic table definition
+		if (/^[a-f0-9]{32,36}$/i.test(collection) || collection.startsWith('collection_')) {
+			const tableId = collection.startsWith('collection_') ? collection : `collection_${collection}`;
+			const dynamicTable = this.createDynamicTableDefinition(tableId);
+			this.dynamicTables.set(collection, dynamicTable);
+			return dynamicTable;
+		}
+
 		return schema.contentNodes;
+	}
+
+	/**
+	 * Creates a Drizzle table definition for a dynamic collection at runtime.
+	 * All dynamic collections sharing a common relational structure for flexibility.
+	 */
+	private createDynamicTableDefinition(tableName: string) {
+		return sqliteTable(tableName, {
+			_id: text('_id', { length: 36 }).primaryKey(),
+			tenantId: text('tenantId', { length: 36 }),
+			data: text('data', { mode: 'json' }).notNull().default('{}'),
+			status: text('status', { length: 50 }).notNull().default('draft'),
+			createdAt: integer('createdAt', { mode: 'timestamp_ms' })
+				.notNull()
+				.default(sql`(strftime('%s', 'now') * 1000)`),
+			updatedAt: integer('updatedAt', { mode: 'timestamp_ms' })
+				.notNull()
+				.default(sql`(strftime('%s', 'now') * 1000)`)
+		});
 	}
 
 	public mapQuery(table: any, query: Record<string, any>): any {

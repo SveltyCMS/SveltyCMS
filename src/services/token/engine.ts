@@ -24,19 +24,25 @@ import { resolveRelationToken } from './relationResolver';
 const ALLOWED_USER_FIELDS = ['_id', 'email', 'username', 'role', 'avatar', 'language', 'name'];
 
 class TokenRegistryService {
-	private resolvers = new Map<string, (ctx: TokenContext) => any>();
+	private resolvers = new Map<string, (ctx: TokenContext) => unknown>();
 	private cache = new Map<string, { timestamp: number; data: Record<TokenCategory, TokenDefinition[]> }>();
 	private CACHE_TTL = 1000 * 60 * 5; // 5 minutes
-	private relationTokenGenerator: ((schema: Schema, user: User | undefined, tenantId?: string, roles?: any[]) => Promise<TokenDefinition[]>) | null =
-		null;
+	private relationTokenGenerator:
+		| ((schema: Schema, user: User | undefined, tenantId?: string, roles?: import('@src/databases/auth/types').Role[]) => Promise<TokenDefinition[]>)
+		| null = null;
 
 	public setRelationTokenGenerator(
-		generator: (schema: Schema, user: User | undefined, tenantId?: string, roles?: any[]) => Promise<TokenDefinition[]>
+		generator: (
+			schema: Schema,
+			user: User | undefined,
+			tenantId?: string,
+			roles?: import('@src/databases/auth/types').Role[]
+		) => Promise<TokenDefinition[]>
 	) {
 		this.relationTokenGenerator = generator;
 	}
 
-	async resolve(tokenKey: string, ctx: TokenContext): Promise<any> {
+	async resolve(tokenKey: string, ctx: TokenContext): Promise<unknown> {
 		const resolver = this.resolvers.get(tokenKey);
 		if (resolver) return resolver(ctx);
 
@@ -141,7 +147,15 @@ class TokenRegistryService {
 					category: 'system',
 					type: 'number',
 					description: `Current ${unit} value.`,
-					resolve: () => (new Date() as any)[`get${unit === 'day' ? 'Date' : unit.charAt(0).toUpperCase() + unit.slice(1)}`]()
+					resolve: () => {
+						const date = new Date();
+						if (unit === 'month') return date.getMonth() + 1;
+						if (unit === 'day') return date.getDate();
+						if (unit === 'hour') return date.getHours();
+						if (unit === 'minute') return date.getMinutes();
+						if (unit === 'second') return date.getSeconds();
+						return 0;
+					}
 				});
 			});
 		}
@@ -167,7 +181,7 @@ class TokenRegistryService {
 						type: field === '_id' || field === 'email' ? 'string' : 'string',
 						description: userFieldDescriptions[field] || `User's ${field} field`,
 						example: field === 'name' ? `Welcome back, {{user.name}}!` : `{{user.${field}}}`,
-						resolve: (c) => c.user?.[field as keyof User]
+						resolve: (c) => (c.user as any as Record<string, unknown>)?.[field]
 					});
 				}
 			});
@@ -189,10 +203,10 @@ class TokenRegistryService {
 						token: `site.${key}`,
 						name: key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
 						category: 'site',
-						type: typeof val as any,
+						type: typeof val as 'string' | 'number' | 'boolean',
 						description: siteDescriptions[key] || `Site configuration: ${key}`,
 						example: key === 'SITE_NAME' ? `{{entry.title}} | {{site.SITE_NAME}}` : `{{site.${key}}}`,
-						resolve: () => publicEnv[key as keyof typeof publicEnv]
+						resolve: () => (publicEnv as Record<string, unknown>)[key]
 					});
 				}
 			});
@@ -203,7 +217,7 @@ class TokenRegistryService {
 			// Import relation token generator
 			// Use injected relation token generator if available (Server-side only)
 			if (this.relationTokenGenerator) {
-				this.relationTokenGenerator(schema, user, config.tenantId, config.roles as any[])
+				this.relationTokenGenerator(schema, user, config.tenantId, config.roles as import('@src/databases/auth/types').Role[])
 					.then((relationTokens: TokenDefinition[]) => {
 						relationTokens.forEach((t) => add(t));
 					})
@@ -336,7 +350,7 @@ export async function replaceTokens(template: string, context: TokenContext, opt
 							const name = m[1].toLowerCase();
 							const args = m[2] ? m[2].split(',').map((s) => s.trim().replace(/^['"]|['"]$/g, '')) : [];
 							const fn = modifierRegistry.get(name);
-							if (fn) value = await fn(value as any, args);
+							if (fn) value = await fn(value, args);
 						}
 					}
 				} catch (e) {

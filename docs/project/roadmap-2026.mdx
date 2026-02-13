@@ -162,6 +162,29 @@ bun add @boxyhq/saml-jackson  // SAML as a service
 
 **Timeline:** 1-2 weeks for Audit UI Views
 
+### 4. EU/GDPR Compliance Suite ⭐⭐⭐ **CRITICAL (EU Market)**
+
+**Current State:** ✅ **Implemented (v1.0)** - System Settings Panel
+**Enterprise Standard:** Automated "Right to be Forgotten", Data Export, Cookie Consent Manager
+
+**Gap Analysis:**
+
+- No automated "Delete User" (Right to Erasure) workflow
+- No "Download My Data" (Data Portability) button
+- No native Cookie Consent / Privacy Preferences manager
+- Critical for European Enterprise adoption
+
+**Implementation Plan:**
+
+```typescript
+// GDPR Features
+- GET /api/user/export (JSON/ZIP of all user data)
+- POST /api/user/erasure (Cascading soft-delete with anonymization)
+- <CookieConsent /> component (headless, block scripts by default)
+```
+
+**Timeline:** 2-3 weeks
+
 ---
 
 ## 🎯 Technology Upgrade Recommendations
@@ -208,7 +231,8 @@ bun add @boxyhq/saml-jackson  // SAML as a service
 
 1. **AI Integration** - Content assistance, smart features
 2. **Real-time Collaboration** - Must-have for teams
-3. **Advanced Search** - Modern expectation
+3. **GDPR Compliance Suite** - Critical for EU/German Market
+4. **Advanced Search** - Modern expectation
 
 ### P1 - Important for Competitiveness
 
@@ -227,6 +251,7 @@ SveltyCMS is **state-of-the-art for SMB and mid-market** with its modern Svelte 
 Only one major gap remains for full enterprise adoption:
 
 - ❌ **SAML 2.0** - Fortune 500 companies require SSO
+- ✅ **GDPR Tools** - Implemented (v1.0)
 
 **Path to 100/100:**
 

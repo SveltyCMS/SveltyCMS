@@ -22,14 +22,14 @@ import { logger } from '@utils/logger';
 
 // In-memory cache for update checks, backed by globalThis to survive HMR in dev
 const globalWithCache = globalThis as typeof globalThis & {
-	__SVELTY_TELEMETRY_CACHE__?: any;
+	__SVELTY_TELEMETRY_CACHE__?: unknown;
 	__SVELTY_TELEMETRY_LAST_CHECK__?: number;
 };
 
-let cachedUpdateInfo: any = globalWithCache.__SVELTY_TELEMETRY_CACHE__ || null;
+let cachedUpdateInfo: unknown = globalWithCache.__SVELTY_TELEMETRY_CACHE__ || null;
 let lastCheckTime = globalWithCache.__SVELTY_TELEMETRY_LAST_CHECK__ || 0;
 const CHECK_INTERVAL = 1000 * 60 * 60 * 12; // 12 hours
-let activeCheckPromise: Promise<any> | null = null; // Deduping promise
+let activeCheckPromise: Promise<unknown> | null = null; // Deduping promise
 
 export const telemetryService = {
 	async checkUpdateStatus() {
@@ -161,7 +161,7 @@ export const telemetryService = {
 					if (dbAdapter.ensureAuth) {
 						try {
 							await dbAdapter.ensureAuth();
-						} catch (err) {
+						} catch {
 							logger.debug('[Telemetry] Auth module not ready yet, skipping metrics');
 						}
 					}
@@ -179,7 +179,7 @@ export const telemetryService = {
 					if (dbAdapter.ensureContent) {
 						try {
 							await dbAdapter.ensureContent();
-						} catch (err) {
+						} catch {
 							logger.debug('[Telemetry] Content module not ready yet, skipping collection count');
 						}
 					}

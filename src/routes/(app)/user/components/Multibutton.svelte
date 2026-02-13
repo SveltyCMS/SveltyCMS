@@ -517,16 +517,18 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 		const currentIndex = Array.from(menuItems).indexOf(document.activeElement as HTMLElement);
 
 		switch (event.key) {
-			case 'ArrowDown':
+			case 'ArrowDown': {
 				event.preventDefault();
 				const nextIndex = (currentIndex + 1) % menuItems.length;
 				(menuItems[nextIndex] as HTMLElement).focus();
 				break;
-			case 'ArrowUp':
+			}
+			case 'ArrowUp': {
 				event.preventDefault();
 				const prevIndex = (currentIndex - 1 + menuItems.length) % menuItems.length;
 				(menuItems[prevIndex] as HTMLElement).focus();
 				break;
+			}
 			case 'Escape':
 				event.preventDefault();
 				isDropdownOpen = false;
@@ -587,7 +589,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 				tabindex="-1"
 			>
 				<ul class="flex flex-col py-1">
-					{#each filteredActions as action}
+					{#each filteredActions as action (action)}
 						{@const config = actionConfig[action]}
 						<li role="none">
 							<button

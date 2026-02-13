@@ -81,7 +81,7 @@ export const getGuiFields = (fieldParams: Record<string, unknown>, GuiSchema: Re
 };
 
 // Function to convert an object to form data
-export const obj2formData = (obj: Record<string, unknown>) => {
+export const obj2formData = (obj: Record<string, unknown>): FormData => {
 	const formData = new FormData();
 
 	const transformValue = (value: unknown): string | Blob => {
@@ -117,7 +117,7 @@ export const col2formData = async (getData: Record<string, () => Promise<unknown
 			const resolvedValue = await value;
 			return processValue(resolvedValue);
 		}
-		if (value instanceof Object) {
+		if (typeof value === 'object' && value !== null) {
 			return JSON.stringify(value);
 		}
 		return String(value);
@@ -279,6 +279,10 @@ function deepCopy<T>(obj: T): T {
 
 	if (Array.isArray(obj)) {
 		return obj.map((item) => deepCopy(item)) as unknown as T;
+	}
+
+	if (obj instanceof Date) {
+		return new Date(obj.getTime()) as unknown as T;
 	}
 
 	const copy = {} as T;

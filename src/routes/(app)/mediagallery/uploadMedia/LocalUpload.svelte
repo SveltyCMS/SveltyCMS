@@ -20,7 +20,7 @@
 	import { logger } from '@utils/logger';
 	import { toaster } from '@stores/store.svelte.ts';
 	import { goto } from '$app/navigation';
-	import { untrack } from 'svelte';
+	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 
 	import SystemTooltip from '@components/system/SystemTooltip.svelte';
 
@@ -39,9 +39,11 @@
 	let isUploading = $state(false);
 
 	// Internal state moved from ModalUploadMedia
-	let fileSet = $state(new Set<string>());
+	// eslint-disable-next-line svelte/no-unnecessary-state-wrap
+	let fileSet = $state(new SvelteSet<string>());
 
-	let objectUrls = $state<Map<string, string>>(new Map());
+	// eslint-disable-next-line svelte/no-unnecessary-state-wrap
+	let objectUrls = $state(new SvelteMap<string, string>());
 
 	const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 	const ALLOWED_TYPES = [
@@ -62,10 +64,6 @@
 	// Async Thumbnail Generation Effect
 	$effect(() => {
 		const currentFiles = files;
-		const previousObjectUrls = untrack(() => new Map(objectUrls));
-
-		// Use a local map to track progress during this run
-		const nextObjectUrls = new Map(previousObjectUrls);
 		let isActive = true;
 
 		async function generateThumbnails() {
@@ -75,13 +73,10 @@
 				const fileKey = `${file.name}-${file.size}`;
 
 				// Skip if we already have a URL for this file
-				if (!nextObjectUrls.has(fileKey)) {
+				if (!objectUrls.has(fileKey)) {
 					if (file.type?.startsWith('image/') || file.type?.startsWith('audio/')) {
 						const url = URL.createObjectURL(file);
-						nextObjectUrls.set(fileKey, url);
-
-						// Update state incrementally to show progress without freezing
-						objectUrls = new Map(nextObjectUrls);
+						objectUrls.set(fileKey, url);
 
 						// Yield to main thread to allow UI rendering
 						await new Promise((resolve) => requestAnimationFrame(resolve));
@@ -92,14 +87,12 @@
 			// Cleanup phase: Remove URLs for files that are no longer present
 			if (isActive) {
 				const currentFileKeys = new Set(currentFiles.map((f) => `${f.name}-${f.size}`));
-				for (const [key, url] of previousObjectUrls) {
+				for (const [key, url] of objectUrls) {
 					if (!currentFileKeys.has(key)) {
 						URL.revokeObjectURL(url);
-						nextObjectUrls.delete(key);
+						objectUrls.delete(key);
 					}
 				}
-				// Final state update
-				objectUrls = nextObjectUrls;
 			}
 		}
 
@@ -216,7 +209,7 @@
 		fileSet.clear();
 		// Revoke immediately
 		objectUrls.forEach((url) => URL.revokeObjectURL(url));
-		objectUrls = new Map();
+		objectUrls.clear();
 	}
 
 	// Format bytes for display
@@ -274,14 +267,14 @@
 								try {
 									data = JSON.parse(data);
 									logger.debug('Parsed stringified data:', data);
-								} catch (e) {
+								} catch (_e) {
 									logger.warn('Data is a string but not valid JSON:', data);
 								}
 							}
 							if (response.type === 'success' && data) resolve(data);
 							else if (response.success !== undefined) resolve(response);
 							else reject(new Error('Invalid response format'));
-						} catch (e) {
+						} catch (_e) {
 							reject(new Error('Invalid response format'));
 						}
 					} else {

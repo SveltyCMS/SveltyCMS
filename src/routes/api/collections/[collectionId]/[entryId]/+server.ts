@@ -108,7 +108,7 @@ export const PATCH = apiHandler(async ({ locals, params, request }) => {
 			action: 'update',
 			data: result.data,
 			timestamp: new Date().toISOString(),
-			user: { _id: user._id, username: user.username, email: user.email }
+			user: user
 		});
 	} catch (e) {
 		logger.warn('PubSub failed', e);
@@ -158,7 +158,7 @@ export const DELETE = apiHandler(async ({ locals, params }) => {
 			action: 'delete',
 			data: { _id: entryId },
 			timestamp: new Date().toISOString(),
-			user: { _id: user._id, username: user.username, email: user.email }
+			user: user
 		});
 	} catch (e) {
 		logger.warn('PubSub failed', e);

@@ -238,7 +238,7 @@ handles drawing, applies/bakes effects, and registers toolbar.
 		try {
 			unbindStageEvents();
 			cleanupBlurElements(false);
-		} catch (e) {
+		} catch (_e) {
 			/* ignore */
 		}
 	}

@@ -138,7 +138,7 @@ export class PreferencesModule {
 			if (scope) conditions.push(eq(schema.systemPreferences.scope, scope));
 			if (userId) conditions.push(eq(schema.systemPreferences.userId, userId));
 
-			let q = this.db.delete(schema.systemPreferences);
+			const q = this.db.delete(schema.systemPreferences);
 			if (conditions.length > 0) {
 				await q.where(and(...conditions));
 			} else {
@@ -153,7 +153,7 @@ export class PreferencesModule {
 			if (scope) conditions.push(eq(schema.systemPreferences.scope, scope));
 			if (userId) conditions.push(eq(schema.systemPreferences.userId, userId));
 
-			let q = this.db.delete(schema.systemPreferences);
+			const q = this.db.delete(schema.systemPreferences);
 			if (conditions.length > 0) {
 				await q.where(and(...conditions));
 			} else {

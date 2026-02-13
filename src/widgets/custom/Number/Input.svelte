@@ -222,7 +222,7 @@
 					min={field?.min as number | undefined}
 					max={field?.max as number | undefined}
 					step={(field?.step as number) || 1}
-					class="input w-full rounded-none border-none bg-white font-medium text-black outline-none focus:ring-0 dark:bg-surface-900 dark:text-primary-500 {!!validationError
+					class="input w-full rounded-none border-none bg-white font-medium text-black outline-none focus:ring-0 dark:bg-surface-900 dark:text-primary-500 {validationError
 						? 'bg-error-500-10!'
 						: ''}"
 					aria-invalid={!!validationError}

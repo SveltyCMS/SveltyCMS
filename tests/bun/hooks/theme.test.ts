@@ -25,6 +25,7 @@ mock.module('@src/databases/themeManager', () => ({
 // --- Type Definitions ---
 // Augment the SvelteKit Locals interface for test safety
 declare global {
+	// eslint-disable-next-line @typescript-eslint/no-namespace
 	namespace App {
 		interface Locals {
 			darkMode: boolean;

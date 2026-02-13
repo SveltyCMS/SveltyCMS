@@ -204,7 +204,7 @@ Features:
 					<div class="rounded-lg bg-surface-50 p-3 dark:bg-surface-900/50">
 						<p class="mb-2 font-semibold text-surface-900 dark:text-surface-50">{m.setup_connection_sample_collections()}</p>
 						<div class="flex flex-wrap gap-2">
-							{#each result.collectionsSample as collection}
+							{#each result.collectionsSample as collection (collection)}
 								<span class="rounded bg-indigo-100 px-2 py-1 font-mono text-xs text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300">
 									{collection}
 								</span>
@@ -237,7 +237,7 @@ Features:
 						<span>{m.setup_connection_troubleshooting()}</span>
 					</p>
 					<ul class="space-y-1.5 text-sm text-amber-800 dark:text-amber-200">
-						{#each getTroubleshootingTips(result.classification) as tip}
+						{#each getTroubleshootingTips(result.classification) as tip (tip)}
 							<li class="flex gap-2">
 								<span class="text-amber-600 dark:text-amber-400">•</span>
 								<span>{tip}</span>

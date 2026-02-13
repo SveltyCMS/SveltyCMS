@@ -3,7 +3,7 @@
  * @description Global store for configuration UI state
  */
 
-import { writable } from 'svelte/store';
+import { SvelteSet } from 'svelte/reactivity';
 
 // Track which settings groups need configuration (empty required fields)
-export const groupsNeedingConfig = writable<Set<string>>(new Set());
+export const groupsNeedingConfig = new SvelteSet<string>();

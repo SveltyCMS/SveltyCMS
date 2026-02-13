@@ -13,8 +13,6 @@ Toolbar controls for the Zoom tool:
 -->
 
 <script lang="ts">
-	import { untrack } from 'svelte';
-
 	// Props from Tool.svelte
 	let {
 		zoomLevel = 100,
@@ -39,17 +37,20 @@ Toolbar controls for the Zoom tool:
 	} = $props();
 
 	// Local state for slider - derived from props but mutable for local interaction
-	let sliderValue = $state(untrack(() => zoomLevel));
-
-	// Sync local state when prop changes
-	$effect(() => {
-		sliderValue = zoomLevel;
-	});
+	let localSliderValue = $state<number | undefined>(undefined);
+	let sliderValue = {
+		get value() {
+			return localSliderValue ?? zoomLevel;
+		},
+		set value(v: number) {
+			localSliderValue = v;
+		}
+	};
 
 	function handleSliderChange(e: Event) {
 		const target = e.target as HTMLInputElement;
 		const value = parseInt(target.value) || 100;
-		sliderValue = value;
+		sliderValue.value = value;
 		onZoomChange(value);
 	}
 
@@ -57,7 +58,7 @@ Toolbar controls for the Zoom tool:
 		const target = e.target as HTMLInputElement;
 		let value = parseInt(target.value) || 100;
 		value = Math.max(minZoom, Math.min(maxZoom, value));
-		sliderValue = value;
+		sliderValue.value = value;
 		onZoomChange(value);
 	}
 </script>
@@ -81,7 +82,7 @@ Toolbar controls for the Zoom tool:
 			min={minZoom}
 			max={maxZoom}
 			step="5"
-			value={sliderValue}
+			value={sliderValue.value}
 			oninput={handleSliderChange}
 			class="slider h-1 sm:w-28 md:w-36 cursor-pointer appearance-none bg-surface-500/30 rounded-full"
 			aria-label="Zoom level slider"
@@ -105,7 +106,7 @@ Toolbar controls for the Zoom tool:
 			type="number"
 			min={minZoom}
 			max={maxZoom}
-			value={sliderValue}
+			value={sliderValue.value}
 			onchange={handleInputChange}
 			class="input w-14 px-1 py-0.5 text-center text-sm bg-transparent border-none text-surface-300 font-mono focus:ring-0 focus:text-white"
 			style="background: transparent;"

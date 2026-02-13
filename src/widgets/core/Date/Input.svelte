@@ -101,7 +101,7 @@ Part of the Three Pillars Architecture for widget system.
 				// Convert to ISO string at UTC midnight
 				newValue = selectedDate.toISOString();
 				validationStore.clearError(fieldName);
-			} catch (e) {
+			} catch (_e) {
 				validationStore.setError(fieldName, 'Invalid date format');
 			}
 		} else {
@@ -150,7 +150,7 @@ Part of the Three Pillars Architecture for widget system.
 					label: field.label,
 					collection: (field as any).collection
 				}}
-				class="input w-full flex-1 rounded-none border-none bg-white font-medium text-black outline-none focus:ring-0 dark:bg-surface-900 dark:text-primary-500 {!!error
+				class="input w-full flex-1 rounded-none border-none bg-white font-medium text-black outline-none focus:ring-0 dark:bg-surface-900 dark:text-primary-500 {error
 					? 'bg-error-500-10!'
 					: ''}"
 				aria-invalid={!!error}

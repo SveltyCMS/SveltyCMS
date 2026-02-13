@@ -76,7 +76,7 @@
 		if (active === undefined && !hasResetParams) {
 			if (data.demoMode) {
 				background = '#242728';
-			} else if ((publicEnv as any)?.SEASONS) {
+			} else if (publicEnv.SEASONS) {
 				background = 'white';
 			} else if (firstUserExists) {
 				background = 'white';
@@ -179,7 +179,7 @@
 		if (isTransitioning) return;
 		isTransitioning = true;
 		active = undefined;
-		background = data.demoMode ? '#242728' : getPublicSetting('SEASONS' as any) ? '#242728' : firstUserExists ? 'white' : '#242728';
+		background = data.demoMode ? '#242728' : getPublicSetting('SEASONS') ? '#242728' : firstUserExists ? 'white' : '#242728';
 		setTimeout(() => {
 			isTransitioning = false;
 		}, 300);
@@ -222,13 +222,13 @@
 
 	// Handle pointer enter events
 	function handleSignInPointerEnter() {
-		if (active === undefined && !data.demoMode && !getPublicSetting('SEASONS' as any)) {
+		if (active === undefined && !data.demoMode && !getPublicSetting('SEASONS')) {
 			background = 'white';
 		}
 	}
 
 	function handleSignUpPointerEnter() {
-		if (active === undefined && !data.demoMode && !getPublicSetting('SEASONS' as any)) {
+		if (active === undefined && !data.demoMode && !getPublicSetting('SEASONS')) {
 			background = '#242728';
 		}
 	}
@@ -287,14 +287,14 @@
 									const result = deserialize(await response.text());
 
 									if (result.type === 'success') {
-										const data = result.data as any;
+										const data = result.data as { success: boolean; error?: string };
 										if (data.success) {
 											window.location.href = '/setup';
 										} else {
 											alert('Failed to reset setup: ' + (data.error || 'Unknown error'));
 										}
 									} else {
-										const errorMsg = (result as any).data?.error || 'Failed to reset setup';
+										const errorMsg = (result as { data?: { error?: string } }).data?.error || 'Failed to reset setup';
 										alert('Failed to reset setup: ' + errorMsg);
 									}
 								}

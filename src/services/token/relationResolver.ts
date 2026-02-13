@@ -9,7 +9,12 @@ import { hasPermissionByAction } from '@src/databases/auth/permissions';
 import { logger } from '@utils/logger';
 
 // Checks if user has read access to a collection
-export async function canAccessCollection(user: User | undefined, collectionId: string, _tenantId?: string, roles?: any[]): Promise<boolean> {
+export async function canAccessCollection(
+	user: User | undefined,
+	collectionId: string,
+	_tenantId?: string,
+	roles?: import('@src/databases/auth/types').Role[]
+): Promise<boolean> {
 	if (!user) return false;
 
 	// Admins have access to everything
@@ -21,7 +26,7 @@ export async function canAccessCollection(user: User | undefined, collectionId: 
 }
 
 // Middleware-aware token resolution that respects user permissions
-export async function resolveRelationToken(tokenPath: string, context: TokenContext, user: User | undefined, tenantId?: string): Promise<any> {
+export async function resolveRelationToken(tokenPath: string, context: TokenContext, user: User | undefined, tenantId?: string): Promise<unknown> {
 	// Parse relation path: entry.manufacturer.name
 	const parts = tokenPath.split('.');
 	if (parts.length < 3 || parts[0] !== 'entry') {
@@ -40,7 +45,7 @@ export async function resolveRelationToken(tokenPath: string, context: TokenCont
 		const field = (schema.fields as FieldInstance[]).find((f) => (f.db_fieldName || f.label) === relationField);
 
 		if (field?.widget?.Name === 'Relation') {
-			const relatedCollectionId = (field.widget as any).collection;
+			const relatedCollectionId = (field.widget as Record<string, any>).collection;
 			const hasAccess = await canAccessCollection(user, relatedCollectionId, tenantId, context.roles);
 
 			if (!hasAccess) {
@@ -51,7 +56,7 @@ export async function resolveRelationToken(tokenPath: string, context: TokenCont
 	}
 
 	// Navigate nested path
-	let value = relationData;
+	let value = relationData as any;
 	for (const key of nestedPath) {
 		if (Array.isArray(value)) {
 			value = value[0]; // For arrays, take first item

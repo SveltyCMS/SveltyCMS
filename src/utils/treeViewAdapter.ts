@@ -39,7 +39,7 @@ export function toTreeViewData(nodes: ContentNode[], parentPath: string = ''): T
 		const path = parentPath ? `${parentPath}.${id}` : id;
 
 		// Destructure to exclude children from the rest spread
-		// eslint-disable-next-line @typescript-eslint/no-unused-vars
+
 		const { children, ...rest } = n;
 
 		const item: TreeViewItem = {
@@ -75,7 +75,7 @@ export function fromTreeViewData(flatItems: TreeViewItem[]): ContentNode[] {
 
 	// Create nodes
 	for (const item of flatItems) {
-		const { path, parent, text, ...rest } = item;
+		const { path: _path, parent: _parent, text: _text, ...rest } = item;
 
 		const node: any = {
 			...rest,

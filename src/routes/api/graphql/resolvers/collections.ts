@@ -243,10 +243,11 @@ export async function registerCollections(tenantId?: string) {
 						collectionSchema += `                ${getFieldName(_field)}: ${nestedSchema.typeID}\n`;
 
 						// Robustly handle potentially localized data even if not marked translated
-						const nestedResolverFn = (parent: any, _args: any, ctx: any) => getLocalizedValue(parent[getFieldName(_field)], ctx.locale);
+						const nestedResolverFn = (parent: Record<string, unknown>, _args: unknown, ctx: { locale: string }) =>
+							getLocalizedValue(parent[getFieldName(_field)], ctx.locale);
 
 						if (nestedResolverFn) {
-							resolvers[cleanTypeName][getFieldName(_field)] = nestedResolverFn;
+							resolvers[cleanTypeName][getFieldName(_field)] = nestedResolverFn as GraphQLFieldResolver<unknown, unknown>;
 						}
 					}
 				}
@@ -254,10 +255,11 @@ export async function registerCollections(tenantId?: string) {
 				collectionSchema += `                ${getFieldName(field)}: ${schema.typeID}\n`;
 
 				// Robustly handle potentially localized data even if not marked translated
-				const resolverFn = (parent: any, _args: any, ctx: any) => getLocalizedValue(parent[getFieldName(field)], ctx.locale);
+				const resolverFn = (parent: Record<string, unknown>, _args: unknown, ctx: { locale: string }) =>
+					getLocalizedValue(parent[getFieldName(field)], ctx.locale);
 
 				if (resolverFn) {
-					resolvers[cleanTypeName][getFieldName(field)] = resolverFn;
+					resolvers[cleanTypeName][getFieldName(field)] = resolverFn as GraphQLFieldResolver<unknown, unknown>;
 				}
 			}
 		}

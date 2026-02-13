@@ -33,6 +33,7 @@
 	import { untrack } from 'svelte';
 
 	import { deleteCurrentEntry, saveEntry } from '@utils/entryActions';
+	import type { CollectionEntry } from '@src/content/types';
 	import { StatusTypes } from '@src/content/types';
 	import { createEntry, invalidateCollectionCache } from '@src/utils/apiClient';
 	import { showCloneModal, showScheduleModal } from '@utils/modalUtils';
@@ -59,7 +60,7 @@
 
 	let currentMode = $derived(mode.value);
 	let currentCollection = $derived(collection.value);
-	let currentEntry = $derived(collectionValue.value as Record<string, any> | null);
+	let currentEntry = $derived(collectionValue.value as CollectionEntry | null);
 
 	let isDesktop = $derived(screen.isDesktop);
 
@@ -74,7 +75,7 @@
 	let showMore = $state(false);
 	let previousLanguage = $state(app.contentLanguage);
 	let previousTabSet = $state(app.tabSetState);
-	let tempData = $state<Partial<Record<string, Record<string, any>>>>({});
+	let tempData = $state<Record<string, CollectionEntry>>({});
 
 	// Schedule (not used in current logic – kept if needed later)
 	let scheduleTimestamp = $derived(currentEntry?._scheduled ? Number(currentEntry._scheduled) : null);
@@ -355,11 +356,11 @@
 		<!-- User -->
 		<div class="space-y-1 text-xs">
 			<p>
-				Created by: <span class="text-tertiary-500 dark:text-primary-500 font-bold">{getDisplayName(currentEntry?.createdBy as string)}</span>
+				Created by: <span class="text-tertiary-500 dark:text-primary-500 font-bold">{getDisplayName(currentEntry?.createdBy)}</span>
 			</p>
 			{#if currentEntry?.updatedBy}
 				<p class="text-tertiary-500 dark:text-primary-400">
-					Last updated by: {getDisplayName(currentEntry?.updatedBy as string)}
+					Last updated by: {getDisplayName(currentEntry?.updatedBy)}
 				</p>
 			{/if}
 			{#if scheduleTimestamp}

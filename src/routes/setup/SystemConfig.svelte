@@ -311,7 +311,7 @@
 						aria-invalid={!!displayErrors.timezone}
 						aria-describedby={displayErrors.timezone ? 'timezone-error' : undefined}
 					>
-						{#each Intl.supportedValuesOf('timeZone') as tz}
+						{#each Intl.supportedValuesOf('timeZone') as tz (tz)}
 							<option value={tz}>{tz}</option>
 						{/each}
 					</select>

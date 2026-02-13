@@ -166,7 +166,7 @@ class WidgetRegistryService {
 			const inputComponentPath = originalFn.__inputComponentPath || '';
 			const displayComponentPath = originalFn.__displayComponentPath || '';
 
-			const widgetFn: WidgetFactory = Object.assign((config: Record<string, unknown>) => originalFn(config as any), {
+			const widgetFn: WidgetFactory = Object.assign((config: Record<string, unknown>) => originalFn(config as Parameters<WidgetFactory>[0]), {
 				Name: widgetName,
 				GuiSchema: originalFn.GuiSchema,
 				GraphqlSchema: originalFn.GraphqlSchema,

@@ -1,4 +1,3 @@
-// @ts-ignore
 /**
  * @file tests/bun/helpers/testSetup.ts
  * @description Static test data and environment initialization with SAFETY GUARDS.
@@ -40,24 +39,31 @@ export async function cleanupTestDatabase(): Promise<void> {
 			family: 4
 		});
 
-		if (!mongoose.connection.db) {
-			console.warn('[cleanupTestDatabase] Database connection not available');
-			return;
+		// Wait for ready state
+		let retries = 0;
+		while (mongoose.connection.readyState !== 1 && retries < 5) {
+			await new Promise((r) => setTimeout(r, 200));
+			retries++;
 		}
 
-		// Drop all collections except auth_users
-		const collections = await mongoose.connection.db.listCollections().toArray();
-		await Promise.all(
-			collections
-				.filter(col => col.name !== 'auth_users')
-				.map(col => mongoose.connection.db.collection(col.name).drop())
-		);
+		console.log(`[cleanupTestDatabase] Connected. State: ${mongoose.connection.readyState}`);
 
-		console.log(`[cleanupTestDatabase] Cleaned ${collections.length - 1} collections (preserved auth_users)`);
+		if (mongoose.connection.db) {
+			await mongoose.connection.db.dropDatabase();
+			console.log('[cleanupTestDatabase] DB Dropped.');
+		} else {
+			console.warn('[cleanupTestDatabase] Warning: mongoose.connection.db is undefined despite readyState 1.');
+		}
 	} catch (e: any) {
-		console.warn('[cleanupTestDatabase] Failed:', e.message);
+		console.warn('[cleanupTestDatabase] Warning: Failed to drop test database:', e.message);
 	} finally {
-		await mongoose.disconnect().catch(() => {});
+		// Always disconnect
+		try {
+			await mongoose.disconnect();
+			console.log('[cleanupTestDatabase] Disconnected.');
+		} catch {
+			// ignore disconnect error
+		}
 	}
 }
 
@@ -353,7 +359,7 @@ export async function prepareAuthenticatedContext(): Promise<string> {
 		if (cookie) {
 			return cookie;
 		}
-	} catch (e) {
+	} catch {
 		// Login failed - user might not exist, try creating via API
 	}
 

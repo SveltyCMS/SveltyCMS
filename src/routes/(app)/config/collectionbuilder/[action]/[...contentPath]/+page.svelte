@@ -150,24 +150,22 @@
 	showBackButton={true}
 	backUrl="/config/collectionbuilder"
 >
-	{#snippet children()}
-		<div class="flex gap-2">
-			{#if action === 'edit'}
-				<button onclick={handleCollectionDelete} class="preset-filled-error-500 btn flex items-center gap-1" disabled={isLoading}>
-					<iconify-icon icon="mdi:delete" width="20"></iconify-icon>
-					<span class="hidden sm:inline">{m.button_delete()}</span>
-				</button>
-			{/if}
-			<button onclick={() => handleCollectionSave()} class="preset-filled-primary-500 btn flex items-center gap-1 min-w-[100px]" disabled={isLoading}>
-				{#if isLoading}
-					<iconify-icon icon="mdi:loading" width="20" class="animate-spin"></iconify-icon>
-				{:else}
-					<iconify-icon icon="mdi:content-save" width="20"></iconify-icon>
-				{/if}
-				<span>{m.button_save()}</span>
+	<div class="flex gap-2">
+		{#if action === 'edit'}
+			<button onclick={handleCollectionDelete} class="preset-filled-error-500 btn flex items-center gap-1" disabled={isLoading}>
+				<iconify-icon icon="mdi:delete" width="20"></iconify-icon>
+				<span class="hidden sm:inline">{m.button_delete()}</span>
 			</button>
-		</div>
-	{/snippet}
+		{/if}
+		<button onclick={() => handleCollectionSave()} class="preset-filled-primary-500 btn flex items-center gap-1 min-w-[100px]" disabled={isLoading}>
+			{#if isLoading}
+				<iconify-icon icon="mdi:loading" width="20" class="animate-spin"></iconify-icon>
+			{:else}
+				<iconify-icon icon="mdi:content-save" width="20"></iconify-icon>
+			{/if}
+			<span>{m.button_save()}</span>
+		</button>
+	</div>
 </PageTitle>
 
 <div class="flex h-[calc(100vh-120px)] flex-col lg:flex-row">

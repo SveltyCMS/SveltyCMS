@@ -27,12 +27,18 @@
 
 	let { show = false, value: propValue = '', key = '', active = $bindable(''), onSubmit }: Props = $props();
 
-	let _value = $state(''); // Initialize with a default value
+	let localValue = $state<string | undefined>(undefined);
 
-	$effect(() => {
-		// This effect runs when propValue changes, including initial render
-		_value = propValue;
-	});
+	let _value = {
+		get value() {
+			return localValue ?? propValue;
+		},
+
+		set value(v: string) {
+			localValue = v;
+		}
+	};
+
 	let show_input = $state(false);
 
 	$effect(() => {
@@ -50,12 +56,14 @@
 	function handleKeydown(e: KeyboardEvent & { currentTarget: HTMLInputElement }) {
 		if (e.key === 'Enter') {
 			show_input = false;
-			onSubmit?.(_value);
+
+			onSubmit?.(_value.value as string);
 		}
 	}
 
 	function handleClick() {
 		show_input = !show_input;
+
 		active = key;
 	}
 </script>
@@ -63,11 +71,13 @@
 <div class:hidden={!show} class="relative">
 	<button onclick={handleClick} aria-label="Description" class="btn-sm flex items-center">
 		<iconify-icon icon="material-symbols:description" width={24}></iconify-icon>
+
 		<span class="hidden sm:inline">Description</span>
 	</button>
+
 	{#if show_input}
 		<div class="description absolute top-full mt-2">
-			<input type="text" bind:value={_value} onkeydown={handleKeydown} class="input" placeholder="Enter description" />
+			<input type="text" bind:value={_value.value} onkeydown={handleKeydown} class="input" placeholder="Enter description" />
 		</div>
 	{/if}
 </div>

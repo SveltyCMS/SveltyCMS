@@ -117,7 +117,6 @@ export class AdapterCore {
 			}
 
 			// Access internal pool stats for mysql2 driver
-			// @ts-ignore - internal property
 			const pool = (this.pool as any).pool;
 
 			if (!pool) {

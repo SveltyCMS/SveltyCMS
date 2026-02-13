@@ -124,7 +124,7 @@
 			aria-label="Select number of rows per page"
 			class="appearance-none bg-transparent p-0 px-2 text-center text-sm text-tertiary-500 hover:bg-surface-200 dark:border-surface-50 dark:text-primary-500 dark:hover:bg-surface-800 sm:px-4"
 		>
-			{#each rowsPerPageOptions as pageSize}
+			{#each rowsPerPageOptions as pageSize (pageSize)}
 				<option class="bg-surface-300 text-black dark:bg-surface-700 dark:text-white" value={pageSize}>
 					{pageSize}
 					{m.entrylist_rows()}

@@ -176,6 +176,7 @@
 <!-- Render sanitized HTML -->
 {#if sanitized}
 	<div class={className} data-sanitized>
+		<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 		{@html sanitized}
 	</div>
 {:else}

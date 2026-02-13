@@ -29,6 +29,7 @@
 	import { dndzone, SHADOW_ITEM_MARKER_PROPERTY_NAME } from 'svelte-dnd-action';
 	import { flip } from 'svelte/animate';
 	import { tick } from 'svelte';
+	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 	import SystemTooltip from '@components/system/SystemTooltip.svelte';
 
 	export interface TreeViewItem extends Record<string, any> {
@@ -58,9 +59,11 @@
 	let searchText = $state('');
 	let treeRoots = $state<EnhancedTreeViewItem[]>([]);
 	let initialized = $state(false);
-	let expandedNodes = $state<Set<string>>(new Set());
+	// eslint-disable-next-line svelte/no-unnecessary-state-wrap
+	let expandedNodes = $state(new SvelteSet<string>());
 	let isDragging = $state(false);
-	let nodeSnapshot = $state(new Map<string, EnhancedTreeViewItem>());
+	// eslint-disable-next-line svelte/no-unnecessary-state-wrap
+	let nodeSnapshot = $state(new SvelteMap<string, EnhancedTreeViewItem>());
 	let lastContentNodesHash = $state('');
 	let rebuildTimeout: ReturnType<typeof setTimeout> | null = null;
 
@@ -141,16 +144,14 @@
 	// Auto-expand on search
 	$effect(() => {
 		if (searchText.trim()) {
-			const idsToExpand = new Set(expandedNodes);
-			collectIdsToExpand(treeRoots, searchText.toLowerCase(), idsToExpand);
-			expandedNodes = idsToExpand;
+			collectIdsToExpand(treeRoots, searchText.toLowerCase(), expandedNodes);
 		}
 	});
 
 	// --- Tree Building Helpers ---
 
 	function buildTree(flatItems: TreeViewItem[]): EnhancedTreeViewItem[] {
-		const itemMap = new Map<string, EnhancedTreeViewItem>();
+		const itemMap = new SvelteMap<string, EnhancedTreeViewItem>();
 		flatItems.forEach((item) => {
 			itemMap.set(item.id, { ...item, children: [], level: 0 });
 		});
@@ -179,7 +180,7 @@
 		let flat: TreeViewItem[] = [];
 
 		nodes.forEach((node, index) => {
-			const { children, level, isDndShadowItem, ...rest } = node;
+			const { children, level: _level, isDndShadowItem: _isDndShadowItem, ...rest } = node;
 			const newItem: TreeViewItem = { ...rest, parent: parentId, order: index };
 			flat.push(newItem);
 
@@ -250,20 +251,18 @@
 	// --- UI Actions ---
 
 	function expandAll() {
-		const allIds = new Set<string>();
 		const recurse = (nodes: EnhancedTreeViewItem[]) => {
 			nodes.forEach((n) => {
-				allIds.add(n.id);
+				expandedNodes.add(n.id);
 				recurse(n.children);
 			});
 		};
 		recurse(treeRoots);
-		expandedNodes = allIds;
 		announce('Expanded all categories');
 	}
 
 	function collapseAll() {
-		expandedNodes = new Set();
+		expandedNodes.clear();
 		announce('Collapsed all categories');
 	}
 
@@ -273,15 +272,13 @@
 	}
 
 	function toggleNode(id: string) {
-		const next = new Set(expandedNodes);
-		if (next.has(id)) {
-			next.delete(id);
+		if (expandedNodes.has(id)) {
+			expandedNodes.delete(id);
 			announce('Collapsed');
 		} else {
-			next.add(id);
+			expandedNodes.add(id);
 			announce('Expanded');
 		}
-		expandedNodes = next;
 	}
 
 	function announce(message: string) {
@@ -405,7 +402,7 @@
 
 		// Walk up from targetNode to see if we hit potentialAncestorId
 		let current: EnhancedTreeViewItem | null = targetNode;
-		const visited = new Set<string>();
+		const visited = new SvelteSet<string>();
 
 		while (current) {
 			if (current.id === potentialAncestorId) return true;
@@ -471,12 +468,12 @@
 	}
 
 	function recalculatePaths(items: TreeViewItem[]): TreeViewItem[] {
-		const itemMap = new Map<string, TreeViewItem>();
+		const itemMap = new SvelteMap<string, TreeViewItem>();
 		for (const item of items) {
 			itemMap.set(item.id, { ...item });
 		}
 
-		const childrenByParent = new Map<string, TreeViewItem[]>();
+		const childrenByParent = new SvelteMap<string, TreeViewItem[]>();
 		for (const item of items) {
 			const parentKey = item.parent || '__root__';
 			if (!childrenByParent.has(parentKey)) {
@@ -602,11 +599,9 @@
 				e.preventDefault();
 				const parent = getParent(treeRoots, currentNode.id);
 				const siblings = parent ? parent.children : treeRoots;
-				const newExpanded = new Set(expandedNodes);
 				siblings.forEach((s) => {
-					if (s.children?.length) newExpanded.add(s.id);
+					if (s.children?.length) expandedNodes.add(s.id);
 				});
-				expandedNodes = newExpanded;
 				announce('Expanded all siblings');
 				break;
 			}

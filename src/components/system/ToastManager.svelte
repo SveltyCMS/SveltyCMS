@@ -25,6 +25,7 @@ optional actions, and smooth animations.
 
 	import { Toast } from '@skeletonlabs/skeleton-svelte';
 	import { toaster } from '@stores/store.svelte.ts';
+	import Sanitize from '@src/utils/Sanitize.svelte';
 
 	interface Props {
 		/** Position of the toast container */
@@ -96,7 +97,10 @@ optional actions, and smooth animations.
 	});
 </script>
 
-<Toast.Group {toaster} class="fixed z-9999 flex {position.includes('bottom') ? 'flex-col-reverse' : 'flex-col'} gap {positionClasses[position]}">
+<Toast.Group
+	toaster={toaster as any}
+	class="fixed z-9999 flex {position.includes('bottom') ? 'flex-col-reverse' : 'flex-col'} gap {positionClasses[position]}"
+>
 	{#snippet children(toast)}
 		<div in:fly={animParams} out:fade={{ duration: 200 }} class="relative" role="alert" aria-live="polite">
 			<Toast
@@ -137,7 +141,7 @@ optional actions, and smooth animations.
 					<Toast.Description
 						class="text-sm md:text-base font-bold opacity-100 leading-tight md:leading-relaxed text-white drop-shadow-sm inline-block max-w-full whitespace-normal"
 					>
-						{@html toast.description}
+						<Sanitize html={toast.description} profile="strict" />
 					</Toast.Description>
 
 					{#if toast.action}

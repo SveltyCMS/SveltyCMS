@@ -26,12 +26,13 @@
 
 	// Import necessary utilities and types
 	import { page } from '$app/state';
-	import type { Schema } from '@src/content/types'; // Import Schema type (collection definition)
+	import type { ContentNode } from '@src/content/types'; // Import Schema type (collection definition)
+	import type { Locale } from '@src/paraglide/runtime';
+	import { locales as availableLocales, getLocale } from '@src/paraglide/runtime';
 	import { getLanguageName } from '@utils/languageUtils';
-	import { locales as availableLocales } from '@src/paraglide/runtime';
 
 	// Stores
-	import { setMode } from '@stores/collectionStore.svelte';
+	import { setMode, contentStructure } from '@stores/collectionStore.svelte';
 	import { avatarSrc, systemLanguage } from '@stores/store.svelte';
 	import { toggleUIElement, uiStateManager, userPreferredState } from '@stores/UIStore.svelte';
 	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
@@ -56,7 +57,6 @@
 
 	// Language and messaging
 	import * as m from '@src/paraglide/messages';
-	import { getLocale } from '@src/paraglide/runtime';
 
 	// Constants
 	const MOBILE_BREAKPOINT = 768;
@@ -70,7 +70,7 @@
 	// Reactive user data
 	const user = $derived(page.data.user);
 	const currentPath = $derived(page.url.pathname);
-	const collections: Schema[] = $derived(page.data.collections);
+	const collections: ContentNode[] = $derived(contentStructure.value || []);
 	// Check if we're in media mode
 	const isMediaMode = $derived(currentPath.includes('/mediagallery'));
 	// Check if we're in settings mode
@@ -84,7 +84,13 @@
 	// Derived values
 	const isSidebarFull = $derived(uiStateManager.uiState.value.leftSidebar === 'full');
 
-	const firstCollectionPath = $derived(collections?.[0] ? `/Collections/${collections[0].name}` : '/Collections');
+	const firstCollectionPath = $derived.by(() => {
+		if (collections?.[0]) {
+			const node = collections[0] as any;
+			return node.path ? `/${getLocale()}${node.path}` : `/Collections/${node.name}`;
+		}
+		return '/Collections';
+	});
 
 	const availableLanguages = $derived([...availableLocales].sort((a, b) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en'))));
 
@@ -167,7 +173,7 @@
 
 	// Event handlers
 	function handleLanguageSelection(lang: AvailableLanguage): void {
-		systemLanguage.set(lang as any);
+		systemLanguage.set(lang as Locale);
 		languageTag = lang;
 		searchQuery = '';
 	}

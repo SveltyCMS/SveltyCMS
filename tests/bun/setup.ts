@@ -230,7 +230,7 @@ mock.module('@sveltejs/kit', () => ({
 	};
 };
 (globalThis as any).$derived = (fn: any) => {
-	let value = typeof fn === 'function' ? fn() : fn;
+	const value = typeof fn === 'function' ? fn() : fn;
 	return {
 		get value() {
 			return value;
@@ -381,7 +381,7 @@ mock.module('@src/stores/store.svelte.ts', () => {
 		dataChangeStore: mockDataChangeStore,
 		systemLanguage: {
 			value: 'en',
-			set: (_lang: string) => {}
+			set: () => {}
 		}
 	};
 });
@@ -426,7 +426,7 @@ mock.module('@src/paraglide/messages', () => ({
 
 mock.module('@src/paraglide/runtime', () => ({
 	getLocale: () => 'en',
-	setLocale: (_locale: string) => {},
+	setLocale: () => {},
 	locales: ['en', 'de', 'fr', 'es', 'it', 'pt']
 }));
 
@@ -436,12 +436,12 @@ mock.module('@src/paraglide/runtime', () => ({
 
 mock.module('@src/paraglide/runtime', () => ({
 	getLocale: () => 'en',
-	setLocale: (_locale: string) => {},
+	setLocale: () => {},
 	locales: ['en', 'de', 'fr', 'es', 'it', 'pt']
 }));
 
 mock.module('@utils/languageUtils', () => ({
-	getLanguageName: (code: string, _displayLang?: string) => {
+	getLanguageName: (code: string) => {
 		const names: Record<string, string> = {
 			en: 'English',
 			de: 'German',
@@ -455,8 +455,8 @@ mock.module('@utils/languageUtils', () => ({
 }));
 
 mock.module('@utils/toast', () => ({
-	setGlobalToastStore: (_store: any) => {},
-	showToast: (message: string, type?: string, _duration?: number) => {
+	setGlobalToastStore: () => {},
+	showToast: (message: string, type?: string) => {
 		console.log(`[TOAST ${type || 'info'}]`, message);
 	}
 }));

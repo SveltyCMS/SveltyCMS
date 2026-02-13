@@ -65,7 +65,7 @@ Requires user confirmation before proceeding with changes that may cause data lo
 	}
 </script>
 
-<svelte:window on:keydown={handleKeydown} />
+<svelte:window onkeydown={handleKeydown} />
 
 <!-- Backdrop -->
 <div
@@ -104,7 +104,7 @@ Requires user confirmation before proceeding with changes that may cause data lo
 						{dataLossChanges.length} change{dataLossChanges.length > 1 ? 's' : ''} will cause data loss:
 					</p>
 					<ul class="space-y-2">
-						{#each dataLossChanges as change}
+						{#each dataLossChanges as change (change.type + change.message)}
 							<li class="flex items-start gap-2 text-sm">
 								<iconify-icon icon={typeIcons[change.type || 'mdi:alert']} width="18" class="mt-0.5 text-error-500"></iconify-icon>
 								<div>
@@ -129,7 +129,7 @@ Requires user confirmation before proceeding with changes that may cause data lo
 						{otherChanges.length} other breaking change{otherChanges.length > 1 ? 's' : ''}:
 					</p>
 					<ul class="space-y-2">
-						{#each otherChanges as change}
+						{#each otherChanges as change (change.type + change.message)}
 							<li class="flex items-start gap-2 text-sm">
 								<iconify-icon icon={typeIcons[change.type || 'mdi:alert']} width="18" class="mt-0.5 text-warning-500"></iconify-icon>
 								<div>

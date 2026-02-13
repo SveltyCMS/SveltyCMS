@@ -7,6 +7,7 @@ import type { Locale } from '@src/paraglide/runtime';
 import { publicEnv } from '@src/stores/globalSettings.svelte';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { createToaster } from '@skeletonlabs/skeleton-svelte';
+import type { Component } from 'svelte';
 
 // --- TYPES & INTERFACES ---
 
@@ -38,7 +39,7 @@ export function normalizeAvatarUrl(url: string | null | undefined): string {
 	if (url.startsWith('data:') || /^https?:\/\//i.test(url)) return url;
 	if (/^\/?Default_User\.svg$/i.test(url)) return DEFAULT_AVATAR;
 
-	let normalized = url.replace(/^https?:\/\/[^/]+/i, '').replace(/^\/+/, '/');
+	const normalized = url.replace(/^https?:\/\/[^/]+/i, '').replace(/^\/+/, '/');
 	if (normalized === '/files' || normalized === '/files/') return DEFAULT_AVATAR;
 	if (normalized.startsWith('/files/')) return normalized;
 
@@ -95,8 +96,8 @@ export class AppStore {
 	_contentLanguage = $state<Locale>('en' as Locale);
 
 	// Rendering & UI Elements
-	headerActionButton = $state<any>(undefined);
-	headerActionButton2 = $state<any>(undefined);
+	headerActionButton = $state<Component<Record<string, unknown>> | undefined>(undefined);
+	headerActionButton2 = $state<Component<Record<string, unknown>> | undefined>(undefined);
 	pkgBgColor = $state('preset-filled-primary-500');
 	file = $state<File | null>(null);
 	saveEditedImage = $state(false);
@@ -229,10 +230,10 @@ export const dataChangeStore = new DataChangeStore();
 const baseToaster = createToaster();
 export const toaster = {
 	...baseToaster,
-	success: (t: any) => baseToaster.success({ duration: 5000, ...t }),
-	error: (t: any) => baseToaster.error({ duration: 5000, ...t }),
-	warning: (t: any) => baseToaster.warning({ duration: 5000, ...t }),
-	info: (t: any) => baseToaster.info({ duration: 5000, ...t })
+	success: (t: Record<string, unknown>) => baseToaster.success({ duration: 5000, ...t } as any),
+	error: (t: Record<string, unknown>) => baseToaster.error({ duration: 5000, ...t } as any),
+	warning: (t: Record<string, unknown>) => baseToaster.warning({ duration: 5000, ...t } as any),
+	info: (t: Record<string, unknown>) => baseToaster.info({ duration: 5000, ...t } as any)
 };
 
 // Static Constants

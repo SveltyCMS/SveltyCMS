@@ -13,19 +13,15 @@ Handles all field types and validation automatically
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { SvelteSet } from 'svelte/reactivity';
 
-	// Types
-	import type { Writable } from 'svelte/store';
-	import type { SettingGroup, SettingField } from './settingsGroups';
-
-	// Stores
-	import { toaster } from '@stores/store.svelte';
-
-	// Utils
-	import iso6391 from '@utils/iso639-1.json';
-	import { getLanguageName } from '@utils/languageUtils';
-	import { showConfirm } from '@utils/modalUtils';
+	// Types and Utilities
+	import type { SettingField, SettingGroup } from './settingsGroups';
 	import { logger } from '@utils/logger';
+	import { getLanguageName } from '@utils/languageUtils';
+	import { toaster } from '@stores/store.svelte';
+	import { showConfirm } from '@utils/modalUtils';
+	import iso6391 from '@utils/iso639-1.json';
 
 	// Components
 	import SystemTooltip from '@components/system/SystemTooltip.svelte';
@@ -36,7 +32,7 @@ Handles all field types and validation automatically
 
 	interface Props {
 		group: SettingGroup;
-		groupsNeedingConfig: Writable<Set<string>>;
+		groupsNeedingConfig: SvelteSet<string>;
 		onUnsavedChanges?: (hasChanges: boolean) => void;
 	}
 
@@ -55,6 +51,12 @@ Handles all field types and validation automatically
 	const languageSearch = $state<Record<string, string>>({}); // Track search input per field
 	const showLogLevelPicker = $state<Record<string, boolean>>({}); // Track log level picker visibility per field
 	let allowedLocales = $state<string[]>([]); // Locales from project.inlang/settings.json
+
+	// Derived fields for special layouts
+	const defaultLangField = $derived(group.fields.find((f) => f.key === 'DEFAULT_CONTENT_LANGUAGE'));
+	const availableLangsField = $derived(group.fields.find((f) => f.key === 'AVAILABLE_CONTENT_LANGUAGES'));
+	const baseLocaleField = $derived(group.fields.find((f) => f.key === 'BASE_LOCALE'));
+	const localesField = $derived(group.fields.find((f) => f.key === 'LOCALES'));
 
 	// Load allowed locales from project.inlang/settings.json
 	async function loadAllowedLocales() {
@@ -99,14 +101,11 @@ Handles all field types and validation automatically
 		});
 
 		// Update the store
-		groupsNeedingConfig.update((groups) => {
-			if (hasEmptyRequiredFields) {
-				groups.add(group.id);
-			} else {
-				groups.delete(group.id);
-			}
-			return groups;
-		});
+		if (hasEmptyRequiredFields) {
+			groupsNeedingConfig.add(group.id);
+		} else {
+			groupsNeedingConfig.delete(group.id);
+		}
 	}
 
 	// Load current values
@@ -506,332 +505,319 @@ Handles all field types and validation automatically
 			{#if group.id === 'languages'}
 				<div class="grid grid-cols-1 gap-6 md:grid-cols-2">
 					<!-- Left Column: Default Content Language + Available Content Languages -->
-					{#each [null] as _}
-						{@const defaultLangField = group.fields.find((f) => f.key === 'DEFAULT_CONTENT_LANGUAGE')}
-						{@const availableLangsField = group.fields.find((f) => f.key === 'AVAILABLE_CONTENT_LANGUAGES')}
-
-						<div class="space-y-3 rounded-md border border-slate-300/50 bg-surface-50/60 p-4 dark:border-slate-600/60 dark:bg-surface-800/40">
-							{#if defaultLangField}
-								<div>
-									<label for={defaultLangField.key} class="mb-1 flex items-center gap-1 text-sm font-medium">
-										<iconify-icon icon="mdi:book-open-page-variant" width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-										<span>{defaultLangField.label}</span>
-										{#if defaultLangField.required}
-											<span class="text-error-500">*</span>
-										{/if}
-										<SystemTooltip title={defaultLangField.description}>
-											<button type="button" class="ml-1 text-slate-400 hover:text-primary-500" aria-label="Field information">
-												<iconify-icon icon="mdi:help-circle-outline" width="16"></iconify-icon>
-											</button>
-										</SystemTooltip>
-									</label>
-									<select
-										id={defaultLangField.key}
-										bind:value={values[defaultLangField.key]}
-										class="input w-full rounded {errors[defaultLangField.key] ? 'border-error-500' : ''}"
-										required={defaultLangField.required}
-										onchange={() => (errors[defaultLangField.key] = '')}
-										aria-invalid={!!errors[defaultLangField.key]}
-										aria-describedby={errors[defaultLangField.key] ? `${defaultLangField.key}-error` : undefined}
-									>
-										{#if (values.AVAILABLE_CONTENT_LANGUAGES as string[])?.length > 0}
-											{#each values.AVAILABLE_CONTENT_LANGUAGES as string[] as langCode}
-												<option value={langCode}>{displayLanguage(langCode)} ({langCode})</option>
-											{/each}
-										{:else}
-											<option value="en">English (en)</option>
-										{/if}
-									</select>
-									{#if errors[defaultLangField.key]}
-										<div id="{defaultLangField.key}-error" class="mt-1 text-xs text-error-500">{errors[defaultLangField.key]}</div>
+					<div class="space-y-3 rounded-md border border-slate-300/50 bg-surface-50/60 p-4 dark:border-slate-600/60 dark:bg-surface-800/40">
+						{#if defaultLangField}
+							<div>
+								<label for={defaultLangField.key} class="mb-1 flex items-center gap-1 text-sm font-medium">
+									<iconify-icon icon="mdi:book-open-page-variant" width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+									<span>{defaultLangField.label}</span>
+									{#if defaultLangField.required}
+										<span class="text-error-500">*</span>
 									{/if}
+									<SystemTooltip title={defaultLangField.description}>
+										<button type="button" class="ml-1 text-slate-400 hover:text-primary-500" aria-label="Field information">
+											<iconify-icon icon="mdi:help-circle-outline" width="16"></iconify-icon>
+										</button>
+									</SystemTooltip>
+								</label>
+								<select
+									id={defaultLangField.key}
+									bind:value={values[defaultLangField.key]}
+									class="input w-full rounded {errors[defaultLangField.key] ? 'border-error-500' : ''}"
+									required={defaultLangField.required}
+									onchange={() => (errors[defaultLangField.key] = '')}
+									aria-invalid={!!errors[defaultLangField.key]}
+									aria-describedby={errors[defaultLangField.key] ? `${defaultLangField.key}-error` : undefined}
+								>
+									{#if (values.AVAILABLE_CONTENT_LANGUAGES as string[])?.length > 0}
+										{#each values.AVAILABLE_CONTENT_LANGUAGES as string[] as langCode (langCode)}
+											<option value={langCode}>{displayLanguage(langCode)} ({langCode})</option>
+										{/each}
+									{:else}
+										<option value="en">English (en)</option>
+									{/if}
+								</select>
+								{#if errors[defaultLangField.key]}
+									<div id="{defaultLangField.key}-error" class="mt-1 text-xs text-error-500">{errors[defaultLangField.key]}</div>
+								{/if}
+							</div>
+						{/if}
+
+						{#if availableLangsField}
+							<div>
+								<div class="mb-1 flex items-center gap-1 text-sm font-medium tracking-wide">
+									<iconify-icon icon="mdi:book-multiple" width="14" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+									<span>{availableLangsField.label}</span>
+									{#if availableLangsField.required}
+										<span class="text-error-500">*</span>
+									{/if}
+									<SystemTooltip title={availableLangsField.description}>
+										<button type="button" class="ml-1 text-slate-400 hover:text-primary-500" aria-label="Field information">
+											<iconify-icon icon="mdi:help-circle-outline" width="14"></iconify-icon>
+										</button>
+									</SystemTooltip>
 								</div>
-							{/if}
-
-							{#if availableLangsField}
-								<div>
-									<div class="mb-1 flex items-center gap-1 text-sm font-medium tracking-wide">
-										<iconify-icon icon="mdi:book-multiple" width="14" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-										<span>{availableLangsField.label}</span>
-										{#if availableLangsField.required}
-											<span class="text-error-500">*</span>
-										{/if}
-										<SystemTooltip title={availableLangsField.description}>
-											<button type="button" class="ml-1 text-slate-400 hover:text-primary-500" aria-label="Field information">
-												<iconify-icon icon="mdi:help-circle-outline" width="14"></iconify-icon>
-											</button>
-										</SystemTooltip>
-									</div>
-									<div class="relative">
-										<div
-											class="flex min-h-10 flex-wrap gap-2 rounded border p-2 pr-16 {errors[availableLangsField.key]
-												? 'border-error-500 bg-error-50 dark:bg-error-900/20'
-												: 'border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700/40'}"
-										>
-											{#if (values[availableLangsField.key] as string[])?.length > 0}
-												{#each values.AVAILABLE_CONTENT_LANGUAGES as string[] as langCode}
-													<span
-														class="group badge preset-filled-tertiary-500 hover:preset-filled-tertiary-600 dark:preset-filled-primary-500 dark:hover:preset-filled-primary-600 inline-flex items-center gap-2 rounded-full px-3 py-1 text-white transition-colors"
-													>
-														<span class="text-sm font-medium">{displayLanguage(langCode)} ({langCode})</span>
-														{#if !availableLangsField.readonly}
-															<button
-																type="button"
-																class="flex items-center justify-center -mr-1 p-0.5 rounded-full hover:bg-white/20 transition-colors"
-																onclick={() => removeLanguage(availableLangsField.key, langCode)}
-																aria-label="Remove {langCode}"
-															>
-																<iconify-icon icon="mdi:close" width="14"></iconify-icon>
-															</button>
-														{/if}
-													</span>
-												{/each}
-											{:else if availableLangsField.placeholder}
-												<span class="text-surface-500 dark:text-surface-50 text-xs">{availableLangsField.placeholder}</span>
-											{/if}
-
-											{#if !availableLangsField.readonly}
-												<button
-													type="button"
-													class="preset-filled-surface-500 badge absolute right-2 top-2 rounded-full"
-													onclick={() => {
-														showLanguagePicker[availableLangsField.key] = true;
-														languageSearch[availableLangsField.key] = '';
-													}}
-													aria-haspopup="dialog"
-													aria-expanded={showLanguagePicker[availableLangsField.key]}
-													aria-controls="{availableLangsField.key}-lang-picker"
+								<div class="relative">
+									<div
+										class="flex min-h-10 flex-wrap gap-2 rounded border p-2 pr-16 {errors[availableLangsField.key]
+											? 'border-error-500 bg-error-50 dark:bg-error-900/20'
+											: 'border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700/40'}"
+									>
+										{#if (values[availableLangsField.key] as string[])?.length > 0}
+											{#each values[availableLangsField.key] as string[] as langCode (langCode)}
+												<span
+													class="group badge preset-filled-tertiary-500 hover:preset-filled-tertiary-600 dark:preset-filled-primary-500 dark:hover:preset-filled-primary-600 inline-flex items-center gap-2 rounded-full px-3 py-1 text-white transition-colors"
 												>
-													<iconify-icon icon="mdi:plus" width="14"></iconify-icon>
-													Add
-												</button>
-											{/if}
-										</div>
-
-										<!-- Language Picker Dropdown -->
-										{#if showLanguagePicker[availableLangsField.key]}
-											<div
-												id="{availableLangsField.key}-lang-picker"
-												class="absolute left-0 top-full z-20 mt-2 w-64 rounded-md border border-slate-300/60 bg-surface-50 p-2 shadow-lg dark:border-slate-600 dark:bg-surface-800"
-												role="dialog"
-												aria-label="Add language"
-												tabindex="-1"
-											>
-												<input
-													class="mb-2 w-full rounded border border-slate-300/60 bg-transparent px-2 py-1 text-xs outline-none focus:border-primary-500 dark:border-slate-600"
-													placeholder="Search..."
-													bind:value={languageSearch[availableLangsField.key]}
-												/>
-												<div class="max-h-48 overflow-auto">
-													{#each iso6391.filter((lang: { code: string; name: string; native: string }) => {
-														const search = (languageSearch[availableLangsField.key] || '').toLowerCase();
-														const currentValues = (values[availableLangsField.key] as string[]) || [];
-														return !currentValues.includes(lang.code) && (search === '' || lang.name.toLowerCase().includes(search) || lang.native
-																	.toLowerCase()
-																	.includes(search) || lang.code.toLowerCase().includes(search));
-													}) as lang}
+													<span class="text-sm font-medium">{displayLanguage(langCode)} ({langCode})</span>
+													{#if !availableLangsField.readonly}
 														<button
 															type="button"
-															class="flex w-full items-center justify-between rounded px-2 py-1 text-left text-xs hover:bg-primary-500/10"
-															onclick={() => {
-																toggleLanguage(availableLangsField.key, lang.code);
-																showLanguagePicker[availableLangsField.key] = false;
-																// Set as default if it's the first language
-																if (!(values[availableLangsField.key] as string[])?.length || !values.DEFAULT_CONTENT_LANGUAGE) {
-																	values.DEFAULT_CONTENT_LANGUAGE = lang.code;
-																}
-															}}
+															class="flex items-center justify-center -mr-1 p-0.5 rounded-full hover:bg-white/20 transition-colors"
+															onclick={() => removeLanguage(availableLangsField.key, langCode)}
+															aria-label="Remove {langCode}"
 														>
-															<span>{lang.native} ({lang.code})</span>
-															<iconify-icon icon="mdi:plus-circle-outline" width="14" class="text-primary-500"></iconify-icon>
+															<iconify-icon icon="mdi:close" width="14"></iconify-icon>
 														</button>
-													{:else}
-														<p class="px-1 py-2 text-center text-[11px] text-slate-500">No matches</p>
-													{/each}
-												</div>
-											</div>
+													{/if}
+												</span>
+											{/each}
+										{:else if availableLangsField.placeholder}
+											<span class="text-surface-500 dark:text-surface-50 text-xs">{availableLangsField.placeholder}</span>
+										{/if}
+
+										{#if !availableLangsField.readonly}
+											<button
+												type="button"
+												class="preset-filled-surface-500 badge absolute right-2 top-2 rounded-full"
+												onclick={() => {
+													showLanguagePicker[availableLangsField.key] = true;
+													languageSearch[availableLangsField.key] = '';
+												}}
+												aria-haspopup="dialog"
+												aria-expanded={showLanguagePicker[availableLangsField.key]}
+												aria-controls="{availableLangsField.key}-lang-picker"
+											>
+												<iconify-icon icon="mdi:plus" width="14"></iconify-icon>
+												Add
+											</button>
 										{/if}
 									</div>
-									{#if errors[availableLangsField.key]}
-										<div class="mt-1 text-xs text-error-500">{errors[availableLangsField.key]}</div>
-									{/if}
-									{#if availableLangsField.placeholder}
-										<p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Example: {availableLangsField.placeholder}</p>
+
+									<!-- Language Picker Dropdown -->
+									{#if showLanguagePicker[availableLangsField.key]}
+										<div
+											id="{availableLangsField.key}-lang-picker"
+											class="absolute left-0 top-full z-20 mt-2 w-64 rounded-md border border-slate-300/60 bg-surface-50 p-2 shadow-lg dark:border-slate-600 dark:bg-surface-800"
+											role="dialog"
+											aria-label="Add language"
+											tabindex="-1"
+										>
+											<input
+												class="mb-2 w-full rounded border border-slate-300/60 bg-transparent px-2 py-1 text-xs outline-none focus:border-primary-500 dark:border-slate-600"
+												placeholder="Search..."
+												bind:value={languageSearch[availableLangsField.key]}
+											/>
+											<div class="max-h-48 overflow-auto">
+												{#each iso6391.filter((lang: { code: string; name: string; native: string }) => {
+													const search = (languageSearch[availableLangsField.key] || '').toLowerCase();
+													const currentValues = (values[availableLangsField.key] as string[]) || [];
+													return !currentValues.includes(lang.code) && (search === '' || lang.name.toLowerCase().includes(search) || lang.native
+																.toLowerCase()
+																.includes(search) || lang.code.toLowerCase().includes(search));
+												}) as lang (lang.code)}
+													<button
+														type="button"
+														class="flex w-full items-center justify-between rounded px-2 py-1 text-left text-xs hover:bg-primary-500/10"
+														onclick={() => {
+															toggleLanguage(availableLangsField.key, lang.code);
+															showLanguagePicker[availableLangsField.key] = false;
+															// Set as default if it's the first language
+															if (!(values[availableLangsField.key] as string[])?.length || !values.DEFAULT_CONTENT_LANGUAGE) {
+																values.DEFAULT_CONTENT_LANGUAGE = lang.code;
+															}
+														}}
+													>
+														<span>{lang.native} ({lang.code})</span>
+														<iconify-icon icon="mdi:plus-circle-outline" width="14" class="text-primary-500"></iconify-icon>
+													</button>
+												{:else}
+													<p class="px-1 py-2 text-center text-[11px] text-slate-500">No matches</p>
+												{/each}
+											</div>
+										</div>
 									{/if}
 								</div>
-							{/if}
-						</div>
-					{/each}
-
+								{#if errors[availableLangsField.key]}
+									<div class="mt-1 text-xs text-error-500">{errors[availableLangsField.key]}</div>
+								{/if}
+								{#if availableLangsField.placeholder}
+									<p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Example: {availableLangsField.placeholder}</p>
+								{/if}
+							</div>
+						{/if}
+					</div>
 					<!-- Right Column: Base Locale + Available Locales -->
-					{#each [null] as _}
-						{@const baseLocaleField = group.fields.find((f) => f.key === 'BASE_LOCALE')}
-						{@const localesField = group.fields.find((f) => f.key === 'LOCALES')}
-
-						<div class="space-y-3 rounded-md border border-slate-300/50 bg-surface-50/60 p-4 dark:border-slate-600/60 dark:bg-surface-800/40">
-							{#if baseLocaleField}
-								<div>
-									<label for={baseLocaleField.key} class="mb-1 flex items-center gap-1 text-sm font-medium">
-										<iconify-icon icon="mdi:translate" width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-										<span>{baseLocaleField.label}</span>
-										{#if baseLocaleField.required}
-											<span class="text-error-500">*</span>
-										{/if}
-										<SystemTooltip title={baseLocaleField.description}>
-											<button type="button" class="ml-1 text-slate-400 hover:text-primary-500" aria-label="Field information">
-												<iconify-icon icon="mdi:help-circle-outline" width="16"></iconify-icon>
-											</button>
-										</SystemTooltip>
-									</label>
-									<select
-										id={baseLocaleField.key}
-										bind:value={values[baseLocaleField.key]}
-										class="input w-full rounded {errors[baseLocaleField.key] ? 'border-error-500' : ''}"
-										required={baseLocaleField.required}
-										onchange={() => (errors[baseLocaleField.key] = '')}
-									>
-										{#if (values.LOCALES as string[])?.length > 0}
-											{#each values.LOCALES as string[] as langCode}
-												<option value={langCode}>{displayLanguage(langCode)} ({langCode})</option>
-											{/each}
-										{:else}
-											<option value="en">English (en)</option>
-										{/if}
-									</select>
-									{#if errors[baseLocaleField.key]}
-										<div class="mt-1 text-xs text-error-500">{errors[baseLocaleField.key]}</div>
+					<div class="space-y-3 rounded-md border border-slate-300/50 bg-surface-50/60 p-4 dark:border-slate-600/60 dark:bg-surface-800/40">
+						{#if baseLocaleField}
+							<div>
+								<label for={baseLocaleField.key} class="mb-1 flex items-center gap-1 text-sm font-medium">
+									<iconify-icon icon="mdi:translate" width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+									<span>{baseLocaleField.label}</span>
+									{#if baseLocaleField.required}
+										<span class="text-error-500">*</span>
 									{/if}
+									<SystemTooltip title={baseLocaleField.description}>
+										<button type="button" class="ml-1 text-slate-400 hover:text-primary-500" aria-label="Field information">
+											<iconify-icon icon="mdi:help-circle-outline" width="16"></iconify-icon>
+										</button>
+									</SystemTooltip>
+								</label>
+								<select
+									id={baseLocaleField.key}
+									bind:value={values[baseLocaleField.key]}
+									class="input w-full rounded {errors[baseLocaleField.key] ? 'border-error-500' : ''}"
+									required={baseLocaleField.required}
+									onchange={() => (errors[baseLocaleField.key] = '')}
+								>
+									{#if (values.LOCALES as string[])?.length > 0}
+										{#each values.LOCALES as string[] as langCode (langCode)}
+											<option value={langCode}>{displayLanguage(langCode)} ({langCode})</option>
+										{/each}
+									{:else}
+										<option value="en">English (en)</option>
+									{/if}
+								</select>
+								{#if errors[baseLocaleField.key]}
+									<div class="mt-1 text-xs text-error-500">{errors[baseLocaleField.key]}</div>
+								{/if}
+							</div>
+						{/if}
+
+						{#if localesField}
+							<div>
+								<div class="mb-1 flex items-center gap-1 text-sm font-medium tracking-wide">
+									<iconify-icon icon="mdi:translate-variant" width="14" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+									<span>{localesField.label}</span>
+									{#if localesField.required}
+										<span class="text-error-500">*</span>
+									{/if}
+									<SystemTooltip title={localesField.description}>
+										<button type="button" class="ml-1 text-slate-400 hover:text-primary-500" aria-label="Field information">
+											<iconify-icon icon="mdi:help-circle-outline" width="14"></iconify-icon>
+										</button>
+									</SystemTooltip>
 								</div>
-							{/if}
-
-							{#if localesField}
-								<div>
-									<div class="mb-1 flex items-center gap-1 text-sm font-medium tracking-wide">
-										<iconify-icon icon="mdi:translate-variant" width="14" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-										<span>{localesField.label}</span>
-										{#if localesField.required}
-											<span class="text-error-500">*</span>
-										{/if}
-										<SystemTooltip title={localesField.description}>
-											<button type="button" class="ml-1 text-slate-400 hover:text-primary-500" aria-label="Field information">
-												<iconify-icon icon="mdi:help-circle-outline" width="14"></iconify-icon>
-											</button>
-										</SystemTooltip>
-									</div>
-									<div class="relative">
-										<div
-											class="flex min-h-10 flex-wrap gap-2 rounded border p-2 pr-16 {errors[localesField.key]
-												? 'border-error-500 bg-error-50 dark:bg-error-900/20'
-												: 'border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700/40'}"
-										>
-											{#if (values[localesField.key] as string[])?.length > 0}
-												{#each values.LOCALES as string[] as langCode}
-													<span
-														class="group badge preset-filled-tertiary-500 hover:preset-filled-tertiary-600 dark:preset-filled-primary-500 dark:hover:preset-filled-primary-600 inline-flex items-center gap-2 rounded-full px-3 py-1 text-white transition-colors"
-													>
-														<span class="text-sm font-medium">{displayLanguage(langCode)} ({langCode})</span>
-														{#if !localesField.readonly}
-															<button
-																type="button"
-																class="flex items-center justify-center -mr-1 p-0.5 rounded-full hover:bg-white/20 transition-colors"
-																onclick={() => {
-																	const currentBase = values.BASE_LOCALE;
-																	removeLanguage(localesField.key, langCode);
-																	// Reset base if it was removed
-																	if (currentBase === langCode) {
-																		const remaining = (values[localesField.key] as string[]) || [];
-																		values.BASE_LOCALE = remaining[0] || 'en';
-																	}
-																}}
-																aria-label="Remove {langCode}"
-															>
-																<iconify-icon icon="mdi:close" width="14"></iconify-icon>
-															</button>
-														{/if}
-													</span>
-												{/each}
-											{:else if localesField.placeholder}
-												<span class="text-surface-500 dark:text-surface-50 text-xs">{localesField.placeholder}</span>
-											{/if}
-
-											{#if !localesField.readonly && allowedLocales.filter((code) => !((values[localesField.key] as string[]) || []).includes(code)).length > 0}
-												<button
-													type="button"
-													class="preset-filled-surface-500 badge absolute right-2 top-2 rounded-full"
-													onclick={() => {
-														showLanguagePicker[localesField.key] = true;
-														languageSearch[localesField.key] = '';
-													}}
-													aria-haspopup="dialog"
-													aria-expanded={showLanguagePicker[localesField.key]}
-													aria-controls="{localesField.key}-lang-picker"
+								<div class="relative">
+									<div
+										class="flex min-h-10 flex-wrap gap-2 rounded border p-2 pr-16 {errors[localesField.key]
+											? 'border-error-500 bg-error-50 dark:bg-error-900/20'
+											: 'border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700/40'}"
+									>
+										{#if (values[localesField.key] as string[])?.length > 0}
+											{#each values[localesField.key] as string[] as langCode (langCode)}
+												<span
+													class="group badge preset-filled-tertiary-500 hover:preset-filled-tertiary-600 dark:preset-filled-primary-500 dark:hover:preset-filled-primary-600 inline-flex items-center gap-2 rounded-full px-3 py-1 text-white transition-colors"
 												>
-													<iconify-icon icon="mdi:plus" width="14"></iconify-icon>
-													Add
-												</button>
-											{/if}
-										</div>
-
-										<!-- Language Picker Dropdown -->
-										{#if showLanguagePicker[localesField.key]}
-											<div
-												id="{localesField.key}-lang-picker"
-												class="absolute left-0 top-full z-20 mt-2 w-64 rounded-md border border-slate-300/60 bg-surface-50 p-2 shadow-lg dark:border-slate-600 dark:bg-surface-800"
-												role="dialog"
-												aria-label="Add language"
-												tabindex="-1"
-											>
-												<input
-													class="mb-2 w-full rounded border border-slate-300/60 bg-transparent px-2 py-1 text-xs outline-none focus:border-primary-500 dark:border-slate-600"
-													placeholder="Search..."
-													bind:value={languageSearch[localesField.key]}
-												/>
-												<div class="max-h-48 overflow-auto">
-													{#each allowedLocales.filter((code: string) => {
-														const search = (languageSearch[localesField.key] || '').toLowerCase();
-														const currentValues = (values[localesField.key] as string[]) || [];
-														const langName = displayLanguage(code).toLowerCase();
-														return !currentValues.includes(code) && (search === '' || langName.includes(search) || code
-																	.toLowerCase()
-																	.includes(search));
-													}) as code}
+													<span class="text-sm font-medium">{displayLanguage(langCode)} ({langCode})</span>
+													{#if !localesField.readonly}
 														<button
 															type="button"
-															class="flex w-full items-center justify-between rounded px-2 py-1 text-left text-xs hover:bg-primary-500/10"
+															class="flex items-center justify-center -mr-1 p-0.5 rounded-full hover:bg-white/20 transition-colors"
 															onclick={() => {
-																toggleLanguage(localesField.key, code);
-																showLanguagePicker[localesField.key] = false;
-																// Set as base if it's the first locale
-																if (!(values[localesField.key] as string[])?.length || !values.BASE_LOCALE) {
-																	values.BASE_LOCALE = code;
+																const currentBase = values.BASE_LOCALE;
+																removeLanguage(localesField.key, langCode);
+																// Reset base if it was removed
+																if (currentBase === langCode) {
+																	const remaining = (values[localesField.key] as string[]) || [];
+																	values.BASE_LOCALE = remaining[0] || 'en';
 																}
 															}}
+															aria-label="Remove {langCode}"
 														>
-															<span>{displayLanguage(code)} ({code.toUpperCase()})</span>
-															<iconify-icon icon="mdi:plus-circle-outline" width="14" class="text-primary-500"></iconify-icon>
+															<iconify-icon icon="mdi:close" width="14"></iconify-icon>
 														</button>
-													{:else}
-														<p class="px-1 py-2 text-center text-[11px] text-slate-500">No matches</p>
-													{/each}
-												</div>
-											</div>
+													{/if}
+												</span>
+											{/each}
+										{:else if localesField.placeholder}
+											<span class="text-surface-500 dark:text-surface-50 text-xs">{localesField.placeholder}</span>
+										{/if}
+
+										{#if !localesField.readonly && allowedLocales.filter((code) => !((values[localesField.key] as string[]) || []).includes(code)).length > 0}
+											<button
+												type="button"
+												class="preset-filled-surface-500 badge absolute right-2 top-2 rounded-full"
+												onclick={() => {
+													showLanguagePicker[localesField.key] = true;
+													languageSearch[localesField.key] = '';
+												}}
+												aria-haspopup="dialog"
+												aria-expanded={showLanguagePicker[localesField.key]}
+												aria-controls="{localesField.key}-lang-picker"
+											>
+												<iconify-icon icon="mdi:plus" width="14"></iconify-icon>
+												Add
+											</button>
 										{/if}
 									</div>
-									{#if errors[localesField.key]}
-										<div class="mt-1 text-xs text-error-500">{errors[localesField.key]}</div>
-									{/if}
-									{#if localesField.placeholder}
-										<p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Example: {localesField.placeholder}</p>
+
+									<!-- Language Picker Dropdown -->
+									{#if showLanguagePicker[localesField.key]}
+										<div
+											id="{localesField.key}-lang-picker"
+											class="absolute left-0 top-full z-20 mt-2 w-64 rounded-md border border-slate-300/60 bg-surface-50 p-2 shadow-lg dark:border-slate-600 dark:bg-surface-800"
+											role="dialog"
+											aria-label="Add language"
+											tabindex="-1"
+										>
+											<input
+												class="mb-2 w-full rounded border border-slate-300/60 bg-transparent px-2 py-1 text-xs outline-none focus:border-primary-500 dark:border-slate-600"
+												placeholder="Search..."
+												bind:value={languageSearch[localesField.key]}
+											/>
+											<div class="max-h-48 overflow-auto">
+												{#each allowedLocales.filter((code: string) => {
+													const search = (languageSearch[localesField.key] || '').toLowerCase();
+													const currentValues = (values[localesField.key] as string[]) || [];
+													const langName = displayLanguage(code).toLowerCase();
+													return !currentValues.includes(code) && (search === '' || langName.includes(search) || code.toLowerCase().includes(search));
+												}) as code (code)}
+													<button
+														type="button"
+														class="flex w-full items-center justify-between rounded px-2 py-1 text-left text-xs hover:bg-primary-500/10"
+														onclick={() => {
+															toggleLanguage(localesField.key, code);
+															showLanguagePicker[localesField.key] = false;
+															// Set as base if it's the first locale
+															if (!(values[localesField.key] as string[])?.length || !values.BASE_LOCALE) {
+																values.BASE_LOCALE = code;
+															}
+														}}
+													>
+														<span>{displayLanguage(code)} ({code.toUpperCase()})</span>
+														<iconify-icon icon="mdi:plus-circle-outline" width="14" class="text-primary-500"></iconify-icon>
+													</button>
+												{:else}
+													<p class="px-1 py-2 text-center text-[11px] text-slate-500">No matches</p>
+												{/each}
+											</div>
+										</div>
 									{/if}
 								</div>
-							{/if}
-						</div>
-					{/each}
+								{#if errors[localesField.key]}
+									<div class="mt-1 text-xs text-error-500">{errors[localesField.key]}</div>
+								{/if}
+								{#if localesField.placeholder}
+									<p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Example: {localesField.placeholder}</p>
+								{/if}
+							</div>
+						{/if}
+					</div>
 				</div>
 			{:else}
 				<!-- Default Grid Layout for Other Groups -->
 				<div class="grid grid-cols-1 gap-4 md:gap-6 md:grid-cols-2">
-					{#each group.fields as field}
+					{#each group.fields as field (field.key)}
 						<div
 							class="space-y-2 overflow-visible max-w-full {field.type === 'array' ||
 							field.type === 'password' ||
@@ -951,7 +937,7 @@ Handles all field types and validation automatically
 									aria-invalid={!!errors[field.key]}
 								>
 									<option value="">Select {field.label}...</option>
-									{#each field.options as option}
+									{#each field.options as option (option.value)}
 										<option value={option.value}>{option.label}</option>
 									{/each}
 								</select>
@@ -983,7 +969,7 @@ Handles all field types and validation automatically
 											: 'border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700/40'}"
 									>
 										{#if (values[field.key] as string[])?.length > 0}
-											{#each values[field.key] as string[] as langCode}
+											{#each values[field.key] as string[] as langCode (langCode)}
 												<span
 													class="group badge preset-filled-tertiary-500 hover:preset-filled-tertiary-600 dark:preset-filled-primary-500 dark:hover:preset-filled-primary-600 inline-flex items-center gap-2 rounded-full px-3 py-1 text-white transition-colors"
 												>
@@ -1043,7 +1029,7 @@ Handles all field types and validation automatically
 													return !currentValues.includes(lang.code) && (search === '' || lang.name.toLowerCase().includes(search) || lang.native
 																.toLowerCase()
 																.includes(search) || lang.code.toLowerCase().includes(search));
-												}) as lang}
+												}) as lang (lang.code)}
 													<button
 														type="button"
 														class="flex w-full items-center justify-between rounded px-2 py-1 text-left text-xs hover:bg-primary-500/10"
@@ -1075,7 +1061,7 @@ Handles all field types and validation automatically
 											: 'border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700/40'}"
 									>
 										{#if (values[field.key] as LogLevel[])?.length > 0}
-											{#each values[field.key] as LogLevel[] as level}
+											{#each values[field.key] as LogLevel[] as level (level)}
 												<span
 													class="group badge preset-filled-tertiary-500 hover:preset-filled-tertiary-600 dark:preset-filled-primary-500 dark:hover:preset-filled-primary-600 inline-flex items-center gap-2 rounded-full px-3 py-1 text-white transition-colors capitalize"
 												>
@@ -1121,7 +1107,7 @@ Handles all field types and validation automatically
 											tabindex="-1"
 										>
 											<div class="max-h-48 overflow-auto">
-												{#each LOG_LEVELS as level}
+												{#each LOG_LEVELS as level (level)}
 													{@const currentValues = (values[field.key] as LogLevel[]) || []}
 													{#if !currentValues.includes(level)}
 														<button

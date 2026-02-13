@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * @file tests/bun/hooks/authorization.test.ts
  * @description Tests for handleAuthorization middleware (permissions, roles, user counting)
@@ -79,9 +78,8 @@ function createMockEvent(pathname: string, user?: User, roles?: Role[]): Request
 			theme: null,
 			darkMode: false
 		}
-	} as RequestEvent;
+	} as any as RequestEvent;
 }
-
 // --- Tests ---
 
 describe('handleAuthorization Middleware', () => {

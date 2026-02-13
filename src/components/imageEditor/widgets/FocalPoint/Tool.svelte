@@ -268,7 +268,7 @@ Allows users to set the focal point of an image with rule of thirds grid overlay
 	export function cleanup() {
 		try {
 			unbindTool();
-		} catch (e) {
+		} catch (_e) {
 			/* ignore */
 		}
 	}

@@ -122,7 +122,7 @@
 
 <div class="wrap-break-word leading-6 max-sm:text-sm max-sm:leading-tight">
 	{#if heatmapData.length > 0}
-		{#each heatmapData as { word, heatLevel, isKeyword }}
+		{#each heatmapData as { word, heatLevel, isKeyword }, index (index)}
 			<span
 				class="relative cursor-help {getHeatClasses(heatLevel)} {isKeyword ? 'border-b-2 border-blue-500' : ''} group"
 				aria-label="Heat level {heatLevel}: {word}{isKeyword ? ', keyword' : ''}"
@@ -145,7 +145,7 @@
 	<h4>Keyword Density</h4>
 	{#if Object.keys(keywordDensity).length > 0}
 		<ul>
-			{#each Object.entries(keywordDensity) as [keyword, density]}
+			{#each Object.entries(keywordDensity) as [keyword, density] (keyword)}
 				<li>{keyword}: {density.toFixed(2)}%</li>
 			{/each}
 		</ul>

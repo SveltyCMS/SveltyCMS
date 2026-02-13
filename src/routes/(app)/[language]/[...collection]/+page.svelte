@@ -447,12 +447,12 @@
 
 	// Listen for cancel and save events
 	$effect(() => {
-		const handleCancelClick = () => {
+		const handleCancelClick = (_e: Event) => {
 			userClickedCancel = true;
 			logger.debug('[Auto-save] Cancel clicked - no draft will be saved');
 		};
 
-		const handleEntrySaved = () => {
+		const handleEntrySaved = (_e: Event) => {
 			// Update baseline to match current value, preventing unsaved changes detection
 			if (collections.activeValue) {
 				initialCollectionValue = JSON.stringify(collections.activeValue);
@@ -460,12 +460,12 @@
 			}
 		};
 
-		document.addEventListener('cancelEdit' as any, handleCancelClick as EventListener);
-		document.addEventListener('entrySaved' as any, handleEntrySaved as EventListener);
+		document.addEventListener('cancelEdit', handleCancelClick);
+		document.addEventListener('entrySaved', handleEntrySaved);
 
 		return () => {
-			document.removeEventListener('cancelEdit' as any, handleCancelClick as EventListener);
-			document.removeEventListener('entrySaved' as any, handleEntrySaved as EventListener);
+			document.removeEventListener('cancelEdit', handleCancelClick);
+			document.removeEventListener('entrySaved', handleEntrySaved);
 		};
 	});
 

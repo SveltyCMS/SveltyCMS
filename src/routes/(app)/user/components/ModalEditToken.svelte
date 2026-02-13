@@ -247,7 +247,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 				<div class="flex-auto">
 					<div class="flex flex-wrap justify-center gap-2 space-x-2 sm:justify-start">
 						{#if roles && roles.length > 0}
-							{#each roles as r}
+							{#each roles as r (r._id)}
 								<button
 									type="button"
 									class="chip {tokenForm.data.role === r._id

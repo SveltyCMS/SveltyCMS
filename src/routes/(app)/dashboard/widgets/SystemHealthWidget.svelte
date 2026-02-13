@@ -181,7 +181,7 @@
 
 				<!-- Services Grid -->
 				<div class="grid flex-1 grid-cols-2 gap-2 overflow-y-auto" style="max-height: calc({size.h} * 120px - 80px);">
-					{#each Object.entries(data.components) as [name, service]}
+					{#each Object.entries(data.components) as [name, service] (name)}
 						<div class="card preset-outlined-surface-500flex flex-col gap-1 p-2">
 							<div class="flex items-center justify-between">
 								<span class="text-xs font-semibold">{formatServiceName(name)}</span>

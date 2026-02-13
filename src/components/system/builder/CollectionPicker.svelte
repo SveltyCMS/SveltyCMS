@@ -21,7 +21,7 @@
 	<label for="collection-select" class="w-32 flex-none">Collection</label>
 	<select id="collection-select" class="input grow text-black dark:text-primary-500" bind:value>
 		<option value="">Select a collection</option>
-		{#each collectionNames as name}
+		{#each collectionNames as name (name)}
 			<option value={name}>{name}</option>
 		{/each}
 	</select>

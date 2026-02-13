@@ -40,7 +40,6 @@
 	const listboxId = $derived(`${dropdownId}-menu`);
 	let focusedIndex = $state(-1); // roving focus index when expanded
 	const itemRefs: Array<HTMLButtonElement | null> = [];
-	let _refresh = $state(0); // force re-render when selection changes
 
 	// Action to capture each item's button element reference
 	function captureItem(node: HTMLButtonElement, index: number) {
@@ -83,14 +82,17 @@
 
 	function toggleExpanded(e: Event) {
 		e.stopPropagation();
-		expanded ? close(true) : open();
+		if (expanded) {
+			close(true);
+		} else {
+			open();
+		}
 	}
 
 	// Handle item selection
 	function selectItem(item: any, e: Event) {
 		e.stopPropagation();
 		if (item.onClick) item.onClick();
-		_refresh++; // trigger recompute of button label/icon
 		close(true);
 	}
 
@@ -194,7 +196,7 @@
 				}
 			}}
 		>
-			{#each items as item, i}
+			{#each items as item, i (item.name || item.title || i)}
 				<button
 					use:captureItem={i}
 					onclick={(e) => selectItem(item, e)}

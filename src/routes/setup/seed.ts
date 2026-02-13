@@ -23,6 +23,8 @@ import { dateToISODateString } from '@utils/dateUtils';
 import { safeParse } from 'valibot';
 import { getAllPermissions } from '@src/databases/auth';
 import { defaultRoles as importedDefaultRoles } from '@src/databases/auth/defaultRoles';
+import { generateCategoryNodesFromPaths } from '@src/content/utils';
+import type { ContentNode, Schema } from '@src/content/types';
 
 // Import inlang settings directly (TypeScript/SvelteKit handles JSON imports)
 import inlangSettings from '@root/project.inlang/settings.json';
@@ -240,6 +242,57 @@ export async function seedCollectionsForSetup(
 		setupManager.updateProgress(totalCollections, totalCollections);
 
 		const modelCreationTime = performance.now() - modelCreationStart;
+
+		// Step 5: PERSISTENCE - Populate contentNodes table so ContentManager sees them immediately
+		// This ensures skipReconciliation: true in ContentManager works correctly after setup.
+		try {
+			logger.info('🌳 Generating category nodes and mapping structure...');
+			const categoryNodes = generateCategoryNodesFromPaths(collections as Schema[]);
+			const updates: { path: string; changes: Partial<ContentNode> }[] = [];
+
+			// Add Category Nodes
+			for (const [path, node] of categoryNodes.entries()) {
+				updates.push({
+					path,
+					changes: {
+						name: node.name,
+						nodeType: 'category',
+						order: 0,
+						translations: []
+					} as any
+				});
+			}
+
+			// Add Collection Nodes
+			for (const schema of collections) {
+				if (!schema.path) continue;
+				updates.push({
+					path: schema.path,
+					changes: {
+						_id: schema._id as any,
+						name: schema.name || schema._id,
+						nodeType: 'collection',
+						order: schema.order || 0,
+						icon: schema.icon,
+						translations: schema.translations || [],
+						collectionDef: schema
+					} as any
+				});
+			}
+
+			if (updates.length > 0) {
+				logger.info(`💾 Persisting ${updates.length} content nodes to database...`);
+				const structResult = await dbAdapter.content.nodes.bulkUpdate(updates);
+				if (structResult.success) {
+					logger.info(`✅ Successfully persisted ${structResult.data.length} content nodes.`);
+				} else {
+					logger.warn('⚠️ Failed to persist content nodes:', structResult.message);
+				}
+			}
+		} catch (structError) {
+			logger.warn('⚠️ Error building/persisting content structure:', structError);
+		}
+
 		const overallTime = performance.now() - overallStart;
 
 		logger.info(`✅ Collections seeding completed: ${successCount} created, ${skipCount} skipped`);
@@ -260,7 +313,7 @@ export async function seedCollectionsForSetup(
 			if (typeof error === 'object') {
 				try {
 					logger.error(`Error object: ${JSON.stringify(error)}`);
-				} catch (e) {
+				} catch {
 					logger.error('Could not stringify error object');
 				}
 			} else {
@@ -270,6 +323,64 @@ export async function seedCollectionsForSetup(
 		// Don't throw - collections can be created later through the UI
 		logger.warn('Continuing setup without collection seeding...');
 		return { firstCollection: null };
+	}
+}
+
+/**
+ * Seeds demo records for the standard collections (Posts, Menu, etc.)
+ * This adds actual content entries so the CMS doesn't look empty after setup.
+ */
+export async function seedDemoRecords(dbAdapter: DatabaseAdapter, collections: Schema[], tenantId?: string): Promise<void> {
+	logger.info(`📝 Seeding demo records${tenantId ? ` for tenant ${tenantId}` : ''}...`);
+
+	if (!dbAdapter || !dbAdapter.crud) {
+		logger.warn('CRUD interface not available, skipping demo record seeding');
+		return;
+	}
+
+	try {
+		for (const schema of collections) {
+			const collectionId = schema._id;
+			if (!collectionId) continue;
+
+			// Seed "Posts" as a demo
+			if (schema.name === 'Posts') {
+				const posts = [
+					{
+						title: 'Welcome to SveltyCMS',
+						content: 'This is your first post, created automatically during setup.',
+						status: 'published',
+						author: 'Admin',
+						...(tenantId && { tenantId })
+					},
+					{
+						title: 'Modern CMS Architecture',
+						content: 'SveltyCMS uses Svelte 5 runes and a database-agnostic adapter pattern.',
+						status: 'published',
+						author: 'Admin',
+						...(tenantId && { tenantId })
+					}
+				];
+
+				// Use insertMany to trigger the new dynamic table + packData logic
+				await dbAdapter.crud.insertMany(collectionId, posts);
+				logger.info(`✅ Seeded ${posts.length} demo posts into ${collectionId}`);
+			}
+
+			// Seed "Menu" as a demo
+			if (schema.name === 'Menu') {
+				const menuItems = [
+					{ label: 'Home', url: '/', order: 1, ...(tenantId && { tenantId }) },
+					{ label: 'Blog', url: '/blog', order: 2, ...(tenantId && { tenantId }) },
+					{ label: 'Contact', url: '/contact', order: 3, ...(tenantId && { tenantId }) }
+				];
+				await dbAdapter.crud.insertMany(collectionId, menuItems);
+				logger.info(`✅ Seeded ${menuItems.length} demo menu items into ${collectionId}`);
+			}
+		}
+	} catch (error) {
+		logger.error('Failed to seed demo records:', error);
+		// Don't block setup
 	}
 }
 
@@ -286,9 +397,16 @@ export async function initSystemFromSetup(
 	}
 
 	// Run seeding steps in parallel for maximum performance
-	// seedSettings, seedDefaultTheme, and seedRoles can run concurrently
 	const [seedResults] = await Promise.all([
-		seedCollectionsForSetup(adapter, tenantId), // Seeding collections first or in parallel
+		(async () => {
+			const result = await seedCollectionsForSetup(adapter, tenantId);
+			if (isDemoSeed) {
+				const { scanCompiledCollections } = await import('@src/content/collectionScanner');
+				const collections = await scanCompiledCollections();
+				await seedDemoRecords(adapter, collections, tenantId);
+			}
+			return result;
+		})(),
 		seedSettings(adapter, tenantId, isDemoSeed),
 		seedDefaultTheme(adapter, tenantId),
 		seedRoles(adapter, tenantId)
@@ -298,8 +416,6 @@ export async function initSystemFromSetup(
 	invalidateSettingsCache();
 	const { loadSettingsFromDB } = await import('@src/databases/db');
 	await loadSettingsFromDB();
-
-	logger.info(`✅ System initialization completed${tenantId ? ` for tenant ${tenantId}` : ''}`);
 
 	logger.info(`✅ System initialization completed${tenantId ? ` for tenant ${tenantId}` : ''}`);
 
@@ -313,8 +429,8 @@ export async function initSystemFast(
 	tenantId?: string,
 	isDemoSeed = false
 ): Promise<{
-	criticalPromise: Promise<any>;
-	backgroundTask: () => Promise<any>;
+	criticalPromise: Promise<void>;
+	backgroundTask: () => Promise<void>;
 }> {
 	// Critical: Settings, Default Theme, Roles (needed for Admin User creation)
 	const criticalPromise = (async () => {
@@ -579,7 +695,7 @@ export async function seedSettings(dbAdapter: DatabaseAdapter, tenantId?: string
 		for (const [key, value] of Object.entries(existingSettings)) {
 			const isPublic = defaultPublicSettings.some((s) => s.key === key);
 			if (isPublic) {
-				publicSettings[key] = (value as any).value ?? value;
+				publicSettings[key] = (value as { value?: unknown }).value ?? value;
 			}
 		}
 

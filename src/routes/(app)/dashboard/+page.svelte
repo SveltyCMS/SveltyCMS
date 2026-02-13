@@ -21,6 +21,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { flip } from 'svelte/animate';
+	import { SvelteMap } from 'svelte/reactivity';
 
 	// Types
 	import type { PageData } from './$types';
@@ -66,8 +67,8 @@
 	let widgetRegistry: WidgetRegistry = $state({});
 
 	// Lazy loading state for widgets
-	let loadedWidgets = $state(new Map());
-	const widgetObservers = new Map();
+	let loadedWidgets = new SvelteMap<string, any>();
+	const widgetObservers = new SvelteMap<string, IntersectionObserver>();
 
 	let showImportExport = $state(false);
 
@@ -110,11 +111,9 @@
 			// Dynamically import the widget component
 			const module = await import(`./widgets/${componentName}.svelte`);
 			loadedWidgets.set(widgetId, module.default);
-			loadedWidgets = new Map(loadedWidgets); // Trigger reactivity
 		} catch (error) {
 			logger.error(`Failed to load widget: ${componentName}`, error);
 			loadedWidgets.set(widgetId, null); // Mark as failed
-			loadedWidgets = new Map(loadedWidgets);
 		}
 	}
 
@@ -270,7 +269,7 @@
 		loadedWidgets.delete(id);
 		const observer = widgetObservers.get(id);
 		if (observer) {
-			observer.disconnect();
+			(observer as any).disconnect();
 			widgetObservers.delete(id);
 		}
 	}
@@ -279,7 +278,7 @@
 		systemPreferences.setPreferences([]);
 		// Clean up all loaded widgets and observers
 		loadedWidgets.clear();
-		widgetObservers.forEach((observer) => observer.disconnect());
+		widgetObservers.forEach((observer: any) => observer.disconnect());
 		widgetObservers.clear();
 	}
 
@@ -339,14 +338,14 @@
 		dragState.element = clone;
 
 		// Use pointer events to cover mouse, touch, and pen with a passive move listener
-		document.addEventListener('pointermove', handleDragMove as EventListener, { passive: true });
-		document.addEventListener('pointerup', handleDragEnd as EventListener, { once: true });
+		document.addEventListener('pointermove', handleDragMove, { passive: true });
+		document.addEventListener('pointerup', handleDragEnd, { once: true });
 	}
 
-	function handleDragMove(event: MouseEvent | TouchEvent | PointerEvent) {
+	function handleDragMove(event: PointerEvent) {
 		if (!dragState.isActive || !dragState.element) return;
 
-		const coords = 'touches' in event ? event.touches[0] : event;
+		const coords = event;
 		dragState.element.style.left = `${coords.clientX - dragState.offset.x}px`;
 		dragState.element.style.top = `${coords.clientY - dragState.offset.y}px`;
 
@@ -393,7 +392,7 @@
 		dropIndicator = null;
 		gridDropIndicator = null;
 
-		document.removeEventListener('pointermove', handleDragMove as EventListener);
+		document.removeEventListener('pointermove', handleDragMove);
 	}
 
 	// Keyboard Reordering
@@ -443,7 +442,7 @@
 
 		// Cleanup observers on unmount
 		return () => {
-			widgetObservers.forEach((observer) => observer.disconnect());
+			widgetObservers.forEach((observer: any) => observer.disconnect());
 			widgetObservers.clear();
 		};
 	});

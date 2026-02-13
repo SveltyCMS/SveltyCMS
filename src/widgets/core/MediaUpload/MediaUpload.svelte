@@ -22,6 +22,7 @@ functionality for image editing and basic file information display.
 - **Styling**: Adheres to the project's style guide using Tailwind CSS utility classes and semantic colors.
 -->
 <script lang="ts">
+	type _any = any;
 	import type { ISODateString } from '@src/content/types';
 	import { convertTimestampToDateString, getFieldName } from '@utils/utils';
 	import { isoDateStringToDate } from '@utils/dateUtils';
@@ -51,13 +52,13 @@ functionality for image editing and basic file information display.
 	let { field, value = $bindable<File | MediaImage | undefined>() } = $props(); // 'value' is the bindable prop
 
 	// Extract watermark preset from field configuration
-	const watermarkPreset = $derived((field as any).watermark as WatermarkOptions | undefined);
+	const watermarkPreset = $derived((field as Record<string, unknown>).watermark as WatermarkOptions | undefined);
 
 	// Effect to initialize 'value' if it's undefined and a default is available
 	// This runs after the component has initialized and 'value' would have received its initial binding
 	$effect(() => {
-		if (value === undefined && (collectionValue.value as any)[getFieldName(field)] !== undefined) {
-			value = (collectionValue.value as any)[getFieldName(field)];
+		if (value === undefined && (collectionValue.value as Record<string, unknown>)[getFieldName(field)] !== undefined) {
+			value = (collectionValue.value as Record<string, unknown>)[getFieldName(field)] as File | MediaImage;
 		}
 	});
 
@@ -97,8 +98,8 @@ functionality for image editing and basic file information display.
 			validationStore.clearError(getFieldName(field));
 			return null;
 		} catch (error) {
-			if ((error as ValiError<any>).issues) {
-				const valiError = error as ValiError<any>;
+			if ((error as ValiError<_any>).issues) {
+				const valiError = error as ValiError<_any>;
 				const errorMessage = valiError.issues[0]?.message || 'Invalid input';
 				validationStore.setError(getFieldName(field), errorMessage);
 				return errorMessage;
@@ -115,7 +116,7 @@ functionality for image editing and basic file information display.
 		}, 300);
 	}
 
-	async function handleEditorSave(detail: { dataURL: string; file: File; operations?: any; focalPoint?: any; mediaId?: string }) {
+	async function handleEditorSave(detail: { dataURL: string; file: File; operations?: unknown; focalPoint?: unknown; mediaId?: string }) {
 		const { file, operations, focalPoint, mediaId } = detail;
 
 		const formData = new FormData();
@@ -279,16 +280,20 @@ functionality for image editing and basic file information display.
 					{:else}
 						<div class="col-span-11 ml-2 grid grid-cols-2 gap-1 text-left">
 							<p class="">{m.widget_ImageUpload_Type()}</p>
-							<p class="font-bold text-tertiary-500 dark:text-primary-500">{(value as any).type}</p>
+							<p class="font-bold text-tertiary-500 dark:text-primary-500">{(value as _any).type}</p>
 							<p class="">Path:</p>
-							<p class="font-bold text-tertiary-500 dark:text-primary-500">{(value as any).path}</p>
+							<p class="font-bold text-tertiary-500 dark:text-primary-500">{(value as _any).path}</p>
 							<p class="">{m.widget_ImageUpload_Uploaded()}</p>
 							<p class="font-bold text-tertiary-500 dark:text-primary-500">
-								{convertTimestampToDateString(getTimestamp((value as any) instanceof File ? (value as any).lastModified : (value as any).createdAt))}
+								{convertTimestampToDateString(
+									getTimestamp((value as _any) instanceof File ? (value as _any).lastModified : (value as _any).createdAt)
+								)}
 							</p>
 							<p class="">{m.widget_ImageUpload_LastModified()}</p>
 							<p class="font-bold text-tertiary-500 dark:text-primary-500">
-								{convertTimestampToDateString(getTimestamp((value as any) instanceof File ? (value as any).lastModified : (value as any).updatedAt))}
+								{convertTimestampToDateString(
+									getTimestamp((value as _any) instanceof File ? (value as _any).lastModified : (value as _any).updatedAt)
+								)}
 							</p>
 						</div>
 					{/if}

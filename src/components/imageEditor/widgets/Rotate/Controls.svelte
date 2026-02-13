@@ -164,7 +164,7 @@ Professional rotate controls with straighten and snap features
 	<!-- Group 2: Presets -->
 	<div class="control-group">
 		<div class="preset-angles">
-			{#each presetAngles as angle}
+			{#each presetAngles as angle (angle)}
 				<button class="preset-btn" class:active={Math.abs(displayAngle - angle) < 0.5} onclick={() => onRotationChange(angle)}>
 					{angle > 0 ? '+' : ''}{angle}°
 				</button>
