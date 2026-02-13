@@ -97,7 +97,7 @@ export class MongoMediaMethods {
 
 			updateData.updatedAt = new Date();
 
-			const result = await this.mediaModel.findByIdAndUpdate(fileId, { $set: updateData }, { new: true }).lean().exec();
+			const result = await this.mediaModel.findByIdAndUpdate(fileId, { $set: updateData }, { returnDocument: 'after' }).lean().exec();
 
 			// Invalidate media caches
 			await invalidateCategoryCache(CacheCategory.MEDIA);

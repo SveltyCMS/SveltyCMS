@@ -159,7 +159,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
 				...(data as object),
 				updatedAt: nowISODateString()
 			};
-			const result = await this.model.findByIdAndUpdate(id, { $set: updateData }, { new: true }).lean().exec();
+			const result = await this.model.findByIdAndUpdate(id, { $set: updateData }, { returnDocument: 'after' }).lean().exec();
 
 			if (!result) return { success: true, data: null };
 			return { success: true, data: processDates(result) as T };
@@ -181,7 +181,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
 						$set: { ...data, updatedAt: nowISODateString() },
 						$setOnInsert: { _id: generateId(), createdAt: nowISODateString() }
 					},
-					{ new: true, upsert: true, runValidators: true }
+					{ returnDocument: 'after', upsert: true, runValidators: true }
 				)
 				.lean()
 				.exec();

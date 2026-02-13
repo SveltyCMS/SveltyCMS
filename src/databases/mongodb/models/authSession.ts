@@ -333,7 +333,7 @@ export class SessionAdapter {
 	// Update the expiry of an existing session
 	async updateSessionExpiry(session_id: string, newExpiry: Date): Promise<DatabaseResult<Session>> {
 		try {
-			const session = await this.SessionModel.findByIdAndUpdate(session_id, { expires: newExpiry }, { new: true }).lean();
+			const session = await this.SessionModel.findByIdAndUpdate(session_id, { expires: newExpiry }, { returnDocument: 'after' }).lean();
 			if (!session) {
 				return {
 					success: false,

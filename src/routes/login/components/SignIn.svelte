@@ -471,8 +471,8 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 			<div class="absolute left-1/2 top-[20%] hidden -translate-x-1/2 -translate-y-1/2 transform xl:block">
 				<SveltyCMSLogoFull />
 			</div>
-			<div class="z-0 mx-auto mb-[5%] mt-[15%] w-full overflow-y-auto rounded-md bg-white p-4 lg:w-4/5" class:hide={active !== 0}>
-				<div class="mb-1 flex flex-row gap-2">
+			<div class="z-0 mx-auto mb-[5%] mt-[15%] w-full overflow-y-auto rounded-md bg-white/0 p-6 backdrop-blur lg:w-4/5" class:hide={active !== 0}>
+				<div class="flex flex-row gap-2">
 					<SveltyCMSLogo className="w-14" fill="red" />
 
 					<h1 class="text-3xl font-bold text-black lg:text-4xl">
@@ -488,7 +488,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 				</div>
 
 				<!-- Required with Back button -->
-				<div class="-mt-8 relative flex items-center justify-center text-xs text-error-500">
+				<div class="-mt-8 mb-4 relative flex items-center justify-center text-xs text-error-500">
 					{m.form_required()}
 
 					<div class="absolute right-0">

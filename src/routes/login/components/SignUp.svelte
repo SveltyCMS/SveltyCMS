@@ -267,8 +267,8 @@
 			<div class="absolute left-1/2 top-[20%] hidden -translate-x-1/2 -translate-y-1/2 transform xl:block">
 				<SveltyCMSLogoFull />
 			</div>
-			<div class="relative z-10 mx-auto mb-[5%] mt-[15%] w-full rounded-md bg-[#242728] p-4 lg:w-4/5" class:hide={active !== 1}>
-				<div class="mb-4 flex flex-row gap-2">
+			<div class="relative z-10 mx-auto mb-[5%] mt-[15%] w-full rounded-md bg-surface-900/0 p-6 backdrop-blur lg:w-4/5" class:hide={active !== 1}>
+				<div class="-mb-4 flex flex-row gap-2">
 					<SveltyCMSLogo className="w-14" fill="red" />
 
 					<h1 class="text-3xl font-bold text-white lg:text-4xl">
@@ -286,7 +286,7 @@
 				</div>
 
 				<!-- Required with Back button -->
-				<div class="-mt-2 relative flex items-center justify-center text-xs text-error-500">
+				<div class="relative mb-2 flex h-10 items-center justify-center text-xs text-error-500">
 					{m.form_required()}
 
 					<div class="absolute right-0">
@@ -412,6 +412,7 @@
 							tabindex={tokenTabIndex}
 							required
 							bind:value={signUpForm.data.token}
+							label={m.registration_token()}
 							minlength={32}
 							maxlength={36}
 							icon="mdi:key-chain"

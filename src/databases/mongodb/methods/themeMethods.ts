@@ -146,7 +146,7 @@ export class MongoThemeMethods {
 				.findOneAndUpdate(
 					{ name: themeData.name },
 					{ $setOnInsert: { ...rest, _id: _id || uuidv4().replace(/-/g, '') } },
-					{ upsert: true, new: true, setDefaultsOnInsert: true }
+					{ upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
 				)
 				.lean()
 				.exec();
@@ -169,7 +169,7 @@ export class MongoThemeMethods {
 	async installOrUpdate(themeData: Theme): Promise<Theme> {
 		try {
 			const result = await this.themeModel
-				.findOneAndUpdate({ _id: themeData._id }, themeData, { upsert: true, new: true, setDefaultsOnInsert: true })
+				.findOneAndUpdate({ _id: themeData._id }, themeData, { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true })
 				.lean()
 				.exec();
 
@@ -210,7 +210,7 @@ export class MongoThemeMethods {
 	 */
 	async update(themeId: DatabaseId, themeData: Partial<Omit<Theme, '_id' | 'createdAt' | 'updatedAt'>>): Promise<Theme | null> {
 		try {
-			const result = await this.themeModel.findByIdAndUpdate(themeId, { $set: themeData }, { new: true }).lean().exec();
+			const result = await this.themeModel.findByIdAndUpdate(themeId, { $set: themeData }, { returnDocument: 'after' }).lean().exec();
 
 			// Invalidate theme caches
 			await invalidateCategoryCache(CacheCategory.THEME);

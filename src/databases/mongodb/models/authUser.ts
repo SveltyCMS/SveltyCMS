@@ -163,7 +163,7 @@ export class UserAdapter {
 				filter.tenantId = tenantId;
 			}
 
-			const user = await this.UserModel.findOneAndUpdate(filter, userData, { new: true }).lean();
+			const user = await this.UserModel.findOneAndUpdate(filter, userData, { returnDocument: 'after' }).lean();
 
 			if (!user) {
 				return {

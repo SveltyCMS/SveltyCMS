@@ -261,7 +261,11 @@ export function composeMongoAuthAdapter(): AuthInterface {
 					filter.tenantId = { $exists: false };
 				}
 
-				const upsertedRole = await RoleModel.findOneAndUpdate(filter, { $set: role }, { upsert: true, new: true, runValidators: true }).lean<Role>();
+				const upsertedRole = await RoleModel.findOneAndUpdate(
+					filter,
+					{ $set: role },
+					{ upsert: true, returnDocument: 'after', runValidators: true }
+				).lean<Role>();
 
 				return {
 					success: true,
@@ -332,7 +336,7 @@ export function composeMongoAuthAdapter(): AuthInterface {
 					filter.tenantId = { $exists: false };
 				}
 
-				const updatedRole = await RoleModel.findOneAndUpdate(filter, { $set: roleData }, { new: true }).lean<Role>();
+				const updatedRole = await RoleModel.findOneAndUpdate(filter, { $set: roleData }, { returnDocument: 'after' }).lean<Role>();
 
 				if (!updatedRole) {
 					return {

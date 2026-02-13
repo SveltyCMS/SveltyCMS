@@ -210,7 +210,7 @@ export const systemVirtualFolderSchema = new Schema<SystemVirtualFolder>(
 			}, // Update a virtual folder
 			async updateVirtualFolder(folderId: string, updateData: Partial<SystemVirtualFolder>): Promise<DatabaseResult<SystemVirtualFolder>> {
 				try {
-					const folder = await this.findByIdAndUpdate(folderId, { $set: updateData }, { new: true }).lean().exec();
+					const folder = await this.findByIdAndUpdate(folderId, { $set: updateData }, { returnDocument: 'after' }).lean().exec();
 					if (!folder) {
 						const message = 'Folder not found';
 						return {

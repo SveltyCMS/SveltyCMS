@@ -157,7 +157,7 @@ contentStructureSchema.statics = {
 			const result = await this.findOneAndUpdate(
 				{ _id: category._id },
 				{ $set: { ...category, nodeType: 'category' } },
-				{ upsert: true, new: true }
+				{ upsert: true, returnDocument: 'after' }
 			).lean();
 			if (!result) {
 				const message = `Failed to upsert category: ${category.path}`;
@@ -182,7 +182,7 @@ contentStructureSchema.statics = {
 			const result = await this.findOneAndUpdate(
 				{ _id: collection._id },
 				{ $set: { ...collection, nodeType: 'collection' } },
-				{ upsert: true, new: true }
+				{ upsert: true, returnDocument: 'after' }
 			).lean();
 			if (!result) {
 				const message = `Failed to upsert collection: ${collection.path || collection._id}`;
