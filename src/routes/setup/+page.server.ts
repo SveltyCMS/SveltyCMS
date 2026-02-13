@@ -480,20 +480,27 @@ export const actions = {
 
 			// Initialize global system
 			const { initializeWithConfig } = await import('@src/databases/db');
-			await initializeWithConfig({
-				DB_TYPE: database.type,
-				DB_HOST: database.host,
-				DB_PORT: Number(database.port),
-				DB_NAME: database.name,
-				DB_USER: database.user || '',
-				DB_PASSWORD: database.password || '',
-				JWT_SECRET_KEY: 'temp_secret',
-				ENCRYPTION_KEY: 'temp_key',
-				USE_REDIS: system.useRedis,
-				REDIS_HOST: system.redisHost,
-				REDIS_PORT: Number(system.redisPort),
-				REDIS_PASSWORD: system.redisPassword
-			} as any);
+			await initializeWithConfig(
+				{
+					DB_TYPE: database.type,
+					DB_HOST: database.host,
+					DB_PORT: Number(database.port),
+					DB_NAME: database.name,
+					DB_USER: database.user || '',
+					DB_PASSWORD: database.password || '',
+					JWT_SECRET_KEY: 'temp_secret',
+					ENCRYPTION_KEY: 'temp_key',
+					USE_REDIS: system.useRedis,
+					REDIS_HOST: system.redisHost,
+					REDIS_PORT: Number(system.redisPort),
+					REDIS_PASSWORD: system.redisPassword
+				} as any,
+				{
+					multiTenant: system.multiTenant,
+					demoMode: system.demoMode,
+					awaitBackground: true
+				}
+			);
 
 			// OPTIMIZATION: Initialize ContentManager IMMEDIATELY with skipReconciliation: true
 			// This prevents the 4s blocking delay on the subsequent redirect request.
