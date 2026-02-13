@@ -16,8 +16,9 @@
 	import { goto, invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
 
-	import type { ContentNode, Schema, StatusType } from '@src/content/types';
-	import { StatusTypes } from '@src/content/types';
+	import type { ContentNode, Schema } from '@src/content/types';
+	import { StatusTypes, type StatusType } from '@src/content/types';
+	import { sortContentNodes } from '@src/content/utils';
 
 	import { collection, contentStructure, setMode } from '@stores/collectionStore.svelte.ts';
 	import { ui } from '@stores/UIStore.svelte.ts';
@@ -80,8 +81,8 @@
 	let activeWidgetList = $derived(widgets.activeWidgets);
 	let structure = $derived(contentStructure.value ?? []);
 
-	// Collection count cache
-	let countCache = new SvelteMap<string, number>();
+	// Collection count cache (non-reactive to allow mutations during derived computations)
+	let countCache = new Map<string, number>();
 
 	function countCollections(node: ExtendedContentNode): number {
 		const key = node._id;
@@ -130,7 +131,7 @@
 		// Children
 		let children: CollectionTreeNode[] | undefined;
 		if (isCategory && node.children) {
-			const sorted = [...node.children].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+			const sorted = [...node.children].sort(sortContentNodes);
 			children = sorted.map((child) => mapToTreeNode(child, depth + 1));
 		}
 
@@ -223,7 +224,7 @@
 			roots: nestedStructure.map((n) => n.name)
 		});
 
-		const sorted = [...nestedStructure].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+		const sorted = [...nestedStructure].sort(sortContentNodes);
 		return sorted.map((n) => mapToTreeNode(n));
 	});
 

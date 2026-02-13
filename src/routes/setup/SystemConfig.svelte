@@ -195,18 +195,18 @@
 		</p>
 	</div>
 
-	<div class="space-y-10">
+	<div class="space-y-2">
 		{#if redisAvailable && !systemSettings.useRedis}
 			<div class="rounded-lg bg-surface-500 p-4 text-white shadow-lg animate-in fade-in slide-in-from-top-4 duration-500" role="alert">
 				<div class="flex items-start gap-4">
-					<iconify-icon icon="mdi:lightning-bolt" class="bg-error-500/50 p-2 text-white rounded-full text-2xl animate-pulse"></iconify-icon>
+					<iconify-icon icon="mdi:lightning-bolt" class="bg-error-500 p-2 text-white rounded-full text-2xl animate-pulse"></iconify-icon>
 					<div class="flex-1">
 						<div class="flex items-center justify-between">
 							<h4 class="font-bold text-lg flex items-center gap-4">
 								Performance Optimization Detected
-								<span class="badge preset-tonal-primary rounded-full uppercase">Recommended</span>
+								<span class="badge preset-filled-error-500 rounded-full uppercase">Recommended</span>
 							</h4>
-							<!-- close button -->
+							<!-- Close button -->
 							<button
 								type="button"
 								class="btn-icon rounded-full preset-outlined"
@@ -626,13 +626,8 @@
 			</div>
 		</section>
 
-		<!-- Performance Optimization (Redis) -->
+		<!-- Optimization (Redis, Multi-Tenant, Demo) -->
 		<section id="redis-section" class="space-y-4 border-t border-slate-200 pt-6 dark:border-slate-700">
-			<div class="flex items-center gap-2">
-				<iconify-icon icon="mdi:lightning-bolt" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-				<h3 class="text-lg font-bold text-black dark:text-white">Performance Optimization</h3>
-			</div>
-
 			<div class="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-transparent space-y-4">
 				<div class="flex items-center gap-3">
 					<input
@@ -642,6 +637,7 @@
 						class="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
 					/>
 					<div class="flex items-center gap-2">
+						<iconify-icon icon="devicon-plain:redis" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 						<label for="use-redis" class="font-medium text-black dark:text-white text-sm"> Enable Redis Caching </label>
 						<SystemTooltip
 							title="Significantly improves performance by caching database queries and session data in-memory. Recommended if Redis is available."

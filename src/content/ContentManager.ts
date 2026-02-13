@@ -548,10 +548,9 @@ class ContentManager {
 	 * Includes only essential metadata needed for display and ordering.
 	 */
 	public async getNavigationStructure(): Promise<NavigationNode[]> {
-		// Don't call during initialization - prevents deadlock
-		if (this.initState === 'initializing') {
-			logger.warn('[ContentManager] getNavigationStructure called during initialization, returning empty array');
-			return [];
+		// If initialization is in progress, wait for it
+		if (this.initPromise) {
+			await this.initPromise;
 		}
 
 		// Auto-initialize on first access (lazy loading)

@@ -12,10 +12,7 @@ import { isSetupComplete } from '@utils/setupCheck';
  * Writes database credentials and security keys to private.ts
  * Includes safety features: backup existing file and prevent overwrite after setup
  */
-export async function writePrivateConfig(
-	dbConfig: DatabaseConfig,
-	redisConfig?: { useRedis: boolean; redisHost: string; redisPort: string; redisPassword?: string }
-): Promise<void> {
+export async function writePrivateConfig(dbConfig: DatabaseConfig): Promise<void> {
 	const fs = await import('fs/promises');
 	const path = await import('path');
 	const { randomBytes } = await import('crypto');
@@ -67,13 +64,7 @@ export const privateEnv = {
 	MULTI_TENANT: false,
 	DEMO: false,
 
-	// --- Redis Configuration ---
-	USE_REDIS: ${redisConfig?.useRedis || false},
-	REDIS_HOST: '${redisConfig?.redisHost || 'localhost'}',
-	REDIS_PORT: ${redisConfig?.redisPort || 6379},
-	REDIS_PASSWORD: '${redisConfig?.redisPassword || ''}',
-
-	/* * NOTE: All other settings (SMTP, Google OAuth, feature flags, etc.)
+	/* * NOTE: All other settings (SMTP, Google OAuth, Redis, feature flags, etc.)
 	 * are loaded dynamically from the database after the application starts.
 	 */
 };
@@ -108,14 +99,10 @@ export const privateEnv = {
 }
 
 /**
- * Updates the private.ts file to set architectural modes (Demo / Multi-Tenant) and Redis configuration.
+ * Updates the private.ts file to set architectural modes (Demo / Multi-Tenant).
  * This is called during the final step of setup.
  */
-export async function updatePrivateConfigMode(modes: {
-	demoMode?: boolean;
-	multiTenant?: boolean;
-	redis?: { useRedis: boolean; redisHost: string; redisPort: string; redisPassword?: string };
-}): Promise<void> {
+export async function updatePrivateConfigMode(modes: { demoMode?: boolean; multiTenant?: boolean }): Promise<void> {
 	const fs = await import('fs/promises');
 	const path = await import('path');
 
@@ -167,41 +154,7 @@ export async function updatePrivateConfigMode(modes: {
 			}
 		}
 
-		// Update Redis Settings
-		if (modes.redis !== undefined) {
-			const redis = modes.redis;
-			const redisUpdates = [
-				{ regex: /USE_REDIS:\s*(true|false)/, value: `USE_REDIS: ${redis.useRedis}` },
-				{ regex: /REDIS_HOST:\s*'[^']*'/, value: `REDIS_HOST: '${redis.redisHost}'` },
-				{ regex: /REDIS_PORT:\s*\d+/, value: `REDIS_PORT: ${redis.redisPort}` },
-				{ regex: /REDIS_PASSWORD:\s*'[^']*'/, value: `REDIS_PASSWORD: '${redis.redisPassword || ''}'` }
-			];
-
-			let anyRedisMatch = false;
-			for (const update of redisUpdates) {
-				if (update.regex.test(content)) {
-					content = content.replace(update.regex, update.value);
-					modified = true;
-					anyRedisMatch = true;
-				}
-			}
-
-			if (!anyRedisMatch) {
-				// Insert Redis block if not found
-				const redisBlock = `
-	// --- Redis Configuration ---
-	USE_REDIS: ${redis.useRedis},
-	REDIS_HOST: '${redis.redisHost}',
-	REDIS_PORT: ${redis.redisPort},
-	REDIS_PASSWORD: '${redis.redisPassword || ''}',
-`;
-				const lastBraceIndex = content.lastIndexOf('};');
-				if (lastBraceIndex !== -1) {
-					content = content.slice(0, lastBraceIndex) + redisBlock + content.slice(lastBraceIndex);
-					modified = true;
-				}
-			}
-		}
+		// Update Redis Settings removed - stored in DB now
 
 		if (modified) {
 			await fs.writeFile(privateConfigPath, content, 'utf-8');

@@ -134,6 +134,15 @@ export enum CacheCategory {
 | USER     | 1 minute    | User data changes frequently | `CACHE_TTL_USER`    |
 | API      | 5 minutes   | External API responses       | `CACHE_TTL_API`     |
 
+### ContentManager Optimizations
+
+In addition to the global `CacheService`, `ContentManager` implements specific optimizations for high-performance content delivery:
+
+- **LRU Cache for Collections**: Maintains a dedicated in-memory LRU cache (referenced `lru-cache` library, max 500 items, 20s TTL) for the most frequently accessed collection schemas, ensuring optimal access patterns and reducing overhead.
+- **Batch Processing**: Content initialization and cache population are processed in batches (default size 100) to prevent event loop blocking during large dataset loads.
+- **Smart Initialization**: Uses an exponential backoff strategy with jitter for robust startup, ensuring the system recovers gracefully from temporary database unavailability.
+- **Reactive Snapshots**: Exposes `getReactiveNavStore()` for Svelte 5 rune-compatible integration on the client side.
+
 ### Core Architecture
 
 ```typescript
