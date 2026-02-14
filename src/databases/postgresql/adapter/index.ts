@@ -162,6 +162,30 @@ export class PostgreSQLAdapter extends AdapterCore {
 		}
 	};
 
+	/**
+	 * Maps a raw PostgreSQL user row to include `role` (string) derived from `roleIds` (array).
+	 * This ensures compatibility with the middleware permission checks that expect `user.role`.
+	 */
+	private mapUser(dbUser: any): any {
+		if (!dbUser) return null;
+		// Handle roleIds - ensure it is an array
+		let roleIds = dbUser.roleIds;
+		if (typeof roleIds === 'string') {
+			try {
+				roleIds = JSON.parse(roleIds);
+			} catch {
+				roleIds = [];
+			}
+		}
+		const finalRoleIds = Array.isArray(roleIds) ? roleIds : [];
+		return {
+			...dbUser,
+			roleIds: finalRoleIds,
+			role: finalRoleIds.length > 0 ? finalRoleIds[0] : 'user',
+			permissions: dbUser.permissions || []
+		};
+	}
+
 	public readonly auth = {
 		setupAuthModels: async () => {
 			await this.ensureSystem();
@@ -189,7 +213,7 @@ export class PostgreSQLAdapter extends AdapterCore {
 					.where(and(eq(schema.authSessions._id, session_id), gt(schema.authSessions.expires, new Date())))
 					.limit(1);
 
-				return result?.user || null;
+				return result?.user ? this.mapUser(result.user) : null;
 			}, 'AUTH_VALIDATE_SESSION_FAILED');
 		},
 		deleteSession: async (session_id: string) => {
@@ -232,7 +256,7 @@ export class PostgreSQLAdapter extends AdapterCore {
 					.from(schema.authUsers)
 					.where(and(...conditions))
 					.limit(1);
-				return user || null;
+				return this.mapUser(user) || null;
 			}, 'AUTH_GET_USER_BY_EMAIL_FAILED');
 		},
 		createUser: async (userData: any) => {
@@ -246,15 +270,19 @@ export class PostgreSQLAdapter extends AdapterCore {
 					password = await argon2.hash(password);
 				}
 
+				// Map legacy 'role' string to 'roleIds' array if roleIds is missing/empty
+				const roleIds = userData.roleIds?.length ? userData.roleIds : userData.role ? [userData.role] : [];
+
 				const formattedUser = {
 					_id: userData._id || utils.generateId(),
 					...userData,
 					password,
+					roleIds,
 					createdAt: new Date(),
 					updatedAt: new Date()
 				};
 				const [user] = await this.db!.insert(schema.authUsers).values(formattedUser).returning();
-				return user;
+				return this.mapUser(user);
 			}, 'AUTH_CREATE_USER_FAILED');
 		},
 		updateUserAttributes: async (user_id: string, userData: any, tenantId?: string) => {
@@ -298,10 +326,14 @@ export class PostgreSQLAdapter extends AdapterCore {
 					password = await argon2.hash(password);
 				}
 
+				// Map legacy 'role' string to 'roleIds' array if roleIds is missing/empty
+				const roleIds = userData.roleIds?.length ? userData.roleIds : userData.role ? [userData.role] : [];
+
 				const formattedUser = {
 					...userData,
 					_id: userId,
 					password,
+					roleIds,
 					createdAt: new Date(),
 					updatedAt: new Date()
 				};
@@ -334,7 +366,7 @@ export class PostgreSQLAdapter extends AdapterCore {
 					.from(schema.authUsers)
 					.where(and(...conditions))
 					.limit(1);
-				return user || null;
+				return this.mapUser(user) || null;
 			}, 'AUTH_GET_USER_BY_ID_FAILED');
 		},
 		getAllUsers: async (options?: { limit?: number; offset?: number }) => {
@@ -353,7 +385,7 @@ export class PostgreSQLAdapter extends AdapterCore {
 				}
 
 				const users = await query;
-				return users;
+				return users.map((u: any) => this.mapUser(u));
 			}, 'AUTH_GET_ALL_USERS_FAILED');
 		},
 		getAllRoles: async (tenantId?: string) => {
