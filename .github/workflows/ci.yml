@@ -678,17 +678,19 @@ jobs:
           nohup bun run preview > preview.log 2>&1 &
           bun x wait-on http://localhost:4173 -t 90000 --interval 1000
 
-      - name: 🔍 Debug - Dump setup page HTML
+      - name: 🔍 Debug - Dump setup page HTML and data
         run: |
-          echo "=== Response headers ==="
+          echo "=== HTML page headers ==="
           curl -sI http://localhost:4173/setup | head -20
           echo ""
-          echo "=== HTML body (first 100 lines) ==="
-          curl -s http://localhost:4173/setup | head -100
+          echo "=== Data request /__data.json ==="
+          curl -sv 'http://localhost:4173/setup/__data.json' 2>&1 | head -50
           echo ""
-          echo "=== Check build output ==="
-          ls -la build/client/ 2>/dev/null || echo "No build/client directory"
-          ls -la .svelte-kit/output/client/ 2>/dev/null | head -10
+          echo "=== Data request with SvelteKit header ==="
+          curl -s -H 'x-sveltekit-invalidated: 01' 'http://localhost:4173/setup/__data.json' | head -50
+          echo ""
+          echo "=== Server log tail ==="
+          tail -30 preview.log 2>/dev/null || echo "No preview.log"
 
       - name: 🧙‍♂️ Run Setup Wizard
         run: bunx playwright test tests/playwright/setup-wizard.spec.ts --project=chromium --reporter=list

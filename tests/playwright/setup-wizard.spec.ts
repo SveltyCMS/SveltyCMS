@@ -27,6 +27,21 @@ test('Setup Wizard: Configure DB and Create Admin', async ({ page }) => {
 	page.on('console', (msg) => console.log(`[BROWSER ${msg.type()}] ${msg.text()}`));
 	page.on('pageerror', (err) => console.log(`[BROWSER ERROR] ${err.message}`));
 
+	// Network request logging for debugging data fetch issues
+	page.on('request', (req) => {
+		if (!req.url().includes('/_app/') && !req.url().endsWith('.js') && !req.url().endsWith('.css')) {
+			console.log(`[NET REQ] ${req.method()} ${req.url()}`);
+		}
+	});
+	page.on('response', (res) => {
+		if (!res.url().includes('/_app/') && !res.url().endsWith('.js') && !res.url().endsWith('.css')) {
+			console.log(`[NET RES] ${res.status()} ${res.url()} (${res.headers()['content-type'] || 'unknown'})`);
+		}
+	});
+	page.on('requestfailed', (req) => {
+		console.log(`[NET FAIL] ${req.method()} ${req.url()} ${req.failure()?.errorText}`);
+	});
+
 	// 1. Start at root, expect redirect to /setup or /login
 	await page.goto('/', { waitUntil: 'domcontentloaded' });
 
@@ -38,6 +53,13 @@ test('Setup Wizard: Configure DB and Create Admin', async ({ page }) => {
 
 	// Wait for setup to load
 	await expect(page).toHaveURL(/\/setup/);
+
+	// Debug: Wait a moment then dump page state
+	await page.waitForTimeout(3000);
+	const bodyText = await page.evaluate(() => document.body?.innerText?.substring(0, 500) || '(empty)');
+	console.log(`[DEBUG] Page body text after 3s: ${bodyText}`);
+	const bodyHTML = await page.evaluate(() => document.body?.innerHTML?.substring(0, 1000) || '(empty)');
+	console.log(`[DEBUG] Page body HTML after 3s: ${bodyHTML}`);
 
 	// Dismiss welcome modal if it exists (using a smarter polling check)
 	const getStarted = page.getByRole('button', { name: /get started/i });
