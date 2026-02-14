@@ -118,7 +118,7 @@ const generalLimiter = new RateLimiter({
 		name: 'ratelimit',
 		secret: getPrivateSettingSync('JWT_SECRET_KEY') || 'fallback-dev-secret',
 		rate: [500, 'm'],
-		preflight: true
+		preflight: false
 	},
 	// Enable distributed store if Redis is available
 	store: cacheService ? distributedStore : undefined
