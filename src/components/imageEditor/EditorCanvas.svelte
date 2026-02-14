@@ -198,9 +198,9 @@ for the image editor canvas with reactive rendering.
 		onkeydown={(e) => {
 			// Basic keyboard support for pan/zoom
 			if (e.key === '+' || e.key === '=') {
-				imageEditorStore.setZoom(imageEditorStore.zoom * 1.1);
+				imageEditorStore.state.zoom = imageEditorStore.state.zoom * 1.1;
 			} else if (e.key === '-' || e.key === '_') {
-				imageEditorStore.setZoom(imageEditorStore.zoom / 1.1);
+				imageEditorStore.state.zoom = imageEditorStore.state.zoom / 1.1;
 			}
 		}}
 		aria-label="Interactive image canvas. Use mouse to pan, wheel to zoom, and +/- keys to zoom."

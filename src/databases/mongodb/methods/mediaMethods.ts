@@ -13,6 +13,7 @@ import type { DatabaseId, DatabaseResult, MediaItem, MediaMetadata, PaginatedRes
 import { mediaSchema, type IMedia } from '../models/media';
 import { createDatabaseError } from './mongoDBUtils';
 import { withCache, CacheCategory, invalidateCategoryCache } from './mongoDBCacheUtils';
+import { safeQuery } from '@src/utils/security/safeQuery';
 
 // Define model types for dependency injection
 type MediaModelType = Mongoose.Model<IMedia>;

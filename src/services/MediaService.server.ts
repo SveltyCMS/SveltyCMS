@@ -47,7 +47,6 @@ import { getSanitizedFileName } from '@src/utils/media/mediaProcessing';
 import { hashFileContent } from '@src/utils/media/mediaProcessing.server';
 import { saveFileToDisk, saveResizedImages } from '@src/utils/media/mediaStorage.server';
 import { isCloud } from '@src/utils/media/cloudStorage';
-import { mediaProcessingService } from './MediaProcessingService.server';
 import { getPublicSettingSync } from '@src/services/settingsService';
 // IMPORT SERVER-SIDE VALIDATION
 import { validateMediaFileServer } from '@src/utils/media/mediaUtils';
