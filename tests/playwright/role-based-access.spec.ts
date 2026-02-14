@@ -30,15 +30,21 @@ const USERS = {
 };
 
 async function login(page: Page, user: { email: string; password: string }) {
-	await page.goto('/login');
+	await page.goto('/login', { waitUntil: 'networkidle', timeout: 30000 });
 
-	// Fill login form
-	// Fill login form
+	// The login page starts with Sign In / Sign Up selection.
+	// Click "Go to Sign In" to reveal the login form.
+	const signInButton = page.locator('p:has-text("Sign In")').first();
+	const signInVisible = await signInButton.isVisible({ timeout: 5000 }).catch(() => false);
+	if (signInVisible) {
+		await signInButton.click();
+		await page.waitForTimeout(1000);
+	}
+
+	// Wait for the form to appear, then fill it
+	await page.waitForSelector('[data-testid="signin-email"]', { timeout: 15000, state: 'visible' });
 	await page.getByTestId('signin-email').fill(user.email);
 	await page.getByTestId('signin-password').fill(user.password);
-
-	// Submit
-	// Submit
 	await page.getByTestId('signin-submit').click();
 
 	// Wait for redirect away from login
