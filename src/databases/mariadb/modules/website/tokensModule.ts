@@ -40,7 +40,9 @@ export class WebsiteTokensModule {
 			const id = utils.generateId();
 			const now = new Date();
 			// Convert ISO string dates to Date objects for Drizzle datetime columns
-			const expiresAt = (token as any).expiresAt ? new Date((token as any).expiresAt) : null;
+			// Truncate milliseconds since MariaDB DATETIME has second precision
+			const rawExpires = (token as any).expiresAt ? new Date((token as any).expiresAt) : null;
+			const expiresAt = rawExpires ? new Date(Math.floor(rawExpires.getTime() / 1000) * 1000) : null;
 			await this.db.insert(schema.websiteTokens).values({
 				...token,
 				_id: id,

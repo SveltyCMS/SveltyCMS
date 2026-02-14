@@ -522,10 +522,24 @@ export class AuthModule {
 
 	async deleteTokens(token_ids: string[], tenantId?: string): Promise<DatabaseResult<{ deletedCount: number }>> {
 		return (this.core as any).wrap(async () => {
-			const conditions = [inArray(schema.authTokens._id, token_ids)];
+			// Try matching by _id first, then fall back to token value
+			// (API endpoints pass token values, not _ids)
+			const conditions: any[] = [];
 			if (tenantId) conditions.push(eq(schema.authTokens.tenantId, tenantId));
-			const result = await this.db.delete(schema.authTokens).where(and(...conditions));
-			return { deletedCount: result[0].affectedRows };
+
+			// Try delete by _id
+			const byIdResult = await this.db
+				.delete(schema.authTokens)
+				.where(and(inArray(schema.authTokens._id, token_ids), ...conditions));
+			if (byIdResult[0].affectedRows > 0) {
+				return { deletedCount: byIdResult[0].affectedRows };
+			}
+
+			// Fall back to delete by token value
+			const byValueResult = await this.db
+				.delete(schema.authTokens)
+				.where(and(inArray(schema.authTokens.token, token_ids), ...conditions));
+			return { deletedCount: byValueResult[0].affectedRows };
 		}, 'DELETE_TOKENS_FAILED');
 	}
 

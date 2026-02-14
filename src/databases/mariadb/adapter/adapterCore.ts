@@ -184,6 +184,17 @@ export class AdapterCore {
 		return str.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
 	}
 
+	// Common short aliases used by API routes and resolvers
+	private static TABLE_ALIASES: Record<string, string> = {
+		media: 'mediaItems',
+		MediaItem: 'mediaItems',
+		collections: 'contentNodes',
+		preferences: 'systemPreferences',
+		tokens: 'authTokens',
+		sessions: 'authSessions',
+		users: 'authUsers'
+	};
+
 	public getTable(collection: string): any {
 		// Direct lookup (already camelCase, e.g., 'mediaItems')
 		if ((schema as any)[collection]) {
@@ -194,7 +205,16 @@ export class AdapterCore {
 		if ((schema as any)[camelKey]) {
 			return (schema as any)[camelKey];
 		}
-		// Throw for unknown tables so errors are properly reported
+		// Check common aliases (e.g., 'media' → 'mediaItems')
+		const alias = AdapterCore.TABLE_ALIASES[collection];
+		if (alias && (schema as any)[alias]) {
+			return (schema as any)[alias];
+		}
+		// Dynamic collection tables map to contentNodes
+		if (collection.startsWith('collection_')) {
+			return schema.contentNodes;
+		}
+		// Throw for truly unknown tables
 		throw new Error(`Unknown table: ${collection}`);
 	}
 
