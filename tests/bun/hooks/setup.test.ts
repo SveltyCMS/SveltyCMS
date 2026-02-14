@@ -14,11 +14,23 @@ mock.module('@utils/setupCheck', () => ({
 	invalidateSetupCache: () => {}
 }));
 
-// --- Mock SvelteKit redirect ---
+// --- Mock SvelteKit (must include all exports used by transitive deps like handleApiError) ---
 mock.module('@sveltejs/kit', () => ({
 	redirect: (status: number, location: string) => {
 		throw { status, location, __isRedirect: true };
-	}
+	},
+	error: (status: number, message: string | { message: string }) => {
+		const body = typeof message === 'string' ? { message } : message;
+		throw { status, body, message: body.message, __is_http_error: true };
+	},
+	isRedirect: (err: any) => err && err.__isRedirect === true,
+	isHttpError: (err: any) => err && err.__is_http_error === true,
+	json: (data: unknown, init?: ResponseInit) =>
+		new Response(JSON.stringify(data), {
+			...init,
+			headers: { 'Content-Type': 'application/json', ...init?.headers }
+		}),
+	text: (data: string, init?: ResponseInit) => new Response(data, init)
 }));
 
 // --- Mock node:fs and node:path ---
@@ -163,8 +175,10 @@ describe('handleSetup Middleware', () => {
 		beforeEach(() => {
 			mockConfigExists = false;
 		});
-		const routes = ['/dashboard', '/api/collections', '/login'];
-		for (const route of routes) {
+
+		// Non-API routes redirect to /setup
+		const nonApiRoutes = ['/dashboard', '/login'];
+		for (const route of nonApiRoutes) {
 			it(`redirects ${route} to /setup`, async () => {
 				const event = createMockEvent(route);
 				try {
@@ -175,6 +189,13 @@ describe('handleSetup Middleware', () => {
 				}
 			});
 		}
+
+		// API routes return 503 error Response via handleApiError
+		it('returns 503 for /api/collections during setup', async () => {
+			const event = createMockEvent('/api/collections');
+			const response = await handleSetup({ event, resolve: mockResolve });
+			expect(response.status).toBe(503);
+		});
 	});
 
 	// ---------------------------------------------------------------------
