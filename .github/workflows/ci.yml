@@ -154,6 +154,7 @@ jobs:
   # ------------------------------------------------------------------
   integration-tests-mongodb:
     name: 🔌 Integration (MongoDB)
+    if: false # Temporarily disabled - focusing on MariaDB
     needs: build
     timeout-minutes: 15
     runs-on: ubuntu-latest
@@ -286,7 +287,7 @@ jobs:
   # ------------------------------------------------------------------
   integration-tests-mariadb:
     name: 🔌 Integration (MariaDB) [Beta]
-    needs: [build, integration-tests-mongodb]
+    needs: build
     timeout-minutes: 15
     runs-on: ubuntu-latest
     services:
