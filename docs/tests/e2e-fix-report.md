@@ -83,6 +83,36 @@ await page.addInitScript(() => {
 
 **Fix:** Changed to same pattern as MongoDB: remove config, start server, run setup wizard via UI.
 
+### 12. handleSetup Hook Blocking Setup Actions After Upstream Merge
+
+**Problem:** Upstream merge changed `setupCheck.ts` to return `true` once the config file exists, even before `completeSetup` runs. Previously it returned `false` when DB adapter wasn't ready, DB wasn't connected, or no admin users existed. After the change, `isSetupCompleteAsync()` returns `true` in all these cases if the config file is present.
+
+This caused the `handleSetup` hook to redirect ALL requests to `/setup` (including POST form actions like `testDatabase` and `completeSetup`) once `seedDatabase` writes the config in step 0. Both E2E setup wizard and integration setup API tests broke — actions returned `{ type: "redirect" }` instead of `{ type: "success" }`.
+
+**Root cause:** `seedDatabase` (step 0) writes `config/private.ts` → `isSetupComplete()` returns `true` → hook blocks `/setup` routes → `completeSetup` (step 5) never executes.
+
+**Fix:** Changed the hook to only redirect GET requests away from `/setup` when setup is complete. POST requests (form actions) are allowed through so the setup wizard can finish its multi-step flow:
+```ts
+if (isSetupRoute && event.request.method === 'GET') {
+  throw redirect(302, '/');
+}
+```
+
+## CI Status
+
+**All 8 jobs passing** (run `22020528231`):
+
+| Job | Status |
+|-----|--------|
+| Unit Tests | success |
+| Build Production | success |
+| Integration (MongoDB) | success |
+| Integration (MariaDB) | success |
+| Integration (PostgreSQL) | success |
+| E2E (MongoDB) | success |
+| E2E (MariaDB) | success |
+| E2E (PostgreSQL) | success |
+
 ## Tests Currently Running
 
 | Test | Status |
