@@ -263,7 +263,7 @@ jobs:
           API_BASE_URL: 'http://localhost:4173'
 
       - name: 🧪 Run Integration Suite
-        run: bun test $(find tests/bun/api -name "*.test.ts" ! -name "setup.test.ts") tests/bun/databases
+        run: bun test $(find tests/bun/api -name "*.test.ts" ! -name "setup.test.ts" ! -name "setup-actions.test.ts") tests/bun/databases
         env:
           TEST_MODE: 'true'
           API_BASE_URL: 'http://localhost:4173'

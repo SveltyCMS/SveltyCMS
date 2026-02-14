@@ -32,12 +32,12 @@ import { mock } from 'bun:test';
 };
 
 (globalThis as any).privateEnv = {
-	DB_TYPE: 'mongodb',
-	DB_HOST: 'localhost',
-	DB_PORT: 27017,
-	DB_NAME: 'sveltycms_test',
-	DB_USER: 'test',
-	DB_PASSWORD: 'test',
+	DB_TYPE: process.env.DB_TYPE || 'mongodb',
+	DB_HOST: process.env.DB_HOST || 'localhost',
+	DB_PORT: parseInt(process.env.DB_PORT || '27017'),
+	DB_NAME: process.env.DB_NAME || 'sveltycms_test',
+	DB_USER: process.env.DB_USER || 'test',
+	DB_PASSWORD: process.env.DB_PASSWORD || 'test',
 	JWT_SECRET_KEY: 'test-secret-key-for-testing-only',
 	ENCRYPTION_KEY: 'test-encryption-key-32-bytes!!'
 };

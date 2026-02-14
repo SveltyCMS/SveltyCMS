@@ -47,8 +47,11 @@ export const POST = apiHandler(async ({ request, locals }) => {
 			reason: result.message
 		});
 
-		// Return 400 for invalid code so client knows it's a data issue, not a system failure
-		throw new AppError(result.message || 'Invalid verification code', 400, 'INVALID_VERIFICATION_CODE');
+		// Return 200 with success: false to handle gracefully
+		return json({
+			success: false,
+			message: result.message || 'Invalid verification code'
+		});
 	}
 
 	logger.info('2FA verification successful', {

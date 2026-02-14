@@ -6,6 +6,24 @@
 
 import { plugin } from 'bun';
 import { join } from 'path';
+import { readFileSync } from 'fs';
+
+// Load .env.test for test environment
+const envPath = join(process.cwd(), '.env.test');
+try {
+	const envFile = readFileSync(envPath, 'utf-8');
+	envFile.split('\n').forEach(line => {
+		const trimmed = line.trim();
+		if (trimmed && !trimmed.startsWith('#')) {
+			const [key, ...valueParts] = trimmed.split('=');
+			if (key && valueParts.length > 0) {
+				process.env[key.trim()] = valueParts.join('=').trim();
+			}
+		}
+	});
+} catch (error) {
+	console.warn('Could not load .env.test:', error);
+}
 
 const mocksDir = join(import.meta.dir, 'mocks');
 
