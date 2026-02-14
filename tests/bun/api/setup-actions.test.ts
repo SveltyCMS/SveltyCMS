@@ -48,23 +48,27 @@ import { SESSION_COOKIE_NAME } from '@src/databases/auth/constants';
 
 const API_BASE_URL = getApiBaseUrl();
 
+// Dynamic DB type from environment
+const dbType = (process.env.DB_TYPE || 'mongodb') as DatabaseConfig['type'];
+const defaultPort = dbType === 'mariadb' ? '3306' : dbType === 'postgresql' ? '5432' : '27017';
+
 // Verify what we are sending
 const testDbConfig: DatabaseConfig = {
-	type: 'mongodb',
+	type: dbType,
 	host: process.env.DB_HOST || 'localhost',
-	port: parseInt(process.env.DB_PORT || '27017'),
+	port: parseInt(process.env.DB_PORT || defaultPort),
 	name: process.env.DB_NAME || 'sveltycms_test',
 	user: process.env.DB_USER || '',
 	password: process.env.DB_PASSWORD || ''
 };
 
 const testSmtpConfig = {
-	host: 'smtp.gmail.com',
-	port: 587,
-	user: 'test@example.com',
-	password: 'test-password',
-	from: 'noreply@example.com',
-	secure: true
+	host: process.env.SMTP_HOST || 'smtp.gmail.com',
+	port: parseInt(process.env.SMTP_PORT || '587'),
+	user: process.env.SMTP_USER || 'test@example.com',
+	password: process.env.SMTP_PASS || 'test-password',
+	from: process.env.SMTP_MAIL_FROM || 'noreply@example.com',
+	secure: process.env.SMTP_SECURE === 'true'
 };
 
 const testAdminUser = {
@@ -90,10 +94,12 @@ async function postAction(actionName: string, formData: FormData) {
 }
 
 describe('Setup Actions - Database Connection', () => {
-	beforeEach(cleanupTestDatabase);
+	beforeEach(async () => {
+		if (dbType === 'mongodb') await cleanupTestDatabase();
+	});
 
 	it(
-		'tests MongoDB connection',
+		`tests ${dbType} connection`,
 		async () => {
 			const formData = new FormData();
 			formData.append('config', JSON.stringify(testDbConfig));
@@ -150,10 +156,10 @@ describe('Setup Actions - Database Connection', () => {
 
 describe('Setup Actions - Database Driver Installation', () => {
 	it(
-		'checks MongoDB driver',
+		`checks ${dbType} driver`,
 		async () => {
 			const formData = new FormData();
-			formData.append('dbType', 'mongodb');
+			formData.append('dbType', dbType);
 
 			const res = await postAction('installDriver', formData);
 
@@ -162,7 +168,9 @@ describe('Setup Actions - Database Driver Installation', () => {
 			const data = parseActionResult(result);
 
 			expect(result.type).toBe('success');
-			expect(data.package).toBe('mongoose');
+			// Package name depends on DB type
+			const expectedPackage = dbType === 'mongodb' ? 'mongoose' : dbType === 'mariadb' ? 'mariadb' : 'pg';
+			expect(data.package).toBe(expectedPackage);
 			expect(data.alreadyInstalled).toBe(true);
 		},
 		TEST_TIMEOUT
@@ -170,7 +178,9 @@ describe('Setup Actions - Database Driver Installation', () => {
 });
 
 describe('Setup Actions - Database Seeding', () => {
-	beforeEach(cleanupTestDatabase);
+	beforeEach(async () => {
+		if (dbType === 'mongodb') await cleanupTestDatabase();
+	});
 
 	it(
 		'writes private.ts config',
@@ -226,7 +236,7 @@ describe('Setup Actions - SMTP Configuration', () => {
 
 describe('Setup Actions - Complete Setup', () => {
 	beforeEach(async () => {
-		await cleanupTestDatabase();
+		if (dbType === 'mongodb') await cleanupTestDatabase();
 		// Seed first
 		const formData = new FormData();
 		formData.append('config', JSON.stringify(testDbConfig));

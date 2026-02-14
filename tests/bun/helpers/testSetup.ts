@@ -24,8 +24,10 @@ export async function cleanupTestEnvironment(): Promise<void> {
 }
 
 // Cleanup the test database - deletes all collections except users.
+// Only works for MongoDB; other DB types are handled by setup-actions.
 export async function cleanupTestDatabase(): Promise<void> {
 	if (process.env.SKIP_DB_CLEANUP === 'true') return;
+	if (process.env.DB_TYPE && process.env.DB_TYPE !== 'mongodb') return;
 
 	const mongooseModule = await import('mongoose');
 	const mongoose = mongooseModule.default || mongooseModule;
@@ -70,8 +72,11 @@ export async function cleanupTestDatabase(): Promise<void> {
 /**
  * Seeds basic roles into the database to ensure permissions exist.
  * This mimics what the Setup API does but faster/direct for tests.
+ * Only works for MongoDB; other DB types get seeded via setup-actions.
  */
 async function seedBasicRoles(): Promise<void> {
+	if (process.env.DB_TYPE && process.env.DB_TYPE !== 'mongodb') return;
+
 	const { MongoClient } = await import('mongodb');
 	const dbName = process.env.DB_NAME || 'sveltycms_test';
 	const uri = buildMongoURI({ dbName, forceIPv4: true });
@@ -267,10 +272,12 @@ export async function prepareAuthenticatedContext(): Promise<string> {
 
 	if (setupNeeded) {
 		// System needs setup - use the Setup Actions
+		const dbType = process.env.DB_TYPE || 'mongodb';
+		const defaultPort = dbType === 'mariadb' ? '3306' : dbType === 'postgresql' ? '5432' : '27017';
 		const dbConfig = {
-			type: 'mongodb',
+			type: dbType,
 			host: process.env.DB_HOST || 'localhost',
-			port: parseInt(process.env.DB_PORT || '27017').toString(), // Browser-like FormData sends strings
+			port: parseInt(process.env.DB_PORT || defaultPort).toString(), // Browser-like FormData sends strings
 			name: process.env.DB_NAME || 'sveltycms_test',
 			user: process.env.DB_USER || '',
 			password: process.env.DB_PASSWORD || ''
