@@ -66,7 +66,7 @@ test('Setup Wizard: Configure DB and Create Admin', async ({ page }) => {
 
 	// Test Connection
 	await page.locator('button', { hasText: /test database/i }).click();
-	await expect(page.getByText(/connected successfully/i)).toBeVisible({ timeout: 15000 });
+	await expect(page.getByText(/connected successfully/i).first()).toBeVisible({ timeout: 15000 });
 
 	// Move to next step
 	await clickNext(page);
