@@ -60,6 +60,19 @@ export interface WidgetConfig<TProps extends WidgetProps = WidgetProps> {
 
 	/** Optional function to return widget-specific translatable paths. */
 	getTranslatablePaths?: (basePath: string) => string[];
+
+	/** Optional function to modify the request data on the server. */
+	modifyRequest?: (args: Record<string, unknown>) => Promise<Record<string, unknown>>;
+
+	/** Optional function to modify a batch of request data on the server. */
+	modifyRequestBatch?: (args: {
+		data: Record<string, unknown>[];
+		collection: unknown;
+		field: unknown;
+		user: unknown;
+		type: string;
+		tenantId?: string;
+	}) => Promise<Record<string, unknown>[]>;
 }
 
 /**
@@ -96,7 +109,9 @@ export function createWidget<TProps extends WidgetProps = WidgetProps>(config: W
 			translated: false, // Will be overridden by fieldConfig or config.defaults later
 			width: undefined, // Will be overridden by fieldConfig or config.defaults later
 			helper: undefined, // Will be overridden by fieldConfig or config.defaults later
-			permissions: undefined // Will be overridden by fieldConfig or config.defaults later
+			permissions: undefined, // Will be overridden by fieldConfig or config.defaults later
+			modifyRequest: config.modifyRequest,
+			modifyRequestBatch: config.modifyRequestBatch
 		} as FieldInstance; // Cast to FieldInstance to allow adding custom properties
 
 		// 1. Apply defaults from config.defaults (for custom properties)

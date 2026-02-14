@@ -70,6 +70,15 @@ export class MediaModule {
 			return (this.core as any).wrap(async () => {
 				const conditions = folderId ? [eq(schema.mediaItems.folderId, folderId)] : [isNull(schema.mediaItems.folderId)];
 
+				// Ownership filtering
+				if (options?.user) {
+					const isAdmin = options.user.role === 'admin' || (options.user as any)?.isAdmin === true;
+					if (!isAdmin) {
+						// ALLOW GLOBAL: Users see their own files OR anything in the 'global' folder
+						conditions.push(or(eq(schema.mediaItems.createdBy, options.user._id), like(schema.mediaItems.path, 'global/%')) as any);
+					}
+				}
+
 				let q: any = this.db.select().from(schema.mediaItems);
 				q = q.where(and(...conditions));
 
@@ -109,6 +118,15 @@ export class MediaModule {
 			return (this.core as any).wrap(async () => {
 				const qry = `%${query}%`;
 				const conditions = [or(like(schema.mediaItems.filename, qry), like(schema.mediaItems.originalFilename, qry))];
+
+				// Ownership filtering
+				if (options?.user) {
+					const isAdmin = options.user.role === 'admin' || (options.user as any)?.isAdmin === true;
+					if (!isAdmin) {
+						// ALLOW GLOBAL: Users see their own files OR anything in the 'global' folder
+						conditions.push(or(eq(schema.mediaItems.createdBy, options.user._id), like(schema.mediaItems.path, 'global/%')) as any);
+					}
+				}
 
 				let q: any = this.db
 					.select()

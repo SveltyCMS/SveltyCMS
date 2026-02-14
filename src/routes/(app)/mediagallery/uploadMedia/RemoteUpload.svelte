@@ -31,9 +31,10 @@
 
 	interface Props {
 		onUploadComplete?: () => void;
+		folder?: string;
 	}
 
-	const { onUploadComplete }: Props = $props();
+	const { onUploadComplete, folder = 'global' }: Props = $props();
 
 	async function uploadRemoteUrls() {
 		if (remoteUrls.length === 0) {
@@ -43,6 +44,7 @@
 
 		const formData = new FormData();
 		formData.append('remoteUrls', JSON.stringify(remoteUrls));
+		formData.append('folder', folder);
 
 		try {
 			const response = await fetch(`/mediagallery?/remoteUpload`, {

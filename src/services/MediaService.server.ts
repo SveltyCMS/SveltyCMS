@@ -46,6 +46,7 @@ import { MediaType as MediaTypeEnumValue } from '@utils/media/mediaModels';
 import { getSanitizedFileName } from '@src/utils/media/mediaProcessing';
 import { hashFileContent } from '@src/utils/media/mediaProcessing.server';
 import { saveFileToDisk, saveResizedImages } from '@src/utils/media/mediaStorage.server';
+import { mediaProcessingService } from './MediaProcessingService.server';
 // IMPORT SERVER-SIDE VALIDATION
 import { validateMediaFileServer } from '@src/utils/media/mediaUtils';
 
@@ -293,24 +294,11 @@ export class MediaService {
 
 			if (isImage && !mimeType.includes('svg')) {
 				try {
-					const sharpMeta = await sharp(buffer).metadata();
-					width = sharpMeta.width;
-					height = sharpMeta.height;
-					advancedMetadata = {
-						format: sharpMeta.format,
-						width: sharpMeta.width,
-						height: sharpMeta.height,
-						space: sharpMeta.space,
-						channels: sharpMeta.channels,
-						density: sharpMeta.density,
-						hasProfile: sharpMeta.hasProfile,
-						hasAlpha: sharpMeta.hasAlpha,
-						exif: sharpMeta.exif?.toString('base64'),
-						iptc: sharpMeta.iptc?.toString('base64'),
-						icc: sharpMeta.icc?.toString('base64')
-					};
+					advancedMetadata = await mediaProcessingService.getMetadata(buffer);
+					width = (advancedMetadata as any).width;
+					height = (advancedMetadata as any).height;
 				} catch (sharpError) {
-					logger.error('Failed to extract sharp metadata', { fileName: file.name, error: sharpError });
+					logger.error('Failed to extract deep metadata', { fileName: file.name, error: sharpError });
 				}
 			} else if (isVideo) {
 				try {
@@ -472,6 +460,50 @@ export class MediaService {
 			logger.error(message, { error: err });
 			throw error(500, message);
 		}
+	}
+
+	/**
+	 * Add a new version to an existing media item
+	 */
+	public async addVersion(id: string, file: File, userId: string, action: string = 'update'): Promise<MediaItem> {
+		this.ensureInitialized();
+		const mediaResult = await this.db.crud.findOne<MediaItem>('MediaItem', { _id: id as DatabaseId });
+		if (!mediaResult.success || !mediaResult.data) {
+			throw error(404, 'Media item not found');
+		}
+		const mediaItem = mediaResult.data;
+
+		// Save the new file content
+		const buffer = Buffer.from(await file.arrayBuffer());
+		const hash = await hashFileContent(buffer);
+
+		// Use original basePath if possible
+		const basePath = mediaItem.path.split('/')[0] || 'global';
+		const { url, path, resized } = await this.uploadFile(buffer, file.name, file.type, userId, basePath);
+
+		const newVersionNumber = (mediaItem.versions?.length || 0) + 1;
+		const newVersion = {
+			version: newVersionNumber,
+			url,
+			path,
+			hash,
+			size: file.size,
+			createdAt: new Date().toISOString() as ISODateString,
+			createdBy: userId as DatabaseId,
+			action
+		};
+
+		const updates: Partial<MediaItem> = {
+			url,
+			path,
+			hash,
+			size: file.size,
+			thumbnails: resized,
+			versions: [...(mediaItem.versions || []), newVersion]
+		};
+
+		await this.updateMedia(id, updates);
+		return { ...mediaItem, ...updates } as MediaItem;
 	}
 
 	// Deletes a media item

@@ -57,11 +57,18 @@ tags:
   - Granular permissions, expiration logic, verification
   - File: `tests/bun/api/website-tokens.test.ts`
 
-#### Content Management (78 tests)
+#### Content Management (82 tests)
 
 - **Collections API** - 8 endpoints, 19 tests ✅
   - CRUD operations, field management, relations
   - File: `tests/bun/api/collections.test.ts`
+
+- **Media & DAM API** - 11 endpoints, ~34 tests ✅
+  - Process, exists, delete, remote, search, bulk-download, trash, manipulate
+  - **NEW**: AI-powered tagging (`/api/media/ai-tag`)
+  - **NEW**: Deep metadata extraction (EXIF/IPTC/XMP)
+  - **NEW**: Asset versioning logic
+  - File: `tests/bun/api/media.test.ts`
 
 - **Import/Export** - 4 endpoints, 29 tests ✅
   - Export data, import data, full import/export

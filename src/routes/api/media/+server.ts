@@ -63,7 +63,8 @@ export const GET = apiHandler(async ({ locals, url }) => {
 				page: 1,
 				pageSize: query.limit,
 				sortField: 'updatedAt',
-				sortDirection: 'desc'
+				sortDirection: 'desc',
+				user // Pass user for ownership filtering
 			},
 			recursive
 		);

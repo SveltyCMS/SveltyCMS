@@ -66,6 +66,7 @@ export const schema: Schema = {
 			label: 'Media',
 			required: false, // Temporarily optional for testing
 			icon: 'material-symbols:video-library',
+			folder: 'collections/posts', // ✅ Save files under collection/post
 			// Watermark preset - auto-applied when editing images
 			watermark: {
 				url: '/static/watermarks/logo.png', // Place your watermark image here

@@ -22,13 +22,8 @@ import sharp from 'sharp';
 import { logger } from '@utils/logger.server';
 import { dbAdapter } from '@src/databases/db';
 import { hashFileContent } from '@src/utils/media/mediaProcessing.server';
-import { MediaType } from '@src/utils/media/mediaModels';
-import type { MediaImage } from '@src/utils/media/mediaModels';
-import fs from 'fs/promises';
-import path from 'path';
 import { getPublicSetting } from '@src/services/settingsService';
-import type { DatabaseId } from '@src/content/types';
-import type { ISODateString } from '@src/content/types';
+import { MediaService } from '@src/services/MediaService.server';
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 
@@ -220,91 +215,43 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const extension = file.type.split('/')[1] === 'jpeg' ? 'jpg' : file.type.split('/')[1];
 		const filename = `${sanitizedName}-edited-${timestamp}-${hash}.${extension}`;
 
-		// Determine save path
-		let relativePath = `${MEDIA_FOLDER}/${filename}`;
-
-		// If editing an existing media, get its folder path
-		// If editing an existing media, get its folder path
-		if (mediaId && dbAdapter) {
-			try {
-				const findResult = await dbAdapter.crud.findOne('MediaItem', { _id: mediaId as DatabaseId });
-				if (findResult.success && findResult.data) {
-					const originalMedia = findResult.data as any;
-					if (originalMedia.path) {
-						const originalDir = path.dirname(originalMedia.path);
-						relativePath = `${originalDir}/${filename}`;
-					}
-				}
-			} catch {
-				logger.warn('Could not find original media, using default path');
-			}
-		}
-
-		// Save file to disk
-		const absolutePath = path.join(process.cwd(), relativePath);
-
-		// Ensure directory exists
-		await fs.mkdir(path.dirname(absolutePath), { recursive: true });
-
-		// Write file
-		await fs.writeFile(absolutePath, processedBuffer);
-
-		// Get processed image metadata
-		const processedMetadata = await sharp(processedBuffer).metadata();
-
-		// Create media document
-		const mediaDocument: Omit<MediaImage, '_id'> = {
-			type: MediaType.Image,
-			filename,
-			mimeType: file.type,
-			size: processedBuffer.length,
-			path: relativePath,
-			url: `/${relativePath}`,
-			hash: hash,
-			width: processedMetadata.width || 0,
-			height: processedMetadata.height || 0,
-			user: userId as DatabaseId,
-			createdAt: new Date(timestamp).toISOString() as ISODateString,
-			updatedAt: new Date(timestamp).toISOString() as ISODateString,
-			metadata: {
-				focalPoint: focalPoint || undefined,
-				originalId: mediaId || undefined,
-				operations: Object.keys(operations).length > 0 ? operations : undefined,
-				editedBy: userId,
-				editedAt: new Date().toISOString()
-			},
-			thumbnails: {}
-		};
-
-		// Save to database
+		// Use MediaService for saving
 		try {
 			if (!dbAdapter) throw new Error('Database adapter not available');
-			const result = await dbAdapter.crud.insert('MediaItem', mediaDocument as any);
+			const mediaService = new MediaService(dbAdapter);
+			// Buffer to Uint8Array/any to satisfy File constructor
+			const editedFile = new File([processedBuffer as any], filename, { type: file.type });
 
-			if (!result.success) throw result.error;
+			if (mediaId) {
+				// ADD AS NEW VERSION
+				logger.info(`Adding new version to media: ${mediaId}`);
+				const updatedItem = await mediaService.addVersion(mediaId, editedFile, userId, 'update');
 
-			logger.info(`Edited image saved: ${filename}`, {
-				mediaId: result.data._id,
-				originalId: mediaId,
-				size: processedBuffer.length,
-				dimensions: `${processedMetadata.width}x${processedMetadata.height}`
-			});
+				// Update metadata with operations and focal point
+				await mediaService.updateMedia(mediaId, {
+					metadata: {
+						...updatedItem.metadata,
+						focalPoint: focalPoint || updatedItem.metadata?.focalPoint,
+						lastOperations: operations
+					}
+				});
 
-			return json({
-				success: true,
-				data: result.data
-			});
-		} catch (dbError) {
-			logger.error('Database error saving edited image:', dbError);
+				return json({
+					success: true,
+					data: updatedItem
+				});
+			} else {
+				// SAVE AS NEW MEDIA
+				const savedItem = await mediaService.saveMedia(editedFile, userId, 'public', MEDIA_FOLDER);
 
-			// Clean up file if DB save failed
-			try {
-				await fs.unlink(absolutePath);
-			} catch {
-				/* ignore cleanup errors */
+				return json({
+					success: true,
+					data: savedItem
+				});
 			}
-
-			return json({ success: false, error: 'Failed to save image metadata' }, { status: 500 });
+		} catch (dbError) {
+			logger.error('Error saving edited image via MediaService:', dbError);
+			return json({ success: false, error: 'Failed to save image' }, { status: 500 });
 		}
 	} catch (error) {
 		logger.error('Error in /api/media/edit:', error);

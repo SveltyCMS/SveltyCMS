@@ -12,7 +12,7 @@ import { readFileSync } from 'fs';
 const envPath = join(process.cwd(), '.env.test');
 try {
 	const envFile = readFileSync(envPath, 'utf-8');
-	envFile.split('\n').forEach(line => {
+	envFile.split('\n').forEach((line) => {
 		const trimmed = line.trim();
 		if (trimmed && !trimmed.startsWith('#')) {
 			const [key, ...valueParts] = trimmed.split('=');

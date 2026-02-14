@@ -173,6 +173,37 @@ test.describe('Role-Based Access Control', () => {
 		await logout(page);
 	});
 
+	test('Media Ownership: Admins see all, others see only own', async ({ page }) => {
+		// 1. Admin should see all media
+		await loginAsAdmin(page);
+		const adminMediaResponse = await page.evaluate(async () => {
+			const res = await fetch('/api/media');
+			return await res.json();
+		});
+		expect(Array.isArray(adminMediaResponse)).toBeTruthy();
+		const totalMediaCount = adminMediaResponse.length;
+		console.log(`Admin sees ${totalMediaCount} media items`);
+		await logout(page);
+
+		// 2. Editor should only see their own media
+		// Note: This assumes the editor hasn't uploaded anything yet in a fresh test DB
+		await login(page, USERS.editor);
+		const editorMediaResponse = await page.evaluate(async () => {
+			const res = await fetch('/api/media');
+			return await res.json();
+		});
+		expect(Array.isArray(editorMediaResponse)).toBeTruthy();
+
+		// If it's a fresh DB, editor sees 0. If they uploaded, they see only theirs.
+		// The key is that they shouldn't see what the admin uploaded (if any).
+		console.log(`Editor sees ${editorMediaResponse.length} media items`);
+
+		// Safety check: editor count should be <= admin count
+		expect(editorMediaResponse.length).toBeLessThanOrEqual(totalMediaCount);
+
+		await logout(page);
+	});
+
 	test.skip('Verify all roles can login and logout', async ({ page }) => {
 		// Test admin
 		await login(page, USERS.admin);

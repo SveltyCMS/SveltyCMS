@@ -14,13 +14,16 @@ tags:
   - 'automation'
 ---
 
-# AI Integration & RAG Architecture
+# AI Integration & RAG Architecture (Planned)
 
-SveltyCMS 2026 integrates with a centralized **Model Context Protocol (MCP)** server to empower the built-in AI Assistant with deep project knowledge.
+SveltyCMS 2026 is designed to integrate with a centralized **Model Context Protocol (MCP)** server to empower the built-in AI Assistant with deep project knowledge.
+
+> [!NOTE]
+> **Status:** The remote knowledge core at `mcp.sveltycms.com` is currently under development and is not yet active. The AI Assistant currently relies on its internal knowledge base and local Ollama inference.
 
 ## Overview
 
-The system uses a **Remote Retrieval-Augmented Generation (RAG)** pipeline. Instead of hosting a heavy vector database inside the CMS repository, the CMS queries a centralized Knowledge Core hosted at `mcp.sveltycms.com`.
+The system architecture supports a **Remote Retrieval-Augmented Generation (RAG)** pipeline. Instead of hosting a heavy vector database inside each CMS instance, the CMS is prepared to query a centralized Knowledge Core.
 
 ## Architecture
 

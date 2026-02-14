@@ -35,9 +35,10 @@ rather than bundling all widgets upfront.
 		WidgetData?: Record<string, any>;
 		value?: any;
 		tenantId?: string;
+		collectionName?: string;
 	}
 
-	let { loader, field, WidgetData = {}, value = $bindable(), tenantId }: Props = $props();
+	let { loader, field, WidgetData = {}, value = $bindable(), tenantId, collectionName }: Props = $props();
 
 	// Component state
 	let component: any = $state(null);
@@ -100,7 +101,7 @@ rather than bundling all widgets upfront.
 {:else if component}
 	<!-- Loaded component -->
 	{@const Component = component}
-	<Component {field} bind:value {WidgetData} {tenantId} />
+	<Component {field} bind:value {WidgetData} {tenantId} {collectionName} />
 {:else}
 	<!-- Unexpected state -->
 	<div class="widget-loader-empty rounded border border-warning-500 bg-warning-50 p-3 dark:bg-warning-900/20">

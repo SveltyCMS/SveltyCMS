@@ -91,7 +91,10 @@ SveltyCMS uses **ParaglideJS** to treat translations as `code`, not database row
 
 ### 3.5 Media Management
 
-- **Native Image Editor:** Includes focal-point cropping and local manipulation via **Sharp**. Optimizes assets (AVIF/WebP) automatically.
+- **Enterprise DAM Engine:** Transitioned the Media Gallery into a robust Digital Asset Management (DAM) system.
+- **Native AI Image Analysis:** Leverages local **Ollama (llava)** for privacy-first, real-time image tagging and categorization.
+- **Deep Metadata Extraction:** Automatically parses and stores searchable **EXIF, IPTC, and XMP** metadata via a dedicated `MediaProcessingService`.
+- **Non-Destructive Editing:** Includes a native canvas-based editor with focal-point cropping and local manipulation via **Sharp**, maintaining full version history for all edits.
 
 ### 3.6 SCIM 2.0 & Enterprise Identity
 
@@ -151,19 +154,20 @@ SveltyCMS uses **ParaglideJS** to treat translations as `code`, not database row
 
 ### 4.1 Unified Feature Matrix (2026 Benchmarks)
 
-| Feature      | SveltyCMS        | Strapi v5     | Directus 10 | Payload v3   | NodeHive  | Wordpress   | Contentful    |
-| :----------- | :--------------- | :------------ | :---------- | :----------- | :-------- | :---------- | :------------ |
-| **Engine**   | **✅ SvelteKit** | Node          | Node        | Next.js      | PHP       | PHP         | SaaS          |
-| **Arch**     | **✅ Compiled**  | SPA           | SPA         | SPA          | Hybrid    | MPA/Hybrid  | SaaS          |
-| **Start**    | **✅ <1s**       | 5s+           | 2s+         | 3s+          | 4s+       | 2s+         | N/A           |
-| **DB**       | **✅ Agnostic**  | SQL           | SQL         | SQL/NoSQL    | SQL       | SQL         | SaaS          |
-| **i18n**     | **✅ Compiled**  | Runtime       | DB-based    | Runtime      | Runtime   | Runtime     | Native        |
-| **Tenant**   | **✅ Native**    | ❌ No         | ✅ Native   | ✅ Native    | ✅ Native | ⚠️ Plugins  | 💲 Enterprise |
-| **Audit**    | **✅ Crypto**    | 💲 Enterprise | ✅ Activity | ✅ Versions  | ✅ Native | ⚠️ Plugins  | 💲 Enterprise |
-| **SCIM**     | **✅ Native**    | ❌ No         | ❌ No       | ❌ No        | ⚠️ Module | ⚠️ Plugins  | 💲 Enterprise |
-| **Resil.**   | **✅ Adaptive**  | ❌ Limited    | ⚠️ Limited  | ⚠️ Manual    | ⚠️ Manual | ❌ Monolith | ✅ SaaS SLA   |
-| **Hooks**    | **✅ Native**    | ⚠️ Lifecycle  | ⚠️ Flows    | ✅ Hooks     | ❌ No     | ⚠️ Plugins  | 💲 Webhooks   |
-| **TW Email** | **✅ Native**    | ❌ MJML/Ext   | ❌ No       | ⚠️ Component | ❌ No     | ❌ PHP-HTML | ⚠️ Limited    |
+| Feature        | SveltyCMS        | Strapi v5     | Directus 10 | Payload v3   | NodeHive  | Wordpress   | Contentful    |
+| :------------- | :--------------- | :------------ | :---------- | :----------- | :-------- | :---------- | :------------ |
+| **Engine**     | **✅ SvelteKit** | Node          | Node        | Next.js      | PHP       | PHP         | SaaS          |
+| **Arch**       | **✅ Compiled**  | SPA           | SPA         | SPA          | Hybrid    | MPA/Hybrid  | SaaS          |
+| **Start**      | **✅ <1s**       | 5s+           | 2s+         | 3s+          | 4s+       | 2s+         | N/A           |
+| **DB**         | **✅ Agnostic**  | SQL           | SQL         | SQL/NoSQL    | SQL       | SQL         | SaaS          |
+| **i18n**       | **✅ Compiled**  | Runtime       | DB-based    | Runtime      | Runtime   | Runtime     | Native        |
+| **Tenant**     | **✅ Native**    | ❌ No         | ✅ Native   | ✅ Native    | ✅ Native | ⚠️ Plugins  | 💲 Enterprise |
+| **Audit**      | **✅ Crypto**    | 💲 Enterprise | ✅ Activity | ✅ Versions  | ✅ Native | ⚠️ Plugins  | 💲 Enterprise |
+| **SCIM**       | **✅ Native**    | ❌ No         | ❌ No       | ❌ No        | ⚠️ Module | ⚠️ Plugins  | 💲 Enterprise |
+| **Resil.**     | **✅ Adaptive**  | ❌ Limited    | ⚠️ Limited  | ⚠️ Manual    | ⚠️ Manual | ❌ Monolith | ✅ SaaS SLA   |
+| **Hooks**      | **✅ Native**    | ⚠️ Lifecycle  | ⚠️ Flows    | ✅ Hooks     | ❌ No     | ⚠️ Plugins  | 💲 Webhooks   |
+| **TW Email**   | **✅ Native**    | ❌ MJML/Ext   | ❌ No       | ⚠️ Component | ❌ No     | ❌ PHP-HTML | ⚠️ Limited    |
+| **DAM Engine** | **✅ AI-Native** | ⚠️ Basic      | ✅ Native   | ⚠️ Basic     | ⚠️ Basic  | ❌ Plugin   | ✅ Enterprise |
 
 ### 4.2 Vs. Strapi & Directus (The Ecosystem Leaders)
 
@@ -211,14 +215,15 @@ Traditional CMS monoliths often fail in auto-scaling environments (Kubernetes/AW
 
 Based on the [Official SveltyCMS Comparison](https://sveltycms.com/compare):
 
-| Feature            | SveltyCMS    | Contentful     | NodeHive    | Faust.js (Wordpress) | Directus v10 |
-| :----------------- | :----------- | :------------- | :---------- | :------------------- | :----------- |
-| **Widget Factory** | ✅ 3-Pillar  | ❌ Proprietary | ✅ Flexible | ⚠️ Block-only        | ⚠️ Vue Only  |
-| **Multi-Tenancy**  | ✅ Native    | 💲 Enterprise  | ✅ Native   | ⚠️ Plugins           | ✅ Native    |
-| **Image Editor**   | ✅ Built-in  | 💲 Extension   | ✅ Built-in | ❌ Plugin            | ✅ Built-in  |
-| **i18n**           | ✅ Paraglide | ⚠️ Proprietary | ⚠️ Runtime  | ⚠️ Runtime           | ⚠️ DB-based  |
-| **Database**       | ✅ Agnostic  | ❌ NoSQL       | ✅ SQL Only | ✅ SQL Only          | ✅ SQL Only  |
-| **White-Label**    | ✅ Native    | ❌ Limited     | ✅ Good     | ⚠️ Theme-dep         | ✅ Good      |
+| Feature            | SveltyCMS              | Contentful     | NodeHive    | Faust.js (Wordpress) | Directus v10 |
+| :----------------- | :--------------------- | :------------- | :---------- | :------------------- | :----------- |
+| **Widget Factory** | ✅ 3-Pillar            | ❌ Proprietary | ✅ Flexible | ⚠️ Block-only        | ⚠️ Vue Only  |
+| **Multi-Tenancy**  | ✅ Native              | 💲 Enterprise  | ✅ Native   | ⚠️ Plugins           | ✅ Native    |
+| **Image Editor**   | ✅ Built-in            | 💲 Extension   | ✅ Built-in | ❌ Plugin            | ✅ Built-in  |
+| **i18n**           | ✅ Paraglide           | ⚠️ Proprietary | ⚠️ Runtime  | ⚠️ Runtime           | ⚠️ DB-based  |
+| **Database**       | ✅ Agnostic            | ❌ NoSQL       | ✅ SQL Only | ✅ SQL Only          | ✅ SQL Only  |
+| **White-Label**    | ✅ Native              | ❌ Limited     | ✅ Good     | ⚠️ Theme-dep         | ✅ Good      |
+| **AI Tagging**     | ✅ **Native (Ollama)** | ✅ Enterprise  | ❌ No       | ❌ No                | ❌ No        |
 
 ### 4.9 Database Support Comparison (Verified 2026)
 

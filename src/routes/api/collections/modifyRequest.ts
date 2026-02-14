@@ -50,15 +50,16 @@ interface ModifyRequestParams {
 	user: User;
 	type: string;
 	tenantId?: string; // Add tenantId for multi-tenancy
+	collectionName?: string;
 }
 
 // Function to modify request data based on field widgets
-export async function modifyRequest({ data, fields, collection, user, type, tenantId }: ModifyRequestParams) {
+export async function modifyRequest({ data, fields, collection, user, type, tenantId, collectionName }: ModifyRequestParams) {
 	const start = performance.now();
 	try {
 		// User access is already validated by hooks
 		logger.trace(
-			`Starting modifyRequest for type: ${type}, user: ${user._id}, collection: ${(collection as unknown as { id?: string }).id ?? 'unknown'}, tenant: ${tenantId}`
+			`Starting modifyRequest for type: ${type}, user: ${user._id}, collection: ${collectionName ?? (collection as unknown as { id?: string }).id ?? 'unknown'}, tenant: ${tenantId}`
 		);
 
 		for (const field of fields) {
@@ -88,7 +89,8 @@ export async function modifyRequest({ data, fields, collection, user, type, tena
 						field: field as unknown as Record<string, unknown>,
 						user: user as unknown as Record<string, unknown>,
 						type: type as unknown as string,
-						tenantId: tenantId as unknown as string | undefined
+						tenantId: tenantId as unknown as string | undefined,
+						collectionName: collectionName as unknown as string | undefined
 					})) as Record<string, unknown>[];
 
 					// Update data with results
@@ -134,6 +136,7 @@ export async function modifyRequest({ data, fields, collection, user, type, tena
 									user: user as unknown as Record<string, unknown>,
 									type: type as unknown as string,
 									tenantId: tenantId as unknown as string | undefined,
+									collectionName: collectionName as unknown as string | undefined,
 									id: entryCopy._id,
 									meta_data: entryCopy.meta_data
 								});

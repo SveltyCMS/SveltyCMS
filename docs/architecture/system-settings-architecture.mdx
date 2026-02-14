@@ -93,6 +93,20 @@ For critical settings that require a server restart, a clear workflow is impleme
 4.  **Admin Action:** For administrators, this banner includes a "Restart Now" button. Clicking this button sends a `POST` request to the secure `/api/system/restart` endpoint.
 5.  **Graceful Restart:** This endpoint is designed to integrate with a process manager like `pm2`. It creates a `restart.txt` file in the project root, which can be watched by the process manager to trigger a graceful restart of the application (e.g., `pm2 reload <app_name>`).
 
+## AI Configuration
+
+SveltyCMS integrates with local and remote AI models to power advanced features like automated image tagging and the SveltyAgent assistant. These are configured in the **AI** group in System Settings.
+
+- **`USE_AI_TAGGING`**: Toggle to enable/disable AI-powered image analysis in the Media Gallery.
+- **`AI_PROVIDER`**: Select between `ollama` (local, privacy-first) or `openai` (remote).
+- **`OLLAMA_URL`**: The URL of your local Ollama instance (default: `http://localhost:11434`).
+- **`AI_MODEL_VISION`**: The model used for vision tasks, such as `llava` or `moondream`.
+
+<Callout type="info">
+	**Note:** AI features require an active connection to the configured provider. If using Ollama, ensure the server is running and the specified
+	vision model is pulled (`ollama pull llava`).
+</Callout>
+
 ## API Endpoints
 
 - **`GET /api/settings/[group]`**: Retrieves all settings for a specific group.

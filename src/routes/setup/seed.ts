@@ -580,7 +580,15 @@ export const defaultPrivateSettings: Array<{ key: string; value: unknown; descri
 	{ key: 'PERMISSIONS', value: ['read', 'write', 'delete', 'admin'], description: 'List of permissions available in the system' },
 
 	// Live Preview
-	{ key: 'PREVIEW_SECRET', value: '', description: 'Secret for live preview handshake (auto-generated via /api/system/preview-secret)' }
+	{ key: 'PREVIEW_SECRET', value: '', description: 'Secret for live preview handshake (auto-generated via /api/system/preview-secret)' },
+
+	// AI Configuration
+	{ key: 'USE_AI_TAGGING', value: false, description: 'Enable AI-powered image tagging' },
+	{ key: 'AI_PROVIDER', value: 'ollama', description: 'AI Provider for media analysis (ollama, openai)' },
+	{ key: 'OLLAMA_URL', value: 'http://localhost:11434', description: 'Local Ollama API URL' },
+	{ key: 'AI_MODEL_VISION', value: 'llava:latest', description: 'Vision-capable model for image analysis' },
+	{ key: 'AI_MODEL_CHAT', value: 'ministral-3:latest', description: 'Model used for the AI Assistant' },
+	{ key: 'USE_REMOTE_AI_KNOWLEDGE', value: false, description: 'Enable remote knowledge base lookup (Planned)' }
 ];
 
 /**

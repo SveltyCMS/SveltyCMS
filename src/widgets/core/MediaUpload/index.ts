@@ -51,11 +51,59 @@ const MediaWidget = createWidget<MediaProps>({
 	// Set widget-specific defaults.
 	defaults: {
 		multiupload: false,
-		allowedTypes: []
+		allowedTypes: [],
+		folder: 'global'
+	},
+
+	modifyRequest: async ({ data, field, user, tenantId, collectionName }) => {
+		const accessor = data as any;
+		const value = accessor.get();
+		if (!value) return {};
+
+		// We only process if it's a File object (meaning it's a new upload)
+		if (value instanceof File) {
+			const { MediaService } = await import('@src/services/MediaService.server');
+			const { dbAdapter } = await import('@src/databases/db');
+			if (!dbAdapter) throw new Error('Database adapter not available');
+
+			const mediaService = new MediaService(dbAdapter);
+			const f = field as any;
+
+			// DYNAMIC FOLDER RESOLUTION:
+			// 1. Explicitly configured field.folder (from schema)
+			// 2. Default to collections/[collectionName] if available
+			// 3. Fallback to tenantId or 'global'
+			const basePath = f.folder || (collectionName ? `collections/${String(collectionName).toLowerCase()}` : tenantId || 'global');
+
+			const savedMedia = await mediaService.saveMedia(value, (user as any)._id.toString(), 'private', basePath);
+			accessor.update(savedMedia._id);
+		} else if (Array.isArray(value)) {
+			// Handle multiupload
+			const processedIds: string[] = [];
+			const { MediaService } = await import('@src/services/MediaService.server');
+			const { dbAdapter } = await import('@src/databases/db');
+			if (!dbAdapter) throw new Error('Database adapter not available');
+			const mediaService = new MediaService(dbAdapter);
+			const f = field as any;
+
+			const basePath = f.folder || (collectionName ? `collections/${String(collectionName).toLowerCase()}` : tenantId || 'global');
+
+			for (const item of value) {
+				if (item instanceof File) {
+					const savedMedia = await mediaService.saveMedia(item, (user as any)._id.toString(), 'private', basePath);
+					processedIds.push(savedMedia._id);
+				} else {
+					processedIds.push(item);
+				}
+			}
+			accessor.update(processedIds);
+		}
+		return {};
 	},
 
 	GuiSchema: {
 		multiupload: { widget: 'Checkbox', label: 'Allow Multiple Files' },
+		folder: { widget: 'Input', label: 'Storage Folder', placeholder: 'e.g. collection/post' },
 		placeholder: { widget: 'Input', label: 'Placeholder Text', required: false },
 		watermark: {
 			widget: 'group',

@@ -27,9 +27,10 @@
 	interface Props {
 		onUploadComplete?: () => void;
 		redirectOnSuccess?: boolean;
+		folder?: string;
 	}
 
-	const { onUploadComplete = () => {}, redirectOnSuccess = true }: Props = $props();
+	const { onUploadComplete = () => {}, redirectOnSuccess = true, folder = 'global' }: Props = $props();
 
 	let files: File[] = $state([]);
 	let input: HTMLInputElement | null = $state(null);
@@ -236,6 +237,7 @@
 		files.forEach((file) => {
 			formData.append('files', file);
 		});
+		formData.append('folder', folder);
 
 		try {
 			const xhr = new XMLHttpRequest();

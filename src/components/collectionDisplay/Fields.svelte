@@ -474,7 +474,14 @@
 									{@const fieldName = getFieldName(field, false)}
 									{#key currentContentLanguage}
 										<!-- Widget remounts when currentContentLanguage changes -->
-										<WidgetLoader loader={loadedWidget} {field} WidgetData={{}} bind:value={currentCollectionValue[fieldName]} {tenantId} />
+										<WidgetLoader
+											loader={loadedWidget}
+											{field}
+											WidgetData={{}}
+											bind:value={currentCollectionValue[fieldName]}
+											{tenantId}
+											collectionName={collection.value?.name}
+										/>
 									{/key}
 								{:else}
 									<p class="text-error-500">{m.Fields_no_widgets_found({ name: widgetName })}</p>

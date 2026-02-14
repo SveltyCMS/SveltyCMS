@@ -73,7 +73,8 @@ export const PATCH = apiHandler(async ({ locals, params, request }) => {
 			collection: collectionModel,
 			user,
 			type: 'PATCH',
-			tenantId
+			tenantId,
+			collectionName: schema.name
 		});
 	} catch (modifyError) {
 		logger.warn(`PATCH modifyRequest failed`, { error: (modifyError as Error).message });

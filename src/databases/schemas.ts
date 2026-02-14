@@ -96,7 +96,15 @@ export const privateConfigSchema = object({
 	// --- Firewall Configuration ---
 	FIREWALL_ENABLED: optional(boolean()),
 	FIREWALL_ALLOWED_BOTS: optional(array(string())),
-	FIREWALL_BLOCKED_BOTS: optional(array(string()))
+	FIREWALL_BLOCKED_BOTS: optional(array(string())),
+
+	// --- AI Configuration ---
+	USE_AI_TAGGING: optional(boolean()),
+	AI_PROVIDER: optional(union([literal('ollama'), literal('openai')])),
+	OLLAMA_URL: optional(pipe(string(), minLength(1))),
+	AI_MODEL_VISION: optional(pipe(string(), minLength(1))),
+	AI_MODEL_CHAT: optional(pipe(string(), minLength(1))),
+	USE_REMOTE_AI_KNOWLEDGE: optional(boolean())
 });
 
 // The PUBLIC configuration for the application.
@@ -152,7 +160,10 @@ export const publicConfigSchema = object({
 	LOG_ROTATION_SIZE: optional(pipe(number(), minValue(1))),
 
 	// --- Demo Mode ---
-	USE_GOOGLE_OAUTH: optional(boolean())
+	USE_GOOGLE_OAUTH: optional(boolean()),
+
+	// --- AI ---
+	USE_AI_TAGGING: optional(boolean())
 });
 
 export const websiteTokenSchema = object({

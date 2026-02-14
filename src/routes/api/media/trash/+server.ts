@@ -1,5 +1,5 @@
 /**
- * @file src/routes/api/m	// Authentication is handled by hooks.server.ts - user presence confirms accessts
+ * @file src/routes/api/media/trash/+server.ts
  * @description
  * API endpoint for moving a media file to the trash within the current tenant.
  *
@@ -14,25 +14,22 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { error } from '@sveltejs/kit';
 import { getPrivateSettingSync } from '@src/services/settingsService';
-
-// Permission checking
-
-// Auth
-import { auth } from '@src/databases/db';
-
-// Media Processing
+import { logger } from '@utils/logger.server';
+import { dbAdapter } from '@src/databases/db';
+import type { MediaItem } from '@src/databases/dbInterface';
 import { moveMediaToTrash } from '@utils/media/mediaStorage.server';
 
-// System Logger
-import { logger } from '@utils/logger.server';
-
 export const POST: RequestHandler = async ({ request, locals }) => {
-	const { user, tenantId } = locals;
+	const { user, tenantId, roles } = locals;
 	// Authentication is handled by hooks.server.ts - user presence confirms access
 
-	if (!auth) {
-		logger.error('Auth service is not initialized');
-		throw error(500, 'Auth service not available');
+	if (!user) {
+		throw error(401, 'Unauthorized');
+	}
+
+	if (!dbAdapter) {
+		logger.error('Database adapter is not initialized');
+		throw error(500, 'Database service not available');
 	}
 
 	if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
@@ -40,12 +37,35 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	}
 
 	try {
-		const { url, contentTypes } = await request.json();
-		if (!url || !contentTypes) {
-			throw error(400, 'URL and collection types are required');
+		const { url } = await request.json();
+		if (!url) {
+			throw error(400, 'URL is required');
 		}
 
-		// Move media to trash
+		// 1. Find the media item to check ownership
+		const cleanPath = url.replace(/^\/files\//, '').replace(/^files\//, '');
+		const findResult = await dbAdapter.crud.findMany<MediaItem>('MediaItem', {
+			path: cleanPath
+		});
+
+		if (!findResult.success || !findResult.data || findResult.data.length === 0) {
+			logger.warn(`Media item not found for trash: ${url}`);
+			throw error(404, 'Media not found');
+		}
+
+		const mediaItem = findResult.data[0];
+
+		// 2. Enforce Access Control
+		const isAdmin = roles?.some((r) => r.isAdmin);
+		const ownerId = mediaItem.createdBy || (mediaItem as any).user;
+		const isOwner = ownerId === user._id;
+
+		if (!isAdmin && !isOwner) {
+			logger.warn(`Access denied for trash: User ${user._id} attempted to trash media ${mediaItem._id} owned by ${ownerId}`);
+			throw error(403, 'Access denied: You can only delete your own uploads.');
+		}
+
+		// 3. Move media to trash
 		await moveMediaToTrash(url);
 
 		logger.info('Media file moved to trash successfully', { url, userId: user?._id, tenantId });

@@ -198,6 +198,16 @@ export interface MediaItem extends BaseEntity {
 	originalId?: DatabaseId | null; // For linking edited variants to the original
 	thumbnails: Record<string, { url: string; width: number; height: number } | undefined>;
 	metadata: MediaMetadata;
+	versions?: Array<{
+		version: number;
+		url: string;
+		path?: string;
+		hash?: string;
+		size?: number;
+		createdAt: ISODateString;
+		createdBy: DatabaseId;
+		action?: string;
+	}>;
 	access?: 'public' | 'private' | 'protected'; // Added access control
 	createdBy: DatabaseId;
 	updatedBy: DatabaseId;
@@ -228,6 +238,7 @@ export interface PaginationOptions {
 	sortDirection?: 'asc' | 'desc';
 	cursor?: string; // For cursor-based pagination (more efficient for large datasets)
 	includeTotalCount?: boolean; // Option to skip expensive total count calculation
+	user?: User; // Optional user for ownership-based filtering
 }
 
 export interface PaginatedResult<T> {

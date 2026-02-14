@@ -44,8 +44,14 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			tenantId
 		});
 
-		// Fetch all media files
-		const result = await dbAdapter.crud.findMany<MediaItem>('MediaItem', {});
+		// Fetch all media files - with ownership filtering
+		const isAdmin = user.role === 'admin' || (user as any).isAdmin === true;
+		const query: Record<string, any> = {};
+		if (!isAdmin) {
+			query.user = user._id;
+		}
+
+		const result = await dbAdapter.crud.findMany<MediaItem>('MediaItem', query);
 
 		if (!result.success) {
 			throw error(500, 'Failed to fetch media files');
@@ -95,8 +101,14 @@ export const GET: RequestHandler = async ({ locals }) => {
 
 		logger.info('Search suggestions requested', { userId: user._id, tenantId });
 
-		// Fetch all media files
-		const result = await dbAdapter.crud.findMany<MediaItem>('MediaItem', {});
+		// Fetch all media files - with ownership filtering
+		const isAdmin = user.role === 'admin' || (user as any).isAdmin === true;
+		const query: Record<string, any> = {};
+		if (!isAdmin) {
+			query.user = user._id;
+		}
+
+		const result = await dbAdapter.crud.findMany<MediaItem>('MediaItem', query);
 
 		if (!result.success) {
 			throw error(500, 'Failed to fetch media files');

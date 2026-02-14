@@ -160,7 +160,7 @@ export class PostgreSQLAdapter extends AdapterCore {
 				return Number(result.count);
 			}, 'CRUD_COUNT_FAILED');
 		},
-		findByIds: async (collection: string, ids: string[], options?: { fields?: string[] }) => {
+		findByIds: async (collection: string, ids: string[], _options?: { fields?: string[] }) => {
 			return this.wrap(async () => {
 				const { inArray } = await import('drizzle-orm');
 				const table = this.getTable(collection);
@@ -544,9 +544,7 @@ export class PostgreSQLAdapter extends AdapterCore {
 			deleteExpired: async () => {
 				return this.wrap(async () => {
 					const { lt } = await import('drizzle-orm');
-					const result = await this.db!.delete(schema.authSessions)
-						.where(lt(schema.authSessions.expires, new Date()))
-						.returning();
+					const result = await this.db!.delete(schema.authSessions).where(lt(schema.authSessions.expires, new Date())).returning();
 					return { deletedCount: result.length };
 				}, 'AUTH_SESSION_DELETE_EXPIRED_FAILED');
 			}
@@ -591,9 +589,7 @@ export class PostgreSQLAdapter extends AdapterCore {
 			deleteExpired: async () => {
 				return this.wrap(async () => {
 					const { lt } = await import('drizzle-orm');
-					const result = await this.db!.delete(schema.authTokens)
-						.where(lt(schema.authTokens.expires, new Date()))
-						.returning();
+					const result = await this.db!.delete(schema.authTokens).where(lt(schema.authTokens.expires, new Date())).returning();
 					return { deletedCount: result.length };
 				}, 'AUTH_TOKEN_DELETE_EXPIRED_FAILED');
 			}
@@ -657,7 +653,8 @@ export class PostgreSQLAdapter extends AdapterCore {
 			ensure: async (role: any) => {
 				return this.wrap(async () => {
 					const { eq } = await import('drizzle-orm');
-					const [existing] = await this.db!.select().from(schema.roles)
+					const [existing] = await this.db!.select()
+						.from(schema.roles)
 						.where(eq(schema.roles.name, role.name || role._id))
 						.limit(1);
 					if (existing) return this.mapRole(existing);
@@ -734,9 +731,7 @@ export class PostgreSQLAdapter extends AdapterCore {
 			return this.wrap(async () => {
 				await this.ensureSystem();
 				const { eq } = await import('drizzle-orm');
-				const [result] = await this.db!.select().from(schema.authTokens)
-					.where(eq(schema.authTokens.token, tokenValue))
-					.limit(1);
+				const [result] = await this.db!.select().from(schema.authTokens).where(eq(schema.authTokens.token, tokenValue)).limit(1);
 				return result || null;
 			}, 'AUTH_GET_TOKEN_BY_VALUE_FAILED');
 		},
@@ -744,12 +739,9 @@ export class PostgreSQLAdapter extends AdapterCore {
 			return this.wrap(async () => {
 				await this.ensureSystem();
 				const { eq, and, gt } = await import('drizzle-orm');
-				const [result] = await this.db!.select().from(schema.authTokens)
-					.where(and(
-						eq(schema.authTokens.token, tokenValue),
-						gt(schema.authTokens.expires, new Date()),
-						eq(schema.authTokens.consumed, false)
-					))
+				const [result] = await this.db!.select()
+					.from(schema.authTokens)
+					.where(and(eq(schema.authTokens.token, tokenValue), gt(schema.authTokens.expires, new Date()), eq(schema.authTokens.consumed, false)))
 					.limit(1);
 				return result || null;
 			}, 'AUTH_VALIDATE_TOKEN_FAILED');
@@ -782,10 +774,7 @@ export class PostgreSQLAdapter extends AdapterCore {
 				const { inArray, or } = await import('drizzle-orm');
 				// API routes may pass token values instead of _ids, so try both
 				const result = await this.db!.delete(schema.authTokens)
-					.where(or(
-						inArray(schema.authTokens._id, tokenIds),
-						inArray(schema.authTokens.token, tokenIds)
-					))
+					.where(or(inArray(schema.authTokens._id, tokenIds), inArray(schema.authTokens.token, tokenIds)))
 					.returning();
 				return { deletedCount: result.length };
 			}, 'AUTH_DELETE_TOKENS_FAILED');
@@ -942,7 +931,11 @@ export class PostgreSQLAdapter extends AdapterCore {
 					return await this.db!.insert(schema.mediaItems).values(formattedFiles).returning();
 				}, 'MEDIA_FILES_UPLOAD_MANY_FAILED');
 			},
-			getByFolder: async (folderId?: string, options?: { page?: number; pageSize?: number; sortField?: string; sortDirection?: string }, recursive?: boolean) => {
+			getByFolder: async (
+				folderId?: string,
+				options?: { page?: number; pageSize?: number; sortField?: string; sortDirection?: string },
+				recursive?: boolean
+			) => {
 				return this.wrap(async () => {
 					const { eq, isNull, desc, asc, sql } = await import('drizzle-orm');
 					const limit = options?.pageSize || 20;
@@ -997,9 +990,7 @@ export class PostgreSQLAdapter extends AdapterCore {
 			getById: async (id: string) => {
 				return this.wrap(async () => {
 					const { eq } = await import('drizzle-orm');
-					const [result] = await this.db!.select().from(schema.mediaItems)
-						.where(eq(schema.mediaItems._id, id))
-						.limit(1);
+					const [result] = await this.db!.select().from(schema.mediaItems).where(eq(schema.mediaItems._id, id)).limit(1);
 					return result || null;
 				}, 'MEDIA_FILES_GET_BY_ID_FAILED');
 			},
@@ -1027,16 +1018,13 @@ export class PostgreSQLAdapter extends AdapterCore {
 			delete: async (folderId: string) => {
 				return this.wrap(async () => {
 					const { eq } = await import('drizzle-orm');
-					await this.db!.delete(schema.systemVirtualFolders)
-						.where(eq(schema.systemVirtualFolders._id, folderId));
+					await this.db!.delete(schema.systemVirtualFolders).where(eq(schema.systemVirtualFolders._id, folderId));
 				}, 'MEDIA_FOLDERS_DELETE_FAILED');
 			},
 			getByPath: async (path: string) => {
 				return this.wrap(async () => {
 					const { eq } = await import('drizzle-orm');
-					const [result] = await this.db!.select().from(schema.systemVirtualFolders)
-						.where(eq(schema.systemVirtualFolders.path, path))
-						.limit(1);
+					const [result] = await this.db!.select().from(schema.systemVirtualFolders).where(eq(schema.systemVirtualFolders.path, path)).limit(1);
 					return result || null;
 				}, 'MEDIA_FOLDERS_GET_BY_PATH_FAILED');
 			}
@@ -1047,9 +1035,7 @@ export class PostgreSQLAdapter extends AdapterCore {
 		get: async (key: string) => {
 			return this.wrap(async () => {
 				const { eq } = await import('drizzle-orm');
-				const [result] = await this.db!.select().from(schema.systemPreferences)
-					.where(eq(schema.systemPreferences.key, key))
-					.limit(1);
+				const [result] = await this.db!.select().from(schema.systemPreferences).where(eq(schema.systemPreferences.key, key)).limit(1);
 				return result?.value ?? null;
 			}, 'SYSTEM_PREFERENCES_GET_FAILED');
 		},
@@ -1426,9 +1412,7 @@ export class PostgreSQLAdapter extends AdapterCore {
 		getByName: async (name: string) => {
 			return this.wrap(async () => {
 				const { eq } = await import('drizzle-orm');
-				const [result] = await this.db!.select().from(schema.websiteTokens)
-					.where(eq(schema.websiteTokens.name, name))
-					.limit(1);
+				const [result] = await this.db!.select().from(schema.websiteTokens).where(eq(schema.websiteTokens.name, name)).limit(1);
 				return result ? this.mapWebsiteToken(result) : null;
 			}, 'WEBSITE_TOKENS_GET_BY_NAME_FAILED');
 		}
@@ -1742,9 +1726,7 @@ export class PostgreSQLAdapter extends AdapterCore {
 		},
 		exists: async (name: string) => {
 			return this.wrap(async () => {
-				const result = await this.db!.execute(
-					sql`SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = ${name})`
-				);
+				const result = await this.db!.execute(sql`SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = ${name})`);
 				return !!(result as any)?.[0]?.exists;
 			}, 'CONTENT_EXISTS_FAILED');
 		},
@@ -1766,9 +1748,7 @@ export class PostgreSQLAdapter extends AdapterCore {
 	public readonly collection = {
 		list: async () => {
 			return this.wrap(async () => {
-				const result = await this.db!.execute(
-					sql`SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'`
-				);
+				const result = await this.db!.execute(sql`SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'`);
 				return (result as any[]).map((r: any) => r.table_name);
 			}, 'COLLECTION_LIST_FAILED');
 		},
