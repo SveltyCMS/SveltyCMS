@@ -81,6 +81,7 @@ export const authTokens = pgTable(
 		type: varchar('type', { length: 50 }).notNull(),
 		expires: timestamp('expires').notNull(),
 		consumed: boolean('consumed').notNull().default(false),
+		blocked: boolean('blocked').notNull().default(false),
 		role: varchar('role', { length: 50 }),
 		username: varchar('username', { length: 255 }),
 		tenantId: tenantField(),
@@ -125,12 +126,15 @@ export const contentNodes = pgTable(
 			.default(sql`gen_random_uuid()`),
 		path: varchar('path', { length: 500 }).notNull(),
 		parentId: varchar('parentId', { length: 36 }),
-		type: varchar('type', { length: 50 }).notNull(),
+		nodeType: varchar('nodeType', { length: 50 }).notNull(),
 		status: varchar('status', { length: 50 }).notNull().default('draft'),
-		title: varchar('title', { length: 500 }),
+		name: varchar('name', { length: 500 }),
 		slug: varchar('slug', { length: 500 }),
+		icon: varchar('icon', { length: 100 }),
+		description: text('description'),
 		data: json('data'),
 		metadata: json('metadata'),
+		translations: json('translations').$type<{ languageTag: string; translationName: string }[]>().default([]),
 		order: integer('order').notNull().default(0),
 		isPublished: boolean('isPublished').notNull().default(false),
 		publishedAt: timestamp('publishedAt'),
@@ -140,7 +144,7 @@ export const contentNodes = pgTable(
 	(table) => ({
 		pathIdx: unique('content_nodes_path_unique').on(table.path),
 		parentIdx: index('content_nodes_parent_idx').on(table.parentId),
-		typeIdx: index('content_nodes_type_idx').on(table.type),
+		nodeTypeIdx: index('content_nodes_nodeType_idx').on(table.nodeType),
 		statusIdx: index('content_nodes_status_idx').on(table.status),
 		tenantIdx: index('content_nodes_tenant_idx').on(table.tenantId)
 	})
@@ -327,6 +331,8 @@ export const websiteTokens = pgTable(
 		name: varchar('name', { length: 255 }).notNull(),
 		token: varchar('token', { length: 255 }).notNull(),
 		createdBy: varchar('createdBy', { length: 36 }).notNull(),
+		permissions: json('permissions').$type<string[]>().notNull().default([]),
+		expiresAt: timestamp('expiresAt'),
 		tenantId: tenantField(),
 		...timestamps
 	},
@@ -334,6 +340,77 @@ export const websiteTokens = pgTable(
 		tokenIdx: unique('website_tokens_token_unique').on(table.token),
 		nameIdx: index('website_tokens_name_idx').on(table.name),
 		tenantIdx: index('website_tokens_tenant_idx').on(table.tenantId)
+	})
+);
+
+// Plugin: PageSpeed Results Table
+export const pluginPagespeedResults = pgTable(
+	'plugin_pagespeed_results',
+	{
+		_id: varchar('_id', { length: 36 })
+			.primaryKey()
+			.default(sql`gen_random_uuid()`),
+		entryId: varchar('entryId', { length: 36 }).notNull(),
+		collectionId: varchar('collectionId', { length: 36 }).notNull(),
+		tenantId: tenantField(),
+		language: varchar('language', { length: 10 }).notNull().default('en'),
+		device: varchar('device', { length: 20 }).notNull().default('mobile'),
+		url: varchar('url', { length: 2000 }).notNull(),
+		performanceScore: integer('performanceScore').notNull().default(0),
+		fetchedAt: timestamp('fetchedAt')
+			.notNull()
+			.default(sql`CURRENT_TIMESTAMP`),
+		...timestamps
+	},
+	(table) => ({
+		entryIdx: index('plugin_pagespeed_entry_idx').on(table.entryId),
+		collectionIdx: index('plugin_pagespeed_collection_idx').on(table.collectionId),
+		tenantIdx: index('plugin_pagespeed_tenant_idx').on(table.tenantId),
+		deviceIdx: index('plugin_pagespeed_device_idx').on(table.device)
+	})
+);
+
+// Plugin States Table
+export const pluginStates = pgTable(
+	'plugin_states',
+	{
+		_id: varchar('_id', { length: 36 })
+			.primaryKey()
+			.default(sql`gen_random_uuid()`),
+		pluginId: varchar('pluginId', { length: 255 }).notNull(),
+		tenantId: tenantField(),
+		enabled: boolean('enabled').notNull().default(false),
+		settings: json('settings'),
+		updatedBy: varchar('updatedBy', { length: 36 }),
+		...timestamps
+	},
+	(table) => ({
+		pluginIdx: index('plugin_states_plugin_idx').on(table.pluginId),
+		tenantIdx: index('plugin_states_tenant_idx').on(table.tenantId),
+		pluginTenantUnique: unique('plugin_states_plugin_tenant_unique').on(table.pluginId, table.tenantId)
+	})
+);
+
+// Plugin Migrations Table
+export const pluginMigrations = pgTable(
+	'plugin_migrations',
+	{
+		_id: varchar('_id', { length: 36 })
+			.primaryKey()
+			.default(sql`gen_random_uuid()`),
+		pluginId: varchar('pluginId', { length: 255 }).notNull(),
+		migrationId: varchar('migrationId', { length: 255 }).notNull(),
+		version: integer('version').notNull(),
+		tenantId: tenantField(),
+		appliedAt: timestamp('appliedAt')
+			.notNull()
+			.default(sql`CURRENT_TIMESTAMP`),
+		...timestamps
+	},
+	(table) => ({
+		pluginIdx: index('plugin_migrations_plugin_idx').on(table.pluginId),
+		tenantIdx: index('plugin_migrations_tenant_idx').on(table.tenantId),
+		pluginMigrationUnique: unique('plugin_migrations_unique').on(table.pluginId, table.migrationId, table.tenantId)
 	})
 );
 
@@ -351,5 +428,8 @@ export const schema = {
 	mediaItems,
 	systemVirtualFolders,
 	systemPreferences,
-	websiteTokens
+	websiteTokens,
+	pluginPagespeedResults,
+	pluginStates,
+	pluginMigrations
 };

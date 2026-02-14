@@ -154,7 +154,6 @@ jobs:
   # ------------------------------------------------------------------
   integration-tests-mongodb:
     name: 🔌 Integration (MongoDB)
-    if: false # Temporarily disabled - focusing on MariaDB
     needs: build
     timeout-minutes: 15
     runs-on: ubuntu-latest
@@ -437,7 +436,6 @@ jobs:
   # ------------------------------------------------------------------
   integration-tests-postgresql:
     name: 🔌 Integration (PostgreSQL) [Beta]
-    if: false # Temporarily disabled - focusing on MariaDB first
     needs: build
     timeout-minutes: 15
     runs-on: ubuntu-latest
@@ -558,7 +556,13 @@ jobs:
           API_BASE_URL: 'http://localhost:4173'
 
       - name: 🧪 Run Integration Suite
-        run: bun test $(find tests/bun/api -name "*.test.ts" ! -name "setup.test.ts" ! -name "setup-actions.test.ts") tests/bun/databases
+        run: |
+          bun test \
+            $(find tests/bun/api -name "*.test.ts" ! -name "setup.test.ts" ! -name "setup-actions.test.ts") \
+            $(find tests/bun/databases -name "*.test.ts" \
+              ! -name "mongodb-adapter.test.ts" \
+              ! -name "db-interface.test.ts" \
+              ! -name "auth-system.test.ts")
         env:
           TEST_MODE: 'true'
           API_BASE_URL: 'http://localhost:4173'

@@ -10,7 +10,7 @@
  */
 
 import { drizzle, type PostgresJsDatabase } from 'drizzle-orm/postgres-js';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, isNull } from 'drizzle-orm';
 import postgres from 'postgres';
 import type { DatabaseCapabilities, DatabaseResult, DatabaseError } from '../../dbInterface';
 import * as schema from '../schema/index';
@@ -200,12 +200,42 @@ export class AdapterCore {
 		};
 	}
 
+	private snakeToCamel(str: string): string {
+		return str.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+	}
+
+	// Common short aliases used by API routes and resolvers
+	private static TABLE_ALIASES: Record<string, string> = {
+		media: 'mediaItems',
+		MediaItem: 'mediaItems',
+		collections: 'contentNodes',
+		preferences: 'systemPreferences',
+		tokens: 'authTokens',
+		sessions: 'authSessions',
+		users: 'authUsers'
+	};
+
 	public getTable(collection: string): any {
+		// Direct lookup (already camelCase, e.g., 'mediaItems')
 		if ((schema as any)[collection]) {
 			return (schema as any)[collection];
 		}
-		// Fallback to contentNodes for dynamic collections
-		return schema.contentNodes;
+		// Convert snake_case to camelCase (e.g., 'media_items' → 'mediaItems')
+		const camelKey = this.snakeToCamel(collection);
+		if ((schema as any)[camelKey]) {
+			return (schema as any)[camelKey];
+		}
+		// Check common aliases (e.g., 'media' → 'mediaItems')
+		const alias = AdapterCore.TABLE_ALIASES[collection];
+		if (alias && (schema as any)[alias]) {
+			return (schema as any)[alias];
+		}
+		// Dynamic collection tables map to contentNodes
+		if (collection.startsWith('collection_')) {
+			return schema.contentNodes;
+		}
+		// Throw for truly unknown tables
+		throw new Error(`Unknown table: ${collection}`);
 	}
 
 	public mapQuery(table: any, query: Record<string, any>): any {
@@ -213,8 +243,13 @@ export class AdapterCore {
 
 		const conditions: any[] = [];
 		for (const [key, value] of Object.entries(query)) {
+			if (key.startsWith('$')) continue; // Skip MongoDB operators
 			if (table[key]) {
-				conditions.push(eq(table[key], value));
+				if (value === null) {
+					conditions.push(isNull(table[key]));
+				} else {
+					conditions.push(eq(table[key], value));
+				}
 			}
 		}
 

@@ -176,21 +176,37 @@ export class PostgreSQLAdapter extends AdapterCore {
 	 */
 	private mapUser(dbUser: any): any {
 		if (!dbUser) return null;
-		// Handle roleIds - ensure it is an array
-		let roleIds = dbUser.roleIds;
-		if (typeof roleIds === 'string') {
-			try {
-				roleIds = JSON.parse(roleIds);
-			} catch {
-				roleIds = [];
-			}
-		}
-		const finalRoleIds = Array.isArray(roleIds) ? roleIds : [];
+		const user = utils.convertDatesToISO(dbUser);
+		const finalRoleIds = utils.parseJsonField<string[]>(user.roleIds, []);
 		return {
-			...dbUser,
+			...user,
 			roleIds: finalRoleIds,
 			role: finalRoleIds.length > 0 ? finalRoleIds[0] : 'user',
-			permissions: dbUser.permissions || []
+			permissions: utils.parseJsonField<string[]>(user.permissions, [])
+		};
+	}
+
+	/**
+	 * Maps a raw PostgreSQL role row to ensure permissions is a parsed array.
+	 */
+	private mapRole(dbRole: any): any {
+		if (!dbRole) return null;
+		const role = utils.convertDatesToISO(dbRole);
+		return {
+			...role,
+			permissions: utils.parseJsonField<string[]>(role.permissions, [])
+		};
+	}
+
+	/**
+	 * Maps a raw PostgreSQL website token row to ensure permissions is a parsed array.
+	 */
+	private mapWebsiteToken(dbToken: any): any {
+		if (!dbToken) return null;
+		const token = utils.convertDatesToISO(dbToken);
+		return {
+			...token,
+			permissions: utils.parseJsonField<string[]>(token.permissions, [])
 		};
 	}
 
@@ -464,7 +480,8 @@ export class PostgreSQLAdapter extends AdapterCore {
 					query = query.where(eq(schema.roles.tenantId, tenantId));
 				}
 
-				return await query;
+				const results = await query;
+				return results.map((r: any) => this.mapRole(r));
 			} catch (err) {
 				logger.error('AUTH_GET_ALL_ROLES_FAILED', err);
 				return [];
@@ -586,7 +603,7 @@ export class PostgreSQLAdapter extends AdapterCore {
 				return this.wrap(async () => {
 					const where = this.mapQuery(schema.roles, filter);
 					const [result] = await this.db!.select().from(schema.roles).where(where).limit(1);
-					return result || null;
+					return result ? this.mapRole(result) : null;
 				}, 'AUTH_ROLE_FIND_ONE_FAILED');
 			},
 			findMany: async (filter?: Record<string, unknown>) => {
@@ -594,7 +611,8 @@ export class PostgreSQLAdapter extends AdapterCore {
 					const where = filter ? this.mapQuery(schema.roles, filter) : undefined;
 					const query = this.db!.select().from(schema.roles);
 					if (where) query.where(where);
-					return await query;
+					const results = await query;
+					return results.map((r: any) => this.mapRole(r));
 				}, 'AUTH_ROLE_FIND_MANY_FAILED');
 			},
 			create: async (data: any) => {
@@ -607,7 +625,7 @@ export class PostgreSQLAdapter extends AdapterCore {
 						updatedAt: new Date()
 					};
 					const [result] = await this.db!.insert(schema.roles).values(formattedData).returning();
-					return result;
+					return this.mapRole(result);
 				}, 'AUTH_ROLE_CREATE_FAILED');
 			},
 			update: async (filter: Record<string, unknown>, data: any) => {
@@ -617,7 +635,7 @@ export class PostgreSQLAdapter extends AdapterCore {
 						.set({ ...data, updatedAt: new Date() })
 						.where(where)
 						.returning();
-					return result;
+					return result ? this.mapRole(result) : null;
 				}, 'AUTH_ROLE_UPDATE_FAILED');
 			},
 			delete: async (filter: Record<string, unknown>) => {
@@ -642,7 +660,7 @@ export class PostgreSQLAdapter extends AdapterCore {
 					const [existing] = await this.db!.select().from(schema.roles)
 						.where(eq(schema.roles.name, role.name || role._id))
 						.limit(1);
-					if (existing) return existing;
+					if (existing) return this.mapRole(existing);
 					const formattedData = {
 						_id: role._id || utils.generateId(),
 						...role,
@@ -651,7 +669,7 @@ export class PostgreSQLAdapter extends AdapterCore {
 						updatedAt: new Date()
 					};
 					const [result] = await this.db!.insert(schema.roles).values(formattedData).returning();
-					return result;
+					return this.mapRole(result);
 				}, 'AUTH_ROLE_ENSURE_FAILED');
 			}
 		},
@@ -666,16 +684,26 @@ export class PostgreSQLAdapter extends AdapterCore {
 					updatedAt: role.updatedAt ? new Date(role.updatedAt) : new Date()
 				};
 				const result = await this.db!.insert(schema.roles).values(formattedRole).returning();
-				return result[0];
+				return this.mapRole(result[0]);
 			}, 'AUTH_CREATE_ROLE_FAILED');
 		},
 		// Top-level token methods used by API routes
 		getAllTokens: async (filter?: Record<string, unknown>) => {
 			return this.wrap(async () => {
 				await this.ensureSystem();
-				const where = filter ? this.mapQuery(schema.authTokens, filter) : undefined;
-				const query = this.db!.select().from(schema.authTokens);
-				if (where) query.where(where);
+				const { eq, and } = await import('drizzle-orm');
+				const conditions: any[] = [];
+				if (filter) {
+					if (filter.email) conditions.push(eq(schema.authTokens.email, filter.email as string));
+					if (filter.user_id) conditions.push(eq(schema.authTokens.user_id, filter.user_id as string));
+					if (filter.type) conditions.push(eq(schema.authTokens.type, filter.type as string));
+					if (filter.tenantId) conditions.push(eq(schema.authTokens.tenantId, filter.tenantId as string));
+				}
+				let query = this.db!.select().from(schema.authTokens);
+				if (conditions.length > 0) {
+					// @ts-expect-error - Drizzle types
+					query = query.where(and(...conditions));
+				}
 				return await query;
 			}, 'AUTH_GET_ALL_TOKENS_FAILED');
 		},
@@ -751,9 +779,13 @@ export class PostgreSQLAdapter extends AdapterCore {
 		deleteTokens: async (tokenIds: string[]) => {
 			return this.wrap(async () => {
 				await this.ensureSystem();
-				const { inArray } = await import('drizzle-orm');
+				const { inArray, or } = await import('drizzle-orm');
+				// API routes may pass token values instead of _ids, so try both
 				const result = await this.db!.delete(schema.authTokens)
-					.where(inArray(schema.authTokens._id, tokenIds))
+					.where(or(
+						inArray(schema.authTokens._id, tokenIds),
+						inArray(schema.authTokens.token, tokenIds)
+					))
 					.returning();
 				return { deletedCount: result.length };
 			}, 'AUTH_DELETE_TOKENS_FAILED');
@@ -1301,7 +1333,7 @@ export class PostgreSQLAdapter extends AdapterCore {
 			return this.wrap(async () => {
 				const where = this.mapQuery(schema.websiteTokens, filter);
 				const [result] = await this.db!.select().from(schema.websiteTokens).where(where).limit(1);
-				return result || null;
+				return result ? this.mapWebsiteToken(result) : null;
 			}, 'WEBSITE_TOKENS_FIND_ONE_FAILED');
 		},
 		findMany: async (filter?: Record<string, unknown>) => {
@@ -1309,19 +1341,23 @@ export class PostgreSQLAdapter extends AdapterCore {
 				const where = filter ? this.mapQuery(schema.websiteTokens, filter) : undefined;
 				const query = this.db!.select().from(schema.websiteTokens);
 				if (where) query.where(where);
-				return await query;
+				const results = await query;
+				return results.map((r: any) => this.mapWebsiteToken(r));
 			}, 'WEBSITE_TOKENS_FIND_MANY_FAILED');
 		},
 		create: async (data: any) => {
 			return this.wrap(async () => {
+				// Convert ISO string dates to Date objects for Drizzle timestamp columns
+				const expiresAt = data.expiresAt ? new Date(data.expiresAt) : null;
 				const formattedData = {
 					_id: data._id || utils.generateId(),
 					...data,
+					expiresAt,
 					createdAt: new Date(),
 					updatedAt: new Date()
 				};
 				const [result] = await this.db!.insert(schema.websiteTokens).values(formattedData).returning();
-				return result;
+				return this.mapWebsiteToken(result);
 			}, 'WEBSITE_TOKENS_CREATE_FAILED');
 		},
 		delete: async (filter: Record<string, unknown>) => {
@@ -1332,7 +1368,8 @@ export class PostgreSQLAdapter extends AdapterCore {
 		},
 		getAll: async () => {
 			return this.wrap(async () => {
-				return await this.db!.select().from(schema.websiteTokens);
+				const results = await this.db!.select().from(schema.websiteTokens);
+				return results.map((r: any) => this.mapWebsiteToken(r));
 			}, 'WEBSITE_TOKENS_GET_ALL_FAILED');
 		},
 		getByName: async (name: string) => {
@@ -1341,7 +1378,7 @@ export class PostgreSQLAdapter extends AdapterCore {
 				const [result] = await this.db!.select().from(schema.websiteTokens)
 					.where(eq(schema.websiteTokens.name, name))
 					.limit(1);
-				return result || null;
+				return result ? this.mapWebsiteToken(result) : null;
 			}, 'WEBSITE_TOKENS_GET_BY_NAME_FAILED');
 		}
 	};
@@ -1470,10 +1507,9 @@ export class PostgreSQLAdapter extends AdapterCore {
 
 					const nodes = await query;
 
-					// Transform for ContentManager (map type -> nodeType)
+					// Schema now uses nodeType directly, no mapping needed
 					const mappedNodes = nodes.map((node) => ({
-						...node,
-						nodeType: node.type
+						...node
 					}));
 
 					if (mode === 'nested') {
@@ -1502,14 +1538,18 @@ export class PostgreSQLAdapter extends AdapterCore {
 						_id: node._id || utils.generateId(),
 						path: node.path,
 						parentId: node.parentId,
-						type: node.nodeType || node.type || 'unknown',
-						title: node.name || node.title,
+						nodeType: node.nodeType || node.type || 'unknown',
+						name: node.name || node.title,
+						slug: node.slug,
+						icon: node.icon,
+						description: node.description,
 						order: node.order || 0,
 						status: node.status || 'draft',
 						isPublished: !!node.isPublished,
 						tenantId: node.tenantId,
 						data: node.data,
 						metadata: node.metadata,
+						translations: node.translations,
 						createdAt: node.createdAt ? new Date(node.createdAt) : new Date(),
 						updatedAt: node.updatedAt ? new Date(node.updatedAt) : new Date()
 					}));
@@ -1522,8 +1562,8 @@ export class PostgreSQLAdapter extends AdapterCore {
 							set: {
 								path: sql.raw('excluded.path'),
 								parentId: sql.raw('excluded."parentId"'),
-								type: sql.raw('excluded."type"'),
-								title: sql.raw('excluded.title'),
+								nodeType: sql.raw('excluded."nodeType"'),
+								name: sql.raw('excluded.name'),
 								order: sql.raw('excluded."order"'),
 								updatedAt: new Date()
 							}
@@ -1541,10 +1581,7 @@ export class PostgreSQLAdapter extends AdapterCore {
 						// Map changes fields if necessary
 						const changes = { ...update.changes };
 
-						if (changes.nodeType) {
-							changes.type = changes.nodeType;
-							delete changes.nodeType;
-						}
+						// nodeType is now the schema field name, no mapping needed
 
 						// FIX: Remove _id from changes to avoid PK update issues
 						delete changes._id;

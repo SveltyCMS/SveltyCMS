@@ -89,6 +89,8 @@ async function createTablesIfNotExist(sql: postgres.Sql): Promise<void> {
 			"expires" TIMESTAMP WITH TIME ZONE NOT NULL,
 			"consumed" BOOLEAN NOT NULL DEFAULT FALSE,
 			"blocked" BOOLEAN NOT NULL DEFAULT FALSE,
+			"role" VARCHAR(50),
+			"username" VARCHAR(255),
 			"tenantId" VARCHAR(36),
 			"createdAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			"updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -276,12 +278,64 @@ async function createTablesIfNotExist(sql: postgres.Sql): Promise<void> {
 			"name" VARCHAR(255) NOT NULL,
 			"token" VARCHAR(255) NOT NULL,
 			"createdBy" VARCHAR(36) NOT NULL,
+			"permissions" JSONB NOT NULL DEFAULT '[]',
+			"expiresAt" TIMESTAMP WITH TIME ZONE,
 			"tenantId" VARCHAR(36),
-			"createdAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+			"createdAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			"updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 		)`,
 		`CREATE UNIQUE INDEX IF NOT EXISTS website_tokens_token_unique ON website_tokens (token)`,
 		`CREATE INDEX IF NOT EXISTS website_tokens_name_idx ON website_tokens (name)`,
-		`CREATE INDEX IF NOT EXISTS website_tokens_tenant_idx ON website_tokens ("tenantId")`
+		`CREATE INDEX IF NOT EXISTS website_tokens_tenant_idx ON website_tokens ("tenantId")`,
+
+		// Plugin: PageSpeed Results
+		`CREATE TABLE IF NOT EXISTS plugin_pagespeed_results (
+			"_id" VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid()::text,
+			"entryId" VARCHAR(36) NOT NULL,
+			"collectionId" VARCHAR(36) NOT NULL,
+			"tenantId" VARCHAR(36),
+			"language" VARCHAR(10) NOT NULL DEFAULT 'en',
+			"device" VARCHAR(20) NOT NULL DEFAULT 'mobile',
+			"url" VARCHAR(2000) NOT NULL,
+			"performanceScore" INT NOT NULL DEFAULT 0,
+			"fetchedAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			"createdAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			"updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+		)`,
+		`CREATE INDEX IF NOT EXISTS plugin_pagespeed_entry_idx ON plugin_pagespeed_results ("entryId")`,
+		`CREATE INDEX IF NOT EXISTS plugin_pagespeed_collection_idx ON plugin_pagespeed_results ("collectionId")`,
+		`CREATE INDEX IF NOT EXISTS plugin_pagespeed_tenant_idx ON plugin_pagespeed_results ("tenantId")`,
+		`CREATE INDEX IF NOT EXISTS plugin_pagespeed_device_idx ON plugin_pagespeed_results (device)`,
+
+		// Plugin States
+		`CREATE TABLE IF NOT EXISTS plugin_states (
+			"_id" VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid()::text,
+			"pluginId" VARCHAR(255) NOT NULL,
+			"tenantId" VARCHAR(36),
+			"enabled" BOOLEAN NOT NULL DEFAULT FALSE,
+			"settings" JSONB,
+			"updatedBy" VARCHAR(36),
+			"createdAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			"updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+		)`,
+		`CREATE INDEX IF NOT EXISTS plugin_states_plugin_idx ON plugin_states ("pluginId")`,
+		`CREATE INDEX IF NOT EXISTS plugin_states_tenant_idx ON plugin_states ("tenantId")`,
+		`CREATE UNIQUE INDEX IF NOT EXISTS plugin_states_plugin_tenant_unique ON plugin_states ("pluginId", "tenantId")`,
+
+		// Plugin Migrations
+		`CREATE TABLE IF NOT EXISTS plugin_migrations (
+			"_id" VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid()::text,
+			"pluginId" VARCHAR(255) NOT NULL,
+			"migrationId" VARCHAR(255) NOT NULL,
+			"version" INT NOT NULL,
+			"tenantId" VARCHAR(36),
+			"appliedAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			"createdAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			"updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+		)`,
+		`CREATE INDEX IF NOT EXISTS plugin_migrations_plugin_idx ON plugin_migrations ("pluginId")`,
+		`CREATE INDEX IF NOT EXISTS plugin_migrations_tenant_idx ON plugin_migrations ("tenantId")`,
+		`CREATE UNIQUE INDEX IF NOT EXISTS plugin_migrations_unique ON plugin_migrations ("pluginId", "migrationId", "tenantId")`
 	];
 
 	for (const query of queries) {
