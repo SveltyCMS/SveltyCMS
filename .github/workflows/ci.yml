@@ -585,7 +585,6 @@ jobs:
   # ------------------------------------------------------------------
   e2e-tests-mongodb:
     name: 🎭 E2E (MongoDB)
-    if: false # Temporarily disabled - focusing on integration tests
     needs: build
     timeout-minutes: 30
     runs-on: ubuntu-latest
@@ -601,6 +600,11 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+      mailhog:
+        image: mailhog/mailhog:latest
+        ports:
+          - 1025:1025
+          - 8025:8025
     env:
       DB_TYPE: mongodb
       DB_HOST: localhost
@@ -608,6 +612,11 @@ jobs:
       DB_NAME: sveltycms_test
       DB_USER: admin
       DB_PASSWORD: admin
+      SMTP_HOST: localhost
+      SMTP_PORT: 1025
+      SMTP_MAIL_FROM: test@sveltycms.local
+      SMTP_SECURE: 'false'
+      NODE_ENV: production
     steps:
       - uses: actions/checkout@v4
 
@@ -671,9 +680,6 @@ jobs:
 
       - name: 🧙‍♂️ Run Setup Wizard
         run: bunx playwright test tests/playwright/setup-wizard.spec.ts --project=chromium --reporter=list
-        env:
-          ADMIN_EMAIL: admin@example.com
-          ADMIN_PASS: Admin123!
 
       - name: ⏳ Wait for Seeding
         run: |
@@ -710,7 +716,6 @@ jobs:
   # ------------------------------------------------------------------
   e2e-tests-mariadb:
     name: 🎭 E2E (MariaDB) [Beta]
-    if: false # Temporarily disabled - focusing on integration tests
     needs: build
     timeout-minutes: 30
     runs-on: ubuntu-latest
@@ -728,6 +733,11 @@ jobs:
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
+      mailhog:
+        image: mailhog/mailhog:latest
+        ports:
+          - 1025:1025
+          - 8025:8025
     env:
       DB_TYPE: mariadb
       DB_HOST: localhost
@@ -735,6 +745,11 @@ jobs:
       DB_NAME: sveltycms_test
       DB_USER: testuser
       DB_PASSWORD: testpass
+      SMTP_HOST: localhost
+      SMTP_PORT: 1025
+      SMTP_MAIL_FROM: test@sveltycms.local
+      SMTP_SECURE: 'false'
+      NODE_ENV: production
     steps:
       - uses: actions/checkout@v4
 
@@ -779,21 +794,10 @@ jobs:
       - name: Install jq
         run: sudo apt-get install -y -qq jq
 
-      - name: Create config
+      - name: Remove config
         run: |
-          cat > config/private.ts <<EOF
-          export const privateEnv = {
-            DB_TYPE: '${{ env.DB_TYPE }}',
-            DB_HOST: '${{ env.DB_HOST }}',
-            DB_PORT: ${{ env.DB_PORT }},
-            DB_NAME: '${{ env.DB_NAME }}',
-            DB_USER: '${{ env.DB_USER }}',
-            DB_PASSWORD: '${{ env.DB_PASSWORD }}',
-            JWT_SECRET_KEY: 'test_jwt_secret',
-            ENCRYPTION_KEY: 'test_encryption_key',
-            MULTI_TENANT: false
-          } as const;
-          EOF
+          rm -rf config/collections
+          rm -f config/private.ts
 
       - name: Wait for MariaDB
         run: |
@@ -809,16 +813,14 @@ jobs:
         run: lsof -ti:4173 | xargs kill -9 2>/dev/null || true
 
       - name: Start Preview Server
+        env:
+          TEST_MODE: 'true'
         run: |
           nohup bun run preview > preview.log 2>&1 &
           bun x wait-on http://localhost:4173 -t 90000 --interval 1000
 
       - name: 🧙‍♂️ Run Setup Wizard
         run: bunx playwright test tests/playwright/setup-wizard.spec.ts --project=chromium --reporter=list
-        env:
-          ADMIN_EMAIL: admin@example.com
-          ADMIN_PASS: Admin123!
-          DB_TYPE: mariadb
 
       - name: ⏳ Wait for Seeding
         run: |
@@ -855,7 +857,6 @@ jobs:
   # ------------------------------------------------------------------
   e2e-tests-postgresql:
     name: 🎭 E2E (PostgreSQL) [Beta]
-    if: false # Temporarily disabled - focusing on integration tests
     needs: build
     timeout-minutes: 30
     runs-on: ubuntu-latest
@@ -872,6 +873,11 @@ jobs:
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
+      mailhog:
+        image: mailhog/mailhog:latest
+        ports:
+          - 1025:1025
+          - 8025:8025
     env:
       DB_TYPE: postgresql
       DB_HOST: localhost
@@ -879,6 +885,11 @@ jobs:
       DB_NAME: sveltycms_test
       DB_USER: testuser
       DB_PASSWORD: testpass
+      SMTP_HOST: localhost
+      SMTP_PORT: 1025
+      SMTP_MAIL_FROM: test@sveltycms.local
+      SMTP_SECURE: 'false'
+      NODE_ENV: production
     steps:
       - uses: actions/checkout@v4
 
@@ -923,21 +934,10 @@ jobs:
       - name: Install jq
         run: sudo apt-get install -y -qq jq
 
-      - name: Create config
+      - name: Remove config
         run: |
-          cat > config/private.ts <<EOF
-          export const privateEnv = {
-            DB_TYPE: '${{ env.DB_TYPE }}',
-            DB_HOST: '${{ env.DB_HOST }}',
-            DB_PORT: ${{ env.DB_PORT }},
-            DB_NAME: '${{ env.DB_NAME }}',
-            DB_USER: '${{ env.DB_USER }}',
-            DB_PASSWORD: '${{ env.DB_PASSWORD }}',
-            JWT_SECRET_KEY: 'test_jwt_secret',
-            ENCRYPTION_KEY: 'test_encryption_key',
-            MULTI_TENANT: false
-          } as const;
-          EOF
+          rm -rf config/collections
+          rm -f config/private.ts
 
       - name: Wait for PostgreSQL
         run: |
@@ -953,16 +953,14 @@ jobs:
         run: lsof -ti:4173 | xargs kill -9 2>/dev/null || true
 
       - name: Start Preview Server
+        env:
+          TEST_MODE: 'true'
         run: |
           nohup bun run preview > preview.log 2>&1 &
           bun x wait-on http://localhost:4173 -t 90000 --interval 1000
 
       - name: 🧙‍♂️ Run Setup Wizard
         run: bunx playwright test tests/playwright/setup-wizard.spec.ts --project=chromium --reporter=list
-        env:
-          ADMIN_EMAIL: admin@example.com
-          ADMIN_PASS: Admin123!
-          DB_TYPE: postgresql
 
       - name: ⏳ Wait for Seeding
         run: |

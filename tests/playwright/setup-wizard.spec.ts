@@ -9,7 +9,7 @@
  * 4. Completing the setup process
  *
  * Environment variables required (set in GitHub Actions workflow):
- * - MONGO_HOST, MONGO_PORT, MONGO_DB, MONGO_USER, MONGO_PASS
+ * - DB_TYPE (mongodb|mariadb|postgresql), DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD
  * - ADMIN_USER, ADMIN_EMAIL, ADMIN_PASS
  */
 
@@ -55,11 +55,12 @@ test('Setup Wizard: Configure DB and Create Admin', async ({ page }) => {
 	}
 
 	// Fill credentials from ENV (CI) or Defaults (Local)
-	await page.locator('#db-host').fill(process.env.MONGO_HOST || 'localhost');
-	await page.locator('#db-port').fill(process.env.MONGO_PORT || '27017');
-	await page.locator('#db-name').fill(process.env.MONGO_DB || 'SveltyCMS');
-	await page.locator('#db-user').fill(process.env.MONGO_USER || 'admin');
-	await page.locator('#db-password').fill(process.env.MONGO_PASS || 'admin');
+	const defaultPort = dbType === 'mariadb' ? '3306' : dbType === 'postgresql' ? '5432' : '27017';
+	await page.locator('#db-host').fill(process.env.DB_HOST || 'localhost');
+	await page.locator('#db-port').fill(process.env.DB_PORT || defaultPort);
+	await page.locator('#db-name').fill(process.env.DB_NAME || 'SveltyCMS');
+	await page.locator('#db-user').fill(process.env.DB_USER || 'admin');
+	await page.locator('#db-password').fill(process.env.DB_PASSWORD || 'admin');
 
 	// Test Connection
 	await page.getByRole('button', { name: /test database/i }).click();
