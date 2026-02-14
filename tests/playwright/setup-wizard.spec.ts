@@ -44,20 +44,41 @@ test('Setup Wizard: Configure DB and Create Admin', async ({ page }) => {
 	await page.waitForTimeout(2000);
 
 	// Dismiss welcome modal if it exists
-	// The modal sets aria-hidden="true" on the background, so we must use
-	// CSS/text selectors (not getByRole) to find the button
-	const getStarted = page.locator('button', { hasText: /get started/i });
+	// The Skeleton v4 Dialog sets aria-hidden on background content and intercepts pointer events.
+	// We try multiple strategies to dismiss the modal:
+	// 1. Try clicking "Get Started" button directly
+	// 2. Try pressing Escape to close the dialog
+	// 3. Try clicking with force to bypass pointer event interception
+	const modalDialog = page.locator('[role="dialog"]');
 	try {
-		await expect(getStarted).toBeVisible({ timeout: 5000 });
-		await getStarted.click();
-		// Wait for modal to close and aria-hidden to be removed
+		await expect(modalDialog).toBeVisible({ timeout: 5000 });
+		console.log('Welcome modal detected, dismissing...');
+
+		// Press Escape to close the dialog (most reliable method)
+		await page.keyboard.press('Escape');
 		await page.waitForTimeout(500);
+
+		// Verify modal is gone
+		if (await modalDialog.isVisible()) {
+			// Try clicking the Get Started button via JavaScript as fallback
+			console.log('Escape did not close modal, trying JS click...');
+			await page.evaluate(() => {
+				const buttons = document.querySelectorAll('button');
+				for (const btn of buttons) {
+					if (btn.textContent?.toLowerCase().includes('get started')) {
+						btn.click();
+						return;
+					}
+				}
+			});
+			await page.waitForTimeout(500);
+		}
+		console.log('Welcome modal dismissed');
 	} catch (_e) {
 		console.log('Welcome modal not visible or already dismissed');
 	}
 
 	// --- STEP 1: Database ---
-	// Use text locator first to confirm page rendered, then use heading role
 	await expect(page.locator('h2', { hasText: /database/i }).first()).toBeVisible({ timeout: 30000 });
 
 	// Select Database Type if specified (default is mongodb)
