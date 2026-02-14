@@ -169,7 +169,7 @@ describe('Setup Actions - Database Driver Installation', () => {
 
 			expect(result.type).toBe('success');
 			// Package name depends on DB type
-			const expectedPackage = dbType === 'mongodb' ? 'mongoose' : dbType === 'mariadb' ? 'mariadb' : 'pg';
+			const expectedPackage = dbType === 'mongodb' ? 'mongoose' : dbType === 'mariadb' ? 'mysql2' : 'postgres';
 			expect(data.package).toBe(expectedPackage);
 			expect(data.alreadyInstalled).toBe(true);
 		},
