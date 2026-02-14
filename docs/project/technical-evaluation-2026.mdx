@@ -56,13 +56,14 @@ SveltyCMS leverages Svelte's compiler to generate highly optimized vanilla JavaS
 
 Unlike WordPress or Drupal, which rely on stateful PHP processes, SveltyCMS is designed for serverless and edge environments. The framework's **adapter system** allows the CMS API to be deployed to environments like Cloudflare Workers or Deno Deploy.
 
-### 2.3 The NX Monorepo Paradigm
+### 2.3 Modular Architecture via SvelteKit
 
-The adoption of the **NX Monorepo** structure marks SveltyCMS's transition to an enterprise platform.
+SveltyCMS leverages SvelteKit's native routing and module system to maintain a clean separation of concerns.
 
-- **Computation Caching:** NX fingerprints source code. If the CMS core hasn't changed, rebuilds are instant.
-- **Strict Module Boundaries:** NX enforces rules that prevent `scope:client` UI code from importing `scope:server` database logic.
-- **Atomic Commits:** A developer can update the backend schema and the frontend component in a single commit, with type safety guaranteed across the boundary.
+- **Strict Module Boundaries:** Separation of `server-only` logic from client-side components is enforced by SvelteKit's `$lib/server` conventions, preventing accidental leakage of database credentials or sensitive logic to the browser.
+- **Optimized Build Pipeline:** The Vite-powered build process ensures that only necessary code is bundled for each route, minimizing the initial load time.
+- **Type-Safe Data Flow:** End-to-end type safety is achieved through SvelteKit's generated types, ensuring that data fetched in loaders is correctly typed in components.
+
 
 ## 3. Core Feature Analysis: The "Big Seven" Differentiators
 
@@ -268,7 +269,8 @@ Based on the [Official SveltyCMS Comparison](https://sveltycms.com/compare):
 
 **Is SveltyCMS State of the Art?**
 
-- **YES:** In Architecture (SvelteKit/NX), Performance (Zero-Runtime), and i18n (Paraglide).
+- **YES:** In Architecture (SvelteKit), Performance (Zero-Runtime), and i18n (Paraglide).
+
 - **YES:** In **Database Versatility**. Having verified drivers for **MongoDB, MariaDB, PostgreSQL, and SQLite** makes it the most flexible CMS on the market, solving the "Vendor Lock-in" problem at the database level.
 - **YES:** In Enterprise features. With the implementation of **SCIM Endpoints** and **Audit Logging**, it now meets the strict governance requirements of large organizations.
 - **YES:** In Accessibility. The codebase is fully verified against **WCAG 2.2 AA** standards, making it compliant by default.
