@@ -28,6 +28,13 @@ test('Setup Wizard: Configure DB and Create Admin', async ({ page }) => {
 	page.on('console', (msg) => console.log(`[BROWSER ${msg.type()}] ${msg.text()}`));
 	page.on('pageerror', (err) => console.log(`[BROWSER ERROR] ${err.message}`));
 
+	// Prevent the welcome modal from appearing by pre-setting sessionStorage.
+	// The setup page checks this key and skips the modal if already shown.
+	// This avoids issues with Skeleton v4 Dialog/Portal intercepting pointer events.
+	await page.addInitScript(() => {
+		sessionStorage.setItem('sveltycms_welcome_modal_shown', 'true');
+	});
+
 	// 1. Start at root, expect redirect to /setup or /login
 	await page.goto('/', { waitUntil: 'domcontentloaded' });
 
@@ -39,44 +46,6 @@ test('Setup Wizard: Configure DB and Create Admin', async ({ page }) => {
 
 	// Wait for setup to load
 	await expect(page).toHaveURL(/\/setup/);
-
-	// Wait for the setup wizard to fully render (data loads client-side with ssr=false)
-	await page.waitForTimeout(2000);
-
-	// Dismiss welcome modal if it exists
-	// The Skeleton v4 Dialog sets aria-hidden on background content and intercepts pointer events.
-	// We try multiple strategies to dismiss the modal:
-	// 1. Try clicking "Get Started" button directly
-	// 2. Try pressing Escape to close the dialog
-	// 3. Try clicking with force to bypass pointer event interception
-	const modalDialog = page.locator('[role="dialog"]');
-	try {
-		await expect(modalDialog).toBeVisible({ timeout: 5000 });
-		console.log('Welcome modal detected, dismissing...');
-
-		// Press Escape to close the dialog (most reliable method)
-		await page.keyboard.press('Escape');
-		await page.waitForTimeout(500);
-
-		// Verify modal is gone
-		if (await modalDialog.isVisible()) {
-			// Try clicking the Get Started button via JavaScript as fallback
-			console.log('Escape did not close modal, trying JS click...');
-			await page.evaluate(() => {
-				const buttons = document.querySelectorAll('button');
-				for (const btn of buttons) {
-					if (btn.textContent?.toLowerCase().includes('get started')) {
-						btn.click();
-						return;
-					}
-				}
-			});
-			await page.waitForTimeout(500);
-		}
-		console.log('Welcome modal dismissed');
-	} catch (_e) {
-		console.log('Welcome modal not visible or already dismissed');
-	}
 
 	// --- STEP 1: Database ---
 	await expect(page.locator('h2', { hasText: /database/i }).first()).toBeVisible({ timeout: 30000 });
