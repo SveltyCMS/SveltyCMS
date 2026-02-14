@@ -15,11 +15,12 @@
 
 import { test, expect, type Page } from '@playwright/test';
 
-// Helper: Click the Next button
+// Helper: Click the Next button using aria-label for reliable matching.
+// The button text "Next" is inside a responsive span (hidden on small screens)
+// and paired with an iconify-icon, so anchored regex matching on textContent fails.
 async function clickNext(page: Page) {
-	// Use text-based locator to avoid aria-hidden issues from modals
-	const nextBtn = page.locator('button', { hasText: /^next$/i }).first();
-	await expect(nextBtn).toBeVisible();
+	const nextBtn = page.getByRole('button', { name: /next/i });
+	await expect(nextBtn).toBeEnabled({ timeout: 60000 });
 	await nextBtn.click();
 }
 
@@ -68,11 +69,11 @@ test('Setup Wizard: Configure DB and Create Admin', async ({ page }) => {
 	await page.locator('button', { hasText: /test database/i }).click();
 	await expect(page.getByText(/connected successfully/i).first()).toBeVisible({ timeout: 15000 });
 
-	// Move to next step
+	// Move to next step (clicking Next triggers database seeding which may take time)
 	await clickNext(page);
 
 	// --- STEP 2: Admin User ---
-	await expect(page.locator('h2', { hasText: /admin/i }).first()).toBeVisible({ timeout: 10000 });
+	await expect(page.locator('h2', { hasText: /admin/i }).first()).toBeVisible({ timeout: 60000 });
 
 	// Fill admin user details
 	await page.locator('#admin-username').fill(process.env.ADMIN_USER || 'admin');
@@ -86,21 +87,20 @@ test('Setup Wizard: Configure DB and Create Admin', async ({ page }) => {
 	// Loop through remaining steps until "Complete" appears
 	// This handles variable number of steps (Site settings, Email, etc.)
 	for (let i = 0; i < 5; i++) {
-		// Check for "Complete" button first
-		const completeBtn = page.locator('button', { hasText: /^complete$/i });
+		// Check for "Complete" button first (uses aria-label for matching)
+		const completeBtn = page.getByRole('button', { name: /complete/i });
 		if (await completeBtn.isVisible()) {
 			await completeBtn.click();
 			break;
 		}
 
 		// Otherwise click Next
-		const nextBtn = page.locator('button', { hasText: /^next$/i }).first();
+		const nextBtn = page.getByRole('button', { name: /next/i });
 		if (await nextBtn.isVisible()) {
 			await nextBtn.click();
-			// Wait for animation/transition
 			await page.waitForTimeout(500);
 		} else {
-			break; // No buttons found, maybe we are done?
+			break;
 		}
 	}
 
