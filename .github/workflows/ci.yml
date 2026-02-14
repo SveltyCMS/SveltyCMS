@@ -717,7 +717,6 @@ jobs:
   # 7. E2E Tests - MariaDB
   # ------------------------------------------------------------------
   e2e-tests-mariadb:
-    if: false # Temporarily disabled - focusing on MongoDB E2E first
     name: 🎭 E2E (MariaDB) [Beta]
     needs: build
     timeout-minutes: 30
@@ -861,7 +860,6 @@ jobs:
   # 8. E2E Tests - PostgreSQL (Beta)
   # ------------------------------------------------------------------
   e2e-tests-postgresql:
-    if: false # Temporarily disabled - focusing on MongoDB E2E first
     name: 🎭 E2E (PostgreSQL) [Beta]
     needs: build
     timeout-minutes: 30
