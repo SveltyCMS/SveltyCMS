@@ -7,6 +7,7 @@
  */
 
 import { AppError } from '@utils/errorHandling';
+import { getPrivateEnv } from '@src/databases/db';
 
 interface SafeQueryOptions {
 	sudo?: boolean; // Bypass check (e.g. for System Admin queries)
@@ -21,10 +22,7 @@ interface SafeQueryOptions {
  * @param options - Options to bypass check
  */
 export function safeQuery<T extends Record<string, any>>(query: T, tenantId?: string | null, options: SafeQueryOptions = {}): T {
-	// 1. Get private config via dynamic import to avoid circular dependencies and missing file issues in CI
-	// We use require/dynamic import logic here or just rely on the fact that db module should be initialized.
-	// For performance, we can cache the MULTI_TENANT setting after first load.
-	const { getPrivateEnv } = require('@src/databases/db');
+	// 1. Get private config
 	const privateEnv = getPrivateEnv();
 
 	// 2. Skip if Multi-Tenancy is disabled

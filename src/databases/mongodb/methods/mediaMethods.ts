@@ -158,12 +158,6 @@ export class MongoMediaMethods {
 					query = folderId ? { folderId } : { folderId: { $in: [null, undefined] } }; // Root files
 				}
 
-				// Apply tenant isolation
-				if (tenantId) {
-					// Allow fetching items that either match the tenantId OR have no tenantId (legacy/system)
-					query.tenantId = { $in: [tenantId, null, undefined] };
-				}
-
 				// Apply user ownership filter if necessary
 				if (shouldFilterByUser) {
 					// ALLOW GLOBAL: Users see their own files OR anything in the 'global' folder
@@ -173,7 +167,14 @@ export class MongoMediaMethods {
 					};
 				}
 
+				// Apply tenant isolation and security
 				const secureQuery = safeQuery(query, tenantId);
+
+				// Add fallback for legacy/untenanted media if tenantId is provided
+				if (tenantId && secureQuery.tenantId === tenantId) {
+					// Allow items matching tenantId OR having no tenantId (legacy/system)
+					secureQuery.tenantId = { $in: [tenantId, null, undefined] };
+				}
 
 				const skip = (page - 1) * pageSize;
 				const sort: Record<string, 1 | -1> = { [sortField]: sortDirection === 'asc' ? 1 : -1 };
