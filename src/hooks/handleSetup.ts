@@ -95,12 +95,11 @@ export const handleSetup: Handle = async ({ event, resolve }) => {
 
 		// --- Step 3: Handle Complete Setup ---
 		// If setup is complete, BLOCK access to /setup routes (including localized ones)
-		// EXCEPTION: Allow the final "completeSetup" action to run even if private.ts exists
-		// because seedDatabase (step 2) creates private.ts, which makes isComplete true.
+		// BUT allow POST requests (form actions like completeSetup) to proceed,
+		// because the setup wizard writes config during seedDatabase (step 0),
+		// and subsequent actions still need to execute.
 		const isSetupRoute = pathname.startsWith('/setup') || /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/setup/.test(pathname);
-		const isCompleteAction = event.url.search.includes('/completeSetup');
-
-		if (isSetupRoute && !isCompleteAction) {
+		if (isSetupRoute && event.request.method === 'GET') {
 			if (!event.locals.__setupLoginRedirectLogged) {
 				logger.trace(`Setup complete. Blocking access to ${pathname}, redirecting to /login`);
 				event.locals.__setupLoginRedirectLogged = true;

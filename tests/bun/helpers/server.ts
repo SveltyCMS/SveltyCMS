@@ -30,7 +30,7 @@ export async function isServerAvailable(): Promise<boolean> {
 			redirect: 'manual',
 			signal: AbortSignal.timeout(5000)
 		});
-		_serverAvailable = res.ok || res.status === 302 || res.status === 307;
+		_serverAvailable = res.ok;
 	} catch {
 		_serverAvailable = false;
 	}

@@ -9,20 +9,33 @@
  * 4. Completing the setup process
  *
  * Environment variables required (set in GitHub Actions workflow):
- * - MONGO_HOST, MONGO_PORT, MONGO_DB, MONGO_USER, MONGO_PASS
+ * - DB_TYPE (mongodb|mariadb|postgresql), DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD
  * - ADMIN_USER, ADMIN_EMAIL, ADMIN_PASS
  */
 
 import { test, expect, type Page } from '@playwright/test';
 
-// Helper: Click and wait for navigation or next step
+// Helper: Click the Next button.
+// Uses getByLabel to uniquely target the actual button (not the tooltip trigger)
+// since SystemTooltip creates a separate trigger button that also matches by role.
 async function clickNext(page: Page) {
-	const nextBtn = page.getByRole('button', { name: /next/i }).first();
-	await expect(nextBtn).toBeVisible();
+	const nextBtn = page.getByLabel('Next', { exact: true });
+	await expect(nextBtn).toBeEnabled({ timeout: 60000 });
 	await nextBtn.click();
 }
 
 test('Setup Wizard: Configure DB and Create Admin', async ({ page }) => {
+	// Capture browser console and errors for debugging
+	page.on('console', (msg) => console.log(`[BROWSER ${msg.type()}] ${msg.text()}`));
+	page.on('pageerror', (err) => console.log(`[BROWSER ERROR] ${err.message}`));
+
+	// Prevent the welcome modal from appearing by pre-setting sessionStorage.
+	// The setup page checks this key and skips the modal if already shown.
+	// This avoids issues with Skeleton v4 Dialog/Portal intercepting pointer events.
+	await page.addInitScript(() => {
+		sessionStorage.setItem('sveltycms_welcome_modal_shown', 'true');
+	});
+
 	// 1. Start at root, expect redirect to /setup or /login
 	await page.goto('/', { waitUntil: 'domcontentloaded' });
 
@@ -35,18 +48,8 @@ test('Setup Wizard: Configure DB and Create Admin', async ({ page }) => {
 	// Wait for setup to load
 	await expect(page).toHaveURL(/\/setup/);
 
-	// Dismiss welcome modal if it exists (using a smarter polling check)
-	const getStarted = page.getByRole('button', { name: /get started/i });
-	try {
-		await expect(getStarted).toBeVisible({ timeout: 5000 });
-		await getStarted.click();
-	} catch (_e) {
-		console.log('Welcome modal not visible or already dismissed');
-	}
-
 	// --- STEP 1: Database ---
-	// Wait longer for the heading as things might be initializing
-	await expect(page.getByRole('heading', { name: /database/i }).first()).toBeVisible({ timeout: 30000 });
+	await expect(page.locator('h2', { hasText: /database/i }).first()).toBeVisible({ timeout: 30000 });
 
 	// Select Database Type if specified (default is mongodb)
 	const dbType = process.env.DB_TYPE || 'mongodb';
@@ -55,21 +58,22 @@ test('Setup Wizard: Configure DB and Create Admin', async ({ page }) => {
 	}
 
 	// Fill credentials from ENV (CI) or Defaults (Local)
-	await page.locator('#db-host').fill(process.env.MONGO_HOST || 'localhost');
-	await page.locator('#db-port').fill(process.env.MONGO_PORT || '27017');
-	await page.locator('#db-name').fill(process.env.MONGO_DB || 'SveltyCMS');
-	await page.locator('#db-user').fill(process.env.MONGO_USER || 'admin');
-	await page.locator('#db-password').fill(process.env.MONGO_PASS || 'admin');
+	const defaultPort = dbType === 'mariadb' ? '3306' : dbType === 'postgresql' ? '5432' : '27017';
+	await page.locator('#db-host').fill(process.env.DB_HOST || 'localhost');
+	await page.locator('#db-port').fill(process.env.DB_PORT || defaultPort);
+	await page.locator('#db-name').fill(process.env.DB_NAME || 'SveltyCMS');
+	await page.locator('#db-user').fill(process.env.DB_USER || 'admin');
+	await page.locator('#db-password').fill(process.env.DB_PASSWORD || 'admin');
 
 	// Test Connection
-	await page.getByRole('button', { name: /test database/i }).click();
-	await expect(page.getByText(/connected successfully/i)).toBeVisible({ timeout: 15000 });
+	await page.locator('button', { hasText: /test database/i }).click();
+	await expect(page.getByText(/connected successfully/i).first()).toBeVisible({ timeout: 15000 });
 
-	// Move to next step
+	// Move to next step (clicking Next triggers database seeding which may take time)
 	await clickNext(page);
 
 	// --- STEP 2: Admin User ---
-	await expect(page.getByRole('heading', { name: /admin/i }).first()).toBeVisible();
+	await expect(page.locator('h2', { hasText: /admin/i }).first()).toBeVisible({ timeout: 60000 });
 
 	// Fill admin user details
 	await page.locator('#admin-username').fill(process.env.ADMIN_USER || 'admin');
@@ -83,21 +87,20 @@ test('Setup Wizard: Configure DB and Create Admin', async ({ page }) => {
 	// Loop through remaining steps until "Complete" appears
 	// This handles variable number of steps (Site settings, Email, etc.)
 	for (let i = 0; i < 5; i++) {
-		// Check for "Complete" button first
-		const completeBtn = page.getByRole('button', { name: /^complete$/i });
+		// Check for "Complete" button first (exact match avoids stepper indicator)
+		const completeBtn = page.getByLabel('Complete', { exact: true });
 		if (await completeBtn.isVisible()) {
 			await completeBtn.click();
 			break;
 		}
 
 		// Otherwise click Next
-		const nextBtn = page.getByRole('button', { name: /next/i }).first();
+		const nextBtn = page.getByLabel('Next', { exact: true });
 		if (await nextBtn.isVisible()) {
 			await nextBtn.click();
-			// Wait for animation/transition
 			await page.waitForTimeout(500);
 		} else {
-			break; // No buttons found, maybe we are done?
+			break;
 		}
 	}
 

@@ -497,9 +497,18 @@ export class AuthModule {
 		return this.getTokenData(token, undefined, undefined, tenantId);
 	}
 
-	async getAllTokens(_filter?: Record<string, unknown>): Promise<DatabaseResult<Token[]>> {
+	async getAllTokens(filter?: Record<string, unknown>): Promise<DatabaseResult<Token[]>> {
 		return (this.core as any).wrap(async () => {
-			const results = await this.db.select().from(schema.authTokens);
+			const conditions: any[] = [];
+			if (filter?.email) conditions.push(eq(schema.authTokens.email, filter.email as string));
+			if (filter?.user_id) conditions.push(eq(schema.authTokens.user_id, filter.user_id as string));
+			if (filter?.type) conditions.push(eq(schema.authTokens.type, filter.type as string));
+			if (filter?.tenantId) conditions.push(eq(schema.authTokens.tenantId, filter.tenantId as string));
+
+			const results = await this.db
+				.select()
+				.from(schema.authTokens)
+				.where(conditions.length > 0 ? and(...conditions) : undefined);
 			return utils.convertArrayDatesToISO(results) as unknown as Token[];
 		}, 'GET_ALL_TOKENS_FAILED');
 	}
@@ -513,10 +522,24 @@ export class AuthModule {
 
 	async deleteTokens(token_ids: string[], tenantId?: string): Promise<DatabaseResult<{ deletedCount: number }>> {
 		return (this.core as any).wrap(async () => {
-			const conditions = [inArray(schema.authTokens._id, token_ids)];
+			// Try matching by _id first, then fall back to token value
+			// (API endpoints pass token values, not _ids)
+			const conditions: any[] = [];
 			if (tenantId) conditions.push(eq(schema.authTokens.tenantId, tenantId));
-			const result = await this.db.delete(schema.authTokens).where(and(...conditions));
-			return { deletedCount: result[0].affectedRows };
+
+			// Try delete by _id
+			const byIdResult = await this.db
+				.delete(schema.authTokens)
+				.where(and(inArray(schema.authTokens._id, token_ids), ...conditions));
+			if (byIdResult[0].affectedRows > 0) {
+				return { deletedCount: byIdResult[0].affectedRows };
+			}
+
+			// Fall back to delete by token value
+			const byValueResult = await this.db
+				.delete(schema.authTokens)
+				.where(and(inArray(schema.authTokens.token, token_ids), ...conditions));
+			return { deletedCount: byValueResult[0].affectedRows };
 		}, 'DELETE_TOKENS_FAILED');
 	}
 
@@ -544,6 +567,14 @@ export class AuthModule {
 		}, 'UNBLOCK_TOKENS_FAILED');
 	}
 
+	private mapRole(dbRole: any): Role {
+		const role = utils.convertDatesToISO(dbRole) as any;
+		return {
+			...role,
+			permissions: utils.parseJsonField<string[]>(role.permissions, [])
+		} as unknown as Role;
+	}
+
 	// Role methods
 	async getAllRoles(tenantId?: string): Promise<Role[]> {
 		if (!this.db) return [];
@@ -554,7 +585,7 @@ export class AuthModule {
 				.select()
 				.from(schema.roles)
 				.where(conditions.length > 0 ? and(...conditions) : undefined);
-			return utils.convertArrayDatesToISO(results) as unknown as Role[];
+			return results.map((r: any) => this.mapRole(r));
 		} catch (error) {
 			logger.error('Get all roles failed:', error);
 			return [];
@@ -570,7 +601,7 @@ export class AuthModule {
 				.from(schema.roles)
 				.where(and(...conditions))
 				.limit(1);
-			return result ? (utils.convertDatesToISO(result) as unknown as Role) : null;
+			return result ? this.mapRole(result) : null;
 		}, 'GET_ROLE_BY_ID_FAILED');
 	}
 
@@ -585,7 +616,7 @@ export class AuthModule {
 				permissions: role.permissions || []
 			} as any);
 			const [result] = await this.db.select().from(schema.roles).where(eq(schema.roles._id, id)).limit(1);
-			return utils.convertDatesToISO(result) as unknown as Role;
+			return this.mapRole(result);
 		}, 'CREATE_ROLE_FAILED');
 	}
 
@@ -602,7 +633,7 @@ export class AuthModule {
 				.from(schema.roles)
 				.where(and(...conditions))
 				.limit(1);
-			return utils.convertDatesToISO(result) as unknown as Role;
+			return this.mapRole(result);
 		}, 'UPDATE_ROLE_FAILED');
 	}
 

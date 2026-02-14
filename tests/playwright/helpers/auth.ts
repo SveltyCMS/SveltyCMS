@@ -4,7 +4,7 @@
  * Uses the same credentials as setup-wizard to ensure consistency
  */
 
-import { type Page } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 
 /**
  * Login credentials that match the setup wizard defaults
@@ -19,7 +19,7 @@ export const ADMIN_CREDENTIALS = {
  * @param page - Playwright page object
  * @param waitForUrl - URL pattern to wait for after login (default: Collections/Names page)
  */
-export async function loginAsAdmin(page: Page, waitForUrl: string | RegExp = /\/(Collections|admin|dashboard)/) {
+export async function loginAsAdmin(page: Page, waitForUrl?: string | RegExp) {
 	// First, try to logout if already logged in
 	await logout(page);
 
@@ -68,7 +68,12 @@ export async function loginAsAdmin(page: Page, waitForUrl: string | RegExp = /\/
 
 	// Wait for redirect after successful login
 	console.log('[Auth] Waiting for redirect...');
-	await page.waitForURL(waitForUrl, { timeout: 15000 });
+	if (waitForUrl) {
+		await page.waitForURL(waitForUrl, { timeout: 15000 });
+	} else {
+		// Wait until we're no longer on the login page
+		await expect(page).not.toHaveURL(/\/login/, { timeout: 15000 });
+	}
 	console.log(`[Auth] Login successful, redirected to: ${page.url()}`);
 }
 

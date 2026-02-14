@@ -255,7 +255,8 @@ mock.module('@sveltejs/kit', () => ({
 		const err = {
 			status,
 			body,
-			message: body.message
+			message: body.message,
+			__is_http_error: true
 		};
 		throw err;
 	},
@@ -263,16 +264,33 @@ mock.module('@sveltejs/kit', () => ({
 		const err = {
 			status,
 			location,
-			message: `Redirect to ${location}`
+			message: `Redirect to ${location}`,
+			__is_redirect: true
 		};
 		throw err;
 	},
+	isRedirect: (err: any) => err && err.__is_redirect === true,
+	isHttpError: (err: any) => err && err.__is_http_error === true,
 	json: (data: unknown, init?: ResponseInit) =>
 		new Response(JSON.stringify(data), {
 			...init,
 			headers: { 'Content-Type': 'application/json', ...init?.headers }
 		}),
 	text: (data: string, init?: ResponseInit) => new Response(data, init)
+}));
+
+// Mock @src/widgets/scanner - uses import.meta.glob which is Vite-only
+mock.module('@src/widgets/scanner', () => ({
+	coreModules: {},
+	customModules: {},
+	allWidgetModules: {}
+}));
+
+// Mock @src/widgets/proxy - depends on scanner
+mock.module('@src/widgets/proxy', () => ({
+	getWidgetsByType: () => [],
+	getWidget: () => null,
+	getWidgetByField: () => null
 }));
 
 console.log('✅ SvelteKit modules mocked for hooks tests');

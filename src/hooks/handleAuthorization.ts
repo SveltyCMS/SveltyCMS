@@ -189,6 +189,9 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
 			const userRole = rolesData.find((r) => r._id === user.role);
 			const isAdmin = !!userRole?.isAdmin || (user as any).isAdmin;
 
+			// Ensure isAdmin is available on both locals and user object
+			// (MongoDB resolves this via aggregation, other adapters may not)
+			(user as any).isAdmin = isAdmin;
 			locals.isAdmin = isAdmin;
 			locals.hasAdminPermission = isAdmin;
 			locals.hasManageUsersPermission = isAdmin || hasPermissionByAction(user, 'manage', 'user', undefined, rolesData);

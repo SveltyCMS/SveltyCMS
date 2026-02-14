@@ -56,3 +56,42 @@ export function convertIdFilter(filter: Record<string, any>): Record<string, any
 	}
 	return result;
 }
+
+/**
+ * Parse a JSON field that may come back as a string from PostgreSQL JSONB.
+ * Drizzle's .$type<T>() does not guarantee runtime deserialization.
+ */
+export function parseJsonField<T>(value: unknown, fallback: T): T {
+	if (value === null || value === undefined) return fallback;
+	if (typeof value === 'string') {
+		try {
+			return JSON.parse(value) as T;
+		} catch {
+			return fallback;
+		}
+	}
+	return value as T;
+}
+
+/**
+ * Convert Date objects in a record to ISO strings.
+ * PostgreSQL TIMESTAMP fields come back as Date objects from postgres.js.
+ */
+export function convertDatesToISO<T extends Record<string, any>>(obj: T): T {
+	const result: Record<string, any> = {};
+	for (const [key, value] of Object.entries(obj)) {
+		if (value instanceof Date) {
+			result[key] = value.toISOString();
+		} else {
+			result[key] = value;
+		}
+	}
+	return result as T;
+}
+
+/**
+ * Convert dates in an array of records to ISO strings.
+ */
+export function convertArrayDatesToISO<T extends Record<string, any>>(arr: T[]): T[] {
+	return arr.map((item) => convertDatesToISO(item));
+}

@@ -88,6 +88,22 @@ export function convertArrayDatesToISO<T extends Record<string, unknown>>(rows: 
 	return rows.map((row) => convertDatesToISO(row));
 }
 
+/**
+ * Parse a JSON field that may be returned as a string from MariaDB.
+ * Drizzle's .$type<T>() doesn't guarantee deserialization for MySQL JSON columns.
+ */
+export function parseJsonField<T>(value: unknown, fallback: T): T {
+	if (value === null || value === undefined) return fallback;
+	if (typeof value === 'string') {
+		try {
+			return JSON.parse(value) as T;
+		} catch {
+			return fallback;
+		}
+	}
+	return value as T;
+}
+
 // Create a paginated result from an array of items (in-memory)
 export function createPagination<T>(items: T[], options: PaginationOptions): PaginatedResult<T> {
 	const page = options.page || 1;

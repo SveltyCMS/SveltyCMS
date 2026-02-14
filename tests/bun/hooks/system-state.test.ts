@@ -11,8 +11,12 @@
  *
  * Note: Mocks are set up in preload.ts using globalThis for controllable state.
  */
-import { mock, describe, it, beforeEach, expect } from 'bun:test';
+import { mock, describe, it, beforeEach, afterAll, expect } from 'bun:test';
 import type { RequestEvent } from '@sveltejs/kit';
+
+// Disable TEST_MODE so the state machine logic actually runs (CI sets TEST_MODE=true)
+const originalTestMode = process.env.TEST_MODE;
+delete process.env.TEST_MODE;
 
 // Import the hook - mocks are already set up by preload.ts
 import { handleSystemState } from '@src/hooks/handleSystemState';
@@ -67,7 +71,16 @@ describe('handleSystemState - State Machine Logic', () => {
 		mockResolve.mockClear();
 		globalThis.__mockIsSystemReady = true;
 		globalThis.__mockIsSetupComplete = true;
+		// Ensure TEST_MODE is disabled so state machine runs
+		delete process.env.TEST_MODE;
 		setMockState({ overallState: 'READY' });
+	});
+
+	afterAll(() => {
+		// Restore TEST_MODE
+		if (originalTestMode !== undefined) {
+			process.env.TEST_MODE = originalTestMode;
+		}
 	});
 
 	describe('READY state', () => {
@@ -198,13 +211,9 @@ describe('handleSystemState - State Machine Logic', () => {
 		it('should block API routes (non-setup) during IDLE state', async () => {
 			const event = createMockEvent('/api/collections/get');
 
-			try {
-				await handleSystemState({ event, resolve: mockResolve });
-				expect(true).toBe(false); // Should not reach here
-			} catch (err: unknown) {
-				const error = err as { status: number };
-				expect(error.status).toBe(503);
-			}
+			// API routes return error Response via handleApiError instead of throwing
+			const response = await handleSystemState({ event, resolve: mockResolve });
+			expect(response.status).toBe(503);
 		});
 	});
 
@@ -318,13 +327,9 @@ describe('handleSystemState - State Machine Logic', () => {
 		it('should block API routes when FAILED', async () => {
 			const event = createMockEvent('/api/collections');
 
-			try {
-				await handleSystemState({ event, resolve: mockResolve });
-				expect(true).toBe(false);
-			} catch (err: unknown) {
-				const error = err as { status: number };
-				expect(error.status).toBe(503);
-			}
+			// API routes return error Response via handleApiError instead of throwing
+			const response = await handleSystemState({ event, resolve: mockResolve });
+			expect(response.status).toBe(503);
 		});
 	});
 

@@ -24,7 +24,8 @@ const timestamps = {
 };
 
 // Helper for tenantId (nullable for multi-tenant support)
-const tenantField = () => varchar('tenantId', { length: 36 });
+// Explicit default(null) ensures Drizzle sends NULL instead of DEFAULT keyword
+const tenantField = () => varchar('tenantId', { length: 36 }).default(sql`NULL`);
 
 // Auth Users Table
 export const authUsers = mysqlTable(
@@ -78,6 +79,7 @@ export const authTokens = mysqlTable(
 		type: varchar('type', { length: 50 }).notNull(),
 		expires: datetime('expires').notNull(),
 		consumed: boolean('consumed').notNull().default(false),
+		blocked: boolean('blocked').notNull().default(false),
 		role: varchar('role', { length: 50 }),
 		username: varchar('username', { length: 255 }),
 		tenantId: tenantField(),
@@ -306,6 +308,8 @@ export const websiteTokens = mysqlTable(
 		name: varchar('name', { length: 255 }).notNull(),
 		token: varchar('token', { length: 255 }).notNull(),
 		createdBy: varchar('createdBy', { length: 36 }).notNull(),
+		permissions: json('permissions').$type<string[]>().notNull().default([]),
+		expiresAt: datetime('expiresAt'),
 		tenantId: tenantField(),
 		...timestamps
 	},

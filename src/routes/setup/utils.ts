@@ -41,10 +41,8 @@ export function buildDatabaseConnectionString(config: DatabaseConfig): string {
 				queryParams = '?authSource=admin';
 			}
 
-			const connectionString = `${protocol}://${user}${config.host}${port}/${config.name}${queryParams}`;
-
 			// Logging happens in getSetupDatabaseAdapter with correlationId
-			return connectionString;
+			return `${protocol}://${user}${config.host}${port}/${config.name}${queryParams}`;
 		}
 		case 'mariadb': {
 			// MariaDB connection string
@@ -52,9 +50,7 @@ export function buildDatabaseConnectionString(config: DatabaseConfig): string {
 			const hasCredentials = config.user && config.password;
 			const user = hasCredentials ? `${encodeURIComponent(config.user)}:${encodeURIComponent(config.password)}@` : '';
 
-			const connectionString = `mysql://${user}${config.host}${port}/${config.name}`;
-
-			return connectionString;
+			return `mysql://${user}${config.host}${port}/${config.name}`;
 		}
 		case 'postgresql': {
 			// PostgreSQL connection string
@@ -62,9 +58,7 @@ export function buildDatabaseConnectionString(config: DatabaseConfig): string {
 			const hasCredentials = config.user && config.password;
 			const user = hasCredentials ? `${encodeURIComponent(config.user)}:${encodeURIComponent(config.password)}@` : '';
 
-			const connectionString = `postgresql://${user}${config.host}${port}/${config.name}`;
-
-			return connectionString;
+			return `postgresql://${user}${config.host}${port}/${config.name}`;
 		}
 		case 'sqlite': {
 			// SQLite connection "string" (file path)

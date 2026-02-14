@@ -23,8 +23,8 @@ const BASE_URL = getApiBaseUrl();
  */
 function extractCookieValue(setCookieHeader: string): string {
 	// The cookie value is the first part before any semicolon
-	const cookiePart = setCookieHeader.split(';')[0].trim();
-	return cookiePart;
+
+	return setCookieHeader.split(';')[0].trim();
 }
 
 // Internal helper using JSON (avoids CSRF protection issues with FormData)

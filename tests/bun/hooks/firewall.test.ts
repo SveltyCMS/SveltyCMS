@@ -89,25 +89,16 @@ describe('handleFirewall - Threat Pattern Detection', () => {
 		test('should block token in URL parameters', async () => {
 			const event = createMockEvent('http://localhost/api/data?token=abc123xyz');
 
-			try {
-				await handleFirewall({ event, resolve: mockResolve });
-				expect(true).toBe(false);
-			} catch (err: unknown) {
-				const error = err as { status: number };
-				expect(error.status).toBe(403);
-			}
+			// API routes return error Response via handleApiError instead of throwing
+			const response = await handleFirewall({ event, resolve: mockResolve });
+			expect(response.status).toBe(403);
 		});
 
 		test('should block api_key in URL parameters', async () => {
 			const event = createMockEvent('http://localhost/api/service?api_key=secret');
 
-			try {
-				await handleFirewall({ event, resolve: mockResolve });
-				expect(true).toBe(false);
-			} catch (err: unknown) {
-				const error = err as { status: number };
-				expect(error.status).toBe(403);
-			}
+			const response = await handleFirewall({ event, resolve: mockResolve });
+			expect(response.status).toBe(403);
 		});
 
 		test('should block secret in URL parameters', async () => {
@@ -151,25 +142,15 @@ describe('handleFirewall - Threat Pattern Detection', () => {
 		test('should block data:text/html injections', async () => {
 			const event = createMockEvent('http://localhost/api/content?html=data:text/html,<script>alert(1)</script>');
 
-			try {
-				await handleFirewall({ event, resolve: mockResolve });
-				expect(true).toBe(false);
-			} catch (err: unknown) {
-				const error = err as { status: number };
-				expect(error.status).toBe(403);
-			}
+			const response = await handleFirewall({ event, resolve: mockResolve });
+			expect(response.status).toBe(403);
 		});
 
 		test('should block vbscript: protocol attempts', async () => {
 			const event = createMockEvent('http://localhost/api/link?url=vbscript:msgbox');
 
-			try {
-				await handleFirewall({ event, resolve: mockResolve });
-				expect(true).toBe(false);
-			} catch (err: unknown) {
-				const error = err as { status: number };
-				expect(error.status).toBe(403);
-			}
+			const response = await handleFirewall({ event, resolve: mockResolve });
+			expect(response.status).toBe(403);
 		});
 	});
 
@@ -193,37 +174,23 @@ describe('handleFirewall - Threat Pattern Detection', () => {
 		test('should block bulk-delete operations', async () => {
 			const event = createMockEvent('http://localhost/api/users/bulk-delete');
 
-			try {
-				await handleFirewall({ event, resolve: mockResolve });
-				expect(true).toBe(false);
-			} catch (err: unknown) {
-				const error = err as { status: number };
-				expect(error.status).toBe(403);
-			}
+			// API routes return error Response via handleApiError instead of throwing
+			const response = await handleFirewall({ event, resolve: mockResolve });
+			expect(response.status).toBe(403);
 		});
 
 		test('should block bulk-update on collections', async () => {
 			const event = createMockEvent('http://localhost/api/collections/bulk-update');
 
-			try {
-				await handleFirewall({ event, resolve: mockResolve });
-				expect(true).toBe(false);
-			} catch (err: unknown) {
-				const error = err as { status: number };
-				expect(error.status).toBe(403);
-			}
+			const response = await handleFirewall({ event, resolve: mockResolve });
+			expect(response.status).toBe(403);
 		});
 
 		test('should block bulk-create on content', async () => {
 			const event = createMockEvent('http://localhost/api/content/bulk-create');
 
-			try {
-				await handleFirewall({ event, resolve: mockResolve });
-				expect(true).toBe(false);
-			} catch (err: unknown) {
-				const error = err as { status: number };
-				expect(error.status).toBe(403);
-			}
+			const response = await handleFirewall({ event, resolve: mockResolve });
+			expect(response.status).toBe(403);
 		});
 	});
 
@@ -272,13 +239,9 @@ describe('handleFirewall - Threat Pattern Detection', () => {
 				'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/91.0.4472.124 Safari/537.36'
 			);
 
-			try {
-				await handleFirewall({ event, resolve: mockResolve });
-				expect(true).toBe(false);
-			} catch (err: unknown) {
-				const error = err as { status: number };
-				expect(error.status).toBe(403);
-			}
+			// API routes return error Response via handleApiError instead of throwing
+			const response = await handleFirewall({ event, resolve: mockResolve });
+			expect(response.status).toBe(403);
 		});
 
 		test('should block Selenium user agents', async () => {
@@ -296,13 +259,8 @@ describe('handleFirewall - Threat Pattern Detection', () => {
 		test('should block Puppeteer user agents', async () => {
 			const event = createMockEvent('http://localhost/api/scrape', 'Mozilla/5.0 (compatible; Puppeteer/10.0.0)');
 
-			try {
-				await handleFirewall({ event, resolve: mockResolve });
-				expect(true).toBe(false);
-			} catch (err: unknown) {
-				const error = err as { status: number };
-				expect(error.status).toBe(403);
-			}
+			const response = await handleFirewall({ event, resolve: mockResolve });
+			expect(response.status).toBe(403);
 		});
 
 		test('should block Playwright user agents', async () => {

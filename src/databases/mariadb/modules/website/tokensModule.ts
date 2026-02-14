@@ -27,18 +27,29 @@ export class WebsiteTokensModule {
 		return (this.core as any).db;
 	}
 
+	private mapToken(dbToken: any): WebsiteToken {
+		const token = utils.convertDatesToISO(dbToken) as any;
+		return {
+			...token,
+			permissions: utils.parseJsonField<string[]>(token.permissions, [])
+		} as unknown as WebsiteToken;
+	}
+
 	async create(token: Omit<WebsiteToken, '_id' | 'createdAt'>): Promise<DatabaseResult<WebsiteToken>> {
 		return (this.core as any).wrap(async () => {
 			const id = utils.generateId();
 			const now = new Date();
+			// Convert ISO string dates to Date objects for Drizzle datetime columns
+			const expiresAt = (token as any).expiresAt ? new Date((token as any).expiresAt) : null;
 			await this.db.insert(schema.websiteTokens).values({
 				...token,
 				_id: id,
+				expiresAt,
 				createdAt: now,
 				updatedAt: now
 			} as any);
 			const [result] = await this.db.select().from(schema.websiteTokens).where(eq(schema.websiteTokens._id, id)).limit(1);
-			return utils.convertDatesToISO(result) as unknown as WebsiteToken;
+			return this.mapToken(result);
 		}, 'CREATE_WEBSITE_TOKEN_FAILED');
 	}
 
@@ -67,7 +78,7 @@ export class WebsiteTokensModule {
 			const total = (countResult as any).count;
 
 			return {
-				data: utils.convertArrayDatesToISO(results) as unknown as WebsiteToken[],
+				data: results.map((r: any) => this.mapToken(r)),
 				total: Number(total)
 			};
 		}, 'GET_WEBSITE_TOKENS_FAILED');
@@ -76,7 +87,7 @@ export class WebsiteTokensModule {
 	async getByName(name: string): Promise<DatabaseResult<WebsiteToken | null>> {
 		return (this.core as any).wrap(async () => {
 			const [result] = await this.db.select().from(schema.websiteTokens).where(eq(schema.websiteTokens.name, name)).limit(1);
-			return result ? (utils.convertDatesToISO(result) as unknown as WebsiteToken) : null;
+			return result ? this.mapToken(result) : null;
 		}, 'GET_WEBSITE_TOKEN_BY_NAME_FAILED');
 	}
 

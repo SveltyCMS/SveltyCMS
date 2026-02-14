@@ -85,7 +85,8 @@ describe('Website Token API Endpoints', () => {
 
 			const result = await response.json();
 			expect(response.status).toBe(201);
-			expect(result.expiresAt).toBe(expiresAt);
+			// Compare up to seconds (some DBs like MariaDB don't store milliseconds)
+			expect(result.expiresAt.slice(0, 19)).toBe(expiresAt.slice(0, 19));
 		});
 
 		it('should fail to create token without a name', async () => {
