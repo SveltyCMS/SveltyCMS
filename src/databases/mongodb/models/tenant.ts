@@ -10,7 +10,7 @@
  * - Status (active, suspended)
  */
 
-import { Schema, model, models } from 'mongoose';
+import mongoose, { Schema } from 'mongoose';
 import type { BaseEntity, DatabaseId } from '@src/databases/dbInterface';
 
 export interface TenantQuota {
@@ -80,4 +80,4 @@ const TenantSchema = new Schema<Tenant>(
 TenantSchema.index({ 'usage.storageBytes': 1 }); // For finding heavy users
 TenantSchema.index({ 'usage.lastUpdated': 1 }); // For finding stale stats
 
-export const TenantModel = models.Tenant || model<Tenant>('Tenant', TenantSchema);
+export const TenantModel = mongoose.models.Tenant || mongoose.model<Tenant>('Tenant', TenantSchema);
