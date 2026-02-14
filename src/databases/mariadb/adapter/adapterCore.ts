@@ -194,8 +194,8 @@ export class AdapterCore {
 		if ((schema as any)[camelKey]) {
 			return (schema as any)[camelKey];
 		}
-		// Fallback to contentNodes for dynamic/user-defined collections
-		return schema.contentNodes;
+		// Throw for unknown tables so errors are properly reported
+		throw new Error(`Unknown table: ${collection}`);
 	}
 
 	public mapQuery(table: any, query: Record<string, any>): any {

@@ -42,7 +42,7 @@ export class PreferencesModule {
 				.limit(1);
 
 			if (!result) return null;
-			return result.value as T;
+			return utils.parseJsonField<T>(result.value, null as T);
 		}, 'GET_PREFERENCE_FAILED');
 	}
 
@@ -59,7 +59,7 @@ export class PreferencesModule {
 
 			const prefs: Record<string, T> = {};
 			for (const result of results) {
-				prefs[result.key] = result.value as T;
+				prefs[result.key] = utils.parseJsonField<T>(result.value, null as T);
 			}
 
 			return prefs;
@@ -79,7 +79,7 @@ export class PreferencesModule {
 
 			const prefs: Record<string, T> = {};
 			for (const result of results) {
-				prefs[result.key] = result.value as T;
+				prefs[result.key] = utils.parseJsonField<T>(result.value, null as T);
 			}
 
 			return prefs;
