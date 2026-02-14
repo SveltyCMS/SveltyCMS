@@ -79,7 +79,7 @@ for the image editor canvas with reactive rendering.
 	// Interactive Panning & Tool Delegation
 	function handleMouseDown(e: MouseEvent) {
 		if (!hasImage) return;
-		
+
 		if (activeTool?.handleMouseDown) {
 			activeTool.handleMouseDown(e, containerWidth, containerHeight);
 		} else {
@@ -121,18 +121,18 @@ for the image editor canvas with reactive rendering.
 	// Main image render function
 	const renderImage = ({ context, width, height }: { context: CanvasRenderingContext2D; width: number; height: number }) => {
 		const { imageElement, zoom, rotation, flipH, flipV, translateX, translateY, crop, filters } = storeState;
-		
+
 		if (!imageElement) return;
 
 		context.save();
-		
+
 		// Move to center of canvas
 		context.translate(width / 2 + translateX, height / 2 + translateY);
-		
+
 		// Apply transforms
 		context.scale(flipH ? -zoom : zoom, flipV ? -zoom : zoom);
 		context.rotate((rotation * Math.PI) / 180);
-		
+
 		// Apply filters
 		let filterString = '';
 		if (filters.brightness !== 0) filterString += `brightness(${100 + filters.brightness}%) `;
@@ -142,17 +142,9 @@ for the image editor canvas with reactive rendering.
 
 		// Draw image
 		if (crop) {
-			context.drawImage(
-				imageElement,
-				crop.x, crop.y, crop.width, crop.height,
-				-crop.width / 2, -crop.height / 2, crop.width, crop.height
-			);
+			context.drawImage(imageElement, crop.x, crop.y, crop.width, crop.height, -crop.width / 2, -crop.height / 2, crop.width, crop.height);
 		} else {
-			context.drawImage(
-				imageElement,
-				-imageElement.width / 2, -imageElement.height / 2,
-				imageElement.width, imageElement.height
-			);
+			context.drawImage(imageElement, -imageElement.width / 2, -imageElement.height / 2, imageElement.width, imageElement.height);
 		}
 
 		context.restore();
@@ -186,11 +178,6 @@ for the image editor canvas with reactive rendering.
 	aria-label="Image editor canvas - pan with mouse, zoom with wheel"
 	aria-busy={isLoading}
 	bind:this={containerRef}
-	onmousedown={handleMouseDown}
-	onmousemove={handleMouseMove}
-	onmouseup={handleMouseUp}
-	onmouseleave={handleMouseUp}
-	onwheel={handleWheel}
 >
 	<!-- svelte-canvas component -->
 	<div 
@@ -203,6 +190,14 @@ for the image editor canvas with reactive rendering.
 		ondragover={handleDragOver}
 		ondragleave={handleDragLeave}
 		ondrop={handleDrop}
+		onmousedown={handleMouseDown}
+		onmousemove={handleMouseMove}
+		onmouseup={handleMouseUp}
+		onmouseleave={handleMouseUp}
+		onwheel={handleWheel}
+		role="application"
+		aria-label="Interactive image canvas"
+		tabindex="0"
 	>
 		{#if containerWidth > 0 && containerHeight > 0}
 			<Canvas width={containerWidth} height={containerHeight}>
@@ -212,7 +207,6 @@ for the image editor canvas with reactive rendering.
 			</Canvas>
 		{/if}
 	</div>
-
 
 	<!-- Zoom controls slot -->
 	{#if hasImage && showZoomControls}
@@ -335,4 +329,3 @@ for the image editor canvas with reactive rendering.
 		}
 	}
 </style>
-

@@ -89,4 +89,3 @@ Rotate tool using svelte-canvas compatible state.
 	export function saveState() {}
 	export function beforeExit() {}
 </script>
-

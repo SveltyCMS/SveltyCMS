@@ -192,7 +192,38 @@ describe('Media API Endpoints', () => {
 		});
 	});
 
+	describe('POST /api/media/manipulate/[id]', () => {
+		it('should return 401 without authentication', async () => {
+			const response = await fetch(`${API_BASE_URL}/api/media/manipulate/test-id`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ manipulations: {} })
+			});
+			expect(response.status).toBe(401);
+		});
+
+		it('should return 400 with missing manipulations', async () => {
+			const response = await fetch(`${API_BASE_URL}/api/media/manipulate/test-id`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json', Cookie: authCookie },
+				body: JSON.stringify({})
+			});
+			expect(response.status).toBe(400);
+		});
+
+		it('should return 404 for non-existent media', async () => {
+			const response = await fetch(`${API_BASE_URL}/api/media/manipulate/non-existent-id`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json', Cookie: authCookie },
+				body: JSON.stringify({ manipulations: { rotation: 90 } })
+			});
+			// Should be 404 since the media ID doesn't exist
+			expect(response.status).toBe(404);
+		});
+	});
+
 	describe('GET /api/media/remote', () => {
+
 		it('should require authentication', async () => {
 			const response = await fetch(`${API_BASE_URL}/api/media/remote?url=https://example.com/image.jpg`);
 			expect(response.status).toBe(401);

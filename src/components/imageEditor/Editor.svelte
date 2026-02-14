@@ -21,16 +21,7 @@ Comprehensive image editing interface with svelte-canvas integration.
 		onsave?: (detail: { dataURL?: string; file?: File; focalPoint?: any; mediaId?: string; manipulations?: any }) => void;
 	}
 
-
-	let {
-		imageFile = null,
-		initialImageSrc = '',
-		mediaId = '',
-		focalPoint = $bindable({ x: 0.5, y: 0.5 }),
-		onsave = () => {}
-	}: Props = $props();
-
-
+	let { imageFile = null, initialImageSrc = '', mediaId = '', focalPoint = $bindable({ x: 0.5, y: 0.5 }), onsave = () => {} }: Props = $props();
 
 	// State
 	let selectedImage = $state('');
@@ -41,7 +32,6 @@ Comprehensive image editing interface with svelte-canvas integration.
 	let isProcessing = $state(false);
 	let error = $state<string | null>(null);
 	let activeToolInstance = $state<any>(null);
-
 
 	// Derived values
 	const storeState = imageEditorStore.state;
@@ -58,7 +48,7 @@ Comprehensive image editing interface with svelte-canvas integration.
 	// Reset load state when image source changes
 	let lastLoadedSrc = $state('');
 	let lastLoadedFile = $state<File | null>(null);
-	
+
 	$effect(() => {
 		const src = initialImageSrc;
 		const file = imageFile;
@@ -142,14 +132,14 @@ Comprehensive image editing interface with svelte-canvas integration.
 		img.onload = () => {
 			imageEditorStore.setImageElement(img);
 			if (file) imageEditorStore.setFile(file);
-			
+
 			// Initial fit
 			const containerWidth = containerRef!.clientWidth;
 			const containerHeight = containerRef!.clientHeight;
 			const scaleX = (containerWidth * 0.8) / img.width;
 			const scaleY = (containerHeight * 0.8) / img.height;
 			imageEditorStore.state.zoom = Math.min(scaleX, scaleY);
-			
+
 			imageEditorStore.takeSnapshot();
 			isProcessing = false;
 		};
@@ -194,13 +184,14 @@ Comprehensive image editing interface with svelte-canvas integration.
 				flipH,
 				flipV,
 				focalPoint: $state.snapshot(focalPoint),
-				crop: crop ? {
-
-					x: Math.max(0, crop.x),
-					y: Math.max(0, crop.y),
-					width: Math.min(imageElement.width, crop.width),
-					height: Math.min(imageElement.height, crop.height)
-				} : null,
+				crop: crop
+					? {
+							x: Math.max(0, crop.x),
+							y: Math.max(0, crop.y),
+							width: Math.min(imageElement.width, crop.width),
+							height: Math.min(imageElement.height, crop.height)
+						}
+					: null,
 				filters: $state.snapshot(filters)
 			};
 
@@ -248,7 +239,6 @@ Comprehensive image editing interface with svelte-canvas integration.
 		}
 	}
 
-
 	onMount(() => {
 		imageEditorStore.reset();
 		window.addEventListener('keydown', handleKeyDown);
@@ -284,26 +274,14 @@ Comprehensive image editing interface with svelte-canvas integration.
 
 	<div class="editor-main flex min-w-0 flex-1 flex-col">
 		<div class="canvas-wrapper relative flex flex-1 flex-col">
-			<EditorCanvas 
-				bind:containerRef 
-				bind:containerWidth 
-				bind:containerHeight 
-				{hasImage} 
-				isLoading={isProcessing}
-				activeTool={activeToolInstance}
-			>
+			<EditorCanvas bind:containerRef bind:containerWidth bind:containerHeight {hasImage} isLoading={isProcessing} activeTool={activeToolInstance}>
 				{#if hasImage}
 					{#if activeToolComponent}
 						{@const Component = activeToolComponent}
-						<Component 
-							bind:this={activeToolInstance}
-							onCancel={() => imageEditorStore.cancelActiveTool()} 
-						/>
+						<Component bind:this={activeToolInstance} onCancel={() => imageEditorStore.cancelActiveTool()} />
 					{/if}
 				{/if}
 			</EditorCanvas>
 		</div>
 	</div>
-
 </div>
-

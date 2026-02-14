@@ -6,7 +6,6 @@ Pintura-style controls for the Blur tool with add/delete/rotate/flip functionali
 <script lang="ts">
 	import type { BlurPattern, BlurShape } from './types';
 
-
 	let {
 		blurStrength,
 		shape,

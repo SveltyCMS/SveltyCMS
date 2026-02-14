@@ -50,7 +50,7 @@ export interface ImageEditorState {
 		cancel?: () => void;
 	};
 	error?: string | null;
-	
+
 	// Canvas related state
 	imageElement: HTMLImageElement | null;
 	zoom: number;
@@ -59,7 +59,7 @@ export interface ImageEditorState {
 	flipV: boolean;
 	translateX: number;
 	translateY: number;
-	
+
 	// Image specific properties
 	crop: { x: number; y: number; width: number; height: number } | null;
 	focalPoint: { x: number; y: number } | null;
@@ -69,9 +69,6 @@ export interface ImageEditorState {
 	blurRegions: any[];
 	watermarks: any[];
 }
-
-
-
 
 // Create image editor store
 function createImageEditorStore() {
@@ -88,7 +85,7 @@ function createImageEditorStore() {
 		actions: {},
 		error: null,
 		viewportWidth: 0,
-		
+
 		imageElement: null,
 		zoom: 1,
 		rotation: 0,
@@ -96,7 +93,7 @@ function createImageEditorStore() {
 		flipV: false,
 		translateX: 0,
 		translateY: 0,
-		
+
 		crop: null,
 		focalPoint: { x: 0.5, y: 0.5 },
 		filters: {},
@@ -105,9 +102,6 @@ function createImageEditorStore() {
 		blurRegions: [],
 		watermarks: []
 	});
-
-
-
 
 	// Constants
 	const BREAKPOINTS = {
@@ -120,7 +114,6 @@ function createImageEditorStore() {
 	const hasActiveImage = $derived(!!state.file && !!state.imageElement);
 	const canUndoState = $derived(state.stateHistory.length > 1 && state.currentHistoryIndex > 0);
 	const canRedoState = $derived(state.currentHistoryIndex < state.stateHistory.length - 1);
-
 
 	const isMobile = $derived(state.viewportWidth < BREAKPOINTS.mobile);
 	const isTablet = $derived(state.viewportWidth >= BREAKPOINTS.mobile && state.viewportWidth < BREAKPOINTS.tablet);
@@ -209,7 +202,6 @@ function createImageEditorStore() {
 		}
 	}
 
-
 	function saveStateHistory(stateData: string) {
 		if (state.currentHistoryIndex < state.stateHistory.length - 1) {
 			state.stateHistory = state.stateHistory.slice(0, state.currentHistoryIndex + 1);
@@ -276,13 +268,27 @@ function createImageEditorStore() {
 	}
 
 	return {
-		get state() { return state; },
-		get canUndoState() { return canUndoState; },
-		get canRedoState() { return canRedoState; },
-		get hasActiveImage() { return hasActiveImage; },
-		get isMobile() { return isMobile; },
-		get isTablet() { return isTablet; },
-		setViewportWidth: (width: number) => { state.viewportWidth = width; },
+		get state() {
+			return state;
+		},
+		get canUndoState() {
+			return canUndoState;
+		},
+		get canRedoState() {
+			return canRedoState;
+		},
+		get hasActiveImage() {
+			return hasActiveImage;
+		},
+		get isMobile() {
+			return isMobile;
+		},
+		get isTablet() {
+			return isTablet;
+		},
+		setViewportWidth: (width: number) => {
+			state.viewportWidth = width;
+		},
 		reset,
 		setFile,
 		setImageElement,
@@ -302,4 +308,3 @@ function createImageEditorStore() {
 }
 
 export const imageEditorStore = createImageEditorStore();
-

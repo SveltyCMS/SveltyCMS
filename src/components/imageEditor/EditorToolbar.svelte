@@ -98,7 +98,6 @@ It dynamically renders controls based on the active tool.
 						aria-pressed={activeState === widget.key}
 						title={widget.title}
 					>
-
 						<div
 							class="flex h-8 w-8 items-center justify-center rounded-lg transition-all duration-200 {activeState === widget.key
 								? 'bg-primary-500/20 text-primary-400'

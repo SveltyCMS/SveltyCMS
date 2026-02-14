@@ -444,7 +444,7 @@ export class MediaService {
 	 */
 	public async manipulateMedia(id: string, manipulations: any, userId: string): Promise<MediaItem> {
 		this.ensureInitialized();
-		
+
 		const mediaResult = await this.db.crud.findOne<MediaItem>('MediaItem', { _id: id as DatabaseId });
 		if (!mediaResult.success || !mediaResult.data) {
 			throw error(404, 'Media item not found');
@@ -499,7 +499,7 @@ export class MediaService {
 					brightness: brightness !== undefined ? 1 + brightness / 100 : 1,
 					saturation: saturation !== undefined ? 1 + saturation / 100 : 1
 				});
-				// Sharp doesn't have a direct contrast modulation like this, 
+				// Sharp doesn't have a direct contrast modulation like this,
 				// usually handled via linear or pipeline.
 			}
 		}
@@ -512,10 +512,10 @@ export class MediaService {
 		const { fileNameWithoutExt, ext } = getSanitizedFileName(mediaItem.filename);
 		const timestamp = Date.now();
 		const newFileName = `${fileNameWithoutExt}-edited-${timestamp}.${ext}`;
-		
+
 		const basePath = mediaItem.path.split('/')[0] || 'global';
 		const relativePath = Path.posix.join(basePath, 'edited', newFileName);
-		
+
 		const publicUrl = await saveFileToDisk(manipulatedBuffer, relativePath);
 		const resized = await saveResizedImages(manipulatedBuffer, hash, `${fileNameWithoutExt}-edited-${timestamp}`, ext, basePath);
 
@@ -545,7 +545,6 @@ export class MediaService {
 				focalPoint: manipulations.focalPoint || mediaItem.metadata?.focalPoint,
 				lastManipulation: manipulations
 			}
-
 		};
 
 		await this.updateMedia(id, updates);
@@ -554,7 +553,6 @@ export class MediaService {
 
 	// Updates a media item with new data
 	public async updateMedia(id: string, updates: Partial<MediaItem>): Promise<void> {
-
 		this.ensureInitialized();
 		if (!id || typeof id !== 'string' || id.trim().length === 0) {
 			throw Error('Invalid id: Must be a non-empty string');

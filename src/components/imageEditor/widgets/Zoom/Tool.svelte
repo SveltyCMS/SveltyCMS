@@ -89,6 +89,7 @@ Provides zoom functionality for the image editor using svelte-canvas compatible 
 
 	export function cleanup() {}
 	export function saveState() {}
-	export function beforeExit() { cleanup(); }
+	export function beforeExit() {
+		cleanup();
+	}
 </script>
-

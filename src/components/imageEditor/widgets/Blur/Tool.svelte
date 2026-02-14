@@ -9,7 +9,6 @@ Controller for Blur tool using svelte-canvas compatible state.
 	import type { BlurPattern, BlurShape } from './types';
 	import { Layer } from 'svelte-canvas';
 
-
 	// reactive tool state
 	let blurStrength = $state(20);
 	let pattern = $state<BlurPattern>('blur');

@@ -52,7 +52,6 @@ export const POST: RequestHandler = async ({ request, params, locals }) => {
 			success: true,
 			data: updatedMedia
 		});
-
 	} catch (err) {
 		const message = `Error manipulating media: ${err instanceof Error ? err.message : String(err)}`;
 		logger.error(message, { mediaId: id, tenantId });

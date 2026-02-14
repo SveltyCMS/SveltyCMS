@@ -79,7 +79,6 @@ and proper active state indication.
 		}
 	}
 
-
 	onMount(() => {
 		// Set initial focus to active tool
 		const activeIndex = tools.findIndex((t) => t.id === activeState);
@@ -110,7 +109,6 @@ and proper active state indication.
 				aria-pressed={isToolActive(tool)}
 				disabled={!hasImage}
 			>
-
 				<div class="tool-icon flex items-center justify-center">
 					<iconify-icon icon={tool.icon} width="24"></iconify-icon>
 				</div>

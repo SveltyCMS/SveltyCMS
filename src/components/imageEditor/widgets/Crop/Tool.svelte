@@ -11,7 +11,6 @@ Orchestrates crop state using svelte-canvas compatible state.
 	import type { CropShape } from './types';
 	import { Layer } from 'svelte-canvas';
 
-
 	let cropShape = $state<CropShape>('rectangle');
 
 	const { onCancel }: { onCancel: () => void } = $props();
@@ -87,10 +86,10 @@ Orchestrates crop state using svelte-canvas compatible state.
 	function screenToImage(screenX: number, screenY: number, width: number, height: number) {
 		const { zoom, translateX, translateY, imageElement } = storeState;
 		if (!imageElement) return { x: 0, y: 0 };
-		
+
 		const centerX = width / 2 + translateX;
 		const centerY = height / 2 + translateY;
-		
+
 		return {
 			x: (screenX - centerX) / zoom + imageElement.width / 2,
 			y: (screenY - centerY) / zoom + imageElement.height / 2
@@ -107,7 +106,7 @@ Orchestrates crop state using svelte-canvas compatible state.
 		const offsetY = e.clientY - rect.top;
 
 		const pos = screenToImage(offsetX, offsetY, width, height);
-		
+
 		// Hit test handles
 		const handles = [
 			{ id: 'tl', x: crop.x, y: crop.y },
@@ -116,17 +115,13 @@ Orchestrates crop state using svelte-canvas compatible state.
 			{ id: 'br', x: crop.x + crop.width, y: crop.y + crop.height }
 		];
 
-		const hitHandle = handles.find(h => 
-			Math.abs(h.x - pos.x) < HANDLE_SIZE / storeState.zoom && 
-			Math.abs(h.y - pos.y) < HANDLE_SIZE / storeState.zoom
+		const hitHandle = handles.find(
+			(h) => Math.abs(h.x - pos.x) < HANDLE_SIZE / storeState.zoom && Math.abs(h.y - pos.y) < HANDLE_SIZE / storeState.zoom
 		);
 
 		if (hitHandle) {
 			activeHandle = hitHandle.id;
-		} else if (
-			pos.x > crop.x && pos.x < crop.x + crop.width &&
-			pos.y > crop.y && pos.y < crop.y + crop.height
-		) {
+		} else if (pos.x > crop.x && pos.x < crop.x + crop.width && pos.y > crop.y && pos.y < crop.y + crop.height) {
 			isDraggingCrop = true;
 		}
 
@@ -135,7 +130,7 @@ Orchestrates crop state using svelte-canvas compatible state.
 
 	export function handleMouseMove(e: MouseEvent, width: number, height: number) {
 		if (!activeHandle && !isDraggingCrop) return;
-		
+
 		const rect = (e.target as HTMLElement).getBoundingClientRect();
 		const offsetX = e.clientX - rect.left;
 		const offsetY = e.clientY - rect.top;
@@ -143,7 +138,7 @@ Orchestrates crop state using svelte-canvas compatible state.
 		const pos = screenToImage(offsetX, offsetY, width, height);
 		const dx = pos.x - lastPointerPos.x;
 		const dy = pos.y - lastPointerPos.y;
-		
+
 		const { crop } = storeState;
 		if (!crop) return;
 
@@ -151,16 +146,21 @@ Orchestrates crop state using svelte-canvas compatible state.
 			crop.x += dx;
 			crop.y += dy;
 		} else if (activeHandle === 'tl') {
-			crop.x += dx; crop.y += dy;
-			crop.width -= dx; crop.height -= dy;
+			crop.x += dx;
+			crop.y += dy;
+			crop.width -= dx;
+			crop.height -= dy;
 		} else if (activeHandle === 'tr') {
 			crop.y += dy;
-			crop.width += dx; crop.height -= dy;
+			crop.width += dx;
+			crop.height -= dy;
 		} else if (activeHandle === 'bl') {
 			crop.x += dx;
-			crop.width -= dx; crop.height += dy;
+			crop.width -= dx;
+			crop.height += dy;
 		} else if (activeHandle === 'br') {
-			crop.width += dx; crop.height += dy;
+			crop.width += dx;
+			crop.height += dy;
 		}
 
 		lastPointerPos = pos;
@@ -192,7 +192,7 @@ Orchestrates crop state using svelte-canvas compatible state.
 		context.rect(offsetX, offsetY, imageElement.width, imageElement.height);
 		// Inner cutout
 		if (cropShape === 'circular') {
-			context.arc(cx + crop.width/2, cy + crop.height/2, Math.min(crop.width, crop.height)/2, 0, Math.PI * 2, true);
+			context.arc(cx + crop.width / 2, cy + crop.height / 2, Math.min(crop.width, crop.height) / 2, 0, Math.PI * 2, true);
 		} else {
 			context.rect(cx + crop.width, cy, -crop.width, crop.height);
 		}
@@ -206,11 +206,11 @@ Orchestrates crop state using svelte-canvas compatible state.
 		context.lineWidth = 1 / zoom;
 		if (cropShape === 'circular') {
 			context.beginPath();
-			context.arc(cx + crop.width/2, cy + crop.height/2, Math.min(crop.width, crop.height)/2, 0, Math.PI * 2);
+			context.arc(cx + crop.width / 2, cy + crop.height / 2, Math.min(crop.width, crop.height) / 2, 0, Math.PI * 2);
 			context.stroke();
 		} else {
 			context.strokeRect(cx, cy, crop.width, crop.height);
-			
+
 			// 3. Draw Rule of Thirds Grid
 			context.beginPath();
 			context.strokeStyle = 'rgba(255, 255, 255, 0.3)';
@@ -222,17 +222,19 @@ Orchestrates crop state using svelte-canvas compatible state.
 			}
 			context.stroke();
 		}
-		
+
 		// 4. Draw Handles (Corners)
 		context.fillStyle = 'white';
 		const hs = HANDLE_SIZE / zoom;
 		const hRects = [
-			[cx - hs/2, cy - hs/2], [cx + crop.width - hs/2, cy - hs/2],
-			[cx - hs/2, cy + crop.height - hs/2], [cx + crop.width - hs/2, cy + crop.height - hs/2]
+			[cx - hs / 2, cy - hs / 2],
+			[cx + crop.width - hs / 2, cy - hs / 2],
+			[cx - hs / 2, cy + crop.height - hs / 2],
+			[cx + crop.width - hs / 2, cy + crop.height - hs / 2]
 		];
 		for (const [hx, hy] of hRects) {
 			context.beginPath();
-			context.arc(hx + hs/2, hy + hs/2, hs/2, 0, Math.PI * 2);
+			context.arc(hx + hs / 2, hy + hs / 2, hs / 2, 0, Math.PI * 2);
 			context.fill();
 			context.strokeStyle = 'rgba(0,0,0,0.2)';
 			context.stroke();
@@ -246,6 +248,3 @@ Orchestrates crop state using svelte-canvas compatible state.
 </script>
 
 <Layer render={renderCropUI} />
-
-
-

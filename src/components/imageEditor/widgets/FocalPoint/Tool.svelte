@@ -51,7 +51,7 @@ Allows users to set the focal point using svelte-canvas compatible state.
 
 		const centerX = width / 2 + translateX;
 		const centerY = height / 2 + translateY;
-		
+
 		const ix = (offsetX - centerX) / zoom + imageElement.width / 2;
 		const iy = (offsetY - centerY) / zoom + imageElement.height / 2;
 
@@ -101,5 +101,3 @@ Allows users to set the focal point using svelte-canvas compatible state.
 </script>
 
 <Layer render={renderFocalPoint} />
-
-

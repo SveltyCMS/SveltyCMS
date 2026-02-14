@@ -6,7 +6,6 @@ Pintura-style controls for the Blur tool with responsive design and keyboard sup
 <script lang="ts">
 	import type { BlurPattern, BlurShape } from '../widgets/Blur/types';
 
-
 	// Constants
 	const BLUR_MIN = 5;
 	const BLUR_MAX = 100;

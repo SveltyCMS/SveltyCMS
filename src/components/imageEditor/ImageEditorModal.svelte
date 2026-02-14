@@ -78,7 +78,6 @@ A reusable modal that wraps the main Image Editor.
 		}
 	});
 
-
 	function handleSaveError(err: Error) {
 		error = `Failed to save: ${err.message}`;
 		console.error('[ImageEditorModal] Save error:', err);
@@ -115,7 +114,6 @@ A reusable modal that wraps the main Image Editor.
 		if (activeState) {
 			imageEditorStore.cancelActiveTool();
 		} else {
-
 			// No tool active, ask for confirmation if dirty
 			if (imageEditorStore.canUndoState) {
 				if (!confirm('You have unsaved changes. Are you sure you want to discard them?')) {
@@ -213,7 +211,6 @@ A reusable modal that wraps the main Image Editor.
 				focalPoint={initialFocalPoint}
 				onsave={(detail) => onsave(detail)}
 			/>
-
 		</main>
 		<EditorToolbar onsave={handleSaveClick} oncancel={handleCancelClick} {isSaving} />
 	</div>

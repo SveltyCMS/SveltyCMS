@@ -6,7 +6,6 @@ Modern, responsive crop controls with keyboard shortcuts and accessibility
 <script lang="ts">
 	import type { CropShape } from './types';
 
-
 	let {
 		onRotateLeft,
 		onRotateRight,

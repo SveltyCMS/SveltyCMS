@@ -96,4 +96,3 @@ Orchestrates the filter modules using svelte-canvas compatible state.
 	export function saveState() {}
 	export function beforeExit() {}
 </script>
-
