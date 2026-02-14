@@ -143,7 +143,7 @@ jobs:
 
       # Upload build artifacts for integration/E2E tests
       - name: Upload build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: sveltycms-build
           path: |
@@ -213,7 +213,7 @@ jobs:
 
       # Download pre-built artifact
       - name: Download build artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: sveltycms-build
 
@@ -279,7 +279,7 @@ jobs:
 
       - name: Upload Server Logs
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: mongodb-integration-logs
           path: preview.log
@@ -346,7 +346,7 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Download build artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: sveltycms-build
 
@@ -429,7 +429,7 @@ jobs:
 
       - name: Upload Server Logs
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: mariadb-integration-logs
           path: preview.log
@@ -495,7 +495,7 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Download build artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: sveltycms-build
 
@@ -578,7 +578,7 @@ jobs:
 
       - name: Upload Server Logs
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: postgresql-integration-logs
           path: preview.log
@@ -643,7 +643,7 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Download build artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: sveltycms-build
 
@@ -702,7 +702,7 @@ jobs:
         continue-on-error: true
         run: bunx playwright test --project=chromium --reporter=list --grep-invert "setup-wizard|role-based"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: playwright-report-mongodb
@@ -711,7 +711,7 @@ jobs:
 
       - name: Upload Server Logs
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: mongodb-e2e-logs
           path: preview.log
@@ -778,7 +778,7 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Download build artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: sveltycms-build
 
@@ -845,7 +845,7 @@ jobs:
         continue-on-error: true
         run: bunx playwright test --project=chromium --reporter=list --grep-invert "setup-wizard|role-based"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: playwright-report-mariadb
@@ -854,7 +854,7 @@ jobs:
 
       - name: Upload Server Logs
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: mariadb-e2e-logs
           path: preview.log
@@ -920,7 +920,7 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Download build artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: sveltycms-build
 
@@ -987,7 +987,7 @@ jobs:
         continue-on-error: true
         run: bunx playwright test --project=chromium --reporter=list --grep-invert "setup-wizard|role-based"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: playwright-report-postgresql
@@ -996,7 +996,7 @@ jobs:
 
       - name: Upload Server Logs
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: postgresql-e2e-logs
           path: preview.log
