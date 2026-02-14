@@ -50,6 +50,7 @@ import { isCloud } from '@src/utils/media/cloudStorage';
 import { getPublicSettingSync } from '@src/services/settingsService';
 // IMPORT SERVER-SIDE VALIDATION
 import { validateMediaFileServer } from '@src/utils/media/mediaUtils';
+import { AppError } from '@utils/errorHandling';
 
 // System Logger
 import { logger } from '@utils/logger.server';
@@ -453,19 +454,29 @@ export class MediaService {
 		return dbAdapter;
 	}
 
-	/**
-	 * Manipulates an existing media item using Sharp.js
-	 */
-	public async manipulateMedia(id: string, manipulations: any, userId: string): Promise<MediaItem> {
-		this.ensureInitialized();
-		const db = await this.getDb();
+		/**
 
-		const mediaResult = await db.crud.findOne<MediaItem>('media', { _id: id as DatabaseId });
+		 * Manipulates an existing media item using Sharp.js
 
+		 */
 
-		if (!mediaResult.success || !mediaResult.data) {
-			throw error(404, 'Media item not found');
-		}
+		public async manipulateMedia(id: string, manipulations: any, userId: string): Promise<MediaItem> {
+
+			this.ensureInitialized();
+
+			const db = await this.getDb();
+
+	
+
+			const mediaResult = await db.crud.findOne<MediaItem>('media', { _id: id as DatabaseId });
+
+			if (!mediaResult.success || !mediaResult.data) {
+
+				throw new AppError('Media item not found', 404, 'MEDIA_NOT_FOUND');
+
+			}
+
+	
 		const mediaItem = mediaResult.data;
 
 		if (mediaItem.type !== MediaTypeEnumValue.Image) {

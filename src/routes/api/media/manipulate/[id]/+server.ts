@@ -39,8 +39,8 @@ export const POST: RequestHandler = async ({ request, params, locals }) => {
 	try {
 		const manipulations = await request.json();
 
-		if (!manipulations || typeof manipulations !== 'object') {
-			return json({ success: false, error: 'Invalid manipulation data' }, { status: 400 });
+		if (!manipulations || typeof manipulations !== 'object' || Object.keys(manipulations).length === 0) {
+			return json({ success: false, error: 'Invalid manipulation data: no manipulations provided' }, { status: 400 });
 		}
 
 		const mediaService = await getMediaService();

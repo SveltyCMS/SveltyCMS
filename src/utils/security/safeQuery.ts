@@ -7,7 +7,6 @@
  */
 
 import { AppError } from '@utils/errorHandling';
-import { privateEnv } from '@config/private'; // Direct access or via getter
 
 interface SafeQueryOptions {
 	sudo?: boolean; // Bypass check (e.g. for System Admin queries)
@@ -22,25 +21,32 @@ interface SafeQueryOptions {
  * @param options - Options to bypass check
  */
 export function safeQuery<T extends Record<string, any>>(query: T, tenantId?: string | null, options: SafeQueryOptions = {}): T {
-	// 1. Skip if Multi-Tenancy is disabled
+	// 1. Get private config via dynamic import to avoid circular dependencies and missing file issues in CI
+	// We use require/dynamic import logic here or just rely on the fact that db module should be initialized.
+	// For performance, we can cache the MULTI_TENANT setting after first load.
+	const { getPrivateEnv } = require('@src/databases/db');
+	const privateEnv = getPrivateEnv();
+
+	// 2. Skip if Multi-Tenancy is disabled
 	if (!privateEnv?.MULTI_TENANT) {
 		return query;
 	}
 
-	// 2. Skip if sudo mode (System Admin)
+	// 3. Skip if sudo mode (System Admin)
 	if (options.sudo) {
 		return query;
 	}
 
-	// 3. Strict Check
+	// 4. Strict Check
 	if (!tenantId) {
 		throw new AppError('Security Violation: Attempted to execute query without tenant context in Multi-Tenant mode.', 500, 'TENANT_CONTEXT_MISSING');
 	}
 
-	// 4. Force inject tenantId into query (Mutation or new object)
+	// 5. Force inject tenantId into query (Mutation or new object)
 	// We return a new object to be safe
 	return {
 		...query,
 		tenantId
 	};
 }
+
