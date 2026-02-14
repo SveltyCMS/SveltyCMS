@@ -23,6 +23,10 @@ async function clickNext(page: Page) {
 }
 
 test('Setup Wizard: Configure DB and Create Admin', async ({ page }) => {
+	// Capture browser console and errors for debugging
+	page.on('console', (msg) => console.log(`[BROWSER ${msg.type()}] ${msg.text()}`));
+	page.on('pageerror', (err) => console.log(`[BROWSER ERROR] ${err.message}`));
+
 	// 1. Start at root, expect redirect to /setup or /login
 	await page.goto('/', { waitUntil: 'domcontentloaded' });
 

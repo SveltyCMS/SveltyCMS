@@ -678,6 +678,18 @@ jobs:
           nohup bun run preview > preview.log 2>&1 &
           bun x wait-on http://localhost:4173 -t 90000 --interval 1000
 
+      - name: 🔍 Debug - Dump setup page HTML
+        run: |
+          echo "=== Response headers ==="
+          curl -sI http://localhost:4173/setup | head -20
+          echo ""
+          echo "=== HTML body (first 100 lines) ==="
+          curl -s http://localhost:4173/setup | head -100
+          echo ""
+          echo "=== Check build output ==="
+          ls -la build/client/ 2>/dev/null || echo "No build/client directory"
+          ls -la .svelte-kit/output/client/ 2>/dev/null | head -10
+
       - name: 🧙‍♂️ Run Setup Wizard
         run: bunx playwright test tests/playwright/setup-wizard.spec.ts --project=chromium --reporter=list
 
