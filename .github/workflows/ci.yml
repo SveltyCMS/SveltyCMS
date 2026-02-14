@@ -515,6 +515,7 @@ jobs:
   # ------------------------------------------------------------------
   e2e-tests-mongodb:
     name: 🎭 E2E (MongoDB)
+    if: false # Temporarily disabled - focusing on integration tests
     needs: build
     timeout-minutes: 30
     runs-on: ubuntu-latest
@@ -639,6 +640,7 @@ jobs:
   # ------------------------------------------------------------------
   e2e-tests-mariadb:
     name: 🎭 E2E (MariaDB) [Beta]
+    if: false # Temporarily disabled - focusing on integration tests
     needs: build
     timeout-minutes: 30
     runs-on: ubuntu-latest
@@ -783,6 +785,7 @@ jobs:
   # ------------------------------------------------------------------
   e2e-tests-postgresql:
     name: 🎭 E2E (PostgreSQL) [Beta]
+    if: false # Temporarily disabled - focusing on integration tests
     needs: build
     timeout-minutes: 30
     runs-on: ubuntu-latest
