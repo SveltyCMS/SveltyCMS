@@ -69,7 +69,7 @@ test.describe('Role-Based Access Control', () => {
 		// System Settings (admin only)
 		await page.goto('/config/systemsetting');
 		await expect(page).toHaveURL(/systemsetting/, { timeout: 10000 });
-		await expect(page.getByText(/system settings/i)).toBeVisible({ timeout: 10000 });
+		await expect(page.getByText(/system settings/i).first()).toBeVisible({ timeout: 10000 });
 
 		// User Management (admin only) - /config/user may redirect to /user
 		await page.goto('/config/user');
