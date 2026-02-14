@@ -72,3 +72,5 @@ src/paraglide/**/*.js
 .compiledCollections/Collections/Posts/Names.js
 .compiledCollections/Collections/Posts/Posts.js
 .compiledCollections/Menu/Menu.js
+.mcp.json
+LOCAL.md
