@@ -270,7 +270,7 @@ async function createTablesIfNotExist(connection: mysql.Pool): Promise<void> {
 			token VARCHAR(255) NOT NULL,
 			createdBy VARCHAR(36) NOT NULL,
 			permissions JSON NOT NULL DEFAULT ('[]'),
-			expiresAt DATETIME(3),
+			expiresAt DATETIME,
 			tenantId VARCHAR(36),
 			createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

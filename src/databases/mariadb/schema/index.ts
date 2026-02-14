@@ -309,7 +309,7 @@ export const websiteTokens = mysqlTable(
 		token: varchar('token', { length: 255 }).notNull(),
 		createdBy: varchar('createdBy', { length: 36 }).notNull(),
 		permissions: json('permissions').$type<string[]>().notNull().default([]),
-		expiresAt: datetime('expiresAt', { fsp: 3 }),
+		expiresAt: datetime('expiresAt'),
 		tenantId: tenantField(),
 		...timestamps
 	},
