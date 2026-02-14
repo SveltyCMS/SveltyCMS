@@ -12,7 +12,7 @@ import { isSetupComplete } from '@utils/setupCheck';
  * Writes database credentials and security keys to private.ts
  * Includes safety features: backup existing file and prevent overwrite after setup
  */
-export async function writePrivateConfig(dbConfig: DatabaseConfig): Promise<void> {
+export async function writePrivateConfig(dbConfig: DatabaseConfig, system: { multiTenant?: boolean; demoMode?: boolean } = {}): Promise<void> {
 	const fs = await import('fs/promises');
 	const path = await import('path');
 	const { randomBytes } = await import('crypto');
@@ -61,8 +61,8 @@ export const privateEnv = {
 	ENCRYPTION_KEY: '${encryptionKey}',
 
 	// --- Fundamental Architectural Mode ---
-	MULTI_TENANT: false,
-	DEMO: false,
+	MULTI_TENANT: ${system.multiTenant ? 'true' : 'false'},
+	DEMO: ${system.demoMode ? 'true' : 'false'},
 
 	/* * NOTE: All other settings (SMTP, Google OAuth, Redis, feature flags, etc.)
 	 * are loaded dynamically from the database after the application starts.
@@ -111,26 +111,41 @@ export async function updatePrivateConfigMode(modes: { demoMode?: boolean; multi
 	const privateConfigPath = path.resolve(process.cwd(), 'config', configFileName);
 
 	try {
+		logger.debug('DEBUG: [updatePrivateConfigMode] CALLED with:', JSON.stringify(modes));
 		let content = await fs.readFile(privateConfigPath, 'utf-8');
+		logger.debug('DEBUG: [updatePrivateConfigMode] READ content length:', content.length);
 		let modified = false;
+
+		// Helper to properly stringify boolean
+		const toBoolString = (val: boolean) => (val ? 'true' : 'false');
 
 		// Update MULTI_TENANT
 		if (modes.multiTenant !== undefined) {
 			const multiTenantRegex = /MULTI_TENANT\s*:\s*(true|false)/;
-			if (multiTenantRegex.test(content)) {
-				content = content.replace(multiTenantRegex, `MULTI_TENANT: ${modes.multiTenant}`);
-				modified = true;
+			const match = multiTenantRegex.exec(content);
+			logger.debug('DEBUG: [updatePrivateConfigMode] MULTI_TENANT regex match:', match ? match[0] : 'null');
+
+			if (match) {
+				const newValue = `MULTI_TENANT: ${toBoolString(modes.multiTenant)}`;
+				if (match[0] !== newValue) {
+					content = content.replace(multiTenantRegex, newValue);
+					modified = true;
+					logger.debug('DEBUG: [updatePrivateConfigMode] Replaced MULTI_TENANT');
+				} else {
+					logger.debug('DEBUG: [updatePrivateConfigMode] MULTI_TENANT already set to', newValue);
+				}
 			} else {
 				// If not found, insert it before the closing brace
+				logger.debug('DEBUG: [updatePrivateConfigMode] MULTI_TENANT not found, inserting...');
 				const insertMarker = '// --- Fundamental Architectural Mode ---';
 				if (content.includes(insertMarker)) {
-					content = content.replace(insertMarker, `${insertMarker}\n\tMULTI_TENANT: ${modes.multiTenant},`);
+					content = content.replace(insertMarker, `${insertMarker}\n\tMULTI_TENANT: ${toBoolString(modes.multiTenant)},`);
 					modified = true;
 				} else {
 					// Fallback: insert at end of object
 					const lastBraceIndex = content.lastIndexOf('};');
 					if (lastBraceIndex !== -1) {
-						content = content.slice(0, lastBraceIndex) + `\tMULTI_TENANT: ${modes.multiTenant},\n` + content.slice(lastBraceIndex);
+						content = content.slice(0, lastBraceIndex) + `\tMULTI_TENANT: ${toBoolString(modes.multiTenant)},\n` + content.slice(lastBraceIndex);
 						modified = true;
 					}
 				}
@@ -140,36 +155,46 @@ export async function updatePrivateConfigMode(modes: { demoMode?: boolean; multi
 		// Update DEMO
 		if (modes.demoMode !== undefined) {
 			const demoRegex = /DEMO\s*:\s*(true|false)/;
-			if (demoRegex.test(content)) {
-				content = content.replace(demoRegex, `DEMO: ${modes.demoMode}`);
-				modified = true;
+			const match = demoRegex.exec(content);
+			logger.debug('DEBUG: [updatePrivateConfigMode] DEMO regex match:', match ? match[0] : 'null');
+
+			if (match) {
+				const newValue = `DEMO: ${toBoolString(modes.demoMode)}`;
+				if (match[0] !== newValue) {
+					content = content.replace(demoRegex, newValue);
+					modified = true;
+					logger.debug('DEBUG: [updatePrivateConfigMode] Replaced DEMO');
+				} else {
+					logger.debug('DEBUG: [updatePrivateConfigMode] DEMO already set to', newValue);
+				}
 			} else {
-				// If not found, try to insert after MULTI_TENANT or before closing
+				// If not found, try to insert after MULTI_TENANT
+				logger.debug('DEBUG: [updatePrivateConfigMode] DEMO not found, inserting...');
 				const multiTenantMatch = /MULTI_TENANT\s*:\s*(true|false),?/;
 				if (multiTenantMatch.test(content)) {
-					content = content.replace(multiTenantMatch, `$& \n\tDEMO: ${modes.demoMode},`);
+					// Replace the match with itself + the new line
+					content = content.replace(multiTenantMatch, `$& \n\tDEMO: ${toBoolString(modes.demoMode)},`);
 					modified = true;
 				} else {
 					// Fallback: insert at end of object
 					const lastBraceIndex = content.lastIndexOf('};');
 					if (lastBraceIndex !== -1) {
-						content = content.slice(0, lastBraceIndex) + `\tDEMO: ${modes.demoMode},\n` + content.slice(lastBraceIndex);
+						content = content.slice(0, lastBraceIndex) + `\tDEMO: ${toBoolString(modes.demoMode)},\n` + content.slice(lastBraceIndex);
 						modified = true;
 					}
 				}
 			}
 		}
 
-		// Update Redis Settings removed - stored in DB now
-
 		if (modified) {
 			await fs.writeFile(privateConfigPath, content, 'utf-8');
 			logger.info('Updated private.ts with architectural modes:', modes);
 		} else {
-			logger.warn('No changes made to private.ts (modes already set or regex failed)');
+			logger.warn('No changes made to private.ts (values might be identical or regex failed)');
 		}
 	} catch (error) {
 		logger.error('Failed to update private config modes:', error);
+		// Critical failure - we must throw to alert the setup process
 		throw error;
 	}
 }

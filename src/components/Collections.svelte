@@ -13,6 +13,7 @@
 -->
 
 <script lang="ts">
+	import { SvelteSet, SvelteMap } from 'svelte/reactivity';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
 
@@ -30,7 +31,6 @@
 
 	import TreeView from '@components/system/TreeView.svelte';
 	import * as m from '@src/paraglide/messages';
-	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 
 	interface ExtendedContentNode extends ContentNode {
 		children?: ExtendedContentNode[];
@@ -81,137 +81,135 @@
 	let activeWidgetList = $derived(widgets.activeWidgets);
 	let structure = $derived(contentStructure.value ?? []);
 
-	// Collection count cache (non-reactive to allow mutations during derived computations)
-	let countCache = new SvelteMap<string, number>();
+	let treeNodes = $derived.by(() => {
+		const localCountCache = new SvelteMap<string, number>();
 
-	function countCollections(node: ExtendedContentNode): number {
-		const key = node._id;
-		if (countCache.has(key)) return countCache.get(key)!;
+		function countCollections(node: ExtendedContentNode): number {
+			const key = node._id;
+			if (localCountCache.has(key)) return localCountCache.get(key)!;
 
-		if (!node.children || node.nodeType !== 'category') {
-			countCache.set(key, 0);
-			return 0;
+			if (!node.children || node.nodeType !== 'category') {
+				localCountCache.set(key, 0);
+				return 0;
+			}
+
+			let total = 0;
+			for (const child of node.children) {
+				if (child.nodeType === 'collection') total++;
+				else if (child.nodeType === 'category') total += countCollections(child);
+			}
+			localCountCache.set(key, total);
+			return total;
 		}
 
-		let total = 0;
-		for (const child of node.children) {
-			if (child.nodeType === 'collection') total++;
-			else if (child.nodeType === 'category') total += countCollections(child);
-		}
-		countCache.set(key, total);
-		return total;
-	}
-
-	function getBadgeColor(status?: StatusType): string {
-		const map: Record<StatusType, string> = {
-			[StatusTypes.publish]: 'bg-success-500',
-			[StatusTypes.draft]: 'bg-warning-500',
-			[StatusTypes.archive]: 'bg-surface-500',
-			[StatusTypes.schedule]: 'bg-primary-500',
-			[StatusTypes.clone]: 'bg-secondary-500',
-			[StatusTypes.delete]: 'bg-error-500',
-			[StatusTypes.unpublish]: 'bg-warning-400'
-		};
-		return status ? (map[status] ?? 'bg-primary-500') : 'bg-primary-500';
-	}
-
-	function mapToTreeNode(node: ExtendedContentNode, depth = 0): CollectionTreeNode {
-		const translation = node.translations?.find((t) => t.languageTag === currentLanguage);
-		const label = translation?.translationName || node.name;
-		const isCategory = node.nodeType === 'category';
-		const isExpanded = expandedNodes.has(node._id) || selectedId === node._id;
-
-		// Inactive widget warning for collections
-		let hasInactiveWidgets = false;
-		if (!isCategory && node.collectionDef?.fields) {
-			const validation = validateSchemaWidgets(node.collectionDef as Schema, activeWidgetList);
-			hasInactiveWidgets = !validation.valid;
-		}
-
-		// Children
-		let children: CollectionTreeNode[] | undefined;
-		if (isCategory && node.children) {
-			const sorted = [...node.children].sort(sortContentNodes);
-			children = sorted.map((child) => mapToTreeNode(child, depth + 1));
-		}
-
-		// Badge
-		let badge: CollectionTreeNode['badge'];
-		if (isCategory) {
-			badge = {
-				count: countCollections(node),
-				visible: true,
-				color: getBadgeColor(node.collectionDef?.status)
+		function getBadgeColor(status?: StatusType): string {
+			const map: Record<StatusType, string> = {
+				[StatusTypes.publish]: 'bg-success-500',
+				[StatusTypes.draft]: 'bg-warning-500',
+				[StatusTypes.archive]: 'bg-surface-500',
+				[StatusTypes.schedule]: 'bg-primary-500',
+				[StatusTypes.clone]: 'bg-secondary-500',
+				[StatusTypes.delete]: 'bg-error-500',
+				[StatusTypes.unpublish]: 'bg-warning-400'
 			};
-		} else if (hasInactiveWidgets) {
-			badge = {
-				visible: true,
-				color: 'bg-warning-500',
-				icon: 'mdi:alert-circle',
-				title: 'This collection uses inactive widgets'
+			return status ? (map[status] ?? 'bg-primary-500') : 'bg-primary-500';
+		}
+
+		function mapToTreeNode(node: ExtendedContentNode, depth = 0): CollectionTreeNode {
+			const translation = node.translations?.find((t) => t.languageTag === currentLanguage);
+			const label = translation?.translationName || node.name;
+			const isCategory = node.nodeType === 'category';
+			const isExpanded = expandedNodes.has(node._id) || selectedId === node._id;
+
+			// Inactive widget warning for collections
+			let hasInactiveWidgets = false;
+			if (!isCategory && node.collectionDef?.fields) {
+				const validation = validateSchemaWidgets(node.collectionDef as Schema, activeWidgetList);
+				hasInactiveWidgets = !validation.valid;
+			}
+
+			// Children
+			let children: CollectionTreeNode[] | undefined;
+			if (isCategory && node.children) {
+				const sorted = [...node.children].sort(sortContentNodes);
+				children = sorted.map((child) => mapToTreeNode(child, depth + 1));
+			}
+
+			// Badge
+			let badge: CollectionTreeNode['badge'];
+			if (isCategory) {
+				badge = {
+					count: countCollections(node),
+					visible: true,
+					color: getBadgeColor(node.collectionDef?.status)
+				};
+			} else if (hasInactiveWidgets) {
+				badge = {
+					visible: true,
+					color: 'bg-warning-500',
+					icon: 'mdi:alert-circle',
+					title: 'This collection uses inactive widgets'
+				};
+			}
+
+			return {
+				id: node._id,
+				name: label,
+				isExpanded,
+				onClick: () => selectNode(node),
+				children,
+				icon: node.icon || (isCategory ? 'bi:folder' : 'bi:collection'),
+				badge,
+				path: !isCategory ? `/${currentLanguage}${node.path || '/' + node._id}` : undefined,
+				depth,
+				order: node.order ?? 0
 			};
 		}
 
-		return {
-			id: node._id,
-			name: label,
-			isExpanded,
-			onClick: () => selectNode(node),
-			children,
-			icon: node.icon || (isCategory ? 'bi:folder' : 'bi:collection'),
-			badge,
-			path: !isCategory ? `/${currentLanguage}${node.path || '/' + node._id}` : undefined,
-			depth,
-			order: node.order ?? 0
-		};
-	}
+		function buildTree(nodes: ExtendedContentNode[]): ExtendedContentNode[] {
+			if (!nodes || nodes.length === 0) return [];
 
-	function buildTree(nodes: ExtendedContentNode[]): ExtendedContentNode[] {
-		if (!nodes || nodes.length === 0) return [];
+			const nodeMap = new SvelteMap<string, ExtendedContentNode>();
+			const roots: ExtendedContentNode[] = [];
 
-		const nodeMap = new SvelteMap<string, ExtendedContentNode>();
-		const roots: ExtendedContentNode[] = [];
-
-		// First pass: flattened map of all unique nodes
-		function gatherNodes(itemList: ExtendedContentNode[]) {
-			for (const item of itemList) {
-				const id = String(item._id);
-				if (!nodeMap.has(id)) {
-					nodeMap.set(id, { ...item, children: [] });
-					if (item.children && item.children.length > 0) {
-						gatherNodes(item.children as ExtendedContentNode[]);
+			// First pass: flattened map of all unique nodes
+			function gatherNodes(itemList: ExtendedContentNode[]) {
+				for (const item of itemList) {
+					const id = String(item._id);
+					if (!nodeMap.has(id)) {
+						nodeMap.set(id, { ...item, children: [] });
+						if (item.children && item.children.length > 0) {
+							gatherNodes(item.children as ExtendedContentNode[]);
+						}
 					}
 				}
 			}
-		}
 
-		gatherNodes(nodes);
+			gatherNodes(nodes);
 
-		// Second pass: link using parentId
-		nodeMap.forEach((node) => {
-			if (node.parentId) {
-				const parentId = String(node.parentId);
-				const parent = nodeMap.get(parentId);
-				if (parent) {
-					parent.children = parent.children || [];
-					if (!parent.children.some((c) => String(c._id) === String(node._id))) {
-						parent.children.push(node);
+			// Second pass: link using parentId
+			nodeMap.forEach((node: ExtendedContentNode) => {
+				if (node.parentId) {
+					const parentId = String(node.parentId);
+					const parent = nodeMap.get(parentId);
+					if (parent) {
+						parent.children = parent.children || [];
+						if (!parent.children.some((c: ExtendedContentNode) => String(c._id) === String(node._id))) {
+							parent.children.push(node);
+						}
+					} else {
+						// Parent not in map, promote to root
+						roots.push(node);
 					}
 				} else {
-					// Parent not in map, promote to root
+					// No parentId, it's a root
 					roots.push(node);
 				}
-			} else {
-				// No parentId, it's a root
-				roots.push(node);
-			}
-		});
+			});
 
-		return roots;
-	}
+			return roots;
+		}
 
-	let treeNodes = $derived.by(() => {
-		countCache.clear();
 		console.log('[Collections] Structure changed, building tree...', {
 			inputSize: structure.length,
 			roots: structure.filter((n) => !n.parentId).map((n) => n.name)

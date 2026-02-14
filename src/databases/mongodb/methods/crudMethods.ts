@@ -21,7 +21,7 @@
  * providing a clean, type-safe interface for all data operations.
  */
 
-import { type Model, type PipelineStage, type UpdateQuery, mongo } from 'mongoose';
+import mongoose, { type Model, type PipelineStage, type UpdateQuery } from 'mongoose';
 import type { BaseEntity, DatabaseId, DatabaseResult, QueryFilter } from '../../dbInterface';
 import { createDatabaseError, generateId, processDates } from './mongoDBUtils';
 import { nowISODateString } from '@utils/dateUtils';
@@ -124,7 +124,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
 			const result = (await this.model.create(doc as any)) as any;
 			return { success: true, data: result.toObject() as T };
 		} catch (error) {
-			if (error instanceof mongo.MongoServerError && error.code === 11000) {
+			if (error instanceof mongoose.mongo.MongoServerError && error.code === 11000) {
 				return {
 					success: false,
 					message: 'A document with the same unique key already exists.',

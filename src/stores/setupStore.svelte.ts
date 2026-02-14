@@ -151,7 +151,7 @@ function getStorage(): Storage | null {
 		localStorage.removeItem('__test');
 		return localStorage;
 	} catch {
-		console.warn('localStorage is not available. Setup state will not be persisted across sessions.');
+		logger.warn('localStorage is not available. Setup state will not be persisted across sessions.');
 		return null; // Don't fall back to sessionStorage, it's better to be explicit.
 	}
 }
@@ -274,7 +274,7 @@ function createSetupStore() {
 				storage.setItem(KEYS.highestStep, String(wizard.highestStepReached));
 				storage.setItem(KEYS.dbTest, String(wizard.dbTestPassed));
 			} catch (e) {
-				console.error('Failed to persist setup state:', e);
+				logger.error('Failed to persist setup state:', e);
 			}
 		});
 	}
@@ -462,9 +462,9 @@ function createSetupStore() {
 	 * @returns Promise<boolean> - true if setup completed successfully
 	 */
 	async function completeSetup(onSuccess?: (redirectPath: string) => void): Promise<boolean> {
-		console.log('[SetupStore] completeSetup starting...');
+		logger.debug('[SetupStore] completeSetup starting...');
 		if (wizard.isSubmitting) {
-			console.log('[SetupStore] Already submitting, skipping');
+			logger.debug('[SetupStore] Already submitting, skipping');
 			return false;
 		}
 
@@ -489,26 +489,27 @@ function createSetupStore() {
 
 		try {
 			// Call the SvelteKit Action
-			const formData = new FormData();
-			formData.append(
-				'data',
-				JSON.stringify({
-					database: wizard.dbConfig,
-					admin: wizard.adminUser,
-					system: wizard.systemSettings,
-					firstCollection: wizard.firstCollection,
-					skipWelcomeEmail: wizard.emailSettings.skipWelcomeEmail
-				})
-			);
+			const payloadData = {
+				database: wizard.dbConfig,
+				admin: wizard.adminUser,
+				system: wizard.systemSettings,
+				firstCollection: wizard.firstCollection,
+				skipWelcomeEmail: wizard.emailSettings.skipWelcomeEmail
+			};
+			logger.debug('[SetupStore] Sending payload:', JSON.stringify(payloadData, null, 2));
 
-			console.log('[SetupStore] Calling ?/completeSetup action...');
+			// Call the SvelteKit Action
+			const formData = new FormData();
+			formData.append('data', JSON.stringify(payloadData));
+
+			logger.debug('[SetupStore] Calling ?/completeSetup action...');
 			const response = await fetch('?/completeSetup', {
 				method: 'POST',
 				body: formData
 			});
 
 			const responseText = await response.text();
-			console.log('[SetupStore] ?/completeSetup response received');
+			logger.debug('[SetupStore] ?/completeSetup response received');
 			const result = deserialize(responseText);
 			if (result.type !== 'success') {
 				const errorMsg = (result as any).data?.error || 'Failed to finalize setup.';
@@ -527,7 +528,7 @@ function createSetupStore() {
 
 			// Update the public settings store instantly for near-zero delay
 			if (data.publicSettings) {
-				console.log('[SetupStore] Updating public environment...');
+				logger.debug('[SetupStore] Updating public environment...');
 				updatePublicEnv(data.publicSettings);
 			}
 
@@ -545,7 +546,7 @@ function createSetupStore() {
 						duration: 5000
 					})
 				);
-				console.log('[SetupStore] Flash message set in sessionStorage');
+				logger.debug('[SetupStore] Flash message set in sessionStorage');
 			}
 
 			// Clear store state locally
@@ -666,7 +667,7 @@ function createSetupStore() {
 				wizard.highestStepReached = 0;
 			}
 		} catch (e) {
-			console.error('Failed to load persisted state, clearing for safety:', e);
+			logger.error('Failed to load persisted state, clearing for safety:', e);
 			clear();
 		} finally {
 			isLoaded = true;

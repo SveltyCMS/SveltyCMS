@@ -1,6 +1,16 @@
 <!--
 @file src/routes/setup/SystemConfig.svelte
-@description System configuration step.
+@component
+**System configuration step**
+
+Features:
+- System languages
+- Content languages
+- Timezone
+- Demo mode
+- Multi-tenant mode
+- Redis availability
+	
 -->
 <script lang="ts">
 	import * as m from '@src/paraglide/messages';
@@ -188,7 +198,7 @@
 	});
 </script>
 
-<div class="fade-in">
+<form onsubmit={(e) => e.preventDefault()} class="fade-in">
 	<div class="mb-8">
 		<p class="text-sm text-center text-tertiary-500 dark:text-primary-500 sm:text-base">
 			{m.setup_system_intro()}
@@ -723,4 +733,4 @@
 			</div>
 		</div>
 	</div>
-</div>
+</form>

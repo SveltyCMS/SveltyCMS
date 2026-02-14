@@ -1289,10 +1289,16 @@ export const actions: Actions = {
 			const isSystemFailed = systemState.overallState === 'FAILED';
 			const isTestMode = process.env.TEST_MODE === 'true';
 
-			if (!isAdmin && !isSystemFailed && !isTestMode) {
+			// Check database health - if DB is down, admin can't login, so we must allow reset
+			// to recover from bad configuration.
+			const dbHealth = await checkDatabaseHealth();
+			const isDbUnhealthy = !dbHealth.healthy;
+
+			if (!isAdmin && !isSystemFailed && !isTestMode && !isDbUnhealthy) {
 				logger.warn('Unauthorized setup reset attempt', {
 					userRole: locals.user?.role,
-					systemState: systemState.overallState
+					systemState: systemState.overallState,
+					dbHealthy: dbHealth.healthy
 				});
 				return fail(403, { message: 'You do not have permission to reset the setup.' });
 			}

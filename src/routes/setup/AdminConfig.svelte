@@ -92,7 +92,7 @@
 		</p>
 	</div>
 
-	<div class="space-y-6">
+	<form onsubmit={(e) => e.preventDefault()} class="space-y-6">
 		<div class="grid grid-cols-1 gap-6 md:grid-cols-2">
 			<!-- Username -->
 			<div>
@@ -372,5 +372,5 @@
 				</li>
 			</ul>
 		</div>
-	</div>
+	</form>
 </div>

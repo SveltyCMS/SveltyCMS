@@ -50,9 +50,7 @@ class SetupManager {
 		this._seedingProgress = total > 0 ? Math.round((completed / total) * 100) : 0;
 	}
 
-	/**
-	 * Starts a seeding task in the background and tracks its completion.
-	 */
+	// Starts a seeding task in the background and tracks its completion.
 	public startSeeding(task: () => Promise<unknown>): void {
 		this.isSeeding = true;
 		this._seedingPromise = (async () => {
@@ -71,9 +69,7 @@ class SetupManager {
 		})();
 	}
 
-	/**
-	 * Returns the current seeding promise or null.
-	 */
+	// Returns the current seeding promise or null.
 	public async waitTillDone(): Promise<unknown> {
 		if (this._seedingPromise) {
 			return this._seedingPromise;

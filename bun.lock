@@ -5,7 +5,7 @@
     "": {
       "name": "sveltycms",
       "dependencies": {
-        "@aws-sdk/client-s3": "^3.989.0",
+        "@aws-sdk/client-s3": "^3.990.0",
         "@floating-ui/dom": "^1.7.5",
         "@inlang/paraglide-js": "^2.11.0",
         "@mapbox/mapbox-gl-geocoder": "^5.1.2",

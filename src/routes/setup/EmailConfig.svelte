@@ -1,6 +1,6 @@
 <!--
 @file src/routes/setup/EmailConfig.svelte
-@description Optional SMTP Configuration with Auto-Detection step for SveltyCMS setup wizard
+@component **Optional SMTP Configuration with Auto-Detection step for SveltyCMS setup wizard**
 
 ### Features:
 - Optional step - can be skipped without blocking setup
@@ -369,7 +369,13 @@
 	}
 </script>
 
-<div class="space-y-6">
+<form
+	class="space-y-6"
+	onsubmit={(e) => {
+		e.preventDefault();
+		testConnection();
+	}}
+>
 	<!-- Why SMTP is Needed -->
 	<div class="card preset-outlined-tertiary-500 dark:preset-outlined-primary-500 p-4">
 		<!-- Header - Always visible with toggle button -->
@@ -613,6 +619,7 @@
 				bind:value={smtpUser}
 				placeholder={m.setup_email_user_placeholder()}
 				required
+				autocomplete="username"
 				onblur={() => {
 					const trimmed = smtpUser.trim();
 					if (trimmed !== smtpUser) {
@@ -657,6 +664,7 @@
 					bind:value={smtpPassword}
 					placeholder={m.setup_email_password_placeholder()}
 					required
+					autocomplete="current-password"
 					onblur={() => {
 						const trimmed = smtpPassword.trim();
 						if (trimmed !== smtpPassword) {
@@ -710,12 +718,7 @@
 
 	<!-- Test Connection Button -->
 	<div class="space-y-3">
-		<button
-			type="button"
-			class="preset-filled-tertiary-500 dark:preset-filled-primary-500 btn w-full"
-			onclick={testConnection}
-			disabled={!isFormValid || isTesting}
-		>
+		<button type="submit" class="preset-filled-tertiary-500 dark:preset-filled-primary-500 btn w-full" disabled={!isFormValid || isTesting}>
 			<iconify-icon icon="mdi:email" class="mr-2 text-xl"></iconify-icon>
 			{isTesting ? m.setup_email_testing() : m.setup_email_test_button()}
 		</button>
@@ -762,4 +765,4 @@
 			</div>
 		{/if}
 	</div>
-</div>
+</form>
