@@ -129,7 +129,15 @@ jobs:
         run: |
           nohup bun run preview --host > preview.log 2>&1 &
           echo $! > preview.pid
-          bun x wait-on http://localhost:4173 -t 90000 --interval 1000
+          sleep 5
+          echo "=== Preview log (first 50 lines) ==="
+          head -50 preview.log || true
+          echo "=== End preview log ==="
+          bun x wait-on http://localhost:4173 -t 90000 --interval 1000 || {
+            echo "=== Preview server failed to start. Full log: ==="
+            cat preview.log
+            exit 1
+          }
           curl -f http://localhost:4173 || (cat preview.log; exit 1)
           kill $(cat preview.pid) || true
           rm preview.pid preview.log
