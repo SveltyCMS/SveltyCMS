@@ -1,6 +1,6 @@
 <!--
-@fil src/routes/(app)/config/collectionbuilder/[...ContentTypes]/tabs/CollectionWidget.svelte
-component
+@file src/routes/(app)/config/collectionbuilder/[...ContentTypes]/tabs/CollectionWidget.svelte
+@component
 **This component displays the collection widget**
 -->
 

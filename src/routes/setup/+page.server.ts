@@ -345,7 +345,7 @@ export const actions = {
 	/**
 	 * Completes the setup
 	 */
-	completeSetup: async ({ request, cookies }) => {
+	completeSetup: async ({ request, cookies, url }) => {
 		const setupStartTime = performance.now();
 		logger.info('🚀 Action: completeSetup called');
 
@@ -355,7 +355,7 @@ export const actions = {
 			const { setupManager } = await import('./setupManager');
 			const seedingPromise = setupManager.waitTillDone();
 			if (seedingPromise) {
-				logger.info('⏳ completeSetup: Waiting for critical seeding (roles/settings)...');
+				logger.info('⏳ completeSetup: Waiting for critical seeding...');
 				await seedingPromise;
 				logger.info('✅ completeSetup: Critical seeding finished');
 			}
@@ -380,7 +380,7 @@ export const actions = {
 			const { getDefaultSessionStore } = await import('@src/databases/auth/sessionManager');
 			const setupAuth = new Auth(dbAdapter, getDefaultSessionStore());
 
-			// Check if user already exists (e.g. from previous failed setup or existing DB)
+			// Check if user already exists
 			const existingUser = await setupAuth.getUserByEmail({ email: admin.email, tenantId: undefined });
 			let session;
 
@@ -427,10 +427,15 @@ export const actions = {
 			}
 
 			logger.info('DEBUG: Session created:', { sessionId: session._id, userId: session.user_id });
+
+			// Safer secure flag logic (matches handleAuthentication)
+			const { dev } = await import('$app/environment');
+			const isSecure = url.protocol === 'https:' || (url.hostname !== 'localhost' && !dev && process.env.TEST_MODE !== 'true');
+
 			logger.info('DEBUG: Setting cookie:', {
 				name: SESSION_COOKIE_NAME,
 				value: session._id,
-				secure: process.env.NODE_ENV === 'production'
+				secure: isSecure
 			});
 
 			// Set session cookie
@@ -438,25 +443,23 @@ export const actions = {
 				path: '/',
 				httpOnly: true,
 				sameSite: 'lax',
-				secure: process.env.NODE_ENV === 'production',
+				secure: isSecure,
 				maxAge: 60 * 60 * 24 // 1 day
 			});
 			logger.info(`Set ${SESSION_COOKIE_NAME} cookie for new admin user`);
 
-			// 3. Update private config with modes and REDIS
+			// 3. Update private config
 			const { updatePrivateConfigMode } = await import('./writePrivateConfig');
 			await updatePrivateConfigMode({
 				multiTenant: system.multiTenant,
-				demoMode: system.demoMode,
-				redis: {
-					useRedis: system.useRedis,
-					redisHost: system.redisHost,
-					redisPort: system.redisPort,
-					redisPassword: system.redisPassword
-				}
+				demoMode: system.demoMode
 			});
 
-			// 3.1 Persist system settings to database for UI consistency
+			// 3.0 Clear private config cache to ensure new modes are picked up
+			const { clearPrivateConfigCache } = await import('@src/databases/db');
+			clearPrivateConfigCache();
+
+			// 3.1 Persist system settings
 			try {
 				await dbAdapter.systemPreferences.setMany([
 					{ key: 'USE_REDIS', value: system.useRedis, category: 'private', scope: 'system' },
@@ -468,42 +471,47 @@ export const actions = {
 				]);
 				logger.info('System settings persisted to database successfully');
 			} catch (dbError) {
-				logger.warn('Failed to persist some system settings to DB (non-critical):', dbError);
+				logger.warn('Failed to persist some system settings to DB:', dbError);
 			}
 
-			// 3.2 Invalidate setup cache so the next system checks see the finished setup
+			// 3.2 Invalidate setup cache
 			const { invalidateSetupCache } = await import('@src/utils/setupCheck');
 			invalidateSetupCache(true);
 
 			// Initialize global system
 			const { initializeWithConfig } = await import('@src/databases/db');
-
-			await initializeWithConfig({
-				DB_TYPE: database.type,
-				DB_HOST: database.host,
-				DB_PORT: Number(database.port),
-				DB_NAME: database.name,
-				DB_USER: database.user || '',
-				DB_PASSWORD: database.password || '',
-				JWT_SECRET_KEY: 'temp_secret',
-				ENCRYPTION_KEY: 'temp_key',
-				USE_REDIS: system.useRedis,
-				REDIS_HOST: system.redisHost,
-				REDIS_PORT: Number(system.redisPort),
-				REDIS_PASSWORD: system.redisPassword
-			} as any);
+			await initializeWithConfig(
+				{
+					DB_TYPE: database.type,
+					DB_HOST: database.host,
+					DB_PORT: Number(database.port),
+					DB_NAME: database.name,
+					DB_USER: database.user || '',
+					DB_PASSWORD: database.password || '',
+					JWT_SECRET_KEY: 'temp_secret',
+					ENCRYPTION_KEY: 'temp_key',
+					USE_REDIS: system.useRedis,
+					REDIS_HOST: system.redisHost,
+					REDIS_PORT: Number(system.redisPort),
+					REDIS_PASSWORD: system.redisPassword
+				} as any,
+				{
+					multiTenant: system.multiTenant,
+					demoMode: system.demoMode,
+					awaitBackground: true
+				}
+			);
 
 			// OPTIMIZATION: Initialize ContentManager IMMEDIATELY with skipReconciliation: true
 			// This prevents the 4s blocking delay on the subsequent redirect request.
 			// We trust the database state because we just seeded it.
 			try {
-				logger.info('🚀 [completeSetup] Pre-initializing ContentManager (fast mode)...');
+				logger.info('🚀 [completeSetup] Initializing ContentManager (with reconciliation)...');
 				const { contentManager } = await import('@src/content/ContentManager');
-				// skipReconciliation = true
-				await contentManager.initialize(undefined, true);
-				logger.info('✅ [completeSetup] ContentManager pre-initialized successfully.');
+				await contentManager.initialize(undefined, false);
+				logger.info('✅ [completeSetup] ContentManager initialized and reconciled successfully.');
 			} catch (cmError) {
-				logger.warn('⚠️ [completeSetup] ContentManager pre-init failed (non-critical):', cmError);
+				logger.warn('⚠️ [completeSetup] ContentManager init/reconcile failed:', cmError);
 			}
 
 			// PRE-WARM CACHE REMOVED (Caused Race Conditions)
@@ -511,7 +519,7 @@ export const actions = {
 			// The background content seeding (setupManager) handles the data.
 
 			const setupDuration = performance.now() - setupStartTime;
-			logger.info(`🎊 [completeSetup] Setup logic finished in ${Math.round(setupDuration)}ms. Returning success response.`);
+			logger.info(`🎊 [completeSetup] Setup logic finished in ${Math.round(setupDuration)}ms.`);
 
 			return {
 				success: true,
@@ -528,15 +536,13 @@ export const actions = {
 				}
 			};
 		} catch (err) {
-			console.error('Setup completion failed detailed:', err); // Use console.error for immediate feedback in dev
+			console.error('Setup completion failed detailed:', err);
 			logger.error('Setup completion failed:', err);
 			return { success: false, error: err instanceof Error ? err.message : String(err) };
 		}
 	},
 
-	/**
-	 * Tests Email Configuration
-	 */
+	// Tests Email Configuration
 	testEmail: async ({ request }) => {
 		logger.info('🚀 Action: testEmail called');
 		const formData = await request.formData();

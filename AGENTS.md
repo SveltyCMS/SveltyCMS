@@ -130,6 +130,7 @@ From the 2026 roadmap (v0.0.6, target A+ grade), prioritize these for parity/lea
 - [x] **Crypto-Chained Audit Logs (Implemented)**: SHA-256 tamper-evident; schema with before/after changes; harden for SOC 2/GDPR.
 - [x] **Self-Healing State Machines**: Custom Svelte store-based state machine with auto-recovery lifecycle (IDLE → READY <1s).
 - [x] **Live Preview (Iframe + Plugin)**: Enterprise handshake protocol with secure tokens; iframe + editable.website integration; see `docs/guides/Live_Preview_Architecture.mdx`.
+- [x] **Automation System (GUI Builder)**: Visual workflow engine for event-triggered actions (email, webhooks, field updates). Native and zero-config.
 - [ ] **Plugin System**: Isomorphic hook-based architecture for extensibility.
 - [ ] **Real-Time Collaboration**: WebSocket-based collaborative editing with live cursors.
 - [ ] **BuzzForm Collection Builder**: Visual drag-and-drop form/collection builder (like [form.buildnbuzz.com](https://form.buildnbuzz.com/builder)); improved UX for non-technical users. Timeline: Q1 2026.
@@ -265,4 +266,4 @@ Svelte 5 runes: `$state()` for state, `$derived()` for computations, `$effect()`
 
 ---
 
-\_Last Updated: 2026-02-06\_
+\_Last Updated: 2026-02-13\_

@@ -499,7 +499,14 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
 				// Step 3: Automatic session rotation (security enhancement)
 				// Rotates session token every 15 minutes for active users
 				try {
-					await handleSessionRotation(event, user, sessionId);
+					// Bypass rate limiting for integration tests to avoid race conditions during parallel execution
+					const isTestMode = process.env.NODE_ENV === 'test' || process.env.TEST_MODE === 'true';
+
+					if (isTestMode || !(await rotationRateLimiter.isLimited(event))) {
+						await handleSessionRotation(event, user, sessionId);
+					} else {
+						logger.debug(`Session rotation rate limited for session ${sessionId.substring(0, 8)}...`);
+					}
 				} catch (rotationError) {
 					// Rotation errors are already handled in handleSessionRotation
 					// Just log additional context here if needed

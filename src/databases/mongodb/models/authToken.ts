@@ -299,7 +299,7 @@ export class TokenAdapter {
 				filter.tenantId = tenantId;
 			}
 
-			const result = (await this.TokenModel.findOneAndUpdate(filter, { $set: tokenData }, { new: true, lean: true })) as any;
+			const result = (await this.TokenModel.findOneAndUpdate(filter, { $set: tokenData }, { returnDocument: 'after', lean: true })) as any;
 
 			if (result) {
 				logger.debug('Token updated successfully', { token_id });

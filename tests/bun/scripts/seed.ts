@@ -4,56 +4,64 @@
  * Ensures the server loads with valid settings and roles in cache.
  */
 
-import { MongoClient } from 'mongodb';
-import { randomUUID } from 'crypto';
-
-// Load config/private.test.ts like runner does?
-// Simplest is to assume standard test env
+// Environment variables
+const DB_TYPE = process.env.DB_TYPE || 'mongodb';
 const DB_NAME = process.env.DB_NAME || 'sveltycms_test';
 const DB_HOST = process.env.DB_HOST || '127.0.0.1';
-const DB_PORT = process.env.DB_PORT || '27017';
+const DB_PORT = parseInt(process.env.DB_PORT || '27017');
 const DB_USER = process.env.DB_USER || '';
 const DB_PASSWORD = process.env.DB_PASSWORD || '';
-
-const MONGO_URI = DB_USER
-	? `mongodb://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?authSource=admin`
-	: `mongodb://${DB_HOST}:${DB_PORT}/${DB_NAME}`;
 
 // Load hash utility (bun supports typescript via runtime transpilation)
 import { hashPassword } from '../../../src/utils/password';
 
 async function seed() {
-	console.log(`[SEED] Seeding database: ${DB_NAME}`);
-	const client = new MongoClient(MONGO_URI);
+	console.log(`[SEED] Seeding database: ${DB_NAME} (${DB_TYPE})`);
 
 	try {
-		console.log(`[SEED] Connecting to MongoDB...`);
-		await client.connect();
-		const db = client.db(DB_NAME);
-		console.log(`[SEED] Connected. Using DB: ${db.databaseName}`);
+		const { initializeForSetup, dbAdapter } = await import('../../../src/databases/db');
+		const setupRes = await initializeForSetup({
+			type: DB_TYPE,
+			host: DB_HOST,
+			port: DB_PORT,
+			name: DB_NAME,
+			user: DB_USER,
+			password: DB_PASSWORD
+		});
+
+		if (!setupRes.success) {
+			throw new Error(`Failed to initialize DB for seeding: ${setupRes.error}`);
+		}
+
+		if (!dbAdapter) {
+			throw new Error('Database adapter not available after initialization');
+		}
 
 		// 1. Seed Roles
-		const adminRole = await db.collection('auth_roles').findOne({ _id: 'admin' } as any);
-		console.log(`[SEED] Existing Admin Role found: ${!!adminRole}`);
-		if (!adminRole) {
+		console.log('[SEED] Checking roles...');
+		const rolesRes = await dbAdapter.crud.findOne('auth_roles', { _id: 'admin' } as any);
+
+		if (!rolesRes.success || !rolesRes.data) {
 			console.log('[SEED] Creating Admin role...');
-			await db.collection('auth_roles').insertOne({
-				_id: 'admin' as any,
+			await dbAdapter.crud.insert('auth_roles', {
+				_id: 'admin',
 				name: 'Admin',
 				description: 'System Administrator',
-				permissions: ['admin', '*', 'system:manage', 'settings:view', 'settings:edit'], // comprehensive list
-				isAdmin: true, // Explicit admin flag
+				permissions: ['admin', '*', 'system:manage', 'settings:view', 'settings:edit'],
+				isAdmin: true,
 				core: true,
 				createdAt: new Date(),
 				updatedAt: new Date()
-			});
+			} as any);
 		}
 
 		// 2. Seed Settings
-		const settingsCount = await db.collection('system_settings').countDocuments();
-		if (settingsCount === 0) {
+		console.log('[SEED] Checking system settings...');
+		const settingsRes = await dbAdapter.crud.findMany('system_settings', {}, { limit: 1 });
+		if (settingsRes.success && (!settingsRes.data || settingsRes.data.length === 0)) {
 			console.log('[SEED] Creating System Settings...');
 			const now = new Date();
+			const { randomUUID } = await import('crypto');
 			const settings = [
 				{
 					_id: randomUUID(),
@@ -95,7 +103,6 @@ async function seed() {
 					createdAt: now,
 					updatedAt: now
 				},
-				// Needed for Export/Import tests
 				{
 					_id: randomUUID(),
 					key: 'MEDIA_STORAGE_TYPE',
@@ -117,26 +124,31 @@ async function seed() {
 					updatedAt: now
 				}
 			];
-			await db.collection('system_settings').insertMany(settings as any);
+
+			for (const setting of settings) {
+				await dbAdapter.crud.insert('system_settings', setting as any);
+			}
 		}
 
 		// 3. Seed Users
-		const userCount = await db.collection('auth_users').countDocuments();
-		if (userCount === 0) {
+		console.log('[SEED] Checking users...');
+		const usersRes = await dbAdapter.crud.findMany('auth_users', {}, { limit: 1 });
+		if (usersRes.success && (!usersRes.data || usersRes.data.length === 0)) {
 			console.log('[SEED] Creating Admin User...');
+			const { randomUUID } = await import('crypto');
 			const passwordHash = await hashPassword('Admin123!');
-			await db.collection('auth_users').insertOne({
-				_id: randomUUID() as any,
+			await dbAdapter.crud.insert('auth_users', {
+				_id: randomUUID(),
 				email: 'admin@example.com',
 				username: 'admin',
-				password: passwordHash, // Hashed password
-				role: 'admin', // Legacy
-				roles: ['admin'], // Modern
+				password: passwordHash,
+				role: 'admin',
+				roles: ['admin'],
 				active: true,
 				avatar: '',
 				createdAt: new Date(),
 				updatedAt: new Date()
-			});
+			} as any);
 		}
 
 		console.log('[SEED] Database seeded successfully.');
@@ -144,7 +156,6 @@ async function seed() {
 		console.error('[SEED] Error seeding:', e);
 		process.exit(1);
 	} finally {
-		await client.close();
 		process.exit(0);
 	}
 }

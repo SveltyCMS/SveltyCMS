@@ -19,6 +19,7 @@ import { eq, inArray, count } from 'drizzle-orm';
 import type { BaseEntity, DatabaseId, DatabaseResult, QueryFilter } from '../../dbInterface';
 import { AdapterCore } from '../adapter/adapterCore';
 import * as utils from '../utils';
+import { safeQuery } from '@src/utils/security/safeQuery';
 
 export class CrudModule {
 	private core: AdapterCore;
@@ -66,11 +67,12 @@ export class CrudModule {
 	async findOne<T extends BaseEntity>(
 		collection: string,
 		query: QueryFilter<T>,
-		_options?: { fields?: (keyof T)[] }
+		options?: { fields?: (keyof T)[]; tenantId?: string | null }
 	): Promise<DatabaseResult<T | null>> {
 		return (this.core as any).wrap(async () => {
+			const secureQuery = safeQuery(query, options?.tenantId);
 			const table = (this.core as any).getTable(collection);
-			const where = (this.core as any).mapQuery(table, query);
+			const where = (this.core as any).mapQuery(table, secureQuery);
 			const results = await this.db.select().from(table).where(where).limit(1);
 			if (results.length === 0) return null;
 			const row = utils.convertDatesToISO(results[0]);
@@ -81,11 +83,12 @@ export class CrudModule {
 	async findMany<T extends BaseEntity>(
 		collection: string,
 		query: QueryFilter<T>,
-		options?: { limit?: number; offset?: number; fields?: (keyof T)[] }
+		options?: { limit?: number; offset?: number; fields?: (keyof T)[]; tenantId?: string | null }
 	): Promise<DatabaseResult<T[]>> {
 		return (this.core as any).wrap(async () => {
+			const secureQuery = safeQuery(query, options?.tenantId);
 			const table = (this.core as any).getTable(collection);
-			const where = (this.core as any).mapQuery(table, query);
+			const where = (this.core as any).mapQuery(table, secureQuery);
 			let q = this.db.select().from(table).where(where);
 			if (options?.limit) q = q.limit(options.limit);
 			if (options?.offset) q = q.offset(options.offset);
@@ -94,20 +97,30 @@ export class CrudModule {
 		}, 'CRUD_FIND_MANY_FAILED');
 	}
 
-	async findByIds<T extends BaseEntity>(collection: string, ids: DatabaseId[], _options?: { fields?: (keyof T)[] }): Promise<DatabaseResult<T[]>> {
+	async findByIds<T extends BaseEntity>(
+		collection: string,
+		ids: DatabaseId[],
+		options?: { fields?: (keyof T)[]; tenantId?: string | null }
+	): Promise<DatabaseResult<T[]>> {
 		return (this.core as any).wrap(async () => {
+			const query = safeQuery({ _id: { $in: ids } } as any, options?.tenantId);
 			const table = (this.core as any).getTable(collection);
-			const results = await this.db.select().from(table).where(inArray(table._id, ids));
+			const where = (this.core as any).mapQuery(table, query);
+			const results = await this.db.select().from(table).where(where);
 			return utils.convertArrayDatesToISO(results).map((row) => this.unpackData(row)) as T[];
 		}, 'CRUD_FIND_BY_IDS_FAILED');
 	}
 
-	async insert<T extends BaseEntity>(collection: string, data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<T>> {
+	async insert<T extends BaseEntity>(
+		collection: string,
+		data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>,
+		tenantId?: string | null
+	): Promise<DatabaseResult<T>> {
 		return (this.core as any).wrap(async () => {
 			const table = (this.core as any).getTable(collection);
 			const id = (data as any)._id || utils.generateId();
 			const now = new Date();
-			const packed = this.packData(table, { ...data, _id: id, createdAt: now, updatedAt: now });
+			const packed = this.packData(table, { ...data, _id: id, tenantId: tenantId || (data as any).tenantId, createdAt: now, updatedAt: now });
 
 			await this.db.insert(table).values(packed);
 
@@ -120,74 +133,86 @@ export class CrudModule {
 	async update<T extends BaseEntity>(
 		collection: string,
 		id: DatabaseId,
-		data: Partial<Omit<T, 'createdAt' | 'updatedAt'>>
+		data: Partial<Omit<T, 'createdAt' | 'updatedAt'>>,
+		tenantId?: string | null
 	): Promise<DatabaseResult<T>> {
 		return (this.core as any).wrap(async () => {
+			const query = safeQuery({ _id: id } as any, tenantId);
 			const table = (this.core as any).getTable(collection);
+			const where = (this.core as any).mapQuery(table, query);
 			const now = new Date();
 			const packed = this.packData(table, { ...data, updatedAt: now });
 
-			await this.db.update(table).set(packed).where(eq(table._id, id));
+			await this.db.update(table).set(packed).where(where);
 
-			const result = await this.db.select().from(table).where(eq(table._id, id)).limit(1);
+			const result = await this.db.select().from(table).where(where).limit(1);
 			const row = utils.convertDatesToISO(result[0]);
 			return this.unpackData(row) as T;
 		}, 'CRUD_UPDATE_FAILED');
 	}
 
-	async delete(collection: string, id: DatabaseId): Promise<DatabaseResult<void>> {
+	async delete(collection: string, id: DatabaseId, tenantId?: string | null): Promise<DatabaseResult<void>> {
 		return (this.core as any).wrap(async () => {
+			const query = safeQuery({ _id: id } as any, tenantId);
 			const table = (this.core as any).getTable(collection);
-			await this.db.delete(table).where(eq(table._id, id));
+			const where = (this.core as any).mapQuery(table, query);
+			await this.db.delete(table).where(where);
 		}, 'CRUD_DELETE_FAILED');
 	}
 
 	async upsert<T extends BaseEntity>(
 		collection: string,
 		query: QueryFilter<T>,
-		data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>
+		data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>,
+		tenantId?: string | null
 	): Promise<DatabaseResult<T>> {
 		return (this.core as any).wrap(async () => {
+			const secureQuery = safeQuery(query, tenantId);
 			const table = (this.core as any).getTable(collection);
-			const where = (this.core as any).mapQuery(table, query);
+			const where = (this.core as any).mapQuery(table, secureQuery);
 			const existing = await this.db.select().from(table).where(where).limit(1);
 			if (existing.length > 0) {
-				const res = await this.update<T>(collection, existing[0]._id, data as any);
+				const res = await this.update<T>(collection, existing[0]._id, data as any, tenantId);
 				if (!res.success) throw res.error;
 				return res.data;
 			} else {
-				const res = await this.insert<T>(collection, data);
+				const res = await this.insert<T>(collection, data, tenantId);
 				if (!res.success) throw res.error;
 				return res.data;
 			}
 		}, 'CRUD_UPSERT_FAILED');
 	}
 
-	async count<T extends BaseEntity>(collection: string, query: QueryFilter<T> = {}): Promise<DatabaseResult<number>> {
+	async count<T extends BaseEntity>(collection: string, query: QueryFilter<T> = {}, tenantId?: string | null): Promise<DatabaseResult<number>> {
 		return (this.core as any).wrap(async () => {
+			const secureQuery = safeQuery(query, tenantId);
 			const table = (this.core as any).getTable(collection);
-			const where = (this.core as any).mapQuery(table, query);
+			const where = (this.core as any).mapQuery(table, secureQuery);
 			const [result] = await this.db.select({ count: count() }).from(table).where(where);
 			return Number(result.count);
 		}, 'CRUD_COUNT_FAILED');
 	}
 
-	async exists<T extends BaseEntity>(collection: string, query: QueryFilter<T>): Promise<DatabaseResult<boolean>> {
+	async exists<T extends BaseEntity>(collection: string, query: QueryFilter<T>, tenantId?: string | null): Promise<DatabaseResult<boolean>> {
 		return (this.core as any).wrap(async () => {
-			const res = await this.count(collection, query);
+			const res = await this.count(collection, query, tenantId);
 			if (!res.success) throw res.error;
 			return (res.data ?? 0) > 0;
 		}, 'CRUD_EXISTS_FAILED');
 	}
 
-	async insertMany<T extends BaseEntity>(collection: string, data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>[]): Promise<DatabaseResult<T[]>> {
+	async insertMany<T extends BaseEntity>(
+		collection: string,
+		data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>[],
+		tenantId?: string | null
+	): Promise<DatabaseResult<T[]>> {
 		return (this.core as any).wrap(async () => {
 			if (data.length === 0) return [];
 			const table = (this.core as any).getTable(collection);
 			const now = new Date();
 			const values = data.map((d) => {
 				const id = (d as any)._id || utils.generateId();
-				return this.packData(table, { ...d, _id: id, createdAt: now, updatedAt: now });
+				return this.packData(table, { ...d, _id: id, tenantId: tenantId || (d as any).tenantId, createdAt: now, updatedAt: now });
 			}) as any[];
 
 			await this.db.insert(table).values(values);
@@ -201,11 +226,13 @@ export class CrudModule {
 	async updateMany<T extends BaseEntity>(
 		collection: string,
 		query: QueryFilter<T>,
-		data: Partial<Omit<T, 'createdAt' | 'updatedAt'>>
+		data: Partial<Omit<T, 'createdAt' | 'updatedAt'>>,
+		tenantId?: string | null
 	): Promise<DatabaseResult<{ modifiedCount: number }>> {
 		return (this.core as any).wrap(async () => {
+			const secureQuery = safeQuery(query, tenantId);
 			const table = (this.core as any).getTable(collection);
-			const where = (this.core as any).mapQuery(table, query);
+			const where = (this.core as any).mapQuery(table, secureQuery);
 			const now = new Date();
 			const result = await this.db
 				.update(table)
@@ -215,10 +242,11 @@ export class CrudModule {
 		}, 'CRUD_UPDATE_MANY_FAILED');
 	}
 
-	async deleteMany(collection: string, query: QueryFilter<BaseEntity>): Promise<DatabaseResult<{ deletedCount: number }>> {
+	async deleteMany(collection: string, query: QueryFilter<BaseEntity>, tenantId?: string | null): Promise<DatabaseResult<{ deletedCount: number }>> {
 		return (this.core as any).wrap(async () => {
+			const secureQuery = safeQuery(query, tenantId);
 			const table = (this.core as any).getTable(collection);
-			const where = (this.core as any).mapQuery(table, query);
+			const where = (this.core as any).mapQuery(table, secureQuery);
 			const result = await this.db.delete(table).where(where);
 			return { deletedCount: result.changes };
 		}, 'CRUD_DELETE_MANY_FAILED');
@@ -226,18 +254,19 @@ export class CrudModule {
 
 	async upsertMany<T extends BaseEntity>(
 		collection: string,
-		items: Array<{ query: QueryFilter<T>; data: Omit<T, '_id' | 'createdAt' | 'updatedAt'> }>
+		items: Array<{ query: QueryFilter<T>; data: Omit<T, '_id' | 'createdAt' | 'updatedAt'> }>,
+		tenantId?: string | null
 	): Promise<DatabaseResult<{ upsertedCount: number; modifiedCount: number }>> {
 		return (this.core as any).wrap(async () => {
 			let upsertedCount = 0;
 			let modifiedCount = 0;
 			for (const item of items) {
-				const existing = await this.findOne(collection, item.query);
+				const existing = await this.findOne(collection, item.query, { tenantId });
 				if (existing.success && existing.data) {
-					await this.update(collection, existing.data._id, item.data as any);
+					await this.update(collection, existing.data._id, item.data as any, tenantId);
 					modifiedCount++;
 				} else {
-					await this.insert(collection, item.data);
+					await this.insert(collection, item.data, tenantId);
 					upsertedCount++;
 				}
 			}
@@ -245,7 +274,7 @@ export class CrudModule {
 		}, 'CRUD_UPSERT_MANY_FAILED');
 	}
 
-	async aggregate<_T extends BaseEntity, R = any>(_collection: string, _pipeline: any[]): Promise<DatabaseResult<R[]>> {
+	async aggregate<_T extends BaseEntity, R = any>(_collection: string, _pipeline: any[], _tenantId?: string | null): Promise<DatabaseResult<R[]>> {
 		return (this.core as any).notImplemented('crud.aggregate');
 	}
 }

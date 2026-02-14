@@ -43,3 +43,7 @@ export { SystemVirtualFolderModel } from './systemVirtualFolder';
 
 // Website Tokens
 export { WebsiteTokenModel } from './websiteToken';
+
+// Tenants
+export { TenantModel } from './tenant';
+export type { Tenant, TenantQuota, TenantUsage } from './tenant';

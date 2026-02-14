@@ -40,6 +40,23 @@ import { MariaDBQueryBuilder } from '../queryBuilder/MariaDBQueryBuilder';
 import * as utils from '../utils';
 
 export class MariaDBAdapter extends AdapterCore implements IDBAdapter {
+	public readonly tenants = {
+		create: async () => {
+			throw new Error('Not implemented');
+		},
+		getById: async () => {
+			throw new Error('Not implemented');
+		},
+		update: async () => {
+			throw new Error('Not implemented');
+		},
+		delete: async () => {
+			throw new Error('Not implemented');
+		},
+		list: async () => {
+			throw new Error('Not implemented');
+		}
+	};
 	public readonly crud: CrudModule;
 	public readonly auth: AuthModule;
 	public readonly content: ContentModule;

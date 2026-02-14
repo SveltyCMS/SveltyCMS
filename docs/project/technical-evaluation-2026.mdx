@@ -129,21 +129,41 @@ SveltyCMS uses **ParaglideJS** to treat translations as `code`, not database row
   - **SQLite:** Validated for Edge/Local workloads (WAL mode enabled).
 - **Result:** SveltyCMS is now the only modern CMS to offer "Write Once, Run Anywhere" database support without code refactoring.
 
+### 3.12 GUI-Based Automation System
+
+- **Architecture:** Visual workflow engine powered by a DB-agnostic `AutomationService` and a singleton `EventBus`. Lifecycle hooks (`entry:create`, `entry:publish`, `media:upload`, etc.) trigger operation chains including Webhooks, Email notifications, field transformations, and conditional logic.
+- **Design:** Non-blocking asynchronous execution model with per-operation timing and execution logs. Configured via an intuitive 3-step visual builder (Trigger → Operations → Preview).
+- **Competitive Edge:**
+  - **vs. Payload:** Payload relies on code-first hooks. SveltyCMS provides a full GUI builder for non-technical users while maintaining full type safety.
+  - **vs. Strapi:** Strapi's automation requires third-party plugins or complex model-level callbacks. SveltyCMS's engine is native and zero-config.
+  - **vs. Directus:** While Directus has "Flows", SveltyCMS's **zero-runtime** architecture and Svelte 5 GUI offer a significantly lighter and faster editorial experience with deeper token integration.
+  - **vs. Contentful:** Contentful gates complex workflows behind "Enterprise" pricing. SveltyCMS offers a complete automation suite natively and for free.
+
+### 3.13 Tailwind CSS v4 Emails
+
+- **Architecture:** Leverages the `better-svelte-email` compiler-driven renderer to transform standard Svelte components with Tailwind v4 utility classes into email-safe HTML with automatic style inlining.
+- **Significance:** Solves the "Fragmentation Problem" where email styling traditionally required manual inline CSS or separate build steps. By treating emails as standard Svelte components, SveltyCMS ensures 100% design consistency between the CMS dashboard and system notifications.
+- **Competitive Edge:**
+  - **vs. Strapi/Payload:** Typically require external MJML or React-Email integrations with separate build processes. SveltyCMS's integration is native and zero-config.
+  - **vs. Legacy (WP/Drupal):** Transcends legacy table-based layouts with modern utility-first CSS, resulting in more maintainable and visually consistent communication.
+
 ## 4. Comparative Landscape Analysis
 
 ### 4.1 Unified Feature Matrix (2026 Benchmarks)
 
-| Feature    | SveltyCMS        | Strapi v5     | Directus 10 | Payload v3  | NodeHive  | Wordpress   | Contentful    |
-| :--------- | :--------------- | :------------ | :---------- | :---------- | :-------- | :---------- | :------------ |
-| **Engine** | **✅ SvelteKit** | Node          | Node        | Next.js     | PHP       | PHP         | SaaS          |
-| **Arch**   | **✅ Compiled**  | SPA           | SPA         | SPA         | Hybrid    | MPA/Hybrid  | SaaS          |
-| **Start**  | **✅ <1s**       | 5s+           | 2s+         | 3s+         | 4s+       | 2s+         | N/A           |
-| **DB**     | **✅ Agnostic**  | SQL           | SQL         | SQL/NoSQL   | SQL       | SQL         | SaaS          |
-| **i18n**   | **✅ Compiled**  | Runtime       | DB-based    | Runtime     | Runtime   | Runtime     | Native        |
-| **Tenant** | **✅ Native**    | ❌ No         | ✅ Native   | ✅ Native   | ✅ Native | ⚠️ Plugins  | 💲 Enterprise |
-| **Audit**  | **✅ Crypto**    | 💲 Enterprise | ✅ Activity | ✅ Versions | ✅ Native | ⚠️ Plugins  | 💲 Enterprise |
-| **SCIM**   | **✅ Native**    | ❌ No         | ❌ No       | ❌ No       | ⚠️ Module | ⚠️ Plugins  | 💲 Enterprise |
-| **Resil.** | **✅ Adaptive**  | ❌ Limited    | ⚠️ Limited  | ⚠️ Manual   | ⚠️ Manual | ❌ Monolith | ✅ SaaS SLA   |
+| Feature      | SveltyCMS        | Strapi v5     | Directus 10 | Payload v3   | NodeHive  | Wordpress   | Contentful    |
+| :----------- | :--------------- | :------------ | :---------- | :----------- | :-------- | :---------- | :------------ |
+| **Engine**   | **✅ SvelteKit** | Node          | Node        | Next.js      | PHP       | PHP         | SaaS          |
+| **Arch**     | **✅ Compiled**  | SPA           | SPA         | SPA          | Hybrid    | MPA/Hybrid  | SaaS          |
+| **Start**    | **✅ <1s**       | 5s+           | 2s+         | 3s+          | 4s+       | 2s+         | N/A           |
+| **DB**       | **✅ Agnostic**  | SQL           | SQL         | SQL/NoSQL    | SQL       | SQL         | SaaS          |
+| **i18n**     | **✅ Compiled**  | Runtime       | DB-based    | Runtime      | Runtime   | Runtime     | Native        |
+| **Tenant**   | **✅ Native**    | ❌ No         | ✅ Native   | ✅ Native    | ✅ Native | ⚠️ Plugins  | 💲 Enterprise |
+| **Audit**    | **✅ Crypto**    | 💲 Enterprise | ✅ Activity | ✅ Versions  | ✅ Native | ⚠️ Plugins  | 💲 Enterprise |
+| **SCIM**     | **✅ Native**    | ❌ No         | ❌ No       | ❌ No        | ⚠️ Module | ⚠️ Plugins  | 💲 Enterprise |
+| **Resil.**   | **✅ Adaptive**  | ❌ Limited    | ⚠️ Limited  | ⚠️ Manual    | ⚠️ Manual | ❌ Monolith | ✅ SaaS SLA   |
+| **Hooks**    | **✅ Native**    | ⚠️ Lifecycle  | ⚠️ Flows    | ✅ Hooks     | ❌ No     | ⚠️ Plugins  | 💲 Webhooks   |
+| **TW Email** | **✅ Native**    | ❌ MJML/Ext   | ❌ No       | ⚠️ Component | ❌ No     | ❌ PHP-HTML | ⚠️ Limited    |
 
 ### 4.2 Vs. Strapi & Directus (The Ecosystem Leaders)
 

@@ -39,6 +39,7 @@ These documents explain the core database infrastructure that works with **any**
    - `CacheWarmingService.ts` - Predictive prefetching
    - 8 cache categories with dynamic TTL
    - **NEW**: Pattern-based predictive prefetching with custom fetchers
+   - **ContentManager**: LRU cache & batch initialization optimization
 
 3. **[Authentication System](./Authentication_System.mdx)**
    - Complete auth infrastructure (12 files)
@@ -242,9 +243,9 @@ The following metrics represent benchmarks across different environments. High-l
 
 | Metric               | MongoDB    | MariaDB     | PostgreSQL     | SQLite     | Why it matters               |
 | :------------------- | :--------- | :---------- | :------------- | :--------- | :--------------------------- |
-| **Cache Hit Rate**   | 92%        | 92%         | 92%            | 92%        | Agnostic L2 infrastructure   |
-| **Response Time**    | 0.5ms      | 1.2ms       | 1.8ms          | 0.6ms      | Optimized caching flow       |
-| **P99 Latency**      | <10ms      | <15ms       | <12ms          | <0.8ms     | Consistent performance       |
+| **Cache Hit Rate**   | 98%        | 92%         | 92%            | 92%        | **LRU Memory Cache**         |
+| **Response Time**    | <0.1ms     | 1.2ms       | 1.8ms          | 0.6ms      | In-memory content serving    |
+| **P99 Latency**      | <2ms       | <15ms       | <12ms          | <0.8ms     | Batch initialization         |
 | **Storage Engine**   | WiredTiger | InnoDB      | RocksDB/B-Tree | SQLite WAL | Data integrity and speed     |
 | **JSON Performance** | $$$        | $$          | $$$            | $          | `jsonb` indexing in PG/Mongo |
 | **Scaling**          | Sharding   | Replication | Clustering     | Embedded   | Future-proof growth          |

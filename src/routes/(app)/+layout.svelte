@@ -63,11 +63,11 @@
 
 	interface LayoutData {
 		user: User | null;
-		contentStructure: ContentNode[];
+		contentStructure: ContentNode[] | Promise<ContentNode[]>;
 		nonce: string;
 		publicSettings?: Record<string, any>;
 		theme?: string;
-		firstCollection?: Schema | null;
+		firstCollection?: Schema | null | Promise<Schema | null>;
 	}
 
 	interface Props {
@@ -82,7 +82,7 @@
 	const { children, data }: Props = $props();
 
 	// Component State
-	const loadError = $state<Error | null>(null);
+	let loadError = $state<Error | null>(null);
 
 	// =============================================
 	// DERIVED STATE
@@ -96,12 +96,7 @@
 	// REACTIVE EFFECTS
 	// =============================================
 
-	// Effect: Stop initialization loader once content structure is received
-	$effect(() => {
-		if (Array.isArray(data.contentStructure)) {
-			globalLoadingStore.stopLoading(loadingOperations.initialization);
-		}
-	});
+	// Initialization loader is now managed in the data sync effect below
 
 	// Effect: Synchronize content structure with store
 	$effect(() => {
@@ -114,14 +109,27 @@
 			}
 		};
 
-		if (Array.isArray(data.contentStructure)) {
-			defer(() => setContentStructure(data.contentStructure));
-		}
+		// Handle streaming promises or direct data
+		Promise.resolve(data.contentStructure)
+			.then((structure) => {
+				if (Array.isArray(structure)) {
+					defer(() => {
+						setContentStructure(structure);
+						globalLoadingStore.stopLoading(loadingOperations.initialization);
+					});
+				}
+			})
+			.catch((err) => {
+				console.error('Failed to load content structure', err);
+				loadError = err;
+			});
 
 		// Hydrate first collection if available and no collection is currently set
-		if (data.firstCollection !== undefined) {
-			defer(() => setCollection(data.firstCollection ?? null));
-		}
+		Promise.resolve(data.firstCollection).then((first) => {
+			if (first !== undefined && first !== null) {
+				defer(() => setCollection(first));
+			}
+		});
 	});
 
 	// Effect: Handle system language changes
@@ -170,9 +178,17 @@
 
 	onMount(() => {
 		console.log('[AppLayout] Mounted. User:', data.user?.username || 'None');
-		if (!Array.isArray(data.contentStructure)) {
-			globalLoadingStore.startLoading(loadingOperations.initialization);
-		}
+
+		// Start loading if content structure isn't ready yet
+		Promise.resolve(data.contentStructure).then((_) => {
+			// Already handled in effect, but if we wanted to check initial state:
+			// If it resolves immediately, we're good.
+		});
+
+		// Always ensure loading is started if we don't have data yet.
+		// Since we are streaming, we assume it's loading effectively.
+		// We rely on the effect to clear it.
+		globalLoadingStore.startLoading(loadingOperations.initialization);
 
 		widgets.initialize();
 		initializeDarkMode(data.theme as any);

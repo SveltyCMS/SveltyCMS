@@ -193,3 +193,22 @@ export async function processModule(content: string): Promise<{ schema?: Schema 
 		return null;
 	}
 }
+
+/**
+ * Sort content nodes by order (primary) and name (secondary, alphabetically).
+ * This ensures consistent ordering across all UI components.
+ *
+ * @param a - First node to compare
+ * @param b - Second node to compare
+ * @returns Negative if a < b, positive if a > b, zero if equal
+ *
+ * @example
+ * ```typescript
+ * const sorted = nodes.sort(sortContentNodes);
+ * ```
+ */
+export function sortContentNodes<T extends { order?: number; name: string }>(a: T, b: T): number {
+	const orderDiff = (a.order ?? 0) - (b.order ?? 0);
+	if (orderDiff !== 0) return orderDiff;
+	return a.name.localeCompare(b.name);
+}

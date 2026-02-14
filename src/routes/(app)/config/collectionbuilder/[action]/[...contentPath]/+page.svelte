@@ -1,8 +1,20 @@
+<!-- 
+@files src/routes/(app)/config/collectionbuilder/[action]/[...contentPath]/+page.svelte
+@component
+**Collection Builder**
+
+### Props
+- `data` {Props} - Array of unassigned collection items
+
+### Features
+- Collection Builder
+-->
+
 <script lang="ts">
 	import { logger } from '@utils/logger';
 	import axios from 'axios';
 	import { onMount } from 'svelte';
-	import { goto } from '$app/navigation';
+	import { goto, afterNavigate } from '$app/navigation';
 	import { page } from '$app/state';
 
 	// Stores
@@ -27,7 +39,8 @@
 	import type { User } from '@src/databases/auth/types';
 	import type { FieldInstance, Schema } from '@src/content/types';
 
-	const action = $state(page.params.action);
+	// Reactive: re-evaluates when URL params change during client-side navigation
+	const action = $derived(page.params.action);
 
 	interface Props {
 		data: {
@@ -43,12 +56,18 @@
 	let migrationPlan = $state<any>(null);
 	let showWarningModal = $state(false);
 
-	onMount(() => {
-		widgetStoreActions.initializeWidgets();
-		if (action === 'edit' && data.collection) {
-			setCollection(data.collection);
-			originalName = String(data.collection.name || '');
-		} else {
+	// Use afterNavigate to update collection state after SPA navigation completes.
+	// This is critical because $effect fires BEFORE SvelteKit updates data.collection
+	// during SPA navigation, causing stale data to be displayed.
+
+	function initializeCollectionFromData() {
+		const currentAction = page.params.action;
+		const currentCollection = data.collection;
+
+		if (currentAction === 'edit' && currentCollection) {
+			setCollection(currentCollection);
+			originalName = String(currentCollection.name || '');
+		} else if (currentAction === 'new') {
 			setCollection({
 				name: 'new',
 				icon: 'bi:collection',
@@ -56,7 +75,19 @@
 				slug: '',
 				fields: []
 			} as any);
+			originalName = '';
 		}
+	}
+
+	// afterNavigate fires after SvelteKit has fully updated data props
+	afterNavigate(() => {
+		initializeCollectionFromData();
+	});
+
+	onMount(() => {
+		widgetStoreActions.initializeWidgets();
+		// Also initialize on mount for the initial page load
+		initializeCollectionFromData();
 
 		// Keyboard Shortcuts
 		const handleKeyDown = (e: KeyboardEvent) => {
@@ -157,6 +188,10 @@
 				<span class="hidden sm:inline">{m.button_delete()}</span>
 			</button>
 		{/if}
+		<button onclick={() => goto('/config/collectionbuilder')} class="preset-outlined-surface-500 btn flex items-center gap-1" disabled={isLoading}>
+			<iconify-icon icon="mdi:close" width="20"></iconify-icon>
+			<span class="hidden sm:inline">{m.button_cancel()}</span>
+		</button>
 		<button onclick={() => handleCollectionSave()} class="preset-filled-primary-500 btn flex items-center gap-1 min-w-[100px]" disabled={isLoading}>
 			{#if isLoading}
 				<iconify-icon icon="mdi:loading" width="20" class="animate-spin"></iconify-icon>
@@ -168,13 +203,14 @@
 	</div>
 </PageTitle>
 
-<div class="flex h-[calc(100vh-120px)] flex-col lg:flex-row">
-	<!-- Mini Sticky Nav -->
-	<nav class="flex border-b border-surface-200-800 p-2 lg:w-48 lg:flex-col lg:border-b-0 lg:border-r">
+<div class="flex h-[calc(100vh-120px)] flex-col">
+	<!-- Horizontal Tab Navigation -->
+	<div class="flex border-b border-surface-200-800 bg-surface-50-950">
 		<button
-			class="flex items-center gap-2 rounded px-3 py-2 text-left text-sm transition-colors {activeSection === 'general'
-				? 'bg-primary-500/10 text-primary-500'
-				: 'hover:bg-surface-100-900'}"
+			class="flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors border-b-2
+				{activeSection === 'general'
+				? 'border-primary-500 text-primary-500'
+				: 'border-transparent text-surface-500 hover:text-surface-700 dark:hover:text-surface-300'}"
 			onclick={() => {
 				activeSection = 'general';
 				document.getElementById('general-info')?.scrollIntoView({ behavior: 'smooth' });
@@ -184,9 +220,10 @@
 			General Info
 		</button>
 		<button
-			class="flex items-center gap-2 rounded px-3 py-2 text-left text-sm transition-colors {activeSection === 'fields'
-				? 'bg-primary-500/10 text-primary-500'
-				: 'hover:bg-surface-100-900'}"
+			class="flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors border-b-2
+				{activeSection === 'fields'
+				? 'border-primary-500 text-primary-500'
+				: 'border-transparent text-surface-500 hover:text-surface-700 dark:hover:text-surface-300'}"
 			onclick={() => {
 				activeSection = 'fields';
 				document.getElementById('fields-config')?.scrollIntoView({ behavior: 'smooth' });
@@ -195,11 +232,11 @@
 			<iconify-icon icon="mdi:widgets" width="18"></iconify-icon>
 			Field Configuration
 		</button>
-	</nav>
+	</div>
 
-	<!-- Scrollable Content -->
+	<!-- Scrollable Content (full width) -->
 	<div
-		class="flex-1 overflow-y-auto p-6 scroll-smooth"
+		class="flex-1 overflow-y-auto p-4 sm:p-6 scroll-smooth"
 		onscroll={(e) => {
 			const target = e.currentTarget as HTMLElement;
 			const fieldsTop = document.getElementById('fields-config')?.offsetTop || 0;

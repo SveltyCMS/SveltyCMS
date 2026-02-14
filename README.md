@@ -81,8 +81,7 @@ bun run dev  # or npm run dev / pnpm run dev
 
 3. **Open the app**
 
-- Admin: http://localhost:5173/admin
-- API: http://localhost:5173/api
+- SvelyCMS: http://localhost:5173/
 - GraphQL: http://localhost:5173/api/graphql
 
 Prefer a full walkthrough? See: [./docs/getting-started.mdx](./docs/getting-started.mdx)

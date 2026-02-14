@@ -357,7 +357,10 @@
 		{/if}
 
 		<!-- CMS Logo -->
-		<div class="absolute left-1/2 top-1/4 -translate-x-1/2 -translate-y-1/2 transform items-center justify-center">
+		<div
+			class="absolute left-1/2 top-1/4 -translate-x-1/2 -translate-y-1/2 transform items-center justify-center"
+			style="filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.3));"
+		>
 			<SveltyCMSLogoFull />
 		</div>
 

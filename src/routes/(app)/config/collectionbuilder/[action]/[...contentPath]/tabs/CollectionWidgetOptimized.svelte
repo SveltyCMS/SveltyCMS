@@ -1,3 +1,8 @@
+<!--
+@file src/routes/(app)/config/collectionbuilder/[action]/[...contentPath]/tabs/CollectionWidgetOptimized.svelte
+@component
+**This Component handles the optimized collection widget**
+-->
 <script lang="ts">
 	import { dndzone, type DndEvent } from 'svelte-dnd-action';
 	import { flip } from 'svelte/animate';
@@ -109,6 +114,10 @@
 		updateStore();
 	}
 
+	import BuzzForm from '@src/routes/(app)/config/collectionbuilder/BuzzForm/BuzzForm.svelte';
+
+	let builderView = $state<'list' | 'buzz'>('buzz');
+
 	const quickWidgets = [
 		{ key: 'Text', icon: 'material-symbols:text-fields', label: 'Short Text' },
 		{ key: 'RichText', icon: 'material-symbols:format-list-bulleted-rounded', label: 'Rich Text' },
@@ -138,80 +147,106 @@
 </script>
 
 <div class="space-y-6">
-	<!-- Quick Add Bar -->
-	<div class="flex flex-wrap gap-2">
-		{#each quickWidgets as qw (qw.key)}
+	<!-- View Toggle -->
+	<div class="flex items-center justify-between">
+		<div class="flex items-center gap-1 rounded-lg bg-surface-100-900 p-1 shadow-inner border border-surface-200-800">
 			<button
-				onclick={() => addQuickWidget(qw.key)}
-				class="preset-outlined-surface-500 btn flex items-center gap-1 text-xs hover:preset-filled-primary-500"
+				onclick={() => (builderView = 'buzz')}
+				class="btn btn-sm flex items-center gap-2 px-4 py-1.5 transition-all
+					{builderView === 'buzz' ? 'preset-filled-primary-500 shadow-sm' : 'text-surface-500 hover:text-surface-700'}"
 			>
-				<iconify-icon icon={qw.icon} width="16"></iconify-icon>
-				{qw.label}
+				<iconify-icon icon="fluent:design-ideas-24-filled" width="18"></iconify-icon>
+				<span>BuzzForm</span>
 			</button>
-		{/each}
-		<button onclick={addField} class="preset-filled-secondary-500 btn flex items-center gap-1 text-xs sm:ml-auto">
-			<iconify-icon icon="mdi:plus" width="16"></iconify-icon>
-			More Widgets
-		</button>
+			<button
+				onclick={() => (builderView = 'list')}
+				class="btn btn-sm flex items-center gap-2 px-4 py-1.5 transition-all
+					{builderView === 'list' ? 'preset-filled-primary-500 shadow-sm' : 'text-surface-500 hover:text-surface-700'}"
+			>
+				<iconify-icon icon="mdi:format-list-bulleted" width="18"></iconify-icon>
+				<span>Standard List</span>
+			</button>
+		</div>
 	</div>
 
-	<!-- Fields List -->
-	<div
-		use:dndzone={{ items, flipDurationMs, zoneTabIndex: -1 }}
-		onconsider={handleDndConsider}
-		onfinalize={handleDndFinalize}
-		class="min-h-[200px] space-y-3"
-	>
-		{#each items as item (item.id)}
-			<div animate:flip={{ duration: flipDurationMs }} class="group relative">
-				<div
-					class="flex items-center gap-4 rounded-lg border border-surface-200-800 bg-surface-100-900 p-3 shadow-sm transition-all hover:border-primary-500/50 hover:bg-surface-200-800"
+	{#if builderView === 'buzz'}
+		<BuzzForm />
+	{:else}
+		<!-- Quick Add Bar -->
+		<div class="flex flex-wrap gap-2">
+			{#each quickWidgets as qw (qw.key)}
+				<button
+					onclick={() => addQuickWidget(qw.key)}
+					class="preset-outlined-surface-500 btn flex items-center gap-1 text-xs hover:preset-filled-primary-500"
 				>
-					<!-- Drag Handle -->
-					<div class="cursor-grab text-surface-400 active:cursor-grabbing group-hover:text-primary-500">
-						<iconify-icon icon="mdi:drag-vertical" width="24"></iconify-icon>
-					</div>
+					<iconify-icon icon={qw.icon} width="16"></iconify-icon>
+					{qw.label}
+				</button>
+			{/each}
+			<button onclick={addField} class="preset-filled-secondary-500 btn flex items-center gap-1 text-xs sm:ml-auto">
+				<iconify-icon icon="mdi:plus" width="16"></iconify-icon>
+				More Widgets
+			</button>
+		</div>
 
-					<!-- Field Icon & Number -->
-					<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-surface-200-800 text-sm font-bold">
-						{item.id}
-					</div>
-
-					<!-- Field Info -->
-					<div class="flex-1 overflow-hidden">
-						<div class="flex items-center gap-2">
-							<iconify-icon icon={item.icon || 'mdi:widgets'} width="18" class="text-primary-500"></iconify-icon>
-							<span class="truncate font-bold">{item.label}</span>
+		<!-- Fields List -->
+		<div
+			use:dndzone={{ items, flipDurationMs, zoneTabIndex: -1 }}
+			onconsider={handleDndConsider}
+			onfinalize={handleDndFinalize}
+			class="min-h-[200px] space-y-3"
+		>
+			{#each items as item (item.id)}
+				<div animate:flip={{ duration: flipDurationMs }} class="group relative">
+					<div
+						class="flex items-center gap-4 rounded-lg border border-surface-200-800 bg-surface-100-900 p-3 shadow-sm transition-all hover:border-primary-500/50 hover:bg-surface-200-800"
+					>
+						<!-- Drag Handle -->
+						<div class="cursor-grab text-surface-400 active:cursor-grabbing group-hover:text-primary-500">
+							<iconify-icon icon="mdi:drag-vertical" width="24"></iconify-icon>
 						</div>
-						<div class="flex items-center gap-3 text-xs text-surface-500">
-							<span class="font-mono">{item.db_fieldName || '-'}</span>
-							<span class="rounded bg-surface-300-700 px-1 py-0.5 text-[10px] uppercase">
-								{item.widget?.key || 'Generic'}
-							</span>
-						</div>
-					</div>
 
-					<!-- Actions -->
-					<div class="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-						<button onclick={() => duplicateField(item)} class="preset-ghost-surface-500 btn-icon" title="Duplicate">
-							<iconify-icon icon="mdi:content-copy" width="18"></iconify-icon>
-						</button>
-						<button onclick={() => editField(item)} class="preset-ghost-primary-500 btn-icon" title="Edit">
-							<iconify-icon icon="mdi:pencil" width="18"></iconify-icon>
-						</button>
-						<button onclick={() => deleteField(item.id)} class="preset-ghost-error-500 btn-icon" title="Delete">
-							<iconify-icon icon="mdi:trash-can" width="18"></iconify-icon>
-						</button>
+						<!-- Field Icon & Number -->
+						<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-surface-200-800 text-sm font-bold">
+							{item.id}
+						</div>
+
+						<!-- Field Info -->
+						<div class="flex-1 overflow-hidden">
+							<div class="flex items-center gap-2">
+								<iconify-icon icon={item.icon || 'mdi:widgets'} width="18" class="text-primary-500"></iconify-icon>
+								<span class="truncate font-bold">{item.label}</span>
+							</div>
+							<div class="flex items-center gap-3 text-xs text-surface-500">
+								<span class="font-mono">{item.db_fieldName || '-'}</span>
+								<span class="rounded bg-surface-300-700 px-1 py-0.5 text-[10px] uppercase">
+									{item.widget?.key || 'Generic'}
+								</span>
+							</div>
+						</div>
+
+						<!-- Actions -->
+						<div class="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+							<button onclick={() => duplicateField(item)} class="preset-ghost-surface-500 btn-icon" title="Duplicate">
+								<iconify-icon icon="mdi:content-copy" width="18"></iconify-icon>
+							</button>
+							<button onclick={() => editField(item)} class="preset-ghost-primary-500 btn-icon" title="Edit">
+								<iconify-icon icon="mdi:pencil" width="18"></iconify-icon>
+							</button>
+							<button onclick={() => deleteField(item.id)} class="preset-ghost-error-500 btn-icon" title="Delete">
+								<iconify-icon icon="mdi:trash-can" width="18"></iconify-icon>
+							</button>
+						</div>
 					</div>
 				</div>
-			</div>
-		{/each}
+			{/each}
 
-		{#if items.length === 0}
-			<div class="flex h-32 flex-col items-center justify-center rounded-xl border-2 border-dashed border-surface-200-800 text-surface-500">
-				<iconify-icon icon="mdi:widgets-outline" width="48" class="mb-2 opacity-20"></iconify-icon>
-				<p>No fields defined yet. Use the buttons above to start building.</p>
-			</div>
-		{/if}
-	</div>
+			{#if items.length === 0}
+				<div class="flex h-32 flex-col items-center justify-center rounded-xl border-2 border-dashed border-surface-200-800 text-surface-500">
+					<iconify-icon icon="mdi:widgets-outline" width="48" class="mb-2 opacity-20"></iconify-icon>
+					<p>No fields defined yet. Use the buttons above to start building.</p>
+				</div>
+			{/if}
+		</div>
+	{/if}
 </div>

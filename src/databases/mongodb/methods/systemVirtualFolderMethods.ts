@@ -38,7 +38,7 @@ export class MongoSystemVirtualFolderMethods {
 			const result = await SystemVirtualFolderModel.findOneAndUpdate(
 				{ path: folder.path },
 				{ $setOnInsert: { ...folder, _id: generateId() } },
-				{ upsert: true, new: true, setDefaultsOnInsert: true }
+				{ upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
 			)
 				.lean()
 				.exec();
@@ -96,7 +96,7 @@ export class MongoSystemVirtualFolderMethods {
 
 	async update(folderId: DatabaseId, updateData: Partial<SystemVirtualFolder>): Promise<DatabaseResult<SystemVirtualFolder>> {
 		try {
-			const updatedFolder = await SystemVirtualFolderModel.findByIdAndUpdate(folderId, updateData, { new: true }).lean().exec();
+			const updatedFolder = await SystemVirtualFolderModel.findByIdAndUpdate(folderId, updateData, { returnDocument: 'after' }).lean().exec();
 			if (!updatedFolder) {
 				return { success: false, error: { code: 'NOT_FOUND', message: 'Folder not found' }, message: 'Folder not found' };
 			}

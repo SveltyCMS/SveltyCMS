@@ -422,7 +422,7 @@ async function initializeRevisions(): Promise<void> {
 }
 
 // Core Initialization Logic
-async function initializeSystem(forceReload = false, skipSetupCheck = false): Promise<void> {
+async function initializeSystem(forceReload = false, skipSetupCheck = false, awaitBackground = false): Promise<void> {
 	// Prevent re-initialization
 	if (isInitialized) {
 		logger.debug('System already initialized. Skipping.');
@@ -552,8 +552,9 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false): Pr
 		setSystemState('READY', 'Critical services (DB, Auth, Settings) are ready');
 
 		// Run non-blocking I/O operations in background
-		logger.debug('Scheduling non-critical I/O operations in background...');
-		setTimeout(async () => {
+		logger.debug(`Scheduling non-critical I/O operations (awaitBackground: ${awaitBackground})...`);
+
+		const backgroundTask = async () => {
 			if (!settingsLoaded) {
 				logger.info('System initialized in Setup/Maintenance mode (Settings not loaded). Skipping Plugins & Widgets.');
 
@@ -609,8 +610,14 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false): Pr
 			cacheService.setBootstrapping(false);
 
 			const bgTime = performance.now() - backgroundStartTime;
-			logger.info(`ℹ️ Background warm-up completed in ${bgTime.toFixed(2)}ms (non-blocking)`);
-		}, 0);
+			logger.info(`ℹ️ Background warm-up completed in ${bgTime.toFixed(2)}ms`);
+		};
+
+		if (awaitBackground) {
+			await backgroundTask();
+		} else {
+			setTimeout(backgroundTask, 0);
+		}
 
 		const step5Time = performance.now() - step5StartTime;
 		logger.info(
@@ -889,9 +896,25 @@ export async function reinitializeSystem(force = false, waitForAuth = true): Pro
  * @param config - Complete private environment configuration
  * @returns Promise with initialization status
  */
-export async function initializeWithConfig(config: any): Promise<{ status: string; error?: string }> {
+/**
+ * Initialize system by providing raw configuration object (zero-restart re-initialization).
+ *
+ * Use this during setup or when configuration changes dynamically without restart.
+ *
+ * @param config - Raw private configuration object
+ * @param options - Additional initialization options
+ * @returns Promise with initialization status
+ */
+export async function initializeWithConfig(
+	config: any,
+	options?: { multiTenant?: boolean; demoMode?: boolean; awaitBackground?: boolean }
+): Promise<{ status: string; error?: string }> {
 	try {
 		logger.info('🚀 Initializing system with provided configuration (bypassing Vite cache & filesystem)...');
+
+		// CRITICAL: Merge explicit modes into config
+		if (options?.multiTenant !== undefined) config.MULTI_TENANT = options.multiTenant;
+		if (options?.demoMode !== undefined) config.DEMO = options.demoMode;
 
 		// CRITICAL: Set config in memory BEFORE initialization
 		privateEnv = config;
@@ -907,12 +930,15 @@ export async function initializeWithConfig(config: any): Promise<{ status: strin
 			DB_TYPE: config.DB_TYPE,
 			DB_HOST: config.DB_HOST ? '***' : 'missing',
 			hasJWT: !!config.JWT_SECRET_KEY,
-			hasEncryption: !!config.ENCRYPTION_KEY
+			hasEncryption: !!config.ENCRYPTION_KEY,
+			MULTI_TENANT: config.MULTI_TENANT,
+			DEMO: config.DEMO,
+			awaitBackground: options?.awaitBackground
 		});
 
 		// Initialize system with in-memory config
 		// skipSetupCheck = true tells initializeSystem to use privateEnv instead of importing
-		initializationPromise = initializeSystem(false, true);
+		initializationPromise = initializeSystem(false, true, options?.awaitBackground);
 		await initializationPromise;
 
 		logger.info('✅ System initialized successfully with in-memory config (zero-restart)');

@@ -229,6 +229,23 @@
 				action: 'manage',
 				contextType: 'configuration'
 			}
+		},
+		{
+			id: 'automations',
+			href: '/config/automations',
+			label: 'Automations',
+			icon: 'mdi:robot-outline',
+			classes:
+				'border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 hover:border-primary-500 dark:hover:border-primary-500 text-surface-900 dark:text-white',
+			iconColor: 'text-warning-600',
+			permission: {
+				contextId: 'config:automations',
+				name: 'Automations',
+				description: 'Manage automated workflows',
+				requiredRole: 'admin',
+				action: 'manage',
+				contextType: 'configuration'
+			}
 		}
 	];
 </script>

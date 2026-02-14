@@ -156,7 +156,7 @@ export class MongoContentMethods {
 						$set: { ...nodeData, parentId: normalizedParentId, updatedAt: new Date() },
 						$setOnInsert: { _id: generateId(), createdAt: new Date() }
 					},
-					{ new: true, upsert: true, runValidators: true }
+					{ returnDocument: 'after', upsert: true, runValidators: true }
 				)
 				.lean()
 				.exec();

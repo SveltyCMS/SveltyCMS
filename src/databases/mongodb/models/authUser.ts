@@ -80,12 +80,37 @@ UserSchema.index({ lockoutUntil: 1 }, { sparse: true }); // Lockout management
 UserSchema.index({ role: 1, blocked: 1, isRegistered: 1 }); // Admin user management queries
 UserSchema.index({ email: 1, lastAuthMethod: 1 }); // Auth method tracking
 
+import { toISOString } from '@src/utils/dateUtils';
+
 /**
  * UserAdapter class handles all user-related database operations.
  * This is a partial implementation that will be composed with other adapters.
  */
 export class UserAdapter {
 	private UserModel: Model<User>;
+
+	// Map MongoDB user to User type with ISO strings for dates
+	private mapUser(user: any): User {
+		if (!user) return user;
+		const result = { ...user };
+		result._id = result._id.toString();
+
+		// Convert all date fields to ISO strings
+		if (result.lastActiveAt) result.lastActiveAt = toISOString(result.lastActiveAt);
+		if (result.expiresAt) result.expiresAt = toISOString(result.expiresAt);
+		if (result.resetRequestedAt) result.resetRequestedAt = toISOString(result.resetRequestedAt);
+		if (result.lockoutUntil) result.lockoutUntil = toISOString(result.lockoutUntil);
+		if (result.last2FAVerification) result.last2FAVerification = toISOString(result.last2FAVerification);
+		if (result.createdAt) result.createdAt = toISOString(result.createdAt);
+		if (result.updatedAt) result.updatedAt = toISOString(result.updatedAt);
+
+		// Ensure permissions are strings
+		if (result.permissions && Array.isArray(result.permissions)) {
+			result.permissions = result.permissions.map((p: any) => String(p));
+		}
+
+		return result as User;
+	}
 
 	constructor() {
 		// Force model recreation to ensure schema changes take effect
@@ -132,10 +157,9 @@ export class UserAdapter {
 			});
 
 			const savedUser = user.toObject();
-			savedUser._id = savedUser._id.toString();
 			return {
 				success: true,
-				data: savedUser as User
+				data: this.mapUser(savedUser)
 			};
 		} catch (err) {
 			const message = `Error in UserAdapter.createUser: ${err instanceof Error ? err.message : String(err)}`;
@@ -163,7 +187,7 @@ export class UserAdapter {
 				filter.tenantId = tenantId;
 			}
 
-			const user = await this.UserModel.findOneAndUpdate(filter, userData, { new: true }).lean();
+			const user = await this.UserModel.findOneAndUpdate(filter, userData, { returnDocument: 'after' }).lean();
 
 			if (!user) {
 				return {
@@ -176,15 +200,10 @@ export class UserAdapter {
 				};
 			}
 
-			user._id = user._id.toString();
-			// Ensure permissions are strings
-			if (user.permissions && Array.isArray(user.permissions)) {
-				user.permissions = user.permissions.map((p) => String(p));
-			}
 			logger.debug(`User attributes updated: ${user_id}`, { tenantId });
 			return {
 				success: true,
-				data: user as User
+				data: this.mapUser(user)
 			};
 		} catch (err) {
 			const message = `Error in UserAdapter.updateUserAttributes: ${err instanceof Error ? err.message : String(err)}`;
@@ -227,14 +246,7 @@ export class UserAdapter {
 			}
 
 			const users = await query.exec();
-			const mappedUsers = users.map((user) => {
-				user._id = user._id.toString();
-				// Ensure permissions are strings
-				if (user.permissions && Array.isArray(user.permissions)) {
-					user.permissions = user.permissions.map((p) => String(p));
-				}
-				return user as User;
-			});
+			const mappedUsers = users.map((user) => this.mapUser(user));
 			return {
 				success: true,
 				data: mappedUsers
@@ -281,14 +293,7 @@ export class UserAdapter {
 		try {
 			const users = await this.UserModel.find({ permissions: permissionName }).lean();
 			logger.debug(`Users with permission ${permissionName} retrieved`);
-			const mappedUsers = users.map((user) => {
-				user._id = user._id.toString();
-				// Ensure permissions are strings
-				if (user.permissions && Array.isArray(user.permissions)) {
-					user.permissions = user.permissions.map((p) => String(p));
-				}
-				return user as User;
-			});
+			const mappedUsers = users.map((user) => this.mapUser(user));
 			return {
 				success: true,
 				data: mappedUsers
@@ -378,7 +383,6 @@ export class UserAdapter {
 				};
 			}
 
-			user._id = user._id.toString();
 			const directPermissions = new Set(user.permissions || []);
 			const allPermissions = await getAllPermissions();
 			const userPermissions = allPermissions.filter((perm) => directPermissions.has(perm._id));
@@ -418,7 +422,6 @@ export class UserAdapter {
 				};
 			}
 
-			user._id = user._id.toString();
 			const directPermissions = new Set(user.permissions || []);
 			const hasDirectPermission = directPermissions.has(permissionName);
 			if (hasDirectPermission) {
@@ -650,17 +653,12 @@ export class UserAdapter {
 
 			const user = await this.UserModel.findOne(filter).lean();
 			if (user) {
-				user._id = user._id.toString();
-				// Ensure permissions are strings (handle potential ObjectIds from legacy data)
-				if (user.permissions && Array.isArray(user.permissions)) {
-					user.permissions = user.permissions.map((p) => String(p));
-				}
 				logger.debug(`User retrieved by ID: ${user_id}`, {
 					tenantId: tenantId || 'none (single-tenant mode)'
 				});
 				return {
 					success: true,
-					data: user as User
+					data: this.mapUser(user)
 				};
 			} else {
 				return {
@@ -701,18 +699,13 @@ export class UserAdapter {
 
 			const user = await this.UserModel.findOne(filter).lean();
 			if (user) {
-				user._id = user._id.toString();
-				// Ensure permissions are strings (handle potential ObjectIds from legacy data)
-				if (user.permissions && Array.isArray(user.permissions)) {
-					user.permissions = user.permissions.map((p) => String(p));
-				}
 				logger.debug(`User retrieved by email:`, {
 					email: '[REDACTED]',
 					tenantId: criteria.tenantId || 'none (single-tenant mode)'
 				});
 				return {
 					success: true,
-					data: user as User
+					data: this.mapUser(user)
 				};
 			} else {
 				return {

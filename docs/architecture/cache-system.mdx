@@ -91,17 +91,19 @@ This eliminates the need to invalidate multiple cache keys when user data change
 
 The system organizes cache entries into 8 categories, each with customizable TTL:
 
-| Category       | Default TTL | Description                 | Use Cases                                |
-| -------------- | ----------- | --------------------------- | ---------------------------------------- |
-| **Static**     | 7 days      | Content that rarely changes | Page templates, layouts, static assets   |
-| **Dynamic**    | 1 hour      | Frequently updated content  | Blog posts, news articles, product pages |
-| **API**        | 15 minutes  | External API responses      | Third-party data, integrations           |
-| **Query**      | 30 minutes  | Database query results      | Search results, filtered lists           |
-| **Session**    | 24 hours    | User session data           | Auth tokens, preferences, cart data      |
-| **Widget**     | 2 hours     | Dashboard widgets           | Analytics, stats, metrics                |
-| **Computed**   | 6 hours     | Expensive calculations      | Reports, aggregations, summaries         |
-| **Media**      | 30 days     | Uploaded files & images     | User uploads, thumbnails, assets         |
-| **Predictive** | Dynamic     | Prefetched data patterns    | User navigation paths, related content   |
+| Category       | Default TTL | Description                 | Use Cases                                 |
+| -------------- | ----------- | --------------------------- | ----------------------------------------- |
+| **Static**     | 7 days      | Content that rarely changes | Page templates, layouts, static assets    |
+| **Dynamic**    | 1 hour      | Frequently updated content  | Blog posts, news articles, product pages  |
+| **API**        | 15 minutes  | External API responses      | Third-party data, integrations            |
+| **Query**      | 30 minutes  | Database query results      | Search results, filtered lists            |
+| **Session**    | 24 hours    | User session data           | Auth tokens, preferences, cart data       |
+| **Widget**     | 2 hours     | Dashboard widgets           | Analytics, stats, metrics                 |
+| **Computed**   | 6 hours     | Expensive calculations      | Reports, aggregations, summaries          |
+| **Media**      | 30 days     | Uploaded files & images     | User uploads, thumbnails, assets          |
+| **Media**      | 30 days     | Uploaded files & images     | User uploads, thumbnails, assets          |
+| **Predictive** | Dynamic     | Prefetched data patterns    | User navigation paths, related content    |
+| **ContentMgr** | 20 sec      | LRU Collection Schema Cache | Specialized in-memory cache for hot paths |
 
 ### Configuration Interface
 

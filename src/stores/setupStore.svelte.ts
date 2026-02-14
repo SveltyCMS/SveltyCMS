@@ -532,7 +532,7 @@ function createSetupStore() {
 			}
 
 			// Success!
-			showToast('Setup complete! Redirecting...', 'success', 2000);
+			// showToast('Setup complete! Redirecting...', 'success', 2000);
 
 			// Use flash message for seamless transition to the dashboard
 			if (typeof window !== 'undefined') {

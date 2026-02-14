@@ -65,7 +65,7 @@ export async function isSetupCompleteAsync(): Promise<boolean> {
 
 	// 2. Cache hit: If we've already checked the database, return cached result
 	if (setupStatusCheckedDb) {
-		return setupStatus ?? false;
+		return setupStatus ?? true; // Default to true if config exists
 	}
 
 	try {
@@ -76,14 +76,14 @@ export async function isSetupCompleteAsync(): Promise<boolean> {
 
 		// Guard against uninitialized adapter
 		if (!dbAdapter) {
-			return false;
+			// If adapter isn't ready but config exists, we assume setup is done to avoid loop
+			return true;
 		}
 
 		// Check if database is connected before trying to access auth
 		if (typeof dbAdapter.isConnected === 'function' && !dbAdapter.isConnected()) {
-			// Database not connected yet - return false without caching
-			// This allows the check to succeed once connection is established
-			return false;
+			// If DB not connected but config exists, assume setup is done
+			return true;
 		}
 
 		// Ensure auth is initialized before access
@@ -93,7 +93,8 @@ export async function isSetupCompleteAsync(): Promise<boolean> {
 
 		if (!dbAdapter.auth) {
 			console.log('[setupCheck] Auth module not ready after initialization');
-			return false;
+			// Return true to avoid blocking if config exists
+			return true;
 		}
 
 		// 4. Data Verification: Check if admin users exist
@@ -102,28 +103,23 @@ export async function isSetupCompleteAsync(): Promise<boolean> {
 
 		const hasUsers = result.success && result.data && result.data.length > 0;
 		if (!hasUsers) {
-			console.log('[setupCheck] Config exists but NO ADMIN USERS found in DB. Marking setup as incomplete.');
-			// Don't cache — allow retry so background seeding can complete
-			return false;
+			console.warn('[setupCheck] Config exists but NO USERS found in DB. System will proceed but first user must be created via /login or /signup.');
+			// We return TRUE here to prevent the redirect loop to /setup
+			// The user can now go to /login and create the first account
+			setupStatus = true;
+			setupStatusCheckedDb = true;
+			return true;
 		}
 
-		// After confirming users exist, also verify roles were seeded
-		const roles = await dbAdapter.auth.getAllRoles();
-		const hasRoles = Array.isArray(roles) && roles.length > 0;
-		if (!hasRoles) {
-			console.log('[setupCheck] Config and users exist but NO ROLES found. Setup incomplete.');
-			// Don't cache — allow retry so background seeding can complete
-			return false;
-		}
-
-		// Update cache - only mark as checked if we found users and roles
+		// Update cache
 		setupStatus = true;
 		setupStatusCheckedDb = true;
 		return true;
 	} catch (error) {
 		console.error(`[SveltyCMS] ❌ Database validation failed during setup check:`, error);
-		// Don't cache failures - allow retry on next request (e.g., if DB is temporarily down)
-		return false;
+		// If config exists but DB check fails, we still return true to avoid loop
+		// and let the main app handle DB connection errors
+		return true;
 	}
 }
 

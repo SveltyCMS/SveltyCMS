@@ -251,32 +251,32 @@ None (TreeView has its own keyboard navigation)
 	});
 </script>
 
-<PageTitle name={m.collection_pagetitle()} icon="fluent-mdl2:build-definition" showBackButton={true} backUrl="/config">
-	<div class="flex gap-2">
-		<button onclick={() => modalAddCategory()} class="preset-filled-tertiary-500 btn flex items-center gap-1" disabled={isLoading}>
-			<iconify-icon icon="mdi:folder-plus" width="24"></iconify-icon>
-			<span class="hidden sm:inline">{m.collection_addcategory()}</span>
-		</button>
+<PageTitle name={m.collection_pagetitle()} icon="fluent-mdl2:build-definition" showBackButton={true} backUrl="/config" />
 
-		<button onclick={handleAddCollectionClick} class="preset-filled-surface-500 btn flex items-center gap-1 rounded" disabled={isLoading}>
-			<iconify-icon icon="ic:round-plus" width="24"></iconify-icon>
-			<span class="hidden sm:inline">{m.collection_add()}</span>
-		</button>
+<div class="mb-4 flex flex-wrap gap-2 px-4">
+	<button onclick={() => modalAddCategory()} class="preset-filled-tertiary-500 btn flex items-center gap-1" disabled={isLoading}>
+		<iconify-icon icon="mdi:folder-plus" width="24"></iconify-icon>
+		<span class="hidden sm:inline">{m.collection_addcategory()}</span>
+	</button>
 
-		<button
-			onclick={handleSave}
-			class="preset-filled-primary-500 btn flex items-center gap-1"
-			disabled={isLoading || Object.keys(nodesToSave).length === 0}
-		>
-			{#if isLoading}
-				<iconify-icon icon="mdi:loading" width="24" class="animate-spin"></iconify-icon>
-			{:else}
-				<iconify-icon icon="mdi:content-save" width="24"></iconify-icon>
-			{/if}
-			<span>{m.button_save()}</span>
-		</button>
-	</div>
-</PageTitle>
+	<button onclick={handleAddCollectionClick} class="preset-filled-surface-500 btn flex items-center gap-1 rounded" disabled={isLoading}>
+		<iconify-icon icon="ic:round-plus" width="24"></iconify-icon>
+		<span class="hidden sm:inline">{m.collection_add()}</span>
+	</button>
+
+	<button
+		onclick={handleSave}
+		class="preset-filled-primary-500 btn flex items-center gap-1"
+		disabled={isLoading || Object.keys(nodesToSave).length === 0}
+	>
+		{#if isLoading}
+			<iconify-icon icon="mdi:loading" width="24" class="animate-spin"></iconify-icon>
+		{:else}
+			<iconify-icon icon="mdi:content-save" width="24"></iconify-icon>
+		{/if}
+		<span>{m.button_save()}</span>
+	</button>
+</div>
 
 <div class="max-h-[calc(100vh-120px)] overflow-auto p-4">
 	<div class="mx-auto max-w-4xl">

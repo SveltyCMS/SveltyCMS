@@ -132,7 +132,7 @@ export class Auth {
 				throw error(400, 'Email and password are required');
 			}
 
-			if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
+			if (getPrivateSettingSync('MULTI_TENANT') && !tenantId && userData.role !== 'admin') {
 				throw error(400, 'Tenant ID is required in multi-tenant mode');
 			}
 

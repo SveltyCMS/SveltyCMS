@@ -25,6 +25,7 @@ import { TokenAdapter } from '../models/authToken';
 import { UserAdapter } from '../models/authUser';
 import { logger } from '@utils/logger';
 import { hashPassword } from '@utils/crypto';
+import { safeQuery } from '@src/utils/security/safeQuery';
 import mongoose from 'mongoose';
 
 // Type helper to extract the auth interface from IDBAdapter
@@ -254,14 +255,13 @@ export function composeMongoAuthAdapter(): AuthInterface {
 		createRole: async (role: Role): Promise<DatabaseResult<Role>> => {
 			try {
 				const RoleModel = getRoleModel();
-				const filter: { _id: string; tenantId?: { $exists: boolean } | string } = { _id: role._id };
-				if (role.tenantId) {
-					filter.tenantId = role.tenantId;
-				} else {
-					filter.tenantId = { $exists: false };
-				}
+				const filter = safeQuery({ _id: role._id }, role.tenantId);
 
-				const upsertedRole = await RoleModel.findOneAndUpdate(filter, { $set: role }, { upsert: true, new: true, runValidators: true }).lean<Role>();
+				const upsertedRole = await RoleModel.findOneAndUpdate(
+					filter,
+					{ $set: role },
+					{ upsert: true, returnDocument: 'after', runValidators: true }
+				).lean<Role>();
 
 				return {
 					success: true,
@@ -284,7 +284,7 @@ export function composeMongoAuthAdapter(): AuthInterface {
 		getAllRoles: async (tenantId?: string): Promise<Role[]> => {
 			try {
 				const RoleModel = getRoleModel();
-				const filter = tenantId ? { tenantId } : { tenantId: { $exists: false } };
+				const filter = safeQuery({}, tenantId);
 				return await RoleModel.find(filter).lean<Role[]>();
 			} catch (err) {
 				logger.error(`Error fetching roles: ${err instanceof Error ? err.message : String(err)}`);
@@ -295,12 +295,7 @@ export function composeMongoAuthAdapter(): AuthInterface {
 		getRoleById: async (roleId: string, tenantId?: string): Promise<DatabaseResult<Role | null>> => {
 			try {
 				const RoleModel = getRoleModel();
-				const filter: { _id: string; tenantId?: { $exists: boolean } | string } = { _id: roleId };
-				if (tenantId) {
-					filter.tenantId = tenantId;
-				} else {
-					filter.tenantId = { $exists: false };
-				}
+				const filter = safeQuery({ _id: roleId }, tenantId);
 
 				const role = await RoleModel.findOne(filter).lean<Role>();
 
@@ -325,14 +320,9 @@ export function composeMongoAuthAdapter(): AuthInterface {
 		updateRole: async (roleId: string, roleData: Partial<Role>, tenantId?: string): Promise<DatabaseResult<Role>> => {
 			try {
 				const RoleModel = getRoleModel();
-				const filter: { _id: string; tenantId?: { $exists: boolean } | string } = { _id: roleId };
-				if (tenantId) {
-					filter.tenantId = tenantId;
-				} else {
-					filter.tenantId = { $exists: false };
-				}
+				const filter = safeQuery({ _id: roleId }, tenantId);
 
-				const updatedRole = await RoleModel.findOneAndUpdate(filter, { $set: roleData }, { new: true }).lean<Role>();
+				const updatedRole = await RoleModel.findOneAndUpdate(filter, { $set: roleData }, { returnDocument: 'after' }).lean<Role>();
 
 				if (!updatedRole) {
 					return {
@@ -366,12 +356,7 @@ export function composeMongoAuthAdapter(): AuthInterface {
 		deleteRole: async (roleId: string, tenantId?: string): Promise<DatabaseResult<void>> => {
 			try {
 				const RoleModel = getRoleModel();
-				const filter: { _id: string; tenantId?: { $exists: boolean } | string } = { _id: roleId };
-				if (tenantId) {
-					filter.tenantId = tenantId;
-				} else {
-					filter.tenantId = { $exists: false };
-				}
+				const filter = safeQuery({ _id: roleId }, tenantId);
 
 				const result = await RoleModel.deleteOne(filter);
 

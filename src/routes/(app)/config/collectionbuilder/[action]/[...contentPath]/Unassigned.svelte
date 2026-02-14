@@ -10,6 +10,7 @@
 ### Features
 - Drag and drop support for reassigning collections
 -->
+
 <script lang="ts">
 	// Using iconify-icon web component
 	//ParaglideJS

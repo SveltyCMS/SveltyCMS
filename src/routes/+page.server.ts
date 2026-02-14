@@ -60,6 +60,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		const redirectLanguage = url.searchParams.get('contentLanguage') || user.locale || publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';
 
 		// Use the new, efficient method from ContentManager to get the redirect URL
+		// Use the new, efficient method from ContentManager to get the redirect URL
 		const redirectUrl = await contentManager.getFirstCollectionRedirectUrl(redirectLanguage, tenantId);
 
 		// If a valid collection URL is found, redirect the user

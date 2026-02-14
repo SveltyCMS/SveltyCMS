@@ -37,6 +37,9 @@ Demo Mode is a specialized configuration of the Multi-Tenancy system designed to
 
 Demo mode is strictly controlled via `config/private.ts` to prevent accidental disabling in production.
 
+> [!IMPORTANT]
+> **Both `MULTI_TENANT` and `DEMO` must be set to `true`** for demo mode to function correctly. Demo mode leverages the multi-tenancy architecture to isolate ephemeral user data.
+
 1.  **Strict Configuration**:
     - Edit `config/private.ts`:
 
@@ -55,14 +58,15 @@ Demo mode is strictly controlled via `config/private.ts` to prevent accidental d
 
 ### Tenant Lifecycle
 
-### Tenant Lifecycle
-
 1.  **Creation**:
-    - User visits the site.
-    - `handleAuthentication` hook detects missing `demo_tenant_id` cookie.
-    - Generates a UUID `tenantId`.
-    - Sets `demo_tenant_id` cookie.
-    - Calls `seedDemoTenant(tenantId)` to populate the database.
+    - **Method A (No Token)**: User visits `/login` -> Click "Sign Up".
+      - If `MULTI_TENANT=true`, they can register _without_ a token.
+      - A new Tenant is created for them automatically.
+    - **Method B (With Link)**: User visits site with `demo_tenant_id` cookie.
+      - `handleAuthentication` hook detects missing `demo_tenant_id` cookie.
+      - Calls `TenantService.create({ plan: 'free', status: 'active' })` to generate a new Tenant.
+      - Sets `demo_tenant_id` cookie with the new `_id`.
+      - Calls `seedDemoTenant(tenantId)` to populate the database.
 
 2.  **Usage**:
     - User interacts with the CMS as a normal tenant.

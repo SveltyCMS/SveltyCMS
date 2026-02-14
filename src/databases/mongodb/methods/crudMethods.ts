@@ -25,6 +25,7 @@ import { type Model, type PipelineStage, type UpdateQuery, mongo } from 'mongoos
 import type { BaseEntity, DatabaseId, DatabaseResult, QueryFilter } from '../../dbInterface';
 import { createDatabaseError, generateId, processDates } from './mongoDBUtils';
 import { nowISODateString } from '@utils/dateUtils';
+import { safeQuery } from '@src/utils/security/safeQuery';
 
 /**
  * MongoCrudMethods provides generic CRUD operations for a Mongoose model.
@@ -42,9 +43,10 @@ export class MongoCrudMethods<T extends BaseEntity> {
 		this.model = model;
 	}
 
-	async findOne(query: QueryFilter<T>, options: { fields?: (keyof T)[] } = {}): Promise<DatabaseResult<T | null>> {
+	async findOne(query: QueryFilter<T>, options: { fields?: (keyof T)[]; tenantId?: string | null } = {}): Promise<DatabaseResult<T | null>> {
 		try {
-			const result = await this.model.findOne(query, options.fields?.join(' ')).lean().exec();
+			const secureQuery = safeQuery(query, options.tenantId);
+			const result = await this.model.findOne(secureQuery, options.fields?.join(' ')).lean().exec();
 			if (!result) return { success: true, data: null };
 			return { success: true, data: processDates(result) as T };
 		} catch (error) {
@@ -56,9 +58,10 @@ export class MongoCrudMethods<T extends BaseEntity> {
 		}
 	}
 
-	async findById(id: DatabaseId): Promise<DatabaseResult<T | null>> {
+	async findById(id: DatabaseId, tenantId?: string | null): Promise<DatabaseResult<T | null>> {
 		try {
-			const result = await this.model.findById(id).lean().exec();
+			const query = safeQuery({ _id: id } as QueryFilter<T>, tenantId);
+			const result = await this.model.findOne(query).lean().exec();
 			if (!result) return { success: true, data: null };
 			return { success: true, data: processDates(result) as T };
 		} catch (error) {
@@ -88,11 +91,12 @@ export class MongoCrudMethods<T extends BaseEntity> {
 
 	async findMany(
 		query: QueryFilter<T>,
-		options: { limit?: number; skip?: number; sort?: { [key: string]: 'asc' | 'desc' | 1 | -1 }; fields?: (keyof T)[] } = {}
+		options: { limit?: number; skip?: number; sort?: { [key: string]: 'asc' | 'desc' | 1 | -1 }; fields?: (keyof T)[]; tenantId?: string | null } = {}
 	): Promise<DatabaseResult<T[]>> {
 		try {
+			const secureQuery = safeQuery(query, options.tenantId);
 			const results = await this.model
-				.find(query, options.fields?.join(' '))
+				.find(secureQuery, options.fields?.join(' '))
 				.sort(options.sort || {})
 				.skip(options.skip ?? 0)
 				.limit(options.limit ?? 0)
@@ -108,11 +112,12 @@ export class MongoCrudMethods<T extends BaseEntity> {
 		}
 	}
 
-	async insert(data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<T>> {
+	async insert(data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>, tenantId?: string | null): Promise<DatabaseResult<T>> {
 		try {
 			const doc = {
 				...data,
 				_id: generateId(),
+				tenantId: tenantId || (data as any).tenantId,
 				createdAt: nowISODateString(),
 				updatedAt: nowISODateString()
 			} as unknown as T;
@@ -134,11 +139,12 @@ export class MongoCrudMethods<T extends BaseEntity> {
 		}
 	}
 
-	async insertMany(data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>[]): Promise<DatabaseResult<T[]>> {
+	async insertMany(data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>[], tenantId?: string | null): Promise<DatabaseResult<T[]>> {
 		try {
 			const docs = data.map((d) => ({
 				...d,
 				_id: generateId(),
+				tenantId: tenantId || (d as any).tenantId,
 				createdAt: nowISODateString(),
 				updatedAt: nowISODateString()
 			}));
@@ -153,13 +159,14 @@ export class MongoCrudMethods<T extends BaseEntity> {
 		}
 	}
 
-	async update(id: DatabaseId, data: UpdateQuery<T>): Promise<DatabaseResult<T | null>> {
+	async update(id: DatabaseId, data: UpdateQuery<T>, tenantId?: string | null): Promise<DatabaseResult<T | null>> {
 		try {
+			const query = safeQuery({ _id: id } as QueryFilter<T>, tenantId);
 			const updateData = {
 				...(data as object),
 				updatedAt: nowISODateString()
 			};
-			const result = await this.model.findByIdAndUpdate(id, { $set: updateData }, { new: true }).lean().exec();
+			const result = await this.model.findOneAndUpdate(query, { $set: updateData }, { returnDocument: 'after' }).lean().exec();
 
 			if (!result) return { success: true, data: null };
 			return { success: true, data: processDates(result) as T };
@@ -172,16 +179,17 @@ export class MongoCrudMethods<T extends BaseEntity> {
 		}
 	}
 
-	async upsert(query: QueryFilter<T>, data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<T>> {
+	async upsert(query: QueryFilter<T>, data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>, tenantId?: string | null): Promise<DatabaseResult<T>> {
 		try {
+			const secureQuery = safeQuery(query, tenantId);
 			const result = await this.model
 				.findOneAndUpdate(
-					query,
+					secureQuery,
 					{
 						$set: { ...data, updatedAt: nowISODateString() },
-						$setOnInsert: { _id: generateId(), createdAt: nowISODateString() }
+						$setOnInsert: { _id: generateId(), createdAt: nowISODateString(), tenantId: tenantId || (data as any).tenantId }
 					},
-					{ new: true, upsert: true, runValidators: true }
+					{ returnDocument: 'after', upsert: true, runValidators: true }
 				)
 				.lean()
 				.exec();
@@ -195,9 +203,10 @@ export class MongoCrudMethods<T extends BaseEntity> {
 		}
 	}
 
-	async delete(id: DatabaseId): Promise<DatabaseResult<boolean>> {
+	async delete(id: DatabaseId, tenantId?: string | null): Promise<DatabaseResult<boolean>> {
 		try {
-			const result = await this.model.deleteOne({ _id: id } as QueryFilter<T>);
+			const query = safeQuery({ _id: id } as QueryFilter<T>, tenantId);
+			const result = await this.model.deleteOne(query);
 			return { success: true, data: result.deletedCount > 0 };
 		} catch (error) {
 			return {
@@ -208,13 +217,18 @@ export class MongoCrudMethods<T extends BaseEntity> {
 		}
 	}
 
-	async updateMany(query: QueryFilter<T>, data: UpdateQuery<T>): Promise<DatabaseResult<{ modifiedCount: number; matchedCount: number }>> {
+	async updateMany(
+		query: QueryFilter<T>,
+		data: UpdateQuery<T>,
+		tenantId?: string | null
+	): Promise<DatabaseResult<{ modifiedCount: number; matchedCount: number }>> {
 		try {
+			const secureQuery = safeQuery(query, tenantId);
 			const updateData = {
 				...(data as object),
 				updatedAt: nowISODateString()
 			};
-			const result = await this.model.updateMany(query, { $set: updateData });
+			const result = await this.model.updateMany(secureQuery, { $set: updateData });
 			return {
 				success: true,
 				data: {
@@ -231,9 +245,10 @@ export class MongoCrudMethods<T extends BaseEntity> {
 		}
 	}
 
-	async deleteMany(query: QueryFilter<T>): Promise<DatabaseResult<{ deletedCount: number }>> {
+	async deleteMany(query: QueryFilter<T>, tenantId?: string | null): Promise<DatabaseResult<{ deletedCount: number }>> {
 		try {
-			const result = await this.model.deleteMany(query);
+			const secureQuery = safeQuery(query, tenantId);
+			const result = await this.model.deleteMany(secureQuery);
 			return { success: true, data: { deletedCount: result.deletedCount } };
 		} catch (error) {
 			return {
@@ -245,7 +260,8 @@ export class MongoCrudMethods<T extends BaseEntity> {
 	}
 
 	async upsertMany(
-		items: Array<{ query: QueryFilter<T>; data: Omit<T, '_id' | 'createdAt' | 'updatedAt'> }>
+		items: Array<{ query: QueryFilter<T>; data: Omit<T, '_id' | 'createdAt' | 'updatedAt'> }>,
+		tenantId?: string | null
 	): Promise<DatabaseResult<{ upsertedCount: number; modifiedCount: number }>> {
 		try {
 			if (items.length === 0) return { success: true, data: { upsertedCount: 0, modifiedCount: 0 } };
@@ -253,10 +269,10 @@ export class MongoCrudMethods<T extends BaseEntity> {
 			const now = nowISODateString();
 			const operations = items.map((item) => ({
 				updateOne: {
-					filter: item.query as any,
+					filter: safeQuery(item.query, tenantId) as any,
 					update: {
 						$set: { ...item.data, updatedAt: now },
-						$setOnInsert: { _id: generateId(), createdAt: now }
+						$setOnInsert: { _id: generateId(), createdAt: now, tenantId: tenantId || (item.data as any).tenantId }
 					},
 					upsert: true
 				}
@@ -279,9 +295,10 @@ export class MongoCrudMethods<T extends BaseEntity> {
 		}
 	}
 
-	async count(query: QueryFilter<T> = {}): Promise<DatabaseResult<number>> {
+	async count(query: QueryFilter<T> = {}, tenantId?: string | null): Promise<DatabaseResult<number>> {
 		try {
-			const count = await this.model.countDocuments(query);
+			const secureQuery = safeQuery(query, tenantId);
+			const count = await this.model.countDocuments(secureQuery);
 			return { success: true, data: count };
 		} catch (error) {
 			return {
@@ -297,11 +314,12 @@ export class MongoCrudMethods<T extends BaseEntity> {
 	 * Uses findOne with _id projection instead of exists() for faster execution.
 	 * MongoDB stops scanning as soon as it finds the first match, and projection reduces network overhead.
 	 */
-	async exists(query: QueryFilter<T>): Promise<DatabaseResult<boolean>> {
+	async exists(query: QueryFilter<T>, tenantId?: string | null): Promise<DatabaseResult<boolean>> {
 		try {
+			const secureQuery = safeQuery(query, tenantId);
 			// Use findOne with projection for optimal performance
 			// Only fetches _id field, minimizing data transfer
-			const doc = await this.model.findOne(query, { _id: 1 }).lean().exec();
+			const doc = await this.model.findOne(secureQuery, { _id: 1 }).lean().exec();
 			return { success: true, data: !!doc };
 		} catch (error) {
 			return {

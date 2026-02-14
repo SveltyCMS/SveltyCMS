@@ -110,7 +110,7 @@ export class MongoWidgetMethods {
 	async activate(widgetId: DatabaseId): Promise<DatabaseResult<Widget | null>> {
 		try {
 			const result = await this.widgetModel
-				.findByIdAndUpdate(widgetId, { $set: { isActive: true } }, { new: true })
+				.findByIdAndUpdate(widgetId, { $set: { isActive: true } }, { returnDocument: 'after' })
 				.lean()
 				.exec();
 
@@ -145,7 +145,7 @@ export class MongoWidgetMethods {
 	async deactivate(widgetId: DatabaseId): Promise<DatabaseResult<Widget | null>> {
 		try {
 			const result = await this.widgetModel
-				.findByIdAndUpdate(widgetId, { $set: { isActive: false } }, { new: true })
+				.findByIdAndUpdate(widgetId, { $set: { isActive: false } }, { returnDocument: 'after' })
 				.lean()
 				.exec();
 
@@ -186,7 +186,7 @@ export class MongoWidgetMethods {
 				collection: this.widgetModel.collection.name
 			});
 
-			const result = await this.widgetModel.findByIdAndUpdate(widgetId, { $set: widgetData }, { new: true }).lean().exec();
+			const result = await this.widgetModel.findByIdAndUpdate(widgetId, { $set: widgetData }, { returnDocument: 'after' }).lean().exec();
 
 			logger.debug('[widgetMethods.update] Update completed', {
 				widgetId,

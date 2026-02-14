@@ -31,6 +31,7 @@
 	import { tick } from 'svelte';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 	import SystemTooltip from '@components/system/SystemTooltip.svelte';
+	import { sortContentNodes } from '@src/content/utils';
 
 	export interface TreeViewItem extends Record<string, any> {
 		id: string;
@@ -169,9 +170,8 @@
 			}
 		});
 
-		const sortFn = (a: EnhancedTreeViewItem, b: EnhancedTreeViewItem) => (a.order ?? 0) - (b.order ?? 0);
-		roots.sort(sortFn);
-		itemMap.forEach((node) => node.children.sort(sortFn));
+		roots.sort(sortContentNodes);
+		itemMap.forEach((node) => node.children.sort(sortContentNodes));
 
 		return roots;
 	}
@@ -483,7 +483,7 @@
 		}
 
 		for (const [, children] of childrenByParent) {
-			children.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+			children.sort(sortContentNodes);
 		}
 
 		function assignPaths(parentId: string | null, parentPath: string): void {
