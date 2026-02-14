@@ -238,9 +238,18 @@ export class PostgreSQLAdapter extends AdapterCore {
 		createUser: async (userData: any) => {
 			return this.wrap(async () => {
 				await this.ensureSystem();
+
+				// Ensure password is hashed if provided and not already hashed
+				let password = userData.password;
+				if (password && !password.startsWith('$argon2')) {
+					const argon2 = await import('argon2');
+					password = await argon2.hash(password);
+				}
+
 				const formattedUser = {
 					_id: userData._id || utils.generateId(),
 					...userData,
+					password,
 					createdAt: new Date(),
 					updatedAt: new Date()
 				};
@@ -281,9 +290,18 @@ export class PostgreSQLAdapter extends AdapterCore {
 			return this.wrap(async () => {
 				await this.ensureSystem();
 				const userId = userData._id || utils.generateId();
+
+				// Ensure password is hashed if provided and not already hashed
+				let password = userData.password;
+				if (password && !password.startsWith('$argon2')) {
+					const argon2 = await import('argon2');
+					password = await argon2.hash(password);
+				}
+
 				const formattedUser = {
 					...userData,
 					_id: userId,
+					password,
 					createdAt: new Date(),
 					updatedAt: new Date()
 				};
