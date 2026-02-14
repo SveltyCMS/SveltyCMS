@@ -255,7 +255,8 @@ mock.module('@sveltejs/kit', () => ({
 		const err = {
 			status,
 			body,
-			message: body.message
+			message: body.message,
+			__is_http_error: true
 		};
 		throw err;
 	},
@@ -263,10 +264,13 @@ mock.module('@sveltejs/kit', () => ({
 		const err = {
 			status,
 			location,
-			message: `Redirect to ${location}`
+			message: `Redirect to ${location}`,
+			__is_redirect: true
 		};
 		throw err;
 	},
+	isRedirect: (err: any) => err && err.__is_redirect === true,
+	isHttpError: (err: any) => err && err.__is_http_error === true,
 	json: (data: unknown, init?: ResponseInit) =>
 		new Response(JSON.stringify(data), {
 			...init,
