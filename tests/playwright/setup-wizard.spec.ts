@@ -19,7 +19,7 @@ import { test, expect, type Page } from '@playwright/test';
 // Uses getByLabel to uniquely target the actual button (not the tooltip trigger)
 // since SystemTooltip creates a separate trigger button that also matches by role.
 async function clickNext(page: Page) {
-	const nextBtn = page.getByLabel(/^next$/i);
+	const nextBtn = page.getByLabel('Next', { exact: true });
 	await expect(nextBtn).toBeEnabled({ timeout: 60000 });
 	await nextBtn.click();
 }
@@ -87,15 +87,15 @@ test('Setup Wizard: Configure DB and Create Admin', async ({ page }) => {
 	// Loop through remaining steps until "Complete" appears
 	// This handles variable number of steps (Site settings, Email, etc.)
 	for (let i = 0; i < 5; i++) {
-		// Check for "Complete" button first (target by aria-label)
-		const completeBtn = page.getByLabel(/^complete/i);
+		// Check for "Complete" button first (exact match avoids stepper indicator)
+		const completeBtn = page.getByLabel('Complete', { exact: true });
 		if (await completeBtn.isVisible()) {
 			await completeBtn.click();
 			break;
 		}
 
 		// Otherwise click Next
-		const nextBtn = page.getByLabel(/^next$/i);
+		const nextBtn = page.getByLabel('Next', { exact: true });
 		if (await nextBtn.isVisible()) {
 			await nextBtn.click();
 			await page.waitForTimeout(500);
