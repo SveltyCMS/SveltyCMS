@@ -37,7 +37,7 @@ jobs:
       DB_PASSWORD: admin
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -95,7 +95,7 @@ jobs:
     steps:
       # Get git code
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           # fetch-depth: 0 is required for semantic-release to analyze the full commit history.
           fetch-depth: 0

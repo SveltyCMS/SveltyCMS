@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest # Ubuntu environment for CI
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Bun # Use Bun instead of Node+pnpm
         uses: oven-sh/setup-bun@v2
