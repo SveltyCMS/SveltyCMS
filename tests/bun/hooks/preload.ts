@@ -279,4 +279,18 @@ mock.module('@sveltejs/kit', () => ({
 	text: (data: string, init?: ResponseInit) => new Response(data, init)
 }));
 
+// Mock @src/widgets/scanner - uses import.meta.glob which is Vite-only
+mock.module('@src/widgets/scanner', () => ({
+	coreModules: {},
+	customModules: {},
+	allWidgetModules: {}
+}));
+
+// Mock @src/widgets/proxy - depends on scanner
+mock.module('@src/widgets/proxy', () => ({
+	getWidgetsByType: () => [],
+	getWidget: () => null,
+	getWidgetByField: () => null
+}));
+
 console.log('✅ SvelteKit modules mocked for hooks tests');
