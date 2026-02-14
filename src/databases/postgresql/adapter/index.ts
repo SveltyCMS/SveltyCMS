@@ -833,6 +833,18 @@ export class PostgreSQLAdapter extends AdapterCore {
 				const { eq } = await import('drizzle-orm');
 				await this.db!.delete(schema.authUsers).where(eq(schema.authUsers._id, userId));
 			}, 'AUTH_DELETE_USER_FAILED');
+		},
+		getAllActiveSessions: async (tenantId?: string) => {
+			return this.wrap(async () => {
+				await this.ensureSystem();
+				const { gt, and, eq } = await import('drizzle-orm');
+				const conditions: any[] = [gt(schema.authSessions.expires, new Date())];
+				if (tenantId) conditions.push(eq(schema.authSessions.tenantId, tenantId));
+				const results = await this.db!.select()
+					.from(schema.authSessions)
+					.where(and(...conditions));
+				return utils.convertArrayDatesToISO(results);
+			}, 'AUTH_GET_ALL_ACTIVE_SESSIONS_FAILED');
 		}
 	};
 
@@ -1267,6 +1279,11 @@ export class PostgreSQLAdapter extends AdapterCore {
 				return result || null;
 			}, 'WIDGETS_FIND_ONE_FAILED');
 		},
+		findAll: async () => {
+			return this.wrap(async () => {
+				return await this.db!.select().from(schema.widgets);
+			}, 'WIDGETS_FIND_ALL_FAILED');
+		},
 		findMany: async (filter?: Record<string, unknown>) => {
 			return this.wrap(async () => {
 				const where = filter ? this.mapQuery(schema.widgets, filter) : undefined;
@@ -1287,9 +1304,16 @@ export class PostgreSQLAdapter extends AdapterCore {
 				return result;
 			}, 'WIDGETS_CREATE_FAILED');
 		},
-		update: async (filter: Record<string, unknown>, data: any) => {
+		// API route calls update(widgetId, data) with a string ID
+		update: async (widgetIdOrFilter: any, data: any) => {
 			return this.wrap(async () => {
-				const where = this.mapQuery(schema.widgets, filter);
+				const { eq } = await import('drizzle-orm');
+				let where: any;
+				if (typeof widgetIdOrFilter === 'string') {
+					where = eq(schema.widgets._id, widgetIdOrFilter);
+				} else {
+					where = this.mapQuery(schema.widgets, widgetIdOrFilter);
+				}
 				const [result] = await this.db!.update(schema.widgets)
 					.set({ ...data, updatedAt: new Date() })
 					.where(where)
@@ -1360,16 +1384,43 @@ export class PostgreSQLAdapter extends AdapterCore {
 				return this.mapWebsiteToken(result);
 			}, 'WEBSITE_TOKENS_CREATE_FAILED');
 		},
-		delete: async (filter: Record<string, unknown>) => {
+		// API route calls delete(id) with a string ID, not a filter object
+		delete: async (tokenId: any) => {
 			return this.wrap(async () => {
-				const where = this.mapQuery(schema.websiteTokens, filter);
-				await this.db!.delete(schema.websiteTokens).where(where);
+				const { eq } = await import('drizzle-orm');
+				if (typeof tokenId === 'string') {
+					await this.db!.delete(schema.websiteTokens).where(eq(schema.websiteTokens._id, tokenId));
+				} else {
+					const where = this.mapQuery(schema.websiteTokens, tokenId);
+					await this.db!.delete(schema.websiteTokens).where(where);
+				}
 			}, 'WEBSITE_TOKENS_DELETE_FAILED');
 		},
-		getAll: async () => {
+		// API route calls getAll({limit, skip, sort, order}) and expects {data: [...], total: ...}
+		getAll: async (options?: { limit?: number; skip?: number; sort?: string; order?: string }) => {
 			return this.wrap(async () => {
-				const results = await this.db!.select().from(schema.websiteTokens);
-				return results.map((r: any) => this.mapWebsiteToken(r));
+				const { desc, asc } = await import('drizzle-orm');
+				let q: any = this.db!.select().from(schema.websiteTokens);
+
+				if (options?.sort) {
+					const orderFn = options.order === 'desc' ? desc : asc;
+					if ((schema.websiteTokens as any)[options.sort]) {
+						q = q.orderBy(orderFn((schema.websiteTokens as any)[options.sort]));
+					}
+				}
+
+				if (options?.limit) q = q.limit(options.limit);
+				if (options?.skip) q = q.offset(options.skip);
+
+				const results = await q;
+				// total count
+				const [countResult] = await this.db!.select({ count: sql`count(*)` }).from(schema.websiteTokens);
+				const total = Number((countResult as any).count);
+
+				return {
+					data: results.map((r: any) => this.mapWebsiteToken(r)),
+					total
+				};
 			}, 'WEBSITE_TOKENS_GET_ALL_FAILED');
 		},
 		getByName: async (name: string) => {
