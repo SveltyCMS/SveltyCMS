@@ -73,10 +73,11 @@ A reusable modal that wraps the main Image Editor.
 	let isInitializing = $state(true);
 
 	$effect(() => {
-		if (imageEditorStore.state.imageNode) {
+		if (imageEditorStore.state.imageElement) {
 			isInitializing = false;
 		}
 	});
+
 
 	function handleSaveError(err: Error) {
 		error = `Failed to save: ${err.message}`;
@@ -112,9 +113,9 @@ A reusable modal that wraps the main Image Editor.
 	function handleCancelClick() {
 		// If a tool is active, exit the tool first
 		if (activeState) {
-			imageEditorStore.cleanupToolSpecific(activeState);
-			imageEditorStore.setActiveState('');
+			imageEditorStore.cancelActiveTool();
 		} else {
+
 			// No tool active, ask for confirmation if dirty
 			if (imageEditorStore.canUndoState) {
 				if (!confirm('You have unsaved changes. Are you sure you want to discard them?')) {
@@ -211,8 +212,8 @@ A reusable modal that wraps the main Image Editor.
 				{mediaId}
 				focalPoint={initialFocalPoint}
 				onsave={(detail) => onsave(detail)}
-				oncancel={handleClose}
 			/>
+
 		</main>
 		<EditorToolbar onsave={handleSaveClick} oncancel={handleCancelClick} {isSaving} />
 	</div>

@@ -45,20 +45,14 @@ export const POST: RequestHandler = async ({ request, params, locals }) => {
 
 		const mediaService = getMediaService();
 
-		// Use updateMedia instead of manipulateMedia
-		await mediaService.updateMedia(id, manipulations);
-
-		if (!locals.user) {
-			return json({ success: false, error: 'Unauthorized' }, { status: 401 });
-		}
-
-		// Fetch the updated media to return
-		const updatedMedia = await mediaService.getMedia(id, locals.user, locals.roles);
+		// Use manipulateMedia to apply Sharp transformations
+		const updatedMedia = await mediaService.manipulateMedia(id, manipulations, user._id);
 
 		return json({
 			success: true,
 			data: updatedMedia
 		});
+
 	} catch (err) {
 		const message = `Error manipulating media: ${err instanceof Error ? err.message : String(err)}`;
 		logger.error(message, { mediaId: id, tenantId });

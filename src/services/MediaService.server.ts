@@ -46,7 +46,9 @@ import { MediaType as MediaTypeEnumValue } from '@utils/media/mediaModels';
 import { getSanitizedFileName } from '@src/utils/media/mediaProcessing';
 import { hashFileContent } from '@src/utils/media/mediaProcessing.server';
 import { saveFileToDisk, saveResizedImages } from '@src/utils/media/mediaStorage.server';
+import { isCloud } from '@src/utils/media/cloudStorage';
 import { mediaProcessingService } from './MediaProcessingService.server';
+import { getPublicSettingSync } from '@src/services/settingsService';
 // IMPORT SERVER-SIDE VALIDATION
 import { validateMediaFileServer } from '@src/utils/media/mediaUtils';
 
@@ -437,8 +439,122 @@ export class MediaService {
 		} as any;
 	}
 
+	/**
+	 * Manipulates an existing media item using Sharp.js
+	 */
+	public async manipulateMedia(id: string, manipulations: any, userId: string): Promise<MediaItem> {
+		this.ensureInitialized();
+		
+		const mediaResult = await this.db.crud.findOne<MediaItem>('MediaItem', { _id: id as DatabaseId });
+		if (!mediaResult.success || !mediaResult.data) {
+			throw error(404, 'Media item not found');
+		}
+		const mediaItem = mediaResult.data;
+
+		if (mediaItem.type !== MediaTypeEnumValue.Image) {
+			throw error(400, 'Only images can be manipulated');
+		}
+
+		// Load original file
+		let originalBuffer: Buffer;
+		if (isCloud()) {
+			const response = await fetch(this.enrichMediaWithUrl(mediaItem).url);
+			originalBuffer = Buffer.from(await response.arrayBuffer());
+		} else {
+			const fs = await import('fs/promises');
+			const MEDIA_ROOT = getPublicSettingSync('MEDIA_FOLDER') ?? 'mediaFolder';
+			const fullPath = Path.join(process.cwd(), MEDIA_ROOT, mediaItem.path);
+			originalBuffer = await fs.readFile(fullPath);
+		}
+
+		let instance = sharp(originalBuffer);
+
+		// Apply transformations
+		if (manipulations.rotation) {
+			instance = instance.rotate(manipulations.rotation);
+		}
+
+		if (manipulations.flipH) {
+			instance = instance.flop();
+		}
+
+		if (manipulations.flipV) {
+			instance = instance.flip();
+		}
+
+		if (manipulations.crop) {
+			instance = instance.extract({
+				left: Math.round(manipulations.crop.x),
+				top: Math.round(manipulations.crop.y),
+				width: Math.round(manipulations.crop.width),
+				height: Math.round(manipulations.crop.height)
+			});
+		}
+
+		// Apply filters (simplified mapping)
+		if (manipulations.filters) {
+			const { brightness, contrast, saturation } = manipulations.filters;
+			if (brightness !== undefined || contrast !== undefined || saturation !== undefined) {
+				instance = instance.modulate({
+					brightness: brightness !== undefined ? 1 + brightness / 100 : 1,
+					saturation: saturation !== undefined ? 1 + saturation / 100 : 1
+				});
+				// Sharp doesn't have a direct contrast modulation like this, 
+				// usually handled via linear or pipeline.
+			}
+		}
+
+		const manipulatedBuffer = await instance.toBuffer();
+		const meta = await instance.metadata();
+
+		// Save as a new version
+		const hash = await hashFileContent(manipulatedBuffer);
+		const { fileNameWithoutExt, ext } = getSanitizedFileName(mediaItem.filename);
+		const timestamp = Date.now();
+		const newFileName = `${fileNameWithoutExt}-edited-${timestamp}.${ext}`;
+		
+		const basePath = mediaItem.path.split('/')[0] || 'global';
+		const relativePath = Path.posix.join(basePath, 'edited', newFileName);
+		
+		const publicUrl = await saveFileToDisk(manipulatedBuffer, relativePath);
+		const resized = await saveResizedImages(manipulatedBuffer, hash, `${fileNameWithoutExt}-edited-${timestamp}`, ext, basePath);
+
+		const newVersionNumber = (mediaItem.versions?.length || 0) + 1;
+		const newVersion = {
+			version: newVersionNumber,
+			url: publicUrl,
+			path: relativePath,
+			hash,
+			size: manipulatedBuffer.length,
+			createdAt: new Date().toISOString() as ISODateString,
+			createdBy: userId as DatabaseId,
+			action: 'manipulate'
+		};
+
+		const updates: Partial<MediaItem> = {
+			url: publicUrl,
+			path: relativePath,
+			hash,
+			size: manipulatedBuffer.length,
+			width: meta.width,
+			height: meta.height,
+			thumbnails: resized,
+			versions: [...(mediaItem.versions || []), newVersion],
+			metadata: {
+				...mediaItem.metadata,
+				focalPoint: manipulations.focalPoint || mediaItem.metadata?.focalPoint,
+				lastManipulation: manipulations
+			}
+
+		};
+
+		await this.updateMedia(id, updates);
+		return { ...mediaItem, ...updates } as MediaItem;
+	}
+
 	// Updates a media item with new data
 	public async updateMedia(id: string, updates: Partial<MediaItem>): Promise<void> {
+
 		this.ensureInitialized();
 		if (!id || typeof id !== 'string' || id.trim().length === 0) {
 			throw Error('Invalid id: Must be a non-empty string');

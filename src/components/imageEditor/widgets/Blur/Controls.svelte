@@ -4,7 +4,8 @@
 Pintura-style controls for the Blur tool with add/delete/rotate/flip functionality.
 -->
 <script lang="ts">
-	import type { BlurPattern, BlurShape } from '@src/components/imageEditor/widgets/Blur/regions';
+	import type { BlurPattern, BlurShape } from './types';
+
 
 	let {
 		blurStrength,
