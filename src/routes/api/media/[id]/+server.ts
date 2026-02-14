@@ -12,10 +12,14 @@
  * - Logs errors and returns appropriate error responses.
  */
 
-import { dbAdapter } from '@src/databases/db';
 import { json, error } from '@sveltejs/kit';
 import { logger } from '@utils/logger.server';
 import { MediaService } from '@src/services/MediaService.server';
+
+async function getDbAdapter() {
+	const { dbAdapter } = await import('@src/databases/db');
+	return dbAdapter;
+}
 
 export async function GET({ params, locals }) {
 	const { id } = params;
@@ -29,10 +33,12 @@ export async function GET({ params, locals }) {
 		throw error(401, 'Unauthorized');
 	}
 
+	const dbAdapter = await getDbAdapter();
 	if (!dbAdapter) {
 		logger.error('Database adapter is not initialized');
 		throw error(500, 'Internal Server Error');
 	}
+
 
 	const mediaService = new MediaService(dbAdapter!);
 

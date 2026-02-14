@@ -13,7 +13,6 @@ import { error, redirect, type Handle } from '@sveltejs/kit';
 import { getPrivateSettingSync } from '@src/services/settingsService';
 import { hasPermissionByAction } from '@src/databases/auth/permissions';
 import type { Role } from '@src/databases/auth/types';
-import { auth } from '@src/databases/db';
 import {
 	cacheService,
 	USER_COUNT_CACHE_TTL_MS,
@@ -59,6 +58,11 @@ function isOAuthRoute(pathname: string): boolean {
 	return pathname.startsWith('/login') && pathname.includes('OAuth');
 }
 
+async function getAuth() {
+	const { auth } = await import('@src/databases/db');
+	return auth;
+}
+
 /** Get cached user count with fallback */
 async function getCachedUserCount(tenantId?: string): Promise<number> {
 	const now = Date.now();
@@ -77,6 +81,7 @@ async function getCachedUserCount(tenantId?: string): Promise<number> {
 	}
 
 	try {
+		const auth = await getAuth();
 		if (!auth) return -1;
 		const filter = getPrivateSettingSync('MULTI_TENANT') && tenantId ? { tenantId } : {};
 		const count = await auth.getUserCount(filter);
@@ -104,6 +109,7 @@ async function getCachedRoles(tenantId?: string): Promise<Role[]> {
 	}
 
 	try {
+		const auth = await getAuth();
 		if (!auth) {
 			logger.debug('Database adapter not initialized - roles unavailable');
 			return [];
@@ -124,6 +130,7 @@ async function getCachedRoles(tenantId?: string): Promise<Role[]> {
 		return [];
 	}
 }
+
 
 // --- MAIN HANDLE ---
 

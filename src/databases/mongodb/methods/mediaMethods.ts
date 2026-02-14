@@ -157,6 +157,12 @@ export class MongoMediaMethods {
 					query = folderId ? { folderId } : { folderId: { $in: [null, undefined] } }; // Root files
 				}
 
+				// Apply tenant isolation
+				if (tenantId) {
+					// Allow fetching items that either match the tenantId OR have no tenantId (legacy/system)
+					query.tenantId = { $in: [tenantId, null, undefined] };
+				}
+
 				// Apply user ownership filter if necessary
 				if (shouldFilterByUser) {
 					// ALLOW GLOBAL: Users see their own files OR anything in the 'global' folder

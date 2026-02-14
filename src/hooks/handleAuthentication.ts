@@ -28,7 +28,6 @@ import { getPrivateSettingSync } from '@src/services/settingsService';
 import { SESSION_COOKIE_NAME } from '@src/databases/auth/constants';
 import type { User } from '@src/databases/auth/types';
 import type { ISODateString } from '@databases/dbInterface';
-import { auth, dbAdapter } from '@src/databases/db';
 import { getSystemState } from '@src/stores/system/state';
 import { seedDemoTenant } from '@src/routes/setup/seed';
 import { cacheService, SESSION_CACHE_TTL_MS } from '@src/databases/CacheService';
@@ -225,6 +224,16 @@ function getTenantIdFromHostname(hostname: string): string | null {
 	return null;
 }
 
+async function getAuth() {
+	const { auth } = await import('@src/databases/db');
+	return auth;
+}
+
+async function getDbAdapter() {
+	const { dbAdapter } = await import('@src/databases/db');
+	return dbAdapter;
+}
+
 /** Multi-layer user session retrieval (in-memory → distributed → DB) */
 async function getUserFromSession(sessionId: string, tenantId?: string): Promise<User | null> {
 	const now = Date.now();
@@ -254,6 +263,7 @@ async function getUserFromSession(sessionId: string, tenantId?: string): Promise
 	if (lastAttempt && now - lastAttempt < 60000) return null; // 1-minute cooldown
 	lastRefreshAttempt.set(sessionId, now);
 
+	const auth = await getAuth();
 	if (!auth) {
 		// Only log as error if system is ready, otherwise suppress or log as debug
 		const sysState = getSystemState();
@@ -307,6 +317,8 @@ async function handleSessionRotation(event: RequestEvent, user: User, oldSession
 		logger.debug(`Session rotation rate limited for session ${oldSessionId.substring(0, 8)}...`);
 		return;
 	}
+
+	const auth = await getAuth();
 
 	// Attempt rotation
 	try {
@@ -375,6 +387,7 @@ async function handleSessionRotation(event: RequestEvent, user: User, oldSession
 	}
 }
 
+
 // --- MAIN HOOK ---
 
 export const handleAuthentication: Handle = async ({ event, resolve }) => {
@@ -400,6 +413,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
 		// handleSetup already handles unconfigured states, saving import overhead.
 
 		// Attach database adapter
+		const dbAdapter = await getDbAdapter();
 		locals.dbAdapter = dbAdapter;
 		if (!dbAdapter) {
 			logger.warn('Database adapter unavailable; system initializing.');
@@ -474,11 +488,13 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
 			metricsService.incrementAuthValidations();
 
 			// Check if auth service is ready before attempting validation
+			const auth = await getAuth();
 			if (!auth) {
 				logger.debug('Auth service not ready during session validation - skipping validation but preserving cookie');
 				// Do NOT delete cookie here - allow retry on next request
 				return await resolve(event);
 			}
+
 
 			const user = await getUserFromSession(sessionId, locals.tenantId);
 			if (user) {

@@ -7,7 +7,6 @@ import type { ComponentType } from 'svelte';
 import nodemailer from 'nodemailer';
 import type { TransportOptions } from 'nodemailer';
 import Renderer, { toPlainText } from 'better-svelte-email/render';
-import { dbAdapter } from '@src/databases/db';
 import { logger } from '@utils/logger.server';
 import { AppError } from '@utils/errorHandling';
 
@@ -82,6 +81,11 @@ export const renderEmailToStrings = async (component: any, templateNameForLog: s
 	}
 };
 
+async function getDbAdapter() {
+	const { dbAdapter } = await import('@src/databases/db');
+	return dbAdapter;
+}
+
 /**
  * Core function to send an email using Svelte templates and SMTP configuration from the database.
  */
@@ -96,10 +100,12 @@ export async function sendMail({ recipientEmail, subject, templateName, props = 
 		throw new AppError(`Invalid email template name: '${templateName}'. Available templates: ${availableTemplateNames.join(', ')}`, 400);
 	}
 
+	const dbAdapter = await getDbAdapter();
 	if (!dbAdapter) {
 		logger.error('Database adapter is not initialized');
 		throw new AppError('Database adapter is not available', 500);
 	}
+
 
 	// Get SMTP configuration from database
 	const smtpHostResult = await dbAdapter.systemPreferences.get<string>('SMTP_HOST', 'system');

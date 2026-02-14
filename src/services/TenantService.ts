@@ -10,7 +10,6 @@
  */
 
 import type { Tenant, TenantQuota } from '@src/databases/dbInterface';
-import { dbAdapter } from '@src/databases/db';
 import { logger } from '@utils/logger';
 import { AppError } from '@utils/errorHandling';
 
@@ -32,6 +31,11 @@ export class TenantService {
 			TenantService.instance = new TenantService();
 		}
 		return TenantService.instance;
+	}
+
+	private async getDbAdapter() {
+		const { dbAdapter } = await import('@src/databases/db');
+		return dbAdapter;
 	}
 
 	/**
@@ -80,6 +84,7 @@ export class TenantService {
 			const dataToSave = fixedId ? { ...tenantData, _id: fixedId } : tenantData;
 
 			// Fix: Access tenants directly on dbAdapter
+			const dbAdapter = await this.getDbAdapter();
 			if (!dbAdapter) throw new Error('Database adapter not initialized');
 			const result = await dbAdapter.tenants.create(dataToSave as any);
 
@@ -103,6 +108,7 @@ export class TenantService {
 	 */
 	public async getTenant(tenantId: string): Promise<Tenant | null> {
 		if (!tenantId) return null;
+		const dbAdapter = await this.getDbAdapter();
 		if (!dbAdapter) return null;
 		const result = await dbAdapter.tenants.getById(tenantId as any);
 		if (!result.success) return null;
@@ -114,6 +120,7 @@ export class TenantService {
 	 * Throws AppError if quota exceeded.
 	 */
 	public async checkQuota(tenantId: string, resource: keyof TenantQuota, currentIncrement = 1): Promise<void> {
+		const dbAdapter = await this.getDbAdapter();
 		if (!dbAdapter) return; // Added null check for dbAdapter
 		const tenant = await this.getTenant(tenantId);
 		if (!tenant) return;
@@ -195,12 +202,14 @@ export class TenantService {
 			if (resource === 'maxApiRequestsPerMonth') newUsage.apiRequestsMonth += amount;
 			newUsage.lastUpdated = new Date();
 
+			const dbAdapter = await this.getDbAdapter();
 			if (!dbAdapter) return;
 			await dbAdapter.tenants.update(tenantId as any, { usage: newUsage });
 		} catch (err) {
 			logger.error(`Failed to update usage for tenant ${tenantId}`, err);
 		}
 	}
+
 
 	/**
 	 * Decrement usage (e.g. deleting users/files)

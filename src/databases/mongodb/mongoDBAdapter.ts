@@ -51,9 +51,9 @@ import type {
 } from '../dbInterface';
 import { logger } from '@src/utils/logger.server';
 import { cacheService } from '@src/databases/CacheService';
-import { generateId } from './methods/mongoDBUtils';
 
 export class MongoDBAdapter implements IDBAdapter {
+
 	// --- Feature Cache (Real Instances) ---
 	private _realAuth?: IAuthAdapter;
 	private _realCrud?: ICrudAdapter;
@@ -1077,7 +1077,12 @@ export class MongoDBAdapter implements IDBAdapter {
 	}
 
 	public readonly utils = {
-		generateId: () => generateId(),
+		generateId: () => {
+			// Compact, dash-less UUID for DB identifiers
+			const { v4: uuidv4 } = require('uuid');
+			return uuidv4().replace(/-/g, '') as DatabaseId;
+		},
+
 		normalizePath: (path: string) => path.replace(/\\/g, '/'),
 		validateId: (id: string) => mongoose.Types.ObjectId.isValid(id),
 		createPagination: <T>(items: T[], options: PaginationOptions): PaginatedResult<T> => {

@@ -180,8 +180,8 @@ for the image editor canvas with reactive rendering.
 	bind:this={containerRef}
 >
 	<!-- svelte-canvas component -->
-	<div 
-		class="canvas-container h-full w-full cursor-grab active:cursor-grabbing"
+	<button 
+		class="canvas-container block h-full w-full border-0 p-0 text-left cursor-grab active:cursor-grabbing focus:outline-none"
 		class:border-2={isDragging}
 		class:border-primary-500={isDragging}
 		class:border-dashed={isDragging}
@@ -195,9 +195,15 @@ for the image editor canvas with reactive rendering.
 		onmouseup={handleMouseUp}
 		onmouseleave={handleMouseUp}
 		onwheel={handleWheel}
-		role="application"
-		aria-label="Interactive image canvas"
-		tabindex="0"
+		onkeydown={(e) => {
+			// Basic keyboard support for pan/zoom
+			if (e.key === '+' || e.key === '=') {
+				imageEditorStore.setZoom(imageEditorStore.zoom * 1.1);
+			} else if (e.key === '-' || e.key === '_') {
+				imageEditorStore.setZoom(imageEditorStore.zoom / 1.1);
+			}
+		}}
+		aria-label="Interactive image canvas. Use mouse to pan, wheel to zoom, and +/- keys to zoom."
 	>
 		{#if containerWidth > 0 && containerHeight > 0}
 			<Canvas width={containerWidth} height={containerHeight}>
@@ -206,7 +212,7 @@ for the image editor canvas with reactive rendering.
 				{@render children?.()}
 			</Canvas>
 		{/if}
-	</div>
+	</button>
 
 	<!-- Zoom controls slot -->
 	{#if hasImage && showZoomControls}
