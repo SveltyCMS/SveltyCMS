@@ -131,7 +131,12 @@ export class MongoMediaMethods {
 	}
 
 	// Retrieves a paginated list of media files, optionally filtered by folder
-	async getFiles(folderId?: DatabaseId, options: PaginationOptions = {}, recursive = false): Promise<DatabaseResult<PaginatedResult<MediaItem>>> {
+	async getFiles(
+		folderId?: DatabaseId,
+		options: PaginationOptions = {},
+		recursive = false,
+		tenantId?: string | null
+	): Promise<DatabaseResult<PaginatedResult<MediaItem>>> {
 		const { page = 1, pageSize = 25, sortField = 'createdAt', sortDirection = 'desc', user } = options;
 
 		// Determine if we should filter by user ownership
@@ -140,7 +145,7 @@ export class MongoMediaMethods {
 		const isAdmin = user?.role === 'admin' || (user as any)?.isAdmin === true;
 		const shouldFilterByUser = user && !isAdmin;
 
-		const cacheKey = `media:files:${folderId || 'root'}:${page}:${pageSize}:${sortField}:${sortDirection}:rec:${recursive}${shouldFilterByUser ? `:user:${userId}` : ''}`;
+		const cacheKey = `media:files:${folderId || 'root'}:${page}:${pageSize}:${sortField}:${sortDirection}:rec:${recursive}:${tenantId || 'no-tenant'}${shouldFilterByUser ? `:user:${userId}` : ''}`;
 
 		const fetchData = async (): Promise<DatabaseResult<PaginatedResult<MediaItem>>> => {
 			try {
@@ -161,19 +166,22 @@ export class MongoMediaMethods {
 					};
 				}
 
+				const secureQuery = safeQuery(query, tenantId);
+
 				const skip = (page - 1) * pageSize;
 				const sort: Record<string, 1 | -1> = { [sortField]: sortDirection === 'asc' ? 1 : -1 };
 
 				const [items, total] = await Promise.all([
 					this.mediaModel
-						.find(query as any)
+						.find(secureQuery as any)
 						.sort(sort)
 						.skip(skip)
 						.limit(pageSize)
 						.lean()
 						.exec(),
-					this.mediaModel.countDocuments(query as any)
+					this.mediaModel.countDocuments(secureQuery as any)
 				]);
+
 
 				return {
 					success: true,

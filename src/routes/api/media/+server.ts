@@ -56,7 +56,6 @@ export const GET = apiHandler(async ({ locals, url }) => {
 		}
 
 		// --- MULTI-TENANCY: Scope the query by tenantId ---
-		// Filtering by tenantId should be handled by the adapter, not PaginationOptions
 		const result = await dbAdapter.media.files.getByFolder(
 			undefined,
 			{
@@ -66,8 +65,10 @@ export const GET = apiHandler(async ({ locals, url }) => {
 				sortDirection: 'desc',
 				user // Pass user for ownership filtering
 			},
-			recursive
+			recursive,
+			tenantId
 		);
+
 
 		if (!result.success) {
 			logger.error('Failed to fetch media files from database', {

@@ -52,6 +52,7 @@ export const mediaSchema = new Schema<MediaItem>(
 		path: { type: String, required: true }, // Path to the media file
 		size: { type: Number, required: true }, // Size of the media file
 		mimeType: { type: String, required: true }, // Mime type of the media file
+		tenantId: { type: String, index: true }, // Multi-tenant isolation ID
 		folderId: { type: String, default: null }, // Folder paths/ids as strings
 		thumbnails: { type: Schema.Types.Mixed, default: {} }, // Thumbnails for images
 		metadata: {
@@ -81,12 +82,12 @@ mediaSchema.index({ filename: 1 });
 mediaSchema.index({ hash: 1 }, { unique: true }); // Unique hash for deduplication
 
 // Compound indexes for common query patterns (50-80% performance boost)
-mediaSchema.index({ folderId: 1, createdAt: -1 }); // Folder browsing
-mediaSchema.index({ createdBy: 1, createdAt: -1 }); // User's media library
-mediaSchema.index({ mimeType: 1, createdAt: -1 }); // Filter by file type
-mediaSchema.index({ updatedAt: -1 }); // Recent media
-mediaSchema.index({ folderId: 1, mimeType: 1 }); // Folder + type filtering
-mediaSchema.index({ filename: 'text', originalFilename: 'text' }); // Full-text search on filenames
+mediaSchema.index({ tenantId: 1, folderId: 1, createdAt: -1 }); // Folder browsing
+mediaSchema.index({ tenantId: 1, createdBy: 1, createdAt: -1 }); // User's media library
+mediaSchema.index({ tenantId: 1, mimeType: 1, createdAt: -1 }); // Filter by file type
+mediaSchema.index({ tenantId: 1, updatedAt: -1 }); // Recent media
+mediaSchema.index({ tenantId: 1, folderId: 1, mimeType: 1 }); // Folder + type filtering
+mediaSchema.index({ tenantId: 1, filename: 'text', originalFilename: 'text' }); // Full-text search on filenames
 
 // Fetch all media files using DatabaseAdapter's crud.findMany
 export async function fetchAllMedia(databaseAdapter: IDBAdapter): Promise<DatabaseResult<MediaItem[]>> {
@@ -248,4 +249,4 @@ mediaSchema.statics = {
 };
 
 // Create and export the MediaModel
-export const MediaModel = (mongoose.models?.MediaItem as Model<MediaItem> | undefined) || mongoose.model<MediaItem>('MediaItem', mediaSchema);
+export const MediaModel = (mongoose.models?.media as Model<MediaItem> | undefined) || mongoose.model<MediaItem>('media', mediaSchema);

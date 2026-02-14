@@ -5,12 +5,12 @@
 
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { dbAdapter } from '@src/databases/db';
 import { MediaService } from '@src/services/MediaService.server';
 import { logger } from '@utils/logger.server';
 
 // Helper function to get MediaService instance
-function getMediaService(): MediaService {
+async function getMediaService(): Promise<MediaService> {
+	const { dbAdapter } = await import('@src/databases/db');
 	if (!dbAdapter) {
 		throw new Error('Database adapter is not initialized');
 	}
@@ -43,7 +43,8 @@ export const POST: RequestHandler = async ({ request, params, locals }) => {
 			return json({ success: false, error: 'Invalid manipulation data' }, { status: 400 });
 		}
 
-		const mediaService = getMediaService();
+		const mediaService = await getMediaService();
+
 
 		// Use manipulateMedia to apply Sharp transformations
 		const updatedMedia = await mediaService.manipulateMedia(id, manipulations, user._id);

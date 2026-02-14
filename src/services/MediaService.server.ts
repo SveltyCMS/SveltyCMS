@@ -196,6 +196,11 @@ export class MediaService {
 	 * Saves a file to storage and creates a database record.
 	 */
 
+	private async getMediaProcessingService() {
+		const { mediaProcessingService } = await import('./MediaProcessingService.server');
+		return mediaProcessingService;
+	}
+
 	// Saves a media file and its associated data
 	public async saveMedia(
 		file: File,
@@ -296,13 +301,15 @@ export class MediaService {
 
 			if (isImage && !mimeType.includes('svg')) {
 				try {
-					advancedMetadata = await mediaProcessingService.getMetadata(buffer);
+					const processingService = await this.getMediaProcessingService();
+					advancedMetadata = await processingService.getMetadata(buffer);
 					width = (advancedMetadata as any).width;
 					height = (advancedMetadata as any).height;
 				} catch (sharpError) {
 					logger.error('Failed to extract deep metadata', { fileName: file.name, error: sharpError });
 				}
 			} else if (isVideo) {
+
 				try {
 					const dimensions = await this.getVideoDimensions(buffer);
 					width = dimensions.width;
@@ -439,13 +446,24 @@ export class MediaService {
 		} as any;
 	}
 
+	private async getDb(): Promise<IDBAdapter> {
+		const { dbAdapter } = await import('@src/databases/db');
+		if (!dbAdapter) {
+			throw new Error('Database adapter is not initialized');
+		}
+		return dbAdapter;
+	}
+
 	/**
 	 * Manipulates an existing media item using Sharp.js
 	 */
 	public async manipulateMedia(id: string, manipulations: any, userId: string): Promise<MediaItem> {
 		this.ensureInitialized();
+		const db = await this.getDb();
 
-		const mediaResult = await this.db.crud.findOne<MediaItem>('MediaItem', { _id: id as DatabaseId });
+		const mediaResult = await db.crud.findOne<MediaItem>('media', { _id: id as DatabaseId });
+
+
 		if (!mediaResult.success || !mediaResult.data) {
 			throw error(404, 'Media item not found');
 		}
@@ -562,7 +580,9 @@ export class MediaService {
 			throw Error('Invalid updates: Must be a valid MediaItem partial object');
 		}
 		try {
-			const result = await this.db.crud.update('MediaItem', id as DatabaseId, updates);
+			const db = await this.getDb();
+			const result = await db.crud.update('media', id as DatabaseId, updates);
+
 			if (!result.success) {
 				throw result.error;
 			}
@@ -581,7 +601,10 @@ export class MediaService {
 	 */
 	public async addVersion(id: string, file: File, userId: string, action: string = 'update'): Promise<MediaItem> {
 		this.ensureInitialized();
-		const mediaResult = await this.db.crud.findOne<MediaItem>('MediaItem', { _id: id as DatabaseId });
+		const db = await this.getDb();
+		const mediaResult = await db.crud.findOne<MediaItem>('media', { _id: id as DatabaseId });
+
+
 		if (!mediaResult.success || !mediaResult.data) {
 			throw error(404, 'Media item not found');
 		}
@@ -650,7 +673,8 @@ export class MediaService {
 
 		// Access is now a string union, not array
 		try {
-			const result = await this.db.crud.update('MediaItem', id as DatabaseId, { access } as unknown as Partial<MediaItem>);
+			const db = await this.getDb();
+			const result = await db.crud.update('media', id as DatabaseId, { access } as unknown as Partial<MediaItem>);
 			if (!result.success) {
 				throw result.error;
 			}
@@ -684,7 +708,9 @@ export class MediaService {
 				// If cached but no access, fall through to DB fetch for fresh check (or just deny)
 			}
 
-			const result = await this.db.crud.findOne<MediaItem>('MediaItem', { _id: id as DatabaseId });
+			const db = await this.getDb();
+			const result = await db.crud.findOne<MediaItem>('media', { _id: id as DatabaseId });
+
 
 			if (!result.success) {
 				throw result.error;
@@ -765,6 +791,7 @@ export class MediaService {
 	public async searchMedia(query: string, page: number = 1, limit: number = 20): Promise<{ media: MediaItem[]; total: number }> {
 		this.ensureInitialized();
 		try {
+			const db = await this.getDb();
 			const searchCriteria = {
 				$or: [{ filename: { $regex: query, $options: 'i' } }, { 'metadata.tags': { $regex: query, $options: 'i' } }]
 			};
@@ -772,8 +799,8 @@ export class MediaService {
 			const options = { offset: (page - 1) * limit, limit: limit };
 
 			const [mediaResult, totalResult] = await Promise.all([
-				this.db.crud.findMany<MediaItem>('MediaItem', searchCriteria as unknown as Partial<MediaItem>, options),
-				this.db.crud.count('MediaItem', searchCriteria as unknown as Partial<BaseEntity>)
+				db.crud.findMany<MediaItem>('media', searchCriteria as unknown as Partial<MediaItem>, options),
+				db.crud.count('media', searchCriteria as unknown as Partial<BaseEntity>)
 			]);
 
 			if (!mediaResult.success) {
@@ -795,11 +822,12 @@ export class MediaService {
 	public async listMedia(page: number = 1, limit: number = 20): Promise<{ media: MediaItem[]; total: number }> {
 		this.ensureInitialized();
 		try {
+			const db = await this.getDb();
 			const options = { offset: (page - 1) * limit, limit: limit };
 
 			const [mediaResult, totalResult] = await Promise.all([
-				this.db.crud.findMany<MediaItem>('MediaItem', {}, options),
-				this.db.crud.count('MediaItem', {})
+				db.crud.findMany<MediaItem>('media', {}, options),
+				db.crud.count('media', {})
 			]);
 
 			if (!mediaResult.success) {

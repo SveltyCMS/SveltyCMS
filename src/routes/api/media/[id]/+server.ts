@@ -34,7 +34,7 @@ export async function GET({ params, locals }) {
 		throw error(500, 'Internal Server Error');
 	}
 
-	const mediaService = new MediaService(dbAdapter);
+	const mediaService = new MediaService(dbAdapter!);
 
 	try {
 		// Use mediaService.getMedia to enforce ownership/admin access control
@@ -67,7 +67,7 @@ export async function PATCH({ params, request, locals }) {
 		throw error(500, 'Internal Server Error');
 	}
 
-	const mediaService = new MediaService(dbAdapter);
+	const mediaService = new MediaService(dbAdapter!);
 
 	try {
 		// 1. Get existing media to check access and merge metadata

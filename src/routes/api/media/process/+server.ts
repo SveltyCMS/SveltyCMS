@@ -48,7 +48,7 @@ function getMediaService(): MediaService {
 		throw new Error('Database adapter is not initialized');
 	}
 	try {
-		const service = new MediaService(dbAdapter);
+		const service = new MediaService(dbAdapter!);
 		logger.info('MediaService initialized successfully');
 		return service;
 	} catch (err) {
