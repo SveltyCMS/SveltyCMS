@@ -31,34 +31,18 @@ Features:
 		);
 		return Object.keys(res).length === 0 ? undefined : res;
 	}
-	// Define props using $props()
-	const props = $props();
+	// Props from parent
+	let { value = $bindable(null), icon = $bindable(null), permissions = $bindable(null), ...props } = $props();
 
-	// Create state variables for mutable props
-	let value = $state(props.value ?? null);
-	let icon = $state(props.icon ?? null);
-	let permissions = $state(props.permissions ?? null);
-
-	// Use $effect for side effects
 	$effect(() => {
 		if (props.key === 'display' && value?.default === true) {
 			value = '';
-		}
-
-		// Only update the parent component if the value has changed
-		if (value !== props.value) {
-			updateParent();
 		}
 	});
 
 	$effect(() => {
 		if (props.key === 'permissions' && value) {
 			permissions = sanitizePermissions(value);
-
-			// Only update the parent component if the permissions have changed
-			if (permissions !== props.permissions) {
-				updateParent();
-			}
 		}
 	});
 

@@ -69,8 +69,8 @@ The testing suite has been optimized for **parallel execution** and **enterprise
 
 **Files:**
 
-- `tests/bun/hooks/system-state.test.ts` (26 tests)
-- `tests/bun/hooks/firewall.test.ts` (27 tests)
+- `tests/unit/hooks/system-state.test.ts` (26 tests)
+- `tests/unit/hooks/firewall.test.ts` (27 tests)
 
 **System State Hook Tests:**
 
@@ -107,16 +107,16 @@ The testing suite has been optimized for **parallel execution** and **enterprise
 **Commands:**
 
 ```bash
-bun test tests/bun/hooks/system-state.test.ts  # 26 tests
-bun test tests/bun/hooks/firewall.test.ts      # 27 tests
-bun test tests/bun/hooks/                      # All hook tests
+bun test tests/unit/hooks/system-state.test.ts  # 26 tests
+bun test tests/unit/hooks/firewall.test.ts      # 27 tests
+bun test tests/unit/hooks/                      # All hook tests
 ```
 
 ---
 
 ### 2. Dashboard API Integration Tests (48/48) 📊
 
-**File:** `tests/bun/api/dashboard.test.ts`
+**File:** `tests/integration/api/dashboard.test.ts`
 
 **Status:** ✅ Created (awaiting server execution)
 
@@ -207,11 +207,11 @@ bun test tests/bun/hooks/                      # All hook tests
 bun run test:integration  # Full automated run
 
 # Manual run (Terminal 2)
-bun test tests/bun/api/dashboard.test.ts
+bun test tests/integration/api/dashboard.test.ts
 
 # Run individual endpoint tests
-bun test tests/bun/api/dashboard.test.ts -t "health"
-bun test tests/bun/api/dashboard.test.ts -t "systemInfo"
+bun test tests/integration/api/dashboard.test.ts -t "health"
+bun test tests/integration/api/dashboard.test.ts -t "systemInfo"
 ```
 
 **Note:** These are integration tests that require:
@@ -227,7 +227,7 @@ bun test tests/bun/api/dashboard.test.ts -t "systemInfo"
 
 ### 3. 2FA Authentication API Tests (28/28) 🔐
 
-**File:** `tests/bun/api/auth-2fa.test.ts`
+**File:** `tests/integration/api/auth-2fa.test.ts`
 
 **Status:** ✅ Created (awaiting server execution)
 
@@ -291,7 +291,7 @@ bun test tests/bun/api/dashboard.test.ts -t "systemInfo"
 
 ### 4. Security Management API Tests (33/33) 🛡️
 
-**File:** `tests/bun/api/security.test.ts`
+**File:** `tests/integration/api/security.test.ts`
 
 **Status:** ✅ Created (awaiting server execution)
 
@@ -357,7 +357,7 @@ bun test tests/bun/api/dashboard.test.ts -t "systemInfo"
 
 ### 5. Widget Management API Tests (30/30) 🧩
 
-**File:** `tests/bun/api/widgets.test.ts`
+**File:** `tests/integration/api/widgets.test.ts`
 
 **Status:** ✅ Created (awaiting server execution)
 
@@ -423,7 +423,7 @@ bun test tests/bun/api/dashboard.test.ts -t "systemInfo"
 
 ### 6. Settings & Configuration API Tests (31/31) ⚙️
 
-**File:** `tests/bun/api/settings.test.ts`
+**File:** `tests/integration/api/settings.test.ts`
 
 **Status:** ✅ Created (awaiting server execution)
 
@@ -492,7 +492,7 @@ bun test tests/bun/api/dashboard.test.ts -t "systemInfo"
 
 ### 7. Import/Export API Tests (29/29) 📦
 
-**File:** `tests/bun/api/import-export.test.ts`
+**File:** `tests/integration/api/import-export.test.ts`
 
 **Status:** ✅ Created (awaiting server execution)
 
@@ -546,7 +546,7 @@ bun test tests/bun/api/dashboard.test.ts -t "systemInfo"
 
 ### 8. Theme Management API Tests (24/24) 🎨
 
-**File:** `tests/bun/api/theme.test.ts`
+**File:** `tests/integration/api/theme.test.ts`
 
 **Status:** ✅ Created (awaiting server execution)
 
@@ -598,7 +598,7 @@ bun test tests/bun/api/dashboard.test.ts -t "systemInfo"
 
 ### 9. Miscellaneous Utility API Tests (36/36) 🔧
 
-**File:** `tests/bun/api/miscellaneous.test.ts`
+**File:** `tests/integration/api/miscellaneous.test.ts`
 
 **Status:** ✅ Created (awaiting server execution)
 
@@ -671,7 +671,7 @@ bun test tests/bun/api/dashboard.test.ts -t "systemInfo"
 
 ### 10. Security Response Service (8/8) 🛡️
 
-**File:** `tests/bun/services/SecurityResponseService.test.ts`
+**File:** `tests/unit/services/SecurityResponseService.test.ts`
 
 **Tests:**
 
@@ -696,14 +696,14 @@ bun test tests/bun/api/dashboard.test.ts -t "systemInfo"
 **Command:**
 
 ```bash
-bun test tests/bun/services/SecurityResponseService.test.ts
+bun test tests/unit/services/SecurityResponseService.test.ts
 ```
 
 ---
 
 ### 3. RichText Widget Validation (8/8) 📝
 
-**File:** `tests/bun/widgets/richText.test.ts`
+**File:** `tests/unit/widgets/richText.test.ts`
 
 **Tests:**
 
@@ -726,14 +726,14 @@ bun test tests/bun/services/SecurityResponseService.test.ts
 **Command:**
 
 ```bash
-bun test tests/bun/widgets/richText.test.ts
+bun test tests/unit/widgets/richText.test.ts
 ```
 
 ---
 
 ### 4. Cache Integration Tests (17/17) 💾
 
-**File:** `tests/bun/databases/cache-integration.test.ts`
+**File:** `tests/integration/databases/cache-integration.test.ts`
 
 **Basic Operations (4 tests):**
 
@@ -773,7 +773,7 @@ bun test tests/bun/widgets/richText.test.ts
 **Command:**
 
 ```bash
-bun test tests/bun/databases/cache-integration.test.ts
+bun test tests/integration/databases/cache-integration.test.ts
 ```
 
 ---
@@ -836,7 +836,7 @@ bun test tests/bun/ImageEditor.test.ts
 
 ### 8. User API Tests (47/47) 👤
 
-**File:** `tests/bun/api/user.test.ts`
+**File:** `tests/integration/api/user.test.ts`
 
 See [User API Tests](./user-api-tests.mdx) for complete documentation.
 
@@ -855,14 +855,14 @@ See [User API Tests](./user-api-tests.mdx) for complete documentation.
 **Command:**
 
 ```bash
-bun test tests/bun/api/user.test.ts
+bun test tests/integration/api/user.test.ts
 ```
 
 ---
 
 ### 9. Media & Digital Asset Management (34/34) 🖼️
 
-**File:** `tests/bun/api/media.test.ts`
+**File:** `tests/integration/api/media.test.ts`
 
 **Coverage:**
 
@@ -885,14 +885,14 @@ bun test tests/bun/api/user.test.ts
 **Command:**
 
 ```bash
-bun test tests/bun/api/media.test.ts
+bun test tests/integration/api/media.test.ts
 ```
 
 ---
 
 ### 10. GraphQL API Tests (21/21) 🔷
 
-**File:** `tests/bun/api/graphql.test.ts`
+**File:** `tests/integration/api/graphql.test.ts`
 
 **Coverage:**
 
@@ -943,7 +943,7 @@ bun test tests/bun/api/media.test.ts
 **Command:**
 
 ```bash
-bun test tests/bun/api/graphql.test.ts
+bun test tests/integration/api/graphql.test.ts
 ```
 
 **Documentation:** See [GraphQL API](/docs/api/GraphQL_API.mdx) for complete API reference
@@ -952,7 +952,7 @@ bun test tests/bun/api/graphql.test.ts
 
 ### 10. Token API Tests (12/12) 🔑
 
-**File:** `tests/bun/api/token.test.ts`
+**File:** `tests/integration/api/token.test.ts`
 
 **Coverage:**
 
@@ -987,7 +987,7 @@ bun test tests/bun/api/graphql.test.ts
 **Command:**
 
 ```bash
-bun test tests/bun/api/token.test.ts
+bun test tests/integration/api/token.test.ts
 ```
 
 **Documentation:** See [Token API](/docs/api/Token_API_Endpoints.mdx) for complete API reference
@@ -996,7 +996,7 @@ bun test tests/bun/api/token.test.ts
 
 ### 11. Setup API Tests (20/20) 🚀
 
-**File:** `tests/bun/api/setup.test.ts`
+**File:** `tests/integration/api/setup.test.ts`
 
 **Coverage:** Initial setup wizard endpoints for fresh CMS installation
 
@@ -1039,14 +1039,14 @@ bun test tests/bun/api/token.test.ts
 - ✅ Enforce password requirements
 - ✅ Redirect to first collection
 
-* - **Setup Actions Tests** (`tests/bun/api/setup-actions.test.ts`) - Tests the seed action which uses scanCompiledCollections
+* - **Setup Actions Tests** (`tests/integration/api/setup-actions.test.ts`) - Tests the seed action which uses scanCompiledCollections
     **Documentation:** See [Setup Actions API](/docs/api/Setup_Actions_API.mdx) for complete API reference
 
 ---
 
 ### 12. Setup Utility Tests (25/25) 🔧
 
-**File:** `tests/bun/api/setup-utils.test.ts`
+**File:** `tests/integration/api/setup-utils.test.ts`
 
 **Coverage:** Utility functions for setup process
 
@@ -1095,7 +1095,7 @@ bun test tests/bun/api/token.test.ts
 **Command:**
 
 ```bash
-bun test tests/bun/api/setup-utils.test.ts
+bun test tests/integration/api/setup-utils.test.ts
 ```
 
 **Features Tested:**
@@ -1109,7 +1109,7 @@ bun test tests/bun/api/setup-utils.test.ts
 
 ### 13. Collection API Tests (19/19) 📚
 
-**File:** `tests/bun/api/collections.test.ts`
+**File:** `tests/integration/api/collections.test.ts`
 
 **Coverage:** Collection and content management API endpoints
 
@@ -1152,7 +1152,7 @@ bun test tests/bun/api/setup-utils.test.ts
 **Command:**
 
 ```bash
-bun test tests/bun/api/collections.test.ts
+bun test tests/integration/api/collections.test.ts
 ```
 
 **Note:** Some tests may timeout during initial database setup. This is expected behavior for integration tests that require server initialization.
@@ -1192,7 +1192,7 @@ bun test tests/bun/collection-builder.test.ts
 
 ### Database Interface Contract Tests (50+ tests)
 
-**File:** `tests/bun/databases/db-interface.test.ts`
+**File:** `tests/integration/databases/db-interface.test.ts`
 
 **Status:** ⏳ Scaffolded (awaiting database setup)
 
@@ -1230,14 +1230,14 @@ bun test tests/bun/collection-builder.test.ts
 **Command:**
 
 ```bash
-bun test tests/bun/databases/db-interface.test.ts
+bun test tests/integration/databases/db-interface.test.ts
 ```
 
 ---
 
 ### MongoDB Adapter Tests (40+ tests)
 
-**File:** `tests/bun/databases/mongodb-adapter.test.ts`
+**File:** `tests/integration/databases/mongodb-adapter.test.ts`
 
 **Status:** ⏳ Scaffolded (awaiting database setup)
 
@@ -1280,14 +1280,14 @@ bun test tests/bun/databases/db-interface.test.ts
 **Command:**
 
 ```bash
-bun test tests/bun/databases/mongodb-adapter.test.ts
+bun test tests/integration/databases/mongodb-adapter.test.ts
 ```
 
 ---
 
 ### Authentication System Tests (50+ tests)
 
-**File:** `tests/bun/databases/auth-system.test.ts`
+**File:** `tests/integration/databases/auth-system.test.ts`
 
 **Status:** ⏳ Scaffolded (awaiting database setup)
 
@@ -1354,7 +1354,7 @@ bun test tests/bun/databases/mongodb-adapter.test.ts
 **Command:**
 
 ```bash
-bun test tests/bun/databases/auth-system.test.ts
+bun test tests/integration/databases/auth-system.test.ts
 ```
 
 ---
@@ -1365,10 +1365,10 @@ bun test tests/bun/databases/auth-system.test.ts
 
 **Files:**
 
-- `tests/bun/api/system.test.ts`
-- `tests/bun/api/media.test.ts`
-- `tests/bun/api/token.test.ts`
-- `tests/bun/api/collections.test.ts`
+- `tests/integration/api/system.test.ts`
+- `tests/integration/api/media.test.ts`
+- `tests/integration/api/token.test.ts`
+- `tests/integration/api/collections.test.ts`
 
 **Issue:** beforeEach/afterEach hook timeouts (5000ms)  
 **Root Cause:** Missing database connection/setup  
@@ -1436,7 +1436,7 @@ createWidget: vi.fn(() => () => ({
 
 ### 2. Modern Widget Architecture Test
 
-**File:** `tests/bun/widgets/modern-widget-architecture.test.ts`  
+**File:** `tests/unit/widgets/modern-widget-architecture.test.ts`  
 **Error:** `Export 'ensureModernField' not found`
 
 **Fix:** Update widget factory exports or test imports.
@@ -1445,7 +1445,7 @@ createWidget: vi.fn(() => () => ({
 
 ### 3. Text Widget Test
 
-**File:** `tests/bun/widgets/text.test.ts`  
+**File:** `tests/unit/widgets/text.test.ts`  
 **Error:** `Cannot find module '@src/widgets/text/Text.svelte'`
 
 **Fix:** Create missing widget component or update path.
@@ -1575,19 +1575,19 @@ bun test tests/bun/services
 
 ```bash
 # Security tests
-bun test tests/bun/services/SecurityResponseService.test.ts
+bun test tests/unit/services/SecurityResponseService.test.ts
 
 # Widget tests
-bun test tests/bun/widgets/richText.test.ts
+bun test tests/unit/widgets/richText.test.ts
 
 # Cache tests
-bun test tests/bun/databases/cache-integration.test.ts
+bun test tests/integration/databases/cache-integration.test.ts
 
 # User API tests
-bun test tests/bun/api/user.test.ts
+bun test tests/e2e/
 ```
 
-### Run E2E Tests (Playwright)
+### Run E2E Tests
 
 ```bash
 # All E2E tests

@@ -38,7 +38,7 @@ Renders: ★★★★☆ (4 filled stars, 1 empty star)
 {#if typeof value === 'number' && value > 0}
 	{@const iconFull = ((field.iconFull as string) || 'star').replace('material-symbols:', '')}
 	{@const iconEmpty = ((field.iconEmpty as string) || 'star-outline').replace('material-symbols:', '').replace('-outline', '')}
-	<div class="display-wrapper" title="{value} out of {field.max || 5} stars">
+	<div class="rating-display" title="{value} out of {field.max || 5} stars">
 		{#each stars as _, i (i)}
 			{#if i < value}
 				<iconify-icon icon={iconFull} width="24" class="text-warning-500"></iconify-icon>
@@ -52,9 +52,10 @@ Renders: ★★★★☆ (4 filled stars, 1 empty star)
 {/if}
 
 <style>
-	.display-wrapper {
+	.rating-display {
 		display: inline-flex;
 		align-items: center;
-		gap: 0.125rem; /* 2px */
+		gap: 0.25rem;
+		font-family: inherit;
 	}
 </style>

@@ -10,7 +10,6 @@
  */
 
 import { error, redirect, type Handle } from '@sveltejs/kit';
-import { getPrivateSettingSync } from '@src/services/settingsService';
 import { hasPermissionByAction } from '@src/databases/auth/permissions';
 import type { Role } from '@src/databases/auth/types';
 import { auth } from '@src/databases/db';
@@ -31,7 +30,7 @@ const rolesCache = new Map<string, { data: Role[]; timestamp: number }>();
 
 // --- UTILITIES ---
 
-function isPublicRoute(pathname: string, method?: string): boolean {
+function isPublicRoute(pathname: string, method: string | undefined, testMode: string | undefined): boolean {
 	const publicRoutes = [
 		'/login',
 		'/register',
@@ -42,13 +41,16 @@ function isPublicRoute(pathname: string, method?: string): boolean {
 		'/api/user/login',
 		'/api/settings/public',
 		'/api/setup',
-		'/api/preview'
+		'/api/preview',
+		'/api/system/health'
 	];
+
+	if (testMode === 'true') {
+		publicRoutes.push('/api/testing');
+	}
+
 	// Token validation endpoint is public (GET only) for registration flow
-	// Format: /api/token/{tokenValue} where tokenValue is any non-empty string (not just the list endpoint)
-	// We check that it's NOT the base /api/token route and has something after /api/token/
 	if (method === 'GET' && pathname.startsWith('/api/token/') && pathname.length > 11) {
-		// /api/token/ is 11 chars, so pathname.length > 11 means there's a token value
 		return true;
 	}
 
@@ -60,7 +62,7 @@ function isOAuthRoute(pathname: string): boolean {
 }
 
 /** Get cached user count with fallback */
-async function getCachedUserCount(tenantId?: string): Promise<number> {
+async function getCachedUserCount(tenantId?: string, multiTenant?: boolean): Promise<number> {
 	const now = Date.now();
 	if (userCountCache && now - userCountCache.timestamp < USER_COUNT_CACHE_TTL_MS) {
 		return userCountCache.count;
@@ -78,7 +80,7 @@ async function getCachedUserCount(tenantId?: string): Promise<number> {
 
 	try {
 		if (!auth) return -1;
-		const filter = getPrivateSettingSync('MULTI_TENANT') && tenantId ? { tenantId } : {};
+		const filter = multiTenant && tenantId ? { tenantId } : {};
 		const count = await auth.getUserCount(filter);
 		const cacheData = { count, timestamp: now };
 		userCountCache = cacheData;
@@ -125,17 +127,23 @@ async function getCachedRoles(tenantId?: string): Promise<Role[]> {
 	}
 }
 
-
-
 // --- MAIN HANDLE ---
 
 export const handleAuthorization: Handle = async ({ event, resolve }) => {
 	const { url, locals, request } = event;
 	const { user } = locals;
 
+	// Dynamic imports for settings to avoid circular dependencies in hooks
+	const { getPrivateSettingSync } = await import('@src/services/settingsService');
+	const { env } = await import('$env/dynamic/private');
+
 	const pathname = url.pathname;
 	const isApi = pathname.startsWith('/api/');
-	const isPublic = isPublicRoute(pathname, request.method);
+	const isPublic = isPublicRoute(pathname, request.method, env.TEST_MODE);
+
+	if (pathname.includes('/api/testing')) {
+		console.log(`[Authorization] Path: ${pathname}, TEST_MODE: ${env.TEST_MODE}, isPublic: ${isPublic}`);
+	}
 
 	// --- Skip static or internal routes early ---
 	const ASSET_REGEX =
@@ -153,7 +161,8 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
 	}
 
 	// --- Check if first user (for setup flow) ---
-	const userCount = await getCachedUserCount(locals.tenantId);
+	const multiTenant = getPrivateSettingSync('MULTI_TENANT');
+	const userCount = await getCachedUserCount(locals.tenantId, !!multiTenant);
 	locals.isFirstUser = userCount === 0;
 
 	// --- Load cached roles (database-only) ---

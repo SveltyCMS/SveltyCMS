@@ -106,7 +106,6 @@ export async function sendMail({ recipientEmail, subject, templateName, props = 
 		throw new AppError('Database adapter is not available', 500);
 	}
 
-
 	// Get SMTP configuration from database
 	const smtpHostResult = await dbAdapter.systemPreferences.get<string>('SMTP_HOST', 'system');
 	const smtpPortResult = await dbAdapter.systemPreferences.get<string>('SMTP_PORT', 'system');

@@ -170,6 +170,23 @@ export class PostgreSQLAdapter extends AdapterCore {
 		}
 	};
 
+	public async clearDatabase(): Promise<DatabaseResult<void>> {
+		return this.wrap(async () => {
+			// PostgreSQL cleanup: DROP SCHEMA public CASCADE and recreate it
+			// This effectively drops all tables, views, etc.
+			await this.db!.execute(sql`DROP SCHEMA public CASCADE;`);
+			await this.db!.execute(sql`CREATE SCHEMA public;`);
+			await this.db!.execute(sql`GRANT ALL ON SCHEMA public TO public;`);
+			// Reset init flags so system tables get recreated on next access
+			this._featureInit = {
+				system: false,
+				auth: false,
+				media: false,
+				content: false
+			};
+		}, 'CLEAR_DATABASE_FAILED');
+	}
+
 	/**
 	 * Maps a raw PostgreSQL user row to include `role` (string) derived from `roleIds` (array).
 	 * This ensures compatibility with the middleware permission checks that expect `user.role`.

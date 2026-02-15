@@ -167,6 +167,7 @@ export const telemetryService = {
 					}
 
 					if (dbAdapter.auth) {
+						// Single Tenant / Global (or SQLite promiscuous)
 						const userCountResult = await dbAdapter.auth.getUserCount();
 						if (userCountResult.success) userCount = userCountResult.data;
 						roleCount = (await dbAdapter.auth.getAllRoles()).length;

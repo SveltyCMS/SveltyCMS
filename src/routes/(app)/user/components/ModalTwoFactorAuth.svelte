@@ -68,10 +68,10 @@ This component provides a user interface for managing 2FA settings:
 
 	// Show success toast
 	function showSuccessToast(message: string) {
-		toaster.create({ title: 'Success', description: message, type: 'success' });
+		toaster.success({ title: 'Success', description: message });
 	}
 	function showErrorToast(message: string) {
-		toaster.create({ title: 'Error', description: message, type: 'error' });
+		toaster.error({ title: 'Error', description: message });
 	}
 
 	// Load setup data (QR code, secret, backup codes)

@@ -28,7 +28,8 @@
 	// Skeleton
 	// Collection Manager
 
-	const props = $props();
+	// Props from parent
+	let { data = $bindable(null), handlePageTitleUpdate } = $props();
 
 	//action
 	const action = page.params.action;
@@ -36,22 +37,22 @@
 	// Form fields
 	let searchQuery = $state('');
 	let autoUpdateSlug = $state(true);
-	let selectedIcon = $state(props.data?.icon || '');
+	let selectedIcon = $state(data?.icon || '');
 
 	// Form field values
-	let name = $state(props.data?.name ?? '');
-	let slug = $state(props.data?.slug ?? '');
-	let description = $state(props.data?.description ?? '');
-	let status = $state(props.data?.status ?? 'unpublished');
+	let name = $state(data?.name ?? '');
+	let slug = $state(data?.slug ?? '');
+	let description = $state(data?.description ?? '');
+	let status = $state(data?.status ?? 'unpublished');
 
-	// Update form fields when props.data changes (for async loading)
+	// Update form fields when data changes (for async loading)
 	$effect(() => {
-		if (props.data) {
-			name = props.data.name ?? '';
-			slug = props.data.slug ?? '';
-			description = props.data.description ?? '';
-			status = props.data.status ?? 'unpublished';
-			selectedIcon = props.data.icon ?? '';
+		if (data) {
+			name = data.name ?? '';
+			slug = data.slug ?? '';
+			description = data.description ?? '';
+			status = data.status ?? 'unpublished';
+			selectedIcon = data.icon ?? '';
 		}
 	});
 
@@ -114,7 +115,7 @@
 			window.history.replaceState({}, '', `/config/collectionbuilder/${action}/${slug}`);
 
 			// Update the page title
-			props.handlePageTitleUpdate(name);
+			handlePageTitleUpdate(name);
 
 			// Update the linked slug input
 			slug = name.toLowerCase().replace(/\s+/g, '_');
@@ -147,11 +148,11 @@
 
 		// Update page title based on action and collection name
 		if (action === 'edit') {
-			props.handlePageTitleUpdate(currentName);
+			handlePageTitleUpdate(currentName);
 		} else if (currentName) {
-			props.handlePageTitleUpdate(currentName);
+			handlePageTitleUpdate(currentName);
 		} else {
-			props.handlePageTitleUpdate(`new`);
+			handlePageTitleUpdate(`new`);
 		}
 	});
 

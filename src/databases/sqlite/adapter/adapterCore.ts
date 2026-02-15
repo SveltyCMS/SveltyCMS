@@ -231,7 +231,7 @@ export class AdapterCore {
 		for (const [key, value] of Object.entries(query)) {
 			if (key.startsWith('$')) continue;
 			if (table[key]) {
-				if (value === null) {
+				if (value === null || value === undefined) {
 					conditions.push(isNull(table[key]));
 				} else {
 					conditions.push(eq(table[key], value));
@@ -240,6 +240,7 @@ export class AdapterCore {
 		}
 
 		if (conditions.length === 0) return undefined;
+        // console.log(`[AdapterCore] Mapping query:`, JSON.stringify(query), '-> Conditions:', conditions.length);
 		return and(...conditions);
 	}
 }

@@ -113,9 +113,16 @@ describe('handleApiRequests Middleware', () => {
 		});
 	});
 
-	describe('Logout Endpoint Bypass', () => {
+	describe('Public API Route Bypass', () => {
 		it('should bypass permission checks for /api/user/logout', async () => {
 			const event = createMockEvent('/api/user/logout', 'POST', mockUser);
+			await handleApiRequests({ event, resolve: mockResolve });
+
+			expect(mockResolve).toHaveBeenCalled();
+		});
+
+		it('should bypass permission checks for /api/system/health', async () => {
+			const event = createMockEvent('/api/system/health', 'GET');
 			await handleApiRequests({ event, resolve: mockResolve });
 
 			expect(mockResolve).toHaveBeenCalled();

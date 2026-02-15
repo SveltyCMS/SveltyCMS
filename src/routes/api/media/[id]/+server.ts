@@ -22,112 +22,71 @@ async function getDbAdapter() {
 }
 
 export async function GET({ params, locals }) {
-
 	const { id } = params;
 
 	const { user, roles } = locals;
 
-
-
 	if (!id) {
-
 		throw error(400, 'Media ID is required');
-
 	}
-
-
 
 	if (!user) {
-
 		throw error(401, 'Unauthorized');
-
 	}
-
-
 
 	const dbAdapter = await getDbAdapter();
 
 	if (!dbAdapter) {
-
 		logger.error('Database adapter is not initialized');
 
 		throw error(500, 'Internal Server Error');
-
 	}
-
-
 
 	const mediaService = new MediaService(dbAdapter);
 
-
-
 	try {
-
 		// Use mediaService.getMedia to enforce ownership/admin access control
 
 		const media = await mediaService.getMedia(id, user, roles || []);
 
 		return json(media);
-
 	} catch (err) {
-
 		const message = `Error fetching media item ${id}: ${err instanceof Error ? err.message : String(err)}`;
 
 		logger.error(message);
 
 		if (err && typeof err === 'object' && 'status' in err) {
-
 			throw err;
-
 		}
 
 		throw error(500, 'Internal Server Error');
-
 	}
-
 }
 
-
-
 export async function PATCH({ params, request, locals }) {
-
 	const { id } = params;
 
 	if (!id) throw error(400, 'Media ID is required');
-
-
 
 	const { user, roles } = locals;
 
 	if (!user) throw error(401, 'Unauthorized');
 
-
-
 	const body = await request.json();
 
 	const { metadata } = body;
 
-
-
 	if (!metadata) throw error(400, 'Metadata is required');
-
-
 
 	const dbAdapter = await getDbAdapter();
 
 	if (!dbAdapter) {
-
 		logger.error('Database adapter is not initialized');
 
 		throw error(500, 'Internal Server Error');
-
 	}
 
-
-
 	const mediaService = new MediaService(dbAdapter);
-
-
 
 	try {
 		// 1. Get existing media to check access and merge metadata

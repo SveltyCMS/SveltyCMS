@@ -45,7 +45,6 @@ export const POST: RequestHandler = async ({ request, params, locals }) => {
 
 		const mediaService = await getMediaService();
 
-
 		// Use manipulateMedia to apply Sharp transformations
 		const updatedMedia = await mediaService.manipulateMedia(id, manipulations, user._id);
 

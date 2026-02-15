@@ -7,7 +7,7 @@
  */
 
 import { AppError } from '@utils/errorHandling';
-import { getPrivateEnv } from '@src/databases/db';
+import { getPrivateEnv } from '@src/databases/configState';
 
 interface SafeQueryOptions {
 	sudo?: boolean; // Bypass check (e.g. for System Admin queries)
@@ -24,6 +24,7 @@ interface SafeQueryOptions {
 export function safeQuery<T extends Record<string, any>>(query: T, tenantId?: string | null, options: SafeQueryOptions = {}): T {
 	// 1. Get private config
 	const privateEnv = getPrivateEnv();
+    console.log(`[SafeQuery] Incoming Query:`, JSON.stringify(query), `TenantId:`, tenantId, `MultiTenant:`, privateEnv?.MULTI_TENANT);
 
 	// 2. Skip if Multi-Tenancy is disabled
 	if (!privateEnv?.MULTI_TENANT) {
@@ -47,4 +48,3 @@ export function safeQuery<T extends Record<string, any>>(query: T, tenantId?: st
 		tenantId
 	};
 }
-

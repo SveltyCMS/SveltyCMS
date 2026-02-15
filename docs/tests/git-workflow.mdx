@@ -223,7 +223,7 @@ SveltyCMS uses a dual-testing strategy combining fast unit tests with comprehens
 
 - **Speed**: ⚡ Lightning fast (<5s for full suite)
 - **Purpose**: Business logic, services, widgets, security, API endpoints
-- **Location**: `tests/bun/`
+- **Location**: `tests/unit/`
 - **Run**: `bun test tests/bun`
 - **Framework**: Bun Test v1.3.1
 
@@ -231,7 +231,7 @@ SveltyCMS uses a dual-testing strategy combining fast unit tests with comprehens
 
 - **Speed**: Thorough (30-60s per suite)
 - **Purpose**: User flows, UI interactions, cross-browser
-- **Location**: `tests/playwright/`
+- **Location**: `tests/e2e/`
 - **Run**: `bun x playwright test`
 - **Browsers**: Chromium, Firefox, WebKit
 
@@ -275,11 +275,11 @@ SveltyCMS uses a dual-testing strategy combining fast unit tests with comprehens
 bun test tests/bun
 
 # Specific test file
-bun test tests/bun/services/SecurityResponseService.test.ts
-bun test tests/bun/api/user.test.ts
+bun test tests/unit/services/SecurityResponseService.test.ts
+bun test tests/unit/api/user.test.ts
 
 # Specific test suite
-bun test tests/bun/api/user.test.ts -t "createUser"
+bun test tests/unit/api/user.test.ts -t "createUser"
 ```
 
 **E2E testing:**
@@ -307,17 +307,17 @@ bun run test:all
 **Test Configuration**:
 
 - `bunfig.toml` - Bun test configuration with Svelte preload
-- `tests/bun/svelte-loader.js` - Svelte component loader
-- `tests/bun/mocks/setup.ts` - Environment mocks (500+ lines)
+- `tests/unit/svelte-loader.js` - Svelte component loader
+- `tests/unit/mocks/setup.ts` - Environment mocks (500+ lines)
 - `playwright.config.ts` - E2E test configuration
 
 **Test Helpers**:
 
-- `tests/bun/helpers/testSetup.ts` - Fixtures, database cleanup, role resolution
-- `tests/bun/helpers/server.ts` - Server wait utility (prevents timeouts)
-- `tests/bun/helpers/auth.ts` - Real authentication helpers (FormData support)
-- `tests/bun/helpers/db-helper.ts` - API-based verification (no direct DB access)
-- `tests/bun/mocks/setup.ts` - Comprehensive environment mocking
+- `tests/unit/helpers/testSetup.ts` - Fixtures, database cleanup, role resolution
+- `tests/unit/helpers/server.ts` - Server wait utility (prevents timeouts)
+- `tests/unit/helpers/auth.ts` - Real authentication helpers (FormData support)
+- `tests/unit/helpers/db-helper.ts` - API-based verification (no direct DB access)
+- `tests/unit/mocks/setup.ts` - Comprehensive environment mocking
 
 **Mocked Services**:
 
@@ -519,13 +519,13 @@ git push origin --delete feat/my-feature
 
 ```bash
 # 1. Write failing test
-bun test tests/bun/api/my-feature.test.ts
+bun test tests/unit/api/my-feature.test.ts
 
 # 2. Implement feature
 # ... code ...
 
 # 3. Verify test passes
-bun test tests/bun/api/my-feature.test.ts
+bun test tests/unit/api/my-feature.test.ts
 
 # 4. Run full suite
 bun test

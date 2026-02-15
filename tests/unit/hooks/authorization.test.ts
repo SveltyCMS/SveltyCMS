@@ -118,6 +118,13 @@ describe('handleAuthorization Middleware', () => {
 
 			expect(mockResolve).toHaveBeenCalled();
 		});
+
+		it('should allow access to /api/system/health', async () => {
+			const event = createMockEvent('/api/system/health');
+			await handleAuthorization({ event, resolve: mockResolve });
+
+			expect(mockResolve).toHaveBeenCalled();
+		});
 	});
 
 	describe('Authenticated User Access', () => {

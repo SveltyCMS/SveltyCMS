@@ -31,7 +31,7 @@ Renders: color swatch or hex value
 </script>
 
 {#if value && isValidHex(value)}
-	<div class="display-wrapper" title={value}>
+	<div class="inline-fex items-center gap-0.5" title={value}>
 		<div class="swatch-preview" style:background-color={safeColor}></div>
 		<span class="hex-code">{value}</span>
 	</div>
@@ -40,11 +40,6 @@ Renders: color swatch or hex value
 {/if}
 
 <style>
-	.display-wrapper {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.5rem;
-	}
 	.swatch-preview {
 		width: 1rem;
 		height: 1rem;

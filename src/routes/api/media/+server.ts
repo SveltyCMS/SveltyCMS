@@ -58,7 +58,6 @@ export const GET = apiHandler(async ({ locals, url }) => {
 			throw new AppError('Database connection unavailable', 500, 'DB_UNAVAILABLE');
 		}
 
-
 		// --- MULTI-TENANCY: Scope the query by tenantId ---
 		const result = await dbAdapter.media.files.getByFolder(
 			undefined,
@@ -72,7 +71,6 @@ export const GET = apiHandler(async ({ locals, url }) => {
 			recursive,
 			tenantId
 		);
-
 
 		if (!result.success) {
 			logger.error('Failed to fetch media files from database', {

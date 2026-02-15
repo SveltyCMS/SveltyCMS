@@ -1,0 +1,82 @@
+---
+path: 'docs/tests/black-box-testing.mdx'
+title: 'Black-Box Testing Architecture'
+description: 'SveltyCMS strategic shift to 100% black-box integration testing for maximum security and database agnosticism.'
+author: 'SveltyCMS Team'
+created: '2026-02-15'
+updated: '2026-02-15'
+tags:
+  - 'testing'
+  - 'architecture'
+  - 'security'
+  - 'black-box'
+---
+
+# Black-Box Testing Architecture
+
+SveltyCMS has pivoted to a **100% Black-Box Testing** strategy for all integration and E2E tests. This transition removes the reliance on internal code imports (`@src/*`) within test files, ensuring that the CMS is tested exactly as a user or API consumer would experience it.
+
+## Why Black-Box Testing?
+
+### 1. 🛡️ Maximum Security Verification
+
+By removing "backdoor" imports like `dbAdapter` or `Auth` from tests, we guarantee that:
+
+- **No Side-Loading**: Tests cannot bypass security hooks or permission guards.
+- **Authentic RBAC**: Authentication is performed via real API calls (`/api/auth/login`), verifying the entire security handshake.
+- **Production Parity**: Tests run against a production-built `preview` server, catching SSR and build-specific issues that unit tests miss.
+
+### 2. 🧪 100% Database Agnosticism
+
+Internal imports often carry database-specific assumptions (e.g., Mongoose schemas). Black-Box testing treats the CMS as a "black box" that responds to HTTP:
+
+- The same test suite works bit-for-bit across **MongoDB, PostgreSQL, MariaDB, and SQLite**.
+- Tests only care about the JSON response, not the underlying SQL or NoSQL implementation.
+
+### 3. ⚡ Integrated Performance Auditing
+
+Testing over HTTP allows us to measure real-world latency:
+
+- **Baseline**: Target < 50ms for core API responses.
+- **Regressions**: Automatic alerts if middle-ware overhead (hooks) increases response times.
+
+---
+
+## The "God Mode" Testing API
+
+To allow automated tests to manage state without internal imports, we expose a secure orchestration endpoint:
+
+**Endpoint**: `/api/testing`  
+**Guard**: Strictly enabled ONLY when `TEST_MODE=true` environment variable is set.
+
+### Available Actions
+
+| Action        | Description                                                              |
+| :------------ | :----------------------------------------------------------------------- |
+| `reset`       | Wipes the database (clears all collections/tables).                      |
+| `seed`        | Initializes default roles, permissions, and an Admin user.               |
+| `create-user` | Idempotently creates test users with specific roles (Editor, Developer). |
+
+---
+
+## Test Execution Flow
+
+1. **Build**: `bun run build` generates the production bundle.
+2. **Preview**: `TEST_MODE=true bun run vite preview` starts the server.
+3. **Orchestrate**: Test helper calls `/api/testing` to prepare the database.
+4. **Login**: Test helper calls `/api/auth/login` to obtain a session cookie.
+5. **Execute**: Bun/Playwright performs HTTP requests against the live endpoints.
+6. **Verify**: Assertions are made on JSON responses and HTTP status codes.
+
+## Security Matrix Testing
+
+Every core endpoint is now triply-verified:
+
+- **Admin**: Verifies functionality.
+- **Restricted Role**: Verifies `403 Forbidden` (RBAC enforcement).
+- **Public**: Verifies `401 Unauthorized` (Auth enforcement).
+
+---
+
+> [!IMPORTANT]
+> **Safety Protocol**: Black-Box tests MUST use `config/private.test.ts`. The system includes hard-coded safety logic in `db.ts` that will terminate execution if a test attempt is detected against a production database.

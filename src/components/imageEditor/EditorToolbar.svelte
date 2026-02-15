@@ -6,7 +6,7 @@ It dynamically renders controls based on the active tool.
 -->
 <script lang="ts">
 	import { slide, fade } from 'svelte/transition';
-	import { imageEditorStore } from '@stores/imageEditorStore.svelte.ts';
+	import { imageEditorStore } from '@stores/imageEditorStore.svelte';
 
 	let {
 		onsave,

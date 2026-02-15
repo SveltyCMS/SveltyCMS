@@ -8,21 +8,17 @@
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'bun:test';
 import { prepareAuthenticatedContext, cleanupTestDatabase } from '../helpers/testSetup';
-import { getApiBaseUrl, waitForServer } from '../helpers/server';
+import { getApiBaseUrl, checkServer } from '../helpers/server';
 
 const API_BASE_URL = getApiBaseUrl();
 
-// Check if server is available before running tests
-const serverReady = await waitForServer(5000); // Quick 5s check
-
-const describeOrSkip = serverReady ? describe : describe.skip;
-
-describeOrSkip('Telemetry API Endpoints', () => {
+describe('Telemetry API Endpoints', () => {
 	let authCookie: string;
 	// adminUserId removed
 
 	beforeAll(async () => {
-		// Server already checked, this is just for completeness
+		// Check if server is available
+		await checkServer();
 	});
 
 	afterAll(async () => {

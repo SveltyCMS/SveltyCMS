@@ -31,6 +31,9 @@ const mocksDir = join(import.meta.dir, 'mocks');
 plugin({
 	name: 'svelte-exports-resolver',
 	setup(build) {
+		console.log('🔌 [preload] Registering svelte-exports-resolver plugin');
+		console.log('📂 [preload] Mocks directory:', mocksDir);
+
 		// Handle sveltekit-rate-limiter/server
 		build.onResolve({ filter: /^sveltekit-rate-limiter\/server$/ }, () => {
 			return {

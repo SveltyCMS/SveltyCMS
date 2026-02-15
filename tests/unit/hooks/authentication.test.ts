@@ -63,6 +63,12 @@ describe('handleAuthentication Middleware', () => {
 			await handleAuthentication({ event, resolve: mockResolve });
 			expect(mockResolve).toHaveBeenCalled();
 		});
+
+		it('should skip authentication for /api/system/health', async () => {
+			const event = createMockEvent('/api/system/health');
+			await handleAuthentication({ event, resolve: mockResolve });
+			expect(mockResolve).toHaveBeenCalled();
+		});
 	});
 
 	describe('Internal Route Bypass', () => {

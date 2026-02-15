@@ -13,7 +13,7 @@
  * - Delete users
  */
 
-import { eq, and, gt, lt, inArray, sql, desc, asc } from 'drizzle-orm';
+import { eq, and, gt, lt, inArray, sql, desc, asc, or, isNull } from 'drizzle-orm';
 import type { User, Session, Token, Role, DatabaseResult, PaginationOption } from '../../../dbInterface';
 import type { ISODateString } from '@src/content/types';
 import { AdapterCore } from '../../adapter/adapterCore';
@@ -85,7 +85,9 @@ export class AuthModule {
 				// Map legacy 'role' string to 'roleIds' array if roleIds is missing/empty
 				roleIds: (userData as any).roleIds?.length ? (userData as any).roleIds : userData.role ? [userData.role] : []
 			} as any;
+
 			await this.db.insert(schema.authUsers).values(values);
+
 			const [result] = await this.db.select().from(schema.authUsers).where(eq(schema.authUsers._id, id)).limit(1);
 			return this.mapUser(result);
 		}, 'CREATE_USER_FAILED');
@@ -141,11 +143,13 @@ export class AuthModule {
 		return (this.core as any).wrap(async () => {
 			const conditions = [eq(schema.authUsers.email, criteria.email)];
 			if (criteria.tenantId) conditions.push(eq(schema.authUsers.tenantId, criteria.tenantId));
+
 			const [result] = await this.db
 				.select()
 				.from(schema.authUsers)
 				.where(and(...conditions))
 				.limit(1);
+
 			return result ? this.mapUser(result) : null;
 		}, 'GET_USER_BY_EMAIL_FAILED');
 	}
@@ -548,8 +552,11 @@ export class AuthModule {
 	async getAllRoles(tenantId?: string): Promise<Role[]> {
 		if (!this.db) return [];
 		try {
+			// In multi-tenant systems, we want roles that belong to this tenant OR global roles (null)
 			const conditions = [];
-			if (tenantId) conditions.push(eq(schema.roles.tenantId, tenantId));
+			if (tenantId) {
+				conditions.push(or(eq(schema.roles.tenantId, tenantId), isNull(schema.roles.tenantId))!);
+			}
 			const results = await this.db
 				.select()
 				.from(schema.roles)
@@ -564,7 +571,10 @@ export class AuthModule {
 	async getRoleById(roleId: string, tenantId?: string): Promise<DatabaseResult<Role | null>> {
 		return (this.core as any).wrap(async () => {
 			const conditions = [eq(schema.roles._id, roleId)];
-			if (tenantId) conditions.push(eq(schema.roles.tenantId, tenantId));
+			// If tenantId is provided, allow matching tenantId OR null (global)
+			if (tenantId) {
+				conditions.push(or(eq(schema.roles.tenantId, tenantId), isNull(schema.roles.tenantId))!);
+			}
 			const [result] = await this.db
 				.select()
 				.from(schema.roles)

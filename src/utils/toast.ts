@@ -16,12 +16,27 @@ export type ToastType = 'success' | 'info' | 'warning' | 'error';
  */
 export function showToast(message: string, type: ToastType = 'info', timeout: number = 3000): void {
 	try {
-		toaster.create({
-			title: type.charAt(0).toUpperCase() + type.slice(1), // Title Case (Success, Error, Info, Warning)
+		const toastData = {
+			title: type.charAt(0).toUpperCase() + type.slice(1), // Title Case
 			description: message,
-			type: type,
 			duration: timeout
-		});
+		};
+
+		switch (type) {
+			case 'success':
+				toaster.success(toastData);
+				break;
+			case 'warning':
+				toaster.warning(toastData);
+				break;
+			case 'error':
+				toaster.error(toastData);
+				break;
+			case 'info':
+			default:
+				toaster.info(toastData);
+				break;
+		}
 	} catch (err) {
 		logger.error('[toast] Failed to show toast:', err);
 	}

@@ -210,7 +210,6 @@ export class TenantService {
 		}
 	}
 
-
 	/**
 	 * Decrement usage (e.g. deleting users/files)
 	 */

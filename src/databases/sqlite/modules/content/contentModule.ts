@@ -186,7 +186,7 @@ export class ContentModule {
 				const results: ContentNode[] = [];
 				for (const update of updates) {
 					const sanitized = this.pickValidColumns(update.changes);
-					const id = (update.changes as any)._id || utils.generateId();
+					let id = (update.changes as any)._id || utils.generateId();
 					const now = new Date();
 
 					// Strip date fields from sanitized to handle them explicitly as Date objects for Drizzle
@@ -198,6 +198,10 @@ export class ContentModule {
 
 					// Check if a node exists with this ID
 					const [existingById] = await this.db.select().from(schema.contentNodes).where(eq(schema.contentNodes._id, id)).limit(1);
+					if (existingById) {
+						// Fallback: If ID exists, generate a new one
+						id = utils.generateId();
+					}
 
 					// Check if a node exists with this PATH
 					const [existingByPath] = await this.db.select().from(schema.contentNodes).where(eq(schema.contentNodes.path, update.path)).limit(1);

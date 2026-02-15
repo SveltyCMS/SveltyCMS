@@ -663,6 +663,9 @@ export interface IDBAdapter extends ISystemAdapter, IMonitoringAdapter {
 	isConnected(): boolean;
 	getConnectionHealth(): Promise<DatabaseResult<{ healthy: boolean; latency: number; activeConnections: number }>>;
 
+	// Test/Dev Utilities
+	clearDatabase(): Promise<DatabaseResult<void>>;
+
 	// Transaction Support
 	transaction<T>(
 		fn: (transaction: DatabaseTransaction) => Promise<DatabaseResult<T>>,

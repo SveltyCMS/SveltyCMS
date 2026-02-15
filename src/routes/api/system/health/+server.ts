@@ -20,12 +20,15 @@ export const GET: RequestHandler = async () => {
 	try {
 		const healthReport = getHealthCheckReport();
 
-		const httpStatus =
-			healthReport.overallStatus === 'READY'
-				? 200
-				: healthReport.overallStatus === 'DEGRADED'
-					? 200 // Degraded is still operational, so return 200 OK
-					: 503; // FAILED, INITIALIZING, or IDLE are 503 Service Unavailable
+		// Operational states that indicate the server is running and accepting requests
+		const operationalStates = ['READY', 'DEGRADED', 'SETUP', 'WARMING', 'WARMED'];
+
+		// In TEST_MODE, we must allow the runner to connect even if the DB is empty (SETUP state or FAILED)
+		// This enables the runner to reach /api/testing to seed the database
+		const isTestMode = process.env.TEST_MODE === 'true';
+		const isOperational = operationalStates.includes(healthReport.overallStatus) || isTestMode;
+
+		const httpStatus = isOperational ? 200 : 503; // Only 503 for FAILED, INITIALIZING, or IDLE
 
 		return json(
 			{

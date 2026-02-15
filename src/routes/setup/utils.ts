@@ -125,7 +125,7 @@ export async function getSetupDatabaseAdapter(config: DatabaseConfig): Promise<{
 			const connectionOptions = {
 				serverSelectionTimeoutMS: 15000,
 				socketTimeoutMS: 45000,
-				maxPoolSize: 10,
+				maxPoolSize: 50, // Increased to handle parallel seeding
 				retryWrites: true,
 				...(config.user &&
 					config.password && {
@@ -138,10 +138,15 @@ export async function getSetupDatabaseAdapter(config: DatabaseConfig): Promise<{
 					})
 			};
 
-			const connectResult = await dbAdapter.connect(connectionString, connectionOptions);
-			if (!connectResult.success) {
-				logger.error(`MongoDB connection failed: ${connectResult.error.message}`, { correlationId });
-				throw new Error(`Database connection failed: ${connectResult.error.message}`);
+			try {
+				const connectResult = await dbAdapter.connect(connectionString, connectionOptions);
+				if (!connectResult.success) {
+					logger.error(`MongoDB connection failed: ${connectResult.error.message}`, { correlationId });
+					throw new Error(`Database connection failed: ${connectResult.error.message}`);
+				}
+			} catch (err: any) {
+				logger.error(`MongoDB adapter connect threw: ${err.message}`, { correlationId });
+				throw err;
 			}
 
 			break;

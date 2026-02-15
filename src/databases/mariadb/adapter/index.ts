@@ -107,6 +107,23 @@ export class MariaDBAdapter extends AdapterCore implements IDBAdapter {
 		return result;
 	}
 
+	public async clearDatabase(): Promise<DatabaseResult<void>> {
+		return this.wrap(async () => {
+			if (!this.pool) throw new Error('Not connected');
+			// Get all tables
+			const [rows] = await this.pool.query('SHOW TABLES');
+			const tables = (rows as any[]).map((row: any) => Object.values(row)[0]);
+
+			if (tables.length > 0) {
+				await this.pool.query('SET FOREIGN_KEY_CHECKS = 0');
+				for (const table of tables) {
+					await this.pool.query(`DROP TABLE IF EXISTS \`${table}\``);
+				}
+				await this.pool.query('SET FOREIGN_KEY_CHECKS = 1');
+			}
+		}, 'CLEAR_DATABASE_FAILED');
+	}
+
 	public queryBuilder = <T extends BaseEntity>(collection: string): QueryBuilder<T> => {
 		return new MariaDBQueryBuilder<T>(this as any, collection);
 	};

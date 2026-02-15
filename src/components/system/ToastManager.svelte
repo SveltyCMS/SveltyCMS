@@ -22,6 +22,7 @@ optional actions, and smooth animations.
 <script lang="ts">
 	import { fly, fade } from 'svelte/transition';
 	import { toaster } from '@stores/store.svelte';
+	import DOMPurify from 'isomorphic-dompurify';
 
 	interface Props {
 		/** Position of the toast container */
@@ -68,15 +69,15 @@ optional actions, and smooth animations.
 	function getToastGradient(type: string | undefined): string {
 		switch (type) {
 			case 'success':
-				return 'bg-gradient-to-r from-green-500 to-green-700';
+				return 'bg-gradient-to-r from-primary-500 to-primary-700';
 			case 'warning':
-				return 'bg-gradient-to-r from-yellow-500 to-yellow-700';
+				return 'bg-gradient-to-r from-warning-500 to-warning-700';
 			case 'error':
-				return 'bg-gradient-to-r from-red-500 to-red-700';
+				return 'bg-gradient-to-r from-error-500 to-error-700';
 			case 'info':
-				return 'bg-gradient-to-r from-blue-500 to-blue-700';
+				return 'bg-gradient-to-r from-tertiary-500 to-tertiary-700';
 			default:
-				return 'bg-gradient-to-r from-gray-500 to-gray-700';
+				return 'bg-gradient-to-r from-secondary-500 to-secondary-700';
 		}
 	}
 
@@ -88,10 +89,10 @@ optional actions, and smooth animations.
 
 	// Get animation direction based on position (reactive)
 	const animParams = $derived.by(() => {
-		if (position.includes('right')) return { x: 100, duration: 300 };
-		if (position.includes('left')) return { x: -100, duration: 300 };
-		if (position.includes('top')) return { y: -50, duration: 300 };
-		return { y: 50, duration: 300 };
+		if (position.includes('right')) return { x: 20, duration: 200 };
+		if (position.includes('left')) return { x: -20, duration: 200 };
+		if (position.includes('top')) return { y: -20, duration: 200 };
+		return { y: 20, duration: 200 };
 	});
 </script>
 
@@ -136,8 +137,8 @@ optional actions, and smooth animations.
 					<div
 						class="text-sm md:text-base font-bold opacity-100 leading-tight md:leading-relaxed text-white drop-shadow-sm inline-block max-w-full whitespace-normal"
 					>
-						<!-- Safe HTML rendering -->
-						{@html toast.description}
+						<!-- Sanitized HTML rendering with DOMPurify for XSS protection -->
+						{@html DOMPurify.sanitize(toast.description)}
 					</div>
 
 					{#if toast.action}

@@ -56,8 +56,13 @@ function shouldBypassCache(searchParams: URLSearchParams): boolean {
 	return searchParams.get('refresh') === 'true' || searchParams.get('nocache') === 'true';
 }
 
-function isPublicApiRoute(pathname: string, method?: string): boolean {
+function isPublicApiRoute(pathname: string, method: string | undefined, testMode: string | undefined): boolean {
 	const relative = pathname.replace(/^\/api\//, '');
+
+	// Allow /api/testing in TEST_MODE
+	if (testMode === 'true' && pathname.startsWith('/api/testing')) {
+		return true;
+	}
 
 	// Token validation endpoint is public for GET only (registration flow)
 	// Format: /api/token/{tokenValue} - not the list endpoint /api/token
@@ -78,7 +83,8 @@ function isPublicApiRoute(pathname: string, method?: string): boolean {
 	}
 
 	// Legacy hardcoded list fallback (can be removed if all moved to permissions)
-	return ['/api/system/version', '/api/user/login'].includes(pathname);
+	const legacyPublic = ['/api/system/version', '/api/user/login', '/api/system/health'];
+	return legacyPublic.some((r) => pathname.startsWith(r));
 }
 
 export const handleApiRequests: Handle = async ({ event, resolve }) => {
@@ -89,8 +95,11 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
 		return resolve(event);
 	}
 
+	// Dynamic import for environment to check TEST_MODE
+	const { env } = await import('$env/dynamic/private');
+
 	// Dynamic check for public API endpoints based on permissions configuration
-	if (isPublicApiRoute(url.pathname, request.method)) {
+	if (isPublicApiRoute(url.pathname, request.method, env.TEST_MODE)) {
 		return resolve(event);
 	}
 

@@ -18,74 +18,23 @@ import { building } from '$app/environment';
 import { cacheService } from './CacheService';
 
 // Handle private config that might not exist during setup
-let privateEnv: InferOutput<typeof privateConfigSchema> | null = null;
+import {
+	getPrivateEnv as getPrivateEnvFromState,
+	loadPrivateConfig as loadPrivateConfigFromState,
+	clearPrivateConfigCache as clearPrivateConfigCacheFromState,
+	setPrivateEnv as setPrivateEnvFromState,
+	privateEnv
+} from './configState';
 
-// Function to load private config when needed
-async function loadPrivateConfig(forceReload = false) {
-	if (privateEnv && !forceReload) return privateEnv;
+// Re-export for compatibility
+export const getPrivateEnv = getPrivateEnvFromState;
+export const loadPrivateConfig = loadPrivateConfigFromState;
+export const clearPrivateConfigCache = clearPrivateConfigCacheFromState;
+export const setPrivateEnv = setPrivateEnvFromState;
 
-	try {
-		// SAFETY: Force TEST_MODE if running in test environment (Bun test)
-		if (process.env.NODE_ENV === 'test' && !process.env.TEST_MODE) {
-			console.warn('⚠️ Running in TEST environment but TEST_MODE is not set. Forcing usage of private.test.ts to protect live database.');
-			process.env.TEST_MODE = 'true';
-		}
+// Note: privateEnv variable is imported but is read-only.
+// We use the getter fn or the imported variable directly.
 
-		try {
-			logger.debug('Loading @config/private configuration...');
-			let module;
-			if (process.env.TEST_MODE) {
-				const pathUtil = await import('path');
-				const configPath = pathUtil.resolve(process.cwd(), 'config/private.test.ts');
-				module = await import(/* @vite-ignore */ configPath);
-			} else {
-				// STRICT SAFETY: Never allow loading live config if NODE_ENV is 'test'
-				if (process.env.NODE_ENV === 'test') {
-					const msg =
-						'CRITICAL SAFETY ERROR: Attempted to load live config/private.ts in TEST environment. Strict isolation requires config/private.test.ts.';
-					logger.error(msg);
-					throw new AppError(msg, 500, 'TEST_ENV_SAFETY_VIOLATION');
-				}
-				module = await import('@config/private');
-			}
-			privateEnv = module.privateEnv;
-
-			// SAFETY: Double-check we are not connecting to production in test mode
-			if (
-				(process.env.TEST_MODE || process.env.NODE_ENV === 'test') &&
-				privateEnv?.DB_NAME &&
-				!privateEnv.DB_NAME.includes('test') &&
-				!privateEnv.DB_NAME.endsWith('_functional')
-			) {
-				const msg = `⚠️ SAFETY ERROR: DB_NAME '${privateEnv.DB_NAME}' does not look like a test database! Tests must use isolated databases.`;
-				logger.error(msg);
-				throw new AppError(msg, 500, 'TEST_DB_SAFETY_VIOLATION');
-			}
-
-			logger.debug(
-				module.__VIRTUAL__ ? 'Using fallback configuration (Setup Mode active)' : 'Private config loaded successfully from config/private.ts',
-				{
-					hasConfig: !!privateEnv,
-					dbType: privateEnv?.DB_TYPE,
-					dbHost: privateEnv?.DB_HOST ? '***' : 'missing'
-				}
-			);
-			return privateEnv;
-		} catch (error) {
-			// Private config doesn't exist during setup - this is expected
-			logger.trace('Private config not found during setup - this is expected during initial setup', {
-				error: error instanceof Error ? error.message : String(error)
-			});
-			return null;
-		}
-	} catch (error) {
-		// Private config doesn't exist during setup - this is expected
-		logger.trace('Private config not found during setup - this is expected during initial setup', {
-			error: error instanceof Error ? error.message : String(error)
-		});
-		return null;
-	}
-}
 // Function to reset initialization state for self-healing (retries)
 export function resetDbInitPromise() {
 	logger.warn('Resetting DB initialization promise for retry...');
@@ -97,27 +46,9 @@ export function resetDbInitPromise() {
 	// We DON'T clear privateEnv to allow retry with same config
 }
 
-// Function to clear private config cache (used after setup completion)
-export function clearPrivateConfigCache(keepPrivateEnv = false) {
-	logger.debug('Clearing private config cache and initialization promises', {
-		keepPrivateEnv,
-		hadPrivateEnv: !!privateEnv
-	});
-	if (!keepPrivateEnv) {
-		privateEnv = null;
-	}
-	adaptersLoaded = false;
-	_dbInitPromise = null;
-	initializationPromise = null;
-	logger.debug('Private config cache and initialization promises cleared', {
-		privateEnvCleared: !keepPrivateEnv
-	});
-}
-
 // Auth
 import { Auth } from '@src/databases/auth';
 import { getDefaultSessionStore } from '@src/databases/auth/sessionManager';
-import { AppError } from '@utils/errorHandling';
 
 // Adapters Interfaces
 import type { DatabaseAdapter } from './dbInterface';
@@ -153,14 +84,9 @@ export let isConnected = false; // Database connection state (primarily for exte
 let isInitialized = false; // Initialization state
 let initializationPromise: Promise<void> | null = null; // Initialization promise
 
-/**
- * Get the in-memory private config if available.
- * Returns null if config hasn't been loaded yet (e.g., during setup).
- * Used by settingsService to avoid filesystem imports when config is already in memory.
- */
-export function getPrivateEnv(): InferOutput<typeof privateConfigSchema> | null {
-	return privateEnv;
-}
+// export function getPrivateEnv(): InferOutput<typeof privateConfigSchema> | null {
+// 	return privateEnv;
+// }
 
 // Create a proper Promise for lazy initialization
 let _dbInitPromise: Promise<void> | null = null;
@@ -917,7 +843,7 @@ export async function initializeWithConfig(
 		if (options?.demoMode !== undefined) config.DEMO = options.demoMode;
 
 		// CRITICAL: Set config in memory BEFORE initialization
-		privateEnv = config;
+		setPrivateEnv(config);
 
 		// Clear any existing initialization state
 		initializationPromise = null;
@@ -947,7 +873,7 @@ export async function initializeWithConfig(
 		const errorMessage = error instanceof Error ? error.message : String(error);
 		logger.error('Failed to initialize with in-memory config:', errorMessage);
 		initializationPromise = null;
-		privateEnv = null; // Clear failed config
+		setPrivateEnv(null); // Clear failed config
 		setSystemState('FAILED', `Initialization failed: ${errorMessage}`);
 		return { status: 'failed', error: errorMessage };
 	}
@@ -969,7 +895,7 @@ export async function initializeWithFreshConfig(): Promise<{ status: string; err
 	isInitialized = false;
 	isConnected = false;
 	auth = null;
-	privateEnv = null; // Clear cache to force reload
+	setPrivateEnv(null); // Clear cache to force reload
 	setSystemState('IDLE', 'Preparing for initialization with fresh config');
 
 	try {
@@ -997,7 +923,7 @@ export async function initializeWithFreshConfig(): Promise<{ status: string; err
 		const message = err instanceof Error ? err.message : String(err);
 		logger.error('Failed to initialize with fresh config:', message);
 		initializationPromise = null;
-		privateEnv = null; // Clear failed config
+		setPrivateEnv(null); // Clear failed config
 		return { status: 'failed', error: message };
 	}
 }

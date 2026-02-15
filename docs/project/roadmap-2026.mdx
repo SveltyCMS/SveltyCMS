@@ -41,9 +41,10 @@ While core foundations are state-of-the-art, the following items are active prio
 **Current State:** Integration tests failing in GitHub Actions (~172 failures).
 **Goal:** Restore green CI pipeline to ensure development velocity and reliability.
 
-- [ ] Investigate server connection timeouts in GitHub Actions.
-- [ ] Fix test isolation issues in `integration-tests`.
-- [ ] Stabilize Playwright E2E suite.
+- [x] Implement "God Mode" Testing API (`/api/testing`) for secure state management.
+- [x] Refactor `integration-tests` to 100% Black-Box (No internal imports).
+- [x] Reorganize test suite into Unit, Integration, and E2E tiers.
+- [/] Stabilize Playwright E2E suite against production build.
 
 ### 🔜 Modern UX & Advanced Tooling
 

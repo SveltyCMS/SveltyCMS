@@ -15,14 +15,16 @@ tags:
 
 This document outlines the comprehensive testing strategy for SveltyCMS, including current implementation status and known issues.
 
-## Overview
+1. **Unit Tests** - Testing individual functions and utilities (Fast Bun tests)
+2. **Integration Tests** - Black-box testing of API endpoints via HTTP (No internal imports)
+3. **E2E Tests** - Full browser automation with Playwright
+4. **Role-Based Access Control (RBAC) Verification** - Permission enforcement per user role.
 
-SveltyCMS uses a multi-layered, enterprise-grade testing approach to ensure code quality, reliability, and security:
+## 🏆 Current Focus: 100% Database Agnosticism
 
-1. **Unit Tests** - Testing individual functions and utilities (222 tests)
-2. **Integration Tests** - Testing API endpoints and database operations
-3. **E2E Tests** - Testing complete user workflows with Playwright
-4. **Role-Based Access Control (RBAC) Tests** - NEW: Testing permission enforcement
+We are currently refactoring our entire integration suite to be **database-agnostic**. By using a "Black-Box" approach, the same tests verify the system across **MongoDB, PostgreSQL, MariaDB, and SQLite** without changing a single line of test code.
+
+See [Testing Strategy (White-Box vs Black-Box)](./testing-strategy.mdx) for a deep dive into our hybrid approach.
 
 ## Test Coverage Summary
 
@@ -37,7 +39,13 @@ SveltyCMS uses a multi-layered, enterprise-grade testing approach to ensure code
 | E2E: User Management | 3        | ✅ Passing | CRUD operations                      |
 | E2E: Collections     | 2        | ✅ Passing | Collection builder, content          |
 | E2E: RBAC            | 4        | ✅ **NEW** | Admin, developer, editor roles       |
-| **Total**            | **~286** | ✅         | **~98% coverage**                    |
+| **Total**            | **~286** | ✅         | **Hybrid Coverage Strategy**         |
+
+> **Note on Coverage**:
+>
+> - **Unit Tests**: Target >90% branch coverage for critical logic (services, util, stores).
+> - **Integration Tests**: Target 100% API contract coverage (status codes, schemas, security matrix).
+> - **E2E Tests**: Target critical paths only (smoke testing) to minimize flake.
 
 ### Test Users (Created During CI/CD)
 
@@ -73,27 +81,24 @@ bun run test:unit
 
 Tests individual services, utilities, stores, and widgets in isolation.
 
-**Location**: `tests/bun/services`, `tests/bun/utils`, `tests/bun/stores`, `tests/bun/widgets`
+**Location**: `tests/unit/services`, `tests/unit/utils`, `tests/unit/stores`, `tests/unit/widgets`
 
 ### Integration Tests
 
 ```bash
+# Refactored for Black-Box execution
 bun run test:integration
 ```
 
-Tests API endpoints and database operations using an in-memory MongoDB instance.
+Tests API endpoints via HTTP against a production build running in `preview` mode.
 
-**How it works**:
+**The Black-Box Advantage**:
 
-1. Starts MongoDB Memory Server on a random port
-2. Generates `config/private.test.ts` with test database credentials
-3. Builds the application with `TEST_MODE=true`
-4. Starts preview server on port 4173
-5. Seeds the test database
-6. Runs integration tests
-7. Cleans up (removes `config/private.test.ts`)
+1. **Build Verification**: Tests run against the actual `.svelte-kit/output`, catching SSR and build-specific errors.
+2. **Zero Isolation Leaks**: Tests have NO access to `@src/*` or `dbAdapter`. They must use the public API.
+3. **State Management**: Uses the secured `/api/testing` endpoint (guarded by `TEST_MODE`) to reset and seed data.
 
-**Location**: `tests/bun/api`, `tests/bun/databases`, `tests/bun/hooks`
+**Location**: `tests/integration/api`, `tests/integration/databases`, `tests/integration/hooks`
 
 ### E2E Tests
 
@@ -103,7 +108,9 @@ bun run test:e2e
 
 Tests complete user workflows using Playwright browser automation.
 
-**Location**: `tests/playwright`
+> **Optimization Note**: We are currently migrating E2E seeding to use the `/api/testing` endpoint (same as Integration tests) to replace the slower `setup-wizard` UI flows where possible.
+
+**Location**: `tests/e2e`
 
 ## Test Scripts
 
@@ -154,23 +161,25 @@ Generates detailed reports including:
 
 ## Future Enhancements
 
-### Multi-Database Support
+### 1. OpenAPI Contract Testing (High Priority)
 
-Planned support for parallel testing with multiple databases:
+Automated validation of API responses against the OpenAPI/Swagger schema. This pairs perfectly with our black-box strategy to ensure strict API compliance.
 
-- MongoDB (current)
+### 2. Multi-Database Matrix (CI Implementation)
+
+The architecture fully supports database agnosticism via the Black-Box strategy.
+**Planned for Q2 2026**: Implementing the GitHub Actions workflow to run the suite in parallel against:
+
+- MongoDB (current default)
 - PostgreSQL (via Drizzle ORM)
 - MariaDB (via Drizzle ORM)
 - MySQL (via Drizzle ORM)
 
-GitHub Actions will run tests in parallel matrix for each database type.
-
-### Enhanced Test Coverage
+### 3. Enhanced Test Coverage
 
 - Visual regression testing (screenshot comparison)
 - Performance benchmarking (load testing)
 - Accessibility testing (axe-core)
-- API contract testing (OpenAPI validation)
 
 ---
 
@@ -180,7 +189,7 @@ GitHub Actions will run tests in parallel matrix for each database type.
 
 SveltyCMS implements comprehensive RBAC testing to ensure proper permission enforcement across all user roles.
 
-**File**: `tests/playwright/role-based-access.spec.ts`
+**File**: `tests/e2e/role-based-access.spec.ts`
 
 ### Test Scenarios
 
@@ -269,13 +278,13 @@ SveltyCMS uses a comprehensive multi-stage testing pipeline:
 - name: 🎭 E2E Tests
   steps:
     # Step A: Setup Wizard
-    - run: bunx playwright test tests/playwright/setup-wizard.spec.ts
+    - run: bunx playwright test tests/e2e/setup-wizard.spec.ts
 
     # Step B: Seed Test Users
     - run: bun run scripts/seed-test-users.ts
 
     # Step C: RBAC Tests
-    - run: bunx playwright test tests/playwright/role-based-access.spec.ts
+    - run: bunx playwright test tests/e2e/role-based-access.spec.ts
 
     # Step D: Main E2E Suite
     - run: bunx playwright test --grep-invert "setup-wizard|role-based"

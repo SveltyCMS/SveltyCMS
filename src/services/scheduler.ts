@@ -82,7 +82,7 @@ export class SchedulerService {
 						logger.trace('Scheduler skipped: Database adapter not available (Setup Phase)');
 						return;
 					}
-				} catch (e) {
+				} catch (_e) {
 					// complex check failed, just log debug
 				}
 

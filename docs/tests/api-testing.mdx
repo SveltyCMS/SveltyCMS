@@ -1,0 +1,109 @@
+---
+path: 'docs/tests/api-testing.mdx'
+title: 'API Testing & Coverage Report'
+description: 'Comprehensive API endpoint testing strategy, coverage report, and historical results for SveltyCMS'
+order: 5
+icon: 'mdi:api-check'
+---
+
+# API Testing & Coverage Report
+
+SveltyCMS employs a rigorous **Black-Box Testing** strategy for its API layer, ensuring that all 99+ endpoints are verified for security, performance, and database agnosticism.
+
+> [!NOTE]
+> This document consolidates our coverage reporting and historical testing summaries into a single source of truth.
+
+## 🛡️ Test Isolation & Safety
+
+SveltyCMS is designed for maximum safety. Running tests will **never** influence or overwrite your live production data. This is achieved through three layers of isolation:
+
+1.  **Filename Isolation**: Integration tests use `sveltycms_test.db` (configured in `private.test.ts`), while production uses `test.db` (or your configured `DB_NAME`).
+2.  **Environment Isolation**: Tests require `TEST_MODE=true`. This flag switches the configuration from `private.ts` to `private.test.ts` and changes the database path to `./config/database`.
+3.  **API Gatekeeping**: The God-Mode `/api/testing` endpoint is hard-coded to be **inactive** unless the server is explicitly started with the `TEST_MODE` flag. In a production build, these endpoints are automatically disabled.
+
+## 📊 Coverage at a Glance
+
+- **Total API Endpoints**: 99
+- **Endpoints Verified**: 85 (~86%)
+- **Total Tests**: 460+
+- **Strategy**: 100% Black-Box (via `/api/testing`)
+- **Multi-DB Validation**: Successfully verified across MongoDB, PostgreSQL, MariaDB, and SQLite.
+
+---
+
+## 🏗️ Testing Architecture
+
+Our API tests operate at the **Integration** level. Unlike unit tests, these interact with a fully running server instance, verifying the entire middleware chain (Firewall → Auth → Logic → DB).
+
+### Key Components
+
+1.  **God-Mode API (`/api/testing`)**: Allows tests to programmatically reset the database and seed specific fixtures without direct DB access.
+2.  **Mock Isolation**: Integration tests use real databases (isolated per run) while Unit tests use `tests/unit/hooks/preload.ts` for deep internal mocking.
+3.  **Authentication Helpers**: Programmatic login and session management via `tests/integration/helpers/auth.ts`.
+
+---
+
+## ✅ Verified API Endpoints
+
+### 🔐 Authentication & Security (38 tests)
+
+- **2FA System**: Setup, TOTP verification, backup codes, and session recovery.
+- **Security Management**: IP blocking, incident resolving, and CSP report processing.
+- **Files**: `tests/integration/api/auth-2fa.test.ts`, `security.test.ts`
+
+### 👤 User & Token Management (59 tests)
+
+- **User Lifecycle**: Creation, login/logout, multi-tenant isolation, and role-based access.
+- **Token System**: JWT creation, rotation, and revocation.
+- **Files**: `tests/integration/api/user.test.ts`, `token.test.ts`
+
+### 📦 Content & Media (82 tests)
+
+- **Collections**: CRUD operations, complex relations, and schema validation.
+- **Media DAM**: AI tagging (Ollama), EXIF extraction, and non-destructive editing.
+- **Files**: `tests/integration/api/collections.test.ts`, `media.test.ts`
+
+### ⚙️ System & Dashboard (126 tests)
+
+- **Real-time Metrics**: Health checks, performance logging, and system info.
+- **Setup Wizard**: Multi-step initialization check and configuration verification.
+- **Files**: `tests/integration/api/dashboard.test.ts`, `setup.test.ts`
+
+---
+
+## 🏛️ Historical Context & Evolution
+
+Initially, SveltyCMS faced issues with error status codes (returning 500 instead of 401) and complex OAuth mocks. Through our **Self-Healing State Machine** and specialized integration runner, we have achieved:
+
+- **Correct Error Propagation**: All unauthorized requests now return 401/403 properly.
+- **Isolated State**: The introduction of the `/api/testing` endpoint eliminated test interference.
+- **Performance**: Full suite execution time reduced from minutes to seconds through Bun's internal optimization.
+
+---
+
+## 🚀 Running the API Suite
+
+### Run All Integration Tests
+
+```bash
+bun test tests/integration/api/
+```
+
+### Targeted Testing
+
+```bash
+# Verify specific feature (e.g., Security)
+bun test tests/integration/api/security.test.ts
+```
+
+---
+
+## 🔮 Future Roadmap
+
+- **100% Coverage**: Targeting the remaining 14 low-priority utility endpoints.
+- **Performance Auditing**: Automated latency regression checks within the CI pipeline.
+- **E2E Synchronization**: Tighter integration between API integration tests and Playwright browser flows.
+
+---
+
+_Last Updated: February 2026_

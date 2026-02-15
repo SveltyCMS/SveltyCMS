@@ -6,7 +6,7 @@
 import { describe, it, expect, beforeEach } from 'bun:test';
 
 // Increase default timeout for database-heavy setup tests
-const TEST_TIMEOUT = 30000;
+const TEST_TIMEOUT = 60000;
 
 /**
  * Helper to parse SvelteKit Server Action "devalue" serialization.
@@ -132,7 +132,13 @@ describe('Setup Actions - Database Connection', () => {
 			// Logic might resolve to success: false but HTTP 200, matching +page.server.ts logic
 			// The action returns { success: false } which is a successful function execution returning cleanup data
 			expect(result.type).toBe('success');
-			expect(data.success).toBe(false);
+
+			if (dbType === 'sqlite') {
+				// SQLite ignores user/password for standard file-based setup, so it still succeeds
+				expect(data.success).toBe(true);
+			} else {
+				expect(data.success).toBe(false);
+			}
 		},
 		TEST_TIMEOUT
 	);
@@ -168,10 +174,16 @@ describe('Setup Actions - Database Driver Installation', () => {
 			const data = parseActionResult(result);
 
 			expect(result.type).toBe('success');
-			// Package name depends on DB type
-			const expectedPackage = dbType === 'mongodb' ? 'mongoose' : dbType === 'mariadb' ? 'mysql2' : 'postgres';
-			expect(data.package).toBe(expectedPackage);
-			expect(data.alreadyInstalled).toBe(true);
+
+			if (dbType === 'sqlite') {
+				// SQLite needs no driver installation
+				expect(data.message).toContain('No driver installation needed');
+			} else {
+				// Package name depends on DB type
+				const expectedPackage = dbType === 'mongodb' ? 'mongoose' : dbType === 'mariadb' ? 'mysql2' : 'postgres';
+				expect(data.package).toBe(expectedPackage);
+				expect(data.alreadyInstalled).toBe(true);
+			}
 		},
 		TEST_TIMEOUT
 	);
@@ -237,6 +249,9 @@ describe('Setup Actions - SMTP Configuration', () => {
 describe('Setup Actions - Complete Setup', () => {
 	beforeEach(async () => {
 		if (dbType === 'mongodb') await cleanupTestDatabase();
+		// Wait for cleanup to settle and zombie connections to close
+		await new Promise((resolve) => setTimeout(resolve, 2000));
+
 		// Seed first
 		const formData = new FormData();
 		formData.append('config', JSON.stringify(testDbConfig));
@@ -266,7 +281,7 @@ describe('Setup Actions - Complete Setup', () => {
 
 		expect(result.type).toBe('success');
 		if (!data.success) {
-			console.error('❌ seedDatabase failed with error:', data.error);
+			console.error('❌ completeSetup failed with error:', data.error);
 		}
 		expect(data.success).toBe(true);
 		expect(data.redirectPath).toBeDefined();

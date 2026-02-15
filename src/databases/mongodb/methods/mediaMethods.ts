@@ -190,7 +190,6 @@ export class MongoMediaMethods {
 					this.mediaModel.countDocuments(secureQuery as any)
 				]);
 
-
 				return {
 					success: true,
 					data: {

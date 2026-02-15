@@ -56,14 +56,13 @@ This modal displays the QR code for setting up 2FA and handles verification.
 	async function copyToClipboard(text: string) {
 		try {
 			await navigator.clipboard.writeText(text);
-			toaster.create({
+			toaster.success({
 				title: 'Success',
-				description: `${m.button_copy()} successful`,
-				type: 'success'
+				description: `${m.button_copy()} successful`
 			});
 		} catch (err) {
 			logger.error('Failed to copy:', err);
-			toaster.create({ title: 'Error', description: 'Failed to copy', type: 'error' });
+			toaster.error({ title: 'Error', description: 'Failed to copy' });
 		}
 	}
 
@@ -93,14 +92,13 @@ This modal displays the QR code for setting up 2FA and handles verification.
 			}
 
 			currentStep = 'complete';
-			toaster.create({
+			toaster.success({
 				title: 'Success',
-				description: m.twofa_setup_complete_title(),
-				type: 'success'
+				description: m.twofa_setup_complete_title()
 			});
 		} catch (err) {
 			error = err instanceof Error ? err.message : m.twofa_error_invalid_code();
-			toaster.create({ title: 'Error', description: error, type: 'error' });
+			toaster.error({ title: 'Error', description: error });
 		} finally {
 			isVerifying = false;
 		}

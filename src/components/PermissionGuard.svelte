@@ -193,7 +193,7 @@ Permission-based access control component with advanced features and security.
 
 		<!-- Error content -->
 		<div class="flex-1">
-			<h3 class="font-semibold {isRateLimited ? 'text-warning-800 dark:text-warning-200' : 'text-error-800 dark:text-error-200'}">
+			<h3 class="font-semibold {isRateLimited ? 'text-warning-800 dark:text-warning-200' : ''}">
 				{isRateLimited ? 'Rate Limit Exceeded' : 'Access Denied'}
 			</h3>
 			<p class="mt-1 text-sm {isRateLimited ? 'text-warning-700 dark:text-warning-300' : 'text-error-700 dark:text-error-300'}">

@@ -223,7 +223,6 @@ describe('Media API Endpoints', () => {
 	});
 
 	describe('GET /api/media/remote', () => {
-
 		it('should require authentication', async () => {
 			const response = await fetch(`${API_BASE_URL}/api/media/remote?url=https://example.com/image.jpg`);
 			expect(response.status).toBe(401);

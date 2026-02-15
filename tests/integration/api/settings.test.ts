@@ -28,6 +28,8 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+	// Optional: cleanup via API if needed,
+	// but usually better to leave DB state for debugging unless pipeline forces clean
 	await cleanupTestDatabase();
 });
 

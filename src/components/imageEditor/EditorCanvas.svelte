@@ -180,7 +180,7 @@ for the image editor canvas with reactive rendering.
 	bind:this={containerRef}
 >
 	<!-- svelte-canvas component -->
-	<button 
+	<button
 		class="canvas-container block h-full w-full border-0 p-0 text-left cursor-grab active:cursor-grabbing focus:outline-none"
 		class:border-2={isDragging}
 		class:border-primary-500={isDragging}

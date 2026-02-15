@@ -112,7 +112,6 @@ export class PerformanceService {
 			logger.error(`[PerformanceService] Failed to record benchmark ${name}:`, error);
 		}
 	}
-
 }
 
 export const performanceService = PerformanceService.getInstance();

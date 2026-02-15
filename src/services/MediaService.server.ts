@@ -309,7 +309,6 @@ export class MediaService {
 					logger.error('Failed to extract deep metadata', { fileName: file.name, error: sharpError });
 				}
 			} else if (isVideo) {
-
 				try {
 					const dimensions = await this.getVideoDimensions(buffer);
 					width = dimensions.width;
@@ -454,29 +453,23 @@ export class MediaService {
 		return dbAdapter;
 	}
 
-		/**
+	/**
 
 		 * Manipulates an existing media item using Sharp.js
 
 		 */
 
-		public async manipulateMedia(id: string, manipulations: any, userId: string): Promise<MediaItem> {
+	public async manipulateMedia(id: string, manipulations: any, userId: string): Promise<MediaItem> {
+		this.ensureInitialized();
 
-			this.ensureInitialized();
+		const db = await this.getDb();
 
-			const db = await this.getDb();
+		const mediaResult = await db.crud.findOne<MediaItem>('media', { _id: id as DatabaseId });
 
-	
+		if (!mediaResult.success || !mediaResult.data) {
+			throw new AppError('Media item not found', 404, 'MEDIA_NOT_FOUND');
+		}
 
-			const mediaResult = await db.crud.findOne<MediaItem>('media', { _id: id as DatabaseId });
-
-			if (!mediaResult.success || !mediaResult.data) {
-
-				throw new AppError('Media item not found', 404, 'MEDIA_NOT_FOUND');
-
-			}
-
-	
 		const mediaItem = mediaResult.data;
 
 		if (mediaItem.type !== MediaTypeEnumValue.Image) {
@@ -614,7 +607,6 @@ export class MediaService {
 		const db = await this.getDb();
 		const mediaResult = await db.crud.findOne<MediaItem>('media', { _id: id as DatabaseId });
 
-
 		if (!mediaResult.success || !mediaResult.data) {
 			throw error(404, 'Media item not found');
 		}
@@ -720,7 +712,6 @@ export class MediaService {
 
 			const db = await this.getDb();
 			const result = await db.crud.findOne<MediaItem>('media', { _id: id as DatabaseId });
-
 
 			if (!result.success) {
 				throw result.error;
@@ -835,10 +826,7 @@ export class MediaService {
 			const db = await this.getDb();
 			const options = { offset: (page - 1) * limit, limit: limit };
 
-			const [mediaResult, totalResult] = await Promise.all([
-				db.crud.findMany<MediaItem>('media', {}, options),
-				db.crud.count('media', {})
-			]);
+			const [mediaResult, totalResult] = await Promise.all([db.crud.findMany<MediaItem>('media', {}, options), db.crud.count('media', {})]);
 
 			if (!mediaResult.success) {
 				throw mediaResult.error;

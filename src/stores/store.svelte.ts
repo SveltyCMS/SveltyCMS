@@ -247,18 +247,25 @@ class ToasterStore {
 		duration?: number;
 		action?: { label: string; onClick: () => void };
 	}) {
-		const id = crypto.randomUUID();
+		// Robust ID generation
+		const id =
+			typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `toast-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
 		const type = toast.type || 'info';
 		const duration = toast.duration || 5000;
 
-		this.toasts.push({
-			id,
-			type,
-			title: toast.title,
-			description: toast.description,
-			duration,
-			action: toast.action
-		});
+		// Reassign to trigger granular reactivity immediately
+		this.toasts = [
+			...this.toasts,
+			{
+				id,
+				type,
+				title: toast.title,
+				description: toast.description,
+				duration,
+				action: toast.action
+			}
+		];
 
 		if (duration > 0) {
 			setTimeout(() => {

@@ -271,6 +271,48 @@ export const corePermissions: Permission[] = [
 		type: PermissionType.CONFIGURATION,
 		contextId: 'config/webhooks'
 	},
+	{
+		_id: 'config:audit',
+		name: 'Audit Log Access',
+		action: PermissionAction.READ,
+		type: PermissionType.SYSTEM,
+		contextId: 'config/audit'
+	},
+	{
+		_id: 'config:synchronization',
+		name: 'Config Synchronization',
+		action: PermissionAction.MANAGE,
+		type: PermissionType.CONFIGURATION,
+		contextId: 'config/synchronization'
+	},
+	{
+		_id: 'config:systemHealth',
+		name: 'System Health Access',
+		action: PermissionAction.READ,
+		type: PermissionType.SYSTEM,
+		contextId: 'config/systemHealth'
+	},
+	{
+		_id: 'config:automations',
+		name: 'Automations Management',
+		action: PermissionAction.MANAGE,
+		type: PermissionType.CONFIGURATION,
+		contextId: 'config/automations'
+	},
+	{
+		_id: 'config:extensions',
+		name: 'Extensions Management',
+		action: PermissionAction.MANAGE,
+		type: PermissionType.CONFIGURATION,
+		contextId: 'config/extensions'
+	},
+	{
+		_id: 'config:marketplace',
+		name: 'Marketplace Access',
+		action: PermissionAction.ACCESS,
+		type: PermissionType.SYSTEM,
+		contextId: 'config/marketplace'
+	},
 
 	// Admin permissions
 	{ _id: 'admin:access', name: 'Admin Access', action: PermissionAction.MANAGE, type: PermissionType.SYSTEM, contextId: 'admin/access' },

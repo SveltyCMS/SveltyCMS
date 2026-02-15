@@ -175,7 +175,7 @@ and CRUD actions. Enterprise-grade workflow management GUI.
 	<div class="flex items-center justify-between mb-6">
 		<div>
 			<h2 class="h2 font-bold">Workflow Automations</h2>
-			<p class="text-surface-600 dark:text-surface-400">Automate actions when content changes — send emails, call webhooks, update fields.</p>
+			<p class="text-surface-600 dark:text-surface-200">Automate actions when content changes — send emails, call webhooks, update fields.</p>
 		</div>
 		<button class="preset-filled-primary-500 btn" onclick={createNew}>
 			<iconify-icon icon="mdi:plus"></iconify-icon>
@@ -190,7 +190,7 @@ and CRUD actions. Enterprise-grade workflow management GUI.
 		</div>
 	{:else if flows.length === 0}
 		<div class="preset-tonal-surface p-12 text-center rounded-lg border-2 border-dashed border-surface-300 dark:border-surface-700">
-			<iconify-icon icon="mdi:robot-off-outline" class="text-6xl mb-4 opacity-20"></iconify-icon>
+			<iconify-icon icon="mdi:robot-off-outline" width="64" height="64" class="text-terary-500 dark:text-primary-500"></iconify-icon>
 			<h3 class="h3 font-bold">No Automations Yet</h3>
 			<p class="mb-2 opacity-60">Create your first automation to start streamlining workflows.</p>
 			<p class="mb-6 text-sm opacity-40">Example: Send an email when a new article is published.</p>

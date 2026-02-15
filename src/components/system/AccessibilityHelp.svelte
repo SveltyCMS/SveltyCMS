@@ -90,7 +90,7 @@
 	<div class="flex items-center justify-between border-b border-surface-200 pb-4 dark:border-surface-700">
 		<div>
 			<h3 class="h3 flex items-center gap-2 font-bold">
-				<iconify-icon icon="mdi:accessibility" width="24" class="text-primary-600 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+				<iconify-icon icon="mdi:accessibility" width="24" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 				Accessibility Help
 			</h3>
 			<p class="text-sm text-surface-500">WCAG 2.2 AA & ATAG 2.0 Compliance</p>

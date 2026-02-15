@@ -1,0 +1,88 @@
+---
+path: 'docs/tests/testing-strategy.mdx'
+title: 'Testing Strategy: Black-Box vs White-Box'
+description: 'Detailed explanation of the SveltyCMS dual testing strategy: Black-Box for Integration/E2E and Bun-powered White-Box for Unit tests.'
+author: 'SveltyCMS Team'
+created: '2026-02-15'
+updated: '2026-02-15'
+tags:
+  - 'testing'
+  - 'strategy'
+  - 'white-box'
+  - 'black-box'
+---
+
+# Testing Strategy: The Hybrid Pyramid
+
+SveltyCMS employs a pragmatic, modern testing strategy that leverages the strengths of both **Black-Box** and **White-Box** testing methods. This hybrid approach ensures we deliver a secure, database-agnostic CMS without sacrificing developer velocity or code quality.
+
+## The Dual Strategy
+
+We use a layered approach where each method is applied to the domain where it shines most:
+
+| Method        | Scope                 | Tooling                               | Focus                                                                                  |
+| :------------ | :-------------------- | :------------------------------------ | :------------------------------------------------------------------------------------- |
+| **White-Box** | **Unit Tests**        | **Bun Query**                         | Logic correctness, edge cases, internal consistency, **Target: 100% Branch Coverage**. |
+| **Black-Box** | **Integration & E2E** | **Bun Test + Fetch** / **Playwright** | Real-world behavior, security posture, API contracts, RBAC, DB agnosticism.            |
+
+### 1. White-Box Testing (Unit)
+
+**"Test the code knowing how it works."**
+
+We use **Bun's native test runner** for white-box unit testing. These tests presume full knowledge of the internal code structure, classes, and logic paths.
+
+**What we test here:**
+
+- **Pure Functions & Utilities**: Formatters, validators, crypto helpers.
+- **Services**: Business logic that doesn't depend on external I/O (or uses mocks).
+- **Svelte Stores**: State management logic and reactivity.
+- **Widgets**: Component logic and validation schemas.
+
+**Why White-Box?**
+
+- **Speed**: Bun unit tests run in milliseconds.
+- **Thoroughness**: We can hit every `if/else` branch and edge case that might be hard to trigger via an API call.
+- **Stability**: Refactoring internal implementation details might break these tests, which is good—it ensures the _unit_ still behaves correctly in isolation.
+
+### 2. Black-Box Testing (Integration & E2E)
+
+**"Test the system as a consumer sees it."**
+
+We use **Black-Box API testing** for all integration and end-to-end scenarios. These tests treat the entire running server as an opaque box.
+
+**What we test here:**
+
+- **API Endpoints**: REST and GraphQL request/response cycles.
+- **Authentication & Authorization**: Real login flows, token exchanges, and RBAC enforcement.
+- **Database Operations**: CRUD actions across different database adapters (MongoDB, SQLite, etc.).
+- **Middleware Chains**: Ensuring hooks (firewall, rate-limit, auth) execute in the correct order.
+
+**Why Black-Box?**
+
+- **Security**: Tests must pass through real security guards. There are no "test backdoors" or mocked permission checks.
+- **Database Agnosticism**: The test suite doesn't care if the backend is SQLite or PostgreSQL; it only cares about the JSON response. This allows us to run the exact same suite against all supported databases.
+- **Production Parity**: Tests run against a production-like build (`vite preview`), catching issues related to headers, serialization, and SSR that unit tests miss.
+- **Resilience**: Internal refactors (e.g., changing from Mongoose to Drizzle) generally don't break these tests as long as the API contract remains the same.
+
+## Beyond Functional: The Road to 100% Confidence
+
+To truly aim for "100%" system reliability, we go beyond simple functional tests:
+
+### 3. Static Analysis & Type Safety (Continuous)
+
+- **TypeScript**: Strict mode enabled (`strict: true`) for 100% type safety.
+- **ESLint / Prettier**: Enforce consistent code style and best practices.
+- **Svelte Check**: Validates Svelte templates and reactivity graph (Runes).
+
+### 4. Advanced Verification (Future Scope)
+
+To reach the "1009%" ambition, we are planning:
+
+- **Mutation Testing (Stryker)**: "Testing the tests" by introducing random bugs to ensure tests catch them.
+- **Fuzz Testing**: Throwing random/garbage data at API endpoints to find crashes/leaks.
+- **Visual Regression**: Pixel-perfect UI verification.
+- **Dependency Auditing**: Automated `npm audit` checks in CI.
+
+## Summary
+
+By combining **Bun-powered White-Box unit tests** for speed and logic depth with **Black-Box API testing** for security and integration reliability, and layering **Static Analysis** on top, SveltyCMS achieves a robust quality assurance posture that is both rigorous and maintainable. our goal is nothing less than **100% System Confidence**.

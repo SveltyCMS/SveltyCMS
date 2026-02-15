@@ -38,14 +38,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 	// Valibot validation schema
 	import { object, instance, check, pipe, parse, type InferInput, type ValiError } from 'valibot';
 
-	interface Props {
-		// Props
-		isGivenData?: boolean; // Unused but kept for interface compat
-		parent?: any; // Loose type for now
-	}
-
-	let _props: Props = $props();
-	void _props;
+	let { isGivenData: _isGivenData, parent: _parent } = $props();
 
 	// ... (rest of code) ...
 

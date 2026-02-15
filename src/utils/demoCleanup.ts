@@ -11,7 +11,7 @@
  */
 
 import { logger } from '@utils/logger.server';
-import { getDb, getPrivateEnv } from '@src/databases/db';
+import { getPrivateEnv } from '@src/databases/configState';
 import type { User } from '@src/databases/auth/types';
 import type { DatabaseId } from '@src/databases/dbInterface';
 
@@ -20,6 +20,7 @@ import type { DatabaseId } from '@src/databases/dbInterface';
  * Runs only if DEMO mode is enabled (via env var or private config).
  */
 export async function cleanupExpiredDemoTenants() {
+	const { getDb } = await import('@src/databases/db');
 	const env = getPrivateEnv();
 	// Check ONLY private config (static) or env var - enforced security
 	const isDemo = process.env.SVELTYCMS_DEMO === 'true' || env?.DEMO === true;

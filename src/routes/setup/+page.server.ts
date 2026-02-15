@@ -454,7 +454,8 @@ export const actions = {
 			const updatePrivateConfigPromise = (async () => {
 				try {
 					// Optimization: Check if values actually changed to avoid unnecessary restart
-					const { privateEnv } = await import('@stores/privateEnv.svelte');
+					const privateConfigModule = await import('@config/private');
+					const privateEnv = privateConfigModule.privateEnv as any; // Cast to any to avoid type issues with dynamic import
 					// Use loose equality to handle string/boolean differences if any
 					if (privateEnv.MULTI_TENANT == system.multiTenant && privateEnv.DEMO == system.demoMode) {
 						logger.info('DEBUG: Private config unchanged, skipping update to prevent restart.');

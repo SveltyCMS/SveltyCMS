@@ -28,17 +28,16 @@ Renders: <a href="mailto:user@example.com">user@example.com</a>
 </script>
 
 {#if value}
-	<a href="mailto:{value}" class="email-link" title="Send email to {value}">{value}</a>
+	<a href="mailto:{value}" class="email-wrapper" title="Send email to {value}">{value}</a>
 {:else}
 	<span>–</span>
 {/if}
 
 <style>
-	.email-link {
-		color: #007bff;
-		text-decoration: underline;
-	}
-	.email-link:hover {
-		color: #0056b3;
+	.email-wrapper {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.5rem;
+		font-family: inherit;
 	}
 </style>

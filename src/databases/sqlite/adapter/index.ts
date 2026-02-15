@@ -112,6 +112,94 @@ export class SQLiteAdapter extends AdapterCore implements IDBAdapter {
 		this.collection = new CollectionModule(this);
 	}
 
+	public async ensureAuth(): Promise<void> {
+		// Check if roles exist
+		const existingRoles = await this.db.select().from(schema.roles).limit(1);
+		if (existingRoles.length > 0) return;
+
+		const now = new Date();
+		const rolesPayload = [
+			{
+				_id: 'admin',
+				name: 'Administrator',
+				description: 'Administrator with full access',
+				isAdmin: true,
+				permissions: [],
+				icon: 'bi:shield-lock-fill',
+				color: '#ff3e00',
+				createdAt: now,
+				updatedAt: now
+			},
+			{
+				_id: 'developer',
+				name: 'Developer',
+				description: 'Developer with access to most features',
+				isAdmin: false,
+				permissions: [
+					'collection:create',
+					'collection:read',
+					'collection:update',
+					'collection:delete',
+					'user:read',
+					'user:create',
+					'user:update',
+					'content:create',
+					'content:read',
+					'content:update',
+					'content:delete',
+					'content:publish',
+					'media:upload',
+					'media:read',
+					'media:update',
+					'media:delete'
+				],
+				icon: 'bi:code-slash',
+				color: '#007bff',
+				createdAt: now,
+				updatedAt: now
+			},
+			{
+				_id: 'editor',
+				name: 'Editor',
+				description: 'Editor with access to content',
+				isAdmin: false,
+				permissions: [
+					'content:create',
+					'content:read',
+					'content:update',
+					'content:delete',
+					'content:publish',
+					'media:upload',
+					'media:read',
+					'media:update'
+				],
+				icon: 'bi:pencil-fill',
+				color: '#28a745',
+				createdAt: now,
+				updatedAt: now
+			},
+			{
+				_id: 'user',
+				name: 'User',
+				description: 'Standard user',
+				isAdmin: false,
+				permissions: ['content:read'],
+				icon: 'bi:person-fill',
+				color: '#6c757d',
+				createdAt: now,
+				updatedAt: now
+			}
+		];
+
+		await this.db.insert(schema.roles).values(rolesPayload);
+	}
+
+	public async ensureSystem(): Promise<void> {
+		// SQLite modules are pre-initialized in constructor
+		// We can add system settings seeding here if needed in the future
+		return Promise.resolve();
+	}
+
 	public async connect(connection: any, _options?: any): Promise<DatabaseResult<void>> {
 		const result = await super.connect(connection);
 		if (result.success && this.sqlite) {
@@ -126,6 +214,35 @@ export class SQLiteAdapter extends AdapterCore implements IDBAdapter {
 			}
 		}
 		return result;
+	}
+
+	public async clearDatabase(): Promise<DatabaseResult<void>> {
+		// SQLite-specific cleanup: Drop all tables
+		return this.wrap(async () => {
+			// Disable foreign keys to allow dropping tables in any order
+			this.sqlite.exec('PRAGMA foreign_keys = OFF;');
+
+			// Support both Bun (query) and Node/better-sqlite3 (prepare)
+			let tables: { name: string }[];
+			if (this.sqlite.query) {
+				tables = this.sqlite.query("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';").all() as { name: string }[];
+			} else if (this.sqlite.prepare) {
+				tables = this.sqlite.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';").all() as { name: string }[];
+			} else {
+				throw new Error('SQLite adapter: Neither query() nor prepare() methods found on connection object.');
+			}
+
+			for (const { name } of tables) {
+				this.sqlite.exec(`DELETE FROM "${name}";`);
+				try {
+					this.sqlite.exec(`DELETE FROM sqlite_sequence WHERE name='${name}';`);
+				} catch (e) {
+					// Ignore if sqlite_sequence doesn't exist or table not tracked
+				}
+			}
+
+			this.sqlite.exec('PRAGMA foreign_keys = ON;');
+		}, 'CLEAR_DATABASE_FAILED');
 	}
 
 	public queryBuilder = <T extends BaseEntity>(collection: string): QueryBuilder<T> => {

@@ -85,7 +85,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 		const mediaService = await getMediaService();
 
-
 		let result: ProcessResult;
 		switch (processType) {
 			case 'metadata': {

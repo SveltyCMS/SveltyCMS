@@ -28,6 +28,7 @@ export const API_PERMISSIONS: Record<string, string[]> = {
 	'api:exportData': ['admin'], // Collection export
 	'api:importData': ['admin'], // Collection import
 	'api:system': ['admin', 'editor'], // System status (version, health)
+	'api:system/health': ['*'], // Public health check
 	'api:telemetry': ['admin', 'developer', 'editor'], // System telemetry
 
 	// Admin area - Admin only

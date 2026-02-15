@@ -56,7 +56,6 @@ export const POST = apiHandler(async ({ request, cookies, locals }) => {
 			throw new AppError('Internal Server Error: Auth system not initialized', 500, 'AUTH_SYS_ERROR');
 		}
 
-
 		// In multi-tenant mode, a tenantId is required for login.
 		if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
 			logger.error('Login attempt failed: Tenant ID is missing in a multi-tenant setup.');

@@ -166,7 +166,9 @@ export class AuditLogService {
 	 */
 	async queryLogs(options: AuditQueryOptions = {}): Promise<DatabaseResult<AuditLogEntry[]>> {
 		try {
-			const db = await getDbAdapter();
+			const { getDb } = await import('@src/databases/db');
+			const db = getDb();
+			if (!db) throw new Error('Database adapter not initialized');
 			const filters: Record<string, unknown> = {};
 
 			if (options.eventTypes?.length) {
@@ -221,7 +223,9 @@ export class AuditLogService {
 	// Get audit statistics for dashboard
 	async getStatistics(days: number = 30): Promise<DatabaseResult<AuditStatistics>> {
 		try {
-			const db = await getDbAdapter();
+			const { getDb } = await import('@src/databases/db');
+			const db = getDb();
+			if (!db) throw new Error('Database adapter not initialized');
 			const startDate = new Date();
 			startDate.setDate(startDate.getDate() - days);
 
@@ -308,21 +312,57 @@ export class AuditLogService {
 	// Clean up old audit logs based on retention policy
 	async cleanupOldLogs(retentionDays: number = 365): Promise<void> {
 		try {
-			const db = await getDbAdapter();
+			const { getDb } = await import('@src/databases/db');
+			const db = getDb();
+			if (!db) throw new Error('Database adapter not initialized');
 			const cutoffDate = new Date();
 			cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
+			const timestampFilter = { timestamp: { $lte: cutoffDate.toISOString() } } as unknown as Partial<BaseEntity>;
 
-			// Note: We need to cast because deleteMany expects Partial<BaseEntity>
-			// but we're filtering on AuditLogEntry's timestamp field
-			const result = await db.crud.deleteMany(this.collectionName, {
-				timestamp: cutoffDate.toISOString()
-			} as Partial<BaseEntity>);
+			// Check for Multi-Tenancy
+			// We can't easily import privateEnv without circular deps sometimes, so we check db capability
+			// Or better, checking if tenants module exists and is populated
+			// But let's assume we can check via db adapter if it has tenants module active
+			// Actually, safeQuery checks privateEnv.MULTI_TENANT.
 
-			if (result.success && result.data && result.data.deletedCount > 0) {
-				logger.info(`Cleaned up ${result.data.deletedCount} old audit log entries`, {
-					cutoffDate: cutoffDate.toISOString(),
-					retentionDays
-				});
+			const { getPrivateEnv } = await import('@src/databases/db');
+			const isMultiTenant = getPrivateEnv()?.MULTI_TENANT || false;
+
+			if (isMultiTenant && db.tenants) {
+				const tenantsResult = await db.tenants.list();
+				if (tenantsResult.success && tenantsResult.data) {
+					let totalDeleted = 0;
+					for (const tenant of tenantsResult.data) {
+						// Delete for each tenant
+						// Note: timestampFilter needs to be a query that safeQuery accepts.
+						// { timestamp: ... } is fine.
+						// We pass tenantId as 3rd arg to deleteMany.
+						const result = await db.crud.deleteMany(this.collectionName, timestampFilter, tenant._id);
+						if (result.success && result.data) {
+							totalDeleted += result.data.deletedCount;
+						}
+					}
+					if (totalDeleted > 0) {
+						logger.info(`Cleaned up ${totalDeleted} old audit log entries across tenants`, {
+							cutoffDate: cutoffDate.toISOString(),
+							retentionDays
+						});
+					}
+				}
+			} else {
+				// Single Tenant / Global
+				// Note: We need to cast because deleteMany expects Partial<BaseEntity>
+				// but we're filtering on AuditLogEntry's timestamp field
+				const result = await db.crud.deleteMany(this.collectionName, {
+					timestamp: cutoffDate.toISOString()
+				} as Partial<BaseEntity>);
+
+				if (result.success && result.data && result.data.deletedCount > 0) {
+					logger.info(`Cleaned up ${result.data.deletedCount} old audit log entries`, {
+						cutoffDate: cutoffDate.toISOString(),
+						retentionDays
+					});
+				}
 			}
 		} catch (error) {
 			logger.error('Failed to cleanup old audit logs', { error, retentionDays });

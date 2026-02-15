@@ -30,6 +30,7 @@
 
 // Mongoose and core types
 import mongoose from 'mongoose';
+import { v4 as uuidv4 } from 'uuid';
 import type {
 	BaseEntity,
 	DatabaseId,
@@ -53,7 +54,6 @@ import { logger } from '@src/utils/logger.server';
 import { cacheService } from '@src/databases/CacheService';
 
 export class MongoDBAdapter implements IDBAdapter {
-
 	// --- Feature Cache (Real Instances) ---
 	private _realAuth?: IAuthAdapter;
 	private _realCrud?: ICrudAdapter;
@@ -528,6 +528,22 @@ export class MongoDBAdapter implements IDBAdapter {
 			};
 		} catch (error) {
 			return { success: false, message: 'Health check failed', error: { code: 'HEALTH_CHECK_FAILED', message: String(error) } };
+		}
+	}
+
+	async clearDatabase(): Promise<DatabaseResult<void>> {
+		try {
+			if (!mongoose.connection.db) {
+				return { success: false, message: 'Not connected', error: { code: 'NOT_CONNECTED', message: 'DB not connected' } };
+			}
+			await mongoose.connection.db.dropDatabase();
+			return { success: true, data: undefined };
+		} catch (error) {
+			return {
+				success: false,
+				message: 'Failed to clear database',
+				error: { code: 'CLEAR_FAILED', message: String(error) }
+			};
 		}
 	}
 
@@ -1079,7 +1095,6 @@ export class MongoDBAdapter implements IDBAdapter {
 	public readonly utils = {
 		generateId: () => {
 			// Compact, dash-less UUID for DB identifiers
-			const { v4: uuidv4 } = require('uuid');
 			return uuidv4().replace(/-/g, '') as DatabaseId;
 		},
 

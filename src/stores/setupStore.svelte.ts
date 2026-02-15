@@ -533,7 +533,13 @@ function createSetupStore() {
 			}
 
 			// Success!
-			// showToast('Setup complete! Redirecting...', 'success', 2000);
+			logger.info('Setup completed successfully', {
+				username: wizard.adminUser.username,
+				email: wizard.adminUser.email
+			});
+
+			showToast('Setup complete! Redirecting...', 'success', 2000);
+			logger.info('Toast triggered for setup completion');
 
 			// Use flash message for seamless transition to the dashboard
 			if (typeof window !== 'undefined') {

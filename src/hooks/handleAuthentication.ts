@@ -24,7 +24,6 @@
 import type { Handle, RequestEvent } from '@sveltejs/kit';
 import { error } from '@sveltejs/kit';
 import { dev } from '$app/environment';
-import { getPrivateSettingSync } from '@src/services/settingsService';
 import { SESSION_COOKIE_NAME } from '@src/databases/auth/constants';
 import type { User } from '@src/databases/auth/types';
 import type { ISODateString } from '@databases/dbInterface';
@@ -101,17 +100,9 @@ const pendingDemoTenants = new Map<string, string>();
 
 /**
  * Rate limiter for session rotation to prevent abuse.
- * Limits: 100 rotation attempts per minute per IP
+ * Initialized lazily within handleAuthentication to ensure settings are ready.
  */
-const rotationRateLimiter = new RateLimiter({
-	IP: [100, 'm'],
-	cookie: {
-		name: 'session_rotation_limit',
-		secret: getPrivateSettingSync('JWT_SECRET_KEY') || 'fallback-dev-secret',
-		rate: [100, 'm'],
-		preflight: true
-	}
-});
+let rotationRateLimiter: RateLimiter | null = null;
 
 /**
  * Gets a session from the cache, handling WeakRef dereferencing.
@@ -210,8 +201,8 @@ if (typeof setInterval !== 'undefined') {
 // --- UTILITY FUNCTIONS ---
 
 /** Derives tenant ID from hostname */
-function getTenantIdFromHostname(hostname: string): string | null {
-	if (!getPrivateSettingSync('MULTI_TENANT')) return null;
+function getTenantIdFromHostname(hostname: string, multiTenant: boolean): string | null {
+	if (!multiTenant) return null;
 
 	if (hostname === 'localhost' || hostname.startsWith('127.0.0.1') || hostname.startsWith('192.168.')) {
 		return 'default';
@@ -265,7 +256,6 @@ async function getUserFromSession(sessionId: string, tenantId?: string): Promise
 		return null;
 	}
 
-
 	try {
 		const user = await auth.validateSession(sessionId);
 		if (user) {
@@ -304,7 +294,7 @@ async function handleSessionRotation(event: RequestEvent, user: User, oldSession
 	}
 
 	// Rate limit check
-	if (await rotationRateLimiter.isLimited(event)) {
+	if (rotationRateLimiter && (await rotationRateLimiter.isLimited(event))) {
 		logger.debug(`Session rotation rate limited for session ${oldSessionId.substring(0, 8)}...`);
 		return;
 	}
@@ -315,7 +305,6 @@ async function handleSessionRotation(event: RequestEvent, user: User, oldSession
 			logger.warn('Session rotation not supported by auth adapter');
 			return;
 		}
-
 
 		// Create new session with same user
 		const newSession = await auth.createSession({
@@ -377,11 +366,28 @@ async function handleSessionRotation(event: RequestEvent, user: User, oldSession
 	}
 }
 
-
 // --- MAIN HOOK ---
 
 export const handleAuthentication: Handle = async ({ event, resolve }) => {
 	const { locals, url, cookies } = event;
+
+	// Dynamic imports for environment and settings to avoid circular dependencies
+	// and ensure fresh values from $env/dynamic/private
+	const { env } = await import('$env/dynamic/private');
+	const { getPrivateSettingSync } = await import('@src/services/settingsService');
+
+	// Initialize rotation rate limiter if not already done
+	if (!rotationRateLimiter) {
+		rotationRateLimiter = new RateLimiter({
+			IP: [100, 'm'],
+			cookie: {
+				name: 'session_rotation_limit',
+				secret: getPrivateSettingSync('JWT_SECRET_KEY') || 'fallback-dev-secret',
+				rate: [100, 'm'],
+				preflight: true
+			}
+		});
+	}
 
 	// Skip internal or special requests
 	const ASSET_REGEX =
@@ -391,7 +397,10 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
 	}
 
 	// Skip public routes
-	const publicRoutes = ['/login', '/register', '/forgot-password', '/setup', '/api/settings/public'];
+	const publicRoutes = ['/login', '/register', '/forgot-password', '/setup', '/api/settings/public', '/api/system/health'];
+	if (env.TEST_MODE === 'true') {
+		publicRoutes.push('/api/testing');
+	}
 	const isLocalizedPublic = /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/(setup|login|register|forgot-password)/.test(url.pathname);
 
 	if (publicRoutes.some((r) => url.pathname.startsWith(r)) || isLocalizedPublic) {
@@ -410,7 +419,6 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
 			// handleSetup will enforce proper access control for setup routes
 			return await resolve(event);
 		}
-
 
 		// Step 1: Multi-tenancy (synchronous check)
 		const multiTenant = getPrivateSettingSync('MULTI_TENANT');
@@ -461,7 +469,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
 				}
 			} else {
 				// Standard multi-tenancy: resolve tenantId from hostname
-				tenantId = getTenantIdFromHostname(url.hostname);
+				tenantId = getTenantIdFromHostname(url.hostname, !!multiTenant);
 			}
 
 			if (!tenantId) {
@@ -483,8 +491,6 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
 				// Do NOT delete cookie here - allow retry on next request
 				return await resolve(event);
 			}
-
-
 
 			const user = await getUserFromSession(sessionId, locals.tenantId);
 			if (user) {
