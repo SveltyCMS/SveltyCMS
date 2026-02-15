@@ -13,6 +13,7 @@ import type { DatabaseId, DatabaseResult, MediaItem, MediaMetadata, PaginatedRes
 import { mediaSchema, type IMedia } from '../models/media';
 import { createDatabaseError } from './mongoDBUtils';
 import { withCache, CacheCategory, invalidateCategoryCache } from './mongoDBCacheUtils';
+import { safeQuery } from '@src/utils/security/safeQuery';
 
 // Define model types for dependency injection
 type MediaModelType = Mongoose.Model<IMedia>;
@@ -131,32 +132,64 @@ export class MongoMediaMethods {
 	}
 
 	// Retrieves a paginated list of media files, optionally filtered by folder
-	async getFiles(folderId?: DatabaseId, options: PaginationOptions = {}, recursive = false): Promise<DatabaseResult<PaginatedResult<MediaItem>>> {
-		const { page = 1, pageSize = 25, sortField = 'createdAt', sortDirection = 'desc' } = options;
-		const cacheKey = `media:files:${folderId || 'root'}:${page}:${pageSize}:${sortField}:${sortDirection}:rec:${recursive}`;
+	async getFiles(
+		folderId?: DatabaseId,
+		options: PaginationOptions = {},
+		recursive = false,
+		tenantId?: string | null
+	): Promise<DatabaseResult<PaginatedResult<MediaItem>>> {
+		const { page = 1, pageSize = 25, sortField = 'createdAt', sortDirection = 'desc', user } = options;
+
+		// Determine if we should filter by user ownership
+		// Admins see all files, others see only their own
+		const userId = user?._id?.toString();
+		const isAdmin = user?.role === 'admin' || (user as any)?.isAdmin === true;
+		const shouldFilterByUser = user && !isAdmin;
+
+		const cacheKey = `media:files:${folderId || 'root'}:${page}:${pageSize}:${sortField}:${sortDirection}:rec:${recursive}:${tenantId || 'no-tenant'}${shouldFilterByUser ? `:user:${userId}` : ''}`;
 
 		const fetchData = async (): Promise<DatabaseResult<PaginatedResult<MediaItem>>> => {
 			try {
-				let query;
+				let query: Record<string, any> = {};
 				if (recursive) {
 					// Fetch ALL files, ignoring folderId
 					query = {};
 				} else {
 					query = folderId ? { folderId } : { folderId: { $in: [null, undefined] } }; // Root files
 				}
+
+				// Apply user ownership filter if necessary
+				if (shouldFilterByUser) {
+					// ALLOW GLOBAL: Users see their own files OR anything in the 'global' folder
+					query = {
+						...query,
+						$or: [{ createdBy: userId }, { user: userId }, { path: /^global\// }]
+					};
+				}
+
+				// Apply tenant isolation and security
+				const secureQuery = safeQuery(query, tenantId);
+
+				// Add fallback for legacy/untenanted media if tenantId is provided
+				if (tenantId && secureQuery.tenantId === tenantId) {
+					// Allow items matching tenantId OR having no tenantId (legacy/system)
+					secureQuery.tenantId = { $in: [tenantId, null, undefined] };
+				}
+
 				const skip = (page - 1) * pageSize;
 				const sort: Record<string, 1 | -1> = { [sortField]: sortDirection === 'asc' ? 1 : -1 };
 
 				const [items, total] = await Promise.all([
 					this.mediaModel
-						.find(query as any)
+						.find(secureQuery as any)
 						.sort(sort)
 						.skip(skip)
 						.limit(pageSize)
 						.lean()
 						.exec(),
-					this.mediaModel.countDocuments(query as any)
+					this.mediaModel.countDocuments(secureQuery as any)
 				]);
+
 
 				return {
 					success: true,

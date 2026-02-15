@@ -29,9 +29,6 @@
 import { json, type HttpError } from '@sveltejs/kit';
 import { getPrivateSettingSync } from '@src/services/settingsService';
 
-// Auth
-import { auth } from '@src/databases/db';
-
 // System logger
 import { logger } from '@utils/logger.server';
 
@@ -42,16 +39,23 @@ import { verifyPassword } from '@utils/password';
 import { apiHandler } from '@utils/apiHandler';
 import { AppError } from '@utils/errorHandling';
 
+async function getAuth() {
+	const { auth } = await import('@src/databases/db');
+	return auth;
+}
+
 export const POST = apiHandler(async ({ request, cookies, locals }) => {
 	// The main try...catch block is for unexpected server errors (e.g., DB connection fails).
 	// Expected client errors (like 401) are handled by `throw error()`, which SvelteKit catches.
 	try {
 		const { user: existingUser, tenantId } = locals; // Destructure user and tenantId
 
+		const auth = await getAuth();
 		if (!auth) {
 			logger.error('Authentication system is not initialized.');
 			throw new AppError('Internal Server Error: Auth system not initialized', 500, 'AUTH_SYS_ERROR');
 		}
+
 
 		// In multi-tenant mode, a tenantId is required for login.
 		if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {

@@ -9,7 +9,11 @@
  * - Update image editor state reactively
  */
 
-import type Konva from 'konva';
+/**
+ * @file src/stores/imageEditorStore.svelte.ts
+ * @description Manages the image editor state and history
+ */
+
 import type { Component } from 'svelte';
 
 // Types
@@ -35,10 +39,6 @@ export interface ImageEditorState {
 	saveEditedImage: boolean;
 	editHistory: EditAction[];
 	currentHistoryIndex: number;
-	stage: Konva.Stage | null;
-	layer: Konva.Layer | null;
-	imageNode: Konva.Image | null;
-	imageGroup: Konva.Group | null;
 	activeState: string;
 	stateHistory: string[];
 	toolbarControls: ToolbarControls | null;
@@ -50,6 +50,24 @@ export interface ImageEditorState {
 		cancel?: () => void;
 	};
 	error?: string | null;
+
+	// Canvas related state
+	imageElement: HTMLImageElement | null;
+	zoom: number;
+	rotation: number;
+	flipH: boolean;
+	flipV: boolean;
+	translateX: number;
+	translateY: number;
+
+	// Image specific properties
+	crop: { x: number; y: number; width: number; height: number } | null;
+	focalPoint: { x: number; y: number } | null;
+	filters: Record<string, number>;
+	annotations: any[];
+
+	blurRegions: any[];
+	watermarks: any[];
 }
 
 // Create image editor store
@@ -60,17 +78,29 @@ function createImageEditorStore() {
 		saveEditedImage: false,
 		editHistory: [],
 		currentHistoryIndex: -1,
-		stage: null,
-		layer: null,
-		imageNode: null,
-		imageGroup: null,
 		activeState: '',
 		stateHistory: [],
 		toolbarControls: null,
 		preToolSnapshot: null,
 		actions: {},
 		error: null,
-		viewportWidth: 0
+		viewportWidth: 0,
+
+		imageElement: null,
+		zoom: 1,
+		rotation: 0,
+		flipH: false,
+		flipV: false,
+		translateX: 0,
+		translateY: 0,
+
+		crop: null,
+		focalPoint: { x: 0.5, y: 0.5 },
+		filters: {},
+		annotations: [],
+
+		blurRegions: [],
+		watermarks: []
 	});
 
 	// Constants
@@ -81,9 +111,7 @@ function createImageEditorStore() {
 	} as const;
 
 	// Derived values using $derived rune
-	const canUndo = $derived(state.currentHistoryIndex >= 0);
-	const canRedo = $derived(state.currentHistoryIndex < state.editHistory.length - 1);
-	const hasActiveImage = $derived(!!state.file && !!state.imageNode);
+	const hasActiveImage = $derived(!!state.file && !!state.imageElement);
 	const canUndoState = $derived(state.stateHistory.length > 1 && state.currentHistoryIndex > 0);
 	const canRedoState = $derived(state.currentHistoryIndex < state.stateHistory.length - 1);
 
@@ -95,24 +123,12 @@ function createImageEditorStore() {
 		state.file = file;
 	}
 
+	function setImageElement(img: HTMLImageElement | null) {
+		state.imageElement = img;
+	}
+
 	function setSaveEditedImage(value: boolean) {
 		state.saveEditedImage = value;
-	}
-
-	function setStage(stage: Konva.Stage) {
-		state.stage = stage;
-	}
-
-	function setLayer(layer: Konva.Layer) {
-		state.layer = layer;
-	}
-
-	function setImageNode(imageNode: Konva.Image) {
-		state.imageNode = imageNode;
-	}
-
-	function setImageGroup(imageGroup: Konva.Group) {
-		state.imageGroup = imageGroup;
 	}
 
 	function setActiveState(newState: string) {
@@ -131,14 +147,9 @@ function createImageEditorStore() {
 		if (!currentState) return;
 
 		if (state.preToolSnapshot) {
-			// Restore the pre-tool snapshot
-			// Note: We don't use undo() because that changes history.
-			// We manually restore the state data.
-			// This logic is currently partially in Editor.svelte (restoreFromStateData).
-			// We'll need to trigger a 'restore' event or similar.
+			restoreFromSnapshot(state.preToolSnapshot);
 		}
 
-		cleanupToolSpecific(currentState);
 		setActiveState('');
 		setToolbarControls(null);
 	}
@@ -155,226 +166,17 @@ function createImageEditorStore() {
 		state.error = error;
 	}
 
-	function cleanupTempNodes() {
-		if (!state.layer) return;
-
-		// Remove all temporary nodes by name and class
-		const tempSelectors = [
-			'.cropTool',
-			'.transformer',
-			'.blurTool',
-			'.cropOverlayGroup',
-			'[name="cropTool"]',
-			'[name="cropHighlight"]',
-			'[name="cropOverlay"]',
-			'.rotationGrid',
-			'.gridLayer',
-			'.blurRegion',
-			'.mosaicOverlay',
-			'[name="watermark"]',
-			'[name="watermarkTransformer"]'
-		];
-		tempSelectors.forEach((selector) => {
-			state.layer!.find(selector).forEach((node) => {
-				try {
-					node.destroy();
-				} catch (e) {
-					console.warn('Error destroying node:', e);
-				}
-			});
-		});
-
-		// Remove all transformers EXCEPT the annotation transformer
-		state.layer.find('Transformer').forEach((node) => {
-			// Keep the annotation transformer alive
-			if (node.name() === 'annotationTransformer') {
-				return;
-			}
-			try {
-				node.destroy();
-			} catch (e) {
-				console.warn('Error destroying transformer:', e);
-			}
-		});
-
-		// Remove any image overlays that might be from blur tool
-		state.layer.find('Image').forEach((node) => {
-			// Only remove overlay images, not the main image node
-			if (node !== state.imageNode) {
-				try {
-					node.destroy();
-				} catch (e) {
-					console.warn('Error destroying overlay image:', e);
-				}
-			}
-		});
-
-		// Remove any temporary groups
-		state.layer.find('Group').forEach((node) => {
-			// Check if it's a temporary overlay group
-			if (node.name() === 'cropOverlayGroup' || node.name().includes('temp')) {
-				try {
-					node.destroy();
-				} catch (e) {
-					console.warn('Error destroying temporary group:', e);
-				}
-			}
-		});
-
-		// Clear any caches to prevent ghosting
-		state.layer.clearCache();
-		state.layer.batchDraw();
-	}
-
-	function cleanupToolSpecific(toolName: string) {
-		if (!state.layer) return;
-
-		switch (toolName) {
-			case 'crop':
-				// Clean up crop-specific elements
-				state.layer.find('.cropTool').forEach((node) => {
-					try {
-						node.destroy();
-					} catch (e) {
-						console.warn('Error destroying crop tool:', e);
-					}
-				});
-				state.layer.find('.cropOverlayGroup').forEach((node) => {
-					try {
-						node.destroy();
-					} catch (e) {
-						console.warn('Error destroying crop overlay group:', e);
-					}
-				});
-				state.layer.find('[name="cropHighlight"]').forEach((node) => {
-					try {
-						node.destroy();
-					} catch (e) {
-						console.warn('Error destroying crop highlight:', e);
-					}
-				});
-				break;
-
-			case 'blur':
-				// Clean up blur-specific elements
-				state.layer.find('.blurRegion').forEach((node) => {
-					try {
-						node.destroy();
-					} catch (e) {
-						console.warn('Error destroying blur region:', e);
-					}
-				});
-				state.layer.find('.mosaicOverlay').forEach((node) => {
-					try {
-						node.destroy();
-					} catch (e) {
-						console.warn('Error destroying mosaic overlay:', e);
-					}
-				});
-				// Remove any temporary images created by blur tool
-				state.layer.find('Image').forEach((node) => {
-					// Only remove overlay images, not the main image node
-					if (node !== state.imageNode) {
-						try {
-							node.destroy();
-						} catch (e) {
-							console.warn('Error destroying blur overlay image:', e);
-						}
-					}
-				});
-				break;
-
-			case 'zoom':
-				// Clean up zoom-specific elements (cursor, pan state)
-				if (state.stage?.container()) {
-					state.stage.container().style.cursor = 'default';
-				}
-				break;
-
-			case 'watermark':
-				// Clean up watermark-specific elements
-				state.layer.find('[name="watermark"]').forEach((node) => {
-					try {
-						node.destroy();
-					} catch (e) {
-						console.warn('Error destroying watermark:', e);
-					}
-				});
-				state.layer.find('[name="watermarkTransformer"]').forEach((node) => {
-					try {
-						node.destroy();
-					} catch (e) {
-						console.warn('Error destroying watermark transformer:', e);
-					}
-				});
-				break;
-		}
-
-		// Always clean up transformers EXCEPT the annotation transformer
-		state.layer.find('Transformer').forEach((node) => {
-			// Keep the annotation transformer alive
-			if (node.name() === 'annotationTransformer') {
-				return;
-			}
-			try {
-				node.destroy();
-			} catch (e) {
-				console.warn('Error destroying transformer:', e);
-			}
-		});
-
-		// Clear cache and redraw
-		state.layer.clearCache();
-		state.layer.batchDraw();
-	}
-
-	function saveToolState() {
-		// Take a snapshot before switching tools to preserve the current state
-		if (state.stage) {
-			takeSnapshot();
-		}
-	}
-
-	/**
-	 * Proactively hides all UI elements (handles, toolbars, grids)
-	 * before a high-resolution export or save.
-	 */
-	function hideAllUI() {
-		if (!state.stage) return;
-
-		const uiItems = state.stage.find((node: Konva.Node) => {
-			const className = node.className;
-			const name = node.name() || '';
-			return (
-				className === 'Transformer' ||
-				name.includes('toolbar') ||
-				name.includes('Overlay') ||
-				name.includes('Grid') ||
-				name.includes('cropTool') || // Specific for crop
-				name.includes('cropCut')
-			);
-		});
-
-		uiItems.forEach((item) => {
-			item.visible(false);
-		});
-
-		if (state.layer) state.layer.batchDraw();
-		state.stage.batchDraw();
-	}
-
 	function takeSnapshot() {
-		if (!state.stage) return;
-
-		// Force a redraw to ensure the current state is captured
-		if (state.layer) {
-			state.layer.batchDraw();
-		}
-
-		// Save current canvas state to history
-		// We use a custom object to store extra data if needed
 		const snapshot = {
-			stage: state.stage.toJSON(),
+			zoom: state.zoom,
+			rotation: state.rotation,
+			flipH: state.flipH,
+			flipV: state.flipV,
+			translateX: state.translateX,
+			translateY: state.translateY,
+			crop: $state.snapshot(state.crop),
+			focalPoint: $state.snapshot(state.focalPoint),
+			filters: $state.snapshot(state.filters),
 			activeState: state.activeState,
 			timestamp: Date.now()
 		};
@@ -382,17 +184,25 @@ function createImageEditorStore() {
 		saveStateHistory(JSON.stringify(snapshot));
 	}
 
-	function addEditAction(action: EditAction) {
-		// Remove any redoable actions after current index
-		state.editHistory = state.editHistory.slice(0, state.currentHistoryIndex + 1);
-		// Add new action
-		state.editHistory.push(action);
-		// Update current index
-		state.currentHistoryIndex = state.editHistory.length - 1;
+	function restoreFromSnapshot(snapshotStr: string) {
+		try {
+			const snapshot = JSON.parse(snapshotStr);
+			state.zoom = snapshot.zoom ?? 1;
+			state.rotation = snapshot.rotation ?? 0;
+			state.flipH = snapshot.flipH ?? false;
+			state.flipV = snapshot.flipV ?? false;
+			state.translateX = snapshot.translateX ?? 0;
+			state.translateY = snapshot.translateY ?? 0;
+			state.crop = snapshot.crop ?? null;
+			state.focalPoint = snapshot.focalPoint ?? { x: 0.5, y: 0.5 };
+			state.filters = snapshot.filters ?? {};
+			state.activeState = snapshot.activeState ?? '';
+		} catch (e) {
+			console.error('Failed to restore snapshot:', e);
+		}
 	}
 
 	function saveStateHistory(stateData: string) {
-		// If we're not at the end of history, truncate it
 		if (state.currentHistoryIndex < state.stateHistory.length - 1) {
 			state.stateHistory = state.stateHistory.slice(0, state.currentHistoryIndex + 1);
 		}
@@ -401,41 +211,20 @@ function createImageEditorStore() {
 		state.currentHistoryIndex = state.stateHistory.length - 1;
 	}
 
-	function undo() {
-		if (state.currentHistoryIndex >= 0) {
-			state.editHistory[state.currentHistoryIndex].undo();
-			state.currentHistoryIndex--;
-		}
-	}
-
-	function redo() {
-		if (state.currentHistoryIndex < state.editHistory.length - 1) {
-			state.currentHistoryIndex++;
-			state.editHistory[state.currentHistoryIndex].redo();
-		}
-	}
-
 	function undoState(peek = false): string | null {
-		// If not peeking, we need to ensure there's a previous state to go back to.
-		// If peeking, we just need to ensure there's a current state to read.
-		if (!peek && !canUndoState) {
-			return null;
-		}
-		if (peek && state.currentHistoryIndex < 0) {
-			return null;
-		}
+		if (!peek && !canUndoState) return null;
+		if (peek && state.currentHistoryIndex < 0) return null;
 
 		let targetIndex = state.currentHistoryIndex;
 		if (!peek) {
 			targetIndex--;
-			state.currentHistoryIndex = targetIndex; // Update the actual history index
+			state.currentHistoryIndex = targetIndex;
 		}
 
-		if (targetIndex < 0 || targetIndex >= state.stateHistory.length) {
-			return null; // Should not happen if checks above are correct, but as a safeguard
-		}
+		if (targetIndex < 0 || targetIndex >= state.stateHistory.length) return null;
 
 		const stateData = state.stateHistory[targetIndex];
+		if (!peek) restoreFromSnapshot(stateData);
 		return stateData;
 	}
 
@@ -443,54 +232,32 @@ function createImageEditorStore() {
 		if (!canRedoState) return null;
 		state.currentHistoryIndex++;
 		const stateData = state.stateHistory[state.currentHistoryIndex];
+		restoreFromSnapshot(stateData);
 		return stateData;
-	}
-
-	function clearHistory() {
-		state.editHistory = [];
-		state.currentHistoryIndex = -1;
-		state.stateHistory = [];
 	}
 
 	function reset() {
 		state.file = null;
-		state.saveEditedImage = false;
-		state.editHistory = [];
-		state.currentHistoryIndex = -1;
-		state.stage = null;
-		state.layer = null;
-		state.imageNode = null;
-		state.imageGroup = null;
+		state.imageElement = null;
+		state.zoom = 1;
+		state.rotation = 0;
+		state.flipH = false;
+		state.flipV = false;
+		state.translateX = 0;
+		state.translateY = 0;
+		state.crop = null;
+		state.filters = {};
 		state.activeState = '';
 		state.stateHistory = [];
+		state.currentHistoryIndex = -1;
 	}
 
 	function switchTool(tool: string) {
 		const currentState = state.activeState;
-
-		// If clicking the same tool, toggle it off
 		const newState = currentState === tool ? '' : tool;
 
 		if (currentState && currentState !== newState) {
-			// Save the work done in the previous tool before switching
-			saveToolState();
-			cleanupToolSpecific(currentState);
-
-			// Recenter image if needed
-			if (state.stage && state.imageGroup) {
-				const stage = state.stage;
-				const imageGroup = state.imageGroup;
-				const expectedX = stage.width() / 2;
-				const expectedY = stage.height() / 2;
-				const currentX = imageGroup.x();
-				const currentY = imageGroup.y();
-
-				// Only recenter if significantly off-center
-				if (Math.abs(currentX - expectedX) > 5 || Math.abs(currentY - expectedY) > 5) {
-					imageGroup.position({ x: expectedX, y: expectedY });
-					stage.batchDraw();
-				}
-			}
+			takeSnapshot();
 		}
 
 		setActiveState(newState);
@@ -504,23 +271,14 @@ function createImageEditorStore() {
 		get state() {
 			return state;
 		},
-		get canUndo() {
-			return canUndo;
-		},
-		get canRedo() {
-			return canRedo;
-		},
-		get hasActiveImage() {
-			return hasActiveImage;
-		},
 		get canUndoState() {
 			return canUndoState;
 		},
 		get canRedoState() {
 			return canRedoState;
 		},
-		setViewportWidth: (width: number) => {
-			state.viewportWidth = width;
+		get hasActiveImage() {
+			return hasActiveImage;
 		},
 		get isMobile() {
 			return isMobile;
@@ -528,32 +286,25 @@ function createImageEditorStore() {
 		get isTablet() {
 			return isTablet;
 		},
+		setViewportWidth: (width: number) => {
+			state.viewportWidth = width;
+		},
 		reset,
-		setStage,
-		setLayer,
-		setImageNode,
-		setImageGroup,
 		setFile,
+		setImageElement,
 		setActiveState,
 		switchTool,
 		setToolbarControls,
 		setError,
 		setActions,
-		cleanupTempNodes,
-		hideAllUI,
 		takeSnapshot,
-		addEditAction,
-		saveToolState,
-		cleanupToolSpecific,
 		cancelActiveTool,
 		undoState: (peek?: boolean) => undoState(peek),
 		redoState,
-		clearHistory,
 		setSaveEditedImage,
-		handleUndo: () => undo(),
-		handleRedo: () => redo()
+		handleUndo: () => undoState(),
+		handleRedo: () => redoState()
 	};
 }
 
-// Create and export the store instance
 export const imageEditorStore = createImageEditorStore();

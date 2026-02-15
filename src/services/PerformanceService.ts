@@ -9,7 +9,6 @@
  */
 
 import { logger } from '@utils/logger';
-import { dbAdapter } from '@src/databases/db';
 import type { SystemStateStore, ServicePerformanceMetrics } from '@src/stores/system/types';
 
 /**
@@ -27,10 +26,16 @@ export class PerformanceService {
 		return PerformanceService.instance;
 	}
 
+	private async getDbAdapter() {
+		const { dbAdapter } = await import('@src/databases/db');
+		return dbAdapter;
+	}
+
 	/**
 	 * Save learned metrics for all services to the database.
 	 */
 	async saveMetrics(services: SystemStateStore['services']): Promise<void> {
+		const dbAdapter = await this.getDbAdapter();
 		if (!dbAdapter?.systemPreferences) {
 			logger.warn('[PerformanceService] Cannot save metrics: dbAdapter not available');
 			return;
@@ -55,6 +60,7 @@ export class PerformanceService {
 	 * Load historical metrics from the database.
 	 */
 	async loadMetrics(): Promise<Record<string, ServicePerformanceMetrics>> {
+		const dbAdapter = await this.getDbAdapter();
 		if (!dbAdapter?.systemPreferences) {
 			logger.warn('[PerformanceService] Cannot load metrics: dbAdapter not available');
 			return {};
@@ -88,6 +94,7 @@ export class PerformanceService {
 	 * Record a specific benchmark (e.g. for a setup phase).
 	 */
 	async recordBenchmark(name: string, value: number): Promise<void> {
+		const dbAdapter = await this.getDbAdapter();
 		if (!dbAdapter?.systemPreferences) return;
 
 		try {
@@ -105,6 +112,7 @@ export class PerformanceService {
 			logger.error(`[PerformanceService] Failed to record benchmark ${name}:`, error);
 		}
 	}
+
 }
 
 export const performanceService = PerformanceService.getInstance();

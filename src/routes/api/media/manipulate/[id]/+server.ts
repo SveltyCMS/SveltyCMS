@@ -5,12 +5,12 @@
 
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { dbAdapter } from '@src/databases/db';
 import { MediaService } from '@src/services/MediaService.server';
 import { logger } from '@utils/logger.server';
 
 // Helper function to get MediaService instance
-function getMediaService(): MediaService {
+async function getMediaService(): Promise<MediaService> {
+	const { dbAdapter } = await import('@src/databases/db');
 	if (!dbAdapter) {
 		throw new Error('Database adapter is not initialized');
 	}
@@ -39,21 +39,15 @@ export const POST: RequestHandler = async ({ request, params, locals }) => {
 	try {
 		const manipulations = await request.json();
 
-		if (!manipulations || typeof manipulations !== 'object') {
-			return json({ success: false, error: 'Invalid manipulation data' }, { status: 400 });
+		if (!manipulations || typeof manipulations !== 'object' || Object.keys(manipulations).length === 0) {
+			return json({ success: false, error: 'Invalid manipulation data: no manipulations provided' }, { status: 400 });
 		}
 
-		const mediaService = getMediaService();
+		const mediaService = await getMediaService();
 
-		// Use updateMedia instead of manipulateMedia
-		await mediaService.updateMedia(id, manipulations);
 
-		if (!locals.user) {
-			return json({ success: false, error: 'Unauthorized' }, { status: 401 });
-		}
-
-		// Fetch the updated media to return
-		const updatedMedia = await mediaService.getMedia(id, locals.user, locals.roles);
+		// Use manipulateMedia to apply Sharp transformations
+		const updatedMedia = await mediaService.manipulateMedia(id, manipulations, user._id);
 
 		return json({
 			success: true,

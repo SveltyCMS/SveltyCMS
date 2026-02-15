@@ -14,9 +14,6 @@
 import { json } from '@sveltejs/kit';
 import { getPrivateSettingSync } from '@src/services/settingsService';
 
-// Database
-import { dbAdapter } from '@src/databases/db';
-
 // Permissions
 
 // System Logger
@@ -32,6 +29,11 @@ const QuerySchema = v.object({
 // Unified Error Handling
 import { apiHandler } from '@utils/apiHandler';
 import { AppError } from '@utils/errorHandling';
+
+async function getDbAdapter() {
+	const { dbAdapter } = await import('@src/databases/db');
+	return dbAdapter;
+}
 
 export const GET = apiHandler(async ({ locals, url }) => {
 	const { user, tenantId } = locals;
@@ -50,23 +52,27 @@ export const GET = apiHandler(async ({ locals, url }) => {
 		});
 		const recursive = url.searchParams.get('recursive') === 'true';
 
+		const dbAdapter = await getDbAdapter();
 		if (!dbAdapter) {
 			logger.error('Database adapter not available');
 			throw new AppError('Database connection unavailable', 500, 'DB_UNAVAILABLE');
 		}
 
+
 		// --- MULTI-TENANCY: Scope the query by tenantId ---
-		// Filtering by tenantId should be handled by the adapter, not PaginationOptions
 		const result = await dbAdapter.media.files.getByFolder(
 			undefined,
 			{
 				page: 1,
 				pageSize: query.limit,
 				sortField: 'updatedAt',
-				sortDirection: 'desc'
+				sortDirection: 'desc',
+				user // Pass user for ownership filtering
 			},
-			recursive
+			recursive,
+			tenantId
 		);
+
 
 		if (!result.success) {
 			logger.error('Failed to fetch media files from database', {

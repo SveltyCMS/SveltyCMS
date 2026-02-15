@@ -8,7 +8,8 @@ export const getWidgetData = async (
 	value: any
 ): Promise<File | MediaImage | { _id: string | undefined } | undefined> => {
 	if (_data && _data instanceof File) {
-		(_data as any).path = field.path;
+		// Use the explicit folder if available, otherwise field.path
+		(_data as any).path = field.folder || field.path;
 	}
 
 	if (value && !(value instanceof File) && _data && !(_data instanceof File) && _data?._id !== value?._id && value?._id && mode.value === 'edit') {

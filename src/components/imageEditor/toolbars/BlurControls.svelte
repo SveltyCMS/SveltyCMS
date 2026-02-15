@@ -4,7 +4,7 @@
 Pintura-style controls for the Blur tool with responsive design and keyboard support.
 -->
 <script lang="ts">
-	import type { BlurPattern, BlurShape } from '@src/components/imageEditor/widgets/Blur/regions';
+	import type { BlurPattern, BlurShape } from '../widgets/Blur/types';
 
 	// Constants
 	const BLUR_MIN = 5;

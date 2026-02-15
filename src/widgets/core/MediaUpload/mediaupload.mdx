@@ -30,15 +30,19 @@ The **MediaUpload widget** (also called Media widget) provides a powerful interf
 
 ### Key Features
 
-- ✅ **Lightweight Storage**: Stores IDs only, not full file objects
-- ✅ **Multi-Upload Support**: Single file or multiple files
-- ✅ **Modal Library**: Intuitive media browser with search and filters
-- ✅ **Drag & Drop**: Easy file upload with visual feedback
-- ✅ **File Type Filtering**: Restrict to specific file types (images, videos, PDFs)
-- ✅ **Advanced Aggregation**: MongoDB $lookup for filtering by file metadata
-- ✅ **Non-Translatable**: File references are universal
-- ✅ **Validation**: Required field support with count validation
-- ✅ **Preview Support**: Thumbnail generation and display
+- ✅ **AI-Powered Tagging**: Automatically displays and utilizes AI-generated tags for smarter search and organization. Tags are visible in the media grid and detailed views.
+- ✅ **Collection-Specific Storage**: Organize media by collection using the `folder` option (e.g., `folder: 'collection/posts'`). Files are stored in specific subdirectories for better DAM organization.
+- ✅ **Real-Time Previews**: Fetches real media data and thumbnails from the API, providing accurate visual feedback in both grid and entry views.
+- ✅ **Non-Destructive Variants**: Integrated with the Image Editor to save edited variants while preserving the original.
+- ✅ **Lightweight Storage**: Stores IDs only, not full file objects.
+- ✅ **Multi-Upload Support**: Single file or multiple files.
+- ✅ **Modal Library**: Intuitive media browser with search and filters.
+- ✅ **Drag & Drop**: Easy file upload with visual feedback.
+- ✅ **File Type Filtering**: Restrict to specific file types (images, videos, PDFs).
+- ✅ **Advanced Aggregation**: MongoDB $lookup for filtering by file metadata.
+- ✅ **Non-Translatable**: File references are universal.
+- ✅ **Validation**: Required field support with count validation.
+- ✅ **Preview Support**: Thumbnail generation and display.
 
 ---
 
@@ -78,6 +82,7 @@ export const postsCollection = {
 		Media({
 			label: 'Featured Image',
 			db_fieldName: 'featuredImage',
+			folder: 'blog/featured', // ✅ Organize by collection/purpose
 			multiupload: false,
 			required: true,
 			allowedTypes: ['image/jpeg', 'image/png', 'image/webp'],
@@ -134,6 +139,15 @@ Media({
 });
 ```
 
+## AI-Powered Features
+
+The MediaUpload widget is part of SveltyCMS's **AI-Native DAM Engine**. When a file is uploaded, the following automated processes occur:
+
+1.  **Image Analysis**: Local Ollama models (e.g., `llava`) "see" the image.
+2.  **Auto-Tagging**: Descriptive tags are generated and stored in `metadata.aiTags`.
+3.  **Visual Feedback**: These tags are displayed as badges in the `Input` and `Display` components, helping editors quickly verify content.
+4.  **Smart Search**: AI tags are indexed, enabling semantic search across your entire media library.
+
 ---
 
 ## Configuration Properties
@@ -142,6 +156,7 @@ Media({
 | -------------- | ---------- | --------- | ----------- | -------------------------------------- |
 | `label`        | `string`   | ✅ Yes    | -           | Display label for the field            |
 | `db_fieldName` | `string`   | ✅ Yes    | -           | Database field name                    |
+| `folder`       | `string`   | ❌ No     | `'global'`  | Storage subfolder (e.g. `posts`)       |
 | `multiupload`  | `boolean`  | ❌ No     | `false`     | Allow multiple file selection          |
 | `required`     | `boolean`  | ❌ No     | `false`     | Whether file(s) required               |
 | `allowedTypes` | `string[]` | ❌ No     | `[]`        | MIME types allowed (empty = all)       |
@@ -206,9 +221,14 @@ Media stores IDs as strings (single) or array of strings (multi):
   "mimeType": "image/jpeg",
   "size": 245678,
   "url": "/uploads/hero-image-2025-01-15-abc123.jpg",
-  "thumbnailUrl": "/uploads/thumbnails/hero-image-2025-01-15-abc123.jpg",
-  "width": 1920,
-  "height": 1080,
+  "path": "collections/posts/original/hero-image-2025-01-15-abc123.jpg",
+  "originalId": null, // Linked to original if this is a variant
+  "metadata": {
+    "aiTags": ["mountain", "sunset", "outdoor"], // ✅ Automated AI tags
+    "focalPoint": { "x": 50, "y": 30 },
+    "width": 1920,
+    "height": 1080
+  },
   "uploadedBy": "user_123",
   "uploadedAt": ISODate("2025-01-15T10:00:00Z")
 }

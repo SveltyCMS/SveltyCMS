@@ -1,3 +1,19 @@
+---
+path: 'docs/tests/e2e-fix-report.mdx'
+title: 'E2E Test Fix Report'
+description: 'Detailed report on the fixes implemented to restore passing E2E tests across MongoDB, MariaDB, and PostgreSQL.'
+order: 5
+icon: 'mdi:bug-check'
+author: 'admin'
+created: '2026-02-14'
+updated: '2026-02-14'
+tags:
+  - 'testing'
+  - 'e2e'
+  - 'playwright'
+  - 'fix-report'
+---
+
 # E2E Test Fix Report
 
 **Date:** 2026-02-14
@@ -15,9 +31,10 @@ E2E tests were disabled (`if: false`) since commit `67c94ffa`. This report docum
 **Problem:** Skeleton v4 Dialog/Portal rendered the welcome modal via `<Portal>`, setting `aria-hidden="true"` on background content and intercepting all pointer events. Playwright could not click any element.
 
 **Fix:** Pre-set sessionStorage before page load to skip the modal:
+
 ```ts
 await page.addInitScript(() => {
-  sessionStorage.setItem('sveltycms_welcome_modal_shown', 'true');
+	sessionStorage.setItem('sveltycms_welcome_modal_shown', 'true');
 });
 ```
 
@@ -92,9 +109,10 @@ This caused the `handleSetup` hook to redirect ALL requests to `/setup` (includi
 **Root cause:** `seedDatabase` (step 0) writes `config/private.ts` → `isSetupComplete()` returns `true` → hook blocks `/setup` routes → `completeSetup` (step 5) never executes.
 
 **Fix:** Changed the hook to only redirect GET requests away from `/setup` when setup is complete. POST requests (form actions) are allowed through so the setup wizard can finish its multi-step flow:
+
 ```ts
 if (isSetupRoute && event.request.method === 'GET') {
-  throw redirect(302, '/');
+	throw redirect(302, '/');
 }
 ```
 
@@ -102,26 +120,26 @@ if (isSetupRoute && event.request.method === 'GET') {
 
 **All 8 jobs passing** (run `22020528231`):
 
-| Job | Status |
-|-----|--------|
-| Unit Tests | success |
-| Build Production | success |
-| Integration (MongoDB) | success |
-| Integration (MariaDB) | success |
+| Job                      | Status  |
+| ------------------------ | ------- |
+| Unit Tests               | success |
+| Build Production         | success |
+| Integration (MongoDB)    | success |
+| Integration (MariaDB)    | success |
 | Integration (PostgreSQL) | success |
-| E2E (MongoDB) | success |
-| E2E (MariaDB) | success |
-| E2E (PostgreSQL) | success |
+| E2E (MongoDB)            | success |
+| E2E (MariaDB)            | success |
+| E2E (PostgreSQL)         | success |
 
 ## Tests Currently Running
 
-| Test | Status |
-|------|--------|
-| Setup Wizard | Passing (all 3 DBs) |
-| RBAC - Admin Access | Passing (all 3 DBs) |
-| RBAC - Developer | Skipped (user not created by seed) |
-| RBAC - Editor | Skipped (user not created by seed) |
-| Main E2E Suite | Disabled (legacy selectors need updates) |
+| Test                | Status                                   |
+| ------------------- | ---------------------------------------- |
+| Setup Wizard        | Passing (all 3 DBs)                      |
+| RBAC - Admin Access | Passing (all 3 DBs)                      |
+| RBAC - Developer    | Skipped (user not created by seed)       |
+| RBAC - Editor       | Skipped (user not created by seed)       |
+| Main E2E Suite      | Disabled (legacy selectors need updates) |
 
 ## Remaining Work
 

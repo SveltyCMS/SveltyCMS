@@ -21,8 +21,9 @@ It dynamically renders controls based on the active tool.
 	/* Restore Tool Icons Logic */
 	import { editorWidgets } from './widgets/registry';
 	const activeState = $derived(imageEditorStore.state.activeState);
-	const hasImage = $derived(!!imageEditorStore.state.imageNode);
+	const hasImage = $derived(!!imageEditorStore.state.imageElement);
 	const toolbarControls = $derived(imageEditorStore.state.toolbarControls);
+
 	const canUndo = $derived(imageEditorStore.canUndoState);
 	const canRedo = $derived(imageEditorStore.canRedoState);
 
@@ -93,6 +94,8 @@ It dynamically renders controls based on the active tool.
 						class:text-primary-400={activeState === widget.key}
 						class:text-surface-400={activeState !== widget.key}
 						onclick={() => imageEditorStore.switchTool(widget.key)}
+						aria-label={widget.title}
+						aria-pressed={activeState === widget.key}
 						title={widget.title}
 					>
 						<div

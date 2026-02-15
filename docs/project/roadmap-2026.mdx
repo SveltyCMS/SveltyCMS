@@ -48,8 +48,11 @@ While core foundations are state-of-the-art, the following items are active prio
 ### 🔜 Modern UX & Advanced Tooling
 
 - 🔜 **BuzzForm Visual Builder (v1.5)** - Enhancing the recently implemented visual canvas with even more sophisticated drag-and-drop UX and real-time preview hardening.
-- 🔜 **MCP AI Knowledgebase Server** - Model Context Protocol server exposing CMS docs and schemas as AI-accessible knowledge (Q1 2026).
-- 🔧 **Image Editor Enhancement** - Stabilizing the current buggy implementation; adding cropping, filters, and focal point management.
+- 🔜 **MCP AI Knowledgebase Server (Planned)** - Model Context Protocol server exposing CMS docs and schemas as AI-accessible knowledge (Q1 2026). See [AI Integration Guide](../guides/development/ai-integration.mdx). Currently under development.
+- 🔧 **Enterprise DAM Evolution** - Transitioning the Media Gallery into a full Digital Asset Management (DAM) system to compete with AEM.
+  - [x] **AI-Powered Tagging** - Automated asset categorization and visual search via local Ollama.
+  - [ ] **Svelte-Canvas Migration** - Replacing the heavy Konva.js library with [svelte-canvas](https://github.com/dnass/svelte-canvas) for better performance and smaller bundles.
+- 🔧 **Image Editor Enhancement** - Stabilizing the current buggy implementation; adding robust cropping, filters, and focal point management.
 - 🔧 **Collection Builder UX Refinement** - Fixing edge-case bugs in schema generation and improving ergonomic field management.
 
 ### 🔄 Hardening & Testing
@@ -152,7 +155,7 @@ bun add @boxyhq/saml-jackson  // SAML as a service
 | :------------------- | :-------------- | :----------- | :----------- | :------- | :---------- |
 | **Framework**        | **Svelte 5** ✅ | React 18     | React 19     | React 18 | Proprietary |
 | **Database**         | **✅ Agnostic** | ✅ SQL Only  | ✅ SQL/Mongo | ❌ NoSQL | ❌ NoSQL    |
-| **AI Features**      | ❌              | ⚠️ Partial   | ❌           | ✅       | ✅          |
+| **AI Features**      | **✅ Native**   | ⚠️ Partial   | ❌           | ✅       | ✅          |
 | **Real-time Collab** | ❌              | ❌           | ❌           | ✅       | ✅          |
 | **Edge-Ready**       | ⚠️ Partial      | ⚠️ Partial   | ✅           | ✅       | ✅          |
 | **Build Speed**      | **✅ Fastest**  | Medium       | Medium       | N/A      | N/A         |

@@ -46,8 +46,11 @@ import { MediaType as MediaTypeEnumValue } from '@utils/media/mediaModels';
 import { getSanitizedFileName } from '@src/utils/media/mediaProcessing';
 import { hashFileContent } from '@src/utils/media/mediaProcessing.server';
 import { saveFileToDisk, saveResizedImages } from '@src/utils/media/mediaStorage.server';
+import { isCloud } from '@src/utils/media/cloudStorage';
+import { getPublicSettingSync } from '@src/services/settingsService';
 // IMPORT SERVER-SIDE VALIDATION
 import { validateMediaFileServer } from '@src/utils/media/mediaUtils';
+import { AppError } from '@utils/errorHandling';
 
 // System Logger
 import { logger } from '@utils/logger.server';
@@ -193,6 +196,11 @@ export class MediaService {
 	 * Saves a file to storage and creates a database record.
 	 */
 
+	private async getMediaProcessingService() {
+		const { mediaProcessingService } = await import('./MediaProcessingService.server');
+		return mediaProcessingService;
+	}
+
 	// Saves a media file and its associated data
 	public async saveMedia(
 		file: File,
@@ -293,26 +301,15 @@ export class MediaService {
 
 			if (isImage && !mimeType.includes('svg')) {
 				try {
-					const sharpMeta = await sharp(buffer).metadata();
-					width = sharpMeta.width;
-					height = sharpMeta.height;
-					advancedMetadata = {
-						format: sharpMeta.format,
-						width: sharpMeta.width,
-						height: sharpMeta.height,
-						space: sharpMeta.space,
-						channels: sharpMeta.channels,
-						density: sharpMeta.density,
-						hasProfile: sharpMeta.hasProfile,
-						hasAlpha: sharpMeta.hasAlpha,
-						exif: sharpMeta.exif?.toString('base64'),
-						iptc: sharpMeta.iptc?.toString('base64'),
-						icc: sharpMeta.icc?.toString('base64')
-					};
+					const processingService = await this.getMediaProcessingService();
+					advancedMetadata = await processingService.getMetadata(buffer);
+					width = (advancedMetadata as any).width;
+					height = (advancedMetadata as any).height;
 				} catch (sharpError) {
-					logger.error('Failed to extract sharp metadata', { fileName: file.name, error: sharpError });
+					logger.error('Failed to extract deep metadata', { fileName: file.name, error: sharpError });
 				}
 			} else if (isVideo) {
+
 				try {
 					const dimensions = await this.getVideoDimensions(buffer);
 					width = dimensions.width;
@@ -449,6 +446,139 @@ export class MediaService {
 		} as any;
 	}
 
+	private async getDb(): Promise<IDBAdapter> {
+		const { dbAdapter } = await import('@src/databases/db');
+		if (!dbAdapter) {
+			throw new Error('Database adapter is not initialized');
+		}
+		return dbAdapter;
+	}
+
+		/**
+
+		 * Manipulates an existing media item using Sharp.js
+
+		 */
+
+		public async manipulateMedia(id: string, manipulations: any, userId: string): Promise<MediaItem> {
+
+			this.ensureInitialized();
+
+			const db = await this.getDb();
+
+	
+
+			const mediaResult = await db.crud.findOne<MediaItem>('media', { _id: id as DatabaseId });
+
+			if (!mediaResult.success || !mediaResult.data) {
+
+				throw new AppError('Media item not found', 404, 'MEDIA_NOT_FOUND');
+
+			}
+
+	
+		const mediaItem = mediaResult.data;
+
+		if (mediaItem.type !== MediaTypeEnumValue.Image) {
+			throw error(400, 'Only images can be manipulated');
+		}
+
+		// Load original file
+		let originalBuffer: Buffer;
+		if (isCloud()) {
+			const response = await fetch(this.enrichMediaWithUrl(mediaItem).url);
+			originalBuffer = Buffer.from(await response.arrayBuffer());
+		} else {
+			const fs = await import('fs/promises');
+			const MEDIA_ROOT = getPublicSettingSync('MEDIA_FOLDER') ?? 'mediaFolder';
+			const fullPath = Path.join(process.cwd(), MEDIA_ROOT, mediaItem.path);
+			originalBuffer = await fs.readFile(fullPath);
+		}
+
+		let instance = sharp(originalBuffer);
+
+		// Apply transformations
+		if (manipulations.rotation) {
+			instance = instance.rotate(manipulations.rotation);
+		}
+
+		if (manipulations.flipH) {
+			instance = instance.flop();
+		}
+
+		if (manipulations.flipV) {
+			instance = instance.flip();
+		}
+
+		if (manipulations.crop) {
+			instance = instance.extract({
+				left: Math.round(manipulations.crop.x),
+				top: Math.round(manipulations.crop.y),
+				width: Math.round(manipulations.crop.width),
+				height: Math.round(manipulations.crop.height)
+			});
+		}
+
+		// Apply filters (simplified mapping)
+		if (manipulations.filters) {
+			const { brightness, contrast, saturation } = manipulations.filters;
+			if (brightness !== undefined || contrast !== undefined || saturation !== undefined) {
+				instance = instance.modulate({
+					brightness: brightness !== undefined ? 1 + brightness / 100 : 1,
+					saturation: saturation !== undefined ? 1 + saturation / 100 : 1
+				});
+				// Sharp doesn't have a direct contrast modulation like this,
+				// usually handled via linear or pipeline.
+			}
+		}
+
+		const manipulatedBuffer = await instance.toBuffer();
+		const meta = await instance.metadata();
+
+		// Save as a new version
+		const hash = await hashFileContent(manipulatedBuffer);
+		const { fileNameWithoutExt, ext } = getSanitizedFileName(mediaItem.filename);
+		const timestamp = Date.now();
+		const newFileName = `${fileNameWithoutExt}-edited-${timestamp}.${ext}`;
+
+		const basePath = mediaItem.path.split('/')[0] || 'global';
+		const relativePath = Path.posix.join(basePath, 'edited', newFileName);
+
+		const publicUrl = await saveFileToDisk(manipulatedBuffer, relativePath);
+		const resized = await saveResizedImages(manipulatedBuffer, hash, `${fileNameWithoutExt}-edited-${timestamp}`, ext, basePath);
+
+		const newVersionNumber = (mediaItem.versions?.length || 0) + 1;
+		const newVersion = {
+			version: newVersionNumber,
+			url: publicUrl,
+			path: relativePath,
+			hash,
+			size: manipulatedBuffer.length,
+			createdAt: new Date().toISOString() as ISODateString,
+			createdBy: userId as DatabaseId,
+			action: 'manipulate'
+		};
+
+		const updates: Partial<MediaItem> = {
+			url: publicUrl,
+			path: relativePath,
+			hash,
+			size: manipulatedBuffer.length,
+			width: meta.width,
+			height: meta.height,
+			thumbnails: resized,
+			versions: [...(mediaItem.versions || []), newVersion],
+			metadata: {
+				...mediaItem.metadata,
+				focalPoint: manipulations.focalPoint || mediaItem.metadata?.focalPoint,
+				lastManipulation: manipulations
+			}
+		};
+
+		await this.updateMedia(id, updates);
+		return { ...mediaItem, ...updates } as MediaItem;
+	}
+
 	// Updates a media item with new data
 	public async updateMedia(id: string, updates: Partial<MediaItem>): Promise<void> {
 		this.ensureInitialized();
@@ -460,7 +590,9 @@ export class MediaService {
 			throw Error('Invalid updates: Must be a valid MediaItem partial object');
 		}
 		try {
-			const result = await this.db.crud.update('MediaItem', id as DatabaseId, updates);
+			const db = await this.getDb();
+			const result = await db.crud.update('media', id as DatabaseId, updates);
+
 			if (!result.success) {
 				throw result.error;
 			}
@@ -472,6 +604,53 @@ export class MediaService {
 			logger.error(message, { error: err });
 			throw error(500, message);
 		}
+	}
+
+	/**
+	 * Add a new version to an existing media item
+	 */
+	public async addVersion(id: string, file: File, userId: string, action: string = 'update'): Promise<MediaItem> {
+		this.ensureInitialized();
+		const db = await this.getDb();
+		const mediaResult = await db.crud.findOne<MediaItem>('media', { _id: id as DatabaseId });
+
+
+		if (!mediaResult.success || !mediaResult.data) {
+			throw error(404, 'Media item not found');
+		}
+		const mediaItem = mediaResult.data;
+
+		// Save the new file content
+		const buffer = Buffer.from(await file.arrayBuffer());
+		const hash = await hashFileContent(buffer);
+
+		// Use original basePath if possible
+		const basePath = mediaItem.path.split('/')[0] || 'global';
+		const { url, path, resized } = await this.uploadFile(buffer, file.name, file.type, userId, basePath);
+
+		const newVersionNumber = (mediaItem.versions?.length || 0) + 1;
+		const newVersion = {
+			version: newVersionNumber,
+			url,
+			path,
+			hash,
+			size: file.size,
+			createdAt: new Date().toISOString() as ISODateString,
+			createdBy: userId as DatabaseId,
+			action
+		};
+
+		const updates: Partial<MediaItem> = {
+			url,
+			path,
+			hash,
+			size: file.size,
+			thumbnails: resized,
+			versions: [...(mediaItem.versions || []), newVersion]
+		};
+
+		await this.updateMedia(id, updates);
+		return { ...mediaItem, ...updates } as MediaItem;
 	}
 
 	// Deletes a media item
@@ -504,7 +683,8 @@ export class MediaService {
 
 		// Access is now a string union, not array
 		try {
-			const result = await this.db.crud.update('MediaItem', id as DatabaseId, { access } as unknown as Partial<MediaItem>);
+			const db = await this.getDb();
+			const result = await db.crud.update('media', id as DatabaseId, { access } as unknown as Partial<MediaItem>);
 			if (!result.success) {
 				throw result.error;
 			}
@@ -538,7 +718,9 @@ export class MediaService {
 				// If cached but no access, fall through to DB fetch for fresh check (or just deny)
 			}
 
-			const result = await this.db.crud.findOne<MediaItem>('MediaItem', { _id: id as DatabaseId });
+			const db = await this.getDb();
+			const result = await db.crud.findOne<MediaItem>('media', { _id: id as DatabaseId });
+
 
 			if (!result.success) {
 				throw result.error;
@@ -619,6 +801,7 @@ export class MediaService {
 	public async searchMedia(query: string, page: number = 1, limit: number = 20): Promise<{ media: MediaItem[]; total: number }> {
 		this.ensureInitialized();
 		try {
+			const db = await this.getDb();
 			const searchCriteria = {
 				$or: [{ filename: { $regex: query, $options: 'i' } }, { 'metadata.tags': { $regex: query, $options: 'i' } }]
 			};
@@ -626,8 +809,8 @@ export class MediaService {
 			const options = { offset: (page - 1) * limit, limit: limit };
 
 			const [mediaResult, totalResult] = await Promise.all([
-				this.db.crud.findMany<MediaItem>('MediaItem', searchCriteria as unknown as Partial<MediaItem>, options),
-				this.db.crud.count('MediaItem', searchCriteria as unknown as Partial<BaseEntity>)
+				db.crud.findMany<MediaItem>('media', searchCriteria as unknown as Partial<MediaItem>, options),
+				db.crud.count('media', searchCriteria as unknown as Partial<BaseEntity>)
 			]);
 
 			if (!mediaResult.success) {
@@ -649,11 +832,12 @@ export class MediaService {
 	public async listMedia(page: number = 1, limit: number = 20): Promise<{ media: MediaItem[]; total: number }> {
 		this.ensureInitialized();
 		try {
+			const db = await this.getDb();
 			const options = { offset: (page - 1) * limit, limit: limit };
 
 			const [mediaResult, totalResult] = await Promise.all([
-				this.db.crud.findMany<MediaItem>('MediaItem', {}, options),
-				this.db.crud.count('MediaItem', {})
+				db.crud.findMany<MediaItem>('media', {}, options),
+				db.crud.count('media', {})
 			]);
 
 			if (!mediaResult.success) {

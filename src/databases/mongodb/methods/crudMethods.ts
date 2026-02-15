@@ -47,6 +47,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
 		try {
 			const secureQuery = safeQuery(query, options.tenantId);
 			const result = await this.model.findOne(secureQuery, options.fields?.join(' ')).lean().exec();
+
 			if (!result) return { success: true, data: null };
 			return { success: true, data: processDates(result) as T };
 		} catch (error) {

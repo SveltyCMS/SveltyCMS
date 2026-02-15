@@ -7,12 +7,9 @@ import type { CacheOptions, DatabaseResult } from '../../dbInterface';
 import { AdapterCore } from '../adapter/adapterCore';
 
 export class CacheModule {
-	private core: AdapterCore;
 	private cache: Map<string, { value: any; expiresAt?: number }> = new Map();
 
-	constructor(core: AdapterCore) {
-		this.core = core;
-	}
+	constructor(_core: AdapterCore) {}
 
 	async get<T>(key: string): Promise<DatabaseResult<T | null>> {
 		const entry = this.cache.get(key);

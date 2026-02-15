@@ -111,7 +111,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		}
 
 		const folderId = url.searchParams.get('folderId'); // Get folderId from URL
-		logger.info(`Loading media gallery for folderId: ${folderId || 'root'}`);
+		const recursive = url.searchParams.get('recursive') === 'true';
+		logger.info(`Loading media gallery for folderId: ${folderId || 'root'} (recursive: ${recursive})`);
 
 		// Fetch all virtual folders first to find the current one
 		const allVirtualFoldersResult = await dbAdapter.systemVirtualFolder.getAll();
@@ -131,12 +132,17 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		logger.trace('Current folder determined:', currentFolder);
 
 		// Use db-agnostic adapter method to fetch media
-		const mediaResult = await dbAdapter.media.files.getByFolder(folderId as DatabaseId | undefined, {
-			pageSize: 100,
-			page: 1,
-			sortField: 'updatedAt',
-			sortDirection: 'desc'
-		});
+		const mediaResult = await dbAdapter.media.files.getByFolder(
+			folderId as DatabaseId | undefined,
+			{
+				pageSize: 100,
+				page: 1,
+				sortField: 'updatedAt',
+				sortDirection: 'desc',
+				user // Pass user for ownership filtering
+			},
+			recursive
+		);
 
 		const allMediaResults: Record<string, unknown>[] =
 			mediaResult.success && mediaResult.data ? (mediaResult.data.items as unknown as Record<string, unknown>[]) : [];
@@ -240,6 +246,7 @@ export const actions: Actions = {
 
 			const formData = await request.formData();
 			const files = formData.getAll('files');
+			const folder = (formData.get('folder') as string) || 'global';
 
 			const mediaService = new MediaService(dbAdapter);
 
@@ -249,8 +256,8 @@ export const actions: Actions = {
 				if (file instanceof File) {
 					try {
 						// Use MediaService.saveMedia which handles all media types
-						await mediaService.saveMedia(file, user._id, access, 'global');
-						logger.info(`File uploaded successfully: ${file.name}`);
+						await mediaService.saveMedia(file, user._id, access, folder);
+						logger.info(`File uploaded successfully to ${folder}: ${file.name}`);
 					} catch (fileError) {
 						const errorMessage = fileError instanceof Error ? fileError.message : String(fileError);
 						if (errorMessage.includes('duplicate')) {
@@ -413,6 +420,7 @@ export const actions: Actions = {
 
 			const formData = await request.formData();
 			const remoteUrls = JSON.parse(formData.get('remoteUrls') as string) as string[];
+			const folder = (formData.get('folder') as string) || 'global';
 
 			if (!remoteUrls || !Array.isArray(remoteUrls) || remoteUrls.length === 0) {
 				throw new Error('No URLs provided');
@@ -436,8 +444,8 @@ export const actions: Actions = {
 					const file = new File([buffer], filename, { type: contentType });
 
 					// Use MediaService.saveMedia which handles all media types
-					await mediaService.saveMedia(file, user._id, access, 'global');
-					logger.info(`Remote file uploaded successfully: ${file.name}`);
+					await mediaService.saveMedia(file, user._id, access, folder);
+					logger.info(`Remote file uploaded successfully to ${folder}: ${file.name}`);
 				} catch (fileError) {
 					const errorMessage = fileError instanceof Error ? fileError.message : String(fileError);
 					if (errorMessage.includes('duplicate')) {

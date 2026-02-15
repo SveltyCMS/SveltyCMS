@@ -1,6 +1,6 @@
 /**
  * @file src/routes/api/media/ai-tag/+server.ts
- * @description API endpoint for generating AI-powered tags for images.
+ * @description API endpoint for generating AI-powered tags for images using local Ollama.
  */
 
 import { json, error } from '@sveltejs/kit';
@@ -8,23 +8,9 @@ import { logger } from '@utils/logger.server';
 import type { RequestHandler } from './$types';
 import type { MediaItem } from '@src/databases/dbInterface';
 import { dbAdapter } from '@src/databases/db';
-
-// Mock function for AI service - REPLACE WITH ACTUAL API CALL
-async function getTagsFromAIService(imageUrl: string): Promise<string[]> {
-	logger.info(`[MOCK] Fetching AI tags for image: ${imageUrl}`);
-	// In a real implementation, you would call a service like Google Cloud Vision API here.
-	// Example:
-	// const vision = require('@google-cloud/vision');
-	// const client = new vision.ImageAnnotatorClient();
-	// const [result] = await client.labelDetection(imageUrl);
-	// const labels = result.labelAnnotations.map(label => label.description);
-	// return labels;
-
-	// Returning mock data for demonstration
-	const mockTags = ['landscape', 'nature', 'sky', 'mountain', 'travel', 'scenic'];
-	await new Promise((resolve) => setTimeout(resolve, 1500)); // Simulate network delay
-	return mockTags.slice(0, Math.floor(Math.random() * (mockTags.length + 1)));
-}
+import { aiService } from '@src/services/AIService';
+import { getPrivateSetting } from '@src/services/settingsService';
+import { getFile } from '@src/utils/media/mediaStorage.server';
 
 export const POST: RequestHandler = async ({ request }) => {
 	const { mediaId } = await request.json();
@@ -34,6 +20,12 @@ export const POST: RequestHandler = async ({ request }) => {
 	}
 
 	try {
+		// 0. Check if AI tagging is enabled
+		const useAi = await getPrivateSetting('USE_AI_TAGGING');
+		if (!useAi) {
+			throw error(400, 'AI Tagging is currently disabled. Please enable it in System Settings and configure your AI API endpoint.');
+		}
+
 		// 1. Fetch the media item from the database
 		if (!dbAdapter) {
 			throw error(500, 'Database adapter is not initialized.');
@@ -49,29 +41,38 @@ export const POST: RequestHandler = async ({ request }) => {
 			throw error(400, 'AI tagging is only available for images.');
 		}
 
-		// 3. Call the AI tagging service (mocked for now)
-		// We use the direct public URL of the original image
-		const imageUrl = mediaItem.thumbnails?.lg?.url || mediaItem.path;
-		const aiTags = await getTagsFromAIService(imageUrl);
-
-		if (!aiTags || aiTags.length === 0) {
-			return json({ success: true, message: 'No new tags were generated.', data: mediaItem });
+		// 3. Get the file buffer
+		let buffer: Buffer;
+		try {
+			buffer = await getFile(mediaItem.path);
+		} catch (err) {
+			logger.error(`Failed to read file for AI tagging: ${mediaItem.path}`, err);
+			throw error(500, 'Failed to read media file for analysis.');
 		}
 
-		// 4. Update the media item's metadata with the new tags
-		const existingTags = (mediaItem.metadata.tags as string[]) || [];
-		const uniqueNewTags = aiTags.filter((tag) => !existingTags.includes(tag.toLowerCase()));
+		// 4. Call the real AI tagging service
+		logger.info(`Generating AI tags for media: ${mediaItem._id} (${mediaItem.filename})`);
+		const aiTags = await aiService.tagImage(buffer);
 
-		if (uniqueNewTags.length === 0) {
+		if (!aiTags || aiTags.length === 0) {
+			return json({ success: true, message: 'AI model could not generate tags for this image.', data: mediaItem });
+		}
+
+		// 5. Update the media item's metadata with the new tags
+		// We store AI generated tags in a separate field 'aiTags' for user review
+		const existingAiTags = (mediaItem.metadata?.aiTags as string[]) || [];
+		const uniqueNewTags = aiTags.filter((tag) => !existingAiTags.includes(tag.toLowerCase()));
+
+		if (uniqueNewTags.length === 0 && existingAiTags.length > 0) {
 			return json({ success: true, message: 'AI tags already exist.', data: mediaItem });
 		}
 
-		const updatedTags = [...existingTags, ...uniqueNewTags];
+		const updatedAiTags = Array.from(new Set([...existingAiTags, ...aiTags]));
 
 		const updateResult = await dbAdapter.crud.update<MediaItem>('MediaItem', mediaItem._id, {
 			metadata: {
 				...mediaItem.metadata,
-				tags: updatedTags
+				aiTags: updatedAiTags
 			}
 		});
 
@@ -79,15 +80,15 @@ export const POST: RequestHandler = async ({ request }) => {
 			throw new Error('Failed to save new tags to the database.');
 		}
 
-		// 5. Return the updated media item
+		// 6. Return the updated media item
 		return json({
 			success: true,
-			message: `Successfully added ${uniqueNewTags.length} new AI-powered tags.`,
+			message: `Successfully generated ${aiTags.length} AI-powered tags.`,
 			data: updateResult.data
 		});
 	} catch (err) {
 		logger.error(`Failed to generate AI tags for mediaId: ${mediaId}`, err);
-		if (err instanceof Error && 'status' in err) {
+		if (err instanceof Error && 'status' in (err as any)) {
 			throw err;
 		}
 		throw error(500, 'An unexpected error occurred while generating AI tags.');

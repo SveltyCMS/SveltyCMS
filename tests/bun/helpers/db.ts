@@ -28,7 +28,7 @@ export function buildMongoURI(options: { dbName?: string; forceIPv4?: boolean } 
 	const config: DatabaseConfig = {
 		type: 'mongodb',
 		host,
-		port: process.env.DB_PORT || '27017',
+		port: Number(process.env.DB_PORT || 27017),
 		name: options.dbName || process.env.DB_NAME || 'sveltycms_test',
 		user: process.env.DB_USER || '',
 		password: process.env.DB_PASSWORD || ''
@@ -37,7 +37,5 @@ export function buildMongoURI(options: { dbName?: string; forceIPv4?: boolean } 
 	const uri = buildDatabaseConnectionString(config);
 
 	// Add directConnection=true for test stability
-	return uri.includes('?')
-		? `${uri}&directConnection=true`
-		: `${uri}?directConnection=true`;
+	return uri.includes('?') ? `${uri}&directConnection=true` : `${uri}?directConnection=true`;
 }

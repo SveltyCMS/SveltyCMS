@@ -56,12 +56,12 @@ and proper active state indication.
 		switch (e.key) {
 			case 'ArrowDown':
 				e.preventDefault();
-				focusedIndex = Math.min(focusedIndex + 1, tools.length - 1);
+				focusedIndex = (focusedIndex + 1) % tools.length;
 				focusToolButton(focusedIndex);
 				break;
 			case 'ArrowUp':
 				e.preventDefault();
-				focusedIndex = Math.max(focusedIndex - 1, 0);
+				focusedIndex = (focusedIndex - 1 + tools.length) % tools.length;
 				focusToolButton(focusedIndex);
 				break;
 			case 'Enter':
@@ -69,21 +69,11 @@ and proper active state indication.
 				e.preventDefault();
 				handleToolClick(tools[focusedIndex]);
 				break;
-			case 'Home':
-				e.preventDefault();
-				focusedIndex = 0;
-				focusToolButton(0);
-				break;
-			case 'End':
-				e.preventDefault();
-				focusedIndex = tools.length - 1;
-				focusToolButton(tools.length - 1);
-				break;
 		}
 	}
 
 	function focusToolButton(index: number) {
-		const buttons = sidebarRef?.querySelectorAll('.tool-button');
+		const buttons = sidebarRef?.querySelectorAll('button');
 		if (buttons && buttons[index]) {
 			(buttons[index] as HTMLElement).focus();
 		}
@@ -116,6 +106,7 @@ and proper active state indication.
 				class:bg-transparent={!hasImage}
 				onclick={() => handleToolClick(tool)}
 				aria-label={tool.name}
+				aria-pressed={isToolActive(tool)}
 				disabled={!hasImage}
 			>
 				<div class="tool-icon flex items-center justify-center">

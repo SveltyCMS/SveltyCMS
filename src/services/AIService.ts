@@ -6,6 +6,7 @@
  */
 
 import ollama from 'ollama';
+import { getPrivateSetting } from './settingsService';
 // import { env } from '$env/dynamic/private'; // TODO: Use env for URL
 
 // Default to the official SveltyCMS Knowledge Core
@@ -31,6 +32,9 @@ export class AIService {
 	 */
 	public async searchContext(query: string, limit: number = 3) {
 		try {
+			const useRemote = await getPrivateSetting('USE_REMOTE_AI_KNOWLEDGE');
+			if (!useRemote) return [];
+
 			// TODO: Add timeout and retry logic
 			const response = await fetch(this.knowledgeUrl, {
 				method: 'POST',
@@ -61,11 +65,56 @@ export class AIService {
 	}
 
 	/**
+	 * Analyze an image and return a list of tags
+	 * @param buffer - The image buffer to analyze
+	 * @param limit - Maximum number of tags to return
+	 */
+	public async tagImage(buffer: Buffer, limit: number = 10): Promise<string[]> {
+		try {
+			const useAi = await getPrivateSetting('USE_AI_TAGGING');
+			if (!useAi) return [];
+
+			const model = (await getPrivateSetting('AI_MODEL_VISION')) || 'llava:latest';
+			const ollamaUrl = await getPrivateSetting('OLLAMA_URL');
+
+			// Create a local ollama instance with the configured URL
+			const localOllama = ollamaUrl ? new (await import('ollama')).Ollama({ host: ollamaUrl }) : ollama;
+
+			// Convert buffer to base64 for Ollama
+			const base64 = buffer.toString('base64');
+
+			const systemPrompt = `Analyze the provided image and generate up to ${limit} descriptive tags. 
+      Return only the tags as a comma-separated list. 
+      Do not include any other text or explanation. 
+      Focus on objects, colors, setting, and mood.`;
+
+			const response = await localOllama.generate({
+				model,
+				prompt: systemPrompt,
+				images: [base64],
+				stream: false
+			});
+
+			const tags = response.response
+				.split(',')
+				.map((t) => t.trim().toLowerCase())
+				.filter((t) => t.length > 0 && t.length < 30);
+
+			return tags.slice(0, limit);
+		} catch (err) {
+			console.error('Ollama Image Analysis Error:', err);
+			// Fallback to empty tags instead of failing the whole process
+			return [];
+		}
+	}
+
+	/**
 	 * Main chat interface for the CMS Dashboard
 	 */
 	public async chat(userMessage: string, history: any[] = []) {
-		// 1. Get Context from Remote RAG
-		const contextResults = await this.searchContext(userMessage);
+		// 1. Get Context from Remote RAG (if enabled)
+		const useRemote = await getPrivateSetting('USE_REMOTE_AI_KNOWLEDGE');
+		const contextResults = useRemote ? await this.searchContext(userMessage) : [];
 
 		let contextText = '';
 		if (contextResults.length > 0) {
@@ -82,14 +131,18 @@ export class AIService {
     ${contextText}`;
 
 		try {
-			const response = await ollama.chat({
-				model: 'ministral-3:latest',
+			const ollamaUrl = await getPrivateSetting('OLLAMA_URL');
+			const chatModel = (await getPrivateSetting('AI_MODEL_CHAT')) || 'ministral-3:latest';
+			const localOllama = ollamaUrl ? new (await import('ollama')).Ollama({ host: ollamaUrl }) : ollama;
+
+			const response = await localOllama.chat({
+				model: chatModel,
 				messages: [{ role: 'system', content: systemPrompt }, ...history, { role: 'user', content: userMessage }]
 			});
 			return response.message.content;
 		} catch (err) {
 			console.error('Ollama Inference Error:', err);
-			return "I'm having trouble connecting to my local brain (Ollama). Please ensure 'ollama serve' is running.";
+			return "I'm having trouble connecting to my local brain (Ollama). Please ensure 'ollama serve' is running and OLLAMA_URL is correct.";
 		}
 	}
 }

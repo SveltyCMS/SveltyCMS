@@ -28,21 +28,30 @@ Renders selected media files as thumbnails for display purposes.
 	$effect(() => {
 		const ids = Array.isArray(value) ? value : value ? [value] : [];
 		if (ids.length > 0) {
-			// In a real app, this would use the same shared fetch function as Input.svelte
-			Promise.all(
-				ids.map((id) =>
-					Promise.resolve({
-						_id: id,
-						name: `Image ${id.slice(0, 4)}.jpg`,
-						type: 'image/jpeg',
-						size: 12345,
-						url: `https://picsum.photos/id/${parseInt(id.slice(0, 3), 10)}/1920/1080`,
-						thumbnailUrl: `https://picsum.photos/id/${parseInt(id.slice(0, 3), 10)}/50/50`
-					})
-				)
-			).then((resolvedFiles) => {
-				files = resolvedFiles;
-			});
+			const fetchAll = async () => {
+				const results: MediaFile[] = [];
+				for (const id of ids) {
+					try {
+						const response = await fetch(`/api/media/${id}`);
+						if (response.ok) {
+							const found = await response.json();
+							results.push({
+								_id: found._id,
+								name: found.filename,
+								type: found.mimeType,
+								size: found.size,
+								url: found.url,
+								thumbnailUrl: found.thumbnails?.sm?.url || found.url,
+								aiTags: found.metadata?.aiTags || []
+							} as any);
+						}
+					} catch (e) {
+						console.error(`Failed to fetch media ${id}`, e);
+					}
+				}
+				files = results;
+			};
+			fetchAll();
 		} else {
 			files = [];
 		}
@@ -52,12 +61,23 @@ Renders selected media files as thumbnails for display purposes.
 <div class="flex items-center justify-center gap-1 p-0.5">
 	{#if files.length > 0}
 		{#each files as file (file._id)}
-			<img
-				src={file.thumbnailUrl}
-				alt={file.name}
-				title={file.name}
-				class="h-8 w-8 rounded border border-surface-200 object-cover dark:text-surface-50"
-			/>
+			<div class="group relative">
+				<img
+					src={file.thumbnailUrl}
+					alt={file.name}
+					title={file.name}
+					class="h-8 w-8 rounded border border-surface-200 object-cover dark:text-surface-50"
+				/>
+				{#if (file as any).aiTags?.length}
+					<div
+						class="absolute bottom-full left-1/2 z-10 hidden -translate-x-1/2 flex-wrap gap-1 rounded bg-surface-900 p-1 text-[8px] text-white group-hover:flex"
+					>
+						{#each (file as any).aiTags.slice(0, 5) as tag, i (tag + i)}
+							<span class="badge variant-filled-primary py-0 px-1">{tag}</span>
+						{/each}
+					</div>
+				{/if}
+			</div>
 		{/each}
 	{:else}
 		<span>–</span>

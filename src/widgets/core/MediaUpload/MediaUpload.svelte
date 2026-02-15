@@ -49,7 +49,7 @@ functionality for image editing and basic file information display.
 	let showEditor = $state(false);
 
 	// Define props
-	let { field, value = $bindable<File | MediaImage | undefined>() } = $props(); // 'value' is the bindable prop
+	let { field, value = $bindable<File | MediaImage | undefined>(), collectionName, tenantId } = $props(); // 'value' is the bindable prop
 
 	// Extract watermark preset from field configuration
 	const watermarkPreset = $derived((field as Record<string, unknown>).watermark as WatermarkOptions | undefined);
@@ -215,11 +215,13 @@ functionality for image editing and basic file information display.
 		}
 	}
 
+	const dynamicFolder = $derived((field as any).folder || (collectionName ? `collections/${collectionName.toLowerCase()}` : tenantId || 'global'));
+
 	import { getWidgetData } from './widgetData';
 
 	// The `WidgetData` function needs to be explicitly defined or called when needed.
 	export async function WidgetDataExport() {
-		return getWidgetData(value, field, value);
+		return getWidgetData(value, { ...field, folder: dynamicFolder }, value);
 	}
 
 	// Helper function to get timestamp
@@ -295,6 +297,15 @@ functionality for image editing and basic file information display.
 									getTimestamp((value as _any) instanceof File ? (value as _any).lastModified : (value as _any).updatedAt)
 								)}
 							</p>
+
+							{#if !(value instanceof File) && value.metadata?.aiTags?.length}
+								<p class="">AI Tags:</p>
+								<div class="flex flex-wrap gap-1">
+									{#each value.metadata.aiTags as tag, i (tag + i)}
+										<span class="badge variant-soft-primary text-[10px]">{tag}</span>
+									{/each}
+								</div>
+							{/if}
 						</div>
 					{/if}
 

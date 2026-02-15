@@ -50,6 +50,7 @@ The testing suite has been optimized for **parallel execution** and **enterprise
 | **API - Import/Export** | ✅ Created    | Pending   | 29/29 |
 | **API - Theme**         | ✅ Created    | Pending   | 24/24 |
 | **API - Miscellaneous** | ✅ Created    | Pending   | 36/36 |
+| **Media & DAM**         | ✅ Excellent  | 100%      | 34/34 |
 | **Security Utils**      | ✅ Excellent  | 100%      | 8/8   |
 | **Widget Validation**   | ✅ Excellent  | 100%      | 8/8   |
 | **Cache System**        | ✅ Excellent  | 100%      | 17/17 |
@@ -859,7 +860,37 @@ bun test tests/bun/api/user.test.ts
 
 ---
 
-### 9. GraphQL API Tests (21/21) 🔷
+### 9. Media & Digital Asset Management (34/34) 🖼️
+
+**File:** `tests/bun/api/media.test.ts`
+
+**Coverage:**
+
+- ✅ AI-Powered Tagging (4 tests)
+  - Real-time Ollama image analysis
+  - Metadata enrichment with `aiTags`
+  - Validation of vision-capable models
+- ✅ Deep Metadata Extraction (8 tests)
+  - EXIF, IPTC, and XMP parsing
+  - Searchable camera/software fields
+  - Technical analysis (colors, density)
+- ✅ Asset Versioning (6 tests)
+  - Non-destructive edit tracking
+  - Version history array management
+  - Reversion and variant linking
+- ✅ Core Media Operations (16 tests)
+  - Upload, download (TAR.GZ), trash, search
+  - Cloud vs Local storage parity
+
+**Command:**
+
+```bash
+bun test tests/bun/api/media.test.ts
+```
+
+---
+
+### 10. GraphQL API Tests (21/21) 🔷
 
 **File:** `tests/bun/api/graphql.test.ts`
 

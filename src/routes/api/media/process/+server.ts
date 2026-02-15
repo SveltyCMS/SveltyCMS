@@ -17,9 +17,6 @@ import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getPrivateSettingSync } from '@src/services/settingsService';
 
-// Auth
-import { dbAdapter } from '@src/databases/db';
-
 // Media Processing
 import { extractMetadata } from '@utils/media/mediaProcessing.server';
 import { MediaService } from '@src/services/MediaService.server';
@@ -43,7 +40,8 @@ interface FileProcessResult {
 }
 
 // Helper function to get MediaService instance
-function getMediaService(): MediaService {
+async function getMediaService(): Promise<MediaService> {
+	const { dbAdapter } = await import('@src/databases/db');
 	if (!dbAdapter) {
 		throw new Error('Database adapter is not initialized');
 	}
@@ -85,7 +83,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				throw error(400, `Unsupported process type: ${processType}`);
 		} // Authentication is handled by hooks.server.ts - user presence confirms access // Initialize MediaService
 
-		const mediaService = getMediaService();
+		const mediaService = await getMediaService();
+
 
 		let result: ProcessResult;
 		switch (processType) {

@@ -265,6 +265,7 @@ async function getUserFromSession(sessionId: string, tenantId?: string): Promise
 		return null;
 	}
 
+
 	try {
 		const user = await auth.validateSession(sessionId);
 		if (user) {
@@ -314,6 +315,7 @@ async function handleSessionRotation(event: RequestEvent, user: User, oldSession
 			logger.warn('Session rotation not supported by auth adapter');
 			return;
 		}
+
 
 		// Create new session with same user
 		const newSession = await auth.createSession({
@@ -375,6 +377,7 @@ async function handleSessionRotation(event: RequestEvent, user: User, oldSession
 	}
 }
 
+
 // --- MAIN HOOK ---
 
 export const handleAuthentication: Handle = async ({ event, resolve }) => {
@@ -407,6 +410,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
 			// handleSetup will enforce proper access control for setup routes
 			return await resolve(event);
 		}
+
 
 		// Step 1: Multi-tenancy (synchronous check)
 		const multiTenant = getPrivateSettingSync('MULTI_TENANT');
@@ -479,6 +483,8 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
 				// Do NOT delete cookie here - allow retry on next request
 				return await resolve(event);
 			}
+
+
 
 			const user = await getUserFromSession(sessionId, locals.tenantId);
 			if (user) {

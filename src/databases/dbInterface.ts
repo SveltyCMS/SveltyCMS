@@ -198,6 +198,16 @@ export interface MediaItem extends BaseEntity {
 	originalId?: DatabaseId | null; // For linking edited variants to the original
 	thumbnails: Record<string, { url: string; width: number; height: number } | undefined>;
 	metadata: MediaMetadata;
+	versions?: Array<{
+		version: number;
+		url: string;
+		path?: string;
+		hash?: string;
+		size?: number;
+		createdAt: ISODateString;
+		createdBy: DatabaseId;
+		action?: string;
+	}>;
 	access?: 'public' | 'private' | 'protected'; // Added access control
 	createdBy: DatabaseId;
 	updatedBy: DatabaseId;
@@ -228,6 +238,7 @@ export interface PaginationOptions {
 	sortDirection?: 'asc' | 'desc';
 	cursor?: string; // For cursor-based pagination (more efficient for large datasets)
 	includeTotalCount?: boolean; // Option to skip expensive total count calculation
+	user?: User; // Optional user for ownership-based filtering
 }
 
 export interface PaginatedResult<T> {
@@ -494,8 +505,13 @@ export interface IMediaAdapter {
 		uploadMany(files: Omit<MediaItem, '_id' | 'createdAt' | 'updatedAt'>[]): Promise<DatabaseResult<MediaItem[]>>;
 		delete(fileId: DatabaseId): Promise<DatabaseResult<void>>;
 		deleteMany(fileIds: DatabaseId[]): Promise<DatabaseResult<{ deletedCount: number }>>;
-		getByFolder(folderId?: DatabaseId, options?: PaginationOptions, recursive?: boolean): Promise<DatabaseResult<PaginatedResult<MediaItem>>>;
-		search(query: string, options?: PaginationOptions): Promise<DatabaseResult<PaginatedResult<MediaItem>>>;
+		getByFolder(
+			folderId?: DatabaseId,
+			options?: PaginationOptions,
+			recursive?: boolean,
+			tenantId?: string | null
+		): Promise<DatabaseResult<PaginatedResult<MediaItem>>>;
+		search(query: string, options?: PaginationOptions, tenantId?: string | null): Promise<DatabaseResult<PaginatedResult<MediaItem>>>;
 		getMetadata(fileIds: DatabaseId[]): Promise<DatabaseResult<Record<string, MediaMetadata>>>;
 		updateMetadata(fileId: DatabaseId, metadata: Partial<MediaMetadata>): Promise<DatabaseResult<MediaItem>>;
 		move(fileIds: DatabaseId[], targetFolderId?: DatabaseId): Promise<DatabaseResult<{ movedCount: number }>>;

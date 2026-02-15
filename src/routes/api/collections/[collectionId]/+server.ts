@@ -111,7 +111,8 @@ export const POST = apiHandler(async ({ locals, params, request }) => {
 			collection: collectionModel,
 			user,
 			type: 'POST',
-			tenantId
+			tenantId,
+			collectionName: schema.name
 		});
 	} catch (modifyError) {
 		logger.warn(`${endpoint} - ModifyRequest pre-processing failed`, {

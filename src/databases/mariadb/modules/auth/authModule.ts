@@ -528,17 +528,13 @@ export class AuthModule {
 			if (tenantId) conditions.push(eq(schema.authTokens.tenantId, tenantId));
 
 			// Try delete by _id
-			const byIdResult = await this.db
-				.delete(schema.authTokens)
-				.where(and(inArray(schema.authTokens._id, token_ids), ...conditions));
+			const byIdResult = await this.db.delete(schema.authTokens).where(and(inArray(schema.authTokens._id, token_ids), ...conditions));
 			if (byIdResult[0].affectedRows > 0) {
 				return { deletedCount: byIdResult[0].affectedRows };
 			}
 
 			// Fall back to delete by token value
-			const byValueResult = await this.db
-				.delete(schema.authTokens)
-				.where(and(inArray(schema.authTokens.token, token_ids), ...conditions));
+			const byValueResult = await this.db.delete(schema.authTokens).where(and(inArray(schema.authTokens.token, token_ids), ...conditions));
 			return { deletedCount: byValueResult[0].affectedRows };
 		}, 'DELETE_TOKENS_FAILED');
 	}

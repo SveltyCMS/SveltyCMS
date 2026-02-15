@@ -27,6 +27,9 @@
 	import type { MediaBase, MediaImage } from '@utils/media/mediaModels';
 	import { modalState } from '@utils/modalState.svelte';
 	import MediaLibraryModal from '@components/MediaLibraryModal.svelte';
+	import { page } from '$app/state';
+
+	const tenantId = $derived(page.data?.tenantId);
 
 	// SECURITY: File validation constants
 	const ALLOWED_MIME_TYPES = [
@@ -62,7 +65,12 @@
 		return { valid: true };
 	}
 
-	let { field, value = $bindable(), error }: { field: FieldType; value: string | string[] | null | undefined; error?: string | null } = $props();
+	let {
+		field,
+		value = $bindable(),
+		error,
+		collectionName
+	}: { field: FieldType; value: string | string[] | null | undefined; error?: string | null; collectionName?: string } = $props();
 
 	// A local, reactive array of the full, resolved media file objects for display.
 	let selectedFiles = $state<MediaFile[]>([]);
@@ -92,8 +100,9 @@
 							type: found.mimeType,
 							size: found.size,
 							url: normalizePath(found.path),
-							thumbnailUrl: found.thumbnails?.md?.url ? normalizePath(found.thumbnails.md.url) : normalizePath(found.path)
-						});
+							thumbnailUrl: found.thumbnails?.md?.url ? normalizePath(found.thumbnails.md.url) : normalizePath(found.path),
+							aiTags: found.metadata?.aiTags || []
+						} as any);
 					}
 				}
 			}
@@ -130,11 +139,18 @@
 	});
 
 	function openMediaLibrary() {
+		// DYNAMIC FOLDER:
+		// 1. Explicitly configured field.folder
+		// 2. Default to collection/[name] if available
+		// 3. Fallback to tenantId or 'global'
+		const dynamicFolder = (field as any).folder || (collectionName ? `collections/${collectionName.toLowerCase()}` : tenantId || 'global');
+
 		modalState.trigger(
 			MediaLibraryModal as any,
 			{
 				selectionMode: field.multiupload ? 'multiple' : 'single',
 				allowedTypes: field.allowedTypes || [],
+				folder: dynamicFolder,
 				size: 'fullscreen',
 				modalClasses: 'w-full h-full max-w-none max-h-none'
 			},
@@ -183,7 +199,19 @@
 			{#each selectedFiles as file (file._id)}
 				<div class="relative overflow-hidden rounded border border-surface-200 dark:text-surface-50" animate:flip>
 					<img src={file.thumbnailUrl} alt={file.name} class="h-[100px] w-full object-cover" />
-					<span class="block truncate p-1 text-center text-xs">{file.name}</span>
+					<div class="p-1">
+						<span class="block truncate text-center text-xs font-bold">{file.name}</span>
+						{#if (file as any).aiTags?.length}
+							<div class="mt-1 flex flex-wrap justify-center gap-0.5">
+								{#each (file as any).aiTags.slice(0, 3) as tag, i (tag + i)}
+									<span class="badge variant-soft-secondary py-0 px-1 text-[8px]">{tag}</span>
+								{/each}
+								{#if (file as any).aiTags.length > 3}
+									<span class="text-[8px] opacity-50">...</span>
+								{/if}
+							</div>
+						{/if}
+					</div>
 					<button
 						onclick={() => removeFile(file._id)}
 						class="absolute right-1 top-1 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full border-none bg-surface-900/50 text-white transition-colors hover:bg-surface-900/75"

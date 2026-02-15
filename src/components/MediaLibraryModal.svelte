@@ -13,12 +13,11 @@
 
 	interface Props {
 		parent?: unknown;
-
 		allowedTypes?: string[];
+		folder?: string;
 	}
 
-	let _props: Props = $props();
-	void _props;
+	let { allowedTypes = [], folder = 'global' }: Props = $props();
 
 	let activeTab = $state<'library' | 'local' | 'remote'>('local');
 	let files = $state<(MediaBase | MediaImage)[]>([]);
@@ -31,8 +30,10 @@
 		isLoading = true;
 		error = null;
 		try {
+			// Construct query with allowedTypes if provided
+			const typesQuery = allowedTypes.length > 0 ? `&types=${allowedTypes.join(',')}` : '';
 			// Fetch more files for the library, e.g., 50, recursively from all folders
-			const response = await fetch('/api/media?limit=100&recursive=true');
+			const response = await fetch(`/api/media?limit=100&recursive=true${typesQuery}`);
 			if (!response.ok) throw new Error('Failed to fetch media');
 			const data = await response.json();
 			logger.debug('Fetched media files:', data);
@@ -90,6 +91,7 @@
 		<main class="grow overflow-auto p-2">
 			{#if activeTab === 'local'}
 				<LocalUpload
+					{folder}
 					redirectOnSuccess={false}
 					onUploadComplete={() => {
 						fetchMedia();
@@ -112,6 +114,7 @@
 				{/if}
 			{:else if activeTab === 'remote'}
 				<RemoteUpload
+					{folder}
 					onUploadComplete={() => {
 						fetchMedia();
 						activeTab = 'library';

@@ -125,6 +125,8 @@ async function getCachedRoles(tenantId?: string): Promise<Role[]> {
 	}
 }
 
+
+
 // --- MAIN HANDLE ---
 
 export const handleAuthorization: Handle = async ({ event, resolve }) => {

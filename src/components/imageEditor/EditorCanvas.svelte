@@ -1,9 +1,9 @@
 <!--
 @file: src/components/imageEditor/EditorCanvas.svelte
 @component
-**Responsive canvas wrapper for the Konva stage**
+**Responsive canvas wrapper using svelte-canvas**
 Handles canvas sizing, empty states, and provides proper container
-for the image editor canvas with responsive behavior.
+for the image editor canvas with reactive rendering.
 
 #### Props
 - `hasImage`: Whether an image is currently loaded
@@ -14,6 +14,8 @@ for the image editor canvas with responsive behavior.
 	import { fade } from 'svelte/transition';
 	import type { Snippet } from 'svelte';
 	import { onMount } from 'svelte';
+	import { Canvas, Layer } from 'svelte-canvas';
+	import { imageEditorStore } from '@stores/imageEditorStore.svelte';
 
 	// Props
 	let {
@@ -25,6 +27,7 @@ for the image editor canvas with responsive behavior.
 		containerRef = $bindable(),
 		containerWidth = $bindable(0),
 		containerHeight = $bindable(0),
+		activeTool = null,
 		ondrop,
 		onupload,
 		onzoom,
@@ -38,6 +41,7 @@ for the image editor canvas with responsive behavior.
 		containerRef?: HTMLDivElement;
 		containerWidth?: number;
 		containerHeight?: number;
+		activeTool?: any;
 		ondrop?: (file: File) => void;
 		onupload?: () => void;
 		onzoom?: (type: 'in' | 'out' | 'reset') => void;
@@ -46,7 +50,11 @@ for the image editor canvas with responsive behavior.
 
 	let mounted = $state(false);
 	let isDragging = $state(false);
+	let isPanning = $state(false);
+	let lastPos = { x: 0, y: 0 };
 	let resizeObserver: ResizeObserver;
+
+	const storeState = imageEditorStore.state;
 
 	function handleDragOver(e: DragEvent) {
 		e.preventDefault();
@@ -67,6 +75,80 @@ for the image editor canvas with responsive behavior.
 			ondrop?.(files[0]);
 		}
 	}
+
+	// Interactive Panning & Tool Delegation
+	function handleMouseDown(e: MouseEvent) {
+		if (!hasImage) return;
+
+		if (activeTool?.handleMouseDown) {
+			activeTool.handleMouseDown(e, containerWidth, containerHeight);
+		} else {
+			isPanning = true;
+			lastPos = { x: e.clientX, y: e.clientY };
+		}
+	}
+
+	function handleMouseMove(e: MouseEvent) {
+		if (!hasImage) return;
+
+		if (activeTool?.handleMouseMove) {
+			activeTool.handleMouseMove(e, containerWidth, containerHeight);
+		} else if (isPanning) {
+			const dx = e.clientX - lastPos.x;
+			const dy = e.clientY - lastPos.y;
+			storeState.translateX += dx;
+			storeState.translateY += dy;
+			lastPos = { x: e.clientX, y: e.clientY };
+		}
+	}
+
+	function handleMouseUp(e: MouseEvent) {
+		if (activeTool?.handleMouseUp) {
+			activeTool.handleMouseUp(e, containerWidth, containerHeight);
+		}
+		isPanning = false;
+	}
+
+	function handleWheel(e: WheelEvent) {
+		if (!hasImage) return;
+		e.preventDefault();
+		const zoomSpeed = 0.001;
+		const delta = -e.deltaY;
+		const newZoom = storeState.zoom * (1 + delta * zoomSpeed);
+		storeState.zoom = Math.max(0.1, Math.min(5, newZoom));
+	}
+
+	// Main image render function
+	const renderImage = ({ context, width, height }: { context: CanvasRenderingContext2D; width: number; height: number }) => {
+		const { imageElement, zoom, rotation, flipH, flipV, translateX, translateY, crop, filters } = storeState;
+
+		if (!imageElement) return;
+
+		context.save();
+
+		// Move to center of canvas
+		context.translate(width / 2 + translateX, height / 2 + translateY);
+
+		// Apply transforms
+		context.scale(flipH ? -zoom : zoom, flipV ? -zoom : zoom);
+		context.rotate((rotation * Math.PI) / 180);
+
+		// Apply filters
+		let filterString = '';
+		if (filters.brightness !== 0) filterString += `brightness(${100 + filters.brightness}%) `;
+		if (filters.contrast !== 0) filterString += `contrast(${100 + filters.contrast}%) `;
+		if (filters.saturation !== 0) filterString += `saturate(${100 + filters.saturation}%) `;
+		if (filterString) context.filter = filterString.trim();
+
+		// Draw image
+		if (crop) {
+			context.drawImage(imageElement, crop.x, crop.y, crop.width, crop.height, -crop.width / 2, -crop.height / 2, crop.width, crop.height);
+		} else {
+			context.drawImage(imageElement, -imageElement.width / 2, -imageElement.height / 2, imageElement.width, imageElement.height);
+		}
+
+		context.restore();
+	};
 
 	onMount(() => {
 		mounted = true;
@@ -93,28 +175,44 @@ for the image editor canvas with responsive behavior.
 <div
 	class="editor-canvas-wrapper relative flex-1 overflow-hidden rounded-lg border border-surface-200 transition-all duration-300 ease-in-out focus-within:ring-2 focus-within:ring-primary-500 focus-within:ring-offset-2 focus-within:ring-offset-surface-50 dark:focus-within:ring-offset-surface-900 md:rounded-lg md:border md:border-surface-200 max-md:rounded-none max-md:border-0 max-md:border-b max-md:border-t"
 	role="region"
-	aria-label="Image editor canvas"
+	aria-label="Image editor canvas - pan with mouse, zoom with wheel"
 	aria-busy={isLoading}
+	bind:this={containerRef}
 >
-	<!-- Canvas container - ALWAYS present for Konva stage -->
-	<div
-		class="canvas-container h-full w-full transition-all duration-300 ease-in-out"
+	<!-- svelte-canvas component -->
+	<button 
+		class="canvas-container block h-full w-full border-0 p-0 text-left cursor-grab active:cursor-grabbing focus:outline-none"
 		class:border-2={isDragging}
 		class:border-primary-500={isDragging}
 		class:border-dashed={isDragging}
 		class:bg-primary-50={isDragging}
 		class:dark:bg-primary-900={isDragging}
-		bind:this={containerRef}
 		ondragover={handleDragOver}
 		ondragleave={handleDragLeave}
 		ondrop={handleDrop}
-		role="button"
-		aria-label={hasImage ? 'Loaded image' : 'No image loaded'}
-		tabindex={hasImage ? 0 : -1}
-		onkeydown={() => {}}
+		onmousedown={handleMouseDown}
+		onmousemove={handleMouseMove}
+		onmouseup={handleMouseUp}
+		onmouseleave={handleMouseUp}
+		onwheel={handleWheel}
+		onkeydown={(e) => {
+			// Basic keyboard support for pan/zoom
+			if (e.key === '+' || e.key === '=') {
+				imageEditorStore.state.zoom = imageEditorStore.state.zoom * 1.1;
+			} else if (e.key === '-' || e.key === '_') {
+				imageEditorStore.state.zoom = imageEditorStore.state.zoom / 1.1;
+			}
+		}}
+		aria-label="Interactive image canvas. Use mouse to pan, wheel to zoom, and +/- keys to zoom."
 	>
-		<!-- Konva stage will be mounted here by ImageEditor -->
-	</div>
+		{#if containerWidth > 0 && containerHeight > 0}
+			<Canvas width={containerWidth} height={containerHeight}>
+				<Layer render={renderImage} />
+				<!-- Additional layers for widgets can be added here or via children snippet -->
+				{@render children?.()}
+			</Canvas>
+		{/if}
+	</button>
 
 	<!-- Zoom controls slot -->
 	{#if hasImage && showZoomControls}
@@ -178,9 +276,6 @@ for the image editor canvas with responsive behavior.
 			</div>
 		</div>
 	{/if}
-
-	<!-- Slot for overlays (like crop toolbar) -->
-	{@render children?.()}
 
 	<!-- Loading overlay -->
 	{#if (hasImage && !mounted) || isLoading}
