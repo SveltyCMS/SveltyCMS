@@ -12,6 +12,7 @@
 
 import { test, expect, type Page } from '@playwright/test';
 import { loginAsAdmin } from './helpers/auth';
+import { seedTestUsers, TEST_USERS } from './helpers/seed';
 
 // Test credentials (created by setup wizard + seed script)
 const USERS = {
@@ -19,14 +20,7 @@ const USERS = {
 		email: 'admin@example.com',
 		password: 'Admin123!'
 	},
-	developer: {
-		email: 'developer@example.com',
-		password: 'Developer123!'
-	},
-	editor: {
-		email: 'editor@example.com',
-		password: 'Editor123!'
-	}
+	...TEST_USERS
 };
 
 async function login(page: Page, user: { email: string; password: string }) {
@@ -62,6 +56,20 @@ async function logout(page: Page) {
 
 test.describe('Role-Based Access Control', () => {
 	test.setTimeout(60000); // 1 minute timeout for all tests
+
+	test.beforeAll(async ({ browser }) => {
+		// Use a separate context/page to seed users so we don't interfere with individual tests
+		const context = await browser.newContext();
+		const page = await context.newPage();
+		try {
+			await loginAsAdmin(page);
+			await seedTestUsers(page);
+		} catch (error) {
+			console.error('Failed to seed test users:', error);
+		} finally {
+			await context.close();
+		}
+	});
 
 	test('Admin: Full access to all system areas', async ({ page }) => {
 		await loginAsAdmin(page);

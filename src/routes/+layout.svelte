@@ -229,7 +229,9 @@
 </svelte:head>
 
 <DialogManager />
-<ToastManager position="bottom-center" />
+<Portal>
+	<ToastManager position="bottom-center" />
+</Portal>
 
 {#key currentLocale}
 	{#if screen.isMobile && !page.url.pathname.includes('/setup')}

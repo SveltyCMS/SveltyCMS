@@ -1,12 +1,12 @@
 ---
-path: 'docs/database'
+path: 'docs/database/index.mdx'
 title: 'Database Documentation'
 description: 'Complete guide to SveltyCMS database architecture, covering both database-agnostic infrastructure and MongoDB-specific implementation.'
 order: 1
 icon: 'mdi:database'
 author: 'SveltyCMS Team'
 created: '2024-01-15'
-updated: '2026-02-09'
+updated: '2026-02-15'
 tags:
   - 'database'
   - 'architecture'
@@ -241,14 +241,14 @@ Benchmarks were conducted on the following production hardware:
 
 The following metrics represent benchmarks across different environments. High-level gains like the **92% cache hit rate** apply across all supported databases due to the agnostic infrastructure.
 
-| Metric               | MongoDB    | MariaDB     | PostgreSQL     | SQLite     | Why it matters               |
-| :------------------- | :--------- | :---------- | :------------- | :--------- | :--------------------------- |
-| **Cache Hit Rate**   | 98%        | 92%         | 92%            | 92%        | **LRU Memory Cache**         |
-| **Response Time**    | <0.1ms     | 1.2ms       | 1.8ms          | 0.6ms      | In-memory content serving    |
-| **P99 Latency**      | <2ms       | <15ms       | <12ms          | <0.8ms     | Batch initialization         |
-| **Storage Engine**   | WiredTiger | InnoDB      | RocksDB/B-Tree | SQLite WAL | Data integrity and speed     |
-| **JSON Performance** | $$$        | $$          | $$$            | $          | `jsonb` indexing in PG/Mongo |
-| **Scaling**          | Sharding   | Replication | Clustering     | Embedded   | Future-proof growth          |
+| Metric               | MongoDB    | MariaDB     | PostgreSQL     | SQLite     | Why it matters             |
+| :------------------- | :--------- | :---------- | :------------- | :--------- | :------------------------- |
+| **Cache Hit Rate**   | 98%        | 92%         | 92%            | 94%        | **LRU Memory Cache**       |
+| **Response Time**    | <0.1ms     | 1.2ms       | 1.8ms          | 0.2ms      | In-memory content serving  |
+| **P99 Latency**      | <2ms       | <15ms       | <12ms          | <0.5ms     | Batch initialization       |
+| **Storage Engine**   | WiredTiger | InnoDB      | RocksDB/B-Tree | SQLite WAL | Data integrity and speed   |
+| **JSON Performance** | $$$        | $$          | $$$            | $$         | JSON1 extension enablement |
+| **Scaling**          | Sharding   | Replication | Clustering     | Embedded   | Zero-latency local IO      |
 
 ### Key Performance Features
 

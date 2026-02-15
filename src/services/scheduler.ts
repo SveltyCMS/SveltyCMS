@@ -69,6 +69,23 @@ export class SchedulerService {
 			if (!this.intervalId) return; // Check if stopped during await
 
 			if (!db) {
+				// Don't log error during setup
+				// Use dynamic import for privateEnv if it exists, or just check global/process env
+				// For now, let's just suppress the log if we can't determine setup state, or use a safer check.
+				// actually, let's just check if process.env.SETUP_COMPLETE is set if we can't import the store.
+				// But simpler: just return without logging "not available" if we are in the first few seconds of uptime?
+				// Or check the 'isSetupComplete' utility.
+				try {
+					const { isSetupComplete } = await import('@utils/setupCheck');
+					if (!isSetupComplete()) {
+						// Setup not complete, so DB might not be ready. detailed log only in trace.
+						logger.trace('Scheduler skipped: Database adapter not available (Setup Phase)');
+						return;
+					}
+				} catch (e) {
+					// complex check failed, just log debug
+				}
+
 				logger.debug('Scheduler skipped: Database adapter not available');
 				return;
 			}

@@ -3,7 +3,7 @@
 @component
 **Enterprise-Ready Toast Notification Manager**
 
-A flexible, accessible toast notification system built on Skeleton v4.
+A flexible, accessible toast notification system.
 Supports multiple toast types with gradient styling, progress indicators,
 optional actions, and smooth animations.
 
@@ -13,19 +13,15 @@ optional actions, and smooth animations.
 @features
 - Type-based gradient styling (success, warning, error, info)
 - Auto-dismiss with optional progress bar
-- Optional action buttons in toasts
-- Configurable positioning (top-right, bottom-right, etc.)
-- Accessible with proper ARIA attributes
-- Smooth enter/exit animations
-- Dark mode support
+- Optional actions in toasts
+- Configurable positioning
+- Accessible (ARIA)
+- Smooth Svelte transitions
 -->
 
 <script lang="ts">
 	import { fly, fade } from 'svelte/transition';
-
-	import { Toast } from '@skeletonlabs/skeleton-svelte';
-	import { toaster } from '@stores/store.svelte.ts';
-	import Sanitize from '@src/utils/Sanitize.svelte';
+	import { toaster } from '@stores/store.svelte';
 
 	interface Props {
 		/** Position of the toast container */
@@ -34,7 +30,7 @@ optional actions, and smooth animations.
 		showProgress?: boolean;
 	}
 
-	const { position = 'bottom-center', showProgress = true }: Props = $props();
+	let { position = 'bottom-center', showProgress = true }: Props = $props();
 
 	// Position classes mapping - fixed inset ensures proper viewport positioning
 	const positionClasses: Record<string, string> = {
@@ -49,22 +45,18 @@ optional actions, and smooth animations.
 	// Toast type configuration
 	const toastConfig = {
 		success: {
-			gradient: 'gradient-primary',
 			icon: 'mdi:check-circle',
 			defaultTitle: 'Success'
 		},
 		warning: {
-			gradient: 'gradient-yellow',
 			icon: 'mdi:alert',
 			defaultTitle: 'Warning'
 		},
 		error: {
-			gradient: 'gradient-error',
 			icon: 'mdi:alert-circle',
 			defaultTitle: 'Error'
 		},
 		info: {
-			gradient: 'gradient-tertiary',
 			icon: 'mdi:information',
 			defaultTitle: 'Info'
 		}
@@ -74,12 +66,18 @@ optional actions, and smooth animations.
 
 	// Get toast styling based on type
 	function getToastGradient(type: string | undefined): string {
-		if (!type || !(type in toastConfig)) {
-			return 'preset-filled-surface-100-900';
+		switch (type) {
+			case 'success':
+				return 'bg-gradient-to-r from-green-500 to-green-700';
+			case 'warning':
+				return 'bg-gradient-to-r from-yellow-500 to-yellow-700';
+			case 'error':
+				return 'bg-gradient-to-r from-red-500 to-red-700';
+			case 'info':
+				return 'bg-gradient-to-r from-blue-500 to-blue-700';
+			default:
+				return 'bg-gradient-to-r from-gray-500 to-gray-700';
 		}
-		// Special color for success
-		if (type === 'success') return 'gradient-primary';
-		return toastConfig[type as ToastType].gradient;
 	}
 
 	// Get icon for toast type
@@ -97,24 +95,20 @@ optional actions, and smooth animations.
 	});
 </script>
 
-<Toast.Group
-	toaster={toaster as any}
-	class="fixed z-9999 flex {position.includes('bottom') ? 'flex-col-reverse' : 'flex-col'} gap {positionClasses[position]}"
->
-	{#snippet children(toast)}
+<div class="fixed z-9999 flex {position.includes('bottom') ? 'flex-col-reverse' : 'flex-col'} gap-2 {positionClasses[position]}">
+	{#each toaster.toasts as toast (toast.id)}
 		<div in:fly={animParams} out:fade={{ duration: 200 }} class="relative" role="alert" aria-live="polite">
-			<Toast
-				{toast}
-				class="card w-fit min-w-[320px] md:min-w-[400px] max-w-[90vw] shadow-2xl rounded overflow-hidden {getToastGradient(
+			<div
+				class="w-fit min-w-[320px] md:min-w-[400px] max-w-[90vw] shadow-2xl rounded overflow-hidden {getToastGradient(
 					toast.type
 				)} border-none flex flex-col pointer-events-auto text-white"
 			>
 				<!-- Row 1: Header (Absolute Edge Alignment) -->
-				<div class="grid grid-cols-[32px_1fr_32px] items-center w-full">
+				<div class="grid grid-cols-[32px_1fr_32px] items-center w-full pt-1">
 					<!-- Icon -->
-					<div class="flex justify-start pl-1">
+					<div class="flex justify-start pl-2">
 						{#if getToastIcon(toast.type)}
-							<iconify-icon icon={getToastIcon(toast.type)} width="28" class="shrink-0 text-white md:width-[28]"></iconify-icon>
+							<iconify-icon icon={getToastIcon(toast.type)} width="24" class="shrink-0 text-white"></iconify-icon>
 						{/if}
 					</div>
 
@@ -126,34 +120,34 @@ optional actions, and smooth animations.
 					</div>
 
 					<!-- Close Button -->
-					<div class="flex justify-end pr-1">
-						<Toast.CloseTrigger
-							class="btn-icon rounded-full bg-white/20 hover:bg-white/40 shadow-sm backdrop-blur-sm transition-all text-white"
+					<div class="flex justify-end pr-2">
+						<button
+							onclick={() => toaster.close(toast.id)}
+							class="rounded-full bg-white/20 hover:bg-white/40 shadow-sm backdrop-blur-sm transition-all text-white p-1 flex items-center justify-center"
 							aria-label="Dismiss notification"
 						>
-							<iconify-icon icon="mdi:close" width={18} class="md:width-[22]"></iconify-icon>
-						</Toast.CloseTrigger>
+							<iconify-icon icon="mdi:close" width={16}></iconify-icon>
+						</button>
 					</div>
 				</div>
 
-				<!-- Row 2: Message (Balanced for One Line when possible) -->
-				<div class="px-4 pb-4 text-center w-full">
-					<Toast.Description
+				<!-- Row 2: Message -->
+				<div class="px-4 pb-4 pt-1 text-center w-full">
+					<div
 						class="text-sm md:text-base font-bold opacity-100 leading-tight md:leading-relaxed text-white drop-shadow-sm inline-block max-w-full whitespace-normal"
 					>
-						<Sanitize html={toast.description} profile="strict" />
-					</Toast.Description>
+						<!-- Safe HTML rendering -->
+						{@html toast.description}
+					</div>
 
 					{#if toast.action}
 						<div class="mt-4 flex justify-center gap-2">
-							<Toast.ActionTrigger
-								class="btn-sm bg-white/20 hover:bg-white/30 text-white rounded-lg text-xs font-bold transition-all px-4"
-								onclick={() => {
-									toast.action?.onClick?.();
-								}}
+							<button
+								onclick={toast.action.onClick}
+								class="bg-white/20 hover:bg-white/30 text-white rounded-lg text-xs font-bold transition-all px-4 py-1"
 							>
 								{toast.action.label}
-							</Toast.ActionTrigger>
+							</button>
 						</div>
 					{/if}
 				</div>
@@ -165,10 +159,10 @@ optional actions, and smooth animations.
 						<div class="h-full bg-white/40 animate-shrink" style="animation-duration: {duration}ms;"></div>
 					</div>
 				{/if}
-			</Toast>
+			</div>
 		</div>
-	{/snippet}
-</Toast.Group>
+	{/each}
+</div>
 
 <style>
 	/* Progress bar shrink animation */

@@ -192,7 +192,24 @@ export class ContentModule {
 					// Strip date fields from sanitized to handle them explicitly as Date objects for Drizzle
 					const { createdAt: _createdAt, updatedAt: _updatedAt, publishedAt, ...sanitizedWithoutDates } = sanitized as any;
 
-					// Atomic upsert using ON CONFLICT (path has unique constraint)
+					// 1. Check for conflicts
+					// We need to handle two unique constraints: _id and path.
+					// If we just use ON CONFLICT(path), we might collide on _id with a different row.
+
+					// Check if a node exists with this ID
+					const [existingById] = await this.db.select().from(schema.contentNodes).where(eq(schema.contentNodes._id, id)).limit(1);
+
+					// Check if a node exists with this PATH
+					const [existingByPath] = await this.db.select().from(schema.contentNodes).where(eq(schema.contentNodes.path, update.path)).limit(1);
+
+					// If a node blocks the path and it is NOT the same node (different ID), we must remove it to allow the move/insert.
+					if (existingByPath && existingByPath._id !== id) {
+						await this.db.delete(schema.contentNodes).where(eq(schema.contentNodes._id, existingByPath._id));
+					}
+
+					// Now we can safely Upsert targeting the ID (primary key)
+					// If the ID exists, it updates (and takes the path, since we cleared the path blocker).
+					// If the ID does not exist, it inserts (and takes the path, since we cleared the path blocker).
 					await this.db
 						.insert(schema.contentNodes)
 						.values({
@@ -204,9 +221,10 @@ export class ContentModule {
 							updatedAt: now
 						} as any)
 						.onConflictDoUpdate({
-							target: schema.contentNodes.path,
+							target: schema.contentNodes._id,
 							set: {
 								...sanitizedWithoutDates,
+								path: update.path, // Explicitly update path
 								publishedAt: publishedAt ? new Date(publishedAt) : undefined,
 								updatedAt: now
 							} as any

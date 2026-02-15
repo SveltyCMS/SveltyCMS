@@ -6,7 +6,6 @@
 import type { Locale } from '@src/paraglide/runtime';
 import { publicEnv } from '@src/stores/globalSettings.svelte';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
-import { createToaster } from '@skeletonlabs/skeleton-svelte';
 import type { Component } from 'svelte';
 
 // --- TYPES & INTERFACES ---
@@ -226,15 +225,72 @@ class DataChangeStore {
 
 export const dataChangeStore = new DataChangeStore();
 
-// Skeleton Toaster Singleton
-const baseToaster = createToaster();
-export const toaster = {
-	...baseToaster,
-	success: (t: Record<string, unknown>) => baseToaster.success({ duration: 5000, ...t } as any),
-	error: (t: Record<string, unknown>) => baseToaster.error({ duration: 5000, ...t } as any),
-	warning: (t: Record<string, unknown>) => baseToaster.warning({ duration: 5000, ...t } as any),
-	info: (t: Record<string, unknown>) => baseToaster.info({ duration: 5000, ...t } as any)
-};
+// Custom Lightweight Toaster Store
+class ToasterStore {
+	toasts = $state<
+		{
+			id: string;
+			type: string;
+			title?: string;
+			description: string;
+			duration?: number;
+			action?: { label: string; onClick: () => void };
+		}[]
+	>([]);
+
+	constructor() {}
+
+	add(toast: {
+		type?: 'success' | 'warning' | 'error' | 'info';
+		title?: string;
+		description: string;
+		duration?: number;
+		action?: { label: string; onClick: () => void };
+	}) {
+		const id = crypto.randomUUID();
+		const type = toast.type || 'info';
+		const duration = toast.duration || 5000;
+
+		this.toasts.push({
+			id,
+			type,
+			title: toast.title,
+			description: toast.description,
+			duration,
+			action: toast.action
+		});
+
+		if (duration > 0) {
+			setTimeout(() => {
+				this.close(id);
+			}, duration);
+		}
+
+		return id;
+	}
+
+	success(t: string | { description: string; title?: string; duration?: number }) {
+		this.add({ type: 'success', ...(typeof t === 'string' ? { description: t } : t) });
+	}
+
+	error(t: string | { description: string; title?: string; duration?: number }) {
+		this.add({ type: 'error', ...(typeof t === 'string' ? { description: t } : t) });
+	}
+
+	warning(t: string | { description: string; title?: string; duration?: number }) {
+		this.add({ type: 'warning', ...(typeof t === 'string' ? { description: t } : t) });
+	}
+
+	info(t: string | { description: string; title?: string; duration?: number }) {
+		this.add({ type: 'info', ...(typeof t === 'string' ? { description: t } : t) });
+	}
+
+	close(id: string) {
+		this.toasts = this.toasts.filter((t) => t.id !== id);
+	}
+}
+
+export const toaster = new ToasterStore();
 
 // Static Constants
 export const tableHeaders = ['id', 'email', 'username', 'role', 'createdAt'] as const;

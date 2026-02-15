@@ -543,7 +543,7 @@ function createSetupStore() {
 						type: 'success',
 						title: 'Welcome', // Changed title to differentiate
 						description: 'Welcome to SveltyCMS! 🎉',
-						duration: 5000
+						duration: 3000
 					})
 				);
 				logger.debug('[SetupStore] Flash message set in sessionStorage');

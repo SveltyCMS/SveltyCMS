@@ -429,7 +429,7 @@ class ContentManager {
 	 * @returns Redirect URL or null if no collections exist
 	 */
 	public async getFirstCollectionRedirectUrl(language: string = 'en', tenantId?: string): Promise<string | null> {
-		const collection = await this.getFirstCollection(tenantId);
+		const collection = await this.getSmartFirstCollection(tenantId);
 
 		if (!collection || !collection._id) {
 			logger.debug('Cannot build redirect URL - no collection or _id available');
@@ -441,6 +441,22 @@ class ContentManager {
 
 		logger.debug(`📍 First collection redirect URL (UUID-based): ${redirectUrl}`);
 		return redirectUrl;
+	}
+
+	/**
+	 * Smartly retrieves the first collection for redirection.
+	 * Prioritizes actual content collections over system/utility collections (like Menu, Form).
+	 */
+	public async getSmartFirstCollection(tenantId?: string): Promise<Schema | null> {
+		const collections = await this.getCollections(tenantId);
+		if (collections.length === 0) return null;
+
+		// Filter out utility collections that might not be the best landing page
+		// e.g. 'Menu' is a tree structure, 'Form' might be a builder.
+		// We prioritize standard EntryList-compatible collections.
+		const smartCandidates = collections.filter((c) => !['Menu', 'Navigation', 'Form', 'WidgetTest', 'Relation'].includes(c.name as string));
+
+		return smartCandidates.length > 0 ? smartCandidates[0] : collections[0];
 	}
 
 	// Clear first collection cache (use when collections are modified)

@@ -67,9 +67,7 @@ const distributedStore = {
 		return (await this.get(key)) !== undefined;
 	},
 
-	/**
-	 * Adds/sets a value in the store (required by sveltekit-rate-limiter)
-	 */
+	// Adds/sets a value in the store (required by sveltekit-rate-limiter)
 	async add(key: string, ttlSeconds: number): Promise<number> {
 		try {
 			if (await this.has(key)) {
@@ -84,9 +82,7 @@ const distributedStore = {
 		}
 	},
 
-	/**
-	 * Increments the counter for a rate limit key
-	 */
+	// Increments the counter for a rate limit key
 	async increment(key: string, ttlSeconds: number): Promise<number> {
 		try {
 			const existing = await this.get(key);
@@ -209,6 +205,12 @@ export const handleRateLimit: Handle = async ({ event, resolve }) => {
 			limiter = authLimiter;
 		} else if (url.pathname.startsWith('/api/')) {
 			limiter = apiLimiter;
+		}
+
+		// Relax rate limiting significantly for setup wizard to prevent false positives
+		// during the multiple validation checks and DB tests
+		if (url.pathname.startsWith('/setup') || url.pathname.includes('setup')) {
+			return resolve(event);
 		}
 
 		if (await limiter.isLimited(event)) {

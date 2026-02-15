@@ -57,7 +57,7 @@ Features:
 						aria-label={m.button_previous?.() || 'Go to previous step'}
 					>
 						<iconify-icon icon="mdi:arrow-left-bold" class="h-5 w-5"></iconify-icon>
-						<span class="hidden sm:inline">{m.button_previous()}</span>
+						<span class="inline">{m.button_previous()}</span>
 					</button>
 				</SystemTooltip>
 			{/if}
@@ -84,9 +84,9 @@ Features:
 					>
 						{#if isLoading && currentStep === 0}
 							<div class="h-4 w-4 animate-spin rounded-full border-2 border-t-2 border-transparent border-t-white" role="status"></div>
-							<span class="hidden sm:inline">Seeding...</span>
+							<span class="inline">Seeding...</span>
 						{:else}
-							<span class="hidden sm:inline">{m.button_next()}</span>
+							<span class="inline">{m.button_next()}</span>
 							<iconify-icon icon="mdi:arrow-right-bold" class="h-5 w-5"></iconify-icon>
 						{/if}
 					</button>
@@ -104,9 +104,9 @@ Features:
 					>
 						{#if isLoading}
 							<div class="h-4 w-4 animate-spin rounded-full border-2 border-t-2 border-transparent border-t-white" role="status"></div>
-							<span class="hidden sm:inline">Completing...</span>
+							<span class="inline">Completing...</span>
 						{:else}
-							<span class="hidden sm:inline">{m.button_complete?.() || 'Complete'}</span>
+							<span class="inline">{m.button_complete?.() || 'Complete'}</span>
 							<iconify-icon icon="mdi:check-bold" class="h-5 w-5"></iconify-icon>
 						{/if}
 					</button>

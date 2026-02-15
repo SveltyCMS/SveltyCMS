@@ -245,7 +245,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 				break;
 			case 'sqlite':
 				// SQLite uses a file path, no port
-				dbConfig.host = './';
+				dbConfig.host = 'config/database';
 				dbConfig.port = '';
 				if (!dbConfig.name || dbConfig.name === 'SveltyCMS' || dbConfig.name === 'SveltyCMS.db') dbConfig.name = 'SveltyCMS.db';
 				break;

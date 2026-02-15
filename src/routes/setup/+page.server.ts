@@ -450,66 +450,72 @@ export const actions = {
 			});
 			logger.info(`Set ${SESSION_COOKIE_NAME} cookie for new admin user`);
 
-			// 3. Update private config
-			try {
-				console.log('DEBUG: Updating private config with modes:', {
-					multiTenant: system.multiTenant,
-					demoMode: system.demoMode
-				});
-				const { updatePrivateConfigMode } = await import('./writePrivateConfig');
-				await updatePrivateConfigMode({
-					multiTenant: system.multiTenant,
-					demoMode: system.demoMode
-				});
-				console.log('DEBUG: Private config update completed');
-			} catch (configError) {
-				console.error('ERROR: Failed to update private config (NON-FATAL):', configError);
-				logger.error('Failed to update private config modes:', configError);
-				// Do not throw, allow setup to complete even if this file update fails
-			}
+			// 3. Parallel Execution: Update private config & Persist system settings
+			const updatePrivateConfigPromise = (async () => {
+				try {
+					// Optimization: Check if values actually changed to avoid unnecessary restart
+					const { privateEnv } = await import('@stores/privateEnv.svelte');
+					// Use loose equality to handle string/boolean differences if any
+					if (privateEnv.MULTI_TENANT == system.multiTenant && privateEnv.DEMO == system.demoMode) {
+						logger.info('DEBUG: Private config unchanged, skipping update to prevent restart.');
+						return;
+					}
 
-			// Small delay to ensure fs operations clear before potential restart or response
-			await new Promise((r) => setTimeout(r, 500));
+					console.log('DEBUG: Updating private config with modes:', {
+						multiTenant: system.multiTenant,
+						demoMode: system.demoMode
+					});
+					const { updatePrivateConfigMode } = await import('./writePrivateConfig');
+					await updatePrivateConfigMode({
+						multiTenant: system.multiTenant,
+						demoMode: system.demoMode
+					});
+					console.log('DEBUG: Private config update completed');
+				} catch (configError) {
+					console.error('ERROR: Failed to update private config (NON-FATAL):', configError);
+					logger.error('Failed to update private config modes:', configError);
+					// Do not throw, allow setup to complete even if this file update fails
+				}
+			})();
 
-			// 3.0 Clear private config cache to ensure new modes are picked up
-			const { clearPrivateConfigCache } = await import('@src/databases/db');
-			clearPrivateConfigCache();
+			const persistSettingsPromise = (async () => {
+				try {
+					console.log('DEBUG: Persisting system settings to DB...');
+					const settingsToPersist = [
+						// Redis & Arch Mode (Private)
+						{ key: 'USE_REDIS', value: system.useRedis, category: 'private', scope: 'system' },
+						{ key: 'REDIS_HOST', value: system.redisHost, category: 'private', scope: 'system' },
+						{ key: 'REDIS_PORT', value: Number(system.redisPort), category: 'private', scope: 'system' },
+						{ key: 'REDIS_PASSWORD', value: system.redisPassword, category: 'private', scope: 'system' },
+						{ key: 'MULTI_TENANT', value: system.multiTenant, category: 'private', scope: 'system' },
+						{ key: 'DEMO', value: system.demoMode, category: 'private', scope: 'system' },
 
-			// 3.1 Persist system settings
-			try {
-				console.log('DEBUG: Persisting system settings to DB...');
-				const settingsToPersist = [
-					// Redis & Arch Mode (Private)
-					{ key: 'USE_REDIS', value: system.useRedis, category: 'private', scope: 'system' },
-					{ key: 'REDIS_HOST', value: system.redisHost, category: 'private', scope: 'system' },
-					{ key: 'REDIS_PORT', value: Number(system.redisPort), category: 'private', scope: 'system' },
-					{ key: 'REDIS_PASSWORD', value: system.redisPassword, category: 'private', scope: 'system' },
-					{ key: 'MULTI_TENANT', value: system.multiTenant, category: 'private', scope: 'system' },
-					{ key: 'DEMO', value: system.demoMode, category: 'private', scope: 'system' },
+						// General Site Settings (Public)
+						{ key: 'SITE_NAME', value: system.siteName, category: 'public', scope: 'system' },
+						{ key: 'HOST_PROD', value: system.hostProd, category: 'public', scope: 'system' },
+						{ key: 'TIMEZONE', value: system.timezone, category: 'public', scope: 'system' },
 
-					// General Site Settings (Public)
-					{ key: 'SITE_NAME', value: system.siteName, category: 'public', scope: 'system' },
-					{ key: 'HOST_PROD', value: system.hostProd, category: 'public', scope: 'system' },
-					{ key: 'TIMEZONE', value: system.timezone, category: 'public', scope: 'system' },
+						// Language Settings (Public)
+						// Note: validation should ideally ensure defaults are in the arrays
+						{ key: 'DEFAULT_CONTENT_LANGUAGE', value: system.defaultContentLanguage, category: 'public', scope: 'system' },
+						{ key: 'AVAILABLE_CONTENT_LANGUAGES', value: system.contentLanguages, category: 'public', scope: 'system' },
+						{ key: 'BASE_LOCALE', value: system.defaultSystemLanguage, category: 'public', scope: 'system' },
+						{ key: 'LOCALES', value: system.systemLanguages, category: 'public', scope: 'system' },
 
-					// Language Settings (Public)
-					// Note: validation should ideally ensure defaults are in the arrays
-					{ key: 'DEFAULT_CONTENT_LANGUAGE', value: system.defaultContentLanguage, category: 'public', scope: 'system' },
-					{ key: 'AVAILABLE_CONTENT_LANGUAGES', value: system.contentLanguages, category: 'public', scope: 'system' },
-					{ key: 'BASE_LOCALE', value: system.defaultSystemLanguage, category: 'public', scope: 'system' },
-					{ key: 'LOCALES', value: system.systemLanguages, category: 'public', scope: 'system' },
+						// Media Settings (Public)
+						{ key: 'MEDIA_STORAGE_TYPE', value: system.mediaStorageType, category: 'public', scope: 'system' },
+						{ key: 'MEDIA_FOLDER', value: system.mediaFolder, category: 'public', scope: 'system' }
+					];
 
-					// Media Settings (Public)
-					{ key: 'MEDIA_STORAGE_TYPE', value: system.mediaStorageType, category: 'public', scope: 'system' },
-					{ key: 'MEDIA_FOLDER', value: system.mediaFolder, category: 'public', scope: 'system' }
-				];
+					// Cast to any to bypass strict type check for now, or define a proper interface for the array item
+					await dbAdapter.systemPreferences.setMany(settingsToPersist as any);
+					logger.info('System settings persisted to database successfully');
+				} catch (dbError) {
+					logger.warn('Failed to persist some system settings to DB:', dbError);
+				}
+			})();
 
-				// Cast to any to bypass strict type check for now, or define a proper interface for the array item
-				await dbAdapter.systemPreferences.setMany(settingsToPersist as any);
-				logger.info('System settings persisted to database successfully');
-			} catch (dbError) {
-				logger.warn('Failed to persist some system settings to DB:', dbError);
-			}
+			await Promise.all([updatePrivateConfigPromise, persistSettingsPromise]);
 
 			// 3.2 Invalidate setup cache
 			const { invalidateSetupCache } = await import('@src/utils/setupCheck');
@@ -562,16 +568,15 @@ export const actions = {
 			if (system.firstCollection?.path) {
 				redirectPath = `/${system.defaultContentLanguage || 'en'}${system.firstCollection.path}`;
 			} else {
-				// Fallback: Query database for the first available collection
+				// Fallback: Query ContentManager for smart first collection
 				try {
-					// listSchemas returns DatabaseResult<Schema[]>
-					const result = await dbAdapter.collection.listSchemas();
-					const collections = result.success ? result.data : [];
+					const { contentManager } = await import('@src/content/ContentManager');
+					// Clear cache to ensure we see the newly initialized collections
+					contentManager.clearFirstCollectionCache();
 
-					if (collections && collections.length > 0) {
-						// Sort alphabetically to match UI
-						collections.sort((a: any, b: any) => a.name.localeCompare(b.name));
-						redirectPath = `/${system.defaultContentLanguage || 'en'}/Collections/${collections[0].name}`;
+					const smartRedirect = await contentManager.getFirstCollectionRedirectUrl(system.defaultContentLanguage || 'en');
+					if (smartRedirect) {
+						redirectPath = smartRedirect;
 					}
 				} catch (e) {
 					logger.warn('Could not determine first collection for redirect:', e);

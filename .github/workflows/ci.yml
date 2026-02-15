@@ -105,17 +105,17 @@ jobs:
       # Create minimal config for build (actual DB config injected at runtime)
       - name: Create build config
         run: |
-          cat > config/private.ts <<EOF
+          cat > config/private.ts <<'EOF'
           export const privateEnv = {
-            DB_TYPE: 'mongodb',
-            DB_HOST: 'localhost',
-            DB_PORT: 27017,
-            DB_NAME: 'sveltycms_build',
-            DB_USER: 'admin',
-            DB_PASSWORD: 'admin',
-            JWT_SECRET_KEY: 'build_jwt_secret',
-            ENCRYPTION_KEY: 'build_encryption_key_32b',
-            MULTI_TENANT: false
+            DB_TYPE: process.env.DB_TYPE || 'mongodb',
+            DB_HOST: process.env.DB_HOST || 'localhost',
+            DB_PORT: Number(process.env.DB_PORT) || 27017,
+            DB_NAME: process.env.DB_NAME || 'sveltycms_build',
+            DB_USER: process.env.DB_USER || 'admin',
+            DB_PASSWORD: process.env.DB_PASSWORD || 'admin',
+            JWT_SECRET_KEY: process.env.JWT_SECRET_KEY || 'build_jwt_secret',
+            ENCRYPTION_KEY: process.env.ENCRYPTION_KEY || 'build_encryption_key_32b',
+            MULTI_TENANT: process.env.MULTI_TENANT === 'true'
           } as const;
           EOF
 
@@ -124,6 +124,17 @@ jobs:
 
       - name: Build Production
         run: bun run build
+
+      - name: Wait for MongoDB
+        run: |
+          for i in {1..30}; do
+            if nc -z localhost 27017 2>/dev/null; then
+              echo "✅ MongoDB ready"
+              sleep 2
+              break
+            fi
+            sleep 1
+          done
 
       - name: 🔍 Preview Smoke Test
         run: |
@@ -189,6 +200,8 @@ jobs:
       SMTP_PORT: 1025
       SMTP_MAIL_FROM: test@sveltycms.local
       SMTP_SECURE: 'false'
+      SMTP_USER: ''
+      SMTP_PASS: ''
       NODE_ENV: production
     steps:
       - uses: actions/checkout@v6
@@ -243,6 +256,17 @@ jobs:
             SMTP_SECURE: ${{ env.SMTP_SECURE }},
           } as const;
           EOF
+
+      - name: Wait for MongoDB
+        run: |
+          for i in {1..30}; do
+            if nc -z localhost 27017 2>/dev/null; then
+              echo "✅ MongoDB ready"
+              sleep 2
+              break
+            fi
+            sleep 1
+          done
 
       - name: Generate SvelteKit types
         run: bunx svelte-kit sync
@@ -323,6 +347,8 @@ jobs:
       SMTP_PORT: 1025
       SMTP_MAIL_FROM: test@sveltycms.local
       SMTP_SECURE: 'false'
+      SMTP_USER: ''
+      SMTP_PASS: ''
       NODE_ENV: production
     steps:
       - uses: actions/checkout@v6
@@ -472,6 +498,8 @@ jobs:
       SMTP_PORT: 1025
       SMTP_MAIL_FROM: test@sveltycms.local
       SMTP_SECURE: 'false'
+      SMTP_USER: ''
+      SMTP_PASS: ''
       NODE_ENV: production
     steps:
       - uses: actions/checkout@v6
