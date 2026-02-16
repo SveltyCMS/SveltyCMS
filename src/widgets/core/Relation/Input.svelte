@@ -91,7 +91,7 @@ Interactive selector with "Select" button and clear functionality
 
 <div class="relation-container" class:invalid={error}>
 	<div class="flex flex-wrap gap-2">
-		{#each selectedEntries as entry}
+		{#each selectedEntries as entry (entry._id)}
 			<div class="badge variant-filled-surface flex items-center gap-2 p-2">
 				<span>{entry[field.displayField as string]?.[lang] || entry[field.displayField as string] || '...'}</span>
 				<button

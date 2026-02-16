@@ -27,6 +27,7 @@ tags:
 - [Testing Overview & Strategy](./overview.mdx)
 - **[Testing Strategy (White-Box vs Black-Box)](./testing-strategy.mdx)** (New)
 - **[Black-Box Testing Architecture](./black-box-testing.mdx)** (Strategic Pivot)
+- **[E2E Stabilization Report](./e2e-stabilization-report.mdx)** (Playwright Fixes)
 - [Test Status Report](./test-status.mdx)
 - [API Coverage Report](./api-test-coverage.mdx)
 
@@ -86,6 +87,17 @@ graph TD
     class PC,PT config;
     class VitePlugin,DBProtection protection;
 ```
+
+## Testing Strategy: The 2026 Industry Optimum
+
+SveltyCMS employs an **Isomorphic Hybrid Testing** model. This strategy balances two critical needs:
+
+1.  **White-Box Density (Unit Tests)**: High-speed validation of internal functions, state runes, and utility logic. These tests use deep mocking to isolate components and ensure every logical branch is exercised.
+2.  **Black-Box Integrity (Integration & E2E)**: Decoupled validation of the system via its public APIs and UI. These tests treat the CMS as a "Black Box," ensuring that internal refactors (e.g., changing from MongoDB to PostgreSQL) do not break external functionality.
+
+### Why this makes sense in 2026?
+
+As frameworks move toward no-runtime compilation (Svelte 5), unit tests catch compiler-related reactivity issues, while black-box tests protect against breaking changes in the database-agnostic layer.
 
 ---
 

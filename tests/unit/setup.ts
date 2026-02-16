@@ -1,5 +1,5 @@
 /**
- * @file tests/bun/setup.ts
+ * @file tests/unit/setup.ts
  * @description Global test setup file for Bun test runner
  *
  * This file is automatically loaded before running Bun tests via the --preload flag.
@@ -55,7 +55,7 @@ mock.module('$app/environment', () => ({
 }));
 
 // Mock logger.server.ts to prevent "cannot be imported in browser" error
-mock.module('@src/utils/logger.server', () => ({
+mock.module('@utils/logger.server', () => ({
 	logger: {
 		fatal: () => {},
 		error: () => {},
@@ -75,7 +75,7 @@ mock.module('@src/utils/logger.server', () => ({
 }));
 
 // Mock universal logger.ts
-mock.module('@src/utils/logger', () => ({
+mock.module('@utils/logger', () => ({
 	logger: {
 		fatal: () => {},
 		error: () => {},
@@ -95,10 +95,90 @@ mock.module('@src/utils/logger', () => ({
 	}
 }));
 
+// Mock @utils/setupCheck
+declare global {
+	var __mockIsSetupComplete: boolean;
+}
+globalThis.__mockIsSetupComplete = true;
+
+mock.module('@utils/setupCheck', () => ({
+	isSetupComplete: () => globalThis.__mockIsSetupComplete,
+	isSetupCompleteAsync: async () => globalThis.__mockIsSetupComplete,
+	invalidateSetupCache: () => {}
+}));
+
+// Mock @src/stores/system/state
+declare global {
+	var __mockSystemState: {
+		overallState: string;
+		services: Record<string, any>;
+		performanceMetrics: { stateTransitions: any[] };
+	};
+	var __mockIsSystemReady: boolean;
+}
+globalThis.__mockSystemState = { overallState: 'READY', services: {}, performanceMetrics: { stateTransitions: [] } };
+globalThis.__mockIsSystemReady = true;
+
+mock.module('@src/stores/system/state', () => ({
+	getSystemState: () => globalThis.__mockSystemState,
+	setSystemState: (state: string) => {
+		globalThis.__mockSystemState.overallState = state;
+	},
+	isSystemReady: () => globalThis.__mockIsSystemReady,
+	updateServiceHealth: () => {},
+	resetSystemState: () => {
+		globalThis.__mockSystemState = { overallState: 'READY', services: {}, performanceMetrics: { stateTransitions: [] } };
+	}
+}));
+
+// Mock @src/databases/auth/apiPermissions
+declare global {
+	var __mockHasApiPermission: (role: string, endpoint: string) => boolean;
+}
+globalThis.__mockHasApiPermission = (role: string, _endpoint: string) => {
+	return role === 'admin' || role === 'developer';
+};
+
+mock.module('@src/databases/auth/apiPermissions', () => ({
+	hasApiPermission: (role: string, endpoint: string) => globalThis.__mockHasApiPermission(role, endpoint),
+	API_PERMISSIONS: {
+		'api:collections': ['admin', 'developer', 'editor'],
+		'api:graphql': ['admin', 'developer', 'editor', 'viewer']
+	}
+}));
+
+// Mock @src/databases/CacheService
+mock.module('@src/databases/CacheService', () => ({
+	cacheService: {
+		get: async () => null,
+		set: async () => {},
+		delete: async () => {},
+		clearByPattern: async () => {},
+		setBootstrapping: () => {}
+	},
+	API_CACHE_TTL_MS: 300000
+}));
+
+// Mock @src/services/MetricsService
+mock.module('@src/services/MetricsService', () => ({
+	metricsService: {
+		incrementApiRequests: () => {},
+		incrementApiErrors: () => {},
+		recordApiCacheHit: () => {},
+		recordApiCacheMiss: () => {},
+		incrementRateLimitViolations: () => {},
+		incrementAuthValidations: () => {},
+		incrementAuthFailures: () => {},
+		incrementFirewallBlocks: () => {},
+		recordLatency: () => {},
+		getReport: () => ({ api: {}, auth: {}, rateLimit: {} })
+	}
+}));
+
 // Mock $app/stores
 mock.module('$app/stores', () => ({
 	getStores: () => ({}),
-	page: { subscribe: (fn: any) => fn({}) },
+	page: { subscribe: (fn: any) => fn({ url: new URL('http://localhost') }) },
 	navigating: { subscribe: (fn: any) => fn(null) },
 	updated: { subscribe: (fn: any) => fn(false) }
 }));
@@ -164,7 +244,6 @@ class MockRequest {
 	clone() {
 		return new MockRequest(this.input, this.init);
 	} // Simplified clone
-	// Add other methods/properties as needed by the tests (e.g., text(), json(), formData())
 }
 
 class MockURL {
@@ -197,6 +276,25 @@ class MockURL {
 // Assign them to globalThis
 globalThis.Request = MockRequest as any;
 globalThis.URL = MockURL as any;
+
+// Mock sveltekit-rate-limiter/server
+mock.module('sveltekit-rate-limiter/server', () => ({
+	RateLimiter: class MockRateLimiter {
+		constructor() {}
+		async isLimited() {
+			return false;
+		}
+		cookieLimiter() {
+			return this;
+		}
+	},
+	RetryAfterRateLimiter: class MockRetryAfterRateLimiter {
+		constructor() {}
+		async isLimited() {
+			return false;
+		}
+	}
+}));
 
 // Mock @sveltejs/kit to expose global Request/URL using our mocks
 mock.module('@sveltejs/kit', () => ({
@@ -239,24 +337,27 @@ mock.module('@sveltejs/kit', () => ({
 		}
 	};
 };
+(globalThis as any).$state.snapshot = (val: any) => JSON.parse(JSON.stringify(val));
+
 const derivedMock = (fn: any) => {
 	const compute = () => (typeof fn === 'function' ? fn() : fn);
 	return new Proxy(
 		{},
 		{
-			get: (_, prop) => {
+			get: (_: any, prop: any) => {
 				const value = compute();
 				if (prop === 'value') return value;
-				// If value is null/undefined, let valid js access happen (will throw) or return undefined?
-				// But normally we act as the value.
-				if (value && typeof value === 'object') {
-					return value[prop];
+				if (value === null || value === undefined) return undefined;
+				if (typeof value === 'object') {
+					return (value as any)[prop];
 				}
-				// If it's a primitive, we can't really proxy property access well except for methods (like .length on string)
-				// But for the setupStore case, checking .match on an object, this should work.
-				return value[prop];
+				return (value as any)[prop];
+			},
+			[Symbol.toPrimitive](_hint: string) {
+				const value = compute();
+				return value;
 			}
-		}
+		} as any
 	);
 };
 
@@ -367,12 +468,12 @@ mock.module('@src/stores/screenSizeStore.svelte.ts', () => {
 // 7. STORE & SETTINGS MOCKS
 // =============================================================================
 
-mock.module('@src/stores/globalSettings', () => ({
+mock.module('@stores/globalSettings', () => ({
 	publicEnv: (globalThis as any).publicEnv,
 	privateEnv: (globalThis as any).privateEnv
 }));
 
-mock.module('@src/stores/globalSettings.svelte.ts', () => ({
+mock.module('@stores/globalSettings.svelte.ts', () => ({
 	publicEnv: (globalThis as any).publicEnv,
 	privateEnv: (globalThis as any).privateEnv,
 	initPublicEnv: () => {},
@@ -380,7 +481,7 @@ mock.module('@src/stores/globalSettings.svelte.ts', () => ({
 	updatePublicEnv: () => {}
 }));
 
-mock.module('@src/stores/store.svelte.ts', () => {
+mock.module('@stores/store.svelte.ts', () => {
 	const mockApp = {
 		systemLanguage: 'en',
 		contentLanguage: 'en',
@@ -421,6 +522,9 @@ mock.module('@src/stores/store.svelte.ts', () => {
 mock.module('@src/paraglide/messages', () => ({
 	widgets_nodata: () => 'No Data',
 	widget_richText_description: () => 'Rich text widget description',
+	widget_relation_description: () => 'Relation widget description',
+	widget_address_description: () => 'Address widget description',
+	widget_group_description: () => 'Group widget description',
 	setup_step_database: () => 'Database Configuration',
 	setup_step_database_desc: () => 'Configure your database connection',
 	setup_step_admin: () => 'Admin Account',
@@ -461,12 +565,6 @@ mock.module('@src/paraglide/runtime', () => ({
 // =============================================================================
 // 9. OTHER UTILITY MOCKS
 // =============================================================================
-
-mock.module('@src/paraglide/runtime', () => ({
-	getLocale: () => 'en',
-	setLocale: () => {},
-	locales: ['en', 'de', 'fr', 'es', 'it', 'pt']
-}));
 
 mock.module('@utils/languageUtils', () => ({
 	getLanguageName: (code: string) => {
@@ -587,7 +685,9 @@ mock.module('@src/databases/db', () => ({
 				])
 		}
 	},
-	getPrivateEnv: () => ({})
+	getPrivateEnv: () => ({}),
+	dbInitPromise: Promise.resolve(),
+	getDbInitPromise: () => Promise.resolve()
 }));
 
 console.log('✅ Global test environment setup complete');

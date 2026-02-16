@@ -132,7 +132,7 @@ From the 2026 roadmap (v0.0.6, target A+ grade), prioritize these for parity/lea
 - [x] **Live Preview (Iframe + Plugin)**: Enterprise handshake protocol with secure tokens; iframe + editable.website integration; see `docs/guides/Live_Preview_Architecture.mdx`.
 - [x] **Automation System (GUI Builder)**: Visual workflow engine for event-triggered actions (email, webhooks, field updates). Native and zero-config.
 - [ ] **Plugin System**: Isomorphic hook-based architecture for extensibility.
-- [ ] **Real-Time Collaboration**: WebSocket-based collaborative editing with live cursors.
+- [x] **Real-Time Collaboration**: SSE-based lightweight activity stream and AI assistant. Support for AI chat, group/peer collaboration, and system-wide activity logs. Integrated with Svelte 5 runes and System State machine.
 - [ ] **BuzzForm Collection Builder**: Visual drag-and-drop form/collection builder (like [form.buildnbuzz.com](https://form.buildnbuzz.com/builder)); improved UX for non-technical users. Timeline: Q1 2026.
 - [ ] **MCP AI Knowledgebase Server**: Model Context Protocol server exposing CMS docs, schemas, and APIs as AI-accessible knowledge; enables AI coding assistants to understand SveltyCMS ecosystem. Timeline: Q1 2026.
 - [/] **Image Editor Enhancement**: Current implementation buggy; needs stabilization and feature improvements.

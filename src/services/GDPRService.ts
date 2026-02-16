@@ -51,7 +51,7 @@ export class GDPRService {
 			// 3. Log the Export Request
 			await auditLogService.log(
 				'gdpr.export',
-				{ id: userId, email: user.email, ip: 'system' },
+				{ id: userId, email: user.email || '', ip: 'system' },
 				{ type: 'user', id: userId },
 				{ method: 'GDPRService.exportUserData' }
 			);
@@ -65,7 +65,7 @@ export class GDPRService {
 				}
 			};
 		} catch (error) {
-			logger.error('GDPR Export Failed', { userId, error });
+			logger.error(`GDPR Export Failed: ${error instanceof Error ? error.message : String(error)}`, { userId });
 			throw error;
 		}
 	}
@@ -89,15 +89,19 @@ export class GDPRService {
 			const anonymizedEmail = `deleted-${userId.substring(0, 8)}@anonymized.sveltycms.com`;
 
 			// 2. Perform Soft Delete / Anonymization using Auth Adapter
-			await dbAdapter.auth.updateUserAttributes(userId, {
+			const updateResult = await dbAdapter.auth.updateUserAttributes(userId, {
 				email: anonymizedEmail,
 				username: `ghost-${userId.substring(0, 8)}`
 			});
 
+			if (!updateResult.success) {
+				throw new Error(updateResult.error?.message || 'Failed to update user attributes');
+			}
+
 			// 3. Log the Erasure
 			await auditLogService.log(
 				'gdpr.erasure',
-				{ id: userId, email: user.email, ip: 'system' }, // Log with original identity one last time
+				{ id: userId, email: user.email || '', ip: 'system' }, // Log with original identity one last time
 				{ type: 'user', id: userId },
 				{ reason, newIdentity: anonymizedEmail }
 			);
@@ -105,7 +109,7 @@ export class GDPRService {
 			logger.info(`User ${userId} anonymized successfully.`);
 			return true;
 		} catch (error) {
-			logger.error('GDPR Erasure Failed', { userId, error });
+			logger.error(`GDPR Erasure Failed: ${error instanceof Error ? error.message : String(error)}`, { userId });
 			return false;
 		}
 	}

@@ -23,6 +23,7 @@
 	import * as m from '@src/paraglide/messages';
 
 	// Stores
+	import { collaboration } from '@stores/collaborationStore.svelte';
 	import '@stores/store.svelte.ts';
 	import { avatarSrc, normalizeAvatarUrl } from '@stores/store.svelte.ts';
 	import { triggerActionStore } from '@utils/globalSearchIndex';
@@ -66,6 +67,41 @@
 				await invalidateAll();
 			}
 		});
+	}
+
+	// Function to update RTC preferences
+	async function updateRtcPreference(key: 'enabled' | 'sound', value: boolean) {
+		const newUserData = {
+			preferences: {
+				rtc: {
+					...serverUser?.preferences?.rtc,
+					[key]: value
+				}
+			}
+		};
+
+		try {
+			const res = await fetch('/api/user/updateUserAttributes', {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ user_id: 'self', newUserData })
+			});
+
+			if (res.ok) {
+				toaster.success('Preferences updated');
+				await invalidateAll();
+				// If RTC was disabled, close connection
+				if (key === 'enabled' && !value) {
+					collaboration.close();
+				} else if (key === 'enabled' && value) {
+					collaboration.connect();
+				}
+			} else {
+				toaster.error('Failed to update preferences');
+			}
+		} catch {
+			toaster.error('Error updating preferences');
+		}
 	}
 
 	// Function to execute actions
@@ -182,6 +218,38 @@
 						</div>
 					</button>
 				{/if}
+
+				<!-- Collaboration Settings -->
+				<div class="card p-4 w-full max-w-xs space-y-4 bg-surface-200-700-token border border-surface-500/20 shadow-sm">
+					<div class="flex items-center justify-between">
+						<div class="flex items-center gap-2">
+							<iconify-icon icon="material-symbols:Forum-outline" class="text-primary-500" width={20}></iconify-icon>
+							<span class="text-sm font-bold">Real-time Collaboration</span>
+						</div>
+						<input
+							type="checkbox"
+							class="checkbox"
+							checked={serverUser?.preferences?.rtc?.enabled ?? true}
+							onchange={async (e) => {
+								const enabled = (e.target as HTMLInputElement).checked;
+								await updateRtcPreference('enabled', enabled);
+							}}
+						/>
+					</div>
+					<div class="flex items-center justify-between pl-7 opacity-80">
+						<span class="text-xs">Sound Notifications</span>
+						<input
+							type="checkbox"
+							class="checkbox checkbox-sm"
+							checked={serverUser?.preferences?.rtc?.sound ?? true}
+							onchange={async (e) => {
+								const sound = (e.target as HTMLInputElement).checked;
+								await updateRtcPreference('sound', sound);
+							}}
+						/>
+					</div>
+				</div>
+
 				<!-- Tenant ID -->
 				{#if isMultiTenant}
 					<div class="gradient-primary badge w-full max-w-xs text-white">

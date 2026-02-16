@@ -527,11 +527,11 @@
 											<div class="mt-1 rounded border border-error-500/30 bg-error-500/10 p-2">
 												<span class="text-error-700 dark:text-error-300">- {JSON.stringify(ch.old)}</span>
 											</div>
-											<div class="mt-1 rounded border border-success-500/30 bg-success-500/10 p-2">
+											<div class="mt-1 rounded border border-success-500/30 bg-primary-500/10 p-2">
 												<span class="text-success-700 dark:text-success-300">+ {JSON.stringify(ch.new)}</span>
 											</div>
 										{:else if ch.status === 'added'}
-											<div class="mt-1 rounded border border-success-500/30 bg-success-500/10 p-2">
+											<div class="mt-1 rounded border border-success-500/30 bg-primary-500/10 p-2">
 												<span class="text-success-700 dark:text-success-300">+ {JSON.stringify(ch.value)}</span>
 											</div>
 										{:else if ch.status === 'deleted'}

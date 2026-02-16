@@ -330,15 +330,14 @@
 
 		// CYCLE DETECTION: Prevent dropping parent into its own child
 		if (targetParentId && movingIds.size > 0) {
-			// Check if any moved item is an ancestor of the target
 			for (const movedId of movingIds) {
 				if (isAncestorOf(movedId, targetParentId, treeRoots)) {
 					const movedNode = findNode(treeRoots, movedId);
 					announce(`Cannot move "${movedNode?.name || 'item'}" into its own sub-category`);
 
-					// Reset to snapshot to revert visual changes
+					// Revert to snapshot
 					if (nodeSnapshot.size > 0) {
-						treeRoots = Array.from(nodeSnapshot.values()).filter((n) => !n.parent);
+						treeRoots = buildTree(flattenTree(Array.from(nodeSnapshot.values()).filter((n) => !n.parent)));
 					}
 					isDragging = false;
 					return;
@@ -346,40 +345,51 @@
 			}
 		}
 
-		// Create new flat list from the updated structure
+		// 1. Remove moving items from their current (old) positions in the tree
+		// This creates a "clean" tree where moved items only exist in newZoneItems
+		function cleanTree(nodes: EnhancedTreeViewItem[]): EnhancedTreeViewItem[] {
+			return nodes
+				.filter((n) => !movingIds.has(n.id))
+				.map((n) => ({
+					...n,
+					children: cleanTree(n.children || [])
+				}));
+		}
+
+		const cleanedRoots = cleanTree(treeRoots);
+
+		// 2. Reconstruct the tree with moved items in their new location
 		let newTreeRoots: EnhancedTreeViewItem[];
 
 		if (targetParentId === null) {
-			// Dropped at root level - newZoneItems IS the new roots
+			// Dropped at root level - newZoneItems are the new roots.
+			// newZoneItems already contains all items that should be at the root level.
 			newTreeRoots = newZoneItems.map((item: EnhancedTreeViewItem) => ({
 				...item,
 				parent: null,
 				children: item.children || []
 			}));
 		} else {
-			// Dropped into a parent - reconstruct tree
-			const targetParent = findNode(treeRoots, targetParentId);
-			if (!targetParent) {
-				isDragging = false;
-				return;
-			}
-
-			// Update target parent's children
-			targetParent.children = newZoneItems.map((item: EnhancedTreeViewItem) => ({
-				...item,
-				parent: targetParentId,
-				children: item.children || []
-			}));
-
-			// Remove moved items from their old locations elsewhere in tree
-			newTreeRoots = removeItemsFromTree(treeRoots, movingIds);
-
-			// Ensure target parent is in the tree (might have been removed if it was moved)
-			if (!findNode(newTreeRoots, targetParentId)) {
-				// Target was moved, need to add it back at root or find its new location
-				// This shouldn't happen if cycle detection works, but safety check
-				newTreeRoots = [...newTreeRoots, targetParent];
-			}
+			// Dropped into a parent - find target and update its children
+			const updateTargetParent = (nodes: EnhancedTreeViewItem[]): EnhancedTreeViewItem[] => {
+				return nodes.map((n) => {
+					if (n.id === targetParentId) {
+						return {
+							...n,
+							children: newZoneItems.map((item: EnhancedTreeViewItem) => ({
+								...item,
+								parent: targetParentId,
+								children: item.children || []
+							}))
+						};
+					}
+					return {
+						...n,
+						children: updateTargetParent(n.children || [])
+					};
+				});
+			};
+			newTreeRoots = updateTargetParent(cleanedRoots);
 		}
 
 		// Update state - use structuredClone to strip Svelte 5 proxies for svelte-dnd-action compatibility
@@ -412,16 +422,6 @@
 		}
 
 		return false;
-	}
-
-	// Helper: Remove specific items from tree while preserving structure
-	function removeItemsFromTree(nodes: EnhancedTreeViewItem[], idsToRemove: Set<string>): EnhancedTreeViewItem[] {
-		return nodes
-			.filter((n) => !idsToRemove.has(n.id))
-			.map((n) => ({
-				...n,
-				children: removeItemsFromTree(n.children || [], idsToRemove)
-			}));
 	}
 
 	// Helper: Take snapshot of entire tree
@@ -482,9 +482,8 @@
 			childrenByParent.get(parentKey)!.push(itemMap.get(item.id)!);
 		}
 
-		for (const [, children] of childrenByParent) {
-			children.sort(sortContentNodes);
-		}
+		// DO NOT SORT HERE. The items are already in the correct order from flattenTree which respects UI order.
+		// Sorting by sortContentNodes (which uses node.order) will use stale order values and break DnD.
 
 		function assignPaths(parentId: string | null, parentPath: string): void {
 			const key = parentId || '__root__';

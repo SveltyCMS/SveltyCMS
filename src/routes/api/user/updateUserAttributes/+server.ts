@@ -37,14 +37,24 @@ import { apiHandler } from '@utils/apiHandler';
 import { AppError } from '@utils/errorHandling';
 
 // Input validation
-import { email, maxLength, minLength, object, optional, parse, pipe, string } from 'valibot';
+import { boolean, email, maxLength, minLength, object, optional, parse, pipe, string } from 'valibot';
 
 // Define the base schema for user data. The 'role' is handled separately for security.
 const baseUserDataSchema = object({
 	email: optional(pipe(string(), email())),
 	username: optional(pipe(string(), minLength(2, 'Username must be at least 2 characters'), maxLength(50, 'Username must not exceed 50 characters'))),
 	password: optional(pipe(string(), minLength(8, 'Password must be at least 8 characters'))),
-	currentPassword: optional(string())
+	currentPassword: optional(string()),
+	preferences: optional(
+		object({
+			rtc: optional(
+				object({
+					enabled: optional(boolean()),
+					sound: optional(boolean())
+				})
+			)
+		})
+	)
 });
 
 export const PUT: RequestHandler = apiHandler(async ({ request, locals, cookies }) => {

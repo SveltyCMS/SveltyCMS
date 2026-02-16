@@ -104,7 +104,7 @@
 
 		function getBadgeColor(status?: StatusType): string {
 			const map: Record<StatusType, string> = {
-				[StatusTypes.publish]: 'bg-success-500',
+				[StatusTypes.publish]: 'bg-primary-500',
 				[StatusTypes.draft]: 'bg-warning-500',
 				[StatusTypes.archive]: 'bg-surface-500',
 				[StatusTypes.schedule]: 'bg-primary-500',

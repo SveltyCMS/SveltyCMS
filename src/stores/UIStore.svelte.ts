@@ -29,6 +29,7 @@ export interface UIState {
 	pagefooter: UIVisibility;
 	header: UIVisibility;
 	footer: UIVisibility;
+	chatPanel: UIVisibility;
 }
 
 /**
@@ -42,7 +43,8 @@ class UIStore {
 		pageheader: 'full',
 		pagefooter: 'hidden',
 		header: 'hidden',
-		footer: 'hidden'
+		footer: 'hidden',
+		chatPanel: 'hidden'
 	});
 
 	// Route context for special layouts
@@ -86,6 +88,10 @@ class UIStore {
 		return this.state.footer !== 'hidden';
 	}
 
+	get isChatPanelVisible(): boolean {
+		return this.state.chatPanel !== 'hidden';
+	}
+
 	constructor() {
 		if (typeof window === 'undefined') return;
 
@@ -116,6 +122,7 @@ class UIStore {
 		// Special routes
 		if (this.routeContext.isImageEditor) {
 			this.state = {
+				...this.state,
 				leftSidebar: 'collapsed',
 				rightSidebar: 'hidden',
 				pageheader: 'full',
@@ -136,6 +143,7 @@ class UIStore {
 			}
 
 			this.state = {
+				...this.state,
 				leftSidebar: sidebarState,
 				rightSidebar: 'hidden',
 				pageheader: 'hidden', // No HeaderEdit in collection builder
@@ -151,6 +159,7 @@ class UIStore {
 		// Mobile
 		if (size === ScreenSize.XS || size === ScreenSize.SM) {
 			this.state = {
+				...this.state,
 				leftSidebar: 'hidden',
 				rightSidebar: 'hidden',
 				pageheader: showPageHeader ? 'full' : 'hidden',
@@ -164,6 +173,7 @@ class UIStore {
 		// Tablet
 		if (size === ScreenSize.MD) {
 			this.state = {
+				...this.state,
 				leftSidebar: isViewMode ? 'collapsed' : 'hidden',
 				rightSidebar: 'hidden',
 				pageheader: showPageHeader ? 'full' : 'hidden',
@@ -176,6 +186,7 @@ class UIStore {
 
 		// Desktop
 		this.state = {
+			...this.state,
 			leftSidebar: isViewMode ? 'full' : 'collapsed',
 			rightSidebar: isViewMode ? 'hidden' : 'full',
 			pageheader: showPageHeader ? 'full' : 'hidden',

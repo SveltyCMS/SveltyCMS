@@ -108,7 +108,7 @@ Features:
 						<button
 							onclick={() => handleToggle(plugin)}
 							class="inline-flex cursor-pointer items-center rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider transition-colors {plugin.enabled
-								? 'bg-success-500 text-white hover:bg-success-600'
+								? 'bg-primary-500 text-white hover:bg-primary-600'
 								: 'bg-surface-200 text-surface-600 hover:bg-surface-300 dark:bg-surface-700 dark:text-surface-400'}"
 						>
 							{plugin.enabled ? 'Active' : 'Disabled'}

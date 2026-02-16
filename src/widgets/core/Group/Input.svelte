@@ -98,11 +98,12 @@ Renders a group of fields, allowing for nested data structures.
 
 	const variant = $derived(variantClasses[(field as any).variant as keyof typeof variantClasses] || variantClasses.default);
 
-	// Collapsible state
-	let isCollapsed = $state($state.snapshot((field as any).collapsed as boolean) || false);
+	// Collapsible state with manual override
+	let manualCollapsed = $state<boolean | null>(null);
+	let isCollapsed = $derived(manualCollapsed ?? (field as any).collapsed ?? false);
 
 	function toggleCollapse() {
-		if ((field as any).collapsible) isCollapsed = !isCollapsed;
+		if ((field as any).collapsible) manualCollapsed = !isCollapsed;
 	}
 </script>
 
@@ -130,7 +131,7 @@ Renders a group of fields, allowing for nested data structures.
 	<div id="{fieldName}-content" class="{variant.content} transition-all duration-200 {isCollapsed ? 'hidden' : 'block'}">
 		{#if (field as any).fields && (field as any).fields.length > 0}
 			<div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
-				{#each (field as any).fields as subField}
+				{#each (field as any).fields as subField (normalizeFieldName(subField))}
 					{@const subFieldName = normalizeFieldName(subField)}
 					{@const widgetName = (subField as any).widget?.Name || (subField as any).type || 'Input'}
 					{@const widgetLoader = getWidgetLoader(widgetName)}

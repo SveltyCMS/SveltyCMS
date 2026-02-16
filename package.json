@@ -26,7 +26,7 @@
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --threshold error",
 		"check:watch": " svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"test": "bun run test:unit",
-		"test:unit": "bun test --preload ./tests/unit/setup.ts tests/unit/services tests/unit/utils tests/unit/stores tests/unit/*.test.ts",
+		"test:unit": "svelte-kit sync && bun test --preload ./tests/unit/setup.ts tests/unit/services tests/unit/utils tests/unit/stores tests/unit/widgets tests/unit/*.test.ts",
 		"test:integration": "bun run scripts/run-integration-tests.ts",
 		"test:integration:run": "bun run scripts/run-integration-tests.ts",
 		"test:hooks": "for test in authorization security-headers theme authentication firewall static-asset-caching system-state api-requests rate-limit locale setup token-resolution; do bun test --preload ./tests/unit/hooks/preload.ts ./tests/unit/hooks/${test}.test.ts || exit 1; done",

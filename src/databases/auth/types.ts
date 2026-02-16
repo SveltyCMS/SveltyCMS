@@ -61,6 +61,12 @@ export interface User {
 	isAdmin?: boolean; // Indicates if the user has admin privileges
 	activeSessions?: number; // Number of active sessions
 	lastAccess?: ISODateString; // Last access timestamp
+	preferences?: {
+		rtc?: {
+			enabled?: boolean; // Master switch
+			sound?: boolean;
+		};
+	};
 }
 
 // Role Interface

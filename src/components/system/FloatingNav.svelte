@@ -1,19 +1,3 @@
-<!--
-@file src/components/system/FloatingNav.svelte
-@component
-**Floating Navigation with Draggable Button and Radial Menu**
-
-Creates a draggable floating navigation button that expands into a radial menu
-with quick access to main sections: Home, User, Collections, Config, etc.
-
-@example
-<FloatingNav />
-
-### Features
-- Draggable floating button
-- Radial menu for quick access to main sections
--->
-
 <script lang="ts">
 	type _any = any;
 
@@ -427,6 +411,25 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 	});
 </script>
 
+<!--
+@file src/components/system/FloatingNav.svelte
+@component
+**Floating Navigation with Draggable Button and Radial Menu**
+
+Creates a draggable floating navigation button that expands into a radial menu
+with quick access to main sections: Home, User, Collections, Config, etc.
+
+@example
+<FloatingNav />
+
+### Interaction Flow
+```mermaid
+graph TD
+    A[Floating Button] -->|Drag|
+B(Update Position) A -->|Click/Space/Enter| C(Toggle Menu) C -->|Open| D[Radial Menu] C -->|Close| E[Restore Focus] D --> F[Keyboard Nav/Hover] F
+-->|Select| G[Navigate & Close] ``` ### Features - Draggable floating button - Radial menu for quick access to main sections - Reduced motion support
+- Full keyboard navigation and ARIA support -->
+
 <SystemTooltip
 	title="Open Navigation Menu"
 	contentClass="z-[99999999]"
@@ -464,6 +467,7 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 			bind:this={svg}
 			xmlns="http://www.w3.org/2000/svg"
 			use:setDash
+			aria-hidden="true"
 			class="pointer-events-none fixed left-0 top-0 h-full w-full [&&>line]:pointer-events-none [&&>line]:stroke-[#da1f1f] [&&>line]:stroke-[3px]"
 		>
 			<line bind:this={firstLine} x1={buttonInfo.x} y1={buttonInfo.y} x2={center.x} y2={center.y} />
@@ -474,6 +478,7 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 
 		<div
 			transition:fade
+			aria-hidden="true"
 			class="absolute left-1/2 top-1/4 z-9999998 -translate-x-1/2 -translate-y-1/2 animate-[showEndPoints_0.2s_0.2s_forwards] rounded-full border bg-tertiary-500/40"
 			style="top:{center.y}px;
 			       left:{center.x}px;

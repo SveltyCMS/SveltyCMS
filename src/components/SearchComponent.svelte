@@ -1,25 +1,3 @@
-<!--
-@file src/components/SearchComponent.svelte
-@component
-**Enhanced Search Component for SveltyCMS - Svelte 5 Optimized**
-
-A highly performant, accessible, and secure global search component with fuzzy matching.
-
-@example:
-<SearchComponent />
-
-### Features:
-- Fuzzy search with optimized edit distance calculation
-- Real-time search results with debounced input
-- Full keyboard navigation (Arrow keys, Enter, Escape, Tab)
-- Screen reader optimized with ARIA live regions
-- Performance optimized with derived state
-- Responsive design with Tailwind CSS
-- XSS protection through sanitized inputs
-- Reduced motion support
-- Focus trap for modal accessibility
--->
-
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { getEditDistance } from '@utils/utils';
@@ -54,11 +32,25 @@ A highly performant, accessible, and secure global search component with fuzzy m
 	let listElement = $state<HTMLUListElement | null>(null);
 	let isSearching = $state(false);
 	let prefersReducedMotion = $state(false);
+	let statusMessage = $state(''); // For screen reader announcements
 
 	// Derived state for better performance
 	const hasResults = $derived(searchResults.length > 0);
 	const showNoResults = $derived(searchQuery.trim() && !hasResults && !isSearching);
 	const sanitizedQuery = $derived(searchQuery.trim().slice(0, 100)); // Limit query length for security
+
+	// Update status message for screen readers
+	$effect(() => {
+		if (isSearching) {
+			statusMessage = 'Searching...';
+		} else if (showNoResults) {
+			statusMessage = `No results found for ${sanitizedQuery}`;
+		} else if (hasResults) {
+			statusMessage = `${searchResults.length} results found. Use arrow keys to navigate.`;
+		} else {
+			statusMessage = '';
+		}
+	});
 
 	// Debounce function with proper TypeScript typing
 	function debounce<T extends (...args: any[]) => any>(fn: T, delay: number): (...args: Parameters<T>) => void {
@@ -302,16 +294,44 @@ A highly performant, accessible, and secure global search component with fuzzy m
 	});
 </script>
 
+<!--
+@file src/components/SearchComponent.svelte
+@component
+**Enhanced Search Component for SveltyCMS - Svelte 5 Optimized**
+
+A highly performant, accessible, and secure global search component with fuzzy matching.
+
+@example:
+<SearchComponent />
+
+### Search Flow:
+```mermaid
+graph TD
+    A[User Input] -->|Debounce
+150ms| B(Fuzzy Search) B -->|Search Index| C[Score Results] C -->|Threshold 40%| D[Filter & Sort] D -->|Top 8| E[Display UI] E -->|Keyboard Nav|
+F[Selection] F -->|Enter| G[Execute Action] ``` ### Features: - Fuzzy search with optimized edit distance calculation - Real-time search results with
+debounced input - Full keyboard navigation (Arrow keys, Enter, Escape, Tab) - Screen reader optimized with ARIA live regions - Performance optimized
+with derived state - Responsive design with Tailwind CSS - XSS protection through sanitized inputs - Reduced motion support - Focus trap for modal
+accessibility -->
+
 {#if $isSearchVisible}
 	<!-- Semi-transparent backdrop -->
-	<div class="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm transition-opacity duration-200" aria-hidden="true"></div>
+	<div
+		class="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm transition-opacity duration-200"
+		aria-hidden="true"
+		onclick={() => isSearchVisible.set(false)}
+	></div>
+
+	<!-- Screen reader status (visually hidden) -->
+	<div class="sr-only" role="status" aria-live="polite">
+		{statusMessage}
+	</div>
 
 	<div
 		class="search-component fixed inset-0 z-50 flex flex-col items-center justify-start pointer-events-none pt-[15vh] transition-opacity duration-200"
 		role="dialog"
 		aria-modal="true"
 		aria-label="Global Search"
-		aria-live="polite"
 	>
 		<!-- Search input with loading indicator -->
 		<div class="relative w-full max-w-xl pointer-events-auto">

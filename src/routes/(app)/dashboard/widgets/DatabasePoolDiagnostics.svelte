@@ -67,7 +67,7 @@
 	function getUtilizationBarColor(utilization: number): string {
 		if (utilization >= 90) return 'bg-error-600';
 		if (utilization >= 75) return 'bg-warning-500';
-		return 'bg-success-500';
+		return 'bg-primary-500';
 	}
 
 	/**

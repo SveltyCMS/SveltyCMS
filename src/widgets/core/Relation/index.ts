@@ -40,8 +40,10 @@ const validationSchema = (field: FieldInstance) => {
 		return (field.required ? pipe(arraySchema, minLength(1, 'At least one entry is required.')) : optional(arraySchema)) as any;
 	}
 
-	const idSchema = pipe(string(), minLength(1, 'An entry must be selected.'));
-	return (field.required ? idSchema : optional(idSchema, '')) as any;
+	if (field.required) {
+		return pipe(string(), minLength(1, 'An entry must be selected.'));
+	}
+	return optional(string(), '');
 };
 
 // Create the widget definition using the factory.

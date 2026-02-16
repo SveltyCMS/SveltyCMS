@@ -68,6 +68,12 @@ import { aiService } from '$services/AIService';
 const reply = await aiService.chat('How do I add a new language?');
 ```
 
-## Future: Community Bot
+### 4. Real-Time Streaming (SSE)
 
-The same `mcp.sveltycms.com` server powers the SveltyCMS Discord bot, ensuring that answers given in the community chat match the documentation accessible inside the CMS.
+SveltyCMS leverages a lightweight Server-Sent Events (SSE) architecture to stream AI responses directly to the user interface.
+
+- **Infrastructure**: `api/events` endpoint broadcasts `eventBus` emissions.
+- **Client Handling**: The `collaborationStore` manages the `EventSource` connection, buffering activity events and assembling streamed AI tokens in real-time.
+- **AI Response Event**: The `ai:response` event carries partial tokens in `payload.data.text` and a completion flag in `payload.data.done`.
+
+This ensures a responsive, "typing" experience for AI assistance without the overhead of WebSockets.

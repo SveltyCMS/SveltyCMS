@@ -20,7 +20,11 @@ export type AutomationEvent =
 	| 'entry:publish'
 	| 'entry:unpublish'
 	| 'media:upload'
-	| 'media:delete';
+	| 'media:delete'
+	| 'webhook:success'
+	| 'webhook:failure'
+	| 'ai:response'
+	| 'chat:message';
 
 /** All available automation events with metadata for the GUI */
 export const AUTOMATION_EVENTS: { event: AutomationEvent; label: string; icon: string; category: 'content' | 'media' }[] = [

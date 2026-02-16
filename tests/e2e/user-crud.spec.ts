@@ -21,8 +21,6 @@ test.describe('User Management Flow', () => {
 		await loginAsAdmin(page);
 
 		// Go to User Profile
-
-		// Go to User Profile
 		await page.getByRole('link', { name: /user profile/i }).click();
 
 		// ✅ READ operation - assert user profile visible
@@ -40,8 +38,6 @@ test.describe('User Management Flow', () => {
 	test('Delete, Block, and Unblock Users', async ({ page }) => {
 		// Login
 		await loginAsAdmin(page);
-
-		// Go to User Profile
 
 		// Go to User Profile
 		await page.getByRole('link', { name: /user profile/i }).click();
@@ -68,8 +64,6 @@ test.describe('User Management Flow', () => {
 		await loginAsAdmin(page);
 
 		// Go to User Profile
-
-		// Go to User Profile
 		await page.getByRole('link', { name: /user profile/i }).click();
 
 		// Click on email user registration token
@@ -82,16 +76,16 @@ test.describe('User Management Flow', () => {
 		await page.getByRole('button', { name: /save/i }).click();
 
 		// Assume invite sent, now simulate user following invite link
-		await page.goto('http://localhost:5173/signup?email=abd@gmail.com&token=5tbv_AQui_vm6StL7SSEWA69-fzwhbbtiLfGbh_8x80');
+		await page.goto('/signup?email=newuser@example.com&token=5tbv_AQui_vm6StL7SSEWA69-fzwhbbtiLfGbh_8x80');
 
 		// Check prefilled fields
 		await expect(page.locator('input[name="email"]')).toHaveValue('newuser@example.com');
-		await expect(page.locator('input[name="token"]')).toHaveValue('1234');
+		await expect(page.locator('input[name="token"]')).toHaveValue('5tbv_AQui_vm6StL7SSEWA69-fzwhbbtiLfGbh_8x80');
 
 		// Fill remaining signup fields
 		await page.fill('input[name="username"]', 'newuser');
-		await page.fill('input[name="password"]', 'user@123');
-		await page.fill('input[name="confirm_password"]', 'user@123');
+		await page.fill('input[name="password"]', 'user@123!');
+		await page.fill('input[name="confirm_password"]', 'user@123!');
 
 		await page.getByRole('button', { name: /accept invitation and create account/i }).click();
 

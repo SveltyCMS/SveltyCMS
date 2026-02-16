@@ -80,7 +80,7 @@ Accessible progress bar with animations, variants, and status indicators.
 			purple: 'bg-purple-600 dark:bg-purple-500',
 			gray: 'bg-gray-600 dark:bg-gray-500',
 			primary: 'bg-primary-500',
-			success: 'bg-success-500',
+			success: 'bg-primary-500',
 			error: 'bg-error-500',
 			warning: 'bg-warning-500'
 		}[color] || 'bg-blue-600'

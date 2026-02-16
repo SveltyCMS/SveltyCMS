@@ -89,7 +89,7 @@ latest version available on GitHub with comprehensive status reporting.
 
 	const transparentClasses = $derived.by(() => {
 		if (badgeColor.includes('success')) {
-			return 'bg-success-500/20 text-success-700 dark:text-success-300';
+			return 'bg-primary-500/20 text-success-700 dark:text-success-300';
 		} else if (badgeColor.includes('warning')) {
 			return 'bg-warning-500/20 text-warning-700 dark:text-warning-300';
 		} else if (badgeColor.includes('error')) {
@@ -166,7 +166,7 @@ latest version available on GitHub with comprehensive status reporting.
 				statusSeverity = 'warning';
 			} else {
 				badgeVariant = 'variant-filled';
-				badgeColor = 'bg-success-500 text-white';
+				badgeColor = 'bg-primary-500 text-white';
 				versionStatusMessage = 'You are up to date';
 				statusIcon = 'mdi:check-circle';
 				statusSeverity = 'success';
@@ -314,7 +314,7 @@ latest version available on GitHub with comprehensive status reporting.
 							: statusSeverity === 'warning'
 								? 'bg-warning-500'
 								: statusSeverity === 'success'
-									? 'bg-success-500'
+									? 'bg-primary-500'
 									: 'bg-surface-500'}"
 						aria-hidden="true"
 					></span>

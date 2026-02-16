@@ -56,6 +56,7 @@
 	import PageFooter from '@components/PageFooter.svelte';
 	import RightSidebar from '@components/RightSidebar.svelte';
 	import SearchComponent from '@components/SearchComponent.svelte';
+	import FloatingChat from '@components/collaboration/FloatingChat.svelte';
 
 	// =============================================
 	// TYPE DEFINITIONS
@@ -295,5 +296,9 @@
 				<footer class="bg-blue-500"></footer>
 			{/if}
 		</div>
+
+		{#if data.user}
+			<FloatingChat />
+		{/if}
 	</div>
 {/if}

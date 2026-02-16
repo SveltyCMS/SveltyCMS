@@ -139,7 +139,7 @@ bun add @boxyhq/saml-jackson  // SAML as a service
 
 1. **Hook-Based Event System** - Hardening and E2E testing for automated workflows.
 2. **AI Integration** - Content generation, smart search via **MCP Server**.
-3. **Real-time Collaboration** - Yjs + TipTap collaboration; **Collaborative editing via Chat/Email integration**.
+3. ✅ **Real-time Collaboration** - SSE-based activity stream and AI assistant. **Implemented (v1.0)**.
 4. **Advanced Search** - Meilisearch or Algolia integration.
 
 ### Medium-term (Q3-Q4 2026)
@@ -152,18 +152,18 @@ bun add @boxyhq/saml-jackson  // SAML as a service
 
 ## 📊 Competitor Comparison (2026)
 
-| Feature              | SveltyCMS       | Strapi 5     | Payload 3.0  | Sanity   | Contentful  |
-| :------------------- | :-------------- | :----------- | :----------- | :------- | :---------- |
-| **Framework**        | **Svelte 5** ✅ | React 18     | React 19     | React 18 | Proprietary |
-| **Database**         | **✅ Agnostic** | ✅ SQL Only  | ✅ SQL/Mongo | ❌ NoSQL | ❌ NoSQL    |
-| **AI Features**      | **✅ Native**   | ⚠️ Partial   | ❌           | ✅       | ✅          |
-| **Real-time Collab** | ❌              | ❌           | ❌           | ✅       | ✅          |
-| **Edge-Ready**       | ⚠️ Partial      | ⚠️ Partial   | ✅           | ✅       | ✅          |
-| **Build Speed**      | **✅ Fastest**  | Medium       | Medium       | N/A      | N/A         |
-| **Bundle Size**      | **✅ Smallest** | Large        | Large        | N/A      | N/A         |
-| **Self-hosted**      | **✅**          | ✅           | ✅           | ❌       | ❌          |
-| **Event Hooks**      | 🔜 **Native**   | ⚠️ Lifecycle | ✅ Hooks     | ✅ GROQ  | 💲 Webhooks |
-| **Open Source**      | **✅ BSL**      | ✅ MIT       | ✅ MIT       | ❌       | ❌          |
+| Feature              | SveltyCMS           | Strapi 5     | Payload 3.0  | Sanity   | Contentful  |
+| :------------------- | :------------------ | :----------- | :----------- | :------- | :---------- |
+| **Framework**        | **Svelte 5** ✅     | React 18     | React 19     | React 18 | Proprietary |
+| **Database**         | **✅ Agnostic**     | ✅ SQL Only  | ✅ SQL/Mongo | ❌ NoSQL | ❌ NoSQL    |
+| **AI Features**      | **✅ Native**       | ⚠️ Partial   | ❌           | ✅       | ✅          |
+| **Real-time Collab** | **✅ Native (SSE)** | ❌           | ❌           | ✅       | ✅          |
+| **Edge-Ready**       | ⚠️ Partial          | ⚠️ Partial   | ✅           | ✅       | ✅          |
+| **Build Speed**      | **✅ Fastest**      | Medium       | Medium       | N/A      | N/A         |
+| **Bundle Size**      | **✅ Smallest**     | Large        | Large        | N/A      | N/A         |
+| **Self-hosted**      | **✅**              | ✅           | ✅           | ❌       | ❌          |
+| **Event Hooks**      | 🔜 **Native**       | ⚠️ Lifecycle | ✅ Hooks     | ✅ GROQ  | 💲 Webhooks |
+| **Open Source**      | **✅ BSL**          | ✅ MIT       | ✅ MIT       | ❌       | ❌          |
 
 ---
 

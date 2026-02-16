@@ -1,4 +1,18 @@
-import { describe, it, expect, beforeAll } from 'bun:test';
+import { describe, it, expect, beforeAll, mock } from 'bun:test';
+
+// Unmock token system for this test
+mock.module('@src/services/token/engine', () => {
+	// Import the REAL engine but we can't easily do that inside mock.module
+	// without circular dependency.
+	// Instead we rely on the fact that Bun allows restoring or we just use
+	// the real one by NOT pre-mocking it.
+	// However, setup.ts already mocked it.
+	return {
+		// eslint-disable-next-line @typescript-eslint/no-require-imports
+		...require('../../../src/services/token/engine')
+	};
+});
+
 import { TokenRegistry, replaceTokens } from '@src/services/token/engine';
 import { processTokensInResponse } from '@src/services/token/helper';
 import { modifierRegistry } from '@src/services/token/modifiers';
