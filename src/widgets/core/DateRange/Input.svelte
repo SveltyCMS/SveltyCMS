@@ -1,164 +1,134 @@
 <!--
-@file src/widgets/core/DateRange/Display.svelte
+@file src/widgets/core/DateRange/Input.svelte
 @component
-**DateRange Display Component**
+**DateRange Widget Input Component**
 
-A lightweight renderer for the DateRange widget. Formats a `{ start, end }` value
-(ISO 8601 strings) into a human-readable date range string with duration and context.
+Provides an interface for selecting a date range (start and end) using native HTML date inputs.
+Part of the Three Pillars Architecture for widget system.
 
 @example
-<DateRangeDisplay value={value} format="medium" />
+<DateRangeInput bind:value={rangeValue} {field} />
 
 #### Props
-- `value: DateRangeWidgetData | null | undefined` - The date range value ({ start, end })
-- `format?: 'short' | 'medium' | 'long' | 'full'` - Display month formatting (default: 'medium')
+- `field: FieldType` - Widget field definition with metadata
+- `value: DateRangeWidgetData | null | undefined` - { start: string, end: string } (bindable)
+- `error: string | null | undefined` - Validation error message
 
 #### Features
-- Compact synchronous renderer optimized for lists
-- Shows duration (days, weeks, months, years)
-- Shows temporal context (Current / Past / Future)
-- Locale-aware formatting using browser locale
-- Single date display when start equals end
-- Graceful error handling
+- Dual native date pickers
+- Automatic validation (Start <= End)
+- ISO 8601 UTC normalization
+- Required field support
+- Accessible with ARIA labels
 -->
 
 <script lang="ts">
-	import type { DateRangeWidgetData } from './';
-	import { logger } from '@utils/logger';
+	import { getFieldName } from '@src/utils/utils';
+	import { validationStore } from '@src/stores/store.svelte';
+	import type { FieldType } from './';
 
-	interface Props {
-		value: DateRangeWidgetData | null | undefined;
-		format?: 'short' | 'medium' | 'long' | 'full';
+	let {
+		field,
+		value = $bindable(),
+		error
+	}: { field: FieldType; value: { start: string; end: string } | null | undefined | Record<string, any>; error?: string | null } = $props();
+
+	const fieldName = $derived(getFieldName(field));
+	// Handle input changes
+	function handleInput(type: 'start' | 'end', e: Event) {
+		const input = e.currentTarget as HTMLInputElement;
+		const dateStr = input.value;
+
+		if (!value) value = { start: '', end: '' };
+
+		if (dateStr) {
+			try {
+				const date = new Date(dateStr);
+
+				// Ensure value object exists before assignment
+				if (!value) value = { start: '', end: '' };
+
+				// Assign properties safely to the reactive value
+				if (type === 'start') {
+					(value as { start: string; end: string }).start = date.toISOString();
+				} else {
+					(value as { start: string; end: string }).end = date.toISOString();
+				}
+
+				// Validate range
+				validateRange();
+			} catch {
+				// Invalid date, ignore
+			}
+		} else {
+			if (!value) value = { start: '', end: '' };
+			if (type === 'start') {
+				(value as { start: string; end: string }).start = '';
+			} else {
+				(value as { start: string; end: string }).end = '';
+			}
+		}
 	}
 
-	let { value, format = 'medium' }: Props = $props();
+	function validateRange() {
+		if (!value?.start || !value?.end) return;
+		const start = new Date(value.start);
+		const end = new Date(value.end);
 
-	// Get the user's preferred language from the browser
-	const userLocale = $derived(typeof document !== 'undefined' ? document.documentElement.lang || 'en-US' : 'en-US');
-
-	/**
-	 * Format the date range string
-	 */
-	const formattedRange = $derived.by(() => {
-		if (!value?.start || !value?.end) return '–';
-
-		try {
-			const start = new Date(value.start);
-			const end = new Date(value.end);
-
-			if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-				return 'Invalid Range';
-			}
-
-			const dateFormatter = new Intl.DateTimeFormat(userLocale, {
-				year: 'numeric',
-				month: format === 'short' ? 'short' : 'long',
-				day: 'numeric'
-			});
-
-			const startFormatted = dateFormatter.format(start);
-			const endFormatted = dateFormatter.format(end);
-
-			// If dates are the same, show single date
-			if (start.toDateString() === end.toDateString()) {
-				return startFormatted;
-			}
-
-			return `${startFormatted} → ${endFormatted}`;
-		} catch (e) {
-			logger.warn('Date range formatting error:', e);
-			return 'Invalid Range';
+		if (start > end) {
+			validationStore.setError(fieldName, 'End date must be after start date.');
+		} else {
+			validationStore.clearError(fieldName);
 		}
-	});
+	}
 
-	/**
-	 * Calculate duration for additional context
-	 */
-	const duration = $derived.by(() => {
-		if (!value?.start || !value?.end) return null;
-
-		try {
-			const start = new Date(value.start);
-			const end = new Date(value.end);
-			const diffTime = end.getTime() - start.getTime();
-			const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-			if (diffDays === 1) return '1 day';
-			if (diffDays < 7) return `${diffDays} days`;
-			if (diffDays < 30) {
-				const weeks = Math.ceil(diffDays / 7);
-				return `${weeks} week${weeks > 1 ? 's' : ''}`;
-			}
-			if (diffDays < 365) {
-				const months = Math.ceil(diffDays / 30);
-				return `${months} month${months > 1 ? 's' : ''}`;
-			}
-			const years = Math.ceil(diffDays / 365);
-			return `${years} year${years > 1 ? 's' : ''}`;
-		} catch {
-			return null;
-		}
-	});
-
-	/**
-	 * Determine temporal context (Current / Past / Future)
-	 */
-	const relativeContext = $derived.by(() => {
-		if (!value?.start || !value?.end) return null;
-
-		try {
-			const now = new Date();
-			const start = new Date(value.start);
-			const end = new Date(value.end);
-
-			if (start <= now && end >= now) return 'Current';
-			if (end < now) return 'Past';
-			if (start > now) return 'Future';
-
-			return null;
-		} catch {
-			return null;
-		}
-	});
-
-	/**
-	 * Get context badge classes
-	 */
-	const contextClasses = $derived.by(() => {
-		const baseClasses = 'ml-2 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium';
-		const contextMap = {
-			Current: 'bg-primary-100 text-primary-800 dark:bg-primary-900 dark:text-primary-200',
-			Past: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
-			Future: 'bg-success-100 text-success-800 dark:bg-success-900 dark:text-success-200'
-		};
-		return `${baseClasses} ${relativeContext ? contextMap[relativeContext as keyof typeof contextMap] : ''}`;
-	});
-
-	/**
-	 * Get tooltip text
-	 */
-	const tooltipText = $derived.by(() => {
-		if (!value?.start || !value?.end) return undefined;
-		try {
-			const start = new Date(value.start).toISOString();
-			const end = new Date(value.end).toISOString();
-			return `${start} to ${end}`;
-		} catch {
-			return undefined;
-		}
-	});
+	// derived values for inputs (needs YYYY-MM-DD)
+	const startDateInput = $derived(value?.start ? value.start.split('T')[0] : '');
+	const endDateInput = $derived(value?.end ? value.end.split('T')[0] : '');
 </script>
 
-<span class="inline-flex items-center font-medium text-gray-900 dark:text-gray-100" title={tooltipText}>
-	<span>{formattedRange}</span>
-	{#if duration}
-		<span class="ml-2 text-sm font-normal text-gray-500 dark:text-gray-400" aria-label="Duration: {duration}">
-			({duration})
-		</span>
+<div class="mb-4 w-full">
+	<div class="flex gap-2">
+		<!-- Start Date -->
+		<div class="flex-1">
+			<label for={`${field.db_fieldName}_start`} class="block text-sm font-medium text-surface-700 dark:text-surface-200 mb-1">Start</label>
+			<div
+				class="flex w-full overflow-hidden rounded border border-surface-400 dark:border-surface-600 focus-within:ring-1 focus-within:ring-primary-500"
+			>
+				<input
+					type="date"
+					id={`${field.db_fieldName}_start`}
+					name={`${field.db_fieldName}_start`}
+					value={startDateInput}
+					oninput={(e) => handleInput('start', e)}
+					required={field.required}
+					class="input w-full flex-1 rounded-none border-none bg-white font-medium text-black outline-none focus:ring-0 dark:bg-surface-900 dark:text-primary-500"
+					aria-label="Start Date"
+				/>
+			</div>
+		</div>
+
+		<!-- End Date -->
+		<div class="flex-1">
+			<label for={`${field.db_fieldName}_end`} class="block text-sm font-medium text-surface-700 dark:text-surface-200 mb-1">End</label>
+			<div
+				class="flex w-full overflow-hidden rounded border border-surface-400 dark:border-surface-600 focus-within:ring-1 focus-within:ring-primary-500"
+			>
+				<input
+					type="date"
+					id={`${field.db_fieldName}_end`}
+					name={`${field.db_fieldName}_end`}
+					value={endDateInput}
+					oninput={(e) => handleInput('end', e)}
+					required={field.required}
+					class="input w-full flex-1 rounded-none border-none bg-white font-medium text-black outline-none focus:ring-0 dark:bg-surface-900 dark:text-primary-500"
+					aria-label="End Date"
+				/>
+			</div>
+		</div>
+	</div>
+
+	{#if error}
+		<p class="mt-1 text-xs text-error-500" role="alert">{error}</p>
 	{/if}
-	{#if relativeContext}
-		<span class={contextClasses} aria-label="Time context: {relativeContext}">
-			{relativeContext}
-		</span>
-	{/if}
-</span>
+</div>

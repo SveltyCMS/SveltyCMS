@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, beforeEach, mock } from 'bun:test';
-import { setupStore } from '@src/stores/setupStore.svelte';
+import { setupStore } from '@src/stores/setupStore.svelte.ts';
 
 // Mock dependencies
 mock.module('@utils/logger', () => ({

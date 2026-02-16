@@ -103,22 +103,24 @@ Renders a color input with label, helper, and validation
 	<div class="flex items-center rounded gap-0.5 border border-surface-400 pr-1">
 		<input
 			type="color"
-			id={field.db_fieldName}
-			name={field.db_fieldName}
+			id="{field.db_fieldName}-picker"
+			name="{field.db_fieldName}-picker"
 			value={localValue}
 			oninput={(e) => updateParent(e.currentTarget.value)}
 			class="pl-2 h-9 w-9 shrink-0 cursor-pointer border-none bg-transparent p-0"
-			aria-label="Color Picker"
+			aria-label="{field.label} Color Picker"
 		/>
 
 		<div class="relative grow">
 			<input
 				type="text"
+				id={field.db_fieldName}
+				name={field.db_fieldName}
 				value={localValue}
 				oninput={(e) => updateParent(e.currentTarget.value)}
 				placeholder={m.colorPicker_hex()}
 				class="w-full grow border-none bg-transparent font-mono outline-none focus:outline-none"
-				aria-label="Hex Color Value"
+				aria-label="{field.label} Hex Value"
 			/>
 		</div>
 	</div>

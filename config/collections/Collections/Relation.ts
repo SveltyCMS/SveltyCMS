@@ -12,6 +12,7 @@ export const schema: Schema = {
 	// Optional & Icon, status, slug
 	// See for possible Icons https://icon-sets.iconify.design/
 	icon: 'mdi:relation-many-to-many',
+	description: 'Demonstrates Many-to-Many relationships',
 
 	// Defined Fields that are used in Collection
 	// Widget fields can be inspected for individual options
@@ -19,8 +20,21 @@ export const schema: Schema = {
 		widgets.Relation({
 			label: 'Relation M2M to Posts',
 			db_fieldName: 'relationM2MPosts',
-			relation: 'Names',
-			displayPath: 'Last Name'
+			collection: 'names',
+			displayField: 'name',
+			helper: 'This is a required relation to a user'
+		}),
+
+		widgets.Relation({
+			label: 'Multiple Relations (Tags)',
+			db_fieldName: 'tags',
+			collection: 'names',
+			displayField: 'name',
+			multiple: true,
+			min: 1,
+			max: 5,
+			icon: 'mdi:tag-multiple',
+			helper: 'Select up to 5 tags (Many-to-Many example)'
 		})
 	]
 };

@@ -34,9 +34,10 @@
 
 <h3 align="center"><strong>It's lightning fast, flexible and an easy to use modern content management system to provide a headless backend</strong></h3>
 
-This SveltyCMS headless CMS provides a powerful backend based on a modern [SvelteKit 2 / Svelte 5](https://svelte.dev) framework. Being designed to be database agnostic, we fully support **MongoDB 9** and **MariaDB/MySQL** (via [Drizzle ORM](https://drizzle-orm.netlify.app)). Postgres support is planned.
+This SveltyCMS headless CMS provides a powerful backend based on a modern [SvelteKit 2 / Svelte 5](https://svelte.dev) framework. Being designed to be database agnostic, we fully support **MongoDB 9** and **MariaDB/MySQL** (via [Drizzle ORM](https://drizzle-orm.netlify.app)).
 
-You can define Content Collections in two ways: in code or via the GUI-based collection builder. Full TypeScript support and a rich widget library make it straightforward to build custom data structures.
+- [x] **PostgreSQL Support (Working)**: Adapter implementation complete; core CRUD and Auth modules operational; currently in active testing/beta. Timeline: Available Now.
+      You can define Content Collections in two ways: in code or via the GUI-based collection builder. Full TypeScript support and a rich widget library make it straightforward to build custom data structures.
 
 All widget fields support localization, validation using [Valibot](https://valibot.dev), and access control.
 
@@ -258,6 +259,8 @@ SveltyCMS is built with modern optimization techniques resulting in a **compact 
 | **SveltyCMS**   | **604 KB**            | **508 KB** ⚡        | SvelteKit 5 + Vite |
 | WordPress Admin | ~800 KB               | ~675 KB              | jQuery + PHP       |
 | Drupal Admin    | ~1.1 MB               | ~930 KB              | jQuery + Drupal    |
+| Payload CMS     | ~2.5 MB               | ~850 KB              | React + Next.js    |
+| Directus        | ~1.5 MB               | ~750 KB              | Vue.js             |
 
 </div>
 

@@ -278,7 +278,11 @@ To enable map features, you must provide a **Google Maps API Key**:
 publicEnv.GOOGLE_MAPS_API_KEY = 'AIzaSy...';
 ```
 
-If no API key is present, the map will simply not render, but manual input remains fully functional.
+If no API key is present:
+
+- The map container will show a friendly "Map unavailable - API Key missing" message with an icon.
+- Manual address input fields remain fully functional.
+- Console warnings will alert developers to the missing key.
 
 ### Without Mapbox
 

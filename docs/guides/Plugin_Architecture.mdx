@@ -19,6 +19,8 @@ SveltyCMS features a robust, enterprise-grade plugin architecture designed to al
 
 ## System Overview
 
+The plugin system is designed to be **Database Agnostic**. Plugins interact with the data layer through abstract interfaces, ensuring they function correctly regardless of whether the underlying database is MongoDB, PostgreSQL, MySQL, or MariaDB.
+
 The following diagram illustrates how plugins interact with the core Host Application:
 
 ```mermaid

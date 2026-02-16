@@ -43,7 +43,7 @@ jobs:
             bun.lock
 
   integration:
-    name: 🔌 Integration (${{ matrix.database }})
+    name: '🔌 Integration (${{ matrix.database }})'
     needs: build
     runs-on: ubuntu-latest
     strategy:
@@ -129,7 +129,7 @@ jobs:
         timeout-minutes: 15
 
   e2e:
-    name: 🎭 E2E (${{ matrix.database }})
+    name: '🎭 E2E (${{ matrix.database }})'
     needs: build
     runs-on: ubuntu-latest
     strategy:

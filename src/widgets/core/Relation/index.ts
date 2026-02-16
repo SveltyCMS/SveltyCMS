@@ -28,13 +28,20 @@ import { createWidget } from '@src/widgets/widgetFactory';
 // Type for aggregation field parameter
 type AggregationField = { db_fieldName: string; collection: string; displayField: string; [key: string]: unknown };
 
-import { minLength, optional, pipe, string, type InferInput as ValibotInput } from 'valibot';
+import { array, minLength, maxLength, optional, pipe, string, type InferInput as ValibotInput } from 'valibot';
 import type { RelationProps } from './types';
 
-// The validation schema ensures the value is a string ID.
+// The validation schema ensures the value is a string ID or array of IDs.
 const validationSchema = (field: FieldInstance) => {
+	if (field.multiple) {
+		let arraySchema: any = array(string());
+		if (field.min) arraySchema = pipe(arraySchema, minLength(field.min as number, `Select at least ${field.min} entries.`));
+		if (field.max) arraySchema = pipe(arraySchema, maxLength(field.max as number, `Select at most ${field.max} entries.`));
+		return (field.required ? pipe(arraySchema, minLength(1, 'At least one entry is required.')) : optional(arraySchema)) as any;
+	}
+
 	const idSchema = pipe(string(), minLength(1, 'An entry must be selected.'));
-	return field.required ? idSchema : optional(idSchema, '');
+	return (field.required ? idSchema : optional(idSchema, '')) as any;
 };
 
 // Create the widget definition using the factory.
@@ -59,17 +66,37 @@ const RelationWidget = createWidget<RelationProps>({
 
 		// Widget-specific fields
 		collection: {
-			widget: 'CollectionPicker', // A dropdown to select a collection
+			widget: 'CollectionPicker',
 			required: true
 		},
 		displayField: {
-			widget: 'FieldPicker', // A dropdown to select a field from the chosen collection
+			widget: 'FieldPicker',
 			required: true
+		},
+		multiple: {
+			widget: 'Toggles',
+			label: 'Allow Multiple',
+			required: false
+		},
+		min: {
+			widget: 'Input',
+			type: 'number',
+			label: 'Min Items',
+			required: false
+			// hidden: (data) => !data.multiple
+		},
+		max: {
+			widget: 'Input',
+			type: 'number',
+			label: 'Max Items',
+			required: false
+			// hidden: (data) => !data.multiple
 		}
 	},
 
 	defaults: {
-		translated: false
+		translated: false,
+		multiple: false
 	},
 	// Aggregation performs a lookup to search by the related entry's displayField.
 	// SECURITY: Includes tenant isolation to prevent IDOR attacks
@@ -92,9 +119,9 @@ const RelationWidget = createWidget<RelationProps>({
 	},
 
 	// GraphQL schema for relation (returns ID of related document)
-	GraphqlSchema: () => ({
-		typeID: 'String', // Related document ID
-		graphql: '' // No custom type definition needed
+	GraphqlSchema: ({ field }) => ({
+		typeID: (field as RelationProps).multiple ? '[String]' : 'String',
+		graphql: ''
 	})
 });
 

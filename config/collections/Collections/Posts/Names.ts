@@ -11,6 +11,7 @@ export const schema: Schema = {
 	// Optional & Icon, status, slug
 	// See for possible Icons https://icon-sets.iconify.design/
 	icon: 'fluent:rename-28-filled',
+	description: 'Scoped Names collection to test UUID collision with same filenames',
 	status: 'unpublish',
 	revision: true,
 	livePreview: '/api/preview?slug=/posts/names/{slug}',
@@ -25,18 +26,21 @@ export const schema: Schema = {
 			placeholder: 'Enter First Name',
 			width: 2
 		}),
-		widgets.Input({
-			label: 'Last Name',
-			translated: true,
-			icon: 'ri:t-box-line',
-			placeholder: 'Enter Last Name',
-			width: 2,
-			required: true,
-			permissions: {
-				developer: {
-					read: false // User cannot read, other roles default to true
-				}
-			}
+
+		widgets.Select({
+			label: 'Role',
+			db_fieldName: 'role',
+			icon: 'fluent:person-key-20-filled',
+			options: ['Author', 'Editor', 'Contributor', 'Guest'],
+			default: 'Contributor',
+			width: 2
+		}),
+		widgets.MediaUpload({
+			label: 'Avatar',
+			db_fieldName: 'avatar',
+			icon: 'fluent:person-circle-24-filled',
+			folder: 'avatars',
+			multiupload: false
 		})
 	]
 };

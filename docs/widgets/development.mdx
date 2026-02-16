@@ -181,3 +181,34 @@ test('validates multilingual structure', () => {
 - [ ] **Validation**: Ensure strict schemas (e.g., regex for colors/phones).
 - [ ] **Input Limits**: Set `maxLength` defaults to prevent DB bloat.
 - [ ] **Dependencies**: Avoid heavyweight libraries if native browser features suffice.
+
+---
+
+## 🛡️ Strict Compliance Checklist (Marketplace Ready)
+
+To ensure your widget is accepted into the SveltyCMS Marketplace, it must meet these strict criteria:
+
+### 1. Accessibility (WCAG 2.2 AA / WCAG 3.0 Gold)
+
+- **Labels**: EVERY input must have a visible `<label>` with a `for` attribute matching the input's `id`.
+  - ❌ `<span class="label">Name</span> <input />`
+  - ✅ `<label for="name">Name</label> <input id="name" />`
+- **Error States**: Invalid inputs must have:
+  - `aria-invalid="true"`
+  - `aria-describedby="field-error"` pointing to the error message ID.
+- **Keyboard Navigation**: All interactive elements (custom dropdowns, ratings, drag-handles) must be focusable (`tabindex="0"`) and operatable via Enter/Space/Arrows.
+- **Dynamic Content**: Use `aria-live="polite"` for dynamic updates (loading states, characters remaining).
+
+### 2. Performance & Architecture
+
+- **Lazy Loading**: Import heavy libraries (Maps, Charts, Editors) dynamically inside `onMount` or `event` handlers.
+  - `const module = await import('heavy-lib');`
+- **Debouncing**: Search/API inputs must be debounced (min 300ms) to prevent server flooding.
+- **Iconography**: Use `iconify-icon` web component. Do NOT bundle SVG libraries.
+- **Styling**: Use **Tailwind CSS** utility classes exclusively. Avoid `<style>` blocks with custom CSS to ensure theme compatibility.
+
+### 3. Flexibility
+
+- **No Hardcoded Secrets**: Never hardcode API keys. Pass them via `publicEnv` or widget configuration props.
+- **Resilience**: Gracefully handle missing configuration (e.g., "Map unavailable - API Key missing" instead of crashing).
+- **Self-Contained**: The widget folder should contain all necessary component logic. Shared logic should come from `@utils` or `@stores`.

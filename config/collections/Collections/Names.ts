@@ -11,6 +11,7 @@ export const schema: Schema = {
 	// Optional & Icon, status, slug
 	// See for possible Icons https://icon-sets.iconify.design/
 	icon: 'fluent:rename-28-filled',
+	description: 'Simple collection for testing relationships and basic input',
 	status: 'unpublish',
 	revision: true,
 	revisionLimit: 2, // limit  number of revisions
@@ -38,6 +39,24 @@ export const schema: Schema = {
 					read: false // User cannot read, other roles default to true
 				}
 			}
+		}),
+
+		widgets.RichText({
+			label: 'Biography',
+			db_fieldName: 'bio',
+			icon: 'fluent:text-description-24-filled',
+			placeholder: 'Enter extended biography...'
+		}),
+		widgets.Select({
+			label: 'Status',
+			db_fieldName: 'status',
+			icon: 'fluent:status-24-filled',
+			options: [
+				{ label: 'Active', value: 'active', color: 'success' },
+				{ label: 'Inactive', value: 'inactive', color: 'warning' },
+				{ label: 'Archived', value: 'archived', color: 'error' }
+			],
+			default: 'active'
 		})
 	]
 };

@@ -17,6 +17,9 @@ export interface GroupProps {
 	// Visual style variant @default 'default'
 	variant?: 'default' | 'card' | 'bordered';
 
+	// Nested fields configuration
+	fields?: any[];
+
 	// Allow additional widget properties
 	[key: string]: unknown;
 }

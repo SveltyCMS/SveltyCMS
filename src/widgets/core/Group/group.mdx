@@ -1,81 +1,116 @@
 ---
-path: 'src/widgets/core/Group/group.mdx'
-title: 'Group Field'
-description: 'Organize and group multiple related fields into a single, structured block.'
+path: '/widgets/core/group'
+title: 'Group Widget'
+description: 'Organize related fields into logical, collapsible sections for better content management.'
 order: 10
 icon: 'mdi:folder-outline'
 author: 'admin'
 created: '2025-09-29'
-updated: '2025-09-29'
+updated: '2026-02-16'
 tags:
-  - 'field'
-  - 'group'
-  - 'structure'
-  - 'organization'
-  - 'builder'
+  - widget
+  - core
+  - structure
+  - group
 ---
 
-Overview
-The Group field is a powerful "container" that allows you to organize multiple, related fields into a single block. This is essential for creating clean, logical, and easy-to-navigate content forms. Instead of having a long, flat list of fields, you can group them into sections like "SEO Settings," "Author Information," or "Product Dimensions."
-A group can be made collapsible to hide complex fields by default, reducing clutter for content editors.
-Usage (for Content Editors)
-In the content editor, a Group field appears as a distinct section, often with a title and a border.
+# Group Widget
 
-- Organization: All the fields related to that section (e.g., "Meta Title," "Meta Description") will be neatly nested inside it.
-- Collapsing: If the group is configured to be collapsible, you can click on its title to hide or show its contents. This is useful for tucking away advanced or less frequently used settings.
-  Configuration (for Developers)
-  The true power of the Group widget is in its configuration. It acts like a mini-schema inside your main schema. The most important property is fields, where you define an array of all the other widgets that will live inside the group.
-  Example: SEO Settings Group
-  This is a classic use case. Instead of having meta_title and meta_description as top-level fields, we can group them together.
-  import { GroupWidget, InputWidget, TextareaWidget } from '@src/widgets';
+<blockquote>
+	**Structural widget** that allows you to organize multiple related fields into a single, logical block. Essential for creating clean, navigable
+	content forms.
+</blockquote>
 
-const PageSchema = {
-// ... other fields like 'title', 'content', etc.
-seo_settings: GroupWidget({
-label: 'SEO Settings',
-db_fieldName: 'seo',
-collapsible: true, // Make the group collapsible
-collapsed: true, // Start with it collapsed
-border: true,
-helper: 'Settings for search engine optimization.',
+## Overview
 
-    	// Define the fields that go inside this group
-    	fields: [
-    		InputWidget({
-    			label: 'Meta Title',
-    			db_fieldName: 'meta_title',
-    			maxLength: 60,
-    			helper: 'Optimal title length is 50-60 characters.'
-    		}),
-    		TextareaWidget({
-    			label: 'Meta Description',
-    			db_fieldName: 'meta_description',
-    			maxLength: 160,
-    			helper: 'Optimal description length is 150-160 characters.'
-    		})
-    	]
-    })
+The **Group widget** acts as a container for other fields, allowing you to group related information together. Instead of a flat list of inputs, you can create sections like "SEO Settings", "Author Info", or "Product Details".
 
+### Key Features
+
+- ✅ **Field Organization**: Groups related fields visually and logically.
+- ✅ **Collapsible Sections**: Reduce clutter by collapsing less frequently used groups.
+- ✅ **Nested Data**: Saves data as a nested JSON object (`{ "group": { "field": "value" } }`).
+- ✅ **Visual Variants**: Choose between `default`, `card`, or `bordered` styles.
+- ✅ **Recursive Rendering**: Can contain any other widget, including other Groups.
+
+---
+
+## Usage Example
+
+### SEO Settings Group
+
+Group meta tags and search engine settings into a neat, collapsible section.
+
+```typescript
+import { widgets } from '@src/widgets/proxy';
+
+export const PageSchema = {
+	// ...
+	fields: [
+		widgets.Group({
+			label: 'SEO Settings',
+			db_fieldName: 'seo',
+			icon: 'icon-park-outline:seo',
+			collapsible: true,
+			collapsed: true, // Start collapsed to save space
+			variant: 'card',
+			helper: 'Configure search engine optimization settings.',
+			fields: [
+				widgets.Input({
+					label: 'Meta Title',
+					db_fieldName: 'title',
+					required: true,
+					maxLength: 60
+				}),
+				widgets.Textarea({
+					label: 'Meta Description',
+					db_fieldName: 'description',
+					maxLength: 160
+				})
+			]
+		})
+	]
 };
+```
 
-All Configuration Properties
-| Property | Type | Default | Purpose |
-|---|---|---|---|
-| label | string | - | Required. The display name for the group's header in the CMS. |
-| fields | FieldInstance[] | [] | Required. An array of widget instances that define the fields inside the group. |
-| db_fieldName | string | - | The key used to store the group's nested object in the database. |
-| collapsible | boolean | false | If true, the group's content can be hidden/shown by clicking the header. |
-| collapsed | boolean | false | If true, the group will be collapsed by default when the page loads. |
-| border | boolean | true | If true, a visual border is drawn around the group's content, visually separating it from other fields. |
-| helper | string | - | Help text displayed with the group's header to guide the user. |
-Data Structure
-The Group widget saves its data as a single, nested JSON object. The keys of this object correspond to the db_fieldName of each child widget within the group. This creates a clean, hierarchical data structure.
-Using the "SEO Settings" example from above, the saved data would look like this:
+---
+
+## Configuration Properties
+
+| Property       | Type              | Required | Default   | Description                                          |
+| -------------- | ----------------- | -------- | --------- | ---------------------------------------------------- |
+| `label`        | `string`          | ✅ Yes   | -         | Display label for the group header                   |
+| `fields`       | `FieldInstance[]` | ✅ Yes   | `[]`      | Array of widget instances to render inside the group |
+| `db_fieldName` | `string`          | ✅ Yes   | -         | Key for the nested object in the database            |
+| `collapsible`  | `boolean`         | ❌ No    | `false`   | Allow users to collapse/expand the group             |
+| `collapsed`    | `boolean`         | ❌ No    | `false`   | Initial state if collapsible                         |
+| `variant`      | `string`          | ❌ No    | `default` | Visual style: `'default'`, `'card'`, or `'bordered'` |
+| `icon`         | `string`          | ❌ No    | -         | Icon to display in the group header                  |
+| `helper`       | `string`          | ❌ No    | -         | Helper text displayed below the header               |
+| `width`        | `number`          | ❌ No    | `2`       | Grid width (1-2)                                     |
+| `permissions`  | `object`          | ❌ No    | -         | Role-based permissions                               |
+
+---
+
+## Data Structure
+
+The Group widget structures data hierarchically. It creates a nested object (JSON) within your content entry. This is supported natively in MongoDB (embedded documents) and mapped to JSON columns or relational tables in SQL adapters.
+
+```json
+// Stored Data
 {
-"title": "My Awesome Page",
-"content": "...",
-"seo": {
-"meta_title": "The Most Awesome Page Ever",
-"meta_description": "You have to see this awesome page to believe it. Click here!"
+	"title": "My Landing Page",
+	"seo": {
+		"title": "Best Landing Page Ever",
+		"description": "Join us today..."
+	}
 }
-}
+```
+
+---
+
+## Best Practices
+
+1.  **Use for Logical Grouping**: Don't group unrelated fields just for aesthetics. Grouping implies a relationship.
+2.  **Naming Conventions**: Use clear `db_fieldName` prefixes or nested structures to avoid collisions.
+3.  **Depth Limit**: While recursive nesting is supported, avoid nesting more than 2-3 levels deep for usability.

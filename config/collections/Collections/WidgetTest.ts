@@ -12,6 +12,7 @@ export const schema: Schema = {
 	// Optional & Icon, status, slug
 	// See for possible Icons https://icon-sets.iconify.design/
 	icon: 'carbon:rule-test',
+	description: 'Kitchen Sink collection to test all available widgets',
 
 	// Defined Fields that are used in Collection
 	// Widget fields can be inspected for individual options

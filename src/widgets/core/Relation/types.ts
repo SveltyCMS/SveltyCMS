@@ -17,6 +17,22 @@ export interface RelationProps {
 
 	// Index signature to satisfy WidgetProps constraint
 	[key: string]: unknown;
+
+	/**
+	 * Allow the user to select multiple entries.
+	 * @default false
+	 */
+	multiple?: boolean;
+
+	/**
+	 * Minimum number of items to select (if multiple is true).
+	 */
+	min?: number;
+
+	/**
+	 * Maximum number of items to select (if multiple is true).
+	 */
+	max?: number;
 }
 
 /**

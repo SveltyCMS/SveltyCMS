@@ -227,28 +227,32 @@ Part of the Three Pillars Architecture for widget system.
 	{/if}
 
 	{#if fetchedMetadata && !isLoading && !fetchError}
-		<div class="video-preview">
-			<img src={fetchedMetadata.thumbnailUrl} alt={fetchedMetadata.title} class="thumbnail" />
-			<div class="details">
-				<h3>{fetchedMetadata.title}</h3>
+		<div class="mt-4 flex flex-col gap-4 rounded-lg border border-surface-200 p-4 sm:flex-row sm:items-start dark:border-surface-700">
+			<img src={fetchedMetadata.thumbnailUrl} alt={fetchedMetadata.title} class="h-auto w-full max-w-[120px] shrink-0 rounded object-cover" />
+			<div class="flex-1 space-y-1">
+				<h3 class="text-base font-bold text-surface-900 dark:text-surface-50">{fetchedMetadata.title}</h3>
 				{#if fetchedMetadata.channelTitle}
-					<p>By: {fetchedMetadata.channelTitle}</p>
+					<p class="text-sm text-surface-600 dark:text-surface-400">By: {fetchedMetadata.channelTitle}</p>
 				{/if}
 				{#if fetchedMetadata.duration}
-					<p>Duration: {fetchedMetadata.duration}</p>
+					<p class="text-sm text-surface-600 dark:text-surface-400">Duration: {fetchedMetadata.duration}</p>
 				{/if}
-				<a href={fetchedMetadata.url} target="_blank" rel="noopener noreferrer" class="watch-link">Watch on {fetchedMetadata.platform}</a>
+				<a
+					href={fetchedMetadata.url}
+					target="_blank"
+					rel="noopener noreferrer"
+					class="mt-1 inline-block text-sm font-medium text-primary-500 hover:text-primary-600 hover:underline dark:text-primary-400"
+				>
+					Watch on {fetchedMetadata.platform}
+				</a>
 			</div>
 		</div>
 	{/if}
 </div>
 
 <style>
-	/* Add styles for input, preview, thumbnail, details, and error messages */
-	.input-container {
-		position: relative;
-		padding-bottom: 1.5rem;
-		width: 100%;
+	.animate-spin {
+		animation: spin 1s linear infinite;
 	}
 
 	@keyframes spin {
@@ -258,35 +262,5 @@ Part of the Three Pillars Architecture for widget system.
 		to {
 			transform: rotate(360deg);
 		}
-	}
-	.video-preview {
-		display: flex;
-		gap: 1rem;
-		margin-top: 1rem;
-		border: 1px solid #eee;
-		padding: 1rem;
-		border-radius: 8px;
-		align-items: flex-start;
-	}
-	.thumbnail {
-		width: 120px;
-		height: auto;
-		flex-shrink: 0;
-	}
-	.details h3 {
-		font-size: 1.1em;
-		font-weight: bold;
-		margin-top: 0;
-		margin-bottom: 0.5rem;
-	}
-	.details p {
-		font-size: 0.9em;
-		color: #555;
-		margin-bottom: 0.25rem;
-	}
-	.watch-link {
-		color: #007bff;
-		text-decoration: underline;
-		font-size: 0.9em;
 	}
 </style>

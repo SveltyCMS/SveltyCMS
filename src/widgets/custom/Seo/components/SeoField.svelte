@@ -56,7 +56,7 @@
 <div class="space-y-2">
 	<div class="flex items-center justify-between mb-1">
 		<div class="flex items-center gap-2">
-			<span class="font-bold text-sm">{label}</span>
+			<label for={id} class="font-bold text-sm cursor-pointer">{label}</label>
 			{@render icon?.()}
 			<span class="text-surface-400 cursor-help" title={placeholder}>
 				<iconify-icon icon="mdi:information-outline" width={16}></iconify-icon>

@@ -197,6 +197,11 @@ Interactive form with map, country selector, and address validation
 	});
 
 	async function initMap() {
+		if (!googleMapsApiKey) {
+			console.warn('Google Maps API Key is missing. Map functionality disabled.');
+			return;
+		}
+
 		setOptions({
 			key: googleMapsApiKey,
 			v: 'weekly',
@@ -343,7 +348,10 @@ Interactive form with map, country selector, and address validation
 			bind:this={mapElement}
 		>
 			{#if !googleMapsApiKey}
-				<div class="flex h-full items-center justify-center text-surface-500">Maps API Key missing</div>
+				<div class="flex h-full flex-col items-center justify-center gap-2 text-surface-500">
+					<iconify-icon icon="mdi:map-marker-off" width="32"></iconify-icon>
+					<span class="text-sm">Map unavailable (API Key missing)</span>
+				</div>
 			{/if}
 		</div>
 	{/if}

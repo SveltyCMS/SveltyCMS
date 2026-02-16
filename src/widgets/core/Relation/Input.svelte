@@ -33,60 +33,87 @@ Interactive selector with "Select" button and clear functionality
 
 	let { field, value, error }: { field: FieldType; value: string | string[] | null | undefined; error?: string | null } = $props();
 
-	// A local, reactive copy of the full, resolved entry object for display.
-	let selectedEntry = $state<Record<string, any> | null>(null);
+	// Local state for the resolved entry's display text.
+	let selectedEntries = $state<Array<Record<string, any>>>([]);
 	const lang = $derived(app.contentLanguage);
 
 	// Stub function for fetching entry data - implement with your API
-	async function fetchEntryData(_id: string): Promise<Record<string, any> | null> {
-		// TODO: Implement API call to fetch entry by ID
-		return null;
+	async function fetchEntryData(ids: string[]): Promise<Array<Record<string, any>>> {
+		// TODO: Implement API call to fetch entries by IDs
+		// This should return an array of entry objects
+		return ids.map((id) => ({ _id: id, [field.displayField as string]: `Entry ${id}` }));
 	}
 
 	// Fetch the full entry data when the ID `value` changes.
 	$effect(() => {
-		const id = Array.isArray(value) ? value[0] : value;
-		if (id) {
-			// API Call: GET /api/entries/{field.collection}/{id}
-			// This fetches the data needed to display the summary.
-			fetchEntryData(id).then((entry: Record<string, any> | null) => (selectedEntry = entry));
+		const ids = Array.isArray(value) ? value : value ? [value] : [];
+		if (ids.length > 0) {
+			fetchEntryData(ids).then((entries) => (selectedEntries = entries));
 		} else {
-			selectedEntry = null;
+			selectedEntries = [];
 		}
 	});
-
-	// The text to display in the selector button.
-	const displayText = $derived(selectedEntry?.[field.displayField as string]?.[lang] || 'Select an Entry');
 
 	// Function to open the selection/creation modal.
 	function openRelationModal() {
 		showModal({
-			component: 'relationModal', // This would be your entry selection modal
+			component: 'relationModal',
 			meta: {
 				collectionId: field.collection,
+				multiple: field.multiple,
 				// Callback to update the value when an entry is selected in the modal
-				callback: (selectedId: string | undefined) => {
-					if (selectedId) {
-						value = selectedId;
+				callback: (selected: string | string[] | undefined) => {
+					if (selected) {
+						if (field.multiple) {
+							// If multiple, ensuring we have an array
+							const newSelection = Array.isArray(selected) ? selected : [selected];
+							// Merge with existing if needed, or replace.
+							// For now, let's assume the modal returns the *full* new selection
+							value = newSelection;
+						} else {
+							// Single select
+							value = Array.isArray(selected) ? selected[0] : selected;
+						}
 					}
 				}
 			}
 		});
 	}
+
+	function removeItem(id: string) {
+		if (Array.isArray(value)) {
+			value = value.filter((v) => v !== id);
+		} else if (value === id) {
+			value = null;
+		}
+	}
 </script>
 
 <div class="relation-container" class:invalid={error}>
-	<div class="selection-box">
-		<span>{displayText}</span>
-		<div class="actions">
-			<button onclick={openRelationModal} aria-label="Select Entry" class="btn btn-primary">Select</button>
-			{#if value}
-				<button onclick={() => (value = null)} aria-label="Clear Selection" class="btn btn-danger">&times;</button>
-			{/if}
-		</div>
+	<div class="flex flex-wrap gap-2">
+		{#each selectedEntries as entry}
+			<div class="badge variant-filled-surface flex items-center gap-2 p-2">
+				<span>{entry[field.displayField as string]?.[lang] || entry[field.displayField as string] || '...'}</span>
+				<button
+					onclick={() => removeItem(entry._id)}
+					type="button"
+					class="btn-icon btn-icon-sm variant-filled-error rounded-full w-4 h-4"
+					aria-label="Remove"
+				>
+					<iconify-icon icon="mdi:close" width="12"></iconify-icon>
+				</button>
+			</div>
+		{/each}
+	</div>
+
+	<div class="actions mt-2">
+		<button onclick={openRelationModal} type="button" aria-label="Select Entry" class="btn btn-sm variant-filled-primary">
+			<iconify-icon icon="mdi:plus" class="mr-1"></iconify-icon>
+			{field.multiple ? 'Add Entries' : selectedEntries.length > 0 ? 'Change Selection' : 'Select Entry'}
+		</button>
 	</div>
 
 	{#if error}
-		<p class="error-message" role="alert">{error}</p>
+		<p class="text-error-500 text-sm mt-1" role="alert">{error}</p>
 	{/if}
 </div>

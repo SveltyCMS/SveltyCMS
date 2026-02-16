@@ -1,43 +1,83 @@
 <!--
-@file src/widgets/core/Group/Display.svelte
+@file src/widgets/core/Group/Input.svelte
 @component
-**Group Widget Display Component**
+**Group Widget Input Component**
 
-Renders grouped content in a read-only display format with collapsible functionality.
+Renders a group of fields, allowing for nested data structures.
 
 @example
-<GroupDisplay {field} {value} {children} />
+<GroupInput {field} bind:value={groupData} />
 
 #### Props
-- `field: FieldType` - The group field configuration
-- `value: GroupWidgetData | null | undefined` - The group data
-- `children?: any` - Rendered child widgets to display
-
-#### Features
-- Visual grouping with clean separation
-- Collapsible display functionality
-- Multiple styling variants (default, card, bordered)
-- Responsive design
-- Accessible with ARIA attributes
-- Keyboard navigation support
-- Nested content support
+- `field: FieldType` - The group field configuration (must contain `fields` array)
+- `value: GroupWidgetData | null | undefined` - The group data object
 -->
 
 <script lang="ts">
-	import { getFieldName } from '@src/utils/utils';
-	import type { FieldType, GroupWidgetData } from './';
+	import { getFieldName } from '@utils/utils';
+	import type { FieldType } from './';
+	import { widgets } from '@stores/widgetStore.svelte';
+	import WidgetLoader from '@components/collectionDisplay/WidgetLoader.svelte';
 
 	interface Props {
 		field: FieldType;
-		value: GroupWidgetData | null | undefined;
-		children?: any;
+		value: Record<string, any> | null | undefined;
+		tenantId?: string;
+		collectionName?: string;
 	}
 
-	let { field, value, children }: Props = $props();
+	let { field, value = $bindable({}), tenantId, collectionName }: Props = $props();
+
+	// Ensure value is an object
+	$effect(() => {
+		if (!value || typeof value !== 'object') {
+			value = {};
+		}
+	});
 
 	const fieldName = $derived(getFieldName(field));
+	const normalizeFieldName = (f: any) => f.db_fieldName || getFieldName(f, true);
 
-	// Variant classes
+	// --- WIDGET LOADING LOGIC ---
+	// Locally import modules to allow independent widget loading
+	const modules: Record<string, () => Promise<{ default: any }>> = import.meta.glob('/src/widgets/**/*.svelte') as Record<
+		string,
+		() => Promise<{ default: any }>
+	>;
+
+	function getWidgetLoader(widgetName: string) {
+		if (!widgetName) return null;
+
+		// 1. Try exact path from widget store
+		const fn = widgets.widgetFunctions[widgetName];
+		const storePath = (fn as any)?.componentPath || (fn as any)?.inputComponentPath;
+		if (storePath && storePath in modules) return modules[storePath];
+
+		// 2. Try casing variations
+		const camelFn = widgets.widgetFunctions[widgetName.charAt(0).toLowerCase() + widgetName.slice(1)];
+		const camelPath = (camelFn as any)?.componentPath || (camelFn as any)?.inputComponentPath;
+		if (camelPath && camelPath in modules) return modules[camelPath];
+
+		const lowerFn = widgets.widgetFunctions[widgetName.toLowerCase()];
+		const lowerPath = (lowerFn as any)?.componentPath || (lowerFn as any)?.inputComponentPath;
+		if (lowerPath && lowerPath in modules) return modules[lowerPath];
+
+		// 3. Fallback search
+		const normalized = widgetName.toLowerCase();
+		for (const path in modules) {
+			const lowerPath = path.toLowerCase();
+			const parts = lowerPath.split('/');
+			const fileName = parts.pop();
+			const folderName = parts.pop();
+
+			if (folderName === normalized && fileName === 'input.svelte') return modules[path];
+			if (folderName === normalized && fileName === 'index.svelte') return modules[path];
+			if (fileName === `${normalized}.svelte` && normalized !== 'input') return modules[path];
+		}
+		return null;
+	}
+
+	// Variant classes (matching Display.svelte for consistency)
 	const variantClasses = {
 		default: {
 			container: '',
@@ -56,91 +96,60 @@ Renders grouped content in a read-only display format with collapsible functiona
 		}
 	};
 
-	const variant = $derived(variantClasses[field.variant as keyof typeof variantClasses] || variantClasses.default);
+	const variant = $derived(variantClasses[(field as any).variant as keyof typeof variantClasses] || variantClasses.default);
 
-	// State for collapsible functionality
-	let localIsCollapsed = $state<boolean | undefined>(undefined);
-	let isCollapsed = {
-		get value() {
-			return localIsCollapsed ?? ((field.collapsed as boolean) || false);
-		},
-		set value(v: boolean) {
-			localIsCollapsed = v;
-		}
-	};
+	// Collapsible state
+	let isCollapsed = $state($state.snapshot((field as any).collapsed as boolean) || false);
 
-	/**
-	 * Toggle collapse state
-	 */
-	function toggleCollapse(): void {
-		if (field.collapsible) {
-			isCollapsed.value = !isCollapsed.value;
-		}
-	}
-
-	/**
-	 * Handle keyboard navigation
-	 */
-	function handleKeyDown(event: KeyboardEvent): void {
-		if (event.key === 'Enter' || event.key === ' ') {
-			event.preventDefault();
-			toggleCollapse();
-		}
+	function toggleCollapse() {
+		if ((field as any).collapsible) isCollapsed = !isCollapsed;
 	}
 </script>
 
 <div class="mb-4 w-full {variant.container}">
-	<!-- Group Header -->
-	{#if field.groupTitle || field.collapsible}
-		{#if field.collapsible}
-			<button
-				type="button"
-				class="flex w-full items-center justify-between p-3 transition-colors duration-200 {variant.header} {field.collapsible
-					? 'cursor-pointer hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:hover:bg-gray-700'
-					: ''}"
-				aria-expanded={!isCollapsed.value}
-				aria-controls={`${fieldName}-content`}
-				onclick={toggleCollapse}
-				onkeydown={handleKeyDown}
-			>
-				{#if field.groupTitle}
-					<h4 class="m-0 text-base font-semibold text-gray-900 dark:text-gray-100">
-						{field.groupTitle}
-					</h4>
-				{/if}
-
-				<div class="transition-transform duration-200 ease-in-out {isCollapsed.value ? 'rotate-180' : ''}">
-					<iconify-icon icon="mdi:chevron-down" width={18}></iconify-icon>
-				</div>
-			</button>
-		{:else}
-			<div class="flex items-center justify-between p-3 {variant.header}">
-				{#if field.groupTitle}
-					<h4 class="m-0 text-base font-semibold text-gray-900 dark:text-gray-100">
-						{field.groupTitle}
-					</h4>
-				{/if}
-			</div>
-		{/if}
+	<!-- Header -->
+	{#if (field as any).groupTitle || (field as any).collapsible}
+		<button
+			type="button"
+			onclick={toggleCollapse}
+			disabled={!(field as any).collapsible}
+			aria-expanded={!isCollapsed}
+			aria-controls="{fieldName}-content"
+			class="flex w-full items-center justify-between p-3 {variant.header} {(field as any).collapsible
+				? 'cursor-pointer hover:bg-black/5 dark:hover:bg-white/5'
+				: ''}"
+		>
+			<h4 class="text-base font-semibold">{(field as any).groupTitle || field.label}</h4>
+			{#if (field as any).collapsible}
+				<iconify-icon icon="mdi:chevron-down" width="20" class="transition-transform duration-200 {isCollapsed ? 'rotate-180' : ''}"></iconify-icon>
+			{/if}
+		</button>
 	{/if}
 
-	<!-- Group Content -->
-	<div
-		id={field.collapsible ? `${fieldName}-content` : undefined}
-		class="overflow-hidden transition-all duration-200 ease-in-out {variant.content} {isCollapsed.value
-			? 'max-h-0 opacity-0'
-			: 'max-h-screen opacity-100'}"
-	>
-		{#if children}
-			{@render children()}
-		{:else if value && Object.keys(value).length > 0}
-			<div class="rounded border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900">
-				<pre class="whitespace-pre-wrap font-mono text-sm text-gray-700 dark:text-gray-300">{JSON.stringify(value, null, 2)}</pre>
+	<!-- Content -->
+	<div id="{fieldName}-content" class="{variant.content} transition-all duration-200 {isCollapsed ? 'hidden' : 'block'}">
+		{#if (field as any).fields && (field as any).fields.length > 0}
+			<div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+				{#each (field as any).fields as subField}
+					{@const subFieldName = normalizeFieldName(subField)}
+					{@const widgetName = (subField as any).widget?.Name || (subField as any).type || 'Input'}
+					{@const widgetLoader = getWidgetLoader(widgetName)}
+
+					<div class="col-span-1 {(subField as any).width ? `lg:col-span-${(subField as any).width}` : ''} w-full">
+						{#if widgetLoader && value}
+							<WidgetLoader loader={widgetLoader} field={subField as any} bind:value={value[subFieldName]} {tenantId} {collectionName} />
+						{:else if !value}
+							<p class="text-error-500">Group value is missing</p>
+						{:else}
+							<div class="rounded border border-error-500 p-2 text-error-500">
+								Widget not found: {widgetName}
+							</div>
+						{/if}
+					</div>
+				{/each}
 			</div>
 		{:else}
-			<div class="flex items-center justify-center px-4 py-6">
-				<p class="text-center text-sm italic text-gray-500 dark:text-gray-400">No content in this group</p>
-			</div>
+			<p class="text-sm italic text-gray-500">No fields defined in this group.</p>
 		{/if}
 	</div>
 </div>

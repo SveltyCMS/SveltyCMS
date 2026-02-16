@@ -354,7 +354,7 @@
 					<div class="space-y-2">
 						<div class="flex items-center justify-between mb-1">
 							<div class="flex items-center gap-2">
-								<span class="font-bold text-sm">Schema.org JSON-LD</span>
+								<label for="seo-schemaMarkup" class="font-bold text-sm cursor-pointer">Schema.org JSON-LD</label>
 								<iconify-icon icon="mdi:code-json" width="24"></iconify-icon>
 							</div>
 							{#if isTranslated}

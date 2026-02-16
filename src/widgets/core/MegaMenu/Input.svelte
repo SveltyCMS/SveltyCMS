@@ -110,6 +110,27 @@ Interactive menu builder with add/edit/reorder capabilities
 		dragOverIndex = null;
 	}
 
+	// Keyboard event handler for moving items
+	function handleKeyDown(event: KeyboardEvent, index: number) {
+		if (!value) return;
+		if (event.key === 'ArrowUp') {
+			event.preventDefault();
+			if (index > 0) {
+				const newValue = [...value];
+				[newValue[index - 1], newValue[index]] = [newValue[index], newValue[index - 1]];
+				value = newValue;
+				// Focus management would be ideal here, but Svelte's reactivity might rebuild DOM
+			}
+		} else if (event.key === 'ArrowDown') {
+			event.preventDefault();
+			if (index < value.length - 1) {
+				const newValue = [...value];
+				[newValue[index + 1], newValue[index]] = [newValue[index], newValue[index + 1]];
+				value = newValue;
+			}
+		}
+	}
+
 	// Function to open edit modal
 	function editItem(item: MenuItem, level: number) {
 		const modalContext: MenuEditContext = {
@@ -178,6 +199,7 @@ Interactive menu builder with add/edit/reorder capabilities
 		class:flex={!value || value.length === 0}
 		class:items-center={!value || value.length === 0}
 		class:justify-center={!value || value.length === 0}
+		role="list"
 	>
 		{#if value && value.length > 0}
 			{#each value as item, index (item._id)}
@@ -199,12 +221,15 @@ Interactive menu builder with add/edit/reorder capabilities
 					<div class="flex items-center gap-3 p-3">
 						<div class=" flex items-center gap-1">
 							{#if (field as any).defaults?.enableDragDrop !== false}
-								<div
-									class="cursor-move p-1 text-surface-400 transition-colors hover:text-surface-600 dark:text-surface-500 dark:hover:text-surface-300"
-									aria-label="Drag to reorder"
+								<button
+									type="button"
+									class="cursor-move p-1 text-surface-400 transition-colors hover:text-surface-600 dark:text-surface-500 dark:hover:text-surface-300 bg-transparent border-none"
+									aria-label="Drag to reorder. Use Arrow Keys to move."
+									title="Drag to reorder. Use Arrow Keys to move."
+									onkeydown={(e) => handleKeyDown(e, index)}
 								>
 									<iconify-icon icon="mdi:drag" width="24"></iconify-icon>
-								</div>
+								</button>
 							{/if}
 
 							{#if item.children.length > 0 && (field as any).defaults?.enableExpandCollapse !== false}

@@ -31,7 +31,7 @@
 		"test:integration:run": "bun run scripts/run-integration-tests.ts",
 		"test:hooks": "for test in authorization security-headers theme authentication firewall static-asset-caching system-state api-requests rate-limit locale setup token-resolution; do bun test --preload ./tests/unit/hooks/preload.ts ./tests/unit/hooks/${test}.test.ts || exit 1; done",
 		"test:e2e": "concurrently -k -s last \"bun run dev\" \"bun run test:e2e:run\"",
-		"test:e2e:run": "wait-on http://localhost:4173 && bun x playwright test tests/e2e",
+		"test:e2e:run": "wait-on http://localhost:5173 && bun x playwright test tests/e2e",
 		"test:all": "bun run test:unit && bun run test:integration && bun run test:e2e",
 		"-- DIAGNOSTICS ---------------------------------------": "",
 		"check:mongodb": "node scripts/check-mongodb.js",

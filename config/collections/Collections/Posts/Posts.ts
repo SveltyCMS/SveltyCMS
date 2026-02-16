@@ -13,7 +13,7 @@ export const schema: Schema = {
 	icon: 'bi:card-text',
 	status: 'publish',
 	slug: 'posts',
-	description: 'Posts Collection',
+	description: 'Blog posts demo with Media handling and Watermark testing',
 	revision: true,
 
 	// Defined Fields that are used in Collection
@@ -40,38 +40,43 @@ export const schema: Schema = {
 			placeholder: 'Enter Test Placeholder'
 		}),
 
-		// widgets.Group({
-		// 	label: 'Post Content group',
-		// 	fields: [
-		// 		widgets.Email({
-		// 			label: 'Email in group',
-		// 			icon: 'material-symbols:mail',
-		// 			display: async ({ data, contentLanguage }) => {
-		// 				return data[contentLanguage];
-		// 			}
-		// 		}),
-		// 		widgets.Input({
-		// 			label: 'Test in group',
-		// 			db_fieldName: 'dbtest',
-		// 			helper: 'This is the helper text',
-		// 			translated: true,
-		// 			required: true,
-		// 			icon: 'ri:t-box-line',
-		// 			placeholder: 'Enter Test Placeholder'
-		// 		})
-		// 	]
-		// }),
+		widgets.Group({
+			label: 'Post Content group',
+			db_fieldName: 'content_group',
+			fields: [
+				widgets.Email({
+					label: 'Email in group',
+					db_fieldName: 'group_email',
+					icon: 'material-symbols:mail',
+					display: async ({ data, contentLanguage }: { data: any; contentLanguage: string }) => {
+						return data[contentLanguage] as string;
+					}
+				}),
+				widgets.Input({
+					label: 'Test in group',
+					db_fieldName: 'group_text',
+					helper: 'This is the helper text',
+					translated: true,
+					required: true,
+					icon: 'ri:t-box-line',
+					placeholder: 'Enter Test Placeholder'
+				})
+			]
+		}),
 
 		widgets.MediaUpload({
-			label: 'Media',
-			required: false, // Temporarily optional for testing
+			label: 'Featured Media',
+			db_fieldName: 'media',
+			required: false,
 			icon: 'material-symbols:video-library',
-			folder: 'collections/posts', // ✅ Save files under collection/post
-			// Watermark preset - auto-applied when editing images
+			folder: 'collections/posts', // ✅ Save files under collection/posts
+			multiupload: true, // ✅ Allow multiple files
+			// Watermark preset - auto-applied when editing/saving images
 			watermark: {
-				url: '/static/watermarks/logo.png', // Place your watermark image here
-				position: 'southeast', // bottom-right corner
-				scale: 20 // 20% of image width
+				text: 'Asset Trade', // Text watermark
+				position: 'bottom-right',
+				opacity: 0.8,
+				scale: 1.5 // Relative size
 			}
 		})
 

@@ -27,7 +27,7 @@ Renders: "Article Title" (fetched from related entry's display field)
 <script lang="ts">
 	import type { FieldType } from './';
 
-	const { value }: { field: FieldType; value: string | null | undefined } = $props();
+	const { value }: { field: FieldType; value: string | string[] | null | undefined } = $props();
 
 	// Local state for the resolved entry's display text.
 	let displayText = $state('Loading...');
@@ -40,10 +40,14 @@ Renders: "Article Title" (fetched from related entry's display field)
 
 	// Fetch the entry's display text when the ID `value` changes.
 	$effect(() => {
-		if (value) {
-			// API Call: GET /api/entries/{field.collection}/{value}?fields={field.displayField}
-			// This is a more optimized fetch for just the field we need.
-			fetchEntryDisplay(value).then((text: string | null) => (displayText = text || '–'));
+		const ids = Array.isArray(value) ? value : value ? [value] : [];
+		if (ids.length > 0) {
+			// API Call: GET /api/entries/{field.collection}?ids={ids.join(',')}&fields={field.displayField}
+			// Optimized fetch for multiple entries
+			Promise.all(ids.map((id) => fetchEntryDisplay(id))).then((texts) => {
+				const validTexts = texts.filter((t) => t !== null) as string[];
+				displayText = validTexts.join(', ') || '–';
+			});
 		} else {
 			displayText = '–';
 		}

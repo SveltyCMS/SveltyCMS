@@ -48,6 +48,7 @@ import { hashFileContent } from '@src/utils/media/mediaProcessing.server';
 import { saveFileToDisk, saveResizedImages } from '@src/utils/media/mediaStorage.server';
 import { isCloud } from '@src/utils/media/cloudStorage';
 import { getPublicSettingSync } from '@src/services/settingsService';
+import { mediaProcessingService } from './mediaProcessing.server';
 // IMPORT SERVER-SIDE VALIDATION
 import { validateMediaFileServer } from '@src/utils/media/mediaUtils';
 import { AppError } from '@utils/errorHandling';
@@ -196,11 +197,6 @@ export class MediaService {
 	 * Saves a file to storage and creates a database record.
 	 */
 
-	private async getMediaProcessingService() {
-		const { mediaProcessingService } = await import('./mediaProcessing.server');
-		return mediaProcessingService;
-	}
-
 	// Saves a media file and its associated data
 	public async saveMedia(
 		file: File,
@@ -301,8 +297,7 @@ export class MediaService {
 
 			if (isImage && !mimeType.includes('svg')) {
 				try {
-					const processingService = await this.getMediaProcessingService();
-					advancedMetadata = await processingService.getMetadata(buffer);
+					advancedMetadata = await mediaProcessingService.getMetadata(buffer);
 					width = (advancedMetadata as any).width;
 					height = (advancedMetadata as any).height;
 				} catch (sharpError) {

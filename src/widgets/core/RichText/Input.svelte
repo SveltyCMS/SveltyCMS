@@ -69,15 +69,40 @@
 	function toggleDropdown(label: string, event: MouseEvent) {
 		event.stopPropagation();
 		activeDropdown = activeDropdown === label ? null : label;
+		// Reset popover states when switching
+		if (activeDropdown !== 'Link' && activeDropdown !== 'Video') {
+			linkUrl = '';
+			videoUrl = '';
+		}
 	}
 
 	function closeDropdowns() {
 		activeDropdown = null;
+		linkUrl = '';
+		videoUrl = '';
 	}
 
 	function handleColorChange(e: Event) {
 		const color = (e.target as HTMLInputElement).value;
 		editor?.chain().focus().setColor(color).run();
+	}
+
+	// Popover States
+	let linkUrl = $state('');
+	let videoUrl = $state('');
+
+	function setLink() {
+		if (linkUrl) {
+			editor?.chain().focus().setLink({ href: linkUrl }).run();
+			closeDropdowns();
+		}
+	}
+
+	function setVideo() {
+		if (videoUrl) {
+			editor?.chain().focus().setYoutubeVideo({ src: videoUrl }).run();
+			closeDropdowns();
+		}
 	}
 
 	// New Feature Functions
@@ -101,13 +126,6 @@
 		} catch (err) {
 			console.error('Failed to read clipboard:', err);
 			alert('Could not access clipboard. Please check permissions.');
-		}
-	}
-
-	function setVideo() {
-		const url = prompt('Enter YouTube URL');
-		if (url) {
-			editor?.chain().focus().setYoutubeVideo({ src: url }).run();
 		}
 	}
 
@@ -299,15 +317,9 @@
 		{
 			buttons: [
 				{
-					type: 'button',
+					type: 'dropdown', // Changed to dropdown for popover
 					icon: 'link',
-					label: 'Link',
-					cmd: () =>
-						editor
-							?.chain()
-							.focus()
-							.setLink({ href: prompt('Enter URL') || '' })
-							.run()
+					label: 'Link'
 				},
 				{
 					type: 'button',
@@ -316,10 +328,9 @@
 					cmd: openMediaLibrary
 				},
 				{
-					type: 'button',
+					type: 'dropdown', // Changed to dropdown for popover
 					icon: 'youtube',
-					label: 'Video',
-					cmd: setVideo
+					label: 'Video'
 				},
 				{
 					type: 'dropdown',
@@ -587,6 +598,38 @@
 																onclick={(e) => e.stopPropagation()}
 																title="Custom Color"
 															/>
+														</div>
+													</div>
+												</div>
+											{:else if btn.label === 'Link'}
+												<div class="p-2 w-64">
+													<div class="flex flex-col gap-2">
+														<input
+															type="url"
+															bind:value={linkUrl}
+															placeholder="https://example.com"
+															class="input input-sm w-full"
+															onkeydown={(e) => e.key === 'Enter' && setLink()}
+														/>
+														<div class="flex justify-end gap-2">
+															<button class="btn btn-sm variant-soft-secondary" onclick={closeDropdowns}> Cancel </button>
+															<button class="btn btn-sm variant-filled-primary" onclick={setLink}> Set Link </button>
+														</div>
+													</div>
+												</div>
+											{:else if btn.label === 'Video'}
+												<div class="p-2 w-64">
+													<div class="flex flex-col gap-2">
+														<input
+															type="url"
+															bind:value={videoUrl}
+															placeholder="YouTube URL"
+															class="input input-sm w-full"
+															onkeydown={(e) => e.key === 'Enter' && setVideo()}
+														/>
+														<div class="flex justify-end gap-2">
+															<button class="btn btn-sm variant-soft-secondary" onclick={closeDropdowns}> Cancel </button>
+															<button class="btn btn-sm variant-filled-primary" onclick={setVideo}> Embed </button>
 														</div>
 													</div>
 												</div>

@@ -14,6 +14,7 @@ export const schema: Schema = {
 	strict: false,
 	status: 'unpublish',
 	slug: 'menu',
+	description: 'Demo Collection for MegaMenu testing',
 
 	// Defined Fields that are used in Collection
 	// Widget fields can be inspected for individual options
