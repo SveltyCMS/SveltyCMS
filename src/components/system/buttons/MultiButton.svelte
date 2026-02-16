@@ -34,7 +34,7 @@
 	// Event handler props for decoupling
 
 	// The default functions now call the event handlers passed in as props.
-	const defaultButtons = {
+	const defaultButtons = $derived({
 		Create: {
 			fn: props['on:create'] || (() => setMode('create')),
 			icon: 'gravity-ui:plus',
@@ -65,9 +65,9 @@
 			bg_color: 'brown',
 			color: 'white'
 		}
-	};
+	});
 
-	const buttons = $state(props.buttons || defaultButtons);
+	const buttons = $derived(props.buttons || defaultButtons);
 	let _expanded = $state(false);
 	let expanded = {
 		get value() {

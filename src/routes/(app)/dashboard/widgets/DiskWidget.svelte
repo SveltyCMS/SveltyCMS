@@ -32,14 +32,13 @@ This widget fetches and displays real-time disk usage data, including:
 </script>
 
 <script lang="ts">
-	import { BarController, BarElement, CategoryScale, Chart, LinearScale } from 'chart.js';
-	import { onDestroy } from 'svelte';
+	import { onDestroy, onMount } from 'svelte';
 	// Components
 	import BaseWidget from '../BaseWidget.svelte';
 	import type { WidgetSize } from '@src/content/types';
 
-	// Register Chart.js components
-	Chart.register(BarController, BarElement, CategoryScale, LinearScale);
+	let ChartJS: any = $state(undefined);
+	let chart: any = $state(undefined);
 
 	// Type definitions
 	interface DiskInfo {
@@ -78,7 +77,6 @@ This widget fetches and displays real-time disk usage data, including:
 
 	let currentData: FetchedData | undefined = $state(undefined);
 	let chartCanvas: HTMLCanvasElement | undefined = $state(undefined);
-	let chart: Chart | undefined = $state(undefined);
 
 	function updateChartAction(_canvas: HTMLCanvasElement, data: any) {
 		currentData = data;
@@ -99,7 +97,7 @@ This widget fetches and displays real-time disk usage data, including:
 		}
 	});
 	$effect(() => {
-		if (!chartCanvas || !diskInfo) {
+		if (!chartCanvas || !diskInfo || !ChartJS) {
 			return;
 		}
 
@@ -111,9 +109,9 @@ This widget fetches and displays real-time disk usage data, including:
 			chart.data.datasets[0].data = [used];
 			chart.data.datasets[1].data = [free];
 			chart.update('none');
-		} else {
+		} else if (ChartJS) {
 			// Destroy any existing chart on this canvas first
-			const existingChart = Chart.getChart(chartCanvas);
+			const existingChart = ChartJS.getChart(chartCanvas);
 			if (existingChart) {
 				existingChart.destroy();
 			}
@@ -133,7 +131,7 @@ This widget fetches and displays real-time disk usage data, including:
 				}
 			};
 
-			chart = new Chart(chartCanvas, {
+			chart = new ChartJS(chartCanvas, {
 				type: 'bar',
 				data: {
 					labels: ['Disk'],
@@ -178,7 +176,7 @@ This widget fetches and displays real-time disk usage data, including:
 							cornerRadius: 8,
 							displayColors: true,
 							callbacks: {
-								label: function (context) {
+								label: function (context: any) {
 									const label = context.dataset.label || '';
 									const value = typeof context.raw === 'number' ? context.raw : 0;
 									const total = used + free;
@@ -205,6 +203,14 @@ This widget fetches and displays real-time disk usage data, including:
 			});
 		}
 	});
+	onMount(() => {
+		(async () => {
+			const { Chart, BarController, BarElement, CategoryScale, LinearScale } = await import('chart.js');
+			Chart.register(BarController, BarElement, CategoryScale, LinearScale);
+			ChartJS = Chart;
+		})();
+	});
+
 	onDestroy(() => {
 		if (chart) chart.destroy();
 	});

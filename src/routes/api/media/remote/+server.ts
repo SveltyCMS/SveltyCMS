@@ -15,7 +15,7 @@ import type { RequestHandler } from './$types';
 import { getPrivateSettingSync } from '@src/services/settingsService';
 
 // Media Service
-import { MediaService } from '@src/services/MediaService.server';
+import { MediaService } from '@src/utils/media/mediaService.server';
 import type { MediaAccess } from '@utils/media/mediaModels';
 import { dbAdapter } from '@src/databases/db';
 

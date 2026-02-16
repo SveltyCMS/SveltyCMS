@@ -361,7 +361,7 @@ Key features:
 					tabindex="0"
 					aria-label={file.type === 'video' ? 'Play video' : 'Media preview'}
 				>
-					{#if (file.type === 'image' || file.type === 'video') && file?.filename}
+					{#if ((file.type === 'image' || file.type === 'video') && file?.filename) || (file?.thumbnails && Object.keys(file.thumbnails).length > 0)}
 						{@const thumbUrl = getImageUrl(file, gridSize)}
 						<img
 							src={thumbUrl}

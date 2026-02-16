@@ -23,7 +23,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import axios from 'axios';
+	// Removed axios import
 	// Stores
 	import { toggleUIElement } from '@src/stores/UIStore.svelte.ts';
 	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte.ts';
@@ -348,9 +348,15 @@ Displays a collection of media files (images, documents, audio, video) with:
 		lastSystemFolderId = folderId;
 
 		try {
-			const { data } = await axios.get(`/api/systemVirtualFolder/${folderId}`, {
-				timeout: 10000 // 10 second timeout
+			const response = await fetch(`/api/systemVirtualFolder/${folderId}`, {
+				signal: AbortSignal.timeout(10000) // 10 second timeout
 			});
+
+			if (!response.ok) {
+				throw new Error(`HTTP error! status: ${response.status}`);
+			}
+
+			const data = await response.json();
 
 			if (data.success) {
 				files = Array.isArray(data.data.contents?.files) ? data.data.contents.files : [];

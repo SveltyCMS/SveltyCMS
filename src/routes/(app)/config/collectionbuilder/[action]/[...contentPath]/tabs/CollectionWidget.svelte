@@ -55,7 +55,8 @@
 	}
 
 	// Use state for fields (not derived, since we need to mutate it via drag-and-drop)
-	let fields = $state(mapFieldsWithWidgets(props.fields ?? []));
+	const getInitialFields = () => $state.snapshot(props.fields) ?? [];
+	let fields = $state(mapFieldsWithWidgets(getInitialFields()));
 
 	// Watch for changes in props.fields and update our state
 	$effect(() => {

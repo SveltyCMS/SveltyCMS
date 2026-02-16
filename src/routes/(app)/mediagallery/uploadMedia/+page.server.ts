@@ -6,7 +6,7 @@
 import { error, redirect } from '@sveltejs/kit';
 import type { Actions } from './$types';
 import { dbAdapter } from '@src/databases/db';
-import { MediaService } from '@src/services/MediaService.server';
+import { MediaService } from '@src/utils/media/mediaService.server';
 import { logger } from '@utils/logger.server';
 import type { MediaAccess } from '@root/src/utils/media/mediaModels';
 

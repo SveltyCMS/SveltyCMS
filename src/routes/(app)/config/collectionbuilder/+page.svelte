@@ -36,7 +36,7 @@ None (TreeView has its own keyboard navigation)
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import axios from 'axios';
+	// Removed axios import
 
 	// Logger
 	import { logger } from '@utils/logger';
@@ -107,14 +107,23 @@ None (TreeView has its own keyboard navigation)
 				formData.append('ids', JSON.stringify([node._id!.toString()]));
 				try {
 					isLoading = true;
-					const resp = await axios.post('?/deleteCollections', formData, {
-						headers: { 'Content-Type': 'multipart/form-data' }
+					const response = await fetch('?/deleteCollections', {
+						method: 'POST',
+						body: formData
 					});
-					if (resp.data.success) {
+
+					if (!response.ok) {
+						throw new Error(`HTTP error! status: ${response.status}`);
+					}
+
+					const result = await response.json();
+					const actionData = result.type === 'success' || result.type === 'failure' ? result.data : result;
+
+					if (result.type === 'success' && actionData.success) {
 						currentConfig = currentConfig.filter((n) => n._id.toString() !== node._id!.toString());
 						toaster.success({ description: 'Item deleted successfully' });
 					} else {
-						throw new Error(resp.data.error || 'Deletion failed');
+						throw new Error(actionData.message || 'Deletion failed');
 					}
 				} catch (err) {
 					logger.error('Delete failed', err);
@@ -166,19 +175,27 @@ None (TreeView has its own keyboard navigation)
 			const formData = new FormData();
 			formData.append('items', JSON.stringify(items));
 
-			const response = await axios.post('?/saveConfig', formData, {
-				headers: { 'Content-Type': 'multipart/form-data' }
+			const response = await fetch('?/saveConfig', {
+				method: 'POST',
+				body: formData
 			});
 
-			if (response.data.success) {
+			if (!response.ok) {
+				throw new Error(`HTTP error! status: ${response.status}`);
+			}
+
+			const result = await response.json();
+			const actionData = result.type === 'success' || result.type === 'failure' ? result.data : result;
+
+			if (result.type === 'success' && actionData.success) {
 				toaster.success({ description: 'Organization updated successfully' });
 				nodesToSave = {};
-				if (response.data.contentStructure) {
-					currentConfig = response.data.contentStructure;
+				if (actionData.contentStructure) {
+					currentConfig = actionData.contentStructure;
 					setContentStructure(currentConfig);
 				}
 			} else {
-				throw new Error(response.data.error || 'Failed to save');
+				throw new Error(actionData.message || 'Failed to save');
 			}
 		} catch (error) {
 			logger.error('Error saving categories:', error);

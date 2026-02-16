@@ -95,11 +95,10 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
 		return resolve(event);
 	}
 
-	// Dynamic import for environment to check TEST_MODE
-	const { env } = await import('$env/dynamic/private');
+	// Dynamic check for public API endpoints based on permissions configuration
 
 	// Dynamic check for public API endpoints based on permissions configuration
-	if (isPublicApiRoute(url.pathname, request.method, env.TEST_MODE)) {
+	if (isPublicApiRoute(url.pathname, request.method, process.env.TEST_MODE)) {
 		return resolve(event);
 	}
 

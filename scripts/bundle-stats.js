@@ -27,6 +27,7 @@ const __dirname = path.dirname(__filename);
 const CONFIG = {
 	// Scans the entire immutable folder to capture chunks, entry points, and assets
 	buildDir: path.resolve(__dirname, '../.svelte-kit/output/client/_app/immutable'),
+	metadataDir: path.resolve(__dirname, '../.svelte-kit/output'),
 	budgets: {
 		maxChunkSize: 500 * 1024, // 500 KB (Error)
 		warningSize: 350 * 1024, // 350 KB (Warning) - Lowered slightly for stricter control
@@ -57,6 +58,32 @@ const formatBytes = (bytes, decimals = 2) => {
 	const i = Math.floor(Math.log(bytes) / Math.log(k));
 	return parseFloat((bytes / Math.pow(k, i)).toFixed(decimals)) + ' ' + sizes[i];
 };
+
+async function getBuildMetadata() {
+	try {
+		const clientPath = path.resolve(CONFIG.metadataDir, 'build-metadata-client.json');
+		const serverPath = path.resolve(CONFIG.metadataDir, 'build-metadata-server.json');
+
+		let clientData = { duration: 0, moduleCount: 0 };
+		let serverData = { duration: 0, moduleCount: 0 };
+
+		if (existsSync(clientPath)) {
+			clientData = JSON.parse(readFileSync(clientPath, 'utf8'));
+		}
+		if (existsSync(serverPath)) {
+			serverData = JSON.parse(readFileSync(serverPath, 'utf8'));
+		}
+
+		return {
+			buildTime: clientData.duration + serverData.duration,
+			clientModules: clientData.moduleCount,
+			serverModules: serverData.moduleCount
+		};
+	} catch (_e) {
+		console.warn(`${COLORS.yellow}Warning: Could not read build metadata.${COLORS.reset}`);
+		return { buildTime: 0, clientModules: 0, serverModules: 0 };
+	}
+}
 
 /**
  * Recursively finds all files in a directory matching specific extensions
@@ -134,13 +161,48 @@ function saveHistory(stats) {
 			totalGzip: stats.totalGzip,
 			totalBrotli: stats.totalBrotli,
 			jsCount: stats.jsCount,
-			cssCount: stats.cssCount
+			cssCount: stats.cssCount,
+			buildTime: stats.buildTime,
+			clientModules: stats.clientModules,
+			serverModules: stats.serverModules
 		}
 	});
 	// Keep last 50 entries
 	const trimmed = history.slice(-50);
 	writeFileSync(CONFIG.historyFile, JSON.stringify(trimmed, null, 2));
 	return trimmed;
+}
+
+function checkRegressions(currentStats, history) {
+	if (history.length < 5) return;
+
+	const last5 = history.slice(-5).reverse(); // Get last 5
+	// Filter out zero/missing build times
+	const validBuildTimes = last5.map((h) => (h.summary || h.stats || {}).buildTime).filter((t) => t > 0);
+
+	if (validBuildTimes.length === 0) return;
+
+	const avgBuildTime = validBuildTimes.reduce((a, b) => a + b, 0) / validBuildTimes.length;
+	const currentBuildTime = currentStats.buildTime;
+
+	if (currentBuildTime > 0) {
+		const diff = currentBuildTime - avgBuildTime;
+		const percentChange = (diff / avgBuildTime) * 100;
+
+		if (percentChange > 50) {
+			console.log(`\n${COLORS.red}${COLORS.bold}🚨 CRITICAL PERFORMANCE REGRESSION DETECTED!${COLORS.reset}`);
+			console.log(
+				`${COLORS.red}Build time increased by ${percentChange.toFixed(1)}% (Avg: ${avgBuildTime.toFixed(0)}ms -> Now: ${currentBuildTime.toFixed(0)}ms)${COLORS.reset}`
+			);
+			console.log(`${COLORS.red}Please investigate recent changes causing this slowdown.${COLORS.reset}`);
+			// Could choose to exit(1) here if strictly enforcing, but warning is safer for now
+		} else if (percentChange > 20) {
+			console.log(`\n${COLORS.yellow}${COLORS.bold}⚠️  PERFORMANCE WARNING${COLORS.reset}`);
+			console.log(
+				`${COLORS.yellow}Build time increased by ${percentChange.toFixed(1)}% (Avg: ${avgBuildTime.toFixed(0)}ms -> Now: ${currentBuildTime.toFixed(0)}ms)${COLORS.reset}`
+			);
+		}
+	}
 }
 
 // --- GENERATORS ---
@@ -206,7 +268,7 @@ function printHistory(history) {
 	console.log('');
 }
 
-function generateReport(results) {
+function generateReport(results, metadata = {}) {
 	const sorted = results.sort((a, b) => b.size - a.size);
 
 	const stats = {
@@ -215,7 +277,10 @@ function generateReport(results) {
 		totalBrotli: 0,
 		jsCount: 0,
 		cssCount: 0,
-		files: sorted
+		files: sorted,
+		buildTime: metadata.buildTime || 0,
+		clientModules: metadata.clientModules || 0,
+		serverModules: metadata.serverModules || 0
 	};
 
 	sorted.forEach((f) => {
@@ -226,8 +291,8 @@ function generateReport(results) {
 		if (f.ext === '.css') stats.cssCount++;
 	});
 
-	saveHistory(stats);
-	const history = loadHistory(); // Reload to get latest
+	// Save history returns the updated list
+	const history = saveHistory(stats);
 	const prevBuild = history.length > 1 ? history[history.length - 2].summary : null;
 
 	console.log(`\n${COLORS.bold}${COLORS.blue}📦 BUNDLE ANALYTICS${COLORS.reset}`);
@@ -239,6 +304,14 @@ function generateReport(results) {
 	console.log(`  Gzip Size:     ${formatBytes(stats.totalGzip)}  ${prevBuild ? printComparison(stats.totalGzip, prevBuild.totalGzip) : ''}`);
 	console.log(`  Brotli Size:   ${formatBytes(stats.totalBrotli)}  ${COLORS.green}(Real-world transfer size)${COLORS.reset}`);
 	console.log(`  Assets:        ${stats.jsCount} JS / ${stats.cssCount} CSS\n`);
+
+	if (stats.buildTime > 0) {
+		console.log(`${COLORS.bold}BUILD METRICS:${COLORS.reset}`);
+		console.log(`  Duration:      ${(stats.buildTime / 1000).toFixed(2)}s`);
+		console.log(`  Modules:       ${stats.clientModules} Client / ${stats.serverModules} Server\n`);
+
+		checkRegressions(stats, history);
+	}
 
 	// 2. History
 	printHistory(history);
@@ -309,7 +382,10 @@ async function main() {
 	const results = (await Promise.all(filePaths.map(analyzeFile))).filter(Boolean);
 	const end = performance.now();
 
-	generateReport(results);
+	// Fetch additional build metadata
+	const metadata = await getBuildMetadata();
+
+	generateReport(results, metadata);
 	console.log(`${COLORS.gray}Analysis completed in ${((end - start) / 1000).toFixed(2)}s${COLORS.reset}`);
 }
 

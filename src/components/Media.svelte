@@ -30,7 +30,7 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 <script lang="ts">
 	import { logger } from '@utils/logger';
 	import type { MediaImage } from '@utils/media/mediaModels';
-	import axios from 'axios';
+	// Removed axios import
 	import { onMount, onDestroy } from 'svelte';
 	import { fade, scale } from 'svelte/transition';
 	import { SvelteSet } from 'svelte/reactivity';
@@ -158,8 +158,9 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 		error = null;
 
 		try {
-			const res = await axios.get<MediaImage[]>('/api/media');
-			files = res.data;
+			const response = await fetch('/api/media');
+			if (!response.ok) throw new Error('Failed to load media');
+			files = await response.json();
 			showInfoSet.clear();
 			selectedFiles.clear();
 		} catch (err) {

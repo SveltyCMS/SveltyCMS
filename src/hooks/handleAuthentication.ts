@@ -371,9 +371,7 @@ async function handleSessionRotation(event: RequestEvent, user: User, oldSession
 export const handleAuthentication: Handle = async ({ event, resolve }) => {
 	const { locals, url, cookies } = event;
 
-	// Dynamic imports for environment and settings to avoid circular dependencies
-	// and ensure fresh values from $env/dynamic/private
-	const { env } = await import('$env/dynamic/private');
+	// Dynamic imports for settings to avoid circular dependencies
 	const { getPrivateSettingSync } = await import('@src/services/settingsService');
 
 	// Initialize rotation rate limiter if not already done
@@ -398,7 +396,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
 
 	// Skip public routes
 	const publicRoutes = ['/login', '/register', '/forgot-password', '/setup', '/api/settings/public', '/api/system/health'];
-	if (env.TEST_MODE === 'true') {
+	if (process.env.TEST_MODE === 'true') {
 		publicRoutes.push('/api/testing');
 	}
 	const isLocalizedPublic = /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/(setup|login|register|forgot-password)/.test(url.pathname);

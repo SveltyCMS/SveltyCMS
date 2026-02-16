@@ -8,7 +8,7 @@ import type { Actions, PageServerLoad } from './$types';
 import type { ISODateString } from '@src/content/types';
 
 // Auth
-import { google } from 'googleapis';
+import { OAuth2Client } from 'google-auth-library';
 
 //Db
 import { auth, dbInitPromise } from '@src/databases/db';
@@ -334,7 +334,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 			// Create a fresh OAuth client instance specifically for token exchange
 			// Use the same environment detection logic as the OAuth URL generation
 			const redirectUri = getOAuthRedirectUri();
-			const googleAuthClient = new google.auth.OAuth2(
+			const googleAuthClient = new OAuth2Client(
 				getPrivateSettingSync('GOOGLE_CLIENT_ID'),
 				getPrivateSettingSync('GOOGLE_CLIENT_SECRET'),
 				redirectUri
@@ -344,9 +344,14 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 
 			logger.debug('Successfully obtained tokens from Google');
 			googleAuthClient.setCredentials(tokens);
-			// Fetch Google user profile
-			const oauth2 = google.oauth2({ auth: googleAuthClient, version: 'v2' });
-			const { data: googleUser } = await oauth2.userinfo.get();
+
+			// Fetch Google user profile using native fetch
+			const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+				headers: { Authorization: `Bearer ${tokens.access_token}` }
+			});
+			if (!userInfoResponse.ok) throw error(500, 'Could not retrieve user information');
+
+			const googleUser = await userInfoResponse.json();
 			if (!googleUser) throw error(500, 'Could not retrieve user information');
 
 			// Pass the refresh token from the `tokens` object to the handler function.

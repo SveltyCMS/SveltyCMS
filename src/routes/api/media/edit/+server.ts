@@ -23,7 +23,7 @@ import { logger } from '@utils/logger.server';
 import { dbAdapter } from '@src/databases/db';
 import { hashFileContent } from '@src/utils/media/mediaProcessing.server';
 import { getPublicSetting } from '@src/services/settingsService';
-import { MediaService } from '@src/services/MediaService.server';
+import { MediaService } from '@src/utils/media/mediaService.server';
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 

@@ -10,7 +10,7 @@
 
 import { browser, building, dev } from '$app/environment';
 import { error } from '@sveltejs/kit';
-import axios from 'axios';
+// Removed axios import
 import { v4 as uuidv4 } from 'uuid';
 
 // Stores
@@ -383,12 +383,19 @@ async function getImports(recompile: boolean = false): Promise<Record<ContentTyp
 			// Production Client-Side Fallback
 			let files: string[] = [];
 			try {
-				const collectionsResponse = browser ? (await axios.get('/api/collections')).data : await getCollections(); // Recursion safety check needed?
+				let collectionsData;
+				if (browser) {
+					const response = await fetch('/api/collections');
+					if (!response.ok) throw new Error('Failed to fetch collections');
+					collectionsData = (await response.json()).data;
+				} else {
+					collectionsData = await getCollections();
+				}
 
-				if (collectionsResponse.success && Array.isArray(collectionsResponse.data.collections)) {
-					files = collectionsResponse.data.collections.map((c: { name: string }) => `${c.name}.js`);
-				} else if (Array.isArray(collectionsResponse)) {
-					files = collectionsResponse;
+				if (collectionsData && Array.isArray(collectionsData.collections)) {
+					files = collectionsData.collections.map((c: { name: string }) => `${c.name}.js`);
+				} else if (Array.isArray(collectionsData)) {
+					files = collectionsData;
 				} else {
 					files = [];
 				}
@@ -406,10 +413,14 @@ async function getImports(recompile: boolean = false): Promise<Record<ContentTyp
 							batch.map(async (file) => {
 								const name = file.replace(/\.js$/, '');
 								try {
-									const collectionModule =
-										typeof window !== 'undefined'
-											? (await axios.get(`/api/collections/${name}?includeFields=true&_t=${Math.floor(Date.now() / 1000)}`)).data
-											: await import(/* @vite-ignore */ `${import.meta.env.collectionsFolderJS}${file}`);
+									let collectionModule;
+									if (typeof window !== 'undefined') {
+										const response = await fetch(`/api/collections/${name}?includeFields=true&_t=${Math.floor(Date.now() / 1000)}`);
+										if (!response.ok) throw new Error(`Failed to fetch collection ${name}`);
+										collectionModule = await response.json();
+									} else {
+										collectionModule = await import(/* @vite-ignore */ `${import.meta.env.collectionsFolderJS}${file}`);
+									}
 									await processModule(name, collectionModule, file);
 								} catch (moduleError) {
 									logger.error(`Error processing module ${name}: ${moduleError}`);
@@ -465,8 +476,10 @@ function startPolling() {
 	logger.info('📡 Starting content version polling');
 	pollingInterval = setInterval(async () => {
 		try {
-			const response = await axios.get('/api/content/version');
-			const serverVersion = response.data.version;
+			const response = await fetch('/api/content/version');
+			if (!response.ok) throw new Error('Version check failed');
+			const data = await response.json();
+			const serverVersion = data.version;
 
 			if (serverVersion > currentVersion) {
 				logger.info(`🆕 New content version detected: ${serverVersion} (current: ${currentVersion})`);

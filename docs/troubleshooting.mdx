@@ -49,14 +49,14 @@ Error: Cannot find module 'mariadb'
 2. **Or use the CLI installer:**
 
    ```bash
-   npm run dev
+   bun run dev
    # Follow prompts to auto-install drivers
    ```
 
 3. **Clear cache and reinstall:**
    ```bash
-   rm -rf node_modules package-lock.json
-   npm install
+   rm -rf node_modules package-lock.json bun.lockb
+   bun install
    ```
 
 ### Issue: Database driver installation fails (EACCES)
@@ -590,13 +590,13 @@ Type error: Property 'user' does not exist on type 'Locals'
 2. **Remove unused dependencies:**
 
    ```bash
-   npx depcheck
+   bunx depcheck
    ```
 
 3. **Analyze bundle:**
 
    ```bash
-   npm run build -- --analyze
+   bun run build -- --analyze
    ```
 
 4. **Use dynamic imports:**

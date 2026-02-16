@@ -451,6 +451,14 @@ export const settingsGroups: SettingGroup[] = [
 				description: 'API key for Google services (optional - no default)',
 				type: 'password',
 				category: 'private'
+			},
+			{
+				key: 'GOOGLE_MAPS_API_KEY',
+				label: 'Google Maps API Key',
+				description: 'API Key for Google Maps integration (optional)',
+				type: 'password',
+				category: 'public',
+				placeholder: 'AIza...'
 			}
 		]
 	},

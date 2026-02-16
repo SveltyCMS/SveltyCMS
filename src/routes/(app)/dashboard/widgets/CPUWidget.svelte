@@ -25,14 +25,11 @@
 </script>
 
 <script lang="ts">
-	import { CategoryScale, Chart, Filler, LinearScale, LineController, LineElement, PointElement, Tooltip } from 'chart.js';
-	import 'chartjs-adapter-date-fns';
 	import { onDestroy, onMount } from 'svelte';
 	import BaseWidget from '../BaseWidget.svelte';
 	import type { WidgetSize } from '@src/content/types';
 
-	// Register Chart.js components
-	Chart.register(LineController, CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Filler);
+	let ChartJS: any = $state(undefined);
 
 	const {
 		label = 'CPU Usage',
@@ -53,11 +50,11 @@
 	} = $props();
 
 	let currentData: any = $state(undefined);
-	let chartInstance: Chart | undefined = $state(undefined);
+	let chartInstance: any = $state(undefined);
 	let chartCanvasElement: HTMLCanvasElement | undefined = $state(undefined);
 
 	function updateChart(fetchedData: any) {
-		if (!chartCanvasElement) return;
+		if (!chartCanvasElement || !ChartJS) return;
 		const cpuInfo = fetchedData?.cpuInfo;
 		const historicalLoad = cpuInfo?.historicalLoad;
 		if (!historicalLoad || !Array.isArray(historicalLoad.usage) || !Array.isArray(historicalLoad.timestamps)) {
@@ -108,11 +105,11 @@
 			}
 
 			chartInstance.update('none');
-		} else {
-			const existingChart = Chart.getChart(chartCanvasElement);
+		} else if (ChartJS) {
+			const existingChart = ChartJS.getChart(chartCanvasElement);
 			if (existingChart) existingChart.destroy();
 
-			chartInstance = new Chart(chartCanvasElement, {
+			chartInstance = new ChartJS(chartCanvasElement, {
 				type: 'line',
 				data: {
 					labels: formattedLabels,
@@ -162,7 +159,7 @@
 							ticks: {
 								color: theme === 'dark' ? '#9ca3af' : '#6b7280',
 								stepSize: 25,
-								callback: (value) => value + '%',
+								callback: (value: any) => value + '%',
 								font: { size: fontSize }
 							},
 							grid: {
@@ -185,8 +182,8 @@
 							cornerRadius: 8,
 							displayColors: false,
 							callbacks: {
-								title: (context) => context[0].label,
-								label: (context) => `CPU: ${parseFloat(context.raw as string).toFixed(1)}%`
+								title: (context: any) => context[0].label,
+								label: (context: any) => `CPU: ${parseFloat(context.raw as string).toFixed(1)}%`
 							}
 						}
 					},
@@ -222,9 +219,25 @@
 	let resizeObserver: ResizeObserver | undefined;
 
 	onMount(() => {
-		if (chartCanvasElement && chartInstance) {
-			chartInstance.resize();
-		}
+		(async () => {
+			// Lazy-load Chart.js
+			const { Chart: LoadedChart, CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Filler, LineController } = await import('chart.js');
+			// @ts-expect-error - allow dynamic import of date adapter which might lack types in this context
+			await import('chartjs-adapter-date-fns');
+
+			LoadedChart.register(LineController, CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Filler);
+			ChartJS = LoadedChart;
+
+			// Initialize value if completely missing
+			if (chartCanvasElement && currentData?.cpuInfo) {
+				updateChart(currentData);
+			}
+
+			if (chartCanvasElement && chartInstance) {
+				chartInstance.resize();
+			}
+		})();
+
 		const parent = chartCanvasElement?.parentElement?.parentElement;
 		if (parent && typeof ResizeObserver !== 'undefined') {
 			resizeObserver = new ResizeObserver(() => {

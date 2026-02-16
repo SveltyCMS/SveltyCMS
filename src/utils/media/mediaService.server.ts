@@ -197,7 +197,7 @@ export class MediaService {
 	 */
 
 	private async getMediaProcessingService() {
-		const { mediaProcessingService } = await import('./MediaProcessingService.server');
+		const { mediaProcessingService } = await import('./mediaProcessing.server');
 		return mediaProcessingService;
 	}
 
@@ -320,6 +320,14 @@ export class MediaService {
 				} catch (vError) {
 					logger.error('Video processing failed', { fileName: file.name, error: vError });
 				}
+			} else if (mimeType === 'application/pdf') {
+				try {
+					// Generate a thumbnail image from the first page of the PDF
+					thumbnailBuffer = await this.generatePdfThumbnail(buffer);
+					logger.info('PDF thumbnail generated successfully', { fileName: file.name });
+				} catch (pError) {
+					logger.error('PDF thumbnail generation failed', { fileName: file.name, error: pError });
+				}
 			}
 
 			// Create media object with required properties
@@ -363,14 +371,14 @@ export class MediaService {
 				thumbnails: resized || {}
 			};
 
-			// If we have a video thumbnail, process it into resizing variants
-			if (isVideo && thumbnailBuffer) {
+			// If we have a video or PDF thumbnail, process it into resizing variants
+			if ((isVideo || mimeType === 'application/pdf') && thumbnailBuffer) {
 				try {
 					const { fileNameWithoutExt } = getSanitizedFileName(file.name);
-					const videoResized = await saveResizedImages(thumbnailBuffer, hash, fileNameWithoutExt, 'jpg', basePath);
-					media.thumbnails = { ...media.thumbnails, ...videoResized };
+					const resizedThumbnails = await saveResizedImages(thumbnailBuffer, hash, fileNameWithoutExt, 'jpg', basePath);
+					media.thumbnails = { ...media.thumbnails, ...resizedThumbnails };
 				} catch (rError) {
-					logger.error('Failed to process video thumbnail variants', { fileName: file.name, error: rError });
+					logger.error('Failed to process thumbnail variants', { fileName: file.name, error: rError });
 				}
 			}
 
@@ -882,8 +890,40 @@ export class MediaService {
 		} finally {
 			try {
 				if (os.platform() !== 'win32') {
-					unlinkSync(tempInput);
-					unlinkSync(tempOutput);
+					if (tempInput) unlinkSync(tempInput);
+					if (tempOutput) unlinkSync(tempOutput);
+				}
+			} catch {
+				/* ignore */
+			}
+		}
+	}
+
+	/**
+	 * Generates a thumbnail from the first page of a PDF using ImageMagick
+	 */
+	private async generatePdfThumbnail(buffer: Buffer): Promise<Buffer | null> {
+		const tempInput = Path.join(os.tmpdir(), `pdf-input-${Date.now()}.pdf`);
+		const tempOutput = Path.join(os.tmpdir(), `pdf-output-${Date.now()}.jpg`);
+		try {
+			writeFileSync(tempInput, buffer);
+			// Use ImageMagick (magick) to extract the first page [0] at 150 DPI
+			// -background white -flatten handles transparency
+			await execAsync(`magick -density 150 "${tempInput}[0]" -background white -flatten -alpha remove -quality 90 "${tempOutput}"`);
+			return readFileSync(tempOutput);
+		} catch (err) {
+			const isMagickMissing = err instanceof Error && (err.message.includes('not found') || err.message.includes('not recognized'));
+			if (isMagickMissing) {
+				logger.warn('PDF thumbnail generation skipped: "magick" command not found. Install ImageMagick and Ghostscript to enable PDF previews.');
+			} else {
+				logger.error('Error generating PDF thumbnail', { error: err });
+			}
+			return null;
+		} finally {
+			try {
+				if (os.platform() !== 'win32') {
+					if (tempInput) unlinkSync(tempInput);
+					if (tempOutput) unlinkSync(tempOutput);
 				}
 			} catch {
 				/* ignore */

@@ -240,7 +240,7 @@ export class AdapterCore {
 		}
 
 		if (conditions.length === 0) return undefined;
-        // console.log(`[AdapterCore] Mapping query:`, JSON.stringify(query), '-> Conditions:', conditions.length);
+		// console.log(`[AdapterCore] Mapping query:`, JSON.stringify(query), '-> Conditions:', conditions.length);
 		return and(...conditions);
 	}
 }

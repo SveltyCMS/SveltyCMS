@@ -135,14 +135,13 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
 
 	// Dynamic imports for settings to avoid circular dependencies in hooks
 	const { getPrivateSettingSync } = await import('@src/services/settingsService');
-	const { env } = await import('$env/dynamic/private');
 
 	const pathname = url.pathname;
 	const isApi = pathname.startsWith('/api/');
-	const isPublic = isPublicRoute(pathname, request.method, env.TEST_MODE);
+	const isPublic = isPublicRoute(pathname, request.method, process.env.TEST_MODE);
 
 	if (pathname.includes('/api/testing')) {
-		console.log(`[Authorization] Path: ${pathname}, TEST_MODE: ${env.TEST_MODE}, isPublic: ${isPublic}`);
+		console.log(`[Authorization] Path: ${pathname}, TEST_MODE: ${process.env.TEST_MODE}, isPublic: ${isPublic}`);
 	}
 
 	// --- Skip static or internal routes early ---

@@ -12,7 +12,7 @@
 
 <script lang="ts">
 	import { logger } from '@utils/logger';
-	import axios from 'axios';
+	// Removed axios import
 	import { onMount } from 'svelte';
 	import { goto, afterNavigate } from '$app/navigation';
 	import { page } from '$app/state';
@@ -124,19 +124,30 @@
 				payload.confirmDeletions = 'true';
 			}
 
-			const resp = await axios.post(`?/saveCollection`, obj2formData(payload), {
-				headers: { 'Content-Type': 'multipart/form-data' }
+			const response = await fetch(`?/saveCollection`, {
+				method: 'POST',
+				body: obj2formData(payload)
 			});
 
+			if (!response.ok) {
+				throw new Error(`HTTP error! status: ${response.status}`);
+			}
+
+			const result = await response.json();
+			let data = result;
+			if (result.type === 'success' && result.data) {
+				data = typeof result.data === 'string' ? JSON.parse(result.data) : result.data;
+			}
+
 			// Check for drift detection from server (status 202)
-			if (resp.data.data && resp.data.data.driftDetected) {
-				migrationPlan = resp.data.data.plan;
+			if (data && data.driftDetected) {
+				migrationPlan = data.plan;
 				showWarningModal = true;
 				toaster.info({ description: 'Manual confirmation required for schema changes' });
 				return;
 			}
 
-			if (resp.status === 200 || (resp.data && resp.data.status === 200)) {
+			if (response.status === 200 || (data && data.status === 200)) {
 				toaster.success({ description: 'Collection Saved Successfully' });
 				showWarningModal = false;
 				migrationPlan = null;
@@ -158,11 +169,17 @@
 			title: 'Delete Collection?',
 			body: `Are you sure you want to delete "${collectionValue?.name}"? This cannot be undone.`,
 			onConfirm: async () => {
-				await axios.post(`?/deleteCollections`, obj2formData({ ids: JSON.stringify([collectionValue?._id]) }), {
-					headers: { 'Content-Type': 'multipart/form-data' }
+				const response = await fetch(`?/deleteCollections`, {
+					method: 'POST',
+					body: obj2formData({ ids: JSON.stringify([collectionValue?._id]) })
 				});
-				toaster.success({ description: 'Collection Deleted' });
-				goto('/config/collectionbuilder');
+
+				if (response.ok) {
+					toaster.success({ description: 'Collection Deleted' });
+					goto('/config/collectionbuilder');
+				} else {
+					toaster.error({ description: 'Failed to delete collection' });
+				}
 			}
 		});
 	}

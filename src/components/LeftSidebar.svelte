@@ -20,7 +20,7 @@
 
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import axios from 'axios';
+	// Removed axios import
 	import { browser } from '$app/environment';
 	import { logger } from '@utils/logger';
 
@@ -197,7 +197,10 @@
 
 	async function signOut(): Promise<void> {
 		try {
-			await axios.post('/api/user/logout', {}, { withCredentials: true });
+			await fetch('/api/user/logout', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' }
+			});
 		} catch (error) {
 			logger.error('Error during sign-out:', error instanceof Error ? error.message : 'Unknown error');
 		} finally {

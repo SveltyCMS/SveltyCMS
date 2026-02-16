@@ -19,7 +19,7 @@ import { getPrivateSettingSync } from '@src/services/settingsService';
 
 // Media Processing
 import { extractMetadata } from '@utils/media/mediaProcessing.server';
-import { MediaService } from '@src/services/MediaService.server';
+import { MediaService } from '@src/utils/media/mediaService.server';
 import type { MediaAccess, WatermarkOptions, MediaItem } from '@utils/media/mediaModels';
 
 // System Logger

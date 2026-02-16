@@ -14,7 +14,7 @@
 
 import { json, error } from '@sveltejs/kit';
 import { logger } from '@utils/logger.server';
-import { MediaService } from '@src/services/MediaService.server';
+import { MediaService } from '@src/utils/media/mediaService.server';
 
 async function getDbAdapter() {
 	const { dbAdapter } = await import('@src/databases/db');

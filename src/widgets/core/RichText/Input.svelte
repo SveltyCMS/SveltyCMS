@@ -10,10 +10,10 @@
 	// Data
 
 	// Svelte
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount } from 'svelte';
 	import { slide } from 'svelte/transition';
 	import { quintOut } from 'svelte/easing';
-	import { createEditor } from './tiptap';
+	// Removed static createEditor import for lazy-loading
 
 	import type { Editor } from '@tiptap/core';
 	import type { FieldType } from './';
@@ -54,6 +54,7 @@
 
 	let editor: Editor | null = $state(null);
 	let element: HTMLDivElement;
+	let createEditor: any = $state(null);
 
 	let isScrolled = $state(false);
 	let showSlashMenu = $state(false);
@@ -404,40 +405,47 @@
 	}
 
 	onMount(() => {
-		let initialContent = '';
-		if (field.translated) {
-			initialContent = (value as Record<string, RichTextData>)?.[lang]?.content || '';
-		} else {
-			initialContent = (value as RichTextData)?.content || '';
-		}
+		(async () => {
+			const module = await import('./tiptap');
+			createEditor = module.createEditor;
 
-		editor = createEditor(element, initialContent, lang, { aiEnabled: !!field.aiEnabled });
-
-		editor.on('update', () => {
-			if (!editor) return;
-			const newContent = {
-				title: (field.translated ? (value as Record<string, RichTextData>)?.[lang]?.title : (value as RichTextData)?.title) || '',
-				content: editor.isEmpty ? '' : editor.getHTML()
-			};
-
+			let initialContent = '';
 			if (field.translated) {
-				value = {
-					...(value as Record<string, RichTextData>),
-					[lang]: newContent
-				};
+				initialContent = (value as Record<string, RichTextData>)?.[lang]?.content || '';
 			} else {
-				value = newContent;
+				initialContent = (value as RichTextData)?.content || '';
 			}
-		});
+
+			editor = createEditor(element, initialContent, lang, { aiEnabled: !!field.aiEnabled });
+
+			if (!editor) return;
+
+			editor.on('update', () => {
+				if (!editor) return;
+				const newContent = {
+					title: (field.translated ? (value as Record<string, RichTextData>)?.[lang]?.title : (value as RichTextData)?.title) || '',
+					content: editor.isEmpty ? '' : editor.getHTML()
+				};
+
+				if (field.translated) {
+					value = {
+						...(value as Record<string, RichTextData>),
+						[lang]: newContent
+					};
+				} else {
+					value = newContent;
+				}
+			});
+		})();
 
 		window.addEventListener('scroll', handleScroll);
 		window.addEventListener('click', closeDropdowns);
-	});
 
-	onDestroy(() => {
-		editor?.destroy();
-		window.removeEventListener('scroll', handleScroll);
-		window.removeEventListener('click', closeDropdowns);
+		return () => {
+			editor?.destroy();
+			window.removeEventListener('scroll', handleScroll);
+			window.removeEventListener('click', closeDropdowns);
+		};
 	});
 
 	$effect(() => {

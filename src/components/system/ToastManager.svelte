@@ -137,7 +137,7 @@ optional actions, and smooth animations.
 					<div
 						class="text-sm md:text-base font-bold opacity-100 leading-tight md:leading-relaxed text-white drop-shadow-sm inline-block max-w-full whitespace-normal"
 					>
-						<!-- Sanitized HTML rendering with DOMPurify for XSS protection -->
+						<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 						{@html DOMPurify.sanitize(toast.description)}
 					</div>
 

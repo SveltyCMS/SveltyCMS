@@ -163,7 +163,10 @@ export const publicConfigSchema = object({
 	USE_GOOGLE_OAUTH: optional(boolean()),
 
 	// --- AI ---
-	USE_AI_TAGGING: optional(boolean())
+	USE_AI_TAGGING: optional(boolean()),
+
+	// --- Maps ---
+	GOOGLE_MAPS_API_KEY: optional(pipe(string(), minLength(1)))
 });
 
 export const websiteTokenSchema = object({
@@ -257,8 +260,6 @@ interface Config {
 	USE_REDIS?: boolean;
 	REDIS_HOST?: string;
 	REDIS_PORT?: number;
-	USE_MAPBOX?: boolean;
-	MAPBOX_API_TOKEN?: string;
 	USE_TIKTOK?: boolean;
 	TIKTOK_TOKEN?: string;
 	SEASONS?: string[];
@@ -277,9 +278,6 @@ function performConditionalValidation(config: Config): string[] {
 	}
 	if (config.USE_REDIS && (!config.REDIS_HOST || !config.REDIS_PORT)) {
 		errors.push(`When USE_REDIS is true, both REDIS_HOST and REDIS_PORT are required.`);
-	}
-	if (config.USE_MAPBOX && !config.MAPBOX_API_TOKEN) {
-		errors.push(`When USE_MAPBOX is true, a MAPBOX_API_TOKEN is required.`);
 	}
 	if (config.USE_TIKTOK && !config.TIKTOK_TOKEN) {
 		errors.push(`When USE_TIKTOK is true, a TIKTOK_TOKEN is required.`);

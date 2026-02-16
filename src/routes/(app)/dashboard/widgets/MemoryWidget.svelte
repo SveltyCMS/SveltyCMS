@@ -33,13 +33,11 @@ Features:
 </script>
 
 <script lang="ts">
-	import type { ChartConfiguration, Plugin } from 'chart.js';
-	import { ArcElement, Chart, PieController, Tooltip } from 'chart.js';
-	import { onDestroy } from 'svelte';
+	import { onDestroy, onMount } from 'svelte';
 	import BaseWidget from '../BaseWidget.svelte';
 	import type { WidgetSize } from '@src/content/types';
 
-	Chart.register(PieController, ArcElement, Tooltip);
+	let ChartJS: any = $state(undefined);
 
 	interface MemoryData {
 		memoryInfo: {
@@ -71,7 +69,7 @@ Features:
 	} = $props();
 
 	let currentData: MemoryData | undefined = $state(undefined);
-	let chart: Chart | undefined = $state(undefined);
+	let chart: any = $state(undefined);
 	let chartCanvas: HTMLCanvasElement | undefined = $state(undefined);
 
 	function updateChartAction(_canvas: HTMLCanvasElement, data: any) {
@@ -85,7 +83,7 @@ Features:
 	}
 
 	$effect(() => {
-		if (!chartCanvas || !currentData?.memoryInfo?.total) return;
+		if (!chartCanvas || !currentData?.memoryInfo?.total || !ChartJS) return;
 
 		// Data is already in MB from API
 		const usedMemMb = currentData.memoryInfo.total.usedMemMb || 0;
@@ -99,14 +97,14 @@ Features:
 			chart.data.datasets[0].data = [plainUsedMem, plainFreeMem];
 			chart.update('none');
 		} else {
-			const existingChart = Chart.getChart(chartCanvas);
+			const existingChart = ChartJS.getChart(chartCanvas);
 			if (existingChart) {
 				existingChart.destroy();
 			}
 
-			const memoryTextCenterPlugin: Plugin = {
+			const memoryTextCenterPlugin: any = {
 				id: 'memoryTextCenterPlugin',
-				beforeDraw(chart) {
+				beforeDraw(chart: any) {
 					const ctx = chart.ctx;
 					const { width, height } = chart;
 
@@ -128,7 +126,7 @@ Features:
 				}
 			};
 
-			const config: ChartConfiguration = {
+			const config: any = {
 				type: 'pie',
 				data: {
 					labels: ['Used', 'Free'],
@@ -169,7 +167,7 @@ Features:
 							cornerRadius: 8,
 							displayColors: true,
 							callbacks: {
-								label: function (context) {
+								label: function (context: any) {
 									const label = context.label || '';
 									const value = typeof context.raw === 'number' ? context.raw : 0;
 									const dataSet = context.chart.data.datasets[0].data as number[];
@@ -183,8 +181,20 @@ Features:
 				},
 				plugins: [memoryTextCenterPlugin]
 			};
-			chart = new Chart(chartCanvas, config);
+			chart = new ChartJS(chartCanvas, config);
 		}
+	});
+
+	onMount(() => {
+		(async () => {
+			const { Chart, PieController, ArcElement, Tooltip } = await import('chart.js');
+			Chart.register(PieController, ArcElement, Tooltip);
+			ChartJS = Chart;
+
+			if (chartCanvas && currentData?.memoryInfo?.total) {
+				// Trigger effect
+			}
+		})();
 	});
 
 	onDestroy(() => {

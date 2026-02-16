@@ -280,7 +280,7 @@ function createSetupStore() {
 	}
 
 	// --- Derived State ---
-	const stepCompleted = $derived<boolean[]>([
+	const stepCompleted = $derived.by<boolean[]>(() => [
 		wizard.dbTestPassed || wizard.highestStepReached > 0,
 		wizard.highestStepReached > 1 && validateStep(1, false),
 		wizard.highestStepReached > 2 && validateStep(2, false),
@@ -288,7 +288,7 @@ function createSetupStore() {
 		false
 	]);
 
-	const stepClickable = $derived<boolean[]>([
+	const stepClickable = $derived.by<boolean[]>(() => [
 		true, // Step 0 (Database) is always clickable
 		wizard.highestStepReached >= 1, // Step 1 (Admin) is clickable if we've reached it
 		wizard.highestStepReached >= 2, // Step 2 (System) is clickable if we've reached it
@@ -305,17 +305,19 @@ function createSetupStore() {
 	});
 
 	// Password requirements checker for admin password
-	const passwordRequirements = $derived({
+	const passwordRequirements = $derived.by(() => ({
 		length: wizard.adminUser.password.length >= 8,
 		letter: /[a-zA-Z]/.test(wizard.adminUser.password),
 		number: /[0-9]/.test(wizard.adminUser.password),
 		special: /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>?]/.test(wizard.adminUser.password),
 		match: wizard.adminUser.password === wizard.adminUser.confirmPassword && wizard.adminUser.password !== ''
-	});
+	}));
 
 	// DB config fingerprint for change detection
-	const dbConfigFingerprint = $derived<string>(JSON.stringify(wizard.dbConfig));
-	const dbConfigChangedSinceTest = $derived<boolean>(wizard.lastTestFingerprint !== null && wizard.lastTestFingerprint !== dbConfigFingerprint);
+	const dbConfigFingerprint = $derived.by<string>(() => JSON.stringify(wizard.dbConfig));
+	const dbConfigChangedSinceTest = $derived.by<boolean>(
+		() => wizard.lastTestFingerprint !== null && wizard.lastTestFingerprint !== dbConfigFingerprint
+	);
 
 	// --- API METHODS (Remote Functions / Server Functions) ---
 

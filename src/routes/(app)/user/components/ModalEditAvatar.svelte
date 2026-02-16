@@ -15,7 +15,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 
 	import { invalidateAll } from '$app/navigation';
 	import { logger } from '@src/utils/logger';
-	import axios from 'axios';
+	// Removed axios import
 
 	// Stores
 	import { avatarSrc } from '@stores/store.svelte.ts';
@@ -38,7 +38,16 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 	// Valibot validation schema
 	import { object, instance, check, pipe, parse, type InferInput, type ValiError } from 'valibot';
 
-	let { isGivenData: _isGivenData, parent: _parent } = $props();
+	interface Props {
+		isGivenData?: boolean;
+		parent?: {
+			regionFooter?: string;
+			onClose?: () => void;
+			buttonPositive?: string;
+		};
+	}
+
+	let { isGivenData: _isGivenData = false, parent: _parent = {} }: Props = $props();
 
 	// ... (rest of code) ...
 
@@ -233,17 +242,17 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 			const formData = new FormData();
 			formData.append('avatar', processedFile);
 
-			// Upload with axios for progress tracking
-			const response = await axios.post('/api/user/saveAvatar', formData, {
-				headers: { 'Content-Type': 'multipart/form-data' },
-				onUploadProgress: (progressEvent) => {
-					if (progressEvent.total) {
-						uploadProgress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-					}
-				}
+			// Upload with fetch
+			const response = await fetch('/api/user/saveAvatar', {
+				method: 'POST',
+				body: formData
 			});
 
-			const result = response.data;
+			if (!response.ok) {
+				throw new Error(`HTTP error! status: ${response.status}`);
+			}
+
+			const result = await response.json();
 
 			// Update the avatar store with the new URL from API
 			if (result.avatarUrl) {

@@ -34,7 +34,7 @@ import { flatten, safeParse } from 'valibot';
 import { generateGoogleAuthUrl, googleAuth } from '@src/databases/auth/googleAuth';
 import type { User } from '@src/databases/auth/types';
 import { auth, dbInitPromise } from '@src/databases/db';
-import { google } from 'googleapis';
+// Removed googleapis import
 
 // Utils
 import type { ISODateString } from '@src/content/types';
@@ -428,10 +428,17 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 				if (!tokens) throw new Error('Failed to retrieve Google OAuth tokens.');
 
 				googleAuthInstance.setCredentials(tokens);
-				const oauth2 = google.oauth2('v2');
-				// Assign auth client to oauth2 context options with proper type
-				(oauth2.context._options as { auth?: typeof googleAuthInstance }).auth = googleAuthInstance;
-				const { data: googleUser } = await oauth2.userinfo.get();
+
+				// Use native fetch to get user info instead of heavy googleapis
+				const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+					headers: { Authorization: `Bearer ${tokens.access_token}` }
+				});
+
+				if (!userInfoResponse.ok) {
+					throw new Error('Failed to retrieve Google user information.');
+				}
+
+				const googleUser = await userInfoResponse.json();
 				logger.debug(`Google user information: ${JSON.stringify(googleUser)}`);
 
 				// Invite token comes back via OAuth state param

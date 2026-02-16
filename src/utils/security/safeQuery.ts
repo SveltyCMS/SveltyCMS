@@ -24,7 +24,7 @@ interface SafeQueryOptions {
 export function safeQuery<T extends Record<string, any>>(query: T, tenantId?: string | null, options: SafeQueryOptions = {}): T {
 	// 1. Get private config
 	const privateEnv = getPrivateEnv();
-    console.log(`[SafeQuery] Incoming Query:`, JSON.stringify(query), `TenantId:`, tenantId, `MultiTenant:`, privateEnv?.MULTI_TENANT);
+	console.log(`[SafeQuery] Incoming Query:`, JSON.stringify(query), `TenantId:`, tenantId, `MultiTenant:`, privateEnv?.MULTI_TENANT);
 
 	// 2. Skip if Multi-Tenancy is disabled
 	if (!privateEnv?.MULTI_TENANT) {

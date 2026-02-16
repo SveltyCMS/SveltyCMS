@@ -28,8 +28,9 @@ Interactive form with map, country selector, and address validation
 -->
 
 <script lang="ts">
+	/* global google */
 	import { app, validationStore } from '@src/stores/store.svelte';
-	import { onDestroy, onMount } from 'svelte';
+	import { onMount } from 'svelte';
 	import type { FieldType } from './';
 	import type { AddressData } from './types';
 	import { tokenTarget } from '@src/services/token/tokenTarget';
@@ -42,6 +43,11 @@ Interactive form with map, country selector, and address validation
 
 	// Unified error handling
 	import { handleWidgetValidation } from '@widgets/widgetErrorHandler';
+
+	import { setOptions, importLibrary } from '@googlemaps/js-api-loader';
+
+	// Define google namespace for TypeScript if not globally available
+	/// <reference types="google.maps" />
 
 	let {
 		field,
@@ -156,10 +162,17 @@ Interactive form with map, country selector, and address validation
 		})
 	);
 
-	// --- 3. Initialization ---
+	// --- 3. Google Maps Integration ---
 
-	// Initialize value if completely missing (One-time on mount)
-	onMount(() => {
+	let mapElement = $state<HTMLElement>();
+	let searchInput = $state<HTMLInputElement>();
+	let map = $state<google.maps.Map | null>(null);
+	let marker = $state<google.maps.Marker | null>(null);
+	let autocomplete = $state<google.maps.places.Autocomplete | null>(null);
+	let googleMapsApiKey = $derived(publicEnv.GOOGLE_MAPS_API_KEY as string);
+
+	onMount(async () => {
+		// Initialize value if completely missing
 		if (!value) {
 			const initialAddress = {
 				street: '',
@@ -177,35 +190,177 @@ Interactive form with map, country selector, and address validation
 				value = initialAddress;
 			}
 		}
-	});
 
-	// Note: Map functionality is placeholder for future Mapbox integration
-	const map: any = null;
-
-	onDestroy(() => {
-		if (map && typeof map.remove === 'function') {
-			map.remove();
+		if (googleMapsApiKey && !(field.hiddenFields as string[])?.includes('map')) {
+			await initMap();
 		}
 	});
+
+	async function initMap() {
+		setOptions({
+			key: googleMapsApiKey,
+			v: 'weekly',
+			libraries: ['places']
+		});
+
+		try {
+			const { Map } = (await importLibrary('maps')) as google.maps.MapsLibrary;
+			const { Marker } = (await importLibrary('marker')) as google.maps.MarkerLibrary;
+			const { Autocomplete } = (await importLibrary('places')) as google.maps.PlacesLibrary;
+
+			// Initialize Map
+			if (mapElement) {
+				const center = {
+					lat: safeValue?.latitude || (field.mapCenter as any)?.lat || 51.1657,
+					lng: safeValue?.longitude || (field.mapCenter as any)?.lng || 10.4515
+				};
+
+				map = new Map(mapElement, {
+					center,
+					zoom: safeValue?.latitude ? 15 : (field.zoom as number) || 6,
+					mapTypeControl: false,
+					streetViewControl: false,
+					fullscreenControl: true
+				});
+
+				// Initialize Marker
+				marker = new Marker({
+					position: center,
+					map,
+					draggable: true,
+					title: 'Location'
+				});
+
+				marker.addListener('dragend', () => {
+					const pos = marker?.getPosition();
+					if (pos) {
+						updateAddressField('latitude', pos.lat());
+						updateAddressField('longitude', pos.lng());
+					}
+				});
+
+				// Locate Me Button
+				const locationButton = document.createElement('button');
+				locationButton.textContent = 'Locate Me';
+				locationButton.classList.add('btn', 'variant-filled-primary', 'btn-sm', 'm-2', 'absolute', 'bottom-0', 'left-0');
+				locationButton.type = 'button';
+
+				locationButton.addEventListener('click', () => {
+					if (navigator.geolocation) {
+						navigator.geolocation.getCurrentPosition(
+							(position) => {
+								const pos = {
+									lat: position.coords.latitude,
+									lng: position.coords.longitude
+								};
+								map?.setCenter(pos);
+								map?.setZoom(17);
+								marker?.setPosition(pos);
+								updateAddressField('latitude', pos.lat);
+								updateAddressField('longitude', pos.lng);
+							},
+							() => {
+								// handleLocationError(true, infoWindow, map.getCenter()!);
+							}
+						);
+					}
+				});
+				map.controls[google.maps.ControlPosition.LEFT_BOTTOM].push(locationButton);
+			}
+
+			// Initialize Autocomplete
+			if (searchInput) {
+				autocomplete = new Autocomplete(searchInput, {
+					fields: ['address_components', 'geometry', 'formatted_address'],
+					types: ['address']
+				});
+
+				autocomplete.addListener('place_changed', () => {
+					const place = autocomplete?.getPlace();
+					if (!place || !place.geometry || !place.geometry.location) return;
+
+					// Fill Form
+					fillInAddress(place);
+
+					// Update Map
+					if (map && marker) {
+						map.setCenter(place.geometry.location);
+						map.setZoom(17);
+						marker.setPosition(place.geometry.location);
+					}
+				});
+			}
+		} catch (e) {
+			console.error('Google Maps Load Error:', e);
+		}
+	}
+
+	function fillInAddress(place: google.maps.places.PlaceResult) {
+		let street = '';
+		let houseNumber = '';
+		let postalCode = '';
+		let city = '';
+		let country = '';
+
+		for (const component of place.address_components || []) {
+			const type = component.types[0];
+			switch (type) {
+				case 'route':
+					street = component.long_name;
+					break;
+				case 'street_number':
+					houseNumber = component.long_name;
+					break;
+				case 'postal_code':
+					postalCode = component.long_name;
+					break;
+				case 'locality':
+					city = component.long_name;
+					break;
+				case 'country':
+					country = component.short_name; // ISO 2 code
+					break;
+			}
+		}
+
+		updateAddressField('street', street);
+		updateAddressField('houseNumber', houseNumber);
+		updateAddressField('postalCode', postalCode);
+		updateAddressField('city', city);
+		updateAddressField('country', country);
+
+		if (place.geometry && place.geometry.location) {
+			updateAddressField('latitude', place.geometry.location.lat());
+			updateAddressField('longitude', place.geometry.location.lng());
+		}
+	}
 </script>
 
 <div class="address-container" class:invalid={error}>
-	{#if !(field.hiddenFields as string[])?.includes('latitude')}
-		<div class="map">
-			<!-- Map placeholder - Mapbox integration to be implemented -->
+	{#if !(field.hiddenFields as string[])?.includes('map')}
+		<div
+			class="map-container relative h-[300px] w-full rounded-md border border-surface-300 bg-surface-100 dark:border-surface-600 dark:bg-surface-800"
+			bind:this={mapElement}
+		>
+			{#if !googleMapsApiKey}
+				<div class="flex h-full items-center justify-center text-surface-500">Maps API Key missing</div>
+			{/if}
 		</div>
 	{/if}
 
 	{#if safeValue}
-		<div class="form-grid">
-			<div class="field relative">
-				<label for="{field.db_fieldName}-street">Street</label>
+		<div class="form-grid mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+			<!-- Street / Autocomplete -->
+			<div class="field relative md:col-span-2">
+				<label for="{field.db_fieldName}-street" class="label">Street / Search</label>
 				<input
 					type="text"
 					id="{field.db_fieldName}-street"
 					value={safeValue.street}
 					oninput={(e) => updateAddressField('street', e.currentTarget.value)}
 					class="input"
+					bind:this={searchInput}
+					placeholder="Search address or enter street"
 					use:tokenTarget={{
 						name: field.db_fieldName,
 						label: field.label,
@@ -213,6 +368,7 @@ Interactive form with map, country selector, and address validation
 					}}
 				/>
 			</div>
+
 			<div class="field">
 				<label for="{field.db_fieldName}-houseNumber">House Number</label>
 				<input

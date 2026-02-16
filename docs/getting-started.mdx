@@ -41,11 +41,11 @@ SveltyCMS is a **modern headless CMS** built with SvelteKit that provides:
 git clone https://github.com/SveltyCMS/SveltyCMS.git
 cd SveltyCMS
 
-# Install dependencies
-npm install
+# Install dependencies (we use bun as its fast vs npm, pnpm or yarn)
+bun install
 
 # Start development server (CLI installer launches automatically)
-npm run dev
+bun run dev
 ```
 
 ### 2. Complete Setup Wizard
@@ -431,22 +431,22 @@ See [Widget Development Guide](/docs/widgets/development) for details.
 
 ```bash
 # Development
-npm run dev          # Start dev server
-npm run build        # Build for production
-npm run preview      # Preview production build
+bun run dev          # Start dev server
+bun run build        # Build for production
+bun run preview      # Preview production build
 
 # Database
-npm run seed         # Seed initial data
-npm run migrate      # Run migrations
+bun run seed         # Seed initial data
+bun run migrate      # Run migrations
 
 # Testing
-npm run test         # Run tests
-npm run test:e2e     # End-to-end tests
+bun run test         # Run tests
+bun run test:e2e     # End-to-end tests
 
 # Maintenance
-npm run lint         # Lint code
-npm run format       # Format code
-npm run typecheck    # Type checking
+bun run lint         # Lint code
+bun run format       # Format code
+bun run typecheck    # Type checking
 ```
 
 ### Default URLs

@@ -259,7 +259,7 @@ function stubServerModulesPlugin(): Plugin {
 		name: 'stub-server-modules',
 		enforce: 'pre',
 		resolveId(id, importer, options) {
-			// Stub out anything ending in .server.ts or .server.js when building the client
+			// Stub out anything ending in .server.ts, .server.js, or .server directory (if used)
 			if (!options?.ssr) {
 				// Only stub for client build
 				if (id.includes('.server') || id.endsWith('privateSettings.server')) {
@@ -428,6 +428,51 @@ function cmsWatcherPlugin(): Plugin {
 	};
 }
 
+/**
+ * Plugin to capture build metadata (time, module counts) for analytics.
+ * Writes to .svelte-kit/output/build-metadata-{client|server}.json
+ */
+function buildMetadataPlugin(): Plugin {
+	let startTime: number;
+	let isSSR = false;
+	const outputPath = path.resolve(CWD, '.svelte-kit/output');
+
+	return {
+		name: 'svelty-cms-build-metadata',
+		apply: 'build', // Only run during build
+		configResolved(config) {
+			isSSR = !!config.build.ssr;
+		},
+		buildStart() {
+			startTime = performance.now();
+		},
+		async generateBundle(options, bundle) {
+			const duration = performance.now() - startTime;
+			const moduleCount = Object.keys(bundle).length; // Rough count of chunks/assets
+
+			// Create output directory if it doesn't exist (it should, but safety first)
+			if (!existsSync(outputPath)) {
+				await fs.mkdir(outputPath, { recursive: true });
+			}
+
+			const metadata = {
+				timestamp: new Date().toISOString(),
+				type: isSSR ? 'server' : 'client',
+				duration,
+				moduleCount
+			};
+
+			const filename = `build-metadata-${isSSR ? 'server' : 'client'}.json`;
+			await fs.writeFile(path.resolve(outputPath, filename), JSON.stringify(metadata, null, 2));
+
+			// Log explicitly to console for immediate visibility
+			const color = isSSR ? '\x1b[36m' : '\x1b[32m'; // Cyan for server, Green for client
+			const reset = '\x1b[0m';
+			console.log(`${TAG} ${color}${isSSR ? 'Server' : 'Client'} build completed in ${duration.toFixed(2)}ms (${moduleCount} chunks/assets)${reset}`);
+		}
+	};
+}
+
 // --- Main Vite Configuration ---
 const setupComplete = isSetupComplete();
 const isBuild = process.env.NODE_ENV === 'production' || process.argv.includes('build');
@@ -459,6 +504,7 @@ export default defineConfig((): UserConfig => {
 				extensions: ['.svelte', '.ts', '.js']
 			}),
 			stubServerModulesPlugin(),
+			buildMetadataPlugin(),
 			!setupComplete ? setupWizardPlugin() : cmsWatcherPlugin(),
 			tailwindcss(),
 			paraglideVitePlugin({
@@ -518,6 +564,20 @@ export default defineConfig((): UserConfig => {
 						return false;
 					},
 					propertyReadSideEffects: false // Allow property reads to be removed
+				},
+				output: {
+					manualChunks: (id) => {
+						// Separate server-side heavy libraries into their own chunk
+						// This doesn't remove them (stubbing failed), but isolates them
+						if (id.includes('node_modules')) {
+							if (id.includes('mongoose') || id.includes('mongodb')) return 'vendor-db-mongo';
+							if (id.includes('@aws-sdk') || id.includes('aws-crt')) return 'vendor-aws';
+							if (id.includes('drizzle-orm') || id.includes('postgres') || id.includes('mysql2')) return 'vendor-db-sql';
+							if (id.includes('mapbox-gl')) return 'vendor-maps';
+							if (id.includes('googleapis') || id.includes('google-auth-library')) return 'vendor-google';
+							if (id.includes('chart.js') || id.includes('chartjs')) return 'vendor-charts';
+						}
+					}
 				},
 				onwarn(warning, warn) {
 					// Suppress circular dependency warnings from third-party libraries

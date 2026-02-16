@@ -28,6 +28,7 @@
 	import { modalState } from '@utils/modalState.svelte';
 	import MediaLibraryModal from '@components/MediaLibraryModal.svelte';
 	import { page } from '$app/state';
+	import 'iconify-icon';
 
 	const tenantId = $derived(page.data?.tenantId);
 
@@ -111,6 +112,33 @@
 			logger.error('Error fetching media data:', e);
 			return [];
 		}
+	}
+
+	function getFileIcon(file: MediaFile): string {
+		const fileName = file.name || '';
+		const fileExt = fileName.substring(fileName.lastIndexOf('.')).toLowerCase();
+
+		switch (true) {
+			case file.type?.startsWith('image/'):
+				return 'fa-solid:image';
+			case file.type?.startsWith('video/'):
+				return 'fa-solid:video';
+			case file.type?.startsWith('audio/'):
+				return 'fa-solid:play-circle';
+			case fileExt === '.pdf':
+				return 'vscode-icons:file-type-pdf2';
+			case fileExt === '.doc' || fileExt === '.docx' || fileExt === '.docm':
+				return 'vscode-icons:file-type-word';
+			case fileExt === '.ppt' || fileExt === '.pptx':
+				return 'vscode-icons:file-type-powerpoint';
+			case fileExt === '.xls' || fileExt === '.xlsx':
+				return 'vscode-icons:file-type-excel';
+			case fileExt === '.txt':
+				return 'fa-solid:file-lines';
+			case fileExt === '.zip' || fileExt === '.rar':
+				return 'fa-solid:file-zipper';
+		}
+		return 'vscode-icons:file';
 	}
 
 	// Effect 1: When the parent `value` (the IDs) changes, fetch the full data.
@@ -198,7 +226,13 @@
 		>
 			{#each selectedFiles as file (file._id)}
 				<div class="relative overflow-hidden rounded border border-surface-200 dark:text-surface-50" animate:flip>
-					<img src={file.thumbnailUrl} alt={file.name} class="h-[100px] w-full object-cover" />
+					{#if file.type?.startsWith('image/') || (file.thumbnailUrl && !file.thumbnailUrl.endsWith('.pdf'))}
+						<img src={file.thumbnailUrl} alt={file.name} class="h-[100px] w-full object-cover" />
+					{:else}
+						<div class="flex h-[100px] w-full items-center justify-center bg-surface-100 dark:bg-surface-800">
+							<iconify-icon icon={getFileIcon(file)} width="48"></iconify-icon>
+						</div>
+					{/if}
 					<div class="p-1">
 						<span class="block truncate text-center text-xs font-bold">{file.name}</span>
 						{#if (file as any).aiTags?.length}

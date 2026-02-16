@@ -254,18 +254,31 @@ interface AddressData {
 
 ---
 
-## Mapbox Integration
+## Google Maps Integration
 
 ### Interactive Map Features
 
-When Mapbox is enabled:
+The widget now uses the **Google Maps JavaScript API** via the lightweight `@googlemaps/js-api-loader`.
 
-1. **Draggable Marker**: Click and drag to set exact location
-2. **Geocoder Search**: Search for addresses and places
-3. **Navigation Controls**: Zoom in/out, rotate, tilt
-4. **Fullscreen Mode**: Expand map for better visualization
-5. **Language Support**: Map labels in user's language
-6. **Reverse Geocoding**: Automatically fill address fields from marker position
+1.  **Draggable Marker**: Click and drag to set exact location.
+2.  **Place Autocomplete**: Search for addresses globally with Google Places.
+3.  **Locate Me**: Use browser geolocation to find your current position.
+4.  **Draggable Marker**: Updates coordinates automatically.
+
+### Configuration
+
+To enable map features, you must provide a **Google Maps API Key**:
+
+1.  Get an API Key from the [Google Cloud Console](https://console.cloud.google.com/).
+2.  Enable **Maps JavaScript API** and **Places API**.
+3.  Add to your environment configuration:
+
+```typescript
+// .env or config
+publicEnv.GOOGLE_MAPS_API_KEY = 'AIzaSy...';
+```
+
+If no API key is present, the map will simply not render, but manual input remains fully functional.
 
 ### Without Mapbox
 

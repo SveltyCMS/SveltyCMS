@@ -22,48 +22,9 @@ The SveltyCMS Media Gallery is a centralized hub for managing media assets, evol
 
 ---
 
-## 🏗️ Architecture Overview
+## 🏗️ Technical Foundation
 
-The media system is built on a decoupled architecture, allowing for flexible storage providers and optimized client-side rendering. It is now powered by a dedicated **MediaProcessingService** for deep technical analysis.
-
-```mermaid
-graph TB
-    subgraph "Client Layer"
-        UI[Media Gallery UI]
-        UW[MediaUpload Widget]
-        VGRID[VirtualMediaGrid.svelte]
-        TAG[TagEditorModal.svelte]
-    end
-
-    subgraph "API Layer"
-        API1[GET /api/media]
-        API2[POST /api/media/process]
-        API3[POST /api/media/ai-tag]
-        API4[GET /api/media/transform]
-    end
-
-    subgraph "Service Layer"
-        MS[MediaService.server.ts]
-        AIS[AIService.ts]
-        MPS[MediaProcessingService.server.ts]
-        AS[AdvancedSearch.ts]
-    end
-
-    UI --> VGRID
-    UI --> TAG
-    VGRID --> API1
-    TAG --> API3
-    MS --> AIS
-    MS --> MPS
-    MS --> AS
-```
-
-### File Structure
-
-- `src/routes/(app)/mediagallery/`: Main gallery UI components.
-- `src/utils/media/`: Server-side processing, storage abstraction, and search logic.
-- `src/services/MediaProcessingService.server.ts`: **New** Deep metadata and technical analysis engine.
-- `src/components/media/tagEditor/`: AI and manual tagging interface.
+The Media system is built on a high-performance, decoupled engine. For detailed technical diagrams and the processing pipeline, refer to the [**Media System Architecture**](../architecture/media-system.mdx).
 
 ---
 
@@ -107,6 +68,24 @@ SveltyCMS supports multiple storage backends with zero code changes:
 2. **Hashing**: SHA-256 computation for duplicate prevention.
 3. **Transformation**: Automatic thumbnail generation (`sm`, `md`, `lg`) and WebP/AVIF conversion.
 4. **Metadata Extraction**: EXIF, dimensions, and color palette extraction.
+5. **Document Thumbnails**: Automated extraction of the first page of PDFs as a high-quality preview image.
+
+### 🖼️ Document Thumbnails (ImageMagick)
+
+To provide a premium experience, SveltyCMS automatically generates image previews for PDF documents. This allows users to browse PDFs in the gallery visually rather than seeing a generic icon.
+
+> [!IMPORTANT]
+> **System Requirements for PDF Thumbnails**
+> Document thumbnail generation requires **ImageMagick** and **Ghostscript** to be installed on the server.
+>
+> **Ubuntu/Debian installation:**
+>
+> ```bash
+> sudo apt-get update
+> sudo apt-get install imagemagick ghostscript
+> ```
+>
+> If these tools are missing, the system will gracefully fall back to displaying the standard PDF icon. `sharp` is used for all other image transformations but does not support PDF rendering by default.
 
 ---
 

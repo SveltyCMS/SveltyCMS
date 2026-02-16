@@ -138,8 +138,8 @@ Icon-only buttons automatically get an 'aria-label="Button"' fallback unless `ar
 	const isIconOnly = $derived(!children && (leadingIcon || trailingIcon || loading));
 
 	// — Element-specific a11y props —
-	const ariaLabelFromRest = rest['aria-label'];
-	const safeAriaLabel = typeof ariaLabelFromRest === 'string' ? ariaLabelFromRest : undefined;
+	const ariaLabelFromRest = $derived(rest['aria-label']);
+	const safeAriaLabel = $derived(typeof ariaLabelFromRest === 'string' ? ariaLabelFromRest : undefined);
 
 	const elementProps = $derived(
 		element === 'a'

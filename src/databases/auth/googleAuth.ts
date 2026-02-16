@@ -43,11 +43,11 @@ async function googleAuth(): Promise<OAuth2Client | null> {
 	try {
 		if (!googleAuthClient) {
 			logger.debug('Setting up Google OAuth2...');
-			const { google } = await import('googleapis');
+			const { OAuth2Client } = await import('google-auth-library');
 			const redirectUri = getOAuthRedirectUri();
 			logger.debug(`Using OAuth redirect URI: ${redirectUri}`);
 
-			googleAuthClient = new google.auth.OAuth2(googleClientId, googleClientSecret, redirectUri);
+			googleAuthClient = new OAuth2Client(googleClientId, googleClientSecret, redirectUri);
 		}
 
 		return googleAuthClient;

@@ -139,6 +139,13 @@ mock.module('$app/paths', () => ({
 	assets: ''
 }));
 
+// Mock $app/forms
+mock.module('$app/forms', () => ({
+	applyAction: () => Promise.resolve(),
+	deserialize: (result: string) => JSON.parse(result),
+	enhance: () => ({ destroy: () => {} })
+}));
+
 // --- Global Web API Mocks ---
 // Define MockRequest and MockURL classes
 class MockRequest {
@@ -219,6 +226,9 @@ mock.module('@sveltejs/kit', () => ({
 // --- Svelte 5 Runes Mocks ---
 // Mock Svelte 5 Runes for testing Svelte stores directly
 (globalThis as any).$state = (initial: any) => {
+	if (typeof initial === 'object' && initial !== null) {
+		return initial;
+	}
 	let value = initial;
 	return {
 		get value() {
@@ -229,15 +239,32 @@ mock.module('@sveltejs/kit', () => ({
 		}
 	};
 };
-(globalThis as any).$derived = (fn: any) => {
-	const value = typeof fn === 'function' ? fn() : fn;
-	return {
-		get value() {
-			return value;
+const derivedMock = (fn: any) => {
+	const compute = () => (typeof fn === 'function' ? fn() : fn);
+	return new Proxy(
+		{},
+		{
+			get: (_, prop) => {
+				const value = compute();
+				if (prop === 'value') return value;
+				// If value is null/undefined, let valid js access happen (will throw) or return undefined?
+				// But normally we act as the value.
+				if (value && typeof value === 'object') {
+					return value[prop];
+				}
+				// If it's a primitive, we can't really proxy property access well except for methods (like .length on string)
+				// But for the setupStore case, checking .match on an object, this should work.
+				return value[prop];
+			}
 		}
-	};
+	);
 };
+
+(globalThis as any).$derived = derivedMock;
+(globalThis as any).$derived.by = derivedMock;
+
 (globalThis as any).$effect = (fn: any) => {
+	// Execute effect immediately
 	fn();
 };
 (globalThis as any).$effect.root = (fn: any) => {
@@ -349,7 +376,8 @@ mock.module('@src/stores/globalSettings.svelte.ts', () => ({
 	publicEnv: (globalThis as any).publicEnv,
 	privateEnv: (globalThis as any).privateEnv,
 	initPublicEnv: () => {},
-	initPrivateEnv: () => {}
+	initPrivateEnv: () => {},
+	updatePublicEnv: () => {}
 }));
 
 mock.module('@src/stores/store.svelte.ts', () => {

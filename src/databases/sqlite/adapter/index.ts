@@ -236,7 +236,7 @@ export class SQLiteAdapter extends AdapterCore implements IDBAdapter {
 				this.sqlite.exec(`DELETE FROM "${name}";`);
 				try {
 					this.sqlite.exec(`DELETE FROM sqlite_sequence WHERE name='${name}';`);
-				} catch (e) {
+				} catch (_e) {
 					// Ignore if sqlite_sequence doesn't exist or table not tracked
 				}
 			}

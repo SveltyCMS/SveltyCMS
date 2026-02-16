@@ -20,7 +20,7 @@ import type { Actions, PageServerLoad } from './$types';
 import type { SystemVirtualFolder, MediaItem } from '@root/src/databases/dbInterface';
 import type { DatabaseId } from '@root/src/content/types';
 import type { MediaAccess } from '@root/src/utils/media/mediaModels';
-import { MediaService } from '@src/services/MediaService.server';
+import { MediaService } from '@src/utils/media/mediaService.server';
 import { moveMediaToTrash, getImageSizes } from '@utils/media/mediaStorage.server';
 
 // Auth

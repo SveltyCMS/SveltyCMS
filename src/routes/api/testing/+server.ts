@@ -6,12 +6,11 @@
  */
 
 import { json, type RequestEvent } from '@sveltejs/kit';
-import { env } from '$env/dynamic/private';
 import { dbAdapter, auth } from '@src/databases/db';
 
 // Security Guard
 function checkTestMode() {
-	if (env.TEST_MODE !== 'true') {
+	if (process.env.TEST_MODE !== 'true') {
 		throw new Error('FORBIDDEN: Test endpoints only available in TEST_MODE');
 	}
 }
