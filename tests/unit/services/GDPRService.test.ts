@@ -4,30 +4,11 @@
  */
 
 import { describe, it, expect, beforeEach, mock } from 'bun:test';
-
-// Mock Dependencies
-const mockAuditLog = {
-	log: mock(() => Promise.resolve({})),
-	getLogs: mock(() => Promise.resolve([]))
-};
-
-const mockDbAdapter = {
-	auth: {
-		getUserById: mock(() => Promise.resolve({ success: true, data: { _id: '123', email: 'test@example.com', username: 'tester' } })),
-		updateUserAttributes: mock(() => Promise.resolve({ success: true }))
-	}
-};
-
-mock.module('@src/services/audit/AuditLogService', () => ({
-	auditLogService: mockAuditLog
-}));
-
-// We also need to mock @databases/db because GDPRService imports dbAdapter from it
-mock.module('@databases/db', () => ({
-	dbAdapter: mockDbAdapter
-}));
-
 import { gdprService } from '@src/services/GDPRService';
+
+// Access global mocks from setup.ts
+const mockAuditLog = (globalThis as any).mockAuditLog;
+const mockDbAdapter = (globalThis as any).mockDbAdapter;
 
 describe('GDPRService', () => {
 	beforeEach(() => {
@@ -81,8 +62,6 @@ describe('GDPRService', () => {
 		});
 
 		it('should return false if database adapter is missing', async () => {
-			// This is a bit tricky to test with singleton, but we can mock it
-			// For now, testing normal error flow
 			mockDbAdapter.auth.getUserById.mockReturnValue(Promise.resolve({ success: false, data: null as any }));
 			const result = await gdprService.anonymizeUser('missing');
 			expect(result).toBe(false);

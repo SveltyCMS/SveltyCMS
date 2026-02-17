@@ -34,8 +34,10 @@ export async function loadPrivateConfig(forceReload = false) {
 			let module;
 			if (process.env.TEST_MODE) {
 				const pathUtil = await import('path');
-				const configPath = pathUtil.resolve(process.cwd(), 'config/private.test.ts');
-				module = await import(/* @vite-ignore */ configPath);
+				const { pathToFileURL } = await import('url');
+				const configPath = pathUtil.resolve(process.cwd(), 'config/private.test.ts').replace(/\\/g, '/');
+				const configURL = pathToFileURL(configPath).href;
+				module = await import(/* @vite-ignore */ configURL);
 			} else {
 				// STRICT SAFETY: Never allow loading live config if NODE_ENV is 'test'
 				if (process.env.NODE_ENV === 'test') {

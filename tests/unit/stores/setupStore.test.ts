@@ -6,16 +6,6 @@
 import { describe, it, expect, beforeEach, mock } from 'bun:test';
 import { setupStore } from '@src/stores/setupStore.svelte';
 
-// Mock dependencies
-mock.module('@utils/logger', () => ({
-	logger: {
-		info: () => {},
-		warn: () => {},
-		error: () => {},
-		debug: () => {}
-	}
-}));
-
 describe('Setup Store', () => {
 	// Reset store before each test
 	beforeEach(() => {

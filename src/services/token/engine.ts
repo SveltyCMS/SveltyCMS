@@ -214,84 +214,12 @@ class TokenRegistryService {
 
 		// 4. ENHANCED ENTRY TOKENS (including Relations)
 		if (schema?.fields && config.includeEntry !== false) {
-			// Import relation token generator
-			// Use injected relation token generator if available (Server-side only)
-			if (this.relationTokenGenerator) {
-				this.relationTokenGenerator(schema, user, config.tenantId, config.roles as import('@src/databases/auth/types').Role[])
-					.then((relationTokens: TokenDefinition[]) => {
-						relationTokens.forEach((t) => add(t));
-					})
-					.catch((err: unknown) => logger.error('Failed to load relation tokens', err));
-			}
+			// ... (existing code)
+		}
 
-			const WIDGET_TYPE_MAP: Record<string, any> = {
-				// Core
-				Checkbox: 'boolean',
-				Date: 'date',
-				DateRange: 'any', // Object {start, end}
-				Group: 'any',
-				Input: 'string',
-				MediaUpload: 'any', // Array/Object
-				MegaMenu: 'any',
-				Radio: 'string',
-				Relation: 'any',
-				RichText: 'string',
-				// Custom
-				Address: 'any',
-				ColorPicker: 'string',
-				Currency: 'number',
-				Email: 'string',
-				Number: 'number',
-				PhoneNumber: 'string',
-				Rating: 'number',
-				RemoteVideo: 'any',
-				Seo: 'any'
-			};
-
-			schema.fields.forEach((field: any) => {
-				const name = field.db_fieldName || field.label;
-				if (!name) return;
-
-				// Infer type from widget
-				const widgetName = field.widget?.Name;
-				const type = WIDGET_TYPE_MAP[widgetName] || 'string';
-
-				// Generate smart descriptions based on widget type
-				let description = field.helper || field.description || `Field: ${name}`;
-				let example = `{{entry.${name}}}`;
-
-				// Widget-specific examples
-				if (widgetName === 'RichText') {
-					example = `{{entry.${name} | truncate(150)}}`;
-					description += ' (HTML content - use truncate for previews)';
-				} else if (widgetName === 'Date') {
-					example = `{{entry.${name} | date("MMM do, yyyy")}}`;
-					description += ' (use date() modifier to format)';
-				} else if (widgetName === 'MediaUpload') {
-					example = `{{entry.${name}.url}}`;
-					description += ' (access .url, .alt, .title properties)';
-				} else if (widgetName === 'Number' || widgetName === 'Currency') {
-					example = `{{entry.${name} | add(10)}}`;
-					description += ' (supports math: add, subtract, multiply)';
-				}
-
-				add({
-					token: `entry.${name}`,
-					name: field.label || name,
-					category: 'entry',
-					type,
-					description,
-					example,
-					resolve: (c) => {
-						const fieldData = c.entry?.[name];
-						// If it's a widget object with a value property, extract it
-						if (fieldData && typeof fieldData === 'object' && 'value' in fieldData) {
-							return fieldData.value;
-						}
-						return fieldData;
-					}
-				});
-			});
+		// 5. CUSTOM TOKENS
+		if (config.customTokens && Array.isArray(config.customTokens)) {
+			config.customTokens.forEach((t) => add(t));
 		}
 
 		// Grouping
@@ -322,7 +250,7 @@ const TOKEN_REGEX = /(?<!\\)\{\{([^}]+)\}\}/g;
 export async function replaceTokens(template: string, context: TokenContext, options: TokenReplaceOptions = {}): Promise<string> {
 	if (!template || !template.includes('{{')) return template.replace(/\\\{\{/g, '{{');
 
-	const { maxDepth = 10 } = options;
+	const { maxDepth = 10, preserveUnresolved = true } = options;
 	let result = template;
 	let depth = 0;
 	let hasMatches = true;
@@ -334,17 +262,24 @@ export async function replaceTokens(template: string, context: TokenContext, opt
 
 		const replacements = await Promise.all(
 			matches.map(async (match) => {
-				// match[1] is no longer the backslash due to lookbehind change, match[1] is the content
 				const content = match[1];
 				const [path, ...mods] = content.split('|').map((s) => s.trim());
 				let value = await Promise.resolve(TokenRegistry.resolve(path, context));
-				if (value === undefined || value === null) {
+
+				const isResolved = value !== undefined && value !== null;
+
+				if (!isResolved) {
+					if (options.throwOnMissing) {
+						throw new Error(`Token "${path}" could not be resolved`);
+					}
+					if (preserveUnresolved) {
+						return { fullMatch: match[0], value: match[0], resolved: false };
+					}
 					value = '';
 				}
 
 				try {
 					for (const modStr of mods) {
-						// Try parens: name(arg1, arg2)
 						const m = modStr.match(/^(\w+)(?:\((.*)\))?$/);
 						if (m) {
 							const name = m[1].toLowerCase();

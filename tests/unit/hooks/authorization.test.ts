@@ -8,36 +8,6 @@ import { handleAuthorization, invalidateUserCountCache } from '@src/hooks/handle
 import type { RequestEvent } from '@sveltejs/kit';
 import type { User, Role } from '@src/databases/auth/types';
 
-// Type declarations for test environment
-declare module '@sveltejs/kit' {
-	interface Locals {
-		user: User | null;
-		roles: Role[];
-		permissions: string[];
-		isFirstUser: boolean;
-		isAdmin: boolean;
-		hasManageUsersPermission: boolean;
-		allUsers: User[];
-		allTokens: any[];
-		theme: any;
-		darkMode: boolean;
-		tenantId?: string;
-	}
-}
-
-// --- Test Utilities ---
-
-let mockUserCount = 1;
-let mockRoles: Role[] = [];
-
-mock.module('@src/databases/db', () => ({
-	auth: {
-		getUserCount: () => Promise.resolve(mockUserCount),
-		getAllRoles: () => Promise.resolve(mockRoles),
-		getUserById: () => Promise.resolve(null)
-	}
-}));
-
 const mockUser: User = {
 	_id: 'user123',
 	email: 'admin@example.com',
@@ -55,8 +25,8 @@ const mockAdminRole: Role = {
 
 // Reset state before each test
 beforeEach(() => {
-	mockUserCount = 1;
-	mockRoles = [mockAdminRole];
+	(globalThis as any).__mockUserCount = 1;
+	(globalThis as any).__mockRoles = [mockAdminRole];
 	invalidateUserCountCache();
 });
 
@@ -211,7 +181,7 @@ describe('handleAuthorization Middleware', () => {
 		});
 
 		it('should detect first user (count = 0)', async () => {
-			mockUserCount = 0;
+			(globalThis as any).__mockUserCount = 0;
 			const event = createMockEvent('/dashboard');
 			await handleAuthorization({ event, resolve: mockResolve });
 
@@ -228,7 +198,7 @@ describe('handleAuthorization Middleware', () => {
 			expect(event.locals.hasManageUsersPermission).toBeDefined();
 		});
 
-		it('should grant manage users permission to admins', async () => {
+		it('grant manage users permission to admins', async () => {
 			const adminUser = { ...mockUser, role: 'admin' };
 			const event = createMockEvent('/users', adminUser, [mockAdminRole]);
 			await handleAuthorization({ event, resolve: mockResolve });
@@ -240,6 +210,7 @@ describe('handleAuthorization Middleware', () => {
 
 	describe('Redirect to Setup When No Roles', () => {
 		it('should redirect to /setup when no roles found', async () => {
+			(globalThis as any).__mockRoles = [];
 			const event = createMockEvent('/dashboard');
 
 			try {
@@ -251,6 +222,7 @@ describe('handleAuthorization Middleware', () => {
 		});
 
 		it('should return 503 for API when no roles', async () => {
+			(globalThis as any).__mockRoles = [];
 			const event = createMockEvent('/api/test');
 
 			try {

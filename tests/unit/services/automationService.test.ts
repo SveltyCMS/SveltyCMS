@@ -4,37 +4,11 @@
  */
 
 import { describe, it, expect, beforeEach, mock } from 'bun:test';
-
-// Mock Dependencies
-const mockDbAdapter = {
-	systemPreferences: {
-		get: mock(() => Promise.resolve({ success: true, data: [] })),
-		set: mock(() => Promise.resolve({ success: true }))
-	},
-	crud: {
-		update: mock(() => Promise.resolve({ success: true }))
-	}
-};
-
-mock.module('@src/databases/db', () => ({
-	dbAdapter: mockDbAdapter
-}));
-
-// Mock EventBus
-const mockEventBus = {
-	on: mock(() => {}),
-	emit: mock(() => {})
-};
-mock.module('@src/services/automation/eventBus', () => ({
-	eventBus: mockEventBus
-}));
-
-// Mock Token Engine
-mock.module('@src/services/token/engine', () => ({
-	replaceTokens: mock((val) => Promise.resolve(val))
-}));
-
 import { automationService } from '@src/services/automation/automationService';
+
+// Access global mocks from setup.ts
+const mockDbAdapter = (globalThis as any).mockDbAdapter;
+const mockEventBus = (globalThis as any).mockEventBus;
 
 describe('AutomationService', () => {
 	beforeEach(() => {

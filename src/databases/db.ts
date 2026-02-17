@@ -623,6 +623,10 @@ export async function initializeForSetup(dbConfig: {
 			const hasAuth = dbConfig.user && dbConfig.password;
 			const authPart = hasAuth ? `${encodeURIComponent(dbConfig.user!)}:${encodeURIComponent(dbConfig.password!)}@` : '';
 			connectionString = `mongodb://${authPart}${dbConfig.host}:${dbConfig.port}/${dbConfig.name}${hasAuth ? '?authSource=admin' : ''}`;
+		} else if (dbConfig.type === 'mongodb+srv') {
+			const hasAuth = dbConfig.user && dbConfig.password;
+			const authPart = hasAuth ? `${encodeURIComponent(dbConfig.user!)}:${encodeURIComponent(dbConfig.password!)}@` : '';
+			connectionString = `mongodb+srv://${authPart}${dbConfig.host}/${dbConfig.name}?retryWrites=true&w=majority`;
 		} else if (dbConfig.type === 'mariadb') {
 			const hasAuth = dbConfig.user && dbConfig.password;
 			const authPart = hasAuth ? `${encodeURIComponent(dbConfig.user!)}:${encodeURIComponent(dbConfig.password!)}@` : '';
@@ -955,38 +959,51 @@ export async function initConnection(dbConfig: {
 		throw new Error('Database configuration is required');
 	}
 
-	if (dbConfig.type !== 'mongodb') {
+	const supportedTypes = ['mongodb', 'mongodb+srv', 'sqlite', 'mariadb', 'postgresql'];
+	if (!supportedTypes.includes(dbConfig.type)) {
 		throw new Error(`Database type '${dbConfig.type}' is not supported for seeding yet`);
 	}
 
 	try {
-		// Import MongoDB adapter
-		const { MongoDBAdapter } = await import('./mongodb/mongoDBAdapter');
+		let tempAdapter: DatabaseAdapter;
 
-		// Create a new adapter instance for seeding
-		const tempAdapter = new MongoDBAdapter();
+		if (dbConfig.type === 'mongodb' || dbConfig.type === 'mongodb+srv') {
+			const { MongoDBAdapter } = await import('./mongodb/mongoDBAdapter');
+			tempAdapter = new MongoDBAdapter() as unknown as DatabaseAdapter;
+		} else if (dbConfig.type === 'mariadb') {
+			const { MariaDBAdapter } = await import('./mariadb/mariadbAdapter');
+			tempAdapter = new MariaDBAdapter() as unknown as DatabaseAdapter;
+		} else if (dbConfig.type === 'postgresql') {
+			const { PostgreSQLAdapter } = await import('./postgresql/postgresAdapter');
+			tempAdapter = new PostgreSQLAdapter() as unknown as DatabaseAdapter;
+		} else {
+			const { SQLiteAdapter } = await import('./sqlite/sqliteAdapter');
+			tempAdapter = new SQLiteAdapter() as unknown as DatabaseAdapter;
+		}
 
 		// Build connection string like the test endpoint does
 		const { buildDatabaseConnectionString } = await import('@src/routes/setup/utils');
 		const connectionString = buildDatabaseConnectionString({
-			type: dbConfig.type as 'mongodb' | 'mongodb+srv',
+			type: dbConfig.type as any,
 			host: dbConfig.host,
 			port: Number(dbConfig.port),
 			name: dbConfig.name,
 			user: dbConfig.user ?? '',
 			password: dbConfig.password ?? ''
 		});
-		const isAtlas = connectionString.startsWith('mongodb+srv://');
 
-		const options = {
-			user: dbConfig.user || undefined,
-			pass: dbConfig.password || undefined,
-			dbName: dbConfig.name,
-			authSource: isAtlas ? undefined : 'admin',
-			retryWrites: true,
-			serverSelectionTimeoutMS: 15000,
-			maxPoolSize: 1 // Use a minimal pool for seeding
-		};
+		const options =
+			dbConfig.type.startsWith('mongodb')
+				? {
+						user: dbConfig.user || undefined,
+						pass: dbConfig.password || undefined,
+						dbName: dbConfig.name,
+						authSource: connectionString.startsWith('mongodb+srv://') ? undefined : 'admin',
+						retryWrites: true,
+						serverSelectionTimeoutMS: 15000,
+						maxPoolSize: 1 // Use a minimal pool for seeding
+					}
+				: {};
 
 		// Connect using the custom connection string and options
 		const connectResult = await tempAdapter.connect(connectionString, options);

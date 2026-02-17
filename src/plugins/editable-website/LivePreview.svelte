@@ -13,7 +13,7 @@
 
 	interface Props {
 		collection: { value: Schema };
-		currentCollectionValue: { value: CollectionEntry };
+		currentCollectionValue: CollectionEntry;
 		user: User;
 		tenantId: string;
 		contentLanguage: string;
@@ -26,8 +26,8 @@
 	let previewWidth = $state('100%');
 
 	// Derived Props
-	const hostProd = publicEnv.HOST_PROD || 'https://localhost:5173';
-	const entryId = $derived(currentCollectionValue.value?._id || 'draft');
+	const hostProd = publicEnv.HOST_PROD || 'http://localhost:5173';
+	const entryId = $derived(currentCollectionValue?._id || 'draft');
 	const previewUrl = $derived(`${hostProd}?preview=${entryId}&lang=${contentLanguage}`);
 
 	// --- Handshake & Sync Logic ---
@@ -42,7 +42,7 @@
 		const message: CmsUpdateMessage = {
 			type: 'svelty:update',
 			collection: collectionName,
-			data: currentCollectionValue.value
+			data: currentCollectionValue
 		};
 
 		// Use hostProd as targetOrigin if available for security, else '*' (dev mode fallback)
@@ -54,7 +54,7 @@
 	// Watch for data changes
 	$effect(() => {
 		// Proper dependency tracking by accessing the value
-		const _data = currentCollectionValue.value;
+		const _data = currentCollectionValue;
 		if (iframeEl && isConnected && _data) {
 			sendUpdate();
 		}
@@ -84,7 +84,7 @@
 	}
 </script>
 
-<div class="flex h-[600px] flex-col p-4">
+<div class="flex h-150 flex-col p-4">
 	<!-- Toolbar -->
 	<div class="mb-4 flex items-center justify-between gap-4">
 		<div class="flex flex-1 items-center gap-2">
@@ -147,7 +147,5 @@
 		</div>
 	</div>
 
-	<div class="mt-2 text-center text-xs text-surface-500">
-		Status: {isConnected ? 'Synced' : 'Connecting'} | Preview URL: {hostProd}?preview={entryId}&lang={contentLanguage}
-	</div>
+	<div class="mt-2 text-center text-xs text-surface-500">Status: {isConnected ? 'Synced' : 'Connecting'} | Preview URL: {previewUrl}</div>
 </div>
