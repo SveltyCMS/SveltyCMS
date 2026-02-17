@@ -12,8 +12,6 @@ Handles all field types and validation automatically
 - Handles all field types including text, number, boolean, password, select, multi-select, language picker, log level picker, and array inputs
 -->
 <script lang="ts">
-	
-
 	// Components
 	import SystemTooltip from '@components/system/SystemTooltip.svelte';
 	import { toaster } from '@stores/store.svelte';
@@ -21,7 +19,7 @@ Handles all field types and validation automatically
 	import { getLanguageName } from '@utils/languageUtils';
 	import { logger } from '@utils/logger';
 	import { showConfirm } from '@utils/modalUtils';
-import { onMount } from 'svelte';
+	import { onMount } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
 	// Types and Utilities
 	import type { SettingField, SettingGroup } from './settingsGroups';

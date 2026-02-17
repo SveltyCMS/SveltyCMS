@@ -264,7 +264,7 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 			id="media-search"
 			aria-label="Search media files"
 			disabled={isLoading}
-		/>
+		>
 
 		<!-- View mode toggle -->
 		<div class="flex gap-1 rounded-lg border border-surface-300 p-1 dark:border-surface-600" role="group" aria-label="View mode">
@@ -373,7 +373,7 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 								onchange={(e) => toggleSelection(file, e)}
 								class="checkbox"
 								aria-label={`Select ${file.filename}`}
-							/>
+							>
 						</label>
 					{/if}
 
@@ -406,7 +406,7 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 								alt={file.filename}
 								class="max-h-full max-w-full rounded-md object-contain"
 								loading="lazy"
-							/>
+							>
 						{:else}
 							<!-- Info view -->
 							<div class="w-full text-left">

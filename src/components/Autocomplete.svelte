@@ -390,7 +390,7 @@ Advanced autocomplete component with fuzzy search, keyboard navigation, and acce
 			aria-describedby={showNoResults ? 'no-results-message' : undefined}
 			autocomplete="off"
 			role="combobox"
-		/>
+		>
 
 		<!-- Action buttons -->
 		<div class="absolute right-2 top-1/2 flex -translate-y-1/2 gap-1">

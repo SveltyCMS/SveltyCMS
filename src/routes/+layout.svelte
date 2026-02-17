@@ -20,7 +20,7 @@
 	import { page } from '$app/state';
 
 	// WebMCP Support (Polyfill + Plugin)
-	import '@mcp-b/global/dist/polyfill.js';
+	import '@mcp-b/global';
 	import DialogManager from '@components/system/DialogManager.svelte';
 	import FloatingNav from '@components/system/FloatingNav.svelte';
 	import ToastManager from '@components/system/ToastManager.svelte';
@@ -231,14 +231,14 @@
 	});
 </script>
 
-<svelte:head> <title>{siteName}</title> </svelte:head>
+<svelte:head><title>{siteName}</title></svelte:head>
 
 <DialogManager />
-<Portal> <ToastManager position="bottom-center" /> </Portal>
+<Portal><ToastManager position="bottom-center" /></Portal>
 
 {#key currentLocale}
 	{#if screen.isMobile && !page.url.pathname.includes('/setup')}
-		<Portal> <FloatingNav /> </Portal>
+		<Portal><FloatingNav /></Portal>
 	{/if}
 
 	{@render children?.()}

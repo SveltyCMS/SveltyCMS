@@ -124,7 +124,7 @@
 			placeholder=" "
 			id={currentId}
 			{...rest}
-		/>
+		>
 
 		{#if icon}
 			<iconify-icon

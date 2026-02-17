@@ -311,7 +311,7 @@ Advanced permission management interface with bulk actions and presets.
 		<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 			<!-- Search -->
 			<div class="flex-1">
-				<input bind:value={searchQuery} placeholder="Search roles..." class="input w-full" type="search" aria-label="Search roles" />
+				<input bind:value={searchQuery} placeholder="Search roles..." class="input w-full" type="search" aria-label="Search roles">
 			</div>
 
 			<!-- Actions -->
@@ -343,7 +343,7 @@ Advanced permission management interface with bulk actions and presets.
 				<!-- Import -->
 				<label class="preset-outlined-warning-500 btn-sm cursor-pointer">
 					<iconify-icon icon="mdi:upload" width="18"></iconify-icon>
-					<input type="file" accept=".json" onchange={importPermissions} class="hidden" aria-label="Import permissions from JSON" />
+					<input type="file" accept=".json" onchange={importPermissions} class="hidden" aria-label="Import permissions from JSON">
 				</label>
 			</div>
 		</div>
@@ -479,7 +479,7 @@ Advanced permission management interface with bulk actions and presets.
 										aria-label={`Apply preset to ${role.name}`}
 									>
 										<option value="">Preset...</option>
-										{#each Object.entries(presets) as [key, preset] (key)}
+										{#each Object.entries(presets) as [ key, preset ] (key)}
 											<option value={key}>{preset.name}</option>
 										{/each}
 									</select>

@@ -597,7 +597,7 @@
 																onchange={handleColorChange}
 																onclick={(e) => e.stopPropagation()}
 																title="Custom Color"
-															/>
+															>
 														</div>
 													</div>
 												</div>
@@ -610,7 +610,7 @@
 															placeholder="https://example.com"
 															class="input input-sm w-full"
 															onkeydown={(e) => e.key === 'Enter' && setLink()}
-														/>
+														>
 														<div class="flex justify-end gap-2">
 															<button class="btn btn-sm variant-soft-secondary" onclick={closeDropdowns}>Cancel</button>
 															<button class="btn btn-sm variant-filled-primary" onclick={setLink}>Set Link</button>
@@ -626,7 +626,7 @@
 															placeholder="YouTube URL"
 															class="input input-sm w-full"
 															onkeydown={(e) => e.key === 'Enter' && setVideo()}
-														/>
+														>
 														<div class="flex justify-end gap-2">
 															<button class="btn btn-sm variant-soft-secondary" onclick={closeDropdowns}>Cancel</button>
 															<button class="btn btn-sm variant-filled-primary" onclick={setVideo}>Embed</button>
@@ -680,9 +680,7 @@
 		bind:this={element}
 		onclick={() => editor?.chain().focus().run()}
 		class="prose dark:prose-invert max-w-none px-6 py-4 min-h-96 focus:outline-none leading-relaxed cursor-text {showSource ? 'hidden' : ''}"
-	>
-		<!-- Tiptap content -->
-	</div>
+	><!-- Tiptap content --></div>
 
 	<!-- Token Picker Proxy Input -->
 	<!--
@@ -706,7 +704,7 @@
 				editor?.chain().focus().insertContent(token).run();
 			}
 		}}
-	/>
+	>
 
 	{#if showSource}
 		<textarea
@@ -857,5 +855,5 @@
 		</div>
 	{/if}
 
-	<input bind:this={colorInput} type="color" class="hidden" onchange={handleColorChange} />
+	<input bind:this={colorInput} type="color" class="hidden" onchange={handleColorChange}>
 </div>

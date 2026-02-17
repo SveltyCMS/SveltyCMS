@@ -50,7 +50,7 @@
 	<span class="text-left font-bold {textClass}"> {char} </span>
 {:else if parts}
 	<!-- Site name with highlighted portion -->
-	<span class="text-left font-bold {textClass}"> {parts.before}<span class="text-primary-500">{parts.highlight}</span>{parts.after} </span>
+	<span class="text-left font-bold {textClass}"> {parts.before}<span class="text-primary-500">{parts.highlight}</span{parts.after} </span>
 {:else}
 	<!-- Full site name without highlighting -->
 	<span class="text-left font-bold {textClass}"> {siteName} </span>

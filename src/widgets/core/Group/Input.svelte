@@ -14,10 +14,9 @@ Renders a group of fields, allowing for nested data structures.
 -->
 
 <script lang="ts">
-	
 	import WidgetLoader from '@components/collectionDisplay/WidgetLoader.svelte';
 	import { widgets } from '@stores/widgetStore.svelte';
-import { getFieldName } from '@utils/utils';
+	import { getFieldName } from '@utils/utils';
 	import type { FieldType } from './';
 
 	interface Props {
@@ -132,7 +131,7 @@ import { getFieldName } from '@utils/utils';
 	<div id="{fieldName}-content" class="{variant.content} transition-all duration-200 {isCollapsed ? 'hidden' : 'block'}">
 		{#if (field as any).fields && (field as any).fields.length > 0}
 			<div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
-				{#each (field as any).fields as subField (normalizeFieldName(subField))}
+				{#each (field as any).fields as subField (subField.db_fieldName || subField.name || Math.random())}
 					{@const subFieldName = normalizeFieldName(subField)}
 					{@const widgetName = (subField as any).widget?.Name || (subField as any).type || 'Input'}
 					{@const widgetLoader = getWidgetLoader(widgetName)}

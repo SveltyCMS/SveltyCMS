@@ -31,7 +31,7 @@ function createConsentStore() {
 		if (stored) {
 			try {
 				const parsed = JSON.parse(stored);
-				state = { ...state, ...parsed, necessary: true }; // Ensure necessary is always true
+				Object.assign(state, parsed, { necessary: true }); // Ensure necessary is always true
 			} catch (e) {
 				console.error('Failed to parse consent cookie', e);
 			}

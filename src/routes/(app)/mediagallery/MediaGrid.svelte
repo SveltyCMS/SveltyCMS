@@ -22,13 +22,12 @@ Key features:
 <script lang="ts">
 	// Using iconify-icon web component
 	// Utils
-	
 
 	import TagEditorModal from '@components/media/tagEditor/TagEditorModal.svelte';
 	// Skeleton
 	import SystemTooltip from '@components/system/SystemTooltip.svelte';
 	import type { MediaBase, MediaImage, MediaVideo } from '@utils/media/mediaModels';
-import { formatBytes } from '@utils/utils';
+	import { formatBytes } from '@utils/utils';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 	// Svelte transitions
 	import { scale } from 'svelte/transition';
@@ -192,9 +191,7 @@ import { formatBytes } from '@utils/utils';
 
 				{#if isSelectionMode.value}
 					<div class="flex items-center gap-2 border-l border-surface-300 pl-3 dark:border-surface-600">
-						<button onclick={selectAll} class="btn-sm preset-tonal-surface hover:preset-filled-surface-500">
-							<span class="text-xs">All</span>
-						</button>
+						<button onclick={selectAll} class="btn-sm preset-tonal-surface hover:preset-filled-surface-500"><span class="text-xs">All</span></button>
 						<button onclick={deselectAll} class="btn-sm preset-tonal-surface hover:preset-filled-surface-500">
 							<span class="text-xs">None</span>
 						</button>
@@ -204,9 +201,7 @@ import { formatBytes } from '@utils/utils';
 
 			{#if selectedFiles.size > 0}
 				<div class="flex items-center gap-3" in:scale={{ duration: 200, start: 0.9 }}>
-					<span class="text-xs font-medium text-surface-500 dark:text-surface-400">
-						{selectedFiles.size} selected
-					</span>
+					<span class="text-xs font-medium text-surface-500 dark:text-surface-400"> {selectedFiles.size} selected </span>
 					<button onclick={handleBulkDelete} class="btn-sm preset-filled-error-500 gap-2 shadow-sm hover:shadow-md">
 						<iconify-icon icon="mdi:delete-outline" width={18}></iconify-icon>
 						<span class="text-xs font-semibold">Delete</span>
@@ -216,14 +211,20 @@ import { formatBytes } from '@utils/utils';
 		</div>
 
 		<!-- Grid Layout -->
-		{#each filteredFiles as file, index (file._id?.toString() || file.filename)}
+		{#each filteredFiles as file, index (file._id || file.filename)}
 			{@const fileId = file._id?.toString() || file.filename}
 			{@const isSelected = selectedFiles.has(fileId)}
 
 			<div
-				class="group relative flex flex-col overflow-hidden rounded-2xl border bg-white text-left shadow-sm transition-all duration-300 hover:z-10 hover:-translate-y-1 hover:shadow-xl dark:bg-surface-900
-				{isSelected ? 'border-primary-500 ring-2 ring-primary-500/20' : 'border-surface-200 dark:border-surface-800'}
-				{gridSize === 'tiny' ? 'w-32' : gridSize === 'small' ? 'w-48' : gridSize === 'medium' ? 'w-64' : 'w-80'}"
+				class="group relative flex flex-col overflow-hidden rounded-2xl border bg-white text-left shadow-sm transition-all duration-300 hover:z-10 hover:-translate-y-1 hover:shadow-xl dark:bg-surface-900 {isSelected
+					? 'border-primary-500 ring-2 ring-primary-500/20'
+					: 'border-surface-200 dark:border-surface-800'} {gridSize === 'tiny'
+					? 'w-32'
+					: gridSize === 'small'
+						? 'w-48'
+						: gridSize === 'medium'
+							? 'w-64'
+							: 'w-80'}"
 				role="button"
 				tabindex="0"
 				onmouseenter={() => showInfo.set(index, true)}
@@ -247,7 +248,7 @@ import { formatBytes } from '@utils/utils';
 								checked={isSelected}
 								onchange={() => toggleSelection(file)}
 								class="checkbox h-4 w-4 rounded-sm border-2 border-surface-400 checked:border-primary-500 checked:bg-primary-500 focus:ring-0"
-							/>
+							>
 						</div>
 					</div>
 				{/if}
@@ -373,7 +374,7 @@ import { formatBytes } from '@utils/utils';
 								const target = e.currentTarget as HTMLImageElement;
 								if (target) target.src = '/static/Default_User.svg';
 							}}
-						/>
+						>
 
 						<!-- Video Overlay -->
 						{#if file.type === 'video'}
@@ -401,9 +402,7 @@ import { formatBytes } from '@utils/utils';
 				<!-- Card Footer -->
 				<div class="relative flex flex-col gap-1 border-t border-surface-100 bg-white p-3 dark:border-surface-800 dark:bg-surface-900">
 					<!-- Filename -->
-					<div class="truncate text-xs font-semibold text-surface-900 dark:text-surface-100" title={file.filename}>
-						{file.filename}
-					</div>
+					<div class="truncate text-xs font-semibold text-surface-900 dark:text-surface-100" title={file.filename}>{file.filename}</div>
 
 					<!-- Metadata Badges -->
 					<div class="flex items-center gap-2 text-[10px] text-surface-500 dark:text-surface-400">
@@ -412,9 +411,7 @@ import { formatBytes } from '@utils/utils';
 								{formatMimeType(file.mimeType)}
 							</span>
 						</SystemTooltip>
-						<SystemTooltip title="Size" positioning={{ placement: 'top' }}>
-							<span class="font-mono">{formatBytes(file.size)}</span>
-						</SystemTooltip>
+						<SystemTooltip title="Size" positioning={{ placement: 'top' }}> <span class="font-mono">{formatBytes(file.size)}</span> </SystemTooltip>
 					</div>
 				</div>
 			</div>
@@ -427,6 +424,6 @@ import { formatBytes } from '@utils/utils';
 <style>
 	/* Smooth grid item repositioning */
 	:global(.flex.flex-wrap) {
-		transition: all 0.3s ease-out;
+		transition: all 300ms ease-out;
 	}
 </style>

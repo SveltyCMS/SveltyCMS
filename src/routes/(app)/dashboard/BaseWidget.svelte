@@ -12,9 +12,8 @@ New Features:
 - All features opt-in and backward compatible
 -->
 <script lang="ts">
-	
 	import type { WidgetSize } from '@src/content/types';
-import { logger } from '@utils/logger';
+	import { logger } from '@utils/logger';
 
 	// Lucide icons
 
@@ -385,7 +384,7 @@ import { logger } from '@utils/logger';
 						class="absolute right-0 top-full z-50 mt-2 w-48 rounded-md border border-surface-200 bg-white py-1 shadow-xl dark:text-surface-50 dark:bg-surface-800"
 						style="z-index: 9999; position: absolute;"
 					>
-						{#each availableSizes as s (getSizeLabel(s))}
+						{#each availableSizes as s (s.w + 'x' + s.h)}
 							<button
 								class="flex w-full items-center justify-between px-4 py-2 text-sm transition-colors hover:bg-surface-100 dark:hover:bg-surface-700 {size.w ===
 									s.w && size.h === s.h
@@ -465,9 +464,7 @@ import { logger } from '@utils/logger';
 
 	{#if isResizing && previewSize}
 		<div class="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-lg bg-primary-500/10 backdrop-blur-sm">
-			<div class="rounded-lg bg-primary-500 px-4 py-2 text-white shadow-lg">
-				Snap to: {getSizeLabel(previewSize)}
-			</div>
+			<div class="rounded-lg bg-primary-500 px-4 py-2 text-white shadow-lg">Snap to: {getSizeLabel(previewSize)}</div>
 		</div>
 	{/if}
 </article>

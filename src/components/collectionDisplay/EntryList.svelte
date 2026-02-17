@@ -894,7 +894,7 @@
 			<div class="my-2 flex w-full flex-col items-center justify-center gap-2 sm:flex-row sm:gap-4">
 				<div class="flex items-center gap-2">
 					<label class="flex items-center">
-						<input type="checkbox" bind:checked={selectAllColumns.value} class="mr-1" />
+						<input type="checkbox" bind:checked={selectAllColumns.value} class="mr-1">
 
 						{m.entrylist_all()}
 					</label>
@@ -1136,7 +1136,7 @@
 														<Sanitize html={translatedValue} profile="strict" />
 													{/if}
 												{:else if (header as TableHeader).name === 'plugin'}
-													<!-- <PluginComponent /> -->
+												<!-- <PluginComponent /> -->
 												{:else}
 													<Sanitize html={entry[(header as TableHeader).name] || '-'} profile="strict" />
 												{/if}

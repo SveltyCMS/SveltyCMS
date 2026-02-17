@@ -1,967 +1,967 @@
 [
-	{
-		"alpha2": "af",
-		"en": "Afghanistan",
-		"de": "Afghanistan"
-	},
-	{
-		"alpha2": "al",
-		"en": "Albania",
-		"de": "Albanien"
-	},
-	{
-		"alpha2": "dz",
-		"en": "Algeria",
-		"de": "Algerien"
-	},
-	{
-		"alpha2": "ad",
-		"en": "Andorra",
-		"de": "Andorra"
-	},
-	{
-		"alpha2": "ao",
-		"en": "Angola",
-		"de": "Angola"
-	},
-	{
-		"alpha2": "ag",
-		"en": "Antigua and Barbuda",
-		"de": "Antigua und Barbuda"
-	},
-	{
-		"alpha2": "ar",
-		"en": "Argentina",
-		"de": "Argentinien"
-	},
-	{
-		"alpha2": "am",
-		"en": "Armenia",
-		"de": "Armenien"
-	},
-	{
-		"alpha2": "au",
-		"en": "Australia",
-		"de": "Australien"
-	},
-	{
-		"alpha2": "at",
-		"en": "Austria",
-		"de": "Österreich"
-	},
-	{
-		"alpha2": "az",
-		"en": "Azerbaijan",
-		"de": "Aserbaidschan"
-	},
-	{
-		"alpha2": "bs",
-		"en": "Bahamas",
-		"de": "Bahamas"
-	},
-	{
-		"alpha2": "bh",
-		"en": "Bahrain",
-		"de": "Bahrain"
-	},
-	{
-		"alpha2": "bd",
-		"en": "Bangladesh",
-		"de": "Bangladesch"
-	},
-	{
-		"alpha2": "bb",
-		"en": "Barbados",
-		"de": "Barbados"
-	},
-	{
-		"alpha2": "by",
-		"en": "Belarus",
-		"de": "Belarus"
-	},
-	{
-		"alpha2": "be",
-		"en": "Belgium",
-		"de": "Belgien"
-	},
-	{
-		"alpha2": "bz",
-		"en": "Belize",
-		"de": "Belize"
-	},
-	{
-		"alpha2": "bj",
-		"en": "Benin",
-		"de": "Benin"
-	},
-	{
-		"alpha2": "bt",
-		"en": "Bhutan",
-		"de": "Bhutan"
-	},
-	{
-		"alpha2": "bo",
-		"en": "Bolivia (Plurinational State of)",
-		"de": "Bolivien"
-	},
-	{
-		"alpha2": "ba",
-		"en": "Bosnia and Herzegovina",
-		"de": "Bosnien und Herzegowina"
-	},
-	{
-		"alpha2": "bw",
-		"en": "Botswana",
-		"de": "Botswana"
-	},
-	{
-		"alpha2": "br",
-		"en": "Brazil",
-		"de": "Brasilien"
-	},
-	{
-		"alpha2": "bn",
-		"en": "Brunei Darussalam",
-		"de": "Brunei"
-	},
-	{
-		"alpha2": "bg",
-		"en": "Bulgaria",
-		"de": "Bulgarien"
-	},
-	{
-		"alpha2": "bf",
-		"en": "Burkina Faso",
-		"de": "Burkina Faso"
-	},
-	{
-		"alpha2": "bi",
-		"en": "Burundi",
-		"de": "Burundi"
-	},
-	{
-		"alpha2": "kh",
-		"en": "Cambodia",
-		"de": "Kambodscha"
-	},
-	{
-		"alpha2": "cm",
-		"en": "Cameroon",
-		"de": "Kamerun"
-	},
-	{
-		"alpha2": "ca",
-		"en": "Canada",
-		"de": "Kanada"
-	},
-	{
-		"alpha2": "cv",
-		"en": "Cabo Verde",
-		"de": "Kap Verde"
-	},
-	{
-		"alpha2": "cf",
-		"en": "Central African Republic",
-		"de": "Zentralafrikanische Republik"
-	},
-	{
-		"alpha2": "td",
-		"en": "Chad",
-		"de": "Tschad"
-	},
-	{
-		"alpha2": "cl",
-		"en": "Chile",
-		"de": "Chile"
-	},
-	{
-		"alpha2": "cn",
-		"en": "China",
-		"de": "Volksrepublik China"
-	},
-	{
-		"alpha2": "co",
-		"en": "Colombia",
-		"de": "Kolumbien"
-	},
-	{
-		"alpha2": "km",
-		"en": "Comoros",
-		"de": "Komoren"
-	},
-	{
-		"alpha2": "cg",
-		"en": "Congo",
-		"de": "Kongo, Republik"
-	},
-	{
-		"alpha2": "cd",
-		"en": "Congo, Democratic Republic of the",
-		"de": "Kongo, Demokratische Republik"
-	},
-	{
-		"alpha2": "cr",
-		"en": "Costa Rica",
-		"de": "Costa Rica"
-	},
-	{
-		"alpha2": "ci",
-		"en": "Côte d'Ivoire",
-		"de": "Elfenbeinküste"
-	},
-	{
-		"alpha2": "hr",
-		"en": "Croatia",
-		"de": "Kroatien"
-	},
-	{
-		"alpha2": "cu",
-		"en": "Cuba",
-		"de": "Kuba"
-	},
-	{
-		"alpha2": "cy",
-		"en": "Cyprus",
-		"de": "Zypern"
-	},
-	{
-		"alpha2": "cz",
-		"en": "Czechia",
-		"de": "Tschechien"
-	},
-	{
-		"alpha2": "dk",
-		"en": "Denmark",
-		"de": "Dänemark"
-	},
-	{
-		"alpha2": "dj",
-		"en": "Djibouti",
-		"de": "Dschibuti"
-	},
-	{
-		"alpha2": "dm",
-		"en": "Dominica",
-		"de": "Dominica"
-	},
-	{
-		"alpha2": "do",
-		"en": "Dominican Republic",
-		"de": "Dominikanische Republik"
-	},
-	{
-		"alpha2": "ec",
-		"en": "Ecuador",
-		"de": "Ecuador"
-	},
-	{
-		"alpha2": "eg",
-		"en": "Egypt",
-		"de": "Ägypten"
-	},
-	{
-		"alpha2": "sv",
-		"en": "El Salvador",
-		"de": "El Salvador"
-	},
-	{
-		"alpha2": "gq",
-		"en": "Equatorial Guinea",
-		"de": "Äquatorialguinea"
-	},
-	{
-		"alpha2": "er",
-		"en": "Eritrea",
-		"de": "Eritrea"
-	},
-	{
-		"alpha2": "ee",
-		"en": "Estonia",
-		"de": "Estland"
-	},
-	{
-		"alpha2": "et",
-		"en": "Ethiopia",
-		"de": "Äthiopien"
-	},
-	{
-		"alpha2": "fj",
-		"en": "Fiji",
-		"de": "Fidschi"
-	},
-	{
-		"alpha2": "fi",
-		"en": "Finland",
-		"de": "Finnland"
-	},
-	{
-		"alpha2": "fr",
-		"en": "France",
-		"de": "Frankreich"
-	},
-	{
-		"alpha2": "ga",
-		"en": "Gabon",
-		"de": "Gabun"
-	},
-	{
-		"alpha2": "gm",
-		"en": "Gambia",
-		"de": "Gambia"
-	},
-	{
-		"alpha2": "ge",
-		"en": "Georgia",
-		"de": "Georgien"
-	},
-	{
-		"alpha2": "de",
-		"en": "Germany",
-		"de": "Deutschland"
-	},
-	{
-		"alpha2": "gh",
-		"en": "Ghana",
-		"de": "Ghana"
-	},
-	{
-		"alpha2": "gr",
-		"en": "Greece",
-		"de": "Griechenland"
-	},
-	{
-		"alpha2": "gd",
-		"en": "Grenada",
-		"de": "Grenada"
-	},
-	{
-		"alpha2": "gt",
-		"en": "Guatemala",
-		"de": "Guatemala"
-	},
-	{
-		"alpha2": "gn",
-		"en": "Guinea",
-		"de": "Guinea"
-	},
-	{
-		"alpha2": "gw",
-		"en": "Guinea-Bissau",
-		"de": "Guinea-Bissau"
-	},
-	{
-		"alpha2": "gy",
-		"en": "Guyana",
-		"de": "Guyana"
-	},
-	{
-		"alpha2": "ht",
-		"en": "Haiti",
-		"de": "Haiti"
-	},
-	{
-		"alpha2": "hn",
-		"en": "Honduras",
-		"de": "Honduras"
-	},
-	{
-		"alpha2": "hu",
-		"en": "Hungary",
-		"de": "Ungarn"
-	},
-	{
-		"alpha2": "is",
-		"en": "Iceland",
-		"de": "Island"
-	},
-	{
-		"alpha2": "in",
-		"en": "India",
-		"de": "Indien"
-	},
-	{
-		"alpha2": "id",
-		"en": "Indonesia",
-		"de": "Indonesien"
-	},
-	{
-		"alpha2": "ir",
-		"en": "Iran (Islamic Republic of)",
-		"de": "Iran"
-	},
-	{
-		"alpha2": "iq",
-		"en": "Iraq",
-		"de": "Irak"
-	},
-	{
-		"alpha2": "ie",
-		"en": "Ireland",
-		"de": "Irland"
-	},
-	{
-		"alpha2": "il",
-		"en": "Israel",
-		"de": "Israel"
-	},
-	{
-		"alpha2": "it",
-		"en": "Italy",
-		"de": "Italien"
-	},
-	{
-		"alpha2": "jm",
-		"en": "Jamaica",
-		"de": "Jamaika"
-	},
-	{
-		"alpha2": "jp",
-		"en": "Japan",
-		"de": "Japan"
-	},
-	{
-		"alpha2": "jo",
-		"en": "Jordan",
-		"de": "Jordanien"
-	},
-	{
-		"alpha2": "kz",
-		"en": "Kazakhstan",
-		"de": "Kasachstan"
-	},
-	{
-		"alpha2": "ke",
-		"en": "Kenya",
-		"de": "Kenia"
-	},
-	{
-		"alpha2": "ki",
-		"en": "Kiribati",
-		"de": "Kiribati"
-	},
-	{
-		"alpha2": "kp",
-		"en": "Korea (Democratic People's Republic of)",
-		"de": "Korea, Nord (Nordkorea)"
-	},
-	{
-		"alpha2": "kr",
-		"en": "Korea, Republic of",
-		"de": "Korea, Süd (Südkorea)"
-	},
-	{
-		"alpha2": "kw",
-		"en": "Kuwait",
-		"de": "Kuwait"
-	},
-	{
-		"alpha2": "kg",
-		"en": "Kyrgyzstan",
-		"de": "Kirgisistan"
-	},
-	{
-		"alpha2": "la",
-		"en": "Lao People's Democratic Republic",
-		"de": "Laos"
-	},
-	{
-		"alpha2": "lv",
-		"en": "Latvia",
-		"de": "Lettland"
-	},
-	{
-		"alpha2": "lb",
-		"en": "Lebanon",
-		"de": "Libanon"
-	},
-	{
-		"alpha2": "ls",
-		"en": "Lesotho",
-		"de": "Lesotho"
-	},
-	{
-		"alpha2": "lr",
-		"en": "Liberia",
-		"de": "Liberia"
-	},
-	{
-		"alpha2": "ly",
-		"en": "Libya",
-		"de": "Libyen"
-	},
-	{
-		"alpha2": "li",
-		"en": "Liechtenstein",
-		"de": "Liechtenstein"
-	},
-	{
-		"alpha2": "lt",
-		"en": "Lithuania",
-		"de": "Litauen"
-	},
-	{
-		"alpha2": "lu",
-		"en": "Luxembourg",
-		"de": "Luxemburg"
-	},
-	{
-		"alpha2": "mk",
-		"en": "North Macedonia",
-		"de": "Nordmazedonien"
-	},
-	{
-		"alpha2": "mg",
-		"en": "Madagascar",
-		"de": "Madagaskar"
-	},
-	{
-		"alpha2": "mw",
-		"en": "Malawi",
-		"de": "Malawi"
-	},
-	{
-		"alpha2": "my",
-		"en": "Malaysia",
-		"de": "Malaysia"
-	},
-	{
-		"alpha2": "mv",
-		"en": "Maldives",
-		"de": "Malediven"
-	},
-	{
-		"alpha2": "ml",
-		"en": "Mali",
-		"de": "Mali"
-	},
-	{
-		"alpha2": "mt",
-		"en": "Malta",
-		"de": "Malta"
-	},
-	{
-		"alpha2": "mh",
-		"en": "Marshall Islands",
-		"de": "Marshallinseln"
-	},
-	{
-		"alpha2": "mr",
-		"en": "Mauritania",
-		"de": "Mauretanien"
-	},
-	{
-		"alpha2": "mu",
-		"en": "Mauritius",
-		"de": "Mauritius"
-	},
-	{
-		"alpha2": "mx",
-		"en": "Mexico",
-		"de": "Mexiko"
-	},
-	{
-		"alpha2": "fm",
-		"en": "Micronesia (Federated States of)",
-		"de": "Mikronesien"
-	},
-	{
-		"alpha2": "ma",
-		"en": "Morocco",
-		"de": "Marokko"
-	},
-	{
-		"alpha2": "md",
-		"en": "Moldova, Republic of",
-		"de": "Moldau"
-	},
-	{
-		"alpha2": "mc",
-		"en": "Monaco",
-		"de": "Monaco"
-	},
-	{
-		"alpha2": "mn",
-		"en": "Mongolia",
-		"de": "Mongolei"
-	},
-	{
-		"alpha2": "me",
-		"en": "Montenegro",
-		"de": "Montenegro"
-	},
-	{
-		"alpha2": "mz",
-		"en": "Mozambique",
-		"de": "Mosambik"
-	},
-	{
-		"alpha2": "mm",
-		"en": "Myanmar",
-		"de": "Myanmar"
-	},
-	{
-		"alpha2": "na",
-		"en": "Namibia",
-		"de": "Namibia"
-	},
-	{
-		"alpha2": "nr",
-		"en": "Nauru",
-		"de": "Nauru"
-	},
-	{
-		"alpha2": "np",
-		"en": "Nepal",
-		"de": "Nepal"
-	},
-	{
-		"alpha2": "nl",
-		"en": "Netherlands",
-		"de": "Niederlande"
-	},
-	{
-		"alpha2": "nz",
-		"en": "New Zealand",
-		"de": "Neuseeland"
-	},
-	{
-		"alpha2": "ni",
-		"en": "Nicaragua",
-		"de": "Nicaragua"
-	},
-	{
-		"alpha2": "ne",
-		"en": "Niger",
-		"de": "Niger"
-	},
-	{
-		"alpha2": "ng",
-		"en": "Nigeria",
-		"de": "Nigeria"
-	},
-	{
-		"alpha2": "no",
-		"en": "Norway",
-		"de": "Norwegen"
-	},
-	{
-		"alpha2": "om",
-		"en": "Oman",
-		"de": "Oman"
-	},
-	{
-		"alpha2": "pk",
-		"en": "Pakistan",
-		"de": "Pakistan"
-	},
-	{
-		"alpha2": "pw",
-		"en": "Palau",
-		"de": "Palau"
-	},
-	{
-		"alpha2": "pa",
-		"en": "Panama",
-		"de": "Panama"
-	},
-	{
-		"alpha2": "pg",
-		"en": "Papua New Guinea",
-		"de": "Papua-Neuguinea"
-	},
-	{
-		"alpha2": "py",
-		"en": "Paraguay",
-		"de": "Paraguay"
-	},
-	{
-		"alpha2": "pe",
-		"en": "Peru",
-		"de": "Peru"
-	},
-	{
-		"alpha2": "ph",
-		"en": "Philippines",
-		"de": "Philippinen"
-	},
-	{
-		"alpha2": "pl",
-		"en": "Poland",
-		"de": "Polen"
-	},
-	{
-		"alpha2": "pt",
-		"en": "Portugal",
-		"de": "Portugal"
-	},
-	{
-		"alpha2": "qa",
-		"en": "Qatar",
-		"de": "Katar"
-	},
-	{
-		"alpha2": "ro",
-		"en": "Romania",
-		"de": "Rumänien"
-	},
-	{
-		"alpha2": "ru",
-		"en": "Russian Federation",
-		"de": "Russland"
-	},
-	{
-		"alpha2": "rw",
-		"en": "Rwanda",
-		"de": "Ruanda"
-	},
-	{
-		"alpha2": "kn",
-		"en": "Saint Kitts and Nevis",
-		"de": "St. Kitts und Nevis"
-	},
-	{
-		"alpha2": "lc",
-		"en": "Saint Lucia",
-		"de": "St. Lucia"
-	},
-	{
-		"alpha2": "vc",
-		"en": "Saint Vincent and the Grenadines",
-		"de": "St. Vincent und die Grenadinen"
-	},
-	{
-		"alpha2": "ws",
-		"en": "Samoa",
-		"de": "Samoa"
-	},
-	{
-		"alpha2": "sm",
-		"en": "San Marino",
-		"de": "San Marino"
-	},
-	{
-		"alpha2": "st",
-		"en": "Sao Tome and Principe",
-		"de": "São Tomé und Príncipe"
-	},
-	{
-		"alpha2": "sa",
-		"en": "Saudi Arabia",
-		"de": "Saudi-Arabien"
-	},
-	{
-		"alpha2": "sn",
-		"en": "Senegal",
-		"de": "Senegal"
-	},
-	{
-		"alpha2": "rs",
-		"en": "Serbia",
-		"de": "Serbien"
-	},
-	{
-		"alpha2": "sc",
-		"en": "Seychelles",
-		"de": "Seychellen"
-	},
-	{
-		"alpha2": "sl",
-		"en": "Sierra Leone",
-		"de": "Sierra Leone"
-	},
-	{
-		"alpha2": "sg",
-		"en": "Singapore",
-		"de": "Singapur"
-	},
-	{
-		"alpha2": "sk",
-		"en": "Slovakia",
-		"de": "Slowakei"
-	},
-	{
-		"alpha2": "si",
-		"en": "Slovenia",
-		"de": "Slowenien"
-	},
-	{
-		"alpha2": "sb",
-		"en": "Solomon Islands",
-		"de": "Salomonen"
-	},
-	{
-		"alpha2": "so",
-		"en": "Somalia",
-		"de": "Somalia"
-	},
-	{
-		"alpha2": "za",
-		"en": "South Africa",
-		"de": "Südafrika"
-	},
-	{
-		"alpha2": "ss",
-		"en": "South Sudan",
-		"de": "Südsudan"
-	},
-	{
-		"alpha2": "es",
-		"en": "Spain",
-		"de": "Spanien"
-	},
-	{
-		"alpha2": "lk",
-		"en": "Sri Lanka",
-		"de": "Sri Lanka"
-	},
-	{
-		"alpha2": "sd",
-		"en": "Sudan",
-		"de": "Sudan"
-	},
-	{
-		"alpha2": "sr",
-		"en": "Suriname",
-		"de": "Suriname"
-	},
-	{
-		"alpha2": "sz",
-		"en": "Eswatini",
-		"de": "Eswatini"
-	},
-	{
-		"alpha2": "se",
-		"en": "Sweden",
-		"de": "Schweden"
-	},
-	{
-		"alpha2": "ch",
-		"en": "Switzerland",
-		"de": "Schweiz"
-	},
-	{
-		"alpha2": "sy",
-		"en": "Syrian Arab Republic",
-		"de": "Syrien"
-	},
-	{
-		"alpha2": "tj",
-		"en": "Tajikistan",
-		"de": "Tadschikistan"
-	},
-	{
-		"alpha2": "tz",
-		"en": "Tanzania, United Republic of",
-		"de": "Tansania"
-	},
-	{
-		"alpha2": "th",
-		"en": "Thailand",
-		"de": "Thailand"
-	},
-	{
-		"alpha2": "tl",
-		"en": "Timor-Leste",
-		"de": "Osttimor"
-	},
-	{
-		"alpha2": "tg",
-		"en": "Togo",
-		"de": "Togo"
-	},
-	{
-		"alpha2": "to",
-		"en": "Tonga",
-		"de": "Tonga"
-	},
-	{
-		"alpha2": "tt",
-		"en": "Trinidad and Tobago",
-		"de": "Trinidad und Tobago"
-	},
-	{
-		"alpha2": "tn",
-		"en": "Tunisia",
-		"de": "Tunesien"
-	},
-	{
-		"alpha2": "tr",
-		"en": "Türkiye",
-		"de": "Türkei"
-	},
-	{
-		"alpha2": "tm",
-		"en": "Turkmenistan",
-		"de": "Turkmenistan"
-	},
-	{
-		"alpha2": "tv",
-		"en": "Tuvalu",
-		"de": "Tuvalu"
-	},
-	{
-		"alpha2": "ug",
-		"en": "Uganda",
-		"de": "Uganda"
-	},
-	{
-		"alpha2": "ua",
-		"en": "Ukraine",
-		"de": "Ukraine"
-	},
-	{
-		"alpha2": "ae",
-		"en": "United Arab Emirates",
-		"de": "Vereinigte Arabische Emirate"
-	},
-	{
-		"alpha2": "gb",
-		"en": "United Kingdom of Great Britain and Northern Ireland",
-		"de": "Vereinigtes Königreich"
-	},
-	{
-		"alpha2": "us",
-		"en": "United States of America",
-		"de": "Vereinigte Staaten"
-	},
-	{
-		"alpha2": "uy",
-		"en": "Uruguay",
-		"de": "Uruguay"
-	},
-	{
-		"alpha2": "uz",
-		"en": "Uzbekistan",
-		"de": "Usbekistan"
-	},
-	{
-		"alpha2": "vu",
-		"en": "Vanuatu",
-		"de": "Vanuatu"
-	},
-	{
-		"alpha2": "ve",
-		"en": "Venezuela (Bolivarian Republic of)",
-		"de": "Venezuela"
-	},
-	{
-		"alpha2": "vn",
-		"en": "Viet Nam",
-		"de": "Vietnam"
-	},
-	{
-		"alpha2": "ye",
-		"en": "Yemen",
-		"de": "Jemen"
-	},
-	{
-		"alpha2": "zm",
-		"en": "Zambia",
-		"de": "Sambia"
-	},
-	{
-		"alpha2": "zw",
-		"en": "Zimbabwe",
-		"de": "Simbabwe"
-	}
+  {
+    "alpha2": "af",
+    "en": "Afghanistan",
+    "de": "Afghanistan"
+  },
+  {
+    "alpha2": "al",
+    "en": "Albania",
+    "de": "Albanien"
+  },
+  {
+    "alpha2": "dz",
+    "en": "Algeria",
+    "de": "Algerien"
+  },
+  {
+    "alpha2": "ad",
+    "en": "Andorra",
+    "de": "Andorra"
+  },
+  {
+    "alpha2": "ao",
+    "en": "Angola",
+    "de": "Angola"
+  },
+  {
+    "alpha2": "ag",
+    "en": "Antigua and Barbuda",
+    "de": "Antigua und Barbuda"
+  },
+  {
+    "alpha2": "ar",
+    "en": "Argentina",
+    "de": "Argentinien"
+  },
+  {
+    "alpha2": "am",
+    "en": "Armenia",
+    "de": "Armenien"
+  },
+  {
+    "alpha2": "au",
+    "en": "Australia",
+    "de": "Australien"
+  },
+  {
+    "alpha2": "at",
+    "en": "Austria",
+    "de": "Österreich"
+  },
+  {
+    "alpha2": "az",
+    "en": "Azerbaijan",
+    "de": "Aserbaidschan"
+  },
+  {
+    "alpha2": "bs",
+    "en": "Bahamas",
+    "de": "Bahamas"
+  },
+  {
+    "alpha2": "bh",
+    "en": "Bahrain",
+    "de": "Bahrain"
+  },
+  {
+    "alpha2": "bd",
+    "en": "Bangladesh",
+    "de": "Bangladesch"
+  },
+  {
+    "alpha2": "bb",
+    "en": "Barbados",
+    "de": "Barbados"
+  },
+  {
+    "alpha2": "by",
+    "en": "Belarus",
+    "de": "Belarus"
+  },
+  {
+    "alpha2": "be",
+    "en": "Belgium",
+    "de": "Belgien"
+  },
+  {
+    "alpha2": "bz",
+    "en": "Belize",
+    "de": "Belize"
+  },
+  {
+    "alpha2": "bj",
+    "en": "Benin",
+    "de": "Benin"
+  },
+  {
+    "alpha2": "bt",
+    "en": "Bhutan",
+    "de": "Bhutan"
+  },
+  {
+    "alpha2": "bo",
+    "en": "Bolivia (Plurinational State of)",
+    "de": "Bolivien"
+  },
+  {
+    "alpha2": "ba",
+    "en": "Bosnia and Herzegovina",
+    "de": "Bosnien und Herzegowina"
+  },
+  {
+    "alpha2": "bw",
+    "en": "Botswana",
+    "de": "Botswana"
+  },
+  {
+    "alpha2": "br",
+    "en": "Brazil",
+    "de": "Brasilien"
+  },
+  {
+    "alpha2": "bn",
+    "en": "Brunei Darussalam",
+    "de": "Brunei"
+  },
+  {
+    "alpha2": "bg",
+    "en": "Bulgaria",
+    "de": "Bulgarien"
+  },
+  {
+    "alpha2": "bf",
+    "en": "Burkina Faso",
+    "de": "Burkina Faso"
+  },
+  {
+    "alpha2": "bi",
+    "en": "Burundi",
+    "de": "Burundi"
+  },
+  {
+    "alpha2": "kh",
+    "en": "Cambodia",
+    "de": "Kambodscha"
+  },
+  {
+    "alpha2": "cm",
+    "en": "Cameroon",
+    "de": "Kamerun"
+  },
+  {
+    "alpha2": "ca",
+    "en": "Canada",
+    "de": "Kanada"
+  },
+  {
+    "alpha2": "cv",
+    "en": "Cabo Verde",
+    "de": "Kap Verde"
+  },
+  {
+    "alpha2": "cf",
+    "en": "Central African Republic",
+    "de": "Zentralafrikanische Republik"
+  },
+  {
+    "alpha2": "td",
+    "en": "Chad",
+    "de": "Tschad"
+  },
+  {
+    "alpha2": "cl",
+    "en": "Chile",
+    "de": "Chile"
+  },
+  {
+    "alpha2": "cn",
+    "en": "China",
+    "de": "Volksrepublik China"
+  },
+  {
+    "alpha2": "co",
+    "en": "Colombia",
+    "de": "Kolumbien"
+  },
+  {
+    "alpha2": "km",
+    "en": "Comoros",
+    "de": "Komoren"
+  },
+  {
+    "alpha2": "cg",
+    "en": "Congo",
+    "de": "Kongo, Republik"
+  },
+  {
+    "alpha2": "cd",
+    "en": "Congo, Democratic Republic of the",
+    "de": "Kongo, Demokratische Republik"
+  },
+  {
+    "alpha2": "cr",
+    "en": "Costa Rica",
+    "de": "Costa Rica"
+  },
+  {
+    "alpha2": "ci",
+    "en": "Côte d'Ivoire",
+    "de": "Elfenbeinküste"
+  },
+  {
+    "alpha2": "hr",
+    "en": "Croatia",
+    "de": "Kroatien"
+  },
+  {
+    "alpha2": "cu",
+    "en": "Cuba",
+    "de": "Kuba"
+  },
+  {
+    "alpha2": "cy",
+    "en": "Cyprus",
+    "de": "Zypern"
+  },
+  {
+    "alpha2": "cz",
+    "en": "Czechia",
+    "de": "Tschechien"
+  },
+  {
+    "alpha2": "dk",
+    "en": "Denmark",
+    "de": "Dänemark"
+  },
+  {
+    "alpha2": "dj",
+    "en": "Djibouti",
+    "de": "Dschibuti"
+  },
+  {
+    "alpha2": "dm",
+    "en": "Dominica",
+    "de": "Dominica"
+  },
+  {
+    "alpha2": "do",
+    "en": "Dominican Republic",
+    "de": "Dominikanische Republik"
+  },
+  {
+    "alpha2": "ec",
+    "en": "Ecuador",
+    "de": "Ecuador"
+  },
+  {
+    "alpha2": "eg",
+    "en": "Egypt",
+    "de": "Ägypten"
+  },
+  {
+    "alpha2": "sv",
+    "en": "El Salvador",
+    "de": "El Salvador"
+  },
+  {
+    "alpha2": "gq",
+    "en": "Equatorial Guinea",
+    "de": "Äquatorialguinea"
+  },
+  {
+    "alpha2": "er",
+    "en": "Eritrea",
+    "de": "Eritrea"
+  },
+  {
+    "alpha2": "ee",
+    "en": "Estonia",
+    "de": "Estland"
+  },
+  {
+    "alpha2": "et",
+    "en": "Ethiopia",
+    "de": "Äthiopien"
+  },
+  {
+    "alpha2": "fj",
+    "en": "Fiji",
+    "de": "Fidschi"
+  },
+  {
+    "alpha2": "fi",
+    "en": "Finland",
+    "de": "Finnland"
+  },
+  {
+    "alpha2": "fr",
+    "en": "France",
+    "de": "Frankreich"
+  },
+  {
+    "alpha2": "ga",
+    "en": "Gabon",
+    "de": "Gabun"
+  },
+  {
+    "alpha2": "gm",
+    "en": "Gambia",
+    "de": "Gambia"
+  },
+  {
+    "alpha2": "ge",
+    "en": "Georgia",
+    "de": "Georgien"
+  },
+  {
+    "alpha2": "de",
+    "en": "Germany",
+    "de": "Deutschland"
+  },
+  {
+    "alpha2": "gh",
+    "en": "Ghana",
+    "de": "Ghana"
+  },
+  {
+    "alpha2": "gr",
+    "en": "Greece",
+    "de": "Griechenland"
+  },
+  {
+    "alpha2": "gd",
+    "en": "Grenada",
+    "de": "Grenada"
+  },
+  {
+    "alpha2": "gt",
+    "en": "Guatemala",
+    "de": "Guatemala"
+  },
+  {
+    "alpha2": "gn",
+    "en": "Guinea",
+    "de": "Guinea"
+  },
+  {
+    "alpha2": "gw",
+    "en": "Guinea-Bissau",
+    "de": "Guinea-Bissau"
+  },
+  {
+    "alpha2": "gy",
+    "en": "Guyana",
+    "de": "Guyana"
+  },
+  {
+    "alpha2": "ht",
+    "en": "Haiti",
+    "de": "Haiti"
+  },
+  {
+    "alpha2": "hn",
+    "en": "Honduras",
+    "de": "Honduras"
+  },
+  {
+    "alpha2": "hu",
+    "en": "Hungary",
+    "de": "Ungarn"
+  },
+  {
+    "alpha2": "is",
+    "en": "Iceland",
+    "de": "Island"
+  },
+  {
+    "alpha2": "in",
+    "en": "India",
+    "de": "Indien"
+  },
+  {
+    "alpha2": "id",
+    "en": "Indonesia",
+    "de": "Indonesien"
+  },
+  {
+    "alpha2": "ir",
+    "en": "Iran (Islamic Republic of)",
+    "de": "Iran"
+  },
+  {
+    "alpha2": "iq",
+    "en": "Iraq",
+    "de": "Irak"
+  },
+  {
+    "alpha2": "ie",
+    "en": "Ireland",
+    "de": "Irland"
+  },
+  {
+    "alpha2": "il",
+    "en": "Israel",
+    "de": "Israel"
+  },
+  {
+    "alpha2": "it",
+    "en": "Italy",
+    "de": "Italien"
+  },
+  {
+    "alpha2": "jm",
+    "en": "Jamaica",
+    "de": "Jamaika"
+  },
+  {
+    "alpha2": "jp",
+    "en": "Japan",
+    "de": "Japan"
+  },
+  {
+    "alpha2": "jo",
+    "en": "Jordan",
+    "de": "Jordanien"
+  },
+  {
+    "alpha2": "kz",
+    "en": "Kazakhstan",
+    "de": "Kasachstan"
+  },
+  {
+    "alpha2": "ke",
+    "en": "Kenya",
+    "de": "Kenia"
+  },
+  {
+    "alpha2": "ki",
+    "en": "Kiribati",
+    "de": "Kiribati"
+  },
+  {
+    "alpha2": "kp",
+    "en": "Korea (Democratic People's Republic of)",
+    "de": "Korea, Nord (Nordkorea)"
+  },
+  {
+    "alpha2": "kr",
+    "en": "Korea, Republic of",
+    "de": "Korea, Süd (Südkorea)"
+  },
+  {
+    "alpha2": "kw",
+    "en": "Kuwait",
+    "de": "Kuwait"
+  },
+  {
+    "alpha2": "kg",
+    "en": "Kyrgyzstan",
+    "de": "Kirgisistan"
+  },
+  {
+    "alpha2": "la",
+    "en": "Lao People's Democratic Republic",
+    "de": "Laos"
+  },
+  {
+    "alpha2": "lv",
+    "en": "Latvia",
+    "de": "Lettland"
+  },
+  {
+    "alpha2": "lb",
+    "en": "Lebanon",
+    "de": "Libanon"
+  },
+  {
+    "alpha2": "ls",
+    "en": "Lesotho",
+    "de": "Lesotho"
+  },
+  {
+    "alpha2": "lr",
+    "en": "Liberia",
+    "de": "Liberia"
+  },
+  {
+    "alpha2": "ly",
+    "en": "Libya",
+    "de": "Libyen"
+  },
+  {
+    "alpha2": "li",
+    "en": "Liechtenstein",
+    "de": "Liechtenstein"
+  },
+  {
+    "alpha2": "lt",
+    "en": "Lithuania",
+    "de": "Litauen"
+  },
+  {
+    "alpha2": "lu",
+    "en": "Luxembourg",
+    "de": "Luxemburg"
+  },
+  {
+    "alpha2": "mk",
+    "en": "North Macedonia",
+    "de": "Nordmazedonien"
+  },
+  {
+    "alpha2": "mg",
+    "en": "Madagascar",
+    "de": "Madagaskar"
+  },
+  {
+    "alpha2": "mw",
+    "en": "Malawi",
+    "de": "Malawi"
+  },
+  {
+    "alpha2": "my",
+    "en": "Malaysia",
+    "de": "Malaysia"
+  },
+  {
+    "alpha2": "mv",
+    "en": "Maldives",
+    "de": "Malediven"
+  },
+  {
+    "alpha2": "ml",
+    "en": "Mali",
+    "de": "Mali"
+  },
+  {
+    "alpha2": "mt",
+    "en": "Malta",
+    "de": "Malta"
+  },
+  {
+    "alpha2": "mh",
+    "en": "Marshall Islands",
+    "de": "Marshallinseln"
+  },
+  {
+    "alpha2": "mr",
+    "en": "Mauritania",
+    "de": "Mauretanien"
+  },
+  {
+    "alpha2": "mu",
+    "en": "Mauritius",
+    "de": "Mauritius"
+  },
+  {
+    "alpha2": "mx",
+    "en": "Mexico",
+    "de": "Mexiko"
+  },
+  {
+    "alpha2": "fm",
+    "en": "Micronesia (Federated States of)",
+    "de": "Mikronesien"
+  },
+  {
+    "alpha2": "ma",
+    "en": "Morocco",
+    "de": "Marokko"
+  },
+  {
+    "alpha2": "md",
+    "en": "Moldova, Republic of",
+    "de": "Moldau"
+  },
+  {
+    "alpha2": "mc",
+    "en": "Monaco",
+    "de": "Monaco"
+  },
+  {
+    "alpha2": "mn",
+    "en": "Mongolia",
+    "de": "Mongolei"
+  },
+  {
+    "alpha2": "me",
+    "en": "Montenegro",
+    "de": "Montenegro"
+  },
+  {
+    "alpha2": "mz",
+    "en": "Mozambique",
+    "de": "Mosambik"
+  },
+  {
+    "alpha2": "mm",
+    "en": "Myanmar",
+    "de": "Myanmar"
+  },
+  {
+    "alpha2": "na",
+    "en": "Namibia",
+    "de": "Namibia"
+  },
+  {
+    "alpha2": "nr",
+    "en": "Nauru",
+    "de": "Nauru"
+  },
+  {
+    "alpha2": "np",
+    "en": "Nepal",
+    "de": "Nepal"
+  },
+  {
+    "alpha2": "nl",
+    "en": "Netherlands",
+    "de": "Niederlande"
+  },
+  {
+    "alpha2": "nz",
+    "en": "New Zealand",
+    "de": "Neuseeland"
+  },
+  {
+    "alpha2": "ni",
+    "en": "Nicaragua",
+    "de": "Nicaragua"
+  },
+  {
+    "alpha2": "ne",
+    "en": "Niger",
+    "de": "Niger"
+  },
+  {
+    "alpha2": "ng",
+    "en": "Nigeria",
+    "de": "Nigeria"
+  },
+  {
+    "alpha2": "no",
+    "en": "Norway",
+    "de": "Norwegen"
+  },
+  {
+    "alpha2": "om",
+    "en": "Oman",
+    "de": "Oman"
+  },
+  {
+    "alpha2": "pk",
+    "en": "Pakistan",
+    "de": "Pakistan"
+  },
+  {
+    "alpha2": "pw",
+    "en": "Palau",
+    "de": "Palau"
+  },
+  {
+    "alpha2": "pa",
+    "en": "Panama",
+    "de": "Panama"
+  },
+  {
+    "alpha2": "pg",
+    "en": "Papua New Guinea",
+    "de": "Papua-Neuguinea"
+  },
+  {
+    "alpha2": "py",
+    "en": "Paraguay",
+    "de": "Paraguay"
+  },
+  {
+    "alpha2": "pe",
+    "en": "Peru",
+    "de": "Peru"
+  },
+  {
+    "alpha2": "ph",
+    "en": "Philippines",
+    "de": "Philippinen"
+  },
+  {
+    "alpha2": "pl",
+    "en": "Poland",
+    "de": "Polen"
+  },
+  {
+    "alpha2": "pt",
+    "en": "Portugal",
+    "de": "Portugal"
+  },
+  {
+    "alpha2": "qa",
+    "en": "Qatar",
+    "de": "Katar"
+  },
+  {
+    "alpha2": "ro",
+    "en": "Romania",
+    "de": "Rumänien"
+  },
+  {
+    "alpha2": "ru",
+    "en": "Russian Federation",
+    "de": "Russland"
+  },
+  {
+    "alpha2": "rw",
+    "en": "Rwanda",
+    "de": "Ruanda"
+  },
+  {
+    "alpha2": "kn",
+    "en": "Saint Kitts and Nevis",
+    "de": "St. Kitts und Nevis"
+  },
+  {
+    "alpha2": "lc",
+    "en": "Saint Lucia",
+    "de": "St. Lucia"
+  },
+  {
+    "alpha2": "vc",
+    "en": "Saint Vincent and the Grenadines",
+    "de": "St. Vincent und die Grenadinen"
+  },
+  {
+    "alpha2": "ws",
+    "en": "Samoa",
+    "de": "Samoa"
+  },
+  {
+    "alpha2": "sm",
+    "en": "San Marino",
+    "de": "San Marino"
+  },
+  {
+    "alpha2": "st",
+    "en": "Sao Tome and Principe",
+    "de": "São Tomé und Príncipe"
+  },
+  {
+    "alpha2": "sa",
+    "en": "Saudi Arabia",
+    "de": "Saudi-Arabien"
+  },
+  {
+    "alpha2": "sn",
+    "en": "Senegal",
+    "de": "Senegal"
+  },
+  {
+    "alpha2": "rs",
+    "en": "Serbia",
+    "de": "Serbien"
+  },
+  {
+    "alpha2": "sc",
+    "en": "Seychelles",
+    "de": "Seychellen"
+  },
+  {
+    "alpha2": "sl",
+    "en": "Sierra Leone",
+    "de": "Sierra Leone"
+  },
+  {
+    "alpha2": "sg",
+    "en": "Singapore",
+    "de": "Singapur"
+  },
+  {
+    "alpha2": "sk",
+    "en": "Slovakia",
+    "de": "Slowakei"
+  },
+  {
+    "alpha2": "si",
+    "en": "Slovenia",
+    "de": "Slowenien"
+  },
+  {
+    "alpha2": "sb",
+    "en": "Solomon Islands",
+    "de": "Salomonen"
+  },
+  {
+    "alpha2": "so",
+    "en": "Somalia",
+    "de": "Somalia"
+  },
+  {
+    "alpha2": "za",
+    "en": "South Africa",
+    "de": "Südafrika"
+  },
+  {
+    "alpha2": "ss",
+    "en": "South Sudan",
+    "de": "Südsudan"
+  },
+  {
+    "alpha2": "es",
+    "en": "Spain",
+    "de": "Spanien"
+  },
+  {
+    "alpha2": "lk",
+    "en": "Sri Lanka",
+    "de": "Sri Lanka"
+  },
+  {
+    "alpha2": "sd",
+    "en": "Sudan",
+    "de": "Sudan"
+  },
+  {
+    "alpha2": "sr",
+    "en": "Suriname",
+    "de": "Suriname"
+  },
+  {
+    "alpha2": "sz",
+    "en": "Eswatini",
+    "de": "Eswatini"
+  },
+  {
+    "alpha2": "se",
+    "en": "Sweden",
+    "de": "Schweden"
+  },
+  {
+    "alpha2": "ch",
+    "en": "Switzerland",
+    "de": "Schweiz"
+  },
+  {
+    "alpha2": "sy",
+    "en": "Syrian Arab Republic",
+    "de": "Syrien"
+  },
+  {
+    "alpha2": "tj",
+    "en": "Tajikistan",
+    "de": "Tadschikistan"
+  },
+  {
+    "alpha2": "tz",
+    "en": "Tanzania, United Republic of",
+    "de": "Tansania"
+  },
+  {
+    "alpha2": "th",
+    "en": "Thailand",
+    "de": "Thailand"
+  },
+  {
+    "alpha2": "tl",
+    "en": "Timor-Leste",
+    "de": "Osttimor"
+  },
+  {
+    "alpha2": "tg",
+    "en": "Togo",
+    "de": "Togo"
+  },
+  {
+    "alpha2": "to",
+    "en": "Tonga",
+    "de": "Tonga"
+  },
+  {
+    "alpha2": "tt",
+    "en": "Trinidad and Tobago",
+    "de": "Trinidad und Tobago"
+  },
+  {
+    "alpha2": "tn",
+    "en": "Tunisia",
+    "de": "Tunesien"
+  },
+  {
+    "alpha2": "tr",
+    "en": "Türkiye",
+    "de": "Türkei"
+  },
+  {
+    "alpha2": "tm",
+    "en": "Turkmenistan",
+    "de": "Turkmenistan"
+  },
+  {
+    "alpha2": "tv",
+    "en": "Tuvalu",
+    "de": "Tuvalu"
+  },
+  {
+    "alpha2": "ug",
+    "en": "Uganda",
+    "de": "Uganda"
+  },
+  {
+    "alpha2": "ua",
+    "en": "Ukraine",
+    "de": "Ukraine"
+  },
+  {
+    "alpha2": "ae",
+    "en": "United Arab Emirates",
+    "de": "Vereinigte Arabische Emirate"
+  },
+  {
+    "alpha2": "gb",
+    "en": "United Kingdom of Great Britain and Northern Ireland",
+    "de": "Vereinigtes Königreich"
+  },
+  {
+    "alpha2": "us",
+    "en": "United States of America",
+    "de": "Vereinigte Staaten"
+  },
+  {
+    "alpha2": "uy",
+    "en": "Uruguay",
+    "de": "Uruguay"
+  },
+  {
+    "alpha2": "uz",
+    "en": "Uzbekistan",
+    "de": "Usbekistan"
+  },
+  {
+    "alpha2": "vu",
+    "en": "Vanuatu",
+    "de": "Vanuatu"
+  },
+  {
+    "alpha2": "ve",
+    "en": "Venezuela (Bolivarian Republic of)",
+    "de": "Venezuela"
+  },
+  {
+    "alpha2": "vn",
+    "en": "Viet Nam",
+    "de": "Vietnam"
+  },
+  {
+    "alpha2": "ye",
+    "en": "Yemen",
+    "de": "Jemen"
+  },
+  {
+    "alpha2": "zm",
+    "en": "Zambia",
+    "de": "Sambia"
+  },
+  {
+    "alpha2": "zw",
+    "en": "Zimbabwe",
+    "de": "Simbabwe"
+  }
 ]

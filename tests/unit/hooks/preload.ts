@@ -192,7 +192,7 @@ mock.module('@src/paraglide/runtime', () => ({
 // Mock globalSettings.svelte - prevents Svelte 5 $state error
 // ============================================================================
 
-mock.module('@src/stores/globalSettings.svelte', () => ({
+mock.module('@stores/globalSettings.svelte', () => ({
 	publicEnv: {
 		SITE_NAME: 'Test CMS',
 		DEFAULT_LANGUAGE: 'en',

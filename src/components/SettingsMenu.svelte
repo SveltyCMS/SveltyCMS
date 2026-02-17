@@ -62,7 +62,7 @@ Sidebar navigation for System Settings
 				? 'h-12 py-3'
 				: 'h-10 py-2'}"
 			aria-label="Search settings"
-		/>
+		>
 		<div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-surface-400">
 			<iconify-icon icon="ic:outline-search" width="20"></iconify-icon>
 		</div>

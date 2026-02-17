@@ -24,7 +24,6 @@
 - Enhanced visual feedback for drag & drop
 -->
 <script lang="ts">
-	
 	import SystemTooltip from '@components/system/SystemTooltip.svelte';
 	import type { ContentNode, DatabaseId } from '@databases/dbInterface';
 	import { sortContentNodes } from '@src/content/utils';
@@ -32,7 +31,7 @@
 	import { flip } from 'svelte/animate';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 	import { dndzone, SHADOW_ITEM_MARKER_PROPERTY_NAME } from 'svelte-dnd-action';
-import TreeViewNode from './TreeViewNode.svelte';
+	import TreeViewNode from './TreeViewNode.svelte';
 
 	export interface TreeViewItem extends Record<string, any> {
 		_id?: any;
@@ -861,7 +860,7 @@ import TreeViewNode from './TreeViewNode.svelte';
 			onfinalize={(e) => handleFinalize(e, null)}
 			role="group"
 		>
-			{#each treeRoots as item (item.id + (item[SHADOW_ITEM_MARKER_PROPERTY_NAME] ? '_shadow' : ''))}
+			{#each treeRoots as item (item.id)}
 				<div
 					class="tree-node-wrapper mb-2"
 					class:hidden={!isNodeVisible(item, searchText)}

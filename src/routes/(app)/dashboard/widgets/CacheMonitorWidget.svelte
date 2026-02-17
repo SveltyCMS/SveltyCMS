@@ -166,7 +166,7 @@
 							By Category
 						</h3>
 						<div class="space-y-3">
-							{#each Object.entries(metrics.byCategory).slice(0, 6) as [category, stats] (category)}
+							{#each Object.entries(metrics.byCategory).slice(0, 6) as [ category, stats ] (category)}
 								<div class="group">
 									<div class="flex items-center justify-between text-xs">
 										<div class="flex items-center gap-2">
@@ -179,7 +179,7 @@
 										</div>
 										<div class="flex items-center gap-3">
 											<span class="tabular-nums text-surface-500">
-												{formatNumber(stats.hits)}<span class="text-surface-400">/</span>{formatNumber(stats.hits + stats.misses)}
+												{formatNumber(stats.hits)}<span class="text-surface-400">/</span{formatNumber(stats.hits + stats.misses)}
 											</span>
 											<span class={`min-w-12 text-right text-sm font-bold tabular-nums ${getHitRateColor(stats.hitRate)}`}>
 												{stats.hitRate.toFixed(0)}%
@@ -212,7 +212,7 @@
 							By Tenant
 						</h3>
 						<div class="space-y-2.5">
-							{#each Object.entries(metrics.byTenant).slice(0, 4) as [tenant, stats] (tenant)}
+							{#each Object.entries(metrics.byTenant).slice(0, 4) as [ tenant, stats ] (tenant)}
 								<div class="flex items-center justify-between rounded-lg bg-surface-100/50 px-3 py-2 text-xs dark:bg-surface-900/30">
 									<div class="flex items-center gap-2">
 										<div class="flex h-7 w-7 items-center justify-center rounded-full bg-primary-100 dark:bg-primary-900/30">

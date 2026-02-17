@@ -205,7 +205,7 @@ Part of the Three Pillars Architecture for widget system.
 					: ''} {isLoading ? 'opacity-50' : ''}"
 				aria-invalid={!!error || !!fetchError}
 				aria-describedby={error || fetchError ? `${field.db_fieldName}-error` : undefined}
-			/>
+			>
 
 			{#if isLoading}
 				<div class="flex items-center bg-white px-2 dark:bg-surface-900" aria-label="Loading">
@@ -223,7 +223,7 @@ Part of the Three Pillars Architecture for widget system.
 
 	{#if fetchedMetadata && !isLoading && !fetchError}
 		<div class="mt-4 flex flex-col gap-4 rounded-lg border border-surface-200 p-4 sm:flex-row sm:items-start dark:border-surface-700">
-			<img src={fetchedMetadata.thumbnailUrl} alt={fetchedMetadata.title} class="h-auto w-full max-w-[120px] shrink-0 rounded object-cover" />
+			<img src={fetchedMetadata.thumbnailUrl} alt={fetchedMetadata.title} class="h-auto w-full max-w-[120px] shrink-0 rounded object-cover">
 			<div class="flex-1 space-y-1">
 				<h3 class="text-base font-bold text-surface-900 dark:text-surface-50">{fetchedMetadata.title}</h3>
 				{#if fetchedMetadata.channelTitle}

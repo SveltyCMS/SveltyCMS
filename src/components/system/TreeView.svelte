@@ -460,7 +460,12 @@
 				<!-- Icon -->
 				{#if node.icon}
 					<div class="relative flex shrink-0 items-center">
-						<iconify-icon icon={node.icon} width={compact ? '20' : '24'} height={compact ? '20' : '24'} class={iconColorClass} aria-hidden="true"
+						<iconify-icon
+							icon={node.icon}
+							width={compact ? '20' : '24'}
+							height={compact ? '20' : '24'}
+							class={iconColorClass}
+							aria-hidden="true"
 						></iconify-icon>
 					</div>
 				{/if}

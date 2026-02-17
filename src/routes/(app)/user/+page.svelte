@@ -283,7 +283,7 @@
 								const enabled = (e.target as HTMLInputElement).checked;
 								await updateRtcPreference('enabled', enabled);
 							}}
-						/>
+						>
 					</div>
 					<div class="flex items-center justify-between pl-7 opacity-80">
 						<span class="text-xs">Sound Notifications</span>
@@ -295,7 +295,7 @@
 								const sound = (e.target as HTMLInputElement).checked;
 								await updateRtcPreference('sound', sound);
 							}}
-						/>
+						>
 					</div>
 				</div>
 
@@ -314,15 +314,15 @@
 				<form>
 					<label>
 						{m.username()}:
-						<input value={user.username} name="username" type="text" autocomplete="username" disabled class="input" />
+						<input value={user.username} name="username" type="text" autocomplete="username" disabled class="input">
 					</label>
 					<label>
 						{m.email()}:
-						<input value={user.email} name="email" type="email" autocomplete="email" disabled class="input" />
+						<input value={user.email} name="email" type="email" autocomplete="email" disabled class="input">
 					</label>
 					<label>
 						{m.form_password()}:
-						<input bind:value={password} name="password" type="password" autocomplete="current-password" disabled class="input" />
+						<input bind:value={password} name="password" type="password" autocomplete="current-password" disabled class="input">
 					</label>
 
 					<div class="mt-4 flex flex-col justify-between gap-2 sm:flex-row sm:gap-1">

@@ -24,10 +24,9 @@ Implements custom virtual scrolling without external dependencies.
 
 <script lang="ts">
 	// Using iconify-icon web component
-	
 
 	import type { MediaBase, MediaImage } from '@utils/media/mediaModels';
-import { formatBytes } from '@utils/utils';
+	import { formatBytes } from '@utils/utils';
 	// import { popup } from '@skeletonlabs/skeleton-svelte';
 	import { onMount } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
@@ -361,12 +360,8 @@ import { formatBytes } from '@utils/utils';
 
 			{#if isSelectionMode}
 				<div class="flex items-center gap-2 border-l border-surface-300 pl-3 dark:border-surface-600">
-					<button onclick={selectAll} class="btn-sm preset-tonal-surface hover:preset-filled-surface-500">
-						<span class="text-xs">All</span>
-					</button>
-					<button onclick={deselectAll} class="btn-sm preset-tonal-surface hover:preset-filled-surface-500">
-						<span class="text-xs">None</span>
-					</button>
+					<button onclick={selectAll} class="btn-sm preset-tonal-surface hover:preset-filled-surface-500"><span class="text-xs">All</span></button>
+					<button onclick={deselectAll} class="btn-sm preset-tonal-surface hover:preset-filled-surface-500"><span class="text-xs">None</span></button>
 				</div>
 			{/if}
 		</div>
@@ -415,13 +410,14 @@ import { formatBytes } from '@utils/utils';
 		{:else}
 			<div style="padding-top: {paddingTop}px; padding-bottom: {paddingBottom}px;">
 				<div class="grid gap-4" style="grid-template-columns: repeat({itemsPerRow}, 1fr);">
-					{#each visibleItems as file (file._id?.toString() || file.filename)}
+					{#each visibleItems as file (file._id || file.filename)}
 						{@const fileId = file._id?.toString() || file.filename}
 						{@const isSelected = selectedFiles.has(fileId)}
 
 						<div
-							class="group relative flex flex-col overflow-hidden rounded-2xl border bg-white text-left shadow-sm transition-all duration-300 hover:z-10 hover:-translate-y-1 hover:shadow-xl dark:bg-surface-900
-							{isSelected ? 'border-primary-500 ring-2 ring-primary-500/20' : 'border-surface-200 dark:border-surface-800'}"
+							class="group relative flex flex-col overflow-hidden rounded-2xl border bg-white text-left shadow-sm transition-all duration-300 hover:z-10 hover:-translate-y-1 hover:shadow-xl dark:bg-surface-900 {isSelected
+								? 'border-primary-500 ring-2 ring-primary-500/20'
+								: 'border-surface-200 dark:border-surface-800'}"
 							role="button"
 							tabindex="0"
 							onclick={() => {
@@ -445,7 +441,7 @@ import { formatBytes } from '@utils/utils';
 											checked={isSelected}
 											onchange={() => toggleSelection(file)}
 											class="checkbox h-4 w-4 rounded-sm border-2 border-surface-400 checked:border-primary-500 checked:bg-primary-500 focus:ring-0"
-										/>
+										>
 									</div>
 								</div>
 							{/if}
@@ -488,19 +484,20 @@ import { formatBytes } from '@utils/utils';
 										<div class="mb-2 text-xs font-bold uppercase tracking-wider text-surface-500">Details</div>
 										<table class="w-full text-xs">
 											<tbody>
-												<tr><td class="text-surface-500 pr-2">Size:</td><td class="text-right font-mono">{formatBytes(file.size || 0)}</td></tr>
+												<tr>
+													<td class="text-surface-500 pr-2">Size:</td>
+													<td class="text-right font-mono">{formatBytes(file.size || 0)}</td>
+												</tr>
 												{#if (file as any).width}
-													<tr
-														><td class="text-surface-500 pr-2">Dims:</td><td class="text-right font-mono"
-															>{(file as any).width}x{(file as any).height}</td
-														></tr
-													>
+													<tr>
+														<td class="text-surface-500 pr-2">Dims:</td>
+														<td class="text-right font-mono">{(file as any).width}x{(file as any).height}</td>
+													</tr>
 												{/if}
-												<tr
-													><td class="text-surface-500 pr-2">Type:</td><td class="text-right truncate max-w-[80px]"
-														>{file.mimeType?.split('/')[1] || 'N/A'}</td
-													></tr
-												>
+												<tr>
+													<td class="text-surface-500 pr-2">Type:</td>
+													<td class="text-right truncate max-w-[80px]">{file.mimeType?.split('/')[1] || 'N/A'}</td>
+												</tr>
 											</tbody>
 										</table>
 									</div>
@@ -548,7 +545,7 @@ import { formatBytes } from '@utils/utils';
 											const target = e.target as HTMLImageElement;
 											if (target) target.src = '/static/Default_User.svg';
 										}}
-									/>
+									>
 								{:else}
 									<div class="flex h-full w-full items-center justify-center text-surface-300 dark:text-surface-600">
 										<iconify-icon icon="bi:exclamation-triangle-fill" width={48}></iconify-icon>
@@ -557,20 +554,17 @@ import { formatBytes } from '@utils/utils';
 
 								<!-- Gradient Overlay -->
 								<div
-									class="absolute bottom-0 left-0 right-0 h-1/3 bg-gradient-to-t from-black/60 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+									class="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/80 to-transparent p-2 text-white opacity-0 transition-opacity group-hover:opacity-100"
 								></div>
 							</div>
 
 							<!-- Footer -->
 							<div class="relative flex flex-col gap-1 border-t border-surface-100 bg-white p-3 dark:border-surface-800 dark:bg-surface-900">
-								<div class="truncate text-xs font-semibold text-surface-900 dark:text-surface-100" title={file.filename}>
-									{file.filename}
-								</div>
+								<div class="truncate text-xs font-semibold text-surface-900 dark:text-surface-100" title={file.filename}>{file.filename}</div>
 								<div class="flex items-center gap-2 text-[10px] text-surface-500 dark:text-surface-400">
 									<span class="font-mono">{formatBytes(file.size || 0)}</span>
 									<span class="uppercase tracking-wide">{file.type || 'FILE'}</span>
 								</div>
-							</div>
 						</div>
 					{/each}
 				</div>
@@ -611,9 +605,7 @@ import { formatBytes } from '@utils/utils';
 				Bulk {bulkEditAction === 'rename' ? 'Rename' : bulkEditAction === 'move' ? 'Move' : 'Tag'}
 			</h3>
 
-			<p class="mb-4 text-sm text-surface-600 dark:text-surface-50">
-				{selectedFiles.size} file{selectedFiles.size !== 1 ? 's' : ''} selected
-			</p>
+			<p class="mb-4 text-sm text-surface-600 dark:text-surface-50">{selectedFiles.size} file{selectedFiles.size !== 1 ? 's' : ''} selected</p>
 
 			<div class="mb-4">
 				<label class="label mb-2" for="bulk-edit-input">
@@ -631,7 +623,7 @@ import { formatBytes } from '@utils/utils';
 					bind:value={bulkEditValue}
 					class="input"
 					placeholder={bulkEditAction === 'rename' ? 'image-' : bulkEditAction === 'move' ? '/folder/path' : 'tag1, tag2, tag3'}
-				/>
+				>
 			</div>
 
 			<div class="flex justify-end gap-2">

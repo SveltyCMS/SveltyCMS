@@ -341,7 +341,7 @@ Displays real-time system state and individual service health with comprehensive
 
 		<div class="flex flex-wrap items-center gap-2">
 			<label class="flex items-center gap-2 text-sm">
-				<input type="checkbox" class="checkbox" bind:checked={autoRefresh} aria-label="Enable auto-refresh" />
+				<input type="checkbox" class="checkbox" bind:checked={autoRefresh} aria-label="Enable auto-refresh">
 				Auto-refresh
 			</label>
 
@@ -436,7 +436,7 @@ Displays real-time system state and individual service health with comprehensive
 			</div>
 		{:else}
 			<div class="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-				{#each serviceEntries as [name, service] (name)}
+				{#each serviceEntries as [ name, service ] (name)}
 					<div
 						class="card flex items-start gap-3 p-3 transition-shadow duration-200 hover:shadow-lg"
 						role="article"

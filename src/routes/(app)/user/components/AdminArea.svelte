@@ -20,6 +20,24 @@
 		return '_id' in row && typeof row._id === 'string';
 	}
 
+	function getRowKey(row: TableDataType, index: number): string | number {
+		if (isUser(row)) return row._id;
+		if (isToken(row)) return (row as Token).token;
+		return index;
+	}
+
+	function getDisplayValue(row: TableDataType, header: TableHeader): string {
+		if (header.key === 'blocked') return '';
+		if (isUser(row)) return String(row[header.key as keyof User] ?? '-');
+		if (isToken(row)) return String(row[header.key as keyof Token] ?? '-');
+		return '-';
+	}
+
+	function checkTokenExpired(row: TableDataType): boolean {
+		if (!isToken(row) || !row.expires) return false;
+		return new Date(row.expires) < new Date();
+	}
+
 	// Components
 	import PermissionGuard from '@components/PermissionGuard.svelte';
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
@@ -626,7 +644,7 @@
 							onfinalize={handleDndFinalize}
 							class="flex flex-wrap justify-center gap-1 rounded-md p-2"
 						>
-							{#each displayTableHeaders as header: TableHeader (header.id)}
+							{#each displayTableHeaders as header (header.id)}
 								<button
 									class="chip {header.visible
 										? 'preset-filled-secondary-500'
@@ -719,7 +737,7 @@
 					</thead>
 
 					<tbody class="divide-y divide-surface-200/30 dark:divide-surface-700/30">
-						{#each tableData as row, index (isUser(row) ? row._id : isToken(row) ? row.token : index)}
+						{#each tableData as row, index (getRowKey(row, index))}
 							{@const expiresVal: string | Date | null = isToken(row) ? row.expires : null}
 							{@const isExpired = showUsertoken && expiresVal && new Date(expiresVal) < new Date()}
 							<tr
@@ -831,18 +849,12 @@
 													</button>
 												</SystemTooltip>
 											</div>
-										{:else if ['createdAt', 'updatedAt', 'lastAccess', 'expires'].includes(header.key)}
-											{@const dateKey = header.key as 'createdAt' | 'updatedAt' | 'lastAccess' | 'expires'}
-											{@const dateValue = isUser(row) ? row[dateKey as keyof User] : isToken(row) ? row[dateKey as keyof Token] : undefined}
-											{formatDate(dateValue)}
+										{:else if ['createdAt', 'updatedAt', 'lastAccess'].includes(header.key)}
+											{formatDate(isUser(row) ? row[header.key as keyof User] : isToken(row) ? row[header.key as keyof Token] : undefined)}
 										{:else if header.key === 'expires'}
-											{#if isToken(row) && header.key === 'expires' && row.expires}
-												{@const expiresVal = row.expires as string | Date | null}
-												{@const isTokenExpired =
-													expiresVal !== null &&
-													expiresVal !== undefined &&
-													(expiresVal instanceof Date ? expiresVal : new Date(String(expiresVal))) < new Date()}
-												{@const remainingTime = getRemainingTime(expiresVal)}
+											{#if isToken(row) && row.expires}
+												{@const isTokenExpired = checkTokenExpired(row)}
+												{@const remainingTime = getRemainingTime(row.expires)}
 												<span class={isTokenExpired ? 'font-semibold text-error-500' : ''}>
 													{remainingTime}
 													{#if isTokenExpired}
@@ -853,13 +865,8 @@
 												-
 											{/if}
 										{:else}
-											{@const displayValue = isUser(row)
-												? String(row[header.key as keyof User] ?? '-')
-												: isToken(row)
-													? String(row[header.key as keyof Token] ?? '-')
-													: '-'}
 											<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-											{@html displayValue}
+											{@html getDisplayValue(row, header)}
 										{/if}
 									</td>
 								{/each}
