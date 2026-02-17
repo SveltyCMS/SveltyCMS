@@ -3,9 +3,8 @@
  * @description PostgreSQL utility functions for error handling and data transformation.
  */
 
-import type { DatabaseError } from '../dbInterface';
-
 import { v4 as uuidv4 } from 'uuid';
+import type { DatabaseError } from '../dbInterface';
 
 // Create a standardized database error object
 export function createDatabaseError(code: string, message: string, _originalError?: unknown): DatabaseError {
@@ -22,8 +21,12 @@ export function generateId(): string {
 
 // Serialize a value for PostgreSQL storage
 export function serializeValue(value: unknown): unknown {
-	if (value === undefined) return null;
-	if (value instanceof Date) return value.toISOString();
+	if (value === undefined) {
+		return null;
+	}
+	if (value instanceof Date) {
+		return value.toISOString();
+	}
 	if (typeof value === 'object' && value !== null) {
 		return JSON.stringify(value);
 	}
@@ -49,7 +52,7 @@ export function convertIdFilter(filter: Record<string, any>): Record<string, any
 	const result: Record<string, any> = {};
 	for (const [key, value] of Object.entries(filter)) {
 		if (key === '_id') {
-			result['id'] = value;
+			result.id = value;
 		} else {
 			result[key] = value;
 		}
@@ -62,7 +65,9 @@ export function convertIdFilter(filter: Record<string, any>): Record<string, any
  * Drizzle's .$type<T>() does not guarantee runtime deserialization.
  */
 export function parseJsonField<T>(value: unknown, fallback: T): T {
-	if (value === null || value === undefined) return fallback;
+	if (value === null || value === undefined) {
+		return fallback;
+	}
 	if (typeof value === 'string') {
 		try {
 			return JSON.parse(value) as T;

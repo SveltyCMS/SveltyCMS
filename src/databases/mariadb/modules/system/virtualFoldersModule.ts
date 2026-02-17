@@ -15,13 +15,13 @@
  */
 
 import { eq, sql } from 'drizzle-orm';
-import type { SystemVirtualFolder, DatabaseId, DatabaseResult, MediaItem } from '../../../dbInterface';
-import { AdapterCore } from '../../adapter/adapterCore';
+import type { DatabaseId, DatabaseResult, MediaItem, SystemVirtualFolder } from '../../../dbInterface';
+import type { AdapterCore } from '../../adapter/adapterCore';
 import * as schema from '../../schema';
 import * as utils from '../../utils';
 
 export class VirtualFoldersModule {
-	private core: AdapterCore;
+	private readonly core: AdapterCore;
 
 	constructor(core: AdapterCore) {
 		this.core = core;
@@ -49,10 +49,7 @@ export class VirtualFoldersModule {
 		return (this.core as any).wrap(async () => {
 			const folders = parentId
 				? await this.db.select().from(schema.systemVirtualFolders).where(eq(schema.systemVirtualFolders.parentId, parentId))
-				: await this.db
-						.select()
-						.from(schema.systemVirtualFolders)
-						.where(sql`${schema.systemVirtualFolders.parentId} IS NULL`);
+				: await this.db.select().from(schema.systemVirtualFolders).where(sql`${schema.systemVirtualFolders.parentId} IS NULL`);
 
 			return utils.convertArrayDatesToISO(folders) as unknown as SystemVirtualFolder[];
 		}, 'GET_VIRTUAL_FOLDERS_BY_PARENT_FAILED');
@@ -108,7 +105,9 @@ export class VirtualFoldersModule {
 	async getContents(folderPath: string): Promise<DatabaseResult<{ folders: SystemVirtualFolder[]; files: MediaItem[] }>> {
 		return (this.core as any).wrap(async () => {
 			const [folder] = await this.db.select().from(schema.systemVirtualFolders).where(eq(schema.systemVirtualFolders.path, folderPath)).limit(1);
-			if (!folder) throw new Error('Folder not found');
+			if (!folder) {
+				throw new Error('Folder not found');
+			}
 
 			const subfolders = await this.db.select().from(schema.systemVirtualFolders).where(eq(schema.systemVirtualFolders.parentId, folder._id));
 			const files = await this.db.select().from(schema.mediaItems).where(eq(schema.mediaItems.folderId, folder._id));
@@ -133,7 +132,9 @@ export class VirtualFoldersModule {
 			}
 
 			const res = await this.create(folder);
-			if (!res.success) throw new Error(res.message);
+			if (!res.success) {
+				throw new Error(res.message);
+			}
 			return res.data;
 		}, 'ENSURE_VIRTUAL_FOLDER_FAILED');
 	}

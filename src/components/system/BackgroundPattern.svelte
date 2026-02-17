@@ -32,11 +32,11 @@ and configurable quality settings for weaker devices.
 -->
 
 <script lang="ts">
-	import { onMount, onDestroy, untrack } from 'svelte';
-	import { browser } from '$app/environment';
-	import { Tween } from 'svelte/motion';
+	import { onDestroy, onMount, untrack } from 'svelte';
 	import { cubicOut } from 'svelte/easing';
+	import { Tween } from 'svelte/motion';
 	import { SvelteMap } from 'svelte/reactivity';
+	import { browser } from '$app/environment';
 
 	// Define props with default values
 	const {
@@ -131,7 +131,7 @@ and configurable quality settings for weaker devices.
 		const settings = {
 			low: { paths: 6, duration: 6000 },
 			medium: { paths: 12, duration: 8000 },
-			high: { paths: 18, duration: 10000 }
+			high: { paths: 18, duration: 10_000 }
 		};
 
 		const config = settings[detectedQuality];
@@ -223,7 +223,7 @@ and configurable quality settings for weaker devices.
 	let isVisible = $state(true);
 
 	function setupIntersectionObserver() {
-		if (!browser || !svgElement) return;
+		if (!(browser && svgElement)) return;
 
 		const observer = new IntersectionObserver(
 			(entries) => {

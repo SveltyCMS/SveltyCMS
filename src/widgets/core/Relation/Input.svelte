@@ -27,9 +27,9 @@ Interactive selector with "Select" button and clear functionality
 -->
 
 <script lang="ts">
+	import { app } from '@src/stores/store.svelte';
 	import { showModal } from '@utils/modalUtils';
 	import type { FieldType } from './';
-	import { app } from '@src/stores/store.svelte';
 
 	let { field, value, error }: { field: FieldType; value: string | string[] | null | undefined; error?: string | null } = $props();
 

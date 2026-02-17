@@ -4,13 +4,13 @@
  */
 
 import { logger } from '@utils/logger';
+import { DEFAULT_SYSTEM_READY_TIMEOUT, SERVICE_BASELINE_TIMES } from './config';
 import { getSystemState, systemState } from './state';
-import { SERVICE_BASELINE_TIMES, DEFAULT_SYSTEM_READY_TIMEOUT } from './config';
 import type { ServiceName } from './types';
 
 interface WaitOptions {
-	timeoutMs?: number;
 	signal?: AbortSignal;
+	timeoutMs?: number;
 }
 
 /**
@@ -19,7 +19,9 @@ interface WaitOptions {
 export async function waitForSystemReady(options: WaitOptions = {}): Promise<boolean> {
 	const { timeoutMs = DEFAULT_SYSTEM_READY_TIMEOUT, signal } = options;
 
-	if (signal?.aborted) return Promise.reject(new DOMException('Aborted', 'AbortError'));
+	if (signal?.aborted) {
+		return Promise.reject(new DOMException('Aborted', 'AbortError'));
+	}
 
 	// Check initial state synchronously
 	let currentState = getSystemState();
@@ -70,7 +72,7 @@ export async function waitForSystemReady(options: WaitOptions = {}): Promise<boo
 /**
  * Calculate intelligent timeout for a service based on historical performance
  */
-export function getServiceTimeout(serviceName: ServiceName, multiplier: number = 3): number {
+export function getServiceTimeout(serviceName: ServiceName, multiplier = 3): number {
 	const state = getSystemState();
 	const service = state.services[serviceName];
 	const baseline = SERVICE_BASELINE_TIMES[serviceName];
@@ -79,7 +81,7 @@ export function getServiceTimeout(serviceName: ServiceName, multiplier: number =
 	if (service.metrics.averageInitTime) {
 		// Use 3x average or max time (whichever is larger) as timeout
 		const calculated = Math.max(service.metrics.averageInitTime * multiplier, (service.metrics.maxInitTime ?? baseline) * 1.5);
-		return Math.min(calculated, 30000); // Cap at 30 seconds
+		return Math.min(calculated, 30_000); // Cap at 30 seconds
 	}
 
 	// Fallback to baseline * multiplier
@@ -93,7 +95,9 @@ export async function waitForServiceHealthy(serviceName: ServiceName, options: W
 	const { timeoutMs, signal } = options;
 	const effectiveTimeout = timeoutMs ?? getServiceTimeout(serviceName);
 
-	if (signal?.aborted) return Promise.reject(new DOMException('Aborted', 'AbortError'));
+	if (signal?.aborted) {
+		return Promise.reject(new DOMException('Aborted', 'AbortError'));
+	}
 
 	// Check initial state synchronously
 	let currentState = getSystemState();

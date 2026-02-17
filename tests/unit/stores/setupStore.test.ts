@@ -3,7 +3,7 @@
  * @description Tests for setup wizard store
  */
 
-import { describe, it, expect, beforeEach, mock } from 'bun:test';
+import { beforeEach, describe, expect, it } from 'bun:test';
 import { setupStore } from '@src/stores/setupStore.svelte';
 
 describe('Setup Store', () => {

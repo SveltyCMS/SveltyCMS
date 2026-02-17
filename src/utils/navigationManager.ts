@@ -10,17 +10,15 @@
  * - Event dispatch for save coordination
  */
 
-import { goto } from '$app/navigation';
-import { page } from '$app/state';
-
+import { setCollectionValue } from '@src/stores/collectionStore.svelte';
 // Stores
 import { modeStateMachine } from '@src/stores/modeStateMachine.svelte';
-import { setCollectionValue } from '@src/stores/collectionStore.svelte';
-import { dataChangeStore } from '@stores/store.svelte.ts';
 import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte.ts';
-
+import { dataChangeStore } from '@stores/store.svelte.ts';
 // Utils
 import { logger } from '@utils/logger';
+import { goto } from '$app/navigation';
+import { page } from '$app/state';
 
 export class NavigationManager {
 	private navigating = false;

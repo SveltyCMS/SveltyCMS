@@ -4,11 +4,11 @@
 **This file sets up and displays the webhooks page. It provides a user-friendly interface for managing webhooks.**
 -->
 <script lang="ts">
+	import PageTitle from '@components/PageTitle.svelte';
+	import type { Webhook } from '@src/services/webhookService';
+	import { showToast } from '@utils/toast';
 	import { onMount } from 'svelte';
 	import { fade, slide } from 'svelte/transition';
-	import PageTitle from '@components/PageTitle.svelte';
-	import { showToast } from '@utils/toast';
-	import type { Webhook } from '@src/services/webhookService';
 
 	let webhooks: Webhook[] = $state([]);
 	let isLoading = $state(true);
@@ -36,7 +36,7 @@
 	}
 
 	async function saveWebhook() {
-		if (!editingWebhook?.url || !editingWebhook?.name) {
+		if (!(editingWebhook?.url && editingWebhook?.name)) {
 			showToast('Name and URL are required', 'warning');
 			return;
 		}
@@ -229,19 +229,19 @@
 			<section class="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
 				<label class="label">
 					<span>Webhook Name</span>
-					<input type="text" class="input" placeholder="e.g. My External API" bind:value={activeWebhook.name} />
+					<input type="text" class="input" placeholder="e.g. My External API" bind:value={activeWebhook.name}>
 				</label>
 
 				<label class="label">
 					<span>Payload URL</span>
-					<input type="url" class="input" placeholder="https://example.com/webhook" bind:value={activeWebhook.url} />
+					<input type="url" class="input" placeholder="https://example.com/webhook" bind:value={activeWebhook.url}>
 				</label>
 
 				<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 					<label class="label text-sm">
 						<span>Secret Key (HMAC-SHA256)</span>
 						<div class="flex gap-1">
-							<input type="text" class="input font-mono text-xs" bind:value={activeWebhook.secret} />
+							<input type="text" class="input font-mono text-xs" bind:value={activeWebhook.secret}>
 							<button
 								class="btn variant-ghost-surface btn-sm"
 								onclick={() => activeWebhook && (activeWebhook.secret = crypto.randomUUID().replace(/-/g, ''))}
@@ -256,13 +256,13 @@
 					<div class="space-y-2">
 						<span class="block text-sm">Status</span>
 						<label class="flex items-center gap-2 cursor-pointer">
-							<input type="checkbox" class="checkbox" bind:checked={activeWebhook.active} />
+							<input type="checkbox" class="checkbox" bind:checked={activeWebhook.active}>
 							<span>Active (Enabled)</span>
 						</label>
 					</div>
 				</div>
 
-				<hr class="opacity-30" />
+				<hr class="opacity-30">
 
 				<div class="space-y-2">
 					<span class="block font-bold">Trigger Events</span>
@@ -270,7 +270,7 @@
 					<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
 						{#each eventTypes as event (event)}
 							<label class="flex items-center gap-2 cursor-pointer hover:bg-surface-200 dark:hover:bg-surface-700 p-2 rounded transition-colors">
-								<input type="checkbox" class="checkbox" checked={activeWebhook.events?.includes(event as any)} onchange={() => toggleEvent(event)} />
+								<input type="checkbox" class="checkbox" checked={activeWebhook.events?.includes(event as any)} onchange={() => toggleEvent(event)}>
 								<span class="text-sm">{event}</span>
 							</label>
 						{/each}

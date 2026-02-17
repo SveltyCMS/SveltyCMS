@@ -12,12 +12,12 @@ export interface WidgetBuilderProps {
 }
 
 export interface AddWidgetProps {
-	fields?: FieldInstance[];
 	addField?: boolean;
 	editField?: boolean;
-	selected_widget?: string | null;
 	field?: {
 		label: string;
 		widget: { key: string | null; GuiFields: Record<string, any> };
 	};
+	fields?: FieldInstance[];
+	selected_widget?: string | null;
 }

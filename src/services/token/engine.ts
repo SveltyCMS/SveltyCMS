@@ -12,51 +12,43 @@
  * - Token Escaping
  * - Token Replacement
  */
-import type { TokenContext, TokenDefinition, TokenRegistryConfig, TokenReplaceOptions, TokenCategory } from './types';
+
 import type { Schema } from '@src/content/types';
 import type { User } from '@src/databases/auth/types';
-import { modifierRegistry } from './modifiers';
-import { logger } from '@utils/logger';
 import { publicEnv } from '@src/stores/globalSettings.svelte';
-
+import { logger } from '@utils/logger';
+import { modifierRegistry } from './modifiers';
 import { resolveRelationToken } from './relationResolver';
+import type { TokenCategory, TokenContext, TokenDefinition, TokenRegistryConfig, TokenReplaceOptions } from './types';
 
 const ALLOWED_USER_FIELDS = ['_id', 'email', 'username', 'role', 'avatar', 'language', 'name'];
 
 class TokenRegistryService {
-	private resolvers = new Map<string, (ctx: TokenContext) => unknown>();
-	private cache = new Map<string, { timestamp: number; data: Record<TokenCategory, TokenDefinition[]> }>();
-	private CACHE_TTL = 1000 * 60 * 5; // 5 minutes
-	private relationTokenGenerator:
-		| ((schema: Schema, user: User | undefined, tenantId?: string, roles?: import('@src/databases/auth/types').Role[]) => Promise<TokenDefinition[]>)
-		| null = null;
-
-	public setRelationTokenGenerator(
-		generator: (
-			schema: Schema,
-			user: User | undefined,
-			tenantId?: string,
-			roles?: import('@src/databases/auth/types').Role[]
-		) => Promise<TokenDefinition[]>
-	) {
-		this.relationTokenGenerator = generator;
-	}
+	private readonly resolvers = new Map<string, (ctx: TokenContext) => unknown>();
+	private readonly cache = new Map<string, { timestamp: number; data: Record<TokenCategory, TokenDefinition[]> }>();
+	private readonly CACHE_TTL = 1000 * 60 * 5; // 5 minutes
 
 	async resolve(tokenKey: string, ctx: TokenContext): Promise<unknown> {
 		const resolver = this.resolvers.get(tokenKey);
-		if (resolver) return resolver(ctx);
+		if (resolver) {
+			return resolver(ctx);
+		}
 
 		// Security check for user fields
 		if (tokenKey.startsWith('user.')) {
 			const field = tokenKey.split('.')[1];
-			if (!ALLOWED_USER_FIELDS.includes(field)) return '';
+			if (!ALLOWED_USER_FIELDS.includes(field)) {
+				return '';
+			}
 		}
 
 		// Try relation resolver for deep entry tokens
 		if (tokenKey.startsWith('entry.') && tokenKey.split('.').length > 2) {
 			try {
 				const val = await resolveRelationToken(tokenKey, ctx, ctx.user, ctx.tenantId);
-				if (val !== null) return val;
+				if (val !== null) {
+					return val;
+				}
 			} catch (e) {
 				logger.error(`Failed to resolve relation token ${tokenKey}:`, e);
 			}
@@ -149,11 +141,21 @@ class TokenRegistryService {
 					description: `Current ${unit} value.`,
 					resolve: () => {
 						const date = new Date();
-						if (unit === 'month') return date.getMonth() + 1;
-						if (unit === 'day') return date.getDate();
-						if (unit === 'hour') return date.getHours();
-						if (unit === 'minute') return date.getMinutes();
-						if (unit === 'second') return date.getSeconds();
+						if (unit === 'month') {
+							return date.getMonth() + 1;
+						}
+						if (unit === 'day') {
+							return date.getDate();
+						}
+						if (unit === 'hour') {
+							return date.getHours();
+						}
+						if (unit === 'minute') {
+							return date.getMinutes();
+						}
+						if (unit === 'second') {
+							return date.getSeconds();
+						}
 						return 0;
 					}
 				});
@@ -180,7 +182,7 @@ class TokenRegistryService {
 						category: 'user',
 						type: field === '_id' || field === 'email' ? 'string' : 'string',
 						description: userFieldDescriptions[field] || `User's ${field} field`,
-						example: field === 'name' ? `Welcome back, {{user.name}}!` : `{{user.${field}}}`,
+						example: field === 'name' ? 'Welcome back, {{user.name}}!' : `{{user.${field}}}`,
 						resolve: (c) => (c.user as any as Record<string, unknown>)?.[field]
 					});
 				}
@@ -205,7 +207,7 @@ class TokenRegistryService {
 						category: 'site',
 						type: typeof val as 'string' | 'number' | 'boolean',
 						description: siteDescriptions[key] || `Site configuration: ${key}`,
-						example: key === 'SITE_NAME' ? `{{entry.title}} | {{site.SITE_NAME}}` : `{{site.${key}}}`,
+						example: key === 'SITE_NAME' ? '{{entry.title}} | {{site.SITE_NAME}}' : `{{site.${key}}}`,
 						resolve: () => (publicEnv as Record<string, unknown>)[key]
 					});
 				}
@@ -219,7 +221,9 @@ class TokenRegistryService {
 
 		// 5. CUSTOM TOKENS
 		if (config.customTokens && Array.isArray(config.customTokens)) {
-			config.customTokens.forEach((t) => add(t));
+			for (const t of config.customTokens) {
+				add(t);
+			}
 		}
 
 		// Grouping
@@ -231,7 +235,9 @@ class TokenRegistryService {
 			recentlyUsed: []
 		};
 		tokens.forEach((t) => {
-			if (!grouped[t.category]) grouped[t.category] = [];
+			if (!grouped[t.category]) {
+				grouped[t.category] = [];
+			}
 			grouped[t.category].push(t);
 		});
 
@@ -248,7 +254,9 @@ export const TokenRegistry = new TokenRegistryService();
 const TOKEN_REGEX = /(?<!\\)\{\{([^}]+)\}\}/g;
 
 export async function replaceTokens(template: string, context: TokenContext, options: TokenReplaceOptions = {}): Promise<string> {
-	if (!template || !template.includes('{{')) return template.replace(/\\\{\{/g, '{{');
+	if (!template?.includes('{{')) {
+		return template.replace(/\\\{\{/g, '{{');
+	}
 
 	const { maxDepth = 10, preserveUnresolved = true } = options;
 	let result = template;
@@ -258,7 +266,9 @@ export async function replaceTokens(template: string, context: TokenContext, opt
 	while (hasMatches && depth < maxDepth) {
 		hasMatches = false;
 		const matches = Array.from(result.matchAll(TOKEN_REGEX));
-		if (matches.length === 0) break;
+		if (matches.length === 0) {
+			break;
+		}
 
 		const replacements = await Promise.all(
 			matches.map(async (match) => {
@@ -285,7 +295,9 @@ export async function replaceTokens(template: string, context: TokenContext, opt
 							const name = m[1].toLowerCase();
 							const args = m[2] ? m[2].split(',').map((s) => s.trim().replace(/^['"]|['"]$/g, '')) : [];
 							const fn = modifierRegistry.get(name);
-							if (fn) value = await fn(value, args);
+							if (fn) {
+								value = await fn(value, args);
+							}
 						}
 					}
 				} catch (e) {

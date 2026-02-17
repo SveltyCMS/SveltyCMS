@@ -11,23 +11,14 @@ export type ServiceHealth = 'healthy' | 'unhealthy' | 'initializing' | 'skipped'
 
 // State-specific timing metrics (up/down/idle)
 export interface StateTimingMetrics {
-	// Startup (IDLE → INITIALIZING → READY)
-	startup: {
-		count: number; // Number of startups
-		avgTime?: number; // Average startup time
-		minTime?: number; // Fastest startup
-		maxTime?: number; // Slowest startup
-		lastTime?: number; // Most recent startup time
-		trend: 'improving' | 'stable' | 'degrading' | 'unknown'; // Performance trend
-	};
-	// Shutdown (READY → IDLE)
-	shutdown: {
-		count: number;
-		avgTime?: number;
-		minTime?: number;
-		maxTime?: number;
-		lastTime?: number;
-		trend: 'improving' | 'stable' | 'degrading' | 'unknown';
+	// Active time (time spent in READY state)
+	active: {
+		count: number; // Number of active periods
+		avgDuration?: number; // Average active duration
+		minDuration?: number; // Shortest active period
+		maxDuration?: number; // Longest active period
+		lastDuration?: number; // Most recent active duration
+		totalTime: number; // Total time spent active
 	};
 	// Idle time (time spent in IDLE state)
 	idle: {
@@ -38,72 +29,81 @@ export interface StateTimingMetrics {
 		lastDuration?: number; // Most recent idle duration
 		totalTime: number; // Total time spent idle
 	};
-	// Active time (time spent in READY state)
-	active: {
-		count: number; // Number of active periods
-		avgDuration?: number; // Average active duration
-		minDuration?: number; // Shortest active period
-		maxDuration?: number; // Longest active period
-		lastDuration?: number; // Most recent active duration
-		totalTime: number; // Total time spent active
+	// Shutdown (READY → IDLE)
+	shutdown: {
+		count: number;
+		avgTime?: number;
+		minTime?: number;
+		maxTime?: number;
+		lastTime?: number;
+		trend: 'improving' | 'stable' | 'degrading' | 'unknown';
+	};
+	// Startup (IDLE → INITIALIZING → READY)
+	startup: {
+		count: number; // Number of startups
+		avgTime?: number; // Average startup time
+		minTime?: number; // Fastest startup
+		maxTime?: number; // Slowest startup
+		lastTime?: number; // Most recent startup time
+		trend: 'improving' | 'stable' | 'degrading' | 'unknown'; // Performance trend
 	};
 }
 
 // Anomaly detection thresholds (self-learning)
 export interface AnomalyThresholds {
-	maxStartupTime: number; // Max acceptable startup time
-	maxShutdownTime: number; // Max acceptable shutdown time
-	maxConsecutiveFailures: number; // Max failures before alert
-	minUptimePercentage: number; // Min acceptable uptime %
-	lastCalibrated?: number; // When thresholds were last updated
 	calibrationCount: number; // Number of calibrations performed
+	lastCalibrated?: number; // When thresholds were last updated
+	maxConsecutiveFailures: number; // Max failures before alert
+	maxShutdownTime: number; // Max acceptable shutdown time
+	maxStartupTime: number; // Max acceptable startup time
+	minUptimePercentage: number; // Min acceptable uptime %
 }
 
 // Performance metrics for a service lifecycle
 export interface ServicePerformanceMetrics {
-	initializationStartedAt?: number; // When initialization began
+	anomalyThresholds: AnomalyThresholds;
+	averageInitTime?: number; // Running average of init times
+	consecutiveFailures: number; // Current streak of failures
+	failureCount: number; // Number of times service became unhealthy
+	healthCheckCount: number; // Number of health checks performed
 	initializationCompletedAt?: number; // When initialization completed
 	initializationDuration?: number; // Total time taken to initialize (ms)
-	lastHealthCheckAt?: number; // Last time health was checked
-	healthCheckCount: number; // Number of health checks performed
-	failureCount: number; // Number of times service became unhealthy
+	initializationStartedAt?: number; // When initialization began
 	lastFailureAt?: number; // Timestamp of last failure
-	averageInitTime?: number; // Running average of init times
-	minInitTime?: number; // Fastest initialization time
+	lastHealthCheckAt?: number; // Last time health was checked
 	maxInitTime?: number; // Slowest initialization time
+	minInitTime?: number; // Fastest initialization time
 	restartCount: number; // Number of times service was restarted
 
 	// Enhanced state-specific metrics
 	stateTimings: StateTimingMetrics;
-	anomalyThresholds: AnomalyThresholds;
-	consecutiveFailures: number; // Current streak of failures
 	uptimePercentage: number; // Percentage of time service is healthy
 }
 
 // Service status with enhanced metrics
 export interface ServiceStatus {
-	status: ServiceHealth;
-	message: string;
-	lastChecked?: number;
 	error?: string;
+	lastChecked?: number;
+	message: string;
 	metrics: ServicePerformanceMetrics;
+	status: ServiceHealth;
 }
 
 // System-wide performance metrics
 export interface SystemPerformanceMetrics {
-	totalInitializations: number;
-	successfulInitializations: number;
-	failedInitializations: number;
 	averageTotalInitTime?: number;
-	minTotalInitTime?: number;
-	maxTotalInitTime?: number;
+	failedInitializations: number;
 	lastInitDuration?: number;
+	maxTotalInitTime?: number;
+	minTotalInitTime?: number;
 	stateTransitions: Array<{
 		from: SystemState;
 		to: SystemState;
 		timestamp: number;
 		reason?: string;
 	}>;
+	successfulInitializations: number;
+	totalInitializations: number;
 }
 
 // ✅ ENTERPRISE ENHANCEMENT: Added 'widgets' as a monitored service
@@ -116,18 +116,15 @@ export type ServicesMap = {
 
 // Main system state store interface
 export interface SystemStateStore {
-	overallState: SystemState;
-	services: ServicesMap;
-	performanceMetrics: SystemPerformanceMetrics;
-	lastStateChange?: number; // Timestamp of last state transition
-	initializationStartedAt?: number; // When system initialization began
 	initializationCompletedAt?: number; // When system initialization completed
+	initializationStartedAt?: number; // When system initialization began
+	lastStateChange?: number; // Timestamp of last state transition
+	overallState: SystemState;
+	performanceMetrics: SystemPerformanceMetrics;
+	services: ServicesMap;
 }
 
 export interface AnomalyDetection {
-	type: 'slow_startup' | 'slow_shutdown' | 'consecutive_failures' | 'low_uptime' | 'degrading_performance';
-	severity: 'low' | 'medium' | 'high' | 'critical';
-	message: string;
 	details: {
 		actual?: string;
 		threshold?: string;
@@ -138,4 +135,7 @@ export interface AnomalyDetection {
 		avgTime?: string;
 		lastTime?: string;
 	};
+	message: string;
+	severity: 'low' | 'medium' | 'high' | 'critical';
+	type: 'slow_startup' | 'slow_shutdown' | 'consecutive_failures' | 'low_uptime' | 'degrading_performance';
 }

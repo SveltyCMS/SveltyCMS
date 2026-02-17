@@ -3,13 +3,13 @@
  * @description Comprehensive tests for addSecurityHeaders middleware
  */
 
-import { describe, it, expect, beforeEach, mock } from 'bun:test';
+import { beforeEach, describe, expect, it, mock } from 'bun:test';
 import { addSecurityHeaders } from '@src/hooks/addSecurityHeaders';
 import type { RequestEvent } from '@sveltejs/kit';
 
 // --- Test Utilities ---
 
-function createMockEvent(pathname: string, protocol: string = 'https:'): RequestEvent {
+function createMockEvent(pathname: string, protocol = 'https:'): RequestEvent {
 	const url = new URL(pathname, `${protocol}//example.com`);
 
 	return {

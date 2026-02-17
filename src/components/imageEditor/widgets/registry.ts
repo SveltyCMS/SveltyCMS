@@ -11,23 +11,25 @@
 import type { Component } from 'svelte';
 
 export interface EditorWidget {
-	key: string;
-	title: string;
-	icon?: string;
-	description?: string;
 	category?: string; // 'adjust' | 'transform' | 'annotate' | 'effects'
-	order?: number; // For custom ordering
-	tool: Component<any>;
 	controls?: Component<any>;
+	description?: string;
+	disabled?: boolean;
+	experimental?: boolean;
+	icon?: string;
+	key: string;
+	order?: number; // For custom ordering
 	// Metadata for conditional features
 	requiresImage?: boolean;
-	experimental?: boolean;
-	disabled?: boolean;
+	title: string;
+	tool: Component<any>;
 }
 
 // Type guard for widget validation
 function isValidWidget(obj: unknown): obj is EditorWidget {
-	if (!obj || typeof obj !== 'object') return false;
+	if (!obj || typeof obj !== 'object') {
+		return false;
+	}
 	const widget = obj as Partial<EditorWidget>;
 
 	return !!(widget.key && typeof widget.key === 'string' && widget.title && typeof widget.title === 'string' && widget.tool);
@@ -101,8 +103,12 @@ export function getCategories(): string[] {
  * Check if a widget is available (not disabled, not experimental in production)
  */
 export function isWidgetAvailable(widget: EditorWidget): boolean {
-	if (widget.disabled) return false;
-	if (widget.experimental && !import.meta.env.DEV) return false;
+	if (widget.disabled) {
+		return false;
+	}
+	if (widget.experimental && !import.meta.env.DEV) {
+		return false;
+	}
 	return true;
 }
 

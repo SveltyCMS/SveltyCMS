@@ -8,8 +8,8 @@
  * (count, findOne, findMany, etc.) on class-based adapter instances.
  */
 
-import type { IDBAdapter, ICrudAdapter, IMediaAdapter } from './dbInterface';
 import { logger } from '@utils/logger.server';
+import type { ICrudAdapter, IDBAdapter, IMediaAdapter } from './dbInterface';
 
 // Constants for identifying events
 const CONTENT_COLLECTION_PREFIX = 'collection_';
@@ -25,7 +25,7 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
 	let originalCrud: ICrudAdapter | undefined;
 
 	// Check instance first
-	if (Object.prototype.hasOwnProperty.call(adapter, 'crud')) {
+	if (Object.hasOwn(adapter, 'crud')) {
 		originalCrud = adapter.crud;
 	} else {
 		// Check prototype chain
@@ -90,9 +90,9 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
 					insertMany: async (collection, data) => {
 						const res = await capturedCrud.insertMany(collection, data);
 						if (res.success && collection.startsWith(CONTENT_COLLECTION_PREFIX)) {
-							res.data.forEach((item: any) => {
+							for (const item of res.data) {
 								webhookService.trigger('entry:create', { collection, data: item });
-							});
+							}
 						}
 						return res;
 					},
@@ -102,8 +102,11 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
 						if (res.success && collection.startsWith(CONTENT_COLLECTION_PREFIX)) {
 							let event: any = 'entry:update';
 							if ('status' in data) {
-								if (data.status === 'publish') event = 'entry:publish';
-								else if (data.status === 'unpublish') event = 'entry:unpublish';
+								if (data.status === 'publish') {
+									event = 'entry:publish';
+								} else if (data.status === 'unpublish') {
+									event = 'entry:unpublish';
+								}
 							}
 							webhookService.trigger(event, { collection, id, data: res.data });
 						}
@@ -164,7 +167,7 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
 	let originalMedia: IMediaAdapter | undefined;
 
 	// Check instance first
-	if (Object.prototype.hasOwnProperty.call(adapter, 'media')) {
+	if (Object.hasOwn(adapter, 'media')) {
 		originalMedia = adapter.media;
 	} else {
 		// Check prototype chain
@@ -202,7 +205,9 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
 					uploadMany: async (files) => {
 						const res = await originalFiles.uploadMany(files);
 						if (res.success) {
-							res.data.forEach((file: any) => webhookService.trigger('media:upload', { data: file }));
+							for (const file of res.data) {
+								webhookService.trigger('media:upload', { data: file });
+							}
 						}
 						return res;
 					},

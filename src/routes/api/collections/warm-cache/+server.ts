@@ -1,12 +1,12 @@
-import { json } from '@sveltejs/kit';
 import { contentManager } from '@src/content/ContentManager';
+import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	const { collectionId, entryIds } = await request.json();
 	const tenantId = locals.tenantId;
 
-	if (!collectionId || !Array.isArray(entryIds)) {
+	if (!(collectionId && Array.isArray(entryIds))) {
 		return json({ error: 'Invalid request body' }, { status: 400 });
 	}
 

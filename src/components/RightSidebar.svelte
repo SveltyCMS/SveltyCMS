@@ -12,35 +12,34 @@
 -->
 
 <script lang="ts">
-	import { page } from '$app/state';
-	import { navigationManager } from '@utils/navigationManager';
-	import { getLocale } from '@src/paraglide/runtime';
-	// Utils
-	import { cloneCurrentEntry, deleteCurrentEntry, saveEntry } from '../utils/entryActions';
-	import { showScheduleModal } from '@utils/modalUtils';
-	import { showToast } from '@utils/toast';
+	import { StatusTypes } from '@src/content/types';
 	// ParaglideJs
 	import * as m from '@src/paraglide/messages';
-
-	import { StatusTypes } from '@src/content/types';
+	import { getLocale } from '@src/paraglide/runtime';
+	import { collection, collectionValue, mode } from '@stores/collectionStore.svelte';
 	// Stores
 	import { screen } from '@stores/screenSizeStore.svelte';
-	import { collection, collectionValue, mode } from '@stores/collectionStore.svelte';
-	import { app, validationStore, dataChangeStore } from '@stores/store.svelte';
-	import { ui } from '@stores/UIStore.svelte';
 	import { statusStore } from '@stores/statusStore.svelte';
-	// Components
-	import Toggles from './system/inputs/Toggles.svelte';
+	import { app, dataChangeStore, validationStore } from '@stores/store.svelte';
+	import { ui } from '@stores/UIStore.svelte';
 	// System Logger
 	import { logger } from '@utils/logger';
+	import { showScheduleModal } from '@utils/modalUtils';
+	import { navigationManager } from '@utils/navigationManager';
+	import { showToast } from '@utils/toast';
+	import { page } from '$app/state';
+	// Utils
+	import { cloneCurrentEntry, deleteCurrentEntry, saveEntry } from '../utils/entryActions';
+	// Components
+	import Toggles from './system/inputs/Toggles.svelte';
 
 	interface Entry {
 		_scheduled?: string | number | Date;
-		status?: string;
-		createdBy?: string;
-		updatedBy?: string;
 		createdAt?: string;
+		createdBy?: string;
+		status?: string;
 		updatedAt?: string;
+		updatedBy?: string;
 	}
 
 	// --- Derived from page & stores ---
@@ -269,9 +268,7 @@
 
 				<div class="space-y-2">
 					{#if scheduleTimestamp}
-						<p class="text-sm font-medium text-surface-600 dark:text-surface-300">
-							{m.sidebar_will_publish_on()}
-						</p>
+						<p class="text-sm font-medium text-surface-600 dark:text-surface-300">{m.sidebar_will_publish_on()}</p>
 					{/if}
 					<button
 						onclick={openSchedule}
@@ -288,9 +285,7 @@
 					<div class="space-y-1">
 						<p class="text-sm font-medium">{m.sidebar_createdby()}</p>
 						<div class="preset-filled-surface-500 rounded p-1.5 text-center">
-							<span class="text-sm font-semibold text-tertiary-500 dark:text-primary-500">
-								{getDisplayName(currentEntry?.createdBy as string)}
-							</span>
+							<span class="text-sm font-semibold text-tertiary-500 dark:text-primary-500"> {getDisplayName(currentEntry?.createdBy as string)} </span>
 						</div>
 					</div>
 

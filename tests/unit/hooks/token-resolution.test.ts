@@ -2,7 +2,7 @@
  * @file tests/bun/hooks/token-resolution.test.ts
  * @description Integration tests for token resolution middleware
  */
-import { describe, it, expect, beforeEach, mock } from 'bun:test';
+import { beforeEach, describe, expect, it, mock } from 'bun:test';
 import { handleTokenResolution } from '@src/hooks/tokenResolution';
 import { TokenRegistry } from '@src/services/token/engine';
 
@@ -29,19 +29,14 @@ describe('Token Resolution Middleware', () => {
 		};
 
 		mockResolve = mock(async () => {
-			return new Response(
-				JSON.stringify({
-					title: 'Hello {{user.name}}',
-					content: 'Created at {{system.year}}',
-					nested: {
-						value: '{{user.email}}'
-					},
-					list: ['Item {{system.year}}']
-				}),
-				{
-					headers: { 'content-type': 'application/json' }
-				}
-			);
+			return Response.json({
+				title: 'Hello {{user.name}}',
+				content: 'Created at {{system.year}}',
+				nested: {
+					value: '{{user.email}}'
+				},
+				list: ['Item {{system.year}}']
+			});
 		});
 
 		// Initialize tokens (system, user, etc.)
@@ -87,19 +82,16 @@ describe('Token Resolution Middleware', () => {
 		// Mock relation token resolution
 		const originalResolve = TokenRegistry.resolve;
 		TokenRegistry.resolve = mock((key) => {
-			if (key === 'entry.relation.title') return 'Resolved Relation';
+			if (key === 'entry.relation.title') {
+				return 'Resolved Relation';
+			}
 			return key;
 		});
 
 		mockResolve = mock(async () => {
-			return new Response(
-				JSON.stringify({
-					relation: '{{entry.relation.title}}'
-				}),
-				{
-					headers: { 'content-type': 'application/json' }
-				}
-			);
+			return Response.json({
+				relation: '{{entry.relation.title}}'
+			});
 		});
 
 		const response = await handleTokenResolution({ event: mockEvent, resolve: mockResolve });

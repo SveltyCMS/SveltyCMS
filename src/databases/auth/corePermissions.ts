@@ -14,7 +14,7 @@
  * as the application evolves.
  */
 
-import { PermissionAction, PermissionType, type Permission } from './types';
+import { type Permission, PermissionAction, PermissionType } from './types';
 
 // Core permissions that are always available
 export const corePermissions: Permission[] = [

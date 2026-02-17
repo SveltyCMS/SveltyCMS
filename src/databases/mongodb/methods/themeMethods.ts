@@ -6,10 +6,10 @@
 
 import { logger } from '@utils/logger';
 import type { Model } from 'mongoose';
-import type { DatabaseId, Theme } from '../../dbInterface';
-import { createDatabaseError } from './mongoDBUtils';
 import { v4 as uuidv4 } from 'uuid';
-import { withCache, CacheCategory, invalidateCategoryCache } from './mongoDBCacheUtils';
+import type { DatabaseId, Theme } from '../../dbInterface';
+import { CacheCategory, invalidateCategoryCache, withCache } from './mongoDBCacheUtils';
+import { createDatabaseError } from './mongoDBUtils';
 
 // Define the model type for dependency injection, making the class testable.
 type ThemeModelType = Model<Theme>;

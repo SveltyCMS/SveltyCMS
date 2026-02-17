@@ -15,16 +15,15 @@
  * - Robust error handling and logging.
  */
 
-import { json, type HttpError, type RequestHandler } from '@sveltejs/kit';
 // Auth
 import { SESSION_COOKIE_NAME } from '@src/databases/auth/constants';
 import { auth } from '@src/databases/db';
-// System Logger
-import { logger } from '@utils/logger.server';
-
+import { type HttpError, json, type RequestHandler } from '@sveltejs/kit';
 // Unified Error Handling
 import { apiHandler } from '@utils/apiHandler';
 import { AppError } from '@utils/errorHandling';
+// System Logger
+import { logger } from '@utils/logger.server';
 
 export const POST: RequestHandler = apiHandler(async ({ cookies, locals }) => {
 	const { user, session_id, tenantId } = locals;
@@ -100,7 +99,9 @@ export const POST: RequestHandler = apiHandler(async ({ cookies, locals }) => {
 
 		return json({ success: true, message: 'You have been logged out successfully.' });
 	} catch (err) {
-		if (err instanceof AppError) throw err;
+		if (err instanceof AppError) {
+			throw err;
+		}
 		// This block catches unexpected errors during session destruction.
 		const httpError = err as HttpError;
 		const status = httpError.status || 500;

@@ -4,8 +4,8 @@
  */
 
 import { contentManager } from '@src/content/ContentManager';
-import { getPrivateSettingSync } from '@src/services/settingsService';
 import type { DatabaseId } from '@src/databases/dbInterface';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 
 // Shared logic for retrieving revisions
 export async function getRevisions({
@@ -32,7 +32,7 @@ export async function getRevisions({
 	if (getPrivateSettingSync('MULTI_TENANT')) {
 		const collectionName = `collection_${schema._id}`;
 		const entryResult = await dbAdapter.crud.findMany(collectionName, { _id: entryId, tenantId } as Record<string, unknown>);
-		if (!entryResult.success || !entryResult.data || entryResult.data.length === 0) {
+		if (!(entryResult.success && entryResult.data) || entryResult.data.length === 0) {
 			return { success: false, error: { message: 'Entry not found' } };
 		}
 	}

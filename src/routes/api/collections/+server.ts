@@ -11,24 +11,19 @@
  * - Automatically invalidates the global content structure cache on any create, update, or delete action.
  */
 
-import { getErrorMessage } from '@utils/errorHandling';
-import { getPrivateSettingSync } from '@src/services/settingsService';
-import { json } from '@sveltejs/kit';
-
 // Auth
 import { contentManager } from '@src/content/ContentManager';
-
+import { getPrivateSettingSync } from '@src/services/settingsService';
 // Token Engine
 import { replaceTokens } from '@src/services/token/engine';
 import type { TokenContext } from '@src/services/token/types';
-
-// System Logger
-import { logger } from '@utils/logger.server';
-
+import { json } from '@sveltejs/kit';
 // GET: Lists all collections accessible to the user
 // Unified Error Handling
 import { apiHandler } from '@utils/apiHandler';
-import { AppError } from '@utils/errorHandling';
+import { AppError, getErrorMessage } from '@utils/errorHandling';
+// System Logger
+import { logger } from '@utils/logger.server';
 
 // GET: Lists all collections accessible to the user
 export const GET = apiHandler(async ({ locals, url }) => {
@@ -49,7 +44,7 @@ export const GET = apiHandler(async ({ locals, url }) => {
 		// Get all collections from ContentManager (returns an array)
 		const allCollections = await contentManager.getCollections(tenantId);
 
-		const accessibleCollections = [];
+		const accessibleCollections: any[] = [];
 
 		// Iterate over the array of collections
 		for (const collection of allCollections) {
@@ -99,10 +94,10 @@ export const GET = apiHandler(async ({ locals, url }) => {
 				user: locals.user || undefined
 			};
 
-			if (collectionInfo.description && collectionInfo.description.includes('{{')) {
+			if (collectionInfo.description?.includes('{{')) {
 				collectionInfo.description = await replaceTokens(collectionInfo.description, tokenContext);
 			}
-			if (collectionInfo.label && collectionInfo.label.includes('{{')) {
+			if (collectionInfo.label?.includes('{{')) {
 				collectionInfo.label = await replaceTokens(collectionInfo.label, tokenContext);
 			}
 
@@ -123,7 +118,9 @@ export const GET = apiHandler(async ({ locals, url }) => {
 	} catch (e) {
 		const duration = performance.now() - start;
 		logger.error(`Failed to get collections: ${getErrorMessage(e)} in ${duration.toFixed(2)}ms`);
-		if (e instanceof AppError) throw e;
+		if (e instanceof AppError) {
+			throw e;
+		}
 		throw new AppError('Internal Server Error', 500, 'COLLECTION_LIST_ERROR');
 	}
 });

@@ -3,7 +3,7 @@
  * @description Valibot schemas for content node operations
  */
 
-import { object, string, optional, number } from 'valibot';
+import { number, object, optional, string } from 'valibot';
 
 // Basic Schema for DatabaseId validation
 export const DatabaseIdSchema = string(); // Can be refined with regex/length if needed

@@ -24,8 +24,7 @@
  * - TypeScript: Full type safety with discriminated unions
  */
 
-import { SvelteSet } from 'svelte/reactivity';
-import { SvelteMap } from 'svelte/reactivity';
+import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { browser } from '$app/environment';
 
 // Predefined loading operations for consistency
@@ -48,22 +47,22 @@ export type LoadingOperation = (typeof loadingOperations)[keyof typeof loadingOp
 
 // Enhanced loading state with metadata
 interface LoadingEntry {
+	canCancel?: boolean;
+	context?: string;
+	onCancel?: () => void;
+	progress?: number;
 	reason: string;
 	startTime: number;
-	context?: string;
 	timeoutId?: ReturnType<typeof setTimeout>;
-	progress?: number;
-	canCancel?: boolean;
-	onCancel?: () => void;
 }
 
 // Enterprise-grade loading store with automatic cleanup and SSR safety
 export class LoadingStore {
 	private _isLoading = $state(false);
 	private _loadingReason = $state<string | null>(null);
-	private _loadingStack = $state<SvelteSet<string>>(new SvelteSet());
-	private _loadingEntries = new SvelteMap<string, LoadingEntry>();
-	private _maxTimeout = 30000; // 30 second max timeout for safety
+	private readonly _loadingStack = $state<SvelteSet<string>>(new SvelteSet());
+	private readonly _loadingEntries = new SvelteMap<string, LoadingEntry>();
+	private readonly _maxTimeout = 30_000; // 30 second max timeout for safety
 	private _progress = $state<number | null>(null);
 	private _canCancel = $state(false);
 	private _onCancel = $state<(() => void) | undefined>(undefined);
@@ -101,7 +100,9 @@ export class LoadingStore {
 	 */
 	startLoading(reason: string, context?: string, timeout: number = this._maxTimeout) {
 		// SSR guard: Only run in browser
-		if (!browser) return;
+		if (!browser) {
+			return;
+		}
 
 		// Prevent duplicate entries
 		if (this._loadingStack.has(reason)) {
@@ -138,7 +139,9 @@ export class LoadingStore {
 	 */
 	stopLoading(reason: string) {
 		// SSR guard
-		if (!browser) return;
+		if (!browser) {
+			return;
+		}
 
 		if (!this._loadingStack.has(reason)) {
 			return; // Already stopped or never started
@@ -164,7 +167,7 @@ export class LoadingStore {
 		} else {
 			// Update to most recent operation
 			const entries = Array.from(this._loadingStack);
-			const newReason = entries[entries.length - 1];
+			const newReason = entries.at(-1);
 			this._loadingReason = newReason;
 
 			// Restore progress/cancel state of the active operation
@@ -186,7 +189,9 @@ export class LoadingStore {
 	 * Update loading progress and cancellation for the current operation
 	 */
 	updateStatus(reason: string, progress?: number, canCancel?: boolean, onCancel?: () => void) {
-		if (!browser || !this._loadingEntries.has(reason)) return;
+		if (!(browser && this._loadingEntries.has(reason))) {
+			return;
+		}
 
 		const entry = this._loadingEntries.get(reason)!;
 
@@ -216,7 +221,9 @@ export class LoadingStore {
 
 	// Forcefully clear all loading states (emergency use only)
 	clearLoading() {
-		if (!browser) return;
+		if (!browser) {
+			return;
+		}
 
 		// Clear all timeouts
 		for (const entry of this._loadingEntries.values()) {
@@ -269,7 +276,9 @@ export class LoadingStore {
 
 	// Get loading statistics (for debugging)
 	getStats() {
-		if (!browser) return null;
+		if (!browser) {
+			return null;
+		}
 
 		return {
 			isLoading: this._isLoading,

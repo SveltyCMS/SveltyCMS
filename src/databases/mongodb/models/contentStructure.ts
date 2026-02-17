@@ -23,16 +23,16 @@ import mongoose, { Schema } from 'mongoose';
 // --- Type Definitions for Mongoose Documents content structure---
 export interface ContentStructureDocument extends Omit<ContentNode, 'collectionDef' | '_id' | 'children' | 'nodeType'>, MongooseDocument {
 	_id: any;
-	nodeType: 'category' | 'collection'; // Explicitly define discriminator key
-	links?: Array<string>; // Array of string links for content structure
 	collectionDef?: import('@src/content/types').Schema;
-	permissions?: Record<string, Record<string, boolean>>;
-	livePreview?: boolean | string;
-	strict?: boolean;
-	revision?: boolean;
 	description?: string;
+	links?: string[]; // Array of string links for content structure
+	livePreview?: boolean | string;
+	nodeType: 'category' | 'collection'; // Explicitly define discriminator key
+	permissions?: Record<string, Record<string, boolean>>;
+	revision?: boolean;
 	slug?: string;
 	status?: import('@src/content/types').StatusType;
+	strict?: boolean;
 }
 
 /** Represents a category-specific document. */
@@ -112,8 +112,8 @@ contentStructureSchema.index({ nodeType: 1, updatedAt: -1 }); // Recent content 
 // --- DTOs ---
 export interface ContentStructureReorderItem {
 	id: string;
-	parentId: string | null;
 	order: number;
+	parentId: string | null;
 	path: string;
 }
 
@@ -330,12 +330,12 @@ export function registerContentStructureDiscriminators() {
 			baseModel.discriminators = {};
 		}
 
-		if (!baseModel.discriminators['category']) {
+		if (!baseModel.discriminators.category) {
 			baseModel.discriminator('category', new Schema<CategoryDocument>({}, { _id: false }));
 			logger.debug('CONTENT_STRUCTURE_CATEGORY_DISCRIMINATOR_REGISTERED');
 		}
 
-		if (!baseModel.discriminators['collection']) {
+		if (!baseModel.discriminators.collection) {
 			baseModel.discriminator('collection', new Schema<CollectionDocument>({}, { _id: false }));
 			logger.debug('CONTENT_STRUCTURE_COLLECTION_DISCRIMINATOR_REGISTERED');
 		}
@@ -351,7 +351,7 @@ export function registerContentStructureDiscriminators() {
 
 // Force model recreation to ensure schema changes take effect (especially _id: false)
 if (mongoose.models.system_content_structure) {
-	delete mongoose.models.system_content_structure;
+	mongoose.models.system_content_structure = undefined;
 }
 
 // Create the model

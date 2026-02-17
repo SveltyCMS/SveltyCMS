@@ -1,3 +1,4 @@
+'use strict';
 // Plesk Passenger Entry Point for svelte.asset-trade.de
 async function loadApp() {
 	// 100MB body size limit

@@ -11,9 +11,8 @@
  */
 
 import { eq } from 'drizzle-orm';
-import type { IDBAdapter, DatabaseResult, BaseEntity, DatabaseTransaction, QueryBuilder } from '../../dbInterface';
-import { AdapterCore } from './adapterCore';
-import * as schema from '../schema';
+import type { BaseEntity, DatabaseResult, DatabaseTransaction, IDBAdapter, QueryBuilder } from '../../dbInterface';
+import { CollectionModule } from '../collection/collectionModule';
 import { CrudModule } from '../crud/crudModule';
 import { AuthModule } from '../modules/auth/authModule';
 import { ContentModule } from '../modules/content/contentModule';
@@ -21,15 +20,16 @@ import { MediaModule } from '../modules/media/mediaModule';
 import { PreferencesModule } from '../modules/system/preferencesModule';
 import { VirtualFoldersModule } from '../modules/system/virtualFoldersModule';
 import { ThemesModule } from '../modules/themes/themesModule';
-import { WidgetsModule } from '../modules/widgets/widgetsModule';
 import { WebsiteTokensModule } from '../modules/website/tokensModule';
+import { WidgetsModule } from '../modules/widgets/widgetsModule';
 import { BatchModule } from '../operations/batchModule';
 import { TransactionModule } from '../operations/transactionModule';
-import { PerformanceModule } from '../performance/performanceModule';
 import { CacheModule } from '../performance/cacheModule';
-import { CollectionModule } from '../collection/collectionModule';
+import { PerformanceModule } from '../performance/performanceModule';
 import { SQLiteQueryBuilder } from '../queryBuilder/SQLiteQueryBuilder';
+import * as schema from '../schema';
 import * as utils from '../utils';
+import { AdapterCore } from './adapterCore';
 
 export class SQLiteAdapter extends AdapterCore implements IDBAdapter {
 	public readonly tenants = {
@@ -72,8 +72,12 @@ export class SQLiteAdapter extends AdapterCore implements IDBAdapter {
 		list: async (options?: any): Promise<DatabaseResult<any[]>> => {
 			return this.wrap(async () => {
 				let q = this.db.select().from(schema.tenants);
-				if (options?.limit) q = q.limit(options.limit);
-				if (options?.offset) q = q.offset(options.offset);
+				if (options?.limit) {
+					q = q.limit(options.limit);
+				}
+				if (options?.offset) {
+					q = q.offset(options.offset);
+				}
 				return await q;
 			}, 'TENANT_LIST_FAILED');
 		}
@@ -115,7 +119,9 @@ export class SQLiteAdapter extends AdapterCore implements IDBAdapter {
 	public async ensureAuth(): Promise<void> {
 		// Check if roles exist
 		const existingRoles = await this.db.select().from(schema.roles).limit(1);
-		if (existingRoles.length > 0) return;
+		if (existingRoles.length > 0) {
+			return;
+		}
 
 		const now = new Date();
 		const rolesPayload = [
@@ -263,7 +269,9 @@ export class SQLiteAdapter extends AdapterCore implements IDBAdapter {
 	): Promise<DatabaseResult<{ data: any[]; metadata?: { totalCount: number; schema?: unknown; indexes?: string[] } }>> => {
 		return (this as any).wrap(async () => {
 			const res = await this.crud.findMany(collection, {}, options as any);
-			if (!res.success) throw new Error(res.message);
+			if (!res.success) {
+				throw new Error(res.message);
+			}
 			return {
 				data: res.data ?? [],
 				metadata: options?.includeMetadata ? { totalCount: res.data?.length ?? 0 } : undefined
@@ -279,7 +287,9 @@ export class SQLiteAdapter extends AdapterCore implements IDBAdapter {
 			const results: Record<string, any[]> = {};
 			for (const name of collectionNames) {
 				const res = await this.getCollectionData(name, { limit: options?.limit, fields: options?.fields });
-				if (res.success) results[name] = res.data.data;
+				if (res.success) {
+					results[name] = res.data.data;
+				}
 			}
 			return results;
 		}, 'GET_MULTIPLE_COLLECTION_DATA_FAILED');

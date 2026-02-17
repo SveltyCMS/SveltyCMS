@@ -19,46 +19,44 @@
 	function isUser(row: User | Token): row is User {
 		return '_id' in row && typeof row._id === 'string';
 	}
-	import { debounce } from '@utils/utils';
-	import { untrack } from 'svelte';
-	import { logger } from '@utils/logger';
-	// Stores
-	import { avatarSrc, normalizeAvatarUrl } from '@stores/store.svelte.ts';
-	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte.ts';
 
 	// Components
 	import PermissionGuard from '@components/PermissionGuard.svelte';
-	import SystemTooltip from '@components/system/SystemTooltip.svelte';
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
+	import SystemTooltip from '@components/system/SystemTooltip.svelte';
 	import Boolean from '@components/system/table/Boolean.svelte';
 	import Role from '@components/system/table/Role.svelte';
 	import TableFilter from '@components/system/table/TableFilter.svelte';
 	import TableIcons from '@components/system/table/TableIcons.svelte';
 	import TablePagination from '@components/system/table/TablePagination.svelte';
-	import ModalEditToken from './ModalEditToken.svelte';
-	import Multibutton from './Multibutton.svelte';
-	// ParaglideJS
-	import * as m from '@src/paraglide/messages';
 	// Skeleton
 	import { Avatar } from '@skeletonlabs/skeleton-svelte';
-	import { modalState } from '@utils/modalState.svelte';
-	import { showConfirm } from '@utils/modalUtils';
-	import { toaster } from '@stores/store.svelte.ts';
+	// Types
+	import type { Token, User } from '@src/databases/auth/types';
 	// Svelte-dnd-action
 	import { PermissionAction, PermissionType } from '@src/databases/auth/types';
-	import { dndzone } from 'svelte-dnd-action';
+	// ParaglideJS
+	import * as m from '@src/paraglide/messages';
+	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte.ts';
+	// Stores
+	import { avatarSrc, normalizeAvatarUrl, toaster } from '@stores/store.svelte.ts';
+	import { logger } from '@utils/logger';
+	import { modalState } from '@utils/modalState.svelte';
+	import { showConfirm } from '@utils/modalUtils';
+	import { debounce } from '@utils/utils';
+	import { untrack } from 'svelte';
 	import { flip } from 'svelte/animate';
-
-	// Types
-	import type { User, Token } from '@src/databases/auth/types';
+	import { dndzone } from 'svelte-dnd-action';
+	import ModalEditToken from './ModalEditToken.svelte';
+	import Multibutton from './Multibutton.svelte';
 
 	type TableDataType = User | Token;
 
 	interface TableHeader {
-		label: string;
-		key: keyof User | keyof Token;
-		visible: boolean;
 		id: string;
+		key: keyof User | keyof Token;
+		label: string;
+		visible: boolean;
 	}
 
 	// Props - Using API for scalability

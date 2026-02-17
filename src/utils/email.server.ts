@@ -3,37 +3,37 @@
  * @description Reusable utility for rendering and sending emails using Svelte templates and Nodemailer.
  */
 
-import type { ComponentType } from 'svelte';
-import nodemailer from 'nodemailer';
-import type { TransportOptions } from 'nodemailer';
-import Renderer, { toPlainText } from 'better-svelte-email/render';
-import { logger } from '@utils/logger.server';
 import { AppError } from '@utils/errorHandling';
+import { logger } from '@utils/logger.server';
+import Renderer, { toPlainText } from 'better-svelte-email/render';
+import type { TransportOptions } from 'nodemailer';
+import nodemailer from 'nodemailer';
+import type { ComponentType } from 'svelte';
 
 // --- Dynamic Email Template Imports ---
 const svelteEmailModules = import.meta.glob('/src/components/emails/*.svelte');
 
 export interface EmailTemplateProps {
-	sitename?: string;
-	username?: string;
 	email?: string;
-	role?: string;
-	token?: string;
 	expires_in?: string;
 	expiresIn?: string | Date;
 	expiresInLabel?: string;
 	hostLink?: string;
 	resetLink?: string;
+	role?: string;
+	sitename?: string;
+	token?: string;
 	tokenLink?: string;
+	username?: string;
 	[key: string]: unknown;
 }
 
 export interface SendMailOptions {
+	languageTag?: string;
+	props?: EmailTemplateProps;
 	recipientEmail: string;
 	subject: string;
 	templateName: string;
-	props?: EmailTemplateProps;
-	languageTag?: string;
 }
 
 /**
@@ -56,7 +56,10 @@ export async function getEmailTemplate(templateName: string): Promise<ComponentT
 	return null;
 }
 
-type RenderedEmailContent = { html: string; text: string };
+interface RenderedEmailContent {
+	html: string;
+	text: string;
+}
 
 // Initialize the email renderer
 const renderer = new Renderer();
@@ -90,7 +93,7 @@ async function getDbAdapter() {
  * Core function to send an email using Svelte templates and SMTP configuration from the database.
  */
 export async function sendMail({ recipientEmail, subject, templateName, props = {}, languageTag = 'en' }: SendMailOptions) {
-	if (!recipientEmail || !subject || !templateName) {
+	if (!(recipientEmail && subject && templateName)) {
 		throw new AppError('Missing required fields: recipientEmail, subject, or templateName.', 400);
 	}
 
@@ -118,10 +121,18 @@ export async function sendMail({ recipientEmail, subject, templateName, props = 
 	const smtpPass = smtpPassResult?.success ? smtpPassResult.data : null;
 
 	const missingVars: string[] = [];
-	if (!smtpHost) missingVars.push('SMTP_HOST');
-	if (!smtpPort) missingVars.push('SMTP_PORT');
-	if (!smtpUser) missingVars.push('SMTP_USER');
-	if (!smtpPass) missingVars.push('SMTP_PASS');
+	if (!smtpHost) {
+		missingVars.push('SMTP_HOST');
+	}
+	if (!smtpPort) {
+		missingVars.push('SMTP_PORT');
+	}
+	if (!smtpUser) {
+		missingVars.push('SMTP_USER');
+	}
+	if (!smtpPass) {
+		missingVars.push('SMTP_PASS');
+	}
 
 	if (missingVars.length > 0) {
 		logger.warn('SMTP configuration incomplete. Email sending skipped.', { missingVars });
@@ -147,7 +158,7 @@ export async function sendMail({ recipientEmail, subject, templateName, props = 
 		port: Number(smtpPort),
 		secure: Number(smtpPort) === 465,
 		auth: { user: smtpUser, pass: smtpPass },
-		tls: { rejectUnauthorized: process.env.NODE_ENV === 'development' ? false : true },
+		tls: { rejectUnauthorized: process.env.NODE_ENV !== 'development' },
 		debug: process.env.NODE_ENV === 'development'
 	} as TransportOptions);
 
@@ -158,9 +169,9 @@ export async function sendMail({ recipientEmail, subject, templateName, props = 
 	const mailOptions = {
 		from: `"${fromName}" <${mailFrom}>`,
 		to: recipientEmail,
-		subject: subject,
-		text: text,
-		html: html
+		subject,
+		text,
+		html
 	};
 
 	try {

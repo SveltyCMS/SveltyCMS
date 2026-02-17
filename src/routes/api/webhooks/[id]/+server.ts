@@ -3,14 +3,12 @@
  * @description Handles DELETE and PATCH requests for a specific webhook.
  */
 
-import { json } from '@sveltejs/kit';
-
 import { webhookService } from '@src/services/webhookService';
-import { logger } from '@utils/logger.server';
-
+import { json } from '@sveltejs/kit';
 // Unified Error Handling
 import { apiHandler } from '@utils/apiHandler';
 import { AppError } from '@utils/errorHandling';
+import { logger } from '@utils/logger.server';
 
 // DELETE: Remove a webhook
 export const DELETE = apiHandler(async ({ params, locals }) => {
@@ -20,7 +18,9 @@ export const DELETE = apiHandler(async ({ params, locals }) => {
 
 	try {
 		const { id } = params;
-		if (!id) throw new AppError('Missing ID', 400, 'MISSING_ID');
+		if (!id) {
+			throw new AppError('Missing ID', 400, 'MISSING_ID');
+		}
 
 		await webhookService.deleteWebhook(id);
 		logger.info(`Webhook deleted: ${id} by ${locals.user.email}`);
@@ -28,7 +28,9 @@ export const DELETE = apiHandler(async ({ params, locals }) => {
 		return json({ success: true });
 	} catch (error) {
 		logger.error('Failed to delete webhook:', error);
-		if (error instanceof AppError) throw error;
+		if (error instanceof AppError) {
+			throw error;
+		}
 		throw new AppError('Internal Server Error', 500, 'WEBHOOK_DELETE_FAILED');
 	}
 });
@@ -41,7 +43,9 @@ export const PATCH = apiHandler(async ({ params, request, locals }) => {
 
 	try {
 		const { id } = params;
-		if (!id) throw new AppError('Missing ID', 400, 'MISSING_ID');
+		if (!id) {
+			throw new AppError('Missing ID', 400, 'MISSING_ID');
+		}
 
 		const updates = await request.json();
 
@@ -53,7 +57,9 @@ export const PATCH = apiHandler(async ({ params, request, locals }) => {
 		return json({ success: true, data: webhook });
 	} catch (error) {
 		logger.error('Failed to update webhook:', error);
-		if (error instanceof AppError) throw error;
+		if (error instanceof AppError) {
+			throw error;
+		}
 		throw new AppError('Internal Server Error', 500, 'WEBHOOK_UPDATE_FAILED');
 	}
 });

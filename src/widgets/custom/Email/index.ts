@@ -35,7 +35,9 @@ const DISPOSABLE_DOMAINS = [
 ];
 
 const blockDisposableEmail = custom((input: unknown) => {
-	if (typeof input !== 'string') return false;
+	if (typeof input !== 'string') {
+		return false;
+	}
 	const domain = input.split('@')[1]?.toLowerCase();
 	return !DISPOSABLE_DOMAINS.includes(domain);
 }, 'Disposable email addresses are not allowed');

@@ -26,8 +26,8 @@ import { logger } from '@utils/logger.server';
 
 interface TokenStatus {
 	google: boolean;
-	twitch: boolean;
 	tiktok: boolean;
+	twitch: boolean;
 }
 
 // Unified Error Handling

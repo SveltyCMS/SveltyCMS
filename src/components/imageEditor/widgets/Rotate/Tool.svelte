@@ -21,10 +21,8 @@ Rotate tool using svelte-canvas compatible state.
 		if (activeState === 'rotate') {
 			initializeTool();
 			updateToolbarControls();
-		} else {
-			if (imageEditorStore.state.toolbarControls?.component === RotateControls) {
-				imageEditorStore.setToolbarControls(null);
-			}
+		} else if (imageEditorStore.state.toolbarControls?.component === RotateControls) {
+			imageEditorStore.setToolbarControls(null);
 		}
 	});
 

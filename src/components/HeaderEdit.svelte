@@ -28,31 +28,28 @@
 -->
 
 <script lang="ts">
-	// --- Derived from page & stores ---
-	import { logger } from '@utils/logger';
-	import { untrack } from 'svelte';
-
-	import { deleteCurrentEntry, saveEntry } from '@utils/entryActions';
 	import type { CollectionEntry } from '@src/content/types';
 	import { StatusTypes } from '@src/content/types';
-	import { createEntry, invalidateCollectionCache } from '@src/utils/apiClient';
-	import { showCloneModal, showScheduleModal } from '@utils/modalUtils';
-	import { showToast } from '@utils/toast';
-
-	import TranslationStatus from './collectionDisplay/TranslationStatus.svelte';
-	import Toggles from './system/inputs/Toggles.svelte';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
-
-	// Modal types import
-	// Stores
-	import { page } from '$app/state';
-	import { navigationManager } from '@utils/navigationManager';
 	import { collection, collectionValue, mode, setCollectionValue, setMode } from '@src/stores/collectionStore.svelte';
 	import { screen } from '@src/stores/screenSizeStore.svelte';
 	import { ui } from '@src/stores/UIStore.svelte';
-	import { app, validationStore, dataChangeStore } from '@stores/store.svelte';
+	import { createEntry, invalidateCollectionCache } from '@src/utils/apiClient';
 	import { statusStore } from '@stores/statusStore.svelte';
+	import { app, dataChangeStore, validationStore } from '@stores/store.svelte';
+	import { deleteCurrentEntry, saveEntry } from '@utils/entryActions';
+	// --- Derived from page & stores ---
+	import { logger } from '@utils/logger';
+	import { showCloneModal, showScheduleModal } from '@utils/modalUtils';
+	import { navigationManager } from '@utils/navigationManager';
+	import { showToast } from '@utils/toast';
+	import { untrack } from 'svelte';
+	// Modal types import
+	// Stores
+	import { page } from '$app/state';
+	import TranslationStatus from './collectionDisplay/TranslationStatus.svelte';
+	import Toggles from './system/inputs/Toggles.svelte';
 
 	// --- Derived from page & stores ---
 	let user = $derived(page.data.user);
@@ -198,7 +195,7 @@
 		showCloneModal({
 			count: 1,
 			onConfirm: async () => {
-				if (!currentEntry || !currentCollection?._id) {
+				if (!(currentEntry && currentCollection?._id)) {
 					showToast('No entry or collection selected.', 'warning');
 					return;
 				}
@@ -355,18 +352,12 @@
 		</div>
 		<!-- User -->
 		<div class="space-y-1 text-xs">
-			<p>
-				Created by: <span class="text-tertiary-500 dark:text-primary-500 font-bold">{getDisplayName(currentEntry?.createdBy)}</span>
-			</p>
+			<p>Created by: <span class="text-tertiary-500 dark:text-primary-500 font-bold">{getDisplayName(currentEntry?.createdBy)}</span></p>
 			{#if currentEntry?.updatedBy}
-				<p class="text-tertiary-500 dark:text-primary-400">
-					Last updated by: {getDisplayName(currentEntry?.updatedBy)}
-				</p>
+				<p class="text-tertiary-500 dark:text-primary-400">Last updated by: {getDisplayName(currentEntry?.updatedBy)}</p>
 			{/if}
 			{#if scheduleTimestamp}
-				<p class="text-tertiary-500 dark:text-primary-400">
-					Will publish on: {new Date(scheduleTimestamp).toLocaleString()}
-				</p>
+				<p class="text-tertiary-500 dark:text-primary-400">Will publish on: {new Date(scheduleTimestamp).toLocaleString()}</p>
 			{/if}
 		</div>
 	</div>

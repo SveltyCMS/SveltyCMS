@@ -10,14 +10,13 @@
  * - Multi-Tenant Safe: File operations are scoped to the current tenant.
  */
 
-import { json } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
-import { error } from '@sveltejs/kit';
-import { getPrivateSettingSync } from '@src/services/settingsService';
-import { logger } from '@utils/logger.server';
 import { dbAdapter } from '@src/databases/db';
 import type { MediaItem } from '@src/databases/dbInterface';
+import { getPrivateSettingSync } from '@src/services/settingsService';
+import { error, json } from '@sveltejs/kit';
+import { logger } from '@utils/logger.server';
 import { moveMediaToTrash } from '@utils/media/mediaStorage.server';
+import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	const { user, tenantId, roles } = locals;
@@ -48,7 +47,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			path: cleanPath
 		});
 
-		if (!findResult.success || !findResult.data || findResult.data.length === 0) {
+		if (!(findResult.success && findResult.data) || findResult.data.length === 0) {
 			logger.warn(`Media item not found for trash: ${url}`);
 			throw error(404, 'Media not found');
 		}
@@ -60,7 +59,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const ownerId = mediaItem.createdBy || (mediaItem as any).user;
 		const isOwner = ownerId === user._id;
 
-		if (!isAdmin && !isOwner) {
+		if (!(isAdmin || isOwner)) {
 			logger.warn(`Access denied for trash: User ${user._id} attempted to trash media ${mediaItem._id} owned by ${ownerId}`);
 			throw error(403, 'Access denied: You can only delete your own uploads.');
 		}

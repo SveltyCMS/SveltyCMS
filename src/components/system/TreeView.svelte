@@ -28,52 +28,55 @@
 
 <script lang="ts" module>
 	export interface TreeNode {
-		id: string; // Unique identifier for the node
-		name: string; // Name of the node
-		children?: TreeNode[]; // Optional children nodes
-		isExpanded?: boolean; // Whether the node is expanded
-		icon?: string; // Optional icon for the node
 		ariaLabel?: string; // Optional aria label for the node
-		onClick?: (node: TreeNode) => void;
-		isCollection?: boolean; // Whether the node is a collection
 		badge?: {
 			visible?: boolean; // Whether the badge is visible
 			count?: number; // Count for the badge
 			status?: 'draft' | 'publish' | 'archive' | 'schedule' | 'delete' | 'clone' | 'test'; // Status for the badge
 			color?: string; // Color for the badge
 		};
+		children?: TreeNode[]; // Optional children nodes
 		depth?: number; // Depth of the node
-		order?: number; // Order of the node
-		nodeType?: string; // Type of the node
-		path?: string; // Path of the node
+		icon?: string; // Optional icon for the node
+		id: string; // Unique identifier for the node
+		isCollection?: boolean; // Whether the node is a collection
+		isExpanded?: boolean; // Whether the node is expanded
 		isLoading?: boolean; // Whether the node is loading
+		name: string; // Name of the node
+		nodeType?: string; // Type of the node
+		onClick?: (node: TreeNode) => void;
+		order?: number; // Order of the node
+		path?: string; // Path of the node
 	}
 </script>
 
 <script lang="ts">
 	type _any = any;
+
 	import { logger } from '@utils/logger';
 	import TreeViewComponent from './TreeView.svelte';
+
 	const TreeView = TreeViewComponent;
-	import { fly, scale } from 'svelte/transition';
-	import { preloadData } from '$app/navigation';
+
 	import { onMount } from 'svelte';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
+	import { fly, scale } from 'svelte/transition';
+	import { preloadData } from '$app/navigation';
 
 	interface TreeViewProps {
+		allowDragDrop?: boolean;
+		ariaLabel?: string;
+		compact?: boolean;
+		dir?: 'ltr' | 'rtl' | 'auto';
+		iconColorClass?: string;
 		k?: _any;
 		nodes: TreeNode[];
-		selectedId?: string | null;
-		ariaLabel?: string;
-		dir?: 'ltr' | 'rtl' | 'auto';
-		search?: string;
-		compact?: boolean;
-		iconColorClass?: string;
-		showBadges?: boolean;
-		allowDragDrop?: boolean;
-		onReorder?: ((draggedId: string, targetId: string, position: 'before' | 'after' | 'inside') => void) | null;
 		onExpand?: ((node: TreeNode) => void) | null;
 		onHover?: ((node: TreeNode) => void) | null;
+		onReorder?: ((draggedId: string, targetId: string, position: 'before' | 'after' | 'inside') => void) | null;
+		search?: string;
+		selectedId?: string | null;
+		showBadges?: boolean;
 	}
 
 	// Destructure props with clearer names and defaults
@@ -300,7 +303,7 @@
 	}
 
 	function handleDragOver(event: DragEvent, node: TreeNode) {
-		if (!allowDragDrop || !draggedNode || draggedNode.id === node.id) return;
+		if (!(allowDragDrop && draggedNode) || draggedNode.id === node.id) return;
 
 		if (isDescendant(draggedNode.id, node.id)) {
 			dropPosition = null;
@@ -331,14 +334,14 @@
 		if (!allowDragDrop) return;
 
 		const related = event?.relatedTarget as Node | null;
-		if (!related || !(event?.currentTarget as Node).contains(related)) {
+		if (!(related && (event?.currentTarget as Node).contains(related))) {
 			dragOverNode = null;
 			dropPosition = null;
 		}
 	}
 
 	function handleDrop(event: DragEvent, node: TreeNode) {
-		if (!allowDragDrop || !draggedNode || !dropPosition || draggedNode.id === node.id || isDescendant(draggedNode.id, node.id)) {
+		if (!(allowDragDrop && draggedNode && dropPosition) || draggedNode.id === node.id || isDescendant(draggedNode.id, node.id)) {
 			handleDragEnd();
 			return;
 		}
@@ -403,8 +406,8 @@
 				       dark:text-surface-200 dark:hover:bg-surface-400
 				       {node.children ? '' : 'bg-surface-300 dark:bg-surface-700'}
 				       {selectedId === node.id ? 'bg-primary-500/20 border-primary-500/50 dark:bg-primary-500/30' : ''}
-				       {draggedNode?.id === node.id ? 'opacity-50' : ''}
-				       {dragOverNode?.id === node.id && dropPosition === 'inside' ? 'border-primary-500 bg-primary-100 dark:bg-primary-900' : ''}
+				       {draggedNode?.id ? 'opacity-50' : ''}
+				       {dragOverNode?.id && dropPosition === 'inside' ? 'border-primary-500 bg-primary-100 dark:bg-primary-900' : ''}
 				       {allowDragDrop && node.nodeType === 'virtual' && node.id !== 'root' ? 'cursor-move' : ''}"
 				aria-expanded={node.children ? node.isExpanded : undefined}
 				tabindex={focusedNodeId === node.id ? 0 : -1}

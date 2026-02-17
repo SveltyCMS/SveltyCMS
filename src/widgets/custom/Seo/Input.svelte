@@ -4,27 +4,26 @@
 
 	// Lucide Icons
 
-	// Stores & Props
-	import { app } from '@stores/store.svelte';
-	import { publicEnv } from '@stores/globalSettings.svelte.ts';
-
 	// Parsers & Services
 	import { tokenTarget } from '@src/services/token/tokenTarget';
+	import { publicEnv } from '@stores/globalSettings.svelte.ts';
+	// Stores & Props
+	import { app } from '@stores/store.svelte';
 	import type { SeoWidgetData } from '.';
 
 	// Components
 	import SeoAnalysisPanel from './components/SeoAnalysisPanel.svelte';
+	import SeoField from './components/SeoField.svelte'; // Reusable field component
 	import SeoPreview from './components/SeoPreview.svelte';
 	import SocialPreview from './components/SocialPreview.svelte';
-	import SeoField from './components/SeoField.svelte'; // Reusable field component
 
 	// Logic
 	import { analyzeSeo } from './seoAnalyzer';
 
 	interface Props {
 		field: any;
-		value?: Record<string, SeoWidgetData>;
 		validationError?: string | null;
+		value?: Record<string, SeoWidgetData>;
 	}
 
 	let { field, value = $bindable(), validationError: _validationError }: Props = $props();
@@ -96,7 +95,7 @@
 	// --- Actions ---
 
 	async function runAnalysis() {
-		if (!value || !value[lang]) return;
+		if (!(value && value[lang])) return;
 		isAnalyzing = true;
 
 		// TODO: Connect to actual content store when available
@@ -131,7 +130,7 @@
 	// --- UI Helpers ---
 	// Update wrapper for SeoField to bind back to the deeply nested value
 	const updateField = (fieldName: keyof SeoWidgetData, newVal: string) => {
-		if (!value || !value[lang]) return;
+		if (!(value && value[lang])) return;
 		// Cast to any to allow updating union types like twitterCard with strict string
 		(value[lang] as any)[fieldName] = newVal;
 	};
@@ -156,9 +155,7 @@
 		</div>
 
 		<!-- Right: Analysis Panel -->
-		<div class="lg:col-span-1">
-			<SeoAnalysisPanel analysisResult={analysisResults} {isAnalyzing} bind:expanded={showAnalysis} />
-		</div>
+		<div class="lg:col-span-1"><SeoAnalysisPanel analysisResult={analysisResults} {isAnalyzing} bind:expanded={showAnalysis} /></div>
 	</div>
 
 	<!-- Bottom Area: Tabs & Inputs -->
@@ -241,9 +238,7 @@
 						translationPct={getFieldTranslationPercentage('focusKeyword')}
 						onUpdate={(v: string) => updateField('focusKeyword', v)}
 						placeholder="Main keyword"
-					>
-						<!-- Example of using slot for extra icon if needed -->
-					</SeoField>
+					> <!-- Example of using slot for extra icon if needed --></SeoField>
 				{:else if activeTab === 1}
 					<!-- Social Tab (includes Preview) -->
 					<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">

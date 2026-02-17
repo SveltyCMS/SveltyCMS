@@ -12,17 +12,16 @@ This component presents a summary of all configuration steps before finalizing t
 
 -->
 <script lang="ts">
+	import SystemTooltip from '@components/system/SystemTooltip.svelte';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
-
 	// Types from setupStore
 	import type { AdminUser, DbConfig, SystemSettings } from '@stores/setupStore.svelte.ts';
-	import SystemTooltip from '@components/system/SystemTooltip.svelte';
 
 	//  props
 	interface Props {
-		dbConfig: DbConfig;
 		adminUser: AdminUser;
+		dbConfig: DbConfig;
 		systemSettings: SystemSettings;
 	}
 
@@ -361,9 +360,7 @@ This component presents a summary of all configuration steps before finalizing t
 								</button>
 							</SystemTooltip>
 						</dt>
-						<dd class="text-tertiary-500 dark:text-primary-500">
-							{systemSettings.multiTenant ? 'Enabled' : 'Disabled'}
-						</dd>
+						<dd class="text-tertiary-500 dark:text-primary-500">{systemSettings.multiTenant ? 'Enabled' : 'Disabled'}</dd>
 
 						<dt class="flex items-center justify-between font-medium text-black dark:text-white">
 							Demo Mode:
@@ -380,9 +377,7 @@ This component presents a summary of all configuration steps before finalizing t
 								</button>
 							</SystemTooltip>
 						</dt>
-						<dd class="text-tertiary-500 dark:text-primary-500">
-							{systemSettings.demoMode ? 'Enabled' : 'Disabled'}
-						</dd>
+						<dd class="text-tertiary-500 dark:text-primary-500">{systemSettings.demoMode ? 'Enabled' : 'Disabled'}</dd>
 
 						<dt
 							class="flex items-center justify-between font-medium text-black dark:text-white border-t border-slate-100 dark:border-slate-800 pt-1 mt-1"

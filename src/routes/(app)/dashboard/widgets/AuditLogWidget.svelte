@@ -18,8 +18,8 @@ Features:
 </script>
 
 <script lang="ts">
-	import BaseWidget from '../BaseWidget.svelte';
 	import type { WidgetSize } from '@src/content/types';
+	import BaseWidget from '../BaseWidget.svelte';
 
 	const {
 		label = 'Audit Log',
@@ -83,12 +83,8 @@ Features:
 										<span class="text-[9px] opacity-50">{formatDate(log.timestamp)}</span>
 									</div>
 								</td>
-								<td class="max-w-[80px] truncate py-2 pr-2 pt-3" title={log.actor?.email}>
-									{truncateEmail(log.actor?.email)}
-								</td>
-								<td class="py-2 pt-3 text-center text-primary-500">
-									<iconify-icon icon="mdi:history" width={24}></iconify-icon>
-								</td>
+								<td class="max-w-[80px] truncate py-2 pr-2 pt-3" title={log.actor?.email}>{truncateEmail(log.actor?.email)}</td>
+								<td class="py-2 pt-3 text-center text-primary-500"><iconify-icon icon="mdi:history" width={24}></iconify-icon></td>
 							</tr>
 						{/each}
 					</tbody>

@@ -29,12 +29,12 @@
  * @prerequisite Runs after rate limiting, before authentication
  */
 
-import { error } from '@sveltejs/kit';
-import type { Handle } from '@sveltejs/kit';
 import { metricsService } from '@src/services/MetricsService';
-import { logger } from '@utils/logger.server';
 import { getPrivateSettingSync } from '@src/services/settingsService';
+import type { Handle } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import { AppError, handleApiError } from '@utils/errorHandling';
+import { logger } from '@utils/logger.server';
 
 // --- THREAT DETECTION PATTERNS ---
 
@@ -161,7 +161,9 @@ export const handleFirewall: Handle = async ({ event, resolve }) => {
 	try {
 		// Check if firewall is enabled (default to true if not set)
 		const firewallEnabled = getPrivateSettingSync('FIREWALL_ENABLED') ?? true;
-		if (!firewallEnabled) return resolve(event);
+		if (!firewallEnabled) {
+			return resolve(event);
+		}
 
 		// --- 1. Advanced Bot Detection ---
 		// Block automation tools but allow legitimate search engine crawlers

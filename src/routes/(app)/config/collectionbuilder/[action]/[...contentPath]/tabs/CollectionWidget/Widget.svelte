@@ -4,24 +4,23 @@
 **The Widget component is used to display the widget form used in the CollectionWidget component**
 -->
 <script lang="ts">
-	// Using iconify-icon web component
-	import { getGuiFields } from '@utils/utils';
-	import type { DndEvent, Item } from 'svelte-dnd-action';
-	// Stores
-	import { page } from '$app/state';
+	// Components
+	import VerticalList from '@components/VerticalList.svelte';
+	// ParaglideJS
+	import * as m from '@src/paraglide/messages';
 	import { collectionValue, setCollectionValue, setTargetWidget } from '@src/stores/collectionStore.svelte';
 	import { tabSet } from '@stores/store.svelte.ts';
 	import { widgetFunctions } from '@stores/widgetStore.svelte.ts';
-	import { get } from 'svelte/store';
-	// Components
-	import VerticalList from '@components/VerticalList.svelte';
-	import ModalSelectWidget from './ModalSelectWidget.svelte';
-	import ModalWidgetForm from './ModalWidgetForm.svelte';
-	// ParaglideJS
-	import * as m from '@src/paraglide/messages';
-
 	// Skeleton
 	import { modalState } from '@utils/modalState.svelte';
+	// Using iconify-icon web component
+	import { getGuiFields } from '@utils/utils';
+	import { get } from 'svelte/store';
+	import type { DndEvent, Item } from 'svelte-dnd-action';
+	// Stores
+	import { page } from '$app/state';
+	import ModalSelectWidget from './ModalSelectWidget.svelte';
+	import ModalWidgetForm from './ModalWidgetForm.svelte';
 
 	interface Props {
 		'on:save'?: () => void;
@@ -29,16 +28,16 @@
 
 	// Field interface
 	interface Field extends Item {
+		db_fieldName?: string;
+		icon?: string;
 		id: number;
 		label: string;
-		icon?: string;
-		db_fieldName?: string;
+		permissions: Record<string, Record<string, boolean>>;
 		widget: {
 			Name: string;
 			key?: string;
 			GuiFields?: Record<string, unknown>;
 		};
-		permissions: Record<string, Record<string, boolean>>;
 		[key: string]: unknown;
 	}
 
@@ -176,7 +175,8 @@
 	<div class="preset-outlined-tertiary-500 rounded-t-md p-2 text-center dark:preset-outlined-primary-500">
 		<p>
 			{m.collection_widgetfield_addrequired()}
-			<span class="text-tertiary-500 dark:text-primary-500">{contentTypes}</span> Collection inputs.
+			<span class="text-tertiary-500 dark:text-primary-500">{contentTypes}</span>
+			Collection inputs.
 		</p>
 		<p class="mb-2">{m.collection_widgetfield_drag()}</p>
 	</div>
@@ -187,13 +187,9 @@
 					class="border-blue preset-outlined-surface-500 my-2 grid w-full grid-cols-6 items-center rounded-md border p-1 text-left hover:preset-filled-surface-500 dark:text-white"
 					role="row"
 				>
-					<div class="preset-ghost-tertiary-500 badge h-10 w-10 rounded-full dark:preset-ghost-primary-500" role="cell">
-						{field.id}
-					</div>
+					<div class="preset-ghost-tertiary-500 badge h-10 w-10 rounded-full dark:preset-ghost-primary-500" role="cell">{field.id}</div>
 
-					<div role="cell" class="flex justify-center">
-						<iconify-icon icon={field.icon} width="24" class="text-tertiary-500"></iconify-icon>
-					</div>
+					<div role="cell" class="flex justify-center"><iconify-icon icon={field.icon} width="24" class="text-tertiary-500"></iconify-icon></div>
 					<div class="font-bold dark:text-primary-500" role="cell">{field.label}</div>
 					<div class=" " role="cell">{field?.db_fieldName ? field.db_fieldName : '-'}</div>
 					<div class=" " role="cell">{field.widget?.key}</div>
@@ -221,8 +217,10 @@
 			<button
 				type="button"
 				onclick={handleCollectionSave}
-				class="preset-filled-tertiary-500 btn mt-2 justify-end dark:preset-filled-primary-500 dark:text-black">{m.button_save()}</button
+				class="preset-filled-tertiary-500 btn mt-2 justify-end dark:preset-filled-primary-500 dark:text-black"
 			>
+				{m.button_save()}
+			</button>
 		</div>
 	</div>
 </div>

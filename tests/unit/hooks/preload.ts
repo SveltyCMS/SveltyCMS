@@ -113,13 +113,13 @@ mock.module('@src/databases/CacheService', () => ({
 		}
 	},
 	// All cache TTL constants
-	SESSION_CACHE_TTL_MS: 86400000, // 24 hours
-	SESSION_CACHE_TTL_S: 86400,
-	USER_PERM_CACHE_TTL_MS: 60000, // 1 minute
+	SESSION_CACHE_TTL_MS: 86_400_000, // 24 hours
+	SESSION_CACHE_TTL_S: 86_400,
+	USER_PERM_CACHE_TTL_MS: 60_000, // 1 minute
 	USER_PERM_CACHE_TTL_S: 60,
-	USER_COUNT_CACHE_TTL_MS: 300000, // 5 minutes
+	USER_COUNT_CACHE_TTL_MS: 300_000, // 5 minutes
 	USER_COUNT_CACHE_TTL_S: 300,
-	API_CACHE_TTL_MS: 300000, // 5 minutes
+	API_CACHE_TTL_MS: 300_000, // 5 minutes
 	API_CACHE_TTL_S: 300,
 	REDIS_TTL_S: 300
 }));
@@ -197,7 +197,7 @@ mock.module('@src/stores/globalSettings.svelte', () => ({
 		SITE_NAME: 'Test CMS',
 		DEFAULT_LANGUAGE: 'en',
 		AVAILABLE_LANGUAGES: ['en', 'de', 'fr'],
-		MEDIA_UPLOAD_MAX_SIZE: 10485760,
+		MEDIA_UPLOAD_MAX_SIZE: 10_485_760,
 		MEDIA_ALLOWED_TYPES: ['image/*', 'video/*', 'application/pdf']
 	},
 	initPublicEnv: () => {},
@@ -232,7 +232,6 @@ mock.module('$app/navigation', () => ({
 // isLimited() should return false (not limited) by default
 mock.module('sveltekit-rate-limiter/server', () => ({
 	RateLimiter: class MockRateLimiter {
-		constructor() {}
 		async isLimited() {
 			return false; // Not limited
 		}
@@ -241,7 +240,6 @@ mock.module('sveltekit-rate-limiter/server', () => ({
 		}
 	},
 	RetryAfterRateLimiter: class MockRetryAfterRateLimiter {
-		constructor() {}
 		async isLimited() {
 			return false; // Not limited
 		}

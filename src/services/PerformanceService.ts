@@ -8,8 +8,8 @@
  * - Record a specific benchmark (e.g. for a setup phase).
  */
 
+import type { ServicePerformanceMetrics, SystemStateStore } from '@src/stores/system/types';
 import { logger } from '@utils/logger';
-import type { SystemStateStore, ServicePerformanceMetrics } from '@src/stores/system/types';
 
 /**
  * Service to handle persistence of learned performance metrics.
@@ -69,7 +69,9 @@ export class PerformanceService {
 		try {
 			const result = await dbAdapter.systemPreferences.getByCategory('performance', 'system');
 
-			if (!result.success || !result.data) return {};
+			if (!(result.success && result.data)) {
+				return {};
+			}
 
 			const metrics: Record<string, ServicePerformanceMetrics> = {};
 			for (const [key, value] of Object.entries(result.data)) {
@@ -95,7 +97,9 @@ export class PerformanceService {
 	 */
 	async recordBenchmark(name: string, value: number): Promise<void> {
 		const dbAdapter = await this.getDbAdapter();
-		if (!dbAdapter?.systemPreferences) return;
+		if (!dbAdapter?.systemPreferences) {
+			return;
+		}
 
 		try {
 			await dbAdapter.systemPreferences.set(

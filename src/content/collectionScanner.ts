@@ -21,11 +21,11 @@
  * NOTE: This is SERVER-ONLY code that uses Node.js fs module.
  */
 
-import { logger } from '@utils/logger';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { processModule } from './utils';
+import { logger } from '@utils/logger';
 import type { Schema } from './types';
+import { processModule } from './utils';
 
 /**
  * Recursively scans a directory for .js files.
@@ -40,7 +40,8 @@ async function recursivelyGetFiles(dir: string): Promise<string[]> {
 
 			if (entry.isDirectory()) {
 				return recursivelyGetFiles(fullPath);
-			} else if (entry.isFile() && entry.name.endsWith('.js')) {
+			}
+			if (entry.isFile() && entry.name.endsWith('.js')) {
 				return [fullPath];
 			}
 			return [];
@@ -102,7 +103,9 @@ export async function scanCompiledCollections(): Promise<Schema[]> {
 			const content = await fs.readFile(filePath, 'utf-8');
 			const moduleData = await processModule(content);
 
-			if (!moduleData?.schema) return null;
+			if (!moduleData?.schema) {
+				return null;
+			}
 
 			const schema = moduleData.schema as Schema;
 

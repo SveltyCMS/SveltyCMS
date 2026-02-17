@@ -6,17 +6,15 @@
  * - Clear all cache entries
  */
 
-import { json } from '@sveltejs/kit';
-
 import { cacheService } from '@src/databases/CacheService';
-import { logger } from '@utils/logger.server';
-
+import { json } from '@sveltejs/kit';
 /**
  * POST - Clear all cache entries
  */
 // Unified Error Handling
 import { apiHandler } from '@utils/apiHandler';
 import { AppError } from '@utils/errorHandling';
+import { logger } from '@utils/logger.server';
 
 /**
  * POST - Clear all cache entries

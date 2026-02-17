@@ -118,7 +118,7 @@ export function generateManualEntryDetails(
 } {
 	return {
 		account: userEmail,
-		secret: secret,
+		secret,
 		issuer: serviceName,
 		algorithm: TOTP_CONFIG.ALGORITHM,
 		digits: TOTP_CONFIG.DIGITS,
@@ -133,18 +133,18 @@ export async function getCurrentTOTPCode(secret: string): Promise<string> {
 
 	const keyBuffer = base32Decode(secret);
 	const counterBuffer = Buffer.alloc(8);
-	counterBuffer.writeUInt32BE(Math.floor(counter / 0x100000000), 0);
-	counterBuffer.writeUInt32BE(counter & 0xffffffff, 4);
+	counterBuffer.writeUInt32BE(Math.floor(counter / 0x1_00_00_00_00), 0);
+	counterBuffer.writeUInt32BE(counter & 0xff_ff_ff_ff, 4);
 
 	const hmac = cryptoModule.createHmac(TOTP_CONFIG.ALGORITHM, keyBuffer);
 	hmac.update(counterBuffer);
 	const digest = hmac.digest();
 
-	const offset = digest[digest.length - 1] & 0xf;
+	const offset = digest.at(-1) & 0xf;
 	const truncated =
 		((digest[offset] & 0x7f) << 24) | ((digest[offset + 1] & 0xff) << 16) | ((digest[offset + 2] & 0xff) << 8) | (digest[offset + 3] & 0xff);
 
-	const code = (truncated % Math.pow(10, TOTP_CONFIG.DIGITS)).toString().padStart(TOTP_CONFIG.DIGITS, '0');
+	const code = (truncated % 10 ** TOTP_CONFIG.DIGITS).toString().padStart(TOTP_CONFIG.DIGITS, '0');
 	return code;
 }
 
@@ -162,18 +162,18 @@ export async function verifyTOTPCode(secret: string, userCode: string): Promise<
 
 		const keyBuffer = base32Decode(secret);
 		const counterBuffer = Buffer.alloc(8);
-		counterBuffer.writeUInt32BE(Math.floor(counter / 0x100000000), 0);
-		counterBuffer.writeUInt32BE(counter & 0xffffffff, 4);
+		counterBuffer.writeUInt32BE(Math.floor(counter / 0x1_00_00_00_00), 0);
+		counterBuffer.writeUInt32BE(counter & 0xff_ff_ff_ff, 4);
 
 		const hmac = cryptoModule.createHmac(TOTP_CONFIG.ALGORITHM, keyBuffer);
 		hmac.update(counterBuffer);
 		const digest = hmac.digest();
 
-		const offset = digest[digest.length - 1] & 0xf;
+		const offset = digest.at(-1) & 0xf;
 		const truncated =
 			((digest[offset] & 0x7f) << 24) | ((digest[offset + 1] & 0xff) << 16) | ((digest[offset + 2] & 0xff) << 8) | (digest[offset + 3] & 0xff);
 
-		const code = (truncated % Math.pow(10, TOTP_CONFIG.DIGITS)).toString().padStart(TOTP_CONFIG.DIGITS, '0');
+		const code = (truncated % 10 ** TOTP_CONFIG.DIGITS).toString().padStart(TOTP_CONFIG.DIGITS, '0');
 
 		// Timing-safe comparison
 		if (code === userCode) {
@@ -184,7 +184,7 @@ export async function verifyTOTPCode(secret: string, userCode: string): Promise<
 	return false;
 }
 
-export async function generateBackupCodes(count: number = 10): Promise<string[]> {
+export async function generateBackupCodes(count = 10): Promise<string[]> {
 	const cryptoModule = await getCrypto();
 	const codes: string[] = [];
 

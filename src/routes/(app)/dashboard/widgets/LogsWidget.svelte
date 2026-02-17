@@ -23,25 +23,25 @@
 </script>
 
 <script lang="ts">
-	import BaseWidget from '../BaseWidget.svelte';
-	import type { TablePaginationProps, WidgetSize } from '@src/content/types';
 	import TablePagination from '@src/components/system/table/TablePagination.svelte';
+	import type { TablePaginationProps, WidgetSize } from '@src/content/types';
 	import { SvelteURLSearchParams } from 'svelte/reactivity';
+	import BaseWidget from '../BaseWidget.svelte';
 
 	interface LogEntryDisplay {
-		timestamp: string;
+		args: unknown[];
 		level: string;
 		message: string;
 		messageHtml?: string;
-		args: unknown[];
+		timestamp: string;
 	}
 
 	interface FetchedData {
+		hasMore?: boolean;
 		logs: LogEntryDisplay[];
 		page: number;
 		total: number;
 		totalPages?: number;
-		hasMore?: boolean;
 	}
 
 	const {
@@ -52,7 +52,7 @@
 		onSizeChange = (_newSize: WidgetSize) => {},
 		onRemove = () => {},
 		endpoint = '/api/dashboard/logs',
-		pollInterval = 15000
+		pollInterval = 15_000
 	}: {
 		label?: string;
 		icon?: string;
@@ -172,7 +172,7 @@
 					bind:value={searchText}
 					class="rounded border border-surface-300 bg-white px-3 py-1 text-sm text-surface-700 shadow-sm focus:border-primary-400 focus:ring-2 focus:ring-primary-200 dark:border-surface-400 dark:bg-surface-800 dark:text-surface-100 dark:focus:border-primary-500"
 					aria-label="Search logs"
-				/>
+				>
 			</div>
 			<div class="flex items-center gap-2">
 				<input
@@ -180,13 +180,13 @@
 					bind:value={startDate}
 					class="rounded border border-surface-300 bg-white px-2 py-1 text-sm text-surface-700 shadow-sm focus:border-primary-400 focus:ring-2 focus:ring-primary-200 dark:border-surface-400 dark:bg-surface-800 dark:text-surface-100 dark:focus:border-primary-500"
 					aria-label="Start date"
-				/>
+				>
 				<input
 					type="date"
 					bind:value={endDate}
 					class="rounded border border-surface-300 bg-white px-2 py-1 text-sm text-surface-700 shadow-sm focus:border-primary-400 focus:ring-2 focus:ring-primary-200 dark:border-surface-400 dark:bg-surface-800 dark:text-surface-100 dark:focus:border-primary-500"
 					aria-label="End date"
-				/>
+				>
 			</div>
 		</div>
 		{#if fetchedData && fetchedData.logs && fetchedData.logs.length > 0}
@@ -205,9 +205,7 @@
 						<span class="w-8 shrink-0 text-xs text-surface-500 dark:text-surface-50">
 							{new Date(log.timestamp).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })}
 						</span>
-						<span class="w-14 shrink-0 text-xs font-medium {getLogLevelColor(log.level)}">
-							{log.level.toUpperCase()}
-						</span>
+						<span class="w-14 shrink-0 text-xs font-medium {getLogLevelColor(log.level)}"> {log.level.toUpperCase()} </span>
 						<span class="text-text-900 dark:text-text-100 flex-1 select-text truncate text-xs" style="user-select: text;" title={log.message}>
 							{log.message}
 						</span>

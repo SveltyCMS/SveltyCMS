@@ -3,11 +3,9 @@
  * @description IP unblocking endpoint for security management
  */
 
-import { json } from '@sveltejs/kit';
-import { securityResponseService } from '@src/services/SecurityResponseService';
 import { hasApiPermission } from '@src/databases/auth/apiPermissions';
-import { logger } from '@utils/logger.server';
-
+import { securityResponseService } from '@src/services/SecurityResponseService';
+import { json } from '@sveltejs/kit';
 /**
  * POST /api/security/unblock
  * Manually unblock an IP address from the security blacklist.
@@ -15,6 +13,7 @@ import { logger } from '@utils/logger.server';
 // Unified Error Handling
 import { apiHandler } from '@utils/apiHandler';
 import { AppError } from '@utils/errorHandling';
+import { logger } from '@utils/logger.server';
 
 /**
  * POST /api/security/unblock
@@ -23,7 +22,7 @@ import { AppError } from '@utils/errorHandling';
 export const POST = apiHandler(async ({ locals, request }) => {
 	try {
 		// Authorization check - admin only
-		if (!locals.user || !hasApiPermission(locals.user.role, 'security')) {
+		if (!(locals.user && hasApiPermission(locals.user.role, 'security'))) {
 			throw new AppError('Unauthorized - Admin access required', 403, 'FORBIDDEN');
 		}
 
@@ -58,7 +57,9 @@ export const POST = apiHandler(async ({ locals, request }) => {
 			message: `IP address ${ip} has been unblocked successfully`
 		});
 	} catch (error) {
-		if (error instanceof AppError) throw error;
+		if (error instanceof AppError) {
+			throw error;
+		}
 		logger.error('Error unblocking IP address:', error);
 		throw new AppError('Internal server error', 500, 'UNBLOCK_FAILED');
 	}

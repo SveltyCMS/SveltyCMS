@@ -23,10 +23,10 @@
  * @prerequisite Runs after i18n.handle() in the middleware sequence
  */
 
-import type { Handle } from '@sveltejs/kit';
-import { app } from '@stores/store.svelte';
 import type { Locale } from '@src/paraglide/runtime';
 import { locales } from '@src/paraglide/runtime';
+import { app } from '@stores/store.svelte';
+import type { Handle } from '@sveltejs/kit';
 import { logger } from '@utils/logger.server';
 
 // --- UTILITY FUNCTIONS ---
@@ -38,7 +38,9 @@ import { logger } from '@utils/logger.server';
  * @returns True if the language is supported, false otherwise
  */
 function isValidLocale(lang: string | undefined): lang is Locale {
-	if (!lang) return false;
+	if (!lang) {
+		return false;
+	}
 	return (locales as readonly string[]).includes(lang);
 }
 
@@ -51,7 +53,9 @@ function isValidLocale(lang: string | undefined): lang is Locale {
  * @returns True if successfully set, false otherwise
  */
 function safelySetLanguage(cookieName: string, cookieValue: string | undefined, setter: (value: Locale) => void): boolean {
-	if (!cookieValue) return false;
+	if (!cookieValue) {
+		return false;
+	}
 
 	if (!isValidLocale(cookieValue)) {
 		logger.warn(`Invalid ${cookieName} cookie value: "${cookieValue}". ` + `Supported locales: ${locales.join(', ')}`);

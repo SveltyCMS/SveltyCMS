@@ -12,9 +12,9 @@
  * - Returns the updated focal point
  */
 
-import { json, error } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
+import { error, json } from '@sveltejs/kit';
 import { logger } from '@utils/logger.server';
+import type { RequestHandler } from './$types';
 
 export const PATCH: RequestHandler = async ({ params, request, locals, fetch }) => {
 	const { user } = locals;
@@ -71,7 +71,9 @@ export const PATCH: RequestHandler = async ({ params, request, locals, fetch }) 
 			data: { focalPoint: { x, y } }
 		});
 	} catch (err) {
-		if ((err as any).status) throw err;
+		if ((err as any).status) {
+			throw err;
+		}
 		logger.error('Error updating focal point', { error: err, mediaId: id });
 		throw error(500, 'Internal server error');
 	}

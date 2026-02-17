@@ -13,15 +13,15 @@
  * - Get default theme
  */
 
+import { logger } from '@src/utils/logger';
 import { eq } from 'drizzle-orm';
-import type { Theme, DatabaseId, DatabaseResult } from '../../../dbInterface';
-import { AdapterCore } from '../../adapter/adapterCore';
+import type { DatabaseId, DatabaseResult, Theme } from '../../../dbInterface';
+import type { AdapterCore } from '../../adapter/adapterCore';
 import * as schema from '../../schema';
 import * as utils from '../../utils';
-import { logger } from '@src/utils/logger';
 
 export class ThemesModule {
-	private core: AdapterCore;
+	private readonly core: AdapterCore;
 
 	constructor(core: AdapterCore) {
 		this.core = core;
@@ -93,7 +93,9 @@ export class ThemesModule {
 	}
 
 	async getAllThemes(): Promise<Theme[]> {
-		if (!this.db) return [];
+		if (!this.db) {
+			return [];
+		}
 		try {
 			const themes = await this.db.select().from(schema.themes);
 			return utils.convertArrayDatesToISO(themes) as unknown as Theme[];
@@ -104,7 +106,9 @@ export class ThemesModule {
 	}
 
 	async storeThemes(themes: Theme[]): Promise<void> {
-		if (!this.db) throw new Error('Database not connected');
+		if (!this.db) {
+			throw new Error('Database not connected');
+		}
 		try {
 			for (const theme of themes) {
 				const exists = await this.db.select().from(schema.themes).where(eq(schema.themes.name, theme.name)).limit(1);
@@ -140,7 +144,9 @@ export class ThemesModule {
 			return utils.convertDatesToISO(exists[0]) as unknown as Theme;
 		}
 		const res = await this.install(theme);
-		if (!res.success) throw new Error(res.message);
+		if (!res.success) {
+			throw new Error(res.message);
+		}
 		return res.data;
 	}
 }

@@ -31,10 +31,10 @@ export type ViewMode = 'list' | 'edit' | 'preview';
  * Configuration for which fields to display in different views
  */
 export interface FieldSelectionConfig {
-	/** Maximum number of fields to display in list view (excluding essential fields) */
-	maxListFields?: number;
 	/** Custom field names to always include in list view */
 	customListFields?: string[];
+	/** Maximum number of fields to display in list view (excluding essential fields) */
+	maxListFields?: number;
 	/** Whether to include all fields marked as 'showInList' */
 	respectShowInList?: boolean;
 }
@@ -59,7 +59,9 @@ export function getDisplayFields(collection: Schema, mode: ViewMode = 'list', co
 	const selectedFields = new Set<string>([...ESSENTIAL_FIELDS]);
 
 	// Add custom fields
-	customListFields.forEach((field) => selectedFields.add(field));
+	for (const field of customListFields) {
+		selectedFields.add(field);
+	}
 
 	if (mode === 'list' && collection.fields) {
 		const listFields: string[] = [];
@@ -76,7 +78,9 @@ export function getDisplayFields(collection: Schema, mode: ViewMode = 'list', co
 								.replace(/[^a-z0-9_]/g, '_')
 						: null);
 
-				if (!fieldName) continue;
+				if (!fieldName) {
+					continue;
+				}
 
 				// Priority 1: Fields explicitly marked for list view
 				if (respectShowInList && fieldObj.showInList === true) {
@@ -104,7 +108,9 @@ export function getDisplayFields(collection: Schema, mode: ViewMode = 'list', co
 		}
 
 		// Add the selected list fields (limited by maxListFields)
-		listFields.slice(0, maxListFields).forEach((field) => selectedFields.add(field));
+		for (const field of listFields.slice(0, maxListFields)) {
+			selectedFields.add(field);
+		}
 	}
 
 	const result = Array.from(selectedFields);
@@ -133,9 +139,9 @@ export function createProjection(fields: string[]): Record<string, 1> {
 	}
 
 	const projection: Record<string, 1> = {};
-	fields.forEach((field) => {
+	for (const field of fields) {
 		projection[field] = 1;
-	});
+	}
 
 	return projection;
 }
@@ -172,6 +178,8 @@ export function filterEntryFields<T extends Record<string, unknown>>(entry: T, f
  * @returns Estimated percentage reduction
  */
 export function estimatePayloadReduction(totalFields: number, selectedFields: number): number {
-	if (totalFields === 0) return 0;
+	if (totalFields === 0) {
+		return 0;
+	}
 	return Math.round(((totalFields - selectedFields) / totalFields) * 100);
 }

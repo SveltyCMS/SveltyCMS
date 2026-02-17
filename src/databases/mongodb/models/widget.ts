@@ -17,14 +17,13 @@
  *   - updateWidgetInstance: Atomically update a specific widget instance configuration
  */
 
-import mongoose, { Schema } from 'mongoose';
-import type { Model } from 'mongoose';
-import type { Widget, DatabaseResult } from '@src/databases/dbInterface';
-import { nowISODateString } from '@utils/dateUtils';
+import type { DatabaseResult, Widget } from '@src/databases/dbInterface';
 import { generateId } from '@src/databases/mongodb/methods/mongoDBUtils';
-
+import { nowISODateString } from '@utils/dateUtils';
 // System Logger
 import { logger } from '@utils/logger';
+import type { Model } from 'mongoose';
+import mongoose, { Schema } from 'mongoose';
 
 // Widget schema
 export const widgetSchema = new Schema<Widget>(

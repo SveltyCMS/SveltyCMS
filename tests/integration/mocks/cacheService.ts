@@ -29,11 +29,15 @@ class MockCacheMetrics {
 	recordHit(category?: string, tenant?: string) {
 		this.metrics.hits++;
 		if (category) {
-			if (!this.metrics.byCategory[category]) this.metrics.byCategory[category] = { hits: 0, misses: 0 };
+			if (!this.metrics.byCategory[category]) {
+				this.metrics.byCategory[category] = { hits: 0, misses: 0 };
+			}
 			this.metrics.byCategory[category].hits++;
 		}
 		if (tenant) {
-			if (!this.metrics.byTenant[tenant]) this.metrics.byTenant[tenant] = { hits: 0, misses: 0 };
+			if (!this.metrics.byTenant[tenant]) {
+				this.metrics.byTenant[tenant] = { hits: 0, misses: 0 };
+			}
 			this.metrics.byTenant[tenant].hits++;
 		}
 	}
@@ -41,11 +45,15 @@ class MockCacheMetrics {
 	recordMiss(category?: string, tenant?: string) {
 		this.metrics.misses++;
 		if (category) {
-			if (!this.metrics.byCategory[category]) this.metrics.byCategory[category] = { hits: 0, misses: 0 };
+			if (!this.metrics.byCategory[category]) {
+				this.metrics.byCategory[category] = { hits: 0, misses: 0 };
+			}
 			this.metrics.byCategory[category].misses++;
 		}
 		if (tenant) {
-			if (!this.metrics.byTenant[tenant]) this.metrics.byTenant[tenant] = { hits: 0, misses: 0 };
+			if (!this.metrics.byTenant[tenant]) {
+				this.metrics.byTenant[tenant] = { hits: 0, misses: 0 };
+			}
 			this.metrics.byTenant[tenant].misses++;
 		}
 	}
@@ -111,7 +119,7 @@ cache_hit_rate ${metrics.overall.hitRate}
 }
 
 class MockCacheService {
-	private cache = new Map<string, { value: any; expires: number }>();
+	private readonly cache = new Map<string, { value: any; expires: number }>();
 
 	async initialize() {
 		this.cache.clear();
@@ -119,7 +127,9 @@ class MockCacheService {
 
 	async get(key: string) {
 		const entry = this.cache.get(key);
-		if (!entry) return null;
+		if (!entry) {
+			return null;
+		}
 		if (Date.now() > entry.expires) {
 			this.cache.delete(key);
 			return null;
@@ -157,7 +167,7 @@ class MockCacheService {
 
 	async clearByPattern(pattern: string) {
 		// Simple regex conversion for globs using *
-		const regex = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$');
+		const regex = new RegExp(`^${pattern.replace(/\*/g, '.*')}$`);
 		for (const key of this.cache.keys()) {
 			if (regex.test(key)) {
 				this.cache.delete(key);

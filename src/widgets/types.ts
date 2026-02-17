@@ -9,10 +9,10 @@
  * - Support for 3-pillar architecture
  */
 
-import type { SvelteComponent } from 'svelte';
-import type { FieldInstance, Schema } from '../content/types';
 import type { User } from '@src/databases/auth/types';
 import type { GuiFieldConfig } from '@utils/utils';
+import type { SvelteComponent } from 'svelte';
+import type { FieldInstance, Schema } from '../content/types';
 
 // ============================================================================
 // Widget Type Classification
@@ -21,11 +21,11 @@ import type { GuiFieldConfig } from '@utils/utils';
 export type WidgetType = 'core' | 'custom' | 'marketplace';
 
 export interface WidgetMetadata {
-	type: WidgetType;
-	version?: string;
 	author?: string;
 	dependencies?: string[];
 	tags?: string[];
+	type: WidgetType;
+	version?: string;
 }
 
 // ============================================================================
@@ -37,28 +37,15 @@ export interface WidgetMetadata {
  * This is what gets stored in the widget registry
  */
 export interface WidgetDefinition<TProps extends Record<string, unknown> = Record<string, unknown>> {
-	// Core identity
-	widgetId: string;
-	Name: string;
-	Icon?: string;
+	aggregations?: {
+		filters?: (params: { field: FieldInstance; filter: string; contentLanguage: string }) => Promise<unknown[]>;
+		sorts?: (params: { field: FieldInstance; sortDirection: number; contentLanguage: string }) => Promise<Record<string, number>>;
+	};
 	Description?: string;
-
-	// 3-Pillar Architecture paths
-	inputComponentPath?: string;
-	displayComponentPath?: string;
-
-	// Validation (can be static schema or function)
-	validationSchema: unknown | ((field: FieldInstance) => unknown);
-
-	/** Optional function to return widget-specific translatable paths. */
-	getTranslatablePaths?: (basePath: string) => string[];
 
 	// Default values for widget-specific props
 	defaults?: Partial<TProps>;
-
-	// Configuration UI in Collection Builder
-	GuiFields?: Record<string, unknown>;
-	GuiSchema?: Record<string, unknown>; // Compatibility for legacy widgets
+	displayComponentPath?: string;
 
 	// Generic translation support
 	// getTranslatablePaths is already defined above in WidgetDefinition interface
@@ -71,13 +58,25 @@ export interface WidgetDefinition<TProps extends Record<string, unknown> = Recor
 		resolver?: Record<string, unknown>;
 	};
 
-	aggregations?: {
-		filters?: (params: { field: FieldInstance; filter: string; contentLanguage: string }) => Promise<unknown[]>;
-		sorts?: (params: { field: FieldInstance; sortDirection: number; contentLanguage: string }) => Promise<Record<string, number>>;
-	};
+	// Configuration UI in Collection Builder
+	GuiFields?: Record<string, unknown>;
+	GuiSchema?: Record<string, unknown>; // Compatibility for legacy widgets
+
+	/** Optional function to return widget-specific translatable paths. */
+	getTranslatablePaths?: (basePath: string) => string[];
+	Icon?: string;
+
+	// 3-Pillar Architecture paths
+	inputComponentPath?: string;
 
 	// Metadata
 	metadata?: WidgetMetadata;
+	Name: string;
+
+	// Validation (can be static schema or function)
+	validationSchema: unknown | ((field: FieldInstance) => unknown);
+	// Core identity
+	widgetId: string;
 }
 
 // ============================================================================
@@ -89,23 +88,23 @@ export interface WidgetDefinition<TProps extends Record<string, unknown> = Recor
  * This is what collection authors use in their schemas
  */
 export interface WidgetFactory<TProps extends Record<string, unknown> = Record<string, unknown>> {
-	// The callable function that creates field instances
-	(config: FieldConfig<TProps>): FieldInstance;
+	__dependencies?: string[];
+	__displayComponentPath?: string;
+	__inputComponentPath?: string;
+	__widgetType?: WidgetType;
+	aggregations?: WidgetDefinition['aggregations'];
+	Description?: string;
+	GraphqlSchema?: WidgetDefinition['GraphqlSchema'];
+	GuiSchema?: Record<string, unknown>;
+	Icon?: string;
 
 	// Static properties attached to the function (for compatibility)
 	Name: string;
-	Icon?: string;
-	Description?: string;
-	GuiSchema?: Record<string, unknown>;
-	GraphqlSchema?: WidgetDefinition['GraphqlSchema'];
-	aggregations?: WidgetDefinition['aggregations'];
-	__inputComponentPath?: string;
-	__displayComponentPath?: string;
-	__widgetType?: WidgetType;
-	__dependencies?: string[];
 
 	// String representation
 	toString(): string;
+	// The callable function that creates field instances
+	(config: FieldConfig<TProps>): FieldInstance;
 }
 
 // ============================================================================
@@ -141,18 +140,18 @@ export type FieldConfig<TProps extends Record<string, unknown> = Record<string, 
  * Legacy widget function type for backward compatibility
  */
 export interface Widget {
-	(field: FieldInstance): FieldInstance;
-	Name: string;
-	Icon?: string;
-	Description?: string;
-	GuiSchema?: SvelteComponent;
-	GraphqlSchema?: unknown;
-	aggregations?: unknown;
-	__widgetType?: WidgetType;
 	__dependencies?: string[];
-	__inputComponentPath?: string;
 	__displayComponentPath?: string;
+	__inputComponentPath?: string;
+	__widgetType?: WidgetType;
+	aggregations?: unknown;
 	componentPath?: string;
+	Description?: string;
+	GraphqlSchema?: unknown;
+	GuiSchema?: SvelteComponent;
+	Icon?: string;
+	Name: string;
+	(field: FieldInstance): FieldInstance;
 }
 
 /**
@@ -160,29 +159,29 @@ export interface Widget {
  * Legacy widget function type
  */
 export interface WidgetFunction {
-	(config: Record<string, unknown>): Widget;
-	__widgetId?: string;
-	Name: string;
-	GuiSchema?: typeof SvelteComponent | Record<string, unknown>;
-	GraphqlSchema?: unknown;
-	Icon?: string;
-	Description?: string;
-	aggregations?: unknown;
-	__widgetType?: WidgetType;
-	__isCore?: boolean;
 	__dependencies?: string[];
-	__inputComponentPath?: string;
 	__displayComponentPath?: string;
+	__inputComponentPath?: string;
+	__isCore?: boolean;
+	__widgetId?: string;
+	__widgetType?: WidgetType;
+	aggregations?: unknown;
 	componentPath?: string;
+	Description?: string;
+	GraphqlSchema?: unknown;
+	GuiSchema?: typeof SvelteComponent | Record<string, unknown>;
+	Icon?: string;
+	Name: string;
+	(config: Record<string, unknown>): Widget;
 }
 
 // ============================================================================
 // Widget Module (for dynamic imports)
 // ============================================================================
 
-export type WidgetModule = {
+export interface WidgetModule {
 	default: WidgetFactory;
-};
+}
 
 // ============================================================================
 // Widget Runtime Parameters
@@ -191,25 +190,25 @@ export type WidgetModule = {
 /**
  * Parameters passed to widget components at runtime
  */
-export type WidgetParam = {
+export interface WidgetParam {
+	config: GuiFieldConfig;
 	field: FieldInstance;
+	onValueChange: (value: unknown) => void;
+	placeholder: WidgetPlaceholder;
 	schema: Schema;
 	user: User;
 	value: unknown;
 	values: unknown;
-	onValueChange: (value: unknown) => void;
-	config: GuiFieldConfig;
-	placeholder: WidgetPlaceholder;
-};
+}
 
 // ============================================================================
 // Widget Placeholder (for lazy loading)
 // ============================================================================
 
 export interface WidgetPlaceholder {
+	__widgetConfig: Record<string, unknown>;
 	__widgetId: string;
 	__widgetName: string;
-	__widgetConfig: Record<string, unknown>;
 }
 
 // ============================================================================
@@ -221,11 +220,11 @@ export interface WidgetPlaceholder {
  */
 export interface WidgetRegistryEntry {
 	definition: WidgetDefinition;
-	factory: WidgetFactory;
-	status: 'active' | 'inactive' | 'error';
-	metadata: WidgetMetadata;
-	loadedAt?: Date;
 	error?: string;
+	factory: WidgetFactory;
+	loadedAt?: Date;
+	metadata: WidgetMetadata;
+	status: 'active' | 'inactive' | 'error';
 }
 
 /**
@@ -235,20 +234,20 @@ export interface WidgetRegistry {
 	// Get a widget factory by ID
 	get(widgetId: string): WidgetFactory | undefined;
 
-	// Register a new widget
-	register(widgetId: string, entry: WidgetRegistryEntry): void;
-
-	// Unregister a widget
-	unregister(widgetId: string): void;
-
-	// List all widget IDs
-	list(): string[];
-
 	// Get widgets by type
 	getByType(type: WidgetType): WidgetRegistryEntry[];
 
 	// Check if a widget is registered
 	has(widgetId: string): boolean;
+
+	// List all widget IDs
+	list(): string[];
+
+	// Register a new widget
+	register(widgetId: string, entry: WidgetRegistryEntry): void;
+
+	// Unregister a widget
+	unregister(widgetId: string): void;
 }
 
 // ============================================================================

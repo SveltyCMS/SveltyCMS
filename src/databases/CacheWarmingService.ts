@@ -6,9 +6,9 @@
  * for high-traffic areas based on access patterns.
  */
 
-import { cacheService } from './CacheService';
-import { CacheCategory } from './CacheCategory';
 import { logger } from '@utils/logger';
+import { CacheCategory } from './CacheCategory';
+import { cacheService } from './CacheService';
 
 /**
  * Initialize cache warming for critical application paths
@@ -36,7 +36,9 @@ function registerPrefetchPatterns(): void {
 		pattern: /^user:(\w+):profile$/,
 		prefetchKeys: (matchedKey: string) => {
 			const userId = matchedKey.match(/^user:(\w+):profile$/)?.[1];
-			if (!userId) return [];
+			if (!userId) {
+				return [];
+			}
 			return [`user:${userId}:permissions`, `user:${userId}:roles`, `user:${userId}:settings`];
 		},
 		category: CacheCategory.USER
@@ -47,7 +49,9 @@ function registerPrefetchPatterns(): void {
 		pattern: /^schema:(\w+)$/,
 		prefetchKeys: (matchedKey: string) => {
 			const schemaName = matchedKey.match(/^schema:(\w+)$/)?.[1];
-			if (!schemaName) return [];
+			if (!schemaName) {
+				return [];
+			}
 			return [`widget:${schemaName}:list`, `widget:${schemaName}:form`, `schema:${schemaName}:fields`];
 		},
 		category: CacheCategory.SCHEMA
@@ -58,7 +62,9 @@ function registerPrefetchPatterns(): void {
 		pattern: /^theme:(\w+):config$/,
 		prefetchKeys: (matchedKey: string) => {
 			const themeId = matchedKey.match(/^theme:(\w+):config$/)?.[1];
-			if (!themeId) return [];
+			if (!themeId) {
+				return [];
+			}
 			return [`theme:${themeId}:css`, `theme:${themeId}:assets`, `theme:${themeId}:variables`];
 		},
 		category: CacheCategory.THEME
@@ -69,7 +75,9 @@ function registerPrefetchPatterns(): void {
 		pattern: /^content:(\w+):(\w+)$/,
 		prefetchKeys: (matchedKey: string) => {
 			const match = matchedKey.match(/^content:(\w+):(\w+)$/);
-			if (!match) return [];
+			if (!match) {
+				return [];
+			}
 			const [, collectionName, contentId] = match;
 			return [`media:${contentId}:images`, `media:${contentId}:videos`, `content:${collectionName}:${contentId}:metadata`];
 		},
@@ -81,7 +89,9 @@ function registerPrefetchPatterns(): void {
 		pattern: /^tenant:(\w+):data$/,
 		prefetchKeys: (matchedKey: string) => {
 			const tenantId = matchedKey.match(/^tenant:(\w+):data$/)?.[1];
-			if (!tenantId) return [];
+			if (!tenantId) {
+				return [];
+			}
 			return [`tenant:${tenantId}:config`, `tenant:${tenantId}:settings`, `tenant:${tenantId}:theme`];
 		},
 		category: CacheCategory.API

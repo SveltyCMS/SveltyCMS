@@ -13,16 +13,16 @@
  * - Delete users
  */
 
-import { eq, and, gt, lt, inArray, sql, desc, asc } from 'drizzle-orm';
-import type { User, Session, Token, Role, DatabaseResult, PaginationOption } from '../../../dbInterface';
 import type { ISODateString } from '@src/content/types';
-import { AdapterCore } from '../../adapter/adapterCore';
+import { logger } from '@src/utils/logger';
+import { and, asc, desc, eq, gt, inArray, lt, sql } from 'drizzle-orm';
+import type { DatabaseResult, PaginationOption, Role, Session, Token, User } from '../../../dbInterface';
+import type { AdapterCore } from '../../adapter/adapterCore';
 import * as schema from '../../schema';
 import * as utils from '../../utils';
-import { logger } from '@src/utils/logger';
 
 export class AuthModule {
-	private core: AdapterCore;
+	private readonly core: AdapterCore;
 
 	constructor(core: AdapterCore) {
 		this.core = core;
@@ -33,7 +33,9 @@ export class AuthModule {
 	}
 
 	private mapUser(dbUser: any): User {
-		if (!dbUser) throw new Error('User not found');
+		if (!dbUser) {
+			throw new Error('User not found');
+		}
 		const user = utils.convertDatesToISO(dbUser) as any;
 
 		// Handle roleIds - ensure it is an array
@@ -79,7 +81,7 @@ export class AuthModule {
 			const values = {
 				...userData,
 				_id: id,
-				password: password,
+				password,
 				createdAt: now,
 				updatedAt: now,
 				// Map legacy 'role' string to 'roleIds' array if roleIds is missing/empty
@@ -94,7 +96,9 @@ export class AuthModule {
 	async updateUserAttributes(user_id: string, userData: Partial<User>, tenantId?: string): Promise<DatabaseResult<User>> {
 		return (this.core as any).wrap(async () => {
 			const conditions = [eq(schema.authUsers._id, user_id)];
-			if (tenantId) conditions.push(eq(schema.authUsers.tenantId, tenantId));
+			if (tenantId) {
+				conditions.push(eq(schema.authUsers.tenantId, tenantId));
+			}
 
 			const dataToUpdate = { ...userData } as any;
 			// Map legacy role string to roleIds array if roleIds is missing
@@ -119,7 +123,9 @@ export class AuthModule {
 	async deleteUser(user_id: string, tenantId?: string): Promise<DatabaseResult<void>> {
 		return (this.core as any).wrap(async () => {
 			const conditions = [eq(schema.authUsers._id, user_id)];
-			if (tenantId) conditions.push(eq(schema.authUsers.tenantId, tenantId));
+			if (tenantId) {
+				conditions.push(eq(schema.authUsers.tenantId, tenantId));
+			}
 			await this.db.delete(schema.authUsers).where(and(...conditions));
 		}, 'DELETE_USER_FAILED');
 	}
@@ -127,7 +133,9 @@ export class AuthModule {
 	async getUserById(user_id: string, tenantId?: string): Promise<DatabaseResult<User | null>> {
 		return (this.core as any).wrap(async () => {
 			const conditions = [eq(schema.authUsers._id, user_id)];
-			if (tenantId) conditions.push(eq(schema.authUsers.tenantId, tenantId));
+			if (tenantId) {
+				conditions.push(eq(schema.authUsers.tenantId, tenantId));
+			}
 			const [result] = await this.db
 				.select()
 				.from(schema.authUsers)
@@ -140,7 +148,9 @@ export class AuthModule {
 	async getUserByEmail(criteria: { email: string; tenantId?: string }): Promise<DatabaseResult<User | null>> {
 		return (this.core as any).wrap(async () => {
 			const conditions = [eq(schema.authUsers.email, criteria.email)];
-			if (criteria.tenantId) conditions.push(eq(schema.authUsers.tenantId, criteria.tenantId));
+			if (criteria.tenantId) {
+				conditions.push(eq(schema.authUsers.tenantId, criteria.tenantId));
+			}
 			const [result] = await this.db
 				.select()
 				.from(schema.authUsers)
@@ -172,8 +182,12 @@ export class AuthModule {
 				}
 			}
 
-			if (options?.limit) q = q.limit(options.limit);
-			if (options?.offset) q = q.offset(options.offset);
+			if (options?.limit) {
+				q = q.limit(options.limit);
+			}
+			if (options?.offset) {
+				q = q.offset(options.offset);
+			}
 
 			const results = await q;
 			return results.map((u: any) => this.mapUser(u));
@@ -200,7 +214,9 @@ export class AuthModule {
 	async deleteUsers(user_ids: string[], tenantId?: string): Promise<DatabaseResult<{ deletedCount: number }>> {
 		return (this.core as any).wrap(async () => {
 			const conditions = [inArray(schema.authUsers._id, user_ids)];
-			if (tenantId) conditions.push(eq(schema.authUsers.tenantId, tenantId));
+			if (tenantId) {
+				conditions.push(eq(schema.authUsers.tenantId, tenantId));
+			}
 			const result = await this.db.delete(schema.authUsers).where(and(...conditions));
 			return { deletedCount: result[0].affectedRows };
 		}, 'DELETE_USERS_FAILED');
@@ -209,7 +225,9 @@ export class AuthModule {
 	async blockUsers(user_ids: string[], tenantId?: string): Promise<DatabaseResult<{ modifiedCount: number }>> {
 		return (this.core as any).wrap(async () => {
 			const conditions = [inArray(schema.authUsers._id, user_ids)];
-			if (tenantId) conditions.push(eq(schema.authUsers.tenantId, tenantId));
+			if (tenantId) {
+				conditions.push(eq(schema.authUsers.tenantId, tenantId));
+			}
 			const result = await this.db
 				.update(schema.authUsers)
 				.set({ blocked: true, updatedAt: new Date() })
@@ -221,7 +239,9 @@ export class AuthModule {
 	async unblockUsers(user_ids: string[], tenantId?: string): Promise<DatabaseResult<{ modifiedCount: number }>> {
 		return (this.core as any).wrap(async () => {
 			const conditions = [inArray(schema.authUsers._id, user_ids)];
-			if (tenantId) conditions.push(eq(schema.authUsers.tenantId, tenantId));
+			if (tenantId) {
+				conditions.push(eq(schema.authUsers.tenantId, tenantId));
+			}
 			const result = await this.db
 				.update(schema.authUsers)
 				.set({ blocked: false, updatedAt: new Date() })
@@ -237,7 +257,9 @@ export class AuthModule {
 	): Promise<DatabaseResult<{ user: User; session: Session }>> {
 		return (this.core as any).wrap(async () => {
 			const userResult = await this.createUser(userData);
-			if (!userResult.success) throw new Error(userResult.message);
+			if (!userResult.success) {
+				throw new Error(userResult.message);
+			}
 			const user = userResult.data;
 
 			const sessionResult = await this.createSession({
@@ -245,7 +267,9 @@ export class AuthModule {
 				expires: sessionData.expires,
 				tenantId: sessionData.tenantId
 			});
-			if (!sessionResult.success) throw new Error(sessionResult.message);
+			if (!sessionResult.success) {
+				throw new Error(sessionResult.message);
+			}
 			const session = sessionResult.data;
 			return { user, session };
 		}, 'CREATE_USER_AND_SESSION_FAILED');
@@ -310,7 +334,9 @@ export class AuthModule {
 				.where(and(eq(schema.authSessions._id, session_id), gt(schema.authSessions.expires, new Date())))
 				.limit(1);
 
-			if (!session) return null;
+			if (!session) {
+				return null;
+			}
 
 			const userResult = await this.getUserById(session.user_id, session.tenantId || undefined);
 			return userResult.success ? userResult.data : null;
@@ -320,7 +346,9 @@ export class AuthModule {
 	async invalidateAllUserSessions(user_id: string, tenantId?: string): Promise<DatabaseResult<void>> {
 		return (this.core as any).wrap(async () => {
 			const conditions = [eq(schema.authSessions.user_id, user_id)];
-			if (tenantId) conditions.push(eq(schema.authSessions.tenantId, tenantId));
+			if (tenantId) {
+				conditions.push(eq(schema.authSessions.tenantId, tenantId));
+			}
 			await this.db.delete(schema.authSessions).where(and(...conditions));
 		}, 'INVALIDATE_USER_SESSIONS_FAILED');
 	}
@@ -328,7 +356,9 @@ export class AuthModule {
 	async getActiveSessions(user_id: string, tenantId?: string): Promise<DatabaseResult<Session[]>> {
 		return (this.core as any).wrap(async () => {
 			const conditions = [eq(schema.authSessions.user_id, user_id), gt(schema.authSessions.expires, new Date())];
-			if (tenantId) conditions.push(eq(schema.authSessions.tenantId, tenantId));
+			if (tenantId) {
+				conditions.push(eq(schema.authSessions.tenantId, tenantId));
+			}
 			const results = await this.db
 				.select()
 				.from(schema.authSessions)
@@ -340,7 +370,9 @@ export class AuthModule {
 	async getAllActiveSessions(tenantId?: string): Promise<DatabaseResult<Session[]>> {
 		return (this.core as any).wrap(async () => {
 			const conditions = [gt(schema.authSessions.expires, new Date())];
-			if (tenantId) conditions.push(eq(schema.authSessions.tenantId, tenantId));
+			if (tenantId) {
+				conditions.push(eq(schema.authSessions.tenantId, tenantId));
+			}
 			const results = await this.db
 				.select()
 				.from(schema.authSessions)
@@ -352,7 +384,9 @@ export class AuthModule {
 	async getSessionTokenData(session_id: string): Promise<DatabaseResult<{ expiresAt: ISODateString; user_id: string } | null>> {
 		return (this.core as any).wrap(async () => {
 			const [session] = await this.db.select().from(schema.authSessions).where(eq(schema.authSessions._id, session_id)).limit(1);
-			if (!session) return null;
+			if (!session) {
+				return null;
+			}
 			return {
 				expiresAt: session.expires.toISOString() as unknown as ISODateString,
 				user_id: session.user_id
@@ -364,7 +398,9 @@ export class AuthModule {
 		return (this.core as any).wrap(async () => {
 			const [oldSession] = await this.db.select().from(schema.authSessions).where(eq(schema.authSessions._id, oldToken)).limit(1);
 
-			if (!oldSession) throw new Error('Session not found');
+			if (!oldSession) {
+				throw new Error('Session not found');
+			}
 
 			const newId = utils.generateId();
 			const now = new Date();
@@ -419,7 +455,9 @@ export class AuthModule {
 	async updateToken(token_id: string, tokenData: Partial<Token>, tenantId?: string): Promise<DatabaseResult<Token>> {
 		return (this.core as any).wrap(async () => {
 			const conditions = [eq(schema.authTokens._id, token_id)];
-			if (tenantId) conditions.push(eq(schema.authTokens.tenantId, tenantId));
+			if (tenantId) {
+				conditions.push(eq(schema.authTokens.tenantId, tenantId));
+			}
 			await this.db
 				.update(schema.authTokens)
 				.set({ ...tokenData, updatedAt: new Date() } as any)
@@ -441,9 +479,15 @@ export class AuthModule {
 	): Promise<DatabaseResult<{ success: boolean; message: string; email?: string }>> {
 		return (this.core as any).wrap(async () => {
 			const conditions = [eq(schema.authTokens.token, token), gt(schema.authTokens.expires, new Date()), eq(schema.authTokens.consumed, false)];
-			if (user_id) conditions.push(eq(schema.authTokens.user_id, user_id));
-			if (type) conditions.push(eq(schema.authTokens.type, type));
-			if (tenantId) conditions.push(eq(schema.authTokens.tenantId, tenantId));
+			if (user_id) {
+				conditions.push(eq(schema.authTokens.user_id, user_id));
+			}
+			if (type) {
+				conditions.push(eq(schema.authTokens.type, type));
+			}
+			if (tenantId) {
+				conditions.push(eq(schema.authTokens.tenantId, tenantId));
+			}
 
 			const [t] = await this.db
 				.select()
@@ -451,7 +495,9 @@ export class AuthModule {
 				.where(and(...conditions))
 				.limit(1);
 
-			if (!t) return { success: false, message: 'Invalid or expired token' };
+			if (!t) {
+				return { success: false, message: 'Invalid or expired token' };
+			}
 			return { success: true, message: 'Token is valid', email: t.email };
 		}, 'VALIDATE_TOKEN_FAILED');
 	}
@@ -464,9 +510,15 @@ export class AuthModule {
 	): Promise<DatabaseResult<{ status: boolean; message: string }>> {
 		return (this.core as any).wrap(async () => {
 			const conditions = [eq(schema.authTokens.token, token)];
-			if (user_id) conditions.push(eq(schema.authTokens.user_id, user_id));
-			if (type) conditions.push(eq(schema.authTokens.type, type));
-			if (tenantId) conditions.push(eq(schema.authTokens.tenantId, tenantId));
+			if (user_id) {
+				conditions.push(eq(schema.authTokens.user_id, user_id));
+			}
+			if (type) {
+				conditions.push(eq(schema.authTokens.type, type));
+			}
+			if (tenantId) {
+				conditions.push(eq(schema.authTokens.tenantId, tenantId));
+			}
 
 			const result = await this.db
 				.update(schema.authTokens)
@@ -480,9 +532,15 @@ export class AuthModule {
 	async getTokenData(token: string, user_id?: string, type?: string, tenantId?: string): Promise<DatabaseResult<Token | null>> {
 		return (this.core as any).wrap(async () => {
 			const conditions = [eq(schema.authTokens.token, token)];
-			if (user_id) conditions.push(eq(schema.authTokens.user_id, user_id));
-			if (type) conditions.push(eq(schema.authTokens.type, type));
-			if (tenantId) conditions.push(eq(schema.authTokens.tenantId, tenantId));
+			if (user_id) {
+				conditions.push(eq(schema.authTokens.user_id, user_id));
+			}
+			if (type) {
+				conditions.push(eq(schema.authTokens.type, type));
+			}
+			if (tenantId) {
+				conditions.push(eq(schema.authTokens.tenantId, tenantId));
+			}
 
 			const [t] = await this.db
 				.select()
@@ -500,10 +558,18 @@ export class AuthModule {
 	async getAllTokens(filter?: Record<string, unknown>): Promise<DatabaseResult<Token[]>> {
 		return (this.core as any).wrap(async () => {
 			const conditions: any[] = [];
-			if (filter?.email) conditions.push(eq(schema.authTokens.email, filter.email as string));
-			if (filter?.user_id) conditions.push(eq(schema.authTokens.user_id, filter.user_id as string));
-			if (filter?.type) conditions.push(eq(schema.authTokens.type, filter.type as string));
-			if (filter?.tenantId) conditions.push(eq(schema.authTokens.tenantId, filter.tenantId as string));
+			if (filter?.email) {
+				conditions.push(eq(schema.authTokens.email, filter.email as string));
+			}
+			if (filter?.user_id) {
+				conditions.push(eq(schema.authTokens.user_id, filter.user_id as string));
+			}
+			if (filter?.type) {
+				conditions.push(eq(schema.authTokens.type, filter.type as string));
+			}
+			if (filter?.tenantId) {
+				conditions.push(eq(schema.authTokens.tenantId, filter.tenantId as string));
+			}
 
 			const results = await this.db
 				.select()
@@ -525,7 +591,9 @@ export class AuthModule {
 			// Try matching by _id first, then fall back to token value
 			// (API endpoints pass token values, not _ids)
 			const conditions: any[] = [];
-			if (tenantId) conditions.push(eq(schema.authTokens.tenantId, tenantId));
+			if (tenantId) {
+				conditions.push(eq(schema.authTokens.tenantId, tenantId));
+			}
 
 			// Try delete by _id
 			const byIdResult = await this.db.delete(schema.authTokens).where(and(inArray(schema.authTokens._id, token_ids), ...conditions));
@@ -542,7 +610,9 @@ export class AuthModule {
 	async blockTokens(token_ids: string[], tenantId?: string): Promise<DatabaseResult<{ modifiedCount: number }>> {
 		return (this.core as any).wrap(async () => {
 			const conditions = [inArray(schema.authTokens._id, token_ids)];
-			if (tenantId) conditions.push(eq(schema.authTokens.tenantId, tenantId));
+			if (tenantId) {
+				conditions.push(eq(schema.authTokens.tenantId, tenantId));
+			}
 			const result = await this.db
 				.update(schema.authTokens)
 				.set({ blocked: true, updatedAt: new Date() })
@@ -554,7 +624,9 @@ export class AuthModule {
 	async unblockTokens(token_ids: string[], tenantId?: string): Promise<DatabaseResult<{ modifiedCount: number }>> {
 		return (this.core as any).wrap(async () => {
 			const conditions = [inArray(schema.authTokens._id, token_ids)];
-			if (tenantId) conditions.push(eq(schema.authTokens.tenantId, tenantId));
+			if (tenantId) {
+				conditions.push(eq(schema.authTokens.tenantId, tenantId));
+			}
 			const result = await this.db
 				.update(schema.authTokens)
 				.set({ blocked: false, updatedAt: new Date() })
@@ -573,10 +645,14 @@ export class AuthModule {
 
 	// Role methods
 	async getAllRoles(tenantId?: string): Promise<Role[]> {
-		if (!this.db) return [];
+		if (!this.db) {
+			return [];
+		}
 		try {
-			const conditions = [];
-			if (tenantId) conditions.push(eq(schema.roles.tenantId, tenantId));
+			const conditions: any[] = [];
+			if (tenantId) {
+				conditions.push(eq(schema.roles.tenantId, tenantId));
+			}
 			const results = await this.db
 				.select()
 				.from(schema.roles)
@@ -591,7 +667,9 @@ export class AuthModule {
 	async getRoleById(roleId: string, tenantId?: string): Promise<DatabaseResult<Role | null>> {
 		return (this.core as any).wrap(async () => {
 			const conditions = [eq(schema.roles._id, roleId)];
-			if (tenantId) conditions.push(eq(schema.roles.tenantId, tenantId));
+			if (tenantId) {
+				conditions.push(eq(schema.roles.tenantId, tenantId));
+			}
 			const [result] = await this.db
 				.select()
 				.from(schema.roles)
@@ -619,7 +697,9 @@ export class AuthModule {
 	async updateRole(roleId: string, roleData: Partial<Role>, tenantId?: string): Promise<DatabaseResult<Role>> {
 		return (this.core as any).wrap(async () => {
 			const conditions = [eq(schema.roles._id, roleId)];
-			if (tenantId) conditions.push(eq(schema.roles.tenantId, tenantId));
+			if (tenantId) {
+				conditions.push(eq(schema.roles.tenantId, tenantId));
+			}
 			await this.db
 				.update(schema.roles)
 				.set({ ...roleData, updatedAt: new Date() } as any)
@@ -636,7 +716,9 @@ export class AuthModule {
 	async deleteRole(roleId: string, tenantId?: string): Promise<DatabaseResult<void>> {
 		return (this.core as any).wrap(async () => {
 			const conditions = [eq(schema.roles._id, roleId)];
-			if (tenantId) conditions.push(eq(schema.roles.tenantId, tenantId));
+			if (tenantId) {
+				conditions.push(eq(schema.roles.tenantId, tenantId));
+			}
 			await this.db.delete(schema.roles).where(and(...conditions));
 		}, 'DELETE_ROLE_FAILED');
 	}

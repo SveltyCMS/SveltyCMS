@@ -10,13 +10,12 @@
  * - No DB logic
  */
 
+import path from 'node:path';
+import { getPublicSettingSync } from '@src/services/settingsService';
 import { publicEnv } from '@src/stores/globalSettings.svelte';
-import path from 'path';
 import mime from 'mime-types';
 
-import { getPublicSettingSync } from '@src/services/settingsService';
-
-import { isCloud, upload, remove, getUrl, getConfig, exists } from './cloudStorage';
+import { exists, getConfig, getUrl, isCloud, remove, upload } from './cloudStorage';
 
 import type { ResizedImage } from './mediaModels';
 
@@ -45,7 +44,7 @@ export async function saveFile(buffer: Buffer, relPath: string): Promise<string>
 	}
 
 	// Local
-	const fs = await import('fs/promises');
+	const fs = await import('node:fs/promises');
 	const full = path.join(process.cwd(), MEDIA_ROOT, relPath);
 	await fs.mkdir(path.dirname(full), { recursive: true });
 	await fs.writeFile(full, buffer);
@@ -57,7 +56,9 @@ export async function saveFile(buffer: Buffer, relPath: string): Promise<string>
 export async function deleteFile(url: string): Promise<void> {
 	let rel = url;
 
-	if (url.startsWith('http')) rel = new URL(url).pathname;
+	if (url.startsWith('http')) {
+		rel = new URL(url).pathname;
+	}
 
 	if (isCloud()) {
 		// Strip prefix if needed (cloud handles full key)
@@ -70,10 +71,12 @@ export async function deleteFile(url: string): Promise<void> {
 	}
 
 	// Local
-	if (rel.startsWith('/files/')) rel = rel.slice(7);
+	if (rel.startsWith('/files/')) {
+		rel = rel.slice(7);
+	}
 	rel = rel.replace(/^\/+/, '');
 
-	const fs = await import('fs/promises');
+	const fs = await import('node:fs/promises');
 	const full = path.join(process.cwd(), MEDIA_ROOT, rel);
 	await fs.unlink(full).catch(() => {}); // best effort
 }
@@ -89,7 +92,7 @@ export async function fileExists(rel: string): Promise<boolean> {
 	if (isCloud()) {
 		return await exists(rel);
 	}
-	const fs = await import('fs/promises');
+	const fs = await import('node:fs/promises');
 	const full = path.join(process.cwd(), MEDIA_ROOT, rel);
 	try {
 		await fs.access(full);
@@ -104,7 +107,7 @@ export async function getFile(rel: string): Promise<Buffer> {
 	if (isCloud()) {
 		throw new Error('getFile not implemented for cloud');
 	}
-	const fs = await import('fs/promises');
+	const fs = await import('node:fs/promises');
 	const full = path.join(process.cwd(), MEDIA_ROOT, rel);
 	return await fs.readFile(full);
 }
@@ -125,7 +128,9 @@ export async function saveResized(
 	const quality = publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY?.quality ?? 80;
 
 	for (const [key, w] of Object.entries(SIZES)) {
-		if (w === 0) continue; // skip original
+		if (w === 0) {
+			continue; // skip original
+		}
 
 		let instance = sharp(buffer).resize(w, null, { fit: 'cover', position: 'center' });
 

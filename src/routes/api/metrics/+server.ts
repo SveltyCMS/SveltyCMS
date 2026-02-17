@@ -17,8 +17,9 @@
  * @monitoring Provides enterprise-grade metrics for system monitoring
  */
 
+// Services
+import { metricsService } from '@src/services/MetricsService';
 import { json } from '@sveltejs/kit';
-
 /**
  * GET /api/metrics
  * Returns comprehensive system metrics
@@ -27,9 +28,6 @@ import { json } from '@sveltejs/kit';
 // Unified Error Handling
 import { apiHandler } from '@utils/apiHandler';
 import { AppError } from '@utils/errorHandling';
-
-// Services
-import { metricsService } from '@src/services/MetricsService';
 import { logger } from '@utils/logger.server';
 
 /**
@@ -108,7 +106,9 @@ export const POST = apiHandler(async ({ locals, request }) => {
 
 		throw new AppError('Invalid action. Use {"action": "reset"} to reset metrics.', 400, 'INVALID_ACTION');
 	} catch (err) {
-		if (err instanceof AppError) throw err;
+		if (err instanceof AppError) {
+			throw err;
+		}
 		if (err instanceof Error && err.message.includes('Invalid action')) {
 			throw new AppError(err.message, 400, 'INVALID_ACTION');
 		}

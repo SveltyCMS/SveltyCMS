@@ -10,13 +10,13 @@
  *
  */
 
+import { logger } from '@utils/logger';
+import { and, eq, isNull } from 'drizzle-orm';
 import { drizzle, type MySql2Database } from 'drizzle-orm/mysql2';
-import { eq, and, isNull } from 'drizzle-orm';
 import mysql from 'mysql2/promise';
-import type { DatabaseCapabilities, DatabaseResult, DatabaseError } from '../../dbInterface';
+import type { DatabaseCapabilities, DatabaseError, DatabaseResult } from '../../dbInterface';
 import * as schema from '../schema';
 import * as utils from '../utils';
-import { logger } from '@utils/logger';
 
 export class AdapterCore {
 	public capabilities: DatabaseCapabilities = {
@@ -72,7 +72,9 @@ export class AdapterCore {
 	}
 
 	public async waitForConnection?(): Promise<void> {
-		if (this.connected) return;
+		if (this.connected) {
+			return;
+		}
 		return new Promise((resolve) => {
 			const interval = setInterval(() => {
 				if (this.connected) {
@@ -84,7 +86,7 @@ export class AdapterCore {
 	}
 
 	async getConnectionHealth(): Promise<DatabaseResult<{ healthy: boolean; latency: number; activeConnections: number }>> {
-		if (!this.connected || !this.pool) {
+		if (!(this.connected && this.pool)) {
 			return {
 				success: false,
 				message: 'Database not connected',
@@ -142,7 +144,9 @@ export class AdapterCore {
 	}
 
 	protected wrap<T>(fn: () => Promise<T>, code: string): Promise<DatabaseResult<T>> {
-		if (!this.db) return Promise.resolve(this.notConnectedError());
+		if (!this.db) {
+			return Promise.resolve(this.notConnectedError());
+		}
 		try {
 			return fn()
 				.then((data) => ({ success: true, data }) as DatabaseResult<T>)
@@ -219,11 +223,15 @@ export class AdapterCore {
 	}
 
 	public mapQuery(table: any, query: Record<string, any>): any {
-		if (!query || Object.keys(query).length === 0) return undefined;
+		if (!query || Object.keys(query).length === 0) {
+			return undefined;
+		}
 
 		const conditions: any[] = [];
 		for (const [key, value] of Object.entries(query)) {
-			if (key.startsWith('$')) continue; // Skip MongoDB operators
+			if (key.startsWith('$')) {
+				continue; // Skip MongoDB operators
+			}
 			if (table[key]) {
 				if (value === null) {
 					conditions.push(isNull(table[key]));
@@ -233,7 +241,9 @@ export class AdapterCore {
 			}
 		}
 
-		if (conditions.length === 0) return undefined;
+		if (conditions.length === 0) {
+			return undefined;
+		}
 		return and(...conditions);
 	}
 }

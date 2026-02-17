@@ -21,8 +21,8 @@
 
 	interface Props {
 		char?: string | null;
-		siteName?: string;
 		highlight?: string;
+		siteName?: string;
 		textClass?: string;
 	}
 
@@ -34,7 +34,7 @@
 
 	// Split site name into parts if highlight is provided
 	const parts = $derived.by(() => {
-		if (!highlight || !siteName) return null;
+		if (!(highlight && siteName)) return null;
 		const index = siteName.indexOf(highlight);
 		if (index === -1) return null;
 		return {
@@ -47,17 +47,11 @@
 
 {#if char !== null}
 	<!-- Single character mode (for animations) -->
-	<span class="text-left font-bold {textClass}">
-		{char}
-	</span>
+	<span class="text-left font-bold {textClass}"> {char} </span>
 {:else if parts}
 	<!-- Site name with highlighted portion -->
-	<span class="text-left font-bold {textClass}">
-		{parts.before}<span class="text-primary-500">{parts.highlight}</span>{parts.after}
-	</span>
+	<span class="text-left font-bold {textClass}"> {parts.before}<span class="text-primary-500">{parts.highlight}</span>{parts.after} </span>
 {:else}
 	<!-- Full site name without highlighting -->
-	<span class="text-left font-bold {textClass}">
-		{siteName}
-	</span>
+	<span class="text-left font-bold {textClass}"> {siteName} </span>
 {/if}

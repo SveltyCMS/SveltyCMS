@@ -11,28 +11,27 @@
  */
 
 export interface ScimUser {
-	schemas: string[];
-	id: string;
-	userName: string;
-	name?: {
-		formatted?: string;
-		familyName?: string;
-		givenName?: string;
-	};
 	active: boolean;
 	emails?: Array<{ value: string; type: string; primary: boolean }>;
+	id: string;
 	meta: {
 		resourceType: 'User';
 		created: string;
 		lastModified: string;
 		location: string;
 	};
+	name?: {
+		formatted?: string;
+		familyName?: string;
+		givenName?: string;
+	};
+	schemas: string[];
+	userName: string;
 }
 
 export interface ScimGroup {
-	schemas: string[];
-	id: string;
 	displayName: string;
+	id: string;
 	members?: Array<{ value: string; display?: string; $ref?: string }>;
 	meta: {
 		resourceType: 'Group';
@@ -40,21 +39,22 @@ export interface ScimGroup {
 		lastModified: string;
 		location: string;
 	};
+	schemas: string[];
 }
 
 export interface ScimListResponse<T> {
-	schemas: string[];
-	totalResults: number;
 	itemsPerPage: number;
-	startIndex: number;
 	Resources: T[];
+	schemas: string[];
+	startIndex: number;
+	totalResults: number;
 }
 
 export interface ScimError {
-	schemas: string[];
 	detail?: string;
-	status: string;
+	schemas: string[];
 	scimType?: string;
+	status: string;
 }
 
 export const SCIM_SCHEMAS = {

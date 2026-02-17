@@ -6,16 +6,16 @@
  * It scans .svelte files and client-side .ts files for dangerous imports that would expose private settings.
  */
 
+import path from 'node:path';
 import type { Plugin } from 'vite';
-import path from 'path';
 
 interface SecurityCheckOptions {
+	/** File extensions to check (default: ['.svelte', '.ts']) */
+	extensions?: string[];
 	/** Whether to fail the build on violations (default: true) */
 	failOnError?: boolean;
 	/** Whether to show warnings for suspicious patterns (default: true) */
 	showWarnings?: boolean;
-	/** File extensions to check (default: ['.svelte', '.ts']) */
-	extensions?: string[];
 }
 
 /**
@@ -60,7 +60,9 @@ export function securityCheckPlugin(options: SecurityCheckOptions = {}): Plugin 
 
 	function checkFile(id: string, code: string) {
 		const ext = path.extname(id);
-		if (!extensions.includes(ext)) return;
+		if (!extensions.includes(ext)) {
+			return;
+		}
 
 		// Skip server-side files - these are ONLY run on the server, never bundled for client
 		if (
@@ -96,7 +98,7 @@ export function securityCheckPlugin(options: SecurityCheckOptions = {}): Plugin 
 
 		// Check for dangerous patterns
 		for (const { pattern, severity, message } of DANGEROUS_PATTERNS) {
-			let match;
+			let match: RegExpExecArray | null;
 			const regex = new RegExp(pattern.source, pattern.flags);
 
 			while ((match = regex.exec(code)) !== null) {
@@ -116,7 +118,7 @@ export function securityCheckPlugin(options: SecurityCheckOptions = {}): Plugin 
 		// Check for suspicious patterns
 		if (showWarnings) {
 			for (const { pattern, message } of SUSPICIOUS_PATTERNS) {
-				let match;
+				let match: RegExpExecArray | null;
 				const regex = new RegExp(pattern.source, pattern.flags);
 
 				while ((match = regex.exec(code)) !== null) {
@@ -175,9 +177,9 @@ export function securityCheckPlugin(options: SecurityCheckOptions = {}): Plugin 
 				console.error(`${red}Fix these issues before deploying to production.${reset}\n`);
 
 				console.error(`${bold}How to fix:${reset}`);
-				console.error(`  1. Remove privateEnv imports from .svelte files`);
-				console.error(`  2. Use page.data from +page.server.ts load functions instead`);
-				console.error(`  3. Only access private settings in +page.server.ts, +layout.server.ts, or +server.ts files\n`);
+				console.error('  1. Remove privateEnv imports from .svelte files');
+				console.error('  2. Use page.data from +page.server.ts load functions instead');
+				console.error('  3. Only access private settings in +page.server.ts, +layout.server.ts, or +server.ts files\n');
 
 				if (failOnError) {
 					throw new Error(`Build failed due to ${violations.length} security violation(s)`);

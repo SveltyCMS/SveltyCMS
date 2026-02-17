@@ -12,16 +12,16 @@
 -->
 
 <script lang="ts">
-	import { activeInput } from '@src/stores/activeInputStore.svelte';
-	import { TokenRegistry, replaceTokens } from '@src/services/token/engine';
+	import { replaceTokens, TokenRegistry } from '@src/services/token/engine';
 	import { modifierMetadata } from '@src/services/token/modifiers';
-	import { page } from '$app/state';
+	import type { ModifierMetadata, TokenDefinition } from '@src/services/token/types';
+	import { activeInput } from '@src/stores/activeInputStore.svelte';
 	import { collection, collectionValue } from '@src/stores/collectionStore.svelte';
-	import { ui } from '@src/stores/UIStore.svelte';
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
-	import { fade, slide } from 'svelte/transition';
+	import { ui } from '@src/stores/UIStore.svelte';
 	import { nowISODateString } from '@utils/dateUtils';
-	import type { TokenDefinition, ModifierMetadata } from '@src/services/token/types';
+	import { fade, slide } from 'svelte/transition';
+	import { page } from '$app/state';
 
 	const icons: Record<string, string> = {
 		entry: 'mdi:file-document-outline',
@@ -286,9 +286,7 @@
 				<h3 class="text-lg font-bold text-tertiary-500 dark:text-primary-500">
 					{mode === 'configure' ? 'Configure Token' : 'Select Token'}
 					<span class="text-sm font-normal opacity-70">for</span>
-					<span class="badge variant-soft-secondary">
-						{activeInput.current?.field.label || activeInput.current?.field.name || 'Field'}
-					</span>
+					<span class="badge variant-soft-secondary"> {activeInput.current?.field.label || activeInput.current?.field.name || 'Field'} </span>
 				</h3>
 			</div>
 			<button onclick={() => activeInput.set(null)} class="btn-icon btn-icon-sm preset-outlined-surface-500" aria-label="Close">
@@ -299,11 +297,11 @@
 		{#if mode === 'list'}
 			<div class="relative mb-4">
 				<iconify-icon icon="mdi:magnify" class="absolute left-3 top-1/2 -translate-y-1/2 opacity-50"></iconify-icon>
-				<input bind:value={search} class="input pl-10" type="search" placeholder="Search tokens..." />
+				<input bind:value={search} class="input pl-10" type="search" placeholder="Search tokens...">
 			</div>
 
 			<div class="scrollbar-thin flex-1 space-y-2 overflow-y-auto pr-1">
-				{#each Object.entries(filteredGroups) as [cat, tokens] (cat)}
+				{#each Object.entries(filteredGroups) as [ cat, tokens ] (cat)}
 					<div class="card preset-tonal p-2">
 						<button
 							onclick={() => (openCategories[cat] = !openCategories[cat])}
@@ -347,9 +345,7 @@
 										{#if showInfo[t.token]}
 											<div transition:slide class="mt-2 border-t border-surface-500/20 pt-2 text-xs">
 												<p class="mb-2 opacity-80">{t.description}</p>
-												<code class="code block overflow-x-auto p-2">
-													{t.example || `{{ ${t.token} }}`}
-												</code>
+												<code class="code block overflow-x-auto p-2"> {t.example || `{{ ${t.token} }}`} </code>
 											</div>
 										{/if}
 									</div>
@@ -399,9 +395,9 @@
 														{/each}
 													</select>
 												{:else if arg.type === 'number'}
-													<input type="number" bind:value={mod.args[argIdx]} class="input input-sm" />
+													<input type="number" bind:value={mod.args[argIdx]} class="input input-sm">
 												{:else}
-													<input type="text" bind:value={mod.args[argIdx]} class="input input-sm" />
+													<input type="text" bind:value={mod.args[argIdx]} class="input input-sm">
 												{/if}
 											</label>
 										{/each}
@@ -446,9 +442,7 @@
 					{#if isLoadingPreview}
 						<div class="card preset-tonal animate-pulse p-3 text-sm">Resolving...</div>
 					{:else}
-						<div class="card variant-soft-secondary p-3 text-sm font-bold">
-							{resolvedPreview || '(Empty)'}
-						</div>
+						<div class="card variant-soft-secondary p-3 text-sm font-bold">{resolvedPreview || '(Empty)'}</div>
 					{/if}
 				</div>
 
@@ -460,7 +454,7 @@
 						<iconify-icon icon="mdi:plus"></iconify-icon>
 						Add Another
 					</button>
-					<button onclick={insert} class="btn preset-filled-primary-500 flex-1 font-bold"> Insert Token </button>
+					<button onclick={insert} class="btn preset-filled-primary-500 flex-1 font-bold">Insert Token</button>
 				</div>
 			</div>
 		{/if}

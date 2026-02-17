@@ -6,8 +6,8 @@
  */
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'bun:test';
-import { prepareAuthenticatedContext, cleanupTestDatabase } from '../helpers/testSetup';
 import { getApiBaseUrl, waitForServer } from '../helpers/server';
+import { cleanupTestDatabase, prepareAuthenticatedContext } from '../helpers/testSetup';
 
 const API_BASE_URL = getApiBaseUrl();
 
@@ -59,7 +59,7 @@ describe('System Configuration API Endpoints', () => {
 					Cookie: authCookie
 				},
 				body: JSON.stringify({
-					SITE_NAME: siteName + ' (Updated)'
+					SITE_NAME: `${siteName} (Updated)`
 				})
 			});
 
@@ -85,7 +85,7 @@ describe('System Configuration API Endpoints', () => {
 
 	describe('System Preferences (User-scoped)', () => {
 		it('should handle single preference GET/POST', async () => {
-			const key = 'test.pref.' + Date.now();
+			const key = `test.pref.${Date.now()}`;
 			const value = { some: 'data' };
 
 			// POST

@@ -47,7 +47,7 @@ describe('Database Interface Contract Tests', () => {
 		// Import utils to get connection string
 		const { privateEnv } = await import('../../../config/private.test');
 
-		if (!privateEnv || !privateEnv.DB_TYPE) {
+		if (!privateEnv?.DB_TYPE) {
 			console.warn('Skipping DB Interface tests: No private.test.ts or DB_TYPE found');
 			return;
 		}

@@ -4,15 +4,13 @@
  * Protected by handleApiRequests middleware (requires authentication + dashboard API permissions)
  */
 
-import { json } from '@sveltejs/kit';
 import { metricsService } from '@src/services/MetricsService';
-
-// System Logger
-import { logger } from '@utils/logger.server';
-
+import { json } from '@sveltejs/kit';
 // Unified Error Handling
 import { apiHandler } from '@utils/apiHandler';
 import { AppError } from '@utils/errorHandling';
+// System Logger
+import { logger } from '@utils/logger.server';
 
 export const GET = apiHandler(async ({ url }) => {
 	try {

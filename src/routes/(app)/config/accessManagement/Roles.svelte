@@ -21,15 +21,15 @@ It provides the following functionality:
 
 	// Auth
 	import type { Role } from '@src/databases/auth/types';
-	// Components
-	import RoleModal from './RoleModal.svelte';
+	import { toaster } from '@stores/store.svelte.ts';
 	// Skeleton
 	import { modalState } from '@utils/modalState.svelte';
-	import { toaster } from '@stores/store.svelte.ts';
 	import { SvelteSet } from 'svelte/reactivity';
 	// Svelte DND-actions
 	import { dndzone } from 'svelte-dnd-action';
 	import { v4 as uuidv4 } from 'uuid';
+	// Components
+	import RoleModal from './RoleModal.svelte';
 
 	const flipDurationMs = 100;
 
@@ -255,7 +255,7 @@ It provides the following functionality:
 											onchange={() => toggleRoleSelection(role._id)}
 											class="mr-2"
 											aria-label="Select {role.name} for deletion"
-										/>
+										>
 									{/if}
 
 									<!-- Role Name with Tooltip -->
@@ -271,9 +271,7 @@ It provides the following functionality:
 								</div>
 
 								<!-- Description for larger screens -->
-								<p class="mt-2 hidden text-sm text-gray-600 dark:text-gray-400 md:ml-4 md:mt-0 md:block">
-									{role.description}
-								</p>
+								<p class="mt-2 hidden text-sm text-gray-600 dark:text-gray-400 md:ml-4 md:mt-0 md:block">{role.description}</p>
 
 								<!-- Edit Button: changes layout depending on screen size -->
 								<button onclick={() => openModal(role)} aria-label="Edit role {role.name}" class="preset-filled-secondary-500 btn">

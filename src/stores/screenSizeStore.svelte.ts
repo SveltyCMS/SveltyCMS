@@ -10,7 +10,7 @@
  */
 
 // Import for internal use
-import { ScreenSize, BREAKPOINTS, getScreenSize } from '@utils/screenSize';
+import { BREAKPOINTS, getScreenSize, ScreenSize } from '@utils/screenSize';
 
 // Re-export utilities for backwards compatibility
 export { ScreenSize, BREAKPOINTS, getScreenSize };
@@ -57,10 +57,12 @@ class ScreenSizeStore {
 
 	// Internal state
 	private rafId: number | null = null;
-	private cleanup?: () => void;
+	private readonly cleanup?: () => void;
 
 	constructor() {
-		if (typeof window === 'undefined') return;
+		if (typeof window === 'undefined') {
+			return;
+		}
 
 		const update = () => {
 			this.width = window.innerWidth;
@@ -69,7 +71,9 @@ class ScreenSizeStore {
 		};
 
 		const handleResize = () => {
-			if (this.rafId) cancelAnimationFrame(this.rafId);
+			if (this.rafId) {
+				cancelAnimationFrame(this.rafId);
+			}
 			this.rafId = requestAnimationFrame(update);
 		};
 
@@ -86,7 +90,9 @@ class ScreenSizeStore {
 
 		// Store cleanup for disposal
 		this.cleanup = () => {
-			if (this.rafId) cancelAnimationFrame(this.rafId);
+			if (this.rafId) {
+				cancelAnimationFrame(this.rafId);
+			}
 			window.removeEventListener('resize', handleResize);
 			motionQuery.removeEventListener('change', handleMotionChange);
 		};

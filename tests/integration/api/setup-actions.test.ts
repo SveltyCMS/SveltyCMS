@@ -3,10 +3,10 @@
  * @description Comprehensive integration tests for Setup Actions (SvelteKit Server Actions)
  */
 
-import { describe, it, expect, beforeEach } from 'bun:test';
+import { beforeEach, describe, expect, it } from 'bun:test';
 
 // Increase default timeout for database-heavy setup tests
-const TEST_TIMEOUT = 60000;
+const TEST_TIMEOUT = 60_000;
 
 /**
  * Helper to parse SvelteKit Server Action "devalue" serialization.
@@ -20,8 +20,12 @@ function parseActionResult(result: { type: string; data?: any }): any {
 				const [structure, ...values] = parsed;
 				if (typeof structure === 'object' && structure !== null) {
 					const unmarshaler = (val: any): any => {
-						if (typeof val === 'number') return values[val - 1];
-						if (Array.isArray(val)) return val.map(unmarshaler);
+						if (typeof val === 'number') {
+							return values[val - 1];
+						}
+						if (Array.isArray(val)) {
+							return val.map(unmarshaler);
+						}
 						if (typeof val === 'object' && val !== null) {
 							const obj: Record<string, any> = {};
 							for (const [k, v] of Object.entries(val)) {
@@ -41,10 +45,11 @@ function parseActionResult(result: { type: string; data?: any }): any {
 	}
 	return result.data;
 }
+
+import { SESSION_COOKIE_NAME } from '@src/databases/auth/constants';
+import type { DatabaseConfig } from '@src/databases/schemas';
 import { getApiBaseUrl } from '../helpers/server';
 import { cleanupTestDatabase } from '../helpers/testSetup';
-import type { DatabaseConfig } from '@src/databases/schemas';
-import { SESSION_COOKIE_NAME } from '@src/databases/auth/constants';
 
 const API_BASE_URL = getApiBaseUrl();
 
@@ -56,7 +61,7 @@ const defaultPort = dbType === 'mariadb' ? '3306' : dbType === 'postgresql' ? '5
 const testDbConfig: DatabaseConfig = {
 	type: dbType,
 	host: process.env.DB_HOST || 'localhost',
-	port: parseInt(process.env.DB_PORT || defaultPort),
+	port: Number.parseInt(process.env.DB_PORT || defaultPort, 10),
 	name: process.env.DB_NAME || 'sveltycms_test',
 	user: process.env.DB_USER || '',
 	password: process.env.DB_PASSWORD || ''
@@ -64,7 +69,7 @@ const testDbConfig: DatabaseConfig = {
 
 const testSmtpConfig = {
 	host: process.env.SMTP_HOST || 'smtp.gmail.com',
-	port: parseInt(process.env.SMTP_PORT || '587'),
+	port: Number.parseInt(process.env.SMTP_PORT || '587', 10),
 	user: process.env.SMTP_USER || 'test@example.com',
 	password: process.env.SMTP_PASS || 'test-password',
 	from: process.env.SMTP_MAIL_FROM || 'noreply@example.com',
@@ -95,7 +100,9 @@ async function postAction(actionName: string, formData: FormData) {
 
 describe('Setup Actions - Database Connection', () => {
 	beforeEach(async () => {
-		if (dbType === 'mongodb') await cleanupTestDatabase();
+		if (dbType === 'mongodb') {
+			await cleanupTestDatabase();
+		}
 	});
 
 	it(
@@ -147,7 +154,7 @@ describe('Setup Actions - Database Connection', () => {
 		'detects invalid host/port',
 		async () => {
 			const formData = new FormData();
-			formData.append('config', JSON.stringify({ ...testDbConfig, host: 'invalid', port: 99999 }));
+			formData.append('config', JSON.stringify({ ...testDbConfig, host: 'invalid', port: 99_999 }));
 
 			const res = await postAction('testDatabase', formData);
 			const result = await res.json();
@@ -191,7 +198,9 @@ describe('Setup Actions - Database Driver Installation', () => {
 
 describe('Setup Actions - Database Seeding', () => {
 	beforeEach(async () => {
-		if (dbType === 'mongodb') await cleanupTestDatabase();
+		if (dbType === 'mongodb') {
+			await cleanupTestDatabase();
+		}
 	});
 
 	it(
@@ -209,8 +218,8 @@ describe('Setup Actions - Database Seeding', () => {
 			expect(result.type).toBe('success');
 			expect(data.success).toBe(true);
 
-			const fs = await import('fs/promises');
-			const path = await import('path');
+			const fs = await import('node:fs/promises');
+			const path = await import('node:path');
 			// In TEST_MODE, it writes to private.test.ts
 			const configName = process.env.TEST_MODE ? 'private.test.ts' : 'private.ts';
 			await fs.access(path.resolve(process.cwd(), `config/${configName}`));
@@ -248,7 +257,9 @@ describe('Setup Actions - SMTP Configuration', () => {
 
 describe('Setup Actions - Complete Setup', () => {
 	beforeEach(async () => {
-		if (dbType === 'mongodb') await cleanupTestDatabase();
+		if (dbType === 'mongodb') {
+			await cleanupTestDatabase();
+		}
 		// Wait for cleanup to settle and zombie connections to close
 		await new Promise((resolve) => setTimeout(resolve, 2000));
 

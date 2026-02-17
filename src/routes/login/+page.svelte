@@ -17,26 +17,22 @@
 -->
 
 <script lang="ts">
-	import { getPublicSetting, publicEnv } from '@src/stores/globalSettings.svelte';
-
 	// Components
 	import Seasons from '@components/system/icons/Seasons.svelte';
 	import SveltyCMSLogoFull from '@components/system/icons/SveltyCMS_LogoFull.svelte';
-	import SignIn from './components/SignIn.svelte';
-	import SignUp from './components/SignUp.svelte';
 	import VersionCheck from '@components/VersionCheck.svelte';
-
+	// Skeleton UI
+	import { Menu, Portal } from '@skeletonlabs/skeleton-svelte';
+	// ParaglideJS
+	import * as m from '@src/paraglide/messages';
+	import { locales as availableLocales } from '@src/paraglide/runtime';
+	import { getPublicSetting, publicEnv } from '@src/stores/globalSettings.svelte';
 	// Stores
 	import { systemLanguage } from '@stores/store.svelte.ts';
 	import { getLanguageName } from '@utils/languageUtils';
-	import { locales as availableLocales } from '@src/paraglide/runtime';
 	import { deserialize } from '$app/forms';
-
-	// Skeleton UI
-	import { Menu, Portal } from '@skeletonlabs/skeleton-svelte';
-
-	// ParaglideJS
-	import * as m from '@src/paraglide/messages';
+	import SignIn from './components/SignIn.svelte';
+	import SignUp from './components/SignUp.svelte';
 
 	// Props
 	const { data } = $props();
@@ -193,12 +189,12 @@
 		if (isTransitioning) return;
 		isTransitioning = true;
 
-		if (!firstUserExists) {
-			active = 1; // Show SignUp for fresh installation
-			background = '#242728';
-		} else {
+		if (firstUserExists) {
 			active = 0; // Show SignIn for existing users
 			background = 'white';
+		} else {
+			active = 1; // Show SignUp for fresh installation
+			background = '#242728';
 		}
 
 		setTimeout(() => {
@@ -398,7 +394,7 @@
 										class="w-full rounded-md bg-surface-200 dark:bg-surface-800 px-3 py-2 text-sm placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-primary-500 text-surface-900 dark:text-white border-none"
 										aria-label="Search languages"
 										onclick={(e) => e.stopPropagation()}
-									/>
+									>
 								</div>
 
 								<div class="max-h-64 divide-y divide-surface-200 dark:divide-surface-700 overflow-y-auto">
@@ -431,17 +427,15 @@
 			</Menu>
 		</div>
 		<!-- CMS Version -->
-		<div class="absolute bottom-5 left-1/2 -translate-x-1/2">
-			<VersionCheck transparent={true} />
-		</div>
+		<div class="absolute bottom-5 left-1/2 -translate-x-1/2"><VersionCheck transparent={true} /></div>
 	{/if}
 </div>
 
 <style>
 	/* Scrollbar styling */
 	.overflow-y-auto {
-		scrollbar-width: thin;
 		scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
+		scrollbar-width: thin;
 	}
 
 	.overflow-y-auto::-webkit-scrollbar {

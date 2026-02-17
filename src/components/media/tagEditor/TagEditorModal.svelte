@@ -9,10 +9,9 @@ Features:
 - Tag Management
 -->
 <script lang="ts">
-	import type { MediaImage } from '@utils/media/mediaModels';
-
 	import { toaster } from '@stores/store.svelte';
 	import { logger } from '@utils/logger';
+	import type { MediaImage } from '@utils/media/mediaModels';
 	import { SvelteSet } from 'svelte/reactivity';
 
 	// Props
@@ -53,7 +52,7 @@ Features:
 				body: JSON.stringify({ mediaId: file._id })
 			});
 			const result = await response.json();
-			if (!response.ok || !result.success) throw new Error(result.error || 'Failed to generate tags');
+			if (!(response.ok && result.success)) throw new Error(result.error || 'Failed to generate tags');
 
 			if (file) {
 				file = result.data;
@@ -69,7 +68,7 @@ Features:
 	}
 
 	async function addManualTag() {
-		if (!file?._id || !newTagInput.trim()) return;
+		if (!(file?._id && newTagInput.trim())) return;
 		try {
 			// Add to aiTags "pending" area
 			const response = await fetch(`/api/media/${file._id}`, {
@@ -83,7 +82,7 @@ Features:
 				})
 			});
 			const result = await response.json();
-			if (!response.ok || !result.success) throw new Error(result.error);
+			if (!(response.ok && result.success)) throw new Error(result.error);
 
 			if (file) {
 				file = result.data;
@@ -112,7 +111,7 @@ Features:
 				body: JSON.stringify({ metadata })
 			});
 			const result = await response.json();
-			if (!response.ok || !result.success) throw new Error(result.error);
+			if (!(response.ok && result.success)) throw new Error(result.error);
 
 			if (file) {
 				file = result.data;
@@ -124,7 +123,7 @@ Features:
 	}
 
 	async function editTag(oldTag: string, newTag: string, type: 'ai' | 'user') {
-		if (!file?._id || !newTag.trim() || oldTag === newTag) {
+		if (!(file?._id && newTag.trim()) || oldTag === newTag) {
 			editingTag = null;
 			return;
 		}
@@ -143,7 +142,7 @@ Features:
 				body: JSON.stringify({ metadata })
 			});
 			const result = await response.json();
-			if (!response.ok || !result.success) throw new Error(result.error);
+			if (!(response.ok && result.success)) throw new Error(result.error);
 
 			if (file) {
 				file = result.data;
@@ -176,7 +175,7 @@ Features:
 				})
 			});
 			const result = await response.json();
-			if (!response.ok || !result.success) throw new Error(result.error);
+			if (!(response.ok && result.success)) throw new Error(result.error);
 
 			if (file) {
 				file = result.data;
@@ -221,7 +220,7 @@ Features:
 			<div class="space-y-4 max-h-[60vh] overflow-y-auto p-1">
 				<!-- File Info Summary -->
 				<div class="flex items-center gap-3 p-2 bg-surface-200 dark:bg-surface-700 rounded">
-					<img src={getImageUrl(file)} alt="Thumbnail" class="w-12 h-12 object-cover rounded bg-black" />
+					<img src={getImageUrl(file)} alt="Thumbnail" class="w-12 h-12 object-cover rounded bg-black">
 					<div class="text-sm truncate">
 						<div class="font-bold truncate">{file.filename}</div>
 						<div class="opacity-70 text-xs">{file.mimeType}</div>
@@ -262,7 +261,7 @@ Features:
 										}}
 										onblur={() => editTag(tag, editingTag!.value, 'ai')}
 										use:autofocus
-									/>
+									>
 								{:else}
 									<button
 										class="badge variant-filled-secondary flex items-center gap-1 cursor-pointer hover:ring-2 hover:ring-secondary-300"
@@ -296,7 +295,7 @@ Features:
 							placeholder="Add tag manually..."
 							bind:value={newTagInput}
 							onkeydown={(e) => e.key === 'Enter' && addManualTag()}
-						/>
+						>
 						<button class="btn btn-sm variant-filled-surface" onclick={addManualTag} disabled={!newTagInput.trim()} aria-label="Add Tag">
 							<iconify-icon icon="mdi:plus"></iconify-icon>
 						</button>
@@ -330,7 +329,7 @@ Features:
 										}}
 										onblur={() => editTag(tag, editingTag!.value, 'user')}
 										use:autofocus
-									/>
+									>
 								{:else}
 									<button
 										class="badge variant-filled-surface flex items-center gap-1 cursor-pointer hover:ring-2 hover:ring-surface-400"

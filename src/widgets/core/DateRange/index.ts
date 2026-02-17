@@ -22,14 +22,15 @@ import Toggles from '@components/system/inputs/Toggles.svelte';
 import { createWidget } from '@src/widgets/widgetFactory';
 
 // Type for aggregation field parameter
-type AggregationField = { db_fieldName: string; [key: string]: unknown };
-
-import { check, isoDate, minLength, object, pipe, string, type InferInput as ValibotInput } from 'valibot';
-
-import type { DateRangeProps } from './types';
+interface AggregationField {
+	db_fieldName: string;
+	[key: string]: unknown;
+}
 
 //ParaglideJS
 import * as m from '@src/paraglide/messages';
+import { check, isoDate, minLength, object, pipe, string, type InferInput as ValibotInput } from 'valibot';
+import type { DateRangeProps } from './types';
 
 // Define the validation schema for the `{ start, end }` object.
 const DateRangeValidationSchema = pipe(
@@ -78,7 +79,9 @@ const DateRangeWidget = createWidget<DateRangeProps>({
 		filters: async ({ field, filter }: { field: AggregationField; filter: string }) => {
 			const fieldName = field.db_fieldName;
 			const filterDate = new Date(filter);
-			if (isNaN(filterDate.getTime())) return [];
+			if (Number.isNaN(filterDate.getTime())) {
+				return [];
+			}
 
 			// Find documents where the filterDate is between the start and end fields.
 			return [

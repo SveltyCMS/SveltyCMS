@@ -3,7 +3,7 @@
  * @description Unit tests for the Relation widget validation logic
  */
 
-import { describe, it, expect } from 'bun:test';
+import { describe, expect, it } from 'bun:test';
 import RelationWidget from '@src/widgets/core/Relation';
 import { safeParse } from 'valibot';
 

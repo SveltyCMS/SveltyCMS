@@ -4,21 +4,21 @@
  * Allows external systems to subscribe to CMS events.
  */
 
+import crypto from 'node:crypto';
 import { logger } from '@utils/logger.server';
 import { v4 as uuidv4 } from 'uuid';
-import crypto from 'crypto';
 
 // Types
 export interface Webhook {
-	id: string;
-	name: string;
-	url: string;
-	events: WebhookEvent[];
 	active: boolean;
-	secret?: string; // For signature verification
-	headers?: Record<string, string>;
-	lastTriggered?: string;
+	events: WebhookEvent[];
 	failureCount?: number;
+	headers?: Record<string, string>;
+	id: string;
+	lastTriggered?: string;
+	name: string;
+	secret?: string; // For signature verification
+	url: string;
 }
 
 export type WebhookEvent = 'entry:create' | 'entry:update' | 'entry:delete' | 'entry:publish' | 'entry:unpublish' | 'media:upload' | 'media:delete';
@@ -56,7 +56,9 @@ export class WebhookService {
 	public async testWebhook(id: string, userEmail: string) {
 		const webhooks = await this.getWebhooks();
 		const webhook = webhooks.find((w) => w.id === id);
-		if (!webhook) throw new Error('Webhook not found');
+		if (!webhook) {
+			throw new Error('Webhook not found');
+		}
 
 		// We dispatch only to this one
 		await this._dispatchTo(webhook, 'entry:create', {
@@ -70,7 +72,9 @@ export class WebhookService {
 		const webhooks = await this.getWebhooks();
 		const matchingHooks = webhooks.filter((wh) => wh.active && (wh.events.includes(event) || wh.events.includes('*' as unknown as WebhookEvent)));
 
-		if (matchingHooks.length === 0) return;
+		if (matchingHooks.length === 0) {
+			return;
+		}
 
 		logger.debug(`Dispatching ${event} to ${matchingHooks.length} webhooks`);
 
@@ -140,7 +144,9 @@ export class WebhookService {
 
 		try {
 			const db = await getDbAdapter();
-			if (!db) return [];
+			if (!db) {
+				return [];
+			}
 
 			// We need a place to store webhooks.
 			// For V1, we'll store them in 'system_settings' under a special key 'webhooks_config'
@@ -164,7 +170,9 @@ export class WebhookService {
 	 */
 	public async saveWebhook(webhook: Partial<Webhook>): Promise<Webhook> {
 		const db = await getDbAdapter();
-		if (!db) throw new Error('DB not available');
+		if (!db) {
+			throw new Error('DB not available');
+		}
 
 		const current = await this.getWebhooks();
 		let updated: Webhook[];
@@ -192,7 +200,9 @@ export class WebhookService {
 
 	public async deleteWebhook(id: string) {
 		const db = await getDbAdapter();
-		if (!db) return;
+		if (!db) {
+			return;
+		}
 
 		const current = await this.getWebhooks();
 		const updated = current.filter((w) => w.id !== id);

@@ -24,7 +24,10 @@ import { createWidget } from '@src/widgets/widgetFactory';
 import { custom, literal, minLength, number, object, optional, pipe, string, union, url, type InferInput as ValibotInput } from 'valibot';
 
 // Helper type for aggregation field parameter
-type AggregationField = { db_fieldName: string; [key: string]: unknown };
+interface AggregationField {
+	db_fieldName: string;
+	[key: string]: unknown;
+}
 
 // SECURITY: Strict URL validation to prevent SSRF
 const SAFE_VIDEO_URL_PATTERNS = [

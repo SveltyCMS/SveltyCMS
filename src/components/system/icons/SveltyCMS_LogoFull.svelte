@@ -8,11 +8,10 @@
 	// Components
 	import SiteName from '@components/SiteName.svelte';
 	import Logo from '@components/system/icons/SveltyCMS_Logo.svelte';
-	import { browser } from '$app/environment';
-
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
 	import { getLocale } from '@src/paraglide/runtime';
+	import { browser } from '$app/environment';
 
 	// Safely get the slogan - paraglide may not be ready during initial render in production
 	function getSlogan(): string {
@@ -88,13 +87,9 @@
 			<Logo fill="red" className="w-14 h-14" />
 
 			<!-- PUBLIC SITENAME -->
-			<div class="-mt-2 text-3xl font-bold">
-				<SiteName highlight="CMS" textClass="text-black" />
-			</div>
+			<div class="-mt-2 text-3xl font-bold"><SiteName highlight="CMS" textClass="text-black" /></div>
 			<!-- Slogan -->
-			<div class="-mt-px text-[13px] font-bold text-surface-500">
-				{slogan}
-			</div>
+			<div class="-mt-px text-[13px] font-bold text-surface-500">{slogan}</div>
 		</div>
 	</div>
 </div>

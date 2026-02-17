@@ -1,4 +1,5 @@
 {
+	"setup_presets_helper": "Wählen Sie einen Startpunkt für Ihr Projekt. Sie können dies später jederzeit ändern, indem Sie die Sammlungen bearbeiten.",
 	"db_error_title": "Verbindungsfehler zur Datenbank",
 	"db_error_description": "Wir können keine Verbindung zur Datenbank herstellen. Dies bedeutet normalerweise, dass der Datenbankserver nicht erreichbar ist oder die Konfiguration falsch ist.",
 	"db_error_reason_label": "Fehlerursache:",

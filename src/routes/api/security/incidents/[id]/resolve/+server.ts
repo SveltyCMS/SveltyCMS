@@ -3,9 +3,9 @@
  * @description Individual incident resolution endpoint
  */
 
-import { json, type RequestHandler } from '@sveltejs/kit';
-import { securityResponseService } from '@src/services/SecurityResponseService';
 import { hasApiPermission } from '@src/databases/auth/apiPermissions';
+import { securityResponseService } from '@src/services/SecurityResponseService';
+import { json, type RequestHandler } from '@sveltejs/kit';
 import { logger } from '@utils/logger.server';
 
 /**
@@ -15,7 +15,7 @@ import { logger } from '@utils/logger.server';
 export const POST: RequestHandler = async ({ locals, params, request }) => {
 	try {
 		// Authorization check - admin only
-		if (!locals.user || !hasApiPermission(locals.user.role, 'security')) {
+		if (!(locals.user && hasApiPermission(locals.user.role, 'security'))) {
 			return json({ error: 'Unauthorized - Admin access required' }, { status: 403 });
 		}
 

@@ -25,7 +25,7 @@ export async function loginAsAdmin(page: Page, waitForUrl?: string | RegExp) {
 
 	// Navigate to login page
 	console.log('[Auth] Navigating to /login...');
-	await page.goto('/login', { waitUntil: 'networkidle', timeout: 30000 });
+	await page.goto('/login', { waitUntil: 'networkidle', timeout: 30_000 });
 
 	// Check if we got redirected to setup (config incomplete)
 	if (page.url().includes('/setup')) {
@@ -44,7 +44,7 @@ export async function loginAsAdmin(page: Page, waitForUrl?: string | RegExp) {
 
 	// Wait for login form to be visible - use data-testid
 	console.log('[Auth] Waiting for signin-email field...');
-	await page.waitForSelector('[data-testid="signin-email"]', { timeout: 15000, state: 'visible' }).catch(async (e) => {
+	await page.waitForSelector('[data-testid="signin-email"]', { timeout: 15_000, state: 'visible' }).catch(async (e) => {
 		console.error('[Auth] ERROR: signin-email field not found!');
 		// Provide debug info about available inputs
 		const inputs = await page.locator('input').all();
@@ -69,10 +69,10 @@ export async function loginAsAdmin(page: Page, waitForUrl?: string | RegExp) {
 	// Wait for redirect after successful login
 	console.log('[Auth] Waiting for redirect...');
 	if (waitForUrl) {
-		await page.waitForURL(waitForUrl, { timeout: 15000 });
+		await page.waitForURL(waitForUrl, { timeout: 15_000 });
 	} else {
 		// Wait until we're no longer on the login page
-		await expect(page).not.toHaveURL(/\/login/, { timeout: 15000 });
+		await expect(page).not.toHaveURL(/\/login/, { timeout: 15_000 });
 	}
 	console.log(`[Auth] Login successful, redirected to: ${page.url()}`);
 }
@@ -84,7 +84,7 @@ export async function loginAsAdmin(page: Page, waitForUrl?: string | RegExp) {
 export async function logout(page: Page) {
 	try {
 		// Try to navigate to home/dashboard first to check if logged in
-		await page.goto('/', { timeout: 10000, waitUntil: 'domcontentloaded' });
+		await page.goto('/', { timeout: 10_000, waitUntil: 'domcontentloaded' });
 
 		// If we're on setup or login page, we're not logged in
 		if (page.url().includes('/setup') || page.url().includes('/login')) {

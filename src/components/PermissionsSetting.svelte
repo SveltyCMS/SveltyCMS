@@ -31,15 +31,15 @@ Advanced permission management interface with bulk actions and presets.
 	import type { Role } from '@src/databases/auth/types';
 	import { PermissionAction } from '@src/databases/auth/types';
 	import { showToast } from '@utils/toast';
-	import { fade, slide } from 'svelte/transition';
 	import { onMount } from 'svelte';
+	import { fade, slide } from 'svelte/transition';
 
 	type PermissionsMap = Record<string, Record<string, boolean>>;
 
 	interface Props {
+		onUpdate?: (permissions: PermissionsMap) => void;
 		permissions?: PermissionsMap;
 		roles?: Role[];
-		onUpdate?: (permissions: PermissionsMap) => void;
 	}
 
 	const { permissions = {}, roles = [], onUpdate = () => {} }: Props = $props();
@@ -302,7 +302,7 @@ Advanced permission management interface with bulk actions and presets.
 				<p class="font-semibold">Error</p>
 				<p class="mt-1 text-sm">{error}</p>
 			</div>
-			<button onclick={() => (error = null)} class="preset-outlined-error-500 btn-sm" aria-label="Dismiss error"> Dismiss </button>
+			<button onclick={() => (error = null)} class="preset-outlined-error-500 btn-sm" aria-label="Dismiss error">Dismiss</button>
 		</div>
 	</div>
 {:else}
@@ -390,9 +390,7 @@ Advanced permission management interface with bulk actions and presets.
 						<th scope="col" class="px-4 py-3 text-left">
 							<div class="flex items-center gap-2">
 								Role
-								<span class="text-xs font-normal opacity-70">
-									({filteredRoles.length})
-								</span>
+								<span class="text-xs font-normal opacity-70"> ({filteredRoles.length}) </span>
 							</div>
 						</th>
 						{#each Object.values(PermissionAction) as action (action)}
@@ -403,7 +401,7 @@ Advanced permission management interface with bulk actions and presets.
 								</div>
 							</th>
 						{/each}
-						<th scope="col" class="px-4 py-3 text-center"> Actions </th>
+						<th scope="col" class="px-4 py-3 text-center">Actions</th>
 					</tr>
 				</thead>
 				<tbody>
@@ -419,13 +417,9 @@ Advanced permission management interface with bulk actions and presets.
 										{/if}
 									</div>
 									{#if role.description}
-										<span class="text-xs text-surface-600 dark:text-surface-50">
-											{role.description}
-										</span>
+										<span class="text-xs text-surface-600 dark:text-surface-50"> {role.description} </span>
 									{/if}
-									<span class="text-xs font-medium text-primary-500">
-										{countEnabledPermissions(role._id)}/{totalActions} enabled
-									</span>
+									<span class="text-xs font-medium text-primary-500"> {countEnabledPermissions(role._id)}/{totalActions} enabled </span>
 								</div>
 							</th>
 
@@ -504,9 +498,7 @@ Advanced permission management interface with bulk actions and presets.
 				transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }}
 			>
 				<iconify-icon icon="mdi:magnify-close" width="48" class="text-surface-400"></iconify-icon>
-				<p class="text-surface-600 dark:text-surface-50">
-					No roles match your search for "<span class="font-medium">{searchQuery}</span>"
-				</p>
+				<p class="text-surface-600 dark:text-surface-50">No roles match your search for "<span class="font-medium">{searchQuery}</span>"</p>
 			</div>
 		{/if}
 	</div>

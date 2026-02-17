@@ -18,11 +18,11 @@
 
 <script lang="ts">
 	interface Props {
+		active?: string;
+		key?: string;
+		onSubmit?: (value: string) => void;
 		show?: boolean;
 		value?: string;
-		key?: string;
-		active?: string;
-		onSubmit?: (value: string) => void;
 	}
 
 	let { show = false, value: propValue = '', key = '', active = $bindable(''), onSubmit }: Props = $props();
@@ -77,7 +77,7 @@
 
 	{#if show_input}
 		<div class="description absolute top-full mt-2">
-			<input type="text" bind:value={_value.value} onkeydown={handleKeydown} class="input" placeholder="Enter description" />
+			<input type="text" bind:value={_value.value} onkeydown={handleKeydown} class="input" placeholder="Enter description">
 		</div>
 	{/if}
 </div>
@@ -85,14 +85,14 @@
 <style>
 	.description {
 		left: 50%;
-		transform: translate(-50%);
-		width: 250px;
 		z-index: 10;
+		width: 250px;
+		transform: translate(-50%);
 	}
 	input {
-		border: 1px solid;
 		width: 100%;
 		padding: 5px;
+		border: 1px solid;
 		border-radius: 5px;
 	}
 </style>

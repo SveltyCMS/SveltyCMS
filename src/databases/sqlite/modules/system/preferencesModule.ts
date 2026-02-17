@@ -12,14 +12,14 @@
  * - Clear preferences
  */
 
-import { eq, and, inArray } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import type { DatabaseId, DatabaseResult } from '../../../dbInterface';
-import { AdapterCore } from '../../adapter/adapterCore';
+import type { AdapterCore } from '../../adapter/adapterCore';
 import * as schema from '../../schema';
 import * as utils from '../../utils';
 
 export class PreferencesModule {
-	private core: AdapterCore;
+	private readonly core: AdapterCore;
 
 	constructor(core: AdapterCore) {
 		this.core = core;
@@ -32,8 +32,12 @@ export class PreferencesModule {
 	async get<T>(key: string, scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<T | null>> {
 		return (this.core as any).wrap(async () => {
 			const conditions: any[] = [eq(schema.systemPreferences.key, key)];
-			if (scope) conditions.push(eq(schema.systemPreferences.scope, scope));
-			if (userId) conditions.push(eq(schema.systemPreferences.userId, userId));
+			if (scope) {
+				conditions.push(eq(schema.systemPreferences.scope, scope));
+			}
+			if (userId) {
+				conditions.push(eq(schema.systemPreferences.userId, userId));
+			}
 
 			const [result] = await this.db
 				.select()
@@ -41,7 +45,9 @@ export class PreferencesModule {
 				.where(and(...conditions))
 				.limit(1);
 
-			if (!result) return null;
+			if (!result) {
+				return null;
+			}
 			return result.value as T;
 		}, 'GET_PREFERENCE_FAILED');
 	}
@@ -49,8 +55,12 @@ export class PreferencesModule {
 	async getMany<T>(keys: string[], scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<Record<string, T>>> {
 		return (this.core as any).wrap(async () => {
 			const conditions: any[] = [inArray(schema.systemPreferences.key, keys)];
-			if (scope) conditions.push(eq(schema.systemPreferences.scope, scope));
-			if (userId) conditions.push(eq(schema.systemPreferences.userId, userId));
+			if (scope) {
+				conditions.push(eq(schema.systemPreferences.scope, scope));
+			}
+			if (userId) {
+				conditions.push(eq(schema.systemPreferences.userId, userId));
+			}
 
 			const results = await this.db
 				.select()
@@ -69,8 +79,12 @@ export class PreferencesModule {
 	async getByCategory<T>(category: string, scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<Record<string, T>>> {
 		return (this.core as any).wrap(async () => {
 			const conditions: any[] = [eq(schema.systemPreferences.visibility, category)];
-			if (scope) conditions.push(eq(schema.systemPreferences.scope, scope));
-			if (userId) conditions.push(eq(schema.systemPreferences.userId, userId));
+			if (scope) {
+				conditions.push(eq(schema.systemPreferences.scope, scope));
+			}
+			if (userId) {
+				conditions.push(eq(schema.systemPreferences.userId, userId));
+			}
 
 			const results = await this.db
 				.select()
@@ -124,8 +138,12 @@ export class PreferencesModule {
 	async delete(key: string, scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<void>> {
 		return (this.core as any).wrap(async () => {
 			const conditions: any[] = [eq(schema.systemPreferences.key, key)];
-			if (scope) conditions.push(eq(schema.systemPreferences.scope, scope));
-			if (userId) conditions.push(eq(schema.systemPreferences.userId, userId));
+			if (scope) {
+				conditions.push(eq(schema.systemPreferences.scope, scope));
+			}
+			if (userId) {
+				conditions.push(eq(schema.systemPreferences.userId, userId));
+			}
 
 			await this.db.delete(schema.systemPreferences).where(and(...conditions));
 		}, 'DELETE_PREFERENCE_FAILED');
@@ -134,9 +152,15 @@ export class PreferencesModule {
 	async deleteMany(keys: string[], scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<void>> {
 		return (this.core as any).wrap(async () => {
 			const conditions: any[] = [];
-			if (keys.length > 0) conditions.push(inArray(schema.systemPreferences.key, keys));
-			if (scope) conditions.push(eq(schema.systemPreferences.scope, scope));
-			if (userId) conditions.push(eq(schema.systemPreferences.userId, userId));
+			if (keys.length > 0) {
+				conditions.push(inArray(schema.systemPreferences.key, keys));
+			}
+			if (scope) {
+				conditions.push(eq(schema.systemPreferences.scope, scope));
+			}
+			if (userId) {
+				conditions.push(eq(schema.systemPreferences.userId, userId));
+			}
 
 			const q = this.db.delete(schema.systemPreferences);
 			if (conditions.length > 0) {
@@ -150,8 +174,12 @@ export class PreferencesModule {
 	async clear(scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<void>> {
 		return (this.core as any).wrap(async () => {
 			const conditions: any[] = [];
-			if (scope) conditions.push(eq(schema.systemPreferences.scope, scope));
-			if (userId) conditions.push(eq(schema.systemPreferences.userId, userId));
+			if (scope) {
+				conditions.push(eq(schema.systemPreferences.scope, scope));
+			}
+			if (userId) {
+				conditions.push(eq(schema.systemPreferences.userId, userId));
+			}
 
 			const q = this.db.delete(schema.systemPreferences);
 			if (conditions.length > 0) {

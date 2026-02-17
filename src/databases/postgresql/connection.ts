@@ -9,18 +9,18 @@
  * - Graceful shutdown
  */
 
-import postgres from 'postgres';
 import { logger } from '@utils/logger';
+import postgres from 'postgres';
 
 let sql: ReturnType<typeof postgres> | null = null;
 
 export interface ConnectionConfig {
-	host: string;
-	port: number;
-	user: string;
-	password: string;
 	database: string;
+	host: string;
+	password: string;
+	port: number;
 	ssl?: boolean | 'require' | 'prefer';
+	user: string;
 }
 
 /**

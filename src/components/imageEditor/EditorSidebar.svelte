@@ -12,8 +12,8 @@ and proper active state indication.
 -->
 
 <script lang="ts">
-	import { editorWidgets, type EditorWidget } from './widgets/registry';
 	import { onMount } from 'svelte';
+	import { type EditorWidget, editorWidgets } from './widgets/registry';
 
 	// Props
 	const {
@@ -109,9 +109,7 @@ and proper active state indication.
 				aria-pressed={isToolActive(tool)}
 				disabled={!hasImage}
 			>
-				<div class="tool-icon flex items-center justify-center">
-					<iconify-icon icon={tool.icon} width="24"></iconify-icon>
-				</div>
+				<div class="tool-icon flex items-center justify-center"><iconify-icon icon={tool.icon} width="24"></iconify-icon></div>
 				<span class="tool-label text-[10px] font-medium leading-none lg:text-xs">{tool.name}</span>
 
 				<!-- Tooltip -->
@@ -143,9 +141,9 @@ and proper active state indication.
 
 <style>
 	.editor-sidebar {
+		min-height: 100%;
 		background-color: rgb(var(--color-surface-100) / 1);
 		border-color: rgb(var(--color-surface-200) / 1);
-		min-height: 100%;
 	}
 
 	:global(.dark) .editor-sidebar {

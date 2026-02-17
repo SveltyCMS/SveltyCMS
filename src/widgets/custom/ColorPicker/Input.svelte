@@ -22,17 +22,16 @@ Renders a color input with label, helper, and validation
 - **Screen Reader Support**: Proper ARIA attributes and semantic markup
 -->
 <script lang="ts">
-	import type { FieldType } from './';
 	import * as m from '@src/paraglide/messages';
-	import { app, validationStore } from '@src/stores/store.svelte';
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
+	import { app, validationStore } from '@src/stores/store.svelte';
 	import { getFieldName } from '@utils/utils';
-
-	// Valibot validation
-	import { string, regex, pipe, parse, optional } from 'valibot';
-
 	// Unified error handling
 	import { handleWidgetValidation } from '@widgets/widgetErrorHandler';
+
+	// Valibot validation
+	import { optional, parse, pipe, regex, string } from 'valibot';
+	import type { FieldType } from './';
 
 	let {
 		field,
@@ -91,7 +90,7 @@ Renders a color input with label, helper, and validation
 	);
 
 	function validateColor(colorValue: string) {
-		if (!colorValue && !field?.required) {
+		if (!(colorValue || field?.required)) {
 			validationStore.clearError(fieldName);
 			return;
 		}
@@ -109,7 +108,7 @@ Renders a color input with label, helper, and validation
 			oninput={(e) => updateParent(e.currentTarget.value)}
 			class="pl-2 h-9 w-9 shrink-0 cursor-pointer border-none bg-transparent p-0"
 			aria-label="{field.label} Color Picker"
-		/>
+		>
 
 		<div class="relative grow">
 			<input
@@ -121,7 +120,7 @@ Renders a color input with label, helper, and validation
 				placeholder={m.colorPicker_hex()}
 				class="w-full grow border-none bg-transparent font-mono outline-none focus:outline-none"
 				aria-label="{field.label} Hex Value"
-			/>
+			>
 		</div>
 	</div>
 	{#if error || validationError}

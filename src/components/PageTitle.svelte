@@ -45,25 +45,25 @@
 - Fluid typography scaling
 -->
 <script lang="ts">
+	import SystemTooltip from '@components/system/SystemTooltip.svelte';
+	import { screen } from '@stores/screenSizeStore.svelte';
 	// Stores
 	import { ui } from '@stores/UIStore.svelte';
-	import { screen } from '@stores/screenSizeStore.svelte';
-	import SystemTooltip from '@components/system/SystemTooltip.svelte';
 
 	type DefaultBehaviorFn = () => void;
 
 	// Props
 	interface Props {
-		name: string;
+		backUrl?: string;
+		children?: import('svelte').Snippet; // For action buttons
 		highlight?: string;
 		icon?: string;
 		iconColor?: string;
 		iconSize?: string;
-		showBackButton?: boolean;
-		backUrl?: string;
-		truncate?: boolean;
+		name: string;
 		onBackClick?: (defaultBehavior: DefaultBehaviorFn) => void;
-		children?: import('svelte').Snippet; // For action buttons
+		showBackButton?: boolean;
+		truncate?: boolean;
 	}
 
 	const {
@@ -133,15 +133,11 @@
 
 			<span class:block={truncate} class:overflow-hidden={truncate} class:text-ellipsis={truncate} class:whitespace-nowrap={truncate}>
 				{#each titleParts() as part, i (i)}
-					<span class={i % 2 === 1 ? 'font-semibold text-tertiary-500 dark:text-primary-500' : ''}>
-						{part}
-					</span>
+					<span class={i % 2 === 1 ? 'font-semibold text-tertiary-500 dark:text-primary-500' : ''}> {part} </span>
 				{/each}
 			</span>
 
-			<span class="sr-only absolute inset-0 overflow-hidden whitespace-normal">
-				{name}
-			</span>
+			<span class="sr-only absolute inset-0 overflow-hidden whitespace-normal"> {name} </span>
 		</h1>
 	</div>
 

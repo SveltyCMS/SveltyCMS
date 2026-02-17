@@ -3,10 +3,10 @@
  * @description Tests for handleApiRequests middleware (API permissions, caching, mutations)
  */
 
-import { describe, it, expect, beforeEach, mock } from 'bun:test';
+import { beforeEach, describe, expect, it, mock } from 'bun:test';
+import type { User } from '@src/databases/auth/types';
 import { handleApiRequests } from '@src/hooks/handleApiRequests';
 import type { RequestEvent } from '@sveltejs/kit';
-import type { User } from '@src/databases/auth/types';
 
 // --- Test Utilities ---
 
@@ -18,7 +18,7 @@ const mockUser: User = {
 	permissions: []
 };
 
-function createMockEvent(pathname: string, method: string = 'GET', user?: User): RequestEvent {
+function createMockEvent(pathname: string, method = 'GET', user?: User): RequestEvent {
 	const url = new URL(pathname, 'http://localhost');
 
 	return {

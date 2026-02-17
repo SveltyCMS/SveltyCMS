@@ -6,24 +6,22 @@ Replaces the ModalWidgetForm, providing a full-screen or focused editor experien
 -->
 
 <script lang="ts">
-	import type { Component } from 'svelte';
+	import Stepper from '@components/system/Stepper.svelte';
+	// ParaglideJS
+	import * as m from '@src/paraglide/messages';
+	// Stores
+	import { collections } from '@src/stores/collectionStore.svelte';
 	// Components
 	import { widgets } from '@stores/widgetStore.svelte.ts';
-	import Stepper from '@components/system/Stepper.svelte';
+	import type { Component } from 'svelte';
 	import Default from './tabsFields/Default.svelte';
 	import Permission from './tabsFields/Permission.svelte';
 	import Specific from './tabsFields/Specific.svelte';
 
-	// ParaglideJS
-	import * as m from '@src/paraglide/messages';
-
-	// Stores
-	import { collections } from '@src/stores/collectionStore.svelte';
-
 	interface Props {
-		widgetData: any; // The widget being edited
-		onSave: (data: any) => void;
 		onCancel: () => void;
+		onSave: (data: any) => void;
+		widgetData: any; // The widget being edited
 	}
 
 	const { widgetData, onSave, onCancel }: Props = $props();

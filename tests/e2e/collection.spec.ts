@@ -6,11 +6,11 @@
  *   - Performs various collection actions (Published, Unpublished, etc.)
  *   - Adds a widget to the dashboard and verifies navigation
  */
-import { test, expect } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import { loginAsAdmin } from './helpers/auth';
 
 test.describe('Full Collection & Widget Flow', () => {
-	test.setTimeout(120000); // 2 minutes
+	test.setTimeout(120_000); // 2 minutes
 
 	test('Login, create collection, perform actions, and add widget', async ({ page }) => {
 		// 1. Login
@@ -49,10 +49,10 @@ test.describe('Full Collection & Widget Flow', () => {
 
 		await page.getByPlaceholder(/search widgets/i).fill('CPU Usage');
 		const cpuWidget = page.getByText(/cpu usage/i, { exact: true });
-		await expect(cpuWidget).toBeVisible({ timeout: 10000 });
+		await expect(cpuWidget).toBeVisible({ timeout: 10_000 });
 		await cpuWidget.click();
 
 		// Final redirect check to dashboard
-		await expect(page).toHaveURL(/\/dashboard/, { timeout: 15000 });
+		await expect(page).toHaveURL(/\/dashboard/, { timeout: 15_000 });
 	});
 });

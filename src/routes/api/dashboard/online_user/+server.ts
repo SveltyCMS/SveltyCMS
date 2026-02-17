@@ -3,9 +3,9 @@
  * @description API endpoint for user activity data for dashboard widgets (online users)
  */
 
-import { json } from '@sveltejs/kit';
-import { getPrivateSettingSync } from '@src/services/settingsService';
 import { auth } from '@src/databases/db';
+import { getPrivateSettingSync } from '@src/services/settingsService';
+import { json } from '@sveltejs/kit';
 import { logger } from '@utils/logger.server';
 import * as v from 'valibot';
 
@@ -23,8 +23,12 @@ type OnlineUser = v.InferOutput<typeof OnlineUserSchema>;
 
 // Helper function to format online duration
 function formatOnlineTime(minutes: number): string {
-	if (minutes < 1) return '< 1m';
-	if (minutes < 60) return `${Math.floor(minutes)}m`;
+	if (minutes < 1) {
+		return '< 1m';
+	}
+	if (minutes < 60) {
+		return `${Math.floor(minutes)}m`;
+	}
 	if (minutes < 1440) {
 		const hours = Math.floor(minutes / 60);
 		const remainingMinutes = Math.floor(minutes % 60);
@@ -78,7 +82,7 @@ export const GET = apiHandler(async ({ locals }) => {
 	for (const session of sessionsResult.data) {
 		const existingStart = userSessionMap.get(session.user_id);
 		// Extract timestamp from ObjectId: first 8 hex chars = 4 bytes = Unix timestamp in seconds
-		const timestamp = parseInt(session._id.substring(0, 8), 16) * 1000;
+		const timestamp = Number.parseInt(session._id.substring(0, 8), 16) * 1000;
 		const sessionStart = new Date(timestamp);
 		if (!existingStart || sessionStart < existingStart) {
 			userSessionMap.set(session.user_id, sessionStart);

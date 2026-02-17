@@ -5,33 +5,28 @@
  * @example: POST /api/collections/posts/batch
  *
  * Features:
- * * Batch delete, status updates, and other bulk operations
- * * Performance optimized for large datasets
- * * Maintains audit trail for batch operations
- * * Permission checking scoped to current tenant
- * * Enhanced error reporting for partial failures
+ * Batch delete, status updates, and other bulk operations
+ * Performance optimized for large datasets
+ * Maintains audit trail for batch operations
+ * Permission checking scoped to current tenant
+ * Enhanced error reporting for partial failures
  */
 
-import { json } from '@sveltejs/kit';
+import { modifyRequest } from '@api/collections/modifyRequest';
+// Auth & Content
+import { contentManager } from '@src/content/ContentManager';
+import type { FieldInstance } from '@src/content/types';
+// Types
+import type { BaseEntity, CollectionModel, DatabaseId } from '@src/databases/dbInterface';
 import { getPrivateSettingSync } from '@src/services/settingsService';
-
+import { json } from '@sveltejs/kit';
 // Unified Error Handling
 import { apiHandler } from '@utils/apiHandler';
 import { AppError } from '@utils/errorHandling';
-
-// Validation
-import { object, picklist, array, string, optional, parse } from 'valibot';
-
-// Auth & Content
-import { contentManager } from '@src/content/ContentManager';
-import { modifyRequest } from '@api/collections/modifyRequest';
-
 // Logging
 import { logger } from '@utils/logger.server';
-
-// Types
-import type { DatabaseId, BaseEntity, CollectionModel } from '@src/databases/dbInterface';
-import type { FieldInstance } from '@src/content/types';
+// Validation
+import { array, object, optional, parse, picklist, string } from 'valibot';
 
 // Validation schema for batch operations
 const batchOperationSchema = object({
@@ -47,12 +42,20 @@ export const POST = apiHandler(async ({ locals, params, request }) => {
 	const start = performance.now();
 	const { user, tenantId, dbAdapter } = locals;
 
-	if (!user) throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
-	if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) throw new AppError('Tenant ID missing', 400, 'TENANT_MISSING');
-	if (!dbAdapter) throw new AppError('Database service unavailable', 503, 'SERVICE_UNAVAILABLE');
+	if (!user) {
+		throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
+	}
+	if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
+		throw new AppError('Tenant ID missing', 400, 'TENANT_MISSING');
+	}
+	if (!dbAdapter) {
+		throw new AppError('Database service unavailable', 503, 'SERVICE_UNAVAILABLE');
+	}
 
 	const schema = await contentManager.getCollectionById(params.collectionId, tenantId);
-	if (!schema || !schema._id) throw new AppError('Collection not found', 404, 'NOT_FOUND');
+	if (!schema?._id) {
+		throw new AppError('Collection not found', 404, 'NOT_FOUND');
+	}
 
 	const body = await request.json().catch(() => {
 		throw new AppError('Invalid JSON', 400, 'INVALID_JSON');
@@ -61,20 +64,28 @@ export const POST = apiHandler(async ({ locals, params, request }) => {
 
 	// Logic Checks
 	if (action === 'status') {
-		if (!status) throw new AppError('Status is required', 400, 'MISSING_DATA');
+		if (!status) {
+			throw new AppError('Status is required', 400, 'MISSING_DATA');
+		}
 		const valid = ['publish', 'unpublish', 'draft', 'archived'];
-		if (!valid.includes(status)) throw new AppError(`Invalid status. Allowed: ${valid.join(', ')}`, 400, 'INVALID_STATUS');
+		if (!valid.includes(status)) {
+			throw new AppError(`Invalid status. Allowed: ${valid.join(', ')}`, 400, 'INVALID_STATUS');
+		}
 	}
-	if (action === 'clone' && !cloneCount) throw new AppError('Clone count required', 400, 'MISSING_DATA');
+	if (action === 'clone' && !cloneCount) {
+		throw new AppError('Clone count required', 400, 'MISSING_DATA');
+	}
 
 	const normalizedName = normalizeCollectionName(schema._id);
 	const dbEntryIds = entryIds.map((id) => id as unknown as DatabaseId);
 	const query: Record<string, unknown> = { _id: { $in: dbEntryIds } };
-	if (getPrivateSettingSync('MULTI_TENANT')) query.tenantId = tenantId;
+	if (getPrivateSettingSync('MULTI_TENANT')) {
+		query.tenantId = tenantId;
+	}
 
 	// Verification
 	const verify = await dbAdapter.crud.findMany<BaseEntity>(normalizedName, query);
-	if (!verify.success || !Array.isArray(verify.data) || verify.data.length !== entryIds.length) {
+	if (!(verify.success && Array.isArray(verify.data)) || verify.data.length !== entryIds.length) {
 		throw new AppError('One or more entries do not belong to your tenant or do not exist', 403, 'FORBIDDEN');
 	}
 

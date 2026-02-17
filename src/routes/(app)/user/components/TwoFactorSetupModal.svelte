@@ -23,9 +23,9 @@ This modal displays the QR code for setting up 2FA and handles verification.
 -->
 
 <script lang="ts">
+	import { toaster } from '@stores/store.svelte.ts';
 	// Utils
 	import { logger } from '@utils/logger';
-	import { toaster } from '@stores/store.svelte.ts';
 
 	// Skeleton
 	// getModalStore deprecated - use modalState from @utils/modalState.svelte;
@@ -35,13 +35,13 @@ This modal displays the QR code for setting up 2FA and handles verification.
 
 	// Props
 	interface Props {
+		backupCodes: string[];
+		body?: string;
+		close?: (result?: any) => void;
 		parent?: { regionFooter?: string; onClose?: (success: boolean) => void; buttonPositive?: string };
 		qrCodeUrl: string;
 		secret: string;
-		backupCodes: string[];
 		title?: string;
-		body?: string;
-		close?: (result?: any) => void;
 	}
 
 	const { parent = { regionFooter: 'modal-footer p-4' }, qrCodeUrl, secret, backupCodes, title, body, close }: Props = $props();
@@ -136,13 +136,9 @@ This modal displays the QR code for setting up 2FA and handles verification.
 </script>
 
 <div class="modal-example-form {cBase}">
-	<header class={`text-center dark:text-primary-500 ${cHeader}`}>
-		{title ?? '(title missing)'}
-	</header>
+	<header class={`text-center dark:text-primary-500 ${cHeader}`}>{title ?? '(title missing)'}</header>
 
-	<article class="text-center text-sm text-black dark:text-white">
-		{body ?? '(body missing)'}
-	</article>
+	<article class="text-center text-sm text-black dark:text-white">{body ?? '(body missing)'}</article>
 
 	{#if currentStep === 'setup'}
 		<!-- Setup Form -->
@@ -153,20 +149,16 @@ This modal displays the QR code for setting up 2FA and handles verification.
 					<!-- QR Code -->
 					<div class="mb-4 flex justify-center">
 						<div class="rounded-lg bg-white p-4 shadow-sm">
-							<img src={qrCodeUrl} alt="2FA QR Code" class="h-48 w-48" style="image-rendering: pixelated;" />
+							<img src={qrCodeUrl} alt="2FA QR Code" class="h-48 w-48" style="image-rendering: pixelated;">
 						</div>
 					</div>
 				</div>
 
 				<!-- Manual Entry Section (Always Visible) -->
 				<div class="rounded-xl bg-surface-100 p-4 dark:bg-surface-700">
-					<p class="mb-3 text-sm font-medium text-surface-700 dark:text-surface-300">
-						{m.twofa_manual_entry_description()}
-					</p>
+					<p class="mb-3 text-sm font-medium text-surface-700 dark:text-surface-300">{m.twofa_manual_entry_description()}</p>
 					<div class="flex items-center gap-2">
-						<code class="flex-1 rounded bg-surface-200 p-3 font-mono text-sm dark:bg-surface-600">
-							{formatSecret(secret)}
-						</code>
+						<code class="flex-1 rounded bg-surface-200 p-3 font-mono text-sm dark:bg-surface-600"> {formatSecret(secret)} </code>
 						<button
 							type="button"
 							onclick={() => copyToClipboard(secret)}
@@ -197,7 +189,7 @@ This modal displays the QR code for setting up 2FA and handles verification.
 							class:border-error-500={error}
 							class:focus\:border-error-500={error}
 							aria-label="Verification code"
-						/>
+						>
 					</div>
 
 					{#if error}
@@ -210,13 +202,9 @@ This modal displays the QR code for setting up 2FA and handles verification.
 		<!-- Setup Complete -->
 		<div class="modal-form {cForm}">
 			<div class="text-center">
-				<div class="mb-4">
-					<iconify-icon icon="mdi:check-circle" width="64" class="mx-auto text-success-500"></iconify-icon>
-				</div>
+				<div class="mb-4"><iconify-icon icon="mdi:check-circle" width="64" class="mx-auto text-success-500"></iconify-icon></div>
 
-				<p class="mb-6 text-surface-600 dark:text-surface-300">
-					{m.twofa_setup_complete_description()}
-				</p>
+				<p class="mb-6 text-surface-600 dark:text-surface-300">{m.twofa_setup_complete_description()}</p>
 			</div>
 
 			<!-- Backup Codes (Always Visible) -->
@@ -232,9 +220,7 @@ This modal displays the QR code for setting up 2FA and handles verification.
 
 					<div class="mb-3 grid grid-cols-2 gap-2">
 						{#each backupCodes as code (code)}
-							<div class="rounded bg-surface-200 p-2 text-center font-mono text-sm dark:bg-surface-700">
-								{code}
-							</div>
+							<div class="rounded bg-surface-200 p-2 text-center font-mono text-sm dark:bg-surface-700">{code}</div>
 						{/each}
 					</div>
 
@@ -247,9 +233,7 @@ This modal displays the QR code for setting up 2FA and handles verification.
 
 					<div class="flex items-start gap-2 rounded bg-warning-500/10 p-3">
 						<iconify-icon icon="mdi:alert" width="16" class="mt-0.5 shrink-0 text-warning-600"></iconify-icon>
-						<p class="text-sm text-warning-600 dark:text-warning-400">
-							{m.twofa_backup_codes_warning()}
-						</p>
+						<p class="text-sm text-warning-600 dark:text-warning-400">{m.twofa_backup_codes_warning()}</p>
 					</div>
 				</div>
 			{/if}
@@ -259,9 +243,7 @@ This modal displays the QR code for setting up 2FA and handles verification.
 	<footer class="modal-footer flex items-center justify-between p-4 {parent?.regionFooter ?? ''}">
 		{#if currentStep === 'setup'}
 			<!-- Setup Footer -->
-			<button type="button" class="preset-outlined-secondary-500 btn" onclick={cancelSetup}>
-				{m.button_cancel()}
-			</button>
+			<button type="button" class="preset-outlined-secondary-500 btn" onclick={cancelSetup}>{m.button_cancel()}</button>
 			<button
 				type="submit"
 				form="twofa-form"
@@ -278,9 +260,7 @@ This modal displays the QR code for setting up 2FA and handles verification.
 			</button>
 		{:else}
 			<!-- Complete Footer -->
-			<button type="button" class="preset-outlined-secondary-500 btn" onclick={cancelSetup}>
-				{m.button_cancel()}
-			</button>
+			<button type="button" class="preset-outlined-secondary-500 btn" onclick={cancelSetup}>{m.button_cancel()}</button>
 			<button type="button" onclick={completeSetup} class="preset-filled-success-500 btn {parent?.buttonPositive ?? ''}">
 				<iconify-icon icon="mdi:check" width="20" class="mr-2"></iconify-icon>
 				{m.button_complete()}

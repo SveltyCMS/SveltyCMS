@@ -12,12 +12,10 @@
  * @security Admin-only endpoint with rate limiting
  */
 
-import { json } from '@sveltejs/kit';
-import { securityResponseService } from '@src/services/SecurityResponseService';
-import { metricsService } from '@src/services/MetricsService';
 import { hasApiPermission } from '@src/databases/auth/apiPermissions';
-import { logger } from '@utils/logger.server';
-
+import { metricsService } from '@src/services/MetricsService';
+import { securityResponseService } from '@src/services/SecurityResponseService';
+import { json } from '@sveltejs/kit';
 /**
  * GET /api/security/stats
  * Returns comprehensive security statistics for dashboard monitoring.
@@ -25,6 +23,7 @@ import { logger } from '@utils/logger.server';
 // Unified Error Handling
 import { apiHandler } from '@utils/apiHandler';
 import { AppError } from '@utils/errorHandling';
+import { logger } from '@utils/logger.server';
 
 /**
  * GET /api/security/stats
@@ -33,8 +32,8 @@ import { AppError } from '@utils/errorHandling';
 export const GET = apiHandler(async ({ locals, getClientAddress }) => {
 	try {
 		// Authorization check - admin only
-		if (!locals.user || !hasApiPermission(locals.user.role, 'security')) {
-			logger.warn(`Unauthorized security stats access attempt`, {
+		if (!(locals.user && hasApiPermission(locals.user.role, 'security'))) {
+			logger.warn('Unauthorized security stats access attempt', {
 				userId: locals.user?._id,
 				role: locals.user?.role,
 				ip: getClientAddress()
@@ -96,7 +95,9 @@ export const GET = apiHandler(async ({ locals, getClientAddress }) => {
 
 		return json(response);
 	} catch (error) {
-		if (error instanceof AppError) throw error;
+		if (error instanceof AppError) {
+			throw error;
+		}
 		logger.error('Error fetching security stats:', error);
 		throw new AppError('Internal server error', 500, 'FETCH_FAILED');
 	}
@@ -140,7 +141,7 @@ function calculateOverallSecurityStatus(
  * In a real implementation, this would query an event log database.
  */
 function generateRecentSecurityEvents() {
-	const events = [];
+	const events: any[] = [];
 	const now = Date.now();
 
 	// This is mock data - replace with actual event log queries
@@ -158,7 +159,7 @@ function generateRecentSecurityEvents() {
 		const eventTemplate = eventTypes[Math.floor(Math.random() * eventTypes.length)];
 		events.push({
 			id: `evt_${now}_${i}`,
-			timestamp: now - i * 60000 - Math.random() * 300000, // Random time in last 5 minutes to 5 hours
+			timestamp: now - i * 60_000 - Math.random() * 300_000, // Random time in last 5 minutes to 5 hours
 			type: eventTemplate.type,
 			severity: eventTemplate.severity,
 			message: eventTemplate.message,

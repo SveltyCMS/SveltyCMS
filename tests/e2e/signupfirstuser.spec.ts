@@ -6,9 +6,9 @@
  *   - Signs up the first user and checks validations
  *   - Tests sign out, login, and forgot password flows
  */
-import { test, expect } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 
-test.describe.configure({ timeout: 60000 }); // Set timeout for all tests
+test.describe.configure({ timeout: 60_000 }); // Set timeout for all tests
 
 test('Test loading homepage and login screen', async ({ page }) => {
 	await page.goto('/', { waitUntil: 'domcontentloaded' });

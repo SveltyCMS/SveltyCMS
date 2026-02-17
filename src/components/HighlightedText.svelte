@@ -31,15 +31,15 @@ Intelligent text highlighting with character limits and expand/collapse function
 -->
 
 <script lang="ts">
-	import { fade } from 'svelte/transition';
 	import { onMount } from 'svelte';
+	import { fade } from 'svelte/transition';
 
 	interface Props {
-		text?: string;
-		term?: string;
+		caseSensitive?: boolean;
 		charLimit?: number;
 		highlightClass?: string;
-		caseSensitive?: boolean;
+		term?: string;
+		text?: string;
 	}
 
 	const {
@@ -61,7 +61,7 @@ Intelligent text highlighting with character limits and expand/collapse function
 
 	// Build regex from multiple terms
 	const highlightingRegex = $derived.by(() => {
-		if (!term || !term.trim()) return null;
+		if (!(term && term.trim())) return null;
 
 		// Split by whitespace and escape each term
 		const terms = term.trim().split(/\s+/).filter(Boolean).map(escapeRegex);
@@ -86,7 +86,7 @@ Intelligent text highlighting with character limits and expand/collapse function
 		const currentText = displayText;
 		const regex = highlightingRegex;
 
-		if (!regex || !currentText) {
+		if (!(regex && currentText)) {
 			return [{ text: currentText, isHighlighted: false }];
 		}
 
@@ -132,7 +132,7 @@ Intelligent text highlighting with character limits and expand/collapse function
 	// Count highlighted matches
 	const matchCount = $derived.by(() => {
 		const regex = highlightingRegex;
-		if (!regex || !text) return 0;
+		if (!(regex && text)) return 0;
 
 		const matches = text.match(regex);
 		return matches ? matches.length : 0;
@@ -161,9 +161,7 @@ Intelligent text highlighting with character limits and expand/collapse function
 	<!-- Render text segments -->
 	{#each textSegments as segment, index (index)}
 		{#if segment.isHighlighted}
-			<mark class="rounded px-1 py-0.5 {highlightClass}" title="Highlighted match">
-				{segment.text}
-			</mark>
+			<mark class="rounded px-1 py-0.5 {highlightClass}" title="Highlighted match"> {segment.text} </mark>
 		{:else}
 			<span>{segment.text}</span>
 		{/if}
@@ -192,14 +190,17 @@ Intelligent text highlighting with character limits and expand/collapse function
 			transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }}
 		>
 			<iconify-icon icon="mdi:magnify" width="12" aria-hidden="true"></iconify-icon>
-			{matchCount} match{matchCount !== 1 ? 'es' : ''}
+			{matchCount}
+			match{matchCount !== 1 ? 'es' : ''}
 		</span>
 	{/if}
 
 	<!-- Screen reader announcement -->
 	<span class="sr-only">
 		{#if term && matchCount > 0}
-			{matchCount} highlighted match{matchCount !== 1 ? 'es' : ''} found.
+			{matchCount}
+			highlighted match{matchCount !== 1 ? 'es' : ''}
+			found.
 		{/if}
 		{#if needsTruncation}
 			Text is {isExpanded ? 'fully expanded' : 'truncated'}. Press button to {isExpanded ? 'collapse' : 'expand'}.

@@ -1,7 +1,8 @@
 // tests/bun/collection-builder.test.ts
+
+import { beforeEach, describe, expect, test } from 'bun:test';
 import type { WidgetConfig } from '../../src/widgets/widgetFactory';
 import { createWidget } from '../../src/widgets/widgetFactory';
-import { beforeEach, describe, expect, test } from 'bun:test';
 
 // Mock widget store data
 const mockWidgetStore = {
@@ -97,7 +98,7 @@ describe('Collection Builder Widget Integration', () => {
 			};
 
 			const widget = createWidget(widgetConfig);
-			mockWidgetStore.widgetFunctions['ConfigurableWidget'] = widget;
+			mockWidgetStore.widgetFunctions.ConfigurableWidget = widget;
 
 			// Test GUI schema access (simulating ModalWidgetForm behavior)
 			const guiSchema = widget.GuiSchema;
@@ -197,7 +198,7 @@ describe('Collection Builder Widget Integration', () => {
 			};
 
 			const textWidget = createWidget(textWidgetConfig);
-			mockWidgetStore.widgetFunctions['TextInput'] = textWidget;
+			mockWidgetStore.widgetFunctions.TextInput = textWidget;
 			mockWidgetStore.activeWidgets = ['TextInput'];
 
 			// Simulate collection builder workflow:

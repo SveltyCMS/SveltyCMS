@@ -28,17 +28,16 @@ User types "1234.56" → displays "1.234,56 €" → stores 1234.56 as number
 -->
 
 <script lang="ts">
-	import { app, validationStore } from '@src/stores/store.svelte';
-	import type { FieldType } from './';
-	import { tokenTarget } from '@src/services/token/tokenTarget';
 	import SystemTooltip from '@components/system/SystemTooltip.svelte';
+	import { tokenTarget } from '@src/services/token/tokenTarget';
+	import { app, validationStore } from '@src/stores/store.svelte';
 	import { getFieldName } from '@utils/utils';
-
-	// Valibot validation
-	import { number as numberSchema, pipe, parse, minValue, maxValue, optional } from 'valibot';
-
 	// Unified error handling
 	import { handleWidgetValidation } from '@widgets/widgetErrorHandler';
+
+	// Valibot validation
+	import { maxValue, minValue, number as numberSchema, optional, parse, pipe } from 'valibot';
+	import type { FieldType } from './';
 
 	let { field, value, error }: { field: FieldType; value: number | null | undefined; error?: string | null } = $props();
 
@@ -123,7 +122,7 @@ User types "1234.56" → displays "1.234,56 €" → stores 1234.56 as number
 		const group = parts.find((p) => p.type === 'group')?.value || ',';
 		const decimal = parts.find((p) => p.type === 'decimal')?.value || '.';
 		const cleaned = str.replace(new RegExp(`\\${group}`, 'g'), '').replace(decimal, '.');
-		return parseFloat(cleaned.replace(/[^\d.-]/g, ''));
+		return Number.parseFloat(cleaned.replace(/[^\d.-]/g, ''));
 	}
 </script>
 
@@ -164,7 +163,7 @@ User types "1234.56" → displays "1.234,56 €" → stores 1234.56 as number
 					aria-describedby={error ? `${field.db_fieldName}-error` : undefined}
 					aria-required={field?.required}
 					data-testid="currency-input"
-				/>
+				>
 			</div>
 
 			{#if field?.suffix}

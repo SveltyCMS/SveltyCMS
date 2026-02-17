@@ -3,7 +3,7 @@
  * @description Comprehensive tests for handleLocale middleware
  */
 
-import { describe, it, expect, beforeEach, mock } from 'bun:test';
+import { beforeEach, describe, expect, it, mock } from 'bun:test';
 import { handleLocale } from '@src/hooks/handleLocale';
 import type { RequestEvent } from '@sveltejs/kit';
 

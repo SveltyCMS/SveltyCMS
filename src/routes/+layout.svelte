@@ -15,26 +15,27 @@
 	// Register Iconify custom element globally
 	import 'iconify-icon';
 
-	import { page } from '$app/state';
 	import { onMount, untrack } from 'svelte';
 	import { browser } from '$app/environment';
+	import { page } from '$app/state';
 
-	// Skeleton v4
-	import { app, toaster } from '@stores/store.svelte';
-	import { screen } from '@stores/screenSizeStore.svelte.ts';
-	import { Portal } from '@skeletonlabs/skeleton-svelte';
-	import ToastManager from '@components/system/ToastManager.svelte';
+	// WebMCP Support (Polyfill + Plugin)
+	import '@mcp-b/global/dist/polyfill.js';
 	import DialogManager from '@components/system/DialogManager.svelte';
 	import FloatingNav from '@components/system/FloatingNav.svelte';
-
+	import ToastManager from '@components/system/ToastManager.svelte';
+	import { Portal } from '@skeletonlabs/skeleton-svelte';
 	// Paraglide locale bridge
 	import { locales as availableLocales, getLocale, setLocale } from '@src/paraglide/runtime';
-
-	// Theme management
-	import { themeStore, initializeThemeStore, initializeDarkMode } from '@stores/themeStore.svelte';
-
+	import CookieConsent from '@src/plugins/cookie-consent/CookieConsent.svelte';
+	import { initWebMCP } from '@src/plugins/webmcp/index';
 	// Global Settings
 	import { initPublicEnv, publicEnv } from '@stores/globalSettings.svelte';
+	import { screen } from '@stores/screenSizeStore.svelte.ts';
+	// Skeleton v4
+	import { app, toaster } from '@stores/store.svelte';
+	// Theme management
+	import { initializeDarkMode, initializeThemeStore, themeStore } from '@stores/themeStore.svelte';
 
 	// Components
 	// import TokenPicker from '@components/TokenPicker.svelte';
@@ -76,16 +77,22 @@
 
 		// URL is the source of truth on initial load
 		const urlLocale = getLocale();
-		if (urlLocale && availableLocales.includes(urlLocale as any)) {
-			if (app.systemLanguage !== urlLocale) {
-				console.log(`[RootLayout] Aligning store (${app.systemLanguage}) to URL (${urlLocale})`);
-				app.systemLanguage = urlLocale as any;
-				currentLocale = urlLocale;
-			}
+		if (urlLocale && availableLocales.includes(urlLocale as any) && app.systemLanguage !== urlLocale) {
+			console.log(`[RootLayout] Aligning store (${app.systemLanguage}) to URL (${urlLocale})`);
+			app.systemLanguage = urlLocale as any;
+			currentLocale = urlLocale;
 		}
 
 		// Initialize dark mode
 		initializeDarkMode();
+
+		// Initialize WebMCP (Client-side AI Tools)
+		if (browser) {
+			// Tiny delay to ensure polyfill overrides are settled
+			setTimeout(() => {
+				initWebMCP().catch(console.error);
+			}, 100);
+		}
 
 		isMounted = true;
 	});
@@ -96,7 +103,7 @@
 	 * This ensures toasts appear correctly even during SPA navigation (goto).
 	 */
 	$effect(() => {
-		if (!browser || !isMounted) return;
+		if (!(browser && isMounted)) return;
 
 		// Depend on page.url to trigger this effect on every navigation
 		void page.url.pathname;
@@ -158,7 +165,7 @@
 	// ============================================================================
 
 	$effect(() => {
-		if (!themeStore.autoRefreshEnabled || !browser) return;
+		if (!(themeStore.autoRefreshEnabled && browser)) return;
 
 		const interval = 30 * 60 * 1000; // 30 minutes
 		const intervalId = setInterval(() => {
@@ -224,21 +231,17 @@
 	});
 </script>
 
-<svelte:head>
-	<title>{siteName}</title>
-</svelte:head>
+<svelte:head> <title>{siteName}</title> </svelte:head>
 
 <DialogManager />
-<Portal>
-	<ToastManager position="bottom-center" />
-</Portal>
+<Portal> <ToastManager position="bottom-center" /> </Portal>
 
 {#key currentLocale}
 	{#if screen.isMobile && !page.url.pathname.includes('/setup')}
-		<Portal>
-			<FloatingNav />
-		</Portal>
+		<Portal> <FloatingNav /> </Portal>
 	{/if}
 
 	{@render children?.()}
 {/key}
+
+<CookieConsent />

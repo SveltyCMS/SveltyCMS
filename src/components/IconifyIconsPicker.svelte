@@ -24,13 +24,13 @@ Advanced icon picker with search, pagination, and favorites.
 -->
 
 <script lang="ts">
-	import * as m from '@src/paraglide/messages';
 	import { loadIcons } from '@iconify/svelte';
+	import * as m from '@src/paraglide/messages';
 	import { logger } from '@utils/logger';
-	import { onMount, onDestroy } from 'svelte';
-	import { fade, scale, slide } from 'svelte/transition';
-	import { quintOut } from 'svelte/easing';
 	import { showToast } from '@utils/toast';
+	import { onDestroy, onMount } from 'svelte';
+	import { quintOut } from 'svelte/easing';
+	import { fade, scale, slide } from 'svelte/transition';
 
 	// Constants
 	const DEBOUNCE_MS = 300;
@@ -41,21 +41,21 @@ Advanced icon picker with search, pagination, and favorites.
 
 	// Types
 	interface IconLibrary {
-		name: string;
-		total: number;
-		prefix?: string;
 		author?: string;
-		license?: string;
 		category?: string;
+		license?: string;
+		name: string;
+		prefix?: string;
+		total: number;
 	}
 
 	interface IconSearchResponse {
-		icons: string[];
-		total: number;
-		limit: number;
-		start: number;
 		collections: Record<string, IconLibrary>;
+		icons: string[];
+		limit: number;
 		prefix?: string;
+		start: number;
+		total: number;
 	}
 
 	interface Props {
@@ -173,7 +173,7 @@ Advanced icon picker with search, pagination, and favorites.
 	}
 
 	// Fetch icons from Iconify API
-	async function searchIcons(query: string, library: string, append: boolean = false): Promise<void> {
+	async function searchIcons(query: string, library: string, append = false): Promise<void> {
 		// If no query, load the library's icons instead of clearing
 		if (!query.trim()) {
 			if (library && !append) {
@@ -196,7 +196,7 @@ Advanced icon picker with search, pagination, and favorites.
 			url.searchParams.set('limit', ICONS_PER_PAGE.toString());
 
 			const controller = new AbortController();
-			const timeout = setTimeout(() => controller.abort(), 10000);
+			const timeout = setTimeout(() => controller.abort(), 10_000);
 
 			const response = await fetch(url.toString(), {
 				signal: controller.signal
@@ -230,9 +230,7 @@ Advanced icon picker with search, pagination, and favorites.
 				await loadIcons(iconIds);
 
 				activeTab = 'search';
-			} else {
-				if (!append) icons = [];
-			}
+			} else if (!append) icons = [];
 		} catch (error) {
 			if (error instanceof Error && error.name === 'AbortError') {
 				searchError = 'Search timeout - please try again';
@@ -296,7 +294,7 @@ Advanced icon picker with search, pagination, and favorites.
 
 		try {
 			const controller = new AbortController();
-			const timeout = setTimeout(() => controller.abort(), 10000);
+			const timeout = setTimeout(() => controller.abort(), 10_000);
 
 			const response = await fetch(`${ICONIFY_API_BASE}/collections`, {
 				signal: controller.signal
@@ -479,7 +477,6 @@ Advanced icon picker with search, pagination, and favorites.
 		}
 	});
 </script>
-
 ```
 <div class="icon-picker-container flex w-full flex-col" bind:this={dropdownRef}>
 	<!-- Selected icon display -->
@@ -498,9 +495,7 @@ Advanced icon picker with search, pagination, and favorites.
 				></iconify-icon>
 				<div class="flex-1 overflow-hidden">
 					<p class="text-xs text-surface-600 dark:text-surface-50">Selected Icon</p>
-					<p class="truncate text-sm font-medium text-tertiary-500 dark:text-primary-500">
-						{iconselected}
-					</p>
+					<p class="truncate text-sm font-medium text-tertiary-500 dark:text-primary-500">{iconselected}</p>
 				</div>
 			</div>
 
@@ -554,7 +549,7 @@ Advanced icon picker with search, pagination, and favorites.
 			aria-expanded={showDropdown}
 			aria-activedescendant={selectedIndex >= 0 ? `icon-option-${selectedIndex}` : undefined}
 			aria-describedby={searchError ? 'search-error' : undefined}
-		/>
+		>
 		{#if searchQuery}
 			<button
 				type="button"
@@ -651,10 +646,8 @@ Advanced icon picker with search, pagination, and favorites.
 							{#if !librariesLoaded}
 								<option value={DEFAULT_LIBRARY}>Loading libraries...</option>
 							{:else}
-								{#each sortedLibraries as [prefix, library] (prefix)}
-									<option value={prefix}>
-										{library.name} ({prefix}) — {library.total.toLocaleString()} icons
-									</option>
+								{#each sortedLibraries as [ prefix, library ] (prefix)}
+									<option value={prefix}>{library.name} ({prefix}) — {library.total.toLocaleString()} icons</option>
 								{/each}
 							{/if}
 						</select>
@@ -696,7 +689,11 @@ Advanced icon picker with search, pagination, and favorites.
 								id={`icon-option-${index}`}
 								aria-label={`Select icon ${fullIconName}`}
 							>
-								<iconify-icon icon={fullIconName} width="24" aria-hidden="true" class="transition-colors duration-200 group-hover:text-primary-500"
+								<iconify-icon
+									icon={fullIconName}
+									width="24"
+									aria-hidden="true"
+									class="transition-colors duration-200 group-hover:text-primary-500"
 								></iconify-icon>
 
 								{#if activeTab === 'favorites'}
@@ -730,9 +727,7 @@ Advanced icon picker with search, pagination, and favorites.
 					<!-- No results -->
 					<div class="flex flex-col items-center gap-3 py-12 text-center" in:fade={{ duration: prefersReducedMotion ? 0 : 200 }}>
 						<iconify-icon icon="mdi:magnify-close" width="48" class="text-surface-400" aria-hidden="true"></iconify-icon>
-						<p class="text-surface-600 dark:text-surface-50">
-							No icons found for "<span class="font-medium">{searchQuery}</span>"
-						</p>
+						<p class="text-surface-600 dark:text-surface-50">No icons found for "<span class="font-medium">{searchQuery}</span>"</p>
 					</div>
 				{:else}
 					<!-- Empty state -->

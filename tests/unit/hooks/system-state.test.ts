@@ -11,12 +11,12 @@
  *
  * Note: Mocks are set up in preload.ts using globalThis for controllable state.
  */
-import { mock, describe, it, beforeEach, afterAll, expect } from 'bun:test';
+import { afterAll, beforeEach, describe, expect, it, mock } from 'bun:test';
 import type { RequestEvent } from '@sveltejs/kit';
 
 // Disable TEST_MODE so the state machine logic actually runs (CI sets TEST_MODE=true)
 const originalTestMode = process.env.TEST_MODE;
-delete process.env.TEST_MODE;
+process.env.TEST_MODE = undefined;
 
 // Import the hook - mocks are already set up by preload.ts
 import { handleSystemState } from '@src/hooks/handleSystemState';
@@ -72,7 +72,7 @@ describe('handleSystemState - State Machine Logic', () => {
 		globalThis.__mockIsSystemReady = true;
 		globalThis.__mockIsSetupComplete = true;
 		// Ensure TEST_MODE is disabled so state machine runs
-		delete process.env.TEST_MODE;
+		process.env.TEST_MODE = undefined;
 		setMockState({ overallState: 'READY' });
 	});
 

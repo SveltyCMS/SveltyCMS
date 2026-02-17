@@ -38,7 +38,7 @@ import { logger } from '@utils/logger';
  * This makes Argon2id secure against quantum attacks for decades to come.
  */
 const ARGON2_CONFIG = {
-	memory: 65536, // 64 MB - Quantum-resistant memory requirement
+	memory: 65_536, // 64 MB - Quantum-resistant memory requirement
 	time: 3, // 3 iterations - Computational complexity
 	parallelism: 4, // 4 parallel threads - CPU optimization
 	type: 2 // argon2id (hybrid: side-channel + GPU resistant)

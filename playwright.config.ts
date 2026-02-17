@@ -26,7 +26,7 @@ export default defineConfig({
 		baseURL: process.env.PLAYWRIGHT_TEST_BASE_URL || (process.env.CI ? 'http://localhost:4173' : 'http://localhost:5173'),
 
 		launchOptions: {
-			slowMo: parseInt(process.env.SLOW_MO || '0'),
+			slowMo: Number.parseInt(process.env.SLOW_MO || '0', 10),
 			devtools: !process.env.CI // Enable devtools when not in CI
 		},
 		// Explicitly set PWDEBUG for local runs
@@ -46,7 +46,7 @@ export default defineConfig({
 			name: 'chromium',
 			use: {
 				...devices['Desktop Chrome'],
-				headless: process.env.CI ? true : false // Always headless in CI
+				headless: !!process.env.CI // Always headless in CI
 			}
 		},
 
@@ -54,7 +54,7 @@ export default defineConfig({
 			name: 'firefox',
 			use: {
 				...devices['Desktop Firefox'],
-				headless: process.env.CI ? true : false
+				headless: !!process.env.CI
 			}
 		},
 
@@ -62,7 +62,7 @@ export default defineConfig({
 			name: 'webkit',
 			use: {
 				...devices['Desktop Safari'],
-				headless: process.env.CI ? true : false
+				headless: !!process.env.CI
 			}
 		},
 
@@ -71,14 +71,14 @@ export default defineConfig({
 			name: 'Mobile Chrome',
 			use: {
 				...devices['Pixel 5'],
-				headless: process.env.CI ? true : false
+				headless: !!process.env.CI
 			}
 		},
 		{
 			name: 'Mobile Safari',
 			use: {
 				...devices['iPhone 12'],
-				headless: process.env.CI ? true : false
+				headless: !!process.env.CI
 			}
 		},
 
@@ -88,7 +88,7 @@ export default defineConfig({
 			use: {
 				...devices['Desktop Edge'],
 				channel: 'msedge',
-				headless: process.env.CI ? true : false
+				headless: !!process.env.CI
 			}
 		},
 		{
@@ -96,7 +96,7 @@ export default defineConfig({
 			use: {
 				...devices['Desktop Chrome'],
 				channel: 'chrome',
-				headless: process.env.CI ? true : false
+				headless: !!process.env.CI
 			}
 		}
 	],
@@ -109,7 +109,7 @@ export default defineConfig({
 				webServer: {
 					command: 'bun install && bun dev --port 5173',
 					port: 5173,
-					timeout: 60000, // Increased timeout to 1 minute
+					timeout: 60_000, // Increased timeout to 1 minute
 					reuseExistingServer: true,
 					env: {
 						PLAYWRIGHT_TEST: 'true'

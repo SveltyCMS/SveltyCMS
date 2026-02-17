@@ -52,7 +52,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 					unsubscribe();
 					logger.debug(`RTC: Connection closed for ${locals.user?.email} (heartbeat fail)`);
 				}
-			}, 30000);
+			}, 30_000);
 
 			// 5. Cleanup
 			// This is called when the server shuts down or the connection is aborted

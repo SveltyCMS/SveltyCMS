@@ -15,8 +15,6 @@ class ToasterStore {
 		}[]
 	>([]);
 
-	constructor() {}
-
 	add(toast: {
 		type?: 'success' | 'warning' | 'error' | 'info';
 		title?: string;

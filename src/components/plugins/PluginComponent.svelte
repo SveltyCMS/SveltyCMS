@@ -7,8 +7,8 @@
 	import { getPluginComponent } from '@src/plugins/client';
 
 	interface Props {
-		pluginId: string;
 		componentName: string;
+		pluginId: string;
 		[key: string]: any; // Props to pass to the plugin component
 	}
 

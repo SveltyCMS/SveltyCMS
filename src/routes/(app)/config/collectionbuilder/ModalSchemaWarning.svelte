@@ -21,15 +21,15 @@ Requires user confirmation before proceeding with changes that may cause data lo
 -->
 
 <script lang="ts">
+	import type { BreakingChange } from '@utils/collectionSchemaWarnings';
 	// Using iconify-icon web component
 	import { fade, slide } from 'svelte/transition';
-	import type { BreakingChange } from '@utils/collectionSchemaWarnings';
 
 	interface Props {
 		breakingChanges: BreakingChange[];
 		collectionName: string;
-		onConfirm: () => void;
 		onCancel: () => void;
+		onConfirm: () => void;
 	}
 
 	let { breakingChanges, collectionName, onConfirm, onCancel }: Props = $props();
@@ -82,16 +82,12 @@ Requires user confirmation before proceeding with changes that may cause data lo
 	>
 		<!-- Header -->
 		<div class="flex items-center gap-3 border-b border-surface-300 p-4 dark:border-surface-600">
-			<div class={hasDataLoss ? 'text-error-500' : 'text-warning-500'}>
-				<iconify-icon icon="mdi:alert-circle" width={28}></iconify-icon>
-			</div>
+			<div class={hasDataLoss ? 'text-error-500' : 'text-warning-500'}><iconify-icon icon="mdi:alert-circle" width={28}></iconify-icon></div>
 			<div>
 				<h2 id="modal-title" class="text-lg font-bold text-surface-900 dark:text-white">
 					{hasDataLoss ? 'Data Loss Warning' : 'Breaking Changes Detected'}
 				</h2>
-				<p class="text-sm text-surface-600 dark:text-surface-50">
-					Collection: <span class="font-medium">{collectionName}</span>
-				</p>
+				<p class="text-sm text-surface-600 dark:text-surface-50">Collection: <span class="font-medium">{collectionName}</span></p>
 			</div>
 		</div>
 
@@ -101,7 +97,9 @@ Requires user confirmation before proceeding with changes that may cause data lo
 				<div class="rounded-lg border-2 border-error-500/30 bg-error-500/10 p-3">
 					<p class="mb-2 flex items-center gap-2 font-semibold text-error-600 dark:text-error-400">
 						<iconify-icon icon="mdi:database-alert" width={24}></iconify-icon>
-						{dataLossChanges.length} change{dataLossChanges.length > 1 ? 's' : ''} will cause data loss:
+						{dataLossChanges.length}
+						change{dataLossChanges.length > 1 ? 's' : ''}
+						will cause data loss:
 					</p>
 					<ul class="space-y-2">
 						{#each dataLossChanges as change (change.type + change.message)}
@@ -126,7 +124,8 @@ Requires user confirmation before proceeding with changes that may cause data lo
 				<div class="rounded-lg border-2 border-warning-500/30 bg-warning-500/10 p-3">
 					<p class="mb-2 flex items-center gap-2 font-semibold text-warning-600 dark:text-warning-400">
 						<iconify-icon icon="mdi:alert" width={20}></iconify-icon>
-						{otherChanges.length} other breaking change{otherChanges.length > 1 ? 's' : ''}:
+						{otherChanges.length}
+						other breaking change{otherChanges.length > 1 ? 's' : ''}:
 					</p>
 					<ul class="space-y-2">
 						{#each otherChanges as change (change.type + change.message)}
@@ -155,7 +154,7 @@ Requires user confirmation before proceeding with changes that may cause data lo
 						bind:checked={confirmed}
 						class="mt-1 h-5 w-5 cursor-pointer rounded border-surface-400 text-error-500 focus:ring-error-500"
 						aria-describedby="confirm-description"
-					/>
+					>
 					<div>
 						<span class="font-medium text-surface-900 dark:text-white"> I understand that this will permanently delete data </span>
 						<p id="confirm-description" class="mt-1 text-sm text-surface-600 dark:text-surface-50">

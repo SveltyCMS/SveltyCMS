@@ -30,49 +30,49 @@ declare global {
 		// interface PageData {}
 		// interface Platform {}
 		interface Locals {
-			getSession: () => Promise<import('@auth/core/types').Session | null>;
-			user: User | null;
-			collections?: unknown; // Replace with your actual Collections type if available
-			permissions: string[]; // Array of user permissions
-			session_id?: string;
-			// Authorization flags
-			isFirstUser: boolean; // True when no users exist in database (setup flow)
-			isAdmin: boolean; // True when user's role has admin privileges
-			hasManageUsersPermission: boolean; // True when user is admin OR has "manage user" permission
-			// Data loaded by authorization hook
-			roles: Role[]; // Using imported Role type
-			allUsers: User[]; // Using imported User type
-			allTokens: Token[]; // Using imported Token type
-			theme: Theme | null; // Ensure 'theme' is correctly typed
-			customCss: string; // The active theme's custom CSS
-			tenantId?: string; // Added for multi-tenancy support
-			darkMode: boolean; // Dark mode preference from cookies
-			dbAdapter?: DatabaseAdapter | null; // Database adapter for adapter-agnostic operations
-			cspNonce?: string; // CSP nonce for this request (managed by SvelteKit)
 			// Setup hook caching - prevents duplicate checks/logs per request
 			__setupConfigExists?: boolean; // Caches isSetupComplete() result per request
 			__setupLogged?: boolean; // Prevents duplicate "config missing" warnings
-			__setupRedirectLogged?: boolean; // Prevents duplicate setup redirect logs
 			__setupLoginRedirectLogged?: boolean; // Prevents duplicate login redirect logs
+			__setupRedirectLogged?: boolean; // Prevents duplicate setup redirect logs
+			allTokens: Token[]; // Using imported Token type
+			allUsers: User[]; // Using imported User type
+			collections?: unknown; // Replace with your actual Collections type if available
+			cspNonce?: string; // CSP nonce for this request (managed by SvelteKit)
+			customCss: string; // The active theme's custom CSS
+			darkMode: boolean; // Dark mode preference from cookies
+			dbAdapter?: DatabaseAdapter | null; // Database adapter for adapter-agnostic operations
 			degradedServices?: string[]; // List of unhealthy services (populated by handleSystemState in DEGRADED state)
+			getSession: () => Promise<import('@auth/core/types').Session | null>;
+			hasManageUsersPermission: boolean; // True when user is admin OR has "manage user" permission
+			isAdmin: boolean; // True when user's role has admin privileges
+			// Authorization flags
+			isFirstUser: boolean; // True when no users exist in database (setup flow)
+			permissions: string[]; // Array of user permissions
+			// Data loaded by authorization hook
+			roles: Role[]; // Using imported Role type
+			session_id?: string;
+			tenantId?: string; // Added for multi-tenancy support
+			theme: Theme | null; // Ensure 'theme' is correctly typed
+			user: User | null;
 		}
 	}
 
 	type tokenTypes = 'register' | 'resetPassword' | 'emailVerification';
 
 	// Defines the Result type, which represents an object with errors, success, message, and data properties.
-	type Result = {
-		errors: string[];
-		success: boolean;
-		message: string;
+	interface Result {
 		data: unknown;
-	};
+		errors: string[];
+		message: string;
+		success: boolean;
+	}
 
 	type AggregationFilterStage = Record<string, unknown>;
 	type AggregationSortStage = Record<string, unknown>;
 
 	// Defines the DISPLAY type, which represents a function that takes an object with data, collection, field, entry, and contentLanguage properties and returns a promise of any.
-	type DISPLAY = (({ data: unknown, collection: unknown, field: unknown, entry: unknown, contentLanguage: string }) => Promise<unknown>) & {
+	type DISPLAY = ((params: { data: unknown; collection: unknown; field: unknown; entry: unknown; contentLanguage: string }) => Promise<unknown>) & {
 		default?: boolean;
 	};
 
@@ -98,7 +98,7 @@ declare global {
 	 * The filters method takes a field, content language, and filter, and returns a promise of an array of aggregation stages.
 	 * The sorts method takes a field, content language, and sort value, and returns a promise of an aggregation stage object.
 	 */
-	type Aggregations = {
+	interface Aggregations {
 		filters?: ({ field, contentLanguage, filter }: { field: unknown; contentLanguage: string; filter: string }) => Promise<AggregationFilterStage[]>;
 		sorts?: ({
 			field,
@@ -111,7 +111,7 @@ declare global {
 			sort?: number;
 			sortDirection?: 1 | -1 | 'asc' | 'desc';
 		}) => Promise<AggregationSortStage | AggregationSortStage[]>;
-	};
+	}
 
 	// Defines the File type, which represents an object with an optional path property.
 	interface File {
@@ -122,7 +122,3 @@ declare global {
 		escape(str: string): string;
 	}
 }
-
-// THIS IS IMPORTANT!!!
-// Export an empty object to ensure this file is treated as a module
-export {};

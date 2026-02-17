@@ -13,40 +13,32 @@
  * - Provides 'saveCollection' and 'deleteCollections' actions for persistence.
  */
 
-import fs from 'fs';
-import path from 'path';
-import prettier from 'prettier';
-import * as ts from 'typescript';
-
-import { redirect, type Actions, error } from '@sveltejs/kit';
-import type { PageServerLoad } from './$types';
-
+import fs from 'node:fs';
+import path from 'node:path';
 // Collections
 import { contentManager } from '@src/content/ContentManager';
-import { compile } from '@src/utils/compilation/compile';
-import { MigrationEngine } from '@src/services/MigrationEngine';
 import type { Schema } from '@src/content/types';
-import { getCollectionFilePath, getCollectionDisplayPath } from '@utils/tenantPaths';
-
-// Widgets
-import { widgets } from '@stores/widgetStore.svelte.ts';
-
 // Auth
 // Use hasPermissionWithRoles and roles from locals, like the example pattern
-import { hasPermissionWithRoles } from '@src/databases/auth/permissions';
-import { permissionConfigs } from '@src/databases/auth/permissions';
-
-import { permissions } from '@src/databases/auth/permissions';
-
+import { hasPermissionWithRoles, permissionConfigs, permissions } from '@src/databases/auth/permissions';
+import { MigrationEngine } from '@src/services/MigrationEngine';
+import { compile } from '@src/utils/compilation/compile';
+// Widgets
+import { widgets } from '@stores/widgetStore.svelte.ts';
+import { type Actions, error, redirect } from '@sveltejs/kit';
 // System Logger
 import { logger } from '@utils/logger.server';
+import { getCollectionDisplayPath, getCollectionFilePath } from '@utils/tenantPaths';
+import prettier from 'prettier';
+import * as ts from 'typescript';
+import type { PageServerLoad } from './$types';
 
 // Type definitions for widget field structure
 interface WidgetConfig {
-	Name: string;
-	key: string;
-	widgetId?: string;
 	GuiFields: Record<string, unknown>;
+	key: string;
+	Name: string;
+	widgetId?: string;
 }
 
 interface FieldWithWidget {
@@ -100,7 +92,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		const hasManagePermission = hasPermissionWithRoles(user, 'config:collection:manage', tenantRoles);
 
 		// Replicate original logic: User must be an Admin OR have the specific permission.
-		if (!isAdmin && !hasManagePermission) {
+		if (!(isAdmin || hasManagePermission)) {
 			const message = `User ${user._id} lacks 'config:collection:manage' permission and is not admin.`;
 			logger.warn(message, { userId: user._id, isAdmin, hasManagePermission });
 			throw error(403, 'Insufficient permissions');
@@ -133,7 +125,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		let currentCollection = await contentManager.getCollection(collectionIdentifier);
 
 		// Fallback: Try identifying as an absolute path if not found
-		if (!currentCollection && !collectionIdentifier.startsWith('/')) {
+		if (!(currentCollection || collectionIdentifier.startsWith('/'))) {
 			currentCollection = await contentManager.getCollection(`/${collectionIdentifier}`);
 		}
 
@@ -158,7 +150,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
 			const newObj: Record<string, unknown> = {};
 			for (const key in obj as Record<string, unknown>) {
-				if (Object.prototype.hasOwnProperty.call(obj, key)) {
+				if (Object.hasOwn(obj, key)) {
 					const value = (obj as Record<string, unknown>)[key];
 					if (typeof value === 'function') {
 						continue; // Skip functions
@@ -274,12 +266,12 @@ export const actions: Actions = {
 
 			// Convert categories to path-based structure
 			interface Category {
-				name: string;
-				path?: string;
 				collections?: Array<{
 					name: string;
 					path?: string;
 				}>;
+				name: string;
+				path?: string;
 			}
 
 			const pathCategories = (categories as Category[]).map((cat) => ({
@@ -328,9 +320,12 @@ async function goThrough(object: FieldsData, fields: string): Promise<string> {
 	const imports = new Set<string>();
 
 	async function processField(field: FieldWithWidget | FieldsData, fields?: string): Promise<void> {
-		if (!(field instanceof Object)) return;
+		if (!(field instanceof Object)) {
+			return;
+		}
 
 		for (const key in field) {
+			if (!Object.hasOwn(field, key)) continue;
 			const fieldValue = field[key];
 
 			// Recursively process nested fields
@@ -339,19 +334,28 @@ async function goThrough(object: FieldsData, fields: string): Promise<string> {
 			}
 
 			// Check if this field has a widget configuration
-			if (!fieldValue || typeof fieldValue !== 'object') continue;
+			if (!fieldValue || typeof fieldValue !== 'object') {
+				continue;
+			}
 			const fieldWithWidget = fieldValue as FieldWithWidget;
-			if (!fieldWithWidget.widget) continue;
+			if (!fieldWithWidget.widget) {
+				continue;
+			}
 
 			// Get widget definition
 			const widgetName = fieldWithWidget.widget.Name;
 			const widget = widgets.widgetFunctions[widgetName] as unknown as WidgetDefinition;
-			if (!widget || !widget.GuiSchema) continue;
+			if (!widget?.GuiSchema) {
+				continue;
+			}
 
 			// Process widget imports
 			for (const importKey in widget.GuiSchema) {
+				if (!Object.hasOwn(widget.GuiSchema, importKey)) continue;
 				const widgetImport = widget.GuiSchema[importKey].imports;
-				if (!widgetImport) continue;
+				if (!widgetImport) {
+					continue;
+				}
 
 				for (const _import of widgetImport) {
 					const importValue = fieldWithWidget[importKey];
@@ -364,7 +368,9 @@ async function goThrough(object: FieldsData, fields: string): Promise<string> {
 			const widgetFnName = fieldWithWidget.widget.key || fieldWithWidget.widget.Name || fieldWithWidget.widget.widgetId;
 			const widgetConfig: Record<string, unknown> = {};
 			for (const guiKey of Object.keys(widget.GuiSchema || {})) {
-				if (guiKey === 'permissions') continue;
+				if (guiKey === 'permissions') {
+					continue;
+				}
 				if (fieldWithWidget[guiKey] !== undefined) {
 					widgetConfig[guiKey] = fieldWithWidget[guiKey];
 				}
@@ -420,11 +426,11 @@ function removeFalseValues(obj: unknown): unknown {
 
 // AST-based collection file generation
 interface CollectionData {
-	contentName: string;
-	collectionIcon: string;
-	collectionStatus: string;
 	collectionDescription: string | FormDataEntryValue | null;
+	collectionIcon: string;
 	collectionSlug: string;
+	collectionStatus: string;
+	contentName: string;
 	fields: FieldsData;
 	imports: string;
 	tenantId?: string | null;

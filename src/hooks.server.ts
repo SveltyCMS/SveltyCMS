@@ -29,31 +29,26 @@
  * - clearAllSessionCaches(): Clears all cached sessions
  */
 
-import { building } from '$app/environment';
-import { type Handle } from '@sveltejs/kit';
+import { metricsService } from '@src/services/MetricsService';
+import type { Handle } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
 import { logger } from '@utils/logger.server';
-import { metricsService } from '@src/services/MetricsService';
-
-// --- Import enterprise middleware hooks ---
-import { handleSystemState } from './hooks/handleSystemState';
-import { handleSetup } from './hooks/handleSetup';
-import { handleAuthentication } from './hooks/handleAuthentication';
-import { handleAuthorization } from './hooks/handleAuthorization';
-import { handleLocale } from './hooks/handleLocale';
-import { handleTheme } from './hooks/handleTheme';
+import { building } from '$app/environment';
 import { addSecurityHeaders } from './hooks/addSecurityHeaders';
-import { handleTokenResolution } from './hooks/tokenResolution';
-import { handleStaticAssetCaching } from './hooks/handleStaticAssetCaching';
-import { handleRateLimit } from './hooks/handleRateLimit';
-import { handleFirewall } from './hooks/handleFirewall';
 // API middleware for role-based access control and caching
 import { handleApiRequests } from './hooks/handleApiRequests';
+import { handleAuthentication } from './hooks/handleAuthentication';
+import { handleAuthorization } from './hooks/handleAuthorization';
 import { handleCompression } from './hooks/handleCompression';
-
-// --- Import Token Services for Dependency Injection ---
-import { TokenRegistry } from '@src/services/token/engine';
-import { getRelationTokens } from '@src/services/token/relationEngine';
+import { handleFirewall } from './hooks/handleFirewall';
+import { handleLocale } from './hooks/handleLocale';
+import { handleRateLimit } from './hooks/handleRateLimit';
+import { handleSetup } from './hooks/handleSetup';
+import { handleStaticAssetCaching } from './hooks/handleStaticAssetCaching';
+// --- Import enterprise middleware hooks ---
+import { handleSystemState } from './hooks/handleSystemState';
+import { handleTheme } from './hooks/handleTheme';
+import { handleTokenResolution } from './hooks/tokenResolution';
 
 // --- Server Startup Logic ---
 if (!building) {
@@ -71,7 +66,6 @@ if (!building) {
 	import('@src/databases/db');
 
 	// Inject server-side relation engine into TokenRegistry
-	TokenRegistry.setRelationTokenGenerator(getRelationTokens);
 
 	// Initialize Scheduler Service (Background Tasks)
 	import('@src/services/scheduler').then(({ scheduler }) => {
@@ -80,7 +74,9 @@ if (!building) {
 
 	// Start telemetry heartbeat in background (Singleton pattern to survive HMR)
 	import('@utils/setupCheck').then(({ isSetupComplete }) => {
-		if (!isSetupComplete()) return;
+		if (!isSetupComplete()) {
+			return;
+		}
 
 		import('@src/services/TelemetryService').then(({ telemetryService }) => {
 			// Define global type for TypeScript
@@ -99,7 +95,7 @@ if (!building) {
 			// Run initial check after a short delay
 			setTimeout(() => {
 				telemetryService.checkUpdateStatus().catch((err) => logger.error('Initial telemetry check failed', err));
-			}, 10000);
+			}, 10_000);
 
 			// Schedule periodic checks (12 hours) and store ID in global
 			globalWithTelemetry.__SVELTY_TELEMETRY_INTERVAL__ = setInterval(
@@ -164,9 +160,9 @@ export const handle: Handle = sequence(...middleware);
 // --- Utility Functions for External Use ---
 export const getHealthMetrics = () => metricsService.getReport();
 export {
-	invalidateSessionCache,
 	clearAllSessionCaches,
 	clearSessionRefreshAttempt,
 	forceSessionRotation,
-	getSessionCacheStats
+	getSessionCacheStats,
+	invalidateSessionCache
 } from './hooks/handleAuthentication';

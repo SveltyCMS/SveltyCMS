@@ -1,6 +1,6 @@
 <script lang="ts">
-	import type { Locale } from '@src/paraglide/runtime';
 	import type { FieldInstance } from '@src/content/types';
+	import type { Locale } from '@src/paraglide/runtime';
 	import { tokenTarget } from '@src/services/token/tokenTarget';
 
 	// Lucide Icons
@@ -8,21 +8,21 @@
 	import type { Snippet } from 'svelte';
 
 	interface Props {
+		field: FieldInstance;
+		icon?: Snippet;
 		id: string;
 		label: string;
-		value: string;
-		placeholder?: string;
-		type?: 'input' | 'textarea';
-		rows?: number;
-		maxLength?: number;
-		optimalMin?: number;
-		optimalMax?: number;
-		translated?: boolean;
 		lang: Locale | 'default';
-		translationPct?: number;
-		field: FieldInstance;
+		maxLength?: number;
 		onUpdate: (value: string) => void;
-		icon?: Snippet;
+		optimalMax?: number;
+		optimalMin?: number;
+		placeholder?: string;
+		rows?: number;
+		translated?: boolean;
+		translationPct?: number;
+		type?: 'input' | 'textarea';
+		value: string;
 	}
 
 	let {
@@ -58,9 +58,7 @@
 		<div class="flex items-center gap-2">
 			<label for={id} class="font-bold text-sm cursor-pointer">{label}</label>
 			{@render icon?.()}
-			<span class="text-surface-400 cursor-help" title={placeholder}>
-				<iconify-icon icon="mdi:information-outline" width={16}></iconify-icon>
-			</span>
+			<span class="text-surface-400 cursor-help" title={placeholder}> <iconify-icon icon="mdi:information-outline" width={16}></iconify-icon> </span>
 		</div>
 		<div class="flex items-center gap-3 text-xs">
 			<button
@@ -112,7 +110,7 @@
 				bind:value
 				oninput={(e) => onUpdate((e.currentTarget as HTMLInputElement).value)}
 				use:tokenTarget={{ name: field.db_fieldName, label: field.label, collection: field.collection as string }}
-			/>
+			>
 		{/if}
 	</div>
 </div>

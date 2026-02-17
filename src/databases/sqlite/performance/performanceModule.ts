@@ -9,11 +9,11 @@
  * - Get slow queries
  */
 
-import type { PerformanceMetrics, DatabaseResult } from '../../dbInterface';
-import { AdapterCore } from '../adapter/adapterCore';
+import type { DatabaseResult, PerformanceMetrics } from '../../dbInterface';
+import type { AdapterCore } from '../adapter/adapterCore';
 
 export class PerformanceModule {
-	private core: AdapterCore;
+	private readonly core: AdapterCore;
 
 	constructor(core: AdapterCore) {
 		this.core = core;

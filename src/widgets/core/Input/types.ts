@@ -9,22 +9,21 @@
  */
 
 export interface InputProps {
+	// Character counting
+	count?: number;
+
+	// The maximum allowed length for text content.
+	maxLength?: number;
+
+	// Text constraints
+	// The minimum allowed length for text content.
+	minLength?: number;
 	// Basic UI
 	placeholder?: string;
 
 	// Prefix/Suffix text
 	prefix?: string;
 	suffix?: string;
-
-	// Character counting
-	count?: number;
-
-	// Text constraints
-	// The minimum allowed length for text content.
-	minLength?: number;
-
-	// The maximum allowed length for text content.
-	maxLength?: number;
 
 	// Index signature for WidgetProps constraint
 	[key: string]: unknown;

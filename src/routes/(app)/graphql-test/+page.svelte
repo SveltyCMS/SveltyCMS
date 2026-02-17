@@ -11,8 +11,8 @@
 -->
 <script lang="ts">
 	import { logger } from '@utils/logger';
-	import { onMount } from 'svelte';
 	import { createClient } from 'graphql-ws';
+	import { onMount } from 'svelte';
 
 	let posts: any[] = $state([]);
 	let error: any = $state(null);

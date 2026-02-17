@@ -14,6 +14,7 @@ import {
 	custom,
 	email as emailValidator,
 	forward,
+	type InferInput,
 	maxLength,
 	minLength,
 	nullable,
@@ -27,8 +28,7 @@ import {
 	strictObject,
 	string,
 	transform,
-	trim,
-	type InferInput
+	trim
 } from 'valibot';
 
 // NOTE: Error messages are plain strings for universal (client/server) compatibility.
@@ -186,7 +186,9 @@ const smtpHostSchema = pipe(
 	minLength(1, 'SMTP host is required'),
 	maxLength(255, 'SMTP host is too long'),
 	custom((value) => {
-		if (typeof value !== 'string') return false;
+		if (typeof value !== 'string') {
+			return false;
+		}
 		// Reject if it looks like an email
 		if (value.includes('@')) {
 			return false;
@@ -202,8 +204,10 @@ const smtpHostSchema = pipe(
 const smtpPortSchema = pipe(
 	number(),
 	custom((value) => {
-		if (typeof value !== 'number') return false;
-		return value >= 1 && value <= 65535;
+		if (typeof value !== 'number') {
+			return false;
+		}
+		return value >= 1 && value <= 65_535;
 	}, 'Port must be between 1 and 65535')
 );
 
@@ -240,11 +244,15 @@ const dbPortSchema = optional(
 	pipe(
 		string(),
 		trim(),
-		transform((value) => (value ? parseInt(value, 10) : undefined)),
+		transform((value) => (value ? Number.parseInt(value, 10) : undefined)),
 		custom((value) => {
-			if (value === undefined) return true;
-			if (typeof value !== 'number') return false;
-			return value >= 1 && value <= 65535;
+			if (value === undefined) {
+				return true;
+			}
+			if (typeof value !== 'number') {
+				return false;
+			}
+			return value >= 1 && value <= 65_535;
 		}, 'Port must be between 1 and 65535')
 	)
 );

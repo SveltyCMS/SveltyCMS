@@ -11,11 +11,11 @@
  * - `createdBy`: User ID of the creator of the token
  */
 
-import mongoose, { Schema } from 'mongoose';
-import type { Model } from 'mongoose';
+import { generateId } from '@src/databases/mongodb/methods/mongoDBUtils';
 import type { WebsiteToken } from '@src/databases/schemas';
 import { nowISODateString } from '@utils/dateUtils';
-import { generateId } from '@src/databases/mongodb/methods/mongoDBUtils';
+import type { Model } from 'mongoose';
+import mongoose, { Schema } from 'mongoose';
 
 export const websiteTokenSchema = new Schema<WebsiteToken>(
 	{

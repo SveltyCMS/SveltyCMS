@@ -3,10 +3,10 @@
  * @description Database seeding functions for MariaDB
  */
 
+import { logger } from '@utils/logger';
 import type { MySql2Database } from 'drizzle-orm/mysql2';
 import * as schema from './schema';
 import { generateId } from './utils';
-import { logger } from '@utils/logger';
 
 /**
  * Seed initial database with required data

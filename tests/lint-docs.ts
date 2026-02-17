@@ -12,11 +12,14 @@
  * - Checks for invalid field values.
  * - Checks for invalid field formats.
  * - Checks for invalid field lengths.
+ *
+ * @note This is a specialized validator for MDX metadata. For code linting/formatting,
+ * use `bun run lint` (Biome + ESLint) and `bun run format` (Biome).
  */
 
-import fs from 'fs';
-import path from 'path';
-import { safeParse, object, string, array, optional, isoDate, minLength, number, union, pipe } from 'valibot';
+import fs from 'node:fs';
+import path from 'node:path';
+import { array, isoDate, minLength, number, object, optional, pipe, safeParse, string, union } from 'valibot';
 
 // --- Frontmatter Schema Definition ---
 // ISO date validator (YYYY-MM-DD)
@@ -36,9 +39,13 @@ const frontmatterSchema = object({
 
 // --- simple frontmatter parser without extra deps ---
 function parseFrontmatter(content: string): Record<string, unknown> {
-	if (!content.startsWith('---')) return {};
+	if (!content.startsWith('---')) {
+		return {};
+	}
 	const end = content.indexOf('---', 3);
-	if (end === -1) return {};
+	if (end === -1) {
+		return {};
+	}
 
 	const yaml = content.slice(3, end).trim();
 	const lines = yaml.split(/\r?\n/);
@@ -47,7 +54,9 @@ function parseFrontmatter(content: string): Record<string, unknown> {
 	let currentKey: string | null = null;
 
 	for (const line of lines) {
-		if (!line.trim()) continue;
+		if (!line.trim()) {
+			continue;
+		}
 
 		// detect array continuation (- item)
 		if (currentKey && line.trim().startsWith('-')) {
@@ -55,7 +64,9 @@ function parseFrontmatter(content: string): Record<string, unknown> {
 				.replace(/^-/, '')
 				.trim()
 				.replace(/^['"]|['"]$/g, '');
-			if (!Array.isArray(data[currentKey])) data[currentKey] = [];
+			if (!Array.isArray(data[currentKey])) {
+				data[currentKey] = [];
+			}
 			(data[currentKey] as unknown[]).push(val);
 			continue;
 		}
@@ -89,8 +100,11 @@ function parseFrontmatter(content: string): Record<string, unknown> {
 function* walk(dir: string): Generator<string> {
 	for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
 		const full = path.join(dir, entry.name);
-		if (entry.isDirectory()) yield* walk(full);
-		else if (full.endsWith('.mdx') || full.endsWith('.md')) yield full;
+		if (entry.isDirectory()) {
+			yield* walk(full);
+		} else if (full.endsWith('.mdx') || full.endsWith('.md')) {
+			yield full;
+		}
 	}
 }
 
@@ -134,7 +148,9 @@ for (const dir of SCAN_DIRS) {
 		const data = parseFrontmatter(raw);
 
 		const result = safeParse(frontmatterSchema, data);
-		if (!result.success) {
+		if (result.success) {
+			validFiles++;
+		} else {
 			invalidFiles++;
 			errors.push({ file, issues: result.issues });
 
@@ -164,8 +180,8 @@ for (const dir of SCAN_DIRS) {
 
 				// Add helpful hints for common issues
 				if (errorMsg.includes('Missing required field: "tags"')) {
-					console.error(`     💡 Add a tags array, e.g.:`);
-					console.error(`        tags:`);
+					console.error('     💡 Add a tags array, e.g.:');
+					console.error('        tags:');
 					console.error(`          - 'widget'`);
 					console.error(`          - 'field'`);
 				} else if (errorMsg.includes('Missing required field: "path"')) {
@@ -174,8 +190,6 @@ for (const dir of SCAN_DIRS) {
 			}
 
 			console.error(''); // blank line after each error block
-		} else {
-			validFiles++;
 		}
 	}
 }
@@ -215,5 +229,5 @@ if (invalidFiles > 0 || mdFiles.length > 0) {
 	console.log('');
 	process.exit(1);
 } else {
-	console.log(`\n✨ All files have valid frontmatter!\n`);
+	console.log('\n✨ All files have valid frontmatter!\n');
 }

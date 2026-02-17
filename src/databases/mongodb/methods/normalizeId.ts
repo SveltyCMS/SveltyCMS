@@ -12,7 +12,9 @@ import type { Types } from 'mongoose';
  * Checks both instanceof and duck-typing for maximum compatibility.
  */
 function isObjectId(value: unknown): value is Types.ObjectId {
-	if (!value || typeof value !== 'object') return false;
+	if (!value || typeof value !== 'object') {
+		return false;
+	}
 	// Check for toHexString method (most reliable for ObjectId)
 	return typeof (value as any).toHexString === 'function';
 }

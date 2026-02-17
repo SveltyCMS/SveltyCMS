@@ -1,24 +1,21 @@
 <script lang="ts">
 	type _any = any;
 
-	import { logger } from '@utils/logger';
-	import { page } from '$app/state';
+	import SystemTooltip from '@components/system/SystemTooltip.svelte';
+	// Auth
+	import type { User } from '@src/databases/auth/types';
 	import { motion } from '@src/utils/utils';
+	// Stores
+	import { setMode } from '@stores/collectionStore.svelte';
+	import { ui } from '@stores/UIStore.svelte';
+	import { logger } from '@utils/logger';
+	// Modals/Tooltips
+	import { modalState } from '@utils/modalState.svelte';
 	import { onDestroy, onMount, tick } from 'svelte';
 	import { linear } from 'svelte/easing';
 	import { fade } from 'svelte/transition';
 	import { browser } from '$app/environment';
-
-	// Auth
-	import type { User } from '@src/databases/auth/types';
-
-	// Stores
-	import { setMode } from '@stores/collectionStore.svelte';
-	import { ui } from '@stores/UIStore.svelte';
-
-	// Modals/Tooltips
-	import { modalState } from '@utils/modalState.svelte';
-	import SystemTooltip from '@components/system/SystemTooltip.svelte';
+	import { page } from '$app/state';
 
 	// Constants
 	const BUTTON_RADIUS = 25;
@@ -224,15 +221,15 @@
 	}
 
 	async function toggleMenuOpen(): Promise<void> {
-		if (!showRoutes) {
+		if (showRoutes) {
+			closeMenu();
+		} else {
 			center = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
 			await tick();
 			showRoutes = true;
 			vibrate(VIBRATE_OPEN_MS);
 			await tick();
 			circles[0]?.focus?.();
-		} else {
-			closeMenu();
 		}
 	}
 
@@ -410,7 +407,6 @@
 		window.removeEventListener('keydown', onKeyDown);
 	});
 </script>
-
 <!--
 @file src/components/system/FloatingNav.svelte
 @component
@@ -425,10 +421,9 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 ### Interaction Flow
 ```mermaid
 graph TD
-    A[Floating Button] -->|Drag|
-B(Update Position) A -->|Click/Space/Enter| C(Toggle Menu) C -->|Open| D[Radial Menu] C -->|Close| E[Restore Focus] D --> F[Keyboard Nav/Hover] F
--->|Select| G[Navigate & Close] ``` ### Features - Draggable floating button - Radial menu for quick access to main sections - Reduced motion support
-- Full keyboard navigation and ARIA support -->
+    A[Floating Button] -->|Drag| B(Update Position) A -->|Click/Space/Enter| C(Toggle Menu) C -->|Open| D[Radial Menu] C -->|Close| E[Restore Focus] D
+--> F[Keyboard Nav/Hover] F -->|Select| G[Navigate & Close] ``` ### Features - Draggable floating button - Radial menu for quick access to main
+sections - Reduced motion support - Full keyboard navigation and ARIA support -->
 
 <SystemTooltip
 	title="Open Navigation Menu"

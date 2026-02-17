@@ -21,14 +21,14 @@
 
 import { beforeEach, describe, expect, test } from 'bun:test';
 import {
-	hasPermissionWithRoles,
-	hasPermissionByAction,
-	isAdminRoleWithRoles,
 	getAllPermissions,
+	hasPermissionByAction,
+	hasPermissionWithRoles,
+	isAdminRoleWithRoles,
 	registerPermission
 } from '../../src/databases/auth/permissions';
-import { PermissionAction, PermissionType } from '../../src/databases/auth/types';
 import type { Role, User } from '../../src/databases/auth/types';
+import { PermissionAction, PermissionType } from '../../src/databases/auth/types';
 
 // Mock roles that would be in database
 const mockRoles: Role[] = [

@@ -18,8 +18,8 @@
  * - Create sequences if they don't exist
  */
 
-import type postgres from 'postgres';
 import { logger } from '@utils/logger';
+import type postgres from 'postgres';
 
 // Run migrations to create/update database schema
 export async function runMigrations(sql: postgres.Sql): Promise<{ success: boolean; error?: string }> {
@@ -62,7 +62,7 @@ async function createTablesIfNotExist(sql: postgres.Sql): Promise<void> {
 			"createdAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			"updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 		)`,
-		`CREATE INDEX IF NOT EXISTS auth_users_email_idx ON auth_users (email)`,
+		'CREATE INDEX IF NOT EXISTS auth_users_email_idx ON auth_users (email)',
 		`CREATE INDEX IF NOT EXISTS auth_users_tenant_idx ON auth_users ("tenantId")`,
 		`CREATE UNIQUE INDEX IF NOT EXISTS auth_users_email_tenant_unique ON auth_users (email, "tenantId")`,
 
@@ -75,8 +75,8 @@ async function createTablesIfNotExist(sql: postgres.Sql): Promise<void> {
 			"createdAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			"updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 		)`,
-		`CREATE INDEX IF NOT EXISTS auth_sessions_user_idx ON auth_sessions (user_id)`,
-		`CREATE INDEX IF NOT EXISTS auth_sessions_expires_idx ON auth_sessions (expires)`,
+		'CREATE INDEX IF NOT EXISTS auth_sessions_user_idx ON auth_sessions (user_id)',
+		'CREATE INDEX IF NOT EXISTS auth_sessions_expires_idx ON auth_sessions (expires)',
 		`CREATE INDEX IF NOT EXISTS auth_sessions_tenant_idx ON auth_sessions ("tenantId")`,
 
 		// Auth Tokens
@@ -95,9 +95,9 @@ async function createTablesIfNotExist(sql: postgres.Sql): Promise<void> {
 			"createdAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			"updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 		)`,
-		`CREATE INDEX IF NOT EXISTS auth_tokens_token_idx ON auth_tokens (token)`,
-		`CREATE INDEX IF NOT EXISTS auth_tokens_user_idx ON auth_tokens (user_id)`,
-		`CREATE INDEX IF NOT EXISTS auth_tokens_expires_idx ON auth_tokens (expires)`,
+		'CREATE INDEX IF NOT EXISTS auth_tokens_token_idx ON auth_tokens (token)',
+		'CREATE INDEX IF NOT EXISTS auth_tokens_user_idx ON auth_tokens (user_id)',
+		'CREATE INDEX IF NOT EXISTS auth_tokens_expires_idx ON auth_tokens (expires)',
 		`CREATE INDEX IF NOT EXISTS auth_tokens_tenant_idx ON auth_tokens ("tenantId")`,
 
 		// Roles
@@ -113,7 +113,7 @@ async function createTablesIfNotExist(sql: postgres.Sql): Promise<void> {
 			"createdAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			"updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 		)`,
-		`CREATE INDEX IF NOT EXISTS roles_name_idx ON roles (name)`,
+		'CREATE INDEX IF NOT EXISTS roles_name_idx ON roles (name)',
 		`CREATE INDEX IF NOT EXISTS roles_tenant_idx ON roles ("tenantId")`,
 
 		// Content Nodes
@@ -137,10 +137,10 @@ async function createTablesIfNotExist(sql: postgres.Sql): Promise<void> {
 			"createdAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			"updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 		)`,
-		`CREATE UNIQUE INDEX IF NOT EXISTS content_nodes_path_unique ON content_nodes (path)`,
+		'CREATE UNIQUE INDEX IF NOT EXISTS content_nodes_path_unique ON content_nodes (path)',
 		`CREATE INDEX IF NOT EXISTS content_nodes_parent_idx ON content_nodes ("parentId")`,
 		`CREATE INDEX IF NOT EXISTS content_nodes_nodeType_idx ON content_nodes ("nodeType")`,
-		`CREATE INDEX IF NOT EXISTS content_nodes_status_idx ON content_nodes (status)`,
+		'CREATE INDEX IF NOT EXISTS content_nodes_status_idx ON content_nodes (status)',
 		`CREATE INDEX IF NOT EXISTS content_nodes_tenant_idx ON content_nodes ("tenantId")`,
 
 		// Content Drafts
@@ -157,7 +157,7 @@ async function createTablesIfNotExist(sql: postgres.Sql): Promise<void> {
 		)`,
 		`CREATE INDEX IF NOT EXISTS content_drafts_content_idx ON content_drafts ("contentId")`,
 		`CREATE INDEX IF NOT EXISTS content_drafts_author_idx ON content_drafts ("authorId")`,
-		`CREATE INDEX IF NOT EXISTS content_drafts_status_idx ON content_drafts (status)`,
+		'CREATE INDEX IF NOT EXISTS content_drafts_status_idx ON content_drafts (status)',
 		`CREATE INDEX IF NOT EXISTS content_drafts_tenant_idx ON content_drafts ("tenantId")`,
 
 		// Content Revisions
@@ -173,7 +173,7 @@ async function createTablesIfNotExist(sql: postgres.Sql): Promise<void> {
 			"updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 		)`,
 		`CREATE INDEX IF NOT EXISTS content_revisions_content_idx ON content_revisions ("contentId")`,
-		`CREATE INDEX IF NOT EXISTS content_revisions_version_idx ON content_revisions (version)`,
+		'CREATE INDEX IF NOT EXISTS content_revisions_version_idx ON content_revisions (version)',
 		`CREATE INDEX IF NOT EXISTS content_revisions_author_idx ON content_revisions ("authorId")`,
 		`CREATE INDEX IF NOT EXISTS content_revisions_tenant_idx ON content_revisions ("tenantId")`,
 
@@ -191,7 +191,7 @@ async function createTablesIfNotExist(sql: postgres.Sql): Promise<void> {
 			"createdAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			"updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 		)`,
-		`CREATE INDEX IF NOT EXISTS themes_name_idx ON themes (name)`,
+		'CREATE INDEX IF NOT EXISTS themes_name_idx ON themes (name)',
 		`CREATE INDEX IF NOT EXISTS themes_active_idx ON themes ("isActive")`,
 		`CREATE INDEX IF NOT EXISTS themes_tenant_idx ON themes ("tenantId")`,
 
@@ -206,7 +206,7 @@ async function createTablesIfNotExist(sql: postgres.Sql): Promise<void> {
 			"createdAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			"updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 		)`,
-		`CREATE UNIQUE INDEX IF NOT EXISTS widgets_name_unique ON widgets (name)`,
+		'CREATE UNIQUE INDEX IF NOT EXISTS widgets_name_unique ON widgets (name)',
 		`CREATE INDEX IF NOT EXISTS widgets_active_idx ON widgets ("isActive")`,
 		`CREATE INDEX IF NOT EXISTS widgets_tenant_idx ON widgets ("tenantId")`,
 
@@ -230,7 +230,7 @@ async function createTablesIfNotExist(sql: postgres.Sql): Promise<void> {
 			"createdAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			"updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 		)`,
-		`CREATE INDEX IF NOT EXISTS media_items_hash_idx ON media_items (hash)`,
+		'CREATE INDEX IF NOT EXISTS media_items_hash_idx ON media_items (hash)',
 		`CREATE INDEX IF NOT EXISTS media_items_folder_idx ON media_items ("folderId")`,
 		`CREATE INDEX IF NOT EXISTS media_items_created_by_idx ON media_items ("createdBy")`,
 		`CREATE INDEX IF NOT EXISTS media_items_tenant_idx ON media_items ("tenantId")`,
@@ -249,9 +249,9 @@ async function createTablesIfNotExist(sql: postgres.Sql): Promise<void> {
 			"createdAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			"updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 		)`,
-		`CREATE UNIQUE INDEX IF NOT EXISTS system_virtual_folders_path_unique ON system_virtual_folders (path)`,
+		'CREATE UNIQUE INDEX IF NOT EXISTS system_virtual_folders_path_unique ON system_virtual_folders (path)',
 		`CREATE INDEX IF NOT EXISTS system_virtual_folders_parent_idx ON system_virtual_folders ("parentId")`,
-		`CREATE INDEX IF NOT EXISTS system_virtual_folders_type_idx ON system_virtual_folders (type)`,
+		'CREATE INDEX IF NOT EXISTS system_virtual_folders_type_idx ON system_virtual_folders (type)',
 		`CREATE INDEX IF NOT EXISTS system_virtual_folders_tenant_idx ON system_virtual_folders ("tenantId")`,
 
 		// System Preferences
@@ -267,7 +267,7 @@ async function createTablesIfNotExist(sql: postgres.Sql): Promise<void> {
 			"updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 		)`,
 		`CREATE INDEX IF NOT EXISTS system_preferences_key_idx ON system_preferences ("key")`,
-		`CREATE INDEX IF NOT EXISTS system_preferences_scope_idx ON system_preferences (scope)`,
+		'CREATE INDEX IF NOT EXISTS system_preferences_scope_idx ON system_preferences (scope)',
 		`CREATE INDEX IF NOT EXISTS system_preferences_user_idx ON system_preferences ("userId")`,
 		`CREATE INDEX IF NOT EXISTS system_preferences_tenant_idx ON system_preferences ("tenantId")`,
 		`CREATE UNIQUE INDEX IF NOT EXISTS system_preferences_key_tenant_unique ON system_preferences ("key", "tenantId")`,
@@ -284,8 +284,8 @@ async function createTablesIfNotExist(sql: postgres.Sql): Promise<void> {
 			"createdAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			"updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 		)`,
-		`CREATE UNIQUE INDEX IF NOT EXISTS website_tokens_token_unique ON website_tokens (token)`,
-		`CREATE INDEX IF NOT EXISTS website_tokens_name_idx ON website_tokens (name)`,
+		'CREATE UNIQUE INDEX IF NOT EXISTS website_tokens_token_unique ON website_tokens (token)',
+		'CREATE INDEX IF NOT EXISTS website_tokens_name_idx ON website_tokens (name)',
 		`CREATE INDEX IF NOT EXISTS website_tokens_tenant_idx ON website_tokens ("tenantId")`,
 
 		// Plugin: PageSpeed Results
@@ -305,7 +305,7 @@ async function createTablesIfNotExist(sql: postgres.Sql): Promise<void> {
 		`CREATE INDEX IF NOT EXISTS plugin_pagespeed_entry_idx ON plugin_pagespeed_results ("entryId")`,
 		`CREATE INDEX IF NOT EXISTS plugin_pagespeed_collection_idx ON plugin_pagespeed_results ("collectionId")`,
 		`CREATE INDEX IF NOT EXISTS plugin_pagespeed_tenant_idx ON plugin_pagespeed_results ("tenantId")`,
-		`CREATE INDEX IF NOT EXISTS plugin_pagespeed_device_idx ON plugin_pagespeed_results (device)`,
+		'CREATE INDEX IF NOT EXISTS plugin_pagespeed_device_idx ON plugin_pagespeed_results (device)',
 
 		// Plugin States
 		`CREATE TABLE IF NOT EXISTS plugin_states (

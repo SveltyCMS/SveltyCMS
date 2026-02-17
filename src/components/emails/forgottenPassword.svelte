@@ -5,23 +5,22 @@
 -->
 
 <script lang="ts">
-	import { dev } from '$app/environment';
-	import { publicEnv } from '@src/stores/globalSettings.svelte';
-
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
+	import { publicEnv } from '@src/stores/globalSettings.svelte';
 	import { app } from '@stores/store.svelte';
-	// better-svelte-email
-	import { Body, Button, Container, Head, Hr, Html, Img, Link, Preview, Section, Text } from 'better-svelte-email';
 	// Readable ExpireIn time sec to year
 	import { ReadableExpireIn } from '@utils/utils';
+	// better-svelte-email
+	import { Body, Button, Container, Head, Hr, Html, Img, Link, Preview, Section, Text } from 'better-svelte-email';
+	import { dev } from '$app/environment';
 
 	interface Props {
 		email?: string;
-		token: string;
-		resetLink: string;
 		expiresIn: string;
 		languageTag?: string;
+		resetLink: string;
+		token: string;
 	}
 
 	const { email = '', token, resetLink, expiresIn, languageTag = app.systemLanguage }: Props = $props();
@@ -56,26 +55,26 @@
 
 			<!-- Main Content -->
 			<Section>
-				<Text style="font-size: 16px;">
-					Hello <strong>{email}</strong>,
-				</Text>
+				<Text style="font-size: 16px;"> Hello <strong>{email}</strong>, </Text>
 
 				<Text style="font-size: 16px;">
 					You have requested to <strong>reset your password</strong> to get access to
-					<strong>
-						Svelty<span style="color:#22c55e;font-weight:bold;">CMS</span>.
-					</strong>
+					<strong> Svelty<span style="color:#22c55e;font-weight:bold;">CMS</span>. </strong>
 				</Text>
 
 				<!-- Token Information Box -->
 				<Section>
-					<Text><strong><center>{m.forgottenpassword_token()}</center></strong></Text>
+					<Text
+						><strong><center>{m.forgottenpassword_token()}</center></strong></Text
+					>
 					<Text
 						style="text-align: center; font-weight: bold; background-color: #eee; border: 1px solid #e5e7eb; border-radius: 6px; padding: 12px; color: #111827; margin-bottom: 12px;"
 					>
 						{token}
 					</Text>
-					<Text><strong><center>{m.forgottenpassword_valid()}</center></strong></Text>
+					<Text
+						><strong><center>{m.forgottenpassword_valid()}</center></strong></Text
+					>
 					<Text
 						style="text-align: center; font-weight: bold; background-color: #eee; border: 1px solid #e5e7eb; border-radius: 6px; padding: 12px; color: #111827; margin-bottom: 12px;"
 					>
@@ -83,9 +82,7 @@
 					</Text>
 				</Section>
 
-				<Text>
-					<center>{m.forgottenpassword_ignore()}</center>
-				</Text>
+				<Text> <center>{m.forgottenpassword_ignore()}</center> </Text>
 
 				<!-- CTA Button -->
 				<Section>
@@ -107,7 +104,8 @@
 				<Section>
 					<Text style="text-align: center; font-weight: bold; font-size: 16px;">
 						<Link href="https://SveltyCMS.com">
-							Your <span style="color:#111;">Svelty</span><span style="color:#22c55e;font-weight:bold;">CMS</span> team
+							Your <span style="color:#111;">Svelty</span><span style="color:#22c55e;font-weight:bold;">CMS</span>
+							team
 						</Link>
 					</Text>
 				</Section>

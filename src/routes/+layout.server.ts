@@ -14,11 +14,12 @@
  * - Theme Management is cached
  * - Content Versioning is cached
  */
-import { version } from '../../package.json';
-import { loadSettingsCache, getPrivateSettingSync } from '@src/services/settingsService';
-import type { LayoutServerLoad } from './$types';
-import type { Locale } from '@src/paraglide/runtime';
+
 import type { NavigationNode } from '@src/content/ContentManager';
+import type { Locale } from '@src/paraglide/runtime';
+import { getPrivateSettingSync, loadSettingsCache } from '@src/services/settingsService';
+import { version } from '../../package.json';
+import type { LayoutServerLoad } from './$types';
 
 export const load: LayoutServerLoad = async ({ cookies, locals, url }) => {
 	// Use cached setup status from hooks instead of re-checking
@@ -46,7 +47,7 @@ export const load: LayoutServerLoad = async ({ cookies, locals, url }) => {
 	}
 
 	// Wrap settings loading in try-catch for preview mode resilience
-	let publicSettings;
+	let publicSettings: any;
 	try {
 		const settingsResult = await loadSettingsCache();
 		publicSettings = settingsResult.public;

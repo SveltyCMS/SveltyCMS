@@ -1,6 +1,4 @@
 import { json } from '@sveltejs/kit';
-import { logger } from '@utils/logger.server';
-
 /**
  * Get database connection pool diagnostics
  * GET /api/database/pool-diagnostics
@@ -17,6 +15,7 @@ import { logger } from '@utils/logger.server';
 // Unified Error Handling
 import { apiHandler } from '@utils/apiHandler';
 import { AppError } from '@utils/errorHandling';
+import { logger } from '@utils/logger.server';
 
 /**
  * Get database connection pool diagnostics

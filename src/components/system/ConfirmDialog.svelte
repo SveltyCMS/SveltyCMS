@@ -8,11 +8,11 @@
 	import Sanitize from '@src/utils/Sanitize.svelte';
 
 	interface Props {
-		htmlTitle?: string;
 		body?: string;
-		buttonTextConfirm?: string;
 		buttonTextCancel?: string;
+		buttonTextConfirm?: string;
 		close?: (result: boolean) => void;
+		htmlTitle?: string;
 	}
 
 	const { htmlTitle, body = 'Are you sure?', buttonTextConfirm = 'Confirm', buttonTextCancel = 'Cancel', close }: Props = $props();
@@ -40,8 +40,6 @@
 				{buttonTextCancel}
 			</button>
 		{/if}
-		<button class="btn preset-filled-primary-500" onclick={onConfirm}>
-			{buttonTextConfirm}
-		</button>
+		<button class="btn preset-filled-primary-500" onclick={onConfirm}>{buttonTextConfirm}</button>
 	</div>
 </div>

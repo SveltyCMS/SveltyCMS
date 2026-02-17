@@ -12,9 +12,9 @@
  * - Logs errors and returns appropriate error responses.
  */
 
-import { json, error } from '@sveltejs/kit';
-import { logger } from '@utils/logger.server';
 import { MediaService } from '@src/utils/media/mediaService.server';
+import { error, json } from '@sveltejs/kit';
+import { logger } from '@utils/logger.server';
 
 async function getDbAdapter() {
 	const { dbAdapter } = await import('@src/databases/db');
@@ -66,17 +66,23 @@ export async function GET({ params, locals }) {
 export async function PATCH({ params, request, locals }) {
 	const { id } = params;
 
-	if (!id) throw error(400, 'Media ID is required');
+	if (!id) {
+		throw error(400, 'Media ID is required');
+	}
 
 	const { user, roles } = locals;
 
-	if (!user) throw error(401, 'Unauthorized');
+	if (!user) {
+		throw error(401, 'Unauthorized');
+	}
 
 	const body = await request.json();
 
 	const { metadata } = body;
 
-	if (!metadata) throw error(400, 'Metadata is required');
+	if (!metadata) {
+		throw error(400, 'Metadata is required');
+	}
 
 	const dbAdapter = await getDbAdapter();
 

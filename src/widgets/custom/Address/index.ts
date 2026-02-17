@@ -16,10 +16,10 @@
 // import Input from '@components/system/inputs/Input.svelte'; // Removed for optimization
 // import Toggles from '@components/system/inputs/Toggles.svelte'; // Removed for optimization
 
-import { createWidget } from '@src/widgets/widgetFactory';
-import { object, string, number, minLength, pipe, type InferInput as ValibotInput } from 'valibot';
-import type { AddressProps } from './types';
 import * as m from '@src/paraglide/messages';
+import { createWidget } from '@src/widgets/widgetFactory';
+import { minLength, number, object, pipe, string, type InferInput as ValibotInput } from 'valibot';
+import type { AddressProps } from './types';
 
 // Define the validation schema for the address data object.
 const AddressValidationSchema = object({

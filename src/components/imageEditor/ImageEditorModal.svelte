@@ -5,11 +5,10 @@ A reusable modal that wraps the main Image Editor.
 -->
 <script lang="ts">
 	import type { MediaImage, WatermarkOptions } from '@src/utils/media/mediaModels';
-	import { setContext } from 'svelte';
+	import { imageEditorStore } from '@stores/imageEditorStore.svelte';
+	import { onMount, setContext } from 'svelte';
 	import Editor from './Editor.svelte';
 	import EditorToolbar from './EditorToolbar.svelte';
-	import { imageEditorStore } from '@stores/imageEditorStore.svelte';
-	import { onMount } from 'svelte';
 
 	let {
 		image = null,
@@ -101,10 +100,8 @@ A reusable modal that wraps the main Image Editor.
 	const activeState = $derived(imageEditorStore.state.activeState);
 
 	function handleClose() {
-		if (imageEditorStore.canUndoState) {
-			if (!confirm('You have unsaved changes. Are you sure you want to close?')) {
-				return;
-			}
+		if (imageEditorStore.canUndoState && !confirm('You have unsaved changes. Are you sure you want to close?')) {
+			return;
 		}
 		close?.();
 	}
@@ -115,10 +112,8 @@ A reusable modal that wraps the main Image Editor.
 			imageEditorStore.cancelActiveTool();
 		} else {
 			// No tool active, ask for confirmation if dirty
-			if (imageEditorStore.canUndoState) {
-				if (!confirm('You have unsaved changes. Are you sure you want to discard them?')) {
-					return;
-				}
+			if (imageEditorStore.canUndoState && !confirm('You have unsaved changes. Are you sure you want to discard them?')) {
+				return;
 			}
 			handleClose();
 		}

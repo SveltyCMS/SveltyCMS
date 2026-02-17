@@ -23,37 +23,31 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 -->
 
 <script lang="ts">
+	import PasswordStrength from '@components/PasswordStrength.svelte';
+	// Components
+	import SiteName from '@components/SiteName.svelte';
+	import FloatingPaths from '@components/system/FloatingPaths.svelte';
+	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
+	import SveltyCMSLogoFull from '@components/system/icons/SveltyCMS_LogoFull.svelte';
+	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
+	import SystemTooltip from '@components/system/SystemTooltip.svelte';
+	// ParaglideJS
+	import * as m from '@src/paraglide/messages';
+	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte.ts';
+	// Stores
+	import { screen } from '@stores/screenSizeStore.svelte.ts';
+	// Skeleton
+	import { toaster } from '@stores/store.svelte.ts';
+	import { Form } from '@utils/Form.svelte';
+	import { forgotFormSchema, loginFormSchema, resetFormSchema } from '@utils/formSchemas';
 	import { browser } from '$app/environment';
-	import { goto, preloadData } from '$app/navigation';
 	import { enhance } from '$app/forms';
-
+	import { goto, preloadData } from '$app/navigation';
 	// Stores
 	import { page } from '$app/state';
 	import type { PageData } from '../$types';
-
-	import { Form } from '@utils/Form.svelte';
-	import { loginFormSchema, forgotFormSchema, resetFormSchema } from '@utils/formSchemas';
-
-	// Components
-	import SiteName from '@components/SiteName.svelte';
 	import SigninIcon from './icons/SigninIcon.svelte';
-	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
-	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
-	import SveltyCMSLogoFull from '@components/system/icons/SveltyCMS_LogoFull.svelte';
-	import PasswordStrength from '@components/PasswordStrength.svelte';
-	import FloatingPaths from '@components/system/FloatingPaths.svelte';
-	import SystemTooltip from '@components/system/SystemTooltip.svelte';
-
-	// Skeleton
-	import { toaster } from '@stores/store.svelte.ts';
-
-	// ParaglideJS
-	import * as m from '@src/paraglide/messages';
 	import OauthLogin from './OauthLogin.svelte';
-
-	// Stores
-	import { screen } from '@stores/screenSizeStore.svelte.ts';
-	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte.ts';
 
 	// Props
 	const {
@@ -238,24 +232,23 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 					PWreset = true;
 					toaster.success({ description: m.signin_forgottontoast() });
 					return;
+				}
+				// Fallback or specific logic for User check
+				if (result.data?.status === false) {
+					// User does not exist case handled by backend returning success: false or similar?
+					// Actually, standard SvelteKit 'success' means 200 OK.
+					// If backend returns { userExists: false }, we handle it.
+					PWreset = false;
+					toaster.error({ description: 'No account found with this email address.' });
+					formElement?.classList.add('wiggle');
+					setTimeout(() => formElement?.classList.remove('wiggle'), 300);
 				} else {
-					// Fallback or specific logic for User check
-					if (result.data?.status === false) {
-						// User does not exist case handled by backend returning success: false or similar?
-						// Actually, standard SvelteKit 'success' means 200 OK.
-						// If backend returns { userExists: false }, we handle it.
-						PWreset = false;
-						toaster.error({ description: 'No account found with this email address.' });
-						formElement?.classList.add('wiggle');
-						setTimeout(() => formElement?.classList.remove('wiggle'), 300);
-					} else {
-						// Default success
-						PWreset = true;
-						toaster.success({
-							title: 'Email Sent',
-							description: 'Password reset instructions have been sent to your email'
-						});
-					}
+					// Default success
+					PWreset = true;
+					toaster.success({
+						title: 'Email Sent',
+						description: 'Password reset instructions have been sent to your email'
+					});
 				}
 			} else if (result.type === 'failure') {
 				const errorMessage = result.data?.message || 'Password reset failed';
@@ -364,15 +357,15 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 		const input = event.target as HTMLInputElement;
 		let value = input.value;
 
-		if (!useBackupCode) {
-			// For TOTP codes, only allow 6 digits
-			value = value.replace(/\D/g, '').slice(0, 6);
-		} else {
+		if (useBackupCode) {
 			// For backup codes, allow alphanumeric and remove spaces
 			value = value
 				.replace(/[^a-zA-Z0-9]/g, '')
 				.toLowerCase()
 				.slice(0, 10);
+		} else {
+			// For TOTP codes, only allow 6 digits
+			value = value.replace(/\D/g, '').slice(0, 6);
 		}
 
 		twoFACode = value;
@@ -468,9 +461,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 					<FloatingPaths position={-1} background="white" />
 				</div>
 			{/if}
-			<div class="absolute left-1/2 top-[20%] hidden -translate-x-1/2 -translate-y-1/2 transform xl:block">
-				<SveltyCMSLogoFull />
-			</div>
+			<div class="absolute left-1/2 top-[20%] hidden -translate-x-1/2 -translate-y-1/2 transform xl:block"><SveltyCMSLogoFull /></div>
 			<div class="z-0 mx-auto mb-[5%] mt-[15%] w-full overflow-y-auto rounded-md bg-white/0 p-6 backdrop-blur lg:w-4/5" class:hide={active !== 0}>
 				<div class="flex flex-row gap-2">
 					<SveltyCMSLogo className="w-14" fill="red" />
@@ -565,7 +556,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 								{m.form_signin()}
 								<!-- Optimized loading indicators -->
 								{#if isSubmitting || isAuthenticating}
-									<img src="/Spinner.svg" alt="" aria-hidden="true" decoding="async" class="ml-4 h-6 invert filter" />
+									<img src="/Spinner.svg" alt="" aria-hidden="true" decoding="async" class="ml-4 h-6 invert filter">
 								{/if}
 							</button>
 							<!-- OAuth Login -->
@@ -593,9 +584,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 					<div class="flex w-full flex-col gap-4">
 						<!-- 2FA Header -->
 						<div class="text-center">
-							<div class="mb-3">
-								<iconify-icon icon="mdi:shield-key" width={24}></iconify-icon>
-							</div>
+							<div class="mb-3"><iconify-icon icon="mdi:shield-key" width={24}></iconify-icon></div>
 							<h3 class="h3 mb-2">{m.twofa_verify_title()}</h3>
 							<p class="text-sm text-surface-600 dark:text-surface-300">
 								{useBackupCode ? 'Enter your backup recovery code:' : m.twofa_verify_description()}
@@ -616,13 +605,11 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 									class:text-lg={useBackupCode}
 									maxlength={useBackupCode ? 10 : 6}
 									autocomplete="off"
-								/>
+								>
 
 								<!-- Character counter for backup codes -->
 								{#if useBackupCode}
-									<div class="mt-1 text-center text-xs text-surface-500">
-										{twoFACode.length}/10
-									</div>
+									<div class="mt-1 text-center text-xs text-surface-500">{twoFACode.length}/10</div>
 								{/if}
 							</div>
 
@@ -656,7 +643,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 									aria-label={m.twofa_verify_button()}
 								>
 									{#if isVerifying2FA}
-										<img src="/Spinner.svg" alt="Loading.." class="mr-2 h-5 invert filter" />
+										<img src="/Spinner.svg" alt="Loading.." class="mr-2 h-5 invert filter">
 										{m.twofa_verifying()}
 									{:else}
 										<iconify-icon icon="mdi:check" width={20} class="mr-2"></iconify-icon>
@@ -705,15 +692,11 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 							icon="mdi:email"
 						/>
 						{#if forgotForm.errors.email}
-							<span class="invalid text-xs text-error-500">
-								{forgotForm.errors.email[0]}
-							</span>
+							<span class="invalid text-xs text-error-500"> {forgotForm.errors.email[0]} </span>
 						{/if}
 
 						{#if Object.keys(forgotForm.errors).length > 0 && !forgotForm.errors.email}
-							<span class="invalid text-xs text-error-500">
-								{Object.values(forgotForm.errors).flat().join(', ')}
-							</span>
+							<span class="invalid text-xs text-error-500"> {Object.values(forgotForm.errors).flat().join(', ')} </span>
 						{/if}
 
 						<div class="mt-4 flex items-center justify-between">
@@ -721,7 +704,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 								{m.form_resetpassword()}
 								<!-- Optimized loading indicators -->
 								{#if isSubmitting}
-									<img src="/Spinner.svg" alt="" aria-hidden="true" decoding="async" class="ml-4 h-6 invert filter" />
+									<img src="/Spinner.svg" alt="" aria-hidden="true" decoding="async" class="ml-4 h-6 invert filter">
 								{/if}
 							</button>
 
@@ -753,8 +736,8 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 						inert={active !== 0}
 					>
 						<!-- Hidden fields -->
-						<input type="hidden" name="email" bind:value={resetForm.data.email} />
-						<input type="hidden" name="token" bind:value={resetForm.data.token} />
+						<input type="hidden" name="email" bind:value={resetForm.data.email}>
+						<input type="hidden" name="token" bind:value={resetForm.data.token}>
 
 						<!-- Password field -->
 						<FloatingInput
@@ -772,9 +755,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 							textColor="black"
 						/>
 						{#if resetForm.errors.password}
-							<span class="invalid text-xs text-error-500">
-								{resetForm.errors.password[0]}
-							</span>
+							<span class="invalid text-xs text-error-500"> {resetForm.errors.password[0]} </span>
 						{/if}
 
 						<!-- Confirm Password field -->
@@ -809,25 +790,21 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 						/>
 
 						{#if resetForm.errors.token}
-							<span class="invalid text-xs text-error-500">
-								{resetForm.errors.token[0]}
-							</span>
+							<span class="invalid text-xs text-error-500"> {resetForm.errors.token[0]} </span>
 						{/if}
 
 						{#if Object.keys(resetForm.errors).length > 0 && !resetForm.errors.token}
-							<span class="invalid text-xs text-error-500">
-								{Object.values(resetForm.errors).flat().join(', ')}
-							</span>
+							<span class="invalid text-xs text-error-500"> {Object.values(resetForm.errors).flat().join(', ')} </span>
 						{/if}
 
-						<input type="email" name="email" bind:value={resetForm.data.email} hidden />
+						<input type="email" name="email" bind:value={resetForm.data.email} hidden>
 
 						<div class="mt-4 flex items-center justify-between">
 							<button type="submit" aria-label={m.signin_savenewpassword()} class="btn preset-filled-surface-500 ml-2 mt-6 text-white">
 								{m.signin_savenewpassword()}
 								<!-- Optimized loading indicators -->
 								{#if isSubmitting}
-									<img src="/Spinner.svg" alt="" aria-hidden="true" decoding="async" class="ml-4 h-6" />
+									<img src="/Spinner.svg" alt="" aria-hidden="true" decoding="async" class="ml-4 h-6">
 								{/if}
 							</button>
 
@@ -855,14 +832,14 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 
 <style>
 	.hide {
-		transition: 0s;
 		opacity: 0;
+		transition: 0s;
 	}
 	section {
 		--width: 0%;
-		background: white;
 		flex-grow: 1;
 		width: var(--width);
+		background: white;
 		transition: 0.4s;
 	}
 	.active {
@@ -872,9 +849,9 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 		--width: 10%;
 	}
 	.hover:hover {
+		width: calc(var(--width) + 10%);
 		border-top-right-radius: 5% 50%;
 		border-bottom-right-radius: 5% 50%;
-		width: calc(var(--width) + 10%);
 	}
 
 	:global(.wiggle) {

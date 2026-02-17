@@ -6,12 +6,12 @@ Sidebar navigation for System Settings
 -->
 
 <script lang="ts">
-	import { page } from '$app/state';
-	import { goto } from '$app/navigation';
-	import { getSettingGroupsByRole } from '@src/routes/(app)/config/systemsetting/settingsGroups';
-	import type { SettingGroup } from '@src/routes/(app)/config/systemsetting/settingsGroups';
-	import { groupsNeedingConfig } from '@stores/configStore.svelte';
 	import SystemTooltip from '@components/system/SystemTooltip.svelte';
+	import type { SettingGroup } from '@src/routes/(app)/config/systemsetting/settingsGroups';
+	import { getSettingGroupsByRole } from '@src/routes/(app)/config/systemsetting/settingsGroups';
+	import { groupsNeedingConfig } from '@stores/configStore.svelte';
+	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
 
 	// Props
 	let { isFullSidebar = true } = $props();
@@ -111,8 +111,8 @@ Sidebar navigation for System Settings
 
 <style>
 	.settings-list {
-		scrollbar-width: thin;
 		scrollbar-color: rgb(var(--color-surface-500)) transparent;
+		scrollbar-width: thin;
 	}
 	.settings-list::-webkit-scrollbar {
 		width: 4px;

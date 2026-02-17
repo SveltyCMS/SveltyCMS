@@ -4,9 +4,10 @@
  */
 
 const browser = typeof window !== 'undefined';
+
+import type { ModeType } from '@stores/collectionStore.svelte.ts';
 import { preloadData } from '$app/navigation';
 import { logger } from './logger';
-import type { ModeType } from '@stores/collectionStore.svelte.ts';
 
 // ============================================================================
 // PRELOADING
@@ -17,7 +18,9 @@ export const PRELOAD_DELAY = 200; // Configurable delay to prevent aggressive pr
 
 export function preloadEntry(entryId: string, currentPath: string, delay: number = PRELOAD_DELAY): void {
 	const existingTimer = preloadTimers.get(entryId);
-	if (existingTimer) clearTimeout(existingTimer);
+	if (existingTimer) {
+		clearTimeout(existingTimer);
+	}
 
 	const timer = setTimeout(async () => {
 		try {
@@ -26,7 +29,7 @@ export function preloadEntry(entryId: string, currentPath: string, delay: number
 			await preloadData(url.pathname + url.search);
 			logger.debug(`[Preload] Entry ${entryId.substring(0, 8)}`);
 		} catch (error) {
-			logger.warn(`[Preload ERROR]`, error);
+			logger.warn('[Preload ERROR]', error);
 		} finally {
 			preloadTimers.delete(entryId);
 		}
@@ -48,7 +51,9 @@ export function cancelPreload(entryId: string): void {
 // ============================================================================
 
 export function reflectModeInURL(mode: ModeType, entryId?: string, options: { replaceState?: boolean } = {}): void {
-	if (!browser) return;
+	if (!browser) {
+		return;
+	}
 
 	const url = new URL(window.location.href);
 	url.searchParams.delete('edit');
@@ -70,10 +75,10 @@ export function reflectModeInURL(mode: ModeType, entryId?: string, options: { re
 // ============================================================================
 
 export interface ParsedURL {
-	mode: ModeType;
+	collectionPath: string;
 	entryId?: string;
 	language: string;
-	collectionPath: string;
+	mode: ModeType;
 }
 
 export function parseURLToMode(url: URL): ParsedURL {

@@ -1,4 +1,3 @@
-import prettier from 'eslint-config-prettier';
 import js from '@eslint/js';
 import svelte from 'eslint-plugin-svelte';
 import globals from 'globals';
@@ -8,11 +7,9 @@ export default ts.config(
 	js.configs.recommended,
 	...ts.configs.recommended,
 	...svelte.configs['flat/recommended'],
-	prettier,
-	...svelte.configs['flat/prettier'],
 	{
 		rules: {
-			'@typescript-eslint/no-explicit-any': 'off', // Handle via naming convention if possible, or keep on but with exceptions
+			'@typescript-eslint/no-explicit-any': 'off',
 			'@typescript-eslint/no-unused-vars': [
 				'error',
 				{
@@ -21,7 +18,8 @@ export default ts.config(
 					caughtErrorsIgnorePattern: '^_'
 				}
 			],
-			'svelte/no-navigation-without-resolve': 'off'
+			'svelte/no-navigation-without-resolve': 'off',
+			'svelte/require-each-key': 'off'
 		}
 	},
 	{
@@ -32,10 +30,6 @@ export default ts.config(
 				NodeJS: true,
 				svelte: true,
 				globalThis: 'readonly'
-			},
-			parserOptions: {
-				ecmaVersion: 'latest',
-				sourceType: 'module'
 			}
 		}
 	},
@@ -63,7 +57,9 @@ export default ts.config(
 			'!**/.env.example',
 			'**/pnpm-lock.yaml',
 			'**/package-lock.json',
-			'**/yarn.lock'
+			'**/yarn.lock',
+			'doctor.log',
+			'preview.log'
 		]
 	}
 );

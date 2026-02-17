@@ -8,16 +8,16 @@
  * - Plugin action to refresh PageSpeed data
  */
 
+import { logger } from '@utils/logger.server';
 import type { Plugin, PluginContext, PluginEntryData } from '../types';
 import { migrations } from './migrations';
 import { getMultipleCachedResults } from './service';
-import { logger } from '@utils/logger.server';
 
 /**
  * SSR hook for PageSpeed plugin
  * Enriches entry list with cached PageSpeed data
  */
-async function ssrHook(context: PluginContext, entries: Array<Record<string, unknown>>): Promise<PluginEntryData[]> {
+async function ssrHook(context: PluginContext, entries: Record<string, unknown>[]): Promise<PluginEntryData[]> {
 	const { dbAdapter, collectionSchema, language, tenantId } = context;
 
 	try {

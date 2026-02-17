@@ -9,15 +9,16 @@ It relies entirely on the centralized `themeStore` for its state and logic.
 - Optional tooltip for user guidance
 -->
 <script lang="ts">
-	import { themeStore, setThemePreference, useSystemPreference } from '@stores/themeStore.svelte.ts';
 	import SystemTooltip from '@components/system/SystemTooltip.svelte';
+	import { setThemePreference, themeStore, useSystemPreference } from '@stores/themeStore.svelte.ts';
+
 	// Explicit imports
 
 	interface Props {
-		showTooltip?: boolean;
-		tooltipPlacement?: 'top' | 'bottom' | 'left' | 'right';
 		buttonClass?: string;
 		iconSize?: number;
+		showTooltip?: boolean;
+		tooltipPlacement?: 'top' | 'bottom' | 'left' | 'right';
 	}
 
 	const {

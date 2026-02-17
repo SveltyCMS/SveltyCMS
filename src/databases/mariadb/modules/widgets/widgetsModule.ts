@@ -10,15 +10,15 @@
  * - Delete widget
  */
 
+import { logger } from '@src/utils/logger';
 import { eq } from 'drizzle-orm';
 import type { DatabaseId, DatabaseResult, Widget } from '../../../dbInterface';
-import { AdapterCore } from '../../adapter/adapterCore';
+import type { AdapterCore } from '../../adapter/adapterCore';
 import * as schema from '../../schema';
 import * as utils from '../../utils';
-import { logger } from '@src/utils/logger';
 
 export class WidgetsModule {
-	private core: AdapterCore;
+	private readonly core: AdapterCore;
 
 	constructor(core: AdapterCore) {
 		this.core = core;
@@ -49,20 +49,19 @@ export class WidgetsModule {
 					.where(eq(schema.widgets.name, widget.name));
 				const [updated] = await this.db.select().from(schema.widgets).where(eq(schema.widgets.name, widget.name)).limit(1);
 				return utils.convertDatesToISO(updated) as unknown as Widget;
-			} else {
-				const id = utils.generateId();
-				await this.db.insert(schema.widgets).values({
-					_id: id,
-					name: widget.name,
-					isActive: widget.isActive,
-					instances: (widget as any).instances as any,
-					dependencies: (widget as any).dependencies,
-					createdAt: new Date(),
-					updatedAt: new Date()
-				});
-				const [created] = await this.db.select().from(schema.widgets).where(eq(schema.widgets._id, id)).limit(1);
-				return utils.convertDatesToISO(created) as unknown as Widget;
 			}
+			const id = utils.generateId();
+			await this.db.insert(schema.widgets).values({
+				_id: id,
+				name: widget.name,
+				isActive: widget.isActive,
+				instances: (widget as any).instances as any,
+				dependencies: (widget as any).dependencies,
+				createdAt: new Date(),
+				updatedAt: new Date()
+			});
+			const [created] = await this.db.select().from(schema.widgets).where(eq(schema.widgets._id, id)).limit(1);
+			return utils.convertDatesToISO(created) as unknown as Widget;
 		}, 'REGISTER_WIDGET_FAILED');
 	}
 

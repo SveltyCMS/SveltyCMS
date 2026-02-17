@@ -64,26 +64,26 @@ Permission-based access control component with advanced features and security.
 -->
 
 <script lang="ts">
-	import { page } from '$app/state';
-	import { fade } from 'svelte/transition';
 	import type { PermissionConfig } from '@src/databases/auth/permissions';
 	import type { Snippet } from 'svelte';
+	import { fade } from 'svelte/transition';
+	import { page } from '$app/state';
 
 	interface ErrorMessages {
-		rateLimited?: string;
-		missingConfig?: string;
 		insufficientPermissions?: string;
 		loadingPermissions?: string;
+		missingConfig?: string;
+		rateLimited?: string;
 	}
 
 	interface Props {
-		config: PermissionConfig | undefined;
-		messages?: ErrorMessages;
-		silent?: boolean;
-		showLoadingState?: boolean;
-		logDenials?: boolean;
 		children?: Snippet;
+		config: PermissionConfig | undefined;
 		fallback?: Snippet;
+		logDenials?: boolean;
+		messages?: ErrorMessages;
+		showLoadingState?: boolean;
+		silent?: boolean;
 	}
 
 	const { config, messages = {}, silent = false, showLoadingState = true, logDenials = true, children, fallback }: Props = $props();
@@ -101,8 +101,8 @@ Permission-based access control component with advanced features and security.
 
 	// Derive permissions and admin status from page data
 	const permissions = $derived((page.data?.permissions || {}) as Record<string, { hasPermission: boolean; isRateLimited: boolean }>);
-	const isAdmin = $derived((page.data?.isAdmin || false) as boolean);
-	const isLoading = $derived((page.data?.isLoadingPermissions || false) as boolean);
+	const isAdmin = $derived(page.data?.isAdmin as boolean);
+	const isLoading = $derived(page.data?.isLoadingPermissions as boolean);
 
 	// Get permission data for specific context
 	const permissionData = $derived.by(() => {
@@ -166,9 +166,7 @@ Permission-based access control component with advanced features and security.
 		transition:fade={{ duration: 200 }}
 	>
 		<div class="h-4 w-4 animate-spin rounded-full border-2 border-primary-500 border-t-transparent" aria-hidden="true"></div>
-		<span class="text-sm text-gray-600 dark:text-gray-400">
-			{finalMessages.loadingPermissions}
-		</span>
+		<span class="text-sm text-gray-600 dark:text-gray-400"> {finalMessages.loadingPermissions} </span>
 	</div>
 {:else if shouldShowContent}
 	<!-- Authorized content -->
@@ -187,23 +185,20 @@ Permission-based access control component with advanced features and security.
 		transition:fade={{ duration: 200 }}
 	>
 		<!-- Error icon -->
-		<span class="text-2xl" role="img" aria-label={isRateLimited ? 'Rate limited' : 'Access denied'}>
-			{errorIcon}
-		</span>
+		<span class="text-2xl" role="img" aria-label={isRateLimited ? 'Rate limited' : 'Access denied'}> {errorIcon} </span>
 
 		<!-- Error content -->
 		<div class="flex-1">
 			<h3 class="font-semibold {isRateLimited ? 'text-warning-800 dark:text-warning-200' : ''}">
 				{isRateLimited ? 'Rate Limit Exceeded' : 'Access Denied'}
 			</h3>
-			<p class="mt-1 text-sm {isRateLimited ? 'text-warning-700 dark:text-warning-300' : 'text-error-700 dark:text-error-300'}">
-				{errorMessage}
-			</p>
+			<p class="mt-1 text-sm {isRateLimited ? 'text-warning-700 dark:text-warning-300' : 'text-error-700 dark:text-error-300'}">{errorMessage}</p>
 
 			<!-- Additional context for missing config (dev mode only) -->
 			{#if !config && import.meta.env.DEV}
 				<p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
-					<strong>Dev Note:</strong> No permission config provided. Pass a valid PermissionConfig object to this component.
+					<strong>Dev Note:</strong>
+					No permission config provided. Pass a valid PermissionConfig object to this component.
 				</p>
 			{/if}
 		</div>

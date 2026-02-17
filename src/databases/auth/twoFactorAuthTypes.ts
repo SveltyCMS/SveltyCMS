@@ -15,8 +15,7 @@
 
 // 2FA Setup Response Interface
 export interface TwoFactorSetupResponse {
-	secret: string;
-	qrCodeURL: string;
+	backupCodes: string[];
 	manualEntryDetails: {
 		secret: string;
 		account: string;
@@ -25,13 +24,14 @@ export interface TwoFactorSetupResponse {
 		digits: number;
 		period: number;
 	};
-	backupCodes: string[];
+	qrCodeURL: string;
+	secret: string;
 }
 
 // 2FA Verification Result Interface
 export interface TwoFactorVerificationResult {
-	success: boolean;
-	method?: 'totp' | 'backup';
-	message: string;
 	backupCodeUsed?: boolean;
+	message: string;
+	method?: 'totp' | 'backup';
+	success: boolean;
 }

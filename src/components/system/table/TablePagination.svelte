@@ -22,9 +22,9 @@
 -->
 
 <script lang="ts">
+	import SystemTooltip from '@components/system/SystemTooltip.svelte';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
-	import SystemTooltip from '@components/system/SystemTooltip.svelte';
 
 	// Props with default values
 	let {
@@ -74,13 +74,15 @@
 		<span class="ml-4" aria-label="Current items shown">
 			{#if totalItems > 0}
 				{m.entrylist_showing()} <span class="text-tertiary-500 dark:text-primary-500">{startItem}</span>–<span
-					class="text-tertiary-500 dark:text-primary-500">{endItem}</span
+					class="text-tertiary-500 dark:text-primary-500"
+					>{endItem}</span
 				>
 				{m.entrylist_of()}
 				<span class="text-tertiary-500 dark:text-primary-500">{totalItems}</span>
 				{m.entrylist_items()}
 			{:else}
-				{m.entrylist_showing()} 0 {m.entrylist_of()} 0 {m.entrylist_items()}
+				{m.entrylist_showing()}
+				0 {m.entrylist_of()} 0 {m.entrylist_items()}
 			{/if}
 		</span>
 	</div>

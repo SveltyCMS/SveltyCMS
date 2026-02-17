@@ -20,9 +20,9 @@ optional actions, and smooth animations.
 -->
 
 <script lang="ts">
-	import { fly, fade } from 'svelte/transition';
 	import { toaster } from '@stores/store.svelte';
 	import DOMPurify from 'isomorphic-dompurify';
+	import { fade, fly } from 'svelte/transition';
 
 	interface Props {
 		/** Position of the toast container */
@@ -83,7 +83,7 @@ optional actions, and smooth animations.
 
 	// Get icon for toast type
 	function getToastIcon(type: string | undefined): string | null {
-		if (!type || !(type in toastConfig)) return null;
+		if (!(type && type in toastConfig)) return null;
 		return toastConfig[type as ToastType].icon;
 	}
 

@@ -11,12 +11,12 @@
  * - Automatic cleanup of temporary files
  */
 
-import { error } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
-import { createBulkDownloadArchive, streamArchiveToResponse, cleanupArchive } from '@utils/media/bulkDownload';
 import { dbAdapter } from '@src/databases/db';
-import { logger } from '@utils/logger.server';
 import type { MediaItem } from '@src/databases/dbInterface';
+import { error } from '@sveltejs/kit';
+import { logger } from '@utils/logger.server';
+import { cleanupArchive, createBulkDownloadArchive, streamArchiveToResponse } from '@utils/media/bulkDownload';
+import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	const { user, tenantId } = locals;
@@ -47,7 +47,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		}
 
 		const filesPromises = fileIds.map(async (id) => {
-			if (!dbAdapter) return null;
+			if (!dbAdapter) {
+				return null;
+			}
 			const result = await dbAdapter.crud.findOne<MediaItem>('MediaItem', { _id: id });
 			if (result.success && result.data) {
 				return result.data;

@@ -13,46 +13,39 @@
  * - Proper typing for user data
  */
 
-import { dev } from '$app/environment';
-import { fail, redirect, type Actions, type Cookies } from '@sveltejs/kit';
-import type { PageServerLoad } from './$types';
-
-// Rate Limiter
-import { RateLimiter } from 'sveltekit-rate-limiter/server';
-
-// Cache invalidation
-import { invalidateUserCountCache } from '@src/hooks/handleAuthorization';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { invalidateSetupCache } from '@utils/setupCheck';
-
-// valibot schemas
-import { forgotFormSchema, loginFormSchema, resetFormSchema, signUpFormSchema } from '@utils/formSchemas';
-import { flatten, safeParse } from 'valibot';
-
 // Auth
 import { generateGoogleAuthUrl, googleAuth } from '@src/databases/auth/googleAuth';
 import type { User } from '@src/databases/auth/types';
 import { auth, dbInitPromise } from '@src/databases/db';
+// Cache invalidation
+import { invalidateUserCountCache } from '@src/hooks/handleAuthorization';
+import { type Actions, type Cookies, fail, redirect } from '@sveltejs/kit';
+// valibot schemas
+import { forgotFormSchema, loginFormSchema, resetFormSchema, signUpFormSchema } from '@utils/formSchemas';
+import { invalidateSetupCache } from '@utils/setupCheck';
+// Rate Limiter
+import { RateLimiter } from 'sveltekit-rate-limiter/server';
+import { flatten, safeParse } from 'valibot';
+import { dev } from '$app/environment';
+import type { PageServerLoad } from './$types';
+
 // Removed googleapis import
-
-// Utils
-import type { ISODateString } from '@src/content/types';
-
-// Stores
-import type { Locale } from '@src/paraglide/runtime';
-import { getPrivateSettingSync } from '@src/services/settingsService';
-import { publicEnv } from '@src/stores/globalSettings.svelte';
-import { app } from '@stores/store.svelte';
-
-// System Logger
-import { logger } from '@utils/logger.server';
 
 // Content Manager for redirects
 import { contentManager } from '@root/src/content/ContentManager';
-
+// Utils
+import type { ISODateString } from '@src/content/types';
+// Stores
+import type { Locale } from '@src/paraglide/runtime';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 // Tenant Service
 import { tenantService } from '@src/services/TenantService';
+import { publicEnv } from '@src/stores/globalSettings.svelte';
+import { app } from '@stores/store.svelte';
+// System Logger
+import { logger } from '@utils/logger.server';
 
 const limiter = new RateLimiter({
 	IP: [200, 'h'], // 200 requests per hour per IP
@@ -72,9 +65,15 @@ const GREEN_LENGTH = YELLOW_LENGTH + 4;
 
 // Function to calculate password strength (matches the logic in PasswordStrength.svelte)
 function calculatePasswordStrength(password: string): number {
-	if (password.length >= GREEN_LENGTH) return 3;
-	if (password.length >= YELLOW_LENGTH) return 2;
-	if (password.length >= MIN_PPASSWORD_LENGTH) return 1;
+	if (password.length >= GREEN_LENGTH) {
+		return 3;
+	}
+	if (password.length >= YELLOW_LENGTH) {
+		return 2;
+	}
+	if (password.length >= MIN_PPASSWORD_LENGTH) {
+		return 1;
+	}
 	return 0;
 }
 
@@ -137,7 +136,7 @@ async function checkDatabaseHealth(): Promise<{ healthy: boolean; reason?: strin
 }
 
 // Helper function to wait for auth service to be ready
-async function waitForAuthService(maxWaitMs: number = 10000): Promise<boolean> {
+async function waitForAuthService(maxWaitMs = 10_000): Promise<boolean> {
 	const startTime = Date.now();
 	logger.debug(`Waiting for auth service to be ready (timeout: ${maxWaitMs}ms)...`);
 
@@ -277,7 +276,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 
 		// Database is healthy, now check auth service (reduced timeout from 30s to 10s)
 		const authReady = await waitForAuthService();
-		if (!authReady || !auth) {
+		if (!(authReady && auth)) {
 			logger.warn('Authentication system is not ready yet, checking if database is empty');
 
 			// Check if this is a "database empty" scenario
@@ -315,7 +314,9 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 			};
 		}
 
-		if (!locals) locals = {} as App.Locals;
+		if (!locals) {
+			locals = {} as App.Locals;
+		}
 
 		// Check if user is already authenticated
 		if (locals.user) {
@@ -376,35 +377,34 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 					signUpForm: {},
 					demoMode
 				};
-			} else {
-				// Token is invalid, expired, or already used.
-				// Instead of completely blocking, let the user access the form
-				// and pre-fill the token so they can see what's wrong or enter a different one
-				logger.warn('Invalid invite token detected, but allowing form access with pre-filled token.');
-
-				// Check firstUserExists for consistency
-				const firstUserExists = locals.isFirstUser === false;
-
-				// Check if OAuth should be shown (invalid invite, but has token)
-				const showOAuth = await shouldShowOAuth(true);
-
-				// Pre-fill the form with the invalid token and show a warning
-				const signUpForm = { token: inviteToken }; // Pre-fill with the invalid token
-
-				return {
-					firstUserExists,
-					isInviteFlow: false, // Not a proper invite flow since token is invalid
-					showOAuth,
-					hasExistingOAuthUsers: false,
-					inviteError:
-						'This invitation token appears to be invalid, expired, or already used. Please check with your administrator or enter a different token.',
-					loginForm: {},
-					forgotForm: {},
-					resetForm: {},
-					signUpForm,
-					demoMode
-				};
 			}
+			// Token is invalid, expired, or already used.
+			// Instead of completely blocking, let the user access the form
+			// and pre-fill the token so they can see what's wrong or enter a different one
+			logger.warn('Invalid invite token detected, but allowing form access with pre-filled token.');
+
+			// Check firstUserExists for consistency
+			const firstUserExists = locals.isFirstUser === false;
+
+			// Check if OAuth should be shown (invalid invite, but has token)
+			const showOAuth = await shouldShowOAuth(true);
+
+			// Pre-fill the form with the invalid token and show a warning
+			const signUpForm = { token: inviteToken }; // Pre-fill with the invalid token
+
+			return {
+				firstUserExists,
+				isInviteFlow: false, // Not a proper invite flow since token is invalid
+				showOAuth,
+				hasExistingOAuthUsers: false,
+				inviteError:
+					'This invitation token appears to be invalid, expired, or already used. Please check with your administrator or enter a different token.',
+				loginForm: {},
+				forgotForm: {},
+				resetForm: {},
+				signUpForm,
+				demoMode
+			};
 		}
 
 		// Use the firstUserExists value from locals (set by hooks)
@@ -421,11 +421,15 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 			logger.debug('Entering Google OAuth flow in load function');
 			try {
 				const googleAuthInstance = await googleAuth();
-				if (!googleAuthInstance) throw Error('Google OAuth client is not initialized');
+				if (!googleAuthInstance) {
+					throw new Error('Google OAuth client is not initialized');
+				}
 
 				logger.debug('Fetching tokens using authorization code...');
 				const { tokens } = await googleAuthInstance.getToken(code);
-				if (!tokens) throw new Error('Failed to retrieve Google OAuth tokens.');
+				if (!tokens) {
+					throw new Error('Failed to retrieve Google OAuth tokens.');
+				}
 
 				googleAuthInstance.setCredentials(tokens);
 
@@ -450,10 +454,14 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 
 				const getUser = async (): Promise<[User | null, boolean]> => {
 					const email = googleUser.email;
-					if (!email) throw Error('Google did not return an email address.');
+					if (!email) {
+						throw new Error('Google did not return an email address.');
+					}
 
-					const existingUser = await auth!.checkUser({ email });
-					if (existingUser) return [existingUser, false];
+					const existingUser = await auth?.checkUser({ email });
+					if (existingUser) {
+						return [existingUser, false];
+					}
 
 					// For non-first users (or any users), allow only invite-based registration
 					if (!inviteToken) {
@@ -461,8 +469,8 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 						return [null, false];
 					}
 
-					const tokenData = await auth!.validateRegistrationToken(inviteToken);
-					if (!tokenData.isValid || !tokenData.details) {
+					const tokenData = await auth?.validateRegistrationToken(inviteToken);
+					if (!(tokenData.isValid && tokenData.details)) {
 						logger.warn('Invalid/expired invite token used in OAuth registration');
 						return [null, false];
 					}
@@ -478,7 +486,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 
 					const roleId = tokenData.details.role || 'user';
 
-					const newUser = await auth!.createUser({
+					const newUser = await auth?.createUser({
 						email,
 						username: googleUser.name || email.split('@')[0],
 						role: roleId,
@@ -488,12 +496,12 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 					});
 
 					// Consume the invitation token after successful registration
-					await auth!.consumeRegistrationToken(inviteToken);
+					await auth?.consumeRegistrationToken(inviteToken);
 
 					logger.info(`OAuth: Invited user created: ${newUser?.username}`);
 					const emailProps = {
 						username: googleUser.name || newUser?.username || '',
-						email: email,
+						email,
 						hostLink: publicEnv.HOST_PROD || `https://${request.headers.get('host')}`,
 						sitename: publicEnv.SITE_NAME || 'SveltyCMS'
 					};
@@ -509,25 +517,25 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 								languageTag: app.systemLanguage
 							})
 						});
-						if (!mailResponse.ok) {
+						if (mailResponse.ok) {
+							logger.info('OAuth: Welcome email request sent to invited user via API', { email });
+						} else {
 							logger.error(`OAuth: Failed to send welcome email to invited user via API. Status: ${mailResponse.status}`, {
 								email,
 								responseText: await mailResponse.text()
 							});
-						} else {
-							logger.info(`OAuth: Welcome email request sent to invited user via API`, { email });
 						}
 					} catch (emailError) {
-						logger.error(`OAuth: Error fetching /api/sendMail for invited user`, { email, error: emailError });
+						logger.error('OAuth: Error fetching /api/sendMail for invited user', { email, error: emailError });
 					}
 					return [newUser, false];
 				};
 
 				const [user] = await getUser();
 
-				if (user && user._id) {
+				if (user?._id) {
 					await createSessionAndSetCookie(user._id, cookies);
-					await auth!.updateUserAttributes(user._id, { lastAuthMethod: 'google' });
+					await auth?.updateUserAttributes(user._id, { lastAuthMethod: 'google' });
 
 					// Determine redirect path based on collections
 					const finalCollectionPath = await getCachedFirstCollectionPath(userLanguage);
@@ -627,7 +635,9 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 		};
 	} catch (initialError) {
 		const err = initialError as Error;
-		if (err instanceof Response && err.status === 302) throw err;
+		if (err instanceof Response && err.status === 302) {
+			throw err;
+		}
 
 		logger.error(`Critical error in load function: ${err.message}`, { stack: err.stack });
 		return {
@@ -674,8 +684,8 @@ export const actions: Actions = {
 		}
 
 		// Wait for auth service to be ready
-		const authReady = await waitForAuthService(10000);
-		if (!authReady || !auth) {
+		const authReady = await waitForAuthService(10_000);
+		if (!(authReady && auth)) {
 			logger.error('Authentication system is not ready for signUp action');
 			return fail(503, { message: 'Authentication system is not ready.' });
 		}
@@ -696,7 +706,7 @@ export const actions: Actions = {
 		const multiTenant = getPrivateSettingSync('MULTI_TENANT');
 		let role = 'user';
 		let isInvited = false;
-		let tenantId: string | undefined = undefined;
+		let tenantId: string | undefined;
 
 		// --- Scenario 1: Multi-Tenant Demo Mode (Open Signup) ---
 		if (multiTenant && !token) {
@@ -715,7 +725,7 @@ export const actions: Actions = {
 			}
 
 			const tokenData = await auth.validateRegistrationToken(token);
-			if (!tokenData.isValid || !tokenData.details) {
+			if (!(tokenData.isValid && tokenData.details)) {
 				return fail(403, { message: 'This invitation is invalid, expired, or has already been used.', form });
 			}
 
@@ -733,7 +743,7 @@ export const actions: Actions = {
 			// Debug: Log the token details
 			logger.debug('Token validation result:', {
 				tokenData: tokenData.details,
-				role: role,
+				role,
 				email: tokenData.details.email,
 				tenantId
 			});
@@ -759,7 +769,7 @@ export const actions: Actions = {
 				}
 			);
 
-			if (!userAndSessionResult.success || !userAndSessionResult.data) {
+			if (!(userAndSessionResult.success && userAndSessionResult.data)) {
 				const errorMessage =
 					!userAndSessionResult.success && 'error' in userAndSessionResult
 						? userAndSessionResult.error?.message
@@ -791,7 +801,7 @@ export const actions: Actions = {
 
 			// Consume the invitation token if one was used
 			if (isInvited && token) {
-				await auth!.consumeRegistrationToken(token);
+				await auth?.consumeRegistrationToken(token);
 			}
 
 			// Send welcome email (best-effort; do not fail signup on email issues)
@@ -813,16 +823,16 @@ export const actions: Actions = {
 						languageTag: userLanguage
 					})
 				});
-				if (!mailResponse.ok) {
+				if (mailResponse.ok) {
+					logger.info('Welcome email request sent via API', { email });
+				} else {
 					logger.error(`Failed to send welcome email via API. Status: ${mailResponse.status}`, {
 						email,
 						responseText: await mailResponse.text()
 					});
-				} else {
-					logger.info(`Welcome email request sent via API`, { email });
 				}
 			} catch (emailError) {
-				logger.error(`Error invoking /api/sendMail for invited user`, { email, error: emailError });
+				logger.error('Error invoking /api/sendMail for invited user', { email, error: emailError });
 			}
 
 			// Set session cookie using the already-created session
@@ -891,8 +901,8 @@ export const actions: Actions = {
 		}
 
 		// Wait for auth service to be ready (with timeout)
-		const authReady = await waitForAuthService(10000); // 10 second timeout for sign-in
-		if (!authReady || !auth) {
+		const authReady = await waitForAuthService(10_000); // 10 second timeout for sign-in
+		if (!(authReady && auth)) {
 			logger.error('Authentication system is not ready for signIn action after waiting');
 			return fail(503, {
 				message: 'Authentication system is not ready. Please wait a moment and try again.'
@@ -911,14 +921,16 @@ export const actions: Actions = {
 		const form = { email: emailRaw, password: passwordRaw, isToken };
 		const result = safeParse(loginFormSchema, form);
 
-		if (!result.success) return fail(400, { form, errors: flatten(result.issues).nested });
+		if (!result.success) {
+			return fail(400, { form, errors: flatten(result.issues).nested });
+		}
 
 		const { email, password } = result.output;
 		// isToken is already boolean from our manual parsing, but let's use result.output if schema didn't transform it weirdly
 		// actually result.output.isToken should be boolean because schema says boolean() and we passed a boolean
 
-		let resp;
-		let redirectPath;
+		let resp: any;
+		let redirectPath: string | undefined;
 
 		try {
 			// Run authentication (collection path will be determined after auth success)
@@ -926,7 +938,7 @@ export const actions: Actions = {
 
 			resp = authResult;
 
-			if (resp && resp.requires2FA) {
+			if (resp?.requires2FA) {
 				// User needs 2FA verification - return fail() instead of message()
 				logger.debug('2FA verification required for user', { userId: resp.userId });
 				return fail(401, {
@@ -934,7 +946,8 @@ export const actions: Actions = {
 					userId: resp.userId,
 					message: 'Please enter your 2FA code to continue.'
 				});
-			} else if (resp && resp.status) {
+			}
+			if (resp?.status) {
 				// message(signInForm, 'Sign-in successful!'); // No need to send message on success redirect
 
 				// Check if collections exist in the database (runtime-created collections)
@@ -959,14 +972,14 @@ export const actions: Actions = {
 				logger.debug(`SignIn completed in ${(endTime - startTime).toFixed(2)}ms`);
 			} else {
 				const errorMessage = resp?.message || 'Invalid credentials or an error occurred.';
-				logger.warn(`Sign-in failed`, { email, errorMessage });
+				logger.warn('Sign-in failed', { email, errorMessage });
 				const errorMsg = resp?.message || 'Invalid credentials or an error occurred.';
-				logger.warn(`Sign-in failed`, { email, errorMsg });
+				logger.warn('Sign-in failed', { email, errorMsg });
 				return fail(401, { message: errorMessage, form });
 			}
 		} catch (e) {
 			const err = e as Error;
-			logger.error(`Unexpected error in signIn action`, { email, message: err.message, stack: err.stack });
+			logger.error('Unexpected error in signIn action', { email, message: err.message, stack: err.stack });
 			return fail(500, { message: 'An unexpected server error occurred.', form });
 		}
 
@@ -997,8 +1010,8 @@ export const actions: Actions = {
 		}
 
 		// Wait for auth service to be ready
-		const authReady = await waitForAuthService(10000);
-		if (!authReady || !auth) {
+		const authReady = await waitForAuthService(10_000);
+		if (!(authReady && auth)) {
 			logger.error('Authentication system is not ready for verify2FA action');
 			return fail(503, { message: 'Authentication system is not ready.' });
 		}
@@ -1010,7 +1023,7 @@ export const actions: Actions = {
 			const userId = formData.get('userId') as string;
 			const code = formData.get('code') as string;
 
-			if (!userId || !code) {
+			if (!(userId && code)) {
 				return fail(400, { message: 'Missing required fields.' });
 			}
 
@@ -1065,7 +1078,7 @@ export const actions: Actions = {
 				throw e; // Re-throw redirect
 			}
 			const err = e as Error;
-			logger.error(`Unexpected error in verify2FA action`, { message: err.message, stack: err.stack });
+			logger.error('Unexpected error in verify2FA action', { message: err.message, stack: err.stack });
 			return fail(500, { message: 'An unexpected server error occurred.' });
 		}
 	},
@@ -1090,8 +1103,8 @@ export const actions: Actions = {
 		}
 
 		// Wait for auth service to be ready
-		const authReady = await waitForAuthService(10000);
-		if (!authReady || !auth) {
+		const authReady = await waitForAuthService(10_000);
+		if (!(authReady && auth)) {
 			logger.error('Authentication system is not ready for forgotPW action');
 			return fail(503, { message: 'Authentication system is not ready.' });
 		}
@@ -1102,7 +1115,9 @@ export const actions: Actions = {
 		const form = Object.fromEntries(formData);
 		const result = safeParse(forgotFormSchema, form);
 
-		if (!result.success) return fail(400, { form, errors: flatten(result.issues).nested });
+		if (!result.success) {
+			return fail(400, { form, errors: flatten(result.issues).nested });
+		}
 
 		const email = result.output.email.toLowerCase().trim();
 		let checkMail: ForgotPWCheckResult;
@@ -1116,10 +1131,10 @@ export const actions: Actions = {
 				logger.debug(`Reset link generated: ${resetLink}`);
 
 				const emailProps = {
-					email: email,
+					email,
 					token: checkMail.token,
 					expiresIn: checkMail.expiresIn,
-					resetLink: resetLink,
+					resetLink,
 					username: checkMail.username || email,
 					sitename: publicEnv.SITE_NAME || 'SveltyCMS'
 				};
@@ -1137,25 +1152,23 @@ export const actions: Actions = {
 					})
 				});
 
-				if (!mailResponse.ok) {
-					logger.error(`Failed to send forgotten password email via API. Status: ${mailResponse.status}`, {
-						email,
-						responseText: await mailResponse.text()
-					});
-					// Still return success but with emailSent: false to handle on frontend
-					return fail(400, { message: 'Password reset email sent successfully.', userExists: true, emailSent: false });
-				} else {
-					logger.info(`Forgotten password email request sent via API`, { email });
+				if (mailResponse.ok) {
+					logger.info('Forgotten password email request sent via API', { email });
 					return fail(400, { message: 'Password reset email sent successfully.', userExists: true, emailSent: true });
 				}
-			} else {
-				logger.warn(`Forgotten password check failed`, { email, message: checkMail.message });
-				// Return different response for user not found to allow frontend distinction
-				return fail(400, { message: 'User does not exist.', userExists: false });
+				logger.error(`Failed to send forgotten password email via API. Status: ${mailResponse.status}`, {
+					email,
+					responseText: await mailResponse.text()
+				});
+				// Still return success but with emailSent: false to handle on frontend
+				return fail(400, { message: 'Password reset email sent successfully.', userExists: true, emailSent: false });
 			}
+			logger.warn('Forgotten password check failed', { email, message: checkMail.message });
+			// Return different response for user not found to allow frontend distinction
+			return fail(400, { message: 'User does not exist.', userExists: false });
 		} catch (e) {
 			const err = e as Error;
-			logger.error(`Error in forgotPW action`, { email, message: err.message, stack: err.stack });
+			logger.error('Error in forgotPW action', { email, message: err.message, stack: err.stack });
 			return fail(500, { message: 'An error occurred. Please try again.', form });
 		}
 	},
@@ -1180,8 +1193,8 @@ export const actions: Actions = {
 		}
 
 		// Wait for auth service to be ready
-		const authReady = await waitForAuthService(10000);
-		if (!authReady || !auth) {
+		const authReady = await waitForAuthService(10_000);
+		if (!(authReady && auth)) {
 			logger.error('Authentication system is not ready for resetPW action');
 			return fail(503, { message: 'Authentication system is not ready.' });
 		}
@@ -1192,18 +1205,20 @@ export const actions: Actions = {
 		const form = Object.fromEntries(formData);
 		const result = safeParse(resetFormSchema, form);
 
-		if (!result.success) return fail(400, { form, errors: flatten(result.issues).nested });
+		if (!result.success) {
+			return fail(400, { form, errors: flatten(result.issues).nested });
+		}
 
 		const { password, token, email } = result.output;
 
 		try {
 			const resp = await resetPWCheck(password, token, email);
-			logger.debug(`Password reset check response`, { email, response: JSON.stringify(resp) });
+			logger.debug('Password reset check response', { email, response: JSON.stringify(resp) });
 
 			if (resp.status) {
 				const emailProps = {
 					username: resp.username || email,
-					email: email,
+					email,
 					hostLink: publicEnv.HOST_PROD || `https://${event.request.headers.get('host')}`,
 					sitename: publicEnv.SITE_NAME || 'SveltyCMS'
 				};
@@ -1220,24 +1235,23 @@ export const actions: Actions = {
 							languageTag: userLanguage
 						})
 					});
-					if (!mailResponse.ok) {
+					if (mailResponse.ok) {
+						logger.info('Password updated confirmation email request sent via API', { email });
+					} else {
 						logger.error(`Failed to send password updated email via API. Status: ${mailResponse.status}`, {
 							email,
 							responseText: await mailResponse.text()
 						});
-					} else {
-						logger.info(`Password updated confirmation email request sent via API`, { email });
 					}
 				} catch (emailError) {
-					logger.error(`Error fetching /api/sendMail for password updated confirmation`, { email, error: emailError });
+					logger.error('Error fetching /api/sendMail for password updated confirmation', { email, error: emailError });
 				}
 
 				// message(pwresetForm, 'Password reset successfully. You can now log in.');
 				throw redirect(303, '/login?reset=success');
-			} else {
-				logger.warn(`Password reset failed`, { email, message: resp.message });
-				return fail(400, { message: resp.message || 'Password reset failed. The link may be invalid or expired.', form });
 			}
+			logger.warn('Password reset failed', { email, message: resp.message });
+			return fail(400, { message: resp.message || 'Password reset failed. The link may be invalid or expired.', form });
 		} catch (e) {
 			// Check if this is a redirect (which is expected and successful)
 			if (e && typeof e === 'object' && 'status' in e && (e.status === 302 || e.status === 303)) {
@@ -1246,7 +1260,7 @@ export const actions: Actions = {
 			}
 
 			const err = e as Error;
-			logger.error(`Error in resetPW action`, { email, message: err.message, stack: err.stack });
+			logger.error('Error in resetPW action', { email, message: err.message, stack: err.stack });
 			return fail(500, { message: 'An unexpected error occurred during password reset.', form });
 		}
 	},
@@ -1276,10 +1290,9 @@ export const actions: Actions = {
 			if (collectionInfo) {
 				logger.info(`Collection lookup completed successfully: ${collectionInfo.name}`);
 				return { success: true, collection: collectionInfo };
-			} else {
-				logger.debug('No collection found');
-				return { success: false, error: 'No collection available' };
 			}
+			logger.debug('No collection found');
+			return { success: false, error: 'No collection available' };
 		} catch (err) {
 			logger.debug('Collection lookup failed:', err);
 			return { success: false, error: 'Collection lookup failed' };
@@ -1301,7 +1314,7 @@ export const actions: Actions = {
 			const dbHealth = await checkDatabaseHealth();
 			const isDbUnhealthy = !dbHealth.healthy;
 
-			if (!isAdmin && !isSystemFailed && !isTestMode && !isDbUnhealthy) {
+			if (!(isAdmin || isSystemFailed || isTestMode || isDbUnhealthy)) {
 				logger.warn('Unauthorized setup reset attempt', {
 					userRole: locals.user?.role,
 					systemState: systemState.overallState,
@@ -1319,7 +1332,9 @@ export const actions: Actions = {
 					await fs.unlink(configPath);
 					logger.info('Setup reset: config/private.ts deleted successfully');
 				} catch (fsError: any) {
-					if (fsError.code !== 'ENOENT') throw fsError;
+					if (fsError.code !== 'ENOENT') {
+						throw fsError;
+					}
 				}
 			}
 
@@ -1340,7 +1355,9 @@ export const actions: Actions = {
 
 async function createSessionAndSetCookie(user_id: string, cookies: Cookies): Promise<void> {
 	const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
-	if (!auth) throw Error('Auth service is not initialized when creating session.');
+	if (!auth) {
+		throw new Error('Auth service is not initialized when creating session.');
+	}
 	const session = await auth.createSession({ user_id, expires: expiresAt.toISOString() as ISODateString });
 	logger.debug(`Session created: ${session._id} for user ${user_id}`);
 	const sessionCookie = auth.createSessionCookie(session._id);
@@ -1354,7 +1371,7 @@ async function signInUser(
 	isToken: boolean,
 	cookies: Cookies
 ): Promise<{ status: boolean; message?: string; user?: User; requires2FA?: boolean; userId?: string }> {
-	logger.debug(`signInUser called`, { email, isToken });
+	logger.debug('signInUser called', { email, isToken });
 	if (!auth) {
 		logger.error('Auth system not initialized for signInUser');
 		return { status: false, message: 'Authentication system unavailable.' };
@@ -1363,14 +1380,29 @@ async function signInUser(
 		let user: User | null = null;
 		let authSuccess = false;
 
-		if (!isToken) {
+		if (isToken) {
+			const tokenValue = password;
+			const tempUser = await auth.checkUser({ email });
+			if (!tempUser) {
+				logger.warn('Token login attempt for non-existent user', { email });
+				return { status: false, message: 'User does not exist.' };
+			}
+			const result = await auth.consumeToken(tokenValue, tempUser._id);
+			if (result.status) {
+				user = tempUser;
+				authSuccess = true;
+			} else {
+				logger.warn('Token consumption failed', { email, message: result.message });
+				return { status: false, message: result.message || 'Invalid or expired token.' };
+			}
+		} else {
 			const authResult = await auth.authenticate(email, password);
-			if (authResult && authResult.user) {
+			if (authResult?.user) {
 				user = authResult.user;
 
 				// Check if user has 2FA enabled
 				if (user.is2FAEnabled) {
-					logger.debug(`User has 2FA enabled, requiring 2FA verification`, { userId: user._id });
+					logger.debug('User has 2FA enabled, requiring 2FA verification', { userId: user._id });
 					// Don't create session yet - wait for 2FA verification
 					return {
 						status: false,
@@ -1385,26 +1417,11 @@ async function signInUser(
 				const sessionCookie = auth.createSessionCookie(authResult.sessionId);
 				cookies.set(sessionCookie.name, sessionCookie.value, { ...(sessionCookie.attributes as Record<string, unknown>), path: '/' });
 			} else {
-				logger.warn(`Password authentication failed`, { email });
-			}
-		} else {
-			const tokenValue = password;
-			const tempUser = await auth.checkUser({ email });
-			if (!tempUser) {
-				logger.warn(`Token login attempt for non-existent user`, { email });
-				return { status: false, message: 'User does not exist.' };
-			}
-			const result = await auth.consumeToken(tokenValue, tempUser._id);
-			if (result.status) {
-				user = tempUser;
-				authSuccess = true;
-			} else {
-				logger.warn(`Token consumption failed`, { email, message: result.message });
-				return { status: false, message: result.message || 'Invalid or expired token.' };
+				logger.warn('Password authentication failed', { email });
 			}
 		}
 
-		if (!authSuccess || !user || !user._id) {
+		if (!(authSuccess && user && user._id)) {
 			return { status: false, message: 'Invalid credentials or authentication failed.' };
 		}
 
@@ -1437,29 +1454,29 @@ async function signInUser(
 		return { status: true, message: 'Login successful', user };
 	} catch (error) {
 		const err = error as Error;
-		logger.error(`Error in signInUser`, { email, message: err.message, stack: err.stack });
+		logger.error('Error in signInUser', { email, message: err.message, stack: err.stack });
 		return { status: false, message: 'An internal error occurred during sign-in.' };
 	}
 }
 
 interface ForgotPWCheckResult {
-	success: boolean;
-	message: string;
-	token?: string;
 	expiresIn?: Date;
+	message: string;
+	success: boolean;
+	token?: string;
 	username?: string;
 }
 
 async function forgotPWCheck(email: string): Promise<ForgotPWCheckResult> {
-	logger.debug(`forgotPWCheck called`, { email });
+	logger.debug('forgotPWCheck called', { email });
 	if (!auth) {
 		logger.error('Auth system not initialized for forgotPWCheck');
 		return { success: false, message: 'Authentication system unavailable.' };
 	}
 	try {
 		const user = await auth.checkUser({ email });
-		if (!user || !user._id) {
-			logger.warn(`forgotPWCheck: User not found`, { email });
+		if (!user?._id) {
+			logger.warn('forgotPWCheck: User not found', { email });
 			return { success: false, message: 'User does not exist.' };
 		}
 		const expiresInMs = 1 * 60 * 60 * 1000;
@@ -1469,7 +1486,7 @@ async function forgotPWCheck(email: string): Promise<ForgotPWCheckResult> {
 			expires: expiresAt.toISOString() as ISODateString,
 			type: 'password_reset'
 		});
-		logger.info(`Password reset token created`, { email });
+		logger.info('Password reset token created', { email });
 
 		// Audit Log
 		const { auditLogService } = await import('@src/services/audit/AuditLogService');
@@ -1482,32 +1499,32 @@ async function forgotPWCheck(email: string): Promise<ForgotPWCheckResult> {
 		return { success: true, message: 'Password reset token generated.', token, expiresIn: expiresAt, username: user.username };
 	} catch (error) {
 		const err = error as Error;
-		logger.error(`Error in forgotPWCheck`, { email, message: err.message, stack: err.stack });
+		logger.error('Error in forgotPWCheck', { email, message: err.message, stack: err.stack });
 		return { success: false, message: 'An internal error occurred generating password reset token.' };
 	}
 }
 
 interface ResetPWResult {
-	status: boolean;
 	message?: string;
+	status: boolean;
 	username?: string;
 }
 
 async function resetPWCheck(password: string, token: string, email: string): Promise<ResetPWResult> {
-	logger.debug(`resetPWCheck called`, { email });
+	logger.debug('resetPWCheck called', { email });
 	if (!auth) {
 		logger.error('Auth system not initialized for resetPWCheck');
 		return { status: false, message: 'Authentication system unavailable.' };
 	}
 	try {
 		const user = await auth.checkUser({ email });
-		if (!user || !user._id) {
-			logger.warn(`resetPWCheck: User not found for token validation`, { email });
+		if (!user?._id) {
+			logger.warn('resetPWCheck: User not found for token validation', { email });
 			return { status: false, message: 'Invalid or expired reset link (user not found).' };
 		}
 		const validate = await auth.consumeToken(token, user._id, 'password_reset');
 		if (!validate.status) {
-			logger.warn(`resetPWCheck: Token consumption failed`, { email, message: validate.message });
+			logger.warn('resetPWCheck: Token consumption failed', { email, message: validate.message });
 			return { status: false, message: validate.message || 'Invalid or expired reset link.' };
 		}
 		if (calculatePasswordStrength(password) < 1) {
@@ -1516,10 +1533,10 @@ async function resetPWCheck(password: string, token: string, email: string): Pro
 		await auth.invalidateAllUserSessions(user._id);
 		const updateResult = await auth.updateUserPassword(email, password);
 		if (!updateResult.status) {
-			logger.warn(`resetPWCheck: Password update failed`, { email, message: updateResult.message });
+			logger.warn('resetPWCheck: Password update failed', { email, message: updateResult.message });
 			return { status: false, message: updateResult.message || 'Failed to update password.' };
 		}
-		logger.info(`Password reset successfully`, { email });
+		logger.info('Password reset successfully', { email });
 
 		// Audit Log
 		const { auditLogService } = await import('@src/services/audit/AuditLogService');
@@ -1532,7 +1549,7 @@ async function resetPWCheck(password: string, token: string, email: string): Pro
 		return { status: true, username: user.username };
 	} catch (error) {
 		const err = error as Error;
-		logger.error(`Error in resetPWCheck`, { email, message: err.message, stack: err.stack });
+		logger.error('Error in resetPWCheck', { email, message: err.message, stack: err.stack });
 		return { status: false, message: 'An internal error occurred during password reset.' };
 	}
 }

@@ -15,8 +15,8 @@
  */
 
 import { describe, expect, test } from 'bun:test';
+import { boolean, minLength, number, object, string } from 'valibot';
 import { createWidget, type FieldConfig, type WidgetConfig } from '../../../src/widgets/widgetFactory';
-import { object, string, number, boolean, minLength } from 'valibot';
 
 describe('Widget System - Factory Pattern', () => {
 	describe('createWidget Function', () => {
@@ -195,8 +195,8 @@ describe('Widget System - Factory Pattern', () => {
 		test('should preserve custom widget-specific properties', () => {
 			interface CustomProps {
 				maxLength: number;
-				placeholder: string;
 				pattern?: RegExp;
+				placeholder: string;
 				[key: string]: any;
 			}
 
@@ -267,8 +267,8 @@ describe('Widget System - Factory Pattern', () => {
 
 		test('should support generic widget props', () => {
 			interface MyWidgetProps {
-				some_extra_prop: string;
 				numericProp: number;
+				some_extra_prop: string;
 				[key: string]: any;
 			}
 

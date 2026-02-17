@@ -32,9 +32,9 @@ Accessible breadcrumb navigation with icons, keyboard support, and visual feedba
 
 	interface Props {
 		breadcrumb: string[];
-		openFolder: (folderId: string | null) => void;
 		folders: Folder[];
 		maxVisible?: number;
+		openFolder: (folderId: string | null) => void;
 	}
 
 	const { breadcrumb, openFolder, folders, maxVisible = 5 }: Props = $props();
@@ -174,7 +174,5 @@ Accessible breadcrumb navigation with icons, keyboard support, and visual feedba
 	</button>
 
 	<!-- Screen reader announcement -->
-	<div class="sr-only" role="status" aria-live="polite">
-		Current location: {breadcrumb.join(', then ')}
-	</div>
+	<div class="sr-only" role="status" aria-live="polite">Current location: {breadcrumb.join(', then ')}</div>
 </nav>

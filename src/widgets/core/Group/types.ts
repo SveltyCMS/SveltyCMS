@@ -5,20 +5,19 @@
 
 // Defines the properties unique to the Group widget
 export interface GroupProps {
+	// Whether the group is collapsed by default @default false
+	collapsed?: boolean;
 	// Whether the group is collapsible @default false
 	collapsible?: boolean;
 
-	// Whether the group is collapsed by default @default false
-	collapsed?: boolean;
+	// Nested fields configuration
+	fields?: any[];
 
 	// Group title/label
 	groupTitle?: string;
 
 	// Visual style variant @default 'default'
 	variant?: 'default' | 'card' | 'bordered';
-
-	// Nested fields configuration
-	fields?: any[];
 
 	// Allow additional widget properties
 	[key: string]: unknown;

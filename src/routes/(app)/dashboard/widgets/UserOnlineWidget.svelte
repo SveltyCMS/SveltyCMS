@@ -27,15 +27,15 @@ Features:
 </script>
 
 <script lang="ts">
-	import BaseWidget from '../BaseWidget.svelte';
 	import type { WidgetSize } from '@src/content/types';
+	import BaseWidget from '../BaseWidget.svelte';
 
 	interface OnlineUser {
+		avatarUrl?: string;
 		id: string;
 		name: string;
-		avatarUrl?: string;
-		onlineTime: string;
 		onlineMinutes: number;
+		onlineTime: string;
 	}
 
 	type FetchedData = { onlineUsers: OnlineUser[] } | undefined;
@@ -106,8 +106,11 @@ Features:
 							placeholder="Search users..."
 							bind:value={searchTerm}
 							class="w-full rounded-md border border-surface-300 bg-surface-50 px-3 py-1.5 text-xs placeholder-surface-400 focus:border-primary-400 focus:outline-none focus:ring-1 focus:ring-primary-400 dark:border-surface-600 dark:bg-surface-700 dark:text-surface-200 dark:placeholder-surface-500"
-						/>
-						<iconify-icon icon="mdi:magnify" width="14" class="absolute right-2 top-1/2 -translate-y-1/2 text-surface-400 dark:text-surface-500"
+						>
+						<iconify-icon
+							icon="mdi:magnify"
+							width="14"
+							class="absolute right-2 top-1/2 -translate-y-1/2 text-surface-400 dark:text-surface-500"
 						></iconify-icon>
 					</div>
 				{/if}
@@ -122,18 +125,14 @@ Features:
 										src={user.avatarUrl || getPlaceholderAvatar(user.name)}
 										alt="{user.name}'s avatar"
 										class="h-7 w-7 shrink-0 rounded-full bg-surface-200 dark:bg-surface-700"
-									/>
+									>
 									<span class="truncate text-sm font-medium text-surface-800 dark:text-surface-200">{user.name}</span>
 								</div>
-								<span class="shrink-0 text-xs text-surface-500 dark:text-surface-50">
-									{user.onlineTime || 'N/A'}
-								</span>
+								<span class="shrink-0 text-xs text-surface-500 dark:text-surface-50"> {user.onlineTime || 'N/A'} </span>
 							</div>
 						{/each}
 					{:else if searchTerm}
-						<div class="flex h-full items-center justify-center text-sm text-surface-500">
-							No users found matching "{searchTerm}".
-						</div>
+						<div class="flex h-full items-center justify-center text-sm text-surface-500">No users found matching "{searchTerm}".</div>
 					{:else}
 						<div class="flex h-full items-center justify-center text-sm text-surface-500">No users are currently active.</div>
 					{/if}

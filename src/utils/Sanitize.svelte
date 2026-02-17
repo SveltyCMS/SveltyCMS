@@ -23,12 +23,12 @@
 	type SanitizeProfile = 'default' | 'rich-text' | 'strict';
 
 	interface Props {
+		/** Custom CSS class for wrapper element */
+		class?: string;
 		/** HTML content to sanitize and render */
 		html: string;
 		/** Sanitization profile - controls allowed tags/attributes */
 		profile?: SanitizeProfile;
-		/** Custom CSS class for wrapper element */
-		class?: string;
 	}
 
 	let { html, profile = 'default', class: className }: Props = $props();
@@ -126,7 +126,7 @@
 	});
 
 	function sanitizeHtml() {
-		if (!DOMPurify || !html) {
+		if (!(DOMPurify && html)) {
 			sanitized = '';
 			return;
 		}
@@ -181,9 +181,7 @@
 	</div>
 {:else}
 	<!-- Loading state while DOMPurify loads -->
-	<div class={className} data-sanitize-loading>
-		<!-- You can customize this loading state -->
-	</div>
+	<div class={className} data-sanitize-loading><!-- You can customize this loading state --></div>
 {/if}
 
 <!--

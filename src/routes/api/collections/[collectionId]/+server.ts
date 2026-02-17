@@ -5,24 +5,22 @@
  * @example POST /api/collections/:collectionId
  *
  * Features:
- * * ❌ GET removed - use +page.server.ts load() for SSR data fetching
- * * Performance-optimized entry creation with automatic metadata
- * * ModifyRequest support for widget-based data processing
- * * Multi-tenant support with automatic tenantId scoping
+ * ❌ GET removed - use +page.server.ts load() for SSR data fetching
+ * Performance-optimized entry creation with automatic metadata
+ * ModifyRequest support for widget-based data processing
+ * Multi-tenant support with automatic tenantId scoping
  */
 
-import { json } from '@sveltejs/kit';
-import { randomUUID } from 'crypto';
-import { getPrivateSettingSync } from '@src/services/settingsService';
-
+import { randomUUID } from 'node:crypto';
+import { modifyRequest } from '@api/collections/modifyRequest';
 // Databases
 // Auth
 import { contentManager } from '@src/content/ContentManager';
-import { modifyRequest } from '@api/collections/modifyRequest';
-import { cacheService } from '@src/databases/CacheService';
-
 // Types
 import type { FieldInstance } from '@src/content/types';
+import { cacheService } from '@src/databases/CacheService';
+import { getPrivateSettingSync } from '@src/services/settingsService';
+import { json } from '@sveltejs/kit';
 // System Logger
 import { logger } from '@utils/logger.server';
 
@@ -48,7 +46,9 @@ export const POST = apiHandler(async ({ locals, params, request }) => {
 		tenantId
 	});
 
-	if (!user) throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
+	if (!user) {
+		throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
+	}
 
 	const schema = await contentManager.getCollectionById(params.collectionId, tenantId);
 	if (!schema) {
@@ -60,7 +60,7 @@ export const POST = apiHandler(async ({ locals, params, request }) => {
 		throw new AppError('Collection not found', 404, 'COLLECTION_NOT_FOUND');
 	}
 
-	let body;
+	let body: any;
 	const contentType = request.headers.get('content-type');
 
 	if (contentType?.includes('application/json')) {
@@ -83,9 +83,13 @@ export const POST = apiHandler(async ({ locals, params, request }) => {
 
 	// Initialize database adapter
 	const dbAdapter = locals.dbAdapter;
-	if (!dbAdapter) throw new AppError('Service Unavailable: Database service is not properly initialized', 503, 'DB_ADAPTER_MISSING');
+	if (!dbAdapter) {
+		throw new AppError('Service Unavailable: Database service is not properly initialized', 503, 'DB_ADAPTER_MISSING');
+	}
 
-	if (!schema._id) throw new AppError('Collection ID is missing', 500, 'INVALID_SCHEMA');
+	if (!schema._id) {
+		throw new AppError('Collection ID is missing', 500, 'INVALID_SCHEMA');
+	}
 	const collectionModel = await dbAdapter.collection.getModel(schema._id);
 
 	// Prepare entry data with user ID and required content_nodes fields
@@ -123,9 +127,13 @@ export const POST = apiHandler(async ({ locals, params, request }) => {
 		// Consider if we should throw here or just log. Original code logged.
 	}
 
-	if (!schema._id) throw new AppError('Collection ID is missing', 500, 'INVALID_SCHEMA');
+	if (!schema._id) {
+		throw new AppError('Collection ID is missing', 500, 'INVALID_SCHEMA');
+	}
 	const collectionName = `collection_${schema._id}`;
-	if (!dbAdapter) throw new AppError('Database adapter not initialized', 503, 'DB_ADAPTER_MISSING');
+	if (!dbAdapter) {
+		throw new AppError('Database adapter not initialized', 503, 'DB_ADAPTER_MISSING');
+	}
 
 	const result = await dbAdapter.crud.insert(collectionName, dataArray[0]);
 
@@ -164,7 +172,7 @@ export const POST = apiHandler(async ({ locals, params, request }) => {
 			action: 'create',
 			data: result.data,
 			timestamp: new Date().toISOString(),
-			user: user
+			user
 		});
 	} catch (pubSubError) {
 		logger.warn('Failed to publish entryUpdated event', { error: pubSubError });

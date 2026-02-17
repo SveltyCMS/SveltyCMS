@@ -13,27 +13,27 @@ Features:
 - Roving tabindex for accessibility
 -->
 <script lang="ts">
+	import SystemTooltip from '@components/system/SystemTooltip.svelte';
+	import { screen } from '@stores/screenSizeStore.svelte.ts';
 	import { goto } from '$app/navigation';
 	import type { TreeViewItem } from './TreeViewBoard.svelte';
-	import { screen } from '@stores/screenSizeStore.svelte.ts';
-	import SystemTooltip from '@components/system/SystemTooltip.svelte';
 
 	interface Props {
-		item: TreeViewItem & { hasChildren?: boolean };
 		isOpen?: boolean;
-		toggle?: () => void;
-		onEditCategory: (item: TreeViewItem) => void;
-		onDelete?: (item: TreeViewItem) => void;
-		onDuplicate?: (item: TreeViewItem) => void;
+		item: TreeViewItem & { hasChildren?: boolean };
 		// Keyboard reordering props
 		keyboardReorderMode?: boolean;
-		onMoveUp?: () => void;
-		onMoveDown?: () => void;
-		onMoveToParent?: () => void;
+		onDelete?: (item: TreeViewItem) => void;
+		onDuplicate?: (item: TreeViewItem) => void;
+		onEditCategory: (item: TreeViewItem) => void;
 		onEnterReorderMode?: () => void;
 		onExitReorderMode?: () => void;
+		onMoveDown?: () => void;
+		onMoveToParent?: () => void;
+		onMoveUp?: () => void;
 		// Roving tabindex for keyboard navigation
 		tabindex?: number;
+		toggle?: () => void;
 	}
 
 	let {
@@ -126,7 +126,11 @@ Features:
 			}}
 			aria-label={isOpen ? `Collapse ${name}` : `Expand ${name}`}
 		>
-			<iconify-icon icon={isOpen ? 'bi:chevron-down' : 'bi:chevron-right'} width="20" class="transition-transform duration-200" aria-hidden="true"
+			<iconify-icon
+				icon={isOpen ? 'bi:chevron-down' : 'bi:chevron-right'}
+				width="20"
+				class="transition-transform duration-200"
+				aria-hidden="true"
 			></iconify-icon>
 		</button>
 	{:else}
@@ -134,9 +138,7 @@ Features:
 	{/if}
 
 	<!-- Icon -->
-	<div class="relative">
-		<iconify-icon {icon} width="24" class={iconClass} aria-hidden="true"></iconify-icon>
-	</div>
+	<div class="relative"><iconify-icon {icon} width="24" class={iconClass} aria-hidden="true"></iconify-icon></div>
 
 	<!-- Name & Badge -->
 	<div class="flex flex-col gap-1 min-w-0 shrink">
@@ -161,9 +163,7 @@ Features:
 	<!-- Description -->
 	{#if screen.isDesktop && item.description}
 		<div class="flex-1 px-4 min-w-0 flex justify-start">
-			<span class="italic text-sm opacity-70 truncate w-full max-w-[500px] text-left" title={item.description}>
-				{item.description}
-			</span>
+			<span class="italic text-sm opacity-70 truncate w-full max-w-[500px] text-left" title={item.description}> {item.description} </span>
 		</div>
 	{/if}
 
@@ -247,7 +247,7 @@ Features:
 </div>
 
 <style>
-	div[role='button']:focus-visible,
+	div[role="button"]:focus-visible,
 	button:focus-visible {
 		outline: 3px solid rgb(var(--color-primary-500));
 		outline-offset: 2px;

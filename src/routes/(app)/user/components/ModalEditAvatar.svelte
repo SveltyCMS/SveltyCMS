@@ -13,19 +13,18 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 <script lang="ts">
 	// Lucide icons
 
-	import { invalidateAll } from '$app/navigation';
 	import { logger } from '@src/utils/logger';
+	import { invalidateAll } from '$app/navigation';
+
 	// Removed axios import
-
-	// Stores
-	import { avatarSrc } from '@stores/store.svelte.ts';
-
-	// ParaglideJS
-	import * as m from '@src/paraglide/messages';
 
 	// Skeleton
 	import { Avatar, FileUpload } from '@skeletonlabs/skeleton-svelte';
-	import { toaster } from '@stores/store.svelte.ts';
+
+	// ParaglideJS
+	import * as m from '@src/paraglide/messages';
+	// Stores
+	import { avatarSrc, toaster } from '@stores/store.svelte.ts';
 	import { modalState } from '@utils/modalState.svelte';
 	import { showConfirm } from '@utils/modalUtils';
 
@@ -36,7 +35,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 	let imageLoadError = $state(false); // Track if current avatar failed to load
 
 	// Valibot validation schema
-	import { object, instance, check, pipe, parse, type InferInput, type ValiError } from 'valibot';
+	import { check, type InferInput, instance, object, parse, pipe, type ValiError } from 'valibot';
 
 	interface Props {
 		isGivenData?: boolean;
@@ -69,7 +68,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 	});
 
 	const imageTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/svg+xml', 'image/gif'];
-	const MAX_FILE_SIZE = 5242880; // 5MB
+	const MAX_FILE_SIZE = 5_242_880; // 5MB
 	const COMPRESSION_THRESHOLD = 1024 * 1024; // 1MB - compress files larger than this
 
 	// Unified accept string for file inputs
@@ -403,13 +402,11 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 			</button>
 		{:else}
 			<div></div>
-			<!-- Empty div when using the default avatar -->
+		<!-- Empty div when using the default avatar -->
 		{/if}
 		<div class="flex justify-between gap-2">
 			<!-- Cancel -->
-			<button class="preset-outlined-secondary-500 btn" onclick={() => modalState.close()} disabled={isUploading}>
-				{m.button_cancel()}
-			</button>
+			<button class="preset-outlined-secondary-500 btn" onclick={() => modalState.close()} disabled={isUploading}>{m.button_cancel()}</button>
 			<!-- Save -->
 			<button class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500" onclick={onFormSubmit} disabled={!files.length || isUploading}>
 				{#if isUploading}

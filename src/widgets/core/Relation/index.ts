@@ -26,17 +26,26 @@ import * as m from '@src/paraglide/messages';
 import { createWidget } from '@src/widgets/widgetFactory';
 
 // Type for aggregation field parameter
-type AggregationField = { db_fieldName: string; collection: string; displayField: string; [key: string]: unknown };
+interface AggregationField {
+	collection: string;
+	db_fieldName: string;
+	displayField: string;
+	[key: string]: unknown;
+}
 
-import { array, minLength, maxLength, optional, pipe, string, type InferInput as ValibotInput } from 'valibot';
+import { array, maxLength, minLength, optional, pipe, string, type InferInput as ValibotInput } from 'valibot';
 import type { RelationProps } from './types';
 
 // The validation schema ensures the value is a string ID or array of IDs.
 const validationSchema = (field: FieldInstance) => {
 	if (field.multiple) {
 		let arraySchema: any = array(string());
-		if (field.min) arraySchema = pipe(arraySchema, minLength(field.min as number, `Select at least ${field.min} entries.`));
-		if (field.max) arraySchema = pipe(arraySchema, maxLength(field.max as number, `Select at most ${field.max} entries.`));
+		if (field.min) {
+			arraySchema = pipe(arraySchema, minLength(field.min as number, `Select at least ${field.min} entries.`));
+		}
+		if (field.max) {
+			arraySchema = pipe(arraySchema, maxLength(field.max as number, `Select at most ${field.max} entries.`));
+		}
 		return (field.required ? pipe(arraySchema, minLength(1, 'At least one entry is required.')) : optional(arraySchema)) as any;
 	}
 

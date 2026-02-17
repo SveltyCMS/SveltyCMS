@@ -7,12 +7,12 @@
  */
 
 import type { ActionResult, SubmitFunction } from '@sveltejs/kit';
-import { safeParse, type BaseSchema, flatten } from 'valibot';
+import { type BaseSchema, flatten, safeParse } from 'valibot';
 
-type EnhanceOptions = {
-	onSubmit?: (input: Parameters<SubmitFunction>[0]) => void;
+interface EnhanceOptions {
 	onResult?: (input: { result: ActionResult; update: (opts?: { reset: boolean }) => Promise<void> }) => void | Promise<void>;
-};
+	onSubmit?: (input: Parameters<SubmitFunction>[0]) => void;
+}
 
 export class Form<T extends Record<string, unknown>> {
 	data = $state<T>({} as T);
@@ -22,7 +22,7 @@ export class Form<T extends Record<string, unknown>> {
 
 	constructor(
 		initialData: T,
-		private schema?: BaseSchema<unknown, unknown, any>
+		private readonly schema?: BaseSchema<unknown, unknown, any>
 	) {
 		this.data = { ...initialData };
 	}
@@ -90,10 +90,8 @@ export class Form<T extends Record<string, unknown>> {
 					if (result.data?.message) {
 						this.message = result.data.message as string;
 					}
-				} else if (result.type === 'success') {
-					if (result.data?.message) {
-						this.message = result.data.message as string;
-					}
+				} else if (result.type === 'success' && result.data?.message) {
+					this.message = result.data.message as string;
 				}
 
 				if (options?.onResult) {

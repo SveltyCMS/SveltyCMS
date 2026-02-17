@@ -31,62 +31,52 @@
 </script>
 
 <script lang="ts">
-	// Using iconify-icon web component
-	import { logger } from '@utils/logger';
-	import { goto, invalidateAll } from '$app/navigation';
-	import { page } from '$app/state';
-	import { browser } from '$app/environment';
-	import { untrack } from 'svelte';
-	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
-
-	// Utils
-	import { batchDeleteEntries, deleteEntry, invalidateCollectionCache, updateEntryStatus } from '@utils/apiClient';
-	import { formatDisplayDate } from '@utils/dateUtils';
-	import { cloneEntries, setEntriesStatus } from '@utils/entryActions';
-	import { debounce, getFieldName, meta_data } from '@utils/utils';
-	import { preloadEntry, reflectModeInURL } from '@utils/navigationUtils';
-	import { showToast } from '@utils/toast';
-
-	// Config
-	import { publicEnv } from '@src/stores/globalSettings.svelte';
-
-	// Types
-	import type { PaginationSettings, TableHeader } from '@src/content/types';
-	import SystemTooltip from '@components/system/SystemTooltip.svelte';
-	import { StatusTypes } from '@src/content/types';
-
-	// Stores
-	import { collection, collectionValue, mode, setCollectionValue, setMode, setModifyEntry, statusMap } from '@stores/collectionStore.svelte.ts';
-	import { screen } from '@stores/screenSizeStore.svelte.ts';
-	import { app } from '@stores/store.svelte';
-	import { ui } from '@stores/UIStore.svelte.ts';
-
-	// ParaglideJS
-	import * as m from '@src/paraglide/messages';
-
 	// Components
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
+	import SystemTooltip from '@components/system/SystemTooltip.svelte';
 	import Status from '@components/system/table/Status.svelte';
-	import PluginComponent from '@src/components/plugins/PluginComponent.svelte';
 	// import SystemTooltip from '@components/system/SystemTooltip.svelte';
 	import TableFilter from '@components/system/table/TableFilter.svelte';
 	import TableIcons from '@components/system/table/TableIcons.svelte';
 	import TablePagination from '@components/system/table/TablePagination.svelte';
-	import EntryListMultiButton from './EntryList_MultiButton.svelte';
-	import TranslationStatus from './TranslationStatus.svelte';
-	import Sanitize from '@src/utils/Sanitize.svelte';
-
-	// Skeleton
-	import { showDeleteConfirm, showStatusChangeConfirm } from '@utils/modalUtils';
-
-	// Svelte-dnd-action
-	import { dndzone } from 'svelte-dnd-action';
-	import { flip } from 'svelte/animate';
-
+	import PluginComponent from '@src/components/plugins/PluginComponent.svelte';
+	// Types
 	// =================================================================
 	// 1. RECEIVE DATA AS PROPS (From +page.server.ts)
 	// =================================================================
-	import type { EntryListProps } from '@src/content/types';
+	import type { EntryListProps, PaginationSettings, TableHeader } from '@src/content/types';
+	import { StatusTypes } from '@src/content/types';
+	// ParaglideJS
+	import * as m from '@src/paraglide/messages';
+	// Config
+	import { publicEnv } from '@src/stores/globalSettings.svelte';
+	import Sanitize from '@src/utils/Sanitize.svelte';
+	// Stores
+	import { collection, collectionValue, mode, setCollectionValue, setMode, setModifyEntry, type statusMap } from '@stores/collectionStore.svelte.ts';
+	import { screen } from '@stores/screenSizeStore.svelte.ts';
+	import { app } from '@stores/store.svelte';
+	import { ui } from '@stores/UIStore.svelte.ts';
+	// Utils
+	import { batchDeleteEntries, deleteEntry, invalidateCollectionCache, updateEntryStatus } from '@utils/apiClient';
+	import { formatDisplayDate } from '@utils/dateUtils';
+	import { cloneEntries, setEntriesStatus } from '@utils/entryActions';
+	// Using iconify-icon web component
+	import { logger } from '@utils/logger';
+	// Skeleton
+	import { showDeleteConfirm, showStatusChangeConfirm } from '@utils/modalUtils';
+	import { preloadEntry, reflectModeInURL } from '@utils/navigationUtils';
+	import { showToast } from '@utils/toast';
+	import { debounce, getFieldName, meta_data } from '@utils/utils';
+	import { untrack } from 'svelte';
+	import { flip } from 'svelte/animate';
+	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
+	// Svelte-dnd-action
+	import { dndzone } from 'svelte-dnd-action';
+	import { browser } from '$app/environment';
+	import { goto, invalidateAll } from '$app/navigation';
+	import { page } from '$app/state';
+	import EntryListMultiButton from './EntryList_MultiButton.svelte';
+	import TranslationStatus from './TranslationStatus.svelte';
 
 	// =================================================================
 	// 1. RECEIVE DATA AS PROPS (From +page.server.ts)
@@ -207,7 +197,7 @@
 	let hoverPreloadTimeout: ReturnType<typeof setTimeout> | null = null;
 	const preloadedEntries = new SvelteMap<string, { data: any; timestamp: number; hoverCount: number }>();
 
-	const PRELOAD_CACHE_TTL = 30000; // ms - keep preloaded data for 30 seconds
+	const PRELOAD_CACHE_TTL = 30_000; // ms - keep preloaded data for 30 seconds
 
 	// Phase 2: Connection-aware preloading
 	let isSlowConnection = $state(false);
@@ -265,7 +255,7 @@
 
 	// Phase 2: Batch preloading during idle time
 	async function batchPreloadVisibleEntries() {
-		if (!isPreloadEnabled || !browser) return;
+		if (!(isPreloadEnabled && browser)) return;
 
 		// Use requestIdleCallback for background loading
 		if ('requestIdleCallback' in window) {
@@ -336,7 +326,7 @@
 					preloadedEntries.delete(entryId);
 				}
 			}
-		}, 10000); // Cleanup every 10 seconds
+		}, 10_000); // Cleanup every 10 seconds
 
 		return () => clearInterval(cleanupInterval);
 	});
@@ -353,7 +343,7 @@
 
 	// Pagination
 	const defaultPaginationSettings = (collectionId: string | null): PaginationSettings => ({
-		collectionId: collectionId,
+		collectionId,
 		density: 'normal',
 		sorting: { sortedBy: '', isSorted: 0 as SortOrder },
 		currentPage: 1,
@@ -536,7 +526,7 @@
 						label: col.label,
 						name: col.id,
 						visible: true,
-						width: col.width ? parseInt(col.width) : undefined,
+						width: col.width ? Number.parseInt(col.width) : undefined,
 						sortable: col.sortable,
 						component: col.component,
 						props: col.props
@@ -562,10 +552,8 @@
 			if (filtersChanged) {
 				entryListPaginationSettings.filters = newFilters;
 			}
-		} else {
-			if (Object.keys(entryListPaginationSettings.filters).length > 0) {
-				entryListPaginationSettings.filters = {};
-			}
+		} else if (Object.keys(entryListPaginationSettings.filters).length > 0) {
+			entryListPaginationSettings.filters = {};
 		}
 	});
 
@@ -833,15 +821,11 @@
 			<!-- Collection type with icon -->
 			<div class="mr-1 flex flex-col {!ui.state.leftSidebar ? 'ml-2' : 'ml-1 sm:ml-2'}">
 				{#if categoryName}
-					<div class="mb-2 text-xs capitalize text-surface-500 dark:text-surface-50 rtl:text-left">
-						{categoryName}
-					</div>
+					<div class="mb-2 text-xs capitalize text-surface-500 dark:text-surface-50 rtl:text-left">{categoryName}</div>
 				{/if}
 				<h1 class="-mt-2 flex justify-start text-sm font-bold uppercase dark:text-white md:text-2xl lg:text-xl">
 					{#if currentCollection?.icon}
-						<span>
-							<iconify-icon icon={currentCollection.icon} width="24" class="mr-1 text-error-500 sm:mr-2"></iconify-icon>
-						</span>
+						<span> <iconify-icon icon={currentCollection.icon} width="24" class="mr-1 text-error-500 sm:mr-2"></iconify-icon> </span>
 					{/if}
 					{#if currentCollection?.name}
 						<div class="flex max-w-[85px] whitespace-normal leading-3 sm:mr-2 sm:max-w-none md:mt-0 md:leading-none xs:mt-1">
@@ -867,9 +851,7 @@
 			</button>
 
 			<!-- Translation Content Language - Mobile -->
-			<div class="mt-1 sm:hidden">
-				<TranslationStatus />
-			</div>
+			<div class="mt-1 sm:hidden"><TranslationStatus /></div>
 
 			<!-- Table Filter with Translation Content Language - Desktop -->
 			<div class="relative mt-1 hidden items-center justify-center gap-2 sm:flex">
@@ -907,9 +889,7 @@
 	{#if columnShow}
 		<!-- Column order -->
 		<div class="rounded-b-0 flex flex-col justify-center rounded-t-md border-b bg-secondary-100 p-2 text-center dark:bg-surface-700">
-			<div class="text-sm dark:text-primary-500">
-				{m.entrylist_dnd()}
-			</div>
+			<div class="text-sm dark:text-primary-500">{m.entrylist_dnd()}</div>
 			<!-- Select All Columns -->
 			<div class="my-2 flex w-full flex-col items-center justify-center gap-2 sm:flex-row sm:gap-4">
 				<div class="flex items-center gap-2">
@@ -939,7 +919,9 @@
 									: 'ring ring-surface-500 bg-transparent text-secondary-500'} flex items-center justify-center text-xs cursor-move"
 								onclick={() => handleColumnVisibilityToggle(header)}
 							>
-								{#if header.visible}<iconify-icon icon="fa:check" width={24} class="mr-1"></iconify-icon>{/if}
+								{#if header.visible}
+									<iconify-icon icon="fa:check" width={24} class="mr-1"></iconify-icon>
+								{/if}
 								<span class="capitalize">{header.label}</span>
 							</button>
 						</div>
@@ -982,8 +964,8 @@
 							</th>
 							<!-- Filter -->
 							{#each visibleTableHeaders as header (header.id)}
-								<th
-									><div class="flex items-center justify-between">
+								<th>
+									<div class="flex items-center justify-between">
 										<FloatingInput
 											type="text"
 											icon="material-symbols:search-rounded"
@@ -1057,7 +1039,7 @@
 										<td
 											class="text-center {cellPaddingClass} text-xs font-bold sm:text-sm {(header as TableHeader).name !== 'status'
 												? 'cursor-pointer transition-colors duration-200 hover:bg-primary-500/10 dark:hover:bg-secondary-500/20'
-												: 'cursor-pointer transition-colors duration-200 hover:bg-warning-500/10 dark:hover:bg-warning-500/20'}"
+												: 'hover:bg-warning-500/10 dark:hover:bg-warning-500/20'}"
 											onclick={async () => {
 												if ((header as TableHeader).name === 'status') {
 													// Handle single entry status change with modal (same style as multibutton)
@@ -1119,9 +1101,7 @@
 										>
 											<SystemTooltip title={(header as TableHeader).name !== 'status' ? 'Click to edit this entry' : 'Click to change status'}>
 												{#if (header as TableHeader).name === 'status'}
-													<div class="flex w-full items-center justify-center">
-														<Status value={entry.status || entry.raw_status || 'draft'} />
-													</div>
+													<div class="flex w-full items-center justify-center"><Status value={entry.status || entry.raw_status || 'draft'} /></div>
 												{:else if (header as TableHeader).component}
 													<!-- Dynamic Plugin Component Injection -->
 													{@const pluginId = (header as TableHeader).id.split('-')[0]}
@@ -1168,7 +1148,7 @@
 						{/each}
 					{:else}
 						<tr>
-							<td colspan={visibleTableHeaders.length + 1} class="p-4 text-center text-surface-500 dark:text-surface-50"> No results found. </td>
+							<td colspan={visibleTableHeaders.length + 1} class="p-4 text-center text-surface-500 dark:text-surface-50">No results found.</td>
 						</tr>
 					{/if}
 				</tbody>
@@ -1199,8 +1179,8 @@
 
 <style>
 	div::-webkit-scrollbar-thumb {
-		border-radius: 50px;
 		background-color: #0ec423;
+		border-radius: 50px;
 	}
 	div::-webkit-scrollbar {
 		width: 10px;

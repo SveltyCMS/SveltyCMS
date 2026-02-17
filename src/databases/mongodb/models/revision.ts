@@ -13,15 +13,14 @@
  *   - bulkDeleteRevisionsForContent: Bulk delete revisions for a list of content IDs
  */
 
-import mongoose, { Schema } from 'mongoose';
-import type { Model } from 'mongoose';
-import type { ContentRevision, DatabaseResult } from '@src/databases/dbInterface';
 import type { DatabaseId } from '@src/content/types';
+import type { ContentRevision, DatabaseResult } from '@src/databases/dbInterface';
 import { generateId } from '@src/databases/mongodb/methods/mongoDBUtils';
 import { toISOString } from '@utils/dateUtils';
-
 // System Logger
 import { logger } from '@utils/logger';
+import type { Model } from 'mongoose';
+import mongoose, { Schema } from 'mongoose';
 
 // Define the Revision schema
 export const revisionSchema = new Schema<ContentRevision>(

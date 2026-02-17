@@ -28,8 +28,8 @@
 
 	interface Props {
 		content?: string;
-		language?: string;
 		keywords?: string[];
+		language?: string;
 		'on:heatmapGenerated'?: (data: HeatmapData) => void;
 	}
 
@@ -145,7 +145,7 @@
 	<h4>Keyword Density</h4>
 	{#if Object.keys(keywordDensity).length > 0}
 		<ul>
-			{#each Object.entries(keywordDensity) as [keyword, density] (keyword)}
+			{#each Object.entries(keywordDensity) as [ keyword, density ] (keyword)}
 				<li>{keyword}: {density.toFixed(2)}%</li>
 			{/each}
 		</ul>

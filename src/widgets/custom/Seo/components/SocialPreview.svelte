@@ -8,13 +8,13 @@ Displays a preview of the shared link for different platforms.
 <script lang="ts">
 	// Using iconify-icon web component
 	interface Props {
-		ogTitle?: string;
+		hostUrl: string;
 		ogDescription?: string;
 		ogImage?: string;
-		twitterTitle?: string;
+		ogTitle?: string;
 		twitterDescription?: string;
 		twitterImage?: string;
-		hostUrl: string;
+		twitterTitle?: string;
 	}
 
 	let {
@@ -76,7 +76,7 @@ Displays a preview of the shared link for different platforms.
 			<!-- Image Area -->
 			<div class="relative bg-gray-100 aspect-[1.91/1] flex items-center justify-center overflow-hidden">
 				{#if displayImage}
-					<img src={displayImage} alt="Social Preview" class="w-full h-full object-cover" />
+					<img src={displayImage} alt="Social Preview" class="w-full h-full object-cover">
 				{:else}
 					<div class="flex flex-col items-center text-gray-400">
 						<iconify-icon icon="mdi:image-off" width="24" class="text-4xl"></iconify-icon>
@@ -93,12 +93,8 @@ Displays a preview of the shared link for different platforms.
 						.split('/')[0]
 						.toUpperCase()}
 				</div>
-				<div class="font-bold text-[16px] leading-snug text-[#050505] line-clamp-2 md:line-clamp-1 font-sans mb-1">
-					{displayTitle}
-				</div>
-				<div class="text-[14px] text-[#65676b] line-clamp-1 md:line-clamp-2 font-sans">
-					{displayDescription}
-				</div>
+				<div class="font-bold text-[16px] leading-snug text-[#050505] line-clamp-2 md:line-clamp-1 font-sans mb-1">{displayTitle}</div>
+				<div class="text-[14px] text-[#65676b] line-clamp-1 md:line-clamp-2 font-sans">{displayDescription}</div>
 			</div>
 		</div>
 	</div>

@@ -17,7 +17,9 @@ async function fetchLayout(): Promise<Layout | null> {
 			logger.info('No saved dashboard layout, using default');
 			return null;
 		}
-		if (!res.ok) throw new Error(`Fetch failed: ${res.statusText}`);
+		if (!res.ok) {
+			throw new Error(`Fetch failed: ${res.statusText}`);
+		}
 		return await res.json();
 	} catch (e) {
 		logger.error('Failed to fetch preferences:', e);
@@ -32,7 +34,9 @@ async function saveLayout(layout: Layout): Promise<void> {
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ key: LAYOUT_KEY, value: layout })
 		});
-		if (!res.ok) throw new Error(`Save failed: ${res.statusText}`);
+		if (!res.ok) {
+			throw new Error(`Save failed: ${res.statusText}`);
+		}
 	} catch (e) {
 		logger.error('Failed to save preferences:', e);
 		throw e;
@@ -77,8 +81,11 @@ class PreferencesStore {
 		const prefs = [...this.preferences];
 		const idx = prefs.findIndex((w) => w.id === widget.id);
 
-		if (idx > -1) prefs[idx] = widget;
-		else prefs.push(widget);
+		if (idx > -1) {
+			prefs[idx] = widget;
+		} else {
+			prefs.push(widget);
+		}
 
 		this.preferences = prefs;
 		await saveLayout({ id: 'default', name: 'Default', preferences: prefs });

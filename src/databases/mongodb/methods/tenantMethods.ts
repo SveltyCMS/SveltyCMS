@@ -10,14 +10,13 @@
  * - List tenants
  */
 
-import type { Model } from 'mongoose';
-import type { Tenant } from '../../dbInterface';
-import type { DatabaseResult, DatabaseId, PaginationOption } from '../../dbInterface';
-import { createDatabaseError, generateId } from './mongoDBUtils';
 import { logger } from '@utils/logger';
+import type { Model } from 'mongoose';
+import type { DatabaseId, DatabaseResult, PaginationOption, Tenant } from '../../dbInterface';
+import { createDatabaseError, generateId } from './mongoDBUtils';
 
 export class MongoTenantMethods {
-	private TenantModel: Model<Tenant>;
+	private readonly TenantModel: Model<Tenant>;
 
 	constructor(TenantModel: Model<Tenant>) {
 		this.TenantModel = TenantModel;
@@ -87,8 +86,12 @@ export class MongoTenantMethods {
 		try {
 			// Basic list implementation - can be enhanced with pagination from options if needed
 			const query = this.TenantModel.find(options?.filter || {});
-			if (options?.limit) query.limit(options.limit);
-			if (options?.offset) query.skip(options.offset);
+			if (options?.limit) {
+				query.limit(options.limit);
+			}
+			if (options?.offset) {
+				query.skip(options.offset);
+			}
 
 			// Fix sorting
 			if (options?.sort) {

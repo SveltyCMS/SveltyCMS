@@ -102,9 +102,7 @@
 		<!-- Data Export (Article 20) -->
 		<div class="card preset-tonal-surface p-6 rounded-xl space-y-4 border border-surface-200 dark:border-surface-700">
 			<div class="flex items-center gap-3 mb-2">
-				<div class="p-2 rounded-full bg-primary-500/10 text-primary-500">
-					<iconify-icon icon="mdi:database-export" width="24"></iconify-icon>
-				</div>
+				<div class="p-2 rounded-full bg-primary-500/10 text-primary-500"><iconify-icon icon="mdi:database-export" width="24"></iconify-icon></div>
 				<div>
 					<h3 class="font-bold">Data Portability</h3>
 					<p class="text-xs opacity-70">Export all user data to JSON</p>
@@ -113,7 +111,7 @@
 
 			<label class="label">
 				<span class="label-text text-sm font-medium">User ID</span>
-				<input class="input" type="text" placeholder="Enter User ID..." bind:value={userIdExport} />
+				<input class="input" type="text" placeholder="Enter User ID..." bind:value={userIdExport}>
 			</label>
 
 			<button class="btn preset-filled-primary-500 w-full" disabled={!userIdExport || loadingExport} onclick={handleExport}>
@@ -129,9 +127,7 @@
 		<!-- Right to Erasure (Article 17) -->
 		<div class="card preset-tonal-surface p-6 rounded-xl space-y-4 border border-surface-200 dark:border-surface-700">
 			<div class="flex items-center gap-3 mb-2">
-				<div class="p-2 rounded-full bg-error-500/10 text-error-500">
-					<iconify-icon icon="mdi:account-remove" width="24"></iconify-icon>
-				</div>
+				<div class="p-2 rounded-full bg-error-500/10 text-error-500"><iconify-icon icon="mdi:account-remove" width="24"></iconify-icon></div>
 				<div>
 					<h3 class="font-bold">Right to Erasure</h3>
 					<p class="text-xs opacity-70">Permanently anonymize user</p>
@@ -140,7 +136,7 @@
 
 			<label class="label">
 				<span class="label-text text-sm font-medium">User ID</span>
-				<input class="input" type="text" placeholder="Enter User ID..." bind:value={userIdAnonymize} />
+				<input class="input" type="text" placeholder="Enter User ID..." bind:value={userIdAnonymize}>
 			</label>
 
 			<button

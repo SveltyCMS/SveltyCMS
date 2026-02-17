@@ -10,10 +10,10 @@ import type { StatusType } from '@src/content/types';
 
 export interface StatusToggleOptions {
 	collectionId: string;
-	entryId?: string;
 	currentStatus: StatusType;
-	onSuccess?: (newStatus: StatusType) => void;
+	entryId?: string;
 	onError?: (error: string) => void;
+	onSuccess?: (newStatus: StatusType) => void;
 }
 
 /**
@@ -36,10 +36,9 @@ export async function toggleEntryStatus(options: StatusToggleOptions): Promise<{
 			if (result.success) {
 				onSuccess?.(newStatus);
 				return { success: true, newStatus };
-			} else {
-				onError?.(result.error || `Failed to ${newStatus === 'publish' ? 'publish' : 'unpublish'} entry`);
-				return { success: false, error: result.error };
 			}
+			onError?.(result.error || `Failed to ${newStatus === 'publish' ? 'publish' : 'unpublish'} entry`);
+			return { success: false, error: result.error };
 		} catch (e) {
 			const error = `Error ${newStatus === 'publish' ? 'publishing' : 'unpublishing'} entry: ${(e as Error).message}`;
 			onError?.(error);
@@ -59,8 +58,7 @@ export function getInitialPublishStatus(mode: string, collectionStatus?: StatusT
 	if (mode === 'create') {
 		const defaultStatus = collectionStatus || 'unpublish';
 		return defaultStatus === 'publish';
-	} else {
-		const status = entryStatus || collectionStatus || 'unpublish';
-		return status === 'publish';
 	}
+	const status = entryStatus || collectionStatus || 'unpublish';
+	return status === 'publish';
 }

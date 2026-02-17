@@ -3,14 +3,12 @@
  * @description API endpoint for uninstalling widgets
  */
 
-import { json } from '@sveltejs/kit';
-
-import { logger } from '@utils/logger.server';
 import { hasPermissionWithRoles } from '@src/databases/auth/permissions';
-
+import { json } from '@sveltejs/kit';
 // Unified Error Handling
 import { apiHandler } from '@utils/apiHandler';
 import { AppError } from '@utils/errorHandling';
+import { logger } from '@utils/logger.server';
 
 export const POST = apiHandler(async ({ request, locals }) => {
 	const start = performance.now();
@@ -66,7 +64,9 @@ export const POST = apiHandler(async ({ request, locals }) => {
 		const duration = performance.now() - start;
 		const message = `Failed to uninstall widget: ${err instanceof Error ? err.message : String(err)}`;
 		logger.error(message, { duration: `${duration.toFixed(2)}ms` });
-		if (err instanceof AppError) throw err;
+		if (err instanceof AppError) {
+			throw err;
+		}
 		throw new AppError(message, 500, 'UNINSTALL_WIDGET_FAILED');
 	}
 });

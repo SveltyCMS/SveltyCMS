@@ -57,7 +57,7 @@ Features:
 		if (!bytes) return 'N/A';
 		const sizes = ['B', 'KB', 'MB', 'GB'];
 		const i = Math.floor(Math.log(bytes) / Math.log(1024));
-		return `${(bytes / Math.pow(1024, i)).toFixed(2)} ${sizes[i]}`;
+		return `${(bytes / 1024 ** i).toFixed(2)} ${sizes[i]}`;
 	}
 
 	function getTroubleshootingTips(classification: string | undefined): string[] {
@@ -143,17 +143,11 @@ Features:
 	<!-- Status Header -->
 	<div class="p-4">
 		<div class="flex items-center gap-3">
-			<span class="text-2xl {state === 'testing' ? 'animate-pulse' : ''}" aria-hidden="true">
-				{getStatusIcon(state)}
-			</span>
+			<span class="text-2xl {state === 'testing' ? 'animate-pulse' : ''}" aria-hidden="true"> {getStatusIcon(state)} </span>
 			<div class="flex-1">
-				<p class="font-semibold {getStatusColor(state)}">
-					{getStatusText(state, result)}
-				</p>
+				<p class="font-semibold {getStatusColor(state)}">{getStatusText(state, result)}</p>
 				{#if result?.latencyMs && state === 'success'}
-					<p class="text-sm text-surface-600 dark:text-surface-50">
-						{m.setup_connection_latency({ ms: result.latencyMs })}
-					</p>
+					<p class="text-sm text-surface-600 dark:text-surface-50">{m.setup_connection_latency({ ms: result.latencyMs })}</p>
 				{/if}
 			</div>
 		</div>
@@ -182,9 +176,7 @@ Features:
 						<p class="mb-2 font-semibold text-surface-900 dark:text-surface-50">{m.setup_connection_stats_title()}</p>
 						<div class="grid gap-1 text-surface-600 dark:text-surface-50">
 							{#if result.stats.collections !== undefined}
-								<div class="flex justify-between">
-									<span>{m.setup_connection_stats_collections({ count: result.stats.collections })}</span>
-								</div>
+								<div class="flex justify-between"><span>{m.setup_connection_stats_collections({ count: result.stats.collections })}</span></div>
 							{/if}
 							{#if result.stats.objects !== undefined}
 								<div class="flex justify-between">
@@ -192,9 +184,7 @@ Features:
 								</div>
 							{/if}
 							{#if result.stats.dataSize !== undefined}
-								<div class="flex justify-between">
-									<span>{m.setup_connection_stats_size({ size: formatBytes(result.stats.dataSize) })}</span>
-								</div>
+								<div class="flex justify-between"><span>{m.setup_connection_stats_size({ size: formatBytes(result.stats.dataSize) })}</span></div>
 							{/if}
 						</div>
 					</div>
@@ -223,9 +213,7 @@ Features:
 			{#if result.error && result.error !== result.userFriendly}
 				<div class="mb-3 rounded-lg bg-surface-50 p-3 dark:bg-surface-900/50">
 					<p class="mb-1 text-xs font-semibold uppercase text-surface-500 dark:text-surface-50">{m.setup_connection_technical_details()}</p>
-					<p class="font-mono text-xs text-surface-600 dark:text-surface-50">
-						{result.error}
-					</p>
+					<p class="font-mono text-xs text-surface-600 dark:text-surface-50">{result.error}</p>
 				</div>
 			{/if}
 

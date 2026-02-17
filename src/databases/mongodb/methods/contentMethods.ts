@@ -19,17 +19,18 @@ import type { ContentNode, DatabaseId } from '@src/content/types';
 import { logger } from '@utils/logger';
 import type {
 	BaseEntity,
+	DatabaseResult,
 	ContentDraft as DBContentDraft,
 	ContentRevision as DBContentRevision,
-	DatabaseResult,
 	PaginatedResult,
 	PaginationOptions,
 	QueryFilter
 } from '../../dbInterface';
-import { MongoCrudMethods } from './crudMethods';
+import type { MongoCrudMethods } from './crudMethods';
+import { CacheCategory, invalidateCategoryCache, withCache } from './mongoDBCacheUtils';
 import { createDatabaseError, generateId } from './mongoDBUtils';
-import { withCache, CacheCategory, invalidateCategoryCache } from './mongoDBCacheUtils';
 import { normalizeId } from './normalizeId';
+
 export { normalizeId } from './normalizeId';
 
 // Create local types that satisfy the BaseEntity constraint
@@ -56,7 +57,7 @@ export function buildTree(nodes: ContentNode[]): ContentNode[] {
 			const parentId = typeof node.parentId === 'string' ? node.parentId : String(node.parentId);
 			const parent = nodeMap.get(parentId);
 			if (parent) {
-				parent.children!.push(node);
+				parent.children?.push(node);
 			} else {
 				// Parent not found, treat as root
 				logger.warn(`[buildTree] Parent ${parentId} not found for node ${node._id}, treating as root`);
@@ -123,7 +124,9 @@ export class MongoContentMethods {
 
 		const fetchData = async (): Promise<DatabaseResult<ContentNode[]>> => {
 			const result = await this.nodesRepo.findMany(filter);
-			if (!result.success) return result;
+			if (!result.success) {
+				return result;
+			}
 
 			if (mode === 'flat') {
 				return result;
@@ -183,7 +186,9 @@ export class MongoContentMethods {
 	async bulkUpdateNodes(
 		updates: Array<{ path: string; id?: string; changes: Partial<ContentNode> }>
 	): Promise<DatabaseResult<{ modifiedCount: number }>> {
-		if (updates.length === 0) return { success: true, data: { modifiedCount: 0 } };
+		if (updates.length === 0) {
+			return { success: true, data: { modifiedCount: 0 } };
+		}
 		try {
 			logger.trace(`[bulkUpdateNodes] Processing ${updates.length} updates`);
 			const operations = updates.map(({ path, id, changes }) => {
@@ -291,7 +296,9 @@ export class MongoContentMethods {
 	async fixMismatchedNodeIds(
 		expectedNodes: Array<{ path: string; expectedId: string; changes: Partial<ContentNode> }>
 	): Promise<DatabaseResult<{ fixed: number }>> {
-		if (expectedNodes.length === 0) return { success: true, data: { fixed: 0 } };
+		if (expectedNodes.length === 0) {
+			return { success: true, data: { fixed: 0 } };
+		}
 
 		try {
 			let fixedCount = 0;
@@ -350,8 +357,12 @@ export class MongoContentMethods {
 				this.draftsRepo.count(query)
 			]);
 
-			if (!itemsRes.success) return itemsRes as any;
-			if (!totalRes.success) return totalRes as any;
+			if (!itemsRes.success) {
+				return itemsRes as any;
+			}
+			if (!totalRes.success) {
+				return totalRes as any;
+			}
 
 			return {
 				success: true,
@@ -375,7 +386,9 @@ export class MongoContentMethods {
 
 	// Publishes multiple drafts in a single batch operation.
 	async publishManyDrafts(draftIds: DatabaseId[]): Promise<DatabaseResult<{ modifiedCount: number }>> {
-		if (draftIds.length === 0) return { success: true, data: { modifiedCount: 0 } };
+		if (draftIds.length === 0) {
+			return { success: true, data: { modifiedCount: 0 } };
+		}
 		try {
 			const result = await this.draftsRepo.model.updateMany({ _id: { $in: draftIds } }, { $set: { status: 'published', publishedAt: new Date() } });
 			return { success: true, data: { modifiedCount: result.modifiedCount } };
@@ -403,7 +416,9 @@ export class MongoContentMethods {
 
 			// RevisionsRepo count returns DatabaseResult
 			const totalRes = await this.revisionsRepo.count(query);
-			if (!totalRes.success) return totalRes as any;
+			if (!totalRes.success) {
+				return totalRes as any;
+			}
 
 			const items = await this.revisionsRepo.model
 				.find(query)

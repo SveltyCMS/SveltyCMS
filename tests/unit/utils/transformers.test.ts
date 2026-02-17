@@ -3,9 +3,9 @@
  * @description Unit tests for TypeScript AST transformers used in compilation
  */
 
-import { describe, it, expect } from 'bun:test';
+import { describe, expect, it } from 'bun:test';
+import { addJsExtensionTransformer, schemaTenantIdTransformer, schemaUuidTransformer } from '@src/utils/compilation/transformers';
 import * as ts from 'typescript';
-import { schemaUuidTransformer, schemaTenantIdTransformer, addJsExtensionTransformer } from '@src/utils/compilation/transformers';
 
 function transform(code: string, transformers: ts.TransformerFactory<ts.SourceFile>[]) {
 	const sourceFile = ts.createSourceFile('test.ts', code, ts.ScriptTarget.ESNext, true);

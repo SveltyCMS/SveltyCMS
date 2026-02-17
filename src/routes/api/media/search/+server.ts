@@ -10,13 +10,13 @@
  * - Filters by file properties
  */
 
-import { error, json } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
-import { advancedSearch, getSearchSuggestions, type SearchCriteria } from '@utils/media/advancedSearch';
 import { dbAdapter } from '@src/databases/db';
-import { logger } from '@utils/logger.server';
 import type { MediaItem } from '@src/databases/dbInterface';
+import { error, json } from '@sveltejs/kit';
+import { logger } from '@utils/logger.server';
+import { advancedSearch, getSearchSuggestions, type SearchCriteria } from '@utils/media/advancedSearch';
 import type { MediaBase } from '@utils/media/mediaModels';
+import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	const { user, tenantId } = locals;

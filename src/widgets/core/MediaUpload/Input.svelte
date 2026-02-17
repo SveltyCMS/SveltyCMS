@@ -19,15 +19,15 @@
 -->
 
 <script lang="ts">
+	import MediaLibraryModal from '@components/MediaLibraryModal.svelte';
 	import { logger } from '@utils/logger';
-	import { dndzone } from 'svelte-dnd-action';
-	import { flip } from 'svelte/animate';
-	import type { FieldType } from './';
-	import type { MediaFile } from './types';
 	import type { MediaBase, MediaImage } from '@utils/media/mediaModels';
 	import { modalState } from '@utils/modalState.svelte';
-	import MediaLibraryModal from '@components/MediaLibraryModal.svelte';
+	import { flip } from 'svelte/animate';
+	import { dndzone } from 'svelte-dnd-action';
 	import { page } from '$app/state';
+	import type { FieldType } from './';
+	import type { MediaFile } from './types';
 	import 'iconify-icon';
 
 	const tenantId = $derived(page.data?.tenantId);
@@ -60,7 +60,7 @@
 		}
 		// Check file extension
 		const ext = file.name.split('.').pop()?.toLowerCase();
-		if (!ext || !VALID_EXTENSIONS.includes(ext)) {
+		if (!(ext && VALID_EXTENSIONS.includes(ext))) {
 			return { valid: false, error: `Invalid file extension: ${ext}` };
 		}
 		return { valid: true };
@@ -227,7 +227,7 @@
 			{#each selectedFiles as file (file._id)}
 				<div class="relative overflow-hidden rounded border border-surface-200 dark:text-surface-50" animate:flip>
 					{#if file.type?.startsWith('image/') || (file.thumbnailUrl && !file.thumbnailUrl.endsWith('.pdf'))}
-						<img src={file.thumbnailUrl} alt={file.name} class="h-[100px] w-full object-cover" />
+						<img src={file.thumbnailUrl} alt={file.name} class="h-[100px] w-full object-cover">
 					{:else}
 						<div class="flex h-[100px] w-full items-center justify-center bg-surface-100 dark:bg-surface-800">
 							<iconify-icon icon={getFileIcon(file)} width="48"></iconify-icon>

@@ -20,17 +20,15 @@
 -->
 
 <script lang="ts">
-	// ParaglideJS
-	import * as m from '@src/paraglide/messages';
-
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
-	import LocalUpload from './LocalUpload.svelte';
-	import RemoteUpload from './RemoteUpload.svelte';
-
 	// Skeleton
 	import { Tabs } from '@skeletonlabs/skeleton-svelte';
+	// ParaglideJS
+	import * as m from '@src/paraglide/messages';
 	import { goto } from '$app/navigation';
+	import LocalUpload from './LocalUpload.svelte';
+	import RemoteUpload from './RemoteUpload.svelte';
 
 	let tabSet = $state('0');
 
@@ -71,15 +69,7 @@
 			<Tabs.Indicator />
 		</Tabs.List>
 
-		<Tabs.Content value="0">
-			<div class="p-4">
-				<LocalUpload onUploadComplete={handleUploadComplete} />
-			</div>
-		</Tabs.Content>
-		<Tabs.Content value="1">
-			<div class="p-4">
-				<RemoteUpload onUploadComplete={handleUploadComplete} />
-			</div>
-		</Tabs.Content>
+		<Tabs.Content value="0"> <div class="p-4"><LocalUpload onUploadComplete={handleUploadComplete} /></div> </Tabs.Content>
+		<Tabs.Content value="1"> <div class="p-4"><RemoteUpload onUploadComplete={handleUploadComplete} /></div> </Tabs.Content>
 	</Tabs>
 </div>

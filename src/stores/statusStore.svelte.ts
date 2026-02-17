@@ -4,12 +4,12 @@
  * simplifies status management by deriving state directly from collectionValue.
  */
 
-import { collections } from '@src/stores/collectionStore.svelte';
-import { updateEntryStatus } from '@src/utils/apiClient';
-import { showToast } from '@utils/toast';
 import type { StatusType } from '@src/content/types';
 import { StatusTypes } from '@src/content/types';
+import { collections } from '@src/stores/collectionStore.svelte';
+import { updateEntryStatus } from '@src/utils/apiClient';
 import { logger } from '@utils/logger';
+import { showToast } from '@utils/toast';
 
 // Only track transient UI state
 const statusState = $state({
@@ -81,7 +81,7 @@ export const statusStore = {
 	 * @param componentName - Name of calling component (for logging)
 	 * @returns Promise<boolean> - true if successful
 	 */
-	async toggleStatus(newValue: boolean, componentName: string = 'Component'): Promise<boolean> {
+	async toggleStatus(newValue: boolean, componentName = 'Component'): Promise<boolean> {
 		// Prevent redundant toggles
 		if (newValue === isPublish) {
 			logger.debug(`[StatusStore] Status already ${newValue ? 'published' : 'unpublished'}`);
@@ -123,21 +123,19 @@ export const statusStore = {
 
 					showToast(newValue ? 'Entry published successfully' : 'Entry unpublished successfully', 'success');
 					return true;
-				} else {
-					showToast(result.error || `Failed to ${newStatus} entry`, 'error');
-					return false;
 				}
+				showToast(result.error || `Failed to ${newStatus} entry`, 'error');
+				return false;
 			}
 			// Case 2: New entry (no ID yet) - update local state only
-			else {
-				collections.setCollectionValue({
-					...collections.activeValue,
-					status: newStatus
-				});
 
-				logger.debug(`[StatusStore] Status set to ${newStatus} (unsaved entry)`);
-				return true;
-			}
+			collections.setCollectionValue({
+				...collections.activeValue,
+				status: newStatus
+			});
+
+			logger.debug(`[StatusStore] Status set to ${newStatus} (unsaved entry)`);
+			return true;
 		} catch (e) {
 			const error = e as Error;
 			showToast(`Error updating status: ${error.message}`, 'error');

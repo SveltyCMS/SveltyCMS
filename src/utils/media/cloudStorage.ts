@@ -9,8 +9,8 @@
  */
 
 import { getPublicSettingSync } from '@src/services/settingsService';
-import { logger } from '@utils/logger.server';
 import { error } from '@sveltejs/kit';
+import { logger } from '@utils/logger.server';
 import type { StorageType } from './mediaModels';
 
 // Lazy-load clients to avoid init cost if unused
@@ -19,15 +19,15 @@ let cloudinary: any = null;
 
 // Cloud storage configuration interface
 export interface CloudStorageConfig {
-	storageType: StorageType;
-	bucketName?: string;
-	mediaFolder: string;
-	region?: string;
-	endpoint?: string;
-	publicUrl?: string;
 	accessKeyId?: string;
-	secretAccessKey?: string;
+	bucketName?: string;
 	cloudinaryCloudName?: string;
+	endpoint?: string;
+	mediaFolder: string;
+	publicUrl?: string;
+	region?: string;
+	secretAccessKey?: string;
+	storageType: StorageType;
 }
 
 // Get cloud storage configuration from settings
@@ -56,14 +56,16 @@ export function isCloud(): boolean {
 
 /** Get S3 Client Singleton with Keep-Alive */
 async function getS3Client(config: CloudStorageConfig) {
-	if (s3Client) return s3Client;
+	if (s3Client) {
+		return s3Client;
+	}
 
 	const { S3Client } = await import('@aws-sdk/client-s3');
 	const { NodeHttpHandler } = await import('@smithy/node-http-handler');
-	const { Agent: HttpsAgent } = await import('https');
-	const { Agent: HttpAgent } = await import('http');
+	const { Agent: HttpsAgent } = await import('node:https');
+	const { Agent: HttpAgent } = await import('node:http');
 
-	if (!config.accessKeyId || !config.secretAccessKey) {
+	if (!(config.accessKeyId && config.secretAccessKey)) {
 		throw error(500, 'S3/R2 credentials missing');
 	}
 
@@ -93,7 +95,9 @@ async function getS3Client(config: CloudStorageConfig) {
 
 /** Get Cloudinary Singleton */
 async function getCloudinary(config: CloudStorageConfig) {
-	if (cloudinary) return cloudinary;
+	if (cloudinary) {
+		return cloudinary;
+	}
 
 	const lib = await import('cloudinary');
 	cloudinary = lib.v2;
@@ -116,11 +120,15 @@ export function getPath(relativePath: string): string {
 
 export function getUrl(relativePath: string): string {
 	const config = getConfig();
-	if (config.storageType === 'local') return `/files/${relativePath.replace(/^\/+/, '')}`;
+	if (config.storageType === 'local') {
+		return `/files/${relativePath.replace(/^\/+/, '')}`;
+	}
 
 	if (!config.publicUrl) {
 		// Fallback for Cloudinary if needed, usually handles own URLs
-		if (config.storageType === 'cloudinary') return ''; // Cloudinary returns URL on upload
+		if (config.storageType === 'cloudinary') {
+			return ''; // Cloudinary returns URL on upload
+		}
 		throw error(500, 'Cloud public URL not configured');
 	}
 
@@ -164,7 +172,9 @@ export async function upload(buffer: Buffer, relativePath: string): Promise<stri
 					overwrite: true
 				},
 				(err: any, res: any) => {
-					if (err) return reject(err);
+					if (err) {
+						return reject(err);
+					}
 					resolve(res.secure_url);
 				}
 			);

@@ -5,11 +5,11 @@
  *   - Iterates through language options (EN, FR, DE, ES)
  *   - Selects each language from the dropdown and waits for UI update
  */
-import { test, expect } from '@playwright/test';
-import { loginAsAdmin, ensureSidebarVisible } from './helpers/auth';
+import { expect, test } from '@playwright/test';
+import { ensureSidebarVisible, loginAsAdmin } from './helpers/auth';
 
 test.describe('System Language Change', () => {
-	test.setTimeout(60000); // 1 min
+	test.setTimeout(60_000); // 1 min
 
 	test('Login and change system language between EN and DE', async ({ page }) => {
 		// 1. Login
@@ -20,7 +20,7 @@ test.describe('System Language Change', () => {
 
 		// 3. Find language selector using data-testid
 		const languageSelector = page.getByTestId('language-selector');
-		await expect(languageSelector).toBeVisible({ timeout: 10000 });
+		await expect(languageSelector).toBeVisible({ timeout: 10_000 });
 
 		// 3. Loop through available language options (en, de)
 		const languages = ['en', 'de'];

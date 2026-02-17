@@ -9,7 +9,7 @@
  * - Access control
  */
 
-import type { ISODateString, DatabaseId } from '@src/content/types';
+import type { DatabaseId, ISODateString } from '@src/content/types';
 
 export type StorageType = 'local' | 's3' | 'r2' | 'cloudinary';
 
@@ -24,29 +24,27 @@ export enum MediaType {
 export type MediaAccess = 'public' | 'private' | 'protected';
 
 export interface MediaMetadata {
-	title?: string;
-	description?: string;
-	keywords?: string[];
-	tags?: string[];
 	aiTags?: string[];
-	copyright?: string;
 	author?: string;
+	copyright?: string;
+	description?: string;
+	exif?: Record<string, unknown>;
 	/** Focal point for smart cropping (0-100 for x and y) */
 	focalPoint?: { x: number; y: number };
-	/** Whether a watermark has been applied to this media */
-	watermarkApplied?: boolean;
+	keywords?: string[];
 	location?: {
 		latitude?: number;
 		longitude?: number;
 		altitude?: number;
 	};
-	exif?: Record<string, unknown>;
+	tags?: string[];
+	title?: string;
+	/** Whether a watermark has been applied to this media */
+	watermarkApplied?: boolean;
 	[key: string]: unknown;
 }
 
 export interface WatermarkOptions {
-	url: string;
-	scale: number;
 	position:
 		| 'top'
 		| 'bottom'
@@ -61,70 +59,72 @@ export interface WatermarkOptions {
 		| 'southwest'
 		| 'west'
 		| 'northwest';
+	scale: number;
+	url: string;
 }
 
 export interface ResizedImage {
+	height: number;
+	mimeType: string;
+	size: number;
 	url: string;
 	width: number;
-	height: number;
-	size: number;
-	mimeType: string;
 }
 
 export interface MediaVersion {
-	version: number;
-	url: string;
 	createdAt: ISODateString;
 	createdBy: DatabaseId;
+	url: string;
+	version: number;
 }
 
 export interface MediaBase {
 	_id: DatabaseId; // Required for BaseEntity compatibility
-	type: MediaType;
-	hash: string;
-	filename: string;
-	path: string; // storage-relative
-	url: string; // public URL
-	mimeType: string;
-	size: number;
-	user: DatabaseId;
-	createdAt: ISODateString;
-	updatedAt: ISODateString;
-	thumbnails?: Record<string, ResizedImage>;
-	folderId?: DatabaseId | null;
-	originalId?: DatabaseId | null;
-	metadata?: MediaMetadata;
-	versions?: MediaVersion[];
 	access?: MediaAccess;
+	createdAt: ISODateString;
+	filename: string;
+	folderId?: DatabaseId | null;
+	hash: string;
+	metadata?: MediaMetadata;
+	mimeType: string;
+	originalId?: DatabaseId | null;
+	path: string; // storage-relative
+	size: number;
+	thumbnails?: Record<string, ResizedImage>;
+	type: MediaType;
+	updatedAt: ISODateString;
+	url: string; // public URL
+	user: DatabaseId;
+	versions?: MediaVersion[];
 }
 
 export interface MediaImage extends MediaBase {
+	height: number;
 	type: MediaType.Image;
 	width: number;
-	height: number;
 }
 
 export interface MediaVideo extends MediaBase {
-	type: MediaType.Video;
 	duration?: number;
 	thumbnailUrl?: string;
+	type: MediaType.Video;
 }
 
 export interface MediaAudio extends MediaBase {
-	type: MediaType.Audio;
 	duration?: number;
+	type: MediaType.Audio;
 }
 
 export interface MediaDocument extends MediaBase {
-	type: MediaType.Document;
 	pageCount?: number;
+	type: MediaType.Document;
 }
 
 export interface MediaRemoteVideo extends MediaBase {
-	type: MediaType.RemoteVideo;
-	provider: string; // youtube | vimeo | other
 	externalId: string;
+	provider: string; // youtube | vimeo | other
 	thumbnails?: Record<string, ResizedImage>;
+	type: MediaType.RemoteVideo;
 }
 
 export type MediaItem = MediaImage | MediaVideo | MediaAudio | MediaDocument | MediaRemoteVideo;
@@ -132,10 +132,10 @@ export type MediaItem = MediaImage | MediaVideo | MediaAudio | MediaDocument | M
 /** Virtual folder for organization */
 export interface SystemVirtualFolder {
 	_id: string;
+	color?: string;
+	icon?: string;
 	name: string;
 	parentId: string | null;
-	icon?: string;
-	color?: string;
 }
 
 export { MediaType as MediaTypeEnum };

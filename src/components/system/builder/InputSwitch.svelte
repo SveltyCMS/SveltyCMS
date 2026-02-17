@@ -54,6 +54,7 @@ Features:
 	}
 
 	import { resolveAdminComponent } from '@src/components/system/adminComponentRegistry';
+
 	const WidgetComponent = $derived(resolveAdminComponent(props.widget));
 </script>
 

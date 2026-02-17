@@ -42,21 +42,21 @@ export type WidgetErrorCode = (typeof WidgetErrorCode)[keyof typeof WidgetErrorC
 // ============================================================================
 
 export interface WidgetValidationResult {
-	valid: boolean;
-	message?: string;
 	code?: WidgetErrorCode;
 	issues?: string[];
+	message?: string;
+	valid: boolean;
 }
 
 export interface WidgetValidationOptions {
 	/** Field name for validationStore */
 	fieldName: string;
-	/** Whether to update validationStore automatically */
-	updateStore?: boolean;
-	/** Whether to show errors only after touch */
-	requireTouch?: boolean;
 	/** Current touch state */
 	isTouched?: boolean;
+	/** Whether to show errors only after touch */
+	requireTouch?: boolean;
+	/** Whether to update validationStore automatically */
+	updateStore?: boolean;
 }
 
 // ============================================================================

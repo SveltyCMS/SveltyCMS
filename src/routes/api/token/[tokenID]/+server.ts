@@ -16,30 +16,26 @@
  * }
  * }
  */
-import { getPrivateSettingSync } from '@src/services/settingsService';
-import { json } from '@sveltejs/kit';
-
-// Auth
-import { auth } from '@src/databases/db';
-
-// Validation
-import { any, object, parse } from 'valibot';
 
 // Cache invalidation
 import { cacheService } from '@src/databases/CacheService';
-
-// System logger
-import { logger } from '@utils/logger.server';
-
+// Auth
+import { auth } from '@src/databases/db';
+import { getPrivateSettingSync } from '@src/services/settingsService';
+import { json } from '@sveltejs/kit';
 // Unified Error Handling
 import { apiHandler } from '@utils/apiHandler';
 import { AppError } from '@utils/errorHandling';
+// System logger
+import { logger } from '@utils/logger.server';
+// Validation
+import { any, object, parse } from 'valibot';
 
 // Minimal shared result type guards (kept local to avoid broad dependencies)
 interface DatabaseResultLike<T> {
-	success: boolean;
 	data?: T;
 	deletedCount?: number;
+	success: boolean;
 }
 interface TokenLike {
 	_id?: string;

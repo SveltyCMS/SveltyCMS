@@ -1,4 +1,4 @@
-import type { Schema, ContentNode } from '@src/content/types';
+import type { ContentNode, Schema } from '@src/content/types';
 import { logger } from '@utils/logger';
 
 // Types

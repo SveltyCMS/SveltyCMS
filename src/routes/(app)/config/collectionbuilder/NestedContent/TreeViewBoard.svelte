@@ -24,34 +24,35 @@
 - Enhanced visual feedback for drag & drop
 -->
 <script lang="ts">
-	import TreeViewNode from './TreeViewNode.svelte';
-	import type { ContentNode, DatabaseId } from '@databases/dbInterface';
-	import { dndzone, SHADOW_ITEM_MARKER_PROPERTY_NAME } from 'svelte-dnd-action';
-	import { flip } from 'svelte/animate';
-	import { tick } from 'svelte';
-	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
+	
 	import SystemTooltip from '@components/system/SystemTooltip.svelte';
+	import type { ContentNode, DatabaseId } from '@databases/dbInterface';
 	import { sortContentNodes } from '@src/content/utils';
+	import { tick } from 'svelte';
+	import { flip } from 'svelte/animate';
+	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
+	import { dndzone, SHADOW_ITEM_MARKER_PROPERTY_NAME } from 'svelte-dnd-action';
+import TreeViewNode from './TreeViewNode.svelte';
 
 	export interface TreeViewItem extends Record<string, any> {
-		id: string;
-		name: string;
-		parent: string | null;
-		nodeType: 'category' | 'collection';
-		icon?: string;
-		path: string;
-		order?: number;
 		_id?: any;
+		icon?: string;
+		id: string;
 		isDraggable?: boolean;
 		isDropAllowed?: boolean;
+		name: string;
+		nodeType: 'category' | 'collection';
+		order?: number;
+		parent: string | null;
+		path: string;
 	}
 
 	interface Props {
 		contentNodes: ContentNode[];
-		onNodeUpdate: (updatedNodes: ContentNode[]) => void;
-		onEditCategory: (category: Partial<ContentNode>) => void;
 		onDeleteNode?: (node: Partial<ContentNode>) => void;
 		onDuplicateNode?: (node: Partial<ContentNode>) => void;
+		onEditCategory: (category: Partial<ContentNode>) => void;
+		onNodeUpdate: (updatedNodes: ContentNode[]) => void;
 	}
 
 	let { contentNodes = [], onNodeUpdate, onEditCategory, onDeleteNode, onDuplicateNode }: Props = $props();

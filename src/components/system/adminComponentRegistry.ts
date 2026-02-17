@@ -5,17 +5,15 @@
  * instead of importing components directly, improving tree-shaking and bundle size.
  */
 
-import type { Component } from 'svelte';
-
-// System Components
-import Input from '@components/system/inputs/Input.svelte';
-import Toggles from '@components/system/inputs/Toggles.svelte';
-
 // Complex Components
 import IconifyIconsPicker from '@components/IconifyIconsPicker.svelte';
 import PermissionsSetting from '@components/PermissionsSetting.svelte';
 import CollectionPicker from '@components/system/builder/CollectionPicker.svelte';
 import FieldPicker from '@components/system/builder/FieldPicker.svelte';
+// System Components
+import Input from '@components/system/inputs/Input.svelte';
+import Toggles from '@components/system/inputs/Toggles.svelte';
+import type { Component } from 'svelte';
 
 // Type for the registry
 export type AdminComponentKey = keyof typeof adminComponentRegistry;

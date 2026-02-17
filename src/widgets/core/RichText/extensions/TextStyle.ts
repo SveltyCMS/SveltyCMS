@@ -25,7 +25,9 @@ export default TextStyle.extend({
 				default: null,
 				parseHTML: (element) => {
 					const fontSize = element.style.fontSize;
-					if (!fontSize) return null;
+					if (!fontSize) {
+						return null;
+					}
 					return fontSize.replace(/px$/, '');
 				},
 				renderHTML: (attributes) => {

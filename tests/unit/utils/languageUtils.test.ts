@@ -3,7 +3,7 @@
  * @description Tests for language utility functions
  */
 
-import { describe, it, expect } from 'bun:test';
+import { describe, expect, it } from 'bun:test';
 import { getLanguageName } from '@utils/languageUtils';
 
 describe('Language Utils - Get Language Name', () => {

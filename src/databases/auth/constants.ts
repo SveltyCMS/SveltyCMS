@@ -8,7 +8,7 @@
 
 export const SESSION_COOKIE_NAME = 'auth_sessions';
 
-export function generateRandomToken(length: number = 32): string {
+export function generateRandomToken(length = 32): string {
 	const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 	let result = '';
 	for (let i = 0; i < length; i++) {
@@ -17,7 +17,7 @@ export function generateRandomToken(length: number = 32): string {
 	return result;
 }
 
-export function generateTokenWithExpiry(expirationMinutes: number = 60): { token: string; expires: Date } {
+export function generateTokenWithExpiry(expirationMinutes = 60): { token: string; expires: Date } {
 	return {
 		token: generateRandomToken(),
 		expires: new Date(Date.now() + expirationMinutes * 60 * 1000)

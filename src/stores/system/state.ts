@@ -10,13 +10,14 @@
  * - Setup benchmarking and performance tracking
  */
 
-import { writable, derived, get } from 'svelte/store';
-import type { Writable, Readable } from 'svelte/store';
 import { logger } from '@utils/logger';
-import type { SystemStateStore, SystemState, ServiceHealth, ServiceStatus, ServicePerformanceMetrics, ServiceName } from './types';
+import type { Readable, Writable } from 'svelte/store';
+import { derived, get, writable } from 'svelte/store';
+import type { ServiceHealth, ServiceName, ServicePerformanceMetrics, ServiceStatus, SystemState, SystemStateStore } from './types';
 export type { ServiceName };
+
 import { initialState } from './config';
-import { updateUptimeMetrics, trackStateTransition, calibrateAnomalyThresholds, detectAnomalies, saveCurrentMetrics } from './metrics';
+import { calibrateAnomalyThresholds, detectAnomalies, saveCurrentMetrics, trackStateTransition, updateUptimeMetrics } from './metrics';
 
 // Create the writable store
 export const systemStateStore: Writable<SystemStateStore> = writable(initialState);
@@ -44,14 +45,14 @@ function transitionServiceState(
 
 		// Update running statistics with EMA (Exponential Moving Average)
 		const alpha = 0.2; // Fixed smoothing factor for stable long-term behavior
-		if (!metrics.averageInitTime) {
-			metrics.averageInitTime = duration;
-			metrics.minInitTime = duration;
-			metrics.maxInitTime = duration;
-		} else {
+		if (metrics.averageInitTime) {
 			metrics.averageInitTime = alpha * duration + (1 - alpha) * metrics.averageInitTime;
 			metrics.minInitTime = Math.min(metrics.minInitTime ?? duration, duration);
 			metrics.maxInitTime = Math.max(metrics.maxInitTime ?? duration, duration);
+		} else {
+			metrics.averageInitTime = duration;
+			metrics.minInitTime = duration;
+			metrics.maxInitTime = duration;
 		}
 
 		logger.info(`✓ Service ${serviceName} initialized in ${duration}ms`, {
@@ -213,15 +214,15 @@ export function setSystemState(state: SystemState, reason?: string): void {
 			performanceMetrics.lastInitDuration = duration;
 
 			// Update running statistics
-			if (!performanceMetrics.averageTotalInitTime) {
-				performanceMetrics.averageTotalInitTime = duration;
-				performanceMetrics.minTotalInitTime = duration;
-				performanceMetrics.maxTotalInitTime = duration;
-			} else {
+			if (performanceMetrics.averageTotalInitTime) {
 				const count = performanceMetrics.successfulInitializations;
 				performanceMetrics.averageTotalInitTime = (performanceMetrics.averageTotalInitTime * (count - 1) + duration) / count;
 				performanceMetrics.minTotalInitTime = Math.min(performanceMetrics.minTotalInitTime ?? duration, duration);
 				performanceMetrics.maxTotalInitTime = Math.max(performanceMetrics.maxTotalInitTime ?? duration, duration);
+			} else {
+				performanceMetrics.averageTotalInitTime = duration;
+				performanceMetrics.minTotalInitTime = duration;
+				performanceMetrics.maxTotalInitTime = duration;
 			}
 
 			logger.info(`🚀 System initialization completed in ${duration}ms`, {
@@ -256,34 +257,48 @@ function deriveOverallState(services: SystemStateStore['services']): SystemState
 
 	// 1. Check for MAINTENANCE mode
 	const anyMaintenance = allServices.some((service) => services[service].status === 'maintenance');
-	if (anyMaintenance) return 'MAINTENANCE';
+	if (anyMaintenance) {
+		return 'MAINTENANCE';
+	}
 
 	// 2. Check if any critical service is unhealthy
 	const criticalUnhealthy = criticalServices.some((service) => services[service].status === 'unhealthy');
-	if (criticalUnhealthy) return 'FAILED';
+	if (criticalUnhealthy) {
+		return 'FAILED';
+	}
 
 	// 3. Check if any critical service is still initializing
 	const criticalInitializing = criticalServices.some((service) => services[service].status === 'initializing');
-	if (criticalInitializing) return 'INITIALIZING';
+	if (criticalInitializing) {
+		return 'INITIALIZING';
+	}
 
 	// 4. Check for SETUP mode (Critical services healthy, but Widgets/Themes are skipped)
 	// If critical services are ready, but we skipped widgets/themes (e.g. during setup), we are in SETUP mode
-	const widgetsSkipped = services['widgets']?.status === 'skipped';
-	const themeSkipped = services['themeManager']?.status === 'skipped';
-	if (widgetsSkipped && themeSkipped) return 'SETUP';
+	const widgetsSkipped = services.widgets?.status === 'skipped';
+	const themeSkipped = services.themeManager?.status === 'skipped';
+	if (widgetsSkipped && themeSkipped) {
+		return 'SETUP';
+	}
 
 	// 5. Check if all services are healthy (WARMED)
 	// Ignore 'skipped' services for this check unless ALL non-critical are skipped (which is handled by SETUP above)
 	const allHealthy = allServices.every((service) => services[service].status === 'healthy' || services[service].status === 'skipped');
-	if (allHealthy) return 'WARMED';
+	if (allHealthy) {
+		return 'WARMED';
+	}
 
 	// 6. Check if some services are unhealthy (DEGRADED)
 	const anyUnhealthy = allServices.some((service) => services[service].status === 'unhealthy');
-	if (anyUnhealthy) return 'DEGRADED';
+	if (anyUnhealthy) {
+		return 'DEGRADED';
+	}
 
 	// 7. If critical services are healthy but some non-critical services are still initializing (WARMING)
 	const anyInitializing = allServices.some((service) => services[service].status === 'initializing');
-	if (anyInitializing) return 'WARMING';
+	if (anyInitializing) {
+		return 'WARMING';
+	}
 
 	return 'READY';
 }

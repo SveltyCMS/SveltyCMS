@@ -20,22 +20,21 @@
  * @module GlobalSearchIndex
  */
 
-import { writable } from 'svelte/store';
-import { modalState } from '@utils/modalState.svelte';
 import ModalEditAvatar from '@src/routes/(app)/user/components/ModalEditAvatar.svelte';
 import ModalEditForm from '@src/routes/(app)/user/components/ModalEditForm.svelte';
-
 // System Logs
 import { logger } from '@utils/logger';
+import { modalState } from '@utils/modalState.svelte';
+import { writable } from 'svelte/store';
 
 export const isSearchVisible = writable(false);
 export const triggerActionStore = writable<(() => void | Promise<void>)[]>([]);
 
 // Create a writable store for the global search index
 export interface SearchData {
-	title: string;
 	description: string;
 	keywords: string[];
+	title: string;
 	triggers: {
 		[title: string]: {
 			path: string;

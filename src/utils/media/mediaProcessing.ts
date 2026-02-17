@@ -8,8 +8,8 @@
  * - Client-side compatible (no server deps)
  */
 
-import { sanitize } from '@utils/utils';
 import { logger } from '@utils/logger';
+import { sanitize } from '@utils/utils';
 
 /** Sanitize filename for safe upload/storage */
 export function sanitizedFilename(original: string): { name: string; ext: string } {

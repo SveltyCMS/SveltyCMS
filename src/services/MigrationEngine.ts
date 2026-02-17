@@ -3,19 +3,19 @@
  * @description Architecture for handling Schema Migrations when Code definitions diverge from DB.
  */
 
-import { compareSchemas, type SchemaChange } from '@utils/schema/comparison';
 import type { Schema } from '@content/types';
 import { dbAdapter } from '@src/databases/db';
 import { logger } from '@utils/logger';
+import { compareSchemas, type SchemaChange } from '@utils/schema/comparison';
 
 export interface MigrationPlan {
-	collectionId: string;
 	changes: SchemaChange[];
-	requiresMigration: boolean;
+	collectionId: string;
 	impact: {
 		documentsAffected: number;
 		dataLossPotential: boolean;
 	};
+	requiresMigration: boolean;
 }
 
 export class MigrationEngine {
@@ -80,7 +80,9 @@ export class MigrationEngine {
 		}
 
 		try {
-			if (!dbAdapter) throw new Error('DB Adapter not initialized');
+			if (!dbAdapter) {
+				throw new Error('DB Adapter not initialized');
+			}
 			await dbAdapter.collection.updateModel(codeSchema);
 			return { success: true, message: 'Migration executed successfully.' };
 		} catch (err) {

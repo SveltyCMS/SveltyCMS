@@ -3,7 +3,7 @@
  * @description Unit tests for the RichText widget validation logic
  */
 
-import { describe, it, expect } from 'bun:test';
+import { describe, expect, it } from 'bun:test';
 import RichTextWidget from '@src/widgets/core/RichText';
 import { safeParse } from 'valibot';
 

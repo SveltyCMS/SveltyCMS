@@ -6,7 +6,7 @@
  * Levels: TINY -> LOW -> MEDIUM -> HIGH -> EXTREME
  */
 
-import { describe, it, expect } from 'bun:test';
+import { describe, expect, it } from 'bun:test';
 import { getDatabaseResilience } from '../../../src/databases/DatabaseResilience';
 
 // Mock operation that simulates DB work with random latency and occasional failures
@@ -32,10 +32,10 @@ describe('System Load & Resilience Benchmark', () => {
 	// Load Profiles Definition
 	const LOAD_PROFILES = {
 		TINY: { total: 1000, batch: 100, name: 'Raspberry Pi / CI' },
-		LOW: { total: 10000, batch: 500, name: 'Standard Laptop' },
-		MEDIUM: { total: 50000, batch: 2000, name: 'Dev Workstation' },
-		HIGH: { total: 100000, batch: 5000, name: 'Performance Server' },
-		EXTREME: { total: 500000, batch: 10000, name: 'Cluster / Mainframe' }
+		LOW: { total: 10_000, batch: 500, name: 'Standard Laptop' },
+		MEDIUM: { total: 50_000, batch: 2000, name: 'Dev Workstation' },
+		HIGH: { total: 100_000, batch: 5000, name: 'Performance Server' },
+		EXTREME: { total: 500_000, batch: 10_000, name: 'Cluster / Mainframe' }
 	};
 
 	// Determine starting level from env or default to ALL (progressive)
@@ -97,7 +97,7 @@ describe('System Load & Resilience Benchmark', () => {
 				maxStableLevel = level;
 			} catch (err: any) {
 				console.error(`\n❌ [${level}] FAILED: ${err.message}`);
-				console.log(`\n⚠️  System Limit Reached!`);
+				console.log('\n⚠️  System Limit Reached!');
 				console.log(`   The server switched off/failed at level: ${level}`);
 				console.log(`   Last Stable Level: ${maxStableLevel}`);
 
@@ -108,5 +108,5 @@ describe('System Load & Resilience Benchmark', () => {
 
 		console.log(`\n🏆 BENCHMARK RESULT: Max Stable Load Level = [ ${maxStableLevel} ]`);
 		expect(true).toBe(true); // Always pass the test runner to show the report
-	}, 300000); // 5 minute timeout for full progression
+	}, 300_000); // 5 minute timeout for full progression
 });

@@ -13,8 +13,8 @@ Features:
 
 <script lang="ts">
 	interface Props {
-		score: number | undefined;
 		compact?: boolean;
+		score: number | undefined;
 	}
 
 	const { score, compact = false }: Props = $props();
@@ -24,26 +24,26 @@ Features:
 	// 50-89 (Orange): Needs Improvement
 	// 90-100 (Green): Good
 	const scoreColor = $derived(
-		!score
-			? 'text-surface-200 dark:text-surface-600'
-			: score >= 90
+		score
+			? score >= 90
 				? 'text-success-600 dark:text-success-400'
 				: score >= 50
 					? 'text-warning-600 dark:text-warning-400'
 					: 'text-error-600 dark:text-error-400'
+			: 'text-surface-200 dark:text-surface-600'
 	);
 
 	const scoreBg = $derived(
-		!score
-			? 'bg-surface-200 dark:bg-surface-700'
-			: score >= 90
+		score
+			? score >= 90
 				? 'bg-success-100 dark:bg-success-900/30'
 				: score >= 50
 					? 'bg-warning-100 dark:bg-warning-900/30'
 					: 'bg-error-100 dark:bg-error-900/30'
+			: 'bg-surface-200 dark:bg-surface-700'
 	);
 
-	const scoreLabel = $derived(!score ? 'No Data' : score >= 90 ? 'Good' : score >= 50 ? 'Needs Work' : 'Poor');
+	const scoreLabel = $derived(score ? (score >= 90 ? 'Good' : score >= 50 ? 'Needs Work' : 'Poor') : 'No Data');
 </script>
 
 {#if compact}

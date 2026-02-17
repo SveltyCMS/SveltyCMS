@@ -10,11 +10,16 @@
  * - **Advanced Configuration**: Support for complex menu hierarchies.
  */
 
-import type { Permission } from '@src/databases/auth/types';
 import type { FieldInstance } from '@src/content/types';
+import type { Permission } from '@src/databases/auth/types';
 
 // Defines the properties unique to the MegaMenu widget
 export interface MegaMenuProps {
+	// Whether to enable drag-and-drop reordering @default: true
+	enableDragDrop?: boolean;
+
+	// Whether to show expand/collapse controls @default: true
+	enableExpandCollapse?: boolean;
 	/**
 	 * Defines the fields available at each level of the menu
 	 * Example: `[[TextWidget({label:'Lvl 1'})], [TextWidget({label:'Lvl 2'})]]`
@@ -23,12 +28,6 @@ export interface MegaMenuProps {
 
 	// Maximum depth allowed for menu nesting @default: 5 levels deep
 	maxDepth?: number;
-
-	// Whether to enable drag-and-drop reordering @default: true
-	enableDragDrop?: boolean;
-
-	// Whether to show expand/collapse controls @default: true
-	enableExpandCollapse?: boolean;
 
 	// Custom validation rules for menu structure
 	validationRules?: MenuValidationRules;
@@ -39,14 +38,13 @@ export interface MegaMenuProps {
 
 // Validation rules for menu structure
 export interface MenuValidationRules {
-	// Minimum number of root level items required
-	minRootItems?: number;
+	// Maximum number of children per parent item
+	maxChildrenPerParent?: number;
 
 	// Maximum number of root level items allowed
 	maxRootItems?: number;
-
-	// Maximum number of children per parent item
-	maxChildrenPerParent?: number;
+	// Minimum number of root level items required
+	minRootItems?: number;
 
 	// Whether to require unique titles within the same level
 	requireUniqueTitles?: boolean;
@@ -57,43 +55,41 @@ export interface MenuValidationRules {
  * This is the shape of the data that will be stored
  */
 export interface MenuItem {
-	_id: string; // A unique ID for each item for stable rendering and DND.
-	_fields: Record<string, unknown>; // The actual content data for the item.
-	children: MenuItem[]; // Nested child items.
 	_expanded?: boolean; // UI state for expand/collapse (not persisted).
+	_fields: Record<string, unknown>; // The actual content data for the item.
+	_id: string; // A unique ID for each item for stable rendering and DND.
+	children: MenuItem[]; // Nested child items.
 }
 
 // Extended menu item with additional metadata for advanced operations
 export interface ExtendedMenuItem extends MenuItem {
-	// Parent reference for tree operations
-	parent?: ExtendedMenuItem;
-
-	//Depth level in the hierarchy
-	level: number;
-
-	// Index within parent's children array
-	index: number;
-
 	// Whether this item can be dragged
 	draggable?: boolean;
 
 	// Whether this item can accept drops
 	droppable?: boolean;
+
+	// Index within parent's children array
+	index: number;
+
+	//Depth level in the hierarchy
+	level: number;
+	// Parent reference for tree operations
+	parent?: ExtendedMenuItem;
 }
 
 // Drag and drop event detail structure
 export interface DragDropEventDetail {
-	// Index of the target position
-	targetIndex: number;
+	// Whether dropping as a child of the target
+	asChild: boolean;
 
 	// The dragged menu item
 	draggedItem: MenuItem;
 
-	// Whether dropping as a child of the target
-	asChild: boolean;
-
 	// Source level for validation
 	sourceLevel: number;
+	// Index of the target position
+	targetIndex: number;
 
 	// Target level for validation
 	targetLevel: number;
@@ -101,26 +97,25 @@ export interface DragDropEventDetail {
 
 // Menu editing context for modal operations
 export interface MenuEditContext {
+	// Available fields for this level
+	fields: FieldInstance[];
+
+	// Whether this is a new item creation
+	isNew: boolean;
 	// The menu item being edited
 	item: MenuItem;
 
 	// Current nesting level
 	level: number;
 
-	// Available fields for this level
-	fields: FieldInstance[];
-
-	// Whether this is a new item creation
-	isNew: boolean;
-
-	// Parent item reference
-	parent?: MenuItem;
+	// Callback to cancel editing
+	onCancel: () => void;
 
 	// Callback to save changes
 	onSave: (data: Record<string, unknown>) => void;
 
-	// Callback to cancel editing
-	onCancel: () => void;
+	// Parent item reference
+	parent?: MenuItem;
 }
 
 // Menu operation permissions
@@ -128,11 +123,11 @@ export interface MenuPermissions {
 	// Can create new menu items
 	canCreate: boolean;
 
-	// Can edit existing menu items
-	canEdit: boolean;
-
 	// Can delete menu items
 	canDelete: boolean;
+
+	// Can edit existing menu items
+	canEdit: boolean;
 
 	// Can reorder menu items via drag-and-drop
 	canReorder: boolean;
@@ -173,12 +168,6 @@ export interface MenuAggregations {
 
 // Menu widget configuration schema
 export interface MegaMenuConfig {
-	// Widget properties
-	props: MegaMenuProps;
-
-	// Permission settings
-	permissions?: Permission[];
-
 	// Aggregation settings
 	aggregations?: MenuAggregations;
 
@@ -193,4 +182,9 @@ export interface MegaMenuConfig {
 		// Custom CSS classes
 		classes?: string;
 	};
+
+	// Permission settings
+	permissions?: Permission[];
+	// Widget properties
+	props: MegaMenuProps;
 }

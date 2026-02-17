@@ -69,7 +69,7 @@
 	<!-- Search -->
 	<div class="relative mb-4">
 		<iconify-icon icon="mdi:magnify" width="18" class="absolute left-3 top-1/2 -translate-y-1/2 text-surface-400"></iconify-icon>
-		<input type="text" placeholder="Search widgets..." class="input pl-10 h-10 w-full text-sm rounded-lg" bind:value={searchTerm} />
+		<input type="text" placeholder="Search widgets..." class="input pl-10 h-10 w-full text-sm rounded-lg" bind:value={searchTerm}>
 	</div>
 
 	<!-- Widget List -->

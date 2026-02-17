@@ -27,13 +27,9 @@ This component provides a tooltip for any element.
 	import { Portal, Tooltip } from '@skeletonlabs/skeleton-svelte';
 
 	interface Props {
-		title?: string;
+		children?: import('svelte').Snippet;
 		content?: import('svelte').Snippet;
 		contentClass?: string;
-		triggerClass?: string;
-		triggerStyle?: string;
-		wFull?: boolean;
-		children?: import('svelte').Snippet;
 		positioning?: {
 			placement?:
 				| 'top'
@@ -50,6 +46,10 @@ This component provides a tooltip for any element.
 				| 'right-end';
 			gutter?: number;
 		};
+		title?: string;
+		triggerClass?: string;
+		triggerStyle?: string;
+		wFull?: boolean;
 	}
 
 	let {
@@ -82,9 +82,7 @@ This component provides a tooltip for any element.
 				{:else}
 					<span>{title}</span>
 				{/if}
-				<Tooltip.Arrow class={ARROW_CLASS}>
-					<Tooltip.ArrowTip />
-				</Tooltip.Arrow>
+				<Tooltip.Arrow class={ARROW_CLASS}> <Tooltip.ArrowTip /> </Tooltip.Arrow>
 			</Tooltip.Content>
 		</Tooltip.Positioner>
 	</Portal>

@@ -12,35 +12,35 @@
  * - Stats & cleanup
  */
 
-import { randomBytes } from 'crypto';
+import { randomBytes } from 'node:crypto';
 import type { DatabaseId, ISODateString } from '@src/content/types';
 
 export interface ShareLink {
 	_id?: DatabaseId;
-	token: string;
-	fileId: DatabaseId;
-	createdBy: DatabaseId;
-	createdAt: ISODateString;
-	expiresAt: ISODateString;
-	maxDownloads?: number;
-	downloadCount: number;
-	passwordHash?: string; // Store hashed
-	allowedIPs?: string[];
-	logs: ShareLog[];
 	active: boolean;
+	allowedIPs?: string[];
+	createdAt: ISODateString;
+	createdBy: DatabaseId;
+	downloadCount: number;
+	expiresAt: ISODateString;
+	fileId: DatabaseId;
+	logs: ShareLog[];
+	maxDownloads?: number;
 	meta?: {
 		requireEmail?: boolean;
 		message?: string;
 		notify?: boolean;
 	};
+	passwordHash?: string; // Store hashed
+	token: string;
 }
 
 export interface ShareLog {
+	action: 'view' | 'download';
 	at: ISODateString;
 	ip: string;
-	ua: string;
-	action: 'view' | 'download';
 	ok: boolean;
+	ua: string;
 }
 
 /** Secure token (base64url, 32 bytes) */
@@ -64,7 +64,7 @@ export function createLink(
 ): ShareLink {
 	const now = new Date();
 	const hours = opts.hours ?? 24;
-	const expires = new Date(now.getTime() + hours * 3600000);
+	const expires = new Date(now.getTime() + hours * 3_600_000);
 
 	return {
 		token: newToken(),
@@ -88,11 +88,21 @@ export function createLink(
 
 /** Validate access */
 export function validateLink(link: ShareLink, ip?: string, passwordHash?: string): { ok: boolean; reason?: string } {
-	if (!link.active) return { ok: false, reason: 'inactive' };
-	if (new Date() > new Date(link.expiresAt)) return { ok: false, reason: 'expired' };
-	if (link.maxDownloads != null && link.downloadCount >= link.maxDownloads) return { ok: false, reason: 'limit' };
-	if (link.allowedIPs?.length && ip && !link.allowedIPs.includes(ip)) return { ok: false, reason: 'ip' };
-	if (link.passwordHash && passwordHash !== link.passwordHash) return { ok: false, reason: 'password' };
+	if (!link.active) {
+		return { ok: false, reason: 'inactive' };
+	}
+	if (new Date() > new Date(link.expiresAt)) {
+		return { ok: false, reason: 'expired' };
+	}
+	if (link.maxDownloads != null && link.downloadCount >= link.maxDownloads) {
+		return { ok: false, reason: 'limit' };
+	}
+	if (link.allowedIPs?.length && ip && !link.allowedIPs.includes(ip)) {
+		return { ok: false, reason: 'ip' };
+	}
+	if (link.passwordHash && passwordHash !== link.passwordHash) {
+		return { ok: false, reason: 'password' };
+	}
 
 	return { ok: true };
 }
@@ -107,7 +117,9 @@ export function logAccess(link: ShareLink, action: 'view' | 'download', ip: stri
 		ok
 	});
 
-	if (action === 'download' && ok) link.downloadCount++;
+	if (action === 'download' && ok) {
+		link.downloadCount++;
+	}
 
 	return link;
 }
@@ -131,9 +143,9 @@ export function stats(link: ShareLink) {
 	const views = link.logs.filter((l) => l.action === 'view' && l.ok).length;
 	const downloads = link.logs.filter((l) => l.action === 'download' && l.ok).length;
 	const ips = new Set(link.logs.map((l) => l.ip)).size;
-	const last = link.logs[link.logs.length - 1]?.at;
+	const last = link.logs.at(-1)?.at;
 
-	const remainingHours = Math.max(0, (new Date(link.expiresAt).getTime() - Date.now()) / 3600000);
+	const remainingHours = Math.max(0, (new Date(link.expiresAt).getTime() - Date.now()) / 3_600_000);
 	const remainingDownloads = link.maxDownloads != null ? link.maxDownloads - link.downloadCount : undefined;
 
 	return {

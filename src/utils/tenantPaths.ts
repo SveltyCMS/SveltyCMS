@@ -7,7 +7,7 @@
  * - Multi-tenant: config/{tenantId}/collections/ or config/global/collections/
  */
 
-import path from 'path';
+import path from 'node:path';
 
 /**
  * Resolve collection directory based on tenant ID

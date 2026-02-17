@@ -6,21 +6,18 @@ It handles widget configuration, permissions, and specific options.
 -->
 
 <script lang="ts">
-	import { type SvelteComponent } from 'svelte';
-
+	import { Tabs } from '@skeletonlabs/skeleton-svelte';
+	// ParaglideJS
+	import * as m from '@src/paraglide/messages';
+	// Stores
+	import { collectionValue, setCollectionValue, targetWidget } from '@src/stores/collectionStore.svelte';
 	// Components
 	import { widgetFunctions } from '@stores/widgetStore.svelte.ts';
+	import { modalState } from '@utils/modalState.svelte';
+	import type { SvelteComponent } from 'svelte';
 	import Default from './tabsFields/Default.svelte';
 	import Permission from './tabsFields/Permission.svelte';
 	import Specific from './tabsFields/Specific.svelte';
-	// ParaglideJS
-	import * as m from '@src/paraglide/messages';
-
-	// Stores
-	import { collectionValue, setCollectionValue, targetWidget } from '@src/stores/collectionStore.svelte';
-
-	import { Tabs } from '@skeletonlabs/skeleton-svelte';
-	import { modalState } from '@utils/modalState.svelte';
 
 	let localTabSet = $state('0');
 
@@ -29,8 +26,8 @@ It handles widget configuration, permissions, and specific options.
 	interface Props {
 		/** Exposes parent props to this component. */
 		parent?: any;
-		value: any;
 		response?: (r: any) => void;
+		value: any;
 	}
 
 	const { value, response }: Props = $props();
@@ -106,16 +103,10 @@ It handles widget configuration, permissions, and specific options.
 				{/if}
 			</Tabs.List>
 
-			<Tabs.Content value="0">
-				<Default guiSchema={guiSchema as any} />
-			</Tabs.Content>
-			<Tabs.Content value="1">
-				<Permission />
-			</Tabs.Content>
+			<Tabs.Content value="0"> <Default guiSchema={guiSchema as any} /> </Tabs.Content>
+			<Tabs.Content value="1"> <Permission /> </Tabs.Content>
 			{#if specificOptions.length > 0}
-				<Tabs.Content value="2">
-					<Specific />
-				</Tabs.Content>
+				<Tabs.Content value="2"> <Specific /> </Tabs.Content>
 			{/if}
 		</Tabs>
 	</form>
@@ -131,9 +122,9 @@ It handles widget configuration, permissions, and specific options.
 
 		<!-- Cancel & Save Buttons -->
 		<div class="flex justify-between gap-4">
-			<button type="button" aria-label={m.button_cancel()} class="btn preset-outlined-secondary-500" onclick={() => modalState.close()}
-				>{m.button_cancel()}</button
-			>
+			<button type="button" aria-label={m.button_cancel()} class="btn preset-outlined-secondary-500" onclick={() => modalState.close()}>
+				{m.button_cancel()}
+			</button>
 			<button type="button" aria-label={m.button_save()} class="btn preset-filled-primary-500" onclick={onFormSubmit}>{m.button_save()}</button>
 		</div>
 	</footer>

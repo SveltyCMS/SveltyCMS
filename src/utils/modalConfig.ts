@@ -12,41 +12,40 @@
 
 // Local type definition for ModalSettings (was imported from skeleton v2)
 export interface ModalSettings {
-	type?: 'confirm' | 'component' | 'alert';
-	title?: string;
-	body?: string;
-	buttonTextConfirm?: string;
-	buttonTextCancel?: string;
-	modalClasses?: string;
 	backdropClasses?: string;
-	meta?: Record<string, unknown>;
-	response?: (r: boolean) => void;
+	body?: string;
+	buttonTextCancel?: string;
+	buttonTextConfirm?: string;
 	component?: {
 		ref: string;
 		props?: Record<string, unknown>;
 	};
+	meta?: Record<string, unknown>;
+	modalClasses?: string;
+	response?: (r: boolean) => void;
+	title?: string;
+	type?: 'confirm' | 'component' | 'alert';
 }
-
-import { showToast } from '@utils/toast';
-import { writable } from 'svelte/store';
 
 // ParaglideJS
 import * as m from '@src/paraglide/messages';
+import { showToast } from '@utils/toast';
+import { writable } from 'svelte/store';
 
 // Modal themes and configurations
 export interface ModalTheme {
-	variant: 'filled' | 'ghost' | 'soft' | 'glass';
 	color: 'primary' | 'secondary' | 'tertiary' | 'success' | 'warning' | 'error' | 'surface';
+	variant: 'filled' | 'ghost' | 'soft' | 'glass';
 }
 
 export interface ActionModalConfig {
-	title: string;
 	body: string;
-	confirmText?: string;
 	cancelText?: string;
-	theme?: ModalTheme;
+	confirmText?: string;
 	icon?: string;
 	showIcon?: boolean;
+	theme?: ModalTheme;
+	title: string;
 }
 
 // Default themes for different actions

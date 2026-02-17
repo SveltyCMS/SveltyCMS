@@ -43,7 +43,9 @@ export async function fetchWatermarks(collectionId = 'Watermarks'): Promise<Wate
 	for (const url of urls) {
 		try {
 			const res = await fetch(url);
-			if (!res.ok) continue;
+			if (!res.ok) {
+				continue;
+			}
 
 			const json = await res.json();
 			const items = Array.isArray(json) ? json : Array.isArray(json.data) ? json.data : Array.isArray(json.items) ? json.items : [];

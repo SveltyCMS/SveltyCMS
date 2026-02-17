@@ -3,9 +3,10 @@
  * @description API endpoint for verifying a user's password.
  *
  */
-import { json, error, type RequestHandler } from '@sveltejs/kit';
-import { auth } from '@src/databases/db';
+
 import { verifyPassword } from '@src/databases/auth';
+import { auth } from '@src/databases/db';
+import { error, json, type RequestHandler } from '@sveltejs/kit';
 import { logger } from '@utils/logger.server';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
@@ -31,7 +32,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		}
 		const fullUser = await auth.getUserById(user._id);
 
-		if (!fullUser || !fullUser.password) {
+		if (!fullUser?.password) {
 			logger.error(`VerifyPassword: User ${user._id} not found or has no password.`);
 			throw error(500, 'User data unavailable');
 		}

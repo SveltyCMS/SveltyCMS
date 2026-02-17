@@ -7,6 +7,7 @@
 
 import ollama from 'ollama';
 import { getPrivateSetting } from './settingsService';
+
 // import { env } from '$env/dynamic/private'; // TODO: Use env for URL
 
 // Default to the official SveltyCMS Knowledge Core
@@ -14,7 +15,7 @@ const DEFAULT_KNOWLEDGE_URL = 'https://mcp.sveltycms.com/api/v1/query';
 
 export class AIService {
 	private static instance: AIService;
-	private knowledgeUrl: string;
+	private readonly knowledgeUrl: string;
 
 	private constructor() {
 		this.knowledgeUrl = DEFAULT_KNOWLEDGE_URL;
@@ -30,10 +31,12 @@ export class AIService {
 	/**
 	 * Search the remote knowledge base for relevant context
 	 */
-	public async searchContext(query: string, limit: number = 3) {
+	public async searchContext(query: string, limit = 3) {
 		try {
 			const useRemote = await getPrivateSetting('USE_REMOTE_AI_KNOWLEDGE');
-			if (!useRemote) return [];
+			if (!useRemote) {
+				return [];
+			}
 
 			// TODO: Add timeout and retry logic
 			const response = await fetch(this.knowledgeUrl, {
@@ -69,10 +72,12 @@ export class AIService {
 	 * @param buffer - The image buffer to analyze
 	 * @param limit - Maximum number of tags to return
 	 */
-	public async tagImage(buffer: Buffer, limit: number = 10): Promise<string[]> {
+	public async tagImage(buffer: Buffer, limit = 10): Promise<string[]> {
 		try {
 			const useAi = await getPrivateSetting('USE_AI_TAGGING');
-			if (!useAi) return [];
+			if (!useAi) {
+				return [];
+			}
 
 			const model = (await getPrivateSetting('AI_MODEL_VISION')) || 'llava:latest';
 			const ollamaUrl = await getPrivateSetting('OLLAMA_URL');

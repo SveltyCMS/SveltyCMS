@@ -42,7 +42,7 @@ Values form StatusTypes
 						: value === StatusTypes.draft
 							? 'preset-outlined-surface-500 text-surface-900-50-token'
 							: value === StatusTypes.archive
-								? 'bg-surface-600 text-white'
+								? 'bg-surface-600'
 								: 'badge'}"
 >
 	{#if value === StatusTypes.publish}

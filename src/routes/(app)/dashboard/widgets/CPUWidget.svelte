@@ -25,9 +25,9 @@
 </script>
 
 <script lang="ts">
+	import type { WidgetSize } from '@src/content/types';
 	import { onDestroy, onMount } from 'svelte';
 	import BaseWidget from '../BaseWidget.svelte';
-	import type { WidgetSize } from '@src/content/types';
 
 	let ChartJS: any = $state(undefined);
 
@@ -54,10 +54,10 @@
 	let chartCanvasElement: HTMLCanvasElement | undefined = $state(undefined);
 
 	function updateChart(fetchedData: any) {
-		if (!chartCanvasElement || !ChartJS) return;
+		if (!(chartCanvasElement && ChartJS)) return;
 		const cpuInfo = fetchedData?.cpuInfo;
 		const historicalLoad = cpuInfo?.historicalLoad;
-		if (!historicalLoad || !Array.isArray(historicalLoad.usage) || !Array.isArray(historicalLoad.timestamps)) {
+		if (!(historicalLoad && Array.isArray(historicalLoad.usage) && Array.isArray(historicalLoad.timestamps))) {
 			if (chartInstance) {
 				chartInstance.data.labels = [];
 				chartInstance.data.datasets[0].data = [];
@@ -183,7 +183,7 @@
 							displayColors: false,
 							callbacks: {
 								title: (context: any) => context[0].label,
-								label: (context: any) => `CPU: ${parseFloat(context.raw as string).toFixed(1)}%`
+								label: (context: any) => `CPU: ${Number.parseFloat(context.raw as string).toFixed(1)}%`
 							}
 						}
 					},
@@ -327,12 +327,12 @@
 				{#if size.w >= 2 || size.h >= 2}
 					<div class="flex justify-between px-2 text-xs {theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}">
 						<span>
-							Cores: <span class="font-bold {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}"
-								>{fetchedData?.cpuInfo?.cores?.count || 'N/A'}</span
-							>
+							Cores:
+							<span class="font-bold {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">{fetchedData?.cpuInfo?.cores?.count || 'N/A'}</span>
 						</span>
 						<span>
-							Model: <span class="font-bold {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}"
+							Model:
+							<span class="font-bold {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}"
 								>{fetchedData?.cpuInfo?.cores?.perCore?.[0]?.model?.split(' ').slice(0, 2).join(' ') || 'Unknown'}</span
 							>
 						</span>

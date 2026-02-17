@@ -8,8 +8,8 @@ Orchestrates annotations using svelte-canvas compatible state and rendering.
 
 <script lang="ts">
 	import { imageEditorStore } from '@stores/imageEditorStore.svelte';
-	import AnnotateControls from './Controls.svelte';
 	import { Layer } from 'svelte-canvas';
+	import AnnotateControls from './Controls.svelte';
 
 	// --- Svelte 5 State ---
 	let currentTool = $state<any>(null);
@@ -37,10 +37,8 @@ Orchestrates annotations using svelte-canvas compatible state and rendering.
 					onApply: apply
 				}
 			});
-		} else {
-			if (imageEditorStore.state.toolbarControls?.component === AnnotateControls) {
-				imageEditorStore.setToolbarControls(null);
-			}
+		} else if (imageEditorStore.state.toolbarControls?.component === AnnotateControls) {
+			imageEditorStore.setToolbarControls(null);
 		}
 	});
 

@@ -10,14 +10,13 @@
  * - Automatic cleanup
  */
 
-import { createWriteStream, createReadStream } from 'fs';
-import { pipeline } from 'stream/promises';
-import { createGzip } from 'zlib';
-import { join } from 'path';
-import { mkdir, unlink, stat } from 'fs/promises';
-
-import type { MediaBase } from './mediaModels';
+import { createReadStream, createWriteStream } from 'node:fs';
+import { mkdir, stat, unlink } from 'node:fs/promises';
+import { join } from 'node:path';
+import { pipeline } from 'node:stream/promises';
+import { createGzip } from 'node:zlib';
 import { logger } from '@utils/logger.server';
+import type { MediaBase } from './mediaModels';
 
 /** Minimal TAR creator */
 class TarBuilder {
@@ -37,31 +36,40 @@ class TarBuilder {
 			Buffer.from(e.name.slice(0, 99)).copy(header, 0);
 
 			// Mode, uid, gid
-			'0000644 \0'.split('').forEach((c, i) => header.writeUInt8(c.charCodeAt(0), 100 + i));
-			'0000000 \0'.split('').forEach((c, i) => header.writeUInt8(c.charCodeAt(0), 108 + i));
-			'0000000 \0'.split('').forEach((c, i) => header.writeUInt8(c.charCodeAt(0), 116 + i));
+			for (const [i, c] of '0000644 \0'.split('').entries()) {
+				header.writeUInt8(c.charCodeAt(0), 100 + i);
+			}
+			for (const [i, c] of '0000000 \0'.split('').entries()) {
+				header.writeUInt8(c.charCodeAt(0), 108 + i);
+			}
+			for (const [i, c] of '0000000 \0'.split('').entries()) {
+				header.writeUInt8(c.charCodeAt(0), 116 + i);
+			}
 
 			// Size (octal)
-			const sizeOct = e.size.toString(8).padStart(11, '0') + '\0';
+			const sizeOct = `${e.size.toString(8).padStart(11, '0')}\0`;
 			Buffer.from(sizeOct).copy(header, 124);
 
 			// Mtime
-			const mtimeOct =
-				Math.floor(Date.now() / 1000)
-					.toString(8)
-					.padStart(11, '0') + '\0';
+			const mtimeOct = `${Math.floor(Date.now() / 1000)
+				.toString(8)
+				.padStart(11, '0')}\0`;
 			Buffer.from(mtimeOct).copy(header, 136);
 
 			// Checksum placeholder
-			'        '.split('').forEach((c, i) => header.writeUInt8(c.charCodeAt(0), 148 + i));
+			for (const [i, c] of '        '.split('').entries()) {
+				header.writeUInt8(c.charCodeAt(0), 148 + i);
+			}
 
 			// Type: regular file
 			header[156] = 48; // '0'
 
 			// Checksum
 			let sum = 0;
-			for (let i = 0; i < 512; i++) sum += header[i];
-			const chksum = sum.toString(8).padStart(6, '0') + '\0 ';
+			for (let i = 0; i < 512; i++) {
+				sum += header[i];
+			}
+			const chksum = `${sum.toString(8).padStart(6, '0')}\0 `;
 			Buffer.from(chksum).copy(header, 148);
 
 			out.write(header);
@@ -76,7 +84,9 @@ class TarBuilder {
 
 			// Padding
 			const pad = 512 - (e.size % 512);
-			if (pad < 512) out.write(Buffer.alloc(pad));
+			if (pad < 512) {
+				out.write(Buffer.alloc(pad));
+			}
 		}
 
 		// End of archive
@@ -101,7 +111,9 @@ export async function createBulkArchive(files: MediaBase[], outputDir: string): 
 
 		const tar = new TarBuilder();
 		for (const f of files) {
-			if (!f.path || !f.size) continue;
+			if (!(f.path && f.size)) {
+				continue;
+			}
 			const name = f.filename.replace(/[^a-zA-Z0-9.-]/g, '_');
 			tar.add(name, f.path, f.size);
 		}

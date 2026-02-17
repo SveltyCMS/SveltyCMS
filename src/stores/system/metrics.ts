@@ -13,7 +13,7 @@
 
 import { logger } from '@utils/logger';
 import type { Writable } from 'svelte/store';
-import type { SystemStateStore, ServiceHealth, AnomalyDetection, ServiceName } from './types';
+import type { AnomalyDetection, ServiceHealth, ServiceName, SystemStateStore } from './types';
 
 /**
  * Track state timing (startup/shutdown) and update metrics
@@ -36,11 +36,7 @@ export function trackStateTransition(
 			startup.lastTime = duration;
 
 			// Update statistics
-			if (!startup.avgTime) {
-				startup.avgTime = duration;
-				startup.minTime = duration;
-				startup.maxTime = duration;
-			} else {
+			if (startup.avgTime) {
 				const prevAvg = startup.avgTime;
 				startup.avgTime = (startup.avgTime * (startup.count - 1) + duration) / startup.count;
 				startup.minTime = Math.min(startup.minTime ?? duration, duration);
@@ -54,6 +50,10 @@ export function trackStateTransition(
 				} else {
 					startup.trend = 'stable';
 				}
+			} else {
+				startup.avgTime = duration;
+				startup.minTime = duration;
+				startup.maxTime = duration;
 			}
 
 			stateTimings.startup = startup;
@@ -65,11 +65,7 @@ export function trackStateTransition(
 			shutdown.count++;
 			shutdown.lastTime = duration;
 
-			if (!shutdown.avgTime) {
-				shutdown.avgTime = duration;
-				shutdown.minTime = duration;
-				shutdown.maxTime = duration;
-			} else {
+			if (shutdown.avgTime) {
 				const prevAvg = shutdown.avgTime;
 				shutdown.avgTime = (shutdown.avgTime * (shutdown.count - 1) + duration) / shutdown.count;
 				shutdown.minTime = Math.min(shutdown.minTime ?? duration, duration);
@@ -83,6 +79,10 @@ export function trackStateTransition(
 				} else {
 					shutdown.trend = 'stable';
 				}
+			} else {
+				shutdown.avgTime = duration;
+				shutdown.minTime = duration;
+				shutdown.maxTime = duration;
 			}
 
 			stateTimings.shutdown = shutdown;
@@ -296,7 +296,9 @@ export async function loadHistoricalMetrics(store: Writable<SystemStateStore>): 
 	try {
 		const { performanceService } = await import('@src/services/PerformanceService');
 		const historicalMetrics = await performanceService.loadMetrics();
-		if (Object.keys(historicalMetrics).length === 0) return;
+		if (Object.keys(historicalMetrics).length === 0) {
+			return;
+		}
 
 		store.update((current) => {
 			const services = { ...current.services };
@@ -330,7 +332,9 @@ export async function saveCurrentMetrics(store: Writable<SystemStateStore>): Pro
 	try {
 		const { performanceService } = await import('@src/services/PerformanceService');
 		const state = getSystemStateForSaving(store);
-		if (!state) return;
+		if (!state) {
+			return;
+		}
 		await performanceService.saveMetrics(state.services);
 	} catch (error) {
 		logger.error('Failed to save current metrics:', error);

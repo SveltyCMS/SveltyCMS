@@ -3,22 +3,21 @@
  * @description Centralized utility functions for creating consistent modal configurations
  */
 
-import { modalState } from '@utils/modalState.svelte';
-import * as m from '@src/paraglide/messages';
-
+import ScheduleModal from '@components/collectionDisplay/ScheduleModal.svelte';
 // Dialog Components
 import ConfirmDialog from '@components/system/ConfirmDialog.svelte';
-import ScheduleModal from '@components/collectionDisplay/ScheduleModal.svelte';
+import * as m from '@src/paraglide/messages';
+import { modalState } from '@utils/modalState.svelte';
 
 export interface ConfirmModalOptions {
-	title: string;
 	body: string;
-	confirmText?: string;
 	/** Alias for confirmText */
 	buttonTextConfirm?: string;
 	cancelText?: string;
-	onConfirm?: () => void | Promise<void>;
+	confirmText?: string;
 	onCancel?: () => void;
+	onConfirm?: () => void | Promise<void>;
+	title: string;
 }
 
 // Triggers a modal using the custom modalState

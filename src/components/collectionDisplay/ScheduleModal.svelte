@@ -75,7 +75,7 @@
 		modalState.close({
 			confirmed: true,
 			date: new Date(scheduleDate),
-			action: action
+			action
 		});
 	}
 
@@ -101,11 +101,11 @@
 			<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
 				<label class="label">
 					<span>Date</span>
-					<input class="input" type="date" bind:value={scheduleDateOnly} required aria-label="Date" />
+					<input class="input" type="date" bind:value={scheduleDateOnly} required aria-label="Date">
 				</label>
 				<label class="label">
 					<span>Time</span>
-					<input class="input" type="time" bind:value={scheduleTimeOnly} required aria-label="Time" />
+					<input class="input" type="time" bind:value={scheduleTimeOnly} required aria-label="Time">
 				</label>
 			</div>
 
@@ -127,9 +127,9 @@
 
 		<footer class="modal-footer flex items-center justify-end space-x-4">
 			<button class="btn preset-outlined-secondary-500" onclick={() => modalState.close()}>{m.button_cancel()}</button>
-			<button class="btn preset-filled-primary-500" onclick={() => handleSubmission()} disabled={!isFormValid}
-				>{m.entrylist_multibutton_schedule()}</button
-			>
+			<button class="btn preset-filled-primary-500" onclick={() => handleSubmission()} disabled={!isFormValid}>
+				{m.entrylist_multibutton_schedule()}
+			</button>
 		</footer>
 	</div>
 {/if}

@@ -16,14 +16,13 @@ export type VideoPlatform = 'youtube' | 'vimeo' | 'twitch' | 'tiktok' | 'other';
  * Defines the properties unique to the RemoteVideo widget, configured in the collection builder.
  */
 export interface RemoteVideoProps {
-	// A placeholder for the URL input field
-	placeholder?: string;
-
 	/**
 	 * An array of allowed video platforms (e.g., ['youtube', 'vimeo']).
 	 * If empty, all supported platforms are allowed.
 	 */
 	allowedPlatforms?: VideoPlatform[];
+	// A placeholder for the URL input field
+	placeholder?: string;
 
 	// Index signature to satisfy WidgetProps constraint
 	[key: string]: unknown;
@@ -34,16 +33,16 @@ export interface RemoteVideoProps {
  * This object contains all fetched metadata.
  */
 export interface RemoteVideoData {
+	channelTitle?: string; // Uploader's channel name
+	description?: string; // Video description (optional)
+	duration?: string; // Video duration (e.g., 'PT3M20S' for ISO 8601, or '3:20')
+	height?: number; // Thumbnail/embed height
 	platform: VideoPlatform; // e.g., 'youtube'
+	publishedAt?: string; // ISO 8601 date string
+	thumbnailUrl: string; // URL to a high-quality thumbnail
+	title: string; // Video title
 	url: string; // The original URL provided by the user
 	videoId: string; // The extracted video ID (e.g., YouTube's 'dQw4w9WgXcQ')
-	title: string; // Video title
-	description?: string; // Video description (optional)
-	thumbnailUrl: string; // URL to a high-quality thumbnail
-	channelTitle?: string; // Uploader's channel name
-	duration?: string; // Video duration (e.g., 'PT3M20S' for ISO 8601, or '3:20')
 	width?: number; // Thumbnail/embed width
-	height?: number; // Thumbnail/embed height
-	publishedAt?: string; // ISO 8601 date string
 	// Add other metadata as needed
 }

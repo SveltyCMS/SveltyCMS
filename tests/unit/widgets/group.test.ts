@@ -3,7 +3,7 @@
  * @description Unit tests for the Group widget
  */
 
-import { describe, it, expect } from 'bun:test';
+import { describe, expect, it } from 'bun:test';
 import GroupWidget from '@src/widgets/core/Group';
 import { safeParse } from 'valibot';
 

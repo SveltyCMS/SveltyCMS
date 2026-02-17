@@ -8,10 +8,10 @@
  * - DELETE: Delete an automation flow
  */
 
-import { json } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
 import { automationService } from '@src/services/automation/automationService';
 import type { AutomationFlow } from '@src/services/automation/types';
+import { json } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
 
 /** GET /api/automations/:id — Get a single flow */
 export const GET: RequestHandler = async ({ params }) => {

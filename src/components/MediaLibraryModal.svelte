@@ -1,20 +1,20 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { modalState } from '@utils/modalState.svelte';
-	import { logger } from '@utils/logger';
-	import type { MediaBase, MediaImage } from '@utils/media/mediaModels';
 	import MediaGrid from '@src/routes/(app)/mediagallery/MediaGrid.svelte';
 	import LocalUpload from '@src/routes/(app)/mediagallery/uploadMedia/LocalUpload.svelte';
 	import RemoteUpload from '@src/routes/(app)/mediagallery/uploadMedia/RemoteUpload.svelte';
+	import { logger } from '@utils/logger';
+	import type { MediaBase, MediaImage } from '@utils/media/mediaModels';
+	import { modalState } from '@utils/modalState.svelte';
+	import { onMount } from 'svelte';
 
 	import { SvelteSet } from 'svelte/reactivity';
 
 	// Props interface
 
 	interface Props {
-		parent?: unknown;
 		allowedTypes?: string[];
 		folder?: string;
+		parent?: unknown;
 	}
 
 	let { allowedTypes = [], folder = 'global' }: Props = $props();
@@ -124,7 +124,7 @@
 		</main>
 
 		<footer class="flex justify-end gap-2 pt-4 border-t border-surface-200 dark:border-surface-600 mt-4">
-			<button type="button" class="btn preset-outline-surface-500" onclick={handleClose}> Cancel </button>
+			<button type="button" class="btn preset-outline-surface-500" onclick={handleClose}>Cancel</button>
 			{#if activeTab === 'library' && selectedFiles.size > 0}
 				<button type="button" class="btn preset-filled-primary-500 font-bold" onclick={handleConfirm}>
 					Select {selectedFiles.size} Item{selectedFiles.size > 1 ? 's' : ''}

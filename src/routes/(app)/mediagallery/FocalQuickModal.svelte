@@ -22,12 +22,12 @@ and rule-of-thirds grid overlay.
 	interface Props {
 		/** The media image to adjust focal point for */
 		media: MediaImage;
-		/** Whether to show the modal */
-		show: boolean;
 		/** Callback when modal is closed without saving */
 		onClose: () => void;
 		/** Callback when focal point is saved */
 		onSave: (focalPoint: { x: number; y: number }) => void;
+		/** Whether to show the modal */
+		show: boolean;
 	}
 
 	let { media, show = $bindable(), onClose, onSave }: Props = $props();
@@ -173,7 +173,7 @@ and rule-of-thirds grid overlay.
 					aria-label="Focal point position"
 					tabindex="0"
 				>
-					<img src={imageUrl} alt={media.filename} class="w-full h-auto max-h-[50vh] object-contain" />
+					<img src={imageUrl} alt={media.filename} class="w-full h-auto max-h-[50vh] object-contain">
 
 					<!-- Rule of Thirds Grid Overlay -->
 					<div class="absolute inset-0 pointer-events-none">

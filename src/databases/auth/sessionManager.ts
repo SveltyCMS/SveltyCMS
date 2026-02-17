@@ -16,30 +16,31 @@
  * - Compatible with the new simplified auth system
  */
 
+// Auth
+import type { ISODateString, User } from '@databases/dbInterface';
+import { isoDateStringToDate } from '@utils/dateUtils';
 // System Logger
 import { logger } from '@utils/logger';
-
-// Auth
-import type { User, ISODateString } from '@databases/dbInterface';
-import { isoDateStringToDate } from '@utils/dateUtils';
 import type { SessionStore } from './types';
 
 // Redis client interface to avoid direct dependency on a specific Redis library
 interface RedisLike {
-	get(key: string): Promise<string | null>;
-	setex(key: string, seconds: number, value: string): Promise<void>;
 	del(...keys: string[]): Promise<number>;
+	get(key: string): Promise<string | null>;
 	keys(pattern: string): Promise<string[]>;
 	quit?(): Promise<void>;
+	setex(key: string, seconds: number, value: string): Promise<void>;
 }
 
 // In-memory session storage as fallback
 class InMemorySessionManager implements SessionStore {
-	private sessions: Map<string, { user: User; expiresAt: Date }> = new Map();
+	private readonly sessions: Map<string, { user: User; expiresAt: Date }> = new Map();
 
 	async get(session_id: string): Promise<User | null> {
 		const session = this.sessions.get(session_id);
-		if (!session) return null; // Check if session has expired
+		if (!session) {
+			return null; // Check if session has expired
+		}
 
 		if (new Date() > session.expiresAt) {
 			this.sessions.delete(session_id);
@@ -105,8 +106,8 @@ class InMemorySessionManager implements SessionStore {
 
 // Redis session manager (optional)
 class RedisSessionManager implements SessionStore {
-	private redisClient: RedisLike | null;
-	private fallbackManager: InMemorySessionManager;
+	private readonly redisClient: RedisLike | null;
+	private readonly fallbackManager: InMemorySessionManager;
 
 	constructor(redisClient?: RedisLike) {
 		this.redisClient = redisClient || null;
@@ -217,10 +218,9 @@ export function createSessionManager(redisClient?: RedisLike): SessionStore {
 	if (redisClient) {
 		logger.info('Creating Redis session manager with in-memory fallback');
 		return new RedisSessionManager(redisClient);
-	} else {
-		logger.info('Creating in-memory session manager');
-		return new InMemorySessionManager();
 	}
+	logger.info('Creating in-memory session manager');
+	return new InMemorySessionManager();
 }
 
 // Export the manager classes for direct use if needed
@@ -248,7 +248,7 @@ export const getDefaultSessionStore = getDefaultSessionManager;
 export const setDefaultSessionStore = setDefaultSessionManager;
 
 // Session cleanup utility
-export function startSessionCleanup(manager: SessionStore, intervalMs: number = 60000): NodeJS.Timeout {
+export function startSessionCleanup(manager: SessionStore, intervalMs = 60_000): NodeJS.Timeout {
 	return setInterval(() => {
 		if (manager instanceof InMemorySessionManager) {
 			manager.cleanup();

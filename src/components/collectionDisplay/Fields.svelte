@@ -19,31 +19,28 @@
 - `Alt + S`: Save currently edited entry (if focused)
 -->
 <script lang="ts">
-	import { untrack } from 'svelte';
-	import { getFieldName } from '@utils/utils';
 	import { logger } from '@utils/logger';
+	import { getFieldName } from '@utils/utils';
+	import { untrack } from 'svelte';
 
 	// Auth & Page data
 	import { page } from '$app/state';
+
 	const user = $derived(page.data?.user);
 	const tenantId = $derived(page.data?.tenantId);
 
-	// Stores
-	import { collection, collectionValue, setCollectionValue } from '@src/stores/collectionStore.svelte';
-	import { translationProgress, contentLanguage, dataChangeStore, validationStore } from '@stores/store.svelte';
-	import { publicEnv } from '@src/stores/globalSettings.svelte';
-	import type { Locale } from '@src/paraglide/runtime';
-
-	// ParaglideJS
-	import * as m from '@src/paraglide/messages';
-
 	// Skeleton
 	import { Tabs } from '@skeletonlabs/skeleton-svelte';
+	// ParaglideJS
+	import * as m from '@src/paraglide/messages';
+	import type { Locale } from '@src/paraglide/runtime';
+	// Stores
+	import { collection, collectionValue, setCollectionValue } from '@src/stores/collectionStore.svelte';
+	import { publicEnv } from '@src/stores/globalSettings.svelte';
 	// import { CodeBlock, Tab, TabGroup, clipboard } from '@skeletonlabs/skeleton-svelte';
-	import { toaster } from '@stores/store.svelte';
-	import { showConfirm } from '@utils/modalUtils';
-
+	import { contentLanguage, dataChangeStore, toaster, translationProgress, validationStore } from '@stores/store.svelte';
 	import { widgetFunctions as widgetFunctionsStore } from '@stores/widgetStore.svelte';
+	import { showConfirm } from '@utils/modalUtils';
 
 	// --- PERFORMANCE FIX: DYNAMIC WIDGET IMPORTS ---
 	// Lazy-load widgets for code-splitting (eager: false is default)
@@ -53,13 +50,12 @@
 		() => Promise<{ default: any }>
 	>;
 
-	// Import async widget loader component
-	import WidgetLoader from './WidgetLoader.svelte';
-	import { activeInputStore } from '@stores/activeInputStore.svelte';
 	import SystemTooltip from '@components/system/SystemTooltip.svelte';
-
 	// Plugin Slot System
 	import { slotRegistry } from '@src/plugins/slotRegistry';
+	import { activeInputStore } from '@stores/activeInputStore.svelte';
+	// Import async widget loader component
+	import WidgetLoader from './WidgetLoader.svelte';
 
 	// Token Picker
 	// Token Picker
@@ -149,7 +145,7 @@
 	let availableLanguages = $derived.by<Locale[]>(() => {
 		// Wait for publicEnv to be initialized
 		const languages = publicEnv?.AVAILABLE_CONTENT_LANGUAGES;
-		if (!languages || !Array.isArray(languages)) {
+		if (!(languages && Array.isArray(languages))) {
 			return ['en'] as Locale[];
 		}
 		return languages as Locale[];
@@ -224,7 +220,7 @@
 		}
 
 		// If creating new entry (no ID), initialize with global state
-		if (!globalId && !lastEntryId && global && Object.keys(global).length > 0) {
+		if (!(globalId || lastEntryId) && global && Object.keys(global).length > 0) {
 			logger.debug('Initializing new entry');
 			currentCollectionValue = { ...global } as any;
 			// Set initial snapshot for change tracking
@@ -314,10 +310,8 @@
 					if (!validationStore.hasError(fieldName)) {
 						validationStore.setError(fieldName, `${field.label || fieldName} is required`);
 					}
-				} else {
-					if (validationStore.hasError(fieldName)) {
-						validationStore.clearError(fieldName);
-					}
+				} else if (validationStore.hasError(fieldName)) {
+					validationStore.clearError(fieldName);
 				}
 			}
 		});
@@ -333,9 +327,7 @@
 	const entryEditSlots = $derived(slotRegistry.getSlots('entry_edit'));
 </script>
 
-<h1 class="sr-only">
-	{collection.value?.name ? `Edit ${collection.value.name} Entry` : 'Edit Entry'}
-</h1>
+<h1 class="sr-only">{collection.value?.name ? `Edit ${collection.value.name} Entry` : 'Edit Entry'}</h1>
 
 <Tabs value={localTabSet} onValueChange={(e) => (localTabSet = e.value)} class="flex flex-1 flex-col items-center">
 	<Tabs.List
@@ -401,7 +393,9 @@
 								<div class="flex items-center gap-2">
 									<p class="inline-block font-semibold capitalize">
 										{field.label || field.db_fieldName}
-										{#if field.required}<span class="text-error-500">*</span>{/if}
+										{#if field.required}
+											<span class="text-error-500">*</span>
+										{/if}
 									</p>
 									{#if field.helper}
 										<SystemTooltip title={field.helper} positioning={{ placement: 'top' }}>
@@ -486,7 +480,7 @@
 								{:else}
 									<p class="text-error-500">{m.Fields_no_widgets_found({ name: widgetName })}</p>
 								{/if}
-								<!-- --- END PERFORMANCE FIX --- -->
+							<!-- --- END PERFORMANCE FIX --- -->
 							{/if}
 						</div>
 					{/if}
@@ -503,13 +497,12 @@
 					<select class="select grow" bind:value={selectedRevisionId}>
 						<option value="" disabled>-- Select a revision to compare --</option>
 						{#each revisions as revision (revision._id)}
-							<option value={revision._id}>
-								{new Date(revision.revision_at).toLocaleString()} by {revision.revision_by.substring(0, 8)}...
-							</option>
+							<option value={revision._id}>{new Date(revision.revision_at).toLocaleString()} by {revision.revision_by.substring(0, 8)}...</option>
 						{/each}
 					</select>
 					<button class="preset-filled-primary-500 btn" onclick={handleRevert} disabled={!selectedRevision?.data}>
-						<iconify-icon icon="mdi:restore" class="mr-1"></iconify-icon> Revert
+						<iconify-icon icon="mdi:restore" class="mr-1"></iconify-icon>
+						Revert
 					</button>
 				</div>
 
@@ -519,7 +512,7 @@
 						{@const diffObject = selectedRevision?.diff || null}
 						{#if diffObject && Object.keys(diffObject).length > 0}
 							<div class="space-y-3 font-mono text-sm">
-								{#each Object.entries(diffObject) as [key, change] (key)}
+								{#each Object.entries(diffObject) as [ key, change ] (key)}
 									{@const ch = change as any}
 									<div>
 										<strong class="font-bold text-surface-600 dark:text-surface-300">{key}:</strong>
@@ -557,14 +550,16 @@
 	<Tabs.Content value="3" class="w-full">
 		<div class="space-y-4 p-4">
 			<div class="flex items-center gap-2">
-				<input type="text" class="input grow" readonly value={apiUrl} />
+				<input type="text" class="input grow" readonly value={apiUrl}>
 				<button
 					class="preset-outline-surface-500 btn"
 					onclick={() => {
 						navigator.clipboard.writeText(apiUrl);
 						toaster.success({ description: 'API URL Copied' });
-					}}>Copy</button
+					}}
 				>
+					Copy
+				</button>
 			</div>
 			<div class="card p-4 overflow-x-auto bg-surface-800 text-white font-mono text-sm max-h-[500px]">
 				<pre>{JSON.stringify((collectionValue as any).value, null, 2)}</pre>

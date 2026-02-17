@@ -6,12 +6,12 @@
  * POST — Generate a new random preview secret and store it (admin only)
  */
 
+import { randomBytes } from 'node:crypto';
+import { dbAdapter } from '@src/databases/db';
+import { getPrivateSettingSync, invalidateSettingsCache } from '@src/services/settingsService';
 import { json } from '@sveltejs/kit';
-import { randomBytes } from 'crypto';
 import { apiHandler } from '@utils/apiHandler';
 import { AppError } from '@utils/errorHandling';
-import { getPrivateSettingSync, invalidateSettingsCache } from '@src/services/settingsService';
-import { dbAdapter } from '@src/databases/db';
 import { logger } from '@utils/logger.server';
 
 export const GET = apiHandler(async ({ locals }) => {

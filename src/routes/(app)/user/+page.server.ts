@@ -16,16 +16,14 @@
  * It prepares data and handles form validation for the client-side rendering.
  */
 
-import type { PageServerLoad } from './$types';
-
+import type { PermissionConfig } from '@src/databases/auth/permissions';
+import type { Role, User } from '@src/databases/auth/types';
 // Auth
 import { auth } from '@src/databases/db';
-import type { Role, User } from '@src/databases/auth/types';
-import type { PermissionConfig } from '@src/databases/auth/permissions';
-
 // System Logger
 import { getUntypedSetting } from '@src/services/settingsService';
 import { logger } from '@utils/logger.server';
+import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async (event) => {
 	try {
@@ -93,7 +91,7 @@ export const load: PageServerLoad = async (event) => {
 
 		// Admin data will now be fetched on-demand via API endpoints
 		// This improves initial page load performance significantly
-		let adminData = null;
+		let adminData: any = null;
 
 		if (isAdmin || hasManageUsersPermission) {
 			// No longer pre-loading allUsers and allTokens here

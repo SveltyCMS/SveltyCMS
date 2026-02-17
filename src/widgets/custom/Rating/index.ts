@@ -24,7 +24,10 @@ import { maxValue, minValue, number, optional, pipe, type InferInput as ValibotI
 import type { RatingProps } from './types';
 
 // Helper type for aggregation field parameter
-type AggregationField = { db_fieldName: string; [key: string]: unknown };
+interface AggregationField {
+	db_fieldName: string;
+	[key: string]: unknown;
+}
 
 // The validation schema is a function to create rules based on the field config.
 const validationSchema = (field: FieldInstance) => {
@@ -68,7 +71,7 @@ const RatingWidget = createWidget<RatingProps>({
 	// Aggregations perform numeric comparisons.
 	aggregations: {
 		filters: async ({ field, filter }: { field: AggregationField; filter: string }) => [
-			{ $match: { [field.db_fieldName]: { $eq: parseInt(filter, 10) } } }
+			{ $match: { [field.db_fieldName]: { $eq: Number.parseInt(filter, 10) } } }
 		],
 		sorts: async ({ field, sortDirection }: { field: AggregationField; sortDirection: number }) => ({
 			[field.db_fieldName]: sortDirection

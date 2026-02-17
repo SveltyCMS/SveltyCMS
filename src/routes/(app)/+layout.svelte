@@ -26,49 +26,46 @@
 -->
 
 <script lang="ts">
-	// SvelteKit Navigation
-	import { afterNavigate, beforeNavigate } from '$app/navigation';
-	import { page } from '$app/state';
-	import { onDestroy, onMount } from 'svelte';
-
-	// Type Imports
-	import type { User } from '@src/databases/auth/types';
-	import type { ContentNode, Schema } from '../../content/types';
-
-	// Utils
-	import { isSearchVisible } from '@utils/globalSearchIndex';
-	import { getTextDirection } from '@utils/utils';
-
-	// Stores
-	// Stores
-	import { setContentStructure, setCollection } from '@stores/collectionStore.svelte.ts';
-	import { publicEnv } from '@stores/globalSettings.svelte.ts';
-	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte.ts';
-	import { screen } from '@stores/screenSizeStore.svelte.ts';
-	import { app } from '@stores/store.svelte';
-	import { ui } from '@stores/UIStore.svelte.ts';
-	import { widgets } from '@stores/widgetStore.svelte.ts';
-	import { initializeDarkMode } from '@stores/themeStore.svelte.ts';
-
+	import FloatingChat from '@components/collaboration/FloatingChat.svelte';
 	// Components
 	import HeaderEdit from '@components/HeaderEdit.svelte';
 	import LeftSidebar from '@components/LeftSidebar.svelte';
 	import PageFooter from '@components/PageFooter.svelte';
 	import RightSidebar from '@components/RightSidebar.svelte';
 	import SearchComponent from '@components/SearchComponent.svelte';
-	import FloatingChat from '@components/collaboration/FloatingChat.svelte';
+	// Type Imports
+	import type { User } from '@src/databases/auth/types';
+
+	// Stores
+	// Stores
+	import { setCollection, setContentStructure } from '@stores/collectionStore.svelte.ts';
+	import { publicEnv } from '@stores/globalSettings.svelte.ts';
+	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte.ts';
+	import { screen } from '@stores/screenSizeStore.svelte.ts';
+	import { app } from '@stores/store.svelte';
+	import { initializeDarkMode } from '@stores/themeStore.svelte.ts';
+	import { ui } from '@stores/UIStore.svelte.ts';
+	import { widgets } from '@stores/widgetStore.svelte.ts';
+	// Utils
+	import { isSearchVisible } from '@utils/globalSearchIndex';
+	import { getTextDirection } from '@utils/utils';
+	import { onDestroy, onMount } from 'svelte';
+	// SvelteKit Navigation
+	import { afterNavigate, beforeNavigate } from '$app/navigation';
+	import { page } from '$app/state';
+	import type { ContentNode, Schema } from '../../content/types';
 
 	// =============================================
 	// TYPE DEFINITIONS
 	// =============================================
 
 	interface LayoutData {
-		user: User | null;
 		contentStructure: ContentNode[] | Promise<ContentNode[]>;
+		firstCollection?: Schema | null | Promise<Schema | null>;
 		nonce: string;
 		publicSettings?: Record<string, any>;
 		theme?: string;
-		firstCollection?: Schema | null | Promise<Schema | null>;
+		user: User | null;
 	}
 
 	interface Props {
@@ -266,9 +263,7 @@
 
 				<main class="relative z-0 flex w-full min-w-0 flex-1 flex-col">
 					{#if ui.state.pageheader !== 'hidden'}
-						<header class="sticky top-0 z-20 w-full">
-							<HeaderEdit />
-						</header>
+						<header class="sticky top-0 z-20 w-full"><HeaderEdit /></header>
 					{/if}
 
 					<div class="relative flex-1 overflow-visible {ui.state.leftSidebar === 'full' ? 'mx-2' : 'mx-1'} {screen.isDesktop ? 'mb-2' : 'mb-16'}">

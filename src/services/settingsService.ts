@@ -13,8 +13,8 @@
  */
 
 import { privateConfigSchema, publicConfigSchema } from '@src/databases/schemas';
-import { type InferOutput } from 'valibot';
 import { logger } from '@utils/logger';
+import type { InferOutput } from 'valibot';
 
 type PrivateEnv = InferOutput<typeof privateConfigSchema>;
 type PublicEnv = InferOutput<typeof publicConfigSchema> & { PKG_VERSION?: string };
@@ -220,15 +220,11 @@ export async function getPublicSetting<K extends keyof PublicEnv>(key: K): Promi
 export async function getUntypedSetting<T = unknown>(key: string, scope?: 'public' | 'private'): Promise<T | undefined> {
 	const { public: publicEnv, private: privateEnv } = await loadSettingsCache();
 
-	if (!scope || scope === 'public') {
-		if ((publicEnv as Record<string, unknown>)[key] !== undefined) {
-			return (publicEnv as unknown as Record<string, T>)[key];
-		}
+	if ((!scope || scope === 'public') && (publicEnv as Record<string, unknown>)[key] !== undefined) {
+		return (publicEnv as unknown as Record<string, T>)[key];
 	}
-	if (!scope || scope === 'private') {
-		if ((privateEnv as Record<string, unknown>)[key] !== undefined) {
-			return (privateEnv as unknown as Record<string, T>)[key];
-		}
+	if ((!scope || scope === 'private') && (privateEnv as Record<string, unknown>)[key] !== undefined) {
+		return (privateEnv as unknown as Record<string, T>)[key];
 	}
 	return undefined;
 }

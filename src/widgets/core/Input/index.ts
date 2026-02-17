@@ -26,32 +26,39 @@ import * as m from '@src/paraglide/messages';
 import { createWidget } from '@src/widgets/widgetFactory';
 
 // Type for aggregation field parameter
-type AggregationField = { db_fieldName: string; [key: string]: unknown };
+interface AggregationField {
+	db_fieldName: string;
+	[key: string]: unknown;
+}
 
 import {
+	type BaseIssue,
+	type BaseSchema,
 	maxLength,
 	minLength,
 	optional,
 	pipe,
+	record,
 	string,
 	transform,
-	type BaseIssue,
-	type BaseSchema,
-	type InferInput as ValibotInput,
-	record
+	type InferInput as ValibotInput
 } from 'valibot';
 import type { InputProps } from './types';
 
 // ✅ SSOT: Validation Schema - Exported for use in Input.svelte
 export const createValidationSchema = (field: ReturnType<typeof InputWidget>): BaseSchema<unknown, unknown, BaseIssue<unknown>> => {
 	// Build a string schema with text-specific rules
-	const stringRules: Array<unknown> = [transform((s: string) => (typeof s === 'string' ? s.trim() : s))];
+	const stringRules: unknown[] = [transform((s: string) => (typeof s === 'string' ? s.trim() : s))];
 
-	if (field.required) stringRules.push(minLength(1, 'This field is required.'));
-	if ((field as InputProps).minLength)
+	if (field.required) {
+		stringRules.push(minLength(1, 'This field is required.'));
+	}
+	if ((field as InputProps).minLength) {
 		stringRules.push(minLength((field as InputProps).minLength as number, `Must be at least ${(field as InputProps).minLength} characters.`));
-	if ((field as InputProps).maxLength)
+	}
+	if ((field as InputProps).maxLength) {
 		stringRules.push(maxLength((field as InputProps).maxLength as number, `Must be no more than ${(field as InputProps).maxLength} characters.`));
+	}
 
 	// Build the base string schema
 	const schema: BaseSchema<unknown, unknown, BaseIssue<unknown>> = pipe(string(), ...(stringRules as unknown as []));

@@ -41,11 +41,11 @@ Renders: color swatch or hex value
 
 <style>
 	.swatch-preview {
+		flex-shrink: 0;
 		width: 1rem;
 		height: 1rem;
-		border-radius: 2px;
 		border: 1px solid #ccc;
-		flex-shrink: 0;
+		border-radius: 2px;
 	}
 	.hex-code {
 		font-family: monospace;

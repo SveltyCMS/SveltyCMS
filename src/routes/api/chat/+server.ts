@@ -4,8 +4,8 @@
  * Dispatches messages to the global EventBus for real-time distribution.
  */
 
-import { json } from '@sveltejs/kit';
 import { eventBus } from '@src/services/automation/eventBus';
+import { json } from '@sveltejs/kit';
 import { logger } from '@utils/logger.server';
 import type { RequestHandler } from './$types';
 
@@ -41,7 +41,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 		// 3. AI Logic (Mocked or triggered via service)
 		// If no room is specified, we assume it's a chat with the AI Assistant
-		if (!room) {
+		if (room) {
+			logger.debug(`RTC: Group Chat message in room ${room} from ${locals.user.username}`);
+		} else {
 			logger.debug(`RTC: AI Chat message from ${locals.user.username}`);
 
 			// Simulate AI "typing" by sending an empty response start
@@ -54,8 +56,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 					}
 				});
 			}, 1000);
-		} else {
-			logger.debug(`RTC: Group Chat message in room ${room} from ${locals.user.username}`);
 		}
 
 		return json({ success: true });

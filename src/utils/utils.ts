@@ -24,13 +24,11 @@
 
 import type { FieldInstance, FieldValue } from '@src/content/types';
 import { publicEnv } from '@src/stores/globalSettings.svelte';
-import type { BaseIssue, BaseSchema } from 'valibot';
-
 // Stores
 import { app } from '@stores/store.svelte';
-
 // System Logger
-import { logger, type LoggableValue } from '@utils/logger';
+import { type LoggableValue, logger } from '@utils/logger';
+import type { BaseIssue, BaseSchema } from 'valibot';
 
 // Validation
 import * as v from 'valibot';
@@ -46,6 +44,8 @@ export const config = {
  * Interface for GUI field configuration in the Collection Builder.
  */
 export interface GuiFieldConfig {
+	/** Whether the field is required */
+	required: boolean;
 	/**
 	 * The widget component to render.
 	 * Can be a direct Svelte component or a string key from `adminComponentRegistry`.
@@ -53,9 +53,6 @@ export interface GuiFieldConfig {
 	 * @example { widget: InputComponent }
 	 */
 	widget: unknown | string;
-
-	/** Whether the field is required */
-	required: boolean;
 
 	/** Allow other properties */
 	[key: string]: unknown;
@@ -71,9 +68,9 @@ export function uniqueItems(items: Record<string, unknown>[], key: string): obje
 export const getGuiFields = (fieldParams: Record<string, unknown>, GuiSchema: Record<string, GuiFieldConfig>): Record<string, unknown> => {
 	const guiFields: Record<string, unknown> = {};
 	for (const key in GuiSchema) {
-		if (Object.prototype.hasOwnProperty.call(fieldParams, key) && Array.isArray(fieldParams[key])) {
+		if (Object.hasOwn(fieldParams, key) && Array.isArray(fieldParams[key])) {
 			guiFields[key] = deepCopy(fieldParams[key] as unknown[]);
-		} else if (Object.prototype.hasOwnProperty.call(fieldParams, key)) {
+		} else if (Object.hasOwn(fieldParams, key)) {
 			guiFields[key] = fieldParams[key];
 		}
 	}
@@ -87,17 +84,21 @@ export const obj2formData = (obj: Record<string, unknown>): FormData => {
 	const transformValue = (value: unknown): string | Blob => {
 		if (value instanceof Blob) {
 			return value;
-		} else if (typeof value === 'object' && value !== null) {
+		}
+		if (typeof value === 'object' && value !== null) {
 			return JSON.stringify(value);
-		} else if (typeof value === 'boolean' || typeof value === 'number') {
+		}
+		if (typeof value === 'boolean' || typeof value === 'number') {
 			return value.toString();
-		} else if (value === null || value === undefined) {
+		}
+		if (value === null || value === undefined) {
 			return '';
 		}
 		return String(value);
 	};
 
 	for (const key in obj) {
+		if (!Object.hasOwn(obj, key)) continue;
 		const value = obj[key];
 		if (value !== undefined) {
 			formData.append(key, transformValue(value));
@@ -112,7 +113,9 @@ export const col2formData = async (getData: Record<string, () => Promise<unknown
 	const formData = new FormData();
 
 	const processValue = async (value: unknown): Promise<string | Blob> => {
-		if (value instanceof Blob) return value;
+		if (value instanceof Blob) {
+			return value;
+		}
 		if (value instanceof Promise) {
 			const resolvedValue = await value;
 			return processValue(resolvedValue);
@@ -198,7 +201,9 @@ export const fieldsToSchema = (fields: SchemaField[]): Record<string, unknown> =
 
 // Returns field's database field name or label
 export function getFieldName(field: Partial<FieldInstance> & { label: string }, rawName = false): string {
-	if (!field) return '';
+	if (!field) {
+		return '';
+	}
 
 	// Use explicit db_fieldName if available
 	if (field.db_fieldName) {
@@ -224,7 +229,9 @@ export function getFieldName(field: Partial<FieldInstance> & { label: string }, 
 	}
 
 	// Return raw UI name if requested
-	if (rawName) return name;
+	if (rawName) {
+		return name;
+	}
 
 	// Check special mappings first
 	if (specialMappings[name]) {
@@ -244,7 +251,9 @@ export function getFieldName(field: Partial<FieldInstance> & { label: string }, 
 // Sanitizes field names for use in GraphQL type names
 // GraphQL type names must be valid identifiers: [A-Za-z_][A-Za-z0-9_]*
 export function sanitizeGraphQLTypeName(name: string): string {
-	if (!name) return '';
+	if (!name) {
+		return '';
+	}
 
 	// 1. Replace spaces with underscores
 	// 2. Remove special characters except underscores
@@ -287,7 +296,7 @@ function deepCopy<T>(obj: T): T {
 
 	const copy = {} as T;
 	for (const key in obj) {
-		if (Object.prototype.hasOwnProperty.call(obj, key)) {
+		if (Object.hasOwn(obj, key)) {
 			copy[key] = deepCopy(obj[key]);
 		}
 	}
@@ -305,12 +314,12 @@ export function removeExtension(fileName: string): string {
  * @returns The formatted file size as a string.
  */
 export function formatBytes(bytes: number): string {
-	if (bytes === 0 || isNaN(bytes)) {
+	if (bytes === 0 || Number.isNaN(bytes)) {
 		return '0 bytes';
 	}
 
 	if (bytes < 0) {
-		throw Error('Input size cannot be negative');
+		throw new Error('Input size cannot be negative');
 	}
 
 	const units = ['bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB'];
@@ -368,7 +377,7 @@ export function formatUptime(uptime: number) {
 
 // Export function for ReadableExpireIn
 export function ReadableExpireIn(expiresIn: string) {
-	const expiresInNumber = parseInt(expiresIn, 10);
+	const expiresInNumber = Number.parseInt(expiresIn, 10);
 	const expirationTime = expiresInNumber ? new Date(Date.now() + expiresInNumber * 1000) : new Date();
 
 	const daysDiff = Math.floor((expirationTime.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
@@ -400,6 +409,7 @@ export const get_elements_by_id = {
 	},
 	async getAll(dbAdapter: { get: (id: string) => Promise<unknown> }) {
 		for (const collection in this.store) {
+			if (!Object.hasOwn(this.store, collection)) continue;
 			for (const item of this.store[collection]) {
 				const data = await dbAdapter.get(item.id);
 				item.callback(data);
@@ -432,13 +442,15 @@ export const meta_data = {
 
 // Convert data to string
 interface StringHelperParams {
-	field?: FieldInstance;
 	data: unknown[];
+	field?: FieldInstance;
 	path?: (lang: string) => string;
 }
 
 export function toStringHelper({ data }: StringHelperParams): string {
-	if (!Array.isArray(data)) return '';
+	if (!Array.isArray(data)) {
+		return '';
+	}
 	return data.map((item: unknown) => String(item)).join(', ');
 }
 
@@ -461,14 +473,14 @@ export function escapeRegex(string: string): string {
 // Get current date in YYYY-MM-DD format
 export function getCurrentDate(): string {
 	const d = new Date();
-	return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+	return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 // Convert hex to array buffer
 export function hex2arrayBuffer(hex: string): ArrayBuffer {
 	const bytes = new Uint8Array(hex.length / 2);
 	for (let i = 0; i < hex.length; i += 2) {
-		bytes[i / 2] = parseInt(hex.substring(i, i + 2), 16);
+		bytes[i / 2] = Number.parseInt(hex.substring(i, i + 2), 16);
 	}
 	return bytes.buffer;
 }
@@ -487,7 +499,7 @@ export async function sha256(buffer: ArrayBuffer): Promise<string> {
 }
 
 // Enhanced debounce utility with flexible patterns
-export function debounce(delay: number = 300, immediate: boolean = false) {
+export function debounce(delay = 300, immediate = false) {
 	let timer: NodeJS.Timeout | undefined;
 	let hasExecuted = false;
 
@@ -508,7 +520,7 @@ export function debounce(delay: number = 300, immediate: boolean = false) {
 }
 
 // Traditional debounce pattern - takes function and delay, returns debounced version
-debounce.create = function <T extends (...args: unknown[]) => unknown>(func: T, wait: number = 300): (...args: Parameters<T>) => void {
+debounce.create = <T extends (...args: unknown[]) => unknown>(func: T, wait = 300): ((...args: Parameters<T>) => void) => {
 	let timeout: ReturnType<typeof setTimeout>;
 
 	return function executedFunction(...args: Parameters<T>) {
@@ -539,7 +551,7 @@ export function validateValibot<T>(schema: BaseSchema<T, T, BaseIssue<unknown>>,
 			const path = issue.path?.[0]?.key as keyof T;
 			if (path) {
 				fieldErrors[path] = fieldErrors[path] || [];
-				fieldErrors[path]!.push(issue.message);
+				fieldErrors[path]?.push(issue.message);
 			}
 		}
 
@@ -569,18 +581,17 @@ export async function motion(start: number[], end: number[], duration: number, c
 			const ds = start.map((s, i) => (s - end[i]) / (duration / elapsed));
 
 			time = Date.now();
-			for (const index in ds) {
-				current[index] -= ds[index];
+			for (const [index, d] of ds.entries()) {
+				current[index] -= d;
 			}
 
 			if (has_passed) {
 				cb(end);
 				resolve();
 				return;
-			} else {
-				cb(current);
-				requestAnimationFrame(() => animation(current));
 			}
+			cb(current);
+			requestAnimationFrame(() => animation(current));
 		}
 
 		requestAnimationFrame(() => animation(current));
@@ -588,8 +599,12 @@ export async function motion(start: number[], end: number[], duration: number, c
 }
 
 export function getEditDistance(a: string, b: string): number | undefined {
-	if (a.length === 0) return b.length;
-	if (b.length === 0) return a.length;
+	if (a.length === 0) {
+		return b.length;
+	}
+	if (b.length === 0) {
+		return a.length;
+	}
 
 	const insertionCost = 1;
 	const deletionCost = 1;
@@ -622,7 +637,9 @@ export function getEditDistance(a: string, b: string): number | undefined {
 
 // PascalCase to camelCase conversion
 export const pascalToCamelCase = (str: string): string => {
-	if (!str) return str;
+	if (!str) {
+		return str;
+	}
 	return str.charAt(0).toLowerCase() + str.slice(1);
 };
 

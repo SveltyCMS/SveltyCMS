@@ -3,21 +3,21 @@
  * @description Handles system settings import requests.
  */
 
-import { json } from '@sveltejs/kit';
+import type {
+	Conflict,
+	ExportData,
+	ExportMetadata,
+	ImportOptions,
+	ImportResult,
+	ValidationError,
+	ValidationResult,
+	ValidationWarning
+} from '@content/types';
 import { getDb } from '@src/databases/db';
 import { getAllSettings, invalidateSettingsCache } from '@src/services/settingsService';
-import { logger } from '@utils/logger.server';
+import { json } from '@sveltejs/kit';
 import { decryptData } from '@utils/crypto';
-import type {
-	ExportData,
-	ImportOptions,
-	ValidationResult,
-	ValidationError,
-	ValidationWarning,
-	Conflict,
-	ImportResult,
-	ExportMetadata
-} from '@content/types';
+import { logger } from '@utils/logger.server';
 
 async function decryptSensitiveData(encryptedData: string, password: string): Promise<Record<string, unknown>> {
 	try {
@@ -30,15 +30,15 @@ async function decryptSensitiveData(encryptedData: string, password: string): Pr
 async function validateImportData(data: ExportData): Promise<ValidationResult> {
 	const errors: ValidationError[] = [];
 	const warnings: ValidationWarning[] = [];
-	if (!data.metadata) {
-		errors.push({ path: 'metadata', message: 'Missing required metadata', code: 'MISSING_METADATA' });
-	} else {
+	if (data.metadata) {
 		if (!data.metadata.exported_at) {
 			errors.push({ path: 'metadata.exported_at', message: 'Missing export timestamp', code: 'MISSING_TIMESTAMP' });
 		}
 		if (!data.metadata.cms_version) {
 			warnings.push({ path: 'metadata.cms_version', message: 'Missing CMS version - compatibility cannot be verified', code: 'MISSING_VERSION' });
 		}
+	} else {
+		errors.push({ path: 'metadata', message: 'Missing required metadata', code: 'MISSING_METADATA' });
 	}
 	if (data.settings) {
 		if (typeof data.settings !== 'object') {
@@ -55,9 +55,7 @@ async function validateImportData(data: ExportData): Promise<ValidationResult> {
 		}
 	}
 	if (data.collections) {
-		if (!Array.isArray(data.collections)) {
-			errors.push({ path: 'collections', message: 'Collections must be an array', code: 'INVALID_COLLECTIONS_TYPE' });
-		} else {
+		if (Array.isArray(data.collections)) {
 			data.collections.forEach((collection, index) => {
 				if (!collection.id) {
 					errors.push({ path: `collections[${index}].id`, message: 'Collection missing required id', code: 'MISSING_COLLECTION_ID' });
@@ -66,9 +64,11 @@ async function validateImportData(data: ExportData): Promise<ValidationResult> {
 					errors.push({ path: `collections[${index}].name`, message: 'Collection missing required name', code: 'MISSING_COLLECTION_NAME' });
 				}
 			});
+		} else {
+			errors.push({ path: 'collections', message: 'Collections must be an array', code: 'INVALID_COLLECTIONS_TYPE' });
 		}
 	}
-	if (!data.settings && !data.collections) {
+	if (!(data.settings || data.collections)) {
 		warnings.push({ path: 'root', message: 'Export contains no settings or collections', code: 'EMPTY_EXPORT' });
 	}
 	return { valid: errors.length === 0, errors, warnings };
@@ -80,10 +80,8 @@ async function detectConflicts(importData: ExportData): Promise<Conflict[]> {
 		const currentSettings = await getAllSettings();
 		for (const [key, importValue] of Object.entries(importData.settings)) {
 			const currentValue = (currentSettings as Record<string, unknown>)[key];
-			if (currentValue !== undefined) {
-				if (JSON.stringify(currentValue) !== JSON.stringify(importValue)) {
-					conflicts.push({ type: 'setting', key, current: currentValue, import: importValue, recommendation: 'overwrite' });
-				}
+			if (currentValue !== undefined && JSON.stringify(currentValue) !== JSON.stringify(importValue)) {
+				conflicts.push({ type: 'setting', key, current: currentValue, import: importValue, recommendation: 'overwrite' });
 			}
 		}
 	}
@@ -229,9 +227,13 @@ export const POST = apiHandler(async ({ locals, request }) => {
 			{ status: result.success ? 200 : 207 }
 		);
 	} catch (error) {
-		if (error instanceof AppError) throw error;
+		if (error instanceof AppError) {
+			throw error;
+		}
 		logger.error(`Import error details: ${error instanceof Error ? error.message : String(error)}`);
-		if (error instanceof Error) logger.error(error.stack || 'No stack trace');
+		if (error instanceof Error) {
+			logger.error(error.stack || 'No stack trace');
+		}
 		throw new AppError(error instanceof Error ? error.message : 'Unknown error', 500, 'IMPORT_FAILED');
 	}
 });

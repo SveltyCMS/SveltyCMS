@@ -10,14 +10,14 @@
  * - Delete token
  */
 
-import { eq, desc, asc, sql } from 'drizzle-orm';
-import type { WebsiteToken, DatabaseId, DatabaseResult } from '../../../dbInterface';
-import { AdapterCore } from '../../adapter/adapterCore';
+import { asc, desc, eq, sql } from 'drizzle-orm';
+import type { DatabaseId, DatabaseResult, WebsiteToken } from '../../../dbInterface';
+import type { AdapterCore } from '../../adapter/adapterCore';
 import * as schema from '../../schema';
 import * as utils from '../../utils';
 
 export class WebsiteTokensModule {
-	private core: AdapterCore;
+	private readonly core: AdapterCore;
 
 	constructor(core: AdapterCore) {
 		this.core = core;
@@ -69,8 +69,12 @@ export class WebsiteTokensModule {
 				}
 			}
 
-			if (options.limit) q = q.limit(options.limit);
-			if (options.skip) q = q.offset(options.skip);
+			if (options.limit) {
+				q = q.limit(options.limit);
+			}
+			if (options.skip) {
+				q = q.offset(options.skip);
+			}
 
 			const results = await q;
 			// total count

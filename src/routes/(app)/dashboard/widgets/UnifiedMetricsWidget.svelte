@@ -39,10 +39,10 @@ for comprehensive system monitoring and performance analysis.
 <script lang="ts">
 	// Lucide icons
 
-	import { onMount, onDestroy } from 'svelte';
-	import { logger } from '@utils/logger';
-	import BaseWidget from '../BaseWidget.svelte';
 	import type { WidgetSize } from '@src/content/types';
+	import { logger } from '@utils/logger';
+	import { onDestroy, onMount } from 'svelte';
+	import BaseWidget from '../BaseWidget.svelte';
 
 	const {
 		label = 'System Metrics',
@@ -70,13 +70,12 @@ for comprehensive system monitoring and performance analysis.
 
 	// Unified metrics interface (matches MetricsService output)
 	interface UnifiedMetrics {
-		timestamp: number;
-		uptime: number;
-		requests: {
-			total: number;
+		api: {
+			requests: number;
 			errors: number;
-			errorRate: number;
-			avgResponseTime: number;
+			cacheHits: number;
+			cacheMisses: number;
+			cacheHitRate: number;
 		};
 		authentication: {
 			validations: number;
@@ -86,23 +85,24 @@ for comprehensive system monitoring and performance analysis.
 			cacheMisses: number;
 			cacheHitRate: number;
 		};
-		api: {
-			requests: number;
+		performance: {
+			slowRequests: number;
+			avgHookExecutionTime: number;
+			bottlenecks: string[];
+		};
+		requests: {
+			total: number;
 			errors: number;
-			cacheHits: number;
-			cacheMisses: number;
-			cacheHitRate: number;
+			errorRate: number;
+			avgResponseTime: number;
 		};
 		security: {
 			rateLimitViolations: number;
 			cspViolations: number;
 			authFailures: number;
 		};
-		performance: {
-			slowRequests: number;
-			avgHookExecutionTime: number;
-			bottlenecks: string[];
-		};
+		timestamp: number;
+		uptime: number;
 	}
 
 	// Reactive state
@@ -269,7 +269,7 @@ for comprehensive system monitoring and performance analysis.
 	}
 
 	function formatNumber(num: number): string {
-		if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
+		if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(1)}M`;
 		if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
 		return num.toString();
 	}
@@ -318,27 +318,19 @@ for comprehensive system monitoring and performance analysis.
 		<div class="grid grid-cols-2 gap-2">
 			<div class="rounded bg-surface-100 p-2 dark:bg-surface-700">
 				<div class="text-xs text-gray-600 dark:text-gray-400">Response Time</div>
-				<div class="font-bold {getMetricColor(primaryMetrics.responseTime.status)}">
-					{primaryMetrics.responseTime.formatted}
-				</div>
+				<div class="font-bold {getMetricColor(primaryMetrics.responseTime.status)}">{primaryMetrics.responseTime.formatted}</div>
 			</div>
 			<div class="rounded bg-surface-100 p-2 dark:bg-surface-700">
 				<div class="text-xs text-gray-600 dark:text-gray-400">Error Rate</div>
-				<div class="font-bold {getMetricColor(primaryMetrics.errorRate.status)}">
-					{primaryMetrics.errorRate.formatted}
-				</div>
+				<div class="font-bold {getMetricColor(primaryMetrics.errorRate.status)}">{primaryMetrics.errorRate.formatted}</div>
 			</div>
 			<div class="rounded bg-surface-100 p-2 dark:bg-surface-700">
 				<div class="text-xs text-gray-600 dark:text-gray-400">Auth Success</div>
-				<div class="font-bold {getMetricColor(primaryMetrics.authSuccess.status)}">
-					{primaryMetrics.authSuccess.formatted}
-				</div>
+				<div class="font-bold {getMetricColor(primaryMetrics.authSuccess.status)}">{primaryMetrics.authSuccess.formatted}</div>
 			</div>
 			<div class="rounded bg-surface-100 p-2 dark:bg-surface-700">
 				<div class="text-xs text-gray-600 dark:text-gray-400">Cache Hit</div>
-				<div class="font-bold {getMetricColor(primaryMetrics.cacheEfficiency.status)}">
-					{primaryMetrics.cacheEfficiency.formatted}
-				</div>
+				<div class="font-bold {getMetricColor(primaryMetrics.cacheEfficiency.status)}">{primaryMetrics.cacheEfficiency.formatted}</div>
 			</div>
 		</div>
 
@@ -389,9 +381,7 @@ for comprehensive system monitoring and performance analysis.
 						<h5 class="mb-1 text-xs font-medium">Performance Bottlenecks</h5>
 						<div class="space-y-1">
 							{#each metrics.performance.bottlenecks.slice(0, 3) as bottleneck (bottleneck)}
-								<div class="rounded bg-yellow-100 px-1 py-0.5 text-xs dark:bg-yellow-900/20">
-									{bottleneck}
-								</div>
+								<div class="rounded bg-yellow-100 px-1 py-0.5 text-xs dark:bg-yellow-900/20">{bottleneck}</div>
 							{/each}
 						</div>
 					</div>
@@ -400,8 +390,6 @@ for comprehensive system monitoring and performance analysis.
 		{/if}
 
 		<!-- Footer with last update -->
-		<div class="border-t pt-1 text-center text-xs text-gray-500">
-			Last updated: {formatLastUpdate()}
-		</div>
+		<div class="border-t pt-1 text-center text-xs text-gray-500">Last updated: {formatLastUpdate()}</div>
 	</div>
 </BaseWidget>

@@ -12,7 +12,9 @@ import type { MediaBase } from './mediaModels';
 /** Browser-compatible MIME lookup */
 export function getMimeType(name: string): string | null {
 	const ext = name.toLowerCase().split('.').pop();
-	if (!ext) return null;
+	if (!ext) {
+		return null;
+	}
 
 	const map: Record<string, string> = {
 		// Images
@@ -49,7 +51,9 @@ export function getMimeType(name: string): string | null {
 
 /** Construct public media URL */
 export function mediaUrl(item: MediaBase, size?: string): string {
-	if (!item?.url) return '';
+	if (!item?.url) {
+		return '';
+	}
 
 	if (publicEnv.MEDIASERVER_URL) {
 		// Remove leading /files/ from item.url if present when using external media server
@@ -76,7 +80,9 @@ export function mediaUrl(item: MediaBase, size?: string): string {
 
 /** Build URL from parts (hash-based naming) */
 export function buildUrl(path: string, hash: string, filename: string, ext: string, category: string, size?: string): string {
-	if (!path || !hash || !filename || !ext || !category) return '';
+	if (!(path && hash && filename && ext && category)) {
+		return '';
+	}
 
 	const file = `${filename}-${hash}.${ext}`;
 
@@ -97,7 +103,7 @@ export function buildUrl(path: string, hash: string, filename: string, ext: stri
 export function validateFile(file: File, allowedPattern: RegExp, maxSize = 10 * 1024 * 1024): { valid: boolean; message?: string } {
 	const type = getMimeType(file.name) ?? file.type;
 
-	if (!type || !allowedPattern.test(type)) {
+	if (!(type && allowedPattern.test(type))) {
 		return { valid: false, message: `Invalid type: ${type}` };
 	}
 

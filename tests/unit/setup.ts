@@ -22,7 +22,7 @@ import { mock } from 'bun:test';
 (globalThis as any).privateEnv = {
 	DB_TYPE: 'mongodb',
 	DB_HOST: 'localhost',
-	DB_PORT: 27017,
+	DB_PORT: 27_017,
 	DB_NAME: 'sveltycms_test',
 	DB_USER: 'test',
 	DB_PASSWORD: 'test',
@@ -45,8 +45,8 @@ const mockDbAdapter = {
 	crud: {
 		update: mock(() => Promise.resolve({ success: true }))
 	},
-    connect: mock(() => Promise.resolve({ success: true })),
-    isConnected: mock(() => true)
+	connect: mock(() => Promise.resolve({ success: true })),
+	isConnected: mock(() => true)
 };
 (globalThis as any).mockDbAdapter = mockDbAdapter;
 
@@ -148,16 +148,16 @@ mock.module('@src/databases/db', () => ({
 	dbInitPromise: Promise.resolve(),
 	getDbInitPromise: () => Promise.resolve(),
 	isConnected: true,
-    loadSettingsFromDB: () => Promise.resolve(true),
-    getSystemStatus: () => Promise.resolve({ initialized: true, connected: true }),
-    getAuth: () => null,
-    reinitializeSystem: () => Promise.resolve({ status: 'initialized' }),
-    initializeWithConfig: () => Promise.resolve({ status: 'success' }),
-    initializeWithFreshConfig: () => Promise.resolve({ status: 'initialized' }),
-    getDb: () => mockDbAdapter,
-    initConnection: () => Promise.resolve(),
-    initializeForSetup: () => Promise.resolve({ success: true }),
-    initializeOnRequest: () => Promise.resolve()
+	loadSettingsFromDB: () => Promise.resolve(true),
+	getSystemStatus: () => Promise.resolve({ initialized: true, connected: true }),
+	getAuth: () => null,
+	reinitializeSystem: () => Promise.resolve({ status: 'initialized' }),
+	initializeWithConfig: () => Promise.resolve({ status: 'success' }),
+	initializeWithFreshConfig: () => Promise.resolve({ status: 'initialized' }),
+	getDb: () => mockDbAdapter,
+	initConnection: () => Promise.resolve(),
+	initializeForSetup: () => Promise.resolve({ success: true }),
+	initializeOnRequest: () => Promise.resolve()
 }));
 
 // Mock settingsService
@@ -189,7 +189,7 @@ mock.module('@src/databases/CacheService', () => ({
 		clearByPattern: async () => {},
 		setBootstrapping: () => {}
 	},
-	API_CACHE_TTL_MS: 300000
+	API_CACHE_TTL_MS: 300_000
 }));
 
 // Mock EventBus
@@ -205,12 +205,17 @@ mock.module('@src/services/audit/AuditLogService', () => ({
 // Mock Ollama for AIService
 const mockOllamaInst = {
 	generate: async () => ({ response: 'tag1, tag2, tag3' }),
-	chat: async () => ({ message: { content: 'AI response' } }),
-	Ollama: class { constructor() { return mockOllamaInst; } }
+	chat: async () => ({ message: { content: 'AI response' } })
 };
+
+class MockOllama {
+	generate = mockOllamaInst.generate;
+	chat = mockOllamaInst.chat;
+}
+
 mock.module('ollama', () => ({
-    default: mockOllamaInst,
-    Ollama: mockOllamaInst.Ollama
+	default: mockOllamaInst,
+	Ollama: MockOllama
 }));
 
 // Mock $app modules
@@ -234,15 +239,24 @@ mock.module('$app/state', () => ({ page: { url: new URL('http://localhost') }, n
 
 // Mock Svelte 5 Runes with Proxy for reactivity in tests
 const createReactiveMock = (fn: any) => {
-	if (typeof fn !== 'function') return fn;
-	return new Proxy({}, {
-		get: (_, prop) => {
-			const val = fn();
-			if (prop === Symbol.toPrimitive) return () => val;
-			if (val === null || val === undefined) return undefined;
-			return val[prop];
+	if (typeof fn !== 'function') {
+		return fn;
+	}
+	return new Proxy(
+		{},
+		{
+			get: (_, prop) => {
+				const val = fn();
+				if (prop === Symbol.toPrimitive) {
+					return () => val;
+				}
+				if (val === null || val === undefined) {
+					return undefined;
+				}
+				return val[prop];
+			}
 		}
-	});
+	);
 };
 
 (globalThis as any).$state = (v: any) => v;

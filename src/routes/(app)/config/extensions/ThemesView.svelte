@@ -4,12 +4,12 @@
 -->
 
 <script lang="ts">
-	import { themeStore, updateTheme } from '@stores/themeStore.svelte';
 	import type { DatabaseId } from '@src/content/types';
 	import type { Theme } from '@src/databases/dbInterface';
-	import { dateToISODateString } from '@utils/dateUtils';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
+	import { themeStore, updateTheme } from '@stores/themeStore.svelte';
+	import { dateToISODateString } from '@utils/dateUtils';
 
 	let selectedTheme = $state<any | null>(null);
 	let livePreviewTheme = $state<any | null>(null);

@@ -20,13 +20,12 @@ Efficiently manages user data updates with validation, role selection, and delet
 
 	// Lucide icons
 
-	// Skeleton & stores
-	import { modalState } from '@utils/modalState.svelte';
-	import { toaster } from '@stores/store.svelte.ts';
-	import { editUserSchema } from '@utils/formSchemas';
-
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
+	import { toaster } from '@stores/store.svelte.ts';
+	import { editUserSchema } from '@utils/formSchemas';
+	// Skeleton & stores
+	import { modalState } from '@utils/modalState.svelte';
 
 	// Get data from page store
 	const { roles, user } = page.data;
@@ -57,14 +56,14 @@ Efficiently manages user data updates with validation, role selection, and delet
 
 	// Props
 	interface Props {
-		parent?: any; // Was ModalComponent['props']
-		isGivenData?: boolean;
-		username?: string | null;
-		email?: string | null;
-		role?: string | null;
-		user_id?: string | null;
-		title?: string;
 		body?: string;
+		email?: string | null;
+		isGivenData?: boolean;
+		parent?: any; // Was ModalComponent['props']
+		role?: string | null;
+		title?: string;
+		user_id?: string | null;
+		username?: string | null;
 	}
 	const { isGivenData = false, username = null, email = null, role = null, user_id = null }: Props = $props();
 
@@ -291,7 +290,8 @@ Efficiently manages user data updates with validation, role selection, and delet
 					<div class="flex">
 						<iconify-icon icon="mdi:information" width={16} class="mr-2 mt-0.5 shrink-0"></iconify-icon>
 						<div>
-							<strong>Admin Password Reset:</strong> You are setting a new password for this user. Leave empty to keep current password unchanged.
+							<strong>Admin Password Reset:</strong>
+							You are setting a new password for this user. Leave empty to keep current password unchanged.
 						</div>
 					</div>
 				</div>
@@ -418,7 +418,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 								<div>
 									<strong>Current Role:</strong>
 									{roles?.find((r: any) => r._id === editForm.data.role)?.name || editForm.data.role}
-									<br />
+									<br>
 									<em>You cannot change your own role for security reasons.</em>
 								</div>
 							</div>
@@ -446,8 +446,6 @@ Efficiently manages user data updates with validation, role selection, and delet
 		</div>
 
 		<!-- Save -->
-		<button type="submit" form="change_user_form" class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500">
-			{m.button_save()}
-		</button>
+		<button type="submit" form="change_user_form" class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500">{m.button_save()}</button>
 	</footer>
 </div>

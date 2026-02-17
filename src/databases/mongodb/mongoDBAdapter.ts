@@ -28,30 +28,30 @@
  * and connection retries. It integrates fully with the CMS for all data management needs.
  */
 
+import { cacheService } from '@src/databases/CacheService';
+import { logger } from '@src/utils/logger.server';
 // Mongoose and core types
 import mongoose from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
 import type {
 	BaseEntity,
-	DatabaseId,
-	DatabaseResult,
-	IDBAdapter,
-	IAuthAdapter,
-	ICrudAdapter,
-	IMediaAdapter,
-	IContentAdapter,
-	ISystemAdapter,
-	IMonitoringAdapter,
-	DatabaseTransaction,
 	BatchOperation,
 	BatchResult,
 	ConnectionPoolStats,
-	PaginationOptions,
+	DatabaseId,
+	DatabaseResult,
+	DatabaseTransaction,
+	IAuthAdapter,
+	IContentAdapter,
+	ICrudAdapter,
+	IDBAdapter,
+	IMediaAdapter,
+	IMonitoringAdapter,
+	ISystemAdapter,
 	PaginatedResult,
+	PaginationOptions,
 	Schema
 } from '../dbInterface';
-import { logger } from '@src/utils/logger.server';
-import { cacheService } from '@src/databases/CacheService';
 
 export class MongoDBAdapter implements IDBAdapter {
 	// --- Feature Cache (Real Instances) ---
@@ -72,8 +72,8 @@ export class MongoDBAdapter implements IDBAdapter {
 	private _shellMonitoring?: IMonitoringAdapter;
 
 	// --- Lazy Initialization State ---
-	private _modelCache = new Map<string, mongoose.Model<unknown>>();
-	private _featureInit = {
+	private readonly _modelCache = new Map<string, mongoose.Model<unknown>>();
+	private readonly _featureInit = {
 		auth: false,
 		media: false,
 		crud: false,
@@ -83,7 +83,7 @@ export class MongoDBAdapter implements IDBAdapter {
 		collections: false
 	};
 
-	private _initPromises = new Map<string, Promise<void>>();
+	private readonly _initPromises = new Map<string, Promise<void>>();
 
 	// --- Feature Getters (Lazy-loaded) ---
 
@@ -190,7 +190,9 @@ export class MongoDBAdapter implements IDBAdapter {
 	private _createLazyProxy<T extends object>(name: string, ensureFn: () => Promise<void>, getReal: () => T | undefined): T {
 		return new Proxy({} as T, {
 			get: (_target, prop) => {
-				if (prop === 'then' || prop === 'catch' || prop === 'finally' || typeof prop === 'symbol') return undefined;
+				if (prop === 'then' || prop === 'catch' || prop === 'finally' || typeof prop === 'symbol') {
+					return undefined;
+				}
 
 				const real = getReal();
 				if (real && (real as Record<string | symbol, unknown>)[prop]) {
@@ -220,12 +222,18 @@ export class MongoDBAdapter implements IDBAdapter {
 
 				// Otherwise, assume it's a method and return a wrapper
 				return async (...args: unknown[]) => {
-					if (!this.isConnected()) throw new Error('Database not connected');
+					if (!this.isConnected()) {
+						throw new Error('Database not connected');
+					}
 					await ensureFn();
 					const instance = getReal();
-					if (!instance) throw new Error(`Feature "${name}" failed to initialize`);
+					if (!instance) {
+						throw new Error(`Feature "${name}" failed to initialize`);
+					}
 					const method = (instance as Record<string | symbol, any>)[prop];
-					if (typeof method !== 'function') throw new Error(`Method "${String(prop)}" not found on "${name}"`);
+					if (typeof method !== 'function') {
+						throw new Error(`Method "${String(prop)}" not found on "${name}"`);
+					}
 					return method.apply(instance, args);
 				};
 			}
@@ -295,8 +303,12 @@ export class MongoDBAdapter implements IDBAdapter {
 	// --- Feature-Specific "Ensure" methods (Lazy Activation) ---
 
 	public async ensureAuth(): Promise<void> {
-		if (this._featureInit.auth) return;
-		if (this._initPromises.has('auth')) return this._initPromises.get('auth');
+		if (this._featureInit.auth) {
+			return;
+		}
+		if (this._initPromises.has('auth')) {
+			return this._initPromises.get('auth');
+		}
 
 		const promise = (async () => {
 			const { MongoAuthModelRegistrar } = await import('./methods/authMethods');
@@ -312,8 +324,12 @@ export class MongoDBAdapter implements IDBAdapter {
 	}
 
 	public async ensureMedia(): Promise<void> {
-		if (this._featureInit.media) return;
-		if (this._initPromises.has('media')) return this._initPromises.get('media');
+		if (this._featureInit.media) {
+			return;
+		}
+		if (this._initPromises.has('media')) {
+			return this._initPromises.get('media');
+		}
 
 		const promise = (async () => {
 			const { MongoMediaMethods } = await import('./methods/mediaMethods');
@@ -361,8 +377,12 @@ export class MongoDBAdapter implements IDBAdapter {
 	}
 
 	public async ensureContent(): Promise<void> {
-		if (this._featureInit.content) return;
-		if (this._initPromises.has('content')) return this._initPromises.get('content');
+		if (this._featureInit.content) {
+			return;
+		}
+		if (this._initPromises.has('content')) {
+			return this._initPromises.get('content');
+		}
 
 		const promise = (async () => {
 			const [{ MongoContentMethods }, { ContentNodeModel, DraftModel, RevisionModel }, { MongoCrudMethods }] = await Promise.all([
@@ -390,7 +410,9 @@ export class MongoDBAdapter implements IDBAdapter {
 					delete: (p) => this.crud.delete('system_content_structure', p as DatabaseId),
 					deleteMany: (p, o) => {
 						const query: any = { path: { $in: p } };
-						if (o?.tenantId) query.tenantId = o.tenantId;
+						if (o?.tenantId) {
+							query.tenantId = o.tenantId;
+						}
 						return this.crud.deleteMany('system_content_structure', query as any);
 					},
 					reorder: () => this._wrapResult(async () => [] as import('../dbInterface').ContentNode[]),
@@ -429,8 +451,12 @@ export class MongoDBAdapter implements IDBAdapter {
 	}
 
 	public async ensureSystem(): Promise<void> {
-		if (this._featureInit.system) return;
-		if (this._initPromises.has('system')) return this._initPromises.get('system');
+		if (this._featureInit.system) {
+			return;
+		}
+		if (this._initPromises.has('system')) {
+			return this._initPromises.get('system');
+		}
 
 		const promise = (async () => {
 			await this._initializeSystemAdapter();
@@ -442,8 +468,12 @@ export class MongoDBAdapter implements IDBAdapter {
 	}
 
 	public async ensureMonitoring(): Promise<void> {
-		if (this._featureInit.monitoring) return;
-		if (this._initPromises.has('monitoring')) return this._initPromises.get('monitoring');
+		if (this._featureInit.monitoring) {
+			return;
+		}
+		if (this._initPromises.has('monitoring')) {
+			return this._initPromises.get('monitoring');
+		}
 
 		const promise = (async () => {
 			this._realMonitoring = {
@@ -471,8 +501,12 @@ export class MongoDBAdapter implements IDBAdapter {
 	}
 
 	public async ensureCollections(): Promise<void> {
-		if (this._featureInit.collections) return;
-		if (this._initPromises.has('collections')) return this._initPromises.get('collections');
+		if (this._featureInit.collections) {
+			return;
+		}
+		if (this._initPromises.has('collections')) {
+			return this._initPromises.get('collections');
+		}
 
 		const promise = (async () => {
 			const [{ MongoCollectionMethods }, { MongoQueryBuilder }, mongoDBUtils] = await Promise.all([
@@ -493,7 +527,9 @@ export class MongoDBAdapter implements IDBAdapter {
 	}
 
 	private _getOrCreateModel(name: string, schemaDefinition?: any): mongoose.Model<any> {
-		if (this._modelCache.has(name)) return this._modelCache.get(name)!;
+		if (this._modelCache.has(name)) {
+			return this._modelCache.get(name)!;
+		}
 		const model = mongoose.models[name] || this._createGenericModel(name, schemaDefinition);
 		this._modelCache.set(name, model);
 		return model;
@@ -514,7 +550,9 @@ export class MongoDBAdapter implements IDBAdapter {
 
 	async getConnectionHealth(): Promise<DatabaseResult<{ healthy: boolean; latency: number; activeConnections: number }>> {
 		try {
-			if (!mongoose.connection.db) return { success: false, message: 'Not connected', error: { code: 'NOT_CONNECTED', message: 'DB not connected' } };
+			if (!mongoose.connection.db) {
+				return { success: false, message: 'Not connected', error: { code: 'NOT_CONNECTED', message: 'DB not connected' } };
+			}
 			const start = Date.now();
 			await mongoose.connection.db.admin().ping();
 			const latency = Date.now() - start;
@@ -549,12 +587,16 @@ export class MongoDBAdapter implements IDBAdapter {
 
 	async getConnectionPoolStats(): Promise<DatabaseResult<ConnectionPoolStats>> {
 		try {
-			if (!this.isConnected()) return { success: false, message: 'Not connected', error: { code: 'NOT_CONNECTED', message: 'DB not connected' } };
+			if (!this.isConnected()) {
+				return { success: false, message: 'Not connected', error: { code: 'NOT_CONNECTED', message: 'DB not connected' } };
+			}
 			const client = mongoose.connection.getClient();
 			// @ts-expect-error - Topology is internal
 			const pool = client?.topology?.s?.pool;
 
-			if (!pool) return { success: true, data: { total: 50, active: 0, idle: 0, waiting: 0, avgConnectionTime: 0 } };
+			if (!pool) {
+				return { success: true, data: { total: 50, active: 0, idle: 0, waiting: 0, avgConnectionTime: 0 } };
+			}
 
 			return {
 				success: true,
@@ -581,7 +623,9 @@ export class MongoDBAdapter implements IDBAdapter {
 
 		const getRepo = (coll: string) => {
 			const normalized = normalizeCollectionName(coll);
-			if (repos.has(normalized)) return repos.get(normalized);
+			if (repos.has(normalized)) {
+				return repos.get(normalized);
+			}
 
 			const model = this._getOrCreateModel(normalized);
 			const repo = new MongoCrudMethods(model);
@@ -628,7 +672,7 @@ export class MongoDBAdapter implements IDBAdapter {
 						const { SystemPreferencesModel, SystemSettingModel } = await import('./models');
 						this._cachedSystemCore = new MongoSystemMethods(SystemPreferencesModel, SystemSettingModel);
 					}
-					return this._wrapResult(() => this._cachedSystemCore!.get(k, s, u) as any);
+					return this._wrapResult(() => this._cachedSystemCore?.get(k, s, u) as any);
 				},
 				getMany: async (k, s, u) => {
 					if (!this._cachedSystemCore) {
@@ -636,7 +680,7 @@ export class MongoDBAdapter implements IDBAdapter {
 						const { SystemPreferencesModel, SystemSettingModel } = await import('./models');
 						this._cachedSystemCore = new MongoSystemMethods(SystemPreferencesModel, SystemSettingModel);
 					}
-					return this._wrapResult(() => this._cachedSystemCore!.getMany(k, s, u) as any);
+					return this._wrapResult(() => this._cachedSystemCore?.getMany(k, s, u) as any);
 				},
 				getByCategory: async (c, s, u) => {
 					if (!this._cachedSystemCore) {
@@ -644,7 +688,7 @@ export class MongoDBAdapter implements IDBAdapter {
 						const { SystemPreferencesModel, SystemSettingModel } = await import('./models');
 						this._cachedSystemCore = new MongoSystemMethods(SystemPreferencesModel, SystemSettingModel);
 					}
-					return this._wrapResult(() => this._cachedSystemCore!.getByCategory(c, s, u) as any);
+					return this._wrapResult(() => this._cachedSystemCore?.getByCategory(c, s, u) as any);
 				},
 				set: async (k, v, s, u) => {
 					if (!this._cachedSystemCore) {
@@ -652,7 +696,7 @@ export class MongoDBAdapter implements IDBAdapter {
 						const { SystemPreferencesModel, SystemSettingModel } = await import('./models');
 						this._cachedSystemCore = new MongoSystemMethods(SystemPreferencesModel, SystemSettingModel);
 					}
-					return this._wrapResult(() => this._cachedSystemCore!.set(k, v, s, u) as any);
+					return this._wrapResult(() => this._cachedSystemCore?.set(k, v, s, u) as any);
 				},
 				setMany: async (p) => {
 					if (!this._cachedSystemCore) {
@@ -660,7 +704,7 @@ export class MongoDBAdapter implements IDBAdapter {
 						const { SystemPreferencesModel, SystemSettingModel } = await import('./models');
 						this._cachedSystemCore = new MongoSystemMethods(SystemPreferencesModel, SystemSettingModel);
 					}
-					return this._wrapResult(() => this._cachedSystemCore!.setMany(p as any));
+					return this._wrapResult(() => this._cachedSystemCore?.setMany(p as any));
 				},
 				delete: async (k, s, u) => {
 					if (!this._cachedSystemCore) {
@@ -668,7 +712,7 @@ export class MongoDBAdapter implements IDBAdapter {
 						const { SystemPreferencesModel, SystemSettingModel } = await import('./models');
 						this._cachedSystemCore = new MongoSystemMethods(SystemPreferencesModel, SystemSettingModel);
 					}
-					return this._wrapResult(() => this._cachedSystemCore!.delete(k, s, u) as any);
+					return this._wrapResult(() => this._cachedSystemCore?.delete(k, s, u) as any);
 				},
 				deleteMany: async (k, s, u) => {
 					if (!this._cachedSystemCore) {
@@ -676,7 +720,7 @@ export class MongoDBAdapter implements IDBAdapter {
 						const { SystemPreferencesModel, SystemSettingModel } = await import('./models');
 						this._cachedSystemCore = new MongoSystemMethods(SystemPreferencesModel, SystemSettingModel);
 					}
-					return this._wrapResult(() => this._cachedSystemCore!.deleteMany(k, s, u) as any);
+					return this._wrapResult(() => this._cachedSystemCore?.deleteMany(k, s, u) as any);
 				},
 				clear: async (s, u) => {
 					if (!this._cachedSystemCore) {
@@ -684,7 +728,7 @@ export class MongoDBAdapter implements IDBAdapter {
 						const { SystemPreferencesModel, SystemSettingModel } = await import('./models');
 						this._cachedSystemCore = new MongoSystemMethods(SystemPreferencesModel, SystemSettingModel);
 					}
-					return this._wrapResult(() => this._cachedSystemCore!.clear(s, u) as any);
+					return this._wrapResult(() => this._cachedSystemCore?.clear(s, u) as any);
 				}
 			},
 			themes: {
@@ -695,7 +739,7 @@ export class MongoDBAdapter implements IDBAdapter {
 						const { ThemeModel } = await import('./models');
 						this._cachedSystemThemes = new MongoThemeMethods(ThemeModel);
 					}
-					return this._wrapResult(() => this._cachedSystemThemes!.getActive() as any);
+					return this._wrapResult(() => this._cachedSystemThemes?.getActive() as any);
 				},
 				setDefault: async (id) => {
 					if (!this._cachedSystemThemes) {
@@ -703,7 +747,7 @@ export class MongoDBAdapter implements IDBAdapter {
 						const { ThemeModel } = await import('./models');
 						this._cachedSystemThemes = new MongoThemeMethods(ThemeModel);
 					}
-					return this._wrapResult(() => this._cachedSystemThemes!.setDefault(id) as any);
+					return this._wrapResult(() => this._cachedSystemThemes?.setDefault(id) as any);
 				},
 				install: async (t) => {
 					if (!this._cachedSystemThemes) {
@@ -711,7 +755,7 @@ export class MongoDBAdapter implements IDBAdapter {
 						const { ThemeModel } = await import('./models');
 						this._cachedSystemThemes = new MongoThemeMethods(ThemeModel);
 					}
-					return this._wrapResult(() => this._cachedSystemThemes!.install(t) as any);
+					return this._wrapResult(() => this._cachedSystemThemes?.install(t) as any);
 				},
 				uninstall: async (id) => {
 					if (!this._cachedSystemThemes) {
@@ -719,7 +763,7 @@ export class MongoDBAdapter implements IDBAdapter {
 						const { ThemeModel } = await import('./models');
 						this._cachedSystemThemes = new MongoThemeMethods(ThemeModel);
 					}
-					return this._wrapResult(() => this._cachedSystemThemes!.uninstall(id) as any);
+					return this._wrapResult(() => this._cachedSystemThemes?.uninstall(id) as any);
 				},
 				update: async (id, t) => {
 					if (!this._cachedSystemThemes) {
@@ -727,7 +771,7 @@ export class MongoDBAdapter implements IDBAdapter {
 						const { ThemeModel } = await import('./models');
 						this._cachedSystemThemes = new MongoThemeMethods(ThemeModel);
 					}
-					return this._wrapResult(() => this._cachedSystemThemes!.update(id, t) as any);
+					return this._wrapResult(() => this._cachedSystemThemes?.update(id, t) as any);
 				},
 				getAllThemes: async () => {
 					if (!this._cachedSystemThemes) {
@@ -735,7 +779,7 @@ export class MongoDBAdapter implements IDBAdapter {
 						const { ThemeModel } = await import('./models');
 						this._cachedSystemThemes = new MongoThemeMethods(ThemeModel);
 					}
-					return this._cachedSystemThemes!.findAll();
+					return this._cachedSystemThemes?.findAll();
 				},
 				storeThemes: async (ts) => {
 					if (!this._cachedSystemThemes) {
@@ -743,7 +787,9 @@ export class MongoDBAdapter implements IDBAdapter {
 						const { ThemeModel } = await import('./models');
 						this._cachedSystemThemes = new MongoThemeMethods(ThemeModel);
 					}
-					for (const t of ts) await this._cachedSystemThemes!.installOrUpdate(t);
+					for (const t of ts) {
+						await this._cachedSystemThemes?.installOrUpdate(t);
+					}
 				},
 				getDefaultTheme: async (tid) => {
 					if (!this._cachedSystemThemes) {
@@ -752,7 +798,7 @@ export class MongoDBAdapter implements IDBAdapter {
 						this._cachedSystemThemes = new MongoThemeMethods(ThemeModel);
 					}
 					// @ts-expect-error - Method might not exist on all implementations
-					return this._wrapResult(() => this._cachedSystemThemes!.getDefault(tid));
+					return this._wrapResult(() => this._cachedSystemThemes?.getDefault(tid));
 				},
 				ensure: async (t) => {
 					if (!this._cachedSystemThemes) {
@@ -760,7 +806,7 @@ export class MongoDBAdapter implements IDBAdapter {
 						const { ThemeModel } = await import('./models');
 						this._cachedSystemThemes = new MongoThemeMethods(ThemeModel);
 					}
-					return this._cachedSystemThemes!.ensure(t);
+					return this._cachedSystemThemes?.ensure(t);
 				}
 			},
 			widgets: {
@@ -771,7 +817,7 @@ export class MongoDBAdapter implements IDBAdapter {
 						const { WidgetModel } = await import('./models');
 						this._cachedSystemWidgets = new MongoWidgetMethods(WidgetModel);
 					}
-					return this._wrapResult(() => this._cachedSystemWidgets!.register(w) as any);
+					return this._wrapResult(() => this._cachedSystemWidgets?.register(w) as any);
 				},
 				findAll: async () => {
 					if (!this._cachedSystemWidgets) {
@@ -779,7 +825,7 @@ export class MongoDBAdapter implements IDBAdapter {
 						const { WidgetModel } = await import('./models');
 						this._cachedSystemWidgets = new MongoWidgetMethods(WidgetModel);
 					}
-					return this._wrapResult(() => this._cachedSystemWidgets!.findAll() as any);
+					return this._wrapResult(() => this._cachedSystemWidgets?.findAll() as any);
 				},
 				getActiveWidgets: async () => {
 					if (!this._cachedSystemWidgets) {
@@ -787,7 +833,7 @@ export class MongoDBAdapter implements IDBAdapter {
 						const { WidgetModel } = await import('./models');
 						this._cachedSystemWidgets = new MongoWidgetMethods(WidgetModel);
 					}
-					return this._wrapResult(() => this._cachedSystemWidgets!.getActiveWidgets() as any);
+					return this._wrapResult(() => this._cachedSystemWidgets?.getActiveWidgets() as any);
 				},
 				activate: async (id) => {
 					if (!this._cachedSystemWidgets) {
@@ -795,7 +841,7 @@ export class MongoDBAdapter implements IDBAdapter {
 						const { WidgetModel } = await import('./models');
 						this._cachedSystemWidgets = new MongoWidgetMethods(WidgetModel);
 					}
-					return this._wrapResult(() => this._cachedSystemWidgets!.activate(id) as any);
+					return this._wrapResult(() => this._cachedSystemWidgets?.activate(id) as any);
 				},
 				deactivate: async (id) => {
 					if (!this._cachedSystemWidgets) {
@@ -803,7 +849,7 @@ export class MongoDBAdapter implements IDBAdapter {
 						const { WidgetModel } = await import('./models');
 						this._cachedSystemWidgets = new MongoWidgetMethods(WidgetModel);
 					}
-					return this._wrapResult(() => this._cachedSystemWidgets!.deactivate(id) as any);
+					return this._wrapResult(() => this._cachedSystemWidgets?.deactivate(id) as any);
 				},
 				update: async (id, w) => {
 					if (!this._cachedSystemWidgets) {
@@ -811,7 +857,7 @@ export class MongoDBAdapter implements IDBAdapter {
 						const { WidgetModel } = await import('./models');
 						this._cachedSystemWidgets = new MongoWidgetMethods(WidgetModel);
 					}
-					return this._wrapResult(() => this._cachedSystemWidgets!.update(id, w) as any);
+					return this._wrapResult(() => this._cachedSystemWidgets?.update(id, w) as any);
 				},
 				delete: async (id) => {
 					if (!this._cachedSystemWidgets) {
@@ -819,7 +865,7 @@ export class MongoDBAdapter implements IDBAdapter {
 						const { WidgetModel } = await import('./models');
 						this._cachedSystemWidgets = new MongoWidgetMethods(WidgetModel);
 					}
-					return this._wrapResult(() => this._cachedSystemWidgets!.delete(id) as any);
+					return this._wrapResult(() => this._cachedSystemWidgets?.delete(id) as any);
 				}
 			},
 			websiteTokens: {
@@ -829,7 +875,7 @@ export class MongoDBAdapter implements IDBAdapter {
 						const { WebsiteTokenModel } = await import('./models');
 						this._cachedSystemTokens = new MongoWebsiteTokenMethods(WebsiteTokenModel);
 					}
-					return this._wrapResult(() => this._cachedSystemTokens!.create(t));
+					return this._wrapResult(() => this._cachedSystemTokens?.create(t));
 				},
 				getAll: async (o) => {
 					if (!this._cachedSystemTokens) {
@@ -837,7 +883,7 @@ export class MongoDBAdapter implements IDBAdapter {
 						const { WebsiteTokenModel } = await import('./models');
 						this._cachedSystemTokens = new MongoWebsiteTokenMethods(WebsiteTokenModel);
 					}
-					return this._wrapResult(() => this._cachedSystemTokens!.getAll(o));
+					return this._wrapResult(() => this._cachedSystemTokens?.getAll(o));
 				},
 				getByName: async (n) => {
 					if (!this._cachedSystemTokens) {
@@ -845,7 +891,7 @@ export class MongoDBAdapter implements IDBAdapter {
 						const { WebsiteTokenModel } = await import('./models');
 						this._cachedSystemTokens = new MongoWebsiteTokenMethods(WebsiteTokenModel);
 					}
-					return this._wrapResult(() => this._cachedSystemTokens!.getByName(n));
+					return this._wrapResult(() => this._cachedSystemTokens?.getByName(n));
 				},
 				delete: async (id) => {
 					if (!this._cachedSystemTokens) {
@@ -853,7 +899,7 @@ export class MongoDBAdapter implements IDBAdapter {
 						const { WebsiteTokenModel } = await import('./models');
 						this._cachedSystemTokens = new MongoWebsiteTokenMethods(WebsiteTokenModel);
 					}
-					return this._wrapResult(() => this._cachedSystemTokens!.delete(id) as any);
+					return this._wrapResult(() => this._cachedSystemTokens?.delete(id) as any);
 				}
 			},
 			systemVirtualFolder: {
@@ -862,70 +908,70 @@ export class MongoDBAdapter implements IDBAdapter {
 						const { MongoSystemVirtualFolderMethods } = await import('./methods/systemVirtualFolderMethods');
 						this._cachedSystemFolders = new MongoSystemVirtualFolderMethods();
 					}
-					return this._cachedSystemFolders!.create(f);
+					return this._cachedSystemFolders?.create(f);
 				},
 				getById: async (id) => {
 					if (!this._cachedSystemFolders) {
 						const { MongoSystemVirtualFolderMethods } = await import('./methods/systemVirtualFolderMethods');
 						this._cachedSystemFolders = new MongoSystemVirtualFolderMethods();
 					}
-					return this._cachedSystemFolders!.getById(id);
+					return this._cachedSystemFolders?.getById(id);
 				},
 				getByParentId: async (id) => {
 					if (!this._cachedSystemFolders) {
 						const { MongoSystemVirtualFolderMethods } = await import('./methods/systemVirtualFolderMethods');
 						this._cachedSystemFolders = new MongoSystemVirtualFolderMethods();
 					}
-					return this._cachedSystemFolders!.getByParentId(id);
+					return this._cachedSystemFolders?.getByParentId(id);
 				},
 				getAll: async () => {
 					if (!this._cachedSystemFolders) {
 						const { MongoSystemVirtualFolderMethods } = await import('./methods/systemVirtualFolderMethods');
 						this._cachedSystemFolders = new MongoSystemVirtualFolderMethods();
 					}
-					return this._cachedSystemFolders!.getAll();
+					return this._cachedSystemFolders?.getAll();
 				},
 				update: async (id, d) => {
 					if (!this._cachedSystemFolders) {
 						const { MongoSystemVirtualFolderMethods } = await import('./methods/systemVirtualFolderMethods');
 						this._cachedSystemFolders = new MongoSystemVirtualFolderMethods();
 					}
-					return this._cachedSystemFolders!.update(id, d);
+					return this._cachedSystemFolders?.update(id, d);
 				},
 				addToFolder: async (id, p) => {
 					if (!this._cachedSystemFolders) {
 						const { MongoSystemVirtualFolderMethods } = await import('./methods/systemVirtualFolderMethods');
 						this._cachedSystemFolders = new MongoSystemVirtualFolderMethods();
 					}
-					return this._cachedSystemFolders!.addToFolder(id, p);
+					return this._cachedSystemFolders?.addToFolder(id, p);
 				},
 				getContents: async (p) => {
 					if (!this._cachedSystemFolders) {
 						const { MongoSystemVirtualFolderMethods } = await import('./methods/systemVirtualFolderMethods');
 						this._cachedSystemFolders = new MongoSystemVirtualFolderMethods();
 					}
-					return this._cachedSystemFolders!.getContents(p);
+					return this._cachedSystemFolders?.getContents(p);
 				},
 				ensure: async (f) => {
 					if (!this._cachedSystemFolders) {
 						const { MongoSystemVirtualFolderMethods } = await import('./methods/systemVirtualFolderMethods');
 						this._cachedSystemFolders = new MongoSystemVirtualFolderMethods();
 					}
-					return this._cachedSystemFolders!.ensure(f);
+					return this._cachedSystemFolders?.ensure(f);
 				},
 				delete: async (id) => {
 					if (!this._cachedSystemFolders) {
 						const { MongoSystemVirtualFolderMethods } = await import('./methods/systemVirtualFolderMethods');
 						this._cachedSystemFolders = new MongoSystemVirtualFolderMethods();
 					}
-					return this._cachedSystemFolders!.delete(id);
+					return this._cachedSystemFolders?.delete(id);
 				},
 				exists: async (p) => {
 					if (!this._cachedSystemFolders) {
 						const { MongoSystemVirtualFolderMethods } = await import('./methods/systemVirtualFolderMethods');
 						this._cachedSystemFolders = new MongoSystemVirtualFolderMethods();
 					}
-					return this._cachedSystemFolders!.exists(p);
+					return this._cachedSystemFolders?.exists(p);
 				}
 			},
 			tenants: {
@@ -935,7 +981,7 @@ export class MongoDBAdapter implements IDBAdapter {
 						const { TenantModel } = await import('./models');
 						this._cachedSystemTenants = new MongoTenantMethods(TenantModel);
 					}
-					return this._wrapResult(() => this._cachedSystemTenants!.create(t));
+					return this._wrapResult(() => this._cachedSystemTenants?.create(t));
 				},
 				getById: async (id) => {
 					if (!this._cachedSystemTenants) {
@@ -943,7 +989,7 @@ export class MongoDBAdapter implements IDBAdapter {
 						const { TenantModel } = await import('./models');
 						this._cachedSystemTenants = new MongoTenantMethods(TenantModel);
 					}
-					return this._wrapResult(() => this._cachedSystemTenants!.getById(id));
+					return this._wrapResult(() => this._cachedSystemTenants?.getById(id));
 				},
 				update: async (id, d) => {
 					if (!this._cachedSystemTenants) {
@@ -951,7 +997,7 @@ export class MongoDBAdapter implements IDBAdapter {
 						const { TenantModel } = await import('./models');
 						this._cachedSystemTenants = new MongoTenantMethods(TenantModel);
 					}
-					return this._wrapResult(() => this._cachedSystemTenants!.update(id, d));
+					return this._wrapResult(() => this._cachedSystemTenants?.update(id, d));
 				},
 				delete: async (id) => {
 					if (!this._cachedSystemTenants) {
@@ -959,7 +1005,7 @@ export class MongoDBAdapter implements IDBAdapter {
 						const { TenantModel } = await import('./models');
 						this._cachedSystemTenants = new MongoTenantMethods(TenantModel);
 					}
-					return this._wrapResult(() => this._cachedSystemTenants!.delete(id));
+					return this._wrapResult(() => this._cachedSystemTenants?.delete(id));
 				},
 				list: async (o) => {
 					if (!this._cachedSystemTenants) {
@@ -967,7 +1013,7 @@ export class MongoDBAdapter implements IDBAdapter {
 						const { TenantModel } = await import('./models');
 						this._cachedSystemTenants = new MongoTenantMethods(TenantModel);
 					}
-					return this._wrapResult(() => this._cachedSystemTenants!.list(o));
+					return this._wrapResult(() => this._cachedSystemTenants?.list(o));
 				}
 			}
 		};
@@ -1032,8 +1078,11 @@ export class MongoDBAdapter implements IDBAdapter {
 				}
 			};
 			const result = await fn(tx);
-			if (result.success) await session.commitTransaction();
-			else await session.abortTransaction();
+			if (result.success) {
+				await session.commitTransaction();
+			} else {
+				await session.abortTransaction();
+			}
 			return result;
 		} catch (error) {
 			await session.abortTransaction();
@@ -1070,7 +1119,9 @@ export class MongoDBAdapter implements IDBAdapter {
 		options?: { limit?: number; offset?: number; fields?: string[]; includeMetadata?: boolean }
 	): Promise<DatabaseResult<{ data: unknown[]; metadata?: { totalCount: number; schema?: unknown; indexes?: string[] } }>> {
 		const res = await this.crud.findMany(collectionName, {} as any, options as any);
-		if (!res.success) return res as any;
+		if (!res.success) {
+			return res as any;
+		}
 		return {
 			success: true,
 			data: {
@@ -1087,7 +1138,9 @@ export class MongoDBAdapter implements IDBAdapter {
 		const results: Record<string, unknown[]> = {};
 		for (const name of names) {
 			const res = await this.getCollectionData(name, options);
-			if (res.success) results[name] = res.data.data;
+			if (res.success) {
+				results[name] = res.data.data;
+			}
 		}
 		return { success: true, data: results };
 	}

@@ -8,9 +8,9 @@
  *  - No authentication required
  */
 
+import { getHealthCheckReport } from '@src/stores/system/reporting';
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getHealthCheckReport } from '@src/stores/system/reporting';
 
 /**
  * GET /api/system/health

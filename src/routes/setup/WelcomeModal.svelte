@@ -28,7 +28,7 @@ Features:
 
 <div class="space-y-4 text-center">
 	<header id="welcome-heading" class="flex flex-col items-center justify-center space-y-4">
-		<img src="/SveltyCMS_Logo.svg" alt="SveltyCMS Logo" class="h-20 w-auto" />
+		<img src="/SveltyCMS_Logo.svg" alt="SveltyCMS Logo" class="h-20 w-auto">
 		<h3 class="h3">Welcome to <SiteName siteName="SveltyCMS" highlight="CMS" /> !</h3>
 	</header>
 

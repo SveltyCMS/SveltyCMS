@@ -3,15 +3,14 @@
  * @description API endpoint for updating widget status (with dependency validation)
  * Database agnostic - uses dbAdapter interface
  */
-import { json } from '@sveltejs/kit';
-import { logger } from '@utils/logger.server';
+
 import { hasPermissionWithRoles } from '@src/databases/auth/permissions';
-
 import { cacheService } from '@src/databases/CacheService';
-
+import { json } from '@sveltejs/kit';
 // Unified Error Handling
 import { apiHandler } from '@utils/apiHandler';
 import { AppError } from '@utils/errorHandling';
+import { logger } from '@utils/logger.server';
 
 export const POST = apiHandler(async ({ locals, request }) => {
 	const start = performance.now();
@@ -66,10 +65,12 @@ export const POST = apiHandler(async ({ locals, request }) => {
 			for (const [, schema] of Object.entries(allCollections)) {
 				const schemaObj = schema as Record<string, unknown>;
 				// Check if any fields use this widget
-				if (schemaObj.fields && Array.isArray(schemaObj.fields)) {
-					if (schemaObj.fields.some((field: Record<string, unknown>) => field.widget === widgetName)) {
-						usedInCollections.push((schemaObj.name as string) || 'Unknown');
-					}
+				if (
+					schemaObj.fields &&
+					Array.isArray(schemaObj.fields) &&
+					schemaObj.fields.some((field: Record<string, unknown>) => field.widget === widgetName)
+				) {
+					usedInCollections.push((schemaObj.name as string) || 'Unknown');
 				}
 			}
 
@@ -87,7 +88,7 @@ export const POST = apiHandler(async ({ locals, request }) => {
 			const inactiveDependencies: string[] = [];
 			for (const depName of widget.dependencies) {
 				const dep = allWidgets.find((w) => w.name === depName);
-				if (!dep || !dep.isActive) {
+				if (!dep?.isActive) {
 					inactiveDependencies.push(depName);
 				}
 			}
@@ -117,7 +118,7 @@ export const POST = apiHandler(async ({ locals, request }) => {
 			isActive
 		});
 
-		if (!updateResult.success || !updateResult.data) {
+		if (!(updateResult.success && updateResult.data)) {
 			const errorMsg = !updateResult.success && 'error' in updateResult ? (updateResult.error as { message?: string })?.message : undefined;
 			logger.error('Failed to update widget in database', {
 				widgetId: widget._id,
@@ -166,7 +167,9 @@ export const POST = apiHandler(async ({ locals, request }) => {
 		const duration = performance.now() - start;
 		const message = `Failed to update widget status: ${err instanceof Error ? err.message : String(err)}`;
 		logger.error(message, { duration: `${duration.toFixed(2)}ms`, stack: err instanceof Error ? err.stack : undefined });
-		if (err instanceof AppError) throw err;
+		if (err instanceof AppError) {
+			throw err;
+		}
 		throw new AppError(message, 500, 'UPDATE_STATUS_FAILED');
 	}
 });

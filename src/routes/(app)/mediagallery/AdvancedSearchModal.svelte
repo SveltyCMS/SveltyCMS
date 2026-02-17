@@ -26,14 +26,14 @@ Structure optimized for LLM integration and AI-powered search.
 -->
 
 <script lang="ts">
-	import type { MediaBase } from '@utils/media/mediaModels';
 	import type { SearchCriteria } from '@utils/media/advancedSearch';
-	import { SvelteSet, SvelteDate } from 'svelte/reactivity';
+	import type { MediaBase } from '@utils/media/mediaModels';
+	import { SvelteDate, SvelteSet } from 'svelte/reactivity';
 
 	interface Props {
 		files: MediaBase[];
-		onSearch: (criteria: SearchCriteria) => void;
 		onClose: () => void;
+		onSearch: (criteria: SearchCriteria) => void;
 	}
 
 	const { files, onSearch, onClose }: Props = $props();
@@ -106,13 +106,13 @@ Structure optimized for LLM integration and AI-powered search.
 		const searchCriteria: SearchCriteria = {
 			filename: formValues.filename || undefined,
 			tags: formValues.tagsInput ? formValues.tagsInput.split(',').map((t) => t.trim()) : undefined,
-			minWidth: formValues.minWidth ? parseInt(formValues.minWidth) : undefined,
-			maxWidth: formValues.maxWidth ? parseInt(formValues.maxWidth) : undefined,
-			minHeight: formValues.minHeight ? parseInt(formValues.minHeight) : undefined,
-			maxHeight: formValues.maxHeight ? parseInt(formValues.maxHeight) : undefined,
+			minWidth: formValues.minWidth ? Number.parseInt(formValues.minWidth) : undefined,
+			maxWidth: formValues.maxWidth ? Number.parseInt(formValues.maxWidth) : undefined,
+			minHeight: formValues.minHeight ? Number.parseInt(formValues.minHeight) : undefined,
+			maxHeight: formValues.maxHeight ? Number.parseInt(formValues.maxHeight) : undefined,
 			aspectRatio: formValues.aspectRatio !== 'any' ? (formValues.aspectRatio as 'landscape' | 'portrait' | 'square') : undefined,
-			minSize: formValues.minSize ? parseInt(formValues.minSize) * 1024 * 1024 : undefined, // Convert MB to bytes
-			maxSize: formValues.maxSize ? parseInt(formValues.maxSize) * 1024 * 1024 : undefined,
+			minSize: formValues.minSize ? Number.parseInt(formValues.minSize) * 1024 * 1024 : undefined, // Convert MB to bytes
+			maxSize: formValues.maxSize ? Number.parseInt(formValues.maxSize) * 1024 * 1024 : undefined,
 			fileTypes: formValues.fileTypesInput ? formValues.fileTypesInput.split(',').map((t) => t.trim()) : undefined,
 			uploadedAfter: formValues.uploadedAfter ? new Date(formValues.uploadedAfter) : undefined,
 			uploadedBefore: formValues.uploadedBefore ? new Date(formValues.uploadedBefore) : undefined,
@@ -242,7 +242,7 @@ Structure optimized for LLM integration and AI-powered search.
 					</button>
 				</div>
 
-				<hr class="border-surface-300 dark:border-surface-600" />
+				<hr class="border-surface-300 dark:border-surface-600">
 
 				<!-- Basic Search -->
 				<section>
@@ -250,16 +250,14 @@ Structure optimized for LLM integration and AI-powered search.
 					<div class="grid gap-4 md:grid-cols-2">
 						<label class="label">
 							<span>Filename</span>
-							<input type="text" bind:value={formValues.filename} class="input" placeholder="image.jpg" />
+							<input type="text" bind:value={formValues.filename} class="input" placeholder="image.jpg">
 						</label>
 
 						<label class="label">
 							<span>Tags (comma-separated)</span>
-							<input type="text" bind:value={formValues.tagsInput} class="input" placeholder="landscape, nature" />
+							<input type="text" bind:value={formValues.tagsInput} class="input" placeholder="landscape, nature">
 							{#if suggestions.tags.length > 0}
-								<div class="mt-1 text-xs text-surface-600 dark:text-surface-50">
-									Suggestions: {suggestions.tags.join(', ')}
-								</div>
+								<div class="mt-1 text-xs text-surface-600 dark:text-surface-50">Suggestions: {suggestions.tags.join(', ')}</div>
 							{/if}
 						</label>
 					</div>
@@ -271,22 +269,22 @@ Structure optimized for LLM integration and AI-powered search.
 					<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
 						<label class="label">
 							<span>Min Width (px)</span>
-							<input type="number" bind:value={formValues.minWidth} class="input" placeholder="1920" />
+							<input type="number" bind:value={formValues.minWidth} class="input" placeholder="1920">
 						</label>
 
 						<label class="label">
 							<span>Max Width (px)</span>
-							<input type="number" bind:value={formValues.maxWidth} class="input" placeholder="3840" />
+							<input type="number" bind:value={formValues.maxWidth} class="input" placeholder="3840">
 						</label>
 
 						<label class="label">
 							<span>Min Height (px)</span>
-							<input type="number" bind:value={formValues.minHeight} class="input" placeholder="1080" />
+							<input type="number" bind:value={formValues.minHeight} class="input" placeholder="1080">
 						</label>
 
 						<label class="label">
 							<span>Max Height (px)</span>
-							<input type="number" bind:value={formValues.maxHeight} class="input" placeholder="2160" />
+							<input type="number" bind:value={formValues.maxHeight} class="input" placeholder="2160">
 						</label>
 					</div>
 
@@ -303,9 +301,7 @@ Structure optimized for LLM integration and AI-powered search.
 					</div>
 
 					{#if suggestions.dimensions.length > 0}
-						<div class="mt-2 text-xs text-surface-600 dark:text-surface-50">
-							Common dimensions: {suggestions.dimensions.join(', ')}
-						</div>
+						<div class="mt-2 text-xs text-surface-600 dark:text-surface-50">Common dimensions: {suggestions.dimensions.join(', ')}</div>
 					{/if}
 				</section>
 
@@ -315,17 +311,17 @@ Structure optimized for LLM integration and AI-powered search.
 					<div class="grid gap-4 md:grid-cols-3">
 						<label class="label">
 							<span>Min Size (MB)</span>
-							<input type="number" bind:value={formValues.minSize} class="input" placeholder="1" step="0.1" />
+							<input type="number" bind:value={formValues.minSize} class="input" placeholder="1" step="0.1">
 						</label>
 
 						<label class="label">
 							<span>Max Size (MB)</span>
-							<input type="number" bind:value={formValues.maxSize} class="input" placeholder="50" step="0.1" />
+							<input type="number" bind:value={formValues.maxSize} class="input" placeholder="50" step="0.1">
 						</label>
 
 						<label class="label">
 							<span>File Types</span>
-							<input type="text" bind:value={formValues.fileTypesInput} class="input" placeholder="image/jpeg, image/png" />
+							<input type="text" bind:value={formValues.fileTypesInput} class="input" placeholder="image/jpeg, image/png">
 						</label>
 					</div>
 				</section>
@@ -336,12 +332,12 @@ Structure optimized for LLM integration and AI-powered search.
 					<div class="grid gap-4 md:grid-cols-2">
 						<label class="label">
 							<span>Uploaded After</span>
-							<input type="date" bind:value={formValues.uploadedAfter} class="input" />
+							<input type="date" bind:value={formValues.uploadedAfter} class="input">
 						</label>
 
 						<label class="label">
 							<span>Uploaded Before</span>
-							<input type="date" bind:value={formValues.uploadedBefore} class="input" />
+							<input type="date" bind:value={formValues.uploadedBefore} class="input">
 						</label>
 					</div>
 				</section>
@@ -361,17 +357,15 @@ Structure optimized for LLM integration and AI-powered search.
 
 						<label class="label">
 							<span>Camera</span>
-							<input type="text" bind:value={formValues.camera} class="input" placeholder="Canon EOS 5D" />
+							<input type="text" bind:value={formValues.camera} class="input" placeholder="Canon EOS 5D">
 							{#if suggestions.cameras.length > 0}
-								<div class="mt-1 text-xs text-surface-600 dark:text-surface-50">
-									Found: {suggestions.cameras.join(', ')}
-								</div>
+								<div class="mt-1 text-xs text-surface-600 dark:text-surface-50">Found: {suggestions.cameras.join(', ')}</div>
 							{/if}
 						</label>
 
 						<label class="label">
 							<span>Location</span>
-							<input type="text" bind:value={formValues.location} class="input" placeholder="New York" />
+							<input type="text" bind:value={formValues.location} class="input" placeholder="New York">
 						</label>
 					</div>
 				</section>
@@ -382,17 +376,17 @@ Structure optimized for LLM integration and AI-powered search.
 					<div class="grid gap-4 md:grid-cols-2">
 						<label class="label">
 							<span>Dominant Color (hex)</span>
-							<input type="text" bind:value={formValues.dominantColor} class="input" placeholder="#FF5733" />
+							<input type="text" bind:value={formValues.dominantColor} class="input" placeholder="#FF5733">
 						</label>
 
 						<label class="label">
 							<span>Hash Match</span>
-							<input type="text" bind:value={formValues.hashMatch} class="input" placeholder="a1b2c3d4..." />
+							<input type="text" bind:value={formValues.hashMatch} class="input" placeholder="a1b2c3d4...">
 						</label>
 					</div>
 
 					<label class="mt-4 flex items-center gap-2">
-						<input type="checkbox" bind:checked={formValues.showDuplicatesOnly} class="checkbox" />
+						<input type="checkbox" bind:checked={formValues.showDuplicatesOnly} class="checkbox">
 						<span>Show Duplicates Only</span>
 					</label>
 				</section>
@@ -403,7 +397,8 @@ Structure optimized for LLM integration and AI-powered search.
 		<div class="flex-none border-t border-surface-300 p-4 dark:border-surface-600 bg-surface-200/50 dark:bg-surface-700/50">
 			<div class="flex items-center justify-between">
 				<div class="text-sm hidden sm:block">
-					<strong class="text-tertiary-500 dark:text-primary-500">Tip:</strong> Press
+					<strong class="text-tertiary-500 dark:text-primary-500">Tip:</strong>
+					Press
 					<kbd class="preset-filled-tertiary-500 badge dark:preset-filled-primary-500">Ctrl+Enter</kbd>
 					to search
 				</div>

@@ -67,7 +67,7 @@ export const GET = apiHandler(async ({ params, fetch }) => {
 	const iconPath = iconPathParts.join('/');
 
 	// Validate provider
-	if (!provider || !(provider in ALLOWED_PROVIDERS)) {
+	if (!(provider && provider in ALLOWED_PROVIDERS)) {
 		throw new AppError(`Invalid icon provider. Allowed: ${Object.keys(ALLOWED_PROVIDERS).join(', ')}`, 400, 'INVALID_PROVIDER');
 	}
 
@@ -126,7 +126,9 @@ export const GET = apiHandler(async ({ params, fetch }) => {
 		return cachedResponse;
 	} catch (err) {
 		console.error(`[Icon Proxy] Failed to fetch ${externalUrl}:`, err);
-		if (err instanceof AppError) throw err;
+		if (err instanceof AppError) {
+			throw err;
+		}
 		throw new AppError('Failed to fetch icon from external provider', 502, 'UPSTREAM_ERROR');
 	}
 });

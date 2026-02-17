@@ -3,11 +3,12 @@
  * @description Enterprise-grade E2E tests for user profile management.
  * Refactored to use standard authentication patterns and robust locators.
  */
-import { test, expect } from '@playwright/test';
-import path from 'path';
-import { fileURLToPath } from 'url';
+
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { expect, test } from '@playwright/test';
 import { loginAsAdmin } from './helpers/auth';
-import fs from 'fs';
 
 // Construct reliable file path for CI/CD environments
 // This looks for 'testthumb.png' in the SAME directory as this test file
@@ -33,7 +34,7 @@ test.describe('User Profile Management', () => {
 	test('Edit Avatar', async ({ page }) => {
 		// Ensure the test image exists before trying to upload
 		if (!fs.existsSync(AVATAR_PATH)) {
-			test.skip(true, `Test image not found at ${AVATAR_PATH}`);
+			test(true, `Test image not found at ${AVATAR_PATH}`);
 		}
 
 		await page.goto('/user');

@@ -8,10 +8,10 @@
  * - Returns per-operation execution results
  */
 
-import { json } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
 import { automationService } from '@src/services/automation/automationService';
 import type { AutomationEventPayload } from '@src/services/automation/types';
+import { json } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
 
 /** POST /api/automations/:id/test — Test a flow */
 export const POST: RequestHandler = async ({ params }) => {

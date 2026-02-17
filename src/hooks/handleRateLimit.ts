@@ -31,14 +31,14 @@
  * @prerequisite System state is READY and JWT secret is available
  */
 
-import { building } from '$app/environment';
-import { error, type Handle, type RequestEvent } from '@sveltejs/kit';
-import { RateLimiter } from 'sveltekit-rate-limiter/server';
-import { getPrivateSettingSync } from '@src/services/settingsService';
-import { metricsService } from '@src/services/MetricsService';
 import { cacheService } from '@src/databases/CacheService';
-import { logger } from '@utils/logger.server';
+import { metricsService } from '@src/services/MetricsService';
+import { getPrivateSettingSync } from '@src/services/settingsService';
+import { error, type Handle, type RequestEvent } from '@sveltejs/kit';
 import { AppError, handleApiError } from '@utils/errorHandling';
+import { logger } from '@utils/logger.server';
+import { RateLimiter } from 'sveltekit-rate-limiter/server';
+import { building } from '$app/environment';
 
 // --- RATE LIMITER CONFIGURATION ---
 
@@ -99,7 +99,7 @@ const distributedStore = {
 	},
 	async clear(): Promise<void> {
 		try {
-			await cacheService.delete(`ratelimit:*`); // Clear all rate limit keys
+			await cacheService.delete('ratelimit:*'); // Clear all rate limit keys
 		} catch (err) {
 			logger.error(`Distributed rate limit store CLEAR failed: ${err instanceof Error ? err.message : String(err)}`);
 		}
@@ -141,16 +141,22 @@ const authLimiter = new RateLimiter({
 function getClientIp(event: RequestEvent): string {
 	try {
 		const address = event.getClientAddress();
-		if (address) return address;
+		if (address) {
+			return address;
+		}
 	} catch {
 		// Fallback to proxy headers
 	}
 
 	const forwarded = event.request.headers.get('x-forwarded-for');
-	if (forwarded) return forwarded.split(',')[0].trim();
+	if (forwarded) {
+		return forwarded.split(',')[0].trim();
+	}
 
 	const realIp = event.request.headers.get('x-real-ip');
-	if (realIp) return realIp;
+	if (realIp) {
+		return realIp;
+	}
 
 	return '127.0.0.1';
 }
@@ -186,7 +192,9 @@ export const handleRateLimit: Handle = async ({ event, resolve }) => {
 	// --- Exemptions (Skip Rate Limiting) ---
 
 	// 1. Build process
-	if (building) return resolve(event);
+	if (building) {
+		return resolve(event);
+	}
 
 	// 2. Localhost during development OR production
 	const bypassLocalhost = event.request.headers.get('x-test-rate-limit-bypass-localhost') === 'true';
@@ -195,7 +203,9 @@ export const handleRateLimit: Handle = async ({ event, resolve }) => {
 	}
 
 	// 3. Static assets (no need to rate limit CDN-cached content)
-	if (isStaticAsset(url.pathname)) return resolve(event);
+	if (isStaticAsset(url.pathname)) {
+		return resolve(event);
+	}
 
 	try {
 		// --- Apply Rate Limiting ---

@@ -18,15 +18,15 @@
  * - Delete folder
  */
 
-import { eq, and, or, like, inArray, isNull, count, desc, asc } from 'drizzle-orm';
-import type { MediaItem, MediaFolder, MediaMetadata, DatabaseId, DatabaseResult, PaginationOptions, PaginatedResult } from '../../../dbInterface';
-import { AdapterCore } from '../../adapter/adapterCore';
+import { logger } from '@src/utils/logger';
+import { and, asc, count, desc, eq, inArray, isNull, like, or } from 'drizzle-orm';
+import type { DatabaseId, DatabaseResult, MediaFolder, MediaItem, MediaMetadata, PaginatedResult, PaginationOptions } from '../../../dbInterface';
+import type { AdapterCore } from '../../adapter/adapterCore';
 import * as schema from '../../schema';
 import * as utils from '../../utils';
-import { logger } from '@src/utils/logger';
 
 export class MediaModule {
-	private core: AdapterCore;
+	private readonly core: AdapterCore;
 
 	constructor(core: AdapterCore) {
 		this.core = core;
@@ -197,7 +197,9 @@ export class MediaModule {
 			return (this.core as any).wrap(async () => {
 				const [existing] = await this.db.select().from(schema.mediaItems).where(eq(schema.mediaItems._id, fileId)).limit(1);
 
-				if (!existing) throw new Error('File not found');
+				if (!existing) {
+					throw new Error('File not found');
+				}
 
 				const id = utils.generateId();
 				const now = new Date();

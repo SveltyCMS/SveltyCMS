@@ -17,20 +17,17 @@
  * Utilized by the auth system to manage user sessions in a MongoDB database
  */
 
-import { error } from '@sveltejs/kit';
-import type { Model, Types } from 'mongoose';
-import mongoose, { Schema } from 'mongoose';
-
+import type { Session, User } from '@src/databases/auth/types';
 // Types
 import type { DatabaseResult, ISODateString } from '@src/databases/dbInterface';
-import type { Session, User } from '@src/databases/auth/types';
-
 // Utilities
 import { generateId } from '@src/databases/mongodb/methods/mongoDBUtils';
+import { error } from '@sveltejs/kit';
 import { toISOString } from '@utils/dateUtils';
-
 // System Logging
 import { logger } from '@utils/logger';
+import type { Model, Types } from 'mongoose';
+import mongoose, { Schema } from 'mongoose';
 
 // Define the Session schema
 export const SessionSchema = new Schema(
@@ -65,12 +62,12 @@ SessionSchema.index({ rotatedTo: 1 }, { sparse: true }); // Session rotation cha
  * This is a partial implementation that will be composed with other adapters.
  */
 export class SessionAdapter {
-	private SessionModel: Model<Session>;
+	private readonly SessionModel: Model<Session>;
 
 	constructor() {
 		// Delete existing model if it exists to force recreation with new schema
 		if (mongoose.models?.auth_sessions) {
-			delete mongoose.models.auth_sessions;
+			mongoose.models.auth_sessions = undefined;
 		}
 
 		// Create the Session model with the updated schema
@@ -206,7 +203,7 @@ export class SessionAdapter {
 					expires: { $gt: now }, // Only delete active (non-expired) sessions
 					$or: [
 						{ rotated: { $ne: true } }, // Delete non-rotated sessions
-						{ rotated: true, expires: { $lte: new Date(now.getTime() + 60000).toISOString() } } // Delete rotated sessions close to expiry
+						{ rotated: true, expires: { $lte: new Date(now.getTime() + 60_000).toISOString() } } // Delete rotated sessions close to expiry
 					]
 				};
 
@@ -244,14 +241,13 @@ export class SessionAdapter {
 					tenantId: sessionData.tenantId,
 					rotated: false
 				});
-			} else {
-				// Just create the new session without invalidating others
-				const sessionResult = await this.createSession(sessionData);
-				if (!sessionResult.success) {
-					throw new Error(sessionResult.message);
-				}
-				return sessionResult.data;
 			}
+			// Just create the new session without invalidating others
+			const sessionResult = await this.createSession(sessionData);
+			if (!sessionResult.success) {
+				throw new Error(sessionResult.message);
+			}
+			return sessionResult.data;
 		} catch (err) {
 			const message = `Error in SessionAdapter.createSessionWithOptions: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message);
@@ -492,8 +488,8 @@ export class SessionAdapter {
 				}
 
 				// Remove session metadata from user object
-				delete user._sessionRotated;
-				delete user._sessionRotatedTo;
+				user._sessionRotated = undefined;
+				user._sessionRotatedTo = undefined;
 
 				// Normalize ID
 				user._id = user._id.toString();
@@ -532,7 +528,7 @@ export class SessionAdapter {
 				expires: { $gt: now.toISOString() }, // Only delete active (non-expired) sessions
 				$or: [
 					{ rotated: { $ne: true } }, // Delete non-rotated sessions
-					{ rotated: true, expires: { $lte: new Date(now.getTime() + 60000).toISOString() } } // Delete rotated sessions close to expiry
+					{ rotated: true, expires: { $lte: new Date(now.getTime() + 60_000).toISOString() } } // Delete rotated sessions close to expiry
 				]
 			};
 

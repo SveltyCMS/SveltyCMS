@@ -11,33 +11,29 @@
 -->
 
 <script lang="ts">
-	import { logger } from '@utils/logger';
-	// Removed axios import
-	import { onMount } from 'svelte';
-	import { goto, afterNavigate } from '$app/navigation';
-	import { page } from '$app/state';
-
-	// Stores
-	import { collection, setCollection } from '@src/stores/collectionStore.svelte';
-	import { setRouteContext } from '@src/stores/UIStore.svelte.ts';
-	import { validationStore, toaster } from '@src/stores/store.svelte';
-
+	import PageTitle from '@components/PageTitle.svelte';
+	import type { FieldInstance, Schema } from '@src/content/types';
+	import type { User } from '@src/databases/auth/types';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
+	// Stores
+	import { collection, setCollection } from '@src/stores/collectionStore.svelte';
+	import { toaster, validationStore } from '@src/stores/store.svelte';
+	import { setRouteContext } from '@src/stores/UIStore.svelte.ts';
+	import { widgetStoreActions } from '@stores/widgetStore.svelte.ts';
+	import { logger } from '@utils/logger';
+	import { showConfirm } from '@utils/modalUtils';
+	// Utils
+	import { obj2formData } from '@utils/utils';
+	// Removed axios import
+	import { onMount } from 'svelte';
+	import { afterNavigate, goto } from '$app/navigation';
+	import { page } from '$app/state';
+	import ModalSchemaWarning from '../../ModalSchemaWarning.svelte';
 	// Components
 	import CollectionForm from './tabs/CollectionForm.svelte';
 	import CollectionWidgetOptimized from './tabs/CollectionWidgetOptimized.svelte';
-	import ModalSchemaWarning from '../../ModalSchemaWarning.svelte';
-	import PageTitle from '@components/PageTitle.svelte';
-
-	// Utils
-	import { obj2formData } from '@utils/utils';
-	import { showConfirm } from '@utils/modalUtils';
-	import { widgetStoreActions } from '@stores/widgetStore.svelte.ts';
-
-	import type { User } from '@src/databases/auth/types';
-	import type { FieldInstance, Schema } from '@src/content/types';
 
 	// Reactive: re-evaluates when URL params change during client-side navigation
 	const action = $derived(page.params.action);
@@ -124,7 +120,7 @@
 				payload.confirmDeletions = 'true';
 			}
 
-			const response = await fetch(`?/saveCollection`, {
+			const response = await fetch('?/saveCollection', {
 				method: 'POST',
 				body: obj2formData(payload)
 			});
@@ -169,7 +165,7 @@
 			title: 'Delete Collection?',
 			body: `Are you sure you want to delete "${collectionValue?.name}"? This cannot be undone.`,
 			onConfirm: async () => {
-				const response = await fetch(`?/deleteCollections`, {
+				const response = await fetch('?/deleteCollections', {
 					method: 'POST',
 					body: obj2formData({ ids: JSON.stringify([collectionValue?._id]) })
 				});
@@ -277,9 +273,7 @@
 						<iconify-icon icon="mdi:widgets" width="24" class="text-primary-500"></iconify-icon>
 						<h2 class="text-xl font-bold">Field Definitions</h2>
 					</div>
-					<span class="text-xs text-surface-500">
-						{collectionValue?.fields?.length || 0} fields total
-					</span>
+					<span class="text-xs text-surface-500"> {collectionValue?.fields?.length || 0} fields total </span>
 				</div>
 				<CollectionWidgetOptimized fields={(collectionValue?.fields as FieldInstance[]) || []} />
 			</section>

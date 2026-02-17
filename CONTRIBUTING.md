@@ -138,7 +138,7 @@ git checkout -b fix/issue-123
 **Guidelines:**
 
 - ✅ **One feature/fix per pull request**
-- ✅ **Follow the existing code style** (ESLint will help)
+- ✅ **Follow the existing code style** (Hybrid Biome/ESLint will help)
 - ✅ **Write meaningful commit messages**
 - ✅ **Add tests** for new features
 - ✅ **Update documentation** if needed
@@ -147,8 +147,8 @@ git checkout -b fix/issue-123
 **Code Style:**
 
 - Use TypeScript for all `.ts` files
-- Follow ESLint rules: `npm run lint`
-- Format code: `npm run format`
+- Follow Hybrid rules: `npm run lint` (Biome + ESLint)
+- Fast Format code: `npm run format` (Biome)
 - Use meaningful variable names
 - Add JSDoc comments for complex functions
 - Ensure database-agnostic patterns (see [API Documentation](docs/api/Database_Agnostic_Verification.mdx))
@@ -160,7 +160,7 @@ git checkout -b fix/issue-123
 npm run lint
 
 # Run type checker
-npm run typecheck
+npm run check
 
 # Run tests
 npm test

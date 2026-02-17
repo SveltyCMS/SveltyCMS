@@ -3,18 +3,13 @@
  * @description Comprehensive tests for handleRateLimit middleware
  */
 
-import { describe, it, expect, beforeEach, mock } from 'bun:test';
+import { beforeEach, describe, expect, it, mock } from 'bun:test';
 import { handleRateLimit } from '@src/hooks/handleRateLimit';
 import type { RequestEvent } from '@sveltejs/kit';
 
 // --- Test Utilities ---
 
-function createMockEvent(
-	pathname: string,
-	method: string = 'GET',
-	headers: Record<string, string> = {},
-	cookies: Record<string, string> = {}
-): RequestEvent {
+function createMockEvent(pathname: string, method = 'GET', headers: Record<string, string> = {}, cookies: Record<string, string> = {}): RequestEvent {
 	const url = new URL(pathname, 'http://localhost');
 	const requestHeaders = new Headers(headers);
 
@@ -31,7 +26,7 @@ function createMockEvent(
 	} as unknown as RequestEvent;
 }
 
-function createMockResponse(status: number = 200): Response {
+function createMockResponse(status = 200): Response {
 	return new Response('test body', { status });
 }
 

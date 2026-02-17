@@ -13,9 +13,9 @@
 -->
 
 <script lang="ts">
-	import { tick } from 'svelte';
 	import { Dialog, Portal } from '@skeletonlabs/skeleton-svelte';
 	import { modalState } from '@utils/modalState.svelte';
+	import { tick } from 'svelte';
 
 	// Handle closing via the Store
 	function onClose() {
@@ -46,9 +46,7 @@
 				{#if modalState.active}
 					{#if modalState.active.props?.title}
 						<div class="flex items-center justify-between {isFullscreen ? 'p-4 border-b border-surface-200 dark:border-surface-700' : ''}">
-							<Dialog.Title class="h3 font-bold">
-								{modalState.active.props.title}
-							</Dialog.Title>
+							<Dialog.Title class="h3 font-bold"> {modalState.active.props.title} </Dialog.Title>
 							<Dialog.CloseTrigger class="btn-icon btn-sm preset-tonal hover:variant-filled" aria-label="Close dialog">
 								<iconify-icon icon="mingcute:close-fill"></iconify-icon>
 							</Dialog.CloseTrigger>

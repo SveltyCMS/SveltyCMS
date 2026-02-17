@@ -3,7 +3,7 @@
  * @description Tests for global loading state management
  */
 
-import { describe, it, expect, beforeEach } from 'bun:test';
+import { beforeEach, describe, expect, it } from 'bun:test';
 import { LoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
 
 describe('Loading Store - Basic Operations', () => {
@@ -182,11 +182,11 @@ describe('Loading Store - Operation Types', () => {
 	it('should handle all predefined operation types', () => {
 		const operations = Object.values(loadingOperations);
 
-		operations.forEach((operation) => {
+		for (const operation of operations) {
 			store.startLoading(operation);
 			expect(store.loadingStack.has(operation)).toBe(true);
 			store.stopLoading(operation);
-		});
+		}
 
 		expect(store.isLoading).toBe(false);
 	});
@@ -240,7 +240,9 @@ describe('Loading Store - Edge Cases', () => {
 		];
 
 		// Start all
-		operations.forEach((op) => store.startLoading(op));
+		for (const op of operations) {
+			store.startLoading(op);
+		}
 		expect(store.loadingStack.size).toBe(4);
 
 		// Stop half

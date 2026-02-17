@@ -22,33 +22,30 @@
 -->
 
 <script lang="ts">
+	import { publicEnv } from '@src/stores/globalSettings.svelte';
+	import { app, validationStore } from '@src/stores/store.svelte';
+	import { getFieldName } from '@src/utils/utils';
 	import { logger } from '@utils/logger';
+	// Unified error handling
+	import { handleWidgetValidation } from '@widgets/widgetErrorHandler';
+	import { untrack } from 'svelte';
+	// Valibot validation
+	import { parse } from 'valibot';
 	import type { FieldType } from '.';
 	import { createValidationSchema } from '.'; // ✅ SSOT: Import validation schema from index.ts
 
-	import { getFieldName } from '@src/utils/utils';
-	import { untrack } from 'svelte';
-
-	// Valibot validation
-	import { parse } from 'valibot';
-	import { app, validationStore } from '@src/stores/store.svelte';
-	import { publicEnv } from '@src/stores/globalSettings.svelte';
-
-	// Unified error handling
-	import { handleWidgetValidation } from '@widgets/widgetErrorHandler';
-
 	// Props
 	interface Props {
+		debounceMs?: number;
 		field: FieldType;
-		value?: string | Record<string, string> | null | undefined;
+		validateOnBlur?: boolean;
+		validateOnChange?: boolean;
 		// ... (omitting lines for brevity in prompt, but in tool call I must be precise or use separate chunks if valid)
 		// Wait, I cannot use comments "..." in replacement content if I'm replacing a block.
 		// I should use multi_replace for safety or just target the script and input separately.
 		// Separate chunks is better.
 		validateOnMount?: boolean;
-		validateOnChange?: boolean;
-		validateOnBlur?: boolean;
-		debounceMs?: number;
+		value?: string | Record<string, string> | null | undefined;
 	}
 
 	// ✅ ENHANCEMENT: Auto-enable validateOnMount for required fields to instantly disable save button
@@ -59,7 +56,7 @@
 	const validateOnMount = $derived(false);
 
 	// SECURITY: Maximum input length to prevent ReDoS attacks
-	const MAX_INPUT_LENGTH = 100000; // 100KB
+	const MAX_INPUT_LENGTH = 100_000; // 100KB
 
 	// Apply truncation before processing
 	if (value && typeof value === 'string' && (value as string).length > MAX_INPUT_LENGTH) {
@@ -146,14 +143,13 @@
 
 		if (immediate) {
 			return await doValidation();
-		} else {
-			return new Promise((resolve) => {
-				debounceTimeout = window.setTimeout(async () => {
-					const result = await doValidation();
-					resolve(result);
-				}, debounceMs);
-			});
 		}
+		return new Promise((resolve) => {
+			debounceTimeout = window.setTimeout(async () => {
+				const result = await doValidation();
+				resolve(result);
+			}, debounceMs);
+		});
 	}
 
 	// Handle input changes
@@ -267,7 +263,7 @@
 				aria-describedby={validationError ? `${fieldName}-error` : field.helper ? `${fieldName}-helper` : undefined}
 				aria-required={field?.required}
 				data-testid="text-input"
-			/>
+			>
 
 			<!-- suffix and count -->
 			{#if field?.suffix || field?.count || field?.minLength || field?.maxLength}
@@ -279,9 +275,11 @@
 							{:else if field?.count && field?.maxLength}
 								{count}/{field?.maxLength}
 							{:else if field?.count && field?.minLength}
-								{count} => {field?.minLength}
+								{count}
+								=> {field?.minLength}
 							{:else if field?.minLength && field?.maxLength}
-								{count} => {field?.minLength}/{field?.maxLength}
+								{count}
+								=> {field?.minLength}/{field?.maxLength}
 							{:else if field?.count}
 								{count}/{field?.count}
 							{:else if field?.maxLength}

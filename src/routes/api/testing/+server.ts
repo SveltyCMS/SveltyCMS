@@ -5,8 +5,8 @@
  * STRICTLY GUARDED by TEST_MODE environment variable.
  */
 
+import { auth, dbAdapter } from '@src/databases/db';
 import { json, type RequestEvent } from '@sveltejs/kit';
-import { dbAdapter, auth } from '@src/databases/db';
 
 // Security Guard
 function checkTestMode() {
@@ -19,7 +19,7 @@ export async function POST({ request }: RequestEvent) {
 	try {
 		checkTestMode();
 
-		if (!dbAdapter || !auth) {
+		if (!(dbAdapter && auth)) {
 			return json({ error: 'Database or Auth not initialized' }, { status: 503 });
 		}
 
@@ -33,8 +33,12 @@ export async function POST({ request }: RequestEvent) {
 
 			case 'seed': {
 				// Initialize default roles and permissions
-				if (dbAdapter.ensureAuth) await dbAdapter.ensureAuth();
-				if (dbAdapter.ensureSystem) await dbAdapter.ensureSystem();
+				if (dbAdapter.ensureAuth) {
+					await dbAdapter.ensureAuth();
+				}
+				if (dbAdapter.ensureSystem) {
+					await dbAdapter.ensureSystem();
+				}
 
 				// Seed Admin User
 				const adminEmail = body.email || 'admin@example.com';
@@ -56,7 +60,7 @@ export async function POST({ request }: RequestEvent) {
 
 			case 'create-user': {
 				const { email, password, username, role } = body;
-				if (!email || !password || !role) {
+				if (!(email && password && role)) {
 					return json({ error: 'Missing fields' }, { status: 400 });
 				}
 				const user = await auth.createUser({ email, password, username: username || email.split('@')[0], role });

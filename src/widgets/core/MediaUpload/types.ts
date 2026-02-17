@@ -12,17 +12,16 @@
  */
 export interface MediaProps {
 	/**
-	 * Allow the user to select multiple files.
-	 * @default false
-	 */
-	multiupload?: boolean;
-
-	/**
 	 * An array of allowed MIME types (e.g., ['image/jpeg', 'image/png', 'video/mp4']).
 	 * An empty array allows all types.
 	 * @default []
 	 */
 	allowedTypes?: string[];
+	/**
+	 * Allow the user to select multiple files.
+	 * @default false
+	 */
+	multiupload?: boolean;
 
 	/**
 	 * Placeholder text for the add media button.
@@ -41,8 +40,8 @@ export interface MediaProps {
 export interface MediaFile {
 	_id: string;
 	name: string;
-	type: string; // MIME Type
 	size: number;
-	url: string; // URL to the original file
 	thumbnailUrl: string; // URL to a smaller thumbnail
+	type: string; // MIME Type
+	url: string; // URL to the original file
 }

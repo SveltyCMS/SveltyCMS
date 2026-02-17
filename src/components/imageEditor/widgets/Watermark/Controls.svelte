@@ -56,7 +56,7 @@ Professional watermark controls with text, image, and advanced options
 
 	function handleOpacityInput(e: Event) {
 		const target = e.currentTarget as HTMLInputElement;
-		onOpacityChange?.(parseFloat(target.value));
+		onOpacityChange?.(Number.parseFloat(target.value));
 	}
 
 	// Keyboard shortcuts
@@ -107,9 +107,7 @@ Professional watermark controls with text, image, and advanced options
 		</div>
 
 		{#if watermarkCount > 0}
-			<div class="badge preset-filled-surface-200 text-xs">
-				<span class="font-bold">{watermarkCount}</span>
-			</div>
+			<div class="badge preset-filled-surface-200 text-xs"><span class="font-bold">{watermarkCount}</span></div>
 		{/if}
 	</div>
 
@@ -121,9 +119,7 @@ Professional watermark controls with text, image, and advanced options
 			<span class="control-label hidden md:flex">Position:</span>
 			<div class="position-grid">
 				{#each positions as pos (pos.value)}
-					<button class="position-btn" onclick={() => onPositionChange(pos.value)} title={pos.title} aria-label={pos.title}>
-						{pos.label}
-					</button>
+					<button class="position-btn" onclick={() => onPositionChange(pos.value)} title={pos.title} aria-label={pos.title}>{pos.label}</button>
 				{/each}
 			</div>
 		</div>
@@ -144,11 +140,9 @@ Professional watermark controls with text, image, and advanced options
 							class="slider"
 							aria-label="Watermark opacity"
 							title="Opacity: {Math.round(currentOpacity * 100)}%"
-						/>
+						>
 					</div>
-					<div class="slider-value">
-						{Math.round(currentOpacity * 100)}%
-					</div>
+					<div class="slider-value">{Math.round(currentOpacity * 100)}%</div>
 				</div>
 			{/if}
 
@@ -199,30 +193,30 @@ Professional watermark controls with text, image, and advanced options
 	.watermark-controls {
 		display: flex;
 		flex-wrap: wrap;
-		align-items: center;
 		gap: 1rem;
+		align-items: center;
+		width: 100%;
 		padding: 0;
 		background: transparent;
 		border: none;
-		width: 100%;
 	}
 
 	.control-group {
 		display: flex;
-		align-items: center;
-		gap: 0.5rem;
 		flex-wrap: wrap;
+		gap: 0.5rem;
+		align-items: center;
 	}
 
 	.control-label {
 		display: flex;
-		align-items: center;
 		gap: 0.25rem;
+		align-items: center;
 		font-size: 0.75rem;
 		font-weight: 600;
+		color: rgb(var(--color-surface-500) / 1);
 		text-transform: uppercase;
 		letter-spacing: 0.05em;
-		color: rgb(var(--color-surface-500) / 1);
 		white-space: nowrap;
 	}
 
@@ -245,57 +239,57 @@ Professional watermark controls with text, image, and advanced options
 	}
 
 	.position-btn {
-		width: 1.75rem;
-		height: 1.75rem;
 		display: flex;
 		align-items: center;
 		justify-content: center;
+		width: 1.75rem;
+		height: 1.75rem;
+		font-size: 0.875rem;
+		color: #9ca3af;
+		cursor: pointer;
 		background: transparent;
 		border: none;
-		font-size: 0.875rem;
-		cursor: pointer;
-		transition: all 0.15s;
 		border-radius: 0.25rem;
-		color: #9ca3af;
+		transition: all 0.15s;
 	}
 
 	.position-btn:hover {
-		background: rgba(255, 255, 255, 0.1);
 		color: white;
+		background: rgba(255, 255, 255, 0.1);
 	}
 
 	/* Slider */
 	.slider-wrapper {
 		display: flex;
-		align-items: center;
 		gap: 0.75rem;
-		background: rgba(0, 0, 0, 0.2);
-		padding: 0.25rem 0.75rem;
-		border-radius: 9999px;
-		border: 1px solid rgba(255, 255, 255, 0.1);
-		height: 2.25rem;
+		align-items: center;
 		min-width: 160px;
+		height: 2.25rem;
+		padding: 0.25rem 0.75rem;
+		background: rgba(0, 0, 0, 0.2);
+		border: 1px solid rgba(255, 255, 255, 0.1);
+		border-radius: 9999px;
 	}
 
 	.slider-track-container {
-		flex: 1;
 		position: relative;
 		display: flex;
+		flex: 1;
 		align-items: center;
 		height: 100%;
 	}
 
 	.slider {
-		-webkit-appearance: none;
-		appearance: none;
+		position: absolute;
 		width: 100%;
 		height: 4px;
-		border-radius: 2px;
-		background: rgb(var(--color-surface-300) / 1);
-		outline: none;
-		cursor: pointer;
-		position: absolute;
 		margin: 0;
+		-webkit-appearance: none;
+		appearance: none;
+		cursor: pointer;
+		outline: none;
+		background: rgb(var(--color-surface-300) / 1);
+		border-radius: 2px;
 	}
 
 	:global(.dark) .slider {
@@ -303,26 +297,26 @@ Professional watermark controls with text, image, and advanced options
 	}
 
 	.slider::-webkit-slider-thumb {
-		-webkit-appearance: none;
-		appearance: none;
 		width: 16px;
 		height: 16px;
-		border-radius: 50%;
+		margin-top: -6px;
+		-webkit-appearance: none;
+		appearance: none;
+		cursor: pointer;
 		background: white;
 		border: 2px solid rgb(var(--color-primary-500) / 1);
-		cursor: pointer;
+		border-radius: 50%;
 		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
 		transition: transform 0.1s;
-		margin-top: -6px;
 	}
 
 	.slider-value {
 		min-width: 2.5rem;
-		text-align: right;
+		font-family: monospace;
 		font-size: 0.75rem;
 		font-weight: 600;
-		font-family: monospace;
 		color: rgb(var(--color-primary-500) / 1);
+		text-align: right;
 	}
 
 	.size-presets {
@@ -331,23 +325,23 @@ Professional watermark controls with text, image, and advanced options
 	}
 
 	.size-btn {
-		padding: 0 0.5rem;
+		min-width: 2rem;
 		height: 2rem;
+		padding: 0 0.5rem;
 		font-size: 0.75rem;
 		font-weight: 600;
-		border: 1px solid rgb(var(--color-surface-300) / 1);
-		border-radius: 0.375rem;
-		background: rgb(var(--color-surface-50) / 1);
 		color: rgb(var(--color-surface-700) / 1);
 		cursor: pointer;
+		background: rgb(var(--color-surface-50) / 1);
+		border: 1px solid rgb(var(--color-surface-300) / 1);
+		border-radius: 0.375rem;
 		transition: all 0.15s;
-		min-width: 2rem;
 	}
 
 	:global(.dark) .size-btn {
+		color: rgb(var(--color-surface-200) / 1);
 		background: rgb(var(--color-surface-700) / 1);
 		border-color: rgb(var(--color-surface-600) / 1);
-		color: rgb(var(--color-surface-200) / 1);
 	}
 
 	.size-btn:hover {
@@ -360,16 +354,16 @@ Professional watermark controls with text, image, and advanced options
 	}
 
 	.size-btn.active {
+		color: white;
 		background: rgb(var(--color-primary-500) / 1);
 		border-color: rgb(var(--color-primary-500) / 1);
-		color: white;
 	}
 
 	.divider {
+		flex-shrink: 0;
 		width: 1px;
 		height: 1.5rem;
 		background: rgb(var(--color-surface-300) / 1);
-		flex-shrink: 0;
 	}
 
 	:global(.dark) .divider {

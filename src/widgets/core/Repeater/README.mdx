@@ -1,0 +1,83 @@
+---
+path: 'src/widgets/core/Repeater/README.mdx'
+title: 'Repeater Widget'
+description: 'Documentation for the Repeater widget, enabling list-based content and complex nested data structures.'
+order: 10
+icon: 'mdi:view-list-outline'
+author: 'admin'
+created: '2026-02-17'
+updated: '2026-02-17'
+tags:
+  - 'widgets'
+  - 'core'
+  - 'repeater'
+  - 'data-modeling'
+---
+
+# Repeater Widget
+
+The **Repeater Widget** is a powerful core widget that allows content editors to create a list of items, where each item adheres to a specific schema. It is essential for modeling complex, repeatable data structures like:
+
+- Product Attributes (Color, Size, Material)
+- Image Galleries with Captions
+- FAQ Sections (Question, Answer)
+- Flexible Page Builders (if used polymorphically)
+
+## 🚀 Features
+
+- **Nested Schema**: Define a mini-schema for each item using standard widgets.
+- **Drag-and-Drop Reordering**: Fully accessible (keyboard & mouse) reordering of items.
+- **Collapsible Items**: Manage large lists easily by collapsing items.
+- **Validation**: Enforce minimum/maximum item counts.
+- **Type Safety**: Fully typed output for your frontend.
+
+## 📦 Usage
+
+### Basic Example
+
+In your collection schema (e.g., `Products.ts`):
+
+```typescript
+import { widgets } from '@widgets';
+
+export default {
+	fields: [
+		widgets.Repeater({
+			label: 'Specifications',
+			db_fieldName: 'specs',
+			min: 1,
+			max: 10,
+			addLabel: 'Add Specification',
+			fields: [widgets.Input({ label: 'Label', required: true, width: 6 }), widgets.Input({ label: 'Value', required: true, width: 6 })]
+		})
+	]
+};
+```
+
+### Data Structure
+
+The data is stored as a simple array of objects in the database:
+
+```json
+[
+	{ "label": "Material", "value": "100% Cotton" },
+	{ "label": "Care", "value": "Machine Wash" }
+]
+```
+
+## ⚙️ Configuration
+
+| Option     | Type              | Default      | Description                                                             |
+| :--------- | :---------------- | :----------- | :---------------------------------------------------------------------- |
+| `fields`   | `FieldInstance[]` | `[]`         | **Required.** The array of fields that define the schema for each item. |
+| `min`      | `number`          | `0`          | Minimum number of items required.                                       |
+| `max`      | `number`          | `Infinity`   | Maximum number of items allowed.                                        |
+| `addLabel` | `string`          | `"Add Item"` | Label for the "Add" button.                                             |
+
+## ♿ Accessibility (WCAG 3.0)
+
+The Repeater widget is built with strict accessibility standards:
+
+- **Keyboard Reordering**: Focus the drag handle and use `Space` to lift, `Arrow Keys` to move, and `Space` to drop.
+- **ARIA Live Regions**: Screen readers are notified when items are added, removed, or reordered.
+- **Focus Management**: Focus is preserved during reordering operations.

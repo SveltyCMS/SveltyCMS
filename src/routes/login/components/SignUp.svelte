@@ -23,33 +23,29 @@
 -->
 
 <script lang="ts">
+	// Components
+	import PasswordStrength from '@components/PasswordStrength.svelte';
+	import SiteName from '@components/SiteName.svelte';
+	import FloatingPaths from '@components/system/FloatingPaths.svelte';
+	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
+	import SveltyCMSLogoFull from '@components/system/icons/SveltyCMS_LogoFull.svelte';
+	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
+	import SystemTooltip from '@components/system/SystemTooltip.svelte';
+	// ParaglideJS
+	import * as m from '@src/paraglide/messages';
+	// Screen size store
+	import { screen } from '@stores/screenSizeStore.svelte.ts';
+	import { toaster } from '@stores/store.svelte.ts';
+	import { Form } from '@utils/Form.svelte';
+	import { signUpFormSchema } from '@utils/formSchemas';
 	import { logger } from '@utils/logger';
 	import { browser } from '$app/environment';
 	import { enhance } from '$app/forms';
 	import { preloadData } from '$app/navigation';
-
-	import type { PageData } from '../$types';
-
 	// Stores
 	import { page } from '$app/state';
-
-	import { Form } from '@utils/Form.svelte';
-	import { signUpFormSchema } from '@utils/formSchemas';
-	import { toaster } from '@stores/store.svelte.ts';
-	// Components
-	import PasswordStrength from '@components/PasswordStrength.svelte';
-	import SiteName from '@components/SiteName.svelte';
-	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
-	import SveltyCMSLogoFull from '@components/system/icons/SveltyCMS_LogoFull.svelte';
-	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
+	import type { PageData } from '../$types';
 	import SignupIcon from './icons/SignupIcon.svelte';
-	import FloatingPaths from '@components/system/FloatingPaths.svelte';
-	import SystemTooltip from '@components/system/SystemTooltip.svelte';
-	// ParaglideJS
-	import * as m from '@src/paraglide/messages';
-
-	// Screen size store
-	import { screen } from '@stores/screenSizeStore.svelte.ts';
 
 	// Props
 	const {
@@ -187,7 +183,7 @@
 	function handleOAuth() {
 		// Check if user needs an invitation token
 		// All users now require invite tokens (first user goes through /setup)
-		if (!isInviteFlow && !hasExistingOAuthUsers && !currentFormToken) {
+		if (!(isInviteFlow || hasExistingOAuthUsers || currentFormToken)) {
 			// Show a helpful message
 			alert(
 				'⚠️ Please enter your invitation token first before using Google OAuth signup. OAuth registration requires an invitation from an administrator.'
@@ -264,9 +260,7 @@
 				</div>
 			{/if}
 			<!-- CSS Logo -->
-			<div class="absolute left-1/2 top-[20%] hidden -translate-x-1/2 -translate-y-1/2 transform xl:block">
-				<SveltyCMSLogoFull />
-			</div>
+			<div class="absolute left-1/2 top-[20%] hidden -translate-x-1/2 -translate-y-1/2 transform xl:block"><SveltyCMSLogoFull /></div>
 			<div class="relative z-10 mx-auto mb-[5%] mt-[15%] w-full rounded-md bg-surface-900/0 p-6 backdrop-blur lg:w-4/5" class:hide={active !== 1}>
 				<div class="-mb-4 flex flex-row gap-2">
 					<SveltyCMSLogo className="w-14" fill="red" />
@@ -350,11 +344,13 @@
 						invalid={!!signUpForm.errors.email}
 						errorMessage={signUpForm.errors.email?.[0] || ''}
 					/>
-					{#if isInviteFlow}<span class="text-xs text-primary-400">✓ Email pre-filled from invitation</span>{/if}
+					{#if isInviteFlow}
+						<span class="text-xs text-primary-400">✓ Email pre-filled from invitation</span>
+					{/if}
 
 					<!-- Hidden email input to ensure form submission when disabled -->
 					{#if isInviteFlow}
-						<input type="hidden" name="email" value={signUpForm.data.email} />
+						<input type="hidden" name="email" value={signUpForm.data.email}>
 					{/if}
 
 					<!-- Password field -->
@@ -429,7 +425,7 @@
 						{/if}
 					{:else if isInviteFlow}
 						<!-- Hidden token field for invite flow -->
-						<input type="hidden" name="token" value={token} />
+						<input type="hidden" name="token" value={token}>
 						<span class="text-xs text-primary-400">✓ Using invitation token</span>
 					{/if}
 
@@ -445,10 +441,11 @@
 						<!-- Email SignIn only -->
 						<button type="submit" class="btn bg-white text-black mt-4 uppercase" aria-label={isInviteFlow ? 'Accept Invitation' : m.form_signup()}>
 							{isInviteFlow ? 'Accept Invitation & Create Account' : m.form_signup()}
-							{#if isSubmitting || isRedirecting}<img src="/Spinner.svg" alt="" aria-hidden="true" decoding="async" class="ml-4 h-6" />{/if}
+							{#if isSubmitting || isRedirecting}
+								<img src="/Spinner.svg" alt="" aria-hidden="true" decoding="async" class="ml-4 h-6">
+							{/if}
 						</button>
-
-						<!-- Email + OAuth signin  -->
+					<!-- Email + OAuth signin  -->
 					{:else}
 						<div class="btn-group mt-4 border border-secondary-500 text-white [&>*+*]:border-secondary-500">
 							<button
@@ -456,11 +453,11 @@
 								class="btn w-3/4 rounded-none bg-surface-200 text-black hover:text-white"
 								aria-label={isInviteFlow ? 'Accept Invitation' : m.form_signup()}
 							>
-								<span class="w-full text-black hover:text-white">
-									{isInviteFlow ? 'Accept Invitation' : m.form_signup()}
-								</span>
+								<span class="w-full text-black hover:text-white"> {isInviteFlow ? 'Accept Invitation' : m.form_signup()} </span>
 								<!-- Loading indicators -->
-								{#if isSubmitting || isRedirecting}<img src="/Spinner.svg" alt="" aria-hidden="true" decoding="async" class="ml-4 h-6" />{/if}
+								{#if isSubmitting || isRedirecting}
+									<img src="/Spinner.svg" alt="" aria-hidden="true" decoding="async" class="ml-4 h-6">
+								{/if}
 							</button>
 
 							<button type="button" onclick={handleOAuth} aria-label="OAuth" class="btn flex w-1/4 items-center justify-center">
@@ -487,14 +484,14 @@
 
 <style>
 	.hide {
-		transition: 0s;
 		opacity: 0;
+		transition: 0s;
 	}
 	section {
 		--width: 0%;
-		background: #242728;
 		flex-grow: 1;
 		width: var(--width);
+		background: #242728;
 		transition: 0.4s;
 	}
 	.active {
@@ -504,9 +501,9 @@
 		--width: 10%;
 	}
 	.hover:hover {
+		width: calc(var(--width) + 10%);
 		border-top-left-radius: 5% 50%;
 		border-bottom-left-radius: 5% 50%;
-		width: calc(var(--width) + 10%);
 	}
 
 	:global(.wiggle) {

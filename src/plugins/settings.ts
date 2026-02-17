@@ -10,7 +10,7 @@ import type { PluginState } from './types';
 export class PluginSettingsService {
 	private readonly COLLECTION = 'pluginStates';
 
-	constructor(private dbAdapter: IDBAdapter) {}
+	constructor(private readonly dbAdapter: IDBAdapter) {}
 
 	// Ensure the plugin_states collection exists
 	async initialize(): Promise<void> {
@@ -67,7 +67,7 @@ export class PluginSettingsService {
 		try {
 			const existing = await this.getPluginState(pluginId, tenantId);
 
-			if (existing && existing._id) {
+			if (existing?._id) {
 				// Update
 				const updateResult = await this.dbAdapter.crud.update<PluginState>(this.COLLECTION, existing._id, {
 					enabled,
@@ -75,16 +75,15 @@ export class PluginSettingsService {
 					updatedBy: userId
 				} as any);
 				return updateResult.success;
-			} else {
-				// Insert
-				const insertResult = await this.dbAdapter.crud.insert<PluginState>(this.COLLECTION, {
-					pluginId,
-					tenantId,
-					enabled,
-					updatedBy: userId
-				} as any);
-				return insertResult.success;
 			}
+			// Insert
+			const insertResult = await this.dbAdapter.crud.insert<PluginState>(this.COLLECTION, {
+				pluginId,
+				tenantId,
+				enabled,
+				updatedBy: userId
+			} as any);
+			return insertResult.success;
 		} catch (error) {
 			logger.error(`Failed to set plugin state for ${pluginId}`, { error });
 			return false;

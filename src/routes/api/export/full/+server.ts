@@ -1,11 +1,11 @@
-import { json } from '@sveltejs/kit';
-import { getAllSettings } from '@src/services/settingsService';
-import { logger } from '@utils/logger.server';
-import { encryptData } from '@utils/crypto';
-import { nanoid } from 'nanoid';
-import type { ExportOptions, ExportData, ExportMetadata, CollectionExport, Schema } from '@content/types';
+import type { CollectionExport, ExportData, ExportMetadata, ExportOptions, Schema } from '@content/types';
 import { dbAdapter } from '@src/databases/db';
+import { getAllSettings } from '@src/services/settingsService';
 import { collections } from '@stores/collectionStore.svelte.ts';
+import { json } from '@sveltejs/kit';
+import { encryptData } from '@utils/crypto';
+import { logger } from '@utils/logger.server';
+import { nanoid } from 'nanoid';
 
 // Sensitive field patterns
 const SENSITIVE_PATTERNS: string[] = [
@@ -225,7 +225,9 @@ export const POST = apiHandler(async ({ locals, request }) => {
 		});
 	} catch (error) {
 		logger.error('Export error:', error);
-		if (error instanceof AppError) throw error;
+		if (error instanceof AppError) {
+			throw error;
+		}
 		throw new AppError(error instanceof Error ? error.message : 'Unknown error', 500, 'EXPORT_FAILED');
 	}
 });

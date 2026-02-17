@@ -8,12 +8,12 @@
  * - Delete collection
  */
 
-import type { CollectionModel, DatabaseResult } from '../../dbInterface';
 import type { Schema } from '@src/content/types';
-import { AdapterCore } from '../adapter/adapterCore';
+import type { CollectionModel, DatabaseResult } from '../../dbInterface';
+import type { AdapterCore } from '../adapter/adapterCore';
 
 export class CollectionModule {
-	private core: AdapterCore;
+	private readonly core: AdapterCore;
 
 	constructor(core: AdapterCore) {
 		this.core = core;
@@ -29,7 +29,9 @@ export class CollectionModule {
 
 	async getModel(id: string): Promise<CollectionModel> {
 		const model = this.collectionRegistry.get(id);
-		if (model) return model;
+		if (model) {
+			return model;
+		}
 
 		return {
 			findOne: async (query) => {
@@ -45,7 +47,9 @@ export class CollectionModule {
 
 	async createModel(schemaData: Schema): Promise<void> {
 		const id = schemaData._id;
-		if (!id) throw new Error('Schema must have an _id');
+		if (!id) {
+			throw new Error('Schema must have an _id');
+		}
 
 		const tableName = `collection_${id}`;
 

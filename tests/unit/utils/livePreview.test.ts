@@ -3,7 +3,7 @@
  * @description Unit tests for the Live Preview listener utility
  */
 
-import { describe, it, expect, mock, beforeEach } from 'bun:test';
+import { beforeEach, describe, expect, it, mock } from 'bun:test';
 import { createLivePreviewListener } from '@src/utils/useLivePreview';
 
 describe('LivePreview Utility', () => {
@@ -44,7 +44,9 @@ describe('LivePreview Utility', () => {
 	it('should call onUpdate when a valid message is received', () => {
 		let messageHandler: any;
 		addEventListenerSpy = mock((event, cb) => {
-			if (event === 'message') messageHandler = cb;
+			if (event === 'message') {
+				messageHandler = cb;
+			}
 		});
 		(globalThis as any).window.addEventListener = addEventListenerSpy;
 
@@ -66,7 +68,9 @@ describe('LivePreview Utility', () => {
 	it('should validate origin if specified', () => {
 		let messageHandler: any;
 		addEventListenerSpy = mock((event, cb) => {
-			if (event === 'message') messageHandler = cb;
+			if (event === 'message') {
+				messageHandler = cb;
+			}
 		});
 		(globalThis as any).window.addEventListener = addEventListenerSpy;
 

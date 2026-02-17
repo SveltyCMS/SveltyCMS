@@ -11,20 +11,18 @@
  * - **Multi-Tenant Safe:** All data lookups are scoped to the current tenant.
  */
 
+import { contentManager } from '@src/content/ContentManager';
+import type { BaseEntity, DatabaseId, ISODateString } from '@src/content/types';
+import { dbAdapter } from '@src/databases/db';
 import { getPrivateSettingSync } from '@src/services/settingsService';
 import { json } from '@sveltejs/kit';
-import { v4 as uuidv4 } from 'uuid';
-
-import { contentManager } from '@src/content/ContentManager';
-import { dbAdapter } from '@src/databases/db';
-import type { BaseEntity, ISODateString, DatabaseId } from '@src/content/types';
+import { nowISODateString } from '@utils/dateUtils';
 
 // System Logger
 import { logger } from '@utils/logger.server';
-
+import { v4 as uuidv4 } from 'uuid';
 // Validation
 import * as v from 'valibot';
-import { nowISODateString } from '@utils/dateUtils';
 
 const QuerySchema = v.object({
 	limit: v.optional(v.pipe(v.number(), v.minValue(1), v.maxValue(20)), 5)
@@ -63,7 +61,7 @@ export const GET = apiHandler(async ({ locals, url }) => {
 	});
 
 	// 2. Get all collection schemas the user can read (scoped to the tenant)
-	let allCollections;
+	let allCollections: any;
 	try {
 		allCollections = await contentManager.getCollections();
 	} catch (err) {
@@ -91,31 +89,31 @@ export const GET = apiHandler(async ({ locals, url }) => {
 	// We include createdAt/updatedAt fields in the query even if we only
 	// use createdAt for ordering to satisfy the constraint.
 	interface DashboardRawEntry extends BaseEntity {
-		title?: string;
-		name?: string;
-		label?: string;
-		created?: ISODateString | string;
-		date?: ISODateString | string;
-		createdBy?: string;
 		author?: string;
+		created?: ISODateString | string;
+		createdBy?: string;
 		creator?: string;
-		status?: string;
+		date?: ISODateString | string;
+		label?: string;
+		name?: string;
 		state?: string;
+		status?: string;
 		tenantId?: string;
+		title?: string;
 		[key: string]: unknown;
 	}
 
 	interface UserDoc extends BaseEntity {
-		username?: string;
+		email?: string;
 		firstName?: string;
 		lastName?: string;
-		email?: string;
+		username?: string;
 		[key: string]: unknown;
 	}
 
 	interface CombinedEntry extends DashboardRawEntry {
-		collectionName: string;
 		collectionId: string;
+		collectionName: string;
 	}
 
 	const resolveTimestamp = (e: DashboardRawEntry): string | undefined =>

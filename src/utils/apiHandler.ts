@@ -11,14 +11,14 @@ type ApiHandlerCallback = (event: RequestEvent) => Promise<Response> | Response;
 
 /**
  * Wraps a SvelteKit RequestHandler to provide unified error handling.
- * * Usage:
+ * Usage:
  * export const POST = apiHandler(async ({ request }) => {
  * // ... logic ...
  * // throw new AppError('Fail', 400); // Handled automatically
  * // parse(schema, body); // Handled automatically
  * return json({ success: true });
  * });
- * * @param handler The async function containing business logic
+ * @param handler The async function containing business logic
  * @returns A standard SvelteKit RequestHandler
  */
 export const apiHandler = (handler: ApiHandlerCallback): RequestHandler => {

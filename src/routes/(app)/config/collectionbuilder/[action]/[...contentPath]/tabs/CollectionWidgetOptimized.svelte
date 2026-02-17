@@ -4,19 +4,18 @@
 **This Component handles the optimized collection widget**
 -->
 <script lang="ts">
-	import { dndzone, type DndEvent } from 'svelte-dnd-action';
-	import { flip } from 'svelte/animate';
+	import type { FieldInstance } from '@src/content/types';
 	import { collection, setTargetWidget } from '@src/stores/collectionStore.svelte';
-	import { widgetFunctions } from '@stores/widgetStore.svelte.ts';
-	import { get } from 'svelte/store';
-	import { untrack } from 'svelte';
 	import { toaster } from '@src/stores/store.svelte';
+	import { widgetFunctions } from '@stores/widgetStore.svelte.ts';
 	import { modalState } from '@utils/modalState.svelte';
 	import { asAny, getGuiFields } from '@utils/utils';
-
+	import { untrack } from 'svelte';
+	import { flip } from 'svelte/animate';
+	import { get } from 'svelte/store';
+	import { type DndEvent, dndzone } from 'svelte-dnd-action';
 	import ModalSelectWidget from './CollectionWidget/ModalSelectWidget.svelte';
 	import ModalWidgetForm from './CollectionWidget/ModalWidgetForm.svelte';
-	import type { FieldInstance } from '@src/content/types';
 
 	let { fields = [] } = $props<{ fields: FieldInstance[] }>();
 
@@ -207,9 +206,7 @@
 						</div>
 
 						<!-- Field Icon & Number -->
-						<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-surface-200-800 text-sm font-bold">
-							{item.id}
-						</div>
+						<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-surface-200-800 text-sm font-bold">{item.id}</div>
 
 						<!-- Field Info -->
 						<div class="flex-1 overflow-hidden">
@@ -219,9 +216,7 @@
 							</div>
 							<div class="flex items-center gap-3 text-xs text-surface-500">
 								<span class="font-mono">{item.db_fieldName || '-'}</span>
-								<span class="rounded bg-surface-300-700 px-1 py-0.5 text-[10px] uppercase">
-									{item.widget?.key || 'Generic'}
-								</span>
+								<span class="rounded bg-surface-300-700 px-1 py-0.5 text-[10px] uppercase"> {item.widget?.key || 'Generic'} </span>
 							</div>
 						</div>
 

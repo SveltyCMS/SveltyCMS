@@ -8,8 +8,8 @@ Allows users to set the focal point using svelte-canvas compatible state.
 
 <script lang="ts">
 	import { imageEditorStore } from '@stores/imageEditorStore.svelte';
-	import FocalPointControls from './Controls.svelte';
 	import { Layer } from 'svelte-canvas';
+	import FocalPointControls from './Controls.svelte';
 
 	let { onCancel }: { onCancel: () => void } = $props();
 	const storeState = imageEditorStore.state;
@@ -28,10 +28,8 @@ Allows users to set the focal point using svelte-canvas compatible state.
 					onApply: apply
 				}
 			});
-		} else {
-			if (imageEditorStore.state.toolbarControls?.component === FocalPointControls) {
-				imageEditorStore.setToolbarControls(null);
-			}
+		} else if (imageEditorStore.state.toolbarControls?.component === FocalPointControls) {
+			imageEditorStore.setToolbarControls(null);
 		}
 	});
 

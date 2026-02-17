@@ -15,9 +15,9 @@
  * - Uses agnostic database interface for compatibility
  */
 
-import { logger } from '@utils/logger.server';
-import type { DatabaseId, BaseEntity, DatabaseResult, IDBAdapter } from '@src/databases/dbInterface';
 import { dbAdapter as dbAdapterInstance } from '@src/databases/db';
+import type { BaseEntity, DatabaseId, DatabaseResult, IDBAdapter } from '@src/databases/dbInterface';
+import { logger } from '@utils/logger.server';
 
 // Get the database adapter instance
 async function getDbAdapter(): Promise<IDBAdapter> {
@@ -32,23 +32,23 @@ type AuditDetails = Record<string, string | number | boolean | null | undefined>
 
 // Audit log entry interface extending BaseEntity
 export interface AuditLogEntry extends Omit<BaseEntity, 'id' | 'created_at'> {
-	id?: DatabaseId;
-	eventType: AuditEventType;
-	severity: AuditSeverity;
-	actorId: DatabaseId | null; // User who performed the action
+	action: string; // Human-readable action description
 	actorEmail?: string; // For easier querying
+	actorId: DatabaseId | null; // User who performed the action
 	actorRole?: string;
+	correlationId?: string; // For tracking related events
+	details: AuditDetails; // Additional context data
+	errorDetails?: string; // If result is failure
+	eventType: AuditEventType;
+	id?: DatabaseId;
+	ipAddress?: string;
+	result: 'success' | 'failure' | 'partial';
+	sessionId?: string;
+	severity: AuditSeverity;
 	targetId?: DatabaseId | null; // What was affected
 	targetType?: string; // 'user', 'token', 'collection', etc.
-	action: string; // Human-readable action description
-	details: AuditDetails; // Additional context data
-	ipAddress?: string;
-	userAgent?: string;
-	sessionId?: string;
 	timestamp: string;
-	correlationId?: string; // For tracking related events
-	result: 'success' | 'failure' | 'partial';
-	errorDetails?: string; // If result is failure
+	userAgent?: string;
 }
 
 // Enum for audit event types
@@ -93,26 +93,26 @@ export type AuditSeverity = 'low' | 'medium' | 'high' | 'critical';
 
 // Query options for audit logs
 export interface AuditQueryOptions {
-	eventTypes?: AuditEventType[];
 	actorId?: DatabaseId;
-	targetId?: DatabaseId;
-	severity?: AuditSeverity;
-	startDate?: string;
 	endDate?: string;
+	eventTypes?: AuditEventType[];
 	limit?: number;
 	offset?: number;
+	severity?: AuditSeverity;
+	startDate?: string;
+	targetId?: DatabaseId;
 }
 
 // Statistics interface
 export interface AuditStatistics {
-	totalEvents: number;
-	eventsByType: Record<string, number>;
-	eventsBySeverity: Record<AuditSeverity, number>;
 	eventsByResult: Record<'success' | 'failure' | 'partial', number>;
+	eventsBySeverity: Record<AuditSeverity, number>;
+	eventsByType: Record<string, number>;
 	period: {
 		start: string;
 		end: string;
 	};
+	totalEvents: number;
 }
 
 /**
@@ -168,7 +168,9 @@ export class AuditLogService {
 		try {
 			const { getDb } = await import('@src/databases/db');
 			const db = getDb();
-			if (!db) throw new Error('Database adapter not initialized');
+			if (!db) {
+				throw new Error('Database adapter not initialized');
+			}
 			const filters: Record<string, unknown> = {};
 
 			if (options.eventTypes?.length) {
@@ -221,11 +223,13 @@ export class AuditLogService {
 	}
 
 	// Get audit statistics for dashboard
-	async getStatistics(days: number = 30): Promise<DatabaseResult<AuditStatistics>> {
+	async getStatistics(days = 30): Promise<DatabaseResult<AuditStatistics>> {
 		try {
 			const { getDb } = await import('@src/databases/db');
 			const db = getDb();
-			if (!db) throw new Error('Database adapter not initialized');
+			if (!db) {
+				throw new Error('Database adapter not initialized');
+			}
 			const startDate = new Date();
 			startDate.setDate(startDate.getDate() - days);
 
@@ -292,7 +296,7 @@ export class AuditLogService {
 	}
 
 	// Get recent suspicious activities
-	async getSuspiciousActivities(limit: number = 50): Promise<DatabaseResult<AuditLogEntry[]>> {
+	async getSuspiciousActivities(limit = 50): Promise<DatabaseResult<AuditLogEntry[]>> {
 		const suspiciousEventTypes: AuditEventType[] = [
 			AuditEventType.USER_LOGIN_FAILED,
 			AuditEventType.TOKEN_MISUSE,
@@ -310,11 +314,13 @@ export class AuditLogService {
 	}
 
 	// Clean up old audit logs based on retention policy
-	async cleanupOldLogs(retentionDays: number = 365): Promise<void> {
+	async cleanupOldLogs(retentionDays = 365): Promise<void> {
 		try {
 			const { getDb } = await import('@src/databases/db');
 			const db = getDb();
-			if (!db) throw new Error('Database adapter not initialized');
+			if (!db) {
+				throw new Error('Database adapter not initialized');
+			}
 			const cutoffDate = new Date();
 			cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
 			const timestampFilter = { timestamp: { $lte: cutoffDate.toISOString() } } as unknown as Partial<BaseEntity>;
@@ -326,7 +332,7 @@ export class AuditLogService {
 			// Actually, safeQuery checks privateEnv.MULTI_TENANT.
 
 			const { getPrivateEnv } = await import('@src/databases/db');
-			const isMultiTenant = getPrivateEnv()?.MULTI_TENANT || false;
+			const isMultiTenant = getPrivateEnv()?.MULTI_TENANT;
 
 			if (isMultiTenant && db.tenants) {
 				const tenantsResult = await db.tenants.list();

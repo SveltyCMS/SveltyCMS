@@ -12,7 +12,9 @@
  * - **Language Aware**: Accepts a language code to set the correct text direction (LTR/RTL).
  */
 import { Editor, Extension } from '@tiptap/core';
-import StarterKit from '@tiptap/starter-kit';
+import { CharacterCount } from '@tiptap/extension-character-count';
+import { Color } from '@tiptap/extension-color';
+import { FontFamily } from '@tiptap/extension-font-family';
 import Link from '@tiptap/extension-link';
 import Placeholder from '@tiptap/extension-placeholder';
 import { Table } from '@tiptap/extension-table';
@@ -22,16 +24,12 @@ import { TableRow } from '@tiptap/extension-table-row';
 import { TextAlign } from '@tiptap/extension-text-align';
 import { Underline } from '@tiptap/extension-underline';
 import { Youtube } from '@tiptap/extension-youtube';
-import { CharacterCount } from '@tiptap/extension-character-count';
-import { Color } from '@tiptap/extension-color';
-import { FontFamily } from '@tiptap/extension-font-family';
-
+import StarterKit from '@tiptap/starter-kit';
+// Import helper for text direction
+import { getTextDirection } from '@utils/utils';
 // Import your custom extensions
 import ImageResize from './extensions/ImageResize';
 import TextStyle from './extensions/TextStyle';
-
-// Import helper for text direction
-import { getTextDirection } from '@utils/utils';
 
 /**
  * Creates a pre-configured Tiptap editor instance.
@@ -59,7 +57,9 @@ export function createEditor(element: HTMLElement, content: string, language: st
 			}),
 			Placeholder.configure({
 				placeholder: ({ node }) => {
-					if (node.type.name === 'heading') return 'Write a heading…';
+					if (node.type.name === 'heading') {
+						return 'Write a heading…';
+					}
 					return 'Start writing your awesome content…';
 				},
 				includeChildren: true,

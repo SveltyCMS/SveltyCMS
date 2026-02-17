@@ -4,9 +4,9 @@
  * This class uses dependency injection for models to enhance testability and modularity.
  */
 
-import type { Model } from 'mongoose';
-import { logger } from '@utils/logger';
 import type { SystemPreferencesDocument } from '@src/content/types';
+import { logger } from '@utils/logger';
+import type { Model } from 'mongoose';
 import type { DatabaseId, DatabaseResult } from '../../dbInterface';
 import type { SystemSetting } from '../models/systemSetting';
 import { createDatabaseError } from './mongoDBUtils';
@@ -16,8 +16,8 @@ type SystemPreferencesModelType = Model<SystemPreferencesDocument>;
 type SystemSettingModelType = Model<SystemSetting>;
 
 export class MongoSystemMethods {
-	private SystemPreferencesModel: SystemPreferencesModelType;
-	private SystemSettingModel: SystemSettingModelType;
+	private readonly SystemPreferencesModel: SystemPreferencesModelType;
+	private readonly SystemSettingModel: SystemSettingModelType;
 
 	/**
 	 * Constructs the MongoSystemMethods instance with injected models.
@@ -152,7 +152,9 @@ export class MongoSystemMethods {
 	 */
 	async getMany<T>(keys: string[], scope: 'user' | 'system' = 'system', userId?: DatabaseId): Promise<DatabaseResult<Record<string, T>>> {
 		try {
-			if (keys.length === 0) return { success: true, data: {} };
+			if (keys.length === 0) {
+				return { success: true, data: {} };
+			}
 
 			if (scope === 'system') {
 				// Single query with $in operator for all keys at once
@@ -188,7 +190,9 @@ export class MongoSystemMethods {
 				preferences: Record<string, T>;
 			}>();
 
-			if (!userPrefs?.preferences) return { success: true, data: {} };
+			if (!userPrefs?.preferences) {
+				return { success: true, data: {} };
+			}
 
 			// Filter to only include requested keys
 			const result = keys.reduce(
@@ -242,7 +246,9 @@ export class MongoSystemMethods {
 			// User-scoped category filtering (preferences are stored in a Record<string, any>)
 			// This might be slower as we fetch the whole object and filter in JS
 			const userPrefs = (await this.SystemPreferencesModel.findOne({ userId: userId.toString() }).lean()) as any;
-			if (!userPrefs?.preferences) return { success: true, data: {} };
+			if (!userPrefs?.preferences) {
+				return { success: true, data: {} };
+			}
 
 			// Filtering in JS because nested categories are not strictly structured in this schema
 			const result: Record<string, T> = {};
@@ -267,7 +273,9 @@ export class MongoSystemMethods {
 		preferences: Array<{ key: string; value: T; scope?: 'user' | 'system'; userId?: DatabaseId; category?: 'public' | 'private' }>
 	): Promise<DatabaseResult<void>> {
 		try {
-			if (preferences.length === 0) return { success: true, data: undefined };
+			if (preferences.length === 0) {
+				return { success: true, data: undefined };
+			}
 
 			// Group by scope for efficient batch processing
 			const systemPrefs = preferences.filter((p) => (p.scope || 'system') === 'system');
@@ -300,7 +308,9 @@ export class MongoSystemMethods {
 							throw new Error('User ID is required for user-scoped preferences.');
 						}
 						const userIdStr = pref.userId.toString();
-						if (!acc[userIdStr]) acc[userIdStr] = [];
+						if (!acc[userIdStr]) {
+							acc[userIdStr] = [];
+						}
 						acc[userIdStr].push(pref);
 						return acc;
 					},
@@ -342,7 +352,9 @@ export class MongoSystemMethods {
 	 */
 	async deleteMany(keys: string[], scope: 'user' | 'system' = 'system', userId?: DatabaseId): Promise<DatabaseResult<void>> {
 		try {
-			if (keys.length === 0) return { success: true, data: undefined };
+			if (keys.length === 0) {
+				return { success: true, data: undefined };
+			}
 
 			if (scope === 'system') {
 				// Single deleteMany with $in operator

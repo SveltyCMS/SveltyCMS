@@ -6,15 +6,12 @@
  * Respects authentication and authorization patterns from hooks.server.ts
  */
 
-import { json } from '@sveltejs/kit';
-import { invalidateSettingsCache } from '@src/services/settingsService';
 import { dbAdapter } from '@src/databases/db';
-import { logger } from '@utils/logger.server';
 import { getSettingGroup } from '@src/routes/(app)/config/systemsetting/settingsGroups';
-import { defaultPublicSettings, defaultPrivateSettings } from '../../../setup/seed';
-import { updateVersion } from '@src/utils/server/settingsVersion';
+import { invalidateSettingsCache } from '@src/services/settingsService';
 import { setRestartNeeded } from '@src/utils/server/restartRequired';
-
+import { updateVersion } from '@src/utils/server/settingsVersion';
+import { json } from '@sveltejs/kit';
 /**
  * GET - Retrieve current settings for a group
  * Strategy: Seed defaults as source of truth, overlay with database overrides
@@ -22,6 +19,8 @@ import { setRestartNeeded } from '@src/utils/server/restartRequired';
 // Unified Error Handling
 import { apiHandler } from '@utils/apiHandler';
 import { AppError } from '@utils/errorHandling';
+import { logger } from '@utils/logger.server';
+import { defaultPrivateSettings, defaultPublicSettings } from '../../../setup/seed';
 
 /**
  * GET - Retrieve current settings for a group
@@ -94,12 +93,14 @@ export const GET = apiHandler(async ({ locals, params }) => {
 				id: groupDef.id,
 				name: groupDef.name,
 				description: groupDef.description,
-				requiresRestart: groupDef.requiresRestart || false
+				requiresRestart: groupDef.requiresRestart
 			},
 			values: finalValues
 		});
 	} catch (err) {
-		if (err instanceof AppError) throw err;
+		if (err instanceof AppError) {
+			throw err;
+		}
 		const errorMessage = err instanceof Error ? err.message : 'Unknown error';
 		const errorStack = err instanceof Error ? err.stack : undefined;
 		logger.error(`Failed to get settings for group '${groupId}':`, { message: errorMessage, stack: errorStack, err });
@@ -162,7 +163,7 @@ export const PUT = apiHandler(async ({ request, locals, params }) => {
 
 				// Type validation
 				if (field.type === 'number') {
-					if (typeof value !== 'number' || isNaN(value)) {
+					if (typeof value !== 'number' || Number.isNaN(value)) {
 						errors[field.key] = `${field.label} must be a valid number`;
 						continue;
 					}
@@ -196,7 +197,6 @@ export const PUT = apiHandler(async ({ request, locals, params }) => {
 					const validationError = field.validation(value);
 					if (validationError) {
 						errors[field.key] = validationError;
-						continue;
 					}
 				}
 			}
@@ -252,10 +252,12 @@ export const PUT = apiHandler(async ({ request, locals, params }) => {
 		return json({
 			success: true,
 			message: 'Settings updated successfully',
-			requiresRestart: groupDef.requiresRestart || false
+			requiresRestart: groupDef.requiresRestart
 		});
 	} catch (err) {
-		if (err instanceof AppError) throw err;
+		if (err instanceof AppError) {
+			throw err;
+		}
 		logger.error(`Failed to update settings for group '${groupId}':`, err);
 		throw new AppError('Failed to update settings', 500, 'UPDATE_FAILED');
 	}
@@ -316,10 +318,12 @@ export const DELETE = apiHandler(async ({ locals, params }) => {
 		return json({
 			success: true,
 			message: 'Settings reset to defaults',
-			requiresRestart: groupDef.requiresRestart || false
+			requiresRestart: groupDef.requiresRestart
 		});
 	} catch (err) {
-		if (err instanceof AppError) throw err;
+		if (err instanceof AppError) {
+			throw err;
+		}
 		logger.error(`Failed to reset settings for group '${groupId}':`, err);
 		throw new AppError('Failed to reset settings', 500, 'RESET_FAILED');
 	}

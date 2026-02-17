@@ -14,8 +14,8 @@
  * - Dependency validation (required widgets available)
  */
 
+import type { FieldInstance, Layout, Schema } from '@src/content/types';
 import { logger } from '@utils/logger';
-import type { Layout, Schema, FieldInstance } from '@src/content/types';
 
 /**
  * Validate widgets in a collection schema
@@ -133,10 +133,8 @@ export function canSafelyDeactivateWidget(
 	// Check collections
 	for (const schema of allSchemas) {
 		const schemaWidgets = extractWidgetsFromSchema(schema);
-		if (widgetName && schemaWidgets.includes(widgetName)) {
-			if (schema.name) {
-				usedInCollections.push(schema.name);
-			}
+		if (widgetName && schemaWidgets.includes(widgetName) && schema.name) {
+			usedInCollections.push(schema.name);
 		}
 	}
 
@@ -150,15 +148,15 @@ export function canSafelyDeactivateWidget(
 
 	const canDeactivate = usedInCollections.length === 0 && usedInLayouts.length === 0;
 
-	if (!canDeactivate) {
+	if (canDeactivate) {
+		logger.debug(`[WidgetValidation] Widget "${widgetName}" can be safely deactivated`);
+	} else {
 		logger.warn(`[WidgetValidation] Widget "${widgetName}" cannot be safely deactivated`, {
 			collectionsCount: usedInCollections.length,
 			layoutsCount: usedInLayouts.length,
 			collections: usedInCollections,
 			layouts: usedInLayouts
 		});
-	} else {
-		logger.debug(`[WidgetValidation] Widget "${widgetName}" can be safely deactivated`);
 	}
 
 	return {
@@ -181,14 +179,12 @@ export function getAffectedCollections(widgetName: string, schemas: Schema[]): s
 
 	for (const schema of schemas) {
 		const schemaWidgets = extractWidgetsFromSchema(schema);
-		if (widgetName && schemaWidgets.includes(widgetName)) {
-			if (schema.name) {
-				affected.push(schema.name);
-				logger.trace('[WidgetValidation] Widget used in collection', {
-					widget: widgetName,
-					collection: schema.name
-				});
-			}
+		if (widgetName && schemaWidgets.includes(widgetName) && schema.name) {
+			affected.push(schema.name);
+			logger.trace('[WidgetValidation] Widget used in collection', {
+				widget: widgetName,
+				collection: schema.name
+			});
 		}
 	}
 
@@ -255,14 +251,14 @@ export function validateCollectionForRendering(
 	const canRender = missingWidgets.length === 0;
 
 	// Log validation result
-	if (!canRender) {
+	if (canRender) {
+		logger.debug(`[WidgetValidation] Collection "${schema.name}" validation passed`, {
+			usedWidgetsCount: usedWidgets.length
+		});
+	} else {
 		logger.warn(`[WidgetValidation] Collection "${schema.name}" cannot render safely`, {
 			missingWidgets,
 			affectedFieldsCount: fieldsWithIssues.length
-		});
-	} else {
-		logger.debug(`[WidgetValidation] Collection "${schema.name}" validation passed`, {
-			usedWidgetsCount: usedWidgets.length
 		});
 	}
 

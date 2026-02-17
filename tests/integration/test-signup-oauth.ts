@@ -34,10 +34,9 @@ async function testFirstUserSignup() {
 	if (response.status === 200 && result.success) {
 		console.log('✅ First user signup successful!');
 		return true;
-	} else {
-		console.log('❌ First user signup failed');
-		return false;
 	}
+	console.log('❌ First user signup failed');
+	return false;
 }
 
 async function testOAuthSignup() {
@@ -66,10 +65,9 @@ async function testOAuthSignup() {
 	if (response.status === 200 && result.success) {
 		console.log('✅ OAuth signup successful!');
 		return true;
-	} else {
-		console.log('❌ OAuth signup failed');
-		return false;
 	}
+	console.log('❌ OAuth signup failed');
+	return false;
 }
 
 async function testSubsequentUserRequiresToken() {
@@ -110,10 +108,9 @@ async function testSubsequentUserRequiresToken() {
 	if (response.status === 400 && !result.success) {
 		console.log('✅ Subsequent user correctly requires invitation token!');
 		return true;
-	} else {
-		console.log('❌ Subsequent user signup should have failed without token');
-		return false;
 	}
+	console.log('❌ Subsequent user signup should have failed without token');
+	return false;
 }
 
 async function checkServerStatus() {

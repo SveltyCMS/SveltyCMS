@@ -12,8 +12,9 @@ New Features:
 - All features opt-in and backward compatible
 -->
 <script lang="ts">
-	import { logger } from '@utils/logger';
+	
 	import type { WidgetSize } from '@src/content/types';
+import { logger } from '@utils/logger';
 
 	// Lucide icons
 

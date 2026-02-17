@@ -8,13 +8,13 @@ Provides a persistent, draggable UI element that opens the ActivityStream panel.
 
 <script lang="ts">
 	import { collaboration } from '@stores/collaborationStore.svelte';
-	import ActivityStream from './ActivityStream.svelte';
-	import { ui } from '@stores/UIStore.svelte';
 	import { screen } from '@stores/screenSizeStore.svelte';
+	import { ui } from '@stores/UIStore.svelte';
 	import { onMount } from 'svelte';
 	import { fade, scale } from 'svelte/transition';
 	import { browser } from '$app/environment';
 	import { page } from '$app/state';
+	import ActivityStream from './ActivityStream.svelte';
 
 	// --- Derived ---
 	const user = $derived(page.data.user);
@@ -95,13 +95,13 @@ Provides a persistent, draggable UI element that opens the ActivityStream panel.
 			window.removeEventListener('pointermove', handleMove);
 			window.removeEventListener('pointerup', handleUp);
 
-			if (!moved) {
-				collaboration.togglePanel();
-			} else {
+			if (moved) {
 				// Snap to bounds
 				pos.x = Math.max(EDGE_MARGIN, Math.min(pos.x, window.innerWidth - (BUTTON_RADIUS * 2 + EDGE_MARGIN)));
 				pos.y = Math.max(EDGE_MARGIN, Math.min(pos.y, window.innerHeight - (BUTTON_RADIUS * 2 + EDGE_MARGIN)));
 				savePosition();
+			} else {
+				collaboration.togglePanel();
 			}
 		}
 

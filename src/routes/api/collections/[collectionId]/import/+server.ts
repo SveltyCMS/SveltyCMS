@@ -14,25 +14,23 @@
  * Body: { data: [...], format: 'json|csv', options: {...} }
  */
 
-import { json } from '@sveltejs/kit';
-
-// Database adapter
-import { dbAdapter } from '@src/databases/db';
-
 // Content Management
 import { contentManager } from '@src/content/ContentManager';
 import type { CollectionEntry, Schema } from '@src/content/types';
+// Database adapter
+import { dbAdapter } from '@src/databases/db';
+import { json } from '@sveltejs/kit';
 
 // System Logger
 import { logger } from '@utils/logger.server';
 
 interface ImportOptions {
-	overwrite?: boolean;
-	validate?: boolean;
-	skipInvalid?: boolean;
 	batchSize?: number;
-	csvHeaders?: string[];
 	csvDelimiter?: string;
+	csvHeaders?: string[];
+	overwrite?: boolean;
+	skipInvalid?: boolean;
+	validate?: boolean;
 }
 
 // Unified Error Handling
@@ -123,7 +121,9 @@ export const POST = apiHandler(async ({ params, request, locals }) => {
 			duration: `${duration.toFixed(2)}ms`
 		});
 
-		if (err instanceof AppError) throw err;
+		if (err instanceof AppError) {
+			throw err;
+		}
 		throw new AppError(`Import failed: ${errorMsg}`, 500, 'IMPORT_FAILED');
 	}
 });
@@ -142,7 +142,7 @@ function parseCSVData(csvData: string, options: ImportOptions): CollectionEntry[
 	const headers = options.csvHeaders || parseCSVLine(lines[0], options.csvDelimiter);
 	const dataStartIndex = options.csvHeaders ? 0 : 1;
 
-	const entries = [];
+	const entries: any[] = [];
 
 	for (let i = dataStartIndex; i < lines.length; i++) {
 		const values = parseCSVLine(lines[i], options.csvDelimiter);
@@ -166,8 +166,8 @@ function parseCSVData(csvData: string, options: ImportOptions): CollectionEntry[
 /**
  * Parse a single CSV line respecting quoted values
  */
-function parseCSVLine(line: string, delimiter: string = ','): string[] {
-	const values = [];
+function parseCSVLine(line: string, delimiter = ','): string[] {
+	const values: string[] = [];
 	let current = '';
 	let inQuotes = false;
 
@@ -231,14 +231,13 @@ async function importEntries(collectionName: string, entries: CollectionEntry[],
 								errors: validationResult.errors
 							});
 							continue;
-						} else {
-							result.errors.push({
-								index: entryIndex,
-								error: `Validation failed: ${validationResult.errors.join(', ')}`,
-								entry
-							});
-							continue;
 						}
+						result.errors.push({
+							index: entryIndex,
+							error: `Validation failed: ${validationResult.errors.join(', ')}`,
+							entry
+						});
+						continue;
 					}
 				}
 
@@ -259,7 +258,7 @@ async function importEntries(collectionName: string, entries: CollectionEntry[],
 					throw new Error('Database adapter not initialized');
 				}
 
-				let existingEntry = null;
+				let existingEntry: any = null;
 				if (entry._id || entry.id) {
 					const searchId = entry._id || entry.id;
 					const searchResult = await dbAdapter.crud.findOne(collectionName, {

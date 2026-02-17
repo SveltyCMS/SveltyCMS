@@ -19,44 +19,37 @@
 -->
 
 <script lang="ts">
-	import { goto } from '$app/navigation';
-	// Removed axios import
-	import { browser } from '$app/environment';
-	import { logger } from '@utils/logger';
-
-	// Import necessary utilities and types
-	import { page } from '$app/state';
-	import type { ContentNode } from '@src/content/types'; // Import Schema type (collection definition)
-	import type { Locale } from '@src/paraglide/runtime';
-	import { locales as availableLocales, getLocale } from '@src/paraglide/runtime';
-	import { getLanguageName } from '@utils/languageUtils';
-
-	// Stores
-	import { setMode, contentStructure } from '@stores/collectionStore.svelte';
-	import { avatarSrc, systemLanguage } from '@stores/store.svelte';
-	import { toggleUIElement, uiStateManager, userPreferredState } from '@stores/UIStore.svelte';
-	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
-	import { themeStore } from '@stores/themeStore.svelte';
-
-	// Import components
-	import VersionCheck from '@components/VersionCheck.svelte';
 	import Collections from '@components/Collections.svelte';
 	import MediaFolders from '@components/MediaFolders.svelte';
 	import SettingsMenu from '@components/SettingsMenu.svelte';
 	import SiteName from '@components/SiteName.svelte';
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
-	import ThemeToggle from '@components/ThemeToggle.svelte';
-
 	// Plugin Slots
 	import Slot from '@components/system/Slot.svelte';
-
+	import SystemTooltip from '@components/system/SystemTooltip.svelte';
+	import ThemeToggle from '@components/ThemeToggle.svelte';
+	// Import components
+	import VersionCheck from '@components/VersionCheck.svelte';
 	// Skeleton components
 	import { Avatar, Menu, Portal } from '@skeletonlabs/skeleton-svelte';
-
-	import SystemTooltip from '@components/system/SystemTooltip.svelte';
-
+	import type { ContentNode } from '@src/content/types'; // Import Schema type (collection definition)
 	// Language and messaging
 	import * as m from '@src/paraglide/messages';
+	import type { Locale } from '@src/paraglide/runtime';
+	import { locales as availableLocales, getLocale } from '@src/paraglide/runtime';
+	// Stores
+	import { contentStructure, setMode } from '@stores/collectionStore.svelte';
+	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
+	import { avatarSrc, systemLanguage } from '@stores/store.svelte';
+	import { themeStore } from '@stores/themeStore.svelte';
+	import { toggleUIElement, uiStateManager, userPreferredState } from '@stores/UIStore.svelte';
+	import { getLanguageName } from '@utils/languageUtils';
+	import { logger } from '@utils/logger';
+	// Removed axios import
+	import { browser } from '$app/environment';
+	import { goto } from '$app/navigation';
+	// Import necessary utilities and types
+	import { page } from '$app/state';
 
 	// Constants
 	const MOBILE_BREAKPOINT = 768;
@@ -226,9 +219,7 @@
 	{#if isSidebarFull}
 		<a href="/" aria-label="SveltyCMS Logo" class="flex pt-2 no-underline!" data-sveltekit-preload-data="hover">
 			<SveltyCMSLogo fill="red" className="h-9 -ml-2" />
-			<span class="base-font-color relative text-2xl font-bold">
-				<SiteName highlight="CMS" />
-			</span>
+			<span class="base-font-color relative text-2xl font-bold"> <SiteName highlight="CMS" /> </span>
 		</a>
 	{:else}
 		<div class="flex justify-start gap-2">
@@ -331,9 +322,7 @@
 	{/if}
 
 	<!-- Plugin Sidebar Items -->
-	<div class="mt-2 w-full px-1">
-		<Slot name="sidebar" />
-	</div>
+	<div class="mt-2 w-full px-1"><Slot name="sidebar" /></div>
 
 	<!-- Footer -->
 	<div class="mb-2 mt-auto w-full px-1">
@@ -349,7 +338,7 @@
 						aria-label="User Profile"
 						class="{isSidebarFull
 							? 'flex w-full flex-col items-center justify-center rounded-lg p-2 hover:bg-surface-500/20'
-							: 'flex h-10 w-10 flex-col items-center justify-center rounded-full hover:bg-surface-500/20'} relative text-center no-underline!"
+							: 'h-10 w-10 rounded-full hover:bg-surface-500/20'} relative text-center no-underline!"
 					>
 						<Avatar class="mx-auto overflow-hidden rounded-full {isSidebarFull ? 'size-10' : 'size-9'}">
 							<Avatar.Image src={avatarUrl} alt="User Avatar" class="h-full w-full object-cover" />
@@ -471,9 +460,7 @@
 			</div>
 
 			<!-- Version -->
-			<div class="{isSidebarFull ? 'order-6' : 'order-5'} flex items-center justify-center">
-				<VersionCheck compact={!isSidebarFull} />
-			</div>
+			<div class="{isSidebarFull ? 'order-6' : 'order-5'} flex items-center justify-center"><VersionCheck compact={!isSidebarFull} /></div>
 
 			<!-- GitHub (only when expanded) -->
 			{#if isSidebarFull}
@@ -498,8 +485,8 @@
 <style>
 	/* Scrollbar styling */
 	.overflow-y-auto {
-		scrollbar-width: thin;
 		scrollbar-color: rgb(var(--color-surface-500)) transparent;
+		scrollbar-width: thin;
 	}
 
 	.overflow-y-auto::-webkit-scrollbar {

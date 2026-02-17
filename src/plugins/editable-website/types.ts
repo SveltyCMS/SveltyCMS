@@ -7,9 +7,9 @@
  * Message sent from CMS to Child Window (Website)
  */
 export interface CmsUpdateMessage {
-	type: 'svelty:update';
-	data: Record<string, any>;
 	collection: string;
+	data: Record<string, any>;
+	type: 'svelty:update';
 }
 
 /**

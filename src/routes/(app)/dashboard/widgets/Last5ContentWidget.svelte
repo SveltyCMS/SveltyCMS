@@ -28,17 +28,17 @@ This widget fetches and displays the latest content items, including:
 </script>
 
 <script lang="ts">
-	import BaseWidget from '../BaseWidget.svelte';
-	import { formatDistanceToNow } from 'date-fns';
 	import type { WidgetSize } from '@src/content/types';
+	import { formatDistanceToNow } from 'date-fns';
+	import BaseWidget from '../BaseWidget.svelte';
 
 	interface ContentItem {
-		id: string;
-		title: string;
 		collection: string;
 		createdAt: string;
 		createdBy: string;
+		id: string;
 		status: string;
+		title: string;
 	}
 
 	type FetchedData = ContentItem[] | undefined;
@@ -94,21 +94,15 @@ This widget fetches and displays the latest content items, including:
 						<div class="flex min-w-0 items-center gap-2">
 							<div class="h-2 w-2 rounded-full {getStatusColor(item.status)}" title="Status: {item.status}"></div>
 							<div class="flex min-w-0 flex-col">
-								<span class="text-text-900 dark:text-text-100 truncate font-medium" title={item.title}>
-									{item.title}
-								</span>
-								<span class="text-xs text-surface-500 dark:text-surface-50" title={`Collection: ${item.collection}`}>
-									{item.collection}
-								</span>
+								<span class="text-text-900 dark:text-text-100 truncate font-medium" title={item.title}> {item.title} </span>
+								<span class="text-xs text-surface-500 dark:text-surface-50" title={`Collection: ${item.collection}`}> {item.collection} </span>
 							</div>
 						</div>
 						<div class="flex flex-col items-end">
 							<span class="text-xs font-medium uppercase text-surface-600 dark:text-surface-300">
 								{formatDistanceToNow(new Date(item.createdAt), { addSuffix: true })}
 							</span>
-							<span class="text-xs text-surface-500 dark:text-surface-50" title={`By: ${item.createdBy}`}>
-								{item.createdBy}
-							</span>
+							<span class="text-xs text-surface-500 dark:text-surface-50" title={`By: ${item.createdBy}`}> {item.createdBy} </span>
 						</div>
 					</div>
 				{/each}

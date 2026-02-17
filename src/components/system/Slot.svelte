@@ -6,6 +6,7 @@
 <script lang="ts">
 	import { slotRegistry } from '@src/plugins/slotRegistry';
 	import type { InjectionZone } from '@src/plugins/types';
+
 	// We can reuse WidgetLoader or create a simple loader since types definition says component is a promise
 	// Actually, WidgetLoader is designed for Widgets with specific props.
 	// Let's create a simple internal loader here or use await block.

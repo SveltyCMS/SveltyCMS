@@ -21,13 +21,13 @@
  * The adapter is cast to `unknown` in db.ts to bypass type checking until fully implemented.
  */
 
-import type { DatabaseResult, BaseEntity, QueryBuilder } from '../../dbInterface';
-import { AdapterCore } from './adapterCore';
-import * as utils from '../utils';
-import * as schema from '../schema/index';
 import { logger } from '@utils/logger';
-import { runMigrations } from '../migrations';
 import { sql } from 'drizzle-orm';
+import type { BaseEntity, DatabaseResult, QueryBuilder } from '../../dbInterface';
+import { runMigrations } from '../migrations';
+import * as schema from '../schema/index';
+import * as utils from '../utils';
+import { AdapterCore } from './adapterCore';
 
 /**
  * PostgreSQL adapter for SveltyCMS (BETA)
@@ -44,7 +44,9 @@ export class PostgreSQLAdapter extends AdapterCore {
 	};
 
 	public async ensureSystem(): Promise<void> {
-		if (this._featureInit.system) return;
+		if (this._featureInit.system) {
+			return;
+		}
 		const result = await runMigrations(this.sql!);
 		if (!result.success) {
 			logger.error('PostgreSQL Migration failed:', result.error);
@@ -58,7 +60,7 @@ export class PostgreSQLAdapter extends AdapterCore {
 			return this.wrap(async () => {
 				const table = this.getTable(collection);
 				const where = this.mapQuery(table, query);
-				const [result] = await this.db!.select().from(table).where(where).limit(1);
+				const [result] = (await this.db?.select().from(table).where(where).limit(1)) ?? [];
 				return result || null;
 			}, 'CRUD_FIND_ONE_FAILED');
 		},
@@ -70,7 +72,7 @@ export class PostgreSQLAdapter extends AdapterCore {
 					_id: data._id || utils.generateId(),
 					...data
 				};
-				const [result] = await this.db!.insert(table).values(formattedData).returning();
+				const [result] = (await this.db?.insert(table).values(formattedData).returning()) ?? [];
 				return result;
 			}, 'CRUD_INSERT_FAILED');
 		},
@@ -81,7 +83,7 @@ export class PostgreSQLAdapter extends AdapterCore {
 					_id: d._id || utils.generateId(),
 					...d
 				}));
-				return await this.db!.insert(table).values(formattedData).returning();
+				return await this.db?.insert(table).values(formattedData).returning();
 			}, 'CRUD_INSERT_MANY_FAILED');
 		},
 		updateMany: async (collection: string, query: Record<string, unknown>, data: Record<string, unknown>) => {
@@ -89,10 +91,7 @@ export class PostgreSQLAdapter extends AdapterCore {
 				const { sql } = await import('drizzle-orm');
 				const table = this.getTable(collection);
 				const where = this.mapQuery(table, query);
-				const [result] = await this.db!.update(table)
-					.set(data)
-					.where(where)
-					.returning({ modifiedCount: sql<number>`1` });
+				const [result] = (await this.db?.update(table).set(data).where(where).returning({ modifiedCount: sql<number>`1` })) ?? [];
 				return { modifiedCount: result ? 1 : 0 };
 			}, 'CRUD_UPDATE_MANY_FAILED');
 		},
@@ -100,39 +99,40 @@ export class PostgreSQLAdapter extends AdapterCore {
 			return this.wrap(async () => {
 				const table = this.getTable(collection);
 				const where = this.mapQuery(table, query);
-				const result = await this.db!.delete(table).where(where).returning();
-				return { deletedCount: result.length };
+				const result = await this.db?.delete(table).where(where).returning();
+				return { deletedCount: result?.length ?? 0 };
 			}, 'CRUD_DELETE_MANY_FAILED');
 		},
 		upsert: async (collection: string, query: Record<string, unknown>, data: any) => {
 			return this.wrap(async () => {
 				const table = this.getTable(collection);
 				const where = this.mapQuery(table, query);
-				const [existing] = await this.db!.select().from(table).where(where).limit(1);
+				const [existing] = (await this.db?.select().from(table).where(where).limit(1)) ?? [];
 
 				if (existing) {
-					const [updated] = await this.db!.update(table)
-						.set({ ...data, updatedAt: new Date() })
-						.where(where)
-						.returning();
+					const [updated] =
+						(await this.db
+							?.update(table)
+							.set({ ...data, updatedAt: new Date() })
+							.where(where)
+							.returning()) ?? [];
 					return updated;
-				} else {
-					const formattedData = {
-						_id: data._id || utils.generateId(),
-						...data,
-						createdAt: new Date(),
-						updatedAt: new Date()
-					};
-					const [inserted] = await this.db!.insert(table).values(formattedData).returning();
-					return inserted;
 				}
+				const formattedData = {
+					_id: data._id || utils.generateId(),
+					...data,
+					createdAt: new Date(),
+					updatedAt: new Date()
+				};
+				const [inserted] = (await this.db?.insert(table).values(formattedData).returning()) ?? [];
+				return inserted;
 			}, 'CRUD_UPSERT_FAILED');
 		},
 		findMany: async (collection: string, query: Record<string, unknown>, options?: { limit?: number; offset?: number; sort?: any }) => {
 			return this.wrap(async () => {
 				const table = this.getTable(collection);
 				const where = this.mapQuery(table, query);
-				let qb = this.db!.select().from(table).where(where);
+				let qb = this.db?.select().from(table).where(where);
 
 				if (options?.limit) {
 					// @ts-expect-error - Drizzle types
@@ -154,9 +154,11 @@ export class PostgreSQLAdapter extends AdapterCore {
 				const { sql } = await import('drizzle-orm');
 				const table = this.getTable(collection);
 				const where = query ? this.mapQuery(table, query) : undefined;
-				const queryBuilder = this.db!.select({ count: sql<number>`count(*)` }).from(table);
-				if (where) queryBuilder.where(where);
-				const [result] = await queryBuilder;
+				const queryBuilder = this.db?.select({ count: sql<number>`count(*)` }).from(table);
+				if (where) {
+					queryBuilder?.where(where);
+				}
+				const [result] = (await queryBuilder) ?? [];
 				return Number(result.count);
 			}, 'CRUD_COUNT_FAILED');
 		},
@@ -164,7 +166,7 @@ export class PostgreSQLAdapter extends AdapterCore {
 			return this.wrap(async () => {
 				const { inArray } = await import('drizzle-orm');
 				const table = this.getTable(collection);
-				const results = await this.db!.select().from(table).where(inArray(table._id, ids));
+				const results = await this.db?.select().from(table).where(inArray(table._id, ids));
 				return results;
 			}, 'CRUD_FIND_BY_IDS_FAILED');
 		}
@@ -174,9 +176,9 @@ export class PostgreSQLAdapter extends AdapterCore {
 		return this.wrap(async () => {
 			// PostgreSQL cleanup: DROP SCHEMA public CASCADE and recreate it
 			// This effectively drops all tables, views, etc.
-			await this.db!.execute(sql`DROP SCHEMA public CASCADE;`);
-			await this.db!.execute(sql`CREATE SCHEMA public;`);
-			await this.db!.execute(sql`GRANT ALL ON SCHEMA public TO public;`);
+			await this.db?.execute(sql`DROP SCHEMA public CASCADE;`);
+			await this.db?.execute(sql`CREATE SCHEMA public;`);
+			await this.db?.execute(sql`GRANT ALL ON SCHEMA public TO public;`);
 			// Reset init flags so system tables get recreated on next access
 			this._featureInit = {
 				system: false,
@@ -192,7 +194,9 @@ export class PostgreSQLAdapter extends AdapterCore {
 	 * This ensures compatibility with the middleware permission checks that expect `user.role`.
 	 */
 	private mapUser(dbUser: any): any {
-		if (!dbUser) return null;
+		if (!dbUser) {
+			return null;
+		}
 		const user = utils.convertDatesToISO(dbUser);
 		const finalRoleIds = utils.parseJsonField<string[]>(user.roleIds, []);
 		return {
@@ -207,7 +211,9 @@ export class PostgreSQLAdapter extends AdapterCore {
 	 * Maps a raw PostgreSQL role row to ensure permissions is a parsed array.
 	 */
 	private mapRole(dbRole: any): any {
-		if (!dbRole) return null;
+		if (!dbRole) {
+			return null;
+		}
 		const role = utils.convertDatesToISO(dbRole);
 		return {
 			...role,
@@ -219,7 +225,9 @@ export class PostgreSQLAdapter extends AdapterCore {
 	 * Maps a raw PostgreSQL website token row to ensure permissions is a parsed array.
 	 */
 	private mapWebsiteToken(dbToken: any): any {
-		if (!dbToken) return null;
+		if (!dbToken) {
+			return null;
+		}
 		const token = utils.convertDatesToISO(dbToken);
 		return {
 			...token,
@@ -237,22 +245,26 @@ export class PostgreSQLAdapter extends AdapterCore {
 			return this.wrap(async () => {
 				const { sql } = await import('drizzle-orm');
 				const where = filter ? this.mapQuery(schema.authUsers, filter) : undefined;
-				const queryBuilder = this.db!.select({ count: sql<number>`count(*)` }).from(schema.authUsers);
-				if (where) queryBuilder.where(where);
-				const [result] = await queryBuilder;
+				const queryBuilder = this.db?.select({ count: sql<number>`count(*)` }).from(schema.authUsers);
+				if (where) {
+					queryBuilder?.where(where);
+				}
+				const [result] = (await queryBuilder) ?? [];
 				return Number(result.count);
 			}, 'AUTH_GET_USER_COUNT_FAILED');
 		},
 		validateSession: async (session_id: string) => {
 			return this.wrap(async () => {
 				const { eq, and, gt } = await import('drizzle-orm');
-				const [result] = await this.db!.select({
-					user: schema.authUsers
-				})
-					.from(schema.authSessions)
-					.innerJoin(schema.authUsers, eq(schema.authSessions.user_id, schema.authUsers._id))
-					.where(and(eq(schema.authSessions._id, session_id), gt(schema.authSessions.expires, new Date())))
-					.limit(1);
+				const [result] =
+					(await this.db
+						?.select({
+							user: schema.authUsers
+						})
+						.from(schema.authSessions)
+						.innerJoin(schema.authUsers, eq(schema.authSessions.user_id, schema.authUsers._id))
+						.where(and(eq(schema.authSessions._id, session_id), gt(schema.authSessions.expires, new Date())))
+						.limit(1)) ?? [];
 
 				return result?.user ? this.mapUser(result.user) : null;
 			}, 'AUTH_VALIDATE_SESSION_FAILED');
@@ -260,7 +272,7 @@ export class PostgreSQLAdapter extends AdapterCore {
 		deleteSession: async (session_id: string) => {
 			return this.wrap(async () => {
 				const { eq } = await import('drizzle-orm');
-				await this.db!.delete(schema.authSessions).where(eq(schema.authSessions._id, session_id));
+				await this.db?.delete(schema.authSessions).where(eq(schema.authSessions._id, session_id));
 			}, 'AUTH_DELETE_SESSION_FAILED');
 		},
 		user: {
@@ -271,27 +283,31 @@ export class PostgreSQLAdapter extends AdapterCore {
 					if (tenantId) {
 						conditions.push(eq(schema.authUsers.tenantId, tenantId));
 					}
-					const [user] = await this.db!.select()
-						.from(schema.authUsers)
-						.where(and(...conditions))
-						.limit(1);
+					const [user] =
+						(await this.db
+							?.select()
+							.from(schema.authUsers)
+							.where(and(...conditions))
+							.limit(1)) ?? [];
 					return user || null;
 				}, 'AUTH_GET_USER_BY_ID_FAILED');
 			},
 			findOne: async (filter: Record<string, unknown>) => {
 				return this.wrap(async () => {
 					const where = this.mapQuery(schema.authUsers, filter);
-					const [user] = await this.db!.select().from(schema.authUsers).where(where).limit(1);
+					const [user] = (await this.db?.select().from(schema.authUsers).where(where).limit(1)) ?? [];
 					return user ? this.mapUser(user) : null;
 				}, 'AUTH_USER_FIND_ONE_FAILED');
 			},
 			findMany: async (filter?: Record<string, unknown>) => {
 				return this.wrap(async () => {
 					const where = filter ? this.mapQuery(schema.authUsers, filter) : undefined;
-					const query = this.db!.select().from(schema.authUsers);
-					if (where) query.where(where);
+					const query = this.db?.select().from(schema.authUsers);
+					if (where) {
+						query?.where(where);
+					}
 					const users = await query;
-					return users.map((u: any) => this.mapUser(u));
+					return (users ?? []).map((u: any) => this.mapUser(u));
 				}, 'AUTH_USER_FIND_MANY_FAILED');
 			},
 			create: async (data: any) => {
@@ -310,33 +326,37 @@ export class PostgreSQLAdapter extends AdapterCore {
 						createdAt: new Date(),
 						updatedAt: new Date()
 					};
-					const [user] = await this.db!.insert(schema.authUsers).values(formattedUser).returning();
+					const [user] = (await this.db?.insert(schema.authUsers).values(formattedUser).returning()) ?? [];
 					return this.mapUser(user);
 				}, 'AUTH_USER_CREATE_FAILED');
 			},
 			update: async (filter: Record<string, unknown>, data: any) => {
 				return this.wrap(async () => {
 					const where = this.mapQuery(schema.authUsers, filter);
-					const [updated] = await this.db!.update(schema.authUsers)
-						.set({ ...data, updatedAt: new Date() })
-						.where(where)
-						.returning();
+					const [updated] =
+						(await this.db
+							?.update(schema.authUsers)
+							.set({ ...data, updatedAt: new Date() })
+							.where(where)
+							.returning()) ?? [];
 					return updated ? this.mapUser(updated) : null;
 				}, 'AUTH_USER_UPDATE_FAILED');
 			},
 			delete: async (filter: Record<string, unknown>) => {
 				return this.wrap(async () => {
 					const where = this.mapQuery(schema.authUsers, filter);
-					await this.db!.delete(schema.authUsers).where(where);
+					await this.db?.delete(schema.authUsers).where(where);
 				}, 'AUTH_USER_DELETE_FAILED');
 			},
 			count: async (filter?: Record<string, unknown>) => {
 				return this.wrap(async () => {
 					const { sql } = await import('drizzle-orm');
 					const where = filter ? this.mapQuery(schema.authUsers, filter) : undefined;
-					const query = this.db!.select({ count: sql<number>`count(*)` }).from(schema.authUsers);
-					if (where) query.where(where);
-					const [result] = await query;
+					const query = this.db?.select({ count: sql<number>`count(*)` }).from(schema.authUsers);
+					if (where) {
+						query?.where(where);
+					}
+					const [result] = (await query) ?? [];
 					return Number(result.count);
 				}, 'AUTH_USER_COUNT_FAILED');
 			}
@@ -349,10 +369,12 @@ export class PostgreSQLAdapter extends AdapterCore {
 				if (criteria.tenantId) {
 					conditions.push(eq(schema.authUsers.tenantId, criteria.tenantId));
 				}
-				const [user] = await this.db!.select()
-					.from(schema.authUsers)
-					.where(and(...conditions))
-					.limit(1);
+				const [user] =
+					(await this.db
+						?.select()
+						.from(schema.authUsers)
+						.where(and(...conditions))
+						.limit(1)) ?? [];
 				return this.mapUser(user) || null;
 			}, 'AUTH_GET_USER_BY_EMAIL_FAILED');
 		},
@@ -378,7 +400,7 @@ export class PostgreSQLAdapter extends AdapterCore {
 					createdAt: new Date(),
 					updatedAt: new Date()
 				};
-				const [user] = await this.db!.insert(schema.authUsers).values(formattedUser).returning();
+				const [user] = (await this.db?.insert(schema.authUsers).values(formattedUser).returning()) ?? [];
 				return this.mapUser(user);
 			}, 'AUTH_CREATE_USER_FAILED');
 		},
@@ -387,12 +409,16 @@ export class PostgreSQLAdapter extends AdapterCore {
 				await this.ensureSystem();
 				const { eq, and } = await import('drizzle-orm');
 				const conditions = [eq(schema.authUsers._id, user_id)];
-				if (tenantId) conditions.push(eq(schema.authUsers.tenantId, tenantId));
+				if (tenantId) {
+					conditions.push(eq(schema.authUsers.tenantId, tenantId));
+				}
 
-				const [updatedUser] = await this.db!.update(schema.authUsers)
-					.set({ ...userData, updatedAt: new Date() })
-					.where(and(...conditions))
-					.returning();
+				const [updatedUser] =
+					(await this.db
+						?.update(schema.authUsers)
+						.set({ ...userData, updatedAt: new Date() })
+						.where(and(...conditions))
+						.returning()) ?? [];
 				return updatedUser;
 			}, 'AUTH_UPDATE_USER_FAILED');
 		},
@@ -407,7 +433,7 @@ export class PostgreSQLAdapter extends AdapterCore {
 					createdAt: new Date(),
 					updatedAt: new Date()
 				};
-				const [session] = await this.db!.insert(schema.authSessions).values(newSession).returning();
+				const [session] = (await this.db?.insert(schema.authSessions).values(newSession).returning()) ?? [];
 				return session;
 			}, 'AUTH_CREATE_SESSION_FAILED');
 		},
@@ -445,8 +471,8 @@ export class PostgreSQLAdapter extends AdapterCore {
 				};
 
 				// Run in parallel for now, better in transaction later
-				const [user] = await this.db!.insert(schema.authUsers).values(formattedUser).returning();
-				const [session] = await this.db!.insert(schema.authSessions).values(formattedSession).returning();
+				const [user] = (await this.db?.insert(schema.authUsers).values(formattedUser).returning()) ?? [];
+				const [session] = (await this.db?.insert(schema.authSessions).values(formattedSession).returning()) ?? [];
 
 				return { user, session };
 			}, 'AUTH_CREATE_USER_AND_SESSION_FAILED');
@@ -459,10 +485,12 @@ export class PostgreSQLAdapter extends AdapterCore {
 				if (tenantId) {
 					conditions.push(eq(schema.authUsers.tenantId, tenantId));
 				}
-				const [user] = await this.db!.select()
-					.from(schema.authUsers)
-					.where(and(...conditions))
-					.limit(1);
+				const [user] =
+					(await this.db
+						?.select()
+						.from(schema.authUsers)
+						.where(and(...conditions))
+						.limit(1)) ?? [];
 				return this.mapUser(user) || null;
 			}, 'AUTH_GET_USER_BY_ID_FAILED');
 		},
@@ -470,7 +498,7 @@ export class PostgreSQLAdapter extends AdapterCore {
 			return this.wrap(async () => {
 				await this.ensureSystem();
 				const { desc } = await import('drizzle-orm');
-				let query = this.db!.select().from(schema.authUsers).orderBy(desc(schema.authUsers.createdAt));
+				let query = this.db?.select().from(schema.authUsers).orderBy(desc(schema.authUsers.createdAt));
 
 				if (options?.limit) {
 					// @ts-expect-error - Drizzle types
@@ -482,7 +510,7 @@ export class PostgreSQLAdapter extends AdapterCore {
 				}
 
 				const users = await query;
-				return users.map((u: any) => this.mapUser(u));
+				return (users ?? []).map((u: any) => this.mapUser(u));
 			}, 'AUTH_GET_ALL_USERS_FAILED');
 		},
 		getAllRoles: async (tenantId?: string) => {
@@ -490,7 +518,7 @@ export class PostgreSQLAdapter extends AdapterCore {
 			try {
 				await this.ensureSystem();
 				const { eq } = await import('drizzle-orm');
-				let query = this.db!.select().from(schema.roles);
+				let query = this.db?.select().from(schema.roles);
 
 				if (tenantId) {
 					// @ts-expect-error - Drizzle types
@@ -498,7 +526,7 @@ export class PostgreSQLAdapter extends AdapterCore {
 				}
 
 				const results = await query;
-				return results.map((r: any) => this.mapRole(r));
+				return (results ?? []).map((r: any) => this.mapRole(r));
 			} catch (err) {
 				logger.error('AUTH_GET_ALL_ROLES_FAILED', err);
 				return [];
@@ -508,13 +536,15 @@ export class PostgreSQLAdapter extends AdapterCore {
 			validateSession: async (session_id: string) => {
 				return this.wrap(async () => {
 					const { eq, and, gt } = await import('drizzle-orm');
-					const [result] = await this.db!.select({
-						user: schema.authUsers
-					})
-						.from(schema.authSessions)
-						.innerJoin(schema.authUsers, eq(schema.authSessions.user_id, schema.authUsers._id))
-						.where(and(eq(schema.authSessions._id, session_id), gt(schema.authSessions.expires, new Date())))
-						.limit(1);
+					const [result] =
+						(await this.db
+							?.select({
+								user: schema.authUsers
+							})
+							.from(schema.authSessions)
+							.innerJoin(schema.authUsers, eq(schema.authSessions.user_id, schema.authUsers._id))
+							.where(and(eq(schema.authSessions._id, session_id), gt(schema.authSessions.expires, new Date())))
+							.limit(1)) ?? [];
 
 					return result?.user || null;
 				}, 'AUTH_VALIDATE_SESSION_FAILED');
@@ -522,13 +552,13 @@ export class PostgreSQLAdapter extends AdapterCore {
 			deleteSession: async (session_id: string) => {
 				return this.wrap(async () => {
 					const { eq } = await import('drizzle-orm');
-					await this.db!.delete(schema.authSessions).where(eq(schema.authSessions._id, session_id));
+					await this.db?.delete(schema.authSessions).where(eq(schema.authSessions._id, session_id));
 				}, 'AUTH_DELETE_SESSION_FAILED');
 			},
 			findOne: async (filter: Record<string, unknown>) => {
 				return this.wrap(async () => {
 					const where = this.mapQuery(schema.authSessions, filter);
-					const [result] = await this.db!.select().from(schema.authSessions).where(where).limit(1);
+					const [result] = (await this.db?.select().from(schema.authSessions).where(where).limit(1)) ?? [];
 					return result || null;
 				}, 'AUTH_SESSION_FIND_ONE_FAILED');
 			},
@@ -541,28 +571,28 @@ export class PostgreSQLAdapter extends AdapterCore {
 						createdAt: new Date(),
 						updatedAt: new Date()
 					};
-					const [result] = await this.db!.insert(schema.authSessions).values(formattedData).returning();
+					const [result] = (await this.db?.insert(schema.authSessions).values(formattedData).returning()) ?? [];
 					return result;
 				}, 'AUTH_SESSION_CREATE_FAILED');
 			},
 			delete: async (filter: Record<string, unknown>) => {
 				return this.wrap(async () => {
 					const where = this.mapQuery(schema.authSessions, filter);
-					await this.db!.delete(schema.authSessions).where(where);
+					await this.db?.delete(schema.authSessions).where(where);
 				}, 'AUTH_SESSION_DELETE_FAILED');
 			},
 			deleteMany: async (filter: Record<string, unknown>) => {
 				return this.wrap(async () => {
 					const where = this.mapQuery(schema.authSessions, filter);
-					const result = await this.db!.delete(schema.authSessions).where(where).returning();
-					return { deletedCount: result.length };
+					const result = await this.db?.delete(schema.authSessions).where(where).returning();
+					return { deletedCount: result?.length ?? 0 };
 				}, 'AUTH_SESSION_DELETE_MANY_FAILED');
 			},
 			deleteExpired: async () => {
 				return this.wrap(async () => {
 					const { lt } = await import('drizzle-orm');
-					const result = await this.db!.delete(schema.authSessions).where(lt(schema.authSessions.expires, new Date())).returning();
-					return { deletedCount: result.length };
+					const result = await this.db?.delete(schema.authSessions).where(lt(schema.authSessions.expires, new Date())).returning();
+					return { deletedCount: result?.length ?? 0 };
 				}, 'AUTH_SESSION_DELETE_EXPIRED_FAILED');
 			}
 		},
@@ -570,7 +600,7 @@ export class PostgreSQLAdapter extends AdapterCore {
 			findOne: async (filter: Record<string, unknown>) => {
 				return this.wrap(async () => {
 					const where = this.mapQuery(schema.authTokens, filter);
-					const [result] = await this.db!.select().from(schema.authTokens).where(where).limit(1);
+					const [result] = (await this.db?.select().from(schema.authTokens).where(where).limit(1)) ?? [];
 					return result || null;
 				}, 'AUTH_TOKEN_FIND_ONE_FAILED');
 			},
@@ -583,31 +613,33 @@ export class PostgreSQLAdapter extends AdapterCore {
 						createdAt: new Date(),
 						updatedAt: new Date()
 					};
-					const [result] = await this.db!.insert(schema.authTokens).values(formattedData).returning();
+					const [result] = (await this.db?.insert(schema.authTokens).values(formattedData).returning()) ?? [];
 					return result;
 				}, 'AUTH_TOKEN_CREATE_FAILED');
 			},
 			update: async (filter: Record<string, unknown>, data: any) => {
 				return this.wrap(async () => {
 					const where = this.mapQuery(schema.authTokens, filter);
-					const [result] = await this.db!.update(schema.authTokens)
-						.set({ ...data, updatedAt: new Date() })
-						.where(where)
-						.returning();
+					const [result] =
+						(await this.db
+							?.update(schema.authTokens)
+							.set({ ...data, updatedAt: new Date() })
+							.where(where)
+							.returning()) ?? [];
 					return result;
 				}, 'AUTH_TOKEN_UPDATE_FAILED');
 			},
 			delete: async (filter: Record<string, unknown>) => {
 				return this.wrap(async () => {
 					const where = this.mapQuery(schema.authTokens, filter);
-					await this.db!.delete(schema.authTokens).where(where);
+					await this.db?.delete(schema.authTokens).where(where);
 				}, 'AUTH_TOKEN_DELETE_FAILED');
 			},
 			deleteExpired: async () => {
 				return this.wrap(async () => {
 					const { lt } = await import('drizzle-orm');
-					const result = await this.db!.delete(schema.authTokens).where(lt(schema.authTokens.expires, new Date())).returning();
-					return { deletedCount: result.length };
+					const result = await this.db?.delete(schema.authTokens).where(lt(schema.authTokens.expires, new Date())).returning();
+					return { deletedCount: result?.length ?? 0 };
 				}, 'AUTH_TOKEN_DELETE_EXPIRED_FAILED');
 			}
 		},
@@ -615,17 +647,19 @@ export class PostgreSQLAdapter extends AdapterCore {
 			findOne: async (filter: Record<string, unknown>) => {
 				return this.wrap(async () => {
 					const where = this.mapQuery(schema.roles, filter);
-					const [result] = await this.db!.select().from(schema.roles).where(where).limit(1);
+					const [result] = (await this.db?.select().from(schema.roles).where(where).limit(1)) ?? [];
 					return result ? this.mapRole(result) : null;
 				}, 'AUTH_ROLE_FIND_ONE_FAILED');
 			},
 			findMany: async (filter?: Record<string, unknown>) => {
 				return this.wrap(async () => {
 					const where = filter ? this.mapQuery(schema.roles, filter) : undefined;
-					const query = this.db!.select().from(schema.roles);
-					if (where) query.where(where);
+					const query = this.db?.select().from(schema.roles);
+					if (where) {
+						query?.where(where);
+					}
 					const results = await query;
-					return results.map((r: any) => this.mapRole(r));
+					return (results ?? []).map((r: any) => this.mapRole(r));
 				}, 'AUTH_ROLE_FIND_MANY_FAILED');
 			},
 			create: async (data: any) => {
@@ -637,44 +671,52 @@ export class PostgreSQLAdapter extends AdapterCore {
 						createdAt: new Date(),
 						updatedAt: new Date()
 					};
-					const [result] = await this.db!.insert(schema.roles).values(formattedData).returning();
+					const [result] = (await this.db?.insert(schema.roles).values(formattedData).returning()) ?? [];
 					return this.mapRole(result);
 				}, 'AUTH_ROLE_CREATE_FAILED');
 			},
 			update: async (filter: Record<string, unknown>, data: any) => {
 				return this.wrap(async () => {
 					const where = this.mapQuery(schema.roles, filter);
-					const [result] = await this.db!.update(schema.roles)
-						.set({ ...data, updatedAt: new Date() })
-						.where(where)
-						.returning();
+					const [result] =
+						(await this.db
+							?.update(schema.roles)
+							.set({ ...data, updatedAt: new Date() })
+							.where(where)
+							.returning()) ?? [];
 					return result ? this.mapRole(result) : null;
 				}, 'AUTH_ROLE_UPDATE_FAILED');
 			},
 			delete: async (filter: Record<string, unknown>) => {
 				return this.wrap(async () => {
 					const where = this.mapQuery(schema.roles, filter);
-					await this.db!.delete(schema.roles).where(where);
+					await this.db?.delete(schema.roles).where(where);
 				}, 'AUTH_ROLE_DELETE_FAILED');
 			},
 			count: async (filter?: Record<string, unknown>) => {
 				return this.wrap(async () => {
 					const { sql } = await import('drizzle-orm');
 					const where = filter ? this.mapQuery(schema.roles, filter) : undefined;
-					const query = this.db!.select({ count: sql<number>`count(*)` }).from(schema.roles);
-					if (where) query.where(where);
-					const [result] = await query;
+					const query = this.db?.select({ count: sql<number>`count(*)` }).from(schema.roles);
+					if (where) {
+						query?.where(where);
+					}
+					const [result] = (await query) ?? [];
 					return Number(result.count);
 				}, 'AUTH_ROLE_COUNT_FAILED');
 			},
 			ensure: async (role: any) => {
 				return this.wrap(async () => {
 					const { eq } = await import('drizzle-orm');
-					const [existing] = await this.db!.select()
-						.from(schema.roles)
-						.where(eq(schema.roles.name, role.name || role._id))
-						.limit(1);
-					if (existing) return this.mapRole(existing);
+					const [existing] =
+						(await this.db
+							?.select()
+							.from(schema.roles)
+							.where(eq(schema.roles.name, role.name || role._id))
+							.limit(1)) ?? [];
+					if (existing) {
+						return this.mapRole(existing);
+					}
 					const formattedData = {
 						_id: role._id || utils.generateId(),
 						...role,
@@ -682,7 +724,7 @@ export class PostgreSQLAdapter extends AdapterCore {
 						createdAt: new Date(),
 						updatedAt: new Date()
 					};
-					const [result] = await this.db!.insert(schema.roles).values(formattedData).returning();
+					const [result] = (await this.db?.insert(schema.roles).values(formattedData).returning()) ?? [];
 					return this.mapRole(result);
 				}, 'AUTH_ROLE_ENSURE_FAILED');
 			}
@@ -697,8 +739,8 @@ export class PostgreSQLAdapter extends AdapterCore {
 					createdAt: role.createdAt ? new Date(role.createdAt) : new Date(),
 					updatedAt: role.updatedAt ? new Date(role.updatedAt) : new Date()
 				};
-				const result = await this.db!.insert(schema.roles).values(formattedRole).returning();
-				return this.mapRole(result[0]);
+				const result = await this.db?.insert(schema.roles).values(formattedRole).returning();
+				return this.mapRole(result?.[0]);
 			}, 'AUTH_CREATE_ROLE_FAILED');
 		},
 		// Top-level token methods used by API routes
@@ -708,12 +750,20 @@ export class PostgreSQLAdapter extends AdapterCore {
 				const { eq, and } = await import('drizzle-orm');
 				const conditions: any[] = [];
 				if (filter) {
-					if (filter.email) conditions.push(eq(schema.authTokens.email, filter.email as string));
-					if (filter.user_id) conditions.push(eq(schema.authTokens.user_id, filter.user_id as string));
-					if (filter.type) conditions.push(eq(schema.authTokens.type, filter.type as string));
-					if (filter.tenantId) conditions.push(eq(schema.authTokens.tenantId, filter.tenantId as string));
+					if (filter.email) {
+						conditions.push(eq(schema.authTokens.email, filter.email as string));
+					}
+					if (filter.user_id) {
+						conditions.push(eq(schema.authTokens.user_id, filter.user_id as string));
+					}
+					if (filter.type) {
+						conditions.push(eq(schema.authTokens.type, filter.type as string));
+					}
+					if (filter.tenantId) {
+						conditions.push(eq(schema.authTokens.tenantId, filter.tenantId as string));
+					}
 				}
-				let query = this.db!.select().from(schema.authTokens);
+				let query = this.db?.select().from(schema.authTokens);
 				if (conditions.length > 0) {
 					// @ts-expect-error - Drizzle types
 					query = query.where(and(...conditions));
@@ -724,7 +774,7 @@ export class PostgreSQLAdapter extends AdapterCore {
 		createToken: async (tokenData: any) => {
 			return this.wrap(async () => {
 				await this.ensureSystem();
-				const crypto = await import('crypto');
+				const crypto = await import('node:crypto');
 				const tokenValue = tokenData.token || crypto.randomBytes(32).toString('hex');
 				const formattedToken = {
 					_id: tokenData._id || utils.generateId(),
@@ -740,7 +790,7 @@ export class PostgreSQLAdapter extends AdapterCore {
 					createdAt: new Date(),
 					updatedAt: new Date()
 				};
-				await this.db!.insert(schema.authTokens).values(formattedToken);
+				await this.db?.insert(schema.authTokens).values(formattedToken);
 				return tokenValue;
 			}, 'AUTH_CREATE_TOKEN_FAILED');
 		},
@@ -748,7 +798,7 @@ export class PostgreSQLAdapter extends AdapterCore {
 			return this.wrap(async () => {
 				await this.ensureSystem();
 				const { eq } = await import('drizzle-orm');
-				const [result] = await this.db!.select().from(schema.authTokens).where(eq(schema.authTokens.token, tokenValue)).limit(1);
+				const [result] = (await this.db?.select().from(schema.authTokens).where(eq(schema.authTokens.token, tokenValue)).limit(1)) ?? [];
 				return result || null;
 			}, 'AUTH_GET_TOKEN_BY_VALUE_FAILED');
 		},
@@ -756,10 +806,12 @@ export class PostgreSQLAdapter extends AdapterCore {
 			return this.wrap(async () => {
 				await this.ensureSystem();
 				const { eq, and, gt } = await import('drizzle-orm');
-				const [result] = await this.db!.select()
-					.from(schema.authTokens)
-					.where(and(eq(schema.authTokens.token, tokenValue), gt(schema.authTokens.expires, new Date()), eq(schema.authTokens.consumed, false)))
-					.limit(1);
+				const [result] =
+					(await this.db
+						?.select()
+						.from(schema.authTokens)
+						.where(and(eq(schema.authTokens.token, tokenValue), gt(schema.authTokens.expires, new Date()), eq(schema.authTokens.consumed, false)))
+						.limit(1)) ?? [];
 				return result || null;
 			}, 'AUTH_VALIDATE_TOKEN_FAILED');
 		},
@@ -767,10 +819,12 @@ export class PostgreSQLAdapter extends AdapterCore {
 			return this.wrap(async () => {
 				await this.ensureSystem();
 				const { eq } = await import('drizzle-orm');
-				const [result] = await this.db!.update(schema.authTokens)
-					.set({ consumed: true, updatedAt: new Date() })
-					.where(eq(schema.authTokens.token, tokenValue))
-					.returning();
+				const [result] =
+					(await this.db
+						?.update(schema.authTokens)
+						.set({ consumed: true, updatedAt: new Date() })
+						.where(eq(schema.authTokens.token, tokenValue))
+						.returning()) ?? [];
 				return result || null;
 			}, 'AUTH_CONSUME_TOKEN_FAILED');
 		},
@@ -778,10 +832,12 @@ export class PostgreSQLAdapter extends AdapterCore {
 			return this.wrap(async () => {
 				await this.ensureSystem();
 				const { eq } = await import('drizzle-orm');
-				const [result] = await this.db!.update(schema.authTokens)
-					.set({ ...data, updatedAt: new Date() })
-					.where(eq(schema.authTokens._id, tokenId))
-					.returning();
+				const [result] =
+					(await this.db
+						?.update(schema.authTokens)
+						.set({ ...data, updatedAt: new Date() })
+						.where(eq(schema.authTokens._id, tokenId))
+						.returning()) ?? [];
 				return result;
 			}, 'AUTH_UPDATE_TOKEN_FAILED');
 		},
@@ -790,32 +846,35 @@ export class PostgreSQLAdapter extends AdapterCore {
 				await this.ensureSystem();
 				const { inArray, or } = await import('drizzle-orm');
 				// API routes may pass token values instead of _ids, so try both
-				const result = await this.db!.delete(schema.authTokens)
+				const result = await this.db
+					?.delete(schema.authTokens)
 					.where(or(inArray(schema.authTokens._id, tokenIds), inArray(schema.authTokens.token, tokenIds)))
 					.returning();
-				return { deletedCount: result.length };
+				return { deletedCount: result?.length ?? 0 };
 			}, 'AUTH_DELETE_TOKENS_FAILED');
 		},
 		blockTokens: async (tokenIds: string[]) => {
 			return this.wrap(async () => {
 				await this.ensureSystem();
 				const { inArray } = await import('drizzle-orm');
-				const result = await this.db!.update(schema.authTokens)
+				const result = await this.db
+					?.update(schema.authTokens)
 					.set({ consumed: true, updatedAt: new Date() })
 					.where(inArray(schema.authTokens._id, tokenIds))
 					.returning();
-				return { modifiedCount: result.length };
+				return { modifiedCount: result?.length ?? 0 };
 			}, 'AUTH_BLOCK_TOKENS_FAILED');
 		},
 		unblockTokens: async (tokenIds: string[]) => {
 			return this.wrap(async () => {
 				await this.ensureSystem();
 				const { inArray } = await import('drizzle-orm');
-				const result = await this.db!.update(schema.authTokens)
+				const result = await this.db
+					?.update(schema.authTokens)
 					.set({ consumed: false, updatedAt: new Date() })
 					.where(inArray(schema.authTokens._id, tokenIds))
 					.returning();
-				return { modifiedCount: result.length };
+				return { modifiedCount: result?.length ?? 0 };
 			}, 'AUTH_UNBLOCK_TOKENS_FAILED');
 		},
 		checkUser: async (criteria: { email: string; tenantId?: string }) => {
@@ -826,10 +885,12 @@ export class PostgreSQLAdapter extends AdapterCore {
 				if (criteria.tenantId) {
 					conditions.push(eq(schema.authUsers.tenantId, criteria.tenantId));
 				}
-				const [user] = await this.db!.select()
-					.from(schema.authUsers)
-					.where(and(...conditions))
-					.limit(1);
+				const [user] =
+					(await this.db
+						?.select()
+						.from(schema.authUsers)
+						.where(and(...conditions))
+						.limit(1)) ?? [];
 				return user ? this.mapUser(user) : null;
 			}, 'AUTH_CHECK_USER_FAILED');
 		},
@@ -837,7 +898,7 @@ export class PostgreSQLAdapter extends AdapterCore {
 			return this.wrap(async () => {
 				await this.ensureSystem();
 				const { eq } = await import('drizzle-orm');
-				await this.db!.delete(schema.authUsers).where(eq(schema.authUsers._id, userId));
+				await this.db?.delete(schema.authUsers).where(eq(schema.authUsers._id, userId));
 			}, 'AUTH_DELETE_USER_FAILED');
 		},
 		getAllActiveSessions: async (tenantId?: string) => {
@@ -845,11 +906,14 @@ export class PostgreSQLAdapter extends AdapterCore {
 				await this.ensureSystem();
 				const { gt, and, eq } = await import('drizzle-orm');
 				const conditions: any[] = [gt(schema.authSessions.expires, new Date())];
-				if (tenantId) conditions.push(eq(schema.authSessions.tenantId, tenantId));
-				const results = await this.db!.select()
+				if (tenantId) {
+					conditions.push(eq(schema.authSessions.tenantId, tenantId));
+				}
+				const results = await this.db
+					?.select()
 					.from(schema.authSessions)
 					.where(and(...conditions));
-				return utils.convertArrayDatesToISO(results);
+				return utils.convertArrayDatesToISO(results ?? []);
 			}, 'AUTH_GET_ALL_ACTIVE_SESSIONS_FAILED');
 		}
 	};
@@ -862,14 +926,14 @@ export class PostgreSQLAdapter extends AdapterCore {
 		findOne: async (filter: Record<string, unknown>) => {
 			return this.wrap(async () => {
 				const where = this.mapQuery(schema.mediaItems, filter);
-				const [result] = await this.db!.select().from(schema.mediaItems).where(where).limit(1);
+				const [result] = (await this.db?.select().from(schema.mediaItems).where(where).limit(1)) ?? [];
 				return result || null;
 			}, 'MEDIA_FIND_ONE_FAILED');
 		},
 		findMany: async (filter?: Record<string, unknown>, options?: { limit?: number; offset?: number; sort?: any }) => {
 			return this.wrap(async () => {
 				const where = filter ? this.mapQuery(schema.mediaItems, filter) : undefined;
-				let query = this.db!.select().from(schema.mediaItems);
+				let query = this.db?.select().from(schema.mediaItems);
 				if (where) {
 					// @ts-expect-error - Drizzle types
 					query = query.where(where);
@@ -893,33 +957,37 @@ export class PostgreSQLAdapter extends AdapterCore {
 					createdAt: new Date(),
 					updatedAt: new Date()
 				};
-				const [result] = await this.db!.insert(schema.mediaItems).values(formattedData).returning();
+				const [result] = (await this.db?.insert(schema.mediaItems).values(formattedData).returning()) ?? [];
 				return result;
 			}, 'MEDIA_CREATE_FAILED');
 		},
 		update: async (filter: Record<string, unknown>, data: any) => {
 			return this.wrap(async () => {
 				const where = this.mapQuery(schema.mediaItems, filter);
-				const [result] = await this.db!.update(schema.mediaItems)
-					.set({ ...data, updatedAt: new Date() })
-					.where(where)
-					.returning();
+				const [result] =
+					(await this.db
+						?.update(schema.mediaItems)
+						.set({ ...data, updatedAt: new Date() })
+						.where(where)
+						.returning()) ?? [];
 				return result;
 			}, 'MEDIA_UPDATE_FAILED');
 		},
 		delete: async (filter: Record<string, unknown>) => {
 			return this.wrap(async () => {
 				const where = this.mapQuery(schema.mediaItems, filter);
-				await this.db!.delete(schema.mediaItems).where(where);
+				await this.db?.delete(schema.mediaItems).where(where);
 			}, 'MEDIA_DELETE_FAILED');
 		},
 		count: async (filter?: Record<string, unknown>) => {
 			return this.wrap(async () => {
 				const { sql } = await import('drizzle-orm');
 				const where = filter ? this.mapQuery(schema.mediaItems, filter) : undefined;
-				const query = this.db!.select({ count: sql<number>`count(*)` }).from(schema.mediaItems);
-				if (where) query.where(where);
-				const [result] = await query;
+				const query = this.db?.select({ count: sql<number>`count(*)` }).from(schema.mediaItems);
+				if (where) {
+					query?.where(where);
+				}
+				const [result] = (await query) ?? [];
 				return Number(result.count);
 			}, 'MEDIA_COUNT_FAILED');
 		},
@@ -933,7 +1001,7 @@ export class PostgreSQLAdapter extends AdapterCore {
 						createdAt: new Date(),
 						updatedAt: new Date()
 					};
-					const [result] = await this.db!.insert(schema.mediaItems).values(formattedData).returning();
+					const [result] = (await this.db?.insert(schema.mediaItems).values(formattedData).returning()) ?? [];
 					return result;
 				}, 'MEDIA_FILES_UPLOAD_FAILED');
 			},
@@ -945,7 +1013,7 @@ export class PostgreSQLAdapter extends AdapterCore {
 						createdAt: new Date(),
 						updatedAt: new Date()
 					}));
-					return await this.db!.insert(schema.mediaItems).values(formattedFiles).returning();
+					return await this.db?.insert(schema.mediaItems).values(formattedFiles).returning();
 				}, 'MEDIA_FILES_UPLOAD_MANY_FAILED');
 			},
 			getByFolder: async (
@@ -965,7 +1033,7 @@ export class PostgreSQLAdapter extends AdapterCore {
 						conditions.push(isNull(schema.mediaItems.folderId));
 					}
 
-					let query = this.db!.select().from(schema.mediaItems);
+					let query = this.db?.select().from(schema.mediaItems);
 					if (conditions.length > 0) {
 						const { and } = await import('drizzle-orm');
 						// @ts-expect-error - Drizzle types
@@ -986,12 +1054,12 @@ export class PostgreSQLAdapter extends AdapterCore {
 					const items = await query;
 
 					// Get total count
-					const countQuery = this.db!.select({ count: sql<number>`count(*)` }).from(schema.mediaItems);
+					const countQuery = this.db?.select({ count: sql<number>`count(*)` }).from(schema.mediaItems);
 					if (conditions.length > 0) {
 						const { and } = await import('drizzle-orm');
-						countQuery.where(and(...conditions));
+						countQuery?.where(and(...conditions));
 					}
-					const [countResult] = await countQuery;
+					const [countResult] = (await countQuery) ?? [];
 					const total = Number(countResult.count);
 
 					return {
@@ -1007,14 +1075,14 @@ export class PostgreSQLAdapter extends AdapterCore {
 			getById: async (id: string) => {
 				return this.wrap(async () => {
 					const { eq } = await import('drizzle-orm');
-					const [result] = await this.db!.select().from(schema.mediaItems).where(eq(schema.mediaItems._id, id)).limit(1);
+					const [result] = (await this.db?.select().from(schema.mediaItems).where(eq(schema.mediaItems._id, id)).limit(1)) ?? [];
 					return result || null;
 				}, 'MEDIA_FILES_GET_BY_ID_FAILED');
 			},
 			delete: async (id: string) => {
 				return this.wrap(async () => {
 					const { eq } = await import('drizzle-orm');
-					await this.db!.delete(schema.mediaItems).where(eq(schema.mediaItems._id, id));
+					await this.db?.delete(schema.mediaItems).where(eq(schema.mediaItems._id, id));
 				}, 'MEDIA_FILES_DELETE_FAILED');
 			}
 		},
@@ -1028,20 +1096,21 @@ export class PostgreSQLAdapter extends AdapterCore {
 						createdAt: new Date(),
 						updatedAt: new Date()
 					};
-					const [result] = await this.db!.insert(schema.systemVirtualFolders).values(formattedData).returning();
+					const [result] = (await this.db?.insert(schema.systemVirtualFolders).values(formattedData).returning()) ?? [];
 					return result;
 				}, 'MEDIA_FOLDERS_CREATE_FAILED');
 			},
 			delete: async (folderId: string) => {
 				return this.wrap(async () => {
 					const { eq } = await import('drizzle-orm');
-					await this.db!.delete(schema.systemVirtualFolders).where(eq(schema.systemVirtualFolders._id, folderId));
+					await this.db?.delete(schema.systemVirtualFolders).where(eq(schema.systemVirtualFolders._id, folderId));
 				}, 'MEDIA_FOLDERS_DELETE_FAILED');
 			},
 			getByPath: async (path: string) => {
 				return this.wrap(async () => {
 					const { eq } = await import('drizzle-orm');
-					const [result] = await this.db!.select().from(schema.systemVirtualFolders).where(eq(schema.systemVirtualFolders.path, path)).limit(1);
+					const [result] =
+						(await this.db?.select().from(schema.systemVirtualFolders).where(eq(schema.systemVirtualFolders.path, path)).limit(1)) ?? [];
 					return result || null;
 				}, 'MEDIA_FOLDERS_GET_BY_PATH_FAILED');
 			}
@@ -1052,7 +1121,7 @@ export class PostgreSQLAdapter extends AdapterCore {
 		get: async (key: string) => {
 			return this.wrap(async () => {
 				const { eq } = await import('drizzle-orm');
-				const [result] = await this.db!.select().from(schema.systemPreferences).where(eq(schema.systemPreferences.key, key)).limit(1);
+				const [result] = (await this.db?.select().from(schema.systemPreferences).where(eq(schema.systemPreferences.key, key)).limit(1)) ?? [];
 				return result?.value ?? null;
 			}, 'SYSTEM_PREFERENCES_GET_FAILED');
 		},
@@ -1060,12 +1129,12 @@ export class PostgreSQLAdapter extends AdapterCore {
 			return this.wrap(async () => {
 				await this.ensureSystem();
 				const { eq } = await import('drizzle-orm');
-				const [existing] = await this.db!.select().from(schema.systemPreferences).where(eq(schema.systemPreferences.key, key)).limit(1);
+				const [existing] = (await this.db?.select().from(schema.systemPreferences).where(eq(schema.systemPreferences.key, key)).limit(1)) ?? [];
 
 				if (existing) {
-					await this.db!.update(schema.systemPreferences).set({ value: value, updatedAt: new Date() }).where(eq(schema.systemPreferences.key, key));
+					await this.db?.update(schema.systemPreferences).set({ value, updatedAt: new Date() }).where(eq(schema.systemPreferences.key, key));
 				} else {
-					await this.db!.insert(schema.systemPreferences).values({
+					await this.db?.insert(schema.systemPreferences).values({
 						_id: utils.generateId(),
 						key,
 						value,
@@ -1078,23 +1147,27 @@ export class PostgreSQLAdapter extends AdapterCore {
 		delete: async (key: string) => {
 			return this.wrap(async () => {
 				const { eq } = await import('drizzle-orm');
-				await this.db!.delete(schema.systemPreferences).where(eq(schema.systemPreferences.key, key));
+				await this.db?.delete(schema.systemPreferences).where(eq(schema.systemPreferences.key, key));
 			}, 'SYSTEM_PREFERENCES_DELETE_FAILED');
 		},
 		getAll: async () => {
 			return this.wrap(async () => {
-				const results = await this.db!.select().from(schema.systemPreferences);
+				const results = await this.db?.select().from(schema.systemPreferences);
 				const data: Record<string, any> = {};
-				results.forEach((r) => (data[r.key] = r.value));
+				for (const r of results ?? []) {
+					data[r.key] = r.value;
+				}
 				return data;
 			}, 'SYSTEM_PREFERENCES_GET_ALL_FAILED');
 		},
 		getMany: async (keys: string[]) => {
 			return this.wrap(async () => {
 				const { inArray } = await import('drizzle-orm');
-				const results = await this.db!.select().from(schema.systemPreferences).where(inArray(schema.systemPreferences.key, keys));
+				const results = await this.db?.select().from(schema.systemPreferences).where(inArray(schema.systemPreferences.key, keys));
 				const data: Record<string, any> = {};
-				results.forEach((r) => (data[r.key] = r.value));
+				for (const r of results ?? []) {
+					data[r.key] = r.value;
+				}
 				return data;
 			}, 'SYSTEM_PREFERENCES_GET_MANY_FAILED');
 		},
@@ -1104,7 +1177,8 @@ export class PostgreSQLAdapter extends AdapterCore {
 				for (const pref of preferences) {
 					// Filter out extra fields like 'category' that aren't in the schema
 					const { category: _category, ...rest } = pref;
-					await this.db!.insert(schema.systemPreferences)
+					await this.db
+						?.insert(schema.systemPreferences)
 						.values({
 							_id: pref._id || utils.generateId(),
 							...rest,
@@ -1124,15 +1198,17 @@ export class PostgreSQLAdapter extends AdapterCore {
 		findOne: async (filter: Record<string, unknown>) => {
 			return this.wrap(async () => {
 				const where = this.mapQuery(schema.systemVirtualFolders, filter);
-				const [result] = await this.db!.select().from(schema.systemVirtualFolders).where(where).limit(1);
+				const [result] = (await this.db?.select().from(schema.systemVirtualFolders).where(where).limit(1)) ?? [];
 				return result || null;
 			}, 'SYSTEM_VIRTUAL_FOLDER_FIND_ONE_FAILED');
 		},
 		findMany: async (filter?: Record<string, unknown>) => {
 			return this.wrap(async () => {
 				const where = filter ? this.mapQuery(schema.systemVirtualFolders, filter) : undefined;
-				const query = this.db!.select().from(schema.systemVirtualFolders);
-				if (where) query.where(where);
+				const query = this.db?.select().from(schema.systemVirtualFolders);
+				if (where) {
+					query?.where(where);
+				}
 				return await query;
 			}, 'SYSTEM_VIRTUAL_FOLDER_FIND_MANY_FAILED');
 		},
@@ -1144,36 +1220,38 @@ export class PostgreSQLAdapter extends AdapterCore {
 					createdAt: new Date(),
 					updatedAt: new Date()
 				};
-				const [result] = await this.db!.insert(schema.systemVirtualFolders).values(formattedData).returning();
+				const [result] = (await this.db?.insert(schema.systemVirtualFolders).values(formattedData).returning()) ?? [];
 				return result;
 			}, 'SYSTEM_VIRTUAL_FOLDER_CREATE_FAILED');
 		},
 		update: async (filter: Record<string, unknown>, data: any) => {
 			return this.wrap(async () => {
 				const where = this.mapQuery(schema.systemVirtualFolders, filter);
-				const [result] = await this.db!.update(schema.systemVirtualFolders)
-					.set({ ...data, updatedAt: new Date() })
-					.where(where)
-					.returning();
+				const [result] =
+					(await this.db
+						?.update(schema.systemVirtualFolders)
+						.set({ ...data, updatedAt: new Date() })
+						.where(where)
+						.returning()) ?? [];
 				return result;
 			}, 'SYSTEM_VIRTUAL_FOLDER_UPDATE_FAILED');
 		},
 		delete: async (filter: Record<string, unknown>) => {
 			return this.wrap(async () => {
 				const where = this.mapQuery(schema.systemVirtualFolders, filter);
-				await this.db!.delete(schema.systemVirtualFolders).where(where);
+				await this.db?.delete(schema.systemVirtualFolders).where(where);
 			}, 'SYSTEM_VIRTUAL_FOLDER_DELETE_FAILED');
 		},
 		ensure: async (folder: any) => {
 			return this.wrap(async () => {
 				await this.ensureSystem();
 				const { eq } = await import('drizzle-orm');
-				const [existing] = await this.db!.select()
-					.from(schema.systemVirtualFolders)
-					.where(eq(schema.systemVirtualFolders.path, folder.path))
-					.limit(1);
+				const [existing] =
+					(await this.db?.select().from(schema.systemVirtualFolders).where(eq(schema.systemVirtualFolders.path, folder.path)).limit(1)) ?? [];
 
-				if (existing) return existing;
+				if (existing) {
+					return existing;
+				}
 
 				const formattedFolder = {
 					...folder,
@@ -1181,7 +1259,7 @@ export class PostgreSQLAdapter extends AdapterCore {
 					createdAt: new Date(),
 					updatedAt: new Date()
 				};
-				const [inserted] = await this.db!.insert(schema.systemVirtualFolders).values(formattedFolder).returning();
+				const [inserted] = (await this.db?.insert(schema.systemVirtualFolders).values(formattedFolder).returning()) ?? [];
 				return inserted;
 			}, 'SYSTEM_VIRTUAL_FOLDER_ENSURE_FAILED');
 		}
@@ -1195,15 +1273,17 @@ export class PostgreSQLAdapter extends AdapterCore {
 		findOne: async (filter: Record<string, unknown>) => {
 			return this.wrap(async () => {
 				const where = this.mapQuery(schema.themes, filter);
-				const [result] = await this.db!.select().from(schema.themes).where(where).limit(1);
+				const [result] = (await this.db?.select().from(schema.themes).where(where).limit(1)) ?? [];
 				return result || null;
 			}, 'THEMES_FIND_ONE_FAILED');
 		},
 		findMany: async (filter?: Record<string, unknown>) => {
 			return this.wrap(async () => {
 				const where = filter ? this.mapQuery(schema.themes, filter) : undefined;
-				const query = this.db!.select().from(schema.themes);
-				if (where) query.where(where);
+				const query = this.db?.select().from(schema.themes);
+				if (where) {
+					query?.where(where);
+				}
 				return await query;
 			}, 'THEMES_FIND_MANY_FAILED');
 		},
@@ -1215,32 +1295,36 @@ export class PostgreSQLAdapter extends AdapterCore {
 					createdAt: new Date(),
 					updatedAt: new Date()
 				};
-				const [result] = await this.db!.insert(schema.themes).values(formattedData).returning();
+				const [result] = (await this.db?.insert(schema.themes).values(formattedData).returning()) ?? [];
 				return result;
 			}, 'THEMES_CREATE_FAILED');
 		},
 		update: async (filter: Record<string, unknown>, data: any) => {
 			return this.wrap(async () => {
 				const where = this.mapQuery(schema.themes, filter);
-				const [result] = await this.db!.update(schema.themes)
-					.set({ ...data, updatedAt: new Date() })
-					.where(where)
-					.returning();
+				const [result] =
+					(await this.db
+						?.update(schema.themes)
+						.set({ ...data, updatedAt: new Date() })
+						.where(where)
+						.returning()) ?? [];
 				return result;
 			}, 'THEMES_UPDATE_FAILED');
 		},
 		delete: async (filter: Record<string, unknown>) => {
 			return this.wrap(async () => {
 				const where = this.mapQuery(schema.themes, filter);
-				await this.db!.delete(schema.themes).where(where);
+				await this.db?.delete(schema.themes).where(where);
 			}, 'THEMES_DELETE_FAILED');
 		},
 		ensure: async (theme: any) => {
 			return this.wrap(async () => {
 				await this.ensureSystem();
 				const { eq } = await import('drizzle-orm');
-				const [existing] = await this.db!.select().from(schema.themes).where(eq(schema.themes.name, theme.name)).limit(1);
-				if (existing) return existing;
+				const [existing] = (await this.db?.select().from(schema.themes).where(eq(schema.themes.name, theme.name)).limit(1)) ?? [];
+				if (existing) {
+					return existing;
+				}
 
 				const formattedTheme = {
 					...theme,
@@ -1248,13 +1332,13 @@ export class PostgreSQLAdapter extends AdapterCore {
 					createdAt: new Date(),
 					updatedAt: new Date()
 				};
-				const [inserted] = await this.db!.insert(schema.themes).values(formattedTheme).returning();
+				const [inserted] = (await this.db?.insert(schema.themes).values(formattedTheme).returning()) ?? [];
 				return inserted;
 			}, 'THEMES_ENSURE_FAILED');
 		},
 		getAllThemes: async () => {
 			return this.wrap(async () => {
-				return await this.db!.select().from(schema.themes);
+				return await this.db?.select().from(schema.themes);
 			}, 'THEMES_GET_ALL_FAILED');
 		},
 		storeThemes: async (themes: any[]) => {
@@ -1265,7 +1349,7 @@ export class PostgreSQLAdapter extends AdapterCore {
 					createdAt: t.createdAt ? new Date(t.createdAt) : new Date(),
 					updatedAt: t.updatedAt ? new Date(t.updatedAt) : new Date()
 				}));
-				await this.db!.insert(schema.themes).values(formattedThemes).onConflictDoNothing();
+				await this.db?.insert(schema.themes).values(formattedThemes).onConflictDoNothing();
 			}, 'THEMES_STORE_FAILED');
 		}
 	};
@@ -1278,20 +1362,22 @@ export class PostgreSQLAdapter extends AdapterCore {
 		findOne: async (filter: Record<string, unknown>) => {
 			return this.wrap(async () => {
 				const where = this.mapQuery(schema.widgets, filter);
-				const [result] = await this.db!.select().from(schema.widgets).where(where).limit(1);
+				const [result] = (await this.db?.select().from(schema.widgets).where(where).limit(1)) ?? [];
 				return result || null;
 			}, 'WIDGETS_FIND_ONE_FAILED');
 		},
 		findAll: async () => {
 			return this.wrap(async () => {
-				return await this.db!.select().from(schema.widgets);
+				return await this.db?.select().from(schema.widgets);
 			}, 'WIDGETS_FIND_ALL_FAILED');
 		},
 		findMany: async (filter?: Record<string, unknown>) => {
 			return this.wrap(async () => {
 				const where = filter ? this.mapQuery(schema.widgets, filter) : undefined;
-				const query = this.db!.select().from(schema.widgets);
-				if (where) query.where(where);
+				const query = this.db?.select().from(schema.widgets);
+				if (where) {
+					query?.where(where);
+				}
 				return await query;
 			}, 'WIDGETS_FIND_MANY_FAILED');
 		},
@@ -1303,7 +1389,7 @@ export class PostgreSQLAdapter extends AdapterCore {
 					createdAt: new Date(),
 					updatedAt: new Date()
 				};
-				const [result] = await this.db!.insert(schema.widgets).values(formattedData).returning();
+				const [result] = (await this.db?.insert(schema.widgets).values(formattedData).returning()) ?? [];
 				return result;
 			}, 'WIDGETS_CREATE_FAILED');
 		},
@@ -1317,31 +1403,35 @@ export class PostgreSQLAdapter extends AdapterCore {
 				} else {
 					where = this.mapQuery(schema.widgets, widgetIdOrFilter);
 				}
-				const [result] = await this.db!.update(schema.widgets)
-					.set({ ...data, updatedAt: new Date() })
-					.where(where)
-					.returning();
+				const [result] =
+					(await this.db
+						?.update(schema.widgets)
+						.set({ ...data, updatedAt: new Date() })
+						.where(where)
+						.returning()) ?? [];
 				return result;
 			}, 'WIDGETS_UPDATE_FAILED');
 		},
 		delete: async (filter: Record<string, unknown>) => {
 			return this.wrap(async () => {
 				const where = this.mapQuery(schema.widgets, filter);
-				await this.db!.delete(schema.widgets).where(where);
+				await this.db?.delete(schema.widgets).where(where);
 			}, 'WIDGETS_DELETE_FAILED');
 		},
 		getActiveWidgets: async () => {
 			return this.wrap(async () => {
 				const { eq } = await import('drizzle-orm');
-				return await this.db!.select().from(schema.widgets).where(eq(schema.widgets.isActive, true));
+				return await this.db?.select().from(schema.widgets).where(eq(schema.widgets.isActive, true));
 			}, 'WIDGETS_GET_ACTIVE_FAILED');
 		},
 		ensure: async (widget: any) => {
 			return this.wrap(async () => {
 				await this.ensureSystem();
 				const { eq } = await import('drizzle-orm');
-				const [existing] = await this.db!.select().from(schema.widgets).where(eq(schema.widgets.name, widget.name)).limit(1);
-				if (existing) return existing;
+				const [existing] = (await this.db?.select().from(schema.widgets).where(eq(schema.widgets.name, widget.name)).limit(1)) ?? [];
+				if (existing) {
+					return existing;
+				}
 
 				const formattedWidget = {
 					...widget,
@@ -1349,7 +1439,7 @@ export class PostgreSQLAdapter extends AdapterCore {
 					createdAt: new Date(),
 					updatedAt: new Date()
 				};
-				const [inserted] = await this.db!.insert(schema.widgets).values(formattedWidget).returning();
+				const [inserted] = (await this.db?.insert(schema.widgets).values(formattedWidget).returning()) ?? [];
 				return inserted;
 			}, 'WIDGETS_ENSURE_FAILED');
 		}
@@ -1359,17 +1449,19 @@ export class PostgreSQLAdapter extends AdapterCore {
 		findOne: async (filter: Record<string, unknown>) => {
 			return this.wrap(async () => {
 				const where = this.mapQuery(schema.websiteTokens, filter);
-				const [result] = await this.db!.select().from(schema.websiteTokens).where(where).limit(1);
+				const [result] = (await this.db?.select().from(schema.websiteTokens).where(where).limit(1)) ?? [];
 				return result ? this.mapWebsiteToken(result) : null;
 			}, 'WEBSITE_TOKENS_FIND_ONE_FAILED');
 		},
 		findMany: async (filter?: Record<string, unknown>) => {
 			return this.wrap(async () => {
 				const where = filter ? this.mapQuery(schema.websiteTokens, filter) : undefined;
-				const query = this.db!.select().from(schema.websiteTokens);
-				if (where) query.where(where);
+				const query = this.db?.select().from(schema.websiteTokens);
+				if (where) {
+					query?.where(where);
+				}
 				const results = await query;
-				return results.map((r: any) => this.mapWebsiteToken(r));
+				return (results ?? []).map((r: any) => this.mapWebsiteToken(r));
 			}, 'WEBSITE_TOKENS_FIND_MANY_FAILED');
 		},
 		create: async (data: any) => {
@@ -1383,7 +1475,7 @@ export class PostgreSQLAdapter extends AdapterCore {
 					createdAt: new Date(),
 					updatedAt: new Date()
 				};
-				const [result] = await this.db!.insert(schema.websiteTokens).values(formattedData).returning();
+				const [result] = (await this.db?.insert(schema.websiteTokens).values(formattedData).returning()) ?? [];
 				return this.mapWebsiteToken(result);
 			}, 'WEBSITE_TOKENS_CREATE_FAILED');
 		},
@@ -1392,10 +1484,10 @@ export class PostgreSQLAdapter extends AdapterCore {
 			return this.wrap(async () => {
 				const { eq } = await import('drizzle-orm');
 				if (typeof tokenId === 'string') {
-					await this.db!.delete(schema.websiteTokens).where(eq(schema.websiteTokens._id, tokenId));
+					await this.db?.delete(schema.websiteTokens).where(eq(schema.websiteTokens._id, tokenId));
 				} else {
 					const where = this.mapQuery(schema.websiteTokens, tokenId);
-					await this.db!.delete(schema.websiteTokens).where(where);
+					await this.db?.delete(schema.websiteTokens).where(where);
 				}
 			}, 'WEBSITE_TOKENS_DELETE_FAILED');
 		},
@@ -1403,7 +1495,7 @@ export class PostgreSQLAdapter extends AdapterCore {
 		getAll: async (options?: { limit?: number; skip?: number; sort?: string; order?: string }) => {
 			return this.wrap(async () => {
 				const { desc, asc } = await import('drizzle-orm');
-				let q: any = this.db!.select().from(schema.websiteTokens);
+				let q: any = this.db?.select().from(schema.websiteTokens);
 
 				if (options?.sort) {
 					const orderFn = options.order === 'desc' ? desc : asc;
@@ -1412,12 +1504,16 @@ export class PostgreSQLAdapter extends AdapterCore {
 					}
 				}
 
-				if (options?.limit) q = q.limit(options.limit);
-				if (options?.skip) q = q.offset(options.skip);
+				if (options?.limit) {
+					q = q.limit(options.limit);
+				}
+				if (options?.skip) {
+					q = q.offset(options.skip);
+				}
 
 				const results = await q;
 				// total count
-				const [countResult] = await this.db!.select({ count: sql`count(*)` }).from(schema.websiteTokens);
+				const [countResult] = (await this.db?.select({ count: sql`count(*)` }).from(schema.websiteTokens)) ?? [];
 				const total = Number((countResult as any).count);
 
 				return {
@@ -1429,7 +1525,7 @@ export class PostgreSQLAdapter extends AdapterCore {
 		getByName: async (name: string) => {
 			return this.wrap(async () => {
 				const { eq } = await import('drizzle-orm');
-				const [result] = await this.db!.select().from(schema.websiteTokens).where(eq(schema.websiteTokens.name, name)).limit(1);
+				const [result] = (await this.db?.select().from(schema.websiteTokens).where(eq(schema.websiteTokens.name, name)).limit(1)) ?? [];
 				return result ? this.mapWebsiteToken(result) : null;
 			}, 'WEBSITE_TOKENS_GET_BY_NAME_FAILED');
 		}
@@ -1445,19 +1541,21 @@ export class PostgreSQLAdapter extends AdapterCore {
 					createdAt: new Date(),
 					updatedAt: new Date()
 				}));
-				return await this.db!.insert(table).values(formattedDocs).returning();
+				return await this.db?.insert(table).values(formattedDocs).returning();
 			}, 'BATCH_INSERT_FAILED');
 		},
 		update: async (collection: string, operations: any[]) => {
 			return this.wrap(async () => {
 				const table = this.getTable(collection);
-				const results = [];
+				const results: any[] = [];
 				for (const op of operations) {
 					const where = this.mapQuery(table, op.filter || op.query || {});
-					const [result] = await this.db!.update(table)
-						.set({ ...op.data, updatedAt: new Date() })
-						.where(where)
-						.returning();
+					const [result] =
+						(await this.db
+							?.update(table)
+							.set({ ...op.data, updatedAt: new Date() })
+							.where(where)
+							.returning()) ?? [];
 					results.push(result);
 				}
 				return results;
@@ -1469,8 +1567,8 @@ export class PostgreSQLAdapter extends AdapterCore {
 				let deletedCount = 0;
 				for (const filter of filters) {
 					const where = this.mapQuery(table, filter);
-					const result = await this.db!.delete(table).where(where).returning();
-					deletedCount += result.length;
+					const result = await this.db?.delete(table).where(where).returning();
+					deletedCount += result?.length ?? 0;
 				}
 				return { deletedCount };
 			}, 'BATCH_DELETE_FAILED');
@@ -1506,13 +1604,15 @@ export class PostgreSQLAdapter extends AdapterCore {
 		}
 	};
 
-	private _cache = new Map<string, { value: unknown; expires?: number }>();
+	private readonly _cache = new Map<string, { value: unknown; expires?: number }>();
 
 	public readonly cache = {
 		get: async (key: string) => {
 			return this.wrap(async () => {
 				const entry = this._cache.get(key);
-				if (!entry) return null;
+				if (!entry) {
+					return null;
+				}
 				if (entry.expires && entry.expires < Date.now()) {
 					this._cache.delete(key);
 					return null;
@@ -1546,7 +1646,7 @@ export class PostgreSQLAdapter extends AdapterCore {
 				return this.wrap(async () => {
 					await this.ensureSystem();
 					const { eq, asc } = await import('drizzle-orm');
-					let query = this.db!.select().from(schema.contentNodes);
+					let query = this.db?.select().from(schema.contentNodes);
 
 					if (options?.tenantId) {
 						// @ts-expect-error - Drizzle types
@@ -1560,21 +1660,23 @@ export class PostgreSQLAdapter extends AdapterCore {
 					const nodes = await query;
 
 					// Schema now uses nodeType directly, no mapping needed
-					const mappedNodes = nodes.map((node) => ({
+					const mappedNodes = (nodes ?? []).map((node) => ({
 						...node
 					}));
 
 					if (mode === 'nested') {
 						const idMap = new Map();
-						mappedNodes.forEach((n: any) => idMap.set(n._id, { ...n, children: [] }));
+						for (const n of mappedNodes) {
+							idMap.set(n._id, { ...n, children: [] });
+						}
 						const rootNodes: any[] = [];
-						idMap.forEach((n: any) => {
+						for (const [, n] of idMap) {
 							if (n.parentId && idMap.has(n.parentId)) {
-								idMap.get(n.parentId)!.children!.push(n);
+								idMap.get(n.parentId)?.children?.push(n);
 							} else {
 								rootNodes.push(n);
 							}
-						});
+						}
 						return rootNodes;
 					}
 
@@ -1584,7 +1686,9 @@ export class PostgreSQLAdapter extends AdapterCore {
 			createMany: async (nodes: any[]) => {
 				return this.wrap(async () => {
 					await this.ensureSystem();
-					if (!nodes.length) return [];
+					if (!nodes.length) {
+						return [];
+					}
 
 					const formattedNodes = nodes.map((node) => ({
 						_id: node._id || utils.generateId(),
@@ -1607,7 +1711,8 @@ export class PostgreSQLAdapter extends AdapterCore {
 					}));
 
 					// Use onConflictDoUpdate to handle upserts
-					await this.db!.insert(schema.contentNodes)
+					await this.db
+						?.insert(schema.contentNodes)
 						.values(formattedNodes)
 						.onConflictDoUpdate({
 							target: schema.contentNodes._id,
@@ -1636,7 +1741,7 @@ export class PostgreSQLAdapter extends AdapterCore {
 						// nodeType is now the schema field name, no mapping needed
 
 						// FIX: Remove _id from changes to avoid PK update issues
-						delete changes._id;
+						changes._id = undefined;
 
 						// FIX: Handle empty strings for nullable fields - more robust check
 						if (!changes.parentId || changes.parentId === '' || changes.parentId === 'null') {
@@ -1644,11 +1749,18 @@ export class PostgreSQLAdapter extends AdapterCore {
 						}
 
 						// FIX: Convert date strings to Date objects
-						if (changes.createdAt && typeof changes.createdAt === 'string') changes.createdAt = new Date(changes.createdAt);
-						if (changes.updatedAt && typeof changes.updatedAt === 'string') changes.updatedAt = new Date(changes.updatedAt);
-						if (changes.publishedAt && typeof changes.publishedAt === 'string') changes.publishedAt = new Date(changes.publishedAt);
+						if (changes.createdAt && typeof changes.createdAt === 'string') {
+							changes.createdAt = new Date(changes.createdAt);
+						}
+						if (changes.updatedAt && typeof changes.updatedAt === 'string') {
+							changes.updatedAt = new Date(changes.updatedAt);
+						}
+						if (changes.publishedAt && typeof changes.publishedAt === 'string') {
+							changes.publishedAt = new Date(changes.publishedAt);
+						}
 
-						await this.db!.update(schema.contentNodes)
+						await this.db
+							?.update(schema.contentNodes)
 							.set({ ...changes, updatedAt: new Date() })
 							.where(eq(schema.contentNodes.path, update.path));
 					}
@@ -1658,9 +1770,9 @@ export class PostgreSQLAdapter extends AdapterCore {
 				return this.wrap(async () => {
 					await this.ensureSystem();
 					const { inArray, or } = await import('drizzle-orm');
-					await this.db!.delete(schema.contentNodes).where(
-						or(inArray(schema.contentNodes.path, pathsOrIds), inArray(schema.contentNodes._id, pathsOrIds))
-					);
+					await this.db
+						?.delete(schema.contentNodes)
+						.where(or(inArray(schema.contentNodes.path, pathsOrIds), inArray(schema.contentNodes._id, pathsOrIds)));
 				}, 'CONTENT_NODES_DELETE_MANY_FAILED');
 			}
 		},
@@ -1668,7 +1780,7 @@ export class PostgreSQLAdapter extends AdapterCore {
 			return this.wrap(async () => {
 				const table = this.getTable(collection);
 				const where = this.mapQuery(table, filter);
-				const [result] = await this.db!.select().from(table).where(where).limit(1);
+				const [result] = (await this.db?.select().from(table).where(where).limit(1)) ?? [];
 				return result || null;
 			}, 'CONTENT_FIND_ONE_FAILED');
 		},
@@ -1676,7 +1788,7 @@ export class PostgreSQLAdapter extends AdapterCore {
 			return this.wrap(async () => {
 				const table = this.getTable(collection);
 				const where = filter ? this.mapQuery(table, filter) : undefined;
-				let query = this.db!.select().from(table);
+				let query = this.db?.select().from(table);
 				if (where) {
 					// @ts-expect-error - Drizzle types
 					query = query.where(where);
@@ -1701,7 +1813,7 @@ export class PostgreSQLAdapter extends AdapterCore {
 					createdAt: new Date(),
 					updatedAt: new Date()
 				};
-				const [result] = await this.db!.insert(table).values(formattedData).returning();
+				const [result] = (await this.db?.insert(table).values(formattedData).returning()) ?? [];
 				return result;
 			}, 'CONTENT_CREATE_FAILED');
 		},
@@ -1709,10 +1821,12 @@ export class PostgreSQLAdapter extends AdapterCore {
 			return this.wrap(async () => {
 				const table = this.getTable(collection);
 				const where = this.mapQuery(table, filter);
-				const [result] = await this.db!.update(table)
-					.set({ ...data, updatedAt: new Date() })
-					.where(where)
-					.returning();
+				const [result] =
+					(await this.db
+						?.update(table)
+						.set({ ...data, updatedAt: new Date() })
+						.where(where)
+						.returning()) ?? [];
 				return result;
 			}, 'CONTENT_UPDATE_FAILED');
 		},
@@ -1720,7 +1834,7 @@ export class PostgreSQLAdapter extends AdapterCore {
 			return this.wrap(async () => {
 				const table = this.getTable(collection);
 				const where = this.mapQuery(table, filter);
-				await this.db!.delete(table).where(where);
+				await this.db?.delete(table).where(where);
 			}, 'CONTENT_DELETE_FAILED');
 		},
 		count: async (collection: string, filter?: Record<string, unknown>) => {
@@ -1728,9 +1842,11 @@ export class PostgreSQLAdapter extends AdapterCore {
 				const { sql } = await import('drizzle-orm');
 				const table = this.getTable(collection);
 				const where = filter ? this.mapQuery(table, filter) : undefined;
-				const query = this.db!.select({ count: sql<number>`count(*)` }).from(table);
-				if (where) query.where(where);
-				const [result] = await query;
+				const query = this.db?.select({ count: sql<number>`count(*)` }).from(table);
+				if (where) {
+					query?.where(where);
+				}
+				const [result] = (await query) ?? [];
 				return Number(result.count);
 			}, 'CONTENT_COUNT_FAILED');
 		},
@@ -1743,7 +1859,7 @@ export class PostgreSQLAdapter extends AdapterCore {
 		},
 		exists: async (name: string) => {
 			return this.wrap(async () => {
-				const result = await this.db!.execute(sql`SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = ${name})`);
+				const result = await this.db?.execute(sql`SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = ${name})`);
 				return !!(result as any)?.[0]?.exists;
 			}, 'CONTENT_EXISTS_FAILED');
 		},
@@ -1765,13 +1881,13 @@ export class PostgreSQLAdapter extends AdapterCore {
 	public readonly collection = {
 		list: async () => {
 			return this.wrap(async () => {
-				const result = await this.db!.execute(sql`SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'`);
+				const result = await this.db?.execute(sql`SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'`);
 				return (result as any[]).map((r: any) => r.table_name);
 			}, 'COLLECTION_LIST_FAILED');
 		},
 		exists: async (name: string) => {
 			return this.wrap(async () => {
-				const result = await this.db!.execute(
+				const result = await this.db?.execute(
 					sql`SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = ${name})`
 				);
 				return !!(result as any)?.[0]?.exists;
@@ -1799,10 +1915,6 @@ export class PostgreSQLAdapter extends AdapterCore {
 
 	public readonly utils = utils;
 
-	constructor() {
-		super();
-	}
-
 	public queryBuilder = <T extends BaseEntity>(_collection: string): QueryBuilder<T> => {
 		// Return a stub query builder for now - cast through unknown since this is a beta stub
 		return {
@@ -1821,9 +1933,11 @@ export class PostgreSQLAdapter extends AdapterCore {
 	): Promise<DatabaseResult<T>> => {
 		return this.wrap(async () => {
 			// postgres.js transactions via drizzle
-			const result = await this.db!.transaction(async (tx) => {
+			const result = await this.db?.transaction(async (tx) => {
 				const txResult = await fn(tx);
-				if (!txResult.success) throw new Error((txResult as any).message || 'Transaction failed');
+				if (!txResult.success) {
+					throw new Error((txResult as any).message || 'Transaction failed');
+				}
 				return txResult.data;
 			});
 			return result;
@@ -1837,7 +1951,7 @@ export class PostgreSQLAdapter extends AdapterCore {
 	): Promise<DatabaseResult<{ data: unknown[]; metadata?: { totalCount: number; schema?: unknown; indexes?: string[] } }>> => {
 		return this.wrap(async () => {
 			const table = this.getTable(collection);
-			let query = this.db!.select().from(table);
+			let query = this.db?.select().from(table);
 			if (options?.limit) {
 				// @ts-expect-error - Drizzle types
 				query = query.limit(options.limit);
@@ -1847,10 +1961,10 @@ export class PostgreSQLAdapter extends AdapterCore {
 				query = query.offset(options.offset);
 			}
 			const data = await query;
-			const countResult = await this.db!.select({ count: sql<number>`count(*)` }).from(table);
-			const totalCount = Number(countResult[0].count);
+			const countResult = await this.db?.select({ count: sql<number>`count(*)` }).from(table);
+			const totalCount = Number(countResult?.[0]?.count ?? 0);
 			return {
-				data,
+				data: data ?? [],
 				metadata: options?.includeMetadata ? { totalCount } : undefined
 			};
 		}, 'GET_COLLECTION_DATA_FAILED');
@@ -1864,12 +1978,12 @@ export class PostgreSQLAdapter extends AdapterCore {
 			const result: Record<string, unknown[]> = {};
 			for (const name of collectionNames) {
 				const table = this.getTable(name);
-				let query = this.db!.select().from(table);
+				let query = this.db?.select().from(table);
 				if (options?.limit) {
 					// @ts-expect-error - Drizzle types
 					query = query.limit(options.limit);
 				}
-				result[name] = await query;
+				result[name] = (await query) ?? [];
 			}
 			return result;
 		}, 'GET_MULTIPLE_COLLECTION_DATA_FAILED');

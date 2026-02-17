@@ -19,32 +19,30 @@
 import { auth, dbAdapter } from '@src/databases/db';
 import type { ISODateString } from '@src/databases/dbInterface';
 import { getPrivateSettingSync } from '@src/services/settingsService';
-import { json, type HttpError } from '@sveltejs/kit';
-import { addUserTokenSchema } from '@utils/formSchemas';
-import { safeParse } from 'valibot';
-
-// System Logger
-import { logger } from '@utils/logger.server';
-
+import { type HttpError, json } from '@sveltejs/kit';
 // Unified Error Handling
 import { apiHandler } from '@utils/apiHandler';
 import { AppError } from '@utils/errorHandling';
+import { addUserTokenSchema } from '@utils/formSchemas';
+// System Logger
+import { logger } from '@utils/logger.server';
+import { safeParse } from 'valibot';
 
 export const GET = apiHandler(async ({ url, locals }) => {
 	const { user, tenantId, hasManageUsersPermission } = locals;
 
 	// Security: Ensure the user is authenticated and has admin-level permissions.
-	if (!user || !hasManageUsersPermission) {
+	if (!(user && hasManageUsersPermission)) {
 		throw new AppError('Forbidden: You do not have permission to access users.', 403, 'FORBIDDEN');
 	}
 
-	if (!auth || !dbAdapter) {
+	if (!(auth && dbAdapter)) {
 		throw new AppError('Authentication system is not initialized', 500, 'AUTH_SYS_ERROR');
 	}
 
 	try {
-		const page = parseInt(url.searchParams.get('page') || '1');
-		const limit = parseInt(url.searchParams.get('limit') || '10');
+		const page = Number.parseInt(url.searchParams.get('page') || '1', 10);
+		const limit = Number.parseInt(url.searchParams.get('limit') || '10', 10);
 		const sort = url.searchParams.get('sort') || 'createdAt';
 		const order = url.searchParams.get('order') === 'asc' ? 1 : -1;
 		const search = url.searchParams.get('search') || '';
@@ -74,7 +72,7 @@ export const GET = apiHandler(async ({ url, locals }) => {
 		const usersResult = await dbAdapter.auth.getAllUsers(options);
 		const totalUsersResult = await dbAdapter.auth.getUserCount(filter);
 
-		if (!usersResult.success || !usersResult.data) {
+		if (!(usersResult.success && usersResult.data)) {
 			throw new AppError('Failed to fetch users from database', 500, 'DB_FETCH_ERROR');
 		}
 
@@ -103,7 +101,9 @@ export const GET = apiHandler(async ({ url, locals }) => {
 			}
 		});
 	} catch (err: unknown) {
-		if (err instanceof AppError) throw err;
+		if (err instanceof AppError) {
+			throw err;
+		}
 		logger.error('Error fetching users:', err);
 		const errorMessage = err instanceof Error ? err.message : 'An internal server error occurred.';
 		throw new AppError(errorMessage, 500, 'INTERNAL_SERVER_ERROR');
@@ -134,9 +134,9 @@ export const POST = apiHandler(async ({ request, locals, url }) => {
 
 		const expirationTimes: Record<string, number> = {
 			'2 hrs': 7200,
-			'12 hrs': 43200,
-			'2 days': 172800,
-			'1 week': 604800
+			'12 hrs': 43_200,
+			'2 days': 172_800,
+			'1 week': 604_800
 		};
 
 		const expirationTime = expirationTimes[expiresIn];
@@ -174,7 +174,9 @@ export const POST = apiHandler(async ({ request, locals, url }) => {
 
 		return json(newUser, { status: 201 }); // 201 Created
 	} catch (err) {
-		if (err instanceof AppError) throw err;
+		if (err instanceof AppError) {
+			throw err;
+		}
 		const httpError = err as HttpError;
 		const status = httpError.status || 500;
 		const errMsg = err instanceof Error ? err.message : typeof err === 'string' ? err : JSON.stringify(err);

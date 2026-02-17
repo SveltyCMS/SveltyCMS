@@ -1,0 +1,106 @@
+{
+	"$schema": "https://biomejs.dev/schemas/2.4.2/schema.json",
+	"vcs": {
+		"enabled": true,
+		"clientKind": "git",
+		"useIgnoreFile": true
+	},
+	"files": {
+		"ignoreUnknown": true,
+		"includes": ["**/*.ts", "**/*.js", "**/*.mjs", "**/*.cjs", "**/*.json"]
+	},
+	"formatter": {
+		"enabled": true,
+		"indentStyle": "tab",
+		"lineWidth": 150
+	},
+	"linter": {
+		"enabled": true,
+		"rules": {
+			"recommended": false,
+			"correctness": {
+				"recommended": true,
+				"noUnsafeOptionalChaining": "warn",
+				"noUnusedVariables": "warn",
+				"noUnusedImports": "warn",
+				"noUnusedFunctionParameters": "off",
+				"noUnusedLabels": "error",
+				"noSwitchDeclarations": "warn",
+				"noUndeclaredVariables": "error",
+				"noUnreachable": "error"
+			},
+			"suspicious": {
+				"recommended": true,
+				"noExplicitAny": "off",
+				"useAwait": "off",
+				"noEmptyBlockStatements": "off",
+				"noBitwiseOperators": "off",
+				"noEvolvingTypes": "warn",
+				"noImplicitAnyLet": "off",
+				"noAssignInExpressions": "off",
+				"noConsole": "off",
+				"noDebugger": "warn",
+				"noDoubleEquals": "warn",
+				"noFallthroughSwitchClause": "error",
+				"noDuplicateObjectKeys": "error",
+				"noDuplicateCase": "error",
+				"noRedeclare": "error",
+				"useIterableCallbackReturn": "error",
+				"useGuardForIn": "error",
+				"useErrorMessage": "error",
+				"noDuplicateParameters": "error"
+			},
+			"complexity": {
+				"recommended": false
+			},
+			"performance": {
+				"recommended": false
+			},
+			"style": {
+				"recommended": false
+			}
+		}
+	},
+	"javascript": {
+		"globals": ["Bun", "NodeJS", "globalThis"],
+		"formatter": {
+			"quoteStyle": "single",
+			"trailingCommas": "none"
+		}
+	},
+	"overrides": [
+		{
+			"includes": ["**/*.svelte", "**/*.html", "**/*.css"],
+			"linter": {
+				"enabled": false
+			},
+			"formatter": {
+				"enabled": false
+			}
+		},
+		{
+			"includes": ["src/databases/postgresql/**"],
+			"linter": {
+				"rules": {
+					"correctness": {
+						"noUnsafeOptionalChaining": "off"
+					}
+				}
+			}
+		},
+		{
+			"includes": ["tests/**", "**/*.test.ts", "**/*.spec.ts"],
+			"linter": {
+				"rules": {
+					"suspicious": {
+						"noExplicitAny": "off",
+						"noEmptyBlockStatements": "off"
+					},
+					"correctness": {
+						"noUnusedVariables": "off"
+					}
+				}
+			}
+		}
+	]
+}

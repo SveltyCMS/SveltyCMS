@@ -9,18 +9,17 @@
  * - **Error Handling:** Handles 'ENOENT' specifically for cleaner 404s.
  */
 
-import { redirect } from '@sveltejs/kit';
-import { getPublicSettingSync } from '@src/services/settingsService';
-import { logger } from '@utils/logger.server';
 import { createReadStream } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import path from 'node:path';
 import { Readable } from 'node:stream';
-import { lookup } from 'mime-types';
-
+import { getPublicSettingSync } from '@src/services/settingsService';
+import { redirect } from '@sveltejs/kit';
 // Unified Error Handling
 import { apiHandler } from '@utils/apiHandler';
 import { AppError } from '@utils/errorHandling';
+import { logger } from '@utils/logger.server';
+import { lookup } from 'mime-types';
 
 export const GET = apiHandler(async ({ params, request }) => {
 	let filePath = params.path;
@@ -51,10 +50,9 @@ export const GET = apiHandler(async ({ params, request }) => {
 
 			logger.debug('Redirecting to cloud storage', { filePath, cloudUrl: fullUrl });
 			throw redirect(307, fullUrl);
-		} else {
-			logger.error('Cloud storage configured but no public URL available', { storageType });
-			throw new AppError('Cloud storage URL not configured', 500, 'CLOUD_CONFIG_ERROR');
 		}
+		logger.error('Cloud storage configured but no public URL available', { storageType });
+		throw new AppError('Cloud storage URL not configured', 500, 'CLOUD_CONFIG_ERROR');
 	}
 
 	// --- LOCAL STORAGE SERVING ---
@@ -81,7 +79,7 @@ export const GET = apiHandler(async ({ params, request }) => {
 
 	// Async Stat check (Non-blocking)
 	// We use standard try/catch here only for fs operations to throw specific AppErrors
-	let stats;
+	let stats: any;
 	try {
 		stats = await stat(resolvedPath);
 	} catch (err: any) {

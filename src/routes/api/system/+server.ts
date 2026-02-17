@@ -9,15 +9,13 @@
  *  - POST: backup - Trigger system backup (future)
  */
 
+import { reinitializeSystem } from '@src/databases/db';
+// System Utilities
+import { getHealthCheckReport } from '@src/stores/system/reporting';
 import { json } from '@sveltejs/kit';
-
 // Unified Error Handling
 import { apiHandler } from '@utils/apiHandler';
 import { AppError } from '@utils/errorHandling';
-
-// System Utilities
-import { getHealthCheckReport } from '@src/stores/system/reporting';
-import { reinitializeSystem } from '@src/databases/db';
 
 // Logging
 import { logger } from '@utils/logger.server';
@@ -56,7 +54,9 @@ export const GET = apiHandler(async ({ url, locals }) => {
 				throw new AppError(`Unknown action: ${action}`, 400, 'INVALID_ACTION');
 		}
 	} catch (err) {
-		if (err instanceof AppError) throw err;
+		if (err instanceof AppError) {
+			throw err;
+		}
 		if (err && typeof err === 'object' && 'status' in err) {
 			throw err; // Re-throw SvelteKit errors if any remain
 		}
@@ -103,15 +103,14 @@ export const POST = apiHandler(async ({ request, locals }) => {
 					status: result.status,
 					message: 'System reinitialized successfully'
 				});
-			} else {
-				logger.error('System reinitialization failed', {
-					result,
-					userId: locals.user._id
-				});
-				// Return failure JSON but still 200/500? Use AppError for failure?
-				// The original code returned 500 JSON.
-				throw new AppError(result.error || 'Unknown error', 500, 'REINIT_FAILED');
 			}
+			logger.error('System reinitialization failed', {
+				result,
+				userId: locals.user._id
+			});
+			// Return failure JSON but still 200/500? Use AppError for failure?
+			// The original code returned 500 JSON.
+			throw new AppError(result.error || 'Unknown error', 500, 'REINIT_FAILED');
 		}
 
 		case 'restart-service': {

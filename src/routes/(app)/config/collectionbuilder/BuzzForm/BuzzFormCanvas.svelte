@@ -14,9 +14,9 @@
 -->
 
 <script lang="ts">
-	import { dndzone, type DndEvent } from 'svelte-dnd-action';
-	import { flip } from 'svelte/animate';
 	import { collections } from '@src/stores/collectionStore.svelte';
+	import { flip } from 'svelte/animate';
+	import { type DndEvent, dndzone } from 'svelte-dnd-action';
 
 	interface Props {
 		fields: any[];
@@ -83,9 +83,7 @@
 							<div class="flex-1 overflow-hidden">
 								<div class="flex items-baseline gap-2">
 									<span class="text-lg font-bold">{item.label || 'Unnamed Field'}</span>
-									<span class="text-[10px] uppercase tracking-wider text-surface-400 font-mono">
-										{item.db_fieldName || '-'}
-									</span>
+									<span class="text-[10px] uppercase tracking-wider text-surface-400 font-mono"> {item.db_fieldName || '-'} </span>
 								</div>
 								<div class="mt-1 text-xs text-surface-500 line-clamp-1">
 									Type: <span class="text-primary-500 font-medium">{item.widget?.key || 'Generic'}</span>

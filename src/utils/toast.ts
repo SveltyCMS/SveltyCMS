@@ -14,7 +14,7 @@ export type ToastType = 'success' | 'info' | 'warning' | 'error';
  * @param type The type of toast (success, info, warning, error). Defaults to 'info'.
  * @param timeout Custom timeout in milliseconds. Defaults to 3000ms.
  */
-export function showToast(message: string, type: ToastType = 'info', timeout: number = 3000): void {
+export function showToast(message: string, type: ToastType = 'info', timeout = 3000): void {
 	try {
 		const toastData = {
 			title: type.charAt(0).toUpperCase() + type.slice(1), // Title Case
@@ -32,7 +32,6 @@ export function showToast(message: string, type: ToastType = 'info', timeout: nu
 			case 'error':
 				toaster.error(toastData);
 				break;
-			case 'info':
 			default:
 				toaster.info(toastData);
 				break;

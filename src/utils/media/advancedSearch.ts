@@ -6,41 +6,41 @@
 import type { MediaBase, MediaImage } from './mediaModels';
 
 export interface SearchCriteria {
+	aspectRatio?: 'landscape' | 'portrait' | 'square';
+	camera?: string;
+	dominantColor?: string;
 	// Text
 	filename?: string;
-	tags?: string[];
+	fileTypes?: string[]; // MIME types
 
-	// Dimensions (images)
-	minWidth?: number;
+	// Metadata
+	hasEXIF?: boolean;
+	hashMatch?: string;
+	location?: string;
+	maxHeight?: number;
+	maxSize?: number;
 	maxWidth?: number;
 	minHeight?: number;
-	maxHeight?: number;
-	aspectRatio?: 'landscape' | 'portrait' | 'square';
 
 	// File
 	minSize?: number; // bytes
-	maxSize?: number;
-	fileTypes?: string[]; // MIME types
+
+	// Dimensions (images)
+	minWidth?: number;
+
+	// Duplicates
+	showDuplicatesOnly?: boolean;
+	tags?: string[];
 
 	// Dates
 	uploadedAfter?: Date;
 	uploadedBefore?: Date;
-
-	// Metadata
-	hasEXIF?: boolean;
-	camera?: string;
-	location?: string;
-
-	// Duplicates
-	showDuplicatesOnly?: boolean;
-	hashMatch?: string;
-	dominantColor?: string;
 }
 
 export interface SearchResult {
 	files: MediaBase[];
-	total: number;
 	matched: string[];
+	total: number;
 }
 
 /** Advanced search with detailed matched criteria */
@@ -53,23 +53,35 @@ export function advancedSearch(files: MediaBase[], criteria: SearchCriteria): Se
 
 		if (criteria.filename) {
 			ok &&= file.filename.toLowerCase().includes(criteria.filename.toLowerCase());
-			if (ok) matched.push(`Filename: "${criteria.filename}"`);
+			if (ok) {
+				matched.push(`Filename: "${criteria.filename}"`);
+			}
 		}
 
 		if (criteria.tags?.length) {
 			const fileTags = (file.metadata?.tags as string[] | undefined) ?? [];
 			ok &&= criteria.tags.every((t) => fileTags.some((ft) => ft.toLowerCase() === t.toLowerCase()));
-			if (ok) matched.push(`Tags: ${criteria.tags.join(', ')}`);
+			if (ok) {
+				matched.push(`Tags: ${criteria.tags.join(', ')}`);
+			}
 		}
 
 		// Image-specific
 		if ('width' in file && 'height' in file) {
 			const img = file as MediaImage;
 
-			if (criteria.minWidth !== undefined) ok &&= img.width! >= criteria.minWidth;
-			if (criteria.maxWidth !== undefined) ok &&= img.width! <= criteria.maxWidth;
-			if (criteria.minHeight !== undefined) ok &&= img.height! >= criteria.minHeight;
-			if (criteria.maxHeight !== undefined) ok &&= img.height! <= criteria.maxHeight;
+			if (criteria.minWidth !== undefined) {
+				ok &&= img.width! >= criteria.minWidth;
+			}
+			if (criteria.maxWidth !== undefined) {
+				ok &&= img.width! <= criteria.maxWidth;
+			}
+			if (criteria.minHeight !== undefined) {
+				ok &&= img.height! >= criteria.minHeight;
+			}
+			if (criteria.maxHeight !== undefined) {
+				ok &&= img.height! <= criteria.maxHeight;
+			}
 
 			if (criteria.aspectRatio && img.width && img.height) {
 				const ratio = img.width / img.height;
@@ -79,19 +91,33 @@ export function advancedSearch(files: MediaBase[], criteria: SearchCriteria): Se
 
 				ok &&= criteria.aspectRatio === 'landscape' ? isLandscape : criteria.aspectRatio === 'portrait' ? isPortrait : isSquare;
 
-				if (ok) matched.push(`Aspect: ${criteria.aspectRatio}`);
+				if (ok) {
+					matched.push(`Aspect: ${criteria.aspectRatio}`);
+				}
 			}
 		}
 
-		if (criteria.minSize !== undefined) ok &&= (file.size ?? 0) >= criteria.minSize;
-		if (criteria.maxSize !== undefined) ok &&= (file.size ?? 0) <= criteria.maxSize;
+		if (criteria.minSize !== undefined) {
+			ok &&= (file.size ?? 0) >= criteria.minSize;
+		}
+		if (criteria.maxSize !== undefined) {
+			ok &&= (file.size ?? 0) <= criteria.maxSize;
+		}
 
-		if (criteria.fileTypes?.length) ok &&= criteria.fileTypes.includes(file.mimeType);
+		if (criteria.fileTypes?.length) {
+			ok &&= criteria.fileTypes.includes(file.mimeType);
+		}
 
-		if (criteria.uploadedAfter) ok &&= new Date(file.createdAt) >= criteria.uploadedAfter;
-		if (criteria.uploadedBefore) ok &&= new Date(file.createdAt) <= criteria.uploadedBefore;
+		if (criteria.uploadedAfter) {
+			ok &&= new Date(file.createdAt) >= criteria.uploadedAfter;
+		}
+		if (criteria.uploadedBefore) {
+			ok &&= new Date(file.createdAt) <= criteria.uploadedBefore;
+		}
 
-		if (criteria.hasEXIF !== undefined) ok &&= !!file.metadata?.exif === criteria.hasEXIF;
+		if (criteria.hasEXIF !== undefined) {
+			ok &&= !!file.metadata?.exif === criteria.hasEXIF;
+		}
 
 		if (criteria.camera) {
 			const exif = file.metadata?.exif as { Make?: string; Model?: string } | undefined;
@@ -115,7 +141,9 @@ export function advancedSearch(files: MediaBase[], criteria: SearchCriteria): Se
 			ok &&= !!metadata?.dominantColor && metadata.dominantColor.toLowerCase().includes(criteria.dominantColor.toLowerCase());
 		}
 
-		if (ok) result.push(file);
+		if (ok) {
+			result.push(file);
+		}
 	}
 
 	return {
@@ -132,12 +160,19 @@ export function getSuggestions(files: MediaBase[]) {
 	const dimensions = new Map<string, number>();
 
 	for (const file of files) {
-		(file.metadata?.tags as string[] | undefined)?.forEach((t) => tags.add(t));
+		const fileTags = file.metadata?.tags as string[] | undefined;
+		if (fileTags) {
+			for (const t of fileTags) {
+				tags.add(t);
+			}
+		}
 
 		const exif = file.metadata?.exif as { Make?: string; Model?: string } | undefined;
 		if (exif) {
 			const cam = `${exif.Make ?? ''} ${exif.Model ?? ''}`.trim();
-			if (cam) cameras.add(cam);
+			if (cam) {
+				cameras.add(cam);
+			}
 		}
 
 		if ('width' in file && 'height' in file) {
@@ -158,7 +193,7 @@ export function getSuggestions(files: MediaBase[]) {
 			{ min: 100_000, max: 1_000_000, label: '100 KB – 1 MB' },
 			{ min: 1_000_000, max: 5_000_000, label: '1 – 5 MB' },
 			{ min: 5_000_000, max: 10_000_000, label: '5 – 10 MB' },
-			{ min: 10_000_000, max: Infinity, label: '> 10 MB' }
+			{ min: 10_000_000, max: Number.POSITIVE_INFINITY, label: '> 10 MB' }
 		]
 	};
 }
@@ -168,8 +203,10 @@ export const getSearchSuggestions = getSuggestions;
 
 /** Human-readable bytes */
 export function formatBytes(bytes: number): string {
-	if (bytes === 0) return '0 B';
+	if (bytes === 0) {
+		return '0 B';
+	}
 	const units = ['B', 'KB', 'MB', 'GB'];
 	const i = Math.floor(Math.log(bytes) / Math.log(1024));
-	return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${units[i]}`;
+	return `${(bytes / 1024 ** i).toFixed(1)} ${units[i]}`;
 }

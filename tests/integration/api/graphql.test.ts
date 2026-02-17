@@ -7,8 +7,8 @@
  */
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'bun:test';
-import { prepareAuthenticatedContext, cleanupTestDatabase } from '../helpers/testSetup';
 import { getApiBaseUrl, waitForServer } from '../helpers/server';
+import { cleanupTestDatabase, prepareAuthenticatedContext } from '../helpers/testSetup';
 
 const API_BASE_URL = getApiBaseUrl();
 
@@ -21,7 +21,7 @@ async function executeGraphQL(query: string, variables: Record<string, unknown> 
 	};
 
 	if (authCookie) {
-		headers['Cookie'] = authCookie;
+		headers.Cookie = authCookie;
 	}
 
 	const response = await fetch(`${API_BASE_URL}/api/graphql`, {
@@ -98,7 +98,7 @@ describe('GraphQL API Endpoint', () => {
 
 			const result = await response.json();
 			// Debug: log response if test fails
-			if (!result.data || !result.data.users) {
+			if (!result.data?.users) {
 				console.log('GraphQL Response:', JSON.stringify(result, null, 2));
 			}
 			expect(result.data).toBeDefined();

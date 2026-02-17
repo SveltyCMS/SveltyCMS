@@ -10,18 +10,18 @@
  */
 
 import { coreModules, customModules } from '@src/widgets/scanner';
-import type { WidgetFactory, WidgetModule, WidgetType } from '@widgets/types';
 import { logger } from '@utils/logger';
+import type { WidgetFactory, WidgetModule, WidgetType } from '@widgets/types';
 
 // ============================================================================
 // Widget Processing
 // ============================================================================
 
 interface ProcessedWidget {
-	name: string;
 	factory: WidgetFactory;
-	type: WidgetType;
+	name: string;
 	path: string;
+	type: WidgetType;
 }
 
 /**
@@ -79,8 +79,8 @@ function processWidgetModule(path: string, module: WidgetModule, type: WidgetTyp
 // ============================================================================
 
 class WidgetRegistryImpl {
-	private widgets = new Map<string, WidgetFactory>();
-	private metadata = new Map<string, { type: WidgetType; path: string }>();
+	private readonly widgets = new Map<string, WidgetFactory>();
+	private readonly metadata = new Map<string, { type: WidgetType; path: string }>();
 
 	register(name: string, factory: WidgetFactory, type: WidgetType, path: string): void {
 		this.widgets.set(name, factory);
@@ -253,9 +253,9 @@ export const widgetProxy = new Proxy(registry, {
 /**
  * Type-safe widget accessor with autocomplete
  */
-export type Widgets = {
+export interface Widgets {
 	[K: string]: WidgetFactory;
-};
+}
 
 // Export with type information
 export const widgets = widgetProxy as unknown as Widgets;

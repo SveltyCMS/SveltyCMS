@@ -16,8 +16,8 @@ tags:
 
 # GDPR Compliance Suite
 
-**Status:** ✅ **Available (v1.0)**
-**Updated:** 2026-02-10
+**Status:** ✅ **Available (v1.1)**
+**Updated:** 2026-02-17
 
 ## Overview
 
@@ -25,9 +25,16 @@ SveltyCMS includes a native **GDPR Compliance Suite** that automates the most co
 
 Unlike plugins in other CMSs, this is a core service integrated directly with the **Audit Log** system, ensuring that even when a user is deleted, the _integrity_ of the content history is preserved (crypto-chained logs) while the _identity_ is anonymized.
 
-## How to Use
+### User Self-Service
 
-Navigate to **Config** -> **System Settings** -> **Privacy & GDPR**.
+Users can manage their data directly from their **Profile Page** (`/user`).
+
+- **Download My Data**: Triggers an immediate JSON export of profile and logs.
+- **Delete Account**: Triggers a self-service anonymization request.
+
+### Administrator Control
+
+Navigate to **Config** -> **System Settings** -> **Privacy & GDPR** for system-wide controls.
 
 ### 1. Data Portability (Export)
 
@@ -68,7 +75,11 @@ await gdprService.anonymizeUser(userId, 'User initiated deletion');
 
 ## Privacy & Cookies
 
-SveltyCMS includes a `CookieConsent` mechanism (roadmap) that blocks non-essential scripts until explicit consent is given, complying with the ePrivacy Directive.
+SveltyCMS includes a native **Cookie Consent Plugin** (`src/plugins/cookie-consent`) that provides a headless, accessible banner. It blocks non-essential scripts (Analytics, Marketing) until explicit consent is given, complying with the ePrivacy Directive.
+
+- **Necessary**: Always enabled (Session/Security).
+- **Analytics**: Optional (Performance tracking).
+- **Marketing**: Optional (Personalization).
 
 ## Audit Trail
 

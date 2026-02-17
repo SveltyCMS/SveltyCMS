@@ -27,11 +27,15 @@ export function isSetupComplete(): boolean {
 		const privateConfigPath = path.join(process.cwd(), 'config', configFileName);
 
 		if (!fs.existsSync(privateConfigPath)) {
-			if (process.env.TEST_MODE) console.log(`[setupCheck] ${configFileName} NOT FOUND`);
+			if (process.env.TEST_MODE) {
+				console.log(`[setupCheck] ${configFileName} NOT FOUND`);
+			}
 			setupStatus = false;
 			return setupStatus;
 		}
-		if (process.env.TEST_MODE) console.log(`[setupCheck] ${configFileName} FOUND`);
+		if (process.env.TEST_MODE) {
+			console.log(`[setupCheck] ${configFileName} FOUND`);
+		}
 
 		const configContent = fs.readFileSync(privateConfigPath, 'utf8');
 
@@ -47,7 +51,7 @@ export function isSetupComplete(): boolean {
 		return setupStatus;
 	} catch (error) {
 		// Log error here as it's an exceptional case during a critical check
-		console.error(`[SveltyCMS] ❌ Error during setup check:`, error);
+		console.error('[SveltyCMS] ❌ Error during setup check:', error);
 		setupStatus = false;
 		return setupStatus;
 	}
@@ -116,7 +120,7 @@ export async function isSetupCompleteAsync(): Promise<boolean> {
 		setupStatusCheckedDb = true;
 		return true;
 	} catch (error) {
-		console.error(`[SveltyCMS] ❌ Database validation failed during setup check:`, error);
+		console.error('[SveltyCMS] ❌ Database validation failed during setup check:', error);
 		// If config exists but DB check fails, we still return true to avoid loop
 		// and let the main app handle DB connection errors
 		return true;

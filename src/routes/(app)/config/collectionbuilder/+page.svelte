@@ -36,38 +36,35 @@ None (TreeView has its own keyboard navigation)
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
+
 	// Removed axios import
-
-	// Logger
-	import { logger } from '@utils/logger';
-
-	// Stores
-	import { setCollectionValue, setMode, setContentStructure } from '@src/stores/collectionStore.svelte';
-	import { setRouteContext } from '@src/stores/UIStore.svelte.ts';
 
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
-	import TreeViewBoard from './NestedContent/TreeViewBoard.svelte';
-	import ModalCategory from './NestedContent/ModalCategory.svelte';
-
+	import type { ISODateString } from '@root/src/content/types';
+	import type { ContentNode, DatabaseId } from '@root/src/databases/dbInterface';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
-
+	// Stores
+	import { setCollectionValue, setContentStructure, setMode } from '@src/stores/collectionStore.svelte';
+	import { setRouteContext } from '@src/stores/UIStore.svelte.ts';
 	// Skeleton
 	import { toaster } from '@stores/store.svelte.ts';
+	// Logger
+	import { logger } from '@utils/logger';
 	import { modalState } from '@utils/modalState.svelte';
 	import { showConfirm } from '@utils/modalUtils';
-	import type { ContentNode, DatabaseId } from '@root/src/databases/dbInterface';
-	import type { ISODateString } from '@root/src/content/types';
+	import ModalCategory from './NestedContent/ModalCategory.svelte';
+	import TreeViewBoard from './NestedContent/TreeViewBoard.svelte';
 
 	interface NodeOperation {
-		type: 'create' | 'update' | 'move' | 'rename';
 		node: ContentNode;
+		type: 'create' | 'update' | 'move' | 'rename';
 	}
 
 	interface CategoryModalResponse {
-		newCategoryName: string;
 		newCategoryIcon: string;
+		newCategoryName: string;
 	}
 
 	const { data } = $props();
@@ -92,7 +89,7 @@ None (TreeView has its own keyboard navigation)
 		updatedNodes.forEach((node) => {
 			nodesToSave[node._id.toString()] = {
 				type: 'move',
-				node: node
+				node
 			};
 		});
 	}
@@ -297,9 +294,7 @@ None (TreeView has its own keyboard navigation)
 
 <div class="max-h-[calc(100vh-120px)] overflow-auto p-4">
 	<div class="mx-auto max-w-4xl">
-		<p class="mb-6 text-center text-surface-600-300 dark:text-primary-500">
-			{m.collection_description()}
-		</p>
+		<p class="mb-6 text-center text-surface-600-300 dark:text-primary-500">{m.collection_description()}</p>
 
 		<TreeViewBoard
 			contentNodes={currentConfig}

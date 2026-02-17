@@ -13,8 +13,8 @@ Features:
 	interface Props {
 		conflictingName: string;
 		conflictPath: string;
-		suggestions: string[];
 		onConfirm: (name: string) => void;
+		suggestions: string[];
 	}
 
 	let { conflictingName = $bindable(), conflictPath = $bindable(), suggestions = $bindable([]), onConfirm = $bindable(() => {}) }: Props = $props();
@@ -59,9 +59,7 @@ Features:
 	</div>
 
 	<div class="mb-4">
-		<label for="suggested-name" class="label mb-2">
-			<span>Choose a suggested name:</span>
-		</label>
+		<label for="suggested-name" class="label mb-2"> <span>Choose a suggested name:</span> </label>
 		<select id="suggested-name" class="select" bind:value={selectedName} disabled={useCustomName}>
 			{#each suggestions as suggestion (suggestion)}
 				<option value={suggestion}>{suggestion}</option>
@@ -70,11 +68,9 @@ Features:
 	</div>
 
 	<div class="mb-4">
-		<label for="use-custom" class="label">
-			<span>Or use a custom name:</span>
-		</label>
+		<label for="use-custom" class="label"> <span>Or use a custom name:</span> </label>
 		<div class="input-group">
-			<input id="use-custom" type="checkbox" bind:checked={useCustomName} class="checkbox" />
+			<input id="use-custom" type="checkbox" bind:checked={useCustomName} class="checkbox">
 			<input
 				id="custom-name"
 				type="text"
@@ -83,7 +79,7 @@ Features:
 				class="input"
 				placeholder="Enter custom name"
 				aria-labelledby="use-custom"
-			/>
+			>
 		</div>
 		{#if useCustomName && customName && !validateCustomName(customName)}
 			<p class="mt-1 text-sm text-error-500">Name must start with a letter and contain only letters and numbers (no spaces or special characters).</p>
@@ -91,7 +87,7 @@ Features:
 	</div>
 
 	<footer class="modal-footer flex justify-end gap-4">
-		<button type="button" class="preset-outlined-surface-500 btn" onclick={handleCancel}> Cancel </button>
+		<button type="button" class="preset-outlined-surface-500 btn" onclick={handleCancel}>Cancel</button>
 		<button
 			type="button"
 			class="preset-filled-primary-500 btn"

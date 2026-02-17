@@ -9,14 +9,13 @@
  *
  */
 
-import { json } from '@sveltejs/kit';
 // type RequestHandler removed
 import { pluginRegistry } from '@src/plugins';
-import { logger } from '@utils/logger.server';
-
+import { json } from '@sveltejs/kit';
 // Unified Error Handling
 import { apiHandler } from '@utils/apiHandler';
 import { AppError } from '@utils/errorHandling';
+import { logger } from '@utils/logger.server';
 
 export const POST = apiHandler(async ({ request, locals }) => {
 	const { user, tenantId } = locals;
@@ -40,11 +39,12 @@ export const POST = apiHandler(async ({ request, locals }) => {
 
 		if (success) {
 			return json({ success: true, message: `Plugin ${enabled ? 'enabled' : 'disabled'} successfully` });
-		} else {
-			throw new AppError('Failed to update plugin state', 500, 'UPDATE_FAILED');
 		}
+		throw new AppError('Failed to update plugin state', 500, 'UPDATE_FAILED');
 	} catch (error: any) {
-		if (error instanceof AppError) throw error;
+		if (error instanceof AppError) {
+			throw error;
+		}
 		logger.error('Error toggling plugin state:', error);
 		throw new AppError(`Error toggling plugin: ${error.message || 'Unknown error'}`, 500, 'TOGGLE_ERROR');
 	}

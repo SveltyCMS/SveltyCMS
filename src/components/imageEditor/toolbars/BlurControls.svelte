@@ -55,7 +55,7 @@ Pintura-style controls for the Blur tool with responsive design and keyboard sup
 
 	function handleStrengthInput(e: Event) {
 		const target = e.currentTarget as HTMLInputElement;
-		onStrengthChange(parseInt(target.value, 10));
+		onStrengthChange(Number.parseInt(target.value, 10));
 	}
 
 	// Keyboard shortcuts
@@ -183,9 +183,7 @@ Pintura-style controls for the Blur tool with responsive design and keyboard sup
 
 	<!-- Strength Slider -->
 	<div class="control-group flex-1 min-w-[200px] max-w-[300px]">
-		<label class="control-label" for="blur-strength-slider">
-			{strengthLabel}:
-		</label>
+		<label class="control-label" for="blur-strength-slider"> {strengthLabel}: </label>
 		<div class="flex items-center gap-2">
 			<input
 				id="blur-strength-slider"
@@ -200,10 +198,8 @@ Pintura-style controls for the Blur tool with responsive design and keyboard sup
 				aria-valuemin={minStrength}
 				aria-valuemax={maxStrength}
 				aria-valuenow={blurStrength}
-			/>
-			<span class="badge preset-outlined-surface-500 w-12 text-center text-xs font-mono shrink-0">
-				{blurStrength}
-			</span>
+			>
+			<span class="badge preset-outlined-surface-500 w-12 text-center text-xs font-mono shrink-0"> {blurStrength} </span>
 		</div>
 	</div>
 
@@ -282,8 +278,8 @@ Pintura-style controls for the Blur tool with responsive design and keyboard sup
 
 	.control-group {
 		display: flex;
-		align-items: center;
 		gap: 0.5rem;
+		align-items: center;
 	}
 
 	.control-label {
@@ -293,8 +289,8 @@ Pintura-style controls for the Blur tool with responsive design and keyboard sup
 	}
 
 	.divider-vertical {
-		height: 1.5rem;
 		width: 1px;
+		height: 1.5rem;
 		background: rgb(var(--color-surface-300) / 1);
 	}
 
@@ -305,9 +301,9 @@ Pintura-style controls for the Blur tool with responsive design and keyboard sup
 	.btn-group-compact {
 		display: flex;
 		gap: 0;
-		border-radius: 0.5rem;
 		overflow: hidden;
 		border: 1px solid rgb(var(--color-surface-300) / 1);
+		border-radius: 0.5rem;
 	}
 
 	:global(.dark) .btn-group-compact {
@@ -315,9 +311,9 @@ Pintura-style controls for the Blur tool with responsive design and keyboard sup
 	}
 
 	.btn-group-compact .btn {
-		border-radius: 0;
 		border: none;
 		border-right: 1px solid rgb(var(--color-surface-300) / 1);
+		border-radius: 0;
 	}
 
 	.btn-group-compact .btn:last-child {
@@ -325,8 +321,8 @@ Pintura-style controls for the Blur tool with responsive design and keyboard sup
 	}
 
 	.btn-group-compact .btn.active {
-		background: rgb(var(--color-primary-500) / 1);
 		color: white;
+		background: rgb(var(--color-primary-500) / 1);
 	}
 
 	.sr-only {
@@ -336,9 +332,9 @@ Pintura-style controls for the Blur tool with responsive design and keyboard sup
 		padding: 0;
 		margin: -1px;
 		overflow: hidden;
-		clip: rect(0, 0, 0, 0);
 		white-space: nowrap;
 		border-width: 0;
+		clip: rect(0, 0, 0, 0);
 	}
 
 	/* Mobile optimizations */

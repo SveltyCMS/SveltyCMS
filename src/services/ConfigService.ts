@@ -4,26 +4,26 @@
  * Scans files, queries DB, compares states, validates dependencies, and handles import/export.
  */
 
-import fs from 'fs/promises';
-import { createWriteStream } from 'fs';
-import path from 'path';
+import { createWriteStream } from 'node:fs';
+import fs from 'node:fs/promises';
+import path from 'node:path';
 import { dbAdapter } from '@src/databases/db';
 import { createChecksum } from '@utils/crypto';
 import { logger } from '@utils/logger.server';
 
-type ConfigEntity = {
-	uuid: string;
-	type: string;
-	name: string;
-	hash: string;
+interface ConfigEntity {
 	entity: Record<string, unknown>;
-};
+	hash: string;
+	name: string;
+	type: string;
+	uuid: string;
+}
 
-export type ConfigSyncStatus = {
-	status: 'in_sync' | 'changes_detected';
+export interface ConfigSyncStatus {
 	changes: { new: ConfigEntity[]; updated: ConfigEntity[]; deleted: ConfigEntity[] };
+	status: 'in_sync' | 'changes_detected';
 	unmetRequirements: Array<{ key: string; value?: unknown }>;
-};
+}
 
 class ConfigService {
 	/** Returns current sync status between filesystem and database. */
@@ -67,15 +67,17 @@ class ConfigService {
 		// Write each entity type in parallel, streaming for large datasets
 		await Promise.all(
 			Object.entries(entities).map(async ([key, list]) => {
-				const filtered = uuids?.length ? (list as Array<{ uuid: string }>).filter((i) => uuids.includes(i.uuid)) : (list as Array<unknown>);
+				const filtered = uuids?.length ? (list as Array<{ uuid: string }>).filter((i) => uuids.includes(i.uuid)) : (list as unknown[]);
 				const filePath = path.join(exportDir, `${key}.json`);
 				// Stream write for large arrays
-				if (filtered.length > 10000) {
+				if (filtered.length > 10_000) {
 					const stream = createWriteStream(filePath);
 					stream.write('[\n');
 					for (let i = 0; i < filtered.length; i++) {
 						stream.write(JSON.stringify(filtered[i], null, 2));
-						if (i < filtered.length - 1) stream.write(',\n');
+						if (i < filtered.length - 1) {
+							stream.write(',\n');
+						}
 					}
 					stream.write('\n]');
 					await new Promise((resolve, reject) => {
@@ -102,7 +104,9 @@ class ConfigService {
 			changes = status.changes;
 		}
 
-		if (!dbAdapter) throw new Error('Database adapter not available.');
+		if (!dbAdapter) {
+			throw new Error('Database adapter not available.');
+		}
 
 		// 1. Handle New & Updated Entities
 		const toUpsert = [...changes.new, ...changes.updated];
@@ -151,7 +155,9 @@ class ConfigService {
 		// 1. Scan Collections
 		const collections = await contentManager.getCollections();
 		for (const collection of collections) {
-			if (!collection._id || !collection.name) continue; // Skip if no _id or name
+			if (!(collection._id && collection.name)) {
+				continue; // Skip if no _id or name
+			}
 			const hash = createChecksum(collection);
 			state.set(collection._id, {
 				uuid: collection._id,
@@ -169,7 +175,9 @@ class ConfigService {
 	}
 
 	private async getActiveState(): Promise<Map<string, ConfigEntity>> {
-		if (!dbAdapter) throw new Error('Database adapter not available.');
+		if (!dbAdapter) {
+			throw new Error('Database adapter not available.');
+		}
 		const state = new Map<string, ConfigEntity>();
 
 		try {
@@ -181,12 +189,14 @@ class ConfigService {
 				for (const collection of collectionsResult.data as unknown as Record<string, unknown>[]) {
 					const id = String(collection._id || '');
 					const name = String(collection.name || '');
-					if (!id || !name) continue;
+					if (!(id && name)) {
+						continue;
+					}
 					const hash = createChecksum(collection);
 					state.set(id, {
 						uuid: id,
 						type: 'collection',
-						name: name,
+						name,
 						hash,
 						entity: collection
 					});
@@ -209,26 +219,37 @@ class ConfigService {
 
 		for (const [uuid, s] of source.entries()) {
 			const a = active.get(uuid);
-			if (!a) result.new.push(s);
-			else if (s.hash !== a.hash) result.updated.push(s);
+			if (!a) {
+				result.new.push(s);
+			} else if (s.hash !== a.hash) {
+				result.updated.push(s);
+			}
 		}
 		for (const [uuid, a] of active.entries()) {
-			if (!source.has(uuid)) result.deleted.push(a);
+			if (!source.has(uuid)) {
+				result.deleted.push(a);
+			}
 		}
 		return result;
 	}
 
 	/** Checks for missing system settings required by config entities. */
 	private async checkForUnmetRequirements(source: Map<string, ConfigEntity>): Promise<Array<{ key: string; value?: unknown }>> {
-		if (!dbAdapter?.systemPreferences) throw new Error('System preferences adapter unavailable.');
+		if (!dbAdapter?.systemPreferences) {
+			throw new Error('System preferences adapter unavailable.');
+		}
 
 		const unmet: Array<{ key: string; value?: unknown }> = [];
 		for (const { entity } of source.values()) {
-			if (!Array.isArray(entity._requiredSettings)) continue;
+			if (!Array.isArray(entity._requiredSettings)) {
+				continue;
+			}
 
 			for (const req of entity._requiredSettings) {
 				const result = await dbAdapter.systemPreferences.get(req.key, 'system');
-				if (!result.success || !result.data) unmet.push(req);
+				if (!(result.success && result.data)) {
+					unmet.push(req);
+				}
 			}
 		}
 

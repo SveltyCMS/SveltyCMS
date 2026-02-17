@@ -3,10 +3,9 @@
  * @description API endpoint for installing widgets from marketplace with security validation
  */
 
-import { json } from '@sveltejs/kit';
-
-import { logger } from '@utils/logger.server';
 import { hasPermissionWithRoles } from '@src/databases/auth/permissions';
+import { json } from '@sveltejs/kit';
+import { logger } from '@utils/logger.server';
 
 // Security: Dangerous patterns to block in widget code
 const DANGEROUS_PATTERNS = [
@@ -127,7 +126,9 @@ export const POST = apiHandler(async ({ request, locals }) => {
 		const duration = performance.now() - start;
 		const message = `Failed to install widget: ${err instanceof Error ? err.message : String(err)}`;
 		logger.error(message, { duration: `${duration.toFixed(2)}ms`, stack: err instanceof Error ? err.stack : undefined });
-		if (err instanceof AppError) throw err;
+		if (err instanceof AppError) {
+			throw err;
+		}
 		throw new AppError(message, 500, 'WIDGET_INSTALL_FAILED');
 	}
 });

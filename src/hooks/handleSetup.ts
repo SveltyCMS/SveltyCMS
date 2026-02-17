@@ -8,11 +8,10 @@
  * - **Logic:** Simplified flow—if `isSetupComplete` returns true, the config is valid.
  */
 
-import { redirect, type Handle } from '@sveltejs/kit';
-import { isSetupCompleteAsync } from '@utils/setupCheck';
-import { logger } from '@utils/logger.server';
+import { error, type Handle, redirect } from '@sveltejs/kit';
 import { AppError, handleApiError } from '@utils/errorHandling';
-import { error } from '@sveltejs/kit';
+import { logger } from '@utils/logger.server';
+import { isSetupCompleteAsync } from '@utils/setupCheck';
 
 // --- CONSTANTS ---
 
@@ -70,7 +69,7 @@ export const handleSetup: Handle = async ({ event, resolve }) => {
 		if (!isComplete) {
 			// Log warning only once per request flow to prevent spam
 			// AND only if the user is attempting to access a non-setup route
-			if (!event.locals.__setupLogged && !isAllowedDuringSetup(pathname)) {
+			if (!(event.locals.__setupLogged || isAllowedDuringSetup(pathname))) {
 				logger.warn('System requires initial setup.');
 				event.locals.__setupLogged = true;
 			}

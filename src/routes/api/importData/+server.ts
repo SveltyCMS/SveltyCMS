@@ -3,11 +3,11 @@
  * @description API endpoint for importing collection data
  */
 
-import { json } from '@sveltejs/kit';
 import { dbAdapter } from '@src/databases/db';
-import { logger } from '@utils/logger.server';
+import { json } from '@sveltejs/kit';
 import { apiHandler } from '@utils/apiHandler';
 import { AppError } from '@utils/errorHandling';
+import { logger } from '@utils/logger.server';
 
 export const POST = apiHandler(async ({ request, locals }) => {
 	const { user } = locals;
@@ -29,7 +29,7 @@ export const POST = apiHandler(async ({ request, locals }) => {
 		throw new AppError('Collection name is required', 400, 'MISSING_COLLECTION_NAME');
 	}
 
-	if (!data || !Array.isArray(data)) {
+	if (!(data && Array.isArray(data))) {
 		throw new AppError('Data must be an array', 422, 'INVALID_DATA_FORMAT');
 	}
 
@@ -65,11 +65,11 @@ export const POST = apiHandler(async ({ request, locals }) => {
 				imported++;
 			} else {
 				errors++;
-				logger.warn(`Failed to import document`, { collection: collectionName, error: result.error });
+				logger.warn('Failed to import document', { collection: collectionName, error: result.error });
 			}
 		} catch (error: any) {
 			errors++;
-			logger.error(`Error importing document`, { error: error.message });
+			logger.error('Error importing document', { error: error.message });
 		}
 	}
 

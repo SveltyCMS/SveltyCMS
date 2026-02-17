@@ -11,11 +11,11 @@ for the image editor canvas with reactive rendering.
 -->
 
 <script lang="ts">
-	import { fade } from 'svelte/transition';
+	import { imageEditorStore } from '@stores/imageEditorStore.svelte';
 	import type { Snippet } from 'svelte';
 	import { onMount } from 'svelte';
+	import { fade } from 'svelte/transition';
 	import { Canvas, Layer } from 'svelte-canvas';
-	import { imageEditorStore } from '@stores/imageEditorStore.svelte';
 
 	// Props
 	let {
@@ -235,9 +235,7 @@ for the image editor canvas with reactive rendering.
 			<div class="text-center p-4">
 				<iconify-icon icon="mdi:alert" width="32" class="text-warning-600 mb-2"></iconify-icon>
 				<p class="text-sm text-warning-700 dark:text-warning-300">Canvas container has no size. Check parent layout.</p>
-				<p class="text-xs text-warning-600 dark:text-warning-400 mt-1">
-					Size: {containerWidth}×{containerHeight}
-				</p>
+				<p class="text-xs text-warning-600 dark:text-warning-400 mt-1">Size: {containerWidth}×{containerHeight}</p>
 			</div>
 		</div>
 	{/if}
@@ -300,9 +298,9 @@ for the image editor canvas with reactive rendering.
 
 <style>
 	.editor-canvas-wrapper {
+		min-height: 400px;
 		background-color: rgb(var(--color-surface-50) / 1);
 		border-color: rgb(var(--color-surface-200) / 1);
-		min-height: 400px;
 	}
 
 	:global(.dark) .editor-canvas-wrapper {

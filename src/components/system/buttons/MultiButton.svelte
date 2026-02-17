@@ -23,11 +23,10 @@
 -->
 
 <script lang="ts">
-	// Using iconify-icon web component
-	import { logger } from '@utils/logger';
-
 	// Stores
 	import { mode, setMode } from '@root/src/stores/collectionStore.svelte';
+	// Using iconify-icon web component
+	import { logger } from '@utils/logger';
 
 	// Props
 	const props = $props();
@@ -98,9 +97,7 @@
 		{#if buttons[defaultButton].icon}
 			<iconify-icon icon={buttons[defaultButton].icon} class="md:hidden"></iconify-icon>
 		{/if}
-		<span class="max-md:hidden">
-			{defaultButton}
-		</span>
+		<span class="max-md:hidden"> {defaultButton} </span>
 	</button>
 	<button
 		onclick={toggleExpanded}

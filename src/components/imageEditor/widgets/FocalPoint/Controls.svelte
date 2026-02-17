@@ -8,9 +8,9 @@ Toolbar controls for the FocalPoint widget
 	interface Props {
 		focalX?: number;
 		focalY?: number;
-		onReset?: () => void;
 		onApply?: () => void;
 		onCancel?: () => void;
+		onReset?: () => void;
 	}
 
 	const { focalX = 50, focalY = 50, onReset = () => {}, onApply = () => {}, onCancel = () => {} }: Props = $props();

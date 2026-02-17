@@ -10,13 +10,13 @@
 - Clear explanation of why SMTP is needed
 -->
 <script lang="ts">
-	import { setupStore } from '@stores/setupStore.svelte.ts';
-	import * as m from '@src/paraglide/messages';
-	import { showToast } from '@utils/toast';
-	import { deserialize } from '$app/forms';
-	import { safeParse } from 'valibot';
-	import { smtpConfigSchema, type SmtpConfigSchema } from '@utils/formSchemas';
 	import SystemTooltip from '@components/system/SystemTooltip.svelte';
+	import * as m from '@src/paraglide/messages';
+	import { setupStore } from '@stores/setupStore.svelte.ts';
+	import { type SmtpConfigSchema, smtpConfigSchema } from '@utils/formSchemas';
+	import { showToast } from '@utils/toast';
+	import { safeParse } from 'valibot';
+	import { deserialize } from '$app/forms';
 
 	const { wizard } = setupStore;
 
@@ -207,19 +207,18 @@
 
 		if (result.success) {
 			return { valid: true, errors: {} };
-		} else {
-			// Extract validation errors
-			const errors: Record<string, string> = {};
-			if (result.issues) {
-				for (const issue of result.issues) {
-					const path = issue.path?.[0]?.key as string;
-					if (path) {
-						errors[path] = issue.message;
-					}
+		}
+		// Extract validation errors
+		const errors: Record<string, string> = {};
+		if (result.issues) {
+			for (const issue of result.issues) {
+				const path = issue.path?.[0]?.key as string;
+				if (path) {
+					errors[path] = issue.message;
 				}
 			}
-			return { valid: false, errors };
 		}
+		return { valid: false, errors };
 	});
 
 	const isFormValid = $derived(validationResult().valid);
@@ -340,7 +339,7 @@
 				const data = result.data as { success: boolean; testEmailSent?: boolean; error?: string };
 				if (data.success) {
 					testSuccess = true;
-					testEmailSent = data.testEmailSent || false;
+					testEmailSent = data.testEmailSent;
 
 					// Mark SMTP as configured in wizard state
 					wizard.emailSettings.smtpConfigured = true;
@@ -477,7 +476,7 @@
 					testSuccess = false;
 					testError = '';
 				}}
-			/>
+			>
 			{#if displayErrors.host}
 				<span class="mt-1 flex items-center gap-1 text-xs text-error-500">
 					<iconify-icon icon="mdi:alert-circle" class="text-sm"></iconify-icon>
@@ -531,7 +530,7 @@
 							testSuccess = false;
 							testError = '';
 						}}
-					/>
+					>
 					<button
 						type="button"
 						class="preset-outlined-surface-500btn btn-sm"
@@ -631,7 +630,7 @@
 					testSuccess = false;
 					testError = '';
 				}}
-			/>
+			>
 			{#if displayErrors.user}
 				<span class="mt-1 flex items-center gap-1 text-xs text-error-500">
 					<iconify-icon icon="mdi:alert-circle" class="text-sm"></iconify-icon>
@@ -676,7 +675,7 @@
 						testSuccess = false;
 						testError = '';
 					}}
-				/>
+				>
 				<button
 					type="button"
 					class="btn-icon btn-sm absolute right-1 top-1/2 -translate-y-1/2"
@@ -711,7 +710,7 @@
 						smtpFrom = trimmed;
 					}
 				}}
-			/>
+			>
 			<span class="text-xs text-surface-600 dark:text-surface-50">{m.setup_email_from_note()}</span>
 		</label>
 	</div>
@@ -746,9 +745,7 @@
 				<!-- Collapsible details -->
 				<div class="mt-2 overflow-hidden transition-all" class:hidden={!showSuccessDetails} class:md:block={true}>
 					{#if testEmailSent}
-						<p class="text-sm text-success-600 dark:text-success-400">
-							{m.setup_email_test_sent_to({ email: wizard.adminUser.email })}
-						</p>
+						<p class="text-sm text-success-600 dark:text-success-400">{m.setup_email_test_sent_to({ email: wizard.adminUser.email })}</p>
 					{/if}
 					<p class="mt-1 text-sm text-success-600 dark:text-success-400">{m.setup_email_settings_saved()}</p>
 				</div>

@@ -11,9 +11,9 @@ Features:
 <script lang="ts">
 	// Components
 	import PermissionsSetting from '@components/PermissionsSetting.svelte';
+	import { collections } from '@src/stores/collectionStore.svelte';
 	// Skeleton Stores
 	import { modalState } from '@utils/modalState.svelte';
-	import { collections } from '@src/stores/collectionStore.svelte';
 
 	// Function to handle permission updates
 	function handlePermissionUpdate(updatedPermissions: Record<string, Record<string, boolean>>) {
@@ -28,7 +28,5 @@ Features:
 </script>
 
 {#if modalState.active}
-	<div class="mb-4">
-		<PermissionsSetting {roles} permissions={collections.targetWidget.permissions || {}} onUpdate={handlePermissionUpdate} />
-	</div>
+	<div class="mb-4"><PermissionsSetting {roles} permissions={collections.targetWidget.permissions || {}} onUpdate={handlePermissionUpdate} /></div>
 {/if}

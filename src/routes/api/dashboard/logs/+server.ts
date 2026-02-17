@@ -11,17 +11,16 @@
  * - **Memory Efficient:** No longer loads entire files into RAM.
  */
 
-import { publicEnv } from '@src/stores/globalSettings.svelte';
-import { json } from '@sveltejs/kit';
 import { createReadStream } from 'node:fs';
 import { open, readdir, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { createInterface } from 'node:readline';
 import { createBrotliDecompress, createGunzip } from 'node:zlib';
-
+import type { ISODateString } from '@src/content/types';
+import { publicEnv } from '@src/stores/globalSettings.svelte';
+import { json } from '@sveltejs/kit';
 // System Logger
 import { logger } from '@utils/logger.server';
-import type { ISODateString } from '@src/content/types';
 
 // Validation
 import * as v from 'valibot';
@@ -64,11 +63,11 @@ const ANSI_COLOR_MAP: Record<string, string> = {
 };
 
 interface RawLogEntry {
-	timestamp: ISODateString;
+	args: unknown[];
 	level: string;
 	message: string;
 	messageHtml: string;
-	args: unknown[];
+	timestamp: ISODateString;
 }
 
 // --- ANSI & Parsing Logic (Kept identical to original) ---
@@ -78,7 +77,7 @@ function convertAnsiToHtml(text: string): string {
 	let currentPos = 0;
 	const openTags: string[] = [];
 	const ansiRegex = /\[(\d+)m/g;
-	let match;
+	let match: RegExpExecArray | null;
 
 	while ((match = ansiRegex.exec(text)) !== null) {
 		result += text.substring(currentPos, match.index);
@@ -198,11 +197,15 @@ async function* readLinesReverse(filePath: string): AsyncGenerator<string> {
 
 			// Iterate lines in reverse (they are currently in file order within the chunk)
 			for (let i = lines.length - 1; i >= 0; i--) {
-				if (lines[i].trim()) yield lines[i];
+				if (lines[i].trim()) {
+					yield lines[i];
+				}
 			}
 		}
 
-		if (leftover.trim()) yield leftover;
+		if (leftover.trim()) {
+			yield leftover;
+		}
 	} finally {
 		await fileHandle.close();
 	}
@@ -225,11 +228,13 @@ async function getCompressedLogLines(filePath: string, isBrotli: boolean): Promi
 
 	const rl = createInterface({
 		input: fileStream,
-		crlfDelay: Infinity
+		crlfDelay: Number.POSITIVE_INFINITY
 	});
 
 	for await (const line of rl) {
-		if (line.trim()) lines.push(line);
+		if (line.trim()) {
+			lines.push(line);
+		}
 	}
 
 	// Reverse so the newest lines (at the bottom of the file) come first
@@ -261,7 +266,7 @@ export const GET = apiHandler(async ({ locals, url }) => {
 	const LOG_RETENTION_DAYS = publicEnv.LOG_RETENTION_DAYS || 30;
 
 	const startDateTime = params.startDate ? new Date(params.startDate).getTime() : 0;
-	const endDateTime = params.endDate ? new Date(new Date(params.endDate).setHours(23, 59, 59, 999)).getTime() : Infinity;
+	const endDateTime = params.endDate ? new Date(new Date(params.endDate).setHours(23, 59, 59, 999)).getTime() : Number.POSITIVE_INFINITY;
 
 	// Calculate how many logs we need to skip and take
 	const neededSkip = (params.page - 1) * params.limit;
@@ -276,8 +281,12 @@ export const GET = apiHandler(async ({ locals, url }) => {
 		.filter((file) => file === LOG_FILE_NAME || file.startsWith(`${LOG_FILE_NAME}.`))
 		.sort((a, b) => {
 			// Custom sort: app.log is always newest/first
-			if (a === LOG_FILE_NAME) return -1;
-			if (b === LOG_FILE_NAME) return 1;
+			if (a === LOG_FILE_NAME) {
+				return -1;
+			}
+			if (b === LOG_FILE_NAME) {
+				return 1;
+			}
 			// Otherwise sort by string (usually app.log.1, app.log.2)
 			// Assuming lower number = newer rotated log, or use mtime if needed
 			return a.localeCompare(b);
@@ -287,7 +296,9 @@ export const GET = apiHandler(async ({ locals, url }) => {
 	// Note: We iterate files Newest -> Oldest
 	for (const file of logFiles) {
 		// Early exit if we have enough logs
-		if (collectedLogs.length >= totalNeeded) break;
+		if (collectedLogs.length >= totalNeeded) {
+			break;
+		}
 
 		const filePath = join(LOG_DIRECTORY, file);
 		const fileStats = await stat(filePath);
@@ -314,13 +325,19 @@ export const GET = apiHandler(async ({ locals, url }) => {
 		// Iterate lines (which are now guaranteed to be Newest -> Oldest)
 		for await (const line of linesGenerator) {
 			// Early exit loop
-			if (collectedLogs.length >= totalNeeded) break;
+			if (collectedLogs.length >= totalNeeded) {
+				break;
+			}
 
 			// Handle AsyncGenerator vs Array
-			if (typeof line !== 'string') continue;
+			if (typeof line !== 'string') {
+				continue;
+			}
 
 			const entry = parseLogLineWithColors(line);
-			if (!entry) continue;
+			if (!entry) {
+				continue;
+			}
 
 			const entryTimestamp = new Date(entry.timestamp).getTime();
 
@@ -329,8 +346,12 @@ export const GET = apiHandler(async ({ locals, url }) => {
 			// we can theoretically stop EVERYTHING if we assume strict ordering.
 			// However, async logging might not be strictly ordered to the millisecond, so we just filter.
 			// But if it's WAY before, we could break. For safety, we just filter.
-			if (entryTimestamp < startDateTime) continue; // Too old
-			if (entryTimestamp > endDateTime) continue; // Too new (rare if reading reverse, but possible)
+			if (entryTimestamp < startDateTime) {
+				continue; // Too old
+			}
+			if (entryTimestamp > endDateTime) {
+				continue; // Too new (rare if reading reverse, but possible)
+			}
 
 			// Level & Search Filter
 			const levelMatch = params.level === 'all' || entry.level.toLowerCase() === params.level.toLowerCase();

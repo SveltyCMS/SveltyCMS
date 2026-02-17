@@ -33,9 +33,9 @@ Features:
 </script>
 
 <script lang="ts">
+	import type { WidgetSize } from '@src/content/types';
 	import { onDestroy, onMount } from 'svelte';
 	import BaseWidget from '../BaseWidget.svelte';
-	import type { WidgetSize } from '@src/content/types';
 
 	let ChartJS: any = $state(undefined);
 
@@ -83,7 +83,7 @@ Features:
 	}
 
 	$effect(() => {
-		if (!chartCanvas || !currentData?.memoryInfo?.total || !ChartJS) return;
+		if (!(chartCanvas && currentData?.memoryInfo?.total && ChartJS)) return;
 
 		// Data is already in MB from API
 		const usedMemMb = currentData.memoryInfo.total.usedMemMb || 0;
@@ -167,7 +167,7 @@ Features:
 							cornerRadius: 8,
 							displayColors: true,
 							callbacks: {
-								label: function (context: any) {
+								label(context: any) {
 									const label = context.label || '';
 									const value = typeof context.raw === 'number' ? context.raw : 0;
 									const dataSet = context.chart.data.datasets[0].data as number[];
@@ -276,7 +276,9 @@ Features:
 									? 'text-red-600 dark:text-red-400'
 									: usageLevel === 'medium'
 										? 'text-yellow-600 dark:text-yellow-400'
-										: 'text-green-600 dark:text-green-400'}">{usedMemGB.toFixed(1)} GB</span
+										: 'text-green-600 dark:text-green-400'}"
+								>{usedMemGB.toFixed(1)}
+								GB</span
 							>
 						</div>
 

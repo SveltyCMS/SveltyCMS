@@ -14,12 +14,12 @@ Usage:
 
 <script lang="ts">
 	interface Props {
-		// Export props for external binding
-		size?: string;
 		opacity?: number;
 		positionX?: number;
 		positionY?: number;
 		rotation?: number;
+		// Export props for external binding
+		size?: string;
 	}
 
 	let {
@@ -39,25 +39,25 @@ Usage:
 	// Handle opacity input change
 	function handleOpacityChange(event: Event) {
 		const target = event.target as HTMLInputElement;
-		opacity = parseFloat(target.value);
+		opacity = Number.parseFloat(target.value);
 	}
 
 	// Handle X position input change
 	function handlePositionXChange(event: Event) {
 		const target = event.target as HTMLInputElement;
-		positionX = parseInt(target.value, 10);
+		positionX = Number.parseInt(target.value, 10);
 	}
 
 	// Handle Y position input change
 	function handlePositionYChange(event: Event) {
 		const target = event.target as HTMLInputElement;
-		positionY = parseInt(target.value, 10);
+		positionY = Number.parseInt(target.value, 10);
 	}
 
 	// Handle rotation input change
 	function handleRotationChange(event: Event) {
 		const target = event.target as HTMLInputElement;
-		rotation = parseInt(target.value, 10);
+		rotation = Number.parseInt(target.value, 10);
 	}
 </script>
 
@@ -72,7 +72,7 @@ Usage:
 			oninput={handleSizeChange}
 			placeholder="e.g., 100px or 50%"
 			aria-label="Watermark size"
-		/>
+		>
 	</div>
 	<div>
 		<label class="block font-bold" for="opacity">Opacity</label>
@@ -86,7 +86,7 @@ Usage:
 			bind:value={opacity}
 			oninput={handleOpacityChange}
 			aria-label="Watermark opacity"
-		/>
+		>
 	</div>
 	<div>
 		<label class="block font-bold" for="positionX">Position X</label>
@@ -97,7 +97,7 @@ Usage:
 			bind:value={positionX}
 			oninput={handlePositionXChange}
 			aria-label="Watermark horizontal position"
-		/>
+		>
 	</div>
 	<div>
 		<label class="block font-bold" for="positionY">Position Y</label>
@@ -108,17 +108,10 @@ Usage:
 			bind:value={positionY}
 			oninput={handlePositionYChange}
 			aria-label="Watermark vertical position"
-		/>
+		>
 	</div>
 	<div>
 		<label class="block font-bold" for="rotation">Rotation</label>
-		<input
-			class="w-full"
-			id="rotation"
-			type="number"
-			bind:value={rotation}
-			oninput={handleRotationChange}
-			aria-label="Watermark rotation in degrees"
-		/>
+		<input class="w-full" id="rotation" type="number" bind:value={rotation} oninput={handleRotationChange} aria-label="Watermark rotation in degrees">
 	</div>
 </div>

@@ -5,10 +5,10 @@
  * Uses ContentManager for robust, canonical path resolution.
  */
 
-import { redirect } from '@sveltejs/kit';
-import type { PageServerLoad } from './$types';
 import { contentManager } from '@src/content/ContentManager';
+import { redirect } from '@sveltejs/kit';
 import { logger } from '@utils/logger.server';
+import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
 	const { language } = params;

@@ -13,14 +13,14 @@
  * - ADMIN_USER, ADMIN_EMAIL, ADMIN_PASS
  */
 
-import { test, expect, type Page } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 
 // Helper: Click the Next button.
 // Uses getByLabel to uniquely target the actual button (not the tooltip trigger)
 // since SystemTooltip creates a separate trigger button that also matches by role.
 async function clickNext(page: Page) {
 	const nextBtn = page.getByLabel('Next', { exact: true });
-	await expect(nextBtn).toBeEnabled({ timeout: 60000 });
+	await expect(nextBtn).toBeEnabled({ timeout: 60_000 });
 	await nextBtn.click();
 }
 
@@ -41,7 +41,7 @@ test('Setup Wizard: Configure DB and Create Admin', async ({ page }) => {
 
 	if (page.url().includes('/login')) {
 		console.log('System already configured. Skipping setup.');
-		test.skip();
+		test();
 		return;
 	}
 
@@ -49,7 +49,7 @@ test('Setup Wizard: Configure DB and Create Admin', async ({ page }) => {
 	await expect(page).toHaveURL(/\/setup/);
 
 	// --- STEP 1: Database ---
-	await expect(page.locator('h2', { hasText: /database/i }).first()).toBeVisible({ timeout: 30000 });
+	await expect(page.locator('h2', { hasText: /database/i }).first()).toBeVisible({ timeout: 30_000 });
 
 	// Select Database Type if specified (default is mongodb)
 	const dbType = process.env.DB_TYPE || 'mongodb';
@@ -67,13 +67,13 @@ test('Setup Wizard: Configure DB and Create Admin', async ({ page }) => {
 
 	// Test Connection
 	await page.locator('button', { hasText: /test database/i }).click();
-	await expect(page.getByText(/connected successfully/i).first()).toBeVisible({ timeout: 15000 });
+	await expect(page.getByText(/connected successfully/i).first()).toBeVisible({ timeout: 15_000 });
 
 	// Move to next step (clicking Next triggers database seeding which may take time)
 	await clickNext(page);
 
 	// --- STEP 2: Admin User ---
-	await expect(page.locator('h2', { hasText: /admin/i }).first()).toBeVisible({ timeout: 60000 });
+	await expect(page.locator('h2', { hasText: /admin/i }).first()).toBeVisible({ timeout: 60_000 });
 
 	// Fill admin user details
 	await page.locator('#admin-username').fill(process.env.ADMIN_USER || 'admin');
@@ -106,6 +106,6 @@ test('Setup Wizard: Configure DB and Create Admin', async ({ page }) => {
 
 	// --- VERIFICATION ---
 	// Expect redirect to Login or Dashboard
-	await expect(page).not.toHaveURL(/\/setup/, { timeout: 30000 });
+	await expect(page).not.toHaveURL(/\/setup/, { timeout: 30_000 });
 	console.log('Setup completed successfully.');
 });

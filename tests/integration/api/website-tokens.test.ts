@@ -6,9 +6,11 @@
  */
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'bun:test';
+
 process.env.TEST_BASE_URL = 'http://localhost:5173';
-import { prepareAuthenticatedContext, cleanupTestDatabase } from '../helpers/testSetup';
+
 import { getApiBaseUrl, waitForServer } from '../helpers/server';
+import { cleanupTestDatabase, prepareAuthenticatedContext } from '../helpers/testSetup';
 
 const API_BASE_URL = getApiBaseUrl();
 
@@ -70,7 +72,7 @@ describe('Website Token API Endpoints', () => {
 
 		it('should create a website token with an expiration date', async () => {
 			const tokenName = `Expiring Token ${Date.now()}`;
-			const expiresAt = new Date(Date.now() + 86400000).toISOString(); // +1 day
+			const expiresAt = new Date(Date.now() + 86_400_000).toISOString(); // +1 day
 			const response = await fetch(`${API_BASE_URL}/api/website-tokens`, {
 				method: 'POST',
 				headers: {

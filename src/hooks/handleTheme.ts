@@ -8,10 +8,10 @@
  * - Sets `event.locals.darkMode` (boolean) for use in other server `load` functions
  */
 
-import type { Handle } from '@sveltejs/kit';
 import { ThemeManager } from '@src/databases/themeManager';
-import { logger } from '@utils/logger.server';
 import { getSystemState } from '@src/stores/system/state';
+import type { Handle } from '@sveltejs/kit';
+import { logger } from '@utils/logger.server';
 
 // Get the singleton ThemeManager instance
 const themeManager = ThemeManager.getInstance();

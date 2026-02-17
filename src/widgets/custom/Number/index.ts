@@ -23,7 +23,10 @@ import { maxValue, minValue, number, optional, pipe, type InferInput as ValibotI
 import type { NumberProps } from './types';
 
 // Helper type for aggregation field parameter
-type AggregationField = { db_fieldName: string; [key: string]: unknown };
+interface AggregationField {
+	db_fieldName: string;
+	[key: string]: unknown;
+}
 
 // The validation schema is a function to create rules based on the field config.
 const validationSchema = (field: FieldInstance) => {
@@ -75,7 +78,7 @@ const NumberWidget = createWidget<NumberProps>({
 	aggregations: {
 		filters: async ({ field, filter }: { field: AggregationField; filter: string }) => [
 			// Example: filter=">100" or filter="<50" or filter="150"
-			{ $match: { [field.db_fieldName]: { $eq: parseFloat(filter) } } }
+			{ $match: { [field.db_fieldName]: { $eq: Number.parseFloat(filter) } } }
 		],
 		sorts: async ({ field, sortDirection }: { field: AggregationField; sortDirection: number }) => ({
 			[field.db_fieldName]: sortDirection

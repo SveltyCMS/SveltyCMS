@@ -9,8 +9,8 @@
  * - Generate proper TypeScript union types
  */
 
-import { logger } from '@utils/logger';
 import * as fs from 'node:fs/promises';
+import { logger } from '@utils/logger';
 import type { ViteDevServer } from 'vite';
 
 // Define types locally to avoid circular dependencies
@@ -36,12 +36,12 @@ export async function generateContentTypes(server: ViteDevServer): Promise<Recor
 
 		const contentTypes: Record<string, { fields: string[]; type: string }> = {};
 
-		if (!collectionsData || !Array.isArray(collectionsData)) {
+		if (!(collectionsData && Array.isArray(collectionsData))) {
 			throw new Error(`Invalid collections data: expected array, got ${typeof collectionsData}`);
 		}
 
 		for (const collection of collectionsData) {
-			if (!collection?.fields || !Array.isArray(collection.fields)) {
+			if (!(collection?.fields && Array.isArray(collection.fields))) {
 				logger.warn(`Collection ${collection?.name || 'unknown'} has no valid fields array`);
 				continue;
 			}

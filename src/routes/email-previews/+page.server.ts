@@ -11,14 +11,13 @@
  *
  */
 
-import { createEmail, emailList, sendEmail } from 'better-svelte-email/preview';
-
 // Auth
 import type { User } from '@src/databases/auth/types';
+import { error } from '@sveltejs/kit';
 
 // System Logger
 import { logger } from '@utils/logger.server';
-import { error } from '@sveltejs/kit';
+import { createEmail, emailList, sendEmail } from 'better-svelte-email/preview';
 
 // Create a global variable to store the fetch function for actions
 let eventFetch: typeof globalThis.fetch;
@@ -30,11 +29,11 @@ let eventFetch: typeof globalThis.fetch;
 // - `emails`, `components`, etc. as helper metadata.
 // We mirror that shape here so `PageData` and `EmailPreview` agree.
 interface PreviewData {
-	user?: User | null;
-	path?: string | null;
-	files: string[] | null;
-	emails?: { name: string; path: string }[];
 	components?: Record<string, unknown>;
+	emails?: { name: string; path: string }[];
+	files: string[] | null;
+	path?: string | null;
+	user?: User | null;
 	[key: string]: unknown;
 }
 
@@ -92,7 +91,7 @@ export const actions = {
 					body: JSON.stringify({
 						recipientEmail: to,
 						subject: subject || `Preview: ${templateName}`,
-						templateName: templateName,
+						templateName,
 						props: previewProps,
 						languageTag: 'en'
 					})

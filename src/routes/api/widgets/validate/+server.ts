@@ -50,7 +50,7 @@ export const GET = apiHandler(async ({ locals, request, url }) => {
 			let collectionValid = true;
 			const missingWidgets: string[] = [];
 
-			for (const field of coll.fields as Array<Record<string, unknown>>) {
+			for (const field of coll.fields as Record<string, unknown>[]) {
 				if (field && typeof field === 'object') {
 					let widgetType: string | undefined;
 
@@ -121,7 +121,9 @@ export const GET = apiHandler(async ({ locals, request, url }) => {
 		const duration = performance.now() - start;
 		const message = `Failed to validate collections: ${err instanceof Error ? err.message : String(err)}`;
 		logger.error(message, { duration: `${duration.toFixed(2)}ms`, stack: err instanceof Error ? err.stack : undefined });
-		if (err instanceof AppError) throw err;
+		if (err instanceof AppError) {
+			throw err;
+		}
 		throw new AppError(message, 500, 'VALIDATION_FAILED');
 	}
 });

@@ -17,13 +17,13 @@
  *   - focalPoint: (optional) JSON string of focal point {x, y}
  */
 
-import { json, type RequestHandler } from '@sveltejs/kit';
-import sharp from 'sharp';
-import { logger } from '@utils/logger.server';
 import { dbAdapter } from '@src/databases/db';
-import { hashFileContent } from '@src/utils/media/mediaProcessing.server';
 import { getPublicSetting } from '@src/services/settingsService';
+import { hashFileContent } from '@src/utils/media/mediaProcessing.server';
 import { MediaService } from '@src/utils/media/mediaService.server';
+import { json, type RequestHandler } from '@sveltejs/kit';
+import { logger } from '@utils/logger.server';
+import sharp from 'sharp';
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 
@@ -217,7 +217,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 		// Use MediaService for saving
 		try {
-			if (!dbAdapter) throw new Error('Database adapter not available');
+			if (!dbAdapter) {
+				throw new Error('Database adapter not available');
+			}
 			const mediaService = new MediaService(dbAdapter);
 			// Buffer to Uint8Array/any to satisfy File constructor
 			const editedFile = new File([processedBuffer as any], filename, { type: file.type });
@@ -240,15 +242,14 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 					success: true,
 					data: updatedItem
 				});
-			} else {
-				// SAVE AS NEW MEDIA
-				const savedItem = await mediaService.saveMedia(editedFile, userId, 'public', MEDIA_FOLDER);
-
-				return json({
-					success: true,
-					data: savedItem
-				});
 			}
+			// SAVE AS NEW MEDIA
+			const savedItem = await mediaService.saveMedia(editedFile, userId, 'public', MEDIA_FOLDER);
+
+			return json({
+				success: true,
+				data: savedItem
+			});
 		} catch (dbError) {
 			logger.error('Error saving edited image via MediaService:', dbError);
 			return json({ success: false, error: 'Failed to save image' }, { status: 500 });

@@ -3,41 +3,35 @@
 @description Professional multi-step setup wizard for SveltyCMS.
 -->
 <script lang="ts">
-	// Using iconify-icon web component
-	import { onMount, tick } from 'svelte';
-	import { goto } from '$app/navigation';
-
 	// Stores
 	import { setupStore } from '@stores/setupStore.svelte.ts';
 	import { app } from '@stores/store.svelte';
-
-	// Child Layout Components
-	import SetupHeader from './SetupHeader.svelte';
-	import SetupStepper from './SetupStepper.svelte';
-	import SetupCardHeader from './SetupCardHeader.svelte';
-	import SetupNavigation from './SetupNavigation.svelte';
-
-	// Step Content Components
-	import WelcomeModal from './WelcomeModal.svelte';
-	import DatabaseConfig from './DatabaseConfig.svelte';
+	// Using iconify-icon web component
+	import { onMount, tick } from 'svelte';
+	import { goto } from '$app/navigation';
 	import AdminConfig from './AdminConfig.svelte';
-	import SystemConfig from './SystemConfig.svelte';
+	import DatabaseConfig from './DatabaseConfig.svelte';
 	import EmailConfig from './EmailConfig.svelte';
 	import ReviewConfig from './ReviewConfig.svelte';
+	import SetupCardHeader from './SetupCardHeader.svelte';
+	// Child Layout Components
+	import SetupHeader from './SetupHeader.svelte';
+	import SetupNavigation from './SetupNavigation.svelte';
+	import SetupStepper from './SetupStepper.svelte';
+	import SystemConfig from './SystemConfig.svelte';
+	// Step Content Components
+	import WelcomeModal from './WelcomeModal.svelte';
 
 	// Skeleton v4
 
 	import DialogManager from '@components/system/DialogManager.svelte';
-	import { modalState } from '@utils/modalState.svelte';
-	import { showConfirm } from '@utils/modalUtils';
-
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
-	import { getLocale } from '@src/paraglide/runtime';
-
+	import { locales as availableLocales, getLocale } from '@src/paraglide/runtime';
 	// Utils
 	import { getLanguageName } from '@utils/languageUtils';
-	import { locales as availableLocales } from '@src/paraglide/runtime';
+	import { modalState } from '@utils/modalState.svelte';
+	import { showConfirm } from '@utils/modalUtils';
 
 	// --- 1. STATE MANAGEMENT (Wired to Store) ---
 	let { data } = $props();
@@ -132,9 +126,7 @@
 			}
 			await seedDatabase();
 		}
-		if (wizard.currentStep === 1 || wizard.currentStep === 2) {
-			if (!validateStep(wizard.currentStep, true)) return;
-		}
+		if ((wizard.currentStep === 1 || wizard.currentStep === 2) && !validateStep(wizard.currentStep, true)) return;
 		if (wizard.currentStep < totalSteps - 1) {
 			wizard.currentStep++;
 			if (wizard.currentStep > wizard.highestStepReached) {
@@ -172,9 +164,7 @@
 	}
 </script>
 
-<svelte:head>
-	<title>SveltyCMS Setup</title>
-</svelte:head>
+<svelte:head> <title>SveltyCMS Setup</title> </svelte:head>
 
 <div class="bg-surface-50-900 min-h-screen w-full transition-colors">
 	<DialogManager />

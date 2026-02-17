@@ -22,8 +22,8 @@ behavior using native Svelte 5 $state and requestAnimationFrame.
 
 	interface Props {
 		background?: string;
-		position?: number;
 		mirrorAnimation?: boolean;
+		position?: number;
 	}
 
 	const { background = 'white', position = 1, mirrorAnimation = false }: Props = $props();

@@ -8,8 +8,8 @@ Orchestrates the filter modules using svelte-canvas compatible state.
 
 <script lang="ts">
 	import { imageEditorStore } from '@stores/imageEditorStore.svelte';
-	import FineTuneControls from './Controls.svelte';
 	import { type Adjustments, DEFAULT_ADJUSTMENTS, FILTER_PRESETS, getAdjustmentsByCategory } from './adjustments';
+	import FineTuneControls from './Controls.svelte';
 
 	// --- Svelte 5 State ---
 	let activeAdjustment = $state<keyof Adjustments>('brightness');
@@ -25,10 +25,8 @@ Orchestrates the filter modules using svelte-canvas compatible state.
 		const activeState = imageEditorStore.state.activeState;
 		if (activeState === 'finetune') {
 			updateToolbar();
-		} else {
-			if (imageEditorStore.state.toolbarControls?.component === FineTuneControls) {
-				imageEditorStore.setToolbarControls(null);
-			}
+		} else if (imageEditorStore.state.toolbarControls?.component === FineTuneControls) {
+			imageEditorStore.setToolbarControls(null);
 		}
 	});
 

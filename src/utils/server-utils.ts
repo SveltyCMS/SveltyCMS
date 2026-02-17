@@ -6,15 +6,15 @@
  * as they depend on Node.js modules like 'fs' and 'path'.
  */
 
-import fs from 'fs/promises';
+import fs from 'node:fs/promises';
+import path from 'node:path';
 import { logger } from '@utils/logger';
-import path from 'path';
 
 // Collection name conflict checking types
 interface CollectionNameCheck {
+	conflictPath?: string;
 	exists: boolean;
 	suggestions?: string[];
-	conflictPath?: string;
 }
 
 export async function checkCollectionNameConflict(name: string, collectionsPath: string): Promise<CollectionNameCheck> {
@@ -86,7 +86,9 @@ function generateNameSuggestions(name: string, existingNames: Set<string>): stri
 	// Try adding prefixes/suffixes if we need more suggestions
 	const commonPrefixes = ['New', 'Alt', 'Copy'];
 	for (const prefix of commonPrefixes) {
-		if (suggestions.length >= 5) break;
+		if (suggestions.length >= 5) {
+			break;
+		}
 		const suggestion = `${prefix}${name}`;
 		if (!existingNames.has(suggestion)) {
 			suggestions.push(suggestion);

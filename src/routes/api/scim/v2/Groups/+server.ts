@@ -9,14 +9,13 @@
  *
  */
 
-import { json } from '@sveltejs/kit';
-import { SCIM_SCHEMAS } from '@src/types/scim';
 import { auth } from '@src/databases/db';
-import { logger } from '@utils/logger.server';
-
+import { SCIM_SCHEMAS } from '@src/types/scim';
+import { json } from '@sveltejs/kit';
 // Unified Error Handling
 import { apiHandler } from '@utils/apiHandler';
 import { AppError } from '@utils/errorHandling';
+import { logger } from '@utils/logger.server';
 
 export const GET = apiHandler(async ({ url, locals }) => {
 	// Security check
@@ -54,7 +53,9 @@ export const GET = apiHandler(async ({ url, locals }) => {
 			Resources: resources
 		});
 	} catch (e) {
-		if (e instanceof AppError) throw e;
+		if (e instanceof AppError) {
+			throw e;
+		}
 		const error = e as Error;
 		logger.error('SCIM Groups GET error', { error: e });
 		return json(

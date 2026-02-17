@@ -63,9 +63,7 @@ Shows horizontal stepper on mobile, vertical stepper on desktop with legend.
 						}}
 						tabindex={stepClickable[i] || i === currentStep ? 0 : -1}
 					>
-						<span class="text-[0.65rem]">
-							{stepCompleted[i] ? '✓' : i === currentStep ? '●' : '•'}
-						</span>
+						<span class="text-[0.65rem]"> {stepCompleted[i] ? '✓' : i === currentStep ? '●' : '•'} </span>
 					</button>
 					<div class="mt-2 text-center">
 						<div
@@ -109,9 +107,7 @@ Shows horizontal stepper on mobile, vertical stepper on desktop with legend.
 									? 'bg-error-500 text-white shadow-xl'
 									: 'bg-slate-200 text-slate-600 ring-1 ring-slate-300 dark:bg-slate-700 dark:text-slate-300 dark:ring-slate-600'}"
 						>
-							<span class="text-[0.65rem]">
-								{stepCompleted[i] ? '✓' : i === currentStep ? '●' : '•'}
-							</span>
+							<span class="text-[0.65rem]"> {stepCompleted[i] ? '✓' : i === currentStep ? '●' : '•'} </span>
 						</div>
 						<div class="text-left">
 							<div
@@ -134,11 +130,13 @@ Shows horizontal stepper on mobile, vertical stepper on desktop with legend.
 							</div>
 						</div>
 					</button>
-					{#if i !== steps.length - 1}<div
+					{#if i !== steps.length - 1}
+						<div
 							class="absolute left-[1.65rem] top-14 h-[calc(100%-3.5rem)] w-[2px] {stepCompleted[i]
 								? 'bg-primary-500'
 								: 'border-l-2 border-dashed border-slate-200'}"
-						></div>{/if}
+						></div>
+					{/if}
 				</div>
 			{/each}
 			<!-- Setup Steps Legend -->
@@ -150,9 +148,11 @@ Shows horizontal stepper on mobile, vertical stepper on desktop with legend.
 							<li class="grid grid-cols-[1.4rem_auto] items-center gap-x-3">
 								<div
 									class="flex h-5 w-5 items-center justify-center rounded-full font-semibold leading-none
-									{item.key === 'completed' ? ' bg-primary-500 text-white' : ''}
-									{item.key === 'current' ? ' bg-error-500 text-white shadow-sm' : ''}
-									{item.key === 'pending' ? ' bg-slate-200 text-slate-600 ring-1 ring-slate-300 dark:bg-slate-700 dark:text-slate-300 dark:ring-slate-600' : ''}"
+									{item.key === 'completed'
+										? ' bg-primary-500 text-white'
+										: item.key === 'current'
+											? 'bg-error-500 text-white shadow-sm'
+											: 'bg-slate-200 text-slate-600 ring-1 ring-slate-300 dark:bg-slate-700 dark:text-slate-300 dark:ring-slate-600'}"
 								>
 									<span class="text-[0.65rem]">{item.content}</span>
 								</div>
@@ -163,9 +163,7 @@ Shows horizontal stepper on mobile, vertical stepper on desktop with legend.
 				</div>
 
 				<!-- Version Check  -->
-				<div class="flex shrink-0 items-center">
-					<VersionCheck />
-				</div>
+				<div class="flex shrink-0 items-center"><VersionCheck /></div>
 			</div>
 		</div>
 	</div>

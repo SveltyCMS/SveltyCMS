@@ -42,9 +42,7 @@
 
 <div class="space-y-4">
 	{#if body}
-		<article class="text-sm opacity-80">
-			<Sanitize html={body} profile="strict" />
-		</article>
+		<article class="text-sm opacity-80"><Sanitize html={body} profile="strict" /></article>
 	{/if}
 
 	<form
@@ -54,11 +52,11 @@
 			onConfirm();
 		}}
 	>
-		<input class="input p-2 border rounded-container-token bg-surface-200-800" {type} bind:value={inputValue} />
+		<input class="input p-2 border rounded-container-token bg-surface-200-800" {type} bind:value={inputValue}>
 	</form>
 
 	<div class="flex justify-end gap-2 pt-2">
-		<button type="button" class="btn preset-tonal" onclick={onCancel}> Cancel </button>
-		<button type="button" class="btn preset-filled-primary" onclick={onConfirm}> Confirm </button>
+		<button type="button" class="btn preset-tonal" onclick={onCancel}>Cancel</button>
+		<button type="button" class="btn preset-filled-primary" onclick={onConfirm}>Confirm</button>
 	</div>
 </div>

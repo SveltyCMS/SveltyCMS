@@ -11,8 +11,8 @@ Features:
 <script lang="ts">
 	// Props
 	interface Props {
-		fill?: string;
 		className?: string;
+		fill?: string;
 		size?: number;
 	}
 

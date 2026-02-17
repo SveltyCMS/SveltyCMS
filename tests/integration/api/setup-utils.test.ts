@@ -6,17 +6,17 @@
  * used during the initial setup process.
  */
 
-import { describe, it, expect } from 'bun:test';
-import { buildDatabaseConnectionString } from '@src/routes/setup/utils';
-import { classifyDatabaseError } from '@src/routes/setup/errorClassifier';
+import { describe, expect, it } from 'bun:test';
 import type { DatabaseConfig } from '@src/databases/schemas';
+import { classifyDatabaseError } from '@src/routes/setup/errorClassifier';
+import { buildDatabaseConnectionString } from '@src/routes/setup/utils';
 
 describe('Setup Utils - Connection String Builder', () => {
 	it('should build standard MongoDB connection string', () => {
 		const config: DatabaseConfig = {
 			type: 'mongodb',
 			host: 'localhost',
-			port: 27017,
+			port: 27_017,
 			name: 'testdb',
 			user: 'admin',
 			password: 'secret'
@@ -35,7 +35,7 @@ describe('Setup Utils - Connection String Builder', () => {
 		const config: DatabaseConfig = {
 			type: 'mongodb+srv',
 			host: 'cluster0.example.mongodb.net',
-			port: 27017,
+			port: 27_017,
 			name: 'production',
 			user: 'dbuser',
 			password: 'dbpass123'
@@ -52,7 +52,7 @@ describe('Setup Utils - Connection String Builder', () => {
 		const config: DatabaseConfig = {
 			type: 'mongodb',
 			host: 'localhost',
-			port: 27017,
+			port: 27_017,
 			name: 'testdb',
 			user: '',
 			password: ''
@@ -67,7 +67,7 @@ describe('Setup Utils - Connection String Builder', () => {
 		const config: DatabaseConfig = {
 			type: 'mongodb',
 			host: 'localhost',
-			port: 27017,
+			port: 27_017,
 			name: 'testdb',
 			user: 'user@domain',
 			password: 'p@ss:word!'
@@ -84,7 +84,7 @@ describe('Setup Utils - Connection String Builder', () => {
 		const config: DatabaseConfig = {
 			type: 'mongodb',
 			host: '[::1]',
-			port: 27017,
+			port: 27_017,
 			name: 'testdb',
 			user: '',
 			password: ''
@@ -250,7 +250,7 @@ describe('Connection String Security', () => {
 		const config: DatabaseConfig = {
 			type: 'mongodb',
 			host: 'localhost',
-			port: 27017,
+			port: 27_017,
 			name: 'testdb',
 			user: 'admin',
 			password: 'super-secret-password'
@@ -273,7 +273,7 @@ describe('Connection String Validation', () => {
 		const config: DatabaseConfig = {
 			type: 'mongodb',
 			host: 'localhost',
-			port: 27017,
+			port: 27_017,
 			name: 'testdb',
 			user: 'admin',
 			password: 'pass'
@@ -290,7 +290,7 @@ describe('Connection String Validation', () => {
 		const config: DatabaseConfig = {
 			type: 'mongodb+srv',
 			host: 'cluster.mongodb.net',
-			port: 27017,
+			port: 27_017,
 			name: 'prod',
 			user: 'user',
 			password: 'pass'

@@ -24,8 +24,8 @@ Part of the CMS widget system.
 	import type { CheckboxWidgetData } from './';
 
 	interface Props {
-		value: CheckboxWidgetData;
 		size?: 'sm' | 'md' | 'lg';
+		value: CheckboxWidgetData;
 	}
 
 	const { value, size = 'md' }: Props = $props();

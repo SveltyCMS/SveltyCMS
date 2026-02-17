@@ -27,7 +27,7 @@
 		const dm = decimals < 0 ? 0 : decimals;
 		const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
 		const i = Math.floor(Math.log(bytes) / Math.log(k));
-		return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
+		return `${Number.parseFloat((bytes / k ** i).toFixed(dm))} ${sizes[i]}`;
 	}
 </script>
 
@@ -88,12 +88,12 @@
 						<td>{new Date(tenant.createdAt).toLocaleDateString()}</td>
 						<td>
 							<form method="POST" action="?/toggleStatus" use:enhance>
-								<input type="hidden" name="tenantId" value={tenant._id} />
+								<input type="hidden" name="tenantId" value={tenant._id}>
 								{#if tenant.status === 'active'}
-									<input type="hidden" name="status" value="suspended" />
+									<input type="hidden" name="status" value="suspended">
 									<button class="btn btn-sm variant-soft-error">Suspend</button>
 								{:else}
-									<input type="hidden" name="status" value="active" />
+									<input type="hidden" name="status" value="active">
 									<button class="btn btn-sm variant-filled-success">Activate</button>
 								{/if}
 							</form>

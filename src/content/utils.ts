@@ -19,8 +19,8 @@ import type { ContentNode, MinimalContentNode, Schema } from './types';
 
 // An extended version of ContentNode for UI purposes that includes children.
 export interface ExtendedContentNode extends ContentNode {
-	path?: string;
 	children?: ExtendedContentNode[];
+	path?: string;
 }
 
 export function constructNestedStructure(contentStructure: ContentNode[]): ExtendedContentNode[] {
@@ -33,7 +33,9 @@ export function constructNestedStructure(contentStructure: ContentNode[]): Exten
 		const nested: ExtendedContentNode = { ...node, path: '', children: [] };
 		nodeMap.set(node._id, nested);
 		const parentKey = node.parentId ?? ROOT_KEY;
-		if (!byParent[parentKey]) byParent[parentKey] = [];
+		if (!byParent[parentKey]) {
+			byParent[parentKey] = [];
+		}
 		byParent[parentKey].push(nested);
 	}
 
@@ -54,7 +56,7 @@ export function constructNestedStructure(contentStructure: ContentNode[]): Exten
 		for (let i = children.length - 1; i >= 0; i--) {
 			const child = children[i];
 			child.path = `${node.path}/${child.name}`;
-			node.children!.push(child);
+			node.children?.push(child);
 			stack.push({ node: child, parentPath: node.path ?? '' });
 		}
 	}
@@ -65,7 +67,9 @@ export function generateCategoryNodesFromPaths(files: Schema[]): Map<string, Min
 	const folders = new Map<string, MinimalContentNode>();
 
 	for (const file of files) {
-		if (!file.path) continue;
+		if (!file.path) {
+			continue;
+		}
 		const parts = file.path.split('/').filter(Boolean);
 		let path = '';
 		for (let i = 0; i < parts.length - 1; i++) {
@@ -86,12 +90,14 @@ export function constructContentPaths(contentStructure: ContentNode[]): Record<s
 
 	for (const node of contentStructure) {
 		const parentKey = node.parentId ?? '__root__';
-		if (!byParent[parentKey]) byParent[parentKey] = [];
+		if (!byParent[parentKey]) {
+			byParent[parentKey] = [];
+		}
 		byParent[parentKey].push(node);
 	}
 
 	const stack: { node: ContentNode; path: string }[] = [];
-	const rootNodes = byParent['__root__'] ?? [];
+	const rootNodes = byParent.__root__ ?? [];
 	for (const root of rootNodes) {
 		stack.push({ node: root, path: `/${root.name}` });
 	}
@@ -139,8 +145,12 @@ export async function processModule(content: string): Promise<{ schema?: Schema 
 			}
 
 			if (!inString) {
-				if (char === '{') braceCount++;
-				if (char === '}') braceCount--;
+				if (char === '{') {
+					braceCount++;
+				}
+				if (char === '}') {
+					braceCount--;
+				}
 
 				if (braceCount === 0 && char === '}') {
 					endIdx = i + 1;
@@ -177,7 +187,7 @@ export async function processModule(content: string): Promise<{ schema?: Schema 
 		const result = moduleFunc();
 
 		if (!alreadyPopulated && typeof globalThis !== 'undefined') {
-			delete (globalThis as { widgets?: Record<string, unknown> }).widgets;
+			(globalThis as { widgets?: Record<string, unknown> }).widgets = undefined;
 		}
 
 		if (result && typeof result === 'object' && 'fields' in result && '_id' in result) {
@@ -209,6 +219,8 @@ export async function processModule(content: string): Promise<{ schema?: Schema 
  */
 export function sortContentNodes<T extends { order?: number; name: string }>(a: T, b: T): number {
 	const orderDiff = (a.order ?? 0) - (b.order ?? 0);
-	if (orderDiff !== 0) return orderDiff;
+	if (orderDiff !== 0) {
+		return orderDiff;
+	}
 	return a.name.localeCompare(b.name);
 }

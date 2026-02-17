@@ -28,8 +28,8 @@ Full-screen loading overlay with contextual messages, progress indication, and a
 
 	// Loading text configuration
 	interface LoadingText {
-		top: string;
 		bottom: string;
+		top: string;
 	}
 
 	// State
@@ -182,9 +182,7 @@ Full-screen loading overlay with contextual messages, progress indication, and a
 			transition:scale={{ duration: prefersReducedMotion ? 0 : 300, start: 0.9 }}
 		>
 			<!-- Top text -->
-			<p id="loading-title" class="text-sm font-medium uppercase tracking-wide text-gray-900 dark:text-white">
-				{loadingText.top}
-			</p>
+			<p id="loading-title" class="text-sm font-medium uppercase tracking-wide text-gray-900 dark:text-white">{loadingText.top}</p>
 
 			<!-- Logo with animation -->
 			<div class="flex items-center justify-center {prefersReducedMotion ? '' : 'animate-pulse'}" aria-hidden="true">
@@ -192,9 +190,7 @@ Full-screen loading overlay with contextual messages, progress indication, and a
 			</div>
 
 			<!-- Bottom text -->
-			<p id="loading-description" class="text-xs uppercase text-gray-700 dark:text-gray-300">
-				{loadingText.bottom}
-			</p>
+			<p id="loading-description" class="text-xs uppercase text-gray-700 dark:text-gray-300">{loadingText.bottom}</p>
 
 			<!-- Progress bar (if available) -->
 			{#if hasProgress}
@@ -255,43 +251,43 @@ Full-screen loading overlay with contextual messages, progress indication, and a
 	/* Base loader styles */
 	.loader {
 		position: absolute;
-		border-radius: 50%;
 		border-style: solid;
-		border-left-color: transparent;
 		border-right-color: transparent;
-		will-change: transform;
+		border-left-color: transparent;
+		border-radius: 50%;
 		transform: translateZ(0); /* GPU acceleration */
+		will-change: transform; /* GPU acceleration */
 	}
 
 	/* Individual loader animations */
 	.loader-1 {
-		border-color: var(--color-error-500);
-		height: 150px;
 		width: 150px;
+		height: 150px;
+		border-color: var(--color-error-500);
 		border-width: 7px;
 		animation: rotate 3s cubic-bezier(0.26, 1.36, 0.74, -0.29) infinite;
 	}
 
 	.loader-2 {
-		border-color: var(--color-success-400);
-		height: 170px;
 		width: 170px;
+		height: 170px;
+		border-color: var(--color-success-400);
 		border-width: 6px;
 		animation: rotate-reverse 2s cubic-bezier(0.26, 1.36, 0.74, -0.29) infinite;
 	}
 
 	.loader-3 {
-		border-color: var(--color-tertiary-400);
-		height: 190px;
 		width: 190px;
+		height: 190px;
+		border-color: var(--color-tertiary-400);
 		border-width: 5px;
 		animation: rotate 3s cubic-bezier(0.26, 1.36, 0.74, -0.29) infinite;
 	}
 
 	.loader-4 {
-		border-color: var(--color-surface-400);
-		height: 210px;
 		width: 210px;
+		height: 210px;
+		border-color: var(--color-surface-400);
 		border-width: 4px;
 		animation: rotate-reverse 3s cubic-bezier(0.26, 1.36, 0.74, -0.29) infinite;
 	}

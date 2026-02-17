@@ -1,0 +1,9 @@
+**/*.svelte
+**/*.html
+**/*.css
+src/paraglide/**
+build/**
+.svelte-kit/**
+package/**
+dist/**
+node_modules/**

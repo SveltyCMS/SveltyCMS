@@ -22,13 +22,18 @@ export function createMemoryEfficientStore<T>(initial: T) {
 	const weak = new SvelteSet<WeakRef<(v: T) => void>>();
 
 	const notify = () => {
-		strong.forEach((cb) => cb(value));
+		for (const cb of strong) {
+			cb(value);
+		}
 
 		// Clean & notify weak refs
 		for (const ref of weak) {
 			const cb = ref.deref();
-			if (cb) cb(value);
-			else weak.delete(ref);
+			if (cb) {
+				cb(value);
+			} else {
+				weak.delete(ref);
+			}
 		}
 	};
 
@@ -69,11 +74,15 @@ export function debouncedEffect(fn: () => void, deps: () => unknown[], delay = 3
 	$effect(() => {
 		deps();
 
-		if (id) clearTimeout(id);
+		if (id) {
+			clearTimeout(id);
+		}
 		id = setTimeout(fn, delay) as unknown as number;
 
 		return () => {
-			if (id) clearTimeout(id);
+			if (id) {
+				clearTimeout(id);
+			}
 		};
 	});
 }
@@ -103,7 +112,9 @@ export function throttledEffect(fn: () => void, deps: () => unknown[], delay = 1
 		}
 
 		return () => {
-			if (id) clearTimeout(id);
+			if (id) {
+				clearTimeout(id);
+			}
 		};
 	});
 }
@@ -120,13 +131,13 @@ export function resourceManager() {
 			return () => cleanups.delete(cleanup);
 		},
 		clear() {
-			cleanups.forEach((fn) => {
+			for (const fn of cleanups) {
 				try {
 					fn();
 				} catch (e) {
 					logger.warn('Cleanup error:', e);
 				}
-			});
+			}
 			cleanups.clear();
 		}
 	};
@@ -139,7 +150,9 @@ export function intersectionObserver(cb: IntersectionObserverCallback, opts?: In
 	let obs: IntersectionObserver | null = null;
 
 	const start = () => {
-		if (typeof window === 'undefined') return null;
+		if (typeof window === 'undefined') {
+			return null;
+		}
 		obs ??= new IntersectionObserver(cb, opts);
 		return obs;
 	};
@@ -170,7 +183,7 @@ export function lazyImage(src: string, placeholder = '') {
 	let failed = $state(false);
 
 	const { start, stop } = intersectionObserver((entries) => {
-		entries.forEach((entry) => {
+		for (const entry of entries) {
 			if (entry.isIntersecting) {
 				const img = new Image();
 				img.onload = () => {
@@ -185,7 +198,7 @@ export function lazyImage(src: string, placeholder = '') {
 				img.src = src;
 				stop(); // Stop after load attempt
 			}
-		});
+		}
 	});
 
 	return {

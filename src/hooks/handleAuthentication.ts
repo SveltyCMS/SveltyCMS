@@ -21,20 +21,20 @@
  * @prerequisite handleSystemState and handleSetup have already confirmed readiness
  */
 
-import type { Handle, RequestEvent } from '@sveltejs/kit';
-import { error } from '@sveltejs/kit';
-import { dev } from '$app/environment';
+import type { ISODateString } from '@databases/dbInterface';
 import { SESSION_COOKIE_NAME } from '@src/databases/auth/constants';
 import type { User } from '@src/databases/auth/types';
-import type { ISODateString } from '@databases/dbInterface';
-import { auth, dbAdapter } from '@src/databases/db';
-import { getSystemState } from '@src/stores/system/state';
-import { seedDemoTenant } from '@src/routes/setup/seed';
 import { cacheService, SESSION_CACHE_TTL_MS } from '@src/databases/CacheService';
-import { logger } from '@utils/logger.server';
+import { auth, dbAdapter } from '@src/databases/db';
+import { seedDemoTenant } from '@src/routes/setup/seed';
 import { metricsService } from '@src/services/MetricsService';
-import { RateLimiter } from 'sveltekit-rate-limiter/server';
+import { getSystemState } from '@src/stores/system/state';
+import type { Handle, RequestEvent } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import { AppError, handleApiError } from '@utils/errorHandling';
+import { logger } from '@utils/logger.server';
+import { RateLimiter } from 'sveltekit-rate-limiter/server';
+import { dev } from '$app/environment';
 
 // --- IN-MEMORY SESSION CACHE WITH WEAKREF-BASED CLEANUP ---
 
@@ -51,8 +51,8 @@ import { AppError, handleApiError } from '@utils/errorHandling';
  */
 
 interface SessionCacheEntry {
-	user: User;
 	timestamp: number;
+	user: User;
 }
 
 /**
@@ -179,7 +179,7 @@ if (typeof setInterval !== 'undefined') {
 
 			// Clean old refresh attempts
 			for (const [sessionId, timestamp] of lastRefreshAttempt.entries()) {
-				if (now - timestamp > 300000) {
+				if (now - timestamp > 300_000) {
 					// 5 minutes
 					lastRefreshAttempt.delete(sessionId);
 				}
@@ -202,7 +202,9 @@ if (typeof setInterval !== 'undefined') {
 
 /** Derives tenant ID from hostname */
 function getTenantIdFromHostname(hostname: string, multiTenant: boolean): string | null {
-	if (!multiTenant) return null;
+	if (!multiTenant) {
+		return null;
+	}
 
 	if (hostname === 'localhost' || hostname.startsWith('127.0.0.1') || hostname.startsWith('192.168.')) {
 		return 'default';
@@ -242,7 +244,9 @@ async function getUserFromSession(sessionId: string, tenantId?: string): Promise
 
 	// Layer 3: Database (source of truth)
 	const lastAttempt = lastRefreshAttempt.get(sessionId);
-	if (lastAttempt && now - lastAttempt < 60000) return null; // 1-minute cooldown
+	if (lastAttempt && now - lastAttempt < 60_000) {
+		return null; // 1-minute cooldown
+	}
 	lastRefreshAttempt.set(sessionId, now);
 
 	if (!auth) {
@@ -301,7 +305,7 @@ async function handleSessionRotation(event: RequestEvent, user: User, oldSession
 
 	// Attempt rotation
 	try {
-		if (!auth?.createSession || !auth?.destroySession) {
+		if (!(auth?.createSession && auth?.destroySession)) {
 			logger.warn('Session rotation not supported by auth adapter');
 			return;
 		}
@@ -429,7 +433,9 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
 				// For demo mode, try to get tenantId from cookie first
 				tenantId = cookies.get('demo_tenant_id') || null;
 
-				if (!tenantId) {
+				if (tenantId) {
+					logger.trace(`Existing demo tenant from cookie: ${tenantId}`);
+				} else {
 					// Server-side dedup: parallel requests from the same browser session
 					// arrive before the Set-Cookie response is sent back. Use the session
 					// cookie as a stable key to prevent multiple tenants being generated.
@@ -462,8 +468,6 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
 						sameSite: 'lax',
 						maxAge: 60 * 20 // 20 minutes for a demo session
 					});
-				} else {
-					logger.trace(`Existing demo tenant from cookie: ${tenantId}`);
 				}
 			} else {
 				// Standard multi-tenancy: resolve tenantId from hostname

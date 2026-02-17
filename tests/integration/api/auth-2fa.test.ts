@@ -10,9 +10,9 @@
  * - POST /api/auth/2fa/backup-codes - Generate backup codes
  */
 
-import { describe, it, expect, beforeAll, afterAll } from 'bun:test';
+import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { getApiBaseUrl, waitForServer } from '../helpers/server';
-import { prepareAuthenticatedContext, cleanupTestDatabase, testFixtures } from '../helpers/testSetup';
+import { cleanupTestDatabase, prepareAuthenticatedContext, testFixtures } from '../helpers/testSetup';
 
 const BASE_URL = getApiBaseUrl();
 let authCookie: string;
@@ -188,7 +188,7 @@ describe('2FA Authentication API - Verify Code', () => {
 				Cookie: authCookie
 			},
 			body: JSON.stringify({
-				userId: userId,
+				userId,
 				code: '123456'
 			})
 		});

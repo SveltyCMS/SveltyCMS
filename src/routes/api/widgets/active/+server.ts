@@ -2,15 +2,15 @@
  * @file src/routes/api/widgets/active/+server.ts
  * @description API endpoint for getting active widgets with 3-pillar architecture metadata
  */
-import { json } from '@sveltejs/kit';
-import { logger } from '@utils/logger.server';
-import { widgets, getWidgetFunction, isWidgetCore } from '@stores/widgetStore.svelte.ts';
-import { cacheService } from '@src/databases/CacheService';
-import { CacheCategory } from '@src/databases/CacheCategory';
 
+import { CacheCategory } from '@src/databases/CacheCategory';
+import { cacheService } from '@src/databases/CacheService';
+import { getWidgetFunction, isWidgetCore, widgets } from '@stores/widgetStore.svelte.ts';
+import { json } from '@sveltejs/kit';
 // Unified Error Handling
 import { apiHandler } from '@utils/apiHandler';
 import { AppError } from '@utils/errorHandling';
+import { logger } from '@utils/logger.server';
 
 export const GET = apiHandler(async ({ locals, url }) => {
 	const start = performance.now();
@@ -139,7 +139,9 @@ export const GET = apiHandler(async ({ locals, url }) => {
 		const duration = performance.now() - start;
 		const message = `Failed to get active widgets: ${err instanceof Error ? err.message : String(err)}`;
 		logger.error(message, { duration: `${duration.toFixed(2)}ms` });
-		if (err instanceof AppError) throw err;
+		if (err instanceof AppError) {
+			throw err;
+		}
 		throw new AppError(message, 500, 'GET_ACTIVE_WIDGETS_FAILED');
 	}
 });

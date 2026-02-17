@@ -11,20 +11,21 @@
  * - Orphaned File Cleanup
  */
 
-import fs from 'fs/promises';
-import path from 'path';
+import { createHash } from 'node:crypto';
+import fs from 'node:fs/promises';
+import path from 'node:path';
 import * as ts from 'typescript';
 import { v4 as uuidv4 } from 'uuid';
-import { createHash } from 'crypto';
-import type { CompileOptions, CompilationResult, ExistingFileData, Logger } from './types';
+import { getCollectionsPath, getCompiledCollectionsPath, isValidTenantId } from '../tenantPaths.js';
 import {
-	widgetTransformer,
 	addJsExtensionTransformer,
 	commonjsToEsModuleTransformer,
+	schemaTenantIdTransformer,
 	schemaUuidTransformer,
-	schemaTenantIdTransformer
+	widgetTransformer
 } from './transformers';
-import { getCollectionsPath, getCompiledCollectionsPath, isValidTenantId } from '../tenantPaths.js';
+import type { CompilationResult, CompileOptions, ExistingFileData, Logger } from './types';
+
 // Schema comparison (collectionSchemaWarnings.ts) runs at runtime in GUI/API when schemas are loaded
 // schemaWarnings in CompilationResult is populated by the collection save flow, not compilation
 
@@ -85,13 +86,15 @@ export async function compile(options: CompileOptions = {}): Promise<Compilation
 		// 4. Process files with concurrency control
 		const processedJsPaths = new Set<string>();
 		const queue = [...sourceFiles]; // Clone array to manage queue
-		const workers = [];
+		const workers: any[] = [];
 
 		// Simple concurrency implementation
 		const worker = async () => {
 			while (queue.length > 0) {
 				const file = queue.shift();
-				if (!file) break;
+				if (!file) {
+					break;
+				}
 
 				// If specific target file is requested, skip others
 				if (options.targetFile) {
@@ -100,7 +103,7 @@ export async function compile(options: CompileOptions = {}): Promise<Compilation
 					const normalizedFile = path.normalize(path.join(userCollections, file));
 					// Check if this source file corresponds to the target file
 					// The passed targetFile might be absolute or relative
-					if (!normalizedFile.endsWith(normalizedTarget) && !normalizedTarget.endsWith(file)) {
+					if (!(normalizedFile.endsWith(normalizedTarget) || normalizedTarget.endsWith(file))) {
 						continue;
 					}
 				}
@@ -191,7 +194,9 @@ async function scanCompiledFiles(
 						const data: ExistingFileData = { jsPath: relativePath, uuid, hash };
 
 						byPath.set(relativePath, data);
-						if (hash) byHash.set(hash, data);
+						if (hash) {
+							byHash.set(hash, data);
+						}
 					} catch {
 						logger.warn(`Could not read compiled file ${relativePath}`);
 					}
@@ -228,7 +233,9 @@ async function getTypescriptAndJavascriptFiles(folder: string, subdir = ''): Pro
 			}
 		}
 	} catch (e) {
-		if ((e as NodeJS.ErrnoException).code === 'ENOENT') return [];
+		if ((e as NodeJS.ErrnoException).code === 'ENOENT') {
+			return [];
+		}
 		throw e;
 	}
 	return files;
@@ -321,14 +328,14 @@ function wrapOutput(code: string, hash: string, pathRel: string, tenantId?: stri
 	let out = code.replace(/(\s*\*\s*@file\s+)(.*)/, `$1.compiledCollections/${pathRel}`);
 	out = out.replace(/^\/\/\s*(HASH|UUID|TENANT_ID):.*$/gm, '').trimStart();
 
-	let header = `// WARNING: Generated file. Do not edit.\n` + `// HASH: ${hash}\n`;
+	let header = `// WARNING: Generated file. Do not edit.\n// HASH: ${hash}\n`;
 
 	// Add tenant ID comment if in multi-tenant mode
 	if (tenantId !== undefined) {
 		header += `// TENANT_ID: ${tenantId === null ? 'global' : tenantId}\n`;
 	}
 
-	return header + `\n` + out;
+	return `${header}\n${out}`;
 }
 
 function extractHashFromJs(content: string) {

@@ -10,6 +10,6 @@
 	cursor: pointer;
 }
 * :global(img) {
-	cursor: pointer;
 	display: inline-block;
+	cursor: pointer;
 }

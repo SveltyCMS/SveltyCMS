@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 import { telemetryService } from '../../../src/services/TelemetryService';
 
 describe('TelemetryService Environment Checks', () => {

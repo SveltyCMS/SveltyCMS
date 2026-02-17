@@ -4,17 +4,15 @@
 -->
 
 <script lang="ts">
-	import type { PageData } from './$types';
-
 	// Components
 	import SveltyCMSLogoFull from '@components/system/icons/SveltyCMS_LogoFull.svelte';
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
+	//ParaglideJS
+	import * as m from '@src/paraglide/messages';
 
 	// Stores
 	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte.ts';
-
-	//ParaglideJS
-	import * as m from '@src/paraglide/messages';
+	import type { PageData } from './$types';
 
 	interface Props {
 		data: PageData;
@@ -73,9 +71,7 @@
 		{#if data.requiresToken}
 			<!-- Token Input Form -->
 			<label>
-				<h2 class="mb-2 text-center text-xl font-bold text-primary-500">
-					{m.oauth_entertoken()}
-				</h2>
+				<h2 class="mb-2 text-center text-xl font-bold text-primary-500">{m.oauth_entertoken()}</h2>
 				<FloatingInput
 					id="token"
 					name="token"
@@ -97,16 +93,12 @@
 
 		<!-- Error Message -->
 		{#if formError}
-			<p id="error-message" class="text-error-500" role="alert">
-				{formError}
-			</p>
+			<p id="error-message" class="text-error-500" role="alert">{formError}</p>
 		{/if}
 
 		<div class="mt-2 flex w-full justify-between gap-1 sm:gap-2">
 			<!-- Cancel Button -->
-			<button type="button" onclick={handleCancel} aria-label={m.button_cancel()} class="variant-filled btn">
-				{m.button_cancel()}
-			</button>
+			<button type="button" onclick={handleCancel} aria-label={m.button_cancel()} class="variant-filled btn">{m.button_cancel()}</button>
 
 			<!-- Submit Button -->
 			<button

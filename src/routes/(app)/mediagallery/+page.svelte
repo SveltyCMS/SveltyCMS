@@ -22,39 +22,37 @@ Displays a collection of media files (images, documents, audio, video) with:
 -->
 
 <script lang="ts">
-	import { goto } from '$app/navigation';
+	// Components
+	import Breadcrumb from '@components/Breadcrumb.svelte';
+	import ModalPrompt from '@components/ModalPrompt.svelte';
+	import PageTitle from '@components/PageTitle.svelte';
+	import SystemTooltip from '@components/system/SystemTooltip.svelte';
+	import ImageEditorModal from '@src/components/imageEditor/ImageEditorModal.svelte';
+	// Import types
+	import type { SystemVirtualFolder } from '@src/databases/dbInterface';
+	// Utils & Media
+	import { publicEnv } from '@src/stores/globalSettings.svelte';
 	// Removed axios import
 	// Stores
 	import { toggleUIElement } from '@src/stores/UIStore.svelte.ts';
 	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte.ts';
-	// Logger
-	import { logger } from '@utils/logger';
-	// Utils & Media
-	import { publicEnv } from '@src/stores/globalSettings.svelte';
-	import { MediaTypeEnum, type MediaBase, type MediaImage } from '@utils/media/mediaModels';
-	import { SvelteSet } from 'svelte/reactivity';
-	// Components
-	import Breadcrumb from '@components/Breadcrumb.svelte';
-	import PageTitle from '@components/PageTitle.svelte';
-	import MediaGrid from './MediaGrid.svelte';
-	import MediaTable from './MediaTable.svelte';
-	import VirtualMediaGrid from './VirtualMediaGrid.svelte';
-	import AdvancedSearchModal from './AdvancedSearchModal.svelte';
-	import ImageEditorModal from '@src/components/imageEditor/ImageEditorModal.svelte';
-	import SystemTooltip from '@components/system/SystemTooltip.svelte';
 	// Skeleton
 	import { toaster } from '@stores/store.svelte.ts';
-	// Import types
-	import type { SystemVirtualFolder } from '@src/databases/dbInterface';
+	// Logger
+	import { logger } from '@utils/logger';
 	import type { SearchCriteria } from '@utils/media/advancedSearch';
-
+	import { type MediaBase, type MediaImage, MediaTypeEnum } from '@utils/media/mediaModels';
 	// Initialize modal store
 	// const modalStore = getModalStore();
 	import { modalState } from '@utils/modalState.svelte';
 	import { showConfirm } from '@utils/modalUtils';
-	import ModalPrompt from '@components/ModalPrompt.svelte';
-
+	import { SvelteSet } from 'svelte/reactivity';
+	import { goto } from '$app/navigation';
 	import type { PageData } from './$types';
+	import AdvancedSearchModal from './AdvancedSearchModal.svelte';
+	import MediaGrid from './MediaGrid.svelte';
+	import MediaTable from './MediaTable.svelte';
+	import VirtualMediaGrid from './VirtualMediaGrid.svelte';
 
 	// Props using runes
 	let { data }: { data: PageData } = $props();
@@ -325,9 +323,8 @@ Displays a collection of media files (images, documents, audio, video) with:
 					...folder,
 					path: Array.isArray(folder.path) ? folder.path : folder.path?.split('/')
 				}));
-			} else {
-				throw new Error(result.error || 'Failed to fetch folders');
 			}
+			throw new Error(result.error || 'Failed to fetch folders');
 		} catch (error) {
 			logger.error('Error fetching updated folders:', error);
 			toaster.error({ description: 'Failed to fetch folders' });
@@ -349,7 +346,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 
 		try {
 			const response = await fetch(`/api/systemVirtualFolder/${folderId}`, {
-				signal: AbortSignal.timeout(10000) // 10 second timeout
+				signal: AbortSignal.timeout(10_000) // 10 second timeout
 			});
 
 			if (!response.ok) {
@@ -737,7 +734,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 		<p class="text-xs font-medium uppercase text-surface-500 dark:text-surface-50">Search</p>
 		<div class="flex gap-2">
 			<div class="input-group input-group-divider grid flex-1 grid-cols-[1fr_auto]">
-				<input id="globalSearch" type="text" placeholder="Search Media" class="input" bind:value={globalSearchValue} />
+				<input id="globalSearch" type="text" placeholder="Search Media" class="input" bind:value={globalSearchValue}>
 				{#if globalSearchValue}
 					<button onclick={() => (globalSearchValue = '')} aria-label="Clear search" class="preset-filled-surface-500 w-12">
 						<iconify-icon icon="ic:outline-search-off" width={24}></iconify-icon>
@@ -874,7 +871,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 			<div class="flex flex-col gap-1">
 				<label for="globalSearchMd" class="text-sm font-medium">Search</label>
 				<div class="input-group input-group-divider grid h-11 max-w-md grid-cols-[1fr_auto]">
-					<input bind:value={globalSearchValue} id="globalSearchMd" type="text" placeholder="Search" class="input" />
+					<input bind:value={globalSearchValue} id="globalSearchMd" type="text" placeholder="Search" class="input">
 					{#if globalSearchValue}
 						<button onclick={clearSearch} class="preset-filled-surface-500 w-12" aria-label="Clear search">
 							<iconify-icon icon="ic:outline-search-off" width={24}></iconify-icon>
@@ -919,9 +916,15 @@ Displays a collection of media files (images, documents, audio, video) with:
 						aria-label="Toggle View"
 						title="Toggle between Grid and Table"
 					>
-						<iconify-icon icon="material-symbols:grid-view-rounded" width={24} class={view === 'grid' ? 'text-primary-500' : 'text-surface-500'}
+						<iconify-icon
+							icon="material-symbols:grid-view-rounded"
+							width={24}
+							class={view === 'grid' ? 'text-primary-500' : 'text-surface-500'}
 						></iconify-icon>
-						<iconify-icon icon="material-symbols:list-alt-outline" width={24} class={view === 'table' ? 'text-primary-500' : 'text-surface-500'}
+						<iconify-icon
+							icon="material-symbols:list-alt-outline"
+							width={24}
+							class={view === 'table' ? 'text-primary-500' : 'text-surface-500'}
 						></iconify-icon>
 					</button>
 				</div>
@@ -998,9 +1001,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 			<VirtualMediaGrid {filteredFiles} {gridSize} ondeleteImage={handleDeleteImage} onBulkDelete={handleBulkDelete} onEditImage={handleEditImage} />
 			<div class="alert preset-outline-surface-500 mt-4">
 				<iconify-icon icon="mdi:lightning-bolt" width={24}></iconify-icon>
-				<span class="text-sm">
-					Virtual scrolling enabled for optimal performance with {filteredFiles.length} files
-				</span>
+				<span class="text-sm"> Virtual scrolling enabled for optimal performance with {filteredFiles.length} files </span>
 			</div>
 		{:else}
 			<!-- Standard Grid for Smaller Collections -->

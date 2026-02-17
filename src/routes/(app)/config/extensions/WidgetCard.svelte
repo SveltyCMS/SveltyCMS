@@ -30,6 +30,9 @@ canManage: boolean;
 <script lang="ts">
 	// Using iconify-icon web component
 	interface Props {
+		canManage: boolean;
+		onToggle: (name: string) => void;
+		onUninstall?: (name: string) => void;
 		widget: {
 			name: string;
 			icon: string;
@@ -44,9 +47,6 @@ canManage: boolean;
 			};
 			hasValidation?: boolean;
 		};
-		onToggle: (name: string) => void;
-		onUninstall?: (name: string) => void;
-		canManage: boolean;
 	}
 
 	const { widget, onToggle, onUninstall, canManage }: Props = $props();
@@ -63,9 +63,7 @@ canManage: boolean;
 			</div>
 			<div class="min-w-0 flex-1 space-y-2">
 				<div class="flex flex-wrap items-center gap-2">
-					<h3 class="text-lg font-bold text-surface-900 dark:text-surface-50">
-						{widget.name}
-					</h3>
+					<h3 class="text-lg font-bold text-surface-900 dark:text-surface-50">{widget.name}</h3>
 					{#if widget.isCore}
 						<span class="badge preset-filled-primary-500">Core</span>
 					{:else}
@@ -104,9 +102,7 @@ canManage: boolean;
 					<div class="flex flex-wrap gap-1.5 pt-1">
 						<span class="text-xs text-surface-500">Depends on:</span>
 						{#each widget.dependencies as dep (dep)}
-							<span class="badge variant-soft-secondary text-xs">
-								{dep}
-							</span>
+							<span class="badge variant-soft-secondary text-xs"> {dep} </span>
 						{/each}
 					</div>
 				{/if}

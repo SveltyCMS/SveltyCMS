@@ -9,10 +9,9 @@
 	// Modern widget system
 	import { widgets } from '@stores/widgetStore.svelte.ts';
 	import { logger } from '@utils/logger';
-	import { onMount } from 'svelte';
-
 	// Skeleton Stores
 	import { modalState } from '@utils/modalState.svelte';
+	import { onMount } from 'svelte';
 
 	// Props
 	interface Props {
@@ -52,9 +51,7 @@
 {#if modalState.active}
 	<div class={cBase}>
 		<header class="flex items-center justify-between border-b border-surface-200 pb-4 dark:text-surface-50">
-			<h2 class={cHeader}>
-				{modalState.active?.props?.title || 'Select Widget'}
-			</h2>
+			<h2 class={cHeader}>{modalState.active?.props?.title || 'Select Widget'}</h2>
 			<button class="btn-icon preset-outlined-surface-500" onclick={parent.onClose} aria-label="Close modal">
 				<iconify-icon icon="mdi:close" width="24"></iconify-icon>
 			</button>
@@ -63,7 +60,7 @@
 		<!-- Search -->
 		<div class="relative my-4">
 			<iconify-icon icon="mdi:magnify" width="24" class="absolute left-4 top-1/2 -translate-y-1/2 text-surface-400"></iconify-icon>
-			<input type="text" placeholder="Search widgets..." class="input h-12 w-full pl-12 text-lg" bind:value={searchTerm} />
+			<input type="text" placeholder="Search widgets..." class="input h-12 w-full pl-12 text-lg" bind:value={searchTerm}>
 		</div>
 
 		<!-- Grid -->
@@ -82,9 +79,7 @@
 
 				{#if filteredKeys.length > 0}
 					<div class="mb-8 last:mb-0">
-						<h3 class="mb-4 text-xl font-bold uppercase tracking-wider text-surface-500 dark:text-surface-50">
-							{category} Widgets
-						</h3>
+						<h3 class="mb-4 text-xl font-bold uppercase tracking-wider text-surface-500 dark:text-surface-50">{category} Widgets</h3>
 						<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
 							{#each filteredKeys as item (item)}
 								{#if item && (availableWidgets[item] as any)?.GuiSchema}

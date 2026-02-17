@@ -17,13 +17,12 @@
  * Returns: JSON object { success: boolean, data?: RemoteVideoData, error?: string }
  */
 import { json } from '@sveltejs/kit';
-import { logger } from '@utils/logger.server';
-import type { RemoteVideoProps } from '@widgets/custom/RemoteVideo/types';
-import { getRemoteVideoData } from '@widgets/custom/RemoteVideo/video';
-
 // Unified Error Handling
 import { apiHandler } from '@utils/apiHandler';
 import { AppError } from '@utils/errorHandling';
+import { logger } from '@utils/logger.server';
+import type { RemoteVideoProps } from '@widgets/custom/RemoteVideo/types';
+import { getRemoteVideoData } from '@widgets/custom/RemoteVideo/video';
 
 export const POST = apiHandler(async ({ request }) => {
 	try {
@@ -52,7 +51,7 @@ export const POST = apiHandler(async ({ request }) => {
 		// SECURITY: Enforce the `allowedPlatforms` rule on the server.
 		if (allowedPlatforms && allowedPlatforms.length > 0 && !allowedPlatforms.includes(videoData.platform)) {
 			const errorMsg = `The platform '${videoData.platform}' is not permitted for this field.`;
-			logger.warn(`API /remoteVideo: Forbidden platform.`, { url, platform: videoData.platform, allowed: allowedPlatforms });
+			logger.warn('API /remoteVideo: Forbidden platform.', { url, platform: videoData.platform, allowed: allowedPlatforms });
 			throw new AppError(errorMsg, 403, 'PLATFORM_FORBIDDEN');
 		}
 
@@ -61,7 +60,9 @@ export const POST = apiHandler(async ({ request }) => {
 		return json({ success: true, data: videoData });
 	} catch (error) {
 		// Catch any unexpected errors during processing.
-		if (error instanceof AppError) throw error;
+		if (error instanceof AppError) {
+			throw error;
+		}
 		const errorMessage = error instanceof Error ? error.message : String(error);
 		logger.error('API /remoteVideo critical error:', { error: errorMessage });
 		throw new AppError('An internal server error occurred.', 500, 'INTERNAL_ERROR');

@@ -18,23 +18,16 @@
  * }
  */
 
-import { getPrivateSettingSync } from '@src/services/settingsService';
-
-import { json, type HttpError } from '@sveltejs/kit';
-
-// Auth
-import { auth } from '@src/databases/db';
-
-// Validation
-import { object, parse, picklist, string, type ValiError } from 'valibot';
-
 // Cache invalidation
 import { cacheService } from '@src/databases/CacheService';
-
+// Auth
+import { auth } from '@src/databases/db';
+import { getPrivateSettingSync } from '@src/services/settingsService';
+import { type HttpError, json } from '@sveltejs/kit';
 // System Logger
 import { logger } from '@utils/logger.server';
-
-import { array } from 'valibot';
+// Validation
+import { array, object, parse, picklist, string, type ValiError } from 'valibot';
 
 const batchTokenActionSchema = object({
 	tokenIds: array(string()),
@@ -71,7 +64,7 @@ export const POST = apiHandler(async ({ request, locals }) => {
 			try {
 				const filter = { tenantId } as { tenantId?: string };
 				const tokensResult = await auth.getAllTokens(filter);
-				if (!tokensResult.success || !tokensResult.data) {
+				if (!(tokensResult.success && tokensResult.data)) {
 					throw new Error('Failed to retrieve tokens');
 				}
 				const tokenSet = new Set(tokensResult.data.map((t) => t.token));
@@ -81,7 +74,9 @@ export const POST = apiHandler(async ({ request, locals }) => {
 					throw new AppError('Forbidden: One or more tokens do not belong to your tenant or do not exist.', 403, 'FORBIDDEN');
 				}
 			} catch (verifyErr) {
-				if (verifyErr instanceof AppError) throw verifyErr;
+				if (verifyErr instanceof AppError) {
+					throw verifyErr;
+				}
 				logger.error('Failed to verify tenant token ownership', { error: verifyErr });
 				throw new AppError('Failed to verify token ownership', 500, 'VERIFY_OWNERSHIP_FAILED');
 			}
@@ -120,7 +115,9 @@ export const POST = apiHandler(async ({ request, locals }) => {
 
 		return json({ success: true, message: successMessage });
 	} catch (err) {
-		if (err instanceof AppError) throw err;
+		if (err instanceof AppError) {
+			throw err;
+		}
 		if (err && typeof err === 'object' && 'name' in err && err.name === 'ValiError') {
 			const valiError = err as ValiError<typeof batchTokenActionSchema>;
 			const issues = valiError.issues.map((issue) => issue.message).join(', ');

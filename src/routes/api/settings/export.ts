@@ -14,11 +14,11 @@
 // API endpoint to export all settings as a JSON snapshot
 import { hasPermissionByAction } from '@src/databases/auth/permissions';
 import { getAllSettings } from '@src/services/settingsService';
-import { json, error, type RequestHandler } from '@sveltejs/kit';
+import { error, json, type RequestHandler } from '@sveltejs/kit';
 
 export const GET: RequestHandler = async ({ locals }) => {
 	// Use hasPermissionByAction for clarity
-	if (!locals.user || !hasPermissionByAction(locals.user, 'manage', 'settings')) {
+	if (!(locals.user && hasPermissionByAction(locals.user, 'manage', 'settings'))) {
 		throw error(403, 'Forbidden: You do not have permission to export settings.');
 	}
 

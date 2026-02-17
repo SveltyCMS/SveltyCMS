@@ -20,14 +20,13 @@
  * The actual restart command should be properly configured for your specific environment.
  */
 
+import { exec } from 'node:child_process';
 import { json } from '@sveltejs/kit';
-import { exec } from 'child_process';
-// type RequestHandler removed
-import { logger } from '@utils/logger.server';
-
 // Unified Error Handling
 import { apiHandler } from '@utils/apiHandler';
 import { AppError } from '@utils/errorHandling';
+// type RequestHandler removed
+import { logger } from '@utils/logger.server';
 
 export const POST = apiHandler(async ({ request }) => {
 	const authHeader = request.headers.get('authorization');
@@ -60,8 +59,12 @@ async function restartServer(): Promise<void> {
 				return reject(error);
 			}
 
-			if (stdout) logger.info('📤 stdout:', { stdout });
-			if (stderr) logger.warn('📥 stderr:', { stderr });
+			if (stdout) {
+				logger.info('📤 stdout:', { stdout });
+			}
+			if (stderr) {
+				logger.warn('📥 stderr:', { stderr });
+			}
 
 			logger.info('✅ Restart command executed');
 			resolve();

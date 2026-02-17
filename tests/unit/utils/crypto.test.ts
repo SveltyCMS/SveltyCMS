@@ -3,8 +3,8 @@
  * @description Tests for cryptographic utility functions
  */
 
-import { describe, it, expect } from 'bun:test';
-import { hashPassword, verifyPassword, generateRandomToken, createChecksum } from '@utils/crypto';
+import { describe, expect, it } from 'bun:test';
+import { createChecksum, generateRandomToken, hashPassword, verifyPassword } from '@utils/crypto';
 
 describe('Crypto Utils - Password Hashing', () => {
 	it('should hash a password', async () => {

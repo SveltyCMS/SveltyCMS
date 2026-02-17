@@ -14,16 +14,17 @@ Renders a group of fields, allowing for nested data structures.
 -->
 
 <script lang="ts">
-	import { getFieldName } from '@utils/utils';
-	import type { FieldType } from './';
-	import { widgets } from '@stores/widgetStore.svelte';
+	
 	import WidgetLoader from '@components/collectionDisplay/WidgetLoader.svelte';
+	import { widgets } from '@stores/widgetStore.svelte';
+import { getFieldName } from '@utils/utils';
+	import type { FieldType } from './';
 
 	interface Props {
-		field: FieldType;
-		value: Record<string, any> | null | undefined;
-		tenantId?: string;
 		collectionName?: string;
+		field: FieldType;
+		tenantId?: string;
+		value: Record<string, any> | null | undefined;
 	}
 
 	let { field, value = $bindable({}), tenantId, collectionName }: Props = $props();

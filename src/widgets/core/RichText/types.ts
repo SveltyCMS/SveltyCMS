@@ -25,15 +25,14 @@ export type RichTextToolbarOption =
 // Defines the properties unique to the RichText widget
 export interface RichTextProps {
 	/**
+	 * Whether AI features are enabled for this field.
+	 */
+	aiEnabled?: boolean;
+	/**
 	 * An array of toolbar features to enable for this editor instance.
 	 * An empty array shows no toolbar.
 	 */
 	toolbar?: RichTextToolbarOption[];
-
-	/**
-	 * Whether AI features are enabled for this field.
-	 */
-	aiEnabled?: boolean;
 
 	// Index signature to satisfy WidgetProps constraint
 	[key: string]: unknown;
@@ -41,6 +40,6 @@ export interface RichTextProps {
 
 // Defines the data structure for the RichText widget's value.
 export interface RichTextData {
-	title?: string;
 	content: string; // The sanitized HTML content from the editor.
+	title?: string;
 }

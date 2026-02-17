@@ -38,18 +38,15 @@
  *
  * @see docs/architecture/collection-store-dataflow.mdx
  */
-import { error, redirect } from '@sveltejs/kit';
-import type { PageServerLoad } from './$types';
 
 // Core SveltyCMS services
 import { contentManager } from '@src/content/ContentManager';
-
-import { collectionService } from '@src/services/CollectionService';
-
-import { getPublicSettingSync } from '@src/services/settingsService';
-import { logger } from '@utils/logger.server';
-
 import type { User } from '@src/databases/auth/types';
+import { collectionService } from '@src/services/CollectionService';
+import { getPublicSettingSync } from '@src/services/settingsService';
+import { error, redirect } from '@sveltejs/kit';
+import { logger } from '@utils/logger.server';
+import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals, params, url }) => {
 	const { user, tenantId } = locals;
@@ -88,8 +85,7 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 
 		// Check if collection param is a UUID (32 char hex) or a path
 		const isUUID = /^[a-f0-9]{32}$/i.test(collection || '');
-
-		let currentCollection;
+		let currentCollection: any;
 		if (isUUID) {
 			// Direct UUID lookup
 			logger.debug(`Loading collection by UUID: \x1b[33m${collection}\x1b[0m`);
@@ -103,7 +99,7 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 			}
 
 			// Redirect to pretty path if available (Prevents UUID -> Path flicker on client)
-			if (currentCollection && currentCollection.path) {
+			if (currentCollection?.path) {
 				const newPath = `/${language}${currentCollection.path}${url.search}`;
 				logger.debug(`Redirecting UUID to canonical path: ${newPath}`);
 				throw redirect(302, newPath);
@@ -128,9 +124,8 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 				const allCollections = await contentManager.getCollections(tenantId);
 				if (allCollections.length > 0) {
 					throw redirect(302, `/${language}${allCollections[0].path}`);
-				} else {
-					throw redirect(302, '/dashboard');
 				}
+				throw redirect(302, '/dashboard');
 			}
 			logger.warn(`Collection not found: ${collection}`, { tenantId, isUUID });
 			throw error(404, `Collection not found: ${collection}`);
@@ -161,7 +156,7 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 				const filterKey = key.substring(7); // remove "filter_"
 				if ((filterKey === 'createdAt' || filterKey === 'updatedAt') && value) {
 					// Check for "asda" type garbage. Valid dates or partial headers (numbers) allow pass.
-					if (isNaN(Date.parse(value)) && !/^\d+$/.test(value)) {
+					if (Number.isNaN(Date.parse(value)) && !/^\d+$/.test(value)) {
 						// Invalid date filter - ignore/empty logic handled in service now
 					}
 				}

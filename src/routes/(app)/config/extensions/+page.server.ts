@@ -3,9 +3,9 @@
  * @description Server-side logic for the extensions management page.
  */
 import { pluginRegistry } from '@src/plugins';
-import type { PageServerLoad } from './$types';
 import { getPrivateSettingSync } from '@src/services/settingsService';
-import { redirect, error } from '@sveltejs/kit';
+import { error, redirect } from '@sveltejs/kit';
+import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const { user } = locals;
@@ -43,7 +43,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 				description: p.metadata.description,
 				author: p.metadata.author,
 				icon: p.metadata.icon,
-				enabled: enabled,
+				enabled,
 				missingConfig,
 				configUrl
 			};

@@ -14,22 +14,22 @@
  * - ui.setRouteContext(ctx) - Set special route context
  */
 
-import { mode } from './collectionStore.svelte';
-import { screen, ScreenSize } from './screenSizeStore.svelte';
 import { untrack } from 'svelte';
+import { mode } from './collectionStore.svelte';
+import { ScreenSize, screen } from './screenSizeStore.svelte';
 
 // Types for UI visibility states
 export type UIVisibility = 'hidden' | 'collapsed' | 'full';
 
 // Interface for UI state
 export interface UIState {
-	leftSidebar: UIVisibility;
-	rightSidebar: UIVisibility;
-	pageheader: UIVisibility;
-	pagefooter: UIVisibility;
-	header: UIVisibility;
-	footer: UIVisibility;
 	chatPanel: UIVisibility;
+	footer: UIVisibility;
+	header: UIVisibility;
+	leftSidebar: UIVisibility;
+	pagefooter: UIVisibility;
+	pageheader: UIVisibility;
+	rightSidebar: UIVisibility;
 }
 
 /**
@@ -61,7 +61,7 @@ class UIStore {
 
 	// Internal state
 	private manualTimer: ReturnType<typeof setTimeout> | null = null;
-	private effectCleanup?: () => void;
+	private readonly effectCleanup?: () => void;
 
 	// Computed visibility getters
 	get isLeftSidebarVisible(): boolean {
@@ -93,7 +93,9 @@ class UIStore {
 	}
 
 	constructor() {
-		if (typeof window === 'undefined') return;
+		if (typeof window === 'undefined') {
+			return;
+		}
 
 		// Single effect root watches size + mode changes
 		this.effectCleanup = $effect.root(() => {
@@ -206,7 +208,9 @@ class UIStore {
 		if (element === 'leftSidebar' || element === 'rightSidebar') {
 			this.manualOverrideActive = true;
 
-			if (this.manualTimer) clearTimeout(this.manualTimer);
+			if (this.manualTimer) {
+				clearTimeout(this.manualTimer);
+			}
 			this.manualTimer = setTimeout(() => {
 				this.manualOverrideActive = false;
 				this.manualTimer = null;
@@ -219,6 +223,7 @@ class UIStore {
 	 */
 	setRouteContext(ctx: { isImageEditor?: boolean; isCollectionBuilder?: boolean }): void {
 		for (const key in ctx) {
+			if (!Object.hasOwn(ctx, key)) continue;
 			const k = key as keyof typeof ctx;
 			if (this.routeContext[k] !== ctx[k]) {
 				this.routeContext[k] = ctx[k] ?? false; // Fallback to false if undefined

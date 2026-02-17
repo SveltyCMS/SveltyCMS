@@ -11,16 +11,16 @@
  * - Simple prediction
  */
 
-import path from 'path';
+import path from 'node:path';
 import type { DatabaseId } from '@src/databases/dbInterface';
 import type { MediaBase } from './mediaModels';
 
 /** Storage breakdown */
 export interface Breakdown {
-	byType: Record<string, { count: number; size: number; pct: number }>;
 	byFolder: Record<string, { count: number; size: number; pct: number }>;
-	byUser: Record<DatabaseId, { count: number; size: number; pct: number }>;
 	byMonth: Record<string, { count: number; size: number }>; // YYYY-MM
+	byType: Record<string, { count: number; size: number; pct: number }>;
+	byUser: Record<DatabaseId, { count: number; size: number; pct: number }>;
 	total: {
 		files: number;
 		size: number;
@@ -30,20 +30,20 @@ export interface Breakdown {
 
 /** Insight card */
 export interface Insight {
-	type: 'success' | 'info' | 'warning';
-	title: string;
-	desc: string;
-	actionable?: boolean;
 	action?: { label: string; data: unknown };
+	actionable?: boolean;
+	desc: string;
+	title: string;
+	type: 'success' | 'info' | 'warning';
 }
 
 /** Monthly trend */
 export interface Trend {
-	month: string;
-	uploads: number;
 	addedSize: number;
-	totalSize: number;
 	growthPct: number;
+	month: string;
+	totalSize: number;
+	uploads: number;
 }
 
 /** Analyze current storage */
@@ -92,6 +92,7 @@ export function analyze(files: MediaBase[]): Breakdown {
 	// Percentages
 	const addPct = (obj: Record<string, any>) => {
 		for (const k in obj) {
+			if (!Object.hasOwn(obj, k)) continue;
 			obj[k].pct = totalSize ? (obj[k].size / totalSize) * 100 : 0;
 		}
 	};
@@ -162,7 +163,9 @@ export function trends(files: MediaBase[]): Trend[] {
 	const monthly: Record<string, { count: number; size: number }> = {};
 
 	for (const f of files) {
-		if (!f.createdAt) continue;
+		if (!f.createdAt) {
+			continue;
+		}
 		const m = f.createdAt.slice(0, 7);
 		monthly[m] ??= { count: 0, size: 0 };
 		monthly[m].count++;
@@ -208,8 +211,11 @@ export function top<T extends string | DatabaseId>(
 export function quota(current: number, limit: number) {
 	const pct = limit ? (current / limit) * 100 : 0;
 	let status: 'healthy' | 'warning' | 'critical' = 'healthy';
-	if (pct > 90) status = 'critical';
-	else if (pct > 70) status = 'warning';
+	if (pct > 90) {
+		status = 'critical';
+	} else if (pct > 70) {
+		status = 'warning';
+	}
 
 	return {
 		used: current,
@@ -221,9 +227,11 @@ export function quota(current: number, limit: number) {
 
 /** Human-readable bytes */
 export function formatBytes(bytes: number, decimals = 1): string {
-	if (bytes === 0) return '0 B';
+	if (bytes === 0) {
+		return '0 B';
+	}
 	const k = 1024;
 	const i = Math.floor(Math.log(bytes) / Math.log(k));
 	const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-	return `${(bytes / Math.pow(k, i)).toFixed(decimals)} ${units[i]}`;
+	return `${(bytes / k ** i).toFixed(decimals)} ${units[i]}`;
 }

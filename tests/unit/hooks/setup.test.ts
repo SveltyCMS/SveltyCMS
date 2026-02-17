@@ -3,7 +3,7 @@
  * @description Comprehensive tests for handleSetup middleware with proper redirect validation.
  */
 
-import { describe, it, expect, beforeEach, mock } from 'bun:test';
+import { beforeEach, describe, expect, it, mock } from 'bun:test';
 import type { RequestEvent } from '@sveltejs/kit';
 
 // --- Mock the setup check module ---
@@ -63,7 +63,7 @@ function createMockEvent(pathname: string): RequestEvent {
 	} as unknown as RequestEvent;
 }
 
-function createMockResponse(status: number = 200): Response {
+function createMockResponse(status = 200): Response {
 	return new Response('test body', { status });
 }
 

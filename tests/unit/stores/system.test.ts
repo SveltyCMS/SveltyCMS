@@ -3,17 +3,17 @@
  * @description Tests for system state management store
  */
 
-import { describe, it, expect, beforeEach } from 'bun:test';
+import { beforeEach, describe, expect, it } from 'bun:test';
 
 import {
-	updateServiceHealth,
-	setSystemState,
 	getSystemState,
-	isSystemReady,
 	isServiceHealthy,
+	isSystemReady,
 	resetSystemState,
+	type ServiceName,
+	setSystemState,
 	startServiceInitialization,
-	type ServiceName
+	updateServiceHealth
 } from '@stores/system/state';
 
 describe('System Store - Service Health Management', () => {

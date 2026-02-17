@@ -34,7 +34,7 @@ let crypto: typeof import('crypto') | null = null;
 if (typeof window === 'undefined') {
 	try {
 		argon2 = await import('argon2');
-		crypto = await import('crypto');
+		crypto = await import('node:crypto');
 	} catch (error) {
 		logger.error('Failed to load cryptographic modules', { error });
 	}
@@ -54,7 +54,7 @@ if (typeof window === 'undefined') {
  */
 export const argon2Config = {
 	// Memory cost in KiB (64 MB) - Makes attacks expensive even with quantum computers
-	memory: 65536,
+	memory: 65_536,
 	// Time cost (number of iterations) - Adds computational complexity
 	time: 3,
 	// Parallelism factor (number of threads) - Optimizes for modern CPUs
@@ -162,7 +162,7 @@ export async function deriveKey(password: string, salt: Buffer): Promise<Buffer>
  * @throws Error if crypto modules are not available
  */
 export async function encryptData(data: Record<string, unknown>, password: string): Promise<string> {
-	if (!crypto || !argon2) {
+	if (!(crypto && argon2)) {
 		throw new Error('Crypto modules not available - server-side only');
 	}
 
@@ -205,7 +205,7 @@ export async function encryptData(data: Record<string, unknown>, password: strin
  * @throws Error if decryption fails or password is incorrect
  */
 export async function decryptData(encryptedData: string, password: string): Promise<Record<string, unknown>> {
-	if (!crypto || !argon2) {
+	if (!(crypto && argon2)) {
 		throw new Error('Crypto modules not available - server-side only');
 	}
 
@@ -270,7 +270,7 @@ export function createChecksum(data: unknown): string {
  * @returns Hex-encoded random token
  * @throws Error if crypto is not available
  */
-export function generateRandomToken(length: number = 32): string {
+export function generateRandomToken(length = 32): string {
 	if (!crypto) {
 		throw new Error('Crypto not available - server-side only');
 	}

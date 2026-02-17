@@ -20,8 +20,8 @@
  */
 
 import { logger } from '@utils/logger.server';
-import { metricsService } from './MetricsService';
 import { building } from '$app/environment';
+import { metricsService } from './MetricsService';
 
 // --- TYPES ---
 
@@ -29,41 +29,41 @@ export type ThreatLevel = 'none' | 'low' | 'medium' | 'high' | 'critical';
 export type ResponseAction = 'monitor' | 'warn' | 'throttle' | 'block' | 'blacklist' | 'challenge' | 'allow';
 
 export interface SecurityStatus {
-	level: ThreatLevel;
 	action: ResponseAction;
+	level: ThreatLevel;
 	reason?: string;
 }
 
 export interface ThreatIndicator {
-	type: 'rate_limit' | 'auth_failure' | 'csp_violation' | 'sql_injection' | 'xss_attempt' | 'brute_force' | 'suspicious_ua' | 'ip_reputation';
-	severity: number; // 1-10 scale
 	evidence: string;
-	timestamp: number;
 	metadata?: Record<string, unknown>;
+	severity: number; // 1-10 scale
+	timestamp: number;
+	type: 'rate_limit' | 'auth_failure' | 'csp_violation' | 'sql_injection' | 'xss_attempt' | 'brute_force' | 'suspicious_ua' | 'ip_reputation';
 }
 
 export interface SecurityIncident {
-	id: string;
 	clientIp: string;
-	userAgent?: string;
-	threatLevel: ThreatLevel;
+	id: string;
 	indicators: ThreatIndicator[];
-	responseActions: ResponseAction[];
-	timestamp: number;
-	resolved: boolean;
 	notes?: string;
+	resolved: boolean;
+	responseActions: ResponseAction[];
+	threatLevel: ThreatLevel;
+	timestamp: number;
+	userAgent?: string;
 }
 
 export interface SecurityPolicy {
+	cooldownPeriod: number; // How long to maintain response
 	name: string;
+	responses: ResponseAction[];
 	threatLevel: ThreatLevel;
 	triggers: {
 		indicatorThreshold: number; // Number of indicators needed
 		timeWindow: number; // Time window in milliseconds
 		severityThreshold: number; // Minimum severity score
 	};
-	responses: ResponseAction[];
-	cooldownPeriod: number; // How long to maintain response
 }
 
 // --- SECURITY POLICIES ---
@@ -110,14 +110,14 @@ const DEFAULT_POLICIES: SecurityPolicy[] = [
 // --- SECURITY RESPONSE SERVICE ---
 
 class SecurityResponseService {
-	private incidents = new Map<string, SecurityIncident>();
-	private blockedIPs = new Set<string>();
-	private throttledIPs = new Map<string, { until: number; factor: number }>();
-	private policies: SecurityPolicy[] = [];
+	private readonly incidents = new Map<string, SecurityIncident>();
+	private readonly blockedIPs = new Set<string>();
+	private readonly throttledIPs = new Map<string, { until: number; factor: number }>();
+	private readonly policies: SecurityPolicy[] = [];
 	private cleanupInterval: NodeJS.Timeout | null = null;
 
 	// Pre-compiled regex patterns for performance and ReDoS prevention
-	private patterns = {
+	private readonly patterns = {
 		sqli: [
 			/(%27)|(')|(--)|(%23)|(#)/i,
 			/((%3D)|(=))[^\n]*((%27)|(')|(--)|(%3B)|(;))/i,
@@ -183,7 +183,8 @@ class SecurityResponseService {
 		if (threatLevel === 'critical') {
 			await this.blockIp(clientIp, 'Critical threat detected in payload');
 			return { level: 'critical', action: 'block', reason: 'Malicious payload detected' };
-		} else if (threatLevel === 'high') {
+		}
+		if (threatLevel === 'high') {
 			return { level: 'high', action: 'challenge', reason: 'Suspicious payload detected' };
 		}
 
@@ -202,22 +203,30 @@ class SecurityResponseService {
 
 		// Check for SQL injection patterns
 		for (const pattern of this.patterns.sqli) {
-			if (pattern.test(allContent)) return 'critical';
+			if (pattern.test(allContent)) {
+				return 'critical';
+			}
 		}
 
 		// Check for XSS patterns
 		for (const pattern of this.patterns.xss) {
-			if (pattern.test(allContent)) return 'high';
+			if (pattern.test(allContent)) {
+				return 'high';
+			}
 		}
 
 		// Check for Path Traversal
 		for (const pattern of this.patterns.pathTraversal) {
-			if (pattern.test(allContent)) return 'high';
+			if (pattern.test(allContent)) {
+				return 'high';
+			}
 		}
 
 		// Check for suspicious user agents
 		for (const pattern of this.patterns.suspicious_ua) {
-			if (pattern.test(userAgent)) return 'medium';
+			if (pattern.test(userAgent)) {
+				return 'medium';
+			}
 		}
 
 		return 'none';
@@ -316,7 +325,7 @@ class SecurityResponseService {
 					break;
 
 				case 'warn':
-					logger.warn(`Security incident detected`, {
+					logger.warn('Security incident detected', {
 						ip,
 						threatLevel: incident.threatLevel,
 						indicatorCount: incident.indicators.length,
@@ -331,7 +340,7 @@ class SecurityResponseService {
 						factor: this.getThrottleFactor(incident.threatLevel)
 					});
 
-					logger.warn(`IP throttled due to security threat`, {
+					logger.warn('IP throttled due to security threat', {
 						ip,
 						throttleUntil: new Date(throttleUntil),
 						factor: this.getThrottleFactor(incident.threatLevel)
@@ -346,10 +355,10 @@ class SecurityResponseService {
 					// Schedule unblock
 					setTimeout(() => {
 						this.blockedIPs.delete(ip);
-						logger.info(`IP unblocked after cooldown period`, { ip });
+						logger.info('IP unblocked after cooldown period', { ip });
 					}, policy.cooldownPeriod);
 
-					logger.error(`IP blocked due to security threat`, {
+					logger.error('IP blocked due to security threat', {
 						ip,
 						blockUntil: new Date(blockUntil),
 						incidentId: incident.id
@@ -359,7 +368,7 @@ class SecurityResponseService {
 
 				case 'blacklist':
 					this.blockedIPs.add(ip);
-					logger.error(`IP blacklisted due to critical security threat`, {
+					logger.error('IP blacklisted due to critical security threat', {
 						ip,
 						incidentId: incident.id,
 						permanent: true
@@ -465,7 +474,7 @@ class SecurityResponseService {
 		if (this.blockedIPs.has(ip)) {
 			this.blockedIPs.delete(ip);
 			this.throttledIPs.delete(ip);
-			logger.info(`IP manually unblocked`, { ip });
+			logger.info('IP manually unblocked', { ip });
 			return true;
 		}
 		return false;
@@ -534,7 +543,7 @@ export const cleanupSecurityService = (): void => {
 };
 
 // Cleanup on process exit
-if (!building && !globalWithSecurity.__SVELTY_SECURITY_CLEANUP_REGISTERED__) {
+if (!(building || globalWithSecurity.__SVELTY_SECURITY_CLEANUP_REGISTERED__)) {
 	process.on('SIGTERM', cleanupSecurityService);
 	process.on('SIGINT', cleanupSecurityService);
 	globalWithSecurity.__SVELTY_SECURITY_CLEANUP_REGISTERED__ = true;

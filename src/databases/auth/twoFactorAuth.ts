@@ -13,9 +13,9 @@
  * - Multi-tenant aware operations
  */
 
+import type { IDBAdapter, ISODateString } from '@src/databases/dbInterface';
 // System Logger
 import { logger } from '@utils/logger';
-import type { IDBAdapter, ISODateString } from '@src/databases/dbInterface';
 import {
 	generateBackupCodes,
 	generateManualEntryDetails,
@@ -37,10 +37,10 @@ type AuthInterface = IDBAdapter['auth'];
 
 // Two-Factor Authentication Service
 export class TwoFactorAuthService {
-	private db: AuthInterface;
-	private serviceName: string;
+	private readonly db: AuthInterface;
+	private readonly serviceName: string;
 
-	constructor(db: AuthInterface, serviceName: string = 'SveltyCMS') {
+	constructor(db: AuthInterface, serviceName = 'SveltyCMS') {
 		this.db = db;
 		this.serviceName = serviceName;
 	}
@@ -136,7 +136,7 @@ export class TwoFactorAuthService {
 
 			// Get user data
 			const userResult = await this.db.getUserById(userId, tenantId);
-			if (!userResult.success || !userResult.data) {
+			if (!(userResult.success && userResult.data)) {
 				return {
 					success: false,
 					message: 'User not found'
@@ -257,7 +257,7 @@ export class TwoFactorAuthService {
 
 			// Get user to verify 2FA is enabled
 			const userResult = await this.db.getUserById(userId, tenantId);
-			if (!userResult.success || !userResult.data || !userResult.data.is2FAEnabled) {
+			if (!(userResult.success && userResult.data && userResult.data.is2FAEnabled)) {
 				throw new Error('2FA is not enabled for this user');
 			}
 
@@ -299,14 +299,14 @@ export class TwoFactorAuthService {
 	}> {
 		try {
 			const userResult = await this.db.getUserById(userId, tenantId);
-			if (!userResult.success || !userResult.data) {
+			if (!(userResult.success && userResult.data)) {
 				throw new Error('User not found');
 			}
 
 			const user = userResult.data;
 
 			return {
-				enabled: user.is2FAEnabled || false,
+				enabled: user.is2FAEnabled,
 				hasBackupCodes: Boolean(user.backupCodes && user.backupCodes.length > 0),
 				backupCodesCount: user.backupCodes ? user.backupCodes.length : 0,
 				lastVerification: user.last2FAVerification

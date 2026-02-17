@@ -9,17 +9,16 @@
 
 // Defines the properties unique to the Number widget, configured in the collection builder
 export interface NumberProps {
+	// The maximum allowed value
+	max?: number;
 	// The minimum allowed value
 	min?: number;
 
-	// The maximum allowed value
-	max?: number;
+	// A placeholder for the input field
+	placeholder?: string;
 
 	// The stepping interval for the input arrows @default 1
 	step?: number;
-
-	// A placeholder for the input field
-	placeholder?: string;
 
 	// Index signature to satisfy WidgetProps constraint
 	[key: string]: unknown;

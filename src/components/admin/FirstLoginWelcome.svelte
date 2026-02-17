@@ -9,25 +9,23 @@
 -->
 
 <script lang="ts">
-	import { goto } from '$app/navigation';
-	import { onMount } from 'svelte';
-
 	// Components
 	import ImportExportManager from '@components/admin/ImportExportManager.svelte';
 	import Button from '@components/system/buttons/Button.svelte';
-
 	// Utils
 	import { logger } from '@utils/logger';
+	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
 
 	// Types
 	interface WelcomeStep {
-		id: string;
-		title: string;
-		description: string;
-		icon: string;
 		action: string;
 		actionUrl?: string;
 		completed?: boolean;
+		description: string;
+		icon: string;
+		id: string;
+		title: string;
 	}
 
 	// Props
@@ -158,9 +156,7 @@
 			<div class="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900">
 				<iconify-icon icon="mdi:rocket-launch" width={40} class="text-blue-600 dark:text-blue-400"></iconify-icon>
 			</div>
-			<h2 class="mb-2 text-2xl font-bold text-gray-900 dark:text-white">
-				Congratulations, {user?.username || 'Admin'}!
-			</h2>
+			<h2 class="mb-2 text-2xl font-bold text-gray-900 dark:text-white">Congratulations, {user?.username || 'Admin'}!</h2>
 			<p class="text-gray-600 dark:text-gray-400">Your SveltyCMS installation is ready. Let's get you started with the essential features.</p>
 		</div>
 
@@ -189,12 +185,8 @@
 					<div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800">
 						<iconify-icon icon={step.icon} width="32" class="text-gray-600 dark:text-gray-400"></iconify-icon>
 					</div>
-					<h3 class="mb-2 text-xl font-semibold text-gray-900 dark:text-white">
-						{step.title}
-					</h3>
-					<p class="mx-auto max-w-md text-gray-600 dark:text-gray-400">
-						{step.description}
-					</p>
+					<h3 class="mb-2 text-xl font-semibold text-gray-900 dark:text-white">{step.title}</h3>
+					<p class="mx-auto max-w-md text-gray-600 dark:text-gray-400">{step.description}</p>
 				</div>
 
 				<!-- Step Action -->
@@ -284,9 +276,7 @@
 				</button>
 			</div>
 
-			<div class="max-h-[calc(90vh-140px)] overflow-y-auto p-6">
-				<ImportExportManager />
-			</div>
+			<div class="max-h-[calc(90vh-140px)] overflow-y-auto p-6"><ImportExportManager /></div>
 
 			<div class="flex items-center justify-between border-t bg-surface-100 p-6 dark:bg-surface-700">
 				<div class="text-sm text-gray-600 dark:text-gray-400">
@@ -316,9 +306,9 @@
 	}
 
 	.step-content {
-		min-height: 300px;
 		display: flex;
 		flex-direction: column;
 		justify-content: center;
+		min-height: 300px;
 	}
 </style>

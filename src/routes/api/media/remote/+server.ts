@@ -10,17 +10,15 @@
  * - Multi-Tenant Safe: Saves files to the correct tenant's storage.
  */
 
-import { json, error } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
+import { dbAdapter } from '@src/databases/db';
 import { getPrivateSettingSync } from '@src/services/settingsService';
-
 // Media Service
 import { MediaService } from '@src/utils/media/mediaService.server';
-import type { MediaAccess } from '@utils/media/mediaModels';
-import { dbAdapter } from '@src/databases/db';
-
+import { error, json } from '@sveltejs/kit';
 // System Logger
 import { logger } from '@utils/logger.server';
+import type { MediaAccess } from '@utils/media/mediaModels';
+import type { RequestHandler } from './$types';
 
 // Helper function to get MediaService instance
 function getMediaService(): MediaService {

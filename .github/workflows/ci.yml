@@ -20,6 +20,8 @@ jobs:
         run: bun install --frozen-lockfile
       - name: Sync SvelteKit
         run: bun run check
+      - name: Run Linter
+        run: bun run lint
       - name: Run Unit Tests
         run: bun test --preload ./tests/unit/setup.ts --max-concurrency 1 tests/unit/services tests/unit/utils tests/unit/stores tests/unit/widgets tests/unit/*.test.ts
 
@@ -98,7 +100,7 @@ jobs:
           name: sveltycms-build
 
       - name: Install Runtime Deps
-        run: bun install --frozen-lockfile --production
+        run: bun install --frozen-lockfile
 
       - name: 🛠️ Generate config/private.test.ts
         run: |
@@ -172,7 +174,7 @@ jobs:
           name: sveltycms-build
 
       - name: Install Runtime Deps
-        run: bun install --frozen-lockfile --production
+        run: bun install --frozen-lockfile
 
       - name: Get Playwright version
         id: playwright-version

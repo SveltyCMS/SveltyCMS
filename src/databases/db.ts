@@ -19,11 +19,11 @@ import { cacheService } from './CacheService';
 
 // Handle private config that might not exist during setup
 import {
+	clearPrivateConfigCache as clearPrivateConfigCacheFromState,
 	getPrivateEnv as getPrivateEnvFromState,
 	loadPrivateConfig as loadPrivateConfigFromState,
-	clearPrivateConfigCache as clearPrivateConfigCacheFromState,
-	setPrivateEnv as setPrivateEnvFromState,
-	privateEnv
+	privateEnv,
+	setPrivateEnv as setPrivateEnvFromState
 } from './configState';
 
 // Re-export for compatibility
@@ -49,29 +49,24 @@ export function resetDbInitPromise() {
 // Auth
 import { Auth } from '@src/databases/auth';
 import { getDefaultSessionStore } from '@src/databases/auth/sessionManager';
-
-// Adapters Interfaces
-import type { DatabaseAdapter } from './dbInterface';
-
 // Settings loader
 import { privateConfigSchema, publicConfigSchema } from '@src/databases/schemas';
-import { invalidateSettingsCache, setSettingsCache, getPublicSetting } from '@src/services/settingsService';
-import { type InferOutput } from 'valibot';
+import { getPublicSetting, invalidateSettingsCache, setSettingsCache } from '@src/services/settingsService';
+import type { InferOutput } from 'valibot';
+// Adapters Interfaces
+import type { DatabaseAdapter } from './dbInterface';
 
 // Type definition for private config schema
 
 // Theme
 import { DEFAULT_THEME, ThemeManager } from '@src/databases/themeManager';
-
-// System Logger
-import { logger } from '@utils/logger';
-
-// System State Management
-import { setSystemState, updateServiceHealth } from '@src/stores/system/state';
-import { waitForServiceHealthy } from '@src/stores/system/async';
-
 // Plugins
 import { initializePlugins } from '@src/plugins';
+import { waitForServiceHealthy } from '@src/stores/system/async';
+// System State Management
+import { setSystemState, updateServiceHealth } from '@src/stores/system/state';
+// System Logger
+import { logger } from '@utils/logger';
 
 // Widget Store - Dynamic import to avoid circular dependency
 // import { widgetStoreActions } from '@stores/widgetStore.svelte.ts';
@@ -173,7 +168,7 @@ export async function loadSettingsFromDB(criticalOnly = false): Promise<boolean>
 		const keysToLoad = criticalOnly ? CRITICAL_SETTINGS : KNOWN_PUBLIC_KEYS;
 		const privateKeys = criticalOnly ? [] : KNOWN_PRIVATE_KEYS;
 
-		logger.debug(`Fetching settings from DB...`, { keysToLoadCount: keysToLoad.length, privateKeysCount: privateKeys.length });
+		logger.debug('Fetching settings from DB...', { keysToLoadCount: keysToLoad.length, privateKeysCount: privateKeys.length });
 
 		// Parallel load of tiered settings
 		const [settingsResult, privateDynResult] = await Promise.all([
@@ -181,7 +176,7 @@ export async function loadSettingsFromDB(criticalOnly = false): Promise<boolean>
 			privateKeys.length > 0 ? dbAdapter.systemPreferences.getMany(privateKeys, 'system') : Promise.resolve({ success: true, data: {} } as any)
 		]);
 
-		logger.debug(`Settings fetch results received`, {
+		logger.debug('Settings fetch results received', {
 			publicSuccess: settingsResult.success,
 			privateSuccess: privateDynResult.success
 		});
@@ -200,7 +195,9 @@ export async function loadSettingsFromDB(criticalOnly = false): Promise<boolean>
 
 		// Get current env
 		const privateConfig = privateEnv || (await loadPrivateConfig(false));
-		if (!privateConfig) return false;
+		if (!privateConfig) {
+			return false;
+		}
 
 		// Merge and cache
 		const mergedPrivate = { ...privateConfig, ...privateDynamic } as any;
@@ -214,7 +211,9 @@ export async function loadSettingsFromDB(criticalOnly = false): Promise<boolean>
 		}
 		return true;
 	} catch (error) {
-		if (!criticalOnly) logger.error('Failed to load settings:', error);
+		if (!criticalOnly) {
+			logger.error('Failed to load settings:', error);
+		}
 		await invalidateSettingsCache();
 		return false;
 	}
@@ -222,7 +221,9 @@ export async function loadSettingsFromDB(criticalOnly = false): Promise<boolean>
 
 // Load database and authentication adapters with resilience
 async function loadAdapters() {
-	if (adaptersLoaded && dbAdapter) return;
+	if (adaptersLoaded && dbAdapter) {
+		return;
+	}
 
 	const config = privateEnv || (await loadPrivateConfig(false));
 	if (!config?.DB_TYPE) {
@@ -276,9 +277,13 @@ async function loadAdapters() {
 
 // Initialize default theme
 async function initializeDefaultTheme(): Promise<void> {
-	if (!dbAdapter) throw new Error('Cannot initialize themes: dbAdapter is not available.');
+	if (!dbAdapter) {
+		throw new Error('Cannot initialize themes: dbAdapter is not available.');
+	}
 	try {
-		if (dbAdapter.ensureSystem) await dbAdapter.ensureSystem();
+		if (dbAdapter.ensureSystem) {
+			await dbAdapter.ensureSystem();
+		}
 
 		await dbAdapter.themes.ensure(DEFAULT_THEME);
 		logger.debug('Default SveltyCMS theme ensured');
@@ -290,8 +295,12 @@ async function initializeDefaultTheme(): Promise<void> {
 
 // Initialize ThemeManager
 async function initializeThemeManager(): Promise<void> {
-	if (!dbAdapter) throw new Error('Cannot initialize ThemeManager: dbAdapter is not available.');
-	if (dbAdapter.ensureSystem) await dbAdapter.ensureSystem();
+	if (!dbAdapter) {
+		throw new Error('Cannot initialize ThemeManager: dbAdapter is not available.');
+	}
+	if (dbAdapter.ensureSystem) {
+		await dbAdapter.ensureSystem();
+	}
 	try {
 		logger.debug('Initializing ThemeManager...');
 		const themeManager = ThemeManager.getInstance();
@@ -307,7 +316,9 @@ async function initializeThemeManager(): Promise<void> {
 async function initializeMediaFolder(): Promise<void> {
 	// During setup, MEDIA_FOLDER might not be loaded yet, so use fallback
 	const mediaFolderPath = (await getPublicSetting('MEDIA_FOLDER')) || './mediaFolder';
-	if (building) return;
+	if (building) {
+		return;
+	}
 	const fs = await import('node:fs/promises');
 	try {
 		// Fast stat() check, skip debug logging overhead
@@ -322,14 +333,22 @@ async function initializeMediaFolder(): Promise<void> {
 
 // Initialize virtual folders using DatabaseResilience
 async function initializeVirtualFolders(): Promise<void> {
-	if (!dbAdapter) throw new Error('Cannot initialize virtual folders: dbAdapter is not available.');
-	if (!dbAdapter.systemVirtualFolder) return;
+	if (!dbAdapter) {
+		throw new Error('Cannot initialize virtual folders: dbAdapter is not available.');
+	}
+	if (!dbAdapter.systemVirtualFolder) {
+		return;
+	}
 
 	const resilience = await getResilience();
 
 	await resilience.executeWithRetry(async () => {
-		if (!dbAdapter) throw new Error('dbAdapter is null');
-		if (dbAdapter.ensureSystem) await dbAdapter.ensureSystem();
+		if (!dbAdapter) {
+			throw new Error('dbAdapter is null');
+		}
+		if (dbAdapter.ensureSystem) {
+			await dbAdapter.ensureSystem();
+		}
 
 		const defaultMediaFolder = (await getPublicSetting('MEDIA_FOLDER')) || 'mediaFolder';
 		await dbAdapter.systemVirtualFolder.ensure({
@@ -343,7 +362,9 @@ async function initializeVirtualFolders(): Promise<void> {
 
 // Initialize adapters (instant validation only)
 async function initializeRevisions(): Promise<void> {
-	if (!dbAdapter) throw new Error('Cannot initialize revisions: dbAdapter is not available.');
+	if (!dbAdapter) {
+		throw new Error('Cannot initialize revisions: dbAdapter is not available.');
+	}
 	// Instant no-op validation (revisions are lazy-loaded on first use)
 }
 
@@ -374,7 +395,7 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false, awa
 		}
 
 		// Ensure we have valid config before proceeding
-		if (!privateConfig || !privateConfig.DB_TYPE) {
+		if (!privateConfig?.DB_TYPE) {
 			logger.info('Private config not available – running in setup mode (skipping full initialization).');
 			setSystemState('IDLE', 'Running in setup mode');
 			return;
@@ -393,29 +414,29 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false, awa
 			const hasAuth = privateConfig.DB_USER && privateConfig.DB_PASSWORD;
 			const authPart = hasAuth ? `${encodeURIComponent(privateConfig.DB_USER!)}:${encodeURIComponent(privateConfig.DB_PASSWORD!)}@` : '';
 			connectionString = `mongodb://${authPart}${privateConfig.DB_HOST}:${privateConfig.DB_PORT}/${privateConfig.DB_NAME}${hasAuth ? '?authSource=admin' : ''}`;
-			logger.debug(`Connecting to MongoDB...`);
+			logger.debug('Connecting to MongoDB...');
 		} else if (privateConfig.DB_TYPE === 'mongodb+srv') {
 			// MongoDB Atlas connection string
 			const hasAuth = privateConfig.DB_USER && privateConfig.DB_PASSWORD;
 			const authPart = hasAuth ? `${encodeURIComponent(privateConfig.DB_USER!)}:${encodeURIComponent(privateConfig.DB_PASSWORD!)}@` : '';
 			connectionString = `mongodb+srv://${authPart}${privateConfig.DB_HOST}/${privateConfig.DB_NAME}?retryWrites=true&w=majority`;
-			logger.debug(`Connecting to MongoDB Atlas (SRV)...`);
+			logger.debug('Connecting to MongoDB Atlas (SRV)...');
 		} else if (privateConfig.DB_TYPE === 'mariadb') {
 			// MariaDB connection string
 			const hasAuth = privateConfig.DB_USER && privateConfig.DB_PASSWORD;
 			const authPart = hasAuth ? `${encodeURIComponent(privateConfig.DB_USER!)}:${encodeURIComponent(privateConfig.DB_PASSWORD!)}@` : '';
 			connectionString = `mysql://${authPart}${privateConfig.DB_HOST}:${privateConfig.DB_PORT}/${privateConfig.DB_NAME}`;
-			logger.debug(`Connecting to MariaDB...`);
+			logger.debug('Connecting to MariaDB...');
 		} else if (privateConfig.DB_TYPE === 'sqlite') {
 			// SQLite connection string is just the file path
 			const path = privateConfig.DB_HOST.endsWith('/') ? privateConfig.DB_HOST : `${privateConfig.DB_HOST}/`;
 			connectionString = `${path}${privateConfig.DB_NAME}`;
-			logger.debug(`Connecting to SQLite...`);
+			logger.debug('Connecting to SQLite...');
 		} else if (privateConfig.DB_TYPE === 'postgresql') {
 			const hasAuth = privateConfig.DB_USER && privateConfig.DB_PASSWORD;
 			const authPart = hasAuth ? `${encodeURIComponent(privateConfig.DB_USER!)}:${encodeURIComponent(privateConfig.DB_PASSWORD!)}@` : '';
 			connectionString = `postgresql://${authPart}${privateConfig.DB_HOST}:${privateConfig.DB_PORT}/${privateConfig.DB_NAME}`;
-			logger.debug(`Connecting to PostgreSQL...`);
+			logger.debug('Connecting to PostgreSQL...');
 		} else {
 			connectionString = '';
 		}
@@ -669,14 +690,14 @@ export async function initializeForSetup(dbConfig: {
 export function initializeOnRequest(forceInit = false): Promise<void> {
 	const isBuildProcess = typeof process !== 'undefined' && process.argv?.some((arg) => ['build', 'check'].includes(arg));
 
-	if (!building && !isBuildProcess) {
+	if (!(building || isBuildProcess)) {
 		if (!initializationPromise || forceInit) {
 			logger.debug('Creating system initialization promise...');
 
 			initializationPromise = (async () => {
 				// Check if private config exists and is valid
 				const privateConfig = await loadPrivateConfig(forceInit);
-				if (!privateConfig || !privateConfig.DB_TYPE || !privateConfig.DB_HOST) {
+				if (!(privateConfig?.DB_TYPE && privateConfig.DB_HOST)) {
 					logger.info('Private config not available – skipping initialization (setup mode)');
 					return Promise.resolve();
 				}
@@ -709,7 +730,7 @@ export async function getSystemStatus() {
 	};
 
 	// If not connected, return basic status without health check
-	if (!isConnected || !dbAdapter) {
+	if (!(isConnected && dbAdapter)) {
 		return basicStatus;
 	}
 
@@ -720,10 +741,12 @@ export async function getSystemStatus() {
 
 		// Perform health check with database ping
 		const healthResult = await resilience.healthCheck(async () => {
-			if (!dbAdapter) throw new Error('dbAdapter is null');
+			if (!dbAdapter) {
+				throw new Error('dbAdapter is null');
+			}
 			const start = Date.now();
 			// Ping the database by running a lightweight query
-			if (dbAdapter.isConnected && dbAdapter.isConnected()) {
+			if (dbAdapter.isConnected?.()) {
 				return Date.now() - start;
 			}
 			throw new Error('Database not connected');
@@ -789,7 +812,7 @@ export async function reinitializeSystem(force = false, waitForAuth = true): Pro
 	}
 
 	try {
-		logger.info(`Manual reinitialization requested${force ? ' (force)' : ''}${!waitForAuth ? ' (skip auth wait)' : ''}`);
+		logger.info(`Manual reinitialization requested${force ? ' (force)' : ''}${waitForAuth ? '' : ' (skip auth wait)'}`);
 		initializationPromise = initializeSystem(force);
 		await initializationPromise;
 
@@ -843,8 +866,12 @@ export async function initializeWithConfig(
 		logger.info('🚀 Initializing system with provided configuration (bypassing Vite cache & filesystem)...');
 
 		// CRITICAL: Merge explicit modes into config
-		if (options?.multiTenant !== undefined) config.MULTI_TENANT = options.multiTenant;
-		if (options?.demoMode !== undefined) config.DEMO = options.demoMode;
+		if (options?.multiTenant !== undefined) {
+			config.MULTI_TENANT = options.multiTenant;
+		}
+		if (options?.demoMode !== undefined) {
+			config.DEMO = options.demoMode;
+		}
 
 		// CRITICAL: Set config in memory BEFORE initialization
 		setPrivateEnv(config);
@@ -906,7 +933,7 @@ export async function initializeWithFreshConfig(): Promise<{ status: string; err
 		// Force reload private.ts from filesystem (bypasses Vite's module cache)
 		const freshConfig = await loadPrivateConfig(true);
 
-		if (!freshConfig || !freshConfig.DB_TYPE) {
+		if (!freshConfig?.DB_TYPE) {
 			throw new Error('Failed to load private config from filesystem');
 		}
 
@@ -955,7 +982,7 @@ export async function initConnection(dbConfig: {
 	// For seeding, we need to create a temporary adapter instance
 	// This is a simplified version that works with the existing MongoDB setup
 
-	if (!dbConfig || !dbConfig.type) {
+	if (!dbConfig?.type) {
 		throw new Error('Database configuration is required');
 	}
 
@@ -992,18 +1019,17 @@ export async function initConnection(dbConfig: {
 			password: dbConfig.password ?? ''
 		});
 
-		const options =
-			dbConfig.type.startsWith('mongodb')
-				? {
-						user: dbConfig.user || undefined,
-						pass: dbConfig.password || undefined,
-						dbName: dbConfig.name,
-						authSource: connectionString.startsWith('mongodb+srv://') ? undefined : 'admin',
-						retryWrites: true,
-						serverSelectionTimeoutMS: 15000,
-						maxPoolSize: 1 // Use a minimal pool for seeding
-					}
-				: {};
+		const options = dbConfig.type.startsWith('mongodb')
+			? {
+					user: dbConfig.user || undefined,
+					pass: dbConfig.password || undefined,
+					dbName: dbConfig.name,
+					authSource: connectionString.startsWith('mongodb+srv://') ? undefined : 'admin',
+					retryWrites: true,
+					serverSelectionTimeoutMS: 15_000,
+					maxPoolSize: 1 // Use a minimal pool for seeding
+				}
+			: {};
 
 		// Connect using the custom connection string and options
 		const connectResult = await tempAdapter.connect(connectionString, options);

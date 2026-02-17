@@ -2,11 +2,12 @@
  * @file src/services/token/relationResolver.ts
  * @description Client-safe relation token resolution and permission checking
  */
-import type { TokenContext } from './types';
+
 import type { FieldInstance } from '@src/content/types';
-import type { User } from '@src/databases/auth/types';
 import { hasPermissionByAction } from '@src/databases/auth/permissions';
+import type { User } from '@src/databases/auth/types';
 import { logger } from '@utils/logger';
+import type { TokenContext } from './types';
 
 // Checks if user has read access to a collection
 export async function canAccessCollection(
@@ -15,11 +16,15 @@ export async function canAccessCollection(
 	_tenantId?: string,
 	roles?: import('@src/databases/auth/types').Role[]
 ): Promise<boolean> {
-	if (!user) return false;
+	if (!user) {
+		return false;
+	}
 
 	// Admins have access to everything
 	const userRole = roles?.find((r) => r._id === user.role);
-	if (userRole?.isAdmin) return true;
+	if (userRole?.isAdmin) {
+		return true;
+	}
 
 	// Check collection-specific read permission
 	return hasPermissionByAction(user, 'read', 'collection', collectionId, roles);
@@ -36,7 +41,9 @@ export async function resolveRelationToken(tokenPath: string, context: TokenCont
 	const [, relationField, ...nestedPath] = parts;
 	const relationData = context.entry?.[relationField];
 
-	if (!relationData) return null;
+	if (!relationData) {
+		return null;
+	}
 
 	// Security check: Verify user has access to the related collection
 	// This is enforced during token registration, but double-check at resolution time
@@ -62,7 +69,9 @@ export async function resolveRelationToken(tokenPath: string, context: TokenCont
 			value = value[0]; // For arrays, take first item
 		}
 		value = value?.[key];
-		if (value === undefined || value === null) break;
+		if (value === undefined || value === null) {
+			break;
+		}
 	}
 
 	return value;

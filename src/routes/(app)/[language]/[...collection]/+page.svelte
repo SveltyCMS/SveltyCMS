@@ -23,21 +23,22 @@
 
 -->
 <script lang="ts">
-	import { logger } from '@utils/logger';
-	import { beforeNavigate, invalidateAll, replaceState } from '$app/navigation';
-	import { page } from '$app/state';
-	import { untrack, onMount } from 'svelte';
-	import { collections } from '@src/stores/collectionStore.svelte';
-	import { app, validationStore } from '@stores/store.svelte.ts';
-	import { parseURLToMode } from '@utils/navigationUtils';
-	import { getFieldName } from '@utils/utils';
 	import EntryList from '@src/components/collectionDisplay/EntryList.svelte';
 	import Fields from '@src/components/collectionDisplay/Fields.svelte';
-	import { showToast } from '@utils/toast';
 	import type { Schema } from '@src/content/types';
+	import { collections } from '@src/stores/collectionStore.svelte';
+	import { app, validationStore } from '@stores/store.svelte.ts';
+	import { logger } from '@utils/logger';
+	import { parseURLToMode } from '@utils/navigationUtils';
+	import { showToast } from '@utils/toast';
+	import { getFieldName } from '@utils/utils';
+	import { onMount, untrack } from 'svelte';
+	import { beforeNavigate, invalidateAll, replaceState } from '$app/navigation';
+	import { page } from '$app/state';
 
 	interface PageData {
 		collectionSchema: Schema;
+		contentLanguage: string;
 		entries: any[];
 		pagination: {
 			totalItems: number;
@@ -46,7 +47,6 @@
 			pageSize: number;
 		};
 		revisions: any[];
-		contentLanguage: string;
 	}
 
 	const { data }: { data: PageData } = $props();
@@ -213,7 +213,7 @@
 			// Set mode to view for new collection (unless URL says otherwise)
 			const editParam = page.url.searchParams.get('edit');
 			const createParam = page.url.searchParams.get('create');
-			if (!editParam && !createParam) {
+			if (!(editParam || createParam)) {
 				collections.setMode('view');
 			}
 		}
@@ -237,7 +237,8 @@
 			initialCollectionValue = JSON.stringify(entryData);
 			lastUrlString = currentUrl;
 			return; // Exit early to avoid triggering URL change logic
-		} else if (!hasInitiallyLoaded && editParam) {
+		}
+		if (!hasInitiallyLoaded && editParam) {
 			console.log('❌ [Debug Case 1] Failed condition', {
 				hasInitiallyLoaded,
 				editParam,
@@ -356,7 +357,7 @@
 		}
 
 		// CASE 3: Mark as loaded after first render (for view mode)
-		if (!hasInitiallyLoaded && !editParam) {
+		if (!(hasInitiallyLoaded || editParam)) {
 			hasInitiallyLoaded = true;
 			lastEditParam = editParam;
 			lastUrlString = currentUrl;
@@ -394,7 +395,7 @@
 			const collectionId = collections.active?._id;
 			const tenantId = page.data?.tenantId;
 
-			if (!collectionId || !entryData) {
+			if (!(collectionId && entryData)) {
 				return false;
 			}
 
@@ -433,10 +434,9 @@
 
 				logger.debug('[Auto-save] Draft saved successfully');
 				return true;
-			} else {
-				logger.error('[Auto-save] Failed to save draft:', response.statusText);
-				return false;
 			}
+			logger.error('[Auto-save] Failed to save draft:', response.statusText);
+			return false;
 		} catch (error) {
 			logger.error('[Auto-save] Error saving draft:', error);
 			return false;
@@ -506,9 +506,7 @@
 	});
 </script>
 
-<svelte:head>
-	<title>{collectionSchema?.name ?? 'Collection'} - SveltyCMS</title>
-</svelte:head>
+<svelte:head> <title>{collectionSchema?.name ?? 'Collection'} - SveltyCMS</title> </svelte:head>
 
 <div class="content h-full">
 	<!-- Auto-save indicator -->

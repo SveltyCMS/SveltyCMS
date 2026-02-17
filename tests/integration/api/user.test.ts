@@ -4,9 +4,9 @@
  * Uses shared helpers for authentication and environment setup.
  */
 
-import { describe, it, expect, beforeAll } from 'bun:test';
-import { testFixtures, initializeTestEnvironment, prepareAuthenticatedContext } from '../helpers/testSetup';
+import { beforeAll, describe, expect, it } from 'bun:test';
 import { getApiBaseUrl } from '../helpers/server';
+import { initializeTestEnvironment, prepareAuthenticatedContext, testFixtures } from '../helpers/testSetup';
 
 const API_BASE_URL = getApiBaseUrl();
 

@@ -4,35 +4,34 @@
 **This component displays a modal for editing a category**
 -->
 <script lang="ts">
+	// Components
+	import IconifyIconsPicker from '@components/IconifyIconsPicker.svelte';
 	// Stores
 	import { contentStructure } from '@src/stores/collectionStore.svelte';
 	import { logger } from '@utils/logger';
 
-	// Components
-	import IconifyIconsPicker from '@components/IconifyIconsPicker.svelte';
-
 	// Lucide Icons
 
+	import type { ContentNode } from '@root/src/databases/dbInterface';
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
-	import type { ContentNode } from '@root/src/databases/dbInterface';
 
 	interface Props {
+		body?: string;
+		close?: (result?: any) => void;
+		existingCategory?: Partial<ContentNode>;
 		parent?: {
 			onClose?: () => void;
 			regionFooter?: string;
 			buttonPositive?: string;
 		};
-		existingCategory?: Partial<ContentNode>;
 		title?: string;
-		body?: string;
-		close?: (result?: any) => void;
 	}
 
 	interface FormData {
-		newCategoryName: string;
-		newCategoryIcon: string;
 		id?: string;
+		newCategoryIcon: string;
+		newCategoryName: string;
 	}
 
 	const { existingCategory = { name: '', icon: '' }, close }: Props = $props();
@@ -89,10 +88,10 @@
 		try {
 			if (close) {
 				// If adding a new category, generate a UUID
-				if (!existingCategory._id) {
-					close(formData); // `+page.svelte` will assign ID
-				} else {
+				if (existingCategory._id) {
 					close(formData); // For editing, pass existing ID implied
+				} else {
+					close(formData); // `+page.svelte` will assign ID
 				}
 			}
 		} catch (error) {
@@ -175,9 +174,7 @@
 
 <div class="modal-example-form space-y-4">
 	{#if formError}
-		<div class="rounded bg-error-500/10 p-2 text-error-500" role="alert">
-			{formError}
-		</div>
+		<div class="rounded bg-error-500/10 p-2 text-error-500" role="alert">{formError}</div>
 	{/if}
 
 	<form class="modal-form {cForm}" onsubmit={onFormSubmit}>
@@ -192,7 +189,7 @@
 				aria-invalid={!!validationErrors.name}
 				aria-describedby={validationErrors.name ? 'name-error' : undefined}
 				disabled={isSubmitting}
-			/>
+			>
 			{#if validationErrors.name}
 				<span id="name-error" class="text-sm text-error-500">{validationErrors.name}</span>
 			{/if}

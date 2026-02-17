@@ -10,31 +10,25 @@
  * - Error handling and logging.
  */
 
-import { getPrivateSettingSync } from '@src/services/settingsService';
-import { json, type HttpError } from '@sveltejs/kit';
-
 // Auth
 import type { ISODateString } from '@src/content/types';
-import { auth, dbAdapter } from '@src/databases/db';
 import { getDefaultRoles } from '@src/databases/auth/defaultRoles';
-
-// System Logger
-import { logger } from '@utils/logger.server';
-
 // Cache invalidation
 import { cacheService } from '@src/databases/CacheService';
-
-// Input validation
-import { addUserTokenSchema } from '@utils/formSchemas';
-import { v4 as uuidv4 } from 'uuid';
-import { parse } from 'valibot';
-
+import { auth, dbAdapter } from '@src/databases/db';
 // ParaglideJS
 import { getLocale } from '@src/paraglide/runtime';
-
+import { getPrivateSettingSync } from '@src/services/settingsService';
+import { type HttpError, json } from '@sveltejs/kit';
 // Unified Error Handling
 import { apiHandler } from '@utils/apiHandler';
 import { AppError } from '@utils/errorHandling';
+// Input validation
+import { addUserTokenSchema } from '@utils/formSchemas';
+// System Logger
+import { logger } from '@utils/logger.server';
+import { v4 as uuidv4 } from 'uuid';
+import { parse } from 'valibot';
 
 export const POST = apiHandler(async ({ request, locals, fetch, url }) => {
 	try {
@@ -45,7 +39,7 @@ export const POST = apiHandler(async ({ request, locals, fetch, url }) => {
 		// 2. User has correct role for 'api:token' endpoint
 		// 3. User belongs to correct tenant (if multi-tenant)
 
-		if (!auth || !dbAdapter) {
+		if (!(auth && dbAdapter)) {
 			logger.error('Authentication system is not initialized');
 			throw new AppError('Internal Server Error: Auth system not initialized', 500, 'AUTH_SYS_ERROR');
 		}
@@ -76,7 +70,7 @@ export const POST = apiHandler(async ({ request, locals, fetch, url }) => {
 			throw new AppError('A user with this email address already exists in this tenant.', 409, 'USER_EXISTS');
 		}
 
-		if (existingTokens && existingTokens.success && existingTokens.data && existingTokens.data.length > 0) {
+		if (existingTokens?.success && existingTokens.data && existingTokens.data.length > 0) {
 			logger.warn('Attempted to create a token for an email that already has one in this tenant', { email: validatedData.email, tenantId });
 			throw new AppError(
 				'An invitation token for this email already exists in this tenant. Please delete the existing token first.',
@@ -88,11 +82,11 @@ export const POST = apiHandler(async ({ request, locals, fetch, url }) => {
 		// Calculate expiration date
 		const expirationInSeconds: Record<string, number> = {
 			'2 hrs': 7200,
-			'12 hrs': 43200,
-			'2 days': 172800,
-			'1 week': 604800,
-			'2 weeks': 1209600,
-			'1 month': 2592000
+			'12 hrs': 43_200,
+			'2 days': 172_800,
+			'1 week': 604_800,
+			'2 weeks': 1_209_600,
+			'1 month': 2_592_000
 		};
 		const expiresInSeconds = expirationInSeconds[validatedData.expiresIn];
 		if (!expiresInSeconds) {
@@ -107,7 +101,7 @@ export const POST = apiHandler(async ({ request, locals, fetch, url }) => {
 
 		// Use dbAdapter directly for invite tokens since the user doesn't exist yet
 		const tokenResult = await dbAdapter.auth.createToken({
-			user_id: user_id,
+			user_id,
 			email: validatedData.email.toLowerCase(), // Use the provided email directly
 			expires: expires.toISOString() as ISODateString,
 			type,
@@ -115,7 +109,7 @@ export const POST = apiHandler(async ({ request, locals, fetch, url }) => {
 			tenantId: tenantId || undefined
 		});
 
-		if (!tokenResult.success || !tokenResult.data) {
+		if (!(tokenResult.success && tokenResult.data)) {
 			logger.error('Failed to create token', { email: validatedData.email, tenantId });
 			throw new AppError('Failed to create token.', 500, 'TOKEN_CREATION_FAILED');
 		}
@@ -140,7 +134,7 @@ export const POST = apiHandler(async ({ request, locals, fetch, url }) => {
 				props: {
 					email: validatedData.email,
 					role: roleInfo.name, // Use the role name for display
-					token: token,
+					token,
 					tokenLink: inviteLink,
 					expiresInLabel: validatedData.expiresIn,
 					languageTag: getLocale()
@@ -192,13 +186,12 @@ export const POST = apiHandler(async ({ request, locals, fetch, url }) => {
 				smtp_not_configured: smtpNotConfigured,
 				user_message: smtpNotConfigured ? emailResult.user_message : undefined
 			});
-		} else {
-			logger.info('Token created and email sent successfully', {
-				email: validatedData.email,
-				role: roleInfo.name,
-				tenantId
-			});
-		} // Invalidate the admin cache for tokens so the UI refreshes immediately
+		}
+		logger.info('Token created and email sent successfully', {
+			email: validatedData.email,
+			role: roleInfo.name,
+			tenantId
+		});
 
 		cacheService.delete('tokens', tenantId).catch((err) => {
 			logger.warn(`Failed to invalidate tokens cache: ${err.message}`);
@@ -211,7 +204,9 @@ export const POST = apiHandler(async ({ request, locals, fetch, url }) => {
 			email_sent: true
 		});
 	} catch (err) {
-		if (err instanceof AppError) throw err;
+		if (err instanceof AppError) {
+			throw err;
+		}
 		if (err instanceof Error && err.name === 'ValiError') {
 			const valiError = err as unknown as { issues: Array<{ message: string }> };
 			const issues = valiError.issues.map((issue) => issue.message).join(', ');

@@ -12,17 +12,16 @@
  * - Secure, tenant-aware file retrieval with proper headers
  */
 
-import type { RequestHandler } from './$types';
-import { error } from '@sveltejs/kit';
 import { getPrivateSettingSync } from '@src/services/settingsService';
+import { error } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
 
 // Permissions
 
-// Media
-import { getFile } from '@utils/media/mediaStorage.server';
-
 // System Logger
 import { logger } from '@utils/logger.server';
+// Media
+import { getFile } from '@utils/media/mediaStorage.server';
 
 export const GET: RequestHandler = async ({ url, locals }) => {
 	const { user, tenantId } = locals;

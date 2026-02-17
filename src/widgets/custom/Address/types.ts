@@ -12,14 +12,14 @@ export interface AddressProps {
 	// The default country to select in the dropdown @default 'DE'
 	defaultCountry?: string; // Should be a 2-letter country code like 'DE' or 'US'
 
+	// An array of field names to hide from the UI e.g., ['latitude', 'longitude', 'name']
+	hiddenFields?: Array<keyof AddressData>;
+
 	// Default map center coordinates
 	mapCenter?: { lat: number; lng: number };
 
 	// Default map zoom level @default 12
 	zoom?: number;
-
-	// An array of field names to hide from the UI e.g., ['latitude', 'longitude', 'name']
-	hiddenFields?: Array<keyof AddressData>;
 
 	// Index signature to satisfy WidgetProps constraint
 	[key: string]: unknown;
@@ -27,11 +27,11 @@ export interface AddressProps {
 
 // Defines the data structure for a complete address object
 export interface AddressData {
-	street: string;
-	houseNumber: string;
-	postalCode: string;
 	city: string;
 	country: string; // Stored as a 2-letter country code
+	houseNumber: string;
 	latitude: number;
 	longitude: number;
+	postalCode: string;
+	street: string;
 }

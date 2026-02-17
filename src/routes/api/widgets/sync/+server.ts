@@ -3,15 +3,14 @@
  * @description API endpoint to sync file system widgets with database
  * This ensures all widgets found in the file system are registered in the database
  */
-import { json } from '@sveltejs/kit';
-import { logger } from '@utils/logger.server';
+
 import { hasPermissionWithRoles } from '@src/databases/auth/permissions';
-
 import { widgets } from '@stores/widgetStore.svelte.ts';
-
+import { json } from '@sveltejs/kit';
 // Unified Error Handling
 import { apiHandler } from '@utils/apiHandler';
 import { AppError } from '@utils/errorHandling';
+import { logger } from '@utils/logger.server';
 
 export const POST = apiHandler(async ({ locals, request }) => {
 	const start = performance.now();
@@ -28,7 +27,7 @@ export const POST = apiHandler(async ({ locals, request }) => {
 		const hasWidgetPermission = hasPermissionWithRoles(user, 'api:widgets', locals.roles);
 		const isAdmin = user.role === 'admin' || user.role === 'super-admin';
 
-		if (!hasWidgetPermission || !isAdmin) {
+		if (!(hasWidgetPermission && isAdmin)) {
 			logger.warn(`User ${user._id} denied access to widget sync due to insufficient permissions`);
 			throw new AppError('Insufficient permissions', 403, 'FORBIDDEN');
 		}
@@ -50,7 +49,7 @@ export const POST = apiHandler(async ({ locals, request }) => {
 
 		// Get current widgets from database
 		const dbResult = await locals.dbAdapter.widgets.findAll();
-		const dbWidgets: Array<Record<string, unknown>> = dbResult.success ? (dbResult.data as unknown as Array<Record<string, unknown>>) || [] : [];
+		const dbWidgets: Record<string, unknown>[] = dbResult.success ? (dbResult.data as unknown as Record<string, unknown>[]) || [] : [];
 		const dbWidgetNames = dbWidgets.map((w) => w.name as string);
 
 		logger.info('Starting widget sync...', {
@@ -148,7 +147,9 @@ export const POST = apiHandler(async ({ locals, request }) => {
 		const duration = performance.now() - start;
 		const message = `Failed to sync widgets: ${err instanceof Error ? err.message : String(err)}`;
 		logger.error(message, { duration: `${duration.toFixed(2)}ms`, stack: err instanceof Error ? err.stack : undefined });
-		if (err instanceof AppError) throw err;
+		if (err instanceof AppError) {
+			throw err;
+		}
 		throw new AppError(message, 500, 'WIDGET_SYNC_FAILED');
 	}
 });

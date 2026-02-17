@@ -14,27 +14,22 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 -->
 
 <script lang="ts">
-	// Using iconify-icon web component
-	import { onMount, onDestroy } from 'svelte';
-	import { scale } from 'svelte/transition';
-	import { quintOut } from 'svelte/easing';
-	import { invalidateAll } from '$app/navigation';
-	import { logger } from '@utils/logger';
-
+	import type { Token, User } from '@src/databases/auth/types';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
-
 	// Stores
-	import { storeListboxValue } from '@stores/store.svelte.ts';
-
 	// Skeleton & Utils
-	import { toaster } from '@stores/store.svelte.ts';
+	import { storeListboxValue, toaster } from '@stores/store.svelte.ts';
+	import { logger } from '@utils/logger';
 	import { modalState } from '@utils/modalState.svelte';
 	import { showConfirm } from '@utils/modalUtils';
-
+	// Using iconify-icon web component
+	import { onDestroy, onMount } from 'svelte';
+	import { quintOut } from 'svelte/easing';
+	import { scale } from 'svelte/transition';
+	import { invalidateAll } from '$app/navigation';
 	import ModalEditForm from './ModalEditForm.svelte';
 	import ModalEditToken from './ModalEditToken.svelte';
-	import type { User, Token } from '@src/databases/auth/types';
 
 	const isUser = (row: unknown): row is User => {
 		return !!row && typeof row === 'object' && '_id' in row;
@@ -94,16 +89,15 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 			if (blockedCount === users.length) return 'all-blocked';
 			if (unblockedCount === users.length) return 'all-unblocked';
 			return 'mixed';
-		} else {
-			const tokens = safeSelectedRows.filter(isToken);
-			if (tokens.length === 0) return null;
-			const blockedCount = tokens.filter((token: Token) => token.blocked).length;
-			const unblockedCount = tokens.filter((token: Token) => !token.blocked).length;
-
-			if (blockedCount === tokens.length) return 'all-blocked';
-			if (unblockedCount === tokens.length) return 'all-unblocked';
-			return 'mixed';
 		}
+		const tokens = safeSelectedRows.filter(isToken);
+		if (tokens.length === 0) return null;
+		const blockedCount = tokens.filter((token: Token) => token.blocked).length;
+		const unblockedCount = tokens.filter((token: Token) => !token.blocked).length;
+
+		if (blockedCount === tokens.length) return 'all-blocked';
+		if (unblockedCount === tokens.length) return 'all-unblocked';
+		return 'mixed';
 	});
 
 	// Available actions based on current state
@@ -113,9 +107,11 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 
 		if (currentBlockState() === 'all-blocked') {
 			return [...baseActions, 'unblock'];
-		} else if (currentBlockState() === 'all-unblocked') {
+		}
+		if (currentBlockState() === 'all-unblocked') {
 			return [...baseActions, 'block'];
-		} else if (currentBlockState() === 'mixed') {
+		}
+		if (currentBlockState() === 'mixed') {
 			return [...baseActions, 'block', 'unblock'];
 		}
 
@@ -179,15 +175,15 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 	// Unified batch endpoints for consistent API design
 	interface ActionConfigItem {
 		buttonClass: string;
+		endpoint: () => string;
 		hoverClass: string;
 		iconValue: string;
 		label: string;
-		modalTitle: () => any;
-		modalBody: () => any;
-		endpoint: () => string;
 		method: () => string;
-		toastMessage: () => string;
+		modalBody: () => any;
+		modalTitle: () => any;
 		toastBackground: string;
+		toastMessage: () => string;
 	}
 
 	const actionConfig = $derived<Record<ActionType, ActionConfigItem>>({
@@ -201,13 +197,12 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 			endpoint: () => {
 				if (type === 'user') {
 					return '/api/user/updateUserAttributes';
-				} else {
-					const firstRow = safeSelectedRows[0];
-					if (isToken(firstRow)) {
-						return `/api/token/${firstRow.token}`;
-					}
-					throw new Error('No token selected for editing');
 				}
+				const firstRow = safeSelectedRows[0];
+				if (isToken(firstRow)) {
+					return `/api/token/${firstRow.token}`;
+				}
+				throw new Error('No token selected for editing');
 			},
 			method: () => 'PUT',
 			toastMessage: () => `${type === 'user' ? 'User' : 'Token'} Updated`,
@@ -232,20 +227,17 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 							return `Are you sure you want to <span class="text-error-500 font-semibold">delete</span> user <span class="text-tertiary-500 font-medium">${user.email}</span>? This action cannot be undone and will permanently remove the user from the system.`;
 						}
 						return '';
-					} else {
-						return `Are you sure you want to <span class="text-error-500 font-semibold">delete</span> <span class="text-tertiary-500 font-medium">${safeSelectedRows.length} users</span>? This action cannot be undone and will permanently remove all selected users from the system.`;
 					}
-				} else {
-					if (safeSelectedRows.length === 1) {
-						const token = safeSelectedRows[0];
-						if (isToken(token)) {
-							return `Are you sure you want to <span class="text-error-500 font-semibold">delete</span> token for <span class="text-tertiary-500 font-medium">${token.email}</span>? This action cannot be undone and will permanently remove the token from the system.`;
-						}
-						return '';
-					} else {
-						return `Are you sure you want to <span class="text-error-500 font-semibold">delete</span> <span class="text-tertiary-500 font-medium">${safeSelectedRows.length} tokens</span>? This action cannot be undone and will permanently remove all selected tokens from the system.`;
-					}
+					return `Are you sure you want to <span class="text-error-500 font-semibold">delete</span> <span class="text-tertiary-500 font-medium">${safeSelectedRows.length} users</span>? This action cannot be undone and will permanently remove all selected users from the system.`;
 				}
+				if (safeSelectedRows.length === 1) {
+					const token = safeSelectedRows[0];
+					if (isToken(token)) {
+						return `Are you sure you want to <span class="text-error-500 font-semibold">delete</span> token for <span class="text-tertiary-500 font-medium">${token.email}</span>? This action cannot be undone and will permanently remove the token from the system.`;
+					}
+					return '';
+				}
+				return `Are you sure you want to <span class="text-error-500 font-semibold">delete</span> <span class="text-tertiary-500 font-medium">${safeSelectedRows.length} tokens</span>? This action cannot be undone and will permanently remove all selected tokens from the system.`;
 			},
 			endpoint: () => (type === 'user' ? '/api/user/batch' : '/api/token/batch'),
 			method: () => 'POST',
@@ -271,21 +263,18 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 							return `Are you sure you want to <span class="text-error-500 font-semibold">block</span> user <span class="text-tertiary-500 font-medium">${user.email}</span>? This will prevent them from accessing the system.`;
 						}
 						return '';
-					} else {
-						return `Are you sure you want to <span class="text-error-500 font-semibold">block</span> <span class="text-tertiary-500 font-medium">${safeSelectedRows.length} users</span>? This will prevent them from accessing the system.`;
 					}
-				} else {
-					// Token blocking with enhanced styling
-					if (safeSelectedRows.length === 1) {
-						const token = safeSelectedRows[0];
-						if (isToken(token)) {
-							return `Are you sure you want to <span class="text-error-500 font-semibold">block</span> token for <span class="text-tertiary-500 font-medium">${token.email}</span>? This will prevent the token from being used.`;
-						}
-						return '';
-					} else {
-						return `Are you sure you want to <span class="text-error-500 font-semibold">block</span> <span class="text-tertiary-500 font-medium">${safeSelectedRows.length} tokens</span>? This will prevent them from being used.`;
-					}
+					return `Are you sure you want to <span class="text-error-500 font-semibold">block</span> <span class="text-tertiary-500 font-medium">${safeSelectedRows.length} users</span>? This will prevent them from accessing the system.`;
 				}
+				// Token blocking with enhanced styling
+				if (safeSelectedRows.length === 1) {
+					const token = safeSelectedRows[0];
+					if (isToken(token)) {
+						return `Are you sure you want to <span class="text-error-500 font-semibold">block</span> token for <span class="text-tertiary-500 font-medium">${token.email}</span>? This will prevent the token from being used.`;
+					}
+					return '';
+				}
+				return `Are you sure you want to <span class="text-error-500 font-semibold">block</span> <span class="text-tertiary-500 font-medium">${safeSelectedRows.length} tokens</span>? This will prevent them from being used.`;
 			},
 			endpoint: () => (type === 'user' ? '/api/user/batch' : '/api/token/batch'),
 			method: () => 'POST',
@@ -311,21 +300,18 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 							return `Are you sure you want to <span class="text-success-500 font-semibold">unblock</span> user <span class="text-tertiary-500 font-medium">${user.email}</span>? This will allow them to access the system again.`;
 						}
 						return '';
-					} else {
-						return `Are you sure you want to <span class="text-success-500 font-semibold">unblock</span> <span class="text-tertiary-500 font-medium">${safeSelectedRows.length} users</span>? This will allow them to access the system again.`;
 					}
-				} else {
-					// Token unblocking with enhanced styling
-					if (safeSelectedRows.length === 1) {
-						const token = safeSelectedRows[0];
-						if (isToken(token)) {
-							return `Are you sure you want to <span class="text-success-500 font-semibold">unblock</span> token for <span class="text-tertiary-500 font-medium">${token.email}</span>? This will allow the token to be used again.`;
-						}
-						return '';
-					} else {
-						return `Are you sure you want to <span class="text-success-500 font-semibold">unblock</span> <span class="text-tertiary-500 font-medium">${safeSelectedRows.length} tokens</span>? This will allow them to be used again.`;
-					}
+					return `Are you sure you want to <span class="text-success-500 font-semibold">unblock</span> <span class="text-tertiary-500 font-medium">${safeSelectedRows.length} users</span>? This will allow them to access the system again.`;
 				}
+				// Token unblocking with enhanced styling
+				if (safeSelectedRows.length === 1) {
+					const token = safeSelectedRows[0];
+					if (isToken(token)) {
+						return `Are you sure you want to <span class="text-success-500 font-semibold">unblock</span> token for <span class="text-tertiary-500 font-medium">${token.email}</span>? This will allow the token to be used again.`;
+					}
+					return '';
+				}
+				return `Are you sure you want to <span class="text-success-500 font-semibold">unblock</span> <span class="text-tertiary-500 font-medium">${safeSelectedRows.length} tokens</span>? This will allow them to be used again.`;
 			},
 			endpoint: () => (type === 'user' ? '/api/user/batch' : '/api/token/batch'),
 			method: () => 'POST',
@@ -341,13 +327,13 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 			if (type === 'user') {
 				body = JSON.stringify({
 					userIds: safeSelectedRows.filter(isUser).map((row: User) => row._id),
-					action: action
+					action
 				});
 			} else {
 				// Token batch operations
 				body = JSON.stringify({
 					tokenIds: safeSelectedRows.filter(isToken).map((row: Token) => row.token),
-					action: action
+					action
 				});
 			}
 
@@ -387,7 +373,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 
 				onUpdate({
 					ids,
-					action: action,
+					action,
 					type
 				});
 			}
@@ -395,7 +381,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 			await invalidateAll();
 		} catch (error) {
 			logger.error(`Error during action '${action}' for type '${type}':`, error);
-			const errorMessage = error instanceof Error ? error.message : `An unknown error occurred.`;
+			const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
 			toaster.error({ description: errorMessage });
 		}
 	}
@@ -423,7 +409,8 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 			if (currentBlockState() === 'all-blocked' && action === 'block') {
 				toaster.warning({ description: 'All selected items are already blocked' });
 				return;
-			} else if (currentBlockState() === 'all-unblocked' && action === 'unblock') {
+			}
+			if (currentBlockState() === 'all-unblocked' && action === 'unblock') {
 				toaster.warning({ description: 'All selected items are already unblocked' });
 				return;
 			}
@@ -570,7 +557,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 			onclick={toggleDropdown}
 			disabled={isDisabled}
 			class="h-[40px] w-[40px] transition-all duration-200 text-white flex items-center justify-center shadow-inner rounded-r-md
-				{!isDisabled ? 'bg-surface-800 hover:bg-surface-700 active:scale-95 cursor-pointer' : 'bg-surface-800 opacity-50 pointer-events-none'}"
+				{!isDisabled ? 'bg-surface-800 hover:bg-surface-700 active:scale-95 cursor-pointer' : 'opacity-50 pointer-events-none'}"
 			aria-haspopup="menu"
 			aria-expanded={isDropdownOpen}
 			aria-label="Toggle actions menu"

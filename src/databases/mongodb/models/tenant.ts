@@ -10,33 +10,33 @@
  * - Status (active, suspended)
  */
 
-import mongoose, { Schema } from 'mongoose';
 import type { BaseEntity, DatabaseId } from '@src/databases/dbInterface';
+import mongoose, { Schema } from 'mongoose';
 
 export interface TenantQuota {
-	maxUsers: number;
-	maxStorageBytes: number;
-	maxCollections: number;
 	maxApiRequestsPerMonth: number;
+	maxCollections: number;
+	maxStorageBytes: number;
+	maxUsers: number;
 }
 
 export interface TenantUsage {
-	usersCount: number;
-	storageBytes: number;
-	collectionsCount: number;
 	apiRequestsMonth: number;
+	collectionsCount: number;
 	lastUpdated: Date;
+	storageBytes: number;
+	usersCount: number;
 }
 
 export interface Tenant extends BaseEntity {
 	_id: DatabaseId;
 	name: string;
 	ownerId: DatabaseId; // The user ID of the tenant owner
-	status: 'active' | 'suspended' | 'archived';
 	plan: 'free' | 'pro' | 'enterprise';
 	quota: TenantQuota;
-	usage: TenantUsage;
 	settings?: Record<string, unknown>;
+	status: 'active' | 'suspended' | 'archived';
+	usage: TenantUsage;
 }
 
 const TenantSchema = new Schema<Tenant>(
@@ -59,7 +59,7 @@ const TenantSchema = new Schema<Tenant>(
 			maxUsers: { type: Number, default: 5 }, // Default to 5 users
 			maxStorageBytes: { type: Number, default: 1024 * 1024 * 100 }, // Default 100MB
 			maxCollections: { type: Number, default: 10 }, // Default 10 collections
-			maxApiRequestsPerMonth: { type: Number, default: 10000 }
+			maxApiRequestsPerMonth: { type: Number, default: 10_000 }
 		},
 		usage: {
 			usersCount: { type: Number, default: 1 }, // Starts with 1 (owner)

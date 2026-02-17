@@ -10,15 +10,15 @@
  */
 
 import type { Tenant, TenantQuota } from '@src/databases/dbInterface';
-import { logger } from '@utils/logger';
 import { AppError } from '@utils/errorHandling';
+import { logger } from '@utils/logger';
 
 // Default quotas for new tenants
 const DEFAULT_QUOTAS: TenantQuota = {
 	maxUsers: 5,
 	maxStorageBytes: 100 * 1024 * 1024, // 100MB
 	maxCollections: 10,
-	maxApiRequestsPerMonth: 10000
+	maxApiRequestsPerMonth: 10_000
 };
 
 export class TenantService {
@@ -85,7 +85,9 @@ export class TenantService {
 
 			// Fix: Access tenants directly on dbAdapter
 			const dbAdapter = await this.getDbAdapter();
-			if (!dbAdapter) throw new Error('Database adapter not initialized');
+			if (!dbAdapter) {
+				throw new Error('Database adapter not initialized');
+			}
 			const result = await dbAdapter.tenants.create(dataToSave as any);
 
 			if (!result.success) {
@@ -107,11 +109,17 @@ export class TenantService {
 	 * Get a tenant by its ID.
 	 */
 	public async getTenant(tenantId: string): Promise<Tenant | null> {
-		if (!tenantId) return null;
+		if (!tenantId) {
+			return null;
+		}
 		const dbAdapter = await this.getDbAdapter();
-		if (!dbAdapter) return null;
+		if (!dbAdapter) {
+			return null;
+		}
 		const result = await dbAdapter.tenants.getById(tenantId as any);
-		if (!result.success) return null;
+		if (!result.success) {
+			return null;
+		}
 		return result.data;
 	}
 
@@ -121,12 +129,18 @@ export class TenantService {
 	 */
 	public async checkQuota(tenantId: string, resource: keyof TenantQuota, currentIncrement = 1): Promise<void> {
 		const dbAdapter = await this.getDbAdapter();
-		if (!dbAdapter) return; // Added null check for dbAdapter
+		if (!dbAdapter) {
+			return; // Added null check for dbAdapter
+		}
 		const tenant = await this.getTenant(tenantId);
-		if (!tenant) return;
+		if (!tenant) {
+			return;
+		}
 
 		// Skip checks for Enterprise plans
-		if (tenant.plan === 'enterprise') return;
+		if (tenant.plan === 'enterprise') {
+			return;
+		}
 
 		let usageVal = 0;
 		let limitVal = 0;
@@ -160,7 +174,9 @@ export class TenantService {
 	 * Increment usage stats for a tenant.
 	 */
 	public async incrementUsage(tenantId: string, resource: keyof TenantQuota, amount = 1): Promise<void> {
-		if (!tenantId) return;
+		if (!tenantId) {
+			return;
+		}
 
 		const fieldMap: Record<keyof TenantQuota, string> = {
 			maxUsers: 'usage.usersCount',
@@ -170,7 +186,9 @@ export class TenantService {
 		};
 
 		const updateField = fieldMap[resource];
-		if (!updateField) return;
+		if (!updateField) {
+			return;
+		}
 
 		// We need a way to atomicaly increment.
 		// The generic update interface usually takes a partial object to set.
@@ -184,7 +202,9 @@ export class TenantService {
 
 		try {
 			const tenant = await this.getTenant(tenantId);
-			if (!tenant) return;
+			if (!tenant) {
+				return;
+			}
 
 			// Logic to update the specific nested field
 			// Since our update method takes Partial<Tenant>, we need to reconstruct the nested usage object?
@@ -196,14 +216,24 @@ export class TenantService {
 			// const k = resource as keyof TenantQuota; // Unused but kept for reference if needed logic expanded
 
 			// Mapping resource to usage key
-			if (resource === 'maxUsers') newUsage.usersCount += amount;
-			if (resource === 'maxStorageBytes') newUsage.storageBytes += amount;
-			if (resource === 'maxCollections') newUsage.collectionsCount += amount;
-			if (resource === 'maxApiRequestsPerMonth') newUsage.apiRequestsMonth += amount;
+			if (resource === 'maxUsers') {
+				newUsage.usersCount += amount;
+			}
+			if (resource === 'maxStorageBytes') {
+				newUsage.storageBytes += amount;
+			}
+			if (resource === 'maxCollections') {
+				newUsage.collectionsCount += amount;
+			}
+			if (resource === 'maxApiRequestsPerMonth') {
+				newUsage.apiRequestsMonth += amount;
+			}
 			newUsage.lastUpdated = new Date();
 
 			const dbAdapter = await this.getDbAdapter();
-			if (!dbAdapter) return;
+			if (!dbAdapter) {
+				return;
+			}
 			await dbAdapter.tenants.update(tenantId as any, { usage: newUsage });
 		} catch (err) {
 			logger.error(`Failed to update usage for tenant ${tenantId}`, err);

@@ -1,11 +1,10 @@
-import { json } from '@sveltejs/kit';
+import crypto from 'node:crypto';
 import { dbAdapter } from '@src/databases/db';
-import { logger } from '@utils/logger.server';
-import crypto from 'crypto';
-
+import { json } from '@sveltejs/kit';
 // Unified Error Handling
 import { apiHandler } from '@utils/apiHandler';
 import { AppError } from '@utils/errorHandling';
+import { logger } from '@utils/logger.server';
 
 export const GET = apiHandler(async ({ locals, url }) => {
 	if (!locals.user) {

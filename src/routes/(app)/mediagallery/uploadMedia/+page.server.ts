@@ -3,12 +3,12 @@
  * @description Server actions for media upload.
  */
 
-import { error, redirect } from '@sveltejs/kit';
-import type { Actions } from './$types';
+import type { MediaAccess } from '@root/src/utils/media/mediaModels';
 import { dbAdapter } from '@src/databases/db';
 import { MediaService } from '@src/utils/media/mediaService.server';
+import { error, redirect } from '@sveltejs/kit';
 import { logger } from '@utils/logger.server';
-import type { MediaAccess } from '@root/src/utils/media/mediaModels';
+import type { Actions } from './$types';
 
 export const actions: Actions = {
 	upload: async ({ request, locals }) => {
@@ -73,7 +73,7 @@ export const actions: Actions = {
 			const formData = await request.formData();
 			const remoteUrls = JSON.parse(formData.get('remoteUrls') as string) as string[];
 
-			if (!remoteUrls || !Array.isArray(remoteUrls) || remoteUrls.length === 0) {
+			if (!(remoteUrls && Array.isArray(remoteUrls)) || remoteUrls.length === 0) {
 				throw new Error('No URLs provided');
 			}
 
@@ -103,7 +103,6 @@ export const actions: Actions = {
 					} else {
 						logger.error(`Failed to upload file from ${url}: ${errorMessage}`);
 					}
-					continue;
 				}
 			}
 

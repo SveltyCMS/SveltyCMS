@@ -33,21 +33,18 @@
 -->
 
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
-	import type { FieldType } from '.';
+	import { tokenTarget } from '@src/services/token/tokenTarget';
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
-
 	// Stores
 	import { app, validationStore } from '@stores/store.svelte.ts';
-
 	import { getFieldName } from '@utils/utils';
-	import { tokenTarget } from '@src/services/token/tokenTarget';
-
-	// Valibot validation
-	import { string, regex, pipe, parse, minLength, optional } from 'valibot';
-
 	// Unified error handling
 	import { handleWidgetValidation } from '@widgets/widgetErrorHandler';
+	import { onDestroy, onMount } from 'svelte';
+
+	// Valibot validation
+	import { minLength, optional, parse, pipe, regex, string } from 'valibot';
+	import type { FieldType } from '.';
 
 	interface Props {
 		field: FieldType;
@@ -198,7 +195,7 @@
 					aria-describedby={validationError ? `${fieldName}-error` : undefined}
 					aria-required={field?.required}
 					data-testid="phone-input"
-				/>
+				>
 			</div>
 
 			{#if field?.suffix}

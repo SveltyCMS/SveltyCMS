@@ -9,10 +9,8 @@
  * - Public and static routes skip database access entirely
  */
 
-import { error, redirect, type Handle } from '@sveltejs/kit';
 import { hasPermissionByAction } from '@src/databases/auth/permissions';
 import type { Role } from '@src/databases/auth/types';
-import { auth } from '@src/databases/db';
 import {
 	cacheService,
 	USER_COUNT_CACHE_TTL_MS,
@@ -20,8 +18,10 @@ import {
 	USER_PERM_CACHE_TTL_MS,
 	USER_PERM_CACHE_TTL_S
 } from '@src/databases/CacheService';
-import { logger } from '@utils/logger.server';
+import { auth } from '@src/databases/db';
+import { error, type Handle, redirect } from '@sveltejs/kit';
 import { AppError, handleApiError } from '@utils/errorHandling';
+import { logger } from '@utils/logger.server';
 
 // --- SIMPLE IN-MEMORY CACHE ---
 
@@ -79,7 +79,9 @@ async function getCachedUserCount(tenantId?: string, multiTenant?: boolean): Pro
 	}
 
 	try {
-		if (!auth) return -1;
+		if (!auth) {
+			return -1;
+		}
 		const filter = multiTenant && tenantId ? { tenantId } : {};
 		const count = await auth.getUserCount(filter);
 		const cacheData = { count, timestamp: now };
@@ -216,8 +218,10 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
 			locals.hasManageUsersPermission = false;
 
 			// Block access to protected pages
-			if (!isPublic && !locals.isFirstUser) {
-				if (isApi) throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
+			if (!(isPublic || locals.isFirstUser)) {
+				if (isApi) {
+					throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
+				}
 				throw redirect(302, '/login');
 			}
 		}

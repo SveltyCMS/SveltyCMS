@@ -15,38 +15,37 @@
 	import Input from '@components/system/inputs/Input.svelte';
 	import Toggles from '@components/system/inputs/Toggles.svelte';
 	import ProgressBar from '@components/system/ProgressBar.svelte';
-	// Skeleton components
-	import { showToast } from '@utils/toast';
+	// Types
+	import type { Schema } from '@src/content/types';
 
 	// Utils
 	import { getCollections } from '@utils/apiClient';
 	import { logger } from '@utils/logger';
-
-	// Types
-	import type { Schema } from '@src/content/types';
+	// Skeleton components
+	import { showToast } from '@utils/toast';
 
 	interface ExportOptions {
-		format: 'json' | 'csv';
 		collections: string[];
+		format: 'json' | 'csv';
 		includeMetadata: boolean;
 		limit?: number;
 	}
 
 	interface ImportOptions {
+		batchSize: number;
 		format: 'json' | 'csv';
 		overwrite: boolean;
-		validate: boolean;
 		skipInvalid: boolean;
-		batchSize: number;
+		validate: boolean;
 	}
 
 	interface ImportResult {
-		success: boolean;
 		message: string;
+		results: Array<any>;
+		success: boolean;
+		totalErrors: number;
 		totalImported: number;
 		totalSkipped: number;
-		totalErrors: number;
-		results: Array<any>;
 	}
 
 	// --- State using Svelte 5 Runes ---
@@ -82,12 +81,12 @@
 
 	// Sync string and number values
 	$effect(() => {
-		const limitNum = parseInt(exportLimitString, 10);
+		const limitNum = Number.parseInt(exportLimitString, 10);
 		exportOptions.limit = isNaN(limitNum) ? undefined : limitNum;
 	});
 
 	$effect(() => {
-		const batchSizeNum = parseInt(importBatchSizeString, 10);
+		const batchSizeNum = Number.parseInt(importBatchSizeString, 10);
 		importOptions.batchSize = isNaN(batchSizeNum) ? 100 : batchSizeNum;
 	});
 
@@ -338,7 +337,6 @@
 
 			<button onclick={() => (showImportModal = true)} class="preset-outlined-primary-500 btn" disabled={loading}>
 				<iconify-icon icon="mdi:import" width={24}></iconify-icon>
-
 				Import Data
 			</button>
 		</div>
@@ -347,9 +345,7 @@
 	<div class="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2">
 		<div class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
 			<div class="mb-4 flex items-center">
-				<div class="preset-filled-tertiary-500 btn-icon mr-3">
-					<iconify-icon icon="mdi:database-export" width={24}></iconify-icon>
-				</div>
+				<div class="preset-filled-tertiary-500 btn-icon mr-3"><iconify-icon icon="mdi:database-export" width={24}></iconify-icon></div>
 				<div>
 					<h3 class="font-semibold text-gray-900 dark:text-white">Export All Data</h3>
 					<p class="text-sm text-gray-600 dark:text-gray-400">Export all collections to file</p>
@@ -361,13 +357,12 @@
 
 		<div class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
 			<div class="mb-4 flex items-center">
-				<div class="preset-filled-primary-500 btn-icon mr-3">
-					<iconify-icon icon="mdi:folder-multiple" width={24}></iconify-icon>
-				</div>
+				<div class="preset-filled-primary-500 btn-icon mr-3"><iconify-icon icon="mdi:folder-multiple" width={24}></iconify-icon></div>
 				<div>
 					<h3 class="font-semibold text-gray-900 dark:text-white">Collections</h3>
 					<p class="text-sm text-gray-600 dark:text-gray-400">
-						<span class="font-semibold text-tertiary-500 dark:text-primary-500">{collections.length}</span> collections available
+						<span class="font-semibold text-tertiary-500 dark:text-primary-500">{collections.length}</span>
+						collections available
 					</p>
 				</div>
 			</div>
@@ -387,9 +382,7 @@
 	</div>
 
 	{#if loading && (exportProgress > 0 || importProgress > 0)}
-		<div class="mb-6">
-			<ProgressBar value={exportProgress || importProgress} label={exportProgress > 0 ? 'Exporting...' : 'Importing...'} />
-		</div>
+		<div class="mb-6"><ProgressBar value={exportProgress || importProgress} label={exportProgress > 0 ? 'Exporting...' : 'Importing...'} /></div>
 	{/if}
 
 	{#if exportUrl}
@@ -449,7 +442,7 @@
 									checked={exportOptions.collections.includes(String(collection.id))}
 									onchange={() => toggleCollectionSelection(String(collection.id))}
 									class="rounded"
-								/>
+								>
 
 								<div class="font-medium">
 									{collection.label}
@@ -509,7 +502,7 @@
 						bind:files={importFiles}
 						accept=".json,.csv"
 						class="block w-full text-sm text-gray-500 file:mr-4 file:rounded-md file:border-0 file:bg-blue-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-blue-700 hover:file:bg-blue-100"
-					/>
+					>
 					<p class="mt-1 text-xs text-gray-500">Supported formats: JSON, CSV</p>
 				</div>
 
@@ -593,9 +586,7 @@
 														<div class="text-xs text-gray-600">Line {error.index + 1}: {error.error}</div>
 													{/each}
 													{#if result.errors.length > 5}
-														<div class="text-xs text-gray-500">
-															...and {result.errors.length - 5} more errors
-														</div>
+														<div class="text-xs text-gray-500">...and {result.errors.length - 5} more errors</div>
 													{/if}
 												</div>
 											</details>
@@ -618,7 +609,7 @@
 <style>
 	.import-export-manager {
 		max-width: 72rem;
-		margin: 0 auto;
 		padding: 1.5rem;
+		margin: 0 auto;
 	}
 </style>

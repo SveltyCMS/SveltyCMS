@@ -13,38 +13,29 @@
 -->
 
 <script lang="ts">
-	import { SvelteSet, SvelteMap } from 'svelte/reactivity';
+	import TreeView from '@components/system/TreeView.svelte';
+	import type { ContentNode, Schema } from '@src/content/types';
+	import { type StatusType, StatusTypes } from '@src/content/types';
+	import { sortContentNodes } from '@src/content/utils';
+	import * as m from '@src/paraglide/messages';
+	import { collection, contentStructure, setMode } from '@stores/collectionStore.svelte.ts';
+	import { app } from '@stores/store.svelte';
+	import { ui } from '@stores/UIStore.svelte.ts';
+	import { widgets } from '@stores/widgetStore.svelte.ts';
+	import { debounce } from '@utils/utils';
+
+	import { validateSchemaWidgets } from '@widgets/widgetValidation';
+	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
 
-	import type { ContentNode, Schema } from '@src/content/types';
-	import { StatusTypes, type StatusType } from '@src/content/types';
-	import { sortContentNodes } from '@src/content/utils';
-
-	import { collection, contentStructure, setMode } from '@stores/collectionStore.svelte.ts';
-	import { ui } from '@stores/UIStore.svelte.ts';
-	import { app } from '@stores/store.svelte';
-	import { widgets } from '@stores/widgetStore.svelte.ts';
-
-	import { validateSchemaWidgets } from '@widgets/widgetValidation';
-	import { debounce } from '@utils/utils';
-
-	import TreeView from '@components/system/TreeView.svelte';
-	import * as m from '@src/paraglide/messages';
-
 	interface ExtendedContentNode extends ContentNode {
 		children?: ExtendedContentNode[];
-		lastModified?: Date;
 		fileCount?: number;
+		lastModified?: Date;
 	}
 
 	interface CollectionTreeNode {
-		id: string;
-		name: string;
-		isExpanded: boolean;
-		onClick: () => void;
-		children?: CollectionTreeNode[];
-		icon?: string;
 		badge?: {
 			count?: number;
 			status?: 'archive' | 'draft' | 'publish' | 'schedule' | 'clone' | 'test' | 'delete';
@@ -53,9 +44,15 @@
 			icon?: string;
 			title?: string;
 		};
-		path?: string;
+		children?: CollectionTreeNode[];
 		depth: number;
+		icon?: string;
+		id: string;
+		isExpanded: boolean;
+		name: string;
+		onClick: () => void;
 		order: number;
+		path?: string;
 	}
 
 	// Mutable state
@@ -160,7 +157,7 @@
 				children,
 				icon: node.icon || (isCategory ? 'bi:folder' : 'bi:collection'),
 				badge,
-				path: !isCategory ? `/${currentLanguage}${node.path || '/' + node._id}` : undefined,
+				path: isCategory ? undefined : `/${currentLanguage}${node.path || '/' + node._id}`,
 				depth,
 				order: node.order ?? 0
 			};
@@ -279,7 +276,7 @@
 				? 'h-12 py-3'
 				: 'h-10 py-2'}"
 			aria-label="Search collections"
-		/>
+		>
 
 		<div class="absolute right-0 top-0 flex h-full items-center">
 			{#if isSearching}
@@ -323,8 +320,8 @@
 
 <style>
 	.collections-list {
-		scrollbar-width: thin;
 		scrollbar-color: rgb(var(--color-primary-500) / 0.3) transparent;
+		scrollbar-width: thin;
 	}
 	.collections-list::-webkit-scrollbar {
 		width: 4px;

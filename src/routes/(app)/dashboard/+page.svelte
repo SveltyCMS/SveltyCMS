@@ -19,22 +19,21 @@
 - Lazy loading with Intersection Observer for optimal performance
 -->
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { flip } from 'svelte/animate';
-	import { SvelteMap } from 'svelte/reactivity';
-
-	// Types
-	import type { PageData } from './$types';
-	import type { DashboardWidgetConfig, DropIndicator, WidgetComponent, WidgetMeta, WidgetSize } from '@src/content/types';
-
 	// Components
 	import ImportExportManager from '@components/admin/ImportExportManager.svelte';
 	import PageTitle from '@components/PageTitle.svelte';
+	import type { DashboardWidgetConfig, DropIndicator, WidgetComponent, WidgetMeta, WidgetSize } from '@src/content/types';
+	import { onMount } from 'svelte';
+	import { flip } from 'svelte/animate';
+	import { SvelteMap } from 'svelte/reactivity';
+	// Types
+	import type { PageData } from './$types';
+
 	// Using iconify-icon web component
 
+	import { systemPreferences } from '@stores/systemPreferences.svelte.ts';
 	// Stores
 	import { themeStore } from '@stores/themeStore.svelte.ts';
-	import { systemPreferences } from '@stores/systemPreferences.svelte.ts';
 
 	// System logger
 	import { logger } from '@utils/logger';
@@ -49,9 +48,9 @@
 	// Define the types for the widget registry
 	interface WidgetRegistryEntry {
 		component: any;
-		name: string;
 		description: string;
 		icon: string;
+		name: string;
 		widgetMeta: WidgetMeta;
 	}
 	type WidgetRegistry = Record<string, WidgetRegistryEntry>;
@@ -179,7 +178,7 @@
 
 		// Find the closest widget or insertion point
 		let insertIndex = 0;
-		let minDistance = Infinity;
+		let minDistance = Number.POSITIVE_INFINITY;
 
 		for (let i = 0; i <= widgetPositions.length; i++) {
 			let targetY, targetX;
@@ -201,7 +200,7 @@
 				targetX = (prevWidget.centerX + nextWidget.centerX) / 2;
 			}
 
-			const distance = Math.sqrt(Math.pow(relativeX - targetX, 2) + Math.pow(relativeY - targetY, 2));
+			const distance = Math.sqrt((relativeX - targetX) ** 2 + (relativeY - targetY) ** 2);
 
 			if (distance < minDistance) {
 				minDistance = distance;
@@ -343,7 +342,7 @@
 	}
 
 	function handleDragMove(event: PointerEvent) {
-		if (!dragState.isActive || !dragState.element) return;
+		if (!(dragState.isActive && dragState.element)) return;
 
 		const coords = event;
 		dragState.element.style.left = `${coords.clientX - dragState.offset.x}px`;
@@ -477,9 +476,7 @@
 						class="widget-dropdown absolute right-0 z-30 mt-2 w-72 rounded border bg-white shadow-2xl dark:border-gray-700 dark:bg-surface-900"
 						role="menu"
 					>
-						<div class="p-2">
-							<input type="text" class="input w-full" placeholder="Search widgets..." bind:value={searchQuery} />
-						</div>
+						<div class="p-2"><input type="text" class="input w-full" placeholder="Search widgets..." bind:value={searchQuery}></div>
 						<div class="max-h-64 overflow-y-auto py-1">
 							{#each filteredWidgets as widgetName (widgetName)}
 								{@const widgetInfo = widgetComponentRegistry[widgetName]}
@@ -494,9 +491,7 @@
 									{:else}
 										<iconify-icon icon="mdi:view-dashboard" width={20} class="text-primary-500"></iconify-icon>
 									{/if}
-									<div class="flex flex-col">
-										<span>{widgetInfo?.name || widgetName}</span>
-									</div>
+									<div class="flex flex-col"><span>{widgetInfo?.name || widgetName}</span></div>
 								</button>
 							{:else}
 								<div class="px-4 py-2 text-sm text-gray-500">No widgets found.</div>
@@ -559,7 +554,7 @@
 									<iconify-icon icon="mdi:alert-circle" width={48} class="mb-2 text-error-500"></iconify-icon>
 									<h3 class="h4 mb-2">Widget Load Error</h3>
 									<p class="text-sm">Failed to load: {item.component}</p>
-									<button class="preset-filled-error-500 btn-sm mt-4" onclick={() => removeWidget(item.id)}> Remove Widget </button>
+									<button class="preset-filled-error-500 btn-sm mt-4" onclick={() => removeWidget(item.id)}>Remove Widget</button>
 								</div>
 							{:else}
 								<!-- Render the actual widget - Svelte 5 dynamic components -->
@@ -600,9 +595,7 @@
 			{/if}
 
 			<!-- Dashboard Injection Zone -->
-			<section class="w-full px-4 mb-8">
-				<Slot name="dashboard" />
-			</section>
+			<section class="w-full px-4 mb-8"><Slot name="dashboard" /></section>
 		</section>
 	</div>
 </main>
@@ -618,18 +611,14 @@
 				</button>
 			</div>
 
-			<div class="max-h-[calc(90vh-140px)] overflow-y-auto p-6">
-				<ImportExportManager />
-			</div>
+			<div class="max-h-[calc(90vh-140px)] overflow-y-auto p-6"><ImportExportManager /></div>
 
 			<div class="flex items-center justify-between border-t bg-surface-100 p-6 dark:bg-surface-700">
 				<div class="text-sm text-gray-600 dark:text-gray-400">
 					<iconify-icon icon="mdi:shield-check" width={16} class="mr-1 inline"></iconify-icon>
 					Your data is securely managed and never leaves your server
 				</div>
-				<div class="flex space-x-2">
-					<button onclick={() => (showImportExport = false)} class="preset-filled-primary-500 btn"> Done </button>
-				</div>
+				<div class="flex space-x-2"><button onclick={() => (showImportExport = false)} class="preset-filled-primary-500 btn">Done</button></div>
 			</div>
 		</div>
 	</div>
@@ -637,11 +626,11 @@
 
 <style>
 	.responsive-dashboard-grid {
+		position: relative;
 		display: grid;
-		gap: 1rem;
 		grid-template-columns: repeat(4, 1fr);
 		grid-auto-rows: 180px;
 		grid-auto-flow: row dense;
-		position: relative;
+		gap: 1rem;
 	}
 </style>

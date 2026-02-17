@@ -31,7 +31,7 @@ export async function getPluginComponent(pluginId: string, componentName: string
 	}
 
 	const plugin = pluginUIComponents[pluginId];
-	if (!plugin || !plugin[componentName]) {
+	if (!plugin?.[componentName]) {
 		logger.warn(`Plugin component not found: ${pluginId}.${componentName}`);
 		return null;
 	}

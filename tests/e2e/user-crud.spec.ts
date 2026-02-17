@@ -6,11 +6,11 @@
  *   - Delete, block, and unblock users
  *   - Invite user via email and accept invitation
  */
-import { test, expect } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import { loginAsAdmin } from './helpers/auth';
 
 test.describe('User Management Flow', () => {
-	test.setTimeout(120000); // 2 min timeout
+	test.setTimeout(120_000); // 2 min timeout
 
 	test('Admin Login', async ({ page }) => {
 		await loginAsAdmin(page);
@@ -55,7 +55,7 @@ test.describe('User Management Flow', () => {
 			await page.getByRole('button', { name: /confirm/i }).click();
 
 			// Optional: Wait for confirmation toast or success message
-			await expect(page.locator('text=' + action)).toBeVisible({ timeout: 5000 });
+			await expect(page.locator(`text=${action}`)).toBeVisible({ timeout: 5000 });
 		}
 	});
 
@@ -90,6 +90,6 @@ test.describe('User Management Flow', () => {
 		await page.getByRole('button', { name: /accept invitation and create account/i }).click();
 
 		// Optional: Assert signup success
-		await expect(page.locator('text=Account created')).toBeVisible({ timeout: 10000 });
+		await expect(page.locator('text=Account created')).toBeVisible({ timeout: 10_000 });
 	});
 });

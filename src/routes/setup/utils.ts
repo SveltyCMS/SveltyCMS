@@ -7,8 +7,8 @@
  * such as building connection strings and initializing database adapters during the setup phase.
  */
 
-import type { DatabaseConfig } from '@src/databases/schemas';
 import type { IDBAdapter } from '@src/databases/dbInterface';
+import type { DatabaseConfig } from '@src/databases/schemas';
 import { logger } from '@utils/logger';
 import { createClient } from 'redis';
 
@@ -84,7 +84,8 @@ export async function getSetupDatabaseAdapter(config: DatabaseConfig): Promise<{
 	dbAdapter: IDBAdapter;
 	connectionString: string;
 }> {
-	const correlationId = typeof globalThis.crypto?.randomUUID === 'function' ? globalThis.crypto.randomUUID() : (await import('crypto')).randomUUID();
+	const correlationId =
+		typeof globalThis.crypto?.randomUUID === 'function' ? globalThis.crypto.randomUUID() : (await import('node:crypto')).randomUUID();
 	logger.info(`Creating setup database adapter for ${config.type}`, { correlationId });
 
 	const connectionString = buildDatabaseConnectionString(config);
@@ -123,8 +124,8 @@ export async function getSetupDatabaseAdapter(config: DatabaseConfig): Promise<{
 
 			// Prepare connection options for MongoDB
 			const connectionOptions = {
-				serverSelectionTimeoutMS: 15000,
-				socketTimeoutMS: 45000,
+				serverSelectionTimeoutMS: 15_000,
+				socketTimeoutMS: 45_000,
 				maxPoolSize: 50, // Increased to handle parallel seeding
 				retryWrites: true,
 				...(config.user &&
@@ -220,7 +221,7 @@ export async function getSetupDatabaseAdapter(config: DatabaseConfig): Promise<{
 			// For SQLite during setup, we'll try to import a minimal adapter if it exists
 			// or just return a dummy if we are just testing connection in Wizard
 			try {
-				const { existsSync } = await import('fs');
+				const { existsSync } = await import('node:fs');
 				if (!existsSync(connectionString) && process.env.TEST_MODE !== 'true') {
 					return {
 						dbAdapter: null as any,

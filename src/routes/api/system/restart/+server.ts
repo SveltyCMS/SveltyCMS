@@ -5,15 +5,14 @@
  * It works by creating a `restart.txt` file, which can be watched by a process manager like pm2.
  */
 
-import { json } from '@sveltejs/kit';
+import { promises as fs } from 'node:fs';
+import path from 'node:path';
 import { setRestartNeeded } from '@src/utils/server/restartRequired';
-import { promises as fs } from 'fs';
-import { logger } from '@utils/logger.server';
-import path from 'path';
-
+import { json } from '@sveltejs/kit';
 // Unified Error Handling
 import { apiHandler } from '@utils/apiHandler';
 import { AppError } from '@utils/errorHandling';
+import { logger } from '@utils/logger.server';
 
 export const POST = apiHandler(async ({ locals }) => {
 	if (!locals.user || locals.user.role !== 'admin') {

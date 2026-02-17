@@ -5,8 +5,8 @@
 
 import type { Locale } from '@src/paraglide/runtime';
 import { publicEnv } from '@src/stores/globalSettings.svelte';
-import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import type { Component } from 'svelte';
+import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 
 // --- TYPES & INTERFACES ---
 
@@ -33,25 +33,41 @@ export type TranslationProgress = {
  */
 export function normalizeAvatarUrl(url: string | null | undefined): string {
 	const DEFAULT_AVATAR = '/Default_User.svg';
-	if (!url) return DEFAULT_AVATAR;
+	if (!url) {
+		return DEFAULT_AVATAR;
+	}
 
-	if (url.startsWith('data:') || /^https?:\/\//i.test(url)) return url;
-	if (/^\/?Default_User\.svg$/i.test(url)) return DEFAULT_AVATAR;
+	if (url.startsWith('data:') || /^https?:\/\//i.test(url)) {
+		return url;
+	}
+	if (/^\/?Default_User\.svg$/i.test(url)) {
+		return DEFAULT_AVATAR;
+	}
 
 	const normalized = url.replace(/^https?:\/\/[^/]+/i, '').replace(/^\/+/, '/');
-	if (normalized === '/files' || normalized === '/files/') return DEFAULT_AVATAR;
-	if (normalized.startsWith('/files/')) return normalized;
+	if (normalized === '/files' || normalized === '/files/') {
+		return DEFAULT_AVATAR;
+	}
+	if (normalized.startsWith('/files/')) {
+		return normalized;
+	}
 
 	const trimmed = normalized.startsWith('/') ? normalized.slice(1) : normalized;
-	if (trimmed === 'files') return DEFAULT_AVATAR;
+	if (trimmed === 'files') {
+		return DEFAULT_AVATAR;
+	}
 
-	if (trimmed.startsWith('static/')) return `/${trimmed}`;
+	if (trimmed.startsWith('static/')) {
+		return `/${trimmed}`;
+	}
 
 	const MEDIA_FOLDER = publicEnv.MEDIA_FOLDER;
 	if (trimmed.startsWith(`${MEDIA_FOLDER}/`)) {
 		return `/files/${trimmed.slice(MEDIA_FOLDER.length + 1)}`;
 	}
-	if (trimmed.startsWith('avatars/')) return `/files/${trimmed}`;
+	if (trimmed.startsWith('avatars/')) {
+		return `/files/${trimmed}`;
+	}
 
 	return trimmed ? (trimmed.endsWith('.svg') ? `/${trimmed}` : `/files/${trimmed}`) : DEFAULT_AVATAR;
 }
@@ -60,15 +76,22 @@ export function normalizeAvatarUrl(url: string | null | undefined): string {
  * Cookie management helper
  */
 function getCookie(name: string): string | null {
-	if (typeof document === 'undefined') return null;
+	if (typeof document === 'undefined') {
+		return null;
+	}
 	const value = `; ${document.cookie}`;
 	const parts = value.split(`; ${name}=`);
-	if (parts.length === 2) return parts.pop()?.split(';').shift() || null;
+	if (parts.length === 2) {
+		return parts.pop()?.split(';').shift() || null;
+	}
 	return null;
 }
 
 function setCookie(name: string, value: string) {
-	if (typeof document === 'undefined' || !value) return;
+	if (typeof document === 'undefined' || !value) {
+		return;
+	}
+	// biome-ignore lint/suspicious/noDocumentCookie: intentional cookie write
 	document.cookie = `${name}=${value}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`;
 }
 
@@ -175,7 +198,9 @@ export const validationStore = {
 	},
 	get isValid() {
 		for (const error of app.validationErrorsMap.values()) {
-			if (error) return false;
+			if (error) {
+				return false;
+			}
 		}
 		return true;
 	},
@@ -210,10 +235,14 @@ class DataChangeStore {
 	}
 
 	compareWithCurrent(currentData: Record<string, unknown>): boolean {
-		if (!this.initialDataSnapshot) return false;
+		if (!this.initialDataSnapshot) {
+			return false;
+		}
 		const currentSnapshot = JSON.stringify(currentData);
 		const changed = currentSnapshot !== this.initialDataSnapshot;
-		if (this.hasChanges !== changed) this.hasChanges = changed;
+		if (this.hasChanges !== changed) {
+			this.hasChanges = changed;
+		}
 		return changed;
 	}
 

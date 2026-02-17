@@ -12,11 +12,11 @@
  * - Returns the updated theme in the response.
  */
 
-import { ThemeManager } from '@src/databases/themeManager';
 import { dbAdapter } from '@src/databases/db';
 import type { DatabaseId } from '@src/databases/dbInterface';
-import { json } from '@sveltejs/kit';
+import { ThemeManager } from '@src/databases/themeManager';
 import { getPrivateSettingSync } from '@src/services/settingsService';
+import { json } from '@sveltejs/kit';
 
 // Permission checking
 
@@ -59,7 +59,7 @@ export const POST = apiHandler(async ({ request, locals }) => {
 		// Fetch the theme from the database to ensure it exists for the current tenant
 		const themeResult = await dbAdapter.themes.update(themeId as unknown as DatabaseId, { customCss });
 
-		if (!themeResult.success || !themeResult.data) {
+		if (!(themeResult.success && themeResult.data)) {
 			logger.warn(`Theme '${themeId}' does not exist or update failed for this tenant.`, { tenantId });
 			throw new AppError(`Theme '${themeId}' does not exist or update failed.`, 404, 'THEME_NOT_FOUND');
 		}
@@ -73,7 +73,9 @@ export const POST = apiHandler(async ({ request, locals }) => {
 
 		return json({ success: true, theme: updatedTheme });
 	} catch (err) {
-		if (err instanceof AppError) throw err;
+		if (err instanceof AppError) {
+			throw err;
+		}
 		const errorMessage = err instanceof Error ? err.message : String(err);
 		logger.error('Error updating theme custom CSS:', { error: errorMessage, tenantId });
 		throw new AppError(`Error updating theme custom CSS: ${errorMessage}`, 500, 'THEME_UPDATE_FAILED');

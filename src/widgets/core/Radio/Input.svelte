@@ -27,15 +27,15 @@ Renders radio group with options from field.options array
 -->
 
 <script lang="ts">
-	import { app } from '@src/stores/store.svelte';
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
+	import { app } from '@src/stores/store.svelte';
 
 	import type { FieldType } from './';
 
 	interface RadioProps {
-		options: Array<{ label: string; value: string | number }>;
 		color?: string;
 		legend?: string;
+		options: Array<{ label: string; value: string | number }>;
 	}
 
 	let {
@@ -108,7 +108,7 @@ Renders radio group with options from field.options array
 						aria-label={option.label}
 						class={field.color ? `accent-${field.color}` : ''}
 						style={field.color ? `accent-color: ${field.color}` : ''}
-					/>
+					>
 					<span>{option.label}</span>
 				</label>
 			{/each}
@@ -116,8 +116,6 @@ Renders radio group with options from field.options array
 	</fieldset>
 	<!-- Error message -->
 	{#if error}
-		<p id={`${fieldId}-error`} class="mt-2 text-center text-xs text-error-500" role="alert">
-			{error}
-		</p>
+		<p id={`${fieldId}-error`} class="mt-2 text-center text-xs text-error-500" role="alert">{error}</p>
 	{/if}
 </div>

@@ -3,12 +3,12 @@
  * @description Handles system settings export requests.
  */
 
-import { json } from '@sveltejs/kit';
+import type { CollectionExport, ExportData, ExportMetadata, ExportOptions } from '@content/types';
 import { getAllSettings } from '@src/services/settingsService';
-import { logger } from '@utils/logger.server';
+import { json } from '@sveltejs/kit';
 import { encryptData } from '@utils/crypto';
+import { logger } from '@utils/logger.server';
 import { nanoid } from 'nanoid';
-import type { ExportOptions, ExportData, ExportMetadata, CollectionExport } from '@content/types';
 
 const SENSITIVE_PATTERNS: string[] = [
 	'PASSWORD',
@@ -129,9 +129,13 @@ export const POST = apiHandler(async ({ locals, request }) => {
 			}
 		});
 	} catch (error) {
-		if (error instanceof AppError) throw error;
+		if (error instanceof AppError) {
+			throw error;
+		}
 		logger.error(`Export error: ${error instanceof Error ? error.message : String(error)}`);
-		if (error instanceof Error) logger.error(error.stack || 'No stack trace');
+		if (error instanceof Error) {
+			logger.error(error.stack || 'No stack trace');
+		}
 		throw new AppError(error instanceof Error ? error.message : 'Unknown error', 500, 'EXPORT_FAILED');
 	}
 });

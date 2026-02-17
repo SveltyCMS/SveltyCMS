@@ -7,8 +7,8 @@
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
 	import DropDown from '@components/system/dropDown/DropDown.svelte';
-	import { widgets } from '@stores/widgetStore.svelte';
 	import type { WidgetFactory } from '@src/widgets/types';
+	import { widgets } from '@stores/widgetStore.svelte';
 	import InputSwitch from './InputSwitch.svelte';
 
 	import type { AddWidgetProps } from './types';
@@ -69,18 +69,14 @@
 		</div>
 	{:else}
 		<div class="flex-col items-center justify-center overflow-auto">
-			<p class="text-wxl mb-3 text-center">
-				Define your <span class="text-tertiary-500 dark:text-primary-500">{selected_widget}</span>
-			</p>
+			<p class="text-wxl mb-3 text-center">Define your <span class="text-tertiary-500 dark:text-primary-500">{selected_widget}</span></p>
 			<div class="w-100 mx-2 mb-2 flex justify-between gap-2">
-				<button class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500" onclick={handleSave}>
-					Save {selected_widget} Widget
-				</button>
+				<button class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500" onclick={handleSave}>Save {selected_widget} Widget</button>
 				<button class="variant-filled-secondary btn dark:preset-outlined-secondary-500" onclick={handleWidgetCancel}>Cancel</button>
 			</div>
 
 			{#if guiSchema}
-				{#each Object.entries(guiSchema) as [property, value] (property)}
+				{#each Object.entries(guiSchema) as [ property, value ] (property)}
 					<InputSwitch
 						value={field.widget.GuiFields[property]}
 						widget={(value as any).widget}

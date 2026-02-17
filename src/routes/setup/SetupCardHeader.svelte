@@ -8,6 +8,7 @@ Displays the current step title and icon, and a reset button.
 	const { currentStep, steps, onreset = () => {} } = $props();
 
 	const icons = $derived(['mdi:database', 'mdi:account', 'mdi:cog', 'mdi:email', 'mdi:check-circle']);
+
 	import SystemTooltip from '@components/system/SystemTooltip.svelte';
 </script>
 

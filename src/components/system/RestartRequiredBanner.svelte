@@ -21,7 +21,7 @@ Displays a prominent banner when server restart is required with countdown and s
 
 <script lang="ts">
 	import { showToast } from '@utils/toast';
-	import { onMount, onDestroy } from 'svelte';
+	import { onDestroy, onMount } from 'svelte';
 	import { fade, slide } from 'svelte/transition';
 
 	// State
@@ -165,7 +165,7 @@ Displays a prominent banner when server restart is required with countdown and s
 			<div class="flex flex-wrap items-center gap-2">
 				{#if countdown !== null}
 					<!-- Cancel countdown -->
-					<button onclick={stopCountdown} class="preset-outlined-surface-500btn btn-sm" disabled={isRestarting}> Cancel Auto-Restart </button>
+					<button onclick={stopCountdown} class="preset-outlined-surface-500btn btn-sm" disabled={isRestarting}>Cancel Auto-Restart</button>
 				{:else}
 					<!-- Start countdown -->
 					<button onclick={startCountdown} class="preset-outlined-surface-500btn btn-sm" disabled={isRestarting}>

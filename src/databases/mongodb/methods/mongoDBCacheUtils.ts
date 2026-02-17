@@ -4,10 +4,10 @@
  * Separated from mongoDBUtils.ts to avoid circular dependencies with CacheService.
  */
 
-import { logger } from '@src/utils/logger.server';
-import { cacheService } from '@src/databases/CacheService';
 import { CacheCategory } from '@src/databases/CacheCategory';
 import { cacheMetrics } from '@src/databases/CacheMetrics';
+import { cacheService } from '@src/databases/CacheService';
+import { logger } from '@src/utils/logger.server';
 
 // Re-export for convenience
 export { CacheCategory };
@@ -15,9 +15,9 @@ export { CacheCategory };
 //Options for cache operations
 export interface CacheWrapperOptions {
 	category: CacheCategory;
+	forceRefresh?: boolean; // Bypass cache and force DB query
 	tenantId?: string;
 	ttl?: number; // Override default TTL (uses category-based TTL from settings if not provided)
-	forceRefresh?: boolean; // Bypass cache and force DB query
 }
 
 /**
@@ -155,7 +155,9 @@ function hashString(str: string): string {
  * Invalidates cache for a specific collection
  */
 export async function invalidateCollectionCache(collection: string, tenantId?: string): Promise<void> {
-	if (cacheService.isBootstrapping()) return;
+	if (cacheService.isBootstrapping()) {
+		return;
+	}
 
 	try {
 		const pattern = `collection:${collection}:*`;
@@ -171,7 +173,9 @@ export async function invalidateCollectionCache(collection: string, tenantId?: s
  * Invalidates cache by category
  */
 export async function invalidateCategoryCache(category: CacheCategory, tenantId?: string): Promise<void> {
-	if (cacheService.isBootstrapping()) return;
+	if (cacheService.isBootstrapping()) {
+		return;
+	}
 
 	try {
 		const tenantScope = tenantId ?? '*';

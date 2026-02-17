@@ -12,7 +12,7 @@
  * - Bulk operation abuse
  */
 
-import { describe, expect, test, beforeEach, mock, it } from 'bun:test';
+import { beforeEach, describe, expect, it, mock, test } from 'bun:test';
 import type { RequestEvent } from '@sveltejs/kit';
 
 // Mock dependencies

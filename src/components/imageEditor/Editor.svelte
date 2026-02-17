@@ -7,17 +7,17 @@ Comprehensive image editing interface with svelte-canvas integration.
 -->
 
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
-	import { logger } from '@utils/logger';
 	import { imageEditorStore } from '@stores/imageEditorStore.svelte';
+	import { logger } from '@utils/logger';
+	import { onDestroy, onMount } from 'svelte';
 	import EditorCanvas from './EditorCanvas.svelte';
 	import { editorWidgets } from './widgets/registry';
 
 	interface Props {
+		focalPoint?: { x: number; y: number };
 		imageFile?: File | null;
 		initialImageSrc?: string;
 		mediaId?: string;
-		focalPoint?: { x: number; y: number };
 		onsave?: (detail: { dataURL?: string; file?: File; focalPoint?: any; mediaId?: string; manipulations?: any }) => void;
 	}
 
@@ -76,7 +76,7 @@ Comprehensive image editing interface with svelte-canvas integration.
 			initialImageLoaded = false;
 		}
 
-		if (!containerRef || (!src && !file)) return;
+		if (!containerRef || !(src || file)) return;
 
 		// Wait for container to have size
 		if (containerWidth === 0 || containerHeight === 0) {
@@ -171,7 +171,7 @@ Comprehensive image editing interface with svelte-canvas integration.
 	export async function handleSave() {
 		const { imageElement, file, rotation, flipH, flipV, crop, filters } = imageEditorStore.state;
 
-		if (!imageElement || !file) {
+		if (!(imageElement && file)) {
 			error = 'Nothing to save';
 			return;
 		}

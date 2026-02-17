@@ -24,26 +24,21 @@
  * // Returns: { ...userData, sessionId: "...", sessionExpires: "..." }
  */
 
-import { getPrivateSettingSync } from '@src/services/settingsService';
-
-import type { RequestHandler } from '@sveltejs/kit';
-import { json } from '@sveltejs/kit';
-
-// Auth and permission helpers
-import { auth } from '@src/databases/db';
-
 // Types
 import type { ISODateString } from '@src/content/types';
-
-// System Logger
-import { logger } from '@utils/logger.server';
-
+// Auth and permission helpers
+import { auth } from '@src/databases/db';
+import { getPrivateSettingSync } from '@src/services/settingsService';
+import type { RequestHandler } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
 // Unified Error Handling
 import { apiHandler } from '@utils/apiHandler';
 import { AppError } from '@utils/errorHandling';
+// System Logger
+import { logger } from '@utils/logger.server';
 
 // Input validation
-import { email, forward, object, optional, parse, check, pipe, string } from 'valibot';
+import { check, email, forward, object, optional, parse, pipe, string } from 'valibot';
 
 // Helper function to parse session duration strings
 function parseSessionDuration(duration: string): number {
@@ -78,7 +73,7 @@ export const POST: RequestHandler = apiHandler(async ({ request, locals }) => {
 	const { user, tenantId, hasAdminPermission } = locals; // Destructure user and tenantId from locals
 
 	// SECURITY: Ensure only admins can create users directly
-	if (!user || !hasAdminPermission) {
+	if (!(user && hasAdminPermission)) {
 		logger.warn('Unauthorized attempt to create user', { byUser: user?._id, tenantId });
 		throw new AppError('Forbidden: Only administrators can create users.', 403, 'FORBIDDEN_ADMIN');
 	}
@@ -127,7 +122,7 @@ export const POST: RequestHandler = apiHandler(async ({ request, locals }) => {
 			{ expires, tenantId }
 		);
 
-		if (!result.success || !result.data) {
+		if (!(result.success && result.data)) {
 			const errorMessage = !result.success && 'error' in result ? result.error?.message : 'Failed to create user and session';
 			throw new AppError(errorMessage || 'Failed to create user and session', 500, 'CREATE_FAILED');
 		}

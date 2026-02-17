@@ -22,16 +22,16 @@
  * - Timeout
  */
 
-import { eq, and, inArray, sql, or, desc, asc, count, lte, gte, like, notInArray } from 'drizzle-orm';
-import type { BaseEntity, DatabaseResult, PaginationOptions, QueryBuilder, QueryOptimizationHints } from '../../dbInterface';
-import { SQLiteAdapter } from '../adapter';
-import * as utils from '../utils';
 import { logger } from '@src/utils/logger';
+import { and, asc, count, desc, eq, gte, inArray, like, lte, notInArray, or, sql } from 'drizzle-orm';
+import type { BaseEntity, DatabaseResult, PaginationOptions, QueryBuilder, QueryOptimizationHints } from '../../dbInterface';
+import type { SQLiteAdapter } from '../adapter';
+import * as utils from '../utils';
 
 export class SQLiteQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> {
-	private adapter: SQLiteAdapter;
-	private collection: string;
-	private conditions: any[] = [];
+	private readonly adapter: SQLiteAdapter;
+	private readonly collection: string;
+	private readonly conditions: any[] = [];
 	private sortOptions: Array<{ field: keyof T; direction: 'asc' | 'desc' }> = [];
 	private limitValue?: number;
 	private skipValue?: number;
@@ -174,13 +174,17 @@ export class SQLiteQueryBuilder<T extends BaseEntity> implements QueryBuilder<T>
 	}
 
 	private buildQuery() {
-		if (!this.db) throw new Error('Database not connected');
+		if (!this.db) {
+			throw new Error('Database not connected');
+		}
 
 		let q: any;
 		if (this.selectedFields) {
 			const projection: any = {};
 			this.selectedFields.forEach((f) => {
-				if (this.table[f as string]) projection[f as string] = this.table[f as string];
+				if (this.table[f as string]) {
+					projection[f as string] = this.table[f as string];
+				}
 			});
 			q = this.db.select(projection).from(this.table);
 		} else {
@@ -205,8 +209,12 @@ export class SQLiteQueryBuilder<T extends BaseEntity> implements QueryBuilder<T>
 			q = q.orderBy(...orderBys);
 		}
 
-		if (this.limitValue !== undefined) q = q.limit(this.limitValue);
-		if (this.skipValue !== undefined) q = q.offset(this.skipValue);
+		if (this.limitValue !== undefined) {
+			q = q.limit(this.limitValue);
+		}
+		if (this.skipValue !== undefined) {
+			q = q.offset(this.skipValue);
+		}
 
 		return q;
 	}
@@ -232,7 +240,9 @@ export class SQLiteQueryBuilder<T extends BaseEntity> implements QueryBuilder<T>
 
 	async exists(): Promise<DatabaseResult<boolean>> {
 		const res = await this.count();
-		if (res.success) return { ...res, data: res.data > 0 };
+		if (res.success) {
+			return { ...res, data: res.data > 0 };
+		}
 		return res as any;
 	}
 

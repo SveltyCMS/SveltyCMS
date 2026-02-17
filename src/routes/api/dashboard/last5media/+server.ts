@@ -3,8 +3,8 @@
  * @description API endpoint for last 5 media files for dashboard widgets using database-agnostic adapter.
  */
 
-import { json } from '@sveltejs/kit';
 import { getPrivateSettingSync } from '@src/services/settingsService';
+import { json } from '@sveltejs/kit';
 
 // Database
 // import { dbAdapter } from '@src/databases/db';
@@ -53,7 +53,7 @@ export const GET = apiHandler(async ({ locals }) => {
 	}
 
 	// Check if media adapter is available
-	if (!dbAdapter.media || !dbAdapter.media.files || !dbAdapter.media.files.getByFolder) {
+	if (!dbAdapter.media?.files?.getByFolder) {
 		logger.warn('Media adapter not available, returning empty result');
 		return json([]);
 	}
@@ -77,7 +77,7 @@ export const GET = apiHandler(async ({ locals }) => {
 	}
 
 	// Check if we have data and items
-	if (!result.data || !result.data.items || !Array.isArray(result.data.items)) {
+	if (!(result.data?.items && Array.isArray(result.data.items))) {
 		logger.warn('No media items found or invalid response structure');
 		return json([]);
 	}

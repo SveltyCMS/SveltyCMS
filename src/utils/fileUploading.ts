@@ -1,12 +1,12 @@
 /**
  * @file src/utils/fileUploading.ts
  * @description ..
- **/
+ */
 
 import * as fs from 'node:fs/promises';
 import path from 'node:path';
-import { logger } from '@utils/logger';
 import { publicEnv } from '@stores/globalSettings.svelte.ts';
+import { logger } from '@utils/logger';
 
 const getRootPath = () => {
 	// Use process.cwd() which is more reliable across different runtimes
@@ -53,10 +53,14 @@ export async function uploadFile(file: File, folder?: string, onProgress?: (prog
 
 		// Write file with progress tracking
 		const fileData = await file.arrayBuffer();
-		if (onProgress) onProgress(0);
+		if (onProgress) {
+			onProgress(0);
+		}
 
 		await fs.writeFile(filePath, new DataView(fileData));
-		if (onProgress) onProgress(100);
+		if (onProgress) {
+			onProgress(100);
+		}
 
 		logger.info('File saved successfully:', filePath);
 		return {
@@ -122,7 +126,7 @@ export async function createDirectory(relativePath: string) {
 
 export async function deleteDirectory(folder: string, force = false) {
 	// Validate folder name
-	if (!folder || !folder.trim()) {
+	if (!folder?.trim()) {
 		throw new Error('Folder name cannot be empty');
 	}
 

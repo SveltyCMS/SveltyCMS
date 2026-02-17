@@ -15,13 +15,13 @@
 
  */
 
-import type { ContentNode, Schema, ContentNodeOperation, DatabaseId } from '@src/content/types';
-import { logger } from '@src/utils/logger.server'; // Server-only file
-import { dateToISODateString } from '@utils/dateUtils';
-import { v4 as uuidv4 } from 'uuid';
+import type { ContentNode, ContentNodeOperation, DatabaseId, Schema } from '@src/content/types';
 // Removed static import to prevent circular dependency with WidgetRegistryService
 // import { generateCategoryNodesFromPaths, processModule } from './utils';
 import { CacheCategory } from '@src/databases/CacheCategory'; // ✅ Safe for client - no Redis imports
+import { logger } from '@src/utils/logger.server'; // Server-only file
+import { dateToISODateString } from '@utils/dateUtils';
+import { v4 as uuidv4 } from 'uuid';
 
 // ✅ Server-only imports - lazy loaded to prevent client-side bundling
 const getCacheService = async () => (await import('@src/databases/CacheService')).cacheService;
@@ -39,17 +39,17 @@ import type { IDBAdapter } from '@src/databases/dbInterface';
 
 export interface NavigationNode {
 	_id: string;
-	name: string;
-	path?: string;
-	icon?: string;
-	nodeType: 'category' | 'collection';
-	order?: number;
-	status?: string;
-	lastModified?: Date;
-	parentId?: string;
-	translations?: { languageTag: string; translationName: string }[];
 	children?: NavigationNode[];
 	hasChildren?: boolean;
+	icon?: string;
+	lastModified?: Date;
+	name: string;
+	nodeType: 'category' | 'collection';
+	order?: number;
+	parentId?: string;
+	path?: string;
+	status?: string;
+	translations?: { languageTag: string; translationName: string }[];
 }
 
 /**
@@ -68,7 +68,7 @@ class ContentManager {
 	private initState: 'uninitialized' | 'initializing' | 'initialized' | 'error' = 'uninitialized';
 	private initPromise: Promise<void> | null = null;
 	private initializedInSetupMode = false;
-	private initializedTenants = new Set<string>(); // [NEW] Track initialized tenants
+	private readonly initializedTenants = new Set<string>(); // [NEW] Track initialized tenants
 
 	// --- Unified Data Structures (Single Source of Truth) ---
 	/** Primary map holding the complete state. Key is the node's _id. */
@@ -89,10 +89,10 @@ class ContentManager {
 		tenantId?: string;
 	} | null = null;
 	private readonly FIRST_COLLECTION_CACHE_TTL = 60 * 1000; // 60 seconds
-	private collectionCache = new Map<string, { schema: Schema | null; timestamp: number }>();
+	private readonly collectionCache = new Map<string, { schema: Schema | null; timestamp: number }>();
 	private readonly COLLECTION_CACHE_TTL = 20 * 1000; // 20 seconds
 
-	private metrics = {
+	private readonly metrics = {
 		initializationTime: 0,
 		cacheHits: 0,
 		cacheMisses: 0,
@@ -105,8 +105,8 @@ class ContentManager {
 		}
 	};
 
-	private collectionDependencies = new Map<string, Set<string>>();
-	private snapshots: Map<
+	private readonly collectionDependencies = new Map<string, Set<string>>();
+	private readonly snapshots: Map<
 		string,
 		{
 			nodes: Map<string, ContentNode>;
@@ -114,7 +114,7 @@ class ContentManager {
 			timestamp: number;
 		}
 	> = new Map();
-	private performanceMetrics = {
+	private readonly performanceMetrics = {
 		operations: new Map<string, { count: number; totalTime: number; avgTime: number }>()
 	};
 
@@ -223,7 +223,7 @@ class ContentManager {
 	}
 
 	// Initializes the ContentManager, handling race conditions and loading data
-	public async initialize(tenantId?: string, skipReconciliation: boolean = false): Promise<void> {
+	public async initialize(tenantId?: string, skipReconciliation = false): Promise<void> {
 		// Already initialized for this tenant?
 		if (this.initState === 'initialized') {
 			// If tenantId is provided, ensure it has been initialized.
@@ -264,7 +264,7 @@ class ContentManager {
 	}
 
 	// Core initialization logic
-	private async _doInitialize(tenantId?: string, skipReconciliation: boolean = false): Promise<void> {
+	private async _doInitialize(tenantId?: string, skipReconciliation = false): Promise<void> {
 		const { isSetupComplete } = await import('@utils/setupCheck');
 
 		// Guard: If setup is not complete, skip heavy content loading.
@@ -289,7 +289,9 @@ class ContentManager {
 				// 1. Attempt to load from a high-speed cache (e.g., Redis).
 				if (await this._loadStateFromCache(tenantId)) {
 					this.initState = 'initialized';
-					if (tenantId) this.initializedTenants.add(tenantId);
+					if (tenantId) {
+						this.initializedTenants.add(tenantId);
+					}
 					this.metrics.initializationTime = performance.now() - startTime;
 					logger.info(`🚀 ContentManager initialized from cache in ${this._getElapsedTime(startTime)}`);
 					return;
@@ -299,7 +301,9 @@ class ContentManager {
 				await this._fullReload(tenantId, skipReconciliation);
 
 				this.initState = 'initialized';
-				if (tenantId) this.initializedTenants.add(tenantId);
+				if (tenantId) {
+					this.initializedTenants.add(tenantId);
+				}
 				this.metrics.initializationTime = performance.now() - startTime;
 				this.metrics.lastRefresh = Date.now();
 				logger.info(`📦 ContentManager fully initialized in ${this._getElapsedTime(startTime)}`);
@@ -309,7 +313,7 @@ class ContentManager {
 				logger.warn(`Initialization attempt ${attempt} failed:`, lastError.message);
 
 				if (attempt < maxRetries) {
-					const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
+					const delay = Math.min(1000 * 2 ** (attempt - 1), 5000);
 					logger.debug(`Retrying in ${delay}ms...`);
 					await new Promise((resolve) => setTimeout(resolve, delay));
 				}
@@ -350,7 +354,7 @@ class ContentManager {
 			const nodes: ContentNode[] = [];
 
 			for (const node of this.contentNodeMap.values()) {
-				if (node.nodeType === 'collection' && node.collectionDef && (!tenantId || !node.tenantId || node.tenantId === tenantId)) {
+				if (node.nodeType === 'collection' && node.collectionDef && (!(tenantId && node.tenantId) || node.tenantId === tenantId)) {
 					nodes.push(node);
 				}
 			}
@@ -358,7 +362,9 @@ class ContentManager {
 			// Sort nodes: Primary by order, Secondary by path (to match folder structure/sidebar)
 			nodes.sort((a, b) => {
 				const orderDiff = (a.order ?? 999) - (b.order ?? 999);
-				if (orderDiff !== 0) return orderDiff;
+				if (orderDiff !== 0) {
+					return orderDiff;
+				}
 				// Use path for tie-breaking to align with sidebar structure (e.g. Collections before Menu)
 				return (a.path || '').localeCompare(b.path || '');
 			});
@@ -385,7 +391,7 @@ class ContentManager {
 	 * @param tenantId - Optional tenant ID for multi-tenant filtering
 	 * @param forceRefresh - Force cache bypass and refresh
 	 */
-	public async getFirstCollection(tenantId?: string, forceRefresh: boolean = false): Promise<Schema | null> {
+	public async getFirstCollection(tenantId?: string, forceRefresh = false): Promise<Schema | null> {
 		// Check cache first
 		const now = Date.now();
 		if (
@@ -428,10 +434,10 @@ class ContentManager {
 	 * @param tenantId - Optional tenant ID
 	 * @returns Redirect URL or null if no collections exist
 	 */
-	public async getFirstCollectionRedirectUrl(language: string = 'en', tenantId?: string): Promise<string | null> {
+	public async getFirstCollectionRedirectUrl(language = 'en', tenantId?: string): Promise<string | null> {
 		const collection = await this.getSmartFirstCollection(tenantId);
 
-		if (!collection || !collection._id) {
+		if (!collection?._id) {
 			logger.debug('Cannot build redirect URL - no collection or _id available');
 			return null;
 		}
@@ -449,7 +455,9 @@ class ContentManager {
 	 */
 	public async getSmartFirstCollection(tenantId?: string): Promise<Schema | null> {
 		const collections = await this.getCollections(tenantId);
-		if (collections.length === 0) return null;
+		if (collections.length === 0) {
+			return null;
+		}
 
 		// Filter out utility collections that might not be the best landing page
 		// e.g. 'Menu' is a tree structure, 'Form' might be a builder.
@@ -489,7 +497,7 @@ class ContentManager {
 
 		for (const node of nodes.values()) {
 			if (node.parentId && nodes.has(node.parentId)) {
-				nodes.get(node.parentId)!.children!.push(node as ContentNode);
+				nodes.get(node.parentId)?.children?.push(node as ContentNode);
 			} else {
 				tree.push(node as ContentNode);
 			}
@@ -556,7 +564,7 @@ class ContentManager {
 		const children: ContentNode[] = [];
 
 		for (const node of this.contentNodeMap.values()) {
-			if (node.parentId === nodeId && (!tenantId || !node.tenantId || node.tenantId === tenantId)) {
+			if (node.parentId === nodeId && (!(tenantId && node.tenantId) || node.tenantId === tenantId)) {
 				children.push({
 					_id: node._id,
 					name: node.name,
@@ -617,11 +625,15 @@ class ContentManager {
 	 * Preload adjacent collections in navigation tree
 	 * Called by TreeView on node expand/hover
 	 */
-	public preloadAdjacentCollections(nodeId: string, depth: number = 1): void {
-		if (this.initState !== 'initialized' || depth <= 0) return;
+	public preloadAdjacentCollections(nodeId: string, depth = 1): void {
+		if (this.initState !== 'initialized' || depth <= 0) {
+			return;
+		}
 
 		const node = this.contentNodeMap.get(nodeId);
-		if (!node) return;
+		if (!node) {
+			return;
+		}
 
 		// Preload siblings
 		if (node.parentId) {
@@ -739,8 +751,8 @@ class ContentManager {
 	 */
 	public async getCollectionsPaginated(
 		tenantId?: string,
-		page: number = 1,
-		pageSize: number = 20
+		page = 1,
+		pageSize = 20
 	): Promise<{
 		collections: Schema[];
 		total: number;
@@ -754,7 +766,7 @@ class ContentManager {
 
 		const allCollections: Schema[] = [];
 		for (const node of this.contentNodeMap.values()) {
-			if (node.nodeType === 'collection' && node.collectionDef && (!tenantId || !node.tenantId || node.tenantId === tenantId)) {
+			if (node.nodeType === 'collection' && node.collectionDef && (!(tenantId && node.tenantId) || node.tenantId === tenantId)) {
 				allCollections.push(node.collectionDef);
 			}
 		}
@@ -893,7 +905,9 @@ class ContentManager {
 	 */
 	public async warmEntriesCache(collectionId: string, entryIds: string[], tenantId?: string): Promise<void> {
 		const collection = this.getCollection(collectionId, tenantId);
-		if (!collection) return;
+		if (!collection) {
+			return;
+		}
 
 		// Cache collection metadata for all entries at once
 		const cacheKey = `collection:${collectionId}:metadata`;
@@ -926,7 +940,7 @@ class ContentManager {
 		if (!this.collectionDependencies.has(collectionId)) {
 			this.collectionDependencies.set(collectionId, new Set());
 		}
-		this.collectionDependencies.get(collectionId)!.add(dependsOn);
+		this.collectionDependencies.get(collectionId)?.add(dependsOn);
 		logger.debug(`Registered dependency: ${collectionId} -> ${dependsOn}`);
 	}
 
@@ -1037,8 +1051,12 @@ class ContentManager {
 		}
 
 		// Update fields
-		if (metadata.name) collection.name = metadata.name;
-		if (metadata.icon) collection.icon = metadata.icon;
+		if (metadata.name) {
+			collection.name = metadata.name;
+		}
+		if (metadata.icon) {
+			collection.icon = metadata.icon;
+		}
 		// Description might not be in Schema type, check if needed
 
 		// Persist changes (assuming dbAdapter has a method for this, or we update the file/db)
@@ -1115,7 +1133,9 @@ class ContentManager {
 		translationStatus: Record<string, boolean>;
 	}> {
 		const collection = this.getCollection(collectionId, tenantId);
-		if (!collection?.fields) return [];
+		if (!collection?.fields) {
+			return [];
+		}
 
 		return collection.fields.map((field: any) => {
 			const translationStatus: Record<string, boolean> = {};
@@ -1208,7 +1228,9 @@ class ContentManager {
 		while (queue.length > 0) {
 			const currentId = queue.shift()!;
 
-			if (visited.has(currentId)) continue;
+			if (visited.has(currentId)) {
+				continue;
+			}
 			visited.add(currentId);
 
 			// Find children
@@ -1403,7 +1425,7 @@ class ContentManager {
 
 		// Process each operation
 		const bulkUpdates: Array<{ path: string; changes: Partial<ContentNode> }> = [];
-		const bulkCreates: Array<Omit<ContentNode, 'createdAt' | 'updatedAt'>> = [];
+		const bulkCreates: Omit<ContentNode, 'createdAt' | 'updatedAt'>[] = [];
 
 		for (const operation of operations) {
 			const { type, node } = operation;
@@ -1421,7 +1443,9 @@ class ContentManager {
 					bulkCreates.push(createFields);
 
 					this.contentNodeMap.set(node._id, node);
-					if (node.path) this.pathLookupMap.set(node.path, node._id);
+					if (node.path) {
+						this.pathLookupMap.set(node.path, node._id);
+					}
 					break;
 				}
 
@@ -1443,14 +1467,20 @@ class ContentManager {
 					});
 
 					this.contentNodeMap.set(node._id, node);
-					if (node.path) this.pathLookupMap.set(node.path, node._id);
+					if (node.path) {
+						this.pathLookupMap.set(node.path, node._id);
+					}
 					break;
 				}
 
 				case 'delete': {
-					if (node.path) await dbAdapter.content.nodes.delete(node.path);
+					if (node.path) {
+						await dbAdapter.content.nodes.delete(node.path);
+					}
 					this.contentNodeMap.delete(node._id);
-					if (node.path) this.pathLookupMap.delete(node.path);
+					if (node.path) {
+						this.pathLookupMap.delete(node.path);
+					}
 					break;
 				}
 
@@ -1503,7 +1533,9 @@ class ContentManager {
 		for (const op of operations) {
 			const { node } = op;
 			this.contentNodeMap.set(node._id, node);
-			if (node.path) this.pathLookupMap.set(node.path, node._id);
+			if (node.path) {
+				this.pathLookupMap.set(node.path, node._id);
+			}
 		}
 
 		logger.info('[ContentManager] Reordered nodes:', reorderItems.length);
@@ -1514,7 +1546,7 @@ class ContentManager {
 	// PRIVATE METHODS (Core Logic)
 	// ===================================================================================
 
-	private async _fullReload(tenantId?: string, skipReconciliation: boolean = false): Promise<void> {
+	private async _fullReload(tenantId?: string, skipReconciliation = false): Promise<void> {
 		const schemas = await this._scanAndProcessFiles();
 		await this._reconcileAndBuildStructure(schemas, tenantId, skipReconciliation);
 		await this._populateCache(tenantId);
@@ -1561,7 +1593,9 @@ class ContentManager {
 			const { processModule } = await import('./utils');
 			const moduleData = await processModule(content);
 
-			if (!moduleData?.schema) return null;
+			if (!moduleData?.schema) {
+				return null;
+			}
 
 			const schema = moduleData.schema as Schema;
 			const path = this._extractPathFromFilePath(filePath);
@@ -1570,7 +1604,7 @@ class ContentManager {
 			return {
 				...schema,
 				_id: schema._id!,
-				path: path,
+				path,
 				name: schema.name || fileName,
 				tenantId: schema.tenantId ?? undefined
 			};
@@ -1581,13 +1615,13 @@ class ContentManager {
 	}
 
 	// Synchronizes schemas from files with the database and builds the in-memory maps
-	private async _reconcileAndBuildStructure(allSchemas: Schema[], tenantId?: string, skipReconciliation: boolean = false): Promise<void> {
+	private async _reconcileAndBuildStructure(allSchemas: Schema[], tenantId?: string, skipReconciliation = false): Promise<void> {
 		const dbAdapter = (await getDbAdapter()) as IDBAdapter;
 
 		// [NEW] Filter schemas relevant to the current tenant context
 		// - If tenantId is provided: Include global schemas (no tenantId) AND schemas for this tenant. Exclude other tenants.
 		// - If tenantId is missing (System Admin): Include ALL schemas.
-		const schemas = allSchemas.filter((s) => !tenantId || !s.tenantId || s.tenantId === tenantId);
+		const schemas = allSchemas.filter((s) => !(tenantId && s.tenantId) || s.tenantId === tenantId);
 
 		// In setup mode (no database), just build in-memory structure from files only
 		if (!dbAdapter) {
@@ -1629,7 +1663,7 @@ class ContentManager {
 			try {
 				// Check for at least one node
 				const countResult = await dbAdapter.content.nodes.getStructure('flat', { tenantId }, true);
-				if (!countResult.success || !countResult.data || countResult.data.length === 0) {
+				if (!(countResult.success && countResult.data) || countResult.data.length === 0) {
 					logger.warn('[ContentManager] ⚠️ Skip reconciliation requested, but DB is EMPTY! Forcing reconciliation to restore content.');
 					skipReconciliation = false;
 				} else {
@@ -1683,7 +1717,9 @@ class ContentManager {
 			// Use dbNodeMap which is already built in line 1553 from `dbResult`
 			const nodesToDelete: string[] = [];
 			for (const op of operations) {
-				if (!op.path) continue;
+				if (!op.path) {
+					continue;
+				}
 				const existingNode = dbNodeMap.get(op.path);
 				// op._id might be ObjectId or string, ensure string comparison
 				if (existingNode && existingNode._id.toString() !== op._id.toString()) {
@@ -1729,7 +1765,9 @@ class ContentManager {
 		const processedPaths = new Set<string>();
 
 		for (const schema of schemas) {
-			if (!schema.path) continue;
+			if (!schema.path) {
+				continue;
+			}
 
 			// Priority lookup: 1. By ID (most stable), 2. By Path
 			const dbNode = (dbNodeMapById.get(schema._id as string) || dbNodeMapByPath.get(schema.path)) as ContentNode | undefined;
@@ -1758,7 +1796,9 @@ class ContentManager {
 
 		// 2. Process Categories (Derived from file paths or existing in DB)
 		for (const [path, fileNode] of fileCategoryNodes.entries()) {
-			if (processedPaths.has(path)) continue;
+			if (processedPaths.has(path)) {
+				continue;
+			}
 
 			const dbNode = dbNodeMapByPath.get(path);
 			const nodeId = toDatabaseId(dbNode?._id ?? uuidv4().replace(/-/g, ''));
@@ -1795,7 +1835,7 @@ class ContentManager {
 			const parts = collectionPath.split('/').filter(Boolean);
 			// Add all ancestor paths (e.g., for "/Collections/Posts/Names", add "/Collections" and "/Collections/Posts")
 			for (let i = 1; i < parts.length; i++) {
-				const ancestorPath = '/' + parts.slice(0, i).join('/');
+				const ancestorPath = `/${parts.slice(0, i).join('/')}`;
 				requiredCategoryPaths.add(ancestorPath);
 			}
 		}
@@ -1803,7 +1843,7 @@ class ContentManager {
 		// Only preserve DB categories that are required ancestors
 		for (const [path, dbNode] of dbNodeMapByPath.entries()) {
 			const isValidPath = typeof path === 'string' && path.startsWith('/') && path.length > 1;
-			const isNotUuid = !/^[0-9a-f]{32}$/i.test(path) && !/^[0-9a-f-]{36}$/i.test(path);
+			const isNotUuid = !(/^[0-9a-f]{32}$/i.test(path) || /^[0-9a-f-]{36}$/i.test(path));
 			const isRequiredAncestor = requiredCategoryPaths.has(path);
 
 			if (!processedPaths.has(path) && dbNode.nodeType === 'category' && isValidPath && isNotUuid && isRequiredAncestor) {
@@ -1830,10 +1870,12 @@ class ContentManager {
 
 		// 4. Resolve parentIds using the built-up map
 		for (const op of operations) {
-			if (!op.path) continue;
+			if (!op.path) {
+				continue;
+			}
 			const pathParts = op.path.split('/').filter(Boolean);
 			if (pathParts.length > 1) {
-				const parentPath = '/' + pathParts.slice(0, -1).join('/');
+				const parentPath = `/${pathParts.slice(0, -1).join('/')}`;
 				op.parentId = pathToIdMap.get(parentPath);
 
 				if (!op.parentId) {
@@ -1957,7 +1999,7 @@ class ContentManager {
 		logger.debug('[ContentManager] Final phase: Fetching complete structure from database', { tenantId });
 		const finalStructureResult = await dbAdapter.content.nodes.getStructure('flat', { tenantId }, true); // bypassCache = true
 
-		if (!finalStructureResult.success || !finalStructureResult.data) {
+		if (!(finalStructureResult.success && finalStructureResult.data)) {
 			logger.error('[ContentManager] Failed to fetch final structure from database');
 			throw new Error('Failed to fetch final content structure');
 		}
@@ -1976,7 +2018,9 @@ class ContentManager {
 			}
 			idsToDelete.forEach((id) => {
 				const node = this.contentNodeMap.get(id);
-				if (node?.path) this.pathLookupMap.delete(node.path);
+				if (node?.path) {
+					this.pathLookupMap.delete(node.path);
+				}
 				this.contentNodeMap.delete(id);
 			});
 		} else {
@@ -2053,7 +2097,9 @@ class ContentManager {
 
 		// Second: Add all collection nodes
 		for (const schema of schemas) {
-			if (!schema.path) continue;
+			if (!schema.path) {
+				continue;
+			}
 			const nodeId = toDatabaseId(schema._id as string);
 			const parentPath = schema.path.split('/').slice(0, -1).join('/') || undefined;
 			const parentId = parentPath ? pathToIdMap.get(parentPath) : undefined;
@@ -2147,7 +2193,7 @@ class ContentManager {
 			const cacheService = await getCacheService();
 			await cacheService.initialize();
 			const state = await cacheService.get<{ nodes: ContentNode[] }>('cms:content_structure', tenantId);
-			if (!state || !state.nodes || state.nodes.length === 0) {
+			if (!state?.nodes || state.nodes.length === 0) {
 				logger.debug('[ContentManager] Cache miss or empty - will perform full load');
 				return false;
 			}

@@ -82,7 +82,9 @@ export const GET = apiHandler(async ({ locals, url }) => {
 
 		throw new AppError("Invalid request. Provide 'key' or 'keys[]' query parameter.", 400, 'INVALID_REQUEST');
 	} catch (e) {
-		if (e instanceof AppError) throw e;
+		if (e instanceof AppError) {
+			throw e;
+		}
 		const errorMessage = e instanceof Error ? e.message : 'Unknown error';
 		logger.error(`Failed to load preferences for user ${userId}: ${errorMessage}`, e);
 		throw new AppError('Failed to load preferences', 500, 'FETCH_FAILED');
@@ -112,7 +114,9 @@ export const POST = apiHandler(async ({ request, locals }) => {
 			}
 			const { key, value } = singleResult.output;
 			const result = await dbAdapter.systemPreferences.set(key, value, 'user', userId as any);
-			if (!result.success) throw new Error(result.message);
+			if (!result.success) {
+				throw new Error(result.message);
+			}
 			return json({ success: true, message: `Preference '${key}' saved.` }, { status: 200 });
 		}
 
@@ -124,7 +128,9 @@ export const POST = apiHandler(async ({ request, locals }) => {
 			}
 			const preferencesToSet = multipleResult.output.map((p) => ({ ...p, scope: 'user' as const, userId: userId as any }));
 			const result = await dbAdapter.systemPreferences.setMany(preferencesToSet);
-			if (!result.success) throw new Error(result.message);
+			if (!result.success) {
+				throw new Error(result.message);
+			}
 			return json({ success: true, message: `${preferencesToSet.length} preferences saved.` }, { status: 200 });
 		}
 
@@ -136,7 +142,9 @@ export const POST = apiHandler(async ({ request, locals }) => {
 		logger.warn('Invalid preference data', { issues });
 		throw new AppError('Invalid request data.', 400, 'INVALID_DATA');
 	} catch (e) {
-		if (e instanceof AppError) throw e;
+		if (e instanceof AppError) {
+			throw e;
+		}
 		const errorMessage = e instanceof Error ? e.message : 'Unknown error';
 		logger.error(`Failed to save preferences for user ${userId}: ${errorMessage}`, e);
 		throw new AppError('Failed to save preferences', 500, 'SAVE_FAILED');
@@ -172,7 +180,9 @@ export const DELETE = apiHandler(async ({ locals, url }) => {
 		}
 		return json({ success: true, message: `Preference '${key}' deleted.` }, { status: 200 });
 	} catch (e) {
-		if (e instanceof AppError) throw e;
+		if (e instanceof AppError) {
+			throw e;
+		}
 		const errorMessage = e instanceof Error ? e.message : 'Unknown error';
 		logger.error(`Failed to delete preference '${key}' for user ${userId}: ${errorMessage}`, e);
 		throw new AppError('Failed to delete preference', 500, 'DELETE_FAILED');

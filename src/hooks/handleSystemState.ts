@@ -9,22 +9,22 @@
  * - Prevents setup routes from returning before initialization
  */
 
-import { error } from '@sveltejs/kit';
-import type { Handle } from '@sveltejs/kit';
+import { dbInitPromise } from '@src/databases/db';
 import { getSystemState, isSystemReady } from '@src/stores/system/state';
 import type { SystemState } from '@src/stores/system/types';
-import { logger } from '@utils/logger.server';
-import { dbInitPromise } from '@src/databases/db';
-import { isSetupComplete } from '@utils/setupCheck';
+import type { Handle } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import { AppError, handleApiError } from '@utils/errorHandling';
+import { logger } from '@utils/logger.server';
+import { isSetupComplete } from '@utils/setupCheck';
 
 // Track initialization state more robustly
 let initializationState: 'pending' | 'in-progress' | 'complete' | 'failed' = 'pending';
 let initError: Error | null = null;
-let initStartTime: number = 0;
+let initStartTime = 0;
 
 // Timeout protection (30 seconds max for initialization)
-const INIT_TIMEOUT_MS = 30000;
+const INIT_TIMEOUT_MS = 30_000;
 
 export const handleSystemState: Handle = async ({ event, resolve }) => {
 	const { pathname } = event.url;
@@ -36,7 +36,7 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
 	const isHealthCheck = pathname.startsWith('/api/system/health') || pathname.startsWith('/api/dashboard/health');
 	const isStaticAsset = pathname.startsWith('/static') || pathname.startsWith('/assets') || pathname.startsWith('/_');
 
-	if (!isHealthCheck && !isStaticAsset) {
+	if (!(isHealthCheck || isStaticAsset)) {
 		logger.debug(
 			`[handleSystemState] ${event.request.method} ${pathname}${event.url.search} (Data: ${event.isDataRequest}), state: ${systemState.overallState}, initState: ${initializationState}`
 		);
@@ -44,7 +44,7 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
 
 	// Bypass state checks in TEST_MODE to prevent blocking tests on transient failures
 	if (process.env.TEST_MODE === 'true') {
-		if (!isHealthCheck && !isStaticAsset) {
+		if (!(isHealthCheck || isStaticAsset)) {
 			logger.warn(`[handleSystemState] TEST_MODE enabled. Bypassing state checks for ${pathname}`);
 		}
 		return await resolve(event);

@@ -20,9 +20,9 @@ try {
 }
 
 import { getPrivateSettingSync } from '@src/services/settingsService';
-import type { RedisClientType } from 'redis';
 // System Logger - use universal logger for client/server compatibility
 import { logger } from '@utils/logger';
+import type { RedisClientType } from 'redis';
 import { CacheCategory } from './CacheCategory';
 
 // Cache config will be loaded lazily when cache is initialized
@@ -53,22 +53,24 @@ function getCacheConfig(forceReload = false) {
 }
 
 interface ICacheStore {
-	initialize(): Promise<void>;
-	get<T>(key: string): Promise<T | null>;
-	set<T>(key: string, value: T, ttlSeconds: number): Promise<void>;
-	delete(key: string | string[]): Promise<void>;
 	clearByPattern(pattern: string): Promise<void>;
+	delete(key: string | string[]): Promise<void>;
 	disconnect(): Promise<void>;
+	get<T>(key: string): Promise<T | null>;
 	getClient(): RedisClientType | null;
+	initialize(): Promise<void>;
+	set<T>(key: string, value: T, ttlSeconds: number): Promise<void>;
 }
 
 class InMemoryStore implements ICacheStore {
-	private cache = new Map<string, { value: string; expiresAt: number }>();
+	private readonly cache = new Map<string, { value: string; expiresAt: number }>();
 	private isInitialized = false;
 	private interval: ReturnType<typeof setInterval> | null = null;
 
 	async initialize(): Promise<void> {
-		if (this.isInitialized) return;
+		if (this.isInitialized) {
+			return;
+		}
 		this.interval = setInterval(() => this.cleanup(), 60_000);
 		this.isInitialized = true;
 		logger.info('In-memory cache initialized.');
@@ -77,13 +79,17 @@ class InMemoryStore implements ICacheStore {
 	private cleanup() {
 		const now = Date.now();
 		for (const [key, item] of this.cache.entries()) {
-			if (item.expiresAt < now) this.cache.delete(key);
+			if (item.expiresAt < now) {
+				this.cache.delete(key);
+			}
 		}
 	}
 
 	async get<T>(key: string): Promise<T | null> {
 		const item = this.cache.get(key);
-		if (!item) return null;
+		if (!item) {
+			return null;
+		}
 		if (item.expiresAt < Date.now()) {
 			this.cache.delete(key);
 			return null;
@@ -102,19 +108,25 @@ class InMemoryStore implements ICacheStore {
 
 	async delete(key: string | string[]): Promise<void> {
 		const keys = Array.isArray(key) ? key : [key];
-		keys.forEach((k) => this.cache.delete(k));
+		for (const k of keys) {
+			this.cache.delete(k);
+		}
 	}
 
 	async clearByPattern(pattern: string): Promise<void> {
 		const regex = new RegExp(pattern.replace(/\*/g, '.*'));
 		for (const key of this.cache.keys()) {
-			if (regex.test(key)) this.cache.delete(key);
+			if (regex.test(key)) {
+				this.cache.delete(key);
+			}
 		}
 	}
 
 	async disconnect(): Promise<void> {
 		this.cache.clear();
-		if (this.interval) clearInterval(this.interval);
+		if (this.interval) {
+			clearInterval(this.interval);
+		}
 		this.isInitialized = false;
 		logger.info('In-memory cache cleared.');
 	}
@@ -129,7 +141,9 @@ class RedisStore implements ICacheStore {
 	private isInitialized = false;
 
 	async initialize(): Promise<void> {
-		if (this.isInitialized || browser) return;
+		if (this.isInitialized || browser) {
+			return;
+		}
 		const config = getCacheConfig();
 		if (!config) {
 			throw new Error('Cache configuration is not available');
@@ -141,7 +155,7 @@ class RedisStore implements ICacheStore {
 			maxAttempts: config.RETRY_ATTEMPTS,
 			initialDelayMs: config.RETRY_DELAY,
 			backoffMultiplier: 2,
-			maxDelayMs: 30000, // Max 30s delay
+			maxDelayMs: 30_000, // Max 30s delay
 			jitterMs: 500
 		});
 
@@ -149,9 +163,9 @@ class RedisStore implements ICacheStore {
 			await resilience.executeWithRetry(async () => {
 				const { createClient } = await import('redis');
 				this.client = createClient({ url: config.URL, password: config.PASSWORD });
-				this.client!.on('error', (err) => logger.error('Redis Client Error', err));
-				this.client!.on('reconnecting', () => logger.warn('Reconnecting to Redis...'));
-				await this.client!.connect();
+				this.client?.on('error', (err) => logger.error('Redis Client Error', err));
+				this.client?.on('reconnecting', () => logger.warn('Reconnecting to Redis...'));
+				await this.client?.connect();
 				this.isInitialized = true;
 				logger.info('Redis client connected successfully.');
 			}, 'Redis Connection');
@@ -162,7 +176,7 @@ class RedisStore implements ICacheStore {
 	}
 
 	private async ensureReady(): Promise<void> {
-		if (!this.client || !this.isInitialized) {
+		if (!(this.client && this.isInitialized)) {
 			throw new Error('Redis client is not initialized. Call initialize() first.');
 		}
 		if (!this.client.isOpen) {
@@ -172,7 +186,7 @@ class RedisStore implements ICacheStore {
 
 	async get<T>(key: string): Promise<T | null> {
 		await this.ensureReady();
-		const value = await this.client!.get(key);
+		const value = await this.client?.get(key);
 		try {
 			return value ? (JSON.parse(value) as T) : null;
 		} catch {
@@ -182,22 +196,27 @@ class RedisStore implements ICacheStore {
 
 	async set<T>(key: string, value: T, ttlSeconds: number): Promise<void> {
 		await this.ensureReady();
-		await this.client!.set(key, JSON.stringify(value), { EX: ttlSeconds });
+		await this.client?.set(key, JSON.stringify(value), { EX: ttlSeconds });
 	}
 
 	async delete(key: string | string[]): Promise<void> {
 		await this.ensureReady();
-		if (Array.isArray(key)) await this.client!.del(key);
-		else await this.client!.del(key);
+		if (Array.isArray(key)) {
+			await this.client?.del(key);
+		} else {
+			await this.client?.del(key);
+		}
 	}
 
 	async clearByPattern(pattern: string): Promise<void> {
 		await this.ensureReady();
-		let cursor: string = '0';
+		let cursor = '0';
 		do {
-			const result = await this.client!.scan(cursor, { MATCH: pattern, COUNT: 100 });
+			const result = await this.client?.scan(cursor, { MATCH: pattern, COUNT: 100 });
 			cursor = result.cursor; // Redis returns cursor as string
-			if (result.keys.length > 0) await this.client!.del(result.keys);
+			if (result.keys.length > 0) {
+				await this.client?.del(result.keys);
+			}
 		} while (cursor !== '0');
 	}
 
@@ -223,8 +242,8 @@ class CacheService {
 	private store: ICacheStore | null = null;
 	private initialized = false;
 	private initPromise: Promise<void> | null = null;
-	private prefetchPatterns: PrefetchPattern[] = [];
-	private accessLog: Map<string, number[]> = new Map(); // Track access times for analytics
+	private readonly prefetchPatterns: PrefetchPattern[] = [];
+	private readonly accessLog: Map<string, number[]> = new Map(); // Track access times for analytics
 	private bootstrapping = true; // Default to true on startup
 
 	private constructor() {
@@ -232,7 +251,9 @@ class CacheService {
 	}
 
 	static getInstance(): CacheService {
-		if (!CacheService.instance) CacheService.instance = new CacheService();
+		if (!CacheService.instance) {
+			CacheService.instance = new CacheService();
+		}
 		return CacheService.instance;
 	}
 
@@ -254,7 +275,9 @@ class CacheService {
 	}
 
 	async initialize(force = false): Promise<void> {
-		if (this.initialized && !force) return;
+		if (this.initialized && !force) {
+			return;
+		}
 		if (!this.initPromise || force) {
 			this.initPromise = (async () => {
 				try {
@@ -264,7 +287,7 @@ class CacheService {
 					// Initialize or switch store if needed
 					const desiredStoreType = !browser && config.USE_REDIS ? RedisStore : InMemoryStore;
 
-					if (!this.store || !(this.store instanceof desiredStoreType) || force) {
+					if (!(this.store && this.store instanceof desiredStoreType) || force) {
 						if (this.store) {
 							await this.store.disconnect();
 						}
@@ -302,7 +325,9 @@ class CacheService {
 
 	private generateKey(baseKey: string, tenantId?: string): string {
 		// If the caller already supplied a fully-qualified tenant-prefixed key, respect it
-		if (baseKey.startsWith('tenant:')) return baseKey;
+		if (baseKey.startsWith('tenant:')) {
+			return baseKey;
+		}
 		if (getPrivateSettingSync('MULTI_TENANT')) {
 			const tenant = tenantId || 'default';
 			return `tenant:${tenant}:${baseKey}`;
@@ -354,13 +379,15 @@ class CacheService {
 				// or assume the fetcher is efficient.
 				// Optimization: Check cache existence first.
 				const fullKey = this.generateKey(key, tenantId);
-				const exists = await this.store!.get(fullKey); // Direct store access to avoid recursion/tracking
+				const exists = await this.store?.get(fullKey); // Direct store access to avoid recursion/tracking
 				if (!exists) {
 					missingKeys.push(key);
 				}
 			}
 
-			if (missingKeys.length === 0) return;
+			if (missingKeys.length === 0) {
+				return;
+			}
 
 			logger.debug(`Prefetching ${missingKeys.length} missing keys`);
 
@@ -387,7 +414,7 @@ class CacheService {
 		// Check for predictive prefetch opportunities
 		void this.checkPrefetch(key, tenantId);
 
-		return this.store!.get<T>(key);
+		return this.store?.get<T>(key);
 	}
 
 	async set<T>(baseKey: string, value: T, ttlSeconds: number, tenantId?: string, category?: CacheCategory): Promise<void> {
@@ -397,7 +424,7 @@ class CacheService {
 		// Use category-specific TTL if category provided and no explicit TTL
 		const finalTTL = category && ttlSeconds === 0 ? getCategoryTTL(category) : ttlSeconds;
 
-		await this.store!.set<T>(key, value, finalTTL);
+		await this.store?.set<T>(key, value, finalTTL);
 	}
 
 	// Set with automatic category-based TTL
@@ -405,19 +432,19 @@ class CacheService {
 		await this.ensureInitialized();
 		const key = this.generateKey(baseKey, tenantId);
 		const ttl = getCategoryTTL(category);
-		await this.store!.set<T>(key, value, ttl);
+		await this.store?.set<T>(key, value, ttl);
 	}
 
 	async delete(baseKey: string | string[], tenantId?: string): Promise<void> {
 		await this.ensureInitialized();
 		const keys = Array.isArray(baseKey) ? baseKey.map((k) => this.generateKey(k, tenantId)) : this.generateKey(baseKey, tenantId);
-		await this.store!.delete(keys);
+		await this.store?.delete(keys);
 	}
 
 	async clearByPattern(pattern: string, tenantId?: string): Promise<void> {
 		await this.ensureInitialized();
 		const keyPattern = this.generateKey(pattern, tenantId);
-		await this.store!.clearByPattern(keyPattern);
+		await this.store?.clearByPattern(keyPattern);
 	}
 
 	/**
@@ -454,10 +481,12 @@ class CacheService {
 	// Get cache access analytics
 	getAccessAnalytics(key: string): { count: number; avgInterval: number; lastAccess: number } | null {
 		const accesses = this.accessLog.get(key);
-		if (!accesses || accesses.length === 0) return null;
+		if (!accesses || accesses.length === 0) {
+			return null;
+		}
 
 		const count = accesses.length;
-		const lastAccess = accesses[accesses.length - 1];
+		const lastAccess = accesses.at(-1);
 
 		// Calculate average interval between accesses
 		let totalInterval = 0;
@@ -475,15 +504,17 @@ class CacheService {
 	 */
 	getRecommendedTTL(key: string): number | null {
 		const analytics = this.getAccessAnalytics(key);
-		if (!analytics) return null;
+		if (!analytics) {
+			return null;
+		}
 
 		// If accessed frequently (avgInterval < 1 minute), use longer TTL
-		if (analytics.avgInterval < 60000) {
+		if (analytics.avgInterval < 60_000) {
 			return 600; // 10 minutes
 		}
 
 		// If accessed moderately (1-5 minutes), use medium TTL
-		if (analytics.avgInterval < 300000) {
+		if (analytics.avgInterval < 300_000) {
 			return 300; // 5 minutes
 		}
 
@@ -595,7 +626,7 @@ const DEFAULT_CATEGORY_TTLS: Record<CacheCategory, number> = {
 	[CacheCategory.THEME]: 300, // 5 minutes - themes may update occasionally
 	[CacheCategory.CONTENT]: 180, // 3 minutes - content updates frequently
 	[CacheCategory.MEDIA]: 300, // 5 minutes - media metadata is fairly stable
-	[CacheCategory.SESSION]: 86400, // 24 hours - user sessions
+	[CacheCategory.SESSION]: 86_400, // 24 hours - user sessions
 	[CacheCategory.USER]: 60, // 1 minute - user permissions (frequently checked)
 	[CacheCategory.API]: 300 // 5 minutes - API responses
 };
@@ -635,16 +666,16 @@ function getCategoryTTL(category: CacheCategory): number {
 
 // Interface for cache warming configuration
 interface WarmCacheConfig {
-	keys: string[];
-	fetcher: () => Promise<unknown>;
 	category?: CacheCategory;
+	fetcher: () => Promise<unknown>;
+	keys: string[];
 	tenantId?: string;
 }
 
 // Interface for predictive prefetch configuration
 interface PrefetchPattern {
+	category?: CacheCategory;
+	fetcher?: (keys: string[]) => Promise<Record<string, unknown>>; // Function to fetch data for keys
 	pattern: RegExp;
 	prefetchKeys: (matchedKey: string) => string[];
-	fetcher?: (keys: string[]) => Promise<Record<string, unknown>>; // Function to fetch data for keys
-	category?: CacheCategory;
 }

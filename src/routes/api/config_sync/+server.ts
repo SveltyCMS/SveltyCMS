@@ -6,18 +6,17 @@
  * Security: Protected by hooks, admin-only.
  */
 
-import { json } from '@sveltejs/kit';
 import { configService } from '@src/services/ConfigService';
 import { invalidateSettingsCache } from '@src/services/settingsService';
-import { logger } from '@utils/logger.server';
-
+import { json } from '@sveltejs/kit';
 // Unified Error Handling
 import { apiHandler } from '@utils/apiHandler';
 import { AppError } from '@utils/errorHandling';
+import { logger } from '@utils/logger.server';
 
 // GET → Returns filesystem vs. database synchronization status
 export const GET = apiHandler(async ({ locals }) => {
-	if (!locals.user || !locals.isAdmin) {
+	if (!(locals.user && locals.isAdmin)) {
 		throw new AppError('Forbidden: Administrator access required.', 403, 'FORBIDDEN');
 	}
 
@@ -34,7 +33,7 @@ export const GET = apiHandler(async ({ locals }) => {
 
 // POST → Triggers an 'import' or 'export' synchronization action
 export const POST = apiHandler(async ({ locals, request }) => {
-	if (!locals.user || !locals.isAdmin) {
+	if (!(locals.user && locals.isAdmin)) {
 		throw new AppError('Forbidden: Administrator access required.', 403, 'FORBIDDEN');
 	}
 
@@ -81,7 +80,9 @@ export const POST = apiHandler(async ({ locals, request }) => {
 	} catch (err) {
 		const message = err instanceof Error ? err.message : String(err);
 		logger.error('Configuration sync POST failed:', err);
-		if (err instanceof AppError) throw err;
+		if (err instanceof AppError) {
+			throw err;
+		}
 		throw new AppError(`Configuration sync failed: ${message}`, 500, 'CONFIG_SYNC_ERROR');
 	}
 });

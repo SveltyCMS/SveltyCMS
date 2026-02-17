@@ -13,8 +13,8 @@
  */
 
 import { error, redirect } from '@sveltejs/kit';
-import type { PageServerLoad } from './$types';
 import { logger } from '@utils/logger.server';
+import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	// 1. Get user from `locals`, populated by `hooks.server.ts`

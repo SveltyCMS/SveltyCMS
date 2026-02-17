@@ -16,23 +16,20 @@
 -->
 
 <script lang="ts">
-	import { page } from '$app/state';
-	import { toaster } from '@stores/store.svelte.ts';
-	import { logger } from '@utils/logger';
-	import { Tabs } from '@skeletonlabs/skeleton-svelte';
-	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte.ts';
-
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
-
-	// Auth components for tabs (assuming they are optimized internally)
-	import Roles from './Roles.svelte';
-	import Permissions from './Permissions.svelte';
-	import AdminRole from './AdminRole.svelte';
-	import WebsiteTokens from './WebsiteTokens.svelte';
-
+	import { Tabs } from '@skeletonlabs/skeleton-svelte';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
+	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte.ts';
+	import { toaster } from '@stores/store.svelte.ts';
+	import { logger } from '@utils/logger';
+	import { page } from '$app/state';
+	import AdminRole from './AdminRole.svelte';
+	import Permissions from './Permissions.svelte';
+	// Auth components for tabs (assuming they are optimized internally)
+	import Roles from './Roles.svelte';
+	import WebsiteTokens from './WebsiteTokens.svelte';
 
 	// Use $state for local component state
 	let currentTab = $state('0'); // Initial tab set to string '0' for Tabs component
@@ -164,25 +161,9 @@
 			</Tabs.Trigger>
 		</Tabs.List>
 
-		<Tabs.Content value="0">
-			<div class="p-4">
-				<Permissions roleData={rolesData} {setRoleData} {updateModifiedCount} />
-			</div>
-		</Tabs.Content>
-		<Tabs.Content value="1">
-			<div class="p-4">
-				<Roles roleData={rolesData} {setRoleData} {updateModifiedCount} />
-			</div>
-		</Tabs.Content>
-		<Tabs.Content value="2">
-			<div class="p-4">
-				<AdminRole roleData={rolesData} {setRoleData} />
-			</div>
-		</Tabs.Content>
-		<Tabs.Content value="3">
-			<div class="p-4">
-				<WebsiteTokens permissions={page.data.permissions} />
-			</div>
-		</Tabs.Content>
+		<Tabs.Content value="0"> <div class="p-4"><Permissions roleData={rolesData} {setRoleData} {updateModifiedCount} /></div> </Tabs.Content>
+		<Tabs.Content value="1"> <div class="p-4"><Roles roleData={rolesData} {setRoleData} {updateModifiedCount} /></div> </Tabs.Content>
+		<Tabs.Content value="2"> <div class="p-4"><AdminRole roleData={rolesData} {setRoleData} /></div> </Tabs.Content>
+		<Tabs.Content value="3"> <div class="p-4"><WebsiteTokens permissions={page.data.permissions} /></div> </Tabs.Content>
 	</Tabs>
 </div>

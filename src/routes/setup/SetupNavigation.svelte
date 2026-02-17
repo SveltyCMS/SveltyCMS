@@ -12,8 +12,8 @@ Features:
 
 -->
 <script lang="ts">
-	import * as m from '@src/paraglide/messages';
 	import SystemTooltip from '@components/system/SystemTooltip.svelte';
+	import * as m from '@src/paraglide/messages';
 
 	const {
 		currentStep,

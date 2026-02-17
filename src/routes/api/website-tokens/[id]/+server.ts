@@ -1,10 +1,9 @@
 import { dbAdapter } from '@src/databases/db';
-import { logger } from '@utils/logger.server';
 import type { DatabaseId } from '@src/databases/dbInterface';
-
 // Unified Error Handling
 import { apiHandler } from '@utils/apiHandler';
 import { AppError } from '@utils/errorHandling';
+import { logger } from '@utils/logger.server';
 
 export const DELETE = apiHandler(async ({ locals, params }) => {
 	if (!locals.user) {

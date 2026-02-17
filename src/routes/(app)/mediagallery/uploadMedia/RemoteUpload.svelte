@@ -17,8 +17,8 @@
 -->
 
 <script lang="ts">
-	import { showToast } from '@utils/toast';
 	import { logger } from '@utils/logger';
+	import { showToast } from '@utils/toast';
 
 	let remoteUrls: string[] = $state([]);
 
@@ -30,8 +30,8 @@
 	}
 
 	interface Props {
-		onUploadComplete?: () => void;
 		folder?: string;
+		onUploadComplete?: () => void;
 	}
 
 	const { onUploadComplete, folder = 'global' }: Props = $props();
@@ -47,7 +47,7 @@
 		formData.append('folder', folder);
 
 		try {
-			const response = await fetch(`/mediagallery?/remoteUpload`, {
+			const response = await fetch('/mediagallery?/remoteUpload', {
 				method: 'POST',
 				body: formData
 			});
@@ -85,5 +85,5 @@
 		aria-label="Remote URLs to upload"
 	></textarea>
 	<!-- Upload Button -->
-	<button class="preset-filled-tertiary-500 btn mt-2 dark:preset-filled-primary-500" onclick={uploadRemoteUrls}> Upload URLs </button>
+	<button class="preset-filled-tertiary-500 btn mt-2 dark:preset-filled-primary-500" onclick={uploadRemoteUrls}>Upload URLs</button>
 </div>

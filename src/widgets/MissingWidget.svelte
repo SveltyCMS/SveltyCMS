@@ -97,10 +97,8 @@ Provides actionable information for developers and administrators.
 			<li class="flex items-start gap-2">
 				<span class="mt-0.5">•</span>
 				<span
-					>Check if the widget is installed and activated in <a
-						href="/config/widgetManagement"
-						class="underline hover:text-warning-900 dark:hover:text-warning-100">Widget Management</a
-					></span
+					>Check if the widget is installed and activated in
+					<a href="/config/widgetManagement" class="underline hover:text-warning-900 dark:hover:text-warning-100">Widget Management</a></span
 				>
 			</li>
 			<li class="flex items-start gap-2">
@@ -125,7 +123,8 @@ Provides actionable information for developers and administrators.
 		<div
 			class="mt-4 rounded border border-error-300 bg-error-50 p-2 text-xs text-error-700 dark:border-error-700 dark:bg-error-950 dark:text-error-300"
 		>
-			<strong>Note:</strong> This field will not be editable until the widget is available.
+			<strong>Note:</strong>
+			This field will not be editable until the widget is available.
 		</div>
 	{/if}
 </div>

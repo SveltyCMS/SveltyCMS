@@ -22,25 +22,25 @@ Key features:
 <script lang="ts">
 	// Using iconify-icon web component
 	// Utils
-	import { formatBytes } from '@utils/utils';
-	import type { MediaImage, MediaBase, MediaVideo } from '@utils/media/mediaModels';
-	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
-
-	// Skeleton
-	import SystemTooltip from '@components/system/SystemTooltip.svelte';
-	// Svelte transitions
-	import { scale } from 'svelte/transition';
+	
 
 	import TagEditorModal from '@components/media/tagEditor/TagEditorModal.svelte';
+	// Skeleton
+	import SystemTooltip from '@components/system/SystemTooltip.svelte';
+	import type { MediaBase, MediaImage, MediaVideo } from '@utils/media/mediaModels';
+import { formatBytes } from '@utils/utils';
+	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
+	// Svelte transitions
+	import { scale } from 'svelte/transition';
 
 	interface Props {
 		filteredFiles?: (MediaBase | MediaImage)[];
 		gridSize?: 'tiny' | 'small' | 'medium' | 'large';
-		ondeleteImage?: (file: MediaBase | MediaImage) => void;
+		isSelectionMode?: boolean;
 		onBulkDelete?: (files: (MediaBase | MediaImage)[]) => void;
+		ondeleteImage?: (file: MediaBase | MediaImage) => void;
 		onEditImage?: (file: MediaImage) => void;
 		onUpdateImage?: (file: MediaImage) => void;
-		isSelectionMode?: boolean;
 		selectedFiles?: Set<string> | SvelteSet<string>;
 	}
 

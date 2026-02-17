@@ -9,15 +9,14 @@ Features:
 -->
 
 <script lang="ts">
-	import { asAny } from '@utils/utils';
-
+	import InputSwitch from '@components/system/builder/InputSwitch.svelte';
+	import { collections } from '@src/stores/collectionStore.svelte';
 	// Components
 	import { widgets } from '@stores/widgetStore.svelte.ts';
-	import InputSwitch from '@components/system/builder/InputSwitch.svelte';
 
 	// Skeleton Stores
 	import { modalState } from '@utils/modalState.svelte';
-	import { collections } from '@src/stores/collectionStore.svelte';
+	import { asAny } from '@utils/utils';
 
 	// Removed modalStore
 

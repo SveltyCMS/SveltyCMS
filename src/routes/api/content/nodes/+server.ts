@@ -4,8 +4,9 @@
  *
  * Security: Protected by hooks, admin-only.
  */
-import { json } from '@sveltejs/kit';
+
 import { contentManager } from '@src/content/ContentManager';
+import { json } from '@sveltejs/kit';
 
 // Unified Error Handling
 import { apiHandler } from '@utils/apiHandler';

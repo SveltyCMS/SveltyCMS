@@ -12,6 +12,9 @@ export interface CheckboxProps {
 	 * @default 'primary'
 	 */
 	color?: 'primary' | 'secondary' | 'accent';
+
+	// Legend text for the Checkbox
+	legend?: string;
 	/**
 	 * Sets the size of the checkbox.
 	 * @default 'md'
@@ -20,7 +23,4 @@ export interface CheckboxProps {
 
 	// Allow additional widget properties
 	[key: string]: unknown;
-
-	// Legend text for the Checkbox
-	legend?: string;
 }

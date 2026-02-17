@@ -8,14 +8,14 @@
  * - metricsService
  */
 
-import { describe, it, expect, beforeEach, mock } from 'bun:test';
-import { handleAuthentication } from '@src/hooks/handleAuthentication';
+import { beforeEach, describe, expect, it, mock } from 'bun:test';
 import { SESSION_COOKIE_NAME } from '@src/databases/auth/constants';
+import { handleAuthentication } from '@src/hooks/handleAuthentication';
 import type { RequestEvent } from '@sveltejs/kit';
 
 // --- Test Utilities ---
 
-function createMockEvent(pathname: string, sessionCookie?: string, hostname: string = 'localhost'): RequestEvent {
+function createMockEvent(pathname: string, sessionCookie?: string, hostname = 'localhost'): RequestEvent {
 	const url = new URL(pathname, `http://${hostname}`);
 
 	return {

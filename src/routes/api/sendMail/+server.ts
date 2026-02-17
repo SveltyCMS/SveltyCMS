@@ -30,11 +30,11 @@
  * is properly set in environment variables for successful email delivery.
  */
 
+import { type EmailTemplateProps, sendMail } from '@src/utils/email.server';
 import { json } from '@sveltejs/kit';
-import { logger } from '@utils/logger.server';
 import { apiHandler } from '@utils/apiHandler';
 import { AppError } from '@utils/errorHandling';
-import { sendMail, type EmailTemplateProps } from '@src/utils/email.server';
+import { logger } from '@utils/logger.server';
 
 // --- POST Handler ---
 export const POST = apiHandler(async ({ request, locals }) => {
@@ -42,10 +42,10 @@ export const POST = apiHandler(async ({ request, locals }) => {
 	// Check for internal API calls (from createToken API)
 	const isInternalCall = request.headers.get('x-internal-call') === 'true';
 
-	if (!isInternalCall) {
-		logger.debug(`User '${user?.email || 'Unknown'}' calling /api/sendMail`, { tenantId });
-	} else {
+	if (isInternalCall) {
 		logger.debug('Internal API call to /api/sendMail', { tenantId });
+	} else {
+		logger.debug(`User '${user?.email || 'Unknown'}' calling /api/sendMail`, { tenantId });
 	}
 
 	let requestBody: {

@@ -6,9 +6,9 @@
  * - GET: Get execution history for a specific flow
  */
 
+import { automationService } from '@src/services/automation/automationService';
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { automationService } from '@src/services/automation/automationService';
 
 /** GET /api/automations/:id/logs — Get execution logs */
 export const GET: RequestHandler = async ({ params }) => {

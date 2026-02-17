@@ -4,30 +4,30 @@
  * Centralizes logic previously found in +page.server.ts to enable pre-warming and consistent caching.
  */
 
-import { error } from '@sveltejs/kit';
+import type { CollectionEntry, FieldDefinition, RevisionData, Schema } from '@src/content/types';
+import type { User } from '@src/databases/auth/types';
 import { cacheService } from '@src/databases/CacheService';
+import type { IDBAdapter } from '@src/databases/dbInterface';
 import { modifyRequest } from '@src/routes/api/collections/modifyRequest';
 import { getPrivateSettingSync } from '@src/services/settingsService';
+import { error } from '@sveltejs/kit';
 import { logger } from '@utils/logger.server';
-import type { Schema, FieldDefinition, CollectionEntry, RevisionData } from '@src/content/types';
-import type { User } from '@src/databases/auth/types';
-import type { IDBAdapter } from '@src/databases/dbInterface';
 
 // Helper to get dbAdapter safely via dynamic import to avoid circular dep issues
 const getDbAdapter = async () => (await import('@src/databases/db')).dbAdapter as IDBAdapter;
 
 interface CollectionDataParams {
+	bypassCache?: boolean;
 	collection: Schema;
+	editEntryId?: string;
+	filter?: Record<string, unknown>;
+	language: string;
 	page?: number;
 	pageSize?: number;
-	sort?: { field: string; direction: 'asc' | 'desc' };
-	filter?: Record<string, unknown>;
 	search?: string;
-	language: string;
-	user: User;
+	sort?: { field: string; direction: 'asc' | 'desc' };
 	tenantId?: string;
-	editEntryId?: string;
-	bypassCache?: boolean;
+	user: User;
 }
 
 export class CollectionService {
@@ -146,12 +146,12 @@ export class CollectionService {
 
 		const [entriesResult, countResult] = await Promise.all([query.execute(), countQuery.count()]);
 
-		if (!entriesResult.success || !countResult.success) {
-			logger.error('Failed to load collection entries', { entriesResult, countResult });
-			// Fallback to empty
-		} else {
+		if (entriesResult.success && countResult.success) {
 			entries = (entriesResult.data || []) as unknown as CollectionEntry[];
 			totalItems = countResult.data as number;
+		} else {
+			logger.error('Failed to load collection entries', { entriesResult, countResult });
+			// Fallback to empty
 		}
 
 		// 3. Run modifyRequest
@@ -160,7 +160,7 @@ export class CollectionService {
 				data: entries,
 				fields: collection.fields as any, // Fields has complex union, leaving cast for now but minimizing surface
 				collection: collection as any,
-				user: user,
+				user,
 				type: 'GET',
 				tenantId
 			});
@@ -196,7 +196,7 @@ export class CollectionService {
 					});
 
 					const pluginContext = {
-						user: user,
+						user,
 						tenantId: tenantId || 'default',
 						language,
 						dbAdapter,
@@ -266,7 +266,7 @@ export class CollectionService {
 				totalItems: totalItems || 0,
 				pagesCount: Math.ceil((totalItems || 0) / pageSize),
 				currentPage: page,
-				pageSize: pageSize
+				pageSize
 			},
 			revisions: revisionsMeta || []
 		};

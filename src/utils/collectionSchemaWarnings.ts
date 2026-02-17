@@ -18,13 +18,13 @@ import type { Schema } from '@src/content/types';
  */
 interface ComparableField {
 	db_fieldName: string;
+	label?: string;
+	required?: boolean;
+	unique?: boolean;
 	widget?: {
 		Name?: string;
 		[key: string]: unknown;
 	};
-	label?: string;
-	required?: boolean;
-	unique?: boolean;
 	[key: string]: unknown;
 }
 
@@ -42,20 +42,20 @@ export type BreakingChangeType =
  * Represents a breaking change between two schema versions
  */
 export interface BreakingChange {
-	/** Type of breaking change */
-	type: BreakingChangeType;
-	/** Database field name affected */
-	fieldName: string;
-	/** Previous value (for context) */
-	oldValue?: unknown;
-	/** New value (for context) */
-	newValue?: unknown;
 	/** Whether this change will cause data loss */
 	dataLoss: boolean;
+	/** Database field name affected */
+	fieldName: string;
 	/** Human-readable message explaining the change */
 	message: string;
+	/** New value (for context) */
+	newValue?: unknown;
+	/** Previous value (for context) */
+	oldValue?: unknown;
 	/** Suggested action to mitigate the change */
 	suggestion?: string;
+	/** Type of breaking change */
+	type: BreakingChangeType;
 }
 
 /**

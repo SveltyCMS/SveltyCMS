@@ -4,19 +4,19 @@
  @description Renders an iframe and syncs CMS state with the previewed website using postMessage.
 -->
 <script lang="ts">
-	import { publicEnv } from '@src/stores/globalSettings.svelte';
-	import type { Schema, CollectionEntry } from '@src/content/types';
 	import type { User } from '@auth/types';
+	import type { CollectionEntry, Schema } from '@src/content/types';
+	import { publicEnv } from '@src/stores/globalSettings.svelte';
 	import { toaster } from '@stores/store.svelte';
 	import { onMount } from 'svelte';
 	import type { CmsUpdateMessage } from './types';
 
 	interface Props {
 		collection: { value: Schema };
-		currentCollectionValue: CollectionEntry;
-		user: User;
-		tenantId: string;
 		contentLanguage: string;
+		currentCollectionValue: CollectionEntry;
+		tenantId: string;
+		user: User;
 	}
 
 	let { collection, currentCollectionValue, contentLanguage }: Props = $props();
@@ -89,7 +89,7 @@
 	<div class="mb-4 flex items-center justify-between gap-4">
 		<div class="flex flex-1 items-center gap-2">
 			<iconify-icon icon="mdi:open-in-new" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-			<input type="text" class="input grow text-sm" readonly value={previewUrl} />
+			<input type="text" class="input grow text-sm" readonly value={previewUrl}>
 			<button class="preset-outline-surface-500 btn-sm" onclick={copyUrl} aria-label="Copy preview URL">
 				<iconify-icon icon="mdi:content-copy" width="16"></iconify-icon>
 			</button>

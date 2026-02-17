@@ -6,9 +6,9 @@
 import type { ContentNode } from '@content/types';
 
 export interface TreeError {
-	type: 'cycle' | 'duplicate_id' | 'path_collision';
-	nodeId: string;
 	message: string;
+	nodeId: string;
+	type: 'cycle' | 'duplicate_id' | 'path_collision';
 }
 
 /**
@@ -60,7 +60,9 @@ export function validateTreeIntegrity(nodes: ContentNode[]): TreeError | null {
 
 			for (const child of node.children) {
 				const error = traverse(child, newAncestors);
-				if (error) return error;
+				if (error) {
+					return error;
+				}
 			}
 		}
 
@@ -69,7 +71,9 @@ export function validateTreeIntegrity(nodes: ContentNode[]): TreeError | null {
 
 	for (const node of nodes) {
 		const error = traverse(node, new Set());
-		if (error) return error;
+		if (error) {
+			return error;
+		}
 	}
 
 	return null;

@@ -49,14 +49,14 @@ Toolbar controls for the Zoom tool:
 
 	function handleSliderChange(e: Event) {
 		const target = e.target as HTMLInputElement;
-		const value = parseInt(target.value) || 100;
+		const value = Number.parseInt(target.value) || 100;
 		sliderValue.value = value;
 		onZoomChange(value);
 	}
 
 	function handleInputChange(e: Event) {
 		const target = e.target as HTMLInputElement;
-		let value = parseInt(target.value) || 100;
+		let value = Number.parseInt(target.value) || 100;
 		value = Math.max(minZoom, Math.min(maxZoom, value));
 		sliderValue.value = value;
 		onZoomChange(value);
@@ -86,7 +86,7 @@ Toolbar controls for the Zoom tool:
 			oninput={handleSliderChange}
 			class="slider h-1 sm:w-28 md:w-36 cursor-pointer appearance-none bg-surface-500/30 rounded-full"
 			aria-label="Zoom level slider"
-		/>
+		>
 	</div>
 
 	<!-- Zoom In Button -->
@@ -111,7 +111,7 @@ Toolbar controls for the Zoom tool:
 			class="input w-14 px-1 py-0.5 text-center text-sm bg-transparent border-none text-surface-300 font-mono focus:ring-0 focus:text-white"
 			style="background: transparent;"
 			aria-label="Zoom level percentage"
-		/>
+		>
 		<span class="text-xs text-surface-500">%</span>
 	</div>
 
@@ -153,24 +153,24 @@ Toolbar controls for the Zoom tool:
 <style>
 	/* Custom slider styling */
 	.slider::-webkit-slider-thumb {
-		-webkit-appearance: none;
-		appearance: none;
 		width: 16px;
 		height: 16px;
-		border-radius: 50%;
-		background: rgb(var(--color-primary-500));
+		-webkit-appearance: none;
+		appearance: none;
 		cursor: pointer;
+		background: rgb(var(--color-primary-500));
 		border: 2px solid white;
+		border-radius: 50%;
 		box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 	}
 
 	.slider::-moz-range-thumb {
 		width: 16px;
 		height: 16px;
-		border-radius: 50%;
-		background: rgb(var(--color-primary-500));
 		cursor: pointer;
+		background: rgb(var(--color-primary-500));
 		border: 2px solid white;
+		border-radius: 50%;
 		box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 	}
 

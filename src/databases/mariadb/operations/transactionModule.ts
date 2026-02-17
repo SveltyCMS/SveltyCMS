@@ -6,12 +6,12 @@
  * - Execute transaction
  */
 
-import type { DatabaseTransaction, DatabaseResult } from '../../dbInterface';
-import { AdapterCore } from '../adapter/adapterCore';
+import type { DatabaseResult, DatabaseTransaction } from '../../dbInterface';
+import type { AdapterCore } from '../adapter/adapterCore';
 import * as utils from '../utils';
 
 export class TransactionModule {
-	private core: AdapterCore;
+	private readonly core: AdapterCore;
 
 	constructor(core: AdapterCore) {
 		this.core = core;
@@ -25,7 +25,9 @@ export class TransactionModule {
 		fn: (transaction: DatabaseTransaction) => Promise<DatabaseResult<T>>,
 		options?: { isolationLevel?: 'READ UNCOMMITTED' | 'READ COMMITTED' | 'REPEATABLE READ' | 'SERIALIZABLE' }
 	): Promise<DatabaseResult<T>> {
-		if (!this.db) return (this.core as any).notConnectedError();
+		if (!this.db) {
+			return (this.core as any).notConnectedError();
+		}
 
 		try {
 			return await this.db.transaction(async (_tx: any) => {
@@ -37,7 +39,9 @@ export class TransactionModule {
 				};
 
 				const result = await fn(dbTransaction);
-				if (!result.success) throw new Error(result.message || 'Transaction failed');
+				if (!result.success) {
+					throw new Error(result.message || 'Transaction failed');
+				}
 				return result;
 			}, options as any);
 		} catch (error) {

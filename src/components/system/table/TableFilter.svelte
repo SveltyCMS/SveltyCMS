@@ -27,20 +27,16 @@ It includes search, filter toggles, column visibility, and density controls, opt
 -->
 
 <script lang="ts">
-	// Using iconify-icon web component
-	import { browser } from '$app/environment';
-
-	// Stores
-	import { app } from '@stores/store.svelte';
-
-	// Logger
-	import { logger } from '@utils/logger';
-
-	// ParaglideJS
-	import * as m from '@src/paraglide/messages';
-
 	// Components
 	import SystemTooltip from '@components/system/SystemTooltip.svelte';
+	// ParaglideJS
+	import * as m from '@src/paraglide/messages';
+	// Stores
+	import { app } from '@stores/store.svelte';
+	// Logger
+	import { logger } from '@utils/logger';
+	// Using iconify-icon web component
+	import { browser } from '$app/environment';
 
 	// Props with types
 	let {
@@ -144,7 +140,7 @@ It includes search, filter toggles, column visibility, and density controls, opt
 			bind:value={globalSearchValue}
 			onkeydown={(e) => e.key === 'Enter' && closeOpenStates()}
 			class="input w-full h-full outline-none border-none bg-transparent px-4 transition-all duration-500 ease-in-out focus:border-tertiary-500 dark:text-surface-50 dark:bg-surface-800 dark:focus:border-primary-500"
-		/>
+		>
 		<button
 			onclick={() => {
 				globalSearchValue = '';

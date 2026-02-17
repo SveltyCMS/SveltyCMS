@@ -4,10 +4,10 @@
  */
 
 import { logger } from '@utils/logger.server';
-import type { PluginSlot, InjectionZone } from './types';
+import type { InjectionZone, PluginSlot } from './types';
 
 class SlotRegistry {
-	private slots: Map<InjectionZone, PluginSlot[]> = new Map();
+	private readonly slots: Map<InjectionZone, PluginSlot[]> = new Map();
 
 	/**
 	 * Register a new slot

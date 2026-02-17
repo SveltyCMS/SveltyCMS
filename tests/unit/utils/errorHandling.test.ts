@@ -3,8 +3,8 @@
  * @description Tests for error handling utilities
  */
 
-import { describe, it, expect } from 'bun:test';
-import { AppError, isAppError, isHttpError, getErrorMessage, wrapError } from '@utils/errorHandling';
+import { describe, expect, it } from 'bun:test';
+import { AppError, getErrorMessage, isAppError, isHttpError, wrapError } from '@utils/errorHandling';
 
 describe('Error Handling - AppError Class', () => {
 	it('should create AppError with message and status', () => {
@@ -63,7 +63,7 @@ describe('Error Handling - Type Guards', () => {
 		expect(isHttpError(httpError)).toBe(true);
 		expect(isHttpError({ status: 500 })).toBe(true);
 		expect(isHttpError({ body: {} })).toBe(false);
-		expect(isHttpError(new Error())).toBe(false);
+		expect(isHttpError(new Error('test'))).toBe(false);
 	});
 });
 

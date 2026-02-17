@@ -15,14 +15,10 @@ export interface RelationProps {
 	// The field from the related collection to display in the selector.
 	displayField: string;
 
-	// Index signature to satisfy WidgetProps constraint
-	[key: string]: unknown;
-
 	/**
-	 * Allow the user to select multiple entries.
-	 * @default false
+	 * Maximum number of items to select (if multiple is true).
 	 */
-	multiple?: boolean;
+	max?: number;
 
 	/**
 	 * Minimum number of items to select (if multiple is true).
@@ -30,9 +26,13 @@ export interface RelationProps {
 	min?: number;
 
 	/**
-	 * Maximum number of items to select (if multiple is true).
+	 * Allow the user to select multiple entries.
+	 * @default false
 	 */
-	max?: number;
+	multiple?: boolean;
+
+	// Index signature to satisfy WidgetProps constraint
+	[key: string]: unknown;
 }
 
 /**

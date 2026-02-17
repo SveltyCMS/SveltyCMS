@@ -3,14 +3,14 @@
  * @description API endpoint for generating AI-powered tags for images using local Ollama.
  */
 
-import { json, error } from '@sveltejs/kit';
-import { logger } from '@utils/logger.server';
-import type { RequestHandler } from './$types';
-import type { MediaItem } from '@src/databases/dbInterface';
 import { dbAdapter } from '@src/databases/db';
+import type { MediaItem } from '@src/databases/dbInterface';
 import { aiService } from '@src/services/AIService';
 import { getPrivateSetting } from '@src/services/settingsService';
 import { getFile } from '@src/utils/media/mediaStorage.server';
+import { error, json } from '@sveltejs/kit';
+import { logger } from '@utils/logger.server';
+import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ request }) => {
 	const { mediaId } = await request.json();
@@ -31,7 +31,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			throw error(500, 'Database adapter is not initialized.');
 		}
 		const mediaResult = await dbAdapter.crud.findOne<MediaItem>('MediaItem', { _id: mediaId as any });
-		if (!mediaResult.success || !mediaResult.data) {
+		if (!(mediaResult.success && mediaResult.data)) {
 			throw error(404, 'Media item not found.');
 		}
 		const mediaItem = mediaResult.data;

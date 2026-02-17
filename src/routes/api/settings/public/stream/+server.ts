@@ -6,8 +6,8 @@
  * Much more efficient than polling every 5 seconds.
  */
 
-import type { RequestHandler } from './$types';
 import { subscribeToSettingsChanges } from '@src/utils/server/settingsVersion';
+import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async () => {
 	const stream = new ReadableStream({
@@ -23,11 +23,11 @@ export const GET: RequestHandler = async () => {
 			// Keep connection alive with heartbeat every 30 seconds
 			const heartbeat = setInterval(() => {
 				try {
-					controller.enqueue(`: heartbeat\n\n`);
+					controller.enqueue(': heartbeat\n\n');
 				} catch {
 					clearInterval(heartbeat);
 				}
-			}, 30000);
+			}, 30_000);
 
 			// Cleanup on connection close
 			return () => {

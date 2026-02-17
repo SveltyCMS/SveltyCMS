@@ -17,16 +17,15 @@
  * providing a single interface for the MongoDB adapter.
  */
 
-import type { IDBAdapter, DatabaseResult, ISODateString } from '@src/databases/dbInterface';
-import type { User, Session, Role } from '@src/databases/auth/types';
-
+import type { Role, Session, User } from '@src/databases/auth/types';
+import type { DatabaseResult, IDBAdapter, ISODateString } from '@src/databases/dbInterface';
+import { safeQuery } from '@src/utils/security/safeQuery';
+import { hashPassword } from '@utils/crypto';
+import { logger } from '@utils/logger';
+import mongoose from 'mongoose';
 import { SessionAdapter } from '../models/authSession';
 import { TokenAdapter } from '../models/authToken';
 import { UserAdapter } from '../models/authUser';
-import { logger } from '@utils/logger';
-import { hashPassword } from '@utils/crypto';
-import { safeQuery } from '@src/utils/security/safeQuery';
-import mongoose from 'mongoose';
 
 // Type helper to extract the auth interface from IDBAdapter
 type AuthInterface = IDBAdapter['auth'];

@@ -48,63 +48,63 @@ export type ISODateString = string & { readonly __isoDate: 'ISODateString' };
 export interface BaseEntity {
 	_id: DatabaseId;
 	createdAt: ISODateString;
-	updatedAt: ISODateString;
-	isDeleted?: boolean; // Soft delete flag
 	deletedAt?: ISODateString; // Timestamp of deletion
 	deletedBy?: string; // User who performed deletion
+	isDeleted?: boolean; // Soft delete flag
 	tenantId?: string; // For multi-tenant support
+	updatedAt: ISODateString;
 }
 
 // Collection Entry - A data record in a collection with common metadata
 export interface CollectionEntry extends Record<string, unknown> {
 	_id?: string;
-	status?: StatusType;
 	createdAt?: string;
-	updatedAt?: string;
 	createdBy?: string;
-	updatedBy?: string;
+	status?: StatusType;
 	tenantId?: string;
+	updatedAt?: string;
+	updatedBy?: string;
 }
 
 // Revision Data - A historical snapshot of a collection entry
 export interface RevisionData {
 	_id: string;
-	entryId: string;
 	collectionId: string;
 	data: Record<string, unknown>;
-	timestamp: ISODateString;
-	userId?: string;
+	entryId: string;
 	operation?: 'create' | 'update' | 'delete' | 'status_change';
 	tenantId?: string;
+	timestamp: ISODateString;
+	userId?: string;
 	[key: string]: unknown;
 }
 
 export interface Translation {
+	isDefault?: boolean;
 	languageTag: string;
 	translationName: string;
-	isDefault?: boolean;
 }
 
 // --- Unified Content Node ---
 // A single interface to represent both categories and collections in the content tree.
 export interface ContentNode {
 	_id: DatabaseId;
-	name: string;
-	slug?: string;
+	children?: ContentNode[];
+	collectionDef?: Schema; // Only present if nodeType is 'collection'
+	createdAt: ISODateString;
+	deletedAt?: ISODateString; // Timestamp of deletion
+	deletedBy?: string; // User who performed deletion
 	description?: string;
-	nodeType: 'category' | 'collection';
 	icon?: string;
+	name: string;
+	nodeType: 'category' | 'collection';
 	order: number;
 	parentId?: DatabaseId;
 	path?: string;
-	translations: Translation[];
-	collectionDef?: Schema; // Only present if nodeType is 'collection'
-	children?: ContentNode[];
-	createdAt: ISODateString;
-	updatedAt: ISODateString;
+	slug?: string;
 	tenantId?: string; // For multi-tenant support
-	deletedAt?: ISODateString; // Timestamp of deletion
-	deletedBy?: string; // User who performed deletion
+	translations: Translation[];
+	updatedAt: ISODateString;
 }
 
 // Widget field type definition
@@ -115,6 +115,7 @@ export type WidgetTypes = widgets[WidgetKeys];
 import type { WidgetDefinition } from '@widgets/types';
 
 export interface EntryListProps {
+	contentLanguage?: string;
 	entries?: any[];
 	pagination?: {
 		currentPage: number;
@@ -122,60 +123,41 @@ export interface EntryListProps {
 		totalItems: number;
 		pagesCount: number;
 	};
-	contentLanguage?: string;
 }
 
 export interface FieldsProps {
+	contentLanguage?: string;
 	fields: any[];
 	revisions?: any[];
-	contentLanguage?: string;
 }
 
 export interface WidgetLoaderProps {
-	loader: () => Promise<{ default: any }>;
 	field: FieldInstance;
-	WidgetData?: Record<string, any>;
-	value?: any;
+	loader: () => Promise<{ default: any }>;
 	tenantId?: string;
+	value?: any;
+	WidgetData?: Record<string, any>;
 }
 
 export interface EntryListMultiButtonProps {
-	isCollectionEmpty?: boolean;
+	clone: () => void;
+	create: () => void;
+	delete: (permanent: boolean) => void;
 	hasSelections?: boolean;
+	isCollectionEmpty?: boolean;
+	publish: () => void;
+	schedule: (date: string, action: string) => void;
 	selectedCount?: number;
 	showDeleted?: boolean;
-	create: () => void;
-	publish: () => void;
-	unpublish: () => void;
-	schedule: (date: string, action: string) => void;
-	clone: () => void;
-	delete: (permanent: boolean) => void;
 	test: () => void;
+	unpublish: () => void;
 }
 
 // Field Instance - An actual field using a widget with specific configuration
 export interface FieldInstance {
-	/** A reference to the widget's immutable definition. */
-	widget: WidgetDefinition;
-
-	// Field properties
-	label: string;
+	callback?: (args: { data: Record<string, FieldValue> }) => void;
 	db_fieldName: string; // Now required (factory sets default)
-	translated: boolean; // Now required (factory sets default)
-	required: boolean; // Now required (factory sets default)
-	unique?: boolean;
 	default?: FieldValue;
-
-	// UI properties
-	icon?: string;
-	width?: number;
-	helper?: string;
-
-	// Permissions
-	permissions?: Record<string, Record<string, boolean>>;
-
-	// Functions
-	validate?: (value: FieldValue) => boolean | Promise<boolean>;
 	display?: (args: {
 		data: Record<string, FieldValue>;
 		collection?: string;
@@ -183,7 +165,13 @@ export interface FieldInstance {
 		entry?: Record<string, FieldValue>;
 		contentLanguage?: string;
 	}) => Promise<string> | string;
-	callback?: (args: { data: Record<string, FieldValue> }) => void;
+	helper?: string;
+
+	// UI properties
+	icon?: string;
+
+	// Field properties
+	label: string;
 	modifyRequest?: (args: Record<string, unknown>) => Promise<Record<string, unknown>>;
 	modifyRequestBatch?: (args: {
 		data: Record<string, unknown>[];
@@ -193,6 +181,18 @@ export interface FieldInstance {
 		type: string;
 		tenantId?: string;
 	}) => Promise<Record<string, unknown>[]>;
+
+	// Permissions
+	permissions?: Record<string, Record<string, boolean>>;
+	required: boolean; // Now required (factory sets default)
+	translated: boolean; // Now required (factory sets default)
+	unique?: boolean;
+
+	// Functions
+	validate?: (value: FieldValue) => boolean | Promise<boolean>;
+	/** A reference to the widget's immutable definition. */
+	widget: WidgetDefinition;
+	width?: number;
 
 	/** Widget-specific properties, now strongly typed by the factory. */
 	[key: string]: unknown;
@@ -205,65 +205,65 @@ export type FieldDefinition = unknown | WidgetPlaceholder;
 
 // Collection Schema Definition (SINGLE DEFINITION)
 export interface Schema {
-	id?: number;
 	_id?: string;
-	name?: ContentTypes | string;
-	label?: string;
-	slug?: string;
-	icon?: string;
-	order?: number;
 	description?: string;
-	strict?: boolean;
-	revision?: boolean;
-	revisionLimit?: number;
+	fields: FieldDefinition[];
+	icon?: string;
+	id?: number;
+	label?: string;
+	links?: ContentTypes[];
+	livePreview?: boolean | string;
+	name?: ContentTypes | string;
+	order?: number;
 	path?: string;
 	permissions?: RolePermissions;
-	livePreview?: boolean | string;
-	status?: StatusType;
-	links?: Array<ContentTypes>;
-	fields: FieldDefinition[];
-	translations?: Translation[]; // Optional translations with enhanced metadata
 	plugins?: string[]; // Enabled plugin IDs for this collection
+	revision?: boolean;
+	revisionLimit?: number;
+	slug?: string;
+	status?: StatusType;
+	strict?: boolean;
 	tenantId?: string; // For multi-tenant support
+	translations?: Translation[]; // Optional translations with enhanced metadata
 }
 
-export type MinimalContentNode = {
+export interface MinimalContentNode {
 	name: string;
-	path: string;
 	nodeType: 'category';
-};
+	path: string;
+}
 
 export interface Category {
+	collections: string[];
+	icon: string;
 	id: number;
 	name: string;
-	icon: string;
 	order: number;
-	collections: string[];
 	subcategories?: Category[];
 }
 
 export type ContentNodeOperatianType = 'create' | 'delete' | 'move' | 'rename' | 'update';
 
-export type ContentNodeOperation = {
-	type: ContentNodeOperatianType;
+export interface ContentNodeOperation {
 	node: ContentNode;
-};
+	type: ContentNodeOperatianType;
+}
 
 // Dashboard types
 export interface WidgetSize {
-	w: number; // Width in grid units
 	h: number; // Height in grid units
+	w: number; // Width in grid units
 }
 
 export interface DashboardWidgetConfig {
-	id: string; // Unique widget identifier
 	component: string; // Svelte component name
-	label: string; // Display label for the widget
-	icon: string; // Icon identifier (iconify icon)
-	size: WidgetSize; // Widget dimensions
-	settings: Record<string, unknown>; // Widget-specific settings
 	gridPosition?: number; // Optional position in the grid layout
+	icon: string; // Icon identifier (iconify icon)
+	id: string; // Unique widget identifier
+	label: string; // Display label for the widget
 	order?: number; // Optional order for sorting
+	settings: Record<string, unknown>; // Widget-specific settings
+	size: WidgetSize; // Widget dimensions
 }
 
 export interface Layout {
@@ -273,24 +273,24 @@ export interface Layout {
 }
 
 export interface SystemPreferences {
-	preferences: DashboardWidgetConfig[]; // Current widget preferences
-	loading: boolean; // Loading state
 	error: string | null; // Error message if any
+	loading: boolean; // Loading state
+	preferences: DashboardWidgetConfig[]; // Current widget preferences
 }
 
 export interface SystemPreferencesDocument {
 	_id: string; // Document ID (combination of userId and layoutId)
-	userId?: string; // Optional user ID for user-scoped preferences
-	layoutId: string; // Layout identifier
-	layout: Layout; // Complete layout configuration
-	scope: 'user' | 'system' | 'widget'; // Preference scope
 	createdAt: ISODateString; // Creation timestamp
+	layout: Layout; // Complete layout configuration
+	layoutId: string; // Layout identifier
+	scope: 'user' | 'system' | 'widget'; // Preference scope
 	updatedAt: ISODateString; // Last update timestamp
+	userId?: string; // Optional user ID for user-scoped preferences
 }
 
 export interface DropIndicator {
-	show: boolean;
 	position: number;
+	show: boolean;
 	targetIndex?: number; // Optional target index for drop operations
 }
 
@@ -300,102 +300,102 @@ export interface WidgetComponent {
 }
 
 export interface WidgetMeta {
-	id: string;
-	label: string;
-	icon: string;
 	component: string;
 	defaultSize: WidgetSize;
-	name?: string; // Optional widget name
 	description?: string; // Optional widget description
+	icon: string;
+	id: string;
+	label: string;
+	name?: string; // Optional widget name
 	settings?: Record<string, unknown>; // Optional default settings
 }
 
 // --- Import/Export Types ---
 
 export interface ExportMetadata {
-	exported_at: string;
 	cms_version: string;
 	environment: string;
-	exported_by: string;
 	export_id: string;
+	exported_at: string;
+	exported_by: string;
 }
 
 export interface ExportOptions {
-	includeSettings: boolean;
-	includeCollections: boolean;
-	includeSensitive: boolean;
+	collections?: string[]; // Specific collections to export
 	format: 'json' | 'zip';
 	groups?: string[]; // Specific settings groups to export
-	collections?: string[]; // Specific collections to export
+	includeCollections: boolean;
+	includeSensitive: boolean;
+	includeSettings: boolean;
 	sensitivePassword?: string; // Password to encrypt sensitive data (required if includeSensitive is true)
 }
 
 export interface ImportOptions {
-	strategy: 'skip' | 'overwrite' | 'merge';
 	dryRun: boolean;
-	validateOnly: boolean;
 	sensitivePassword?: string; // Password to decrypt sensitive data
+	strategy: 'skip' | 'overwrite' | 'merge';
+	validateOnly: boolean;
 }
 
 export interface ExportData {
-	metadata: ExportMetadata;
-	settings?: Record<string, unknown>;
 	collections?: CollectionExport[];
 	encryptedSensitive?: string; // Encrypted sensitive data (AES-256)
 	hasSensitiveData?: boolean; // Flag indicating presence of encrypted sensitive data
+	metadata: ExportMetadata;
+	settings?: Record<string, unknown>;
 }
 
 export interface CollectionExport {
-	id: string;
-	name: string;
-	label: string;
 	description?: string;
-	schema: unknown;
-	fields: unknown[];
-	permissions?: string[];
-	settings?: Record<string, unknown>;
 	documents?: Record<string, unknown>[];
+	fields: unknown[];
+	id: string;
+	label: string;
+	name: string;
+	permissions?: string[];
+	schema: unknown;
+	settings?: Record<string, unknown>;
 }
 
 export interface ValidationResult {
-	valid: boolean;
 	errors: ValidationError[];
+	valid: boolean;
 	warnings: ValidationWarning[];
 }
 
 export interface ValidationError {
-	path: string;
-	message: string;
 	code: string;
+	message: string;
+	path: string;
 }
 
 export interface ValidationWarning {
-	path: string;
-	message: string;
 	code: string;
+	message: string;
+	path: string;
 }
 
 export interface Conflict {
-	type: 'setting' | 'collection';
-	key: string;
 	current: unknown;
 	import: unknown;
+	key: string;
 	recommendation: 'skip' | 'overwrite' | 'merge';
+	type: 'setting' | 'collection';
 }
 
 export interface ImportResult {
-	success: boolean;
-	imported: number;
-	skipped: number;
-	merged: number;
-	errors: ImportError[];
 	conflicts: Conflict[];
+	errors: ImportError[];
+	imported: number;
+	merged: number;
+	skipped: number;
+	success: boolean;
 }
 
 export interface ImportError {
+	code: string;
 	key: string;
 	message: string;
-	code: string;
 }
 
 // Sensitive field patterns to exclude from exports
@@ -407,39 +407,39 @@ export const SENSITIVE_PATTERNS = ['PASSWORD', 'SECRET', 'TOKEN', 'KEY', 'CLIENT
 export type SortOrder = 0 | 1 | -1; // Strict type for sort order
 
 export interface TableHeader {
+	component?: string;
+	id: string;
 	label: string;
 	name: string;
-	id: string;
+	props?: Record<string, string>;
+	sortable?: boolean;
 	visible: boolean;
 	width?: number;
-	sortable?: boolean;
-	component?: string;
-	props?: Record<string, string>;
 }
 
 export interface PaginationSettings {
 	collectionId: string | null;
+	currentPage: number;
 	density: 'compact' | 'normal' | 'comfortable';
+	displayTableHeaders: TableHeader[];
+	filters: Record<string, string>;
+	pagesCount?: number;
+	rowsPerPage: number;
 	sorting: {
 		sortedBy: string;
 		isSorted: SortOrder;
 	};
-	currentPage: number;
-	rowsPerPage: number;
-	filters: Record<string, string>;
-	displayTableHeaders: TableHeader[];
-	pagesCount?: number;
 	totalItems?: number;
 }
 
 export interface TablePaginationProps {
 	currentPage: number;
+	onUpdatePage?: (page: number) => void;
+	onUpdateRowsPerPage?: (rows: number) => void;
 	pagesCount?: number;
 	rowsPerPage: number;
 	rowsPerPageOptions?: number[];
 	totalItems?: number;
-	onUpdatePage?: (page: number) => void;
-	onUpdateRowsPerPage?: (rows: number) => void;
 }
 
 /* AUTOGEN_START: ContentTypes */

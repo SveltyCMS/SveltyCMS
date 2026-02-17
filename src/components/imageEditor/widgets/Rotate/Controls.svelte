@@ -49,7 +49,7 @@ Professional rotate controls with straighten and snap features
 
 	function handleAngleInput(e: Event) {
 		const target = e.currentTarget as HTMLInputElement;
-		onRotationChange(parseFloat(target.value));
+		onRotationChange(Number.parseFloat(target.value));
 	}
 
 	// Keyboard shortcuts
@@ -154,9 +154,7 @@ Professional rotate controls with straighten and snap features
 				</button>
 			{/if}
 			{#if onAutoStraighten}
-				<button class="btn" onclick={onAutoStraighten} title="Auto-Straighten">
-					<iconify-icon icon="mdi:auto-fix" width="20"></iconify-icon>
-				</button>
+				<button class="btn" onclick={onAutoStraighten} title="Auto-Straighten"><iconify-icon icon="mdi:auto-fix" width="20"></iconify-icon></button>
 			{/if}
 		</div>
 	</div>
@@ -187,11 +185,9 @@ Professional rotate controls with straighten and snap features
 					oninput={handleAngleInput}
 					class="slider"
 					aria-label="Fine-tune rotation angle"
-				/>
+				>
 			</div>
-			<div class="angle-display">
-				{displayAngle}°
-			</div>
+			<div class="angle-display">{displayAngle}°</div>
 		</div>
 	</div>
 
@@ -204,42 +200,42 @@ Professional rotate controls with straighten and snap features
 	.rotate-controls {
 		display: flex;
 		flex-wrap: wrap; /* Always allow wrapping */
-		align-items: center;
 		gap: 1rem;
+		align-items: center;
+		width: 100%;
 		padding: 0;
 		background: transparent;
 		border: none;
-		width: 100%;
 	}
 
 	/* Groups of controls */
 	.control-group {
 		display: flex;
-		align-items: center;
-		gap: 0.5rem;
 		flex-wrap: wrap;
+		gap: 0.5rem;
+		align-items: center;
 	}
 
 	.btn-group {
 		display: flex;
-		border-radius: 9999px;
+		gap: 2px;
+		padding: 2px;
 		overflow: hidden;
 		background: rgba(0, 0, 0, 0.2);
-		padding: 2px;
-		gap: 2px;
+		border-radius: 9999px;
 	}
 
 	.btn-group .btn {
-		border-radius: 9999px;
-		border: none;
-		height: 2rem;
-		width: 2rem;
-		padding: 0;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		background: transparent;
+		width: 2rem;
+		height: 2rem;
+		padding: 0;
 		color: #9ca3af;
+		background: transparent;
+		border: none;
+		border-radius: 9999px;
 		transition: all 0.2s;
 	}
 
@@ -249,8 +245,8 @@ Professional rotate controls with straighten and snap features
 	}
 
 	.btn-group .btn.active {
-		background: #3b82f6;
 		color: white;
+		background: #3b82f6;
 	}
 
 	.btn-group .btn:last-child {
@@ -258,8 +254,8 @@ Professional rotate controls with straighten and snap features
 	}
 
 	.btn-group .btn.active {
-		background: rgb(var(--color-primary-500) / 1);
 		color: white;
+		background: rgb(var(--color-primary-500) / 1);
 	}
 
 	.preset-angles {
@@ -272,59 +268,59 @@ Professional rotate controls with straighten and snap features
 		padding: 0 0.75rem;
 		font-size: 0.75rem;
 		font-weight: 600;
-		border-radius: 9999px;
-		background: rgba(255, 255, 255, 0.05);
 		color: #9ca3af;
-		cursor: pointer;
-		transition: all 0.2s;
 		white-space: nowrap;
+		cursor: pointer;
+		background: rgba(255, 255, 255, 0.05);
 		border: 1px solid transparent;
+		border-radius: 9999px;
+		transition: all 0.2s;
 	}
 
 	.preset-btn:hover {
-		background: rgba(255, 255, 255, 0.1);
 		color: white;
+		background: rgba(255, 255, 255, 0.1);
 	}
 
 	.preset-btn.active {
-		background: #3b82f6; /* Primary-500 */
 		color: white;
+		background: #3b82f6; /* Primary-500 */
 		box-shadow: 0 0 15px rgba(59, 130, 246, 0.3);
 	}
 
 	/* Enhanced Slider Styling */
 	.slider-wrapper {
 		display: flex;
-		align-items: center;
-		gap: 0.75rem;
 		flex: 1;
+		gap: 0.75rem;
+		align-items: center;
 		min-width: 200px;
-		background: rgba(0, 0, 0, 0.2);
 		padding: 0.25rem 0.75rem;
-		border-radius: 9999px;
+		background: rgba(0, 0, 0, 0.2);
 		border: 1px solid rgba(255, 255, 255, 0.1);
+		border-radius: 9999px;
 	}
 
 	.slider-track-container {
-		flex: 1;
 		position: relative;
 		display: flex;
+		flex: 1;
 		align-items: center;
 		height: 1.5rem;
 		padding: 0 0.5rem; /* Add padding for thumb */
 	}
 
 	.slider {
-		-webkit-appearance: none;
-		appearance: none;
+		position: absolute;
 		width: 100%;
 		height: 6px;
-		border-radius: 3px;
-		background: rgb(var(--color-surface-300) / 1);
-		outline: none;
-		cursor: pointer;
-		position: absolute;
 		margin: 0;
+		-webkit-appearance: none;
+		appearance: none;
+		cursor: pointer;
+		outline: none;
+		background: rgb(var(--color-surface-300) / 1);
+		border-radius: 3px;
 	}
 
 	:global(.dark) .slider {
@@ -333,22 +329,22 @@ Professional rotate controls with straighten and snap features
 
 	/* Slider Thumb - Webkit */
 	.slider::-webkit-slider-thumb {
-		-webkit-appearance: none;
-		appearance: none;
 		width: 20px;
 		height: 20px;
-		border-radius: 50%;
+		margin-top: -7px; /* Nudge to center if needed, though usually auto-centers on height */
+		-webkit-appearance: none;
+		appearance: none;
+		cursor: pointer;
 		background: white;
 		border: 2px solid rgb(var(--color-primary-500) / 1);
-		cursor: pointer;
+		border-radius: 50%;
 		box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
-		transition: transform 0.1s;
-		margin-top: -7px; /* Nudge to center if needed, though usually auto-centers on height */
+		transition: transform 0.1s; /* Nudge to center if needed, though usually auto-centers on height */
 	}
 
 	.slider::-webkit-slider-thumb:hover {
-		transform: scale(1.1);
 		box-shadow: 0 0 0 4px rgb(var(--color-primary-500) / 0.2);
+		transform: scale(1.1);
 	}
 
 	.slider::-webkit-slider-thumb:active {
@@ -360,17 +356,17 @@ Professional rotate controls with straighten and snap features
 	.slider::-moz-range-thumb {
 		width: 20px;
 		height: 20px;
-		border-radius: 50%;
+		cursor: pointer;
 		background: white;
 		border: 2px solid rgb(var(--color-primary-500) / 1);
-		cursor: pointer;
+		border-radius: 50%;
 		box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
 		transition: transform 0.1s;
 	}
 
 	.slider::-moz-range-thumb:hover {
-		transform: scale(1.1);
 		box-shadow: 0 0 0 4px rgb(var(--color-primary-500) / 0.2);
+		transform: scale(1.1);
 	}
 
 	.slider::-moz-range-thumb:active {
@@ -381,22 +377,22 @@ Professional rotate controls with straighten and snap features
 	/* Center tick mark */
 	.center-tick {
 		position: absolute;
-		left: 50%;
 		top: 50%;
-		transform: translate(-50%, -50%);
+		left: 50%;
 		width: 2px;
 		height: 10px;
-		background: rgb(var(--color-surface-400) / 1);
 		pointer-events: none;
+		background: rgb(var(--color-surface-400) / 1);
 		border-radius: 1px;
+		transform: translate(-50%, -50%);
 	}
 
 	.angle-display {
+		min-width: 3.5rem;
 		font-family: monospace;
 		font-size: 0.875rem;
 		font-weight: 600;
 		color: rgb(var(--color-primary-500) / 1);
-		min-width: 3.5rem;
 		text-align: right;
 	}
 

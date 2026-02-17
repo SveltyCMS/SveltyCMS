@@ -3,8 +3,8 @@
  * @description Editable Website Plugin Definition
  */
 
-import type { Plugin } from '@src/plugins/types';
 import { slotRegistry } from '@src/plugins/slotRegistry';
+import type { Plugin } from '@src/plugins/types';
 
 // Register the Live Preview slot
 slotRegistry.register({

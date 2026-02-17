@@ -49,21 +49,20 @@ Advanced autocomplete component with fuzzy search, keyboard navigation, and acce
 -->
 
 <script lang="ts">
-	import { fade, slide } from 'svelte/transition';
-	import { onMount, onDestroy } from 'svelte';
-	import { scale } from 'svelte/transition';
+	import { onDestroy, onMount } from 'svelte';
+	import { fade, scale, slide } from 'svelte/transition';
 
 	interface Props {
-		options?: string[];
-		value?: string;
-		placeholder?: string;
-		disabled?: boolean;
 		allowCustomValue?: boolean;
-		showCreateOption?: boolean;
-		fuzzySearch?: boolean;
 		caseSensitive?: boolean;
+		disabled?: boolean;
+		fuzzySearch?: boolean;
 		maxResults?: number;
 		onSelect?: (value: string) => void;
+		options?: string[];
+		placeholder?: string;
+		showCreateOption?: boolean;
+		value?: string;
 	}
 
 	let {
@@ -142,16 +141,15 @@ Advanced autocomplete component with fuzzy search, keyboard navigation, and acce
 				.sort((a, b) => b.score - a.score)
 				.map((item) => item.option)
 				.slice(0, maxResults);
-		} else {
-			// Simple substring search
-			const keywordCompare = caseSensitive ? keyword : keyword.toLowerCase();
-			return options
-				.filter((option) => {
-					const optionCompare = caseSensitive ? option : option.toLowerCase();
-					return optionCompare.includes(keywordCompare);
-				})
-				.slice(0, maxResults);
 		}
+		// Simple substring search
+		const keywordCompare = caseSensitive ? keyword : keyword.toLowerCase();
+		return options
+			.filter((option) => {
+				const optionCompare = caseSensitive ? option : option.toLowerCase();
+				return optionCompare.includes(keywordCompare);
+			})
+			.slice(0, maxResults);
 	});
 
 	// Check if we should show "Create new" option
@@ -227,22 +225,22 @@ Advanced autocomplete component with fuzzy search, keyboard navigation, and acce
 		switch (event.key) {
 			case 'ArrowDown':
 				event.preventDefault();
-				if (!showDropdown) {
+				if (showDropdown) {
+					selectedIndex = (selectedIndex + 1) % optionsLength;
+				} else {
 					showDropdown = true;
 					selectedIndex = 0;
-				} else {
-					selectedIndex = (selectedIndex + 1) % optionsLength;
 				}
 				scrollIntoView(selectedIndex);
 				break;
 
 			case 'ArrowUp':
 				event.preventDefault();
-				if (!showDropdown) {
+				if (showDropdown) {
+					selectedIndex = (selectedIndex - 1 + optionsLength) % optionsLength;
+				} else {
 					showDropdown = true;
 					selectedIndex = optionsLength - 1;
-				} else {
-					selectedIndex = (selectedIndex - 1 + optionsLength) % optionsLength;
 				}
 				scrollIntoView(selectedIndex);
 				break;
@@ -370,9 +368,7 @@ Advanced autocomplete component with fuzzy search, keyboard navigation, and acce
 
 <div class="relative w-full" bind:this={dropdownElement}>
 	<!-- Label (screen reader only) -->
-	<label for="autocomplete-input" class="sr-only">
-		{placeholder}
-	</label>
+	<label for="autocomplete-input" class="sr-only"> {placeholder} </label>
 
 	<!-- Input wrapper -->
 	<div class="relative">
@@ -482,11 +478,9 @@ Advanced autocomplete component with fuzzy search, keyboard navigation, and acce
 					transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }}
 				>
 					<iconify-icon icon="mdi:magnify-close" width="32" class="text-surface-400" aria-hidden="true"></iconify-icon>
-					<p class="text-sm text-surface-600 dark:text-surface-50">
-						No results found for "<span class="font-medium">{keyword}</span>"
-					</p>
+					<p class="text-sm text-surface-600 dark:text-surface-50">No results found for "<span class="font-medium">{keyword}</span>"</p>
 					{#if allowCustomValue}
-						<button type="button" class="preset-outlined-surface-500 btn-sm mt-2" onclick={() => selectOption(keyword)}> Use custom value </button>
+						<button type="button" class="preset-outlined-surface-500 btn-sm mt-2" onclick={() => selectOption(keyword)}>Use custom value</button>
 					{/if}
 				</div>
 			{/if}

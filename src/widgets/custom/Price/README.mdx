@@ -1,0 +1,75 @@
+---
+path: 'src/widgets/custom/Price/README.mdx'
+title: 'Price Widget'
+description: 'Documentation for the Price widget, handling monetary values with currency support.'
+order: 11
+icon: 'mdi:currency-usd'
+author: 'admin'
+created: '2026-02-17'
+updated: '2026-02-17'
+tags:
+  - 'widgets'
+  - 'custom'
+  - 'price'
+  - 'ecommerce'
+---
+
+# Price Widget
+
+The **Price Widget** is a specialized custom widget designed for E-commerce applications. It stores a monetary value alongside its currency code, ensuring accurate pricing data.
+
+## 🚀 Features
+
+- **Composite Input**: selecting currency and entering amount.
+- **Validation**: Enforces minimum/maximum amounts and required fields.
+- **Formatting**: Displays prices using `Intl.NumberFormat` for correct locale-aware formatting.
+- **Type Safety**: Strictly typed value object `{ amount: number, currency: string }`.
+
+## 📦 Usage
+
+### Basic Example
+
+In your collection schema (e.g., `Products.ts`):
+
+```typescript
+import { widgets } from '@widgets';
+
+export default {
+	fields: [
+		widgets.Price({
+			label: 'Regular Price',
+			db_fieldName: 'price',
+			required: true,
+			defaultCurrency: 'USD',
+			allowedCurrencies: ['USD', 'EUR', 'GBP'],
+			min: 0
+		})
+	]
+};
+```
+
+### Data Structure
+
+The data is stored as an object in the database:
+
+```json
+{
+	"amount": 29.99,
+	"currency": "USD"
+}
+```
+
+## ⚙️ Configuration
+
+| Option              | Type       | Default                 | Description                                            |
+| :------------------ | :--------- | :---------------------- | :----------------------------------------------------- |
+| `defaultCurrency`   | `string`   | `'EUR'`                 | The default currency code (ISO 4217) if none selected. |
+| `allowedCurrencies` | `string[]` | `['EUR', 'USD', 'GBP']` | List of allowed currency codes.                        |
+| `min`               | `number`   | `0`                     | Minimum monetary amount.                               |
+| `max`               | `number`   | `Infinity`              | Maximum monetary amount.                               |
+| `step`              | `number`   | `0.01`                  | Step interval for the number input.                    |
+
+## ♿ Accessibility
+
+- **Labeled Inputs**: Both currency selector and amount input are properly labeled via ARIA.
+- **Keyboard Navigation**: Fully accessible via keyboard.

@@ -12,11 +12,9 @@
  * @security Admin-only endpoints with comprehensive logging
  */
 
-import { json } from '@sveltejs/kit';
-import { securityResponseService } from '@src/services/SecurityResponseService';
 import { hasApiPermission } from '@src/databases/auth/apiPermissions';
-import { logger } from '@utils/logger.server';
-
+import { securityResponseService } from '@src/services/SecurityResponseService';
+import { json } from '@sveltejs/kit';
 /**
  * GET /api/security/incidents
  * Returns list of active security incidents with filtering options.
@@ -24,6 +22,7 @@ import { logger } from '@utils/logger.server';
 // Unified Error Handling
 import { apiHandler } from '@utils/apiHandler';
 import { AppError } from '@utils/errorHandling';
+import { logger } from '@utils/logger.server';
 
 /**
  * GET /api/security/incidents
@@ -32,8 +31,8 @@ import { AppError } from '@utils/errorHandling';
 export const GET = apiHandler(async ({ locals, url }) => {
 	try {
 		// Authorization check - admin only
-		if (!locals.user || !hasApiPermission(locals.user.role, 'security')) {
-			logger.warn(`Unauthorized security incidents access attempt`, {
+		if (!(locals.user && hasApiPermission(locals.user.role, 'security'))) {
+			logger.warn('Unauthorized security incidents access attempt', {
 				userId: locals.user?._id,
 				role: locals.user?.role
 			});
@@ -43,8 +42,8 @@ export const GET = apiHandler(async ({ locals, url }) => {
 		// Get query parameters for filtering
 		const threatLevel = url.searchParams.get('threatLevel');
 		const resolved = url.searchParams.get('resolved');
-		const limit = parseInt(url.searchParams.get('limit') || '50');
-		const offset = parseInt(url.searchParams.get('offset') || '0');
+		const limit = Number.parseInt(url.searchParams.get('limit') || '50', 10);
+		const offset = Number.parseInt(url.searchParams.get('offset') || '0', 10);
 
 		// Get incidents from security service
 		let incidents = securityResponseService.getActiveIncidents();
@@ -89,7 +88,9 @@ export const GET = apiHandler(async ({ locals, url }) => {
 
 		return json(response);
 	} catch (error) {
-		if (error instanceof AppError) throw error;
+		if (error instanceof AppError) {
+			throw error;
+		}
 		logger.error('Error fetching security incidents:', error);
 		throw new AppError('Internal server error', 500, 'FETCH_FAILED');
 	}
@@ -102,7 +103,7 @@ export const GET = apiHandler(async ({ locals, url }) => {
 export const POST = apiHandler(async ({ locals, request }) => {
 	try {
 		// Authorization check - admin only
-		if (!locals.user || !hasApiPermission(locals.user.role, 'security')) {
+		if (!(locals.user && hasApiPermission(locals.user.role, 'security'))) {
 			throw new AppError('Unauthorized - Admin access required', 403, 'FORBIDDEN');
 		}
 
@@ -110,7 +111,7 @@ export const POST = apiHandler(async ({ locals, request }) => {
 		const { ip, eventType, severity, evidence, metadata } = body;
 
 		// Validate required fields
-		if (!ip || !eventType || !severity || !evidence) {
+		if (!(ip && eventType && severity && evidence)) {
 			throw new AppError('Missing required fields: ip, eventType, severity, evidence', 400, 'MISSING_FIELDS');
 		}
 
@@ -139,7 +140,9 @@ export const POST = apiHandler(async ({ locals, request }) => {
 			message: 'Security incident reported successfully'
 		});
 	} catch (error) {
-		if (error instanceof AppError) throw error;
+		if (error instanceof AppError) {
+			throw error;
+		}
 		logger.error('Error creating security incident:', error);
 		throw new AppError('Internal server error', 500, 'CREATE_FAILED');
 	}

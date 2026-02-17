@@ -14,9 +14,11 @@ import type { ISODateString } from '../content/types';
 
 // Type guard for ISODateString
 export function isISODateString(value: unknown): value is ISODateString {
-	if (typeof value !== 'string') return false;
+	if (typeof value !== 'string') {
+		return false;
+	}
 	const date = new Date(value);
-	return !isNaN(date.getTime()) && date.toISOString() === value;
+	return !Number.isNaN(date.getTime()) && date.toISOString() === value;
 }
 
 // Convert Date to ISODateString with validation
@@ -31,7 +33,7 @@ export function dateToISODateString(date: Date): ISODateString {
 // Convert string to ISODateString with validation
 export function stringToISODateString(dateString: string): ISODateString {
 	const date = new Date(dateString);
-	if (isNaN(date.getTime())) {
+	if (Number.isNaN(date.getTime())) {
 		throw new Error('Invalid date string');
 	}
 	return dateToISODateString(date);
@@ -78,7 +80,9 @@ export function toISOString(value: unknown): ISODateString {
  * Accepts Date, ISODateString, number (timestamp in seconds or ms), or string
  */
 export function normalizeDateInput(dateInput: Date | ISODateString | number | string): ISODateString {
-	if (!dateInput) return dateToISODateString(new Date());
+	if (!dateInput) {
+		return dateToISODateString(new Date());
+	}
 	if (dateInput instanceof Date) {
 		return dateToISODateString(dateInput);
 	}
@@ -89,7 +93,7 @@ export function normalizeDateInput(dateInput: Date | ISODateString | number | st
 	if (typeof dateInput === 'string') {
 		// Try to parse as ISO string or number
 		const num = Number(dateInput);
-		if (!isNaN(num)) {
+		if (!Number.isNaN(num)) {
 			return dateToISODateString(new Date(num < 1e12 ? num * 1000 : num));
 		}
 		return dateToISODateString(new Date(dateInput));
@@ -117,7 +121,7 @@ export function isoDateStringToDate(isoDate: ISODateString): Date {
  * @param pattern - Format pattern
  * @param fallback - Fallback string if date is invalid
  */
-export function formatDateString(dateInput: Date | number | string, pattern: string = 'yyyy-MM-dd', fallback: string = ''): string {
+export function formatDateString(dateInput: Date | number | string, pattern = 'yyyy-MM-dd', fallback = ''): string {
 	try {
 		let date: Date;
 
@@ -129,7 +133,7 @@ export function formatDateString(dateInput: Date | number | string, pattern: str
 			date = dateInput;
 		}
 
-		if (isNaN(date.getTime())) {
+		if (Number.isNaN(date.getTime())) {
 			return fallback;
 		}
 
@@ -155,7 +159,7 @@ export function formatDateString(dateInput: Date | number | string, pattern: str
  */
 export function formatDisplayDate(
 	dateInput: Date | number | string,
-	locale: string = 'en',
+	locale = 'en',
 	options: Intl.DateTimeFormatOptions = {
 		year: 'numeric',
 		month: 'short',
@@ -176,7 +180,7 @@ export function formatDisplayDate(
 			date = dateInput;
 		}
 
-		if (isNaN(date.getTime())) {
+		if (Number.isNaN(date.getTime())) {
 			return 'Invalid Date';
 		}
 
@@ -192,7 +196,7 @@ export function formatDisplayDate(
  * @param dateInput - Date, timestamp or ISO string
  * @param locale - Locale to format for
  */
-export function formatRelativeDate(dateInput: Date | number | string, locale: string = 'en'): string {
+export function formatRelativeDate(dateInput: Date | number | string, locale = 'en'): string {
 	try {
 		let date: Date;
 
@@ -205,20 +209,30 @@ export function formatRelativeDate(dateInput: Date | number | string, locale: st
 			date = dateInput;
 		}
 
-		if (isNaN(date.getTime())) {
+		if (Number.isNaN(date.getTime())) {
 			return 'Invalid Date';
 		}
 
 		const formatter = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' });
 		const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
 
-		if (seconds < 60) return formatter.format(-seconds, 'second');
-		if (seconds < 3600) return formatter.format(-Math.floor(seconds / 60), 'minute');
-		if (seconds < 86400) return formatter.format(-Math.floor(seconds / 3600), 'hour');
-		if (seconds < 2592000) return formatter.format(-Math.floor(seconds / 86400), 'day');
-		if (seconds < 31536000) return formatter.format(-Math.floor(seconds / 2592000), 'month');
+		if (seconds < 60) {
+			return formatter.format(-seconds, 'second');
+		}
+		if (seconds < 3600) {
+			return formatter.format(-Math.floor(seconds / 60), 'minute');
+		}
+		if (seconds < 86_400) {
+			return formatter.format(-Math.floor(seconds / 3600), 'hour');
+		}
+		if (seconds < 2_592_000) {
+			return formatter.format(-Math.floor(seconds / 86_400), 'day');
+		}
+		if (seconds < 31_536_000) {
+			return formatter.format(-Math.floor(seconds / 2_592_000), 'month');
+		}
 
-		return formatter.format(-Math.floor(seconds / 31536000), 'year');
+		return formatter.format(-Math.floor(seconds / 31_536_000), 'year');
 	} catch (error) {
 		logger.error('Error formatting relative date:', error);
 		return 'Invalid Date';
@@ -230,19 +244,25 @@ export function formatRelativeDate(dateInput: Date | number | string, locale: st
  * This function can be used in the Display component if the duration is stored in ISO format.
  */
 export function formatIsoDuration(isoDuration: string | undefined): string | undefined {
-	if (!isoDuration) return undefined;
+	if (!isoDuration) {
+		return undefined;
+	}
 
 	const regex = /PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/;
 	const matches = isoDuration.match(regex);
 
-	if (!matches) return undefined;
+	if (!matches) {
+		return undefined;
+	}
 
-	const hours = parseInt(matches[1] || '0', 10);
-	const minutes = parseInt(matches[2] || '0', 10);
-	const seconds = parseInt(matches[3] || '0', 10);
+	const hours = Number.parseInt(matches[1] || '0', 10);
+	const minutes = Number.parseInt(matches[2] || '0', 10);
+	const seconds = Number.parseInt(matches[3] || '0', 10);
 
-	const parts = [];
-	if (hours > 0) parts.push(String(hours).padStart(2, '0'));
+	const parts: string[] = [];
+	if (hours > 0) {
+		parts.push(String(hours).padStart(2, '0'));
+	}
 	parts.push(String(minutes).padStart(2, '0'));
 	parts.push(String(seconds).padStart(2, '0'));
 

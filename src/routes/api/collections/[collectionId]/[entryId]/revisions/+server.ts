@@ -5,30 +5,33 @@
  * @example: GET /api/collections/posts/123/revisions
  *
  * Features:
- * * Lists all revisions for a specific entry within the current tenant
- * * Provides diff comparison between revisions
- * * Supports pagination for large revision histories
- * * Permission checking for revision access
+ * Lists all revisions for a specific entry within the current tenant
+ * Provides diff comparison between revisions
+ * Supports pagination for large revision histories
+ * Permission checking for revision access
  */
 
-import { json } from '@sveltejs/kit';
-import { logger } from '@utils/logger.server';
 import { getRevisions } from '@src/services/RevisionService';
-
+import { json } from '@sveltejs/kit';
 // Unified Error Handling
 import { apiHandler } from '@utils/apiHandler';
 import { AppError } from '@utils/errorHandling';
+import { logger } from '@utils/logger.server';
 
 export const GET = apiHandler(async ({ locals, params, url }) => {
 	const start = performance.now();
 	const { user, tenantId, dbAdapter } = locals;
 	const { collectionId, entryId } = params;
 
-	if (!user) throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
-	if (!dbAdapter) throw new AppError('Database service unavailable', 503, 'SERVICE_UNAVAILABLE');
+	if (!user) {
+		throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
+	}
+	if (!dbAdapter) {
+		throw new AppError('Database service unavailable', 503, 'SERVICE_UNAVAILABLE');
+	}
 
-	const page = parseInt(url.searchParams.get('page') ?? '1', 10);
-	const limit = parseInt(url.searchParams.get('limit') ?? '10', 10);
+	const page = Number.parseInt(url.searchParams.get('page') ?? '1', 10);
+	const limit = Number.parseInt(url.searchParams.get('limit') ?? '10', 10);
 
 	const result = await getRevisions({
 		collectionId,
@@ -49,7 +52,7 @@ export const GET = apiHandler(async ({ locals, params, url }) => {
 
 	const paginatedResult = (result as any).data;
 	const duration = performance.now() - start;
-	logger.info(`Revisions retrieved`, { entryId, duration: `${duration.toFixed(2)}ms` });
+	logger.info('Revisions retrieved', { entryId, duration: `${duration.toFixed(2)}ms` });
 
 	return json({
 		success: true,

@@ -21,11 +21,11 @@
 	import ColorPicker, { ChromeVariant } from 'svelte-awesome-color-picker';
 
 	interface Props {
-		color?: string;
-		show?: boolean;
-		key?: string; // Unique key for this dropdown instance
 		active?: string; // Tracks the currently active dropdown on the page
+		color?: string;
+		key?: string; // Unique key for this dropdown instance
 		onChange?: (color: string) => void;
+		show?: boolean;
 	}
 
 	let { color = $bindable(''), show = true, key = 'color-selector', active = $bindable(''), onChange }: Props = $props();
@@ -131,18 +131,18 @@
 <style>
 	.selected {
 		display: flex;
-		width: 100%;
-		justify-content: center;
-		align-items: center;
 		gap: 5px;
+		align-items: center;
+		justify-content: center;
+		width: 100%;
 	}
 	.wrapper {
-		z-index: 10;
 		position: relative;
-		box-shadow: 0px 0px 3px 0px #bfbfbf;
+		z-index: 10;
 		padding: 2px;
 		cursor: pointer;
 		border-radius: 4px;
+		box-shadow: 0px 0px 3px 0px #bfbfbf;
 	}
 	.palette {
 		position: absolute;
@@ -155,14 +155,14 @@
 		box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
 	}
 	.arrow::after {
-		content: '';
-		border: solid #6b6b6b;
-		border-width: 0 2px 2px 0;
 		display: inline-block;
 		padding: 3px;
+		margin-left: auto;
+		content: "";
+		border: solid #6b6b6b;
+		border-width: 0 2px 2px 0;
 		transform: rotate(45deg);
 		transition: transform 0.2s ease-in-out;
-		margin-left: auto;
 	}
 
 	.arrow_up::after {

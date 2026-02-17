@@ -36,8 +36,8 @@ Renders: <a href="mailto:user@example.com">user@example.com</a>
 <style>
 	.email-wrapper {
 		display: inline-flex;
-		align-items: center;
 		gap: 0.5rem;
+		align-items: center;
 		font-family: inherit;
 	}
 </style>

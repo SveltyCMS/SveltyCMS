@@ -3,7 +3,7 @@
  * @description Unit tests for the Automation Service
  */
 
-import { describe, it, expect, beforeEach, mock } from 'bun:test';
+import { beforeEach, describe, expect, it } from 'bun:test';
 import { automationService } from '@src/services/automation/automationService';
 
 // Access global mocks from setup.ts
@@ -28,7 +28,9 @@ describe('AutomationService', () => {
 
 	describe('Flow CRUD', () => {
 		it('should load flows from database', async () => {
-			const mockFlows = [{ id: 'flow-1', name: 'Test Flow', active: true, trigger: {} as any, operations: [] as any[], createdAt: new Date(), updatedAt: new Date() }];
+			const mockFlows = [
+				{ id: 'flow-1', name: 'Test Flow', active: true, trigger: {} as any, operations: [] as any[], createdAt: new Date(), updatedAt: new Date() }
+			];
 			mockDbAdapter.systemPreferences.get.mockReturnValue(Promise.resolve({ success: true, data: mockFlows as any }));
 
 			const flows = await automationService.getFlows();
@@ -46,7 +48,9 @@ describe('AutomationService', () => {
 		});
 
 		it('should delete a flow', async () => {
-			const mockFlows = [{ id: 'flow-1', name: 'Delete Me', trigger: {} as any, operations: [] as any[], createdAt: new Date(), updatedAt: new Date() }];
+			const mockFlows = [
+				{ id: 'flow-1', name: 'Delete Me', trigger: {} as any, operations: [] as any[], createdAt: new Date(), updatedAt: new Date() }
+			];
 			mockDbAdapter.systemPreferences.get.mockReturnValue(Promise.resolve({ success: true, data: mockFlows as any }));
 
 			await automationService.deleteFlow('flow-1');

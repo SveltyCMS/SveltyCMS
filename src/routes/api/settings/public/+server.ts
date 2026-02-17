@@ -4,10 +4,10 @@
  * This is used by the client to fetch updated settings when the version changes.
  */
 
-import { json } from '@sveltejs/kit';
 import { dbAdapter } from '@src/databases/db';
 import { settingsGroups } from '@src/routes/(app)/config/systemsetting/settingsGroups';
 import { defaultPublicSettings } from '@src/routes/setup/seed';
+import { json } from '@sveltejs/kit';
 
 export const GET = async () => {
 	// 1. Get list of public keys from our definitions

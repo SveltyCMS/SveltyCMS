@@ -9,9 +9,9 @@
  * Usage: bun run tests/schema_verification.ts
  */
 
+import type { ContentNode, Schema } from '../src/content/types';
 import { compareSchemas } from '../src/utils/schema/comparison';
 import { validateTreeIntegrity } from '../src/utils/schema/tree';
-import type { Schema, ContentNode } from '../src/content/types';
 
 console.log('Starting Schema Verification...');
 

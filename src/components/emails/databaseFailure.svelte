@@ -6,17 +6,18 @@
 	 * Sent when database connection fails and automatic recovery attempts are exhausted
 	 */
 
-	import { dev } from '$app/environment';
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
-	import { Body, Button, Container, Head, Heading, Hr, Html, Img, Link, Preview, Section, Text, Row, Column } from 'better-svelte-email';
+	import { Body, Button, Column, Container, Head, Heading, Hr, Html, Img, Link, Preview, Row, Section, Text } from 'better-svelte-email';
+	import { dev } from '$app/environment';
 
 	interface Props {
-		sitename?: string;
 		error?: {
 			code: string;
 			message: string;
 			details?: unknown;
 		};
+		hostLink?: string;
+		languageTag?: string;
 		metrics?: {
 			totalReconnections: number;
 			successfulReconnections: number;
@@ -24,14 +25,13 @@
 			averageRecoveryTime: number;
 			lastFailureTime: string;
 		};
+		sitename?: string;
 		systemState?: {
 			overall: string;
 			databaseStatus: string;
 			databaseMessage: string;
 		};
 		timestamp?: string;
-		hostLink?: string;
-		languageTag?: string;
 	}
 
 	const {
@@ -121,9 +121,7 @@
 						<Text style="color: #6b7280; font-size: 14px; margin: 0;">Timestamp:</Text>
 					</Column>
 					<Column style="width: 60%; padding: 8px 0; vertical-align: top;">
-						<Text style="color: #1f2937; font-size: 14px; font-weight: 500; margin: 0;">
-							{new Date(timestamp).toLocaleString()}
-						</Text>
+						<Text style="color: #1f2937; font-size: 14px; font-weight: 500; margin: 0;"> {new Date(timestamp).toLocaleString()} </Text>
 					</Column>
 				</Row>
 			</Section>
@@ -175,9 +173,7 @@
 						<Text style="color: #6b7280; font-size: 14px; margin: 0;">Last Failure:</Text>
 					</Column>
 					<Column style="width: 40%; padding: 8px 0;">
-						<Text style="color: #1f2937; font-size: 14px; font-weight: 500; margin: 0;">
-							{new Date(metrics.lastFailureTime).toLocaleString()}
-						</Text>
+						<Text style="color: #1f2937; font-size: 14px; font-weight: 500; margin: 0;"> {new Date(metrics.lastFailureTime).toLocaleString()} </Text>
 					</Column>
 				</Row>
 			</Section>
@@ -235,7 +231,8 @@
 				<Text style="color: #92400e; font-size: 14px; margin: 8px 0 4px; font-weight: 500;"
 					>2. Verify database credentials and connection settings</Text
 				>
-				<Text style="color: #92400e; font-size: 14px; margin: 8px 0 4px; font-weight: 500;">3. Review server logs for detailed error information</Text
+				<Text style="color: #92400e; font-size: 14px; margin: 8px 0 4px; font-weight: 500;"
+					>3. Review server logs for detailed error information</Text
 				>
 				<Text style="color: #92400e; font-size: 14px; margin: 8px 0 4px; font-weight: 500;">4. Check database server disk space and resources</Text>
 				<Text style="color: #92400e; font-size: 14px; margin: 8px 0 4px; font-weight: 500;">5. Verify network connectivity to database server</Text>

@@ -16,16 +16,16 @@ import { logger } from '@utils/logger.server';
 import { v4 as uuidv4 } from 'uuid';
 import { eventBus } from './eventBus';
 import type {
+	AutomationEventPayload,
 	AutomationFlow,
 	AutomationOperation,
-	AutomationEventPayload,
+	ConditionOperationConfig,
+	EmailOperationConfig,
 	ExecutionLogEntry,
 	ExecutionStatus,
-	WebhookOperationConfig,
-	EmailOperationConfig,
 	LogOperationConfig,
 	SetFieldOperationConfig,
-	ConditionOperationConfig
+	WebhookOperationConfig
 } from './types';
 
 const getDbAdapter = async () => (await import('@src/databases/db')).dbAdapter;
@@ -59,7 +59,9 @@ class AutomationService {
 	 * Safe to call multiple times (idempotent).
 	 */
 	public init(): void {
-		if (this.initialized) return;
+		if (this.initialized) {
+			return;
+		}
 		this.initialized = true;
 
 		eventBus.on('*', async (payload) => {
@@ -79,7 +81,9 @@ class AutomationService {
 
 		try {
 			const db = await getDbAdapter();
-			if (!db) return [];
+			if (!db) {
+				return [];
+			}
 
 			const result = await db.systemPreferences.get<AutomationFlow[]>('automations_config', 'system');
 			this.flowsCache = result.success && Array.isArray(result.data) ? result.data : [];
@@ -100,7 +104,9 @@ class AutomationService {
 	/** Create or update a flow */
 	public async saveFlow(flow: Partial<AutomationFlow>): Promise<AutomationFlow> {
 		const db = await getDbAdapter();
-		if (!db) throw new Error('Database not available');
+		if (!db) {
+			throw new Error('Database not available');
+		}
 
 		const current = await this.getFlows();
 		const now = new Date().toISOString();
@@ -136,7 +142,9 @@ class AutomationService {
 	/** Delete a flow by ID */
 	public async deleteFlow(id: string): Promise<void> {
 		const db = await getDbAdapter();
-		if (!db) return;
+		if (!db) {
+			return;
+		}
 
 		const current = await this.getFlows();
 		const updated = current.filter((f) => f.id !== id);
@@ -149,7 +157,9 @@ class AutomationService {
 	/** Duplicate a flow */
 	public async duplicateFlow(id: string): Promise<AutomationFlow> {
 		const flow = await this.getFlow(id);
-		if (!flow) throw new Error('Flow not found');
+		if (!flow) {
+			throw new Error('Flow not found');
+		}
 
 		return this.saveFlow({
 			...flow,
@@ -167,21 +177,32 @@ class AutomationService {
 	private async handleEvent(payload: AutomationEventPayload): Promise<void> {
 		const flows = await this.getFlows();
 		const matchingFlows = flows.filter((flow) => {
-			if (!flow.active) return false;
-			if (flow.trigger.type !== 'event') return false;
-			if (!flow.trigger.events?.includes(payload.event)) return false;
+			if (!flow.active) {
+				return false;
+			}
+			if (flow.trigger.type !== 'event') {
+				return false;
+			}
+			if (!flow.trigger.events?.includes(payload.event)) {
+				return false;
+			}
 
 			// Collection filter: if specified, entry must match
-			if (flow.trigger.collections && flow.trigger.collections.length > 0) {
-				if (payload.collection && !flow.trigger.collections.includes(payload.collection)) {
-					return false;
-				}
+			if (
+				flow.trigger.collections &&
+				flow.trigger.collections.length > 0 &&
+				payload.collection &&
+				!flow.trigger.collections.includes(payload.collection)
+			) {
+				return false;
 			}
 
 			return true;
 		});
 
-		if (matchingFlows.length === 0) return;
+		if (matchingFlows.length === 0) {
+			return;
+		}
 
 		logger.debug(`AutomationService: ${payload.event} matched ${matchingFlows.length} flows`);
 
@@ -289,7 +310,7 @@ class AutomationService {
 	/** Execute a webhook operation */
 	private async executeWebhook(config: WebhookOperationConfig, payload: AutomationEventPayload): Promise<void> {
 		const controller = new AbortController();
-		const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+		const timeoutId = setTimeout(() => controller.abort(), 10_000); // 10s timeout
 
 		const body = config.body || JSON.stringify(payload);
 		const headers: Record<string, string> = {
@@ -301,7 +322,7 @@ class AutomationService {
 
 		// HMAC signature if secret provided
 		if (config.secret) {
-			const crypto = await import('crypto');
+			const crypto = await import('node:crypto');
 			const signature = crypto.createHmac('sha256', config.secret).update(body).digest('hex');
 			headers['X-SveltyCMS-Signature'] = `sha256=${signature}`;
 		}
@@ -354,13 +375,15 @@ class AutomationService {
 
 	/** Execute a set_field operation */
 	private async executeSetField(config: SetFieldOperationConfig, payload: AutomationEventPayload): Promise<void> {
-		if (!payload.entryId || !payload.collection) {
+		if (!(payload.entryId && payload.collection)) {
 			logger.warn('set_field: No entry context available');
 			return;
 		}
 
 		const db = await getDbAdapter();
-		if (!db) throw new Error('Database not available');
+		if (!db) {
+			throw new Error('Database not available');
+		}
 
 		// Update the field on the entry
 		await db.crud.update(payload.collection, payload.entryId as any, {
@@ -439,7 +462,9 @@ class AutomationService {
 	// ── Stats & Logging ────────────────────────────────────────
 
 	private async updateFlowStats(flowId: string, status: ExecutionStatus): Promise<void> {
-		if (!this.flowsCache) return;
+		if (!this.flowsCache) {
+			return;
+		}
 
 		const flow = this.flowsCache.find((f) => f.id === flowId);
 		if (flow) {

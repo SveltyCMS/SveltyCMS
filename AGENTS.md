@@ -56,7 +56,7 @@ To stay ahead: Implement cleaner features (e.g., isomorphic plugins > Payload's 
 ## Technical Standards
 
 - **Modern Stack**: Latest TypeScript (^5.9.3), Node.js (>=24), Svelte 5 (^5.46.4), Vite 7 (^7.3.1), Bun (3-4x faster runtime), Nx Monorepo (^22.3.3) for caching.
-- **Code Quality**: Verify with `bun run format && bun run check` before commits.
+- **Code Quality**: Verify with `bun run lint && bun run check` before commits. Use the hybrid Biome/ESLint setup (orchestrated by Ultracite) for sub-second formatting and comprehensive linting.
 
 | Category     | Convention           | Examples                                                   |
 | ------------ | -------------------- | ---------------------------------------------------------- |
@@ -157,7 +157,8 @@ From the 2026 roadmap (v0.0.6, target A+ grade), prioritize these for parity/lea
 |               | `bun run build`            | Production build               |
 |               | `bun run preview`          | Preview on localhost:4173      |
 | Code Quality  | `bun run check`            | Type checking                  |
-|               | `bun run lint`             | Lint (Prettier + ESLint)       |
+|               | `bun run lint`             | Hybrid Lint (Biome + ESLint)   |
+|               | `bun run format`           | Fast Format (Biome)            |
 | Testing       | `bun run test:unit`        | Unit tests                     |
 |               | `bun run test:integration` | Integration (DB required)      |
 |               | `bun run test:e2e`         | E2E (Playwright)               |
@@ -266,4 +267,4 @@ Svelte 5 runes: `$state()` for state, `$derived()` for computations, `$effect()`
 
 ---
 
-\_Last Updated: 2026-02-13\_
+_Last Updated: 2026-02-17_

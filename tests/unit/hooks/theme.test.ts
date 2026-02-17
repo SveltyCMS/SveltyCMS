@@ -4,9 +4,9 @@
  * Refactored to remove flakiness and ensure strict typing.
  */
 
-import { describe, it, expect, beforeEach, mock } from 'bun:test';
-import type { RequestEvent, ResolveOptions } from '@sveltejs/kit';
+import { beforeEach, describe, expect, it, mock } from 'bun:test';
 import type { Theme } from '@src/databases/dbInterface';
+import type { RequestEvent, ResolveOptions } from '@sveltejs/kit';
 
 // --- Mock ThemeManager ---
 // We need to mock the ThemeManager singleton to avoid DB calls during tests
@@ -195,12 +195,7 @@ describe('Middleware: handleTheme', () => {
 			const event = createMockEvent('/api/data', 'dark');
 
 			// Override resolve to return JSON
-			mockResolve = mock(
-				() =>
-					new Response(JSON.stringify({ data: 1 }), {
-						headers: { 'Content-Type': 'application/json' }
-					})
-			);
+			mockResolve = mock(() => Response.json({ data: 1 }));
 
 			const response = await handleTheme({ event, resolve: mockResolve });
 			const text = await response.text();

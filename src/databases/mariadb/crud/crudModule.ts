@@ -15,13 +15,13 @@
  * - insertMany
  */
 
-import { eq, inArray, count } from 'drizzle-orm';
+import { count, eq, inArray } from 'drizzle-orm';
 import type { BaseEntity, DatabaseId, DatabaseResult, QueryFilter } from '../../dbInterface';
-import { AdapterCore } from '../adapter/adapterCore';
+import type { AdapterCore } from '../adapter/adapterCore';
 import * as utils from '../utils';
 
 export class CrudModule {
-	private core: AdapterCore;
+	private readonly core: AdapterCore;
 
 	constructor(core: AdapterCore) {
 		this.core = core;
@@ -40,7 +40,9 @@ export class CrudModule {
 			const table = (this.core as any).getTable(collection);
 			const where = (this.core as any).mapQuery(table, query);
 			const results = await this.db.select().from(table).where(where).limit(1);
-			if (results.length === 0) return null;
+			if (results.length === 0) {
+				return null;
+			}
 			return utils.convertDatesToISO(results[0]) as T;
 		}, 'CRUD_FIND_ONE_FAILED');
 	}
@@ -54,8 +56,12 @@ export class CrudModule {
 			const table = (this.core as any).getTable(collection);
 			const where = (this.core as any).mapQuery(table, query);
 			let q = this.db.select().from(table).where(where);
-			if (options?.limit) q = q.limit(options.limit);
-			if (options?.offset) q = q.offset(options.offset);
+			if (options?.limit) {
+				q = q.limit(options.limit);
+			}
+			if (options?.offset) {
+				q = q.offset(options.offset);
+			}
 			const results = await q;
 			return utils.convertArrayDatesToISO(results) as T[];
 		}, 'CRUD_FIND_MANY_FAILED');
@@ -116,13 +122,16 @@ export class CrudModule {
 			const existing = await this.db.select().from(table).where(where).limit(1);
 			if (existing.length > 0) {
 				const res = await this.update<T>(collection, existing[0]._id, data as any);
-				if (!res.success) throw res.error;
-				return res.data;
-			} else {
-				const res = await this.insert<T>(collection, data);
-				if (!res.success) throw res.error;
+				if (!res.success) {
+					throw res.error;
+				}
 				return res.data;
 			}
+			const res = await this.insert<T>(collection, data);
+			if (!res.success) {
+				throw res.error;
+			}
+			return res.data;
 		}, 'CRUD_UPSERT_FAILED');
 	}
 
@@ -138,14 +147,18 @@ export class CrudModule {
 	async exists<T extends BaseEntity>(collection: string, query: QueryFilter<T>): Promise<DatabaseResult<boolean>> {
 		return (this.core as any).wrap(async () => {
 			const res = await this.count(collection, query);
-			if (!res.success) throw res.error;
+			if (!res.success) {
+				throw res.error;
+			}
 			return (res.data ?? 0) > 0;
 		}, 'CRUD_EXISTS_FAILED');
 	}
 
 	async insertMany<T extends BaseEntity>(collection: string, data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>[]): Promise<DatabaseResult<T[]>> {
 		return (this.core as any).wrap(async () => {
-			if (data.length === 0) return [];
+			if (data.length === 0) {
+				return [];
+			}
 			const table = (this.core as any).getTable(collection);
 			const now = new Date();
 			const values = data.map((d) => ({

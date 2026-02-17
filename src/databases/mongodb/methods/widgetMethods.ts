@@ -5,13 +5,12 @@
  * as well as activate/deactivate them.
  */
 
+import { cacheService } from '@src/databases/CacheService';
 import { logger } from '@utils/logger';
 import type { Model } from 'mongoose';
-import type { DatabaseId, Widget, DatabaseResult } from '../../dbInterface';
-import type { Widget as IWidget } from '../../dbInterface'; // Assuming you have a document interface
+import type { DatabaseId, DatabaseResult, Widget as IWidget, Widget } from '../../dbInterface'; // Assuming you have a document interface
+import { CacheCategory, invalidateCategoryCache, invalidateCollectionCache, withCache } from './mongoDBCacheUtils';
 import { createDatabaseError, generateId } from './mongoDBUtils';
-import { withCache, CacheCategory, invalidateCollectionCache, invalidateCategoryCache } from './mongoDBCacheUtils';
-import { cacheService } from '@src/databases/CacheService';
 
 // Define the model type for dependency injection.
 type WidgetModelType = Model<IWidget>;

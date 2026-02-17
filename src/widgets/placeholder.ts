@@ -4,7 +4,7 @@
  */
 
 export interface WidgetPlaceholder {
+	__widgetConfig: Record<string, unknown>;
 	__widgetId: string;
 	__widgetName: string;
-	__widgetConfig: Record<string, unknown>;
 }

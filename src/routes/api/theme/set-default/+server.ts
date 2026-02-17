@@ -11,11 +11,11 @@
  * - Returns the updated theme in the response.
  */
 
-import { ThemeManager } from '@src/databases/themeManager';
 import { dbAdapter } from '@src/databases/db';
-import type { Theme, DatabaseId } from '@src/databases/dbInterface';
-import { json } from '@sveltejs/kit';
+import type { DatabaseId, Theme } from '@src/databases/dbInterface';
+import { ThemeManager } from '@src/databases/themeManager';
 import { getPrivateSettingSync } from '@src/services/settingsService';
+import { json } from '@sveltejs/kit';
 
 // Permission checking
 

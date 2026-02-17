@@ -21,6 +21,7 @@
  */
 
 import { logger } from '@utils/logger.server';
+
 // Detect build mode without $app/environment dependency (allows testing outside SvelteKit)
 const building =
 	process.env.BUILDING === 'true' ||
@@ -29,21 +30,20 @@ const building =
 // --- TYPES ---
 
 export interface MetricSnapshot {
-	name: string;
-	value: number;
-	timestamp: number;
 	category: string;
 	labels?: Record<string, string>;
+	name: string;
+	timestamp: number;
+	value: number;
 }
 
 export interface MetricsReport {
-	timestamp: number;
-	uptime: number;
-	requests: {
-		total: number;
+	api: {
+		requests: number;
 		errors: number;
-		errorRate: number;
-		avgResponseTime: number;
+		cacheHits: number;
+		cacheMisses: number;
+		cacheHitRate: number;
 	};
 	authentication: {
 		validations: number;
@@ -53,23 +53,24 @@ export interface MetricsReport {
 		cacheMisses: number;
 		cacheHitRate: number;
 	};
-	api: {
-		requests: number;
+	performance: {
+		slowRequests: number;
+		avgHookExecutionTime: number;
+		bottlenecks: string[];
+	};
+	requests: {
+		total: number;
 		errors: number;
-		cacheHits: number;
-		cacheMisses: number;
-		cacheHitRate: number;
+		errorRate: number;
+		avgResponseTime: number;
 	};
 	security: {
 		rateLimitViolations: number;
 		cspViolations: number;
 		authFailures: number;
 	};
-	performance: {
-		slowRequests: number;
-		avgHookExecutionTime: number;
-		bottlenecks: string[];
-	};
+	timestamp: number;
+	uptime: number;
 }
 
 // --- METRICS COUNTERS ---
@@ -353,31 +354,31 @@ class MetricsService {
 		const lines: string[] = [];
 
 		// Request metrics
-		lines.push(`# HELP svelty_requests_total Total number of requests`);
-		lines.push(`# TYPE svelty_requests_total counter`);
+		lines.push('# HELP svelty_requests_total Total number of requests');
+		lines.push('# TYPE svelty_requests_total counter');
 		lines.push(`svelty_requests_total ${report.requests.total}`);
 
-		lines.push(`# HELP svelty_requests_errors_total Total number of request errors`);
-		lines.push(`# TYPE svelty_requests_errors_total counter`);
+		lines.push('# HELP svelty_requests_errors_total Total number of request errors');
+		lines.push('# TYPE svelty_requests_errors_total counter');
 		lines.push(`svelty_requests_errors_total ${report.requests.errors}`);
 
 		// Authentication metrics
-		lines.push(`# HELP svelty_auth_cache_hit_rate Authentication cache hit rate`);
-		lines.push(`# TYPE svelty_auth_cache_hit_rate gauge`);
+		lines.push('# HELP svelty_auth_cache_hit_rate Authentication cache hit rate');
+		lines.push('# TYPE svelty_auth_cache_hit_rate gauge');
 		lines.push(`svelty_auth_cache_hit_rate ${report.authentication.cacheHitRate / 100}`);
 
 		// API metrics
-		lines.push(`# HELP svelty_api_cache_hit_rate API cache hit rate`);
-		lines.push(`# TYPE svelty_api_cache_hit_rate gauge`);
+		lines.push('# HELP svelty_api_cache_hit_rate API cache hit rate');
+		lines.push('# TYPE svelty_api_cache_hit_rate gauge');
 		lines.push(`svelty_api_cache_hit_rate ${report.api.cacheHitRate / 100}`);
 
 		// Security metrics
-		lines.push(`# HELP svelty_security_violations_total Total security violations`);
-		lines.push(`# TYPE svelty_security_violations_total counter`);
+		lines.push('# HELP svelty_security_violations_total Total security violations');
+		lines.push('# TYPE svelty_security_violations_total counter');
 		lines.push(`svelty_security_violations_total{type="rate_limit"} ${report.security.rateLimitViolations}`);
 		lines.push(`svelty_security_violations_total{type="csp"} ${report.security.cspViolations}`);
 
-		return lines.join('\n') + '\n';
+		return `${lines.join('\n')}\n`;
 	}
 
 	// Cleanup resources when shutting down
@@ -416,7 +417,7 @@ export const cleanupMetrics = (): void => {
 };
 
 // Cleanup on process exit
-if (!building && !globalWithMetrics.__SVELTY_PROCESS_CLEANUP_REGISTERED__) {
+if (!(building || globalWithMetrics.__SVELTY_PROCESS_CLEANUP_REGISTERED__)) {
 	process.on('SIGTERM', cleanupMetrics);
 	process.on('SIGINT', cleanupMetrics);
 	globalWithMetrics.__SVELTY_PROCESS_CLEANUP_REGISTERED__ = true;

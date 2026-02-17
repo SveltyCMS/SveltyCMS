@@ -14,26 +14,26 @@ import { logger } from '@utils/logger.server';
 import type { WidgetModule } from '@widgets/types';
 
 export interface DiscoveredWidget {
-	name: string;
-	type: 'core' | 'custom';
-	path: string;
+	isActive: boolean; // Enabled by tenant/admin
 	isAvailable: boolean; // Exists in filesystem
 	isRegistered: boolean; // Exists in database
-	isActive: boolean; // Enabled by tenant/admin
 	metadata: {
 		Name: string;
 		Icon?: string;
 		Description?: string;
 		dependencies?: string[];
 	};
+	name: string;
+	path: string;
+	type: 'core' | 'custom';
 }
 
 export interface WidgetDiscoveryResult {
-	available: DiscoveredWidget[]; // In filesystem
-	registered: DiscoveredWidget[]; // In database
-	new: DiscoveredWidget[]; // In filesystem but not database
-	missing: DiscoveredWidget[]; // In database but not filesystem
 	active: DiscoveredWidget[]; // Active widgets
+	available: DiscoveredWidget[]; // In filesystem
+	missing: DiscoveredWidget[]; // In database but not filesystem
+	new: DiscoveredWidget[]; // In filesystem but not database
+	registered: DiscoveredWidget[]; // In database
 }
 
 export interface WidgetModel {
@@ -165,14 +165,18 @@ export class WidgetDiscoveryService {
 			const coreModules = import.meta.glob<WidgetModule>('/src/widgets/core/*/index.ts', { eager: true });
 			for (const [path, module] of Object.entries(coreModules)) {
 				const widget = this.processModule(path, module, 'core');
-				if (widget) discovered.push(widget);
+				if (widget) {
+					discovered.push(widget);
+				}
 			}
 
 			// Scan custom widgets
 			const customModules = import.meta.glob<WidgetModule>('/src/widgets/custom/*/index.ts', { eager: true });
 			for (const [path, module] of Object.entries(customModules)) {
 				const widget = this.processModule(path, module, 'custom');
-				if (widget) discovered.push(widget);
+				if (widget) {
+					discovered.push(widget);
+				}
 			}
 		} catch (error) {
 			logger.error('Failed to scan filesystem for widgets:', error);
@@ -197,7 +201,7 @@ export class WidgetDiscoveryService {
 			// Display name comes from widget.Name property
 
 			return {
-				name: name, // Use folder name as-is (e.g., 'seo', 'richText', 'mediaUpload')
+				name, // Use folder name as-is (e.g., 'seo', 'richText', 'mediaUpload')
 				type,
 				path,
 				isAvailable: true,
@@ -218,7 +222,9 @@ export class WidgetDiscoveryService {
 
 	// Auto-register new widgets in database
 	async autoRegisterNewWidgets(newWidgets: DiscoveredWidget[], widgetModel: WidgetModel): Promise<void> {
-		if (newWidgets.length === 0) return;
+		if (newWidgets.length === 0) {
+			return;
+		}
 
 		logger.info(`📝 Auto-registering ${newWidgets.length} new widgets...`);
 

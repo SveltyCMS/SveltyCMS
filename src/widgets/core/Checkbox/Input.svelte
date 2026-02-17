@@ -24,9 +24,10 @@ Renders a checkbox with label, color, size, and helper text from field props
 - **Screen Reader Support**: Proper ARIA attributes and semantic markup
 -->
 <script lang="ts">
-	import type { FieldType } from '.';
 	import { validationStore } from '@src/stores/store.svelte';
 	import { getFieldName } from '@src/utils/utils';
+	import type { FieldType } from '.';
+
 	let {
 		field,
 		value = $bindable()
@@ -66,7 +67,7 @@ Renders a checkbox with label, color, size, and helper text from field props
 				aria-label={field.label}
 				aria-describedby={field.helper ? `${field.db_fieldName}-helper` : undefined}
 				style={field.color ? `accent-color: ${field.color}` : ''}
-			/>
+			>
 			<span>{field.label}</span>
 		</label>
 		{#if field.helper}

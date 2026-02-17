@@ -5,25 +5,23 @@
 -->
 
 <script lang="ts">
-	import { dev } from '$app/environment';
+	// ParaglideJS
+	import * as m from '@src/paraglide/messages';
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
 
 	// Stores
 	import { app } from '@stores/store.svelte';
-
-	// ParaglideJS
-	import * as m from '@src/paraglide/messages';
-
 	// better-svelte-email
 	import { Body, Button, Container, Head, Hr, Html, Img, Link, Preview, Section, Text } from 'better-svelte-email';
+	import { dev } from '$app/environment';
 
 	interface Props {
 		email?: string;
+		expiresInLabel?: string | number;
+		languageTag?: string;
 		role?: string;
 		token?: string;
 		tokenLink?: string;
-		expiresInLabel?: string | number;
-		languageTag?: string;
 	}
 
 	const { email = '', role = '', token = '', tokenLink = '', expiresInLabel = '', languageTag = app.systemLanguage }: Props = $props();
@@ -71,11 +69,11 @@
 			<Section style="background-color: #f8f9fa; padding: 16px; border-radius: 8px; margin: 16px 0;">
 				<Text style="font-size: 14px; line-height: 1.5;">
 					<strong>{m.usertoken_email()}</strong>
-					{email}<br />
+					{email}<br>
 					<strong>{m.usertoken_role()}</strong>
-					{role}<br />
+					{role}<br>
 					{#if expiresInLabel}
-						<strong>{m.usertoken_valid()}</strong> {expiresInLabel}<br />
+						<strong>{m.usertoken_valid()}</strong> {expiresInLabel}<br>
 					{/if}
 					<strong>{m.usertoken_token()}</strong>
 					{token || (tokenLink ? tokenLink.split('invite_token=')[1] : 'N/A')}
@@ -84,9 +82,7 @@
 
 			<!-- CTA Button -->
 			<Section style="text-align: center;">
-				<Text style="text-align: center; font-weight: bold; font-size: 16px;">
-					{m.usertoken_button()}
-				</Text>
+				<Text style="text-align: center; font-weight: bold; font-size: 16px;"> {m.usertoken_button()} </Text>
 				<center>
 					<Button
 						href={tokenLink || '#'}
@@ -99,27 +95,25 @@
 				</center>
 			</Section>
 
-			<Section>
-				<Text>This invitation is valid for a limited time and can only be used once.</Text>
-			</Section>
+			<Section> <Text>This invitation is valid for a limited time and can only be used once.</Text> </Section>
 
 			<!-- Fallback information for printed emails -->
 			<Section>
 				<Hr />
 				<Text style="font-size: 12px; color: #666;">
-					<strong>Can't click the link?</strong> Go to {publicEnv?.HOST_PROD || publicEnv?.HOST_DEV || 'your site'} and use the token above during signup.
+					<strong>Can't click the link?</strong>
+					Go to {publicEnv?.HOST_PROD || publicEnv?.HOST_DEV || 'your site'} and use the token above during signup.
 				</Text>
 			</Section>
 
-			<Section>
-				<Hr />
-			</Section>
+			<Section> <Hr /> </Section>
 
 			<!-- Footer -->
 			<Section>
 				<Text style="text-align: center; font-weight: bold; font-size: 16px;">
 					<Link href="https://SveltyCMS.com">
-						Your <span style="color:#111;">Svelty</span><span style="color:#22c55e;font-weight:bold;">CMS</span> team
+						Your <span style="color:#111;">Svelty</span><span style="color:#22c55e;font-weight:bold;">CMS</span>
+						team
 					</Link>
 				</Text>
 			</Section>

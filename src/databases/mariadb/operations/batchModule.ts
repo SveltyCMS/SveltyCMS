@@ -11,12 +11,12 @@
  */
 
 import { eq, inArray } from 'drizzle-orm';
-import type { BaseEntity, DatabaseId, DatabaseResult, DatabaseError, BatchOperation, BatchResult } from '../../dbInterface';
-import { AdapterCore } from '../adapter/adapterCore';
+import type { BaseEntity, BatchOperation, BatchResult, DatabaseError, DatabaseId, DatabaseResult } from '../../dbInterface';
+import type { AdapterCore } from '../adapter/adapterCore';
 import * as utils from '../utils';
 
 export class BatchModule {
-	private core: AdapterCore;
+	private readonly core: AdapterCore;
 
 	constructor(core: AdapterCore) {
 		this.core = core;
@@ -32,7 +32,7 @@ export class BatchModule {
 
 	async execute<T>(operations: BatchOperation<T>[]): Promise<DatabaseResult<BatchResult<T>>> {
 		return (this.core as any).wrap(async () => {
-			const results: Array<DatabaseResult<T>> = [];
+			const results: DatabaseResult<T>[] = [];
 			let totalProcessed = 0;
 			const errors: DatabaseError[] = [];
 
@@ -44,15 +44,21 @@ export class BatchModule {
 							res = await this.crud.insert(op.collection, op.data as any);
 							break;
 						case 'update':
-							if (!op.id) throw new Error('ID required for update operation');
+							if (!op.id) {
+								throw new Error('ID required for update operation');
+							}
 							res = await this.crud.update(op.collection, op.id, op.data as any);
 							break;
 						case 'delete':
-							if (!op.id) throw new Error('ID required for delete operation');
+							if (!op.id) {
+								throw new Error('ID required for delete operation');
+							}
 							res = await this.crud.delete(op.collection, op.id);
 							break;
 						case 'upsert':
-							if (!op.query || !op.data) throw new Error('Query and data required for upsert operation');
+							if (!(op.query && op.data)) {
+								throw new Error('Query and data required for upsert operation');
+							}
 							res = await this.crud.upsert(op.collection, op.query as any, op.data as any);
 							break;
 						default:

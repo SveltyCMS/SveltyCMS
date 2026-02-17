@@ -20,9 +20,9 @@
 	import * as m from '@src/paraglide/messages';
 
 	interface Props {
+		handleTitleChange: (event: Event) => void;
 		title: string;
 		titleCharacterWidth: number;
-		handleTitleChange: (event: Event) => void;
 	}
 
 	let { title = $bindable(), titleCharacterWidth, handleTitleChange }: Props = $props();
@@ -79,7 +79,7 @@
 	bind:value={title}
 	oninput={handleTitleChange}
 	aria-describedby="title-status"
-/>
+>
 
 <style>
 	.input-label {
@@ -95,7 +95,7 @@
 		color: red;
 	}
 	.status-message {
-		font-size: 0.875rem;
 		margin-top: 0.25rem;
+		font-size: 0.875rem;
 	}
 </style>

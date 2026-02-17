@@ -56,9 +56,7 @@ Provides clear information about the issue and actionable steps to resolve it.
 	<div class="widget-validation-warning alert-warning alert" role="alert" aria-live="polite">
 		<div class="warning-header">
 			<iconify-icon icon="mdi:alert-circle" width={24}></iconify-icon>
-			<h4 class="warning-title">
-				⚠️ Inactive Widgets Detected in "{collectionName}"
-			</h4>
+			<h4 class="warning-title">⚠️ Inactive Widgets Detected in "{collectionName}"</h4>
 			{#if onDismiss}
 				<button type="button" class="dismiss-btn" onclick={handleDismiss} aria-label="Dismiss warning">
 					<iconify-icon icon="mdi:close" width={20}></iconify-icon>
@@ -71,9 +69,7 @@ Provides clear information about the issue and actionable steps to resolve it.
 
 			<ul class="field-issues-list">
 				{#each fieldsWithIssues as field (field.fieldName)}
-					<li class="field-issue">
-						<strong>{field.fieldName}</strong>: Widget <code>{field.widget}</code> is inactive
-					</li>
+					<li class="field-issue"><strong>{field.fieldName}</strong>: Widget <code>{field.widget}</code> is inactive</li>
 				{/each}
 			</ul>
 
@@ -98,8 +94,8 @@ Provides clear information about the issue and actionable steps to resolve it.
 
 <style>
 	.widget-validation-warning {
-		margin-bottom: 1rem;
 		padding: 1rem;
+		margin-bottom: 1rem;
 		background-color: #fff3cd;
 		border: 1px solid #ffc107;
 		border-radius: 0.375rem;
@@ -108,32 +104,32 @@ Provides clear information about the issue and actionable steps to resolve it.
 
 	.warning-header {
 		display: flex;
-		align-items: center;
 		gap: 0.75rem;
+		align-items: center;
 		margin-bottom: 0.75rem;
 	}
 
 	.warning-header :global(svg) {
-		color: #856404;
 		flex-shrink: 0;
+		color: #856404;
 	}
 
 	.warning-title {
+		flex: 1;
 		margin: 0;
 		font-size: 1.125rem;
 		font-weight: 600;
 		color: #856404;
-		flex: 1;
 	}
 
 	.dismiss-btn {
-		background: transparent;
-		border: none;
-		cursor: pointer;
+		flex-shrink: 0;
 		padding: 0.25rem;
 		color: #856404;
+		cursor: pointer;
+		background: transparent;
+		border: none;
 		transition: color 0.2s;
-		flex-shrink: 0;
 	}
 
 	.dismiss-btn:hover {
@@ -146,13 +142,13 @@ Provides clear information about the issue and actionable steps to resolve it.
 
 	.warning-message {
 		margin: 0 0 0.5rem 0;
-		color: #856404;
 		font-weight: 500;
+		color: #856404;
 	}
 
 	.field-issues-list {
-		margin: 0.5rem 0 1rem 1rem;
 		padding: 0;
+		margin: 0.5rem 0 1rem 1rem;
 		list-style: none;
 	}
 
@@ -167,56 +163,56 @@ Provides clear information about the issue and actionable steps to resolve it.
 	}
 
 	.field-issue code {
-		background-color: rgba(133, 100, 4, 0.1);
 		padding: 0.125rem 0.375rem;
-		border-radius: 0.25rem;
-		font-family: 'Courier New', monospace;
+		font-family: "Courier New", monospace;
 		font-size: 0.9em;
+		background-color: rgba(133, 100, 4, 0.1);
+		border-radius: 0.25rem;
 	}
 
 	.warning-explanation {
-		margin: 0.75rem 0 1rem 0;
 		padding: 0.75rem;
-		background-color: rgba(255, 193, 7, 0.1);
-		border-left: 3px solid #ffc107;
+		margin: 0.75rem 0 1rem 0;
 		font-size: 0.9rem;
 		color: #856404;
+		background-color: rgba(255, 193, 7, 0.1);
+		border-left: 3px solid #ffc107;
 	}
 
 	.warning-actions {
 		display: flex;
-		gap: 0.75rem;
 		flex-wrap: wrap;
+		gap: 0.75rem;
 	}
 
 	.btn {
 		display: inline-flex;
-		align-items: center;
 		gap: 0.5rem;
+		align-items: center;
 		padding: 0.5rem 1rem;
-		border-radius: 0.375rem;
+		font-size: 0.9rem;
 		font-weight: 500;
 		text-decoration: none;
-		transition: all 0.2s;
 		cursor: pointer;
 		border: none;
-		font-size: 0.9rem;
+		border-radius: 0.375rem;
+		transition: all 0.2s;
 	}
 
 	.btn-primary {
-		background-color: #ffc107;
 		color: #000;
+		background-color: #ffc107;
 	}
 
 	.btn-primary:hover {
 		background-color: #ffca2c;
-		transform: translateY(-1px);
 		box-shadow: 0 2px 8px rgba(255, 193, 7, 0.3);
+		transform: translateY(-1px);
 	}
 
 	.btn-secondary {
-		background-color: #fff;
 		color: #856404;
+		background-color: #fff;
 		border: 1px solid #ffc107;
 	}
 
@@ -239,13 +235,13 @@ Provides clear information about the issue and actionable steps to resolve it.
 	}
 
 	:global(.dark) .btn-primary {
-		background-color: #ffc107;
 		color: #1a1a1a;
+		background-color: #ffc107;
 	}
 
 	:global(.dark) .btn-secondary {
-		background-color: rgba(255, 255, 255, 0.05);
 		color: #ffc107;
+		background-color: rgba(255, 255, 255, 0.05);
 		border-color: rgba(255, 193, 7, 0.3);
 	}
 

@@ -20,8 +20,8 @@
  * - Query builder
  */
 
-import type { IDBAdapter, DatabaseResult, BaseEntity, DatabaseTransaction, QueryBuilder } from '../../dbInterface';
-import { AdapterCore } from './adapterCore';
+import type { BaseEntity, DatabaseResult, DatabaseTransaction, IDBAdapter, QueryBuilder } from '../../dbInterface';
+import { CollectionModule } from '../collection/collectionModule';
 import { CrudModule } from '../crud/crudModule';
 import { AuthModule } from '../modules/auth/authModule';
 import { ContentModule } from '../modules/content/contentModule';
@@ -29,15 +29,15 @@ import { MediaModule } from '../modules/media/mediaModule';
 import { PreferencesModule } from '../modules/system/preferencesModule';
 import { VirtualFoldersModule } from '../modules/system/virtualFoldersModule';
 import { ThemesModule } from '../modules/themes/themesModule';
-import { WidgetsModule } from '../modules/widgets/widgetsModule';
 import { WebsiteTokensModule } from '../modules/website/tokensModule';
+import { WidgetsModule } from '../modules/widgets/widgetsModule';
 import { BatchModule } from '../operations/batchModule';
 import { TransactionModule } from '../operations/transactionModule';
-import { PerformanceModule } from '../performance/performanceModule';
 import { CacheModule } from '../performance/cacheModule';
-import { CollectionModule } from '../collection/collectionModule';
+import { PerformanceModule } from '../performance/performanceModule';
 import { MariaDBQueryBuilder } from '../queryBuilder/MariaDBQueryBuilder';
 import * as utils from '../utils';
+import { AdapterCore } from './adapterCore';
 
 export class MariaDBAdapter extends AdapterCore implements IDBAdapter {
 	public readonly tenants = {
@@ -109,7 +109,9 @@ export class MariaDBAdapter extends AdapterCore implements IDBAdapter {
 
 	public async clearDatabase(): Promise<DatabaseResult<void>> {
 		return this.wrap(async () => {
-			if (!this.pool) throw new Error('Not connected');
+			if (!this.pool) {
+				throw new Error('Not connected');
+			}
 			// Get all tables
 			const [rows] = await this.pool.query('SHOW TABLES');
 			const tables = (rows as any[]).map((row: any) => Object.values(row)[0]);
@@ -142,7 +144,9 @@ export class MariaDBAdapter extends AdapterCore implements IDBAdapter {
 	): Promise<DatabaseResult<{ data: any[]; metadata?: { totalCount: number; schema?: unknown; indexes?: string[] } }>> => {
 		return (this as any).wrap(async () => {
 			const res = await this.crud.findMany(collection, {}, options as any);
-			if (!res.success) throw new Error(res.message);
+			if (!res.success) {
+				throw new Error(res.message);
+			}
 			return {
 				data: res.data ?? [],
 				metadata: options?.includeMetadata ? { totalCount: res.data?.length ?? 0 } : undefined
@@ -158,12 +162,14 @@ export class MariaDBAdapter extends AdapterCore implements IDBAdapter {
 			const results: Record<string, any[]> = {};
 			for (const name of collectionNames) {
 				const res = await this.getCollectionData(name, { limit: options?.limit, fields: options?.fields });
-				if (res.success) results[name] = res.data.data;
+				if (res.success) {
+					results[name] = res.data.data;
+				}
 			}
 			return results;
 		}, 'GET_MULTIPLE_COLLECTION_DATA_FAILED');
 	};
 }
 
-export * from './adapterTypes';
 export * from './adapterCore';
+export * from './adapterTypes';

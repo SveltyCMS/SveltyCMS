@@ -12,18 +12,15 @@
  * - Integration with MongoDB through Mongoose
  */
 
-import type { Model } from 'mongoose';
-import mongoose, { Schema, type Document, type QueryFilter } from 'mongoose';
-
-import { v4 as uuidv4 } from 'uuid';
-
+import type { Token } from '@src/databases/auth/types';
 // Types
 import type { DatabaseResult, ISODateString } from '@src/databases/dbInterface';
-import type { Token } from '@src/databases/auth/types';
-
+import { generateId } from '@src/databases/mongodb/methods/mongoDBUtils';
 // System Logging
 import { logger } from '@utils/logger';
-import { generateId } from '@src/databases/mongodb/methods/mongoDBUtils';
+import type { Model } from 'mongoose';
+import mongoose, { type Document, type QueryFilter, Schema } from 'mongoose';
+import { v4 as uuidv4 } from 'uuid';
 
 // Define the Token schema
 export const TokenSchema = new Schema(
@@ -65,12 +62,12 @@ interface TokenDocument extends Omit<Document, '_id'>, Omit<Token, '_id'> {
  * This is a partial implementation that will be composed with other adapters.
  */
 export class TokenAdapter {
-	private TokenModel: Model<TokenDocument>;
+	private readonly TokenModel: Model<TokenDocument>;
 
 	constructor() {
 		// Force model recreation if schema changed
 		if (mongoose.models.auth_tokens) {
-			delete mongoose.models.auth_tokens;
+			mongoose.models.auth_tokens = undefined;
 		}
 
 		// Create the Token model
@@ -121,9 +118,15 @@ export class TokenAdapter {
 	): Promise<DatabaseResult<{ success: boolean; message: string; email?: string }>> {
 		try {
 			const query: any = { token };
-			if (user_id) query.user_id = user_id;
-			if (type) query.type = type;
-			if (tenantId) query.tenantId = tenantId;
+			if (user_id) {
+				query.user_id = user_id;
+			}
+			if (type) {
+				query.type = type;
+			}
+			if (tenantId) {
+				query.tenantId = tenantId;
+			}
 
 			const tokenDoc = await this.TokenModel.findOne(query).lean();
 			if (!tokenDoc) {
@@ -139,10 +142,9 @@ export class TokenAdapter {
 			if (new Date(tokenDoc.expires) > new Date()) {
 				logger.debug('Token validated', { user_id: tokenDoc.user_id, type: tokenDoc.type });
 				return { success: true, data: { success: true, message: 'Token is valid', email: tokenDoc.email } };
-			} else {
-				logger.warn('Expired token', { user_id: tokenDoc.user_id, type: tokenDoc.type });
-				return { success: true, data: { success: false, message: 'Token is expired' } };
 			}
+			logger.warn('Expired token', { user_id: tokenDoc.user_id, type: tokenDoc.type });
+			return { success: true, data: { success: false, message: 'Token is expired' } };
 		} catch (err) {
 			const message = `Error in TokenAdapter.validateToken: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message, { token, user_id, type });
@@ -162,9 +164,15 @@ export class TokenAdapter {
 	): Promise<DatabaseResult<{ status: boolean; message: string }>> {
 		try {
 			const query: QueryFilter<TokenDocument> = { token };
-			if (user_id) query.user_id = user_id;
-			if (type) query.type = type;
-			if (tenantId) query.tenantId = tenantId;
+			if (user_id) {
+				query.user_id = user_id;
+			}
+			if (type) {
+				query.type = type;
+			}
+			if (tenantId) {
+				query.tenantId = tenantId;
+			}
 
 			const tokenDoc = await this.TokenModel.findOneAndDelete(query).lean();
 			if (!tokenDoc) {
@@ -180,10 +188,9 @@ export class TokenAdapter {
 			if (new Date(tokenDoc.expires) > new Date()) {
 				logger.debug('Token consumed', { user_id: tokenDoc.user_id, type: tokenDoc.type });
 				return { success: true, data: { status: true, message: 'Token is valid and consumed' } };
-			} else {
-				logger.warn('Expired token consumed', { user_id: tokenDoc.user_id, type: tokenDoc.type });
-				return { success: true, data: { status: false, message: 'Token is expired' } };
 			}
+			logger.warn('Expired token consumed', { user_id: tokenDoc.user_id, type: tokenDoc.type });
+			return { success: true, data: { status: false, message: 'Token is expired' } };
 		} catch (err) {
 			const message = `Error in TokenAdapter.consumeToken: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message, { token, user_id, type });
@@ -304,14 +311,13 @@ export class TokenAdapter {
 			if (result) {
 				logger.debug('Token updated successfully', { token_id });
 				return { success: true, data: result as Token };
-			} else {
-				logger.warn('Token not found', { token_id });
-				return {
-					success: false,
-					message: 'Token not found',
-					error: { code: 'TOKEN_NOT_FOUND', message: 'Token not found' }
-				};
 			}
+			logger.warn('Token not found', { token_id });
+			return {
+				success: false,
+				message: 'Token not found',
+				error: { code: 'TOKEN_NOT_FOUND', message: 'Token not found' }
+			};
 		} catch (err) {
 			const message = `Error in TokenAdapter.updateToken: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message, { token_id, tokenData });
@@ -362,7 +368,7 @@ export class TokenAdapter {
 		const { _id, ...tokenData } = token;
 		// Remove _id from tokenData if present
 		if ('_id' in tokenData) {
-			delete (tokenData as Record<string, unknown>)._id;
+			(tokenData as Record<string, unknown>)._id = undefined;
 		}
 		// Compose the Token object, ensuring id is always a string
 		const result = {

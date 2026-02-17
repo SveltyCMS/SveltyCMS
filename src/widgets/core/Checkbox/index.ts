@@ -16,14 +16,15 @@
 import { createWidget } from '@src/widgets/widgetFactory';
 
 // Type for aggregation field parameter
-type AggregationField = { db_fieldName: string; [key: string]: unknown };
-
-import { boolean, type InferInput as ValibotInput } from 'valibot';
-
-import type { CheckboxProps } from './types';
+interface AggregationField {
+	db_fieldName: string;
+	[key: string]: unknown;
+}
 
 // ParaglideJS
 import * as m from '@src/paraglide/messages';
+import { boolean, type InferInput as ValibotInput } from 'valibot';
+import type { CheckboxProps } from './types';
 
 // Define the validation schema for the data this widget stores.
 const CheckboxValidationSchema = boolean('Must be a boolean.');

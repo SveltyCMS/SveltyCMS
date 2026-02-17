@@ -9,6 +9,7 @@
 </script>
 
 <script lang="ts">
+	import type { WidgetSize } from '@src/content/types';
 	/**
 	 * @file Database Pool Diagnostics Widget
 	 *
@@ -16,7 +17,6 @@
 	 * Shows metrics from DatabaseResilience system.
 	 */
 	import BaseWidget from '../BaseWidget.svelte';
-	import type { WidgetSize } from '@src/content/types';
 
 	const {
 		label = 'Connection Pool',
@@ -144,9 +144,7 @@
 			<div class="mb-6">
 				<div class="mb-2 flex items-center justify-between">
 					<span class="text-sm font-medium text-surface-700 dark:text-surface-300">Pool Utilization</span>
-					<span class="text-sm font-semibold {getUtilizationColor(diagnostics.poolUtilization)}">
-						{diagnostics.poolUtilization.toFixed(1)}%
-					</span>
+					<span class="text-sm font-semibold {getUtilizationColor(diagnostics.poolUtilization)}"> {diagnostics.poolUtilization.toFixed(1)}% </span>
 				</div>
 				<div class="h-3 w-full overflow-hidden rounded-full bg-surface-200 dark:bg-surface-700">
 					<div

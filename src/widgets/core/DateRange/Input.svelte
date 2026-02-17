@@ -23,8 +23,8 @@ Part of the Three Pillars Architecture for widget system.
 -->
 
 <script lang="ts">
-	import { getFieldName } from '@src/utils/utils';
 	import { validationStore } from '@src/stores/store.svelte';
+	import { getFieldName } from '@src/utils/utils';
 	import type { FieldType } from './';
 
 	let {
@@ -71,7 +71,7 @@ Part of the Three Pillars Architecture for widget system.
 	}
 
 	function validateRange() {
-		if (!value?.start || !value?.end) return;
+		if (!(value?.start && value?.end)) return;
 		const start = new Date(value.start);
 		const end = new Date(value.end);
 
@@ -104,7 +104,7 @@ Part of the Three Pillars Architecture for widget system.
 					required={field.required}
 					class="input w-full flex-1 rounded-none border-none bg-white font-medium text-black outline-none focus:ring-0 dark:bg-surface-900 dark:text-primary-500"
 					aria-label="Start Date"
-				/>
+				>
 			</div>
 		</div>
 
@@ -123,7 +123,7 @@ Part of the Three Pillars Architecture for widget system.
 					required={field.required}
 					class="input w-full flex-1 rounded-none border-none bg-white font-medium text-black outline-none focus:ring-0 dark:bg-surface-900 dark:text-primary-500"
 					aria-label="End Date"
-				/>
+				>
 			</div>
 		</div>
 	</div>

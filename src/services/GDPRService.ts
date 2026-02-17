@@ -9,9 +9,9 @@
  *
  */
 
-import { auditLogService } from './audit/AuditLogService';
 import { dbAdapter } from '@databases/db';
 import { logger } from '@utils/logger.server';
+import { auditLogService } from './audit/AuditLogService';
 
 export class GDPRService {
 	private static instance: GDPRService;
@@ -38,7 +38,7 @@ export class GDPRService {
 			// 1. Fetch Core User Profile using Auth Adapter
 			const userResult = await dbAdapter.auth.getUserById(userId);
 
-			if (!userResult.success || !userResult.data) {
+			if (!(userResult.success && userResult.data)) {
 				throw new Error('User not found');
 			}
 			const user = userResult.data;
@@ -74,7 +74,7 @@ export class GDPRService {
 	 * Right to Erasure (Article 17)
 	 * Anonymizes PII while preserving data integrity.
 	 */
-	public async anonymizeUser(userId: string, reason: string = 'User Request'): Promise<boolean> {
+	public async anonymizeUser(userId: string, reason = 'User Request'): Promise<boolean> {
 		if (!dbAdapter) {
 			logger.error('GDPR Erasure Failed: Database adapter not initialized');
 			return false;
@@ -83,7 +83,9 @@ export class GDPRService {
 		try {
 			// 1. Fetch User to verify existence and get original email for logging
 			const userResult = await dbAdapter.auth.getUserById(userId);
-			if (!userResult.success || !userResult.data) throw new Error('User not found');
+			if (!(userResult.success && userResult.data)) {
+				throw new Error('User not found');
+			}
 			const user = userResult.data;
 
 			const anonymizedEmail = `deleted-${userId.substring(0, 8)}@anonymized.sveltycms.com`;

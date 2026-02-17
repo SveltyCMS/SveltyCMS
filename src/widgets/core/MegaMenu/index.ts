@@ -60,12 +60,12 @@ export const traverseMenuItems = (
 	level = 0,
 	parent?: MenuItem
 ): void => {
-	items.forEach((item) => {
+	for (const item of items) {
 		callback(item, level, parent);
 		if (item.children && item.children.length > 0) {
 			traverseMenuItems(item.children, callback, level + 1, item);
 		}
-	});
+	}
 };
 
 // Helper function to find menu item by path
@@ -95,7 +95,9 @@ export const validateMenuStructure = (items: MenuItem[], config: MegaMenuProps):
 		if (currentDepth > maxDepth) {
 			errors.push(`Menu item "${item._fields?.title || item._id}" exceeds maximum depth of ${maxDepth}`);
 		}
-		item.children.forEach((child) => checkDepth(child, currentDepth + 1));
+		for (const child of item.children) {
+			checkDepth(child, currentDepth + 1);
+		}
 	};
 
 	// Check other constraints
@@ -107,13 +109,15 @@ export const validateMenuStructure = (items: MenuItem[], config: MegaMenuProps):
 			errors.push(`Menu item "${item._fields?.title || item._id}" has ${childrenCount} children, maximum allowed is ${maxChildren}`);
 		}
 
-		item.children.forEach(checkConstraints);
+		for (const child of item.children) {
+			checkConstraints(child);
+		}
 	};
 
-	items.forEach((item) => {
+	for (const item of items) {
 		checkDepth(item);
 		checkConstraints(item);
-	});
+	}
 
 	return {
 		valid: errors.length === 0,

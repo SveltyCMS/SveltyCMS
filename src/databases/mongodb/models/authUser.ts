@@ -18,20 +18,17 @@
  * Utilized by the auth system to manage user accounts in a MongoDB database
  */
 
-import { getPrivateSettingSync } from '@src/services/settingsService';
-import type { Model } from 'mongoose';
-import mongoose, { Schema } from 'mongoose';
-
-// Adapter
-import { getAllPermissions } from '@src/databases/auth/permissions';
-import { generateId } from '@src/databases/mongodb/methods/mongoDBUtils';
-
 // Types
 import type { Permission, Role, User } from '@src/databases/auth';
+// Adapter
+import { getAllPermissions } from '@src/databases/auth/permissions';
 import type { DatabaseResult, PaginationOption } from '@src/databases/dbInterface';
-
+import { generateId } from '@src/databases/mongodb/methods/mongoDBUtils';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 // System Logging
 import { logger } from '@utils/logger';
+import type { Model } from 'mongoose';
+import mongoose, { Schema } from 'mongoose';
 
 // Define the User schema
 export const UserSchema = new Schema(
@@ -87,22 +84,38 @@ import { toISOString } from '@src/utils/dateUtils';
  * This is a partial implementation that will be composed with other adapters.
  */
 export class UserAdapter {
-	private UserModel: Model<User>;
+	private readonly UserModel: Model<User>;
 
 	// Map MongoDB user to User type with ISO strings for dates
 	private mapUser(user: any): User {
-		if (!user) return user;
+		if (!user) {
+			return user;
+		}
 		const result = { ...user };
 		result._id = result._id.toString();
 
 		// Convert all date fields to ISO strings
-		if (result.lastActiveAt) result.lastActiveAt = toISOString(result.lastActiveAt);
-		if (result.expiresAt) result.expiresAt = toISOString(result.expiresAt);
-		if (result.resetRequestedAt) result.resetRequestedAt = toISOString(result.resetRequestedAt);
-		if (result.lockoutUntil) result.lockoutUntil = toISOString(result.lockoutUntil);
-		if (result.last2FAVerification) result.last2FAVerification = toISOString(result.last2FAVerification);
-		if (result.createdAt) result.createdAt = toISOString(result.createdAt);
-		if (result.updatedAt) result.updatedAt = toISOString(result.updatedAt);
+		if (result.lastActiveAt) {
+			result.lastActiveAt = toISOString(result.lastActiveAt);
+		}
+		if (result.expiresAt) {
+			result.expiresAt = toISOString(result.expiresAt);
+		}
+		if (result.resetRequestedAt) {
+			result.resetRequestedAt = toISOString(result.resetRequestedAt);
+		}
+		if (result.lockoutUntil) {
+			result.lockoutUntil = toISOString(result.lockoutUntil);
+		}
+		if (result.last2FAVerification) {
+			result.last2FAVerification = toISOString(result.last2FAVerification);
+		}
+		if (result.createdAt) {
+			result.createdAt = toISOString(result.createdAt);
+		}
+		if (result.updatedAt) {
+			result.updatedAt = toISOString(result.updatedAt);
+		}
 
 		// Ensure permissions are strings
 		if (result.permissions && Array.isArray(result.permissions)) {
@@ -115,7 +128,7 @@ export class UserAdapter {
 	constructor() {
 		// Force model recreation to ensure schema changes take effect
 		if (mongoose.models?.auth_users) {
-			delete mongoose.models.auth_users;
+			mongoose.models.auth_users = undefined;
 		}
 		this.UserModel = mongoose.model<User>('auth_users', UserSchema);
 	}
@@ -660,12 +673,11 @@ export class UserAdapter {
 					success: true,
 					data: this.mapUser(user)
 				};
-			} else {
-				return {
-					success: true,
-					data: null
-				};
 			}
+			return {
+				success: true,
+				data: null
+			};
 		} catch (err) {
 			const message = `Error in UserAdapter.getUserById: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message, {
@@ -699,7 +711,7 @@ export class UserAdapter {
 
 			const user = await this.UserModel.findOne(filter).lean();
 			if (user) {
-				logger.debug(`User retrieved by email:`, {
+				logger.debug('User retrieved by email:', {
 					email: '[REDACTED]',
 					tenantId: criteria.tenantId || 'none (single-tenant mode)'
 				});
@@ -707,12 +719,11 @@ export class UserAdapter {
 					success: true,
 					data: this.mapUser(user)
 				};
-			} else {
-				return {
-					success: true,
-					data: null
-				};
 			}
+			return {
+				success: true,
+				data: null
+			};
 		} catch (err) {
 			const message = `Error in UserAdapter.getUserByEmail: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message, {
@@ -780,7 +791,7 @@ export class UserAdapter {
 	async getRolesForUser(user_id: string): Promise<DatabaseResult<Role[]>> {
 		try {
 			const user = await this.UserModel.findById(user_id).lean();
-			if (!user || !user.role) {
+			if (!user?.role) {
 				logger.warn(`User or role not found for user ID: ${user_id}`);
 				return {
 					success: true,
@@ -933,7 +944,7 @@ export class UserAdapter {
 	async isUserExpired(user_id: string): Promise<DatabaseResult<boolean>> {
 		try {
 			const user = await this.UserModel.findById(user_id).lean();
-			if (user && user.expiresAt) {
+			if (user?.expiresAt) {
 				return {
 					success: true,
 					data: new Date(user.expiresAt) < new Date()

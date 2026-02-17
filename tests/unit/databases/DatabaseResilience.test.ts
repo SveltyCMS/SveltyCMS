@@ -3,7 +3,7 @@
  * @description Unit tests for the Database Resilience (Retry/Circuit Breaker) logic
  */
 
-import { describe, it, expect, mock, beforeEach } from 'bun:test';
+import { beforeEach, describe, expect, it, mock } from 'bun:test';
 import { getDatabaseResilience } from '@src/databases/DatabaseResilience';
 
 describe('DatabaseResilience', () => {
@@ -30,7 +30,9 @@ describe('DatabaseResilience', () => {
 		let calls = 0;
 		const operation = mock(() => {
 			calls++;
-			if (calls < 3) return Promise.reject(new Error('Transient error'));
+			if (calls < 3) {
+				return Promise.reject(new Error('Transient error'));
+			}
 			return Promise.resolve('delayed success');
 		});
 

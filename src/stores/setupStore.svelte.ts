@@ -16,86 +16,86 @@
  * - Simplified components (pure UI, no fetch calls)
  */
 
-import { safeParse } from 'valibot';
-import { setupAdminSchema, dbConfigSchema, systemSettingsSchema } from '@utils/formSchemas';
+import { updatePublicEnv } from '@stores/globalSettings.svelte';
+import { dbConfigSchema, setupAdminSchema, systemSettingsSchema } from '@utils/formSchemas';
 import { logger } from '@utils/logger';
 import { showToast } from '@utils/toast';
-import { goto } from '$app/navigation';
+import { safeParse } from 'valibot';
 import { deserialize } from '$app/forms';
-import { updatePublicEnv } from '@stores/globalSettings.svelte';
+import { goto } from '$app/navigation';
 
 // --- Types ---
 export type SupportedDbType = 'mongodb' | 'mongodb+srv' | 'postgresql' | 'mysql' | 'mariadb' | 'sqlite' | '';
 export type ValidationErrors = Record<string, string>;
 
-export type PasswordRequirements = {
+export interface PasswordRequirements {
 	length: boolean;
 	letter: boolean;
+	match: boolean;
 	number: boolean;
 	special: boolean;
-	match: boolean;
-};
+}
 
-export type DbConfig = {
-	type: SupportedDbType;
+export interface DbConfig {
 	host: string;
-	port: string;
 	name: string;
-	user: string;
 	password: string;
-};
-export type AdminUser = {
-	username: string;
+	port: string;
+	type: SupportedDbType;
+	user: string;
+}
+export interface AdminUser {
+	confirmPassword: string;
 	email: string;
 	password: string;
-	confirmPassword: string;
-};
-export type SystemSettings = {
-	siteName: string;
-	hostProd: string;
-	defaultSystemLanguage: string;
-	systemLanguages: string[];
-	defaultContentLanguage: string;
+	username: string;
+}
+export interface SystemSettings {
 	contentLanguages: string[];
-	mediaStorageType: 'local' | 's3' | 'r2' | 'cloudinary';
+	defaultContentLanguage: string;
+	defaultSystemLanguage: string;
+	demoMode: boolean;
+	hostProd: string;
 	mediaFolder: string;
+	mediaStorageType: 'local' | 's3' | 'r2' | 'cloudinary';
+	multiTenant: boolean;
+	redisHost: string;
+	redisPassword?: string;
+	redisPort: string;
+	siteName: string;
+	systemLanguages: string[];
 	timezone: string;
 	useRedis: boolean;
-	redisHost: string;
-	redisPort: string;
-	redisPassword?: string;
-	multiTenant: boolean;
-	demoMode: boolean;
-};
-export type EmailSettings = {
-	smtpConfigured: boolean;
+}
+export interface EmailSettings {
 	skipWelcomeEmail: boolean;
-};
+	smtpConfigured: boolean;
+}
 
 // --- API Response Types ---
-export type DatabaseTestResult = {
-	success: boolean;
-	message?: string;
-	error?: string;
-	userFriendly?: string;
-	latencyMs?: number;
-	dbDoesNotExist?: boolean;
+export interface DatabaseTestResult {
 	classification?: string;
+	dbDoesNotExist?: boolean;
 	details?: unknown;
-};
-
-export type SetupCompleteResponse = {
-	success: boolean;
 	error?: string;
-	redirectPath?: string;
-	loggedIn?: boolean;
-};
-
-export type SeedDatabaseResponse = {
+	latencyMs?: number;
+	message?: string;
 	success: boolean;
+	userFriendly?: string;
+}
+
+export interface SetupCompleteResponse {
+	error?: string;
+	loggedIn?: boolean;
+	redirectPath?: string;
+	success: boolean;
+}
+
+export interface SeedDatabaseResponse {
 	error?: string;
 	firstCollection?: { name: string; path: string } | null;
-};
+	success: boolean;
+}
 
 // --- Initial State Constants ---
 const initialDbConfig: DbConfig = { type: 'mongodb', host: 'localhost', port: '27017', name: 'SveltyCMS', user: '', password: '' };
@@ -144,7 +144,9 @@ const KEYS = {
 
 // --- Storage Utility ---
 function getStorage(): Storage | null {
-	if (typeof window === 'undefined') return null;
+	if (typeof window === 'undefined') {
+		return null;
+	}
 	try {
 		// Test and return localStorage
 		localStorage.setItem('__test', '1');
@@ -263,8 +265,12 @@ function createSetupStore() {
 	// Function to setup persistence effect - will be called from component
 	function setupPersistence() {
 		$effect(() => {
-			if (!isLoaded) return;
-			if (!storage) return;
+			if (!isLoaded) {
+				return;
+			}
+			if (!storage) {
+				return;
+			}
 			try {
 				storage.setItem(KEYS.db, JSON.stringify(wizard.dbConfig));
 				storage.setItem(KEYS.admin, JSON.stringify(wizard.adminUser));
@@ -297,10 +303,18 @@ function createSetupStore() {
 	]);
 
 	const canProceed = $derived.by<boolean>(() => {
-		if (wizard.currentStep === 0) return wizard.dbTestPassed;
-		if (wizard.currentStep === 1 || wizard.currentStep === 2) return validateStep(wizard.currentStep, false);
-		if (wizard.currentStep === 3) return true; // Email step is optional, always can proceed
-		if (wizard.currentStep === 4) return !wizard.isSeeding; // Block completion if still seeding
+		if (wizard.currentStep === 0) {
+			return wizard.dbTestPassed;
+		}
+		if (wizard.currentStep === 1 || wizard.currentStep === 2) {
+			return validateStep(wizard.currentStep, false);
+		}
+		if (wizard.currentStep === 3) {
+			return true; // Email step is optional, always can proceed
+		}
+		if (wizard.currentStep === 4) {
+			return !wizard.isSeeding; // Block completion if still seeding
+		}
 		return false;
 	});
 
@@ -370,25 +384,24 @@ function createSetupStore() {
 					wizard.showDbDetails = false;
 					wizard.validationErrors = {};
 					return true;
-				} else {
-					wizard.errorMessage = data?.error || 'Database connection failed.';
-					wizard.dbTestPassed = false;
-					wizard.successMessage = '';
-					wizard.showDbDetails = true;
-
-					// Map server-side validation errors back to the UI
-					if (data?.details && Array.isArray(data.details)) {
-						const newErrors: Record<string, string> = {};
-						for (const issue of data.details as any[]) {
-							const path = issue.path?.[0]?.key as string;
-							if (path) {
-								newErrors[path] = issue.message;
-							}
-						}
-						wizard.validationErrors = { ...wizard.validationErrors, ...newErrors };
-					}
-					return false;
 				}
+				wizard.errorMessage = data?.error || 'Database connection failed.';
+				wizard.dbTestPassed = false;
+				wizard.successMessage = '';
+				wizard.showDbDetails = true;
+
+				// Map server-side validation errors back to the UI
+				if (data?.details && Array.isArray(data.details)) {
+					const newErrors: Record<string, string> = {};
+					for (const issue of data.details as any[]) {
+						const path = issue.path?.[0]?.key as string;
+						if (path) {
+							newErrors[path] = issue.message;
+						}
+					}
+					wizard.validationErrors = { ...wizard.validationErrors, ...newErrors };
+				}
+				return false;
 			}
 
 			return false;
@@ -428,7 +441,7 @@ function createSetupStore() {
 
 			const result = deserialize(await response.text());
 			if (result.type !== 'success') {
-				showToast('Seeding failed: ' + (result as any).data?.error, 'error');
+				showToast(`Seeding failed: ${(result as any).data?.error}`, 'error');
 				return false;
 			}
 			const data = result.data as any;
@@ -445,11 +458,10 @@ function createSetupStore() {
 				wizard.seedingProgress = 100;
 
 				return true;
-			} else {
-				logger.warn('⚠️  Database initialization had issues:', data.error);
-				showToast(data.error || 'Seeding failed.', 'error', 4000);
-				return false;
 			}
+			logger.warn('⚠️  Database initialization had issues:', data.error);
+			showToast(data.error || 'Seeding failed.', 'error', 4000);
+			return false;
 		} catch (error) {
 			logger.warn('⚠️  Error during database initialization server function:', error);
 			return false;
@@ -475,13 +487,17 @@ function createSetupStore() {
 		const step1Valid = validateStep(1, true);
 		const step2Valid = validateStep(2, true);
 
-		if (!step0Valid || !step1Valid || !step2Valid) {
+		if (!(step0Valid && step1Valid && step2Valid)) {
 			showToast('Please fix validation errors before completing setup.', 'error');
 
 			// Navigate to first invalid step
-			if (!step0Valid) wizard.currentStep = 0;
-			else if (!step1Valid) wizard.currentStep = 1;
-			else if (!step2Valid) wizard.currentStep = 2;
+			if (!step0Valid) {
+				wizard.currentStep = 0;
+			} else if (!step1Valid) {
+				wizard.currentStep = 1;
+			} else if (!step2Valid) {
+				wizard.currentStep = 2;
+			}
 			return false;
 		}
 
@@ -633,7 +649,9 @@ function createSetupStore() {
 
 	// --- LOAD METHOD ---
 	function load() {
-		if (isLoaded || !storage) return;
+		if (isLoaded || !storage) {
+			return;
+		}
 		try {
 			const rawDb = storage.getItem(KEYS.db);
 			if (rawDb) {
@@ -665,8 +683,8 @@ function createSetupStore() {
 				wizard.emailSettings = { ...initialEmailSettings, ...JSON.parse(rawEmail) };
 			}
 
-			wizard.currentStep = parseInt(storage.getItem(KEYS.step) || '0', 10);
-			wizard.highestStepReached = parseInt(storage.getItem(KEYS.highestStep) || '0', 10);
+			wizard.currentStep = Number.parseInt(storage.getItem(KEYS.step) || '0', 10);
+			wizard.highestStepReached = Number.parseInt(storage.getItem(KEYS.highestStep) || '0', 10);
 			wizard.dbTestPassed = storage.getItem(KEYS.dbTest) === 'true';
 
 			// Sanity check

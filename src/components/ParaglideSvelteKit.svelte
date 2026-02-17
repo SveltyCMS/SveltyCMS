@@ -17,13 +17,12 @@
 -->
 
 <script lang="ts">
-	import { browser } from '$app/environment';
+	// Paraglide
+	import { locales as availableLocales, getLocale, setLocale } from '@src/paraglide/runtime';
 
 	// Stores
 	import { systemLanguage } from '@stores/store.svelte';
-
-	// Paraglide
-	import { getLocale, setLocale, locales as availableLocales } from '@src/paraglide/runtime';
+	import { browser } from '$app/environment';
 
 	// Dynamically generate LanguageCode type from Paraglide's available locales.
 	type LanguageCode = (typeof availableLocales)[number];

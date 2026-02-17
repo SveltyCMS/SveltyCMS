@@ -12,35 +12,35 @@
 -->
 
 <script lang="ts">
+	import TreeView from '@components/system/TreeView.svelte';
+	import * as m from '@src/paraglide/messages';
+	import { screen } from '@stores/screenSizeStore.svelte.ts';
+	import { ui } from '@stores/UIStore.svelte.ts';
 	// Using iconify-icon web component
 	import { logger } from '@utils/logger';
 	import { showToast } from '@utils/toast';
-	import { ui } from '@stores/UIStore.svelte.ts';
-	import { screen } from '@stores/screenSizeStore.svelte.ts';
-	import TreeView from '@components/system/TreeView.svelte';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
-	import * as m from '@src/paraglide/messages';
 
 	interface RawFolder {
 		_id: string;
 		name: string;
-		path: string;
-		parentId?: string | null;
 		order?: number;
+		parentId?: string | null;
+		path: string;
 	}
 
 	interface FolderNode {
-		id: string;
-		name: string;
-		path: string;
-		parentId?: string | null;
-		isExpanded: boolean;
-		onClick: () => void;
 		children?: FolderNode[];
-		icon?: string;
-		nodeType: 'virtual';
-		order: number;
 		depth?: number;
+		icon?: string;
+		id: string;
+		isExpanded: boolean;
+		name: string;
+		nodeType: 'virtual';
+		onClick: () => void;
+		order: number;
+		parentId?: string | null;
+		path: string;
 	}
 
 	// Mutable state
@@ -63,7 +63,7 @@
 			const res = await fetch('/api/systemVirtualFolder');
 			if (!res.ok) throw new Error('Network error');
 			const { success, data } = await res.json();
-			if (!success || !data) throw new Error('Invalid response');
+			if (!(success && data)) throw new Error('Invalid response');
 
 			folders = data
 				.filter((f: RawFolder) => f.path?.startsWith('/'))
@@ -257,8 +257,8 @@
 
 <style>
 	.media-folders-list {
-		scrollbar-width: thin;
 		scrollbar-color: rgb(var(--color-primary-500) / 0.3) transparent;
+		scrollbar-width: thin;
 	}
 	.media-folders-list::-webkit-scrollbar {
 		width: 4px;

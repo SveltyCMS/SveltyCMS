@@ -15,8 +15,8 @@
 	import { fade } from 'svelte/transition';
 
 	interface Props {
-		show?: boolean;
 		editor: Editor | null;
+		show?: boolean;
 	}
 
 	let { show = $bindable(false), editor }: Props = $props();
@@ -93,7 +93,7 @@
 				<p>or</p>
 				<div class="flex w-full justify-center gap-2">
 					<button class="preset-outline-primary-500 btn w-full" disabled>Browse locally</button>
-					<button class="variant-filled-secondary btn w-full" onclick={() => (insert_url = true)}> YouTube </button>
+					<button class="variant-filled-secondary btn w-full" onclick={() => (insert_url = true)}>YouTube</button>
 				</div>
 			</div>
 		{/if}

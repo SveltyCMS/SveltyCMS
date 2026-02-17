@@ -158,14 +158,18 @@ export function classifyDatabaseError(
 				};
 			}
 			// Check for common MongoDB connection failures when auth is likely required
-			if (/connection.*failed|server.*not.*available|could.*not.*connect/i.test(lower)) {
-				if (dbConfig && !dbConfig.user && !dbConfig.password && (dbConfig.host === 'localhost' || dbConfig.host === '127.0.0.1')) {
-					return {
-						classification: 'likely_auth_required',
-						raw,
-						userFriendly: 'Connection failed. If your MongoDB instance requires authentication, please provide a username and password.'
-					};
-				}
+			if (
+				/connection.*failed|server.*not.*available|could.*not.*connect/i.test(lower) &&
+				dbConfig &&
+				!dbConfig.user &&
+				!dbConfig.password &&
+				(dbConfig.host === 'localhost' || dbConfig.host === '127.0.0.1')
+			) {
+				return {
+					classification: 'likely_auth_required',
+					raw,
+					userFriendly: 'Connection failed. If your MongoDB instance requires authentication, please provide a username and password.'
+				};
 			}
 			if (/mongo|mongoose/i.test(lower)) {
 				return {
@@ -178,12 +182,15 @@ export function classifyDatabaseError(
 
 		case 'postgres':
 			// PostgreSQL error codes
-			if (code === '28P01')
+			if (code === '28P01') {
 				return { classification: 'authentication_failed', raw, userFriendly: 'Authentication failed. Please check your username and password.' };
-			if (code === '3D000')
+			}
+			if (code === '3D000') {
 				return { classification: 'database_not_found', raw, userFriendly: 'Database not found. Please check your database name.' };
-			if (code === '28000')
+			}
+			if (code === '28000') {
 				return { classification: 'auth_required', raw, userFriendly: 'Authentication required. Please provide valid credentials.' };
+			}
 			break;
 
 		case 'mysql':
@@ -234,13 +241,12 @@ export function classifyDatabaseError(
 					raw,
 					userFriendly: 'Connection failed. Your local MongoDB instance may require authentication. Please provide a username and password.'
 				};
-			} else {
-				return {
-					classification: 'likely_auth_required',
-					raw,
-					userFriendly: 'Connection failed. This database server likely requires authentication. Please provide a username and password.'
-				};
 			}
+			return {
+				classification: 'likely_auth_required',
+				raw,
+				userFriendly: 'Connection failed. This database server likely requires authentication. Please provide a username and password.'
+			};
 		}
 	}
 

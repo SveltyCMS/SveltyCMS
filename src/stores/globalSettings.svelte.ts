@@ -13,12 +13,11 @@
  * - Type-safe access to public configuration
  */
 
-import { browser } from '$app/environment';
-import { publicConfigSchema } from '@src/databases/schemas';
-import { type InferOutput } from 'valibot';
-
+import type { publicConfigSchema } from '@src/databases/schemas';
 // Universal Logger (safe for client and server)
 import { logger } from '@utils/logger';
+import type { InferOutput } from 'valibot';
+import { browser } from '$app/environment';
 
 type PublicEnv = InferOutput<typeof publicConfigSchema> & { PKG_VERSION?: string };
 
@@ -55,10 +54,14 @@ async function fetchPublicSettings() {
  * This replaces the old polling mechanism for better efficiency.
  */
 function startListening() {
-	if (!browser || eventSource) return;
+	if (!browser || eventSource) {
+		return;
+	}
 
 	// Do not connect to stream on login or setup pages to avoid 401 errors
-	if (window.location.pathname.startsWith('/login') || window.location.pathname.startsWith('/setup')) return;
+	if (window.location.pathname.startsWith('/login') || window.location.pathname.startsWith('/setup')) {
+		return;
+	}
 
 	try {
 		eventSource = new EventSource('/api/settings/public/stream');

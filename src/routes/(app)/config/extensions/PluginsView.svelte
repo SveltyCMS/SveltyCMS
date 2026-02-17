@@ -116,9 +116,7 @@ Features:
 					</div>
 				</div>
 				<!-- description -->
-				<p class="mb-4 line-clamp-2 grow text-sm text-surface-500 dark:text-surface-50">
-					{plugin.description}
-				</p>
+				<p class="mb-4 line-clamp-2 grow text-sm text-surface-500 dark:text-surface-50">{plugin.description}</p>
 
 				<!-- actions -->
 				<div class="mt-auto flex items-center justify-end gap-2 border-t border-surface-100 pt-3 dark:border-surface-700">

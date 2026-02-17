@@ -8,10 +8,10 @@
  * 3. 307 redirect to the slug (or returns JSON if no slug)
  */
 
-import { json, redirect } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
 import { getPrivateSettingSync } from '@src/services/settingsService';
+import { json, redirect } from '@sveltejs/kit';
 import { logger } from '@utils/logger.server';
+import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ url, cookies }) => {
 	const secret = url.searchParams.get('secret');

@@ -13,13 +13,13 @@ and CRUD actions. Enterprise-grade workflow management GUI.
 -->
 
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { goto } from '$app/navigation';
-	import { slide } from 'svelte/transition';
 	import PageTitle from '@components/PageTitle.svelte';
-	import { showToast } from '@utils/toast';
 	import type { AutomationFlow } from '@src/services/automation/types';
 	import { AUTOMATION_EVENTS, OPERATION_TYPES } from '@src/services/automation/types';
+	import { showToast } from '@utils/toast';
+	import { onMount } from 'svelte';
+	import { slide } from 'svelte/transition';
+	import { goto } from '$app/navigation';
 
 	let flows: AutomationFlow[] = $state([]);
 	let isLoading = $state(true);
@@ -160,10 +160,10 @@ and CRUD actions. Enterprise-grade workflow management GUI.
 	function timeAgo(dateStr?: string): string {
 		if (!dateStr) return 'Never';
 		const diff = Date.now() - new Date(dateStr).getTime();
-		if (diff < 60000) return 'Just now';
-		if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
-		if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
-		return `${Math.floor(diff / 86400000)}d ago`;
+		if (diff < 60_000) return 'Just now';
+		if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
+		if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
+		return `${Math.floor(diff / 86_400_000)}d ago`;
 	}
 
 	onMount(loadFlows);
@@ -251,9 +251,7 @@ and CRUD actions. Enterprise-grade workflow management GUI.
 										{getTriggerLabel(flow)}
 									</span>
 									<iconify-icon icon="mdi:arrow-right" class="text-sm opacity-40"></iconify-icon>
-									<span class="badge preset-tonal-secondary truncate max-w-[300px]">
-										{getOperationsSummary(flow)}
-									</span>
+									<span class="badge preset-tonal-secondary truncate max-w-[300px]"> {getOperationsSummary(flow)} </span>
 								</div>
 							</div>
 						</div>

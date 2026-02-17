@@ -4,15 +4,14 @@
  * Server-side logic for the root route, handling redirection to the first collection.
  * This version is updated to use the modern ContentManager for cleaner logic.
  */
-import { getPrivateSettingSync } from '@src/services/settingsService';
-import { publicEnv } from '@src/stores/globalSettings.svelte';
 
 import { contentManager } from '@src/content/ContentManager';
+import type { Role, User } from '@src/databases/auth/types';
 import { dbInitPromise } from '@src/databases/db';
+import { getPrivateSettingSync } from '@src/services/settingsService';
+import { publicEnv } from '@src/stores/globalSettings.svelte';
 import { error, redirect } from '@sveltejs/kit';
-
 import type { PageServerLoad } from './$types';
-import type { User, Role } from '@src/databases/auth/types';
 
 // Roles
 

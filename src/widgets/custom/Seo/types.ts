@@ -24,20 +24,20 @@ export interface SeoProps {
 
 // Defines the complete data structure for a stored SEO entry
 export interface SeoData {
-	title: string;
+	canonicalUrl: string;
 	description: string;
 	focusKeyword: string;
-	// Advanced
-	robotsMeta: string; // e.g., 'index, follow'
-	canonicalUrl: string;
-	// Social
-	ogTitle: string;
 	ogDescription: string;
 	ogImage: string; // Should be a media ID
-	twitterCard: 'summary' | 'summary_large_image';
-	twitterTitle: string;
-	twitterDescription: string;
-	twitterImage: string; // Should be a media ID
+	// Social
+	ogTitle: string;
+	// Advanced
+	robotsMeta: string; // e.g., 'index, follow'
 	// Schema
 	schemaMarkup: string; // Stored as a JSON string
+	title: string;
+	twitterCard: 'summary' | 'summary_large_image';
+	twitterDescription: string;
+	twitterImage: string; // Should be a media ID
+	twitterTitle: string;
 }

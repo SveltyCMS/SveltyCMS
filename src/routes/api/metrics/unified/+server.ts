@@ -12,10 +12,8 @@
  * @endpoint GET /api/metrics/unified
  */
 
-import { json } from '@sveltejs/kit';
 import { metricsService } from '@src/services/MetricsService';
-import { logger } from '@utils/logger.server';
-
+import { json } from '@sveltejs/kit';
 /**
  * GET /api/metrics/unified
  * Returns comprehensive system metrics for dashboard monitoring.
@@ -23,6 +21,7 @@ import { logger } from '@utils/logger.server';
 // Unified Error Handling
 import { apiHandler } from '@utils/apiHandler';
 import { AppError } from '@utils/errorHandling';
+import { logger } from '@utils/logger.server';
 
 /**
  * GET /api/metrics/unified
@@ -147,10 +146,18 @@ function calculatePerformanceScore(metrics: ReturnType<typeof metricsService.get
  * Classify response time performance.
  */
 function classifyResponseTime(avgResponseTime: number): 'excellent' | 'good' | 'fair' | 'poor' | 'critical' {
-	if (avgResponseTime < 100) return 'excellent';
-	if (avgResponseTime < 300) return 'good';
-	if (avgResponseTime < 500) return 'fair';
-	if (avgResponseTime < 1000) return 'poor';
+	if (avgResponseTime < 100) {
+		return 'excellent';
+	}
+	if (avgResponseTime < 300) {
+		return 'good';
+	}
+	if (avgResponseTime < 500) {
+		return 'fair';
+	}
+	if (avgResponseTime < 1000) {
+		return 'poor';
+	}
 	return 'critical';
 }
 
@@ -158,9 +165,15 @@ function classifyResponseTime(avgResponseTime: number): 'excellent' | 'good' | '
  * Classify cache performance.
  */
 function classifyCachePerformance(hitRate: number): 'excellent' | 'good' | 'fair' | 'poor' {
-	if (hitRate >= 90) return 'excellent';
-	if (hitRate >= 80) return 'good';
-	if (hitRate >= 60) return 'fair';
+	if (hitRate >= 90) {
+		return 'excellent';
+	}
+	if (hitRate >= 80) {
+		return 'good';
+	}
+	if (hitRate >= 60) {
+		return 'fair';
+	}
 	return 'poor';
 }
 
@@ -168,10 +181,18 @@ function classifyCachePerformance(hitRate: number): 'excellent' | 'good' | 'fair
  * Classify error rate.
  */
 function classifyErrorRate(errorRate: number): 'excellent' | 'good' | 'fair' | 'poor' | 'critical' {
-	if (errorRate < 0.5) return 'excellent';
-	if (errorRate < 1) return 'good';
-	if (errorRate < 2) return 'fair';
-	if (errorRate < 5) return 'poor';
+	if (errorRate < 0.5) {
+		return 'excellent';
+	}
+	if (errorRate < 1) {
+		return 'good';
+	}
+	if (errorRate < 2) {
+		return 'fair';
+	}
+	if (errorRate < 5) {
+		return 'poor';
+	}
 	return 'critical';
 }
 
@@ -185,8 +206,14 @@ function calculateThreatLevel(security: {
 }): 'low' | 'medium' | 'high' | 'critical' {
 	const violationScore = security.rateLimitViolations + security.cspViolations * 2 + security.authFailures * 1.5;
 
-	if (violationScore >= 100) return 'critical';
-	if (violationScore >= 50) return 'high';
-	if (violationScore >= 20) return 'medium';
+	if (violationScore >= 100) {
+		return 'critical';
+	}
+	if (violationScore >= 50) {
+		return 'high';
+	}
+	if (violationScore >= 20) {
+		return 'medium';
+	}
 	return 'low';
 }

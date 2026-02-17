@@ -34,14 +34,14 @@ Accessible progress bar with animations, variants, and status indicators.
 	type SizeVariant = 'sm' | 'md' | 'lg';
 
 	interface Props {
-		value?: number;
-		label?: string;
-		color?: ColorVariant;
-		size?: SizeVariant;
 		animated?: boolean;
-		showPercentage?: boolean;
+		color?: ColorVariant;
 		indeterminate?: boolean;
+		label?: string;
+		showPercentage?: boolean;
 		showStatus?: boolean;
+		size?: SizeVariant;
+		value?: number;
 	}
 
 	const {
@@ -127,9 +127,7 @@ Accessible progress bar with animations, variants, and status indicators.
 	{#if label || showPercentage}
 		<div class="mb-2 flex items-center justify-between">
 			{#if label}
-				<span class="text-sm font-medium text-gray-700 dark:text-gray-300" id="progress-label">
-					{label}
-				</span>
+				<span class="text-sm font-medium text-gray-700 dark:text-gray-300" id="progress-label"> {label} </span>
 			{/if}
 
 			{#if showPercentage && !indeterminate}
@@ -226,9 +224,9 @@ Accessible progress bar with animations, variants, and status indicators.
 
 	@media (prefers-reduced-motion: reduce) {
 		* {
+			transition-duration: 0.01ms !important;
 			animation-duration: 0.01ms !important;
 			animation-iteration-count: 1 !important;
-			transition-duration: 0.01ms !important;
 		}
 	}
 </style>

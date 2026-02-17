@@ -1,11 +1,11 @@
 //@file tests/playwright/global.teardown.ts
 // This is a simple cleanup file referenced in playwright.config.ts
 
+import fs from 'node:fs/promises';
+import path from 'node:path';
 import { test as teardown } from '@playwright/test';
-import fs from 'fs/promises';
-import path from 'path';
 
-const authFile = path.resolve(__dirname, '..', '..', 'setup-storage-state.json');
+const authFile = path.resolve(import.meta.dirname, '..', '..', 'setup-storage-state.json');
 
 teardown('cleanup auth state', async () => {
 	try {

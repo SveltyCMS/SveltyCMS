@@ -19,11 +19,11 @@ Displays real-time system state and individual service health with comprehensive
 
 <script lang="ts">
 	import { systemState } from '@src/stores/system/state';
-	import type { SystemState, ServiceHealth } from '@src/stores/system/types';
-	import { showToast } from '@utils/toast';
+	import type { ServiceHealth, SystemState } from '@src/stores/system/types';
 	import { formatDisplayDate } from '@utils/dateUtils';
 	import { logger } from '@utils/logger';
-	import { onMount, onDestroy } from 'svelte';
+	import { showToast } from '@utils/toast';
+	import { onDestroy, onMount } from 'svelte';
 
 	// Type for service data
 	type ServiceData = {
@@ -167,7 +167,7 @@ Displays real-time system state and individual service health with comprehensive
 				showToast(`Health check failed. Retrying... (${retryCount}/${MAX_RETRIES})`, 'warning', 2000);
 
 				// Exponential backoff
-				setTimeout(() => fetchHealth(), 1000 * Math.pow(2, retryCount));
+				setTimeout(() => fetchHealth(), 1000 * 2 ** retryCount);
 			} else {
 				showToast('Failed to fetch system health after multiple retries', 'error', 5000);
 				retryCount = 0;
@@ -335,9 +335,7 @@ Displays real-time system state and individual service health with comprehensive
 						></span>
 					{/if}
 				</h3>
-				<p class="text-sm opacity-70">
-					Status: <span class={`font-bold ${getStateColor(currentState)}`}>{currentState}</span>
-				</p>
+				<p class="text-sm opacity-70">Status: <span class={`font-bold ${getStateColor(currentState)}`}>{currentState}</span></p>
 			</div>
 		</div>
 
@@ -390,9 +388,7 @@ Displays real-time system state and individual service health with comprehensive
 			<p class="text-xs opacity-70">Services</p>
 			<p class="text-lg font-bold">
 				{serviceCount}
-				<span class="text-xs opacity-70">
-					({healthyServices}/{serviceCount})
-				</span>
+				<span class="text-xs opacity-70"> ({healthyServices}/{serviceCount}) </span>
 			</p>
 		</div>
 
@@ -430,9 +426,7 @@ Displays real-time system state and individual service health with comprehensive
 		<div class="flex items-center justify-between">
 			<h4 class="h4 text-sm font-semibold opacity-70">Service Status</h4>
 			{#if unhealthyServices > 0}
-				<span class="badge preset-filled-error-500 text-xs">
-					{unhealthyServices} unhealthy
-				</span>
+				<span class="badge preset-filled-error-500 text-xs"> {unhealthyServices} unhealthy </span>
 			{/if}
 		</div>
 
@@ -457,13 +451,9 @@ Displays real-time system state and individual service health with comprehensive
 						</div>
 						<div class="min-w-0 flex-1">
 							<p class="text-sm font-semibold">{formatServiceName(name)}</p>
-							<p class="truncate text-xs opacity-70" title={service.message}>
-								{service.message}
-							</p>
+							<p class="truncate text-xs opacity-70" title={service.message}>{service.message}</p>
 							{#if service.error}
-								<p class="mt-1 truncate text-xs text-error-500" title={service.error}>
-									Error: {service.error}
-								</p>
+								<p class="mt-1 truncate text-xs text-error-500" title={service.error}>Error: {service.error}</p>
 							{/if}
 							{#if service.lastChecked}
 								<p class="mt-1 text-[10px] opacity-50">
@@ -481,7 +471,7 @@ Displays real-time system state and individual service health with comprehensive
 	<!-- API Health Endpoint Info -->
 	<div class="card preset-outlined-surface-500p-3">
 		<details class="space-y-2">
-			<summary class="cursor-pointer text-sm font-semibold opacity-70 hover:opacity-100"> API Health Endpoint </summary>
+			<summary class="cursor-pointer text-sm font-semibold opacity-70 hover:opacity-100">API Health Endpoint</summary>
 			<div class="space-y-2 text-xs opacity-70">
 				<p>For external monitoring, use:</p>
 				<div class="flex items-center gap-2">

@@ -14,11 +14,11 @@ import { dataChangeStore } from './store.svelte';
 type Mode = 'view' | 'edit' | 'create' | 'modify' | 'media';
 
 interface ModeTransition {
+	afterTransition?: () => void | Promise<void>;
+	beforeTransition?: () => void | Promise<void>;
 	from: Mode;
 	to: Mode;
 	validate?: () => boolean;
-	beforeTransition?: () => void | Promise<void>;
-	afterTransition?: () => void | Promise<void>;
 }
 
 /**
@@ -29,7 +29,7 @@ class ModeStateMachine {
 	// We use the existing mode store as the source of truth for now to maintain compatibility
 	// In the future, this class should own the state directly.
 
-	private transitions: ModeTransition[] = [
+	private readonly transitions: ModeTransition[] = [
 		{ from: 'view', to: 'create' },
 		{ from: 'view', to: 'edit' },
 		{ from: 'view', to: 'media' },
@@ -62,7 +62,9 @@ class ModeStateMachine {
 		const currentMode = mode.value as Mode;
 
 		// Idempotent check
-		if (currentMode === newMode) return true;
+		if (currentMode === newMode) {
+			return true;
+		}
 
 		const transition = this.transitions.find((t) => t.from === currentMode && t.to === newMode);
 

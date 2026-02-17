@@ -4,13 +4,14 @@
  */
 
 export * from './types';
+
 import { pluginRegistry } from './registry';
 export { pluginRegistry };
 
-import { pageSpeedPlugin } from './pagespeed';
-import { editableWebsitePlugin } from './editable-website';
-import type { Plugin } from './types';
 import { logger } from '@utils/logger.server';
+import { editableWebsitePlugin } from './editable-website';
+import { pageSpeedPlugin } from './pagespeed';
+import type { Plugin } from './types';
 
 // All available plugins
 export const availablePlugins: Plugin[] = [pageSpeedPlugin, editableWebsitePlugin];
@@ -21,7 +22,7 @@ export const availablePlugins: Plugin[] = [pageSpeedPlugin, editableWebsitePlugi
  *
  * Called during server startup from src/databases/db.ts
  */
-export async function initializePlugins(dbAdapter: any, tenantId: string = 'default'): Promise<void> {
+export async function initializePlugins(dbAdapter: any, tenantId = 'default'): Promise<void> {
 	try {
 		logger.info('🔌 Initializing plugin system...');
 

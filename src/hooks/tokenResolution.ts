@@ -11,8 +11,9 @@
  * - Token Escaping
  * - Token Replacement
  */
-import type { Handle } from '@sveltejs/kit';
+
 import { processTokensInResponse } from '@src/services/token/helper';
+import type { Handle } from '@sveltejs/kit';
 import { handleApiError } from '@utils/errorHandling';
 
 export const handleTokenResolution: Handle = async ({ event, resolve }) => {
@@ -23,7 +24,7 @@ export const handleTokenResolution: Handle = async ({ event, resolve }) => {
 	const isJson = contentType?.includes('application/json');
 	const isApi = event.url.pathname.startsWith('/api/');
 
-	if (!isJson || !isApi) {
+	if (!(isJson && isApi)) {
 		return response;
 	}
 

@@ -16,13 +16,11 @@
 
 // type RequestHandler removed
 // error removed
-import { createReadStream, existsSync, statSync, readdirSync } from 'fs';
-import { join, basename } from 'path';
-import { createGzip } from 'zlib';
-import { pipeline } from 'stream/promises';
-import { Readable } from 'stream';
-import { logger } from '@utils/logger.server';
-
+import { createReadStream, existsSync, readdirSync, statSync } from 'node:fs';
+import { basename, join } from 'node:path';
+import { Readable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
+import { createGzip } from 'node:zlib';
 /**
  * Download error logs from the server
  * GET /api/logs/download
@@ -30,6 +28,7 @@ import { logger } from '@utils/logger.server';
 // Unified Error Handling
 import { apiHandler } from '@utils/apiHandler';
 import { AppError } from '@utils/errorHandling';
+import { logger } from '@utils/logger.server';
 
 /**
  * Download error logs from the server
@@ -65,7 +64,7 @@ export const GET = apiHandler(async ({ url, locals }) => {
 		let sinceDate: Date | null = null;
 		if (sinceParam) {
 			sinceDate = new Date(sinceParam);
-			if (isNaN(sinceDate.getTime())) {
+			if (Number.isNaN(sinceDate.getTime())) {
 				throw new AppError('Invalid since date format. Use ISO 8601 format', 400, 'INVALID_PARAM');
 			}
 		}
@@ -189,7 +188,9 @@ export const GET = apiHandler(async ({ url, locals }) => {
 			}
 		});
 	} catch (err) {
-		if (err instanceof AppError) throw err;
+		if (err instanceof AppError) {
+			throw err;
+		}
 		logger.error('Error downloading logs', { error: err });
 		throw new AppError('Failed to download logs', 500, 'DOWNLOAD_FAILED');
 	}
@@ -197,12 +198,14 @@ export const GET = apiHandler(async ({ url, locals }) => {
 
 // Filter logs by date and/or level
 async function filterLogs(logFile: string, since: Date | null, level: string | null): Promise<string> {
-	const { readFile } = await import('fs/promises');
+	const { readFile } = await import('node:fs/promises');
 	const content = await readFile(logFile, 'utf-8');
 	const lines = content.split('\n');
 
 	const filtered = lines.filter((line) => {
-		if (!line.trim()) return false;
+		if (!line.trim()) {
+			return false;
+		}
 
 		try {
 			// Try to parse as JSON (structured logs)
@@ -211,12 +214,14 @@ async function filterLogs(logFile: string, since: Date | null, level: string | n
 			// Filter by date
 			if (since && log.timestamp) {
 				const logDate = new Date(log.timestamp);
-				if (logDate < since) return false;
+				if (logDate < since) {
+					return false;
+				}
 			}
 
 			// Filter by level
-			if (level && log.level) {
-				if (log.level.toLowerCase() !== level.toLowerCase()) return false;
+			if (level && log.level && log.level.toLowerCase() !== level.toLowerCase()) {
+				return false;
 			}
 
 			return true;
@@ -235,9 +240,9 @@ async function filterLogs(logFile: string, since: Date | null, level: string | n
 
 // Combine multiple log files
 async function combineLogs(logFiles: string[], since: Date | null, level: string | null): Promise<string> {
-	const { readFile } = await import('fs/promises');
-	const { createGunzip } = await import('zlib');
-	const { Readable } = await import('stream');
+	const { readFile } = await import('node:fs/promises');
+	const { createGunzip } = await import('node:zlib');
+	const { Readable } = await import('node:stream');
 
 	const allLogs: string[] = [];
 
@@ -267,18 +272,22 @@ async function combineLogs(logFiles: string[], since: Date | null, level: string
 			if (since || level) {
 				const lines = content.split('\n');
 				const filtered = lines.filter((line) => {
-					if (!line.trim()) return false;
+					if (!line.trim()) {
+						return false;
+					}
 
 					try {
 						const log = JSON.parse(line);
 
 						if (since && log.timestamp) {
 							const logDate = new Date(log.timestamp);
-							if (logDate < since) return false;
+							if (logDate < since) {
+								return false;
+							}
 						}
 
-						if (level && log.level) {
-							if (log.level.toLowerCase() !== level.toLowerCase()) return false;
+						if (level && log.level && log.level.toLowerCase() !== level.toLowerCase()) {
+							return false;
 						}
 
 						return true;

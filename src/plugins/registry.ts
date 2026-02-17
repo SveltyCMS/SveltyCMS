@@ -3,14 +3,14 @@
  * @description Central registry for managing CMS plugins
  */
 
-import { logger } from '@utils/logger.server';
+import type { DatabaseResult, IDBAdapter } from '@databases/dbInterface';
 import { nowISODateString } from '@utils/dateUtils';
-import type { IDBAdapter, DatabaseResult } from '@databases/dbInterface';
-import type { Plugin, PluginRegistryEntry, PluginMigrationRecord, PluginSSRHook, IPluginService } from './types';
+import { logger } from '@utils/logger.server';
 import { PluginSettingsService } from './settings';
+import type { IPluginService, Plugin, PluginMigrationRecord, PluginRegistryEntry, PluginSSRHook } from './types';
 
 class PluginRegistry implements IPluginService {
-	private plugins: Map<string, PluginRegistryEntry> = new Map();
+	private readonly plugins: Map<string, PluginRegistryEntry> = new Map();
 	private settingsService: PluginSettingsService | null = null;
 	private initialized = false;
 
@@ -114,12 +114,10 @@ class PluginRegistry implements IPluginService {
 				const result = await this.runMigrations(pluginId, dbAdapter, tenantId);
 				if (!result.success) {
 					logger.error(`Migration failed for plugin ${pluginId}`, { error: result.error });
-					// Continue with others or stop? For now continue
-					continue;
 				}
 			}
 
-			logger.info(`✅ All plugin migrations checked/completed`);
+			logger.info('✅ All plugin migrations checked/completed');
 			return { success: true, data: undefined };
 		} catch (error) {
 			logger.error('Failed to run all plugin migrations', { error });
@@ -163,8 +161,8 @@ class PluginRegistry implements IPluginService {
 		hookName: K,
 		tenantId?: string,
 		schema?: any
-	): Promise<Array<Exclude<import('./types').PluginLifecycleHooks[K], undefined>>> {
-		const hooks: Array<Exclude<import('./types').PluginLifecycleHooks[K], undefined>> = [];
+	): Promise<Exclude<import('./types').PluginLifecycleHooks[K], undefined>[]> {
+		const hooks: Exclude<import('./types').PluginLifecycleHooks[K], undefined>[] = [];
 		const activeTenantId = tenantId || 'default';
 
 		for (const entry of this.plugins.values()) {
@@ -175,7 +173,7 @@ class PluginRegistry implements IPluginService {
 				continue;
 			}
 
-			if (plugin.hooks && plugin.hooks[hookName]) {
+			if (plugin.hooks?.[hookName]) {
 				hooks.push(plugin.hooks[hookName] as Exclude<import('./types').PluginLifecycleHooks[K], undefined>);
 			}
 		}
@@ -186,7 +184,9 @@ class PluginRegistry implements IPluginService {
 	// Check if a plugin is enabled for a specific collection and tenant
 	async isEnabledForCollection(pluginId: string, collectionId: string, tenantId?: string, schema?: any): Promise<boolean> {
 		const plugin = this.get(pluginId);
-		if (!plugin) return false;
+		if (!plugin) {
+			return false;
+		}
 
 		// 1. Check persistent state
 		let enabled = plugin.metadata.enabled; // Default from metadata
@@ -198,17 +198,17 @@ class PluginRegistry implements IPluginService {
 			}
 		}
 
-		if (!enabled) return false;
+		if (!enabled) {
+			return false;
+		}
 
 		// 2. Check enabledCollections whitelist in plugin metadata (global lock)
-		if (plugin.enabledCollections && plugin.enabledCollections.length > 0) {
-			if (!plugin.enabledCollections.includes(collectionId)) {
-				return false;
-			}
+		if (plugin.enabledCollections && plugin.enabledCollections.length > 0 && !plugin.enabledCollections.includes(collectionId)) {
+			return false;
 		}
 
 		// 3. Check schema-level overrides if provided (granular override)
-		if (schema && schema.plugins) {
+		if (schema?.plugins) {
 			return schema.plugins.includes(pluginId);
 		}
 
@@ -249,7 +249,9 @@ class PluginRegistry implements IPluginService {
 		const table = 'pluginMigrations';
 		try {
 			const count = await dbAdapter.crud.count(table);
-			if (count.success) return;
+			if (count.success) {
+				return;
+			}
 		} catch (_error) {
 			// Expected if table doesn't exist
 		}

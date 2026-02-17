@@ -50,7 +50,7 @@ Professional fine-tune controls with presets and categories
 
 	function handleSliderInput(e: Event) {
 		const target = e.currentTarget as HTMLInputElement;
-		onChange(parseInt(target.value, 10));
+		onChange(Number.parseInt(target.value, 10));
 	}
 
 	// Keyboard shortcuts
@@ -149,9 +149,7 @@ Professional fine-tune controls with presets and categories
 					}}
 					title={preset.description}
 				>
-					<div class="preset-icon-wrapper">
-						<iconify-icon icon={preset.icon} width="24"></iconify-icon>
-					</div>
+					<div class="preset-icon-wrapper"><iconify-icon icon={preset.icon} width="24"></iconify-icon></div>
 					<span class="preset-name">{preset.name}</span>
 				</button>
 			{/each}
@@ -206,11 +204,9 @@ Professional fine-tune controls with presets and categories
 						oninput={handleSliderInput}
 						class="slider"
 						aria-label="{config?.label} adjustment"
-					/>
+					>
 				</div>
-				<div class="slider-value" class:changed={value !== 0}>
-					{value > 0 ? '+' : ''}{value}
-				</div>
+				<div class="slider-value" class:changed={value !== 0}>{value > 0 ? '+' : ''}{value}</div>
 			</div>
 		</div>
 	</div>
@@ -225,44 +221,44 @@ Professional fine-tune controls with presets and categories
 		display: flex;
 		flex-direction: column;
 		gap: 1rem;
+		width: 100%;
 		padding: 0;
 		background: transparent;
 		border: none;
-		width: 100%;
 	}
 
 	/* Header */
 	.controls-header {
 		display: flex;
-		align-items: center;
-		gap: 0.5rem;
 		flex-wrap: wrap;
+		gap: 0.5rem;
+		align-items: center;
 	}
 
 	.category-tabs {
 		display: flex;
+		flex-wrap: nowrap;
 		gap: 0.25rem;
 		padding: 0.25rem;
+		overflow-x: auto;
 		background: rgba(0, 0, 0, 0.2);
 		border-radius: 9999px;
-		flex-wrap: nowrap;
-		overflow-x: auto;
 	}
 
 	.category-tab {
 		display: flex;
+		gap: 0.5rem;
 		align-items: center;
 		justify-content: center;
-		gap: 0.5rem;
 		padding: 0.375rem 1rem;
-		border-radius: 9999px;
 		font-size: 0.75rem;
 		font-weight: 600;
 		color: #9ca3af;
-		transition: all 0.2s;
+		white-space: nowrap;
 		background: transparent;
 		border: none;
-		white-space: nowrap;
+		border-radius: 9999px;
+		transition: all 0.2s;
 	}
 
 	.category-tab:hover {
@@ -271,8 +267,8 @@ Professional fine-tune controls with presets and categories
 	}
 
 	.category-tab.active {
-		background: #3b82f6; /* Primary-500 */
 		color: white;
+		background: #3b82f6; /* Primary-500 */
 		box-shadow:
 			0 4px 6px -1px rgba(0, 0, 0, 0.1),
 			0 2px 4px -1px rgba(0, 0, 0, 0.06);
@@ -296,8 +292,8 @@ Professional fine-tune controls with presets and categories
 	.adjustments-scroll {
 		flex: 1;
 		width: 100%;
-		overflow-x: auto;
 		padding-bottom: 0.25rem;
+		overflow-x: auto;
 	}
 
 	.adjustments-grid {
@@ -310,29 +306,29 @@ Professional fine-tune controls with presets and categories
 		position: relative;
 		display: flex;
 		flex-direction: column;
-		align-items: center;
 		gap: 0.5rem;
-		padding: 0.75rem;
+		align-items: center;
 		min-width: 72px;
+		padding: 0.75rem;
+		color: #9ca3af;
+		cursor: pointer;
+		background: rgba(255, 255, 255, 0.03);
 		border: 1px solid rgba(255, 255, 255, 0.1);
 		border-radius: 1rem;
-		background: rgba(255, 255, 255, 0.03);
-		cursor: pointer;
 		transition: all 0.2s;
-		color: #9ca3af;
 	}
 
 	.adjustment-btn:hover {
+		color: white;
 		background: rgba(255, 255, 255, 0.1);
 		border-color: rgba(255, 255, 255, 0.2);
-		color: white;
 		transform: translateY(-2px);
 	}
 
 	.adjustment-btn.active {
+		color: #60a5fa;
 		background: rgba(59, 130, 246, 0.2); /* Primary with opacity */
 		border-color: #3b82f6;
-		color: #60a5fa;
 		box-shadow: 0 0 15px rgba(59, 130, 246, 0.2);
 	}
 
@@ -343,9 +339,9 @@ Professional fine-tune controls with presets and categories
 	.adjustment-label {
 		font-size: 0.7rem;
 		font-weight: 600;
-		text-align: center;
 		line-height: 1.2;
 		color: rgb(var(--color-surface-700) / 1);
+		text-align: center;
 	}
 
 	:global(.dark) .adjustment-label {
@@ -356,23 +352,23 @@ Professional fine-tune controls with presets and categories
 		position: absolute;
 		top: 0.25rem;
 		right: 0.25rem;
+		min-width: 1.25rem;
+		padding: 0 0.25rem;
 		font-size: 0.65rem;
 		font-weight: 700;
 		color: rgb(var(--color-primary-600) / 1);
-		background: rgb(var(--color-primary-100) / 1);
-		padding: 0 0.25rem;
-		border-radius: 0.25rem;
-		min-width: 1.25rem;
 		text-align: center;
+		background: rgb(var(--color-primary-100) / 1);
+		border-radius: 0.25rem;
 	}
 
 	/* Slider Section - Enhanced */
 	.slider-section {
 		display: flex;
+		flex-shrink: 0;
 		flex-direction: column;
 		gap: 0.5rem;
 		width: 100%;
-		flex-shrink: 0;
 	}
 
 	@media (min-width: 1024px) {
@@ -383,13 +379,13 @@ Professional fine-tune controls with presets and categories
 
 	.slider-wrapper {
 		display: flex;
-		align-items: center;
 		gap: 0.75rem;
-		background: rgb(var(--color-surface-50) / 0.5);
-		padding: 0.25rem 0.75rem;
-		border-radius: 9999px;
-		border: 1px solid rgb(var(--color-surface-200) / 1);
+		align-items: center;
 		height: 3rem; /* Taller for easier touch */
+		padding: 0.25rem 0.75rem;
+		background: rgb(var(--color-surface-50) / 0.5);
+		border: 1px solid rgb(var(--color-surface-200) / 1);
+		border-radius: 9999px; /* Taller for easier touch */
 	}
 
 	:global(.dark) .slider-wrapper {
@@ -398,24 +394,24 @@ Professional fine-tune controls with presets and categories
 	}
 
 	.slider-track-container {
-		flex: 1;
 		position: relative;
 		display: flex;
+		flex: 1;
 		align-items: center;
 		height: 100%;
 	}
 
 	.slider {
-		-webkit-appearance: none;
-		appearance: none;
+		position: absolute;
 		width: 100%;
 		height: 6px;
-		border-radius: 3px;
-		background: rgb(var(--color-surface-300) / 1);
-		outline: none;
-		cursor: pointer;
-		position: absolute;
 		margin: 0;
+		-webkit-appearance: none;
+		appearance: none;
+		cursor: pointer;
+		outline: none;
+		background: rgb(var(--color-surface-300) / 1);
+		border-radius: 3px;
 	}
 
 	:global(.dark) .slider {
@@ -423,38 +419,38 @@ Professional fine-tune controls with presets and categories
 	}
 
 	.slider::-webkit-slider-thumb {
-		-webkit-appearance: none;
-		appearance: none;
 		width: 24px;
 		height: 24px;
-		border-radius: 50%;
+		margin-top: -9px; /* Centering */
+		-webkit-appearance: none;
+		appearance: none;
+		cursor: pointer;
 		background: white;
 		border: 2px solid rgb(var(--color-primary-500) / 1);
-		cursor: pointer;
+		border-radius: 50%;
 		box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
-		transition: transform 0.1s;
-		margin-top: -9px; /* Centering */
+		transition: transform 0.1s; /* Centering */
 	}
 
 	/* Center tick */
 	.center-tick {
 		position: absolute;
-		left: 50%;
 		top: 50%;
-		transform: translate(-50%, -50%);
+		left: 50%;
 		width: 2px;
 		height: 12px;
-		background: rgb(var(--color-surface-400) / 1);
 		pointer-events: none;
+		background: rgb(var(--color-surface-400) / 1);
 		border-radius: 1px;
+		transform: translate(-50%, -50%);
 	}
 
 	.slider-value {
+		min-width: 2.5rem;
 		font-family: monospace;
 		font-size: 0.875rem;
 		font-weight: 600;
 		color: rgb(var(--color-surface-500) / 1);
-		min-width: 2.5rem;
 		text-align: right;
 	}
 
@@ -465,9 +461,9 @@ Professional fine-tune controls with presets and categories
 	.presets-scroll-container {
 		display: flex;
 		gap: 0.75rem;
-		overflow-x: auto;
-		padding: 0.5rem 0.25rem;
 		width: 100%;
+		padding: 0.5rem 0.25rem;
+		overflow-x: auto;
 		scrollbar-width: none; /* Firefox */
 	}
 
@@ -478,12 +474,12 @@ Professional fine-tune controls with presets and categories
 	.preset-card {
 		display: flex;
 		flex-direction: column;
-		align-items: center;
 		gap: 0.5rem;
+		align-items: center;
 		min-width: 4.5rem;
+		cursor: pointer;
 		background: transparent;
 		border: none;
-		cursor: pointer;
 		opacity: 0.7;
 		transition: all 0.2s;
 	}
@@ -494,15 +490,15 @@ Professional fine-tune controls with presets and categories
 	}
 
 	.preset-icon-wrapper {
-		width: 3.5rem;
-		height: 3.5rem;
-		border-radius: 0.5rem;
-		background: rgba(255, 255, 255, 0.1);
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		border: 1px solid rgba(255, 255, 255, 0.1);
+		width: 3.5rem;
+		height: 3.5rem;
 		color: white;
+		background: rgba(255, 255, 255, 0.1);
+		border: 1px solid rgba(255, 255, 255, 0.1);
+		border-radius: 0.5rem;
 	}
 
 	.preset-card:hover .preset-icon-wrapper {

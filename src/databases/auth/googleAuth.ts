@@ -7,14 +7,13 @@
  * - Google OAuth client setup
  */
 
-import { dev } from '$app/environment';
 import { getPrivateSettingSync } from '@src/services/settingsService';
 import { publicEnv } from '@src/stores/globalSettings.svelte';
-
-import type { Credentials, OAuth2Client } from 'google-auth-library';
-
 // System Logger
 import { logger } from '@utils/logger';
+
+import type { Credentials, OAuth2Client } from 'google-auth-library';
+import { dev } from '$app/environment';
 
 // Utility function to determine the correct OAuth redirect URI
 function getOAuthRedirectUri(): string {
@@ -35,7 +34,7 @@ let googleAuthClient: OAuth2Client | null = null;
 async function googleAuth(): Promise<OAuth2Client | null> {
 	const googleClientId = getPrivateSettingSync('GOOGLE_CLIENT_ID');
 	const googleClientSecret = getPrivateSettingSync('GOOGLE_CLIENT_SECRET');
-	if (!googleClientId || !googleClientSecret) {
+	if (!(googleClientId && googleClientSecret)) {
 		logger.warn('Google client ID and secret are not provided. OAuth unavailable.');
 		return null;
 	}

@@ -61,6 +61,8 @@ The testing suite has been optimized for **parallel execution** and **enterprise
 | **Collection Builder**  | ✅ Excellent | 100%      | 7/7   |
 | **Live Preview Utils**  | ✅ Excellent | 100%      | 3/3   |
 | **Token System**        | ✅ Excellent | 100%      | 11/11 |
+| **Repeater Widget**     | ✅ Excellent | 100%      | 5/5   |
+| **Price Widget**        | ✅ Excellent | 100%      | 5/5   |
 
 ---
 
@@ -69,6 +71,7 @@ The testing suite has been optimized for **parallel execution** and **enterprise
 ### 1. Multi-Database Support 🔌
 
 All core features are verified to work seamlessly across our supported database stack:
+
 - ✅ **MongoDB**: Local instances and Atlas (SRV) clusters.
 - ✅ **SQLite**: In-process database for lightweight deployments (via Drizzle).
 - ✅ **MariaDB**: High-performance relational storage (via Drizzle).
@@ -77,10 +80,12 @@ All core features are verified to work seamlessly across our supported database 
 ### 2. Server Hooks Middleware (53/53) 🔒
 
 **Files:**
+
 - `tests/unit/hooks/system-state.test.ts` (26 tests)
 - `tests/unit/hooks/firewall.test.ts` (27 tests)
 
 **System State Hook Tests:**
+
 - ✅ READY state: allows all routes
 - ✅ DEGRADED state: allows routes with service warnings
 - ✅ IDLE state: allows setup/health checks, blocks normal routes
@@ -89,11 +94,13 @@ All core features are verified to work seamlessly across our supported database 
 
 ### 3. Setup API & Utility Tests (45/45) 🚀
 
-**Files:** 
+**Files:**
+
 - `tests/integration/api/setup.test.ts`
 - `tests/integration/api/setup-utils.test.ts`
 
 **Coverage:**
+
 - ✅ **Cross-Database Connection**: Verified successful connections for all supported DB types.
 - ✅ **Error Classification**: Detailed error parsing for connection failures, DNS issues, and authentication errors.
 - ✅ **Database Seeding**: Automated seeding of default settings, roles, and themes.
@@ -104,12 +111,15 @@ All core features are verified to work seamlessly across our supported database 
 ## 🔧 Infrastructure & Reliability
 
 ### Automated CI/CD
+
 Our GitHub Actions pipeline (`ci.yml`) has been hardened to ensure 100% reliability:
+
 - **Parallel Execution**: Unit tests and production builds run in parallel to minimize feedback loops.
 - **Environment Synchronization**: Explicit `svelte-kit sync` ensures all virtual modules are available.
 - **Matrix Testing**: Integration and E2E tests are executed against all supported databases in a matrix.
 
 ### Recent Improvements
+
 - ✅ **Consolidated Mocking**: Unit test mocks are centralized in `setup.ts` to prevent race conditions.
 - ✅ **Reactivity Mocks**: Enhanced Svelte 5 rune mocks for reliable reactive state testing.
 - ✅ **Path Normalization**: Fixed Windows/Linux pathing issues for dynamic configuration imports.
@@ -119,21 +129,25 @@ Our GitHub Actions pipeline (`ci.yml`) has been hardened to ensure 100% reliabil
 ## 🚀 Running Tests
 
 ### Unit Tests
+
 ```bash
 bun run test:unit
 ```
 
 ### Integration Tests
+
 ```bash
 bun run test:integration
 ```
 
 ### E2E Tests
+
 ```bash
 bun x playwright test
 ```
 
 ### All Tests
+
 ```bash
 bun run test:all
 ```

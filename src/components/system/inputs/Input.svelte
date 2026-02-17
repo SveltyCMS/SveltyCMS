@@ -19,11 +19,11 @@
 
 <script lang="ts">
 	interface InputProps {
-		type: 'text' | 'password' | 'email';
+		inputClass?: string;
 		label?: string;
 		labelClass?: string;
-		inputClass?: string;
 		placeholder?: string;
+		type: 'text' | 'password' | 'email';
 		value?: string;
 	}
 
@@ -43,5 +43,5 @@
 		class="input grow text-black dark:text-primary-500 bg-surface-50 dark:bg-surface-700 {inputClass}"
 		bind:value
 		{placeholder}
-	/>
+	>
 </div>

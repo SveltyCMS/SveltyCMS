@@ -6,11 +6,11 @@
  *   - Checks 2–3 permission checkboxes and saves
  *   - Asserts success via URL and confirmation message
  */
-import { test, expect } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import { loginAsAdmin } from './helpers/auth';
 
 test.describe('Permission Management Flow', () => {
-	test.setTimeout(60000); // 1 min
+	test.setTimeout(60_000); // 1 min
 
 	test('Login and change permissions in Access Management', async ({ page }) => {
 		// 1. Login
@@ -39,6 +39,6 @@ test.describe('Permission Management Flow', () => {
 		// 6. Assert success — via URL or confirmation message
 		// Adjust this based on your actual success behavior
 		await expect(page).toHaveURL(/access-management/i);
-		await expect(page.locator('text=Permissions updated')).toBeVisible({ timeout: 10000 });
+		await expect(page.locator('text=Permissions updated')).toBeVisible({ timeout: 10_000 });
 	});
 });

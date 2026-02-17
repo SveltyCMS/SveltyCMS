@@ -30,11 +30,11 @@
  * @prerequisite User authentication and authorization are complete
  */
 
-import { type Handle } from '@sveltejs/kit';
-import { getErrorMessage, AppError, handleApiError } from '@utils/errorHandling';
-import { hasApiPermission, API_PERMISSIONS } from '@src/databases/auth/apiPermissions';
-import { cacheService, API_CACHE_TTL_S } from '@src/databases/CacheService';
+import { API_PERMISSIONS, hasApiPermission } from '@src/databases/auth/apiPermissions';
+import { API_CACHE_TTL_S, cacheService } from '@src/databases/CacheService';
 import { metricsService } from '@src/services/MetricsService';
+import type { Handle } from '@sveltejs/kit';
+import { AppError, getErrorMessage, handleApiError } from '@utils/errorHandling';
 import { logger } from '@utils/logger.server';
 
 // --- METRICS INTEGRATION ---
@@ -141,7 +141,9 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
 			const bypassCache = shouldBypassCache(url.searchParams);
 			const cacheKey = generateCacheKey(url.pathname, url.search, locals.user._id);
 
-			if (!bypassCache) {
+			if (bypassCache) {
+				logger.debug(`Cache bypass requested for ${url.pathname}`);
+			} else {
 				try {
 					const cached = await cacheService.get<{
 						data: unknown;
@@ -163,8 +165,6 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
 				} catch (cacheError) {
 					logger.warn(`Cache read error for ${cacheKey}: ${getErrorMessage(cacheError)}`);
 				}
-			} else {
-				logger.debug(`Cache bypass requested for ${url.pathname}`);
 			}
 
 			// Resolve the request (cache miss or bypassed)

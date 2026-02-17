@@ -22,10 +22,10 @@ latest version available on GitHub with comprehensive status reporting.
 - Reduced motion support
 -->
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
-	import { publicEnv } from '@stores/globalSettings.svelte';
-	import { browser } from '$app/environment';
 	import SystemTooltip from '@components/system/SystemTooltip.svelte';
+	import { publicEnv } from '@stores/globalSettings.svelte';
+	import { onDestroy, onMount } from 'svelte';
+	import { browser } from '$app/environment';
 
 	// Types
 	type VersionStatus = {
@@ -90,9 +90,11 @@ latest version available on GitHub with comprehensive status reporting.
 	const transparentClasses = $derived.by(() => {
 		if (badgeColor.includes('success')) {
 			return 'bg-primary-500/20 text-success-700 dark:text-success-300';
-		} else if (badgeColor.includes('warning')) {
+		}
+		if (badgeColor.includes('warning')) {
 			return 'bg-warning-500/20 text-warning-700 dark:text-warning-300';
-		} else if (badgeColor.includes('error')) {
+		}
+		if (badgeColor.includes('error')) {
 			return 'bg-error-500/20 text-black';
 		}
 		return 'bg-surface-900/10 dark:text-white';
@@ -116,11 +118,11 @@ latest version available on GitHub with comprehensive status reporting.
 	}
 
 	interface VersionApiResponse {
-		status: 'disabled' | 'error' | 'success';
-		latest?: string;
-		security_issue?: boolean;
-		message?: string;
 		error?: string;
+		latest?: string;
+		message?: string;
+		security_issue?: boolean;
+		status: 'disabled' | 'error' | 'success';
 	}
 
 	// Update status based on version comparison
@@ -186,7 +188,7 @@ latest version available on GitHub with comprehensive status reporting.
 
 		try {
 			const controller = new AbortController();
-			const timeout = setTimeout(() => controller.abort(), 10000); // 10s timeout
+			const timeout = setTimeout(() => controller.abort(), 10_000); // 10s timeout
 
 			const response = await fetch('/api/system/version', {
 				signal: controller.signal,
@@ -207,7 +209,7 @@ latest version available on GitHub with comprehensive status reporting.
 			const errorMessage = err instanceof Error ? err.message : 'Unknown error';
 
 			if (retry < MAX_RETRIES) {
-				setTimeout(() => checkVersion(retry + 1), RETRY_DELAY * Math.pow(2, retry));
+				setTimeout(() => checkVersion(retry + 1), RETRY_DELAY * 2 ** retry);
 			} else {
 				githubVersion = pkg;
 				badgeVariant = 'variant-soft';

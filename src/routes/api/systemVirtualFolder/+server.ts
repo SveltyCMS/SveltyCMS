@@ -11,23 +11,19 @@
  * - ModifyRequest support for widget-based data processing.
  */
 
-import { json } from '@sveltejs/kit';
-import { getPrivateSettingSync } from '@src/services/settingsService';
-
+import type { DatabaseId } from '@src/content/types';
 // Database
 import { dbAdapter } from '@src/databases/db';
-
-// System Logger
-import { logger } from '@utils/logger.server';
-
 // Types
 import type { SystemVirtualFolder } from '@src/databases/dbInterface';
-import type { DatabaseId } from '@src/content/types';
-
+import { getPrivateSettingSync } from '@src/services/settingsService';
+import { json } from '@sveltejs/kit';
 // GET /api/systemVirtualFolder - Fetches all system virtual folders for the current tenant
 // Unified Error Handling
 import { apiHandler } from '@utils/apiHandler';
 import { AppError } from '@utils/errorHandling';
+// System Logger
+import { logger } from '@utils/logger.server';
 
 export const GET = apiHandler(async ({ locals }) => {
 	const { user, tenantId } = locals;
@@ -70,7 +66,9 @@ export const GET = apiHandler(async ({ locals }) => {
 			data: folders
 		});
 	} catch (err) {
-		if (err instanceof AppError) throw err;
+		if (err instanceof AppError) {
+			throw err;
+		}
 		const message = err instanceof Error ? err.message : 'Unknown error occurred';
 		logger.error(`Error fetching system virtual folders: ${message}`, { tenantId });
 
@@ -144,7 +142,9 @@ export const POST = apiHandler(async ({ request, locals }) => {
 			folder: newFolder
 		});
 	} catch (err) {
-		if (err instanceof AppError) throw err;
+		if (err instanceof AppError) {
+			throw err;
+		}
 		const message = err instanceof Error ? err.message : 'Unknown error occurred';
 		logger.error(`Error creating system virtual folder: ${message}`, { tenantId });
 
@@ -192,7 +192,7 @@ export const PATCH = apiHandler(async ({ request, locals }) => {
 
 				// Get current folder to access its name
 				const currentFolder = await adapter.systemVirtualFolder.getById(folderId as DatabaseId);
-				if (!currentFolder.success || !currentFolder.data) {
+				if (!(currentFolder.success && currentFolder.data)) {
 					logger.error('Folder not found for reordering', { folderId });
 					return { success: false, error: { message: 'Folder not found' } };
 				}
@@ -235,7 +235,9 @@ export const PATCH = apiHandler(async ({ request, locals }) => {
 
 		return json({ success: true });
 	} catch (err) {
-		if (err instanceof AppError) throw err;
+		if (err instanceof AppError) {
+			throw err;
+		}
 		const message = err instanceof Error ? err.message : 'Unknown error occurred';
 		logger.error(`Error reordering folders: ${message}`, { tenantId });
 

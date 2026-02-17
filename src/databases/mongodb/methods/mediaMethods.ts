@@ -7,13 +7,13 @@
  * Relies on Dependency Injection for testability.
  */
 
+import { safeQuery } from '@src/utils/security/safeQuery';
 import { logger } from '@utils/logger';
 import type Mongoose from 'mongoose';
 import type { DatabaseId, DatabaseResult, MediaItem, MediaMetadata, PaginatedResult, PaginationOptions } from '../../dbInterface';
-import { mediaSchema, type IMedia } from '../models/media';
+import { type IMedia, mediaSchema } from '../models/media';
+import { CacheCategory, invalidateCategoryCache, withCache } from './mongoDBCacheUtils';
 import { createDatabaseError } from './mongoDBUtils';
-import { withCache, CacheCategory, invalidateCategoryCache } from './mongoDBCacheUtils';
-import { safeQuery } from '@src/utils/security/safeQuery';
 
 // Define model types for dependency injection
 type MediaModelType = Mongoose.Model<IMedia>;
@@ -36,7 +36,7 @@ export class MongoMediaMethods {
 	 * @param {typeof Mongoose} mongooseInstance - The active Mongoose instance.
 	 */
 	static registerModels(mongooseInstance: typeof Mongoose): void {
-		if (!mongooseInstance.models['media']) {
+		if (!mongooseInstance.models.media) {
 			mongooseInstance.model('media', mediaSchema);
 			logger.debug("Model 'media' was registered.");
 		}

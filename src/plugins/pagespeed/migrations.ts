@@ -3,10 +3,10 @@
  * @description Database migrations for PageSpeed plugin
  */
 
-import type { PluginMigration } from '../types';
-import type { PageSpeedResult } from './types';
 import type { IDBAdapter } from '@databases/dbInterface';
 import { logger } from '@utils/logger.server';
+import type { PluginMigration } from '../types';
+import type { PageSpeedResult } from './types';
 
 // Validate plugin_pagespeed_results table exists (created via db:push from Drizzle schema)
 export const createPageSpeedResultsTable: PluginMigration = {

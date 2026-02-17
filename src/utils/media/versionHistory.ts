@@ -12,36 +12,36 @@ import type { DatabaseId, ISODateString } from '@src/content/types';
 
 export interface FileVersion {
 	_id?: DatabaseId;
-	fileId: DatabaseId;
-	versionNumber: number;
-	createdAt: ISODateString;
-	createdBy: DatabaseId;
 	action: 'create' | 'update' | 'replace' | 'metadata_update';
 	changes: VersionChange[];
+	createdAt: ISODateString;
+	createdBy: DatabaseId;
+	fileId: DatabaseId;
 	hash: string;
-	size: number;
-	path?: string;
 	metadata?: {
 		reason?: string;
 		automated?: boolean;
 		restorePoint?: boolean;
 	};
+	path?: string;
+	size: number;
+	versionNumber: number;
 }
 
 export interface VersionChange {
 	field: string;
-	oldValue?: unknown;
 	newValue?: unknown;
+	oldValue?: unknown;
 	type: 'add' | 'modify' | 'remove';
 }
 
 export interface VersionComparison {
-	fromVersion: number;
-	toVersion: number;
 	changes: VersionChange[];
 	contentChanged: boolean;
+	fromVersion: number;
 	metadataChanged: boolean;
 	sizeDifference: number;
+	toVersion: number;
 }
 
 /** Create version record */
@@ -107,19 +107,25 @@ export function detectChanges(
 	const keys = new Set([...Object.keys(oldObj), ...Object.keys(newObj)]);
 
 	for (const key of keys) {
-		if (excludeFields.includes(key)) continue;
+		if (excludeFields.includes(key)) {
+			continue;
+		}
 
 		const oldVal = oldObj[key];
 		const newVal = newObj[key];
 
 		// Quick equality check
-		if (oldVal === newVal) continue;
+		if (oldVal === newVal) {
+			continue;
+		}
 
 		// Deep equality check using JSON serialization (fast enough for metadata)
 		const oldStr = JSON.stringify(oldVal);
 		const newStr = JSON.stringify(newVal);
 
-		if (oldStr === newStr) continue;
+		if (oldStr === newStr) {
+			continue;
+		}
 
 		if (oldVal === undefined) {
 			changes.push({ field: key, newValue: newVal, type: 'add' });
@@ -135,7 +141,9 @@ export function detectChanges(
 
 /** Stats analysis */
 export function getVersionStats(versions: FileVersion[]) {
-	if (!versions.length) return null;
+	if (!versions.length) {
+		return null;
+	}
 
 	let totalSize = 0;
 	let contentUpdates = 0;
@@ -143,7 +151,9 @@ export function getVersionStats(versions: FileVersion[]) {
 
 	for (const v of versions) {
 		totalSize += v.size;
-		if (['create', 'replace', 'update'].includes(v.action)) contentUpdates++;
+		if (['create', 'replace', 'update'].includes(v.action)) {
+			contentUpdates++;
+		}
 		userActivity[v.createdBy as string] = (userActivity[v.createdBy as string] || 0) + 1;
 	}
 

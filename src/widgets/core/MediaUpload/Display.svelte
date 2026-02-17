@@ -67,7 +67,7 @@ Renders selected media files as thumbnails for display purposes.
 					alt={file.name}
 					title={file.name}
 					class="h-8 w-8 rounded border border-surface-200 object-cover dark:text-surface-50"
-				/>
+				>
 				{#if (file as any).aiTags?.length}
 					<div
 						class="absolute bottom-full left-1/2 z-10 hidden -translate-x-1/2 flex-wrap gap-1 rounded bg-surface-900 p-1 text-[8px] text-white group-hover:flex"

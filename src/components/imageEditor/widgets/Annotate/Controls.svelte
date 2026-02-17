@@ -62,13 +62,13 @@ Controls for the Annotate tool: tool selection (text, arrow, shapes) and styling
 	<!-- Color Pickers -->
 	<div class="color-group">
 		<label class="color-picker-label" title="Stroke Color">
-			<input type="color" class="input-color" oninput={(e) => onStrokeColorChange(e.currentTarget.value)} value={strokeColor} />
+			<input type="color" class="input-color" oninput={(e) => onStrokeColorChange(e.currentTarget.value)} value={strokeColor}>
 			<div class="color-swatch" style:background-color={strokeColor}></div>
 			<iconify-icon icon="mdi:pencil-outline" class="picker-icon" width="12"></iconify-icon>
 		</label>
 
 		<label class="color-picker-label" title="Fill Color">
-			<input type="color" class="input-color" oninput={(e) => onFillColorChange(e.currentTarget.value)} value={fillColor} />
+			<input type="color" class="input-color" oninput={(e) => onFillColorChange(e.currentTarget.value)} value={fillColor}>
 			<div class="color-swatch" style:background-color={fillColor}></div>
 			<iconify-icon icon="mdi:format-color-fill" class="picker-icon" width="12"></iconify-icon>
 		</label>
@@ -85,19 +85,19 @@ Controls for the Annotate tool: tool selection (text, arrow, shapes) and styling
 <style>
 	.annotate-controls {
 		display: flex;
+		gap: 1rem;
 		align-items: center;
 		justify-content: center;
-		gap: 1rem;
 		width: 100%;
 		padding: 0;
 	}
 
 	.tool-group {
 		display: flex;
-		background: rgba(0, 0, 0, 0.2);
-		padding: 0.25rem;
-		border-radius: 9999px;
 		gap: 0.25rem;
+		padding: 0.25rem;
+		background: rgba(0, 0, 0, 0.2);
+		border-radius: 9999px;
 	}
 
 	.tool-btn {
@@ -106,11 +106,11 @@ Controls for the Annotate tool: tool selection (text, arrow, shapes) and styling
 		justify-content: center;
 		width: 2.5rem;
 		height: 2.5rem;
-		border-radius: 9999px;
-		border: none;
-		background: transparent;
 		color: #9ca3af;
 		cursor: pointer;
+		background: transparent;
+		border: none;
+		border-radius: 9999px;
 		transition: all 0.2s;
 	}
 
@@ -120,8 +120,8 @@ Controls for the Annotate tool: tool selection (text, arrow, shapes) and styling
 	}
 
 	.tool-btn.active {
-		background: #3b82f6;
 		color: white;
+		background: #3b82f6;
 		box-shadow: 0 0 10px rgba(59, 130, 246, 0.3);
 	}
 
@@ -130,8 +130,8 @@ Controls for the Annotate tool: tool selection (text, arrow, shapes) and styling
 	}
 
 	.delete-btn:hover {
-		background: rgba(239, 68, 68, 0.1);
 		color: #f87171;
+		background: rgba(239, 68, 68, 0.1);
 	}
 
 	.divider {
@@ -154,30 +154,30 @@ Controls for the Annotate tool: tool selection (text, arrow, shapes) and styling
 
 	.input-color {
 		position: absolute;
-		opacity: 0;
+		z-index: 10;
 		width: 100%;
 		height: 100%;
 		cursor: pointer;
-		z-index: 10;
+		opacity: 0;
 	}
 
 	.color-swatch {
 		width: 100%;
 		height: 100%;
-		border-radius: 50%;
 		border: 2px solid rgba(255, 255, 255, 0.2);
+		border-radius: 50%;
 		box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 	}
 
 	.picker-icon {
 		position: absolute;
-		bottom: -4px;
 		right: -4px;
-		background: #1f2937;
-		border-radius: 50%;
+		bottom: -4px;
+		z-index: 5;
 		padding: 2px;
 		color: #9ca3af;
+		background: #1f2937;
 		border: 1px solid rgba(255, 255, 255, 0.1);
-		z-index: 5;
+		border-radius: 50%;
 	}
 </style>

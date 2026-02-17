@@ -9,9 +9,9 @@ with the AI collaboration assistant.
 
 <script lang="ts">
 	import { collaboration } from '@stores/collaborationStore.svelte';
-	import { slide } from 'svelte/transition';
-	import { tick } from 'svelte';
 	import { screen } from '@stores/screenSizeStore.svelte';
+	import { tick } from 'svelte';
+	import { slide } from 'svelte/transition';
 
 	let newMessage = $state('');
 	let scrollContainer: HTMLDivElement | undefined = $state(undefined);
@@ -105,15 +105,20 @@ with the AI collaboration assistant.
 				{/if}
 				{#each collaboration.activities as activity (activity.timestamp)}
 					<div transition:slide|local class="flex gap-3 p-3 rounded-lg bg-surface-300-600-token/30 border border-surface-500/10">
-						<div class="mt-1">
-							<iconify-icon icon={getEventIcon(activity.event)} width="20" class="text-primary-500"></iconify-icon>
-						</div>
+						<div class="mt-1"><iconify-icon icon={getEventIcon(activity.event)} width="20" class="text-primary-500"></iconify-icon></div>
 						<div class="flex-1 min-w-0">
 							<p class="text-sm">
 								<span class="font-bold text-primary-500">{activity.user?.username || 'System'}</span>
 								<span class="opacity-80">
-									{#if activity.event === 'entry:create'}created a new record{:else if activity.event === 'entry:update'}updated a record{:else if activity.event === 'entry:publish'}published
-										content{:else}{activity.event}{/if}
+									{#if activity.event === 'entry:create'}
+										created a new record
+									{:else if activity.event === 'entry:update'}
+										updated a record
+									{:else if activity.event === 'entry:publish'}
+										published content
+									{:else}
+										{activity.event}
+									{/if}
 								</span>
 								{#if activity.collection}
 									<span class="italic text-xs block opacity-60">in {activity.collection}</span>
@@ -144,9 +149,7 @@ with the AI collaboration assistant.
 									: 'bg-surface-300-600-token rounded-bl-none'} shadow-sm"
 							>
 								{msg.content}
-								<div class="text-[9px] mt-1 opacity-50 {msg.role === 'user' ? 'text-white' : ''}">
-									{formatTimestamp(msg.timestamp)}
-								</div>
+								<div class="text-[9px] mt-1 opacity-50 {msg.role === 'user' ? 'text-white' : ''}">{formatTimestamp(msg.timestamp)}</div>
 							</div>
 						</div>
 					</div>
@@ -175,7 +178,7 @@ with the AI collaboration assistant.
 					placeholder="Type a message..."
 					class="flex-1 bg-surface-500/10 border border-surface-500/30 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary-500"
 					bind:value={newMessage}
-				/>
+				>
 				<button
 					type="submit"
 					class="bg-primary-500 hover:bg-primary-600 text-white rounded-lg p-1.5 transition-colors disabled:opacity-50"

@@ -16,17 +16,14 @@ Features:
 -->
 
 <script lang="ts">
-	import { asAny } from '@utils/utils';
-	import type { Component } from 'svelte';
-
 	// Components
 	import InputSwitch from '@components/system/builder/InputSwitch.svelte';
-
-	// Skeleton Stores
-	import { modalState } from '@utils/modalState.svelte';
-
 	// Stores
 	import { collections } from '@src/stores/collectionStore.svelte';
+	// Skeleton Stores
+	import { modalState } from '@utils/modalState.svelte';
+	import { asAny } from '@utils/utils';
+	import type { Component } from 'svelte';
 
 	// GuiSchema is a record of field properties with their widget configs
 	type GuiSchema = Record<string, { widget: Component<any> }>;
@@ -52,7 +49,8 @@ Features:
 	function defaultValue(property: string) {
 		if (property === 'required' || property === 'translated') {
 			return false;
-		} else return (collections.targetWidget.widget as any)?.Name;
+		}
+		return (collections.targetWidget.widget as any)?.Name;
 	}
 
 	function handleUpdate(detail: { value: any }, property: string) {

@@ -21,11 +21,11 @@
  * providing a clean, type-safe interface for all data operations.
  */
 
+import { safeQuery } from '@src/utils/security/safeQuery';
+import { nowISODateString } from '@utils/dateUtils';
 import mongoose, { type Model, type PipelineStage, type UpdateQuery } from 'mongoose';
 import type { BaseEntity, DatabaseId, DatabaseResult, QueryFilter } from '../../dbInterface';
 import { createDatabaseError, generateId, processDates } from './mongoDBUtils';
-import { nowISODateString } from '@utils/dateUtils';
-import { safeQuery } from '@src/utils/security/safeQuery';
 
 /**
  * MongoCrudMethods provides generic CRUD operations for a Mongoose model.
@@ -48,7 +48,9 @@ export class MongoCrudMethods<T extends BaseEntity> {
 			const secureQuery = safeQuery(query, options.tenantId);
 			const result = await this.model.findOne(secureQuery, options.fields?.join(' ')).lean().exec();
 
-			if (!result) return { success: true, data: null };
+			if (!result) {
+				return { success: true, data: null };
+			}
 			return { success: true, data: processDates(result) as T };
 		} catch (error) {
 			return {
@@ -63,7 +65,9 @@ export class MongoCrudMethods<T extends BaseEntity> {
 		try {
 			const query = safeQuery({ _id: id } as QueryFilter<T>, tenantId);
 			const result = await this.model.findOne(query).lean().exec();
-			if (!result) return { success: true, data: null };
+			if (!result) {
+				return { success: true, data: null };
+			}
 			return { success: true, data: processDates(result) as T };
 		} catch (error) {
 			return {
@@ -125,7 +129,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
 			const result = (await this.model.create(doc as any)) as any;
 			return { success: true, data: result.toObject() as T };
 		} catch (error) {
-			if (error instanceof mongoose.mongo.MongoServerError && error.code === 11000) {
+			if (error instanceof mongoose.mongo.MongoServerError && error.code === 11_000) {
 				return {
 					success: false,
 					message: 'A document with the same unique key already exists.',
@@ -169,7 +173,9 @@ export class MongoCrudMethods<T extends BaseEntity> {
 			};
 			const result = await this.model.findOneAndUpdate(query, { $set: updateData }, { returnDocument: 'after' }).lean().exec();
 
-			if (!result) return { success: true, data: null };
+			if (!result) {
+				return { success: true, data: null };
+			}
 			return { success: true, data: processDates(result) as T };
 		} catch (error) {
 			return {
@@ -265,7 +271,9 @@ export class MongoCrudMethods<T extends BaseEntity> {
 		tenantId?: string | null
 	): Promise<DatabaseResult<{ upsertedCount: number; modifiedCount: number }>> {
 		try {
-			if (items.length === 0) return { success: true, data: { upsertedCount: 0, modifiedCount: 0 } };
+			if (items.length === 0) {
+				return { success: true, data: { upsertedCount: 0, modifiedCount: 0 } };
+			}
 
 			const now = nowISODateString();
 			const operations = items.map((item) => ({

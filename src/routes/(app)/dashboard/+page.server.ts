@@ -13,14 +13,13 @@
  * - Support for dynamic width and height sizing
  */
 
-import { redirect, json, error } from '@sveltejs/kit';
-import type { PageServerLoad, Actions } from './$types';
-import { readdirSync } from 'fs';
-import { join } from 'path';
-import { v4 as uuidv4 } from 'uuid';
-
+import { readdirSync } from 'node:fs';
+import { join } from 'node:path';
+import { error, json, redirect } from '@sveltejs/kit';
 // System Logger
 import { logger } from '@utils/logger.server';
+import { v4 as uuidv4 } from 'uuid';
+import type { Actions, PageServerLoad } from './$types';
 
 // Cache for discovered widgets
 let cachedWidgets: WidgetInfo[] | null = null;
@@ -29,9 +28,9 @@ let lastCacheTime = 0;
 
 interface WidgetInfo {
 	componentName: string;
-	name: string;
-	icon: string;
 	description?: string;
+	icon: string;
+	name: string;
 }
 
 async function getWidgetMetadata(componentName: string): Promise<WidgetInfo> {
@@ -149,7 +148,7 @@ export const actions: Actions = {
 			throw error(403, 'Forbidden');
 		}
 
-		if (!component || !label || !icon || !size || typeof size.w !== 'number' || typeof size.h !== 'number') {
+		if (!(component && label && icon && size) || typeof size.w !== 'number' || typeof size.h !== 'number') {
 			logger.error('Invalid widget data:', data);
 			throw error(400, 'Invalid widget data');
 		}

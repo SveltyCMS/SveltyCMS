@@ -14,25 +14,24 @@
 -->
 
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { toaster } from '@stores/store.svelte.ts';
-	import TablePagination from '@components/system/table/TablePagination.svelte';
 	import TableFilter from '@components/system/table/TableFilter.svelte';
+	import TablePagination from '@components/system/table/TablePagination.svelte';
+	import type { Permission, User } from '@src/databases/auth/types';
+	import type { WebsiteToken } from '@src/databases/schemas';
+	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte.ts';
+	import { toaster } from '@stores/store.svelte.ts';
+	import { showConfirm } from '@utils/modalUtils';
+	import { onMount } from 'svelte';
+	import { flip } from 'svelte/animate';
+	import { SvelteDate, SvelteURLSearchParams } from 'svelte/reactivity';
 	// import { clipboard } from '@skeletonlabs/skeleton-svelte';
 	import { dndzone } from 'svelte-dnd-action';
-	import { flip } from 'svelte/animate';
-	import type { WebsiteToken } from '@src/databases/schemas';
-	import type { User, Permission } from '@src/databases/auth/types';
-	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte.ts';
-	import { showConfirm } from '@utils/modalUtils';
-
-	import { SvelteURLSearchParams, SvelteDate } from 'svelte/reactivity';
 
 	interface TableHeader {
-		label: string;
-		key: string;
-		visible: boolean;
 		id: string;
+		key: string;
+		label: string;
+		visible: boolean;
 	}
 
 	let tokens: WebsiteToken[] = $state([]);
@@ -223,12 +222,10 @@
 				newTokenName = '';
 				selectedPermissions = [];
 				expirationOption = '90d';
+			} else if (response.status === 409) {
+				toaster.error({ description: 'A token with this name already exists' });
 			} else {
-				if (response.status === 409) {
-					toaster.error({ description: 'A token with this name already exists' });
-				} else {
-					toaster.error({ description: 'Failed to generate token' });
-				}
+				toaster.error({ description: 'Failed to generate token' });
 			}
 		} catch {
 			toaster.error({ description: 'An error occurred while generating the token' });
@@ -281,7 +278,7 @@
 				<!-- Name -->
 				<label class="label">
 					<span>Token Name</span>
-					<input type="text" class="input" placeholder="e.g. Production Website" bind:value={newTokenName} />
+					<input type="text" class="input" placeholder="e.g. Production Website" bind:value={newTokenName}>
 				</label>
 
 				<!-- Expiration -->
@@ -299,7 +296,7 @@
 					{#if expirationOption === 'custom'}
 						<label class="label">
 							<span>Custom Date</span>
-							<input type="date" class="input" bind:value={customExpirationDate} />
+							<input type="date" class="input" bind:value={customExpirationDate}>
 						</label>
 					{/if}
 				</div>
@@ -321,7 +318,7 @@
 										class="checkbox"
 										checked={selectedPermissions.includes(permission._id)}
 										onchange={() => togglePermission(permission._id)}
-									/>
+									>
 									<span class="text-sm">
 										<span class="font-bold">{permission.name}</span>
 										<span class="text-xs opacity-70 block">{permission.action}</span>
@@ -348,9 +345,7 @@
 		<div class="p-4">
 			<div class="my-4 flex flex-wrap items-center justify-between gap-1">
 				<h4 class="h4 font-bold text-tertiary-500 dark:text-primary-500">Existing Tokens</h4>
-				<div class="order-3 sm:order-2">
-					<TableFilter {globalSearchValue} {searchShow} {filterShow} {columnShow} {density} />
-				</div>
+				<div class="order-3 sm:order-2"><TableFilter {globalSearchValue} {searchShow} {filterShow} {columnShow} {density} /></div>
 			</div>
 
 			{#if columnShow}
@@ -358,7 +353,7 @@
 					<div class="text-white dark:text-primary-500">Drag and drop to reorder columns</div>
 					<div class="my-2 flex w-full items-center justify-center gap-1">
 						<label class="mr-2">
-							<input type="checkbox" bind:checked={selectAllColumns} onchange={handleCheckboxChange} />
+							<input type="checkbox" bind:checked={selectAllColumns} onchange={handleCheckboxChange}>
 							All
 						</label>
 
@@ -402,7 +397,7 @@
 											class="input"
 											placeholder={`Filter by ${header.label}...`}
 											oninput={(e) => handleInputChange(e.currentTarget.value, header.key)}
-										/>
+										>
 									</th>
 								{/each}
 								<th></th>
@@ -463,7 +458,8 @@
 												<span class={daysLeft < 7 && daysLeft > 0 ? 'text-warning-500 font-bold' : daysLeft <= 0 ? 'text-error-500 font-bold' : ''}>
 													{new Date(token.expiresAt).toLocaleDateString()}
 													{#if daysLeft < 0}
-														(Expired){/if}
+														(Expired)
+													{/if}
 												</span>
 											{:else}
 												<span class="opacity-50">Never</span>
@@ -475,9 +471,7 @@
 										{/if}
 									</td>
 								{/each}
-								<td>
-									<button class="preset-filled-error-500 btn-sm" onclick={() => deleteToken(token._id, token.name)}>Delete</button>
-								</td>
+								<td><button class="preset-filled-error-500 btn-sm" onclick={() => deleteToken(token._id, token.name)}>Delete</button></td>
 							</tr>
 						{/each}
 					</tbody>

@@ -9,7 +9,7 @@
  * - Token operations
  */
 
-import { beforeAll, afterAll, describe, it, expect, mock } from 'bun:test';
+import { afterAll, beforeAll, describe, expect, it, mock } from 'bun:test';
 import mongoose from 'mongoose';
 
 // Mock SvelteKit modules
@@ -48,7 +48,7 @@ import { testFixtures } from '../helpers/testSetup';
 
 describe('Auth System Functional Tests', () => {
 	let db: any = null;
-	const testCollection = 'test_auth_verify_' + Date.now();
+	const testCollection = `test_auth_verify_${Date.now()}`;
 
 	beforeAll(async () => {
 		const adapterModule = await import('../../../src/databases/mongodb/mongoDBAdapter');
@@ -68,14 +68,16 @@ describe('Auth System Functional Tests', () => {
 			};
 		}
 
-		if (!privateEnv || !privateEnv.DB_TYPE) return;
+		if (!privateEnv?.DB_TYPE) {
+			return;
+		}
 
 		db = new adapterClass();
 
 		// OPTIMIZATION: Use shared test database in TEST_MODE for speed
 		// Otherwise use isolated functional DB
 		const isTestMode = process.env.TEST_MODE === 'true';
-		const dbName = isTestMode ? privateEnv.DB_NAME || 'sveltycms_test' : (privateEnv.DB_NAME || 'sveltycms_test') + '_functional';
+		const dbName = isTestMode ? privateEnv.DB_NAME || 'sveltycms_test' : `${privateEnv.DB_NAME || 'sveltycms_test'}_functional`;
 
 		let connectionString = `mongodb://${privateEnv.DB_HOST}:${privateEnv.DB_PORT}/${dbName}`;
 
@@ -94,12 +96,12 @@ describe('Auth System Functional Tests', () => {
 			try {
 				// Note: crud operations return { success: boolean }, not verify throwing
 				const insertResult = await db.crud.insert(testCollection, { _test: true });
-				if (!insertResult.success) {
+				if (insertResult.success) {
+					await db.crud.deleteMany(testCollection, { _test: true });
+				} else {
 					console.warn('Auth Test Write Verification Failed:', insertResult.message || insertResult.error);
 					console.warn('Skipping Auth tests.');
 					db = null;
-				} else {
-					await db.crud.deleteMany(testCollection, { _test: true });
 				}
 			} catch (writeErr: any) {
 				console.warn('Auth Test Write Verification Exception:', writeErr.message);
@@ -141,7 +143,9 @@ describe('Auth System Functional Tests', () => {
 		let newUserId: string;
 
 		beforeAll(async () => {
-			if (!db) return;
+			if (!db) {
+				return;
+			}
 			// Retrieve the pre-seeded admin user ID
 			const result = await db.auth.getUserByEmail({ email: existingUser.email });
 			if (result.success && result.data) {
@@ -159,7 +163,9 @@ describe('Auth System Functional Tests', () => {
 		});
 
 		it('should create a new user with hashed password', async () => {
-			if (!db) return;
+			if (!db) {
+				return;
+			}
 
 			const userPayload = {
 				...newUser,
@@ -174,7 +180,9 @@ describe('Auth System Functional Tests', () => {
 		});
 
 		it('should find existing user by email', async () => {
-			if (!db) return;
+			if (!db) {
+				return;
+			}
 			// Use the pre-seeded user (should be faster as it's definitely there)
 			const result = await db.auth.getUserByEmail({ email: existingUser.email });
 			expect(result.success).toBe(true);
@@ -182,7 +190,9 @@ describe('Auth System Functional Tests', () => {
 		});
 
 		it('should find existing user by ID', async () => {
-			if (!db || !existingUserId) return;
+			if (!(db && existingUserId)) {
+				return;
+			}
 			const result = await db.auth.getUserById(existingUserId);
 			expect(result.success).toBe(true);
 			expect(result.data.email).toBe(existingUser.email);
@@ -201,7 +211,9 @@ describe('Auth System Functional Tests', () => {
 		let sessionId: string;
 
 		it('should create session for user', async () => {
-			if (!db) return;
+			if (!db) {
+				return;
+			}
 
 			// Create user first
 			const user = await db.auth.createUser({
@@ -214,7 +226,7 @@ describe('Auth System Functional Tests', () => {
 
 			const sessionData = {
 				user_id: userId,
-				expires: new Date(Date.now() + 3600000).toISOString()
+				expires: new Date(Date.now() + 3_600_000).toISOString()
 			};
 
 			const result = await db.auth.createSession(sessionData);
@@ -224,7 +236,9 @@ describe('Auth System Functional Tests', () => {
 		});
 
 		it('should validate session', async () => {
-			if (!db) return;
+			if (!db) {
+				return;
+			}
 			const result = await db.auth.validateSession(sessionId);
 			// validateSession checks if not expired and exists
 			expect(result.success).toBe(true);
@@ -232,7 +246,9 @@ describe('Auth System Functional Tests', () => {
 		});
 
 		it('should delete session', async () => {
-			if (!db) return;
+			if (!db) {
+				return;
+			}
 			const result = await db.auth.deleteSession(sessionId);
 			expect(result.success).toBe(true);
 

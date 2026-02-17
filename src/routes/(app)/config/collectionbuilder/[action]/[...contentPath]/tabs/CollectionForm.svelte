@@ -14,16 +14,14 @@
 -->
 
 <script lang="ts">
+	// Components
+	import IconifyIconsPicker from '@components/IconifyIconsPicker.svelte';
+	import { collection, setCollection } from '@root/src/stores/collectionStore.svelte';
+	// ParaglideJS
+	import * as m from '@src/paraglide/messages';
 	import { untrack } from 'svelte';
 	// Stores
 	import { page } from '$app/state';
-	import { collection, setCollection } from '@root/src/stores/collectionStore.svelte';
-
-	// Components
-	import IconifyIconsPicker from '@components/IconifyIconsPicker.svelte';
-
-	// ParaglideJS
-	import * as m from '@src/paraglide/messages';
 
 	// Skeleton
 	// Collection Manager
@@ -152,12 +150,13 @@
 		} else if (currentName) {
 			handlePageTitleUpdate(currentName);
 		} else {
-			handlePageTitleUpdate(`new`);
+			handlePageTitleUpdate('new');
 		}
 	});
 
 	// Import status types from the content types
 	import { StatusTypes } from '@src/content/types';
+
 	const statuses = Object.values(StatusTypes);
 </script>
 
@@ -182,7 +181,7 @@
 					oninput={handleNameInput}
 					placeholder={m.collection_name_placeholder()}
 					class="input w-full"
-				/>
+				>
 				{#if name}
 					<p class="mt-1 text-[10px] uppercase tracking-wider text-surface-500">
 						Database ID: <span class="font-bold text-primary-500">{DBName}</span>
@@ -197,7 +196,7 @@
 					<iconify-icon icon="material-symbols:link" width="16" class="ml-auto opacity-50"></iconify-icon>
 				</label>
 				<div class="input-group grid-cols-[1fr_auto] overflow-hidden">
-					<input type="text" id="slug" bind:value={slug} placeholder={m.collection_slug_input()} />
+					<input type="text" id="slug" bind:value={slug} placeholder={m.collection_slug_input()}>
 					<button class="bg-surface-200-800 px-2" onclick={() => (autoUpdateSlug = !autoUpdateSlug)} title="Toggle Auto-update">
 						<iconify-icon icon={autoUpdateSlug ? 'mdi:sync' : 'mdi:sync-off'} width="18"></iconify-icon>
 					</button>
@@ -206,9 +205,7 @@
 
 			<!-- Status -->
 			<div class="flex flex-col">
-				<label for="status" class="mb-1 flex items-center font-bold text-sm">
-					{m.collection_status()}
-				</label>
+				<label for="status" class="mb-1 flex items-center font-bold text-sm"> {m.collection_status()} </label>
 				<select id="status" bind:value={status} class="select w-full">
 					{#each statuses as statusOption (statusOption)}
 						<option value={statusOption}>{statusOption}</option>
@@ -221,17 +218,13 @@
 		<div class="space-y-4">
 			<!-- Icon -->
 			<div class="flex flex-col">
-				<label for="icon" class="mb-1 flex items-center font-bold text-sm">
-					{m.collectionname_labelicon()}
-				</label>
+				<label for="icon" class="mb-1 flex items-center font-bold text-sm"> {m.collectionname_labelicon()} </label>
 				<IconifyIconsPicker bind:iconselected={selectedIcon} bind:searchQuery />
 			</div>
 
 			<!-- Description -->
 			<div class="flex flex-col flex-1">
-				<label for="description" class="mb-1 flex items-center font-bold text-sm">
-					{m.collectionname_description()}
-				</label>
+				<label for="description" class="mb-1 flex items-center font-bold text-sm"> {m.collectionname_description()} </label>
 				<textarea
 					id="description"
 					rows="4"

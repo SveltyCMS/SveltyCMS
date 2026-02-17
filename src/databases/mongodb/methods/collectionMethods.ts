@@ -15,12 +15,12 @@
  * - Content structure/drafts/revisions (use contentMethods.ts)
  */
 
-import { logger } from '@utils/logger';
-import mongoose, { Schema as MongooseSchema, type Model } from 'mongoose';
-import type { CollectionModel } from '../../dbInterface';
 import type { Schema } from '@src/content/types';
-import { withCache, CacheCategory, invalidateCollectionCache } from './mongoDBCacheUtils';
 import { nowISODateString } from '@utils/dateUtils';
+import { logger } from '@utils/logger';
+import mongoose, { type Model, Schema as MongooseSchema } from 'mongoose';
+import type { CollectionModel } from '../../dbInterface';
+import { CacheCategory, invalidateCollectionCache, withCache } from './mongoDBCacheUtils';
 
 /**
  * MongoCollectionMethods manages dynamic model creation and registration.
@@ -30,7 +30,7 @@ import { nowISODateString } from '@utils/dateUtils';
  */
 export class MongoCollectionMethods {
 	// Internal registry of all dynamically created models
-	private models = new Map<string, { model: Model<unknown>; wrapped: CollectionModel }>();
+	private readonly models = new Map<string, { model: Model<unknown>; wrapped: CollectionModel }>();
 
 	/**
 	 * Gets a registered collection model by ID
@@ -108,12 +108,14 @@ export class MongoCollectionMethods {
 							: null) ||
 						(fieldObj.Name as string);
 
-					if (!fieldKey) continue;
+					if (!fieldKey) {
+						continue;
+					}
 
 					schemaDefinition[fieldKey] = {
 						type: mongoose.Schema.Types.Mixed,
-						required: (fieldObj.required as boolean) || false,
-						unique: (fieldObj.unique as boolean) || false
+						required: fieldObj.required as boolean,
+						unique: fieldObj.unique as boolean
 					};
 				}
 			}
@@ -166,7 +168,7 @@ export class MongoCollectionMethods {
 			const structureCollection = mongoose.connection.collection('system_content_structure');
 			const result = await structureCollection.findOne({ name: collectionName });
 
-			if (result && result.collectionDef) {
+			if (result?.collectionDef) {
 				return result.collectionDef as Schema;
 			}
 			return null;
@@ -296,7 +298,9 @@ export class MongoCollectionMethods {
 								: null) ||
 							(fieldObj.Name as string);
 
-						if (!fieldKey) continue;
+						if (!fieldKey) {
+							continue;
+						}
 
 						// Unique index
 						if (fieldObj.unique) {

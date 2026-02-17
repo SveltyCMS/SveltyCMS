@@ -14,19 +14,19 @@ export type SchemaChangeType =
 	| 'option_changed';
 
 export interface SchemaChange {
-	type: SchemaChangeType;
 	collectionId: string;
 	fieldName: string;
-	oldValue?: any;
-	newValue?: any;
-	severity: 'critical' | 'warning' | 'info';
 	message: string;
+	newValue?: any;
+	oldValue?: any;
+	severity: 'critical' | 'warning' | 'info';
 	suggestion?: string;
+	type: SchemaChangeType;
 }
 
 export interface ComparisonResult {
-	collectionId: string;
 	changes: SchemaChange[];
+	collectionId: string;
 	hasDrift: boolean;
 	requiresMigration: boolean;
 }
@@ -61,13 +61,17 @@ export function compareSchemas(codeSchema: Schema, dbSchema: Schema): Comparison
 	const codeFields = new Map<string, any>();
 	codeSchema.fields.forEach((f) => {
 		const norm = normalizeField(f);
-		if (norm.name) codeFields.set(norm.name, norm);
+		if (norm.name) {
+			codeFields.set(norm.name, norm);
+		}
 	});
 
 	const dbFields = new Map<string, any>();
 	dbSchema.fields.forEach((f) => {
 		const norm = normalizeField(f);
-		if (norm.name) dbFields.set(norm.name, norm);
+		if (norm.name) {
+			dbFields.set(norm.name, norm);
+		}
 	});
 
 	// 1. Check for Removed Fields (Critical - Data Loss Risk)

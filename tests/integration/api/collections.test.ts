@@ -5,12 +5,11 @@
  */
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'bun:test';
-import { prepareAuthenticatedContext } from '../helpers/testSetup'; // Correct import
-import { initializeTestEnvironment } from '../helpers/testSetup';
-import { getApiBaseUrl } from '../helpers/server';
-import { write } from 'bun';
 import { unlink } from 'node:fs/promises';
-import { getCollectionFilePath, getCollectionDisplayPath } from '../../../src/utils/tenantPaths';
+import { write } from 'bun';
+import { getCollectionDisplayPath, getCollectionFilePath } from '../../../src/utils/tenantPaths';
+import { getApiBaseUrl } from '../helpers/server';
+import { initializeTestEnvironment, prepareAuthenticatedContext } from '../helpers/testSetup';
 
 const API_BASE_URL = getApiBaseUrl();
 

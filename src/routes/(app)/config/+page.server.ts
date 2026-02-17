@@ -10,16 +10,12 @@
  * - Layer 3: PermissionGuard.svelte (UI visibility control)
  */
 
-import { redirect, error } from '@sveltejs/kit';
-import type { PageServerLoad } from './$types';
-
 // Auth
-import { hasPermissionByAction } from '@src/databases/auth/permissions';
-import { permissionConfigs } from '@src/databases/auth/permissions';
-import { permissions as allPermissions } from '@src/databases/auth/permissions';
-
+import { permissions as allPermissions, hasPermissionByAction, permissionConfigs } from '@src/databases/auth/permissions';
+import { error, redirect } from '@sveltejs/kit';
 // System Logger
 import { logger } from '@utils/logger.server';
+import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	try {
@@ -55,6 +51,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		const permissions: Record<string, { hasPermission: boolean; isRateLimited?: boolean }> = {};
 
 		for (const key in permissionConfigs) {
+			if (!Object.hasOwn(permissionConfigs, key)) continue;
 			const config = permissionConfigs[key];
 
 			// Admin bypass for efficiency (admins have all permissions)

@@ -11,8 +11,8 @@
  * - Consistent error handling with DatabaseResult<T>
  */
 
-import { json } from '@sveltejs/kit';
 import { getPrivateSettingSync } from '@src/services/settingsService';
+import { json } from '@sveltejs/kit';
 
 // Permissions
 
@@ -117,7 +117,9 @@ export const GET = apiHandler(async ({ locals, url }) => {
 
 		return json(mediaFiles);
 	} catch (err) {
-		if (err instanceof AppError) throw err;
+		if (err instanceof AppError) {
+			throw err;
+		}
 		const httpError = err as { status?: number; body?: { message?: string }; message?: string };
 		const status = httpError.status || 500;
 		const message = httpError.body?.message || httpError.message || 'Internal Server Error';

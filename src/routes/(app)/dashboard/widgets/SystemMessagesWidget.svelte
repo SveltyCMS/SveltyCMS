@@ -26,14 +26,14 @@
 </script>
 
 <script lang="ts">
-	import BaseWidget from '../BaseWidget.svelte';
 	import type { WidgetSize } from '@src/content/types';
+	import BaseWidget from '../BaseWidget.svelte';
 
 	// Defines the structure for a single system message.
 	interface SystemMessage {
-		title: string;
-		timestamp: string;
 		body: string;
+		timestamp: string;
+		title: string;
 	}
 
 	// Defines the shape of the data payload fetched from the API.

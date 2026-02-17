@@ -20,8 +20,8 @@
  * @prerequisite Static asset handling done by earlier middleware
  */
 
-import { dev } from '$app/environment';
 import type { Handle } from '@sveltejs/kit';
+import { dev } from '$app/environment';
 
 export const addSecurityHeaders: Handle = async ({ event, resolve }) => {
 	const response = await resolve(event);

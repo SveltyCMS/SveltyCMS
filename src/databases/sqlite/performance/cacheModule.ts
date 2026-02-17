@@ -11,10 +11,10 @@
  */
 
 import type { CacheOptions, DatabaseResult } from '../../dbInterface';
-import { AdapterCore } from '../adapter/adapterCore';
+import type { AdapterCore } from '../adapter/adapterCore';
 
 export class CacheModule {
-	private core: AdapterCore;
+	private readonly core: AdapterCore;
 
 	constructor(core: AdapterCore) {
 		this.core = core;

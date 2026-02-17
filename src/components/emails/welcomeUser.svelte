@@ -5,19 +5,18 @@
 -->
 
 <script lang="ts">
-	import { dev } from '$app/environment';
-	import { publicEnv } from '@src/stores/globalSettings.svelte';
-
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
+	import { publicEnv } from '@src/stores/globalSettings.svelte';
 	import { app } from '@stores/store.svelte';
 	// better-svelte-email components
 	import { Body, Button, Container, Head, Heading, Hr, Html, Img, Link, Preview, Section, Text } from 'better-svelte-email';
+	import { dev } from '$app/environment';
 
 	interface Props {
-		username?: string;
 		hostLink?: string;
 		languageTag?: string;
+		username?: string;
 	}
 
 	const { username = '', hostLink = dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD, languageTag = app.systemLanguage }: Props = $props();
@@ -52,25 +51,21 @@
 
 			<!-- Main Content -->
 			<Section>
-				<Heading><center>Welcome to <strong>Svelty<span style="color:#22c55e;font-weight:bold;">CMS</span></strong></center></Heading>
+				<Heading
+					><center>
+						Welcome to <strong>Svelty<span style="color:#22c55e;font-weight:bold;">CMS</span></strong>
+					</center></Heading
+				>
 				<Text>
 					<strong><center>A SvelteKit-powered flexible Headless CMS</center></strong>
 				</Text>
 
-				<Text>
-					{m.welcomeuser_username({ username: username || 'Anonymous' })}
-				</Text>
+				<Text> {m.welcomeuser_username({ username: username || 'Anonymous' })} </Text>
 
-				<Text>
-					{m.welcomeuser_headless()}
-				</Text>
+				<Text> {m.welcomeuser_headless()} </Text>
 
-				<Text>
-					{m.welcomeuser_discussion1()}
-				</Text>
-				<Link href="https://github.com/SveltyCMS/SveltyCMS/discussions">
-					<center>{m.welcomeuser_discussion2()}</center>
-				</Link>
+				<Text> {m.welcomeuser_discussion1()} </Text>
+				<Link href="https://github.com/SveltyCMS/SveltyCMS/discussions"> <center>{m.welcomeuser_discussion2()}</center> </Link>
 
 				<Text>
 					Thank you for choosing <strong>Svelty<span style="color:#22c55e;font-weight:bold;">CMS</span></strong>!
@@ -96,7 +91,8 @@
 				<Section>
 					<Text style="text-align: center; font-weight: bold; font-size: 16px;">
 						<Link href="https://SveltyCMS.com">
-							Your <span style="color:#111;">Svelty</span><span style="color:#22c55e;font-weight:bold;">CMS</span> team
+							Your <span style="color:#111;">Svelty</span><span style="color:#22c55e;font-weight:bold;">CMS</span>
+							team
 						</Link>
 					</Text>
 				</Section>

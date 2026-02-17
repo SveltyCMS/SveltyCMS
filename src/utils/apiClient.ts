@@ -5,8 +5,8 @@
  */
 
 import type { ISODateString } from '@src/content/types';
-import { logger } from '@utils/logger';
 import { publicEnv } from '@stores/globalSettings.svelte.ts';
+import { logger } from '@utils/logger';
 
 // --- Type Definitions ---
 
@@ -15,13 +15,13 @@ import { publicEnv } from '@stores/globalSettings.svelte.ts';
  * Matches the shape returned by the server-side 'handleApiError'.
  */
 export interface ApiResponse<T = unknown> {
-	success: boolean;
+	code?: string; // Error code (e.g., 'VALIDATION_ERROR', 'FORBIDDEN')
 	data?: T;
+	error?: string; // Alias for message (for backward compatibility)
+	issues?: string[]; // Validation specific issues
 	// Error fields
 	message?: string; // Primary error message
-	error?: string; // Alias for message (for backward compatibility)
-	code?: string; // Error code (e.g., 'VALIDATION_ERROR', 'FORBIDDEN')
-	issues?: string[]; // Validation specific issues
+	success: boolean;
 }
 
 export interface RevisionDiff {
@@ -37,16 +37,16 @@ export interface RevisionMeta {
 
 export interface Collection {
 	_id: string;
-	name: string;
 	fields: Record<string, unknown>[];
+	name: string;
 }
 
 interface GetDataResponse {
 	items: Record<string, unknown>[];
-	total: number;
-	totalPages: number;
 	page?: number;
 	pageSize?: number;
+	total: number;
+	totalPages: number;
 }
 
 // --- Core API Functions ---
@@ -304,7 +304,7 @@ export async function getData(query: {
 	// Cache successful responses
 	if (result.success && result.data) {
 		// Validation safety check
-		if (!result.data.items || !Array.isArray(result.data.items)) {
+		if (!(result.data.items && Array.isArray(result.data.items))) {
 			logger.error(`[getData] Invalid response format from ${endpoint}`, result.data);
 			return {
 				success: false,
@@ -320,12 +320,7 @@ export async function getData(query: {
 	return result;
 }
 
-export async function getCollections(
-	options: {
-		includeFields?: boolean;
-		includeStats?: boolean;
-	} = {}
-): Promise<ApiResponse<Collection[]>> {
+export async function getCollections(options: { includeFields?: boolean; includeStats?: boolean } = {}): Promise<ApiResponse<Collection[]>> {
 	const params = new URLSearchParams(options as Record<string, string>);
 	const endpoint = `/api/collections?${params.toString()}`;
 	return fetchApi(endpoint, { method: 'GET' });

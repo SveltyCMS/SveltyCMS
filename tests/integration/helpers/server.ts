@@ -33,7 +33,7 @@ export async function checkServer(): Promise<boolean> {
 /**
  * Waits for the server to become healthy with a timeout.
  */
-export async function waitForServer(timeoutMs = 60000): Promise<void> {
+export async function waitForServer(timeoutMs = 60_000): Promise<void> {
 	const start = Date.now();
 	const baseUrl = getApiBaseUrl();
 
@@ -41,7 +41,7 @@ export async function waitForServer(timeoutMs = 60000): Promise<void> {
 
 	while (Date.now() - start < timeoutMs) {
 		if (await checkServer()) {
-			console.log(`✅ Server is up and healthy!`);
+			console.log('✅ Server is up and healthy!');
 			return;
 		}
 		await new Promise((resolve) => setTimeout(resolve, 1000));

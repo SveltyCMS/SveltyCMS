@@ -24,9 +24,9 @@ import type {
 } from './seoTypes';
 
 export class SeoAnalyzer {
-	private config: SeoAnalysisConfig;
-	private stopWords: Set<string>;
-	private transitionWords: Set<string>;
+	private readonly config: SeoAnalysisConfig;
+	private readonly stopWords: Set<string>;
+	private readonly transitionWords: Set<string>;
 
 	/**
 	 * Robustly remove all HTML tags from input string.
@@ -176,7 +176,9 @@ export class SeoAnalyzer {
 	}
 
 	private async analyzeKeywords(title: string, description: string, content: string): Promise<KeywordAnalysis[]> {
-		if (!this.config.focusKeyword) return [];
+		if (!this.config.focusKeyword) {
+			return [];
+		}
 
 		const keyword = this.config.focusKeyword.toLowerCase();
 		const words = this.tokenize(content.toLowerCase());
@@ -270,9 +272,9 @@ export class SeoAnalyzer {
 			h6: [] as string[]
 		};
 
-		let match;
+		let match: RegExpExecArray | null;
 		while ((match = headingRegex.exec(content)) !== null) {
-			const level = parseInt(match[1]) as 1 | 2 | 3 | 4 | 5 | 6;
+			const level = Number.parseInt(match[1], 10) as 1 | 2 | 3 | 4 | 5 | 6;
 			const text = this.stripHtmlTags(match[2]).trim();
 			headings[`h${level}` as keyof typeof headings].push(text);
 		}
@@ -352,17 +354,33 @@ export class SeoAnalyzer {
 
 		// Content score (0-100)
 		let contentScore = 50;
-		if (technical.titleLength > 0) contentScore += 10;
-		if (!contentStructure.multipleH1) contentScore += 5;
-		if (contentStructure.headingHierarchy) contentScore += 10;
-		if (readability.wordCount >= 300) contentScore += 15;
-		if (readability.wordCount >= 1000) contentScore += 10;
+		if (technical.titleLength > 0) {
+			contentScore += 10;
+		}
+		if (!contentStructure.multipleH1) {
+			contentScore += 5;
+		}
+		if (contentStructure.headingHierarchy) {
+			contentScore += 10;
+		}
+		if (readability.wordCount >= 300) {
+			contentScore += 15;
+		}
+		if (readability.wordCount >= 1000) {
+			contentScore += 10;
+		}
 
 		// Technical score (0-100)
 		let technicalScore = 50;
-		if (technical.titleLength >= 30 && technical.titleLength <= 60) technicalScore += 20;
-		if (technical.descriptionLength >= 120 && technical.descriptionLength <= 160) technicalScore += 20;
-		if (technical.urlStructure.isReadable) technicalScore += 10;
+		if (technical.titleLength >= 30 && technical.titleLength <= 60) {
+			technicalScore += 20;
+		}
+		if (technical.descriptionLength >= 120 && technical.descriptionLength <= 160) {
+			technicalScore += 20;
+		}
+		if (technical.urlStructure.isReadable) {
+			technicalScore += 10;
+		}
 
 		// Readability score (0-100)
 		const readabilityScore = Math.max(0, Math.min(100, (readability.fleschKincaidScore / 100) * 100));
@@ -371,9 +389,15 @@ export class SeoAnalyzer {
 		let keywordsScore = 50;
 		if (keywords.length > 0) {
 			const keyword = keywords[0];
-			if (keyword.inTitle) keywordsScore += 15;
-			if (keyword.inDescription) keywordsScore += 15;
-			if (keyword.density >= 0.5 && keyword.density <= 2.5) keywordsScore += 20;
+			if (keyword.inTitle) {
+				keywordsScore += 15;
+			}
+			if (keyword.inDescription) {
+				keywordsScore += 15;
+			}
+			if (keyword.density >= 0.5 && keyword.density <= 2.5) {
+				keywordsScore += 20;
+			}
 		}
 
 		// Social score (basic implementation)
@@ -564,7 +588,9 @@ export class SeoAnalyzer {
 
 	private countSyllablesInWord(word: string): number {
 		word = word.toLowerCase();
-		if (word.length <= 3) return 1;
+		if (word.length <= 3) {
+			return 1;
+		}
 
 		const vowels = 'aeiouy';
 		let syllableCount = 0;
@@ -619,18 +645,32 @@ export class SeoAnalyzer {
 	}
 
 	private getReadingLevel(score: number): ReadabilityAnalysis['readingLevel'] {
-		if (score >= 90) return 'elementary';
-		if (score >= 80) return 'middle-school';
-		if (score >= 70) return 'high-school';
-		if (score >= 60) return 'college';
+		if (score >= 90) {
+			return 'elementary';
+		}
+		if (score >= 80) {
+			return 'middle-school';
+		}
+		if (score >= 70) {
+			return 'high-school';
+		}
+		if (score >= 60) {
+			return 'college';
+		}
 		return 'graduate';
 	}
 
 	private calculateKeywordProminence(inTitle: boolean, inDescription: boolean, firstOccurrence: number): number {
 		let prominence = 0;
-		if (inTitle) prominence += 40;
-		if (inDescription) prominence += 30;
-		if (firstOccurrence >= 0 && firstOccurrence < 10) prominence += 30;
+		if (inTitle) {
+			prominence += 40;
+		}
+		if (inDescription) {
+			prominence += 30;
+		}
+		if (firstOccurrence >= 0 && firstOccurrence < 10) {
+			prominence += 30;
+		}
 		return prominence;
 	}
 
@@ -638,7 +678,7 @@ export class SeoAnalyzer {
 		const headingRegex = /<h[1-6][^>]*>(.*?)<\/h[1-6]>/gi;
 		const headingsWithKeyword: string[] = [];
 
-		let match;
+		let match: RegExpExecArray | null;
 		while ((match = headingRegex.exec(content)) !== null) {
 			const headingText = this.stripHtmlTags(match[1]).toLowerCase();
 			if (headingText.includes(keyword)) {
@@ -655,10 +695,8 @@ export class SeoAnalyzer {
 		const variations = new Set<string>();
 
 		words.forEach((word) => {
-			if (word.includes(keyword) || keyword.includes(word)) {
-				if (word !== keyword && word.length > 3) {
-					variations.add(word);
-				}
+			if ((word.includes(keyword) || keyword.includes(word)) && word !== keyword && word.length > 3) {
+				variations.add(word);
 			}
 		});
 
@@ -671,7 +709,7 @@ export class SeoAnalyzer {
 		const levels = Object.keys(headings) as Array<keyof typeof headings>;
 
 		for (const level of levels) {
-			const levelNumber = parseInt(level.charAt(1));
+			const levelNumber = Number.parseInt(level.charAt(1), 10);
 			if (headings[level].length > 0) {
 				if (levelNumber > currentLevel + 1) {
 					return false; // Skipped a level
@@ -698,7 +736,9 @@ export class SeoAnalyzer {
 	}
 
 	private extractBreadcrumbs(url?: string): string[] | undefined {
-		if (!url) return undefined;
+		if (!url) {
+			return undefined;
+		}
 
 		const path = url.replace(/^https?:\/\/[^/]+/, '');
 		const segments = path.split('/').filter((segment) => segment.length > 0);
@@ -708,10 +748,10 @@ export class SeoAnalyzer {
 }
 
 interface SeoEntrySource {
-	title?: string;
+	canonicalUrl?: string;
 	description?: string;
 	focusKeyword?: string;
-	canonicalUrl?: string;
+	title?: string;
 }
 
 export async function analyzeSeo(data: SeoEntrySource, content: string): Promise<SeoAnalysisResult> {

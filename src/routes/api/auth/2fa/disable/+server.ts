@@ -3,14 +3,13 @@
  * @description API endpoint for disabling 2FA
  */
 
-import { json } from '@sveltejs/kit';
-import { logger } from '@utils/logger.server';
-import { getDefaultTwoFactorAuthService } from '@src/databases/auth/twoFactorAuth';
 import { auth } from '@databases/db';
-
+import { getDefaultTwoFactorAuthService } from '@src/databases/auth/twoFactorAuth';
+import { json } from '@sveltejs/kit';
 // Unified Error Handling
 import { apiHandler } from '@utils/apiHandler';
 import { AppError } from '@utils/errorHandling';
+import { logger } from '@utils/logger.server';
 
 export const POST = apiHandler(async ({ locals }) => {
 	// Ensure user is authenticated

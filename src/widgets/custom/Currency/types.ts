@@ -12,11 +12,11 @@ export interface CurrencyProps {
 	// The ISO 4217 currency code (e.g., 'EUR', 'USD', 'JPY') @default 'EUR'
 	currencyCode?: string;
 
-	// The minimum allowed numeric value
-	minValue?: number;
-
 	// The maximum allowed numeric value
 	maxValue?: number;
+
+	// The minimum allowed numeric value
+	minValue?: number;
 
 	// A placeholder for the input field
 	placeholder?: string;

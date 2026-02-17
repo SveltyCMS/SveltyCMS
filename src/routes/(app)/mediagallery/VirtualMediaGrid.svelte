@@ -24,20 +24,21 @@ Implements custom virtual scrolling without external dependencies.
 
 <script lang="ts">
 	// Using iconify-icon web component
-	import { formatBytes } from '@utils/utils';
+	
 
-	import type { MediaImage, MediaBase } from '@utils/media/mediaModels';
-	import { SvelteSet } from 'svelte/reactivity';
+	import type { MediaBase, MediaImage } from '@utils/media/mediaModels';
+import { formatBytes } from '@utils/utils';
 	// import { popup } from '@skeletonlabs/skeleton-svelte';
 	import { onMount } from 'svelte';
+	import { SvelteSet } from 'svelte/reactivity';
 
 	interface Props {
 		filteredFiles?: (MediaBase | MediaImage)[];
 		gridSize?: 'tiny' | 'small' | 'medium' | 'large';
-		ondeleteImage?: (file: MediaBase | MediaImage) => void;
 		onBulkDelete?: (files: (MediaBase | MediaImage)[]) => void;
 		onBulkDownload?: (files: (MediaBase | MediaImage)[]) => void;
 		onBulkEdit?: (files: (MediaBase | MediaImage)[], action: string, value: any) => void;
+		ondeleteImage?: (file: MediaBase | MediaImage) => void;
 		onEditImage?: (file: MediaImage) => void;
 	}
 

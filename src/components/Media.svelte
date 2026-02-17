@@ -28,21 +28,21 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 -->
 
 <script lang="ts">
+	import * as m from '@src/paraglide/messages';
 	import { logger } from '@utils/logger';
 	import type { MediaImage } from '@utils/media/mediaModels';
 	// Removed axios import
-	import { onMount, onDestroy } from 'svelte';
-	import { fade, scale } from 'svelte/transition';
+	import { onDestroy, onMount } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
-	import * as m from '@src/paraglide/messages';
+	import { fade, scale } from 'svelte/transition';
 
 	type ThumbnailSize = 'sm' | 'md' | 'lg';
 	type ViewMode = 'grid' | 'list';
 	type SortBy = 'name' | 'date' | 'size';
 
 	interface Props {
-		onselect?: (file: MediaImage | MediaImage[]) => void;
 		multiple?: boolean;
+		onselect?: (file: MediaImage | MediaImage[]) => void;
 		viewMode?: ViewMode;
 	}
 
@@ -313,12 +313,10 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 			class="flex items-center justify-between rounded-lg border-l-4 border-primary-500 bg-primary-50 p-3 dark:bg-primary-900/20"
 			transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }}
 		>
-			<span class="text-sm font-medium">
-				{selectedCount} file{selectedCount !== 1 ? 's' : ''} selected
-			</span>
+			<span class="text-sm font-medium"> {selectedCount} file{selectedCount !== 1 ? 's' : ''} selected </span>
 			<div class="flex gap-2">
-				<button onclick={clearSelection} class="preset-outlined-surface-500btn btn-sm"> Clear </button>
-				<button onclick={confirmSelection} class="preset-filled-primary-500 btn-sm"> Confirm Selection </button>
+				<button onclick={clearSelection} class="preset-outlined-surface-500btn btn-sm">Clear</button>
+				<button onclick={confirmSelection} class="preset-filled-primary-500 btn-sm">Confirm Selection</button>
 			</div>
 		</div>
 	{/if}
@@ -337,7 +335,7 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 			<div class="flex flex-col items-center gap-3">
 				<iconify-icon icon="mdi:alert-circle" width="48" class="text-error-500"></iconify-icon>
 				<p class="text-lg text-error-500">Error: {error}</p>
-				<button onclick={fetchMedia} class="preset-filled-primary-500 btn-sm"> Try Again </button>
+				<button onclick={fetchMedia} class="preset-filled-primary-500 btn-sm">Try Again</button>
 			</div>
 		</div>
 	{:else if !hasFiles}
@@ -345,9 +343,7 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 		<div class="flex flex-1 items-center justify-center" transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }}>
 			<div class="flex flex-col items-center gap-3">
 				<iconify-icon icon="mdi:image-off" width="48" class="text-surface-400"></iconify-icon>
-				<p class="text-lg text-surface-600 dark:text-surface-50">
-					{search ? `No media found for "${search}"` : m.mediagallery_nomedia()}
-				</p>
+				<p class="text-lg text-surface-600 dark:text-surface-50">{search ? `No media found for "${search}"` : m.mediagallery_nomedia()}</p>
 			</div>
 		</div>
 	{:else}
@@ -392,9 +388,7 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 						>
 							<iconify-icon icon={isInfoShown(index) ? 'mdi:information-off' : 'mdi:information'} width="20" class="text-primary-500"></iconify-icon>
 						</button>
-						<p class="flex-1 truncate pr-2 text-center text-sm text-white" title={file.filename}>
-							{file.filename}
-						</p>
+						<p class="flex-1 truncate pr-2 text-center text-sm text-white" title={file.filename}>{file.filename}</p>
 					</div>
 
 					<!-- Content -->

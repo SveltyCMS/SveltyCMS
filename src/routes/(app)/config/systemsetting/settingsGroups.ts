@@ -5,32 +5,32 @@
  */
 
 export interface SettingField {
+	category: 'private' | 'public';
+	description: string;
 	key: string;
 	label: string;
-	description: string;
-	type: 'text' | 'number' | 'boolean' | 'password' | 'select' | 'array' | 'language-multi' | 'language-select' | 'loglevel-multi' | 'textarea';
-	category: 'private' | 'public';
-	required?: boolean;
-	readonly?: boolean;
-	min?: number;
 	max?: number;
+	min?: number;
 	options?: Array<{ value: string | number; label: string }>;
 	placeholder?: string;
-	unit?: string;
+	readonly?: boolean;
+	required?: boolean;
 	rows?: number;
+	type: 'text' | 'number' | 'boolean' | 'password' | 'select' | 'array' | 'language-multi' | 'language-select' | 'loglevel-multi' | 'textarea';
+	unit?: string;
 	validation?: (value: unknown) => string | null;
 }
 
 export interface SettingGroup {
-	id: string;
-	name: string;
-	icon: string;
+	adminOnly?: boolean;
 	description: string;
 	enabled: boolean;
 	fields: SettingField[];
-	requiresRestart?: boolean;
-	adminOnly?: boolean;
+	icon: string;
+	id: string;
+	name: string;
 	permissionId?: string;
+	requiresRestart?: boolean;
 }
 
 /**
@@ -88,7 +88,7 @@ export const settingsGroups: SettingGroup[] = [
 				type: 'number',
 				category: 'private',
 				min: 1,
-				max: 86400,
+				max: 86_400,
 				unit: 'seconds'
 			},
 			{
@@ -98,7 +98,7 @@ export const settingsGroups: SettingGroup[] = [
 				type: 'number',
 				category: 'private',
 				min: 1,
-				max: 86400,
+				max: 86_400,
 				unit: 'seconds'
 			},
 			{
@@ -108,7 +108,7 @@ export const settingsGroups: SettingGroup[] = [
 				type: 'number',
 				category: 'private',
 				min: 1,
-				max: 86400,
+				max: 86_400,
 				unit: 'seconds'
 			},
 			{
@@ -118,7 +118,7 @@ export const settingsGroups: SettingGroup[] = [
 				type: 'number',
 				category: 'private',
 				min: 1,
-				max: 86400,
+				max: 86_400,
 				unit: 'seconds'
 			},
 			{
@@ -128,7 +128,7 @@ export const settingsGroups: SettingGroup[] = [
 				type: 'number',
 				category: 'private',
 				min: 1,
-				max: 86400,
+				max: 86_400,
 				unit: 'seconds'
 			},
 			{
@@ -138,7 +138,7 @@ export const settingsGroups: SettingGroup[] = [
 				type: 'number',
 				category: 'private',
 				min: 1,
-				max: 86400,
+				max: 86_400,
 				unit: 'seconds'
 			},
 			{
@@ -148,7 +148,7 @@ export const settingsGroups: SettingGroup[] = [
 				type: 'number',
 				category: 'private',
 				min: 1,
-				max: 86400,
+				max: 86_400,
 				unit: 'seconds'
 			},
 			{
@@ -158,7 +158,7 @@ export const settingsGroups: SettingGroup[] = [
 				type: 'number',
 				category: 'private',
 				min: 1,
-				max: 86400,
+				max: 86_400,
 				unit: 'seconds'
 			}
 		]
@@ -202,7 +202,7 @@ export const settingsGroups: SettingGroup[] = [
 				category: 'private',
 				required: true,
 				min: 1,
-				max: 65535,
+				max: 65_535,
 				placeholder: '27017'
 			},
 			{
@@ -246,7 +246,7 @@ export const settingsGroups: SettingGroup[] = [
 				type: 'number',
 				category: 'private',
 				min: 100,
-				max: 10000,
+				max: 10_000,
 				unit: 'ms',
 				placeholder: '2000'
 			},
@@ -294,7 +294,7 @@ export const settingsGroups: SettingGroup[] = [
 				type: 'number',
 				category: 'private',
 				min: 1,
-				max: 65535,
+				max: 65_535,
 				placeholder: '6379'
 			},
 			{
@@ -331,7 +331,7 @@ export const settingsGroups: SettingGroup[] = [
 				type: 'number',
 				category: 'private',
 				min: 1,
-				max: 65535,
+				max: 65_535,
 				placeholder: '587'
 			},
 			{
@@ -509,7 +509,7 @@ export const settingsGroups: SettingGroup[] = [
 				type: 'number',
 				category: 'public',
 				min: 1024,
-				max: 1073741824,
+				max: 1_073_741_824,
 				unit: 'bytes',
 				placeholder: '10485760'
 			},
@@ -520,7 +520,7 @@ export const settingsGroups: SettingGroup[] = [
 				type: 'number',
 				category: 'public',
 				min: 1024,
-				max: 1073741824,
+				max: 1_073_741_824,
 				unit: 'bytes',
 				placeholder: '10485760'
 			},
@@ -740,7 +740,7 @@ export const settingsGroups: SettingGroup[] = [
 				type: 'number',
 				category: 'public',
 				min: 1024,
-				max: 104857600,
+				max: 104_857_600,
 				unit: 'bytes',
 				placeholder: '10485760'
 			}

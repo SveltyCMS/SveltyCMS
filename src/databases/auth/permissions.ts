@@ -8,17 +8,16 @@
 
 // System Logger
 import { logger } from '@utils/logger';
-
-// Auth
-import type { User, Permission, Role } from './types';
 import { corePermissions } from './corePermissions';
+// Auth
+import type { Permission, Role, User } from './types';
 
 export interface PermissionConfig {
-	contextId: string;
-	name: string;
 	action: string;
+	contextId: string;
 	contextType: string;
 	description: string;
+	name: string;
 }
 
 // Permission registry for dynamic permissions
@@ -116,7 +115,9 @@ export function hasPermissionByAction(user: User, action: string, type: string, 
 	}
 
 	const userRole = roles.find((role) => role._id === user.role);
-	if (!userRole) return false;
+	if (!userRole) {
+		return false;
+	}
 
 	// ADMIN OVERRIDE: Admins automatically have ALL permissions
 	if (userRole.isAdmin) {
@@ -129,7 +130,9 @@ export function hasPermissionByAction(user: User, action: string, type: string, 
 		(p) => p.action === action && p.type === type && (!contextId || p.contextId === contextId)
 	);
 
-	if (!permission) return false;
+	if (!permission) {
+		return false;
+	}
 
 	return userRole.permissions.includes(permission._id);
 }

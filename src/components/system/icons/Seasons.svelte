@@ -22,17 +22,14 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 -->
 
 <script lang="ts">
-	// Svelte 5 reactive Date
-	import { SvelteDate } from 'svelte/reactivity';
-
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
-
-	// Confetti effect
-	import { Confetti } from 'svelte-confetti';
-
 	// Settings helper
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
+	// Svelte 5 reactive Date
+	import { SvelteDate } from 'svelte/reactivity';
+	// Confetti effect
+	import { Confetti } from 'svelte-confetti';
 
 	// =====================================================================
 	// LUNAR PHASE CALCULATIONS (Meeus Algorithm - Simplified)
@@ -47,13 +44,13 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 		const T = k / 1236.85;
 
 		// New moon time (simplified Meeus formula)
-		const JDE = 2451550.09766 + 29.530588861 * k + 0.00015437 * T * T - 0.00000015 * T * T * T + 0.00000000073 * T * T * T * T;
+		const JDE = 2_451_550.097_66 + 29.530_588_861 * k + 0.000_154_37 * T * T - 0.000_000_15 * T * T * T + 0.000_000_000_73 * T * T * T * T;
 
 		// Convert back to Gregorian date
 		const jd = Math.floor(JDE + 0.5);
-		const a = jd + 32044;
-		const b = Math.floor((4 * a + 3) / 146097);
-		const c = a - Math.floor((146097 * b) / 4);
+		const a = jd + 32_044;
+		const b = Math.floor((4 * a + 3) / 146_097);
+		const c = a - Math.floor((146_097 * b) / 4);
 		const d = Math.floor((4 * c + 3) / 1461);
 		const e = c - Math.floor((1461 * d) / 4);
 		const m = Math.floor((5 * e + 2) / 153);
@@ -304,12 +301,12 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 
 		{#if isHalloween}
 			<!-- Halloween -->
-			<img src="/seasons/Halloween.avif" alt="Spider" class="absolute -bottom-[200px] left-1/2 -translate-x-1/2 -translate-y-1/2" />
+			<img src="/seasons/Halloween.avif" alt="Spider" class="absolute -bottom-[200px] left-1/2 -translate-x-1/2 -translate-y-1/2">
 		{/if}
 
 		{#if isChristmas}
 			<!-- Christmas -->
-			<img src="/seasons/SantaHat.avif" alt="Santa hat" class="absolute -right-[105px] -top-14 h-20 w-20 -translate-x-1/2 -translate-y-1/2" />
+			<img src="/seasons/SantaHat.avif" alt="Santa hat" class="absolute -right-[105px] -top-14 h-20 w-20 -translate-x-1/2 -translate-y-1/2">
 		{/if}
 	{/if}
 
@@ -320,9 +317,7 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 				<iconify-icon icon="noto:lantern" width="40" class="absolute -left-[60px] -top-[20px] text-red-600"></iconify-icon>
 				<iconify-icon icon="noto:dragon-face" width="40" class="absolute -right-[60px] -top-[20px]"></iconify-icon>
 			</div>
-			<p class="absolute left-[-40px] top-[-50px] justify-center whitespace-nowrap text-2xl font-bold text-red-600">
-				{m.login_new_year()}
-			</p>
+			<p class="absolute left-[-40px] top-[-50px] justify-center whitespace-nowrap text-2xl font-bold text-red-600">{m.login_new_year()}</p>
 		{/if}
 
 		{#if isCherryBlossom}

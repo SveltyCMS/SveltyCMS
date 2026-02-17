@@ -23,12 +23,12 @@ A lightweight renderer for the DateRange widget. Formats a `{ start, end }` valu
 -->
 
 <script lang="ts">
-	import type { DateRangeWidgetData } from './';
 	import { logger } from '@utils/logger';
+	import type { DateRangeWidgetData } from './';
 
 	interface Props {
-		value: DateRangeWidgetData | null | undefined;
 		format?: 'short' | 'medium' | 'long' | 'full';
+		value: DateRangeWidgetData | null | undefined;
 	}
 
 	const { value, format = 'medium' }: Props = $props();
@@ -40,7 +40,7 @@ A lightweight renderer for the DateRange widget. Formats a `{ start, end }` valu
 	 * Format the date range string
 	 */
 	const formattedRange = $derived.by(() => {
-		if (!value?.start || !value?.end) return '–';
+		if (!(value?.start && value?.end)) return '–';
 
 		try {
 			const start = new Date(value.start);
@@ -75,7 +75,7 @@ A lightweight renderer for the DateRange widget. Formats a `{ start, end }` valu
 	 * Calculate duration for additional context
 	 */
 	const duration = $derived.by(() => {
-		if (!value?.start || !value?.end) return null;
+		if (!(value?.start && value?.end)) return null;
 
 		try {
 			const start = new Date(value.start);
@@ -104,7 +104,7 @@ A lightweight renderer for the DateRange widget. Formats a `{ start, end }` valu
 	 * Determine temporal context (Current / Past / Future)
 	 */
 	const relativeContext = $derived.by(() => {
-		if (!value?.start || !value?.end) return null;
+		if (!(value?.start && value?.end)) return null;
 
 		try {
 			const now = new Date();
@@ -138,7 +138,7 @@ A lightweight renderer for the DateRange widget. Formats a `{ start, end }` valu
 	 * Get tooltip text
 	 */
 	const tooltipText = $derived.by(() => {
-		if (!value?.start || !value?.end) return undefined;
+		if (!(value?.start && value?.end)) return undefined;
 		try {
 			const start = new Date(value.start).toISOString();
 			const end = new Date(value.end).toISOString();
@@ -152,13 +152,9 @@ A lightweight renderer for the DateRange widget. Formats a `{ start, end }` valu
 <span class="inline-flex items-center font-medium text-gray-900 dark:text-gray-100" title={tooltipText}>
 	<span>{formattedRange}</span>
 	{#if duration}
-		<span class="ml-2 text-sm font-normal text-gray-500 dark:text-gray-400" aria-label="Duration: {duration}">
-			({duration})
-		</span>
+		<span class="ml-2 text-sm font-normal text-gray-500 dark:text-gray-400" aria-label="Duration: {duration}"> ({duration}) </span>
 	{/if}
 	{#if relativeContext}
-		<span class={contextClasses} aria-label="Time context: {relativeContext}">
-			{relativeContext}
-		</span>
+		<span class={contextClasses} aria-label="Time context: {relativeContext}"> {relativeContext} </span>
 	{/if}
 </span>

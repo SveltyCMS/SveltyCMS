@@ -9,11 +9,11 @@
  * - Tracking active widgets and their dependencies.
  */
 
-import { logger } from '@utils/logger';
-import type { DatabaseAdapter } from '@src/databases/dbInterface';
-import type { WidgetFactory, WidgetDefinition } from '@src/widgets/types';
-import { coreModules, customModules } from '@src/widgets/scanner';
 import type { FieldInstance } from '@src/content/types';
+import type { DatabaseAdapter } from '@src/databases/dbInterface';
+import { coreModules, customModules } from '@src/widgets/scanner';
+import type { WidgetDefinition, WidgetFactory } from '@src/widgets/types';
+import { logger } from '@utils/logger';
 
 export type WidgetStatus = 'active' | 'inactive';
 
@@ -36,10 +36,6 @@ class WidgetState {
 	loading = $state(false);
 	healthStatus = $state<'healthy' | 'unhealthy' | 'initializing'>('initializing');
 	lastHealthCheck = $state<number | undefined>(undefined);
-
-	constructor() {
-		// Initialize empty state
-	}
 
 	async initialize(tenantId = 'default', dbAdapter?: DatabaseAdapter | null) {
 		if (this.loading) {
@@ -68,11 +64,15 @@ class WidgetState {
 			// Process core widgets
 			for (const [path, module] of Object.entries(coreModules)) {
 				const name = path.split('/').at(-2);
-				if (!name) continue;
+				if (!name) {
+					continue;
+				}
 
 				try {
 					const fn = (module as { default: WidgetFactory }).default;
-					if (typeof fn !== 'function') continue;
+					if (typeof fn !== 'function') {
+						continue;
+					}
 
 					const widgetName = fn.Name || name;
 					fn.Name = widgetName;
@@ -97,11 +97,15 @@ class WidgetState {
 			// Process custom widgets
 			for (const [path, module] of Object.entries(customModules)) {
 				const name = path.split('/').at(-2);
-				if (!name) continue;
+				if (!name) {
+					continue;
+				}
 
 				try {
 					const fn = (module as { default: WidgetFactory }).default;
-					if (typeof fn !== 'function') continue;
+					if (typeof fn !== 'function') {
+						continue;
+					}
 
 					const widgetName = fn.Name || name;
 					fn.Name = widgetName;
@@ -137,7 +141,7 @@ class WidgetState {
 				}
 			} else if (typeof window !== 'undefined') {
 				// Fallback to API if adapter not passed (client-side)
-				const res = await fetch(`/api/widgets/active${!this.isLoaded ? '?refresh=true' : ''}`, {
+				const res = await fetch(`/api/widgets/active${this.isLoaded ? '' : '?refresh=true'}`, {
 					headers: { 'X-Tenant-ID': tenantId }
 				});
 				if (res.ok) {
@@ -149,11 +153,17 @@ class WidgetState {
 			// Normalize and merge core
 			const normalizedActive = activeWidgetNames
 				.map((name) => {
-					if (this.widgetFunctions[name]) return name;
+					if (this.widgetFunctions[name]) {
+						return name;
+					}
 					const camelCase = name.charAt(0).toLowerCase() + name.slice(1);
-					if (this.widgetFunctions[camelCase]) return camelCase;
+					if (this.widgetFunctions[camelCase]) {
+						return camelCase;
+					}
 					const lowerCase = name.toLowerCase();
-					if (this.widgetFunctions[lowerCase]) return lowerCase;
+					if (this.widgetFunctions[lowerCase]) {
+						return lowerCase;
+					}
 					return null;
 				})
 				.filter((name): name is string => name !== null);
@@ -189,9 +199,11 @@ class WidgetState {
 		const targetTenant = tenantId || this.tenantId;
 		const active = status === 'active';
 
-		if (active && isWidgetCore(name)) return; // Core always active
+		if (active && isWidgetCore(name)) {
+			return; // Core always active
+		}
 
-		if (!active && !canDisableWidget(name)) {
+		if (!(active || canDisableWidget(name))) {
 			throw new Error(`Cannot disable widget ${name}: other widgets depend on it`);
 		}
 
@@ -225,7 +237,9 @@ class WidgetState {
 
 	async updateConfig(name: string, config: Record<string, unknown>) {
 		const currentFn = this.widgetFunctions[name];
-		if (!currentFn || typeof currentFn !== 'function') return;
+		if (!currentFn || typeof currentFn !== 'function') {
+			return;
+		}
 
 		const updatedFn = Object.assign((cfg: Record<string, unknown>) => (currentFn as any)({ ...config, ...cfg }), currentFn);
 
@@ -245,7 +259,9 @@ class WidgetState {
 				headers: { 'Content-Type': 'application/json', 'X-Tenant-ID': tenantId },
 				body: JSON.stringify({ widgetName: name, isActive: active })
 			});
-			if (!res.ok) throw new Error('Database sync failed');
+			if (!res.ok) {
+				throw new Error('Database sync failed');
+			}
 		}
 	}
 }
@@ -283,7 +299,9 @@ export function getWidgetDependencies(name: string): string[] {
 }
 
 export function canDisableWidget(name: string): boolean {
-	if (isWidgetCore(name)) return false;
+	if (isWidgetCore(name)) {
+		return false;
+	}
 	const dependents = Object.entries(widgets.dependencyMap)
 		.filter(([, deps]) => deps.includes(name))
 		.map(([n]) => n);

@@ -17,12 +17,11 @@
  */
 
 import type { Theme } from '@src/databases/dbInterface';
-import type { Model } from 'mongoose';
-import mongoose, { Schema } from 'mongoose';
 import { nowISODateString, toISOString } from '@utils/dateUtils';
-
 // System Logger
 import { logger } from '@utils/logger';
+import type { Model } from 'mongoose';
+import mongoose, { Schema } from 'mongoose';
 
 // Theme schema
 export const themeSchema = new Schema<Theme>(
@@ -91,7 +90,9 @@ themeSchema.statics = {
 
 	// Store themes (bulk upsert) - Optimized with bulkWrite for atomic operation
 	async storeThemes(themes: Omit<Theme, '_id' | 'createdAt' | 'updatedAt'>[], generateId: () => string): Promise<void> {
-		if (themes.length === 0) return;
+		if (themes.length === 0) {
+			return;
+		}
 
 		try {
 			// Build bulk operations: upsert each theme by name

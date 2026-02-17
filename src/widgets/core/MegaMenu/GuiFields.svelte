@@ -102,7 +102,8 @@ Interactive level configuration with add/remove level capabilities
 						<label class="block text-sm font-medium text-surface-700 dark:text-surface-200" for={'widget-builder-' + levelIndex}>
 							Fields for Level {levelIndex + 1}
 							<span class="field-count font-normal text-surface-500 dark:text-surface-50"
-								>({levelFields.length} field{levelFields.length !== 1 ? 's' : ''})</span
+								>({levelFields.length}
+								field{levelFields.length !== 1 ? 's' : ''})</span
 							>
 						</label>
 

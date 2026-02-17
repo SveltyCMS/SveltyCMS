@@ -5,16 +5,16 @@
 
 export interface Adjustments {
 	brightness: number;
+	clarity: number;
 	contrast: number;
-	saturation: number;
-	temperature: number;
 	exposure: number;
 	highlights: number;
+	saturation: number;
 	shadows: number;
-	clarity: number;
-	vibrance: number;
-	tint?: number; // Green/Magenta
 	sharpness?: number;
+	temperature: number;
+	tint?: number; // Green/Magenta
+	vibrance: number;
 }
 
 export const DEFAULT_ADJUSTMENTS: Adjustments = {
@@ -32,14 +32,14 @@ export const DEFAULT_ADJUSTMENTS: Adjustments = {
 };
 
 export interface AdjustmentConfig {
-	key: keyof Adjustments;
-	label: string;
-	icon: string;
-	min: number;
-	max: number;
-	step: number;
 	category: 'basic' | 'tone' | 'color' | 'detail';
 	description?: string;
+	icon: string;
+	key: keyof Adjustments;
+	label: string;
+	max: number;
+	min: number;
+	step: number;
 }
 
 export const ADJUSTMENT_CONFIGS: AdjustmentConfig[] = [
@@ -164,10 +164,10 @@ export const ADJUSTMENT_CONFIGS: AdjustmentConfig[] = [
 
 // Filter presets
 export interface FilterPreset {
-	name: string;
-	icon: string;
-	description: string;
 	adjustments: Partial<Adjustments>;
+	description: string;
+	icon: string;
+	name: string;
 }
 
 export const FILTER_PRESETS: FilterPreset[] = [
@@ -280,7 +280,9 @@ export function getAdjustmentsByCategory(category: AdjustmentConfig['category'])
  */
 export function clampAdjustment(key: keyof Adjustments, value: number): number {
 	const config = getAdjustmentConfig(key);
-	if (!config) return value;
+	if (!config) {
+		return value;
+	}
 	return Math.max(config.min, Math.min(config.max, value));
 }
 

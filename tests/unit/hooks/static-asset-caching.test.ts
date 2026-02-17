@@ -4,7 +4,7 @@
  * Verifies aggressive caching policies for immutable assets.
  */
 
-import { describe, it, expect, beforeEach, mock } from 'bun:test';
+import { beforeEach, describe, expect, it, mock } from 'bun:test';
 import { handleStaticAssetCaching, isStaticAsset, STATIC_ASSET_REGEX } from '@src/hooks/handleStaticAssetCaching';
 import type { RequestEvent } from '@sveltejs/kit';
 

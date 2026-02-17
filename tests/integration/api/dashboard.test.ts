@@ -2,7 +2,7 @@
  * @file tests/bun/api/dashboard.test.ts
  * @description Integration tests for dashboard API endpoints
  *
- * * TESTED ENDPOINTS (9 total):
+ * TESTED ENDPOINTS (9 total):
  * ============================
  * - GET /api/dashboard/health - System health check
  * - GET /api/dashboard/metrics - Performance metrics
@@ -15,14 +15,14 @@
  * - GET /api/dashboard/cache-metrics - Cache performance metrics
  */
 
-import { describe, test, expect, beforeAll } from 'bun:test';
-import { prepareAuthenticatedContext } from '../helpers/testSetup';
+import { beforeAll, describe, expect, test } from 'bun:test';
 import { BASE_URL } from '../helpers/server';
+import { prepareAuthenticatedContext } from '../helpers/testSetup';
 
 let authCookie: string;
 
 beforeAll(async () => {
-	console.log(`\n🔍 Dashboard API Integration Tests`);
+	console.log('\n🔍 Dashboard API Integration Tests');
 	console.log(`📍 Testing against: ${BASE_URL}`);
 
 	// Use shared helper to prepare authenticated context

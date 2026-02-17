@@ -3,23 +3,23 @@
  * @description API endpoint for individual system virtual folder operations
  */
 
-import { error, json } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
-import { getPrivateSettingSync } from '@src/services/settingsService';
-import { dbAdapter } from '@src/databases/db';
-import { logger } from '@utils/logger.server';
-import type { SystemVirtualFolder } from '@src/databases/dbInterface';
-import { constructMediaUrl } from '@utils/media/mediaUtils';
 import type { ISODateString } from '@src/content/types';
+import { dbAdapter } from '@src/databases/db';
+import type { SystemVirtualFolder } from '@src/databases/dbInterface';
+import { getPrivateSettingSync } from '@src/services/settingsService';
+import { error, json } from '@sveltejs/kit';
+import { logger } from '@utils/logger.server';
+import { constructMediaUrl } from '@utils/media/mediaUtils';
+import type { RequestHandler } from './$types';
 
-type MediaDoc = {
+interface MediaDoc {
 	_id?: string;
 	filename?: string;
-	virtualFolderId?: string | null;
-	thumbnailWidth?: number;
 	thumbnailHeight?: number;
+	thumbnailWidth?: number;
+	virtualFolderId?: string | null;
 	[key: string]: unknown;
-};
+}
 
 // GET /api/systemVirtualFolder/[id] - Fetches contents of a specific virtual folder
 export const GET: RequestHandler = async ({ params, locals }) => {
@@ -162,7 +162,7 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 
 		// Get the current folder to update its path
 		const currentResult = await dbAdapter.systemVirtualFolder.getById(id as any);
-		if (!currentResult.success || !currentResult.data) {
+		if (!(currentResult.success && currentResult.data)) {
 			throw error(404, 'Folder not found');
 		}
 
@@ -244,7 +244,7 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
 			throw error(500, result.error?.message || 'Failed to delete folder');
 		}
 
-		logger.info(`Deleted system virtual folder`, { tenantId, folderId: id });
+		logger.info('Deleted system virtual folder', { tenantId, folderId: id });
 
 		return json({
 			success: true

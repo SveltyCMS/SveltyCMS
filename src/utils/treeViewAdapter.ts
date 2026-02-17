@@ -9,25 +9,25 @@
 import type { ContentNode } from '@databases/dbInterface';
 
 export interface TreeViewItem extends Record<string, any> {
-	id: string;
-	name: string;
-	parent: string | null;
-	// children is NOT part of the flat item structure for TreeView
-	// element references are handled by TreeView via path/id
-	nodeType: 'category' | 'collection';
-	icon?: string;
-	path: string;
-	order?: number;
 	_id?: any; // Preserve original ID reference
+	icon?: string;
+	id: string;
 	// Drag-and-drop control
 	isDraggable?: boolean;
 	isDropAllowed?: boolean;
+	name: string;
+	// children is NOT part of the flat item structure for TreeView
+	// element references are handled by TreeView via path/id
+	nodeType: 'category' | 'collection';
+	order?: number;
+	parent: string | null;
+	path: string;
 }
 
 /**
  * Flattens a recursive ContentNode structure into a flat array for svelte-treeview
  */
-export function toTreeViewData(nodes: ContentNode[], parentPath: string = ''): TreeViewItem[] {
+export function toTreeViewData(nodes: ContentNode[], parentPath = ''): TreeViewItem[] {
 	let result: TreeViewItem[] = [];
 
 	for (const node of nodes) {
@@ -48,7 +48,7 @@ export function toTreeViewData(nodes: ContentNode[], parentPath: string = ''): T
 			name: n.name || 'Untitled',
 			nodeType: n.type || n.nodeType || 'collection',
 			icon: n.icon,
-			path: path,
+			path,
 			parent: parentPath ? parentPath.split('.').pop() || null : null,
 			// Enable drag-and-drop for all items
 			isDraggable: true,
@@ -86,9 +86,9 @@ export function fromTreeViewData(flatItems: TreeViewItem[]): ContentNode[] {
 		};
 
 		// delete internal tree props if they leaked
-		delete node.path;
-		delete node.parent;
-		delete node.text;
+		node.path = undefined;
+		node.parent = undefined;
+		node.text = undefined;
 
 		nodeMap.set(String(item.id), node as ContentNode);
 	}
@@ -96,16 +96,18 @@ export function fromTreeViewData(flatItems: TreeViewItem[]): ContentNode[] {
 	// Build hierarchy
 	for (const item of flatItems) {
 		const node = nodeMap.get(String(item.id));
-		if (!node) continue;
+		if (!node) {
+			continue;
+		}
 
-		if (item.path && item.path.includes('.')) {
+		if (item.path?.includes('.')) {
 			const segments = item.path.split('.');
 			segments.pop(); // remove self
 			const parentId = segments.pop(); // get parent id
 
 			if (parentId) {
 				const parent = nodeMap.get(parentId);
-				if (parent && parent.children) {
+				if (parent?.children) {
 					parent.children.push(node);
 				} else {
 					roots.push(node);
@@ -134,7 +136,7 @@ export function toFlatContentNodes(flatItems: TreeViewItem[]): ContentNode[] {
 		if (!siblingGroups.has(parentKey)) {
 			siblingGroups.set(parentKey, []);
 		}
-		siblingGroups.get(parentKey)!.push(item);
+		siblingGroups.get(parentKey)?.push(item);
 	}
 
 	// Sort each sibling group by their path order (lexicographic within same level)
@@ -144,7 +146,7 @@ export function toFlatContentNodes(flatItems: TreeViewItem[]): ContentNode[] {
 			const aSegments = a.path.split('.');
 			const bSegments = b.path.split('.');
 			// Compare the last segment (their position at this level)
-			return aSegments[aSegments.length - 1].localeCompare(bSegments[bSegments.length - 1]);
+			return aSegments.at(-1).localeCompare(bSegments.at(-1));
 		});
 	}
 
@@ -159,7 +161,7 @@ export function toFlatContentNodes(flatItems: TreeViewItem[]): ContentNode[] {
 	return flatItems.map((item) => {
 		// Extract parentId from path (second-to-last segment)
 		let parentId: string | undefined;
-		if (item.path && item.path.includes('.')) {
+		if (item.path?.includes('.')) {
 			const segments = item.path.split('.');
 			segments.pop(); // Remove self
 			parentId = segments.pop(); // Get parent id
@@ -169,7 +171,7 @@ export function toFlatContentNodes(flatItems: TreeViewItem[]): ContentNode[] {
 			...item,
 			_id: item._id || item.id,
 			id: undefined, // ContentNode uses _id
-			parentId: parentId,
+			parentId,
 			name: item.name,
 			icon: item.icon,
 			nodeType: item.nodeType,
@@ -205,7 +207,7 @@ export function recalculatePaths(items: TreeViewItem[]): TreeViewItem[] {
 		if (!childrenByParent.has(parentKey)) {
 			childrenByParent.set(parentKey, []);
 		}
-		childrenByParent.get(parentKey)!.push(itemMap.get(item.id)!);
+		childrenByParent.get(parentKey)?.push(itemMap.get(item.id)!);
 	}
 
 	// Sort children within each parent group by their original order
@@ -217,7 +219,9 @@ export function recalculatePaths(items: TreeViewItem[]): TreeViewItem[] {
 	function assignPaths(parentId: string | null, parentPath: string): void {
 		const key = parentId || '__root__';
 		const children = childrenByParent.get(key);
-		if (!children) return;
+		if (!children) {
+			return;
+		}
 
 		children.forEach((child, index) => {
 			const newPath = parentPath ? `${parentPath}.${child.id}` : child.id;

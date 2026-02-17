@@ -28,23 +28,20 @@ Interactive form with map, country selector, and address validation
 -->
 
 <script lang="ts">
+	import { importLibrary, setOptions } from '@googlemaps/js-api-loader';
+	import { tokenTarget } from '@src/services/token/tokenTarget';
+	import { publicEnv } from '@src/stores/globalSettings.svelte';
 	/* global google */
 	import { app, validationStore } from '@src/stores/store.svelte';
-	import { onMount } from 'svelte';
-	import type { FieldType } from './';
-	import type { AddressData } from './types';
-	import { tokenTarget } from '@src/services/token/tokenTarget';
-	import { countryStore } from './countryStore.svelte';
-	import { publicEnv } from '@src/stores/globalSettings.svelte';
 	import { getFieldName } from '@utils/utils';
-
-	// Valibot validation
-	import { string, pipe, parse, minLength, optional, object } from 'valibot';
-
 	// Unified error handling
 	import { handleWidgetValidation } from '@widgets/widgetErrorHandler';
-
-	import { setOptions, importLibrary } from '@googlemaps/js-api-loader';
+	import { onMount } from 'svelte';
+	// Valibot validation
+	import { minLength, object, optional, parse, pipe, string } from 'valibot';
+	import type { FieldType } from './';
+	import { countryStore } from './countryStore.svelte';
+	import type { AddressData } from './types';
 
 	// Define google namespace for TypeScript if not globally available
 	/// <reference types="google.maps" />
@@ -127,7 +124,7 @@ Interactive form with map, country selector, and address validation
 	);
 
 	function validateAddress(addressData: AddressData | undefined) {
-		if (!addressData && !field?.required) {
+		if (!(addressData || field?.required)) {
 			validationStore.clearError(fieldName);
 			return;
 		}
@@ -282,7 +279,7 @@ Interactive form with map, country selector, and address validation
 
 				autocomplete.addListener('place_changed', () => {
 					const place = autocomplete?.getPlace();
-					if (!place || !place.geometry || !place.geometry.location) return;
+					if (!(place && place.geometry && place.geometry.location)) return;
 
 					// Fill Form
 					fillInAddress(place);
@@ -374,7 +371,7 @@ Interactive form with map, country selector, and address validation
 						label: field.label,
 						collection: (field as any).collection
 					}}
-				/>
+				>
 			</div>
 
 			<div class="field">
@@ -385,7 +382,7 @@ Interactive form with map, country selector, and address validation
 					value={safeValue.houseNumber}
 					oninput={(e) => updateAddressField('houseNumber', e.currentTarget.value)}
 					class="input"
-				/>
+				>
 			</div>
 			<div class="field">
 				<label for="{field.db_fieldName}-postalCode">Postal Code</label>
@@ -395,7 +392,7 @@ Interactive form with map, country selector, and address validation
 					value={safeValue.postalCode}
 					oninput={(e) => updateAddressField('postalCode', e.currentTarget.value)}
 					class="input"
-				/>
+				>
 			</div>
 			<div class="field">
 				<label for="{field.db_fieldName}-city">City</label>
@@ -405,13 +402,13 @@ Interactive form with map, country selector, and address validation
 					value={safeValue.city}
 					oninput={(e) => updateAddressField('city', e.currentTarget.value)}
 					class="input"
-				/>
+				>
 			</div>
 			<div class="field">
 				<label for="{field.db_fieldName}-country">Country</label>
 
 				<!-- Country Search Filter -->
-				<input type="text" bind:value={countrySearch} placeholder="Search countries..." class="input mb-2 text-sm" />
+				<input type="text" bind:value={countrySearch} placeholder="Search countries..." class="input mb-2 text-sm">
 
 				<select
 					id="{field.db_fieldName}-country"
@@ -421,9 +418,7 @@ Interactive form with map, country selector, and address validation
 				>
 					<option value="" disabled>Select a country</option>
 					{#each filteredCountries as country (country.alpha2)}
-						<option value={country.alpha2}>
-							{countryStore.getCountryName(country.alpha2, _uiLanguage)}
-						</option>
+						<option value={country.alpha2}>{countryStore.getCountryName(country.alpha2, _uiLanguage)}</option>
 					{/each}
 				</select>
 			</div>

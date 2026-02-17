@@ -3,7 +3,7 @@
  * @description Unit tests for the custom rune-based ToasterStore
  */
 
-import { describe, it, expect, beforeEach } from 'bun:test';
+import { beforeEach, describe, expect, it } from 'bun:test';
 import { toaster } from '@src/stores/toaster.svelte';
 
 describe('ToasterStore', () => {

@@ -11,14 +11,15 @@
  * - Fail silently - telemetry should never break the app
  * - Uses Hashed Secret for Unique ID (Never sends raw secret)
  */
-import { building, dev } from '$app/environment';
-import { getPrivateEnv } from '@src/databases/db';
-import { getPrivateSetting } from '@src/services/settingsService';
-import pkg from '../../package.json';
+
 import { createHash } from 'node:crypto';
 import os from 'node:os'; // Added for server metrics
+import { getPrivateEnv } from '@src/databases/db';
+import { getPrivateSetting } from '@src/services/settingsService';
 import { getWidgetsByType } from '@src/widgets/proxy';
 import { logger } from '@utils/logger';
+import { building, dev } from '$app/environment';
+import pkg from '../../package.json';
 
 // In-memory cache for update checks, backed by globalThis to survive HMR in dev
 const globalWithCache = globalThis as typeof globalThis & {
@@ -169,7 +170,9 @@ export const telemetryService = {
 					if (dbAdapter.auth) {
 						// Single Tenant / Global (or SQLite promiscuous)
 						const userCountResult = await dbAdapter.auth.getUserCount();
-						if (userCountResult.success) userCount = userCountResult.data;
+						if (userCountResult.success) {
+							userCount = userCountResult.data;
+						}
 						roleCount = (await dbAdapter.auth.getAllRoles()).length;
 					}
 
@@ -239,14 +242,12 @@ export const telemetryService = {
 						'User-Agent': 'SveltyCMS-Telemetry/1.0'
 					},
 					body: JSON.stringify(payload),
-					signal: AbortSignal.timeout(10000)
+					signal: AbortSignal.timeout(10_000)
 				});
 
 				if (response.status === 429) {
 					cachedUpdateInfo = { status: 'rate_limited', latest: pkg.version, security_issue: false };
-				} else if (!response.ok) {
-					throw new Error(`Update server unreachable: ${response.status}`);
-				} else {
+				} else if (response.ok) {
 					const data = await response.json();
 					cachedUpdateInfo = {
 						status: 'active',
@@ -255,6 +256,8 @@ export const telemetryService = {
 						message: data.message,
 						telemetry_id: data.telemetry_id
 					};
+				} else {
+					throw new Error(`Update server unreachable: ${response.status}`);
 				}
 
 				lastCheckTime = Date.now();

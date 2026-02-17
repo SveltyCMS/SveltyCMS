@@ -5,19 +5,18 @@
 -->
 
 <script lang="ts">
-	import { dev } from '$app/environment';
-	import { publicEnv } from '@src/stores/globalSettings.svelte';
-
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
+	import { publicEnv } from '@src/stores/globalSettings.svelte';
 	import { app } from '@stores/store.svelte';
 	// better-svelte-email
 	import { Body, Container, Head, Heading, Hr, Html, Img, Link, Preview, Section, Text } from 'better-svelte-email';
+	import { dev } from '$app/environment';
 
 	interface Props {
-		username?: string;
-		tokenLink?: string;
 		languageTag?: string;
+		tokenLink?: string;
+		username?: string;
 	}
 
 	const { username = '', languageTag = app.systemLanguage }: Props = $props();
@@ -58,9 +57,7 @@
 					<Text><center>Your account security has been updated.</center></Text>
 				</Section>
 
-				<Text style="font-size: 16px;">
-					{m.updatedpassword_hello({ username })}
-				</Text>
+				<Text style="font-size: 16px;">{m.updatedpassword_hello({ username })}</Text>
 
 				<Text style="font-size: 16px;">
 					You have successfully changed your password for <strong>Svelty<span style="color:#22c55e;font-weight:bold;">CMS</span></strong>.
@@ -74,9 +71,7 @@
 					</Text>
 				</Section>
 
-				<Text style="font-size: 16px;">
-					{m.updatedpassword_contact()}
-				</Text>
+				<Text style="font-size: 16px;">{m.updatedpassword_contact()}</Text>
 
 				<Hr></Hr>
 
@@ -84,7 +79,8 @@
 				<Section>
 					<Text style="text-align: center; font-weight: bold; font-size: 16px;">
 						<Link href="https://SveltyCMS.com">
-							Your <span style="color:#111;">Svelty</span><span style="color:#22c55e;font-weight:bold;">CMS</span> team
+							Your <span style="color:#111;">Svelty</span><span style="color:#22c55e;font-weight:bold;">CMS</span>
+							team
 						</Link>
 					</Text>
 				</Section>

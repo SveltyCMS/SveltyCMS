@@ -4,15 +4,15 @@
 Provides DB type, host, port, name, user, password inputs, validation display, test button, and change warning.
 -->
 <script lang="ts">
-	import * as m from '@src/paraglide/messages';
-	import { logger } from '@utils/logger';
-	import type { ValidationErrors } from '@stores/setupStore.svelte';
-	import { safeParse } from 'valibot';
-	import { dbConfigSchema } from '@utils/formSchemas';
 	import SystemTooltip from '@components/system/SystemTooltip.svelte';
-	import { deserialize } from '$app/forms';
-	import { showConfirm } from '@utils/modalUtils';
+	import * as m from '@src/paraglide/messages';
+	import type { ValidationErrors } from '@stores/setupStore.svelte';
 	import { setupStore } from '@stores/setupStore.svelte.ts';
+	import { dbConfigSchema } from '@utils/formSchemas';
+	import { logger } from '@utils/logger';
+	import { showConfirm } from '@utils/modalUtils';
+	import { safeParse } from 'valibot';
+	import { deserialize } from '$app/forms';
 
 	// Popup settings (click to toggle)
 
@@ -222,7 +222,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 		const isAtlas = dbConfig.type === 'mongodb+srv';
 
 		// Smart host selection
-		if (!isAtlas && !dbConfig.host) {
+		if (!(isAtlas || dbConfig.host)) {
 			dbConfig.host = 'localhost';
 		} else if (isAtlas && dbConfig.host === 'localhost') {
 			dbConfig.host = '';
@@ -268,9 +268,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 
 <div class="fade-in">
 	<div class="mb-6 sm:mb-8">
-		<p class="text-center text-sm text-tertiary-500 dark:text-primary-500 sm:text-base">
-			{m.setup_database_intro()}
-		</p>
+		<p class="text-center text-sm text-tertiary-500 dark:text-primary-500 sm:text-base">{m.setup_database_intro()}</p>
 	</div>
 
 	<!-- MongoDB Atlas Helper Message -->
@@ -292,9 +290,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 
 			{#if showAtlasHelper}
 				<div id="atlas-helper-content" class="border-t border-blue-200 p-4 pt-3 text-blue-900 dark:border-blue-500/30 dark:text-blue-200">
-					<p class="text-sm">
-						To connect to MongoDB Atlas, paste your connection string into the <strong>Host</strong> field:
-					</p>
+					<p class="text-sm">To connect to MongoDB Atlas, paste your connection string into the <strong>Host</strong> field:</p>
 					<ul class="mt-2 space-y-1 text-sm">
 						<li class="flex items-start gap-2">
 							<span class="text-tertiary-500 dark:text-primary-500">1.</span>
@@ -344,12 +340,8 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 	{:else if dbConfig.type === 'mysql'}
 		<div class="mb-6 rounded border border-blue-200 bg-blue-50 p-4 text-blue-900 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-200">
 			<p class="font-semibold">{m.setup_db_coming_soon()}</p>
-			<p class="mt-1">
-				{m.setup_db_postgres_mysql_note()}
-			</p>
-			<p class="mt-2">
-				{m.setup_db_postgres_mysql_timeline()}
-			</p>
+			<p class="mt-1">{m.setup_db_postgres_mysql_note()}</p>
+			<p class="mt-2">{m.setup_db_postgres_mysql_timeline()}</p>
 		</div>
 	{/if}
 	<form
@@ -446,8 +438,10 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 					aria-invalid={!!displayErrors.host}
 					aria-describedby={displayErrors.host ? 'db-host-error' : undefined}
 					aria-required="true"
-				/>
-				{#if displayErrors.host}<div id="db-host-error" class="mt-1 text-xs text-error-500" role="alert">{displayErrors.host}</div>{/if}
+				>
+				{#if displayErrors.host}
+					<div id="db-host-error" class="mt-1 text-xs text-error-500" role="alert">{displayErrors.host}</div>
+				{/if}
 				{#if showConnectionStringHelper}
 					<div
 						class="mt-2 rounded-md border border-green-200 bg-green-50 p-3 text-sm text-emerald-800 dark:border-green-500/30 dark:bg-green-500/10 dark:text-green-300"
@@ -459,7 +453,8 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 						</div>
 						<p class="mt-1 text-xs">
 							Hostname, username, and password have been automatically extracted. Please verify the values and replace
-							<code>&lt;db_password&gt;</code> placeholder if needed.
+							<code>&lt;db_password&gt;</code>
+							placeholder if needed.
 						</p>
 					</div>
 				{/if}
@@ -493,8 +488,10 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 						aria-invalid={!!displayErrors.port}
 						aria-describedby={displayErrors.port ? 'db-port-error' : undefined}
 						aria-required="true"
-					/>
-					{#if displayErrors.port}<div id="db-port-error" class="mt-1 text-xs text-error-500" role="alert">{displayErrors.port}</div>{/if}
+					>
+					{#if displayErrors.port}
+						<div id="db-port-error" class="mt-1 text-xs text-error-500" role="alert">{displayErrors.port}</div>
+					{/if}
 				</div>
 			{/if}
 			<div>
@@ -530,8 +527,10 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 					aria-invalid={!!displayErrors.name}
 					aria-describedby={displayErrors.name ? 'db-name-error' : undefined}
 					aria-required="true"
-				/>
-				{#if displayErrors.name}<div id="db-name-error" class="mt-1 text-xs text-error-500" role="alert">{displayErrors.name}</div>{/if}
+				>
+				{#if displayErrors.name}
+					<div id="db-name-error" class="mt-1 text-xs text-error-500" role="alert">{displayErrors.name}</div>
+				{/if}
 			</div>
 			{#if dbConfig.type !== 'sqlite'}
 				<div>
@@ -568,8 +567,10 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 						class="input rounded {displayErrors.user ? 'border-error-500 focus:border-error-500 focus:ring-error-500' : 'border-slate-200'}"
 						aria-invalid={!!displayErrors.user}
 						aria-describedby={displayErrors.user ? 'db-user-error' : undefined}
-					/>
-					{#if displayErrors.user}<div id="db-user-error" class="mt-1 text-xs text-error-500" role="alert">{displayErrors.user}</div>{/if}
+					>
+					{#if displayErrors.user}
+						<div id="db-user-error" class="mt-1 text-xs text-error-500" role="alert">{displayErrors.user}</div>
+					{/if}
 				</div>
 				<div>
 					<label for="db-password" class="mb-1 flex items-center gap-1 text-sm font-medium">
@@ -608,7 +609,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 								: 'border-slate-200'}"
 							aria-invalid={!!displayErrors.password}
 							aria-describedby={displayErrors.password ? 'db-password-error' : undefined}
-						/>
+						>
 						<button
 							type="button"
 							onclick={toggleDbPassword}

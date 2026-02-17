@@ -1,0 +1,107 @@
+---
+path: 'docs/guides/setup-wizard.mdx'
+title: 'Setup Wizard & Presets'
+description: 'Guide to SveltyCMS initial configuration, database connection, and choosing a starter kit (preset).'
+order: 2
+icon: 'mdi:wizard-hat'
+author: 'SveltyCMS Team'
+created: '2026-02-17'
+updated: '2026-02-17'
+tags:
+  - 'guide'
+  - 'setup'
+  - 'presets'
+---
+
+# Setup Wizard Guide
+
+The SveltyCMS Setup Wizard is an interactive installer that runs the first time you launch the application. It guides you through connecting your database, creating an admin account, and selecting a **Solution Preset** to jumpstart your project.
+
+## 🚀 The Setup Process
+
+### 1. Database Configuration
+
+SveltyCMS is database-agnostic. You can choose between:
+
+- **MongoDB** (Recommended for flexibility)
+- **MariaDB / MySQL**
+- **PostgreSQL** (Beta)
+
+Enter your connection string or host details. The wizard will automatically test the connection before proceeding.
+
+### 2. Admin Account
+
+Create your first super-admin user. This user will have full access to all system settings.
+
+### 3. System Settings
+
+Configure basic site details:
+
+- **Site Name**: Displayed in the admin bar.
+- **Language**: Default system and content language.
+
+---
+
+## 📦 Solution Presets (Starter Kits)
+
+Presets are pre-configured collections of schemas, widgets, and settings designed for specific use cases. Selecting a preset copies standard schema files into your `config/collections` directory, saving you hours of setup time.
+
+### Available Presets
+
+#### 1. Blank Project
+
+- **Best for**: Custom builds, experimental projects.
+- **Includes**: Minimal configuration. No collections.
+
+#### 2. Blog / Editorial
+
+- **Best for**: Content-heavy sites, news portals.
+- **Collections**:
+  - `Posts`: Standard article schema with RichText, SEO, and Author relation.
+  - `Categories`: Hierarchical organization.
+  - `Authors`: Contributor profiles.
+
+#### 3. Agency / Portfolio
+
+- **Best for**: Design agencies, freelancers, creative studios.
+- **Collections**:
+  - `Projects`: Portfolio items with gallery and client details.
+  - `Services`: List of offered services.
+  - `Clients`: Client logos and information.
+  - `Testimonials`: Social proof and reviews.
+
+#### 4. SaaS Product
+
+- **Best for**: Software companies, product landing pages.
+- **Collections**:
+  - `Pricing`: Plans managed via the **Price Widget**.
+  - `Features`: Product capability highlights.
+  - `Docs`: Nested documentation structure.
+  - `Changelog`: Product updates.
+
+#### 5. Corporate Site
+
+- **Best for**: Business websites, company profiles.
+- **Collections**:
+  - `Team`: Leadership and staff directory.
+  - `Careers`: Job openings and descriptions.
+  - `Locations`: Office addresses with map coordinates.
+
+#### 6. E-commerce
+
+- **Best for**: Online stores, catalogs.
+- **Collections**:
+  - `Products`: Full catalog with **Repeater** for attributes.
+  - `Orders`: Transaction records.
+  - `Customers`: CRM data.
+  - `Variants`: SKU management.
+
+---
+
+## 🔧 Post-Setup Configuration
+
+After the wizard completes:
+
+1. **Log In**: Use your new admin credentials.
+2. **Review Collections**: Go to the content manager to see your preset collections.
+3. **Customize Schemas**: You can modify any preset collection in `config/collections/*.ts`. They are just starting points!

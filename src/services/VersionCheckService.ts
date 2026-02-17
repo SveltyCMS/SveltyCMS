@@ -3,21 +3,21 @@
  * @description Service for checking application version against remote releases.
  */
 
-import fs from 'fs';
-import path from 'path';
-import { logger } from '@utils/logger.server';
+import fs from 'node:fs';
+import path from 'node:path';
 import { AppError } from '@utils/errorHandling';
+import { logger } from '@utils/logger.server';
 
 export type VersionStatus = 'match' | 'minor' | 'major' | 'error';
 
 export interface VersionCheckResponse {
-	status: VersionStatus;
-	version: string;
+	checkUpdates?: boolean;
 	currentVersion: string;
 	local: string;
-	remote: string | undefined;
 	message?: string;
-	checkUpdates?: boolean;
+	remote: string | undefined;
+	status: VersionStatus;
+	version: string;
 }
 
 export class VersionCheckService {
@@ -64,7 +64,9 @@ export class VersionCheckService {
 			const message = error instanceof Error ? error.message : 'Unknown error';
 			logger.error('Version check failed:', error);
 
-			if (error instanceof AppError) throw error;
+			if (error instanceof AppError) {
+				throw error;
+			}
 
 			return {
 				status: 'error',
@@ -123,8 +125,12 @@ export class VersionCheckService {
 		const bParts = b.split('.').map(Number);
 
 		for (let i = 0; i < 3; i++) {
-			if ((aParts[i] || 0) > (bParts[i] || 0)) return 1;
-			if ((aParts[i] || 0) < (bParts[i] || 0)) return -1;
+			if ((aParts[i] || 0) > (bParts[i] || 0)) {
+				return 1;
+			}
+			if ((aParts[i] || 0) < (bParts[i] || 0)) {
+				return -1;
+			}
 		}
 		return 0;
 	}

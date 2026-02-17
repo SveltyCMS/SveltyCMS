@@ -8,8 +8,8 @@
  *
  */
 
-import { json } from '@sveltejs/kit';
 import { aiService } from '@services/AIService';
+import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ request, locals }) => {

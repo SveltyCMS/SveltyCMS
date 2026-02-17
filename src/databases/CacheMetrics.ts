@@ -10,17 +10,12 @@
  * - Prometheus-compatible export format
  */
 
-import { logger } from '@utils/logger';
 import type { ISODateString } from '@src/content/types';
 import { dateToISODateString } from '@src/utils/dateUtils';
+import { logger } from '@utils/logger';
 
 export interface CacheMetricSnapshot {
-	hits: number;
-	misses: number;
-	hitRate: number;
-	totalRequests: number;
 	avgResponseTime: number;
-	lastReset: ISODateString;
 	byCategory: Record<
 		string,
 		{
@@ -31,15 +26,20 @@ export interface CacheMetricSnapshot {
 		}
 	>;
 	byTenant?: Record<string, { hits: number; misses: number; hitRate: number }>;
+	hitRate: number;
+	hits: number;
+	lastReset: ISODateString;
+	misses: number;
+	totalRequests: number;
 }
 
 export interface CacheEvent {
-	type: 'hit' | 'miss' | 'set' | 'delete' | 'clear';
-	key: string;
 	category: string;
-	tenantId?: string;
+	key: string;
 	responseTime?: number;
+	tenantId?: string;
 	timestamp: ISODateString;
+	type: 'hit' | 'miss' | 'set' | 'delete' | 'clear';
 }
 
 // Tracks cache performance metrics with support for multi-tenant isolation
@@ -51,7 +51,7 @@ export class CacheMetrics {
 	private lastResetTime: ISODateString = dateToISODateString(new Date());
 
 	// Category-based metrics (query, schema, widget, theme, media, content)
-	private categoryMetrics = new Map<
+	private readonly categoryMetrics = new Map<
 		string,
 		{
 			hits: number;
@@ -62,7 +62,7 @@ export class CacheMetrics {
 	>();
 
 	// Tenant-specific metrics for multi-tenant isolation
-	private tenantMetrics = new Map<string, { hits: number; misses: number }>();
+	private readonly tenantMetrics = new Map<string, { hits: number; misses: number }>();
 
 	// Recent events for debugging (keep last 100)
 	private recentEvents: CacheEvent[] = [];

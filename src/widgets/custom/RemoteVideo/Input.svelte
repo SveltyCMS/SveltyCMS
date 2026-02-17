@@ -28,22 +28,17 @@ Part of the Three Pillars Architecture for widget system.
 -->
 
 <script lang="ts">
-	import type { FieldType } from './';
-	import { logger } from '@utils/logger';
-	import type { RemoteVideoData } from './types';
-
-	import { debounce } from '@utils/utils';
-
-	import { app, validationStore } from '@src/stores/store.svelte';
-	import { publicEnv } from '@src/stores/globalSettings.svelte';
 	import SystemTooltip from '@components/system/SystemTooltip.svelte';
-	import { getFieldName } from '@utils/utils';
-
-	// Valibot validation
-	import { string, url, pipe, parse, custom, optional } from 'valibot';
-
+	import { publicEnv } from '@src/stores/globalSettings.svelte';
+	import { app, validationStore } from '@src/stores/store.svelte';
+	import { logger } from '@utils/logger';
+	import { debounce, getFieldName } from '@utils/utils';
 	// Unified error handling
 	import { handleWidgetValidation } from '@widgets/widgetErrorHandler';
+	// Valibot validation
+	import { custom, optional, parse, pipe, string, url } from 'valibot';
+	import type { FieldType } from './';
+	import type { RemoteVideoData } from './types';
 
 	let {
 		field,
@@ -112,7 +107,7 @@ Part of the Three Pillars Architecture for widget system.
 
 	// Validation function using unified handler
 	function validateVideoUrl(urlValue: string): { valid: boolean; error?: string } {
-		if (!urlValue && !field?.required) {
+		if (!(urlValue || field?.required)) {
 			validationStore.clearError(fieldName);
 			return { valid: true };
 		}

@@ -155,8 +155,9 @@
 		aria-label={label || undefined}
 	>
 		{#if getButtonIcon()}
-			{#await import(`@lucide/svelte/icons/${getButtonIcon()}`) then module}
-				<module.default size={18} class={getActiveItem() ? 'text-tertiary-50 dark:text-tertiary-300' : 'text-surface-800 dark:text-surface-200'} />
+			{#await import(`@lucide/svelte/icons/${getButtonIcon()}`) then _module}
+				{@const Icon = _module.default}
+				<Icon size={18} class={getActiveItem() ? 'text-tertiary-50 dark:text-tertiary-300' : 'text-surface-800 dark:text-surface-200'} />
 			{/await}
 		{/if}
 		<span class="hidden text-sm sm:inline" class:text-tertiary-50={!!getActiveItem()} class:text-surface-800={!getActiveItem()}
@@ -215,8 +216,9 @@
 					{#if item.active && item.active()}
 						<iconify-icon icon="mdi:check" width={16}></iconify-icon>
 					{:else if item.icon}
-						{#await import(`@lucide/svelte/icons/${item.icon}`) then module}
-							<module.default size={18} />
+						{#await import(`@lucide/svelte/icons/${item.icon}`) then _module}
+							{@const Icon = _module.default}
+							<Icon size={18} />
 						{/await}
 					{/if}
 					<span class="whitespace-nowrap text-sm">{item.name || item.title || ''}</span>

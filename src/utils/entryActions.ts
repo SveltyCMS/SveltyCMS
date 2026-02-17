@@ -5,13 +5,12 @@
 
 import type { StatusType } from '@src/content/types';
 import { StatusTypes } from '@src/content/types';
-import { publicEnv } from '@src/stores/globalSettings.svelte';
-
 // ParaglideJS
 import * as m from '@src/paraglide/messages';
+import { publicEnv } from '@src/stores/globalSettings.svelte';
 import { collection, collectionValue, setCollectionValue, setMode } from '@stores/collectionStore.svelte.ts';
 import { toaster } from '@stores/store.svelte.ts';
-import { logger } from './logger';
+import { showCloneModal, showConfirm, showScheduleModal } from '@utils/modalUtils';
 import {
 	batchDeleteEntries,
 	batchUpdateEntries,
@@ -23,7 +22,8 @@ import {
 	updateEntryStatus
 } from './apiClient';
 import { entryMessages } from './entryActionsMessages';
-import { showConfirm, showScheduleModal, showCloneModal } from '@utils/modalUtils';
+import { logger } from './logger';
+
 // Helper function to update entry status
 async function updateStatus(collectionId: string, entryId: string, status: string) {
 	const result = await updateEntryStatus(collectionId, entryId, status);
@@ -35,9 +35,13 @@ async function updateStatus(collectionId: string, entryId: string, status: strin
 
 // Sets the status for one or more entries
 export async function setEntriesStatus(entryIds: string[], status: StatusType, onSuccess: () => void, payload: Record<string, unknown> = {}) {
-	if (!entryIds.length) return;
+	if (!entryIds.length) {
+		return;
+	}
 	const collId = collection.value?._id;
-	if (!collId) return;
+	if (!collId) {
+		return;
+	}
 
 	const result = await batchUpdateEntries(collId, { ids: entryIds, status, ...payload });
 	if (result.success) {
@@ -69,9 +73,13 @@ export async function setEntriesStatus(entryIds: string[], status: StatusType, o
 	}
 } // Deletes or archives one or more entries with improved batch delete
 export async function deleteEntries(entryIds: string[], isPermanentDelete: boolean, onSuccess: () => void) {
-	if (!entryIds.length) return;
+	if (!entryIds.length) {
+		return;
+	}
 	const collId = collection.value?._id;
-	if (!collId) return;
+	if (!collId) {
+		return;
+	}
 
 	const isArchiving = publicEnv.USE_ARCHIVE_ON_DELETE && !isPermanentDelete;
 
@@ -105,15 +113,19 @@ export async function deleteEntries(entryIds: string[], isPermanentDelete: boole
 			}
 		}
 	} catch (e) {
-		toaster.error({ description: entryMessages.deleteFailed(isArchiving ? StatusTypes.archive : StatusTypes.delete) + `: ${(e as Error).message}` });
+		toaster.error({ description: `${entryMessages.deleteFailed(isArchiving ? StatusTypes.archive : StatusTypes.delete)}: ${(e as Error).message}` });
 	}
 }
 
 // Clones one or more entries
 export async function cloneEntries(rawEntries: Record<string, unknown>[], onSuccess: () => void) {
-	if (!rawEntries.length) return;
+	if (!rawEntries.length) {
+		return;
+	}
 	const collId = collection.value?._id;
-	if (!collId) return;
+	if (!collId) {
+		return;
+	}
 
 	const entriesToClone = rawEntries.map((entry) => {
 		// eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -131,7 +143,7 @@ export async function cloneEntries(rawEntries: Record<string, unknown>[], onSucc
 }
 
 // Saves a new or existing entry
-export async function saveEntry(entryData: Record<string, unknown>, publish: boolean = false): Promise<boolean> {
+export async function saveEntry(entryData: Record<string, unknown>, publish = false): Promise<boolean> {
 	const collId = collection.value?._id;
 	if (!collId) {
 		toaster.warning({ description: 'Collection not found' });
@@ -172,17 +184,16 @@ export async function saveEntry(entryData: Record<string, unknown>, publish: boo
 			);
 		}
 		return true;
-	} else {
-		toaster.error({ description: result.error || 'Failed to save entry' });
-		return false;
 	}
+	toaster.error({ description: result.error || 'Failed to save entry' });
+	return false;
 }
 
 // Deletes the currently active entry after confirmation
-export async function deleteCurrentEntry(isAdmin: boolean = false) {
+export async function deleteCurrentEntry(isAdmin = false) {
 	const entry = collectionValue.value;
 	const coll = collection.value;
-	if (!entry?._id || !coll?._id) {
+	if (!(entry?._id && coll?._id)) {
 		toaster.warning({ description: m.delete_entry_no_selection_error() });
 		return;
 	}
@@ -306,7 +317,7 @@ export async function permanentlyDeleteEntry(entryId: string) {
 export async function setEntryStatus(newStatus: StatusType) {
 	const entry = collectionValue.value;
 	const coll = collection.value;
-	if (!entry?._id || !coll?._id) {
+	if (!(entry?._id && coll?._id)) {
 		toaster.warning({ description: m.set_status_no_selection_error() });
 		return;
 	}
@@ -332,7 +343,7 @@ export async function scheduleCurrentEntry(scheduledDate?: Date) {
 	const entry = collectionValue.value;
 	const coll = collection.value;
 
-	if (!entry?._id || !coll?._id) {
+	if (!(entry?._id && coll?._id)) {
 		toaster.warning({ description: entryMessages.noEntryForScheduling() });
 		return;
 	}
@@ -380,7 +391,7 @@ export async function scheduleCurrentEntry(scheduledDate?: Date) {
 export async function cloneCurrentEntry() {
 	const entry = collectionValue.value;
 	const coll = collection.value;
-	if (!entry || !coll?._id) {
+	if (!(entry && coll?._id)) {
 		toaster.warning({ description: m.clone_entry_no_selection_error() });
 		return;
 	}
@@ -395,9 +406,9 @@ export async function cloneCurrentEntry() {
 				const clonedPayload = JSON.parse(JSON.stringify(entry));
 
 				// Remove unique identifiers and timestamps
-				delete clonedPayload._id;
-				delete clonedPayload.createdAt;
-				delete clonedPayload.updatedAt;
+				clonedPayload._id = undefined;
+				clonedPayload.createdAt = undefined;
+				clonedPayload.updatedAt = undefined;
 
 				// Set clone status and reference to original
 				clonedPayload.status = StatusTypes.draft;
@@ -443,7 +454,7 @@ export async function saveDraftAndLeave(): Promise<boolean> {
 	const entry = collectionValue.value;
 	const coll = collection.value;
 
-	if (!hasUnsavedChanges || !entry || !coll?._id) {
+	if (!(hasUnsavedChanges && entry && coll?._id)) {
 		return true; // Allow navigation if no unsaved changes
 	}
 

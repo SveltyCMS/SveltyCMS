@@ -2,14 +2,14 @@
  * @file tests/bun/utils/navigationManager.test.ts
  * @description Tests for navigationManager functions
  */
-import { describe, it, expect, mock, beforeEach } from 'bun:test';
+import { beforeEach, describe, expect, it } from 'bun:test';
 import { navigationManager } from '@src/utils/navigationManager';
+import { mode } from '@stores/collectionStore.svelte';
 import { globalLoadingStore } from '@stores/loadingStore.svelte';
 import { dataChangeStore } from '@stores/store.svelte';
-import { mode } from '@stores/collectionStore.svelte';
 
 // We need to spy on 'goto'.
-// We can re-mock the module for this test content if really needed, 
+// We can re-mock the module for this test content if really needed,
 // but let's see if we can just test behavior.
 // To avoid SyntaxErrors, we'll NOT use mock.module here.
 
@@ -35,8 +35,8 @@ describe('NavigationManager', () => {
 		const p2 = navigationManager.navigateToList();
 
 		await Promise.all([p1, p2]);
-        // Behavior check
-        expect(dataChangeStore.hasChanges).toBe(false);
+		// Behavior check
+		expect(dataChangeStore.hasChanges).toBe(false);
 	});
 
 	it('should set loading state during navigation', async () => {

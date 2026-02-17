@@ -1,27 +1,25 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
+	import type { SearchData } from '@utils/globalSearchIndex';
+	// Stores
+	import { globalSearchIndex, isSearchVisible, triggerActionStore } from '@utils/globalSearchIndex';
 	import { getEditDistance } from '@utils/utils';
-	import { onMount, onDestroy } from 'svelte';
-
+	import { onDestroy, onMount } from 'svelte';
+	import { goto } from '$app/navigation';
 	// Component
 	import HighlightedText from './HighlightedText.svelte';
 
-	// Stores
-	import { isSearchVisible, globalSearchIndex, triggerActionStore } from '@utils/globalSearchIndex';
-	import type { SearchData } from '@utils/globalSearchIndex';
-
 	// Types
 	interface Trigger {
-		path: string;
 		action?: (() => void | Promise<void>)[];
+		path: string;
 	}
 
 	interface SearchResult {
-		title: string;
 		description: string;
-		keywords: string[];
-		triggers: Record<string, Trigger>;
 		distance: number;
+		keywords: string[];
+		title: string;
+		triggers: Record<string, Trigger>;
 	}
 
 	// States
@@ -96,10 +94,10 @@
 							}
 
 							// Calculate edit distances (most expensive)
-							const titleDistance = getEditDistance(upperQuery, upperTitle) ?? Infinity;
-							const descDistance = getEditDistance(upperQuery, upperDesc) ?? Infinity;
-							const keywordDistances = upperKeywords.map((keyword: string) => getEditDistance(upperQuery, keyword) ?? Infinity);
-							const minKeywordDistance = keywordDistances.length > 0 ? Math.min(...keywordDistances) : Infinity;
+							const titleDistance = getEditDistance(upperQuery, upperTitle) ?? Number.POSITIVE_INFINITY;
+							const descDistance = getEditDistance(upperQuery, upperDesc) ?? Number.POSITIVE_INFINITY;
+							const keywordDistances = upperKeywords.map((keyword: string) => getEditDistance(upperQuery, keyword) ?? Number.POSITIVE_INFINITY);
+							const minKeywordDistance = keywordDistances.length > 0 ? Math.min(...keywordDistances) : Number.POSITIVE_INFINITY;
 
 							return {
 								...item,
@@ -293,7 +291,6 @@
 		searchQuery = '';
 	});
 </script>
-
 <!--
 @file src/components/SearchComponent.svelte
 @component
@@ -307,12 +304,11 @@ A highly performant, accessible, and secure global search component with fuzzy m
 ### Search Flow:
 ```mermaid
 graph TD
-    A[User Input] -->|Debounce
-150ms| B(Fuzzy Search) B -->|Search Index| C[Score Results] C -->|Threshold 40%| D[Filter & Sort] D -->|Top 8| E[Display UI] E -->|Keyboard Nav|
-F[Selection] F -->|Enter| G[Execute Action] ``` ### Features: - Fuzzy search with optimized edit distance calculation - Real-time search results with
-debounced input - Full keyboard navigation (Arrow keys, Enter, Escape, Tab) - Screen reader optimized with ARIA live regions - Performance optimized
-with derived state - Responsive design with Tailwind CSS - XSS protection through sanitized inputs - Reduced motion support - Focus trap for modal
-accessibility -->
+    A[User Input] -->|Debounce 150ms| B(Fuzzy Search) B -->|Search Index| C[Score Results] C -->|Threshold 40%| D[Filter & Sort] D -->|Top 8|
+E[Display UI] E -->|Keyboard Nav| F[Selection] F -->|Enter| G[Execute Action] ``` ### Features: - Fuzzy search with optimized edit distance
+calculation - Real-time search results with debounced input - Full keyboard navigation (Arrow keys, Enter, Escape, Tab) - Screen reader optimized with
+ARIA live regions - Performance optimized with derived state - Responsive design with Tailwind CSS - XSS protection through sanitized inputs - Reduced
+motion support - Focus trap for modal accessibility -->
 
 {#if $isSearchVisible}
 	<!-- Semi-transparent backdrop -->
@@ -323,9 +319,7 @@ accessibility -->
 	></div>
 
 	<!-- Screen reader status (visually hidden) -->
-	<div class="sr-only" role="status" aria-live="polite">
-		{statusMessage}
-	</div>
+	<div class="sr-only" role="status" aria-live="polite">{statusMessage}</div>
 
 	<div
 		class="search-component fixed inset-0 z-50 flex flex-col items-center justify-start pointer-events-none pt-[15vh] transition-opacity duration-200"
@@ -349,7 +343,7 @@ accessibility -->
 				aria-busy={isSearching}
 				class="input w-full rounded-lg variant-tertiary dark:variant-primary"
 				autocomplete="off"
-			/>
+			>
 
 			{#if isSearching}
 				<div class="absolute right-4 top-1/2 -translate-y-1/2" role="status" aria-label="Searching">
@@ -419,15 +413,13 @@ accessibility -->
 						{:else}
 							<!-- Multiple triggers -->
 							<div class="border-b border-surface-300 dark:text-surface-50 px-4 py-3">
-								<div class="font-bold text-tertiary-500 dark:text-primary-500">
-									<HighlightedText text={result.title} term={sanitizedQuery} />
-								</div>
+								<div class="font-bold text-tertiary-500 dark:text-primary-500"><HighlightedText text={result.title} term={sanitizedQuery} /></div>
 								<div class="mt-1 text-sm text-surface-600 dark:text-surface-300">
 									<HighlightedText text={result.description} term={sanitizedQuery} />
 								</div>
 							</div>
 							<div class="flex flex-col">
-								{#each Object.entries(result.triggers) as [triggerKey, trigger] (triggerKey)}
+								{#each Object.entries(result.triggers) as [ triggerKey, trigger ] (triggerKey)}
 									{#if trigger?.path}
 										<button
 											type="button"
@@ -470,9 +462,12 @@ accessibility -->
 				<p class="text-surface-100 dark:text-surface-200 font-medium">Start typing to search...</p>
 				<p class="mt-1 text-xs text-surface-200 dark:text-surface-300 font-semibold">
 					Use <kbd class="badge bg-surface-500 text-white px-1.5 py-0.5">↑</kbd>
-					<kbd class="badge bg-surface-500 text-white px-1.5 py-0.5">↓</kbd> to navigate,
-					<kbd class="badge bg-surface-500 text-white px-1.5 py-0.5">Enter</kbd> to select,
-					<kbd class="badge bg-surface-500 text-white px-1.5 py-0.5">Esc</kbd> to close
+					<kbd class="badge bg-surface-500 text-white px-1.5 py-0.5">↓</kbd>
+					to navigate,
+					<kbd class="badge bg-surface-500 text-white px-1.5 py-0.5">Enter</kbd>
+					to select,
+					<kbd class="badge bg-surface-500 text-white px-1.5 py-0.5">Esc</kbd>
+					to close
 				</p>
 			</div>
 		{/if}

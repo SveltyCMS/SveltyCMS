@@ -3,10 +3,10 @@
  * @description Defines validation schemas for application configuration and base database structures.
  */
 
-import type { BaseIssue, BaseSchema, InferOutput } from 'valibot';
-import type { DatabaseId, ISODateString } from './dbInterface';
-import { array, boolean, literal, maxValue, minLength, minValue, number, object, optional, pipe, safeParse, string, transform, union } from 'valibot';
 import { logger } from '@utils/logger';
+import type { BaseIssue, BaseSchema, InferOutput } from 'valibot';
+import { array, boolean, literal, maxValue, minLength, minValue, number, object, optional, pipe, safeParse, string, transform, union } from 'valibot';
+import type { DatabaseId, ISODateString } from './dbInterface';
 
 // ----------------- CONFIGURATION SCHEMAS -----------------
 
@@ -235,7 +235,9 @@ const colors = {
 };
 
 function formatPath(path: BaseIssue<unknown>['path']): string {
-	if (!path || path.length === 0) return 'root';
+	if (!path || path.length === 0) {
+		return 'root';
+	}
 	return path.map((p) => String(p.key)).join('.');
 }
 
@@ -252,55 +254,55 @@ function logValidationErrors(issues: BaseIssue<unknown>[], configFile: string): 
 }
 
 interface Config {
-	USE_2FA?: boolean;
-	TWO_FACTOR_AUTH_BACKUP_CODES_COUNT?: number;
-	USE_GOOGLE_OAUTH?: boolean;
+	AVAILABLE_CONTENT_LANGUAGES?: string[];
+	BASE_LOCALE?: string;
+	DEFAULT_CONTENT_LANGUAGE?: string;
 	GOOGLE_CLIENT_ID?: string;
 	GOOGLE_CLIENT_SECRET?: string;
-	USE_REDIS?: boolean;
+	LOCALES?: string[];
 	REDIS_HOST?: string;
 	REDIS_PORT?: number;
-	USE_TIKTOK?: boolean;
-	TIKTOK_TOKEN?: string;
-	SEASONS?: string[];
 	SEASON_REGION?: string;
-	AVAILABLE_CONTENT_LANGUAGES?: string[];
-	DEFAULT_CONTENT_LANGUAGE?: string;
-	LOCALES?: string[];
-	BASE_LOCALE?: string;
+	SEASONS?: string[];
+	TIKTOK_TOKEN?: string;
+	TWO_FACTOR_AUTH_BACKUP_CODES_COUNT?: number;
+	USE_2FA?: boolean;
+	USE_GOOGLE_OAUTH?: boolean;
+	USE_REDIS?: boolean;
+	USE_TIKTOK?: boolean;
 }
 
 function performConditionalValidation(config: Config): string[] {
 	const errors: string[] = [];
 
-	if (config.USE_GOOGLE_OAUTH && (!config.GOOGLE_CLIENT_ID || !config.GOOGLE_CLIENT_SECRET)) {
-		errors.push(`When USE_GOOGLE_OAUTH is true, both GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are required.`);
+	if (config.USE_GOOGLE_OAUTH && !(config.GOOGLE_CLIENT_ID && config.GOOGLE_CLIENT_SECRET)) {
+		errors.push('When USE_GOOGLE_OAUTH is true, both GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are required.');
 	}
-	if (config.USE_REDIS && (!config.REDIS_HOST || !config.REDIS_PORT)) {
-		errors.push(`When USE_REDIS is true, both REDIS_HOST and REDIS_PORT are required.`);
+	if (config.USE_REDIS && !(config.REDIS_HOST && config.REDIS_PORT)) {
+		errors.push('When USE_REDIS is true, both REDIS_HOST and REDIS_PORT are required.');
 	}
 	if (config.USE_TIKTOK && !config.TIKTOK_TOKEN) {
-		errors.push(`When USE_TIKTOK is true, a TIKTOK_TOKEN is required.`);
+		errors.push('When USE_TIKTOK is true, a TIKTOK_TOKEN is required.');
 	}
 	if (
 		config.USE_2FA &&
 		config.TWO_FACTOR_AUTH_BACKUP_CODES_COUNT &&
 		(config.TWO_FACTOR_AUTH_BACKUP_CODES_COUNT < 1 || config.TWO_FACTOR_AUTH_BACKUP_CODES_COUNT > 50)
 	) {
-		errors.push(`When USE_2FA is enabled, TWO_FACTOR_AUTH_BACKUP_CODES_COUNT must be between 1 and 50.`);
+		errors.push('When USE_2FA is enabled, TWO_FACTOR_AUTH_BACKUP_CODES_COUNT must be between 1 and 50.');
 	}
 	if (config.SEASONS && !config.SEASON_REGION) {
-		errors.push(`When SEASONS is true, a SEASON_REGION must be selected.`);
+		errors.push('When SEASONS is true, a SEASON_REGION must be selected.');
 	}
 	if (
 		config.DEFAULT_CONTENT_LANGUAGE &&
 		config.AVAILABLE_CONTENT_LANGUAGES &&
 		!config.AVAILABLE_CONTENT_LANGUAGES.includes(config.DEFAULT_CONTENT_LANGUAGE)
 	) {
-		errors.push(`The DEFAULT_CONTENT_LANGUAGE must be included in the AVAILABLE_CONTENT_LANGUAGES array.`);
+		errors.push('The DEFAULT_CONTENT_LANGUAGE must be included in the AVAILABLE_CONTENT_LANGUAGES array.');
 	}
 	if (config.BASE_LOCALE && config.LOCALES && Array.isArray(config.LOCALES) && !config.LOCALES.includes(config.BASE_LOCALE)) {
-		errors.push(`The BASE_LOCALE must be included in the LOCALES array.`);
+		errors.push('The BASE_LOCALE must be included in the LOCALES array.');
 	}
 
 	return errors;
@@ -319,13 +321,14 @@ export function validateConfig(schema: BaseSchema<unknown, unknown, BaseIssue<un
 		const conditionalErrors = performConditionalValidation(result.output as Config);
 		if (conditionalErrors.length > 0) {
 			logger.error(`${configName} validation failed with logical errors:`);
-			conditionalErrors.forEach((error) => logger.error(`   - ${error}`));
+			for (const err of conditionalErrors) {
+				logger.error(`   - ${err}`);
+			}
 			process.exit(1);
 		}
 		return result.output;
-	} else {
-		logger.error(`${configName} validation failed. Please check your configuration.`);
-		logValidationErrors(result.issues, configFile);
-		process.exit(1);
 	}
+	logger.error(`${configName} validation failed. Please check your configuration.`);
+	logValidationErrors(result.issues, configFile);
+	process.exit(1);
 }

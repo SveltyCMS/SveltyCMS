@@ -11,24 +11,24 @@ Features:
 - Integrated marketplace tab
 -->
 <script lang="ts">
+	import { widgetStoreActions } from '@stores/widgetStore.svelte.ts';
+	import { logger } from '@utils/logger';
 	// Using iconify-icon web component
 	import { onMount } from 'svelte';
-	import { logger } from '@utils/logger';
 	import WidgetCard from './WidgetCard.svelte';
-	import { widgetStoreActions } from '@stores/widgetStore.svelte.ts';
 
 	// Props
 	const { data }: { data: any } = $props();
 
 	// Define the Widget type
 	interface Widget {
-		name: string;
-		isCore: boolean;
-		isActive: boolean;
+		canDisable: boolean;
+		dependencies: string[];
 		description?: string;
 		icon: string;
-		dependencies: string[];
-		canDisable: boolean;
+		isActive: boolean;
+		isCore: boolean;
+		name: string;
 		pillar?: {
 			input?: { exists: boolean };
 			display?: { exists: boolean };
@@ -204,7 +204,7 @@ Features:
 		}
 
 		try {
-			const response = await fetch(`/api/widgets/uninstall`, {
+			const response = await fetch('/api/widgets/uninstall', {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
@@ -241,7 +241,7 @@ Features:
 				<div>
 					<h3 class="font-semibold text-red-800 dark:text-red-300">Error Loading Widgets</h3>
 					<p class="text-red-700 dark:text-red-400">{error}</p>
-					<button onclick={() => loadWidgets()} class="mt-2 rounded-lg bg-red-600 px-3 py-1 text-sm text-white hover:bg-red-700"> Retry </button>
+					<button onclick={() => loadWidgets()} class="mt-2 rounded-lg bg-red-600 px-3 py-1 text-sm text-white hover:bg-red-700">Retry</button>
 				</div>
 			</div>
 		</div>
@@ -382,9 +382,12 @@ Features:
 				<div class="flex flex-col gap-3 sm:flex-row sm:items-center">
 					<!-- Search -->
 					<div class="relative flex-1">
-						<iconify-icon icon="mdi:magnify" width="24" class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+						<iconify-icon
+							icon="mdi:magnify"
+							width="24"
+							class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
 						></iconify-icon>
-						<input type="text" bind:value={searchQuery} placeholder="Search widgets... (Ctrl+F)" class="input py-2 pl-10 pr-10 dark:text-white" />
+						<input type="text" bind:value={searchQuery} placeholder="Search widgets... (Ctrl+F)" class="input py-2 pl-10 pr-10 dark:text-white">
 						{#if searchQuery}
 							<button
 								onclick={() => (searchQuery = '')}

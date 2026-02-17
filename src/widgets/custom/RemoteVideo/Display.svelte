@@ -42,17 +42,13 @@ Renders: Thumbnail + title + duration in compact horizontal layout
 			class="h-auto w-[60px] shrink-0 rounded-md object-cover"
 			loading="lazy"
 			decoding="async"
-		/>
+		>
 
 		<div class="flex min-w-0 flex-wrap items-center gap-x-2">
-			<span class="max-w-48 truncate text-sm font-medium">
-				{value.title}
-			</span>
+			<span class="max-w-48 truncate text-sm font-medium"> {value.title} </span>
 
 			{#if value.duration}
-				<span class="shrink-0 text-xs text-gray-500">
-					{value.duration}
-				</span>
+				<span class="shrink-0 text-xs text-gray-500"> {value.duration} </span>
 			{/if}
 		</div>
 	</div>

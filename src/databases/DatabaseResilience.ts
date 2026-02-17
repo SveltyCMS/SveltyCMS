@@ -10,53 +10,53 @@
  * - Comprehensive error tracking
  */
 
+import { getSystemState, updateServiceHealth } from '@src/stores/system/state';
 import { logger } from '@utils/logger';
-import { updateServiceHealth, getSystemState } from '@src/stores/system/state';
 import type { DatabaseError } from './dbInterface';
 
 // Type definitions
 export interface RetryConfig {
-	maxAttempts: number;
-	initialDelayMs: number;
-	maxDelayMs: number;
 	backoffMultiplier: number;
+	initialDelayMs: number;
 	jitterMs: number;
+	maxAttempts: number;
+	maxDelayMs: number;
 }
 
 export interface ConnectionPoolDiagnostics {
-	totalConnections: number;
 	activeConnections: number;
-	idleConnections: number;
-	waitingRequests: number;
-	poolUtilization: number;
 	avgConnectionTime: number;
 	healthStatus: 'healthy' | 'degraded' | 'critical';
+	idleConnections: number;
+	poolUtilization: number;
 	recommendations: string[];
+	totalConnections: number;
+	waitingRequests: number;
 }
 
 export interface ResilienceMetrics {
-	totalRetries: number;
-	successfulRetries: number;
-	failedRetries: number;
-	totalReconnections: number;
-	successfulReconnections: number;
-	lastFailureTime?: number;
-	lastRecoveryTime?: number;
 	averageRecoveryTime: number;
 	connectionUptime: number;
+	failedRetries: number;
 	failureHistory: Array<{
 		timestamp: number;
 		error: string;
 		recovered: boolean;
 		recoveryTime?: number;
 	}>;
+	lastFailureTime?: number;
+	lastRecoveryTime?: number;
+	successfulReconnections: number;
+	successfulRetries: number;
+	totalReconnections: number;
+	totalRetries: number;
 }
 
 // Default retry configuration
 const DEFAULT_RETRY_CONFIG: RetryConfig = {
 	maxAttempts: 5,
 	initialDelayMs: 1000, // 1 second
-	maxDelayMs: 32000, // 32 seconds
+	maxDelayMs: 32_000, // 32 seconds
 	backoffMultiplier: 2,
 	jitterMs: 500
 };
@@ -66,7 +66,7 @@ const DEFAULT_RETRY_CONFIG: RetryConfig = {
  * Handles automatic retries, reconnection, and health monitoring
  */
 export class DatabaseResilience {
-	private metrics: ResilienceMetrics = {
+	private readonly metrics: ResilienceMetrics = {
 		totalRetries: 0,
 		successfulRetries: 0,
 		failedRetries: 0,
@@ -77,7 +77,7 @@ export class DatabaseResilience {
 		failureHistory: []
 	};
 
-	private retryConfig: RetryConfig;
+	private readonly retryConfig: RetryConfig;
 	private isReconnecting = false;
 	private connectionEstablishedAt?: number;
 	private monitoringInterval?: NodeJS.Timeout;
@@ -282,7 +282,7 @@ export class DatabaseResilience {
 		// Monitor every 30 seconds
 		this.monitoringInterval = setInterval(() => {
 			this.updateConnectionUptime();
-		}, 30000);
+		}, 30_000);
 	}
 
 	// Stop health monitoring (cleanup)
@@ -296,7 +296,7 @@ export class DatabaseResilience {
 	// Calculate exponential backoff delay with jitter
 	private calculateBackoffDelay(attempt: number): number {
 		const exponentialDelay = Math.min(
-			this.retryConfig.initialDelayMs * Math.pow(this.retryConfig.backoffMultiplier, attempt - 1),
+			this.retryConfig.initialDelayMs * this.retryConfig.backoffMultiplier ** (attempt - 1),
 			this.retryConfig.maxDelayMs
 		);
 
@@ -422,7 +422,7 @@ export async function notifyAdminsOfDatabaseFailure(error: DatabaseError, metric
 					databaseMessage: systemState.services.database.message
 				},
 				timestamp: new Date().toISOString(),
-				hostLink: publicEnv.HOST_PROD || `http://localhost:5173`
+				hostLink: publicEnv.HOST_PROD || 'http://localhost:5173'
 			}
 		};
 

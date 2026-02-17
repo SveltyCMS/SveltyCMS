@@ -13,15 +13,18 @@ Features:
 	
 -->
 <script lang="ts">
+	import SystemTooltip from '@components/system/SystemTooltip.svelte';
 	import * as m from '@src/paraglide/messages';
-	import iso6391 from '@utils/iso639-1.json';
-	import { getLanguageName } from '@utils/languageUtils';
 	import { locales as systemLocales } from '@src/paraglide/runtime';
 	//  Import types from the store
 	import type { ValidationErrors } from '@stores/setupStore.svelte.ts';
-	import { safeParse } from 'valibot';
 	import { systemSettingsSchema } from '@utils/formSchemas';
-	import SystemTooltip from '@components/system/SystemTooltip.svelte';
+	import iso6391 from '@utils/iso639-1.json';
+	import { getLanguageName } from '@utils/languageUtils';
+	import { safeParse } from 'valibot';
+	import { PRESETS } from './presets';
+
+	const presets = PRESETS;
 
 	// --- PROPS ---
 	// Added $bindable() to systemSettings
@@ -200,9 +203,7 @@ Features:
 
 <form onsubmit={(e) => e.preventDefault()} class="fade-in">
 	<div class="mb-8">
-		<p class="text-sm text-center text-tertiary-500 dark:text-primary-500 sm:text-base">
-			{m.setup_system_intro()}
-		</p>
+		<p class="text-sm text-center text-tertiary-500 dark:text-primary-500 sm:text-base">{m.setup_system_intro()}</p>
 	</div>
 
 	<div class="space-y-2">
@@ -227,13 +228,58 @@ Features:
 							</button>
 						</div>
 						<p class="mt-1 text-sm leading-relaxed italic">
-							A local Redis server was detected on this system. <br />Enabling Redis caching can speed up data access by up to <strong>50x</strong>
+							A local Redis server was detected on this system. <br>Enabling Redis caching can speed up data access by up to <strong>50x</strong>
 							by reducing database load.
 						</p>
 					</div>
 				</div>
 			</div>
 		{/if}
+
+		<!-- Solution Presets -->
+		<section class="mb-8 space-y-4">
+			<div class="flex items-center gap-2">
+				<iconify-icon icon="mdi:package-variant-closed" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+				<h3 class="text-lg font-semibold text-black dark:text-white">Solution Preset</h3>
+			</div>
+
+			<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+				{#each presets as preset (preset.id)}
+					<button
+						type="button"
+						class="relative flex flex-col items-start p-4 rounded-lg border-2 text-left transition-all duration-200
+						{systemSettings.preset === preset.id
+							? 'border-tertiary-500 bg-tertiary-50/50 dark:border-primary-500 dark:bg-primary-900/10'
+							: 'border-slate-200 bg-white hover:border-tertiary-300 dark:border-slate-700 dark:bg-surface-800 dark:hover:border-slate-600'}"
+						onclick={() => (systemSettings.preset = preset.id)}
+					>
+						<div class="flex w-full items-center justify-between mb-3">
+							<div class="p-2 rounded bg-surface-100 dark:bg-surface-700 text-tertiary-600 dark:text-primary-400">
+								<iconify-icon icon={preset.icon} width="24"></iconify-icon>
+							</div>
+							{#if systemSettings.preset === preset.id}
+								<iconify-icon icon="mdi:check-circle" width="24" class="text-tertiary-500 dark:text-primary-500 animate-in zoom-in"></iconify-icon>
+							{/if}
+						</div>
+
+						<h4 class="font-bold text-slate-800 dark:text-slate-100 mb-1">{preset.title}</h4>
+						<p class="text-xs text-slate-500 dark:text-slate-400 mb-3 leading-relaxed min-h-[40px]">{preset.description}</p>
+
+						<div class="mt-auto flex flex-wrap gap-1">
+							{#each preset.features.slice(0, 2) as feature}
+								<span class="px-1.5 py-0.5 text-[10px] rounded bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300"> {feature} </span>
+							{/each}
+							{#if preset.features.length > 2}
+								<span class="px-1.5 py-0.5 text-[10px] rounded bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+									+{preset.features.length - 2}
+								</span>
+							{/if}
+						</div>
+					</button>
+				{/each}
+			</div>
+			<p class="text-xs text-slate-500 dark:text-slate-400 italic">{m.setup_presets_helper()}</p>
+		</section>
 
 		<!-- Basic Site Settings -->
 		<section>
@@ -264,7 +310,7 @@ Features:
 						class="input w-full rounded {displayErrors.siteName ? 'border-error-500' : 'border-slate-200'}"
 						aria-invalid={!!displayErrors.siteName}
 						aria-describedby={displayErrors.siteName ? 'site-name-error' : undefined}
-					/>
+					>
 					{#if displayErrors.siteName}
 						<div id="site-name-error" class="mt-1 text-xs text-error-500" role="alert">{displayErrors.siteName}</div>
 					{/if}
@@ -293,7 +339,7 @@ Features:
 						class="input w-full rounded {displayErrors.hostProd ? 'border-error-500' : 'border-slate-200'}"
 						aria-invalid={!!displayErrors.hostProd}
 						aria-describedby={displayErrors.hostProd ? 'host-prod-error' : undefined}
-					/>
+					>
 					{#if displayErrors.hostProd}
 						<div id="host-prod-error" class="mt-1 text-xs text-error-500" role="alert">{displayErrors.hostProd}</div>
 					{/if}
@@ -381,7 +427,7 @@ Features:
 							? m.setup_system_media_path_placeholder?.() || './mediaFolder'
 							: m.setup_system_bucket_placeholder?.() || 'my-bucket-name'}
 						class="input w-full rounded"
-					/>
+					>
 
 					{#if systemSettings.mediaStorageType !== 'local'}
 						<div class="rounded-md border border-amber-300/50 bg-amber-50/50 p-3 dark:border-amber-700/50 dark:bg-amber-900/20" role="status">
@@ -487,7 +533,7 @@ Features:
 										class="mb-2 w-full rounded border border-slate-300/60 bg-transparent px-2 py-1 text-xs outline-none focus:border-primary-500 dark:border-slate-600"
 										placeholder="Search..."
 										bind:value={systemPickerSearch}
-									/>
+									>
 									<div class="max-h-48 overflow-auto">
 										{#if systemAvailable.length === 0}
 											<p class="px-1 py-2 text-center text-[11px] text-slate-500">{m.setup_help_no_matches?.() || 'No matches'}</p>
@@ -514,7 +560,11 @@ Features:
 				<!-- Default Content Language -->
 				<div class="space-y-3 rounded-md border border-slate-300/50 bg-secondary-50/50 p-4 dark:border-slate-600/60 dark:bg-surface-800/40">
 					<div class="mb-1 flex items-center gap-1 text-sm font-medium">
-						<iconify-icon icon="mdi:book-open-page-variant" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"
+						<iconify-icon
+							icon="mdi:book-open-page-variant"
+							width="18"
+							class="text-tertiary-500 dark:text-primary-500"
+							aria-hidden="true"
 						></iconify-icon>
 						<span class="text-black dark:text-white">{m.setup_label_default_content_language?.() || 'Default Content Language'}</span>
 						<SystemTooltip title={m.setup_help_default_content_language()}>
@@ -606,7 +656,7 @@ Features:
 										class="mb-2 w-full rounded border border-slate-300/60 bg-transparent px-2 py-1 text-xs outline-none focus:border-primary-500 dark:border-slate-600"
 										placeholder="Search languages..."
 										bind:value={contentPickerSearch}
-									/>
+									>
 									<div class="max-h-48 overflow-auto">
 										{#if contentAvailable.length === 0}
 											<p class="px-1 py-2 text-center text-[11px] text-slate-500">{m.setup_help_no_matches?.() || 'No matches'}</p>
@@ -645,14 +695,17 @@ Features:
 						type="checkbox"
 						bind:checked={systemSettings.useRedis}
 						class="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
-					/>
+					>
 					<div class="flex items-center gap-2">
 						<iconify-icon icon="devicon-plain:redis" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 						<label for="use-redis" class="font-medium text-black dark:text-white text-sm"> Enable Redis Caching </label>
 						<SystemTooltip
 							title="Significantly improves performance by caching database queries and session data in-memory. Recommended if Redis is available."
 						>
-							<iconify-icon icon="mdi:help-circle-outline" width="16" class="text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+							<iconify-icon
+								icon="mdi:help-circle-outline"
+								width="16"
+								class="text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 							></iconify-icon>
 						</SystemTooltip>
 					</div>
@@ -662,11 +715,11 @@ Features:
 					<div class="grid grid-cols-1 gap-4 sm:grid-cols-3 pt-2 animate-in fade-in slide-in-from-top-2 duration-300">
 						<div class="space-y-1.5">
 							<label for="redis-host" class="text-xs font-semibold text-slate-500 dark:text-slate-400">Redis Host</label>
-							<input id="redis-host" bind:value={systemSettings.redisHost} type="text" placeholder="localhost" class="input text-sm py-1.5 rounded" />
+							<input id="redis-host" bind:value={systemSettings.redisHost} type="text" placeholder="localhost" class="input text-sm py-1.5 rounded">
 						</div>
 						<div class="space-y-1.5">
 							<label for="redis-port" class="text-xs font-semibold text-slate-500 dark:text-slate-400">Redis Port</label>
-							<input id="redis-port" bind:value={systemSettings.redisPort} type="text" placeholder="6379" class="input text-sm py-1.5 rounded" />
+							<input id="redis-port" bind:value={systemSettings.redisPort} type="text" placeholder="6379" class="input text-sm py-1.5 rounded">
 						</div>
 						<div class="space-y-1.5">
 							<label for="redis-password" class="text-xs font-semibold text-slate-500 dark:text-slate-400">Redis Password (Optional)</label>
@@ -676,7 +729,7 @@ Features:
 								type="password"
 								placeholder="••••••••"
 								class="input text-sm py-1.5 rounded"
-							/>
+							>
 						</div>
 					</div>
 				{/if}
@@ -692,14 +745,17 @@ Features:
 					type="checkbox"
 					bind:checked={systemSettings.multiTenant}
 					class="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
-				/>
+				>
 				<div class="flex items-center gap-2">
 					<iconify-icon icon="mdi:domain" width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 					<label for="multi-tenant-mode" class="font-medium text-black dark:text-white">
 						{m.setup_system_multi_tenant?.() || 'Multi-Tenant Mode'}
 					</label>
 					<SystemTooltip title={m.setup_system_multi_tenant_desc?.() || 'Enables support for multiple isolated tenants...'}>
-						<iconify-icon icon="mdi:help-circle-outline" width="16" class="text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+						<iconify-icon
+							icon="mdi:help-circle-outline"
+							width="16"
+							class="text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 						></iconify-icon>
 					</SystemTooltip>
 				</div>
@@ -712,16 +768,17 @@ Features:
 					type="checkbox"
 					bind:checked={systemSettings.demoMode}
 					class="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
-				/>
+				>
 				<div class="flex items-center gap-2">
 					<iconify-icon icon="mdi:test-tube" width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-					<label for="demo-mode" class="font-medium text-black dark:text-white">
-						{m.setup_system_demo_mode?.() || 'Demo Mode'}
-					</label>
+					<label for="demo-mode" class="font-medium text-black dark:text-white"> {m.setup_system_demo_mode?.() || 'Demo Mode'} </label>
 					<SystemTooltip
 						title={(m.setup_system_demo_mode_desc?.() || 'Warning: Creates ephemeral environments for visitors.').replace(/<\/?[^>]+(>|$)/g, '')}
 					>
-						<iconify-icon icon="mdi:help-circle-outline" width="16" class="text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+						<iconify-icon
+							icon="mdi:help-circle-outline"
+							width="16"
+							class="text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 						></iconify-icon>
 					</SystemTooltip>
 					{#if systemSettings.demoMode && !systemSettings.multiTenant}

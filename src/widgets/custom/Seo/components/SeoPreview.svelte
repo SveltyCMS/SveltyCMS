@@ -69,12 +69,12 @@
 	}
 
 	interface Props {
-		title: string;
 		description: string;
 		hostUrl: string;
 		keywords?: string[];
-		SeoPreviewToggle: boolean;
 		ontogglePreview?: () => void;
+		SeoPreviewToggle: boolean;
+		title: string;
 	}
 
 	const { title, description, hostUrl, keywords = [], SeoPreviewToggle, ontogglePreview = () => {} }: Props = $props();
@@ -156,9 +156,7 @@
 					{/each}
 				</h3>
 			{:else}
-				<h3 class="text-lg font-medium leading-tight text-primary-500 hover:underline dark:text-primary-400">
-					{title || 'Page Title'}
-				</h3>
+				<h3 class="text-lg font-medium leading-tight text-primary-500 hover:underline dark:text-primary-400">{title || 'Page Title'}</h3>
 			{/if}
 		</div>
 
@@ -177,9 +175,7 @@
 					{/each}
 				</p>
 			{:else}
-				<p class="text-sm leading-normal text-surface-600 dark:text-surface-300">
-					{description || 'Page description goes here...'}
-				</p>
+				<p class="text-sm leading-normal text-surface-600 dark:text-surface-300">{description || 'Page description goes here...'}</p>
 			{/if}
 		</div>
 	</div>

@@ -1,6 +1,6 @@
-import type { Handle } from '@sveltejs/kit';
-import * as zlib from 'node:zlib';
 import { promisify } from 'node:util';
+import * as zlib from 'node:zlib';
+import type { Handle } from '@sveltejs/kit';
 
 const gzip = promisify(zlib.gzip);
 const brotli = promisify(zlib.brotliCompress);
@@ -33,7 +33,7 @@ export const handleCompression: Handle = async ({ event, resolve }) => {
 	}
 
 	const contentType = response.headers.get('Content-Type');
-	if (!contentType || !COMPRESSIBLE_TYPES.some((t) => contentType.includes(t))) {
+	if (!(contentType && COMPRESSIBLE_TYPES.some((t) => contentType.includes(t)))) {
 		return response;
 	}
 
@@ -57,8 +57,8 @@ export const handleCompression: Handle = async ({ event, resolve }) => {
 			const compressed = await brotli(buffer);
 			const headers = Object.fromEntries(response.headers);
 			// Remove original Content-Length to prevent duplicate header error
-			delete headers['Content-Length'];
-			delete headers['content-length'];
+			headers['Content-Length'] = undefined;
+			headers['content-length'] = undefined;
 			return new Response(compressed, {
 				headers: {
 					...headers,
@@ -69,12 +69,13 @@ export const handleCompression: Handle = async ({ event, resolve }) => {
 				status: response.status,
 				statusText: response.statusText
 			});
-		} else if (acceptEncoding.includes('gzip')) {
+		}
+		if (acceptEncoding.includes('gzip')) {
 			const compressed = await gzip(buffer);
 			const headers = Object.fromEntries(response.headers);
 			// Remove original Content-Length to prevent duplicate header error
-			delete headers['Content-Length'];
-			delete headers['content-length'];
+			headers['Content-Length'] = undefined;
+			headers['content-length'] = undefined;
 			return new Response(compressed, {
 				headers: {
 					...headers,

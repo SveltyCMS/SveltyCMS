@@ -17,11 +17,12 @@
  * - Response caching (12h TTL per version)
  * - LRU cache eviction (max 100 entries)
  */
-import { json } from '@sveltejs/kit';
-import { getPrivateSettingSync } from '@src/services/settingsService';
-import { object, string, optional, safeParse, maxLength, pipe, boolean, number, union, array } from 'valibot';
+
 import { createHash, createHmac } from 'node:crypto';
+import { getPrivateSettingSync } from '@src/services/settingsService';
+import { json } from '@sveltejs/kit';
 import { logger } from '@utils/logger.server';
+import { array, boolean, maxLength, number, object, optional, pipe, safeParse, string, union } from 'valibot';
 
 // Telemetry payload validation schema
 const telemetrySchema = object({
@@ -72,7 +73,7 @@ const telemetrySchema = object({
 const responseCache = new Map<string, { data: any; timestamp: number }>();
 const CACHE_TTL = 12 * 60 * 60 * 1000; // 12 hours
 const MAX_CACHE_SIZE = 100;
-const MAX_PAYLOAD_SIZE = 10000; // 10KB
+const MAX_PAYLOAD_SIZE = 10_000; // 10KB
 const REQUEST_TIMEOUT = 5000; // 5 seconds
 
 // Unified Error Handling
@@ -96,7 +97,7 @@ export const POST = apiHandler(async ({ request }) => {
 	try {
 		// 2. Payload size limit check (prevent DoS)
 		const contentLength = request.headers.get('content-length');
-		if (contentLength && parseInt(contentLength) > MAX_PAYLOAD_SIZE) {
+		if (contentLength && Number.parseInt(contentLength, 10) > MAX_PAYLOAD_SIZE) {
 			logger.warn('Telemetry payload too large:', contentLength);
 			// Fail silently
 			return json({ status: 'error' }, { status: 200 });

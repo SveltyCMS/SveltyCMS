@@ -3,11 +3,10 @@
  * @description GraphQL type definitions and resolvers for user-related queries.
  */
 
-import { getPrivateSettingSync } from '@src/services/settingsService';
-import type { ISODateString } from '@src/databases/dbInterface';
-import { logger } from '@utils/logger.server';
-import type { DatabaseAdapter } from '@src/databases/dbInterface';
 import type { User } from '@src/databases/auth/types';
+import type { DatabaseAdapter, ISODateString } from '@src/databases/dbInterface';
+import { getPrivateSettingSync } from '@src/services/settingsService';
+import { logger } from '@utils/logger.server';
 
 // GraphQL types
 type GraphQLValue = string | number | boolean | Date | object | GraphQLValue[];
@@ -72,8 +71,8 @@ export function userTypeDefs() {
 }
 
 interface GraphQLContext {
-	user?: User;
 	tenantId?: string;
+	user?: User;
 }
 
 // Resolvers with pagination support and validation
@@ -84,7 +83,9 @@ export function userResolvers(dbAdapter: DatabaseAdapter) {
 
 	return {
 		users: async (_: unknown, args: { pagination?: { page?: number; limit?: number } }, context: GraphQLContext) => {
-			if (!context.user) throw new Error('Authentication required');
+			if (!context.user) {
+				throw new Error('Authentication required');
+			}
 
 			const { page = 1, limit = 10 } = args.pagination || {};
 
@@ -117,7 +118,9 @@ export function userResolvers(dbAdapter: DatabaseAdapter) {
 			}
 		},
 		me: async (_: unknown, __: unknown, context: GraphQLContext) => {
-			if (!context.user) throw new Error('Authentication required');
+			if (!context.user) {
+				throw new Error('Authentication required');
+			}
 			return context.user;
 		}
 	};

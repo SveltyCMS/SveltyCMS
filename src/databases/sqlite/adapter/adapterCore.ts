@@ -3,19 +3,22 @@
  * @description Core functionality for SQLite adapter (Connection, Drizzle instance) - Bun native
  */
 
-import { eq, and, isNull, sql } from 'drizzle-orm';
-import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
-import type { DatabaseCapabilities, DatabaseResult, DatabaseError, CollectionModel } from '../../dbInterface';
+import { logger } from '@src/utils/logger';
+import { and, eq, isNull, sql } from 'drizzle-orm';
+import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import type { CollectionModel, DatabaseCapabilities, DatabaseError, DatabaseResult } from '../../dbInterface';
 import * as schema from '../schema';
 import * as utils from '../utils';
-import { logger } from '@src/utils/logger';
+
+// Runtime-specific global declaration (Bun detection)
+declare const Bun: any;
 
 export class AdapterCore {
 	protected db!: any;
 	protected sqlite!: any;
 	protected collectionRegistry = new Map<string, CollectionModel>();
 	protected dynamicTables = new Map<string, any>();
-	protected isConnectedBoolean: boolean = false;
+	protected isConnectedBoolean = false;
 	protected config: any;
 
 	public getDrizzle() {
@@ -34,8 +37,8 @@ export class AdapterCore {
 		try {
 			this.config = config;
 
-			const path = await import('path');
-			const fs = await import('fs');
+			const path = await import('node:path');
+			const fs = await import('node:fs');
 
 			// Ensure directory exists
 			const dbPath = typeof config === 'string' ? config : config.connectionString || config.filename || 'cms.db';
@@ -51,7 +54,7 @@ export class AdapterCore {
 			if (isBun) {
 				// Use dynamic import with string concatenation to avoid Node's static ESM loader errors
 				// and Vite's build time analysis warnigns
-				const bunSqlite = 'bun' + ':sqlite';
+				const bunSqlite = 'bun:sqlite';
 				const { Database } = await import(/* @vite-ignore */ bunSqlite);
 				this.sqlite = new Database(dbPathResolved);
 				const drizzleModule = 'drizzle-orm/bun-sqlite';
@@ -139,7 +142,9 @@ export class AdapterCore {
 	// Helper methods for modules
 
 	public wrap<T>(fn: () => Promise<T>, code: string): Promise<DatabaseResult<T>> {
-		if (!this.isConnectedBoolean) return Promise.resolve(this.notConnectedError());
+		if (!this.isConnectedBoolean) {
+			return Promise.resolve(this.notConnectedError());
+		}
 		return fn()
 			.then((data) => ({ success: true, data }) as DatabaseResult<T>)
 			.catch((error) => this.handleError(error, code));
@@ -215,21 +220,21 @@ export class AdapterCore {
 			tenantId: text('tenantId', { length: 36 }),
 			data: text('data', { mode: 'json' }).notNull().default('{}'),
 			status: text('status', { length: 50 }).notNull().default('draft'),
-			createdAt: integer('createdAt', { mode: 'timestamp_ms' })
-				.notNull()
-				.default(sql`(strftime('%s', 'now') * 1000)`),
-			updatedAt: integer('updatedAt', { mode: 'timestamp_ms' })
-				.notNull()
-				.default(sql`(strftime('%s', 'now') * 1000)`)
+			createdAt: integer('createdAt', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`),
+			updatedAt: integer('updatedAt', { mode: 'timestamp_ms' }).notNull().default(sql`(strftime('%s', 'now') * 1000)`)
 		});
 	}
 
 	public mapQuery(table: any, query: Record<string, any>): any {
-		if (!query || Object.keys(query).length === 0) return undefined;
+		if (!query || Object.keys(query).length === 0) {
+			return undefined;
+		}
 
 		const conditions: any[] = [];
 		for (const [key, value] of Object.entries(query)) {
-			if (key.startsWith('$')) continue;
+			if (key.startsWith('$')) {
+				continue;
+			}
 			if (table[key]) {
 				if (value === null || value === undefined) {
 					conditions.push(isNull(table[key]));
@@ -239,7 +244,9 @@ export class AdapterCore {
 			}
 		}
 
-		if (conditions.length === 0) return undefined;
+		if (conditions.length === 0) {
+			return undefined;
+		}
 		// console.log(`[AdapterCore] Mapping query:`, JSON.stringify(query), '-> Conditions:', conditions.length);
 		return and(...conditions);
 	}

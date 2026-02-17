@@ -3,7 +3,7 @@
  * @description Unit tests for the Address widget validation logic
  */
 
-import { describe, it, expect } from 'bun:test';
+import { describe, expect, it } from 'bun:test';
 import AddressWidget from '@src/widgets/custom/Address';
 import { safeParse } from 'valibot';
 
@@ -33,7 +33,7 @@ describe('Address Widget - Validation', () => {
 		expect(safeParse(schema, invalidAddress).success).toBe(false);
 
 		const missingCity = { ...validAddress };
-		delete (missingCity as any).city;
+		(missingCity as any).city = undefined;
 		expect(safeParse(schema, missingCity).success).toBe(false);
 	});
 

@@ -4,16 +4,15 @@
  */
 
 import type { CacheOptions, DatabaseResult } from '../../dbInterface';
-import { AdapterCore } from '../adapter/adapterCore';
 
 export class CacheModule {
-	private cache: Map<string, { value: any; expiresAt?: number }> = new Map();
-
-	constructor(_core: AdapterCore) {}
+	private readonly cache: Map<string, { value: any; expiresAt?: number }> = new Map();
 
 	async get<T>(key: string): Promise<DatabaseResult<T | null>> {
 		const entry = this.cache.get(key);
-		if (!entry) return { success: true, data: null };
+		if (!entry) {
+			return { success: true, data: null };
+		}
 		if (entry.expiresAt && Date.now() > entry.expiresAt) {
 			this.cache.delete(key);
 			return { success: true, data: null };

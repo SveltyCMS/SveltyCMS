@@ -8,9 +8,9 @@
  * - Error Handling
  */
 
-import { json } from '@sveltejs/kit';
 // type RequestHandler removed
 import { SCIM_SCHEMAS } from '@src/types/scim';
+import { json } from '@sveltejs/kit';
 
 // Unified Error Handling
 import { apiHandler } from '@utils/apiHandler';

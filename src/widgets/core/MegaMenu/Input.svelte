@@ -35,11 +35,11 @@ Interactive menu builder with add/edit/reorder capabilities
 -->
 
 <script lang="ts">
+	import { app } from '@src/stores/store.svelte';
 	import { showModal } from '@utils/modalUtils';
 	import type { FieldType } from './';
-	import type { MenuItem, MenuEditContext } from './types';
-	import { app } from '@src/stores/store.svelte';
 	import MegaMenuInput from './Input.svelte';
+	import type { MenuEditContext, MenuItem } from './types';
 
 	let { field, value = $bindable(), error }: { field: FieldType; value: MenuItem[] | null | undefined; error?: string | null } = $props();
 
@@ -81,7 +81,7 @@ Interactive menu builder with add/edit/reorder capabilities
 	function handleDrop(event: DragEvent, dropIndex: number) {
 		event.preventDefault();
 
-		if (!draggedItem || !value) return;
+		if (!(draggedItem && value)) return;
 
 		const draggedIndex = value.findIndex((item) => item._id === draggedItem!._id);
 		if (draggedIndex === -1) return;

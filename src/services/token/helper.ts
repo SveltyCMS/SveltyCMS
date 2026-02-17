@@ -7,11 +7,12 @@
  * - Token Escaping
  * - Token Replacement
  */
-import { replaceTokens } from './engine';
-import type { TokenContext } from './types';
+
 import type { User } from '@src/databases/auth/types';
 import { logger } from '@utils/logger';
-import { validateTokenSyntax, extractTokenPaths, containsTokens } from './tokenUtils';
+import { replaceTokens } from './engine';
+import { containsTokens, extractTokenPaths, validateTokenSyntax } from './tokenUtils';
+import type { TokenContext } from './types';
 
 // Re-export pure utils
 export { validateTokenSyntax, extractTokenPaths, containsTokens };
@@ -23,12 +24,16 @@ export async function processTokensInResponse(
 	locale: string,
 	context: Partial<TokenContext> & { maxDepth?: number; currentDepth?: number } = {}
 ): Promise<unknown> {
-	if (!data) return data;
+	if (!data) {
+		return data;
+	}
 
 	// Prevent infinite recursion
 	const maxDepth = context.maxDepth || 10;
 	const currentDepth = context.currentDepth || 0;
-	if (currentDepth > maxDepth) return data;
+	if (currentDepth > maxDepth) {
+		return data;
+	}
 
 	// Handle Arrays
 	if (Array.isArray(data)) {
@@ -38,7 +43,9 @@ export async function processTokensInResponse(
 	// Handle Objects
 	if (typeof data === 'object' && data !== null) {
 		// Skip Date objects and other non-plain objects if needed
-		if (data instanceof Date) return data;
+		if (data instanceof Date) {
+			return data;
+		}
 
 		const result: Record<string, unknown> = {};
 		for (const [key, value] of Object.entries(data as Record<string, unknown>)) {
@@ -50,7 +57,9 @@ export async function processTokensInResponse(
 	// Handle Strings (Tokens)
 	if (typeof data === 'string' && data.includes('{{')) {
 		// Skip if it looks like a token but is escaped
-		if (data.includes('\\{{')) return data.replace(/\\\{\{/g, '{{').replace(/\\\}\}/g, '}}');
+		if (data.includes('\\{{')) {
+			return data.replace(/\\\{\{/g, '{{').replace(/\\\}\}/g, '}}');
+		}
 
 		try {
 			// Build full context
@@ -72,7 +81,9 @@ export async function processTokensInResponse(
 
 // Previews token resolution (for UI)
 export async function previewTokenResolution(text: string, user: User | undefined, context: Partial<TokenContext> = {}): Promise<string> {
-	if (!containsTokens(text)) return text;
+	if (!containsTokens(text)) {
+		return text;
+	}
 
 	try {
 		return await replaceTokens(text, {

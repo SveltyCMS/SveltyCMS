@@ -16,25 +16,21 @@
  * Body: JSON object with optional 'userId' (defaults to current user)
  */
 
-import { json } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
-import { getPrivateSettingSync } from '@src/services/settingsService';
-
+// Cache service
+import { cacheService } from '@src/databases/CacheService';
 // Auth and permission helpers
 import { auth } from '@src/databases/db';
-
-// System logger
-import { logger } from '@utils/logger.server';
-
+import { getPrivateSettingSync } from '@src/services/settingsService';
+import { json } from '@sveltejs/kit';
 // Unified Error Handling
 import { apiHandler } from '@utils/apiHandler';
 import { AppError } from '@utils/errorHandling';
+// System logger
+import { logger } from '@utils/logger.server';
 
 // Media storage
 import { moveMediaToTrash } from '@utils/media/mediaStorage.server';
-
-// Cache service
-import { cacheService } from '@src/databases/CacheService';
+import type { RequestHandler } from './$types';
 
 export const DELETE: RequestHandler = apiHandler(async ({ request, locals }) => {
 	const { user: currentUser, tenantId } = locals;

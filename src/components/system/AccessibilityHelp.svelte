@@ -105,7 +105,8 @@
 		<h4 id="intro-heading" class="h4 font-semibold dark:text-white">About Accessibility in SveltyCMS</h4>
 		<p class="text-surface-600 dark:text-surface-300">
 			SveltyCMS is designed to meet <strong>WCAG 2.2 Level AA</strong> for the user interface and
-			<strong>ATAG 2.0 Level AA</strong> as an authoring tool. This ensures both the CMS interface and the content it produces are accessible to all users.
+			<strong>ATAG 2.0 Level AA</strong>
+			as an authoring tool. This ensures both the CMS interface and the content it produces are accessible to all users.
 		</p>
 	</section>
 
@@ -118,7 +119,9 @@
 
 		<div class="overflow-hidden rounded-lg border border-surface-200 dark:border-surface-700">
 			<table class="w-full text-sm" aria-describedby="keyboard-table-desc">
-				<caption id="keyboard-table-desc" class="sr-only"> Keyboard shortcuts available in SveltyCMS </caption>
+				<caption id="keyboard-table-desc" class="sr-only">
+					Keyboard shortcuts available in SveltyCMS
+				</caption>
 				<thead class="bg-surface-100 dark:bg-surface-800">
 					<tr>
 						<th scope="col" class="px-4 py-3 text-left font-semibold dark:text-white">Key / Combination</th>
@@ -141,8 +144,9 @@
 		</div>
 
 		<p class="text-xs text-surface-500">
-			Tip: Press <kbd class="inline-flex items-center rounded bg-surface-200 px-2 py-1 font-mono text-xs dark:bg-surface-700 dark:text-white">?</kbd> anywhere
-			in the application to reopen this help.
+			Tip: Press
+			<kbd class="inline-flex items-center rounded bg-surface-200 px-2 py-1 font-mono text-xs dark:bg-surface-700 dark:text-white">?</kbd>
+			anywhere in the application to reopen this help.
 		</p>
 	</section>
 
@@ -218,6 +222,6 @@
 			<iconify-icon icon="mdi:message-text" width="16" class="mr-2"></iconify-icon>
 			Give Feedback
 		</button>
-		<button onclick={close} class="btn preset-filled-primary-500"> Close Dialog </button>
+		<button onclick={close} class="btn preset-filled-primary-500">Close Dialog</button>
 	</div>
 </div>

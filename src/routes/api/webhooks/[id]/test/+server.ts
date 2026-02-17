@@ -3,8 +3,8 @@
  * @description Manual trigger for testing webhook connectivity.
  */
 
-import { json } from '@sveltejs/kit';
 import { webhookService } from '@src/services/webhookService';
+import { json } from '@sveltejs/kit';
 import { apiHandler } from '@utils/apiHandler';
 import { AppError } from '@utils/errorHandling';
 
@@ -14,7 +14,9 @@ export const POST = apiHandler(async ({ params, locals }) => {
 	}
 
 	const { id } = params;
-	if (!id) throw new AppError('Missing ID', 400, 'MISSING_ID');
+	if (!id) {
+		throw new AppError('Missing ID', 400, 'MISSING_ID');
+	}
 
 	try {
 		await webhookService.testWebhook(id, locals.user.email);

@@ -58,10 +58,18 @@ const SENSITIVE = [
 
 // Masking
 function mask(v: unknown, depth = 0): unknown {
-	if (depth > 10) return '[Depth]';
-	if (v === null || typeof v !== 'object') return v;
-	if (v instanceof Date || v instanceof RegExp) return v;
-	if (Array.isArray(v)) return v.map((i) => mask(i, depth + 1));
+	if (depth > 10) {
+		return '[Depth]';
+	}
+	if (v === null || typeof v !== 'object') {
+		return v;
+	}
+	if (v instanceof Date || v instanceof RegExp) {
+		return v;
+	}
+	if (Array.isArray(v)) {
+		return v.map((i) => mask(i, depth + 1));
+	}
 
 	const o: Record<string, unknown> = {};
 	for (const [k, val] of Object.entries(v)) {
@@ -76,8 +84,9 @@ function mask(v: unknown, depth = 0): unknown {
 
 // Server formatting (ANSI)
 const serverFormat =
-	!IS_BROWSER && !DISABLED
-		? (msg: string) => {
+	IS_BROWSER || DISABLED
+		? (msg: string) => msg
+		: (msg: string) => {
 				const patterns = [
 					{ re: /\b\d+(\.\d+)?(ms|s)\b/g, c: '\x1b[32m' },
 					{
@@ -94,8 +103,7 @@ const serverFormat =
 					out = out.replace(re, `${c}$&${'\x1b[0m'}`);
 				}
 				return out;
-			}
-		: (msg: string) => msg;
+			};
 
 // Client formatting (console %c)
 const clientFormat =
@@ -127,7 +135,9 @@ const clientFormat =
 
 // Core log
 function log(level: LogLevel, msg: string, args: unknown[]) {
-	if (!enabled(level)) return;
+	if (!enabled(level)) {
+		return;
+	}
 
 	const masked = args.map(mask);
 	const ts = new Date().toISOString().slice(0, 19).replace('T', ' ');
@@ -188,7 +198,9 @@ export const logger = DISABLED
 			}),
 
 			dump: (data: unknown, label?: string) => {
-				if (!enabled('trace')) return;
+				if (!enabled('trace')) {
+					return;
+				}
 				const prefix = label ? `DUMP[${label}]` : 'DUMP';
 				if (IS_BROWSER) {
 					console.group(`🔍 ${prefix}`);

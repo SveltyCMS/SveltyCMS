@@ -4,12 +4,13 @@
  *
  * Supports multi-tenant mode with tenant-specific role isolation.
  */
-import { json } from '@sveltejs/kit';
-import { dbAdapter, dbInitPromise } from '@src/databases/db';
+
 import { getAllPermissions } from '@src/databases/auth/permissions';
-import { invalidateRolesCache } from '@src/hooks/handleAuthorization';
-import { logger } from '@utils/logger.server';
 import type { Role } from '@src/databases/auth/types';
+import { dbAdapter, dbInitPromise } from '@src/databases/db';
+import { invalidateRolesCache } from '@src/hooks/handleAuthorization';
+import { json } from '@sveltejs/kit';
+import { logger } from '@utils/logger.server';
 
 const MAX_ROLE_NAME_LENGTH = 50;
 const ROLE_NAME_PATTERN = /^[a-zA-Z0-9-_\s]+$/;
@@ -77,14 +78,18 @@ export const POST = apiHandler(async ({ request, locals }) => {
 
 		return json({ success: true });
 	} catch (error) {
-		if (error instanceof AppError) throw error;
+		if (error instanceof AppError) {
+			throw error;
+		}
 		logger.error('Error updating permissions:', { error, userId: user._id, tenantId });
 		throw new AppError(`Error: ${error}`, 500, 'UPDATE_FAILED');
 	}
 });
 
 async function validateRoles(roles: Role[]): Promise<{ isValid: boolean; error?: string }> {
-	if (roles.length === 0) return { isValid: false, error: 'At least one role required' };
+	if (roles.length === 0) {
+		return { isValid: false, error: 'At least one role required' };
+	}
 
 	const permissions = await getAllPermissions();
 	const permissionIds = new Set(permissions.map((p) => p._id));
@@ -99,8 +104,12 @@ async function validateRoles(roles: Role[]): Promise<{ isValid: boolean; error?:
 		if (!validateRoleName(role.name)) {
 			return { isValid: false, error: `Invalid name: ${role.name}` };
 		}
-		if (roleIds.has(role._id)) return { isValid: false, error: `Duplicate ID: ${role._id}` };
-		if (roleNames.has(role.name.toLowerCase())) return { isValid: false, error: `Duplicate name: ${role.name}` };
+		if (roleIds.has(role._id)) {
+			return { isValid: false, error: `Duplicate ID: ${role._id}` };
+		}
+		if (roleNames.has(role.name.toLowerCase())) {
+			return { isValid: false, error: `Duplicate name: ${role.name}` };
+		}
 
 		roleIds.add(role._id);
 		roleNames.add(role.name.toLowerCase());
@@ -112,10 +121,14 @@ async function validateRoles(roles: Role[]): Promise<{ isValid: boolean; error?:
 				}
 			}
 		}
-		if (role.isAdmin) hasAdmin = true;
+		if (role.isAdmin) {
+			hasAdmin = true;
+		}
 	}
 
-	if (!hasAdmin) return { isValid: false, error: 'At least one admin role required' };
+	if (!hasAdmin) {
+		return { isValid: false, error: 'At least one admin role required' };
+	}
 	return { isValid: true };
 }
 

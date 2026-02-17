@@ -16,9 +16,9 @@ Registers and manages the service worker for offline support and caching.
 -->
 
 <script lang="ts">
+	import { logger } from '@utils/logger';
 	import { onMount } from 'svelte';
 	import { browser } from '$app/environment';
-	import { logger } from '@utils/logger';
 
 	let updateAvailable = $state(false);
 	let registration: ServiceWorkerRegistration | null = $state(null);
@@ -104,8 +104,8 @@ Registers and manages the service worker for offline support and caching.
 			</div>
 		</div>
 		<div class="mt-3 flex gap-2">
-			<button class="preset-outlined-surface-500btn btn-sm" onclick={updateServiceWorker}> Update Now </button>
-			<button class="preset-outlined-surface-500 btn-sm" onclick={() => (updateAvailable = false)}> Later </button>
+			<button class="preset-outlined-surface-500btn btn-sm" onclick={updateServiceWorker}>Update Now</button>
+			<button class="preset-outlined-surface-500 btn-sm" onclick={() => (updateAvailable = false)}>Later</button>
 		</div>
 	</div>
 {/if}
@@ -113,6 +113,6 @@ Registers and manages the service worker for offline support and caching.
 <!-- Debug tools (only in dev mode) -->
 {#if import.meta.env.DEV && browser}
 	<div class="card preset-tonal-surface fixed bottom-4 left-4 z-50 p-2 text-xs">
-		<button class="preset-outlined-surface-500 btn-sm" onclick={clearCache}> Clear Cache </button>
+		<button class="preset-outlined-surface-500 btn-sm" onclick={clearCache}>Clear Cache</button>
 	</div>
 {/if}

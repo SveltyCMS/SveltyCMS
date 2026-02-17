@@ -13,24 +13,22 @@ FIXES:
 -->
 
 <script lang="ts">
-	import { logger } from '@utils/logger';
-	import { untrack } from 'svelte';
-	import { SvelteSet } from 'svelte/reactivity';
-	import { publicEnv } from '@src/stores/globalSettings.svelte';
-	import { goto } from '$app/navigation';
-	import { page } from '$app/state';
-	import { collection, collectionValue, mode } from '@src/stores/collectionStore.svelte';
-	import { contentLanguage, translationProgress } from '@stores/store.svelte';
-	import { getFieldName } from '@utils/utils';
-	import { getLanguageName } from '@utils/languageUtils';
-
+	import ProgressBar from '@components/system/ProgressBar.svelte';
 	// SkeletonUI
 	import { Menu, Portal } from '@skeletonlabs/skeleton-svelte';
-	import ProgressBar from '@components/system/ProgressBar.svelte';
-
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 	import type { Locale } from '@src/paraglide/runtime';
+	import { collection, collectionValue, mode } from '@src/stores/collectionStore.svelte';
+	import { publicEnv } from '@src/stores/globalSettings.svelte';
+	import { contentLanguage, translationProgress } from '@stores/store.svelte';
+	import { getLanguageName } from '@utils/languageUtils';
+	import { logger } from '@utils/logger';
+	import { getFieldName } from '@utils/utils';
+	import { untrack } from 'svelte';
+	import { SvelteSet } from 'svelte/reactivity';
+	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
 
 	// State
 	let isInitialized = $state(false);
@@ -39,7 +37,7 @@ FIXES:
 	// Derived values
 	const availableLanguages = $derived.by(() => {
 		const languages = publicEnv?.AVAILABLE_CONTENT_LANGUAGES;
-		if (!languages || !Array.isArray(languages)) {
+		if (!(languages && Array.isArray(languages))) {
 			return ['en'] as Locale[];
 		}
 		return languages as Locale[];
@@ -427,9 +425,7 @@ FIXES:
 											<div class="flex-1">
 												<ProgressBar value={percentage} color={getProgressVariant(percentage)} size="sm" showPercentage={false} animated={false} />
 											</div>
-											<span class="min-w-8 text-right text-sm font-semibold">
-												{percentage}%
-											</span>
+											<span class="min-w-8 text-right text-sm font-semibold"> {percentage}% </span>
 										</div>
 									{:else}
 										<!-- View Mode: Show Code on Right -->
@@ -447,9 +443,7 @@ FIXES:
 					{#if !isViewMode && showProgress}
 						<Menu.Separator />
 						<div class="px-4 py-2">
-							<div class="mb-1 text-center text-xs font-medium text-tertiary-500 dark:text-primary-500">
-								{m.translationsstatus_completed()}
-							</div>
+							<div class="mb-1 text-center text-xs font-medium text-tertiary-500 dark:text-primary-500">{m.translationsstatus_completed()}</div>
 							<div class="flex items-center justify-between gap-3">
 								{#if overallPercentage}
 									<div class="flex-1">
@@ -462,9 +456,7 @@ FIXES:
 										/>
 									</div>
 								{/if}
-								<span class="min-w-10 text-right text-sm font-bold {getTextColor(overallPercentage)}">
-									{overallPercentage}%
-								</span>
+								<span class="min-w-10 text-right text-sm font-bold {getTextColor(overallPercentage)}"> {overallPercentage}% </span>
 							</div>
 						</div>
 					{/if}
@@ -473,7 +465,5 @@ FIXES:
 		</Portal>
 	</Menu>
 
-	<div class="mt-0.5 transition-all duration-300">
-		<!-- External progress bar removed to prevent header overflow -->
-	</div>
+	<div class="mt-0.5 transition-all duration-300"><!-- External progress bar removed to prevent header overflow --></div>
 </div>

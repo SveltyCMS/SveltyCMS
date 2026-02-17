@@ -18,8 +18,8 @@
 </script>
 
 <script lang="ts">
-	import BaseWidget from '../BaseWidget.svelte';
 	import type { WidgetSize } from '@src/content/types';
+	import BaseWidget from '../BaseWidget.svelte';
 
 	const {
 		label = 'Identity Sync',

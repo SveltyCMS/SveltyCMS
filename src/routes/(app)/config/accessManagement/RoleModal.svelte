@@ -21,23 +21,22 @@
 -->
 
 <script lang="ts">
-	import type { SvelteComponent } from 'svelte';
-
-	// Stores
-	import { modalState } from '@utils/modalState.svelte';
-
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
+	// Stores
+	import { modalState } from '@utils/modalState.svelte';
+	import type { SvelteComponent } from 'svelte';
+
 	// Props
 	interface Props {
+		currentGroupName: string;
+		currentRoleId: string;
+		isEditMode: boolean;
 		/** Exposes parent props to this component. */
 		parent: SvelteComponent;
-		isEditMode: boolean;
-		currentRoleId: string;
-		roleName: string;
 		roleDescription: string;
-		currentGroupName: string;
+		roleName: string;
 		selectedPermissions?: string[];
 	}
 
@@ -66,14 +65,12 @@
 </script>
 
 <div class="card w-modal space-y-4 p-4 shadow-xl">
-	<header class="text-center text-2xl font-bold">
-		{isEditMode ? 'Edit Role' : 'Create New Role'}
-	</header>
+	<header class="text-center text-2xl font-bold">{isEditMode ? 'Edit Role' : 'Create New Role'}</header>
 
 	<form class="modal-form space-y-4 border border-surface-500 p-4 rounded-container-token" onsubmit={onFormSubmit} id="roleForm">
 		<label class="label">
 			<span>Role Name:</span>
-			<input type="text" bind:value={formName} placeholder="Role Name" class="input" required />
+			<input type="text" bind:value={formName} placeholder="Role Name" class="input" required>
 		</label>
 
 		<label class="label">

@@ -3,10 +3,10 @@
  * @description Dynamic GraphQL schema and resolver generation for media.
  */
 
-import { getPrivateSettingSync } from '@src/services/settingsService';
-import type { DatabaseAdapter, BaseEntity } from '@src/databases/dbInterface';
-import { logger } from '@utils/logger.server';
 import type { User } from '@src/databases/auth/types';
+import type { BaseEntity, DatabaseAdapter } from '@src/databases/dbInterface';
+import { getPrivateSettingSync } from '@src/services/settingsService';
+import { logger } from '@utils/logger.server';
 
 // Registers media schemas dynamically.
 export function mediaTypeDefs() {
@@ -56,15 +56,15 @@ interface PaginationArgs {
 }
 
 interface GraphQLContext {
-	user?: User;
 	tenantId?: string;
+	user?: User;
 }
 
 type MediaResolverParent = unknown;
 
 interface MediaEntity extends BaseEntity {
-	url?: string;
 	tenantId?: string;
+	url?: string;
 }
 
 // MIME type patterns for media type filtering
@@ -83,7 +83,9 @@ export function mediaResolvers(dbAdapter: DatabaseAdapter) {
 	}
 
 	const fetchMediaByType = async (mimePattern: RegExp | null, pagination: { page?: number; limit?: number } | undefined, context: GraphQLContext) => {
-		if (!context.user) throw new Error('Authentication required');
+		if (!context.user) {
+			throw new Error('Authentication required');
+		}
 
 		const { page = 1, limit = 50 } = pagination || {};
 

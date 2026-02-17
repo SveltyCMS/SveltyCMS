@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+
 /**
  * @file scripts/bundle-stats.js
  * @description High-performance Bundle size monitoring
@@ -10,12 +11,12 @@
  * - **Trend Analysis:** Tracks size changes over time.
  */
 
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import fs from 'node:fs/promises';
-import { existsSync, writeFileSync, readFileSync } from 'node:fs';
 import path from 'node:path';
-import zlib from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
+import zlib from 'node:zlib';
 
 const gzip = promisify(zlib.gzip);
 const brotli = promisify(zlib.brotliCompress);
@@ -52,11 +53,13 @@ const COLORS = {
 // --- UTILITIES ---
 
 const formatBytes = (bytes, decimals = 2) => {
-	if (bytes === 0) return '0 B';
+	if (bytes === 0) {
+		return '0 B';
+	}
 	const k = 1024;
 	const sizes = ['B', 'KB', 'MB', 'GB'];
 	const i = Math.floor(Math.log(bytes) / Math.log(k));
-	return parseFloat((bytes / Math.pow(k, i)).toFixed(decimals)) + ' ' + sizes[i];
+	return `${Number.parseFloat((bytes / k ** i).toFixed(decimals))} ${sizes[i]}`;
 };
 
 async function getBuildMetadata() {
@@ -95,16 +98,16 @@ async function getFilesRecursively(dir) {
 		for (const file of list) {
 			const filePath = path.resolve(dir, file);
 			const stat = await fs.stat(filePath);
-			if (stat && stat.isDirectory()) {
+			if (stat?.isDirectory()) {
 				results = results.concat(await getFilesRecursively(filePath));
-			} else {
-				if (CONFIG.fileTypes.includes(path.extname(file))) {
-					results.push(filePath);
-				}
+			} else if (CONFIG.fileTypes.includes(path.extname(file))) {
+				results.push(filePath);
 			}
 		}
 	} catch (e) {
-		if (e.code !== 'ENOENT') console.error(e);
+		if (e.code !== 'ENOENT') {
+			console.error(e);
+		}
 	}
 	return results;
 }
@@ -174,13 +177,17 @@ function saveHistory(stats) {
 }
 
 function checkRegressions(currentStats, history) {
-	if (history.length < 5) return;
+	if (history.length < 5) {
+		return;
+	}
 
 	const last5 = history.slice(-5).reverse(); // Get last 5
 	// Filter out zero/missing build times
-	const validBuildTimes = last5.map((h) => (h.summary || h.stats || {}).buildTime).filter((t) => t > 0);
+	const validBuildTimes = last5.map((h) => (h.summary || h.stats)?.buildTime).filter((t) => t > 0);
 
-	if (validBuildTimes.length === 0) return;
+	if (validBuildTimes.length === 0) {
+		return;
+	}
 
 	const avgBuildTime = validBuildTimes.reduce((a, b) => a + b, 0) / validBuildTimes.length;
 	const currentBuildTime = currentStats.buildTime;
@@ -213,26 +220,30 @@ function generateSuggestions(largeFiles, totalSize) {
 	if (largeFiles.length > 0) {
 		suggestions.push(`${COLORS.yellow}• Large individual chunks detected:${COLORS.reset}`);
 		suggestions.push(`  - Use ${COLORS.cyan}dynamic imports (import())${COLORS.reset} to code-split heavy components/routes.`);
-		suggestions.push(`  - Check for large dependencies that can be lazy-loaded.`);
+		suggestions.push('  - Check for large dependencies that can be lazy-loaded.');
 		suggestions.push(`  - Run ${COLORS.cyan}npm run build:analyze${COLORS.reset} to visualize the bundle structure.`);
 	}
 
 	if (totalSize > CONFIG.budgets.totalBudget) {
 		suggestions.push(`${COLORS.yellow}• Total bundle size exceeded:${COLORS.reset}`);
-		suggestions.push(`  - Audit \`package.json\` for unused or heavy dependencies.`);
-		suggestions.push(`  - Ensure assets (images/fonts) are optimized or loaded from a CDN.`);
+		suggestions.push('  - Audit `package.json` for unused or heavy dependencies.');
+		suggestions.push('  - Ensure assets (images/fonts) are optimized or loaded from a CDN.');
 	}
 
 	const poorlyCompressed = largeFiles.filter((f) => f.brotliSize / f.size > 0.9);
 	if (poorlyCompressed.length > 0) {
 		suggestions.push(`${COLORS.yellow}• Poor compression ratio detected for:${COLORS.reset}`);
-		poorlyCompressed.forEach((f) => suggestions.push(`  - ${f.name}`));
-		suggestions.push(`  - Verify if these files are already compressed binaries (images, etc) included in the bundle.`);
+		for (const f of poorlyCompressed) {
+			suggestions.push(`  - ${f.name}`);
+		}
+		suggestions.push('  - Verify if these files are already compressed binaries (images, etc) included in the bundle.');
 	}
 
 	if (suggestions.length > 0) {
 		console.log(`${COLORS.bold}${COLORS.blue}💡 SUGGESTIONS TO RESOLVE:${COLORS.reset}`);
-		suggestions.forEach((s) => console.log(s));
+		for (const s of suggestions) {
+			console.log(s);
+		}
 		console.log('');
 	}
 }
@@ -240,7 +251,9 @@ function generateSuggestions(largeFiles, totalSize) {
 // --- REPORTING ---
 
 function printComparison(current, previous) {
-	if (!previous) return '';
+	if (!previous) {
+		return '';
+	}
 	const diff = current - previous;
 	const symbol = diff > 0 ? '🔺' : diff < 0 ? '🔻' : '▪️';
 	const color = diff > 0 ? COLORS.red : diff < 0 ? COLORS.green : COLORS.gray;
@@ -287,13 +300,17 @@ function generateReport(results, metadata = {}) {
 		stats.totalSize += f.size;
 		stats.totalGzip += f.gzipSize;
 		stats.totalBrotli += f.brotliSize;
-		if (f.ext === '.js') stats.jsCount++;
-		if (f.ext === '.css') stats.cssCount++;
+		if (f.ext === '.js') {
+			stats.jsCount++;
+		}
+		if (f.ext === '.css') {
+			stats.cssCount++;
+		}
 	});
 
 	// Save history returns the updated list
 	const history = saveHistory(stats);
-	const prevBuild = history.length > 1 ? history[history.length - 2].summary : null;
+	const prevBuild = history.length > 1 ? history.at(-2).summary : null;
 
 	console.log(`\n${COLORS.bold}${COLORS.blue}📦 BUNDLE ANALYTICS${COLORS.reset}`);
 	console.log(`${COLORS.gray}Scan path: ${CONFIG.buildDir}${COLORS.reset}\n`);

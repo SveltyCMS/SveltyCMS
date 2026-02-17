@@ -5,12 +5,12 @@
 Allows synchronization between filesystem and database, and full system backup/restore.
 -->
 <script lang="ts">
-	import { fade, slide } from 'svelte/transition';
-	import { showToast } from '@utils/toast';
-	import PageTitle from '@components/PageTitle.svelte';
 	import ImportExportManager from '@components/admin/ImportExportManager.svelte';
+	import PageTitle from '@components/PageTitle.svelte';
 	import SystemTooltip from '@components/system/SystemTooltip.svelte';
+	import { showToast } from '@utils/toast';
 	import { onMount } from 'svelte';
+	import { fade, slide } from 'svelte/transition';
 
 	type ConfigStatus = {
 		status: 'in_sync' | 'changes_detected' | 'error';
@@ -97,8 +97,8 @@ Allows synchronization between filesystem and database, and full system backup/r
 	<!-- Description -->
 	<div class="preset-tonal-surface mb-4 p-4">
 		<p class="text-surface-600 dark:text-surface-300">
-			Manage your system configuration. Use <strong>Sync</strong> to deploy code changes to the database, and <strong>Backups</strong> to import/export
-			full system data.
+			Manage your system configuration. Use <strong>Sync</strong> to deploy code changes to the database, and <strong>Backups</strong> to
+			import/export full system data.
 		</p>
 	</div>
 
@@ -184,9 +184,7 @@ Allows synchronization between filesystem and database, and full system backup/r
 						<iconify-icon icon="mdi:alert" class="text-warning-500"></iconify-icon>
 						Changes Detected
 					</h3>
-					<p class="">
-						{changeSummary().new} new, {changeSummary().updated} updated, {changeSummary().deleted} deleted.
-					</p>
+					<p class="">{changeSummary().new} new, {changeSummary().updated} updated, {changeSummary().deleted} deleted.</p>
 					<div class="overflow-hidden border border-surface-200 dark:text-surface-50">
 						<table class="table w-full text-sm">
 							<thead class="bg-surface-100 dark:bg-surface-800">
@@ -197,15 +195,21 @@ Allows synchronization between filesystem and database, and full system backup/r
 								</tr>
 							</thead>
 							<tbody>
-								{#each Object.entries(status?.changes || {}) as [changeType, items] (changeType)}
+								{#each Object.entries(status?.changes || {}) as [ changeType, items ] (changeType)}
 									{#each items as item (item.uuid || item.name)}
 										<tr class="border-t border-surface-200 hover:bg-surface-50 dark:text-surface-50 dark:hover:bg-surface-800/50">
 											<td>{item.name}</td>
 											<td><span class="preset-tonal-surface-500 badge capitalize">{item.type}</span></td>
 											<td>
-												{#if changeType === 'new'}<span class="preset-filled-primary-500 badge">New</span>{/if}
-												{#if changeType === 'updated'}<span class="variant-filled-warning badge">Updated</span>{/if}
-												{#if changeType === 'deleted'}<span class="preset-filled-error-500 badge">Deleted</span>{/if}
+												{#if changeType === 'new'}
+													<span class="preset-filled-primary-500 badge">New</span>
+												{/if}
+												{#if changeType === 'updated'}
+													<span class="variant-filled-warning badge">Updated</span>
+												{/if}
+												{#if changeType === 'deleted'}
+													<span class="preset-filled-error-500 badge">Deleted</span>
+												{/if}
 											</td>
 										</tr>
 									{/each}
@@ -218,18 +222,15 @@ Allows synchronization between filesystem and database, and full system backup/r
 		{/if}
 
 		{#if activeTab === 'backups'}
-			<div transition:slide|local class="space-y-4">
-				<ImportExportManager />
-			</div>
+			<div transition:slide|local class="space-y-4"><ImportExportManager /></div>
 		{/if}
 
 		{#if activeTab === 'debug'}
 			<div transition:slide|local class="rounded border bg-surface-50 p-4 dark:bg-surface-900/40">
-				<h3 class="mb-3 flex items-center gap-2 font-semibold">
-					<iconify-icon icon="mdi:bug-outline"></iconify-icon> Raw API Response
-				</h3>
+				<h3 class="mb-3 flex items-center gap-2 font-semibold"><iconify-icon icon="mdi:bug-outline"></iconify-icon> Raw API Response</h3>
 				<pre
-					class="whitespace-pre-wrap text-xs max-h-[500px] overflow-y-auto p-2 border border-surface-200 dark:border-surface-700 rounded bg-surface-100 dark:bg-surface-800">{JSON.stringify(
+					class="whitespace-pre-wrap text-xs max-h-[500px] overflow-y-auto p-2 border border-surface-200 dark:border-surface-700 rounded bg-surface-100 dark:bg-surface-800"
+				>{JSON.stringify(
 						status,
 						null,
 						2

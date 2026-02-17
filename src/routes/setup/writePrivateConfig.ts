@@ -13,9 +13,9 @@ import { isSetupComplete } from '@utils/setupCheck';
  * Includes safety features: backup existing file and prevent overwrite after setup
  */
 export async function writePrivateConfig(dbConfig: DatabaseConfig, system: { multiTenant?: boolean; demoMode?: boolean } = {}): Promise<void> {
-	const fs = await import('fs/promises');
-	const path = await import('path');
-	const { randomBytes } = await import('crypto');
+	const fs = await import('node:fs/promises');
+	const path = await import('node:path');
+	const { randomBytes } = await import('node:crypto');
 
 	// Support TEST_MODE for isolated testing
 	const configFileName = process.env.TEST_MODE ? 'private.test.ts' : 'private.ts';
@@ -103,8 +103,8 @@ export const privateEnv = {
  * This is called during the final step of setup.
  */
 export async function updatePrivateConfigMode(modes: { demoMode?: boolean; multiTenant?: boolean }): Promise<void> {
-	const fs = await import('fs/promises');
-	const path = await import('path');
+	const fs = await import('node:fs/promises');
+	const path = await import('node:path');
 
 	// Support TEST_MODE for isolated testing
 	const configFileName = process.env.TEST_MODE ? 'private.test.ts' : 'private.ts';
@@ -145,7 +145,7 @@ export async function updatePrivateConfigMode(modes: { demoMode?: boolean; multi
 					// Fallback: insert at end of object
 					const lastBraceIndex = content.lastIndexOf('};');
 					if (lastBraceIndex !== -1) {
-						content = content.slice(0, lastBraceIndex) + `\tMULTI_TENANT: ${toBoolString(modes.multiTenant)},\n` + content.slice(lastBraceIndex);
+						content = `${content.slice(0, lastBraceIndex)}\tMULTI_TENANT: ${toBoolString(modes.multiTenant)},\n${content.slice(lastBraceIndex)}`;
 						modified = true;
 					}
 				}
@@ -179,7 +179,7 @@ export async function updatePrivateConfigMode(modes: { demoMode?: boolean; multi
 					// Fallback: insert at end of object
 					const lastBraceIndex = content.lastIndexOf('};');
 					if (lastBraceIndex !== -1) {
-						content = content.slice(0, lastBraceIndex) + `\tDEMO: ${toBoolString(modes.demoMode)},\n` + content.slice(lastBraceIndex);
+						content = `${content.slice(0, lastBraceIndex)}\tDEMO: ${toBoolString(modes.demoMode)},\n${content.slice(lastBraceIndex)}`;
 						modified = true;
 					}
 				}

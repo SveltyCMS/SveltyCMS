@@ -97,7 +97,9 @@ function isObjectIdLike(val: unknown): val is { toHexString: () => string } {
 }
 
 export function processDates<T>(data: T): T {
-	if (!data) return data;
+	if (!data) {
+		return data;
+	}
 
 	if (isDateLike(data)) {
 		return data.toISOString() as unknown as T;
@@ -115,7 +117,7 @@ export function processDates<T>(data: T): T {
 		const result: Record<string, unknown> = {};
 		for (const key in data as Record<string, unknown>) {
 			// Ensure we only process own properties.
-			if (Object.prototype.hasOwnProperty.call(data, key)) {
+			if (Object.hasOwn(data, key)) {
 				result[key] = processDates((data as Record<string, unknown>)[key]);
 			}
 		}
@@ -133,8 +135,8 @@ export function processDates<T>(data: T): T {
  * A simple Least Recently Used (LRU) Cache to prevent memory leaks in long-running processes.
  */
 class LRUCache<K, V> {
-	private capacity: number;
-	private cache: Map<K, V>;
+	private readonly capacity: number;
+	private readonly cache: Map<K, V>;
 
 	constructor(capacity = 500) {
 		this.capacity = capacity;
@@ -147,7 +149,9 @@ class LRUCache<K, V> {
 		}
 		// Move to end to mark as recently used
 		const value = this.cache.get(key);
-		if (value === undefined) return undefined;
+		if (value === undefined) {
+			return undefined;
+		}
 		this.cache.delete(key);
 		this.cache.set(key, value);
 		return value;

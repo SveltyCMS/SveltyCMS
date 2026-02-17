@@ -5,19 +5,19 @@
 -->
 
 <script lang="ts">
+	// Components
+	import VerticalList from '@components/VerticalList.svelte';
+	// ParaglideJS
+	import * as m from '@src/paraglide/messages';
+	import { collection, setTargetWidget } from '@src/stores/collectionStore.svelte';
+	import { tabSet } from '@stores/store.svelte.ts';
+	import { widgetFunctions } from '@stores/widgetStore.svelte.ts';
+	import { logger } from '@utils/logger';
+	import { asAny, getGuiFields } from '@utils/utils';
+	import { get } from 'svelte/store';
 	// Using iconify-icon web component
 	// Stores
 	import { page } from '$app/state';
-	import { logger } from '@utils/logger';
-	import { collection, setTargetWidget } from '@src/stores/collectionStore.svelte';
-	import { tabSet } from '@stores/store.svelte.ts';
-	import { asAny, getGuiFields } from '@utils/utils';
-	// Components
-	import VerticalList from '@components/VerticalList.svelte';
-	import { widgetFunctions } from '@stores/widgetStore.svelte.ts';
-	import { get } from 'svelte/store';
-	// ParaglideJS
-	import * as m from '@src/paraglide/messages';
 
 	// Skeleton
 
@@ -180,7 +180,8 @@
 	<div class="preset-outlined-tertiary-500 rounded-t-md p-2 text-center dark:preset-outlined-primary-500">
 		<p>
 			{m.collection_widgetfield_addrequired()}
-			<span class="text-tertiary-500 dark:text-primary-500">{contentPath}</span> Collection inputs.
+			<span class="text-tertiary-500 dark:text-primary-500">{contentPath}</span>
+			Collection inputs.
 		</p>
 		<p class="mb-2">{m.collection_widgetfield_drag()}</p>
 	</div>
@@ -190,9 +191,7 @@
 				<div
 					class="border-blue preset-outlined-surface-500 my-2 grid w-full grid-cols-6 items-center rounded-md border p-1 text-left hover:preset-filled-surface-500 dark:text-white"
 				>
-					<div class="preset-ghost-tertiary-500 badge h-10 w-10 rounded-full dark:preset-ghost-primary-500">
-						{field.id}
-					</div>
+					<div class="preset-ghost-tertiary-500 badge h-10 w-10 rounded-full dark:preset-ghost-primary-500">{field.id}</div>
 
 					<iconify-icon icon={field.icon} width="24" class="text-tertiary-500"></iconify-icon>
 					<div class="font-bold dark:text-primary-500">{field.label}</div>
@@ -225,8 +224,10 @@
 				onclick={handleSave}
 				type="button"
 				aria-label={m.button_save()}
-				class="preset-filled-tertiary-500 btn mt-2 justify-end dark:preset-filled-primary-500 dark:text-black">{m.button_save()}</button
+				class="preset-filled-tertiary-500 btn mt-2 justify-end dark:preset-filled-primary-500 dark:text-black"
 			>
+				{m.button_save()}
+			</button>
 		</div>
 	</div>
 </div>

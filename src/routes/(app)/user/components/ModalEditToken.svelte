@@ -17,34 +17,31 @@ It handles token creation, updates, and deletion with proper validation and erro
 -->
 
 <script lang="ts">
-	import { invalidateAll } from '$app/navigation';
-	import { page } from '$app/state';
-
-	// Skeleton & Stores
-	import { toaster } from '@stores/store.svelte.ts';
-	import { modalState } from '@utils/modalState.svelte';
-
 	// Component
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
-
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
+	// Skeleton & Stores
+	import { toaster } from '@stores/store.svelte.ts';
 	// Utils
 	import { Form } from '@utils/Form.svelte';
 	import { addUserTokenSchema } from '@utils/formSchemas';
+	import { modalState } from '@utils/modalState.svelte';
+	import { invalidateAll } from '$app/navigation';
+	import { page } from '$app/state';
 
 	// Props
 	interface Props {
-		token?: string;
-		user_id?: string;
+		close?: (val?: any) => void;
 		email?: string;
-		role?: string;
 		expires?: string;
+		role?: string;
+		roles?: any[];
+		token?: string;
 		// Allow passing user/roles as props for flexibility/testing
 		user?: any;
-		roles?: any[];
-		close?: (val?: any) => void;
+		user_id?: string;
 	}
 
 	let { token = '', user_id = '', email = '', role = 'admin', expires = '', user = page.data.user, roles = page.data.roles, close }: Props = $props();
@@ -231,14 +228,12 @@ It handles token creation, updates, and deletion with proper validation and erro
 			errorMessage={tokenForm.errors.email?.[0]}
 		/>
 		<!-- Token field (hidden but still submitted with form) -->
-		<input bind:value={tokenForm.data.token} type="hidden" name="token" />
+		<input bind:value={tokenForm.data.token} type="hidden" name="token">
 
 		<!-- User Role -->
 		{#if user.role === 'admin'}
 			<div class="flex flex-col gap-2 sm:flex-row">
-				<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">
-					{m.role()}: <span class="text-error-500">*</span>
-				</div>
+				<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">{m.role()}: <span class="text-error-500">*</span></div>
 				<div class="flex-auto">
 					<div class="flex flex-wrap justify-center gap-2 space-x-2 sm:justify-start">
 						{#if roles && roles.length > 0}
@@ -296,9 +291,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 			</div>
 
 			<!-- Save -->
-			<button type="submit" form="token-form" class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500">
-				{m.button_save()}
-			</button>
+			<button type="submit" form="token-form" class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500">{m.button_save()}</button>
 		</footer>
 	</form>
 </div>

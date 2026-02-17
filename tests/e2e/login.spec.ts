@@ -6,18 +6,18 @@
  *   - Verifies successful navigation to the admin area
  *   - Logs out and checks redirect to login page
  */
-import { test, expect } from '@playwright/test';
-import { loginAsAdmin, logout, ensureSidebarVisible } from './helpers/auth';
+import { expect, test } from '@playwright/test';
+import { ensureSidebarVisible, loginAsAdmin, logout } from './helpers/auth';
 
 test('Login and logout flow', async ({ page }) => {
 	// Set a higher timeout for this test (optional)
-	test.setTimeout(120000); // 2 minutes
+	test.setTimeout(120_000); // 2 minutes
 
 	// Use the auth helper to login
 	await loginAsAdmin(page);
 
 	// Assert we're logged in and at the Collections page
-	await expect(page).toHaveURL(/\/(Collections|admin|dashboard)/, { timeout: 10000 });
+	await expect(page).toHaveURL(/\/(Collections|admin|dashboard)/, { timeout: 10_000 });
 	console.log('✓ Login successful, current URL:', page.url());
 
 	// On mobile viewports, open sidebar to access logout button
@@ -31,6 +31,6 @@ test('Login and logout flow', async ({ page }) => {
 	await logout(page);
 
 	// Assert redirect back to login
-	await expect(page).toHaveURL(/\/(login|signup)/, { timeout: 10000 });
+	await expect(page).toHaveURL(/\/(login|signup)/, { timeout: 10_000 });
 	console.log('✓ Logout successful');
 });

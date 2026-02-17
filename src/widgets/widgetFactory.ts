@@ -9,9 +9,9 @@
  * - Clean, modern, and free of legacy patterns.
  */
 
-import type { BaseIssue, BaseSchema } from 'valibot';
 import type { FieldInstance } from '@src/content/types';
 import type { WidgetDefinition, WidgetFactory } from '@widgets/types';
+import type { BaseIssue, BaseSchema } from 'valibot';
 
 // A base constraint for widget-specific properties.
 type WidgetProps = Record<string, unknown>;
@@ -29,37 +29,29 @@ export type FieldConfig<TProps extends WidgetProps = WidgetProps> = {
  * It's generic over the widget's custom props (TProps).
  */
 export interface WidgetConfig<TProps extends WidgetProps = WidgetProps> {
-	Name: string;
-	Icon?: string;
+	aggregations?: unknown;
 	Description?: string;
-
-	/** Path to the interactive INPUT component used in the editor (e.g., Fields.svelte). */
-	inputComponentPath?: string;
-
-	/** Path to the lightweight DISPLAY component for lists (e.g., EntryList.svelte). */
-	displayComponentPath?: string;
 
 	/** Type-safe default values for the widget's custom properties. */
 	defaults?: Partial<TProps>;
 
-	/**
-	 * Valibot validation schema for the widget's data.
-	 *  Accepts either a static schema object (Valibot BaseSchema) or a function that receives the FieldInstance and returns one.
-	 *  Kept as `unknown` to avoid over-constraining the factory; callers may provide properly-typed Valibot schemas.
-	 */
-	validationSchema: unknown | ((field: FieldInstance) => unknown);
-
-	// Optional advanced features
-	GuiSchema?: Record<string, unknown>;
+	/** Path to the lightweight DISPLAY component for lists (e.g., EntryList.svelte). */
+	displayComponentPath?: string;
 	GraphqlSchema?: (params: { field: unknown; label: string; collection: unknown; collectionNameMapping?: Map<string, string> }) => {
 		typeID: string | null;
 		graphql: string;
 		resolver?: Record<string, unknown>;
 	};
-	aggregations?: unknown;
+
+	// Optional advanced features
+	GuiSchema?: Record<string, unknown>;
 
 	/** Optional function to return widget-specific translatable paths. */
 	getTranslatablePaths?: (basePath: string) => string[];
+	Icon?: string;
+
+	/** Path to the interactive INPUT component used in the editor (e.g., Fields.svelte). */
+	inputComponentPath?: string;
 
 	/** Optional function to modify the request data on the server. */
 	modifyRequest?: (args: Record<string, unknown>) => Promise<Record<string, unknown>>;
@@ -73,6 +65,14 @@ export interface WidgetConfig<TProps extends WidgetProps = WidgetProps> {
 		type: string;
 		tenantId?: string;
 	}) => Promise<Record<string, unknown>[]>;
+	Name: string;
+
+	/**
+	 * Valibot validation schema for the widget's data.
+	 *  Accepts either a static schema object (Valibot BaseSchema) or a function that receives the FieldInstance and returns one.
+	 *  Kept as `unknown` to avoid over-constraining the factory; callers may provide properly-typed Valibot schemas.
+	 */
+	validationSchema: unknown | ((field: FieldInstance) => unknown);
 }
 
 /**
@@ -118,7 +118,7 @@ export function createWidget<TProps extends WidgetProps = WidgetProps>(config: W
 		if (config.defaults) {
 			// logger.debug(`[WidgetFactory] Applying defaults for ${config.Name}`, { defaults: config.defaults });
 			for (const key in config.defaults) {
-				if (Object.prototype.hasOwnProperty.call(config.defaults, key)) {
+				if (Object.hasOwn(config.defaults, key)) {
 					const value = (config.defaults as Record<string, unknown>)[key];
 					(fieldInstance as Record<string, unknown>)[key] = value;
 				}
@@ -127,7 +127,7 @@ export function createWidget<TProps extends WidgetProps = WidgetProps>(config: W
 
 		// 2. Apply fieldConfig properties, overriding defaults and initial standard values
 		for (const key in fieldConfig) {
-			if (Object.prototype.hasOwnProperty.call(fieldConfig, key)) {
+			if (Object.hasOwn(fieldConfig, key)) {
 				const value = (fieldConfig as Record<string, unknown>)[key];
 				if (value !== undefined) {
 					// Only apply if not undefined

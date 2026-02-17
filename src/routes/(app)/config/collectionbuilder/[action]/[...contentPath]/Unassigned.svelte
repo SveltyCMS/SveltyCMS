@@ -19,6 +19,7 @@
 	// Svelte DND-actions
 	import { flip } from 'svelte/animate';
 	import { dndzone } from 'svelte-dnd-action';
+
 	const flipDurationMs = 200;
 
 	interface Props {

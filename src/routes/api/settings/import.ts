@@ -14,10 +14,10 @@
  */
 import { hasPermissionByAction } from '@src/databases/auth/permissions';
 import { updateSettingsFromSnapshot } from '@src/services/settingsService';
-import { json, error, type RequestHandler } from '@sveltejs/kit';
+import { error, json, type RequestHandler } from '@sveltejs/kit';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
-	if (!locals.user || !hasPermissionByAction(locals.user, 'manage', 'settings')) {
+	if (!(locals.user && hasPermissionByAction(locals.user, 'manage', 'settings'))) {
 		throw error(403, 'Forbidden: You do not have permission to import settings.');
 	}
 

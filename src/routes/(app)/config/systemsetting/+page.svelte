@@ -15,21 +15,19 @@ All dynamic CMS settings organized into logical groups
 -->
 
 <script lang="ts">
+	import PageTitle from '@components/PageTitle.svelte';
+	import GDPRSettings from '@components/system/GDPRSettings.svelte';
+	import { groupsNeedingConfig } from '@stores/configStore.svelte.ts';
+	import { logger } from '@utils/logger';
 	import { onMount } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
-	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
-	import PageTitle from '@components/PageTitle.svelte';
-	import { logger } from '@utils/logger';
-	import { groupsNeedingConfig } from '@stores/configStore.svelte.ts';
-
-	// Import settings structure
-	import { getSettingGroupsByRole } from './settingsGroups';
-	import type { SettingGroup } from './settingsGroups';
-
+	import { page } from '$app/state';
 	// Import setting component
 	import GenericSettingsGroup from './GenericSettingsGroup.svelte';
-	import GDPRSettings from '@components/system/GDPRSettings.svelte';
+	import type { SettingGroup } from './settingsGroups';
+	// Import settings structure
+	import { getSettingGroupsByRole } from './settingsGroups';
 
 	// Get user admin status from page data (set by +page.server.ts)
 	const { data } = $props();
@@ -110,7 +108,8 @@ All dynamic CMS settings organized into logical groups
 		<div class="text-sm opacity-90">
 			<strong
 				>⚠️ Action Required: {unconfiguredCount}
-				{unconfiguredCount === 1 ? 'group needs' : 'groups need'} configuration before production use.</strong
+				{unconfiguredCount === 1 ? 'group needs' : 'groups need'}
+				configuration before production use.</strong
 			>
 			<p class="mt-2">
 				Please configure the following {unconfiguredCount === 1 ? 'group' : 'groups'}:

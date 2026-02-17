@@ -25,13 +25,13 @@ Part of the Three Pillars Architecture for widget system.
 -->
 
 <script lang="ts">
-	import type { DateWidgetData } from './';
 	import { logger } from '@utils/logger';
+	import type { DateWidgetData } from './';
 
 	interface Props {
-		value: DateWidgetData;
 		format?: 'short' | 'medium' | 'long' | 'full';
 		showRelative?: boolean;
+		value: DateWidgetData;
 	}
 
 	const { value, format = 'medium', showRelative = true }: Props = $props();
@@ -52,7 +52,7 @@ Part of the Three Pillars Architecture for widget system.
 
 	// Calculate relative time for recent dates
 	const relativeTime = $derived.by(() => {
-		if (!value || !showRelative) return null;
+		if (!(value && showRelative)) return null;
 
 		try {
 			const date = new Date(value);
@@ -107,12 +107,8 @@ Part of the Three Pillars Architecture for widget system.
 
 <time class="inline-flex items-center font-medium text-gray-900 dark:text-gray-100" title={isoString} datetime={isoString}>
 	{#if relativeTime}
-		<span class="mr-1 text-primary-600 dark:text-primary-400">
-			{displayText}
-		</span>
-		<span class="text-xs text-gray-500 dark:text-gray-400">
-			({formattedDate})
-		</span>
+		<span class="mr-1 text-primary-600 dark:text-primary-400"> {displayText} </span>
+		<span class="text-xs text-gray-500 dark:text-gray-400"> ({formattedDate}) </span>
 	{:else}
 		{displayText}
 	{/if}

@@ -33,62 +33,62 @@ export enum PermissionType {
 // User Interface
 export interface User {
 	_id: string; // Unique identifier for the user
-	id?: string; // Alias for _id, used in some contexts
+	activeSessions?: number; // Number of active sessions
+	avatar?: string; // URL of the user's avatar image
+	backupCodes?: string[]; // Array of hashed backup codes for 2FA recovery
+	blocked?: boolean; // Indicates if the user is blocked
 	email: string; // Email address of the user
-	tenantId?: string; // Identifier for the tenant the user belongs to (in multi-tenant mode)
-	password?: string; // Hashed password of the user
-	role: string; // Role of the user (e.g., admin, developer, editor, user)
-	username?: string; // Username of the user
+	expiresAt?: ISODateString; // When the reset token expires (ISO date string)
+	failedAttempts?: number; // Tracks the number of consecutive failed login attempts
 	firstName?: string; // First name of the user
+	googleRefreshToken?: string | null; // Stores the refresh token from Google OAuth for token revocation on logout.
+	id?: string; // Alias for _id, used in some contexts
+	is2FAEnabled?: boolean; // Indicates if the user has enabled two-factor authentication
+	isAdmin?: boolean; // Indicates if the user has admin privileges
+	isRegistered?: boolean; // Indicates if the user has completed registration
+	last2FAVerification?: ISODateString; // Timestamp of last successful 2FA verification
+	lastAccess?: ISODateString; // Last access timestamp
+	lastActiveAt?: ISODateString; // The last time the user was active (ISO date string)
+	lastAuthMethod?: string; // The last authentication method used by the user
 	lastName?: string; // Last name of the user
 	locale?: string; // Locale of the user
-	avatar?: string; // URL of the user's avatar image
-	lastAuthMethod?: string; // The last authentication method used by the user
-	lastActiveAt?: ISODateString; // The last time the user was active (ISO date string)
-	expiresAt?: ISODateString; // When the reset token expires (ISO date string)
-	isRegistered?: boolean; // Indicates if the user has completed registration
-	failedAttempts?: number; // Tracks the number of consecutive failed login attempts
-	blocked?: boolean; // Indicates if the user is blocked
-	resetRequestedAt?: ISODateString; // The last time the user requested a password reset (ISO date string)
-	resetToken?: string; // Token for resetting the user's password
 	lockoutUntil?: ISODateString | null; // Time until which the user is locked out of their account (ISO date string)
-	is2FAEnabled?: boolean; // Indicates if the user has enabled two-factor authentication
-	totpSecret?: string; // TOTP secret for 2FA (base32 encoded)
-	backupCodes?: string[]; // Array of hashed backup codes for 2FA recovery
-	last2FAVerification?: ISODateString; // Timestamp of last successful 2FA verification
+	password?: string; // Hashed password of the user
 	permissions: string[]; // Set of permissions associated with the user
-	googleRefreshToken?: string | null; // Stores the refresh token from Google OAuth for token revocation on logout.
-	isAdmin?: boolean; // Indicates if the user has admin privileges
-	activeSessions?: number; // Number of active sessions
-	lastAccess?: ISODateString; // Last access timestamp
 	preferences?: {
 		rtc?: {
 			enabled?: boolean; // Master switch
 			sound?: boolean;
 		};
 	};
+	resetRequestedAt?: ISODateString; // The last time the user requested a password reset (ISO date string)
+	resetToken?: string; // Token for resetting the user's password
+	role: string; // Role of the user (e.g., admin, developer, editor, user)
+	tenantId?: string; // Identifier for the tenant the user belongs to (in multi-tenant mode)
+	totpSecret?: string; // TOTP secret for 2FA (base32 encoded)
+	username?: string; // Username of the user
 }
 
 // Role Interface
 export interface Role {
 	_id: string; // Unique identifier for the role
-	name: string; // Name of the role
+	color?: string; // Optional color for the role (e.g., for UI display)
 	description?: string; // Optional description of the role
-	isAdmin?: boolean; // Indicates if the role has admin privileges
-	permissions: string[]; // Array of permission IDs associated with the role
-	tenantId?: string; // Optional tenant identifier for multi-tenant installations
 	groupName?: string; // Optional group name associated with the role
 	icon?: string; // Optional icon for the role (e.g., for UI display)
-	color?: string; // Optional color for the role (e.g., for UI display)
+	isAdmin?: boolean; // Indicates if the role has admin privileges
+	name: string; // Name of the role
+	permissions: string[]; // Array of permission IDs associated with the role
+	tenantId?: string; // Optional tenant identifier for multi-tenant installations
 }
 
 export interface Permission {
 	_id: string; // Use _id for a unique identifier
-	name: string; // Display name of the permission
 	action: PermissionAction; // Use the PermissionAction enum
-	type: PermissionType; // Type of the permission context, e.g., "system", "collection"
 	contextId?: string; // Identifier for the context in which the permission is used (optional)
 	description?: string; // Optional description for the permission
+	name: string; // Display name of the permission
+	type: PermissionType; // Type of the permission context, e.g., "system", "collection"
 }
 
 // RolePermissions Interface
@@ -105,37 +105,37 @@ export interface RolePermissions {
 // Session Interface
 export interface Session {
 	_id: string; // Unique identifier for the session
-	user_id: string; // The ID of the user who owns the session
 	expires: ISODateString; // When the session expires (ISO date string)
-	tenantId?: string; // Identifier for the tenant the session belongs to (in multi-tenant mode)
 	rotated?: boolean; // Flag to mark rotated sessions
 	rotatedTo?: string; // ID of the new session this was rotated to
+	tenantId?: string; // Identifier for the tenant the session belongs to (in multi-tenant mode)
+	user_id: string; // The ID of the user who owns the session
 }
 
 // Token Interface
 export interface Token {
 	_id: string; // Unique identifier for the token
-	user_id: string; // The ID of the user who owns the token
-	token: string; // The token string
+	blocked?: boolean; // Whether the token is blocked
+	createdAt?: ISODateString; // When the token was created
 	email: string; // Email associated with the token
 	expires: ISODateString; // When the session expires (ISO date string)
-	type: string; // Type of the token (e.g., 'create', 'register', 'reset')
-	tenantId?: string; // Tenant ID for multi-tenancy support
-	blocked?: boolean; // Whether the token is blocked
-	username?: string; // Username associated with the token
 	role?: string; // Role associated with the token
-	createdAt?: ISODateString; // When the token was created
+	tenantId?: string; // Tenant ID for multi-tenancy support
+	token: string; // The token string
+	type: string; // Type of the token (e.g., 'create', 'register', 'reset')
 	updatedAt?: ISODateString; // When the token was last updated
+	user_id: string; // The ID of the user who owns the token
+	username?: string; // Username associated with the token
 }
 
 // Session Store Interface
 export interface SessionStore {
-	get(session_id: string): Promise<User | null>;
-	set(session_id: string, user: User, expiration: ISODateString): Promise<void>;
+	close(): Promise<void>;
 	delete(session_id: string): Promise<void>;
 	deletePattern(pattern: string): Promise<number>;
+	get(session_id: string): Promise<User | null>;
+	set(session_id: string, user: User, expiration: ISODateString): Promise<void>;
 	validateWithDB(session_id: string, dbValidationFn: (session_id: string) => Promise<User | null>): Promise<User | null>;
-	close(): Promise<void>;
 }
 
 // Collection Interface
@@ -146,9 +146,7 @@ export interface Collection {
 }
 
 // Cookie Type
-export type Cookie = {
-	name: string; // Name of the cookie
-	value: string; // Value of the cookie
+export interface Cookie {
 	attributes: {
 		// Attributes of the cookie
 		sameSite: boolean | 'lax' | 'strict' | 'none' | undefined;
@@ -157,16 +155,18 @@ export type Cookie = {
 		expires: ISODateString; // Expiration date of the cookie (ISO date string)
 		secure: boolean;
 	};
-};
+	name: string; // Name of the cookie
+	value: string; // Value of the cookie
+}
 
 // RateLimit Interface
 export interface RateLimit {
-	user_id: string; // User ID the rate limit applies to
 	action: ConfigPermissionAction; // Action being rate-limited
-	limit: number; // Maximum allowed actions
-	windowMs: number; // Time window in milliseconds
 	current: number; // Current count of actions performed
 	lastActionAt: string; // Last action timestamp (ISO date string)
+	limit: number; // Maximum allowed actions
+	user_id: string; // User ID the rate limit applies to
+	windowMs: number; // Time window in milliseconds
 }
 
 // Icon and Color Mapping for Permissions
@@ -222,23 +222,22 @@ export const sanitizePermissions = (permissions: Record<string, Record<string, b
 
 // Model Interface for Generic CRUD Operations
 export interface Model<T> {
+	// Counts the number of documents matching the query
+	countDocuments(query?: Partial<T>): Promise<number>;
 	// Creates a new document
 	create(data: Partial<T>): Promise<T>;
-
-	// Finds a single document matching the query
-	findOne(query: Partial<T>): Promise<T | null>;
-
-	// Finds multiple documents matching the query
-	find(query: Partial<T>): Promise<T[]>;
-
-	// Updates a single document matching the query
-	updateOne(query: Partial<T>, update: Partial<T>): Promise<void>;
 
 	// Deletes a single document matching the query
 	deleteOne(query: Partial<T>): Promise<void>;
 
-	// Counts the number of documents matching the query
-	countDocuments(query?: Partial<T>): Promise<number>;
+	// Finds multiple documents matching the query
+	find(query: Partial<T>): Promise<T[]>;
+
+	// Finds a single document matching the query
+	findOne(query: Partial<T>): Promise<T | null>;
+
+	// Updates a single document matching the query
+	updateOne(query: Partial<T>, update: Partial<T>): Promise<void>;
 }
 
 // Additional Types
@@ -250,11 +249,11 @@ export type Field = unknown;
 
 // Schema Interface
 export interface Schema {
-	icon?: string; // Optional icon representing the schema
-	status?: string; // Optional status of the schema
-	revision?: boolean; // Indicates if the schema supports revisions
-	permissions?: RolePermissions; // Role-based permissions associated with the schema
 	fields: Field[]; // Array of fields defined in the schema, using the Field type from collections/types
+	icon?: string; // Optional icon representing the schema
+	permissions?: RolePermissions; // Role-based permissions associated with the schema
+	revision?: boolean; // Indicates if the schema supports revisions
+	status?: string; // Optional status of the schema
 }
 
 // Helper to assign all permissions to a role (e.g., admin)

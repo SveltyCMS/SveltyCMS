@@ -3,9 +3,9 @@
  * @description Integration tests for Real-Time Collaboration (SSE) API.
  */
 
-import { describe, it, expect, beforeAll } from 'bun:test';
-import { initializeTestEnvironment, prepareAuthenticatedContext } from '../helpers/testSetup';
+import { beforeAll, describe, expect, it } from 'bun:test';
 import { getApiBaseUrl } from '../helpers/server';
+import { initializeTestEnvironment, prepareAuthenticatedContext } from '../helpers/testSetup';
 
 const API_BASE_URL = getApiBaseUrl();
 
@@ -35,7 +35,9 @@ describe('RTC (SSE) Integration', () => {
 			expect(response.headers.get('Content-Type')).toContain('text/event-stream');
 
 			const reader = response.body?.getReader();
-			if (!reader) throw new Error('Response body is null');
+			if (!reader) {
+				throw new Error('Response body is null');
+			}
 
 			// Read first chunk
 			const { value } = await reader.read();
@@ -69,7 +71,9 @@ describe('RTC (SSE) Integration', () => {
 			expect(response.headers.get('Cache-Control')).toContain('no-cache');
 			expect(response.headers.get('Connection')).toBe('keep-alive');
 
-			if (response.body) await response.body.cancel();
+			if (response.body) {
+				await response.body.cancel();
+			}
 		});
 	});
 });

@@ -31,7 +31,7 @@ import { apiHandler } from '@utils/apiHandler';
 // ... (MOCK_DB_DATA definition)
 
 export const GET = apiHandler(async ({ locals }) => {
-	const isAdmin = locals.user?.isAdmin || false;
+	const isAdmin = locals.user?.isAdmin;
 
 	// 1. Calculate Aggregations
 	const stats = {

@@ -15,8 +15,8 @@
 <script lang="ts">
 	interface Props {
 		globalSearchValue: string;
-		selectedMediaType: string;
 		mediaTypes: { value: string; icon: string }[];
+		selectedMediaType: string;
 	}
 
 	let { globalSearchValue = $bindable(), selectedMediaType = $bindable(), mediaTypes }: Props = $props();
@@ -29,7 +29,7 @@
 <div class="mb-8 flex w-full flex-col justify-center gap-1 md:hidden">
 	<label for="globalSearch">Search</label>
 	<div class="input-group input-group-divider grid max-w-md grid-cols-[auto_1fr_auto]">
-		<input id="globalSearch" type="text" placeholder="Search" class="input" bind:value={globalSearchValue} />
+		<input id="globalSearch" type="text" placeholder="Search" class="input" bind:value={globalSearchValue}>
 		{#if globalSearchValue}
 			<button onclick={clearSearch} aria-label="Clear" class="preset-filled-surface-500 w-12">
 				<iconify-icon icon="ic:outline-search-off" width={24}></iconify-icon>
@@ -42,9 +42,7 @@
 			<label for="mediaType">Type</label>
 			<select id="mediaType" bind:value={selectedMediaType} class="input">
 				{#each mediaTypes as type (type.value)}
-					<option value={type.value}>
-						<span class="uppercase">{type.value}</span>
-					</option>
+					<option value={type.value}><span class="uppercase">{type.value}</span></option>
 				{/each}
 			</select>
 		</div>

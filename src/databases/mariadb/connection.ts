@@ -3,17 +3,17 @@
  * @description MariaDB connection pool management using mysql2
  */
 
-import mysql from 'mysql2/promise';
 import { logger } from '@utils/logger';
+import mysql from 'mysql2/promise';
 
 let pool: mysql.Pool | null = null;
 
 export interface ConnectionConfig {
+	database: string;
 	host: string;
+	password: string;
 	port: number;
 	user: string;
-	password: string;
-	database: string;
 }
 
 /**
@@ -36,7 +36,7 @@ export async function createConnectionPool(config: ConnectionConfig): Promise<my
 		waitForConnections: true,
 		connectionLimit: 10,
 		maxIdle: 10,
-		idleTimeout: 60000,
+		idleTimeout: 60_000,
 		queueLimit: 0,
 		enableKeepAlive: true,
 		keepAliveInitialDelay: 0

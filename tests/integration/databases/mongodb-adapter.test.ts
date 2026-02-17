@@ -12,7 +12,7 @@
  * NOTE: TypeScript errors for 'bun:test' module are expected - it's a runtime module.
  */
 
-import { beforeAll, afterAll, describe, it, expect, mock } from 'bun:test';
+import { afterAll, beforeAll, describe, expect, it, mock } from 'bun:test';
 import mongoose from 'mongoose';
 
 // Mock SvelteKit modules
@@ -49,7 +49,7 @@ let privateEnv: any;
 
 describe('MongoDB Adapter Functional Tests', () => {
 	let db: any = null;
-	const testCollection = 'test_collection_' + Date.now();
+	const testCollection = `test_collection_${Date.now()}`;
 
 	beforeAll(async () => {
 		// Import modules dynamically to bypass mocks
@@ -58,7 +58,7 @@ describe('MongoDB Adapter Functional Tests', () => {
 		const configModule = await import('../../../config/private.test');
 		privateEnv = configModule.privateEnv;
 
-		if (!privateEnv || !privateEnv.DB_TYPE) {
+		if (!privateEnv?.DB_TYPE) {
 			console.warn('Skipping MongoDB Adapter tests: No private.test.ts or DB_TYPE found');
 			return;
 		}
@@ -69,7 +69,7 @@ describe('MongoDB Adapter Functional Tests', () => {
 		// Construct connection string using environment settings
 		// CRITICAL: Always use a distinct test database. NEVER touch the main database.
 		// We append _functional to the DB_NAME to ensure total isolation.
-		const dbName = (privateEnv.DB_NAME || 'sveltycms_test') + '_functional';
+		const dbName = `${privateEnv.DB_NAME || 'sveltycms_test'}_functional`;
 		let connectionString = `mongodb://${privateEnv.DB_HOST}:${privateEnv.DB_PORT}/${dbName}`;
 
 		if (privateEnv.DB_USER && privateEnv.DB_PASSWORD) {
@@ -89,13 +89,13 @@ describe('MongoDB Adapter Functional Tests', () => {
 			// This is crucial for environments where connection might succeed but auth fails on write
 			// Note: crud operations return { success: boolean }, they do not throw errors usually.
 			const insertResult = await db.crud.insert(testCollection, { _test: true, timestamp: Date.now() });
-			if (!insertResult.success) {
+			if (insertResult.success) {
+				await db.crud.deleteMany(testCollection, { _test: true }); // Clean up
+			} else {
 				console.warn('MongoDB Write Verification Failed:', insertResult.message || insertResult.error);
 				console.warn('Skipping functional tests as database requires authentication but credentials might be missing or invalid.');
 				console.warn('To run these tests locally, ensure DB_USER and DB_PASSWORD are set in config/private.test.ts');
 				db = null;
-			} else {
-				await db.crud.deleteMany(testCollection, { _test: true }); // Clean up
 			}
 		} catch (err: any) {
 			console.error('MongoDB Connection Failed:', err.message);
@@ -116,7 +116,9 @@ describe('MongoDB Adapter Functional Tests', () => {
 
 	describe('Model Registration', () => {
 		it('should have all features initialized', () => {
-			if (!db) return; // Skip if connection failed
+			if (!db) {
+				return; // Skip if connection failed
+			}
 			expect(db).toBeDefined();
 			// Check feature initialization status
 			const featureInit = (db as any)._featureInit;
@@ -130,7 +132,9 @@ describe('MongoDB Adapter Functional Tests', () => {
 		let createdId: string;
 
 		it('should insert document and return with generated ID', async () => {
-			if (!db) return; // Skip
+			if (!db) {
+				return; // Skip
+			}
 			// MongoDBAdapter.crud.insert wrapper expects dynamic collection handling or known repositories.
 			// The generic 'crud' interface in MongoDBAdapter relies on `_getRepository(coll)`.
 			// If 'test_collection' isn't a known repository, `insert` might fail or we need to look at how it handles dynamic collections.
@@ -149,7 +153,7 @@ describe('MongoDB Adapter Functional Tests', () => {
 			// 'websiteTokens' seems simplest schema-wise.
 
 			const tokenData = {
-				token: 'test-token-' + Date.now(),
+				token: `test-token-${Date.now()}`,
 				role: 'admin',
 				createdBy: 'test-user',
 				name: 'Test Token'
@@ -164,7 +168,9 @@ describe('MongoDB Adapter Functional Tests', () => {
 		});
 
 		it('should find document by ID', async () => {
-			if (!db) return;
+			if (!db) {
+				return;
+			}
 			expect(createdId).toBeDefined();
 			const result = await db.crud.findOne('websiteTokens', { _id: createdId });
 			expect(result.success).toBe(true);
@@ -173,7 +179,9 @@ describe('MongoDB Adapter Functional Tests', () => {
 		});
 
 		it('should update document by ID', async () => {
-			if (!db) return;
+			if (!db) {
+				return;
+			}
 			expect(createdId).toBeDefined();
 			const updates = { name: 'Updated Name' };
 			const result = await db.crud.update('websiteTokens', createdId, updates);
@@ -182,7 +190,9 @@ describe('MongoDB Adapter Functional Tests', () => {
 		});
 
 		it('should delete document by ID', async () => {
-			if (!db) return;
+			if (!db) {
+				return;
+			}
 			expect(createdId).toBeDefined();
 			const result = await db.crud.delete('websiteTokens', createdId);
 			expect(result.success).toBe(true);
@@ -197,9 +207,11 @@ describe('MongoDB Adapter Functional Tests', () => {
 	describe('Query Builder', () => {
 		// Test using 'websiteTokens' again as it supports simple queries
 
-		it.skip('should build simple where query', async () => {
+		it('should build simple where query', async () => {
 			// TODO: Fix - queryBuilder collection naming vs crud.insert naming mismatch
-			if (!db) return;
+			if (!db) {
+				return;
+			}
 
 			// Ensure collections are initialized before using queryBuilder
 			await db.ensureCollections();

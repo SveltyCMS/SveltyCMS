@@ -7,7 +7,7 @@
  *   - Simulates avatar processing and email sending during signup
  *   - Checks for proper error handling and configuration in different environments
  */
-import { test, expect } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 
 test.describe('OAuth First User Signup', () => {
 	test.beforeEach(async ({ page }) => {
@@ -79,7 +79,7 @@ test.describe('OAuth First User Signup', () => {
 			await oauthButton.click();
 
 			if (response) {
-				const location = response.headers()['location'];
+				const location = response.headers().location;
 				console.log('✓ OAuth redirect generated:', location);
 
 				// Verify the redirect URL contains expected parameters
@@ -179,7 +179,7 @@ test.describe('OAuth First User Signup', () => {
 
 		// Wait for either redirect to collection page or error handling
 		try {
-			await page.waitForURL(/\/en\/Collections/, { timeout: 15000 });
+			await page.waitForURL(/\/en\/Collections/, { timeout: 15_000 });
 			console.log('✓ OAuth callback successfully processed');
 			console.log('✓ User redirected to first collection');
 
@@ -329,7 +329,7 @@ test.describe('OAuth First User Signup', () => {
 
 		// Wait for processing
 		try {
-			await page.waitForURL(/\/en\/Collections/, { timeout: 15000 });
+			await page.waitForURL(/\/en\/Collections/, { timeout: 15_000 });
 			console.log('✓ OAuth signup with avatar completed successfully');
 			console.log('✓ User redirected to collections page');
 			console.log('✓ Avatar should now be saved to both disk and database');

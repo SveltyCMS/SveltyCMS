@@ -4,21 +4,21 @@
 -->
 <script lang="ts">
 	interface Step {
+		icon?: string; // Optional icon override
 		label: string;
 		shortDesc?: string;
-		icon?: string; // Optional icon override
 	}
 
 	interface Props {
-		steps: Step[];
 		currentStep: number;
-		stepCompleted?: boolean[]; // Array of completion status
-		stepClickable?: boolean[]; // Array of clickable status (for navigation)
-		onselectStep?: (index: number) => void;
+		footer?: import('svelte').Snippet;
 
 		// Snippets for customization
 		header?: import('svelte').Snippet;
-		footer?: import('svelte').Snippet;
+		onselectStep?: (index: number) => void;
+		stepClickable?: boolean[]; // Array of clickable status (for navigation)
+		stepCompleted?: boolean[]; // Array of completion status
+		steps: Step[];
 	}
 
 	let { steps, currentStep = $bindable(0), stepCompleted = [], stepClickable = [], onselectStep, header, footer }: Props = $props();
@@ -77,9 +77,7 @@
 	<!-- Desktop: Vertical Step Indicator -->
 	<div class="hidden h-full flex-col p-4 lg:flex">
 		{#if header}
-			<div class="mb-4">
-				{@render header()}
-			</div>
+			<div class="mb-4">{@render header()}</div>
 		{/if}
 
 		<div class="flex flex-1 flex-col gap-2 overflow-y-auto">
@@ -110,9 +108,7 @@
 								{step.label}
 							</div>
 							{#if step.shortDesc}
-								<div class="text-xs text-surface-500 dark:text-surface-50">
-									{step.shortDesc}
-								</div>
+								<div class="text-xs text-surface-500 dark:text-surface-50">{step.shortDesc}</div>
 							{/if}
 						</div>
 					</button>
@@ -124,9 +120,7 @@
 		</div>
 
 		{#if footer}
-			<div class="mt-4 border-t border-surface-200 pt-4 dark:text-surface-50">
-				{@render footer()}
-			</div>
+			<div class="mt-4 border-t border-surface-200 pt-4 dark:text-surface-50">{@render footer()}</div>
 		{/if}
 	</div>
 </div>

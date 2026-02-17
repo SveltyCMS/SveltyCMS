@@ -7,10 +7,10 @@
  * between db.ts and other modules like secureQuery.ts or settingsService.ts.
  */
 
-import { type InferOutput } from 'valibot';
-import { privateConfigSchema } from '@src/databases/schemas';
-import { logger } from '@utils/logger';
+import type { privateConfigSchema } from '@src/databases/schemas';
 import { AppError } from '@utils/errorHandling';
+import { logger } from '@utils/logger';
+import type { InferOutput } from 'valibot';
 
 export let privateEnv: InferOutput<typeof privateConfigSchema> | null = null;
 
@@ -20,7 +20,9 @@ export function setPrivateEnv(env: InferOutput<typeof privateConfigSchema> | nul
 
 // Function to load private config when needed
 export async function loadPrivateConfig(forceReload = false) {
-	if (privateEnv && !forceReload) return privateEnv;
+	if (privateEnv && !forceReload) {
+		return privateEnv;
+	}
 
 	try {
 		// SAFETY: Force TEST_MODE if running in test environment (Bun test)
@@ -31,10 +33,10 @@ export async function loadPrivateConfig(forceReload = false) {
 
 		try {
 			logger.debug('Loading @config/private configuration...');
-			let module;
+			let module: any;
 			if (process.env.TEST_MODE) {
-				const pathUtil = await import('path');
-				const { pathToFileURL } = await import('url');
+				const pathUtil = await import('node:path');
+				const { pathToFileURL } = await import('node:url');
 				const configPath = pathUtil.resolve(process.cwd(), 'config/private.test.ts').replace(/\\/g, '/');
 				const configURL = pathToFileURL(configPath).href;
 				module = await import(/* @vite-ignore */ configURL);

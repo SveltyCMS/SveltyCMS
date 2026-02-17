@@ -23,23 +23,22 @@ functionality for image editing and basic file information display.
 -->
 <script lang="ts">
 	type _any = any;
-	import type { ISODateString } from '@src/content/types';
-	import { convertTimestampToDateString, getFieldName } from '@utils/utils';
-	import { isoDateStringToDate } from '@utils/dateUtils';
-	import { logger } from '@utils/logger';
 
+	import FileInput from '@components/system/inputs/FileInput.svelte';
+	import ImageEditorModal from '@src/components/imageEditor/ImageEditorModal.svelte';
+	import type { ISODateString } from '@src/content/types';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
+	import { collectionValue } from '@stores/collectionStore.svelte.ts';
 
 	// Stores
 	import { validationStore } from '@stores/store.svelte.ts';
-	import { collectionValue } from '@stores/collectionStore.svelte.ts';
-
+	import { isoDateStringToDate } from '@utils/dateUtils';
+	import { logger } from '@utils/logger';
+	import { updateMediaMetadata } from '@utils/media/api';
 	// Components
 	import type { MediaImage, WatermarkOptions } from '@utils/media/mediaModels';
-	import FileInput from '@components/system/inputs/FileInput.svelte';
-	import ImageEditorModal from '@src/components/imageEditor/ImageEditorModal.svelte';
-	import { updateMediaMetadata } from '@utils/media/api';
+	import { convertTimestampToDateString, getFieldName } from '@utils/utils';
 
 	// Define reactive state
 	let isFlipped = $state(false);
@@ -63,7 +62,7 @@ functionality for image editing and basic file information display.
 	});
 
 	// Define validation schema
-	import { object, string, number, union, instance, check, pipe, record, parse, type ValiError } from 'valibot';
+	import { check, instance, number, object, parse, pipe, record, string, union, type ValiError } from 'valibot';
 
 	const validImageTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/avif', 'image/svg+xml'];
 
@@ -265,7 +264,7 @@ functionality for image editing and basic file information display.
 								src={value instanceof File ? URL.createObjectURL(value) : value.thumbnails?.sm?.url || value.url}
 								alt="Preview"
 								class="max-h-[200px] max-w-[500px] rounded"
-							/>
+							>
 							{#if value && !(value instanceof File)}
 								<div
 									class="absolute cursor-move"

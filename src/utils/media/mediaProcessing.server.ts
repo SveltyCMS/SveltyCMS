@@ -110,7 +110,9 @@ export class MediaProcessingService {
 	}
 
 	private parseExif(buffer?: Buffer): Record<string, any> | undefined {
-		if (!buffer) return undefined;
+		if (!buffer) {
+			return undefined;
+		}
 		try {
 			return {
 				_raw: buffer.toString('base64'),
@@ -122,12 +124,16 @@ export class MediaProcessingService {
 	}
 
 	private parseIptc(buffer?: Buffer): Record<string, any> | undefined {
-		if (!buffer) return undefined;
+		if (!buffer) {
+			return undefined;
+		}
 		return { _raw: buffer.toString('base64') };
 	}
 
 	private parseXmp(buffer?: Buffer): Record<string, any> | undefined {
-		if (!buffer) return undefined;
+		if (!buffer) {
+			return undefined;
+		}
 		try {
 			const xmpString = buffer.toString('utf8');
 			return {

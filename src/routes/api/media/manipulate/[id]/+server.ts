@@ -3,10 +3,10 @@
  * @description API endpoint for manipulating media files (e.g., focal point, watermark).
  */
 
-import { json } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
 import { MediaService } from '@src/utils/media/mediaService.server';
+import { json } from '@sveltejs/kit';
 import { logger } from '@utils/logger.server';
+import type { RequestHandler } from './$types';
 
 // Helper function to get MediaService instance
 async function getMediaService(): Promise<MediaService> {

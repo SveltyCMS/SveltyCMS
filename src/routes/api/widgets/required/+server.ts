@@ -4,11 +4,10 @@
  */
 import { contentManager } from '@src/content/ContentManager';
 import { json } from '@sveltejs/kit';
-import { logger } from '@utils/logger.server';
-
 // Unified Error Handling
 import { apiHandler } from '@utils/apiHandler';
 import { AppError } from '@utils/errorHandling';
+import { logger } from '@utils/logger.server';
 
 export const GET = apiHandler(async ({ locals }) => {
 	const start = performance.now();
@@ -36,7 +35,9 @@ export const GET = apiHandler(async ({ locals }) => {
 		const widgetSet = new Set<string>();
 
 		for (const collection of Object.values(allCollections)) {
-			if (!collection.fields) continue;
+			if (!collection.fields) {
+				continue;
+			}
 
 			for (const field of collection.fields) {
 				if (field && typeof field === 'object') {
@@ -85,7 +86,9 @@ export const GET = apiHandler(async ({ locals }) => {
 		const duration = performance.now() - start;
 		const message = `Failed to analyze collection widget dependencies: ${err instanceof Error ? err.message : String(err)}`;
 		logger.error(message, { duration: `${duration.toFixed(2)}ms`, stack: err instanceof Error ? err.stack : undefined });
-		if (err instanceof AppError) throw err;
+		if (err instanceof AppError) {
+			throw err;
+		}
 		throw new AppError(message, 500, 'DEPENDENCY_ANALYSIS_FAILED');
 	}
 });

@@ -3,14 +3,12 @@
  * @description Server-side logic for Access Management page using simplified auth system.
  */
 
-import { redirect, error } from '@sveltejs/kit';
-import type { PageServerLoad } from './$types';
-
 // Auth - getAllPermissions is lightweight, no heavy queries needed
 import { getAllPermissions } from '@src/databases/auth/permissions';
-
+import { error, redirect } from '@sveltejs/kit';
 // System Logger - Ensure logger is optimized for performance in production (e.g., disabled debug logs)
 import { logger } from '@utils/logger.server';
+import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	try {

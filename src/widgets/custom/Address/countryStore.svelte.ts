@@ -12,15 +12,15 @@ import countriesCore from './countries-core.json';
 
 interface Country {
 	alpha2: string;
-	en: string;
 	de: string;
+	en: string;
 	[key: string]: string | number | undefined;
 }
 
 class CountryStore {
 	// private state using runes
 	private _countries = $state<Country[]>(countriesCore);
-	private _loadedLanguages = new Set(['en', 'de']);
+	private readonly _loadedLanguages = new Set(['en', 'de']);
 	private _loadingPromise: Promise<void> | null = null;
 
 	/**
@@ -77,12 +77,16 @@ class CountryStore {
 	 * Falls back gracefully to English or the code if translation is missing.
 	 */
 	getCountryName(alpha2: string, lang: string): string {
-		if (!alpha2) return '';
+		if (!alpha2) {
+			return '';
+		}
 
 		const country = this._countries.find((c) => c.alpha2 === alpha2);
-		if (!country) return alpha2;
+		if (!country) {
+			return alpha2;
+		}
 
-		const val = country[lang] ?? country.en ?? country['de'];
+		const val = country[lang] ?? country.en ?? country.de;
 		return typeof val === 'string' ? val : alpha2;
 	}
 }

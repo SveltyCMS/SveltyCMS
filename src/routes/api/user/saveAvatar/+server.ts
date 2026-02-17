@@ -18,25 +18,21 @@
  * Body: FormData with 'avatar' file
  */
 
-import { json } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
-
-// Config
-import { getPrivateSettingSync } from '@src/services/settingsService';
-
+// Media storage
+import { cacheService } from '@src/databases/CacheService';
 // Auth and permission helpers
 import { auth } from '@src/databases/db';
 
-// System logger
-import { logger } from '@utils/logger.server';
-
+// Config
+import { getPrivateSettingSync } from '@src/services/settingsService';
+import { json } from '@sveltejs/kit';
 // Unified Error Handling
 import { apiHandler } from '@utils/apiHandler';
 import { AppError } from '@utils/errorHandling';
-
-// Media storage
-import { cacheService } from '@src/databases/CacheService';
-import { saveAvatarImage, moveMediaToTrash } from '@utils/media/mediaStorage.server';
+// System logger
+import { logger } from '@utils/logger.server';
+import { moveMediaToTrash, saveAvatarImage } from '@utils/media/mediaStorage.server';
+import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = apiHandler(async ({ request, locals }) => {
 	// Check authentication
@@ -89,7 +85,7 @@ export const POST: RequestHandler = apiHandler(async ({ request, locals }) => {
 
 	// Before saving a new avatar, move the old one to trash if it exists.
 	const currentUser = await auth.getUserById(targetUserId);
-	if (currentUser && currentUser.avatar) {
+	if (currentUser?.avatar) {
 		try {
 			// moveMediaToTrash handles all URL normalization internally
 			// Just pass the avatar URL as-is (can be /files/..., http://..., or relative path)

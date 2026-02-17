@@ -16,12 +16,12 @@
 -->
 
 <script lang="ts">
+	import InputSwitch from '@components/system/builder/InputSwitch.svelte';
+	import { Tabs } from '@skeletonlabs/skeleton-svelte';
 	import { collections } from '@src/stores/collectionStore.svelte';
 	import { widgets } from '@stores/widgetStore.svelte.ts';
-	import { Tabs } from '@skeletonlabs/skeleton-svelte';
 	import { asAny } from '@utils/utils';
 	import type { Component } from 'svelte';
-	import InputSwitch from '@components/system/builder/InputSwitch.svelte';
 	import Permission from '../[action]/[...contentPath]/tabs/CollectionWidget/tabsFields/Permission.svelte';
 	import Specific from '../[action]/[...contentPath]/tabs/CollectionWidget/tabsFields/Specific.svelte';
 
@@ -108,13 +108,9 @@
 						</div>
 					</Tabs.Content>
 
-					<Tabs.Content value="specific">
-						<Specific />
-					</Tabs.Content>
+					<Tabs.Content value="specific"> <Specific /> </Tabs.Content>
 
-					<Tabs.Content value="auth">
-						<Permission />
-					</Tabs.Content>
+					<Tabs.Content value="auth"> <Permission /> </Tabs.Content>
 				</div>
 			</Tabs>
 		</div>

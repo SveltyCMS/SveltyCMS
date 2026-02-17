@@ -14,20 +14,18 @@
  * resulting in faster redirects and better UX after setup completion.
  */
 
-import { publicConfigSchema } from '@src/databases/schemas';
-import type { DatabaseId } from '@src/content/types';
-import type { DatabaseAdapter, Theme } from '@src/databases/dbInterface';
-import { invalidateSettingsCache } from '@src/services/settingsService';
-import { logger } from '@utils/logger.server';
-import { dateToISODateString } from '@utils/dateUtils';
-import { safeParse } from 'valibot';
-import { getAllPermissions } from '@src/databases/auth';
-import { defaultRoles as importedDefaultRoles } from '@src/databases/auth/defaultRoles';
-import { generateCategoryNodesFromPaths } from '@src/content/utils';
-import type { ContentNode, Schema } from '@src/content/types';
-
 // Import inlang settings directly (TypeScript/SvelteKit handles JSON imports)
 import inlangSettings from '@root/project.inlang/settings.json';
+import type { ContentNode, DatabaseId, Schema } from '@src/content/types';
+import { generateCategoryNodesFromPaths } from '@src/content/utils';
+import { getAllPermissions } from '@src/databases/auth';
+import { defaultRoles as importedDefaultRoles } from '@src/databases/auth/defaultRoles';
+import type { DatabaseAdapter, Theme } from '@src/databases/dbInterface';
+import { publicConfigSchema } from '@src/databases/schemas';
+import { invalidateSettingsCache } from '@src/services/settingsService';
+import { dateToISODateString } from '@utils/dateUtils';
+import { logger } from '@utils/logger.server';
+import { safeParse } from 'valibot';
 import { setupManager } from './setupManager';
 
 // ============================================================================
@@ -43,10 +41,10 @@ export const DEFAULT_CONTENT_LANGUAGE = DEFAULT_BASE_LOCALE;
 
 // Type for setting data in snapshots
 interface SettingData {
-	value: unknown;
-	visibility?: 'public' | 'private';
 	category?: 'public' | 'private';
 	description?: string;
+	value: unknown;
+	visibility?: 'public' | 'private';
 }
 
 // Default theme that matches the ThemeManager's DEFAULT_THEME
@@ -72,7 +70,7 @@ export const defaultRoles = importedDefaultRoles;
 export async function seedDefaultTheme(dbAdapter: DatabaseAdapter, tenantId?: string): Promise<void> {
 	logger.info(`🎨 Checking if default theme needs seeding${tenantId ? ` for tenant ${tenantId}` : ''}...`);
 
-	if (!dbAdapter || !dbAdapter.themes) {
+	if (!dbAdapter?.themes) {
 		throw new Error('Database adapter or themes interface not available');
 	}
 
@@ -106,7 +104,7 @@ export async function seedDefaultTheme(dbAdapter: DatabaseAdapter, tenantId?: st
 export async function seedRoles(dbAdapter: DatabaseAdapter, tenantId?: string): Promise<void> {
 	logger.info(`🔐 Seeding default roles${tenantId ? ` for tenant ${tenantId}` : ''}...`);
 
-	if (!dbAdapter || !dbAdapter.auth) {
+	if (!dbAdapter?.auth) {
 		throw new Error('Database adapter or auth interface not available');
 	}
 
@@ -171,7 +169,7 @@ export async function seedCollectionsForSetup(
 	const overallStart = performance.now();
 	logger.info(`📦 Seeding collections from filesystem${tenantId ? ` for tenant ${tenantId}` : ''}...`);
 
-	if (!dbAdapter || !dbAdapter.collection) {
+	if (!dbAdapter?.collection) {
 		throw new Error('Database adapter or collection interface not available');
 	}
 
@@ -265,7 +263,9 @@ export async function seedCollectionsForSetup(
 
 			// Add Collection Nodes
 			for (const schema of collections) {
-				if (!schema.path) continue;
+				if (!schema.path) {
+					continue;
+				}
 				updates.push({
 					path: schema.path,
 					changes: {
@@ -333,7 +333,7 @@ export async function seedCollectionsForSetup(
 export async function seedDemoRecords(dbAdapter: DatabaseAdapter, collections: Schema[], tenantId?: string): Promise<void> {
 	logger.info(`📝 Seeding demo records${tenantId ? ` for tenant ${tenantId}` : ''}...`);
 
-	if (!dbAdapter || !dbAdapter.crud) {
+	if (!dbAdapter?.crud) {
 		logger.warn('CRUD interface not available, skipping demo record seeding');
 		return;
 	}
@@ -341,7 +341,9 @@ export async function seedDemoRecords(dbAdapter: DatabaseAdapter, collections: S
 	try {
 		for (const schema of collections) {
 			const collectionId = schema._id;
-			if (!collectionId) continue;
+			if (!collectionId) {
+				continue;
+			}
 
 			// Seed "Posts" as a demo
 			if (schema.name === 'Posts') {
@@ -436,7 +438,9 @@ export async function initSystemFast(
 	const criticalPromise = (async () => {
 		logger.info(`🚀 Starting critical system initialization${tenantId ? ` for tenant ${tenantId}` : ''}...`);
 
-		if (!adapter) throw new Error('Database adapter not available.');
+		if (!adapter) {
+			throw new Error('Database adapter not available.');
+		}
 
 		await Promise.all([seedSettings(adapter, tenantId, isDemoSeed), seedDefaultTheme(adapter, tenantId), seedRoles(adapter, tenantId)]);
 
@@ -450,7 +454,9 @@ export async function initSystemFast(
 
 	// Background: Heavy content seeding (can happen after redirect)
 	const backgroundTask = async () => {
-		if (!adapter) return;
+		if (!adapter) {
+			return;
+		}
 		await seedCollectionsForSetup(adapter, tenantId);
 	};
 
@@ -479,8 +485,8 @@ export const defaultPublicSettings: Array<{ key: string; value: unknown; descrip
 	{ key: 'MEDIA_FOLDER', value: './mediaFolder', description: 'Server path where media files are stored' },
 	{ key: 'MEDIA_OUTPUT_FORMAT_QUALITY', value: { format: 'webp', quality: 80 }, description: 'Image format and quality settings' },
 	{ key: 'IMAGE_SIZES', value: { sm: 600, md: 900, lg: 1200 }, description: 'Image sizes for automatic resizing' },
-	{ key: 'MAX_FILE_SIZE', value: 10485760, description: 'Maximum file size for uploads in bytes (10MB)' },
-	{ key: 'BODY_SIZE_LIMIT', value: 10485760, description: 'Body size limit for server requests in bytes (10MB)' },
+	{ key: 'MAX_FILE_SIZE', value: 10_485_760, description: 'Maximum file size for uploads in bytes (10MB)' },
+	{ key: 'BODY_SIZE_LIMIT', value: 10_485_760, description: 'Body size limit for server requests in bytes (10MB)' },
 	{ key: 'USE_ARCHIVE_ON_DELETE', value: true, description: 'Enable archiving instead of permanent deletion' },
 
 	// Seasons Icons for login page
@@ -508,7 +514,7 @@ export const defaultPublicSettings: Array<{ key: string; value: unknown; descrip
 		description: 'Active logging levels (none, info, warn, error, debug, fatal, trace)'
 	},
 	{ key: 'LOG_RETENTION_DAYS', value: 30, description: 'Number of days to keep log files' },
-	{ key: 'LOG_ROTATION_SIZE', value: 10485760, description: 'Maximum size of a log file in bytes before rotation (10MB)' }
+	{ key: 'LOG_ROTATION_SIZE', value: 10_485_760, description: 'Maximum size of a log file in bytes before rotation (10MB)' }
 
 	// NOTE: DEMO mode is controlled exclusively via config/private.ts (INFRASTRUCTURE_KEYS).
 	// Do NOT add a DEMO key here — it would create a split-brain where the server
@@ -551,15 +557,15 @@ export const defaultPrivateSettings: Array<{ key: string; value: unknown; descri
 	{ key: 'CACHE_TTL_THEME', value: 300, description: 'TTL for theme configurations (5 minutes)' },
 	{ key: 'CACHE_TTL_CONTENT', value: 180, description: 'TTL for content data (3 minutes)' },
 	{ key: 'CACHE_TTL_MEDIA', value: 300, description: 'TTL for media metadata (5 minutes)' },
-	{ key: 'CACHE_TTL_SESSION', value: 86400, description: 'TTL for user session data (24 hours)' },
+	{ key: 'CACHE_TTL_SESSION', value: 86_400, description: 'TTL for user session data (24 hours)' },
 	{ key: 'CACHE_TTL_USER', value: 60, description: 'TTL for user permissions (1 minute)' },
 	{ key: 'CACHE_TTL_API', value: 300, description: 'TTL for API responses (5 minutes)' },
 
 	// Session configuration
-	{ key: 'SESSION_CLEANUP_INTERVAL', value: 300000, description: 'Interval in ms to clean up expired sessions (5 minutes)' },
+	{ key: 'SESSION_CLEANUP_INTERVAL', value: 300_000, description: 'Interval in ms to clean up expired sessions (5 minutes)' },
 	{ key: 'MAX_IN_MEMORY_SESSIONS', value: 1000, description: 'Maximum number of sessions to hold in memory' },
 	{ key: 'DB_VALIDATION_PROBABILITY', value: 0.1, description: 'Probability (0-1) of validating a session against the DB' },
-	{ key: 'SESSION_EXPIRATION_SECONDS', value: 86400, description: 'Duration in seconds until a session expires (24 hours)' },
+	{ key: 'SESSION_EXPIRATION_SECONDS', value: 86_400, description: 'Duration in seconds until a session expires (24 hours)' },
 
 	// Mapbox config
 	{ key: 'USE_MAPBOX', value: false, description: 'Enable Mapbox integration' },
@@ -601,7 +607,7 @@ export const defaultPrivateSettings: Array<{ key: string; value: unknown; descri
 export async function seedSettings(dbAdapter: DatabaseAdapter, tenantId?: string, isDemoSeed = false): Promise<void> {
 	logger.info(`🌱 Checking which settings need seeding${tenantId ? ` for tenant ${tenantId}` : ''}...`);
 
-	if (!dbAdapter || !dbAdapter.systemPreferences) {
+	if (!dbAdapter?.systemPreferences) {
 		throw new Error('Database adapter or systemPreferences interface not available');
 	}
 
@@ -663,14 +669,20 @@ export async function seedSettings(dbAdapter: DatabaseAdapter, tenantId?: string
 
 		// Override DEMO, SEASONS, SEASON_REGION if isDemoSeed
 		if (isDemoSeed) {
-			if (setting.key === 'DEMO') value = true;
-			if (setting.key === 'SEASONS') value = true;
-			if (setting.key === 'SEASON_REGION') value = 'Western_Europe';
+			if (setting.key === 'DEMO') {
+				value = true;
+			}
+			if (setting.key === 'SEASONS') {
+				value = true;
+			}
+			if (setting.key === 'SEASON_REGION') {
+				value = 'Western_Europe';
+			}
 		}
 
 		settingsToSet.push({
 			key: setting.key,
-			value: value, // Store the actual value directly
+			value, // Store the actual value directly
 			category, // Add category field for proper classification
 			scope: 'system',
 			...(tenantId && { tenantId })
@@ -736,14 +748,14 @@ export async function seedSettings(dbAdapter: DatabaseAdapter, tenantId?: string
  * Exports all current settings to a JSON file using database-agnostic interface.
  * This creates a settings snapshot for project templates.
  */
-type SettingsSnapshot = {
-	version: string;
+interface SettingsSnapshot {
 	exportedAt: string;
 	settings: Record<string, { value: unknown; category: string; description: string }>;
-};
+	version: string;
+}
 
 export async function exportSettingsSnapshot(dbAdapter: DatabaseAdapter): Promise<SettingsSnapshot> {
-	if (!dbAdapter || !dbAdapter.systemPreferences) {
+	if (!dbAdapter?.systemPreferences) {
 		throw new Error('Database adapter or systemPreferences interface not available');
 	}
 
@@ -783,7 +795,7 @@ export async function exportSettingsSnapshot(dbAdapter: DatabaseAdapter): Promis
  * This allows restoring settings from a project template.
  */
 export async function importSettingsSnapshot(snapshot: Record<string, unknown>, dbAdapter: DatabaseAdapter): Promise<void> {
-	if (!dbAdapter || !dbAdapter.systemPreferences) {
+	if (!dbAdapter?.systemPreferences) {
 		throw new Error('Database adapter or systemPreferences interface not available');
 	}
 

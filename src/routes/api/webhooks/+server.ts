@@ -3,14 +3,12 @@
  * @description Handles GET (list) and POST (create) requests for webhooks.
  */
 
-import { json } from '@sveltejs/kit';
-
 import { webhookService } from '@src/services/webhookService';
-import { logger } from '@utils/logger.server';
-
+import { json } from '@sveltejs/kit';
 // Unified Error Handling
 import { apiHandler } from '@utils/apiHandler';
 import { AppError } from '@utils/errorHandling';
+import { logger } from '@utils/logger.server';
 
 // GET: List all webhooks
 export const GET = apiHandler(async ({ locals }) => {
@@ -24,7 +22,9 @@ export const GET = apiHandler(async ({ locals }) => {
 		return json({ success: true, data: webhooks });
 	} catch (error) {
 		logger.error('Failed to list webhooks:', error);
-		if (error instanceof AppError) throw error;
+		if (error instanceof AppError) {
+			throw error;
+		}
 		throw new AppError('Internal Server Error', 500, 'WEBHOOK_LIST_FAILED');
 	}
 });
@@ -40,7 +40,7 @@ export const POST = apiHandler(async ({ request, locals }) => {
 		const data = await request.json();
 
 		// Basic validation
-		if (!data.url || !data.events || !Array.isArray(data.events)) {
+		if (!(data.url && data.events && Array.isArray(data.events))) {
 			throw new AppError('Invalid webhook data. URL and events array are required.', 400, 'INVALID_DATA');
 		}
 
@@ -51,7 +51,9 @@ export const POST = apiHandler(async ({ request, locals }) => {
 		return json({ success: true, data: webhook });
 	} catch (error) {
 		logger.error('Failed to create webhook:', error);
-		if (error instanceof AppError) throw error;
+		if (error instanceof AppError) {
+			throw error;
+		}
 		throw new AppError('Internal Server Error', 500, 'WEBHOOK_CREATE_FAILED');
 	}
 });

@@ -13,25 +13,22 @@
  * server-side logic for handling file uploads.
  */
 
-import { error, redirect } from '@sveltejs/kit';
-import type { Actions, PageServerLoad } from './$types';
-
-// Utils
-import type { SystemVirtualFolder, MediaItem } from '@root/src/databases/dbInterface';
 import type { DatabaseId } from '@root/src/content/types';
+// Utils
+import type { MediaItem, SystemVirtualFolder } from '@root/src/databases/dbInterface';
 import type { MediaAccess } from '@root/src/utils/media/mediaModels';
-import { MediaService } from '@src/utils/media/mediaService.server';
-import { moveMediaToTrash, getImageSizes } from '@utils/media/mediaStorage.server';
-
 // Auth
 import { dbAdapter } from '@src/databases/db';
-
+import { MediaService } from '@src/utils/media/mediaService.server';
+import { error, redirect } from '@sveltejs/kit';
 // System Logger
-import { logger, type LoggableValue } from '@utils/logger.server';
+import { type LoggableValue, logger } from '@utils/logger.server';
+import { getImageSizes, moveMediaToTrash } from '@utils/media/mediaStorage.server';
+import type { Actions, PageServerLoad } from './$types';
 
 interface StackItem {
-	parent: Record<string, unknown> | Array<unknown> | null;
 	key: string;
+	parent: Record<string, unknown> | unknown[] | null;
 	value: unknown;
 }
 
@@ -45,23 +42,30 @@ function convertIdToString(obj: unknown): unknown {
 
 		// If value is not an object, assign directly
 		if (value === null || typeof value !== 'object') {
-			if (parent) (parent as Record<string, unknown>)[key] = value;
+			if (parent) {
+				(parent as Record<string, unknown>)[key] = value;
+			}
 			continue;
 		}
 
 		// Handle circular references
 		if (seen.has(value)) {
-			if (parent) (parent as Record<string, unknown>)[key] = value;
+			if (parent) {
+				(parent as Record<string, unknown>)[key] = value;
+			}
 			continue;
 		}
 		seen.add(value);
 
 		// Initialize object
 		const result: Record<string, unknown> = {};
-		if (parent) (parent as Record<string, unknown>)[key] = result;
+		if (parent) {
+			(parent as Record<string, unknown>)[key] = result;
+		}
 
 		// Process each key/value pair
 		for (const k in value as Record<string, unknown>) {
+			if (!Object.hasOwn(value as Record<string, unknown>, k)) continue;
 			const val = (value as Record<string, unknown>)[k];
 			if (val === null) {
 				result[k] = null;
@@ -156,7 +160,9 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		// Process and flatten media results - Filter and validate media items before processing
 		const processedMedia = allMediaResults
 			.filter((item) => {
-				if (!item) return false;
+				if (!item) {
+					return false;
+				}
 				const isValid =
 					item.hash &&
 					item.filename &&
@@ -303,7 +309,7 @@ export const actions: Actions = {
 			logger.warn('Parsed image data:', image);
 			logger.trace('Received delete request for image:', image);
 
-			if (!image || !image._id) {
+			if (!image?._id) {
 				logger.error('Invalid image data received - no _id');
 				throw error(400, 'Invalid image data received');
 			}
@@ -317,7 +323,9 @@ export const actions: Actions = {
 			// FIX: Explicitly delete from ALL size folders to ensure complete cleanup
 			try {
 				const sanitizePath = (p: string) => {
-					if (!p) return '';
+					if (!p) {
+						return '';
+					}
 					let clean = p;
 					// Remove web prefixes
 					clean = clean.replace(/^\/files\//, '').replace(/^files\//, '');
@@ -338,7 +346,7 @@ export const actions: Actions = {
 					if (pathParts.length >= 3) {
 						// Format: basePath/sizeFolder/filename
 						const basePath = pathParts[0]; // e.g., "global"
-						const fileName = pathParts[pathParts.length - 1]; // e.g., "image-hash.ext"
+						const fileName = pathParts.at(-1); // e.g., "image-hash.ext"
 
 						// Get configured sizes dynamically + ensure standard folders
 						const configuredSizes = getImageSizes();
@@ -370,6 +378,7 @@ export const actions: Actions = {
 				// Also delete any thumbnails explicitly listed (for backwards compatibility)
 				if (image.thumbnails) {
 					for (const size in image.thumbnails) {
+						if (!Object.hasOwn(image.thumbnails, size)) continue;
 						if (image.thumbnails[size]?.url) {
 							const cleanThumbUrl = sanitizePath(image.thumbnails[size].url);
 							try {
@@ -395,10 +404,9 @@ export const actions: Actions = {
 				logger.info('Media item deleted successfully');
 				// TODO: Add back invalidation when upgrading SvelteKit
 				return { success: true }; // Return true on success
-			} else {
-				logger.error('Failed to delete image from database:', result);
-				throw error(500, result.message || 'Failed to delete image');
 			}
+			logger.error('Failed to delete image from database:', result);
+			throw error(500, result.message || 'Failed to delete image');
 		} catch (err) {
 			logger.error('Error in deleteMedia action:', err as LoggableValue);
 			throw error(500, err instanceof Error ? err.message : 'Internal Server Error');
@@ -422,7 +430,7 @@ export const actions: Actions = {
 			const remoteUrls = JSON.parse(formData.get('remoteUrls') as string) as string[];
 			const folder = (formData.get('folder') as string) || 'global';
 
-			if (!remoteUrls || !Array.isArray(remoteUrls) || remoteUrls.length === 0) {
+			if (!(remoteUrls && Array.isArray(remoteUrls)) || remoteUrls.length === 0) {
 				throw new Error('No URLs provided');
 			}
 
@@ -453,8 +461,6 @@ export const actions: Actions = {
 					} else {
 						logger.error(`Failed to upload file from ${url}: ${errorMessage}`);
 					}
-					// Continue with next URL instead of throwing
-					continue;
 				}
 			}
 

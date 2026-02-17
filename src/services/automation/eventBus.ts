@@ -21,7 +21,7 @@ type EventListener = (payload: AutomationEventPayload) => void | Promise<void>;
  * Bridges CRUD operations → AutomationService.
  */
 class AutomationEventBus {
-	private listeners = new Map<AutomationEvent | '*', Set<EventListener>>();
+	private readonly listeners = new Map<AutomationEvent | '*', Set<EventListener>>();
 	private static instance: AutomationEventBus;
 
 	private constructor() {}
@@ -41,7 +41,7 @@ class AutomationEventBus {
 		if (!this.listeners.has(event)) {
 			this.listeners.set(event, new Set());
 		}
-		this.listeners.get(event)!.add(listener);
+		this.listeners.get(event)?.add(listener);
 
 		return () => {
 			this.listeners.get(event)?.delete(listener);
@@ -82,10 +82,10 @@ class AutomationEventBus {
 				try {
 					const result = listener(fullPayload);
 					if (result instanceof Promise) {
-						result.catch((err) => logger.error(`Automation wildcard listener error:`, err));
+						result.catch((err) => logger.error('Automation wildcard listener error:', err));
 					}
 				} catch (err) {
-					logger.error(`Automation wildcard listener error:`, err);
+					logger.error('Automation wildcard listener error:', err);
 				}
 			}
 		}

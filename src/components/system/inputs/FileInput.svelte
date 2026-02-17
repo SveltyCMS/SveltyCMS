@@ -16,13 +16,12 @@
 -->
 
 <script lang="ts">
-	import type { MediaImage } from '@utils/media/mediaModels';
-	import { twMerge } from 'tailwind-merge';
 	// Component
 	import Media from '@components/Media.svelte';
-
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
+	import type { MediaImage } from '@utils/media/mediaModels';
+	import { twMerge } from 'tailwind-merge';
 
 	// Props
 	let { value = $bindable(), multiple = $bindable(false), show = $bindable(true), className = '', onChange } = $props();
@@ -140,7 +139,7 @@
 		</div>
 
 		<!-- File Input -->
-		<input bind:this={input} type="file" accept="image/*,image/webp,image/avif,image/svg+xml" hidden {multiple} onchange={handleFileChange} />
+		<input bind:this={input} type="file" accept="image/*,image/webp,image/avif,image/svg+xml" hidden {multiple} onchange={handleFileChange}>
 	</div>
 
 	<!-- Show existing Media Images -->
@@ -149,9 +148,7 @@
 			class="bg-surface-100-800-token fixed left-[50%] top-[50%] z-999999999 flex h-[90%] w-[95%] translate-x-[-50%] translate-y-[-50%] flex-col rounded border border-surface-400 p-2"
 		>
 			<div class="bg-surface-100-800-token flex items-center justify-between border-b p-2">
-				<p class="ml-auto font-bold text-black dark:text-primary-500">
-					{m.widget_ImageUpload_SelectImage()}
-				</p>
+				<p class="ml-auto font-bold text-black dark:text-primary-500">{m.widget_ImageUpload_SelectImage()}</p>
 				<button onclick={() => toggleMedia(false)} aria-label="Close" class="preset-outlined-secondary-500 btn-icon ml-auto">
 					<iconify-icon icon="material-symbols:close" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 				</button>

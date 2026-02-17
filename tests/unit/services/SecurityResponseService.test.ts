@@ -3,7 +3,7 @@ import { securityResponseService } from '../../../src/services/SecurityResponseS
 
 describe('SecurityResponseService', () => {
 	// Helper to create a mock Request object that looks like a web Request
-	const createMockRequest = (url: string, method: string = 'GET', headers: Record<string, string> = {}, body: string = ''): Request => {
+	const createMockRequest = (url: string, method = 'GET', headers: Record<string, string> = {}, body = ''): Request => {
 		const requestUrl = new URL(`http://localhost${url}`);
 		return {
 			url: requestUrl.toString(),

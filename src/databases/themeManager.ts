@@ -10,12 +10,11 @@
  * - Fallback to default theme if database is unavailable
  */
 import { error } from '@sveltejs/kit';
-import type { DatabaseId } from '../content/types';
-import type { IDBAdapter, Theme } from './dbInterface';
 import { dateToISODateString } from '@utils/dateUtils';
-
 // System Logger
 import { logger } from '@utils/logger';
+import type { DatabaseId } from '../content/types';
+import type { IDBAdapter, Theme } from './dbInterface';
 
 /**
  * Fallback theme for when database is not available
@@ -38,9 +37,9 @@ export const DEFAULT_THEME: Theme = {
 
 export class ThemeManager {
 	private static instance: ThemeManager;
-	private themeCache: Map<string, Theme> = new Map(); // Single cache for all themes
+	private readonly themeCache: Map<string, Theme> = new Map(); // Single cache for all themes
 	private db: IDBAdapter | null = null;
-	private initialized: boolean = false;
+	private initialized = false;
 
 	private constructor() {}
 
@@ -80,7 +79,9 @@ export class ThemeManager {
 	 * Load the default theme from database and cache it
 	 */
 	private async loadAndCacheDefaultTheme(): Promise<void> {
-		if (!this.db) throw new Error('Database adapter not initialized.');
+		if (!this.db) {
+			throw new Error('Database adapter not initialized.');
+		}
 
 		try {
 			// Single optimized database call - get all themes at once
@@ -106,7 +107,7 @@ export class ThemeManager {
 	}
 
 	public async getTheme(tenantId?: string): Promise<Theme> {
-		if (!this.initialized || !this.db) {
+		if (!(this.initialized && this.db)) {
 			throw new Error('ThemeManager is not initialized.');
 		}
 
@@ -134,7 +135,7 @@ export class ThemeManager {
 	}
 
 	public async setTheme(theme: Theme, tenantId?: string): Promise<void> {
-		if (!this.initialized || !this.db) {
+		if (!(this.initialized && this.db)) {
 			throw new Error('ThemeManager is not initialized.');
 		}
 
@@ -162,7 +163,7 @@ export class ThemeManager {
 	 * Clear cache and reload themes from database
 	 */
 	public async refresh(): Promise<void> {
-		if (!this.initialized || !this.db) {
+		if (!(this.initialized && this.db)) {
 			throw new Error('ThemeManager is not initialized.');
 		}
 

@@ -52,7 +52,7 @@ export async function userExists(email: string): Promise<boolean> {
 /**
  * Waits for a condition to be true.
  */
-export async function waitFor(condition: () => Promise<boolean>, timeoutMs = 10000, intervalMs = 500): Promise<boolean> {
+export async function waitFor(condition: () => Promise<boolean>, timeoutMs = 10_000, intervalMs = 500): Promise<boolean> {
 	const start = Date.now();
 
 	while (Date.now() - start < timeoutMs) {

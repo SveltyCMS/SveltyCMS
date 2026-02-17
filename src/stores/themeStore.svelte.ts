@@ -4,24 +4,25 @@
  * Supports explicit theme preferences: 'system', 'light', 'dark'
  * Pure Tailwind CSS implementation - no Skeleton Labs dependencies
  */
-import { browser } from '$app/environment';
+
+import type { ISODateString } from '@src/content/types';
 import type { Theme } from '@src/databases/dbInterface';
 import { nowISODateString } from '@src/utils/dateUtils';
-import type { ISODateString } from '@src/content/types';
 import { logger } from '@utils/logger';
+import { browser } from '$app/environment';
 
 // --- Theme Preference Type ---
 export type ThemePreference = 'system' | 'light' | 'dark' | 'unknown';
 
 // --- State Shape ---
 interface ThemeState {
-	currentTheme: Theme | null;
-	isLoading: boolean;
-	error: string | null;
-	lastUpdateAttempt: ISODateString | null;
-	themePreference: ThemePreference; // User's explicit preference
-	resolvedDarkMode: boolean; // Computed dark mode state (considering system preference)
 	autoRefreshEnabled: boolean;
+	currentTheme: Theme | null;
+	error: string | null;
+	isLoading: boolean;
+	lastUpdateAttempt: ISODateString | null;
+	resolvedDarkMode: boolean; // Computed dark mode state (considering system preference)
+	themePreference: ThemePreference; // User's explicit preference
 }
 
 // --- Core State ---
@@ -82,7 +83,9 @@ const THEME_COOKIE_KEY = 'theme';
  * Resolve the actual dark mode state based on preference
  */
 function resolveDarkMode(preference: ThemePreference): boolean {
-	if (!browser) return true; // Default dark for SSR
+	if (!browser) {
+		return true; // Default dark for SSR
+	}
 
 	const systemPrefersLight = window.matchMedia('(prefers-color-scheme: light)').matches;
 
@@ -91,8 +94,6 @@ function resolveDarkMode(preference: ThemePreference): boolean {
 			return true;
 		case 'light':
 			return false;
-		case 'system':
-		case 'unknown':
 		default:
 			// Priority System: if light is preferred, use it. Otherwise dark.
 			return !systemPrefersLight;
@@ -105,7 +106,9 @@ function resolveDarkMode(preference: ThemePreference): boolean {
  * This MUST be called from a component's onMount lifecycle hook.
  */
 export function initializeDarkMode(initialPreference?: ThemePreference) {
-	if (!browser) return;
+	if (!browser) {
+		return;
+	}
 
 	// 1. Read theme preference from cookie
 	const cookieValue = document.cookie
@@ -143,6 +146,7 @@ export function initializeDarkMode(initialPreference?: ThemePreference) {
 
 	// 6. Clean up old 'darkMode' cookie if it exists
 	if (document.cookie.includes('darkMode=')) {
+		// biome-ignore lint/suspicious/noDocumentCookie: intentional cookie cleanup
 		document.cookie = 'darkMode=; path=/; max-age=0';
 		logger.debug('[Theme Init] Cleaned up old darkMode cookie');
 	}
@@ -153,7 +157,9 @@ export function initializeDarkMode(initialPreference?: ThemePreference) {
  * Apply dark mode state to DOM
  */
 function _applyThemeToDOM(isDark: boolean) {
-	if (!browser) return;
+	if (!browser) {
+		return;
+	}
 
 	const h = document.documentElement;
 
@@ -177,10 +183,13 @@ function _applyThemeToDOM(isDark: boolean) {
  * Set the theme cookie
  */
 function _setCookie(preference: ThemePreference) {
-	if (!browser) return;
+	if (!browser) {
+		return;
+	}
 
 	// Overwrite cookie with explicit path and max-age
 	// Note: We don't need to explicitly delete it first; overwriting with the same name and path works.
+	// biome-ignore lint/suspicious/noDocumentCookie: intentional cookie write for theme persistence
 	document.cookie = `${THEME_COOKIE_KEY}=${preference}; path=/; max-age=31536000; SameSite=Lax`;
 	logger.debug('[Theme] Updated cookie to:', preference);
 }
@@ -189,7 +198,9 @@ function _setCookie(preference: ThemePreference) {
  * Setup listener for system preference changes
  */
 function _setupSystemListener() {
-	if (!browser) return;
+	if (!browser) {
+		return;
+	}
 
 	const mq = window.matchMedia('(prefers-color-scheme: dark)');
 
@@ -215,7 +226,9 @@ function _setupSystemListener() {
  * @param preference - 'system', 'light', or 'dark'
  */
 export function setThemePreference(preference: ThemePreference) {
-	if (!browser) return;
+	if (!browser) {
+		return;
+	}
 	if (preference === 'unknown') {
 		console.warn('[Theme] Cannot set preference to "unknown", defaulting to "system"');
 		preference = 'system';
@@ -242,7 +255,9 @@ export function setThemePreference(preference: ThemePreference) {
  * If currently on 'system', will switch to explicit light/dark
  */
 export function toggleDarkMode(force?: boolean) {
-	if (!browser) return;
+	if (!browser) {
+		return;
+	}
 
 	let newPreference: ThemePreference;
 
@@ -298,7 +313,9 @@ export async function updateTheme(newThemeName: string) {
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ themeName: newThemeName })
 		});
-		if (!response.ok) throw new Error(`Failed to update theme: ${response.statusText}`);
+		if (!response.ok) {
+			throw new Error(`Failed to update theme: ${response.statusText}`);
+		}
 
 		const updatedTheme: Theme = await response.json();
 		state.currentTheme = updatedTheme;

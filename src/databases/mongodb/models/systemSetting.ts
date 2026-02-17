@@ -10,18 +10,18 @@
  * - Categorization of settings for security and organization
  */
 
-import mongoose, { Schema } from 'mongoose';
 import { generateId } from '@src/databases/mongodb/methods/mongoDBUtils';
 import { nowISODateString } from '@utils/dateUtils';
+import mongoose, { Schema } from 'mongoose';
 
 export interface SystemSetting {
 	_id: string; // UUID primary key
-	key: string;
-	value: unknown;
-	scope: string; // e.g., 'system', 'public', 'private'
 	category: string; // 'public' | 'private' - setting classification for security/organization
 	isGlobal?: boolean;
+	key: string;
+	scope: string; // e.g., 'system', 'public', 'private'
 	updatedAt?: string; // ISODateString
+	value: unknown;
 }
 
 const SystemSettingSchema = new Schema<SystemSetting>(
@@ -44,10 +44,10 @@ const SystemSettingSchema = new Schema<SystemSetting>(
 
 // Force model recreation if schema changed
 if (mongoose.models.system_settings) {
-	delete mongoose.models.system_settings;
+	mongoose.models.system_settings = undefined;
 }
 if (mongoose.models.SystemSetting) {
-	delete mongoose.models.SystemSetting;
+	mongoose.models.SystemSetting = undefined;
 }
 
 export const SystemSettingModel =

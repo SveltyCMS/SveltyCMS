@@ -22,15 +22,14 @@
  * - UpdatedAt ISODate type
  */
 
-import mongoose, { Schema } from 'mongoose';
-import type { Model } from 'mongoose';
-import type { MediaItem, DatabaseResult, IDBAdapter } from '@src/databases/dbInterface';
 import type { DatabaseId } from '@src/content/types';
+import type { DatabaseResult, IDBAdapter, MediaItem } from '@src/databases/dbInterface';
 import { generateId } from '@src/databases/mongodb/methods/mongoDBUtils';
 import { nowISODateString, toISOString } from '@utils/dateUtils';
-
 // System Logger
 import { logger } from '@utils/logger';
+import type { Model } from 'mongoose';
+import mongoose, { Schema } from 'mongoose';
 
 // Define interface for MongoDB document
 export interface IMedia extends Document, Omit<MediaItem, '_id'> {
@@ -95,9 +94,8 @@ export async function fetchAllMedia(databaseAdapter: IDBAdapter): Promise<Databa
 		const result = await databaseAdapter.crud.findMany<MediaItem>('media', {});
 		if (result.success) {
 			return { success: true, data: result.data };
-		} else {
-			return result;
 		}
+		return result;
 	} catch (error) {
 		const message = 'Failed to fetch all media files';
 		const err = error as Error;

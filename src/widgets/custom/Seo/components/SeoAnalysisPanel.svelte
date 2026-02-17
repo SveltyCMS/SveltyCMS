@@ -7,9 +7,9 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 -->
 
 <script lang="ts">
+	import { slide } from 'svelte/transition';
 	// Using iconify-icon web component
 	import type { SeoAnalysisResult } from '../seoTypes';
-	import { slide } from 'svelte/transition';
 
 	interface Props {
 		analysisResult: SeoAnalysisResult | null;

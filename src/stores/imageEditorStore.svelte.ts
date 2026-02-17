@@ -18,8 +18,8 @@ import type { Component } from 'svelte';
 
 // Types
 export interface EditAction {
-	undo: () => void;
 	redo: () => void;
+	undo: () => void;
 }
 
 export interface ToolbarControls {
@@ -28,46 +28,46 @@ export interface ToolbarControls {
 }
 
 export interface ImageEditorTool {
+	description: string;
+	icon: string;
 	id: string;
 	name: string;
-	icon: string;
-	description: string;
 }
 
 export interface ImageEditorState {
-	file: File | null;
-	saveEditedImage: boolean;
-	editHistory: EditAction[];
-	currentHistoryIndex: number;
-	activeState: string;
-	stateHistory: string[];
-	toolbarControls: ToolbarControls | null;
-	preToolSnapshot: string | null;
 	actions?: {
 		undo?: () => void;
 		redo?: () => void;
 		save?: () => void;
 		cancel?: () => void;
 	};
-	error?: string | null;
-
-	// Canvas related state
-	imageElement: HTMLImageElement | null;
-	zoom: number;
-	rotation: number;
-	flipH: boolean;
-	flipV: boolean;
-	translateX: number;
-	translateY: number;
-
-	// Image specific properties
-	crop: { x: number; y: number; width: number; height: number } | null;
-	focalPoint: { x: number; y: number } | null;
-	filters: Record<string, number>;
+	activeState: string;
 	annotations: any[];
 
 	blurRegions: any[];
+
+	// Image specific properties
+	crop: { x: number; y: number; width: number; height: number } | null;
+	currentHistoryIndex: number;
+	editHistory: EditAction[];
+	error?: string | null;
+	file: File | null;
+	filters: Record<string, number>;
+	flipH: boolean;
+	flipV: boolean;
+	focalPoint: { x: number; y: number } | null;
+
+	// Canvas related state
+	imageElement: HTMLImageElement | null;
+	preToolSnapshot: string | null;
+	rotation: number;
+	saveEditedImage: boolean;
+	stateHistory: string[];
+	toolbarControls: ToolbarControls | null;
+	translateX: number;
+	translateY: number;
 	watermarks: any[];
+	zoom: number;
 }
 
 // Create image editor store
@@ -144,7 +144,9 @@ function createImageEditorStore() {
 
 	function cancelActiveTool() {
 		const currentState = state.activeState;
-		if (!currentState) return;
+		if (!currentState) {
+			return;
+		}
 
 		if (state.preToolSnapshot) {
 			restoreFromSnapshot(state.preToolSnapshot);
@@ -212,8 +214,12 @@ function createImageEditorStore() {
 	}
 
 	function undoState(peek = false): string | null {
-		if (!peek && !canUndoState) return null;
-		if (peek && state.currentHistoryIndex < 0) return null;
+		if (!(peek || canUndoState)) {
+			return null;
+		}
+		if (peek && state.currentHistoryIndex < 0) {
+			return null;
+		}
 
 		let targetIndex = state.currentHistoryIndex;
 		if (!peek) {
@@ -221,15 +227,21 @@ function createImageEditorStore() {
 			state.currentHistoryIndex = targetIndex;
 		}
 
-		if (targetIndex < 0 || targetIndex >= state.stateHistory.length) return null;
+		if (targetIndex < 0 || targetIndex >= state.stateHistory.length) {
+			return null;
+		}
 
 		const stateData = state.stateHistory[targetIndex];
-		if (!peek) restoreFromSnapshot(stateData);
+		if (!peek) {
+			restoreFromSnapshot(stateData);
+		}
 		return stateData;
 	}
 
 	function redoState(): string | null {
-		if (!canRedoState) return null;
+		if (!canRedoState) {
+			return null;
+		}
 		state.currentHistoryIndex++;
 		const stateData = state.stateHistory[state.currentHistoryIndex];
 		restoreFromSnapshot(stateData);

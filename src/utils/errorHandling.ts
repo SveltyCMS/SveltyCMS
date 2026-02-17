@@ -4,19 +4,18 @@
  * Defines the standard error response shape and utilities for processing errors.
  */
 
-import { json, type RequestEvent } from '@sveltejs/kit';
-import { isRedirect, type HttpError } from '@sveltejs/kit';
-import { type ValiError } from 'valibot';
+import { type HttpError, isRedirect, json, type RequestEvent } from '@sveltejs/kit';
 import { logger } from '@utils/logger.server';
+import type { ValiError } from 'valibot';
 
 // --- Standardized Response Types ---
 
 export interface ApiErrorResponse {
-	success: false;
-	message: string;
 	code?: string;
 	issues?: string[]; // Simplified array of strings for validation issues
+	message: string;
 	stack?: string; // Only included in Development
+	success: false;
 }
 
 /**
@@ -82,7 +81,7 @@ export function handleApiError(err: unknown, event: RequestEvent) {
 	let status = 500;
 	let message = 'Internal Server Error';
 	let code = 'INTERNAL_SERVER_ERROR';
-	let issues: string[] | undefined = undefined;
+	let issues: string[] | undefined;
 
 	// 2. Handle Valibot Validation Errors (400)
 	if (isValiError(err)) {
@@ -145,17 +144,25 @@ export function handleApiError(err: unknown, event: RequestEvent) {
  * Helper to safely extract an error message string from any unknown error object.
  */
 export function getErrorMessage(err: unknown): string {
-	if (err instanceof Error) return err.message;
-	if (typeof err === 'string') return err;
+	if (err instanceof Error) {
+		return err.message;
+	}
+	if (typeof err === 'string') {
+		return err;
+	}
 
 	// Handle SvelteKit HttpError structure manually to avoid dependency issues
 	if (typeof err === 'object' && err !== null && 'body' in err) {
 		const body = (err as Record<string, unknown>).body as Record<string, unknown>;
-		if (body?.message) return String(body.message);
+		if (body?.message) {
+			return String(body.message);
+		}
 	}
 
 	if (typeof err === 'object' && err !== null) {
-		if ('message' in err) return String((err as Record<string, unknown>).message);
+		if ('message' in err) {
+			return String((err as Record<string, unknown>).message);
+		}
 
 		// If object has no message, try to stringify it for better debug info
 		try {
@@ -189,7 +196,9 @@ export function isHttpError(err: unknown): err is HttpError {
  * Preserves existing AppErrors.
  */
 export function wrapError(err: unknown, message = 'An unexpected error occurred', status = 500): AppError {
-	if (isAppError(err)) return err;
+	if (isAppError(err)) {
+		return err;
+	}
 
 	if (isHttpError(err)) {
 		const bodyMsg = (err as any).body?.message;

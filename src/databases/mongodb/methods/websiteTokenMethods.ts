@@ -42,8 +42,12 @@ export class MongoWebsiteTokenMethods {
 			this.crud.count(options.filter || {})
 		]);
 
-		if (!dataRes.success) return dataRes as any;
-		if (!totalRes.success) return totalRes as any;
+		if (!dataRes.success) {
+			return dataRes as any;
+		}
+		if (!totalRes.success) {
+			return totalRes as any;
+		}
 
 		return {
 			success: true,

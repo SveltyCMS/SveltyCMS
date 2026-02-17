@@ -12,15 +12,13 @@
  * - Returns user data and content structure for client-side rendering.
  */
 
-import { error, redirect, fail } from '@sveltejs/kit';
-import type { PageServerLoad } from './$types';
-
-// Auth - Use cached roles from locals instead of global config
-import { hasPermissionWithRoles } from '@src/databases/auth/permissions';
-
 // System Logger
 import { contentManager } from '@root/src/content/ContentManager';
+// Auth - Use cached roles from locals instead of global config
+import { hasPermissionWithRoles } from '@src/databases/auth/permissions';
+import { error, fail, redirect } from '@sveltejs/kit';
 import { logger } from '@utils/logger.server';
+import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	try {
@@ -95,7 +93,7 @@ export const actions = {
 		const formData = await request.formData();
 		const ids = JSON.parse(formData.get('ids') as string);
 
-		if (!ids || !Array.isArray(ids)) {
+		if (!(ids && Array.isArray(ids))) {
 			return fail(400, { message: 'Invalid IDs for deletion' });
 		}
 
@@ -121,7 +119,7 @@ export const actions = {
 		const formData = await request.formData();
 		const items = JSON.parse(formData.get('items') as string);
 
-		if (!items || !Array.isArray(items)) {
+		if (!(items && Array.isArray(items))) {
 			return fail(400, { message: 'Invalid items for save' });
 		}
 

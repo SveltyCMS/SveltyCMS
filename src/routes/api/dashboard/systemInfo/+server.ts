@@ -36,12 +36,12 @@
  * Ensure proper access controls are in place.
  */
 
+import { exec } from 'node:child_process';
+import os from 'node:os';
+import { performance } from 'node:perf_hooks';
+import { promisify } from 'node:util';
 import { json } from '@sveltejs/kit';
-import os from 'os';
 import { createOSUtils } from 'node-os-utils';
-import { exec } from 'child_process';
-import { promisify } from 'util';
-import { performance } from 'perf_hooks';
 
 // Permissions
 
@@ -58,10 +58,10 @@ const CACHE_DURATION = 1000; // 1 second cache to prevent hammering
 const PROCESS_LIMIT = 10; // Number of top processes to return
 
 // Cache storage
-type CacheEntry = {
-	timestamp: number;
+interface CacheEntry {
 	data: unknown;
-};
+	timestamp: number;
+}
 
 const cache: Record<string, CacheEntry> = {
 	cpu: { timestamp: 0, data: null },
@@ -136,14 +136,18 @@ const fetchCPUInfo = async () => {
 		const usage = ((total - idle) / total) * 100;
 
 		// Store historical core data
-		if (!cpuCoreData[index]) cpuCoreData[index] = [];
+		if (!cpuCoreData[index]) {
+			cpuCoreData[index] = [];
+		}
 		cpuCoreData[index].push(usage);
-		if (cpuCoreData[index].length > MAX_DATA_POINTS) cpuCoreData[index].shift();
+		if (cpuCoreData[index].length > MAX_DATA_POINTS) {
+			cpuCoreData[index].shift();
+		}
 
 		return {
 			model: core.model,
 			speed: core.speed,
-			usage: usage,
+			usage,
 			times: core.times
 		};
 	});
@@ -180,11 +184,11 @@ const fetchDiskInfo = async () => {
 		if (diskData) {
 			// Convert v2.x format to expected format
 			rootDiskUsage = {
-				totalGb: parseFloat((diskData.total.bytes / 1024 / 1024 / 1024).toFixed(2)),
-				usedGb: parseFloat((diskData.used.bytes / 1024 / 1024 / 1024).toFixed(2)),
-				freeGb: parseFloat((diskData.available.bytes / 1024 / 1024 / 1024).toFixed(2)),
-				usedPercentage: parseFloat(diskData.usagePercentage.toFixed(2)),
-				freePercentage: parseFloat((100 - diskData.usagePercentage).toFixed(2))
+				totalGb: Number.parseFloat((diskData.total.bytes / 1024 / 1024 / 1024).toFixed(2)),
+				usedGb: Number.parseFloat((diskData.used.bytes / 1024 / 1024 / 1024).toFixed(2)),
+				freeGb: Number.parseFloat((diskData.available.bytes / 1024 / 1024 / 1024).toFixed(2)),
+				usedPercentage: Number.parseFloat(diskData.usagePercentage.toFixed(2)),
+				freePercentage: Number.parseFloat((100 - diskData.usagePercentage).toFixed(2))
 			};
 		}
 	}
@@ -210,11 +214,11 @@ const fetchDiskInfo = async () => {
 					return {
 						filesystem: parts[0],
 						mountpoint: parts[5],
-						totalGb: parseFloat((parseInt(parts[1]) / 1024 / 1024).toFixed(2)),
-						usedGb: parseFloat((parseInt(parts[2]) / 1024 / 1024).toFixed(2)),
-						freeGb: parseFloat((parseInt(parts[3]) / 1024 / 1024).toFixed(2)),
-						usedPercentage: parseFloat(parts[4].replace('%', '')),
-						freePercentage: 100 - parseFloat(parts[4].replace('%', ''))
+						totalGb: Number.parseFloat((Number.parseInt(parts[1], 10) / 1024 / 1024).toFixed(2)),
+						usedGb: Number.parseFloat((Number.parseInt(parts[2], 10) / 1024 / 1024).toFixed(2)),
+						freeGb: Number.parseFloat((Number.parseInt(parts[3], 10) / 1024 / 1024).toFixed(2)),
+						usedPercentage: Number.parseFloat(parts[4].replace('%', '')),
+						freePercentage: 100 - Number.parseFloat(parts[4].replace('%', ''))
 					};
 				});
 		} else if (rootDiskUsage) {
@@ -250,7 +254,7 @@ const fetchDiskInfo = async () => {
 	}
 
 	// Get I/O statistics if available (Linux only)
-	let diskIO = null;
+	let diskIO: any = null;
 	try {
 		if (os.platform() === 'linux') {
 			const { stdout } = await execAsync('cat /proc/diskstats');
@@ -262,10 +266,10 @@ const fetchDiskInfo = async () => {
 				const parts = mainDisk.trim().split(/\s+/);
 				diskIO = {
 					device: parts[2],
-					reads: parseInt(parts[5]),
-					writes: parseInt(parts[9]),
-					readBytes: parseInt(parts[5]) * 512, // Assuming 512 byte sectors
-					writeBytes: parseInt(parts[9]) * 512 // Assuming 512 byte sectors
+					reads: Number.parseInt(parts[5], 10),
+					writes: Number.parseInt(parts[9], 10),
+					readBytes: Number.parseInt(parts[5], 10) * 512, // Assuming 512 byte sectors
+					writeBytes: Number.parseInt(parts[9], 10) * 512 // Assuming 512 byte sectors
 				};
 			}
 		}
@@ -290,16 +294,16 @@ const fetchMemoryInfo = async () => {
 		// v2.x format - convert to expected format
 		const memData = memoryInfoResult.data;
 		memoryInfo = {
-			totalMemMb: parseFloat((memData.total.bytes / 1024 / 1024).toFixed(2)),
-			usedMemMb: parseFloat((memData.used.bytes / 1024 / 1024).toFixed(2)),
-			freeMemMb: parseFloat((memData.free.bytes / 1024 / 1024).toFixed(2)),
-			usedMemPercentage: parseFloat(memData.usagePercentage.toFixed(2)),
-			freeMemPercentage: parseFloat((100 - memData.usagePercentage).toFixed(2))
+			totalMemMb: Number.parseFloat((memData.total.bytes / 1024 / 1024).toFixed(2)),
+			usedMemMb: Number.parseFloat((memData.used.bytes / 1024 / 1024).toFixed(2)),
+			freeMemMb: Number.parseFloat((memData.free.bytes / 1024 / 1024).toFixed(2)),
+			usedMemPercentage: Number.parseFloat(memData.usagePercentage.toFixed(2)),
+			freeMemPercentage: Number.parseFloat((100 - memData.usagePercentage).toFixed(2))
 		};
 	}
 
 	// Get swap information if available
-	let swapInfo = null;
+	let swapInfo: any = null;
 	try {
 		if (os.platform() !== 'win32') {
 			const { stdout } = await execAsync('free -b');
@@ -308,11 +312,11 @@ const fetchMemoryInfo = async () => {
 			if (swapLine) {
 				const parts = swapLine.split(/\s+/);
 				swapInfo = {
-					totalSwapMb: parseFloat((parseInt(parts[1]) / 1024 / 1024).toFixed(2)),
-					usedSwapMb: parseFloat((parseInt(parts[2]) / 1024 / 1024).toFixed(2)),
-					freeSwapMb: parseFloat((parseInt(parts[3]) / 1024 / 1024).toFixed(2)),
-					usedSwapPercentage: parseFloat(((parseInt(parts[2]) / parseInt(parts[1])) * 100).toFixed(2)),
-					freeSwapPercentage: parseFloat(((parseInt(parts[3]) / parseInt(parts[1])) * 100).toFixed(2))
+					totalSwapMb: Number.parseFloat((Number.parseInt(parts[1], 10) / 1024 / 1024).toFixed(2)),
+					usedSwapMb: Number.parseFloat((Number.parseInt(parts[2], 10) / 1024 / 1024).toFixed(2)),
+					freeSwapMb: Number.parseFloat((Number.parseInt(parts[3], 10) / 1024 / 1024).toFixed(2)),
+					usedSwapPercentage: Number.parseFloat(((Number.parseInt(parts[2], 10) / Number.parseInt(parts[1], 10)) * 100).toFixed(2)),
+					freeSwapPercentage: Number.parseFloat(((Number.parseInt(parts[3], 10) / Number.parseInt(parts[1], 10)) * 100).toFixed(2))
 				};
 			}
 		} else {
@@ -321,14 +325,14 @@ const fetchMemoryInfo = async () => {
 			const lines = stdout.trim().split('\n');
 			if (lines.length > 1) {
 				const parts = lines[1].trim().split(/\s+/);
-				const totalSwap = parseInt(parts[0]);
-				const usedSwap = parseInt(parts[1]);
+				const totalSwap = Number.parseInt(parts[0], 10);
+				const usedSwap = Number.parseInt(parts[1], 10);
 				swapInfo = {
 					totalSwapMb: totalSwap,
 					usedSwapMb: usedSwap,
 					freeSwapMb: totalSwap - usedSwap,
-					usedSwapPercentage: parseFloat(((usedSwap / totalSwap) * 100).toFixed(2)),
-					freeSwapPercentage: parseFloat((((totalSwap - usedSwap) / totalSwap) * 100).toFixed(2))
+					usedSwapPercentage: Number.parseFloat(((usedSwap / totalSwap) * 100).toFixed(2)),
+					freeSwapPercentage: Number.parseFloat((((totalSwap - usedSwap) / totalSwap) * 100).toFixed(2))
 				};
 			}
 		}
@@ -372,7 +376,9 @@ const fetchNetworkInfo = async () => {
 	// Process interface information
 	const interfaces = Object.entries(networkInterfaces)
 		.map(([name, info]) => {
-			if (!info) return null;
+			if (!info) {
+				return null;
+			}
 
 			return {
 				name,
@@ -439,7 +445,7 @@ const fetchProcessInfo = async (): Promise<{
 	try {
 		if (os.platform() === 'win32') {
 			// Windows - use wmic
-			const { stdout } = await execAsync(`wmic process get ProcessId,Name,WorkingSetSize,UserModeTime,KernelModeTime /format:csv`);
+			const { stdout } = await execAsync('wmic process get ProcessId,Name,WorkingSetSize,UserModeTime,KernelModeTime /format:csv');
 			const lines = stdout
 				.trim()
 				.split('\n')
@@ -449,12 +455,12 @@ const fetchProcessInfo = async (): Promise<{
 			if (lines.length > 1) {
 				const processData = lines.slice(1).map((line) => {
 					const parts = line.split(',');
-					const totalTime = (parseInt(parts[4] || '0') + parseInt(parts[3] || '0')) / 10000000; // Convert 100ns to seconds
+					const totalTime = (Number.parseInt(parts[4] || '0', 10) + Number.parseInt(parts[3] || '0', 10)) / 10_000_000; // Convert 100ns to seconds
 					return {
-						pid: parseInt(parts[1] || '0'),
+						pid: Number.parseInt(parts[1] || '0', 10),
 						name: parts[2],
 						cpu: totalTime,
-						memory: parseInt(parts[5] || '0') / (1024 * 1024) // Convert bytes to MB
+						memory: Number.parseInt(parts[5] || '0', 10) / (1024 * 1024) // Convert bytes to MB
 					};
 				});
 
@@ -474,11 +480,11 @@ const fetchProcessInfo = async (): Promise<{
 				processes = lines.slice(1).map((line) => {
 					const parts = line.trim().split(/\s+/);
 					return {
-						pid: parseInt(parts[0]),
+						pid: Number.parseInt(parts[0], 10),
 						name: parts[1],
-						cpu: parseFloat(parts[2]),
-						memory: parseFloat(parts[3]),
-						rss: parseInt(parts[4]) / 1024 // Convert KB to MB
+						cpu: Number.parseFloat(parts[2]),
+						memory: Number.parseFloat(parts[3]),
+						rss: Number.parseInt(parts[4], 10) / 1024 // Convert KB to MB
 					};
 				});
 			}
@@ -494,11 +500,21 @@ const fetchProcessInfo = async (): Promise<{
 const getSystemInfo = async (type?: string) => {
 	try {
 		// If specific type requested, only fetch that info
-		if (type === 'cpu') return { cpuInfo: await getCachedOrFresh('cpu', fetchCPUInfo) };
-		if (type === 'disk') return { diskInfo: await getCachedOrFresh('disk', fetchDiskInfo) };
-		if (type === 'memory') return { memoryInfo: await getCachedOrFresh('memory', fetchMemoryInfo) };
-		if (type === 'network') return { networkInfo: await getCachedOrFresh('network', fetchNetworkInfo) };
-		if (type === 'process') return { processInfo: await getCachedOrFresh('process', fetchProcessInfo) };
+		if (type === 'cpu') {
+			return { cpuInfo: await getCachedOrFresh('cpu', fetchCPUInfo) };
+		}
+		if (type === 'disk') {
+			return { diskInfo: await getCachedOrFresh('disk', fetchDiskInfo) };
+		}
+		if (type === 'memory') {
+			return { memoryInfo: await getCachedOrFresh('memory', fetchMemoryInfo) };
+		}
+		if (type === 'network') {
+			return { networkInfo: await getCachedOrFresh('network', fetchNetworkInfo) };
+		}
+		if (type === 'process') {
+			return { processInfo: await getCachedOrFresh('process', fetchProcessInfo) };
+		}
 
 		// For OS info, we don't need to cache as it rarely changes
 		if (type === 'os') {

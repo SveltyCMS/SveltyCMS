@@ -1,9 +1,10 @@
 // tests/bun/svelte-loader.js
+
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { plugin } from 'bun';
 import { compile, compileModule, preprocess } from 'svelte/compiler';
-import { readFileSync } from 'fs';
-import { resolve, dirname } from 'path';
-import { pathToFileURL } from 'url';
 import sveltePreprocess from 'svelte-preprocess';
 
 // --- Read and process tsconfig paths ---
@@ -78,6 +79,7 @@ plugin({
 			const { path: importPath } = args;
 
 			for (const alias in pathAliases) {
+				if (!Object.hasOwn(pathAliases, alias)) continue;
 				const aliasTarget = pathAliases[alias][0];
 				let resolvedPath = '';
 

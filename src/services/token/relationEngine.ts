@@ -7,12 +7,13 @@
  * - Security Checks
  * - Token Generation
  */
-import type { TokenContext, TokenDefinition } from './types';
-import type { Schema, FieldInstance } from '@src/content/types';
-import type { User } from '@src/databases/auth/types';
+
 import { contentManager } from '@src/content/ContentManager';
+import type { FieldInstance, Schema } from '@src/content/types';
+import type { User } from '@src/databases/auth/types';
 import { logger } from '@utils/logger';
 import { canAccessCollection } from './relationResolver';
+import type { TokenContext, TokenDefinition } from './types';
 
 // Generates token definitions for Relations fields with security checks
 export async function getRelationTokens(
@@ -31,7 +32,9 @@ export async function getRelationTokens(
 		const widget = field.widget as unknown as { collection?: string; display_field?: string; multiple?: boolean };
 		const relatedCollection = widget?.collection;
 
-		if (!fieldName || !relatedCollection) continue;
+		if (!(fieldName && relatedCollection)) {
+			continue;
+		}
 
 		// Security: Check if user can access the related collection
 		const hasAccess = await canAccessCollection(user, relatedCollection, tenantId, roles);
@@ -43,7 +46,9 @@ export async function getRelationTokens(
 		// Get the related collection schema to discover its fields
 		try {
 			const relatedSchema = await contentManager.getCollectionById(relatedCollection, tenantId);
-			if (!relatedSchema) continue;
+			if (!relatedSchema) {
+				continue;
+			}
 
 			// Generate tokens for related collection fields
 			const displayField = widget?.display_field || 'title';
@@ -59,7 +64,9 @@ export async function getRelationTokens(
 				requiresPermission: `read:collection:${relatedCollection}`,
 				resolve: async (ctx: TokenContext) => {
 					const relationData = ctx.entry?.[fieldName] as any;
-					if (!relationData) return '';
+					if (!relationData) {
+						return '';
+					}
 
 					// Handle both single and multiple relations
 					if (Array.isArray(relationData)) {
@@ -77,10 +84,14 @@ export async function getRelationTokens(
 
 			for (const relField of relatedSchema.fields as FieldInstance[]) {
 				const relFieldName = relField.db_fieldName || relField.label;
-				if (!relFieldName || relFieldName === displayField) continue;
+				if (!relFieldName || relFieldName === displayField) {
+					continue;
+				}
 
 				// Skip sensitive fields
-				if (relFieldName.toLowerCase().includes('password')) continue;
+				if (relFieldName.toLowerCase().includes('password')) {
+					continue;
+				}
 
 				tokens.push({
 					token: `entry.${fieldName}.${relFieldName}`,
@@ -92,7 +103,9 @@ export async function getRelationTokens(
 					requiresPermission: `read:collection:${relatedCollection}`,
 					resolve: async (ctx: TokenContext) => {
 						const relationData = ctx.entry?.[fieldName] as any;
-						if (!relationData) return '';
+						if (!relationData) {
+							return '';
+						}
 
 						if (Array.isArray(relationData)) {
 							return relationData[0]?.[relFieldName] || '';
@@ -115,7 +128,9 @@ export async function getRelationTokens(
 					requiresPermission: `read:collection:${relatedCollection}`,
 					resolve: async (ctx: TokenContext) => {
 						const relationData = ctx.entry?.[fieldName];
-						if (!relationData) return 0;
+						if (!relationData) {
+							return 0;
+						}
 						return Array.isArray(relationData) ? relationData.length : 1;
 					}
 				});
@@ -130,7 +145,9 @@ export async function getRelationTokens(
 					requiresPermission: `read:collection:${relatedCollection}`,
 					resolve: async (ctx: TokenContext) => {
 						const relationData = ctx.entry?.[fieldName] as any;
-						if (!relationData) return '';
+						if (!relationData) {
+							return '';
+						}
 
 						if (Array.isArray(relationData)) {
 							return relationData

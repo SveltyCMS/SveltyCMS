@@ -38,7 +38,7 @@ test.describe('Collection Builder with Modern Widgets', () => {
 
 		// Verify core widgets are visible
 		await expect(page.locator('text=TextInput, text=Checkbox, text=Input')).toBeVisible({
-			timeout: 10000
+			timeout: 10_000
 		});
 	});
 
@@ -204,7 +204,7 @@ test.describe('Collection Builder with Modern Widgets', () => {
 
 		// Verify success
 		await expect(page.locator('text=Success, text=Created')).toBeVisible({
-			timeout: 10000
+			timeout: 10_000
 		});
 	});
 

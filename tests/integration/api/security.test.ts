@@ -5,7 +5,7 @@
  * These tests require a running server at API_BASE_URL.
  * They will be skipped if the server is not reachable.
  */
-import { describe, it, expect, beforeAll } from 'bun:test';
+import { beforeAll, describe, expect, it } from 'bun:test';
 
 const BASE_URL = process.env.API_BASE_URL || 'http://localhost:4173';
 

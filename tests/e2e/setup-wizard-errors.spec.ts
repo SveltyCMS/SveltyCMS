@@ -1,7 +1,7 @@
 // @file tests/playwright/setup-wizard-errors.spec.ts
 // This test checks for error handling in the setup wizard.
 
-import { test, expect } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 
 test('should show error on bad database connection', async ({ page }) => {
 	await page.goto('/setup');
@@ -9,7 +9,7 @@ test('should show error on bad database connection', async ({ page }) => {
 	// Check if we're redirected to login (meaning setup is already complete)
 	if (page.url().includes('/login')) {
 		console.log('System already configured. Skipping setup error test.');
-		test.skip();
+		test();
 		return;
 	}
 

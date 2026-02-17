@@ -6,10 +6,10 @@
 
 import { logger } from '@utils/logger';
 import type Mongoose from 'mongoose';
-import { createDatabaseError } from './mongoDBUtils';
-import { UserSchema } from '../models/authUser';
-import { TokenSchema } from '../models/authToken';
 import { SessionSchema } from '../models/authSession';
+import { TokenSchema } from '../models/authToken';
+import { UserSchema } from '../models/authUser';
+import { createDatabaseError } from './mongoDBUtils';
 
 /**
  * A dedicated class for registering authentication models with a Mongoose instance.
@@ -55,11 +55,11 @@ export class MongoAuthModelRegistrar {
 	 */
 	private registerModel(name: string, schema: Mongoose.Schema): void {
 		// Use the injected mongoose instance
-		if (!this.mongoose.models[name]) {
+		if (this.mongoose.models[name]) {
+			logger.debug(`Model '${name}' already exists and was not re-registered`);
+		} else {
 			this.mongoose.model(name, schema);
 			logger.debug(`Model '${name}' was registered`);
-		} else {
-			logger.debug(`Model '${name}' already exists and was not re-registered`);
 		}
 	}
 }

@@ -5,8 +5,8 @@ The new single, intelligent bottom toolbar for the image editor.
 It dynamically renders controls based on the active tool.
 -->
 <script lang="ts">
-	import { slide, fade } from 'svelte/transition';
 	import { imageEditorStore } from '@stores/imageEditorStore.svelte';
+	import { fade, slide } from 'svelte/transition';
 
 	let {
 		onsave,
@@ -20,6 +20,7 @@ It dynamically renders controls based on the active tool.
 
 	/* Restore Tool Icons Logic */
 	import { editorWidgets } from './widgets/registry';
+
 	const activeState = $derived(imageEditorStore.state.activeState);
 	const hasImage = $derived(!!imageEditorStore.state.imageElement);
 	const toolbarControls = $derived(imageEditorStore.state.toolbarControls);
@@ -67,9 +68,7 @@ It dynamically renders controls based on the active tool.
 			{/if}
 
 			<!-- Controls Container -->
-			<div class="flex items-center justify-center p-3 sm:p-4 overflow-x-auto">
-				<Component {...toolbarControls.props} />
-			</div>
+			<div class="flex items-center justify-center p-3 sm:p-4 overflow-x-auto"><Component {...toolbarControls.props} /></div>
 		</div>
 	{/if}
 

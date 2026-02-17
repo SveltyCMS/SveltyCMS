@@ -4,8 +4,8 @@
  * Tests cache hits, misses, invalidation, multi-tenancy, and metrics tracking.
  */
 
-import { describe, test, expect, beforeEach } from 'bun:test';
-import { mockCacheService, mockCacheMetrics } from '../mocks/cacheService';
+import { beforeEach, describe, expect, test } from 'bun:test';
+import { mockCacheMetrics, mockCacheService } from '../mocks/cacheService';
 
 describe('Cache Integration Tests', () => {
 	beforeEach(async () => {
@@ -116,15 +116,21 @@ describe('Cache Integration Tests', () => {
 			// Tenant 1 operations
 			await mockCacheService.set('tenant:t1:data', { tenant: 't1' }, 60);
 			const t1Data = await mockCacheService.get('tenant:t1:data');
-			if (t1Data) mockCacheMetrics.recordHit('users', 't1');
+			if (t1Data) {
+				mockCacheMetrics.recordHit('users', 't1');
+			}
 
 			const t1Missing = await mockCacheService.get('tenant:t1:missing');
-			if (!t1Missing) mockCacheMetrics.recordMiss('users', 't1');
+			if (!t1Missing) {
+				mockCacheMetrics.recordMiss('users', 't1');
+			}
 
 			// Tenant 2 operations
 			await mockCacheService.set('tenant:t2:data', { tenant: 't2' }, 60);
 			const t2Data = await mockCacheService.get('tenant:t2:data');
-			if (t2Data) mockCacheMetrics.recordHit('users', 't2');
+			if (t2Data) {
+				mockCacheMetrics.recordHit('users', 't2');
+			}
 
 			const metrics = mockCacheMetrics.getMetrics();
 

@@ -25,28 +25,28 @@ Key features:
 -->
 
 <script lang="ts">
-	// Utils
-	import type { MediaBase, MediaImage, MediaTypeEnum } from '@utils/media/mediaModels';
-	import { logger } from '@utils/logger';
-	import { formatBytes } from '@utils/utils';
+	// import Status from '@components/system/table/Status.svelte';
+	import TagEditorModal from '@components/media/tagEditor/TagEditorModal.svelte';
+	import SystemTooltip from '@components/system/SystemTooltip.svelte';
 	// Components
 	import TableFilter from '@components/system/table/TableFilter.svelte';
 	import TableIcons from '@components/system/table/TableIcons.svelte';
 	import TablePagination from '@components/system/table/TablePagination.svelte';
-	// import Status from '@components/system/table/Status.svelte';
-	import TagEditorModal from '@components/media/tagEditor/TagEditorModal.svelte';
-	import SystemTooltip from '@components/system/SystemTooltip.svelte';
+	import { logger } from '@utils/logger';
+	// Utils
+	import type { MediaBase, MediaImage, MediaTypeEnum } from '@utils/media/mediaModels';
+	import { formatBytes } from '@utils/utils';
 
 	interface Props {
 		filteredFiles?: (MediaBase | MediaImage)[];
-		tableSize?: 'tiny' | 'small' | 'medium' | 'large';
-		ondeleteImage?: (file: MediaBase | MediaImage) => void;
-		onSelectionChange?: (selectedFiles: (MediaBase | MediaImage)[]) => void;
-		onBulkDelete?: () => void;
-		onUpdateImage?: (file: MediaImage) => void;
-		onEditImage?: (file: MediaImage) => void;
-		onDeleteFiles?: (files: (MediaBase | MediaImage)[]) => void;
 		isSelectionMode?: boolean;
+		onBulkDelete?: () => void;
+		onDeleteFiles?: (files: (MediaBase | MediaImage)[]) => void;
+		ondeleteImage?: (file: MediaBase | MediaImage) => void;
+		onEditImage?: (file: MediaImage) => void;
+		onSelectionChange?: (selectedFiles: (MediaBase | MediaImage)[]) => void;
+		onUpdateImage?: (file: MediaImage) => void;
+		tableSize?: 'tiny' | 'small' | 'medium' | 'large';
 	}
 
 	interface SortableMedia extends MediaBase {
@@ -119,9 +119,8 @@ Key features:
 		filteredFiles = filteredFiles.sort((a, b) => {
 			if (column === 'size') {
 				return ((a[column] ?? 0) - (b[column] ?? 0)) * sortOrder;
-			} else {
-				return String(a[column as keyof SortableMedia]).localeCompare(String(b[column as keyof SortableMedia])) * sortOrder;
 			}
+			return String(a[column as keyof SortableMedia]).localeCompare(String(b[column as keyof SortableMedia])) * sortOrder;
 		});
 	}
 
@@ -175,9 +174,7 @@ Key features:
 			</div>
 
 			<!-- TODO: move to +page.svelte -->
-			<div class="flex items-center gap-2">
-				<TableFilter bind:globalSearchValue bind:filterShow bind:columnShow bind:density />
-			</div>
+			<div class="flex items-center gap-2"><TableFilter bind:globalSearchValue bind:filterShow bind:columnShow bind:density /></div>
 		</div>
 
 		<div class="table-container max-h-[calc(100vh-120px)] overflow-auto">
@@ -251,7 +248,7 @@ Key features:
 										}}
 										loading="lazy"
 										decoding="async"
-									/>
+									>
 								{:else}
 									<div
 										class="flex h-full w-full items-center justify-center bg-surface-200 dark:bg-surface-700"
@@ -305,7 +302,7 @@ Key features:
 							<!-- Actions -->
 							<td>
 								<button class="preset-outlined-primary-500 btn-sm" aria-label="Edit" onclick={() => onEditImage(file as MediaImage)}>Edit</button>
-								<button onclick={() => handleDelete(file)} class="preset-filled-error-500 btn-sm" aria-label="Delete"> Delete </button>
+								<button onclick={() => handleDelete(file)} class="preset-filled-error-500 btn-sm" aria-label="Delete">Delete</button>
 							</td>
 						</tr>
 					{/each}

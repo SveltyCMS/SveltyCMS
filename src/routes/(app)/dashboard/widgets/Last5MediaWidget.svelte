@@ -26,19 +26,19 @@
 </script>
 
 <script lang="ts">
+	import type { WidgetSize } from '@src/content/types';
 	// Using iconify-icon web component
 	import { formatDisplayDate } from '@utils/dateUtils';
 	import BaseWidget from '../BaseWidget.svelte';
-	import type { WidgetSize } from '@src/content/types';
 
 	interface MediaFile {
+		createdBy?: string;
 		id: string;
+		modified: string;
 		name: string;
 		size: number;
-		modified: string;
 		type: string;
 		url: string;
-		createdBy?: string;
 	}
 
 	type FetchedData = MediaFile[] | undefined;
@@ -66,7 +66,7 @@
 		const k = 1024;
 		const sizes = ['B', 'KB', 'MB', 'GB'];
 		const i = Math.floor(Math.log(bytes) / Math.log(k));
-		return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
+		return `${Number.parseFloat((bytes / k ** i).toFixed(1))} ${sizes[i]}`;
 	}
 
 	function getFileIcon(type: string): string {
@@ -75,7 +75,8 @@
 		const videoTypes = ['mp4', 'mov', 'avi'];
 		if (imageTypes.includes(type.toLowerCase())) {
 			return 'mdi:image';
-		} else if (videoTypes.includes(type.toLowerCase())) {
+		}
+		if (videoTypes.includes(type.toLowerCase())) {
 			return 'mdi:video';
 		}
 		return 'mdi:file';
@@ -99,21 +100,21 @@
 				{#each fetchedData.slice(0, 5) as file (file.id || file.name)}
 					<div class="flex items-center justify-between rounded-lg bg-surface-100/80 px-3 py-2 text-xs dark:bg-surface-700/60" role="listitem">
 						<div class="flex min-w-0 items-center gap-2">
-							<iconify-icon icon={getFileIcon(file.type)} width="18" class="shrink-0 text-primary-400" aria-label={file.type + ' file icon'}
+							<iconify-icon
+								icon={getFileIcon(file.type)}
+								width="18"
+								class="shrink-0 text-primary-400"
+								aria-label={file.type + ' file icon'}
 							></iconify-icon>
 							<div class="flex min-w-0 flex-col">
-								<span class="text-text-900 dark:text-text-100 truncate font-medium" title={file.name}>
-									{file.name}
-								</span>
+								<span class="text-text-900 dark:text-text-100 truncate font-medium" title={file.name}> {file.name} </span>
 								<span class="text-xs text-surface-500 dark:text-surface-50" title={`Size: ${formatFileSize(file.size)}`}>
 									{formatFileSize(file.size)}
 								</span>
 							</div>
 						</div>
 						<div class="flex flex-col items-end">
-							<span class="text-xs font-medium uppercase text-surface-600 dark:text-surface-300">
-								{file.type}
-							</span>
+							<span class="text-xs font-medium uppercase text-surface-600 dark:text-surface-300"> {file.type} </span>
 							<span class="text-xs text-surface-500 dark:text-surface-50" title={`Modified: ${formatDisplayDate(file.modified)}`}>
 								{formatDisplayDate(file.modified)}
 							</span>

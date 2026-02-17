@@ -14,16 +14,15 @@
  * query operations while maintaining type safety and performance.
  */
 
+// System Logger
+import { logger } from '@utils/logger';
 import type { Model } from 'mongoose';
 import type { BaseEntity, DatabaseError, DatabaseResult, PaginationOptions, QueryBuilder, QueryMeta, QueryOptimizationHints } from '../dbInterface';
 
-// System Logger
-import { logger } from '@utils/logger';
-
 export class MongoQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> {
-	private model: Model<T>;
+	private readonly model: Model<T>;
 	private query: Record<string, unknown> = {};
-	private sortOptions: Record<string, 1 | -1> = {};
+	private readonly sortOptions: Record<string, 1 | -1> = {};
 	private limitValue?: number;
 	private skipValue?: number;
 	private projectionFields?: Record<string, boolean>;
@@ -34,10 +33,10 @@ export class MongoQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> 
 	private selectedFields?: (keyof T)[];
 	private excludedFields?: (keyof T)[];
 	private searchQuery?: { query: string; fields?: (keyof T)[] };
-	private inConditions: Array<{ field: keyof T; values: unknown[] }> = [];
-	private notInConditions: Array<{ field: keyof T; values: unknown[] }> = [];
-	private betweenConditions: Array<{ field: keyof T; min: unknown; max: unknown }> = [];
-	private nullConditions: Array<{ field: keyof T; isNull: boolean }> = [];
+	private readonly inConditions: Array<{ field: keyof T; values: unknown[] }> = [];
+	private readonly notInConditions: Array<{ field: keyof T; values: unknown[] }> = [];
+	private readonly betweenConditions: Array<{ field: keyof T; min: unknown; max: unknown }> = [];
+	private readonly nullConditions: Array<{ field: keyof T; isNull: boolean }> = [];
 	private groupByField?: keyof T;
 	private multiSortOptions: Array<{ field: keyof T; direction: 'asc' | 'desc' }> = [];
 
@@ -203,7 +202,7 @@ export class MongoQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> 
 			if (this.searchQuery.fields && this.searchQuery.fields.length > 0) {
 				// Field-specific search using regex
 				const searchConditions = this.searchQuery.fields.map((field) => ({
-					[field as string]: { $regex: this.searchQuery!.query, $options: 'i' }
+					[field as string]: { $regex: this.searchQuery?.query, $options: 'i' }
 				}));
 				finalQuery.$or = searchConditions;
 			} else {
@@ -454,10 +453,8 @@ export class MongoQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> 
 			let mongoQuery = this.model.findOne(query);
 
 			// Apply optimization hints
-			if (this.optimizationHints) {
-				if (this.optimizationHints.maxExecutionTime) {
-					mongoQuery = mongoQuery.maxTimeMS(this.optimizationHints.maxExecutionTime);
-				}
+			if (this.optimizationHints?.maxExecutionTime) {
+				mongoQuery = mongoQuery.maxTimeMS(this.optimizationHints.maxExecutionTime);
 			}
 
 			// Apply timeout

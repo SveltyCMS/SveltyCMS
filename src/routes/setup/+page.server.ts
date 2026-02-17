@@ -4,19 +4,19 @@
  * Note: Route protection is handled by the handleSetup middleware in hooks.server.ts
  */
 
-import type { PageServerLoad } from './$types';
-import type { ISODateString } from '@src/databases/dbInterface';
-import { version as pkgVersion } from '../../../package.json';
-import { logger } from '@utils/logger.server';
-import { databaseConfigSchema } from '@src/databases/schemas';
-import { safeParse } from 'valibot';
-import nodemailer from 'nodemailer';
-import { smtpConfigSchema, setupAdminSchema } from '@utils/formSchemas';
-import { exec } from 'child_process';
-import { promisify } from 'util';
-import { existsSync } from 'fs';
-import { join } from 'path';
+import { exec } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
+import { promisify } from 'node:util';
 import { SESSION_COOKIE_NAME } from '@src/databases/auth/constants';
+import type { ISODateString } from '@src/databases/dbInterface';
+import { databaseConfigSchema } from '@src/databases/schemas';
+import { setupAdminSchema, smtpConfigSchema } from '@utils/formSchemas';
+import { logger } from '@utils/logger.server';
+import nodemailer from 'nodemailer';
+import { safeParse } from 'valibot';
+import { version as pkgVersion } from '../../../package.json';
+import type { PageServerLoad } from './$types';
 import { checkRedis } from './utils';
 
 const execAsync = promisify(exec);
@@ -74,7 +74,7 @@ export const actions = {
 			const formData = await request.formData();
 			const configRaw = formData.get('config') as string;
 			const createIfMissing = formData.get('createIfMissing') === 'true';
-			logger.info('📦 Received config raw:', configRaw ? 'Yes (length: ' + configRaw.length + ')' : 'No');
+			logger.info('📦 Received config raw:', configRaw ? `Yes (length: ${configRaw.length})` : 'No');
 			logger.info('🛠 Create missing DB if needed:', createIfMissing);
 
 			if (!configRaw) {
@@ -87,16 +87,16 @@ export const actions = {
 
 			// Coerce port to number for validation (Frontend sends string "27017" or "")
 			if (configData.port === '' || configData.port === null) {
-				delete configData.port;
+				configData.port = undefined;
 			} else if (configData.port !== undefined) {
 				const portNum = Number(configData.port);
-				if (!isNaN(portNum)) {
+				if (!Number.isNaN(portNum)) {
 					configData.port = portNum;
 				}
 			}
 
 			const { success, issues, output: dbConfig } = safeParse(databaseConfigSchema, configData);
-			if (!success || !dbConfig) {
+			if (!(success && dbConfig)) {
 				logger.error('❌ Action: Validation failed', { issues });
 				return { success: false, error: 'Invalid configuration', details: issues };
 			}
@@ -126,7 +126,8 @@ export const actions = {
 
 				const latencyMs = Math.round(performance.now() - start);
 				return { success: true, message: 'Database connected successfully! ✨', latencyMs };
-			} else if (dbConfig.type === 'mariadb' || (dbConfig.type as string) === 'mysql') {
+			}
+			if (dbConfig.type === 'mariadb' || (dbConfig.type as string) === 'mysql') {
 				const mysql = (await import('mysql2/promise')).default;
 				try {
 					const conn = await mysql.createConnection({
@@ -224,8 +225,8 @@ export const actions = {
 				const start = performance.now();
 
 				try {
-					const path = await import('path');
-					const fs = await import('fs');
+					const path = await import('node:path');
+					const fs = await import('node:fs');
 					const dbPathResolved = path.resolve(process.cwd(), dbPath);
 					const dbDir = path.dirname(dbPathResolved);
 
@@ -244,7 +245,7 @@ export const actions = {
 					try {
 						if (isBun) {
 							// Use string concatenation to avoid Node's static ESM loader errors for 'bun:' protocol
-							const { Database } = await import('bun' + ':sqlite');
+							const { Database } = await import('bun:sqlite');
 							db = new Database(dbPathResolved);
 							db.query('SELECT 1').get();
 						} else {
@@ -279,7 +280,9 @@ export const actions = {
 						}
 					}
 
-					if (db) db.close();
+					if (db) {
+						db.close();
+					}
 
 					const latencyMs = Math.round(performance.now() - start);
 					return { success: true, message: 'SQLite database connected successfully! ✨', latencyMs };
@@ -384,7 +387,7 @@ export const actions = {
 
 			// Check if user already exists
 			const existingUser = await setupAuth.getUserByEmail({ email: admin.email, tenantId: undefined });
-			let session;
+			let session: any;
 
 			if (existingUser) {
 				logger.info('Admin user already exists, updating credentials...');
@@ -418,7 +421,7 @@ export const actions = {
 					{ expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() as ISODateString }
 				);
 
-				if (!authResult.success || !authResult.data) {
+				if (!(authResult.success && authResult.data)) {
 					return { success: false, error: 'Failed to create user' };
 				}
 				session = authResult.data.session;
@@ -457,7 +460,7 @@ export const actions = {
 					const privateConfigModule = await import('@config/private');
 					const privateEnv = privateConfigModule.privateEnv as any; // Cast to any to avoid type issues with dynamic import
 					// Use loose equality to handle string/boolean differences if any
-					if (privateEnv.MULTI_TENANT == system.multiTenant && privateEnv.DEMO == system.demoMode) {
+					if (privateEnv.MULTI_TENANT === system.multiTenant && privateEnv.DEMO === system.demoMode) {
 						logger.info('DEBUG: Private config unchanged, skipping update to prevent restart.');
 						return;
 					}
@@ -562,6 +565,56 @@ export const actions = {
 			// We effectively rely on lazy loading upon the first request to /Collections
 			// The background content seeding (setupManager) handles the data.
 
+			// --- PRESET INSTALLATION ---
+			if (system.preset && system.preset !== 'blank') {
+				logger.info(`📦 Installing preset: ${system.preset}`);
+				try {
+					const fs = await import('node:fs/promises');
+					const path = await import('node:path');
+					const { compile } = await import('@utils/compilation/compile');
+
+					// Source: src/presets/[preset]
+					const presetDir = path.join(process.cwd(), 'src', 'presets', system.preset);
+
+					// Target: config/collections
+					const targetDir = path.join(process.cwd(), 'config', 'collections');
+
+					// Ensure target exists
+					await fs.mkdir(targetDir, { recursive: true });
+
+					// Rewriting the block:
+					try {
+						await fs.access(presetDir);
+
+						const copyRecursive = async (src: string, dest: string) => {
+							const stats = await fs.stat(src);
+							if (stats.isDirectory()) {
+								await fs.mkdir(dest, { recursive: true });
+								const entries = await fs.readdir(src);
+								for (const entry of entries) {
+									await copyRecursive(path.join(src, entry), path.join(dest, entry));
+								}
+							} else if (src.endsWith('.ts')) {
+								await fs.copyFile(src, dest);
+								logger.info(`   - Copied ${path.basename(src)}`);
+							}
+						};
+
+						await copyRecursive(presetDir, targetDir);
+
+						// Trigger compilation to register new collections
+						logger.info('🔄 Compiling new collections...');
+						await compile();
+						logger.info('✅ Preset installation complete.');
+					} catch (presetError) {
+						logger.warn(`⚠️ Preset directory not found or empty: ${presetDir}`, presetError);
+					}
+				} catch (err) {
+					logger.error('❌ Failed to install preset:', err);
+					// Non-fatal, continue setup
+				}
+			}
+
 			// 4. Determine redirect path
 			let redirectPath = '/en/Collections';
 
@@ -650,9 +703,9 @@ export const actions = {
 				port,
 				secure: port === 465 ? true : secure,
 				auth: { user, pass: password },
-				connectionTimeout: 10000,
-				greetingTimeout: 10000,
-				socketTimeout: 10000
+				connectionTimeout: 10_000,
+				greetingTimeout: 10_000,
+				socketTimeout: 10_000
 			});
 
 			// Verify connection
@@ -702,8 +755,12 @@ export const actions = {
 			logger.error('SMTP test failed:', error);
 			// User friendly error mapping
 			let msg = error.message;
-			if (error.code === 'EAUTH') msg = 'Authentication failed. Check credentials.';
-			if (error.code === 'ECONNREFUSED') msg = 'Connection refused. Check host/port.';
+			if (error.code === 'EAUTH') {
+				msg = 'Authentication failed. Check credentials.';
+			}
+			if (error.code === 'ECONNREFUSED') {
+				msg = 'Connection refused. Check host/port.';
+			}
 			return { success: false, error: msg };
 		}
 	},
@@ -716,7 +773,7 @@ export const actions = {
 		const formData = await request.formData();
 		const dbType = formData.get('dbType') as DatabaseType;
 
-		if (!dbType || !DRIVER_PACKAGES[dbType] || dbType === 'sqlite') {
+		if (!(dbType && DRIVER_PACKAGES[dbType]) || dbType === 'sqlite') {
 			return { success: true, message: 'No driver installation needed (or invalid type).' };
 		}
 
@@ -734,14 +791,18 @@ export const actions = {
 			// Detect package manager
 			const cwd = process.cwd();
 			let pm = 'npm';
-			if (existsSync(join(cwd, 'bun.lock'))) pm = 'bun';
-			else if (existsSync(join(cwd, 'yarn.lock'))) pm = 'yarn';
-			else if (existsSync(join(cwd, 'pnpm-lock.yaml'))) pm = 'pnpm';
+			if (existsSync(join(cwd, 'bun.lock'))) {
+				pm = 'bun';
+			} else if (existsSync(join(cwd, 'yarn.lock'))) {
+				pm = 'yarn';
+			} else if (existsSync(join(cwd, 'pnpm-lock.yaml'))) {
+				pm = 'pnpm';
+			}
 
 			const cmd = pm === 'bun' || pm === 'yarn' || pm === 'pnpm' ? `${pm} add ${packageName}` : `npm install ${packageName}`;
 
 			logger.info(`Installing ${packageName} using ${pm}...`);
-			const { stdout, stderr } = await execAsync(cmd, { cwd, timeout: 120000 });
+			const { stdout, stderr } = await execAsync(cmd, { cwd, timeout: 120_000 });
 			logger.info('Installation output:', stdout + stderr);
 
 			return { success: true, message: `Successfully installed ${packageName}.`, package: packageName };

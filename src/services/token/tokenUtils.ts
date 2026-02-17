@@ -35,7 +35,7 @@ export function validateTokenSyntax(text: string): { valid: boolean; errors: str
 export function extractTokenPaths(text: string): string[] {
 	const regex = /(?<!\\)\{\{\s*([^}|]+)(?:\|[^}]+)?\s*\}\}/g;
 	const paths: string[] = [];
-	let match;
+	let match: RegExpExecArray | null;
 
 	while ((match = regex.exec(text)) !== null) {
 		paths.push(match[1].trim());

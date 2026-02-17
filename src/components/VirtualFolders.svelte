@@ -27,16 +27,16 @@
 -->
 
 <script lang="ts">
-	import { showToast } from '@utils/toast';
-	import { logger } from '@utils/logger';
-	import { onMount } from 'svelte';
-	// Stores
-	import { publicEnv } from '@src/stores/globalSettings.svelte';
-	import { ui } from '@stores/UIStore.svelte.ts';
-	import { screen } from '@stores/screenSizeStore.svelte.ts';
-	import { setMode } from '@stores/collectionStore.svelte.ts';
 	// Import types
 	import type { SystemVirtualFolder } from '@src/databases/dbInterface';
+	// Stores
+	import { publicEnv } from '@src/stores/globalSettings.svelte';
+	import { setMode } from '@stores/collectionStore.svelte.ts';
+	import { screen } from '@stores/screenSizeStore.svelte.ts';
+	import { ui } from '@stores/UIStore.svelte.ts';
+	import { logger } from '@utils/logger';
+	import { showToast } from '@utils/toast';
+	import { onMount } from 'svelte';
 
 	interface Props {
 		// Component props and state
@@ -212,9 +212,7 @@
 
 	<!-- Loading State -->
 	{#if isLoading}
-		<div class="flex w-full justify-center py-4">
-			<iconify-icon icon="mdi:loading" width={24} class="animate-spin"></iconify-icon>
-		</div>
+		<div class="flex w-full justify-center py-4"><iconify-icon icon="mdi:loading" width={24} class="animate-spin"></iconify-icon></div>
 	{:else if error}
 		<!-- Error State -->
 		<div class="w-full pt-4 text-center">

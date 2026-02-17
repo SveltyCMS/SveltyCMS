@@ -33,8 +33,7 @@ export const GET = apiHandler(async ({ locals }) => {
 	if (currentTheme) {
 		logger.info('Current theme fetched successfully', { theme: currentTheme.name, tenantId });
 		return json(currentTheme);
-	} else {
-		logger.warn('No active theme found for tenant', { tenantId });
-		throw new AppError('No active theme found.', 404, 'THEME_NOT_FOUND');
 	}
+	logger.warn('No active theme found for tenant', { tenantId });
+	throw new AppError('No active theme found.', 404, 'THEME_NOT_FOUND');
 });

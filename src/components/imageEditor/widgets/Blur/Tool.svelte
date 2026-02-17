@@ -4,10 +4,10 @@
 Controller for Blur tool using svelte-canvas compatible state.
 -->
 <script lang="ts">
-	import { imageEditorStore } from '@stores/imageEditorStore.svelte';
 	import Controls from '@src/components/imageEditor/toolbars/BlurControls.svelte';
-	import type { BlurPattern, BlurShape } from './types';
+	import { imageEditorStore } from '@stores/imageEditorStore.svelte';
 	import { Layer } from 'svelte-canvas';
+	import type { BlurPattern, BlurShape } from './types';
 
 	// reactive tool state
 	let blurStrength = $state(20);
@@ -23,10 +23,8 @@ Controller for Blur tool using svelte-canvas compatible state.
 		const activeState = imageEditorStore.state.activeState;
 		if (activeState === 'blur') {
 			updateToolbar();
-		} else {
-			if (imageEditorStore.state.toolbarControls?.component === Controls) {
-				imageEditorStore.setToolbarControls(null);
-			}
+		} else if (imageEditorStore.state.toolbarControls?.component === Controls) {
+			imageEditorStore.setToolbarControls(null);
 		}
 	});
 

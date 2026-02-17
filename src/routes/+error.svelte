@@ -15,14 +15,14 @@
 -->
 
 <script lang="ts">
-	// Stores
-	import { page } from '$app/state';
 	// Components
 	import SiteName from '@components/SiteName.svelte';
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
+	import * as m from '@src/paraglide/messages';
 	// ParaglideJS
 	import { app } from '@stores/store.svelte';
-	import * as m from '@src/paraglide/messages';
+	// Stores
+	import { page } from '$app/state';
 
 	const size = 140;
 	const font = 0.9;
@@ -40,9 +40,7 @@
 	}
 </script>
 
-<svelte:head>
-	<title>{page.status} - {m.error_pagenotfound()} | {siteName}</title>
-</svelte:head>
+<svelte:head> <title>{page.status} - {m.error_pagenotfound()} | {siteName}</title> </svelte:head>
 
 {#if page}
 	<main
@@ -73,18 +71,14 @@
 			</div>
 
 			<!-- Site Logo - Static, not rotating -->
-			<div class="pointer-events-none z-10">
-				<SveltyCMSLogo className="text-error-500 w-20 h-20" size={80} />
-			</div>
+			<div class="pointer-events-none z-10"><SveltyCMSLogo className="text-error-500 w-20 h-20" size={80} /></div>
 		</div>
 
 		<!-- Error Content -->
 		<div id="error-content" class="flex flex-col items-center space-y-6 text-center">
 			<!-- Error Status - Announced first to screen readers -->
 			<div role="alert" aria-live="assertive" class="relative">
-				<h1 id="error-heading" class="text-8xl font-extrabold tracking-wider text-white sm:text-9xl">
-					{page.status}
-				</h1>
+				<h1 id="error-heading" class="text-8xl font-extrabold tracking-wider text-white sm:text-9xl">{page.status}</h1>
 
 				<!-- Error URL Banner -->
 				<div

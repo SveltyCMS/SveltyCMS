@@ -9,7 +9,7 @@
  * - DatabaseResilience integration
  */
 
-import { beforeAll, afterAll, describe, it, expect, mock } from 'bun:test';
+import { afterAll, beforeAll, describe, expect, it, mock } from 'bun:test';
 
 // Mock SvelteKit environment
 mock.module('$app/environment', () => ({
@@ -99,14 +99,18 @@ describe('MariaDB Adapter Functional Tests', () => {
 
 	describe('Connection', () => {
 		it('should be connected (if config provided)', () => {
-			if (!db) return;
+			if (!db) {
+				return;
+			}
 			expect(db.isConnected()).toBe(true);
 		});
 	});
 
 	describe('CRUD Operations (DatabaseResult)', () => {
 		it('should return DatabaseResult structure', async () => {
-			if (!db) return;
+			if (!db) {
+				return;
+			}
 
 			// We might not have 'testTable' created.
 			// We should try a safe operation like 'count' or 'findMany' on system tables if possible,

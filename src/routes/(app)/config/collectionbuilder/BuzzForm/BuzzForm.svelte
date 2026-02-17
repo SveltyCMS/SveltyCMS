@@ -16,13 +16,12 @@
 
 <script lang="ts">
 	import { collections, setTargetWidget } from '@src/stores/collectionStore.svelte';
-	import { widgets } from '@stores/widgetStore.svelte.ts';
-	import { getGuiFields, asAny } from '@utils/utils';
 	import { toaster } from '@src/stores/store.svelte';
-
-	import WidgetSidebar from './WidgetSidebar.svelte';
+	import { widgets } from '@stores/widgetStore.svelte.ts';
+	import { asAny, getGuiFields } from '@utils/utils';
 	import BuzzFormCanvas from './BuzzFormCanvas.svelte';
 	import FieldInspector from './FieldInspector.svelte';
+	import WidgetSidebar from './WidgetSidebar.svelte';
 
 	let selectedFieldId = $state<number | string | undefined>(undefined);
 

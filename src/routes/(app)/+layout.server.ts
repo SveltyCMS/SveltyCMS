@@ -14,27 +14,29 @@
  * - Theme Management is cached
  * - Content Versioning is cached
  */
-import { error } from '@sveltejs/kit';
+
 import { contentManager } from '@src/content/ContentManager';
+import type { User } from '@src/databases/auth/types';
+import { auth } from '@src/databases/db';
 import { DEFAULT_THEME } from '@src/databases/themeManager';
 import { publicEnv } from '@src/stores/globalSettings.svelte';
-import { auth } from '@src/databases/db';
-
-import type { LayoutServerLoad } from './$types';
-import type { User } from '@src/databases/auth/types';
+import { error } from '@sveltejs/kit';
 import { logger } from '@utils/logger.server';
+import type { LayoutServerLoad } from './$types';
 
 interface LayoutError {
-	message: string;
-	details?: string;
 	code?: string;
+	details?: string;
+	message: string;
 }
 
 async function refreshUser(sessionUser: User | null): Promise<User | null> {
-	if (!sessionUser) return null;
+	if (!sessionUser) {
+		return null;
+	}
 
 	try {
-		const dbUser = await auth!.getUserById(sessionUser._id.toString());
+		const dbUser = await auth?.getUserById(sessionUser._id.toString());
 
 		if (dbUser) {
 			logger.debug('Fresh user data loaded in layout', {

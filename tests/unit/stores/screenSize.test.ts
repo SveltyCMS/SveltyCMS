@@ -3,8 +3,8 @@
  * @description Tests for screen size detection and responsive state management
  */
 
-import { describe, it, expect } from 'bun:test';
-import { ScreenSize, getScreenSize } from '@utils/screenSize';
+import { describe, expect, it } from 'bun:test';
+import { getScreenSize, ScreenSize } from '@utils/screenSize';
 
 describe('Screen Size Store - Size Detection', () => {
 	it('should detect extra small screens (XS)', () => {
@@ -107,7 +107,7 @@ describe('Screen Size Store - Edge Cases', () => {
 
 	it('should handle very large widths', () => {
 		expect(getScreenSize(5000)).toBe(ScreenSize.XXL);
-		expect(getScreenSize(10000)).toBe(ScreenSize.XXL);
+		expect(getScreenSize(10_000)).toBe(ScreenSize.XXL);
 	});
 
 	it('should handle fractional widths', () => {

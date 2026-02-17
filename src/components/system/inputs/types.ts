@@ -52,44 +52,44 @@ export type InputType = 'text' | 'email' | 'password';
 export type AutoCapitalize = 'off' | 'none' | 'on' | 'sentences' | 'words' | 'characters';
 
 export interface FloatingInputProps {
-	value?: string;
-	showPassword?: boolean;
+	autocapitalize?: AutoCapitalize;
+	autocomplete?: FullAutoFill;
+	autofocus?: boolean;
 	disabled?: boolean;
+	errorMessage?: string; // New: For accessibility
 	icon?: string;
 	iconColor?: string; // CSS color string, e.g., '#888' or 'gray'
+	id?: string;
 	inputClass?: string;
+	invalid?: boolean; // New: For validation state
 	label?: string;
 	labelClass?: string;
-	minlength?: number;
 	maxlength?: number;
+	minlength?: number;
 	name?: string;
-	required?: boolean;
-	passwordIconColor?: string; // Renamed for clarity. CSS color string.
-	textColor?: string; // CSS color classes, e.g., 'text-tertiary-500 dark:text-primary-500'
-	type?: InputType;
-	tabindex?: number;
-	id?: string;
-	autocomplete?: FullAutoFill;
-	autocapitalize?: AutoCapitalize;
-	spellcheck?: boolean;
-	autofocus?: boolean;
-	invalid?: boolean; // New: For validation state
-	errorMessage?: string; // New: For accessibility
 	onClick?: (event: MouseEvent) => void;
 	onInput?: (value: string) => void;
 	onkeydown?: (event: KeyboardEvent) => void;
 	onPaste?: (event: ClipboardEvent) => void;
+	passwordIconColor?: string; // Renamed for clarity. CSS color string.
+	required?: boolean;
+	showPassword?: boolean;
+	spellcheck?: boolean;
+	tabindex?: number;
+	textColor?: string; // CSS color classes, e.g., 'text-tertiary-500 dark:text-primary-500'
+	type?: InputType;
+	value?: string;
 	[key: string]: any;
 }
 
 export interface TogglesProps {
-	value?: boolean;
+	disabled?: boolean;
+	iconOff?: string;
+	iconOn?: string;
 	label?: string;
 	labelColor?: string;
-	iconOn?: string;
-	iconOff?: string;
-	size?: 'sm' | 'md' | 'lg';
-	disabled?: boolean;
-	title?: string;
 	onChange?: (changed: boolean) => void;
+	size?: 'sm' | 'md' | 'lg';
+	title?: string;
+	value?: boolean;
 }

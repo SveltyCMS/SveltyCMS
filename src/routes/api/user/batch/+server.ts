@@ -18,24 +18,20 @@
  * }
  */
 
-import { getPrivateSettingSync } from '@src/services/settingsService';
-
-import { json } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
 import type { User } from '@src/databases/auth/types';
-
 // Auth and permission helpers
 import { auth } from '@src/databases/db';
-
-// Validation
-import { array, minLength, object, parse, picklist, pipe, string } from 'valibot';
-
-// System Logger
-import { logger } from '@utils/logger.server';
-
+import { getPrivateSettingSync } from '@src/services/settingsService';
+import { json } from '@sveltejs/kit';
 // Unified Error Handling
 import { apiHandler } from '@utils/apiHandler';
 import { AppError } from '@utils/errorHandling';
+
+// System Logger
+import { logger } from '@utils/logger.server';
+// Validation
+import { array, minLength, object, parse, picklist, pipe, string } from 'valibot';
+import type { RequestHandler } from './$types';
 
 const batchUserActionSchema = object({
 	userIds: array(pipe(string(), minLength(1, 'User ID cannot be empty.'))),
@@ -68,11 +64,11 @@ export const POST: RequestHandler = apiHandler(async ({ request, locals }) => {
 		// Check if all users exist and belong to the tenant
 		const userChecks = await Promise.all(
 			userIds.map(async (userId) => {
-				return await auth!.getUserById(userId, tenantId);
+				return await auth?.getUserById(userId, tenantId);
 			})
 		);
 		if (userChecks.some((u: User | null) => u === null)) {
-			logger.warn(`Attempt to act on users outside of tenant or non-existent users`, {
+			logger.warn('Attempt to act on users outside of tenant or non-existent users', {
 				userId: user?._id,
 				tenantId,
 				requestedUserIds: userIds
@@ -96,7 +92,7 @@ export const POST: RequestHandler = apiHandler(async ({ request, locals }) => {
 					totalSessionsDeleted += result.data.deletedSessionCount || 0;
 				} else {
 					const errorMsg = !result.success && 'error' in result ? result.error?.message : 'Unknown error';
-					logger.warn(`Failed to delete user or sessions`, {
+					logger.warn('Failed to delete user or sessions', {
 						userId,
 						error: errorMsg,
 						tenantId

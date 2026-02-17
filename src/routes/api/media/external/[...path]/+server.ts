@@ -40,7 +40,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		const body = await request.json();
 		const { mediaId, service, parameters } = body;
 
-		if (!mediaId || !service || !parameters) {
+		if (!(mediaId && service && parameters)) {
 			return json(
 				{
 					success: false,

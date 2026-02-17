@@ -3,10 +3,10 @@
  * @description Configuration and initial state for the system state machine.
  */
 
-import type { ServicePerformanceMetrics, SystemStateStore, AnomalyThresholds } from './types';
+import type { AnomalyThresholds, ServicePerformanceMetrics, SystemStateStore } from './types';
 
 // --- Core Constants ---
-export const DEFAULT_SYSTEM_READY_TIMEOUT = 10000; // 10 seconds
+export const DEFAULT_SYSTEM_READY_TIMEOUT = 10_000; // 10 seconds
 export const CALIBRATION_CHECK_INTERVAL = 10; // Calibrate after every 10 health checks
 export const MAX_STATE_TRANSITIONS_TO_KEEP = 50; // Max history for state transitions
 

@@ -13,11 +13,11 @@
  * - Caching headers for CDN and browser optimization
  */
 
+import fs from 'node:fs/promises';
+import path from 'node:path';
 import { error } from '@sveltejs/kit';
-import sharp from 'sharp';
-import fs from 'fs/promises';
-import path from 'path';
 import { logger } from '@utils/logger.server';
+import sharp from 'sharp';
 import type { RequestHandler } from './$types';
 
 const MEDIA_ROOT = path.resolve(process.cwd(), 'mediaFolder');
@@ -37,9 +37,9 @@ export const GET: RequestHandler = async ({ params, url }) => {
 		let transformer = sharp(imageBuffer);
 
 		// --- Parse Transformation Parameters ---
-		const width = url.searchParams.get('w') ? parseInt(url.searchParams.get('w')!, 10) : undefined;
-		const height = url.searchParams.get('h') ? parseInt(url.searchParams.get('h')!, 10) : undefined;
-		const quality = url.searchParams.get('q') ? parseInt(url.searchParams.get('q')!, 10) : 80;
+		const width = url.searchParams.get('w') ? Number.parseInt(url.searchParams.get('w')!, 10) : undefined;
+		const height = url.searchParams.get('h') ? Number.parseInt(url.searchParams.get('h')!, 10) : undefined;
+		const quality = url.searchParams.get('q') ? Number.parseInt(url.searchParams.get('q')!, 10) : 80;
 		const fit = url.searchParams.get('fit') as keyof sharp.FitEnum | undefined;
 		const format = url.searchParams.get('format') as keyof sharp.FormatEnum | undefined;
 
@@ -48,7 +48,7 @@ export const GET: RequestHandler = async ({ params, url }) => {
 		let focalPosition: string | undefined;
 		if (focalParam) {
 			const [x, y] = focalParam.split(',').map(Number);
-			if (!isNaN(x) && !isNaN(y) && x >= 0 && x <= 100 && y >= 0 && y <= 100) {
+			if (!(Number.isNaN(x) || Number.isNaN(y)) && x >= 0 && x <= 100 && y >= 0 && y <= 100) {
 				// Sharp accepts position as percentage string for attention point
 				focalPosition = `${x}% ${y}%`;
 			}

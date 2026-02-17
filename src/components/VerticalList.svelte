@@ -16,16 +16,16 @@
 -->
 
 <script lang="ts">
-	import { dndzone } from 'svelte-dnd-action';
 	import type { DndEvent } from 'svelte-dnd-action';
+	import { dndzone } from 'svelte-dnd-action';
 
 	interface Props {
-		items: Record<string, unknown>[];
-		headers?: string[];
+		children?: import('svelte').Snippet;
 		flipDurationMs: number;
 		handleDndConsider: (e: CustomEvent<DndEvent>) => void;
 		handleDndFinalize: (e: CustomEvent<DndEvent>) => void;
-		children?: import('svelte').Snippet;
+		headers?: string[];
+		items: Record<string, unknown>[];
 	}
 
 	const { items, headers = [], flipDurationMs, handleDndConsider, handleDndFinalize, children }: Props = $props();

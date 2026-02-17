@@ -16,18 +16,17 @@
 	
 -->
 <script lang="ts">
+	import SystemTooltip from '@components/system/SystemTooltip.svelte';
+	import { toaster } from '@stores/store.svelte.ts';
 	// Using iconify-icon web component
 	import { logger } from '@utils/logger';
-	import { toaster } from '@stores/store.svelte.ts';
-	import { goto } from '$app/navigation';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
-
-	import SystemTooltip from '@components/system/SystemTooltip.svelte';
+	import { goto } from '$app/navigation';
 
 	interface Props {
+		folder?: string;
 		onUploadComplete?: () => void;
 		redirectOnSuccess?: boolean;
-		folder?: string;
 	}
 
 	const { onUploadComplete = () => {}, redirectOnSuccess = true, folder = 'global' }: Props = $props();
@@ -74,14 +73,12 @@
 				const fileKey = `${file.name}-${file.size}`;
 
 				// Skip if we already have a URL for this file
-				if (!objectUrls.has(fileKey)) {
-					if (file.type?.startsWith('image/') || file.type?.startsWith('audio/')) {
-						const url = URL.createObjectURL(file);
-						objectUrls.set(fileKey, url);
+				if (!objectUrls.has(fileKey) && (file.type?.startsWith('image/') || file.type?.startsWith('audio/'))) {
+					const url = URL.createObjectURL(file);
+					objectUrls.set(fileKey, url);
 
-						// Yield to main thread to allow UI rendering
-						await new Promise((resolve) => requestAnimationFrame(resolve));
-					}
+					// Yield to main thread to allow UI rendering
+					await new Promise((resolve) => requestAnimationFrame(resolve));
 				}
 			}
 
@@ -152,9 +149,7 @@
 		newFiles.forEach((file) => {
 			if (file.size > MAX_FILE_SIZE) {
 				errors.push(`${file.name} exceeds maximum file size of 50MB`);
-			} else if (!ALLOWED_TYPES.includes(file.type)) {
-				errors.push(`${file.name} is not an allowed file type`);
-			} else {
+			} else if (ALLOWED_TYPES.includes(file.type)) {
 				// Check for duplicates
 				const fileKey = `${file.name}-${file.size}`;
 				if (fileSet.has(fileKey)) {
@@ -163,6 +158,8 @@
 					validFiles.push(file);
 					fileSet.add(fileKey);
 				}
+			} else {
+				errors.push(`${file.name} is not an allowed file type`);
 			}
 		});
 
@@ -182,7 +179,7 @@
 	}
 
 	function onChange() {
-		if (!input || !input.files) return;
+		if (!(input && input.files)) return;
 		validateAndAddFiles(Array.from(input.files));
 		if (input) input.value = '';
 	}
@@ -219,7 +216,7 @@
 		const k = 1024;
 		const sizes = ['Bytes', 'KB', 'MB', 'GB'];
 		const i = Math.floor(Math.log(bytes) / Math.log(k));
-		return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+		return Number.parseFloat((bytes / k ** i).toFixed(2)) + ' ' + sizes[i];
 	}
 
 	async function uploadLocalFiles() {
@@ -287,7 +284,7 @@
 			});
 
 			// Post to the base mediagallery route's upload form action
-			xhr.open('POST', `/mediagallery?/upload`);
+			xhr.open('POST', '/mediagallery?/upload');
 			xhr.send(formData);
 
 			const result: any = await uploadPromise;
@@ -349,7 +346,7 @@
 		</div>
 
 		<!-- File Input -->
-		<input bind:this={input} type="file" class="sr-only" hidden multiple onchange={onChange} aria-hidden="true" tabindex="-1" />
+		<input bind:this={input} type="file" class="sr-only" hidden multiple onchange={onChange} aria-hidden="true" tabindex="-1">
 	</div>
 {:else}
 	<div class="mb-5 text-center sm:text-left">
@@ -380,10 +377,10 @@
 					<!-- Preview -->
 					<div class="flex aspect-square items-center justify-center">
 						{#if file.type?.startsWith('image/') && previewUrl}
-							<img src={previewUrl} alt={file.name} class="h-full w-full object-contain" />
+							<img src={previewUrl} alt={file.name} class="h-full w-full object-contain">
 						{:else if file.type?.startsWith('audio/') && previewUrl}
 							<audio controls class="max-w-full">
-								<source src={previewUrl} type={file.type} />
+								<source src={previewUrl} type={file.type}>
 							</audio>
 						{:else}
 							<iconify-icon icon={iconName} width="48" class="opacity-50"></iconify-icon>
@@ -393,9 +390,7 @@
 					<!-- Media Filename -->
 					<div class="w-full px-2 py-1 text-center h-10 flex flex-col justify-center">
 						<SystemTooltip title={file.name} positioning={{ placement: 'top' }}>
-							<div class="text-xs font-bold leading-tight line-clamp-2 overflow-hidden overflow-wrap-anywhere">
-								{file.name}
-							</div>
+							<div class="text-xs font-bold leading-tight line-clamp-2 overflow-hidden overflow-wrap-anywhere">{file.name}</div>
 						</SystemTooltip>
 					</div>
 
@@ -427,7 +422,7 @@
 		</div>
 
 		<!-- Hidden Input for Add Card -->
-		<input bind:this={input} type="file" class="hidden" multiple onchange={onChange} />
+		<input bind:this={input} type="file" class="hidden" multiple onchange={onChange}>
 
 		<!-- Actions Footer -->
 		<div class="flex items-center justify-between border-t border-surface-200 pt-4 dark:border-surface-700">

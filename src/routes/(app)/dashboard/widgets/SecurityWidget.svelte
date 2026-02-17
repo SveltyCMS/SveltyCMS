@@ -37,11 +37,11 @@ and automated response visualization for enterprise security operations.
 </script>
 
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
-	import { logger } from '@utils/logger';
-	import BaseWidget from '../BaseWidget.svelte';
-	import { showToast } from '@utils/toast';
 	import type { WidgetSize } from '@src/content/types';
+	import { logger } from '@utils/logger';
+	import { showToast } from '@utils/toast';
+	import { onDestroy, onMount } from 'svelte';
+	import BaseWidget from '../BaseWidget.svelte';
 
 	const {
 		label = 'Security Monitor',
@@ -69,8 +69,9 @@ and automated response visualization for enterprise security operations.
 	interface SecurityStats {
 		activeIncidents: number;
 		blockedIPs: number;
-		throttledIPs: number;
-		totalIncidents: number;
+		cspViolations: number;
+		rateLimitHits: number;
+		recentEvents: SecurityEvent[];
 		threatLevelDistribution: {
 			none: number;
 			low: number;
@@ -78,29 +79,28 @@ and automated response visualization for enterprise security operations.
 			high: number;
 			critical: number;
 		};
-		recentEvents: SecurityEvent[];
-		cspViolations: number;
-		rateLimitHits: number;
+		throttledIPs: number;
+		totalIncidents: number;
 	}
 
 	interface SecurityEvent {
+		details?: Record<string, any>;
 		id: string;
+		ip?: string;
+		message: string;
+		severity: 'low' | 'medium' | 'high' | 'critical';
 		timestamp: number;
 		type: 'rate_limit' | 'auth_failure' | 'csp_violation' | 'threat_detected' | 'ip_blocked';
-		severity: 'low' | 'medium' | 'high' | 'critical';
-		message: string;
-		ip?: string;
-		details?: Record<string, any>;
 	}
 
 	interface SecurityIncident {
-		id: string;
 		clientIp: string;
-		threatLevel: 'none' | 'low' | 'medium' | 'high' | 'critical';
+		id: string;
 		indicatorCount: number;
-		timestamp: number;
 		resolved: boolean;
 		responseActions: string[];
+		threatLevel: 'none' | 'low' | 'medium' | 'high' | 'critical';
+		timestamp: number;
 	}
 
 	// Reactive state
@@ -281,9 +281,7 @@ and automated response visualization for enterprise security operations.
 				<iconify-icon icon={statusIcon} class="text-2xl {threatColor}"></iconify-icon>
 				<div>
 					<h3 class="text-lg font-semibold capitalize">{overallThreatLevel} Status</h3>
-					<p class="text-sm text-gray-600 dark:text-gray-400">
-						{securityStats.activeIncidents} active incidents
-					</p>
+					<p class="text-sm text-gray-600 dark:text-gray-400">{securityStats.activeIncidents} active incidents</p>
 				</div>
 			</div>
 			<button
@@ -330,19 +328,13 @@ and automated response visualization for enterprise security operations.
 								<div class="flex-1">
 									<div class="font-medium">
 										{incident.clientIp}
-										<span class="ml-1 rounded bg-gray-200 px-1 text-xs dark:bg-gray-700">
-											{incident.threatLevel}
-										</span>
+										<span class="ml-1 rounded bg-gray-200 px-1 text-xs dark:bg-gray-700"> {incident.threatLevel} </span>
 									</div>
-									<div class="text-gray-600 dark:text-gray-400">
-										{incident.indicatorCount} indicators • {formatTimestamp(incident.timestamp)}
-									</div>
+									<div class="text-gray-600 dark:text-gray-400">{incident.indicatorCount} indicators • {formatTimestamp(incident.timestamp)}</div>
 									{#if incident.responseActions.length > 0}
 										<div class="mt-1">
 											{#each incident.responseActions as action (action)}
-												<span class="mr-1 inline-block rounded bg-gray-300 px-1 py-0.5 text-xs dark:bg-gray-600">
-													{action}
-												</span>
+												<span class="mr-1 inline-block rounded bg-gray-300 px-1 py-0.5 text-xs dark:bg-gray-600"> {action} </span>
 											{/each}
 										</div>
 									{/if}

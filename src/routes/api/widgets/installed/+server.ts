@@ -3,16 +3,13 @@
  * @description API endpoint for managing installed widgets per tenant with 3-pillar architecture support
  */
 
-import { json } from '@sveltejs/kit';
-
-import { logger } from '@utils/logger.server';
 import { hasPermissionWithRoles } from '@src/databases/auth/permissions';
-
-import { widgets, getWidgetFunction } from '@stores/widgetStore.svelte.ts';
-
+import { getWidgetFunction, widgets } from '@stores/widgetStore.svelte.ts';
+import { json } from '@sveltejs/kit';
 // Unified Error Handling
 import { apiHandler } from '@utils/apiHandler';
 import { AppError } from '@utils/errorHandling';
+import { logger } from '@utils/logger.server';
 
 export const GET = apiHandler(async ({ url, locals }) => {
 	const start = performance.now();
@@ -74,7 +71,9 @@ export const GET = apiHandler(async ({ url, locals }) => {
 		const duration = performance.now() - start;
 		const message = `Failed to get installed widgets: ${err instanceof Error ? err.message : String(err)}`;
 		logger.error(message, { duration: `${duration.toFixed(2)}ms`, stack: err instanceof Error ? err.stack : undefined });
-		if (err instanceof AppError) throw err;
+		if (err instanceof AppError) {
+			throw err;
+		}
 
 		// Standardized error response
 		throw new AppError(message, 500, 'GET_INSTALLED_WIDGETS_FAILED');

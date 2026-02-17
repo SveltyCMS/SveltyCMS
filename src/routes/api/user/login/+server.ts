@@ -26,18 +26,15 @@
  * @see /docs/architecture/quantum-security.mdx for security details
  */
 
-import { json, type HttpError } from '@sveltejs/kit';
 import { getPrivateSettingSync } from '@src/services/settingsService';
-
-// System logger
-import { logger } from '@utils/logger.server';
-
-// Password utility
-import { verifyPassword } from '@utils/password';
-
+import { type HttpError, json } from '@sveltejs/kit';
 // Unified Error Handling
 import { apiHandler } from '@utils/apiHandler';
 import { AppError } from '@utils/errorHandling';
+// System logger
+import { logger } from '@utils/logger.server';
+// Password utility
+import { verifyPassword } from '@utils/password';
 
 async function getAuth() {
 	const { auth } = await import('@src/databases/db');
@@ -69,7 +66,7 @@ export const POST = apiHandler(async ({ request, cookies, locals }) => {
 
 		const { email, password } = await request.json();
 
-		if (!email || !password) {
+		if (!(email && password)) {
 			throw new AppError('Email and password are required.', 400, 'MISSING_CREDENTIALS');
 		}
 
@@ -81,7 +78,7 @@ export const POST = apiHandler(async ({ request, cookies, locals }) => {
 		const user = await auth.getUserByEmail(userLookupCriteria); // **SECURITY**: Use a generic error message for both non-existent users and wrong passwords.
 		// This prevents "user enumeration" attacks.
 
-		if (!user || !user.password) {
+		if (!user?.password) {
 			logger.warn(`Login attempt failed: User not found or password not set for email: ${email}`, { tenantId });
 			throw new AppError('Invalid credentials.', 401, 'INVALID_CREDENTIALS');
 		} // **SECURITY**: Check if the user account is blocked.
@@ -119,7 +116,9 @@ export const POST = apiHandler(async ({ request, cookies, locals }) => {
 
 		return json({ success: true, message: 'Login successful.' });
 	} catch (err) {
-		if (err instanceof AppError) throw err;
+		if (err instanceof AppError) {
+			throw err;
+		}
 		// This block now only catches unexpected errors or deliberate `throw error()` calls.
 		const httpError = err as HttpError;
 		const status = httpError.status || 500;

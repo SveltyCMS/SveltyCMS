@@ -54,8 +54,8 @@ Renders: ★★★★☆ (4 filled stars, 1 empty star)
 <style>
 	.rating-display {
 		display: inline-flex;
-		align-items: center;
 		gap: 0.25rem;
+		align-items: center;
 		font-family: inherit;
 	}
 </style>

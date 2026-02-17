@@ -26,16 +26,16 @@ rather than bundling all widgets upfront.
 
 <script lang="ts">
 	import type { FieldInstance } from '@src/content/types';
-	import { onMount } from 'svelte';
 	import { logger } from '@utils/logger';
+	import { onMount } from 'svelte';
 
 	interface Props {
-		loader: () => Promise<{ default: any }>;
-		field: FieldInstance;
-		WidgetData?: Record<string, any>;
-		value?: any;
-		tenantId?: string;
 		collectionName?: string;
+		field: FieldInstance;
+		loader: () => Promise<{ default: any }>;
+		tenantId?: string;
+		value?: any;
+		WidgetData?: Record<string, any>;
 	}
 
 	let { loader, field, WidgetData = {}, value = $bindable(), tenantId, collectionName }: Props = $props();
@@ -89,9 +89,7 @@ rather than bundling all widgets upfront.
 			<iconify-icon icon="mdi:alert-circle" class="text-error-500" width="20"></iconify-icon>
 			<span class="font-semibold text-error-700 dark:text-error-400">Widget Load Error</span>
 		</div>
-		<p class="text-sm text-error-600 dark:text-error-300">
-			Failed to load widget: <strong>{field.widget?.Name || 'Unknown'}</strong>
-		</p>
+		<p class="text-sm text-error-600 dark:text-error-300">Failed to load widget: <strong>{field.widget?.Name || 'Unknown'}</strong></p>
 		<p class="mt-1 text-xs text-error-500 dark:text-error-400">{error.message}</p>
 		<button class="preset-outlined-error-500 btn-sm mt-3" onclick={() => loadComponent()}>
 			<iconify-icon icon="mdi:refresh" width="16" class="mr-1"></iconify-icon>

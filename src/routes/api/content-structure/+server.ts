@@ -11,21 +11,18 @@
  * Handles creation, updates (including reordering and parent changes), and deletion of content nodes.
  * Utilizes Redis caching for performance, now tenant-aware.
  */
-import { browser } from '$app/environment';
-import { getPrivateSettingSync } from '@src/services/settingsService';
-import { json } from '@sveltejs/kit';
 
 import type { ContentNodeOperation } from '@root/src/content/types';
-
 // Auth
 import { contentManager } from '@src/content/ContentManager';
-import { dbAdapter } from '@src/databases/db';
-
 // Redis
 import { cacheService } from '@src/databases/CacheService';
-
+import { dbAdapter } from '@src/databases/db';
+import { getPrivateSettingSync } from '@src/services/settingsService';
+import { json } from '@sveltejs/kit';
 // System Logger
 import { logger } from '@utils/logger.server';
+import { browser } from '$app/environment';
 
 const CACHE_TTL = 300; // 5 minutes
 
@@ -58,7 +55,7 @@ export const GET = apiHandler(async ({ url, locals }) => {
 			}
 		}
 
-		let response;
+		let response: any;
 
 		switch (action) {
 			case 'getStructure': {
@@ -104,7 +101,9 @@ export const GET = apiHandler(async ({ url, locals }) => {
 	} catch (err) {
 		const message = err instanceof Error ? err.message : String(err);
 		logger.error('Error in GET /api/content-structure:', message);
-		if (err instanceof AppError) throw err;
+		if (err instanceof AppError) {
+			throw err;
+		}
 		throw new AppError(`Failed to process content structure request: ${message}`, 500, 'CONTENT_STRUCTURE_ERROR');
 	}
 });
@@ -138,7 +137,7 @@ export const POST = apiHandler(async ({ request, locals }) => {
 			case 'reorderContentStructure': {
 				const { items }: { items: ContentNodeOperation[] } = data;
 
-				if (!items || !Array.isArray(items)) {
+				if (!(items && Array.isArray(items))) {
 					throw new AppError('Items array is required for reorderContentStructure', 400, 'INVALID_ITEMS');
 				}
 
@@ -161,7 +160,7 @@ export const POST = apiHandler(async ({ request, locals }) => {
 			case 'updateContentStructure': {
 				const { items }: { items: ContentNodeOperation[] } = data;
 
-				if (!items || !Array.isArray(items)) {
+				if (!(items && Array.isArray(items))) {
 					throw new AppError('Items array is required for updateContentStructure', 400, 'INVALID_ITEMS');
 				}
 
@@ -218,7 +217,9 @@ export const POST = apiHandler(async ({ request, locals }) => {
 	} catch (err) {
 		const message = err instanceof Error ? err.message : String(err);
 		logger.error('Error in POST /api/content-structure:', message);
-		if (err instanceof AppError) throw err;
+		if (err instanceof AppError) {
+			throw err;
+		}
 		throw new AppError(`Failed to process content structure request: ${message}`, 500, 'CONTENT_STRUCTURE_ERROR');
 	}
 });
@@ -238,7 +239,7 @@ export const PUT = apiHandler(async ({ request, locals }) => {
 
 		const { _id, updates } = await request.json();
 
-		if (!_id || !updates) {
+		if (!(_id && updates)) {
 			throw new AppError('_id and updates are required', 400, 'MISSING_PARAMS');
 		}
 
@@ -247,7 +248,7 @@ export const PUT = apiHandler(async ({ request, locals }) => {
 		}
 
 		const updateResult = await dbAdapter.content.nodes.update(_id, updates);
-		if (!updateResult.success || !updateResult.data) {
+		if (!(updateResult.success && updateResult.data)) {
 			throw new AppError('Node not found', 404, 'NODE_NOT_FOUND');
 		}
 
@@ -270,7 +271,9 @@ export const PUT = apiHandler(async ({ request, locals }) => {
 	} catch (err) {
 		const errorMessage = err instanceof Error ? err.message : String(err);
 		logger.error('Error in PUT /api/content-structure:', errorMessage);
-		if (err instanceof AppError) throw err;
+		if (err instanceof AppError) {
+			throw err;
+		}
 		throw new AppError(`Failed to update content structure: ${errorMessage}`, 500, 'CONTENT_STRUCTURE_ERROR');
 	}
 });

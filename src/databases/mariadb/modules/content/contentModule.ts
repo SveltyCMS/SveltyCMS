@@ -15,22 +15,22 @@
  * - Delete content nodes
  */
 
-import { eq, and, desc, asc, count, inArray } from 'drizzle-orm';
+import { and, asc, count, desc, eq, inArray } from 'drizzle-orm';
 import type {
-	ContentNode,
 	ContentDraft,
+	ContentNode,
 	ContentRevision,
 	DatabaseId,
 	DatabaseResult,
-	PaginationOptions,
-	PaginatedResult
+	PaginatedResult,
+	PaginationOptions
 } from '../../../dbInterface';
-import { AdapterCore } from '../../adapter/adapterCore';
+import type { AdapterCore } from '../../adapter/adapterCore';
 import * as schema from '../../schema';
 import * as utils from '../../utils';
 
 export class ContentModule {
-	private core: AdapterCore;
+	private readonly core: AdapterCore;
 
 	constructor(core: AdapterCore) {
 		this.core = core;
@@ -78,11 +78,21 @@ export class ContentModule {
 
 				if (filter) {
 					const conditions: any[] = [];
-					if (filter._id) conditions.push(eq(schema.contentNodes._id, filter._id));
-					if (filter.path) conditions.push(eq(schema.contentNodes.path, filter.path));
-					if (filter.parentId) conditions.push(eq(schema.contentNodes.parentId, filter.parentId));
-					if (filter.tenantId) conditions.push(eq(schema.contentNodes.tenantId, filter.tenantId));
-					if (conditions.length > 0) q = q.where(and(...conditions));
+					if (filter._id) {
+						conditions.push(eq(schema.contentNodes._id, filter._id));
+					}
+					if (filter.path) {
+						conditions.push(eq(schema.contentNodes.path, filter.path));
+					}
+					if (filter.parentId) {
+						conditions.push(eq(schema.contentNodes.parentId, filter.parentId));
+					}
+					if (filter.tenantId) {
+						conditions.push(eq(schema.contentNodes.tenantId, filter.tenantId));
+					}
+					if (conditions.length > 0) {
+						q = q.where(and(...conditions));
+					}
 				}
 
 				q = q.orderBy(asc(schema.contentNodes.order));
@@ -92,15 +102,17 @@ export class ContentModule {
 
 				if (mode === 'nested') {
 					const idMap = new Map<string, ContentNode>();
-					nodes.forEach((n) => idMap.set(n._id, { ...n, children: [] }));
+					for (const n of nodes) {
+						idMap.set(n._id, { ...n, children: [] });
+					}
 					const rootNodes: ContentNode[] = [];
-					idMap.forEach((n) => {
+					for (const n of idMap.values()) {
 						if (n.parentId && idMap.has(n.parentId)) {
-							idMap.get(n.parentId)!.children!.push(n);
+							idMap.get(n.parentId)?.children?.push(n);
 						} else {
 							rootNodes.push(n);
 						}
-					});
+					}
 					return rootNodes;
 				}
 
@@ -213,7 +225,9 @@ export class ContentModule {
 
 					// Return the upserted record
 					const [res] = await this.db.select().from(schema.contentNodes).where(eq(schema.contentNodes.path, update.path)).limit(1);
-					if (res) results.push(utils.convertDatesToISO(res) as unknown as ContentNode);
+					if (res) {
+						results.push(utils.convertDatesToISO(res) as unknown as ContentNode);
+					}
 				}
 				return results;
 			}, 'BULK_UPDATE_CONTENT_NODES_FAILED');
@@ -238,7 +252,9 @@ export class ContentModule {
 				for (const update of nodeUpdates) {
 					await this.db.update(schema.contentNodes).set({ order: update.newOrder }).where(eq(schema.contentNodes.path, update.path));
 					const [res] = await this.db.select().from(schema.contentNodes).where(eq(schema.contentNodes.path, update.path)).limit(1);
-					if (res) results.push(utils.convertDatesToISO(res) as unknown as ContentNode);
+					if (res) {
+						results.push(utils.convertDatesToISO(res) as unknown as ContentNode);
+					}
 				}
 				return results;
 			}, 'REORDER_CONTENT_NODES_FAILED');
@@ -302,7 +318,9 @@ export class ContentModule {
 		publish: async (draftId: DatabaseId): Promise<DatabaseResult<void>> => {
 			return (this.core as any).wrap(async () => {
 				const [draft] = await this.db.select().from(schema.contentDrafts).where(eq(schema.contentDrafts._id, draftId)).limit(1);
-				if (!draft) throw new Error('Draft not found');
+				if (!draft) {
+					throw new Error('Draft not found');
+				}
 
 				await this.db
 					.update(schema.contentNodes)
@@ -318,7 +336,9 @@ export class ContentModule {
 				let publishedCount = 0;
 				for (const draftId of draftIds) {
 					const res = await this.drafts.publish(draftId);
-					if (res.success) publishedCount++;
+					if (res.success) {
+						publishedCount++;
+					}
 				}
 				return { publishedCount };
 			}, 'PUBLISH_MANY_CONTENT_DRAFTS_FAILED');
@@ -424,7 +444,9 @@ export class ContentModule {
 			return (this.core as any).wrap(async () => {
 				const [revision] = await this.db.select().from(schema.contentRevisions).where(eq(schema.contentRevisions._id, revisionId)).limit(1);
 
-				if (!revision) throw new Error('Revision not found');
+				if (!revision) {
+					throw new Error('Revision not found');
+				}
 
 				await this.db
 					.update(schema.contentNodes)
@@ -455,7 +477,9 @@ export class ContentModule {
 					.orderBy(desc(schema.contentRevisions.createdAt))
 					.offset(keepLatest);
 
-				if (revisions.length === 0) return { deletedCount: 0 };
+				if (revisions.length === 0) {
+					return { deletedCount: 0 };
+				}
 
 				const idsToDelete = (revisions as any[]).map((r) => r._id);
 				const result = await this.db.delete(schema.contentRevisions).where(inArray(schema.contentRevisions._id, idsToDelete));

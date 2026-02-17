@@ -4,12 +4,11 @@
  * Returns cache hit rates, category statistics, and tenant metrics for dashboard monitoring
  */
 
-import { json } from '@sveltejs/kit';
 import { cacheMetrics } from '@src/databases/CacheMetrics';
-import { logger } from '@utils/logger.server';
-
+import { json } from '@sveltejs/kit';
 // Unified Error Handling
 import { apiHandler } from '@utils/apiHandler';
+import { logger } from '@utils/logger.server';
 
 export const GET = apiHandler(async () => {
 	// Get cache metrics snapshot

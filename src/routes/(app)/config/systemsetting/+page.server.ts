@@ -12,11 +12,10 @@
  * - Handles cases of unauthenticated users or insufficient permissions.
  */
 
-import { redirect, error } from '@sveltejs/kit';
-import type { PageServerLoad } from './$types';
-
+import { error, redirect } from '@sveltejs/kit';
 // System Logs
 import { logger } from '@utils/logger.server';
+import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	try {

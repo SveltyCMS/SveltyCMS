@@ -15,20 +15,11 @@
 </script>
 
 <script lang="ts">
+	import type { WidgetSize } from '@src/content/types';
 	// Using iconify-icon web component
 	import BaseWidget from '../BaseWidget.svelte';
 
-	import type { WidgetSize } from '@src/content/types';
-
 	interface CacheMetrics {
-		overall: {
-			hits: number;
-			misses: number;
-			sets: number;
-			deletes: number;
-			hitRate: number;
-			totalOperations: number;
-		};
 		byCategory: {
 			[key: string]: {
 				hits: number;
@@ -42,6 +33,14 @@
 				misses: number;
 				hitRate: number;
 			};
+		};
+		overall: {
+			hits: number;
+			misses: number;
+			sets: number;
+			deletes: number;
+			hitRate: number;
+			totalOperations: number;
 		};
 		recentMisses?: Array<any>;
 		timestamp: number;
@@ -72,7 +71,7 @@
 	}
 
 	function formatNumber(num: number): string {
-		if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
+		if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(1)}M`;
 		if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
 		return num.toString();
 	}
@@ -121,14 +120,10 @@
 					<div class="mb-3 flex items-start justify-between">
 						<div>
 							<h3 class="text-xs font-semibold uppercase tracking-wider">Overall Performance</h3>
-							<p class="mt-1 text-xs text-surface-600 dark:text-surface-50">
-								{metrics.overall.totalOperations.toLocaleString()} operations
-							</p>
+							<p class="mt-1 text-xs text-surface-600 dark:text-surface-50">{metrics.overall.totalOperations.toLocaleString()} operations</p>
 						</div>
 						<div class="text-right">
-							<div class={`text-3xl font-bold leading-none ${getHitRateColor(metrics.overall.hitRate)}`}>
-								{metrics.overall.hitRate.toFixed(1)}%
-							</div>
+							<div class={`text-3xl font-bold leading-none ${getHitRateColor(metrics.overall.hitRate)}`}>{metrics.overall.hitRate.toFixed(1)}%</div>
 							<p class="mt-1 text-xs">hit rate</p>
 						</div>
 					</div>
@@ -227,9 +222,7 @@
 									</div>
 									<div class="flex items-center gap-3">
 										<span class="tabular-nums text-surface-500">{formatNumber(stats.hits + stats.misses)} ops</span>
-										<span class={`min-w-12 text-right font-bold tabular-nums ${getHitRateColor(stats.hitRate)}`}>
-											{stats.hitRate.toFixed(0)}%
-										</span>
+										<span class={`min-w-12 text-right font-bold tabular-nums ${getHitRateColor(stats.hitRate)}`}> {stats.hitRate.toFixed(0)}% </span>
 									</div>
 								</div>
 							{/each}
@@ -254,9 +247,7 @@
 												<iconify-icon icon={getCategoryIcon(miss.category)} width="14" class="text-error-600 dark:text-error-400"></iconify-icon>
 												<span class="font-semibold">{miss.category}</span>
 											</div>
-											<div class="truncate font-mono text-[10px] text-surface-600 dark:text-surface-50" title={miss.key}>
-												{miss.key}
-											</div>
+											<div class="truncate font-mono text-[10px] text-surface-600 dark:text-surface-50" title={miss.key}>{miss.key}</div>
 										</div>
 										<div class="whitespace-nowrap text-right">
 											<div class="text-[10px]">
@@ -269,9 +260,7 @@
 												{/if}
 											</div>
 											{#if miss.tenantId}
-												<div class="mt-0.5 text-[10px] text-surface-400">
-													{miss.tenantId}
-												</div>
+												<div class="mt-0.5 text-[10px] text-surface-400">{miss.tenantId}</div>
 											{/if}
 										</div>
 									</div>
@@ -332,11 +321,8 @@
 								{/if}
 							</div>
 							<div class="mt-0.5">
-								Cache is {metrics.overall.hitRate >= 80
-									? 'working optimally'
-									: metrics.overall.hitRate >= 60
-										? 'performing adequately'
-										: 'underperforming'}
+								Cache is
+								{metrics.overall.hitRate >= 80 ? 'working optimally' : metrics.overall.hitRate >= 60 ? 'performing adequately' : 'underperforming'}
 							</div>
 						</div>
 					</div>

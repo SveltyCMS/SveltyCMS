@@ -5,9 +5,9 @@
 import { activeInput } from '@src/stores/activeInputStore.svelte';
 
 interface TokenTargetOptions {
-	name: string;
-	label?: string;
 	collection?: string;
+	label?: string;
+	name: string;
 	onInsert?: (token: string) => void;
 }
 

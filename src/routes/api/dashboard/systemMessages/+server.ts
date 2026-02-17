@@ -8,27 +8,26 @@
  * - **Input Validation:** Safely validates and caps the `limit` query parameter.
  */
 
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import type { ISODateString } from '@src/content/types';
 import { json } from '@sveltejs/kit';
-import fs from 'fs/promises';
-import path from 'path';
-import { v4 as uuidv4 } from 'uuid';
-
 // System Logger
 import { logger } from '@utils/logger.server';
-import type { ISODateString } from '@src/content/types';
+import { v4 as uuidv4 } from 'uuid';
 
 // Validation
 import * as v from 'valibot';
 
 // --- Types, Constants & Schemas ---
-type SystemMessage = {
+interface SystemMessage {
 	id: string;
-	title: string;
-	message: string;
 	level: string;
+	message: string;
 	timestamp: ISODateString;
+	title: string;
 	type: 'error' | 'warning' | 'info';
-};
+}
 
 const MAX_MESSAGES_LIMIT = 50;
 const LOG_FILE_PATH = path.join(process.cwd(), 'logs', 'app.log');
@@ -57,7 +56,7 @@ async function readLastLines(filePath: string, maxLines: number): Promise<string
 			await handle.read(buffer, 0, bytesToRead, readPosition);
 			collectedData = buffer.toString('utf-8', 0, bytesToRead) + collectedData;
 			const currentLines = collectedData.split('\n');
-			if (position === size && currentLines[currentLines.length - 1] === '') {
+			if (position === size && currentLines.at(-1) === '') {
 				currentLines.pop();
 			}
 			lines = currentLines.slice(-maxLines);
@@ -94,7 +93,9 @@ export const GET = apiHandler(async ({ locals, url }) => {
 		const messages: SystemMessage[] = logLines
 			.map((line): SystemMessage | null => {
 				const match = line.match(LOG_LINE_REGEX);
-				if (!match) return null;
+				if (!match) {
+					return null;
+				}
 				const [, timestamp, level, message] = match;
 				const lowerLevel = level.toLowerCase();
 				return {

@@ -13,30 +13,28 @@
  * - Comprehensive error handling and logging
  */
 
-import { json, error } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
 import { getPrivateSettingSync } from '@src/services/settingsService';
-
-// Media Processing
-import { extractMetadata } from '@utils/media/mediaProcessing.server';
 import { MediaService } from '@src/utils/media/mediaService.server';
-import type { MediaAccess, WatermarkOptions, MediaItem } from '@utils/media/mediaModels';
-
+import { error, json } from '@sveltejs/kit';
 // System Logger
 import { logger } from '@utils/logger.server';
+import type { MediaAccess, MediaItem, WatermarkOptions } from '@utils/media/mediaModels';
+// Media Processing
+import { extractMetadata } from '@utils/media/mediaProcessing.server';
+import type { RequestHandler } from './$types';
 
 // Response types
 interface ProcessResult {
-	success: boolean;
 	data?: MediaItem | MediaItem[] | FileProcessResult[] | Record<string, unknown>;
 	error?: string;
+	success: boolean;
 }
 
 interface FileProcessResult {
-	fileName: string;
-	success: boolean;
 	data?: MediaItem;
 	error?: string;
+	fileName: string;
+	success: boolean;
 }
 
 // Helper function to get MediaService instance
@@ -89,7 +87,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		switch (processType) {
 			case 'metadata': {
 				const file = formData.get('file');
-				if (!file || !(file instanceof File)) {
+				if (!(file && file instanceof File)) {
 					return json({ success: false, error: 'No valid file received' }, { status: 400 });
 				}
 				const buffer = Buffer.from(await file.arrayBuffer());

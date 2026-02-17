@@ -16,14 +16,15 @@
 
 import type { DashboardWidgetConfig, Layout, SystemPreferencesDocument } from '@src/content/types';
 import type { DatabaseResult } from '@src/databases/dbInterface';
-import type { Model } from 'mongoose';
-import mongoose, { Schema } from 'mongoose';
+import { generateId } from '@src/databases/mongodb/methods/mongoDBUtils';
 import { nowISODateString } from '@utils/dateUtils';
-
 // System Logger
 import { logger } from '@utils/logger';
-import { generateId } from '@src/databases/mongodb/methods/mongoDBUtils';
+import type { Model } from 'mongoose';
+import mongoose, { Schema } from 'mongoose';
+
 interface SystemPreferencesModelType extends Model<SystemPreferencesDocument> {
+	deletePreferencesByUser(userId: string): Promise<DatabaseResult<number>>;
 	getPreferenceByLayout(userId: string, layoutId: string): Promise<DatabaseResult<Layout | null>>;
 	setPreference(
 		userId: string,
@@ -35,7 +36,6 @@ interface SystemPreferencesModelType extends Model<SystemPreferencesDocument> {
 		}
 	): Promise<DatabaseResult<{ layout: Layout; warnings?: string[] }>>;
 	validateLayoutWidgets(layout: Layout, activeWidgets: string[]): { layout: Layout; warnings: string[] };
-	deletePreferencesByUser(userId: string): Promise<DatabaseResult<number>>;
 }
 
 // Widget schema aligned with +server.ts

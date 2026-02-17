@@ -72,16 +72,32 @@ function colorMessage(msg: string): string {
 
 // Value formatting
 function formatValue(v: unknown): string {
-	if (v === null) return '\x1b[35mnull\x1b[0m';
-	if (v === undefined) return '\x1b[90mundefined\x1b[0m';
-	if (typeof v === 'boolean') return v ? '\x1b[32mtrue\x1b[0m' : '\x1b[31mfalse\x1b[0m';
-	if (typeof v === 'number') return `\x1b[34m${v}\x1b[0m`;
-	if (typeof v === 'string') return colorMessage(v);
-	if (v instanceof Date) return `\x1b[36m${v.toISOString()}\x1b[0m`;
-	if (Array.isArray(v)) return `\x1b[33m[${v.map(formatValue).join(', ')}]\x1b[0m`;
+	if (v === null) {
+		return '\x1b[35mnull\x1b[0m';
+	}
+	if (v === undefined) {
+		return '\x1b[90mundefined\x1b[0m';
+	}
+	if (typeof v === 'boolean') {
+		return v ? '\x1b[32mtrue\x1b[0m' : '\x1b[31mfalse\x1b[0m';
+	}
+	if (typeof v === 'number') {
+		return `\x1b[34m${v}\x1b[0m`;
+	}
+	if (typeof v === 'string') {
+		return colorMessage(v);
+	}
+	if (v instanceof Date) {
+		return `\x1b[36m${v.toISOString()}\x1b[0m`;
+	}
+	if (Array.isArray(v)) {
+		return `\x1b[33m[${v.map(formatValue).join(', ')}]\x1b[0m`;
+	}
 	if (v instanceof Error) {
 		const parts = [`message: \x1b[31m${v.message}\x1b[0m`, `name: \x1b[31m${v.name}\x1b[0m`];
-		if ((v as any).code) parts.push(`code: \x1b[31m${(v as any).code}\x1b[0m`);
+		if ((v as any).code) {
+			parts.push(`code: \x1b[31m${(v as any).code}\x1b[0m`);
+		}
 		return `\x1b[33m{${parts.join(', ')}}\x1b[0m`;
 	}
 	if (typeof v === 'object') {
@@ -98,22 +114,35 @@ const SENSITIVE = ['password', 'token', 'secret', 'key', 'authorization'];
 const EMAILS = ['email', 'mail'];
 
 function mask(v: unknown, depth = 0): unknown {
-	if (depth > 10) return '[Depth]';
-	if (v === null || typeof v !== 'object') return v;
-	if (v instanceof Date || v instanceof RegExp) return v;
+	if (depth > 10) {
+		return '[Depth]';
+	}
+	if (v === null || typeof v !== 'object') {
+		return v;
+	}
+	if (v instanceof Date || v instanceof RegExp) {
+		return v;
+	}
 	if (v instanceof Error) {
 		const plain: Record<string, unknown> = { message: v.message, name: v.name };
-		if (v.stack) plain.stack = v.stack;
-		if ((v as any).code) plain.code = (v as any).code;
+		if (v.stack) {
+			plain.stack = v.stack;
+		}
+		if ((v as any).code) {
+			plain.code = (v as any).code;
+		}
 		return mask(plain, depth + 1);
 	}
-	if (Array.isArray(v)) return v.map((item) => mask(item, depth + 1));
+	if (Array.isArray(v)) {
+		return v.map((item) => mask(item, depth + 1));
+	}
 
 	const masked: Record<string, unknown> = {};
 	for (const [k, val] of Object.entries(v)) {
 		const low = k.toLowerCase();
-		if (SENSITIVE.some((s) => low.includes(s))) masked[k] = '[REDACTED]';
-		else if (EMAILS.some((e) => low.includes(e)) && typeof val === 'string') {
+		if (SENSITIVE.some((s) => low.includes(s))) {
+			masked[k] = '[REDACTED]';
+		} else if (EMAILS.some((e) => low.includes(e)) && typeof val === 'string') {
 			const [local, domain] = val.split('@');
 			masked[k] = domain ? `${local.slice(0, 2)}***@${domain}` : '***';
 		} else {
@@ -126,11 +155,13 @@ function mask(v: unknown, depth = 0): unknown {
 // File ops (lazy loaded)
 let stream: import('node:fs').WriteStream | null = null;
 let modules: any = null;
-let lastHash: string = '';
+let lastHash = '';
 const HMAC_SECRET = process.env.LOG_CHAIN_SECRET || 'svelty-cms-default-log-secret';
 
 async function getMods() {
-	if (modules) return modules;
+	if (modules) {
+		return modules;
+	}
 	const cryptoMod = await import('node:crypto');
 	modules = {
 		fs: await import('node:fs'),
@@ -164,9 +195,11 @@ async function ensureStream() {
 			const content = await promises.readFile(file, 'utf8');
 			const lines = content.trim().split('\n');
 			if (lines.length > 0) {
-				const lastLine = lines[lines.length - 1];
+				const lastLine = lines.at(-1);
 				const match = lastLine.match(/\[CHAIN:([a-f0-9]{64})\]/);
-				if (match) lastHash = match[1];
+				if (match) {
+					lastHash = match[1];
+				}
 			}
 		} catch {
 			// Silent fail if file doesn't exist yet
@@ -182,9 +215,13 @@ async function rotate() {
 	const file = path.join('logs', 'app.log');
 	try {
 		const stat = await promises.stat(file);
-		if (stat.size < 5 * 1024 * 1024) return; // 5MB
+		if (stat.size < 5 * 1024 * 1024) {
+			return; // 5MB
+		}
 
-		if (stream) stream.end();
+		if (stream) {
+			stream.end();
+		}
 		const ts = new Date().toISOString().replace(/[:.]/g, '-');
 		const rotated = `${file}.${ts}`;
 		await promises.rename(file, rotated);
@@ -197,7 +234,9 @@ async function rotate() {
 		await sp.pipeline(src, zlib.createGzip(), dst);
 		await promises.unlink(rotated);
 	} catch (e: any) {
-		if (e.code !== 'ENOENT') console.error('Rotation failed:', e);
+		if (e.code !== 'ENOENT') {
+			console.error('Rotation failed:', e);
+		}
 	}
 }
 
@@ -206,12 +245,16 @@ const queue: { level: LogLevel; msg: string; args: unknown[] }[] = [];
 let timeout: NodeJS.Timeout | null = null;
 
 function flush() {
-	if (!queue.length) return;
+	if (!queue.length) {
+		return;
+	}
 	const batch = queue.splice(0, queue.length);
 
 	ensureStream()
 		.then(async (s) => {
-			if (!s) return;
+			if (!s) {
+				return;
+			}
 			await rotate();
 
 			for (const e of batch) {
@@ -233,7 +276,9 @@ function flush() {
 }
 
 function enqueue(level: LogLevel, msg: string, args: unknown[]) {
-	if (DISABLED || LEVELS[level].prio > maxPrio) return;
+	if (DISABLED || LEVELS[level].prio > maxPrio) {
+		return;
+	}
 
 	const masked = args.map(mask);
 	const color = LEVELS[level].color;
@@ -245,12 +290,14 @@ function enqueue(level: LogLevel, msg: string, args: unknown[]) {
 	process.stdout.write(`${ts} ${color}${icon} [${level.toUpperCase().padEnd(5)}]${RESET} ${pretty} ${argsStr}\n`);
 
 	queue.push({ level, msg, args: masked });
-	if (queue.length >= 100) flush();
-	else if (!timeout)
+	if (queue.length >= 100) {
+		flush();
+	} else if (!timeout) {
 		timeout = setTimeout(() => {
 			timeout = null;
 			flush();
 		}, 5000);
+	}
 }
 
 // Public logger

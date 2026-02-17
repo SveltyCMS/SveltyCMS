@@ -24,17 +24,17 @@ const cache = new Map<string, CachedRemoteVideoData>();
 const CACHE_TTL = 15 * 60 * 1000; // Cache for 15 minutes.
 
 interface ExternalVideoMetadata {
-	videoTitle: string;
-	videoThumbnail: string;
-	videoUrl: string;
-	channelTitle?: string;
-	publishedAt?: string;
-	width?: number;
-	height?: number;
-	duration?: string; // ISO 8601 duration
-	user_name?: string; // For Vimeo
-	upload_date?: string; // For Vimeo
 	_cachedAt?: number; // Internal cache timestamp
+	channelTitle?: string;
+	duration?: string; // ISO 8601 duration
+	height?: number;
+	publishedAt?: string;
+	upload_date?: string; // For Vimeo
+	user_name?: string; // For Vimeo
+	videoThumbnail: string;
+	videoTitle: string;
+	videoUrl: string;
+	width?: number;
 }
 
 // Extracts a video ID from a given URL
@@ -44,7 +44,7 @@ function extractVideoId(url: string): { platform: VideoPlatform; id: string } | 
 	const twitchRegex = /(?:twitch\.tv\/videos\/)(\d+)/;
 	const tiktokRegex = /(?:tiktok\.com\/@(?:[a-zA-Z0-9._]+)\/video\/(\d+))/;
 
-	let match;
+	let match: RegExpMatchArray | null;
 
 	if ((match = url.match(youtubeRegex))) {
 		return { platform: 'youtube', id: match[1] };
@@ -137,7 +137,7 @@ async function fetchVimeoMetadata(videoId: string): Promise<ExternalVideoMetadat
 async function fetchTwitchMetadata(videoId: string): Promise<ExternalVideoMetadata | null> {
 	const twitchToken = getPrivateSettingSync('TWITCH_TOKEN');
 	const twitchClientId = getPrivateSettingSync('TWITCH_CLIENT_ID');
-	if (!twitchToken || !twitchClientId) {
+	if (!(twitchToken && twitchClientId)) {
 		logger.error('TWITCH_TOKEN or TWITCH_CLIENT_ID is not set for Twitch metadata fetch.');
 		return null;
 	}
@@ -217,7 +217,7 @@ export async function getRemoteVideoData(url: string): Promise<RemoteVideoData |
 
 	const cacheKey = `${parsed.platform}-${parsed.id}`;
 	const cached = cache.get(cacheKey);
-	if (cached && cached._cachedAt && Date.now() - cached._cachedAt < CACHE_TTL) {
+	if (cached?._cachedAt && Date.now() - cached._cachedAt < CACHE_TTL) {
 		return cached;
 	}
 

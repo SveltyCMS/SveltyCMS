@@ -14,15 +14,15 @@ Displays real-time system metrics integrated with the dashboard grid system
 </script>
 
 <script lang="ts">
-	import BaseWidget from '../BaseWidget.svelte';
 	import type { WidgetSize } from '@src/content/types';
+	import BaseWidget from '../BaseWidget.svelte';
 
 	interface HealthMetrics {
-		requests: { total: number; errors: number };
 		auth: { validations: number; failures: number };
 		cache: { hits: number; misses: number };
-		sessions: { active: number; rotations: number };
 		lastReset: number;
+		requests: { total: number; errors: number };
+		sessions: { active: number; rotations: number };
 		system?: {
 			memory: { used: number; total: number; external: number; rss: number };
 			uptime: number;
@@ -58,8 +58,8 @@ Displays real-time system metrics integrated with the dashboard grid system
 	function formatUptime(seconds: number): string {
 		if (seconds < 60) return `${seconds}s`;
 		if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
-		if (seconds < 86400) return `${Math.floor(seconds / 3600)}h`;
-		return `${Math.floor(seconds / 86400)}d`;
+		if (seconds < 86_400) return `${Math.floor(seconds / 3600)}h`;
+		return `${Math.floor(seconds / 86_400)}d`;
 	}
 
 	function formatMemory(mb: number): string {

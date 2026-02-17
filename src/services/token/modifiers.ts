@@ -11,8 +11,9 @@
  * - Security Modifiers
  * - CMS Specific Modifiers
  */
-import type { ModifierFunction, ModifierMetadata } from './types';
+
 import { formatDateString } from '@utils/dateUtils';
+import type { ModifierFunction, ModifierMetadata } from './types';
 
 export const modifierRegistry = new Map<string, ModifierFunction>();
 
@@ -31,36 +32,38 @@ const functions: Record<string, ModifierFunction> = {
 			.replace(/[\s_-]+/g, '-'),
 
 	truncate: (v, args) => {
-		const len = parseInt(args?.[0] || '50');
+		const len = Number.parseInt(args?.[0] || '50', 10);
 		const s = String(v ?? '');
 		return s.length > len ? s.substring(0, len) + (args?.[1] ?? '...') : s;
 	},
 
 	// ===== MATH MODIFIERS =====
-	add: (v, args) => String(parseFloat(String(v)) + parseFloat(args?.[0] || '0')),
-	subtract: (v, args) => String(parseFloat(String(v)) - parseFloat(args?.[0] || '0')),
-	multiply: (v, args) => String(parseFloat(String(v)) * parseFloat(args?.[0] || '1')),
+	add: (v, args) => String(Number.parseFloat(String(v)) + Number.parseFloat(args?.[0] || '0')),
+	subtract: (v, args) => String(Number.parseFloat(String(v)) - Number.parseFloat(args?.[0] || '0')),
+	multiply: (v, args) => String(Number.parseFloat(String(v)) * Number.parseFloat(args?.[0] || '1')),
 	divide: (v, args) => {
-		const divisor = parseFloat(args?.[0] || '1');
-		return divisor === 0 ? 'NaN' : String(parseFloat(String(v)) / divisor);
+		const divisor = Number.parseFloat(args?.[0] || '1');
+		return divisor === 0 ? 'NaN' : String(Number.parseFloat(String(v)) / divisor);
 	},
 	round: (v, args) => {
-		const decimals = parseInt(args?.[0] || '0');
-		return String(Math.round(parseFloat(String(v)) * Math.pow(10, decimals)) / Math.pow(10, decimals));
+		const decimals = Number.parseInt(args?.[0] || '0', 10);
+		return String(Math.round(Number.parseFloat(String(v)) * 10 ** decimals) / 10 ** decimals);
 	},
-	ceil: (v) => String(Math.ceil(parseFloat(String(v)))),
-	floor: (v) => String(Math.floor(parseFloat(String(v)))),
-	abs: (v) => String(Math.abs(parseFloat(String(v)))),
-	min: (v, args) => String(Math.min(parseFloat(String(v)), parseFloat(args?.[0] || '0'))),
-	max: (v, args) => String(Math.max(parseFloat(String(v)), parseFloat(args?.[0] || '0'))),
+	ceil: (v) => String(Math.ceil(Number.parseFloat(String(v)))),
+	floor: (v) => String(Math.floor(Number.parseFloat(String(v)))),
+	abs: (v) => String(Math.abs(Number.parseFloat(String(v)))),
+	min: (v, args) => String(Math.min(Number.parseFloat(String(v)), Number.parseFloat(args?.[0] || '0'))),
+	max: (v, args) => String(Math.max(Number.parseFloat(String(v)), Number.parseFloat(args?.[0] || '0'))),
 	number: (v, args) => {
-		const decimals = parseInt(args?.[0] || '0');
-		return parseFloat(String(v)).toFixed(decimals);
+		const decimals = Number.parseInt(args?.[0] || '0', 10);
+		return Number.parseFloat(String(v)).toFixed(decimals);
 	},
 
 	// ===== DATE MODIFIERS =====
 	date: (v, args) => {
-		if (!v) return '';
+		if (!v) {
+			return '';
+		}
 
 		// Preset formats
 		const presets: Record<string, string> = {
@@ -91,9 +94,15 @@ const functions: Record<string, ModifierFunction> = {
 			const hours = Math.floor(minutes / 60);
 			const days = Math.floor(hours / 24);
 
-			if (days > 0) return `${days} day${days > 1 ? 's' : ''} ago`;
-			if (hours > 0) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
-			if (minutes > 0) return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+			if (days > 0) {
+				return `${days} day${days > 1 ? 's' : ''} ago`;
+			}
+			if (hours > 0) {
+				return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+			}
+			if (minutes > 0) {
+				return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+			}
 			return 'just now';
 		}
 
@@ -139,8 +148,8 @@ const functions: Record<string, ModifierFunction> = {
 	if: (v, args) => (v && v !== 'false' ? (args?.[0] ?? '') : (args?.[1] ?? '')),
 	eq: (v, args) => (String(v) === String(args?.[0]) ? 'true' : 'false'),
 	ne: (v, args) => (String(v) !== String(args?.[0]) ? 'true' : 'false'),
-	gt: (v, args) => (parseFloat(String(v)) > parseFloat(args?.[0] || '0') ? 'true' : 'false'),
-	lt: (v, args) => (parseFloat(String(v)) < parseFloat(args?.[0] || '0') ? 'true' : 'false'),
+	gt: (v, args) => (Number.parseFloat(String(v)) > Number.parseFloat(args?.[0] || '0') ? 'true' : 'false'),
+	lt: (v, args) => (Number.parseFloat(String(v)) < Number.parseFloat(args?.[0] || '0') ? 'true' : 'false'),
 
 	// ===== SECURITY =====
 	escape: (v) =>
@@ -153,7 +162,9 @@ const functions: Record<string, ModifierFunction> = {
 
 	// ===== CMS SPECIFIC =====
 	image_style: (v, args) => {
-		if (!v) return '';
+		if (!v) {
+			return '';
+		}
 		const style = args?.[0] || 'original';
 		return `/api/media/${v}?style=${style}`;
 	}

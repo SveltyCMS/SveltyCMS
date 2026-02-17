@@ -25,17 +25,17 @@ Part of the Three Pillars Architecture for widget system.
 -->
 
 <script lang="ts">
-	import { getFieldName } from '@src/utils/utils';
-	import { app, validationStore } from '@src/stores/store.svelte';
-	import { publicEnv } from '@src/stores/globalSettings.svelte';
-	import type { FieldType } from './';
-	import { tokenTarget } from '@src/services/token/tokenTarget';
 	import SystemTooltip from '@components/system/SystemTooltip.svelte';
+	import { tokenTarget } from '@src/services/token/tokenTarget';
+	import { publicEnv } from '@src/stores/globalSettings.svelte';
+	import { app, validationStore } from '@src/stores/store.svelte';
+	import { getFieldName } from '@src/utils/utils';
+	import type { FieldType } from './';
 
 	interface Props {
+		error?: string | null | undefined;
 		field: FieldType;
 		value: string | Record<string, string> | null | undefined;
-		error?: string | null | undefined;
 	}
 
 	let { field, value = $bindable(), error }: Props = $props();
@@ -104,12 +104,10 @@ Part of the Three Pillars Architecture for widget system.
 			} catch (_e) {
 				validationStore.setError(fieldName, 'Invalid date format');
 			}
+		} else if (field.required) {
+			validationStore.setError(fieldName, 'This field is required');
 		} else {
-			if (field.required) {
-				validationStore.setError(fieldName, 'This field is required');
-			} else {
-				validationStore.clearError(fieldName);
-			}
+			validationStore.clearError(fieldName);
 		}
 
 		// Update value based on translation status
@@ -157,7 +155,7 @@ Part of the Three Pillars Architecture for widget system.
 				aria-describedby={error ? `${field.db_fieldName}-error` : field.helper ? `${field.db_fieldName}-helper` : undefined}
 				aria-required={field.required}
 				data-testid="date-input"
-			/>
+			>
 		</div>
 	</SystemTooltip>
 
@@ -186,8 +184,8 @@ Part of the Three Pillars Architecture for widget system.
 		padding: 0;
 		margin: -1px;
 		overflow: hidden;
-		clip: rect(0, 0, 0, 0);
 		white-space: nowrap;
 		border: 0;
+		clip: rect(0, 0, 0, 0);
 	}
 </style>

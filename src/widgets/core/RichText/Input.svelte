@@ -11,22 +11,21 @@
 
 	// Svelte
 	import { onMount } from 'svelte';
-	import { slide } from 'svelte/transition';
 	import { quintOut } from 'svelte/easing';
+	import { slide } from 'svelte/transition';
+
 	// Removed static createEditor import for lazy-loading
 
-	import type { Editor } from '@tiptap/core';
-	import type { FieldType } from './';
-	import type { RichTextData } from './types';
-
+	import SystemTooltip from '@src/components/system/SystemTooltip.svelte';
+	import { tokenTarget } from '@src/services/token/tokenTarget';
 	// Stores
 	import { app } from '@src/stores/store.svelte';
+	import type { Editor } from '@tiptap/core';
 
 	import { showModal } from '@utils/modalUtils';
 	import type { MediaFile } from '../MediaUpload/types';
-	import { tokenTarget } from '@src/services/token/tokenTarget';
-
-	import SystemTooltip from '@src/components/system/SystemTooltip.svelte';
+	import type { FieldType } from './';
+	import type { RichTextData } from './types';
 
 	let {
 		field,
@@ -515,7 +514,8 @@
 											{#if btn.label === 'Table'}
 												<div class="p-2 w-48">
 													<div class="mb-2 text-xs font-medium text-surface-500 dark:text-surface-300 text-center">
-														{hoverRows || 1} x {hoverCols || 1}
+														{hoverRows || 1}
+														x {hoverCols || 1}
 													</div>
 													<div
 														class="grid grid-cols-5 gap-1"
@@ -612,8 +612,8 @@
 															onkeydown={(e) => e.key === 'Enter' && setLink()}
 														/>
 														<div class="flex justify-end gap-2">
-															<button class="btn btn-sm variant-soft-secondary" onclick={closeDropdowns}> Cancel </button>
-															<button class="btn btn-sm variant-filled-primary" onclick={setLink}> Set Link </button>
+															<button class="btn btn-sm variant-soft-secondary" onclick={closeDropdowns}>Cancel</button>
+															<button class="btn btn-sm variant-filled-primary" onclick={setLink}>Set Link</button>
 														</div>
 													</div>
 												</div>
@@ -628,8 +628,8 @@
 															onkeydown={(e) => e.key === 'Enter' && setVideo()}
 														/>
 														<div class="flex justify-end gap-2">
-															<button class="btn btn-sm variant-soft-secondary" onclick={closeDropdowns}> Cancel </button>
-															<button class="btn btn-sm variant-filled-primary" onclick={setVideo}> Embed </button>
+															<button class="btn btn-sm variant-soft-secondary" onclick={closeDropdowns}>Cancel</button>
+															<button class="btn btn-sm variant-filled-primary" onclick={setVideo}>Embed</button>
 														</div>
 													</div>
 												</div>
@@ -721,10 +721,10 @@
 
 	<style>
 		:global(.ProseMirror) {
-			outline: none;
-			min-height: inherit;
 			height: 100%;
+			min-height: inherit;
 			text-align: left;
+			outline: none;
 		}
 		/* Ensure the editor fills the container and is clickable everywhere */
 		:global(.ProseMirror > *:first-child) {
@@ -735,8 +735,8 @@
 		}
 		/* Dark mode cursor visibility */
 		:global(.dark .ProseMirror) {
-			caret-color: #60a5fa; /* blue-400 */
 			color: #f9fafb; /* gray-50 - high contrast white text */
+			caret-color: #60a5fa; /* gray-50 - high contrast white text */
 		}
 		:global(.dark .ProseMirror p),
 		:global(.dark .ProseMirror h1),
@@ -752,35 +752,35 @@
 			caret-color: #60a5fa; /* blue-400 */
 		}
 		:global(.ProseMirror p.is-editor-empty:first-child::before) {
-			color: #adb5bd;
-			content: attr(data-placeholder);
 			float: left;
 			height: 0;
+			color: #adb5bd;
 			pointer-events: none;
+			content: attr(data-placeholder);
 		}
 		:global(.dark .ProseMirror p.is-editor-empty:first-child::before) {
 			color: #6b7280; /* gray-500 for better dark mode visibility */
 		}
 		:global(.ProseMirror table) {
-			border-collapse: collapse;
+			width: 100%;
 			margin: 0;
 			overflow: hidden;
 			table-layout: fixed;
-			width: 100%;
+			border-collapse: collapse;
 		}
 		:global(.ProseMirror td),
 		:global(.ProseMirror th) {
-			border: 1px solid #ced4da;
+			position: relative;
 			box-sizing: border-box;
 			min-width: 1em;
 			padding: 6px 8px;
-			position: relative;
 			vertical-align: top;
+			border: 1px solid #ced4da;
 		}
 		:global(.ProseMirror th) {
-			background-color: #f1f3f5;
 			font-weight: bold;
 			text-align: left;
+			background-color: #f1f3f5;
 		}
 		/* Dark mode table styles */
 		:global(.dark .ProseMirror td),

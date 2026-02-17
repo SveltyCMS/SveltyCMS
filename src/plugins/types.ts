@@ -3,14 +3,25 @@
  * @description Type definitions for the SveltyCMS plugin system
  */
 
-import type { IDBAdapter, DatabaseResult, DatabaseId, ISODateString } from '@databases/dbInterface';
 import type { User } from '@auth/types';
-import type { Schema, BaseEntity } from '@content/types';
+import type { BaseEntity, Schema } from '@content/types';
+import type { DatabaseId, DatabaseResult, IDBAdapter, ISODateString } from '@databases/dbInterface';
 
 /**
  * Plugin metadata and registration info
  */
 export interface PluginMetadata {
+	/** Plugin author */
+	author?: string;
+
+	/** Short description of plugin functionality */
+	description: string;
+
+	/** Whether plugin is currently enabled globally */
+	enabled: boolean;
+
+	/** Plugin icon (Iconify string) */
+	icon?: string;
 	/** Unique plugin identifier (e.g., 'pagespeed', 'seo-audit') */
 	id: string;
 
@@ -19,18 +30,6 @@ export interface PluginMetadata {
 
 	/** Plugin version (semver) */
 	version: string;
-
-	/** Short description of plugin functionality */
-	description: string;
-
-	/** Plugin author */
-	author?: string;
-
-	/** Plugin icon (Iconify string) */
-	icon?: string;
-
-	/** Whether plugin is currently enabled globally */
-	enabled: boolean;
 }
 
 /**
@@ -38,23 +37,22 @@ export interface PluginMetadata {
  * Plugins use migrations to manage their database tables/collections
  */
 export interface PluginMigration {
+	/** Description of what this migration does */
+	description: string;
+
+	/** Rollback function (optional, for future use) */
+	down?: (dbAdapter: IDBAdapter) => Promise<void>;
 	/** Unique migration identifier (e.g., '001_create_results_table') */
 	id: string;
 
 	/** Plugin ID this migration belongs to */
 	pluginId: string;
 
-	/** Migration version (for ordering) */
-	version: number;
-
-	/** Description of what this migration does */
-	description: string;
-
 	/** Migration execution function */
 	up: (dbAdapter: IDBAdapter) => Promise<void>;
 
-	/** Rollback function (optional, for future use) */
-	down?: (dbAdapter: IDBAdapter) => Promise<void>;
+	/** Migration version (for ordering) */
+	version: number;
 }
 
 /**
@@ -62,11 +60,10 @@ export interface PluginMigration {
  * Defines both public and private settings for a plugin
  */
 export interface PluginConfig {
-	/** Public settings (visible to client) */
-	public?: Record<string, unknown>;
-
 	/** Private settings (server-only, e.g., API keys) */
 	private?: Record<string, unknown>;
+	/** Public settings (visible to client) */
+	public?: Record<string, unknown>;
 }
 
 /**
@@ -74,20 +71,19 @@ export interface PluginConfig {
  * Contains all information needed for language-aware, multi-tenant operations
  */
 export interface PluginContext {
-	/** Current user making the request */
-	user: User;
-
-	/** Tenant ID (or 'default' when MULTI_TENANT disabled) */
-	tenantId: string;
-
-	/** Content language from route params */
-	language: string;
+	/** Collection schema being viewed */
+	collectionSchema: Schema;
 
 	/** Database adapter for plugin operations */
 	dbAdapter: IDBAdapter;
 
-	/** Collection schema being viewed */
-	collectionSchema: Schema;
+	/** Content language from route params */
+	language: string;
+
+	/** Tenant ID (or 'default' when MULTI_TENANT disabled) */
+	tenantId: string;
+	/** Current user making the request */
+	user: User;
 }
 
 /**
@@ -95,11 +91,10 @@ export interface PluginContext {
  * Plugins return additional data to display in EntryList columns
  */
 export interface PluginEntryData {
-	/** Entry ID this data belongs to */
-	entryId: string;
-
 	/** Plugin-specific data (structure determined by plugin) */
 	data: Record<string, unknown>;
+	/** Entry ID this data belongs to */
+	entryId: string;
 
 	/** When this data was last updated */
 	updatedAt: ISODateString;
@@ -109,27 +104,26 @@ export interface PluginEntryData {
  * SSR hook for enriching entry list data
  * Called during +page.server.ts load to add plugin data to entries
  */
-export type PluginSSRHook = (context: PluginContext, entries: Array<Record<string, unknown>>) => Promise<PluginEntryData[]>;
+export type PluginSSRHook = (context: PluginContext, entries: Record<string, unknown>[]) => Promise<PluginEntryData[]>;
 
 // UI column definition for plugin data display
 export interface PluginColumn {
+	/** Svelte component to render cell content */
+	component?: string;
 	/** Column identifier */
 	id: string;
 
 	/** Column header label (localization key or static text) */
 	label: string;
 
-	/** Column width (CSS value) */
-	width?: string;
+	/** Props to pass to the component (keys map to entry properties) */
+	props?: Record<string, string>;
 
 	/** Whether column is sortable */
 	sortable?: boolean;
 
-	/** Svelte component to render cell content */
-	component?: string;
-
-	/** Props to pass to the component (keys map to entry properties) */
-	props?: Record<string, string>;
+	/** Column width (CSS value) */
+	width?: string;
 }
 
 /**
@@ -137,9 +131,6 @@ export interface PluginColumn {
  * Defines how plugin data appears in EntryList
  */
 export interface PluginUIContribution {
-	/** Additional columns to display */
-	columns?: PluginColumn[];
-
 	/** Actions/buttons to add per entry */
 	actions?: Array<{
 		id: string;
@@ -147,6 +138,8 @@ export interface PluginUIContribution {
 		icon?: string;
 		handler: string; // Name of the client-side action handler
 	}>;
+	/** Additional columns to display */
+	columns?: PluginColumn[];
 
 	/** Custom tabs/panels for the Edit Entry view */
 	editView?: {
@@ -156,7 +149,7 @@ export interface PluginUIContribution {
 			icon: string;
 			component: any; // Svelte component or loader path
 		}>;
-		sidebar?: Array<any>; // Svelte components
+		sidebar?: any[]; // Svelte components
 	};
 }
 
@@ -165,20 +158,20 @@ export type InjectionZone = 'dashboard' | 'sidebar' | 'entry_edit' | 'config' | 
 
 // Plugin Slot definition
 export interface PluginSlot {
-	id: string;
-	zone: InjectionZone;
-	position?: number;
 	component: () => Promise<any>; // Lazy loaded Svelte component
-	props?: Record<string, any>;
+	id: string;
 	permissions?: string[]; // RBAC roles
+	position?: number;
+	props?: Record<string, any>;
+	zone: InjectionZone;
 }
 
 // Lifecycle hooks for plugins to intercept CRUD operations
 export interface PluginLifecycleHooks {
-	beforeSave?: (context: PluginContext, collection: string, data: any) => Promise<any>;
+	afterDelete?: (context: PluginContext, collection: string, id: string) => Promise<void>;
 	afterSave?: (context: PluginContext, collection: string, result: any) => Promise<void>;
 	beforeDelete?: (context: PluginContext, collection: string, id: string) => Promise<void>;
-	afterDelete?: (context: PluginContext, collection: string, id: string) => Promise<void>;
+	beforeSave?: (context: PluginContext, collection: string, data: any) => Promise<any>;
 }
 
 /**
@@ -186,6 +179,14 @@ export interface PluginLifecycleHooks {
  * Registered plugins must implement this interface
  */
 export interface Plugin {
+	/** Plugin configuration schema */
+	config?: PluginConfig;
+
+	/** Which collections this plugin is enabled for (empty = all) */
+	enabledCollections?: string[]; // Collection IDs
+
+	/** Lifecycle hooks (CRUD interception) */
+	hooks?: PluginLifecycleHooks;
 	/** Plugin metadata */
 	metadata: PluginMetadata;
 
@@ -195,17 +196,8 @@ export interface Plugin {
 	/** SSR hook for data enrichment (optional) */
 	ssrHook?: PluginSSRHook;
 
-	/** Lifecycle hooks (CRUD interception) */
-	hooks?: PluginLifecycleHooks;
-
 	/** UI contributions (optional) */
 	ui?: PluginUIContribution;
-
-	/** Plugin configuration schema */
-	config?: PluginConfig;
-
-	/** Which collections this plugin is enabled for (empty = all) */
-	enabledCollections?: string[]; // Collection IDs
 }
 
 /**
@@ -213,9 +205,9 @@ export interface Plugin {
  * Tracks which plugins are registered and their state
  */
 export interface PluginRegistryEntry {
+	lastMigration?: string; // ID of last executed migration
 	plugin: Plugin;
 	registeredAt: ISODateString;
-	lastMigration?: string; // ID of last executed migration
 }
 
 /**
@@ -224,13 +216,13 @@ export interface PluginRegistryEntry {
  */
 export interface PluginMigrationRecord {
 	_id: DatabaseId;
-	pluginId: string;
-	migrationId: string;
-	version: number;
 	appliedAt: Date;
-	tenantId: string;
 	createdAt: ISODateString;
+	migrationId: string;
+	pluginId: string;
+	tenantId: string;
 	updatedAt: ISODateString;
+	version: number;
 }
 
 /**
@@ -239,11 +231,11 @@ export interface PluginMigrationRecord {
  */
 export interface PluginState extends BaseEntity {
 	_id: DatabaseId;
-	pluginId: string;
-	tenantId: string;
-	enabled: boolean;
-	settings?: Record<string, any>;
 	createdAt: ISODateString;
+	enabled: boolean;
+	pluginId: string;
+	settings?: Record<string, any>;
+	tenantId: string;
 	updatedAt: ISODateString;
 	updatedBy?: string;
 }
@@ -253,33 +245,32 @@ export interface PluginState extends BaseEntity {
  * Main API for interacting with the plugin system
  */
 export interface IPluginService {
-	/** Register a new plugin */
-	register(plugin: Plugin): Promise<DatabaseResult<void>>;
-
-	/** Get all registered plugins */
-	getAll(): Plugin[];
-
 	/** Get a specific plugin by ID */
 	get(pluginId: string): Plugin | undefined;
 
-	/** Run pending migrations for a plugin */
-	runMigrations(pluginId: string, dbAdapter: IDBAdapter, tenantId: string): Promise<DatabaseResult<void>>;
-
-	/** Run all pending migrations for all plugins */
-	runAllMigrations(dbAdapter: IDBAdapter, tenantId: string): Promise<DatabaseResult<void>>;
-
-	/** Get SSR hooks for enabled plugins on a collection */
-	getSSRHooks(collectionId: string, tenantId?: string): Promise<PluginSSRHook[]>;
+	/** Get all registered plugins */
+	getAll(): Plugin[];
 
 	/** Get Lifecycle hooks for enabled plugins on a collection */
 	getLifecycleHooks<K extends keyof PluginLifecycleHooks>(
 		collectionId: string,
 		hookName: K,
 		tenantId?: string
-	): Promise<Array<Exclude<PluginLifecycleHooks[K], undefined>>>;
+	): Promise<Exclude<PluginLifecycleHooks[K], undefined>[]>;
+
+	/** Get SSR hooks for enabled plugins on a collection */
+	getSSRHooks(collectionId: string, tenantId?: string): Promise<PluginSSRHook[]>;
 
 	/** Check if a plugin is enabled for a collection */
 	isEnabledForCollection(pluginId: string, collectionId: string, tenantId?: string): Promise<boolean>;
+	/** Register a new plugin */
+	register(plugin: Plugin): Promise<DatabaseResult<void>>;
+
+	/** Run all pending migrations for all plugins */
+	runAllMigrations(dbAdapter: IDBAdapter, tenantId: string): Promise<DatabaseResult<void>>;
+
+	/** Run pending migrations for a plugin */
+	runMigrations(pluginId: string, dbAdapter: IDBAdapter, tenantId: string): Promise<DatabaseResult<void>>;
 
 	/** Toggle plugin enabled state */
 	togglePlugin(pluginId: string, enabled: boolean, tenantId: string, userId?: string): Promise<boolean>;

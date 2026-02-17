@@ -6,8 +6,8 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import { toTreeViewData, toFlatContentNodes, fromTreeViewData, recalculatePaths, type TreeViewItem } from '../../../src/utils/treeViewAdapter';
 import type { ContentNode } from '../../../src/content/types';
+import { fromTreeViewData, recalculatePaths, type TreeViewItem, toFlatContentNodes, toTreeViewData } from '../../../src/utils/treeViewAdapter';
 
 // Mock ContentNode data for testing
 // Uses Record type to avoid branded type issues in test code
@@ -227,7 +227,7 @@ describe('TreeView Adapter', () => {
 			expect(result).toHaveLength(1);
 			expect(result[0]._id).toBe('cat1' as any);
 			expect(result[0].children).toHaveLength(1);
-			expect(result[0].children![0]._id).toBe('col1' as any);
+			expect(result[0].children?.[0]._id).toBe('col1' as any);
 		});
 
 		test('should handle orphaned nodes by placing at root', () => {

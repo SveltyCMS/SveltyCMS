@@ -4,17 +4,17 @@
  * Handles EventSource connection to the SSE endpoint and manages activity logs.
  */
 
-import { toaster } from '@src/stores/store.svelte';
 import type { AutomationEventPayload } from '@src/services/automation/types';
-import { browser } from '$app/environment';
+import { collections } from '@src/stores/collectionStore.svelte';
+import { toaster } from '@src/stores/store.svelte';
 import { isReady } from '@src/stores/system/state';
 import { ui } from '@src/stores/UIStore.svelte';
 import { get } from 'svelte/store';
-import { collections } from '@src/stores/collectionStore.svelte';
+import { browser } from '$app/environment';
 
 export interface Message {
-	role: 'user' | 'assistant' | 'system';
 	content: string;
+	role: 'user' | 'assistant' | 'system';
 	timestamp: string;
 	user?: {
 		_id: string;
@@ -36,7 +36,7 @@ class CollaborationStore {
 
 	private eventSource: EventSource | null = null;
 	private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
-	private effectCleanup?: () => void;
+	private readonly effectCleanup?: () => void;
 
 	constructor() {
 		if (browser) {
@@ -67,10 +67,8 @@ class CollaborationStore {
 						if (this.currentRoom !== room) {
 							this.joinRoom(room);
 						}
-					} else {
-						if (this.currentRoom !== null) {
-							this.joinRoom(null);
-						}
+					} else if (this.currentRoom !== null) {
+						this.joinRoom(null);
 					}
 				});
 			});
@@ -99,7 +97,9 @@ class CollaborationStore {
 	 * Establishes SSE connection to the server
 	 */
 	connect() {
-		if (!browser || this.eventSource || !get(isReady)) return;
+		if (!browser || this.eventSource || !get(isReady)) {
+			return;
+		}
 
 		console.debug('RTC: Establishing connection...');
 		this.eventSource = new EventSource('/api/events');
@@ -117,7 +117,9 @@ class CollaborationStore {
 		this.eventSource.onmessage = (event) => {
 			try {
 				const data = JSON.parse(event.data);
-				if (data.type === 'connected') return;
+				if (data.type === 'connected') {
+					return;
+				}
 				this.handleEvent(data as AutomationEventPayload);
 			} catch (err) {
 				console.error('RTC: Failed to parse event data', err);
@@ -205,14 +207,14 @@ class CollaborationStore {
 		const text = (payload.data?.text as string) || '';
 		const isDone = payload.data?.done === true;
 
-		if (this.aiHistory.length === 0 || this.aiHistory[this.aiHistory.length - 1].role !== 'assistant') {
+		if (this.aiHistory.length === 0 || this.aiHistory.at(-1).role !== 'assistant') {
 			this.aiHistory.push({
 				role: 'assistant',
 				content: text,
 				timestamp: new Date().toISOString()
 			});
 		} else {
-			this.aiHistory[this.aiHistory.length - 1].content += text;
+			this.aiHistory.at(-1).content += text;
 		}
 
 		this.isTyping = !isDone;
@@ -231,7 +233,7 @@ class CollaborationStore {
 		if (ui.state.chatPanel === 'hidden') {
 			toaster.info({
 				title: `Message from ${msg.user?.username || 'User'}`,
-				description: msg.content.length > 50 ? msg.content.substring(0, 50) + '...' : msg.content
+				description: msg.content.length > 50 ? `${msg.content.substring(0, 50)}...` : msg.content
 			});
 		}
 	}
@@ -240,7 +242,9 @@ class CollaborationStore {
 	 * Send a message to the AI or Room
 	 */
 	async sendMessage(content: string) {
-		if (!content.trim()) return;
+		if (!content.trim()) {
+			return;
+		}
 
 		// Local optimistic update for AI chat
 		if (this.activeTab === 'chat' && !this.currentRoom) {
@@ -263,7 +267,9 @@ class CollaborationStore {
 				})
 			});
 
-			if (!res.ok) throw new Error('Failed to send message');
+			if (!res.ok) {
+				throw new Error('Failed to send message');
+			}
 		} catch (err) {
 			console.error('RTC: Send message error', err);
 			toaster.error({ title: 'Error', description: 'Failed to send message' });

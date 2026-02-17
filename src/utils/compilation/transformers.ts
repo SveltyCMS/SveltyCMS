@@ -17,15 +17,14 @@ export const widgetTransformer: ts.TransformerFactory<ts.SourceFile> = (context)
 			// Check named imports for 'widgets' alias
 			if (node.importClause?.namedBindings && ts.isNamedImports(node.importClause.namedBindings)) {
 				const hasWidgetsAlias = node.importClause.namedBindings.elements.some((element) => element.name.text === 'widgets');
-				if (hasWidgetsAlias) {
-					if (
-						moduleSpecifier.includes('@stores/widgetStore.svelte.ts') ||
+				if (
+					hasWidgetsAlias &&
+					(moduleSpecifier.includes('@stores/widgetStore.svelte.ts') ||
 						moduleSpecifier.includes('@src/widgets/proxy') ||
 						moduleSpecifier.includes('widgets/proxy') ||
-						/widgets/.test(moduleSpecifier)
-					) {
-						removeImport = true;
-					}
+						/widgets/.test(moduleSpecifier))
+				) {
+					removeImport = true;
 				}
 			}
 
@@ -35,16 +34,16 @@ export const widgetTransformer: ts.TransformerFactory<ts.SourceFile> = (context)
 		}
 
 		// 2. Replace standalone `widgets` identifier with `globalThis.widgets`
-		if (ts.isIdentifier(node) && node.text === 'widgets') {
-			if (
-				!ts.isPropertyAccessExpression(node.parent) ||
+		if (
+			ts.isIdentifier(node) &&
+			node.text === 'widgets' &&
+			(!ts.isPropertyAccessExpression(node.parent) ||
 				(ts.isPropertyAccessExpression(node.parent) && node.parent.name !== node) ||
 				(ts.isPropertyAccessExpression(node.parent) &&
 					node.parent.expression.kind !== ts.SyntaxKind.ThisKeyword &&
-					(!ts.isIdentifier(node.parent.expression) || node.parent.expression.text !== 'globalThis'))
-			) {
-				return ts.factory.createPropertyAccessExpression(ts.factory.createIdentifier('globalThis'), ts.factory.createIdentifier('widgets'));
-			}
+					(!ts.isIdentifier(node.parent.expression) || node.parent.expression.text !== 'globalThis')))
+		) {
+			return ts.factory.createPropertyAccessExpression(ts.factory.createIdentifier('globalThis'), ts.factory.createIdentifier('widgets'));
 		}
 
 		// 3. Inject UUID into widget calls
@@ -80,12 +79,11 @@ export const addJsExtensionTransformer: ts.TransformerFactory<ts.SourceFile> = (
 		if ((ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) && node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier)) {
 			const specifier = node.moduleSpecifier.text;
 			if (specifier.startsWith('.') && !specifier.endsWith('.js') && !specifier.endsWith('.json')) {
-				const newSpecifier = ts.factory.createStringLiteral(specifier + '.js');
+				const newSpecifier = ts.factory.createStringLiteral(`${specifier}.js`);
 				if (ts.isImportDeclaration(node)) {
 					return ts.factory.updateImportDeclaration(node, node.modifiers, node.importClause, newSpecifier, node.assertClause);
-				} else {
-					return ts.factory.updateExportDeclaration(node, node.modifiers, node.isTypeOnly, node.exportClause, newSpecifier, node.assertClause);
 				}
+				return ts.factory.updateExportDeclaration(node, node.modifiers, node.isTypeOnly, node.exportClause, newSpecifier, node.assertClause);
 			}
 		}
 		return ts.visitEachChild(node, visitor, context);

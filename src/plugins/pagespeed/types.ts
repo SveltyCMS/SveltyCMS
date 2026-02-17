@@ -7,26 +7,26 @@ import type { DatabaseId, ISODateString } from '@databases/dbInterface';
 // PageSpeed result stored in database
 export interface PageSpeedResult {
 	_id: DatabaseId;
-	entryId: string;
-	collectionId: string;
-	tenantId: string;
-	language: string;
-	device: 'mobile' | 'desktop';
-	url: string;
-
-	// Core Web Vitals
-	performanceScore?: number; // 0-100
-	fcp?: number; // First Contentful Paint (ms)
-	lcp?: number; // Largest Contentful Paint (ms)
 	cls?: number; // Cumulative Layout Shift
-	tti?: number; // Time to Interactive (ms)
-	tbt?: number; // Total Blocking Time (ms)
-	si?: number; // Speed Index (ms)
+	collectionId: string;
+	createdAt: ISODateString;
+	device: 'mobile' | 'desktop';
+	entryId: string;
+	fcp?: number; // First Contentful Paint (ms)
 
 	// Metadata
 	fetchedAt: Date;
-	createdAt: ISODateString;
+	language: string;
+	lcp?: number; // Largest Contentful Paint (ms)
+
+	// Core Web Vitals
+	performanceScore?: number; // 0-100
+	si?: number; // Speed Index (ms)
+	tbt?: number; // Total Blocking Time (ms)
+	tenantId: string;
+	tti?: number; // Time to Interactive (ms)
 	updatedAt: ISODateString;
+	url: string;
 }
 
 // Google PageSpeed API response (simplified)

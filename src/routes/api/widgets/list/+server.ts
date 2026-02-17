@@ -3,15 +3,13 @@
  * @description API endpoint for listing all widgets with 3-pillar architecture metadata
  */
 
-import { json } from '@sveltejs/kit';
-
-import { logger } from '@utils/logger.server';
 import { hasPermissionWithRoles } from '@src/databases/auth/permissions';
-import { widgets, getWidgetDependencies } from '@stores/widgetStore.svelte.ts';
-
+import { getWidgetDependencies, widgets } from '@stores/widgetStore.svelte.ts';
+import { json } from '@sveltejs/kit';
 // Unified Error Handling
 import { apiHandler } from '@utils/apiHandler';
 import { AppError } from '@utils/errorHandling';
+import { logger } from '@utils/logger.server';
 
 export const GET = apiHandler(async ({ url, locals }) => {
 	const start = performance.now();
@@ -91,8 +89,12 @@ export const GET = apiHandler(async ({ url, locals }) => {
 			};
 		}); // Sort: core first, then alphabetically
 		widgetList.sort((a, b) => {
-			if (a.isCore && !b.isCore) return -1;
-			if (!a.isCore && b.isCore) return 1;
+			if (a.isCore && !b.isCore) {
+				return -1;
+			}
+			if (!a.isCore && b.isCore) {
+				return 1;
+			}
 			return a.name.localeCompare(b.name);
 		});
 
@@ -124,7 +126,9 @@ export const GET = apiHandler(async ({ url, locals }) => {
 		const duration = performance.now() - start;
 		const message = `Failed to get widget list: ${err instanceof Error ? err.message : String(err)}`;
 		logger.error(message, { duration: `${duration.toFixed(2)}ms`, stack: err instanceof Error ? err.stack : undefined });
-		if (err instanceof AppError) throw err;
+		if (err instanceof AppError) {
+			throw err;
+		}
 		throw new AppError(message, 500, 'GET_WIDGET_LIST_FAILED');
 	}
 });

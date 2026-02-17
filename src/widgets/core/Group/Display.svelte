@@ -28,9 +28,9 @@ Renders grouped content in a read-only display format with collapsible functiona
 	import type { FieldType, GroupWidgetData } from './';
 
 	interface Props {
+		children?: any;
 		field: FieldType;
 		value: GroupWidgetData | null | undefined;
-		children?: any;
 	}
 
 	const { field, value, children }: Props = $props();
@@ -62,7 +62,7 @@ Renders grouped content in a read-only display format with collapsible functiona
 	let localIsCollapsed = $state<boolean | undefined>(undefined);
 	let isCollapsed = {
 		get value() {
-			return localIsCollapsed ?? ((field.collapsed as boolean) || false);
+			return localIsCollapsed ?? (field.collapsed as boolean);
 		},
 		set value(v: boolean) {
 			localIsCollapsed = v;
@@ -104,9 +104,7 @@ Renders grouped content in a read-only display format with collapsible functiona
 				onkeydown={handleKeyDown}
 			>
 				{#if field.groupTitle}
-					<h4 class="m-0 text-base font-semibold text-gray-900 dark:text-gray-100">
-						{field.groupTitle}
-					</h4>
+					<h4 class="m-0 text-base font-semibold text-gray-900 dark:text-gray-100">{field.groupTitle}</h4>
 				{/if}
 
 				<div class="transition-transform duration-200 ease-in-out {isCollapsed.value ? 'rotate-180' : ''}">
@@ -116,9 +114,7 @@ Renders grouped content in a read-only display format with collapsible functiona
 		{:else}
 			<div class="flex items-center justify-between p-3 {variant.header}">
 				{#if field.groupTitle}
-					<h4 class="m-0 text-base font-semibold text-gray-900 dark:text-gray-100">
-						{field.groupTitle}
-					</h4>
+					<h4 class="m-0 text-base font-semibold text-gray-900 dark:text-gray-100">{field.groupTitle}</h4>
 				{/if}
 			</div>
 		{/if}

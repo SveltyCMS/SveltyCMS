@@ -24,28 +24,26 @@ This component provides a user interface for managing 2FA settings:
 -->
 
 <script lang="ts">
-	import { invalidateAll } from '$app/navigation';
 	import type { User } from '@src/databases/auth/types';
+	// ParaglideJS
+	import * as m from '@src/paraglide/messages';
+	import { toaster } from '@stores/store.svelte.ts';
+	import { logger } from '@utils/logger';
+	import { invalidateAll } from '$app/navigation';
 	// Skeleton & Stores
 	// getModalStore deprecated - use modalState from @utils/modalState.svelte;
 	import TwoFactorVerifyModal from './TwoFactorVerifyModal.svelte';
 
-	// ParaglideJS
-	import * as m from '@src/paraglide/messages';
-
-	import { logger } from '@utils/logger';
-	import { toaster } from '@stores/store.svelte.ts';
-
 	interface Props {
+		body?: string;
+		close?: (result?: any) => void;
 		parent?: {
 			regionFooter?: string;
 			onClose?: (event: MouseEvent) => void;
 			buttonPositive?: string;
 		};
-		user?: User;
 		title?: string;
-		body?: string;
-		close?: (result?: any) => void;
+		user?: User;
 	}
 
 	const { user, title, body, close }: Props = $props();
@@ -57,11 +55,11 @@ This component provides a user interface for managing 2FA settings:
 	let verificationCode = $state('');
 
 	// Check if 2FA is enabled
-	const is2FAEnabled = $derived(user?.is2FAEnabled || false);
+	const is2FAEnabled = $derived(user?.is2FAEnabled);
 
 	// Load setup data when modal opens if 2FA is not enabled
 	$effect(() => {
-		if (!is2FAEnabled && !setupData) {
+		if (!(is2FAEnabled || setupData)) {
 			loadSetupData();
 		}
 	});
@@ -223,21 +221,15 @@ This component provides a user interface for managing 2FA settings:
 
 <!-- Main Modal Component -->
 <div class="modal-2fa space-y-3">
-	<header class={`text-center text-primary-500 ${cHeader} shrink-0`}>
-		{title ?? m.twofa_title()}
-	</header>
+	<header class={`text-center text-primary-500 ${cHeader} shrink-0`}>{title ?? m.twofa_title()}</header>
 
-	<article class="shrink-0 text-center text-sm">
-		{body ?? m.twofa_description()}
-	</article>
+	<article class="shrink-0 text-center text-sm">{body ?? m.twofa_description()}</article>
 
 	<form class="modal-form {cForm} max-h-[60vh]">
 		<!-- Status Section -->
 		<div class="mb-4 flex items-center justify-between rounded-lg bg-surface-100 p-3 dark:bg-surface-700">
 			<div class="flex items-center gap-3">
-				<div class="rounded-lg bg-primary-500/10 p-2 dark:bg-primary-500/20">
-					<iconify-icon icon="mdi:shield-check" width={24}></iconify-icon>
-				</div>
+				<div class="rounded-lg bg-primary-500/10 p-2 dark:bg-primary-500/20"><iconify-icon icon="mdi:shield-check" width={24}></iconify-icon></div>
 				<div>
 					<p class="text-sm font-semibold">{m.twofa_title()}</p>
 					<p class="text-xs text-surface-600 dark:text-surface-300">{m.twofa_description()}</p>
@@ -271,7 +263,7 @@ This component provides a user interface for managing 2FA settings:
 						<!-- QR Code -->
 						<div class="flex justify-center rounded-lg bg-white p-2 dark:bg-white">
 							{#if setupData.qrCodeUrl}
-								<img src={setupData.qrCodeUrl} alt="2FA QR Code" class="h-32 w-32" />
+								<img src={setupData.qrCodeUrl} alt="2FA QR Code" class="h-32 w-32">
 							{:else}
 								<div class="flex h-32 w-32 items-center justify-center bg-surface-200">
 									<p class="text-xs text-surface-600">QR Code</p>
@@ -287,9 +279,7 @@ This component provides a user interface for managing 2FA settings:
 							{m.twofa_show_secret()}
 						</h4>
 						<p class="text-sm text-surface-600 dark:text-surface-300">{m.twofa_manual_entry_description()}</p>
-						<div class="rounded-lg bg-surface-100 p-3 dark:bg-surface-700">
-							<code class="break-all text-sm">{setupData.secret}</code>
-						</div>
+						<div class="rounded-lg bg-surface-100 p-3 dark:bg-surface-700"><code class="break-all text-sm">{setupData.secret}</code></div>
 					</div>
 
 					<!-- Step 3: Verify -->
@@ -312,7 +302,7 @@ This component provides a user interface for managing 2FA settings:
 									const target = e.target as HTMLInputElement;
 									target.value = target.value.replace(/\D/g, '');
 								}}
-							/>
+							>
 						</label>
 					</div>
 
@@ -344,9 +334,7 @@ This component provides a user interface for managing 2FA settings:
 						<p class="mb-3 text-sm">{m.twofa_backup_codes_description()}</p>
 						<div class="mb-3 grid grid-cols-2 gap-2 font-mono text-sm">
 							{#each backupCodes as code, index (index)}
-								<div class="rounded bg-surface-200 p-2 text-center dark:bg-surface-700">
-									{code}
-								</div>
+								<div class="rounded bg-surface-200 p-2 text-center dark:bg-surface-700">{code}</div>
 							{/each}
 						</div>
 						<p class="text-sm text-warning-600 dark:text-warning-400">
@@ -361,9 +349,7 @@ This component provides a user interface for managing 2FA settings:
 
 	<footer class="modal-footer mt-4 flex shrink-0 justify-end gap-2 pt-4 border-t border-surface-500/20">
 		<!-- Close button -->
-		<button class="preset-outlined-secondary-500 btn" onclick={() => close?.()} disabled={isLoading}>
-			{m.button_cancel()}
-		</button>
+		<button class="preset-outlined-secondary-500 btn" onclick={() => close?.()} disabled={isLoading}>{m.button_cancel()}</button>
 
 		<!-- Action buttons -->
 		{#if !is2FAEnabled && setupData}

@@ -19,7 +19,7 @@ import type { FieldInstance } from '@src/content/types';
 import * as m from '@src/paraglide/messages';
 import { createWidget } from '@src/widgets/widgetFactory';
 import { literal, optional, union, type InferInput as ValibotInput } from 'valibot';
-import type { RadioProps, RadioOption } from './types';
+import type { RadioOption, RadioProps } from './types';
 
 // The validation schema is a function that generates rules based on the configured options.
 const validationSchema = (field: FieldInstance & RadioProps) => {

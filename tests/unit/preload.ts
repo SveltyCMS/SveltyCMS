@@ -4,9 +4,9 @@
  * and mock SvelteKit virtual modules for testing
  */
 
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { plugin } from 'bun';
-import { join } from 'path';
-import { readFileSync } from 'fs';
 
 // Load .env.test for test environment
 const envPath = join(process.cwd(), '.env.test');

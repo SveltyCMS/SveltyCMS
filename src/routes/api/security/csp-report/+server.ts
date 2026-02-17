@@ -12,26 +12,26 @@
  * @security This endpoint helps monitor XSS attempts and policy violations
  */
 
-import { json, type RequestHandler } from '@sveltejs/kit';
 import { metricsService } from '@src/services/MetricsService';
+import { json, type RequestHandler } from '@sveltejs/kit';
 import { logger } from '@utils/logger.server';
 import { dev } from '$app/environment';
 
 // --- TYPES ---
 
 interface CSPViolationReport {
-	'document-uri': string;
-	referrer: string;
-	'violated-directive': string;
-	'effective-directive': string;
-	'original-policy': string;
-	disposition: 'enforce' | 'report';
 	'blocked-uri': string;
-	'line-number': number;
 	'column-number': number;
+	disposition: 'enforce' | 'report';
+	'document-uri': string;
+	'effective-directive': string;
+	'line-number': number;
+	'original-policy': string;
+	referrer: string;
+	'script-sample': string;
 	'source-file': string;
 	'status-code': number;
-	'script-sample': string;
+	'violated-directive': string;
 }
 
 interface CSPReportPayload {
@@ -44,10 +44,14 @@ interface CSPReportPayload {
  * Validates that the incoming report has the expected CSP format.
  */
 function isValidCSPReport(data: unknown): data is CSPReportPayload {
-	if (!data || typeof data !== 'object') return false;
+	if (!data || typeof data !== 'object') {
+		return false;
+	}
 
 	const report = (data as CSPReportPayload)['csp-report'];
-	if (!report || typeof report !== 'object') return false;
+	if (!report || typeof report !== 'object') {
+		return false;
+	}
 
 	// Check for required fields
 	return (

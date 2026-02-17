@@ -3,9 +3,9 @@
  * @description API endpoint for browsing marketplace widgets
  */
 
+import { hasPermissionWithRoles } from '@src/databases/auth/permissions';
 import { json } from '@sveltejs/kit';
 import { logger } from '@utils/logger.server';
-import { hasPermissionWithRoles } from '@src/databases/auth/permissions';
 
 // Mock marketplace widgets - replace with actual marketplace API integration
 const MARKETPLACE_WIDGETS = [
@@ -159,8 +159,8 @@ export const GET = apiHandler(async ({ url, locals }) => {
 					comparison = a.downloads - b.downloads;
 					break;
 				case 'price': {
-					const priceA = a.price === 'Free' ? 0 : parseFloat(a.price.replace('$', ''));
-					const priceB = b.price === 'Free' ? 0 : parseFloat(b.price.replace('$', ''));
+					const priceA = a.price === 'Free' ? 0 : Number.parseFloat(a.price.replace('$', ''));
+					const priceB = b.price === 'Free' ? 0 : Number.parseFloat(b.price.replace('$', ''));
 					comparison = priceA - priceB;
 					break;
 				}
@@ -182,7 +182,9 @@ export const GET = apiHandler(async ({ url, locals }) => {
 			}
 		});
 	} catch (err) {
-		if (err instanceof AppError) throw err;
+		if (err instanceof AppError) {
+			throw err;
+		}
 		const message = `Failed to get marketplace widgets: ${err instanceof Error ? err.message : String(err)}`;
 		logger.error(message);
 		throw new AppError(message, 500, 'MARKETPLACE_ERROR');

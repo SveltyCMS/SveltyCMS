@@ -14,13 +14,17 @@
 
 import * as m from '@src/paraglide/messages';
 import { createWidget } from '@src/widgets/widgetFactory';
+
 // import Checkbox from '@src/widgets/core/Checkbox/index';
 // import Input from '@src/widgets/core/Input/index';
 
 // Type for aggregation field parameter
-type AggregationField = { db_fieldName: string; [key: string]: unknown };
+interface AggregationField {
+	db_fieldName: string;
+	[key: string]: unknown;
+}
 
-import { array, minLength, optional, pipe, string, type BaseIssue, type BaseSchema, type InferInput as ValibotInput } from 'valibot';
+import { array, type BaseIssue, type BaseSchema, minLength, optional, pipe, string, type InferInput as ValibotInput } from 'valibot';
 import type { MediaProps } from './types';
 
 // ✅ SSOT: Validation Schema - Exported for use in Input.svelte
@@ -59,13 +63,17 @@ const MediaWidget = createWidget<MediaProps>({
 		if (import.meta.env.SSR) {
 			const accessor = data as any;
 			const value = accessor.get();
-			if (!value) return {};
+			if (!value) {
+				return {};
+			}
 
 			// We only process if it's a File object (meaning it's a new upload)
 			if (value instanceof File) {
 				const { MediaService } = await import('@src/utils/media/mediaService.server');
 				const { dbAdapter } = await import('@src/databases/db');
-				if (!dbAdapter) throw new Error('Database adapter not available');
+				if (!dbAdapter) {
+					throw new Error('Database adapter not available');
+				}
 
 				const mediaService = new MediaService(dbAdapter);
 				const f = field as any;
@@ -83,7 +91,9 @@ const MediaWidget = createWidget<MediaProps>({
 				const processedIds: string[] = [];
 				const { MediaService } = await import('@src/utils/media/mediaService.server');
 				const { dbAdapter } = await import('@src/databases/db');
-				if (!dbAdapter) throw new Error('Database adapter not available');
+				if (!dbAdapter) {
+					throw new Error('Database adapter not available');
+				}
 				const mediaService = new MediaService(dbAdapter);
 				const f = field as any;
 

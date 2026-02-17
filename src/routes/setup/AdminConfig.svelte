@@ -21,11 +21,11 @@
 
 -->
 <script lang="ts">
+	import SystemTooltip from '@components/system/SystemTooltip.svelte';
 	import * as m from '@src/paraglide/messages';
 	import type { ValidationErrors } from '@stores/setupStore.svelte.ts';
-	import { safeParse } from 'valibot';
 	import { setupAdminSchema } from '@utils/formSchemas';
-	import SystemTooltip from '@components/system/SystemTooltip.svelte';
+	import { safeParse } from 'valibot';
 
 	// Props from parent
 	let {
@@ -128,11 +128,9 @@
 					aria-invalid={!!displayErrors.username}
 					aria-describedby={displayErrors.username ? 'admin-username-error' : undefined}
 					aria-required="true"
-				/>
+				>
 				{#if displayErrors.username}
-					<div id="admin-username-error" class="mt-1 text-xs text-error-500" role="alert">
-						{displayErrors.username}
-					</div>
+					<div id="admin-username-error" class="mt-1 text-xs text-error-500" role="alert">{displayErrors.username}</div>
 				{/if}
 			</div>
 
@@ -170,11 +168,9 @@
 					aria-invalid={!!displayErrors.email}
 					aria-describedby={displayErrors.email ? 'admin-email-error' : undefined}
 					aria-required="true"
-				/>
+				>
 				{#if displayErrors.email}
-					<div id="admin-email-error" class="mt-1 text-xs text-error-500" role="alert">
-						{displayErrors.email}
-					</div>
+					<div id="admin-email-error" class="mt-1 text-xs text-error-500" role="alert">{displayErrors.email}</div>
 				{/if}
 			</div>
 
@@ -208,7 +204,7 @@
 						aria-invalid={!!displayErrors.password}
 						aria-describedby={displayErrors.password ? 'admin-password-error' : undefined}
 						aria-required="true"
-					/>
+					>
 					<button
 						type="button"
 						tabindex="-1"
@@ -220,9 +216,7 @@
 					</button>
 				</div>
 				{#if displayErrors.password}
-					<div id="admin-password-error" class="mt-1 text-xs text-error-500" role="alert">
-						{displayErrors.password}
-					</div>
+					<div id="admin-password-error" class="mt-1 text-xs text-error-500" role="alert">{displayErrors.password}</div>
 				{/if}
 			</div>
 
@@ -256,7 +250,7 @@
 						aria-invalid={!!displayErrors.confirmPassword}
 						aria-describedby={displayErrors.confirmPassword ? 'admin-confirm-password-error' : undefined}
 						aria-required="true"
-					/>
+					>
 					<button
 						type="button"
 						tabindex="-1"
@@ -268,9 +262,7 @@
 					</button>
 				</div>
 				{#if displayErrors.confirmPassword}
-					<div id="admin-confirm-password-error" class="mt-1 text-xs text-error-500" role="alert">
-						{displayErrors.confirmPassword}
-					</div>
+					<div id="admin-confirm-password-error" class="mt-1 text-xs text-error-500" role="alert">{displayErrors.confirmPassword}</div>
 				{/if}
 			</div>
 		</div>

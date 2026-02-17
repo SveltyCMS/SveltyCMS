@@ -192,7 +192,7 @@ bun run dev  # or npm run dev / pnpm run dev
 
 ### Development and Production
 
-See our `package.json` for more information about development, build, preview, format, lint & testing commands.
+See our `package.json` for more information about development, build, preview, fast Biome formatting, hybrid Biome/ESLint linting & testing commands.
 
 - Development server runs on `localhost:5173`
 - Preview server runs on `localhost:4173`
@@ -351,7 +351,7 @@ Please also read our [Code of Conduct](https://github.com/SveltyCMS/SveltyCMS/bl
 
 If your PR makes a change that should be noted in one or more packages' changelogs, generate a changeset by running `pnpm changeset` and following the prompts. Changesets that add features should be `minor` and those that fix bugs should be `patch`.
 
-Run the tests with `pnpm test` and lint the project with `pnpm lint` and `pnpm check`.
+Run the tests with `pnpm test` and lint the project with `pnpm lint` (Hybrid Biome/ESLint) and `pnpm check`.
 
 Please prefix changeset messages with `feat:`, `fix:`, or `chore:`.
 

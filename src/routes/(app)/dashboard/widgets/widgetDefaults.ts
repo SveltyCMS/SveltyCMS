@@ -13,11 +13,11 @@
 export type WidgetCategory = 'monitoring' | 'logs' | 'content' | 'static';
 
 export interface WidgetDefaults {
-	showRefreshButton: boolean;
 	cacheKey?: (widgetId: string) => string;
 	cacheTTL?: number;
 	retryCount: number;
 	retryDelay: number;
+	showRefreshButton: boolean;
 }
 
 export const WIDGET_DEFAULTS: Record<WidgetCategory, WidgetDefaults> = {
@@ -41,7 +41,7 @@ export const WIDGET_DEFAULTS: Record<WidgetCategory, WidgetDefaults> = {
 	content: {
 		showRefreshButton: false,
 		cacheKey: (id: string) => `content-${id}`,
-		cacheTTL: 120000, // 2 minutes
+		cacheTTL: 120_000, // 2 minutes
 		retryCount: 3,
 		retryDelay: 1000
 	},
@@ -50,7 +50,7 @@ export const WIDGET_DEFAULTS: Record<WidgetCategory, WidgetDefaults> = {
 	static: {
 		showRefreshButton: false,
 		cacheKey: (id: string) => `static-${id}`,
-		cacheTTL: 300000, // 5 minutes
+		cacheTTL: 300_000, // 5 minutes
 		retryCount: 3,
 		retryDelay: 2000
 	}

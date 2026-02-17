@@ -4,10 +4,10 @@
  */
 
 export interface AspectRatioPreset {
+	description?: string;
+	icon?: string;
 	label: string;
 	value: number | null;
-	icon?: string;
-	description?: string;
 }
 
 /**
@@ -32,10 +32,12 @@ export const ASPECT_RATIO_PRESETS: AspectRatioPreset[] = [
  * @returns Numeric ratio or null for free aspect
  */
 export function parseAspectRatio(ratio: string | null): number | null {
-	if (!ratio || ratio === 'free') return null;
+	if (!ratio || ratio === 'free') {
+		return null;
+	}
 
 	// Handle decimal format (e.g., "2.35")
-	const decimal = parseFloat(ratio);
+	const decimal = Number.parseFloat(ratio);
 	if (!Number.isNaN(decimal) && decimal > 0) {
 		return decimal;
 	}
@@ -56,11 +58,15 @@ export function parseAspectRatio(ratio: string | null): number | null {
  * @returns Formatted string (e.g., "16:9")
  */
 export function formatAspectRatio(ratio: number | null): string {
-	if (ratio === null) return 'free';
+	if (ratio === null) {
+		return 'free';
+	}
 
 	// Find exact match in presets
 	const preset = ASPECT_RATIO_PRESETS.find((p) => p.value === ratio);
-	if (preset) return preset.label;
+	if (preset) {
+		return preset.label;
+	}
 
 	// Try to find simple ratio
 	for (let denominator = 1; denominator <= 20; denominator++) {
@@ -79,10 +85,12 @@ export function formatAspectRatio(ratio: number | null): string {
  */
 export function getClosestPreset(ratio: number): AspectRatioPreset {
 	let closest = ASPECT_RATIO_PRESETS[0];
-	let minDiff = Infinity;
+	let minDiff = Number.POSITIVE_INFINITY;
 
 	for (const preset of ASPECT_RATIO_PRESETS) {
-		if (preset.value === null) continue;
+		if (preset.value === null) {
+			continue;
+		}
 		const diff = Math.abs(preset.value - ratio);
 		if (diff < minDiff) {
 			minDiff = diff;

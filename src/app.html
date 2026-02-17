@@ -1,8 +1,9 @@
 <!doctype html>
 <html lang="en" dir="ltr" class="dark">
 	<head>
-		<meta charset="utf-8" />
+		<meta charset="utf-8">
 		<script nonce="%sveltekit.nonce%">
+			'use strict';
 			// Theme initialization (before page render to prevent flicker)
 			(() => {
 				const c = document.cookie.match(/theme=(\w+)/)?.[1];
@@ -34,15 +35,16 @@
 				}
 			})();
 		</script>
-		<link rel="icon" href="%sveltekit.assets%/SveltyCMS_Logo.svg" />
-		<link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5" />
+		<link rel="icon" href="%sveltekit.assets%/SveltyCMS_Logo.svg">
+		<link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5">
 
-		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
 		%sveltekit.head%
 		<!-- Custom CSS injection point for dynamic styles -->
 		<style nonce="%sveltekit.nonce%">
-			%sveltekit.customCss%
+			%
+			sveltekit.customCss 
+			%
 		</style>
 	</head>
 

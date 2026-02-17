@@ -20,16 +20,15 @@
  *
  * The model ensures data integrity and provides utility methods for managing virtual folders.
  */
-import mongoose, { Schema } from 'mongoose';
-import type { Model } from 'mongoose';
-import type { SystemVirtualFolder, DatabaseResult } from '@src/databases/dbInterface';
+
+import type { DatabaseResult, SystemVirtualFolder } from '@src/databases/dbInterface';
 import { generateId } from '@src/databases/mongodb/methods/mongoDBUtils';
 import { nowISODateString } from '@utils/dateUtils';
-
 import { getErrorMessage } from '@utils/errorHandling';
-
 // System Logger
 import { logger } from '@utils/logger.server';
+import type { Model } from 'mongoose';
+import mongoose, { Schema } from 'mongoose';
 
 // System virtual folder schema
 export const systemVirtualFolderSchema = new Schema<SystemVirtualFolder>(
@@ -78,7 +77,7 @@ export const systemVirtualFolderSchema = new Schema<SystemVirtualFolder>(
 					return { success: true, data: newFolder };
 				} catch (error: unknown) {
 					// Handle duplicate key error specifically
-					if (typeof error === 'object' && error !== null && 'code' in error && (error as { code: number }).code === 11000) {
+					if (typeof error === 'object' && error !== null && 'code' in error && (error as { code: number }).code === 11_000) {
 						const message = 'Folder with this path already exists';
 						return {
 							success: false,
@@ -169,7 +168,7 @@ export const systemVirtualFolderSchema = new Schema<SystemVirtualFolder>(
 				try {
 					const bulkOps = orderUpdates.map((update) => ({
 						updateOne: {
-							filter: { path: update.path, parentId: parentId },
+							filter: { path: update.path, parentId },
 							update: { $set: { order: update.order } }
 						}
 					}));

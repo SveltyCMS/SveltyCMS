@@ -18,26 +18,21 @@
  * Body: JSON object with 'user_id' and 'newUserData' properties.
  */
 
-import { getPrivateSettingSync } from '@src/services/settingsService';
-
-import { json } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
-
+import { verifyPassword } from '@src/databases/auth';
 // Auth and permission helpers
 import { SESSION_COOKIE_NAME } from '@src/databases/auth/constants';
 import { cacheService } from '@src/databases/CacheService';
 import { auth } from '@src/databases/db';
-import { verifyPassword } from '@src/databases/auth';
-
-// System Logger
-import { logger } from '@utils/logger.server';
-
+import { getPrivateSettingSync } from '@src/services/settingsService';
+import { json } from '@sveltejs/kit';
 // Unified Error Handling
 import { apiHandler } from '@utils/apiHandler';
 import { AppError } from '@utils/errorHandling';
-
+// System Logger
+import { logger } from '@utils/logger.server';
 // Input validation
 import { boolean, email, maxLength, minLength, object, optional, parse, pipe, string } from 'valibot';
+import type { RequestHandler } from './$types';
 
 // Define the base schema for user data. The 'role' is handled separately for security.
 const baseUserDataSchema = object({
@@ -120,11 +115,10 @@ export const PUT: RequestHandler = apiHandler(async ({ request, locals, cookies 
 			// If a user tries to submit a 'role' change for themselves, throw an error.
 			logger.warn('User attempted to change their own role.', { userId: user._id, attemptedRole: newUserData.role });
 			throw new AppError('Forbidden: You cannot change your own role.', 403, 'FORBIDDEN_ROLE_CHANGE');
-		} else {
-			// If an admin is editing another user, allow the role change.
-			// We add the 'role' field to the validation schema dynamically.
-			schemaToUse = object({ ...baseUserDataSchema.entries, role: optional(string()) });
 		}
+		// If an admin is editing another user, allow the role change.
+		// We add the 'role' field to the validation schema dynamically.
+		schemaToUse = object({ ...baseUserDataSchema.entries, role: optional(string()) });
 	}
 
 	// **SECURITY FEATURE**: Require current password when changing password (Self-Edit only)
@@ -134,7 +128,7 @@ export const PUT: RequestHandler = apiHandler(async ({ request, locals, cookies 
 		}
 		// Verify current password
 		const currentUserFull = await auth.getUserById(user._id);
-		if (!currentUserFull || !currentUserFull.password) {
+		if (!currentUserFull?.password) {
 			throw new AppError('User record invalid.', 500, 'USER_INVALID');
 		}
 		const isMatch = await verifyPassword(newUserData.currentPassword, currentUserFull.password);
@@ -142,7 +136,7 @@ export const PUT: RequestHandler = apiHandler(async ({ request, locals, cookies 
 			throw new AppError('Incorrect current password.', 401, 'INVALID_PASSWORD');
 		}
 		// Remove currentPassword from newUserData so it doesn't get passed to DB update (even though schema filters it, it's safer)
-		delete newUserData.currentPassword;
+		newUserData.currentPassword = undefined;
 	}
 
 	// Validate the input against the appropriate schema (with or without 'role').
@@ -178,7 +172,7 @@ export const PUT: RequestHandler = apiHandler(async ({ request, locals, cookies 
 
 	// Invalidate admin users list cache so UI updates immediately
 	try {
-		await cacheService.clearByPattern(`api:*:/api/user*`, tenantId);
+		await cacheService.clearByPattern('api:*:/api/user*', tenantId);
 		logger.debug('Admin users list cache cleared after user update');
 	} catch (cacheError) {
 		logger.warn(`Failed to clear admin users cache: ${cacheError}`);
@@ -191,7 +185,7 @@ export const PUT: RequestHandler = apiHandler(async ({ request, locals, cookies 
 	logger.info('User attributes updated successfully', {
 		user_id: userIdToUpdate,
 		updatedBy: user?._id,
-		tenantId: tenantId,
+		tenantId,
 		updatedFields: Object.keys(validatedData)
 	});
 

@@ -3,9 +3,9 @@
  * @description Integration tests for Widget Management API endpoints (Action-oriented)
  */
 
-import { describe, it, expect, beforeAll, afterAll } from 'bun:test';
+import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { getApiBaseUrl, waitForServer } from '../helpers/server';
-import { prepareAuthenticatedContext, cleanupTestDatabase } from '../helpers/testSetup';
+import { cleanupTestDatabase, prepareAuthenticatedContext } from '../helpers/testSetup';
 
 const BASE_URL = getApiBaseUrl();
 let authCookie: string;

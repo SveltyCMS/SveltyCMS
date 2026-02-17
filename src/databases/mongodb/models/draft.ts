@@ -12,14 +12,13 @@
  * - Defines indexes for Drafts
  */
 
-import mongoose, { Schema } from 'mongoose';
-import type { Model } from 'mongoose';
+import type { DatabaseId } from '@src/content/types';
 import type { ContentDraft, DatabaseResult } from '@src/databases/dbInterface';
 import { generateId } from '@src/databases/mongodb/methods/mongoDBUtils';
-import type { DatabaseId } from '@src/content/types';
-
 // System Logger
 import { logger } from '@utils/logger';
+import type { Model } from 'mongoose';
+import mongoose, { Schema } from 'mongoose';
 
 // Define the Draft schema
 export const draftSchema = new Schema<ContentDraft>(

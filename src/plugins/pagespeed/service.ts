@@ -4,9 +4,9 @@
  */
 
 import type { IDBAdapter } from '@databases/dbInterface';
-import { logger } from '@utils/logger.server';
 import { getPrivateSettingSync } from '@src/services/settingsService';
-import type { PageSpeedResult, GooglePageSpeedResponse } from './types';
+import { logger } from '@utils/logger.server';
+import type { GooglePageSpeedResponse, PageSpeedResult } from './types';
 
 /**
  * Fetch PageSpeed Insights for a URL
@@ -85,7 +85,7 @@ export async function getCachedResult(
 	language: string,
 	device: 'mobile' | 'desktop',
 	tenantId: string,
-	maxAgeMinutes: number = 1440
+	maxAgeMinutes = 1440
 ): Promise<PageSpeedResult | null> {
 	try {
 		const result = await dbAdapter.crud.findOne<PageSpeedResult>('pluginPagespeedResults', {
@@ -96,7 +96,7 @@ export async function getCachedResult(
 			tenantId
 		} as any);
 
-		if (!result.success || !result.data) {
+		if (!(result.success && result.data)) {
 			return null;
 		}
 

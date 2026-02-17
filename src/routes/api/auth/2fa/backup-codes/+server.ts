@@ -13,14 +13,13 @@
  * @throws AppError if auth service is not initialized
  */
 
-import { json } from '@sveltejs/kit';
-import { logger } from '@utils/logger.server';
-import { getDefaultTwoFactorAuthService } from '@src/databases/auth/twoFactorAuth';
 import { auth } from '@databases/db';
-
+import { getDefaultTwoFactorAuthService } from '@src/databases/auth/twoFactorAuth';
+import { json } from '@sveltejs/kit';
 // Unified Error Handling
 import { apiHandler } from '@utils/apiHandler';
 import { AppError } from '@utils/errorHandling';
+import { logger } from '@utils/logger.server';
 
 // GET - Get 2FA status including backup codes count
 export const GET = apiHandler(async ({ locals }) => {

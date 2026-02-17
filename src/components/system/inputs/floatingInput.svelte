@@ -157,7 +157,7 @@
 				for={currentId}
 				style={!isTextColorClass && textColor ? `color: ${textColor};` : ''}
 				class="pointer-events-none absolute left-8 top-1.5 origin-left -translate-y-3 scale-75 transform text-base text-surface-500 transition-all duration-200 ease-in-out peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:text-base peer-focus:-translate-y-3 peer-focus:scale-75 peer-focus:text-tertiary-500! peer-disabled:text-surface-500 {value
-					? `-translate-y-3 scale-75 ${invalid ? 'text-error-500!' : 'text-tertiary-500!'}`
+					? `-translate-y-3 ${invalid ? 'text-error-500!' : 'text-tertiary-500!'}`
 					: ''} {isTextColorClass ? textColor : ''} {labelClass}"
 			>
 				{label}
@@ -169,8 +169,6 @@
 	</div>
 
 	{#if invalid && errorMessage}
-		<p id={errorId} class="mt-1 text-xs text-error-500" role="alert">
-			{errorMessage}
-		</p>
+		<p id={errorId} class="mt-1 text-xs text-error-500" role="alert">{errorMessage}</p>
 	{/if}
 </div>

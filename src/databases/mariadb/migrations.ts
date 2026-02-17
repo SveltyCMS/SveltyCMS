@@ -8,8 +8,8 @@
  * - Drop tables if they exist
  */
 
-import type mysql from 'mysql2/promise';
 import { logger } from '@utils/logger';
+import type mysql from 'mysql2/promise';
 
 // Run migrations to create/update database schema
 export async function runMigrations(connection: mysql.Pool): Promise<{ success: boolean; error?: string }> {

@@ -3,7 +3,7 @@
  * @description Unit tests for the GDPR Compliance Service
  */
 
-import { describe, it, expect, beforeEach, mock } from 'bun:test';
+import { beforeEach, describe, expect, it } from 'bun:test';
 import { gdprService } from '@src/services/GDPRService';
 
 // Access global mocks from setup.ts

@@ -12,23 +12,23 @@
  * - Audit logging of import actions
  */
 
-import { json } from '@sveltejs/kit';
-
-import { getDb, dbAdapter } from '@src/databases/db';
-import { getAllSettings, invalidateSettingsCache } from '@src/services/settingsService';
-import { logger } from '@utils/logger.server';
-import { decryptData } from '@utils/crypto';
 import type {
-	ExportData,
-	ImportOptions,
-	ValidationResult,
-	ValidationError,
-	ValidationWarning,
 	Conflict,
-	ImportResult,
+	DatabaseId,
+	ExportData,
 	ExportMetadata,
-	DatabaseId
+	ImportOptions,
+	ImportResult,
+	ValidationError,
+	ValidationResult,
+	ValidationWarning
 } from '@content/types';
+
+import { dbAdapter, getDb } from '@src/databases/db';
+import { getAllSettings, invalidateSettingsCache } from '@src/services/settingsService';
+import { json } from '@sveltejs/kit';
+import { decryptData } from '@utils/crypto';
+import { logger } from '@utils/logger.server';
 
 /**
  * Decrypt sensitive data using quantum-resistant AES-256-GCM with Argon2-derived key
@@ -56,13 +56,7 @@ async function validateImportData(data: ExportData): Promise<ValidationResult> {
 	const warnings: ValidationWarning[] = [];
 
 	// Validate metadata
-	if (!data.metadata) {
-		errors.push({
-			path: 'metadata',
-			message: 'Missing required metadata',
-			code: 'MISSING_METADATA'
-		});
-	} else {
+	if (data.metadata) {
 		if (!data.metadata.exported_at) {
 			errors.push({
 				path: 'metadata.exported_at',
@@ -78,6 +72,12 @@ async function validateImportData(data: ExportData): Promise<ValidationResult> {
 				code: 'MISSING_VERSION'
 			});
 		}
+	} else {
+		errors.push({
+			path: 'metadata',
+			message: 'Missing required metadata',
+			code: 'MISSING_METADATA'
+		});
 	}
 
 	// Validate settings if present
@@ -113,13 +113,7 @@ async function validateImportData(data: ExportData): Promise<ValidationResult> {
 
 	// Validate collections if present
 	if (data.collections) {
-		if (!Array.isArray(data.collections)) {
-			errors.push({
-				path: 'collections',
-				message: 'Collections must be an array',
-				code: 'INVALID_COLLECTIONS_TYPE'
-			});
-		} else {
+		if (Array.isArray(data.collections)) {
 			data.collections.forEach((collection, index) => {
 				if (!collection.id) {
 					errors.push({
@@ -137,11 +131,17 @@ async function validateImportData(data: ExportData): Promise<ValidationResult> {
 					});
 				}
 			});
+		} else {
+			errors.push({
+				path: 'collections',
+				message: 'Collections must be an array',
+				code: 'INVALID_COLLECTIONS_TYPE'
+			});
 		}
 	}
 
 	// Check if export has any data
-	if (!data.settings && !data.collections) {
+	if (!(data.settings || data.collections)) {
 		warnings.push({
 			path: 'root',
 			message: 'Export contains no settings or collections',

@@ -10,35 +10,32 @@
  * GET /api/token?page=1&limit=10&sort=expires&order=asc&search=test@example.com
  */
 
-import { getPrivateSettingSync } from '@src/services/settingsService';
-import { json } from '@sveltejs/kit';
-
 // Auth (Database Agnostic)
 import { auth, dbAdapter } from '@src/databases/db';
-
-// System logger
-import { logger } from '@utils/logger.server';
-
+import { getPrivateSettingSync } from '@src/services/settingsService';
+import { json } from '@sveltejs/kit';
 // Unified Error Handling
 import { apiHandler } from '@utils/apiHandler';
 import { AppError } from '@utils/errorHandling';
+// System logger
+import { logger } from '@utils/logger.server';
 
 export const GET = apiHandler(async ({ url, locals }) => {
 	const { user, tenantId, hasManageUsersPermission } = locals;
 
 	// Security: Ensure the user is authenticated and has admin-level permissions.
-	if (!user || !hasManageUsersPermission) {
+	if (!(user && hasManageUsersPermission)) {
 		throw new AppError('Forbidden: You do not have permission to access tokens.', 403, 'FORBIDDEN');
 	}
 
-	if (!auth || !dbAdapter) {
+	if (!(auth && dbAdapter)) {
 		logger.error('Database authentication adapter not initialized');
 		throw new AppError('Database authentication not available', 500, 'DB_AUTH_ERROR');
 	}
 
 	try {
-		const page = parseInt(url.searchParams.get('page') || '1');
-		const limit = parseInt(url.searchParams.get('limit') || '10');
+		const page = Number.parseInt(url.searchParams.get('page') || '1', 10);
+		const limit = Number.parseInt(url.searchParams.get('limit') || '10', 10);
 		const sort = url.searchParams.get('sort') || 'createdAt';
 		const order = url.searchParams.get('order') === 'asc' ? 1 : -1;
 		const search = url.searchParams.get('search') || '';
@@ -59,7 +56,7 @@ export const GET = apiHandler(async ({ url, locals }) => {
 		// Get all tokens using the database adapter directly
 		const tokensResult = await dbAdapter.auth.getAllTokens(filter);
 
-		if (!tokensResult.success || !tokensResult.data) {
+		if (!(tokensResult.success && tokensResult.data)) {
 			throw new AppError('Failed to fetch tokens from database', 500, 'DB_FETCH_ERROR');
 		}
 
@@ -70,11 +67,19 @@ export const GET = apiHandler(async ({ url, locals }) => {
 			const aVal = a[sort as keyof typeof a];
 			const bVal = b[sort as keyof typeof b];
 
-			if (aVal == null) return 1;
-			if (bVal == null) return -1;
+			if (aVal == null) {
+				return 1;
+			}
+			if (bVal == null) {
+				return -1;
+			}
 
-			if (aVal < bVal) return order === 1 ? -1 : 1;
-			if (aVal > bVal) return order === 1 ? 1 : -1;
+			if (aVal < bVal) {
+				return order === 1 ? -1 : 1;
+			}
+			if (aVal > bVal) {
+				return order === 1 ? 1 : -1;
+			}
 			return 0;
 		});
 
@@ -101,7 +106,9 @@ export const GET = apiHandler(async ({ url, locals }) => {
 			}
 		});
 	} catch (err: unknown) {
-		if (err instanceof AppError) throw err;
+		if (err instanceof AppError) {
+			throw err;
+		}
 		const message = err instanceof Error ? err.message : 'An unexpected error occurred.';
 		logger.error('Error retrieving tokens:', {
 			error: message,

@@ -25,8 +25,8 @@ This modal			class="input text-center font-mono tracking-wider"
 -->
 
 <script lang="ts">
-	import { modalState } from '@utils/modalState.svelte';
 	import * as m from '@src/paraglide/messages';
+	import { modalState } from '@utils/modalState.svelte';
 
 	// Props
 	const { parent, title = '', description = '' } = $props();
@@ -42,15 +42,15 @@ This modal			class="input text-center font-mono tracking-wider"
 		const input = event.target as HTMLInputElement;
 		let value = input.value;
 
-		if (!useBackupCode) {
-			// For TOTP codes, only allow 6 digits
-			value = value.replace(/\D/g, '').slice(0, 6);
-		} else {
+		if (useBackupCode) {
 			// For backup codes, allow alphanumeric and remove spaces
 			value = value
 				.replace(/[^a-zA-Z0-9]/g, '')
 				.toLowerCase()
 				.slice(0, 10);
+		} else {
+			// For TOTP codes, only allow 6 digits
+			value = value.replace(/\D/g, '').slice(0, 6);
 		}
 
 		code = value;
@@ -113,13 +113,9 @@ This modal			class="input text-center font-mono tracking-wider"
 
 <div class="max-w-md p-6">
 	<div class="mb-6 text-center">
-		<div class="mb-4">
-			<iconify-icon icon="mdi:shield-lock" width="48" class="text-primary-500"></iconify-icon>
-		</div>
+		<div class="mb-4"><iconify-icon icon="mdi:shield-lock" width="48" class="text-primary-500"></iconify-icon></div>
 
-		<h4 class="h4 mb-2">
-			{title || m.twofa_verify_title()}
-		</h4>
+		<h4 class="h4 mb-2">{title || m.twofa_verify_title()}</h4>
 
 		<p class="text-surface-600 dark:text-surface-300">
 			{description || (useBackupCode ? m.twofa_backup_verify_description() : m.twofa_verify_description())}
@@ -140,13 +136,11 @@ This modal			class="input text-center font-mono tracking-wider"
 					(error ? ' border-error-500 focus:border-error-500' : '')}
 				maxlength={useBackupCode ? 10 : 6}
 				autocomplete="off"
-			/>
+			>
 
 			<!-- Character counter for backup codes -->
 			{#if useBackupCode}
-				<div class="mt-1 text-center text-xs text-surface-500">
-					{code.length}/10
-				</div>
+				<div class="mt-1 text-center text-xs text-surface-500">{code.length}/10</div>
 			{/if}
 		</div>
 
@@ -164,9 +158,7 @@ This modal			class="input text-center font-mono tracking-wider"
 
 	<!-- Action Buttons -->
 	<div class="flex gap-3">
-		<button onclick={cancelVerification} class="preset-tonal-surface btn flex-1">
-			{m.button_cancel()}
-		</button>
+		<button onclick={cancelVerification} class="preset-tonal-surface btn flex-1">{m.button_cancel()}</button>
 
 		<button
 			onclick={submitCode}

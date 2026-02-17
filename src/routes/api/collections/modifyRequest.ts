@@ -20,16 +20,14 @@
  * before final processing or database operations.
  */
 
-import { getFieldName } from '@utils/utils';
-import { widgets } from '@stores/widgetStore.svelte.ts';
-
+import type { FieldInstance } from '@src/content/types';
 // Types
 import type { User } from '@src/databases/auth/types';
-import type { FieldInstance } from '@src/content/types';
 import type { CollectionModel } from '@src/databases/dbInterface';
-
+import { widgets } from '@stores/widgetStore.svelte.ts';
 // System logger
 import { logger } from '@utils/logger.server';
+import { getFieldName } from '@utils/utils';
 
 interface DataAccessor<T> {
 	get(): T;
@@ -44,13 +42,13 @@ interface EntryData {
 
 // Define the parameters for the function
 interface ModifyRequestParams {
+	collection: CollectionModel;
+	collectionName?: string;
 	data: EntryData[];
 	fields: FieldInstance[];
-	collection: CollectionModel;
-	user: User;
-	type: string;
 	tenantId?: string; // Add tenantId for multi-tenancy
-	collectionName?: string;
+	type: string;
+	user: User;
 }
 
 // Function to modify request data based on field widgets

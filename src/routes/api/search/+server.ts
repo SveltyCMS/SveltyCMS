@@ -5,11 +5,11 @@
  * @example: GET /api/search?q=searchterm&collections=posts,pages&limit=10
  *
  * Features:
- * * Cross-collection search functionality, scoped to the current tenant
- * * Full-text search capabilities
- * * Advanced filtering and sorting
- * * Permission-aware results
- * * Performance optimized with QueryBuilder
+ * Cross-collection search functionality, scoped to the current tenant
+ * Full-text search capabilities
+ * Advanced filtering and sorting
+ * Permission-aware results
+ * Performance optimized with QueryBuilder
  */
 import { getPrivateSettingSync } from '@src/services/settingsService';
 
@@ -17,19 +17,17 @@ import { json } from '@sveltejs/kit';
 
 // Auth
 
+import { modifyRequest } from '@api/collections/modifyRequest';
+import { contentManager } from '@src/content/ContentManager';
 // Databases & Api
 import { dbAdapter } from '@src/databases/db';
-import { contentManager } from '@src/content/ContentManager';
-import { modifyRequest } from '@api/collections/modifyRequest';
 import type { CollectionModel } from '@src/databases/dbInterface';
-
-// System Logger
-import { logger } from '@utils/logger.server';
-
 // GET: Advanced search across collections
 // Unified Error Handling
 import { apiHandler } from '@utils/apiHandler';
 import { AppError } from '@utils/errorHandling';
+// System Logger
+import { logger } from '@utils/logger.server';
 
 // GET: Advanced search across collections
 export const GET = apiHandler(async ({ locals, url }) => {
@@ -78,7 +76,7 @@ export const GET = apiHandler(async ({ locals, url }) => {
 			Object.assign(baseFilter, additionalFilter);
 		}
 		// Add status filtering for non-admin users
-		const isAdmin = locals.isAdmin || false;
+		const isAdmin = locals.isAdmin;
 		if (!isAdmin) {
 			baseFilter.status = statusFilter || 'published';
 		} else if (statusFilter) {
@@ -96,7 +94,9 @@ export const GET = apiHandler(async ({ locals, url }) => {
 		// Search across all specified collections in parallel
 		const searchPromises = collectionsToSearch.map(async (collectionId) => {
 			const collection = await contentManager.getCollectionById(collectionId, tenantId);
-			if (!collection) return [];
+			if (!collection) {
+				return [];
+			}
 
 			try {
 				// Build search filter
@@ -107,7 +107,9 @@ export const GET = apiHandler(async ({ locals, url }) => {
 				const collectionName = `collection_${collection._id}`;
 
 				// Use findMany instead of queryBuilder for simpler type compatibility
-				if (!dbAdapter) throw new Error('Database adapter not initialized');
+				if (!dbAdapter) {
+					throw new Error('Database adapter not initialized');
+				}
 				const result = await dbAdapter.crud.findMany(collectionName, searchFilter as Record<string, unknown>, {
 					limit: Math.min(limit, 100)
 				});
@@ -174,8 +176,12 @@ export const GET = apiHandler(async ({ locals, url }) => {
 					return sortDirection === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
 				}
 				if (typeof aVal === 'number' && typeof bVal === 'number') {
-					if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
-					if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+					if (aVal < bVal) {
+						return sortDirection === 'asc' ? -1 : 1;
+					}
+					if (aVal > bVal) {
+						return sortDirection === 'asc' ? 1 : -1;
+					}
 				}
 				return 0;
 			});
@@ -201,8 +207,12 @@ export const GET = apiHandler(async ({ locals, url }) => {
 			performance: { duration }
 		});
 	} catch (e) {
-		if (e instanceof AppError) throw e;
-		if (e && typeof e === 'object' && 'status' in e) throw e; // Re-throw SvelteKit errors
+		if (e instanceof AppError) {
+			throw e;
+		}
+		if (e && typeof e === 'object' && 'status' in e) {
+			throw e; // Re-throw SvelteKit errors
+		}
 
 		const duration = performance.now() - start;
 		const errMsg = e instanceof Error ? e.message : String(e);

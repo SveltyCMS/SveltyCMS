@@ -12,7 +12,9 @@ import type { RichTextProps } from './types';
 // This is intentionally aggressive and is only used for "is empty" checks,
 // not for producing HTML to render.
 const stripHtmlTags = (html: string): string => {
-	if (!html) return '';
+	if (!html) {
+		return '';
+	}
 
 	let previous: string;
 	let current = html;
@@ -36,7 +38,9 @@ const stripHtmlTags = (html: string): string => {
 // NOTE: Input.svelte already sanitizes with DOMPurify before storage,
 // so we don't need to remove scripts here (defense-in-depth handled upstream)
 const isContentEmpty = (html: string) => {
-	if (!html) return true;
+	if (!html) {
+		return true;
+	}
 
 	// Strip all HTML tags and angle brackets to check for actual text content.
 	const stripped = stripHtmlTags(html).trim();

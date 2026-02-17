@@ -7,9 +7,9 @@ Orchestrates crop state using svelte-canvas compatible state.
 -->
 <script lang="ts">
 	import { imageEditorStore } from '@stores/imageEditorStore.svelte';
+	import { Layer } from 'svelte-canvas';
 	import CropControls from './Controls.svelte';
 	import type { CropShape } from './types';
-	import { Layer } from 'svelte-canvas';
 
 	let cropShape = $state<CropShape>('rectangle');
 
@@ -32,10 +32,8 @@ Orchestrates crop state using svelte-canvas compatible state.
 					height: img.height * 0.8
 				};
 			}
-		} else {
-			if (imageEditorStore.state.toolbarControls?.component === CropControls) {
-				imageEditorStore.setToolbarControls(null);
-			}
+		} else if (imageEditorStore.state.toolbarControls?.component === CropControls) {
+			imageEditorStore.setToolbarControls(null);
 		}
 	});
 
@@ -129,7 +127,7 @@ Orchestrates crop state using svelte-canvas compatible state.
 	}
 
 	export function handleMouseMove(e: MouseEvent, width: number, height: number) {
-		if (!activeHandle && !isDraggingCrop) return;
+		if (!(activeHandle || isDraggingCrop)) return;
 
 		const rect = (e.target as HTMLElement).getBoundingClientRect();
 		const offsetX = e.clientX - rect.left;
@@ -174,7 +172,7 @@ Orchestrates crop state using svelte-canvas compatible state.
 	// Render function for the crop overlay
 	const renderCropUI = ({ context, width, height }: { context: CanvasRenderingContext2D; width: number; height: number }) => {
 		const { crop, zoom, translateX, translateY, imageElement } = storeState;
-		if (!crop || !imageElement) return;
+		if (!(crop && imageElement)) return;
 
 		context.save();
 		context.translate(width / 2 + translateX, height / 2 + translateY);

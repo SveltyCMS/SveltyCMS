@@ -23,15 +23,14 @@
 -->
 
 <script lang="ts">
+	// Components
+	import PageTitle from '@components/PageTitle.svelte';
+	import type { FieldInstance } from '@content/types';
 	//Stores
 	import { ui } from '@root/src/stores/UIStore.svelte';
 
-	// Components
-	import PageTitle from '@components/PageTitle.svelte';
-	import AddWidget from './AddWidget.svelte';
-
 	import { debounce } from '@utils/utils';
-	import type { FieldInstance } from '@content/types';
+	import AddWidget from './AddWidget.svelte';
 
 	// Props
 	const { fields = [], onFieldsUpdate = () => {} } = $props();
@@ -93,8 +92,8 @@
 						targets.sort((a, b) => (Math.abs(b.center - e.clientY) < Math.abs(a.center - e.clientY) ? 1 : -1));
 						const closest = targets[0];
 						if (closest.el == node) return;
-						const closest_index = parseInt(closest.el.getAttribute('data-index') as string);
-						const clone_index = parseInt(clone.getAttribute('data-index') as string);
+						const closest_index = Number.parseInt(closest.el.getAttribute('data-index') as string);
+						const clone_index = Number.parseInt(clone.getAttribute('data-index') as string);
 
 						if (old_closest) {
 							old_closest.style.removeProperty('border-color');
@@ -115,8 +114,8 @@
 					clone.releasePointerCapture(pointerID);
 					targets.sort((a, b) => (Math.abs(b.center - e.clientY) < Math.abs(a.center - e.clientY) ? 1 : -1));
 					const closest = targets[0];
-					let closest_index = parseInt(closest.el.getAttribute('data-index') as string);
-					const clone_index = parseInt(clone.getAttribute('data-index') as string);
+					let closest_index = Number.parseInt(closest.el.getAttribute('data-index') as string);
+					const clone_index = Number.parseInt(clone.getAttribute('data-index') as string);
 					const newFields = [...fields];
 					const dragged_item = newFields.splice(clone_index, 1)[0];
 

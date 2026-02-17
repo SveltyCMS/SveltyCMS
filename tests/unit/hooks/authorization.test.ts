@@ -3,10 +3,10 @@
  * @description Tests for handleAuthorization middleware (permissions, roles, user counting)
  */
 
-import { describe, it, expect, beforeEach, mock } from 'bun:test';
+import { beforeEach, describe, expect, it, mock } from 'bun:test';
+import type { Role, User } from '@src/databases/auth/types';
 import { handleAuthorization, invalidateUserCountCache } from '@src/hooks/handleAuthorization';
 import type { RequestEvent } from '@sveltejs/kit';
-import type { User, Role } from '@src/databases/auth/types';
 
 const mockUser: User = {
 	_id: 'user123',

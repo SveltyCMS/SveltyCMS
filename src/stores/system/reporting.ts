@@ -3,8 +3,8 @@
  * @description Reporting and analysis functions for system health and performance.
  */
 
-import { getSystemState } from './state';
 import { SERVICE_BASELINE_TIMES } from './config';
+import { getSystemState } from './state';
 
 /**
  * Export comprehensive system state for health check endpoint with performance data
@@ -36,10 +36,10 @@ export function getHealthCheckReport() {
 						failures: service.metrics.failureCount,
 						consecutiveFailures: service.metrics.consecutiveFailures,
 						restarts: service.metrics.restartCount,
-						uptimePercentage: service.metrics.uptimePercentage.toFixed(2) + '%',
+						uptimePercentage: `${service.metrics.uptimePercentage.toFixed(2)}%`,
 						reliability:
 							service.metrics.healthCheckCount > 0
-								? (((service.metrics.healthCheckCount - service.metrics.failureCount) / service.metrics.healthCheckCount) * 100).toFixed(1) + '%'
+								? `${(((service.metrics.healthCheckCount - service.metrics.failureCount) / service.metrics.healthCheckCount) * 100).toFixed(1)}%`
 								: 'N/A',
 						stateTimings: {
 							startup: {
@@ -79,7 +79,7 @@ export function getHealthCheckReport() {
 			failedInits: state.performanceMetrics.failedInitializations,
 			successRate:
 				state.performanceMetrics.totalInitializations > 0
-					? ((state.performanceMetrics.successfulInitializations / state.performanceMetrics.totalInitializations) * 100).toFixed(1) + '%'
+					? `${((state.performanceMetrics.successfulInitializations / state.performanceMetrics.totalInitializations) * 100).toFixed(1)}%`
 					: 'N/A',
 			avgInitTime: state.performanceMetrics.averageTotalInitTime,
 			minInitTime: state.performanceMetrics.minTotalInitTime,

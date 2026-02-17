@@ -5,13 +5,13 @@ Middle-ground height (h-[38px]), fixed dropdown borders, and right-aligned mobil
 -->
 <script lang="ts">
 	import SiteName from '@components/SiteName.svelte';
-	import VersionCheck from '@components/VersionCheck.svelte';
-	import { Menu, Portal } from '@skeletonlabs/skeleton-svelte';
+	import AccessibilityHelp from '@components/system/AccessibilityHelp.svelte';
 	import SystemTooltip from '@components/system/SystemTooltip.svelte';
 	import ThemeToggle from '@components/ThemeToggle.svelte';
+	import VersionCheck from '@components/VersionCheck.svelte';
+	import { Menu, Portal } from '@skeletonlabs/skeleton-svelte';
 	import * as m from '@src/paraglide/messages';
 	import { getLanguageName } from '@utils/languageUtils';
-	import AccessibilityHelp from '@components/system/AccessibilityHelp.svelte';
 	import { modalState } from '@utils/modalState.svelte';
 
 	let { siteName, systemLanguages, currentLanguageTag, onselectLanguage = () => {} } = $props();
@@ -41,7 +41,7 @@ Middle-ground height (h-[38px]), fixed dropdown borders, and right-aligned mobil
 		<!-- Left: Logo + (SiteName & Version) -->
 		<div class="flex min-w-0 flex-1 items-center gap-2 sm:gap-4">
 			<a href="https://github.com/SveltyCMS/SveltyCMS" target="_blank" rel="noopener noreferrer" class="shrink-0">
-				<img src="/SveltyCMS_Logo.svg" alt="SveltyCMS Logo" class="h-9 w-auto sm:h-12" />
+				<img src="/SveltyCMS_Logo.svg" alt="SveltyCMS Logo" class="h-9 w-auto sm:h-12">
 			</a>
 			<div class="flex min-w-0 flex-col justify-center overflow-hidden">
 				<h1 class="truncate text-lg font-bold leading-none sm:text-2xl lg:text-3xl">
@@ -49,9 +49,7 @@ Middle-ground height (h-[38px]), fixed dropdown borders, and right-aligned mobil
 						<SiteName {siteName} highlight="CMS" />
 					</a>
 				</h1>
-				<div class="mt-0.5 flex">
-					<VersionCheck compact={true} />
-				</div>
+				<div class="mt-0.5 flex"><VersionCheck compact={true} /></div>
 			</div>
 		</div>
 
@@ -98,7 +96,7 @@ Middle-ground height (h-[38px]), fixed dropdown borders, and right-aligned mobil
 												class="w-full rounded-md bg-surface-50 dark:bg-surface-800 pl-9 pr-3 py-1.5 text-sm placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-primary-500 border border-surface-200 dark:text-surface-50"
 												aria-label={m.setup_search_placeholder?.() || 'Search languages'}
 												onclick={(e) => e.stopPropagation()}
-											/>
+											>
 										</div>
 									</div>
 								{/if}
@@ -150,8 +148,6 @@ Middle-ground height (h-[38px]), fixed dropdown borders, and right-aligned mobil
 
 	<!-- Row 2: Description (Subtitle) -->
 	<div class="mt-4 border-t border-surface-100 pt-3 dark:border-surface-700">
-		<p class="text-center text-xs leading-snug dark:text-white sm:text-base">
-			{m.setup_heading_subtitle({ siteName: siteName || 'SveltyCMS' })}
-		</p>
+		<p class="text-center text-xs leading-snug dark:text-white sm:text-base">{m.setup_heading_subtitle({ siteName: siteName || 'SveltyCMS' })}</p>
 	</div>
 </div>

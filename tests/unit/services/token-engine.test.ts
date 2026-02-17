@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach, mock } from 'bun:test';
+import { beforeEach, describe, expect, it } from 'bun:test';
 
-import { TokenRegistry, replaceTokens } from '@src/services/token/engine';
+import { replaceTokens, TokenRegistry } from '@src/services/token/engine';
 import { processTokensInResponse } from '@src/services/token/helper';
 import { modifierRegistry } from '@src/services/token/modifiers';
 

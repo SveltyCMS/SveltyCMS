@@ -25,7 +25,10 @@ import { maxValue, minValue, number, optional, pipe, type InferInput as ValibotI
 import type { CurrencyProps } from './types';
 
 // Helper type for aggregation field
-type AggregationField = { db_fieldName: string; [key: string]: unknown };
+interface AggregationField {
+	db_fieldName: string;
+	[key: string]: unknown;
+}
 
 // The validation schema is a function to create rules based on the field config.
 const validationSchema = (field: FieldInstance) => {
@@ -86,7 +89,7 @@ const CurrencyWidget = createWidget<CurrencyProps>({
 		filters: async ({ field, filter }: { field: AggregationField; filter: string }) => [
 			// Example: filter=">100" or filter="<50" or filter="150"
 			// This requires a simple parser for the filter string.
-			{ $match: { [field.db_fieldName]: { $eq: parseFloat(filter) } } } // Simplified for exact match
+			{ $match: { [field.db_fieldName]: { $eq: Number.parseFloat(filter) } } } // Simplified for exact match
 		],
 		sorts: async ({ field, sortDirection }: { field: AggregationField; sortDirection: number }) => ({
 			[field.db_fieldName]: sortDirection

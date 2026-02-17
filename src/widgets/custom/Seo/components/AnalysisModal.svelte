@@ -11,9 +11,9 @@ Displays detailed SEO analysis results in a modal overlay.
 	import type { SeoAnalysisResult } from '../seoTypes';
 
 	interface Props {
-		show: boolean;
 		analysisResult: SeoAnalysisResult | null;
 		onclose?: () => void;
+		show: boolean;
 	}
 
 	let { show = $bindable(), analysisResult, onclose = () => {} }: Props = $props();

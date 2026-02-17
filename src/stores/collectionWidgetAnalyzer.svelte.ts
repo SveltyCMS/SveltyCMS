@@ -3,16 +3,16 @@
  * @description Utility for analyzing widget dependencies in collections
  */
 
-import type { Schema, FieldDefinition } from '@src/content/types';
-import type { WidgetPlaceholder } from '@widgets/placeholder';
+import type { FieldDefinition, Schema } from '@src/content/types';
 import { logger } from '@utils/logger';
+import type { WidgetPlaceholder } from '@widgets/placeholder';
 
 export interface CollectionWidgetDependency {
 	collectionId: string;
 	collectionName: string;
-	requiredWidgets: string[];
-	optionalWidgets: string[];
 	missingWidgets: string[];
+	optionalWidgets: string[];
+	requiredWidgets: string[];
 }
 
 /**
@@ -33,8 +33,12 @@ function extractWidgetType(field: FieldDefinition): string | null {
 		// Handle nested widget configuration
 		if ('widget' in field && field.widget && typeof field.widget === 'object') {
 			const widget = field.widget as { Name?: string; __widgetName?: string };
-			if (widget.Name) return widget.Name;
-			if (widget.__widgetName) return widget.__widgetName;
+			if (widget.Name) {
+				return widget.Name;
+			}
+			if (widget.__widgetName) {
+				return widget.__widgetName;
+			}
 		}
 	}
 
@@ -61,10 +65,8 @@ export function analyzeCollectionWidgets(schema: Schema, activeWidgets: string[]
 					if (!requiredWidgets.includes(widgetType)) {
 						requiredWidgets.push(widgetType);
 					}
-				} else {
-					if (!optionalWidgets.includes(widgetType)) {
-						optionalWidgets.push(widgetType);
-					}
+				} else if (!optionalWidgets.includes(widgetType)) {
+					optionalWidgets.push(widgetType);
 				}
 			}
 

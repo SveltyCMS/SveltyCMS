@@ -15,28 +15,26 @@
 -->
 
 <script lang="ts">
-	import { invalidateAll } from '$app/navigation';
-	import { onMount } from 'svelte';
-	// Auth
-	import ModalTwoFactorAuth from './components/ModalTwoFactorAuth.svelte';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
-
 	// Stores
 	import { collaboration } from '@stores/collaborationStore.svelte';
+	import { onMount } from 'svelte';
+	import { invalidateAll } from '$app/navigation';
+	// Auth
+	import ModalTwoFactorAuth from './components/ModalTwoFactorAuth.svelte';
 	import '@stores/store.svelte.ts';
-	import { avatarSrc, normalizeAvatarUrl } from '@stores/store.svelte.ts';
-	import { triggerActionStore } from '@utils/globalSearchIndex';
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
 	import PermissionGuard from '@components/PermissionGuard.svelte';
-	import AdminArea from './components/AdminArea.svelte';
 	// Skeleton
 	import { Avatar } from '@skeletonlabs/skeleton-svelte';
 	import { setCollection } from '@src/stores/collectionStore.svelte';
+	import { avatarSrc, normalizeAvatarUrl, toaster } from '@stores/store.svelte.ts';
+	import { triggerActionStore } from '@utils/globalSearchIndex';
 	import { modalState } from '@utils/modalState.svelte';
 	import { showConfirm } from '@utils/modalUtils';
-	import { toaster } from '@stores/store.svelte.ts';
+	import AdminArea from './components/AdminArea.svelte';
 	import ModalEditAvatar from './components/ModalEditAvatar.svelte';
 	import ModalEditForm from './components/ModalEditForm.svelte';
 
@@ -161,13 +159,66 @@
 			body: m.usermodalconfirmbody(),
 			// confirmText: m.usermodalconfirmdeleteuser(),
 			onConfirm: async () => {
-				const res = await fetch(`/api/user/deleteUsers`, {
+				const res = await fetch('/api/user/deleteUsers', {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
 					body: JSON.stringify([user])
 				});
 				if (res.status === 200) {
 					await invalidateAll();
+				}
+			}
+		});
+	}
+
+	// GDPR: Data Portability
+	async function handleExportData() {
+		try {
+			const res = await fetch('/api/gdpr', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ action: 'export', userId: user._id })
+			});
+			const result = await res.json();
+			if (result.success) {
+				const blob = new Blob([JSON.stringify(result.data, null, 2)], { type: 'application/json' });
+				const url = URL.createObjectURL(blob);
+				const a = document.createElement('a');
+				a.href = url;
+				a.download = `sveltycms-data-export-${user.username}-${new Date().toISOString().split('T')[0]}.json`;
+				a.click();
+				URL.revokeObjectURL(url);
+				toaster.success('Data export started');
+			} else {
+				toaster.error(result.error || 'Export failed');
+			}
+		} catch (_err) {
+			toaster.error('Failed to export data');
+		}
+	}
+
+	// GDPR: Right to Erasure
+	function handleAnonymize() {
+		showConfirm({
+			title: 'Delete & Anonymize Account',
+			body: 'This will permanently anonymize your account. This action cannot be undone. Are you sure?',
+			onConfirm: async () => {
+				try {
+					const res = await fetch('/api/gdpr', {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({ action: 'anonymize', userId: user._id, reason: 'User self-request (Right to Erasure)' })
+					});
+					const result = await res.json();
+					if (result.success) {
+						toaster.success('Account anonymized successfully');
+						// Force logout by redirecting to logout
+						window.location.href = '/api/user/logout';
+					} else {
+						toaster.error(result.error || 'Anonymization failed');
+					}
+				} catch (_err) {
+					toaster.error('Failed to anonymize account');
 				}
 			}
 		});
@@ -203,9 +254,7 @@
 					{m.userpage_user_id()}<span class="ml-2 font-bold">{user?._id || 'N/A'}</span>
 				</div>
 				<!-- Role -->
-				<div class="gradient-tertiary badge w-full max-w-xs text-white">
-					{m.role()}:<span class="ml-2 font-bold">{user?.role || 'N/A'}</span>
-				</div>
+				<div class="gradient-tertiary badge w-full max-w-xs text-white">{m.role()}:<span class="ml-2 font-bold">{user?.role || 'N/A'}</span></div>
 				<!-- Two-Factor Authentication Status -->
 				{#if is2FAEnabledGlobal}
 					<button onclick={open2FAModal} class="btn preset-outlined-surface-500 btn-sm w-full max-w-xs">
@@ -252,15 +301,11 @@
 
 				<!-- Tenant ID -->
 				{#if isMultiTenant}
-					<div class="gradient-primary badge w-full max-w-xs text-white">
-						Tenant ID:<span class="ml-2">{user?.tenantId || 'N/A'}</span>
-					</div>
+					<div class="gradient-primary badge w-full max-w-xs text-white">Tenant ID:<span class="ml-2">{user?.tenantId || 'N/A'}</span></div>
 				{/if}
 				<!-- Permissions List -->
 				{#each user.permissions as permission (permission)}
-					<div class="gradient-primary badge mt-1 w-full max-w-xs text-white">
-						{permission}
-					</div>
+					<div class="gradient-primary badge mt-1 w-full max-w-xs text-white">{permission}</div>
 				{/each}
 			</div>
 
@@ -287,7 +332,8 @@
 							aria-label={m.userpage_edit_usersetting()}
 							class="gradient-tertiary btn w-full max-w-sm text-white {isFirstUser ? '' : 'mx-auto md:mx-0'}"
 						>
-							<iconify-icon icon="bi:pencil-fill" width={24}></iconify-icon>{m.userpage_edit_usersetting()}
+							<iconify-icon icon="bi:pencil-fill" width={24}></iconify-icon>
+							{m.userpage_edit_usersetting()}
 						</button>
 
 						<!-- Delete Modal Button -->
@@ -299,6 +345,37 @@
 						{/if}
 					</div>
 				</form>
+
+				<!-- GDPR Privacy Section -->
+				<div class="mt-8 border-t border-surface-200 pt-6 dark:border-surface-700">
+					<h3 class="flex items-center gap-2 text-lg font-bold">
+						<iconify-icon icon="mdi:shield-lock" class="text-primary-500"></iconify-icon>
+						Privacy & Data (GDPR)
+					</h3>
+					<div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+						<div class="card p-4 bg-surface-50 dark:bg-surface-900/40 border border-surface-200 dark:border-surface-700">
+							<h4 class="font-bold text-sm">Download My Data</h4>
+							<p class="mt-1 text-xs text-surface-600 dark:text-surface-400">
+								Receive a copy of all your personal data stored in the system (JSON format).
+							</p>
+							<button onclick={handleExportData} class="btn btn-sm preset-outlined-secondary-500 mt-3 w-full">
+								<iconify-icon icon="mdi:download"></iconify-icon>
+								Request Export
+							</button>
+						</div>
+
+						<div class="card p-4 bg-surface-50 dark:bg-surface-900/40 border border-surface-200 dark:border-surface-700">
+							<h4 class="font-bold text-sm text-error-500">Delete My Account</h4>
+							<p class="mt-1 text-xs text-surface-600 dark:text-surface-400">
+								Anonymize your personal data and permanently delete your account (Right to Erasure).
+							</p>
+							<button onclick={handleAnonymize} class="btn btn-sm preset-outlined-error-500 mt-3 w-full">
+								<iconify-icon icon="mdi:account-remove"></iconify-icon>
+								Delete Account
+							</button>
+						</div>
+					</div>
+				</div>
 			{/if}
 		</div>
 	</div>

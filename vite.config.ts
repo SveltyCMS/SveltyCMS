@@ -10,24 +10,24 @@
  * - Seamless integration with Paraglide for i18n and better-svelte-email for email templating.
  */
 
-import tailwindcss from '@tailwindcss/vite';
+import { exec } from 'node:child_process';
+import { existsSync, promises as fs } from 'node:fs';
+import { builtinModules } from 'node:module';
+import { platform } from 'node:os';
+import path from 'node:path';
 import { paraglideVitePlugin } from '@inlang/paraglide-js';
 import { sveltekit } from '@sveltejs/kit/vite';
-import { existsSync, promises as fs } from 'fs';
-import { builtinModules } from 'module';
-import path from 'path';
+import tailwindcss from '@tailwindcss/vite';
 import type { Plugin, UserConfig, ViteDevServer } from 'vite';
 import { defineConfig } from 'vite';
 import { compile } from './src/utils/compilation/compile';
 import { isSetupComplete } from './src/utils/setupCheck';
 import { securityCheckPlugin } from './src/utils/vitePluginSecurityCheck';
-import { exec } from 'node:child_process';
-import { platform } from 'node:os';
 
 // Cross-platform open URL function (replaces 'open' package)
 function openUrl(url: string) {
 	const plat = platform();
-	let cmd;
+	let cmd: string;
 	if (plat === 'win32') {
 		cmd = `start "" "${url}"`;
 	} else if (plat === 'darwin') {
@@ -47,7 +47,9 @@ function testConfigAliasPlugin(): Plugin {
 		name: 'test-config-alias',
 		enforce: 'pre',
 		resolveId(id) {
-			if (process.env.TEST_MODE !== 'true') return;
+			if (process.env.TEST_MODE !== 'true') {
+				return;
+			}
 
 			// Check for direct import or alias
 			if (id === '@config/private' || id.endsWith('config/private.ts')) {
@@ -70,8 +72,8 @@ function testConfigAliasPlugin(): Plugin {
 function privateConfigFallbackPlugin(): Plugin {
 	const virtualModuleId = '@config/private';
 	const virtualTestModuleId = '@config/private.test';
-	const resolvedVirtualModuleId = '\0' + virtualModuleId;
-	const resolvedVirtualTestModuleId = '\0' + virtualTestModuleId;
+	const resolvedVirtualModuleId = `\0${virtualModuleId}`;
+	const resolvedVirtualTestModuleId = `\0${virtualTestModuleId}`;
 
 	return {
 		name: 'private-config-fallback',
@@ -155,7 +157,7 @@ const useColor = process.stdout.isTTY;
 
 // Standardized logger for build-time scripts, mimicking the main application logger's style.
 // Colored tag printed once so message-local color codes render correctly.
-const TAG = useColor ? `\x1b[34m[SveltyCMS]\x1b[0m` : `[SveltyCMS]`;
+const TAG = useColor ? '\x1b[34m[SveltyCMS]\x1b[0m' : '[SveltyCMS]';
 
 const log = {
 	// Info level — tag is blue, message follows (may contain its own color codes)
@@ -229,13 +231,15 @@ function suppressThirdPartyWarningsPlugin(): Plugin {
 			if (!isIntercepted) {
 				isIntercepted = true;
 				originalConsoleWarn = console.warn;
-				console.warn = function (...args: unknown[]) {
+				console.warn = (...args: unknown[]) => {
 					const message = typeof args[0] === 'string' ? args[0] : String(args[0] ?? '');
 					// Explicitly ignore circular dependency warnings for the build page/status components
 					if (message.includes('Circular dependency') && (message.includes('status') || message.includes('build'))) {
 						return;
 					}
-					if (warningPatterns.some((pattern) => pattern.test(message))) return;
+					if (warningPatterns.some((pattern) => pattern.test(message))) {
+						return;
+					}
 					(originalConsoleWarn as typeof console.warn).apply(console, args);
 				};
 			}
@@ -258,7 +262,7 @@ function stubServerModulesPlugin(): Plugin {
 	return {
 		name: 'stub-server-modules',
 		enforce: 'pre',
-		resolveId(id, importer, options) {
+		resolveId(id, _importer, options) {
 			// Stub out anything ending in .server.ts, .server.js, or .server directory (if used)
 			if (!options?.ssr) {
 				// Only stub for client build
@@ -322,7 +326,7 @@ function setupWizardPlugin(): Plugin {
 						const setupUrl = `http://localhost:${resolvedPort}/setup`;
 
 						try {
-							log.info(`Opening setup wizard in your browser...`);
+							log.info('Opening setup wizard in your browser...');
 							openUrl(setupUrl);
 						} catch {
 							const coloredUrl = useColor ? `\x1b[34m${setupUrl}\x1b[0m` : setupUrl;
@@ -351,7 +355,7 @@ function cmsWatcherPlugin(): Plugin {
 		if (isCollectionFile) {
 			clearTimeout(compileTimeout);
 			compileTimeout = setTimeout(async () => {
-				log.info(`Collection change detected. Recompiling...`);
+				log.info('Collection change detected. Recompiling...');
 				try {
 					await compile({
 						userCollections: paths.userCollections,
@@ -362,9 +366,9 @@ function cmsWatcherPlugin(): Plugin {
 
 					// Register collection models in database after recompilation
 					try {
-						const { dbAdapter } = await server.ssrLoadModule('./src/databases/db.ts?t=' + Date.now());
-						if (dbAdapter && dbAdapter.collection) {
-							const { scanCompiledCollections } = await server.ssrLoadModule('./src/content/collectionScanner.ts?t=' + Date.now());
+						const { dbAdapter } = await server.ssrLoadModule(`./src/databases/db.ts?t=${Date.now()}`);
+						if (dbAdapter?.collection) {
+							const { scanCompiledCollections } = await server.ssrLoadModule(`./src/content/collectionScanner.ts?t=${Date.now()}`);
 							const collections = await scanCompiledCollections();
 							log.info(`Found ${collections.length} collections, registering models...`);
 
@@ -387,7 +391,7 @@ function cmsWatcherPlugin(): Plugin {
 					log.info('Content structure types regenerated.');
 					server.ws.send({ type: 'full-reload', path: '*' });
 				} catch (error) {
-					log.error(`Error recompiling collections:`, error);
+					log.error('Error recompiling collections:', error);
 				}
 			}, 150); // Debounce changes
 		}
@@ -396,10 +400,10 @@ function cmsWatcherPlugin(): Plugin {
 		if (isWidgetFile) {
 			clearTimeout(widgetTimeout);
 			widgetTimeout = setTimeout(async () => {
-				log.info(`Widget file change detected. Reloading widget store...`);
+				log.info('Widget file change detected. Reloading widget store...');
 				try {
 					// Invalidate and reload the widget store module to get the latest code
-					const { widgetStoreActions } = await server.ssrLoadModule('./src/stores/widgetStore.svelte.ts?t=' + Date.now());
+					const { widgetStoreActions } = await server.ssrLoadModule(`./src/stores/widgetStore.svelte.ts?t=${Date.now()}`);
 					// Call the reload action, which re-scans the filesystem
 					await widgetStoreActions.reload();
 					// Trigger a full reload on the client to reflect the changes
@@ -446,7 +450,7 @@ function buildMetadataPlugin(): Plugin {
 		buildStart() {
 			startTime = performance.now();
 		},
-		async generateBundle(options, bundle) {
+		async generateBundle(_options, bundle) {
 			const duration = performance.now() - startTime;
 			const moduleCount = Object.keys(bundle).length; // Rough count of chunks/assets
 
@@ -505,7 +509,7 @@ export default defineConfig((): UserConfig => {
 			}),
 			stubServerModulesPlugin(),
 			buildMetadataPlugin(),
-			!setupComplete ? setupWizardPlugin() : cmsWatcherPlugin(),
+			setupComplete ? cmsWatcherPlugin() : setupWizardPlugin(),
 			tailwindcss(),
 			paraglideVitePlugin({
 				project: './project.inlang',
@@ -533,7 +537,7 @@ export default defineConfig((): UserConfig => {
 				'@components': path.resolve(CWD, './src/components'),
 				'@content': path.resolve(CWD, './src/content'),
 				'@databases': path.resolve(CWD, './src/databases'),
-				'@config': path.resolve(__dirname, 'config'),
+				'@config': path.resolve(import.meta.dirname, 'config'),
 				'@utils': path.resolve(CWD, './src/utils'),
 				'@stores': path.resolve(CWD, './src/stores'),
 				'@widgets': path.resolve(CWD, './src/widgets'),
@@ -559,7 +563,9 @@ export default defineConfig((): UserConfig => {
 					// Preserve side-effect imports for packages that need them
 					moduleSideEffects: (id) => {
 						// These packages have important side effects that must not be removed
-						if (id.includes('paraglide') || id.includes('iconify-icon')) return true;
+						if (id.includes('paraglide') || id.includes('iconify-icon')) {
+							return true;
+						}
 						// Default: assume no side effects for other modules
 						return false;
 					},
@@ -570,12 +576,24 @@ export default defineConfig((): UserConfig => {
 						// Separate server-side heavy libraries into their own chunk
 						// This doesn't remove them (stubbing failed), but isolates them
 						if (id.includes('node_modules')) {
-							if (id.includes('mongoose') || id.includes('mongodb')) return 'vendor-db-mongo';
-							if (id.includes('@aws-sdk') || id.includes('aws-crt')) return 'vendor-aws';
-							if (id.includes('drizzle-orm') || id.includes('postgres') || id.includes('mysql2')) return 'vendor-db-sql';
-							if (id.includes('mapbox-gl')) return 'vendor-maps';
-							if (id.includes('googleapis') || id.includes('google-auth-library')) return 'vendor-google';
-							if (id.includes('chart.js') || id.includes('chartjs')) return 'vendor-charts';
+							if (id.includes('mongoose') || id.includes('mongodb')) {
+								return 'vendor-db-mongo';
+							}
+							if (id.includes('@aws-sdk') || id.includes('aws-crt')) {
+								return 'vendor-aws';
+							}
+							if (id.includes('drizzle-orm') || id.includes('postgres') || id.includes('mysql2')) {
+								return 'vendor-db-sql';
+							}
+							if (id.includes('mapbox-gl')) {
+								return 'vendor-maps';
+							}
+							if (id.includes('googleapis') || id.includes('google-auth-library')) {
+								return 'vendor-google';
+							}
+							if (id.includes('chart.js') || id.includes('chartjs')) {
+								return 'vendor-charts';
+							}
 						}
 					}
 				},

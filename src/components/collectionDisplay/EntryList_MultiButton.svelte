@@ -22,46 +22,46 @@
 -->
 
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
-	import { scale } from 'svelte/transition';
-	import { quintOut } from 'svelte/easing';
+	import SystemTooltip from '@components/system/SystemTooltip.svelte';
 	import { StatusTypes } from '@src/content/types';
-	import { storeListboxValue } from '@stores/store.svelte';
 	import * as m from '@src/paraglide/messages';
+	import { storeListboxValue } from '@stores/store.svelte';
 	import { logger } from '@utils/logger';
 	import { showToast } from '@utils/toast';
-	import SystemTooltip from '@components/system/SystemTooltip.svelte';
+	import { onDestroy, onMount } from 'svelte';
+	import { quintOut } from 'svelte/easing';
+	import { scale } from 'svelte/transition';
 
 	// --- Types ---
 	type ActionType = 'create' | 'publish' | 'unpublish' | 'draft' | 'schedule' | 'clone' | 'delete';
 	type DangerLevel = 'low' | 'medium' | 'high';
 
 	interface ActionConfig {
-		type: ActionType;
-		label: string;
+		dangerLevel: DangerLevel;
 		gradient: string;
 		icon: string;
-		textColor: string;
+		label: string;
+		requiresSelection: boolean;
 		shortcut?: string;
 		shortcutKey?: string;
-		requiresSelection: boolean;
-		dangerLevel: DangerLevel;
+		textColor: string;
+		type: ActionType;
 	}
 
 	// --- Props ---
 	interface Props {
-		isCollectionEmpty?: boolean;
+		clone: () => Promise<void> | void;
+		create: () => void;
+		delete: (permanent: boolean) => Promise<void> | void;
+		draft: () => Promise<void> | void;
 		hasSelections?: boolean;
+		isCollectionEmpty?: boolean;
+		publish: () => Promise<void> | void;
+		schedule: (date: string, action: string) => void;
 		selectedCount?: number;
 		selectedItems?: any[];
 		showDeleted?: boolean;
-		create: () => void;
-		publish: () => Promise<void> | void;
 		unpublish: () => Promise<void> | void;
-		draft: () => Promise<void> | void;
-		schedule: (date: string, action: string) => void;
-		clone: () => Promise<void> | void;
-		delete: (permanent: boolean) => Promise<void> | void;
 	}
 
 	let {
@@ -529,7 +529,10 @@
 										<div
 											class="relative z-10 flex h-8 w-8 items-center justify-center rounded-full bg-surface-700/50 ring-1 ring-white/10 transition-transform group-hover/item:scale-110 group-active/item:scale-95"
 										>
-											<iconify-icon icon={config.icon} width="16" class={hoveredAction === config.type ? 'text-primary-400' : 'text-surface-300'}
+											<iconify-icon
+												icon={config.icon}
+												width="16"
+												class={hoveredAction === config.type ? 'text-primary-400' : 'text-surface-300'}
 											></iconify-icon>
 										</div>
 

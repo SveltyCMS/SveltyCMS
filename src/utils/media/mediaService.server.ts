@@ -26,53 +26,49 @@
  *
  */
 
+import { exec } from 'node:child_process';
+import { readFileSync, unlinkSync, writeFileSync } from 'node:fs';
+import os from 'node:os';
+import Path from 'node:path';
+import { promisify } from 'node:util';
 import { error } from '@sveltejs/kit';
 import mime from 'mime-types';
-import Path from 'path';
-import { writeFileSync, unlinkSync, readFileSync } from 'node:fs';
-import os from 'node:os';
-import { promisify } from 'node:util';
-import { exec } from 'node:child_process';
 
 const execAsync = promisify(exec);
 
+// Types
+import type { BaseEntity, ISODateString } from '@src/content/types';
+import type { Role, User } from '@src/databases/auth/types';
+// Media Cache
+import { cacheService } from '@src/databases/CacheService';
 // Database Interface
 import type { DatabaseId, IDBAdapter } from '@src/databases/dbInterface';
-import type { User, Role } from '@src/databases/auth/types';
-
-import sharp from 'sharp';
-import type { MediaTypeEnum, MediaAccess, ResizedImage, WatermarkOptions, MediaItem, MediaBase } from '@utils/media/mediaModels';
-import { MediaType as MediaTypeEnumValue } from '@utils/media/mediaModels';
+import { getPublicSettingSync } from '@src/services/settingsService';
+import { isCloud } from '@src/utils/media/cloudStorage';
 import { getSanitizedFileName } from '@src/utils/media/mediaProcessing';
 import { hashFileContent } from '@src/utils/media/mediaProcessing.server';
 import { saveFileToDisk, saveResizedImages } from '@src/utils/media/mediaStorage.server';
-import { isCloud } from '@src/utils/media/cloudStorage';
-import { getPublicSettingSync } from '@src/services/settingsService';
-import { mediaProcessingService } from './mediaProcessing.server';
 // IMPORT SERVER-SIDE VALIDATION
 import { validateMediaFileServer } from '@src/utils/media/mediaUtils';
 import { AppError } from '@utils/errorHandling';
-
 // System Logger
 import { logger } from '@utils/logger.server';
-
-// Media Cache
-import { cacheService } from '@src/databases/CacheService';
-
-// Types
-import type { BaseEntity, ISODateString } from '@src/content/types';
+import type { MediaAccess, MediaBase, MediaItem, MediaTypeEnum, ResizedImage, WatermarkOptions } from '@utils/media/mediaModels';
+import { MediaType as MediaTypeEnumValue } from '@utils/media/mediaModels';
+import sharp from 'sharp';
+import { mediaProcessingService } from './mediaProcessing.server';
 
 // Extended MediaBase interface to include thumbnails
 interface MediaBaseWithThumbnails extends MediaBase {
-	thumbnails?: Record<string, ResizedImage>;
-	originalId?: DatabaseId | null;
-	width?: number;
 	height?: number;
+	originalId?: DatabaseId | null;
+	thumbnails?: Record<string, ResizedImage>;
+	width?: number;
 }
 
 export class MediaService {
-	private db: IDBAdapter;
-	private initialized: boolean = false;
+	private readonly db: IDBAdapter;
+	private initialized = false;
 	// Define your allowed types regex
 	private readonly mimeTypePattern = /^(image|video|audio)\/(jpeg|png|gif|svg\+xml|webp|mp4|webm|ogg|mpeg)|(application\/pdf)$/;
 
@@ -202,7 +198,7 @@ export class MediaService {
 		file: File,
 		userId: string,
 		access: MediaAccess,
-		basePath: string = 'global',
+		basePath = 'global',
 		watermarkOptions?: WatermarkOptions,
 		originalId?: DatabaseId | null
 	): Promise<MediaItem> {
@@ -216,7 +212,7 @@ export class MediaService {
 		if (!file) {
 			const message = 'File is required';
 			logger.error(message, { processingTime: performance.now() - startTime });
-			throw Error(message);
+			throw new Error(message);
 		}
 
 		// Convert File to Buffer
@@ -249,7 +245,7 @@ export class MediaService {
 
 		// Fix keys in file object if possible, effectively wrapped in new File below or just used directly
 		// But we already have buffer. We should ensure fileName matches extension if it was corrupted.
-		if (extension && !file.name.endsWith('.' + extension)) {
+		if (extension && !file.name.endsWith(`.${extension}`)) {
 			// Append extension if missing or wrong
 			// Actually, let's just make sure we pass the correct info to uploadFile
 		}
@@ -263,7 +259,7 @@ export class MediaService {
 			// If detected type is valid image, we proceed.
 		}
 
-		if (!validation.valid && !this.mimeTypePattern.test(mimeType)) {
+		if (!(validation.valid || this.mimeTypePattern.test(mimeType))) {
 			// Only throw if BOTH name-based and content-based validation fail to match allow-list
 			const message = `File validation failed: ${validation.message} (Detected: ${mimeType})`;
 			logger.error(message, {
@@ -271,7 +267,7 @@ export class MediaService {
 				fileSize: file.size,
 				processingTime: performance.now() - startTime
 			});
-			throw Error(message);
+			throw new Error(message);
 		}
 
 		try {
@@ -291,8 +287,8 @@ export class MediaService {
 			const isImage = mimeType.startsWith('image/');
 			const isVideo = mimeType.startsWith('video/');
 			let advancedMetadata = {};
-			let width: number | undefined = undefined;
-			let height: number | undefined = undefined;
+			let width: number | undefined;
+			let height: number | undefined;
 			let thumbnailBuffer: Buffer | null = null;
 
 			if (isImage && !mimeType.includes('svg')) {
@@ -330,16 +326,16 @@ export class MediaService {
 			if (!mediaType) {
 				const message = 'Invalid media type';
 				logger.error(message, { mimeType, processingTime: performance.now() - startTime });
-				throw Error(message);
+				throw new Error(message);
 			}
 
 			const media: Omit<MediaBaseWithThumbnails, '_id'> = {
 				type: mediaType,
-				hash: hash,
+				hash,
 				filename: safeFileName, // Use the sanitized filename with extension
-				path: path, // Store the relative path
-				url: url, // Store the public URL
-				mimeType: mimeType,
+				path, // Store the relative path
+				url, // Store the public URL
+				mimeType,
 				size: file.size,
 				user: userId as DatabaseId,
 				createdAt: new Date().toISOString() as ISODateString,
@@ -349,13 +345,13 @@ export class MediaService {
 					uploadedBy: userId,
 					uploadTimestamp: new Date().toISOString(),
 					processingTimeMs: performance.now() - startTime,
-					advancedMetadata: advancedMetadata
+					advancedMetadata
 				},
-				originalId: originalId,
+				originalId,
 				versions: [
 					{
 						version: 1,
-						url: url,
+						url,
 						createdAt: new Date().toISOString() as ISODateString,
 						createdBy: userId as DatabaseId
 					}
@@ -469,7 +465,7 @@ export class MediaService {
 
 		const mediaResult = await db.crud.findOne<MediaItem>('media', { _id: id as DatabaseId });
 
-		if (!mediaResult.success || !mediaResult.data) {
+		if (!(mediaResult.success && mediaResult.data)) {
 			throw new AppError('Media item not found', 404, 'MEDIA_NOT_FOUND');
 		}
 
@@ -485,7 +481,7 @@ export class MediaService {
 			const response = await fetch(this.enrichMediaWithUrl(mediaItem).url);
 			originalBuffer = Buffer.from(await response.arrayBuffer());
 		} else {
-			const fs = await import('fs/promises');
+			const fs = await import('node:fs/promises');
 			const MEDIA_ROOT = getPublicSettingSync('MEDIA_FOLDER') ?? 'mediaFolder';
 			const fullPath = Path.join(process.cwd(), MEDIA_ROOT, mediaItem.path);
 			originalBuffer = await fs.readFile(fullPath);
@@ -579,11 +575,11 @@ export class MediaService {
 	public async updateMedia(id: string, updates: Partial<MediaItem>): Promise<void> {
 		this.ensureInitialized();
 		if (!id || typeof id !== 'string' || id.trim().length === 0) {
-			throw Error('Invalid id: Must be a non-empty string');
+			throw new Error('Invalid id: Must be a non-empty string');
 		}
 
 		if (!updates || typeof updates !== 'object') {
-			throw Error('Invalid updates: Must be a valid MediaItem partial object');
+			throw new Error('Invalid updates: Must be a valid MediaItem partial object');
 		}
 		try {
 			const db = await this.getDb();
@@ -605,12 +601,12 @@ export class MediaService {
 	/**
 	 * Add a new version to an existing media item
 	 */
-	public async addVersion(id: string, file: File, userId: string, action: string = 'update'): Promise<MediaItem> {
+	public async addVersion(id: string, file: File, userId: string, action = 'update'): Promise<MediaItem> {
 		this.ensureInitialized();
 		const db = await this.getDb();
 		const mediaResult = await db.crud.findOne<MediaItem>('media', { _id: id as DatabaseId });
 
-		if (!mediaResult.success || !mediaResult.data) {
+		if (!(mediaResult.success && mediaResult.data)) {
 			throw error(404, 'Media item not found');
 		}
 		const mediaItem = mediaResult.data;
@@ -652,7 +648,7 @@ export class MediaService {
 	public async deleteMedia(id: string): Promise<void> {
 		this.ensureInitialized();
 		if (!id || typeof id !== 'string' || id.trim().length === 0) {
-			throw Error('Invalid id: Must be a non-empty string');
+			throw new Error('Invalid id: Must be a non-empty string');
 		}
 		try {
 			const result = await this.db.media.files.delete(id as DatabaseId);
@@ -673,7 +669,7 @@ export class MediaService {
 	public async setMediaAccess(id: string, access: MediaAccess): Promise<void> {
 		this.ensureInitialized();
 		if (!id || typeof id !== 'string' || id.trim().length === 0) {
-			throw Error('Invalid id: Must be a non-empty string');
+			throw new Error('Invalid id: Must be a non-empty string');
 		}
 
 		// Access is now a string union, not array
@@ -697,7 +693,7 @@ export class MediaService {
 	public async getMedia(id: string, user: User, roles: Role[]): Promise<MediaItem> {
 		this.ensureInitialized();
 		if (!id || typeof id !== 'string' || id.trim().length === 0) {
-			throw Error('Invalid id: Must be a non-empty string');
+			throw new Error('Invalid id: Must be a non-empty string');
 		}
 		try {
 			// Check cache first
@@ -731,7 +727,7 @@ export class MediaService {
 			const isOwner = media.user === user._id; // Updated to match MediaBase
 			const isPublic = media.access === 'public';
 
-			if (!isAdmin && !isOwner && !isPublic) {
+			if (!(isAdmin || isOwner || isPublic)) {
 				// TODO: Add fine-grained permission check (e.g. 'media.read') if needed
 				logger.warn('Access denied to media item', { mediaId: id, userId: user._id, roles: roles.map((r) => r.name) });
 				throw error(403, 'Access denied');
@@ -746,7 +742,9 @@ export class MediaService {
 			logger.error(message, { error: err });
 			if (typeof err === 'object' && err !== null && 'status' in err) {
 				const status = (err as { status?: number }).status;
-				if (status === 403 || status === 404) throw err;
+				if (status === 403 || status === 404) {
+					throw err;
+				}
 			}
 			throw error(500, message);
 		}
@@ -773,7 +771,7 @@ export class MediaService {
 	public async bulkDeleteMedia(ids: string[]): Promise<void> {
 		this.ensureInitialized();
 		if (!Array.isArray(ids) || ids.some((id) => typeof id !== 'string' || id.trim().length === 0)) {
-			throw Error('Invalid ids: Must be an array of non-empty strings');
+			throw new Error('Invalid ids: Must be an array of non-empty strings');
 		}
 		try {
 			const convertedIds = ids.map((id) => id as DatabaseId);
@@ -792,7 +790,7 @@ export class MediaService {
 	}
 
 	// Search media items
-	public async searchMedia(query: string, page: number = 1, limit: number = 20): Promise<{ media: MediaItem[]; total: number }> {
+	public async searchMedia(query: string, page = 1, limit = 20): Promise<{ media: MediaItem[]; total: number }> {
 		this.ensureInitialized();
 		try {
 			const db = await this.getDb();
@@ -800,7 +798,7 @@ export class MediaService {
 				$or: [{ filename: { $regex: query, $options: 'i' } }, { 'metadata.tags': { $regex: query, $options: 'i' } }]
 			};
 
-			const options = { offset: (page - 1) * limit, limit: limit };
+			const options = { offset: (page - 1) * limit, limit };
 
 			const [mediaResult, totalResult] = await Promise.all([
 				db.crud.findMany<MediaItem>('media', searchCriteria as unknown as Partial<MediaItem>, options),
@@ -823,11 +821,11 @@ export class MediaService {
 	}
 
 	// List media items
-	public async listMedia(page: number = 1, limit: number = 20): Promise<{ media: MediaItem[]; total: number }> {
+	public async listMedia(page = 1, limit = 20): Promise<{ media: MediaItem[]; total: number }> {
 		this.ensureInitialized();
 		try {
 			const db = await this.getDb();
-			const options = { offset: (page - 1) * limit, limit: limit };
+			const options = { offset: (page - 1) * limit, limit };
 
 			const [mediaResult, totalResult] = await Promise.all([db.crud.findMany<MediaItem>('media', {}, options), db.crud.count('media', {})]);
 
@@ -885,8 +883,12 @@ export class MediaService {
 		} finally {
 			try {
 				if (os.platform() !== 'win32') {
-					if (tempInput) unlinkSync(tempInput);
-					if (tempOutput) unlinkSync(tempOutput);
+					if (tempInput) {
+						unlinkSync(tempInput);
+					}
+					if (tempOutput) {
+						unlinkSync(tempOutput);
+					}
 				}
 			} catch {
 				/* ignore */
@@ -917,8 +919,12 @@ export class MediaService {
 		} finally {
 			try {
 				if (os.platform() !== 'win32') {
-					if (tempInput) unlinkSync(tempInput);
-					if (tempOutput) unlinkSync(tempOutput);
+					if (tempInput) {
+						unlinkSync(tempInput);
+					}
+					if (tempOutput) {
+						unlinkSync(tempOutput);
+					}
 				}
 			} catch {
 				/* ignore */
@@ -928,26 +934,30 @@ export class MediaService {
 
 	// Determines the media type based on the MIME type
 	private getMediaType(mimeType: string): MediaTypeEnum {
-		if (!mimeType) throw Error('Mime type is required');
+		if (!mimeType) {
+			throw new Error('Mime type is required');
+		}
 
 		if (mimeType.startsWith('image/')) {
 			return MediaTypeEnumValue.Image;
-		} else if (mimeType.startsWith('video/')) {
-			return MediaTypeEnumValue.Video;
-		} else if (mimeType.startsWith('audio/')) {
-			return MediaTypeEnumValue.Audio;
-		} else if (mimeType === 'application/pdf') {
-			return MediaTypeEnumValue.Document;
-		} else {
-			// Fallback for other document types
-			if (mimeType.startsWith('application/') || mimeType.startsWith('text/')) {
-				return MediaTypeEnumValue.Document;
-			}
-			throw Error(`Unsupported media type: ${mimeType}`);
 		}
+		if (mimeType.startsWith('video/')) {
+			return MediaTypeEnumValue.Video;
+		}
+		if (mimeType.startsWith('audio/')) {
+			return MediaTypeEnumValue.Audio;
+		}
+		if (mimeType === 'application/pdf') {
+			return MediaTypeEnumValue.Document;
+		}
+		// Fallback for other document types
+		if (mimeType.startsWith('application/') || mimeType.startsWith('text/')) {
+			return MediaTypeEnumValue.Document;
+		}
+		throw new Error(`Unsupported media type: ${mimeType}`);
 	}
 
-	public async saveRemoteMedia(url: string, userId: string, access: MediaAccess, basePath: string = 'global'): Promise<MediaItem> {
+	public async saveRemoteMedia(url: string, userId: string, access: MediaAccess, basePath = 'global'): Promise<MediaItem> {
 		const response = await fetch(url);
 		if (!response.ok) {
 			throw new Error(`Failed to fetch remote file: ${response.statusText}`);

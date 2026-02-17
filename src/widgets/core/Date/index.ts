@@ -27,14 +27,15 @@
 import { createWidget } from '@src/widgets/widgetFactory';
 
 // Type for aggregation field parameter
-type AggregationField = { db_fieldName: string; [key: string]: unknown };
-
-import { isoDate, minLength, pipe, string, type InferInput as ValibotInput } from 'valibot';
-
-import type { DateProps } from './types';
+interface AggregationField {
+	db_fieldName: string;
+	[key: string]: unknown;
+}
 
 // ParaglideJS
 import * as m from '@src/paraglide/messages';
+import { isoDate, minLength, pipe, string, type InferInput as ValibotInput } from 'valibot';
+import type { DateProps } from './types';
 
 // Define the validation schema for the data this widget stores.
 const DateValidationSchema = pipe(
@@ -92,13 +93,15 @@ const DateWidget = createWidget<DateProps>({
 			const startDate = new Date(startDateStr);
 			startDate.setUTCHours(0, 0, 0, 0); // Start of the day
 
-			if (isNaN(startDate.getTime())) return []; // Invalid date
+			if (Number.isNaN(startDate.getTime())) {
+				return []; // Invalid date
+			}
 
 			// Handle date range
 			if (endDateStr) {
 				const endDate = new Date(endDateStr);
 				endDate.setUTCHours(23, 59, 59, 999); // End of the day
-				if (!isNaN(endDate.getTime())) {
+				if (!Number.isNaN(endDate.getTime())) {
 					return [{ $match: { [fieldName]: { $gte: startDate, $lte: endDate } } }];
 				}
 			}

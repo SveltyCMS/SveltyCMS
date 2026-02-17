@@ -205,7 +205,9 @@ const ImageResize = ImageExtension.extend({
 			let isDragging = false;
 
 			const onDrag = (e: MouseEvent) => {
-				if (!isDragging) return;
+				if (!isDragging) {
+					return;
+				}
 				const newWidth = e.clientX - resizer.getBoundingClientRect().left;
 				resizer.style.width = `${newWidth}px`;
 				preserveAspectRatio(resizer, nodeAttrs, `${newWidth}px`, e.shiftKey);
@@ -244,17 +246,21 @@ const ImageResize = ImageExtension.extend({
 });
 
 function preserveAspectRatio(resizer: HTMLDivElement, nodeAttrs: Record<string, unknown>, width: string, preserveRatio = true) {
-	if (!preserveRatio) return;
+	if (!preserveRatio) {
+		return;
+	}
 
 	const img = resizer.querySelector('img');
-	if (!img) return;
+	if (!img) {
+		return;
+	}
 
 	const naturalWidth = img.naturalWidth;
 	const naturalHeight = img.naturalHeight;
 
 	if (naturalWidth && naturalHeight) {
 		const ratio = naturalHeight / naturalWidth;
-		const numWidth = parseInt(width);
+		const numWidth = Number.parseInt(width, 10);
 		const newHeight = Math.round(numWidth * ratio);
 
 		nodeAttrs.h = resizer.style.height = `${newHeight}px`;
@@ -276,15 +282,15 @@ function knobDrag(
 
 	knob.setPointerCapture(e.pointerId);
 	knob.onpointermove = (e) => {
-		if (side == 'left' || side == 'right') {
-			const currentWidth = parseInt(resizer.style.width, 10);
+		if (side === 'left' || side === 'right') {
+			const currentWidth = Number.parseInt(resizer.style.width, 10);
 			const dx = side === 'left' ? e.movementX * -1 : e.movementX;
 			const newWidth = currentWidth + dx;
 			resizer.style.width = `${newWidth}px`;
 			nodeAttrs.w = `${newWidth}px`;
 			preserveAspectRatio(resizer, nodeAttrs, `${newWidth}px`, shouldPreserveAspectRatio);
 		} else {
-			const currentHeight = parseInt(resizer.style.height, 10);
+			const currentHeight = Number.parseInt(resizer.style.height, 10);
 			const dy = side === 'top' ? e.movementY * -1 : e.movementY;
 			const newHeight = currentHeight + dy;
 			resizer.style.height = `${newHeight}px`;

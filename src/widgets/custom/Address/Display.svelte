@@ -25,11 +25,11 @@ Renders: "Main St 123, 12345 Berlin, Germany"
 -->
 
 <script lang="ts">
-	import { app } from '@src/stores/store.svelte';
-	import { countryStore } from './countryStore.svelte';
-	import type { FieldType } from './';
-	import type { AddressData } from './types';
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
+	import { app } from '@src/stores/store.svelte';
+	import type { FieldType } from './';
+	import { countryStore } from './countryStore.svelte';
+	import type { AddressData } from './types';
 
 	let { field, value }: { field: FieldType; value: Record<string, AddressData> | AddressData | null | undefined } = $props();
 

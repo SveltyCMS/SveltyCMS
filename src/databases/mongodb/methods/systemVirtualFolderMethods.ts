@@ -3,10 +3,10 @@
  * @description Methods for managing system virtual folders in MongoDB.
  */
 
-import type { DatabaseId, DatabaseResult, SystemVirtualFolder, MediaItem } from '@src/databases/dbInterface';
-import { SystemVirtualFolderModel } from '../models/systemVirtualFolder';
-import { generateId, createDatabaseError } from './mongoDBUtils';
+import type { DatabaseId, DatabaseResult, MediaItem, SystemVirtualFolder } from '@src/databases/dbInterface';
 import { MediaModel } from '../models';
+import { SystemVirtualFolderModel } from '../models/systemVirtualFolder';
+import { createDatabaseError, generateId } from './mongoDBUtils';
 
 /**
  * MongoSystemVirtualFolderMethods provides virtual folder management for MongoDB.

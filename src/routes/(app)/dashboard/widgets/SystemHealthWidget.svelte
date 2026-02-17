@@ -31,28 +31,28 @@
 
 	// Icons
 
-	// Widgets
-	import BaseWidget from '../BaseWidget.svelte';
+	import type { WidgetSize } from '@src/content/types';
 
 	// Utils
 	import { showToast } from '@utils/toast';
-	import type { WidgetSize } from '@src/content/types';
+	// Widgets
+	import BaseWidget from '../BaseWidget.svelte';
 
 	type SystemState = 'IDLE' | 'INITIALIZING' | 'READY' | 'DEGRADED' | 'FAILED';
 	type ServiceHealth = 'healthy' | 'unhealthy' | 'initializing';
 
 	interface ServiceStatus {
-		status: ServiceHealth;
-		message: string;
-		lastChecked?: number;
 		error?: string;
+		lastChecked?: number;
+		message: string;
+		status: ServiceHealth;
 	}
 
 	interface HealthData {
+		components: Record<string, ServiceStatus>;
 		overallStatus: SystemState;
 		timestamp: number;
 		uptime: number;
-		components: Record<string, ServiceStatus>;
 	}
 
 	const {
@@ -167,9 +167,7 @@
 					<div class="flex items-center gap-2">
 						<iconify-icon icon={getStateIcon(data.overallStatus)} width="24" class={`text-2xl ${getStateColor(data.overallStatus)}`}></iconify-icon>
 						<div>
-							<span class={`font-bold ${getStateColor(data.overallStatus)}`}>
-								{data.overallStatus}
-							</span>
+							<span class={`font-bold ${getStateColor(data.overallStatus)}`}> {data.overallStatus} </span>
 							<p class="text-xs opacity-70">Uptime: {formatUptime(data.uptime)}</p>
 						</div>
 					</div>
@@ -181,21 +179,15 @@
 
 				<!-- Services Grid -->
 				<div class="grid flex-1 grid-cols-2 gap-2 overflow-y-auto" style="max-height: calc({size.h} * 120px - 80px);">
-					{#each Object.entries(data.components) as [name, service] (name)}
+					{#each Object.entries(data.components) as [ name, service ] (name)}
 						<div class="card preset-outlined-surface-500flex flex-col gap-1 p-2">
 							<div class="flex items-center justify-between">
 								<span class="text-xs font-semibold">{formatServiceName(name)}</span>
-								<span class={`badge ${getServiceBadgeClass(service.status)}`}>
-									{service.status}
-								</span>
+								<span class={`badge ${getServiceBadgeClass(service.status)}`}> {service.status} </span>
 							</div>
-							<p class="truncate text-xs opacity-70" title={service.message}>
-								{service.message}
-							</p>
+							<p class="truncate text-xs opacity-70" title={service.message}>{service.message}</p>
 							{#if service.error}
-								<p class="truncate text-xs text-error-500" title={service.error}>
-									{service.error}
-								</p>
+								<p class="truncate text-xs text-error-500" title={service.error}>{service.error}</p>
 							{/if}
 						</div>
 					{/each}

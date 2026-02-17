@@ -42,7 +42,7 @@ Pintura-style controls for the Blur tool with add/delete/rotate/flip functionali
 
 	function handleStrengthInput(e: Event) {
 		const target = e.currentTarget as HTMLInputElement;
-		onStrengthChange(parseInt(target.value, 10));
+		onStrengthChange(Number.parseInt(target.value, 10));
 	}
 </script>
 
@@ -89,11 +89,9 @@ Pintura-style controls for the Blur tool with add/delete/rotate/flip functionali
 					oninput={handleStrengthInput}
 					class="slider"
 					aria-label="Blur strength"
-				/>
+				>
 			</div>
-			<div class="slider-value">
-				{blurStrength}
-			</div>
+			<div class="slider-value">{blurStrength}</div>
 		</div>
 	</div>
 
@@ -103,12 +101,8 @@ Pintura-style controls for the Blur tool with add/delete/rotate/flip functionali
 		<!-- Group 4: Transform -->
 		<div class="control-group">
 			<div class="btn-group">
-				<button class="btn" onclick={onRotateLeft} title="Rotate Left">
-					<iconify-icon icon="mdi:rotate-left" width="20"></iconify-icon>
-				</button>
-				<button class="btn" onclick={onRotateRight} title="Rotate Right">
-					<iconify-icon icon="mdi:rotate-right" width="20"></iconify-icon>
-				</button>
+				<button class="btn" onclick={onRotateLeft} title="Rotate Left"><iconify-icon icon="mdi:rotate-left" width="20"></iconify-icon></button>
+				<button class="btn" onclick={onRotateRight} title="Rotate Right"><iconify-icon icon="mdi:rotate-right" width="20"></iconify-icon></button>
 				<button class="btn" onclick={onFlipHorizontal} title="Flip Horizontal">
 					<iconify-icon icon="mdi:flip-horizontal" width="20"></iconify-icon>
 				</button>
@@ -146,13 +140,13 @@ Pintura-style controls for the Blur tool with add/delete/rotate/flip functionali
 	.blur-controls {
 		display: flex;
 		flex-wrap: wrap;
-		align-items: center;
 		gap: 0.75rem;
+		align-items: center;
+		justify-content: center;
+		width: 100%;
 		padding: 0;
 		background: transparent;
 		border: none;
-		width: 100%;
-		justify-content: center;
 	}
 
 	:global(.dark) .blur-controls {
@@ -162,35 +156,35 @@ Pintura-style controls for the Blur tool with add/delete/rotate/flip functionali
 
 	.control-group {
 		display: flex;
-		align-items: center;
-		gap: 0.5rem;
 		flex-wrap: wrap;
+		gap: 0.5rem;
+		align-items: center;
 	}
 
 	.btn-group {
 		display: flex;
 		gap: 0;
-		border-radius: 0.375rem;
 		overflow: hidden;
-		border: 1px solid rgb(var(--color-surface-300) / 1);
 		background: rgb(var(--color-surface-50) / 1);
+		border: 1px solid rgb(var(--color-surface-300) / 1);
+		border-radius: 0.375rem;
 	}
 
 	:global(.dark) .btn-group {
-		border-color: rgb(var(--color-surface-600) / 1);
 		background: rgb(var(--color-surface-700) / 1);
+		border-color: rgb(var(--color-surface-600) / 1);
 	}
 
 	.btn-group .btn {
-		border-radius: 0;
-		border: none;
-		border-right: 1px solid rgb(var(--color-surface-300) / 1);
-		height: 2rem;
-		width: 2rem;
-		padding: 0;
 		display: flex;
 		align-items: center;
 		justify-content: center;
+		width: 2rem;
+		height: 2rem;
+		padding: 0;
+		border: none;
+		border-right: 1px solid rgb(var(--color-surface-300) / 1);
+		border-radius: 0;
 	}
 
 	.btn-group .btn:last-child {
@@ -198,22 +192,22 @@ Pintura-style controls for the Blur tool with add/delete/rotate/flip functionali
 	}
 
 	.btn-group .btn.active {
-		background: rgb(var(--color-primary-500) / 1);
 		color: white;
+		background: rgb(var(--color-primary-500) / 1);
 	}
 
 	/* Slider */
 	.slider-wrapper {
 		display: flex;
-		align-items: center;
-		gap: 0.75rem;
-		background: rgb(var(--color-surface-50) / 0.5);
-		padding: 0.25rem 0.75rem;
-		border-radius: 9999px;
-		border: 1px solid rgb(var(--color-surface-200) / 1);
-		height: 2.25rem;
-		min-width: 160px;
 		flex: 1;
+		gap: 0.75rem;
+		align-items: center;
+		min-width: 160px;
+		height: 2.25rem;
+		padding: 0.25rem 0.75rem;
+		background: rgb(var(--color-surface-50) / 0.5);
+		border: 1px solid rgb(var(--color-surface-200) / 1);
+		border-radius: 9999px;
 	}
 
 	:global(.dark) .slider-wrapper {
@@ -222,24 +216,24 @@ Pintura-style controls for the Blur tool with add/delete/rotate/flip functionali
 	}
 
 	.slider-track-container {
-		flex: 1;
 		position: relative;
 		display: flex;
+		flex: 1;
 		align-items: center;
 		height: 100%;
 	}
 
 	.slider {
-		-webkit-appearance: none;
-		appearance: none;
+		position: absolute;
 		width: 100%;
 		height: 4px;
-		border-radius: 2px;
-		background: rgb(var(--color-surface-300) / 1);
-		outline: none;
-		cursor: pointer;
-		position: absolute;
 		margin: 0;
+		-webkit-appearance: none;
+		appearance: none;
+		cursor: pointer;
+		outline: none;
+		background: rgb(var(--color-surface-300) / 1);
+		border-radius: 2px;
 	}
 
 	:global(.dark) .slider {
@@ -247,33 +241,33 @@ Pintura-style controls for the Blur tool with add/delete/rotate/flip functionali
 	}
 
 	.slider::-webkit-slider-thumb {
-		-webkit-appearance: none;
-		appearance: none;
 		width: 16px;
 		height: 16px;
-		border-radius: 50%;
+		margin-top: -6px;
+		-webkit-appearance: none;
+		appearance: none;
+		cursor: pointer;
 		background: white;
 		border: 2px solid rgb(var(--color-primary-500) / 1);
-		cursor: pointer;
+		border-radius: 50%;
 		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
 		transition: transform 0.1s;
-		margin-top: -6px;
 	}
 
 	.slider-value {
 		min-width: 2rem;
-		text-align: right;
+		font-family: monospace;
 		font-size: 0.75rem;
 		font-weight: 600;
-		font-family: monospace;
 		color: rgb(var(--color-primary-500) / 1);
+		text-align: right;
 	}
 
 	.divider {
+		flex-shrink: 0;
 		width: 1px;
 		height: 1.5rem;
 		background: rgb(var(--color-surface-300) / 1);
-		flex-shrink: 0;
 	}
 
 	:global(.dark) .divider {
@@ -282,9 +276,9 @@ Pintura-style controls for the Blur tool with add/delete/rotate/flip functionali
 
 	.actions {
 		display: flex;
+		flex-shrink: 0;
 		gap: 0.5rem;
 		align-items: center;
-		flex-shrink: 0;
 		margin-left: auto;
 	}
 
@@ -295,11 +289,11 @@ Pintura-style controls for the Blur tool with add/delete/rotate/flip functionali
 		}
 
 		.actions {
-			width: 100%;
 			justify-content: flex-end;
-			border-top: 1px solid rgb(var(--color-surface-200) / 0.5);
+			width: 100%;
 			padding-top: 0.75rem;
 			margin-left: 0;
+			border-top: 1px solid rgb(var(--color-surface-200) / 0.5);
 		}
 	}
 </style>

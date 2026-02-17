@@ -108,9 +108,7 @@ Modern, responsive crop controls with keyboard shortcuts and accessibility
 
 		<!-- Transform Controls -->
 		<div class="btn-group">
-			<button class="btn" onclick={onRotateLeft} title="Rotate Left 90° (L)">
-				<iconify-icon icon="mdi:rotate-left" width="20"></iconify-icon>
-			</button>
+			<button class="btn" onclick={onRotateLeft} title="Rotate Left 90° (L)"><iconify-icon icon="mdi:rotate-left" width="20"></iconify-icon></button>
 			<button class="btn" onclick={onRotateRight} title="Rotate Right 90° (R)">
 				<iconify-icon icon="mdi:rotate-right" width="20"></iconify-icon>
 			</button>
@@ -118,9 +116,7 @@ Modern, responsive crop controls with keyboard shortcuts and accessibility
 				<iconify-icon icon="mdi:flip-horizontal" width="20"></iconify-icon>
 			</button>
 			{#if onFlipVertical}
-				<button class="btn" onclick={onFlipVertical} title="Flip Vertical">
-					<iconify-icon icon="mdi:flip-vertical" width="20"></iconify-icon>
-				</button>
+				<button class="btn" onclick={onFlipVertical} title="Flip Vertical"><iconify-icon icon="mdi:flip-vertical" width="20"></iconify-icon></button>
 			{/if}
 		</div>
 	</div>
@@ -136,59 +132,59 @@ Modern, responsive crop controls with keyboard shortcuts and accessibility
 	.crop-controls {
 		display: flex;
 		flex-wrap: wrap;
-		align-items: center;
 		gap: 1rem;
+		align-items: center;
+		justify-content: center;
+		width: 100%;
 		padding: 0;
 		background: transparent;
 		border: none;
-		width: 100%;
-		justify-content: center;
 	}
 
 	.control-group {
 		display: flex;
-		align-items: center;
-		gap: 0.5rem;
 		flex-wrap: wrap;
+		gap: 0.5rem;
+		align-items: center;
 	}
 
 	.aspect-ratios {
 		display: flex;
-		gap: 0.25rem;
 		flex-wrap: wrap;
+		gap: 0.25rem;
 	}
 
 	.aspect-btn {
-		height: 2.25rem;
 		display: flex;
-		align-items: center;
 		gap: 0.5rem;
+		align-items: center;
+		height: 2.25rem;
 		padding: 0 1rem;
 		font-size: 0.75rem;
 		font-weight: 600;
-		border-radius: 9999px;
-		background: rgba(255, 255, 255, 0.05);
 		color: #9ca3af;
-		cursor: pointer;
-		transition: all 0.2s;
 		white-space: nowrap;
+		cursor: pointer;
+		background: rgba(255, 255, 255, 0.05);
 		border: 1px solid transparent;
+		border-radius: 9999px;
+		transition: all 0.2s;
 	}
 
 	.aspect-btn:hover {
-		background: rgba(255, 255, 255, 0.1);
 		color: white;
+		background: rgba(255, 255, 255, 0.1);
 	}
 
 	.aspect-btn.active {
-		background: #3b82f6; /* Primary-500 */
 		color: white;
+		background: #3b82f6; /* Primary-500 */
 		box-shadow: 0 0 15px rgba(59, 130, 246, 0.3);
 	}
 
 	.btn-group .btn.active {
-		background: #3b82f6;
 		color: white;
+		background: #3b82f6;
 	}
 
 	/* Mobile optimizations */

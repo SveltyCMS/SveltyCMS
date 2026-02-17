@@ -31,13 +31,17 @@ export function validateId(id: string): boolean {
 
 // Convert Date to ISODateString
 export function dateToISO(date: Date | null | undefined): ISODateString | undefined {
-	if (!date) return undefined;
+	if (!date) {
+		return undefined;
+	}
 	return date.toISOString() as ISODateString;
 }
 
 // Convert ISODateString to Date
 export function isoToDate(iso: ISODateString | null | undefined): Date | undefined {
-	if (!iso) return undefined;
+	if (!iso) {
+		return undefined;
+	}
 	return new Date(iso);
 }
 
@@ -74,6 +78,7 @@ export function convertDatesToISO<T extends Record<string, unknown>>(row: T): T 
 	const result = { ...row };
 
 	for (const key in result) {
+		if (!Object.hasOwn(result, key)) continue;
 		const value = result[key];
 		if (value instanceof Date) {
 			(result as Record<string, unknown>)[key] = value.toISOString() as ISODateString;
@@ -93,7 +98,9 @@ export function convertArrayDatesToISO<T extends Record<string, unknown>>(rows: 
  * Drizzle's .$type<T>() doesn't guarantee deserialization for MySQL JSON columns.
  */
 export function parseJsonField<T>(value: unknown, fallback: T): T {
-	if (value === null || value === undefined) return fallback;
+	if (value === null || value === undefined) {
+		return fallback;
+	}
 	if (typeof value === 'string') {
 		try {
 			return JSON.parse(value) as T;

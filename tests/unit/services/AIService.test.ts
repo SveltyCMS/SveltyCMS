@@ -3,7 +3,7 @@
  * @description Unit tests for the AI Assistant Service
  */
 
-import { describe, it, expect, beforeEach, mock } from 'bun:test';
+import { beforeEach, describe, expect, it, mock } from 'bun:test';
 import { aiService } from '@src/services/AIService';
 
 // Mock fetch globally

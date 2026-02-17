@@ -32,22 +32,22 @@ This widget fetches and displays real-time disk usage data, including:
 </script>
 
 <script lang="ts">
+	import type { WidgetSize } from '@src/content/types';
 	import { onDestroy, onMount } from 'svelte';
 	// Components
 	import BaseWidget from '../BaseWidget.svelte';
-	import type { WidgetSize } from '@src/content/types';
 
 	let ChartJS: any = $state(undefined);
 	let chart: any = $state(undefined);
 
 	// Type definitions
 	interface DiskInfo {
+		filesystem?: string;
+		freeGb: string | number;
+		mountPoint?: string;
 		totalGb: string | number;
 		usedGb: string | number;
-		freeGb: string | number;
 		usedPercentage: string | number;
-		mountPoint?: string;
-		filesystem?: string;
 	}
 
 	interface FetchedData {
@@ -88,22 +88,23 @@ This widget fetches and displays real-time disk usage data, including:
 		};
 	}
 	// Move diskInfo extraction to script for chart logic
-	let diskInfo: any = undefined;
+	let diskInfo: any;
 	let totalGB = 0;
 	$effect(() => {
 		if (currentData?.diskInfo?.root) {
 			diskInfo = currentData.diskInfo.root;
-			totalGB = typeof diskInfo.totalGb === 'string' ? parseFloat(diskInfo.totalGb) : diskInfo.totalGb || 0;
+			totalGB = typeof diskInfo.totalGb === 'string' ? Number.parseFloat(diskInfo.totalGb) : diskInfo.totalGb || 0;
 		}
 	});
 	$effect(() => {
-		if (!chartCanvas || !diskInfo || !ChartJS) {
+		if (!(chartCanvas && diskInfo && ChartJS)) {
 			return;
 		}
 
-		const used = typeof diskInfo.usedGb === 'string' ? parseFloat(diskInfo.usedGb) : Number(diskInfo.usedGb) || 0;
-		const free = typeof diskInfo.freeGb === 'string' ? parseFloat(diskInfo.freeGb) : Number(diskInfo.freeGb) || 0;
-		const usedPercent = typeof diskInfo.usedPercentage === 'string' ? parseFloat(diskInfo.usedPercentage) : Number(diskInfo.usedPercentage) || 0;
+		const used = typeof diskInfo.usedGb === 'string' ? Number.parseFloat(diskInfo.usedGb) : Number(diskInfo.usedGb) || 0;
+		const free = typeof diskInfo.freeGb === 'string' ? Number.parseFloat(diskInfo.freeGb) : Number(diskInfo.freeGb) || 0;
+		const usedPercent =
+			typeof diskInfo.usedPercentage === 'string' ? Number.parseFloat(diskInfo.usedPercentage) : Number(diskInfo.usedPercentage) || 0;
 
 		if (chart) {
 			chart.data.datasets[0].data = [used];
@@ -176,7 +177,7 @@ This widget fetches and displays real-time disk usage data, including:
 							cornerRadius: 8,
 							displayColors: true,
 							callbacks: {
-								label: function (context: any) {
+								label(context: any) {
 									const label = context.dataset.label || '';
 									const value = typeof context.raw === 'number' ? context.raw : 0;
 									const total = used + free;
@@ -308,9 +309,7 @@ This widget fetches and displays real-time disk usage data, including:
 								role="progressbar"
 							></div>
 							<div class="pointer-events-none absolute inset-0 flex items-center justify-center">
-								<span class="text-xs font-semibold text-white drop-shadow-sm dark:text-black">
-									{usedGB.toFixed(1)} GB Used
-								</span>
+								<span class="text-xs font-semibold text-white drop-shadow-sm dark:text-black"> {usedGB.toFixed(1)} GB Used </span>
 							</div>
 						</div>
 
@@ -332,7 +331,8 @@ This widget fetches and displays real-time disk usage data, including:
 											? 'text-orange-600 dark:text-orange-400'
 											: 'text-blue-600 dark:text-blue-400'}"
 								>
-									{usedGB.toFixed(1)} GB
+									{usedGB.toFixed(1)}
+									GB
 								</span>
 							</div>
 

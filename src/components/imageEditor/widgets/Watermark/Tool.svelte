@@ -5,8 +5,8 @@ Watermark tool using svelte-canvas compatible state.
 -->
 <script lang="ts">
 	import { imageEditorStore } from '@stores/imageEditorStore.svelte';
-	import WatermarkControls from './Controls.svelte';
 	import { Layer } from 'svelte-canvas';
+	import WatermarkControls from './Controls.svelte';
 
 	let { onCancel }: { onCancel: () => void } = $props();
 
@@ -20,10 +20,8 @@ Watermark tool using svelte-canvas compatible state.
 		const activeState = imageEditorStore.state.activeState;
 		if (activeState === 'watermark') {
 			updateToolbar();
-		} else {
-			if (imageEditorStore.state.toolbarControls?.component === WatermarkControls) {
-				imageEditorStore.setToolbarControls(null);
-			}
+		} else if (imageEditorStore.state.toolbarControls?.component === WatermarkControls) {
+			imageEditorStore.setToolbarControls(null);
 		}
 	});
 

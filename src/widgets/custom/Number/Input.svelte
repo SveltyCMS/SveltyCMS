@@ -31,21 +31,18 @@
 -->
 
 <script lang="ts">
-	import { onDestroy } from 'svelte';
-	import type { FieldType } from '.';
+	import { tokenTarget } from '@src/services/token/tokenTarget';
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
-
 	// Stores
 	import { app, validationStore } from '@stores/store.svelte.ts';
-
 	import { getFieldName } from '@utils/utils';
-	import { tokenTarget } from '@src/services/token/tokenTarget';
-
-	// Valibot validation
-	import { number as numberSchema, pipe, parse, minValue, maxValue, optional } from 'valibot';
-
 	// Unified error handling
 	import { handleWidgetValidation } from '@widgets/widgetErrorHandler';
+	import { onDestroy } from 'svelte';
+
+	// Valibot validation
+	import { maxValue, minValue, number as numberSchema, optional, parse, pipe } from 'valibot';
+	import type { FieldType } from '.';
 
 	interface Props {
 		field: FieldType;
@@ -119,7 +116,7 @@
 
 		// Parse the number
 		const cleanedValue = inputValue.replace(new RegExp(`[^0-9${decimalSeparator}-]`, 'g'), '').replace(decimalSeparator, '.');
-		const number = parseFloat(cleanedValue);
+		const number = Number.parseFloat(cleanedValue);
 
 		if (!isNaN(number)) {
 			if (field.translated) {
@@ -229,7 +226,7 @@
 					aria-describedby={validationError ? `${fieldName}-error` : undefined}
 					aria-required={field?.required}
 					data-testid="number-input"
-				/>
+				>
 			</div>
 
 			{#if field?.suffix}

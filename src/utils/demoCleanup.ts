@@ -10,10 +10,10 @@
  * MongoDB and MariaDB/Drizzle backends.
  */
 
-import { logger } from '@utils/logger.server';
-import { getPrivateEnv } from '@src/databases/configState';
 import type { User } from '@src/databases/auth/types';
+import { getPrivateEnv } from '@src/databases/configState';
 import type { DatabaseId } from '@src/databases/dbInterface';
+import { logger } from '@utils/logger.server';
 
 /**
  * Cleans up expired demo tenants.
@@ -26,7 +26,9 @@ export async function cleanupExpiredDemoTenants() {
 	const isDemo = process.env.SVELTYCMS_DEMO === 'true' || env?.DEMO === true;
 
 	// Safety check: ONLY run in demo mode
-	if (!isDemo) return;
+	if (!isDemo) {
+		return;
+	}
 
 	const db = getDb();
 	if (!db) {
@@ -44,7 +46,7 @@ export async function cleanupExpiredDemoTenants() {
 		// MariaDB's mapQuery() only supports equality operators, so date filtering
 		// must happen in JS. Demo mode has limited users so this is acceptable.
 		const usersResult = await db.auth.getAllUsers();
-		if (!usersResult.success || !usersResult.data) {
+		if (!(usersResult.success && usersResult.data)) {
 			logger.warn('[Demo Cleanup] Failed to fetch users');
 			return;
 		}
@@ -53,20 +55,24 @@ export async function cleanupExpiredDemoTenants() {
 		// Both adapters store createdAt (MongoDB via timestamps:true, MariaDB via schema).
 		// The User type doesn't formally declare createdAt, but it exists on returned objects.
 		const expiredTenantUsers = usersResult.data.filter((u: User & { createdAt?: string }) => {
-			if (!u.tenantId || u.role !== 'admin') return false;
+			if (!u.tenantId || u.role !== 'admin') {
+				return false;
+			}
 			const createdAt = u.createdAt ? new Date(u.createdAt) : null;
 			return createdAt && createdAt < cutoffDate;
 		});
 
 		const tenantIds = [...new Set(expiredTenantUsers.map((u) => u.tenantId).filter(Boolean))] as string[];
 
-		if (tenantIds.length === 0) return;
+		if (tenantIds.length === 0) {
+			return;
+		}
 
 		logger.info(`[Demo Cleanup] Found ${tenantIds.length} expired tenants. Starting cleanup...`);
 
 		// Import fs and path for physical file deletion
-		const fs = await import('fs/promises');
-		const path = await import('path');
+		const fs = await import('node:fs/promises');
+		const path = await import('node:path');
 
 		// Collect all tenant user IDs for session/user cleanup
 		const allTenantUsers = usersResult.data.filter((u) => u.tenantId && tenantIds.includes(u.tenantId));
@@ -80,7 +86,7 @@ export async function cleanupExpiredDemoTenants() {
 				await db.media.setupMediaModels();
 				// Get media files via the adapter's paginated method, then filter by tenantId.
 				// PaginatedResult has .items (not .data).
-				const mediaResult = await db.media.files.getByFolder(undefined, { page: 1, pageSize: 10000 });
+				const mediaResult = await db.media.files.getByFolder(undefined, { page: 1, pageSize: 10_000 });
 				if (mediaResult.success && mediaResult.data) {
 					const tenantMedia = mediaResult.data.items.filter((m) => (m as unknown as { tenantId?: string }).tenantId === tenantId);
 

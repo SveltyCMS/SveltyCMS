@@ -13,8 +13,8 @@
  * - Proper typing for user data
  */
 
-import { redirect } from '@sveltejs/kit';
 import { TenantModel } from '@src/databases/mongodb/models/tenant';
+import { redirect } from '@sveltejs/kit';
 import { logger } from '@utils/logger';
 
 import type { PageServerLoad } from './$types';
@@ -22,7 +22,9 @@ import type { PageServerLoad } from './$types';
 // Only System Admins can access this
 export const load: PageServerLoad = async ({ locals }) => {
 	const session = await locals.getSession();
-	if (!session || !session.user) throw redirect(302, '/login');
+	if (!session?.user) {
+		throw redirect(302, '/login');
+	}
 
 	// Verify System Admin role (implementation depends on your role system)
 	// For now, checks if user is the first system user or has 'admin' role in global context
@@ -51,7 +53,7 @@ export const actions = {
 		const tenantId = formData.get('tenantId') as string;
 		const status = formData.get('status') as string;
 
-		if (!tenantId || !['active', 'suspended'].includes(status)) {
+		if (!(tenantId && ['active', 'suspended'].includes(status))) {
 			return { success: false, message: 'Invalid parameters' };
 		}
 

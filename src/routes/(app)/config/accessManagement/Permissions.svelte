@@ -18,12 +18,11 @@ It provides the following functionality:
 -->
 
 <script lang="ts">
-	// Stores
-	import { page } from '$app/state';
-
 	// Auth
 	import type { Permission, Role } from '@src/databases/auth/types';
 	import { PermissionType } from '@src/databases/auth/types';
+	// Stores
+	import { page } from '$app/state';
 
 	interface Props {
 		// Props passed from +page.svelte
@@ -208,13 +207,11 @@ It provides the following functionality:
 			placeholder="Search Permissions..."
 			class="input mr-4 grow dark:text-surface-50"
 			aria-label="Search permissions"
-		/>
+		>
 	</div>
 
 	{#if filteredPermissions.length === 0}
-		<p class="text-tertiary-500 dark:text-primary-500">
-			{searchTerm ? 'No permissions match your search.' : 'No permissions defined yet.'}
-		</p>
+		<p class="text-tertiary-500 dark:text-primary-500">{searchTerm ? 'No permissions match your search.' : 'No permissions defined yet.'}</p>
 	{:else}
 		<!-- Admin Notice -->
 		{#if adminRole}
@@ -304,7 +301,7 @@ It provides the following functionality:
 													onchange={() => toggleRole(permission._id, role._id)}
 													class="form-checkbox h-5 w-5 cursor-pointer"
 													aria-label={`Assign ${permission.name} (${permission.action}) to ${role.name}`}
-												/>
+												>
 											</td>
 										{/if}
 									{/each}

@@ -45,7 +45,9 @@ const SeoValidationSchema = object({
 		pipe(
 			string(),
 			custom((input) => {
-				if (!input) return true;
+				if (!input) {
+					return true;
+				}
 				try {
 					const parsed = JSON.parse(input as string);
 					// Must be an object, not a string or array at root level

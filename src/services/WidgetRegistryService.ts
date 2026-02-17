@@ -3,13 +3,13 @@
  * @description A server-side singleton service that discovers and holds all widget blueprints.
  */
 
+import { coreModules, customModules } from '@src/widgets/scanner';
 import type { WidgetFactory, WidgetModule, WidgetType } from '@src/widgets/types';
 import { logger } from '@utils/logger';
-import { coreModules, customModules } from '@src/widgets/scanner';
 
 class WidgetRegistryService {
 	private static instance: WidgetRegistryService;
-	private widgets: Map<string, WidgetFactory> = new Map();
+	private readonly widgets: Map<string, WidgetFactory> = new Map();
 	private isInitialized = false;
 	private initializationPromise: Promise<void> | null = null;
 
@@ -73,8 +73,8 @@ class WidgetRegistryService {
 
 				// Scan marketplace widgets (runtime discovery)
 				try {
-					const fs = await import('fs/promises');
-					const path = await import('path');
+					const fs = await import('node:fs/promises');
+					const path = await import('node:path');
 					const marketplaceDir = path.resolve(process.cwd(), 'src/widgets/marketplace');
 
 					try {

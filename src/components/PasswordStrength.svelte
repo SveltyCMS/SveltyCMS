@@ -37,12 +37,12 @@ Visual password strength indicator with match validation and accessibility featu
 
 <script lang="ts">
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
-	import { fade, slide } from 'svelte/transition';
 	import { onMount } from 'svelte';
+	import { fade, slide } from 'svelte/transition';
 
 	interface Props {
-		password?: string;
 		confirmPassword?: string;
+		password?: string;
 		showRequirements?: boolean;
 	}
 
@@ -193,9 +193,7 @@ Visual password strength indicator with match validation and accessibility featu
 				{/if}
 
 				<!-- Screen reader announcement -->
-				<span class="sr-only" aria-live="polite" aria-atomic="true">
-					{strengthLabel()}
-				</span>
+				<span class="sr-only" aria-live="polite" aria-atomic="true"> {strengthLabel()} </span>
 			</div>
 
 			<!-- Shine effect (only when motion allowed) -->
@@ -223,7 +221,8 @@ Visual password strength indicator with match validation and accessibility featu
 								aria-expanded={showRequirementsList}
 								aria-controls="password-requirements"
 							>
-								{showRequirementsList ? 'Hide' : 'Show'} requirements
+								{showRequirementsList ? 'Hide' : 'Show'}
+								requirements
 							</button>
 						{/if}
 					</div>

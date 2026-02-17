@@ -8,23 +8,18 @@
  * - **Type Safety:** Improved typing for the db adapter import.
  */
 
-import { browser, building, dev } from '$app/environment';
-import { error } from '@sveltejs/kit';
-// Removed axios import
-import { v4 as uuidv4 } from 'uuid';
-
 // Stores
 import { collections, contentStructure, setCollection, setCollectionValue, setMode, unAssigned } from '@src/stores/collectionStore.svelte';
-
 // Components
 import { widgets } from '@stores/widgetStore.svelte.ts';
-
-// Types
-import type { Category, ContentTypes, Schema } from './types';
-import type { DatabaseId, ISODateString } from './types';
-
+import { error } from '@sveltejs/kit';
 // System Logger
 import { logger } from '@utils/logger';
+// Removed axios import
+import { v4 as uuidv4 } from 'uuid';
+import { browser, building, dev } from '$app/environment';
+// Types
+import type { Category, ContentTypes, DatabaseId, ISODateString, Schema } from './types';
 
 // Constants
 const BATCH_SIZE = 50;
@@ -36,24 +31,24 @@ let collectionModelsCache: Partial<Record<ContentTypes, Schema>> | null = null;
 
 // --- Types ---
 interface CategoryNode {
+	collections: Schema[];
+	icon: string;
 	id: number;
 	name: string;
-	icon: string;
 	order: number;
-	collections: Schema[];
 	subcategories: Map<string, CategoryNode>;
 }
 
 interface ProcessedModule {
-	schema?: Schema;
 	default?: Schema;
+	schema?: Schema;
 }
 
 interface CollectionData {
+	collections: Schema[];
+	icon: string;
 	id: string;
 	name: string;
-	icon: string;
-	collections: Schema[];
 	subcategories: Record<string, CollectionData>;
 }
 
@@ -73,7 +68,9 @@ function chunks<T>(arr: T[], size: number): T[][] {
  */
 function stringToHash(str: string): number {
 	let hash = 0;
-	if (str.length === 0) return hash;
+	if (str.length === 0) {
+		return hash;
+	}
 	for (let i = 0; i < str.length; i++) {
 		const char = str.charCodeAt(i);
 		hash = (hash << 5) - hash + char;
@@ -95,10 +92,12 @@ async function getCurrentPath() {
 	// 2. Server-Side Dynamic Import
 	try {
 		const { dbAdapter } = await import('../databases/db');
-		if (!dbAdapter) return getDefaultPathConfig();
+		if (!dbAdapter) {
+			return getDefaultPathConfig();
+		}
 
 		const result = await dbAdapter.content.nodes.getStructure('flat');
-		if (!result.success || !result.data) {
+		if (!(result.success && result.data)) {
 			logger.warn('Failed to get content nodes from database');
 			return getDefaultPathConfig();
 		}
@@ -177,7 +176,7 @@ async function processBatch(collections: Schema[]): Promise<void> {
 			}
 
 			const nextNode = currentMap.get(segment);
-			if (nextNode && nextNode.subcategories) {
+			if (nextNode?.subcategories) {
 				currentMap = nextNode.subcategories;
 			}
 		}
@@ -219,7 +218,7 @@ async function createCategoriesFromPath(collections: Schema[]): Promise<Category
 
 	const categoriesObject = flattenAndSortCategories();
 	const result: Category[] = Object.values(categoriesObject).map((cat) => ({
-		id: parseInt(cat.id),
+		id: Number.parseInt(cat.id, 10),
 		name: cat.name,
 		icon: cat.icon,
 		order: 0,
@@ -244,7 +243,7 @@ export async function getCollections(): Promise<Partial<Record<ContentTypes, Sch
 }
 
 // Function to update collections
-export const updateCollections = async (recompile: boolean = false): Promise<void> => {
+export const updateCollections = async (recompile = false): Promise<void> => {
 	logger.trace('Starting updateCollections');
 
 	if (recompile) {
@@ -259,7 +258,7 @@ export const updateCollections = async (recompile: boolean = false): Promise<voi
 		for (const category of _categories) {
 			for (const collectionName of category.collections) {
 				const col = imports[collectionName as ContentTypes];
-				if (col && col.name) {
+				if (col?.name) {
 					_collections[col.name as ContentTypes] = col;
 				}
 			}
@@ -281,7 +280,9 @@ export const updateCollections = async (recompile: boolean = false): Promise<voi
 			updatedAt: new Date().toISOString() as ISODateString
 		}));
 
-		Object.keys(collections.all).forEach((key) => delete collections.all[key]);
+		for (const key of Object.keys(collections.all)) {
+			delete collections.all[key];
+		}
 		Object.assign(collections.all, _collections);
 
 		const unassigned = Object.values(imports).filter((x) => !Object.values(_collections).includes(x));
@@ -305,7 +306,7 @@ export const updateCollections = async (recompile: boolean = false): Promise<voi
 };
 
 // Function to get imports based on environment
-async function getImports(recompile: boolean = false): Promise<Record<ContentTypes, Schema>> {
+async function getImports(recompile = false): Promise<Record<ContentTypes, Schema>> {
 	await widgets.initialize();
 
 	if (!recompile && Object.keys(importsCache).length > 0) {
@@ -313,7 +314,7 @@ async function getImports(recompile: boolean = false): Promise<Record<ContentTyp
 	}
 
 	// Server-side production optimization
-	if (!dev && !building && import.meta.env.SSR) {
+	if (!(dev || building) && import.meta.env.SSR) {
 		try {
 			const { scanCompiledCollections } = await import('./collectionScanner');
 			const compiledCollections = await scanCompiledCollections();
@@ -339,7 +340,7 @@ async function getImports(recompile: boolean = false): Promise<Record<ContentTyp
 				const randomId = uuidv4();
 				collection.name = name as ContentTypes;
 				collection.icon = collection.icon || 'iconoir:info-empty';
-				collection.id = parseInt(randomId.toString().slice(0, 8), 16);
+				collection.id = Number.parseInt(randomId.toString().slice(0, 8), 16);
 
 				const pathSegments = modulePath.split('/config/collections/')[1]?.split('/') || [];
 				const collectionPath = pathSegments.slice(0, -1).join('/');
@@ -383,10 +384,12 @@ async function getImports(recompile: boolean = false): Promise<Record<ContentTyp
 			// Production Client-Side Fallback
 			let files: string[] = [];
 			try {
-				let collectionsData;
+				let collectionsData: any;
 				if (browser) {
 					const response = await fetch('/api/collections');
-					if (!response.ok) throw new Error('Failed to fetch collections');
+					if (!response.ok) {
+						throw new Error('Failed to fetch collections');
+					}
 					collectionsData = (await response.json()).data;
 				} else {
 					collectionsData = await getCollections();
@@ -413,10 +416,12 @@ async function getImports(recompile: boolean = false): Promise<Record<ContentTyp
 							batch.map(async (file) => {
 								const name = file.replace(/\.js$/, '');
 								try {
-									let collectionModule;
+									let collectionModule: any;
 									if (typeof window !== 'undefined') {
 										const response = await fetch(`/api/collections/${name}?includeFields=true&_t=${Math.floor(Date.now() / 1000)}`);
-										if (!response.ok) throw new Error(`Failed to fetch collection ${name}`);
+										if (!response.ok) {
+											throw new Error(`Failed to fetch collection ${name}`);
+										}
 										collectionModule = await response.json();
 									} else {
 										collectionModule = await import(/* @vite-ignore */ `${import.meta.env.collectionsFolderJS}${file}`);
@@ -441,7 +446,7 @@ async function getImports(recompile: boolean = false): Promise<Record<ContentTyp
 
 // --- Reactive Content System ---
 let pollingInterval: NodeJS.Timeout | null = null;
-let currentVersion: number = 0;
+let currentVersion = 0;
 
 export async function initializeContent(pageData?: any) {
 	// 1. Hydration (Server -> Client)
@@ -471,13 +476,17 @@ export async function initializeContent(pageData?: any) {
 }
 
 function startPolling() {
-	if (pollingInterval || !browser) return;
+	if (pollingInterval || !browser) {
+		return;
+	}
 
 	logger.info('📡 Starting content version polling');
 	pollingInterval = setInterval(async () => {
 		try {
 			const response = await fetch('/api/content/version');
-			if (!response.ok) throw new Error('Version check failed');
+			if (!response.ok) {
+				throw new Error('Version check failed');
+			}
 			const data = await response.json();
 			const serverVersion = data.version;
 
@@ -489,7 +498,7 @@ function startPolling() {
 		} catch (error) {
 			logger.warn('Failed to poll content version', error);
 		}
-	}, 10000); // Poll every 10 seconds
+	}, 10_000); // Poll every 10 seconds
 }
 
 export function stopPolling() {

@@ -40,15 +40,15 @@ export const AUTOMATION_EVENTS: { event: AutomationEvent; label: string; icon: s
 export type TriggerType = 'event' | 'schedule' | 'manual';
 
 export interface AutomationTrigger {
-	type: TriggerType;
-	/** Event hook config */
-	events?: AutomationEvent[];
 	/** Restrict to specific collections (empty = all) */
 	collections?: string[];
 	/** Cron expression for schedule triggers */
 	cron?: string;
 	/** Human-readable cron description */
 	cronLabel?: string;
+	/** Event hook config */
+	events?: AutomationEvent[];
+	type: TriggerType;
 }
 
 // ── Operation Types ────────────────────────────────────────────
@@ -66,29 +66,29 @@ export const OPERATION_TYPES: { type: OperationType; label: string; icon: string
 
 /** Webhook operation config */
 export interface WebhookOperationConfig {
-	url: string;
-	method?: 'POST' | 'PUT' | 'PATCH';
-	headers?: Record<string, string>;
 	/** Token-aware body template (resolved at execution) */
 	body?: string;
+	headers?: Record<string, string>;
+	method?: 'POST' | 'PUT' | 'PATCH';
 	secret?: string;
+	url: string;
 }
 
 /** Email operation config */
 export interface EmailOperationConfig {
-	/** Token-aware recipient (e.g. "{{ entry.author_email }}") */
-	to: string;
-	/** Token-aware subject template */
-	subject: string;
 	/** Token-aware HTML body template */
 	body: string;
+	/** Token-aware subject template */
+	subject: string;
+	/** Token-aware recipient (e.g. "{{ entry.author_email }}") */
+	to: string;
 }
 
 /** Log operation config */
 export interface LogOperationConfig {
+	level: 'info' | 'warn' | 'error';
 	/** Token-aware message template */
 	message: string;
-	level: 'info' | 'warn' | 'error';
 }
 
 /** Set field operation config */
@@ -111,29 +111,29 @@ export interface ConditionOperationConfig {
 export type OperationConfig = WebhookOperationConfig | EmailOperationConfig | LogOperationConfig | SetFieldOperationConfig | ConditionOperationConfig;
 
 export interface AutomationOperation {
-	id: string;
-	type: OperationType;
-	label?: string;
 	config: OperationConfig;
+	id: string;
+	label?: string;
 	/** If true, stop the chain on failure */
 	stopOnError?: boolean;
+	type: OperationType;
 }
 
 // ── Automation Flow ────────────────────────────────────────────
 
 export interface AutomationFlow {
-	id: string;
-	name: string;
-	description?: string;
 	active: boolean;
-	trigger: AutomationTrigger;
-	operations: AutomationOperation[];
-	/** Execution stats */
-	lastTriggered?: string;
-	triggerCount?: number;
-	failureCount?: number;
 	/** Metadata */
 	createdAt: string;
+	description?: string;
+	failureCount?: number;
+	id: string;
+	/** Execution stats */
+	lastTriggered?: string;
+	name: string;
+	operations: AutomationOperation[];
+	trigger: AutomationTrigger;
+	triggerCount?: number;
 	updatedAt: string;
 }
 
@@ -142,11 +142,12 @@ export interface AutomationFlow {
 export type ExecutionStatus = 'success' | 'failure' | 'skipped';
 
 export interface ExecutionLogEntry {
-	id: string;
 	automationId: string;
 	automationName: string;
+	/** Total duration in ms */
+	duration: number;
 	event: AutomationEvent | 'manual' | 'schedule';
-	status: ExecutionStatus;
+	id: string;
 	/** Per-operation results */
 	operationResults: {
 		operationId: string;
@@ -155,8 +156,7 @@ export interface ExecutionLogEntry {
 		duration: number;
 		error?: string;
 	}[];
-	/** Total duration in ms */
-	duration: number;
+	status: ExecutionStatus;
 	timestamp: string;
 	/** Trigger payload snapshot */
 	triggerPayload?: unknown;
@@ -165,11 +165,11 @@ export interface ExecutionLogEntry {
 // ── Event Bus Types ────────────────────────────────────────────
 
 export interface AutomationEventPayload {
-	event: AutomationEvent;
 	collection?: string;
-	entryId?: string;
 	data?: Record<string, unknown>;
+	entryId?: string;
+	event: AutomationEvent;
 	previousData?: Record<string, unknown>;
-	user?: { email?: string; username?: string; _id?: string };
 	timestamp: string;
+	user?: { email?: string; username?: string; _id?: string };
 }

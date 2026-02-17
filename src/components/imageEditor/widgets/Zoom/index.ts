@@ -9,8 +9,8 @@
  * - Reset zoom
  */
 import type { EditorWidget } from '../registry';
-import Tool from './Tool.svelte';
 import Controls from './Controls.svelte';
+import Tool from './Tool.svelte';
 
 const widget: EditorWidget = {
 	key: 'zoom',

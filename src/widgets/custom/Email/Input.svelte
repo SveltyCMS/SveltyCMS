@@ -22,24 +22,22 @@
 -->
 
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
-	import type { FieldType } from '.';
+	import { activeInput } from '@src/stores/activeInputStore.svelte';
+	import { collection } from '@src/stores/collectionStore.svelte';
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
 
 	// Stores
 	// Stores
 	import { app, validationStore } from '@stores/store.svelte.ts';
-	import { collection } from '@src/stores/collectionStore.svelte';
-	import { activeInput } from '@src/stores/activeInputStore.svelte';
-
 	// Utils
 	import { getFieldName } from '@utils/utils';
-
-	// Valibot validation
-	import { string, email as emailValidator, pipe, parse, minLength, optional } from 'valibot';
-
 	// Unified error handling
 	import { handleWidgetValidation } from '@widgets/widgetErrorHandler';
+	import { onDestroy, onMount } from 'svelte';
+
+	// Valibot validation
+	import { email as emailValidator, minLength, optional, parse, pipe, string } from 'valibot';
+	import type { FieldType } from '.';
 
 	interface Props {
 		field: FieldType;
@@ -208,7 +206,7 @@
 					aria-describedby={validationError ? `${fieldName}-error` : undefined}
 					aria-required={field?.required}
 					data-testid="email-input"
-				/>
+				>
 			</div>
 
 			{#if field?.suffix}

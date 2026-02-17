@@ -38,8 +38,8 @@ export async function cleanupExpiredSessions(): Promise<{
 }> {
 	// Determine active auth service (adapter agnostic)
 	interface AuthServiceLike {
-		deleteExpiredSessions: () => Promise<number>;
 		cleanupRotatedSessions?: () => Promise<number>;
+		deleteExpiredSessions: () => Promise<number>;
 	}
 	const possibleAdapterAuth = (dbAdapter && (dbAdapter as unknown as { auth?: AuthServiceLike }).auth) || null;
 	const activeAuth: AuthServiceLike | null = (auth as unknown as AuthServiceLike) || possibleAdapterAuth;
@@ -106,8 +106,8 @@ export function startSessionCleanup(): void {
 	metricsCleanupInterval = setInterval(() => {
 		try {
 			// cleanupSessionMetrics(); // Removed as import was removed
-		} catch (error) {
-			logger.error(`Session metrics cleanup failed: ${error instanceof Error ? error.message : String(error)}`);
+		} catch {
+			// Metrics cleanup is a no-op; error handling retained for future implementation
 		}
 	}, METRICS_CLEANUP_INTERVAL);
 

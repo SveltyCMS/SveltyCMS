@@ -116,7 +116,13 @@ SveltyCMS has leapfrogged competitors by replacing heavy, imperative canvas libr
 - **Status:** **✅ IMPLEMENTED (Backend)**
 - **Architecture:** Implements a cryptographic chain where each log entry contains the SHA-256 hash of the previous entry, creating a tamper-evident audit trail (SOC 2 compliant).
 
-### 3.8 Accessibility & Inclusivity
+### 3.8 WebMCP (Web Model Context Protocol)
+
+- **Status:** **✅ IMPLEMENTED (Client-Side Plugin)**
+- **Architecture:** Implements a native, zero-runtime plugin that polyfills `navigator.modelContext`. This allows browser-based AI agents (like Chrome AI, Cursor, or local LLMs) to "discover" the CMS structure and perform actions (navigation, content search) via a standardized protocol.
+- **Strategic Value:** positions SveltyCMS as the first "AI-Ready" headless CMS for the next generation of browser-integrated agents.
+
+### 3.9 Accessibility & Inclusivity
 
 - **Status:** **✅ IMPLEMENTED (WCAG 2.2 AA / ATAG 2.0)**
 - **Audit:** Comprehensive audit completed covering Setup Wizard and Dashboard. Full keyboard support and ARIA-live announcements included.
@@ -124,8 +130,8 @@ SveltyCMS has leapfrogged competitors by replacing heavy, imperative canvas libr
 
 ### 3.9 Legal & Compliance (GDPR)
 
-- **Status:** **✅ IMPLEMENTED**
-- **Architecture:** Native "Privacy Center" module handles Data Portability (Article 20) and Right to Erasure (Article 17) via automated workflows. Integrated into System Settings for admin control.
+- **Status:** **✅ IMPLEMENTED (v1.1)**
+- **Architecture:** Native "Privacy Center" module handles Data Portability (Article 20) and Right to Erasure (Article 17) via automated self-service and admin workflows. Includes a native Cookie Consent Manager plugin.
 
 ### 3.10 Self-Learning Architecture
 
@@ -215,6 +221,30 @@ SveltyCMS 2026 introduces a lightweight, high-performance **Real-Time Collaborat
 - **System Resilience**: The connection is managed by the `collaborationStore` and respects the global `systemState`. If the system enters a `FAILED` state, the connection is closed to prevent ghost events and client-side errors.
 - **Competitive Edge**:
   - **vs. Strapi/Payload**: Often require external Socket.io integrations or complex state management. SveltyCMS's implementation is native, stateless at the protocol level, and built directly into the Svelte 5 rune-based stores.
+
+### 3.17 Solution Presets: The "Batteries-Included" Advantage
+
+- **Status:** **✅ IMPLEMENTED**
+- **Architecture:** SveltyCMS includes a "Solution Preset" engine that hydrates the CMS with industry-standard schemas (Agency, SaaS, E-commerce, Corporate, Blog) during the initial setup.
+- **Workflow:**
+  1.  **Selection:** Admin chooses a preset during the setup wizard.
+  2.  **Hydration:** The system copies pre-defined TypeScript schemas (`src/presets/*`) into the runtime configuration directory.
+  3.  **Compilation:** The schemas are immediately compiled and hot-loaded, providing a fully functional backend in under 60 seconds.
+- **Competitive Edge:**
+  - **vs. Strapi/Contentful:** These platforms usually provide "starters" as separate git repositories that you must clone. SveltyCMS builds the starter _into_ the core, allowing a single docker image to become any type of site based on configuration.
+  - **vs. Drupal:** Inspired by Drupal's "Installation Profiles", this feature allows SveltyCMS to rival enterprise distributions without the code bloat.
+
+### 3.18 Strategic Decision: Headless Payments (Why No Payment Widget?)
+
+**Decision:** SveltyCMS intentionally excludes a "Credit Card Input" widget from the Admin Panel.
+**Rationale:**
+
+1.  **Security (PCI-DSS):** Handling raw credit card data on the CMS backend drastically increases compliance scope. SveltyCMS remains outside the PCI scope by delegating collection to the frontend. For more details, see our [Security Architecture](../security/index.mdx).
+2.  **Headless Architecture:** Checkout occurs on the "Head" (Storefront) using client-side tokenization (Stripe Elements, PayPal). The CMS never sees the card number.
+3.  **Role of the CMS:**
+    - **Stores:** `Orders` (with `transactionId` and `paymentStatus`).
+    - **Manages:** Product Catalog via **Price Widget**.
+    - **Delegates:** Processing to specialized Payment Gateways.
 
 ## 4. Comparative Landscape Analysis
 

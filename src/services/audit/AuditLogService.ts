@@ -5,33 +5,33 @@
  * Provides a tamper-evident audit log by chaining entries via SHA256 hashes.
  */
 
-import { sha256 } from 'js-sha256';
-import { writeFile, readFile, mkdir } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { logger } from '@utils/logger.server';
+import { sha256 } from 'js-sha256';
 
 export interface AuditLogEntry {
-	id: string;
-	timestamp: string;
 	action: string;
 	actor: {
 		id: string;
 		email: string;
 		ip: string;
 	};
+	details?: Record<string, unknown>;
+	hash: string;
+	id: string;
+	previousHash: string;
 	resource: {
 		type: string;
 		id: string;
 	};
-	details?: Record<string, unknown>;
-	previousHash: string;
-	hash: string;
+	timestamp: string;
 }
 
 export class AuditLogService {
 	private readonly logDir = 'logs';
 	private readonly currentLogFile = 'audit.json';
-	private lastHash: string = '0000000000000000000000000000000000000000000000000000000000000000';
+	private lastHash = '0000000000000000000000000000000000000000000000000000000000000000';
 	private initialized = false;
 
 	constructor() {
@@ -43,7 +43,7 @@ export class AuditLogService {
 			await mkdir(this.logDir, { recursive: true });
 			const logs = await this.readLogs();
 			if (logs.length > 0) {
-				this.lastHash = logs[logs.length - 1].hash;
+				this.lastHash = logs.at(-1).hash;
 			}
 			this.initialized = true;
 		} catch (e) {
@@ -55,7 +55,9 @@ export class AuditLogService {
 		try {
 			const filePath = path.join(process.cwd(), this.logDir, this.currentLogFile);
 			const content = await readFile(filePath, 'utf-8');
-			if (!content.trim()) return [];
+			if (!content.trim()) {
+				return [];
+			}
 
 			return JSON.parse(content);
 		} catch (e) {
@@ -75,8 +77,10 @@ export class AuditLogService {
 	/**
 	 * Get latest audit logs
 	 */
-	public async getLogs(limit: number = 20): Promise<AuditLogEntry[]> {
-		if (!this.initialized) await this.init();
+	public async getLogs(limit = 20): Promise<AuditLogEntry[]> {
+		if (!this.initialized) {
+			await this.init();
+		}
 		const logs = await this.readLogs();
 		return logs.reverse().slice(0, limit);
 	}
@@ -90,7 +94,9 @@ export class AuditLogService {
 		resource: { type: string; id: string },
 		details?: Record<string, unknown>
 	): Promise<AuditLogEntry> {
-		if (!this.initialized) await this.init();
+		if (!this.initialized) {
+			await this.init();
+		}
 
 		const entry: Omit<AuditLogEntry, 'hash'> = {
 			id: crypto.randomUUID(),
@@ -127,7 +133,9 @@ export class AuditLogService {
 	 */
 	public async verifyChain(): Promise<boolean> {
 		const logs = await this.readLogs();
-		if (logs.length === 0) return true;
+		if (logs.length === 0) {
+			return true;
+		}
 
 		let prevHash = '0000000000000000000000000000000000000000000000000000000000000000';
 		for (const entry of logs) {

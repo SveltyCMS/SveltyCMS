@@ -4,8 +4,8 @@
  * Checks for entries with 'schedule' status and a passed '_scheduled' timestamp.
  */
 
-import { logger } from '@utils/logger.server';
 import { StatusTypes } from '@src/content/types';
+import { logger } from '@utils/logger.server';
 import { webhookService } from './webhookService';
 
 // Lazy load adapter to avoid circular deps during init
@@ -30,7 +30,9 @@ export class SchedulerService {
 	 * Start the scheduler background task
 	 */
 	public start() {
-		if (this.intervalId) return;
+		if (this.intervalId) {
+			return;
+		}
 
 		logger.info('🕒 Scheduler service started');
 
@@ -58,7 +60,9 @@ export class SchedulerService {
 	 */
 	public async checkScheduledItems() {
 		if (this.isRunning || !this.intervalId) {
-			if (!this.intervalId) logger.debug('Scheduler stopped, skipping cycle');
+			if (!this.intervalId) {
+				logger.debug('Scheduler stopped, skipping cycle');
+			}
 			return;
 		}
 
@@ -66,7 +70,9 @@ export class SchedulerService {
 
 		try {
 			const db = await getDbAdapter();
-			if (!this.intervalId) return; // Check if stopped during await
+			if (!this.intervalId) {
+				return; // Check if stopped during await
+			}
 
 			if (!db) {
 				// Don't log error during setup
@@ -110,7 +116,9 @@ export class SchedulerService {
 			if (db.ensureContent) {
 				try {
 					await db.ensureContent();
-					if (!this.intervalId) return; // Check if stopped during await
+					if (!this.intervalId) {
+						return; // Check if stopped during await
+					}
 				} catch {
 					logger.debug('Scheduler skipped: content module not ready yet');
 					return;
@@ -121,9 +129,11 @@ export class SchedulerService {
 			// We can't easily query JSON fields across all DB types, so we fetch all 'schedule' items
 			// and filter in memory. Assuming the number of *pending* scheduled items is small.
 			const result = await db.content.nodes.getStructure('flat', { status: StatusTypes.schedule } as Record<string, unknown>);
-			if (!this.intervalId) return; // Check if stopped during await
+			if (!this.intervalId) {
+				return; // Check if stopped during await
+			}
 
-			if (!result.success || !result.data) {
+			if (!(result.success && result.data)) {
 				return;
 			}
 
@@ -142,7 +152,9 @@ export class SchedulerService {
 
 			// 2. Publish items
 			for (const node of nodesToPublish) {
-				if (!this.intervalId) return; // Stop processing if scheduler stopped
+				if (!this.intervalId) {
+					return; // Stop processing if scheduler stopped
+				}
 
 				try {
 					logger.info(`Publishing scheduled item: ${node.name} (${node._id})`);
@@ -178,7 +190,9 @@ export class SchedulerService {
 			}
 		} catch (error) {
 			// Ignore errors if stopped (likely "module runner closed")
-			if (!this.intervalId) return;
+			if (!this.intervalId) {
+				return;
+			}
 
 			const errorMessage = error instanceof Error ? error.message : String(error);
 
@@ -208,7 +222,7 @@ if (g.__SVELTY_SCHEDULER_INSTANCE__) {
 	} catch {
 		// Ignore stop errors on old instances
 	}
-	delete g.__SVELTY_SCHEDULER_INSTANCE__;
+	g.__SVELTY_SCHEDULER_INSTANCE__ = undefined;
 }
 
 export const scheduler = SchedulerService.getInstance();

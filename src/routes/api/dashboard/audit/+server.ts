@@ -3,13 +3,12 @@
  * @description API endpoint for fetching audit logs.
  */
 
-import { json } from '@sveltejs/kit';
 import { auditLogService } from '@src/services/audit/AuditLogService';
-import { logger } from '@utils/logger.server';
-
+import { json } from '@sveltejs/kit';
 // Unified Error Handling
 import { apiHandler } from '@utils/apiHandler';
 import { AppError } from '@utils/errorHandling';
+import { logger } from '@utils/logger.server';
 
 export const GET = apiHandler(async ({ url, locals }) => {
 	// Security check: Only admins can view audit logs
@@ -18,7 +17,7 @@ export const GET = apiHandler(async ({ url, locals }) => {
 	const roleName = typeof userRole === 'string' ? userRole : userRole?._id || userRole?.name;
 	const isAdmin = roleName === 'admin' || locals.permissions?.includes('admin');
 
-	if (!locals.user || !isAdmin) {
+	if (!(locals.user && isAdmin)) {
 		throw new AppError('Forbidden: Admin access required', 403, 'FORBIDDEN');
 	}
 

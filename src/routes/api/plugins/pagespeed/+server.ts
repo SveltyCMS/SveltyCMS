@@ -3,17 +3,16 @@
  * @description API endpoint for PageSpeed Insights plugin
  */
 
-import { json } from '@sveltejs/kit';
-import { getPublicSettingSync, getPrivateSettingSync } from '@src/services/settingsService';
 import { contentManager } from '@src/content/ContentManager';
-import { deriveEntryUrl, validateUrl } from '@src/plugins/pagespeed/urlUtils';
-import { fetchPageSpeedInsights, storeResult, getCachedResult } from '@src/plugins/pagespeed/service';
+import { fetchPageSpeedInsights, getCachedResult, storeResult } from '@src/plugins/pagespeed/service';
 import type { PageSpeedResult } from '@src/plugins/pagespeed/types';
-import { logger } from '@utils/logger.server';
-
+import { deriveEntryUrl, validateUrl } from '@src/plugins/pagespeed/urlUtils';
+import { getPrivateSettingSync, getPublicSettingSync } from '@src/services/settingsService';
+import { json } from '@sveltejs/kit';
 // Unified Error Handling
 import { apiHandler } from '@utils/apiHandler';
 import { AppError } from '@utils/errorHandling';
+import { logger } from '@utils/logger.server';
 
 export const POST = apiHandler(async ({ request, locals }) => {
 	const { user, tenantId, dbAdapter } = locals;
@@ -33,7 +32,7 @@ export const POST = apiHandler(async ({ request, locals }) => {
 		const { entryId, collectionId, language, device = 'mobile', forceRefresh = false } = body;
 
 		// Validate required parameters
-		if (!entryId || !collectionId || !language) {
+		if (!(entryId && collectionId && language)) {
 			throw new AppError('Missing required parameters: entryId, collectionId, language', 400, 'MISSING_PARAMS');
 		}
 
@@ -54,7 +53,7 @@ export const POST = apiHandler(async ({ request, locals }) => {
 		const collectionTableName = `collection_${collectionId}`;
 		const entryResult = await dbAdapter.crud.findOne(collectionTableName, { _id: entryId } as any);
 
-		if (!entryResult.success || !entryResult.data) {
+		if (!(entryResult.success && entryResult.data)) {
 			throw new AppError(`Entry ${entryId} not found`, 404, 'ENTRY_NOT_FOUND');
 		}
 
@@ -132,8 +131,12 @@ export const POST = apiHandler(async ({ request, locals }) => {
 		});
 	} catch (err) {
 		// Re-throw AppError or SvelteKit errors
-		if (err instanceof AppError) throw err;
-		if (err && typeof err === 'object' && 'status' in err) throw err;
+		if (err instanceof AppError) {
+			throw err;
+		}
+		if (err && typeof err === 'object' && 'status' in err) {
+			throw err;
+		}
 
 		logger.error('PageSpeed API error', { error: err });
 		throw new AppError('Internal server error', 500, 'INTERNAL_ERROR');

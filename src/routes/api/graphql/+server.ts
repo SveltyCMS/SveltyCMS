@@ -12,13 +12,11 @@
  */
 
 import { CacheCategory } from '@src/databases/CacheCategory';
-
-import { building } from '$app/environment';
-import { getPrivateSettingSync } from '@src/services/settingsService';
-import type { RequestEvent } from '@sveltejs/kit';
-
 // GraphQL Yoga
 import type { DatabaseAdapter, DatabaseId } from '@src/databases/dbInterface';
+import { getPrivateSettingSync } from '@src/services/settingsService';
+import type { RequestEvent } from '@sveltejs/kit';
+import { building } from '$app/environment';
 
 // Create a cache client adapter compatible with the expected interface in resolvers
 const cacheClient = getPrivateSettingSync('USE_REDIS')
@@ -43,31 +41,26 @@ const cacheClient = getPrivateSettingSync('USE_REDIS')
 			}
 		}
 	: null;
-import { createSchema, createYoga } from 'graphql-yoga';
-import { collectionsResolvers, createCleanTypeName, registerCollections } from './resolvers/collections';
-import { mediaResolvers, mediaTypeDefs } from './resolvers/media';
-import { userResolvers, userTypeDefs } from './resolvers/users';
-import { systemResolvers, systemTypeDefs } from './resolvers/system';
-
-// GraphQL Subscriptions
-import { WebSocketServer } from 'ws';
-import { useServer } from 'graphql-ws/use/ws';
-
-// Widget Store - ensure widgets are loaded before GraphQL setup
-import { widgets } from '@stores/widgetStore.svelte.ts';
-
-// Unified Cache Service
-import { cacheService } from '@src/databases/CacheService';
 
 // Auth / Permission
 import { hasPermissionWithRoles, registerPermission } from '@src/databases/auth/permissions';
-import { PermissionAction, PermissionType, type User, type Role } from '@src/databases/auth/types';
-
-// System Logger
-import { logger } from '@utils/logger.server';
-
+import { PermissionAction, PermissionType, type Role, type User } from '@src/databases/auth/types';
+// Unified Cache Service
+import { cacheService } from '@src/databases/CacheService';
 // Import shared PubSub instance
 import { pubSub } from '@src/services/pubSub';
+// Widget Store - ensure widgets are loaded before GraphQL setup
+import { widgets } from '@stores/widgetStore.svelte.ts';
+// System Logger
+import { logger } from '@utils/logger.server';
+import { useServer } from 'graphql-ws/use/ws';
+import { createSchema, createYoga } from 'graphql-yoga';
+// GraphQL Subscriptions
+import { WebSocketServer } from 'ws';
+import { collectionsResolvers, createCleanTypeName, registerCollections } from './resolvers/collections';
+import { mediaResolvers, mediaTypeDefs } from './resolvers/media';
+import { systemResolvers, systemTypeDefs } from './resolvers/system';
+import { userResolvers, userTypeDefs } from './resolvers/users';
 
 // Removed local createPubSub() call
 // const pubSub = createPubSub();
@@ -155,7 +148,7 @@ async function createGraphQLSchema(dbAdapter: DatabaseAdapter, tenantId?: string
 
 		type Query {
 			${collectionsArray
-				.filter((collection) => collection && collection.name && collection._id)
+				.filter((collection) => collection?.name && collection._id)
 				.map((collection) => `${createCleanTypeName(collection)}(pagination: PaginationInput): [${createCleanTypeName(collection)}]`)
 				.join('\n')}
 			users(pagination: PaginationInput): [User]
@@ -316,7 +309,7 @@ async function initializeWebSocketServer(dbAdapter: DatabaseAdapter, tenantId?: 
 						  }
 						| undefined;
 
-					let user = null;
+					let user: any = null;
 
 					// Try multiple authentication methods
 					if (connectionParams) {
@@ -472,7 +465,9 @@ const handler = apiHandler(async (event: RequestEvent) => {
 			tenantId: locals.tenantId
 		});
 
-		if (error instanceof AppError) throw error;
+		if (error instanceof AppError) {
+			throw error;
+		}
 		throw new AppError('An error occurred while processing your GraphQL request.', 500, 'GRAPHQL_ERROR');
 	}
 });

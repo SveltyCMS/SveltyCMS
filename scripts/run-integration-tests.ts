@@ -5,16 +5,16 @@
  * Uses /api/testing for state management. No internal imports allowed.
  */
 
-import { spawn } from 'child_process';
-import { join, relative } from 'path';
-import { existsSync, readdirSync, statSync } from 'fs';
+import { spawn } from 'node:child_process';
+import { existsSync, readdirSync, statSync } from 'node:fs';
+import { join, relative } from 'node:path';
 
 const rootDir = join(import.meta.dir, '..');
 const API_BASE_URL = process.env.API_BASE_URL || 'http://127.0.0.1:4173';
 
 let previewProcess: ReturnType<typeof spawn> | null = null;
 
-async function cleanup(exitCode: number = 0) {
+async function cleanup(exitCode = 0) {
 	console.log('\n🧹 Cleaning up test environment...');
 	if (previewProcess) {
 		previewProcess.kill('SIGTERM');
@@ -31,7 +31,9 @@ async function main() {
 
 		// 1. Build & Start Server (Handled by CI normally, but support local run)
 		const isAlreadyRunning = await checkServer();
-		if (!isAlreadyRunning) {
+		if (isAlreadyRunning) {
+			console.log('✅ Server already running at', API_BASE_URL);
+		} else {
 			console.log('📦 Starting preview server with TEST_MODE=true...');
 			previewProcess = spawn('bun', ['run', 'preview', '--port', '4173', '--host', '127.0.0.1'], {
 				cwd: rootDir,
@@ -40,8 +42,6 @@ async function main() {
 				env: { ...process.env, TEST_MODE: 'true' }
 			});
 			await waitForServer();
-		} else {
-			console.log('✅ Server already running at', API_BASE_URL);
 		}
 
 		// 2. Discover tests
@@ -93,9 +93,11 @@ async function checkServer() {
 async function waitForServer() {
 	console.log(`⏳ Waiting for server at ${API_BASE_URL}...`);
 	for (let i = 0; i < 60; i++) {
-		if (i % 10 === 0 && i > 0) console.log(`...still waiting (${i}s)`);
+		if (i % 10 === 0 && i > 0) {
+			console.log(`...still waiting (${i}s)`);
+		}
 		if (await checkServer()) {
-			console.log(`✅ Server is up and healthy!`);
+			console.log('✅ Server is up and healthy!');
 			return;
 		}
 		await new Promise((r) => setTimeout(r, 1000));
@@ -150,12 +152,17 @@ function runTest(file: string): Promise<number> {
 }
 
 function findTestFiles(dir: string, list: string[] = []) {
-	if (!existsSync(dir)) return list;
+	if (!existsSync(dir)) {
+		return list;
+	}
 	const files = readdirSync(dir);
 	for (const f of files) {
 		const p = join(dir, f);
-		if (statSync(p).isDirectory()) findTestFiles(p, list);
-		else if (f.endsWith('.test.ts') && !f.includes('setup-actions')) list.push(p);
+		if (statSync(p).isDirectory()) {
+			findTestFiles(p, list);
+		} else if (f.endsWith('.test.ts') && !f.includes('setup-actions')) {
+			list.push(p);
+		}
 	}
 	return list;
 }
