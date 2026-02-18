@@ -11,7 +11,7 @@ export const cookieConsentPlugin: Plugin = {
 	},
 	config: {
 		public: {
-			position: 'bottom', // 'bottom' | 'center'
+			position: 'center', // 'bottom' | 'center'
 			privacyPolicyUrl: '/privacy'
 		}
 	}

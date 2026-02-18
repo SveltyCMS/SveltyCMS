@@ -7,6 +7,7 @@ Default value is 'blank'.
 <script lang="ts">
 	import SystemTooltip from '@components/system/SystemTooltip.svelte';
 	import type { Preset } from './presets';
+	import * as m from '@src/paraglide/messages';
 
 	let { presets, selected = $bindable('blank') } = $props<{
 		presets: Preset[];
@@ -24,7 +25,7 @@ Default value is 'blank'.
 	}
 
 	function scrollBy(dir: -1 | 1) {
-		scrollEl?.scrollBy({ left: dir * 340, behavior: 'smooth' });
+		scrollEl?.scrollBy({ left: dir * 300, behavior: 'smooth' });
 	}
 
 	function select(id: string | null) {
@@ -35,11 +36,6 @@ Default value is 'blank'.
 		simple: 'text-emerald-400 border-emerald-500/40 bg-emerald-500/10',
 		moderate: 'text-amber-400  border-amber-500/40  bg-amber-500/10',
 		advanced: 'text-rose-400   border-rose-500/40   bg-rose-500/10'
-	};
-	const complexityLabel: Record<string, string> = {
-		simple: 'Simple',
-		moderate: 'Moderate',
-		advanced: 'Advanced'
 	};
 </script>
 
@@ -58,7 +54,8 @@ Default value is 'blank'.
 		<div class="scroll-controls">
 			<button
 				type="button"
-				class="scroll-btn {canScrollLeft ? '' : 'disabled'}"
+				class="scroll-btn"
+				class:disabled={!canScrollLeft}
 				onclick={() => scrollBy(-1)}
 				aria-label="Scroll left"
 				disabled={!canScrollLeft}
@@ -67,7 +64,8 @@ Default value is 'blank'.
 			</button>
 			<button
 				type="button"
-				class="scroll-btn {canScrollRight ? '' : 'disabled'}"
+				class="scroll-btn"
+				class:disabled={!canScrollRight}
 				onclick={() => scrollBy(1)}
 				aria-label="Scroll right"
 				disabled={!canScrollRight}
@@ -79,17 +77,16 @@ Default value is 'blank'.
 
 	<!-- Scroll track -->
 	<div class="track-wrapper">
-		<!-- Left fade -->
-		<div class="fade-left {canScrollLeft ? 'visible' : ''}"></div>
-
-		<div class="scroll-track" bind:this={scrollEl} onscroll={updateScrollState} role="listbox" aria-label="Select a solution preset">
+		<div class="fade-edge left" class:show={canScrollLeft}></div>
+		<div class="scroll-track" bind:this={scrollEl} onscroll={updateScrollState} role="listbox" aria-label="Select a project blueprint">
 			<!-- ── Preset cards ── -->
 			{#each presets as preset (preset.id)}
 				<button
 					type="button"
 					role="option"
 					aria-selected={selected === preset.id}
-					class="preset-card {selected === preset.id ? 'active' : ''}"
+					class="preset-card"
+					class:active={selected === preset.id}
 					onclick={() => select(preset.id)}
 				>
 					<!-- Badge -->
@@ -98,29 +95,27 @@ Default value is 'blank'.
 					{/if}
 
 					<div class="card-row1">
-						<div class="card-icon-wrap">
-							<iconify-icon icon={preset.icon} width="24"></iconify-icon>
+						<div class="card-icon">
+							<iconify-icon icon={preset.icon} width="22"></iconify-icon>
 						</div>
-						<div class="card-title-wrap">
-							<span class="card-title">{preset.title}</span>
-							{#if preset.complexity}
-								<span class="complexity-chip {complexityColor[preset.complexity]}">
-									{complexityLabel[preset.complexity]}
-								</span>
-							{/if}
-						</div>
+						<span class="card-title">{preset.title}</span>
+						{#if preset.complexity}
+							<span class="complexity {preset.complexity}">
+								{preset.complexity}
+							</span>
+						{/if}
 					</div>
 
-					<div class="card-body">
-						<span class="card-desc">{preset.description}</span>
+					<div class="card-desc">
+						{preset.description}
 					</div>
 
-					<div class="card-footer">
+					<div class="card-tags">
 						{#each preset.features.slice(0, 2) as f}
-							<span class="feature-chip">{f}</span>
+							<span class="chip">{f}</span>
 						{/each}
 						{#if preset.features.length > 2}
-							<span class="feature-chip overflow-chip">+{preset.features.length - 2}</span>
+							<span class="chip more">+{preset.features.length - 2}</span>
 						{/if}
 					</div>
 
@@ -130,9 +125,7 @@ Default value is 'blank'.
 				</button>
 			{/each}
 		</div>
-
-		<!-- Right fade -->
-		<div class="fade-right {canScrollRight ? 'visible' : ''}"></div>
+		<div class="fade-edge right" class:show={canScrollRight}></div>
 	</div>
 
 	<!-- Dot indicators -->
@@ -140,10 +133,11 @@ Default value is 'blank'.
 		{#each presets as preset, i (preset.id)}
 			<button
 				type="button"
-				class="dot {selected === preset.id ? 'active' : ''}"
+				class="dot"
+				class:active={selected === preset.id}
 				onclick={() => {
 					select(preset.id);
-					scrollEl?.scrollTo({ left: i * 340, behavior: 'smooth' });
+					scrollEl?.scrollTo({ left: i * 268, behavior: 'smooth' });
 				}}
 			></button>
 		{/each}
@@ -151,13 +145,12 @@ Default value is 'blank'.
 
 	<p class="helper-text">
 		{selected
-			? `Blueprint "${presets.find((p) => p.id === selected)?.title ?? selected}" selected — collections will be added automatically after setup.`
-			: "No blueprint selected — you'll configure everything manually."}
+			? `"${presets.find((p) => p.id === selected)?.title ?? selected}" selected — collections added automatically after setup.`
+			: "No preset — configure collections manually after setup."}
 	</p>
 </section>
 
 <style>
-	/* ── Layout ── */
 	.preset-section {
 		display: flex;
 		flex-direction: column;
@@ -173,19 +166,17 @@ Default value is 'blank'.
 	.header-left {
 		display: flex;
 		align-items: center;
-		gap: 8px;
+		gap: 9px;
+	}
+	.icon-accent {
+		color: #6ee7b7;
 	}
 	.section-title {
 		font-size: 1.05rem;
 		font-weight: 600;
 		color: white;
-		margin: 0;
-	}
-	.icon-accent {
-		color: var(--color-tertiary-500, #6ee7b7);
 	}
 
-	/* ── Scroll controls ── */
 	.scroll-controls {
 		display: flex;
 		gap: 6px;
@@ -201,73 +192,68 @@ Default value is 'blank'.
 		background: rgba(255, 255, 255, 0.05);
 		color: rgba(255, 255, 255, 0.7);
 		cursor: pointer;
-		transition: all 0.18s ease;
+		transition: all 0.18s;
 	}
-	.scroll-btn:hover:not(.disabled) {
+	.scroll-btn:hover:not(:disabled) {
 		background: rgba(255, 255, 255, 0.12);
 		color: white;
 		border-color: rgba(255, 255, 255, 0.25);
 	}
 	.scroll-btn.disabled {
-		opacity: 0.25;
+		opacity: 0.22;
 		cursor: default;
 	}
 
-	/* ── Track ── */
 	.track-wrapper {
 		position: relative;
 	}
-
 	.scroll-track {
 		display: flex;
 		gap: 12px;
 		overflow-x: auto;
 		scroll-snap-type: x mandatory;
 		-webkit-overflow-scrolling: touch;
-		padding: 6px 4px 12px;
+		padding: 6px 4px 14px;
 		scrollbar-width: none;
 	}
 	.scroll-track::-webkit-scrollbar {
 		display: none;
 	}
 
-	/* Fade overlays */
-	.fade-left,
-	.fade-right {
+	.fade-edge {
 		position: absolute;
 		top: 0;
-		bottom: 12px;
-		width: 48px;
+		bottom: 14px;
+		width: 56px;
 		pointer-events: none;
 		z-index: 2;
 		opacity: 0;
 		transition: opacity 0.25s;
 	}
-	.fade-left {
+	.fade-edge.left {
 		left: 0;
 		background: linear-gradient(to right, #0d0f12 30%, transparent);
 	}
-	.fade-right {
+	.fade-edge.right {
 		right: 0;
 		background: linear-gradient(to left, #0d0f12 30%, transparent);
 	}
-	.fade-left.visible,
-	.fade-right.visible {
+	.fade-edge.show {
 		opacity: 1;
 	}
 
-	/* ── Preset card ── */
+	/* ── Card ── */
 	.preset-card {
 		position: relative;
-		flex: 0 0 280px;
+		flex: 0 0 256px;
 		scroll-snap-align: start;
 		display: flex;
 		flex-direction: column;
-		gap: 8px;
+		gap: 0;
 		padding: 16px;
 		border-radius: 12px;
 		border: 1.5px solid rgba(255, 255, 255, 0.08);
-		background: rgba(255, 255, 255, 0.035);
+		background: rgba(255, 255, 255, 0.03);
 		text-align: left;
 		cursor: pointer;
 		transition:
@@ -275,70 +261,95 @@ Default value is 'blank'.
 			background 0.2s,
 			transform 0.15s,
 			box-shadow 0.2s;
+		overflow: hidden;
 	}
 	.preset-card:hover {
-		border-color: rgba(110, 231, 183, 0.35);
+		border-color: rgba(110, 231, 183, 0.3);
 		background: rgba(110, 231, 183, 0.04);
 		transform: translateY(-2px);
-		box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+		box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28);
 	}
 	.preset-card.active {
-		border-color: rgba(110, 231, 183, 0.7);
+		border-color: rgba(110, 231, 183, 0.75);
 		background: rgba(110, 231, 183, 0.07);
 		box-shadow:
 			0 0 0 3px rgba(110, 231, 183, 0.12),
-			0 8px 24px rgba(0, 0, 0, 0.3);
+			0 10px 32px rgba(0, 0, 0, 0.35);
+		transform: translateY(-2px);
 	}
 
-	/* ── Card internals ── */
+	/* ── Row 1: icon + title + complexity ── */
 	.card-row1 {
 		display: flex;
 		align-items: center;
 		gap: 10px;
-		margin-bottom: 4px;
+		margin-bottom: 10px;
 	}
-	.card-icon-wrap {
+	.card-icon {
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		width: 36px;
 		height: 36px;
 		border-radius: 8px;
-		background: rgba(110, 231, 183, 0.1);
-		color: var(--color-tertiary-500, #6ee7b7);
 		flex-shrink: 0;
-	}
-
-	.card-title-wrap {
-		display: flex;
-		flex-direction: column;
-		gap: 2px;
-		flex: 1;
+		background: rgba(110, 231, 183, 0.1);
+		color: #6ee7b7;
 	}
 	.card-title {
 		font-size: 0.88rem;
 		font-weight: 700;
 		color: white;
+		flex: 1;
 		line-height: 1.2;
 	}
+	.complexity {
+		font-size: 0.58rem;
+		padding: 2px 7px;
+		border-radius: 20px;
+		font-weight: 700;
+		letter-spacing: 0.04em;
+		border: 1px solid;
+		flex-shrink: 0;
+		text-transform: uppercase;
+	}
+	.complexity.simple {
+		color: #34d399;
+		border-color: rgba(52, 211, 153, 0.4);
+		background: rgba(52, 211, 153, 0.1);
+	}
+	.complexity.moderate {
+		color: #fbbf24;
+		border-color: rgba(251, 191, 36, 0.4);
+		background: rgba(251, 191, 36, 0.1);
+	}
+	.complexity.advanced {
+		color: #f87171;
+		border-color: rgba(248, 113, 113, 0.4);
+		background: rgba(248, 113, 113, 0.1);
+	}
+
+	/* ── Row 2: description ── */
 	.card-desc {
 		font-size: 0.7rem;
 		color: rgba(255, 255, 255, 0.42);
 		line-height: 1.5;
+		margin-bottom: 10px;
+		/* clamp to ~3 lines */
 		display: -webkit-box;
 		-webkit-line-clamp: 3;
 		-webkit-box-orient: vertical;
 		overflow: hidden;
 	}
 
-	.card-footer {
+	/* ── Row 3: tags ── */
+	.card-tags {
 		display: flex;
 		flex-wrap: wrap;
 		gap: 4px;
 		margin-top: auto;
-		padding-top: 4px;
 	}
-	.feature-chip {
+	.chip {
 		font-size: 0.62rem;
 		padding: 2px 8px;
 		border-radius: 20px;
@@ -346,18 +357,8 @@ Default value is 'blank'.
 		color: rgba(255, 255, 255, 0.5);
 		border: 1px solid rgba(255, 255, 255, 0.1);
 	}
-	.overflow-chip {
+	.chip.more {
 		background: rgba(255, 255, 255, 0.04);
-	}
-
-	.complexity-chip {
-		font-size: 0.58rem;
-		padding: 2px 7px;
-		border-radius: 20px;
-		border: 1px solid;
-		font-weight: 700;
-		letter-spacing: 0.04em;
-		text-transform: uppercase;
 	}
 
 	/* Badge (Popular / New) */
@@ -379,15 +380,9 @@ Default value is 'blank'.
 	/* Check icon */
 	.check-icon {
 		position: absolute;
-		top: 10px;
+		bottom: 10px;
 		right: 10px;
-		color: var(--color-tertiary-500, #6ee7b7);
-	}
-	/* When badge is present, shift check icon left */
-	.preset-card:has(.badge-pill) .check-icon {
-		right: auto;
-		left: 10px;
-		top: 10px;
+		color: #6ee7b7;
 	}
 
 	/* ── Dots ── */
@@ -416,7 +411,6 @@ Default value is 'blank'.
 		background: #6ee7b7;
 	}
 
-	/* ── Helper text ── */
 	.helper-text {
 		font-size: 0.71rem;
 		color: rgba(255, 255, 255, 0.3);

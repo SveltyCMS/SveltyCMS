@@ -927,5 +927,17 @@
   "setup_system_multi_tenant_desc": "Ermöglicht die Unterstützung mehrerer isolierter Mandanten auf einer einzigen Installation.",
   "setup_system_demo_mode": "Demo-Modus",
   "setup_system_demo_mode_desc": "Warnung: Erstellt flüchtige Umgebungen für Besucher. Daten werden automatisch gelöscht. Nicht für Produktionsseiten aktivieren.",
-  "setup_note_demo_requires_multitenant": "Hinweis: Das Aktivieren des Demo-Modus aktiviert automatisch den mandantenfähigen Modus."
+  "setup_note_demo_requires_multitenant": "Hinweis: Das Aktivieren des Demo-Modus aktiviert automatisch den mandantenfähigen Modus.",
+  "cookie_heading": "Wir schätzen Ihre Privatsphäre",
+  "cookie_description": "Wir verwenden Cookies, um Ihr Surferlebnis zu verbessern, personalisierte Anzeigen oder Inhalte bereitzustellen und unseren Datenverkehr zu analysieren. Durch Klicken auf \"Alle akzeptieren\" stimmen Sie unserer Verwendung von Cookies zu.",
+  "cookie_necessary_title": "Notwendig",
+  "cookie_necessary_desc": "Für das Funktionieren der Website erforderlich",
+  "cookie_analytics_title": "Analyse",
+  "cookie_analytics_desc": "Hilft uns zu verstehen, wie Sie die Website nutzen",
+  "cookie_marketing_title": "Marketing",
+  "cookie_marketing_desc": "Wird für personalisierte Werbung verwendet",
+  "cookie_button_save": "Einstellungen speichern",
+  "cookie_button_customize": "Anpassen",
+  "cookie_button_reject": "Alle ablehnen",
+  "cookie_button_accept": "Alle akzeptieren"
 }

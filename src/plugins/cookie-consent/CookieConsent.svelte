@@ -9,6 +9,7 @@ Displays a GDPR-compliant cookie consent banner.
 	import { consentStore } from '@src/stores/consentStore.svelte';
 	import { onMount } from 'svelte';
 	import { fade, slide } from 'svelte/transition';
+	import * as m from '@src/paraglide/messages';
 
 	let showBanner = $state(false);
 	let showDetails = $state(false);
@@ -57,10 +58,9 @@ Displays a GDPR-compliant cookie consent banner.
 			<div class="flex items-start gap-4">
 				<div class="text-3xl">🍪</div>
 				<div>
-					<h2 id="cookie-heading" class="text-lg font-bold text-gray-900 dark:text-white">We value your privacy</h2>
+					<h2 id="cookie-heading" class="text-lg font-bold text-gray-900 dark:text-white">{m.cookie_heading()}</h2>
 					<p class="mt-1 text-sm text-gray-600 dark:text-gray-300">
-						We use cookies to enhance your browsing experience, serve personalized ads or content, and analyze our traffic. By clicking "Accept All",
-						you consent to our use of cookies.
+						{m.cookie_description()}
 					</p>
 				</div>
 			</div>
@@ -69,24 +69,24 @@ Displays a GDPR-compliant cookie consent banner.
 				<div transition:slide class="border-t border-surface-200 py-4 dark:border-surface-700 space-y-3">
 					<div class="flex items-center justify-between">
 						<div>
-							<div class="font-semibold text-sm">Necessary</div>
-							<div class="text-xs text-gray-500">Required for the site to function</div>
+							<div class="font-semibold text-sm">{m.cookie_necessary_title()}</div>
+							<div class="text-xs text-gray-500">{m.cookie_necessary_desc()}</div>
 						</div>
 						<Toggles value={true} disabled={true} />
 					</div>
 
 					<div class="flex items-center justify-between">
 						<div>
-							<div class="font-semibold text-sm">Analytics</div>
-							<div class="text-xs text-gray-500">Helps us understand how you use the site</div>
+							<div class="font-semibold text-sm">{m.cookie_analytics_title()}</div>
+							<div class="text-xs text-gray-500">{m.cookie_analytics_desc()}</div>
 						</div>
 						<Toggles bind:value={preferences.analytics} />
 					</div>
 
 					<div class="flex items-center justify-between">
 						<div>
-							<div class="font-semibold text-sm">Marketing</div>
-							<div class="text-xs text-gray-500">Used for personalized advertisements</div>
+							<div class="font-semibold text-sm">{m.cookie_marketing_title()}</div>
+							<div class="text-xs text-gray-500">{m.cookie_marketing_desc()}</div>
 						</div>
 						<Toggles bind:value={preferences.marketing} />
 					</div>
@@ -96,11 +96,11 @@ Displays a GDPR-compliant cookie consent banner.
 			<!-- Actions -->
 			<div class="flex flex-col gap-2 sm:flex-row sm:justify-end">
 				{#if showDetails}
-					<button onclick={handleSavePreferences} class="btn variant-filled-primary flex-1">Save Preferences</button>
+					<button onclick={handleSavePreferences} class="btn preset-filled-primary flex-1">{m.cookie_button_save()}</button>
 				{:else}
-					<button onclick={() => (showDetails = true)} class="btn variant-ghost-surface flex-1">Customize</button>
-					<button onclick={handleRejectAll} class="btn variant-ghost-surface flex-1">Reject All</button>
-					<button onclick={handleAcceptAll} class="btn variant-filled-primary flex-1">Accept All</button>
+					<button onclick={() => (showDetails = true)} class="btn preset-tonal-secondary flex-1">{m.cookie_button_customize()}</button>
+					<button onclick={handleRejectAll} class="btn preset-tonal-secondary flex-1">{m.cookie_button_reject()}</button>
+					<button onclick={handleAcceptAll} class="btn preset-outlined-primary-500 flex-1">{m.cookie_button_accept()}</button>
 				{/if}
 			</div>
 		</div>

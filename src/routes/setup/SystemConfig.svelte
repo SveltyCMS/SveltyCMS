@@ -4,12 +4,11 @@
 **System configuration step**
 
 Features:
-- System languages
-- Content languages
-- Timezone
-- Demo mode
-- Multi-tenant mode
-- Redis availability
+- Project Blueprint selection
+- Basic site settings (Site Name, Prod URL, Timezone)
+- Media storage configuration
+- Language preferences
+- Performance & Mode toggles
 	
 -->
 <script lang="ts">
@@ -29,8 +28,7 @@ Features:
 	const presets = PRESETS;
 
 	// --- PROPS ---
-	// Added $bindable() to systemSettings
-	let { systemSettings = $bindable(), validationErrors, redisAvailable = $bindable() } = $props(); // Now uses imported type
+	let { systemSettings = $bindable(), validationErrors, redisAvailable = $bindable() } = $props();
 
 	const availableLanguages: string[] = [...systemLocales];
 
@@ -201,6 +199,15 @@ Features:
 				(lang.code.toLowerCase().includes(search) || lang.name.toLowerCase().includes(search) || lang.native.toLowerCase().includes(search))
 		);
 	});
+
+	// Options for Autocomplete
+	const allTimezones = Intl.supportedValuesOf('timeZone');
+	const mediaStorageOptions = [
+		{ value: 'local', label: '📁 Local Storage' },
+		{ value: 's3', label: '☁️ Amazon S3' },
+		{ value: 'r2', label: '☁️ Cloudflare R2' },
+		{ value: 'cloudinary', label: '☁️ Cloudinary' }
+	];
 </script>
 
 <form onsubmit={(e) => e.preventDefault()} class="fade-in">
@@ -208,7 +215,7 @@ Features:
 		<p class="text-sm text-center text-tertiary-500 dark:text-primary-500 sm:text-base">{m.setup_system_intro()}</p>
 	</div>
 
-	<div class="space-y-2">
+	<div class="space-y-6">
 		{#if redisAvailable && !systemSettings.useRedis}
 			<div class="rounded-lg bg-surface-500 p-4 text-white shadow-lg animate-in fade-in slide-in-from-top-4 duration-500" role="alert">
 				<div class="flex items-start gap-4">
@@ -238,16 +245,16 @@ Features:
 			</div>
 		{/if}
 
-		<!-- Solution Presets -->
+		<!-- Project Blueprint -->
 		<section class="mb-8">
 			<PresetSelector {presets} bind:selected={systemSettings.preset} />
 		</section>
 
 		<!-- Basic Site Settings -->
-		<section>
-			<div class="grid grid-cols-1 gap-6 md:grid-cols-2">
-				<!-- Site Name & Production URL Group -->
-				<div class="space-y-3">
+		<section class="space-y-6">
+			<div class="grid grid-cols-1 gap-6 md:grid-cols-3 items-start">
+				<!-- Site Name -->
+				<div class="space-y-2">
 					<label for="site-name" class="mb-1 flex items-center gap-1 text-sm font-medium">
 						<iconify-icon icon="mdi:web" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 						<span class="text-black dark:text-white">{m.setup_system_site_name?.() || 'CMS Name'}</span>
@@ -256,7 +263,7 @@ Features:
 								type="button"
 								tabindex="-1"
 								aria-label="Help: Site Name"
-								class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+								class="ml-1 text-slate-400 hover:text-tertiary-500"
 							>
 								<iconify-icon icon="mdi:help-circle-outline" width="16" aria-hidden="true"></iconify-icon>
 							</button>
@@ -276,7 +283,10 @@ Features:
 					{#if displayErrors.siteName}
 						<div id="site-name-error" class="mt-1 text-xs text-error-500" role="alert">{displayErrors.siteName}</div>
 					{/if}
+				</div>
 
+				<!-- Production URL -->
+				<div class="space-y-2">
 					<label for="host-prod" class="mb-1 flex items-center gap-1 text-sm font-medium">
 						<iconify-icon icon="mdi:earth" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 						<span class="text-black dark:text-white">{m.setup_system_host_prod?.() || 'Production URL'}</span>
@@ -285,7 +295,7 @@ Features:
 								type="button"
 								tabindex="-1"
 								aria-label="Help: Production URL"
-								class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+								class="ml-1 text-slate-400 hover:text-tertiary-500"
 							>
 								<iconify-icon icon="mdi:help-circle-outline" width="16" aria-hidden="true"></iconify-icon>
 							</button>
@@ -305,7 +315,10 @@ Features:
 					{#if displayErrors.hostProd}
 						<div id="host-prod-error" class="mt-1 text-xs text-error-500" role="alert">{displayErrors.hostProd}</div>
 					{/if}
+				</div>
 
+				<!-- Timezone (Enhanced with Autocomplete) -->
+				<div class="space-y-2">
 					<label for="timezone" class="mb-1 flex items-center gap-1 text-sm font-medium">
 						<iconify-icon icon="mdi:clock-outline" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 						<span class="text-black dark:text-white">{m.setup_system_timezone?.() || 'Timezone'}</span>
@@ -314,32 +327,28 @@ Features:
 								type="button"
 								tabindex="-1"
 								aria-label="Help: Timezone"
-								class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+								class="ml-1 text-slate-400 hover:text-tertiary-500"
 							>
 								<iconify-icon icon="mdi:help-circle-outline" width="16" aria-hidden="true"></iconify-icon>
 							</button>
 						</SystemTooltip>
 					</label>
 
-					<select
-						id="timezone"
+					<Autocomplete
+						options={allTimezones}
 						bind:value={systemSettings.timezone}
-						onblur={() => handleBlur('timezone')}
-						class="input w-full rounded {displayErrors.timezone ? 'border-error-500' : 'border-slate-200'}"
-						aria-invalid={!!displayErrors.timezone}
-						aria-describedby={displayErrors.timezone ? 'timezone-error' : undefined}
-					>
-						{#each Intl.supportedValuesOf('timeZone') as tz (tz)}
-							<option value={tz}>{tz}</option>
-						{/each}
-					</select>
+						placeholder="Search timezone..."
+						onSelect={() => handleBlur('timezone')}
+					/>
 					{#if displayErrors.timezone}
 						<div id="timezone-error" class="mt-1 text-xs text-error-500" role="alert">{displayErrors.timezone}</div>
 					{/if}
 				</div>
+			</div>
 
-				<!-- Media Storage Configuration Group -->
-				<div class="space-y-3">
+			<div class="grid grid-cols-1 gap-6 md:grid-cols-2 items-start pt-2">
+				<!-- Media Storage Configuration -->
+				<div class="space-y-2">
 					<label for="media-storage-type" class="mb-1 flex items-center gap-1 text-sm font-medium">
 						<iconify-icon icon="mdi:cloud-outline" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 						<span class="text-black dark:text-white">{m.setup_system_media_type?.() || 'Media Storage Type'}</span>
@@ -348,7 +357,7 @@ Features:
 								type="button"
 								tabindex="-1"
 								aria-label="Help: Media Storage Type"
-								class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+								class="ml-1 text-slate-400 hover:text-tertiary-500"
 							>
 								<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
 							</button>
@@ -361,7 +370,10 @@ Features:
 						<option value="r2">{m.setup_media_type_r2?.() || '☁️ Cloudflare R2'}</option>
 						<option value="cloudinary">{m.setup_media_type_cloudinary?.() || '☁️ Cloudinary'}</option>
 					</select>
+				</div>
 
+				<!-- Media Folder Path -->
+				<div class="space-y-2">
 					<label for="media-folder" class="mb-1 flex items-center gap-1 text-sm font-medium">
 						<iconify-icon icon="mdi:folder" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 						<span class="text-black dark:text-white">
@@ -374,7 +386,7 @@ Features:
 								type="button"
 								tabindex="-1"
 								aria-label="Help: Media Folder"
-								class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+								class="ml-1 text-slate-400 hover:text-tertiary-500"
 							>
 								<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
 							</button>
@@ -404,10 +416,10 @@ Features:
 		</section>
 
 		<!-- Languages -->
-		<section class="space-y-6 border-t border-slate-200 pt-6 dark:border-slate-700">
+		<section class="space-y-6 border-t border-white/10 pt-6">
 			<div class="grid grid-cols-1 gap-6 md:grid-cols-2">
 				<!-- Default System Language -->
-				<div class="space-y-3 rounded border border-slate-300/50 bg-secondary-50/50 p-4 dark:border-slate-600/60 dark:bg-surface-800/40">
+				<div class="space-y-3 rounded border border-white/5 bg-white/2 p-4">
 					<label for="default-system-lang" class="mb-1 flex items-center gap-1 text-sm font-medium">
 						<iconify-icon icon="mdi:translate" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 						<span class="text-black dark:text-white">{m.setup_label_default_system_language?.() || 'Default System Language'}</span>
@@ -416,15 +428,15 @@ Features:
 								tabindex="-1"
 								type="button"
 								aria-label="Help: Default System Language"
-								class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+								class="ml-1 text-slate-400 hover:text-tertiary-500"
 							>
 								<iconify-icon icon="mdi:help-circle-outline" width="16" aria-hidden="true"></iconify-icon>
 							</button>
 						</SystemTooltip>
 					</label>
 
-					<p class="text-[10px] text-slate-500 dark:text-slate-400" id="system-lang-help">
-						Select the primary language for the admin interface. This is important for screen readers.
+					<p class="text-[10px] text-white/40" id="system-lang-help">
+						Select the primary language for the admin interface.
 					</p>
 
 					<select id="default-system-lang" bind:value={systemSettings.defaultSystemLanguage} class="input w-full rounded">
@@ -441,7 +453,7 @@ Features:
 									tabindex="-1"
 									type="button"
 									aria-label="Help: System Languages"
-									class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+									class="ml-1 text-slate-400 hover:text-tertiary-500"
 								>
 									<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
 								</button>
@@ -449,13 +461,13 @@ Features:
 						</div>
 
 						<div
-							class="relative flex min-h-[42px] flex-wrap items-center gap-2 rounded border border-slate-300/50 bg-surface-50/40 pr-16 dark:border-slate-600 dark:bg-surface-700/40"
+							class="relative flex min-h-[42px] flex-wrap items-center gap-2 rounded border border-white/5 bg-white/2 pr-16 p-2"
 						>
 							{#each systemSettings.systemLanguages as lang (lang)}
 								<span
-									class="group badge preset-filled-tertiary-500 dark:preset-filled-primary-500 inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-white"
+									class="group badge preset-filled-tertiary-500 dark:preset-filled-primary-500 inline-flex items-center gap-2 rounded-full px-3 py-1 text-white"
 								>
-									<span class="text-sm font-medium">{displayLang(lang)}</span>
+									<span class="text-xs font-medium">{displayLang(lang)}</span>
 									{#if systemSettings.systemLanguages.length > 1}
 										<button
 											type="button"
@@ -484,7 +496,7 @@ Features:
 							{#if showSystemPicker}
 								<div
 									id="system-lang-picker"
-									class="absolute left-0 top-full z-20 mt-2 w-64 rounded-md border border-slate-300/60 bg-surface-50 p-2 shadow-lg dark:border-slate-600 dark:bg-surface-800"
+									class="absolute left-0 top-full z-20 mt-2 w-64 rounded-md border border-white/10 bg-surface-800 p-2 shadow-xl"
 									role="dialog"
 									aria-label="Add system language"
 									tabindex="-1"
@@ -492,13 +504,13 @@ Features:
 								>
 									<input
 										id="system-lang-search"
-										class="mb-2 w-full rounded border border-slate-300/60 bg-transparent px-2 py-1 text-xs outline-none focus:border-primary-500 dark:border-slate-600"
+										class="mb-2 w-full rounded border border-white/10 bg-transparent px-2 py-1 text-xs outline-none focus:border-primary-500"
 										placeholder="Search..."
 										bind:value={systemPickerSearch}
 									>
 									<div class="max-h-48 overflow-auto">
 										{#if systemAvailable.length === 0}
-											<p class="px-1 py-2 text-center text-[11px] text-slate-500">{m.setup_help_no_matches?.() || 'No matches'}</p>
+											<p class="px-1 py-2 text-center text-[11px] text-white/40">{m.setup_help_no_matches?.() || 'No matches'}</p>
 										{/if}
 										{#each systemAvailable as sug (sug)}
 											<button
@@ -514,13 +526,10 @@ Features:
 								</div>
 							{/if}
 						</div>
-						<p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">
-							{systemAvailable.length > 0 ? 'Click + to add more languages.' : 'All configured system languages are active.'}
-						</p>
 					</div>
 				</div>
 				<!-- Default Content Language -->
-				<div class="space-y-3 rounded-md border border-slate-300/50 bg-secondary-50/50 p-4 dark:border-slate-600/60 dark:bg-surface-800/40">
+				<div class="space-y-3 rounded-md border border-white/5 bg-white/2 p-4">
 					<div class="mb-1 flex items-center gap-1 text-sm font-medium">
 						<iconify-icon
 							icon="mdi:book-open-page-variant"
@@ -534,13 +543,13 @@ Features:
 								tabindex="-1"
 								type="button"
 								aria-label="Help: Default Content Language"
-								class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+								class="ml-1 text-slate-400 hover:text-tertiary-500"
 							>
 								<iconify-icon icon="mdi:help-circle-outline" width="16" aria-hidden="true"></iconify-icon>
 							</button>
 						</SystemTooltip>
 					</div>
-					<p class="text-[10px] text-slate-500 dark:text-slate-400" id="system-lang-help">Select the primary language for your content.</p>
+					<p class="text-[10px] text-white/40" id="system-lang-help">Select the primary language for your content.</p>
 					<select
 						bind:value={systemSettings.defaultContentLanguage}
 						onblur={() => handleBlur('defaultContentLanguage')}
@@ -564,7 +573,7 @@ Features:
 									tabindex="-1"
 									type="button"
 									aria-label="Help: Content Languages"
-									class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+									class="ml-1 text-slate-400 hover:text-tertiary-500"
 								>
 									<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
 								</button>
@@ -574,13 +583,13 @@ Features:
 						<div
 							class="relative flex min-h-[42px] flex-wrap items-center gap-2 rounded border p-2 pr-16 {displayErrors.contentLanguages
 								? 'border-error-500 bg-error-50 dark:bg-error-900/20'
-								: 'border-slate-300/50 bg-surface-50/50 dark:border-slate-600 dark:bg-surface-700/40'}"
+								: 'border-white/5 bg-white/2'}"
 						>
 							{#each systemSettings.contentLanguages as lang (lang)}
 								<span
-									class="group badge preset-filled-tertiary-500 dark:preset-filled-primary-500 inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-white"
+									class="group badge preset-filled-tertiary-500 dark:preset-filled-primary-500 inline-flex items-center gap-2 rounded-full px-3 py-1 text-white"
 								>
-									<span class="text-sm font-medium">{displayLang(lang)}</span>
+									<span class="text-xs font-medium">{displayLang(lang)}</span>
 									{#if lang !== systemSettings.defaultContentLanguage || systemSettings.contentLanguages.length > 1}
 										<button
 											type="button"
@@ -607,7 +616,7 @@ Features:
 							{#if showContentPicker}
 								<div
 									id="content-lang-picker"
-									class="absolute left-0 top-full z-20 mt-2 w-64 rounded-md border border-slate-300/60 bg-surface-50 p-2 shadow-lg dark:border-slate-600 dark:bg-surface-800"
+									class="absolute left-0 top-full z-20 mt-2 w-64 rounded-md border border-white/10 bg-surface-800 p-2 shadow-xl"
 									role="dialog"
 									aria-label="Add content language"
 									tabindex="-1"
@@ -615,13 +624,13 @@ Features:
 								>
 									<input
 										id="content-lang-search"
-										class="mb-2 w-full rounded border border-slate-300/60 bg-transparent px-2 py-1 text-xs outline-none focus:border-primary-500 dark:border-slate-600"
+										class="mb-2 w-full rounded border border-white/10 bg-transparent px-2 py-1 text-xs outline-none focus:border-primary-500"
 										placeholder="Search languages..."
 										bind:value={contentPickerSearch}
 									>
 									<div class="max-h-48 overflow-auto">
 										{#if contentAvailable.length === 0}
-											<p class="px-1 py-2 text-center text-[11px] text-slate-500">{m.setup_help_no_matches?.() || 'No matches'}</p>
+											<p class="px-1 py-2 text-center text-[11px] text-white/40">{m.setup_help_no_matches?.() || 'No matches'}</p>
 										{/if}
 										{#each contentAvailable as sug (sug.code)}
 											<button
@@ -629,7 +638,7 @@ Features:
 												class="flex w-full items-center justify-between rounded px-2 py-1 text-left text-xs hover:bg-primary-500/10"
 												onclick={() => addContentLanguage(sug.code)}
 											>
-												<span>{sug.name} ({sug.code.toUpperCase()}) <span class="text-slate-500">- {sug.native}</span></span>
+												<span>{sug.name} ({sug.code.toUpperCase()}) <span class="text-white/40">- {sug.native}</span></span>
 												<iconify-icon icon="mdi:plus-circle-outline" width="14" class="text-primary-500" aria-hidden="true"></iconify-icon>
 											</button>
 										{/each}
@@ -637,9 +646,6 @@ Features:
 								</div>
 							{/if}
 						</div>
-						<p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">
-							{m.setup_note_add_codes_default_cannot_be_removed?.() || 'Add existing or custom codes. Default cannot be removed.'}
-						</p>
 						{#if displayErrors.contentLanguages}
 							<div class="mt-1 text-xs text-error-500" role="alert">{displayErrors.contentLanguages}</div>
 						{/if}
@@ -649,8 +655,8 @@ Features:
 		</section>
 
 		<!-- Optimization (Redis, Multi-Tenant, Demo) -->
-		<section id="redis-section" class="space-y-4 border-t border-slate-200 pt-6 dark:border-slate-700">
-			<div class="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-transparent space-y-4">
+		<section id="redis-section" class="space-y-4 border-t border-white/10 pt-6">
+			<div class="rounded-lg border border-white/5 bg-white/2 p-4 space-y-4">
 				<div class="flex items-center gap-3">
 					<input
 						id="use-redis"
@@ -667,7 +673,7 @@ Features:
 							<iconify-icon
 								icon="mdi:help-circle-outline"
 								width="16"
-								class="text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+								class="text-slate-400 hover:text-tertiary-500"
 							></iconify-icon>
 						</SystemTooltip>
 					</div>
@@ -676,15 +682,15 @@ Features:
 				{#if systemSettings.useRedis}
 					<div class="grid grid-cols-1 gap-4 sm:grid-cols-3 pt-2 animate-in fade-in slide-in-from-top-2 duration-300">
 						<div class="space-y-1.5">
-							<label for="redis-host" class="text-xs font-semibold text-slate-500 dark:text-slate-400">Redis Host</label>
+							<label for="redis-host" class="text-xs font-semibold text-white/40">Redis Host</label>
 							<input id="redis-host" bind:value={systemSettings.redisHost} type="text" placeholder="localhost" class="input text-sm py-1.5 rounded">
 						</div>
 						<div class="space-y-1.5">
-							<label for="redis-port" class="text-xs font-semibold text-slate-500 dark:text-slate-400">Redis Port</label>
+							<label for="redis-port" class="text-xs font-semibold text-white/40">Redis Port</label>
 							<input id="redis-port" bind:value={systemSettings.redisPort} type="text" placeholder="6379" class="input text-sm py-1.5 rounded">
 						</div>
 						<div class="space-y-1.5">
-							<label for="redis-password" class="text-xs font-semibold text-slate-500 dark:text-slate-400">Redis Password (Optional)</label>
+							<label for="redis-password" class="text-xs font-semibold text-white/40">Redis Password (Optional)</label>
 							<input
 								id="redis-password"
 								bind:value={systemSettings.redisPassword}
@@ -699,9 +705,9 @@ Features:
 		</section>
 
 		<!-- System Infrastructure / Mode -->
-		<div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+		<div class="grid grid-cols-1 gap-6 md:grid-cols-2 pb-4">
 			<!-- Multi-Tenant Toggle -->
-			<div class="input flex items-center gap-3 rounded border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-transparent">
+			<div class="input flex items-center gap-3 rounded border border-white/5 bg-white/2 p-3">
 				<input
 					id="multi-tenant-mode"
 					type="checkbox"
@@ -717,14 +723,14 @@ Features:
 						<iconify-icon
 							icon="mdi:help-circle-outline"
 							width="16"
-							class="text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+							class="text-slate-400 hover:text-tertiary-500"
 						></iconify-icon>
 					</SystemTooltip>
 				</div>
 			</div>
 
 			<!-- Demo Mode Toggle -->
-			<div class="input flex items-center gap-3 rounded border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-transparent">
+			<div class="input flex items-center gap-3 rounded border border-white/5 bg-white/2 p-3">
 				<input
 					id="demo-mode"
 					type="checkbox"
@@ -740,7 +746,7 @@ Features:
 						<iconify-icon
 							icon="mdi:help-circle-outline"
 							width="16"
-							class="text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+							class="text-slate-400 hover:text-tertiary-500"
 						></iconify-icon>
 					</SystemTooltip>
 					{#if systemSettings.demoMode && !systemSettings.multiTenant}

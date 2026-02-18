@@ -933,5 +933,17 @@
   "setup_system_multi_tenant_desc": "Enables support for multiple isolated tenants on a single installation.",
   "setup_system_demo_mode": "Demo Mode",
   "setup_system_demo_mode_desc": "Warning: Creates ephemeral environments for visitors. Data is wiped automatically. Do not enable for production sites.",
-  "setup_note_demo_requires_multitenant": "Note: Enabling Demo Mode will automatically enable Multi-Tenant Mode."
+  "setup_note_demo_requires_multitenant": "Note: Enabling Demo Mode will automatically enable Multi-Tenant Mode.",
+  "cookie_heading": "We value your privacy",
+  "cookie_description": "We use cookies to enhance your browsing experience, serve personalized ads or content, and analyze our traffic. By clicking \"Accept All\", you consent to our use of cookies.",
+  "cookie_necessary_title": "Necessary",
+  "cookie_necessary_desc": "Required for the site to function",
+  "cookie_analytics_title": "Analytics",
+  "cookie_analytics_desc": "Helps us understand how you use the site",
+  "cookie_marketing_title": "Marketing",
+  "cookie_marketing_desc": "Used for personalized advertisements",
+  "cookie_button_save": "Save Preferences",
+  "cookie_button_customize": "Customize",
+  "cookie_button_reject": "Reject All",
+  "cookie_button_accept": "Accept All"
 }
