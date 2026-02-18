@@ -199,8 +199,8 @@ export const databaseConfigSchema = object({
 	host: pipe(string(), minLength(1)),
 	port: optional(pipe(number(), minValue(0))),
 	name: pipe(string(), minLength(1)),
-	user: string(),
-	password: string()
+	user: optional(string()),
+	password: optional(string())
 });
 
 // ----------------- TYPES & HELPERS -----------------

@@ -17,6 +17,7 @@ This component presents a summary of all configuration steps before finalizing t
 	import * as m from '@src/paraglide/messages';
 	// Types from setupStore
 	import type { AdminUser, DbConfig, SystemSettings } from '@stores/setupStore.svelte.ts';
+	import { PRESETS } from './presets';
 
 	//  props
 	interface Props {
@@ -26,6 +27,9 @@ This component presents a summary of all configuration steps before finalizing t
 	}
 
 	const { dbConfig, adminUser, systemSettings }: Props = $props();
+
+	// Get selected preset data
+	const selectedPresetData = $derived(PRESETS.find((p) => p.id === systemSettings.preset));
 </script>
 
 <div class="fade-in">
@@ -38,6 +42,34 @@ This component presents a summary of all configuration steps before finalizing t
 	</div>
 
 	<div class="space-y-6">
+		<!-- Selected Blueprint Banner -->
+		<div
+			class="flex items-center gap-4 rounded-xl border-2 p-4 transition-all duration-300
+			{selectedPresetData
+				? 'border-tertiary-500/30 bg-tertiary-500/5 dark:border-primary-500/30 dark:bg-primary-500/5'
+				: 'border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-surface-900'}"
+		>
+			<div
+				class="flex h-12 w-12 items-center justify-center rounded-lg
+				{selectedPresetData
+					? 'bg-tertiary-500/10 text-tertiary-500 dark:bg-primary-500/10 dark:text-primary-500'
+					: 'bg-slate-200 text-slate-400 dark:bg-surface-800 dark:text-slate-500'}"
+			>
+				<iconify-icon icon={selectedPresetData?.icon || 'mdi:circle-off-outline'} width="28"></iconify-icon>
+			</div>
+			<div class="flex-1">
+				<h3 class="text-sm font-bold text-black dark:text-white sm:text-base">
+					{selectedPresetData ? `Blueprint: ${selectedPresetData.title}` : 'No Blueprint Selected'}
+				</h3>
+				<p class="text-xs text-slate-500 dark:text-slate-400 sm:text-sm">
+					{selectedPresetData ? selectedPresetData.description : 'Collections and settings will be configured manually.'}
+				</p>
+			</div>
+			{#if selectedPresetData}
+				<iconify-icon icon="mdi:check-circle" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+			{/if}
+		</div>
+
 		<div class="grid grid-cols-1 gap-8 md:grid-cols-2 items-start">
 			<!-- Left Column: Database, Admin, Media -->
 			<div class="space-y-8">
@@ -61,7 +93,7 @@ This component presents a summary of all configuration steps before finalizing t
 								</button>
 							</SystemTooltip>
 						</dt>
-						<dd class="text-tertiary-500 dark:text-primary-500">{dbConfig.type}</dd>
+						<dd class="text-tertiary-500 dark:text-primary-500 uppercase">{dbConfig.type}</dd>
 
 						{#if dbConfig.host}
 							<dt class="flex items-center justify-between font-medium text-black dark:text-white">
@@ -254,7 +286,7 @@ This component presents a summary of all configuration steps before finalizing t
 									class="text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 									aria-label="Help for Site Name"
 								>
-									<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
+									<iconify-icon icon="mdi:help-circle-outline" width="16" aria-hidden="true"></iconify-icon>
 								</button>
 							</SystemTooltip>
 						</dt>
@@ -288,7 +320,7 @@ This component presents a summary of all configuration steps before finalizing t
 								</button>
 							</SystemTooltip>
 						</dt>
-						<dd class="text-tertiary-500 dark:text-primary-500">{systemSettings.defaultSystemLanguage}</dd>
+						<dd class="text-tertiary-500 dark:text-primary-500 uppercase">{systemSettings.defaultSystemLanguage}</dd>
 						<dt class="flex items-center justify-between font-medium text-black dark:text-white">
 							{m.setup_review_label_system_languages?.() || 'System Languages'}:
 							<SystemTooltip title={m.setup_help_system_languages?.() || 'Available languages for the admin interface.'}>
@@ -302,7 +334,7 @@ This component presents a summary of all configuration steps before finalizing t
 								</button>
 							</SystemTooltip>
 						</dt>
-						<dd class="text-tertiary-500 dark:text-primary-500">{systemSettings.systemLanguages.join(', ')}</dd>
+						<dd class="text-tertiary-500 dark:text-primary-500 uppercase">{systemSettings.systemLanguages.join(', ')}</dd>
 						<dt class="flex items-center justify-between font-medium text-black dark:text-white">
 							{m.setup_review_label_default_content_lang?.() || 'Default Content Lang'}:
 							<SystemTooltip title={m.setup_help_default_content_language?.() || 'Primary language for content creation.'}>
@@ -316,7 +348,7 @@ This component presents a summary of all configuration steps before finalizing t
 								</button>
 							</SystemTooltip>
 						</dt>
-						<dd class="text-tertiary-500 dark:text-primary-500">{systemSettings.defaultContentLanguage}</dd>
+						<dd class="text-tertiary-500 dark:text-primary-500 uppercase">{systemSettings.defaultContentLanguage}</dd>
 						<dt class="flex items-center justify-between font-medium text-black dark:text-white">
 							{m.setup_review_label_content_languages?.() || 'Content Languages'}:
 							<SystemTooltip title={m.setup_help_content_languages?.() || 'Available languages for content translations.'}>
@@ -330,7 +362,7 @@ This component presents a summary of all configuration steps before finalizing t
 								</button>
 							</SystemTooltip>
 						</dt>
-						<dd class="text-tertiary-500 dark:text-primary-500">{systemSettings.contentLanguages.join(', ')}</dd>
+						<dd class="text-tertiary-500 dark:text-primary-500 uppercase">{systemSettings.contentLanguages.join(', ')}</dd>
 						<dt class="flex items-center justify-between font-medium text-black dark:text-white">
 							{m.setup_review_label_timezone?.() || 'Timezone'}:
 							<SystemTooltip title="The default timezone for the system. Used for scheduling and date displays.">

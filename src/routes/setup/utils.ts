@@ -29,7 +29,7 @@ export function buildDatabaseConnectionString(config: DatabaseConfig): string {
 			// Check if credentials are provided
 			const hasCredentials = config.user && config.password;
 
-			const user = hasCredentials ? `${encodeURIComponent(config.user)}:${encodeURIComponent(config.password)}@` : '';
+			const user = hasCredentials ? `${encodeURIComponent(config.user!)}:${encodeURIComponent(config.password!)}@` : '';
 
 			// For MongoDB Atlas (mongodb+srv), add standard query parameters
 			// For regular MongoDB with auth, add authSource=admin
@@ -48,7 +48,7 @@ export function buildDatabaseConnectionString(config: DatabaseConfig): string {
 			// MariaDB connection string
 			const port = config.port ? `:${config.port}` : ':3306';
 			const hasCredentials = config.user && config.password;
-			const user = hasCredentials ? `${encodeURIComponent(config.user)}:${encodeURIComponent(config.password)}@` : '';
+			const user = hasCredentials ? `${encodeURIComponent(config.user!)}:${encodeURIComponent(config.password!)}@` : '';
 
 			return `mysql://${user}${config.host}${port}/${config.name}`;
 		}
@@ -56,7 +56,7 @@ export function buildDatabaseConnectionString(config: DatabaseConfig): string {
 			// PostgreSQL connection string
 			const port = config.port ? `:${config.port}` : ':5432';
 			const hasCredentials = config.user && config.password;
-			const user = hasCredentials ? `${encodeURIComponent(config.user)}:${encodeURIComponent(config.password)}@` : '';
+			const user = hasCredentials ? `${encodeURIComponent(config.user!)}:${encodeURIComponent(config.password!)}@` : '';
 
 			return `postgresql://${user}${config.host}${port}/${config.name}`;
 		}
@@ -128,11 +128,11 @@ export async function getSetupDatabaseAdapter(config: DatabaseConfig): Promise<{
 				socketTimeoutMS: 45_000,
 				maxPoolSize: 50, // Increased to handle parallel seeding
 				retryWrites: true,
+				dbName: config.name,
 				...(config.user &&
 					config.password && {
 						user: config.user,
 						pass: config.password,
-						dbName: config.name,
 						// Always use 'admin' as authSource for both MongoDB and Atlas
 						// MongoDB Atlas stores user accounts in the admin database by default
 						authSource: 'admin'

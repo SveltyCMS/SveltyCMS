@@ -14,6 +14,8 @@ Features:
 -->
 <script lang="ts">
 	import SystemTooltip from '@components/system/SystemTooltip.svelte';
+	import Autocomplete from '@components/Autocomplete.svelte';
+	import PresetSelector from './PresetSelector.svelte';
 	import * as m from '@src/paraglide/messages';
 	import { locales as systemLocales } from '@src/paraglide/runtime';
 	//  Import types from the store
@@ -237,48 +239,8 @@ Features:
 		{/if}
 
 		<!-- Solution Presets -->
-		<section class="mb-8 space-y-4">
-			<div class="flex items-center gap-2">
-				<iconify-icon icon="mdi:package-variant-closed" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-				<h3 class="text-lg font-semibold text-black dark:text-white">Solution Preset</h3>
-			</div>
-
-			<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-				{#each presets as preset (preset.id)}
-					<button
-						type="button"
-						class="relative flex flex-col items-start p-4 rounded-lg border-2 text-left transition-all duration-200
-						{systemSettings.preset === preset.id
-							? 'border-tertiary-500 bg-tertiary-50/50 dark:border-primary-500 dark:bg-primary-900/10'
-							: 'border-slate-200 bg-white hover:border-tertiary-300 dark:border-slate-700 dark:bg-surface-800 dark:hover:border-slate-600'}"
-						onclick={() => (systemSettings.preset = preset.id)}
-					>
-						<div class="flex w-full items-center justify-between mb-3">
-							<div class="p-2 rounded bg-surface-100 dark:bg-surface-700 text-tertiary-600 dark:text-primary-400">
-								<iconify-icon icon={preset.icon} width="24"></iconify-icon>
-							</div>
-							{#if systemSettings.preset === preset.id}
-								<iconify-icon icon="mdi:check-circle" width="24" class="text-tertiary-500 dark:text-primary-500 animate-in zoom-in"></iconify-icon>
-							{/if}
-						</div>
-
-						<h4 class="font-bold text-slate-800 dark:text-slate-100 mb-1">{preset.title}</h4>
-						<p class="text-xs text-slate-500 dark:text-slate-400 mb-3 leading-relaxed min-h-[40px]">{preset.description}</p>
-
-						<div class="mt-auto flex flex-wrap gap-1">
-							{#each preset.features.slice(0, 2) as feature}
-								<span class="px-1.5 py-0.5 text-[10px] rounded bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300"> {feature} </span>
-							{/each}
-							{#if preset.features.length > 2}
-								<span class="px-1.5 py-0.5 text-[10px] rounded bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
-									+{preset.features.length - 2}
-								</span>
-							{/if}
-						</div>
-					</button>
-				{/each}
-			</div>
-			<p class="text-xs text-slate-500 dark:text-slate-400 italic">{m.setup_presets_helper()}</p>
+		<section class="mb-8">
+			<PresetSelector {presets} bind:selected={systemSettings.preset} />
 		</section>
 
 		<!-- Basic Site Settings -->

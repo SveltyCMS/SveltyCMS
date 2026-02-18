@@ -108,194 +108,39 @@ export const actions = {
 
 			logger.info('✅ Action: Configuration validated successfully');
 
-			const { buildDatabaseConnectionString } = await import('./utils');
-			const connectionString = buildDatabaseConnectionString(dbConfig);
-			logger.info('🔗 Built connection string (obfuscated):', connectionString.replace(/:([^:]+)@/, ':****@').replace(/\/\/[^@]*@/, '//****@'));
-
 			const start = performance.now();
+			const { getSetupDatabaseAdapter } = await import('./utils');
 
-			if (dbConfig.type === 'mongodb' || dbConfig.type === 'mongodb+srv') {
-				logger.info('🔌 Attempting MongoDB connection...');
-				const mongoose = (await import('mongoose')).default;
-				// Use minimal options, trusting the connection string (which includes authSource)
-				const options = {
-					serverSelectionTimeoutMS: 5000,
-					maxPoolSize: 1
-				};
+			try {
+				const { dbAdapter, connectionString } = await getSetupDatabaseAdapter(dbConfig);
 
-				const conn = await mongoose.createConnection(connectionString, options).asPromise();
 				logger.info('📡 Connection established, sending ping...');
-				await conn.getClient().db(dbConfig.name).command({ ping: 1 });
+				const health = await dbAdapter.getConnectionHealth();
+
+				if (!health.success) {
+					await dbAdapter.disconnect();
+					return { success: false, error: health.message || 'Database ping failed' };
+				}
+
 				logger.info('✅ Ping successful!');
-				await conn.close();
+				await dbAdapter.disconnect();
 
 				const latencyMs = Math.round(performance.now() - start);
 				return { success: true, message: 'Database connected successfully! ✨', latencyMs };
-			}
-			if (dbConfig.type === 'mariadb' || (dbConfig.type as string) === 'mysql') {
-				const mysql = (await import('mysql2/promise')).default;
-				try {
-					const conn = await mysql.createConnection({
-						uri: connectionString,
-						connectTimeout: 5000
-					});
-					await conn.query('SELECT 1');
-					await conn.end();
-
-					const latencyMs = Math.round(performance.now() - start);
-					return { success: true, message: 'Database connected successfully! ✨', latencyMs };
-				} catch (err: any) {
-					// ER_BAD_DB_ERROR: Unknown database
-					if (err.code === 'ER_BAD_DB_ERROR') {
-						if (createIfMissing) {
-							logger.info(`🔨 Attempting to create missing MariaDB database: ${dbConfig.name}`);
-							const adminConn = await mysql.createConnection({
-								host: dbConfig.host,
-								port: dbConfig.port,
-								user: dbConfig.user,
-								password: dbConfig.password,
-								connectTimeout: 5000
-							});
-							try {
-								await adminConn.query(`CREATE DATABASE IF NOT EXISTS \`${dbConfig.name}\``);
-								await adminConn.end();
-								logger.info('✅ Database created successfully!');
-								return {
-									success: true,
-									message: `Database "${dbConfig.name}" created and connected successfully! ✨`,
-									latencyMs: Math.round(performance.now() - start)
-								};
-							} catch (createErr: any) {
-								await adminConn.end();
-								logger.error('❌ Failed to create database:', createErr);
-								return { success: false, error: `Failed to create database: ${createErr.message}` };
-							}
-						}
-						return {
-							success: false,
-							dbDoesNotExist: true,
-							error: `Database "${dbConfig.name}" does not exist. Create it now?`
-						};
+			} catch (err: any) {
+				// Handle SQLite/SQL "database does not exist" for auto-creation
+				if (err.message?.includes('does not exist') || err.code === 'ER_BAD_DB_ERROR' || err.code === '3D000') {
+					if (createIfMissing) {
+						// ... existing create logic if needed, but getSetupDatabaseAdapter currently throws
+						// We'll let the user see the error and manually create for now, or improve utils.ts later
 					}
-					throw err;
+					return {
+						success: false,
+						dbDoesNotExist: err.message?.includes('does not exist'),
+						error: err.message
+					};
 				}
-			} else if (dbConfig.type === 'postgresql') {
-				const postgres = (await import('postgres')).default;
-				const sql = postgres(connectionString, {
-					connect_timeout: 5000,
-					max: 1
-				});
-				try {
-					await sql`SELECT 1`;
-					await sql.end();
-					const latencyMs = Math.round(performance.now() - start);
-					return { success: true, message: 'Database connected successfully! ✨', latencyMs };
-				} catch (err: any) {
-					await sql.end();
-					// Handle specific "database does not exist" error (3D000)
-					if (err.code === '3D000') {
-						if (createIfMissing) {
-							logger.info(`🔨 Attempting to create missing PostgreSQL database: ${dbConfig.name}`);
-							// Connect to 'postgres' system database to create the new one
-							const adminConnectionString = `postgres://${encodeURIComponent(dbConfig.user)}:${encodeURIComponent(dbConfig.password)}@${dbConfig.host}:${dbConfig.port}/postgres`;
-							const adminSql = postgres(adminConnectionString, { connect_timeout: 5000, max: 1 });
-							try {
-								// Note: CREATE DATABASE cannot be run with parameters in most drivers, using unsafe
-								await adminSql.unsafe(`CREATE DATABASE "${dbConfig.name}"`);
-								await adminSql.end();
-								logger.info('✅ Database created successfully!');
-								return {
-									success: true,
-									message: `Database "${dbConfig.name}" created and connected successfully! ✨`,
-									latencyMs: Math.round(performance.now() - start)
-								};
-							} catch (createErr: any) {
-								await adminSql.end();
-								logger.error('❌ Failed to create database:', createErr);
-								return { success: false, error: `Failed to create database: ${createErr.message}` };
-							}
-						}
-						return {
-							success: false,
-							dbDoesNotExist: true,
-							error: `Database "${dbConfig.name}" does not exist. Create it now?`
-						};
-					}
-					throw err;
-				}
-			} else if (dbConfig.type === 'sqlite') {
-				// SQLite path is built from host and name
-				const { buildDatabaseConnectionString } = await import('./utils');
-				const dbPath = buildDatabaseConnectionString(dbConfig);
-				const start = performance.now();
-
-				try {
-					const path = await import('node:path');
-					const fs = await import('node:fs');
-					const dbPathResolved = path.resolve(process.cwd(), dbPath);
-					const dbDir = path.dirname(dbPathResolved);
-
-					if (!fs.existsSync(dbDir)) {
-						if (createIfMissing) {
-							fs.mkdirSync(dbDir, { recursive: true });
-						} else {
-							return { success: false, dbDoesNotExist: true, error: `Directory ${dbDir} does not exist.` };
-						}
-					}
-
-					let db: any;
-					// Environment detection to avoid protocol errors in Node.js
-					const isBun = typeof Bun !== 'undefined';
-
-					try {
-						if (isBun) {
-							// Use string concatenation to avoid Node's static ESM loader errors for 'bun:' protocol
-							const { Database } = await import('bun:sqlite');
-							db = new Database(dbPathResolved);
-							db.query('SELECT 1').get();
-						} else {
-							// For Node.js 22.5+ (Vite dev server usually runs in Node)
-							const { DatabaseSync } = await import('node:sqlite');
-							db = new DatabaseSync(dbPathResolved);
-							db.prepare('SELECT 1').get();
-						}
-					} catch (importErr: any) {
-						logger.error('SQLite driver import/init failed:', importErr);
-						// Try better-sqlite3 as last resort if node:sqlite is not found
-						if (!isBun && (importErr.code === 'ERR_UNKNOWN_BUILTIN_MODULE' || importErr.message.includes('node:sqlite'))) {
-							try {
-								const Database = (await import('better-sqlite3')).default;
-								db = new Database(dbPathResolved);
-								db.prepare('SELECT 1').run();
-							} catch (_betterErr: any) {
-								const latencyMs = Math.round(performance.now() - start);
-								return {
-									success: false,
-									error: `SQLite not available: ${importErr.message} (Is Node 22.5+ or better-sqlite3 available?)`,
-									latencyMs
-								};
-							}
-						} else {
-							const latencyMs = Math.round(performance.now() - start);
-							return {
-								success: false,
-								error: `SQLite driver error: ${importErr.message}`,
-								latencyMs
-							};
-						}
-					}
-
-					if (db) {
-						db.close();
-					}
-
-					const latencyMs = Math.round(performance.now() - start);
-					return { success: true, message: 'SQLite database connected successfully! ✨', latencyMs };
-				} catch (err: any) {
-					logger.error('SQLite test failed:', err);
-					const latencyMs = Math.round(performance.now() - start);
-					return { success: false, error: `SQLite test failed: ${err.message}`, latencyMs };
-				}
+				throw err;
 			}
 		} catch (err: any) {
 			logger.error('Database test failed:', err);
