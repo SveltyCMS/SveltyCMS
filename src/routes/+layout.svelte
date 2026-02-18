@@ -63,8 +63,8 @@
 	// Note: Only access page.data after mount to avoid hydration issues
 	$effect(() => {
 		if (browser && page.data) {
-			if (page.data.settings) initPublicEnv(page.data.settings);
-			if (page.data.navigationStructure) setContentStructure(page.data.navigationStructure);
+			if (page.data.settings) { initPublicEnv(page.data.settings); }
+			if (page.data.navigationStructure) { setContentStructure(page.data.navigationStructure); }
 		}
 	});
 
@@ -103,7 +103,7 @@
 	 * This ensures toasts appear correctly even during SPA navigation (goto).
 	 */
 	$effect(() => {
-		if (!(browser && isMounted)) return;
+		if (!(browser && isMounted)) { return; }
 
 		// Depend on page.url to trigger this effect on every navigation
 		void page.url.pathname;
@@ -127,10 +127,10 @@
 				setTimeout(() => {
 					console.log('[RootLayout] Triggering toast:', flashMessage.type);
 					// Use static toaster import
-					if (flashMessage.type === 'success') toaster.success(opts);
-					else if (flashMessage.type === 'warning') toaster.warning(opts);
-					else if (flashMessage.type === 'error') toaster.error(opts);
-					else toaster.info(opts);
+					if (flashMessage.type === 'success') { toaster.success(opts); }
+					else if (flashMessage.type === 'warning') { toaster.warning(opts); }
+					else if (flashMessage.type === 'error') { toaster.error(opts); }
+					else { toaster.info(opts); }
 				}, 100);
 			} catch (e) {
 				console.error('Failed to parse flash message:', e);
@@ -145,7 +145,7 @@
 
 	$effect(() => {
 		// Guard: Only sync after mount
-		if (!isMounted) return;
+		if (!isMounted) { return; }
 
 		const desired = app.systemLanguage;
 		const current = untrack(() => currentLocale);
@@ -165,7 +165,7 @@
 	// ============================================================================
 
 	$effect(() => {
-		if (!(themeStore.autoRefreshEnabled && browser)) return;
+		if (!(themeStore.autoRefreshEnabled && browser)) { return; }
 
 		const interval = 30 * 60 * 1000; // 30 minutes
 		const intervalId = setInterval(() => {
@@ -184,7 +184,7 @@
 
 	// Global Keyboard Shortcuts
 	onMount(() => {
-		if (!browser) return;
+		if (!browser) { return; }
 
 		const controller = new AbortController();
 
@@ -193,7 +193,7 @@
 				const AccessibilityHelp = (await import('@components/system/AccessibilityHelp.svelte')).default;
 				const { modalState } = await import('@utils/modalState.svelte');
 
-				if (controller.signal.aborted) return;
+				if (controller.signal.aborted) { return; }
 
 				function handleGlobalKeydown(e: KeyboardEvent) {
 					// '?' key (Shift + /) to open accessibility help

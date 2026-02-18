@@ -100,7 +100,7 @@
 				value: selectedWidget
 			},
 			(r: Field | null) => {
-				if (!r) return;
+				if (!r) { return; }
 				// Find the index of the existing widget based on its ID
 				const existingIndex = fields.findIndex((widget) => widget.id === r.id);
 
@@ -135,7 +135,7 @@
 				value: selected
 			},
 			(r: { selectedWidget: string } | null) => {
-				if (!r) return;
+				if (!r) { return; }
 				const { selectedWidget } = r;
 				const widget = { widget: { key: selectedWidget, Name: selectedWidget }, permissions: {} };
 				setTargetWidget(widget as any);
@@ -149,7 +149,7 @@
 		fields = fields.map((field) => {
 			const widgetInstance = get(widgetFunctions)[field.widget.Name];
 			const guiSchema = widgetInstance?.GuiSchema;
-			if (!guiSchema) return field;
+			if (!guiSchema) { return field; }
 
 			const GuiFields = getGuiFields({ key: field.widget.Name }, guiSchema as any);
 			for (const [property, value] of Object.entries(field)) {

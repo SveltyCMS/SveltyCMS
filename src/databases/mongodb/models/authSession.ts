@@ -65,13 +65,8 @@ export class SessionAdapter {
 	private readonly SessionModel: Model<Session>;
 
 	constructor() {
-		// Delete existing model if it exists to force recreation with new schema
-		if (mongoose.models?.auth_sessions) {
-			mongoose.models.auth_sessions = undefined;
-		}
-
 		// Create the Session model with the updated schema
-		this.SessionModel = mongoose.model<Session>('auth_sessions', SessionSchema);
+		this.SessionModel = (mongoose.models?.auth_sessions as Model<Session>) || mongoose.model<Session>('auth_sessions', SessionSchema);
 
 		// Clean up old ObjectId-based sessions (migration)
 		this.migrateToUuidSessions().catch((err) => {

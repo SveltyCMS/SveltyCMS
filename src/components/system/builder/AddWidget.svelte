@@ -38,7 +38,7 @@
 	});
 
 	function handleSave() {
-		if (!selected_widget) return;
+		if (!selected_widget) { return; }
 		field.widget = { key: selected_widget, GuiFields: field.widget.GuiFields };
 		field.label = field.widget.GuiFields.label;
 		fields = [...fields, field as any];

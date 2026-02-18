@@ -88,11 +88,11 @@ Accessible progress bar with animations, variants, and status indicators.
 
 	// Status based on value
 	const status = $derived(() => {
-		if (indeterminate) return 'loading';
-		if (clampedValue >= 100) return 'complete';
-		if (clampedValue >= 75) return 'high';
-		if (clampedValue >= 50) return 'medium';
-		if (clampedValue >= 25) return 'low';
+		if (indeterminate) { return 'loading'; }
+		if (clampedValue >= 100) { return 'complete'; }
+		if (clampedValue >= 75) { return 'high'; }
+		if (clampedValue >= 50) { return 'medium'; }
+		if (clampedValue >= 25) { return 'low'; }
 		return 'minimal';
 	});
 
@@ -176,8 +176,7 @@ Accessible progress bar with animations, variants, and status indicators.
 			<!-- Determinate state -->
 			<div
 				class="h-full rounded-full transition-all {prefersReducedMotion ? 'duration-0' : 'duration-500'} ease-out {colorClasses}
-				       {animated && !prefersReducedMotion ? 'animate-[stripes_1s_linear_infinite] bg-linear-to-r from-current to-current bg-size-[1rem_1rem]' : ''}"
-				style="width: {clampedValue}%; {animated && !prefersReducedMotion
+				       				 {animated && !prefersReducedMotion ? 'animate-[stripes_1s_linear_infinite] bg-linear-to-r from-current to-current bg-size-[1rem_1rem]' : ''}"				style="width: {clampedValue}%; {animated && !prefersReducedMotion
 					? 'background-image: linear-gradient(45deg, rgba(255,255,255,.2) 25%, transparent 25%, transparent 50%, rgba(255,255,255,.2) 50%, rgba(255,255,255,.2) 75%, transparent 75%, transparent);'
 					: ''}"
 			></div>

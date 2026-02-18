@@ -51,7 +51,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 		const permissions: Record<string, { hasPermission: boolean; isRateLimited?: boolean }> = {};
 
 		for (const key in permissionConfigs) {
-			if (!Object.hasOwn(permissionConfigs, key)) continue;
+			if (!Object.hasOwn(permissionConfigs, key)) {
+				continue;
+			}
 			const config = permissionConfigs[key];
 
 			// Admin bypass for efficiency (admins have all permissions)

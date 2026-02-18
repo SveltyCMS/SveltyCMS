@@ -33,7 +33,7 @@ Modern, responsive crop controls with keyboard shortcuts and accessibility
 	// Keyboard shortcuts
 	function handleKeyDown(e: KeyboardEvent) {
 		// Skip if typing in input
-		if ((e.target as HTMLElement).tagName === 'INPUT') return;
+		if ((e.target as HTMLElement).tagName === 'INPUT') { return; }
 
 		const cmdOrCtrl = e.metaKey || e.ctrlKey;
 

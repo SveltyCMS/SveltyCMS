@@ -88,7 +88,7 @@
 
 	// Validation function with debounce
 	function validateInput(immediate = false) {
-		if (debounceTimeout) clearTimeout(debounceTimeout);
+		if (debounceTimeout) { clearTimeout(debounceTimeout); }
 
 		const doValidation = () => {
 			isValidating = true;
@@ -149,7 +149,7 @@
 
 	// Cleanup
 	onDestroy(() => {
-		if (debounceTimeout) clearTimeout(debounceTimeout);
+		if (debounceTimeout) { clearTimeout(debounceTimeout); }
 	});
 
 	import SystemTooltip from '@components/system/SystemTooltip.svelte';

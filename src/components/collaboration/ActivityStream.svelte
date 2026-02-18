@@ -29,7 +29,7 @@ with the AI collaboration assistant.
 
 	function handleSendMessage(event: Event) {
 		event.preventDefault();
-		if (!newMessage.trim()) return;
+		if (!newMessage.trim()) { return; }
 		collaboration.sendMessage(newMessage);
 		newMessage = '';
 	}

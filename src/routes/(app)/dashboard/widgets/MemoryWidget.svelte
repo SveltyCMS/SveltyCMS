@@ -83,7 +83,7 @@ Features:
 	}
 
 	$effect(() => {
-		if (!(chartCanvas && currentData?.memoryInfo?.total && ChartJS)) return;
+		if (!(chartCanvas && currentData?.memoryInfo?.total && ChartJS)) { return; }
 
 		// Data is already in MB from API
 		const usedMemMb = currentData.memoryInfo.total.usedMemMb || 0;
@@ -198,7 +198,7 @@ Features:
 	});
 
 	onDestroy(() => {
-		if (chart) chart.destroy();
+		if (chart) { chart.destroy(); }
 	});
 </script>
 
@@ -232,9 +232,7 @@ Features:
 							<div
 								class="absolute inset-0 h-3 w-3 rounded-full {usageLevel === 'high'
 									? 'bg-red-500'
-									: usageLevel === 'medium'
-										? 'bg-yellow-500'
-										: 'bg-green-500'} animate-ping opacity-75"
+									: usageLevel === 'medium' ? 'bg-yellow-500' : 'bg-green-500'} animate-ping opacity-75"
 							></div>
 						</div>
 
@@ -274,9 +272,7 @@ Features:
 							<span
 								class="text-sm font-semibold {usageLevel === 'high'
 									? 'text-red-600 dark:text-red-400'
-									: usageLevel === 'medium'
-										? 'text-yellow-600 dark:text-yellow-400'
-										: 'text-green-600 dark:text-green-400'}"
+									: usageLevel === 'medium' ? 'text-yellow-600 dark:text-yellow-400' : 'text-green-600 dark:text-green-400'}"
 								>{usedMemGB.toFixed(1)}
 								GB</span
 							>

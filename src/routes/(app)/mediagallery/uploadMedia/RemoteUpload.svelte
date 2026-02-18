@@ -53,7 +53,7 @@
 			});
 
 			if (!response.ok) {
-				throw Error('Upload failed');
+				throw new Error('Upload failed');
 			}
 
 			const result = await response.json();
@@ -66,11 +66,11 @@
 					onUploadComplete();
 				}
 			} else {
-				throw Error(result.error || 'Upload failed');
+				throw new Error(result.error || 'Upload failed');
 			}
 		} catch (error) {
 			logger.error('Error uploading URLs:', error);
-			showToast('Error uploading URLs: ' + (error instanceof Error ? error.message : 'Unknown error'), 'error');
+			showToast(`Error uploading URLs: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error');
 		}
 	}
 </script>

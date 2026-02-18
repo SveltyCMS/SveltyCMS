@@ -129,28 +129,28 @@
 	}
 
 	// Toolbar types
-	type ToolbarButton = {
-		type?: 'button';
+	interface ToolbarButton {
+		active?: () => boolean;
+		cmd: () => void;
 		icon: string;
 		label: string;
 		shortcut?: string;
-		cmd: () => void;
-		active?: () => boolean;
-	};
+		type?: 'button';
+	}
 
-	type ToolbarDropdown = {
-		type: 'dropdown';
-		label: string;
+	interface ToolbarDropdown {
 		icon?: string;
 		items?: { label: string; cmd: () => void; active: () => boolean }[];
-	};
+		label: string;
+		type: 'dropdown';
+	}
 
 	type ToolbarItem = ToolbarButton | ToolbarDropdown;
 
-	type ToolbarGroup = {
-		condition?: () => boolean;
+	interface ToolbarGroup {
 		buttons: ToolbarItem[];
-	};
+		condition?: () => boolean;
+	}
 
 	// Toolbar config – using official Material Design Icons (mdi)
 	const toolbarGroups: ToolbarGroup[] = [
@@ -428,10 +428,10 @@
 
 			editor = createEditor(element, initialContent, lang, { aiEnabled: !!field.aiEnabled });
 
-			if (!editor) return;
+			if (!editor) { return; }
 
 			editor.on('update', () => {
-				if (!editor) return;
+				if (!editor) { return; }
 				const newContent = {
 					title: (field.translated ? (value as Record<string, RichTextData>)?.[lang]?.title : (value as RichTextData)?.title) || '',
 					content: editor.isEmpty ? '' : editor.getHTML()
@@ -529,10 +529,9 @@
 														{#each Array(5) as _, r (r)}
 															{#each Array(5) as _, c (c)}
 																<button
-																	class="w-8 h-8 rounded-sm border transition-colors {r < hoverRows && c < hoverCols
-																		? 'bg-blue-100 border-blue-500 dark:bg-blue-600 dark:border-blue-400'
-																		: 'bg-surface-50 border-surface-200 dark:bg-surface-700 dark:border-surface-600'}"
-																	onmouseover={() => {
+																										class="w-8 h-8 rounded-sm border transition-colors {r < hoverRows && c < hoverCols
+																											? 'bg-blue-100 border-blue-500 dark:bg-blue-600 dark:border-blue-400'
+																											: 'bg-surface-50 border-surface-200 dark:bg-surface-700 dark:border-surface-600'}"																	onmouseover={() => {
 																		hoverRows = r + 1;
 																		hoverCols = c + 1;
 																	}}

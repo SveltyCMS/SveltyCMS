@@ -38,14 +38,28 @@ import { logger } from '@utils/logger.server';
 
 // --- POST Handler ---
 export const POST = apiHandler(async ({ request, locals }) => {
-	const { user, tenantId } = locals;
-	// Check for internal API calls (from createToken API)
-	const isInternalCall = request.headers.get('x-internal-call') === 'true';
+	const { user, tenantId, isAdmin } = locals;
+	const { getPrivateSettingSync } = await import('@src/services/settingsService');
 
-	if (isInternalCall) {
-		logger.debug('Internal API call to /api/sendMail', { tenantId });
+	// Check for internal API calls using a shared secret
+	const internalKey = request.headers.get('x-internal-key');
+	const systemSecret = getPrivateSettingSync('JWT_SECRET_KEY');
+	const isAuthorizedInternal = internalKey && systemSecret && internalKey === systemSecret;
+
+	// SECURITY: Only allow internal calls or authenticated admins
+	if (!(isAuthorizedInternal || isAdmin)) {
+		logger.warn('Unauthorized attempt to access /api/sendMail', {
+			userId: user?._id,
+			tenantId,
+			hasInternalKey: !!internalKey
+		});
+		throw new AppError('Forbidden: Unauthorized access to email API.', 403, 'FORBIDDEN');
+	}
+
+	if (isAuthorizedInternal) {
+		logger.debug('Authorized internal API call to /api/sendMail', { tenantId });
 	} else {
-		logger.debug(`User '${user?.email || 'Unknown'}' calling /api/sendMail`, { tenantId });
+		logger.debug(`Admin '${user?.email}' calling /api/sendMail`, { tenantId });
 	}
 
 	let requestBody: {

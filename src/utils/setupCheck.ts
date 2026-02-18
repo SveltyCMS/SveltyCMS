@@ -107,12 +107,10 @@ export async function isSetupCompleteAsync(): Promise<boolean> {
 
 		const hasUsers = result.success && result.data && result.data.length > 0;
 		if (!hasUsers) {
-			console.warn('[setupCheck] Config exists but NO USERS found in DB. System will proceed but first user must be created via /login or /signup.');
-			// We return TRUE here to prevent the redirect loop to /setup
-			// The user can now go to /login and create the first account
-			setupStatus = true;
+			console.warn('[setupCheck] Config exists but NO USERS found in DB. System will stay in setup mode.');
+			setupStatus = false;
 			setupStatusCheckedDb = true;
-			return true;
+			return false;
 		}
 
 		// Update cache

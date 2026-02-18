@@ -8,12 +8,12 @@
 		// identifying the item to save
 		// This is a placeholder
 		modalState.close();
-		if (meta.onSave) meta.onSave(meta.item._fields);
+		if (meta.onSave) { meta.onSave(meta.item._fields); }
 	}
 
 	function onCancel() {
 		modalState.close();
-		if (meta.onCancel) meta.onCancel();
+		if (meta.onCancel) { meta.onCancel(); }
 	}
 </script>
 

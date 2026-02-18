@@ -53,7 +53,7 @@ Registers and manages the service worker for offline support and caching.
 
 			// Listen for updates
 			registration.addEventListener('updatefound', () => {
-				const newWorker = registration!.installing;
+				const newWorker = registration?.installing;
 
 				newWorker?.addEventListener('statechange', () => {
 					if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {

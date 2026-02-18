@@ -111,23 +111,9 @@ export const GET = apiHandler(async ({ url, locals }) => {
 export const POST = apiHandler(async ({ request, locals }) => {
 	const { user, tenantId } = locals;
 
-	// Authenticate later if not a recompile bypass
-	request
-		.clone()
-		.json()
-		.then((data) => data.action === 'recompile')
-		.catch(() => false);
-
 	try {
 		const data = await request.json();
 		const action = data.action;
-
-		// TEMP BYPASS FOR DEBUGGING
-		if (action === 'recompile' && !user) {
-			logger.warn('⚠️ TEMPORARY AUTH BYPASS for recompile action');
-			await contentManager.refresh(tenantId);
-			return json({ success: true, message: 'Collections recompiled successfully (BYPASS)' });
-		}
 
 		if (!user) {
 			throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');

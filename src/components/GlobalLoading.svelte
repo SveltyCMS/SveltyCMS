@@ -112,7 +112,7 @@ Full-screen loading overlay with contextual messages, progress indication, and a
 	// Format elapsed time
 	function formatElapsedTime(ms: number): string {
 		const seconds = Math.floor(ms / 1000);
-		if (seconds < 60) return `${seconds}s`;
+		if (seconds < 60) { return `${seconds}s`; }
 		const minutes = Math.floor(seconds / 60);
 		const remainingSeconds = seconds % 60;
 		return `${minutes}m ${remainingSeconds}s`;

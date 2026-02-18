@@ -73,12 +73,12 @@ Features:
 	);
 
 	function handleClick(e: MouseEvent) {
-		if ((e.target as HTMLElement).closest('button, .drag-handle')) return;
+		if ((e.target as HTMLElement).closest('button, .drag-handle')) { return; }
 		toggle?.();
 	}
 
 	function handleKeyDown(e: KeyboardEvent) {
-		if (!keyboardReorderMode) return;
+		if (!keyboardReorderMode) { return; }
 
 		switch (e.key) {
 			case 'ArrowUp':

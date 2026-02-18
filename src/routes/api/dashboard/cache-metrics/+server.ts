@@ -8,9 +8,16 @@ import { cacheMetrics } from '@src/databases/CacheMetrics';
 import { json } from '@sveltejs/kit';
 // Unified Error Handling
 import { apiHandler } from '@utils/apiHandler';
+import { AppError } from '@utils/errorHandling';
 import { logger } from '@utils/logger.server';
 
-export const GET = apiHandler(async () => {
+export const GET = apiHandler(async ({ locals }) => {
+	const { isAdmin } = locals;
+
+	if (!isAdmin) {
+		throw new AppError('Forbidden: Only administrators can view cache metrics.', 403, 'FORBIDDEN');
+	}
+
 	// Get cache metrics snapshot
 	const snapshot = cacheMetrics.getSnapshot();
 
@@ -68,11 +75,12 @@ export const GET = apiHandler(async () => {
  * Reset cache metrics endpoint (admin only)
  * DELETE /api/dashboard/cache-metrics
  */
-export const DELETE = apiHandler(async () => {
-	// TODO: Add authorization check
-	// if (!locals.user?.isAdmin) {
-	//   throw new AppError('Unauthorized', 403, 'FORBIDDEN');
-	// }
+export const DELETE = apiHandler(async ({ locals }) => {
+	const { isAdmin } = locals;
+
+	if (!isAdmin) {
+		throw new AppError('Forbidden: Only administrators can reset cache metrics.', 403, 'FORBIDDEN');
+	}
 
 	cacheMetrics.reset();
 	logger.info('Cache metrics reset successfully');

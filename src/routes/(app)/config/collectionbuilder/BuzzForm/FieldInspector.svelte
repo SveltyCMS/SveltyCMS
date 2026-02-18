@@ -43,7 +43,7 @@
 	const specificProperties = $derived(allProperties.filter((prop) => !standardProperties.includes(prop) && prop !== 'permissions'));
 
 	function defaultValue(property: string) {
-		if (property === 'required' || property === 'translated') return false;
+		if (property === 'required' || property === 'translated') { return false; }
 		return (target.widget as any)?.Name;
 	}
 

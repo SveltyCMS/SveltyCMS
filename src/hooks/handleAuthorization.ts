@@ -36,11 +36,9 @@ function isPublicRoute(pathname: string, method: string | undefined, testMode: s
 		'/register',
 		'/forgot-password',
 		'/setup',
-		'/api/sendMail',
 		'/api/system/version',
 		'/api/user/login',
 		'/api/settings/public',
-		'/api/setup',
 		'/api/preview',
 		'/api/system/health'
 	];
@@ -154,7 +152,7 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
 	}
 
 	// --- Public routes require no auth ---
-	if (isPublic || (pathname === '/api/content-structure' && request.method === 'POST')) {
+	if (isPublic) {
 		locals.isAdmin = false;
 		locals.hasManageUsersPermission = false;
 		locals.isFirstUser = false;

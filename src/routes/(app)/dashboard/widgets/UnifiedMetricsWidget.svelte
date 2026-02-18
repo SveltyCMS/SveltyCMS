@@ -262,22 +262,22 @@ for comprehensive system monitoring and performance analysis.
 		const hours = Math.floor(minutes / 60);
 		const days = Math.floor(hours / 24);
 
-		if (days > 0) return `${days}d ${hours % 24}h`;
-		if (hours > 0) return `${hours}h ${minutes % 60}m`;
-		if (minutes > 0) return `${minutes}m ${seconds % 60}s`;
+		if (days > 0) { return `${days}d ${hours % 24}h`; }
+		if (hours > 0) { return `${hours}h ${minutes % 60}m`; }
+		if (minutes > 0) { return `${minutes}m ${seconds % 60}s`; }
 		return `${seconds}s`;
 	}
 
 	function formatNumber(num: number): string {
-		if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(1)}M`;
-		if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
+		if (num >= 1_000_000) { return `${(num / 1_000_000).toFixed(1)}M`; }
+		if (num >= 1000) { return `${(num / 1000).toFixed(1)}K`; }
 		return num.toString();
 	}
 
 	function formatLastUpdate(): string {
-		if (!lastUpdate) return 'Never';
+		if (!lastUpdate) { return 'Never'; }
 		const ago = Math.floor((Date.now() - lastUpdate) / 1000);
-		if (ago < 60) return `${ago}s ago`;
+		if (ago < 60) { return `${ago}s ago`; }
 		return `${Math.floor(ago / 60)}m ago`;
 	}
 

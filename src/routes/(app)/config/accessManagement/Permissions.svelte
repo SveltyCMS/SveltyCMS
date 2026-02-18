@@ -87,7 +87,8 @@ It provides the following functionality:
 		if (sortBy === column) {
 			// Cycle through: ascending (1) -> descending (-1) -> unsorted (0)
 			sortOrder = sortOrder === 1 ? -1 : sortOrder === -1 ? 0 : 1;
-			if (sortOrder === 0) sortBy = 'name'; // Reset to default when unsorted
+			if (sortOrder === 0) { sortBy = 'name'; // Reset to default when unsorted
+}
 		} else {
 			sortBy = column;
 			sortOrder = 1; // Start with ascending
@@ -96,7 +97,7 @@ It provides the following functionality:
 
 	// Sort permissions based on current sort settings
 	const sortPermissions = (permissions: Permission[]): Permission[] => {
-		if (sortOrder === 0) return permissions;
+		if (sortOrder === 0) { return permissions; }
 
 		return [...permissions].sort((a, b) => {
 			let aVal: string | number = '';
@@ -113,8 +114,8 @@ It provides the following functionality:
 				bVal = b.type.toLowerCase();
 			}
 
-			if (aVal < bVal) return sortOrder === 1 ? -1 : 1;
-			if (aVal > bVal) return sortOrder === 1 ? 1 : -1;
+			if (aVal < bVal) { return sortOrder === 1 ? -1 : 1; }
+			if (aVal > bVal) { return sortOrder === 1 ? 1 : -1; }
 			return 0;
 		});
 	};
@@ -171,7 +172,7 @@ It provides the following functionality:
 		const updatedRoles = roles.map((role) => {
 			if (role._id === roleId) {
 				const permissions = [...role.permissions];
-				const pIndex = permissions.findIndex((cur) => cur === permission);
+				const pIndex = permissions.indexOf(permission);
 				if (pIndex === -1) {
 					permissions.push(permission);
 				} else {

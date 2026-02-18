@@ -133,10 +133,10 @@
 	// Effect: Handle system language changes
 	$effect(() => {
 		const lang = app.systemLanguage;
-		if (!lang) return;
+		if (!lang) { return; }
 
 		const dir = getTextDirection(lang);
-		if (!dir) return;
+		if (!dir) { return; }
 
 		document.documentElement.dir = dir;
 		document.documentElement.lang = lang;

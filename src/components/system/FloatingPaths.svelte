@@ -51,7 +51,7 @@ behavior using native Svelte 5 $state and requestAnimationFrame.
 	onMount(() => {
 		// Check for reduced motion preference
 		const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-		if (prefersReducedMotion) return;
+		if (prefersReducedMotion) { return; }
 
 		let animationId: number;
 		const startTime = performance.now();

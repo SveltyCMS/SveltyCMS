@@ -32,7 +32,7 @@ Orchestrates the filter modules using svelte-canvas compatible state.
 
 	// Reactively update toolbar when state changes
 	function updateToolbar() {
-		if (imageEditorStore.state.activeState !== 'finetune') return;
+		if (imageEditorStore.state.activeState !== 'finetune') { return; }
 
 		imageEditorStore.setToolbarControls({
 			component: FineTuneControls,
@@ -52,7 +52,7 @@ Orchestrates the filter modules using svelte-canvas compatible state.
 				onCategoryChange: (cat: string) => {
 					activeCategory = cat;
 					const adj = getAdjustmentsByCategory(cat as any)[0];
-					if (adj) activeAdjustment = adj.key;
+					if (adj) { activeAdjustment = adj.key; }
 				},
 				onPresetApply: (presetName: string) => {
 					const preset = FILTER_PRESETS.find((p) => p.name === presetName);

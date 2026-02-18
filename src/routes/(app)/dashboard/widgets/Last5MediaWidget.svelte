@@ -62,7 +62,7 @@
 	} = $props();
 
 	function formatFileSize(bytes: number): string {
-		if (bytes === 0) return '0 B';
+		if (bytes === 0) { return '0 B'; }
 		const k = 1024;
 		const sizes = ['B', 'KB', 'MB', 'GB'];
 		const i = Math.floor(Math.log(bytes) / Math.log(k));
@@ -70,7 +70,7 @@
 	}
 
 	function getFileIcon(type: string): string {
-		if (!type) return 'mdi:file';
+		if (!type) { return 'mdi:file'; }
 		const imageTypes = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
 		const videoTypes = ['mp4', 'mov', 'avi'];
 		if (imageTypes.includes(type.toLowerCase())) {

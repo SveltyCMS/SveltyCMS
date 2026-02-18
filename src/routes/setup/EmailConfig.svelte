@@ -145,7 +145,7 @@
 
 	// Detect provider from host and auto-configure
 	function detectProviderFromHost(host: string) {
-		if (!host) return null;
+		if (!host) { return null; }
 
 		for (const provider of providerPatterns) {
 			if (provider.pattern.test(host)) {
@@ -248,8 +248,8 @@
 
 	// Legacy hostname validation for UI feedback
 	const isValidHostname = $derived(() => {
-		if (!smtpHost.trim()) return true;
-		if (smtpHost.includes('@')) return false;
+		if (!smtpHost.trim()) { return true; }
+		if (smtpHost.includes('@')) { return false; }
 		return /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/.test(smtpHost);
 	});
 

@@ -30,7 +30,25 @@ mock.module('@src/stores/system/state', () => ({
 mock.module('@src/databases/db', () => ({
 	dbInitPromise: Promise.resolve(),
 	dbAdapter: {},
-	auth: {}
+	auth: {
+		getUserCount: async () => globalThis.__mockUserCount ?? 0,
+		getAllRoles: async () => globalThis.__mockRoles ?? []
+	}
+}));
+
+// Mock @src/databases/auth/permissions
+mock.module('@src/databases/auth/permissions', () => ({
+	hasPermissionByAction: () => true
+}));
+
+// Mock @src/databases/auth/defaultRoles
+mock.module('@src/databases/auth/defaultRoles', () => ({
+	getDefaultRoles: () => []
+}));
+
+// Mock @src/services/settingsService
+mock.module('@src/services/settingsService', () => ({
+	getPrivateSettingSync: () => false
 }));
 
 // Mock @utils/setupCheck

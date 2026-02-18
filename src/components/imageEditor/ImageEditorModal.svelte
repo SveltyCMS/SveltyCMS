@@ -25,15 +25,16 @@ A reusable modal that wraps the main Image Editor.
 
 	// Computed image source and metadata
 	const imageSrc = $derived.by(() => {
-		if (!image) return '';
-		if (typeof image === 'string') return image;
-		if (image instanceof File) return ''; // File will be passed separately
+		if (!image) { return ''; }
+		if (typeof image === 'string') { return image; }
+		if (image instanceof File) { return ''; // File will be passed separately
+}
 		return (image as MediaImage).url || '';
 	});
 
 	// File object to pass to editor (for direct file uploads)
 	const imageFile = $derived.by(() => {
-		if (image instanceof File) return image;
+		if (image instanceof File) { return image; }
 		return null;
 	});
 
@@ -145,7 +146,7 @@ A reusable modal that wraps the main Image Editor.
 	$effect(() => {
 		return () => {
 			// Clean up blob URLs from both sources
-			if (imageSrc && imageSrc.startsWith('blob:')) {
+			if (imageSrc?.startsWith('blob:')) {
 				URL.revokeObjectURL(imageSrc);
 			}
 			// Also clean up if imageFile was converted to blob

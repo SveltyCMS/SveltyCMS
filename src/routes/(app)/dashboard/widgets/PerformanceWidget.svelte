@@ -50,20 +50,20 @@ Displays real-time system metrics integrated with the dashboard grid system
 
 	// Performance indicator color based on metrics
 	function getPerformanceColor(errorRate: number): string {
-		if (errorRate > 5) return 'text-error-500';
-		if (errorRate > 2) return 'text-warning-500';
+		if (errorRate > 5) { return 'text-error-500'; }
+		if (errorRate > 2) { return 'text-warning-500'; }
 		return 'text-success-500';
 	}
 
 	function formatUptime(seconds: number): string {
-		if (seconds < 60) return `${seconds}s`;
-		if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
-		if (seconds < 86_400) return `${Math.floor(seconds / 3600)}h`;
+		if (seconds < 60) { return `${seconds}s`; }
+		if (seconds < 3600) { return `${Math.floor(seconds / 60)}m`; }
+		if (seconds < 86_400) { return `${Math.floor(seconds / 3600)}h`; }
 		return `${Math.floor(seconds / 86_400)}d`;
 	}
 
 	function formatMemory(mb: number): string {
-		if (mb < 1024) return `${mb}MB`;
+		if (mb < 1024) { return `${mb}MB`; }
 		return `${(mb / 1024).toFixed(1)}GB`;
 	}
 </script>

@@ -66,7 +66,7 @@
 				<!-- Security Notice -->
 				<Section>
 					<Text style="font-size: 16px;">
-						<strong>Security Notice:</strong<br>If you did not make this change, please contact our support team immediately and secure your account.
+						<strong>Security Notice:</strong><br>If you did not make this change, please contact our support team immediately and secure your account.
 					</Text>
 				</Section>
 

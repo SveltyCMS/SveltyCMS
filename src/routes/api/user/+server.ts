@@ -193,10 +193,15 @@ export const POST = apiHandler(async ({ request, locals, url }) => {
 async function sendUserToken(origin: string, email: string, token: string, role: string, expiresIn: number) {
 	try {
 		const inviteLink = `${origin}/login?invite_token=${token}`;
+		const { getPrivateSettingSync } = await import('@src/services/settingsService');
+		const internalKey = getPrivateSettingSync('JWT_SECRET_KEY');
 
 		const response = await fetch(`${origin}/api/sendMail`, {
 			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
+			headers: {
+				'Content-Type': 'application/json',
+				'x-internal-key': internalKey || ''
+			},
 			body: JSON.stringify({
 				email,
 				subject: 'You have been invited to join',

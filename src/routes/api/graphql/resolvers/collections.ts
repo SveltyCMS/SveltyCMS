@@ -387,7 +387,9 @@ export async function collectionsResolvers(dbAdapter: DatabaseAdapter, cacheClie
 
 						const processedDoc = { ...doc };
 						for (const key in processedDoc) {
-							if (!Object.hasOwn(processedDoc, key)) continue;
+							if (!Object.hasOwn(processedDoc, key)) {
+								continue;
+							}
 							const value = processedDoc[key];
 							if (typeof value === 'string' && value.includes('{{')) {
 								try {

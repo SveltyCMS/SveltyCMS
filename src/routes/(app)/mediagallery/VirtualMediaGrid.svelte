@@ -94,7 +94,7 @@ Implements custom virtual scrolling without external dependencies.
 	/*
     function handleKeyDown(e: KeyboardEvent) {
         if (!container) return;
-        
+
         // Ignore if searching or editing
         if ((e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).tagName === 'TEXTAREA') return;
 
@@ -193,8 +193,8 @@ Implements custom virtual scrolling without external dependencies.
         // Optimization: only check items in relevant rows
         const startRowIndex = Math.floor(top / itemHeight);
         const endRowIndex = Math.floor((top + height) / itemHeight);
-        
-        // Temporary set for visual feedback during drag could be implemented, 
+
+        // Temporary set for visual feedback during drag could be implemented,
         // but for now we'll just update final selection on mouse up to avoid performance issues with 10k items
         // OR we can do real-time selection if optimized.
         // Let's do real-time selection update on a debounced set or just purely visual overlay for now?
@@ -212,7 +212,7 @@ Implements custom virtual scrolling without external dependencies.
 
     function selectItemsInRect(left: number, top: number, width: number, height: number, preserveExisting: boolean) {
          const newSet = preserveExisting ? new Set(selectedFiles) : new Set<string>();
-         
+
          // Convert pixel rect to grid capacity
          const startRowIdx = Math.max(0, Math.floor(top / itemHeight));
          const endRowIdx = Math.min(totalRows - 1, Math.floor((top + height) / itemHeight));
@@ -226,7 +226,7 @@ Implements custom virtual scrolling without external dependencies.
                  // Note: Ideally use precise offsetLeft/Top if available, but math approximation works for uniform grid
                  const itemLeft = c * itemWidth; // Approximation requires ensuring justify-start or similar
                  const itemTop = r * itemHeight;
-                 
+
                  // Intersection check
                  if (
                      left < itemLeft + itemWidth &&
@@ -250,7 +250,7 @@ Implements custom virtual scrolling without external dependencies.
         if (!selectedFiles.has(fileId)) {
             selectedFiles = new Set([fileId]);
         }
-        
+
         contextMenu = {
             x: e.clientX,
             y: e.clientY,
@@ -261,7 +261,7 @@ Implements custom virtual scrolling without external dependencies.
 
 	// Calculate items per row based on container width
 	function updateItemsPerRow() {
-		if (!container) return;
+		if (!container) { return; }
 		const width = container.clientWidth;
 		const itemWidth = gridSize === 'tiny' ? 100 : gridSize === 'small' ? 140 : gridSize === 'medium' ? 260 : 380;
 		itemsPerRow = Math.max(1, Math.floor(width / itemWidth));
@@ -496,7 +496,7 @@ Implements custom virtual scrolling without external dependencies.
 												{/if}
 												<tr>
 													<td class="text-surface-500 pr-2">Type:</td>
-													<td class="text-right truncate max-w-[80px]">{file.mimeType?.split('/')[1] || 'N/A'}</td>
+													<td class="text-right truncate max-w-20">{file.mimeType?.split('/')[1] || 'N/A'}</td>
 												</tr>
 											</tbody>
 										</table>
@@ -565,6 +565,7 @@ Implements custom virtual scrolling without external dependencies.
 									<span class="font-mono">{formatBytes(file.size || 0)}</span>
 									<span class="uppercase tracking-wide">{file.type || 'FILE'}</span>
 								</div>
+							</div>
 						</div>
 					{/each}
 				</div>

@@ -185,7 +185,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 		isCurrentPasswordValidated = false;
 		editForm.errors.currentPassword = [];
 
-		if (!editForm.data.currentPassword) return;
+		if (!editForm.data.currentPassword) { return; }
 
 		debounceTimer = setTimeout(() => {
 			verifyCurrentPassword();
@@ -193,7 +193,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 	}
 
 	async function verifyCurrentPassword() {
-		if (!editForm.data.currentPassword) return;
+		if (!editForm.data.currentPassword) { return; }
 		try {
 			const res = await fetch('/api/user/verifyPassword', {
 				method: 'POST',
@@ -216,7 +216,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 	}
 
 	async function deleteUser() {
-		if (!editForm.data.user_id) return;
+		if (!editForm.data.user_id) { return; }
 		try {
 			const response = await fetch('/api/user/batch', {
 				method: 'POST',

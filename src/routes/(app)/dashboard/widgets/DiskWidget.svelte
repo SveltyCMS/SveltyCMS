@@ -213,7 +213,7 @@ This widget fetches and displays real-time disk usage data, including:
 	});
 
 	onDestroy(() => {
-		if (chart) chart.destroy();
+		if (chart) { chart.destroy(); }
 	});
 </script>
 
@@ -251,9 +251,7 @@ This widget fetches and displays real-time disk usage data, including:
 								<div
 									class="absolute inset-0 h-3 w-3 rounded-full text-white dark:text-black {usageLevel === 'high'
 										? 'bg-red-500'
-										: usageLevel === 'medium'
-											? 'bg-yellow-500'
-											: 'bg-green-500'} animate-ping opacity-75"
+										: usageLevel === 'medium' ? 'bg-yellow-500' : 'bg-green-500'} animate-ping opacity-75"
 								></div>
 							</div>
 							<span class="text-sm font-bold">{usedPercentage.toFixed(1)}%</span>

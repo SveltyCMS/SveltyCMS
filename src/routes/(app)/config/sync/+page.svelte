@@ -38,7 +38,7 @@ Allows synchronization between filesystem and database, and full system backup/r
 		isLoading = true;
 		try {
 			const res = await fetch('/api/config_sync');
-			if (!res.ok) throw new Error(`HTTP ${res.status}`);
+			if (!res.ok) { throw new Error(`HTTP ${res.status}`); }
 			status = await res.json();
 			console.debug('[Config Sync] Received status:', status);
 		} catch (err) {
@@ -69,7 +69,7 @@ Allows synchronization between filesystem and database, and full system backup/r
 			});
 
 			const result = await res.json();
-			if (!res.ok) throw new Error(result.message || `HTTP ${res.status}`);
+			if (!res.ok) { throw new Error(result.message || `HTTP ${res.status}`); }
 
 			showToast(result.message || 'Sync successful!', 'success');
 			await loadStatus(); // Refresh status after sync

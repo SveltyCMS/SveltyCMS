@@ -83,10 +83,14 @@ export const actions = {
 			};
 
 			try {
+				const { getPrivateSettingSync } = await import('@src/services/settingsService');
+				const internalKey = getPrivateSettingSync('JWT_SECRET_KEY');
+
 				const res = await eventFetch('/api/sendMail', {
 					method: 'POST',
 					headers: {
-						'Content-Type': 'application/json'
+						'Content-Type': 'application/json',
+						'x-internal-key': internalKey || ''
 					},
 					body: JSON.stringify({
 						recipientEmail: to,

@@ -95,13 +95,13 @@ None (TreeView has its own keyboard navigation)
 	}
 
 	function handleDeleteNode(node: Partial<ContentNode>) {
-		if (!node._id) return;
+		if (!node._id) { return; }
 		showConfirm({
 			title: 'Delete Item?',
 			body: `Are you sure you want to delete "${node.name}"? This action cannot be undone.`,
 			onConfirm: async () => {
 				const formData = new FormData();
-				formData.append('ids', JSON.stringify([node._id!.toString()]));
+				formData.append('ids', JSON.stringify([node._id?.toString()]));
 				try {
 					isLoading = true;
 					const response = await fetch('?/deleteCollections', {
@@ -117,7 +117,7 @@ None (TreeView has its own keyboard navigation)
 					const actionData = result.type === 'success' || result.type === 'failure' ? result.data : result;
 
 					if (result.type === 'success' && actionData.success) {
-						currentConfig = currentConfig.filter((n) => n._id.toString() !== node._id!.toString());
+						currentConfig = currentConfig.filter((n) => n._id.toString() !== node._id?.toString());
 						toaster.success({ description: 'Item deleted successfully' });
 					} else {
 						throw new Error(actionData.message || 'Deletion failed');
@@ -133,9 +133,9 @@ None (TreeView has its own keyboard navigation)
 	}
 
 	function handleDuplicateNode(node: Partial<ContentNode>) {
-		if (!node._id) return;
-		const original = currentConfig.find((n) => n._id.toString() === node._id!.toString());
-		if (!original) return;
+		if (!node._id) { return; }
+		const original = currentConfig.find((n) => n._id.toString() === node._id?.toString());
+		if (!original) { return; }
 
 		const newId = (Math.random().toString(36).substring(2, 15) + Date.now().toString(36)) as unknown as DatabaseId;
 		const newNode: ContentNode = JSON.parse(
@@ -224,9 +224,9 @@ None (TreeView has its own keyboard navigation)
 				body: existingCategory ? 'Modify Category Details' : 'Enter Unique Name and an Icon for your new category'
 			},
 			async (response: CategoryModalResponse | boolean) => {
-				if (!response || typeof response === 'boolean') return;
+				if (!response || typeof response === 'boolean') { return; }
 
-				if (existingCategory && existingCategory._id) {
+				if (existingCategory?._id) {
 					const updated = {
 						...existingCategory,
 						name: response.newCategoryName,

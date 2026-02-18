@@ -19,14 +19,14 @@ New Features:
 
 	type Snippet<T = any> = (args: T) => any;
 
-	type ChildSnippetProps = {
+	interface ChildSnippetProps {
 		data: any;
-		updateWidgetState: (key: string, value: any) => void;
-		getWidgetState: (key: string) => any;
-		refresh?: () => Promise<void>;
-		isLoading?: boolean;
 		error?: string | null;
-	};
+		getWidgetState: (key: string) => any;
+		isLoading?: boolean;
+		refresh?: () => Promise<void>;
+		updateWidgetState: (key: string, value: any) => void;
+	}
 
 	const {
 		label = 'Widget',
@@ -44,7 +44,7 @@ New Features:
 		// Enhanced features (all optional)
 		showRefreshButton = false,
 		cacheKey = undefined as string | undefined,
-		cacheTTL = 300000,
+		cacheTTL = 300_000,
 		retryCount = 3,
 		retryDelay = 1000
 	} = $props<{
@@ -83,10 +83,10 @@ New Features:
 
 	// Cache management (localStorage)
 	function getCachedData(): any | null {
-		if (!cacheKey || typeof window === 'undefined') return null;
+		if (!cacheKey || typeof window === 'undefined') { return null; }
 		try {
 			const cached = localStorage.getItem(`widget_cache_${cacheKey}`);
-			if (!cached) return null;
+			if (!cached) { return null; }
 
 			const { data, timestamp } = JSON.parse(cached);
 			if (Date.now() - timestamp > cacheTTL) {
@@ -100,7 +100,7 @@ New Features:
 	}
 
 	function setCachedData(data: any) {
-		if (!cacheKey || typeof window === 'undefined') return;
+		if (!cacheKey || typeof window === 'undefined') { return; }
 		try {
 			localStorage.setItem(
 				`widget_cache_${cacheKey}`,
@@ -157,7 +157,7 @@ New Features:
 			// Retry logic with exponential backoff
 			if (retryAttempt < retryCount) {
 				logger.warn(`[${label}] Retry ${retryAttempt + 1}/${retryCount}:`, errorMsg);
-				const delay = retryDelay * Math.pow(2, retryAttempt); // Exponential backoff
+				const delay = retryDelay * 2 ** retryAttempt; // Exponential backoff
 				await new Promise((resolve) => setTimeout(resolve, delay));
 				return fetchData(retryAttempt + 1);
 			}
@@ -191,13 +191,13 @@ New Features:
 
 		// Initial fetch
 		(async () => {
-			if (isActive) await fetchData();
+			if (isActive) { await fetchData(); }
 		})();
 
 		// Setup polling if interval specified
 		if (pollInterval > 0) {
 			timerId = setInterval(() => {
-				if (isActive) fetchData();
+				if (isActive) { fetchData(); }
 			}, pollInterval);
 		}
 
@@ -222,11 +222,11 @@ New Features:
 	}
 
 	function getLastUpdateText(): string {
-		if (!lastFetchTime) return '';
+		if (!lastFetchTime) { return ''; }
 		const seconds = Math.floor((Date.now() - lastFetchTime) / 1000);
-		if (seconds < 60) return `${seconds}s ago`;
+		if (seconds < 60) { return `${seconds}s ago`; }
 		const minutes = Math.floor(seconds / 60);
-		if (minutes < 60) return `${minutes}m ago`;
+		if (minutes < 60) { return `${minutes}m ago`; }
 		const hours = Math.floor(minutes / 60);
 		return `${hours}h ago`;
 	}
@@ -257,7 +257,7 @@ New Features:
 	];
 
 	function handleResizePointerDown(e: PointerEvent) {
-		if (!resizable || !widgetEl) return;
+		if (!(resizable && widgetEl)) { return; }
 		e.preventDefault();
 		e.stopPropagation();
 
@@ -274,7 +274,7 @@ New Features:
 			return;
 		}
 
-		const gridGap = parseFloat(getComputedStyle(gridContainer).gap) || 16;
+		const gridGap = Number.parseFloat(getComputedStyle(gridContainer).gap) || 16;
 		const gridCols = 4;
 		const totalGapWidth = gridGap * (gridCols - 1);
 		const singleColumnWidth = (gridContainer.offsetWidth - totalGapWidth) / gridCols;
@@ -288,12 +288,12 @@ New Features:
 			const deltaY = moveEvent.clientY - startY;
 
 			let columnChange = 0;
-			if (direction?.includes('e')) columnChange = deltaX / (singleColumnWidth + gridGap);
-			else if (direction?.includes('w')) columnChange = -deltaX / (singleColumnWidth + gridGap);
+			if (direction?.includes('e')) { columnChange = deltaX / (singleColumnWidth + gridGap); }
+			else if (direction?.includes('w')) { columnChange = -deltaX / (singleColumnWidth + gridGap); }
 
 			let rowChange = 0;
-			if (direction?.includes('s')) rowChange = deltaY / (singleRowHeight + gridGap);
-			else if (direction?.includes('n')) rowChange = -deltaY / (singleRowHeight + gridGap);
+			if (direction?.includes('s')) { rowChange = deltaY / (singleRowHeight + gridGap); }
+			else if (direction?.includes('n')) { rowChange = -deltaY / (singleRowHeight + gridGap); }
 
 			const targetColumns = Math.round(currentColumns + columnChange);
 			const targetRows = Math.round(currentRows + rowChange);
@@ -385,12 +385,11 @@ New Features:
 						style="z-index: 9999; position: absolute;"
 					>
 						{#each availableSizes as s (s.w + 'x' + s.h)}
-							<button
-								class="flex w-full items-center justify-between px-4 py-2 text-sm transition-colors hover:bg-surface-100 dark:hover:bg-surface-700 {size.w ===
-									s.w && size.h === s.h
-									? 'font-bold text-primary-500'
-									: ''}"
-								onclick={() => handleMenuSizeChange(s)}
+															<button
+																class="flex w-full items-center justify-between px-4 py-2 text-sm transition-colors hover:bg-surface-100 dark:hover:bg-surface-700 {size.w ===
+																	s.w && size.h === s.h
+																	? 'font-bold text-primary-500'
+																	: ''}"								onclick={() => handleMenuSizeChange(s)}
 							>
 								<span>{getSizeLabel(s)}</span>
 								{#if size.w === s.w && size.h === s.h}

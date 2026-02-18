@@ -15,7 +15,7 @@
 	let confirmAnonymize = $state(false);
 
 	async function handleExport() {
-		if (!userIdExport) return;
+		if (!userIdExport) { return; }
 		loadingExport = true;
 		try {
 			const res = await fetch('/api/gdpr', {
@@ -46,7 +46,7 @@
 	}
 
 	async function handleAnonymize() {
-		if (!userIdAnonymize) return;
+		if (!userIdAnonymize) { return; }
 		if (!confirmAnonymize) {
 			confirmAnonymize = true;
 			setTimeout(() => (confirmAnonymize = false), 3000); // Reset after 3s

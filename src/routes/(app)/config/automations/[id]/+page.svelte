@@ -140,7 +140,7 @@ and preview/test functionality. Reuses TokenPicker patterns.
 	// ── Trigger Helpers ──
 
 	function toggleEvent(event: AutomationEvent) {
-		if (!flow.trigger.events) flow.trigger.events = [];
+		if (!flow.trigger.events) { flow.trigger.events = []; }
 		if (flow.trigger.events.includes(event)) {
 			flow.trigger.events = flow.trigger.events.filter((e) => e !== event);
 		} else {
@@ -196,7 +196,7 @@ and preview/test functionality. Reuses TokenPicker patterns.
 
 	function moveOperation(index: number, direction: -1 | 1) {
 		const newIndex = index + direction;
-		if (newIndex < 0 || newIndex >= flow.operations.length) return;
+		if (newIndex < 0 || newIndex >= flow.operations.length) { return; }
 		const ops = [...flow.operations];
 		[ops[index], ops[newIndex]] = [ops[newIndex], ops[index]];
 		flow.operations = ops;

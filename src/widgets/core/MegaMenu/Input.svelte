@@ -68,7 +68,7 @@ Interactive menu builder with add/edit/reorder capabilities
 	function handleDragStart(event: DragEvent, item: MenuItem) {
 		draggedItem = item;
 		event.dataTransfer!.effectAllowed = 'move';
-		event.dataTransfer!.setData('text/plain', item._id);
+		event.dataTransfer?.setData('text/plain', item._id);
 	}
 
 	// Function to handle drag over
@@ -81,10 +81,10 @@ Interactive menu builder with add/edit/reorder capabilities
 	function handleDrop(event: DragEvent, dropIndex: number) {
 		event.preventDefault();
 
-		if (!(draggedItem && value)) return;
+		if (!(draggedItem && value)) { return; }
 
-		const draggedIndex = value.findIndex((item) => item._id === draggedItem!._id);
-		if (draggedIndex === -1) return;
+		const draggedIndex = value.findIndex((item) => item._id === draggedItem?._id);
+		if (draggedIndex === -1) { return; }
 
 		// Remove dragged item from current position
 		const newValue = [...value];
@@ -112,7 +112,7 @@ Interactive menu builder with add/edit/reorder capabilities
 
 	// Keyboard event handler for moving items
 	function handleKeyDown(event: KeyboardEvent, index: number) {
-		if (!value) return;
+		if (!value) { return; }
 		if (event.key === 'ArrowUp') {
 			event.preventDefault();
 			if (index > 0) {
@@ -156,10 +156,10 @@ Interactive menu builder with add/edit/reorder capabilities
 
 	// Function to delete an item
 	function deleteItem(itemToDelete: MenuItem) {
-		if (!value) return;
+		if (!value) { return; }
 
 		const confirmDelete = confirm('Are you sure you want to delete this menu item and all its children?');
-		if (!confirmDelete) return;
+		if (!confirmDelete) { return; }
 
 		value = value.filter((item) => item._id !== itemToDelete._id);
 	}

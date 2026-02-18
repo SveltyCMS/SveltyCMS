@@ -18,7 +18,7 @@ const STORAGE_KEY = 'sveltycms_consent';
 
 function createConsentStore() {
 	// Initialize with defaults
-	let state = $state<ConsentState>({
+	const state = $state<ConsentState>({
 		necessary: true,
 		analytics: false,
 		marketing: false,

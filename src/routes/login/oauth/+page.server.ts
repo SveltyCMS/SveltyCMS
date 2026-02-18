@@ -52,9 +52,14 @@ async function sendWelcomeEmail(
 			sitename: siteName || 'SveltyCMS'
 		};
 
+		const internalKey = getPrivateSettingSync('JWT_SECRET_KEY');
+
 		await fetchFn('/api/sendMail', {
 			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
+			headers: {
+				'Content-Type': 'application/json',
+				'x-internal-key': internalKey || ''
+			},
 			body: JSON.stringify({
 				recipientEmail: email,
 				subject: `Welcome to ${emailProps.sitename}`,
@@ -136,6 +141,9 @@ async function handleGoogleUser(
 		throw new Error('Google did not return an email address');
 	}
 
+	const { isSetupCompleteAsync } = await import('@utils/setupCheck');
+	const setupComplete = await isSetupCompleteAsync();
+
 	if (googleUser.locale) {
 		const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE || 'en']) as Locale[];
 		const locale = googleUser.locale as Locale;
@@ -192,7 +200,7 @@ async function handleGoogleUser(
 		logger.debug(`Updated user attributes for: ${user._id}`);
 	} else {
 		// Handle new user creation with invite token validation
-		if (isFirst) {
+		if (isFirst && !setupComplete) {
 			// Handle first user (admin) creation - no token required
 			let avatarUrl: string | null = null;
 			if (googleUser.picture) {

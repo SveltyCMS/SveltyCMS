@@ -387,7 +387,7 @@
 
 	// Auto-save draft function
 	async function autoSaveDraft(): Promise<boolean> {
-		if (isSavingDraft) return false;
+		if (isSavingDraft) { return false; }
 
 		isSavingDraft = true;
 		try {

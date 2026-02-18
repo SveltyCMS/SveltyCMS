@@ -92,7 +92,7 @@
 
 	// Action to dynamically position the palette to avoid overflow
 	function setPosition(node: HTMLDivElement) {
-		if (!wrapperRef) return;
+		if (!wrapperRef) { return; }
 		const parent = wrapperRef.parentElement as HTMLElement;
 		const { left: wrapperLeft } = wrapperRef.getBoundingClientRect();
 		const { left: parentLeft, width: parentWidth } = parent.getBoundingClientRect();

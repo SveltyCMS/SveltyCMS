@@ -46,21 +46,21 @@ Renders a group of fields, allowing for nested data structures.
 	>;
 
 	function getWidgetLoader(widgetName: string) {
-		if (!widgetName) return null;
+		if (!widgetName) { return null; }
 
 		// 1. Try exact path from widget store
 		const fn = widgets.widgetFunctions[widgetName];
 		const storePath = (fn as any)?.componentPath || (fn as any)?.inputComponentPath;
-		if (storePath && storePath in modules) return modules[storePath];
+		if (storePath && storePath in modules) { return modules[storePath]; }
 
 		// 2. Try casing variations
 		const camelFn = widgets.widgetFunctions[widgetName.charAt(0).toLowerCase() + widgetName.slice(1)];
 		const camelPath = (camelFn as any)?.componentPath || (camelFn as any)?.inputComponentPath;
-		if (camelPath && camelPath in modules) return modules[camelPath];
+		if (camelPath && camelPath in modules) { return modules[camelPath]; }
 
 		const lowerFn = widgets.widgetFunctions[widgetName.toLowerCase()];
 		const lowerPath = (lowerFn as any)?.componentPath || (lowerFn as any)?.inputComponentPath;
-		if (lowerPath && lowerPath in modules) return modules[lowerPath];
+		if (lowerPath && lowerPath in modules) { return modules[lowerPath]; }
 
 		// 3. Fallback search
 		const normalized = widgetName.toLowerCase();
@@ -70,9 +70,9 @@ Renders a group of fields, allowing for nested data structures.
 			const fileName = parts.pop();
 			const folderName = parts.pop();
 
-			if (folderName === normalized && fileName === 'input.svelte') return modules[path];
-			if (folderName === normalized && fileName === 'index.svelte') return modules[path];
-			if (fileName === `${normalized}.svelte` && normalized !== 'input') return modules[path];
+			if (folderName === normalized && fileName === 'input.svelte') { return modules[path]; }
+			if (folderName === normalized && fileName === 'index.svelte') { return modules[path]; }
+			if (fileName === `${normalized}.svelte` && normalized !== 'input') { return modules[path]; }
 		}
 		return null;
 	}
@@ -103,7 +103,7 @@ Renders a group of fields, allowing for nested data structures.
 	let isCollapsed = $derived(manualCollapsed ?? (field as any).collapsed ?? false);
 
 	function toggleCollapse() {
-		if ((field as any).collapsible) manualCollapsed = !isCollapsed;
+		if ((field as any).collapsible) { manualCollapsed = !isCollapsed; }
 	}
 </script>
 
@@ -131,7 +131,7 @@ Renders a group of fields, allowing for nested data structures.
 	<div id="{fieldName}-content" class="{variant.content} transition-all duration-200 {isCollapsed ? 'hidden' : 'block'}">
 		{#if (field as any).fields && (field as any).fields.length > 0}
 			<div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
-				{#each (field as any).fields as subField (subField.db_fieldName || subField.name || Math.random())}
+				{#each (field as any).fields as subField, index (subField.db_fieldName || subField.name || index)}
 					{@const subFieldName = normalizeFieldName(subField)}
 					{@const widgetName = (subField as any).widget?.Name || (subField as any).type || 'Input'}
 					{@const widgetLoader = getWidgetLoader(widgetName)}
@@ -142,9 +142,7 @@ Renders a group of fields, allowing for nested data structures.
 						{:else if !value}
 							<p class="text-error-500">Group value is missing</p>
 						{:else}
-							<div class="rounded border border-error-500 p-2 text-error-500">
-								Widget not found: {widgetName}
-							</div>
+							<div class="rounded border border-error-500 p-2 text-error-500">Widget not found: {widgetName}</div>
 						{/if}
 					</div>
 				{/each}

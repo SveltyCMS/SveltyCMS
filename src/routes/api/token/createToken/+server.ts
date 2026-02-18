@@ -121,11 +121,13 @@ export const POST = apiHandler(async ({ request, locals, fetch, url }) => {
 
 		const inviteLink = `${url.origin}/login?invite_token=${token}`; // Send invitation email
 
+		const internalKey = getPrivateSettingSync('JWT_SECRET_KEY');
+
 		const emailResponse = await fetch(`${url.origin}/api/sendMail`, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json',
-				'x-internal-call': 'true' // Mark as internal call to bypass auth
+				'x-internal-key': internalKey || ''
 			},
 			body: JSON.stringify({
 				recipientEmail: validatedData.email,

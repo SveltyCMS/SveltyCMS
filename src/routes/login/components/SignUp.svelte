@@ -76,7 +76,7 @@
 	let prefetched = $state(false);
 
 	async function prefetchFirstCollection() {
-		if (prefetched || !firstCollectionPath) return;
+		if (prefetched || !firstCollectionPath) { return; }
 		prefetched = true;
 
 		try {

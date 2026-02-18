@@ -56,7 +56,7 @@
 				body: 'Select a widget type to add to your collection'
 			},
 			(r: { selectedWidget: string } | undefined) => {
-				if (!r) return;
+				if (!r) { return; }
 				const widgetInstance = get(widgetFunctions)[r.selectedWidget];
 				if (widgetInstance) {
 					const newWidget = {
@@ -79,7 +79,7 @@
 				value: field
 			},
 			(r: { id?: number; [key: string]: any } | undefined) => {
-				if (!r) return;
+				if (!r) { return; }
 				const idx = items.findIndex((i: (typeof items)[number]) => i.id === r.id);
 				if (idx !== -1) {
 					items[idx] = { ...items[idx], ...r };

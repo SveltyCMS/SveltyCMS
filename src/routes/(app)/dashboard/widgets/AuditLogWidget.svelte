@@ -43,8 +43,8 @@ Features:
 		return new Date(isoString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 	}
 
-	function truncateEmail(email: string) {
-		if (!email) return 'System';
+	function truncateEmail(email?: string) {
+		if (!email) { return 'System'; }
 		return email.split('@')[0];
 	}
 </script>
@@ -71,7 +71,7 @@ Features:
 						<tr>
 							<th class="py-2 pr-2 font-semibold opacity-70">Action</th>
 							<th class="py-2 pr-2 font-semibold opacity-70">Actor</th>
-							<th class="py-2 text-center font-semibold opacity-70">Ver.</th>
+							<th class="py-2 text-center font-semibold opacity-70">Res.</th>
 						</tr>
 					</thead>
 					<tbody class="divide-y divide-surface-100 dark:divide-surface-700">
@@ -79,12 +79,20 @@ Features:
 							<tr class="group hover:bg-surface-50 dark:hover:bg-surface-700/50">
 								<td class="py-2 pr-2">
 									<div class="flex flex-col">
-										<span class="font-medium text-tertiary-500 dark:text-primary-500">{log.action}</span>
+										<span class="font-medium text-tertiary-500 dark:text-primary-500">{log.action || log.eventType}</span>
 										<span class="text-[9px] opacity-50">{formatDate(log.timestamp)}</span>
 									</div>
 								</td>
-								<td class="max-w-[80px] truncate py-2 pr-2 pt-3" title={log.actor?.email}>{truncateEmail(log.actor?.email)}</td>
-								<td class="py-2 pt-3 text-center text-primary-500"><iconify-icon icon="mdi:history" width={24}></iconify-icon></td>
+								<td class="max-w-[80px] truncate py-2 pr-2 pt-3" title={log.actorEmail || 'System'}>{truncateEmail(log.actorEmail)}</td>
+								<td class="py-2 pt-3 text-center">
+									{#if log.result === 'success'}
+										<iconify-icon icon="mdi:check-circle" class="text-success-500" width={16}></iconify-icon>
+									{:else if log.result === 'failure'}
+										<iconify-icon icon="mdi:alert-circle" class="text-error-500" width={16}></iconify-icon>
+									{:else}
+										<iconify-icon icon="mdi:history" class="text-primary-500" width={16}></iconify-icon>
+									{/if}
+								</td>
 							</tr>
 						{/each}
 					</tbody>

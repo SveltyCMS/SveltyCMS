@@ -79,7 +79,7 @@
 
 	// --- 5. DERIVED STATE (Page-Specific) ---
 	const hasUnsavedChanges = $derived(() => {
-		if (!initialDataSnapshot) return false;
+		if (!initialDataSnapshot) { return false; }
 		return JSON.stringify(wizard) !== initialDataSnapshot;
 	});
 	const systemLanguages = $derived.by(() => {
@@ -119,14 +119,14 @@
 	}
 
 	async function nextStep() {
-		if (!setupStore.canProceed) return;
+		if (!setupStore.canProceed) { return; }
 		if (wizard.currentStep === 0) {
 			if (dbConfigComponent && typeof dbConfigComponent.installDatabaseDriver === 'function') {
 				await dbConfigComponent.installDatabaseDriver(wizard.dbConfig.type);
 			}
 			await seedDatabase();
 		}
-		if ((wizard.currentStep === 1 || wizard.currentStep === 2) && !validateStep(wizard.currentStep, true)) return;
+		if ((wizard.currentStep === 1 || wizard.currentStep === 2) && !validateStep(wizard.currentStep, true)) { return; }
 		if (wizard.currentStep < totalSteps - 1) {
 			wizard.currentStep++;
 			if (wizard.currentStep > wizard.highestStepReached) {

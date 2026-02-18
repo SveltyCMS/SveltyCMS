@@ -88,14 +88,14 @@
 	// Cleanup effect to prevent memory leaks
 	$effect(() => {
 		return () => {
-			if (rebuildTimeout) clearTimeout(rebuildTimeout);
-			if (typeaheadTimeout) clearTimeout(typeaheadTimeout);
+			if (rebuildTimeout) { clearTimeout(rebuildTimeout); }
+			if (typeaheadTimeout) { clearTimeout(typeaheadTimeout); }
 		};
 	});
 
 	// Initialize Tree from Props - with race condition protection
 	$effect(() => {
-		if (isDragging || !contentNodes.length) return;
+		if (isDragging || !contentNodes.length) { return; }
 
 		const currentHash =
 			contentNodes
@@ -104,7 +104,7 @@
 				.join('|') + contentNodes.length;
 
 		if (currentHash !== lastContentNodesHash) {
-			if (rebuildTimeout) clearTimeout(rebuildTimeout);
+			if (rebuildTimeout) { clearTimeout(rebuildTimeout); }
 
 			rebuildTimeout = setTimeout(() => {
 				lastContentNodesHash = currentHash;
@@ -194,10 +194,10 @@
 
 	function findNode(nodes: EnhancedTreeViewItem[], id: string): EnhancedTreeViewItem | null {
 		for (const node of nodes) {
-			if (node.id === id) return node;
+			if (node.id === id) { return node; }
 			if (node.children) {
 				const found = findNode(node.children, id);
-				if (found) return found;
+				if (found) { return found; }
 			}
 		}
 		return null;
@@ -205,9 +205,9 @@
 
 	function getParent(rootNodes: EnhancedTreeViewItem[], childId: string): EnhancedTreeViewItem | null {
 		for (const node of rootNodes) {
-			if (node.children.some((c) => c.id === childId)) return node;
+			if (node.children.some((c) => c.id === childId)) { return node; }
 			const found = getParent(node.children, childId);
-			if (found) return found;
+			if (found) { return found; }
 		}
 		return null;
 	}
@@ -237,14 +237,14 @@
 				ids.add(node.id);
 				hasMatch = true;
 			}
-			if (matches) hasMatch = true;
+			if (matches) { hasMatch = true; }
 		}
 		return hasMatch;
 	}
 
 	// Filtering Helper - simplified since we auto-expand matches
 	function isNodeVisible(node: EnhancedTreeViewItem, search: string): boolean {
-		if (!search) return true;
+		if (!search) { return true; }
 		return node.name.toLowerCase().includes(search.toLowerCase());
 	}
 
@@ -285,7 +285,7 @@
 		announcement = message;
 		announcementId++;
 		setTimeout(() => {
-			if (announcement === message) announcement = '';
+			if (announcement === message) { announcement = ''; }
 		}, 1000);
 	}
 
@@ -408,15 +408,16 @@
 	// Helper: Check if potentialAncestor is actually an ancestor of nodeId
 	function isAncestorOf(potentialAncestorId: string, nodeId: string, nodes: EnhancedTreeViewItem[]): boolean {
 		const targetNode = findNode(nodes, nodeId);
-		if (!targetNode) return false;
+		if (!targetNode) { return false; }
 
 		// Walk up from targetNode to see if we hit potentialAncestorId
 		let current: EnhancedTreeViewItem | null = targetNode;
 		const visited = new SvelteSet<string>();
 
 		while (current) {
-			if (current.id === potentialAncestorId) return true;
-			if (visited.has(current.id)) break; // Cycle protection
+			if (current.id === potentialAncestorId) { return true; }
+			if (visited.has(current.id)) { break; // Cycle protection
+}
 			visited.add(current.id);
 			current = getParent(nodes, current.id);
 		}
@@ -479,7 +480,7 @@
 			if (!childrenByParent.has(parentKey)) {
 				childrenByParent.set(parentKey, []);
 			}
-			childrenByParent.get(parentKey)!.push(itemMap.get(item.id)!);
+			childrenByParent.get(parentKey)?.push(itemMap.get(item.id)!);
 		}
 
 		// DO NOT SORT HERE. The items are already in the correct order from flattenTree which respects UI order.
@@ -488,7 +489,7 @@
 		function assignPaths(parentId: string | null, parentPath: string): void {
 			const key = parentId || '__root__';
 			const children = childrenByParent.get(key);
-			if (!children) return;
+			if (!children) { return; }
 
 			children.forEach((child, index) => {
 				const newPath = parentPath ? `${parentPath}.${child.id}` : child.id;
@@ -528,17 +529,17 @@
 
 	function handleTreeKeyDown(e: KeyboardEvent) {
 		// Let keyboard reorder mode handle its own keys
-		if (keyboardReorderMode) return;
+		if (keyboardReorderMode) { return; }
 
 		const visibleNodes = getVisibleNodes(treeRoots);
-		if (visibleNodes.length === 0) return;
+		if (visibleNodes.length === 0) { return; }
 
 		const activeElement = document.activeElement?.closest('[data-item-id]') as HTMLElement | null;
 		const currentId = activeElement?.dataset.itemId;
 		let currentIndex = visibleNodes.findIndex((n) => n.id === currentId);
 
 		// If no focus yet, assume first
-		if (currentIndex === -1) currentIndex = 0;
+		if (currentIndex === -1) { currentIndex = 0; }
 		const currentNode = visibleNodes[currentIndex];
 
 		let nextNode: EnhancedTreeViewItem | null = null;
@@ -567,7 +568,7 @@
 					toggleNode(currentNode.id);
 				} else {
 					const parent = getParent(treeRoots, currentNode.id);
-					if (parent) nextNode = parent;
+					if (parent) { nextNode = parent; }
 				}
 				break;
 			}
@@ -590,7 +591,7 @@
 
 			case 'End': {
 				e.preventDefault();
-				nextNode = visibleNodes[visibleNodes.length - 1];
+				nextNode = visibleNodes.at(-1);
 				break;
 			}
 
@@ -599,7 +600,7 @@
 				const parent = getParent(treeRoots, currentNode.id);
 				const siblings = parent ? parent.children : treeRoots;
 				siblings.forEach((s) => {
-					if (s.children?.length) expandedNodes.add(s.id);
+					if (s.children?.length) { expandedNodes.add(s.id); }
 				});
 				announce('Expanded all siblings');
 				break;
@@ -628,7 +629,7 @@
 	function handleTypeahead(char: string, visibleNodes: EnhancedTreeViewItem[], currentIndex: number) {
 		typeaheadBuffer += char.toLowerCase();
 
-		if (typeaheadTimeout) clearTimeout(typeaheadTimeout);
+		if (typeaheadTimeout) { clearTimeout(typeaheadTimeout); }
 		typeaheadTimeout = setTimeout(() => {
 			typeaheadBuffer = '';
 		}, 500);
@@ -662,19 +663,19 @@
 		const list = parent ? parent.children : treeRoots;
 		const index = list.findIndex((i) => i.id === itemId);
 
-		if (index === -1) return;
+		if (index === -1) { return; }
 
 		const newIndex = direction === 'up' ? index - 1 : index + 1;
-		if (newIndex < 0 || newIndex >= list.length) return;
+		if (newIndex < 0 || newIndex >= list.length) { return; }
 
 		const item = list[index];
 		list.splice(index, 1);
 		list.splice(newIndex, 0, item);
 
-		if (!parent) {
+		if (parent) {
+			parent.children = [...parent.children];
 			treeRoots = [...treeRoots];
 		} else {
-			parent.children = [...parent.children];
 			treeRoots = [...treeRoots];
 		}
 
@@ -694,10 +695,10 @@
 
 	async function moveItemToParent(itemId: string) {
 		const parent = getParent(treeRoots, itemId);
-		if (!parent) return;
+		if (!parent) { return; }
 
 		const item = parent.children.find((i) => i.id === itemId);
-		if (!item) return;
+		if (!item) { return; }
 
 		parent.children = parent.children.filter((i) => i.id !== itemId);
 
@@ -707,10 +708,10 @@
 		const parentIndex = targetList.findIndex((i) => i.id === parent.id);
 		targetList.splice(parentIndex + 1, 0, item);
 
-		if (!grandparent) {
+		if (grandparent) {
+			grandparent.children = [...grandparent.children];
 			treeRoots = [...treeRoots];
 		} else {
-			grandparent.children = [...grandparent.children];
 			treeRoots = [...treeRoots];
 		}
 
@@ -723,7 +724,7 @@
 	// --- Smart Delete with Focus Management ---
 
 	function handleDeleteNode(node: Partial<ContentNode>) {
-		if (!node._id) return;
+		if (!node._id) { return; }
 
 		// Calculate next focus target before deletion
 		const visibleNodes = getVisibleNodes(treeRoots);
@@ -774,12 +775,14 @@
 
 <!-- Accessibility: Live region for screen reader announcements -->
 <div aria-live="polite" aria-atomic="true" class="sr-only">
-	{#key announcementId}{announcement}{/key}
+	{#key announcementId}
+		{announcement}
+	{/key}
 </div>
 
 <!-- Toolbar -->
 <div class="mb-4 flex flex-wrap items-center gap-2">
-	<div class="relative flex-1 min-w-[200px]">
+	<div class="relative flex-1 min-w-50">
 		<iconify-icon icon="mdi:magnify" width="18" class="absolute left-3 top-1/2 -translate-y-1/2 opacity-50"></iconify-icon>
 		<input
 			type="text"
@@ -787,7 +790,7 @@
 			bind:value={searchText}
 			class="input w-full h-12 pl-10 pr-8 rounded shadow-sm"
 			aria-label="Search collections"
-		/>
+		>
 		{#if searchText}
 			<button
 				type="button"
@@ -836,7 +839,11 @@
 >
 	{#if treeRoots.length === 0}
 		<div class="text-center p-8 text-surface-500">
-			<iconify-icon icon={searchText ? 'mdi:magnify-close' : 'mdi:folder-outline'} width="48" class="opacity-50 mb-2" aria-hidden="true"
+			<iconify-icon
+				icon={searchText ? 'mdi:magnify-close' : 'mdi:folder-outline'}
+				width="48"
+				class="opacity-50 mb-2"
+				aria-hidden="true"
 			></iconify-icon>
 			<p>{searchText ? `No results found for "${searchText}"` : 'No categories or collections yet'}</p>
 		</div>
@@ -927,7 +934,7 @@
 					aria-label={`Contents of ${item.name}`}
 				>
 					{#if item.children?.length > 0}
-						{#each item.children as child (child.id + (child[SHADOW_ITEM_MARKER_PROPERTY_NAME] ? '_shadow' : ''))}
+						{#each item.children as child (child.id)}
 							<div
 								class="tree-node-wrapper mb-2"
 								class:hidden={!isNodeVisible(child, searchText)}
@@ -944,7 +951,7 @@
 						{/each}
 					{:else if isDragging}
 						<!-- Only show empty drop zone during active dragging -->
-						<div class="empty-drop-zone min-h-[40px]" role="none"></div>
+						<div class="empty-drop-zone min-h-10" role="none"></div>
 					{/if}
 				</div>
 			{/if}
@@ -965,9 +972,9 @@
 		padding: 0;
 		margin: -1px;
 		overflow: hidden;
-		clip: rect(0, 0, 0, 0);
 		white-space: nowrap;
 		border: 0;
+		clip: rect(0, 0, 0, 0);
 	}
 
 	.collection-builder-tree {
@@ -976,35 +983,35 @@
 	}
 
 	.dnd-zone {
+		position: relative;
 		min-height: 60px;
+		border: 2px dashed transparent;
+		border-radius: 0.5rem;
 		transition:
 			background-color 0.2s ease,
 			border-color 0.2s ease;
-		border-radius: 0.5rem;
-		position: relative;
-		border: 2px dashed transparent;
 	}
 
 	.dnd-zone:empty,
 	.empty-drop-zone {
-		min-height: 2px;
 		display: flex;
 		align-items: center;
 		justify-content: center;
+		min-height: 2px;
+		padding: 0;
+		margin: 0;
 		background: transparent;
 		border: 2px dashed transparent;
 		border-radius: 0.5rem;
-		padding: 0;
 		transition: all 0.2s ease;
-		margin: 0;
 	}
 
 	.is-dragging .empty-drop-zone {
 		min-height: 48px;
+		padding: 0.5rem;
+		margin: 0.5rem 0;
 		background: rgb(var(--color-surface-200) / 0.3);
 		border-color: rgb(var(--color-surface-400));
-		margin: 0.5rem 0;
-		padding: 0.5rem;
 	}
 
 	.tree-node-wrapper {
@@ -1024,10 +1031,10 @@
 	}
 
 	/* Shadow item (placeholder) styling */
-	:global([aria-grabbed='true']) {
-		opacity: 0.4;
-		box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+	:global([aria-grabbed="true"]) {
 		border-radius: 0.5rem;
+		box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+		opacity: 0.4;
 	}
 
 	/* Category drop zone feedback */
@@ -1046,24 +1053,24 @@
 	}
 
 	.nested-zone::before {
-		content: '';
 		position: absolute;
-		left: 0;
 		top: 0;
 		bottom: 0;
+		left: 0;
 		width: 2px;
+		content: "";
 		background: rgb(var(--color-surface-300));
 	}
 
 	/* Empty drop zone visible during drag */
 	.empty-drop-zone {
-		min-height: 40px;
-		border: 2px dashed rgb(var(--color-surface-400));
-		background: rgb(var(--color-surface-200) / 0.2);
-		border-radius: 0.5rem;
 		display: flex;
 		align-items: center;
 		justify-content: center;
+		min-height: 40px;
+		background: rgb(var(--color-surface-200) / 0.2);
+		border: 2px dashed rgb(var(--color-surface-400));
+		border-radius: 0.5rem;
 	}
 
 	/* Hide empty drop zones when not dragging */

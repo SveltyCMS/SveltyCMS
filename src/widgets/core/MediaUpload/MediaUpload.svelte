@@ -109,7 +109,7 @@ functionality for image editing and basic file information display.
 
 	// Validate input with debounce
 	function validateInput() {
-		if (debounceTimeout) clearTimeout(debounceTimeout);
+		if (debounceTimeout) { clearTimeout(debounceTimeout); }
 		debounceTimeout = window.setTimeout(() => {
 			validationError = validateSchema(value);
 		}, 300);
@@ -120,9 +120,9 @@ functionality for image editing and basic file information display.
 
 		const formData = new FormData();
 		formData.append('file', file);
-		if (mediaId) formData.append('mediaId', mediaId);
-		if (operations) formData.append('operations', JSON.stringify(operations));
-		if (focalPoint) formData.append('focalPoint', JSON.stringify(focalPoint));
+		if (mediaId) { formData.append('mediaId', mediaId); }
+		if (operations) { formData.append('operations', JSON.stringify(operations)); }
+		if (focalPoint) { formData.append('focalPoint', JSON.stringify(focalPoint)); }
 
 		try {
 			const response = await fetch('/api/media/edit', {
@@ -191,7 +191,7 @@ functionality for image editing and basic file information display.
 	});
 
 	function handleFocalPointDrag(event: MouseEvent, container: HTMLDivElement) {
-		if (!isDraggingFocalPoint) return;
+		if (!isDraggingFocalPoint) { return; }
 		const rect = container.getBoundingClientRect();
 		let x = ((event.clientX - rect.left) / rect.width) * 100;
 		let y = ((event.clientY - rect.top) / rect.height) * 100;
@@ -225,8 +225,8 @@ functionality for image editing and basic file information display.
 
 	// Helper function to get timestamp
 	function getTimestamp(date: Date | number | ISODateString): number {
-		if (typeof date === 'number') return date;
-		if (typeof date === 'string') return isoDateStringToDate(date as ISODateString).getTime();
+		if (typeof date === 'number') { return date; }
+		if (typeof date === 'string') { return isoDateStringToDate(date as ISODateString).getTime(); }
 		return date.getTime();
 	}
 </script>

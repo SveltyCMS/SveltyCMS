@@ -165,14 +165,14 @@
 			updateTimeRemaining();
 			interval = setInterval(updateTimeRemaining, 1000);
 			return () => {
-				if (interval) clearInterval(interval);
+				if (interval) { clearInterval(interval); }
 			};
 		}
 	});
 
 	// State management functions
 	function resetToInitialState() {
-		if (isTransitioning) return;
+		if (isTransitioning) { return; }
 		isTransitioning = true;
 		active = undefined;
 		background = data.demoMode ? '#242728' : getPublicSetting('SEASONS') ? '#242728' : firstUserExists ? 'white' : '#242728';
@@ -186,7 +186,7 @@
 		if (event) {
 			event.stopPropagation();
 		}
-		if (isTransitioning) return;
+		if (isTransitioning) { return; }
 		isTransitioning = true;
 
 		if (firstUserExists) {
@@ -207,7 +207,7 @@
 		if (event) {
 			event.stopPropagation();
 		}
-		if (isTransitioning) return;
+		if (isTransitioning) { return; }
 		isTransitioning = true;
 		active = 1;
 		background = '#242728';

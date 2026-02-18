@@ -76,7 +76,7 @@
 		} catch (err) {
 			const message = err instanceof Error ? err.message : String(err);
 			error = message;
-			showToast('Error fetching folders: ' + message, 'error');
+			showToast(`Error fetching folders: ${message}`, 'error');
 			folders = [];
 		} finally {
 			isLoading = false;
@@ -85,7 +85,7 @@
 
 	// Create a new folder
 	export async function createFolder(): Promise<void> {
-		if (!newFolderName.trim()) return;
+		if (!newFolderName.trim()) { return; }
 		isLoading = true;
 
 		try {
@@ -113,7 +113,7 @@
 		} catch (err) {
 			const message = err instanceof Error ? err.message : String(err);
 			error = message;
-			showToast('Error creating folder: ' + message, 'error');
+			showToast(`Error creating folder: ${message}`, 'error');
 		} finally {
 			isLoading = false;
 		}

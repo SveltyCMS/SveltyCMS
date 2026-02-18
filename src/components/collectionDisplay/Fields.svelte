@@ -153,20 +153,21 @@
 
 	// Helper to get field translation percentage across all languages
 	function getFieldTranslationPercentage(field: any): number {
-		if (!field.translated) return 100; // Not a translatable field
+		if (!field.translated) { return 100; // Not a translatable field
+}
 
 		const fieldName = `${collection.value?.name}.${getFieldName(field)}`;
 		const allLangs = availableLanguages; // Use the new derived state
 
 		// Avoid division by zero if no languages are configured
-		if (allLangs.length === 0) return 100;
+		if (allLangs.length === 0) { return 100; }
 
 		let translatedCount = 0;
 
 		// Count how many languages have this field translated
 		for (const lang of allLangs) {
 			const langProgress = currentTranslationProgress?.[lang as Locale];
-			if (langProgress && langProgress.translated.has(fieldName)) {
+			if (langProgress?.translated.has(fieldName)) {
 				translatedCount++;
 			}
 		}
@@ -177,12 +178,12 @@
 
 	// Helper to get text color based on translation status
 	function getTranslationTextColor(percentage: number): string {
-		if (percentage === 100) return 'text-tertiary-500 dark:text-primary-500';
+		if (percentage === 100) { return 'text-tertiary-500 dark:text-primary-500'; }
 		return 'text-error-500';
 	}
 
 	function ensureFieldProperties(field: any) {
-		if (!field) return null;
+		if (!field) { return null; }
 		return {
 			...field,
 			db_fieldName: field.db_fieldName || getFieldName(field, true),
@@ -196,7 +197,7 @@
 			.map(ensureFieldProperties)
 			.filter(Boolean)
 			.filter((field: any) => {
-				if (!field.permissions || page.data?.isAdmin || !user?.role) return true;
+				if (!field.permissions || page.data?.isAdmin || !user?.role) { return true; }
 				const rolePermissions = field.permissions[user.role];
 				return !rolePermissions || rolePermissions.read !== false;
 			})
@@ -274,7 +275,7 @@
 
 	// --- 5. REFACTORED REVISION LOGIC ---
 	function handleRevert() {
-		if (!selectedRevision?.data) return;
+		if (!selectedRevision?.data) { return; }
 		showConfirm({
 			title: 'Confirm Revert',
 			body: 'Are you sure you want to revert to this version? Any unsaved changes will be lost.',

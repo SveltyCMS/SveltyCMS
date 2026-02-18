@@ -104,8 +104,8 @@ Advanced icon picker with search, pagination, and favorites.
 
 	// Display icons based on active tab
 	const displayIcons = $derived.by(() => {
-		if (activeTab === 'favorites') return favorites;
-		if (activeTab === 'recent') return recentSelections;
+		if (activeTab === 'favorites') { return favorites; }
+		if (activeTab === 'recent') { return recentSelections; }
 
 		// If searching (API results), 'icons' is usually just the current page
 		// BUT if browsing (all icons), we slice.
@@ -230,7 +230,7 @@ Advanced icon picker with search, pagination, and favorites.
 				await loadIcons(iconIds);
 
 				activeTab = 'search';
-			} else if (!append) icons = [];
+			} else if (!append) { icons = []; }
 		} catch (error) {
 			if (error instanceof Error && error.name === 'AbortError') {
 				searchError = 'Search timeout - please try again';
@@ -252,7 +252,7 @@ Advanced icon picker with search, pagination, and favorites.
 
 		try {
 			const response = await fetch(`${ICONIFY_API_BASE}/collection?prefix=${library}`);
-			if (!response.ok) throw new Error(`Failed to load collection: ${response.status}`);
+			if (!response.ok) { throw new Error(`Failed to load collection: ${response.status}`); }
 
 			const data = await response.json();
 
@@ -287,7 +287,7 @@ Advanced icon picker with search, pagination, and favorites.
 
 	// Fetch available icon libraries
 	async function fetchIconLibraries(): Promise<void> {
-		if (librariesLoaded || isLoadingLibraries) return;
+		if (librariesLoaded || isLoadingLibraries) { return; }
 
 		isLoadingLibraries = true;
 		searchError = null;
@@ -333,7 +333,7 @@ Advanced icon picker with search, pagination, and favorites.
 	// Favorites management
 	function toggleFavorite(icon?: string): void {
 		const targetIcon = icon || iconselected;
-		if (!targetIcon) return;
+		if (!targetIcon) { return; }
 
 		if (favorites.includes(targetIcon)) {
 			favorites = favorites.filter((i) => i !== targetIcon);
@@ -346,7 +346,7 @@ Advanced icon picker with search, pagination, and favorites.
 
 	// Copy icon name
 	async function copyIconName(): Promise<void> {
-		if (!iconselected) return;
+		if (!iconselected) { return; }
 
 		try {
 			await navigator.clipboard.writeText(iconselected);
@@ -396,7 +396,7 @@ Advanced icon picker with search, pagination, and favorites.
 
 	// Keyboard navigation
 	function handleKeyDown(event: KeyboardEvent): void {
-		if (!showDropdown) return;
+		if (!showDropdown) { return; }
 
 		const iconsToNavigate = displayIcons;
 
@@ -429,7 +429,7 @@ Advanced icon picker with search, pagination, and favorites.
 
 	// Scroll to selected icon
 	function scrollToSelected(): void {
-		if (!gridRef || selectedIndex < 0) return;
+		if (!gridRef || selectedIndex < 0) { return; }
 
 		const selectedElement = gridRef.children[selectedIndex] as HTMLElement;
 		if (selectedElement) {

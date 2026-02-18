@@ -123,13 +123,13 @@
 	// Filter nodes based on search
 	const filteredNodes = $derived.by(() => {
 		const searchTermLower = (search || '').toLowerCase().trim();
-		if (!searchTermLower) return processedNodes;
+		if (!searchTermLower) { return processedNodes; }
 
 		const filter = (nodesToFilter: TreeNode[]): TreeNode[] => {
 			return nodesToFilter
 				.map((node) => {
 					const nameMatch = node.name.toLowerCase().includes(searchTermLower);
-					if (nameMatch) return node;
+					if (nameMatch) { return node; }
 
 					if (node.children) {
 						const children = filter(node.children);
@@ -169,7 +169,7 @@
 				expandedNodeIds.delete(node.id);
 			} else {
 				expandedNodeIds.add(node.id);
-				if (onExpand) onExpand(node);
+				if (onExpand) { onExpand(node); }
 			}
 		}
 
@@ -265,12 +265,12 @@
 
 	function focusFirstNode() {
 		const v = getVisibleNodesFlat();
-		if (v.length) focusNodeById(v[0]);
+		if (v.length) { focusNodeById(v[0]); }
 	}
 
 	function focusLastNode() {
 		const v = getVisibleNodesFlat();
-		if (v.length) focusNodeById(v[v.length - 1]);
+		if (v.length) { focusNodeById(v.at(-1)); }
 	}
 
 	// Auto-focus effect
@@ -286,14 +286,14 @@
 		let currentId: string | undefined = nodeId;
 		while (currentId) {
 			const nd = nodeMap.get(currentId);
-			if (nd?.parentId === ancestorId) return true;
+			if (nd?.parentId === ancestorId) { return true; }
 			currentId = nd?.parentId;
 		}
 		return false;
 	}
 
 	function handleDragStart(event: DragEvent, node: TreeNode) {
-		if (!allowDragDrop || node.id === 'root') return;
+		if (!allowDragDrop || node.id === 'root') { return; }
 
 		draggedNode = node;
 		if (event.dataTransfer) {
@@ -303,17 +303,17 @@
 	}
 
 	function handleDragOver(event: DragEvent, node: TreeNode) {
-		if (!(allowDragDrop && draggedNode) || draggedNode.id === node.id) return;
+		if (!(allowDragDrop && draggedNode) || draggedNode.id === node.id) { return; }
 
 		if (isDescendant(draggedNode.id, node.id)) {
 			dropPosition = null;
 			dragOverNode = node;
-			if (event.dataTransfer) event.dataTransfer.dropEffect = 'none';
+			if (event.dataTransfer) { event.dataTransfer.dropEffect = 'none'; }
 			return;
 		}
 
 		event.preventDefault();
-		if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+		if (event.dataTransfer) { event.dataTransfer.dropEffect = 'move'; }
 
 		dragOverNode = node;
 		const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
@@ -331,7 +331,7 @@
 	}
 
 	function handleDragLeave(event?: DragEvent) {
-		if (!allowDragDrop) return;
+		if (!allowDragDrop) { return; }
 
 		const related = event?.relatedTarget as Node | null;
 		if (!(related && (event?.currentTarget as Node).contains(related))) {
@@ -354,7 +354,7 @@
 	}
 
 	function handleDragEnd() {
-		if (!allowDragDrop) return;
+		if (!allowDragDrop) { return; }
 		draggedNode = null;
 		dragOverNode = null;
 		dropPosition = null;
@@ -406,8 +406,8 @@
 				       dark:text-surface-200 dark:hover:bg-surface-400
 				       {node.children ? '' : 'bg-surface-300 dark:bg-surface-700'}
 				       {selectedId === node.id ? 'bg-primary-500/20 border-primary-500/50 dark:bg-primary-500/30' : ''}
-				       {draggedNode?.id ? 'opacity-50' : ''}
-				       {dragOverNode?.id && dropPosition === 'inside' ? 'border-primary-500 bg-primary-100 dark:bg-primary-900' : ''}
+				       {draggedNode?.id === node.id ? 'opacity-50' : ''}
+				       {dragOverNode?.id === node.id && dropPosition === 'inside' ? 'border-primary-500 bg-primary-100 dark:bg-primary-900' : ''}
 				       {allowDragDrop && node.nodeType === 'virtual' && node.id !== 'root' ? 'cursor-move' : ''}"
 				aria-expanded={node.children ? node.isExpanded : undefined}
 				tabindex={focusedNodeId === node.id ? 0 : -1}
@@ -472,10 +472,9 @@
 
 				<!-- Node label -->
 				<span
-					class="flex-1 select-none overflow-hidden text-ellipsis whitespace-nowrap text-left dark:text-white
-					       {compact ? 'text-xs' : 'text-sm'}
-					       {selectedId === node.id ? 'font-semibold' : ''}"
-					style="margin-left: {node.depth ? node.depth * 8 : 0}px"
+									class="flex-1 select-none overflow-hidden text-ellipsis whitespace-nowrap text-left dark:text-white
+									       {compact ? 'text-xs' : 'text-sm'}
+									       {selectedId === node.id ? 'font-semibold' : ''}"					style="margin-left: {node.depth ? node.depth * 8 : 0}px"
 				>
 					{node.name}
 				</span>

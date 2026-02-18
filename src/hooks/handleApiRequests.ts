@@ -30,7 +30,7 @@
  * @prerequisite User authentication and authorization are complete
  */
 
-import { API_PERMISSIONS, hasApiPermission } from '@src/databases/auth/apiPermissions';
+import { hasApiPermission } from '@src/databases/auth/apiPermissions';
 import { API_CACHE_TTL_S, cacheService } from '@src/databases/CacheService';
 import { metricsService } from '@src/services/MetricsService';
 import type { Handle } from '@sveltejs/kit';
@@ -57,8 +57,6 @@ function shouldBypassCache(searchParams: URLSearchParams): boolean {
 }
 
 function isPublicApiRoute(pathname: string, method: string | undefined, testMode: string | undefined): boolean {
-	const relative = pathname.replace(/^\/api\//, '');
-
 	// Allow /api/testing in TEST_MODE
 	if (testMode === 'true' && pathname.startsWith('/api/testing')) {
 		return true;
@@ -70,20 +68,8 @@ function isPublicApiRoute(pathname: string, method: string | undefined, testMode
 		return true;
 	}
 
-	// Fast check for explicitly defined public endpoints
-	// We check if any permission key with '*' allows access to this path
-	for (const [key, roles] of Object.entries(API_PERMISSIONS)) {
-		if (roles.includes('*')) {
-			const permissionPath = key.replace('api:', '');
-			// Match exact or sub-path (e.g. 'settings/public' matches 'settings/public/stream')
-			if (relative === permissionPath || relative.startsWith(`${permissionPath}/`)) {
-				return true;
-			}
-		}
-	}
-
-	// Legacy hardcoded list fallback (can be removed if all moved to permissions)
-	const legacyPublic = ['/api/system/version', '/api/user/login', '/api/system/health'];
+	// Legacy hardcoded list fallback (matches handleAuthorization.ts public routes)
+	const legacyPublic = ['/api/system/version', '/api/user/login', '/api/system/health', '/api/settings/public', '/api/preview'];
 	return legacyPublic.some((r) => pathname.startsWith(r));
 }
 

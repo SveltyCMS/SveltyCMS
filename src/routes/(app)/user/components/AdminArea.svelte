@@ -1,6 +1,6 @@
-<!-- 
+<!--
 @file src/routes/(app)/user/components/AdminArea.svelte
-@component 
+@component
 **Admin area for managing users and tokens with efficient filtering and pagination.**
 
 ### Features
@@ -8,7 +8,7 @@
 - Sorting by any column
 - Bulk actions for tokens
 - Copy to clipboard
-- 
+-
 -->
 
 <script lang="ts">
@@ -20,21 +20,15 @@
 		return '_id' in row && typeof row._id === 'string';
 	}
 
-	function getRowKey(row: TableDataType, index: number): string | number {
-		if (isUser(row)) return row._id;
-		if (isToken(row)) return (row as Token).token;
-		return index;
-	}
-
 	function getDisplayValue(row: TableDataType, header: TableHeader): string {
-		if (header.key === 'blocked') return '';
-		if (isUser(row)) return String(row[header.key as keyof User] ?? '-');
-		if (isToken(row)) return String(row[header.key as keyof Token] ?? '-');
+		if (header.key === 'blocked') { return ''; }
+		if (isUser(row)) { return String(row[header.key as keyof User] ?? '-'); }
+		if (isToken(row)) { return String(row[header.key as keyof Token] ?? '-'); }
 		return '-';
 	}
 
 	function checkTokenExpired(row: TableDataType): boolean {
-		if (!isToken(row) || !row.expires) return false;
+		if (!(isToken(row) && row.expires)) { return false; }
 		return new Date(row.expires) < new Date();
 	}
 
@@ -143,8 +137,8 @@
 			if (action === 'delete') {
 				// Remove deleted items from the table
 				const updatedData = tableData.filter((item: User | Token) => {
-					if (type === 'user' && isUser(item)) return !ids.includes(item._id);
-					if (type === 'token' && isToken(item)) return !ids.includes(item.token);
+					if (type === 'user' && isUser(item)) { return !ids.includes(item._id); }
+					if (type === 'token' && isToken(item)) { return !ids.includes(item.token); }
 					return true;
 				});
 
@@ -156,14 +150,14 @@
 				// Handle block/unblock actions
 				const updatedData = tableData.map((item: User | Token) => {
 					let shouldUpdate = false;
-					if (type === 'user' && isUser(item) && ids.includes(item._id)) shouldUpdate = true;
-					if (type === 'token' && isToken(item) && ids.includes(item.token)) shouldUpdate = true;
+					if (type === 'user' && isUser(item) && ids.includes(item._id)) { shouldUpdate = true; }
+					if (type === 'token' && isToken(item) && ids.includes(item.token)) { shouldUpdate = true; }
 
 					if (shouldUpdate) {
 						updated = true;
 						if (action === 'block') {
 							return { ...item, blocked: true };
-						} else if (action === 'unblock') {
+						}if (action === 'unblock') {
 							return { ...item, blocked: false };
 						}
 					}
@@ -266,7 +260,7 @@
 	// Function to edit a specific token
 	function editToken(tokenId: Token) {
 		const tokenData = tokenId;
-		if (!tokenData) return;
+		if (!tokenData) { return; }
 
 		modalState.trigger(
 			ModalEditToken as any,
@@ -280,7 +274,7 @@
 				roles // Pass roles explicitly
 			},
 			(result: any) => {
-				if (result && result.success) {
+				if (result?.success) {
 					fetchData();
 				} else if (result?.success === false) {
 					toaster.error({ description: result.error || 'Failed to update token' });
@@ -291,7 +285,8 @@
 
 	// Helper function to convert Date to expires format expected by ModalEditToken
 	function convertDateToExpiresFormat(expiresDate: Date | string | null): string {
-		if (!expiresDate) return '2 days'; // Default
+		if (!expiresDate) { return '2 days'; // Default
+}
 
 		const now = new Date();
 		const expires = new Date(expiresDate);
@@ -300,26 +295,26 @@
 		const diffDays = Math.ceil(diffHours / 24);
 
 		// Match the available options in ModalEditToken
-		if (diffHours <= 2) return '2 hrs';
-		if (diffHours <= 12) return '12 hrs';
-		if (diffDays <= 2) return '2 days';
-		if (diffDays <= 7) return '1 week';
-		if (diffDays <= 14) return '2 weeks';
-		if (diffDays <= 30) return '1 month';
+		if (diffHours <= 2) { return '2 hrs'; }
+		if (diffHours <= 12) { return '12 hrs'; }
+		if (diffDays <= 2) { return '2 days'; }
+		if (diffDays <= 7) { return '1 week'; }
+		if (diffDays <= 14) { return '2 weeks'; }
+		if (diffDays <= 30) { return '1 month'; }
 
 		return '1 month'; // Max available option
 	}
 
 	// Helper function to calculate remaining time until expiration for display in table
 	function getRemainingTime(expiresDate: Date | string | null): string {
-		if (!expiresDate) return 'Never';
+		if (!expiresDate) { return 'Never'; }
 
 		const now = new Date();
 		const expires = new Date(expiresDate);
 		const diffMs = expires.getTime() - now.getTime();
 
 		// If expired, return 'Expired'
-		if (diffMs <= 0) return 'Expired';
+		if (diffMs <= 0) { return 'Expired'; }
 
 		const diffMinutes = Math.floor(diffMs / (1000 * 60));
 		const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
@@ -328,20 +323,19 @@
 		if (diffDays > 0) {
 			const remainingHours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
 			return remainingHours > 0 ? `${diffDays}d ${remainingHours}h` : `${diffDays}d`;
-		} else if (diffHours > 0) {
+		}if (diffHours > 0) {
 			const remainingMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
 			return remainingMinutes > 0 ? `${diffHours}h ${remainingMinutes}m` : `${diffHours}h`;
-		} else {
-			return `${diffMinutes}m`;
 		}
+			return `${diffMinutes}m`;
 	}
 
 	// Safe date formatter for unknown values coming from API
 	function formatDate(value: unknown): string {
-		if (value === null || value === undefined || value === '') return '-';
+		if (value === null || value === undefined || value === '') { return '-'; }
 		try {
 			const d = value instanceof Date ? value : new Date(String(value));
-			if (isNaN(d.getTime())) return '-';
+			if (Number.isNaN(d.getTime())) { return '-'; }
 			return d.toLocaleString();
 		} catch {
 			return '-';
@@ -350,7 +344,7 @@
 
 	// Toggle user blocked status - always show confirmation modal (like Multibutton)
 	async function toggleUserBlocked(user: User) {
-		if (!user._id) return;
+		if (!user._id) { return; }
 
 		// Prevent admins from blocking themselves
 		if (currentUser && user._id === currentUser._id) {
@@ -388,7 +382,7 @@
 				},
 				body: JSON.stringify({
 					userIds: [user._id],
-					action: action
+					action
 				})
 			});
 
@@ -412,7 +406,7 @@
 
 	// Toggle token blocked status - similar to user blocking
 	async function toggleTokenBlocked(token: Token) {
-		if (!token.token) return;
+		if (!token.token) { return; }
 
 		const action = token.blocked ? 'unblock' : 'block';
 		const actionPastTense = token.blocked ? 'unblocked' : 'blocked';
@@ -444,7 +438,7 @@
 				},
 				body: JSON.stringify({
 					tokenIds: [token.token],
-					action: action
+					action
 				})
 			});
 
@@ -486,7 +480,7 @@
 			},
 			(result: any) => {
 				// Refresh data if token was created
-				if (result && result.success) {
+				if (result?.success) {
 					fetchData();
 				}
 			}
@@ -496,7 +490,7 @@
 	// Toggle views
 	function toggleUserList() {
 		showUserList = !showUserList;
-		if (showUsertoken) showUsertoken = false;
+		if (showUsertoken) { showUsertoken = false; }
 	}
 
 	function toggleUserToken() {
@@ -514,7 +508,7 @@
 	let selectedRows: TableDataType[] = $derived.by(() =>
 		Object.entries(selectedMap)
 			.filter(([, isSelected]) => isSelected)
-			.map(([index]) => tableData[parseInt(index)])
+			.map(([index]) => tableData[Number.parseInt(index, 10)])
 			.filter((item): item is User | Token => item !== undefined && item !== null)
 	);
 
@@ -616,12 +610,14 @@
 	{#if showUserList || showUsertoken}
 		<div class="my-4 flex flex-wrap items-center justify-between gap-1">
 			<h2 class="order-1 text-xl font-bold text-tertiary-500 dark:text-primary-500">
-				{#if showUserList}{m.adminarea_userlist()}{:else if showUsertoken}{m.adminarea_listtoken()}{/if}
+				{#if showUserList}
+					{m.adminarea_userlist()}
+				{:else if showUsertoken}
+					{m.adminarea_listtoken()}
+				{/if}
 			</h2>
 
-			<div class="order-3 sm:order-2">
-				<TableFilter bind:globalSearchValue bind:searchShow bind:filterShow bind:columnShow bind:density />
-			</div>
+			<div class="order-3 sm:order-2"><TableFilter bind:globalSearchValue bind:searchShow bind:filterShow bind:columnShow bind:density /></div>
 
 			<div class="order-2 flex items-center justify-center sm:order-3">
 				<Multibutton {selectedRows} type={showUserList ? 'user' : 'token'} totalUsers={totalItems} {currentUser} onUpdate={handleBatchUpdate} />
@@ -634,7 +630,7 @@
 					<div class="text-white dark:text-primary-500">{m.entrylist_dnd()}</div>
 					<div class="my-2 flex w-full items-center justify-center gap-1">
 						<label class="mr-2">
-							<input type="checkbox" bind:checked={selectAllColumns} onclick={handleCheckboxChange} />
+							<input type="checkbox" bind:checked={selectAllColumns} onclick={handleCheckboxChange}>
 							{m.entrylist_all()}
 						</label>
 
@@ -737,7 +733,7 @@
 					</thead>
 
 					<tbody class="divide-y divide-surface-200/30 dark:divide-surface-700/30">
-						{#each tableData as row, index (getRowKey(row, index))}
+						{#each tableData as row, index (row._id || index)}
 							{@const expiresVal: string | Date | null = isToken(row) ? row.expires : null}
 							{@const isExpired = showUsertoken && expiresVal && new Date(expiresVal) < new Date()}
 							<tr
@@ -827,7 +823,7 @@
 										{:else if header.key === 'token'}
 											<!-- Token with clipboard functionality -->
 											<div class="flex items-center justify-center gap-2">
-												<span class="max-w-[200px] truncate font-mono text-sm">{isToken(row) && header.key === 'token' ? row.token : '-'}</span>
+												<span class="max-w-50 truncate font-mono text-sm">{isToken(row) && header.key === 'token' ? row.token : '-'}</span>
 												<SystemTooltip title="Copy Token to clipboard">
 													<button
 														class="preset-ghost btn-icon btn-icon-sm hover:preset-filled-tertiary-500 hover:dark:preset-filled-primary-500"
@@ -895,7 +891,11 @@
 			</div>
 		{:else}
 			<div class="preset-ghost-error-500 btn text-center font-bold">
-				{#if showUserList}{m.adminarea_nouser()}{:else if showUsertoken}{m.adminarea_notoken()}{/if}
+				{#if showUserList}
+					{m.adminarea_nouser()}
+				{:else if showUsertoken}
+					{m.adminarea_notoken()}
+				{/if}
 			</div>
 		{/if}
 	{/if}

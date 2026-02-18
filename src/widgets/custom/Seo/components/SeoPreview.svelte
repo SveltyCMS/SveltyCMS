@@ -35,10 +35,10 @@
 
 	function getHeatColor(word: string, index: number): string {
 		const lower = word.toLowerCase().replace(/[^a-z0-9]/g, '');
-		if (!lower) return 'transparent';
+		if (!lower) { return 'transparent'; }
 
 		// 1. Keyword match (Highest - Red)
-		if (keywords && keywords.some((k) => lower.includes(k.toLowerCase()) || k.toLowerCase().includes(lower))) {
+		if (keywords?.some((k) => lower.includes(k.toLowerCase()) || k.toLowerCase().includes(lower))) {
 			return 'rgba(239, 68, 68, 0.8)';
 		}
 

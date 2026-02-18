@@ -61,7 +61,7 @@ Watermark tool using svelte-canvas compatible state.
 
 	const renderWatermarks = ({ context, width, height }: { context: CanvasRenderingContext2D; width: number; height: number }) => {
 		const { watermarks, zoom, translateX, translateY, imageElement } = storeState;
-		if (!imageElement) return;
+		if (!imageElement) { return; }
 
 		context.save();
 		context.translate(width / 2 + translateX, height / 2 + translateY);

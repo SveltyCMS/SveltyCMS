@@ -60,6 +60,12 @@
   },
   "overrides": [
     {
+      "includes": ["**/*.svelte", "**/*.html"],
+      "formatter": {
+        "enabled": false
+      }
+    },
+    {
       "includes": ["src/databases/postgresql/**"],
       "linter": {
         "rules": {

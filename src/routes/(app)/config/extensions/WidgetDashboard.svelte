@@ -160,7 +160,7 @@ Features:
 
 		try {
 			const widget = widgets.find((w) => w.name === widgetName);
-			if (!widget) return;
+			if (!widget) { return; }
 
 			const newStatus = !widget.isActive;
 

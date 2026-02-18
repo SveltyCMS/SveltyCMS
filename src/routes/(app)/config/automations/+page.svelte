@@ -59,7 +59,7 @@ and CRUD actions. Enterprise-grade workflow management GUI.
 	}
 
 	async function deleteFlow(flow: AutomationFlow) {
-		if (!confirm(`Delete "${flow.name}"? This cannot be undone.`)) return;
+		if (!confirm(`Delete "${flow.name}"? This cannot be undone.`)) { return; }
 
 		try {
 			const res = await fetch(`/api/automations/${flow.id}`, { method: 'DELETE' });
@@ -123,14 +123,14 @@ and CRUD actions. Enterprise-grade workflow management GUI.
 	function getTriggerLabel(flow: AutomationFlow): string {
 		if (flow.trigger.type === 'event') {
 			const events = flow.trigger.events || [];
-			if (events.length === 0) return 'No events';
+			if (events.length === 0) { return 'No events'; }
 			if (events.length === 1) {
 				const meta = AUTOMATION_EVENTS.find((e) => e.event === events[0]);
 				return meta?.label || events[0];
 			}
 			return `${events.length} events`;
 		}
-		if (flow.trigger.type === 'schedule') return flow.trigger.cronLabel || flow.trigger.cron || 'Schedule';
+		if (flow.trigger.type === 'schedule') { return flow.trigger.cronLabel || flow.trigger.cron || 'Schedule'; }
 		return 'Manual';
 	}
 
@@ -143,12 +143,12 @@ and CRUD actions. Enterprise-grade workflow management GUI.
 			}
 			return 'mdi:flash-outline';
 		}
-		if (flow.trigger.type === 'schedule') return 'mdi:clock-outline';
+		if (flow.trigger.type === 'schedule') { return 'mdi:clock-outline'; }
 		return 'mdi:gesture-tap';
 	}
 
 	function getOperationsSummary(flow: AutomationFlow): string {
-		if (flow.operations.length === 0) return 'No operations';
+		if (flow.operations.length === 0) { return 'No operations'; }
 		return flow.operations
 			.map((op) => {
 				const meta = OPERATION_TYPES.find((t) => t.type === op.type);
@@ -158,11 +158,11 @@ and CRUD actions. Enterprise-grade workflow management GUI.
 	}
 
 	function timeAgo(dateStr?: string): string {
-		if (!dateStr) return 'Never';
+		if (!dateStr) { return 'Never'; }
 		const diff = Date.now() - new Date(dateStr).getTime();
-		if (diff < 60_000) return 'Just now';
-		if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
-		if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
+		if (diff < 60_000) { return 'Just now'; }
+		if (diff < 3_600_000) { return `${Math.floor(diff / 60_000)}m ago`; }
+		if (diff < 86_400_000) { return `${Math.floor(diff / 3_600_000)}h ago`; }
 		return `${Math.floor(diff / 86_400_000)}d ago`;
 	}
 

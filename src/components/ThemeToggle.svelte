@@ -43,8 +43,8 @@ It relies entirely on the centralized `themeStore` for its state and logic.
 	// Get tooltip text based on current preference
 	const getTooltipText = $derived(() => {
 		const current = themeStore.themePreference;
-		if (current === 'system') return 'System theme (click for Light)';
-		if (current === 'light') return 'Light theme (click for Dark)';
+		if (current === 'system') { return 'System theme (click for Light)'; }
+		if (current === 'light') { return 'Light theme (click for Dark)'; }
 		return 'Dark theme (click for System)';
 	});
 </script>

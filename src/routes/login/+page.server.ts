@@ -505,10 +505,16 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 						hostLink: publicEnv.HOST_PROD || `https://${request.headers.get('host')}`,
 						sitename: publicEnv.SITE_NAME || 'SveltyCMS'
 					};
+					const { getPrivateSettingSync } = await import('@src/services/settingsService');
+					const internalKey = getPrivateSettingSync('JWT_SECRET_KEY');
+
 					try {
 						const mailResponse = await fetch('/api/sendMail', {
 							method: 'POST',
-							headers: { 'Content-Type': 'application/json' },
+							headers: {
+								'Content-Type': 'application/json',
+								'x-internal-key': internalKey || ''
+							},
 							body: JSON.stringify({
 								recipientEmail: email,
 								subject: `Welcome to ${emailProps.sitename}`,
@@ -806,6 +812,9 @@ export const actions: Actions = {
 
 			// Send welcome email (best-effort; do not fail signup on email issues)
 			try {
+				const { getPrivateSettingSync } = await import('@src/services/settingsService');
+				const internalKey = getPrivateSettingSync('JWT_SECRET_KEY');
+
 				const emailProps = {
 					username: username || email,
 					email,
@@ -814,7 +823,10 @@ export const actions: Actions = {
 				};
 				const mailResponse = await event.fetch('/api/sendMail', {
 					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
+					headers: {
+						'Content-Type': 'application/json',
+						'x-internal-key': internalKey || ''
+					},
 					body: JSON.stringify({
 						recipientEmail: email,
 						subject: `Welcome to ${emailProps.sitename}`,
@@ -1139,10 +1151,16 @@ export const actions: Actions = {
 					sitename: publicEnv.SITE_NAME || 'SveltyCMS'
 				};
 
+				const { getPrivateSettingSync } = await import('@src/services/settingsService');
+				const internalKey = getPrivateSettingSync('JWT_SECRET_KEY');
+
 				// Use SvelteKit's fetch for server-side API calls
 				const mailResponse = await event.fetch('/api/sendMail', {
 					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
+					headers: {
+						'Content-Type': 'application/json',
+						'x-internal-key': internalKey || ''
+					},
 					body: JSON.stringify({
 						recipientEmail: email,
 						subject: `Password Reset Request for ${emailProps.sitename}`,
@@ -1223,10 +1241,16 @@ export const actions: Actions = {
 					sitename: publicEnv.SITE_NAME || 'SveltyCMS'
 				};
 				try {
+					const { getPrivateSettingSync } = await import('@src/services/settingsService');
+					const internalKey = getPrivateSettingSync('JWT_SECRET_KEY');
+
 					// Use SvelteKit's fetch for server-side API calls
 					const mailResponse = await event.fetch('/api/sendMail', {
 						method: 'POST',
-						headers: { 'Content-Type': 'application/json' },
+						headers: {
+							'Content-Type': 'application/json',
+							'x-internal-key': internalKey || ''
+						},
 						body: JSON.stringify({
 							recipientEmail: email,
 							subject: `Your Password for ${emailProps.sitename} Has Been Updated`,

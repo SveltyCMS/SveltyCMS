@@ -83,15 +83,15 @@ optional actions, and smooth animations.
 
 	// Get icon for toast type
 	function getToastIcon(type: string | undefined): string | null {
-		if (!(type && type in toastConfig)) return null;
+		if (!(type && type in toastConfig)) { return null; }
 		return toastConfig[type as ToastType].icon;
 	}
 
 	// Get animation direction based on position (reactive)
 	const animParams = $derived.by(() => {
-		if (position.includes('right')) return { x: 20, duration: 200 };
-		if (position.includes('left')) return { x: -20, duration: 200 };
-		if (position.includes('top')) return { y: -20, duration: 200 };
+		if (position.includes('right')) { return { x: 20, duration: 200 }; }
+		if (position.includes('left')) { return { x: -20, duration: 200 }; }
+		if (position.includes('top')) { return { y: -20, duration: 200 }; }
 		return { y: 20, duration: 200 };
 	});
 </script>

@@ -62,7 +62,7 @@ Provides zoom functionality for the image editor using svelte-canvas compatible 
 
 	function fitToScreen() {
 		const { imageElement } = storeState;
-		if (!imageElement) return;
+		if (!imageElement) { return; }
 
 		// We'd need container size here, but for now we can assume reasonable defaults or pass them
 		// Assuming we can get container dimensions from some other way if needed.

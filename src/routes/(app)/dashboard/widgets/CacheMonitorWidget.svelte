@@ -1,6 +1,6 @@
 <!--
 @file src/routes/(app)/dashboard/widgets/CacheMonitorWidget.svelte
-@component 
+@component
 **Real-time cache performance monitoring widget with enhanced features**
 -->
 
@@ -42,7 +42,7 @@
 			hitRate: number;
 			totalOperations: number;
 		};
-		recentMisses?: Array<any>;
+		recentMisses?: any[];
 		timestamp: number;
 	}
 
@@ -65,14 +65,14 @@
 	} = $props();
 
 	function getHitRateColor(hitRate: number): string {
-		if (hitRate >= 90) return 'text-success-500';
-		if (hitRate >= 70) return 'text-warning-500';
+		if (hitRate >= 90) { return 'text-success-500'; }
+		if (hitRate >= 70) { return 'text-warning-500'; }
 		return 'text-error-500';
 	}
 
 	function formatNumber(num: number): string {
-		if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(1)}M`;
-		if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
+		if (num >= 1_000_000) { return `${(num / 1_000_000).toFixed(1)}M`; }
+		if (num >= 1000) { return `${(num / 1000).toFixed(1)}K`; }
 		return num.toString();
 	}
 
@@ -179,7 +179,7 @@
 										</div>
 										<div class="flex items-center gap-3">
 											<span class="tabular-nums text-surface-500">
-												{formatNumber(stats.hits)}<span class="text-surface-400">/</span{formatNumber(stats.hits + stats.misses)}
+												{formatNumber(stats.hits)}<span class="text-surface-400">/</span>{formatNumber(stats.hits + stats.misses)}
 											</span>
 											<span class={`min-w-12 text-right text-sm font-bold tabular-nums ${getHitRateColor(stats.hitRate)}`}>
 												{stats.hitRate.toFixed(0)}%

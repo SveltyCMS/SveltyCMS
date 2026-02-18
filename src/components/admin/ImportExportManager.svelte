@@ -41,7 +41,7 @@
 
 	interface ImportResult {
 		message: string;
-		results: Array<any>;
+		results: any[];
 		success: boolean;
 		totalErrors: number;
 		totalImported: number;
@@ -82,12 +82,12 @@
 	// Sync string and number values
 	$effect(() => {
 		const limitNum = Number.parseInt(exportLimitString, 10);
-		exportOptions.limit = isNaN(limitNum) ? undefined : limitNum;
+		exportOptions.limit = Number.isNaN(limitNum) ? undefined : limitNum;
 	});
 
 	$effect(() => {
 		const batchSizeNum = Number.parseInt(importBatchSizeString, 10);
-		importOptions.batchSize = isNaN(batchSizeNum) ? 100 : batchSizeNum;
+		importOptions.batchSize = Number.isNaN(batchSizeNum) ? 100 : batchSizeNum;
 	});
 
 	// --- Data Loading ---
@@ -313,9 +313,9 @@
 
 	function handleKeydown(event: KeyboardEvent) {
 		if (event.key === 'Escape') {
-			if (showExportModal) showExportModal = false;
-			if (showImportModal) showImportModal = false;
-			if (showResultsModal) showResultsModal = false;
+			if (showExportModal) { showExportModal = false; }
+			if (showImportModal) { showImportModal = false; }
+			if (showResultsModal) { showResultsModal = false; }
 		}
 	}
 </script>

@@ -74,7 +74,7 @@ This component provides a user interface for managing 2FA settings:
 
 	// Load setup data (QR code, secret, backup codes)
 	async function loadSetupData() {
-		if (isLoading) return;
+		if (isLoading) { return; }
 
 		isLoading = true;
 
@@ -115,7 +115,7 @@ This component provides a user interface for managing 2FA settings:
 
 	// Verify and enable 2FA
 	async function verify2FA() {
-		if (isLoading || !verificationCode || verificationCode.length !== 6) return;
+		if (isLoading || !verificationCode || verificationCode.length !== 6) { return; }
 
 		isLoading = true;
 
@@ -145,7 +145,7 @@ This component provides a user interface for managing 2FA settings:
 
 	// Disable 2FA
 	async function disable2FA() {
-		if (isLoading) return;
+		if (isLoading) { return; }
 
 		// Show verification modal first
 		const { modalState } = await import('@utils/modalState.svelte');
@@ -157,7 +157,7 @@ This component provides a user interface for managing 2FA settings:
 				description: m.twofa_disable_verify_description()
 			},
 			async (code: string | null) => {
-				if (!code) return;
+				if (!code) { return; }
 
 				isLoading = true;
 
@@ -188,7 +188,7 @@ This component provides a user interface for managing 2FA settings:
 
 	// Generate new backup codes
 	async function generateBackupCodes() {
-		if (isLoading) return;
+		if (isLoading) { return; }
 
 		isLoading = true;
 

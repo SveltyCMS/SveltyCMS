@@ -97,11 +97,14 @@
 	// Memoized badge class calculation using $derived
 	let badgeClass = $derived(() => {
 		const length = count;
-		if (field?.minLength && length < (field?.minLength as number)) return 'bg-error-500'; // Semantic error color
-		if (field?.maxLength && length > (field?.maxLength as number)) return 'bg-error-500';
-		if (field?.count && length === (field?.count as number)) return 'bg-primary-500'; // Semantic success color
-		if (field?.count && length > (field?.count as number)) return 'bg-warning-500'; // Semantic warning color
-		if (field?.minLength) return '!preset-filled-surface-500';
+		if (field?.minLength && length < (field?.minLength as number)) { return 'bg-error-500'; // Semantic error color
+}
+		if (field?.maxLength && length > (field?.maxLength as number)) { return 'bg-error-500'; }
+		if (field?.count && length === (field?.count as number)) { return 'bg-primary-500'; // Semantic success color
+}
+		if (field?.count && length > (field?.count as number)) { return 'bg-warning-500'; // Semantic warning color
+}
+		if (field?.minLength) { return '!preset-filled-surface-500'; }
 		return '!preset-outlined-surface-500';
 	});
 

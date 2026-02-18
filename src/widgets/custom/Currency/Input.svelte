@@ -72,7 +72,7 @@ User types "1234.56" → displays "1.234,56 €" → stores 1234.56 as number
 		// Parse the localized string back into a number.
 		const numericValue = parseLocalizedNumber(inputString, lang);
 		// Update the parent's `value` with the clean number.
-		value = isNaN(numericValue) ? null : numericValue;
+		value = Number.isNaN(numericValue) ? null : numericValue;
 	}
 
 	// This function is called when the user leaves the input field.
@@ -90,7 +90,7 @@ User types "1234.56" → displays "1.234,56 €" → stores 1234.56 as number
 
 	// Currency validation schema
 	const currencySchema = $derived.by(() => {
-		const rules: Array<any> = [];
+		const rules: any[] = [];
 
 		if (typeof field.min === 'number') {
 			rules.push(minValue(field.min, `Amount must be at least ${formatter.format(field.min)}`));

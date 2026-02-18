@@ -34,11 +34,11 @@ Interactive selector with "Select" button and clear functionality
 	let { field, value, error }: { field: FieldType; value: string | string[] | null | undefined; error?: string | null } = $props();
 
 	// Local state for the resolved entry's display text.
-	let selectedEntries = $state<Array<Record<string, any>>>([]);
+	let selectedEntries = $state<Record<string, any>[]>([]);
 	const lang = $derived(app.contentLanguage);
 
 	// Stub function for fetching entry data - implement with your API
-	async function fetchEntryData(ids: string[]): Promise<Array<Record<string, any>>> {
+	async function fetchEntryData(ids: string[]): Promise<Record<string, any>[]> {
 		// TODO: Implement API call to fetch entries by IDs
 		// This should return an array of entry objects
 		return ids.map((id) => ({ _id: id, [field.displayField as string]: `Entry ${id}` }));

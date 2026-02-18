@@ -76,10 +76,10 @@ Displays a collection of media files (images, documents, audio, video) with:
 	// Performance optimization: Use virtual scrolling for large collections
 	const USE_VIRTUAL_THRESHOLD = 100;
 
-	type MediaTypeOption = {
-		value: 'All' | MediaTypeEnum;
+	interface MediaTypeOption {
 		label: string;
-	};
+		value: 'All' | MediaTypeEnum;
+	}
 
 	// Media types with proper typing
 	const mediaTypes: MediaTypeOption[] = [
@@ -173,18 +173,18 @@ Displays a collection of media files (images, documents, audio, video) with:
 	// Run once on mount to set up initial data
 	$effect(() => {
 		// Load initial data from server
-		if (data && data.systemVirtualFolders) {
+		if (data?.systemVirtualFolders) {
 			allSystemVirtualFolders = data.systemVirtualFolders.map((folder: SystemVirtualFolder) => ({
 				...folder,
 				path: Array.isArray(folder.path) ? folder.path : folder.path?.split('/')
 			}));
 		}
 
-		if (data && data.currentFolder) {
+		if (data?.currentFolder) {
 			currentSystemVirtualFolder = data.currentFolder;
 		}
 
-		if (data && data.media) {
+		if (data?.media) {
 			files = data.media.map((m: any) => ({
 				...m,
 				user: typeof m.user === 'object' && m.user ? m.user._id : m.user
@@ -338,7 +338,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 		const folderId = currentSystemVirtualFolder ? currentSystemVirtualFolder._id : 'root';
 
 		// Skip if already loading or same folder (unless force refresh)
-		if (!forceRefresh && (isLoading || folderId === lastSystemFolderId)) return;
+		if (!forceRefresh && (isLoading || folderId === lastSystemFolderId)) { return; }
 
 		isLoading = true;
 		globalLoadingStore.startLoading(loadingOperations.dataFetch);
@@ -425,7 +425,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 				body: `Creating subfolder in: <span class="text-tertiary-500 dark:text-primary-500">${currentFolderPath}</span>`
 			},
 			(r: string) => {
-				if (r) createSystemVirtualFolder(r);
+				if (r) { createSystemVirtualFolder(r); }
 			}
 		);
 	}
@@ -568,7 +568,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 				body: JSON.stringify({ criteria })
 			});
 
-			if (!response.ok) throw new Error('Search failed');
+			if (!response.ok) { throw new Error('Search failed'); }
 
 			const result = await response.json();
 
@@ -651,9 +651,9 @@ Displays a collection of media files (images, documents, audio, video) with:
 
 		const formData = new FormData();
 		formData.append('file', file);
-		if (mediaId) formData.append('mediaId', mediaId);
-		if (operations) formData.append('operations', JSON.stringify(operations));
-		if (focalPoint) formData.append('focalPoint', JSON.stringify(focalPoint));
+		if (mediaId) { formData.append('mediaId', mediaId); }
+		if (operations) { formData.append('operations', JSON.stringify(operations)); }
+		if (focalPoint) { formData.append('focalPoint', JSON.stringify(focalPoint)); }
 
 		try {
 			const response = await fetch('/api/media/edit', {

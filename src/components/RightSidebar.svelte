@@ -93,14 +93,14 @@
 	}
 
 	function getDisplayName(value: string | undefined | null): string {
-		if (!value) return 'system';
+		if (!value) { return 'system'; }
 
 		if (isUUID(value)) {
 			// If it matches the current user's ID, show their details
 			if (user && user._id === value) {
-				if (user.username && !isUUID(user.username)) return user.username;
-				if (user.firstName || user.lastName) return [user.firstName, user.lastName].filter(Boolean).join(' ');
-				if (user.email) return user.email.split('@')[0];
+				if (user.username && !isUUID(user.username)) { return user.username; }
+				if (user.firstName || user.lastName) { return [user.firstName, user.lastName].filter(Boolean).join(' '); }
+				if (user.email) { return user.email.split('@')[0]; }
 			}
 			// TODO: Add lookup for other users if needed (requires a user store or API call)
 			// For now, if it's a UUID and not the current user, it falls back to showing the UUID relative to the context,
@@ -112,7 +112,7 @@
 	}
 
 	function formatDate(dateStr: string | undefined | null): string {
-		if (!dateStr) return '-';
+		if (!dateStr) { return '-'; }
 		try {
 			return new Date(dateStr).toLocaleString(getLocale(), {
 				year: 'numeric',
@@ -181,7 +181,7 @@
 			dataToSave._scheduled = scheduleTimestamp;
 		} else {
 			dataToSave.status = statusStore.getStatusForSave();
-			delete dataToSave._scheduled;
+			dataToSave._scheduled = undefined;
 		}
 
 		// Metadata
@@ -195,7 +195,7 @@
 		}
 
 		const success = await saveEntry(dataToSave);
-		if (!success) return;
+		if (!success) { return; }
 
 		ui.forceUpdate();
 		await navigationManager.navigateToList();

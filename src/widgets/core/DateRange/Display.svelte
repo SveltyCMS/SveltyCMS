@@ -40,13 +40,13 @@ A lightweight renderer for the DateRange widget. Formats a `{ start, end }` valu
 	 * Format the date range string
 	 */
 	const formattedRange = $derived.by(() => {
-		if (!(value?.start && value?.end)) return '–';
+		if (!(value?.start && value?.end)) { return '–'; }
 
 		try {
 			const start = new Date(value.start);
 			const end = new Date(value.end);
 
-			if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+			if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
 				return 'Invalid Range';
 			}
 
@@ -75,7 +75,7 @@ A lightweight renderer for the DateRange widget. Formats a `{ start, end }` valu
 	 * Calculate duration for additional context
 	 */
 	const duration = $derived.by(() => {
-		if (!(value?.start && value?.end)) return null;
+		if (!(value?.start && value?.end)) { return null; }
 
 		try {
 			const start = new Date(value.start);
@@ -83,8 +83,8 @@ A lightweight renderer for the DateRange widget. Formats a `{ start, end }` valu
 			const diffTime = end.getTime() - start.getTime();
 			const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-			if (diffDays === 1) return '1 day';
-			if (diffDays < 7) return `${diffDays} days`;
+			if (diffDays === 1) { return '1 day'; }
+			if (diffDays < 7) { return `${diffDays} days`; }
 			if (diffDays < 30) {
 				const weeks = Math.ceil(diffDays / 7);
 				return `${weeks} week${weeks > 1 ? 's' : ''}`;
@@ -104,16 +104,16 @@ A lightweight renderer for the DateRange widget. Formats a `{ start, end }` valu
 	 * Determine temporal context (Current / Past / Future)
 	 */
 	const relativeContext = $derived.by(() => {
-		if (!(value?.start && value?.end)) return null;
+		if (!(value?.start && value?.end)) { return null; }
 
 		try {
 			const now = new Date();
 			const start = new Date(value.start);
 			const end = new Date(value.end);
 
-			if (start <= now && end >= now) return 'Current';
-			if (end < now) return 'Past';
-			if (start > now) return 'Future';
+			if (start <= now && end >= now) { return 'Current'; }
+			if (end < now) { return 'Past'; }
+			if (start > now) { return 'Future'; }
 
 			return null;
 		} catch {
@@ -138,7 +138,7 @@ A lightweight renderer for the DateRange widget. Formats a `{ start, end }` valu
 	 * Get tooltip text
 	 */
 	const tooltipText = $derived.by(() => {
-		if (!(value?.start && value?.end)) return undefined;
+		if (!(value?.start && value?.end)) { return undefined; }
 		try {
 			const start = new Date(value.start).toISOString();
 			const end = new Date(value.end).toISOString();

@@ -92,7 +92,7 @@ It provides the following functionality:
 		currentRoleId: string | null;
 	}) => {
 		const { roleName, roleDescription, currentGroupName, selectedPermissions, currentRoleId } = role;
-		if (!roleName) return;
+		if (!roleName) { return; }
 
 		const roleId = currentRoleId ?? uuidv4().replace(/-/g, '');
 		const newRole = {

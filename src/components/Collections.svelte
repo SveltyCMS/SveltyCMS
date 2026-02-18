@@ -67,7 +67,7 @@
 	}, 300);
 
 	$effect(() => {
-		if (search) isSearching = true;
+		if (search) { isSearching = true; }
 		updateDebounced(search);
 	});
 
@@ -83,7 +83,7 @@
 
 		function countCollections(node: ExtendedContentNode): number {
 			const key = node._id;
-			if (localCountCache.has(key)) return localCountCache.get(key)!;
+			if (localCountCache.has(key)) { return localCountCache.get(key)!; }
 
 			if (!node.children || node.nodeType !== 'category') {
 				localCountCache.set(key, 0);
@@ -92,8 +92,8 @@
 
 			let total = 0;
 			for (const child of node.children) {
-				if (child.nodeType === 'collection') total++;
-				else if (child.nodeType === 'category') total += countCollections(child);
+				if (child.nodeType === 'collection') { total++; }
+				else if (child.nodeType === 'category') { total += countCollections(child); }
 			}
 			localCountCache.set(key, total);
 			return total;
@@ -157,14 +157,14 @@
 				children,
 				icon: node.icon || (isCategory ? 'bi:folder' : 'bi:collection'),
 				badge,
-				path: isCategory ? undefined : `/${currentLanguage}${node.path || '/' + node._id}`,
+				path: isCategory ? undefined : `/${currentLanguage}${node.path || `/${node._id}`}`,
 				depth,
 				order: node.order ?? 0
 			};
 		}
 
 		function buildTree(nodes: ExtendedContentNode[]): ExtendedContentNode[] {
-			if (!nodes || nodes.length === 0) return [];
+			if (!nodes || nodes.length === 0) { return []; }
 
 			const nodeMap = new SvelteMap<string, ExtendedContentNode>();
 			const roots: ExtendedContentNode[] = [];
@@ -224,8 +224,8 @@
 	});
 
 	async function navigate(path: string, force = false): Promise<void> {
-		if (page.url.pathname === path && !force) return;
-		if (force || page.url.pathname === path) await invalidateAll();
+		if (page.url.pathname === path && !force) { return; }
+		if (force || page.url.pathname === path) { await invalidateAll(); }
 
 		await goto(path, { invalidateAll: true });
 	}
@@ -247,7 +247,7 @@
 			})
 		);
 
-		const target = `/${currentLanguage}${node.path || '/' + node._id}`;
+		const target = `/${currentLanguage}${node.path || `/${node._id}`}`;
 		navigate(target, same);
 	}
 

@@ -26,12 +26,12 @@ Displays real-time system state and individual service health with comprehensive
 	import { onDestroy, onMount } from 'svelte';
 
 	// Type for service data
-	type ServiceData = {
-		status: ServiceHealth;
-		message: string;
+	interface ServiceData {
 		error?: string;
 		lastChecked?: number;
-	};
+		message: string;
+		status: ServiceHealth;
+	}
 
 	// State configuration maps
 	const STATE_CONFIG = {
@@ -76,7 +76,7 @@ Displays real-time system state and individual service health with comprehensive
 
 	// Derived values with proper memoization
 	const uptime = $derived.by(() => {
-		if (!initializationStartedAt) return 0;
+		if (!initializationStartedAt) { return 0; }
 		return Date.now() - initializationStartedAt;
 	});
 
@@ -134,7 +134,7 @@ Displays real-time system state and individual service health with comprehensive
 
 	// Fetch health with retry logic
 	async function fetchHealth(): Promise<void> {
-		if (isLoading) return;
+		if (isLoading) { return; }
 
 		isLoading = true;
 
@@ -149,7 +149,7 @@ Displays real-time system state and individual service health with comprehensive
 			// Even if status is 503, we should try to parse the body as it contains health report
 			const data = await response.json();
 
-			if (data && data.overallStatus) {
+			if (data?.overallStatus) {
 				// Update local reactive state from API response
 				currentState = data.overallStatus;
 				services = data.components || {};
@@ -179,10 +179,10 @@ Displays real-time system state and individual service health with comprehensive
 
 	// Reinitialize with loading state
 	async function reinitializeSystem(): Promise<void> {
-		if (isReinitializing) return;
+		if (isReinitializing) { return; }
 
 		const confirmed = confirm('Are you sure you want to reinitialize the system? This may cause temporary downtime.');
-		if (!confirmed) return;
+		if (!confirmed) { return; }
 
 		isReinitializing = true;
 
@@ -262,16 +262,16 @@ Displays real-time system state and individual service health with comprehensive
 	}
 
 	function formatUptime(ms: number): string {
-		if (ms <= 0) return '0s';
+		if (ms <= 0) { return '0s'; }
 
 		const seconds = Math.floor(ms / 1000);
 		const minutes = Math.floor(seconds / 60);
 		const hours = Math.floor(minutes / 60);
 		const days = Math.floor(hours / 24);
 
-		if (days > 0) return `${days}d ${hours % 24}h`;
-		if (hours > 0) return `${hours}h ${minutes % 60}m`;
-		if (minutes > 0) return `${minutes}m ${seconds % 60}s`;
+		if (days > 0) { return `${days}d ${hours % 24}h`; }
+		if (hours > 0) { return `${hours}h ${minutes % 60}m`; }
+		if (minutes > 0) { return `${minutes}m ${seconds % 60}s`; }
 		return `${seconds}s`;
 	}
 
@@ -413,9 +413,7 @@ Displays real-time system state and individual service health with comprehensive
 			<div
 				class="h-full {healthPercentage >= 80
 					? 'bg-primary-500'
-					: healthPercentage >= 50
-						? 'bg-warning-500'
-						: 'bg-error-500'} transition-all duration-500"
+					: healthPercentage >= 50 ? 'bg-warning-500' : 'bg-error-500'} transition-all duration-500"
 				style="width: {healthPercentage}%"
 			></div>
 		</div>

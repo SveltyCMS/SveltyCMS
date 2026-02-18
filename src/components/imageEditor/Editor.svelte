@@ -40,7 +40,7 @@ Comprehensive image editing interface with svelte-canvas integration.
 
 	// Active tool component
 	const activeToolComponent = $derived.by(() => {
-		if (!activeState) return null;
+		if (!activeState) { return null; }
 		const widget = editorWidgets.find((w) => w.key === activeState);
 		return widget?.tool ?? null;
 	});
@@ -61,7 +61,7 @@ Comprehensive image editing interface with svelte-canvas integration.
 	// Cleanup effect for selected image
 	$effect(() => {
 		return () => {
-			if (selectedImage && selectedImage.startsWith('blob:')) {
+			if (selectedImage?.startsWith('blob:')) {
 				URL.revokeObjectURL(selectedImage);
 			}
 		};
@@ -76,7 +76,7 @@ Comprehensive image editing interface with svelte-canvas integration.
 			initialImageLoaded = false;
 		}
 
-		if (!containerRef || !(src || file)) return;
+		if (!(containerRef && (src || file))) { return; }
 
 		// Wait for container to have size
 		if (containerWidth === 0 || containerHeight === 0) {
@@ -89,7 +89,7 @@ Comprehensive image editing interface with svelte-canvas integration.
 			return () => clearTimeout(timeoutId);
 		}
 
-		if (initialImageLoaded && src === selectedImage && !file) return;
+		if (initialImageLoaded && src === selectedImage && !file) { return; }
 
 		queueMicrotask(() => {
 			if (src) {
@@ -131,11 +131,11 @@ Comprehensive image editing interface with svelte-canvas integration.
 
 		img.onload = () => {
 			imageEditorStore.setImageElement(img);
-			if (file) imageEditorStore.setFile(file);
+			if (file) { imageEditorStore.setFile(file); }
 
 			// Initial fit
-			const containerWidth = containerRef!.clientWidth;
-			const containerHeight = containerRef!.clientHeight;
+			const containerWidth = containerRef?.clientWidth;
+			const containerHeight = containerRef?.clientHeight;
 			const scaleX = (containerWidth * 0.8) / img.width;
 			const scaleY = (containerHeight * 0.8) / img.height;
 			imageEditorStore.state.zoom = Math.min(scaleX, scaleY);
@@ -149,7 +149,7 @@ Comprehensive image editing interface with svelte-canvas integration.
 
 	function handleKeyDown(event: KeyboardEvent) {
 		const target = event.target as HTMLElement;
-		if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.contentEditable === 'true') return;
+		if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.contentEditable === 'true') { return; }
 
 		if (event.key === 'Escape') {
 			imageEditorStore.cancelActiveTool();
@@ -208,14 +208,14 @@ Comprehensive image editing interface with svelte-canvas integration.
 				});
 
 				const result = await response.json();
-				if (!result.success) throw new Error(result.error || 'Server-side manipulation failed');
+				if (!result.success) { throw new Error(result.error || 'Server-side manipulation failed'); }
 
 				// Return the updated media item data
 				onsave(result.data);
 			} else {
 				// Fallback to client-side blob if no mediaId (e.g. fresh upload not yet in DB)
 				const canvas = containerRef?.querySelector('canvas');
-				if (!canvas) throw new Error('Canvas not found');
+				if (!canvas) { throw new Error('Canvas not found'); }
 
 				const dataURL = canvas.toDataURL('image/webp', 0.95);
 				const resp = await fetch(dataURL);

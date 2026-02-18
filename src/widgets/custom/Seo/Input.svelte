@@ -44,7 +44,7 @@
 	// --- Lifecycle ---
 	onMount(() => {
 		// Initialize value structure if missing
-		if (!value) value = {};
+		if (!value) { value = {}; }
 		if (!value[lang]) {
 			value[lang] = {
 				title: '',
@@ -75,7 +75,7 @@
 	// Only run analysis when relevant fields change to improve performance
 	$effect(() => {
 		const langData = value?.[lang];
-		if (!langData) return;
+		if (!langData) { return; }
 
 		// Create dependency on relevant fields only
 		void langData.title;
@@ -95,7 +95,7 @@
 	// --- Actions ---
 
 	async function runAnalysis() {
-		if (!(value && value[lang])) return;
+		if (!(value?.[lang])) { return; }
 		isAnalyzing = true;
 
 		// TODO: Connect to actual content store when available
@@ -116,11 +116,11 @@
 
 	// --- Helper: Translation Percentage ---
 	function getFieldTranslationPercentage(fieldName: string): number {
-		if (!value || availableLanguages.length === 0) return 0;
+		if (!value || availableLanguages.length === 0) { return 0; }
 		const safeValue = value; // Capture for closure safety
 		const populatedCount = availableLanguages.filter((l) => {
 			const langData = safeValue[l];
-			if (!langData) return false;
+			if (!langData) { return false; }
 			const fieldData = langData[fieldName as keyof SeoWidgetData];
 			return typeof fieldData === 'string' && fieldData.trim() !== '';
 		}).length;
@@ -130,7 +130,7 @@
 	// --- UI Helpers ---
 	// Update wrapper for SeoField to bind back to the deeply nested value
 	const updateField = (fieldName: keyof SeoWidgetData, newVal: string) => {
-		if (!(value && value[lang])) return;
+		if (!(value?.[lang])) { return; }
 		// Cast to any to allow updating union types like twitterCard with strict string
 		(value[lang] as any)[fieldName] = newVal;
 	};

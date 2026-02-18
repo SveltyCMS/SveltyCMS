@@ -47,8 +47,8 @@
 	let inputRef = $state<HTMLInputElement | HTMLTextAreaElement | undefined>(undefined);
 
 	const getLengthClass = () => {
-		if (maxLength && value.length > maxLength) return 'text-error-500';
-		if (value.length >= optimalMin && value.length <= optimalMax) return 'text-success-500';
+		if (maxLength && value.length > maxLength) { return 'text-error-500'; }
+		if (value.length >= optimalMin && value.length <= optimalMax) { return 'text-success-500'; }
 		return 'text-surface-400';
 	};
 </script>

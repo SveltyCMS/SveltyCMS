@@ -71,7 +71,7 @@
 
 	// Define number validation schema with range validations
 	const validationSchemaFunc = $derived.by(() => {
-		const rules: Array<any> = [];
+		const rules: any[] = [];
 
 		if (typeof field.min === 'number') {
 			rules.push(minValue(field.min, `Value must be at least ${field.min}`));
@@ -98,7 +98,7 @@
 
 		if (!inputValue || inputValue === '') {
 			if (field.translated) {
-				if (!value || typeof value !== 'object') value = {};
+				if (!value || typeof value !== 'object') { value = {}; }
 				value = { ...value, [_language]: null };
 			} else {
 				value = null;
@@ -110,7 +110,7 @@
 		const decimalSeparator = getDecimalSeparator(language);
 
 		// Allow partial input (ending with decimal separator)
-		if (inputValue[inputValue.length - 1] === decimalSeparator) {
+		if (inputValue.at(-1) === decimalSeparator) {
 			return;
 		}
 
@@ -118,9 +118,9 @@
 		const cleanedValue = inputValue.replace(new RegExp(`[^0-9${decimalSeparator}-]`, 'g'), '').replace(decimalSeparator, '.');
 		const number = Number.parseFloat(cleanedValue);
 
-		if (!isNaN(number)) {
+		if (!Number.isNaN(number)) {
 			if (field.translated) {
-				if (!value || typeof value !== 'object') value = {};
+				if (!value || typeof value !== 'object') { value = {}; }
 				value = { ...value, [_language]: number };
 			} else {
 				value = number;
@@ -142,7 +142,7 @@
 
 	// Validation function
 	function validateInput(immediate = false) {
-		if (debounceTimeout) clearTimeout(debounceTimeout);
+		if (debounceTimeout) { clearTimeout(debounceTimeout); }
 
 		const doValidation = () => {
 			isValidating = true;
@@ -177,7 +177,7 @@
 
 	// Cleanup
 	onDestroy(() => {
-		if (debounceTimeout) clearTimeout(debounceTimeout);
+		if (debounceTimeout) { clearTimeout(debounceTimeout); }
 	});
 
 	import SystemTooltip from '@components/system/SystemTooltip.svelte';

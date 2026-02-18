@@ -202,15 +202,15 @@
 	const availableActions = $derived.by(() => {
 		return ACTION_CONFIGS.filter((config) => {
 			// Don't show current action in dropdown
-			if (config.type === currentAction) return false;
+			if (config.type === currentAction) { return false; }
 			// Always hide create from dropdown
-			if (config.type === 'create') return false;
+			if (config.type === 'create') { return false; }
 
 			// Hide redundant actions based on selection
 			if (hasSelections) {
-				if (config.type === 'publish' && stats.published === selectedCount) return false;
-				if (config.type === 'unpublish' && stats.drafts === selectedCount && stats.published === 0) return false;
-				if (config.type === 'draft' && stats.drafts === selectedCount) return false;
+				if (config.type === 'publish' && stats.published === selectedCount) { return false; }
+				if (config.type === 'unpublish' && stats.drafts === selectedCount && stats.published === 0) { return false; }
+				if (config.type === 'draft' && stats.drafts === selectedCount) { return false; }
 			}
 
 			return true;
@@ -227,19 +227,19 @@
 			return;
 		}
 
-		if (manualActionSet) return;
+		if (manualActionSet) { return; }
 
 		if (!hasSelections) {
-			if (currentAction !== 'create') storeListboxValue.set('create');
+			if (currentAction !== 'create') { storeListboxValue.set('create'); }
 			return;
 		}
 
 		// Selection logic: prioritize Unpublish if only published items are selected
 		if (stats.published > 0 && stats.published === selectedCount) {
-			if (currentAction !== 'unpublish') storeListboxValue.set('unpublish');
+			if (currentAction !== 'unpublish') { storeListboxValue.set('unpublish'); }
 		} else {
 			// Mixed or Drafts: prioritize Publish
-			if (currentAction !== 'publish') storeListboxValue.set('publish');
+			if (currentAction !== 'publish') { storeListboxValue.set('publish'); }
 		}
 	});
 
@@ -260,7 +260,7 @@
 
 	// Click outside handler
 	$effect(() => {
-		if (!isDropdownOpen) return;
+		if (!isDropdownOpen) { return; }
 
 		const handleClickOutside = (event: MouseEvent) => {
 			const target = event.target as HTMLElement;
@@ -321,10 +321,10 @@
 		}
 
 		// Global shortcuts with Alt key
-		if (!e.altKey) return;
+		if (!e.altKey) { return; }
 
 		const matchedConfig = ACTION_CONFIGS.find((config) => {
-			if (!config.shortcutKey) return false;
+			if (!config.shortcutKey) { return false; }
 			return e.key.toLowerCase() === config.shortcutKey.toLowerCase() || e.key === config.shortcutKey;
 		});
 

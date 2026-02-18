@@ -24,11 +24,11 @@ Accessible breadcrumb navigation with icons, keyboard support, and visual feedba
 -->
 
 <script lang="ts">
-	type Folder = {
+	interface Folder {
 		_id: string;
 		name: string;
 		path: string[];
-	};
+	}
 
 	interface Props {
 		breadcrumb: string[];

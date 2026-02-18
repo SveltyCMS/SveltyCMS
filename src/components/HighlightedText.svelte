@@ -61,12 +61,12 @@ Intelligent text highlighting with character limits and expand/collapse function
 
 	// Build regex from multiple terms
 	const highlightingRegex = $derived.by(() => {
-		if (!(term && term.trim())) return null;
+		if (!(term?.trim())) { return null; }
 
 		// Split by whitespace and escape each term
 		const terms = term.trim().split(/\s+/).filter(Boolean).map(escapeRegex);
 
-		if (terms.length === 0) return null;
+		if (terms.length === 0) { return null; }
 
 		// Create regex with all terms
 		const pattern = terms.join('|');
@@ -75,10 +75,10 @@ Intelligent text highlighting with character limits and expand/collapse function
 
 	// Determine display text (truncated or full)
 	const displayText = $derived.by(() => {
-		if (!text) return '';
+		if (!text) { return ''; }
 
 		const shouldLimit = !isExpanded && charLimit > 0 && text.length > charLimit;
-		return shouldLimit ? text.slice(0, charLimit) + '...' : text;
+		return shouldLimit ? `${text.slice(0, charLimit)}...` : text;
 	});
 
 	// Split text into segments (highlighted and normal)
@@ -95,7 +95,7 @@ Intelligent text highlighting with character limits and expand/collapse function
 
 		// Use replace to find all matches
 		currentText.replace(regex, (match, ...args) => {
-			const index = args[args.length - 2]; // Second-to-last arg is the index
+			const index = args.at(-2); // Second-to-last arg is the index
 
 			// Add non-highlighted text before match
 			if (index > lastIndex) {
@@ -132,7 +132,7 @@ Intelligent text highlighting with character limits and expand/collapse function
 	// Count highlighted matches
 	const matchCount = $derived.by(() => {
 		const regex = highlightingRegex;
-		if (!(regex && text)) return 0;
+		if (!(regex && text)) { return 0; }
 
 		const matches = text.match(regex);
 		return matches ? matches.length : 0;

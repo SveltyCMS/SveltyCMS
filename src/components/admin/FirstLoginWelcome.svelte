@@ -167,9 +167,7 @@
 					<button
 						class="h-3 w-3 rounded-full transition-colors duration-200 {index === currentStep
 							? 'bg-blue-600'
-							: step.completed
-								? 'bg-green-500'
-								: 'bg-gray-300 dark:bg-gray-600'}"
+							: step.completed 'bg-green-500' 'bg-gray-300 dark:bg-gray-600'}"
 						onclick={() => (currentStep = index)}
 						aria-label="Go to step {index + 1}: {step.title}"
 					></button>

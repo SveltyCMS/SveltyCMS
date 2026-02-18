@@ -31,7 +31,7 @@
 
 import { metricsService } from '@src/services/MetricsService';
 import { getPrivateSettingSync } from '@src/services/settingsService';
-import type { Handle } from '@sveltejs/kit';
+import type { Handle, RequestEvent } from '@sveltejs/kit';
 import { error } from '@sveltejs/kit';
 import { AppError, handleApiError } from '@utils/errorHandling';
 import { logger } from '@utils/logger.server';
@@ -91,6 +91,39 @@ const LEGITIMATE_BOT_PATTERNS = [
 ];
 
 // --- UTILITY FUNCTIONS ---
+
+/**
+ * Validates request origin to prevent CSRF attacks.
+ * @param event - The SvelteKit request event
+ * @returns True if the request is from a trusted origin
+ */
+function isTrustedOrigin(event: RequestEvent): boolean {
+	const origin = event.request.headers.get('origin');
+	const referer = event.request.headers.get('referer');
+	const host = event.url.host;
+	const protocol = event.url.protocol;
+
+	// 1. Check Origin header (most reliable)
+	if (origin) {
+		const expectedOrigin = `${protocol}//${host}`;
+		return origin === expectedOrigin;
+	}
+
+	// 2. Fallback to Referer header
+	if (referer) {
+		try {
+			const refererUrl = new URL(referer);
+			return refererUrl.host === host && refererUrl.protocol === protocol;
+		} catch {
+			return false;
+		}
+	}
+
+	// 3. If neither header is present, we only allow it for non-mutation requests
+	// or if specifically allowed (e.g., from a trusted mobile app - would need API key check)
+	const method = event.request.method;
+	return !['POST', 'PUT', 'DELETE', 'PATCH'].includes(method);
+}
 
 /**
  * Checks if a user agent represents a legitimate bot.
@@ -173,7 +206,15 @@ export const handleFirewall: Handle = async ({ event, resolve }) => {
 			throw new AppError('Forbidden: Automated access detected', 403, 'BOT_DETECTED');
 		}
 
-		// --- 2. Application-Level Threat Detection ---
+		// --- 2. CSRF Protection ---
+		// Validate origin for state-changing requests
+		if (!(['GET', 'HEAD', 'OPTIONS'].includes(request.method) || isTrustedOrigin(event))) {
+			metricsService.incrementSecurityViolations();
+			logger.warn(`Potential CSRF attempt blocked: IP=${event.getClientAddress()}, Path=${pathname}, Origin=${request.headers.get('origin')}`);
+			throw new AppError('Forbidden: Origin not trusted', 403, 'CSRF_DETECTED');
+		}
+
+		// --- 3. Application-Level Threat Detection ---
 		// Check for patterns that Nginx can't detect (business logic abuse)
 		if (hasApplicationThreat(pathname, search)) {
 			metricsService.incrementSecurityViolations();

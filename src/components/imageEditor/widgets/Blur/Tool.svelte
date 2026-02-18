@@ -65,7 +65,7 @@ Controller for Blur tool using svelte-canvas compatible state.
 
 	const renderBlurRegions = ({ context, width, height }: { context: CanvasRenderingContext2D; width: number; height: number }) => {
 		const { blurRegions, zoom, translateX, translateY, imageElement } = storeState;
-		if (!imageElement) return;
+		if (!imageElement) { return; }
 
 		context.save();
 		context.translate(width / 2 + translateX, height / 2 + translateY);

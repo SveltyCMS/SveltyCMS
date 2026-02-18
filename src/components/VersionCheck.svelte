@@ -28,25 +28,25 @@ latest version available on GitHub with comprehensive status reporting.
 	import { browser } from '$app/environment';
 
 	// Types
-	type VersionStatus = {
-		pkg: string;
-		githubVersion: string;
-		badgeVariant: 'variant-filled' | 'variant-soft' | 'variant-outline' | 'variant-glass';
+	interface VersionStatus {
 		badgeColor: string;
-		versionStatusMessage: string;
+		badgeVariant: 'variant-filled' | 'variant-soft' | 'variant-outline' | 'variant-glass';
+		error: string | null;
+		githubVersion: string;
+		isLoading: boolean;
+		lastChecked: number | null;
+		pkg: string;
 		statusIcon: string;
 		statusSeverity: 'critical' | 'warning' | 'info' | 'success' | 'unknown';
-		isLoading: boolean;
-		error: string | null;
-		lastChecked: number | null;
-	};
+		versionStatusMessage: string;
+	}
 
-	type VersionProps = {
-		transparent?: boolean;
+	interface VersionProps {
+		children?: import('svelte').Snippet<[VersionStatus]>;
 		compact?: boolean;
 		onStatusChange?: (status: VersionStatus) => void;
-		children?: import('svelte').Snippet<[VersionStatus]>;
-	};
+		transparent?: boolean;
+	}
 
 	const { transparent = false, compact = false, onStatusChange, children }: VersionProps = $props();
 
@@ -111,9 +111,9 @@ latest version available on GitHub with comprehensive status reporting.
 		const [localMajor, localMinor, localPatch] = parseVersion(local);
 		const [remoteMajor, remoteMinor, remotePatch] = parseVersion(remote);
 
-		if (remoteMajor > localMajor) return 'major';
-		if (remoteMajor === localMajor && remoteMinor > localMinor) return 'minor';
-		if (remoteMajor === localMajor && remoteMinor === localMinor && remotePatch > localPatch) return 'patch';
+		if (remoteMajor > localMajor) { return 'major'; }
+		if (remoteMajor === localMajor && remoteMinor > localMinor) { return 'minor'; }
+		if (remoteMajor === localMajor && remoteMinor === localMinor && remotePatch > localPatch) { return 'patch'; }
 		return 'current';
 	}
 
@@ -181,7 +181,8 @@ latest version available on GitHub with comprehensive status reporting.
 
 	// Fetch version with retry logic
 	async function checkVersion(retry = 0): Promise<void> {
-		if (isLoading && retry === 0) return; // Prevent duplicate requests
+		if (isLoading && retry === 0) { return; // Prevent duplicate requests
+}
 
 		isLoading = true;
 		error = null;

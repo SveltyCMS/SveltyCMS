@@ -20,7 +20,7 @@ Handles all field types and validation automatically
 	import { logger } from '@utils/logger';
 	import { showConfirm } from '@utils/modalUtils';
 	import { onMount } from 'svelte';
-	import { SvelteSet } from 'svelte/reactivity';
+	import type { SvelteSet } from 'svelte/reactivity';
 	// Types and Utilities
 	import type { SettingField, SettingGroup } from './settingsGroups';
 
@@ -146,32 +146,32 @@ Handles all field types and validation automatically
 	function getFieldIcon(field: SettingField): string {
 		// Check field key patterns first
 		const key = field.key.toLowerCase();
-		if (key.includes('email') || key.includes('smtp_user')) return 'mdi:email';
-		if (key.includes('password') || key.includes('secret') || key.includes('token')) return 'mdi:lock';
-		if (key.includes('host') || key.includes('url') || key.includes('domain')) return 'mdi:web';
-		if (key.includes('port')) return 'mdi:power-plug';
-		if (key.includes('database') || key.includes('db')) return 'mdi:database';
-		if (key.includes('path') || key.includes('folder') || key.includes('directory')) return 'mdi:folder';
-		if (key.includes('log') || key.includes('logging')) return 'mdi:math-log';
-		if (key.includes('cache')) return 'mdi:cached';
-		if (key.includes('timeout') || key.includes('duration') || key.includes('ttl')) return 'mdi:timer';
-		if (key.includes('limit') || key.includes('max') || key.includes('min')) return 'mdi:speedometer';
-		if (key.includes('enable') || key.includes('allow')) return 'mdi:toggle-switch';
-		if (key.includes('jwt')) return 'mdi:key';
-		if (key.includes('oauth') || key.includes('auth')) return 'mdi:shield-account';
-		if (key.includes('redis')) return 'mdi:database-cog';
-		if (key.includes('smtp')) return 'mdi:email-send';
-		if (key.includes('site') || key.includes('name')) return 'mdi:web-box';
-		if (key.includes('storage')) return 'mdi:harddisk';
-		if (key.includes('backup')) return 'mdi:backup-restore';
+		if (key.includes('email') || key.includes('smtp_user')) { return 'mdi:email'; }
+		if (key.includes('password') || key.includes('secret') || key.includes('token')) { return 'mdi:lock'; }
+		if (key.includes('host') || key.includes('url') || key.includes('domain')) { return 'mdi:web'; }
+		if (key.includes('port')) { return 'mdi:power-plug'; }
+		if (key.includes('database') || key.includes('db')) { return 'mdi:database'; }
+		if (key.includes('path') || key.includes('folder') || key.includes('directory')) { return 'mdi:folder'; }
+		if (key.includes('log') || key.includes('logging')) { return 'mdi:math-log'; }
+		if (key.includes('cache')) { return 'mdi:cached'; }
+		if (key.includes('timeout') || key.includes('duration') || key.includes('ttl')) { return 'mdi:timer'; }
+		if (key.includes('limit') || key.includes('max') || key.includes('min')) { return 'mdi:speedometer'; }
+		if (key.includes('enable') || key.includes('allow')) { return 'mdi:toggle-switch'; }
+		if (key.includes('jwt')) { return 'mdi:key'; }
+		if (key.includes('oauth') || key.includes('auth')) { return 'mdi:shield-account'; }
+		if (key.includes('redis')) { return 'mdi:database-cog'; }
+		if (key.includes('smtp')) { return 'mdi:email-send'; }
+		if (key.includes('site') || key.includes('name')) { return 'mdi:web-box'; }
+		if (key.includes('storage')) { return 'mdi:harddisk'; }
+		if (key.includes('backup')) { return 'mdi:backup-restore'; }
 
 		// Check field type
-		if (field.type === 'boolean') return 'mdi:checkbox-marked';
-		if (field.type === 'number') return 'mdi:numeric';
-		if (field.type === 'array') return 'mdi:format-list-bulleted';
-		if (field.type === 'select') return 'mdi:form-dropdown';
-		if (field.type === 'password') return 'mdi:lock';
-		if (field.type === 'loglevel-multi') return 'mdi:math-log';
+		if (field.type === 'boolean') { return 'mdi:checkbox-marked'; }
+		if (field.type === 'number') { return 'mdi:numeric'; }
+		if (field.type === 'array') { return 'mdi:format-list-bulleted'; }
+		if (field.type === 'select') { return 'mdi:form-dropdown'; }
+		if (field.type === 'password') { return 'mdi:lock'; }
+		if (field.type === 'loglevel-multi') { return 'mdi:math-log'; }
 
 		// Default icon
 		return 'mdi:text-box';
@@ -375,8 +375,8 @@ Handles all field types and validation automatically
 
 	// Format duration for display
 	function formatDuration(seconds: number): string {
-		if (seconds < 60) return `${seconds}s`;
-		if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
+		if (seconds < 60) { return `${seconds}s`; }
+		if (seconds < 3600) { return `${Math.floor(seconds / 60)}m`; }
 		const hours = Math.floor(seconds / 3600);
 		const mins = Math.floor((seconds % 3600) / 60);
 		return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
@@ -403,7 +403,7 @@ Handles all field types and validation automatically
 	// Close language picker on click outside
 	$effect(() => {
 		const openPickers = Object.keys(showLanguagePicker).filter((key) => showLanguagePicker[key]);
-		if (openPickers.length === 0) return;
+		if (openPickers.length === 0) { return; }
 
 		const handler = (e: MouseEvent) => {
 			openPickers.forEach((key) => {
@@ -421,7 +421,7 @@ Handles all field types and validation automatically
 	// Close log level picker on click outside
 	$effect(() => {
 		const openPickers = Object.keys(showLogLevelPicker).filter((key) => showLogLevelPicker[key]);
-		if (openPickers.length === 0) return;
+		if (openPickers.length === 0) { return; }
 
 		const handler = (e: MouseEvent) => {
 			openPickers.forEach((key) => {
@@ -528,7 +528,7 @@ Handles all field types and validation automatically
 									aria-describedby={errors[defaultLangField.key] ? `${defaultLangField.key}-error` : undefined}
 								>
 									{#if (values.AVAILABLE_CONTENT_LANGUAGES as string[])?.length > 0}
-										{#each values.AVAILABLE_CONTENT_LANGUAGES as string[] as langCode (langCode)}
+										{#each values.AVAILABLE_CONTENT_LANGUAGES as langCode (langCode)}
 											<option value={langCode}>{displayLanguage(langCode)} ({langCode})</option>
 										{/each}
 									{:else}
@@ -562,7 +562,7 @@ Handles all field types and validation automatically
 											: 'border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700/40'}"
 									>
 										{#if (values[availableLangsField.key] as string[])?.length > 0}
-											{#each values[availableLangsField.key] as string[] as langCode (langCode)}
+											{#each values[availableLangsField.key] as langCode (langCode)}
 												<span
 													class="group badge preset-filled-tertiary-500 hover:preset-filled-tertiary-600 dark:preset-filled-primary-500 dark:hover:preset-filled-primary-600 inline-flex items-center gap-2 rounded-full px-3 py-1 text-white transition-colors"
 												>
@@ -614,7 +614,7 @@ Handles all field types and validation automatically
 												class="mb-2 w-full rounded border border-slate-300/60 bg-transparent px-2 py-1 text-xs outline-none focus:border-primary-500 dark:border-slate-600"
 												placeholder="Search..."
 												bind:value={languageSearch[availableLangsField.key]}
-											/>
+											>
 											<div class="max-h-48 overflow-auto">
 												{#each iso6391.filter((lang: { code: string; name: string; native: string }) => {
 													const search = (languageSearch[availableLangsField.key] || '').toLowerCase();
@@ -678,7 +678,7 @@ Handles all field types and validation automatically
 									onchange={() => (errors[baseLocaleField.key] = '')}
 								>
 									{#if (values.LOCALES as string[])?.length > 0}
-										{#each values.LOCALES as string[] as langCode (langCode)}
+										{#each values.LOCALES as langCode (langCode)}
 											<option value={langCode}>{displayLanguage(langCode)} ({langCode})</option>
 										{/each}
 									{:else}
@@ -712,7 +712,7 @@ Handles all field types and validation automatically
 											: 'border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700/40'}"
 									>
 										{#if (values[localesField.key] as string[])?.length > 0}
-											{#each values[localesField.key] as string[] as langCode (langCode)}
+											{#each values[localesField.key] as langCode (langCode)}
 												<span
 													class="group badge preset-filled-tertiary-500 hover:preset-filled-tertiary-600 dark:preset-filled-primary-500 dark:hover:preset-filled-primary-600 inline-flex items-center gap-2 rounded-full px-3 py-1 text-white transition-colors"
 												>
@@ -772,7 +772,7 @@ Handles all field types and validation automatically
 												class="mb-2 w-full rounded border border-slate-300/60 bg-transparent px-2 py-1 text-xs outline-none focus:border-primary-500 dark:border-slate-600"
 												placeholder="Search..."
 												bind:value={languageSearch[localesField.key]}
-											/>
+											>
 											<div class="max-h-48 overflow-auto">
 												{#each allowedLocales.filter((code: string) => {
 													const search = (languageSearch[localesField.key] || '').toLowerCase();
@@ -818,10 +818,7 @@ Handles all field types and validation automatically
 					{#each group.fields as field (field.key)}
 						<div
 							class="space-y-2 overflow-visible max-w-full {field.type === 'array' ||
-							field.type === 'password' ||
-							field.type === 'language-multi' ||
-							field.type === 'loglevel-multi' ||
-							field.type === 'textarea'
+							['password', 'language-multi', 'loglevel-multi', 'textarea'].includes(field.type as any)
 								? 'md:col-span-2'
 								: ''}"
 						>
@@ -834,7 +831,10 @@ Handles all field types and validation automatically
 										{#if field.required}
 											<span class="text-error-500">*</span>
 										{/if}
-										<iconify-icon icon="material-symbols:info-outline" width="16" class="text-surface-500 dark:text-surface-50 opacity-60"
+										<iconify-icon
+											icon="material-symbols:info-outline"
+											width="16"
+											class="text-surface-500 dark:text-surface-50 opacity-60"
 										></iconify-icon>
 									</span>
 								</SystemTooltip>
@@ -854,8 +854,8 @@ Handles all field types and validation automatically
 									disabled={field.readonly}
 									oninput={() => (errors[field.key] = '')}
 									aria-invalid={!!errors[field.key]}
-								/>
-								<!-- Number Input -->
+								>
+							<!-- Number Input -->
 							{:else if field.type === 'number'}
 								<div class="input-group input-group-divider grid-cols-[1fr_auto] max-w-full">
 									<input
@@ -869,20 +869,17 @@ Handles all field types and validation automatically
 										max={field.max}
 										oninput={() => (errors[field.key] = '')}
 										aria-invalid={!!errors[field.key]}
-									/>
+									>
 									{#if field.unit}
 										<div class="input-group-shim text-sm">
 											{field.unit}
 											{#if typeof values[field.key] === 'number' && field.unit === 'seconds'}
-												<span class="ml-2 text-surface-500 dark:text-surface-50">
-													({formatDuration(values[field.key] as number)})
-												</span>
+												<span class="ml-2 text-surface-500 dark:text-surface-50"> ({formatDuration(values[field.key] as number)}) </span>
 											{/if}
 										</div>
 									{/if}
 								</div>
-
-								<!-- Password Input -->
+							<!-- Password Input -->
 							{:else if field.type === 'password'}
 								<div class="relative">
 									<input
@@ -896,7 +893,7 @@ Handles all field types and validation automatically
 										oninput={() => (errors[field.key] = '')}
 										autocomplete="current-password"
 										aria-invalid={!!errors[field.key]}
-									/>
+									>
 									{#if !field.readonly}
 										<button
 											type="button"
@@ -908,8 +905,7 @@ Handles all field types and validation automatically
 										</button>
 									{/if}
 								</div>
-
-								<!-- Boolean Input -->
+							<!-- Boolean Input -->
 							{:else if field.type === 'boolean'}
 								<label class="flex items-center space-x-2">
 									<input
@@ -921,10 +917,10 @@ Handles all field types and validation automatically
 											values[field.key] = (e.target as HTMLInputElement).checked;
 											errors[field.key] = '';
 										}}
-									/>
+									>
 									<span>Enable {field.label}</span>
 								</label>
-								<!-- Select Input -->
+							<!-- Select Input -->
 							{:else if field.type === 'select' && field.options}
 								<select
 									id={field.key}
@@ -939,8 +935,7 @@ Handles all field types and validation automatically
 										<option value={option.value}>{option.label}</option>
 									{/each}
 								</select>
-
-								<!-- Array Input -->
+							<!-- Array Input -->
 							{:else if field.type === 'array'}
 								<input
 									id={field.key}
@@ -954,10 +949,9 @@ Handles all field types and validation automatically
 										errors[field.key] = '';
 									}}
 									aria-invalid={!!errors[field.key]}
-								/>
+								>
 								<p class="mt-1 text-xs text-surface-500 dark:text-surface-50">Enter values separated by commas</p>
-
-								<!-- Language Multi-Select -->
+							<!-- Language Multi-Select -->
 							{:else if field.type === 'language-multi'}
 								<!-- Language Multi-Select (Styled like SystemConfig.svelte) -->
 								<div class="relative">
@@ -967,7 +961,7 @@ Handles all field types and validation automatically
 											: 'border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700/40'}"
 									>
 										{#if (values[field.key] as string[])?.length > 0}
-											{#each values[field.key] as string[] as langCode (langCode)}
+											{#each values[field.key] as langCode (langCode)}
 												<span
 													class="group badge preset-filled-tertiary-500 hover:preset-filled-tertiary-600 dark:preset-filled-primary-500 dark:hover:preset-filled-primary-600 inline-flex items-center gap-2 rounded-full px-3 py-1 text-white transition-colors"
 												>
@@ -1019,7 +1013,7 @@ Handles all field types and validation automatically
 												class="mb-2 w-full rounded border border-slate-300/60 bg-transparent px-2 py-1 text-xs outline-none focus:border-primary-500 dark:border-slate-600"
 												placeholder="Search..."
 												bind:value={languageSearch[field.key]}
-											/>
+											>
 											<div class="max-h-48 overflow-auto">
 												{#each iso6391.filter((lang: { code: string; name: string; native: string }) => {
 													const search = (languageSearch[field.key] || '').toLowerCase();
@@ -1049,8 +1043,7 @@ Handles all field types and validation automatically
 								{#if field.placeholder && (values[field.key] as string[])?.length > 0}
 									<p class="text-surface-500 dark:text-surface-50 mt-1 text-[10px]">Example: {field.placeholder}</p>
 								{/if}
-
-								<!-- Log Level Multi-Select -->
+							<!-- Log Level Multi-Select -->
 							{:else if field.type === 'loglevel-multi'}
 								<div class="relative">
 									<div
@@ -1059,7 +1052,7 @@ Handles all field types and validation automatically
 											: 'border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700/40'}"
 									>
 										{#if (values[field.key] as LogLevel[])?.length > 0}
-											{#each values[field.key] as LogLevel[] as level (level)}
+											{#each values[field.key] as level (level)}
 												<span
 													class="group badge preset-filled-tertiary-500 hover:preset-filled-tertiary-600 dark:preset-filled-primary-500 dark:hover:preset-filled-primary-600 inline-flex items-center gap-2 rounded-full px-3 py-1 text-white transition-colors capitalize"
 												>

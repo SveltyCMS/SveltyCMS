@@ -159,7 +159,7 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 
 		try {
 			const response = await fetch('/api/media');
-			if (!response.ok) throw new Error('Failed to load media');
+			if (!response.ok) { throw new Error('Failed to load media'); }
 			files = await response.json();
 			showInfoSet.clear();
 			selectedFiles.clear();
@@ -358,10 +358,9 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 			{#each filteredFiles as file, index (file.filename)}
 				{@const selected = isSelected(file.filename)}
 				<div
-					class="group card relative flex {currentViewMode.value === 'list'
-						? 'flex-row items-center'
-						: 'flex-col'} overflow-hidden transition-all duration-200 {selected ? 'ring-4 ring-primary-500' : ''}"
-					role="listitem"
+									class="group card relative flex {currentViewMode.value === 'list'
+										? 'flex-row items-center'
+										: 'flex-col'} overflow-hidden transition-all duration-200 {selected ? 'ring-4 ring-primary-500' : ''}"					role="listitem"
 					transition:scale={{ duration: prefersReducedMotion ? 0 : 200, start: 0.95 }}
 				>
 					{#if multiple}

@@ -84,7 +84,7 @@
 
 			// Helper to map DB path to URL path
 			const normalizePath = (p: string) => {
-				if (!p) return '';
+				if (!p) { return ''; }
 				let path = p.replace(/^mediaFolder\//, '').replace(/^files\//, '');
 				path = path.replace(/^\/+/, '');
 				return `/files/${path}`;

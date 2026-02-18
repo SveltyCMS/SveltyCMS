@@ -108,7 +108,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 				isSrv = false;
 			}
 
-			if (!match) return null;
+			if (!match) { return null; }
 
 			const [, user, password, host, database] = match;
 
@@ -232,26 +232,26 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 		switch (dbConfig.type) {
 			case 'mongodb':
 				dbConfig.port = '27017';
-				if (!dbConfig.name) dbConfig.name = 'SveltyCMS';
+				if (!dbConfig.name) { dbConfig.name = 'SveltyCMS'; }
 				break;
 			case 'mariadb':
 				dbConfig.port = '3306';
 				// Change default name for SQL DBs
-				if (dbConfig.name === 'SveltyCMS' || !dbConfig.name) dbConfig.name = 'SveltyCMS_Database';
+				if (dbConfig.name === 'SveltyCMS' || !dbConfig.name) { dbConfig.name = 'SveltyCMS_Database'; }
 				break;
 			case 'postgresql':
 				dbConfig.port = '5432';
-				if (dbConfig.name === 'SveltyCMS' || !dbConfig.name) dbConfig.name = 'SveltyCMS_Database';
+				if (dbConfig.name === 'SveltyCMS' || !dbConfig.name) { dbConfig.name = 'SveltyCMS_Database'; }
 				break;
 			case 'sqlite':
 				// SQLite uses a file path, no port
 				dbConfig.host = './config/database';
 				dbConfig.port = '';
-				if (!dbConfig.name || dbConfig.name === 'SveltyCMS' || dbConfig.name === 'SveltyCMS.db') dbConfig.name = 'SveltyCMS.db';
+				if (!dbConfig.name || dbConfig.name === 'SveltyCMS' || dbConfig.name === 'SveltyCMS.db') { dbConfig.name = 'SveltyCMS.db'; }
 				break;
 			case 'mongodb+srv':
 				dbConfig.port = '';
-				if (!dbConfig.name) dbConfig.name = 'SveltyCMS';
+				if (!dbConfig.name) { dbConfig.name = 'SveltyCMS'; }
 				break;
 		}
 	}

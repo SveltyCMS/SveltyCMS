@@ -65,11 +65,6 @@ export class TokenAdapter {
 	private readonly TokenModel: Model<TokenDocument>;
 
 	constructor() {
-		// Force model recreation if schema changed
-		if (mongoose.models.auth_tokens) {
-			mongoose.models.auth_tokens = undefined;
-		}
-
 		// Create the Token model
 		this.TokenModel = mongoose.models?.auth_tokens || mongoose.model<TokenDocument>('auth_tokens', TokenSchema);
 	}

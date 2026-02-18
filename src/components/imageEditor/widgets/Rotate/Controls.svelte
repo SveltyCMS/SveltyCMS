@@ -42,8 +42,8 @@ Professional rotate controls with straighten and snap features
 	// Normalize angle to -180 to 180 for display
 	const displayAngle = $derived.by(() => {
 		let angle = rotationAngle % 360;
-		if (angle > 180) angle -= 360;
-		if (angle < -180) angle += 360;
+		if (angle > 180) { angle -= 360; }
+		if (angle < -180) { angle += 360; }
 		return Math.round(angle * 10) / 10; // Round to 1 decimal
 	});
 
@@ -54,7 +54,7 @@ Professional rotate controls with straighten and snap features
 
 	// Keyboard shortcuts
 	function handleKeyDown(e: KeyboardEvent) {
-		if ((e.target as HTMLElement).tagName === 'INPUT') return;
+		if ((e.target as HTMLElement).tagName === 'INPUT') { return; }
 
 		const cmdOrCtrl = e.metaKey || e.ctrlKey;
 

@@ -36,11 +36,11 @@ Displays a prominent banner when server restart is required with countdown and s
 
 	// Restart server
 	async function restartServer(skipConfirmation = false) {
-		if (isRestarting) return;
+		if (isRestarting) { return; }
 
 		if (!skipConfirmation) {
 			const confirmed = confirm('Are you sure you want to restart the server? This will temporarily interrupt service.');
-			if (!confirmed) return;
+			if (!confirmed) { return; }
 		}
 
 		isRestarting = true;

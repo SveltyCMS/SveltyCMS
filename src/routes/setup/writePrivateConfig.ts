@@ -33,6 +33,14 @@ export async function writePrivateConfig(dbConfig: DatabaseConfig, system: { mul
 	const jwtSecret = generateRandomKey();
 	const encryptionKey = generateRandomKey();
 
+	// Sanitization helper to prevent code injection via single quotes
+	const escape = (val: string | number | undefined) => {
+		if (val === undefined) {
+			return '';
+		}
+		return String(val).replace(/'/g, "\\'");
+	};
+
 	// Generate the private.ts content
 	const privateConfigContent = `
 /**
@@ -45,12 +53,12 @@ export async function writePrivateConfig(dbConfig: DatabaseConfig, system: { mul
 
 export const privateEnv = {
 	// --- Core Database Connection ---
-	DB_TYPE: '${dbConfig.type}',
-	DB_HOST: '${dbConfig.host}',
-	DB_PORT: ${dbConfig.port || 0},
-	DB_NAME: '${dbConfig.name}',
-	DB_USER: '${dbConfig.user || ''}',
-	DB_PASSWORD: '${dbConfig.password || ''}',
+	DB_TYPE: '${escape(dbConfig.type)}',
+	DB_HOST: '${escape(dbConfig.host)}',
+	DB_PORT: ${Number(dbConfig.port) || 0},
+	DB_NAME: '${escape(dbConfig.name)}',
+	DB_USER: '${escape(dbConfig.user)}',
+	DB_PASSWORD: '${escape(dbConfig.password)}',
 
 	// --- Connection Behavior ---
 	DB_RETRY_ATTEMPTS: 5,
@@ -80,9 +88,9 @@ export const privateEnv = {
 		const requiredFields = [
 			'JWT_SECRET_KEY',
 			'ENCRYPTION_KEY',
-			`DB_HOST: '${dbConfig.host}'`,
-			`DB_NAME: '${dbConfig.name}'`,
-			`DB_TYPE: '${dbConfig.type}'`
+			`DB_HOST: '${escape(dbConfig.host)}'`,
+			`DB_NAME: '${escape(dbConfig.name)}'`,
+			`DB_TYPE: '${escape(dbConfig.type)}'`
 		];
 
 		const missingFields = requiredFields.filter((field) => !writtenContent.includes(field));

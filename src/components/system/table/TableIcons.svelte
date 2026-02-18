@@ -54,12 +54,12 @@
 		role="checkbox"
 		class="mx-auto flex h-[26px] w-[26px] items-center justify-center rounded border-[3px] bg-white dark:bg-transparent
 			{iconStatus === StatusTypes.unpublish
-			? 'border-yellow-500'
-			: iconStatus === StatusTypes.publish
-				? 'border-primary-500'
-				: iconStatus === StatusTypes.schedule
-					? 'border-pink-500'
-					: 'border-surface-800'} 
+				? 'border-yellow-500'
+				: iconStatus === StatusTypes.publish
+					? 'border-primary-500'
+					: iconStatus === StatusTypes.schedule
+						? 'border-pink-500'
+						: 'border-surface-800'} 
 			{!iconStatus ? 'dark:border-surface-400' : ''}"
 	>
 		<!-- Icons rendered based on checked and storeListboxValue -->

@@ -119,9 +119,9 @@
 
 	function getDisplayName(value?: string | null): string {
 		if (!value || isUUID(value)) {
-			if (user?.username && !isUUID(user.username)) return user.username;
-			if (user?.firstName || user?.lastName) return [user.firstName, user.lastName].filter(Boolean).join(' ');
-			if (user?.email) return user.email.split('@')[0];
+			if (user?.username && !isUUID(user.username)) { return user.username; }
+			if (user?.firstName || user?.lastName) { return [user.firstName, user.lastName].filter(Boolean).join(' '); }
+			if (user?.email) { return user.email.split('@')[0]; }
 			return 'system';
 		}
 		return value;
@@ -163,7 +163,7 @@
 		if (scheduleTimestamp) {
 			dataToSave._scheduled = scheduleTimestamp;
 		} else {
-			delete dataToSave._scheduled;
+			dataToSave._scheduled = undefined;
 		}
 
 		// Metadata
@@ -173,7 +173,7 @@
 		dataToSave.updatedBy = getDisplayName(user?.username);
 
 		const success = await saveEntry(dataToSave);
-		if (!success) return;
+		if (!success) { return; }
 
 		await navigationManager.navigateToList();
 	}
@@ -200,9 +200,9 @@
 					return;
 				}
 				const payload = { ...currentEntry };
-				delete payload._id;
-				delete payload.createdAt;
-				delete payload.updatedAt;
+				payload._id = undefined;
+				payload.createdAt = undefined;
+				payload.updatedAt = undefined;
 				payload.status = StatusTypes.draft;
 				payload.clonedFrom = currentEntry._id;
 

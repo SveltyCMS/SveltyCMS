@@ -248,7 +248,7 @@
 }
 
 .btn {
-	padding: spacing(2);
+	padding: calc(var(--spacing) * 2);
 }
 
 /**

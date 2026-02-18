@@ -351,20 +351,25 @@ async function applyImport(importData: ExportData, options: ImportOptions, confl
 /**
  * Log import to audit trail
  */
-async function logImport(userId: string, metadata: ExportMetadata, result: ImportResult): Promise<void> {
-	logger.info('Import audit log', {
-		userId,
-		import_id: metadata.export_id,
-		imported_at: new Date().toISOString(),
-		success: result.success,
-		imported: result.imported,
-		skipped: result.skipped,
-		merged: result.merged,
-		errors: result.errors.length
-	});
+async function logImport(user: any, metadata: ExportMetadata, result: ImportResult): Promise<void> {
+	const { logAuditEvent, AuditEventType } = await import('@src/services/auditLogService');
 
-	// TODO: Store audit log in database
-	// This would typically go to a dedicated audit_logs collection
+	await logAuditEvent({
+		action: `Full system import: ${metadata.export_id}`,
+		actorId: user._id,
+		actorEmail: user.email,
+		eventType: AuditEventType.DATA_IMPORT,
+		result: result.success ? 'success' : 'failure',
+		severity: result.success ? 'medium' : 'high',
+		targetType: 'system',
+		details: {
+			import_id: metadata.export_id,
+			imported: result.imported,
+			skipped: result.skipped,
+			merged: result.merged,
+			errors: result.errors.length
+		}
+	});
 }
 
 /**
@@ -475,7 +480,7 @@ export const POST = apiHandler(async ({ locals, request }) => {
 	const result: ImportResult = await applyImport(importData, importOptions, conflicts);
 
 	// Step 4: Log import for audit trail
-	await logImport(locals.user._id, importData.metadata, result);
+	await logImport(locals.user, importData.metadata, result);
 
 	// Return result
 	return json(

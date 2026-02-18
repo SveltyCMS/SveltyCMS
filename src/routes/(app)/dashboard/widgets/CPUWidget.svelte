@@ -54,7 +54,7 @@
 	let chartCanvasElement: HTMLCanvasElement | undefined = $state(undefined);
 
 	function updateChart(fetchedData: any) {
-		if (!(chartCanvasElement && ChartJS)) return;
+		if (!(chartCanvasElement && ChartJS)) { return; }
 		const cpuInfo = fetchedData?.cpuInfo;
 		const historicalLoad = cpuInfo?.historicalLoad;
 		if (!(historicalLoad && Array.isArray(historicalLoad.usage) && Array.isArray(historicalLoad.timestamps))) {
@@ -107,7 +107,7 @@
 			chartInstance.update('none');
 		} else if (ChartJS) {
 			const existingChart = ChartJS.getChart(chartCanvasElement);
-			if (existingChart) existingChart.destroy();
+			if (existingChart) { existingChart.destroy(); }
 
 			chartInstance = new ChartJS(chartCanvasElement, {
 				type: 'line',
@@ -159,7 +159,7 @@
 							ticks: {
 								color: theme === 'dark' ? '#9ca3af' : '#6b7280',
 								stepSize: 25,
-								callback: (value: any) => value + '%',
+								callback: (value: any) => `${value}%`,
 								font: { size: fontSize }
 							},
 							grid: {
@@ -241,12 +241,12 @@
 		const parent = chartCanvasElement?.parentElement?.parentElement;
 		if (parent && typeof ResizeObserver !== 'undefined') {
 			resizeObserver = new ResizeObserver(() => {
-				if (chartInstance) chartInstance.resize();
+				if (chartInstance) { chartInstance.resize(); }
 			});
 			resizeObserver.observe(parent);
 		}
 		return () => {
-			if (resizeObserver && parent) resizeObserver.disconnect();
+			if (resizeObserver && parent) { resizeObserver.disconnect(); }
 		};
 	});
 
@@ -286,9 +286,7 @@
 								<div
 									class="absolute inset-0 h-3 w-3 rounded-full {usageLevel === 'high'
 										? 'bg-red-500'
-										: usageLevel === 'medium'
-											? 'bg-yellow-500'
-											: 'bg-green-500'} animate-ping opacity-75"
+										: usageLevel === 'medium' ? 'bg-yellow-500' : 'bg-green-500'} animate-ping opacity-75"
 								></div>
 							</div>
 							<span class="text-sm font-bold">{currentUsage.toFixed(1)}%</span>
@@ -305,9 +303,7 @@
 						<div
 							class="h-full rounded-full transition-all duration-700 ease-out {usageLevel === 'high'
 								? 'bg-linear-to-r from-red-500 to-red-600'
-								: usageLevel === 'medium'
-									? 'bg-linear-to-r from-yellow-500 to-orange-500'
-									: 'bg-linear-to-r from-blue-500 to-blue-600'}"
+								: usageLevel === 'medium' ? 'bg-linear-to-r from-yellow-500 to-orange-500' : 'bg-linear-to-r from-blue-500 to-blue-600'}"
 							style="width: {currentUsage}%"
 						></div>
 						<div class="absolute inset-0 h-full w-full animate-pulse bg-linear-to-r from-transparent via-white to-transparent opacity-20"></div>

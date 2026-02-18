@@ -136,7 +136,7 @@
 			}
 
 			// Check for drift detection from server (status 202)
-			if (data && data.driftDetected) {
+			if (data?.driftDetected) {
 				migrationPlan = data.plan;
 				showWarningModal = true;
 				toaster.info({ description: 'Manual confirmation required for schema changes' });

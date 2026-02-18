@@ -211,7 +211,7 @@ export const handleRateLimit: Handle = async ({ event, resolve }) => {
 		// --- Apply Rate Limiting ---
 		let limiter = generalLimiter;
 
-		if (url.pathname.startsWith('/api/auth')) {
+		if (url.pathname.startsWith('/api/auth') || url.pathname === '/api/user/login') {
 			limiter = authLimiter;
 		} else if (url.pathname.startsWith('/api/')) {
 			limiter = apiLimiter;

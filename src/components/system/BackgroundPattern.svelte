@@ -74,7 +74,7 @@ and configurable quality settings for weaker devices.
 
 	// Performance detection with proper types
 	function detectPerformance(): 'low' | 'medium' | 'high' {
-		if (!browser) return 'medium';
+		if (!browser) { return 'medium'; }
 
 		// Properly typed Network Information API
 		interface NavigatorConnection extends Navigator {
@@ -99,21 +99,23 @@ and configurable quality settings for weaker devices.
 		let score = 0;
 
 		// CPU cores
-		if (hardwareConcurrency >= 8) score += 2;
-		else if (hardwareConcurrency >= 4) score += 1;
+		if (hardwareConcurrency >= 8) { score += 2; }
+		else if (hardwareConcurrency >= 4) { score += 1; }
 
 		// Memory (if available)
 		if (memory?.totalJSHeapSize) {
-			if (memory.totalJSHeapSize > 100 * 1024 * 1024)
+			if (memory.totalJSHeapSize > 100 * 1024 * 1024) {
 				score += 2; // 100MB+
-			else if (memory.totalJSHeapSize > 50 * 1024 * 1024) score += 1; // 50MB+
+			}
+			else if (memory.totalJSHeapSize > 50 * 1024 * 1024) { score += 1; // 50MB+
+}
 		}
 
 		// Connection speed
 		if (connection?.effectiveType) {
-			if (connection.effectiveType === '4g') score += 1;
-			else if (connection.effectiveType === '3g') score -= 1;
-			else if (connection.effectiveType === '2g') score -= 2;
+			if (connection.effectiveType === '4g') { score += 1; }
+			else if (connection.effectiveType === '3g') { score -= 1; }
+			else if (connection.effectiveType === '2g') { score -= 2; }
 		}
 
 		// User agent hints (basic mobile detection)
@@ -121,8 +123,8 @@ and configurable quality settings for weaker devices.
 			score -= 1;
 		}
 
-		if (score >= 3) return 'high';
-		if (score >= 1) return 'medium';
+		if (score >= 3) { return 'high'; }
+		if (score >= 1) { return 'medium'; }
 		return 'low';
 	}
 
@@ -194,7 +196,7 @@ and configurable quality settings for weaker devices.
 
 	// Start/stop animation
 	function startAnimation() {
-		if (shouldReduceMotion || !browser) return;
+		if (shouldReduceMotion || !browser) { return; }
 
 		isAnimating = true;
 
@@ -223,7 +225,7 @@ and configurable quality settings for weaker devices.
 	let isVisible = $state(true);
 
 	function setupIntersectionObserver() {
-		if (!(browser && svgElement)) return;
+		if (!(browser && svgElement)) { return; }
 
 		const observer = new IntersectionObserver(
 			(entries) => {

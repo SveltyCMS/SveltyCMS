@@ -18,7 +18,7 @@ Features:
 	// Function to handle permission updates
 	function handlePermissionUpdate(updatedPermissions: Record<string, Record<string, boolean>>) {
 		const w = collections.targetWidget;
-		if (!w) return;
+		if (!w) { return; }
 		w.permissions = updatedPermissions;
 		collections.setTargetWidget(w);
 	}

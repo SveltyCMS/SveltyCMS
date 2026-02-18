@@ -65,7 +65,9 @@ function convertIdToString(obj: unknown): unknown {
 
 		// Process each key/value pair
 		for (const k in value as Record<string, unknown>) {
-			if (!Object.hasOwn(value as Record<string, unknown>, k)) continue;
+			if (!Object.hasOwn(value as Record<string, unknown>, k)) {
+				continue;
+			}
 			const val = (value as Record<string, unknown>)[k];
 			if (val === null) {
 				result[k] = null;
@@ -378,7 +380,9 @@ export const actions: Actions = {
 				// Also delete any thumbnails explicitly listed (for backwards compatibility)
 				if (image.thumbnails) {
 					for (const size in image.thumbnails) {
-						if (!Object.hasOwn(image.thumbnails, size)) continue;
+						if (!Object.hasOwn(image.thumbnails, size)) {
+							continue;
+						}
 						if (image.thumbnails[size]?.url) {
 							const cleanThumbUrl = sanitizePath(image.thumbnails[size].url);
 							try {

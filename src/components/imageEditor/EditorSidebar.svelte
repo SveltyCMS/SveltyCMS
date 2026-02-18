@@ -42,7 +42,7 @@ and proper active state indication.
 	let sidebarRef: HTMLDivElement | undefined;
 
 	function handleToolClick(tool: any) {
-		if (!hasImage) return;
+		if (!hasImage) { return; }
 		onToolSelect(tool.id);
 	}
 
@@ -51,7 +51,7 @@ and proper active state indication.
 	}
 
 	function handleKeyDown(e: KeyboardEvent) {
-		if (!hasImage) return;
+		if (!hasImage) { return; }
 
 		switch (e.key) {
 			case 'ArrowDown':
@@ -74,7 +74,7 @@ and proper active state indication.
 
 	function focusToolButton(index: number) {
 		const buttons = sidebarRef?.querySelectorAll('button');
-		if (buttons && buttons[index]) {
+		if (buttons?.[index]) {
 			(buttons[index] as HTMLElement).focus();
 		}
 	}

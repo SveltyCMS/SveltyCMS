@@ -243,7 +243,7 @@ Advanced permission management interface with bulk actions and presets.
 		const input = event.target as HTMLInputElement;
 		const file = input.files?.[0];
 
-		if (!file) return;
+		if (!file) { return; }
 
 		try {
 			const text = await file.text();
@@ -432,8 +432,7 @@ Advanced permission management interface with bulk actions and presets.
 										aria-label={`${permissionsState[role._id]?.[action] ? 'Disable' : 'Enable'} ${action} for ${role.name}`}
 										class="btn-icon transition-all duration-200 {permissionsState[role._id]?.[action]
 											? 'preset-filled-success-500 hover:scale-110'
-											: 'preset-filled-error-500 opacity-50 hover:opacity-100 hover:scale-110'} {role.isAdmin ? 'cursor-not-allowed opacity-30' : ''}"
-									>
+																							: 'preset-filled-error-500 opacity-50 hover:opacity-100 hover:scale-110'} {role.isAdmin ? 'cursor-not-allowed opacity-30' : ''}"									>
 										<iconify-icon
 											icon={permissionsState[role._id]?.[action] ? 'mdi:check' : 'mdi:check'}
 											width="18"

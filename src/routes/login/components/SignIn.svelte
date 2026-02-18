@@ -95,7 +95,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 	let prefetched = $state(false);
 
 	async function prefetchFirstCollection() {
-		if (prefetched || !firstCollectionPath) return;
+		if (prefetched || !firstCollectionPath) { return; }
 		prefetched = true;
 
 		try {
@@ -290,7 +290,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 					description: 'You can now sign in with your new password'
 				});
 				if (result.type === 'redirect') {
-					if (result.location) goto(result.location);
+					if (result.location) { goto(result.location); }
 					return;
 				}
 			}
@@ -308,7 +308,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 
 	// 2FA Functions
 	async function verify2FA() {
-		if (!twoFACode.trim() || isVerifying2FA) return;
+		if (!twoFACode.trim() || isVerifying2FA) { return; }
 
 		if (!useBackupCode && twoFACode.length !== 6) {
 			toaster.error({ description: m.twofa_error_invalid_code() });

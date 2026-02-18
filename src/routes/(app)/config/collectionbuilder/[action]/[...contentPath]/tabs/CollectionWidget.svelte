@@ -32,7 +32,7 @@
 
 	// Helper function to map fields
 	function mapFieldsWithWidgets(fields: any[]) {
-		if (!fields) return [];
+		if (!fields) { return []; }
 		return fields.map((field, index) => {
 			const widgetType =
 				field.widget?.key || // For new widgets
@@ -87,7 +87,7 @@
 				body: 'Select your widget and then press submit.'
 			},
 			(r: { selectedWidget: string } | undefined) => {
-				if (!r) return;
+				if (!r) { return; }
 				const { selectedWidget } = r;
 				const widgetInstance = get(widgetFunctions)[selectedWidget];
 				if (selectedWidget && widgetInstance) {
@@ -119,7 +119,7 @@
 				value: selectedWidget
 			},
 			(r: any) => {
-				if (!r) return;
+				if (!r) { return; }
 				// Find the index of the existing widget based on its ID
 				const existingIndex = fields.findIndex((widget) => widget.id === r.id);
 

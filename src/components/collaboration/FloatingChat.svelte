@@ -32,7 +32,7 @@ Provides a persistent, draggable UI element that opens the ActivityStream panel.
 
 	// --- Logic ---
 	function loadPosition() {
-		if (!browser) return;
+		if (!browser) { return; }
 		try {
 			const saved = localStorage.getItem('floatingChatPosition');
 			if (saved) {
@@ -61,7 +61,7 @@ Provides a persistent, draggable UI element that opens the ActivityStream panel.
 
 		function handleDown(e: PointerEvent) {
 			// Don't drag if clicking close button
-			if ((e.target as HTMLElement).closest('.close-btn')) return;
+			if ((e.target as HTMLElement).closest('.close-btn')) { return; }
 
 			startX = e.clientX;
 			startY = e.clientY;

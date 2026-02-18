@@ -93,17 +93,24 @@ export const handleSetup: Handle = async ({ event, resolve }) => {
 		}
 
 		// --- Step 3: Handle Complete Setup ---
-		// If setup is complete, BLOCK access to /setup routes (including localized ones)
-		// BUT allow POST requests (form actions like completeSetup) to proceed,
-		// because the setup wizard writes config during seedDatabase (step 0),
-		// and subsequent actions still need to execute.
+		// If setup is complete, BLOCK ALL access to /setup routes (including localized ones).
+		// This prevents unauthenticated setup actions from being called after initialization.
 		const isSetupRoute = pathname.startsWith('/setup') || /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/setup/.test(pathname);
-		if (isSetupRoute && event.request.method === 'GET') {
-			if (!event.locals.__setupLoginRedirectLogged) {
-				logger.trace(`Setup complete. Blocking access to ${pathname}, redirecting to /login`);
-				event.locals.__setupLoginRedirectLogged = true;
+		if (isSetupRoute) {
+			if (event.request.method === 'GET') {
+				if (!event.locals.__setupLoginRedirectLogged) {
+					logger.trace(`Setup complete. Blocking access to ${pathname}, redirecting to /login`);
+					event.locals.__setupLoginRedirectLogged = true;
+				}
+				throw redirect(302, '/');
 			}
-			throw redirect(302, '/');
+
+			// Block POST/PUT/DELETE to setup routes once complete
+			logger.warn(`Blocked ${event.request.method} request to ${pathname} - setup already complete`);
+			if (isApi || event.request.headers.get('accept')?.includes('application/json')) {
+				throw new AppError('Setup already complete.', 403, 'FORBIDDEN');
+			}
+			throw error(403, 'Setup already complete.');
 		}
 
 		// Proceed normally

@@ -44,7 +44,7 @@
 
 	// Handle file change
 	function handleFileChange() {
-		if (!input?.files || input.files.length === 0) return;
+		if (!input?.files || input.files.length === 0) { return; }
 		const file = input.files[0];
 		value = file;
 		show = false;

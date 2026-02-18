@@ -78,25 +78,25 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 
 	// Smart state detection for block/unblock actions
 	const blockState = $derived(() => {
-		if (safeSelectedRows.length === 0) return null;
+		if (safeSelectedRows.length === 0) { return null; }
 
 		if (type === 'user') {
 			const users = safeSelectedRows.filter(isUser);
-			if (users.length === 0) return null;
+			if (users.length === 0) { return null; }
 			const blockedCount = users.filter((user: User) => user.blocked).length;
 			const unblockedCount = users.filter((user: User) => !user.blocked).length;
 
-			if (blockedCount === users.length) return 'all-blocked';
-			if (unblockedCount === users.length) return 'all-unblocked';
+			if (blockedCount === users.length) { return 'all-blocked'; }
+			if (unblockedCount === users.length) { return 'all-unblocked'; }
 			return 'mixed';
 		}
 		const tokens = safeSelectedRows.filter(isToken);
-		if (tokens.length === 0) return null;
+		if (tokens.length === 0) { return null; }
 		const blockedCount = tokens.filter((token: Token) => token.blocked).length;
 		const unblockedCount = tokens.filter((token: Token) => !token.blocked).length;
 
-		if (blockedCount === tokens.length) return 'all-blocked';
-		if (unblockedCount === tokens.length) return 'all-unblocked';
+		if (blockedCount === tokens.length) { return 'all-blocked'; }
+		if (unblockedCount === tokens.length) { return 'all-unblocked'; }
 		return 'mixed';
 	});
 
@@ -154,7 +154,8 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 
 	// Helper function to convert Date to expires format expected by ModalEditToken
 	function convertDateToExpiresFormat(expiresDate: Date | string | null): string {
-		if (!expiresDate) return '7d'; // Default
+		if (!expiresDate) { return '7d'; // Default
+}
 
 		const now = new Date();
 		const expires = new Date(expiresDate);
@@ -163,11 +164,11 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 		const diffDays = Math.ceil(diffHours / 24);
 
 		// Match the available options in ModalEditToken
-		if (diffHours <= 1) return '1h';
-		if (diffDays <= 1) return '1d';
-		if (diffDays <= 7) return '7d';
-		if (diffDays <= 30) return '30d';
-		if (diffDays <= 90) return '90d';
+		if (diffHours <= 1) { return '1h'; }
+		if (diffDays <= 1) { return '1d'; }
+		if (diffDays <= 7) { return '7d'; }
+		if (diffDays <= 30) { return '30d'; }
+		if (diffDays <= 90) { return '90d'; }
 
 		return '90d'; // Max available option
 	}
@@ -453,7 +454,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 						body: config.modalBody()
 					},
 					(res: any) => {
-						if (res && res.success) {
+						if (res?.success) {
 							onUpdate({
 								action: 'refresh',
 								type: 'token',
@@ -478,7 +479,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 
 	function toggleDropdown(e: MouseEvent) {
 		e.stopPropagation();
-		if (isDisabled) return;
+		if (isDisabled) { return; }
 		isDropdownOpen = !isDropdownOpen;
 		if (isDropdownOpen) {
 			// Focus first item next tick
@@ -498,7 +499,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 	}
 
 	function handleDropdownKeydown(event: KeyboardEvent) {
-		if (!isDropdownOpen) return;
+		if (!isDropdownOpen) { return; }
 
 		const menuItems = document.querySelectorAll('[role="menu"] button');
 		const currentIndex = Array.from(menuItems).indexOf(document.activeElement as HTMLElement);

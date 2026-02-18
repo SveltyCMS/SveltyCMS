@@ -49,8 +49,8 @@ Orchestrates crop state using svelte-canvas compatible state.
 					cropShape = s;
 				},
 				onAspectRatio: (r: number | null) => {
-					if (r === 1) cropShape = cropShape === 'circular' ? 'circular' : 'square';
-					else cropShape = 'rectangle';
+					if (r === 1) { cropShape = cropShape === 'circular' ? 'circular' : 'square'; }
+					else { cropShape = 'rectangle'; }
 				},
 
 				onApply: apply,
@@ -83,7 +83,7 @@ Orchestrates crop state using svelte-canvas compatible state.
 	// Helper to convert screen to image coordinates
 	function screenToImage(screenX: number, screenY: number, width: number, height: number) {
 		const { zoom, translateX, translateY, imageElement } = storeState;
-		if (!imageElement) return { x: 0, y: 0 };
+		if (!imageElement) { return { x: 0, y: 0 }; }
 
 		const centerX = width / 2 + translateX;
 		const centerY = height / 2 + translateY;
@@ -97,7 +97,7 @@ Orchestrates crop state using svelte-canvas compatible state.
 	// Export handlers for EditorCanvas to call
 	export function handleMouseDown(e: MouseEvent, width: number, height: number) {
 		const { crop } = storeState;
-		if (!crop) return;
+		if (!crop) { return; }
 
 		const rect = (e.target as HTMLElement).getBoundingClientRect();
 		const offsetX = e.clientX - rect.left;
@@ -127,7 +127,7 @@ Orchestrates crop state using svelte-canvas compatible state.
 	}
 
 	export function handleMouseMove(e: MouseEvent, width: number, height: number) {
-		if (!(activeHandle || isDraggingCrop)) return;
+		if (!(activeHandle || isDraggingCrop)) { return; }
 
 		const rect = (e.target as HTMLElement).getBoundingClientRect();
 		const offsetX = e.clientX - rect.left;
@@ -138,7 +138,7 @@ Orchestrates crop state using svelte-canvas compatible state.
 		const dy = pos.y - lastPointerPos.y;
 
 		const { crop } = storeState;
-		if (!crop) return;
+		if (!crop) { return; }
 
 		if (isDraggingCrop) {
 			crop.x += dx;
@@ -172,7 +172,7 @@ Orchestrates crop state using svelte-canvas compatible state.
 	// Render function for the crop overlay
 	const renderCropUI = ({ context, width, height }: { context: CanvasRenderingContext2D; width: number; height: number }) => {
 		const { crop, zoom, translateX, translateY, imageElement } = storeState;
-		if (!(crop && imageElement)) return;
+		if (!(crop && imageElement)) { return; }
 
 		context.save();
 		context.translate(width / 2 + translateX, height / 2 + translateY);

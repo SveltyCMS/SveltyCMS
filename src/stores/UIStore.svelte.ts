@@ -223,7 +223,9 @@ class UIStore {
 	 */
 	setRouteContext(ctx: { isImageEditor?: boolean; isCollectionBuilder?: boolean }): void {
 		for (const key in ctx) {
-			if (!Object.hasOwn(ctx, key)) continue;
+			if (!Object.hasOwn(ctx, key)) {
+				continue;
+			}
 			const k = key as keyof typeof ctx;
 			if (this.routeContext[k] !== ctx[k]) {
 				this.routeContext[k] = ctx[k] ?? false; // Fallback to false if undefined

@@ -349,13 +349,10 @@ export function registerContentStructureDiscriminators() {
 
 // --- Model Export ---
 
-// Force model recreation to ensure schema changes take effect (especially _id: false)
-if (mongoose.models.system_content_structure) {
-	mongoose.models.system_content_structure = undefined;
-}
-
 // Create the model
-export const ContentStructureModel = mongoose.model<
-	ContentStructureDocument,
-	Model<ContentStructureDocument, object, object, object, object, object> & typeof contentStructureSchema.statics
->('system_content_structure', contentStructureSchema);
+export const ContentStructureModel =
+	(mongoose.models?.system_content_structure as Model<ContentStructureDocument> & typeof contentStructureSchema.statics) ||
+	mongoose.model<
+		ContentStructureDocument,
+		Model<ContentStructureDocument, object, object, object, object, object> & typeof contentStructureSchema.statics
+	>('system_content_structure', contentStructureSchema);

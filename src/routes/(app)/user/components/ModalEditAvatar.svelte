@@ -52,12 +52,12 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 
 	// Computed value for avatar display with fallback
 	const displayAvatar = $derived.by(() => {
-		if (previewUrl) return previewUrl;
-		if (imageLoadError) return '/Default_User.svg';
+		if (previewUrl) { return previewUrl; }
+		if (imageLoadError) { return '/Default_User.svg'; }
 		let src = avatarSrc.value || '/Default_User.svg';
 
-		if (src === '/Default_User.svg') return src;
-		if (src.startsWith('data:')) return src;
+		if (src === '/Default_User.svg') { return src; }
+		if (src.startsWith('data:')) { return src; }
 
 		// Normalize path
 		src = src.replace(/^\/+/, '');
@@ -98,10 +98,10 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 	function onFileChange(details: { acceptedFiles: File[] }) {
 		// v4 FileUpload passes details with acceptedFiles array
 		const inputFiles = details.acceptedFiles;
-		if (!inputFiles || inputFiles.length === 0) return;
+		if (!inputFiles || inputFiles.length === 0) { return; }
 
 		files = inputFiles;
-		const lastFile = files[files.length - 1];
+		const lastFile = files.at(-1);
 
 		// Reset error state when new file is selected
 		imageLoadError = false;
@@ -151,8 +151,9 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 
 	// Handle form submit
 	async function onFormSubmit(): Promise<void> {
-		if (!files || files.length === 0) return;
-		if (isUploading) return; // Prevent double submission
+		if (!files || files.length === 0) { return; }
+		if (isUploading) { return; // Prevent double submission
+}
 
 		const file = files[0];
 
@@ -275,7 +276,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 			isUploading = false;
 			// Keep progress at 100 briefly so user sees it completed
 			setTimeout(() => {
-				if (!isUploading) uploadProgress = 0;
+				if (!isUploading) { uploadProgress = 0; }
 			}, 1000);
 		}
 	}

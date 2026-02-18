@@ -151,7 +151,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 			await invalidateAll();
 
 			// Close modal and trigger response handler
-			if (close) close({ success: true });
+			if (close) { close({ success: true }); }
 		} catch (err) {
 			const message = err instanceof Error ? err.message : 'An unknown error occurred';
 			toaster.error({ title: 'Error', description: message });
@@ -161,7 +161,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 	}
 
 	async function deleteToken(): Promise<void> {
-		if (!tokenForm.data.token) return;
+		if (!tokenForm.data.token) { return; }
 		try {
 			const response = await fetch(`/api/token/${tokenForm.data.token}`, {
 				method: 'DELETE',
@@ -182,7 +182,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 			await invalidateAll();
 
 			// Close modal and trigger response handler
-			if (close) close({ success: true });
+			if (close) { close({ success: true }); }
 		} catch (err) {
 			const message = err instanceof Error ? err.message : 'Failed to delete token';
 			// This catch block will now receive a proper error message if the API fails.

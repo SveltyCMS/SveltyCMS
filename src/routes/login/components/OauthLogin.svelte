@@ -9,7 +9,7 @@
 	let prefetched = $state(false);
 
 	async function prefetchFirstCollection() {
-		if (prefetched) return;
+		if (prefetched) { return; }
 		prefetched = true;
 
 		try {

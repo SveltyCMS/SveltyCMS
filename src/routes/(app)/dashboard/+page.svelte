@@ -104,7 +104,7 @@
 	// Lazy load individual widget when it becomes visible
 	async function loadWidgetComponent(widgetId: string, componentName: string) {
 		// Skip if already loaded
-		if (loadedWidgets.has(widgetId)) return;
+		if (loadedWidgets.has(widgetId)) { return; }
 
 		try {
 			// Dynamically import the widget component
@@ -158,7 +158,7 @@
 	// Helper function to find insertion position based on coordinates
 	function findInsertionPosition(x: number, y: number): number {
 		const gridContainer = mainContainerEl?.querySelector('.responsive-dashboard-grid') as HTMLElement;
-		if (!gridContainer) return currentPreferences.length;
+		if (!gridContainer) { return currentPreferences.length; }
 
 		// Get all widget elements and their positions
 		const widgets = Array.from(gridContainer.querySelectorAll('.widget-container')) as HTMLElement[];
@@ -189,7 +189,7 @@
 				targetX = widgetPositions[0]?.centerX || 0;
 			} else if (i === widgetPositions.length) {
 				// After last widget
-				const lastWidget = widgetPositions[widgetPositions.length - 1];
+				const lastWidget = widgetPositions.at(-1);
 				targetY = lastWidget?.centerY || relativeY;
 				targetX = lastWidget?.centerX || relativeX;
 			} else {
@@ -296,7 +296,7 @@
 		const currentWidgets = [...currentPreferences];
 		const currentIndex = currentWidgets.findIndex((w) => w.id === widget.id);
 
-		if (currentIndex === -1) return;
+		if (currentIndex === -1) { return; }
 
 		// Remove from current position
 		const [movedWidget] = currentWidgets.splice(currentIndex, 1);
@@ -314,12 +314,12 @@
 	}
 	function handleDragStart(event: MouseEvent | TouchEvent | PointerEvent, item: DashboardWidgetConfig, element: HTMLElement) {
 		// Ignore clicks on interactive elements and resize handles
-		if ((event.target as HTMLElement).closest('button, a, input, select, [role=button], .resize-handles, [data-direction]')) return;
+		if ((event.target as HTMLElement).closest('button, a, input, select, [role=button], .resize-handles, [data-direction]')) { return; }
 
 		const coords = 'touches' in event ? event.touches[0] : event;
 		const rect = element.getBoundingClientRect();
 
-		if (coords.clientY - rect.top > HEADER_HEIGHT) return;
+		if (coords.clientY - rect.top > HEADER_HEIGHT) { return; }
 
 		event.preventDefault();
 		dragState = {
@@ -342,7 +342,7 @@
 	}
 
 	function handleDragMove(event: PointerEvent) {
-		if (!(dragState.isActive && dragState.element)) return;
+		if (!(dragState.isActive && dragState.element)) { return; }
 
 		const coords = event;
 		dragState.element.style.left = `${coords.clientX - dragState.offset.x}px`;
@@ -370,7 +370,7 @@
 	}
 
 	function handleDragEnd() {
-		if (!dragState.isActive) return;
+		if (!dragState.isActive) { return; }
 
 		const originalElement = mainContainerEl?.querySelector(`[data-widget-id="${dragState.item?.id}"]`) as HTMLElement;
 		if (originalElement) {
@@ -399,7 +399,7 @@
 		const currentWidgets = [...currentPreferences];
 		const currentIndex = currentWidgets.findIndex((w) => w.id === item.id);
 
-		if (currentIndex === -1) return;
+		if (currentIndex === -1) { return; }
 
 		let targetIndex = currentIndex;
 

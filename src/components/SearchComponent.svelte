@@ -54,7 +54,7 @@
 	function debounce<T extends (...args: any[]) => any>(fn: T, delay: number): (...args: Parameters<T>) => void {
 		let timeoutId: ReturnType<typeof setTimeout> | null = null;
 		return (...args: Parameters<T>) => {
-			if (timeoutId) clearTimeout(timeoutId);
+			if (timeoutId) { clearTimeout(timeoutId); }
 			timeoutId = setTimeout(() => fn(...args), delay);
 		};
 	}
@@ -141,7 +141,7 @@
 		event?.preventDefault();
 
 		const trigger = result.triggers[triggerKey];
-		if (!trigger) return;
+		if (!trigger) { return; }
 
 		const { path, action } = trigger;
 
@@ -167,7 +167,7 @@
 
 	// Scroll selected item into view with smooth behavior
 	function scrollIntoView(index: number) {
-		if (!listElement || index < 0 || index >= searchResults.length) return;
+		if (!listElement || index < 0 || index >= searchResults.length) { return; }
 
 		const selectedItem = listElement.children[index] as HTMLElement | undefined;
 		if (selectedItem) {
@@ -239,11 +239,11 @@
 
 	// Focus trap for accessibility
 	function handleFocusTrap(event: KeyboardEvent) {
-		if (!$isSearchVisible || event.key !== 'Tab') return;
+		if (!$isSearchVisible || event.key !== 'Tab') { return; }
 
 		const focusableElements = document.querySelectorAll('.search-component button, .search-component input');
 		const firstElement = focusableElements[0] as HTMLElement;
-		const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement;
+		const lastElement = focusableElements.at(-1) as HTMLElement;
 
 		if (event.shiftKey && document.activeElement === firstElement) {
 			event.preventDefault();

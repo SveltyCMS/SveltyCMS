@@ -102,8 +102,8 @@
 
 	const avatarUrl = $derived.by(() => {
 		let src = avatarSrc.value;
-		if (!src || src === 'Default_User.svg' || src === '/Default_User.svg') return '/Default_User.svg';
-		if (src.startsWith('data:')) return src;
+		if (!src || src === 'Default_User.svg' || src === '/Default_User.svg') { return '/Default_User.svg'; }
+		if (src.startsWith('data:')) { return src; }
 
 		// Normalize path
 		// 1. Remove leading slashes
@@ -118,8 +118,8 @@
 
 	const themeTooltipText = $derived.by(() => {
 		const current = themeStore.themePreference;
-		if (current === 'system') return 'System theme (click for Light)';
-		if (current === 'light') return 'Light theme (click for Dark)';
+		if (current === 'system') { return 'System theme (click for Light)'; }
+		if (current === 'light') { return 'Light theme (click for Dark)'; }
 		return 'Dark theme (click for System)';
 	});
 
@@ -129,7 +129,7 @@
 	}
 
 	async function navigateTo(path: string): Promise<void> {
-		if (currentPath === path) return;
+		if (currentPath === path) { return; }
 
 		if (isMobile()) {
 			toggleUIElement('leftSidebar', 'hidden');
@@ -143,7 +143,7 @@
 		try {
 			// Special handling: System routes that don't use language prefixes
 			const unlocalizedRoutes = ['/mediagallery', '/config', '/user', '/dashboard', '/setup'];
-			const isUnlocalized = unlocalizedRoutes.some((r) => path === r || path.startsWith(r + '/'));
+			const isUnlocalized = unlocalizedRoutes.some((r) => path === r || path.startsWith(`${r}/`));
 
 			if (isUnlocalized) {
 				await goto(path, { replaceState: false });

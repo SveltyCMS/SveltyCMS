@@ -129,7 +129,7 @@
 		const newSorted = { ...entryListPaginationSettings.sorting };
 		if (newSorted.sortedBy === fieldName) {
 			newSorted.isSorted = newSorted.isSorted === 1 ? -1 : ((newSorted.isSorted === -1 ? 0 : 1) as SortOrder);
-			if (newSorted.isSorted === 0) newSorted.sortedBy = '';
+			if (newSorted.isSorted === 0) { newSorted.sortedBy = ''; }
 		} else {
 			newSorted.sortedBy = fieldName;
 			newSorted.isSorted = 1;
@@ -255,7 +255,7 @@
 
 	// Phase 2: Batch preloading during idle time
 	async function batchPreloadVisibleEntries() {
-		if (!(isPreloadEnabled && browser)) return;
+		if (!(isPreloadEnabled && browser)) { return; }
 
 		// Use requestIdleCallback for background loading
 		if ('requestIdleCallback' in window) {
@@ -448,7 +448,7 @@
 						newFilters[filterName] = value;
 						hasChanges = true;
 					}
-					if (value) hasActiveUrlFilters = true;
+					if (value) { hasActiveUrlFilters = true; }
 				}
 			}
 
@@ -473,7 +473,7 @@
 
 	// ... (helper to map entry data to component props)
 	function mapPluginProps(propMapping: Record<string, string> | undefined, entry: any) {
-		if (!propMapping) return {};
+		if (!propMapping) { return {}; }
 		const props: Record<string, any> = {};
 		for (const [propName, entryPath] of Object.entries(propMapping)) {
 			// Simple path resolution (e.g. "pluginData.performanceScore" or just "performanceScore" if typical flat entry)
@@ -490,7 +490,7 @@
 
 	// Optimized table headers with better caching
 	const tableHeaders = $derived.by((): TableHeader[] => {
-		if (!currentCollection?.fields) return [];
+		if (!currentCollection?.fields) { return []; }
 
 		const cacheKey = `${currentCollection._id}-${currentCollection.fields.length}`;
 
@@ -526,7 +526,7 @@
 						label: col.label,
 						name: col.id,
 						visible: true,
-						width: col.width ? Number.parseInt(col.width) : undefined,
+						width: col.width ? Number.parseInt(col.width, 10) : undefined,
 						sortable: col.sortable,
 						component: col.component,
 						props: col.props

@@ -78,7 +78,9 @@ export function convertDatesToISO<T extends Record<string, unknown>>(row: T): T 
 	const result = { ...row };
 
 	for (const key in result) {
-		if (!Object.hasOwn(result, key)) continue;
+		if (!Object.hasOwn(result, key)) {
+			continue;
+		}
 		const value = result[key];
 		if (value instanceof Date) {
 			(result as Record<string, unknown>)[key] = value.toISOString() as ISODateString;

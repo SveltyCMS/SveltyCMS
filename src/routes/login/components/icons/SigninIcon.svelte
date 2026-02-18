@@ -11,13 +11,13 @@
 	let { show = $bindable(true), disabled = false, onClick = (_event: Event) => {} } = $props();
 
 	function handleClick(event: MouseEvent) {
-		if (disabled) return;
+		if (disabled) { return; }
 		event.stopPropagation();
 		onClick(event); // Ensure onClick uses the event meaningfully
 	}
 
 	function handleKeyDown(event: KeyboardEvent) {
-		if (disabled) return;
+		if (disabled) { return; }
 		if (event.key === 'Enter') {
 			event.stopPropagation();
 			onClick(event); // Ensure onClick uses the event meaningfully

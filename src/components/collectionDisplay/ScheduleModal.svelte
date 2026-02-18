@@ -69,7 +69,7 @@
 	 * If the form is valid, it passes the data back to the component that opened the modal.
 	 */
 	function handleSubmission(): void {
-		if (!validateForm()) return;
+		if (!validateForm()) { return; }
 
 		// Pass data back via modalState.close(), which calls the response callback
 		modalState.close({

@@ -71,14 +71,14 @@ Visual password strength indicator with match validation and accessibility featu
 
 	// Calculate password score
 	function calculateScore(pwd: string, checks: Record<string, boolean>): number {
-		if (pwd.length === 0) return 0;
+		if (pwd.length === 0) { return 0; }
 
 		let score = 0;
 
 		// Base score from length
-		if (pwd.length >= MIN_PASSWORD_LENGTH && pwd.length < YELLOW_LENGTH) score = 1;
-		else if (pwd.length >= YELLOW_LENGTH && pwd.length < GREEN_LENGTH) score = 2;
-		else if (pwd.length >= GREEN_LENGTH) score = 3;
+		if (pwd.length >= MIN_PASSWORD_LENGTH && pwd.length < YELLOW_LENGTH) { score = 1; }
+		else if (pwd.length >= YELLOW_LENGTH && pwd.length < GREEN_LENGTH) { score = 2; }
+		else if (pwd.length >= GREEN_LENGTH) { score = 3; }
 
 		// Complexity bonus (excluding hasMinLength)
 		const complexityCount = Object.entries(checks).filter(([key, value]) => key !== 'hasMinLength' && value).length;
@@ -110,9 +110,9 @@ Visual password strength indicator with match validation and accessibility featu
 
 	// Bar colors
 	function getBarColor(barIndex: number, score: number): string {
-		if (score === 0) return 'bg-gray-200 dark:bg-gray-700';
-		if (barIndex === 0) return score >= 1 ? 'bg-red-500' : 'bg-gray-200 dark:bg-gray-700';
-		if (barIndex === 1) return score >= 2 ? 'bg-yellow-500' : 'bg-gray-200 dark:bg-gray-700';
+		if (score === 0) { return 'bg-gray-200 dark:bg-gray-700'; }
+		if (barIndex === 0) { return score >= 1 ? 'bg-red-500' : 'bg-gray-200 dark:bg-gray-700'; }
+		if (barIndex === 1) { return score >= 2 ? 'bg-yellow-500' : 'bg-gray-200 dark:bg-gray-700'; }
 		return score >= 3 ? 'bg-green-500' : 'bg-gray-200 dark:bg-gray-700';
 	}
 

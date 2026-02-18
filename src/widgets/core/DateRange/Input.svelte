@@ -39,14 +39,14 @@ Part of the Three Pillars Architecture for widget system.
 		const input = e.currentTarget as HTMLInputElement;
 		const dateStr = input.value;
 
-		if (!value) value = { start: '', end: '' };
+		if (!value) { value = { start: '', end: '' }; }
 
 		if (dateStr) {
 			try {
 				const date = new Date(dateStr);
 
 				// Ensure value object exists before assignment
-				if (!value) value = { start: '', end: '' };
+				if (!value) { value = { start: '', end: '' }; }
 
 				// Assign properties safely to the reactive value
 				if (type === 'start') {
@@ -61,7 +61,7 @@ Part of the Three Pillars Architecture for widget system.
 				// Invalid date, ignore
 			}
 		} else {
-			if (!value) value = { start: '', end: '' };
+			if (!value) { value = { start: '', end: '' }; }
 			if (type === 'start') {
 				(value as { start: string; end: string }).start = '';
 			} else {
@@ -71,7 +71,7 @@ Part of the Three Pillars Architecture for widget system.
 	}
 
 	function validateRange() {
-		if (!(value?.start && value?.end)) return;
+		if (!(value?.start && value?.end)) { return; }
 		const start = new Date(value.start);
 		const end = new Date(value.end);
 

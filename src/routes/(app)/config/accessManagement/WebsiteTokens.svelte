@@ -172,8 +172,8 @@
 	}
 
 	function getExpirationDate(): string | null {
-		if (expirationOption === 'never') return null;
-		if (expirationOption === 'custom') return customExpirationDate ? new SvelteDate(customExpirationDate).toISOString() : null;
+		if (expirationOption === 'never') { return null; }
+		if (expirationOption === 'custom') { return customExpirationDate ? new SvelteDate(customExpirationDate).toISOString() : null; }
 
 		const now = new SvelteDate();
 		switch (expirationOption) {
@@ -256,7 +256,7 @@
 	}
 
 	$effect(() => {
-		if (totalItems <= 1) return;
+		if (totalItems <= 1) { return; }
 		void currentPage;
 		void rowsPerPage;
 		void sorting;

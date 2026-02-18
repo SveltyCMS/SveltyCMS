@@ -57,17 +57,17 @@
 		const result: Record<string, TokenDefinition[]> = {};
 		for (const [cat, tokens] of Object.entries(groupedTokens)) {
 			const filtered = tokens.filter((t) => t.name.toLowerCase().includes(q) || t.token.toLowerCase().includes(q));
-			if (filtered.length > 0) result[cat] = filtered;
+			if (filtered.length > 0) { result[cat] = filtered; }
 		}
 		return result;
 	});
 
 	let availableModifiers = $derived(
-		selectedToken ? modifierMetadata.filter((m) => m.accepts.includes(selectedToken!.type) || m.accepts.includes('any')) : []
+		selectedToken ? modifierMetadata.filter((m) => m.accepts.includes(selectedToken?.type) || m.accepts.includes('any')) : []
 	);
 
 	let tokenResult = $derived.by(() => {
-		if (!selectedToken) return '';
+		if (!selectedToken) { return ''; }
 		let str = `{{ ${selectedToken.token}`;
 		selectedModifiers.forEach((mod) => {
 			str += ` | ${mod.def.name}`;
@@ -129,10 +129,10 @@
 		}
 
 		const input = activeInput.current.element;
-		if (!input?.value) return;
+		if (!input?.value) { return; }
 
 		const match = input.value.match(/\{\{\s*([^}]+)\s*\}\}/);
-		if (!match) return;
+		if (!match) { return; }
 
 		const [tokenPath, ...modParts] = match[1].split('|').map((s: string) => s.trim());
 		const foundToken = Object.values(groupedTokens)
@@ -145,9 +145,9 @@
 			selectedModifiers = modParts
 				.map((modStr: string) => {
 					const m = modStr.match(/^(\w+)(?:\((.*)\))?$/);
-					if (!m) return null;
+					if (!m) { return null; }
 					const modDef = modifierMetadata.find((md) => md.name === m[1].toLowerCase());
-					if (!modDef) return null;
+					if (!modDef) { return null; }
 					const rawArgs = m[2] ? m[2].split(',').map((s: string) => s.trim().replace(/^['"]|['"]$/g, '')) : [];
 					const args = modDef.args.map((a, i) => rawArgs[i] ?? a.default);
 					return { def: modDef, args };
@@ -195,7 +195,7 @@
 
 	function insert() {
 		const active = activeInput.current;
-		if (!active) return;
+		if (!active) { return; }
 
 		if (active.onInsert) {
 			active.onInsert(editablePreview.trim());
@@ -204,7 +204,7 @@
 		}
 
 		const el = active.element;
-		if (!el) return;
+		if (!el) { return; }
 
 		el.value = editablePreview.trim();
 		el.focus();
@@ -231,7 +231,7 @@
 
 	function deleteToken() {
 		const active = activeInput.current;
-		if (!active?.element) return;
+		if (!active?.element) { return; }
 
 		active.element.value = '';
 		active.element.dispatchEvent(new Event('input', { bubbles: true }));
@@ -260,7 +260,7 @@
 			window.removeEventListener('mouseup', stop);
 		};
 		node.addEventListener('mousedown', (e) => {
-			if ((e.target as HTMLElement).closest('button')) return;
+			if ((e.target as HTMLElement).closest('button')) { return; }
 			x = e.clientX;
 			y = e.clientY;
 			window.addEventListener('mousemove', move);

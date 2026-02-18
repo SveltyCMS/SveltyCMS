@@ -79,7 +79,9 @@ plugin({
 			const { path: importPath } = args;
 
 			for (const alias in pathAliases) {
-				if (!Object.hasOwn(pathAliases, alias)) continue;
+				if (!Object.hasOwn(pathAliases, alias)) {
+					continue;
+				}
 				const aliasTarget = pathAliases[alias][0];
 				let resolvedPath = '';
 

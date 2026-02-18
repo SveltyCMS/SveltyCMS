@@ -34,7 +34,7 @@
 
 	// Send data update to child
 	function sendUpdate() {
-		if (!iframeEl?.contentWindow) return;
+		if (!iframeEl?.contentWindow) { return; }
 
 		// Derived name from schema or fallback
 		const collectionName = (collection.value?.name as string) || 'unknown';

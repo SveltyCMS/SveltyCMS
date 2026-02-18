@@ -81,7 +81,7 @@ Features:
 
 	// System languages
 	function removeSystemLang(code: string) {
-		if (code === systemSettings.defaultSystemLanguage && systemSettings.systemLanguages.length === 1) return;
+		if (code === systemSettings.defaultSystemLanguage && systemSettings.systemLanguages.length === 1) { return; }
 		systemSettings.systemLanguages = systemSettings.systemLanguages.filter((c: string) => c !== code);
 		if (!systemSettings.systemLanguages.includes(systemSettings.defaultSystemLanguage)) {
 			systemSettings.defaultSystemLanguage = systemSettings.systemLanguages[0] || 'en';
@@ -99,29 +99,29 @@ Features:
 	}
 	function addSystemLanguage(code: string) {
 		const c = code.toLowerCase();
-		if (!availableLanguages.includes(c)) return;
+		if (!availableLanguages.includes(c)) { return; }
 		if (!systemSettings.systemLanguages.includes(c)) {
 			systemSettings.systemLanguages = [...systemSettings.systemLanguages, c];
-			if (!systemSettings.defaultSystemLanguage) systemSettings.defaultSystemLanguage = c;
+			if (!systemSettings.defaultSystemLanguage) { systemSettings.defaultSystemLanguage = c; }
 		}
 		closeSystemPicker();
 	}
 	$effect(() => {
-		if (!showSystemPicker) return;
+		if (!showSystemPicker) { return; }
 		const handler = (e: MouseEvent) => {
 			const el = document.getElementById('system-lang-picker');
-			if (el && !el.contains(e.target as Node)) closeSystemPicker();
+			if (el && !el.contains(e.target as Node)) { closeSystemPicker(); }
 		};
 		document.addEventListener('mousedown', handler);
 		return () => document.removeEventListener('mousedown', handler);
 	});
 	function onSystemPickerKey(e: KeyboardEvent) {
-		if (e.key === 'Escape') closeSystemPicker();
+		if (e.key === 'Escape') { closeSystemPicker(); }
 	}
 
 	// Content languages
 	function removeContentLang(code: string) {
-		if (code === systemSettings.defaultContentLanguage && systemSettings.contentLanguages.length === 1) return;
+		if (code === systemSettings.defaultContentLanguage && systemSettings.contentLanguages.length === 1) { return; }
 		systemSettings.contentLanguages = systemSettings.contentLanguages.filter((c: string) => c !== code);
 		if (!systemSettings.contentLanguages.includes(systemSettings.defaultContentLanguage)) {
 			systemSettings.defaultContentLanguage = systemSettings.contentLanguages[0] || '';
@@ -139,24 +139,24 @@ Features:
 	}
 	function addContentLanguage(code: string) {
 		const c = code.toLowerCase().trim();
-		if (!c || c.length < 2) return;
+		if (!c || c.length < 2) { return; }
 		if (!systemSettings.contentLanguages.includes(c)) {
 			systemSettings.contentLanguages = [...systemSettings.contentLanguages, c];
-			if (!systemSettings.defaultContentLanguage) systemSettings.defaultContentLanguage = c;
+			if (!systemSettings.defaultContentLanguage) { systemSettings.defaultContentLanguage = c; }
 		}
-		closeContentPicker();
+		closeSystemPicker();
 	}
 	$effect(() => {
-		if (!showContentPicker) return;
+		if (!showContentPicker) { return; }
 		const handler = (e: MouseEvent) => {
 			const el = document.getElementById('content-lang-picker');
-			if (el && !el.contains(e.target as Node)) closeContentPicker();
+			if (el && !el.contains(e.target as Node)) { closeContentPicker(); }
 		};
 		document.addEventListener('mousedown', handler);
 		return () => document.removeEventListener('mousedown', handler);
 	});
 	function onContentPickerKey(e: KeyboardEvent) {
-		if (e.key === 'Escape') closeContentPicker();
+		if (e.key === 'Escape') { closeContentPicker(); }
 		if (e.key === 'Enter') {
 			e.preventDefault();
 			addContentLanguage(contentPickerSearch.trim());

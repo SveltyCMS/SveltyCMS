@@ -81,8 +81,8 @@ FIXES:
 
 	// Helper functions
 	function getProgressVariant(value: number): 'primary' | 'warning' | 'error' {
-		if (value >= 80) return 'primary';
-		if (value >= 40) return 'warning';
+		if (value >= 80) { return 'primary'; }
+		if (value >= 40) { return 'warning'; }
 		return 'error';
 	}
 
@@ -95,10 +95,10 @@ FIXES:
 	 * Handles complex widgets like SEO with nested language objects
 	 */
 	function isFieldTranslated(value: unknown): boolean {
-		if (value === null || value === undefined) return false;
+		if (value === null || value === undefined) { return false; }
 
 		// Handle string values (simple fields)
-		if (typeof value === 'string') return value.trim() !== '';
+		if (typeof value === 'string') { return value.trim() !== ''; }
 
 		// Handle object values (complex widgets like SEO)
 		// For complex widgets, value might be an object with language keys
@@ -112,7 +112,7 @@ FIXES:
 			if (hasLanguageKeys) {
 				// For language-keyed objects, check if the current language has content
 				const langData = obj[currentLanguage as string];
-				if (!langData) return false;
+				if (!langData) { return false; }
 
 				// Check if any required field in the language data has content
 				// For SEO: check title and description
@@ -126,15 +126,15 @@ FIXES:
 
 			// For other objects, check if they have any meaningful content
 			return Object.values(obj).some((v) => {
-				if (typeof v === 'string') return v.trim() !== '';
-				if (typeof v === 'number') return true;
-				if (Array.isArray(v)) return v.length > 0;
+				if (typeof v === 'string') { return v.trim() !== ''; }
+				if (typeof v === 'number') { return true; }
+				if (Array.isArray(v)) { return v.length > 0; }
 				return false;
 			});
 		}
 
 		// Handle arrays and other types
-		if (Array.isArray(value)) return value.length > 0;
+		if (Array.isArray(value)) { return value.length > 0; }
 		return Boolean(value);
 	}
 
@@ -201,7 +201,7 @@ FIXES:
 
 		for (const lang of availableLanguages) {
 			const originalLangProgress = newProgress[lang];
-			if (!originalLangProgress) continue;
+			if (!originalLangProgress) { continue; }
 
 			const newTranslatedSet = new SvelteSet(originalLangProgress.translated);
 			let langHasUpdates = false;
@@ -218,7 +218,7 @@ FIXES:
 					fieldPaths.forEach((fullPath) => {
 						// Extract sub-field name if present (e.g., "title" from "seo.title")
 						const pathParts = fullPath.split('.');
-						const subFieldName = pathParts.length > 2 ? pathParts[pathParts.length - 1] : null;
+						const subFieldName = pathParts.length > 2 ? pathParts.at(-1) : null;
 
 						let valueToCheck: unknown;
 
@@ -272,7 +272,7 @@ FIXES:
 
 		for (const lang of availableLanguages) {
 			const langProgress = progress[lang as Locale];
-			if (!langProgress) continue;
+			if (!langProgress) { continue; }
 			translated += langProgress.translated.size;
 			total += langProgress.total.size;
 		}
@@ -299,7 +299,7 @@ FIXES:
 				const pathParts = currentPath.split('/').filter(Boolean);
 				if (pathParts.length > 0) {
 					pathParts[0] = selectedLanguage;
-					const newPath = '/' + pathParts.join('/') + currentSearch;
+					const newPath = `/${pathParts.join('/')}${currentSearch}`;
 					goto(newPath, { replaceState: false, invalidateAll: true });
 				}
 			}
@@ -312,7 +312,7 @@ FIXES:
 
 			if (pathParts.length > 0) {
 				pathParts[0] = selectedLanguage;
-				const newPath = '/' + pathParts.join('/') + window.location.search;
+				const newPath = `/${pathParts.join('/')}${window.location.search}`;
 				window.history.replaceState({}, '', newPath);
 				logger.debug('[TranslationStatus] Updated URL to:', newPath);
 			}

@@ -61,9 +61,9 @@
 		error = null;
 		try {
 			const res = await fetch('/api/systemVirtualFolder');
-			if (!res.ok) throw new Error('Network error');
+			if (!res.ok) { throw new Error('Network error'); }
 			const { success, data } = await res.json();
-			if (!(success && data)) throw new Error('Invalid response');
+			if (!(success && data)) { throw new Error('Invalid response'); }
 
 			folders = data
 				.filter((f: RawFolder) => f.path?.startsWith('/'))
@@ -103,7 +103,7 @@
 			children: []
 		};
 
-		if (folders.length === 0) return [root];
+		if (folders.length === 0) { return [root]; }
 
 		const map = new SvelteMap<string, FolderNode>();
 		folders.forEach((f) => map.set(f.id, { ...f, children: [], depth: 0 }));
@@ -112,7 +112,7 @@
 		folders.forEach((f) => {
 			const node = map.get(f.id)!;
 			if (f.parentId && map.has(f.parentId)) {
-				map.get(f.parentId)!.children!.push(node);
+				map.get(f.parentId)?.children?.push(node);
 			} else {
 				orphans.push(node);
 			}
@@ -122,7 +122,7 @@
 			nodes.sort((a, b) => a.order - b.order);
 			nodes.forEach((n) => {
 				n.depth = depth;
-				if (n.children?.length) sortAndSetDepth(n.children, depth + 1);
+				if (n.children?.length) { sortAndSetDepth(n.children, depth + 1); }
 			});
 		}
 
@@ -133,13 +133,13 @@
 
 	function selectFolder(id: string): void {
 		selectedFolderId = id;
-		if (id !== 'root') expandedNodes.add(id);
-		if (isMobile) ui.toggle('leftSidebar', 'hidden');
+		if (id !== 'root') { expandedNodes.add(id); }
+		if (isMobile) { ui.toggle('leftSidebar', 'hidden'); }
 	}
 
 	// Drag & drop reordering
 	async function reorder(draggedId: string, targetId: string, position: 'before' | 'after' | 'inside'): Promise<void> {
-		if (!isEditMode) return;
+		if (!isEditMode) { return; }
 
 		let newParentId: string | null = null;
 		if (position === 'inside') {
@@ -160,7 +160,7 @@
 				})
 			});
 
-			if (!res.ok) throw new Error('Failed');
+			if (!res.ok) { throw new Error('Failed'); }
 			showToast('Folder moved', 'success');
 			await loadFolders();
 		} catch (e) {

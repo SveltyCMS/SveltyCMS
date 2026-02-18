@@ -42,14 +42,6 @@ const SystemSettingSchema = new Schema<SystemSetting>(
 	}
 );
 
-// Force model recreation if schema changed
-if (mongoose.models.system_settings) {
-	mongoose.models.system_settings = undefined;
-}
-if (mongoose.models.SystemSetting) {
-	mongoose.models.SystemSetting = undefined;
-}
-
 export const SystemSettingModel =
 	(mongoose.models?.SystemSetting as mongoose.Model<SystemSetting> | undefined) ||
 	mongoose.model<SystemSetting>('SystemSetting', SystemSettingSchema);

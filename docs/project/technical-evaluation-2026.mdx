@@ -6,12 +6,13 @@ order: 100
 icon: 'mdi:chart-box-outline'
 author: 'admin'
 created: '2026-01-18'
-updated: '2026-02-09'
+updated: '2026-02-18'
 tags:
   - 'evaluation'
   - 'technical'
   - 'comparison'
   - 'database'
+  - 'security'
 ---
 
 # Technical Evaluation of SveltyCMS in the 2026 CMS Landscape
@@ -245,6 +246,16 @@ SveltyCMS 2026 introduces a lightweight, high-performance **Real-Time Collaborat
     - **Stores:** `Orders` (with `transactionId` and `paymentStatus`).
     - **Manages:** Product Catalog via **Price Widget**.
     - **Delegates:** Processing to specialized Payment Gateways.
+
+### 3.19 Security Hardening: Defeating Admin Takeover & CSRF (NEW)
+
+In February 2026, SveltyCMS underwent a critical security remediation (GHSA-9hmx-q79g-h7gq) to harden the platform against sophisticated authentication bypass and session hijacking attacks.
+
+- **Zero-Trust Setup Logic:** Transitioned from file-based setup checks to **asynchronous, database-validated state verification**. The system now rigorously verifies that an administrator actually exists in the database before disabling setup routes, closing the "setup-bypass" window used in many open-source CMS attacks.
+- **Strict Mutation Guardrails:** Implemented a global, middleware-level **CSRF Application Firewall**. Every POST, PUT, DELETE, and PATCH request is now validated against trusted Origin and Referer headers, providing robust protection against CWE-352 without relying solely on SvelteKit's form-action defaults.
+- **Hardened Internal APIs:** Unified internal communication under a **Shared-Secret Authorization** model (`x-internal-key`). This ensures that sensitive system operations (like email dispatch or cache purging) are inaccessible even if the API endpoint is exposed.
+- **Rate Limiting 2.0:** Implemented a tiered rate-limiting strategy that distinguishes between "General API" (500/min) and "Sensitive Auth" (10/min) endpoints, drastically reducing the feasibility of brute-force and credential stuffing attacks.
+- **Secure Configuration Management:** Hardened the setup wizard to use single-quote escaping and sanitization for all generated configuration files, preventing arbitrary code injection during the installation phase.
 
 ## 4. Comparative Landscape Analysis
 

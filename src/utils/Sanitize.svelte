@@ -143,7 +143,7 @@
 					node.removeAttribute('href');
 				}
 				// Add rel="noopener noreferrer" to external links
-				if (href && href.match(/^https?:/)) {
+				if (href?.match(/^https?:/)) {
 					node.setAttribute('rel', 'noopener noreferrer');
 					// Only allow target="_blank" for external links
 					if (node.getAttribute('target') !== '_blank') {

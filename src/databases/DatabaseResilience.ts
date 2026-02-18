@@ -427,9 +427,15 @@ export async function notifyAdminsOfDatabaseFailure(error: DatabaseError, metric
 		};
 
 		// Send email via API (server-side fetch)
+		const { getPrivateSettingSync } = await import('@src/services/settingsService');
+		const internalKey = getPrivateSettingSync('JWT_SECRET_KEY');
+
 		const response = await fetch('/api/sendMail', {
 			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
+			headers: {
+				'Content-Type': 'application/json',
+				'x-internal-key': internalKey || ''
+			},
 			body: JSON.stringify(emailData)
 		});
 

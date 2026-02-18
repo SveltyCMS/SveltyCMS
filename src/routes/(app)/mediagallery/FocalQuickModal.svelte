@@ -57,7 +57,7 @@ and rule-of-thirds grid overlay.
 	}
 
 	function handleMouseMove(e: MouseEvent) {
-		if (isDragging) updateFocalPoint(e);
+		if (isDragging) { updateFocalPoint(e); }
 	}
 
 	function handleMouseUp() {
@@ -65,7 +65,7 @@ and rule-of-thirds grid overlay.
 	}
 
 	function updateFocalPoint(e: MouseEvent) {
-		if (!containerRef) return;
+		if (!containerRef) { return; }
 		const rect = containerRef.getBoundingClientRect();
 		focalPoint = {
 			x: Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100)),

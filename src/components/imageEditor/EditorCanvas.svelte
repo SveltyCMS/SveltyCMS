@@ -58,7 +58,7 @@ for the image editor canvas with reactive rendering.
 
 	function handleDragOver(e: DragEvent) {
 		e.preventDefault();
-		if (!hasImage) isDragging = true;
+		if (!hasImage) { isDragging = true; }
 	}
 
 	function handleDragLeave(e: DragEvent) {
@@ -71,14 +71,14 @@ for the image editor canvas with reactive rendering.
 		isDragging = false;
 
 		const files = e.dataTransfer?.files;
-		if (files && files[0]) {
+		if (files?.[0]) {
 			ondrop?.(files[0]);
 		}
 	}
 
 	// Interactive Panning & Tool Delegation
 	function handleMouseDown(e: MouseEvent) {
-		if (!hasImage) return;
+		if (!hasImage) { return; }
 
 		if (activeTool?.handleMouseDown) {
 			activeTool.handleMouseDown(e, containerWidth, containerHeight);
@@ -89,7 +89,7 @@ for the image editor canvas with reactive rendering.
 	}
 
 	function handleMouseMove(e: MouseEvent) {
-		if (!hasImage) return;
+		if (!hasImage) { return; }
 
 		if (activeTool?.handleMouseMove) {
 			activeTool.handleMouseMove(e, containerWidth, containerHeight);
@@ -110,7 +110,7 @@ for the image editor canvas with reactive rendering.
 	}
 
 	function handleWheel(e: WheelEvent) {
-		if (!hasImage) return;
+		if (!hasImage) { return; }
 		e.preventDefault();
 		const zoomSpeed = 0.001;
 		const delta = -e.deltaY;
@@ -122,7 +122,7 @@ for the image editor canvas with reactive rendering.
 	const renderImage = ({ context, width, height }: { context: CanvasRenderingContext2D; width: number; height: number }) => {
 		const { imageElement, zoom, rotation, flipH, flipV, translateX, translateY, crop, filters } = storeState;
 
-		if (!imageElement) return;
+		if (!imageElement) { return; }
 
 		context.save();
 
@@ -135,10 +135,10 @@ for the image editor canvas with reactive rendering.
 
 		// Apply filters
 		let filterString = '';
-		if (filters.brightness !== 0) filterString += `brightness(${100 + filters.brightness}%) `;
-		if (filters.contrast !== 0) filterString += `contrast(${100 + filters.contrast}%) `;
-		if (filters.saturation !== 0) filterString += `saturate(${100 + filters.saturation}%) `;
-		if (filterString) context.filter = filterString.trim();
+		if (filters.brightness !== 0) { filterString += `brightness(${100 + filters.brightness}%) `; }
+		if (filters.contrast !== 0) { filterString += `contrast(${100 + filters.contrast}%) `; }
+		if (filters.saturation !== 0) { filterString += `saturate(${100 + filters.saturation}%) `; }
+		if (filterString) { context.filter = filterString.trim(); }
 
 		// Draw image
 		if (crop) {

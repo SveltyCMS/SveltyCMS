@@ -106,13 +106,13 @@ Structure optimized for LLM integration and AI-powered search.
 		const searchCriteria: SearchCriteria = {
 			filename: formValues.filename || undefined,
 			tags: formValues.tagsInput ? formValues.tagsInput.split(',').map((t) => t.trim()) : undefined,
-			minWidth: formValues.minWidth ? Number.parseInt(formValues.minWidth) : undefined,
-			maxWidth: formValues.maxWidth ? Number.parseInt(formValues.maxWidth) : undefined,
-			minHeight: formValues.minHeight ? Number.parseInt(formValues.minHeight) : undefined,
-			maxHeight: formValues.maxHeight ? Number.parseInt(formValues.maxHeight) : undefined,
+			minWidth: formValues.minWidth ? Number.parseInt(formValues.minWidth, 10) : undefined,
+			maxWidth: formValues.maxWidth ? Number.parseInt(formValues.maxWidth, 10) : undefined,
+			minHeight: formValues.minHeight ? Number.parseInt(formValues.minHeight, 10) : undefined,
+			maxHeight: formValues.maxHeight ? Number.parseInt(formValues.maxHeight, 10) : undefined,
 			aspectRatio: formValues.aspectRatio !== 'any' ? (formValues.aspectRatio as 'landscape' | 'portrait' | 'square') : undefined,
-			minSize: formValues.minSize ? Number.parseInt(formValues.minSize) * 1024 * 1024 : undefined, // Convert MB to bytes
-			maxSize: formValues.maxSize ? Number.parseInt(formValues.maxSize) * 1024 * 1024 : undefined,
+			minSize: formValues.minSize ? Number.parseInt(formValues.minSize, 10) * 1024 * 1024 : undefined, // Convert MB to bytes
+			maxSize: formValues.maxSize ? Number.parseInt(formValues.maxSize, 10) * 1024 * 1024 : undefined,
 			fileTypes: formValues.fileTypesInput ? formValues.fileTypesInput.split(',').map((t) => t.trim()) : undefined,
 			uploadedAfter: formValues.uploadedAfter ? new Date(formValues.uploadedAfter) : undefined,
 			uploadedBefore: formValues.uploadedBefore ? new Date(formValues.uploadedBefore) : undefined,

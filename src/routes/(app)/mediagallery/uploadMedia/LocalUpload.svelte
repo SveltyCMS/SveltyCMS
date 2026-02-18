@@ -68,7 +68,7 @@
 
 		async function generateThumbnails() {
 			for (const file of currentFiles) {
-				if (!isActive) return;
+				if (!isActive) { return; }
 
 				const fileKey = `${file.name}-${file.size}`;
 
@@ -137,7 +137,7 @@
 
 	// Format MIME type for display
 	function formatMimeType(mime?: string): string {
-		if (!mime) return 'Unknown';
+		if (!mime) { return 'Unknown'; }
 		const parts = mime.split('/');
 		return parts[1] ? parts[1].toUpperCase() : parts[0].toUpperCase();
 	}
@@ -174,20 +174,20 @@
 
 	function handleFileDrop(event: DragEvent) {
 		event.preventDefault();
-		if (!event.dataTransfer) return;
+		if (!event.dataTransfer) { return; }
 		validateAndAddFiles(Array.from(event.dataTransfer.files));
 	}
 
 	function onChange() {
-		if (!(input && input.files)) return;
+		if (!(input?.files)) { return; }
 		validateAndAddFiles(Array.from(input.files));
-		if (input) input.value = '';
+		if (input) { input.value = ''; }
 	}
 
 	function handleDragOver(e: DragEvent) {
 		e.preventDefault();
 		e.stopPropagation();
-		if (dropZone) dropZone.style.borderColor = '#5fd317';
+		if (dropZone) { dropZone.style.borderColor = '#5fd317'; }
 	}
 
 	function handleDragLeave(e: DragEvent) {
@@ -212,11 +212,11 @@
 
 	// Format bytes for display
 	function formatBytes(bytes: number): string {
-		if (bytes === 0) return '0 Bytes';
+		if (bytes === 0) { return '0 Bytes'; }
 		const k = 1024;
 		const sizes = ['Bytes', 'KB', 'MB', 'GB'];
 		const i = Math.floor(Math.log(bytes) / Math.log(k));
-		return Number.parseFloat((bytes / k ** i).toFixed(2)) + ' ' + sizes[i];
+		return `${Number.parseFloat((bytes / k ** i).toFixed(2))} ${sizes[i]}`;
 	}
 
 	async function uploadLocalFiles() {
@@ -270,9 +270,9 @@
 									logger.warn('Data is a string but not valid JSON:', data);
 								}
 							}
-							if (response.type === 'success' && data) resolve(data);
-							else if (response.success !== undefined) resolve(response);
-							else reject(new Error('Invalid response format'));
+							if (response.type === 'success' && data) { resolve(data); }
+							else if (response.success !== undefined) { resolve(response); }
+							else { reject(new Error('Invalid response format')); }
 						} catch (_e) {
 							reject(new Error('Invalid response format'));
 						}
@@ -302,7 +302,7 @@
 			}
 		} catch (error) {
 			logger.error('Error uploading files:', error);
-			toaster.error({ description: 'Error uploading files: ' + (error instanceof Error ? error.message : 'Unknown error') });
+			toaster.error({ description: `Error uploading files: ${error instanceof Error ? error.message : 'Unknown error'}` });
 		} finally {
 			isUploading = false;
 		}

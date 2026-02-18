@@ -36,14 +36,14 @@ Features:
 		// Try to get thumbnail, fallback to original url
 		const thumbs = file.thumbnails || {};
 		// Map common keys
-		if ('sm' in thumbs) return thumbs.sm.url;
-		if ('thumbnail' in thumbs) return thumbs.thumbnail.url;
-		if ('md' in thumbs) return thumbs.md.url;
+		if ('sm' in thumbs) { return thumbs.sm.url; }
+		if ('thumbnail' in thumbs) { return thumbs.thumbnail.url; }
+		if ('md' in thumbs) { return thumbs.md.url; }
 		return file.url;
 	}
 
 	async function handleAITagging() {
-		if (!file?._id) return;
+		if (!file?._id) { return; }
 		isGenerating = true;
 		try {
 			const response = await fetch('/api/media/ai-tag', {
@@ -52,7 +52,7 @@ Features:
 				body: JSON.stringify({ mediaId: file._id })
 			});
 			const result = await response.json();
-			if (!(response.ok && result.success)) throw new Error(result.error || 'Failed to generate tags');
+			if (!(response.ok && result.success)) { throw new Error(result.error || 'Failed to generate tags'); }
 
 			if (file) {
 				file = result.data;
@@ -68,7 +68,7 @@ Features:
 	}
 
 	async function addManualTag() {
-		if (!(file?._id && newTagInput.trim())) return;
+		if (!(file?._id && newTagInput.trim())) { return; }
 		try {
 			// Add to aiTags "pending" area
 			const response = await fetch(`/api/media/${file._id}`, {
@@ -82,7 +82,7 @@ Features:
 				})
 			});
 			const result = await response.json();
-			if (!(response.ok && result.success)) throw new Error(result.error);
+			if (!(response.ok && result.success)) { throw new Error(result.error); }
 
 			if (file) {
 				file = result.data;
@@ -96,7 +96,7 @@ Features:
 	}
 
 	async function removeTag(tag: string, type: 'ai' | 'user') {
-		if (!file?._id) return;
+		if (!file?._id) { return; }
 		try {
 			const metadata = { ...file.metadata };
 			if (type === 'ai') {
@@ -111,7 +111,7 @@ Features:
 				body: JSON.stringify({ metadata })
 			});
 			const result = await response.json();
-			if (!(response.ok && result.success)) throw new Error(result.error);
+			if (!(response.ok && result.success)) { throw new Error(result.error); }
 
 			if (file) {
 				file = result.data;
@@ -142,7 +142,7 @@ Features:
 				body: JSON.stringify({ metadata })
 			});
 			const result = await response.json();
-			if (!(response.ok && result.success)) throw new Error(result.error);
+			if (!(response.ok && result.success)) { throw new Error(result.error); }
 
 			if (file) {
 				file = result.data;
@@ -156,7 +156,7 @@ Features:
 	}
 
 	async function saveAITags() {
-		if (!file?._id) return;
+		if (!file?._id) { return; }
 		isSaving = true;
 		try {
 			// Merge AI tags into User tags
@@ -175,7 +175,7 @@ Features:
 				})
 			});
 			const result = await response.json();
-			if (!(response.ok && result.success)) throw new Error(result.error);
+			if (!(response.ok && result.success)) { throw new Error(result.error); }
 
 			if (file) {
 				file = result.data;

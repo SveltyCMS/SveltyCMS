@@ -27,15 +27,15 @@
 	const VIBRATE_CLOSE_MS = 5;
 
 	// Endpoint type
-	type Endpoint = {
+	interface Endpoint {
+		color?: string;
+		icon: string;
 		tooltip: string;
 		url: {
 			external: boolean;
 			path: string;
 		};
-		icon: string;
-		color?: string;
-	};
+	}
 
 	// Get user from page data
 	const user = $derived(page.data.user as User | undefined);
@@ -95,8 +95,8 @@
 	// Filter endpoints based on user role
 	const endpoints = $derived(
 		ALL_ENDPOINTS.filter((endpoint) => {
-			if (user?.role === 'admin') return true;
-			if (endpoint.url.path === '/collection') return false;
+			if (user?.role === 'admin') { return true; }
+			if (endpoint.url.path === '/collection') { return false; }
 			return true;
 		})
 	);
@@ -155,7 +155,7 @@
 	}
 
 	function loadSavedPosition(): void {
-		if (!browser) return;
+		if (!browser) { return; }
 
 		try {
 			const NAVIGATION_INFO = JSON.parse(localStorage.getItem('navigation') || '{}');
@@ -181,7 +181,7 @@
 	}
 
 	function savePosition(): void {
-		if (!browser) return;
+		if (!browser) { return; }
 
 		try {
 			const NAVIGATION_INFO = JSON.parse(localStorage.getItem('navigation') || '{}');
@@ -194,7 +194,7 @@
 	}
 
 	async function handleResize(): Promise<void> {
-		if (!browser) return;
+		if (!browser) { return; }
 
 		const MIN_X = BUTTON_RADIUS + EDGE_MARGIN;
 		const MAX_X = window.innerWidth - (BUTTON_RADIUS + EDGE_MARGIN);
@@ -214,7 +214,7 @@
 	}
 
 	function closeMenu(): void {
-		if (!showRoutes) return;
+		if (!showRoutes) { return; }
 		showRoutes = false;
 		vibrate(VIBRATE_CLOSE_MS);
 		setTimeout(() => firstCircle?.focus?.(), 0);
@@ -234,7 +234,7 @@
 	}
 
 	function onKeyDown(e: KeyboardEvent): void {
-		if (e.key === 'Escape') closeMenu();
+		if (e.key === 'Escape') { closeMenu(); }
 	}
 
 	function handleNavigateToEndpoint(): void {
@@ -300,7 +300,7 @@
 			node.onpointermove = null;
 			node.releasePointerCapture(e.pointerId);
 
-			if (!moved) return;
+			if (!moved) { return; }
 
 			// Snap to nearest edge
 			const DISTANCES = [buttonInfo.x, window.innerWidth - buttonInfo.x, buttonInfo.y, window.innerHeight - buttonInfo.y];
@@ -313,28 +313,28 @@
 					promise = motion([buttonInfo.x], [BUTTON_RADIUS + EDGE_MARGIN], motionMs, async (t) => {
 						buttonInfo.x = t[0];
 						await tick();
-						if (firstLine) firstLine.style.strokeDasharray = firstLine.getTotalLength().toString();
+						if (firstLine) { firstLine.style.strokeDasharray = firstLine.getTotalLength().toString(); }
 					});
 					break;
 				case 1: // Right edge
 					promise = motion([buttonInfo.x], [window.innerWidth - (BUTTON_RADIUS + EDGE_MARGIN)], motionMs, async (t) => {
 						buttonInfo.x = t[0];
 						await tick();
-						if (firstLine) firstLine.style.strokeDasharray = firstLine.getTotalLength().toString();
+						if (firstLine) { firstLine.style.strokeDasharray = firstLine.getTotalLength().toString(); }
 					});
 					break;
 				case 2: // Top edge
 					promise = motion([buttonInfo.y], [BUTTON_RADIUS + EDGE_MARGIN], motionMs, async (t) => {
 						buttonInfo.y = t[0];
 						await tick();
-						if (firstLine) firstLine.style.strokeDasharray = firstLine.getTotalLength().toString();
+						if (firstLine) { firstLine.style.strokeDasharray = firstLine.getTotalLength().toString(); }
 					});
 					break;
 				case 3: // Bottom edge
 					promise = motion([buttonInfo.y], [window.innerHeight - (BUTTON_RADIUS + EDGE_MARGIN)], motionMs, async (t) => {
 						buttonInfo.y = t[0];
 						await tick();
-						if (firstLine) firstLine.style.strokeDasharray = firstLine.getTotalLength().toString();
+						if (firstLine) { firstLine.style.strokeDasharray = firstLine.getTotalLength().toString(); }
 					});
 					break;
 			}
@@ -360,7 +360,7 @@
 	}
 
 	function reverse(): void {
-		if (!svg) return;
+		if (!svg) { return; }
 
 		let first = true;
 		for (const LINE_ELEMENT of svg.children as _any) {
@@ -373,7 +373,7 @@
 		}
 
 		for (const CIRCLE of circles as HTMLAnchorElement[]) {
-			if (CIRCLE) CIRCLE.style.display = 'none';
+			if (CIRCLE) { CIRCLE.style.display = 'none'; }
 		}
 	}
 
@@ -383,12 +383,12 @@
 
 	// Effects
 	$effect(() => {
-		if (!showRoutes) reverse();
+		if (!showRoutes) { reverse(); }
 	});
 
 	// Lifecycle
 	onMount(() => {
-		if (!browser) return;
+		if (!browser) { return; }
 
 		prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 		motionMs = prefersReducedMotion ? 0 : MOTION_MS_DEFAULT;
@@ -401,7 +401,7 @@
 	});
 
 	onDestroy(() => {
-		if (!browser) return;
+		if (!browser) { return; }
 
 		window.removeEventListener('resize', handleResize);
 		window.removeEventListener('keydown', onKeyDown);

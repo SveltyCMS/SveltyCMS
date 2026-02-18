@@ -32,12 +32,13 @@ Sidebar navigation for System Settings
 		}
 		const lowerCaseSearchTerm = searchTerm.toLowerCase();
 		return availableGroups.filter((group) => {
-			if (group.name.toLowerCase().includes(lowerCaseSearchTerm)) return true;
-			if (group.description?.toLowerCase().includes(lowerCaseSearchTerm)) return true;
+			if (group.name.toLowerCase().includes(lowerCaseSearchTerm)) { return true; }
+			if (group.description?.toLowerCase().includes(lowerCaseSearchTerm)) { return true; }
 			if (
 				group.fields.some((field) => field.label.toLowerCase().includes(lowerCaseSearchTerm) || field.key.toLowerCase().includes(lowerCaseSearchTerm))
-			)
+			) {
 				return true;
+			}
 			return false;
 		});
 	});

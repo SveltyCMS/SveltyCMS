@@ -55,7 +55,7 @@ Professional fine-tune controls with presets and categories
 
 	// Keyboard shortcuts
 	function handleKeyDown(e: KeyboardEvent) {
-		if ((e.target as HTMLElement).tagName === 'INPUT') return;
+		if ((e.target as HTMLElement).tagName === 'INPUT') { return; }
 
 		switch (e.key) {
 			case '0':

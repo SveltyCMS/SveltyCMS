@@ -119,9 +119,9 @@ Permission-based access control component with advanced features and security.
 
 	// Denial reason (for logging)
 	const denialReason = $derived.by(() => {
-		if (!config) return 'missing_config';
-		if (isRateLimited) return 'rate_limited';
-		if (!hasPermission) return 'insufficient_permissions';
+		if (!config) { return 'missing_config'; }
+		if (isRateLimited) { return 'rate_limited'; }
+		if (!hasPermission) { return 'insufficient_permissions'; }
 		return null;
 	});
 
@@ -139,17 +139,17 @@ Permission-based access control component with advanced features and security.
 
 	// Get appropriate error message
 	const errorMessage = $derived.by(() => {
-		if (!config) return finalMessages.missingConfig;
-		if (isRateLimited) return finalMessages.rateLimited;
-		if (!hasPermission) return finalMessages.insufficientPermissions;
+		if (!config) { return finalMessages.missingConfig; }
+		if (isRateLimited) { return finalMessages.rateLimited; }
+		if (!hasPermission) { return finalMessages.insufficientPermissions; }
 		return null;
 	});
 
 	// Determine icon for error state
 	const errorIcon = $derived.by(() => {
-		if (!config) return '⚙️';
-		if (isRateLimited) return '⏱️';
-		if (!hasPermission) return '🔒';
+		if (!config) { return '⚙️'; }
+		if (isRateLimited) { return '⏱️'; }
+		if (!hasPermission) { return '🔒'; }
 		return '❌';
 	});
 
@@ -180,7 +180,6 @@ Permission-based access control component with advanced features and security.
 		class="flex items-start gap-3 rounded-lg border p-4 {isRateLimited
 			? 'border-warning-200 bg-warning-50 dark:border-warning-800 dark:bg-warning-900/20'
 			: 'border-error-200 bg-error-50 dark:border-error-800 dark:bg-error-900/20'}"
-		role={errorRole}
 		aria-live="polite"
 		transition:fade={{ duration: 200 }}
 	>

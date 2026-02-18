@@ -46,7 +46,7 @@
 			const pointerID = e.pointerId;
 
 			let targets = $state(
-				[...container!.getElementsByClassName('field')].map((el) => {
+				[...container?.getElementsByClassName('field')].map((el) => {
 					const rect = el.getBoundingClientRect();
 					return { el: el as HTMLElement, center: rect.top + rect.height / 2 };
 				})
@@ -61,47 +61,47 @@
 
 			timeOut = setTimeout(() => {
 				const clone = node.cloneNode(true) as HTMLElement;
-				container!.appendChild(clone);
+				container?.appendChild(clone);
 				clone.setPointerCapture(pointerID);
 				node.style.opacity = '0.5';
-				clone.style.left = node.getBoundingClientRect().left + 'px';
+				clone.style.left = `${node.getBoundingClientRect().left}px`;
 				clone.style.marginLeft = '0';
 				clone.style.position = 'fixed';
-				clone.style.top = e.clientY + 'px';
-				clone.style.width = node.getBoundingClientRect().width + 'px';
-				const cloneHeight = clone.offsetHeight + 10 + 'px';
+				clone.style.top = `${e.clientY}px`;
+				clone.style.width = `${node.getBoundingClientRect().width}px`;
+				const cloneHeight = `${clone.offsetHeight + 10}px`;
 				const deb = debounce(50);
 				let old_closest: HTMLElement;
 
 				clone.onpointermove = (e) => {
-					if (e.clientY < container!.offsetTop || e.clientY > container!.offsetTop + container!.offsetHeight - 60) {
-						if (e.clientY < container!.offsetTop) {
-							container!.scrollBy(0, -5);
+					if (e.clientY < container?.offsetTop || e.clientY > container?.offsetTop + container?.offsetHeight - 60) {
+						if (e.clientY < container?.offsetTop) {
+							container?.scrollBy(0, -5);
 						} else {
-							container!.scrollBy(0, 5);
+							container?.scrollBy(0, 5);
 						}
 					}
-					clone.style.top = e.clientY + 'px';
+					clone.style.top = `${e.clientY}px`;
 					deb(() => {
-						targets = [...container!.getElementsByClassName('field')]
+						targets = [...container?.getElementsByClassName('field')]
 							.map((el) => {
 								const rect = el.getBoundingClientRect();
 								return { el: el as HTMLElement, center: rect.top + rect.height / 2 };
 							})
-							.filter((el) => el.el != clone);
+							.filter((el) => el.el !== clone);
 						targets.sort((a, b) => (Math.abs(b.center - e.clientY) < Math.abs(a.center - e.clientY) ? 1 : -1));
 						const closest = targets[0];
-						if (closest.el == node) return;
-						const closest_index = Number.parseInt(closest.el.getAttribute('data-index') as string);
-						const clone_index = Number.parseInt(clone.getAttribute('data-index') as string);
+						if (closest.el === node) { return; }
+						const closest_index = Number.parseInt(closest.el.getAttribute('data-index') as string, 10);
+						const clone_index = Number.parseInt(clone.getAttribute('data-index') as string, 10);
 
 						if (old_closest) {
 							old_closest.style.removeProperty('border-color');
 							old_closest.style.margin = '10px 0';
 						}
-						if (e.clientY > closest.center && clone_index - closest_index != 1) {
+						if (e.clientY > closest.center && clone_index - closest_index !== 1) {
 							closest.el.style.marginBottom = cloneHeight;
-						} else if (e.clientY < closest.center && closest_index - clone_index != 1) {
+						} else if (e.clientY < closest.center && closest_index - clone_index !== 1) {
 							closest.el.style.marginTop = cloneHeight;
 						}
 						closest.el.style.borderColor = 'red';
@@ -114,8 +114,8 @@
 					clone.releasePointerCapture(pointerID);
 					targets.sort((a, b) => (Math.abs(b.center - e.clientY) < Math.abs(a.center - e.clientY) ? 1 : -1));
 					const closest = targets[0];
-					let closest_index = Number.parseInt(closest.el.getAttribute('data-index') as string);
-					const clone_index = Number.parseInt(clone.getAttribute('data-index') as string);
+					let closest_index = Number.parseInt(closest.el.getAttribute('data-index') as string, 10);
+					const clone_index = Number.parseInt(clone.getAttribute('data-index') as string, 10);
 					const newFields = [...fields];
 					const dragged_item = newFields.splice(clone_index, 1)[0];
 

@@ -98,7 +98,9 @@ export const obj2formData = (obj: Record<string, unknown>): FormData => {
 	};
 
 	for (const key in obj) {
-		if (!Object.hasOwn(obj, key)) continue;
+		if (!Object.hasOwn(obj, key)) {
+			continue;
+		}
 		const value = obj[key];
 		if (value !== undefined) {
 			formData.append(key, transformValue(value));
@@ -409,7 +411,9 @@ export const get_elements_by_id = {
 	},
 	async getAll(dbAdapter: { get: (id: string) => Promise<unknown> }) {
 		for (const collection in this.store) {
-			if (!Object.hasOwn(this.store, collection)) continue;
+			if (!Object.hasOwn(this.store, collection)) {
+				continue;
+			}
 			for (const item of this.store[collection]) {
 				const data = await dbAdapter.get(item.id);
 				item.callback(data);

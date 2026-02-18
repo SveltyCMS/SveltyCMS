@@ -43,12 +43,12 @@ Renders a list of forms, one for each item in the array. Supports Drag-and-Drop 
 	>;
 
 	function getWidgetLoader(widgetName: string) {
-		if (!widgetName) return null;
+		if (!widgetName) { return null; }
 
 		// 1. Exact match via store
 		const fn = widgets.widgetFunctions[widgetName];
 		const storePath = (fn as any)?.componentPath || (fn as any)?.inputComponentPath;
-		if (storePath && storePath in modules) return modules[storePath];
+		if (storePath && storePath in modules) { return modules[storePath]; }
 
 		// 2. Case insensitive fallback
 		const normalized = widgetName.toLowerCase();
@@ -128,7 +128,7 @@ Renders a list of forms, one for each item in the array. Supports Drag-and-Drop 
 			const titleField = fields.find((f: any) => f.label.toLowerCase().includes('title') || f.label.toLowerCase().includes('name'));
 			const fieldName = titleField ? titleField.db_fieldName || getFieldName(titleField) : fields[0].db_fieldName || getFieldName(fields[0]);
 			const val = itemData[fieldName];
-			if (val && typeof val === 'string') return val;
+			if (val && typeof val === 'string') { return val; }
 		}
 		return `Item ${index + 1}`;
 	}

@@ -12,49 +12,49 @@ Features:
 
 	type ConnectionState = 'idle' | 'testing' | 'success' | 'error';
 
-	type TestResult = {
-		success: boolean;
-		message?: string;
-		error?: string;
-		userFriendly?: string;
-		latencyMs?: number;
-		classification?: string;
-		details?: any;
+	interface TestResult {
 		atlas?: boolean;
 		authenticated?: boolean;
+		classification?: string;
 		collectionsSample?: string[];
+		details?: any;
+		error?: string;
+		latencyMs?: number;
+		message?: string;
 		stats?: {
 			collections?: number;
 			objects?: number;
 			dataSize?: number;
 		};
-	};
+		success: boolean;
+		userFriendly?: string;
+	}
 
 	const { state, result, onRetry } = $props();
 
 	function getStatusIcon(state: ConnectionState): string {
-		if (state === 'testing') return '⏳';
-		if (state === 'success') return '✅';
-		if (state === 'error') return '❌';
+		if (state === 'testing') { return '⏳'; }
+		if (state === 'success') { return '✅'; }
+		if (state === 'error') { return '❌'; }
 		return '⚪';
 	}
 
 	function getStatusColor(state: ConnectionState): string {
-		if (state === 'testing') return 'text-blue-600 dark:text-blue-400';
-		if (state === 'success') return 'text-emerald-600 dark:text-emerald-400';
-		if (state === 'error') return 'text-red-600 dark:text-red-400';
+		if (state === 'testing') { return 'text-blue-600 dark:text-blue-400'; }
+		if (state === 'success') { return 'text-emerald-600 dark:text-emerald-400'; }
+		if (state === 'error') { return 'text-red-600 dark:text-red-400'; }
 		return 'text-surface-400 dark:text-surface-600';
 	}
 
 	function getStatusText(state: ConnectionState, result: TestResult | null): string {
-		if (state === 'testing') return m.setup_connection_testing();
-		if (state === 'success') return result?.message || m.setup_connection_success();
-		if (state === 'error') return result?.userFriendly || result?.error || m.setup_connection_failed();
+		if (state === 'testing') { return m.setup_connection_testing(); }
+		if (state === 'success') { return result?.message || m.setup_connection_success(); }
+		if (state === 'error') { return result?.userFriendly || result?.error || m.setup_connection_failed(); }
 		return m.setup_connection_ready();
 	}
 
 	function formatBytes(bytes: number | undefined): string {
-		if (!bytes) return 'N/A';
+		if (!bytes) { return 'N/A'; }
 		const sizes = ['B', 'KB', 'MB', 'GB'];
 		const i = Math.floor(Math.log(bytes) / Math.log(1024));
 		return `${(bytes / 1024 ** i).toFixed(2)} ${sizes[i]}`;
@@ -131,11 +131,7 @@ Features:
 <div
 	class="rounded-lg border transition-colors {state === 'success'
 		? 'border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-900/20'
-		: state === 'error'
-			? 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20'
-			: state === 'testing'
-				? 'border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-900/20'
-				: 'border-surface-200 bg-surface-50 dark:text-surface-50 dark:bg-surface-800/50'}"
+		: state 'error' 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20' 'testing' 'border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-900/20' 'border-surface-200 bg-surface-50 dark:text-surface-50 dark:bg-surface-800/50'}"
 	role="region"
 	aria-live="polite"
 	aria-atomic="true"

@@ -37,9 +37,7 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 				<div
 					class="font-bold text-lg {analysisResult.score.overall >= 80
 						? 'text-success-500'
-						: analysisResult.score.overall >= 50
-							? 'text-warning-500'
-							: 'text-error-500'}"
+						: analysisResult.score.overall >= 50 ? 'text-warning-500' : 'text-error-500'}"
 				>
 					{isNaN(analysisResult.score.overall) ? '0' : analysisResult.score.overall}%
 				</div>
@@ -83,12 +81,11 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 						{@const suggestionIcon =
 							suggestion.type === 'error' ? 'mdi:alert-circle' : suggestion.type === 'warning' ? 'mdi:alert' : 'mdi:information'}
 						<div
-							class="card p-3 border-l-4 {suggestion.type === 'error'
-								? 'border-error-500 bg-error-500/10'
-								: suggestion.type === 'warning'
-									? 'border-warning-500 bg-warning-500/10'
-									: 'border-primary-500 bg-primary-500/10'}"
-						>
+															class="card border-l-4 p-3 {suggestion.type === 'error'
+																? 'border-error-500 bg-error-500/10'
+																: suggestion.type === 'warning'
+																	? 'border-warning-500 bg-warning-500/10'
+																	: 'border-primary-500 bg-primary-500/10'}"						>
 							<div class="flex items-start gap-2">
 								<div class="mt-0.5 shrink-0">
 									<iconify-icon

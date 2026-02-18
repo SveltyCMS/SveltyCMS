@@ -67,12 +67,9 @@ Displays detailed SEO analysis results in a modal overlay.
 					<div class="flex items-center justify-center p-4 bg-surface-200-700-token rounded-container-token mb-6">
 						<div class="text-center">
 							<div
-								class="radial-progress text-4xl font-bold {analysisResult.score.overall >= 80
-									? 'text-success-500'
-									: analysisResult.score.overall >= 50
-										? 'text-warning-500'
-										: 'text-error-500'}"
-								style="--value:{analysisResult.score.overall}; --size:6rem;"
+														class="radial-progress text-4xl font-bold {analysisResult.score.overall >= 80
+															? 'text-success-500'
+															: analysisResult.score.overall >= 50 ? 'text-warning-500' : 'text-error-500'}"								style="--value:{analysisResult.score.overall}; --size:6rem;"
 							>
 								{analysisResult.score.overall}%
 							</div>
@@ -115,12 +112,11 @@ Displays detailed SEO analysis results in a modal overlay.
 								{@const suggestionIcon =
 									suggestion.type === 'error' ? 'mdi:alert-circle' : suggestion.type === 'warning' ? 'mdi:alert' : 'mdi:information'}
 								<div
-									class="card p-4 border-l-4 {suggestion.type === 'error'
-										? 'border-error-500 bg-error-500/10'
-										: suggestion.type === 'warning'
-											? 'border-warning-500 bg-warning-500/10'
-											: 'border-primary-500 bg-primary-500/10'}"
-								>
+																	class="card border-l-4 p-4 {suggestion.type === 'error'
+																		? 'border-error-500 bg-error-500/10'
+																		: suggestion.type === 'warning'
+																			? 'border-warning-500 bg-warning-500/10'
+																			: 'border-primary-500 bg-primary-500/10'}"								>
 									<div class="flex items-start justify-between">
 										<div>
 											<div class="font-bold flex items-center gap-2">
@@ -140,7 +136,7 @@ Displays detailed SEO analysis results in a modal overlay.
 												? 'preset-filled-error-500'
 												: suggestion.type === 'warning'
 													? 'variant-filled-warning'
-													: 'preset-filled-primary-500'} uppercase text-[10px]"
+													: 'preset-filled-primary-500'} text-[10px] uppercase"
 										>
 											{suggestion.type}
 										</span>

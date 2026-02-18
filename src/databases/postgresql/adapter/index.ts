@@ -1575,7 +1575,7 @@ export class PostgreSQLAdapter extends AdapterCore {
 		}
 	};
 
-	private _performanceMetrics = {
+	private readonly _performanceMetrics = {
 		queries: 0,
 		errors: 0,
 		avgResponseTime: 0,

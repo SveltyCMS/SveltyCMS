@@ -81,10 +81,10 @@
 	// Function to construct query parameters for the endpoint
 	const getQueryParams = () => {
 		const params = new SvelteURLSearchParams();
-		if (filterLevel !== 'all') params.append('level', filterLevel);
-		if (searchText) params.append('search', searchText);
-		if (startDate) params.append('startDate', startDate);
-		if (endDate) params.append('endDate', endDate);
+		if (filterLevel !== 'all') { params.append('level', filterLevel); }
+		if (searchText) { params.append('search', searchText); }
+		if (startDate) { params.append('startDate', startDate); }
+		if (endDate) { params.append('endDate', endDate); }
 		params.append('page', currentPage.toString());
 		params.append('limit', logsPerPage.toString());
 		return params.toString();
@@ -92,7 +92,7 @@
 
 	// Effect to re-trigger fetch when filters or pagination change
 	$effect(() => {
-		if (searchTimeout) clearTimeout(searchTimeout);
+		if (searchTimeout) { clearTimeout(searchTimeout); }
 		searchTimeout = setTimeout(() => {
 			const isFilterChange = filterLevel !== 'all' || searchText !== '' || startDate !== '' || endDate !== '';
 			if (isFilterChange && currentPage !== 1) {

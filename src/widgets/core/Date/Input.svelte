@@ -48,7 +48,7 @@ Part of the Three Pillars Architecture for widget system.
 	const safeValue = $derived(field.translated ? ((value as Record<string, string>)?.[_language] ?? '') : ((value as string) ?? ''));
 
 	const inputValue = $derived.by(() => {
-		if (!safeValue) return '';
+		if (!safeValue) { return ''; }
 		try {
 			return safeValue.substring(0, 10);
 		} catch {
@@ -59,7 +59,7 @@ Part of the Three Pillars Architecture for widget system.
 	// Calculate minimum date constraint
 
 	const minDate = $derived.by(() => {
-		if (!field.minDate) return undefined;
+		if (!field.minDate) { return undefined; }
 		try {
 			return new Date(field.minDate as string | Date).toISOString().substring(0, 10);
 		} catch {
@@ -69,7 +69,7 @@ Part of the Three Pillars Architecture for widget system.
 
 	// Calculate maximum date constraint
 	const maxDate = $derived.by(() => {
-		if (!field.maxDate) return undefined;
+		if (!field.maxDate) { return undefined; }
 		try {
 			return new Date(field.maxDate as string | Date).toISOString().substring(0, 10);
 		} catch {

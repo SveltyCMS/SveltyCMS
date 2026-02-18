@@ -126,11 +126,7 @@ export class UserAdapter {
 	}
 
 	constructor() {
-		// Force model recreation to ensure schema changes take effect
-		if (mongoose.models?.auth_users) {
-			mongoose.models.auth_users = undefined;
-		}
-		this.UserModel = mongoose.model<User>('auth_users', UserSchema);
+		this.UserModel = mongoose.models?.auth_users || mongoose.model<User>('auth_users', UserSchema);
 	}
 
 	// Create a new user

@@ -49,14 +49,14 @@ Toolbar controls for the Zoom tool:
 
 	function handleSliderChange(e: Event) {
 		const target = e.target as HTMLInputElement;
-		const value = Number.parseInt(target.value) || 100;
+		const value = Number.parseInt(target.value, 10) || 100;
 		sliderValue.value = value;
 		onZoomChange(value);
 	}
 
 	function handleInputChange(e: Event) {
 		const target = e.target as HTMLInputElement;
-		let value = Number.parseInt(target.value) || 100;
+		let value = Number.parseInt(target.value, 10) || 100;
 		value = Math.max(minZoom, Math.min(maxZoom, value));
 		sliderValue.value = value;
 		onZoomChange(value);

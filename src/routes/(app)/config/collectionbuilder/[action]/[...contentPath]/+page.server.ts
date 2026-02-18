@@ -325,7 +325,9 @@ async function goThrough(object: FieldsData, fields: string): Promise<string> {
 		}
 
 		for (const key in field) {
-			if (!Object.hasOwn(field, key)) continue;
+			if (!Object.hasOwn(field, key)) {
+				continue;
+			}
 			const fieldValue = field[key];
 
 			// Recursively process nested fields
@@ -351,7 +353,9 @@ async function goThrough(object: FieldsData, fields: string): Promise<string> {
 
 			// Process widget imports
 			for (const importKey in widget.GuiSchema) {
-				if (!Object.hasOwn(widget.GuiSchema, importKey)) continue;
+				if (!Object.hasOwn(widget.GuiSchema, importKey)) {
+					continue;
+				}
 				const widgetImport = widget.GuiSchema[importKey].imports;
 				if (!widgetImport) {
 					continue;

@@ -81,7 +81,7 @@ This modal			class="input text-center font-mono tracking-wider"
 
 		try {
 			// Return the code to the parent modal
-			if (parent.onClose) parent.onClose(trimmedCode);
+			if (parent.onClose) { parent.onClose(trimmedCode); }
 			modalState.close();
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Verification failed';
@@ -92,7 +92,7 @@ This modal			class="input text-center font-mono tracking-wider"
 
 	// Cancel verification
 	function cancelVerification() {
-		if (parent.onClose) parent.onClose(null);
+		if (parent.onClose) { parent.onClose(null); }
 		modalState.close();
 	}
 

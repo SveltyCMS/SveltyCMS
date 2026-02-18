@@ -47,10 +47,8 @@
 					class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 sm:h-10 sm:w-10 sm:text-sm
 					{derivedCompleted[i]
 						? 'bg-primary-500 text-white'
-						: i === currentStep
-							? 'bg-tertiary-500 text-white dark:bg-primary-500'
-							: 'bg-surface-200 text-surface-500 dark:bg-surface-700 dark:text-surface-50'} 
-					{derivedClickable[i] ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'}"
+						: i === currentStep 'bg-tertiary-500 text-white dark:bg-primary-500' 'bg-surface-200 text-surface-500 dark:bg-surface-700 dark:text-surface-50'} 
+					{derivedClickable[i] 'cursor-pointer' 'cursor-not-allowed opacity-60'}"
 					disabled={!derivedClickable[i]}
 					onclick={() => handleStepClick(i)}
 					aria-current={i === currentStep ? 'step' : undefined}
@@ -86,7 +84,7 @@
 					<button
 						class="flex w-full items-center gap-3 rounded-lg p-3 text-left transition-all
 						{i === currentStep ? 'bg-primary-50 dark:bg-primary-500/10' : ''} 
-						{derivedClickable[i] ? 'hover:bg-surface-100 dark:hover:bg-surface-700' : 'cursor-not-allowed opacity-50'}"
+						{derivedClickable[i] 'hover:bg-surface-100 dark:hover:bg-surface-700' 'cursor-not-allowed opacity-50'}"
 						disabled={!derivedClickable[i]}
 						onclick={() => handleStepClick(i)}
 						aria-current={i === currentStep ? 'step' : undefined}
@@ -95,9 +93,7 @@
 							class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ring-2 ring-white transition-all dark:ring-surface-800
 							{derivedCompleted[i]
 								? 'bg-primary-500 text-white'
-								: i === currentStep
-									? 'bg-tertiary-500 text-white dark:bg-primary-500'
-									: 'bg-surface-200 text-surface-600 dark:bg-surface-700 dark:text-surface-50'}"
+								: i === currentStep 'bg-tertiary-500 text-white dark:bg-primary-500' 'bg-surface-200 text-surface-600 dark:bg-surface-700 dark:text-surface-50'}"
 						>
 							{derivedCompleted[i] ? '✓' : i + 1}
 						</div>

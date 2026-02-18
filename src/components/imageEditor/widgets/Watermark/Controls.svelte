@@ -61,7 +61,7 @@ Professional watermark controls with text, image, and advanced options
 
 	// Keyboard shortcuts
 	function handleKeyDown(e: KeyboardEvent) {
-		if ((e.target as HTMLElement).tagName === 'INPUT') return;
+		if ((e.target as HTMLElement).tagName === 'INPUT') { return; }
 
 		switch (e.key) {
 			case 'Delete':

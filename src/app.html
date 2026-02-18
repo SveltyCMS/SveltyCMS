@@ -5,8 +5,9 @@
 		<script nonce="%sveltekit.nonce%">
 			'use strict';
 			// Theme initialization (before page render to prevent flicker)
+			const THEME_REGEX = /theme=(\w+)/;
 			(() => {
-				const c = document.cookie.match(/theme=(\w+)/)?.[1];
+				const c = document.cookie.match(THEME_REGEX)?.[1];
 				const h = document.documentElement;
 
 				try {
@@ -40,12 +41,6 @@
 
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
 		%sveltekit.head%
-		<!-- Custom CSS injection point for dynamic styles -->
-		<style nonce="%sveltekit.nonce%">
-			%
-			sveltekit.customCss 
-			%
-		</style>
 	</head>
 
 	<body data-sveltekit-preload-data="hover" data-theme="sveltycms">

@@ -71,7 +71,7 @@ Features:
 	}
 
 	function filterUsers(users: OnlineUser[], search: string): OnlineUser[] {
-		if (!search.trim()) return users;
+		if (!search.trim()) { return users; }
 		const searchLower = search.toLowerCase();
 		return users.filter((user) => user.name.toLowerCase().includes(searchLower));
 	}

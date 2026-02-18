@@ -77,7 +77,7 @@ Key features:
 
 	// Format MIME type for display
 	function formatMimeType(mime?: string): string {
-		if (!mime) return 'Unknown';
+		if (!mime) { return 'Unknown'; }
 		const parts = mime.split('/');
 		return parts[1] ? parts[1].toUpperCase() : parts[0].toUpperCase();
 	}

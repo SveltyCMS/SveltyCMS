@@ -31,7 +31,7 @@ Renders: "Option Two" (looks up label from field.options)
 
 	// Find the label that corresponds to the stored value.
 	const displayLabel = $derived.by(() => {
-		if (value === null || value === undefined) return '–';
+		if (value === null || value === undefined) { return '–'; }
 		const selectedOption = field.options?.find((opt: { label: string; value: string | number }) => opt.value === value);
 		return selectedOption?.label || String(value); // Fallback to showing the raw value
 	});

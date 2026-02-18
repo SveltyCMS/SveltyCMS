@@ -56,8 +56,8 @@
 	 * Get utilization color
 	 */
 	function getUtilizationColor(utilization: number): string {
-		if (utilization >= 90) return 'text-error-600';
-		if (utilization >= 75) return 'text-warning-600';
+		if (utilization >= 90) { return 'text-error-600'; }
+		if (utilization >= 75) { return 'text-warning-600'; }
 		return 'text-success-600';
 	}
 
@@ -65,8 +65,8 @@
 	 * Get utilization bar color
 	 */
 	function getUtilizationBarColor(utilization: number): string {
-		if (utilization >= 90) return 'bg-error-600';
-		if (utilization >= 75) return 'bg-warning-500';
+		if (utilization >= 90) { return 'bg-error-600'; }
+		if (utilization >= 75) { return 'bg-warning-500'; }
 		return 'bg-primary-500';
 	}
 
@@ -74,8 +74,8 @@
 	 * Get recommendation icon color
 	 */
 	function getRecommendationIconColor(recommendation: string): string {
-		if (recommendation.includes('healthy')) return 'text-success-600';
-		if (recommendation.includes('Consider') || recommendation.includes('increase') || recommendation.includes('reduce')) return 'text-warning-600';
+		if (recommendation.includes('healthy')) { return 'text-success-600'; }
+		if (recommendation.includes('Consider') || recommendation.includes('increase') || recommendation.includes('reduce')) { return 'text-warning-600'; }
 		return 'text-info-600';
 	}
 </script>

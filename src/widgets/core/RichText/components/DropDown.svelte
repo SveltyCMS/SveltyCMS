@@ -47,37 +47,37 @@
 		return {
 			destroy() {
 				// Clean up reference on removal
-				if (itemRefs[index] === node) itemRefs[index] = null;
+				if (itemRefs[index] === node) { itemRefs[index] = null; }
 			}
 		};
 	}
 
 	// Get active item based on items with active: true
 	function getActiveItem() {
-		return items.find((item) => item.active && item.active());
+		return items.find((item) => item.active?.());
 	}
 
 	// Toggle dropdown expansion
 	function open(expandToIndex: number | null = null) {
-		if (expanded) return;
+		if (expanded) { return; }
 		// close other dropdowns
-		if (active !== dropdownId && active !== '') active = '';
+		if (active !== dropdownId && active !== '') { active = ''; }
 		expanded = true;
 		active = dropdownId;
 		// set initial focus index
 		const activeItem = getActiveItem();
-		let idx = expandToIndex ?? (activeItem ? items.findIndex((i) => i === activeItem) : 0);
-		if (idx < 0) idx = 0;
+		let idx = expandToIndex ?? (activeItem ? items.indexOf(activeItem) : 0);
+		if (idx < 0) { idx = 0; }
 		focusedIndex = idx;
 		tick().then(() => itemRefs[focusedIndex]?.focus());
 	}
 
 	function close(focusButton = true) {
-		if (!expanded) return;
+		if (!expanded) { return; }
 		expanded = false;
 		active = '';
 		focusedIndex = -1;
-		if (focusButton) buttonRef?.focus();
+		if (focusButton) { buttonRef?.focus(); }
 	}
 
 	function toggleExpanded(e: Event) {
@@ -92,7 +92,7 @@
 	// Handle item selection
 	function selectItem(item: any, e: Event) {
 		e.stopPropagation();
-		if (item.onClick) item.onClick();
+		if (item.onClick) { item.onClick(); }
 		close(true);
 	}
 

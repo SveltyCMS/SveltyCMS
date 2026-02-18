@@ -128,10 +128,10 @@ and automated response visualization for enterprise security operations.
 	function calculateOverallThreatLevel(stats: SecurityStats): 'safe' | 'low' | 'medium' | 'high' | 'critical' {
 		const { threatLevelDistribution, activeIncidents } = stats;
 
-		if (threatLevelDistribution.critical > 0 || activeIncidents > 10) return 'critical';
-		if (threatLevelDistribution.high > 0 || activeIncidents > 5) return 'high';
-		if (threatLevelDistribution.medium > 0 || activeIncidents > 2) return 'medium';
-		if (threatLevelDistribution.low > 0 || activeIncidents > 0) return 'low';
+		if (threatLevelDistribution.critical > 0 || activeIncidents > 10) { return 'critical'; }
+		if (threatLevelDistribution.high > 0 || activeIncidents > 5) { return 'high'; }
+		if (threatLevelDistribution.medium > 0 || activeIncidents > 2) { return 'medium'; }
+		if (threatLevelDistribution.low > 0 || activeIncidents > 0) { return 'low'; }
 		return 'safe';
 	}
 

@@ -41,7 +41,7 @@ Allows users to set the focal point using svelte-canvas compatible state.
 	// Hit testing
 	export function handleMouseDown(e: MouseEvent, width: number, height: number) {
 		const { zoom, translateX, translateY, imageElement } = storeState;
-		if (!imageElement) return;
+		if (!imageElement) { return; }
 
 		const rect = (e.target as HTMLElement).getBoundingClientRect();
 		const offsetX = e.clientX - rect.left;
@@ -63,7 +63,7 @@ Allows users to set the focal point using svelte-canvas compatible state.
 
 	const renderFocalPoint = ({ context, width, height }: { context: CanvasRenderingContext2D; width: number; height: number }) => {
 		const { zoom, translateX, translateY, imageElement, focalPoint } = storeState;
-		if (!imageElement) return;
+		if (!imageElement) { return; }
 
 		context.save();
 		context.translate(width / 2 + translateX, height / 2 + translateY);

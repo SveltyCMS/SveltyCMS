@@ -152,7 +152,7 @@ Interactive form with map, country selector, and address validation
 	// Filtered countries for the dropdown
 	const filteredCountries = $derived(
 		countries.filter((c) => {
-			if (!countrySearch) return true;
+			if (!countrySearch) { return true; }
 			const term = countrySearch.toLowerCase();
 			const name = countryStore.getCountryName(c.alpha2, _uiLanguage).toLowerCase();
 			return name.includes(term) || c.alpha2.toLowerCase().includes(term);
@@ -279,7 +279,7 @@ Interactive form with map, country selector, and address validation
 
 				autocomplete.addListener('place_changed', () => {
 					const place = autocomplete?.getPlace();
-					if (!(place && place.geometry && place.geometry.location)) return;
+					if (!(place?.geometry?.location)) { return; }
 
 					// Fill Form
 					fillInAddress(place);
@@ -331,7 +331,7 @@ Interactive form with map, country selector, and address validation
 		updateAddressField('city', city);
 		updateAddressField('country', country);
 
-		if (place.geometry && place.geometry.location) {
+		if (place.geometry?.location) {
 			updateAddressField('latitude', place.geometry.location.lat());
 			updateAddressField('longitude', place.geometry.location.lng());
 		}

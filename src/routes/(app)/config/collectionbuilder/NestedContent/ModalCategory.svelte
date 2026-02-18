@@ -120,7 +120,8 @@
 		// In a real application, you'd likely replace this with a custom confirmation modal component.
 		const confirmed = confirm(`Are you sure you wish to delete the category "${existingCategory.name}"? This action cannot be undone.`);
 
-		if (!confirmed) return; // User cancelled confirmation
+		if (!confirmed) { return; // User cancelled confirmation
+}
 
 		isSubmitting = true;
 		formError = null;

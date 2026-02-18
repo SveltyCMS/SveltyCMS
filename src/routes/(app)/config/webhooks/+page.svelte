@@ -68,7 +68,7 @@
 	}
 
 	async function deleteWebhook(id: string) {
-		if (!confirm('Are you sure you want to delete this webhook?')) return;
+		if (!confirm('Are you sure you want to delete this webhook?')) { return; }
 
 		try {
 			const res = await fetch(`/api/webhooks/${id}`, { method: 'DELETE' });
@@ -114,7 +114,7 @@
 	}
 
 	function toggleEvent(event: string) {
-		if (!editingWebhook) return;
+		if (!editingWebhook) { return; }
 		const events = editingWebhook.events || [];
 		if (events.includes(event as any)) {
 			editingWebhook.events = events.filter((e) => e !== event);

@@ -100,20 +100,21 @@ SveltyCMS security architecture includes:
 **Features:**
 
 - ✅ Argon2id password hashing (125ms+ computational cost)
-- ✅ Automatic session rotation every 24 hours
+- ✅ Automatic session rotation every 15 minutes for active users
 - ✅ 3-layer session caching (memory, Redis, database)
 - ✅ Two-factor authentication (TOTP)
 - ✅ Account lockout after failed attempts
 - ✅ Secure password reset with time-limited tokens
 - ✅ API token generation with granular permissions
 - ✅ Website Tokens with expiration policies and granular access control
+- ✅ Internal System Authorization using shared secrets (JWT_SECRET_KEY) for system-to-system calls
 
 **Implementation:**
 
 - Password validation with entropy requirements
 - Session fixation prevention
-- CSRF token validation
-- Secure cookie attributes (httpOnly, secure, sameSite)
+- **CSRF Protection**: Multi-layer origin and referer validation for all mutation requests (POST, PUT, DELETE, PATCH)
+- Secure cookie attributes (httpOnly, secure, sameSite: Lax)
 
 ### 2. Data Protection
 
@@ -173,23 +174,24 @@ SveltyCMS security architecture includes:
 - ✅ Multi-tenant isolation
 - ✅ Resource-level permissions
 - ✅ Admin privilege separation
+- ✅ Automated Setup Guard (blocks installation endpoints after initialization)
 
 **Implementation:**
 
 - Permission checks at API layer
 - Database query filtering by tenant
 - Cache key prefixing for isolation
-- Audit logging for privileged actions
+- **Tamper-Evident Audit Logging**: Immutable, database-backed audit trail for all sensitive operations
 
 ### 6. Monitoring & Auditing
 
 **Features:**
 
-- ✅ Comprehensive audit logging
-- ✅ Security event tracking
-- ✅ Failed login monitoring
-- ✅ Permission violation logging
-- ✅ Real-time security dashboards
+- ✅ Comprehensive database-backed audit logging
+- ✅ Security event tracking (login failures, permission violations)
+- ✅ Real-time security dashboards and widgets
+- ✅ Audit statistics and anomaly detection
+- ✅ Automatic log retention and cleanup policies
 
 **Implementation:**
 
