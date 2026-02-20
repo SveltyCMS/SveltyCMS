@@ -13,7 +13,7 @@
  */
 
 // System Logger
-import { contentManager } from '@root/src/content/ContentManager';
+import { contentManager } from '@root/src/content/content-manager';
 // Auth - Use cached roles from locals instead of global config
 import { hasPermissionWithRoles } from '@src/databases/auth/permissions';
 import { error, fail, redirect } from '@sveltejs/kit';
@@ -45,7 +45,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			throw error(403, 'Insufficient permissions');
 		}
 
-		// Initialize ContentManager before accessing data
+		// Initializecontent-managerbefore accessing data
 		await contentManager.initialize();
 
 		// Fetch the initial content structure directly from database

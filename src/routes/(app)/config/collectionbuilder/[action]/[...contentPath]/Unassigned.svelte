@@ -10,15 +10,10 @@
 ### Features
 - Drag and drop support for reassigning collections
 -->
-
 <script lang="ts">
-	// Using iconify-icon web component
-	//ParaglideJS
-	import * as m from '@src/paraglide/messages';
-
-	// Svelte DND-actions
 	import { flip } from 'svelte/animate';
 	import { dndzone } from 'svelte-dnd-action';
+	import { Unassigned_Collections } from '@src/paraglide/messages';
 
 	const flipDurationMs = 200;
 
@@ -39,7 +34,7 @@
 </script>
 
 <div class="ml-1 rounded-sm border-2 border-tertiary-500">
-	<h2 class="mb-2 text-center font-bold dark:text-white">{m.Unassigned_Collections()}</h2>
+	<h2 class="mb-2 text-center font-bold dark:text-white">{Unassigned_Collections()}</h2>
 	<div
 		class="flex w-full flex-wrap overflow-x-auto p-2"
 		use:dndzone={{ items: items, flipDurationMs }}

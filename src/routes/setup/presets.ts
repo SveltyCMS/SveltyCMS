@@ -5,13 +5,13 @@
  */
 
 export interface Preset {
+	badge?: string;
+	complexity?: 'simple' | 'moderate' | 'advanced';
 	description: string;
 	features: string[];
 	icon: string;
 	id: string;
 	title: string;
-	complexity?: 'simple' | 'moderate' | 'advanced';
-	badge?: string;
 }
 
 export const PRESETS: Preset[] = [

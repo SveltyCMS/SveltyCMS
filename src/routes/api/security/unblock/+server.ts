@@ -3,16 +3,16 @@
  * @description IP unblocking endpoint for security management
  */
 
-import { hasApiPermission } from '@src/databases/auth/apiPermissions';
-import { securityResponseService } from '@src/services/SecurityResponseService';
+import { hasApiPermission } from '@src/databases/auth/api-permissions';
+import { securityResponseService } from '@src/services/security-response-service';
 import { json } from '@sveltejs/kit';
 /**
  * POST /api/security/unblock
  * Manually unblock an IP address from the security blacklist.
  */
 // Unified Error Handling
-import { apiHandler } from '@utils/apiHandler';
-import { AppError } from '@utils/errorHandling';
+import { apiHandler } from '@utils/api-handler';
+import { AppError } from '@utils/error-handling';
 import { logger } from '@utils/logger.server';
 
 /**

@@ -23,8 +23,8 @@
 import { exec } from 'node:child_process';
 import { json } from '@sveltejs/kit';
 // Unified Error Handling
-import { apiHandler } from '@utils/apiHandler';
-import { AppError } from '@utils/errorHandling';
+import { apiHandler } from '@utils/api-handler';
+import { AppError } from '@utils/error-handling';
 // type RequestHandler removed
 import { logger } from '@utils/logger.server';
 

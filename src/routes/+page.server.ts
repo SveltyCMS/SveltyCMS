@@ -2,14 +2,14 @@
  * @file src/routes/+page.server.ts
  * @description
  * Server-side logic for the root route, handling redirection to the first collection.
- * This version is updated to use the modern ContentManager for cleaner logic.
+ * This version is updated to use the moderncontent-managerfor cleaner logic.
  */
 
-import { contentManager } from '@src/content/ContentManager';
+import { contentManager } from '@src/content/content-manager';
 import type { Role, User } from '@src/databases/auth/types';
 import { dbInitPromise } from '@src/databases/db';
-import { getPrivateSettingSync } from '@src/services/settingsService';
-import { publicEnv } from '@src/stores/globalSettings.svelte';
+import { getPrivateSettingSync } from '@src/services/settings-service';
+import { publicEnv } from '@src/stores/global-settings.svelte';
 import { error, redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
@@ -19,7 +19,11 @@ import type { PageServerLoad } from './$types';
 import { logger } from '@utils/logger.server';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
-	const { user, tenantId, roles } = locals as { user: User | null; tenantId: string | undefined; roles: Role[] | undefined };
+	const { user, tenantId, roles } = locals as {
+		user: User | null;
+		tenantId: string | undefined;
+		roles: Role[] | undefined;
+	};
 	const tenantRoles = roles || [];
 	if (!user) {
 		logger.debug('User is not authenticated, redirecting to login');
@@ -27,10 +31,10 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	}
 
 	try {
-		// Wait for the database and ContentManager to be ready
+		// Wait for the database andcontent-managerto be ready
 		await dbInitPromise;
 
-		// Verify ContentManager is ready (should be from hooks)
+		// Verifycontent-manageris ready (should be from hooks)
 		const healthStatus = contentManager.getHealthStatus();
 		if (healthStatus.state !== 'initialized') {
 			logger.warn('ContentManager not initialized in page load', {
@@ -58,19 +62,23 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		// Determine the correct language for the redirect URL
 		const redirectLanguage = url.searchParams.get('contentLanguage') || user.locale || publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';
 
-		// Use the new, efficient method from ContentManager to get the redirect URL
-		// Use the new, efficient method from ContentManager to get the redirect URL
+		// Use the new, efficient method fromcontent-managerto get the redirect URL
+		// Use the new, efficient method fromcontent-managerto get the redirect URL
 		const redirectUrl = await contentManager.getFirstCollectionRedirectUrl(redirectLanguage, tenantId);
 
 		// If a valid collection URL is found, redirect the user
 		if (redirectUrl) {
-			logger.info(`Redirecting to first collection: ${redirectUrl}`, { tenantId });
+			logger.info(`Redirecting to first collection: ${redirectUrl}`, {
+				tenantId
+			});
 			throw redirect(302, redirectUrl);
 		}
 
 		// If no collections are found, do not redirect.
 		// The page can render a message like "No collections configured."
-		logger.warn('No collections found for user. Staying on root page.', { tenantId });
+		logger.warn('No collections found for user. Staying on root page.', {
+			tenantId
+		});
 		const userRole = tenantRoles.find((role) => role._id === user?.role);
 		const isAdmin = Boolean(userRole?.isAdmin);
 		return {
@@ -82,7 +90,10 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		if (typeof err === 'object' && err !== null && 'status' in err) {
 			throw err;
 		}
-		logger.error('Unexpected error in root page load function', { error: err, tenantId });
+		logger.error('Unexpected error in root page load function', {
+			error: err,
+			tenantId
+		});
 		const message = err instanceof Error ? err.message : 'An unexpected error occurred';
 		throw error(500, message);
 	}

@@ -3,7 +3,7 @@
  * Centralized toast utility for consistent notifications across modals/components.
  */
 
-import { toaster } from '@stores/store.svelte.ts';
+import { toaster } from '@src/stores/store.svelte.ts';
 import { logger } from '@utils/logger';
 
 export type ToastType = 'success' | 'info' | 'warning' | 'error';

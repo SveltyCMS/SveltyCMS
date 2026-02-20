@@ -13,7 +13,7 @@ let cachedRelease = {
 const CACHE_CHLL = 1000 * 60 * 60; // 1 hour
 
 // Unified Error Handling
-import { apiHandler } from '@utils/apiHandler';
+import { apiHandler } from '@utils/api-handler';
 
 export const GET = apiHandler(async () => {
 	// Return cached version if valid

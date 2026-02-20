@@ -3,8 +3,8 @@
  * @description Central registry for managing CMS plugins
  */
 
-import type { DatabaseResult, IDBAdapter } from '@databases/dbInterface';
-import { nowISODateString } from '@utils/dateUtils';
+import type { DatabaseResult, IDBAdapter } from '@databases/db-interface';
+import { nowISODateString } from '@utils/date-utils';
 import { logger } from '@utils/logger.server';
 import { PluginSettingsService } from './settings';
 import type { IPluginService, Plugin, PluginMigrationRecord, PluginRegistryEntry, PluginSSRHook } from './types';
@@ -30,7 +30,9 @@ class PluginRegistry implements IPluginService {
 
 			return { success: true, data: undefined };
 		} catch (error) {
-			logger.error(`Failed to register plugin ${plugin.metadata.id}`, { error });
+			logger.error(`Failed to register plugin ${plugin.metadata.id}`, {
+				error
+			});
 			return {
 				success: false,
 				message: `Failed to register plugin ${plugin.metadata.id}`,
@@ -93,7 +95,9 @@ class PluginRegistry implements IPluginService {
 
 			return { success: true, data: undefined };
 		} catch (error) {
-			logger.error(`Failed to run migrations for plugin ${pluginId}`, { error });
+			logger.error(`Failed to run migrations for plugin ${pluginId}`, {
+				error
+			});
 			return {
 				success: false,
 				message: `Failed to run migrations for plugin ${pluginId}`,
@@ -113,7 +117,9 @@ class PluginRegistry implements IPluginService {
 			for (const pluginId of this.plugins.keys()) {
 				const result = await this.runMigrations(pluginId, dbAdapter, tenantId);
 				if (!result.success) {
-					logger.error(`Migration failed for plugin ${pluginId}`, { error: result.error });
+					logger.error(`Migration failed for plugin ${pluginId}`, {
+						error: result.error
+					});
 				}
 			}
 

@@ -20,15 +20,15 @@
  */
 
 import type { ISODateString } from '@src/content/types';
-import type { DatabaseAdapter, DatabaseResult } from '@src/databases/dbInterface';
+import type { DatabaseAdapter, DatabaseResult } from '@src/databases/db-interface';
 // Import global settings service for DB-based configuration
-import { getPrivateSettingSync } from '@src/services/settingsService';
-import { dateToISODateString } from '@src/utils/dateUtils';
+import { getPrivateSettingSync } from '@src/services/settings-service';
+import { dateToISODateString } from '@src/utils/date-utils';
 import { error } from '@sveltejs/kit';
 // System Logger
 import { logger } from '@utils/logger';
 import { dev } from '$app/environment';
-import { corePermissions } from './corePermissions';
+import { corePermissions } from './core-permissions';
 import type { Permission, Role, Session, SessionStore, Token, User } from './types';
 
 export {
@@ -50,17 +50,17 @@ export {
 // to avoid bundling Node.js crypto module in client-side code.
 // Use: import { generateTOTPSecret, ... } from '@src/databases/auth/totp';
 
-// Note: TwoFactorAuthService is server-only and should be imported from './twoFactorAuth' directly
+// Note: TwoFactorAuthService is server-only and should be imported from './two-factor-auth' directly
 // to avoid bundling Node.js crypto module in client-side code.
-// Use: import { TwoFactorAuthService, ... } from '@src/databases/auth/twoFactorAuth';
+// Use: import { TwoFactorAuthService, ... } from '@src/databases/auth/two-factor-auth';
 
 // Export safe constants
 export { generateRandomToken, generateTokenWithExpiry, SESSION_COOKIE_NAME } from './constants';
-export type { TwoFactorSetupResponse, TwoFactorVerificationResult } from './twoFactorAuthTypes';
+export type { TwoFactorSetupResponse, TwoFactorVerificationResult } from './two-factor-auth-types';
 export type { Permission, PermissionAction, PermissionType, Role, RolePermissions, Session, SessionStore, Token, User } from './types';
 
 // Import caching
-import { cacheService } from '@src/databases/CacheService';
+import { cacheService } from '@src/databases/cache-service';
 
 // Import shared crypto utilities with Argon2
 import { hashPassword as cryptoHashPassword, verifyPassword as cryptoVerifyPassword } from '@utils/crypto';
@@ -135,7 +135,11 @@ export class Auth {
 				hashedPassword = await cryptoHashPassword(password);
 			}
 
-			const result = await this.db.auth.createUser({ ...userData, email: normalizedEmail, password: hashedPassword });
+			const result = await this.db.auth.createUser({
+				...userData,
+				email: normalizedEmail,
+				password: hashedPassword
+			});
 			if (!(result?.success && result.data && result.data._id)) {
 				throw error(500, 'User creation failed');
 			}
@@ -373,9 +377,15 @@ export class Auth {
 	async validateToken(token: string, user_id?: string, type = 'access', tenantId?: string): Promise<{ success: boolean; message: string }> {
 		const result = await this.db.auth.validateToken(token, user_id, type, tenantId);
 		if (result?.success && result.data) {
-			return { success: true, message: result.data.message ?? 'Token validated' };
+			return {
+				success: true,
+				message: result.data.message ?? 'Token validated'
+			};
 		}
-		return { success: false, message: !result || result.success ? 'Token validation failed' : result.message || 'Token validation failed' };
+		return {
+			success: false,
+			message: !result || result.success ? 'Token validation failed' : result.message || 'Token validation failed'
+		};
 	}
 
 	async validateRegistrationToken(token: string, tenantId?: string): Promise<{ isValid: boolean; message: string; details?: Token }> {
@@ -389,9 +399,16 @@ export class Auth {
 		if (result?.success && result.data && result.data.success) {
 			const tokenResult = await this.db.auth.getTokenByValue(token, tenantId);
 			const tokenDoc = tokenResult?.success ? tokenResult.data : null;
-			return { isValid: true, message: result.data.message, details: tokenDoc ?? undefined };
+			return {
+				isValid: true,
+				message: result.data.message,
+				details: tokenDoc ?? undefined
+			};
 		}
-		return { isValid: false, message: !result || result.success ? 'Token validation failed' : result.message || 'Token validation failed' };
+		return {
+			isValid: false,
+			message: !result || result.success ? 'Token validation failed' : result.message || 'Token validation failed'
+		};
 	}
 
 	async consumeToken(token: string, user_id?: string, type = 'access', tenantId?: string): Promise<{ status: boolean; message: string }> {
@@ -399,7 +416,10 @@ export class Auth {
 		if (result?.success) {
 			return result.data;
 		}
-		return { status: false, message: !result || result.success ? 'Failed to consume token' : result.message || 'Failed to consume token' };
+		return {
+			status: false,
+			message: !result || result.success ? 'Failed to consume token' : result.message || 'Failed to consume token'
+		};
 	}
 
 	async consumeRegistrationToken(token: string, tenantId?: string): Promise<{ status: boolean; message: string }> {
@@ -414,7 +434,10 @@ export class Auth {
 		if (result?.success && result.data) {
 			return result.data;
 		}
-		return { status: false, message: !result || result.success ? 'Failed to consume token' : result.message || 'Failed to consume token' };
+		return {
+			status: false,
+			message: !result || result.success ? 'Failed to consume token' : result.message || 'Failed to consume token'
+		};
 	}
 
 	async authenticate(email: string, password: string, tenantId?: string): Promise<{ user: User; sessionId: string } | null> {
@@ -425,7 +448,11 @@ export class Auth {
 				return null;
 			}
 			if (!user.password) {
-				logger.debug('User has no password field', { email, tenantId, userId: user._id });
+				logger.debug('User has no password field', {
+					email,
+					tenantId,
+					userId: user._id
+				});
 				return null;
 			}
 
@@ -439,7 +466,11 @@ export class Auth {
 			}
 
 			const expiresAt = dateToISODateString(new Date(Date.now() + 24 * 60 * 60 * 1000)); // 24 hours
-			const session = await this.createSession({ user_id: user._id, expires: expiresAt, tenantId });
+			const session = await this.createSession({
+				user_id: user._id,
+				expires: expiresAt,
+				tenantId
+			});
 
 			await this.sessionStore.set(session._id, user, expiresAt);
 
@@ -456,7 +487,10 @@ export class Auth {
 
 	async checkUser(fields: { user_id?: string; email?: string; tenantId?: string }): Promise<User | null> {
 		if (fields.email) {
-			const result = await this.db.auth.getUserByEmail({ email: fields.email, tenantId: fields.tenantId });
+			const result = await this.db.auth.getUserByEmail({
+				email: fields.email,
+				tenantId: fields.tenantId
+			});
 			if (result?.success) {
 				return result.data;
 			}
@@ -486,7 +520,11 @@ export class Auth {
 		throw error(500, 'Failed to update user attributes');
 	}
 
-	createSessionCookie(sessionId: string): { name: string; value: string; attributes: unknown } {
+	createSessionCookie(sessionId: string): {
+		name: string;
+		value: string;
+		attributes: unknown;
+	} {
 		return {
 			name: SESSION_COOKIE_NAME,
 			value: sessionId,
@@ -510,10 +548,18 @@ export class Auth {
 			if (result?.success) {
 				return { success: true, data: result.data };
 			}
-			return { success: false, data: [], message: 'Failed to retrieve active sessions' };
+			return {
+				success: false,
+				data: [],
+				message: 'Failed to retrieve active sessions'
+			};
 		} catch (err) {
 			logger.error(`Error getting active sessions: ${err instanceof Error ? err.message : String(err)}`);
-			return { success: false, data: [], message: err instanceof Error ? err.message : 'Unknown error' };
+			return {
+				success: false,
+				data: [],
+				message: err instanceof Error ? err.message : 'Unknown error'
+			};
 		}
 	}
 
@@ -523,10 +569,18 @@ export class Auth {
 			if (result?.success) {
 				return { success: true, data: result.data };
 			}
-			return { success: false, data: [], message: 'Failed to retrieve all active sessions' };
+			return {
+				success: false,
+				data: [],
+				message: 'Failed to retrieve all active sessions'
+			};
 		} catch (err) {
 			logger.error(`Error getting all active sessions: ${err instanceof Error ? err.message : String(err)}`);
-			return { success: false, data: [], message: err instanceof Error ? err.message : 'Unknown error' };
+			return {
+				success: false,
+				data: [],
+				message: err instanceof Error ? err.message : 'Unknown error'
+			};
 		}
 	}
 

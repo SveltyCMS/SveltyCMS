@@ -5,7 +5,7 @@
  */
 
 import { beforeEach, describe, expect, test } from 'bun:test';
-import { mockCacheMetrics, mockCacheService } from '../mocks/cacheService';
+import { mockCacheMetrics, mockCacheService } from '../mocks/cache-service';
 
 describe('Cache Integration Tests', () => {
 	beforeEach(async () => {

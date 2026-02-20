@@ -10,7 +10,7 @@
  * - Status (active, suspended)
  */
 
-import type { BaseEntity, DatabaseId } from '@src/databases/dbInterface';
+import type { BaseEntity, DatabaseId } from '@src/databases/db-interface';
 import mongoose, { Schema } from 'mongoose';
 
 export interface TenantQuota {

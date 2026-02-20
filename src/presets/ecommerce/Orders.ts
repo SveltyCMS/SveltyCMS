@@ -1,5 +1,5 @@
 /**
- * @file src/presets/ecommerce/Orders.ts
+ * @file src/presets/ecommerce/orders.ts
  * @description Order management schema for E-commerce preset.
  * @author SveltyCMS
  */

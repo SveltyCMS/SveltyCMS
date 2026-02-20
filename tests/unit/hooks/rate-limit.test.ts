@@ -4,7 +4,7 @@
  */
 
 import { beforeEach, describe, expect, it, mock } from 'bun:test';
-import { handleRateLimit } from '@src/hooks/handleRateLimit';
+import { handleRateLimit } from '@src/hooks/handle-rate-limit';
 import type { RequestEvent } from '@sveltejs/kit';
 
 // --- Test Utilities ---
@@ -43,7 +43,9 @@ describe('handleRateLimit Middleware', () => {
 
 	describe('Localhost Exemption', () => {
 		it('should bypass rate limiting for localhost (127.0.0.1)', async () => {
-			const event = createMockEvent('/api/collections', 'GET', { 'x-forwarded-for': '127.0.0.1' });
+			const event = createMockEvent('/api/collections', 'GET', {
+				'x-forwarded-for': '127.0.0.1'
+			});
 			const response = await handleRateLimit({ event, resolve: mockResolve });
 
 			expect(response).toBe(mockResponse);
@@ -51,21 +53,27 @@ describe('handleRateLimit Middleware', () => {
 		});
 
 		it('should bypass rate limiting for localhost (::1)', async () => {
-			const event = createMockEvent('/api/collections', 'GET', { 'x-forwarded-for': '::1' });
+			const event = createMockEvent('/api/collections', 'GET', {
+				'x-forwarded-for': '::1'
+			});
 			const response = await handleRateLimit({ event, resolve: mockResolve });
 
 			expect(response).toBe(mockResponse);
 		});
 
 		it('should bypass rate limiting for 192.168.x.x private networks', async () => {
-			const event = createMockEvent('/api/collections', 'GET', { 'x-forwarded-for': '192.168.1.100' });
+			const event = createMockEvent('/api/collections', 'GET', {
+				'x-forwarded-for': '192.168.1.100'
+			});
 			const response = await handleRateLimit({ event, resolve: mockResolve });
 
 			expect(response).toBe(mockResponse);
 		});
 
 		it('should bypass rate limiting for 10.x.x.x private networks', async () => {
-			const event = createMockEvent('/api/collections', 'GET', { 'x-forwarded-for': '10.0.0.1' });
+			const event = createMockEvent('/api/collections', 'GET', {
+				'x-forwarded-for': '10.0.0.1'
+			});
 			const response = await handleRateLimit({ event, resolve: mockResolve });
 
 			expect(response).toBe(mockResponse);
@@ -74,49 +82,63 @@ describe('handleRateLimit Middleware', () => {
 
 	describe('Static Asset Exemption', () => {
 		it('should bypass rate limiting for /_app/ assets', async () => {
-			const event = createMockEvent('/_app/immutable/chunks/index.js', 'GET', { 'x-forwarded-for': '1.2.3.4' });
+			const event = createMockEvent('/_app/immutable/chunks/index.js', 'GET', {
+				'x-forwarded-for': '1.2.3.4'
+			});
 			const response = await handleRateLimit({ event, resolve: mockResolve });
 
 			expect(response).toBe(mockResponse);
 		});
 
 		it('should bypass rate limiting for /static/ assets', async () => {
-			const event = createMockEvent('/static/logo.png', 'GET', { 'x-forwarded-for': '1.2.3.4' });
+			const event = createMockEvent('/static/logo.png', 'GET', {
+				'x-forwarded-for': '1.2.3.4'
+			});
 			const response = await handleRateLimit({ event, resolve: mockResolve });
 
 			expect(response).toBe(mockResponse);
 		});
 
 		it('should bypass rate limiting for /files/ assets', async () => {
-			const event = createMockEvent('/files/document.pdf', 'GET', { 'x-forwarded-for': '1.2.3.4' });
+			const event = createMockEvent('/files/document.pdf', 'GET', {
+				'x-forwarded-for': '1.2.3.4'
+			});
 			const response = await handleRateLimit({ event, resolve: mockResolve });
 
 			expect(response).toBe(mockResponse);
 		});
 
 		it('should bypass rate limiting for .js files', async () => {
-			const event = createMockEvent('/bundle.js', 'GET', { 'x-forwarded-for': '1.2.3.4' });
+			const event = createMockEvent('/bundle.js', 'GET', {
+				'x-forwarded-for': '1.2.3.4'
+			});
 			const response = await handleRateLimit({ event, resolve: mockResolve });
 
 			expect(response).toBe(mockResponse);
 		});
 
 		it('should bypass rate limiting for .css files', async () => {
-			const event = createMockEvent('/styles.css', 'GET', { 'x-forwarded-for': '1.2.3.4' });
+			const event = createMockEvent('/styles.css', 'GET', {
+				'x-forwarded-for': '1.2.3.4'
+			});
 			const response = await handleRateLimit({ event, resolve: mockResolve });
 
 			expect(response).toBe(mockResponse);
 		});
 
 		it('should bypass rate limiting for image files', async () => {
-			const event = createMockEvent('/logo.png', 'GET', { 'x-forwarded-for': '1.2.3.4' });
+			const event = createMockEvent('/logo.png', 'GET', {
+				'x-forwarded-for': '1.2.3.4'
+			});
 			const response = await handleRateLimit({ event, resolve: mockResolve });
 
 			expect(response).toBe(mockResponse);
 		});
 
 		it('should bypass rate limiting for font files', async () => {
-			const event = createMockEvent('/font.woff2', 'GET', { 'x-forwarded-for': '1.2.3.4' });
+			const event = createMockEvent('/font.woff2', 'GET', {
+				'x-forwarded-for': '1.2.3.4'
+			});
 			const response = await handleRateLimit({ event, resolve: mockResolve });
 
 			expect(response).toBe(mockResponse);
@@ -125,7 +147,9 @@ describe('handleRateLimit Middleware', () => {
 
 	describe('Build Process Exemption', () => {
 		it('should bypass rate limiting during build (no prerender detection)', async () => {
-			const event = createMockEvent('/api/collections', 'GET', { 'x-forwarded-for': '1.2.3.4' });
+			const event = createMockEvent('/api/collections', 'GET', {
+				'x-forwarded-for': '1.2.3.4'
+			});
 			// Build detection happens via event.isDataRequest or similar in real implementation
 			// For now, we just verify normal flow works
 			await handleRateLimit({ event, resolve: mockResolve });
@@ -137,7 +161,9 @@ describe('handleRateLimit Middleware', () => {
 
 	describe('IP Detection', () => {
 		it('should detect IP from x-forwarded-for header', async () => {
-			const event = createMockEvent('/api/test', 'GET', { 'x-forwarded-for': '1.2.3.4' });
+			const event = createMockEvent('/api/test', 'GET', {
+				'x-forwarded-for': '1.2.3.4'
+			});
 			await handleRateLimit({ event, resolve: mockResolve });
 
 			// IP detection is internal, but affects rate limiting
@@ -145,14 +171,18 @@ describe('handleRateLimit Middleware', () => {
 		});
 
 		it('should detect IP from x-real-ip header', async () => {
-			const event = createMockEvent('/api/test', 'GET', { 'x-real-ip': '5.6.7.8' });
+			const event = createMockEvent('/api/test', 'GET', {
+				'x-real-ip': '5.6.7.8'
+			});
 			await handleRateLimit({ event, resolve: mockResolve });
 
 			expect(mockResolve).toHaveBeenCalled();
 		});
 
 		it('should handle multiple IPs in x-forwarded-for (use first)', async () => {
-			const event = createMockEvent('/api/test', 'GET', { 'x-forwarded-for': '1.2.3.4, 5.6.7.8, 9.10.11.12' });
+			const event = createMockEvent('/api/test', 'GET', {
+				'x-forwarded-for': '1.2.3.4, 5.6.7.8, 9.10.11.12'
+			});
 			await handleRateLimit({ event, resolve: mockResolve });
 
 			expect(mockResolve).toHaveBeenCalled();
@@ -168,7 +198,9 @@ describe('handleRateLimit Middleware', () => {
 
 	describe('General Route Rate Limiting', () => {
 		it('should allow requests under general rate limit (500/min)', async () => {
-			const event = createMockEvent('/dashboard', 'GET', { 'x-forwarded-for': '1.2.3.4' });
+			const event = createMockEvent('/dashboard', 'GET', {
+				'x-forwarded-for': '1.2.3.4'
+			});
 			const response = await handleRateLimit({ event, resolve: mockResolve });
 
 			expect(response).toBe(mockResponse);
@@ -180,7 +212,9 @@ describe('handleRateLimit Middleware', () => {
 
 			// Simulate multiple requests from same IP
 			for (let i = 0; i < 10; i++) {
-				const event = createMockEvent('/dashboard', 'GET', { 'x-forwarded-for': ip });
+				const event = createMockEvent('/dashboard', 'GET', {
+					'x-forwarded-for': ip
+				});
 				await handleRateLimit({ event, resolve: mockResolve });
 			}
 
@@ -212,11 +246,15 @@ describe('handleRateLimit Middleware', () => {
 
 		it('should differentiate between different IPs', async () => {
 			// Request from IP1
-			const event1 = createMockEvent('/dashboard', 'GET', { 'x-forwarded-for': '1.2.3.4' });
+			const event1 = createMockEvent('/dashboard', 'GET', {
+				'x-forwarded-for': '1.2.3.4'
+			});
 			await handleRateLimit({ event: event1, resolve: mockResolve });
 
 			// Request from IP2
-			const event2 = createMockEvent('/dashboard', 'GET', { 'x-forwarded-for': '5.6.7.8' });
+			const event2 = createMockEvent('/dashboard', 'GET', {
+				'x-forwarded-for': '5.6.7.8'
+			});
 			await handleRateLimit({ event: event2, resolve: mockResolve });
 
 			// Both should succeed (different rate limit buckets)
@@ -226,7 +264,9 @@ describe('handleRateLimit Middleware', () => {
 
 	describe('API Route Rate Limiting (Stricter)', () => {
 		it('should apply stricter limits to /api/ routes', async () => {
-			const event = createMockEvent('/api/collections', 'POST', { 'x-forwarded-for': '1.2.3.4' });
+			const event = createMockEvent('/api/collections', 'POST', {
+				'x-forwarded-for': '1.2.3.4'
+			});
 			const response = await handleRateLimit({ event, resolve: mockResolve });
 
 			expect(response).toBe(mockResponse);
@@ -269,7 +309,9 @@ describe('handleRateLimit Middleware', () => {
 		it('should return 429 when rate limit exceeded', async () => {
 			// This test would need to make 500+ requests to actually trigger
 			// For now, we verify the mock setup is correct
-			const event = createMockEvent('/dashboard', 'GET', { 'x-forwarded-for': '1.2.3.4' });
+			const event = createMockEvent('/dashboard', 'GET', {
+				'x-forwarded-for': '1.2.3.4'
+			});
 			const response = await handleRateLimit({ event, resolve: mockResolve });
 
 			// Normal case should succeed
@@ -278,7 +320,9 @@ describe('handleRateLimit Middleware', () => {
 	});
 	describe('Distributed Store Operations', () => {
 		it('should use distributed cache service for rate limit tracking', async () => {
-			const event = createMockEvent('/api/test', 'GET', { 'x-forwarded-for': '1.2.3.4' });
+			const event = createMockEvent('/api/test', 'GET', {
+				'x-forwarded-for': '1.2.3.4'
+			});
 			await handleRateLimit({ event, resolve: mockResolve });
 
 			// Cache service operations happen internally
@@ -287,7 +331,9 @@ describe('handleRateLimit Middleware', () => {
 
 		it('should handle cache service errors gracefully', async () => {
 			// Even if cache fails, rate limiting should continue with in-memory fallback
-			const event = createMockEvent('/api/test', 'GET', { 'x-forwarded-for': '1.2.3.4' });
+			const event = createMockEvent('/api/test', 'GET', {
+				'x-forwarded-for': '1.2.3.4'
+			});
 			const response = await handleRateLimit({ event, resolve: mockResolve });
 
 			expect(response).toBe(mockResponse);
@@ -296,7 +342,9 @@ describe('handleRateLimit Middleware', () => {
 
 	describe('Edge Cases', () => {
 		it('should handle missing User-Agent header', async () => {
-			const event = createMockEvent('/api/test', 'GET', { 'x-forwarded-for': '1.2.3.4' });
+			const event = createMockEvent('/api/test', 'GET', {
+				'x-forwarded-for': '1.2.3.4'
+			});
 			const response = await handleRateLimit({ event, resolve: mockResolve });
 
 			expect(response).toBe(mockResponse);
@@ -314,21 +362,27 @@ describe('handleRateLimit Middleware', () => {
 
 			for (const method of methods) {
 				mockResolve.mockClear();
-				const event = createMockEvent('/api/test', method, { 'x-forwarded-for': '1.2.3.4' });
+				const event = createMockEvent('/api/test', method, {
+					'x-forwarded-for': '1.2.3.4'
+				});
 				await handleRateLimit({ event, resolve: mockResolve });
 				expect(mockResolve).toHaveBeenCalledTimes(1);
 			}
 		});
 
 		it('should handle IPv6 addresses', async () => {
-			const event = createMockEvent('/api/test', 'GET', { 'x-forwarded-for': '2001:0db8:85a3:0000:0000:8a2e:0370:7334' });
+			const event = createMockEvent('/api/test', 'GET', {
+				'x-forwarded-for': '2001:0db8:85a3:0000:0000:8a2e:0370:7334'
+			});
 			const response = await handleRateLimit({ event, resolve: mockResolve });
 
 			expect(response).toBe(mockResponse);
 		});
 
 		it('should handle malformed IP addresses', async () => {
-			const event = createMockEvent('/api/test', 'GET', { 'x-forwarded-for': 'invalid-ip' });
+			const event = createMockEvent('/api/test', 'GET', {
+				'x-forwarded-for': 'invalid-ip'
+			});
 			await handleRateLimit({ event, resolve: mockResolve });
 
 			// Should not crash, might fallback to connection IP
@@ -353,14 +407,18 @@ describe('handleRateLimit Middleware', () => {
 
 			for (const path of staticPaths) {
 				mockResolve.mockClear();
-				const event = createMockEvent(path, 'GET', { 'x-forwarded-for': '1.2.3.4' });
+				const event = createMockEvent(path, 'GET', {
+					'x-forwarded-for': '1.2.3.4'
+				});
 				await handleRateLimit({ event, resolve: mockResolve });
 				expect(mockResolve).toHaveBeenCalledTimes(1);
 			}
 		});
 
 		it('should be fast for exempt requests', async () => {
-			const event = createMockEvent('/static/logo.png', 'GET', { 'x-forwarded-for': '1.2.3.4' });
+			const event = createMockEvent('/static/logo.png', 'GET', {
+				'x-forwarded-for': '1.2.3.4'
+			});
 
 			const start = Date.now();
 			await handleRateLimit({ event, resolve: mockResolve });

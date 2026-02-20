@@ -29,18 +29,18 @@ Interactive form with map, country selector, and address validation
 
 <script lang="ts">
 	import { importLibrary, setOptions } from '@googlemaps/js-api-loader';
-	import { tokenTarget } from '@src/services/token/tokenTarget';
-	import { publicEnv } from '@src/stores/globalSettings.svelte';
+	import { publicEnv } from '@src/stores/global-settings.svelte';
 	/* global google */
 	import { app, validationStore } from '@src/stores/store.svelte';
 	import { getFieldName } from '@utils/utils';
 	// Unified error handling
-	import { handleWidgetValidation } from '@widgets/widgetErrorHandler';
+	import { handleWidgetValidation } from '@widgets/widget-error-handler';
 	import { onMount } from 'svelte';
+	import { tokenTarget } from '@src/services/token/token-target';
 	// Valibot validation
 	import { minLength, object, optional, parse, pipe, string } from 'valibot';
 	import type { FieldType } from './';
-	import { countryStore } from './countryStore.svelte';
+	import { countryStore } from './country-store.svelte';
 	import type { AddressData } from './types';
 
 	// Define google namespace for TypeScript if not globally available
@@ -50,7 +50,11 @@ Interactive form with map, country selector, and address validation
 		field,
 		value = $bindable(),
 		error
-	}: { field: FieldType; value: Record<string, AddressData> | AddressData | null | undefined; error?: string | null } = $props();
+	}: {
+		field: FieldType;
+		value: Record<string, AddressData> | AddressData | null | undefined;
+		error?: string | null;
+	} = $props();
 
 	// --- 1. Language Handling (Architecture Compliance) ---
 
@@ -132,7 +136,10 @@ Interactive form with map, country selector, and address validation
 			validationStore.setError(fieldName, 'Address is required');
 			return;
 		}
-		handleWidgetValidation(() => parse(addressSchema, addressData), { fieldName, updateStore: true });
+		handleWidgetValidation(() => parse(addressSchema, addressData), {
+			fieldName,
+			updateStore: true
+		});
 	}
 
 	// --- 2. Country Data & Search ---
@@ -152,7 +159,9 @@ Interactive form with map, country selector, and address validation
 	// Filtered countries for the dropdown
 	const filteredCountries = $derived(
 		countries.filter((c) => {
-			if (!countrySearch) { return true; }
+			if (!countrySearch) {
+				return true;
+			}
 			const term = countrySearch.toLowerCase();
 			const name = countryStore.getCountryName(c.alpha2, _uiLanguage).toLowerCase();
 			return name.includes(term) || c.alpha2.toLowerCase().includes(term);
@@ -279,7 +288,9 @@ Interactive form with map, country selector, and address validation
 
 				autocomplete.addListener('place_changed', () => {
 					const place = autocomplete?.getPlace();
-					if (!(place?.geometry?.location)) { return; }
+					if (!place?.geometry?.location) {
+						return;
+					}
 
 					// Fill Form
 					fillInAddress(place);
@@ -371,7 +382,7 @@ Interactive form with map, country selector, and address validation
 						label: field.label,
 						collection: (field as any).collection
 					}}
-				>
+				/>
 			</div>
 
 			<div class="field">
@@ -382,7 +393,7 @@ Interactive form with map, country selector, and address validation
 					value={safeValue.houseNumber}
 					oninput={(e) => updateAddressField('houseNumber', e.currentTarget.value)}
 					class="input"
-				>
+				/>
 			</div>
 			<div class="field">
 				<label for="{field.db_fieldName}-postalCode">Postal Code</label>
@@ -392,7 +403,7 @@ Interactive form with map, country selector, and address validation
 					value={safeValue.postalCode}
 					oninput={(e) => updateAddressField('postalCode', e.currentTarget.value)}
 					class="input"
-				>
+				/>
 			</div>
 			<div class="field">
 				<label for="{field.db_fieldName}-city">City</label>
@@ -402,13 +413,13 @@ Interactive form with map, country selector, and address validation
 					value={safeValue.city}
 					oninput={(e) => updateAddressField('city', e.currentTarget.value)}
 					class="input"
-				>
+				/>
 			</div>
 			<div class="field">
 				<label for="{field.db_fieldName}-country">Country</label>
 
 				<!-- Country Search Filter -->
-				<input type="text" bind:value={countrySearch} placeholder="Search countries..." class="input mb-2 text-sm">
+				<input type="text" bind:value={countrySearch} placeholder="Search countries..." class="input mb-2 text-sm" />
 
 				<select
 					id="{field.db_fieldName}-country"

@@ -14,7 +14,9 @@ let serverAvailable = false;
 
 beforeAll(async () => {
 	try {
-		const res = await fetch(`${BASE_URL}/`, { signal: AbortSignal.timeout(5000) });
+		const res = await fetch(`${BASE_URL}/`, {
+			signal: AbortSignal.timeout(5000)
+		});
 		serverAvailable = res.ok || res.status === 302 || res.status === 307;
 	} catch {
 		console.warn(`⚠️ Server at ${BASE_URL} is not reachable. Security tests will be skipped.`);

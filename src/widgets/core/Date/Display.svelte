@@ -52,22 +52,36 @@ Part of the Three Pillars Architecture for widget system.
 
 	// Calculate relative time for recent dates
 	const relativeTime = $derived.by(() => {
-		if (!(value && showRelative)) { return null; }
+		if (!(value && showRelative)) {
+			return null;
+		}
 
 		try {
 			const date = new Date(value);
-			if (Number.isNaN(date.getTime())) { return null; }
+			if (Number.isNaN(date.getTime())) {
+				return null;
+			}
 
 			const now = new Date();
 			const diffTime = now.getTime() - date.getTime();
 			const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
 			// Return relative time for dates within a week
-			if (diffDays === 0) { return 'Today'; }
-			if (diffDays === 1) { return 'Yesterday'; }
-			if (diffDays === -1) { return 'Tomorrow'; }
-			if (diffDays > 1 && diffDays <= 7) { return `${diffDays} days ago`; }
-			if (diffDays < -1 && diffDays >= -7) { return `In ${Math.abs(diffDays)} days`; }
+			if (diffDays === 0) {
+				return 'Today';
+			}
+			if (diffDays === 1) {
+				return 'Yesterday';
+			}
+			if (diffDays === -1) {
+				return 'Tomorrow';
+			}
+			if (diffDays > 1 && diffDays <= 7) {
+				return `${diffDays} days ago`;
+			}
+			if (diffDays < -1 && diffDays >= -7) {
+				return `In ${Math.abs(diffDays)} days`;
+			}
 
 			return null; // Use formatted date for older dates
 		} catch {
@@ -77,11 +91,15 @@ Part of the Three Pillars Architecture for widget system.
 
 	// Format date using Intl.DateTimeFormat
 	const formattedDate = $derived.by(() => {
-		if (!value) { return '–'; }
+		if (!value) {
+			return '–';
+		}
 
 		try {
 			const date = new Date(value);
-			if (Number.isNaN(date.getTime())) { return 'Invalid Date'; }
+			if (Number.isNaN(date.getTime())) {
+				return 'Invalid Date';
+			}
 
 			return new Intl.DateTimeFormat(userLocale, dateOptions).format(date);
 		} catch (e) {
@@ -92,7 +110,9 @@ Part of the Three Pillars Architecture for widget system.
 
 	// Get ISO string for tooltip
 	const isoString = $derived.by(() => {
-		if (!value) { return undefined; }
+		if (!value) {
+			return undefined;
+		}
 		try {
 			const date = new Date(value);
 			return Number.isNaN(date.getTime()) ? undefined : date.toISOString();

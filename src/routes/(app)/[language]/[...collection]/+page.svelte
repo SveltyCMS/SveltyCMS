@@ -23,13 +23,11 @@
 
 -->
 <script lang="ts">
-	import EntryList from '@src/components/collectionDisplay/EntryList.svelte';
-	import Fields from '@src/components/collectionDisplay/Fields.svelte';
 	import type { Schema } from '@src/content/types';
-	import { collections } from '@src/stores/collectionStore.svelte';
-	import { app, validationStore } from '@stores/store.svelte.ts';
+	import { collections } from '@src/stores/collection-store.svelte';
+	import { app, validationStore } from '@src/stores/store.svelte.ts';
 	import { logger } from '@utils/logger';
-	import { parseURLToMode } from '@utils/navigationUtils';
+	import { parseURLToMode } from '@utils/navigation-utils';
 	import { showToast } from '@utils/toast';
 	import { getFieldName } from '@utils/utils';
 	import { onMount, untrack } from 'svelte';
@@ -54,7 +52,14 @@
 	// Use $derived for reactivity from server-loaded data
 	const collectionSchema = $derived(data?.collectionSchema);
 	const entries = $derived(data?.entries || []);
-	const pagination = $derived(data?.pagination || { currentPage: 1, pageSize: 10, totalItems: 0, pagesCount: 1 });
+	const pagination = $derived(
+		data?.pagination || {
+			currentPage: 1,
+			pageSize: 10,
+			totalItems: 0,
+			pagesCount: 1
+		}
+	);
 	const revisions = $derived(data?.revisions || []);
 	const serverContentLanguage = $derived(data?.contentLanguage);
 
@@ -226,7 +231,10 @@
 
 		// CASE 1: Initial page load with ?edit=id
 		if (!hasInitiallyLoaded && editParam && entries && entries.length === 1) {
-			console.log('✅ [Debug Case 1] Edit mode detected', { editParam, entriesLen: entries.length });
+			console.log('✅ [Debug Case 1] Edit mode detected', {
+				editParam,
+				entriesLen: entries.length
+			});
 			hasInitiallyLoaded = true;
 			lastEditParam = editParam;
 			const entryData = entries[0];
@@ -387,7 +395,9 @@
 
 	// Auto-save draft function
 	async function autoSaveDraft(): Promise<boolean> {
-		if (isSavingDraft) { return false; }
+		if (isSavingDraft) {
+			return false;
+		}
 
 		isSavingDraft = true;
 		try {
@@ -506,7 +516,7 @@
 	});
 </script>
 
-<svelte:head> <title>{collectionSchema?.name ?? 'Collection'} - SveltyCMS</title> </svelte:head>
+<svelte:head><title>{collectionSchema?.name ?? 'Collection'} - SveltyCMS</title></svelte:head>
 
 <div class="content h-full">
 	<!-- Auto-save indicator -->
@@ -520,7 +530,7 @@
 	{#if !collections.active}
 		<!-- Collection data should be available from SSR, if not show error -->
 		<div class="dark:bg-error-950 flex h-64 flex-col items-center justify-center rounded-lg border border-error-500 bg-error-50 p-8">
-			<svg class="mb-4 h-16 w-16 text-error-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+			<svg aria-hidden="true" class="mb-4 h-16 w-16 text-error-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 				<path
 					stroke-linecap="round"
 					stroke-linejoin="round"

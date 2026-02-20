@@ -15,7 +15,7 @@
  */
 
 // Content Management
-import { contentManager } from '@src/content/ContentManager';
+import { contentManager } from '@src/content/content-manager';
 import type { CollectionEntry, Schema } from '@src/content/types';
 // Database adapter
 import { dbAdapter } from '@src/databases/db';
@@ -34,8 +34,8 @@ interface ImportOptions {
 }
 
 // Unified Error Handling
-import { apiHandler } from '@utils/apiHandler';
-import { AppError } from '@utils/errorHandling';
+import { apiHandler } from '@utils/api-handler';
+import { AppError } from '@utils/error-handling';
 
 export const POST = apiHandler(async ({ params, request, locals }) => {
 	const startTime = performance.now();

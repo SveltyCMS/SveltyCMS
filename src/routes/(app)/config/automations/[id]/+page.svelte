@@ -12,7 +12,6 @@ and preview/test functionality. Reuses TokenPicker patterns.
 -->
 
 <script lang="ts">
-	import PageTitle from '@components/PageTitle.svelte';
 	import type {
 		AutomationEvent,
 		AutomationFlow,
@@ -24,10 +23,9 @@ and preview/test functionality. Reuses TokenPicker patterns.
 		SetFieldOperationConfig,
 		WebhookOperationConfig
 	} from '@src/services/automation/types';
-	import { AUTOMATION_EVENTS, OPERATION_TYPES } from '@src/services/automation/types';
+	import { OPERATION_TYPES } from '@src/services/automation/types';
 	import { showToast } from '@utils/toast';
 	import { onMount } from 'svelte';
-	import { fade, slide } from 'svelte/transition';
 	import { v4 as uuidv4 } from 'uuid';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
@@ -42,7 +40,12 @@ and preview/test functionality. Reuses TokenPicker patterns.
 	let testResult: {
 		status: string;
 		duration: number;
-		operationResults: { type: string; status: string; duration: number; error?: string }[];
+		operationResults: {
+			type: string;
+			status: string;
+			duration: number;
+			error?: string;
+		}[];
 	} | null = $state(null);
 
 	let flow: AutomationFlow = $state({
@@ -122,7 +125,9 @@ and preview/test functionality. Reuses TokenPicker patterns.
 		isTesting = true;
 		testResult = null;
 		try {
-			const res = await fetch(`/api/automations/${flow.id}/test`, { method: 'POST' });
+			const res = await fetch(`/api/automations/${flow.id}/test`, {
+				method: 'POST'
+			});
 			const result = await res.json();
 			if (result.success) {
 				testResult = result.data;
@@ -140,7 +145,9 @@ and preview/test functionality. Reuses TokenPicker patterns.
 	// ── Trigger Helpers ──
 
 	function toggleEvent(event: AutomationEvent) {
-		if (!flow.trigger.events) { flow.trigger.events = []; }
+		if (!flow.trigger.events) {
+			flow.trigger.events = [];
+		}
 		if (flow.trigger.events.includes(event)) {
 			flow.trigger.events = flow.trigger.events.filter((e) => e !== event);
 		} else {
@@ -159,7 +166,11 @@ and preview/test functionality. Reuses TokenPicker patterns.
 			webhook: () => ({
 				id: uuidv4(),
 				type: 'webhook',
-				config: { url: '', method: 'POST', body: '{{ JSON.stringify(entry) }}' } as WebhookOperationConfig
+				config: {
+					url: '',
+					method: 'POST',
+					body: '{{ JSON.stringify(entry) }}'
+				} as WebhookOperationConfig
 			}),
 			email: () => ({
 				id: uuidv4(),
@@ -173,7 +184,10 @@ and preview/test functionality. Reuses TokenPicker patterns.
 			log: () => ({
 				id: uuidv4(),
 				type: 'log',
-				config: { message: '{{ trigger.event }}: {{ entry.title }}', level: 'info' } as LogOperationConfig
+				config: {
+					message: '{{ trigger.event }}: {{ entry.title }}',
+					level: 'info'
+				} as LogOperationConfig
 			}),
 			set_field: () => ({
 				id: uuidv4(),
@@ -183,7 +197,11 @@ and preview/test functionality. Reuses TokenPicker patterns.
 			condition: () => ({
 				id: uuidv4(),
 				type: 'condition',
-				config: { field: 'status', operator: 'equals', value: 'publish' } as ConditionOperationConfig
+				config: {
+					field: 'status',
+					operator: 'equals',
+					value: 'publish'
+				} as ConditionOperationConfig
 			})
 		};
 
@@ -196,7 +214,9 @@ and preview/test functionality. Reuses TokenPicker patterns.
 
 	function moveOperation(index: number, direction: -1 | 1) {
 		const newIndex = index + direction;
-		if (newIndex < 0 || newIndex >= flow.operations.length) { return; }
+		if (newIndex < 0 || newIndex >= flow.operations.length) {
+			return;
+		}
 		const ops = [...flow.operations];
 		[ops[index], ops[newIndex]] = [ops[newIndex], ops[index]];
 		flow.operations = ops;
@@ -270,15 +290,15 @@ and preview/test functionality. Reuses TokenPicker patterns.
 						<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 							<label class="label">
 								<span class="font-medium">Automation Name <span class="text-error-500">*</span></span>
-								<input type="text" class="input" placeholder="e.g. Notify editors on publish" bind:value={flow.name}>
+								<input type="text" class="input" placeholder="e.g. Notify editors on publish" bind:value={flow.name} />
 							</label>
 							<label class="label">
 								<span class="font-medium">Description</span>
-								<input type="text" class="input" placeholder="What does this automation do?" bind:value={flow.description}>
+								<input type="text" class="input" placeholder="What does this automation do?" bind:value={flow.description} />
 							</label>
 						</div>
 
-						<hr class="opacity-20">
+						<hr class="opacity-20" />
 
 						<!-- Trigger Type Selector -->
 						<div>
@@ -321,7 +341,7 @@ and preview/test functionality. Reuses TokenPicker patterns.
 												class="checkbox"
 												checked={flow.trigger.events?.includes(eventMeta.event)}
 												onchange={() => toggleEvent(eventMeta.event)}
-											>
+											/>
 											<iconify-icon icon={eventMeta.icon} class="text-lg"></iconify-icon>
 											<div>
 												<span class="text-sm font-medium">{eventMeta.label}</span>
@@ -338,14 +358,14 @@ and preview/test functionality. Reuses TokenPicker patterns.
 							<div class="space-y-3" transition:slide>
 								<label class="label">
 									<span class="font-medium">Cron Expression</span>
-									<input type="text" class="input font-mono" placeholder="*/5 * * * *" bind:value={flow.trigger.cron}>
+									<input type="text" class="input font-mono" placeholder="*/5 * * * *" bind:value={flow.trigger.cron} />
 									<p class="text-xs opacity-60 mt-1">
 										Examples: <code>0 9 * * 1-5</code> (weekdays at 9am), <code>*/15 * * * *</code> (every 15 min)
 									</p>
 								</label>
 								<label class="label">
 									<span class="font-medium">Description</span>
-									<input type="text" class="input" placeholder="e.g. Every weekday at 9 AM" bind:value={flow.trigger.cronLabel}>
+									<input type="text" class="input" placeholder="e.g. Every weekday at 9 AM" bind:value={flow.trigger.cronLabel} />
 								</label>
 							</div>
 						{/if}
@@ -365,7 +385,7 @@ and preview/test functionality. Reuses TokenPicker patterns.
 
 						<!-- Active Toggle -->
 						<label class="flex items-center gap-3 cursor-pointer p-3 rounded-lg hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors">
-							<input type="checkbox" class="checkbox" bind:checked={flow.active}>
+							<input type="checkbox" class="checkbox" bind:checked={flow.active} />
 							<div>
 								<span class="font-medium">Active</span>
 								<p class="text-xs opacity-60">Only active automations will be triggered by events.</p>
@@ -385,8 +405,8 @@ and preview/test functionality. Reuses TokenPicker patterns.
 						</h3>
 					</div>
 					<p class="text-sm opacity-60">
-						Operations run in order. Use <code class="px-1 py-0.5 bg-surface-200 dark:bg-surface-700 rounded text-xs">{'{{ tokens }}'}</code> in any
-						text field for dynamic values.
+						Operations run in order. Use <code class="px-1 py-0.5 bg-surface-200 dark:bg-surface-700 rounded text-xs">{'{{ tokens }}'}</code> in any text
+						field for dynamic values.
 					</p>
 
 					<!-- Operation List -->
@@ -427,7 +447,7 @@ and preview/test functionality. Reuses TokenPicker patterns.
 											<div class="grid grid-cols-1 md:grid-cols-3 gap-3">
 												<label class="label md:col-span-2">
 													<span class="text-sm">Payload URL</span>
-													<input type="url" class="input" placeholder="https://example.com/webhook" bind:value={cfg.url}>
+													<input type="url" class="input" placeholder="https://example.com/webhook" bind:value={cfg.url} />
 												</label>
 												<label class="label">
 													<span class="text-sm">Method</span>
@@ -440,16 +460,12 @@ and preview/test functionality. Reuses TokenPicker patterns.
 											</div>
 											<label class="label">
 												<span class="text-sm">Body Template <span class="text-xs opacity-50">(supports tokens)</span></span>
-												<textarea
-													class="textarea font-mono text-xs"
-													rows="3"
-													placeholder={'{{ JSON.stringify(entry) }}'}
-													bind:value={cfg.body}
+												<textarea class="textarea font-mono text-xs" rows="3" placeholder={'{{ JSON.stringify(entry) }}'} bind:value={cfg.body}
 												></textarea>
 											</label>
 											<label class="label">
 												<span class="text-sm">Secret (HMAC-SHA256)</span>
-												<input type="text" class="input font-mono text-xs" placeholder="Optional signing secret" bind:value={cfg.secret}>
+												<input type="text" class="input font-mono text-xs" placeholder="Optional signing secret" bind:value={cfg.secret} />
 											</label>
 										</div>
 									{/if}
@@ -460,11 +476,11 @@ and preview/test functionality. Reuses TokenPicker patterns.
 										<div class="space-y-3">
 											<label class="label">
 												<span class="text-sm">To <span class="text-xs opacity-50">(supports tokens)</span></span>
-												<input type="text" class="input" placeholder={'editor@example.com or {{ entry.author_email }}'} bind:value={cfg.to}>
+												<input type="text" class="input" placeholder={'editor@example.com or {{ entry.author_email }}'} bind:value={cfg.to} />
 											</label>
 											<label class="label">
 												<span class="text-sm">Subject <span class="text-xs opacity-50">(supports tokens)</span></span>
-												<input type="text" class="input" placeholder={'New article published: {{ entry.title }}'} bind:value={cfg.subject}>
+												<input type="text" class="input" placeholder={'New article published: {{ entry.title }}'} bind:value={cfg.subject} />
 											</label>
 											<label class="label">
 												<span class="text-sm">Body (HTML) <span class="text-xs opacity-50">(supports tokens)</span></span>
@@ -485,7 +501,7 @@ and preview/test functionality. Reuses TokenPicker patterns.
 											<div class="grid grid-cols-1 md:grid-cols-3 gap-3">
 												<label class="label md:col-span-2">
 													<span class="text-sm">Message <span class="text-xs opacity-50">(supports tokens)</span></span>
-													<input type="text" class="input" placeholder={'{{ trigger.event }}: {{ entry.title }}'} bind:value={cfg.message}>
+													<input type="text" class="input" placeholder={'{{ trigger.event }}: {{ entry.title }}'} bind:value={cfg.message} />
 												</label>
 												<label class="label">
 													<span class="text-sm">Level</span>
@@ -505,11 +521,11 @@ and preview/test functionality. Reuses TokenPicker patterns.
 										<div class="grid grid-cols-2 gap-3">
 											<label class="label">
 												<span class="text-sm">Field Name</span>
-												<input type="text" class="input" placeholder="status" bind:value={cfg.field}>
+												<input type="text" class="input" placeholder="status" bind:value={cfg.field} />
 											</label>
 											<label class="label">
 												<span class="text-sm">Value <span class="text-xs opacity-50">(supports tokens)</span></span>
-												<input type="text" class="input" placeholder="reviewed" bind:value={cfg.value}>
+												<input type="text" class="input" placeholder="reviewed" bind:value={cfg.value} />
 											</label>
 										</div>
 									{/if}
@@ -520,7 +536,7 @@ and preview/test functionality. Reuses TokenPicker patterns.
 										<div class="grid grid-cols-3 gap-3">
 											<label class="label">
 												<span class="text-sm">Field</span>
-												<input type="text" class="input" placeholder="status" bind:value={cfg.field}>
+												<input type="text" class="input" placeholder="status" bind:value={cfg.field} />
 											</label>
 											<label class="label">
 												<span class="text-sm">Operator</span>
@@ -535,7 +551,7 @@ and preview/test functionality. Reuses TokenPicker patterns.
 											</label>
 											<label class="label">
 												<span class="text-sm">Value</span>
-												<input type="text" class="input" placeholder="publish" bind:value={cfg.value}>
+												<input type="text" class="input" placeholder="publish" bind:value={cfg.value} />
 											</label>
 										</div>
 									{/if}

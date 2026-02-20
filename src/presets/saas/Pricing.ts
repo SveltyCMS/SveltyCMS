@@ -1,5 +1,5 @@
 /**
- * @file src/presets/saas/Pricing.ts
+ * @file src/presets/saas/pricing.ts
  * @description SaaS pricing plans schema.
  * @author SveltyCMS
  */
@@ -43,7 +43,12 @@ const Pricing: Schema = {
 			db_fieldName: 'features',
 			fields: [
 				widgets.Input({ label: 'Feature Name', width: 12 }),
-				widgets.Input({ label: 'Included', type: 'text', default: 'true', width: 12 }) // Boolean would be better but Input type check
+				widgets.Input({
+					label: 'Included',
+					type: 'text',
+					default: 'true',
+					width: 12
+				}) // Boolean would be better but Input type check
 			]
 		})
 	]

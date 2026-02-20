@@ -1,5 +1,5 @@
 /**
- * @file config/collections/Collections/Names.ts
+ * @file config\collections\collections\names.ts
  * @description Collection file for Names
  */
 
@@ -11,11 +11,10 @@ export const schema: Schema = {
 	// Optional & Icon, status, slug
 	// See for possible Icons https://icon-sets.iconify.design/
 	icon: 'fluent:rename-28-filled',
-	description: 'Simple collection for testing relationships and basic input',
+	description: 'Scoped Names collection to test UUID collision with same filenames',
 	status: 'unpublish',
 	revision: true,
-	revisionLimit: 2, // limit  number of revisions
-	livePreview: '/api/preview?slug=/names/{slug}',
+	livePreview: '/api/preview?slug=/posts/names/{slug}',
 
 	// Defined Fields that are used in your Collection
 	// Widget fields can be inspected for individual options
@@ -27,36 +26,21 @@ export const schema: Schema = {
 			placeholder: 'Enter First Name',
 			width: 2
 		}),
-		widgets.Input({
-			label: 'Last Name',
-			translated: true,
-			icon: 'ri:t-box-line',
-			placeholder: 'Enter Last Name',
-			width: 2,
-			required: true,
-			permissions: {
-				developer: {
-					read: false // User cannot read, other roles default to true
-				}
-			}
-		}),
 
-		widgets.RichText({
-			label: 'Biography',
-			db_fieldName: 'bio',
-			icon: 'fluent:text-description-24-filled',
-			placeholder: 'Enter extended biography...'
-		}),
 		widgets.Select({
-			label: 'Status',
-			db_fieldName: 'status',
-			icon: 'fluent:status-24-filled',
-			options: [
-				{ label: 'Active', value: 'active', color: 'success' },
-				{ label: 'Inactive', value: 'inactive', color: 'warning' },
-				{ label: 'Archived', value: 'archived', color: 'error' }
-			],
-			default: 'active'
+			label: 'Role',
+			db_fieldName: 'role',
+			icon: 'fluent:person-key-20-filled',
+			options: ['Author', 'Editor', 'Contributor', 'Guest'],
+			default: 'Contributor',
+			width: 2
+		}),
+		widgets.MediaUpload({
+			label: 'Avatar',
+			db_fieldName: 'avatar',
+			icon: 'fluent:person-circle-24-filled',
+			folder: 'avatars',
+			multiupload: false
 		})
 	]
 };

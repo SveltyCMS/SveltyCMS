@@ -12,9 +12,9 @@
  */
 
 import { dbAdapter } from '@src/databases/db';
-import type { DatabaseId, Theme } from '@src/databases/dbInterface';
-import { ThemeManager } from '@src/databases/themeManager';
-import { getPrivateSettingSync } from '@src/services/settingsService';
+import type { DatabaseId, Theme } from '@src/databases/db-interface';
+import { ThemeManager } from '@src/databases/theme-manager';
+import { getPrivateSettingSync } from '@src/services/settings-service';
 import { json } from '@sveltejs/kit';
 
 // Permission checking
@@ -26,8 +26,8 @@ import { logger } from '@utils/logger.server';
 const themeManager = ThemeManager.getInstance();
 
 // Unified Error Handling
-import { apiHandler } from '@utils/apiHandler';
-import { AppError } from '@utils/errorHandling';
+import { apiHandler } from '@utils/api-handler';
+import { AppError } from '@utils/error-handling';
 
 export const POST = apiHandler(async ({ request, locals }) => {
 	const { user, tenantId } = locals;
@@ -67,7 +67,10 @@ export const POST = apiHandler(async ({ request, locals }) => {
 		return json({ success: true, theme: updatedTheme });
 	} catch (err) {
 		const errorMessage = err instanceof Error ? err.message : String(err);
-		logger.error('Error setting default theme:', { error: errorMessage, tenantId });
+		logger.error('Error setting default theme:', {
+			error: errorMessage,
+			tenantId
+		});
 		throw new AppError(`Error setting default theme: ${errorMessage}`, 500, 'THEME_UPDATE_FAILED');
 	}
 });

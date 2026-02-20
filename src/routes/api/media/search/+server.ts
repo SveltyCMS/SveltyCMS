@@ -11,11 +11,11 @@
  */
 
 import { dbAdapter } from '@src/databases/db';
-import type { MediaItem } from '@src/databases/dbInterface';
+import type { MediaItem } from '@src/databases/db-interface';
 import { error, json } from '@sveltejs/kit';
 import { logger } from '@utils/logger.server';
-import { advancedSearch, getSearchSuggestions, type SearchCriteria } from '@utils/media/advancedSearch';
-import type { MediaBase } from '@utils/media/mediaModels';
+import { advancedSearch, getSearchSuggestions, type SearchCriteria } from '@utils/media/advanced-search';
+import type { MediaBase } from '@utils/media/media-models';
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ request, locals }) => {

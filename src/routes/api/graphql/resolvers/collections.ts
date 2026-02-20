@@ -21,17 +21,17 @@
  */
 
 // Collection Manager
-import { modifyRequest } from '@api/collections/modifyRequest';
-import { contentManager } from '@src/content/ContentManager';
+import { modifyRequest } from '@api/collections/modify-request';
+import { contentManager } from '@src/content/content-manager';
 import type { FieldInstance, Schema } from '@src/content/types';
 // Types
 import type { User } from '@src/databases/auth/types';
-import type { CollectionModel, DatabaseAdapter } from '@src/databases/dbInterface';
-import { getPrivateSettingSync } from '@src/services/settingsService';
+import type { CollectionModel, DatabaseAdapter } from '@src/databases/db-interface';
+import { getPrivateSettingSync } from '@src/services/settings-service';
 // Token Engine
 import { replaceTokens } from '@src/services/token/engine';
 import type { TokenContext } from '@src/services/token/types';
-import { widgets } from '@stores/widgetStore.svelte.ts';
+import { widgets } from '@src/stores/widget-store.svelte.ts';
 
 // System Logger
 import { logger } from '@utils/logger.server';
@@ -117,7 +117,10 @@ export async function registerCollections(tenantId?: string) {
 		collectionStats.map((c) => ({
 			name: typeof c.name === 'string' ? c.name : '',
 			id: c._id,
-			cleanTypeName: createCleanTypeName({ _id: c._id, name: typeof c.name === 'string' ? c.name : '' }),
+			cleanTypeName: createCleanTypeName({
+				_id: c._id,
+				name: typeof c.name === 'string' ? c.name : ''
+			}),
 			fieldCount: c.stats?.fieldCount
 		}))
 	);
@@ -306,7 +309,11 @@ export async function collectionsResolvers(dbAdapter: DatabaseAdapter, cacheClie
 			context: unknown
 		): Promise<DocumentBase[]> {
 			// Type guard for context
-			const ctx = context as { user?: User; tenantId?: string; locale?: string };
+			const ctx = context as {
+				user?: User;
+				tenantId?: string;
+				locale?: string;
+			};
 			if (!ctx.user) {
 				throw new Error('Authentication required');
 			}
@@ -371,7 +378,7 @@ export async function collectionsResolvers(dbAdapter: DatabaseAdapter, cacheClie
 							type: 'GET'
 						});
 					} catch (modifyError) {
-						logger.warn('GraphQL modifyRequest failed', {
+						logger.warn('GraphQLmodify-requestfailed', {
 							error: modifyError instanceof Error ? modifyError.message : 'Unknown error'
 						});
 					}

@@ -9,12 +9,12 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { SESSION_COOKIE_NAME } from '@src/databases/auth/constants';
-import type { ISODateString } from '@src/databases/dbInterface';
+import type { ISODateString } from '@src/databases/db-interface';
 import { databaseConfigSchema } from '@src/databases/schemas';
 import { error } from '@sveltejs/kit';
-import { setupAdminSchema, smtpConfigSchema } from '@utils/formSchemas';
+import { setupAdminSchema, smtpConfigSchema } from '@utils/form-schemas';
 import { logger } from '@utils/logger.server';
-import { isSetupCompleteAsync } from '@utils/setupCheck';
+import { isSetupCompleteAsync } from '@utils/setup-check';
 import nodemailer from 'nodemailer';
 import { safeParse } from 'valibot';
 import { version as pkgVersion } from '../../../package.json';
@@ -103,7 +103,11 @@ export const actions = {
 			const { success, issues, output: dbConfig } = safeParse(databaseConfigSchema, configData);
 			if (!(success && dbConfig)) {
 				logger.error('❌ Action: Validation failed', { issues });
-				return { success: false, error: 'Invalid configuration', details: issues };
+				return {
+					success: false,
+					error: 'Invalid configuration',
+					details: issues
+				};
 			}
 
 			logger.info('✅ Action: Configuration validated successfully');
@@ -119,14 +123,21 @@ export const actions = {
 
 				if (!health.success) {
 					await dbAdapter.disconnect();
-					return { success: false, error: health.message || 'Database ping failed' };
+					return {
+						success: false,
+						error: health.message || 'Database ping failed'
+					};
 				}
 
 				logger.info('✅ Ping successful!');
 				await dbAdapter.disconnect();
 
 				const latencyMs = Math.round(performance.now() - start);
-				return { success: true, message: 'Database connected successfully! ✨', latencyMs };
+				return {
+					success: true,
+					message: 'Database connected successfully! ✨',
+					latencyMs
+				};
 			} catch (err: any) {
 				// Handle SQLite/SQL "database does not exist" for auto-creation
 				if (err.message?.includes('does not exist') || err.code === 'ER_BAD_DB_ERROR' || err.code === '3D000') {
@@ -178,21 +189,25 @@ export const actions = {
 		const { success, issues, output: dbConfig } = safeParse(databaseConfigSchema, configData);
 		if (!(success && dbConfig)) {
 			logger.error('❌ Action: seedDatabase Validation failed', { issues });
-			return { success: false, error: 'Invalid configuration', details: issues };
+			return {
+				success: false,
+				error: 'Invalid configuration',
+				details: issues
+			};
 		}
 
 		try {
 			// 1. Write private config
-			const { writePrivateConfig } = await import('./writePrivateConfig');
+			const { writePrivateConfig } = await import('./write-private-config');
 			await writePrivateConfig(dbConfig);
 
-			const { invalidateSetupCache } = await import('@utils/setupCheck');
+			const { invalidateSetupCache } = await import('@utils/setup-check');
 			invalidateSetupCache(true);
 
 			// 2. Start background seeding (Split Strategy)
 			// Critical phases (roles/settings) are tracked by startSeeding (blocking completeSetup)
 			// Content phases are tracked by startBackgroundWork (non-blocking)
-			const { setupManager } = await import('./setupManager');
+			const { setupManager } = await import('./setup-manager');
 			const { initSystemFast } = await import('./seed');
 			const { getSetupDatabaseAdapter } = await import('./utils');
 
@@ -216,7 +231,10 @@ export const actions = {
 			};
 		} catch (err) {
 			logger.error('Database config save failed:', err);
-			return { success: false, error: err instanceof Error ? err.message : String(err) };
+			return {
+				success: false,
+				error: err instanceof Error ? err.message : String(err)
+			};
 		}
 	},
 
@@ -233,7 +251,7 @@ export const actions = {
 		// Await CRITICAL seeding only (roles/settings/themes)
 		// Background content seeding continues independently
 		try {
-			const { setupManager } = await import('./setupManager');
+			const { setupManager } = await import('./setup-manager');
 			const seedingPromise = setupManager.waitTillDone();
 			if (seedingPromise) {
 				logger.info('⏳ completeSetup: Waiting for critical seeding...');
@@ -260,11 +278,14 @@ export const actions = {
 			const { dbAdapter } = await getSetupDatabaseAdapter(database);
 
 			const { Auth } = await import('@src/databases/auth');
-			const { getDefaultSessionStore } = await import('@src/databases/auth/sessionManager');
+			const { getDefaultSessionStore } = await import('@src/databases/auth/session-manager');
 			const setupAuth = new Auth(dbAdapter, getDefaultSessionStore());
 
 			// Check if user already exists
-			const existingUser = await setupAuth.getUserByEmail({ email: admin.email, tenantId: undefined });
+			const existingUser = await setupAuth.getUserByEmail({
+				email: admin.email,
+				tenantId: undefined
+			});
 			let session: any;
 
 			if (existingUser) {
@@ -296,7 +317,9 @@ export const actions = {
 						role: 'admin',
 						isRegistered: true
 					},
-					{ expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() as ISODateString }
+					{
+						expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() as ISODateString
+					}
 				);
 
 				if (!(authResult.success && authResult.data)) {
@@ -309,7 +332,10 @@ export const actions = {
 				return { success: false, error: 'Failed to create session' };
 			}
 
-			logger.info('DEBUG: Session created:', { sessionId: session._id, userId: session.user_id });
+			logger.info('DEBUG: Session created:', {
+				sessionId: session._id,
+				userId: session.user_id
+			});
 
 			// Safer secure flag logic (matches handleAuthentication)
 			const { dev } = await import('$app/environment');
@@ -347,7 +373,7 @@ export const actions = {
 						multiTenant: system.multiTenant,
 						demoMode: system.demoMode
 					});
-					const { updatePrivateConfigMode } = await import('./writePrivateConfig');
+					const { updatePrivateConfigMode } = await import('./write-private-config');
 					await updatePrivateConfigMode({
 						multiTenant: system.multiTenant,
 						demoMode: system.demoMode
@@ -365,28 +391,103 @@ export const actions = {
 					console.log('DEBUG: Persisting system settings to DB...');
 					const settingsToPersist = [
 						// Redis & Arch Mode (Private)
-						{ key: 'USE_REDIS', value: system.useRedis, category: 'private', scope: 'system' },
-						{ key: 'REDIS_HOST', value: system.redisHost, category: 'private', scope: 'system' },
-						{ key: 'REDIS_PORT', value: Number(system.redisPort), category: 'private', scope: 'system' },
-						{ key: 'REDIS_PASSWORD', value: system.redisPassword, category: 'private', scope: 'system' },
-						{ key: 'MULTI_TENANT', value: system.multiTenant, category: 'private', scope: 'system' },
-						{ key: 'DEMO', value: system.demoMode, category: 'private', scope: 'system' },
+						{
+							key: 'USE_REDIS',
+							value: system.useRedis,
+							category: 'private',
+							scope: 'system'
+						},
+						{
+							key: 'REDIS_HOST',
+							value: system.redisHost,
+							category: 'private',
+							scope: 'system'
+						},
+						{
+							key: 'REDIS_PORT',
+							value: Number(system.redisPort),
+							category: 'private',
+							scope: 'system'
+						},
+						{
+							key: 'REDIS_PASSWORD',
+							value: system.redisPassword,
+							category: 'private',
+							scope: 'system'
+						},
+						{
+							key: 'MULTI_TENANT',
+							value: system.multiTenant,
+							category: 'private',
+							scope: 'system'
+						},
+						{
+							key: 'DEMO',
+							value: system.demoMode,
+							category: 'private',
+							scope: 'system'
+						},
 
 						// General Site Settings (Public)
-						{ key: 'SITE_NAME', value: system.siteName, category: 'public', scope: 'system' },
-						{ key: 'HOST_PROD', value: system.hostProd, category: 'public', scope: 'system' },
-						{ key: 'TIMEZONE', value: system.timezone, category: 'public', scope: 'system' },
+						{
+							key: 'SITE_NAME',
+							value: system.siteName,
+							category: 'public',
+							scope: 'system'
+						},
+						{
+							key: 'HOST_PROD',
+							value: system.hostProd,
+							category: 'public',
+							scope: 'system'
+						},
+						{
+							key: 'TIMEZONE',
+							value: system.timezone,
+							category: 'public',
+							scope: 'system'
+						},
 
 						// Language Settings (Public)
 						// Note: validation should ideally ensure defaults are in the arrays
-						{ key: 'DEFAULT_CONTENT_LANGUAGE', value: system.defaultContentLanguage, category: 'public', scope: 'system' },
-						{ key: 'AVAILABLE_CONTENT_LANGUAGES', value: system.contentLanguages, category: 'public', scope: 'system' },
-						{ key: 'BASE_LOCALE', value: system.defaultSystemLanguage, category: 'public', scope: 'system' },
-						{ key: 'LOCALES', value: system.systemLanguages, category: 'public', scope: 'system' },
+						{
+							key: 'DEFAULT_CONTENT_LANGUAGE',
+							value: system.defaultContentLanguage,
+							category: 'public',
+							scope: 'system'
+						},
+						{
+							key: 'AVAILABLE_CONTENT_LANGUAGES',
+							value: system.contentLanguages,
+							category: 'public',
+							scope: 'system'
+						},
+						{
+							key: 'BASE_LOCALE',
+							value: system.defaultSystemLanguage,
+							category: 'public',
+							scope: 'system'
+						},
+						{
+							key: 'LOCALES',
+							value: system.systemLanguages,
+							category: 'public',
+							scope: 'system'
+						},
 
 						// Media Settings (Public)
-						{ key: 'MEDIA_STORAGE_TYPE', value: system.mediaStorageType, category: 'public', scope: 'system' },
-						{ key: 'MEDIA_FOLDER', value: system.mediaFolder, category: 'public', scope: 'system' }
+						{
+							key: 'MEDIA_STORAGE_TYPE',
+							value: system.mediaStorageType,
+							category: 'public',
+							scope: 'system'
+						},
+						{
+							key: 'MEDIA_FOLDER',
+							value: system.mediaFolder,
+							category: 'public',
+							scope: 'system'
+						}
 					];
 
 					// Cast to any to bypass strict type check for now, or define a proper interface for the array item
@@ -400,7 +501,7 @@ export const actions = {
 			await Promise.all([updatePrivateConfigPromise, persistSettingsPromise]);
 
 			// 3.2 Invalidate setup cache
-			const { invalidateSetupCache } = await import('@src/utils/setupCheck');
+			const { invalidateSetupCache } = await import('@src/utils/setup-check');
 			invalidateSetupCache(true);
 
 			// Initialize global system
@@ -427,16 +528,16 @@ export const actions = {
 				}
 			);
 
-			// OPTIMIZATION: Initialize ContentManager IMMEDIATELY with skipReconciliation: true
+			// OPTIMIZATION: Initializecontent-managerIMMEDIATELY with skipReconciliation: true
 			// This prevents the 4s blocking delay on the subsequent redirect request.
 			// We trust the database state because we just seeded it.
 			try {
-				logger.info('🚀 [completeSetup] Initializing ContentManager (with reconciliation)...');
-				const { contentManager } = await import('@src/content/ContentManager');
+				logger.info('🚀 [completeSetup] Initializingcontent-manager(with reconciliation)...');
+				const { contentManager } = await import('@src/content/content-manager');
 				await contentManager.initialize(undefined, false);
-				logger.info('✅ [completeSetup] ContentManager initialized and reconciled successfully.');
+				logger.info('✅ [completeSetup]ContentManager initialized and reconciled successfully.');
 			} catch (cmError) {
-				logger.warn('⚠️ [completeSetup] ContentManager init/reconcile failed:', cmError);
+				logger.warn('⚠️ [completeSetup]ContentManager init/reconcile failed:', cmError);
 			}
 
 			// PRE-WARM CACHE REMOVED (Caused Race Conditions)
@@ -494,15 +595,15 @@ export const actions = {
 			}
 
 			// 4. Determine redirect path
-			let redirectPath = '/en/Collections';
+			let redirectPath = '/en/collections';
 
 			// Use provided firstCollection if valid
 			if (system.firstCollection?.path) {
 				redirectPath = `/${system.defaultContentLanguage || 'en'}${system.firstCollection.path}`;
 			} else {
-				// Fallback: Query ContentManager for smart first collection
+				// Fallback: Querycontent-managerfor smart first collection
 				try {
-					const { contentManager } = await import('@src/content/ContentManager');
+					const { contentManager } = await import('@src/content/content-manager');
 					// Clear cache to ensure we see the newly initialized collections
 					contentManager.clearFirstCollectionCache();
 
@@ -535,7 +636,10 @@ export const actions = {
 		} catch (err) {
 			console.error('Setup completion failed detailed:', err);
 			logger.error('Setup completion failed:', err);
-			return { success: false, error: err instanceof Error ? err.message : String(err) };
+			return {
+				success: false,
+				error: err instanceof Error ? err.message : String(err)
+			};
 		}
 	},
 
@@ -575,7 +679,10 @@ export const actions = {
 
 			if (!validationResult.success) {
 				const errors = validationResult.issues.map((issue) => `${issue.path?.[0]?.key}: ${issue.message}`).join(', ');
-				return { success: false, error: `Invalid SMTP configuration: ${errors}` };
+				return {
+					success: false,
+					error: `Invalid SMTP configuration: ${errors}`
+				};
 			}
 
 			// Create transporter
@@ -658,7 +765,10 @@ export const actions = {
 		const dbType = formData.get('dbType') as DatabaseType;
 
 		if (!(dbType && DRIVER_PACKAGES[dbType]) || dbType === 'sqlite') {
-			return { success: true, message: 'No driver installation needed (or invalid type).' };
+			return {
+				success: true,
+				message: 'No driver installation needed (or invalid type).'
+			};
 		}
 
 		const packageName = DRIVER_PACKAGES[dbType];
@@ -667,7 +777,12 @@ export const actions = {
 			// Check if already installed
 			try {
 				await import(/* @vite-ignore */ packageName);
-				return { success: true, message: `Driver ${packageName} is already installed.`, alreadyInstalled: true, package: packageName };
+				return {
+					success: true,
+					message: `Driver ${packageName} is already installed.`,
+					alreadyInstalled: true,
+					package: packageName
+				};
 			} catch {
 				// Install needed
 			}
@@ -686,10 +801,17 @@ export const actions = {
 			const cmd = pm === 'bun' || pm === 'yarn' || pm === 'pnpm' ? `${pm} add ${packageName}` : `npm install ${packageName}`;
 
 			logger.info(`Installing ${packageName} using ${pm}...`);
-			const { stdout, stderr } = await execAsync(cmd, { cwd, timeout: 120_000 });
+			const { stdout, stderr } = await execAsync(cmd, {
+				cwd,
+				timeout: 120_000
+			});
 			logger.info('Installation output:', stdout + stderr);
 
-			return { success: true, message: `Successfully installed ${packageName}.`, package: packageName };
+			return {
+				success: true,
+				message: `Successfully installed ${packageName}.`,
+				package: packageName
+			};
 		} catch (error: any) {
 			logger.error('Driver installation failed:', error);
 			return { success: false, error: `Installation failed: ${error.message}` };

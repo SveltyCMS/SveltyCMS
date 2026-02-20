@@ -22,17 +22,17 @@
 -->
 
 <script lang="ts">
-	import { activeInput } from '@src/stores/activeInputStore.svelte';
-	import { collection } from '@src/stores/collectionStore.svelte';
-	import { publicEnv } from '@src/stores/globalSettings.svelte';
+	import { activeInput } from '@src/stores/active-input-store.svelte';
+	import { collection } from '@src/stores/collection-store.svelte';
+	import { publicEnv } from '@src/stores/global-settings.svelte';
 
 	// Stores
 	// Stores
-	import { app, validationStore } from '@stores/store.svelte.ts';
+	import { app, validationStore } from '@src/stores/store.svelte.ts';
 	// Utils
 	import { getFieldName } from '@utils/utils';
 	// Unified error handling
-	import { handleWidgetValidation } from '@widgets/widgetErrorHandler';
+	import { handleWidgetValidation } from '@widgets/widget-error-handler';
 	import { onDestroy, onMount } from 'svelte';
 
 	// Valibot validation
@@ -74,7 +74,9 @@
 
 	// Validation function with debounce
 	function validateInput(immediate = false) {
-		if (debounceTimeout) { clearTimeout(debounceTimeout); }
+		if (debounceTimeout) {
+			clearTimeout(debounceTimeout);
+		}
 
 		const doValidation = () => {
 			isValidating = true;
@@ -90,7 +92,10 @@
 				// Then validate email format if value exists
 				if (currentValue && currentValue.trim() !== '') {
 					// ✅ UNIFIED: Use handleWidgetValidation for standardized error handling
-					handleWidgetValidation(() => parse(emailSchema, currentValue), { fieldName, updateStore: true });
+					handleWidgetValidation(() => parse(emailSchema, currentValue), {
+						fieldName,
+						updateStore: true
+					});
 					return;
 				}
 
@@ -164,10 +169,10 @@
 
 	// Cleanup
 	onDestroy(() => {
-		if (debounceTimeout) { clearTimeout(debounceTimeout); }
+		if (debounceTimeout) {
+			clearTimeout(debounceTimeout);
+		}
 	});
-
-	import SystemTooltip from '@components/system/SystemTooltip.svelte';
 
 	// Export WidgetData for data binding with Fields.svelte
 	export const WidgetData = async () => value;
@@ -206,7 +211,7 @@
 					aria-describedby={validationError ? `${fieldName}-error` : undefined}
 					aria-required={field?.required}
 					data-testid="email-input"
-				>
+				/>
 			</div>
 
 			{#if field?.suffix}

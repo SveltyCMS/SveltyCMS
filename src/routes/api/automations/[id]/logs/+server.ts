@@ -6,7 +6,7 @@
  * - GET: Get execution history for a specific flow
  */
 
-import { automationService } from '@src/services/automation/automationService';
+import { automationService } from '@src/services/automation/automation-service';
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 

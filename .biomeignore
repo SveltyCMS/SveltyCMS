@@ -6,3 +6,11 @@ build/**
 package/**
 dist/**
 node_modules/**
+bundle-report.json
+refactor_paraglide.*
+src/components/SiteName.svelte
+src/components/emails/updatedPassword.svelte
+src/routes/(app)/dashboard/widgets/CacheMonitorWidget.svelte
+**/SiteName.svelte
+**/updatedPassword.svelte
+**/CacheMonitorWidget.svelte

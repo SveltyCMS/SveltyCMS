@@ -21,11 +21,11 @@
 import type { User } from '@src/databases/auth/types';
 // Auth and permission helpers
 import { auth } from '@src/databases/db';
-import { getPrivateSettingSync } from '@src/services/settingsService';
+import { getPrivateSettingSync } from '@src/services/settings-service';
 import { json } from '@sveltejs/kit';
 // Unified Error Handling
-import { apiHandler } from '@utils/apiHandler';
-import { AppError } from '@utils/errorHandling';
+import { apiHandler } from '@utils/api-handler';
+import { AppError } from '@utils/error-handling';
 
 // System Logger
 import { logger } from '@utils/logger.server';
@@ -139,7 +139,7 @@ export const POST: RequestHandler = apiHandler(async ({ request, locals }) => {
 		tenantId
 	});
 	// Invalidate user count cache since users were deleted
-	const { invalidateUserCountCache } = await import('@src/hooks/handleAuthorization');
+	const { invalidateUserCountCache } = await import('@src/hooks/handle-authorization');
 	invalidateUserCountCache(tenantId);
 
 	return json({ success: true, message: successMessage });

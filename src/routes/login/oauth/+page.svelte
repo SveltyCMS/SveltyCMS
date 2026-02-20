@@ -1,18 +1,18 @@
-<!-- 
+﻿<!-- 
 @src/routes/login/oauth/+page.svelte
 @description OAuth login page 
 -->
 
 <script lang="ts">
-	// Components
-	import SveltyCMSLogoFull from '@components/system/icons/SveltyCMS_LogoFull.svelte';
-	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
-	//ParaglideJS
-	import * as m from '@src/paraglide/messages';
-
+	import FloatingInput from '@src/components/system/inputs/floating-input.svelte';
+	// ParaglideJS
+	import { button_cancel, button_send, oauth_entertoken, oauth_signup, registration_token, signup_registrationtoken } from '@src/paraglide/messages';
 	// Stores
-	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte.ts';
+	import { globalLoadingStore, loadingOperations } from '@src/stores/loading-store.svelte.ts';
 	import type { PageData } from './$types';
+
+	// Components
+	import SveltyCMSLogoFull from '@src/components/system/icons/svelty-cms-logo-full.svelte';
 
 	interface Props {
 		data: PageData;
@@ -71,14 +71,14 @@
 		{#if data.requiresToken}
 			<!-- Token Input Form -->
 			<label>
-				<h2 class="mb-2 text-center text-xl font-bold text-primary-500">{m.oauth_entertoken()}</h2>
+				<h2 class="mb-2 text-center text-xl font-bold text-primary-500">{oauth_entertoken()}</h2>
 				<FloatingInput
 					id="token"
 					name="token"
 					type="text"
 					required
 					bind:value={token}
-					label={m.registration_token?.() || m.signup_registrationtoken?.()}
+					label={registration_token?.() || signup_registrationtoken?.()}
 					icon="mdi:key-chain"
 					iconColor="white"
 					textColor="white"
@@ -98,17 +98,17 @@
 
 		<div class="mt-2 flex w-full justify-between gap-1 sm:gap-2">
 			<!-- Cancel Button -->
-			<button type="button" onclick={handleCancel} aria-label={m.button_cancel()} class="variant-filled btn">{m.button_cancel()}</button>
+			<button type="button" onclick={handleCancel} aria-label={button_cancel()} class="variant-filled btn">{button_cancel()}</button>
 
 			<!-- Submit Button -->
 			<button
 				type="submit"
 				disabled={!isFormValid || globalLoadingStore.isLoading}
-				aria-label={m.button_send()}
+				aria-label={button_send()}
 				class="variant-filled btn items-center"
 			>
 				<iconify-icon icon="flat-color-icons:google" width={24}></iconify-icon>
-				<p>{m.oauth_signup()}</p>
+				<p>{oauth_signup()}</p>
 			</button>
 		</div>
 	</form>

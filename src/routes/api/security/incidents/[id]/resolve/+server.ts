@@ -3,8 +3,8 @@
  * @description Individual incident resolution endpoint
  */
 
-import { hasApiPermission } from '@src/databases/auth/apiPermissions';
-import { securityResponseService } from '@src/services/SecurityResponseService';
+import { hasApiPermission } from '@src/databases/auth/api-permissions';
+import { securityResponseService } from '@src/services/security-response-service';
 import { json, type RequestHandler } from '@sveltejs/kit';
 import { logger } from '@utils/logger.server';
 

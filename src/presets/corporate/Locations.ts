@@ -1,5 +1,5 @@
 /**
- * @file src/presets/corporate/Locations.ts
+ * @file src/presets/corporate/locations.ts
  * @description Corporate office locations schema.
  * @author SveltyCMS
  */

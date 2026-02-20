@@ -1,5 +1,5 @@
 <!--
-@file src/components/system/buttons/Button.svelte
+@file src/components/system/buttons/button.svelte
 @component
 **Button component** is a reusable button component that supports different sizes, variants, icons, and rounded corners, optimized for CMS use.
 

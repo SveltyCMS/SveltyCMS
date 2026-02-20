@@ -1,5 +1,5 @@
-<!-- 
-@file src/components/Autocomplete.svelte
+﻿<!-- 
+@file src/components/autocomplete.svelte
 @component
 **Enhanced Autocomplete - Svelte 5 Optimized**
 
@@ -49,8 +49,8 @@ Advanced autocomplete component with fuzzy search, keyboard navigation, and acce
 -->
 
 <script lang="ts">
-	import { onDestroy, onMount } from 'svelte';
 	import { fade, scale, slide } from 'svelte/transition';
+	import { onDestroy, onMount } from 'svelte';
 
 	interface Props {
 		allowCustomValue?: boolean;
@@ -99,21 +99,28 @@ Advanced autocomplete component with fuzzy search, keyboard navigation, and acce
 		const queryLower = caseSensitive ? query : query.toLowerCase();
 
 		// Exact match gets highest score
-		if (textLower === queryLower) { return 1000; }
+		if (textLower === queryLower) {
+			return 1000;
+		}
 
 		// Starts with gets high score
-		if (textLower.startsWith(queryLower)) { return 500; }
+		if (textLower.startsWith(queryLower)) {
+			return 500;
+		}
 
 		// Contains gets medium score
-		if (textLower.includes(queryLower)) { return 100; }
+		if (textLower.includes(queryLower)) {
+			return 100;
+		}
 
 		// Fuzzy match (each character of query in order)
 		let score = 0;
 		let textIndex = 0;
 		for (let i = 0; i < queryLower.length; i++) {
 			const charIndex = textLower.indexOf(queryLower[i], textIndex);
-			if (charIndex === -1) { return 0; // No match
-}
+			if (charIndex === -1) {
+				return 0; // No match
+			}
 			score += 50 - (charIndex - textIndex); // Closer characters = higher score
 			textIndex = charIndex + 1;
 		}
@@ -206,7 +213,9 @@ Advanced autocomplete component with fuzzy search, keyboard navigation, and acce
 
 	// Scroll selected item into view
 	function scrollIntoView(index: number) {
-		if (!listElement || index < 0 || index >= displayOptions.length) { return; }
+		if (!listElement || index < 0 || index >= displayOptions.length) {
+			return;
+		}
 
 		const selectedItem = listElement.children[index] as HTMLElement | undefined;
 		if (selectedItem) {
@@ -219,7 +228,9 @@ Advanced autocomplete component with fuzzy search, keyboard navigation, and acce
 
 	// Keyboard navigation
 	function handleKeydown(event: KeyboardEvent) {
-		if (disabled) { return; }
+		if (disabled) {
+			return;
+		}
 
 		const optionsLength = displayOptions.length;
 
@@ -279,7 +290,9 @@ Advanced autocomplete component with fuzzy search, keyboard navigation, and acce
 
 	// Toggle dropdown
 	function toggleDropdown() {
-		if (disabled) { return; }
+		if (disabled) {
+			return;
+		}
 		showDropdown = !showDropdown;
 		if (showDropdown) {
 			selectedIndex = -1;
@@ -289,7 +302,9 @@ Advanced autocomplete component with fuzzy search, keyboard navigation, and acce
 
 	// Focus handler
 	function handleFocus() {
-		if (disabled) { return; }
+		if (disabled) {
+			return;
+		}
 		showDropdown = true;
 	}
 
@@ -312,7 +327,9 @@ Advanced autocomplete component with fuzzy search, keyboard navigation, and acce
 
 	// Input handler
 	function handleInput() {
-		if (disabled) { return; }
+		if (disabled) {
+			return;
+		}
 		showDropdown = true;
 		selectedIndex = -1;
 	}
@@ -391,7 +408,7 @@ Advanced autocomplete component with fuzzy search, keyboard navigation, and acce
 			aria-describedby={showNoResults ? 'no-results-message' : undefined}
 			autocomplete="off"
 			role="combobox"
-		>
+		/>
 
 		<!-- Action buttons -->
 		<div class="absolute right-2 top-1/2 flex -translate-y-1/2 gap-1">

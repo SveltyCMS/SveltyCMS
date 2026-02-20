@@ -3,11 +3,11 @@
  * @description Handles GET (list) and POST (create) requests for webhooks.
  */
 
-import { webhookService } from '@src/services/webhookService';
+import { webhookService } from '@src/services/webhook-service';
 import { json } from '@sveltejs/kit';
 // Unified Error Handling
-import { apiHandler } from '@utils/apiHandler';
-import { AppError } from '@utils/errorHandling';
+import { apiHandler } from '@utils/api-handler';
+import { AppError } from '@utils/error-handling';
 import { logger } from '@utils/logger.server';
 
 // GET: List all webhooks

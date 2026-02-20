@@ -1,16 +1,13 @@
-<!--
+﻿<!--
 @files src/routes/(app)/config/sync/+page.svelte
 @component
 **Configuration Sync & Backup Manager**
 Allows synchronization between filesystem and database, and full system backup/restore.
 -->
 <script lang="ts">
-	import ImportExportManager from '@components/admin/ImportExportManager.svelte';
-	import PageTitle from '@components/PageTitle.svelte';
-	import SystemTooltip from '@components/system/SystemTooltip.svelte';
+	import { fade, slide } from 'svelte/transition';
 	import { showToast } from '@utils/toast';
 	import { onMount } from 'svelte';
-	import { fade, slide } from 'svelte/transition';
 
 	type ConfigStatus = {
 		status: 'in_sync' | 'changes_detected' | 'error';
@@ -38,7 +35,9 @@ Allows synchronization between filesystem and database, and full system backup/r
 		isLoading = true;
 		try {
 			const res = await fetch('/api/config_sync');
-			if (!res.ok) { throw new Error(`HTTP ${res.status}`); }
+			if (!res.ok) {
+				throw new Error(`HTTP ${res.status}`);
+			}
 			status = await res.json();
 			console.debug('[Config Sync] Received status:', status);
 		} catch (err) {
@@ -69,7 +68,9 @@ Allows synchronization between filesystem and database, and full system backup/r
 			});
 
 			const result = await res.json();
-			if (!res.ok) { throw new Error(result.message || `HTTP ${res.status}`); }
+			if (!res.ok) {
+				throw new Error(result.message || `HTTP ${res.status}`);
+			}
 
 			showToast(result.message || 'Sync successful!', 'success');
 			await loadStatus(); // Refresh status after sync
@@ -97,8 +98,8 @@ Allows synchronization between filesystem and database, and full system backup/r
 	<!-- Description -->
 	<div class="preset-tonal-surface mb-4 p-4">
 		<p class="text-surface-600 dark:text-surface-300">
-			Manage your system configuration. Use <strong>Sync</strong> to deploy code changes to the database, and <strong>Backups</strong> to
-			import/export full system data.
+			Manage your system configuration. Use <strong>Sync</strong> to deploy code changes to the database, and <strong>Backups</strong> to import/export
+			full system data.
 		</p>
 	</div>
 
@@ -195,7 +196,7 @@ Allows synchronization between filesystem and database, and full system backup/r
 								</tr>
 							</thead>
 							<tbody>
-								{#each Object.entries(status?.changes || {}) as [ changeType, items ] (changeType)}
+								{#each Object.entries(status?.changes || {}) as [changeType, items] (changeType)}
 									{#each items as item (item.uuid || item.name)}
 										<tr class="border-t border-surface-200 hover:bg-surface-50 dark:text-surface-50 dark:hover:bg-surface-800/50">
 											<td>{item.name}</td>
@@ -229,8 +230,7 @@ Allows synchronization between filesystem and database, and full system backup/r
 			<div transition:slide|local class="rounded border bg-surface-50 p-4 dark:bg-surface-900/40">
 				<h3 class="mb-3 flex items-center gap-2 font-semibold"><iconify-icon icon="mdi:bug-outline"></iconify-icon> Raw API Response</h3>
 				<pre
-					class="whitespace-pre-wrap text-xs max-h-[500px] overflow-y-auto p-2 border border-surface-200 dark:border-surface-700 rounded bg-surface-100 dark:bg-surface-800"
-				>{JSON.stringify(
+					class="whitespace-pre-wrap text-xs max-h-[500px] overflow-y-auto p-2 border border-surface-200 dark:border-surface-700 rounded bg-surface-100 dark:bg-surface-800">{JSON.stringify(
 						status,
 						null,
 						2

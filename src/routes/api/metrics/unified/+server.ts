@@ -3,8 +3,7 @@
  * @description Unified metrics API endpoint for dashboard widgets
  *
  * ### Features
- * - Comprehensive metrics from MetricsService
- * - Real-time performance data
+ * - Comprehensive metrics frommetrics-service * - Real-time performance data
  * - Security metrics integration
  * - Cache and authentication statistics
  * - Performance bottleneck identification
@@ -12,15 +11,15 @@
  * @endpoint GET /api/metrics/unified
  */
 
-import { metricsService } from '@src/services/MetricsService';
+import { metricsService } from '@src/services/metrics-service';
 import { json } from '@sveltejs/kit';
 /**
  * GET /api/metrics/unified
  * Returns comprehensive system metrics for dashboard monitoring.
  */
 // Unified Error Handling
-import { apiHandler } from '@utils/apiHandler';
-import { AppError } from '@utils/errorHandling';
+import { apiHandler } from '@utils/api-handler';
+import { AppError } from '@utils/error-handling';
 import { logger } from '@utils/logger.server';
 
 /**
@@ -93,7 +92,7 @@ export const GET = apiHandler(async ({ locals }) => {
 			// System metadata
 			metadata: {
 				lastUpdated: Date.now(),
-				dataSource: 'MetricsService',
+				dataSource: metricsService,
 				version: '1.0',
 				isRealTime: true
 			}

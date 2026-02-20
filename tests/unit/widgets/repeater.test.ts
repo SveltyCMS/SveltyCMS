@@ -1,14 +1,14 @@
-import RepeaterWidget from '@src/widgets/core/Repeater/index';
+import RepeaterWidget from '@src/widgets/core/repeater/index';
 import { parse } from 'valibot';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, mock } from 'bun:test';
 
 // Mock dependencies
-vi.mock('@src/paraglide/messages', () => ({
+mock.module('@src/paraglide/messages', () => ({
 	widget_relation_description: () => 'Relation Description'
 }));
 
 // Mock Svelte store
-vi.mock('@stores/widgetStore.svelte', () => ({
+mock.module('@stores/widgetStore.svelte', () => ({
 	widgets: {
 		widgetFunctions: {},
 		widgets: {}

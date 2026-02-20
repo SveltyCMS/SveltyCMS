@@ -12,15 +12,15 @@
  */
 
 // Auth
-import { contentManager } from '@src/content/ContentManager';
+import { contentManager } from '@src/content/content-manager';
 // Types
 import { type StatusType, StatusTypes } from '@src/content/types';
-import type { BaseEntity, DatabaseId } from '@src/databases/dbInterface';
-import { getPrivateSettingSync } from '@src/services/settingsService';
+import type { BaseEntity, DatabaseId } from '@src/databases/db-interface';
+import { getPrivateSettingSync } from '@src/services/settings-service';
 import { json } from '@sveltejs/kit';
 // Unified Error Handling
-import { apiHandler } from '@utils/apiHandler';
-import { AppError } from '@utils/errorHandling';
+import { apiHandler } from '@utils/api-handler';
+import { AppError } from '@utils/error-handling';
 // Logging
 import { logger } from '@utils/logger.server';
 
@@ -101,7 +101,7 @@ export const PATCH = apiHandler(async ({ locals, params, request }) => {
 		results = [{ entryId, success: true, data: result.data }];
 	}
 
-	const cacheService = (await import('@src/databases/CacheService')).cacheService;
+	const cacheService = (await import('@src/databases/cache-service')).cacheService;
 	await cacheService.clearByPattern(`collection:${schema._id}:*`).catch((e) => logger.warn('Cache clear failed', e));
 
 	const duration = performance.now() - start;
@@ -110,7 +110,11 @@ export const PATCH = apiHandler(async ({ locals, params, request }) => {
 		data: {
 			status,
 			results,
-			summary: { total: results.length, successful: results.filter((r) => r.success).length, failed: 0 }
+			summary: {
+				total: results.length,
+				successful: results.filter((r) => r.success).length,
+				failed: 0
+			}
 		},
 		performance: { duration }
 	});

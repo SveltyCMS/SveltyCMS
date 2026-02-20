@@ -12,11 +12,11 @@
  * GET /api/collections/{collectionId}/export?format=json&limit=100&offset=0
  */
 
-import { contentManager } from '@src/content/ContentManager';
+import { contentManager } from '@src/content/content-manager';
 import { json } from '@sveltejs/kit';
 // Unified Error Handling
-import { apiHandler } from '@utils/apiHandler';
-import { AppError } from '@utils/errorHandling';
+import { apiHandler } from '@utils/api-handler';
+import { AppError } from '@utils/error-handling';
 import { logger } from '@utils/logger.server';
 
 // Helper for CSV conversion
@@ -100,12 +100,18 @@ export const GET = apiHandler(async ({ params, url, locals }) => {
 	}
 
 	const exportData = result.data || [];
-	logger.info(`Collection ${collectionId} exported`, { count: exportData.length, format });
+	logger.info(`Collection ${collectionId} exported`, {
+		count: exportData.length,
+		format
+	});
 
 	if (format === 'csv') {
 		const csvData = convertToCSV(exportData);
 		return new Response(csvData, {
-			headers: { 'Content-Type': 'text/csv', 'Content-Disposition': `attachment; filename="${collectionId}-export.csv"` }
+			headers: {
+				'Content-Type': 'text/csv',
+				'Content-Disposition': `attachment; filename="${collectionId}-export.csv"`
+			}
 		});
 	}
 	return json({

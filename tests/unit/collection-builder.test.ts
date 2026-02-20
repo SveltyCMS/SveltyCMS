@@ -1,8 +1,8 @@
 // tests/bun/collection-builder.test.ts
 
 import { beforeEach, describe, expect, test } from 'bun:test';
-import type { WidgetConfig } from '../../src/widgets/widgetFactory';
-import { createWidget } from '../../src/widgets/widgetFactory';
+import type { WidgetConfig } from '../../src/widgets/widget-factory';
+import { createWidget } from '../../src/widgets/widget-factory';
 
 // Mock widget store data
 const mockWidgetStore = {
@@ -58,10 +58,26 @@ describe('Collection Builder Widget Integration', () => {
 			// Setup mock widgets
 			type WidgetMap = Record<string, ReturnType<typeof createWidget>>;
 			const widgets: WidgetMap = {
-				TextInput: createWidget({ Name: 'TextInput', Description: 'Text input widget', validationSchema: {} }),
-				NumberInput: createWidget({ Name: 'NumberInput', Description: 'Number input widget', validationSchema: {} }),
-				EmailInput: createWidget({ Name: 'EmailInput', Description: 'Email input widget', validationSchema: {} }),
-				FileUpload: createWidget({ Name: 'FileUpload', Description: 'File upload widget', validationSchema: {} })
+				TextInput: createWidget({
+					Name: 'TextInput',
+					Description: 'Text input widget',
+					validationSchema: {}
+				}),
+				NumberInput: createWidget({
+					Name: 'NumberInput',
+					Description: 'Number input widget',
+					validationSchema: {}
+				}),
+				EmailInput: createWidget({
+					Name: 'EmailInput',
+					Description: 'Email input widget',
+					validationSchema: {}
+				}),
+				FileUpload: createWidget({
+					Name: 'FileUpload',
+					Description: 'File upload widget',
+					validationSchema: {}
+				})
 			};
 
 			mockWidgetStore.widgetFunctions = widgets;
@@ -154,8 +170,16 @@ describe('Collection Builder Widget Integration', () => {
 	describe('Widget Management Integration', () => {
 		test('should handle widget activation/deactivation', () => {
 			const widgets = {
-				Widget1: createWidget({ Name: 'Widget1', Description: 'First widget', validationSchema: {} }),
-				Widget2: createWidget({ Name: 'Widget2', Description: 'Second widget', validationSchema: {} })
+				Widget1: createWidget({
+					Name: 'Widget1',
+					Description: 'First widget',
+					validationSchema: {}
+				}),
+				Widget2: createWidget({
+					Name: 'Widget2',
+					Description: 'Second widget',
+					validationSchema: {}
+				})
 			};
 
 			mockWidgetStore.widgetFunctions = widgets;

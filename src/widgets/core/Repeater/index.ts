@@ -12,7 +12,7 @@
  */
 
 import type { FieldInstance } from '@src/content/types';
-import { createWidget } from '@src/widgets/widgetFactory';
+import { createWidget } from '@src/widgets/widget-factory';
 import { array, maxLength, minLength, object, optional, pipe } from 'valibot';
 import type { RepeaterProps } from './types';
 

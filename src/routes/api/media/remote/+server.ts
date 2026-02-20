@@ -11,17 +11,17 @@
  */
 
 import { dbAdapter } from '@src/databases/db';
-import { getPrivateSettingSync } from '@src/services/settingsService';
+import { getPrivateSettingSync } from '@src/services/settings-service';
 // Media Service
-import { MediaService } from '@src/utils/media/mediaService.server';
+import { MediaService } from '@src/utils/media/media-service.server';
 import { error, json } from '@sveltejs/kit';
 // System Logger
 import { logger } from '@utils/logger.server';
-import type { MediaAccess } from '@utils/media/mediaModels';
+import type { MediaAccess } from '@utils/media/media-models';
 import type { RequestHandler } from './$types';
 
-// Helper function to get MediaService instance
-function getMediaService(): MediaService {
+// Helper function to getmedia-serviceinstance
+function getMediaService(): mediaService {
 	if (!dbAdapter) {
 		throw new Error('Database adapter is not initialized');
 	}
@@ -59,11 +59,16 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		// Determine base path (use tenantId if multi-tenant, otherwise use provided or 'global')
 		const mediaBasePath = tenantId || basePath || 'global';
 
-		// Initialize MediaService and save remote media
+		// Initializemedia-serviceand save remote media
 		const mediaService = getMediaService();
 		const result = await mediaService.saveRemoteMedia(fileUrl, user._id.toString(), validAccess, mediaBasePath);
 
-		logger.info('Remote media saved successfully', { fileUrl, userId: user._id, tenantId, access: validAccess });
+		logger.info('Remote media saved successfully', {
+			fileUrl,
+			userId: user._id,
+			tenantId,
+			access: validAccess
+		});
 		return json({ success: true, media: result });
 	} catch (err) {
 		const message = `Error saving remote media: ${err instanceof Error ? err.message : String(err)}`;

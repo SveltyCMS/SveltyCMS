@@ -6,7 +6,7 @@
  */
 
 import type { FieldInstance } from '@src/content/types';
-import { createWidget } from '@src/widgets/widgetFactory';
+import { createWidget } from '@src/widgets/widget-factory';
 import { maxValue, minValue, nullable, number, object, optional, pipe, string } from 'valibot';
 import type { PriceProps } from './types';
 

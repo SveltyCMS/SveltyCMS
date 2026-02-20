@@ -25,7 +25,7 @@ import type {
 } from '@content/types';
 
 import { dbAdapter, getDb } from '@src/databases/db';
-import { getAllSettings, invalidateSettingsCache } from '@src/services/settingsService';
+import { getAllSettings, invalidateSettingsCache } from '@src/services/settings-service';
 import { json } from '@sveltejs/kit';
 import { decryptData } from '@utils/crypto';
 import { logger } from '@utils/logger.server';
@@ -352,7 +352,7 @@ async function applyImport(importData: ExportData, options: ImportOptions, confl
  * Log import to audit trail
  */
 async function logImport(user: any, metadata: ExportMetadata, result: ImportResult): Promise<void> {
-	const { logAuditEvent, AuditEventType } = await import('@src/services/auditLogService');
+	const { logAuditEvent, AuditEventType } = await import('@src/services/audit-log-service');
 
 	await logAuditEvent({
 		action: `Full system import: ${metadata.export_id}`,
@@ -383,8 +383,8 @@ async function logImport(user: any, metadata: ExportMetadata, result: ImportResu
  * Permissions: config:settings:write (or admin)
  */
 // Unified Error Handling
-import { apiHandler } from '@utils/apiHandler';
-import { AppError } from '@utils/errorHandling';
+import { apiHandler } from '@utils/api-handler';
+import { AppError } from '@utils/error-handling';
 
 /**
  * Import full system configuration

@@ -3,8 +3,8 @@
  * @description Google PageSpeed Insights API integration and data management
  */
 
-import type { IDBAdapter } from '@databases/dbInterface';
-import { getPrivateSettingSync } from '@src/services/settingsService';
+import type { IDBAdapter } from '@databases/db-interface';
+import { getPrivateSettingSync } from '@src/services/settings-service';
 import { logger } from '@utils/logger.server';
 import type { GooglePageSpeedResponse, PageSpeedResult } from './types';
 
@@ -135,7 +135,9 @@ export async function storeResult(dbAdapter: IDBAdapter, result: Omit<PageSpeedR
 			const updateResult = await dbAdapter.crud.update<PageSpeedResult>('pluginPagespeedResults', existing.data._id, result as any);
 
 			if (!updateResult.success) {
-				logger.error('Failed to update PageSpeed result', { error: (updateResult as any).error });
+				logger.error('Failed to update PageSpeed result', {
+					error: (updateResult as any).error
+				});
 				return false;
 			}
 		} else {
@@ -143,7 +145,9 @@ export async function storeResult(dbAdapter: IDBAdapter, result: Omit<PageSpeedR
 			const insertResult = await dbAdapter.crud.insert<PageSpeedResult>('pluginPagespeedResults', result as any);
 
 			if (!insertResult.success) {
-				logger.error('Failed to insert PageSpeed result', { error: (insertResult as any).error });
+				logger.error('Failed to insert PageSpeed result', {
+					error: (insertResult as any).error
+				});
 				return false;
 			}
 		}

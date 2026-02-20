@@ -13,8 +13,8 @@
 import { pluginRegistry } from '@src/plugins';
 import { json } from '@sveltejs/kit';
 // Unified Error Handling
-import { apiHandler } from '@utils/apiHandler';
-import { AppError } from '@utils/errorHandling';
+import { apiHandler } from '@utils/api-handler';
+import { AppError } from '@utils/error-handling';
 import { logger } from '@utils/logger.server';
 
 export const POST = apiHandler(async ({ request, locals }) => {
@@ -38,7 +38,10 @@ export const POST = apiHandler(async ({ request, locals }) => {
 		const success = await pluginRegistry.togglePlugin(pluginId, enabled, tenantId || 'default', user._id as string);
 
 		if (success) {
-			return json({ success: true, message: `Plugin ${enabled ? 'enabled' : 'disabled'} successfully` });
+			return json({
+				success: true,
+				message: `Plugin ${enabled ? 'enabled' : 'disabled'} successfully`
+			});
 		}
 		throw new AppError('Failed to update plugin state', 500, 'UPDATE_FAILED');
 	} catch (error: any) {

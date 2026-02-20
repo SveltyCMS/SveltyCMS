@@ -19,29 +19,27 @@
 - Lazy loading with Intersection Observer for optimal performance
 -->
 <script lang="ts">
-	// Components
-	import ImportExportManager from '@components/admin/ImportExportManager.svelte';
-	import PageTitle from '@components/PageTitle.svelte';
 	import type { DashboardWidgetConfig, DropIndicator, WidgetComponent, WidgetMeta, WidgetSize } from '@src/content/types';
 	import { onMount } from 'svelte';
 	import { flip } from 'svelte/animate';
 	import { SvelteMap } from 'svelte/reactivity';
+	// Components
+	import PageTitle from '@src/components/page-title.svelte';
+	import Slot from '@src/components/system/slot.svelte';
+	import ImportExportManager from '@src/components/admin/import-export-manager.svelte';
 	// Types
 	import type { PageData } from './$types';
 
 	// Using iconify-icon web component
 
-	import { systemPreferences } from '@stores/systemPreferences.svelte.ts';
+	import { systemPreferences } from '@src/stores/system-preferences.svelte.ts';
 	// Stores
-	import { themeStore } from '@stores/themeStore.svelte.ts';
+	import { themeStore } from '@src/stores/theme-store.svelte.ts';
 
 	// System logger
 	import { logger } from '@utils/logger';
 
 	// Lucide Icons
-
-	// Plugin Slots
-	import Slot from '@components/system/Slot.svelte';
 
 	const { data }: { data: PageData } = $props();
 
@@ -77,24 +75,39 @@
 		offset: { x: number; y: number };
 		isActive: boolean;
 		gridPosition?: { row: number; col: number };
-	} = $state({ item: null, element: null, offset: { x: 0, y: 0 }, isActive: false });
+	} = $state({
+		item: null,
+		element: null,
+		offset: { x: 0, y: 0 },
+		isActive: false
+	});
 	let dropIndicator: DropIndicator | null = $state(null);
-	let gridDropIndicator: { row: number; col: number; width: number; height: number } | null = $state(null);
+	let gridDropIndicator: {
+		row: number;
+		col: number;
+		width: number;
+		height: number;
+	} | null = $state(null);
 
 	async function loadWidgetRegistry() {
 		const modules = import.meta.glob('./widgets/*.svelte');
 		const registry: typeof widgetRegistry = {};
 		for (const path in modules) {
-			const name = path.split('/').pop()?.replace('.svelte', '');
-			if (name) {
-				const module = (await modules[path]()) as { default: WidgetComponent; widgetMeta: WidgetMeta };
-				registry[name] = {
-					component: module.default,
-					name: module.widgetMeta?.name || name,
-					description: module.widgetMeta?.description || '',
-					icon: module.widgetMeta?.icon || 'mdi:widgets',
-					widgetMeta: module.widgetMeta
-				};
+			if (Object.hasOwn(modules, path)) {
+				const name = path.split('/').pop()?.replace('.svelte', '');
+				if (name) {
+					const module = (await modules[path]()) as {
+						default: WidgetComponent;
+						widgetMeta: WidgetMeta;
+					};
+					registry[name] = {
+						component: module.default,
+						name: module.widgetMeta?.name || name,
+						description: module.widgetMeta?.description || '',
+						icon: module.widgetMeta?.icon || 'mdi:widgets',
+						widgetMeta: module.widgetMeta
+					};
+				}
 			}
 		}
 		widgetRegistry = registry;
@@ -104,7 +117,9 @@
 	// Lazy load individual widget when it becomes visible
 	async function loadWidgetComponent(widgetId: string, componentName: string) {
 		// Skip if already loaded
-		if (loadedWidgets.has(widgetId)) { return; }
+		if (loadedWidgets.has(widgetId)) {
+			return;
+		}
 
 		try {
 			// Dynamically import the widget component
@@ -158,7 +173,9 @@
 	// Helper function to find insertion position based on coordinates
 	function findInsertionPosition(x: number, y: number): number {
 		const gridContainer = mainContainerEl?.querySelector('.responsive-dashboard-grid') as HTMLElement;
-		if (!gridContainer) { return currentPreferences.length; }
+		if (!gridContainer) {
+			return currentPreferences.length;
+		}
 
 		// Get all widget elements and their positions
 		const widgets = Array.from(gridContainer.querySelectorAll('.widget-container')) as HTMLElement[];
@@ -181,7 +198,8 @@
 		let minDistance = Number.POSITIVE_INFINITY;
 
 		for (let i = 0; i <= widgetPositions.length; i++) {
-			let targetY, targetX;
+			let targetY = 0;
+			let targetX = 0;
 
 			if (i === 0) {
 				// Before first widget
@@ -296,7 +314,9 @@
 		const currentWidgets = [...currentPreferences];
 		const currentIndex = currentWidgets.findIndex((w) => w.id === widget.id);
 
-		if (currentIndex === -1) { return; }
+		if (currentIndex === -1) {
+			return;
+		}
 
 		// Remove from current position
 		const [movedWidget] = currentWidgets.splice(currentIndex, 1);
@@ -314,12 +334,16 @@
 	}
 	function handleDragStart(event: MouseEvent | TouchEvent | PointerEvent, item: DashboardWidgetConfig, element: HTMLElement) {
 		// Ignore clicks on interactive elements and resize handles
-		if ((event.target as HTMLElement).closest('button, a, input, select, [role=button], .resize-handles, [data-direction]')) { return; }
+		if ((event.target as HTMLElement).closest('button, a, input, select, [role=button], .resize-handles, [data-direction]')) {
+			return;
+		}
 
 		const coords = 'touches' in event ? event.touches[0] : event;
 		const rect = element.getBoundingClientRect();
 
-		if (coords.clientY - rect.top > HEADER_HEIGHT) { return; }
+		if (coords.clientY - rect.top > HEADER_HEIGHT) {
+			return;
+		}
 
 		event.preventDefault();
 		dragState = {
@@ -342,7 +366,9 @@
 	}
 
 	function handleDragMove(event: PointerEvent) {
-		if (!(dragState.isActive && dragState.element)) { return; }
+		if (!(dragState.isActive && dragState.element)) {
+			return;
+		}
 
 		const coords = event;
 		dragState.element.style.left = `${coords.clientX - dragState.offset.x}px`;
@@ -370,7 +396,9 @@
 	}
 
 	function handleDragEnd() {
-		if (!dragState.isActive) { return; }
+		if (!dragState.isActive) {
+			return;
+		}
 
 		const originalElement = mainContainerEl?.querySelector(`[data-widget-id="${dragState.item?.id}"]`) as HTMLElement;
 		if (originalElement) {
@@ -387,7 +415,12 @@
 			performDrop(dragState.item, { targetIndex: dropIndicator.targetIndex });
 		}
 
-		dragState = { item: null, element: null, offset: { x: 0, y: 0 }, isActive: false };
+		dragState = {
+			item: null,
+			element: null,
+			offset: { x: 0, y: 0 },
+			isActive: false
+		};
 		dropIndicator = null;
 		gridDropIndicator = null;
 
@@ -399,7 +432,9 @@
 		const currentWidgets = [...currentPreferences];
 		const currentIndex = currentWidgets.findIndex((w) => w.id === item.id);
 
-		if (currentIndex === -1) { return; }
+		if (currentIndex === -1) {
+			return;
+		}
 
 		let targetIndex = currentIndex;
 
@@ -476,7 +511,7 @@
 						class="widget-dropdown absolute right-0 z-30 mt-2 w-72 rounded border bg-white shadow-2xl dark:border-gray-700 dark:bg-surface-900"
 						role="menu"
 					>
-						<div class="p-2"><input type="text" class="input w-full" placeholder="Search widgets..." bind:value={searchQuery}></div>
+						<div class="p-2"><input type="text" class="input w-full" placeholder="Search widgets..." bind:value={searchQuery} /></div>
 						<div class="max-h-64 overflow-y-auto py-1">
 							{#each filteredWidgets as widgetName (widgetName)}
 								{@const widgetInfo = widgetComponentRegistry[widgetName]}

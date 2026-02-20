@@ -20,8 +20,8 @@ import { SESSION_COOKIE_NAME } from '@src/databases/auth/constants';
 import { auth } from '@src/databases/db';
 import { type HttpError, json, type RequestHandler } from '@sveltejs/kit';
 // Unified Error Handling
-import { apiHandler } from '@utils/apiHandler';
-import { AppError } from '@utils/errorHandling';
+import { apiHandler } from '@utils/api-handler';
+import { AppError } from '@utils/error-handling';
 // System Logger
 import { logger } from '@utils/logger.server';
 
@@ -36,7 +36,9 @@ export const POST: RequestHandler = apiHandler(async ({ cookies, locals }) => {
 		if (session_id && user) {
 			// Revoke Google OAuth Token
 			// Check if user has googleRefreshToken (property exists in full User type but not in minimal locals type)
-			const fullUser = user as { googleRefreshToken?: string | null } & typeof user;
+			const fullUser = user as {
+				googleRefreshToken?: string | null;
+			} & typeof user;
 			if (fullUser.googleRefreshToken) {
 				try {
 					const refreshToken = fullUser.googleRefreshToken;
@@ -48,7 +50,10 @@ export const POST: RequestHandler = apiHandler(async ({ cookies, locals }) => {
 					});
 
 					if (response.ok) {
-						logger.info('Successfully revoked Google OAuth token for user', { userId: user._id, tenantId }); // Clear the refresh token from the database, scoped by tenant.
+						logger.info('Successfully revoked Google OAuth token for user', {
+							userId: user._id,
+							tenantId
+						}); // Clear the refresh token from the database, scoped by tenant.
 						await auth.updateUserAttributes(user._id, { googleRefreshToken: undefined }, tenantId);
 					} else {
 						const errorBody = await response.json();
@@ -60,7 +65,11 @@ export const POST: RequestHandler = apiHandler(async ({ cookies, locals }) => {
 					}
 				} catch (revokeError) {
 					// Log the error but don't block the local logout process.
-					logger.error('Error while trying to revoke Google OAuth token', { userId: user._id, error: revokeError, tenantId });
+					logger.error('Error while trying to revoke Google OAuth token', {
+						userId: user._id,
+						error: revokeError,
+						tenantId
+					});
 				}
 			}
 
@@ -70,7 +79,7 @@ export const POST: RequestHandler = apiHandler(async ({ cookies, locals }) => {
 			try {
 				// Import and call invalidateSessionCache to clear in-memory caches
 				// Dynamic import avoids circular dependencies if any
-				const { invalidateSessionCache } = await import('@src/hooks/handleAuthentication');
+				const { invalidateSessionCache } = await import('@src/hooks/handle-authentication');
 				invalidateSessionCache(session_id, tenantId);
 			} catch (cacheError) {
 				logger.warn(`Failed to clear session cache: ${cacheError}`);
@@ -97,7 +106,10 @@ export const POST: RequestHandler = apiHandler(async ({ cookies, locals }) => {
 		locals.session_id = undefined;
 		locals.tenantId = undefined;
 
-		return json({ success: true, message: 'You have been logged out successfully.' });
+		return json({
+			success: true,
+			message: 'You have been logged out successfully.'
+		});
 	} catch (err) {
 		if (err instanceof AppError) {
 			throw err;
@@ -118,7 +130,9 @@ export const POST: RequestHandler = apiHandler(async ({ cookies, locals }) => {
 		try {
 			cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
 		} catch (cookieError) {
-			logger.error('Failed to clear cookie during logout error handling.', { cookieError });
+			logger.error('Failed to clear cookie during logout error handling.', {
+				cookieError
+			});
 		}
 
 		throw new AppError(message, status, 'LOGOUT_FAILED');

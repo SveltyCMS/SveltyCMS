@@ -1,37 +1,40 @@
 <!--
 @file src/routes/setup/+page.svelte
-@description Professional multi-step setup wizard for SveltyCMS.
+@component
+**Professional multi-step setup wizard for SveltyCMS**
 -->
 <script lang="ts">
 	// Stores
-	import { setupStore } from '@stores/setupStore.svelte.ts';
-	import { app } from '@stores/store.svelte';
+
+	// ParaglideJS
+	import {
+		setup_legend_completed,
+		setup_legend_current,
+		setup_legend_pending,
+		setup_step_admin,
+		setup_step_admin_desc,
+		setup_step_complete,
+		setup_step_complete_desc,
+		setup_step_database,
+		setup_step_database_desc,
+		setup_step_email,
+		setup_step_email_desc,
+		setup_step_system,
+		setup_step_system_desc
+	} from '@src/paraglide/messages';
+	import { locales as availableLocales, getLocale } from '@src/paraglide/runtime';
+	import { setupStore } from '@src/stores/setup-store.svelte.ts';
+	import { app } from '@src/stores/store.svelte';
+	// Utils
+	import { getLanguageName } from '@utils/language-utils';
+	import { modalState } from '@utils/modal-state.svelte';
 	// Using iconify-icon web component
 	import { onMount, tick } from 'svelte';
 	import { goto } from '$app/navigation';
-	import AdminConfig from './AdminConfig.svelte';
-	import DatabaseConfig from './DatabaseConfig.svelte';
-	import EmailConfig from './EmailConfig.svelte';
-	import ReviewConfig from './ReviewConfig.svelte';
-	import SetupCardHeader from './SetupCardHeader.svelte';
-	// Child Layout Components
-	import SetupHeader from './SetupHeader.svelte';
-	import SetupNavigation from './SetupNavigation.svelte';
-	import SetupStepper from './SetupStepper.svelte';
-	import SystemConfig from './SystemConfig.svelte';
 	// Step Content Components
-	import WelcomeModal from './WelcomeModal.svelte';
+	import WelcomeModal from './welcome-modal.svelte';
 
 	// Skeleton v4
-
-	import DialogManager from '@components/system/DialogManager.svelte';
-	// ParaglideJS
-	import * as m from '@src/paraglide/messages';
-	import { locales as availableLocales, getLocale } from '@src/paraglide/runtime';
-	// Utils
-	import { getLanguageName } from '@utils/languageUtils';
-	import { modalState } from '@utils/modalState.svelte';
-	import { showConfirm } from '@utils/modalUtils';
 
 	// --- 1. STATE MANAGEMENT (Wired to Store) ---
 	let { data } = $props();
@@ -79,7 +82,9 @@
 
 	// --- 5. DERIVED STATE (Page-Specific) ---
 	const hasUnsavedChanges = $derived(() => {
-		if (!initialDataSnapshot) { return false; }
+		if (!initialDataSnapshot) {
+			return false;
+		}
 		return JSON.stringify(wizard) !== initialDataSnapshot;
 	});
 	const systemLanguages = $derived.by(() => {
@@ -91,24 +96,26 @@
 
 	// STEPPER CONFIG
 	const steps = $derived([
-		{ label: m.setup_step_database(), shortDesc: m.setup_step_database_desc() },
-		{ label: m.setup_step_admin(), shortDesc: m.setup_step_admin_desc() },
-		{ label: m.setup_step_system(), shortDesc: m.setup_step_system_desc() },
+		{ label: setup_step_database(), shortDesc: setup_step_database_desc() },
+		{ label: setup_step_admin(), shortDesc: setup_step_admin_desc() },
+		{ label: setup_step_system(), shortDesc: setup_step_system_desc() },
 		{
-			label: m.setup_step_email ? m.setup_step_email() : 'Email (Optional)',
-			shortDesc: m.setup_step_email_desc ? m.setup_step_email_desc() : 'Configure SMTP'
+			label: setup_step_email ? setup_step_email() : 'Email (Optional)',
+			shortDesc: setup_step_email_desc ? setup_step_email_desc() : 'Configure SMTP'
 		},
-		{ label: m.setup_step_complete(), shortDesc: m.setup_step_complete_desc() }
+		{ label: setup_step_complete(), shortDesc: setup_step_complete_desc() }
 	]);
 	const totalSteps = $derived(steps.length);
 	const legendItems = [
-		{ key: 'completed', label: m.setup_legend_completed(), content: '✓' },
-		{ key: 'current', label: m.setup_legend_current(), content: '●' },
-		{ key: 'pending', label: m.setup_legend_pending(), content: '•' }
+		{ key: 'completed', label: setup_legend_completed(), content: '✓' },
+		{ key: 'current', label: setup_legend_current(), content: '●' },
+		{ key: 'pending', label: setup_legend_pending(), content: '•' }
 	];
 
 	// --- 6. CORE LOGIC & API CALLS (Now delegated to store) ---
-	let dbConfigComponent: { installDatabaseDriver: (type: string) => Promise<void> } | null = $state(null);
+	let dbConfigComponent: {
+		installDatabaseDriver: (type: string) => Promise<void>;
+	} | null = $state(null);
 
 	async function focusStepContent() {
 		await tick();
@@ -119,14 +126,18 @@
 	}
 
 	async function nextStep() {
-		if (!setupStore.canProceed) { return; }
+		if (!setupStore.canProceed) {
+			return;
+		}
 		if (wizard.currentStep === 0) {
 			if (dbConfigComponent && typeof dbConfigComponent.installDatabaseDriver === 'function') {
 				await dbConfigComponent.installDatabaseDriver(wizard.dbConfig.type);
 			}
 			await seedDatabase();
 		}
-		if ((wizard.currentStep === 1 || wizard.currentStep === 2) && !validateStep(wizard.currentStep, true)) { return; }
+		if ((wizard.currentStep === 1 || wizard.currentStep === 2) && !validateStep(wizard.currentStep, true)) {
+			return;
+		}
 		if (wizard.currentStep < totalSteps - 1) {
 			wizard.currentStep++;
 			if (wizard.currentStep > wizard.highestStepReached) {
@@ -164,7 +175,7 @@
 	}
 </script>
 
-<svelte:head> <title>SveltyCMS Setup</title> </svelte:head>
+<svelte:head><title>SveltyCMS Setup</title></svelte:head>
 
 <div class="bg-surface-50-900 min-h-screen w-full transition-colors">
 	<DialogManager />
@@ -268,7 +279,7 @@
 								<div class="flex-1">{wizard.successMessage || wizard.errorMessage}</div>
 								<button type="button" class="btn-sm flex shrink-0 items-center gap-1" onclick={() => (wizard.showDbDetails = !wizard.showDbDetails)}>
 									<iconify-icon icon={wizard.showDbDetails ? 'mdi:chevron-up' : 'mdi:chevron-down'} class="h-4 w-4"></iconify-icon>
-									<span class="hidden sm:inline">{wizard.showDbDetails ? m.setup_db_test_details_hide() : m.setup_db_test_details_show()}</span>
+									<span class="hidden sm:inline">{wizard.showDbDetails ? setup_db_test_details_hide() : setup_db_test_details_show()}</span>
 								</button>
 								<button
 									type="button"
@@ -283,30 +294,30 @@
 								<div class="border-t border-surface-200 bg-surface-50 text-xs dark:border-surface-600 dark:bg-surface-700">
 									<div class="grid grid-cols-2 gap-x-4 gap-y-2 p-3 sm:grid-cols-6">
 										<div class="sm:col-span-1">
-											<span class="font-semibold">{m.setup_db_test_latency()}:</span>
+											<span class="font-semibold">{setup_db_test_latency()}:</span>
 											<span class="text-terrary-500 dark:text-primary-500">{wizard.lastDbTestResult.latencyMs ?? '—'} ms</span>
 										</div>
 										<div class="sm:col-span-1">
-											<span class="font-semibold">{m.setup_db_test_engine()}:</span>
+											<span class="font-semibold">{setup_db_test_engine()}:</span>
 											<span class="text-terrary-500 dark:text-primary-500">{wizard.dbConfig.type}</span>
 										</div>
 										<div class="sm:col-span-1">
-											<span class="font-semibold">{m.label_host()}:</span>
+											<span class="font-semibold">{label_host()}:</span>
 											<span class="text-terrary-500 dark:text-primary-500">{wizard.dbConfig.host}</span>
 										</div>
 										{#if !isFullUri}
 											<div class="sm:col-span-1">
-												<span class="font-semibold">{m.label_port()}:</span>
+												<span class="font-semibold">{label_port()}:</span>
 												<span class="text-terrary-500 dark:text-primary-500">{wizard.dbConfig.port}</span>
 											</div>
 										{/if}
 										<div class="sm:col-span-1">
-											<span class="font-semibold">{m.label_database()}:</span>
+											<span class="font-semibold">{label_database()}:</span>
 											<span class="text-terrary-500 dark:text-primary-500">{wizard.dbConfig.name}</span>
 										</div>
 										{#if wizard.dbConfig.user}
 											<div class="sm:col-span-1">
-												<span class="font-semibold">{m.label_user?.() || m.setup_db_test_user()}:</span>
+												<span class="font-semibold">{label_user?.() || setup_db_test_user()}:</span>
 												<span class="text-terrary-500 dark:text-primary-500">{wizard.dbConfig.user}</span>
 											</div>
 										{/if}

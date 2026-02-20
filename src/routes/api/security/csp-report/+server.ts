@@ -12,7 +12,7 @@
  * @security This endpoint helps monitor XSS attempts and policy violations
  */
 
-import { metricsService } from '@src/services/MetricsService';
+import { metricsService } from '@src/services/metrics-service';
 import { json, type RequestHandler } from '@sveltejs/kit';
 import { logger } from '@utils/logger.server';
 import { dev } from '$app/environment';
@@ -91,7 +91,7 @@ function shouldIgnoreViolation(report: CSPViolationReport): boolean {
  * Handles CSP violation reports sent by browsers.
  */
 // Unified Error Handling
-import { apiHandler } from '@utils/apiHandler';
+import { apiHandler } from '@utils/api-handler';
 
 /**
  * Handles CSP violation reports sent by browsers.

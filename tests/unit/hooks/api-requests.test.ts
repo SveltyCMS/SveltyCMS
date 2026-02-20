@@ -5,7 +5,7 @@
 
 import { beforeEach, describe, expect, it, mock } from 'bun:test';
 import type { User } from '@src/databases/auth/types';
-import { handleApiRequests } from '@src/hooks/handleApiRequests';
+import { handleApiRequests } from '@src/hooks/handle-api-requests';
 import type { RequestEvent } from '@sveltejs/kit';
 
 // --- Test Utilities ---
@@ -145,7 +145,10 @@ describe('handleApiRequests Middleware', () => {
 			mockResolve.mockClear();
 
 			const event2 = createMockEvent('/api/collections', 'GET', mockUser);
-			const response2 = await handleApiRequests({ event: event2, resolve: mockResolve });
+			const response2 = await handleApiRequests({
+				event: event2,
+				resolve: mockResolve
+			});
 
 			// X-Cache: HIT for cached response
 			expect(response2.headers.get('X-Cache')).toBeDefined();

@@ -1,5 +1,5 @@
 <!-- 
-@file src/components/system/table/Boolean.svelte
+@file src/components/system/table/boolean.svelte
 @component 
 **Boolean component for displaying 'Yes' or 'No' with badges in a table**
 
@@ -15,9 +15,6 @@
 -->
 
 <script lang="ts">
-	//ParaglideJS
-	import * as m from '@src/paraglide/messages';
-
 	// Svelte 5 props
 	interface Props {
 		value?: boolean;
@@ -27,4 +24,4 @@
 </script>
 
 <!-- Display 'Yes' for true and 'No' for false with badges -->
-<span class={value ? 'gradient-error badge rounded' : 'gradient-primary badge rounded'}> {value ? m.boolean_yes() : m.boolean_no()} </span>
+<span class={value ? 'gradient-error badge rounded' : 'gradient-primary badge rounded'}> {value ? boolean_yes() : boolean_no()} </span>

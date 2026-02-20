@@ -8,25 +8,26 @@
  *
  * Collection Seeding Strategy:
  * - seedCollectionsForSetup(): Lightweight version for setup that directly reads compiled
- * collections from filesystem and creates models. Bypasses ContentManager to avoid
+ * collections from filesystem and creates models. Bypassescontent-managerto avoid
  * global dbAdapter dependency issues during setup mode.
- * - This allows ContentManager to have collections pre-cached when system fully initializes,
+ * - This allowscontent-managerto have collections pre-cached when system fully initializes,
  * resulting in faster redirects and better UX after setup completion.
  */
 
 // Import inlang settings directly (TypeScript/SvelteKit handles JSON imports)
 import inlangSettings from '@root/project.inlang/settings.json';
+import { scanCompiledCollections } from '@src/content/collection-scanner';
 import type { ContentNode, DatabaseId, Schema } from '@src/content/types';
 import { generateCategoryNodesFromPaths } from '@src/content/utils';
 import { getAllPermissions } from '@src/databases/auth';
-import { defaultRoles as importedDefaultRoles } from '@src/databases/auth/defaultRoles';
-import type { DatabaseAdapter, Theme } from '@src/databases/dbInterface';
+import { defaultRoles as importedDefaultRoles } from '@src/databases/auth/default-roles';
+import type { DatabaseAdapter, Theme } from '@src/databases/db-interface';
 import { publicConfigSchema } from '@src/databases/schemas';
-import { invalidateSettingsCache } from '@src/services/settingsService';
-import { dateToISODateString } from '@utils/dateUtils';
+import { invalidateSettingsCache } from '@src/services/settings-service';
+import { dateToISODateString } from '@utils/date-utils';
 import { logger } from '@utils/logger.server';
 import { safeParse } from 'valibot';
-import { setupManager } from './setupManager';
+import { setupManager } from './setup-manager';
 
 // ============================================================================
 // EXPORTED DEFAULTS - Loaded from project.inlang/settings.json
@@ -158,7 +159,7 @@ export async function seedRoles(dbAdapter: DatabaseAdapter, tenantId?: string): 
 
 /**
  * Seeds collections from filesystem into database
- * This bypasses ContentManager to avoid global dbAdapter dependency during setup
+ * This bypassescontent-managerto avoid global dbAdapter dependency during setup
  *
  * @returns Information about the first collection (for faster redirects)
  */
@@ -176,8 +177,7 @@ export async function seedCollectionsForSetup(
 	let firstCollection: { name: string; path: string } | null = null;
 
 	try {
-		// Import the collection scanner directly to avoid ContentManager
-		const { scanCompiledCollections } = await import('@src/content/collectionScanner');
+		// Import the collection scanner directly to avoidcontent-manager		const { scanCompiledCollections } = await import('@src/content/collection-scanner');
 
 		const scanStart = performance.now();
 		const collections = (await scanCompiledCollections()).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
@@ -241,8 +241,8 @@ export async function seedCollectionsForSetup(
 
 		const modelCreationTime = performance.now() - modelCreationStart;
 
-		// Step 5: PERSISTENCE - Populate contentNodes table so ContentManager sees them immediately
-		// This ensures skipReconciliation: true in ContentManager works correctly after setup.
+		// Step 5: PERSISTENCE - Populate contentNodes table socontent-managersees them immediately
+		// This ensures skipReconciliation: true incontent-managerworks correctly after setup.
 		try {
 			logger.info('🌳 Generating category nodes and mapping structure...');
 			const categoryNodes = generateCategoryNodesFromPaths(collections as Schema[]);
@@ -373,8 +373,18 @@ export async function seedDemoRecords(dbAdapter: DatabaseAdapter, collections: S
 			if (schema.name === 'Menu') {
 				const menuItems = [
 					{ label: 'Home', url: '/', order: 1, ...(tenantId && { tenantId }) },
-					{ label: 'Blog', url: '/blog', order: 2, ...(tenantId && { tenantId }) },
-					{ label: 'Contact', url: '/contact', order: 3, ...(tenantId && { tenantId }) }
+					{
+						label: 'Blog',
+						url: '/blog',
+						order: 2,
+						...(tenantId && { tenantId })
+					},
+					{
+						label: 'Contact',
+						url: '/contact',
+						order: 3,
+						...(tenantId && { tenantId })
+					}
 				];
 				await dbAdapter.crud.insertMany(collectionId, menuItems);
 				logger.info(`✅ Seeded ${menuItems.length} demo menu items into ${collectionId}`);
@@ -403,7 +413,7 @@ export async function initSystemFromSetup(
 		(async () => {
 			const result = await seedCollectionsForSetup(adapter, tenantId);
 			if (isDemoSeed) {
-				const { scanCompiledCollections } = await import('@src/content/collectionScanner');
+				const { scanCompiledCollections } = await import('@src/content/collection-scanner');
 				const collections = await scanCompiledCollections();
 				await seedDemoRecords(adapter, collections, tenantId);
 			}
@@ -464,45 +474,145 @@ export async function initSystemFast(
 }
 
 // Default public settings that were previously in config/public.ts
-export const defaultPublicSettings: Array<{ key: string; value: unknown; description?: string }> = [
+export const defaultPublicSettings: Array<{
+	key: string;
+	value: unknown;
+	description?: string;
+}> = [
 	// Host configuration
-	{ key: 'HOST_DEV', value: 'http://localhost:5173', description: 'Development server URL' },
-	{ key: 'HOST_PROD', value: 'https://yourdomain.com', description: 'Production server URL' },
+	{
+		key: 'HOST_DEV',
+		value: 'http://localhost:5173',
+		description: 'Development server URL'
+	},
+	{
+		key: 'HOST_PROD',
+		value: 'https://yourdomain.com',
+		description: 'Production server URL'
+	},
 
 	// Site configuration
-	{ key: 'SITE_NAME', value: 'SveltyCMS', description: 'The public name of the website' },
-	{ key: 'TIMEZONE', value: 'UTC', description: 'Default timezone for the system' },
-	{ key: 'PASSWORD_LENGTH', value: 8, description: 'Minimum required length for user passwords' },
+	{
+		key: 'SITE_NAME',
+		value: 'SveltyCMS',
+		description: 'The public name of the website'
+	},
+	{
+		key: 'TIMEZONE',
+		value: 'UTC',
+		description: 'Default timezone for the system'
+	},
+	{
+		key: 'PASSWORD_LENGTH',
+		value: 8,
+		description: 'Minimum required length for user passwords'
+	},
 
 	// Language Configuration
-	{ key: 'DEFAULT_CONTENT_LANGUAGE', value: DEFAULT_CONTENT_LANGUAGE, description: 'Default language for content' },
-	{ key: 'AVAILABLE_CONTENT_LANGUAGES', value: DEFAULT_CONTENT_LANGUAGES, description: 'List of available content languages' },
-	{ key: 'BASE_LOCALE', value: DEFAULT_BASE_LOCALE, description: 'Default/base locale for the CMS interface' },
-	{ key: 'LOCALES', value: DEFAULT_SYSTEM_LANGUAGES, description: 'List of available interface locales' },
+	{
+		key: 'DEFAULT_CONTENT_LANGUAGE',
+		value: DEFAULT_CONTENT_LANGUAGE,
+		description: 'Default language for content'
+	},
+	{
+		key: 'AVAILABLE_CONTENT_LANGUAGES',
+		value: DEFAULT_CONTENT_LANGUAGES,
+		description: 'List of available content languages'
+	},
+	{
+		key: 'BASE_LOCALE',
+		value: DEFAULT_BASE_LOCALE,
+		description: 'Default/base locale for the CMS interface'
+	},
+	{
+		key: 'LOCALES',
+		value: DEFAULT_SYSTEM_LANGUAGES,
+		description: 'List of available interface locales'
+	},
 
 	// Media configuration
-	{ key: 'MEDIA_STORAGE_TYPE', value: 'local', description: 'Type of media storage (local, s3, r2, cloudinary)' },
-	{ key: 'MEDIA_FOLDER', value: './mediaFolder', description: 'Server path where media files are stored' },
-	{ key: 'MEDIA_OUTPUT_FORMAT_QUALITY', value: { format: 'webp', quality: 80 }, description: 'Image format and quality settings' },
-	{ key: 'IMAGE_SIZES', value: { sm: 600, md: 900, lg: 1200 }, description: 'Image sizes for automatic resizing' },
-	{ key: 'MAX_FILE_SIZE', value: 10_485_760, description: 'Maximum file size for uploads in bytes (10MB)' },
-	{ key: 'BODY_SIZE_LIMIT', value: 10_485_760, description: 'Body size limit for server requests in bytes (10MB)' },
-	{ key: 'USE_ARCHIVE_ON_DELETE', value: true, description: 'Enable archiving instead of permanent deletion' },
+	{
+		key: 'MEDIA_STORAGE_TYPE',
+		value: 'local',
+		description: 'Type of media storage (local, s3, r2, cloudinary)'
+	},
+	{
+		key: 'MEDIA_FOLDER',
+		value: './mediaFolder',
+		description: 'Server path where media files are stored'
+	},
+	{
+		key: 'MEDIA_OUTPUT_FORMAT_QUALITY',
+		value: { format: 'webp', quality: 80 },
+		description: 'Image format and quality settings'
+	},
+	{
+		key: 'IMAGE_SIZES',
+		value: { sm: 600, md: 900, lg: 1200 },
+		description: 'Image sizes for automatic resizing'
+	},
+	{
+		key: 'MAX_FILE_SIZE',
+		value: 10_485_760,
+		description: 'Maximum file size for uploads in bytes (10MB)'
+	},
+	{
+		key: 'BODY_SIZE_LIMIT',
+		value: 10_485_760,
+		description: 'Body size limit for server requests in bytes (10MB)'
+	},
+	{
+		key: 'USE_ARCHIVE_ON_DELETE',
+		value: true,
+		description: 'Enable archiving instead of permanent deletion'
+	},
 
 	// Seasons Icons for login page
-	{ key: 'SEASONS', value: true, description: 'Enable seasonal themes on the login page' },
-	{ key: 'SEASON_REGION', value: 'Western_Europe', description: 'Region for determining seasonal themes' },
+	{
+		key: 'SEASONS',
+		value: true,
+		description: 'Enable seasonal themes on the login page'
+	},
+	{
+		key: 'SEASON_REGION',
+		value: 'Western_Europe',
+		description: 'Region for determining seasonal themes'
+	},
 
 	// Default Theme Configuration
 	// The ID will be generated by the database adapter and set after insertion
-	{ key: 'DEFAULT_THEME_ID', value: '', description: 'ID of the default theme (set by adapter)' },
-	{ key: 'DEFAULT_THEME_NAME', value: 'SveltyCMSTheme', description: 'Name of the default theme' },
-	{ key: 'DEFAULT_THEME_PATH', value: '', description: 'Path to the default theme CSS file' },
-	{ key: 'DEFAULT_THEME_IS_DEFAULT', value: true, description: 'Whether the default theme is the default theme' },
+	{
+		key: 'DEFAULT_THEME_ID',
+		value: '',
+		description: 'ID of the default theme (set by adapter)'
+	},
+	{
+		key: 'DEFAULT_THEME_NAME',
+		value: 'SveltyCMSTheme',
+		description: 'Name of the default theme'
+	},
+	{
+		key: 'DEFAULT_THEME_PATH',
+		value: '',
+		description: 'Path to the default theme CSS file'
+	},
+	{
+		key: 'DEFAULT_THEME_IS_DEFAULT',
+		value: true,
+		description: 'Whether the default theme is the default theme'
+	},
 
 	// Advanced Settings
-	{ key: 'EXTRACT_DATA_PATH', value: './exports/data.json', description: 'File path for exported collection data' },
-	{ key: 'PKG_VERSION', value: '1.0.0', description: 'Application version (can be overridden, but usually read from package.json)' },
+	{
+		key: 'EXTRACT_DATA_PATH',
+		value: './exports/data.json',
+		description: 'File path for exported collection data'
+	},
+	{
+		key: 'PKG_VERSION',
+		value: '1.0.0',
+		description: 'Application version (can be overridden, but usually read from package.json)'
+	},
 
 	// NOTE: PKG_VERSION is read dynamically from package.json at runtime, not stored in DB
 	// This ensures version always reflects the installed package and helps detect outdated installations
@@ -513,8 +623,16 @@ export const defaultPublicSettings: Array<{ key: string; value: unknown; descrip
 		value: ['info', 'warn', 'error', 'debug'],
 		description: 'Active logging levels (none, info, warn, error, debug, fatal, trace)'
 	},
-	{ key: 'LOG_RETENTION_DAYS', value: 30, description: 'Number of days to keep log files' },
-	{ key: 'LOG_ROTATION_SIZE', value: 10_485_760, description: 'Maximum size of a log file in bytes before rotation (10MB)' }
+	{
+		key: 'LOG_RETENTION_DAYS',
+		value: 30,
+		description: 'Number of days to keep log files'
+	},
+	{
+		key: 'LOG_ROTATION_SIZE',
+		value: 10_485_760,
+		description: 'Maximum size of a log file in bytes before rotation (10MB)'
+	}
 
 	// NOTE: DEMO mode is controlled exclusively via config/private.ts (INFRASTRUCTURE_KEYS).
 	// Do NOT add a DEMO key here — it would create a split-brain where the server
@@ -526,75 +644,223 @@ export const defaultPublicSettings: Array<{ key: string; value: unknown; descrip
  * Note: Sensitive settings like API keys should be set via GUI or CLI
  * Database config, JWT keys, and encryption keys are handled separately in private config files
  */
-export const defaultPrivateSettings: Array<{ key: string; value: unknown; description?: string }> = [
+export const defaultPrivateSettings: Array<{
+	key: string;
+	value: unknown;
+	description?: string;
+}> = [
 	// Security / 2FA
-	{ key: 'USE_2FA', value: false, description: 'Enable Two-Factor Authentication globally' },
-	{ key: 'TWO_FACTOR_AUTH_BACKUP_CODES_COUNT', value: 10, description: 'Backup codes count for 2FA (1-50)' },
+	{
+		key: 'USE_2FA',
+		value: false,
+		description: 'Enable Two-Factor Authentication globally'
+	},
+	{
+		key: 'TWO_FACTOR_AUTH_BACKUP_CODES_COUNT',
+		value: 10,
+		description: 'Backup codes count for 2FA (1-50)'
+	},
 
 	// Telemetry (Privacy)
-	{ key: 'SVELTYCMS_TELEMETRY', value: true, description: 'Enable SveltyCMS telemetry tracking' },
+	{
+		key: 'SVELTYCMS_TELEMETRY',
+		value: true,
+		description: 'Enable SveltyCMS telemetry tracking'
+	},
 
 	// SMTP config
-	{ key: 'SMTP_HOST', value: '', description: 'SMTP server host for sending emails' },
+	{
+		key: 'SMTP_HOST',
+		value: '',
+		description: 'SMTP server host for sending emails'
+	},
 	{ key: 'SMTP_PORT', value: 587, description: 'SMTP server port' },
 	{ key: 'SMTP_EMAIL', value: '', description: 'Email address to send from' },
-	{ key: 'SMTP_PASSWORD', value: '', description: 'Password for the SMTP email account' },
+	{
+		key: 'SMTP_PASSWORD',
+		value: '',
+		description: 'Password for the SMTP email account'
+	},
 
 	// Google OAuth
-	{ key: 'USE_GOOGLE_OAUTH', value: false, description: 'Enable Google OAuth for login' },
+	{
+		key: 'USE_GOOGLE_OAUTH',
+		value: false,
+		description: 'Enable Google OAuth for login'
+	},
 	{ key: 'GOOGLE_CLIENT_ID', value: '', description: 'Google OAuth Client ID' },
-	{ key: 'GOOGLE_CLIENT_SECRET', value: '', description: 'Google OAuth Client Secret' },
+	{
+		key: 'GOOGLE_CLIENT_SECRET',
+		value: '',
+		description: 'Google OAuth Client Secret'
+	},
 
 	// Redis config
 	{ key: 'USE_REDIS', value: false, description: 'Enable Redis for caching' },
-	{ key: 'REDIS_HOST', value: 'localhost', description: 'Redis server host address' },
+	{
+		key: 'REDIS_HOST',
+		value: 'localhost',
+		description: 'Redis server host address'
+	},
 	{ key: 'REDIS_PORT', value: 6379, description: 'Redis server port number' },
-	{ key: 'REDIS_PASSWORD', value: '', description: 'Password for Redis server' },
+	{
+		key: 'REDIS_PASSWORD',
+		value: '',
+		description: 'Password for Redis server'
+	},
 
 	// Cache TTL Configuration (in seconds)
-	{ key: 'CACHE_TTL_SCHEMA', value: 600, description: 'TTL for schema/collection definitions (10 minutes)' },
-	{ key: 'CACHE_TTL_WIDGET', value: 600, description: 'TTL for widget data (10 minutes)' },
-	{ key: 'CACHE_TTL_THEME', value: 300, description: 'TTL for theme configurations (5 minutes)' },
-	{ key: 'CACHE_TTL_CONTENT', value: 180, description: 'TTL for content data (3 minutes)' },
-	{ key: 'CACHE_TTL_MEDIA', value: 300, description: 'TTL for media metadata (5 minutes)' },
-	{ key: 'CACHE_TTL_SESSION', value: 86_400, description: 'TTL for user session data (24 hours)' },
-	{ key: 'CACHE_TTL_USER', value: 60, description: 'TTL for user permissions (1 minute)' },
-	{ key: 'CACHE_TTL_API', value: 300, description: 'TTL for API responses (5 minutes)' },
+	{
+		key: 'CACHE_TTL_SCHEMA',
+		value: 600,
+		description: 'TTL for schema/collection definitions (10 minutes)'
+	},
+	{
+		key: 'CACHE_TTL_WIDGET',
+		value: 600,
+		description: 'TTL for widget data (10 minutes)'
+	},
+	{
+		key: 'CACHE_TTL_THEME',
+		value: 300,
+		description: 'TTL for theme configurations (5 minutes)'
+	},
+	{
+		key: 'CACHE_TTL_CONTENT',
+		value: 180,
+		description: 'TTL for content data (3 minutes)'
+	},
+	{
+		key: 'CACHE_TTL_MEDIA',
+		value: 300,
+		description: 'TTL for media metadata (5 minutes)'
+	},
+	{
+		key: 'CACHE_TTL_SESSION',
+		value: 86_400,
+		description: 'TTL for user session data (24 hours)'
+	},
+	{
+		key: 'CACHE_TTL_USER',
+		value: 60,
+		description: 'TTL for user permissions (1 minute)'
+	},
+	{
+		key: 'CACHE_TTL_API',
+		value: 300,
+		description: 'TTL for API responses (5 minutes)'
+	},
 
 	// Session configuration
-	{ key: 'SESSION_CLEANUP_INTERVAL', value: 300_000, description: 'Interval in ms to clean up expired sessions (5 minutes)' },
-	{ key: 'MAX_IN_MEMORY_SESSIONS', value: 1000, description: 'Maximum number of sessions to hold in memory' },
-	{ key: 'DB_VALIDATION_PROBABILITY', value: 0.1, description: 'Probability (0-1) of validating a session against the DB' },
-	{ key: 'SESSION_EXPIRATION_SECONDS', value: 86_400, description: 'Duration in seconds until a session expires (24 hours)' },
+	{
+		key: 'SESSION_CLEANUP_INTERVAL',
+		value: 300_000,
+		description: 'Interval in ms to clean up expired sessions (5 minutes)'
+	},
+	{
+		key: 'MAX_IN_MEMORY_SESSIONS',
+		value: 1000,
+		description: 'Maximum number of sessions to hold in memory'
+	},
+	{
+		key: 'DB_VALIDATION_PROBABILITY',
+		value: 0.1,
+		description: 'Probability (0-1) of validating a session against the DB'
+	},
+	{
+		key: 'SESSION_EXPIRATION_SECONDS',
+		value: 86_400,
+		description: 'Duration in seconds until a session expires (24 hours)'
+	},
 
 	// Mapbox config
 	{ key: 'USE_MAPBOX', value: false, description: 'Enable Mapbox integration' },
-	{ key: 'MAPBOX_API_TOKEN', value: '', description: 'Public Mapbox API token (for client-side use)' },
-	{ key: 'SECRET_MAPBOX_API_TOKEN', value: '', description: 'Secret Mapbox API token (for server-side use)' },
+	{
+		key: 'MAPBOX_API_TOKEN',
+		value: '',
+		description: 'Public Mapbox API token (for client-side use)'
+	},
+	{
+		key: 'SECRET_MAPBOX_API_TOKEN',
+		value: '',
+		description: 'Secret Mapbox API token (for server-side use)'
+	},
 
 	// Other APIs
-	{ key: 'GOOGLE_API_KEY', value: '', description: 'Google API Key for services like Maps and YouTube' },
-	{ key: 'TWITCH_TOKEN', value: '', description: 'API token for Twitch integration' },
+	{
+		key: 'GOOGLE_API_KEY',
+		value: '',
+		description: 'Google API Key for services like Maps and YouTube'
+	},
+	{
+		key: 'TWITCH_TOKEN',
+		value: '',
+		description: 'API token for Twitch integration'
+	},
 	{ key: 'USE_TIKTOK', value: false, description: 'Enable TikTok integration' },
-	{ key: 'TIKTOK_TOKEN', value: '', description: 'API token for TikTok integration' },
+	{
+		key: 'TIKTOK_TOKEN',
+		value: '',
+		description: 'API token for TikTok integration'
+	},
 
 	// Server configuration
-	{ key: 'SERVER_PORT', value: 5173, description: 'Port for the application server' },
+	{
+		key: 'SERVER_PORT',
+		value: 5173,
+		description: 'Port for the application server'
+	},
 
 	// Roles and Permissions (previously required in private config)
-	{ key: 'ROLES', value: ['admin', 'editor', 'viewer'], description: 'List of user roles available in the system' },
-	{ key: 'PERMISSIONS', value: ['read', 'write', 'delete', 'admin'], description: 'List of permissions available in the system' },
+	{
+		key: 'ROLES',
+		value: ['admin', 'editor', 'viewer'],
+		description: 'List of user roles available in the system'
+	},
+	{
+		key: 'PERMISSIONS',
+		value: ['read', 'write', 'delete', 'admin'],
+		description: 'List of permissions available in the system'
+	},
 
 	// Live Preview
-	{ key: 'PREVIEW_SECRET', value: '', description: 'Secret for live preview handshake (auto-generated via /api/system/preview-secret)' },
+	{
+		key: 'PREVIEW_SECRET',
+		value: '',
+		description: 'Secret for live preview handshake (auto-generated via /api/system/preview-secret)'
+	},
 
 	// AI Configuration
-	{ key: 'USE_AI_TAGGING', value: false, description: 'Enable AI-powered image tagging' },
-	{ key: 'AI_PROVIDER', value: 'ollama', description: 'AI Provider for media analysis (ollama, openai)' },
-	{ key: 'OLLAMA_URL', value: 'http://localhost:11434', description: 'Local Ollama API URL' },
-	{ key: 'AI_MODEL_VISION', value: 'llava:latest', description: 'Vision-capable model for image analysis' },
-	{ key: 'AI_MODEL_CHAT', value: 'ministral-3:latest', description: 'Model used for the AI Assistant' },
-	{ key: 'USE_REMOTE_AI_KNOWLEDGE', value: false, description: 'Enable remote knowledge base lookup (Planned)' }
+	{
+		key: 'USE_AI_TAGGING',
+		value: false,
+		description: 'Enable AI-powered image tagging'
+	},
+	{
+		key: 'AI_PROVIDER',
+		value: 'ollama',
+		description: 'AI Provider for media analysis (ollama, openai)'
+	},
+	{
+		key: 'OLLAMA_URL',
+		value: 'http://localhost:11434',
+		description: 'Local Ollama API URL'
+	},
+	{
+		key: 'AI_MODEL_VISION',
+		value: 'llava:latest',
+		description: 'Vision-capable model for image analysis'
+	},
+	{
+		key: 'AI_MODEL_CHAT',
+		value: 'ministral-3:latest',
+		description: 'Model used for the AI Assistant'
+	},
+	{
+		key: 'USE_REMOTE_AI_KNOWLEDGE',
+		value: false,
+		description: 'Enable remote knowledge base lookup (Planned)'
+	}
 ];
 
 /**

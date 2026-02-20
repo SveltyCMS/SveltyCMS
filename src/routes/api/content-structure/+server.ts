@@ -14,11 +14,11 @@
 
 import type { ContentNodeOperation } from '@root/src/content/types';
 // Auth
-import { contentManager } from '@src/content/ContentManager';
+import { contentManager } from '@src/content/content-manager';
 // Redis
-import { cacheService } from '@src/databases/CacheService';
+import { cacheService } from '@src/databases/cache-service';
 import { dbAdapter } from '@src/databases/db';
-import { getPrivateSettingSync } from '@src/services/settingsService';
+import { getPrivateSettingSync } from '@src/services/settings-service';
 import { json } from '@sveltejs/kit';
 // System Logger
 import { logger } from '@utils/logger.server';
@@ -27,8 +27,8 @@ import { browser } from '$app/environment';
 const CACHE_TTL = 300; // 5 minutes
 
 // Unified Error Handling
-import { apiHandler } from '@utils/apiHandler';
-import { AppError } from '@utils/errorHandling';
+import { apiHandler } from '@utils/api-handler';
+import { AppError } from '@utils/error-handling';
 
 export const GET = apiHandler(async ({ url, locals }) => {
 	const { user, tenantId } = locals;
@@ -132,7 +132,9 @@ export const POST = apiHandler(async ({ request, locals }) => {
 				if (!browser) {
 					const cachePattern = `api:content-structure:${tenantId || 'global'}:*`;
 					await cacheService.clearByPattern(cachePattern);
-					logger.debug('Cleared content-structure cache after reorder.', { tenantId });
+					logger.debug('Cleared content-structure cache after reorder.', {
+						tenantId
+					});
 				}
 
 				logger.info('Content structure reordered successfully', { tenantId });
@@ -155,10 +157,14 @@ export const POST = apiHandler(async ({ request, locals }) => {
 				if (!browser) {
 					const cachePattern = `api:content-structure:${tenantId || 'global'}:*`;
 					await cacheService.clearByPattern(cachePattern);
-					logger.debug('Cleared content-structure cache after update.', { tenantId });
+					logger.debug('Cleared content-structure cache after update.', {
+						tenantId
+					});
 				}
 
-				logger.info('Content structure metadata updated successfully', { tenantId });
+				logger.info('Content structure metadata updated successfully', {
+					tenantId
+				});
 				return json({
 					success: true,
 					contentStructure: updatedContentStructure,
@@ -169,7 +175,9 @@ export const POST = apiHandler(async ({ request, locals }) => {
 				if (!browser) {
 					const cachePattern = `api:content-structure:${tenantId || 'global'}:*`;
 					await cacheService.clearByPattern(cachePattern);
-					logger.debug('Cleared all content-structure related caches.', { tenantId });
+					logger.debug('Cleared all content-structure related caches.', {
+						tenantId
+					});
 				}
 
 				await contentManager.refresh(tenantId);
@@ -184,13 +192,18 @@ export const POST = apiHandler(async ({ request, locals }) => {
 				if (!browser) {
 					const cachePattern = `api:content-structure:${tenantId || 'global'}:*`;
 					await cacheService.clearByPattern(cachePattern);
-					logger.debug('Cleared content-structure caches for refresh.', { tenantId });
+					logger.debug('Cleared content-structure caches for refresh.', {
+						tenantId
+					});
 				}
 
 				await contentManager.refresh(tenantId);
 				const contentStructure = await contentManager.getContentStructure();
 
-				logger.info('Collections refreshed from compiled files', { tenantId, collectionsFound: contentStructure?.length || 0 });
+				logger.info('Collections refreshed from compiled files', {
+					tenantId,
+					collectionsFound: contentStructure?.length || 0
+				});
 				return json({
 					success: true,
 					contentNodes: contentStructure,

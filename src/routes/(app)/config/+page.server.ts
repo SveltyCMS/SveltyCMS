@@ -58,7 +58,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 			// Admin bypass for efficiency (admins have all permissions)
 			if (isAdmin) {
-				permissions[config.contextId] = { hasPermission: true, isRateLimited: false };
+				permissions[config.contextId] = {
+					hasPermission: true,
+					isRateLimited: false
+				};
 			} else {
 				// Check user permission for non-admin
 				// This supports fine-grained permissions like:

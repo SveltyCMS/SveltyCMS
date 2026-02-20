@@ -4,11 +4,11 @@
  * Protected by handleApiRequests middleware (requires authentication + dashboard API permissions)
  */
 
-import { metricsService } from '@src/services/MetricsService';
+import { metricsService } from '@src/services/metrics-service';
 import { json } from '@sveltejs/kit';
 // Unified Error Handling
-import { apiHandler } from '@utils/apiHandler';
-import { AppError } from '@utils/errorHandling';
+import { apiHandler } from '@utils/api-handler';
+import { AppError } from '@utils/error-handling';
 // System Logger
 import { logger } from '@utils/logger.server';
 

@@ -10,7 +10,7 @@
 
 import { beforeEach, describe, expect, it, mock } from 'bun:test';
 import { SESSION_COOKIE_NAME } from '@src/databases/auth/constants';
-import { handleAuthentication } from '@src/hooks/handleAuthentication';
+import { handleAuthentication } from '@src/hooks/handle-authentication';
 import type { RequestEvent } from '@sveltejs/kit';
 
 // --- Test Utilities ---
@@ -282,28 +282,40 @@ describe('handleAuthentication Middleware', () => {
 	describe('Edge Cases', () => {
 		it('should handle missing session cookie', async () => {
 			const event = createMockEvent('/dashboard');
-			const response = await handleAuthentication({ event, resolve: mockResolve });
+			const response = await handleAuthentication({
+				event,
+				resolve: mockResolve
+			});
 
 			expect(response).toBeDefined();
 		});
 
 		it('should handle database unavailable gracefully', async () => {
 			const event = createMockEvent('/dashboard', 'session123');
-			const response = await handleAuthentication({ event, resolve: mockResolve });
+			const response = await handleAuthentication({
+				event,
+				resolve: mockResolve
+			});
 
 			expect(response).toBeDefined();
 		});
 
 		it('should handle Redis cache errors', async () => {
 			const event = createMockEvent('/dashboard', 'session123');
-			const response = await handleAuthentication({ event, resolve: mockResolve });
+			const response = await handleAuthentication({
+				event,
+				resolve: mockResolve
+			});
 
 			expect(response).toBeDefined();
 		});
 
 		it('should handle session rotation errors', async () => {
 			const event = createMockEvent('/dashboard', 'rotation-error-session');
-			const response = await handleAuthentication({ event, resolve: mockResolve });
+			const response = await handleAuthentication({
+				event,
+				resolve: mockResolve
+			});
 
 			expect(response).toBeDefined();
 		});

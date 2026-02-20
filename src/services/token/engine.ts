@@ -15,10 +15,10 @@
 
 import type { Schema } from '@src/content/types';
 import type { User } from '@src/databases/auth/types';
-import { publicEnv } from '@src/stores/globalSettings.svelte';
+import { publicEnv } from '@src/stores/global-settings.svelte';
 import { logger } from '@utils/logger';
 import { modifierRegistry } from './modifiers';
-import { resolveRelationToken } from './relationResolver';
+import { resolveRelationToken } from './relation-resolver';
 import type { TokenCategory, TokenContext, TokenDefinition, TokenRegistryConfig, TokenReplaceOptions } from './types';
 
 const ALLOWED_USER_FIELDS = ['_id', 'email', 'username', 'role', 'avatar', 'language', 'name'];
@@ -242,7 +242,10 @@ class TokenRegistryService {
 		});
 
 		// Cache Result
-		this.cache.set(key, { timestamp: Date.now(), data: grouped as Record<TokenCategory, TokenDefinition[]> });
+		this.cache.set(key, {
+			timestamp: Date.now(),
+			data: grouped as Record<TokenCategory, TokenDefinition[]>
+		});
 
 		return grouped as Record<TokenCategory, TokenDefinition[]>;
 	}

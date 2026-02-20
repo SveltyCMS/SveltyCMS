@@ -31,14 +31,17 @@
 -->
 
 <script lang="ts">
-	import { tokenTarget } from '@src/services/token/tokenTarget';
-	import { publicEnv } from '@src/stores/globalSettings.svelte';
+	import { publicEnv } from '@src/stores/global-settings.svelte';
 	// Stores
-	import { app, validationStore } from '@stores/store.svelte.ts';
+	import { app, validationStore } from '@src/stores/store.svelte.ts';
 	import { getFieldName } from '@utils/utils';
 	// Unified error handling
-	import { handleWidgetValidation } from '@widgets/widgetErrorHandler';
+	import { handleWidgetValidation } from '@widgets/widget-error-handler';
 	import { onDestroy } from 'svelte';
+	import { tokenTarget } from '@src/services/token/token-target';
+
+	// Components
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 
 	// Valibot validation
 	import { maxValue, minValue, number as numberSchema, optional, parse, pipe } from 'valibot';
@@ -98,7 +101,9 @@
 
 		if (!inputValue || inputValue === '') {
 			if (field.translated) {
-				if (!value || typeof value !== 'object') { value = {}; }
+				if (!value || typeof value !== 'object') {
+					value = {};
+				}
 				value = { ...value, [_language]: null };
 			} else {
 				value = null;
@@ -120,7 +125,9 @@
 
 		if (!Number.isNaN(number)) {
 			if (field.translated) {
-				if (!value || typeof value !== 'object') { value = {}; }
+				if (!value || typeof value !== 'object') {
+					value = {};
+				}
 				value = { ...value, [_language]: number };
 			} else {
 				value = number;
@@ -142,7 +149,9 @@
 
 	// Validation function
 	function validateInput(immediate = false) {
-		if (debounceTimeout) { clearTimeout(debounceTimeout); }
+		if (debounceTimeout) {
+			clearTimeout(debounceTimeout);
+		}
 
 		const doValidation = () => {
 			isValidating = true;
@@ -162,7 +171,10 @@
 				}
 
 				// ✅ UNIFIED: Use handleWidgetValidation for standardized error handling
-				handleWidgetValidation(() => parse(validationSchemaFunc, currentValue), { fieldName, updateStore: true });
+				handleWidgetValidation(() => parse(validationSchemaFunc, currentValue), {
+					fieldName,
+					updateStore: true
+				});
 			} finally {
 				isValidating = false;
 			}
@@ -177,10 +189,10 @@
 
 	// Cleanup
 	onDestroy(() => {
-		if (debounceTimeout) { clearTimeout(debounceTimeout); }
+		if (debounceTimeout) {
+			clearTimeout(debounceTimeout);
+		}
 	});
-
-	import SystemTooltip from '@components/system/SystemTooltip.svelte';
 
 	// Export WidgetData for data binding with Fields.svelte
 	export const WidgetData = async () => value;
@@ -226,7 +238,7 @@
 					aria-describedby={validationError ? `${fieldName}-error` : undefined}
 					aria-required={field?.required}
 					data-testid="number-input"
-				>
+				/>
 			</div>
 
 			{#if field?.suffix}

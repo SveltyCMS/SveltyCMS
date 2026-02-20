@@ -11,10 +11,10 @@
  * - Optimized Cache Client wrapping CacheService
  */
 
-import { CacheCategory } from '@src/databases/CacheCategory';
+import { CacheCategory } from '@src/databases/cache-category';
 // GraphQL Yoga
-import type { DatabaseAdapter, DatabaseId } from '@src/databases/dbInterface';
-import { getPrivateSettingSync } from '@src/services/settingsService';
+import type { DatabaseAdapter, DatabaseId } from '@src/databases/db-interface';
+import { getPrivateSettingSync } from '@src/services/settings-service';
 import type { RequestEvent } from '@sveltejs/kit';
 import { building } from '$app/environment';
 
@@ -46,11 +46,11 @@ const cacheClient = getPrivateSettingSync('USE_REDIS')
 import { hasPermissionWithRoles, registerPermission } from '@src/databases/auth/permissions';
 import { PermissionAction, PermissionType, type Role, type User } from '@src/databases/auth/types';
 // Unified Cache Service
-import { cacheService } from '@src/databases/CacheService';
+import { cacheService } from '@src/databases/cache-service';
 // Import shared PubSub instance
-import { pubSub } from '@src/services/pubSub';
+import { pubSub } from '@src/services/pub-sub';
 // Widget Store - ensure widgets are loaded before GraphQL setup
-import { widgets } from '@stores/widgetStore.svelte.ts';
+import { widgets } from '@src/stores/widget-store.svelte.ts';
 // System Logger
 import { logger } from '@utils/logger.server';
 import { useServer } from 'graphql-ws/use/ws';
@@ -247,7 +247,11 @@ async function setupGraphQL(dbAdapter: DatabaseAdapter, tenantId?: string) {
 			schema: createSchema({ typeDefs, resolvers }),
 			context: async ({ request }) => {
 				// Extract the context from the request if it was passed
-				const contextData = (request as Request & { contextData?: { user: unknown; tenantId?: string } }).contextData;
+				const contextData = (
+					request as Request & {
+						contextData?: { user: unknown; tenantId?: string };
+					}
+				).contextData;
 				return {
 					user: contextData?.user,
 					tenantId: contextData?.tenantId,
@@ -274,7 +278,9 @@ let yogaAppPromise: Promise<ReturnType<typeof createYoga<any, any>>> | null = nu
 let wsServerInitialized = false;
 
 // Store global instance to prevent HMR EADDRINUSE errors
-const globalWithWs = globalThis as typeof globalThis & { __SVELTY_GRAPHQL_WS__?: WebSocketServer };
+const globalWithWs = globalThis as typeof globalThis & {
+	__SVELTY_GRAPHQL_WS__?: WebSocketServer;
+};
 
 // NOTE: This is a workaround for SvelteKit not exposing the HTTP server instance.
 // We create a standalone WebSocket server on a different port.
@@ -325,7 +331,9 @@ async function initializeWebSocketServer(dbAdapter: DatabaseAdapter, tenantId?: 
 										const userResult = await dbAdapter.auth.getUserById(tokenData.data.user_id, tenantId);
 										if (userResult?.success) {
 											user = userResult.data;
-											logger.info('WebSocket: User authenticated via token', { userId: user?._id });
+											logger.info('WebSocket: User authenticated via token', {
+												userId: user?._id
+											});
 										}
 									}
 								}
@@ -357,8 +365,8 @@ async function initializeWebSocketServer(dbAdapter: DatabaseAdapter, tenantId?: 
 }
 
 // Unified Error Handling
-import { apiHandler } from '@utils/apiHandler';
-import { AppError } from '@utils/errorHandling';
+import { apiHandler } from '@utils/api-handler';
+import { AppError } from '@utils/error-handling';
 
 const handler = apiHandler(async (event: RequestEvent) => {
 	const { locals, request } = event;
@@ -376,7 +384,9 @@ const handler = apiHandler(async (event: RequestEvent) => {
 	try {
 		// Initialize yogaAppPromise if not already done
 		if (!yogaAppPromise) {
-			logger.debug('Initializing GraphQL Yoga app', { tenantId: locals.tenantId });
+			logger.debug('Initializing GraphQL Yoga app', {
+				tenantId: locals.tenantId
+			});
 			yogaAppPromise = setupGraphQL(locals.dbAdapter, locals.tenantId);
 		}
 		const yogaApp = await yogaAppPromise;
@@ -386,7 +396,9 @@ const handler = apiHandler(async (event: RequestEvent) => {
 
 		// Initialize WebSocket server if not already done
 		if (!wsServerInitialized) {
-			logger.debug('Initializing WebSocket server', { tenantId: locals.tenantId });
+			logger.debug('Initializing WebSocket server', {
+				tenantId: locals.tenantId
+			});
 			void initializeWebSocketServer(locals.dbAdapter, locals.tenantId);
 		}
 
@@ -408,7 +420,11 @@ const handler = apiHandler(async (event: RequestEvent) => {
 		const compatibleRequest = new Request(request.url.toString(), requestInit);
 
 		// Add context data to the request object for GraphQL Yoga
-		(compatibleRequest as Request & { contextData?: { user: unknown; tenantId?: string } }).contextData = {
+		(
+			compatibleRequest as Request & {
+				contextData?: { user: unknown; tenantId?: string };
+			}
+		).contextData = {
 			user: locals.user,
 			tenantId: locals.tenantId
 		};

@@ -14,8 +14,9 @@ Renders a group of fields, allowing for nested data structures.
 -->
 
 <script lang="ts">
-	import WidgetLoader from '@components/collectionDisplay/WidgetLoader.svelte';
-	import { widgets } from '@stores/widgetStore.svelte';
+	import { widgets } from '@src/stores/widget-store.svelte';
+
+	import WidgetLoader from '@src/components/collection-display/widget-loader.svelte';
 	import { getFieldName } from '@utils/utils';
 	import type { FieldType } from './';
 
@@ -46,33 +47,49 @@ Renders a group of fields, allowing for nested data structures.
 	>;
 
 	function getWidgetLoader(widgetName: string) {
-		if (!widgetName) { return null; }
+		if (!widgetName) {
+			return null;
+		}
 
 		// 1. Try exact path from widget store
 		const fn = widgets.widgetFunctions[widgetName];
 		const storePath = (fn as any)?.componentPath || (fn as any)?.inputComponentPath;
-		if (storePath && storePath in modules) { return modules[storePath]; }
+		if (storePath && storePath in modules) {
+			return modules[storePath];
+		}
 
 		// 2. Try casing variations
 		const camelFn = widgets.widgetFunctions[widgetName.charAt(0).toLowerCase() + widgetName.slice(1)];
 		const camelPath = (camelFn as any)?.componentPath || (camelFn as any)?.inputComponentPath;
-		if (camelPath && camelPath in modules) { return modules[camelPath]; }
+		if (camelPath && camelPath in modules) {
+			return modules[camelPath];
+		}
 
 		const lowerFn = widgets.widgetFunctions[widgetName.toLowerCase()];
 		const lowerPath = (lowerFn as any)?.componentPath || (lowerFn as any)?.inputComponentPath;
-		if (lowerPath && lowerPath in modules) { return modules[lowerPath]; }
+		if (lowerPath && lowerPath in modules) {
+			return modules[lowerPath];
+		}
 
 		// 3. Fallback search
 		const normalized = widgetName.toLowerCase();
 		for (const path in modules) {
-			const lowerPath = path.toLowerCase();
-			const parts = lowerPath.split('/');
-			const fileName = parts.pop();
-			const folderName = parts.pop();
+			if (Object.hasOwn(modules, path)) {
+				const lowerPath = path.toLowerCase();
+				const parts = lowerPath.split('/');
+				const fileName = parts.pop();
+				const folderName = parts.pop();
 
-			if (folderName === normalized && fileName === 'input.svelte') { return modules[path]; }
-			if (folderName === normalized && fileName === 'index.svelte') { return modules[path]; }
-			if (fileName === `${normalized}.svelte` && normalized !== 'input') { return modules[path]; }
+				if (folderName === normalized && fileName === 'input.svelte') {
+					return modules[path];
+				}
+				if (folderName === normalized && fileName === 'index.svelte') {
+					return modules[path];
+				}
+				if (fileName === `${normalized}.svelte` && normalized !== 'input') {
+					return modules[path];
+				}
+			}
 		}
 		return null;
 	}
@@ -103,7 +120,9 @@ Renders a group of fields, allowing for nested data structures.
 	let isCollapsed = $derived(manualCollapsed ?? (field as any).collapsed ?? false);
 
 	function toggleCollapse() {
-		if ((field as any).collapsible) { manualCollapsed = !isCollapsed; }
+		if ((field as any).collapsible) {
+			manualCollapsed = !isCollapsed;
+		}
 	}
 </script>
 

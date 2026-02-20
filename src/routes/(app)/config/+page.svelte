@@ -1,16 +1,13 @@
-<!--
+﻿<!--
 @files src/routes/(app)/config/+page.svelte
 @component
 **This file sets up and displays the config page. It provides a user-friendly interface for managing configuration settings.**
 -->
 
 <script lang="ts">
-	// Using iconify-icon web component
-	import PageTitle from '@components/PageTitle.svelte';
-	import PermissionGuard from '@components/PermissionGuard.svelte';
-
-	import { collections } from '@src/stores/collectionStore.svelte';
-	import { ui } from '@src/stores/UIStore.svelte.ts';
+	import PermissionGuard from '@src/components/permission-guard.svelte';
+	import { collections } from '@src/stores/collection-store.svelte';
+	import { ui } from '@src/stores/ui-store.svelte.ts';
 	import { onMount } from 'svelte';
 
 	onMount(() => {

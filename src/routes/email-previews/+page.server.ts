@@ -83,7 +83,7 @@ export const actions = {
 			};
 
 			try {
-				const { getPrivateSettingSync } = await import('@src/services/settingsService');
+				const { getPrivateSettingSync } = await import('@src/services/settings-service');
 				const internalKey = getPrivateSettingSync('JWT_SECRET_KEY');
 
 				const res = await eventFetch('/api/sendMail', {
@@ -104,18 +104,28 @@ export const actions = {
 				if (!res.ok) {
 					const errorText = await res.text();
 					logger.error(`Error from /api/sendMail endpoint during preview: ${res.status} ${errorText}`);
-					return { success: false, error: `API Error (${res.status}): ${errorText}` };
+					return {
+						success: false,
+						error: `API Error (${res.status}): ${errorText}`
+					};
 				}
 				const result = await res.json();
 				if (result.success) {
 					logger.info('Email preview sent successfully via API.');
 				} else {
-					logger.warn('Email preview API call reported not successful:', { message: result.message });
+					logger.warn('Email preview API call reported not successful:', {
+						message: result.message
+					});
 				}
 				return result;
 			} catch (error) {
-				logger.error('Failed to send email via API endpoint during preview', { error });
-				return { success: false, error: error instanceof Error ? error.message : String(error) };
+				logger.error('Failed to send email via API endpoint during preview', {
+					error
+				});
+				return {
+					success: false,
+					error: error instanceof Error ? error.message : String(error)
+				};
 			}
 		}
 	})

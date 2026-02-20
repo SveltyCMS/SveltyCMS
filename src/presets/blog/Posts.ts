@@ -1,5 +1,5 @@
 /**
- * @file src/presets/blog/Posts.ts
+ * @file src/presets/blog/posts.ts
  * @description Blog posts and articles schema.
  * @author SveltyCMS
  */

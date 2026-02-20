@@ -12,7 +12,7 @@
  * - CMS Specific Modifiers
  */
 
-import { formatDateString } from '@utils/dateUtils';
+import { formatDateString } from '@utils/date-utils';
 import type { ModifierFunction, ModifierMetadata } from './types';
 
 export const modifierRegistry = new Map<string, ModifierFunction>();

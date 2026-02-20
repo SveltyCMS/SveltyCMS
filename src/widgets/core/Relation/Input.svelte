@@ -28,10 +28,18 @@ Interactive selector with "Select" button and clear functionality
 
 <script lang="ts">
 	import { app } from '@src/stores/store.svelte';
-	import { showModal } from '@utils/modalUtils';
+	import { showModal } from '@utils/modal-utils';
 	import type { FieldType } from './';
 
-	let { field, value, error }: { field: FieldType; value: string | string[] | null | undefined; error?: string | null } = $props();
+	let {
+		field,
+		value,
+		error
+	}: {
+		field: FieldType;
+		value: string | string[] | null | undefined;
+		error?: string | null;
+	} = $props();
 
 	// Local state for the resolved entry's display text.
 	let selectedEntries = $state<Record<string, any>[]>([]);
@@ -41,7 +49,10 @@ Interactive selector with "Select" button and clear functionality
 	async function fetchEntryData(ids: string[]): Promise<Record<string, any>[]> {
 		// TODO: Implement API call to fetch entries by IDs
 		// This should return an array of entry objects
-		return ids.map((id) => ({ _id: id, [field.displayField as string]: `Entry ${id}` }));
+		return ids.map((id) => ({
+			_id: id,
+			[field.displayField as string]: `Entry ${id}`
+		}));
 	}
 
 	// Fetch the full entry data when the ID `value` changes.

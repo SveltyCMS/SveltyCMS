@@ -1,5 +1,5 @@
 <!--
-@file src/components/Breadcrumb.svelte
+@file src/components/breadcrumb.svelte
 @component 
 **Enhanced Breadcrumb - Svelte 5 Optimized**
 

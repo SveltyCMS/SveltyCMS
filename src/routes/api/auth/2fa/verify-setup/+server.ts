@@ -4,11 +4,11 @@
  */
 
 import { auth } from '@databases/db';
-import { getDefaultTwoFactorAuthService } from '@src/databases/auth/twoFactorAuth';
+import { getDefaultTwoFactorAuthService } from '@src/databases/auth/two-factor-auth';
 import { json } from '@sveltejs/kit';
 // Unified Error Handling
-import { apiHandler } from '@utils/apiHandler';
-import { AppError } from '@utils/errorHandling';
+import { apiHandler } from '@utils/api-handler';
+import { AppError } from '@utils/error-handling';
 import { logger } from '@utils/logger.server';
 import { array, object, parse, string } from 'valibot';
 
@@ -66,7 +66,10 @@ export const POST = apiHandler(async ({ request, locals }) => {
 		throw new AppError('Invalid verification code. Please try again.', 400, 'INVALID_VERIFICATION_CODE');
 	}
 
-	logger.info('2FA setup completed successfully', { userId: user._id, tenantId });
+	logger.info('2FA setup completed successfully', {
+		userId: user._id,
+		tenantId
+	});
 
 	return json({
 		success: true,

@@ -55,7 +55,9 @@ test.describe('User Management Flow', () => {
 			await page.getByRole('button', { name: /confirm/i }).click();
 
 			// Optional: Wait for confirmation toast or success message
-			await expect(page.locator(`text=${action}`)).toBeVisible({ timeout: 5000 });
+			await expect(page.locator(`text=${action}`)).toBeVisible({
+				timeout: 5000
+			});
 		}
 	});
 
@@ -90,6 +92,8 @@ test.describe('User Management Flow', () => {
 		await page.getByRole('button', { name: /accept invitation and create account/i }).click();
 
 		// Optional: Assert signup success
-		await expect(page.locator('text=Account created')).toBeVisible({ timeout: 10_000 });
+		await expect(page.locator('text=Account created')).toBeVisible({
+			timeout: 10_000
+		});
 	});
 });

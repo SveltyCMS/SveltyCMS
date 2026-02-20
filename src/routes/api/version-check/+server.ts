@@ -3,9 +3,9 @@
  * @description API endpoint for checking application version against remote releases.
  */
 
-import { versionCheckService } from '@src/services/VersionCheckService';
+import { versionCheckService } from '@src/services/version-check-service';
 import { json } from '@sveltejs/kit';
-import { apiHandler } from '@utils/apiHandler';
+import { apiHandler } from '@utils/api-handler';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = apiHandler(async ({ url }) => {

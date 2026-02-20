@@ -21,24 +21,27 @@
 
 	// WebMCP Support (Polyfill + Plugin)
 	import '@mcp-b/global';
-	import DialogManager from '@components/system/DialogManager.svelte';
-	import FloatingNav from '@components/system/FloatingNav.svelte';
-	import ToastManager from '@components/system/ToastManager.svelte';
-	import { Portal } from '@skeletonlabs/skeleton-svelte';
 	// Paraglide locale bridge
 	import { locales as availableLocales, getLocale, setLocale } from '@src/paraglide/runtime';
-	import CookieConsent from '@src/plugins/cookie-consent/CookieConsent.svelte';
 	import { initWebMCP } from '@src/plugins/webmcp/index';
 	// Global Settings
-	import { initPublicEnv, publicEnv } from '@stores/globalSettings.svelte';
-	import { screen } from '@stores/screenSizeStore.svelte.ts';
+	import { initPublicEnv, publicEnv } from '@src/stores/global-settings.svelte';
 	// Skeleton v4
-	import { app, toaster } from '@stores/store.svelte';
+	import { app, toaster } from '@src/stores/store.svelte';
+	import { Portal } from '@skeletonlabs/skeleton-svelte';
 	// Theme management
-	import { initializeDarkMode, initializeThemeStore, themeStore } from '@stores/themeStore.svelte';
+	import { initializeDarkMode, initializeThemeStore, themeStore } from '@src/stores/theme-store.svelte';
+	// Stores
+	import { screen as screenSize } from '@src/stores/screen-size-store.svelte.ts';
 
 	// Components
-	// import TokenPicker from '@components/TokenPicker.svelte';
+	import DialogManager from '@src/components/system/dialog-manager.svelte';
+	import ToastManager from '@src/components/system/toast-manager.svelte';
+	import FloatingNav from '@src/components/system/floating-nav.svelte';
+	import CookieConsent from '@src/plugins/cookie-consent/cookie-consent.svelte';
+
+	// Components
+	// import TokenPicker from '@components/token-picker.svelte';
 
 	// Props
 	interface Props {
@@ -57,14 +60,18 @@
 	// Initialization
 	// ============================================================================
 
-	import { setContentStructure } from '@stores/collectionStore.svelte';
+	import { setContentStructure } from '@src/stores/collection-store.svelte';
 
 	// Initialize public environment settings from server data
 	// Note: Only access page.data after mount to avoid hydration issues
 	$effect(() => {
 		if (browser && page.data) {
-			if (page.data.settings) { initPublicEnv(page.data.settings); }
-			if (page.data.navigationStructure) { setContentStructure(page.data.navigationStructure); }
+			if (page.data.settings) {
+				initPublicEnv(page.data.settings);
+			}
+			if (page.data.navigationStructure) {
+				setContentStructure(page.data.navigationStructure);
+			}
 		}
 	});
 
@@ -103,7 +110,9 @@
 	 * This ensures toasts appear correctly even during SPA navigation (goto).
 	 */
 	$effect(() => {
-		if (!(browser && isMounted)) { return; }
+		if (!(browser && isMounted)) {
+			return;
+		}
 
 		// Depend on page.url to trigger this effect on every navigation
 		void page.url.pathname;
@@ -127,10 +136,15 @@
 				setTimeout(() => {
 					console.log('[RootLayout] Triggering toast:', flashMessage.type);
 					// Use static toaster import
-					if (flashMessage.type === 'success') { toaster.success(opts); }
-					else if (flashMessage.type === 'warning') { toaster.warning(opts); }
-					else if (flashMessage.type === 'error') { toaster.error(opts); }
-					else { toaster.info(opts); }
+					if (flashMessage.type === 'success') {
+						toaster.success(opts);
+					} else if (flashMessage.type === 'warning') {
+						toaster.warning(opts);
+					} else if (flashMessage.type === 'error') {
+						toaster.error(opts);
+					} else {
+						toaster.info(opts);
+					}
 				}, 100);
 			} catch (e) {
 				console.error('Failed to parse flash message:', e);
@@ -145,7 +159,9 @@
 
 	$effect(() => {
 		// Guard: Only sync after mount
-		if (!isMounted) { return; }
+		if (!isMounted) {
+			return;
+		}
 
 		const desired = app.systemLanguage;
 		const current = untrack(() => currentLocale);
@@ -165,7 +181,9 @@
 	// ============================================================================
 
 	$effect(() => {
-		if (!(themeStore.autoRefreshEnabled && browser)) { return; }
+		if (!(themeStore.autoRefreshEnabled && browser)) {
+			return;
+		}
 
 		const interval = 30 * 60 * 1000; // 30 minutes
 		const intervalId = setInterval(() => {
@@ -184,16 +202,20 @@
 
 	// Global Keyboard Shortcuts
 	onMount(() => {
-		if (!browser) { return; }
+		if (!browser) {
+			return;
+		}
 
 		const controller = new AbortController();
 
 		(async () => {
 			try {
-				const AccessibilityHelp = (await import('@components/system/AccessibilityHelp.svelte')).default;
-				const { modalState } = await import('@utils/modalState.svelte');
+				const AccessibilityHelp = (await import('@components/system/accessibility-help.svelte')).default;
+				const { modalState } = await import('@utils/modal-state.svelte');
 
-				if (controller.signal.aborted) { return; }
+				if (controller.signal.aborted) {
+					return;
+				}
 
 				function handleGlobalKeydown(e: KeyboardEvent) {
 					// '?' key (Shift + /) to open accessibility help
@@ -205,14 +227,16 @@
 						}
 
 						e.preventDefault();
-						modalState.trigger(AccessibilityHelp, { ariaLabel: 'Accessibility Help' });
+						modalState.trigger(AccessibilityHelp, {
+							ariaLabel: 'Accessibility Help'
+						});
 					}
 
 					// 'Alt + T' to toggle theme
 					if (e.altKey && e.key.toLowerCase() === 't') {
 						e.preventDefault();
 						// Based on themeStore.svelte.ts, the function is toggleDarkMode
-						import('@stores/themeStore.svelte').then(({ toggleDarkMode }) => {
+						import('@src/stores/theme-store.svelte').then(({ toggleDarkMode }) => {
 							toggleDarkMode();
 						});
 					}
@@ -237,7 +261,7 @@
 <Portal><ToastManager position="bottom-center" /></Portal>
 
 {#key currentLocale}
-	{#if screen.isMobile && !page.url.pathname.includes('/setup')}
+	{#if screenSize.isMobile && !page.url.pathname.includes('/setup')}
 		<Portal><FloatingNav /></Portal>
 	{/if}
 

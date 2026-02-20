@@ -27,14 +27,54 @@ export type AutomationEvent =
 	| 'chat:message';
 
 /** All available automation events with metadata for the GUI */
-export const AUTOMATION_EVENTS: { event: AutomationEvent; label: string; icon: string; category: 'content' | 'media' }[] = [
-	{ event: 'entry:create', label: 'Entry Created', icon: 'mdi:file-plus-outline', category: 'content' },
-	{ event: 'entry:update', label: 'Entry Updated', icon: 'mdi:file-edit-outline', category: 'content' },
-	{ event: 'entry:delete', label: 'Entry Deleted', icon: 'mdi:file-remove-outline', category: 'content' },
-	{ event: 'entry:publish', label: 'Entry Published', icon: 'mdi:publish', category: 'content' },
-	{ event: 'entry:unpublish', label: 'Entry Unpublished', icon: 'mdi:publish-off', category: 'content' },
-	{ event: 'media:upload', label: 'Media Uploaded', icon: 'mdi:cloud-upload-outline', category: 'media' },
-	{ event: 'media:delete', label: 'Media Deleted', icon: 'mdi:image-remove', category: 'media' }
+export const AUTOMATION_EVENTS: {
+	event: AutomationEvent;
+	label: string;
+	icon: string;
+	category: 'content' | 'media';
+}[] = [
+	{
+		event: 'entry:create',
+		label: 'Entry Created',
+		icon: 'mdi:file-plus-outline',
+		category: 'content'
+	},
+	{
+		event: 'entry:update',
+		label: 'Entry Updated',
+		icon: 'mdi:file-edit-outline',
+		category: 'content'
+	},
+	{
+		event: 'entry:delete',
+		label: 'Entry Deleted',
+		icon: 'mdi:file-remove-outline',
+		category: 'content'
+	},
+	{
+		event: 'entry:publish',
+		label: 'Entry Published',
+		icon: 'mdi:publish',
+		category: 'content'
+	},
+	{
+		event: 'entry:unpublish',
+		label: 'Entry Unpublished',
+		icon: 'mdi:publish-off',
+		category: 'content'
+	},
+	{
+		event: 'media:upload',
+		label: 'Media Uploaded',
+		icon: 'mdi:cloud-upload-outline',
+		category: 'media'
+	},
+	{
+		event: 'media:delete',
+		label: 'Media Deleted',
+		icon: 'mdi:image-remove',
+		category: 'media'
+	}
 ];
 
 export type TriggerType = 'event' | 'schedule' | 'manual';
@@ -56,12 +96,42 @@ export interface AutomationTrigger {
 export type OperationType = 'webhook' | 'email' | 'log' | 'set_field' | 'condition';
 
 /** All operation types with metadata for the GUI */
-export const OPERATION_TYPES: { type: OperationType; label: string; icon: string; description: string }[] = [
-	{ type: 'webhook', label: 'Send Webhook', icon: 'mdi:webhook', description: 'Send an HTTP POST request to an external URL' },
-	{ type: 'email', label: 'Send Email', icon: 'mdi:email-outline', description: 'Send an email notification' },
-	{ type: 'log', label: 'Log Message', icon: 'mdi:text-box-outline', description: 'Write a message to the system log' },
-	{ type: 'set_field', label: 'Set Field', icon: 'mdi:form-textbox', description: 'Modify a field value on the entry' },
-	{ type: 'condition', label: 'Condition', icon: 'mdi:source-branch', description: 'Only continue if a condition is met' }
+export const OPERATION_TYPES: {
+	type: OperationType;
+	label: string;
+	icon: string;
+	description: string;
+}[] = [
+	{
+		type: 'webhook',
+		label: 'Send Webhook',
+		icon: 'mdi:webhook',
+		description: 'Send an HTTP POST request to an external URL'
+	},
+	{
+		type: 'email',
+		label: 'Send Email',
+		icon: 'mdi:email-outline',
+		description: 'Send an email notification'
+	},
+	{
+		type: 'log',
+		label: 'Log Message',
+		icon: 'mdi:text-box-outline',
+		description: 'Write a message to the system log'
+	},
+	{
+		type: 'set_field',
+		label: 'Set Field',
+		icon: 'mdi:form-textbox',
+		description: 'Modify a field value on the entry'
+	},
+	{
+		type: 'condition',
+		label: 'Condition',
+		icon: 'mdi:source-branch',
+		description: 'Only continue if a condition is met'
+	}
 ];
 
 /** Webhook operation config */

@@ -25,12 +25,14 @@ Part of the Three Pillars Architecture for widget system.
 -->
 
 <script lang="ts">
-	import SystemTooltip from '@components/system/SystemTooltip.svelte';
-	import { tokenTarget } from '@src/services/token/tokenTarget';
-	import { publicEnv } from '@src/stores/globalSettings.svelte';
+	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { app, validationStore } from '@src/stores/store.svelte';
 	import { getFieldName } from '@src/utils/utils';
+	import { tokenTarget } from '@src/services/token/token-target';
 	import type { FieldType } from './';
+
+	// Components
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 
 	interface Props {
 		error?: string | null | undefined;
@@ -48,7 +50,9 @@ Part of the Three Pillars Architecture for widget system.
 	const safeValue = $derived(field.translated ? ((value as Record<string, string>)?.[_language] ?? '') : ((value as string) ?? ''));
 
 	const inputValue = $derived.by(() => {
-		if (!safeValue) { return ''; }
+		if (!safeValue) {
+			return '';
+		}
 		try {
 			return safeValue.substring(0, 10);
 		} catch {
@@ -59,7 +63,9 @@ Part of the Three Pillars Architecture for widget system.
 	// Calculate minimum date constraint
 
 	const minDate = $derived.by(() => {
-		if (!field.minDate) { return undefined; }
+		if (!field.minDate) {
+			return undefined;
+		}
 		try {
 			return new Date(field.minDate as string | Date).toISOString().substring(0, 10);
 		} catch {
@@ -69,7 +75,9 @@ Part of the Three Pillars Architecture for widget system.
 
 	// Calculate maximum date constraint
 	const maxDate = $derived.by(() => {
-		if (!field.maxDate) { return undefined; }
+		if (!field.maxDate) {
+			return undefined;
+		}
 		try {
 			return new Date(field.maxDate as string | Date).toISOString().substring(0, 10);
 		} catch {
@@ -155,7 +163,7 @@ Part of the Three Pillars Architecture for widget system.
 				aria-describedby={error ? `${field.db_fieldName}-error` : field.helper ? `${field.db_fieldName}-helper` : undefined}
 				aria-required={field.required}
 				data-testid="date-input"
-			>
+			/>
 		</div>
 	</SystemTooltip>
 

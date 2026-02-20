@@ -28,7 +28,12 @@ mock.module('@src/utils/logger', () => ({
 		info: () => {},
 		debug: () => {},
 		trace: () => {},
-		channel: () => ({ info: () => {}, error: () => {}, warn: () => {}, debug: () => {} })
+		channel: () => ({
+			info: () => {},
+			error: () => {},
+			warn: () => {},
+			debug: () => {}
+		})
 	}
 }));
 

@@ -23,9 +23,9 @@
  */
 
 import type { DatabaseId } from '@src/content/types';
-import type { DatabaseResult, IDBAdapter, MediaItem } from '@src/databases/dbInterface';
-import { generateId } from '@src/databases/mongodb/methods/mongoDBUtils';
-import { nowISODateString, toISOString } from '@utils/dateUtils';
+import type { DatabaseResult, IDBAdapter, MediaItem } from '@src/databases/db-interface';
+import { generateId } from '@src/databases/mongodb/methods/mongodb-utils';
+import { nowISODateString, toISOString } from '@utils/date-utils';
 // System Logger
 import { logger } from '@utils/logger';
 import type { Model } from 'mongoose';
@@ -158,7 +158,9 @@ mediaSchema.statics = {
 	// Bulk delete media items by folder ID
 	async bulkDeleteMediaByFolderId(folderIds: string[]): Promise<DatabaseResult<number>> {
 		try {
-			const result = await this.deleteMany({ folderId: { $in: folderIds } }).exec();
+			const result = await this.deleteMany({
+				folderId: { $in: folderIds }
+			}).exec();
 			logger.info(`Bulk deleted ${result.deletedCount} media items for folder IDs: ${folderIds.join(', ')}`);
 			return { success: true, data: result.deletedCount };
 		} catch (error) {

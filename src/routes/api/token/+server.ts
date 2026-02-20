@@ -12,11 +12,11 @@
 
 // Auth (Database Agnostic)
 import { auth, dbAdapter } from '@src/databases/db';
-import { getPrivateSettingSync } from '@src/services/settingsService';
+import { getPrivateSettingSync } from '@src/services/settings-service';
 import { json } from '@sveltejs/kit';
 // Unified Error Handling
-import { apiHandler } from '@utils/apiHandler';
-import { AppError } from '@utils/errorHandling';
+import { apiHandler } from '@utils/api-handler';
+import { AppError } from '@utils/error-handling';
 // System logger
 import { logger } from '@utils/logger.server';
 
@@ -116,6 +116,8 @@ export const GET = apiHandler(async ({ url, locals }) => {
 			userId: user._id
 		});
 
-		throw new AppError('Internal Server Error', 500, 'INTERNAL_SERVER_ERROR', { originalError: message });
+		throw new AppError('Internal Server Error', 500, 'INTERNAL_SERVER_ERROR', {
+			originalError: message
+		});
 	}
 });

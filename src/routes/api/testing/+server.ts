@@ -63,8 +63,16 @@ export async function POST({ request }: RequestEvent) {
 				if (!(email && password && role)) {
 					return json({ error: 'Missing fields' }, { status: 400 });
 				}
-				const user = await auth.createUser({ email, password, username: username || email.split('@')[0], role });
-				return json({ success: true, user: { id: user._id, email: user.email, role: user.role } });
+				const user = await auth.createUser({
+					email,
+					password,
+					username: username || email.split('@')[0],
+					role
+				});
+				return json({
+					success: true,
+					user: { id: user._id, email: user.email, role: user.role }
+				});
 			}
 
 			default:

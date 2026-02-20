@@ -29,7 +29,12 @@ mock.module('@src/utils/logger', () => ({
 		info: () => {},
 		debug: () => {},
 		trace: () => {},
-		channel: () => ({ info: () => {}, error: () => {}, warn: () => {}, debug: () => {} })
+		channel: () => ({
+			info: () => {},
+			error: () => {},
+			warn: () => {},
+			debug: () => {}
+		})
 	}
 }));
 
@@ -40,21 +45,21 @@ mock.module('@src/utils/logger', () => ({
 (globalThis as any).$props = () => ({});
 
 // Dynamic imports
-let adapterClass: typeof import('../../../src/databases/mongodb/mongoDBAdapter').MongoDBAdapter;
+let adapterClass: typeof import('@src/databases/mongodb/mongo-db-adapter').MongoDBAdapter;
 let privateEnv: any;
 
 // Import fixtures for reusing users
-import { testFixtures } from '../helpers/testSetup';
+import { testFixtures } from '../helpers/test-setup';
 
 describe('Auth System Functional Tests', () => {
 	let db: any = null;
 	const testCollection = `test_auth_verify_${Date.now()}`;
 
 	beforeAll(async () => {
-		const adapterModule = await import('../../../src/databases/mongodb/mongoDBAdapter');
+		const adapterModule = await import('@src/databases/mongodb/mongo-db-adapter');
 		adapterClass = adapterModule.MongoDBAdapter;
 		try {
-			const configModule = await import('../../../config/private.test');
+			const configModule = await import('@config/private.test');
 			privateEnv = configModule.privateEnv;
 		} catch {
 			// Fallback to environment variables if config file is missing (CI)
@@ -86,7 +91,10 @@ describe('Auth System Functional Tests', () => {
 		}
 
 		// Use shorter timeouts for tests
-		const connectOptions = { serverSelectionTimeoutMS: 2000, connectTimeoutMS: 2000 };
+		const connectOptions = {
+			serverSelectionTimeoutMS: 2000,
+			connectTimeoutMS: 2000
+		};
 
 		try {
 			await db.connect(connectionString, connectOptions);
@@ -95,7 +103,9 @@ describe('Auth System Functional Tests', () => {
 			// Verify write access
 			try {
 				// Note: crud operations return { success: boolean }, not verify throwing
-				const insertResult = await db.crud.insert(testCollection, { _test: true });
+				const insertResult = await db.crud.insert(testCollection, {
+					_test: true
+				});
 				if (insertResult.success) {
 					await db.crud.deleteMany(testCollection, { _test: true });
 				} else {
@@ -147,7 +157,9 @@ describe('Auth System Functional Tests', () => {
 				return;
 			}
 			// Retrieve the pre-seeded admin user ID
-			const result = await db.auth.getUserByEmail({ email: existingUser.email });
+			const result = await db.auth.getUserByEmail({
+				email: existingUser.email
+			});
 			if (result.success && result.data) {
 				existingUserId = result.data._id;
 			} else {
@@ -184,7 +196,9 @@ describe('Auth System Functional Tests', () => {
 				return;
 			}
 			// Use the pre-seeded user (should be faster as it's definitely there)
-			const result = await db.auth.getUserByEmail({ email: existingUser.email });
+			const result = await db.auth.getUserByEmail({
+				email: existingUser.email
+			});
 			expect(result.success).toBe(true);
 			expect(result.data.username).toBe(existingUser.username);
 		});

@@ -5,7 +5,7 @@
  */
 
 import { beforeEach, describe, expect, it, mock } from 'bun:test';
-import { handleStaticAssetCaching, isStaticAsset, STATIC_ASSET_REGEX } from '@src/hooks/handleStaticAssetCaching';
+import { handleStaticAssetCaching, isStaticAsset, STATIC_ASSET_REGEX } from '@src/hooks/handle-static-asset-caching';
 import type { RequestEvent } from '@sveltejs/kit';
 
 // --- Helper: Strictly Typed Mock Event ---
@@ -76,7 +76,10 @@ describe('Middleware: handleStaticAssetCaching', () => {
 			for (const path of paths) {
 				mockResolve.mockClear();
 				const event = createMockEvent(path);
-				const response = await handleStaticAssetCaching({ event, resolve: mockResolve });
+				const response = await handleStaticAssetCaching({
+					event,
+					resolve: mockResolve
+				});
 
 				expect(response.headers.get('Cache-Control')).toBe('public, max-age=31536000, immutable');
 			}
@@ -84,7 +87,10 @@ describe('Middleware: handleStaticAssetCaching', () => {
 
 		it('should passthrough dynamic routes without headers', async () => {
 			const event = createMockEvent('/api/data');
-			const response = await handleStaticAssetCaching({ event, resolve: mockResolve });
+			const response = await handleStaticAssetCaching({
+				event,
+				resolve: mockResolve
+			});
 
 			// We don't check strict equality (toBe) because middleware might wrap/clone response
 			// Instead, verify content matches and NO cache headers are added
@@ -104,7 +110,10 @@ describe('Middleware: handleStaticAssetCaching', () => {
 			mockResolve = mock(() => customRes);
 
 			const event = createMockEvent('/dashboard');
-			const response = await handleStaticAssetCaching({ event, resolve: mockResolve });
+			const response = await handleStaticAssetCaching({
+				event,
+				resolve: mockResolve
+			});
 
 			expect(response.headers.get('X-Custom')).toBe('123');
 			expect(response.headers.has('Cache-Control')).toBe(false);
@@ -112,7 +121,10 @@ describe('Middleware: handleStaticAssetCaching', () => {
 
 		it('should handle query parameters correctly', async () => {
 			const event = createMockEvent('/style.css?v=1.0.0');
-			const response = await handleStaticAssetCaching({ event, resolve: mockResolve });
+			const response = await handleStaticAssetCaching({
+				event,
+				resolve: mockResolve
+			});
 
 			expect(response.headers.get('Cache-Control')).toBe('public, max-age=31536000, immutable');
 		});

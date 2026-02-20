@@ -1,3 +1,5 @@
+// File svelte.config.js
+
 import adapter from '@sveltejs/adapter-node'; // To generate a standalone Node server
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 

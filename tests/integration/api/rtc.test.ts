@@ -5,7 +5,7 @@
 
 import { beforeAll, describe, expect, it } from 'bun:test';
 import { getApiBaseUrl } from '../helpers/server';
-import { initializeTestEnvironment, prepareAuthenticatedContext } from '../helpers/testSetup';
+import { initializeTestEnvironment, prepareAuthenticatedContext } from '../helpers/test-setup';
 
 const API_BASE_URL = getApiBaseUrl();
 

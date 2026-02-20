@@ -4,7 +4,7 @@
  */
 
 import { beforeEach, describe, expect, it, mock } from 'bun:test';
-import { handleLocale } from '@src/hooks/handleLocale';
+import { handleLocale } from '@src/hooks/handle-locale';
 import type { RequestEvent } from '@sveltejs/kit';
 
 // --- Test Utilities ---
@@ -81,18 +81,24 @@ describe('handleLocale Middleware', () => {
 
 	describe('Invalid Locale Cleanup', () => {
 		it('should delete invalid systemLanguage cookie', async () => {
-			const event = createMockEvent('/dashboard', { systemLanguage: 'invalid' });
+			const event = createMockEvent('/dashboard', {
+				systemLanguage: 'invalid'
+			});
 			await handleLocale({ event, resolve: mockResolve });
 
 			// Should delete the invalid cookie
-			expect(event.cookies.delete).toHaveBeenCalledWith('systemLanguage', { path: '/' });
+			expect(event.cookies.delete).toHaveBeenCalledWith('systemLanguage', {
+				path: '/'
+			});
 		});
 
 		it('should delete invalid contentLanguage cookie', async () => {
 			const event = createMockEvent('/dashboard', { contentLanguage: 'xyz' });
 			await handleLocale({ event, resolve: mockResolve });
 
-			expect(event.cookies.delete).toHaveBeenCalledWith('contentLanguage', { path: '/' });
+			expect(event.cookies.delete).toHaveBeenCalledWith('contentLanguage', {
+				path: '/'
+			});
 		});
 
 		it('should delete both if both invalid', async () => {
@@ -116,7 +122,9 @@ describe('handleLocale Middleware', () => {
 		});
 
 		it('should handle locale with special characters', async () => {
-			const event = createMockEvent('/dashboard', { systemLanguage: 'en<script>' });
+			const event = createMockEvent('/dashboard', {
+				systemLanguage: 'en<script>'
+			});
 			await handleLocale({ event, resolve: mockResolve });
 
 			expect(event.cookies.delete).toHaveBeenCalled();
@@ -150,7 +158,9 @@ describe('handleLocale Middleware', () => {
 		});
 
 		it('should not update stores for invalid locales', async () => {
-			const event = createMockEvent('/dashboard', { systemLanguage: 'invalid' });
+			const event = createMockEvent('/dashboard', {
+				systemLanguage: 'invalid'
+			});
 			await handleLocale({ event, resolve: mockResolve });
 
 			// Should delete cookie, not update store
@@ -259,7 +269,9 @@ describe('handleLocale Middleware', () => {
 		});
 
 		it('should handle very long locale strings', async () => {
-			const event = createMockEvent('/dashboard', { systemLanguage: 'x'.repeat(100) });
+			const event = createMockEvent('/dashboard', {
+				systemLanguage: 'x'.repeat(100)
+			});
 			await handleLocale({ event, resolve: mockResolve });
 
 			expect(event.cookies.delete).toHaveBeenCalled();
@@ -315,7 +327,9 @@ describe('handleLocale Middleware', () => {
 
 	describe('Warning Messages', () => {
 		it('should log warning for invalid systemLanguage', async () => {
-			const event = createMockEvent('/dashboard', { systemLanguage: 'invalid' });
+			const event = createMockEvent('/dashboard', {
+				systemLanguage: 'invalid'
+			});
 			await handleLocale({ event, resolve: mockResolve });
 
 			// Warning logged internally
@@ -332,10 +346,14 @@ describe('handleLocale Middleware', () => {
 
 	describe('Cookie Path', () => {
 		it('should delete cookies with correct path', async () => {
-			const event = createMockEvent('/dashboard', { systemLanguage: 'invalid' });
+			const event = createMockEvent('/dashboard', {
+				systemLanguage: 'invalid'
+			});
 			await handleLocale({ event, resolve: mockResolve });
 
-			expect(event.cookies.delete).toHaveBeenCalledWith('systemLanguage', { path: '/' });
+			expect(event.cookies.delete).toHaveBeenCalledWith('systemLanguage', {
+				path: '/'
+			});
 		});
 	});
 });

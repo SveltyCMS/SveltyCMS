@@ -1,4 +1,4 @@
-<!-- 
+﻿<!-- 
 @file src/routes/(app)/user/+page.svelte
 @component
 **This file sets up and displays the user page, providing a streamlined interface for managing user accounts and settings**
@@ -15,28 +15,29 @@
 -->
 
 <script lang="ts">
+	import PermissionGuard from '@src/components/permission-guard.svelte';
 	// ParaglideJS
-	import * as m from '@src/paraglide/messages';
+	import {
+		usermodalconfirmbody,
+		usermodalconfirmtitle,
+		usermodaluser_edittitle,
+		usermodaluser_settingbody,
+		usermodaluser_settingtitle
+	} from '@src/paraglide/messages';
 	// Stores
-	import { collaboration } from '@stores/collaborationStore.svelte';
+	import { collaboration } from '@src/stores/collaboration-store.svelte';
 	import { onMount } from 'svelte';
 	import { invalidateAll } from '$app/navigation';
 	// Auth
-	import ModalTwoFactorAuth from './components/ModalTwoFactorAuth.svelte';
-	import '@stores/store.svelte.ts';
-	// Components
-	import PageTitle from '@components/PageTitle.svelte';
-	import PermissionGuard from '@components/PermissionGuard.svelte';
-	// Skeleton
-	import { Avatar } from '@skeletonlabs/skeleton-svelte';
-	import { setCollection } from '@src/stores/collectionStore.svelte';
-	import { avatarSrc, normalizeAvatarUrl, toaster } from '@stores/store.svelte.ts';
-	import { triggerActionStore } from '@utils/globalSearchIndex';
-	import { modalState } from '@utils/modalState.svelte';
-	import { showConfirm } from '@utils/modalUtils';
-	import AdminArea from './components/AdminArea.svelte';
-	import ModalEditAvatar from './components/ModalEditAvatar.svelte';
-	import ModalEditForm from './components/ModalEditForm.svelte';
+	import ModalTwoFactorAuth from './components/modal-two-factor-auth.svelte';
+	import '@src/stores/store.svelte.ts';
+	import { setCollection } from '@src/stores/collection-store.svelte';
+	import { toaster } from '@src/stores/store.svelte.ts';
+	import { triggerActionStore } from '@utils/global-search-index';
+	import { modalState } from '@utils/modal-state.svelte';
+	import { showConfirm } from '@utils/modal-utils';
+	import ModalEditAvatar from './components/modal-edit-avatar.svelte';
+	import ModalEditForm from './components/modal-edit-form.svelte';
 
 	// Props
 	const { data } = $props();
@@ -129,8 +130,8 @@
 	// Modal Trigger - User Form
 	function modalUserForm(): void {
 		modalState.trigger(ModalEditForm, {
-			title: m.usermodaluser_edittitle(),
-			body: m.usermodaluser_settingbody() || 'Update your user details below.'
+			title: usermodaluser_edittitle(),
+			body: usermodaluser_settingbody() || 'Update your user details below.'
 		});
 	}
 
@@ -139,8 +140,8 @@
 		modalState.trigger(
 			ModalEditAvatar,
 			{
-				title: m.usermodaluser_settingtitle(),
-				body: m.usermodaluser_settingbody()
+				title: usermodaluser_settingtitle(),
+				body: usermodaluser_settingbody()
 			},
 			async (r: any) => {
 				if (r) {
@@ -155,9 +156,9 @@
 	// Modal Confirm
 	function modalConfirm(): void {
 		showConfirm({
-			title: m.usermodalconfirmtitle(),
-			body: m.usermodalconfirmbody(),
-			// confirmText: m.usermodalconfirmdeleteuser(),
+			title: usermodalconfirmtitle(),
+			body: usermodalconfirmbody(),
+			// confirmText: usermodalconfirmdeleteuser(),
 			onConfirm: async () => {
 				const res = await fetch('/api/user/deleteUsers', {
 					method: 'POST',
@@ -181,7 +182,9 @@
 			});
 			const result = await res.json();
 			if (result.success) {
-				const blob = new Blob([JSON.stringify(result.data, null, 2)], { type: 'application/json' });
+				const blob = new Blob([JSON.stringify(result.data, null, 2)], {
+					type: 'application/json'
+				});
 				const url = URL.createObjectURL(blob);
 				const a = document.createElement('a');
 				a.href = url;
@@ -207,7 +210,11 @@
 					const res = await fetch('/api/gdpr', {
 						method: 'POST',
 						headers: { 'Content-Type': 'application/json' },
-						body: JSON.stringify({ action: 'anonymize', userId: user._id, reason: 'User self-request (Right to Erasure)' })
+						body: JSON.stringify({
+							action: 'anonymize',
+							userId: user._id,
+							reason: 'User self-request (Right to Erasure)'
+						})
 					});
 					const result = await res.json();
 					if (result.success) {
@@ -226,7 +233,7 @@
 </script>
 
 <!-- Page Title with Back Button -->
-<PageTitle name={m.userpage_title()} icon="mdi:account-circle" showBackButton={true} backUrl="/config" />
+<PageTitle name={userpage_title()} icon="mdi:account-circle" showBackButton={true} backUrl="/config" />
 
 <div class="max-h-[calc(100vh-65px)] overflow-auto">
 	<h2 class="sr-only">Profile Information</h2>
@@ -244,17 +251,17 @@
 					<button
 						onclick={modalEditAvatar}
 						class="absolute bottom-0 right-0 p-2 rounded-full gradient-tertiary dark:gradient-primary btn-icon"
-						title={m.userpage_editavatar()}
+						title={userpage_editavatar()}
 					>
 						<iconify-icon icon="mdi:pencil" width={18}></iconify-icon>
 					</button>
 				</div>
 				<!-- User ID -->
 				<div class="gradient-secondary badge mt-1 w-full max-w-xs text-white">
-					{m.userpage_user_id()}<span class="ml-2 font-bold">{user?._id || 'N/A'}</span>
+					{userpage_user_id()}<span class="ml-2 font-bold">{user?._id || 'N/A'}</span>
 				</div>
 				<!-- Role -->
-				<div class="gradient-tertiary badge w-full max-w-xs text-white">{m.role()}:<span class="ml-2 font-bold">{user?.role || 'N/A'}</span></div>
+				<div class="gradient-tertiary badge w-full max-w-xs text-white">{role()}:<span class="ml-2 font-bold">{user?.role || 'N/A'}</span></div>
 				<!-- Two-Factor Authentication Status -->
 				{#if is2FAEnabledGlobal}
 					<button onclick={open2FAModal} class="btn preset-outlined-surface-500 btn-sm w-full max-w-xs">
@@ -283,7 +290,7 @@
 								const enabled = (e.target as HTMLInputElement).checked;
 								await updateRtcPreference('enabled', enabled);
 							}}
-						>
+						/>
 					</div>
 					<div class="flex items-center justify-between pl-7 opacity-80">
 						<span class="text-xs">Sound Notifications</span>
@@ -295,7 +302,7 @@
 								const sound = (e.target as HTMLInputElement).checked;
 								await updateRtcPreference('sound', sound);
 							}}
-						>
+						/>
 					</div>
 				</div>
 
@@ -313,34 +320,34 @@
 			{#if user}
 				<form>
 					<label>
-						{m.username()}:
-						<input value={user.username} name="username" type="text" autocomplete="username" disabled class="input">
+						{username()}:
+						<input value={user.username} name="username" type="text" autocomplete="username" disabled class="input" />
 					</label>
 					<label>
-						{m.email()}:
-						<input value={user.email} name="email" type="email" autocomplete="email" disabled class="input">
+						{email()}:
+						<input value={user.email} name="email" type="email" autocomplete="email" disabled class="input" />
 					</label>
 					<label>
-						{m.form_password()}:
-						<input bind:value={password} name="password" type="password" autocomplete="current-password" disabled class="input">
+						{form_password()}:
+						<input bind:value={password} name="password" type="password" autocomplete="current-password" disabled class="input" />
 					</label>
 
 					<div class="mt-4 flex flex-col justify-between gap-2 sm:flex-row sm:gap-1">
 						<!-- Edit Modal Button -->
 						<button
 							onclick={modalUserForm}
-							aria-label={m.userpage_edit_usersetting()}
+							aria-label={userpage_edit_usersetting()}
 							class="gradient-tertiary btn w-full max-w-sm text-white {isFirstUser ? '' : 'mx-auto md:mx-0'}"
 						>
 							<iconify-icon icon="bi:pencil-fill" width={24}></iconify-icon>
-							{m.userpage_edit_usersetting()}
+							{userpage_edit_usersetting()}
 						</button>
 
 						<!-- Delete Modal Button -->
 						{#if isFirstUser}
-							<button onclick={modalConfirm} aria-label={m.button_delete()} class="gradient-error btn w-full max-w-sm text-white">
+							<button onclick={modalConfirm} aria-label={button_delete()} class="gradient-error btn w-full max-w-sm text-white">
 								<iconify-icon icon="bi:trash3-fill" width={24}></iconify-icon>
-								{m.button_delete()}
+								{button_delete()}
 							</button>
 						{/if}
 					</div>

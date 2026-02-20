@@ -22,37 +22,30 @@ Displays a collection of media files (images, documents, audio, video) with:
 -->
 
 <script lang="ts">
-	// Components
-	import Breadcrumb from '@components/Breadcrumb.svelte';
-	import ModalPrompt from '@components/ModalPrompt.svelte';
-	import PageTitle from '@components/PageTitle.svelte';
-	import SystemTooltip from '@components/system/SystemTooltip.svelte';
-	import ImageEditorModal from '@src/components/imageEditor/ImageEditorModal.svelte';
+	import ModalPrompt from '@components/modal-prompt.svelte';
+	import ImageEditorModal from '@src/components/image-editor/image-editor-modal.svelte';
 	// Import types
-	import type { SystemVirtualFolder } from '@src/databases/dbInterface';
+	import type { SystemVirtualFolder } from '@src/databases/db-interface';
 	// Utils & Media
-	import { publicEnv } from '@src/stores/globalSettings.svelte';
+	import { publicEnv } from '@src/stores/global-settings.svelte';
+	import { globalLoadingStore, loadingOperations } from '@src/stores/loading-store.svelte.ts';
+	// Skeleton
+	import { toaster } from '@src/stores/store.svelte.ts';
 	// Removed axios import
 	// Stores
-	import { toggleUIElement } from '@src/stores/UIStore.svelte.ts';
-	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte.ts';
-	// Skeleton
-	import { toaster } from '@stores/store.svelte.ts';
+	import { toggleUIElement } from '@src/stores/ui-store.svelte.ts';
 	// Logger
 	import { logger } from '@utils/logger';
-	import type { SearchCriteria } from '@utils/media/advancedSearch';
-	import { type MediaBase, type MediaImage, MediaTypeEnum } from '@utils/media/mediaModels';
+	import type { SearchCriteria } from '@utils/media/advanced-search';
+	import { type MediaBase, type MediaImage, MediaTypeEnum } from '@utils/media/media-models';
 	// Initialize modal store
 	// const modalStore = getModalStore();
-	import { modalState } from '@utils/modalState.svelte';
-	import { showConfirm } from '@utils/modalUtils';
+	import { modalState } from '@utils/modal-state.svelte';
+	import { showConfirm } from '@utils/modal-utils';
 	import { SvelteSet } from 'svelte/reactivity';
 	import { goto } from '$app/navigation';
 	import type { PageData } from './$types';
-	import AdvancedSearchModal from './AdvancedSearchModal.svelte';
-	import MediaGrid from './MediaGrid.svelte';
-	import MediaTable from './MediaTable.svelte';
-	import VirtualMediaGrid from './VirtualMediaGrid.svelte';
+	import AdvancedSearchModal from './advanced-search-modal.svelte';
 
 	// Props using runes
 	let { data }: { data: PageData } = $props();
@@ -255,7 +248,9 @@ Displays a collection of media files (images, documents, audio, video) with:
 		}
 
 		if (/[\\/:"*?<>|]/.test(trimmedName)) {
-			toaster.error({ description: 'Folder name contains invalid characters (\\ / : * ? " < > |)' });
+			toaster.error({
+				description: 'Folder name contains invalid characters (\\ / : * ? " < > |)'
+			});
 			return;
 		}
 
@@ -338,7 +333,9 @@ Displays a collection of media files (images, documents, audio, video) with:
 		const folderId = currentSystemVirtualFolder ? currentSystemVirtualFolder._id : 'root';
 
 		// Skip if already loading or same folder (unless force refresh)
-		if (!forceRefresh && (isLoading || folderId === lastSystemFolderId)) { return; }
+		if (!forceRefresh && (isLoading || folderId === lastSystemFolderId)) {
+			return;
+		}
 
 		isLoading = true;
 		globalLoadingStore.startLoading(loadingOperations.dataFetch);
@@ -425,7 +422,9 @@ Displays a collection of media files (images, documents, audio, video) with:
 				body: `Creating subfolder in: <span class="text-tertiary-500 dark:text-primary-500">${currentFolderPath}</span>`
 			},
 			(r: string) => {
-				if (r) { createSystemVirtualFolder(r); }
+				if (r) {
+					createSystemVirtualFolder(r);
+				}
 			}
 		);
 	}
@@ -438,7 +437,10 @@ Displays a collection of media files (images, documents, audio, video) with:
 			body: `Are you sure you want to delete <span class="text-tertiary-500 dark:text-primary-500 font-bold">"${file.filename}"</span>? This action cannot be undone.`,
 			onConfirm: async () => {
 				try {
-					logger.info('Delete image request:', { _id: file._id, filename: file.filename });
+					logger.info('Delete image request:', {
+						_id: file._id,
+						filename: file.filename
+					});
 
 					const formData = new FormData();
 					formData.append('imageData', JSON.stringify(file));
@@ -538,11 +540,17 @@ Displays a collection of media files (images, documents, audio, video) with:
 
 					// Show result
 					if (failCount === 0) {
-						toaster.success({ description: `Successfully deleted ${successCount} file${successCount > 1 ? 's' : ''}` });
+						toaster.success({
+							description: `Successfully deleted ${successCount} file${successCount > 1 ? 's' : ''}`
+						});
 					} else if (successCount === 0) {
-						toaster.error({ description: `Failed to delete ${failCount} file${failCount > 1 ? 's' : ''}` });
+						toaster.error({
+							description: `Failed to delete ${failCount} file${failCount > 1 ? 's' : ''}`
+						});
 					} else {
-						toaster.warning({ description: `Deleted ${successCount} file${successCount > 1 ? 's' : ''}, ${failCount} failed` });
+						toaster.warning({
+							description: `Deleted ${successCount} file${successCount > 1 ? 's' : ''}, ${failCount} failed`
+						});
 					}
 
 					// Reactively remove only successfully deleted files
@@ -568,7 +576,9 @@ Displays a collection of media files (images, documents, audio, video) with:
 				body: JSON.stringify({ criteria })
 			});
 
-			if (!response.ok) { throw new Error('Search failed'); }
+			if (!response.ok) {
+				throw new Error('Search failed');
+			}
 
 			const result = await response.json();
 
@@ -610,7 +620,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 	// let imageToEdit: any = $state(null); // No longer needed
 	// let showEditor = $state(false);      // No longer needed
 
-	import { mediaUrl } from '@utils/media/mediaUtils';
+	import { mediaUrl } from '@utils/media/media-utils';
 
 	// ... (existing imports)
 
@@ -651,9 +661,15 @@ Displays a collection of media files (images, documents, audio, video) with:
 
 		const formData = new FormData();
 		formData.append('file', file);
-		if (mediaId) { formData.append('mediaId', mediaId); }
-		if (operations) { formData.append('operations', JSON.stringify(operations)); }
-		if (focalPoint) { formData.append('focalPoint', JSON.stringify(focalPoint)); }
+		if (mediaId) {
+			formData.append('mediaId', mediaId);
+		}
+		if (operations) {
+			formData.append('operations', JSON.stringify(operations));
+		}
+		if (focalPoint) {
+			formData.append('focalPoint', JSON.stringify(focalPoint));
+		}
 
 		try {
 			const response = await fetch('/api/media/edit', {
@@ -669,7 +685,9 @@ Displays a collection of media files (images, documents, audio, video) with:
 				throw new Error(errorData.error || 'Failed to save edited image');
 			}
 		} catch (err) {
-			toaster.error({ description: err instanceof Error ? err.message : 'Error saving image' });
+			toaster.error({
+				description: err instanceof Error ? err.message : 'Error saving image'
+			});
 			logger.error('Error saving edited image', err);
 		}
 	}
@@ -734,7 +752,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 		<p class="text-xs font-medium uppercase text-surface-500 dark:text-surface-50">Search</p>
 		<div class="flex gap-2">
 			<div class="input-group input-group-divider grid flex-1 grid-cols-[1fr_auto]">
-				<input id="globalSearch" type="text" placeholder="Search Media" class="input" bind:value={globalSearchValue}>
+				<input id="globalSearch" type="text" placeholder="Search Media" class="input" bind:value={globalSearchValue} />
 				{#if globalSearchValue}
 					<button onclick={() => (globalSearchValue = '')} aria-label="Clear search" class="preset-filled-surface-500 w-12">
 						<iconify-icon icon="ic:outline-search-off" width={24}></iconify-icon>
@@ -871,7 +889,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 			<div class="flex flex-col gap-1">
 				<label for="globalSearchMd" class="text-sm font-medium">Search</label>
 				<div class="input-group input-group-divider grid h-11 max-w-md grid-cols-[1fr_auto]">
-					<input bind:value={globalSearchValue} id="globalSearchMd" type="text" placeholder="Search" class="input">
+					<input bind:value={globalSearchValue} id="globalSearchMd" type="text" placeholder="Search" class="input" />
 					{#if globalSearchValue}
 						<button onclick={clearSearch} class="preset-filled-surface-500 w-12" aria-label="Clear search">
 							<iconify-icon icon="ic:outline-search-off" width={24}></iconify-icon>
@@ -916,15 +934,9 @@ Displays a collection of media files (images, documents, audio, video) with:
 						aria-label="Toggle View"
 						title="Toggle between Grid and Table"
 					>
-						<iconify-icon
-							icon="material-symbols:grid-view-rounded"
-							width={24}
-							class={view === 'grid' ? 'text-primary-500' : 'text-surface-500'}
+						<iconify-icon icon="material-symbols:grid-view-rounded" width={24} class={view === 'grid' ? 'text-primary-500' : 'text-surface-500'}
 						></iconify-icon>
-						<iconify-icon
-							icon="material-symbols:list-alt-outline"
-							width={24}
-							class={view === 'table' ? 'text-primary-500' : 'text-surface-500'}
+						<iconify-icon icon="material-symbols:list-alt-outline" width={24} class={view === 'table' ? 'text-primary-500' : 'text-surface-500'}
 						></iconify-icon>
 					</button>
 				</div>

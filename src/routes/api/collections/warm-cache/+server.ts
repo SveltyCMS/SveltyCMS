@@ -1,4 +1,4 @@
-import { contentManager } from '@src/content/ContentManager';
+import { contentManager } from '@src/content/content-manager';
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 

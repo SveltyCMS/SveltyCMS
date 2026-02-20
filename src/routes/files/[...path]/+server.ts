@@ -13,11 +13,11 @@ import { createReadStream } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import path from 'node:path';
 import { Readable } from 'node:stream';
-import { getPublicSettingSync } from '@src/services/settingsService';
+import { getPublicSettingSync } from '@src/services/settings-service';
 import { redirect } from '@sveltejs/kit';
 // Unified Error Handling
-import { apiHandler } from '@utils/apiHandler';
-import { AppError } from '@utils/errorHandling';
+import { apiHandler } from '@utils/api-handler';
+import { AppError } from '@utils/error-handling';
 import { logger } from '@utils/logger.server';
 import { lookup } from 'mime-types';
 
@@ -48,10 +48,15 @@ export const GET = apiHandler(async ({ params, request }) => {
 			const baseUrl = cloudUrl.replace(/\/+$/, '');
 			const fullUrl = normalizedFolder ? `${baseUrl}/${normalizedFolder}/${filePath}` : `${baseUrl}/${filePath}`;
 
-			logger.debug('Redirecting to cloud storage', { filePath, cloudUrl: fullUrl });
+			logger.debug('Redirecting to cloud storage', {
+				filePath,
+				cloudUrl: fullUrl
+			});
 			throw redirect(307, fullUrl);
 		}
-		logger.error('Cloud storage configured but no public URL available', { storageType });
+		logger.error('Cloud storage configured but no public URL available', {
+			storageType
+		});
 		throw new AppError('Cloud storage URL not configured', 500, 'CLOUD_CONFIG_ERROR');
 	}
 
@@ -73,7 +78,10 @@ export const GET = apiHandler(async ({ params, request }) => {
 	const allowedBasePath = path.resolve(process.cwd(), normalizedMediaFolder);
 
 	if (!resolvedPath.startsWith(allowedBasePath)) {
-		logger.warn('Directory traversal attempt detected', { requestedPath: filePath, resolvedPath });
+		logger.warn('Directory traversal attempt detected', {
+			requestedPath: filePath,
+			resolvedPath
+		});
 		throw new AppError('Access denied', 403, 'ACCESS_DENIED');
 	}
 

@@ -1,93 +1,167 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.4.2/schema.json",
-  "extends": ["ultracite/biome/core", "ultracite/biome/svelte"],
-  "vcs": {
-    "enabled": true,
-    "clientKind": "git",
-    "useIgnoreFile": true
-  },
-  "files": {
-    "ignoreUnknown": true,
-    "includes": [
-      "**/*.ts",
-      "**/*.js",
-      "**/*.mjs",
-      "**/*.cjs",
-      "**/*.json",
-      "**/*.svelte"
-    ]
-  },
-  "formatter": {
-    "enabled": true,
-    "indentStyle": "tab",
-    "lineWidth": 150
-  },
-  "linter": {
-    "enabled": true,
-    "rules": {
-      "correctness": {
-        "noUnusedFunctionParameters": "off",
-        "noUndeclaredVariables": "error"
-      },
-      "suspicious": {
-        "noExplicitAny": "off",
-        "useAwait": "off",
-        "noEmptyBlockStatements": "off",
-        "noBitwiseOperators": "off",
-        "noEvolvingTypes": "warn",
-        "noConsole": "off",
-        "noDebugger": "warn",
-        "useIterableCallbackReturn": "error",
-        "useGuardForIn": "error"
-      },
-      "complexity": {
-        "recommended": false
-      },
-      "performance": {
-        "recommended": false
-      },
-      "style": {
-        "recommended": false
-      }
-    }
-  },
-  "javascript": {
-    "globals": ["Bun", "NodeJS", "globalThis"],
-    "formatter": {
-      "quoteStyle": "single",
-      "trailingCommas": "none"
-    }
-  },
-  "overrides": [
-    {
-      "includes": ["**/*.svelte", "**/*.html"],
-      "formatter": {
-        "enabled": false
-      }
-    },
-    {
-      "includes": ["src/databases/postgresql/**"],
-      "linter": {
-        "rules": {
-          "correctness": {
-            "noUnsafeOptionalChaining": "off"
-          }
-        }
-      }
-    },
-    {
-      "includes": ["tests/**", "**/*.test.ts", "**/*.spec.ts"],
-      "linter": {
-        "rules": {
-          "suspicious": {
-            "noExplicitAny": "off",
-            "noEmptyBlockStatements": "off"
-          },
-          "correctness": {
-            "noUnusedVariables": "off"
-          }
-        }
-      }
-    }
-  ]
+	"$schema": "https://biomejs.dev/schemas/2.4.2/schema.json",
+	"vcs": {
+		"enabled": true,
+		"clientKind": "git",
+		"useIgnoreFile": true
+	},
+	"files": {
+		"ignoreUnknown": true,
+		"includes": ["**/*.ts", "**/*.js", "**/*.mjs", "**/*.cjs", "**/*.json", "**/*.svelte", "**/*.css"],
+		"ignore": ["node_modules", ".svelte-kit", "build", "dist", ".compiledCollections"]
+	},
+	"formatter": {
+		"enabled": true,
+		"formatWithErrors": false,
+		"indentStyle": "tab",
+		"indentWidth": 2,
+		"lineEnding": "lf",
+		"lineWidth": 150,
+		"attributePosition": "auto"
+	},
+	"assist": {
+		"actions": {
+			"source": {
+				"organizeImports": {
+					"level": "on"
+				}
+			}
+		}
+	},
+	"linter": {
+		"enabled": true,
+		"rules": {
+			"recommended": true,
+			"suspicious": {
+				"noExplicitAny": "off",
+				"useAwait": "off",
+				"noConsole": "off",
+				"noBitwiseOperators": "off",
+				"noEmptyBlockStatements": "off",
+				"noAssignInExpressions": "off",
+				"noMisplacedAssertion": "off",
+				"useIterableCallbackReturn": "off",
+				"noDoubleEquals": "off",
+				"noAlert": "off",
+				"useGuardForIn": "off",
+				"noImplicitAnyLet": "off",
+				"noEvolvingTypes": "off",
+				"noUnassignedVariables": "off",
+				"noShadowRestrictedNames": "off"
+			},
+			"complexity": {
+				"noForEach": "off",
+				"useOptionalChain": "off",
+				"noStaticOnlyClass": "off",
+				"noExcessiveCognitiveComplexity": "off",
+				"useSimplifiedLogicExpression": "off",
+				"noUselessStringConcat": "off",
+				"noVoid": "off"
+			},
+			"performance": {
+				"useTopLevelRegex": "off",
+				"noBarrelFile": "off",
+				"noNamespaceImport": "off"
+			},
+			"correctness": {
+				"noUnusedFunctionParameters": "off",
+				"noUnusedVariables": "off",
+				"noSelfAssign": "off",
+				"noUndeclaredVariables": "off",
+				"noInvalidUseBeforeDeclaration": "off",
+				"useExhaustiveDependencies": "off"
+			},
+			"style": {
+				"useNamingConvention": {
+					"level": "error",
+					"options": {
+						"strictCase": false,
+						"requireAscii": true,
+						"conventions": [
+							{ "selector": { "kind": "variable" }, "formats": ["camelCase", "UPPER_SNAKE_CASE"] },
+							{ "selector": { "kind": "function" }, "formats": ["camelCase"] },
+							{ "selector": { "kind": "typeProperty" }, "formats": ["camelCase", "snake_case"] },
+							{ "selector": { "kind": "objectLiteralProperty" }, "formats": ["camelCase", "snake_case", "PascalCase"] },
+							{ "selector": { "kind": "class" }, "formats": ["PascalCase"] },
+							{ "selector": { "kind": "interface" }, "formats": ["PascalCase"] },
+							{ "selector": { "kind": "typeAlias" }, "formats": ["PascalCase"] },
+							{ "selector": { "kind": "parameter" }, "formats": ["camelCase"] }
+						]
+					}
+				},
+				"useFilenamingConvention": {
+					"level": "error",
+					"options": {
+						"strictCase": false,
+						"filenameCases": ["kebab-case"]
+					}
+				},
+				"noNamespace": "off",
+				"noNonNullAssertion": "off",
+				"noParameterAssign": "off",
+				"useTemplate": "off",
+				"useDefaultSwitchClause": "off",
+				"noRestrictedGlobals": "off",
+				"useCollapsedIf": "off",
+				"useForOf": "off",
+				"noExportedImports": "off",
+				"noParameterProperties": "off",
+				"useConsistentMemberAccessibility": "off",
+				"useConsistentObjectDefinitions": "off",
+				"noNestedTernary": "off",
+				"useCollapsedElseIf": "off",
+				"noEnum": "off",
+				"useThrowOnlyError": "off",
+				"useConsistentBuiltinInstantiation": "off",
+				"useSelfClosingElements": "off",
+				"useConst": "off"
+			},
+			"a11y": {
+				"useButtonType": "off",
+				"noSvgWithoutTitle": "off",
+				"useMediaCaption": "off",
+				"useAnchorContent": "off"
+			}
+		}
+	},
+	"javascript": {
+		"globals": ["Bun", "NodeJS", "globalThis", "crypto", "$state", "$derived", "$props", "$effect", "$inspect", "$bindable"],
+		"formatter": {
+			"quoteStyle": "single",
+			"trailingCommas": "none",
+			"semicolons": "always",
+			"arrowParentheses": "always",
+			"bracketSpacing": true
+		}
+	},
+	"overrides": [
+		{
+			"includes": ["**/*.svelte"],
+			"formatter": { "enabled": true },
+			"linter": {
+				"rules": {
+					"correctness": {
+						"noUndeclaredVariables": "off",
+						"noUnusedVariables": "off"
+					},
+					"style": {
+						"useConst": "off"
+					},
+					"suspicious": {
+						"noImplicitAnyLet": "off"
+					}
+				}
+			}
+		},
+		{
+			"includes": ["tests/**", "**/*.test.ts", "**/*.spec.ts"],
+			"linter": {
+				"rules": {
+					"suspicious": {
+						"noMisplacedAssertion": "off"
+					}
+				}
+			}
+		}
+	]
 }

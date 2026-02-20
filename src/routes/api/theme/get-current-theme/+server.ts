@@ -3,7 +3,7 @@
  * @description Server-side handler for fetching the current theme for a tenant.
  */
 
-import { ThemeManager } from '@src/databases/themeManager';
+import { ThemeManager } from '@src/databases/theme-manager';
 import { json } from '@sveltejs/kit';
 
 // Permission checking
@@ -15,8 +15,8 @@ import { logger } from '@utils/logger.server';
 const themeManager = ThemeManager.getInstance();
 
 // Unified Error Handling
-import { apiHandler } from '@utils/apiHandler';
-import { AppError } from '@utils/errorHandling';
+import { apiHandler } from '@utils/api-handler';
+import { AppError } from '@utils/error-handling';
 
 // ... (ThemeManager instance)
 
@@ -31,7 +31,10 @@ export const GET = apiHandler(async ({ locals }) => {
 	// Note: tenantId validation is handled by hooks in multi-tenant mode
 	const currentTheme = await themeManager.getTheme(tenantId);
 	if (currentTheme) {
-		logger.info('Current theme fetched successfully', { theme: currentTheme.name, tenantId });
+		logger.info('Current theme fetched successfully', {
+			theme: currentTheme.name,
+			tenantId
+		});
 		return json(currentTheme);
 	}
 	logger.warn('No active theme found for tenant', { tenantId });

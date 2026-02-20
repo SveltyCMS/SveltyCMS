@@ -3,7 +3,7 @@
  * @description Server-side logic for the extensions management page.
  */
 import { pluginRegistry } from '@src/plugins';
-import { getPrivateSettingSync } from '@src/services/settingsService';
+import { getPrivateSettingSync } from '@src/services/settings-service';
 import { error, redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 

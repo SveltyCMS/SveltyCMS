@@ -16,7 +16,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import type { DatabaseError, DatabaseId, ISODateString, PaginatedResult, PaginationOptions } from '../dbInterface';
+import type { DatabaseError, DatabaseId, ISODateString, PaginatedResult, PaginationOptions } from '../db-interface';
 
 // Generate a new compact, dash-less UUID v4 for database IDs
 export function generateId(): DatabaseId {

@@ -1,0 +1,409 @@
+<!--
+@file src/routes/setup/PresetSelector.svelte
+@component
+Horizontal snap-scroll preset carousel for selecting project blueprints.
+Default value is 'blank'.
+-->
+<script lang="ts">
+	import type { Preset } from './presets';
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+
+	let { presets, selected = $bindable('blank') } = $props<{
+		presets: Preset[];
+		selected: string | null;
+	}>();
+
+	let scrollEl = $state<HTMLDivElement | null>(null);
+	let canScrollLeft = $state(false);
+	let canScrollRight = $state(true);
+
+	function updateScrollState() {
+		if (!scrollEl) {
+			return;
+		}
+		canScrollLeft = scrollEl.scrollLeft > 8;
+		canScrollRight = scrollEl.scrollLeft < scrollEl.scrollWidth - scrollEl.clientWidth - 8;
+	}
+
+	function scrollBy(dir: -1 | 1) {
+		scrollEl?.scrollBy({ left: dir * 300, behavior: 'smooth' });
+	}
+
+	function select(id: string | null) {
+		selected = id;
+	}
+</script>
+
+<section class="preset-section">
+	<div class="section-header">
+		<div class="header-left">
+			<iconify-icon icon="mdi:package-variant-closed" width="22" class="icon-accent"></iconify-icon>
+			<h3 class="section-title">Project Blueprint</h3>
+			<SystemTooltip title="Select a starting template for your CMS. This will pre-configure collections, roles, and settings.">
+				<button type="button" class="text-slate-400 hover:text-tertiary-500" aria-label="Help: Project Blueprint">
+					<iconify-icon icon="mdi:help-circle-outline" width="16"></iconify-icon>
+				</button>
+			</SystemTooltip>
+		</div>
+
+		<div class="scroll-controls">
+			<button
+				type="button"
+				class="scroll-btn"
+				class:disabled={!canScrollLeft}
+				onclick={() => scrollBy(-1)}
+				aria-label="Scroll left"
+				disabled={!canScrollLeft}
+			>
+				<iconify-icon icon="mdi:chevron-left" width="20"></iconify-icon>
+			</button>
+			<button
+				type="button"
+				class="scroll-btn"
+				class:disabled={!canScrollRight}
+				onclick={() => scrollBy(1)}
+				aria-label="Scroll right"
+				disabled={!canScrollRight}
+			>
+				<iconify-icon icon="mdi:chevron-right" width="20"></iconify-icon>
+			</button>
+		</div>
+	</div>
+
+	<!-- Scroll track -->
+	<div class="track-wrapper">
+		<div class="fade-edge left" class:show={canScrollLeft}></div>
+		<div class="scroll-track" bind:this={scrollEl} onscroll={updateScrollState} role="listbox" aria-label="Select a project blueprint">
+			<!-- ── Preset cards ── -->
+			{#each presets as preset (preset.id)}
+				<button
+					type="button"
+					role="option"
+					aria-selected={selected === preset.id}
+					class="preset-card"
+					class:active={selected === preset.id}
+					onclick={() => select(preset.id)}
+				>
+					<!-- Badge -->
+					{#if preset.badge}
+						<span class="badge-pill">{preset.badge}</span>
+					{/if}
+
+					<div class="card-row1">
+						<div class="card-icon"><iconify-icon icon={preset.icon} width="22"></iconify-icon></div>
+						<span class="card-title">{preset.title}</span>
+						{#if preset.complexity}
+							<span class="complexity {preset.complexity}"> {preset.complexity} </span>
+						{/if}
+					</div>
+
+					<div class="card-desc">{preset.description}</div>
+
+					<div class="card-tags">
+						{#each preset.features.slice(0, 2) as f}
+							<span class="chip">{f}</span>
+						{/each}
+						{#if preset.features.length > 2}
+							<span class="chip more">+{preset.features.length - 2}</span>
+						{/if}
+					</div>
+
+					{#if selected === preset.id}
+						<iconify-icon icon="mdi:check-circle" width="18" class="check-icon"></iconify-icon>
+					{/if}
+				</button>
+			{/each}
+		</div>
+		<div class="fade-edge right" class:show={canScrollRight}></div>
+	</div>
+
+	<!-- Dot indicators -->
+	<div class="dot-row" aria-hidden="true">
+		{#each presets as preset, i (preset.id)}
+			<button
+				type="button"
+				class="dot"
+				class:active={selected === preset.id}
+				onclick={() => {
+					select(preset.id);
+					scrollEl?.scrollTo({ left: i * 268, behavior: 'smooth' });
+				}}
+			></button>
+		{/each}
+	</div>
+
+	<p class="helper-text">
+		{selected
+			? `"${presets.find((p: Preset) => p.id === selected)?.title ?? selected}" selected — collections added automatically after setup.`
+			: 'No preset — configure collections manually after setup.'}
+	</p>
+</section>
+
+<style>
+	.preset-section {
+		display: flex;
+		flex-direction: column;
+		gap: 12px;
+	}
+
+	.section-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		margin-bottom: 4px;
+	}
+	.header-left {
+		display: flex;
+		gap: 9px;
+		align-items: center;
+	}
+	.icon-accent {
+		color: #6ee7b7;
+	}
+	.section-title {
+		font-size: 1.05rem;
+		font-weight: 600;
+		color: white;
+	}
+
+	.scroll-controls {
+		display: flex;
+		gap: 6px;
+	}
+	.scroll-btn {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 32px;
+		height: 32px;
+		color: rgba(255, 255, 255, 0.7);
+		cursor: pointer;
+		background: rgba(255, 255, 255, 0.05);
+		border: 1px solid rgba(255, 255, 255, 0.12);
+		border-radius: 50%;
+		transition: all 0.18s;
+	}
+	.scroll-btn:hover:not(:disabled) {
+		color: white;
+		background: rgba(255, 255, 255, 0.12);
+		border-color: rgba(255, 255, 255, 0.25);
+	}
+	.scroll-btn.disabled {
+		cursor: default;
+		opacity: 0.22;
+	}
+
+	.track-wrapper {
+		position: relative;
+	}
+	.scroll-track {
+		display: flex;
+		gap: 12px;
+		overflow-x: auto;
+		scroll-snap-type: x mandatory;
+		-webkit-overflow-scrolling: touch;
+		padding: 6px 4px 14px;
+		scrollbar-width: none;
+	}
+	.scroll-track::-webkit-scrollbar {
+		display: none;
+	}
+
+	.fade-edge {
+		position: absolute;
+		top: 0;
+		bottom: 14px;
+		z-index: 2;
+		width: 56px;
+		pointer-events: none;
+		opacity: 0;
+		transition: opacity 0.25s;
+	}
+	.fade-edge.left {
+		left: 0;
+		background: linear-gradient(to right, #0d0f12 30%, transparent);
+	}
+	.fade-edge.right {
+		right: 0;
+		background: linear-gradient(to left, #0d0f12 30%, transparent);
+	}
+	.fade-edge.show {
+		opacity: 1;
+	}
+
+	/* ── Card ── */
+	.preset-card {
+		position: relative;
+		display: flex;
+		flex: 0 0 256px;
+		flex-direction: column;
+		gap: 0;
+		padding: 16px;
+		overflow: hidden;
+		text-align: left;
+		cursor: pointer;
+		scroll-snap-align: start;
+		background: rgba(255, 255, 255, 0.03);
+		border: 1.5px solid rgba(255, 255, 255, 0.08);
+		border-radius: 12px;
+		transition:
+			border-color 0.2s,
+			background 0.2s,
+			transform 0.15s,
+			box-shadow 0.2s;
+	}
+	.preset-card:hover {
+		background: rgba(110, 231, 183, 0.04);
+		border-color: rgba(110, 231, 183, 0.3);
+		box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28);
+		transform: translateY(-2px);
+	}
+	.preset-card.active {
+		background: rgba(110, 231, 183, 0.07);
+		border-color: rgba(110, 231, 183, 0.75);
+		box-shadow:
+			0 0 0 3px rgba(110, 231, 183, 0.12),
+			0 10px 32px rgba(0, 0, 0, 0.35);
+		transform: translateY(-2px);
+	}
+
+	/* ── Row 1: icon + title + complexity ── */
+	.card-row1 {
+		display: flex;
+		gap: 10px;
+		align-items: center;
+		margin-bottom: 10px;
+	}
+	.card-icon {
+		display: flex;
+		flex-shrink: 0;
+		align-items: center;
+		justify-content: center;
+		width: 36px;
+		height: 36px;
+		color: #6ee7b7;
+		background: rgba(110, 231, 183, 0.1);
+		border-radius: 8px;
+	}
+	.card-title {
+		flex: 1;
+		font-size: 0.88rem;
+		font-weight: 700;
+		line-height: 1.2;
+		color: white;
+	}
+	.complexity {
+		flex-shrink: 0;
+		padding: 2px 7px;
+		font-size: 0.58rem;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		border: 1px solid;
+		border-radius: 20px;
+	}
+	.complexity.simple {
+		color: #34d399;
+		background: rgba(52, 211, 153, 0.1);
+		border-color: rgba(52, 211, 153, 0.4);
+	}
+	.complexity.moderate {
+		color: #fbbf24;
+		background: rgba(251, 191, 36, 0.1);
+		border-color: rgba(251, 191, 36, 0.4);
+	}
+	.complexity.advanced {
+		color: #f87171;
+		background: rgba(248, 113, 113, 0.1);
+		border-color: rgba(248, 113, 113, 0.4);
+	}
+
+	/* ── Row 2: description ── */
+	.card-desc {
+		display: -webkit-box;
+		-webkit-box-orient: vertical;
+		margin-bottom: 10px;
+		overflow: hidden;
+		-webkit-line-clamp: 3;
+		font-size: 0.7rem;
+		line-height: 1.5;
+		color: rgba(255, 255, 255, 0.42);
+	}
+
+	/* ── Row 3: tags ── */
+	.card-tags {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 4px;
+		margin-top: auto;
+	}
+	.chip {
+		padding: 2px 8px;
+		font-size: 0.62rem;
+		color: rgba(255, 255, 255, 0.5);
+		background: rgba(255, 255, 255, 0.07);
+		border: 1px solid rgba(255, 255, 255, 0.1);
+		border-radius: 20px;
+	}
+	.chip.more {
+		background: rgba(255, 255, 255, 0.04);
+	}
+
+	/* Badge (Popular / New) */
+	.badge-pill {
+		position: absolute;
+		top: 10px;
+		right: 10px;
+		padding: 2px 8px;
+		font-size: 0.57rem;
+		font-weight: 700;
+		color: #fbbf24;
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+		background: rgba(251, 191, 36, 0.15);
+		border: 1px solid rgba(251, 191, 36, 0.35);
+		border-radius: 20px;
+	}
+
+	/* Check icon */
+	.check-icon {
+		position: absolute;
+		right: 10px;
+		bottom: 10px;
+		color: #6ee7b7;
+	}
+
+	/* ── Dots ── */
+	.dot-row {
+		display: flex;
+		gap: 5px;
+		justify-content: center;
+		padding: 2px 0;
+	}
+	.dot {
+		width: 6px;
+		height: 6px;
+		padding: 0;
+		cursor: pointer;
+		background: rgba(255, 255, 255, 0.18);
+		border: none;
+		border-radius: 50%;
+		transition:
+			background 0.2s,
+			width 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+			border-radius 0.25s;
+	}
+	.dot.active {
+		width: 18px;
+		background: #6ee7b7;
+		border-radius: 3px;
+	}
+
+	.helper-text {
+		margin-top: 4px;
+		font-size: 0.71rem;
+		font-style: italic;
+		color: rgba(255, 255, 255, 0.3);
+		text-align: center;
+	}
+</style>

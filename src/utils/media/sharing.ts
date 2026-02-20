@@ -160,7 +160,10 @@ export function stats(link: ShareLink) {
 }
 
 /** Filter active/expired links */
-export function filterLinks(links: ShareLink[]): { active: ShareLink[]; expired: ShareLink[] } {
+export function filterLinks(links: ShareLink[]): {
+	active: ShareLink[];
+	expired: ShareLink[];
+} {
 	const now = Date.now();
 	const active: ShareLink[] = [];
 	const expired: ShareLink[] = [];

@@ -12,17 +12,17 @@
  * Enhanced error reporting for partial failures
  */
 
-import { modifyRequest } from '@api/collections/modifyRequest';
+import { modifyRequest } from '@api/collections/modify-request';
 // Auth & Content
-import { contentManager } from '@src/content/ContentManager';
+import { contentManager } from '@src/content/content-manager';
 import type { FieldInstance } from '@src/content/types';
 // Types
-import type { BaseEntity, CollectionModel, DatabaseId } from '@src/databases/dbInterface';
-import { getPrivateSettingSync } from '@src/services/settingsService';
+import type { BaseEntity, CollectionModel, DatabaseId } from '@src/databases/db-interface';
+import { getPrivateSettingSync } from '@src/services/settings-service';
 import { json } from '@sveltejs/kit';
 // Unified Error Handling
-import { apiHandler } from '@utils/apiHandler';
-import { AppError } from '@utils/errorHandling';
+import { apiHandler } from '@utils/api-handler';
+import { AppError } from '@utils/error-handling';
 // Logging
 import { logger } from '@utils/logger.server';
 // Validation
@@ -89,7 +89,12 @@ export const POST = apiHandler(async ({ locals, params, request }) => {
 		throw new AppError('One or more entries do not belong to your tenant or do not exist', 403, 'FORBIDDEN');
 	}
 
-	let results: Array<{ entryId: string; success: boolean; error?: string; newId?: string }> = [];
+	let results: Array<{
+		entryId: string;
+		success: boolean;
+		error?: string;
+		newId?: string;
+	}> = [];
 	let successCount = 0;
 
 	// Execute Actions
@@ -111,7 +116,11 @@ export const POST = apiHandler(async ({ locals, params, request }) => {
 			successCount = entryIds.length;
 			results = entryIds.map((id) => ({ entryId: id, success: true }));
 		} else {
-			results = entryIds.map((id) => ({ entryId: id, success: false, error: res.error.message }));
+			results = entryIds.map((id) => ({
+				entryId: id,
+				success: false,
+				error: res.error.message
+			}));
 		}
 	} else if (action === 'status') {
 		const updateData = { status, updatedBy: user._id };
@@ -120,7 +129,11 @@ export const POST = apiHandler(async ({ locals, params, request }) => {
 			successCount = entryIds.length;
 			results = entryIds.map((id) => ({ entryId: id, success: true }));
 		} else {
-			results = entryIds.map((id) => ({ entryId: id, success: false, error: res.error.message }));
+			results = entryIds.map((id) => ({
+				entryId: id,
+				success: false,
+				error: res.error.message
+			}));
 		}
 	} else if (action === 'clone') {
 		const entriesToClone: Record<string, unknown>[] = [];
@@ -145,21 +158,37 @@ export const POST = apiHandler(async ({ locals, params, request }) => {
 			if (res.success) {
 				successCount = res.data.length;
 				res.data.forEach((newEntry, i) => {
-					results.push({ entryId: originalIds[i], success: true, newId: newEntry._id });
+					results.push({
+						entryId: originalIds[i],
+						success: true,
+						newId: newEntry._id
+					});
 				});
 			} else {
-				results = originalIds.map((id) => ({ entryId: id, success: false, error: res.error.message }));
+				results = originalIds.map((id) => ({
+					entryId: id,
+					success: false,
+					error: res.error.message
+				}));
 			}
 		}
 	}
 
-	const cacheService = (await import('@src/databases/CacheService')).cacheService;
+	const cacheService = (await import('@src/databases/cache-service')).cacheService;
 	await cacheService.clearByPattern(`collection:${schema._id}:*`).catch((e) => logger.warn('Cache clear failed', e));
 
 	const duration = performance.now() - start;
 	return json({
 		success: true,
-		data: { action, results, summary: { total: entryIds.length, successful: successCount, failed: entryIds.length - successCount } },
+		data: {
+			action,
+			results,
+			summary: {
+				total: entryIds.length,
+				successful: successCount,
+				failed: entryIds.length - successCount
+			}
+		},
 		performance: { duration }
 	});
 });

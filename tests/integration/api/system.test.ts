@@ -7,7 +7,7 @@
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'bun:test';
 import { getApiBaseUrl, waitForServer } from '../helpers/server';
-import { cleanupTestDatabase, prepareAuthenticatedContext } from '../helpers/testSetup';
+import { cleanupTestDatabase, prepareAuthenticatedContext } from '../helpers/test-setup';
 
 const API_BASE_URL = getApiBaseUrl();
 

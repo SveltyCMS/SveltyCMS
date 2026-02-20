@@ -1,3 +1,8 @@
+/**
+ * @file src\components\system\builder\types.ts
+ * @description Types for the widget builder
+ */
+
 import type { FieldInstance } from '@content/types';
 
 export interface WidgetFieldsProps {

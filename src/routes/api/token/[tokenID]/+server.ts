@@ -18,14 +18,14 @@
  */
 
 // Cache invalidation
-import { cacheService } from '@src/databases/CacheService';
+import { cacheService } from '@src/databases/cache-service';
 // Auth
 import { auth } from '@src/databases/db';
-import { getPrivateSettingSync } from '@src/services/settingsService';
+import { getPrivateSettingSync } from '@src/services/settings-service';
 import { json } from '@sveltejs/kit';
 // Unified Error Handling
-import { apiHandler } from '@utils/apiHandler';
-import { AppError } from '@utils/errorHandling';
+import { apiHandler } from '@utils/api-handler';
+import { AppError } from '@utils/error-handling';
 // System logger
 import { logger } from '@utils/logger.server';
 // Validation
@@ -132,7 +132,7 @@ export const PUT = apiHandler(async ({ request, params, locals }) => {
 		updateResult = await (possibleAuth as { updateToken: (id: string, data: unknown) => unknown }).updateToken(tokenId, newTokenData);
 	} else {
 		// Fallback (should not normally execute once interface is standardized)
-		const { TokenAdapter } = await import('@src/databases/mongodb/models/authToken');
+		const { TokenAdapter } = await import('@src/databases/mongodb/models/auth-token');
 		const tokenAdapter = new TokenAdapter();
 		updateResult = await tokenAdapter.updateToken(tokenId, newTokenData);
 	}
@@ -150,7 +150,11 @@ export const PUT = apiHandler(async ({ request, params, locals }) => {
 		throw new AppError('Token not found or not modified', 404, 'TOKEN_UPDATE_FAILED');
 	}
 
-	logger.info('Token updated successfully', { tokenId, updateData: newTokenData, tenantId });
+	logger.info('Token updated successfully', {
+		tokenId,
+		updateData: newTokenData,
+		tenantId
+	});
 
 	// Invalidate the tokens cache so the UI updates immediately
 	cacheService.delete('tokens', tenantId).catch((err) => {
@@ -203,7 +207,7 @@ export const DELETE = apiHandler(async ({ params, locals }) => {
 			deletedCount = (result as { deletedCount?: number }).deletedCount;
 		}
 	} else {
-		const { TokenAdapter } = await import('@src/databases/mongodb/models/authToken');
+		const { TokenAdapter } = await import('@src/databases/mongodb/models/auth-token');
 		const tokenAdapter = new TokenAdapter();
 		const result = await tokenAdapter.deleteTokens([tokenId]);
 		if (result.success && result.data) {
@@ -219,7 +223,10 @@ export const DELETE = apiHandler(async ({ params, locals }) => {
 		logger.warn(`Failed to invalidate tokens cache: ${err.message}`);
 	});
 
-	logger.info(`Token ${tokenId} deleted successfully`, { executedBy: user?._id, tenantId });
+	logger.info(`Token ${tokenId} deleted successfully`, {
+		executedBy: user?._id,
+		tenantId
+	});
 
 	return json({ success: true, message: 'Token deleted successfully.' });
 });

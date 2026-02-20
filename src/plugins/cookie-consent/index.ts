@@ -1,3 +1,8 @@
+/**
+ * @file src\plugins\cookie-consent\index.ts
+ * @description Cookie Consent Manager plugin for GDPR compliance
+ */
+
 import type { Plugin } from '@src/plugins/types';
 
 export const cookieConsentPlugin: Plugin = {

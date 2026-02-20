@@ -12,18 +12,18 @@
  * - Status-based access control for non-admin users
  */
 
-import { getPrivateSettingSync } from '@src/services/settingsService';
+import { getPrivateSettingSync } from '@src/services/settings-service';
 import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
 // Permissions
 
 import { dbAdapter } from '@src/databases/db';
-import type { MediaItem } from '@src/databases/dbInterface';
+import type { MediaItem } from '@src/databases/db-interface';
 // System Logger
 import { logger } from '@utils/logger.server';
 // Media
-import { deleteFile } from '@utils/media/mediaStorage.server';
+import { deleteFile } from '@utils/media/media-storage.server';
 
 export const DELETE: RequestHandler = async ({ request, locals }) => {
 	const { user, tenantId, roles } = locals;

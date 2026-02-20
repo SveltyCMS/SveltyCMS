@@ -14,8 +14,8 @@ import { reinitializeSystem } from '@src/databases/db';
 import { getHealthCheckReport } from '@src/stores/system/reporting';
 import { json } from '@sveltejs/kit';
 // Unified Error Handling
-import { apiHandler } from '@utils/apiHandler';
-import { AppError } from '@utils/errorHandling';
+import { apiHandler } from '@utils/api-handler';
+import { AppError } from '@utils/error-handling';
 
 // Logging
 import { logger } from '@utils/logger.server';
@@ -97,7 +97,9 @@ export const POST = apiHandler(async ({ request, locals }) => {
 			const result = await reinitializeSystem(force);
 
 			if (result.status === 'initialized') {
-				logger.info('System reinitialized successfully', { userId: locals.user._id });
+				logger.info('System reinitialized successfully', {
+					userId: locals.user._id
+				});
 				return json({
 					success: true,
 					status: result.status,

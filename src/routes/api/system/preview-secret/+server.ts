@@ -8,10 +8,10 @@
 
 import { randomBytes } from 'node:crypto';
 import { dbAdapter } from '@src/databases/db';
-import { getPrivateSettingSync, invalidateSettingsCache } from '@src/services/settingsService';
+import { getPrivateSettingSync, invalidateSettingsCache } from '@src/services/settings-service';
 import { json } from '@sveltejs/kit';
-import { apiHandler } from '@utils/apiHandler';
-import { AppError } from '@utils/errorHandling';
+import { apiHandler } from '@utils/api-handler';
+import { AppError } from '@utils/error-handling';
 import { logger } from '@utils/logger.server';
 
 export const GET = apiHandler(async ({ locals }) => {

@@ -19,7 +19,7 @@
  * - Describe the data contract for API endpoints related to content.
  */
 
-import type { WidgetRegistry as widgets } from '@stores/widgetStore.svelte.ts';
+import type { WidgetRegistry as widgets } from '@src/stores/widget-store.svelte.ts';
 // Note: collectionSchemas may be used in the future for runtime validation
 
 // Auth

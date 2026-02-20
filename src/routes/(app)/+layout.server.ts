@@ -15,11 +15,11 @@
  * - Content Versioning is cached
  */
 
-import { contentManager } from '@src/content/ContentManager';
+import { contentManager } from '@src/content/content-manager';
 import type { User } from '@src/databases/auth/types';
 import { auth } from '@src/databases/db';
-import { DEFAULT_THEME } from '@src/databases/themeManager';
-import { publicEnv } from '@src/stores/globalSettings.svelte';
+import { DEFAULT_THEME } from '@src/databases/theme-manager';
+import { publicEnv } from '@src/stores/global-settings.svelte';
 import { error } from '@sveltejs/kit';
 import { logger } from '@utils/logger.server';
 import type { LayoutServerLoad } from './$types';

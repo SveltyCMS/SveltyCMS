@@ -15,9 +15,9 @@
  * - Content Versioning is cached
  */
 
-import type { NavigationNode } from '@src/content/ContentManager';
+import type { NavigationNode } from '@src/content/content-manager';
 import type { Locale } from '@src/paraglide/runtime';
-import { getPrivateSettingSync, loadSettingsCache } from '@src/services/settingsService';
+import { getPrivateSettingSync, loadSettingsCache } from '@src/services/settings-service';
 import { version } from '../../package.json';
 import type { LayoutServerLoad } from './$types';
 
@@ -83,12 +83,12 @@ export const load: LayoutServerLoad = async ({ cookies, locals, url }) => {
 	const contentLanguage = (cookies.get('contentLanguage') as Locale) ?? defaultContentLanguage;
 
 	// Content System Hydration with error handling for preview mode
-	const { contentManager } = await import('@src/content/ContentManager');
+	const { contentManager } = await import('@src/content/content-manager');
 	let navigationStructure: NavigationNode[] = [];
 	let contentVersion = 0;
 
 	try {
-		// Ensure ContentManager is initialized before use to guarantee sidebar population.
+		// Ensurecontent-manageris initialized before use to guarantee sidebar population.
 		// This is critical for the first load after setup.
 		await contentManager.initialize(locals.tenantId);
 
@@ -98,7 +98,7 @@ export const load: LayoutServerLoad = async ({ cookies, locals, url }) => {
 		});
 		contentVersion = contentManager.getContentVersion();
 	} catch (error) {
-		console.error('[Layout] ContentManager error (preview mode?):', error);
+		console.error('[Layout]ContentManager error (preview mode?):', error);
 		// Continue with empty navigation - don't block page load
 	}
 

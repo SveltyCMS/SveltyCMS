@@ -1,10 +1,10 @@
 <!--
- @file src/components/system/Slot.svelte
+ @file src\components\system\slot.svelte
  @component Generic Slot renderer for Injection Zones
 -->
 
 <script lang="ts">
-	import { slotRegistry } from '@src/plugins/slotRegistry';
+	import { slotRegistry } from '@src/plugins/slot-registry';
 	import type { InjectionZone } from '@src/plugins/types';
 
 	// We can reuse WidgetLoader or create a simple loader since types definition says component is a promise

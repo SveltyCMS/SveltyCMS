@@ -53,12 +53,36 @@ export const initialServiceMetrics: ServicePerformanceMetrics = {
 export const initialState: SystemStateStore = {
 	overallState: 'IDLE',
 	services: {
-		database: { status: 'initializing', message: 'Not initialized', metrics: structuredClone(initialServiceMetrics) },
-		auth: { status: 'initializing', message: 'Not initialized', metrics: structuredClone(initialServiceMetrics) },
-		cache: { status: 'initializing', message: 'Not initialized', metrics: structuredClone(initialServiceMetrics) },
-		contentManager: { status: 'initializing', message: 'Not initialized', metrics: structuredClone(initialServiceMetrics) },
-		themeManager: { status: 'initializing', message: 'Not initialized', metrics: structuredClone(initialServiceMetrics) },
-		widgets: { status: 'initializing', message: 'Not initialized', metrics: structuredClone(initialServiceMetrics) }
+		database: {
+			status: 'initializing',
+			message: 'Not initialized',
+			metrics: structuredClone(initialServiceMetrics)
+		},
+		auth: {
+			status: 'initializing',
+			message: 'Not initialized',
+			metrics: structuredClone(initialServiceMetrics)
+		},
+		cache: {
+			status: 'initializing',
+			message: 'Not initialized',
+			metrics: structuredClone(initialServiceMetrics)
+		},
+		contentManager: {
+			status: 'initializing',
+			message: 'Not initialized',
+			metrics: structuredClone(initialServiceMetrics)
+		},
+		themeManager: {
+			status: 'initializing',
+			message: 'Not initialized',
+			metrics: structuredClone(initialServiceMetrics)
+		},
+		widgets: {
+			status: 'initializing',
+			message: 'Not initialized',
+			metrics: structuredClone(initialServiceMetrics)
+		}
 	},
 	performanceMetrics: {
 		totalInitializations: 0,

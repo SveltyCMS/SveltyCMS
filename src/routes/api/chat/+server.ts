@@ -4,7 +4,7 @@
  * Dispatches messages to the global EventBus for real-time distribution.
  */
 
-import { eventBus } from '@src/services/automation/eventBus';
+import { eventBus } from '@src/services/automation/event-bus';
 import { json } from '@sveltejs/kit';
 import { logger } from '@utils/logger.server';
 import type { RequestHandler } from './$types';

@@ -4,11 +4,11 @@
  */
 
 import { hasPermissionWithRoles } from '@src/databases/auth/permissions';
-import { getWidgetFunction, widgets } from '@stores/widgetStore.svelte.ts';
+import { getWidgetFunction, widgets } from '@src/stores/widget-store.svelte.ts';
 import { json } from '@sveltejs/kit';
 // Unified Error Handling
-import { apiHandler } from '@utils/apiHandler';
-import { AppError } from '@utils/errorHandling';
+import { apiHandler } from '@utils/api-handler';
+import { AppError } from '@utils/error-handling';
 import { logger } from '@utils/logger.server';
 
 export const GET = apiHandler(async ({ url, locals }) => {
@@ -70,7 +70,10 @@ export const GET = apiHandler(async ({ url, locals }) => {
 	} catch (err) {
 		const duration = performance.now() - start;
 		const message = `Failed to get installed widgets: ${err instanceof Error ? err.message : String(err)}`;
-		logger.error(message, { duration: `${duration.toFixed(2)}ms`, stack: err instanceof Error ? err.stack : undefined });
+		logger.error(message, {
+			duration: `${duration.toFixed(2)}ms`,
+			stack: err instanceof Error ? err.stack : undefined
+		});
 		if (err instanceof AppError) {
 			throw err;
 		}

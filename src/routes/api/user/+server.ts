@@ -17,13 +17,13 @@
  * POST /api/user - Create a new user (requires 'create:user:any' permission)
  */
 import { auth, dbAdapter } from '@src/databases/db';
-import type { ISODateString } from '@src/databases/dbInterface';
-import { getPrivateSettingSync } from '@src/services/settingsService';
+import type { ISODateString } from '@src/databases/db-interface';
+import { getPrivateSettingSync } from '@src/services/settings-service';
 import { type HttpError, json } from '@sveltejs/kit';
 // Unified Error Handling
-import { apiHandler } from '@utils/apiHandler';
-import { AppError } from '@utils/errorHandling';
-import { addUserTokenSchema } from '@utils/formSchemas';
+import { apiHandler } from '@utils/api-handler';
+import { AppError } from '@utils/error-handling';
+import { addUserTokenSchema } from '@utils/form-schemas';
 // System Logger
 import { logger } from '@utils/logger.server';
 import { safeParse } from 'valibot';
@@ -65,7 +65,9 @@ export const GET = apiHandler(async ({ url, locals }) => {
 			filter,
 			limit,
 			offset: (page - 1) * limit,
-			sort: { [sort]: order === 1 ? 'asc' : 'desc' } as { [key: string]: 'asc' | 'desc' }
+			sort: { [sort]: order === 1 ? 'asc' : 'desc' } as {
+				[key: string]: 'asc' | 'desc';
+			}
 		};
 
 		// Use the database adapter directly for full pagination support
@@ -125,12 +127,19 @@ export const POST = apiHandler(async ({ request, locals, url }) => {
 		const formData = await request.json();
 		const result = safeParse(addUserTokenSchema, formData);
 		if (!result.success) {
-			logger.warn('Invalid form data for user creation', { issues: result.issues });
+			logger.warn('Invalid form data for user creation', {
+				issues: result.issues
+			});
 			throw new AppError('Invalid form data', 400, 'VALIDATION_ERROR');
 		}
 
 		const { email, role, expiresIn } = result.output;
-		logger.info('Request to create user received', { email, role, requestedBy: user?._id, tenantId });
+		logger.info('Request to create user received', {
+			email,
+			role,
+			requestedBy: user?._id,
+			tenantId
+		});
 
 		const expirationTimes: Record<string, number> = {
 			'2 hrs': 7200,
@@ -193,7 +202,7 @@ export const POST = apiHandler(async ({ request, locals, url }) => {
 async function sendUserToken(origin: string, email: string, token: string, role: string, expiresIn: number) {
 	try {
 		const inviteLink = `${origin}/login?invite_token=${token}`;
-		const { getPrivateSettingSync } = await import('@src/services/settingsService');
+		const { getPrivateSettingSync } = await import('@src/services/settings-service');
 		const internalKey = getPrivateSettingSync('JWT_SECRET_KEY');
 
 		const response = await fetch(`${origin}/api/sendMail`, {

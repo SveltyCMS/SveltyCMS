@@ -11,11 +11,11 @@
  */
 
 import { dbAdapter } from '@src/databases/db';
-import type { MediaItem } from '@src/databases/dbInterface';
-import { getPrivateSettingSync } from '@src/services/settingsService';
+import type { MediaItem } from '@src/databases/db-interface';
+import { getPrivateSettingSync } from '@src/services/settings-service';
 import { error, json } from '@sveltejs/kit';
 import { logger } from '@utils/logger.server';
-import { moveMediaToTrash } from '@utils/media/mediaStorage.server';
+import { moveMediaToTrash } from '@utils/media/media-storage.server';
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
@@ -67,7 +67,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		// 3. Move media to trash
 		await moveMediaToTrash(url);
 
-		logger.info('Media file moved to trash successfully', { url, userId: user?._id, tenantId });
+		logger.info('Media file moved to trash successfully', {
+			url,
+			userId: user?._id,
+			tenantId
+		});
 		return json({ success: true });
 	} catch (err) {
 		// Re-throw HTTP errors as-is (e.g., 400 for missing parameters)

@@ -4,7 +4,7 @@
  * @description Simple test for first user signup and OAuth testing
  */
 
-import { cleanupTestEnvironment, initializeTestEnvironment } from './helpers/testSetup';
+import { cleanupTestEnvironment, initializeTestEnvironment } from './helpers/test-setup';
 
 const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:5173';
 

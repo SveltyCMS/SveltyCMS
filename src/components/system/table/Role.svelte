@@ -1,5 +1,5 @@
 <!--
-@file src/components/system/table/Role.svelte
+@file src/components/system/table/role.svelte
 @component
 **Role component for displaying different badges based on user roles.**
 

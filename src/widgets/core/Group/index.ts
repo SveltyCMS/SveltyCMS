@@ -15,12 +15,12 @@
  */
 
 // Components needed for the GuiSchema
-// import IconifyIconsPicker from '@components/IconifyIconsPicker.svelte';
-// import PermissionsSetting from '@components/PermissionsSetting.svelte';
-// import Input from '@components/system/inputs/Input.svelte';
-// import Toggles from '@components/system/inputs/Toggles.svelte';
+// import IconifyIconsPicker from '@components/iconify-icons-picker.svelte';
+// import PermissionsSetting from '@components/permissions-setting.svelte';
+// import Input from '@components/system/inputs/input.svelte';
+// import Toggles from '@components/system/inputs/toggles.svelte';
 
-import { createWidget } from '@src/widgets/widgetFactory';
+import { createWidget } from '@src/widgets/widget-factory';
 import { object, type InferInput as ValibotInput } from 'valibot';
 
 import type { GroupProps } from './types';

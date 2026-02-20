@@ -9,10 +9,10 @@
  * - Exports all model discriminators
  */
 
-export type { CategoryDocument, CollectionDocument, ContentStructureDocument } from './contentStructure';
+export type { CategoryDocument, CollectionDocument, ContentStructureDocument } from './content-structure';
 // Content Structure
 // Content Node - Use ContentStructureModel as ContentNodeModel
-export { ContentStructureModel, ContentStructureModel as ContentNodeModel, registerContentStructureDiscriminators } from './contentStructure';
+export { ContentStructureModel, ContentStructureModel as ContentNodeModel, registerContentStructureDiscriminators } from './content-structure';
 
 // Drafts
 export { DraftModel } from './draft';
@@ -20,20 +20,19 @@ export { DraftModel } from './draft';
 export { MediaModel, mediaSchema } from './media';
 // Revisions
 export { RevisionModel } from './revision';
-
 // System Preferences
-export { SystemPreferencesModel } from './systemPreferences';
-export type { SystemSetting } from './systemSetting';
+export { SystemPreferencesModel } from './system-preferences';
+export type { SystemSetting } from './system-setting';
 // System Settings
-export { SystemSettingModel } from './systemSetting';
+export { SystemSettingModel } from './system-setting';
 // System Virtual Folders
-export { SystemVirtualFolderModel } from './systemVirtualFolder';
+export { SystemVirtualFolderModel } from './system-virtual-folder';
 export type { Tenant, TenantQuota, TenantUsage } from './tenant';
 // Tenants
 export { TenantModel } from './tenant';
 // Themes
 export { ThemeModel } from './theme';
 // Website Tokens
-export { WebsiteTokenModel } from './websiteToken';
+export { WebsiteTokenModel } from './website-token';
 // Widgets
 export { WidgetModel } from './widget';

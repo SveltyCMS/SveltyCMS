@@ -3,7 +3,7 @@
  * @description Service for managing persistent plugin settings and states
  */
 
-import type { IDBAdapter } from '@databases/dbInterface';
+import type { IDBAdapter } from '@databases/db-interface';
 import { logger } from '@utils/logger.server';
 import type { PluginState } from './types';
 
@@ -24,7 +24,9 @@ export class PluginSettingsService {
 					tenantId: 'system',
 					enabled: false
 				} as any);
-				await this.dbAdapter.crud.deleteMany(this.COLLECTION, { pluginId: '__INIT__' } as any);
+				await this.dbAdapter.crud.deleteMany(this.COLLECTION, {
+					pluginId: '__INIT__'
+				} as any);
 			}
 		} catch (error) {
 			logger.error(`Failed to initialize ${this.COLLECTION}`, { error });
@@ -57,7 +59,9 @@ export class PluginSettingsService {
 			} as any);
 			return result.success && result.data ? result.data : [];
 		} catch (error) {
-			logger.error(`Failed to get all plugin states for tenant ${tenantId}`, { error });
+			logger.error(`Failed to get all plugin states for tenant ${tenantId}`, {
+				error
+			});
 			return [];
 		}
 	}

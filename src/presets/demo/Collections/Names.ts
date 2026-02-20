@@ -1,5 +1,5 @@
 /**
- * @file config/collections/Collections/Names.ts
+ * @file src/presets/demo/collections/names.ts
  * @description Collection file for Names
  */
 

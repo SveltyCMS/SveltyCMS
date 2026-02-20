@@ -5,7 +5,7 @@
  * to authenticated clients.
  */
 
-import { eventBus } from '@src/services/automation/eventBus';
+import { eventBus } from '@src/services/automation/event-bus';
 import { logger } from '@utils/logger.server';
 import type { RequestHandler } from './$types';
 

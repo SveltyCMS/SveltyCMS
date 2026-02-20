@@ -29,26 +29,26 @@
  * - clearAllSessionCaches(): Clears all cached sessions
  */
 
-import { metricsService } from '@src/services/MetricsService';
+import { metricsService } from '@src/services/metrics-service';
 import type { Handle } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
 import { logger } from '@utils/logger.server';
 import { building } from '$app/environment';
-import { addSecurityHeaders } from './hooks/addSecurityHeaders';
+import { addSecurityHeaders } from './hooks/add-security-headers';
 // API middleware for role-based access control and caching
-import { handleApiRequests } from './hooks/handleApiRequests';
-import { handleAuthentication } from './hooks/handleAuthentication';
-import { handleAuthorization } from './hooks/handleAuthorization';
-import { handleCompression } from './hooks/handleCompression';
-import { handleFirewall } from './hooks/handleFirewall';
-import { handleLocale } from './hooks/handleLocale';
-import { handleRateLimit } from './hooks/handleRateLimit';
-import { handleSetup } from './hooks/handleSetup';
-import { handleStaticAssetCaching } from './hooks/handleStaticAssetCaching';
+import { handleApiRequests } from './hooks/handle-api-requests';
+import { handleAuthentication } from './hooks/handle-authentication';
+import { handleAuthorization } from './hooks/handle-authorization';
+import { handleCompression } from './hooks/handle-compression';
+import { handleFirewall } from './hooks/handle-firewall';
+import { handleLocale } from './hooks/handle-locale';
+import { handleRateLimit } from './hooks/handle-rate-limit';
+import { handleSetup } from './hooks/handle-setup';
+import { handleStaticAssetCaching } from './hooks/handle-static-asset-caching';
 // --- Import enterprise middleware hooks ---
-import { handleSystemState } from './hooks/handleSystemState';
-import { handleTheme } from './hooks/handleTheme';
-import { handleTokenResolution } from './hooks/tokenResolution';
+import { handleSystemState } from './hooks/handle-system-state';
+import { handleTheme } from './hooks/handle-theme';
+import { handleTokenResolution } from './hooks/token-resolution';
 
 // --- Server Startup Logic ---
 if (!building) {
@@ -73,12 +73,12 @@ if (!building) {
 	});
 
 	// Start telemetry heartbeat in background (Singleton pattern to survive HMR)
-	import('@utils/setupCheck').then(({ isSetupComplete }) => {
+	import('@utils/setup-check').then(({ isSetupComplete }) => {
 		if (!isSetupComplete()) {
 			return;
 		}
 
-		import('@src/services/TelemetryService').then(({ telemetryService }) => {
+		import('@src/services/telemetry-service').then(({ telemetryService }) => {
 			// Define global type for TypeScript
 			const globalWithTelemetry = globalThis as typeof globalThis & {
 				__SVELTY_TELEMETRY_INTERVAL__?: NodeJS.Timeout;
@@ -165,4 +165,4 @@ export {
 	forceSessionRotation,
 	getSessionCacheStats,
 	invalidateSessionCache
-} from './hooks/handleAuthentication';
+} from './hooks/handle-authentication';

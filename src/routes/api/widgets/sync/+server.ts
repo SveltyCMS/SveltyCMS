@@ -5,11 +5,11 @@
  */
 
 import { hasPermissionWithRoles } from '@src/databases/auth/permissions';
-import { widgets } from '@stores/widgetStore.svelte.ts';
+import { widgets } from '@src/stores/widget-store.svelte.ts';
 import { json } from '@sveltejs/kit';
 // Unified Error Handling
-import { apiHandler } from '@utils/apiHandler';
-import { AppError } from '@utils/errorHandling';
+import { apiHandler } from '@utils/api-handler';
+import { AppError } from '@utils/error-handling';
 import { logger } from '@utils/logger.server';
 
 export const POST = apiHandler(async ({ locals, request }) => {
@@ -80,7 +80,7 @@ export const POST = apiHandler(async ({ locals, request }) => {
 					// Widget exists in DB - ensure it's active if it's core
 					const dbWidget = dbWidgets.find((w) => w.name === name);
 					if (isCore && dbWidget && !(dbWidget.isActive as boolean)) {
-						await locals.dbAdapter.widgets.update(dbWidget._id as unknown as import('@databases/dbInterface').DatabaseId, { isActive: true });
+						await locals.dbAdapter.widgets.update(dbWidget._id as unknown as import('@databases/db-interface').DatabaseId, { isActive: true });
 						results.activated.push(name);
 						logger.trace(`Activated core widget: ${name}`);
 					} else {
@@ -146,7 +146,10 @@ export const POST = apiHandler(async ({ locals, request }) => {
 	} catch (err) {
 		const duration = performance.now() - start;
 		const message = `Failed to sync widgets: ${err instanceof Error ? err.message : String(err)}`;
-		logger.error(message, { duration: `${duration.toFixed(2)}ms`, stack: err instanceof Error ? err.stack : undefined });
+		logger.error(message, {
+			duration: `${duration.toFixed(2)}ms`,
+			stack: err instanceof Error ? err.stack : undefined
+		});
 		if (err instanceof AppError) {
 			throw err;
 		}

@@ -12,11 +12,13 @@ Renders a list of forms, one for each item in the array. Supports Drag-and-Drop 
 -->
 
 <script lang="ts">
-	import WidgetLoader from '@components/collectionDisplay/WidgetLoader.svelte';
-	import { widgets } from '@stores/widgetStore.svelte';
-	import { getFieldName } from '@utils/utils';
 	import { flip } from 'svelte/animate';
-	import { type DndEvent, dndzone } from 'svelte-dnd-action';
+	import { dndzone } from 'svelte-dnd-action';
+	import { widgets } from '@src/stores/widget-store.svelte';
+
+	import { getFieldName } from '@utils/utils';
+	import type { DndEvent } from 'svelte-dnd-action';
+	import WidgetLoader from '@src/components/collection-display/widget-loader.svelte';
 	import { v4 as uuidv4 } from 'uuid'; // Ensure uuid is available, or use a simple generator
 	import type { FieldType } from './index';
 
@@ -43,12 +45,16 @@ Renders a list of forms, one for each item in the array. Supports Drag-and-Drop 
 	>;
 
 	function getWidgetLoader(widgetName: string) {
-		if (!widgetName) { return null; }
+		if (!widgetName) {
+			return null;
+		}
 
 		// 1. Exact match via store
 		const fn = widgets.widgetFunctions[widgetName];
 		const storePath = (fn as any)?.componentPath || (fn as any)?.inputComponentPath;
-		if (storePath && storePath in modules) { return modules[storePath]; }
+		if (storePath && storePath in modules) {
+			return modules[storePath];
+		}
 
 		// 2. Case insensitive fallback
 		const normalized = widgetName.toLowerCase();
@@ -81,7 +87,10 @@ Renders a list of forms, one for each item in the array. Supports Drag-and-Drop 
 	$effect(() => {
 		// Only sync if counts differ to avoid loops, or simple implementation:
 		if (value && value.length !== items.length) {
-			items = value.map((item) => ({ id: (item._dndId as string) || uuidv4(), data: item }));
+			items = value.map((item) => ({
+				id: (item._dndId as string) || uuidv4(),
+				data: item
+			}));
 		} else if (!value) {
 			items = [];
 		}
@@ -102,7 +111,10 @@ Renders a list of forms, one for each item in the array. Supports Drag-and-Drop 
 	}
 
 	function addItem() {
-		const newItem: { id: string; data: Record<string, any> } = { id: uuidv4(), data: {} };
+		const newItem: { id: string; data: Record<string, any> } = {
+			id: uuidv4(),
+			data: {}
+		};
 		// Initialize fields
 		if ((field as any).fields) {
 			(field as any).fields.forEach((f: any) => {
@@ -128,7 +140,9 @@ Renders a list of forms, one for each item in the array. Supports Drag-and-Drop 
 			const titleField = fields.find((f: any) => f.label.toLowerCase().includes('title') || f.label.toLowerCase().includes('name'));
 			const fieldName = titleField ? titleField.db_fieldName || getFieldName(titleField) : fields[0].db_fieldName || getFieldName(fields[0]);
 			const val = itemData[fieldName];
-			if (val && typeof val === 'string') { return val; }
+			if (val && typeof val === 'string') {
+				return val;
+			}
 		}
 		return `Item ${index + 1}`;
 	}

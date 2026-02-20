@@ -13,8 +13,8 @@
  */
 
 import type { DatabaseId } from '@src/content/types';
-import type { ContentDraft, DatabaseResult } from '@src/databases/dbInterface';
-import { generateId } from '@src/databases/mongodb/methods/mongoDBUtils';
+import type { ContentDraft, DatabaseResult } from '@src/databases/db-interface';
+import { generateId } from '@src/databases/mongodb/methods/mongodb-utils';
 // System Logger
 import { logger } from '@utils/logger';
 import type { Model } from 'mongoose';
@@ -27,7 +27,11 @@ export const draftSchema = new Schema<ContentDraft>(
 		contentId: { type: String, required: true }, //ContentId of the draft
 		data: { type: Schema.Types.Mixed, required: true }, // Content of the draft
 		version: { type: Number, default: 1 }, // Version number for drafts, starting at 1
-		status: { type: String, enum: ['draft', 'review', 'archived'], default: 'draft' }, // Status options from ContentDraft
+		status: {
+			type: String,
+			enum: ['draft', 'review', 'archived'],
+			default: 'draft'
+		}, // Status options from ContentDraft
 		authorId: { type: String, required: true } // Changed to String type in schema
 		// Note: createdAt and updatedAt are handled by timestamps: true
 	},
@@ -71,7 +75,9 @@ draftSchema.statics = {
 	//Bulk delete drafts for a list of content IDs
 	async bulkDeleteDraftsForContent(contentIds: string[]): Promise<DatabaseResult<number>> {
 		try {
-			const result = await this.deleteMany({ contentId: { $in: contentIds } }).exec();
+			const result = await this.deleteMany({
+				contentId: { $in: contentIds }
+			}).exec();
 			logger.info(`Bulk deleted ${result.deletedCount} drafts for content IDs: ${contentIds.join(', ')}`);
 			return { success: true, data: result.deletedCount };
 		} catch (error) {
@@ -94,7 +100,10 @@ draftSchema.statics = {
 		try {
 			// No need to manually add _id, Mongoose will auto-generate it via schema default
 			const newDraft = await this.create(draftData);
-			return { success: true, data: newDraft.toObject() as unknown as ContentDraft };
+			return {
+				success: true,
+				data: newDraft.toObject() as unknown as ContentDraft
+			};
 		} catch (error) {
 			const message = 'Failed to create draft';
 			logger.error(`Error creating draft: ${error instanceof Error ? error.message : String(error)}`);

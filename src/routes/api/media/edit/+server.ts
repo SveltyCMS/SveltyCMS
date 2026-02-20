@@ -18,9 +18,9 @@
  */
 
 import { dbAdapter } from '@src/databases/db';
-import { getPublicSetting } from '@src/services/settingsService';
-import { hashFileContent } from '@src/utils/media/mediaProcessing.server';
-import { MediaService } from '@src/utils/media/mediaService.server';
+import { getPublicSetting } from '@src/services/settings-service';
+import { hashFileContent } from '@src/utils/media/media-processing.server';
+import { MediaService } from '@src/utils/media/media-service.server';
 import { json, type RequestHandler } from '@sveltejs/kit';
 import { logger } from '@utils/logger.server';
 import sharp from 'sharp';
@@ -215,14 +215,16 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const extension = file.type.split('/')[1] === 'jpeg' ? 'jpg' : file.type.split('/')[1];
 		const filename = `${sanitizedName}-edited-${timestamp}-${hash}.${extension}`;
 
-		// Use MediaService for saving
+		// Usemedia-servicefor saving
 		try {
 			if (!dbAdapter) {
 				throw new Error('Database adapter not available');
 			}
 			const mediaService = new MediaService(dbAdapter);
 			// Buffer to Uint8Array/any to satisfy File constructor
-			const editedFile = new File([processedBuffer as any], filename, { type: file.type });
+			const editedFile = new File([processedBuffer as any], filename, {
+				type: file.type
+			});
 
 			if (mediaId) {
 				// ADD AS NEW VERSION

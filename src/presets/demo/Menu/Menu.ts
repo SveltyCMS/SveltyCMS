@@ -1,5 +1,5 @@
 /**
- * @file config/collections/Menu.ts
+ * @file src/presets/demo/menu/menu.ts
  * @description Collection file for Menu
  */
 import type { Schema } from '@root/src/content/types';

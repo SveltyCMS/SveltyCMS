@@ -3,9 +3,7 @@
  * @description Type definitions for communication between CMS and Live Preview
  */
 
-/**
- * Message sent from CMS to Child Window (Website)
- */
+// Message sent from CMS to Child Window (Website)
 export interface CmsUpdateMessage {
 	collection: string;
 	data: Record<string, any>;

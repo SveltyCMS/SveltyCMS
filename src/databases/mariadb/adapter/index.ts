@@ -20,24 +20,24 @@
  * - Query builder
  */
 
-import type { BaseEntity, DatabaseResult, DatabaseTransaction, IDBAdapter, QueryBuilder } from '../../dbInterface';
-import { CollectionModule } from '../collection/collectionModule';
-import { CrudModule } from '../crud/crudModule';
-import { AuthModule } from '../modules/auth/authModule';
-import { ContentModule } from '../modules/content/contentModule';
-import { MediaModule } from '../modules/media/mediaModule';
-import { PreferencesModule } from '../modules/system/preferencesModule';
-import { VirtualFoldersModule } from '../modules/system/virtualFoldersModule';
-import { ThemesModule } from '../modules/themes/themesModule';
-import { WebsiteTokensModule } from '../modules/website/tokensModule';
-import { WidgetsModule } from '../modules/widgets/widgetsModule';
-import { BatchModule } from '../operations/batchModule';
-import { TransactionModule } from '../operations/transactionModule';
-import { CacheModule } from '../performance/cacheModule';
-import { PerformanceModule } from '../performance/performanceModule';
-import { MariaDBQueryBuilder } from '../queryBuilder/MariaDBQueryBuilder';
+import type { BaseEntity, DatabaseResult, DatabaseTransaction, IDBAdapter, QueryBuilder } from '../../db-interface';
+import { CollectionModule } from '../collection/collection-module';
+import { CrudModule } from '../crud/crud-module';
+import { AuthModule } from '../modules/auth/auth-module';
+import { ContentModule } from '../modules/content/content-module';
+import { MediaModule } from '../modules/media/media-module';
+import { PreferencesModule } from '../modules/system/preferences-module';
+import { VirtualFoldersModule } from '../modules/system/virtual-folders-module';
+import { ThemesModule } from '../modules/themes/themes-module';
+import { WebsiteTokensModule } from '../modules/website/tokens-module';
+import { WidgetsModule } from '../modules/widgets/widgets-module';
+import { BatchModule } from '../operations/batch-module';
+import { TransactionModule } from '../operations/transaction-module';
+import { CacheModule } from '../performance/cache-module';
+import { PerformanceModule } from '../performance/performance-module';
+import { MariaDBQueryBuilder } from '../query-builder/maria-db-query-builder';
 import * as utils from '../utils';
-import { AdapterCore } from './adapterCore';
+import { AdapterCore } from './adapter-core';
 
 export class MariaDBAdapter extends AdapterCore implements IDBAdapter {
 	public readonly tenants = {
@@ -132,7 +132,9 @@ export class MariaDBAdapter extends AdapterCore implements IDBAdapter {
 
 	public transaction = async <T>(
 		fn: (transaction: DatabaseTransaction) => Promise<DatabaseResult<T>>,
-		options?: { isolationLevel?: 'READ UNCOMMITTED' | 'READ COMMITTED' | 'REPEATABLE READ' | 'SERIALIZABLE' }
+		options?: {
+			isolationLevel?: 'READ UNCOMMITTED' | 'READ COMMITTED' | 'REPEATABLE READ' | 'SERIALIZABLE';
+		}
 	): Promise<DatabaseResult<T>> => {
 		return this.transactionModule.execute(fn, options);
 	};
@@ -140,8 +142,18 @@ export class MariaDBAdapter extends AdapterCore implements IDBAdapter {
 	// Global CRUD data methods
 	getCollectionData = async (
 		collection: string,
-		options?: { limit?: number; offset?: number; includeMetadata?: boolean; fields?: string[] }
-	): Promise<DatabaseResult<{ data: any[]; metadata?: { totalCount: number; schema?: unknown; indexes?: string[] } }>> => {
+		options?: {
+			limit?: number;
+			offset?: number;
+			includeMetadata?: boolean;
+			fields?: string[];
+		}
+	): Promise<
+		DatabaseResult<{
+			data: any[];
+			metadata?: { totalCount: number; schema?: unknown; indexes?: string[] };
+		}>
+	> => {
 		return (this as any).wrap(async () => {
 			const res = await this.crud.findMany(collection, {}, options as any);
 			if (!res.success) {
@@ -161,7 +173,10 @@ export class MariaDBAdapter extends AdapterCore implements IDBAdapter {
 		return (this as any).wrap(async () => {
 			const results: Record<string, any[]> = {};
 			for (const name of collectionNames) {
-				const res = await this.getCollectionData(name, { limit: options?.limit, fields: options?.fields });
+				const res = await this.getCollectionData(name, {
+					limit: options?.limit,
+					fields: options?.fields
+				});
 				if (res.success) {
 					results[name] = res.data.data;
 				}
@@ -171,5 +186,5 @@ export class MariaDBAdapter extends AdapterCore implements IDBAdapter {
 	};
 }
 
-export * from './adapterCore';
-export * from './adapterTypes';
+export * from './adapter-core';
+export * from './adapter-types';

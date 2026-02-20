@@ -3,7 +3,7 @@
  * @description API endpoint for last 5 media files for dashboard widgets using database-agnostic adapter.
  */
 
-import { getPrivateSettingSync } from '@src/services/settingsService';
+import { getPrivateSettingSync } from '@src/services/settings-service';
 import { json } from '@sveltejs/kit';
 
 // Database
@@ -30,8 +30,8 @@ const MediaItemSchema = v.object({
 // --- API Handler ---
 
 // Unified Error Handling
-import { apiHandler } from '@utils/apiHandler';
-import { AppError } from '@utils/errorHandling';
+import { apiHandler } from '@utils/api-handler';
+import { AppError } from '@utils/error-handling';
 
 export const GET = apiHandler(async ({ locals }) => {
 	const dbAdapter = locals.dbAdapter;

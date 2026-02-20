@@ -67,13 +67,17 @@ test('Setup Wizard: Configure DB and Create Admin', async ({ page }) => {
 
 	// Test Connection
 	await page.locator('button', { hasText: /test database/i }).click();
-	await expect(page.getByText(/connected successfully/i).first()).toBeVisible({ timeout: 15_000 });
+	await expect(page.getByText(/connected successfully/i).first()).toBeVisible({
+		timeout: 15_000
+	});
 
 	// Move to next step (clicking Next triggers database seeding which may take time)
 	await clickNext(page);
 
 	// --- STEP 2: Admin User ---
-	await expect(page.locator('h2', { hasText: /admin/i }).first()).toBeVisible({ timeout: 60_000 });
+	await expect(page.locator('h2', { hasText: /admin/i }).first()).toBeVisible({
+		timeout: 60_000
+	});
 
 	// Fill admin user details
 	await page.locator('#admin-username').fill(process.env.ADMIN_USER || 'admin');

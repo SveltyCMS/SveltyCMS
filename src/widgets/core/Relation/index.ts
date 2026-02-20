@@ -14,16 +14,16 @@
 
 // Import components needed for the GuiSchema
 // Import components needed for the GuiSchema
-// import IconifyIconsPicker from '@components/IconifyIconsPicker.svelte';
-// import PermissionsSetting from '@components/PermissionsSetting.svelte';
-// import CollectionPicker from '@components/system/builder/CollectionPicker.svelte';
-// import FieldPicker from '@components/system/builder/FieldPicker.svelte';
-// import Input from '@components/system/inputs/Input.svelte';
-// import Toggles from '@components/system/inputs/Toggles.svelte';
+// import IconifyIconsPicker from '@components/iconify-icons-picker.svelte';
+// import PermissionsSetting from '@components/permissions-setting.svelte';
+// import CollectionPicker from '@components/system/builder/collection-picker.svelte';
+// import FieldPicker from '@components/system/builder/field-picker.svelte';
+// import Input from '@components/system/inputs/input.svelte';
+// import Toggles from '@components/system/inputs/toggles.svelte';
 
 import type { FieldInstance } from '@src/content/types';
-import * as m from '@src/paraglide/messages';
-import { createWidget } from '@src/widgets/widgetFactory';
+import { widget_relation_description } from '@src/paraglide/messages';
+import { createWidget } from '@src/widgets/widget-factory';
 
 // Type for aggregation field parameter
 interface AggregationField {
@@ -59,7 +59,7 @@ const validationSchema = (field: FieldInstance) => {
 const RelationWidget = createWidget<RelationProps>({
 	Name: 'Relation',
 	Icon: 'mdi:relation-one-to-one',
-	Description: m.widget_relation_description(),
+	Description: widget_relation_description(),
 	inputComponentPath: '/src/widgets/core/Relation/Input.svelte',
 	displayComponentPath: '/src/widgets/core/Relation/Display.svelte',
 	validationSchema,
@@ -113,11 +113,21 @@ const RelationWidget = createWidget<RelationProps>({
 	// SECURITY: Includes tenant isolation to prevent IDOR attacks
 	aggregations: {
 		filters: async ({ field, filter, tenantId }: { field: AggregationField; filter: string; tenantId?: string }) => [
-			{ $lookup: { from: field.collection, localField: field.db_fieldName, foreignField: '_id', as: 'related_doc' } },
+			{
+				$lookup: {
+					from: field.collection,
+					localField: field.db_fieldName,
+					foreignField: '_id',
+					as: 'related_doc'
+				}
+			},
 			{
 				$match: {
 					...(tenantId ? { 'related_doc.tenantId': tenantId } : {}),
-					[`related_doc.${field.displayField}`]: { $regex: filter, $options: 'i' }
+					[`related_doc.${field.displayField}`]: {
+						$regex: filter,
+						$options: 'i'
+					}
 				}
 			}
 		],

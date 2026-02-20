@@ -7,18 +7,18 @@
  */
 
 import { dbAdapter } from '@src/databases/db';
-import { getSettingGroup } from '@src/routes/(app)/config/systemsetting/settingsGroups';
-import { invalidateSettingsCache } from '@src/services/settingsService';
-import { setRestartNeeded } from '@src/utils/server/restartRequired';
-import { updateVersion } from '@src/utils/server/settingsVersion';
+import { getSettingGroup } from '@src/routes/(app)/config/systemsetting/settings-groups';
+import { invalidateSettingsCache } from '@src/services/settings-service';
+import { setRestartNeeded } from '@src/utils/server/restart-required';
+import { updateVersion } from '@src/utils/server/settings-version';
 import { json } from '@sveltejs/kit';
 /**
  * GET - Retrieve current settings for a group
  * Strategy: Seed defaults as source of truth, overlay with database overrides
  */
 // Unified Error Handling
-import { apiHandler } from '@utils/apiHandler';
-import { AppError } from '@utils/errorHandling';
+import { apiHandler } from '@utils/api-handler';
+import { AppError } from '@utils/error-handling';
 import { logger } from '@utils/logger.server';
 import { defaultPrivateSettings, defaultPublicSettings } from '../../../setup/seed';
 
@@ -103,7 +103,11 @@ export const GET = apiHandler(async ({ locals, params }) => {
 		}
 		const errorMessage = err instanceof Error ? err.message : 'Unknown error';
 		const errorStack = err instanceof Error ? err.stack : undefined;
-		logger.error(`Failed to get settings for group '${groupId}':`, { message: errorMessage, stack: errorStack, err });
+		logger.error(`Failed to get settings for group '${groupId}':`, {
+			message: errorMessage,
+			stack: errorStack,
+			err
+		});
 		throw new AppError('Failed to retrieve settings', 500, 'FETCH_FAILED');
 	}
 });

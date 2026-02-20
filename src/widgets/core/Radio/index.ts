@@ -12,12 +12,12 @@
  */
 
 // Import components needed for the GuiSchema
-// import Input from '@components/system/inputs/Input.svelte';
-// import Toggles from '@components/system/inputs/Toggles.svelte';
+// import Input from '@components/system/inputs/input.svelte';
+// import Toggles from '@components/system/inputs/toggles.svelte';
 
 import type { FieldInstance } from '@src/content/types';
-import * as m from '@src/paraglide/messages';
-import { createWidget } from '@src/widgets/widgetFactory';
+import { widget_radio_description } from '@src/paraglide/messages';
+import { createWidget } from '@src/widgets/widget-factory';
 import { literal, optional, union, type InferInput as ValibotInput } from 'valibot';
 import type { RadioOption, RadioProps } from './types';
 
@@ -38,7 +38,7 @@ const validationSchema = (field: FieldInstance & RadioProps) => {
 const RadioWidget = createWidget<RadioProps>({
 	Name: 'Radio',
 	Icon: 'mdi:radiobox-marked',
-	Description: m.widget_radio_description(),
+	Description: widget_radio_description(),
 
 	// Define paths to the dedicated Svelte components.
 	inputComponentPath: '/src/widgets/core/Radio/Input.svelte',
@@ -59,7 +59,11 @@ const RadioWidget = createWidget<RadioProps>({
 		label: { widget: 'Input', required: true },
 		db_fieldName: { widget: 'Input', required: false },
 		required: { widget: 'Toggles', required: false },
-		legend: { widget: 'Input', required: false, helper: 'Legend text for the radio group' },
+		legend: {
+			widget: 'Input',
+			required: false,
+			helper: 'Legend text for the radio group'
+		},
 		options: {
 			widget: 'Input', // Using a simple textarea for JSON/JS array input
 			required: true,

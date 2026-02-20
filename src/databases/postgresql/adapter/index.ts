@@ -23,11 +23,11 @@
 
 import { logger } from '@utils/logger';
 import { sql } from 'drizzle-orm';
-import type { BaseEntity, DatabaseResult, QueryBuilder } from '../../dbInterface';
+import type { BaseEntity, DatabaseResult, QueryBuilder } from '../../db-interface';
 import { runMigrations } from '../migrations';
 import * as schema from '../schema/index';
 import * as utils from '../utils';
-import { AdapterCore } from './adapterCore';
+import { AdapterCore } from './adapter-core';
 
 /**
  * PostgreSQL adapter for SveltyCMS (BETA)
@@ -91,7 +91,12 @@ export class PostgreSQLAdapter extends AdapterCore {
 				const { sql } = await import('drizzle-orm');
 				const table = this.getTable(collection);
 				const where = this.mapQuery(table, query);
-				const [result] = (await this.db?.update(table).set(data).where(where).returning({ modifiedCount: sql<number>`1` })) ?? [];
+				const [result] =
+					(await this.db
+						?.update(table)
+						.set(data)
+						.where(where)
+						.returning({ modifiedCount: sql<number>`1` })) ?? [];
 				return { modifiedCount: result ? 1 : 0 };
 			}, 'CRUD_UPDATE_MANY_FAILED');
 		},
@@ -317,7 +322,12 @@ export class PostgreSQLAdapter extends AdapterCore {
 						const argon2 = await import('argon2');
 						password = await argon2.hash(password);
 					}
-					const roleIds = data.roleIds?.length ? data.roleIds : data.role ? [data.role] : [];
+					let roleIds: string[] = [];
+					if (data.roleIds?.length) {
+						roleIds = data.roleIds;
+					} else if (data.role) {
+						roleIds = [data.role];
+					}
 					const formattedUser = {
 						_id: data._id || utils.generateId(),
 						...data,
@@ -390,7 +400,12 @@ export class PostgreSQLAdapter extends AdapterCore {
 				}
 
 				// Map legacy 'role' string to 'roleIds' array if roleIds is missing/empty
-				const roleIds = userData.roleIds?.length ? userData.roleIds : userData.role ? [userData.role] : [];
+				let roleIds: string[] = [];
+				if (userData.roleIds?.length) {
+					roleIds = userData.roleIds;
+				} else if (userData.role) {
+					roleIds = [userData.role];
+				}
 
 				const formattedUser = {
 					_id: userData._id || utils.generateId(),
@@ -450,7 +465,12 @@ export class PostgreSQLAdapter extends AdapterCore {
 				}
 
 				// Map legacy 'role' string to 'roleIds' array if roleIds is missing/empty
-				const roleIds = userData.roleIds?.length ? userData.roleIds : userData.role ? [userData.role] : [];
+				let roleIds: string[] = [];
+				if (userData.roleIds?.length) {
+					roleIds = userData.roleIds;
+				} else if (userData.role) {
+					roleIds = [userData.role];
+				}
 
 				const formattedUser = {
 					...userData,
@@ -1018,7 +1038,12 @@ export class PostgreSQLAdapter extends AdapterCore {
 			},
 			getByFolder: async (
 				folderId?: string,
-				options?: { page?: number; pageSize?: number; sortField?: string; sortDirection?: string },
+				options?: {
+					page?: number;
+					pageSize?: number;
+					sortField?: string;
+					sortDirection?: string;
+				},
 				recursive?: boolean
 			) => {
 				return this.wrap(async () => {
@@ -1575,7 +1600,7 @@ export class PostgreSQLAdapter extends AdapterCore {
 		}
 	};
 
-	private readonly _performanceMetrics = {
+	private _performanceMetrics = {
 		queries: 0,
 		errors: 0,
 		avgResponseTime: 0,
@@ -1923,13 +1948,18 @@ export class PostgreSQLAdapter extends AdapterCore {
 			limit: () => this.queryBuilder(_collection),
 			offset: () => this.queryBuilder(_collection),
 			select: () => this.queryBuilder(_collection),
-			execute: async () => ({ success: false, message: 'QueryBuilder not yet implemented for PostgreSQL' })
+			execute: async () => ({
+				success: false,
+				message: 'QueryBuilder not yet implemented for PostgreSQL'
+			})
 		} as unknown as QueryBuilder<T>;
 	};
 
 	public transaction = async <T>(
 		fn: (transaction: unknown) => Promise<DatabaseResult<T>>,
-		_options?: { isolationLevel?: 'READ UNCOMMITTED' | 'READ COMMITTED' | 'REPEATABLE READ' | 'SERIALIZABLE' }
+		_options?: {
+			isolationLevel?: 'READ UNCOMMITTED' | 'READ COMMITTED' | 'REPEATABLE READ' | 'SERIALIZABLE';
+		}
 	): Promise<DatabaseResult<T>> => {
 		return this.wrap(async () => {
 			// postgres.js transactions via drizzle
@@ -1947,8 +1977,18 @@ export class PostgreSQLAdapter extends AdapterCore {
 	// Global CRUD data methods
 	getCollectionData = async (
 		collection: string,
-		options?: { limit?: number; offset?: number; includeMetadata?: boolean; fields?: string[] }
-	): Promise<DatabaseResult<{ data: unknown[]; metadata?: { totalCount: number; schema?: unknown; indexes?: string[] } }>> => {
+		options?: {
+			limit?: number;
+			offset?: number;
+			includeMetadata?: boolean;
+			fields?: string[];
+		}
+	): Promise<
+		DatabaseResult<{
+			data: unknown[];
+			metadata?: { totalCount: number; schema?: unknown; indexes?: string[] };
+		}>
+	> => {
 		return this.wrap(async () => {
 			const table = this.getTable(collection);
 			let query = this.db?.select().from(table);
@@ -1990,4 +2030,4 @@ export class PostgreSQLAdapter extends AdapterCore {
 	};
 }
 
-export * from './adapterCore';
+export * from './adapter-core';

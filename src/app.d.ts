@@ -8,7 +8,7 @@
  */
 
 import type { Role, Token, User } from '@src/databases/auth/types'; // Import the actual types
-import type { DatabaseAdapter, Theme } from '@src/databases/dbInterface'; // Ensure correct import path
+import type { DatabaseAdapter, Theme } from '@src/databases/db-interface'; // Ensure correct import path
 
 declare global {
 	/// <reference path="./types/**/*.d.ts" />

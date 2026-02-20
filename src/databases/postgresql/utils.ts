@@ -4,7 +4,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import type { DatabaseError } from '../dbInterface';
+import type { DatabaseError } from '../db-interface';
 
 // Create a standardized database error object
 export function createDatabaseError(code: string, message: string, _originalError?: unknown): DatabaseError {

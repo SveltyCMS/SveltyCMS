@@ -7,7 +7,6 @@ import { goto } from '$app/navigation';
 import { page } from '$app/state';
 
 export function registerNavigationTools() {
-	// @ts-expect-error - allow dynamic access to window.modelContext
 	const modelContext = window.navigator.modelContext;
 
 	if (!modelContext) {
@@ -21,7 +20,10 @@ export function registerNavigationTools() {
 		parameters: {
 			type: 'object',
 			properties: {
-				path: { type: 'string', description: 'The URL path to navigate to (must start with /)' }
+				path: {
+					type: 'string',
+					description: 'The URL path to navigate to (must start with /)'
+				}
 			},
 			required: ['path']
 		},

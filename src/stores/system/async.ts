@@ -62,7 +62,9 @@ export async function waitForSystemReady(options: WaitOptions = {}): Promise<boo
 			timeoutId = setTimeout(() => {
 				cleanup();
 				currentState = getSystemState();
-				logger.warn(`System ready timeout after ${timeoutMs}ms`, { state: currentState.overallState });
+				logger.warn(`System ready timeout after ${timeoutMs}ms`, {
+					state: currentState.overallState
+				});
 				resolve(false);
 			}, timeoutMs);
 		}

@@ -36,7 +36,10 @@ async function login(page: Page, user: { email: string; password: string }) {
 	}
 
 	// Wait for the form to appear, then fill it
-	await page.waitForSelector('[data-testid="signin-email"]', { timeout: 15_000, state: 'visible' });
+	await page.waitForSelector('[data-testid="signin-email"]', {
+		timeout: 15_000,
+		state: 'visible'
+	});
 	await page.getByTestId('signin-email').fill(user.email);
 	await page.getByTestId('signin-password').fill(user.password);
 	await page.getByTestId('signin-submit').click();
@@ -77,14 +80,18 @@ test.describe('Role-Based Access Control', () => {
 		// System Settings (admin only)
 		await page.goto('/config/systemsetting');
 		await expect(page).toHaveURL(/systemsetting/, { timeout: 10_000 });
-		await expect(page.getByText(/system settings/i).first()).toBeVisible({ timeout: 10_000 });
+		await expect(page.getByText(/system settings/i).first()).toBeVisible({
+			timeout: 10_000
+		});
 
 		// User Management (admin only) - /config/user may redirect to /user
 		await page.goto('/config/user');
 		await expect(page).toHaveURL(/\/user/, { timeout: 10_000 });
 
 		// Should see "Email User Registration token" button (admin privilege)
-		const emailTokenButton = page.getByRole('button', { name: /email.*token/i });
+		const emailTokenButton = page.getByRole('button', {
+			name: /email.*token/i
+		});
 		await expect(emailTokenButton).toBeVisible({ timeout: 10_000 });
 
 		// Access Management (admin only)

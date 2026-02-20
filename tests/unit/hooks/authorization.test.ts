@@ -5,7 +5,7 @@
 
 import { beforeEach, describe, expect, it, mock } from 'bun:test';
 import type { Role, User } from '@src/databases/auth/types';
-import { handleAuthorization, invalidateUserCountCache } from '@src/hooks/handleAuthorization';
+import { handleAuthorization, invalidateUserCountCache } from '@src/hooks/handle-authorization';
 import type { RequestEvent } from '@sveltejs/kit';
 
 const mockUser: User = {
@@ -272,7 +272,10 @@ describe('handleAuthorization Middleware', () => {
 
 		it('should handle database errors gracefully', async () => {
 			const event = createMockEvent('/dashboard', mockUser, [mockAdminRole]);
-			const response = await handleAuthorization({ event, resolve: mockResolve });
+			const response = await handleAuthorization({
+				event,
+				resolve: mockResolve
+			});
 
 			expect(response).toBeDefined();
 		});

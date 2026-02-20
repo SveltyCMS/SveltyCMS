@@ -17,7 +17,7 @@ import { join } from 'node:path';
 import { createInterface } from 'node:readline';
 import { createBrotliDecompress, createGunzip } from 'node:zlib';
 import type { ISODateString } from '@src/content/types';
-import { publicEnv } from '@src/stores/globalSettings.svelte';
+import { publicEnv } from '@src/stores/global-settings.svelte';
 import { json } from '@sveltejs/kit';
 // System Logger
 import { logger } from '@utils/logger.server';
@@ -242,8 +242,8 @@ async function getCompressedLogLines(filePath: string, isBrotli: boolean): Promi
 }
 
 // Unified Error Handling
-import { apiHandler } from '@utils/apiHandler';
-import { AppError } from '@utils/errorHandling';
+import { apiHandler } from '@utils/api-handler';
+import { AppError } from '@utils/error-handling';
 
 export const GET = apiHandler(async ({ locals, url }) => {
 	const { user } = locals;

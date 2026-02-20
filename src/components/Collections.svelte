@@ -1,5 +1,5 @@
 <!--
-@file src/components/Collections.svelte
+@file src/components/collections.svelte
 @component Collections – Tree navigation for content categories & collections
 
 @features
@@ -13,21 +13,24 @@
 -->
 
 <script lang="ts">
-	import TreeView from '@components/system/TreeView.svelte';
 	import type { ContentNode, Schema } from '@src/content/types';
 	import { type StatusType, StatusTypes } from '@src/content/types';
 	import { sortContentNodes } from '@src/content/utils';
-	import * as m from '@src/paraglide/messages';
-	import { collection, contentStructure, setMode } from '@stores/collectionStore.svelte.ts';
-	import { app } from '@stores/store.svelte';
-	import { ui } from '@stores/UIStore.svelte.ts';
-	import { widgets } from '@stores/widgetStore.svelte.ts';
+	import { collection, contentStructure, setMode } from '@src/stores/collection-store.svelte.ts';
+	import { app } from '@src/stores/store.svelte';
+	import { ui } from '@src/stores/ui-store.svelte.ts';
+	import { widgets } from '@src/stores/widget-store.svelte.ts';
 	import { debounce } from '@utils/utils';
-
-	import { validateSchemaWidgets } from '@widgets/widgetValidation';
+	import { validateSchemaWidgets } from '@widgets/widget-validation';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
+
+	// Paraglide Messages
+	import { collections_search, collection_no_collections_found } from '@src/paraglide/messages';
+
+	// Components
+	import TreeView from '@src/components/system/tree-view.svelte';
 
 	interface ExtendedContentNode extends ContentNode {
 		children?: ExtendedContentNode[];
@@ -67,7 +70,9 @@
 	}, 300);
 
 	$effect(() => {
-		if (search) { isSearching = true; }
+		if (search) {
+			isSearching = true;
+		}
 		updateDebounced(search);
 	});
 
@@ -83,7 +88,9 @@
 
 		function countCollections(node: ExtendedContentNode): number {
 			const key = node._id;
-			if (localCountCache.has(key)) { return localCountCache.get(key)!; }
+			if (localCountCache.has(key)) {
+				return localCountCache.get(key)!;
+			}
 
 			if (!node.children || node.nodeType !== 'category') {
 				localCountCache.set(key, 0);
@@ -92,8 +99,11 @@
 
 			let total = 0;
 			for (const child of node.children) {
-				if (child.nodeType === 'collection') { total++; }
-				else if (child.nodeType === 'category') { total += countCollections(child); }
+				if (child.nodeType === 'collection') {
+					total++;
+				} else if (child.nodeType === 'category') {
+					total += countCollections(child);
+				}
 			}
 			localCountCache.set(key, total);
 			return total;
@@ -164,7 +174,9 @@
 		}
 
 		function buildTree(nodes: ExtendedContentNode[]): ExtendedContentNode[] {
-			if (!nodes || nodes.length === 0) { return []; }
+			if (!nodes || nodes.length === 0) {
+				return [];
+			}
 
 			const nodeMap = new SvelteMap<string, ExtendedContentNode>();
 			const roots: ExtendedContentNode[] = [];
@@ -224,8 +236,12 @@
 	});
 
 	async function navigate(path: string, force = false): Promise<void> {
-		if (page.url.pathname === path && !force) { return; }
-		if (force || page.url.pathname === path) { await invalidateAll(); }
+		if (page.url.pathname === path && !force) {
+			return;
+		}
+		if (force || page.url.pathname === path) {
+			await invalidateAll();
+		}
 
 		await goto(path, { invalidateAll: true });
 	}
@@ -271,12 +287,12 @@
 		<input
 			type="text"
 			bind:value={search}
-			placeholder={isFullSidebar ? m.collections_search() : m.MediaGallery_Search()}
+			placeholder={collections_search()}
 			class="w-full rounded border border-surface-300 bg-surface-50 px-3 pr-11 text-sm outline-none transition-all hover:border-surface-400 focus:border-tertiary-500 dark:border-surface-600 dark:bg-surface-800 {isFullSidebar
 				? 'h-12 py-3'
 				: 'h-10 py-2'}"
 			aria-label="Search collections"
-		>
+		/>
 
 		<div class="absolute right-0 top-0 flex h-full items-center">
 			{#if isSearching}
@@ -310,7 +326,7 @@
 		{#if treeNodes.length === 0}
 			<div class="flex flex-col items-center justify-center gap-2 p-6 text-center">
 				<iconify-icon icon="bi:collection" width={24}></iconify-icon>
-				<p class="text-sm text-surface-500 dark:text-surface-50">{m.collection_no_collections_found()}</p>
+				<p class="text-sm text-surface-500 dark:text-surface-50">{collection_no_collections_found()}</p>
 			</div>
 		{:else}
 			<TreeView nodes={treeNodes} {selectedId} compact={!isFullSidebar} search={debouncedSearch} iconColorClass="text-error-500" showBadges={true} />

@@ -13,7 +13,6 @@
 -->
 
 <script lang="ts">
-	import { enhance } from '$app/forms';
 	import type { PageData } from './$types';
 
 	let { data } = $props<{ data: PageData }>();
@@ -22,7 +21,9 @@
 
 	// Format bytes to human readable
 	function formatBytes(bytes: number, decimals = 2) {
-		if (!+bytes) { return '0 Bytes'; }
+		if (!+bytes) {
+			return '0 Bytes';
+		}
 		const k = 1024;
 		const dm = decimals < 0 ? 0 : decimals;
 		const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
@@ -88,12 +89,12 @@
 						<td>{new Date(tenant.createdAt).toLocaleDateString()}</td>
 						<td>
 							<form method="POST" action="?/toggleStatus" use:enhance>
-								<input type="hidden" name="tenantId" value={tenant._id}>
+								<input type="hidden" name="tenantId" value={tenant._id} />
 								{#if tenant.status === 'active'}
-									<input type="hidden" name="status" value="suspended">
+									<input type="hidden" name="status" value="suspended" />
 									<button class="btn btn-sm variant-soft-error">Suspend</button>
 								{:else}
-									<input type="hidden" name="status" value="active">
+									<input type="hidden" name="status" value="active" />
 									<button class="btn btn-sm variant-filled-success">Activate</button>
 								{/if}
 							</form>

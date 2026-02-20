@@ -52,19 +52,31 @@ class ToasterStore {
 	}
 
 	success(t: string | { description: string; title?: string; duration?: number }) {
-		return this.add({ type: 'success', ...(typeof t === 'string' ? { description: t } : t) });
+		return this.add({
+			type: 'success',
+			...(typeof t === 'string' ? { description: t } : t)
+		});
 	}
 
 	error(t: string | { description: string; title?: string; duration?: number }) {
-		return this.add({ type: 'error', ...(typeof t === 'string' ? { description: t } : t) });
+		return this.add({
+			type: 'error',
+			...(typeof t === 'string' ? { description: t } : t)
+		});
 	}
 
 	warning(t: string | { description: string; title?: string; duration?: number }) {
-		return this.add({ type: 'warning', ...(typeof t === 'string' ? { description: t } : t) });
+		return this.add({
+			type: 'warning',
+			...(typeof t === 'string' ? { description: t } : t)
+		});
 	}
 
 	info(t: string | { description: string; title?: string; duration?: number }) {
-		return this.add({ type: 'info', ...(typeof t === 'string' ? { description: t } : t) });
+		return this.add({
+			type: 'info',
+			...(typeof t === 'string' ? { description: t } : t)
+		});
 	}
 
 	close(id: string) {

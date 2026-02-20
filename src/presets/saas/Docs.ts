@@ -1,5 +1,5 @@
 /**
- * @file src/presets/saas/Docs.ts
+ * @file src/presets/saas/docs.ts
  * @description Product documentation schema.
  * @author SveltyCMS
  */

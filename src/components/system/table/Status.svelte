@@ -1,5 +1,5 @@
 <!-- 
-@file src/components/system/table/Status.svelte
+@file src\components\system\table\status.svelte
 @component
 **Status component for table displaying different badges for different statuses**
 
@@ -17,13 +17,17 @@ Values form StatusTypes
 -->
 
 <script lang="ts">
-	// Import StatusTypes for centralized status management
 	import { StatusTypes } from '@src/content/types';
-
-	// ParaglideJS
-	import * as m from '@src/paraglide/messages';
-
 	const { value } = $props(); // The status value to display
+	import {
+		entrylist_multibutton_publish,
+		entrylist_multibutton_unpublish,
+		entrylist_multibutton_schedule,
+		entrylist_multibutton_clone,
+		entrylist_multibutton_draft,
+		button_delete,
+		button_archive
+	} from '@src/paraglide/messages';
 </script>
 
 <!-- Display different badges for different statuses -->
@@ -47,28 +51,28 @@ Values form StatusTypes
 >
 	{#if value === StatusTypes.publish}
 		<iconify-icon icon="bi:hand-thumbs-up-fill" width="16"></iconify-icon>
-		<p class="hidden sm:block text-xs font-bold uppercase">{m.entrylist_multibutton_publish()}</p>
+		<p class="hidden sm:block text-xs font-bold uppercase">{entrylist_multibutton_publish()}</p>
 	{:else if value === StatusTypes.unpublish}
 		<iconify-icon icon="bi:pause-circle" width="16"></iconify-icon>
-		<p class="hidden sm:block text-xs font-bold uppercase">{m.entrylist_multibutton_unpublish()}</p>
+		<p class="hidden sm:block text-xs font-bold uppercase">{entrylist_multibutton_unpublish()}</p>
 	{:else if value === StatusTypes.schedule}
 		<iconify-icon icon="bi:clock" width="16"></iconify-icon>
-		<p class="hidden sm:block text-xs font-bold uppercase">{m.entrylist_multibutton_schedule()}</p>
+		<p class="hidden sm:block text-xs font-bold uppercase">{entrylist_multibutton_schedule()}</p>
 	{:else if value === 'deleted'}
 		<iconify-icon icon="bi:trash3-fill" width="16"></iconify-icon>
-		<p class="hidden sm:block text-xs font-bold uppercase">{m.button_delete()}</p>
+		<p class="hidden sm:block text-xs font-bold uppercase">{button_delete()}</p>
 	{:else if value === StatusTypes.delete}
 		<iconify-icon icon="bi:trash3-fill" width="16"></iconify-icon>
-		<p class="hidden sm:block text-xs font-bold uppercase">{m.button_delete()}</p>
+		<p class="hidden sm:block text-xs font-bold uppercase">{button_delete()}</p>
 	{:else if value === StatusTypes.clone}
 		<iconify-icon icon="bi:clipboard-data-fill" width="16"></iconify-icon>
-		<p class="hidden sm:block text-xs font-bold uppercase">{m.entrylist_multibutton_clone()}</p>
+		<p class="hidden sm:block text-xs font-bold uppercase">{entrylist_multibutton_clone()}</p>
 	{:else if value === StatusTypes.draft}
 		<iconify-icon icon="bi:pencil-square" width="16"></iconify-icon>
-		<p class="hidden sm:block text-xs font-bold uppercase">{m.entrylist_multibutton_draft()}</p>
+		<p class="hidden sm:block text-xs font-bold uppercase">{entrylist_multibutton_draft()}</p>
 	{:else if value === StatusTypes.archive}
 		<iconify-icon icon="bi:archive-fill" width="16"></iconify-icon>
-		<p class="hidden sm:block text-xs font-bold uppercase">{m.button_archive()}</p>
+		<p class="hidden sm:block text-xs font-bold uppercase">{button_archive()}</p>
 	{:else}
 		<p class="px-2">{value}</p>
 	{/if}

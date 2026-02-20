@@ -1,4 +1,4 @@
-import { contentManager } from '@src/content/ContentManager';
+import { contentManager } from '@src/content/content-manager';
 import type { Locale } from '@src/paraglide/runtime';
 import { logger } from '@utils/logger.server';
 import { SvelteMap } from 'svelte/reactivity';
@@ -51,7 +51,10 @@ export async function getCachedFirstCollectionPath(language: Locale): Promise<st
 
 	// Cache the result if it's a valid path
 	if (result) {
-		cachedFirstCollectionPaths.set(language, { path: result, expiry: now + CACHE_DURATION });
+		cachedFirstCollectionPaths.set(language, {
+			path: result,
+			expiry: now + CACHE_DURATION
+		});
 	}
 
 	return result;

@@ -5,7 +5,7 @@
  */
 
 import { beforeEach, describe, expect, it, mock } from 'bun:test';
-import type { Theme } from '@src/databases/dbInterface';
+import type { Theme } from '@src/databases/db-interface';
 import type { RequestEvent, ResolveOptions } from '@sveltejs/kit';
 
 // --- Mock ThemeManager ---
@@ -78,7 +78,7 @@ describe('Middleware: handleTheme', () => {
 		mockIsInitialized.mockReturnValue(true); // Default to initialized
 
 		// Dynamic import to ensure mocks are applied
-		const mod = await import('@src/hooks/handleTheme');
+		const mod = await import('@src/hooks/handle-theme');
 		handleTheme = mod.handleTheme;
 
 		// A robust mock of SvelteKit's `resolve` function
@@ -87,7 +87,10 @@ describe('Middleware: handleTheme', () => {
 
 			if (transformPageChunk) {
 				// Simulate SvelteKit applying the transform during rendering
-				const transformedHtml = await transformPageChunk({ html: BASE_HTML, done: true });
+				const transformedHtml = await transformPageChunk({
+					html: BASE_HTML,
+					done: true
+				});
 				return new Response(transformedHtml, {
 					headers: { 'Content-Type': 'text/html' }
 				});

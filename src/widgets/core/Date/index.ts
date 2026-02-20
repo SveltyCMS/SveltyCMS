@@ -19,12 +19,12 @@
 
 // Components needed for the GuiSchema
 // Components needed for the GuiSchema
-// import IconifyIconsPicker from '@components/IconifyIconsPicker.svelte';
-// import PermissionsSetting from '@components/PermissionsSetting.svelte';
-// import Input from '@components/system/inputs/Input.svelte';
-// import Toggles from '@components/system/inputs/Toggles.svelte';
+// import IconifyIconsPicker from '@components/iconify-icons-picker.svelte';
+// import PermissionsSetting from '@components/permissions-setting.svelte';
+// import Input from '@components/system/inputs/input.svelte';
+// import Toggles from '@components/system/inputs/toggles.svelte';
 
-import { createWidget } from '@src/widgets/widgetFactory';
+import { createWidget } from '@src/widgets/widget-factory';
 
 // Type for aggregation field parameter
 interface AggregationField {
@@ -33,7 +33,7 @@ interface AggregationField {
 }
 
 // ParaglideJS
-import * as m from '@src/paraglide/messages';
+import { widget_date_description } from '@src/paraglide/messages';
 import { isoDate, minLength, pipe, string, type InferInput as ValibotInput } from 'valibot';
 import type { DateProps } from './types';
 
@@ -48,7 +48,7 @@ const DateValidationSchema = pipe(
 const DateWidget = createWidget<DateProps>({
 	Name: 'Date',
 	Icon: 'mdi:calendar',
-	Description: m.widget_date_description(),
+	Description: widget_date_description(),
 
 	// Define paths to the dedicated Svelte components.
 	inputComponentPath: '/src/widgets/core/Date/Input.svelte',

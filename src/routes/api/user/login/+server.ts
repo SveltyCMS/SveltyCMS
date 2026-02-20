@@ -26,11 +26,11 @@
  * @see /docs/architecture/quantum-security.mdx for security details
  */
 
-import { getPrivateSettingSync } from '@src/services/settingsService';
+import { getPrivateSettingSync } from '@src/services/settings-service';
 import { type HttpError, json } from '@sveltejs/kit';
 // Unified Error Handling
-import { apiHandler } from '@utils/apiHandler';
-import { AppError } from '@utils/errorHandling';
+import { apiHandler } from '@utils/api-handler';
+import { AppError } from '@utils/error-handling';
 // System logger
 import { logger } from '@utils/logger.server';
 // Password utility
@@ -60,7 +60,9 @@ export const POST = apiHandler(async ({ request, cookies, locals }) => {
 		} // Prevent an already authenticated user from trying to log in again.
 
 		if (existingUser) {
-			logger.warn('Authenticated user attempted to log in again.', { userId: existingUser._id });
+			logger.warn('Authenticated user attempted to log in again.', {
+				userId: existingUser._id
+			});
 			throw new AppError('You are already authenticated.', 400, 'ALREADY_AUTHENTICATED');
 		}
 
@@ -84,7 +86,10 @@ export const POST = apiHandler(async ({ request, cookies, locals }) => {
 		} // **SECURITY**: Check if the user account is blocked.
 
 		if (user.blocked) {
-			logger.warn(`Blocked user attempted to log in: ${email}`, { userId: user._id, tenantId });
+			logger.warn(`Blocked user attempted to log in: ${email}`, {
+				userId: user._id,
+				tenantId
+			});
 			throw new AppError('Your account has been suspended. Please contact support.', 403, 'USER_BLOCKED');
 		}
 
@@ -96,7 +101,10 @@ export const POST = apiHandler(async ({ request, cookies, locals }) => {
 		const isValidPassword = await verifyPassword(user.password, password);
 
 		if (!isValidPassword) {
-			logger.warn(`Login attempt failed: Invalid password for user: ${email}`, { userId: user._id, tenantId });
+			logger.warn(`Login attempt failed: Invalid password for user: ${email}`, {
+				userId: user._id,
+				tenantId
+			});
 			throw new AppError('Invalid credentials.', 401, 'INVALID_CREDENTIALS');
 		}
 
@@ -106,13 +114,16 @@ export const POST = apiHandler(async ({ request, cookies, locals }) => {
 		const session = await auth.createSession({
 			user_id: user._id,
 			...(getPrivateSettingSync('MULTI_TENANT') && { tenantId }), // Add tenantId to the session
-			expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() as import('@databases/dbInterface').ISODateString // 24-hour session
+			expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() as import('@databases/db-interface').ISODateString // 24-hour session
 		}); // Cache user in session store
 
 		const sessionCookie = auth.createSessionCookie(session._id);
 		cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes as any);
 
-		logger.info(`User logged in successfully: ${user.email}`, { userId: user._id, tenantId });
+		logger.info(`User logged in successfully: ${user.email}`, {
+			userId: user._id,
+			tenantId
+		});
 
 		return json({ success: true, message: 'Login successful.' });
 	} catch (err) {

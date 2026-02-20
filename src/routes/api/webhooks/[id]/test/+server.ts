@@ -3,10 +3,10 @@
  * @description Manual trigger for testing webhook connectivity.
  */
 
-import { webhookService } from '@src/services/webhookService';
+import { webhookService } from '@src/services/webhook-service';
 import { json } from '@sveltejs/kit';
-import { apiHandler } from '@utils/apiHandler';
-import { AppError } from '@utils/errorHandling';
+import { apiHandler } from '@utils/api-handler';
+import { AppError } from '@utils/error-handling';
 
 export const POST = apiHandler(async ({ params, locals }) => {
 	if (!locals.user || locals.user.role !== 'admin') {

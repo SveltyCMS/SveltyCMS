@@ -2,10 +2,10 @@
  * @file src/routes/(app)/[language]/+page.server.ts
  * @description Redirect handler for language-only URLs.
  * Redirects /en (or any language) to the first available collection.
- * Uses ContentManager for robust, canonical path resolution.
+ * Usescontent-managerfor robust, canonical path resolution.
  */
 
-import { contentManager } from '@src/content/ContentManager';
+import { contentManager } from '@src/content/content-manager';
 import { redirect } from '@sveltejs/kit';
 import { logger } from '@utils/logger.server';
 import type { PageServerLoad } from './$types';
@@ -15,7 +15,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	const { tenantId } = locals;
 
 	try {
-		// Ensure ContentManager is initialized (required for accurate collection list)
+		// Ensurecontent-manageris initialized (required for accurate collection list)
 		await contentManager.initialize(tenantId);
 
 		// Get robust redirect URL for first collection

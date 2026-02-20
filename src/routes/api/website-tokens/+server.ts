@@ -2,8 +2,8 @@ import crypto from 'node:crypto';
 import { dbAdapter } from '@src/databases/db';
 import { json } from '@sveltejs/kit';
 // Unified Error Handling
-import { apiHandler } from '@utils/apiHandler';
-import { AppError } from '@utils/errorHandling';
+import { apiHandler } from '@utils/api-handler';
+import { AppError } from '@utils/error-handling';
 import { logger } from '@utils/logger.server';
 
 export const GET = apiHandler(async ({ locals, url }) => {
@@ -69,7 +69,7 @@ export const POST = apiHandler(async ({ locals, request }) => {
 	const result = await dbAdapter.websiteTokens.create({
 		name,
 		token,
-		updatedAt: new Date().toISOString() as import('@databases/dbInterface').ISODateString,
+		updatedAt: new Date().toISOString() as import('@databases/db-interface').ISODateString,
 		createdBy: locals.user._id,
 		permissions: permissions || [],
 		expiresAt: expiresAt || undefined

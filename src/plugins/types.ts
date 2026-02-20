@@ -5,7 +5,7 @@
 
 import type { User } from '@auth/types';
 import type { BaseEntity, Schema } from '@content/types';
-import type { DatabaseId, DatabaseResult, IDBAdapter, ISODateString } from '@databases/dbInterface';
+import type { DatabaseId, DatabaseResult, IDBAdapter, ISODateString } from '@databases/db-interface';
 
 /**
  * Plugin metadata and registration info

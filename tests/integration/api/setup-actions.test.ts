@@ -49,7 +49,7 @@ function parseActionResult(result: { type: string; data?: any }): any {
 import { SESSION_COOKIE_NAME } from '@src/databases/auth/constants';
 import type { DatabaseConfig } from '@src/databases/schemas';
 import { getApiBaseUrl } from '../helpers/server';
-import { cleanupTestDatabase } from '../helpers/testSetup';
+import { cleanupTestDatabase } from '../helpers/test-setup';
 
 const API_BASE_URL = getApiBaseUrl();
 
@@ -234,7 +234,10 @@ describe('Setup Actions - SMTP Configuration', () => {
 		async () => {
 			const formData = new FormData();
 			// testEmail action expects individual fields
-			Object.entries({ ...testSmtpConfig, testEmail: 'test@example.com' }).forEach(([k, v]) => {
+			Object.entries({
+				...testSmtpConfig,
+				testEmail: 'test@example.com'
+			}).forEach(([k, v]) => {
 				formData.append(k, String(v));
 			});
 

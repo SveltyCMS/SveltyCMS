@@ -11,21 +11,21 @@
  * Permission-aware results
  * Performance optimized with QueryBuilder
  */
-import { getPrivateSettingSync } from '@src/services/settingsService';
+import { getPrivateSettingSync } from '@src/services/settings-service';
 
 import { json } from '@sveltejs/kit';
 
 // Auth
 
-import { modifyRequest } from '@api/collections/modifyRequest';
-import { contentManager } from '@src/content/ContentManager';
+import { modifyRequest } from '@api/collections/modify-request';
+import { contentManager } from '@src/content/content-manager';
 // Databases & Api
 import { dbAdapter } from '@src/databases/db';
-import type { CollectionModel } from '@src/databases/dbInterface';
+import type { CollectionModel } from '@src/databases/db-interface';
 // GET: Advanced search across collections
 // Unified Error Handling
-import { apiHandler } from '@utils/apiHandler';
-import { AppError } from '@utils/errorHandling';
+import { apiHandler } from '@utils/api-handler';
+import { AppError } from '@utils/error-handling';
 // System Logger
 import { logger } from '@utils/logger.server';
 
@@ -127,7 +127,7 @@ export const GET = apiHandler(async ({ locals, url }) => {
 								return typeof value === 'string' && value.toLowerCase().includes(lowerQuery);
 							});
 						});
-					} // Apply modifyRequest for widget processing
+					} // Applymodify-requestfor widget processing
 					if (items.length > 0) {
 						try {
 							await modifyRequest({

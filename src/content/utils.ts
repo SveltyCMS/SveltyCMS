@@ -13,7 +13,7 @@
  * Widget Utilities:
  * - resolveWidgetPlaceholder: Resolves a widget placeholder
  */
-import { widgetRegistryService } from '@src/services/WidgetRegistryService';
+import { widgetRegistryService } from '@src/services/widget-registry-service';
 import { logger } from '@utils/logger';
 import type { ContentNode, MinimalContentNode, Schema } from './types';
 
@@ -199,7 +199,10 @@ export async function processModule(content: string): Promise<{ schema?: Schema 
 		return null;
 	} catch (err) {
 		const errorMessage = err instanceof Error ? err.message : String(err);
-		logger.error('Failed to process module:', { error: errorMessage, stack: err instanceof Error ? err.stack : undefined });
+		logger.error('Failed to process module:', {
+			error: errorMessage,
+			stack: err instanceof Error ? err.stack : undefined
+		});
 		return null;
 	}
 }

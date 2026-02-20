@@ -6,7 +6,7 @@
  * Much more efficient than polling every 5 seconds.
  */
 
-import { subscribeToSettingsChanges } from '@src/utils/server/settingsVersion';
+import { subscribeToSettingsChanges } from '@src/utils/server/settings-version';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async () => {

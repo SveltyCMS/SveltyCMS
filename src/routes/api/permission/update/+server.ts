@@ -8,7 +8,7 @@
 import { getAllPermissions } from '@src/databases/auth/permissions';
 import type { Role } from '@src/databases/auth/types';
 import { dbAdapter, dbInitPromise } from '@src/databases/db';
-import { invalidateRolesCache } from '@src/hooks/handleAuthorization';
+import { invalidateRolesCache } from '@src/hooks/handle-authorization';
 import { json } from '@sveltejs/kit';
 import { logger } from '@utils/logger.server';
 
@@ -16,8 +16,8 @@ const MAX_ROLE_NAME_LENGTH = 50;
 const ROLE_NAME_PATTERN = /^[a-zA-Z0-9-_\s]+$/;
 
 // Unified Error Handling
-import { apiHandler } from '@utils/apiHandler';
-import { AppError } from '@utils/errorHandling';
+import { apiHandler } from '@utils/api-handler';
+import { AppError } from '@utils/error-handling';
 
 export const POST = apiHandler(async ({ request, locals }) => {
 	const user = locals.user;
@@ -29,7 +29,10 @@ export const POST = apiHandler(async ({ request, locals }) => {
 	}
 
 	if (!locals.isAdmin) {
-		logger.warn('Unauthorized attempt to update permissions', { userId: user._id, tenantId });
+		logger.warn('Unauthorized attempt to update permissions', {
+			userId: user._id,
+			tenantId
+		});
 		throw new AppError('Unauthorized', 403, 'FORBIDDEN');
 	}
 
@@ -52,7 +55,11 @@ export const POST = apiHandler(async ({ request, locals }) => {
 			throw new AppError(validationResult.error || 'Invalid roles', 400, 'VALIDATION_ERROR');
 		}
 
-		logger.info('Updating roles', { userId: user._id, roleCount: roles.length, tenantId });
+		logger.info('Updating roles', {
+			userId: user._id,
+			roleCount: roles.length,
+			tenantId
+		});
 
 		const existingRoles = await dbAdapter.auth.getAllRoles(tenantId);
 		const existingRoleIds = new Set(existingRoles.map((r) => r._id));
@@ -81,7 +88,11 @@ export const POST = apiHandler(async ({ request, locals }) => {
 		if (error instanceof AppError) {
 			throw error;
 		}
-		logger.error('Error updating permissions:', { error, userId: user._id, tenantId });
+		logger.error('Error updating permissions:', {
+			error,
+			userId: user._id,
+			tenantId
+		});
 		throw new AppError(`Error: ${error}`, 500, 'UPDATE_FAILED');
 	}
 });

@@ -13,9 +13,9 @@
  */
 
 import { dbAdapter } from '@src/databases/db';
-import type { DatabaseId } from '@src/databases/dbInterface';
-import { ThemeManager } from '@src/databases/themeManager';
-import { getPrivateSettingSync } from '@src/services/settingsService';
+import type { DatabaseId } from '@src/databases/db-interface';
+import { ThemeManager } from '@src/databases/theme-manager';
+import { getPrivateSettingSync } from '@src/services/settings-service';
 import { json } from '@sveltejs/kit';
 
 // Permission checking
@@ -27,8 +27,8 @@ import { logger } from '@utils/logger.server';
 const themeManager = ThemeManager.getInstance();
 
 // Unified Error Handling
-import { apiHandler } from '@utils/apiHandler';
-import { AppError } from '@utils/errorHandling';
+import { apiHandler } from '@utils/api-handler';
+import { AppError } from '@utils/error-handling';
 
 // ... (ThemeManager instance)
 
@@ -77,7 +77,10 @@ export const POST = apiHandler(async ({ request, locals }) => {
 			throw err;
 		}
 		const errorMessage = err instanceof Error ? err.message : String(err);
-		logger.error('Error updating theme custom CSS:', { error: errorMessage, tenantId });
+		logger.error('Error updating theme custom CSS:', {
+			error: errorMessage,
+			tenantId
+		});
 		throw new AppError(`Error updating theme custom CSS: ${errorMessage}`, 500, 'THEME_UPDATE_FAILED');
 	}
 });

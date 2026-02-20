@@ -4,12 +4,6 @@
  -->
 
 <script lang="ts">
-	// Using iconify-icon web component
-	import PageTitle from '@components/PageTitle.svelte';
-	import PluginsView from './PluginsView.svelte';
-	import ThemesView from './ThemesView.svelte';
-	import WidgetDashboard from './WidgetDashboard.svelte';
-
 	let { data }: { data: any } = $props();
 
 	let activeTab = $state('plugins');

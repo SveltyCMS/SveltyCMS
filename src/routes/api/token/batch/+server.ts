@@ -19,10 +19,10 @@
  */
 
 // Cache invalidation
-import { cacheService } from '@src/databases/CacheService';
+import { cacheService } from '@src/databases/cache-service';
 // Auth
 import { auth } from '@src/databases/db';
-import { getPrivateSettingSync } from '@src/services/settingsService';
+import { getPrivateSettingSync } from '@src/services/settings-service';
 import { type HttpError, json } from '@sveltejs/kit';
 // System Logger
 import { logger } from '@utils/logger.server';
@@ -35,8 +35,8 @@ const batchTokenActionSchema = object({
 });
 
 // Unified Error Handling
-import { apiHandler } from '@utils/apiHandler';
-import { AppError } from '@utils/errorHandling';
+import { apiHandler } from '@utils/api-handler';
+import { AppError } from '@utils/error-handling';
 
 export const POST = apiHandler(async ({ request, locals }) => {
 	try {
@@ -70,14 +70,20 @@ export const POST = apiHandler(async ({ request, locals }) => {
 				const tokenSet = new Set(tokensResult.data.map((t) => t.token));
 				const allOwned = tokenIds.every((id) => tokenSet.has(id));
 				if (!allOwned) {
-					logger.warn('Attempt to act on tokens outside of tenant', { userId: user?._id, tenantId, requestedTokenIds: tokenIds });
+					logger.warn('Attempt to act on tokens outside of tenant', {
+						userId: user?._id,
+						tenantId,
+						requestedTokenIds: tokenIds
+					});
 					throw new AppError('Forbidden: One or more tokens do not belong to your tenant or do not exist.', 403, 'FORBIDDEN');
 				}
 			} catch (verifyErr) {
 				if (verifyErr instanceof AppError) {
 					throw verifyErr;
 				}
-				logger.error('Failed to verify tenant token ownership', { error: verifyErr });
+				logger.error('Failed to verify tenant token ownership', {
+					error: verifyErr
+				});
 				throw new AppError('Failed to verify token ownership', 500, 'VERIFY_OWNERSHIP_FAILED');
 			}
 		}

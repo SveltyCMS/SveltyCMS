@@ -67,7 +67,7 @@ Renders a checkbox with label, color, size, and helper text from field props
 				aria-label={field.label}
 				aria-describedby={field.helper ? `${field.db_fieldName}-helper` : undefined}
 				style={field.color ? `accent-color: ${field.color}` : ''}
-			>
+			/>
 			<span>{field.label}</span>
 		</label>
 		{#if field.helper}

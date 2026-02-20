@@ -15,7 +15,7 @@
  */
 
 import { building } from '$app/environment';
-import { cacheService } from './CacheService';
+import { cacheService } from './cache-service';
 
 // Handle private config that might not exist during setup
 import {
@@ -24,7 +24,7 @@ import {
 	loadPrivateConfig as loadPrivateConfigFromState,
 	privateEnv,
 	setPrivateEnv as setPrivateEnvFromState
-} from './configState';
+} from './config-state';
 
 // Re-export for compatibility
 export const getPrivateEnv = getPrivateEnvFromState;
@@ -48,18 +48,18 @@ export function resetDbInitPromise() {
 
 // Auth
 import { Auth } from '@src/databases/auth';
-import { getDefaultSessionStore } from '@src/databases/auth/sessionManager';
+import { getDefaultSessionStore } from '@src/databases/auth/session-manager';
 // Settings loader
 import { privateConfigSchema, publicConfigSchema } from '@src/databases/schemas';
-import { getPublicSetting, invalidateSettingsCache, setSettingsCache } from '@src/services/settingsService';
+import { getPublicSetting, invalidateSettingsCache, setSettingsCache } from '@src/services/settings-service';
 import type { InferOutput } from 'valibot';
 // Adapters Interfaces
-import type { DatabaseAdapter } from './dbInterface';
+import type { DatabaseAdapter } from './db-interface';
 
 // Type definition for private config schema
 
 // Theme
-import { DEFAULT_THEME, ThemeManager } from '@src/databases/themeManager';
+import { DEFAULT_THEME, ThemeManager } from '@src/databases/theme-manager';
 // Plugins
 import { initializePlugins } from '@src/plugins';
 import { waitForServiceHealthy } from '@src/stores/system/async';
@@ -69,7 +69,7 @@ import { setSystemState, updateServiceHealth } from '@src/stores/system/state';
 import { logger } from '@utils/logger';
 
 // Widget Store - Dynamic import to avoid circular dependency
-// import { widgetStoreActions } from '@stores/widgetStore.svelte.ts';
+// import { widgetStoreActions } from '@src/stores/widget-store.svelte.ts';
 
 // State Variables
 export let dbAdapter: DatabaseAdapter | null = null; // Database adapter
@@ -141,7 +141,7 @@ const CRITICAL_SETTINGS = ['MEDIA_FOLDER', 'MULTI_TENANT', 'DEFAULT_LANGUAGE'];
 let _resilienceInstance: any = null;
 async function getResilience() {
 	if (!_resilienceInstance) {
-		const { getDatabaseResilience } = await import('./DatabaseResilience');
+		const { getDatabaseResilience } = await import('./database-resilience');
 		_resilienceInstance = getDatabaseResilience({
 			maxAttempts: 3,
 			initialDelayMs: 500,
@@ -168,7 +168,10 @@ export async function loadSettingsFromDB(criticalOnly = false): Promise<boolean>
 		const keysToLoad = criticalOnly ? CRITICAL_SETTINGS : KNOWN_PUBLIC_KEYS;
 		const privateKeys = criticalOnly ? [] : KNOWN_PRIVATE_KEYS;
 
-		logger.debug('Fetching settings from DB...', { keysToLoadCount: keysToLoad.length, privateKeysCount: privateKeys.length });
+		logger.debug('Fetching settings from DB...', {
+			keysToLoadCount: keysToLoad.length,
+			privateKeysCount: privateKeys.length
+		});
 
 		// Parallel load of tiered settings
 		const [settingsResult, privateDynResult] = await Promise.all([
@@ -238,17 +241,17 @@ async function loadAdapters() {
 			switch (config.DB_TYPE) {
 				case 'mongodb':
 				case 'mongodb+srv': {
-					const { MongoDBAdapter } = await import('./mongodb/mongoDBAdapter');
+					const { MongoDBAdapter } = await import('./mongodb/mongo-db-adapter');
 					dbAdapter = new MongoDBAdapter() as unknown as DatabaseAdapter;
 					break;
 				}
 				case 'mariadb': {
-					const { MariaDBAdapter } = await import('./mariadb/mariadbAdapter');
+					const { MariaDBAdapter } = await import('./mariadb/mariadb-adapter');
 					dbAdapter = new MariaDBAdapter() as unknown as DatabaseAdapter;
 					break;
 				}
 				case 'postgresql': {
-					const { PostgreSQLAdapter } = await import('./postgresql/postgresAdapter');
+					const { PostgreSQLAdapter } = await import('./postgresql/postgres-adapter');
 					dbAdapter = new PostgreSQLAdapter() as unknown as DatabaseAdapter;
 					break;
 				}
@@ -263,7 +266,7 @@ async function loadAdapters() {
 
 			// Apply Webhook Proxy Wrapper
 			if (dbAdapter) {
-				const { wrapAdapterWithWebhooks } = await import('./webhookWrapper');
+				const { wrapAdapterWithWebhooks } = await import('./webhook-wrapper');
 				dbAdapter = await wrapAdapterWithWebhooks(dbAdapter);
 			}
 		}, 'Database Adapter Loading');
@@ -471,8 +474,8 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false, awa
 		logger.info(`Step 3: Database models setup in ${step2And3Time.toFixed(2)}ms (⚡ parallelized with connection)`);
 
 		// Step 4: Pre-load Server-Side Services
-		// WidgetRegistryService and ContentManager are moved to AFTER Step 5 to ensure dependencies (Settings, Widgets) are ready.
-		logger.info('Step 4: Skipping eager ContentManager init (moved to Step 6)');
+		//widget-registry-serviceandcontent-managerare moved to AFTER Step 5 to ensure dependencies (Settings, Widgets) are ready.
+		logger.info('Step 4: Skipping eagercontent-managerinit (moved to Step 6)');
 
 		// Step 5: Initialize Critical Components (optimized for speed)
 		logger.debug('Starting Step 5: Critical components initialization...');
@@ -536,7 +539,7 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false, awa
 					updateServiceHealth('themeManager', 'healthy', 'Theme manager initialized');
 				})().catch((e) => logger.warn('Theme init failed:', e)),
 				(async () => {
-					const { widgets } = await import('@stores/widgetStore.svelte.ts');
+					const { widgets } = await import('@src/stores/widget-store.svelte.ts');
 					await widgets.initialize(undefined, dbAdapter!);
 					updateServiceHealth('widgets', 'healthy', 'Widget store initialized');
 				})().catch((e) => logger.warn('Widget init failed:', e)),
@@ -571,13 +574,13 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false, awa
 			`Step 5: Critical components initialized in ${step5Time.toFixed(2)}ms (Auth: ${authTime.toFixed(2)}ms, Settings: ${settingsTime.toFixed(2)}ms)`
 		);
 
-		// Step 6: Initialize ContentManager (Deferred)
-		logger.debug('Step 6: ContentManager will initialize lazily on first request.');
+		// Step 6: Initializecontent-manager(Deferred)
+		logger.debug('Step 6:ContentManager will initialize lazily on first request.');
 
 		// --- Demo Mode Cleanup Service ---
 		// Initialize if DEMO is true OR if MULTI_TENANT is true (to allow runtime DEMO toggling)
 		if (privateConfig?.DEMO || privateConfig?.MULTI_TENANT) {
-			import('@src/utils/demoCleanup').then(({ cleanupExpiredDemoTenants }) => {
+			import('@src/utils/demo-cleanup').then(({ cleanupExpiredDemoTenants }) => {
 				logger.info('Demo Cleanup Service initialized (Interval: 5m, Session: 20m, Cleanup TTL: 60m)');
 				// Delay initial run to allow background services to finish initializing
 				setTimeout(() => {
@@ -664,13 +667,19 @@ export async function initializeForSetup(dbConfig: {
 				dbAdapter = new SQLiteAdapter() as unknown as DatabaseAdapter;
 			}
 		} else {
-			return { success: false, error: `Database type '${dbConfig.type}' not supported yet` };
+			return {
+				success: false,
+				error: `Database type '${dbConfig.type}' not supported yet`
+			};
 		}
 
 		// Connect to database
 		const connectionResult = await dbAdapter.connect(connectionString);
 		if (!connectionResult.success) {
-			return { success: false, error: connectionResult.error?.message || 'Connection failed' };
+			return {
+				success: false,
+				error: connectionResult.error?.message || 'Connection failed'
+			};
 		}
 
 		isConnected = true;
@@ -736,7 +745,7 @@ export async function getSystemStatus() {
 
 	try {
 		// Get database health metrics using DatabaseResilience
-		const { getDatabaseResilience } = await import('@src/databases/DatabaseResilience');
+		const { getDatabaseResilience } = await import('@src/databases/database-resilience');
 		const resilience = getDatabaseResilience();
 
 		// Perform health check with database ping
@@ -819,7 +828,9 @@ export async function reinitializeSystem(force = false, waitForAuth = true): Pro
 		// Optionally wait for auth service to be ready (skip during setup to avoid blocking)
 		if (waitForAuth) {
 			logger.info('Waiting for auth service to become available after reinitialization...');
-			const authReady = await waitForServiceHealthy('auth', { timeoutMs: 3000 }); // Reduced from 10s to 3s
+			const authReady = await waitForServiceHealthy('auth', {
+				timeoutMs: 3000
+			}); // Reduced from 10s to 3s
 			if (!authReady) {
 				logger.warn('Auth service not ready after timeout, but will continue');
 			}
@@ -860,7 +871,11 @@ export async function reinitializeSystem(force = false, waitForAuth = true): Pro
  */
 export async function initializeWithConfig(
 	config: any,
-	options?: { multiTenant?: boolean; demoMode?: boolean; awaitBackground?: boolean }
+	options?: {
+		multiTenant?: boolean;
+		demoMode?: boolean;
+		awaitBackground?: boolean;
+	}
 ): Promise<{ status: string; error?: string }> {
 	try {
 		logger.info('🚀 Initializing system with provided configuration (bypassing Vite cache & filesystem)...');
@@ -919,7 +934,10 @@ export async function initializeWithConfig(
  *
  * @returns Promise with initialization status
  */
-export async function initializeWithFreshConfig(): Promise<{ status: string; error?: string }> {
+export async function initializeWithFreshConfig(): Promise<{
+	status: string;
+	error?: string;
+}> {
 	// Clear any existing initialization
 	logger.info('Initializing system with fresh config from filesystem (bypassing Vite cache)...');
 	initializationPromise = null;
@@ -995,16 +1013,16 @@ export async function initConnection(dbConfig: {
 		let tempAdapter: DatabaseAdapter;
 
 		if (dbConfig.type === 'mongodb' || dbConfig.type === 'mongodb+srv') {
-			const { MongoDBAdapter } = await import('./mongodb/mongoDBAdapter');
+			const { MongoDBAdapter } = await import('./mongodb/mongo-db-adapter');
 			tempAdapter = new MongoDBAdapter() as unknown as DatabaseAdapter;
 		} else if (dbConfig.type === 'mariadb') {
-			const { MariaDBAdapter } = await import('./mariadb/mariadbAdapter');
+			const { MariaDBAdapter } = await import('./mariadb/mariadb-adapter');
 			tempAdapter = new MariaDBAdapter() as unknown as DatabaseAdapter;
 		} else if (dbConfig.type === 'postgresql') {
-			const { PostgreSQLAdapter } = await import('./postgresql/postgresAdapter');
+			const { PostgreSQLAdapter } = await import('./postgresql/postgres-adapter');
 			tempAdapter = new PostgreSQLAdapter() as unknown as DatabaseAdapter;
 		} else {
-			const { SQLiteAdapter } = await import('./sqlite/sqliteAdapter');
+			const { SQLiteAdapter } = await import('./sqlite/sqlite-adapter');
 			tempAdapter = new SQLiteAdapter() as unknown as DatabaseAdapter;
 		}
 

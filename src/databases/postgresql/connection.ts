@@ -44,7 +44,9 @@ export async function createConnection(config: ConnectionConfig): Promise<Return
 		max: 10, // Connection pool size
 		idle_timeout: 60, // Idle connection timeout in seconds
 		connect_timeout: 10, // Connection timeout in seconds
-		onnotice: () => {}, // Suppress notice messages
+		onnotice: () => {
+			/* Suppress notice messages */
+		},
 		transform: {
 			undefined: null // Transform undefined to null
 		}
@@ -83,7 +85,10 @@ export async function closeConnection(): Promise<void> {
 /**
  * Test database connection
  */
-export async function testConnection(): Promise<{ success: boolean; latency: number }> {
+export async function testConnection(): Promise<{
+	success: boolean;
+	latency: number;
+}> {
 	if (!sql) {
 		return { success: false, latency: -1 };
 	}

@@ -3,15 +3,15 @@
  * @description API endpoint for PageSpeed Insights plugin
  */
 
-import { contentManager } from '@src/content/ContentManager';
+import { contentManager } from '@src/content/content-manager';
 import { fetchPageSpeedInsights, getCachedResult, storeResult } from '@src/plugins/pagespeed/service';
 import type { PageSpeedResult } from '@src/plugins/pagespeed/types';
-import { deriveEntryUrl, validateUrl } from '@src/plugins/pagespeed/urlUtils';
-import { getPrivateSettingSync, getPublicSettingSync } from '@src/services/settingsService';
+import { deriveEntryUrl, validateUrl } from '@src/plugins/pagespeed/url-utils';
+import { getPrivateSettingSync, getPublicSettingSync } from '@src/services/settings-service';
 import { json } from '@sveltejs/kit';
 // Unified Error Handling
-import { apiHandler } from '@utils/apiHandler';
-import { AppError } from '@utils/errorHandling';
+import { apiHandler } from '@utils/api-handler';
+import { AppError } from '@utils/error-handling';
 import { logger } from '@utils/logger.server';
 
 export const POST = apiHandler(async ({ request, locals }) => {
@@ -51,7 +51,9 @@ export const POST = apiHandler(async ({ request, locals }) => {
 
 		// Get entry data to derive URL
 		const collectionTableName = `collection_${collectionId}`;
-		const entryResult = await dbAdapter.crud.findOne(collectionTableName, { _id: entryId } as any);
+		const entryResult = await dbAdapter.crud.findOne(collectionTableName, {
+			_id: entryId
+		} as any);
 
 		if (!(entryResult.success && entryResult.data)) {
 			throw new AppError(`Entry ${entryId} not found`, 404, 'ENTRY_NOT_FOUND');
@@ -69,7 +71,11 @@ export const POST = apiHandler(async ({ request, locals }) => {
 			const cached = await getCachedResult(dbAdapter, entryId, collectionId, language, device, tenantId || 'default');
 
 			if (cached) {
-				logger.debug('Returning cached PageSpeed result', { entryId, language, device });
+				logger.debug('Returning cached PageSpeed result', {
+					entryId,
+					language,
+					device
+				});
 				return json({
 					success: true,
 					data: cached,

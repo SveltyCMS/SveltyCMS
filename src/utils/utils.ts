@@ -23,9 +23,9 @@
  */
 
 import type { FieldInstance, FieldValue } from '@src/content/types';
-import { publicEnv } from '@src/stores/globalSettings.svelte';
+import { publicEnv } from '@src/stores/global-settings.svelte';
 // Stores
-import { app } from '@stores/store.svelte';
+import { app } from '@src/stores/store.svelte';
 // System Logger
 import { type LoggableValue, logger } from '@utils/logger';
 import type { BaseIssue, BaseSchema } from 'valibot';
@@ -48,7 +48,7 @@ export interface GuiFieldConfig {
 	required: boolean;
 	/**
 	 * The widget component to render.
-	 * Can be a direct Svelte component or a string key from `adminComponentRegistry`.
+	 * Can be a direct Svelte component or a string key from `admin-component-registry`.
 	 * @example { widget: 'Input' }
 	 * @example { widget: InputComponent }
 	 */
@@ -275,7 +275,9 @@ export async function extractData(fieldsData: Record<string, FieldInstance>): Pr
 	const result: Record<string, unknown> = {};
 	for (const [key, field] of Object.entries(fieldsData)) {
 		if (field.callback) {
-			result[key] = await field.callback({ data: field as unknown as Record<string, FieldValue> });
+			result[key] = await field.callback({
+				data: field as unknown as Record<string, FieldValue>
+			});
 		} else {
 			result[key] = field.default ?? null;
 		}

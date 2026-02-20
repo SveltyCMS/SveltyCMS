@@ -13,8 +13,8 @@ import { auth } from '@src/databases/db';
 import { SCIM_SCHEMAS } from '@src/types/scim';
 import { json } from '@sveltejs/kit';
 // Unified Error Handling
-import { apiHandler } from '@utils/apiHandler';
-import { AppError } from '@utils/errorHandling';
+import { apiHandler } from '@utils/api-handler';
+import { AppError } from '@utils/error-handling';
 import { logger } from '@utils/logger.server';
 
 export const GET = apiHandler(async ({ url, locals }) => {

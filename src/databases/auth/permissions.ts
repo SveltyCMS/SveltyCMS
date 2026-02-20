@@ -8,7 +8,7 @@
 
 // System Logger
 import { logger } from '@utils/logger';
-import { corePermissions } from './corePermissions';
+import { corePermissions } from './core-permissions';
 // Auth
 import type { Permission, Role, User } from './types';
 
@@ -63,13 +63,21 @@ export function hasPermissionWithRoles(user: User, permissionId: string, roles: 
 	}
 
 	if (!userRole) {
-		logger.warn('Role not found for user', { email: user.email, userRoleId: user.role, rolesAvailable: roles.map((r) => r._id) });
+		logger.warn('Role not found for user', {
+			email: user.email,
+			userRoleId: user.role,
+			rolesAvailable: roles.map((r) => r._id)
+		});
 		return false;
 	}
 
 	// ADMIN OVERRIDE: Admins automatically have ALL permissions
 	if (userRole.isAdmin) {
-		logger.trace('Admin user granted permission', { email: user.email, permissionId, userRole });
+		logger.trace('Admin user granted permission', {
+			email: user.email,
+			permissionId,
+			userRole
+		});
 		return true;
 	}
 
@@ -86,7 +94,11 @@ export function hasPermissionWithRoles(user: User, permissionId: string, roles: 
 			rolesAvailable: roles.map((r) => ({ id: r._id, isAdmin: r.isAdmin }))
 		});
 	}
-	logger.trace('Permission check for user', { permissionId, granted: hasPermission, email: user.email });
+	logger.trace('Permission check for user', {
+		permissionId,
+		granted: hasPermission,
+		email: user.email
+	});
 	return hasPermission;
 }
 
@@ -121,7 +133,11 @@ export function hasPermissionByAction(user: User, action: string, type: string, 
 
 	// ADMIN OVERRIDE: Admins automatically have ALL permissions
 	if (userRole.isAdmin) {
-		logger.trace('Admin user granted permission for action', { email: user.email, action, type });
+		logger.trace('Admin user granted permission for action', {
+			email: user.email,
+			action,
+			type
+		});
 		return true;
 	}
 
@@ -193,17 +209,31 @@ export function getPermissionConfig(configKey: string): PermissionConfig | null 
 // Validate user permission from locals.permissions array
 export function validateUserPermission(userPermissions: string[] | undefined, requiredPermission: string): boolean {
 	if (!userPermissions) {
-		logger.warn('No user permissions provided for validation', { requiredPermission });
+		logger.warn('No user permissions provided for validation', {
+			requiredPermission
+		});
 		return false;
 	}
 
 	const hasPermission = userPermissions.includes(requiredPermission);
-	logger.trace('User permission validation', { requiredPermission, granted: hasPermission });
+	logger.trace('User permission validation', {
+		requiredPermission,
+		granted: hasPermission
+	});
 	return hasPermission;
 }
 
 // Legacy config map for compatibility
-export const permissionConfigs: Record<string, { contextId: string; action: string; type: string; name: string; description: string }> = {
+export const permissionConfigs: Record<
+	string,
+	{
+		contextId: string;
+		action: string;
+		type: string;
+		name: string;
+		description: string;
+	}
+> = {
 	collectionManagement: {
 		contextId: 'config:collectionManagement',
 		action: 'read',
@@ -218,9 +248,27 @@ export const permissionConfigs: Record<string, { contextId: string; action: stri
 		name: 'Collection Builder',
 		description: 'Access to collection builder'
 	},
-	graphql: { contextId: 'config:graphql', action: 'read', type: 'config', name: 'GraphQL', description: 'Access to GraphQL interface' },
-	imageeditor: { contextId: 'config:imageeditor', action: 'read', type: 'config', name: 'Image Editor', description: 'Access to image editor' },
-	dashboard: { contextId: 'config:dashboard', action: 'read', type: 'config', name: 'Dashboard', description: 'Access to dashboard' },
+	graphql: {
+		contextId: 'config:graphql',
+		action: 'read',
+		type: 'config',
+		name: 'GraphQL',
+		description: 'Access to GraphQL interface'
+	},
+	imageeditor: {
+		contextId: 'config:imageeditor',
+		action: 'read',
+		type: 'config',
+		name: 'Image Editor',
+		description: 'Access to image editor'
+	},
+	dashboard: {
+		contextId: 'config:dashboard',
+		action: 'read',
+		type: 'config',
+		name: 'Dashboard',
+		description: 'Access to dashboard'
+	},
 	widgetManagement: {
 		contextId: 'config:widgetManagement',
 		action: 'read',
@@ -235,7 +283,13 @@ export const permissionConfigs: Record<string, { contextId: string; action: stri
 		name: 'Theme Management',
 		description: 'Access to theme management'
 	},
-	settings: { contextId: 'config:settings', action: 'read', type: 'config', name: 'Settings', description: 'Access to settings' },
+	settings: {
+		contextId: 'config:settings',
+		action: 'read',
+		type: 'config',
+		name: 'Settings',
+		description: 'Access to settings'
+	},
 
 	// Fine-grained System Settings permissions (13 groups)
 	settingsCache: {
@@ -337,7 +391,13 @@ export const permissionConfigs: Record<string, { contextId: string; action: stri
 		name: 'Access Management',
 		description: 'Access to user management'
 	},
-	adminAccess: { contextId: 'admin:access', action: 'read', type: 'admin', name: 'Admin Access', description: 'Administrative access' },
+	adminAccess: {
+		contextId: 'admin:access',
+		action: 'read',
+		type: 'admin',
+		name: 'Admin Access',
+		description: 'Administrative access'
+	},
 	emailPreviews: {
 		contextId: 'config:emailPreviews',
 		action: 'read',
@@ -352,8 +412,20 @@ export const permissionConfigs: Record<string, { contextId: string; action: stri
 		name: 'Admin Area',
 		description: 'Access to admin area'
 	},
-	exportData: { contextId: 'api:exportData', action: 'export', type: 'api', name: 'Export Data', description: 'Export system data' },
-	apiUser: { contextId: 'api:user', action: 'read', type: 'api', name: 'User API', description: 'Access to user API' },
+	exportData: {
+		contextId: 'api:exportData',
+		action: 'export',
+		type: 'api',
+		name: 'Export Data',
+		description: 'Export system data'
+	},
+	apiUser: {
+		contextId: 'api:user',
+		action: 'read',
+		type: 'api',
+		name: 'User API',
+		description: 'Access to user API'
+	},
 	userCreateToken: {
 		contextId: 'user.create',
 		action: 'create',

@@ -2,7 +2,7 @@
  * @file src/plugins/pagespeed/types.ts
  * @description Type definitions for Google PageSpeed Insights plugin
  */
-import type { DatabaseId, ISODateString } from '@databases/dbInterface';
+import type { DatabaseId, ISODateString } from '@databases/db-interface';
 
 // PageSpeed result stored in database
 export interface PageSpeedResult {

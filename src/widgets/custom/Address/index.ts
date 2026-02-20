@@ -13,11 +13,11 @@
  */
 
 // Import components needed for the GuiSchema
-// import Input from '@components/system/inputs/Input.svelte'; // Removed for optimization
-// import Toggles from '@components/system/inputs/Toggles.svelte'; // Removed for optimization
+// import Input from '@components/system/inputs/input.svelte'; // Removed for optimization
+// import Toggles from '@components/system/inputs/toggles.svelte'; // Removed for optimization
 
-import * as m from '@src/paraglide/messages';
-import { createWidget } from '@src/widgets/widgetFactory';
+import { widget_address_description } from '@src/paraglide/messages';
+import { createWidget } from '@src/widgets/widget-factory';
 import { minLength, number, object, pipe, string, type InferInput as ValibotInput } from 'valibot';
 import type { AddressProps } from './types';
 
@@ -36,7 +36,7 @@ const AddressValidationSchema = object({
 const AddressWidget = createWidget<AddressProps>({
 	Name: 'Address',
 	Icon: 'mdi:home-map-marker',
-	Description: m.widget_address_description(),
+	Description: widget_address_description(),
 	inputComponentPath: '/src/widgets/custom/Address/Input.svelte',
 	displayComponentPath: '/src/widgets/custom/Address/Display.svelte',
 	validationSchema: AddressValidationSchema,
@@ -60,7 +60,11 @@ const AddressWidget = createWidget<AddressProps>({
 			required: false,
 			helper: "Default map center (e.g., '51.34,6.57')."
 		},
-		zoom: { widget: 'Input', required: false, helper: 'Default map zoom level (e.g., 12).' },
+		zoom: {
+			widget: 'Input',
+			required: false,
+			helper: 'Default map zoom level (e.g., 12).'
+		},
 		hiddenFields: {
 			widget: 'Input',
 			required: false,

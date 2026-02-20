@@ -54,7 +54,7 @@ plugin({
 			const code = readFileSync(args.path, 'utf8');
 
 			// 1. Transpile TypeScript to JavaScript using Bun
-			// eslint-disable-next-line no-undef
+
 			const transpiler = new Bun.Transpiler({ loader: 'ts' });
 			const jsCode = await transpiler.transform(code);
 

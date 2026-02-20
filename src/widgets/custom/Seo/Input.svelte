@@ -1,24 +1,22 @@
-<script lang="ts">
-	import { onMount } from 'svelte';
+﻿<script lang="ts">
 	import { slide } from 'svelte/transition';
-
+	import { publicEnv } from '@src/stores/global-settings.svelte.ts';
+	// Stores & Props
+	import { app } from '@src/stores/store.svelte';
+	import { onMount } from 'svelte';
 	// Lucide Icons
 
-	// Parsers & Services
-	import { tokenTarget } from '@src/services/token/tokenTarget';
-	import { publicEnv } from '@stores/globalSettings.svelte.ts';
-	// Stores & Props
-	import { app } from '@stores/store.svelte';
 	import type { SeoWidgetData } from '.';
 
-	// Components
-	import SeoAnalysisPanel from './components/SeoAnalysisPanel.svelte';
-	import SeoField from './components/SeoField.svelte'; // Reusable field component
-	import SeoPreview from './components/SeoPreview.svelte';
-	import SocialPreview from './components/SocialPreview.svelte';
-
 	// Logic
-	import { analyzeSeo } from './seoAnalyzer';
+	import { analyzeSeo } from './seo-analyzer';
+	import { tokenTarget } from '@src/services/token/token-target';
+
+	// Components
+	import SeoPreview from './components/seo-preview.svelte';
+	import SeoAnalysisPanel from './components/seo-analysis-panel.svelte';
+	import SeoField from './components/seo-field.svelte';
+	import SocialPreview from './components/social-preview.svelte';
 
 	interface Props {
 		field: any;
@@ -44,7 +42,9 @@
 	// --- Lifecycle ---
 	onMount(() => {
 		// Initialize value structure if missing
-		if (!value) { value = {}; }
+		if (!value) {
+			value = {};
+		}
 		if (!value[lang]) {
 			value[lang] = {
 				title: '',
@@ -75,7 +75,9 @@
 	// Only run analysis when relevant fields change to improve performance
 	$effect(() => {
 		const langData = value?.[lang];
-		if (!langData) { return; }
+		if (!langData) {
+			return;
+		}
 
 		// Create dependency on relevant fields only
 		void langData.title;
@@ -95,7 +97,9 @@
 	// --- Actions ---
 
 	async function runAnalysis() {
-		if (!(value?.[lang])) { return; }
+		if (!value?.[lang]) {
+			return;
+		}
 		isAnalyzing = true;
 
 		// TODO: Connect to actual content store when available
@@ -116,11 +120,15 @@
 
 	// --- Helper: Translation Percentage ---
 	function getFieldTranslationPercentage(fieldName: string): number {
-		if (!value || availableLanguages.length === 0) { return 0; }
+		if (!value || availableLanguages.length === 0) {
+			return 0;
+		}
 		const safeValue = value; // Capture for closure safety
 		const populatedCount = availableLanguages.filter((l) => {
 			const langData = safeValue[l];
-			if (!langData) { return false; }
+			if (!langData) {
+				return false;
+			}
 			const fieldData = langData[fieldName as keyof SeoWidgetData];
 			return typeof fieldData === 'string' && fieldData.trim() !== '';
 		}).length;
@@ -130,7 +138,9 @@
 	// --- UI Helpers ---
 	// Update wrapper for SeoField to bind back to the deeply nested value
 	const updateField = (fieldName: keyof SeoWidgetData, newVal: string) => {
-		if (!(value?.[lang])) { return; }
+		if (!value?.[lang]) {
+			return;
+		}
 		// Cast to any to allow updating union types like twitterCard with strict string
 		(value[lang] as any)[fieldName] = newVal;
 	};
@@ -238,7 +248,9 @@
 						translationPct={getFieldTranslationPercentage('focusKeyword')}
 						onUpdate={(v: string) => updateField('focusKeyword', v)}
 						placeholder="Main keyword"
-					> <!-- Example of using slot for extra icon if needed --></SeoField>
+					>
+						<!-- Example of using slot for extra icon if needed --></SeoField
+					>
 				{:else if activeTab === 1}
 					<!-- Social Tab (includes Preview) -->
 					<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">

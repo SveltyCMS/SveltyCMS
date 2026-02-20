@@ -4,10 +4,10 @@
  */
 
 import { dbAdapter } from '@src/databases/db';
-import type { MediaItem } from '@src/databases/dbInterface';
-import { aiService } from '@src/services/AIService';
-import { getPrivateSetting } from '@src/services/settingsService';
-import { getFile } from '@src/utils/media/mediaStorage.server';
+import type { MediaItem } from '@src/databases/db-interface';
+import { aiService } from '@src/services/ai-service';
+import { getPrivateSetting } from '@src/services/settings-service';
+import { getFile } from '@src/utils/media/media-storage.server';
 import { error, json } from '@sveltejs/kit';
 import { logger } from '@utils/logger.server';
 import type { RequestHandler } from './$types';
@@ -30,7 +30,9 @@ export const POST: RequestHandler = async ({ request }) => {
 		if (!dbAdapter) {
 			throw error(500, 'Database adapter is not initialized.');
 		}
-		const mediaResult = await dbAdapter.crud.findOne<MediaItem>('MediaItem', { _id: mediaId as any });
+		const mediaResult = await dbAdapter.crud.findOne<MediaItem>('MediaItem', {
+			_id: mediaId as any
+		});
 		if (!(mediaResult.success && mediaResult.data)) {
 			throw error(404, 'Media item not found.');
 		}
@@ -55,7 +57,11 @@ export const POST: RequestHandler = async ({ request }) => {
 		const aiTags = await aiService.tagImage(buffer);
 
 		if (!aiTags || aiTags.length === 0) {
-			return json({ success: true, message: 'AI model could not generate tags for this image.', data: mediaItem });
+			return json({
+				success: true,
+				message: 'AI model could not generate tags for this image.',
+				data: mediaItem
+			});
 		}
 
 		// 5. Update the media item's metadata with the new tags
@@ -64,7 +70,11 @@ export const POST: RequestHandler = async ({ request }) => {
 		const uniqueNewTags = aiTags.filter((tag) => !existingAiTags.includes(tag.toLowerCase()));
 
 		if (uniqueNewTags.length === 0 && existingAiTags.length > 0) {
-			return json({ success: true, message: 'AI tags already exist.', data: mediaItem });
+			return json({
+				success: true,
+				message: 'AI tags already exist.',
+				data: mediaItem
+			});
 		}
 
 		const updatedAiTags = Array.from(new Set([...existingAiTags, ...aiTags]));

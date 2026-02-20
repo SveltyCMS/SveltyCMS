@@ -8,7 +8,7 @@
 
 import { describe, expect, it } from 'bun:test';
 import type { DatabaseConfig } from '@src/databases/schemas';
-import { classifyDatabaseError } from '@src/routes/setup/errorClassifier';
+import { classifyDatabaseError } from '@src/routes/setup/error-classifier';
 import { buildDatabaseConnectionString } from '@src/routes/setup/utils';
 
 describe('Setup Utils - Connection String Builder', () => {

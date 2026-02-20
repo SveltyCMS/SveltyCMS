@@ -7,9 +7,9 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'bun:test';
 import { unlink } from 'node:fs/promises';
 import { write } from 'bun';
-import { getCollectionDisplayPath, getCollectionFilePath } from '../../../src/utils/tenantPaths';
+import { getCollectionDisplayPath, getCollectionFilePath } from '../../../src/utils/tenant-paths';
 import { getApiBaseUrl } from '../helpers/server';
-import { initializeTestEnvironment, prepareAuthenticatedContext } from '../helpers/testSetup';
+import { initializeTestEnvironment, prepareAuthenticatedContext } from '../helpers/test-setup';
 
 const API_BASE_URL = getApiBaseUrl();
 

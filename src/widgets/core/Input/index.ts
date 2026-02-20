@@ -17,13 +17,13 @@
 
 // Import components needed for the GuiSchema
 // Import components needed for the GuiSchema
-// import IconifyIconsPicker from '@components/IconifyIconsPicker.svelte';
-// import PermissionsSetting from '@components/PermissionsSetting.svelte';
-// import Input from '@components/system/inputs/Input.svelte';
-// import Toggles from '@components/system/inputs/Toggles.svelte';
+// import IconifyIconsPicker from '@components/iconify-icons-picker.svelte';
+// import PermissionsSetting from '@components/permissions-setting.svelte';
+// import Input from '@components/system/inputs/input.svelte';
+// import Toggles from '@components/system/inputs/toggles.svelte';
 
-import * as m from '@src/paraglide/messages';
-import { createWidget } from '@src/widgets/widgetFactory';
+import { widget_text_description } from '@src/paraglide/messages';
+import { createWidget } from '@src/widgets/widget-factory';
 
 // Type for aggregation field parameter
 interface AggregationField {
@@ -76,7 +76,7 @@ export const createValidationSchema = (field: ReturnType<typeof InputWidget>): B
 const InputWidget = createWidget<InputProps>({
 	Name: 'Input',
 	Icon: 'mdi:form-textbox',
-	Description: m.widget_text_description(),
+	Description: widget_text_description(),
 	inputComponentPath: '/src/widgets/core/Input/Input.svelte',
 	displayComponentPath: '/src/widgets/core/Input/Display.svelte',
 
@@ -108,7 +108,14 @@ const InputWidget = createWidget<InputProps>({
 	// Aggregations for text search and sorting.
 	aggregations: {
 		filters: async ({ field, filter, contentLanguage }: { field: AggregationField; filter: string; contentLanguage: string }) => [
-			{ $match: { [`${field.db_fieldName}.${contentLanguage}`]: { $regex: filter, $options: 'i' } } }
+			{
+				$match: {
+					[`${field.db_fieldName}.${contentLanguage}`]: {
+						$regex: filter,
+						$options: 'i'
+					}
+				}
+			}
 		],
 		sorts: async ({ field, sortDirection, contentLanguage }: { field: AggregationField; sortDirection: number; contentLanguage: string }) => ({
 			[`${field.db_fieldName}.${contentLanguage}`]: sortDirection

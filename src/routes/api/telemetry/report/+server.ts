@@ -19,7 +19,7 @@
  */
 
 import { createHash, createHmac } from 'node:crypto';
-import { getPrivateSettingSync } from '@src/services/settingsService';
+import { getPrivateSettingSync } from '@src/services/settings-service';
 import { json } from '@sveltejs/kit';
 import { logger } from '@utils/logger.server';
 import { array, boolean, maxLength, number, object, optional, pipe, safeParse, string, union } from 'valibot';
@@ -77,7 +77,7 @@ const MAX_PAYLOAD_SIZE = 10_000; // 10KB
 const REQUEST_TIMEOUT = 5000; // 5 seconds
 
 // Unified Error Handling
-import { apiHandler } from '@utils/apiHandler';
+import { apiHandler } from '@utils/api-handler';
 
 // ... (schema definition)
 

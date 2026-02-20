@@ -1,5 +1,5 @@
 /**
- * @file src/presets/blog/Categories.ts
+ * @file src/presets/blog/categories.ts
  * @description Blog categories schema.
  * @author SveltyCMS
  */

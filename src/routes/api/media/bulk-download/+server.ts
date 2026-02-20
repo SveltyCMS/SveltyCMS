@@ -12,10 +12,10 @@
  */
 
 import { dbAdapter } from '@src/databases/db';
-import type { MediaItem } from '@src/databases/dbInterface';
+import type { MediaItem } from '@src/databases/db-interface';
 import { error } from '@sveltejs/kit';
 import { logger } from '@utils/logger.server';
-import { cleanupArchive, createBulkDownloadArchive, streamArchiveToResponse } from '@utils/media/bulkDownload';
+import { cleanupArchive, createBulkDownloadArchive, streamArchiveToResponse } from '@utils/media/bulk-download';
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
@@ -50,7 +50,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			if (!dbAdapter) {
 				return null;
 			}
-			const result = await dbAdapter.crud.findOne<MediaItem>('MediaItem', { _id: id });
+			const result = await dbAdapter.crud.findOne<MediaItem>('MediaItem', {
+				_id: id
+			});
 			if (result.success && result.data) {
 				return result.data;
 			}
@@ -69,7 +71,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 		// Create archive
 		const outputDir = '/tmp/archives';
-		const archive = await createBulkDownloadArchive(files as unknown as import('@utils/media/mediaModels').MediaBase[], outputDir);
+		const archive = await createBulkDownloadArchive(files as unknown as import('@utils/media/media-models').MediaBase[], outputDir);
 		logger.info('Archive created successfully', {
 			path: archive.path,
 			size: archive.size,
@@ -84,7 +86,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const stream = await streamArchiveToResponse(archive.path, archive.filename, setHeader); // Schedule cleanup after stream ends
 		setTimeout(() => {
 			cleanupArchive(archive.path).catch((err) => {
-				logger.warn('Failed to cleanup archive', { error: err, path: archive.path });
+				logger.warn('Failed to cleanup archive', {
+					error: err,
+					path: archive.path
+				});
 			});
 		}, 5000); // Cleanup after 5 seconds
 

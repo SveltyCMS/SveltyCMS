@@ -11,7 +11,7 @@
 import type { User } from '@src/databases/auth/types';
 import { logger } from '@utils/logger';
 import { replaceTokens } from './engine';
-import { containsTokens, extractTokenPaths, validateTokenSyntax } from './tokenUtils';
+import { containsTokens, extractTokenPaths, validateTokenSyntax } from './token-utils';
 import type { TokenContext } from './types';
 
 // Re-export pure utils
@@ -22,7 +22,10 @@ export async function processTokensInResponse(
 	data: unknown,
 	user: User | undefined,
 	locale: string,
-	context: Partial<TokenContext> & { maxDepth?: number; currentDepth?: number } = {}
+	context: Partial<TokenContext> & {
+		maxDepth?: number;
+		currentDepth?: number;
+	} = {}
 ): Promise<unknown> {
 	if (!data) {
 		return data;
@@ -37,7 +40,14 @@ export async function processTokensInResponse(
 
 	// Handle Arrays
 	if (Array.isArray(data)) {
-		return Promise.all(data.map((item) => processTokensInResponse(item, user, locale, { ...context, currentDepth: currentDepth + 1 })));
+		return Promise.all(
+			data.map((item) =>
+				processTokensInResponse(item, user, locale, {
+					...context,
+					currentDepth: currentDepth + 1
+				})
+			)
+		);
 	}
 
 	// Handle Objects
@@ -49,7 +59,10 @@ export async function processTokensInResponse(
 
 		const result: Record<string, unknown> = {};
 		for (const [key, value] of Object.entries(data as Record<string, unknown>)) {
-			result[key] = await processTokensInResponse(value, user, locale, { ...context, currentDepth: currentDepth + 1 });
+			result[key] = await processTokensInResponse(value, user, locale, {
+				...context,
+				currentDepth: currentDepth + 1
+			});
 		}
 		return result;
 	}
@@ -66,7 +79,9 @@ export async function processTokensInResponse(
 			const fullContext: TokenContext = {
 				user,
 				locale,
-				system: context.system || { now: new Date().toISOString() as import('@databases/dbInterface').ISODateString }
+				system: context.system || {
+					now: new Date().toISOString() as import('@databases/db-interface').ISODateString
+				}
 			};
 
 			return await replaceTokens(data, fullContext);
@@ -89,7 +104,9 @@ export async function previewTokenResolution(text: string, user: User | undefine
 		return await replaceTokens(text, {
 			user,
 			...context,
-			system: { now: new Date().toISOString() as import('@databases/dbInterface').ISODateString }
+			system: {
+				now: new Date().toISOString() as import('@databases/db-interface').ISODateString
+			}
 		} as any);
 	} catch (error) {
 		logger.error('Preview resolution failed', error);

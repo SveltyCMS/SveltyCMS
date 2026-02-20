@@ -5,7 +5,7 @@
 
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { getApiBaseUrl, waitForServer } from '../helpers/server';
-import { cleanupTestDatabase, prepareAuthenticatedContext } from '../helpers/testSetup';
+import { cleanupTestDatabase, prepareAuthenticatedContext } from '../helpers/test-setup';
 
 const BASE_URL = getApiBaseUrl();
 let authCookie: string;

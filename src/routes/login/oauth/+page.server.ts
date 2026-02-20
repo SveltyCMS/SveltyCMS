@@ -4,22 +4,22 @@
  */
 
 // Utils
-import { contentManager } from '@root/src/content/ContentManager';
+import { contentManager } from '@root/src/content/content-manager';
 import type { ISODateString } from '@src/content/types';
 // System Logger
-import { generateGoogleAuthUrl, getOAuthRedirectUri } from '@src/databases/auth/googleAuth';
+import { generateGoogleAuthUrl, getOAuthRedirectUri } from '@src/databases/auth/google-auth';
 //Db
 import { auth, dbInitPromise } from '@src/databases/db';
 // Cache invalidation
-import { invalidateUserCountCache } from '@src/hooks/handleAuthorization';
+import { invalidateUserCountCache } from '@src/hooks/handle-authorization';
 import type { Locale } from '@src/paraglide/runtime';
 // Stores
-import { getPrivateSettingSync } from '@src/services/settingsService';
-import { publicEnv } from '@src/stores/globalSettings.svelte';
-import { app } from '@stores/store.svelte';
+import { getPrivateSettingSync } from '@src/services/settings-service';
+import { publicEnv } from '@src/stores/global-settings.svelte';
+import { app } from '@src/stores/store.svelte';
 import { type Cookies, error, redirect } from '@sveltejs/kit';
 import { logger } from '@utils/logger.server';
-import { saveAvatarImage } from '@utils/media/mediaStorage.server';
+import { saveAvatarImage } from '@utils/media/media-storage.server';
 // Auth
 import { OAuth2Client } from 'google-auth-library';
 import type { Actions, PageServerLoad } from './$types';
@@ -141,7 +141,7 @@ async function handleGoogleUser(
 		throw new Error('Google did not return an email address');
 	}
 
-	const { isSetupCompleteAsync } = await import('@utils/setupCheck');
+	const { isSetupCompleteAsync } = await import('@utils/setup-check');
 	const setupComplete = await isSetupCompleteAsync();
 
 	if (googleUser.locale) {
@@ -228,7 +228,10 @@ async function handleGoogleUser(
 				googleRefreshToken: refreshToken ?? undefined
 			};
 
-			logger.debug('Creating first user (admin) with data:', { ...userData, email: userData.email.replace(/(.{2}).*@(.*)/, '$1****@$2') });
+			logger.debug('Creating first user (admin) with data:', {
+				...userData,
+				email: userData.email.replace(/(.{2}).*@(.*)/, '$1****@$2')
+			});
 			user = await auth?.createUser(userData, true); // Invalidate user count cache after first user (admin) creation
 			invalidateUserCountCache();
 
@@ -268,7 +271,10 @@ async function handleGoogleUser(
 				googleRefreshToken: refreshToken ?? undefined
 			};
 
-			logger.debug('Creating invited user with data:', { ...userData, email: userData.email.replace(/(.{2}).*@(.*)/, '$1****@$2') });
+			logger.debug('Creating invited user with data:', {
+				...userData,
+				email: userData.email.replace(/(.{2}).*@(.*)/, '$1****@$2')
+			});
 			user = await auth?.createUser(userData, true);
 			// Invalidate user count cache after user creation
 			invalidateUserCountCache();
@@ -290,10 +296,16 @@ async function handleGoogleUser(
 		throw new Error('Auth system not initialized');
 	}
 	const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
-	const session = await auth.createSession({ user_id: user._id, expires: expiresAt.toISOString() as ISODateString });
+	const session = await auth.createSession({
+		user_id: user._id,
+		expires: expiresAt.toISOString() as ISODateString
+	});
 	const sessionCookie = auth.createSessionCookie(session._id);
 	const cookieAttributes = sessionCookie.attributes as Record<string, unknown>;
-	cookies.set(sessionCookie.name, sessionCookie.value, { ...cookieAttributes, path: '/' });
+	cookies.set(sessionCookie.name, sessionCookie.value, {
+		...cookieAttributes,
+		path: '/'
+	});
 }
 
 export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => {
@@ -320,7 +332,10 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 
 		// Handle OAuth errors first
 		if (error_param) {
-			logger.error(`OAuth Error: ${error_param}`, { error_subtype, url: url.toString() });
+			logger.error(`OAuth Error: ${error_param}`, {
+				error_subtype,
+				url: url.toString()
+			});
 			if (error_param === 'interaction_required' || error_param === 'access_denied') {
 				const authUrl = await generateGoogleAuthUrl(token, 'consent');
 				redirect(302, authUrl);
@@ -402,7 +417,12 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 				throw err;
 			}
 			const errorMessage = err instanceof Error ? err.message : 'Unknown error during OAuth callback';
-			logger.error('OAuth callback processing error:', { error: err, stack: err instanceof Error ? err.stack : undefined, code, token });
+			logger.error('OAuth callback processing error:', {
+				error: err,
+				stack: err instanceof Error ? err.stack : undefined,
+				code,
+				token
+			});
 			// Provide more specific error messages based on the error type
 			if (errorMessage.includes('A valid invitation is required')) {
 				throw error(403, 'Admin Invitation Required: This CMS requires an invitation from an administrator to create any new account.');
@@ -429,7 +449,11 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 			throw err;
 		}
 		const errorMessage = err instanceof Error ? err.message : 'Unknown error during OAuth process';
-		logger.error('Comprehensive OAuth Error:', { message: errorMessage, stack: err instanceof Error ? err.stack : 'No stack trace', fullError: err });
+		logger.error('Comprehensive OAuth Error:', {
+			message: errorMessage,
+			stack: err instanceof Error ? err.stack : 'No stack trace',
+			fullError: err
+		});
 		// Provide more detailed error information for the user
 		throw error(500, `OAuth Authentication Failed: ${errorMessage}`);
 	}

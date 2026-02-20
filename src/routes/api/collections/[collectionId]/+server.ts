@@ -12,14 +12,14 @@
  */
 
 import { randomUUID } from 'node:crypto';
-import { modifyRequest } from '@api/collections/modifyRequest';
+import { modifyRequest } from '@api/collections/modify-request';
 // Databases
 // Auth
-import { contentManager } from '@src/content/ContentManager';
+import { contentManager } from '@src/content/content-manager';
 // Types
 import type { FieldInstance } from '@src/content/types';
-import { cacheService } from '@src/databases/CacheService';
-import { getPrivateSettingSync } from '@src/services/settingsService';
+import { cacheService } from '@src/databases/cache-service';
+import { getPrivateSettingSync } from '@src/services/settings-service';
 import { json } from '@sveltejs/kit';
 // System Logger
 import { logger } from '@utils/logger.server';
@@ -31,8 +31,8 @@ import { logger } from '@utils/logger.server';
 
 // POST: Creates a new entry in a collection
 // Unified Error Handling
-import { apiHandler } from '@utils/apiHandler';
-import { AppError } from '@utils/errorHandling';
+import { apiHandler } from '@utils/api-handler';
+import { AppError } from '@utils/error-handling';
 
 // POST: Creates a new entry in a collection
 export const POST = apiHandler(async ({ locals, params, request }) => {
@@ -105,7 +105,7 @@ export const POST = apiHandler(async ({ locals, params, request }) => {
 		status: sourceData.status || schema.status || 'draft'
 	};
 
-	// Apply modifyRequest for pre-processing
+	// Applymodify-requestfor pre-processing
 	const dataArray = [entryData];
 
 	try {
@@ -152,20 +152,27 @@ export const POST = apiHandler(async ({ locals, params, request }) => {
 	}
 
 	const duration = performance.now() - startTime;
-	const responseData = { success: true, data: result.data, performance: { duration } };
+	const responseData = {
+		success: true,
+		data: result.data,
+		performance: { duration }
+	};
 
 	// Invalidate server-side page cache
 	const cachePattern = `collection:${schema._id}:*`;
 	logger.debug(`${endpoint} - Invalidating cache pattern: ${cachePattern}`);
 
 	await cacheService.clearByPattern(cachePattern, tenantId).catch((err) => {
-		logger.warn('Failed to invalidate page cache after POST', { pattern: cachePattern, error: err });
+		logger.warn('Failed to invalidate page cache after POST', {
+			pattern: cachePattern,
+			error: err
+		});
 	});
 
 	await contentManager.invalidateSpecificCaches([schema.path || '', schema._id as string].filter(Boolean));
 
 	try {
-		const { pubSub } = await import('@src/services/pubSub');
+		const { pubSub } = await import('@src/services/pub-sub');
 		pubSub.publish('entryUpdated', {
 			collection: schema.name || params.collectionId,
 			id: result.data._id,

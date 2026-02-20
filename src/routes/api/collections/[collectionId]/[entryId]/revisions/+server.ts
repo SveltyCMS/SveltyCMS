@@ -11,11 +11,11 @@
  * Permission checking for revision access
  */
 
-import { getRevisions } from '@src/services/RevisionService';
+import { getRevisions } from '@src/services/revision-service';
 import { json } from '@sveltejs/kit';
 // Unified Error Handling
-import { apiHandler } from '@utils/apiHandler';
-import { AppError } from '@utils/errorHandling';
+import { apiHandler } from '@utils/api-handler';
+import { AppError } from '@utils/error-handling';
 import { logger } from '@utils/logger.server';
 
 export const GET = apiHandler(async ({ locals, params, url }) => {
@@ -52,7 +52,10 @@ export const GET = apiHandler(async ({ locals, params, url }) => {
 
 	const paginatedResult = (result as any).data;
 	const duration = performance.now() - start;
-	logger.info('Revisions retrieved', { entryId, duration: `${duration.toFixed(2)}ms` });
+	logger.info('Revisions retrieved', {
+		entryId,
+		duration: `${duration.toFixed(2)}ms`
+	});
 
 	return json({
 		success: true,

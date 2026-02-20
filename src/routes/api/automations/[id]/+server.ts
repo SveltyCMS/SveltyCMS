@@ -8,7 +8,7 @@
  * - DELETE: Delete an automation flow
  */
 
-import { automationService } from '@src/services/automation/automationService';
+import { automationService } from '@src/services/automation/automation-service';
 import type { AutomationFlow } from '@src/services/automation/types';
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';

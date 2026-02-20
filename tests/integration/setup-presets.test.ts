@@ -1,10 +1,13 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, mock } from 'bun:test';
 
 // Mock compilation
-vi.mock('@src/collections/compile', () => ({
-	compile: vi.fn()
+mock.module('@src/collections/compile', () => ({
+	compileCollections: async () => ({
+		collections: [],
+		errors: []
+	})
 }));
 
 describe('Setup Presets Integration', () => {

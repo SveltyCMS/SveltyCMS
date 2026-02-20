@@ -5,11 +5,11 @@
  */
 
 import { hasPermissionWithRoles } from '@src/databases/auth/permissions';
-import { cacheService } from '@src/databases/CacheService';
+import { cacheService } from '@src/databases/cache-service';
 import { json } from '@sveltejs/kit';
 // Unified Error Handling
-import { apiHandler } from '@utils/apiHandler';
-import { AppError } from '@utils/errorHandling';
+import { apiHandler } from '@utils/api-handler';
+import { AppError } from '@utils/error-handling';
 import { logger } from '@utils/logger.server';
 
 export const POST = apiHandler(async ({ locals, request }) => {
@@ -57,7 +57,7 @@ export const POST = apiHandler(async ({ locals, request }) => {
 
 		// If deactivating, check if the widget is in use by collections
 		if (!isActive) {
-			const contentManager = await import('@root/src/content/ContentManager').then((m) => m.contentManager);
+			const contentManager = await import('@root/src/content/content-manager').then((m) => m.contentManager);
 
 			// Check if widget is used in any collection
 			const allCollections = contentManager.getCollections();
@@ -166,7 +166,10 @@ export const POST = apiHandler(async ({ locals, request }) => {
 	} catch (err) {
 		const duration = performance.now() - start;
 		const message = `Failed to update widget status: ${err instanceof Error ? err.message : String(err)}`;
-		logger.error(message, { duration: `${duration.toFixed(2)}ms`, stack: err instanceof Error ? err.stack : undefined });
+		logger.error(message, {
+			duration: `${duration.toFixed(2)}ms`,
+			stack: err instanceof Error ? err.stack : undefined
+		});
 		if (err instanceof AppError) {
 			throw err;
 		}

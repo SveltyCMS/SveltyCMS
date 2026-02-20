@@ -6,7 +6,7 @@
 import { logger } from '@utils/logger';
 import type { BaseIssue, BaseSchema, InferOutput } from 'valibot';
 import { array, boolean, literal, maxValue, minLength, minValue, number, object, optional, pipe, safeParse, string, transform, union } from 'valibot';
-import type { DatabaseId, ISODateString } from './dbInterface';
+import type { DatabaseId, ISODateString } from './db-interface';
 
 // ----------------- CONFIGURATION SCHEMAS -----------------
 

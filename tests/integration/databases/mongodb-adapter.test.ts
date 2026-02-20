@@ -32,7 +32,12 @@ mock.module('@src/utils/logger', () => ({
 		info: () => {},
 		debug: () => {},
 		trace: () => {},
-		channel: () => ({ info: () => {}, error: () => {}, warn: () => {}, debug: () => {} })
+		channel: () => ({
+			info: () => {},
+			error: () => {},
+			warn: () => {},
+			debug: () => {}
+		})
 	}
 }));
 
@@ -44,7 +49,7 @@ mock.module('@src/utils/logger', () => ({
 
 // Dynamic import to avoid module mocking issues
 
-let adapterClass: typeof import('../../../src/databases/mongodb/mongoDBAdapter').MongoDBAdapter;
+let adapterClass: typeof import('../../../src/databases/mongodb/mongo-db-adapter').MongoDBAdapter;
 let privateEnv: any;
 
 describe('MongoDB Adapter Functional Tests', () => {
@@ -53,7 +58,7 @@ describe('MongoDB Adapter Functional Tests', () => {
 
 	beforeAll(async () => {
 		// Import modules dynamically to bypass mocks
-		const adapterModule = await import('../../../src/databases/mongodb/mongoDBAdapter');
+		const adapterModule = await import('../../../src/databases/mongodb/mongo-db-adapter');
 		adapterClass = adapterModule.MongoDBAdapter;
 		const configModule = await import('../../../config/private.test');
 		privateEnv = configModule.privateEnv;
@@ -80,7 +85,10 @@ describe('MongoDB Adapter Functional Tests', () => {
 		}
 
 		// Set short timeout to fail fast if config is wrong
-		const connectOptions = { serverSelectionTimeoutMS: 2000, connectTimeoutMS: 2000 };
+		const connectOptions = {
+			serverSelectionTimeoutMS: 2000,
+			connectTimeoutMS: 2000
+		};
 
 		try {
 			await db.connect(connectionString, connectOptions);
@@ -88,7 +96,10 @@ describe('MongoDB Adapter Functional Tests', () => {
 			// Verify write access by attempting a simple operation
 			// This is crucial for environments where connection might succeed but auth fails on write
 			// Note: crud operations return { success: boolean }, they do not throw errors usually.
-			const insertResult = await db.crud.insert(testCollection, { _test: true, timestamp: Date.now() });
+			const insertResult = await db.crud.insert(testCollection, {
+				_test: true,
+				timestamp: Date.now()
+			});
 			if (insertResult.success) {
 				await db.crud.deleteMany(testCollection, { _test: true }); // Clean up
 			} else {

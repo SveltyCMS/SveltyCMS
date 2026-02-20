@@ -1,5 +1,5 @@
 /**
- * @file src/presets/corporate/Careers.ts
+ * @file src/presets/corporate/careers.ts
  * @description Corporate job listings schema.
  * @author SveltyCMS
  */

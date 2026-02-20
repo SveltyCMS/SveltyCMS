@@ -1,5 +1,5 @@
 /**
- * @file src/presets/agency/Clients.ts
+ * @file src/presets/agency/clients.ts
  * @description Agency clients schema.
  * @author SveltyCMS
  */

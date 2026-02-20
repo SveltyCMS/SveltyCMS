@@ -21,7 +21,7 @@ import type { Role, User } from '@src/databases/auth/types';
 // Auth
 import { auth } from '@src/databases/db';
 // System Logger
-import { getUntypedSetting } from '@src/services/settingsService';
+import { getUntypedSetting } from '@src/services/settings-service';
 import { logger } from '@utils/logger.server';
 import type { PageServerLoad } from './$types';
 
@@ -123,7 +123,9 @@ export const load: PageServerLoad = async (event) => {
 			manageUsersPermissionConfig,
 			adminData,
 			permissions: {
-				'config/adminArea': { hasPermission: isAdmin || hasManageUsersPermission }
+				'config/adminArea': {
+					hasPermission: isAdmin || hasManageUsersPermission
+				}
 			},
 			isAdmin // Pass isAdmin to client for PermissionGuard
 		};

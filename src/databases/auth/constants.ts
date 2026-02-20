@@ -17,7 +17,10 @@ export function generateRandomToken(length = 32): string {
 	return result;
 }
 
-export function generateTokenWithExpiry(expirationMinutes = 60): { token: string; expires: Date } {
+export function generateTokenWithExpiry(expirationMinutes = 60): {
+	token: string;
+	expires: Date;
+} {
 	return {
 		token: generateRandomToken(),
 		expires: new Date(Date.now() + expirationMinutes * 60 * 1000)

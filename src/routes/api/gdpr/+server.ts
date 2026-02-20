@@ -8,7 +8,7 @@
  *
  */
 
-import { gdprService } from '@src/services/GDPRService';
+import { gdprService } from '@src/services/gdpr-service';
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
@@ -28,7 +28,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		// 2. Authorization Check: Only admins or the user themselves can perform these actions
 		const isSelf = locals.user._id.toString() === userId.toString();
 		if (!(locals.isAdmin || isSelf)) {
-			return json({ error: 'Forbidden: You can only perform this action on your own data' }, { status: 403 });
+			return json(
+				{
+					error: 'Forbidden: You can only perform this action on your own data'
+				},
+				{ status: 403 }
+			);
 		}
 
 		if (action === 'export') {

@@ -12,11 +12,15 @@
 
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { getApiBaseUrl, waitForServer } from '../helpers/server';
-import { cleanupTestDatabase, prepareAuthenticatedContext, testFixtures } from '../helpers/testSetup';
+import { cleanupTestDatabase, prepareAuthenticatedContext, testFixtures } from '../helpers/test-setup';
 
 const BASE_URL = getApiBaseUrl();
 let authCookie: string;
-let setupData: { secret: string; qrCodeURL: string; backupCodes: string[] } | null = null;
+let setupData: {
+	secret: string;
+	qrCodeURL: string;
+	backupCodes: string[];
+} | null = null;
 let userId: string;
 
 beforeAll(async () => {

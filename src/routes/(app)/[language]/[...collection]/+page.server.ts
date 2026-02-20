@@ -40,10 +40,10 @@
  */
 
 // Core SveltyCMS services
-import { contentManager } from '@src/content/ContentManager';
+import { contentManager } from '@src/content/content-manager';
 import type { User } from '@src/databases/auth/types';
-import { collectionService } from '@src/services/CollectionService';
-import { getPublicSettingSync } from '@src/services/settingsService';
+import { collectionService } from '@src/services/collection-service';
+import { getPublicSettingSync } from '@src/services/settings-service';
 import { error, redirect } from '@sveltejs/kit';
 import { logger } from '@utils/logger.server';
 import type { PageServerLoad } from './$types';
@@ -80,7 +80,7 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 		// =================================================================
 		// 2. GET COLLECTION SCHEMA
 		// =================================================================
-		// Ensure ContentManager is initialized before use
+		// Ensurecontent-manageris initialized before use
 		await contentManager.initialize(tenantId);
 
 		// Check if collection param is a UUID (32 char hex) or a path
@@ -91,9 +91,9 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 			logger.debug(`Loading collection by UUID: \x1b[33m${collection}\x1b[0m`);
 			currentCollection = contentManager.getCollectionById(collection!, tenantId);
 
-			// SELF-HEALING: If not found, it might be a stale ContentManager after setup
+			// SELF-HEALING: If not found, it might be a stalecontent-managerafter setup
 			if (!currentCollection) {
-				logger.warn(`Collection UUID ${collection} not found. Triggering ContentManager refresh...`);
+				logger.warn(`Collection UUID ${collection} not found. Triggeringcontent-managerrefresh...`);
 				await contentManager.refresh(tenantId);
 				currentCollection = contentManager.getCollectionById(collection!, tenantId);
 			}
@@ -110,10 +110,10 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 			logger.debug(`Loading collection by path: \x1b[34m${collectionPath}\x1b[0m`);
 			currentCollection = contentManager.getCollection(collectionPath, tenantId);
 
-			// SELF-HEALING: If not found, it might be a stale ContentManager after setup
+			// SELF-HEALING: If not found, it might be a stalecontent-managerafter setup
 			// Optimization: Skip refresh for "Collections" root, as it will be handled by redirect logic below
 			if (!currentCollection && collectionNameOnly !== 'Collections') {
-				logger.warn(`Collection path ${collectionPath} not found. Triggering ContentManager refresh...`);
+				logger.warn(`Collection path ${collectionPath} not found. Triggeringcontent-managerrefresh...`);
 				await contentManager.refresh(tenantId);
 				currentCollection = contentManager.getCollection(collectionPath, tenantId);
 			}
@@ -145,7 +145,10 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 		const pageSize = Number(url.searchParams.get('pageSize') ?? 10);
 		const sortField = url.searchParams.get('sort') || '_createdAt';
 		const sortOrder = url.searchParams.get('order') || 'desc';
-		const sortParams = { field: sortField, direction: sortOrder as 'asc' | 'desc' };
+		const sortParams = {
+			field: sortField,
+			direction: sortOrder as 'asc' | 'desc'
+		};
 		const editEntryId = url.searchParams.get('edit');
 		const globalSearch = url.searchParams.get('search') || '';
 

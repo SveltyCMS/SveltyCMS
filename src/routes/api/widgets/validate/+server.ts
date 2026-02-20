@@ -2,7 +2,7 @@
  * @file src/routes/api/widgets/validate/+server.ts
  * @description API endpoint for validating collections and widget integrity
  */
-import { contentManager } from '@src/content/ContentManager';
+import { contentManager } from '@src/content/content-manager';
 import { json } from '@sveltejs/kit';
 import { logger } from '@utils/logger.server';
 
@@ -10,8 +10,8 @@ import { logger } from '@utils/logger.server';
 // async function calculateWidgetHash(widgetName: string): Promise<string | null> { ... }
 
 // Unified Error Handling
-import { apiHandler } from '@utils/apiHandler';
-import { AppError } from '@utils/errorHandling';
+import { apiHandler } from '@utils/api-handler';
+import { AppError } from '@utils/error-handling';
 
 export const GET = apiHandler(async ({ locals, request, url }) => {
 	const start = performance.now();
@@ -22,7 +22,10 @@ export const GET = apiHandler(async ({ locals, request, url }) => {
 		const activeWidgetsParam = url.searchParams.get('activeWidgets');
 		const activeWidgets = activeWidgetsParam ? activeWidgetsParam.split(',') : [];
 
-		logger.info('[API] Validation request started', { tenantId, activeWidgetsCount: activeWidgets.length });
+		logger.info('[API] Validation request started', {
+			tenantId,
+			activeWidgetsCount: activeWidgets.length
+		});
 
 		// Get all collections from ContentManager, scoped by tenantId
 		const allCollections = contentManager.getCollections();
@@ -30,7 +33,13 @@ export const GET = apiHandler(async ({ locals, request, url }) => {
 		if (!allCollections || Object.keys(allCollections).length === 0) {
 			return json({
 				success: true,
-				data: { valid: 0, invalid: 0, warnings: [], tenantId, integrityIssues: [] },
+				data: {
+					valid: 0,
+					invalid: 0,
+					warnings: [],
+					tenantId,
+					integrityIssues: []
+				},
 				message: 'No collections found to validate'
 			});
 		}
@@ -120,7 +129,10 @@ export const GET = apiHandler(async ({ locals, request, url }) => {
 	} catch (err) {
 		const duration = performance.now() - start;
 		const message = `Failed to validate collections: ${err instanceof Error ? err.message : String(err)}`;
-		logger.error(message, { duration: `${duration.toFixed(2)}ms`, stack: err instanceof Error ? err.stack : undefined });
+		logger.error(message, {
+			duration: `${duration.toFixed(2)}ms`,
+			stack: err instanceof Error ? err.stack : undefined
+		});
 		if (err instanceof AppError) {
 			throw err;
 		}

@@ -25,18 +25,26 @@ Renders: "Main St 123, 12345 Berlin, Germany"
 -->
 
 <script lang="ts">
-	import { publicEnv } from '@src/stores/globalSettings.svelte';
+	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { app } from '@src/stores/store.svelte';
 	import type { FieldType } from './';
-	import { countryStore } from './countryStore.svelte';
+	import { countryStore } from './country-store.svelte';
 	import type { AddressData } from './types';
 
-	let { field, value }: { field: FieldType; value: Record<string, AddressData> | AddressData | null | undefined } = $props();
+	let {
+		field,
+		value
+	}: {
+		field: FieldType;
+		value: Record<string, AddressData> | AddressData | null | undefined;
+	} = $props();
 
 	// 1. Language Handling
 	// Resolve the correct data object based on translation status and content language
 	const safeValue = $derived.by(() => {
-		if (!value) { return null; }
+		if (!value) {
+			return null;
+		}
 
 		if (field.translated && typeof value === 'object') {
 			// Multilingual mode: Try current content language, fallback to default
@@ -56,7 +64,9 @@ Renders: "Main St 123, 12345 Berlin, Germany"
 
 	// Create a formatted address string from the data object.
 	const formattedAddress = $derived.by(() => {
-		if (!safeValue?.street) { return '–'; }
+		if (!safeValue?.street) {
+			return '–';
+		}
 
 		// Resolve country name from store using UI language
 		const countryName = safeValue.country ? countryStore.getCountryName(safeValue.country, uiLang) : '';

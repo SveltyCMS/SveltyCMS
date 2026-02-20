@@ -27,7 +27,7 @@ Renders radio group with options from field.options array
 -->
 
 <script lang="ts">
-	import { publicEnv } from '@src/stores/globalSettings.svelte';
+	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { app } from '@src/stores/store.svelte';
 
 	import type { FieldType } from './';
@@ -42,7 +42,11 @@ Renders radio group with options from field.options array
 		field,
 		value = $bindable(),
 		error
-	}: { field: FieldType & RadioProps; value?: string | number | null | undefined | Record<string, any>; error?: string | null } = $props();
+	}: {
+		field: FieldType & RadioProps;
+		value?: string | number | null | undefined | Record<string, any>;
+		error?: string | null;
+	} = $props();
 
 	const fieldId = $derived(field.db_fieldName);
 	const _language = $derived(field.translated ? app.contentLanguage : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase());
@@ -108,7 +112,7 @@ Renders radio group with options from field.options array
 						aria-label={option.label}
 						class={field.color ? `accent-${field.color}` : ''}
 						style={field.color ? `accent-color: ${field.color}` : ''}
-					>
+					/>
 					<span>{option.label}</span>
 				</label>
 			{/each}

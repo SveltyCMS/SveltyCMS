@@ -8,12 +8,12 @@
  */
 
 // Components needed for the GuiSchema
-// import IconifyIconsPicker from '@components/IconifyIconsPicker.svelte';
-// import PermissionsSetting from '@components/PermissionsSetting.svelte';
-// import Input from '@components/system/inputs/Input.svelte';
-// import Toggles from '@components/system/inputs/Toggles.svelte';
+// import IconifyIconsPicker from '@components/iconify-icons-picker.svelte';
+// import PermissionsSetting from '@components/permissions-setting.svelte';
+// import Input from '@components/system/inputs/input.svelte';
+// import Toggles from '@components/system/inputs/toggles.svelte';
 
-import { createWidget } from '@src/widgets/widgetFactory';
+import { createWidget } from '@src/widgets/widget-factory';
 
 // Type for aggregation field parameter
 interface AggregationField {
@@ -22,7 +22,7 @@ interface AggregationField {
 }
 
 // ParaglideJS
-import * as m from '@src/paraglide/messages';
+import { widget_checkbox_description } from '@src/paraglide/messages';
 import { boolean, type InferInput as ValibotInput } from 'valibot';
 import type { CheckboxProps } from './types';
 
@@ -33,7 +33,7 @@ const CheckboxValidationSchema = boolean('Must be a boolean.');
 const CheckboxWidget = createWidget<CheckboxProps>({
 	Name: 'Checkbox',
 	Icon: 'tabler:checkbox',
-	Description: m.widget_checkbox_description(),
+	Description: widget_checkbox_description(),
 
 	// Define paths to the dedicated Svelte components.
 	inputComponentPath: '/src/widgets/core/Checkbox/Input.svelte',

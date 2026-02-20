@@ -8,8 +8,8 @@
  * - Type definitions for triggers, operations, and flows
  */
 
-export { automationService } from './automationService';
-export { eventBus } from './eventBus';
+export { automationService } from './automation-service';
+export { eventBus } from './event-bus';
 export type {
 	AutomationEvent,
 	AutomationEventPayload,

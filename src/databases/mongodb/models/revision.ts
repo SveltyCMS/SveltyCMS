@@ -14,9 +14,9 @@
  */
 
 import type { DatabaseId } from '@src/content/types';
-import type { ContentRevision, DatabaseResult } from '@src/databases/dbInterface';
-import { generateId } from '@src/databases/mongodb/methods/mongoDBUtils';
-import { toISOString } from '@utils/dateUtils';
+import type { ContentRevision, DatabaseResult } from '@src/databases/db-interface';
+import { generateId } from '@src/databases/mongodb/methods/mongodb-utils';
+import { toISOString } from '@utils/date-utils';
 // System Logger
 import { logger } from '@utils/logger';
 import type { Model } from 'mongoose';
@@ -78,7 +78,9 @@ revisionSchema.statics = {
 	// Bulk delete revisions for a list of content IDs
 	async bulkDeleteRevisionsForContent(contentIds: string[]): Promise<DatabaseResult<number>> {
 		try {
-			const result = await this.deleteMany({ contentId: { $in: contentIds } }).exec();
+			const result = await this.deleteMany({
+				contentId: { $in: contentIds }
+			}).exec();
 			logger.info(`Bulk deleted ${result.deletedCount} revisions for content IDs: ${contentIds.join(', ')}`);
 			return { success: true, data: result.deletedCount };
 		} catch (error) {

@@ -3,13 +3,13 @@
  * @description API endpoint for getting active widgets with 3-pillar architecture metadata
  */
 
-import { CacheCategory } from '@src/databases/CacheCategory';
-import { cacheService } from '@src/databases/CacheService';
-import { getWidgetFunction, isWidgetCore, widgets } from '@stores/widgetStore.svelte.ts';
+import { CacheCategory } from '@src/databases/cache-category';
+import { cacheService } from '@src/databases/cache-service';
+import { getWidgetFunction, isWidgetCore, widgets } from '@src/stores/widget-store.svelte.ts';
 import { json } from '@sveltejs/kit';
 // Unified Error Handling
-import { apiHandler } from '@utils/apiHandler';
-import { AppError } from '@utils/errorHandling';
+import { apiHandler } from '@utils/api-handler';
+import { AppError } from '@utils/error-handling';
 import { logger } from '@utils/logger.server';
 
 export const GET = apiHandler(async ({ locals, url }) => {
@@ -76,8 +76,8 @@ export const GET = apiHandler(async ({ locals, url }) => {
 		}
 
 		// Ensure core widgets are always included
-		// Use WidgetRegistryService (server-side) instead of widgetStore (client-side) to avoid build issues
-		const { widgetRegistryService } = await import('@src/services/WidgetRegistryService');
+		// Usewidget-registry-service(server-side) instead of widgetStore (client-side) to avoid build issues
+		const { widgetRegistryService } = await import('@src/services/widget-registry-service');
 		await widgetRegistryService.initialize();
 		const allWidgets = widgetRegistryService.getAllWidgets();
 

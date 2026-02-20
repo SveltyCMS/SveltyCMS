@@ -26,28 +26,26 @@
 -->
 
 <script lang="ts">
-	import FloatingChat from '@components/collaboration/FloatingChat.svelte';
-	// Components
-	import HeaderEdit from '@components/HeaderEdit.svelte';
-	import LeftSidebar from '@components/LeftSidebar.svelte';
-	import PageFooter from '@components/PageFooter.svelte';
-	import RightSidebar from '@components/RightSidebar.svelte';
-	import SearchComponent from '@components/SearchComponent.svelte';
+	import FloatingChat from '@src/components/collaboration/floating-chat.svelte';
+	import HeaderEdit from '@src/components/header-edit.svelte';
+	import LeftSidebar from '@src/components/left-sidebar.svelte';
+	import PageFooter from '@src/components/page-footer.svelte';
+	import RightSidebar from '@src/components/right-sidebar.svelte';
+	import SearchComponent from '@src/components/system/search/search-component.svelte';
 	// Type Imports
 	import type { User } from '@src/databases/auth/types';
-
 	// Stores
 	// Stores
-	import { setCollection, setContentStructure } from '@stores/collectionStore.svelte.ts';
-	import { publicEnv } from '@stores/globalSettings.svelte.ts';
-	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte.ts';
-	import { screen } from '@stores/screenSizeStore.svelte.ts';
-	import { app } from '@stores/store.svelte';
-	import { initializeDarkMode } from '@stores/themeStore.svelte.ts';
-	import { ui } from '@stores/UIStore.svelte.ts';
-	import { widgets } from '@stores/widgetStore.svelte.ts';
+	import { setCollection, setContentStructure } from '@src/stores/collection-store.svelte.ts';
+	import { publicEnv } from '@src/stores/global-settings.svelte.ts';
+	import { globalLoadingStore, loadingOperations } from '@src/stores/loading-store.svelte.ts';
+	import { screen } from '@src/stores/screen-store.svelte';
+	import { app } from '@src/stores/store.svelte';
+	import { initializeDarkMode } from '@src/stores/theme-store.svelte.ts';
+	import { ui } from '@src/stores/ui-store.svelte';
+	import { widgets } from '@src/stores/widget-store.svelte.ts';
 	// Utils
-	import { isSearchVisible } from '@utils/globalSearchIndex';
+	import { isSearchVisible } from '@utils/global-search-index';
 	import { getTextDirection } from '@utils/utils';
 	import { onDestroy, onMount } from 'svelte';
 	// SvelteKit Navigation
@@ -133,10 +131,14 @@
 	// Effect: Handle system language changes
 	$effect(() => {
 		const lang = app.systemLanguage;
-		if (!lang) { return; }
+		if (!lang) {
+			return;
+		}
 
 		const dir = getTextDirection(lang);
-		if (!dir) { return; }
+		if (!dir) {
+			return;
+		}
 
 		document.documentElement.dir = dir;
 		document.documentElement.lang = lang;
@@ -215,20 +217,20 @@
 </script>
 
 <svelte:head>
-	<meta name="description" content={seoDescription}>
-	<meta property="og:title" content={siteName}>
-	<meta property="og:description" content={seoDescription}>
-	<meta property="og:type" content="website">
-	<meta property="og:image" content="/SveltyCMS.png">
-	<meta property="og:image:width" content="1200">
-	<meta property="og:image:height" content="630">
-	<meta property="og:site_name" content={page.url.origin}>
-	<meta name="twitter:card" content="summary_large_image">
-	<meta name="twitter:title" content={siteName}>
-	<meta name="twitter:description" content={seoDescription}>
-	<meta name="twitter:image" content="/SveltyCMS.png">
-	<meta property="twitter:domain" content={page.url.origin}>
-	<meta property="twitter:url" content={page.url.href}>
+	<meta name="description" content={seoDescription} />
+	<meta property="og:title" content={siteName} />
+	<meta property="og:description" content={seoDescription} />
+	<meta property="og:type" content="website" />
+	<meta property="og:image" content="/SveltyCMS.png" />
+	<meta property="og:image:width" content="1200" />
+	<meta property="og:image:height" content="630" />
+	<meta property="og:site_name" content={page.url.origin} />
+	<meta name="twitter:card" content="summary_large_image" />
+	<meta name="twitter:title" content={siteName} />
+	<meta name="twitter:description" content={seoDescription} />
+	<meta name="twitter:image" content="/SveltyCMS.png" />
+	<meta property="twitter:domain" content={page.url.origin} />
+	<meta property="twitter:url" content={page.url.href} />
 </svelte:head>
 
 {#if loadError}

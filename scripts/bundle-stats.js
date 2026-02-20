@@ -255,8 +255,21 @@ function printComparison(current, previous) {
 		return '';
 	}
 	const diff = current - previous;
-	const symbol = diff > 0 ? '🔺' : diff < 0 ? '🔻' : '▪️';
-	const color = diff > 0 ? COLORS.red : diff < 0 ? COLORS.green : COLORS.gray;
+
+	let symbol = '▪️';
+	if (diff > 0) {
+		symbol = '🔺';
+	} else if (diff < 0) {
+		symbol = '🔻';
+	}
+
+	let color = COLORS.gray;
+	if (diff > 0) {
+		color = COLORS.red;
+	} else if (diff < 0) {
+		color = COLORS.green;
+	}
+
 	return `${color}${symbol} ${formatBytes(Math.abs(diff))}${COLORS.reset}`;
 }
 

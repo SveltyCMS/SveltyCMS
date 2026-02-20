@@ -292,6 +292,9 @@ export async function runMigrations(db: any): Promise<{ success: boolean; error?
 		return { success: true };
 	} catch (error) {
 		logger.error('SQLite migration failed:', error);
-		return { success: false, error: error instanceof Error ? error.message : String(error) };
+		return {
+			success: false,
+			error: error instanceof Error ? error.message : String(error)
+		};
 	}
 }

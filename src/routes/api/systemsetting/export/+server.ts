@@ -4,7 +4,7 @@
  */
 
 import type { CollectionExport, ExportData, ExportMetadata, ExportOptions } from '@content/types';
-import { getAllSettings } from '@src/services/settingsService';
+import { getAllSettings } from '@src/services/settings-service';
 import { json } from '@sveltejs/kit';
 import { encryptData } from '@utils/crypto';
 import { logger } from '@utils/logger.server';
@@ -31,7 +31,10 @@ function isSensitiveField(key: string): boolean {
 	return SENSITIVE_PATTERNS.some((pattern) => upperKey.includes(pattern));
 }
 
-async function exportSettings(options: ExportOptions): Promise<{ settings: Record<string, unknown>; sensitive: Record<string, unknown> }> {
+async function exportSettings(options: ExportOptions): Promise<{
+	settings: Record<string, unknown>;
+	sensitive: Record<string, unknown>;
+}> {
 	logger.info('Exporting settings', { options });
 	const allSettings = await getAllSettings();
 	const settings: Record<string, unknown> = {};
@@ -100,8 +103,8 @@ async function createExport(userId: string, options: ExportOptions): Promise<Exp
 }
 
 // Unified Error Handling
-import { apiHandler } from '@utils/apiHandler';
-import { AppError } from '@utils/errorHandling';
+import { apiHandler } from '@utils/api-handler';
+import { AppError } from '@utils/error-handling';
 
 export const POST = apiHandler(async ({ locals, request }) => {
 	if (!locals.user) {

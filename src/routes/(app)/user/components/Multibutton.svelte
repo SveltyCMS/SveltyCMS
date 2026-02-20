@@ -16,20 +16,20 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 <script lang="ts">
 	import type { Token, User } from '@src/databases/auth/types';
 	// ParaglideJS
-	import * as m from '@src/paraglide/messages';
+	import { multibuttontoken_modalbody, multibuttontoken_modaltitle, usermodaluser_editbody, usermodaluser_edittitle } from '@src/paraglide/messages';
 	// Stores
 	// Skeleton & Utils
-	import { storeListboxValue, toaster } from '@stores/store.svelte.ts';
+	import { storeListboxValue, toaster } from '@src/stores/store.svelte.ts';
 	import { logger } from '@utils/logger';
-	import { modalState } from '@utils/modalState.svelte';
-	import { showConfirm } from '@utils/modalUtils';
+	import { modalState } from '@utils/modal-state.svelte';
+	import { showConfirm } from '@utils/modal-utils';
 	// Using iconify-icon web component
 	import { onDestroy, onMount } from 'svelte';
-	import { quintOut } from 'svelte/easing';
 	import { scale } from 'svelte/transition';
+	import { quintOut } from 'svelte/easing';
 	import { invalidateAll } from '$app/navigation';
-	import ModalEditForm from './ModalEditForm.svelte';
-	import ModalEditToken from './ModalEditToken.svelte';
+	import ModalEditForm from './modal-edit-form.svelte';
+	import ModalEditToken from './modal-edit-token.svelte';
 
 	const isUser = (row: unknown): row is User => {
 		return !!row && typeof row === 'object' && '_id' in row;
@@ -78,25 +78,39 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 
 	// Smart state detection for block/unblock actions
 	const blockState = $derived(() => {
-		if (safeSelectedRows.length === 0) { return null; }
+		if (safeSelectedRows.length === 0) {
+			return null;
+		}
 
 		if (type === 'user') {
 			const users = safeSelectedRows.filter(isUser);
-			if (users.length === 0) { return null; }
+			if (users.length === 0) {
+				return null;
+			}
 			const blockedCount = users.filter((user: User) => user.blocked).length;
 			const unblockedCount = users.filter((user: User) => !user.blocked).length;
 
-			if (blockedCount === users.length) { return 'all-blocked'; }
-			if (unblockedCount === users.length) { return 'all-unblocked'; }
+			if (blockedCount === users.length) {
+				return 'all-blocked';
+			}
+			if (unblockedCount === users.length) {
+				return 'all-unblocked';
+			}
 			return 'mixed';
 		}
 		const tokens = safeSelectedRows.filter(isToken);
-		if (tokens.length === 0) { return null; }
+		if (tokens.length === 0) {
+			return null;
+		}
 		const blockedCount = tokens.filter((token: Token) => token.blocked).length;
 		const unblockedCount = tokens.filter((token: Token) => !token.blocked).length;
 
-		if (blockedCount === tokens.length) { return 'all-blocked'; }
-		if (unblockedCount === tokens.length) { return 'all-unblocked'; }
+		if (blockedCount === tokens.length) {
+			return 'all-blocked';
+		}
+		if (unblockedCount === tokens.length) {
+			return 'all-unblocked';
+		}
 		return 'mixed';
 	});
 
@@ -154,8 +168,9 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 
 	// Helper function to convert Date to expires format expected by ModalEditToken
 	function convertDateToExpiresFormat(expiresDate: Date | string | null): string {
-		if (!expiresDate) { return '7d'; // Default
-}
+		if (!expiresDate) {
+			return '7d'; // Default
+		}
 
 		const now = new Date();
 		const expires = new Date(expiresDate);
@@ -164,11 +179,21 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 		const diffDays = Math.ceil(diffHours / 24);
 
 		// Match the available options in ModalEditToken
-		if (diffHours <= 1) { return '1h'; }
-		if (diffDays <= 1) { return '1d'; }
-		if (diffDays <= 7) { return '7d'; }
-		if (diffDays <= 30) { return '30d'; }
-		if (diffDays <= 90) { return '90d'; }
+		if (diffHours <= 1) {
+			return '1h';
+		}
+		if (diffDays <= 1) {
+			return '1d';
+		}
+		if (diffDays <= 7) {
+			return '7d';
+		}
+		if (diffDays <= 30) {
+			return '30d';
+		}
+		if (diffDays <= 90) {
+			return '90d';
+		}
 
 		return '90d'; // Max available option
 	}
@@ -193,8 +218,8 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 			hoverClass: 'gradient-primary-hover',
 			iconValue: 'bi:pencil-fill',
 			label: 'Edit',
-			modalTitle: () => (type === 'user' ? m.usermodaluser_edittitle() : m.multibuttontoken_modaltitle()),
-			modalBody: () => (type === 'user' ? m.usermodaluser_editbody() : m.multibuttontoken_modalbody()),
+			modalTitle: () => (type === 'user' ? usermodaluser_edittitle() : multibuttontoken_modaltitle()),
+			modalBody: () => (type === 'user' ? usermodaluser_editbody() : multibuttontoken_modalbody()),
 			endpoint: () => {
 				if (type === 'user') {
 					return '/api/user/updateUserAttributes';
@@ -408,11 +433,15 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 		if (!availableActions.includes(action)) {
 			const currentBlockState = blockState;
 			if (currentBlockState() === 'all-blocked' && action === 'block') {
-				toaster.warning({ description: 'All selected items are already blocked' });
+				toaster.warning({
+					description: 'All selected items are already blocked'
+				});
 				return;
 			}
 			if (currentBlockState() === 'all-unblocked' && action === 'unblock') {
-				toaster.warning({ description: 'All selected items are already unblocked' });
+				toaster.warning({
+					description: 'All selected items are already unblocked'
+				});
 				return;
 			}
 		}
@@ -479,7 +508,9 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 
 	function toggleDropdown(e: MouseEvent) {
 		e.stopPropagation();
-		if (isDisabled) { return; }
+		if (isDisabled) {
+			return;
+		}
 		isDropdownOpen = !isDropdownOpen;
 		if (isDropdownOpen) {
 			// Focus first item next tick
@@ -499,7 +530,9 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 	}
 
 	function handleDropdownKeydown(event: KeyboardEvent) {
-		if (!isDropdownOpen) { return; }
+		if (!isDropdownOpen) {
+			return;
+		}
 
 		const menuItems = document.querySelectorAll('[role="menu"] button');
 		const currentIndex = Array.from(menuItems).indexOf(document.activeElement as HTMLElement);

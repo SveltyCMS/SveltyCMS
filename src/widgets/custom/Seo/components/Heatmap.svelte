@@ -1,4 +1,4 @@
-<!--
+﻿<!--
 @file src/widgets/custom/Seo/components/Heatmap.svelte
 @component
 **Heatmap widget for SEO Widget to manage meta title, description, and robots meta tags**
@@ -17,9 +17,9 @@
 -->
 
 <script lang="ts">
+	import { fade } from 'svelte/transition';
 	import { debounce } from '@utils/utils';
 	import { tick } from 'svelte';
-	import { fade } from 'svelte/transition';
 
 	interface HeatmapData {
 		heatmapData: Array<{ word: string; heatLevel: number; isKeyword: boolean }>;
@@ -145,7 +145,7 @@
 	<h4>Keyword Density</h4>
 	{#if Object.keys(keywordDensity).length > 0}
 		<ul>
-			{#each Object.entries(keywordDensity) as [ keyword, density ] (keyword)}
+			{#each Object.entries(keywordDensity) as [keyword, density] (keyword)}
 				<li>{keyword}: {density.toFixed(2)}%</li>
 			{/each}
 		</ul>

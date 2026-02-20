@@ -44,8 +44,8 @@ function scanWidgetCode(code: string, widgetId: string): { valid: boolean; issue
 }
 
 // Unified Error Handling
-import { apiHandler } from '@utils/apiHandler';
-import { AppError } from '@utils/errorHandling';
+import { apiHandler } from '@utils/api-handler';
+import { AppError } from '@utils/error-handling';
 
 export const POST = apiHandler(async ({ request, locals }) => {
 	const start = performance.now();
@@ -125,7 +125,10 @@ export const POST = apiHandler(async ({ request, locals }) => {
 	} catch (err) {
 		const duration = performance.now() - start;
 		const message = `Failed to install widget: ${err instanceof Error ? err.message : String(err)}`;
-		logger.error(message, { duration: `${duration.toFixed(2)}ms`, stack: err instanceof Error ? err.stack : undefined });
+		logger.error(message, {
+			duration: `${duration.toFixed(2)}ms`,
+			stack: err instanceof Error ? err.stack : undefined
+		});
 		if (err instanceof AppError) {
 			throw err;
 		}

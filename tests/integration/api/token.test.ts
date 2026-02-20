@@ -8,7 +8,7 @@
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'bun:test';
 import { getApiBaseUrl, waitForServer } from '../helpers/server';
-import { cleanupTestDatabase, prepareAuthenticatedContext } from '../helpers/testSetup';
+import { cleanupTestDatabase, prepareAuthenticatedContext } from '../helpers/test-setup';
 
 const API_BASE_URL = getApiBaseUrl();
 
@@ -55,7 +55,11 @@ describe('Token API Endpoints', () => {
 			const response = await fetch(`${API_BASE_URL}/api/token/createToken`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ email: 'unauth-test@example.com', role: 'editor', expiresIn: '2 days' })
+				body: JSON.stringify({
+					email: 'unauth-test@example.com',
+					role: 'editor',
+					expiresIn: '2 days'
+				})
 			});
 
 			expect(response.status).toBe(401);
@@ -65,7 +69,11 @@ describe('Token API Endpoints', () => {
 			const response = await fetch(`${API_BASE_URL}/api/token/createToken`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json', Cookie: authCookie },
-				body: JSON.stringify({ email: 'invalid-email', role: 'editor', expiresIn: '2 days' })
+				body: JSON.stringify({
+					email: 'invalid-email',
+					role: 'editor',
+					expiresIn: '2 days'
+				})
 			});
 
 			expect(response.status).toBe(400);
@@ -82,7 +90,11 @@ describe('Token API Endpoints', () => {
 			const createResponse = await fetch(`${API_BASE_URL}/api/token/createToken`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json', Cookie: authCookie },
-				body: JSON.stringify({ email: tokenEmail, role: 'editor', expiresIn: '2 days' })
+				body: JSON.stringify({
+					email: tokenEmail,
+					role: 'editor',
+					expiresIn: '2 days'
+				})
 			});
 			const createResult = await createResponse.json();
 			invitationToken = createResult.token.value;
@@ -133,7 +145,11 @@ describe('Token API Endpoints', () => {
 			await fetch(`${API_BASE_URL}/api/token/createToken`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json', Cookie: authCookie },
-				body: JSON.stringify({ email: uniqueEmail, role: 'editor', expiresIn: '2 days' })
+				body: JSON.stringify({
+					email: uniqueEmail,
+					role: 'editor',
+					expiresIn: '2 days'
+				})
 			});
 
 			const response = await fetch(`${API_BASE_URL}/api/token`, {

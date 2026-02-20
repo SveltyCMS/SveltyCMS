@@ -26,7 +26,7 @@ const MOCK_DB_DATA = Array.from({ length: 50 }, (_, i) => ({
 }));
 
 // Unified Error Handling
-import { apiHandler } from '@utils/apiHandler';
+import { apiHandler } from '@utils/api-handler';
 
 // ... (MOCK_DB_DATA definition)
 

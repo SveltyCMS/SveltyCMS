@@ -21,8 +21,8 @@ import tailwindcss from '@tailwindcss/vite';
 import type { Plugin, UserConfig, ViteDevServer } from 'vite';
 import { defineConfig } from 'vite';
 import { compile } from './src/utils/compilation/compile';
-import { isSetupComplete } from './src/utils/setupCheck';
-import { securityCheckPlugin } from './src/utils/vitePluginSecurityCheck';
+import { isSetupComplete } from './src/utils/setup-check';
+import { securityCheckPlugin } from './src/utils/vite-plugin-security-check';
 
 // Cross-platform open URL function (replaces 'open' package)
 function openUrl(url: string) {
@@ -190,7 +190,10 @@ async function initializeCollectionsStructure() {
 
 	if (sourceFiles.length > 0) {
 		log.info(`Found \x1b[32m${sourceFiles.length}\x1b[0m collection(s), compiling...`);
-		await compile({ userCollections: paths.userCollections, compiledCollections: paths.compiledCollections });
+		await compile({
+			userCollections: paths.userCollections,
+			compiledCollections: paths.compiledCollections
+		});
 		log.success('Initial collection compilation successful!');
 	} else {
 		log.info('No user collections found. Creating placeholder structure.');

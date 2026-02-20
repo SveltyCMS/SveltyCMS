@@ -3,7 +3,7 @@
  * @description Database migrations for PageSpeed plugin
  */
 
-import type { IDBAdapter } from '@databases/dbInterface';
+import type { IDBAdapter } from '@databases/db-interface';
 import { logger } from '@utils/logger.server';
 import type { PluginMigration } from '../types';
 import type { PageSpeedResult } from './types';

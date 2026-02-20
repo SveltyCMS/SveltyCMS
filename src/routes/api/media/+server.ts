@@ -11,7 +11,7 @@
  * - Consistent error handling with DatabaseResult<T>
  */
 
-import { getPrivateSettingSync } from '@src/services/settingsService';
+import { getPrivateSettingSync } from '@src/services/settings-service';
 import { json } from '@sveltejs/kit';
 
 // Permissions
@@ -27,8 +27,8 @@ const QuerySchema = v.object({
 });
 
 // Unified Error Handling
-import { apiHandler } from '@utils/apiHandler';
-import { AppError } from '@utils/errorHandling';
+import { apiHandler } from '@utils/api-handler';
+import { AppError } from '@utils/error-handling';
 
 async function getDbAdapter() {
 	const { dbAdapter } = await import('@src/databases/db');
@@ -120,10 +120,18 @@ export const GET = apiHandler(async ({ locals, url }) => {
 		if (err instanceof AppError) {
 			throw err;
 		}
-		const httpError = err as { status?: number; body?: { message?: string }; message?: string };
+		const httpError = err as {
+			status?: number;
+			body?: { message?: string };
+			message?: string;
+		};
 		const status = httpError.status || 500;
 		const message = httpError.body?.message || httpError.message || 'Internal Server Error';
-		logger.error('Error fetching media files:', { error: message, status, tenantId: locals.tenantId });
+		logger.error('Error fetching media files:', {
+			error: message,
+			status,
+			tenantId: locals.tenantId
+		});
 		throw new AppError(message, status, 'MEDIA_FETCH_ERROR');
 	}
 });

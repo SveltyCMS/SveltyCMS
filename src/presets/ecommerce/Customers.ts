@@ -1,5 +1,5 @@
 /**
- * @file src/presets/ecommerce/Customers.ts
+ * @file src/presets/ecommerce/customers.ts
  * @description Customer CRM schema for E-commerce preset.
  * @author SveltyCMS
  */

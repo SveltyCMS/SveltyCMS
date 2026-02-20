@@ -25,7 +25,7 @@ Renders current language text with truncation for long content
 -->
 
 <script lang="ts">
-	import { publicEnv } from '@src/stores/globalSettings.svelte';
+	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { app } from '@src/stores/store.svelte';
 	import type { FieldType } from './';
 

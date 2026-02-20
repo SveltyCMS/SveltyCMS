@@ -3,7 +3,7 @@
  * @description Integration tests for token resolution middleware
  */
 import { beforeEach, describe, expect, it, mock } from 'bun:test';
-import { handleTokenResolution } from '@src/hooks/tokenResolution';
+import { handleTokenResolution } from '@src/hooks/token-resolution';
 import { TokenRegistry } from '@src/services/token/engine';
 
 describe('Token Resolution Middleware', () => {
@@ -47,7 +47,10 @@ describe('Token Resolution Middleware', () => {
 	});
 
 	it('should resolve tokens in JSON response', async () => {
-		const response = await handleTokenResolution({ event: mockEvent, resolve: mockResolve });
+		const response = await handleTokenResolution({
+			event: mockEvent,
+			resolve: mockResolve
+		});
 		const body = await response.json();
 
 		expect(body.title).toBe('Hello '); // Name is undefined in mock user
@@ -63,7 +66,10 @@ describe('Token Resolution Middleware', () => {
 			});
 		});
 
-		const response = await handleTokenResolution({ event: mockEvent, resolve: mockResolve });
+		const response = await handleTokenResolution({
+			event: mockEvent,
+			resolve: mockResolve
+		});
 		const text = await response.text();
 
 		expect(text).toBe('<html><body>{{user.email}}</body></html>');
@@ -71,7 +77,10 @@ describe('Token Resolution Middleware', () => {
 
 	it('should skip non-API routes', async () => {
 		mockEvent.url = new URL('http://localhost/dashboard');
-		const response = await handleTokenResolution({ event: mockEvent, resolve: mockResolve });
+		const response = await handleTokenResolution({
+			event: mockEvent,
+			resolve: mockResolve
+		});
 		const body = await response.json();
 
 		// Should remain unresolved
@@ -94,7 +103,10 @@ describe('Token Resolution Middleware', () => {
 			});
 		});
 
-		const response = await handleTokenResolution({ event: mockEvent, resolve: mockResolve });
+		const response = await handleTokenResolution({
+			event: mockEvent,
+			resolve: mockResolve
+		});
 		const body = await response.json();
 
 		expect(body.relation).toBe('Resolved Relation');

@@ -8,7 +8,7 @@
  * - Returns per-operation execution results
  */
 
-import { automationService } from '@src/services/automation/automationService';
+import { automationService } from '@src/services/automation/automation-service';
 import type { AutomationEventPayload } from '@src/services/automation/types';
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';

@@ -3,8 +3,7 @@
  * @description Unified metrics API endpoint for monitoring and observability
  *
  * ### Features
- * - Comprehensive system metrics from unified MetricsService
- * - Prometheus-compatible format support
+ * - Comprehensive system metrics from unifiedmetrics-service * - Prometheus-compatible format support
  * - Admin-only access with proper authorization
  * - Multiple output formats (JSON, Prometheus)
  * - Real-time performance data
@@ -18,7 +17,7 @@
  */
 
 // Services
-import { metricsService } from '@src/services/MetricsService';
+import { metricsService } from '@src/services/metrics-service';
 import { json } from '@sveltejs/kit';
 /**
  * GET /api/metrics
@@ -26,8 +25,8 @@ import { json } from '@sveltejs/kit';
  */
 // Unified Error Handling
 // Unified Error Handling
-import { apiHandler } from '@utils/apiHandler';
-import { AppError } from '@utils/errorHandling';
+import { apiHandler } from '@utils/api-handler';
+import { AppError } from '@utils/error-handling';
 import { logger } from '@utils/logger.server';
 
 /**

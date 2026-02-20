@@ -6,7 +6,7 @@
 
 import { StatusTypes } from '@src/content/types';
 import { logger } from '@utils/logger.server';
-import { webhookService } from './webhookService';
+import { webhookService } from './webhook-service';
 
 // Lazy load adapter to avoid circular deps during init
 const getDbAdapter = async () => (await import('@src/databases/db')).dbAdapter;
@@ -19,7 +19,9 @@ export class SchedulerService {
 	private constructor() {}
 
 	public static getInstance(): SchedulerService {
-		const g = globalThis as unknown as { __SVELTY_SCHEDULER_INSTANCE__?: SchedulerService };
+		const g = globalThis as unknown as {
+			__SVELTY_SCHEDULER_INSTANCE__?: SchedulerService;
+		};
 		if (!g.__SVELTY_SCHEDULER_INSTANCE__) {
 			g.__SVELTY_SCHEDULER_INSTANCE__ = new SchedulerService();
 		}
@@ -82,7 +84,7 @@ export class SchedulerService {
 				// But simpler: just return without logging "not available" if we are in the first few seconds of uptime?
 				// Or check the 'isSetupComplete' utility.
 				try {
-					const { isSetupComplete } = await import('@utils/setupCheck');
+					const { isSetupComplete } = await import('@utils/setup-check');
 					if (!isSetupComplete()) {
 						// Setup not complete, so DB might not be ready. detailed log only in trace.
 						logger.trace('Scheduler skipped: Database adapter not available (Setup Phase)');
@@ -128,7 +130,9 @@ export class SchedulerService {
 			// 4. Get all nodes with 'schedule' status
 			// We can't easily query JSON fields across all DB types, so we fetch all 'schedule' items
 			// and filter in memory. Assuming the number of *pending* scheduled items is small.
-			const result = await db.content.nodes.getStructure('flat', { status: StatusTypes.schedule } as Record<string, unknown>);
+			const result = await db.content.nodes.getStructure('flat', {
+				status: StatusTypes.schedule
+			} as Record<string, unknown>);
 			if (!this.intervalId) {
 				return; // Check if stopped during await
 			}
@@ -212,7 +216,9 @@ export class SchedulerService {
 	}
 }
 
-const g = globalThis as unknown as { __SVELTY_SCHEDULER_INSTANCE__?: SchedulerService };
+const g = globalThis as unknown as {
+	__SVELTY_SCHEDULER_INSTANCE__?: SchedulerService;
+};
 
 // On module load, if an instance already exists, stop it AND remove it
 // This forces getInstance() to create a NEW instance with the NEW module context

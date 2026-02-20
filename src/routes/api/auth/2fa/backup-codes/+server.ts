@@ -14,11 +14,11 @@
  */
 
 import { auth } from '@databases/db';
-import { getDefaultTwoFactorAuthService } from '@src/databases/auth/twoFactorAuth';
+import { getDefaultTwoFactorAuthService } from '@src/databases/auth/two-factor-auth';
 import { json } from '@sveltejs/kit';
 // Unified Error Handling
-import { apiHandler } from '@utils/apiHandler';
-import { AppError } from '@utils/errorHandling';
+import { apiHandler } from '@utils/api-handler';
+import { AppError } from '@utils/error-handling';
 import { logger } from '@utils/logger.server';
 
 // GET - Get 2FA status including backup codes count

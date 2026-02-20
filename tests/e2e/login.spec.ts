@@ -17,7 +17,9 @@ test('Login and logout flow', async ({ page }) => {
 	await loginAsAdmin(page);
 
 	// Assert we're logged in and at the Collections page
-	await expect(page).toHaveURL(/\/(Collections|admin|dashboard)/, { timeout: 10_000 });
+	await expect(page).toHaveURL(/\/(Collections|admin|dashboard)/, {
+		timeout: 10_000
+	});
 	console.log('✓ Login successful, current URL:', page.url());
 
 	// On mobile viewports, open sidebar to access logout button

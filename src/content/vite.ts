@@ -27,10 +27,10 @@ interface ProcessedField {
 
 export async function generateContentTypes(server: ViteDevServer): Promise<Record<string, { fields: string[]; type: string }>> {
 	try {
-		// Load ContentManager from server-side (not client store!)
-		const { contentManager } = await server.ssrLoadModule('./src/content/ContentManager.ts');
+		// Loadcontent-managerfrom server-side (not client store!)
+		const { contentManager } = await server.ssrLoadModule('./src/content/content-manager.ts');
 
-		// Initialize ContentManager and get collections
+		// Initializecontent-managerand get collections
 		await contentManager.initialize();
 		const collectionsData = await contentManager.getCollections();
 

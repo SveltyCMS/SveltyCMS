@@ -35,7 +35,12 @@ const mockDbAdapter = {
 	auth: {
 		getUserCount: mock(() => Promise.resolve({ success: true, data: 1 })),
 		getAllRoles: mock(() => Promise.resolve([{ _id: 'admin', name: 'Administrator', isAdmin: true, permissions: [] }])),
-		getUserById: mock(() => Promise.resolve({ success: true, data: { _id: '123', email: 'test@example.com', username: 'tester' } })),
+		getUserById: mock(() =>
+			Promise.resolve({
+				success: true,
+				data: { _id: '123', email: 'test@example.com', username: 'tester' }
+			})
+		),
 		updateUserAttributes: mock(() => Promise.resolve({ success: true }))
 	},
 	systemPreferences: {
@@ -80,20 +85,55 @@ const createInitialServiceMetrics = () => ({
 		idle: { count: 0, totalTime: 0 },
 		active: { count: 0, totalTime: 0 }
 	},
-	anomalyThresholds: { maxStartupTime: 5000, maxShutdownTime: 2000, maxConsecutiveFailures: 3, minUptimePercentage: 95, calibrationCount: 0 }
+	anomalyThresholds: {
+		maxStartupTime: 5000,
+		maxShutdownTime: 2000,
+		maxConsecutiveFailures: 3,
+		minUptimePercentage: 95,
+		calibrationCount: 0
+	}
 });
 
 const createInitialState = () => ({
 	overallState: 'IDLE',
 	services: {
-		database: { status: 'initializing', message: 'OK', metrics: createInitialServiceMetrics() },
-		auth: { status: 'initializing', message: 'OK', metrics: createInitialServiceMetrics() },
-		cache: { status: 'initializing', message: 'OK', metrics: createInitialServiceMetrics() },
-		contentManager: { status: 'initializing', message: 'OK', metrics: createInitialServiceMetrics() },
-		themeManager: { status: 'initializing', message: 'OK', metrics: createInitialServiceMetrics() },
-		widgets: { status: 'initializing', message: 'OK', metrics: createInitialServiceMetrics() }
+		database: {
+			status: 'initializing',
+			message: 'OK',
+			metrics: createInitialServiceMetrics()
+		},
+		auth: {
+			status: 'initializing',
+			message: 'OK',
+			metrics: createInitialServiceMetrics()
+		},
+		cache: {
+			status: 'initializing',
+			message: 'OK',
+			metrics: createInitialServiceMetrics()
+		},
+		contentManager: {
+			status: 'initializing',
+			message: 'OK',
+			metrics: createInitialServiceMetrics()
+		},
+		themeManager: {
+			status: 'initializing',
+			message: 'OK',
+			metrics: createInitialServiceMetrics()
+		},
+		widgets: {
+			status: 'initializing',
+			message: 'OK',
+			metrics: createInitialServiceMetrics()
+		}
 	},
-	performanceMetrics: { stateTransitions: [], totalInitializations: 0, successfulInitializations: 0, failedInitializations: 0 },
+	performanceMetrics: {
+		stateTransitions: [],
+		totalInitializations: 0,
+		successfulInitializations: 0,
+		failedInitializations: 0
+	},
 	initializationStartedAt: Date.now()
 });
 
@@ -173,8 +213,8 @@ mock.module('@src/widgets/proxy', () => ({
 	getWidgetByField: () => null
 }));
 
-// Mock @utils/setupCheck
-mock.module('@utils/setupCheck', () => ({
+// Mock @utils/setup-check
+mock.module('@utils/setup-check', () => ({
 	isSetupComplete: () => true,
 	isSetupCompleteAsync: async () => true,
 	invalidateSetupCache: () => {}
@@ -198,7 +238,7 @@ mock.module('@src/services/automation/eventBus', () => ({
 }));
 
 // Mock AuditLogService
-mock.module('@src/services/audit/AuditLogService', () => ({
+mock.module('@src/services/audit/audit-log-service', () => ({
 	auditLogService: mockAuditLog
 }));
 
@@ -234,8 +274,16 @@ mock.module('$app/navigation', () => ({
 }));
 
 mock.module('$app/paths', () => ({ base: '', assets: '' }));
-mock.module('$app/forms', () => ({ applyAction: () => Promise.resolve(), enhance: () => {}, deserialize: (v: any) => v }));
-mock.module('$app/state', () => ({ page: { url: new URL('http://localhost') }, navigating: null, updated: false }));
+mock.module('$app/forms', () => ({
+	applyAction: () => Promise.resolve(),
+	enhance: () => {},
+	deserialize: (v: any) => v
+}));
+mock.module('$app/state', () => ({
+	page: { url: new URL('http://localhost') },
+	navigating: null,
+	updated: false
+}));
 
 // Mock Svelte 5 Runes with Proxy for reactivity in tests
 const createReactiveMock = (fn: any) => {

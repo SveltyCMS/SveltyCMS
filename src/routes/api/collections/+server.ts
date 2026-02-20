@@ -12,16 +12,16 @@
  */
 
 // Auth
-import { contentManager } from '@src/content/ContentManager';
-import { getPrivateSettingSync } from '@src/services/settingsService';
+import { contentManager } from '@src/content/content-manager';
+import { getPrivateSettingSync } from '@src/services/settings-service';
 // Token Engine
 import { replaceTokens } from '@src/services/token/engine';
 import type { TokenContext } from '@src/services/token/types';
 import { json } from '@sveltejs/kit';
 // GET: Lists all collections accessible to the user
 // Unified Error Handling
-import { apiHandler } from '@utils/apiHandler';
-import { AppError, getErrorMessage } from '@utils/errorHandling';
+import { apiHandler } from '@utils/api-handler';
+import { AppError, getErrorMessage } from '@utils/error-handling';
 // System Logger
 import { logger } from '@utils/logger.server';
 
@@ -41,7 +41,7 @@ export const GET = apiHandler(async ({ locals, url }) => {
 		const includeFields = url.searchParams.get('includeFields') === 'true';
 		const includeStats = url.searchParams.get('includeStats') === 'true';
 
-		// Get all collections from ContentManager (returns an array)
+		// Get all collections fromcontent-manager(returns an array)
 		const allCollections = await contentManager.getCollections(tenantId);
 
 		const accessibleCollections: any[] = [];
@@ -57,7 +57,11 @@ export const GET = apiHandler(async ({ locals, url }) => {
 				path: string | undefined;
 				permissions: { read: boolean; write: boolean };
 				fields?: unknown[];
-				stats?: { totalEntries: number; publishedEntries: number; draftEntries: number };
+				stats?: {
+					totalEntries: number;
+					publishedEntries: number;
+					draftEntries: number;
+				};
 			} = {
 				id: collection._id,
 				name: collection.name,

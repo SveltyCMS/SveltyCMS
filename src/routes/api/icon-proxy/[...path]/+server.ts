@@ -52,8 +52,8 @@ const iconCache = new Map<string, { data: Response; timestamp: number }>();
 const CACHE_TTL = 1000 * 60 * 60 * 24; // 24 hours
 
 // Unified Error Handling
-import { apiHandler } from '@utils/apiHandler';
-import { AppError } from '@utils/errorHandling';
+import { apiHandler } from '@utils/api-handler';
+import { AppError } from '@utils/error-handling';
 
 export const GET = apiHandler(async ({ params, fetch }) => {
 	const fullPath = params.path; // e.g., "simpleicons/github" or "iconify/mdi:account"

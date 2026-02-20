@@ -1,5 +1,5 @@
 /**
- * @file src/presets/agency/Projects.ts
+ * @file src/presets/agency/projects.ts
  * @description Agency portfolio projects schema.
  * @author SveltyCMS
  */

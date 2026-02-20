@@ -44,18 +44,23 @@ export async function loginAsAdmin(page: Page, waitForUrl?: string | RegExp) {
 
 	// Wait for login form to be visible - use data-testid
 	console.log('[Auth] Waiting for signin-email field...');
-	await page.waitForSelector('[data-testid="signin-email"]', { timeout: 15_000, state: 'visible' }).catch(async (e) => {
-		console.error('[Auth] ERROR: signin-email field not found!');
-		// Provide debug info about available inputs
-		const inputs = await page.locator('input').all();
-		for (let i = 0; i < inputs.length; i++) {
-			const input = inputs[i];
-			const name = await input.getAttribute('name');
-			const testId = await input.getAttribute('data-testid');
-			console.error(`[Auth]   Input ${i}: name=${name}, data-testid=${testId}`);
-		}
-		throw e;
-	});
+	await page
+		.waitForSelector('[data-testid="signin-email"]', {
+			timeout: 15_000,
+			state: 'visible'
+		})
+		.catch(async (e) => {
+			console.error('[Auth] ERROR: signin-email field not found!');
+			// Provide debug info about available inputs
+			const inputs = await page.locator('input').all();
+			for (let i = 0; i < inputs.length; i++) {
+				const input = inputs[i];
+				const name = await input.getAttribute('name');
+				const testId = await input.getAttribute('data-testid');
+				console.error(`[Auth]   Input ${i}: name=${name}, data-testid=${testId}`);
+			}
+			throw e;
+		});
 
 	// Fill login form using data-testid selectors
 	console.log(`[Auth] Filling email: ${ADMIN_CREDENTIALS.email}`);

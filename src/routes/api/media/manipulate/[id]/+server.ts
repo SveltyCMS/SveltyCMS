@@ -3,12 +3,12 @@
  * @description API endpoint for manipulating media files (e.g., focal point, watermark).
  */
 
-import { MediaService } from '@src/utils/media/mediaService.server';
+import { MediaService } from '@src/utils/media/media-service.server';
 import { json } from '@sveltejs/kit';
 import { logger } from '@utils/logger.server';
 import type { RequestHandler } from './$types';
 
-// Helper function to get MediaService instance
+// Helper function to getmedia-serviceinstance
 async function getMediaService(): Promise<MediaService> {
 	const { dbAdapter } = await import('@src/databases/db');
 	if (!dbAdapter) {
@@ -40,7 +40,13 @@ export const POST: RequestHandler = async ({ request, params, locals }) => {
 		const manipulations = await request.json();
 
 		if (!manipulations || typeof manipulations !== 'object' || Object.keys(manipulations).length === 0) {
-			return json({ success: false, error: 'Invalid manipulation data: no manipulations provided' }, { status: 400 });
+			return json(
+				{
+					success: false,
+					error: 'Invalid manipulation data: no manipulations provided'
+				},
+				{ status: 400 }
+			);
 		}
 
 		const mediaService = await getMediaService();

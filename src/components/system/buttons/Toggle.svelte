@@ -1,5 +1,5 @@
 <!-- 
-@file src/components/system/buttons/Toggle.svelte
+@file src/components/system/buttons/toggle.svelte
 @component
 **Toggle component**
 
@@ -21,8 +21,6 @@
 -->
 
 <script lang="ts">
-	import { twMerge } from 'tailwind-merge';
-
 	let { trackClass = '', thumbClass = '', value = $bindable(false), label = '', labelClass = '', class: className = '' } = $props();
 </script>
 

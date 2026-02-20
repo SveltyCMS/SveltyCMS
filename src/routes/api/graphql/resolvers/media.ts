@@ -4,8 +4,8 @@
  */
 
 import type { User } from '@src/databases/auth/types';
-import type { BaseEntity, DatabaseAdapter } from '@src/databases/dbInterface';
-import { getPrivateSettingSync } from '@src/services/settingsService';
+import type { BaseEntity, DatabaseAdapter } from '@src/databases/db-interface';
+import { getPrivateSettingSync } from '@src/services/settings-service';
 import { logger } from '@utils/logger.server';
 
 // Registers media schemas dynamically.

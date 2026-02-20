@@ -9,26 +9,30 @@
 import type { ISODateString } from '@src/content/types';
 
 // Permission Actions
-export enum PermissionAction {
-	CREATE = 'create', // Grants the ability to create a new resource or record.
-	READ = 'read', // Grants the ability to read or view a resource or record.
-	UPDATE = 'update', // Grants the ability to modify or update an existing resource or record.
-	DELETE = 'delete', // Grants the ability to remove or delete a resource or record.
-	WRITE = 'write', // Grants the ability to write or modify a resource or record.
-	MANAGE = 'manage', // Grants overarching control over a resource or area, typically used for admin purposes.
-	SHARE = 'share', // Grants the ability to share a resource or record with others, typically used for collaboration.
-	ACCESS = 'access', // Grants basic access to a resource or area, typically used for admin purposes.
-	EXECUTE = 'execute' // Grants the ability to execute a command or function, typically used for admin purposes.
-}
+export const PermissionAction = {
+	CREATE: 'create', // Grants the ability to create a new resource or record.
+	READ: 'read', // Grants the ability to read or view a resource or record.
+	UPDATE: 'update', // Grants the ability to modify or update an existing resource or record.
+	DELETE: 'delete', // Grants the ability to remove or delete a resource or record.
+	WRITE: 'write', // Grants the ability to write or modify a resource or record.
+	MANAGE: 'manage', // Grants overarching control over a resource or area, typically used for admin purposes.
+	SHARE: 'share', // Grants the ability to share a resource or record with others, typically used for collaboration.
+	ACCESS: 'access', // Grants basic access to a resource or area, typically used for admin purposes.
+	EXECUTE: 'execute' // Grants the ability to execute a command or function, typically used for admin purposes.
+} as const;
+
+export type PermissionAction = (typeof PermissionAction)[keyof typeof PermissionAction];
 
 // Permission Types
-export enum PermissionType {
-	COLLECTION = 'collection', // Collection-related permissions
-	USER = 'user', // User-related permissions
-	CONFIGURATION = 'configuration', // Configuration-related permissions
-	SYSTEM = 'system', // System-wide permissions
-	API = 'api' // API-related permissions
-}
+export const PermissionType = {
+	COLLECTION: 'collection', // Collection-related permissions
+	USER: 'user', // User-related permissions
+	CONFIGURATION: 'configuration', // Configuration-related permissions
+	SYSTEM: 'system', // System-wide permissions
+	API: 'api' // API-related permissions
+} as const;
+
+export type PermissionType = (typeof PermissionType)[keyof typeof PermissionType];
 
 // User Interface
 export interface User {
@@ -84,7 +88,7 @@ export interface Role {
 
 export interface Permission {
 	_id: string; // Use _id for a unique identifier
-	action: PermissionAction; // Use the PermissionAction enum
+	action: PermissionAction; // Use the PermissionAction type
 	contextId?: string; // Identifier for the context in which the permission is used (optional)
 	description?: string; // Optional description for the permission
 	name: string; // Display name of the permission

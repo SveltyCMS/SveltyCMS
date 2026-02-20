@@ -3,7 +3,7 @@
  * @description Reusable utility for rendering and sending emails using Svelte templates and Nodemailer.
  */
 
-import { AppError } from '@utils/errorHandling';
+import { AppError } from '@utils/error-handling';
 import { logger } from '@utils/logger.server';
 import Renderer, { toPlainText } from 'better-svelte-email/render';
 import type { TransportOptions } from 'nodemailer';
@@ -135,7 +135,9 @@ export async function sendMail({ recipientEmail, subject, templateName, props = 
 	}
 
 	if (missingVars.length > 0) {
-		logger.warn('SMTP configuration incomplete. Email sending skipped.', { missingVars });
+		logger.warn('SMTP configuration incomplete. Email sending skipped.', {
+			missingVars
+		});
 		return {
 			success: false,
 			message: 'SMTP settings not configured.',
@@ -146,8 +148,14 @@ export async function sendMail({ recipientEmail, subject, templateName, props = 
 	// Check for placeholder host
 	const dummyHost = String(smtpHost || '').toLowerCase();
 	if (/dummy|example|\.invalid$/.test(dummyHost)) {
-		logger.warn('SMTP host appears to be a placeholder; skipping email send.', { host: smtpHost });
-		return { success: true, message: 'Skipped placeholder host.', dev_mode: true };
+		logger.warn('SMTP host appears to be a placeholder; skipping email send.', {
+			host: smtpHost
+		});
+		return {
+			success: true,
+			message: 'Skipped placeholder host.',
+			dev_mode: true
+		};
 	}
 
 	const templateProps = { ...props, languageTag };
@@ -176,11 +184,21 @@ export async function sendMail({ recipientEmail, subject, templateName, props = 
 
 	try {
 		const info = await transporter.sendMail(mailOptions);
-		logger.info('Email sent successfully:', { recipientEmail, subject, templateName, messageId: info.messageId });
+		logger.info('Email sent successfully:', {
+			recipientEmail,
+			subject,
+			templateName,
+			messageId: info.messageId
+		});
 		return { success: true, message: 'Email sent successfully.' };
 	} catch (err) {
 		const sendError = err as Error;
-		logger.error('Nodemailer failed to send email:', { recipientEmail, subject, templateName, error: sendError.message });
+		logger.error('Nodemailer failed to send email:', {
+			recipientEmail,
+			subject,
+			templateName,
+			error: sendError.message
+		});
 		throw new AppError(`Email sending failed: ${sendError.message}`, 500);
 	}
 }

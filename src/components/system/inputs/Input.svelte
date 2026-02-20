@@ -1,5 +1,5 @@
 <!-- 
-@file src/components/system/inputs/Input.svelte
+@file src/components/system/inputs/input.svelte
 @component 
 **Component for file input**
 
@@ -43,5 +43,5 @@
 		class="input grow text-black dark:text-primary-500 bg-surface-50 dark:bg-surface-700 {inputClass}"
 		bind:value
 		{placeholder}
-	>
+	/>
 </div>

@@ -34,28 +34,22 @@ None (TreeView has its own keyboard navigation)
 <CollectionBuilder data={{ contentStructure, user, isAdmin }} />
 -->
 <script lang="ts">
-	import { goto } from '$app/navigation';
-	import { page } from '$app/state';
-
-	// Removed axios import
-
-	// Components
-	import PageTitle from '@components/PageTitle.svelte';
 	import type { ISODateString } from '@root/src/content/types';
-	import type { ContentNode, DatabaseId } from '@root/src/databases/dbInterface';
-	// ParaglideJS
-	import * as m from '@src/paraglide/messages';
+	import type { ContentNode, DatabaseId } from '@root/src/databases/db-interface';
 	// Stores
-	import { setCollectionValue, setContentStructure, setMode } from '@src/stores/collectionStore.svelte';
-	import { setRouteContext } from '@src/stores/UIStore.svelte.ts';
+	import { setCollectionValue, setContentStructure, setMode } from '@src/stores/collection-store.svelte';
 	// Skeleton
-	import { toaster } from '@stores/store.svelte.ts';
+	import { toaster } from '@src/stores/store.svelte.ts';
+	import { setRouteContext } from '@src/stores/ui-store.svelte.ts';
 	// Logger
 	import { logger } from '@utils/logger';
-	import { modalState } from '@utils/modalState.svelte';
-	import { showConfirm } from '@utils/modalUtils';
-	import ModalCategory from './NestedContent/ModalCategory.svelte';
-	import TreeViewBoard from './NestedContent/TreeViewBoard.svelte';
+	import { modalState } from '@utils/modal-state.svelte';
+	import { showConfirm } from '@utils/modal-utils';
+	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
+	// Removed axios import
+
+	import ModalCategory from './nested-content/modal-category.svelte';
 
 	interface NodeOperation {
 		node: ContentNode;
@@ -95,7 +89,9 @@ None (TreeView has its own keyboard navigation)
 	}
 
 	function handleDeleteNode(node: Partial<ContentNode>) {
-		if (!node._id) { return; }
+		if (!node._id) {
+			return;
+		}
 		showConfirm({
 			title: 'Delete Item?',
 			body: `Are you sure you want to delete "${node.name}"? This action cannot be undone.`,
@@ -133,9 +129,13 @@ None (TreeView has its own keyboard navigation)
 	}
 
 	function handleDuplicateNode(node: Partial<ContentNode>) {
-		if (!node._id) { return; }
+		if (!node._id) {
+			return;
+		}
 		const original = currentConfig.find((n) => n._id.toString() === node._id?.toString());
-		if (!original) { return; }
+		if (!original) {
+			return;
+		}
 
 		const newId = (Math.random().toString(36).substring(2, 15) + Date.now().toString(36)) as unknown as DatabaseId;
 		const newNode: ContentNode = JSON.parse(
@@ -157,7 +157,9 @@ None (TreeView has its own keyboard navigation)
 
 		currentConfig = [...currentConfig, newNode];
 		nodesToSave[newId.toString()] = { type: 'create', node: newNode };
-		toaster.success({ description: 'Item duplicated. Click Save to persist change.' });
+		toaster.success({
+			description: 'Item duplicated. Click Save to persist change.'
+		});
 	}
 
 	async function handleSave() {
@@ -224,7 +226,9 @@ None (TreeView has its own keyboard navigation)
 				body: existingCategory ? 'Modify Category Details' : 'Enter Unique Name and an Icon for your new category'
 			},
 			async (response: CategoryModalResponse | boolean) => {
-				if (!response || typeof response === 'boolean') { return; }
+				if (!response || typeof response === 'boolean') {
+					return;
+				}
 
 				if (existingCategory?._id) {
 					const updated = {
@@ -265,17 +269,17 @@ None (TreeView has its own keyboard navigation)
 	});
 </script>
 
-<PageTitle name={m.collection_pagetitle()} icon="fluent-mdl2:build-definition" showBackButton={true} backUrl="/config" />
+<PageTitle name={collection_pagetitle()} icon="fluent-mdl2:build-definition" showBackButton={true} backUrl="/config" />
 
 <div class="mb-4 flex flex-wrap gap-2 px-4">
 	<button onclick={() => modalAddCategory()} class="preset-filled-tertiary-500 btn flex items-center gap-1" disabled={isLoading}>
 		<iconify-icon icon="mdi:folder-plus" width="24"></iconify-icon>
-		<span class="hidden sm:inline">{m.collection_addcategory()}</span>
+		<span class="hidden sm:inline">{collection_addcategory()}</span>
 	</button>
 
 	<button onclick={handleAddCollectionClick} class="preset-filled-surface-500 btn flex items-center gap-1 rounded" disabled={isLoading}>
 		<iconify-icon icon="ic:round-plus" width="24"></iconify-icon>
-		<span class="hidden sm:inline">{m.collection_add()}</span>
+		<span class="hidden sm:inline">{collection_add()}</span>
 	</button>
 
 	<button
@@ -288,13 +292,13 @@ None (TreeView has its own keyboard navigation)
 		{:else}
 			<iconify-icon icon="mdi:content-save" width="24"></iconify-icon>
 		{/if}
-		<span>{m.button_save()}</span>
+		<span>{button_save()}</span>
 	</button>
 </div>
 
 <div class="max-h-[calc(100vh-120px)] overflow-auto p-4">
 	<div class="mx-auto max-w-4xl">
-		<p class="mb-6 text-center text-surface-600-300 dark:text-primary-500">{m.collection_description()}</p>
+		<p class="mb-6 text-center text-surface-600-300 dark:text-primary-500">{collection_description()}</p>
 
 		<TreeViewBoard
 			contentNodes={currentConfig}

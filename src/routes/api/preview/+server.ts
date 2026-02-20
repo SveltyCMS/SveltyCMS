@@ -8,7 +8,7 @@
  * 3. 307 redirect to the slug (or returns JSON if no slug)
  */
 
-import { getPrivateSettingSync } from '@src/services/settingsService';
+import { getPrivateSettingSync } from '@src/services/settings-service';
 import { json, redirect } from '@sveltejs/kit';
 import { logger } from '@utils/logger.server';
 import type { RequestHandler } from './$types';

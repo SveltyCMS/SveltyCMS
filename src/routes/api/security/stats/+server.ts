@@ -12,17 +12,17 @@
  * @security Admin-only endpoint with rate limiting
  */
 
-import { hasApiPermission } from '@src/databases/auth/apiPermissions';
-import { metricsService } from '@src/services/MetricsService';
-import { securityResponseService } from '@src/services/SecurityResponseService';
+import { hasApiPermission } from '@src/databases/auth/api-permissions';
+import { metricsService } from '@src/services/metrics-service';
+import { securityResponseService } from '@src/services/security-response-service';
 import { json } from '@sveltejs/kit';
 /**
  * GET /api/security/stats
  * Returns comprehensive security statistics for dashboard monitoring.
  */
 // Unified Error Handling
-import { apiHandler } from '@utils/apiHandler';
-import { AppError } from '@utils/errorHandling';
+import { apiHandler } from '@utils/api-handler';
+import { AppError } from '@utils/error-handling';
 import { logger } from '@utils/logger.server';
 
 /**
@@ -146,11 +146,31 @@ function generateRecentSecurityEvents() {
 
 	// This is mock data - replace with actual event log queries
 	const eventTypes = [
-		{ type: 'rate_limit', severity: 'medium', message: 'Rate limit exceeded for API endpoint' },
-		{ type: 'auth_failure', severity: 'low', message: 'Invalid login attempt detected' },
-		{ type: 'csp_violation', severity: 'medium', message: 'Content Security Policy violation reported' },
-		{ type: 'threat_detected', severity: 'high', message: 'SQL injection pattern detected in request' },
-		{ type: 'ip_blocked', severity: 'high', message: 'IP address automatically blocked due to threats' }
+		{
+			type: 'rate_limit',
+			severity: 'medium',
+			message: 'Rate limit exceeded for API endpoint'
+		},
+		{
+			type: 'auth_failure',
+			severity: 'low',
+			message: 'Invalid login attempt detected'
+		},
+		{
+			type: 'csp_violation',
+			severity: 'medium',
+			message: 'Content Security Policy violation reported'
+		},
+		{
+			type: 'threat_detected',
+			severity: 'high',
+			message: 'SQL injection pattern detected in request'
+		},
+		{
+			type: 'ip_blocked',
+			severity: 'high',
+			message: 'IP address automatically blocked due to threats'
+		}
 	];
 
 	// Generate 5-15 recent events

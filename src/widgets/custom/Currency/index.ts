@@ -15,12 +15,12 @@
 
 // Import components needed for the GuiSchema
 // Import components needed for the GuiSchema
-// import Input from '@components/system/inputs/Input.svelte';
-// import Toggles from '@components/system/inputs/Toggles.svelte';
+// import Input from '@components/system/inputs/input.svelte';
+// import Toggles from '@components/system/inputs/toggles.svelte';
 
 import type { FieldInstance } from '@src/content/types';
-import * as m from '@src/paraglide/messages';
-import { createWidget } from '@src/widgets/widgetFactory';
+import { widget_currency_description } from '@src/paraglide/messages';
+import { createWidget } from '@src/widgets/widget-factory';
 import { maxValue, minValue, number, optional, pipe, type InferInput as ValibotInput } from 'valibot';
 import type { CurrencyProps } from './types';
 
@@ -54,7 +54,7 @@ const validationSchema = (field: FieldInstance) => {
 const CurrencyWidget = createWidget<CurrencyProps>({
 	Name: 'Currency',
 	Icon: 'mdi:currency-usd',
-	Description: m.widget_currency_description(),
+	Description: widget_currency_description(),
 	inputComponentPath: '/src/widgets/custom/Currency/Input.svelte',
 	displayComponentPath: '/src/widgets/custom/Currency/Display.svelte',
 	validationSchema,

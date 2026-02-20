@@ -1,10 +1,10 @@
-import PriceWidget from '@src/widgets/custom/Price/index';
+import PriceWidget from '@src/widgets/custom/price/index';
 import { parse } from 'valibot';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, mock } from 'bun:test';
 
 // Mock dependencies
-vi.mock('@src/paraglide/messages', () => ({}));
-vi.mock('@stores/widgetStore.svelte', () => ({ widgets: {} }));
+mock.module('@src/paraglide/messages', () => ({}));
+mock.module('@stores/widgetStore.svelte', () => ({ widgets: {} }));
 
 describe('Price Widget', () => {
 	it('should have correct default configuration', () => {

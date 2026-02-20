@@ -9,7 +9,7 @@
  */
 
 import { beforeAll, describe, expect, it, mock } from 'bun:test';
-import type { DatabaseResult } from '../../../src/databases/dbInterface';
+import type { DatabaseResult } from '../../../src/databases/db-interface';
 
 // Mock SvelteKit modules
 mock.module('$app/environment', () => ({
@@ -28,7 +28,12 @@ mock.module('@src/utils/logger', () => ({
 		info: () => {},
 		debug: () => {},
 		trace: () => {},
-		channel: () => ({ info: () => {}, error: () => {}, warn: () => {}, debug: () => {} })
+		channel: () => ({
+			info: () => {},
+			error: () => {},
+			warn: () => {},
+			debug: () => {}
+		})
 	}
 }));
 
@@ -43,7 +48,7 @@ describe('Database Interface Contract Tests', () => {
 
 	beforeAll(async () => {
 		// Import the REAL adapter implementation directly, bypassing the mocked 'db.ts'
-		const { MongoDBAdapter } = await import('../../../src/databases/mongodb/mongoDBAdapter');
+		const { MongoDBAdapter } = await import('../../../src/databases/mongodb/mongo-db-adapter');
 		// Import utils to get connection string
 		const { privateEnv } = await import('../../../config/private.test');
 

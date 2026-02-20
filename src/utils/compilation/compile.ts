@@ -16,7 +16,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import * as ts from 'typescript';
 import { v4 as uuidv4 } from 'uuid';
-import { getCollectionsPath, getCompiledCollectionsPath, isValidTenantId } from '../tenantPaths.js';
+import { getCollectionsPath, getCompiledCollectionsPath, isValidTenantId } from '../tenant-paths.js';
 import {
 	addJsExtensionTransformer,
 	commonjsToEsModuleTransformer,
@@ -216,7 +216,9 @@ async function scanCompiledFiles(
 async function getTypescriptAndJavascriptFiles(folder: string, subdir = ''): Promise<string[]> {
 	const files: string[] = [];
 	try {
-		const entries = await fs.readdir(path.posix.join(folder, subdir), { withFileTypes: true });
+		const entries = await fs.readdir(path.posix.join(folder, subdir), {
+			withFileTypes: true
+		});
 		const collectionNames = new Set<string>();
 
 		for (const entry of entries) {
@@ -298,7 +300,12 @@ async function compileFile(
 
 	// Compile
 	const transpile = file.endsWith('.ts')
-		? ts.transpileModule(content, { compilerOptions: { target: ts.ScriptTarget.ESNext, module: ts.ModuleKind.ESNext } })
+		? ts.transpileModule(content, {
+				compilerOptions: {
+					target: ts.ScriptTarget.ESNext,
+					module: ts.ModuleKind.ESNext
+				}
+			})
 		: { outputText: content };
 
 	let code = transformAST(transpile.outputText, uuid, tenantId);

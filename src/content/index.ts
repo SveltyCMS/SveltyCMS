@@ -9,9 +9,9 @@
  */
 
 // Stores
-import { collections, contentStructure, setCollection, setCollectionValue, setMode, unAssigned } from '@src/stores/collectionStore.svelte';
+import { collections, contentStructure, setCollection, setCollectionValue, setMode, unAssigned } from '@src/stores/collection-store.svelte';
 // Components
-import { widgets } from '@stores/widgetStore.svelte.ts';
+import { widgets } from '@src/stores/widget-store.svelte.ts';
 import { error } from '@sveltejs/kit';
 // System Logger
 import { logger } from '@utils/logger';
@@ -84,7 +84,14 @@ async function getCurrentPath() {
 	if (!import.meta.env.SSR) {
 		const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
 		return {
-			config: { fields: {}, isCollection: false, name: '', icon: '', path: currentPath, order: 0 },
+			config: {
+				fields: {},
+				isCollection: false,
+				name: '',
+				icon: '',
+				path: currentPath,
+				order: 0
+			},
 			currentPath
 		};
 	}
@@ -106,7 +113,14 @@ async function getCurrentPath() {
 		// Logic adjustment: server doesn't usually need 'currentPath' for generation unless building static paths
 
 		return {
-			config: { fields: {}, isCollection: false, name: '', icon: '', path: currentPath, order: 0 },
+			config: {
+				fields: {},
+				isCollection: false,
+				name: '',
+				icon: '',
+				path: currentPath,
+				order: 0
+			},
 			currentPath
 		};
 	} catch (e) {
@@ -316,7 +330,7 @@ async function getImports(recompile = false): Promise<Record<ContentTypes, Schem
 	// Server-side production optimization
 	if (!(dev || building) && import.meta.env.SSR) {
 		try {
-			const { scanCompiledCollections } = await import('./collectionScanner');
+			const { scanCompiledCollections } = await import('./collection-scanner');
 			const compiledCollections = await scanCompiledCollections();
 			const imports: Record<string, Schema> = {};
 			for (const collection of compiledCollections) {

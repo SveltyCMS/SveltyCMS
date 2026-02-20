@@ -11,13 +11,13 @@
  * - **Translatable**: Fully supports multilingual SEO content.
  */
 
-import * as m from '@src/paraglide/messages';
-import { createWidget } from '@src/widgets/widgetFactory';
+import { widget_seo_description } from '@src/paraglide/messages';
+import { createWidget } from '@src/widgets/widget-factory';
 import { custom, literal, maxLength, object, optional, pipe, regex, string, transform, union, url, type InferInput as ValibotInput } from 'valibot';
 
 // Import components needed for the GuiSchema
-// import Input from '@components/system/inputs/Input.svelte';
-// import Toggles from '@components/system/inputs/Toggles.svelte';
+// import Input from '@components/system/inputs/input.svelte';
+// import Toggles from '@components/system/inputs/toggles.svelte';
 
 // SECURITY: Escape HTML entities to prevent meta tag injection
 const escapeHtml = (str: string): string => {
@@ -64,7 +64,7 @@ const SeoValidationSchema = object({
 const SeoWidget = createWidget({
 	Name: 'SEO',
 	Icon: 'tabler:seo',
-	Description: m.widget_seo_description(),
+	Description: widget_seo_description(),
 	inputComponentPath: '/src/widgets/custom/Seo/Input.svelte',
 	displayComponentPath: '/src/widgets/custom/Seo/Display.svelte',
 	validationSchema: SeoValidationSchema,

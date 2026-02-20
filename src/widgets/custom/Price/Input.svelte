@@ -56,6 +56,6 @@ Renders a currency selector and a number input side-by-side.
 			placeholder="0.00"
 			aria-label="{field.label} Amount"
 			disabled={(field as any).readonly}
-		>
+		/>
 	</div>
 </div>

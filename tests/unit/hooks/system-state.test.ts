@@ -19,7 +19,7 @@ const originalTestMode = process.env.TEST_MODE;
 process.env.TEST_MODE = undefined;
 
 // Import the hook - mocks are already set up by preload.ts
-import { handleSystemState } from '@src/hooks/handleSystemState';
+import { handleSystemState } from '@src/hooks/handle-system-state';
 
 /**
  * Helper to create a minimal RequestEvent for testing
@@ -257,10 +257,21 @@ describe('handleSystemState - State Machine Logic', () => {
 			setMockState({
 				overallState: 'FAILED',
 				services: {
-					database: { status: 'unhealthy', lastCheck: new Date(), error: 'Connection timeout' }
+					database: {
+						status: 'unhealthy',
+						lastCheck: new Date(),
+						error: 'Connection timeout'
+					}
 				},
 				performanceMetrics: {
-					stateTransitions: [{ from: 'INITIALIZING', to: 'FAILED', timestamp: Date.now(), reason: 'Database connection failed' }]
+					stateTransitions: [
+						{
+							from: 'INITIALIZING',
+							to: 'FAILED',
+							timestamp: Date.now(),
+							reason: 'Database connection failed'
+						}
+					]
 				}
 			});
 			globalThis.__mockIsSystemReady = false;

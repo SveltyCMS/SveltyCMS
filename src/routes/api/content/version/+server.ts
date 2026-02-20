@@ -5,11 +5,11 @@
  * Security: Protected by hooks, admin-only.
  */
 
-import { contentManager } from '@src/content/ContentManager';
+import { contentManager } from '@src/content/content-manager';
 import { json } from '@sveltejs/kit';
 
 // Unified Error Handling
-import { apiHandler } from '@utils/apiHandler';
+import { apiHandler } from '@utils/api-handler';
 
 export const GET = apiHandler(async () => {
 	const version = contentManager.getContentVersion();

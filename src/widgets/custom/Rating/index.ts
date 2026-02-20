@@ -13,13 +13,13 @@
 
 // Import components needed for the GuiSchema
 // Import components needed for the GuiSchema
-// import IconifyIconsPicker from '@components/IconifyIconsPicker.svelte';
-// import Input from '@components/system/inputs/Input.svelte';
-// import Toggles from '@components/system/inputs/Toggles.svelte';
+// import IconifyIconsPicker from '@components/iconify-icons-picker.svelte';
+// import Input from '@components/system/inputs/input.svelte';
+// import Toggles from '@components/system/inputs/toggles.svelte';
 
 import type { FieldInstance } from '@src/content/types';
-import * as m from '@src/paraglide/messages';
-import { createWidget } from '@src/widgets/widgetFactory';
+import { widget_rating_description } from '@src/paraglide/messages';
+import { createWidget } from '@src/widgets/widget-factory';
 import { maxValue, minValue, number, optional, pipe, type InferInput as ValibotInput } from 'valibot';
 import type { RatingProps } from './types';
 
@@ -45,7 +45,7 @@ const validationSchema = (field: FieldInstance) => {
 const RatingWidget = createWidget<RatingProps>({
 	Name: 'Rating',
 	Icon: 'material-symbols:star-outline',
-	Description: m.widget_rating_description(),
+	Description: widget_rating_description(),
 	inputComponentPath: '/src/widgets/custom/Rating/Input.svelte',
 	displayComponentPath: '/src/widgets/custom/Rating/Display.svelte',
 	validationSchema,
@@ -63,7 +63,11 @@ const RatingWidget = createWidget<RatingProps>({
 		label: { widget: 'Input', required: true },
 		db_fieldName: { widget: 'Input', required: false },
 		required: { widget: 'Toggles', required: false },
-		max: { widget: 'Input', required: false, helper: 'Maximum number of stars.' },
+		max: {
+			widget: 'Input',
+			required: false,
+			helper: 'Maximum number of stars.'
+		},
 		iconFull: { widget: 'IconifyIconsPicker', required: false },
 		iconEmpty: { widget: 'IconifyIconsPicker', required: false }
 	},
@@ -71,7 +75,9 @@ const RatingWidget = createWidget<RatingProps>({
 	// Aggregations perform numeric comparisons.
 	aggregations: {
 		filters: async ({ field, filter }: { field: AggregationField; filter: string }) => [
-			{ $match: { [field.db_fieldName]: { $eq: Number.parseInt(filter, 10) } } }
+			{
+				$match: { [field.db_fieldName]: { $eq: Number.parseInt(filter, 10) } }
+			}
 		],
 		sorts: async ({ field, sortDirection }: { field: AggregationField; sortDirection: number }) => ({
 			[field.db_fieldName]: sortDirection

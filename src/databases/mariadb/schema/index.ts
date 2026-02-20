@@ -15,8 +15,12 @@ const uuidPk = () => varchar('_id', { length: 36 }).primaryKey();
 
 // Helper for timestamps
 const timestamps = {
-	createdAt: datetime('createdAt').notNull().default(sql`CURRENT_TIMESTAMP`),
-	updatedAt: datetime('updatedAt').notNull().default(sql`CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP`)
+	createdAt: datetime('createdAt')
+		.notNull()
+		.default(sql`CURRENT_TIMESTAMP`),
+	updatedAt: datetime('updatedAt')
+		.notNull()
+		.default(sql`CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP`)
 };
 
 // Helper for tenantId (nullable for multi-tenant support)
@@ -328,7 +332,9 @@ export const pluginPagespeedResults = mysqlTable(
 		device: varchar('device', { length: 20 }).notNull().default('mobile'),
 		url: varchar('url', { length: 2000 }).notNull(),
 		performanceScore: int('performanceScore').notNull().default(0),
-		fetchedAt: datetime('fetchedAt').notNull().default(sql`CURRENT_TIMESTAMP`),
+		fetchedAt: datetime('fetchedAt')
+			.notNull()
+			.default(sql`CURRENT_TIMESTAMP`),
 		...timestamps
 	},
 	(table) => ({
@@ -367,7 +373,9 @@ export const pluginMigrations = mysqlTable(
 		migrationId: varchar('migrationId', { length: 255 }).notNull(),
 		version: int('version').notNull(),
 		tenantId: tenantField(),
-		appliedAt: datetime('appliedAt').notNull().default(sql`CURRENT_TIMESTAMP`),
+		appliedAt: datetime('appliedAt')
+			.notNull()
+			.default(sql`CURRENT_TIMESTAMP`),
 		...timestamps
 	},
 	(table) => ({

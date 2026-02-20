@@ -12,7 +12,7 @@
  * - Logs errors and returns appropriate error responses.
  */
 
-import { MediaService } from '@src/utils/media/mediaService.server';
+import { MediaService } from '@src/utils/media/media-service.server';
 import { error, json } from '@sveltejs/kit';
 import { logger } from '@utils/logger.server';
 
@@ -107,7 +107,10 @@ export async function PATCH({ params, request, locals }) {
 		// 3. Update
 		await mediaService.updateMedia(id, { metadata: newMetadata });
 
-		return json({ success: true, data: { ...existing, metadata: newMetadata } });
+		return json({
+			success: true,
+			data: { ...existing, metadata: newMetadata }
+		});
 	} catch (err) {
 		logger.error(`Error updating media ${id}:`, err);
 		if (err && typeof err === 'object' && 'status' in err) {

@@ -1,5 +1,5 @@
 <!-- 
-@file src/components/system/inputs/Toggles.svelte
+@file src/components/system/inputs/toggles.svelte
 @component
 **Toggle switch component with customizable icons and labels**
 
@@ -92,7 +92,7 @@
 	{/if}
 
 	<div class="relative">
-		<input name={label || 'toggle'} type="checkbox" {id} bind:checked={value} {disabled} class="peer sr-only" onchange={handleToggle}>
+		<input name={label || 'toggle'} type="checkbox" {id} bind:checked={value} {disabled} class="peer sr-only" onchange={handleToggle} />
 
 		<!-- Background track -->
 		<div class="{trackClasses} rounded-full bg-error-500 transition-colors peer-checked:bg-primary-500">
@@ -120,7 +120,7 @@
 
 <style>
 	/* Ensure minimum touch target size */
-	input[type="checkbox"] {
+	input[type='checkbox'] {
 		touch-action: manipulation; /* Improve touch responsiveness */
 	}
 </style>

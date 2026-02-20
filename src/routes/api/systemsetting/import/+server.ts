@@ -14,7 +14,7 @@ import type {
 	ValidationWarning
 } from '@content/types';
 import { getDb } from '@src/databases/db';
-import { getAllSettings, invalidateSettingsCache } from '@src/services/settingsService';
+import { getAllSettings, invalidateSettingsCache } from '@src/services/settings-service';
 import { json } from '@sveltejs/kit';
 import { decryptData } from '@utils/crypto';
 import { logger } from '@utils/logger.server';
@@ -32,24 +32,48 @@ async function validateImportData(data: ExportData): Promise<ValidationResult> {
 	const warnings: ValidationWarning[] = [];
 	if (data.metadata) {
 		if (!data.metadata.exported_at) {
-			errors.push({ path: 'metadata.exported_at', message: 'Missing export timestamp', code: 'MISSING_TIMESTAMP' });
+			errors.push({
+				path: 'metadata.exported_at',
+				message: 'Missing export timestamp',
+				code: 'MISSING_TIMESTAMP'
+			});
 		}
 		if (!data.metadata.cms_version) {
-			warnings.push({ path: 'metadata.cms_version', message: 'Missing CMS version - compatibility cannot be verified', code: 'MISSING_VERSION' });
+			warnings.push({
+				path: 'metadata.cms_version',
+				message: 'Missing CMS version - compatibility cannot be verified',
+				code: 'MISSING_VERSION'
+			});
 		}
 	} else {
-		errors.push({ path: 'metadata', message: 'Missing required metadata', code: 'MISSING_METADATA' });
+		errors.push({
+			path: 'metadata',
+			message: 'Missing required metadata',
+			code: 'MISSING_METADATA'
+		});
 	}
 	if (data.settings) {
 		if (typeof data.settings !== 'object') {
-			errors.push({ path: 'settings', message: 'Settings must be an object', code: 'INVALID_SETTINGS_TYPE' });
+			errors.push({
+				path: 'settings',
+				message: 'Settings must be an object',
+				code: 'INVALID_SETTINGS_TYPE'
+			});
 		} else {
 			for (const [key, value] of Object.entries(data.settings)) {
 				if (key === '' || key === null || key === undefined) {
-					errors.push({ path: `settings.${key}`, message: 'Invalid setting key', code: 'INVALID_SETTING_KEY' });
+					errors.push({
+						path: `settings.${key}`,
+						message: 'Invalid setting key',
+						code: 'INVALID_SETTING_KEY'
+					});
 				}
 				if (value === null || value === undefined) {
-					warnings.push({ path: `settings.${key}`, message: 'Setting has null or undefined value', code: 'NULL_SETTING_VALUE' });
+					warnings.push({
+						path: `settings.${key}`,
+						message: 'Setting has null or undefined value',
+						code: 'NULL_SETTING_VALUE'
+					});
 				}
 			}
 		}
@@ -58,18 +82,34 @@ async function validateImportData(data: ExportData): Promise<ValidationResult> {
 		if (Array.isArray(data.collections)) {
 			data.collections.forEach((collection, index) => {
 				if (!collection.id) {
-					errors.push({ path: `collections[${index}].id`, message: 'Collection missing required id', code: 'MISSING_COLLECTION_ID' });
+					errors.push({
+						path: `collections[${index}].id`,
+						message: 'Collection missing required id',
+						code: 'MISSING_COLLECTION_ID'
+					});
 				}
 				if (!collection.name) {
-					errors.push({ path: `collections[${index}].name`, message: 'Collection missing required name', code: 'MISSING_COLLECTION_NAME' });
+					errors.push({
+						path: `collections[${index}].name`,
+						message: 'Collection missing required name',
+						code: 'MISSING_COLLECTION_NAME'
+					});
 				}
 			});
 		} else {
-			errors.push({ path: 'collections', message: 'Collections must be an array', code: 'INVALID_COLLECTIONS_TYPE' });
+			errors.push({
+				path: 'collections',
+				message: 'Collections must be an array',
+				code: 'INVALID_COLLECTIONS_TYPE'
+			});
 		}
 	}
 	if (!(data.settings || data.collections)) {
-		warnings.push({ path: 'root', message: 'Export contains no settings or collections', code: 'EMPTY_EXPORT' });
+		warnings.push({
+			path: 'root',
+			message: 'Export contains no settings or collections',
+			code: 'EMPTY_EXPORT'
+		});
 	}
 	return { valid: errors.length === 0, errors, warnings };
 }
@@ -81,7 +121,13 @@ async function detectConflicts(importData: ExportData): Promise<Conflict[]> {
 		for (const [key, importValue] of Object.entries(importData.settings)) {
 			const currentValue = (currentSettings as Record<string, unknown>)[key];
 			if (currentValue !== undefined && JSON.stringify(currentValue) !== JSON.stringify(importValue)) {
-				conflicts.push({ type: 'setting', key, current: currentValue, import: importValue, recommendation: 'overwrite' });
+				conflicts.push({
+					type: 'setting',
+					key,
+					current: currentValue,
+					import: importValue,
+					recommendation: 'overwrite'
+				});
 			}
 		}
 	}
@@ -99,7 +145,14 @@ function mergeValues(current: unknown, imported: unknown): unknown {
 }
 
 async function applyImport(importData: ExportData, options: ImportOptions, conflicts: Conflict[]): Promise<ImportResult> {
-	const result: ImportResult = { success: true, imported: 0, skipped: 0, merged: 0, errors: [], conflicts };
+	const result: ImportResult = {
+		success: true,
+		imported: 0,
+		skipped: 0,
+		merged: 0,
+		errors: [],
+		conflicts
+	};
 	const db = getDb();
 
 	if (!db) {
@@ -122,7 +175,11 @@ async function applyImport(importData: ExportData, options: ImportOptions, confl
 						await db.systemPreferences.set(key, mergedValue, 'system');
 						result.merged++;
 					} catch (error) {
-						result.errors.push({ key, message: error instanceof Error ? error.message : 'Unknown error', code: 'MERGE_FAILED' });
+						result.errors.push({
+							key,
+							message: error instanceof Error ? error.message : 'Unknown error',
+							code: 'MERGE_FAILED'
+						});
 						result.success = false;
 					}
 					continue;
@@ -132,7 +189,11 @@ async function applyImport(importData: ExportData, options: ImportOptions, confl
 				await db.systemPreferences.set(key, value, 'system');
 				result.imported++;
 			} catch (error) {
-				result.errors.push({ key, message: error instanceof Error ? error.message : 'Unknown error', code: 'IMPORT_FAILED' });
+				result.errors.push({
+					key,
+					message: error instanceof Error ? error.message : 'Unknown error',
+					code: 'IMPORT_FAILED'
+				});
 				result.success = false;
 			}
 		}
@@ -143,7 +204,12 @@ async function applyImport(importData: ExportData, options: ImportOptions, confl
 		await loadSettingsFromDB();
 		logger.info('Settings cache invalidated and reloaded after import');
 	}
-	logger.info('Import completed', { imported: result.imported, skipped: result.skipped, merged: result.merged, errors: result.errors.length });
+	logger.info('Import completed', {
+		imported: result.imported,
+		skipped: result.skipped,
+		merged: result.merged,
+		errors: result.errors.length
+	});
 	return result;
 }
 
@@ -161,8 +227,8 @@ async function logImport(userId: string, metadata: ExportMetadata, result: Impor
 }
 
 // Unified Error Handling
-import { apiHandler } from '@utils/apiHandler';
-import { AppError } from '@utils/errorHandling';
+import { apiHandler } from '@utils/api-handler';
+import { AppError } from '@utils/error-handling';
 
 export const POST = apiHandler(async ({ locals, request }) => {
 	if (!locals.user) {
@@ -181,7 +247,11 @@ export const POST = apiHandler(async ({ locals, request }) => {
 		if (importData.hasSensitiveData && importData.encryptedSensitive) {
 			if (!importOptions.sensitivePassword) {
 				return json(
-					{ success: false, error: 'Password required', message: 'This import contains encrypted sensitive data. Please provide the password.' },
+					{
+						success: false,
+						error: 'Password required',
+						message: 'This import contains encrypted sensitive data. Please provide the password.'
+					},
 					{ status: 400 }
 				);
 			}
@@ -202,10 +272,22 @@ export const POST = apiHandler(async ({ locals, request }) => {
 		}
 		const validation = await validateImportData(importData);
 		if (!validation.valid) {
-			return json({ success: false, errors: validation.errors, warnings: validation.warnings }, { status: 400 });
+			return json(
+				{
+					success: false,
+					errors: validation.errors,
+					warnings: validation.warnings
+				},
+				{ status: 400 }
+			);
 		}
 		if (importOptions.validateOnly) {
-			return json({ success: true, valid: true, errors: validation.errors, warnings: validation.warnings });
+			return json({
+				success: true,
+				valid: true,
+				errors: validation.errors,
+				warnings: validation.warnings
+			});
 		}
 		const conflicts = await detectConflicts(importData);
 		if (importOptions.dryRun) {

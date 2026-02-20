@@ -1,5 +1,5 @@
 /**
- * @file config/collections/Posts.ts
+ * @file src/presets/demo/collections/posts/posts.ts
  * @description Collection file for Posts
  */
 

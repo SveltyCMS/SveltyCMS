@@ -10,13 +10,13 @@
  * - Multi-Tenant Safe: File existence check is scoped to the current tenant.
  */
 
-import { getPrivateSettingSync } from '@src/services/settingsService';
+import { getPrivateSettingSync } from '@src/services/settings-service';
 import { error, json } from '@sveltejs/kit';
 // System Logger
 import { logger } from '@utils/logger.server';
 
 // Media
-import { fileExists } from '@utils/media/mediaStorage.server';
+import { fileExists } from '@utils/media/media-storage.server';
 import type { RequestHandler } from './$types';
 
 // Permissions

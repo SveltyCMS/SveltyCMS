@@ -13,14 +13,14 @@
  * - Comprehensive error handling and logging
  */
 
-import { getPrivateSettingSync } from '@src/services/settingsService';
-import { MediaService } from '@src/utils/media/mediaService.server';
+import { getPrivateSettingSync } from '@src/services/settings-service';
+import { MediaService } from '@src/utils/media/media-service.server';
 import { error, json } from '@sveltejs/kit';
 // System Logger
 import { logger } from '@utils/logger.server';
-import type { MediaAccess, MediaItem, WatermarkOptions } from '@utils/media/mediaModels';
+import type { MediaAccess, MediaItem, WatermarkOptions } from '@utils/media/media-models';
 // Media Processing
-import { extractMetadata } from '@utils/media/mediaProcessing.server';
+import { extractMetadata } from '@utils/media/media-processing.server';
 import type { RequestHandler } from './$types';
 
 // Response types
@@ -37,7 +37,7 @@ interface FileProcessResult {
 	success: boolean;
 }
 
-// Helper function to get MediaService instance
+// Helper function to getmedia-serviceinstance
 async function getMediaService(): Promise<MediaService> {
 	const { dbAdapter } = await import('@src/databases/db');
 	if (!dbAdapter) {
@@ -79,8 +79,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				break;
 			default:
 				throw error(400, `Unsupported process type: ${processType}`);
-		} // Authentication is handled by hooks.server.ts - user presence confirms access // Initialize MediaService
-
+		} // Authentication is handled by hooks.server.ts - user presence confirms access // Initializemedia-service
 		const mediaService = await getMediaService();
 
 		let result: ProcessResult;
@@ -92,7 +91,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				}
 				const buffer = Buffer.from(await file.arrayBuffer());
 				const metadata = await extractMetadata(buffer);
-				result = { success: true, data: metadata as unknown as Record<string, unknown> };
+				result = {
+					success: true,
+					data: metadata as unknown as Record<string, unknown>
+				};
 				break;
 			}
 			case 'save': {
@@ -112,7 +114,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 					try {
 						watermarkOptions = JSON.parse(watermarkOptionsString);
 					} catch {
-						logger.warn('Could not parse watermark options', { options: watermarkOptionsString });
+						logger.warn('Could not parse watermark options', {
+							options: watermarkOptionsString
+						});
 					}
 				}
 
@@ -120,7 +124,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				for (const file of files) {
 					if (file instanceof File) {
 						if (!file.name || typeof file.name !== 'string') {
-							results.push({ fileName: 'unknown', success: false, error: 'Invalid file name' });
+							results.push({
+								fileName: 'unknown',
+								success: false,
+								error: 'Invalid file name'
+							});
 							continue;
 						}
 						try {
@@ -142,8 +150,15 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 							});
 						} catch (err) {
 							const errorMsg = err instanceof Error ? err.message : String(err);
-							logger.error(`Error saving file ${file.name}:`, { error: errorMsg, tenantId });
-							results.push({ fileName: file.name, success: false, error: errorMsg });
+							logger.error(`Error saving file ${file.name}:`, {
+								error: errorMsg,
+								tenantId
+							});
+							results.push({
+								fileName: file.name,
+								success: false,
+								error: errorMsg
+							});
 						}
 					}
 				}

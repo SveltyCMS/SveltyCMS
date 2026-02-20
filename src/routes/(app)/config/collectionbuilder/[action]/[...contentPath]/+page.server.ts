@@ -16,19 +16,19 @@
 import fs from 'node:fs';
 import path from 'node:path';
 // Collections
-import { contentManager } from '@src/content/ContentManager';
+import { contentManager } from '@src/content/content-manager';
 import type { Schema } from '@src/content/types';
 // Auth
 // Use hasPermissionWithRoles and roles from locals, like the example pattern
 import { hasPermissionWithRoles, permissionConfigs, permissions } from '@src/databases/auth/permissions';
-import { MigrationEngine } from '@src/services/MigrationEngine';
-import { compile } from '@src/utils/compilation/compile';
+import { MigrationEngine } from '@src/services/migration-engine';
 // Widgets
-import { widgets } from '@stores/widgetStore.svelte.ts';
+import { widgets } from '@src/stores/widget-store.svelte.ts';
+import { compile } from '@src/utils/compilation/compile';
 import { type Actions, error, redirect } from '@sveltejs/kit';
 // System Logger
 import { logger } from '@utils/logger.server';
-import { getCollectionDisplayPath, getCollectionFilePath } from '@utils/tenantPaths';
+import { getCollectionDisplayPath, getCollectionFilePath } from '@utils/tenant-paths';
 import prettier from 'prettier';
 import * as ts from 'typescript';
 import type { PageServerLoad } from './$types';
@@ -130,7 +130,9 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		}
 
 		if (!currentCollection) {
-			logger.warn(`Collection not found at path: ${collectionIdentifier}`, { identifier: collectionIdentifier });
+			logger.warn(`Collection not found at path: ${collectionIdentifier}`, {
+				identifier: collectionIdentifier
+			});
 			throw error(404, 'Collection not found');
 		}
 
@@ -452,7 +454,7 @@ async function generateCollectionFileWithAST(data: CollectionData): Promise<stri
  */
 
 ${data.imports}
-import { widgets } from '@widgets/widgetManager.svelte';
+import { widgets } from '@widgets/widget-manager.svelte';
 import type { Schema } from '@src/content/types';
 
 export const schema: Schema = {

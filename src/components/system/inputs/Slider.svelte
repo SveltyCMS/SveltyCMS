@@ -1,5 +1,5 @@
 <!-- 
-@file src/components/system/inputs/Slider.svelte
+@file src/components/system/inputs/slider.svelte
 @component
 **Range slider component with customizable value and max range**
 
@@ -14,8 +14,6 @@
 -->
 
 <script lang="ts">
-	import { Slider } from '@skeletonlabs/skeleton-svelte';
-
 	let {
 		value = $bindable({
 			max: 100,

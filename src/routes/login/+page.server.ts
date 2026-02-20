@@ -16,15 +16,15 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 // Auth
-import { generateGoogleAuthUrl, googleAuth } from '@src/databases/auth/googleAuth';
+import { generateGoogleAuthUrl, googleAuth } from '@src/databases/auth/google-auth';
 import type { User } from '@src/databases/auth/types';
 import { auth, dbInitPromise } from '@src/databases/db';
 // Cache invalidation
-import { invalidateUserCountCache } from '@src/hooks/handleAuthorization';
+import { invalidateUserCountCache } from '@src/hooks/handle-authorization';
 import { type Actions, type Cookies, fail, redirect } from '@sveltejs/kit';
 // valibot schemas
-import { forgotFormSchema, loginFormSchema, resetFormSchema, signUpFormSchema } from '@utils/formSchemas';
-import { invalidateSetupCache } from '@utils/setupCheck';
+import { forgotFormSchema, loginFormSchema, resetFormSchema, signUpFormSchema } from '@utils/form-schemas';
+import { invalidateSetupCache } from '@utils/setup-check';
 // Rate Limiter
 import { RateLimiter } from 'sveltekit-rate-limiter/server';
 import { flatten, safeParse } from 'valibot';
@@ -34,16 +34,16 @@ import type { PageServerLoad } from './$types';
 // Removed googleapis import
 
 // Content Manager for redirects
-import { contentManager } from '@root/src/content/ContentManager';
+import { contentManager } from '@root/src/content/content-manager';
 // Utils
 import type { ISODateString } from '@src/content/types';
 // Stores
 import type { Locale } from '@src/paraglide/runtime';
-import { getPrivateSettingSync } from '@src/services/settingsService';
+import { getPrivateSettingSync } from '@src/services/settings-service';
 // Tenant Service
-import { tenantService } from '@src/services/TenantService';
-import { publicEnv } from '@src/stores/globalSettings.svelte';
-import { app } from '@stores/store.svelte';
+import { tenantService } from '@src/services/tenant-service';
+import { publicEnv } from '@src/stores/global-settings.svelte';
+import { app } from '@src/stores/store.svelte';
 // System Logger
 import { logger } from '@utils/logger.server';
 
@@ -78,7 +78,10 @@ function calculatePasswordStrength(password: string): number {
 }
 
 // Helper function to check database health by querying system state
-async function checkDatabaseHealth(): Promise<{ healthy: boolean; reason?: string }> {
+async function checkDatabaseHealth(): Promise<{
+	healthy: boolean;
+	reason?: string;
+}> {
 	try {
 		// First check system state - leverage existing state management
 		const { getSystemState, isServiceHealthy } = await import('@src/stores/system/state');
@@ -109,7 +112,10 @@ async function checkDatabaseHealth(): Promise<{ healthy: boolean; reason?: strin
 
 		const { auth } = await import('@src/databases/db');
 		if (!auth) {
-			return { healthy: false, reason: 'Authentication service not initialized' };
+			return {
+				healthy: false,
+				reason: 'Authentication service not initialized'
+			};
 		}
 
 		// Lightweight check: verify database has roles (indicates setup was completed)
@@ -131,7 +137,10 @@ async function checkDatabaseHealth(): Promise<{ healthy: boolean; reason?: strin
 		return { healthy: true };
 	} catch (error) {
 		const errorMessage = error instanceof Error ? error.message : String(error);
-		return { healthy: false, reason: `Database connection error: ${errorMessage}` };
+		return {
+			healthy: false,
+			reason: `Database connection error: ${errorMessage}`
+		};
 	}
 }
 
@@ -280,7 +289,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 			logger.warn('Authentication system is not ready yet, checking if database is empty');
 
 			// Check if this is a "database empty" scenario
-			const { isSetupCompleteAsync } = await import('@utils/setupCheck');
+			const { isSetupCompleteAsync } = await import('@utils/setup-check');
 			const setupComplete = await isSetupCompleteAsync();
 
 			if (!setupComplete) {
@@ -505,7 +514,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 						hostLink: publicEnv.HOST_PROD || `https://${request.headers.get('host')}`,
 						sitename: publicEnv.SITE_NAME || 'SveltyCMS'
 					};
-					const { getPrivateSettingSync } = await import('@src/services/settingsService');
+					const { getPrivateSettingSync } = await import('@src/services/settings-service');
 					const internalKey = getPrivateSettingSync('JWT_SECRET_KEY');
 
 					try {
@@ -541,7 +550,9 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 
 				if (user?._id) {
 					await createSessionAndSetCookie(user._id, cookies);
-					await auth?.updateUserAttributes(user._id, { lastAuthMethod: 'google' });
+					await auth?.updateUserAttributes(user._id, {
+						lastAuthMethod: 'google'
+					});
 
 					// Determine redirect path based on collections
 					const finalCollectionPath = await getCachedFirstCollectionPath(userLanguage);
@@ -645,7 +656,9 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 			throw err;
 		}
 
-		logger.error(`Critical error in load function: ${err.message}`, { stack: err.stack });
+		logger.error(`Critical error in load function: ${err.message}`, {
+			stack: err.stack
+		});
 		return {
 			isInviteFlow: false,
 			firstUserExists: true,
@@ -677,7 +690,9 @@ export const actions: Actions = {
 		// This action only handles invited user registration
 
 		if (await limiter.isLimited(event)) {
-			return fail(429, { message: 'Too many requests. Please try again later.' });
+			return fail(429, {
+				message: 'Too many requests. Please try again later.'
+			});
 		}
 
 		// Ensure database initialization is complete
@@ -727,17 +742,26 @@ export const actions: Actions = {
 			// Security: If not in open multi-tenant mode, OR if a token IS provided,
 			// we strictly enforce token validation.
 			if (!token) {
-				return fail(403, { message: 'A valid invitation is required to create an account.', form });
+				return fail(403, {
+					message: 'A valid invitation is required to create an account.',
+					form
+				});
 			}
 
 			const tokenData = await auth.validateRegistrationToken(token);
 			if (!(tokenData.isValid && tokenData.details)) {
-				return fail(403, { message: 'This invitation is invalid, expired, or has already been used.', form });
+				return fail(403, {
+					message: 'This invitation is invalid, expired, or has already been used.',
+					form
+				});
 			}
 
 			// Security: Check that the email in the form matches the one in the token record
 			if (email.toLowerCase() !== tokenData.details.email.toLowerCase()) {
-				return fail(403, { message: 'The provided email does not match the invitation.', form });
+				return fail(403, {
+					message: 'The provided email does not match the invitation.',
+					form
+				});
 			}
 
 			// Use the role from the token
@@ -812,7 +836,7 @@ export const actions: Actions = {
 
 			// Send welcome email (best-effort; do not fail signup on email issues)
 			try {
-				const { getPrivateSettingSync } = await import('@src/services/settingsService');
+				const { getPrivateSettingSync } = await import('@src/services/settings-service');
 				const internalKey = getPrivateSettingSync('JWT_SECRET_KEY');
 
 				const emailProps = {
@@ -844,7 +868,10 @@ export const actions: Actions = {
 					});
 				}
 			} catch (emailError) {
-				logger.error('Error invoking /api/sendMail for invited user', { email, error: emailError });
+				logger.error('Error invoking /api/sendMail for invited user', {
+					email,
+					error: emailError
+				});
 			}
 
 			// Set session cookie using the already-created session
@@ -874,8 +901,15 @@ export const actions: Actions = {
 			throw redirect(303, redirectPath);
 		} catch (error) {
 			const err = error as Error;
-			logger.error('Error during invited user signup', { email, message: err.message, stack: err.stack });
-			return fail(500, { message: 'Failed to create account. Please try again later.', form });
+			logger.error('Error during invited user signup', {
+				email,
+				message: err.message,
+				stack: err.stack
+			});
+			return fail(500, {
+				message: 'Failed to create account. Please try again later.',
+				form
+			});
 		}
 	},
 
@@ -900,7 +934,9 @@ export const actions: Actions = {
 		const startTime = performance.now();
 
 		if (await limiter.isLimited(event)) {
-			return fail(429, { message: 'Too many requests. Please try again later.' });
+			return fail(429, {
+				message: 'Too many requests. Please try again later.'
+			});
 		}
 
 		// Wait for database initialization first
@@ -952,7 +988,9 @@ export const actions: Actions = {
 
 			if (resp?.requires2FA) {
 				// User needs 2FA verification - return fail() instead of message()
-				logger.debug('2FA verification required for user', { userId: resp.userId });
+				logger.debug('2FA verification required for user', {
+					userId: resp.userId
+				});
 				return fail(401, {
 					requires2FA: true,
 					userId: resp.userId,
@@ -991,8 +1029,15 @@ export const actions: Actions = {
 			}
 		} catch (e) {
 			const err = e as Error;
-			logger.error('Unexpected error in signIn action', { email, message: err.message, stack: err.stack });
-			return fail(500, { message: 'An unexpected server error occurred.', form });
+			logger.error('Unexpected error in signIn action', {
+				email,
+				message: err.message,
+				stack: err.stack
+			});
+			return fail(500, {
+				message: 'An unexpected server error occurred.',
+				form
+			});
 		}
 
 		// Handle redirect outside try-catch
@@ -1009,7 +1054,9 @@ export const actions: Actions = {
 		// --- END: Language Validation Logic ---
 
 		if (await limiter.isLimited(event)) {
-			return fail(429, { message: 'Too many requests. Please try again later.' });
+			return fail(429, {
+				message: 'Too many requests. Please try again later.'
+			});
 		}
 
 		// Ensure database initialization is complete
@@ -1039,19 +1086,24 @@ export const actions: Actions = {
 				return fail(400, { message: 'Missing required fields.' });
 			}
 
-			const { getDefaultTwoFactorAuthService } = await import('@src/databases/auth/twoFactorAuth');
+			const { getDefaultTwoFactorAuthService } = await import('@src/databases/auth/two-factor-auth');
 			if (!auth) {
 				return fail(500, { message: 'Auth service is not initialized' });
 			}
-			const twoFactorService = getDefaultTwoFactorAuthService(auth as unknown as import('@src/databases/dbInterface').IAuthAdapter); // Verify 2FA code
+			const twoFactorService = getDefaultTwoFactorAuthService(auth as unknown as import('@src/databases/db-interface').IAuthAdapter); // Verify 2FA code
 			const result = await twoFactorService.verify2FA(userId, code);
 			if (!result.success) {
-				logger.warn('2FA verification failed during login', { userId, reason: result.message });
+				logger.warn('2FA verification failed during login', {
+					userId,
+					reason: result.message
+				});
 				return fail(400, { message: result.message });
 			} // 2FA verification successful - get user and create session
 			const user = await auth.getUserById(userId);
 			if (!user) {
-				logger.error('User not found after successful 2FA verification', { userId });
+				logger.error('User not found after successful 2FA verification', {
+					userId
+				});
 				return fail(500, { message: 'User not found.' });
 			}
 
@@ -1090,7 +1142,10 @@ export const actions: Actions = {
 				throw e; // Re-throw redirect
 			}
 			const err = e as Error;
-			logger.error('Unexpected error in verify2FA action', { message: err.message, stack: err.stack });
+			logger.error('Unexpected error in verify2FA action', {
+				message: err.message,
+				stack: err.stack
+			});
 			return fail(500, { message: 'An unexpected server error occurred.' });
 		}
 	},
@@ -1151,7 +1206,7 @@ export const actions: Actions = {
 					sitename: publicEnv.SITE_NAME || 'SveltyCMS'
 				};
 
-				const { getPrivateSettingSync } = await import('@src/services/settingsService');
+				const { getPrivateSettingSync } = await import('@src/services/settings-service');
 				const internalKey = getPrivateSettingSync('JWT_SECRET_KEY');
 
 				// Use SvelteKit's fetch for server-side API calls
@@ -1171,23 +1226,43 @@ export const actions: Actions = {
 				});
 
 				if (mailResponse.ok) {
-					logger.info('Forgotten password email request sent via API', { email });
-					return fail(400, { message: 'Password reset email sent successfully.', userExists: true, emailSent: true });
+					logger.info('Forgotten password email request sent via API', {
+						email
+					});
+					return fail(400, {
+						message: 'Password reset email sent successfully.',
+						userExists: true,
+						emailSent: true
+					});
 				}
 				logger.error(`Failed to send forgotten password email via API. Status: ${mailResponse.status}`, {
 					email,
 					responseText: await mailResponse.text()
 				});
 				// Still return success but with emailSent: false to handle on frontend
-				return fail(400, { message: 'Password reset email sent successfully.', userExists: true, emailSent: false });
+				return fail(400, {
+					message: 'Password reset email sent successfully.',
+					userExists: true,
+					emailSent: false
+				});
 			}
-			logger.warn('Forgotten password check failed', { email, message: checkMail.message });
+			logger.warn('Forgotten password check failed', {
+				email,
+				message: checkMail.message
+			});
 			// Return different response for user not found to allow frontend distinction
 			return fail(400, { message: 'User does not exist.', userExists: false });
 		} catch (e) {
 			const err = e as Error;
-			logger.error('Error in forgotPW action', { email, message: err.message, stack: err.stack });
-			return fail(500, { message: 'An error occurred. Please try again.', form });
+			logger.error('Error in forgotPW action', {
+				email,
+				message: err.message,
+				stack: err.stack
+			});
+			return fail(500, {
+				message: 'An error occurred. Please try again.',
+				form
+			});
 		}
 	},
 
@@ -1231,7 +1306,10 @@ export const actions: Actions = {
 
 		try {
 			const resp = await resetPWCheck(password, token, email);
-			logger.debug('Password reset check response', { email, response: JSON.stringify(resp) });
+			logger.debug('Password reset check response', {
+				email,
+				response: JSON.stringify(resp)
+			});
 
 			if (resp.status) {
 				const emailProps = {
@@ -1241,7 +1319,7 @@ export const actions: Actions = {
 					sitename: publicEnv.SITE_NAME || 'SveltyCMS'
 				};
 				try {
-					const { getPrivateSettingSync } = await import('@src/services/settingsService');
+					const { getPrivateSettingSync } = await import('@src/services/settings-service');
 					const internalKey = getPrivateSettingSync('JWT_SECRET_KEY');
 
 					// Use SvelteKit's fetch for server-side API calls
@@ -1275,7 +1353,10 @@ export const actions: Actions = {
 				throw redirect(303, '/login?reset=success');
 			}
 			logger.warn('Password reset failed', { email, message: resp.message });
-			return fail(400, { message: resp.message || 'Password reset failed. The link may be invalid or expired.', form });
+			return fail(400, {
+				message: resp.message || 'Password reset failed. The link may be invalid or expired.',
+				form
+			});
 		} catch (e) {
 			// Check if this is a redirect (which is expected and successful)
 			if (e && typeof e === 'object' && 'status' in e && (e.status === 302 || e.status === 303)) {
@@ -1284,8 +1365,15 @@ export const actions: Actions = {
 			}
 
 			const err = e as Error;
-			logger.error('Error in resetPW action', { email, message: err.message, stack: err.stack });
-			return fail(500, { message: 'An unexpected error occurred during password reset.', form });
+			logger.error('Error in resetPW action', {
+				email,
+				message: err.message,
+				stack: err.stack
+			});
+			return fail(500, {
+				message: 'An unexpected error occurred during password reset.',
+				form
+			});
 		}
 	},
 
@@ -1301,7 +1389,7 @@ export const actions: Actions = {
 		try {
 			logger.info(`Collection lookup triggered for language: ${userLanguage}`);
 
-			// Get first collection from ContentManager (cached lookup)
+			// Get first collection fromcontent-manager(cached lookup)
 			const firstCollectionSchema = await contentManager.getFirstCollection();
 			const collectionInfo = firstCollectionSchema
 				? {
@@ -1344,7 +1432,9 @@ export const actions: Actions = {
 					systemState: systemState.overallState,
 					dbHealthy: dbHealth.healthy
 				});
-				return fail(403, { message: 'You do not have permission to reset the setup.' });
+				return fail(403, {
+					message: 'You do not have permission to reset the setup.'
+				});
 			}
 
 			// In TEST_MODE, skip deletion
@@ -1382,11 +1472,17 @@ async function createSessionAndSetCookie(user_id: string, cookies: Cookies): Pro
 	if (!auth) {
 		throw new Error('Auth service is not initialized when creating session.');
 	}
-	const session = await auth.createSession({ user_id, expires: expiresAt.toISOString() as ISODateString });
+	const session = await auth.createSession({
+		user_id,
+		expires: expiresAt.toISOString() as ISODateString
+	});
 	logger.debug(`Session created: ${session._id} for user ${user_id}`);
 	const sessionCookie = auth.createSessionCookie(session._id);
 	const attributes = sessionCookie.attributes as Record<string, unknown>;
-	cookies.set(sessionCookie.name, sessionCookie.value, { ...attributes, path: '/' });
+	cookies.set(sessionCookie.name, sessionCookie.value, {
+		...attributes,
+		path: '/'
+	});
 }
 
 async function signInUser(
@@ -1394,7 +1490,13 @@ async function signInUser(
 	password: string,
 	isToken: boolean,
 	cookies: Cookies
-): Promise<{ status: boolean; message?: string; user?: User; requires2FA?: boolean; userId?: string }> {
+): Promise<{
+	status: boolean;
+	message?: string;
+	user?: User;
+	requires2FA?: boolean;
+	userId?: string;
+}> {
 	logger.debug('signInUser called', { email, isToken });
 	if (!auth) {
 		logger.error('Auth system not initialized for signInUser');
@@ -1416,8 +1518,14 @@ async function signInUser(
 				user = tempUser;
 				authSuccess = true;
 			} else {
-				logger.warn('Token consumption failed', { email, message: result.message });
-				return { status: false, message: result.message || 'Invalid or expired token.' };
+				logger.warn('Token consumption failed', {
+					email,
+					message: result.message
+				});
+				return {
+					status: false,
+					message: result.message || 'Invalid or expired token.'
+				};
 			}
 		} else {
 			const authResult = await auth.authenticate(email, password);
@@ -1426,7 +1534,9 @@ async function signInUser(
 
 				// Check if user has 2FA enabled
 				if (user.is2FAEnabled) {
-					logger.debug('User has 2FA enabled, requiring 2FA verification', { userId: user._id });
+					logger.debug('User has 2FA enabled, requiring 2FA verification', {
+						userId: user._id
+					});
 					// Don't create session yet - wait for 2FA verification
 					return {
 						status: false,
@@ -1439,14 +1549,20 @@ async function signInUser(
 				authSuccess = true;
 				// Use the session that authenticate() already created
 				const sessionCookie = auth.createSessionCookie(authResult.sessionId);
-				cookies.set(sessionCookie.name, sessionCookie.value, { ...(sessionCookie.attributes as Record<string, unknown>), path: '/' });
+				cookies.set(sessionCookie.name, sessionCookie.value, {
+					...(sessionCookie.attributes as Record<string, unknown>),
+					path: '/'
+				});
 			} else {
 				logger.warn('Password authentication failed', { email });
 			}
 		}
 
 		if (!(authSuccess && user && user._id)) {
-			return { status: false, message: 'Invalid credentials or authentication failed.' };
+			return {
+				status: false,
+				message: 'Invalid credentials or authentication failed.'
+			};
 		}
 
 		// For token-based authentication, we need to create a session manually
@@ -1467,7 +1583,7 @@ async function signInUser(
 		logger.info(`User logged in successfully: ${user.username} (${user._id})`);
 
 		// Audit Log
-		const { auditLogService } = await import('@src/services/audit/AuditLogService');
+		const { auditLogService } = await import('@src/services/audit/audit-log-service');
 		await auditLogService.log(
 			'USER_LOGIN',
 			{ id: user._id.toString(), email: user.email, ip: 'N/A' },
@@ -1478,8 +1594,15 @@ async function signInUser(
 		return { status: true, message: 'Login successful', user };
 	} catch (error) {
 		const err = error as Error;
-		logger.error('Error in signInUser', { email, message: err.message, stack: err.stack });
-		return { status: false, message: 'An internal error occurred during sign-in.' };
+		logger.error('Error in signInUser', {
+			email,
+			message: err.message,
+			stack: err.stack
+		});
+		return {
+			status: false,
+			message: 'An internal error occurred during sign-in.'
+		};
 	}
 }
 
@@ -1513,18 +1636,31 @@ async function forgotPWCheck(email: string): Promise<ForgotPWCheckResult> {
 		logger.info('Password reset token created', { email });
 
 		// Audit Log
-		const { auditLogService } = await import('@src/services/audit/AuditLogService');
+		const { auditLogService } = await import('@src/services/audit/audit-log-service');
 		await auditLogService.log(
 			'PASSWORD_RESET_REQUESTED',
 			{ id: user._id.toString(), email: user.email, ip: 'N/A' },
 			{ type: 'user', id: user._id.toString() }
 		);
 
-		return { success: true, message: 'Password reset token generated.', token, expiresIn: expiresAt, username: user.username };
+		return {
+			success: true,
+			message: 'Password reset token generated.',
+			token,
+			expiresIn: expiresAt,
+			username: user.username
+		};
 	} catch (error) {
 		const err = error as Error;
-		logger.error('Error in forgotPWCheck', { email, message: err.message, stack: err.stack });
-		return { success: false, message: 'An internal error occurred generating password reset token.' };
+		logger.error('Error in forgotPWCheck', {
+			email,
+			message: err.message,
+			stack: err.stack
+		});
+		return {
+			success: false,
+			message: 'An internal error occurred generating password reset token.'
+		};
 	}
 }
 
@@ -1543,13 +1679,24 @@ async function resetPWCheck(password: string, token: string, email: string): Pro
 	try {
 		const user = await auth.checkUser({ email });
 		if (!user?._id) {
-			logger.warn('resetPWCheck: User not found for token validation', { email });
-			return { status: false, message: 'Invalid or expired reset link (user not found).' };
+			logger.warn('resetPWCheck: User not found for token validation', {
+				email
+			});
+			return {
+				status: false,
+				message: 'Invalid or expired reset link (user not found).'
+			};
 		}
 		const validate = await auth.consumeToken(token, user._id, 'password_reset');
 		if (!validate.status) {
-			logger.warn('resetPWCheck: Token consumption failed', { email, message: validate.message });
-			return { status: false, message: validate.message || 'Invalid or expired reset link.' };
+			logger.warn('resetPWCheck: Token consumption failed', {
+				email,
+				message: validate.message
+			});
+			return {
+				status: false,
+				message: validate.message || 'Invalid or expired reset link.'
+			};
 		}
 		if (calculatePasswordStrength(password) < 1) {
 			return { status: false, message: 'Password is too weak.' };
@@ -1557,13 +1704,19 @@ async function resetPWCheck(password: string, token: string, email: string): Pro
 		await auth.invalidateAllUserSessions(user._id);
 		const updateResult = await auth.updateUserPassword(email, password);
 		if (!updateResult.status) {
-			logger.warn('resetPWCheck: Password update failed', { email, message: updateResult.message });
-			return { status: false, message: updateResult.message || 'Failed to update password.' };
+			logger.warn('resetPWCheck: Password update failed', {
+				email,
+				message: updateResult.message
+			});
+			return {
+				status: false,
+				message: updateResult.message || 'Failed to update password.'
+			};
 		}
 		logger.info('Password reset successfully', { email });
 
 		// Audit Log
-		const { auditLogService } = await import('@src/services/audit/AuditLogService');
+		const { auditLogService } = await import('@src/services/audit/audit-log-service');
 		await auditLogService.log(
 			'PASSWORD_RESET_SUCCESS',
 			{ id: user._id.toString(), email: user.email, ip: 'N/A' },
@@ -1573,7 +1726,14 @@ async function resetPWCheck(password: string, token: string, email: string): Pro
 		return { status: true, username: user.username };
 	} catch (error) {
 		const err = error as Error;
-		logger.error('Error in resetPWCheck', { email, message: err.message, stack: err.stack });
-		return { status: false, message: 'An internal error occurred during password reset.' };
+		logger.error('Error in resetPWCheck', {
+			email,
+			message: err.message,
+			stack: err.stack
+		});
+		return {
+			status: false,
+			message: 'An internal error occurred during password reset.'
+		};
 	}
 }

@@ -15,19 +15,20 @@ All dynamic CMS settings organized into logical groups
 -->
 
 <script lang="ts">
-	import PageTitle from '@components/PageTitle.svelte';
-	import GDPRSettings from '@components/system/GDPRSettings.svelte';
-	import { groupsNeedingConfig } from '@stores/configStore.svelte.ts';
+	import { groupsNeedingConfig } from '@src/stores/config-store.svelte.ts';
 	import { logger } from '@utils/logger';
 	import { onMount } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	// Import setting component
-	import GenericSettingsGroup from './GenericSettingsGroup.svelte';
-	import type { SettingGroup } from './settingsGroups';
+	import type { SettingGroup } from './settings-groups';
 	// Import settings structure
-	import { getSettingGroupsByRole } from './settingsGroups';
+	import { getSettingGroupsByRole } from './settings-groups';
+
+	// Components
+	import PageTitle from '@src/components/page-title.svelte';
+	import GDPRSettings from '@src/components/system/gdpr-settings.svelte';
+	import GenericSettingsGroup from './generic-settings-group.svelte';
 
 	// Get user admin status from page data (set by +page.server.ts)
 	const { data } = $props();

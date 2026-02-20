@@ -17,22 +17,43 @@
 -->
 
 <script lang="ts">
-	// Components
-	import Seasons from '@components/system/icons/Seasons.svelte';
-	import SveltyCMSLogoFull from '@components/system/icons/SveltyCMS_LogoFull.svelte';
-	import VersionCheck from '@components/VersionCheck.svelte';
-	// Skeleton UI
-	import { Menu, Portal } from '@skeletonlabs/skeleton-svelte';
-	// ParaglideJS
-	import * as m from '@src/paraglide/messages';
 	import { locales as availableLocales } from '@src/paraglide/runtime';
-	import { getPublicSetting, publicEnv } from '@src/stores/globalSettings.svelte';
+	import { getPublicSetting, publicEnv } from '@src/stores/global-settings.svelte';
 	// Stores
-	import { systemLanguage } from '@stores/store.svelte.ts';
-	import { getLanguageName } from '@utils/languageUtils';
+	import { systemLanguage } from '@src/stores/store.svelte.ts';
+	import { getLanguageName } from '@utils/language-utils';
+
+	// Components
+	import SignIn from './components/sign-in.svelte';
+	import SignUp from './components/sign-up.svelte';
+	import Seasons from '@src/components/system/icons/seasons.svelte';
+	import SveltyCMSLogoFull from '@src/components/system/icons/svelty-cms-logo-full.svelte';
+	import VersionCheck from '@src/components/version-check.svelte';
+
+	// Skeleton V4
+	import { Menu, Portal } from '@skeletonlabs/skeleton-svelte';
+
+	// SvelteKit
 	import { deserialize } from '$app/forms';
-	import SignIn from './components/SignIn.svelte';
-	import SignUp from './components/SignUp.svelte';
+
+	// Paraglide Messages
+	import {
+		applayout_systemlanguage,
+		db_error_description,
+		db_error_reason_label,
+		db_error_refresh_page,
+		db_error_reset_confirm,
+		db_error_reset_setup,
+		db_error_solution_1,
+		db_error_solution_2,
+		db_error_solution_3,
+		db_error_solution_4,
+		db_error_solutions_title,
+		db_error_title,
+		login_demo_message,
+		login_demo_nextreset,
+		login_demo_title
+	} from '@src/paraglide/messages';
 
 	// Props
 	const { data } = $props();
@@ -165,14 +186,18 @@
 			updateTimeRemaining();
 			interval = setInterval(updateTimeRemaining, 1000);
 			return () => {
-				if (interval) { clearInterval(interval); }
+				if (interval) {
+					clearInterval(interval);
+				}
 			};
 		}
 	});
 
 	// State management functions
 	function resetToInitialState() {
-		if (isTransitioning) { return; }
+		if (isTransitioning) {
+			return;
+		}
 		isTransitioning = true;
 		active = undefined;
 		background = data.demoMode ? '#242728' : getPublicSetting('SEASONS') ? '#242728' : firstUserExists ? 'white' : '#242728';
@@ -186,7 +211,9 @@
 		if (event) {
 			event.stopPropagation();
 		}
-		if (isTransitioning) { return; }
+		if (isTransitioning) {
+			return;
+		}
 		isTransitioning = true;
 
 		if (firstUserExists) {
@@ -207,7 +234,9 @@
 		if (event) {
 			event.stopPropagation();
 		}
-		if (isTransitioning) { return; }
+		if (isTransitioning) {
+			return;
+		}
 		isTransitioning = true;
 		active = 1;
 		background = '#242728';
@@ -253,23 +282,23 @@
 							d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
 						/>
 					</svg>
-					<h2 class="text-2xl font-bold text-error-500">{m.db_error_title()}</h2>
+					<h2 class="text-2xl font-bold text-error-500">{db_error_title()}</h2>
 				</div>
 
-				<p class="mb-4 text-lg">{m.db_error_description()}</p>
+				<p class="mb-4 text-lg">{db_error_description()}</p>
 
 				<div class="mb-4 rounded-lg bg-surface-200 p-4">
-					<p class="font-semibold">{m.db_error_reason_label()}</p>
+					<p class="font-semibold">{db_error_reason_label()}</p>
 					<p class="text-sm">{data.errorReason}</p>
 				</div>
 
 				<div class="mb-6">
-					<h3 class="mb-2 font-semibold">{m.db_error_solutions_title()}</h3>
+					<h3 class="mb-2 font-semibold">{db_error_solutions_title()}</h3>
 					<ul class="list-inside list-disc space-y-1 text-sm">
-						<li>{m.db_error_solution_1()}</li>
-						<li>{m.db_error_solution_2()}</li>
-						<li>{m.db_error_solution_3()}</li>
-						<li>{m.db_error_solution_4()}</li>
+						<li>{db_error_solution_1()}</li>
+						<li>{db_error_solution_2()}</li>
+						<li>{db_error_solution_3()}</li>
+						<li>{db_error_solution_4()}</li>
 					</ul>
 				</div>
 
@@ -278,7 +307,7 @@
 						<button
 							type="button"
 							onclick={async () => {
-								if (confirm(m.db_error_reset_confirm())) {
+								if (confirm(db_error_reset_confirm())) {
 									const response = await fetch('?/resetSetup', { method: 'POST', body: new FormData() });
 									const result = deserialize(await response.text());
 
@@ -297,11 +326,9 @@
 							}}
 							class="preset-filled-warning-500 btn"
 						>
-							{m.db_error_reset_setup()}
+							{db_error_reset_setup()}
 						</button>
-						<button type="button" onclick={() => window.location.reload()} class="preset-filled-secondary-500 btn">
-							{m.db_error_refresh_page()}
-						</button>
+						<button type="button" onclick={() => window.location.reload()} class="preset-filled-secondary-500 btn">{db_error_refresh_page()}</button>
 					</div>
 				{/if}
 			</div>
@@ -340,10 +367,10 @@
 				role="status"
 				aria-label="Demo mode active. Timer showing time remaining until next reset."
 			>
-				<p class="text-2xl font-bold">{m.login_demo_title()}</p>
-				<p>{m.login_demo_message()}</p>
+				<p class="text-2xl font-bold">{login_demo_title()}</p>
+				<p>{login_demo_message()}</p>
 				<p class="text-xl font-bold">
-					{m.login_demo_nextreset()}
+					{login_demo_nextreset()}
 					<!-- Announce remaining time in an accessible format -->
 					<span aria-label="Time remaining: {timeRemaining.minutes} minutes and {timeRemaining.seconds} seconds">
 						{timeRemaining.minutes}:{timeRemaining.seconds < 10 ? `0${timeRemaining.seconds}` : timeRemaining.seconds}
@@ -381,7 +408,7 @@
 							<div
 								class="px-3 py-2 text-xs font-bold text-tertiary-500 dark:text-primary-500 uppercase tracking-wider text-center border-b border-surface-200 dark:border-surface-50 mb-1"
 							>
-								{m.applayout_systemlanguage()}
+								{applayout_systemlanguage()}
 							</div>
 
 							{#if Array.isArray(getPublicSetting('LOCALES')) && getPublicSetting('LOCALES').length > 5}
@@ -394,7 +421,7 @@
 										class="w-full rounded-md bg-surface-200 dark:bg-surface-800 px-3 py-2 text-sm placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-primary-500 text-surface-900 dark:text-white border-none"
 										aria-label="Search languages"
 										onclick={(e) => e.stopPropagation()}
-									>
+									/>
 								</div>
 
 								<div class="max-h-64 divide-y divide-surface-200 dark:divide-surface-700 overflow-y-auto">

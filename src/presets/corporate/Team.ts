@@ -1,5 +1,5 @@
 /**
- * @file src/presets/corporate/Team.ts
+ * @file src/presets/corporate/team.ts
  * @description Corporate team members schema.
  * @author SveltyCMS
  */

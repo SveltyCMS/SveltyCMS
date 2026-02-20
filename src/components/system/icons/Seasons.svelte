@@ -1,5 +1,5 @@
 <!--
-@file src/components/system/icons/Seasons.svelte
+@file src/components/system/icons/seasons.svelte
 @component Seasons Component
 
 @description
@@ -22,14 +22,10 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 -->
 
 <script lang="ts">
-	// ParaglideJS
-	import * as m from '@src/paraglide/messages';
 	// Settings helper
-	import { publicEnv } from '@src/stores/globalSettings.svelte';
+	import { publicEnv } from '@src/stores/global-settings.svelte';
 	// Svelte 5 reactive Date
 	import { SvelteDate } from 'svelte/reactivity';
-	// Confetti effect
-	import { Confetti } from 'svelte-confetti';
 
 	// =====================================================================
 	// LUNAR PHASE CALCULATIONS (Meeus Algorithm - Simplified)
@@ -260,7 +256,7 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 			</div>
 
 			<p class="absolute -top-28 left-1/2 z-20 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap text-4xl font-bold text-error-500">
-				{m.login_new_year()}
+				{login_new_year()}
 			</p>
 
 			<p class="absolute left-1/2 top-28 z-20 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap text-5xl font-bold text-error-500">
@@ -301,12 +297,12 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 
 		{#if isHalloween}
 			<!-- Halloween -->
-			<img src="/seasons/Halloween.avif" alt="Spider" class="absolute -bottom-[200px] left-1/2 -translate-x-1/2 -translate-y-1/2">
+			<img src="/seasons/Halloween.avif" alt="Spider" class="absolute -bottom-[200px] left-1/2 -translate-x-1/2 -translate-y-1/2" />
 		{/if}
 
 		{#if isChristmas}
 			<!-- Christmas -->
-			<img src="/seasons/SantaHat.avif" alt="Santa hat" class="absolute -right-[105px] -top-14 h-20 w-20 -translate-x-1/2 -translate-y-1/2">
+			<img src="/seasons/SantaHat.avif" alt="Santa hat" class="absolute -right-[105px] -top-14 h-20 w-20 -translate-x-1/2 -translate-y-1/2" />
 		{/if}
 	{/if}
 
@@ -317,7 +313,7 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 				<iconify-icon icon="noto:lantern" width="40" class="absolute -left-[60px] -top-[20px] text-red-600"></iconify-icon>
 				<iconify-icon icon="noto:dragon-face" width="40" class="absolute -right-[60px] -top-[20px]"></iconify-icon>
 			</div>
-			<p class="absolute left-[-40px] top-[-50px] justify-center whitespace-nowrap text-2xl font-bold text-red-600">{m.login_new_year()}</p>
+			<p class="absolute left-[-40px] top-[-50px] justify-center whitespace-nowrap text-2xl font-bold text-red-600">{login_new_year()}</p>
 		{/if}
 
 		{#if isCherryBlossom}
@@ -354,7 +350,7 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 				<iconify-icon icon="noto:sparkles" width="50" class="absolute -right-[200px] top-[100px] rotate-90 text-warning-500"></iconify-icon>
 			</div>
 			<p class="absolute -left-[10px] top-[170px] justify-center whitespace-nowrap text-3xl font-bold italic text-yellow-600">
-				{m.login_happy_diwali()}
+				{login_happy_diwali()}
 			</p>
 		{/if}
 
@@ -379,7 +375,7 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 			<p
 				class="absolute -left-[30px] top-[170px] justify-center bg-linear-to-br from-pink-500 to-violet-500 box-decoration-clone bg-clip-text text-4xl font-bold text-transparent"
 			>
-				{m.login_Happy_Holi()}
+				{login_Happy_Holi()}
 			</p>
 		{/if}
 
@@ -394,7 +390,7 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 			<p
 				class="absolute -left-[30px] top-[170px] justify-center text-nowrap bg-linear-to-br from-pink-500 to-warning-500 box-decoration-clone bg-clip-text text-4xl font-bold text-transparent"
 			>
-				{m.login_happy_navratri()}
+				{login_happy_navratri()}
 			</p>
 		{/if}
 	{/if}

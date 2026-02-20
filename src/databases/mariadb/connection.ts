@@ -77,7 +77,10 @@ export async function closeConnectionPool(): Promise<void> {
 /**
  * Test database connection
  */
-export async function testConnection(): Promise<{ success: boolean; latency: number }> {
+export async function testConnection(): Promise<{
+	success: boolean;
+	latency: number;
+}> {
 	if (!pool) {
 		return { success: false, latency: -1 };
 	}

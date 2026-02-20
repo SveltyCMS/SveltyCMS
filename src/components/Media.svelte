@@ -1,5 +1,5 @@
 <!--
-@file src/components/Media.svelte
+@file src/components/media.svelte
 @component
 **Enhanced Media Gallery - Svelte 5 Optimized**
 
@@ -28,13 +28,13 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 -->
 
 <script lang="ts">
-	import * as m from '@src/paraglide/messages';
 	import { logger } from '@utils/logger';
-	import type { MediaImage } from '@utils/media/mediaModels';
+	import type { MediaImage } from '@utils/media/media-models';
 	// Removed axios import
 	import { onDestroy, onMount } from 'svelte';
-	import { SvelteSet } from 'svelte/reactivity';
 	import { fade, scale } from 'svelte/transition';
+	import { mediagallery_nomedia } from '@src/paraglide/messages';
+	import { SvelteSet } from 'svelte/reactivity';
 
 	type ThumbnailSize = 'sm' | 'md' | 'lg';
 	type ViewMode = 'grid' | 'list';
@@ -159,7 +159,9 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 
 		try {
 			const response = await fetch('/api/media');
-			if (!response.ok) { throw new Error('Failed to load media'); }
+			if (!response.ok) {
+				throw new Error('Failed to load media');
+			}
 			files = await response.json();
 			showInfoSet.clear();
 			selectedFiles.clear();
@@ -264,7 +266,7 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 			id="media-search"
 			aria-label="Search media files"
 			disabled={isLoading}
-		>
+		/>
 
 		<!-- View mode toggle -->
 		<div class="flex gap-1 rounded-lg border border-surface-300 p-1 dark:border-surface-600" role="group" aria-label="View mode">
@@ -343,7 +345,7 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 		<div class="flex flex-1 items-center justify-center" transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }}>
 			<div class="flex flex-col items-center gap-3">
 				<iconify-icon icon="mdi:image-off" width="48" class="text-surface-400"></iconify-icon>
-				<p class="text-lg text-surface-600 dark:text-surface-50">{search ? `No media found for "${search}"` : m.mediagallery_nomedia()}</p>
+				<p class="text-lg text-surface-600 dark:text-surface-50">{search ? `No media found for "${search}"` : mediagallery_nomedia()}</p>
 			</div>
 		</div>
 	{:else}
@@ -358,9 +360,10 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 			{#each filteredFiles as file, index (file.filename)}
 				{@const selected = isSelected(file.filename)}
 				<div
-									class="group card relative flex {currentViewMode.value === 'list'
-										? 'flex-row items-center'
-										: 'flex-col'} overflow-hidden transition-all duration-200 {selected ? 'ring-4 ring-primary-500' : ''}"					role="listitem"
+					class="group card relative flex {currentViewMode.value === 'list'
+						? 'flex-row items-center'
+						: 'flex-col'} overflow-hidden transition-all duration-200 {selected ? 'ring-4 ring-primary-500' : ''}"
+					role="listitem"
 					transition:scale={{ duration: prefersReducedMotion ? 0 : 200, start: 0.95 }}
 				>
 					{#if multiple}
@@ -372,7 +375,7 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 								onchange={(e) => toggleSelection(file, e)}
 								class="checkbox"
 								aria-label={`Select ${file.filename}`}
-							>
+							/>
 						</label>
 					{/if}
 
@@ -405,7 +408,7 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 								alt={file.filename}
 								class="max-h-full max-w-full rounded-md object-contain"
 								loading="lazy"
-							>
+							/>
 						{:else}
 							<!-- Info view -->
 							<div class="w-full text-left">

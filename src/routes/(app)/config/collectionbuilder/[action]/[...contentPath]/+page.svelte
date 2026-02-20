@@ -11,29 +11,32 @@
 -->
 
 <script lang="ts">
-	import PageTitle from '@components/PageTitle.svelte';
+	// Paraglide Messages
+	import { button_delete, button_cancel, button_save } from '@src/paraglide/messages';
+
+	// Components
+	import PageTitle from '@src/components/page-title.svelte';
+	import CollectionForm from './tabs/collection-form.svelte';
+	import CollectionWidgetOptimized from './tabs/collection-widget-optimized.svelte';
+	import ModalSchemaWarning from '@src/routes/(app)/config/collectionbuilder/modal-schema-warning.svelte';
+
+	// Types
 	import type { FieldInstance, Schema } from '@src/content/types';
 	import type { User } from '@src/databases/auth/types';
-	// ParaglideJS
-	import * as m from '@src/paraglide/messages';
 
 	// Stores
-	import { collection, setCollection } from '@src/stores/collectionStore.svelte';
+	import { collection, setCollection } from '@src/stores/collection-store.svelte';
 	import { toaster, validationStore } from '@src/stores/store.svelte';
-	import { setRouteContext } from '@src/stores/UIStore.svelte.ts';
-	import { widgetStoreActions } from '@stores/widgetStore.svelte.ts';
-	import { logger } from '@utils/logger';
-	import { showConfirm } from '@utils/modalUtils';
+	import { setRouteContext } from '@src/stores/ui-store.svelte.ts';
+	import { widgetStoreActions } from '@src/stores/widget-store.svelte.ts';
+
 	// Utils
+	import { logger } from '@utils/logger';
+	import { showConfirm } from '@utils/modal-utils';
 	import { obj2formData } from '@utils/utils';
-	// Removed axios import
 	import { onMount } from 'svelte';
 	import { afterNavigate, goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import ModalSchemaWarning from '../../ModalSchemaWarning.svelte';
-	// Components
-	import CollectionForm from './tabs/CollectionForm.svelte';
-	import CollectionWidgetOptimized from './tabs/CollectionWidgetOptimized.svelte';
 
 	// Reactive: re-evaluates when URL params change during client-side navigation
 	const action = $derived(page.params.action);
@@ -104,7 +107,9 @@
 
 	async function handleCollectionSave(confirmDeletions = false) {
 		if (validationStore.errors && Object.keys(validationStore.errors).length > 0) {
-			toaster.error({ description: 'Please fix validation errors before saving' });
+			toaster.error({
+				description: 'Please fix validation errors before saving'
+			});
 			return;
 		}
 
@@ -139,7 +144,9 @@
 			if (data?.driftDetected) {
 				migrationPlan = data.plan;
 				showWarningModal = true;
-				toaster.info({ description: 'Manual confirmation required for schema changes' });
+				toaster.info({
+					description: 'Manual confirmation required for schema changes'
+				});
 				return;
 			}
 
@@ -198,12 +205,12 @@
 		{#if action === 'edit'}
 			<button onclick={handleCollectionDelete} class="preset-filled-error-500 btn flex items-center gap-1" disabled={isLoading}>
 				<iconify-icon icon="mdi:delete" width="20"></iconify-icon>
-				<span class="hidden sm:inline">{m.button_delete()}</span>
+				<span class="hidden sm:inline">{button_delete()}</span>
 			</button>
 		{/if}
 		<button onclick={() => goto('/config/collectionbuilder')} class="preset-outlined-surface-500 btn flex items-center gap-1" disabled={isLoading}>
 			<iconify-icon icon="mdi:close" width="20"></iconify-icon>
-			<span class="hidden sm:inline">{m.button_cancel()}</span>
+			<span class="hidden sm:inline">{button_cancel()}</span>
 		</button>
 		<button onclick={() => handleCollectionSave()} class="preset-filled-primary-500 btn flex items-center gap-1 min-w-[100px]" disabled={isLoading}>
 			{#if isLoading}
@@ -211,7 +218,7 @@
 			{:else}
 				<iconify-icon icon="mdi:content-save" width="20"></iconify-icon>
 			{/if}
-			<span>{m.button_save()}</span>
+			<span>{button_save()}</span>
 		</button>
 	</div>
 </PageTitle>

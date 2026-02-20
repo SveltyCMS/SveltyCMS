@@ -3,14 +3,14 @@
  * @description Editable Website Plugin Definition
  */
 
-import { slotRegistry } from '@src/plugins/slotRegistry';
+import { slotRegistry } from '@src/plugins/slot-registry';
 import type { Plugin } from '@src/plugins/types';
 
 // Register the Live Preview slot
 slotRegistry.register({
 	id: 'live_preview',
 	zone: 'entry_edit',
-	component: () => import('./LivePreview.svelte'),
+	component: () => import('./live-preview.svelte'),
 	props: {
 		label: 'Live Preview',
 		icon: 'mdi:eye-outline'
@@ -44,7 +44,7 @@ export const editableWebsitePlugin: Plugin = {
 					id: 'live_preview',
 					label: 'Live Preview',
 					icon: 'mdi:eye-outline',
-					component: () => import('./LivePreview.svelte')
+					component: () => import('./live-preview.svelte')
 				}
 			]
 		}

@@ -7,7 +7,7 @@
  */
 
 import { describe, expect, it } from 'bun:test';
-import { getDatabaseResilience } from '../../../src/databases/DatabaseResilience';
+import { getDatabaseResilience } from '../../../src/databases/database-resilience';
 
 // Mock operation that simulates DB work with random latency and occasional failures
 const simulateDbOp = async (id: number): Promise<string> => {

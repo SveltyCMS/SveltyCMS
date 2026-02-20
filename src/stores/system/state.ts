@@ -202,7 +202,10 @@ export function setSystemState(state: SystemState, reason?: string): void {
 		const stateTransitions = [...current.performanceMetrics.stateTransitions, transition].slice(-50);
 
 		// Track initialization metrics
-		const performanceMetrics = { ...current.performanceMetrics, stateTransitions };
+		const performanceMetrics = {
+			...current.performanceMetrics,
+			stateTransitions
+		};
 
 		if (state === 'INITIALIZING' && current.overallState !== 'INITIALIZING') {
 			performanceMetrics.totalInitializations++;
@@ -237,7 +240,9 @@ export function setSystemState(state: SystemState, reason?: string): void {
 			performanceMetrics.failedInitializations++;
 		}
 
-		logger.info(`System state changed: ${current.overallState} → ${state}`, { reason });
+		logger.info(`System state changed: ${current.overallState} → ${state}`, {
+			reason
+		});
 
 		return {
 			...current,

@@ -3,10 +3,9 @@
  * @description Exposes Content Management tools to WebMCP
  */
 
-import { collections } from '@stores/collectionStore.svelte';
+import { collections } from '@src/stores/collection-store.svelte';
 
 export function registerContentTools() {
-	// @ts-expect-error - allow dynamic access to window.modelContext
 	const modelContext = window.navigator.modelContext;
 
 	if (!modelContext) {
@@ -46,7 +45,10 @@ export function registerContentTools() {
 		parameters: {
 			type: 'object',
 			properties: {
-				collectionName: { type: 'string', description: 'The name of the collection to search' },
+				collectionName: {
+					type: 'string',
+					description: 'The name of the collection to search'
+				},
 				query: { type: 'string', description: 'Search query' }
 			},
 			required: ['collectionName']

@@ -12,16 +12,16 @@
  * @security Admin-only endpoints with comprehensive logging
  */
 
-import { hasApiPermission } from '@src/databases/auth/apiPermissions';
-import { securityResponseService } from '@src/services/SecurityResponseService';
+import { hasApiPermission } from '@src/databases/auth/api-permissions';
+import { securityResponseService } from '@src/services/security-response-service';
 import { json } from '@sveltejs/kit';
 /**
  * GET /api/security/incidents
  * Returns list of active security incidents with filtering options.
  */
 // Unified Error Handling
-import { apiHandler } from '@utils/apiHandler';
-import { AppError } from '@utils/errorHandling';
+import { apiHandler } from '@utils/api-handler';
+import { AppError } from '@utils/error-handling';
 import { logger } from '@utils/logger.server';
 
 /**

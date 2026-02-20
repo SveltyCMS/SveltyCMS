@@ -1,5 +1,5 @@
 /**
- * @file src/presets/ecommerce/Products.ts
+ * @file src/presets/ecommerce/products.ts
  * @description Product catalog schema for E-commerce preset.
  * @author SveltyCMS
  */

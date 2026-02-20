@@ -15,15 +15,15 @@
 
 import type { DatabaseId } from '@root/src/content/types';
 // Utils
-import type { MediaItem, SystemVirtualFolder } from '@root/src/databases/dbInterface';
-import type { MediaAccess } from '@root/src/utils/media/mediaModels';
+import type { MediaItem, SystemVirtualFolder } from '@root/src/databases/db-interface';
+import type { MediaAccess } from '@root/src/utils/media/media-models';
 // Auth
 import { dbAdapter } from '@src/databases/db';
-import { MediaService } from '@src/utils/media/mediaService.server';
+import { MediaService } from '@src/utils/media/media-service.server';
 import { error, redirect } from '@sveltejs/kit';
 // System Logger
 import { type LoggableValue, logger } from '@utils/logger.server';
-import { getImageSizes, moveMediaToTrash } from '@utils/media/mediaStorage.server';
+import { getImageSizes, moveMediaToTrash } from '@utils/media/media-storage.server';
 import type { Actions, PageServerLoad } from './$types';
 
 interface StackItem {

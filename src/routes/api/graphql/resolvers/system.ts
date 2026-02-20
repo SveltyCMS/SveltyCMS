@@ -3,7 +3,7 @@
  * @description System-level GraphQL resolvers for health, diagnostics, navigation, and collection stats.
  */
 
-import { contentManager } from '@src/content/ContentManager';
+import { contentManager } from '@src/content/content-manager';
 import type { User } from '@src/databases/auth/types';
 import { logger } from '@utils/logger.server';
 
@@ -107,7 +107,11 @@ export const systemResolvers = {
 			try {
 				return await contentManager.getCollectionStats(args.collectionId, context.tenantId);
 			} catch (error) {
-				logger.error('Error in collectionStats:', { error, collectionId: args.collectionId, tenantId: context.tenantId });
+				logger.error('Error in collectionStats:', {
+					error,
+					collectionId: args.collectionId,
+					tenantId: context.tenantId
+				});
 				throw new Error('Failed to fetch collection stats');
 			}
 		},
@@ -120,7 +124,10 @@ export const systemResolvers = {
 				const collections = await contentManager.getCollections(context.tenantId);
 				return collections.map((col) => contentManager.getCollectionStats(col._id!, context.tenantId)).filter(Boolean);
 			} catch (error) {
-				logger.error('Error in allCollectionStats:', { error, tenantId: context.tenantId });
+				logger.error('Error in allCollectionStats:', {
+					error,
+					tenantId: context.tenantId
+				});
 				throw new Error('Failed to fetch all collection stats');
 			}
 		},
@@ -138,7 +145,10 @@ export const systemResolvers = {
 					tenantId: context.tenantId
 				});
 			} catch (error) {
-				logger.error('Error in navigationStructure:', { error, tenantId: context.tenantId });
+				logger.error('Error in navigationStructure:', {
+					error,
+					tenantId: context.tenantId
+				});
 				throw new Error('Failed to fetch navigation structure');
 			}
 		},
@@ -150,7 +160,11 @@ export const systemResolvers = {
 			try {
 				return await contentManager.getNodeChildren(args.nodeId, context.tenantId);
 			} catch (error) {
-				logger.error('Error in nodeChildren:', { error, nodeId: args.nodeId, tenantId: context.tenantId });
+				logger.error('Error in nodeChildren:', {
+					error,
+					nodeId: args.nodeId,
+					tenantId: context.tenantId
+				});
 				throw new Error('Failed to fetch node children');
 			}
 		},
@@ -162,7 +176,11 @@ export const systemResolvers = {
 			try {
 				return await contentManager.getBreadcrumb(args.path);
 			} catch (error) {
-				logger.error('Error in breadcrumb:', { error, path: args.path, tenantId: context.tenantId });
+				logger.error('Error in breadcrumb:', {
+					error,
+					path: args.path,
+					tenantId: context.tenantId
+				});
 				throw new Error('Failed to fetch breadcrumb');
 			}
 		},

@@ -22,12 +22,13 @@
 -->
 
 <script lang="ts">
-	import { publicEnv } from '@src/stores/globalSettings.svelte';
+	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { app, validationStore } from '@src/stores/store.svelte';
 	import { getFieldName } from '@src/utils/utils';
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import { logger } from '@utils/logger';
 	// Unified error handling
-	import { handleWidgetValidation } from '@widgets/widgetErrorHandler';
+	import { handleWidgetValidation } from '@widgets/widget-error-handler';
 	import { untrack } from 'svelte';
 	// Valibot validation
 	import { parse } from 'valibot';
@@ -97,14 +98,21 @@
 	// Memoized badge class calculation using $derived
 	let badgeClass = $derived(() => {
 		const length = count;
-		if (field?.minLength && length < (field?.minLength as number)) { return 'bg-error-500'; // Semantic error color
-}
-		if (field?.maxLength && length > (field?.maxLength as number)) { return 'bg-error-500'; }
-		if (field?.count && length === (field?.count as number)) { return 'bg-primary-500'; // Semantic success color
-}
-		if (field?.count && length > (field?.count as number)) { return 'bg-warning-500'; // Semantic warning color
-}
-		if (field?.minLength) { return '!preset-filled-surface-500'; }
+		if (field?.minLength && length < (field?.minLength as number)) {
+			return 'bg-error-500'; // Semantic error color
+		}
+		if (field?.maxLength && length > (field?.maxLength as number)) {
+			return 'bg-error-500';
+		}
+		if (field?.count && length === (field?.count as number)) {
+			return 'bg-primary-500'; // Semantic success color
+		}
+		if (field?.count && length > (field?.count as number)) {
+			return 'bg-warning-500'; // Semantic warning color
+		}
+		if (field?.minLength) {
+			return '!preset-filled-surface-500';
+		}
 		return '!preset-outlined-surface-500';
 	});
 
@@ -223,9 +231,6 @@
 	});
 
 	// Export WidgetData for data binding with Fields.svelte
-	import SystemTooltip from '@components/system/SystemTooltip.svelte';
-
-	// Export WidgetData for data binding with Fields.svelte
 	export const WidgetData = async () => value;
 </script>
 
@@ -266,7 +271,7 @@
 				aria-describedby={validationError ? `${fieldName}-error` : field.helper ? `${fieldName}-helper` : undefined}
 				aria-required={field?.required}
 				data-testid="text-input"
-			>
+			/>
 
 			<!-- suffix and count -->
 			{#if field?.suffix || field?.count || field?.minLength || field?.maxLength}

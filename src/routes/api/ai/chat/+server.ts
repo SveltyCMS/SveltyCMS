@@ -8,7 +8,7 @@
  *
  */
 
-import { aiService } from '@services/AIService';
+import { aiService } from '@services/ai-service';
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 

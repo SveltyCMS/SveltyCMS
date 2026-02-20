@@ -197,7 +197,7 @@ Replace raw @html with Sanitize component:
 **After:**
 ```svelte
 <script>
-  import Sanitize from '@utils/Sanitize.svelte';
+  import Sanitize from '@utils/sanitize.svelte';
 </script>
 
 <Sanitize html={userContent} />

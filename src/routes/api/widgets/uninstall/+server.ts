@@ -6,8 +6,8 @@
 import { hasPermissionWithRoles } from '@src/databases/auth/permissions';
 import { json } from '@sveltejs/kit';
 // Unified Error Handling
-import { apiHandler } from '@utils/apiHandler';
-import { AppError } from '@utils/errorHandling';
+import { apiHandler } from '@utils/api-handler';
+import { AppError } from '@utils/error-handling';
 import { logger } from '@utils/logger.server';
 
 export const POST = apiHandler(async ({ request, locals }) => {

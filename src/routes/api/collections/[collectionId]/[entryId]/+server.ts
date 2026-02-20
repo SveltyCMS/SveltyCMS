@@ -13,18 +13,18 @@
  * Status-based access control for non-admin users
  */
 
-import { modifyRequest } from '@api/collections/modifyRequest';
+import { modifyRequest } from '@api/collections/modify-request';
 // Auth
-import { contentManager } from '@src/content/ContentManager';
+import { contentManager } from '@src/content/content-manager';
 // Types
 import type { FieldInstance } from '@src/content/types';
 // Databases
-import type { DatabaseId } from '@src/databases/dbInterface';
-import { getPrivateSettingSync } from '@src/services/settingsService';
+import type { DatabaseId } from '@src/databases/db-interface';
+import { getPrivateSettingSync } from '@src/services/settings-service';
 import { json } from '@sveltejs/kit';
 // Unified Error Handling
-import { apiHandler } from '@utils/apiHandler';
-import { AppError } from '@utils/errorHandling';
+import { apiHandler } from '@utils/api-handler';
+import { AppError } from '@utils/error-handling';
 // Logging
 import { logger } from '@utils/logger.server';
 
@@ -80,12 +80,16 @@ export const PATCH = apiHandler(async ({ locals, params, request }) => {
 			collectionName: schema.name
 		});
 	} catch (modifyError) {
-		logger.warn('PATCH modifyRequest failed', { error: (modifyError as Error).message });
+		logger.warn('PATCHmodify-requestfailed', {
+			error: (modifyError as Error).message
+		});
 	}
 
 	const collectionName = normalizeCollectionName(schema._id);
 	// First verify the entry exists and belongs to the current tenant
-	const query: { _id: DatabaseId; tenantId?: string } = { _id: entryId as DatabaseId };
+	const query: { _id: DatabaseId; tenantId?: string } = {
+		_id: entryId as DatabaseId
+	};
 	if (getPrivateSettingSync('MULTI_TENANT')) {
 		query.tenantId = tenantId;
 	}
@@ -106,14 +110,14 @@ export const PATCH = apiHandler(async ({ locals, params, request }) => {
 	}
 
 	// Cache & PubSub
-	const cacheService = (await import('@src/databases/CacheService')).cacheService;
+	const cacheService = (await import('@src/databases/cache-service')).cacheService;
 	const cachePattern = `collection:${schema._id}:*`;
 	await cacheService.clearByPattern(cachePattern, tenantId).catch((e) => logger.warn('Cache clear failed', e));
 	await contentManager.invalidateSpecificCaches([schema.path || '', schema._id as string].filter(Boolean));
 
 	// Publish entryUpdated event
 	try {
-		const { pubSub } = await import('@src/services/pubSub');
+		const { pubSub } = await import('@src/services/pub-sub');
 		pubSub.publish('entryUpdated', {
 			collection: schema.name || collectionId,
 			id: entryId,
@@ -151,7 +155,9 @@ export const DELETE = apiHandler(async ({ locals, params }) => {
 	}
 
 	const collectionName = normalizeCollectionName(schema._id);
-	const query: { _id: DatabaseId; tenantId?: string } = { _id: entryId as DatabaseId };
+	const query: { _id: DatabaseId; tenantId?: string } = {
+		_id: entryId as DatabaseId
+	};
 	if (getPrivateSettingSync('MULTI_TENANT')) {
 		query.tenantId = tenantId;
 	}
@@ -171,13 +177,13 @@ export const DELETE = apiHandler(async ({ locals, params }) => {
 	}
 
 	// Cache & PubSub
-	const cacheService = (await import('@src/databases/CacheService')).cacheService;
+	const cacheService = (await import('@src/databases/cache-service')).cacheService;
 	const cachePattern = `collection:${schema._id}:*`;
 	await cacheService.clearByPattern(cachePattern, tenantId).catch((e) => logger.warn('Cache clear failed', e));
 	await contentManager.invalidateSpecificCaches([schema.path || '', schema._id as string].filter(Boolean));
 
 	try {
-		const { pubSub } = await import('@src/services/pubSub');
+		const { pubSub } = await import('@src/services/pub-sub');
 		pubSub.publish('entryUpdated', {
 			collection: schema.name || collectionId,
 			id: entryId,

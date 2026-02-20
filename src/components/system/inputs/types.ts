@@ -1,3 +1,8 @@
+/**
+ * @file src/components/system/inputs/types.ts
+ * @description Types for input components
+ */
+
 export type FullAutoFill =
 	| 'on'
 	| 'off'

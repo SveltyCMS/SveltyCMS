@@ -1,5 +1,5 @@
 /**
- * @file src/presets/agency/Testimonials.ts
+ * @file src/presets/agency/testimonials.ts
  * @description Client testimonials schema.
  * @author SveltyCMS
  */

@@ -16,8 +16,8 @@
  * The model ensures data integrity and provides utility methods for theme management.
  */
 
-import type { Theme } from '@src/databases/dbInterface';
-import { nowISODateString, toISOString } from '@utils/dateUtils';
+import type { Theme } from '@src/databases/db-interface';
+import { nowISODateString, toISOString } from '@utils/date-utils';
 // System Logger
 import { logger } from '@utils/logger';
 import type { Model } from 'mongoose';
@@ -109,7 +109,9 @@ themeSchema.statics = {
 
 			// Execute all upserts in a single atomic database call
 			// Performance: 10 themes = 1 DB call instead of 20 (10 findOne + 10 updateOne/create)
-			const result = await this.bulkWrite(operations as any, { ordered: false });
+			const result = await this.bulkWrite(operations as any, {
+				ordered: false
+			});
 
 			logger.info(`Stored ${themes.length} themes via bulk operation ` + `(${result.upsertedCount} inserted, ${result.modifiedCount} updated)`);
 		} catch (error) {

@@ -11,12 +11,22 @@ import { mock } from 'bun:test';
 
 // These can be modified by tests using globalThis
 declare global {
-	var __mockSystemState: { overallState: string; services: Record<string, any>; performanceMetrics: { stateTransitions: any[] } };
+	var __mockSystemState: {
+		overallState: string;
+		services: Record<string, any>;
+		performanceMetrics: { stateTransitions: any[] };
+	};
 	var __mockIsSystemReady: boolean;
 	var __mockIsSetupComplete: boolean;
+	var __mockUserCount: number;
+	var __mockRoles: any[];
 }
 
-globalThis.__mockSystemState = { overallState: 'READY', services: {}, performanceMetrics: { stateTransitions: [] } };
+globalThis.__mockSystemState = {
+	overallState: 'READY',
+	services: {},
+	performanceMetrics: { stateTransitions: [] }
+};
 globalThis.__mockIsSystemReady = true;
 globalThis.__mockIsSetupComplete = true;
 
@@ -51,8 +61,8 @@ mock.module('@src/services/settingsService', () => ({
 	getPrivateSettingSync: () => false
 }));
 
-// Mock @utils/setupCheck
-mock.module('@utils/setupCheck', () => ({
+// Mock @utils/setup-check
+mock.module('@utils/setup-check', () => ({
 	isSetupComplete: () => globalThis.__mockIsSetupComplete,
 	isSetupCompleteAsync: async () => globalThis.__mockIsSetupComplete,
 	invalidateSetupCache: () => {}

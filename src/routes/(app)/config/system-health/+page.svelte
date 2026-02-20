@@ -7,8 +7,6 @@ Full-page system health monitoring interface for administrators.
 -->
 
 <script lang="ts">
-	import PageTitle from '@components/PageTitle.svelte';
-	import SystemHealth from '@src/components/SystemHealth.svelte';
 </script>
 
 <PageTitle name="System Health" showBackButton={true} backUrl="/config" icon="mdi:heart-pulse" />

@@ -4,10 +4,10 @@
  */
 
 import { dbAdapter } from '@src/databases/db';
-import { getAllSettings } from '@src/services/settingsService';
+import { getAllSettings } from '@src/services/settings-service';
 import { json } from '@sveltejs/kit';
-import { apiHandler } from '@utils/apiHandler';
-import { AppError } from '@utils/errorHandling';
+import { apiHandler } from '@utils/api-handler';
+import { AppError } from '@utils/error-handling';
 import { logger } from '@utils/logger.server';
 
 export const POST = apiHandler(async ({ request, locals }) => {

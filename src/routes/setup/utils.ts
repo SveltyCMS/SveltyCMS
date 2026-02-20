@@ -7,7 +7,7 @@
  * such as building connection strings and initializing database adapters during the setup phase.
  */
 
-import type { IDBAdapter } from '@src/databases/dbInterface';
+import type { IDBAdapter } from '@src/databases/db-interface';
 import type { DatabaseConfig } from '@src/databases/schemas';
 import { logger } from '@utils/logger';
 import { createClient } from 'redis';
@@ -86,7 +86,9 @@ export async function getSetupDatabaseAdapter(config: DatabaseConfig): Promise<{
 }> {
 	const correlationId =
 		typeof globalThis.crypto?.randomUUID === 'function' ? globalThis.crypto.randomUUID() : (await import('node:crypto')).randomUUID();
-	logger.info(`Creating setup database adapter for ${config.type}`, { correlationId });
+	logger.info(`Creating setup database adapter for ${config.type}`, {
+		correlationId
+	});
 
 	const connectionString = buildDatabaseConnectionString(config);
 	logger.info(`Connection string built for ${config.type}`, {
@@ -108,7 +110,7 @@ export async function getSetupDatabaseAdapter(config: DatabaseConfig): Promise<{
 			// Mock success in TEST_MODE if host is 'mock-host' for UI audit purposes
 			if (process.env.TEST_MODE === 'true' && config.host === 'mock-host') {
 				logger.info('🛠️ Mocking DB connection for setup in TEST_MODE');
-				const { MongoDBAdapter } = await import('@src/databases/mongodb/mongoDBAdapter');
+				const { MongoDBAdapter } = await import('@src/databases/mongodb/mongo-db-adapter');
 				dbAdapter = new MongoDBAdapter() as unknown as IDBAdapter;
 
 				// Mock the connect method to return success
@@ -119,7 +121,7 @@ export async function getSetupDatabaseAdapter(config: DatabaseConfig): Promise<{
 				return { dbAdapter, connectionString };
 			}
 
-			const { MongoDBAdapter } = await import('@src/databases/mongodb/mongoDBAdapter');
+			const { MongoDBAdapter } = await import('@src/databases/mongodb/mongo-db-adapter');
 			dbAdapter = new MongoDBAdapter() as unknown as IDBAdapter;
 
 			// Prepare connection options for MongoDB
@@ -146,7 +148,9 @@ export async function getSetupDatabaseAdapter(config: DatabaseConfig): Promise<{
 					throw new Error(`Database connection failed: ${connectResult.error.message}`);
 				}
 			} catch (err: any) {
-				logger.error(`MongoDB adapter connect threw: ${err.message}`, { correlationId });
+				logger.error(`MongoDB adapter connect threw: ${err.message}`, {
+					correlationId
+				});
 				throw err;
 			}
 
@@ -156,7 +160,7 @@ export async function getSetupDatabaseAdapter(config: DatabaseConfig): Promise<{
 			// Mock success in TEST_MODE if host is 'mock-host' for UI audit purposes
 			if (process.env.TEST_MODE === 'true' && config.host === 'mock-host') {
 				logger.info('🛠️ Mocking MariaDB connection for setup in TEST_MODE');
-				const { MariaDBAdapter } = await import('@src/databases/mariadb/mariadbAdapter');
+				const { MariaDBAdapter } = await import('@src/databases/mariadb/mariadb-adapter');
 				dbAdapter = new MariaDBAdapter() as unknown as IDBAdapter;
 
 				// Mock the connect method to return success
@@ -167,7 +171,7 @@ export async function getSetupDatabaseAdapter(config: DatabaseConfig): Promise<{
 				return { dbAdapter, connectionString };
 			}
 
-			const { MariaDBAdapter } = await import('@src/databases/mariadb/mariadbAdapter');
+			const { MariaDBAdapter } = await import('@src/databases/mariadb/mariadb-adapter');
 			dbAdapter = new MariaDBAdapter() as unknown as IDBAdapter;
 
 			const connectResult = await dbAdapter.connect(connectionString);
@@ -182,18 +186,20 @@ export async function getSetupDatabaseAdapter(config: DatabaseConfig): Promise<{
 			// Mock success in TEST_MODE if host is 'mock-host' for UI audit purposes
 			if (process.env.TEST_MODE === 'true' && config.host === 'mock-host') {
 				logger.info('🛠️ Mocking PostgreSQL connection for setup in TEST_MODE');
-				const { PostgreSQLAdapter } = await import('@src/databases/postgresql/postgresAdapter');
+				const { PostgreSQLAdapter } = await import('@src/databases/postgresql/postgres-adapter');
 				dbAdapter = new PostgreSQLAdapter() as unknown as IDBAdapter;
 
 				// Mock the connect method to return success
 				dbAdapter.connect = async () => ({ success: true, data: undefined });
 				// Mock the auth setup to do nothing
-				dbAdapter.auth = { setupAuthModels: async () => {} } as IDBAdapter['auth'];
+				dbAdapter.auth = {
+					setupAuthModels: async () => {}
+				} as IDBAdapter['auth'];
 
 				return { dbAdapter, connectionString };
 			}
 
-			const { PostgreSQLAdapter } = await import('@src/databases/postgresql/postgresAdapter');
+			const { PostgreSQLAdapter } = await import('@src/databases/postgresql/postgres-adapter');
 			dbAdapter = new PostgreSQLAdapter() as unknown as IDBAdapter;
 
 			const connectResult = await dbAdapter.connect(connectionString);
@@ -231,14 +237,16 @@ export async function getSetupDatabaseAdapter(config: DatabaseConfig): Promise<{
 					} as any;
 				}
 
-				const { SQLiteAdapter } = await import('@src/databases/sqlite/sqliteAdapter');
+				const { SQLiteAdapter } = await import('@src/databases/sqlite/sqlite-adapter');
 				dbAdapter = new SQLiteAdapter() as unknown as IDBAdapter;
 				const connectResult = await dbAdapter.connect(connectionString);
 				if (!connectResult.success) {
 					throw new Error(connectResult.error?.message);
 				}
 			} catch (err: any) {
-				logger.error(`SQLite connection failed: ${err.message}`, { correlationId });
+				logger.error(`SQLite connection failed: ${err.message}`, {
+					correlationId
+				});
 				throw new Error(`SQLite Connection failed: ${err.message}`);
 			}
 
@@ -247,7 +255,9 @@ export async function getSetupDatabaseAdapter(config: DatabaseConfig): Promise<{
 		default: {
 			// TypeScript ensures exhaustive checking - this should never be reached
 			const _exhaustiveCheck: never = config.type;
-			logger.error(`Unsupported database type: ${_exhaustiveCheck}`, { correlationId });
+			logger.error(`Unsupported database type: ${_exhaustiveCheck}`, {
+				correlationId
+			});
 			throw new Error(`Database type '${_exhaustiveCheck}' is not supported for setup. Supported types: mongodb, mongodb+srv, mariadb, postgresql`);
 		}
 	}

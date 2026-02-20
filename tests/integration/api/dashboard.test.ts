@@ -17,7 +17,7 @@
 
 import { beforeAll, describe, expect, test } from 'bun:test';
 import { BASE_URL } from '../helpers/server';
-import { prepareAuthenticatedContext } from '../helpers/testSetup';
+import { prepareAuthenticatedContext } from '../helpers/test-setup';
 
 let authCookie: string;
 
