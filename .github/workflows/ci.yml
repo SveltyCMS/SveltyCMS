@@ -20,11 +20,11 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       
-      # Initialize CodeQL using v4 to comply with the upcoming v3 deprecation
+      # Initialize CodeQL using v4. The correct unified identifier for JS/TS is 'javascript'
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4
         with:
-          languages: javascript-typescript
+          languages: javascript
           
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v4
@@ -58,6 +58,9 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: sveltycms-build
+          # CRITICAL: v4+ artifact actions exclude hidden files by default. 
+          # We need this enabled to actually upload the hidden `.svelte-kit` directory!
+          include-hidden-files: true
           path: |
             .svelte-kit/output
             build
@@ -75,13 +78,8 @@ jobs:
 
     services:
       db:
-        # Changed the fallback from alpine:latest to redis:alpine. 
-        # Alpine instantly exits when run without a command, crashing the GH Action.
-        image: >-
-          ${{ matrix.database == 'mongodb' && 'mongo:latest' || 
-              matrix.database == 'mariadb' && 'mariadb:11' || 
-              matrix.database == 'postgresql' && 'postgres:16' ||
-              'redis:alpine' }}
+        # Flattened to single line to prevent illegal trailing spaces during evaluation
+        image: ${{ matrix.database == 'mongodb' && 'mongo:latest' || matrix.database == 'mariadb' && 'mariadb:11' || matrix.database == 'postgresql' && 'postgres:16' || 'redis:alpine' }}
         env:
           MARIADB_ROOT_PASSWORD: root
           MARIADB_DATABASE: sveltycms_test
@@ -96,8 +94,10 @@ jobs:
       mailhog:
         image: mailhog/mailhog
         ports:
-          - 1025:1025
-          - 8025:8025
+          # CRITICAL: YAML evaluates XX:XX as a sexagesimal (base-60) integer without quotes! 
+          # This causes fatal validation errors. They MUST be strings.
+          - '1025:1025'
+          - '8025:8025'
 
     env:
       DB_TYPE: ${{ matrix.database }}
@@ -160,11 +160,7 @@ jobs:
 
     services:
       db:
-        image: >-
-          ${{ matrix.database == 'mongodb' && 'mongo:latest' || 
-              matrix.database == 'mariadb' && 'mariadb:11' || 
-              matrix.database == 'postgresql' && 'postgres:16' ||
-              'redis:alpine' }}
+        image: ${{ matrix.database == 'mongodb' && 'mongo:latest' || matrix.database == 'mariadb' && 'mariadb:11' || matrix.database == 'postgresql' && 'postgres:16' || 'redis:alpine' }}
         env:
           MARIADB_ROOT_PASSWORD: root
           MARIADB_DATABASE: sveltycms_test
@@ -178,8 +174,9 @@ jobs:
       mailhog:
         image: mailhog/mailhog
         ports:
-          - 1025:1025
-          - 8025:8025
+          # Same fix for base-60 integer collision
+          - '1025:1025'
+          - '8025:8025'
 
     steps:
       - uses: actions/checkout@v6
