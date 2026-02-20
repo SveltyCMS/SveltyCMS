@@ -199,6 +199,7 @@ Permission-based access control component with advanced features and security.
 		class="flex items-start gap-3 rounded-lg border p-4 {isRateLimited
 			? 'border-warning-200 bg-warning-50 dark:border-warning-800 dark:bg-warning-900/20'
 			: 'border-error-200 bg-error-50 dark:border-error-800 dark:bg-error-900/20'}"
+		role={errorRole}
 		aria-live="polite"
 		transition:fade={{ duration: 200 }}
 	>

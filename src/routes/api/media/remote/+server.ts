@@ -21,7 +21,7 @@ import type { MediaAccess } from '@utils/media/media-models';
 import type { RequestHandler } from './$types';
 
 // Helper function to getmedia-serviceinstance
-function getMediaService(): mediaService {
+function getMediaService(): MediaService {
 	if (!dbAdapter) {
 		throw new Error('Database adapter is not initialized');
 	}

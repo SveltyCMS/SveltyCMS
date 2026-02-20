@@ -1,23 +1,4 @@
-/**
- * @file src/content/types.ts
- * @description Defines the application-level TypeScript interfaces for content modeling and runtime data.
- * @summary
- * This file is the central repository for TypeScript interfaces governing the application's content
- * model and runtime data structures. It defines the "vocabulary" used across the frontend and backend
- * for entities like collections, fields, widgets, and content nodes.
- *
- * Key definitions in this file include:
- * - `Schema`: The structure of a collection.
- * - `FieldInstance`: A configured instance of a widget within a collection.
- * - `WidgetDefinition`: The blueprint for a widget.
- * - `ContentNode`: A unified type for categories and collections in the content tree.
- * - Core types like `FieldValue`, `StatusType`, and strongly-typed IDs.
- *
- * You should edit this file when you need to:
- * - Define the shape of a new content structure (e.g., a new kind of widget or field).
- * - Create a type that represents a composed or processed version of data for use in the UI.
- * - Describe the data contract for API endpoints related to content.
- */
+/** @file src/content/types.ts @description Application-level TypeScript interfaces for content modeling and runtime data features: [Schema/Field/Widget definitions, base entity metadata, revision tracking, unified content node, dashboard configurations] */
 
 import type { WidgetRegistry as widgets } from '@src/stores/widget-store.svelte.ts';
 // Note: collectionSchemas may be used in the future for runtime validation
@@ -116,7 +97,7 @@ import type { WidgetDefinition } from '@widgets/types';
 
 export interface EntryListProps {
 	contentLanguage?: string;
-	entries?: any[];
+	entries?: CollectionEntry[];
 	pagination?: {
 		currentPage: number;
 		pageSize: number;
@@ -127,16 +108,16 @@ export interface EntryListProps {
 
 export interface FieldsProps {
 	contentLanguage?: string;
-	fields: any[];
-	revisions?: any[];
+	fields: FieldInstance[];
+	revisions?: RevisionData[];
 }
 
 export interface WidgetLoaderProps {
 	field: FieldInstance;
-	loader: () => Promise<{ default: any }>;
+	loader: () => Promise<{ default: unknown }>;
 	tenantId?: string;
-	value?: any;
-	WidgetData?: Record<string, any>;
+	value?: unknown;
+	WidgetData?: Record<string, unknown>;
 }
 
 export interface EntryListMultiButtonProps {

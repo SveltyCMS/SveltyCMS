@@ -4,6 +4,7 @@
 **This file sets up and displays the webhooks page. It provides a user-friendly interface for managing webhooks.**
 -->
 <script lang="ts">
+	import PageTitle from '@src/components/page-title.svelte';
 	import { fade, slide } from 'svelte/transition';
 	import type { Webhook } from '@src/services/webhook-service';
 	import { showToast } from '@utils/toast';

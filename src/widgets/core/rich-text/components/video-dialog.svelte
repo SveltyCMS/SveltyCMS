@@ -12,6 +12,7 @@
 	import { fade } from 'svelte/transition';
 	import type { Editor } from '@tiptap/core';
 	import { onMount } from 'svelte';
+	import FloatingInput from '@src/components/system/inputs/floating-input.svelte';
 
 	interface Props {
 		editor: Editor | null;

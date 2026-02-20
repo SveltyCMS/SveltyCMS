@@ -1,0 +1,667 @@
+---
+path: 'docs/api/user-management-api.mdx'
+title: 'User Management API'
+description: 'Complete API reference for user authentication, registration, and profile management in SveltyCMS.'
+order: 2
+icon: 'mdi:account-multiple'
+author: 'admin'
+created: '2025-10-05'
+updated: '2025-10-05'
+tags:
+  - 'api'
+  - 'users'
+  - 'authentication'
+  - 'profile'
+---
+
+# User Management API
+
+## Overview
+
+The User Management API provides endpoints for user authentication, registration, profile management, and batch operations. All operations use database-agnostic methods and support multi-tenancy.
+
+**Base Path:** `/api/user`
+
+### Quantum Computing Security
+
+All password operations in this API use **quantum-resistant cryptography**:
+
+- **Argon2id**: Memory-hard password hashing that resists quantum speedup
+- **64 MB memory requirement**: Limits quantum computer parallelization
+- **No quantum advantage**: Grover's algorithm doesn't help with memory-bound operations
+- **Security timeline**: Secure against quantum computers for 15-30+ years
+
+See [Quantum Security Guide](/docs/architecture/quantum-security.mdx) for detailed analysis.
+
+## Authentication
+
+Most user endpoints require authentication except login and registration:
+
+```http
+Cookie: session=your-session-id
+```
+
+---
+
+## Endpoints
+
+### 1. User Login
+
+Authenticates a user and creates a session.
+
+#### Request
+
+```http
+POST /api/user/login
+```
+
+**Headers:**
+
+```http
+Content-Type: application/json
+```
+
+**Body:**
+
+```json
+{
+	"email": "user@example.com",
+	"password": "securePassword123"
+}
+```
+
+**Permissions Required:** None (public endpoint)
+
+#### Response
+
+**Success (200):**
+
+```json
+{
+	"success": true,
+	"user": {
+		"_id": "user123",
+		"email": "user@example.com",
+		"username": "john_doe",
+		"role": "editor",
+		"tenantId": "tenant-abc",
+		"isRegistered": true,
+		"blocked": false
+	},
+	"message": "Login successful"
+}
+```
+
+**Sets Cookie:**
+
+```http
+Set-Cookie: session=<session-id>; Path=/; HttpOnly; Secure; SameSite=Strict
+```
+
+**Error Responses:**
+
+```json
+// 400 Bad Request - Missing credentials
+{
+  "error": "Email and password are required."
+}
+
+// 401 Unauthorized - Invalid credentials
+{
+  "error": "Invalid credentials."
+}
+
+// 403 Forbidden - Account blocked
+{
+  "error": "Your account has been suspended. Please contact support."
+}
+
+// 400 Bad Request - Already authenticated
+{
+  "error": "You are already authenticated."
+}
+```
+
+**Security Features:**
+
+- Quantum-resistant password verification using Argon2id
+- 64 MB memory-hard hashing resists quantum speedup
+- Blocks login attempts for suspended accounts
+- Generic error messages prevent user enumeration
+- Multi-tenant scoped authentication
+- Secure session cookie creation (HttpOnly, Secure, SameSite)
+- Timing-safe password comparison prevents side-channel attacks
+
+---
+
+### 2. User Logout
+
+Ends the current user session.
+
+#### Request
+
+```http
+POST /api/user/logout
+```
+
+**Headers:**
+
+```http
+Cookie: session=your-session-id
+```
+
+**Permissions Required:** Authenticated user
+
+#### Response
+
+**Success (200):**
+
+```json
+{
+	"success": true,
+	"message": "Logged out successfully"
+}
+```
+
+**Clears Cookie:**
+
+```http
+Set-Cookie: session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT
+```
+
+---
+
+### 3. Create User
+
+Creates a new user directly (admin only).
+
+#### Request
+
+```http
+POST /api/user/createUser
+```
+
+**Headers:**
+
+```http
+Cookie: session=your-session-id
+Content-Type: application/json
+```
+
+**Body:**
+
+```json
+{
+	"email": "newuser@example.com",
+	"username": "new_user",
+	"password": "SecurePass123!",
+	"role": "editor"
+}
+```
+
+**Permissions Required:** `admin` or `user:create`
+
+#### Response
+
+**Success (201):**
+
+```json
+{
+	"_id": "user456",
+	"email": "newuser@example.com",
+	"username": "new_user",
+	"role": "editor",
+	"tenantId": "tenant-abc",
+	"isRegistered": true,
+	"createdAt": "2025-10-05T14:30:00Z"
+}
+```
+
+**Error Responses:**
+
+```json
+// 400 Bad Request - Validation error
+{
+  "error": "Invalid input: Please provide a valid email address."
+}
+
+// 409 Conflict - User already exists
+{
+  "error": "A user with this email address already exists in this tenant."
+}
+```
+
+**Notes:**
+
+- This endpoint creates users directly without invitation
+- For user invitations, use the `/api/token/createToken` endpoint
+- Password is automatically hashed using quantum-resistant Argon2id
+- Hash includes 64 MB memory cost for quantum resistance
+
+---
+
+### 4. Update User Attributes
+
+Updates user profile information.
+
+#### Request
+
+```http
+PATCH /api/user/updateUserAttributes
+```
+
+**Headers:**
+
+```http
+Cookie: session=your-session-id
+Content-Type: application/json
+```
+
+**Body:**
+
+```json
+{
+	"userId": "user123",
+	"updates": {
+		"username": "updated_username",
+		"email": "newemail@example.com",
+		"role": "admin",
+		"blocked": false
+	}
+}
+```
+
+**Permissions Required:**
+
+- `admin` - Can update any user
+- Own user ID - Can update own profile (limited fields)
+
+#### Response
+
+**Success (200):**
+
+```json
+{
+	"success": true,
+	"user": {
+		"_id": "user123",
+		"username": "updated_username",
+		"email": "newemail@example.com",
+		"role": "admin",
+		"updatedAt": "2025-10-05T14:30:00Z"
+	},
+	"message": "User updated successfully"
+}
+```
+
+**Allowed fields (Non-Admin):**
+
+- `username`
+- `email` (requires verification)
+- `password` (requires old password)
+
+**Allowed fields (Admin):**
+
+- All non-admin fields plus:
+- `role`
+- `blocked`
+- `permissions`
+- `tenantId`
+
+---
+
+### 5. Batch User Operations
+
+Performs bulk operations on multiple users.
+
+#### Request
+
+```http
+POST /api/user/batch
+```
+
+**Headers:**
+
+```http
+Cookie: session=your-session-id
+Content-Type: application/json
+```
+
+**Body:**
+
+```json
+{
+	"operation": "update",
+	"userIds": ["user123", "user456", "user789"],
+	"updates": {
+		"role": "contributor",
+		"blocked": false
+	}
+}
+```
+
+**Operations:**
+
+- `update` - Update multiple users
+- `delete` - Delete multiple users
+- `block` - Block multiple users
+- `unblock` - Unblock multiple users
+
+**Permissions Required:** `admin`
+
+#### Response
+
+**Success (200):**
+
+```json
+{
+	"success": true,
+	"operation": "update",
+	"processed": 3,
+	"results": [
+		{
+			"userId": "user123",
+			"success": true
+		},
+		{
+			"userId": "user456",
+			"success": true
+		},
+		{
+			"userId": "user789",
+			"success": false,
+			"error": "User not found"
+		}
+	]
+}
+```
+
+---
+
+### 6. Save Avatar
+
+Uploads or updates user avatar image.
+
+#### Request
+
+```http
+POST /api/user/saveAvatar
+```
+
+**Headers:**
+
+```http
+Cookie: session=your-session-id
+Content-Type: multipart/form-data
+```
+
+**Body (multipart/form-data):**
+
+- `avatar` (file) - Image file (JPEG, PNG, GIF, WebP)
+- `userId` (string, optional) - User ID (defaults to current user)
+
+**Permissions Required:**
+
+- Authenticated user (for own avatar)
+- `admin` (for other user avatars)
+
+#### Response
+
+**Success (200):**
+
+```json
+{
+	"success": true,
+	"avatarUrl": "/uploads/avatars/user123.jpg",
+	"message": "Avatar updated successfully"
+}
+```
+
+**Constraints:**
+
+- Max file size: 5 MB
+- Allowed formats: JPEG, PNG, GIF, WebP
+- Auto-resized to: 256x256 pixels
+- Old avatar automatically deleted
+
+---
+
+### 7. Delete Avatar
+
+Removes user avatar image.
+
+#### Request
+
+```http
+DELETE /api/user/deleteAvatar
+```
+
+**Headers:**
+
+```http
+Cookie: session=your-session-id
+Content-Type: application/json
+```
+
+**Body:**
+
+```json
+{
+	"userId": "user123"
+}
+```
+
+**Permissions Required:**
+
+- Authenticated user (for own avatar)
+- `admin` (for other user avatars)
+
+#### Response
+
+**Success (200):**
+
+```json
+{
+	"success": true,
+	"message": "Avatar deleted successfully"
+}
+```
+
+---
+
+## Database-Agnostic Implementation
+
+The User Management API uses database-agnostic authentication methods:
+
+```typescript
+// All user operations use auth abstraction
+await auth.getUserByEmail({ email, tenantId });
+await auth.createUser(userData);
+await auth.checkUser({ email });
+
+// Password verification uses secure utilities
+await verifyPassword(password, user.password);
+
+// Session management through auth interface
+await auth.createSession(userId, tenantId);
+```
+
+**No direct database queries** - all operations go through the `auth` service layer.
+
+---
+
+## Multi-Tenancy Support
+
+When multi-tenant mode is enabled:
+
+- Users are scoped to their tenant
+- Login requires valid tenant context
+- User lookup filtered by tenant ID
+- Cross-tenant user operations blocked
+
+**Tenant-Scoped Login:**
+
+```typescript
+// Automatically scoped by tenant
+const userLookupCriteria = { email };
+if (MULTI_TENANT) {
+	userLookupCriteria.tenantId = tenantId;
+}
+const user = await auth.getUserByEmail(userLookupCriteria);
+```
+
+---
+
+## Security Considerations
+
+### Password Security
+
+- **Argon2id** hashing algorithm (winner of Password Hashing Competition)
+- **Quantum-resistant**: Memory-hard algorithm resists quantum speedup
+- **64 MB memory cost**: Prevents GPU/ASIC/quantum parallelization
+- **Automatic salt generation**: Unique salt per password prevents rainbow tables
+- **Secure for 15-30+ years**: Strong resistance against quantum computers
+- **No quantum advantage**: Grover's algorithm ineffective for memory-bound operations
+- Old passwords never logged or returned in API responses
+
+### Session Security
+
+- **HttpOnly** cookies prevent XSS access
+- **Secure** flag requires HTTPS
+- **SameSite=Strict** prevents CSRF attacks
+- Session ID rotation on privilege elevation
+- Automatic session expiration
+
+### Account Protection
+
+- **Blocked accounts** cannot login
+- Generic error messages prevent user enumeration
+- Rate limiting on login attempts (configured in middleware)
+- Failed login attempt tracking
+- Account lockout after repeated failures
+
+### Permission Checks
+
+- Role-based access control
+- Permission validation on every request
+- Admin-only operations strictly enforced
+- Users can only modify own profile (except admins)
+
+---
+
+## User Roles
+
+Roles are stored in the database (`auth_roles` collection) and can be managed via the Access Management interface (`/config/accessManagement`).
+
+**Default Roles** (seeded during setup):
+
+- **admin** - Full system access (superuser)
+- **developer** - Development tools, APIs, and system configuration
+- **editor** - Content management and media access
+
+**Custom Roles:**
+
+- Create new roles via Access Management interface
+- Assign specific permissions per role
+- Roles are tenant-isolated in multi-tenant mode
+- All role changes are immediately cached and available
+
+Each role has specific permissions that can be customized dynamically through the database.
+
+---
+
+## Validation Rules
+
+### Email Validation
+
+- Must be valid email format
+- Must be unique within tenant
+- Case-insensitive comparison
+
+### Password Requirements
+
+- Minimum 8 characters
+- Must contain uppercase letter
+- Must contain lowercase letter
+- Must contain number
+- Must contain special character
+
+### Username Rules
+
+- 3-30 characters
+- Alphanumeric and underscore only
+- Must be unique within tenant
+
+---
+
+## Testing
+
+### JavaScript Example
+
+```javascript
+// Login
+const loginResponse = await fetch('/api/user/login', {
+	method: 'POST',
+	credentials: 'include',
+	headers: { 'Content-Type': 'application/json' },
+	body: JSON.stringify({
+		email: 'user@example.com',
+		password: 'SecurePass123!'
+	})
+});
+
+const { user } = await loginResponse.json();
+console.log('Logged in as:', user.username);
+
+// Create user (admin only)
+const createResponse = await fetch('/api/user/createUser', {
+	method: 'POST',
+	credentials: 'include',
+	headers: { 'Content-Type': 'application/json' },
+	body: JSON.stringify({
+		email: 'newuser@example.com',
+		password: 'NewUserPass123!',
+		role: 'editor'
+	})
+});
+
+// Update profile
+await fetch('/api/user/updateUserAttributes', {
+	method: 'PATCH',
+	credentials: 'include',
+	headers: { 'Content-Type': 'application/json' },
+	body: JSON.stringify({
+		userId: user._id,
+		updates: { username: 'new_username' }
+	})
+});
+
+// Logout
+await fetch('/api/user/logout', {
+	method: 'POST',
+	credentials: 'include'
+});
+```
+
+---
+
+## Related Documentation
+
+- [Authentication 2FA API](/docs/api/authentication-2fa-api.mdx)
+- [User Token Management API](/docs/api/user-token-management-api.mdx)
+- [Role Configuration](/docs/admin/roles-permissions)
+- [Security Best Practices](/docs/security/best-practices)
+
+---
+
+## Implementation Details
+
+For implementation details, see:
+
+- `src/routes/api/user/login/+server.ts` - Login endpoint
+- `src/routes/api/user/logout/+server.ts` - Logout endpoint
+- `src/routes/api/user/createUser/+server.ts` - User creation
+- `src/routes/api/user/updateUserAttributes/+server.ts` - Profile updates
+- `src/routes/api/user/batch/+server.ts` - Batch operations
+- `src/databases/auth/index.ts` - Authentication service
+- `src/utils/password.ts` - Password utilities

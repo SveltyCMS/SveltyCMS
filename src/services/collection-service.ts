@@ -35,7 +35,7 @@ export class CollectionService {
 
 	private constructor() {}
 
-	public static getInstance(): collectionService {
+	public static getInstance(): CollectionService {
 		if (!CollectionService.instance) {
 			CollectionService.instance = new CollectionService();
 		}

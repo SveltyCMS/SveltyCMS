@@ -11,13 +11,22 @@ Comprehensive image editing interface with svelte-canvas integration.
 	import { logger } from '@utils/logger';
 	import { onDestroy, onMount } from 'svelte';
 	import { editorWidgets } from './widgets/registry';
+	import EditorCanvas from './editor-canvas.svelte';
 
 	interface Props {
 		focalPoint?: { x: number; y: number };
 		imageFile?: File | null;
 		initialImageSrc?: string;
 		mediaId?: string;
-		onsave?: (detail: { dataURL?: string; file?: File; focalPoint?: any; mediaId?: string; manipulations?: any }) => void;
+		onsave?: (detail: {
+			dataURL?: string;
+			file?: File;
+			focalPoint?: any;
+			mediaId?: string;
+			manipulations?: any;
+			operations?: Record<string, unknown>;
+			saveBehavior?: 'new' | 'overwrite';
+		}) => void;
 	}
 
 	let { imageFile = null, initialImageSrc = '', mediaId = '', focalPoint = $bindable({ x: 0.5, y: 0.5 }), onsave = () => {} }: Props = $props();
@@ -31,6 +40,9 @@ Comprehensive image editing interface with svelte-canvas integration.
 	let isProcessing = $state(false);
 	let error = $state<string | null>(null);
 	let activeToolInstance = $state<any>(null);
+
+	// Save behavior: 'new' creates a timestamped copy, 'overwrite' replaces the original
+	let saveBehavior = $state<'new' | 'overwrite'>('new');
 
 	// Derived values
 	const storeState = imageEditorStore.state;
@@ -143,8 +155,8 @@ Comprehensive image editing interface with svelte-canvas integration.
 			// Initial fit
 			const containerWidth = containerRef?.clientWidth;
 			const containerHeight = containerRef?.clientHeight;
-			const scaleX = (containerWidth * 0.8) / img.width;
-			const scaleY = (containerHeight * 0.8) / img.height;
+			const scaleX = (containerWidth! * 0.8) / img.width;
+			const scaleY = (containerHeight! * 0.8) / img.height;
 			imageEditorStore.state.zoom = Math.min(scaleX, scaleY);
 
 			imageEditorStore.takeSnapshot();
@@ -155,6 +167,8 @@ Comprehensive image editing interface with svelte-canvas integration.
 	}
 
 	function handleKeyDown(event: KeyboardEvent) {
+		// Guard against events with detached targets (e.g. in embedded browser contexts)
+		if (!event?.target || !(event.target as Node).ownerDocument) return;
 		const target = event.target as HTMLElement;
 		if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.contentEditable === 'true') {
 			return;
@@ -177,10 +191,27 @@ Comprehensive image editing interface with svelte-canvas integration.
 		}
 	}
 
+	/**
+	 * Convert a data: URL to a Blob without fetch() — avoids CSP connect-src blocking data: URLs.
+	 */
+	function dataURLToBlob(dataURL: string): Blob {
+		const [header, base64] = dataURL.split(',');
+		const mime = header.match(/:(.*?);/)?.[1] || 'image/webp';
+		const binary = atob(base64);
+		const bytes = new Uint8Array(binary.length);
+		for (let i = 0; i < binary.length; i++) {
+			bytes[i] = binary.charCodeAt(i);
+		}
+		return new Blob([bytes], { type: mime });
+	}
+
 	export async function handleSave() {
 		const { imageElement, file, rotation, flipH, flipV, crop, filters } = imageEditorStore.state;
+		const storeMediaId = mediaId;
 
-		if (!(imageElement && file)) {
+		// Allow saving when we have either a file or a mediaId (existing image in DB)
+		const canSave = imageElement && (file || storeMediaId);
+		if (!canSave) {
 			error = 'Nothing to save';
 			return;
 		}
@@ -231,8 +262,8 @@ Comprehensive image editing interface with svelte-canvas integration.
 				}
 
 				const dataURL = canvas.toDataURL('image/webp', 0.95);
-				const resp = await fetch(dataURL);
-				const blob = await resp.blob();
+				// Use dataURLToBlob instead of fetch(dataURL) to avoid CSP connect-src issues
+				const blob = dataURLToBlob(dataURL);
 				const timestamp = Date.now();
 				const newFileName = `edited-${timestamp}.webp`;
 				const editedFile = new File([blob], newFileName, { type: 'image/webp' });
@@ -241,7 +272,9 @@ Comprehensive image editing interface with svelte-canvas integration.
 					dataURL,
 					file: editedFile,
 					focalPoint,
-					manipulations
+					mediaId: storeMediaId || mediaId,
+					manipulations,
+					saveBehavior
 				});
 			}
 		} catch (err) {

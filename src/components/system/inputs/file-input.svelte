@@ -17,6 +17,17 @@
 
 <script lang="ts">
 	import type { MediaImage } from '@utils/media/media-models';
+	import Media from '@src/components/media.svelte';
+	import { twMerge } from 'tailwind-merge';
+	import {
+		widget_ImageUpload_BrowseNew,
+		widget_ImageUpload_SelectMedia,
+		widget_ImageUpload_SelectImage,
+		widget_ImageUpload_Upload,
+		widget_ImageUpload_Drag,
+		widget_ImageUpload_Replace,
+		widget_ImageUpload_Allowed
+	} from '@src/paraglide/messages';
 
 	// Props
 	let { value = $bindable(), multiple = $bindable(false), show = $bindable(true), className = '', onChange } = $props();

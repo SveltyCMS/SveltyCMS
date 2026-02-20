@@ -36,17 +36,17 @@ The user management experience is built from several distinct, high-performance 
 This is the main view for an authenticated user. It serves three primary functions:
 
 - **Profile Display**: Shows the user's avatar, username, email, role, and unique ID in a two-column layout.
-- **Personal Settings**: Allows the user to edit their own profile information (via `ModalEditForm`) and change their avatar (via `ModalEditAvatar`).
+- **Personal Settings**: Allows the user to edit their own profile information (via `modal-edit-form.svelte`) and change their avatar (via `modal-edit-avatar.svelte`).
 - **Security Management**: Contains the dedicated component for managing Two-Factor Authentication (2FA) settings.
 
-### 2. Admin Area (`AdminArea.svelte`)
+### 2. Admin Area (`admin-area.svelte`)
 
 This powerful component is conditionally rendered at the bottom of the page for users with the appropriate permissions. It is the central hub for site-wide user and token administration.
 
 - **Functionality**: Provides a unified table interface to view, search, filter, and perform batch actions (delete, block, unblock) on all users or registration tokens in the system.
 - **Performance Optimized**: The system has been optimized to remove server-side pre-loading of all users and tokens, improving initial page load performance.
 
-### 3. Two-Factor Authentication (`TwoFactorAuth.svelte`)
+### 3. Two-Factor Authentication (`two-factor-auth.svelte`)
 
 Security is enhanced through an integrated TOTP-based 2FA system. This component is displayed as a distinct card on the user page, allowing users to:
 
@@ -131,7 +131,7 @@ The diagram below illustrates the optimized data flow with audit logging integra
 graph TD
     subgraph Browser["🖥️ Browser (Client)"]
         A["User navigates to /user page"]
-        D["AdminArea.svelte loads data on-demand"]
+        D["admin-area.svelte loads data on-demand"]
         E["Performs filtering/sorting with API calls"]
         F["Audit Dashboard (Admin only)"]
     end

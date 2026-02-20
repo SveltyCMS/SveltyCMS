@@ -20,15 +20,13 @@
 	import { fade } from 'svelte/transition';
 	// ParaglideJS
 	import { widget_seo_powerwords } from '@src/paraglide/messages';
+	import { publicEnv } from '@src/stores/global-settings.svelte';
 
 	// Logic for Heatmap
 	const POWER_WORDS = new Set(
-		widget_seo_powerwords
-			? m
-					.widget_seo_powerwords()
-					.split(',')
-					.map((w) => w.trim().toLowerCase())
-			: []
+		widget_seo_powerwords()
+			.split(',')
+			.map((w: string) => w.trim().toLowerCase())
 	);
 
 	function getHeatColor(word: string, index: number): string {

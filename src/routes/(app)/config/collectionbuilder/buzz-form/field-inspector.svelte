@@ -20,6 +20,10 @@
 	import { widgets } from '@src/stores/widget-store.svelte.ts';
 	import { asAny } from '@utils/utils';
 	import type { Component } from 'svelte';
+	import { Tabs } from '@skeletonlabs/skeleton-svelte';
+	import InputSwitch from '@src/components/system/builder/input-switch.svelte';
+	import Specific from '../[action]/[...contentPath]/tabs/collection-widget/tabs-fields/specific.svelte';
+	import Permission from '../[action]/[...contentPath]/tabs/collection-widget/tabs-fields/permission.svelte';
 
 	interface Props {
 		onDelete: () => void;
@@ -78,7 +82,7 @@
 
 		<!-- Tabs -->
 		<div class="flex-1 overflow-hidden flex flex-col">
-			<Tabs value={activeTab} onValueChange={(e) => (activeTab = e.value as string)} class="flex flex-col h-full">
+			<Tabs value={activeTab} onValueChange={(e: { value: string }) => (activeTab = e.value)} class="flex flex-col h-full">
 				<Tabs.List class="flex border-b border-surface-200-800 px-2 justify-between">
 					<Tabs.Trigger value="general" class="px-3 py-2 text-xs font-bold uppercase tracking-wider">Basic</Tabs.Trigger>
 					<Tabs.Trigger value="specific" class="px-3 py-2 text-xs font-bold uppercase tracking-wider" disabled={specificProperties.length === 0}>

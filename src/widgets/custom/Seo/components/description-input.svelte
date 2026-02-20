@@ -16,6 +16,14 @@
 -->
 
 <script lang="ts">
+	import {
+		widget_seo_suggestiondescription,
+		widget_seo_suggestioncharacter,
+		widget_seo_suggestionwidthdesktop,
+		widget_seo_suggestionwidthmobile,
+		widget_seo_suggestionseodescription
+	} from '@src/paraglide/messages';
+
 	interface Props {
 		description: string;
 		descriptionCharacterWidth: number;

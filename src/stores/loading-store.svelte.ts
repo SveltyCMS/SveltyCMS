@@ -167,7 +167,7 @@ export class LoadingStore {
 		} else {
 			// Update to most recent operation
 			const entries = Array.from(this._loadingStack);
-			const newReason = entries.at(-1);
+			const newReason = entries.at(-1)!;
 			this._loadingReason = newReason;
 
 			// Restore progress/cancel state of the active operation

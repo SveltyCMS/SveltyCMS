@@ -33,7 +33,31 @@ This component provides a user interface for managing 2FA settings:
 		twofa_error_invalid_code,
 		twofa_error_setup_failed,
 		twofa_success_disabled,
-		twofa_success_enabled
+		twofa_success_enabled,
+		twofa_title,
+		twofa_description,
+		twofa_status_enabled,
+		twofa_status_disabled,
+		twofa_setting_up,
+		twofa_setup_scan_title,
+		twofa_setup_step_1,
+		twofa_show_secret,
+		twofa_manual_entry_description,
+		twofa_verify_setup_title,
+		twofa_verify_setup_description,
+		twofa_code_placeholder,
+		twofa_backup_codes_title,
+		twofa_backup_codes_save_description,
+		twofa_enabled_description,
+		twofa_backup_codes_description,
+		twofa_backup_codes_warning,
+		button_cancel,
+		twofa_verifying,
+		twofa_verify_button,
+		twofa_generating_codes,
+		twofa_generate_backup_codes,
+		twofa_disabling,
+		twofa_disable_button
 	} from '@src/paraglide/messages';
 	import { toaster } from '@src/stores/store.svelte.ts';
 	import { logger } from '@utils/logger';

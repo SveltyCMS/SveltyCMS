@@ -431,7 +431,7 @@
 				};
 				if (data.success) {
 					testSuccess = true;
-					testEmailSent = data.testEmailSent;
+					testEmailSent = !!data.testEmailSent;
 
 					// Mark SMTP as configured in wizard state
 					wizard.emailSettings.smtpConfigured = true;

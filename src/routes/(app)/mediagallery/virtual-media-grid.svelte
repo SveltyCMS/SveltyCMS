@@ -26,6 +26,7 @@ Implements custom virtual scrolling without external dependencies.
 	// Using iconify-icon web component
 
 	import type { MediaBase, MediaImage } from '@utils/media/media-models';
+	import { formatBytes } from '@utils/utils';
 	// import { popup } from '@skeletonlabs/skeleton-svelte';
 	import { onMount } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';

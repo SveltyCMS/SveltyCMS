@@ -16,6 +16,16 @@
 	import { page } from '$app/state';
 	import ModalSelectWidget from './modal-select-widget.svelte';
 	import ModalWidgetForm from './modal-widget-form.svelte';
+	import VerticalList from '@src/components/vertical-list.svelte';
+	import { tabSet } from '@src/stores/store.svelte.ts';
+	import {
+		collection_widgetfield_drag,
+		button_edit,
+		collection_widgetfield_addFields,
+		collection_widgetfield_addrequired,
+		button_previous,
+		button_save
+	} from '@src/paraglide/messages';
 
 	interface Props {
 		'on:save'?: () => void;

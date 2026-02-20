@@ -196,8 +196,11 @@ export const widgetProxy = new Proxy(registry, {
 			return undefined;
 		}
 
-		if (prop in target && typeof (target as any)[prop] === 'function') {
-			return (target as any)[prop].bind(target);
+		if (prop in target) {
+			const member = target[prop as keyof WidgetRegistryImpl];
+			if (typeof member === 'function') {
+				return member.bind(target);
+			}
 		}
 
 		// Handle widget access

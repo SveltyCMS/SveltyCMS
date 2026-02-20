@@ -112,18 +112,18 @@ WCAG 2.1 AA compliant features:
 src/routes/setup/
 ├── +page.svelte              # Main orchestrator
 ├── +page.server.ts           # Server-side load function
-├── DatabaseConfig.svelte     # Step 1: Database setup
-├── AdminConfig.svelte        # Step 2: Admin user
-├── SystemConfig.svelte       # Step 3: System settings
-├── EmailConfig.svelte        # Step 4: SMTP (optional)
-├── ReviewConfig.svelte       # Step 5: Review & complete
-└── WelcomeModal.svelte       # First-time welcome modal
+├── database-config.svelte     # Step 1: Database setup
+├── admin-config.svelte        # Step 2: Admin user
+├── system-config.svelte       # Step 3: System settings
+├── email-config.svelte        # Step 4: SMTP (optional)
+├── review-config.svelte       # Step 5: Review & complete
+└── welcome-modal.svelte       # First-time welcome modal
 ```
 
 ### State Management
 
 ```typescript
-// Central state via setupStore (Svelte 5 runes)
+// Central state via setup-store (Svelte 5 runes)
 {
   wizard: {
     currentStep: 0,
@@ -231,7 +231,7 @@ export const systemSettingsSchema = v.object({
 
 **Purpose**: Configure and test database connection
 
-**Fields**:
+**fields**:
 
 - Database Type (MongoDB, MongoDB Atlas, PostgreSQL, MySQL, MariaDB)
 - Host/Connection String
@@ -280,7 +280,7 @@ stateDiagram-v2
 
 **Purpose**: Create the first administrator user
 
-**Fields**:
+**fields**:
 
 - Username (3-50 characters)
 - Email (valid email format)
@@ -317,7 +317,7 @@ stateDiagram-v2
 
 **Purpose**: Configure site identity and language settings
 
-**Fields**:
+**fields**:
 
 **Basic Settings**:
 
@@ -367,7 +367,7 @@ stateDiagram-v2
 
 **Purpose**: Configure SMTP for email notifications
 
-**Fields**:
+**fields**:
 
 - SMTP Host (e.g., smtp.gmail.com)
 - SMTP Port (587 for TLS, 465 for SSL)
@@ -462,7 +462,7 @@ The wizard implements a two-tier validation system:
 **Implementation**:
 
 ```typescript
-// In each step component (e.g., DatabaseConfig.svelte)
+// In each step component (e.g., database-config.svelte)
 import { safeParse } from 'valibot';
 import { dbConfigSchema } from '@utils/formSchemas';
 
@@ -765,14 +765,14 @@ function classifyDatabaseError(error: DatabaseError): string {
 
 ## State Management
 
-### setupStore Architecture
+### setup-store Architecture
 
-**File**: `src/stores/setupStore.svelte.ts`
+**File**: `src/stores/setup-store.svelte.ts`
 
 **Pattern**: Svelte 5 class-based store with runes
 
 ```typescript
-class SetupStore {
+class setup-store {
   // State
   wizard = $state({
     currentStep: 0,
@@ -806,7 +806,7 @@ class SetupStore {
   }
 }
 
-export const setupStore = new SetupStore();
+export const setup-store = new setup-store();
 ```
 
 ### Persistence Strategy
@@ -996,9 +996,9 @@ showToast('Setup will continue, data will be created as needed.', 'info', 4000);
 1. **Create Step Component**
 
 ```svelte
-<!-- src/routes/setup/MyNewStep.svelte -->
+<!-- src/routes/setup/my-new-step.svelte -->
 <script lang="ts">
-	import type { MyStepData } from '@stores/setupStore.svelte';
+	import type { MyStepData } from '@stores/setup-store.svelte';
 
 	let { stepData = $bindable(), validationErrors } = $props<{
 		stepData: MyStepData;
@@ -1025,11 +1025,11 @@ export const myStepSchema = v.object({
 });
 ```
 
-3. **Update setupStore**
+3. **Update setup-store**
 
 ```typescript
-// src/stores/setupStore.svelte.ts
-class SetupStore {
+// src/stores/setup-store.svelte.ts
+class setup-store {
 	wizard = $state({
 		// ... existing fields
 		myStepData: {
@@ -1045,7 +1045,7 @@ class SetupStore {
 ```svelte
 <!-- src/routes/setup/+page.svelte -->
 <script lang="ts">
-	import MyNewStep from './MyNewStep.svelte';
+	import MyNewStep from './my-new-step.svelte';
 
 	// Add to steps array
 	const steps = $derived<StepDef[]>([
@@ -1076,7 +1076,7 @@ class SetupStore {
 				// ... existing cases
 				case 3:
 					if (!MyNewStepComponent) {
-						MyNewStepComponent = (await import('./MyNewStep.svelte')).default;
+						MyNewStepComponent = (await import('./my-new-step.svelte')).default;
 					}
 					break;
 			}
@@ -1300,7 +1300,7 @@ it('should complete entire setup process', async () => {
 	completeForm.append(
 		'data',
 		JSON.stringify({
-			admin: adminConfig,
+			admin: admin - config,
 			firstCollection
 		})
 	);
@@ -1616,7 +1616,7 @@ async function nextStep() {
 
 ## Related Documentation
 
-- [Setup Actions Reference](/docs/api/Setup_Actions_API.mdx) - Complete API documentation
+- [Setup Actions Reference](/docs/api/setup-actions-api.mdx) - Complete API documentation
 - [Setup Actions](./api-test-coverage.mdx#setup) - Initialization workflow tests
 - [Valibot Documentation](https://valibot.dev/) - Validation library
 - [Svelte 5 Runes](https://svelte.dev/docs/svelte/what-are-runes) - Reactive state management
@@ -1642,7 +1642,7 @@ async function nextStep() {
 5. **Preserve User Input** - Don't clear forms on validation errors
 6. **Log Errors** - Console.error for debugging, never expose to user
 7. **Follow Accessibility Guidelines** - ARIA labels, keyboard navigation
-8. **Keep State Minimal** - Only store what's needed in setupStore
+8. **Keep State Minimal** - Only store what's needed in setup-store
 9. **Document New Steps** - Update this guide when adding features
 10. **Performance First** - Lazy load components, debounce validation
 

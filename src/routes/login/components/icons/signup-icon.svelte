@@ -5,6 +5,8 @@
 -->
 
 <script lang="ts">
+	import { form_signup } from '@src/paraglide/messages';
+
 	let { show = $bindable(true), disabled = false, onClick = (_event: MouseEvent | KeyboardEvent) => {} } = $props();
 
 	function handleClick(event: MouseEvent) {

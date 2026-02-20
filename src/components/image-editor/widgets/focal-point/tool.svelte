@@ -10,9 +10,7 @@ Allows users to set the focal point using svelte-canvas compatible state.
 	import { imageEditorStore } from '@src/stores/image-editor-store.svelte';
 	import { Layer } from 'svelte-canvas';
 	import FocalPointControls from './controls.svelte';
-	import type { FocalPoint } from './types';
 
-	let { onCancel }: { onCancel: () => void } = $props();
 	const storeState = imageEditorStore.state;
 
 	// --- Lifecycle $effect ---
@@ -24,20 +22,13 @@ Allows users to set the focal point using svelte-canvas compatible state.
 				props: {
 					focalX: Math.round((storeState.focalPoint?.x ?? 0.5) * 100),
 					focalY: Math.round((storeState.focalPoint?.y ?? 0.5) * 100),
-					onReset: () => (storeState.focalPoint = { x: 0.5, y: 0.5 }),
-					onCancel: () => onCancel(),
-					onApply: apply
+					onReset: () => (storeState.focalPoint = { x: 0.5, y: 0.5 })
 				}
 			});
 		} else if (imageEditorStore.state.toolbarControls?.component === FocalPointControls) {
 			imageEditorStore.setToolbarControls(null);
 		}
 	});
-
-	function apply() {
-		imageEditorStore.takeSnapshot();
-		imageEditorStore.setActiveState('');
-	}
 
 	// Hit testing
 	export function handleMouseDown(e: MouseEvent, width: number, height: number) {

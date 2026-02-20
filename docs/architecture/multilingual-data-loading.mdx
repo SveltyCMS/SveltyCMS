@@ -34,7 +34,7 @@ Traditional approaches to multilingual content management face scalability issue
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    TIER 1: EntryList (View Mode)                │
+│                    TIER 1: entry-list (View Mode)                │
 │                                                                 │
 │  URL: /en/Collections/Names?page=1                              │
 │  Cache Key: collection:Names:page:1:lang:EN                     │
@@ -48,7 +48,7 @@ Traditional approaches to multilingual content management face scalability issue
 └─────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────┐
-│                    TIER 2: Fields (Edit Mode)                   │
+│                    TIER 2: fields (Edit Mode)                   │
 │                                                                 │
 │  URL: /en/Collections/Names?entry=123                           │
 │  Cache Key: entry:123                                           │
@@ -106,7 +106,7 @@ const cacheKey = `collection:${currentCollection._id}:page:${page}:lang:${langua
 
 ### Translation Status Component
 
-**File**: `src/components/collectionDisplay/TranslationStatus.svelte`
+**File**: `src/components/collection-display/translation-status.svelte`
 
 The language switcher dropdown:
 
@@ -204,13 +204,13 @@ await invalidateAll(); // Invalidates all collection:* keys
 
 ## Translation Progress Tracking
 
-### View Mode (EntryList)
+### View Mode (entry-list)
 
-- Shows overall completion per language in TranslationStatus dropdown
+- Shows overall completion per language in translation-status dropdown
 - Updated after saving any entry in edit mode
 - Calculated server-side and cached
 
-### Edit Mode (Fields)
+### Edit Mode (fields)
 
 - Shows per-field translation percentage across all languages
 - Icon colors indicate completion status:
@@ -219,7 +219,7 @@ await invalidateAll(); // Invalidates all collection:* keys
   - 🔴 Red (0%): Untranslated
 - Updates in real-time as user types
 
-**File**: `src/components/collectionDisplay/Fields.svelte`
+**File**: `src/components/collection-display/fields.svelte`
 
 ```typescript
 function getFieldTranslationPercentage(fieldName: string): number {
@@ -286,13 +286,13 @@ The database adapter transparently handles storage format differences:
 
 ### Query Optimization Strategy
 
-**View Mode (EntryList)**:
+**View Mode (entry-list)**:
 
 - Language projection happens in application layer after database fetch
 - Reduces payload: 100 entries × 1 language instead of × 5 languages
 - Database-agnostic: Works with any adapter implementation
 
-**Edit Mode (Fields)**:
+**Edit Mode (fields)**:
 
 - Full multilingual data fetched per entry
 - Minimal overhead: 1 entry × 5 languages = ~5KB
@@ -309,7 +309,7 @@ SveltyCMS handles two types of collection data:
 
 ### 1. Non-Translated Collections
 
-Fields store single values in the default content language (defined in environment):
+fields store single values in the default content language (defined in environment):
 
 ```typescript
 const entry = {
@@ -326,7 +326,7 @@ const entry = {
 
 ### 2. Translated Collections
 
-Fields marked as `translated: true` store multilingual nested objects:
+fields marked as `translated: true` store multilingual nested objects:
 
 ```typescript
 const entry = {
@@ -362,7 +362,7 @@ const entry = {
 
 ## Troubleshooting
 
-### Issue: EntryList shows wrong language data
+### Issue: entry-list shows wrong language data
 
 **Symptom**: English data displayed on `/de/Collections/Names` page
 

@@ -19,6 +19,9 @@
 	import { logger } from '@utils/logger';
 	// Skeleton components
 	import { showToast } from '@utils/toast';
+	import { Progress as ProgressBar } from '@skeletonlabs/skeleton-svelte';
+	import Toggles from '@src/components/system/inputs/toggles.svelte';
+	import Input from '@src/components/system/inputs/input.svelte';
 
 	interface ExportOptions {
 		collections: string[];
@@ -384,7 +387,13 @@
 	</div>
 
 	{#if loading && (exportProgress > 0 || importProgress > 0)}
-		<div class="mb-6"><ProgressBar value={exportProgress || importProgress} label={exportProgress > 0 ? 'Exporting...' : 'Importing...'} /></div>
+		<div class="mb-6">
+			<div class="mb-2 flex justify-between text-sm">
+				<span>{exportProgress > 0 ? 'Exporting...' : 'Importing...'}</span>
+				<span>{Math.round(exportProgress || importProgress)}%</span>
+			</div>
+			<ProgressBar value={exportProgress || importProgress} />
+		</div>
 	{/if}
 
 	{#if exportUrl}

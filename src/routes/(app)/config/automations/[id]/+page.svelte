@@ -23,12 +23,14 @@ and preview/test functionality. Reuses TokenPicker patterns.
 		SetFieldOperationConfig,
 		WebhookOperationConfig
 	} from '@src/services/automation/types';
-	import { OPERATION_TYPES } from '@src/services/automation/types';
+	import { OPERATION_TYPES, AUTOMATION_EVENTS } from '@src/services/automation/types';
 	import { showToast } from '@utils/toast';
 	import { onMount } from 'svelte';
 	import { v4 as uuidv4 } from 'uuid';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
+	import { fade, slide } from 'svelte/transition';
+	import PageTitle from '@src/components/page-title.svelte';
 
 	// ── State ──
 

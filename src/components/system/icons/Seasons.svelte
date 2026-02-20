@@ -26,6 +26,8 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	// Svelte 5 reactive Date
 	import { SvelteDate } from 'svelte/reactivity';
+	import { Confetti } from 'svelte-confetti';
+	import { login_new_year, login_happy_diwali, login_Happy_Holi, login_happy_navratri } from '@src/paraglide/messages';
 
 	// =====================================================================
 	// LUNAR PHASE CALCULATIONS (Meeus Algorithm - Simplified)

@@ -25,8 +25,9 @@ Welcome to the comprehensive SveltyCMS widget system documentation. The widget s
 | **[Architecture](./architecture.mdx)**                            | Deep dive into the Factory Pattern, Runtime Discovery, and Data Flow. |
 | **[Development Guide](./development.mdx)**                        | Practical tutorial for building, testing, and translating widgets.    |
 | **[Marketplace](./marketplace.mdx)**                              | Discovering, installing, and publishing widgets to the ecosystem.     |
-| **[Repeater Widget](../../src/widgets/core/Repeater/README.mdx)** | Documentation for the core Repeater widget.                           |
-| **[Price Widget](../../src/widgets/custom/Price/README.mdx)**     | Documentation for the custom Price widget.                            |
+| **[Select Widget](../../src/widgets/core/select/README.mdx)**     | Standard dropdown selection widget.                                   |
+| **[Repeater Widget](../../src/widgets/core/repeater/README.mdx)** | Documentation for the core Repeater widget.                           |
+| **[Price Widget](../../src/widgets/custom/price/README.mdx)**     | Documentation for the custom Price widget.                            |
 
 ---
 
@@ -40,8 +41,8 @@ Every widget in SveltyCMS follows a strict separation of concerns to ensure main
 graph TB
     subgraph "Widget Structure"
         D[📋 Definition<br/>index.ts]
-        I[✏️ Input Component<br/>Input.svelte]
-        V[👁️ Display Component<br/>Display.svelte]
+        I[✏️ Input Component<br/>input.svelte]
+        V[👁️ Display Component<br/>display.svelte]
     end
 
     D --> |"Configuration & Validation"| I
@@ -55,8 +56,8 @@ graph TB
 ```
 
 1.  **Definition (`index.ts`)**: The immutable blueprint. Defines the schema, validation rules using Valibot, and default configuration.
-2.  **Input (`Input.svelte`)**: The interactive editor used in the Content Manager. Handles user input, validation feedback, and two-way binding.
-3.  **Display (`Display.svelte`)**: The lightweight read-only view. Optimized for lists, tables, and previews where interaction isn't needed.
+2.  **Input (`input.svelte`)**: The interactive editor used in the Content Manager. Handles user input, validation feedback, and two-way binding.
+3.  **Display (`display.svelte`)**: The lightweight read-only view. Optimized for lists, tables, and previews where interaction isn't needed.
 
 ### Widget Categories
 
@@ -107,8 +108,8 @@ export default createWidget({
 	Name: 'Rating',
 	Icon: 'mdi:star',
 	Description: '5-star rating widget',
-	inputComponentPath: '/src/widgets/custom/rating/Input.svelte',
-	displayComponentPath: '/src/widgets/custom/rating/Display.svelte',
+	inputComponentPath: '/src/widgets/custom/rating/input.svelte',
+	displayComponentPath: '/src/widgets/custom/rating/display.svelte',
 
 	// Validation
 	validationSchema: v.number([v.minValue(1), v.maxValue(5)]),
@@ -145,6 +146,6 @@ Access `/config/widgetManagement` to:
 
 ## 🔗 Related Resources
 
-- **[Content Types](../Dev_Guide/05-collections/)**: Using widgets in collections.
-- **[API Development](../Dev_Guide/04-api/)**: Widget API integration.
-- **[Security](../Dev_Guide/14_Security/)**: Widget security considerations.
+- **[Content Types](../dev-guide/05-collections/)**: Using widgets in collections.
+- **[API Development](../dev-guide/04-api/)**: Widget API integration.
+- **[Security](../dev-guide/14-security/)**: Widget security considerations.

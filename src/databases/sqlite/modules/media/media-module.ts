@@ -24,6 +24,7 @@ import type { DatabaseId, DatabaseResult, MediaFolder, MediaItem, MediaMetadata,
 import type { AdapterCore } from '../../adapter/adapter-core';
 import * as schema from '../../schema';
 import * as utils from '../../utils';
+import { isoDateStringToDate, nowISODateString } from '@src/utils/date-utils';
 
 export class MediaModule {
 	private readonly core: AdapterCore;
@@ -59,7 +60,7 @@ export class MediaModule {
 		},
 
 		deleteMany: async (fileIds: DatabaseId[]): Promise<DatabaseResult<{ deletedCount: number }>> => {
-			return this.crud.deleteMany('media_items', fileIds);
+			return this.crud.deleteMany('media_items', { _id: { $in: fileIds } } as any);
 		},
 
 		getByFolder: async (
@@ -67,16 +68,17 @@ export class MediaModule {
 			options?: PaginationOptions,
 			_recursive?: boolean
 		): Promise<DatabaseResult<PaginatedResult<MediaItem>>> => {
-			return (this.core as any).wrap(async () => {
+			return this.core.wrap(async () => {
 				const conditions = folderId ? [eq(schema.mediaItems.folderId, folderId)] : [isNull(schema.mediaItems.folderId)];
 
-				let q: any = this.db.select().from(schema.mediaItems);
+				let q = this.db.select().from(schema.mediaItems).$dynamic();
 				q = q.where(and(...conditions));
 
 				if (options?.sortField) {
 					const order = options.sortDirection === 'desc' ? desc : asc;
-					if ((schema.mediaItems as any)[options.sortField]) {
-						q = q.orderBy(order((schema.mediaItems as any)[options.sortField]));
+					const column = (schema.mediaItems as Record<string, any>)[options.sortField];
+					if (column) {
+						q = q.orderBy(order(column));
 					}
 				}
 
@@ -87,10 +89,10 @@ export class MediaModule {
 
 				const results = await q;
 
-				const [countResult] = (await this.db
+				const [countResult] = await this.db
 					.select({ count: count() })
 					.from(schema.mediaItems)
-					.where(and(...conditions))) as any;
+					.where(and(...conditions));
 
 				const total = Number(countResult?.count || 0);
 
@@ -106,19 +108,18 @@ export class MediaModule {
 		},
 
 		search: async (query: string, options?: PaginationOptions): Promise<DatabaseResult<PaginatedResult<MediaItem>>> => {
-			return (this.core as any).wrap(async () => {
+			return this.core.wrap(async () => {
 				const qry = `%${query}%`;
 				const conditions = [or(like(schema.mediaItems.filename, qry), like(schema.mediaItems.originalFilename, qry))];
 
-				let q: any = this.db
-					.select()
-					.from(schema.mediaItems)
-					.where(and(...conditions));
+				let q = this.db.select().from(schema.mediaItems).$dynamic();
+				q = q.where(and(...conditions));
 
 				if (options?.sortField) {
 					const order = options.sortDirection === 'desc' ? desc : asc;
-					if ((schema.mediaItems as any)[options.sortField]) {
-						q = q.orderBy(order((schema.mediaItems as any)[options.sortField]));
+					const column = (schema.mediaItems as Record<string, any>)[options.sortField];
+					if (column) {
+						q = q.orderBy(order(column));
 					}
 				}
 
@@ -129,10 +130,10 @@ export class MediaModule {
 
 				const results = await q;
 
-				const [countResult] = (await this.db
+				const [countResult] = await this.db
 					.select({ count: count() })
 					.from(schema.mediaItems)
-					.where(and(...conditions))) as any;
+					.where(and(...conditions));
 
 				const total = Number(countResult?.count || 0);
 
@@ -177,7 +178,7 @@ export class MediaModule {
 
 				await this.db
 					.update(schema.mediaItems)
-					.set({ metadata: newMetadata as any, updatedAt: new Date() })
+					.set({ metadata: newMetadata as any, updatedAt: isoDateStringToDate(nowISODateString()) })
 					.where(eq(schema.mediaItems._id, fileId));
 
 				const [updated] = await this.db.select().from(schema.mediaItems).where(eq(schema.mediaItems._id, fileId)).limit(1);
@@ -190,7 +191,7 @@ export class MediaModule {
 			return (this.core as any).wrap(async () => {
 				const result = await this.db
 					.update(schema.mediaItems)
-					.set({ folderId: targetFolderId || null, updatedAt: new Date() })
+					.set({ folderId: targetFolderId || null, updatedAt: isoDateStringToDate(nowISODateString()) })
 					.where(inArray(schema.mediaItems._id, fileIds));
 				return { movedCount: result.changes };
 			}, 'MOVE_FILES_FAILED');
@@ -205,7 +206,7 @@ export class MediaModule {
 				}
 
 				const id = utils.generateId();
-				const now = new Date();
+				const now = nowISODateString();
 				const copy = {
 					...existing,
 					_id: id,
@@ -227,7 +228,7 @@ export class MediaModule {
 		create: async (folder: Omit<MediaFolder, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<MediaFolder>> => {
 			return (this.core as any).wrap(async () => {
 				const id = utils.generateId();
-				const now = new Date();
+				const now = nowISODateString();
 				const values = {
 					...folder,
 					_id: id,
@@ -243,7 +244,7 @@ export class MediaModule {
 
 		createMany: async (folders: Omit<MediaFolder, '_id' | 'createdAt' | 'updatedAt'>[]): Promise<DatabaseResult<MediaFolder[]>> => {
 			return (this.core as any).wrap(async () => {
-				const now = new Date();
+				const now = nowISODateString();
 				const values = folders.map((f) => ({
 					...f,
 					_id: utils.generateId(),
@@ -316,7 +317,7 @@ export class MediaModule {
 			return (this.core as any).wrap(async () => {
 				await this.db
 					.update(schema.systemVirtualFolders)
-					.set({ parentId: targetParentId || null, updatedAt: new Date() })
+					.set({ parentId: targetParentId || null, updatedAt: isoDateStringToDate(nowISODateString()) })
 					.where(eq(schema.systemVirtualFolders._id, folderId));
 
 				const [updated] = await this.db.select().from(schema.systemVirtualFolders).where(eq(schema.systemVirtualFolders._id, folderId)).limit(1);

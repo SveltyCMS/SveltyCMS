@@ -1,13 +1,4 @@
-/**
- * @file src/databases/cache-service.ts
- * @description Unified caching service for the CMS (in-memory or Redis), with optional tenant-aware keys.
- *
- * Features:
- * - Dynamic cache store selection based on environment configuration
- * - In-memory caching for development and testing
- * - Redis caching for production
- * - Tenant-aware keys for multi-tenant environments
- */
+/** @file src/databases/cache-service.ts @description Unified caching service for the CMS (in-memory or Redis), with optional tenant-aware keys features: [dynamic store selection, in-memory caching, Redis integration, tenant-aware keys, predictive prefetching] */
 
 // Safe import for test environment
 let browser = false;
@@ -52,7 +43,7 @@ function getCacheConfig(forceReload = false) {
 	return CACHE_CONFIG;
 }
 
-interface ICacheStore {
+interface CacheStore {
 	clearByPattern(pattern: string): Promise<void>;
 	delete(key: string | string[]): Promise<void>;
 	disconnect(): Promise<void>;
@@ -62,7 +53,7 @@ interface ICacheStore {
 	set<T>(key: string, value: T, ttlSeconds: number): Promise<void>;
 }
 
-class InMemoryStore implements ICacheStore {
+class InMemoryStore implements CacheStore {
 	private readonly cache = new Map<string, { value: string; expiresAt: number }>();
 	private isInitialized = false;
 	private interval: ReturnType<typeof setInterval> | null = null;
@@ -136,7 +127,7 @@ class InMemoryStore implements ICacheStore {
 	}
 }
 
-class RedisStore implements ICacheStore {
+class RedisStore implements CacheStore {
 	private client: RedisClientType | null = null;
 	private isInitialized = false;
 
@@ -246,7 +237,7 @@ class RedisStore implements ICacheStore {
 
 class CacheService {
 	private static instance: CacheService;
-	private store: ICacheStore | null = null;
+	private store: CacheStore | null = null;
 	private initialized = false;
 	private initPromise: Promise<void> | null = null;
 	private readonly prefetchPatterns: PrefetchPattern[] = [];

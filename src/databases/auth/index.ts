@@ -1,23 +1,4 @@
-/**
- * @file src/databases/auth/index.ts
- * @description Quantum-resistant authentication and authorization system with multi-tenant support.
- *
- * QUANTUM COMPUTING SECURITY:
- * ===========================
- * This authentication system is designed for quantum resistance:
- * - Argon2id password hashing (memory-hard, quantum-resistant)
- * - AES-256-GCM session encryption (128-bit quantum security)
- * - No RSA/ECC public-key cryptography (vulnerable to Shor's algorithm)
- * - Secure for 15-30+ years against quantum computers
- *
- * This consolidated module handles:
- * - User authentication and session management, scoped by tenant
- * - Role-based access control with admin override
- * - Permission checking with simplified logic
- * - Token management, scoped by tenant
- *
- * @see /docs/architecture/quantum-security.mdx for detailed security analysis
- */
+/** @file src/databases/auth/index.ts @description Quantum-resistant authentication and authorization system with multi-tenant support features: [Argon2id hashing, AES-256-GCM encryption, session management, RBAC, tenant scoping] */
 
 import type { ISODateString } from '@src/content/types';
 import type { DatabaseAdapter, DatabaseResult } from '@src/databases/db-interface';

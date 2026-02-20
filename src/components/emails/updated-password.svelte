@@ -4,7 +4,8 @@
 **updatedPassword Email component to reset password**
 -->
 <script lang="ts">
-	import { Section, Text } from '@src/components/emails/components';
+	// @ts-nocheck
+	import { Section, Text } from 'better-svelte-email';
 	import type { User } from '@src/databases/auth/types';
 
 	interface Props {

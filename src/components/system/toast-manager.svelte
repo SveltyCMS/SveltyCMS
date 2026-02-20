@@ -1,26 +1,10 @@
-﻿<!--
-@file src/components/system/ToastManager.svelte
-@component
-**Enterprise-Ready Toast Notification Manager**
-
-A flexible, accessible toast notification system.
-Supports multiple toast types with gradient styling, progress indicators,
-optional actions, and smooth animations.
-
-@example
-<ToastManager position="bottom-right" />
-
-@features
-- Type-based gradient styling (success, warning, error, info)
-- Auto-dismiss with optional progress bar
-- Optional actions in toasts
-- Configurable positioning
-- Accessible (ARIA)
-- Smooth Svelte transitions
--->
+﻿<!-- @file src/components/system/toast-manager.svelte @description Enterprise-ready toast notification manager features: [type-based gradient styling, auto-dismiss with progress bar, optional actions, configurable positioning, ARIA compliance, smooth transitions] -->
 
 <script lang="ts">
-	import Sanitize from '@src/utils/sanitize.svelte';
+	import { fade, fly } from 'svelte/transition';
+	import { toaster } from '@src/stores/store.svelte.ts';
+	import DOMPurify from 'isomorphic-dompurify';
+
 	interface Props {
 		/** Position of the toast container */
 		position?: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left' | 'top-center' | 'bottom-center';

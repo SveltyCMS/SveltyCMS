@@ -1,21 +1,22 @@
 /**
  * @file src/content/content-manager.ts
- * @description Content management system core.
+ * @description
+ * Central orchestration singleton for SveltyCMS operations.
+ * Responsibilities include:
+ * - Managing the lifecycle and lazy-loading of database adapters.
+ * - Coordinating collection schema registration and validation.
+ * - Providing multi-tenant navigation and content structure support.
+ * - Orchestrating reactive content versioning and cache invalidation.
  *
- * Features:
- * - Singleton pattern for global access
- * - Lazy initialization with race condition handling
- * - In-memory caching with distributed cache (Redis) support
- * - Robust reconciliation between filesystem and database
- * - Optimized first collection retrieval with intelligent caching
- * - Comprehensive content structure retrieval (flat and nested)
- * - Bulk content node operations with database sync
- * - Detailed logging for monitoring and debugging
- * - TypeScript types for strong typing and IDE support
-
+ * features:
+ * - singleton lifecycle management
+ * - lazy-loading DB adapters
+ * - collection schema orchestration
+ * - multi-tenant navigation support
+ * - reactive content versioning
  */
 
-import type { ContentNode, ContentNodeOperation, DatabaseId, Schema } from '@src/content/types';
+import type { ContentNode, ContentNodeOperation, DatabaseId, FieldInstance, Schema } from '@src/content/types';
 // Removed static import to prevent circular dependency withwidget-registry-service// import { generateCategoryNodesFromPaths, processModule } from './utils';
 import { CacheCategory } from '@src/databases/cache-category'; // ✅ Safe for client - no Redis imports
 import { logger } from '@src/utils/logger.server'; // Server-only file
@@ -923,13 +924,13 @@ class ContentManager {
 					_id: collection._id,
 					name: collection.name,
 					icon: collection.icon,
-					fields: collection.fields?.map((f: any) => ({
-						db_fieldName: (f as any).db_fieldName,
-						label: (f as any).label,
-						type: (f as any).type,
-						translated: (f as any).translated
+					fields: collection.fields?.map((f) => ({
+						db_fieldName: (f as FieldInstance).db_fieldName,
+						label: (f as FieldInstance).label,
+						type: (f as FieldInstance).type,
+						translated: (f as FieldInstance).translated
 					}))
-				} as any,
+				} as Schema,
 				timestamp: Date.now()
 			});
 		}
@@ -943,7 +944,7 @@ class ContentManager {
 	 */
 	public registerDependency(collectionId: string, dependsOn: string): void {
 		if (!this.collectionDependencies.has(collectionId)) {
-			this.collectionDependencies.set(collectionId, new Set());
+			this.collectionDependencies.set(collectionId, new Set<string>());
 		}
 		this.collectionDependencies.get(collectionId)?.add(dependsOn);
 		logger.debug(`Registered dependency: ${collectionId} -> ${dependsOn}`);
@@ -1008,7 +1009,16 @@ class ContentManager {
 		const cached = this.collectionCache.get(cacheKey);
 
 		if (cached && Date.now() - cached.timestamp < this.COLLECTION_CACHE_TTL) {
-			return cached.schema as any;
+			return cached.schema as unknown as {
+				_id: string;
+				name: string;
+				icon?: string;
+				path?: string;
+				fieldCount: number;
+				hasRevisions: boolean;
+				hasLivePreview: boolean;
+				status?: string;
+			};
 		}
 
 		const nodeId = this.pathLookupMap.get(identifier) ?? identifier;
@@ -1039,7 +1049,7 @@ class ContentManager {
 		};
 
 		this.collectionCache.set(cacheKey, {
-			schema: stats as any,
+			schema: stats as unknown as Schema,
 			timestamp: Date.now()
 		});
 
@@ -1142,10 +1152,11 @@ class ContentManager {
 			return [];
 		}
 
-		return collection.fields.map((field: any) => {
+		return collection.fields.map((field) => {
+			const f = field as FieldInstance;
 			const translationStatus: Record<string, boolean> = {};
 
-			if (field.translated) {
+			if (f.translated) {
 				// Initialize all languages as untranslated
 				for (const lang of availableLanguages) {
 					translationStatus[lang] = false; // Will be updated by actual entry data
@@ -1153,9 +1164,9 @@ class ContentManager {
 			}
 
 			return {
-				db_fieldName: field.db_fieldName || field.label,
-				label: field.label,
-				translated: field.translated === true,
+				db_fieldName: f.db_fieldName || f.label,
+				label: f.label,
+				translated: f.translated === true,
 				translationStatus
 			};
 		});
@@ -1533,9 +1544,18 @@ class ContentManager {
 		// Transform operations to reorder items
 		const reorderItems = operations.map((op) => {
 			const { node } = op;
+			let parentId: string | null = null;
+			if (typeof node.parentId === 'string') {
+				parentId = node.parentId;
+			} else if (node.parentId && typeof node.parentId === 'object' && 'id' in (node.parentId as object)) {
+				parentId = String((node.parentId as { id: unknown }).id);
+			} else if (node.parentId) {
+				parentId = String(node.parentId);
+			}
+
 			return {
 				id: node._id,
-				parentId: typeof node.parentId === 'string' ? node.parentId : (node.parentId as any)?.toString() || null,
+				parentId,
 				order: node.order || 0,
 				path: node.path || '' // Path should be recalculated and correct before reaching here
 			};
@@ -1702,12 +1722,12 @@ class ContentManager {
 			// Map file collections
 			for (const schema of schemas) {
 				operations.push({
-					_id: schema._id, // Might get normalized later
-					path: schema.path,
-					name: schema.name,
+					_id: (schema._id as unknown as DatabaseId) || ('' as DatabaseId),
+					path: schema.path || '',
+					name: schema.name || '',
 					collectionDef: schema,
 					nodeType: 'collection'
-				} as any);
+				} as unknown as ContentNode);
 			}
 		} else {
 			const { generateCategoryNodesFromPaths } = await import('./utils');
@@ -1913,8 +1933,8 @@ class ContentManager {
 			id: op._id.toString(),
 			changes: {
 				...op,
-				_id: op._id.toString() as any,
-				parentId: op.parentId ? op.parentId.toString() : null,
+				_id: op._id.toString() as DatabaseId,
+				parentId: op.parentId ? (op.parentId.toString() as DatabaseId) : undefined,
 				collectionDef: op.collectionDef
 					? ({
 							_id: op.collectionDef._id,
@@ -1926,7 +1946,7 @@ class ContentManager {
 							fields: []
 						} as Schema)
 					: undefined
-			} as any
+			} as Partial<ContentNode>
 		}));
 
 		const bulkResult = await dbAdapter.content.nodes.bulkUpdate(upsertOps);
@@ -1943,12 +1963,12 @@ class ContentManager {
 		logger.debug(`Current Ops Paths Count: ${currentPaths.size}`);
 		logger.debug(`Ops Paths: ${JSON.stringify(Array.from(currentPaths))}`);
 
-		const dbResult = await dbAdapter.content.nodes.getStructure('flat', { tenantId }, true);
+		const dbResult = await dbAdapter.content.nodes.getStructure('flat', { tenantId } as Partial<ContentNode>, true);
 
 		if (dbResult.success && dbResult.data) {
 			const orphanedNodes = dbResult.data.filter((node: ContentNode) => node.path && !currentPaths.has(node.path));
 			logger.debug(`DB Node Count: ${dbResult.data.length}`);
-			logger.debug(`DB Paths: ${JSON.stringify(dbResult.data.map((n: any) => n.path))}`);
+			logger.debug(`DB Paths: ${JSON.stringify(dbResult.data.map((n: ContentNode) => n.path))}`);
 
 			if (orphanedNodes.length > 0) {
 				const orphanedIds = orphanedNodes.map((node: ContentNode) => node._id.toString());
@@ -1961,7 +1981,7 @@ class ContentManager {
 				const deleteResult = await dbAdapter.crud.deleteMany('system_content_structure', {
 					_id: { $in: orphanedIds },
 					...(tenantId ? { tenantId } : {})
-				} as any);
+				} as import('../databases/db-interface').QueryFilter<import('../databases/db-interface').BaseEntity>);
 				logger.info(`DELETION RESULT: ${JSON.stringify(deleteResult)}`);
 
 				// CRITICAL: Invalidate cache after deletion so the UI doesn't see stale data
@@ -1983,8 +2003,8 @@ class ContentManager {
 				expectedId: op._id.toString(),
 				changes: {
 					...op,
-					_id: op._id.toString() as any,
-					parentId: op.parentId ? op.parentId.toString() : null,
+					_id: op._id.toString() as DatabaseId,
+					parentId: op.parentId ? (op.parentId.toString() as DatabaseId) : undefined,
 					collectionDef: op.collectionDef
 						? ({
 								_id: op.collectionDef._id,
@@ -1996,7 +2016,7 @@ class ContentManager {
 								fields: []
 							} as Schema)
 						: undefined
-				} as any
+				} as Partial<ContentNode>
 			}));
 
 		if (nodesToFix.length > 0 && dbAdapter.content.nodes.fixMismatchedNodeIds) {

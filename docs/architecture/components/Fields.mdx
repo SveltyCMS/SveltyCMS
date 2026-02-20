@@ -1,6 +1,6 @@
 ---
-path: 'docs/architecture/components/Fields.mdx'
-title: 'Fields Component'
+path: 'docs/architecture/components/fields.mdx'
+title: 'fields Component'
 description: 'Documentation for the dynamic field renderer with widget loading, validation store integration, and revision history.'
 order: 3
 icon: 'mdi:form-textbox'
@@ -15,31 +15,31 @@ tags:
   - 'revisions'
 ---
 
-# Fields Component
+# fields Component
 
-The `Fields` component is responsible for rendering collection fields dynamically, loading appropriate widgets, handling validation, and managing revision history.
+The `fields` component is responsible for rendering collection fields dynamically, loading appropriate widgets, handling validation, and managing revision history.
 
 ---
 
 ## Collection Entry Editing Ecosystem
 
-The Fields component is part of a larger system for editing collection entries. The following components work together:
+The fields component is part of a larger system for editing collection entries. The following components work together:
 
 ```mermaid
 flowchart TB
     subgraph Header["Header Actions"]
-        HE[HeaderEdit<br/>Mobile]
-        RS[RightSidebar<br/>Desktop]
+        HE[header-edit<br/>Mobile]
+        RS[right-sidebar<br/>Desktop]
     end
 
     subgraph Content["Content Editing"]
-        F[Fields Component]
-        WL[WidgetLoader]
+        F[fields Component]
+        WL[widget-loader]
         W[Widgets]
     end
 
     subgraph Support["Supporting Components"]
-        TS[TranslationStatus]
+        TS[translation-status]
         TP[TokenPicker]
         REV[Revisions]
     end
@@ -65,15 +65,15 @@ flowchart TB
 
 ### Component Roles
 
-| Component             | Path                                                        | Role                                                 |
-| --------------------- | ----------------------------------------------------------- | ---------------------------------------------------- |
-| **HeaderEdit**        | `src/components/HeaderEdit.svelte`                          | Mobile save/cancel/delete actions, validation gating |
-| **RightSidebar**      | `src/components/RightSidebar.svelte`                        | Desktop save/status/scheduling actions               |
-| **Fields**            | `src/components/collectionDisplay/Fields.svelte`            | Dynamic field rendering, validation                  |
-| **WidgetLoader**      | `src/components/collectionDisplay/WidgetLoader.svelte`      | Async widget loading with error handling             |
-| **TranslationStatus** | `src/components/collectionDisplay/TranslationStatus.svelte` | Translation progress per language                    |
-| **TokenPicker**       | `src/components/TokenPicker.svelte`                         | Dynamic token insertion for fields                   |
-| **Revisions**         | (within Fields)                                             | Historical snapshots with revert capability          |
+| Component              | Path                                                         | Role                                                 |
+| ---------------------- | ------------------------------------------------------------ | ---------------------------------------------------- |
+| **header-edit**        | `src/components/header-edit.svelte`                          | Mobile save/cancel/delete actions, validation gating |
+| **right-sidebar**      | `src/components/right-sidebar.svelte`                        | Desktop save/status/scheduling actions               |
+| **fields**             | `src/components/collectionDisplay/fields.svelte`             | Dynamic field rendering, validation                  |
+| **widget-loader**      | `src/components/collectionDisplay/widget-loader.svelte`      | Async widget loading with error handling             |
+| **translation-status** | `src/components/collectionDisplay/translation-status.svelte` | Translation progress per language                    |
+| **TokenPicker**        | `src/components/TokenPicker.svelte`                          | Dynamic token insertion for fields                   |
+| **Revisions**          | (within fields)                                              | Historical snapshots with revert capability          |
 
 ---
 
@@ -81,7 +81,7 @@ flowchart TB
 
 ```mermaid
 flowchart TB
-    subgraph Fields["Fields Component"]
+    subgraph fields["fields Component"]
         direction TB
         FD[Field Definitions]
         WL[Widget Loader]
@@ -117,22 +117,22 @@ flowchart TB
 
 ## Features
 
-| Feature                          | Description                                                 |
-| -------------------------------- | ----------------------------------------------------------- |
-| **Dynamic Widget Loading**       | Lazy-loads widgets based on field type using `WidgetLoader` |
-| **Validation Store Integration** | Real-time field validation with `validationStore`           |
-| **Translation Progress**         | Visual indicators for multilingual content completion       |
-| **Revision History**             | View and revert to previous versions                        |
-| **Role-Based Filtering**         | Show/hide fields based on user permissions                  |
-| **Two-Way Binding**              | Sync between local and global state                         |
+| Feature                          | Description                                                  |
+| -------------------------------- | ------------------------------------------------------------ |
+| **Dynamic Widget Loading**       | Lazy-loads widgets based on field type using `widget-loader` |
+| **Validation Store Integration** | Real-time field validation with `validationStore`            |
+| **Translation Progress**         | Visual indicators for multilingual content completion        |
+| **Revision History**             | View and revert to previous versions                         |
+| **Role-Based Filtering**         | Show/hide fields based on user permissions                   |
+| **Two-Way Binding**              | Sync between local and global state                          |
 
 ---
 
-## HeaderEdit & RightSidebar (Save Actions)
+## header-edit & right-sidebar (Save Actions)
 
 The save functionality is split between mobile and desktop views:
 
-### HeaderEdit (Mobile)
+### header-edit (Mobile)
 
 Visible on screens < 1024px. Provides:
 
@@ -146,7 +146,7 @@ Visible on screens < 1024px. Provides:
 const canSave = $derived(validationStore.isValid && dataChangeStore.hasChanges);
 ```
 
-### RightSidebar (Desktop)
+### right-sidebar (Desktop)
 
 Visible on screens >= 1024px. Additionally provides:
 
@@ -158,13 +158,13 @@ Both components integrate with `validationStore` to prevent saving invalid entri
 
 ---
 
-## TranslationStatus
+## translation-status
 
 Displays translation completion progress for multilingual collections:
 
 ```mermaid
 flowchart LR
-    F[Fields] --> TS[TranslationStatus]
+    F[fields] --> TS[translation-status]
     TS --> |tracks| TP[translationProgress]
     TS --> |displays| Languages
     Languages --> Progress[% Complete]
@@ -230,13 +230,13 @@ Tokens are inserted with `{{ }}` syntax:
 
 ## Validation Integration
 
-The Fields component integrates with the global `validationStore` for real-time validation feedback.
+The fields component integrates with the global `validationStore` for real-time validation feedback.
 
 ### Validation Flow
 
 ```mermaid
 sequenceDiagram
-    participant F as Fields
+    participant F as fields
     participant W as Widget
     participant VS as validationStore
     participant UI as Save Button
@@ -261,7 +261,7 @@ The component automatically validates required fields:
 $effect(() => {
 	const values = currentCollectionValue;
 
-	filteredFields.forEach((field) => {
+	filteredfields.forEach((field) => {
 		if (field.required) {
 			const fieldName = getFieldName(field, false);
 			const value = values[fieldName];
@@ -284,7 +284,7 @@ $effect(() => {
 Individual widgets can implement their own validation using Valibot schemas:
 
 ```typescript
-// In widget Input.svelte
+// In widget input.svelte
 import { validationStore } from '@stores/store.svelte';
 import { parse } from 'valibot';
 
@@ -305,8 +305,8 @@ function validateInput() {
 
 ```mermaid
 sequenceDiagram
-    participant F as Fields
-    participant WL as WidgetLoader
+    participant F as fields
+    participant WL as widget-loader
     participant I as import.meta.glob
     participant W as Widget
 
@@ -317,9 +317,9 @@ sequenceDiagram
     W->>F: bind:value updates
 ```
 
-### WidgetLoader Error Handling
+### widget-loader Error Handling
 
-The `WidgetLoader` component handles loading failures gracefully:
+The `widget-loader` component handles loading failures gracefully:
 
 - **Loading State**: Shows skeleton UI while widget loads
 - **Error State**: Displays error with retry button
@@ -330,7 +330,7 @@ The `WidgetLoader` component handles loading failures gracefully:
 ## Props
 
 ```typescript
-interface FieldsProps {
+interface fieldsProps {
 	fields: FieldDefinition[];
 	collection: Collection;
 	entry: Entry;
@@ -365,7 +365,7 @@ Only visible if `collection.livePreview` is configured. Displays an **iframe** w
 
 ```mermaid
 sequenceDiagram
-    participant CMS as Fields Component
+    participant CMS as fields Component
     participant IFrame as Preview IFrame
     participant Frontend as Frontend /api/preview
 
@@ -383,7 +383,7 @@ sequenceDiagram
 - **Sandboxed iframe** with `allow-same-origin allow-scripts allow-forms allow-popups`
 
 > [!NOTE]
-> For the full handshake architecture (cookies, security, multi-tenancy), see [Live Preview Architecture](/docs/guides/Live_Preview_Architecture.mdx).
+> For the full handshake architecture (cookies, security, multi-tenancy), see [Live Preview Architecture](/docs/guides/live-preview-architecture.mdx).
 
 ### Tab 3: API (Admin Only)
 
@@ -397,7 +397,7 @@ Only visible for admin users. Shows:
 
 ## Plugin Extensibility
 
-The Fields component supports plugin extensions through the **`entry_edit` injection zone**, allowing plugins to add custom tabs and functionality to the entry editing interface.
+The fields component supports plugin extensions through the **`entry_edit` injection zone**, allowing plugins to add custom tabs and functionality to the entry editing interface.
 
 ### Plugin Slots
 
@@ -443,14 +443,14 @@ export const seoPlugin: Plugin = {
 | `field_extensions` | Below field groups                           | Field-level enhancements       |
 
 > [!TIP]
-> For complete plugin development guide, see [Plugin Architecture](/docs/guides/Plugin_Architecture.mdx).
+> For complete plugin development guide, see [Plugin Architecture](/docs/guides/plugin-architecture.mdx).
 
 ---
 
 ## Best Practices
 
 1. **Field Configuration**: Always set `db_fieldName` for consistent validation keys
-2. **Required Fields**: Use `required: true` for mandatory fields (handled automatically)
+2. **Required fields**: Use `required: true` for mandatory fields (handled automatically)
 3. **Custom Validation**: Implement Valibot schemas in widget `index.ts` for type-specific validation
 4. **Error Messages**: Provide clear, user-friendly validation messages
 5. **Permissions**: Use `permissions` field config to control access per role
@@ -460,9 +460,9 @@ export const seoPlugin: Plugin = {
 
 ## Related Documentation
 
-- [WidgetLoader Component](/docs/architecture/components/WidgetLoader.mdx) - Async widget loading
+- [widget-loader Component](/docs/architecture/components/widget-loader.mdx) - Async widget loading
 - [Widget System Overview](/docs/widgets/widget-system-overview.mdx) - Widget architecture
 - [Unified Error Handling](/docs/guides/development/error-handling.mdx) - Error handling patterns
-- [Live Preview Architecture](/docs/guides/Live_Preview_Architecture.mdx) - Preview system
+- [Live Preview Architecture](/docs/guides/live-preview-architecture.mdx) - Preview system
 - [Validation Instant Feedback](/docs/architecture/validation-instant-feedback.mdx) - Validation UX
 - [Multilingual Data Loading](/docs/architecture/multilingual-data-loading.mdx) - Translation handling

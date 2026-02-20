@@ -1,6 +1,6 @@
 /**
- * @file src/databases/mariadb/operations/batch-module.ts
- * @description Batch operations module for MariaDB
+ * @file src/databases/sqlite/operations/batch-module.ts
+ * @description Batch operations module for SQLite
  *
  * Features:
  * - Execute batch operations
@@ -14,6 +14,7 @@ import { eq, inArray } from 'drizzle-orm';
 import type { BaseEntity, BatchOperation, BatchResult, DatabaseError, DatabaseId, DatabaseResult } from '../../db-interface';
 import type { AdapterCore } from '../adapter/adapter-core';
 import * as utils from '../utils';
+import { isoDateStringToDate, nowISODateString } from '@src/utils/date-utils';
 
 export class BatchModule {
 	private readonly core: AdapterCore;
@@ -23,15 +24,15 @@ export class BatchModule {
 	}
 
 	private get db() {
-		return (this.core as any).db;
+		return this.core.db!;
 	}
 
 	private get crud() {
-		return (this.core as any).crud;
+		return this.core.crud;
 	}
 
 	async execute<T>(operations: BatchOperation<T>[]): Promise<DatabaseResult<BatchResult<T>>> {
-		return (this.core as any).wrap(async () => {
+		return this.core.wrap(async () => {
 			const results: DatabaseResult<T>[] = [];
 			let totalProcessed = 0;
 			const errors: DatabaseError[] = [];
@@ -99,13 +100,13 @@ export class BatchModule {
 		collection: string,
 		updates: Array<{ id: DatabaseId; data: Partial<T> }>
 	): Promise<DatabaseResult<{ modifiedCount: number }>> {
-		return (this.core as any).wrap(async () => {
-			const table = (this.core as any).getTable(collection);
+		return this.core.wrap(async () => {
+			const table = this.core.getTable(collection);
 			let modifiedCount = 0;
 			for (const update of updates) {
 				const result = await this.db
 					.update(table)
-					.set({ ...update.data, updatedAt: new Date() } as any)
+					.set({ ...update.data, updatedAt: isoDateStringToDate(nowISODateString()) } as any)
 					.where(eq(table._id, update.id));
 				modifiedCount += result.changes;
 			}
@@ -114,8 +115,8 @@ export class BatchModule {
 	}
 
 	async bulkDelete(collection: string, ids: DatabaseId[]): Promise<DatabaseResult<{ deletedCount: number }>> {
-		return (this.core as any).wrap(async () => {
-			const table = (this.core as any).getTable(collection);
+		return this.core.wrap(async () => {
+			const table = this.core.getTable(collection);
 			const result = await this.db.delete(table).where(inArray(table._id, ids));
 			return { deletedCount: result.changes };
 		}, 'BULK_DELETE_FAILED');

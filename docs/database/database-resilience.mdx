@@ -33,20 +33,20 @@ The `DatabaseResilience` system provides:
 It is integrated in:
 
 - `src/databases/db.ts` (initialization, adapter loading, system status)
-- `src/databases/CacheService.ts` (Redis connection)
-- `src/databases/mongodb/mongoDBAdapter.ts` (reconnection handlers)
+- `src/databases/cache-service.ts` (Redis connection)
+- `src/databases/mongodb/mongodb-adapter.ts` (reconnection handlers)
 
-| Feature                                           | Status         | Key Artifacts                                                                   |
-| ------------------------------------------------- | -------------- | ------------------------------------------------------------------------------- |
-| Automatic retry with exponential backoff & jitter | ✅ Implemented | `DatabaseResilience.executeWithRetry()`; used in `db.ts`, `CacheService.ts`     |
-| Promise-Based Locking (`_initPromises`)           | ✅ Implemented | `MongoDBAdapter`, `SQLiteAdapter` - Prevents race conditions during startup     |
-| Capability-Based Guards                           | ✅ Implemented | `SchedulerService` - Declares explicit dependencies via `db.ensure<Feature>()`  |
-| Admin email notification on persistent failure    | ✅ Implemented | `databaseFailure.svelte`; notification logic in `DatabaseResilience.ts`         |
-| Connection pool diagnostics                       | ✅ Implemented | API: `/api/database/pool-diagnostics`; Widget: `DatabasePoolDiagnostics.svelte` |
-| Self-healing Reconnection                         | ✅ Implemented | MongoDB/SQL event handlers + `attemptReconnection()`                            |
-| Automatic Driver Installation & Fallback          | ✅ Implemented | `install-driver/+server.ts`; manual command on failure                          |
-| SQL Migration Strategy                            | ✅ Implemented | `runMigrations(db)` for Drizzle adapters                                        |
-| Detailed error logs download                      | ✅ Implemented | API: `/api/logs/download` (admin-only)                                          |
+| Feature                                           | Status         | Key Artifacts                                                                     |
+| ------------------------------------------------- | -------------- | --------------------------------------------------------------------------------- |
+| Automatic retry with exponential backoff & jitter | ✅ Implemented | `DatabaseResilience.executeWithRetry()`; used in `db.ts`, `cache-service.ts`      |
+| Promise-Based Locking (`_initPromises`)           | ✅ Implemented | `MongoDBAdapter`, `SQLiteAdapter` - Prevents race conditions during startup       |
+| Capability-Based Guards                           | ✅ Implemented | `SchedulerService` - Declares explicit dependencies via `db.ensure<Feature>()`    |
+| Admin email notification on persistent failure    | ✅ Implemented | `database-failure.svelte`; notification logic in `DatabaseResilience.ts`          |
+| Connection pool diagnostics                       | ✅ Implemented | API: `/api/database/pool-diagnostics`; Widget: `database-pool-diagnostics.svelte` |
+| Self-healing Reconnection                         | ✅ Implemented | MongoDB/SQL event handlers + `attemptReconnection()`                              |
+| Automatic Driver Installation & Fallback          | ✅ Implemented | `install-driver/+server.ts`; manual command on failure                            |
+| SQL Migration Strategy                            | ✅ Implemented | `runMigrations(db)` for Drizzle adapters                                          |
+| Detailed error logs download                      | ✅ Implemented | API: `/api/logs/download` (admin-only)                                            |
 
 All features above are production-ready. The "Planned Features" section later in this document only lists not-yet-implemented roadmap items (circuit breaker, adaptive backoff, distributed coordination, advanced metrics).
 
@@ -95,7 +95,7 @@ Exposed metrics include:
 - connectionUptime, averageRecoveryTime
 - health.latency, health.healthy, health.message
 
-Pool diagnostics are available via `GET /api/database/pool-diagnostics` and surfaced in `DatabasePoolDiagnostics.svelte`.
+Pool diagnostics are available via `GET /api/database/pool-diagnostics` and surfaced in `database-pool-diagnostics.svelte`.
 
 ---
 
@@ -167,7 +167,7 @@ Applied in:
 
 - Virtual folders initialization (`src/databases/db.ts`)
 - Database adapter loading (`src/databases/db.ts`)
-- Redis connection (`src/databases/CacheService.ts`)
+- Redis connection (`src/databases/cache-service.ts`)
 
 ### Self-Healing Database Reconnection
 
@@ -181,7 +181,7 @@ Flow: detect → mark FAILED → backoff retries → success marks READY and tra
 ### Connection Pool Diagnostics (API + Widget)
 
 - API: `GET /api/database/pool-diagnostics` (admin-only)
-- Widget: `DatabasePoolDiagnostics.svelte`
+- Widget: `database-pool-diagnostics.svelte`
 
 Metrics: total/active/idle, waiting, utilization %, avg connection time; health levels (healthy/degraded/critical) with smart recommendations.
 
@@ -189,7 +189,7 @@ Metrics: total/active/idle, waiting, utilization %, avg connection time; health 
 
 On persistent failure after all attempts, admins get a detailed email (if SMTP configured).
 
-- Template: `src/components/emails/databaseFailure.svelte`
+- Template: `src/components/emails/database-failure.svelte`
 
 ### Detailed Error Logs Download
 

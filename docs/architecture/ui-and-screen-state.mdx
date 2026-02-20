@@ -26,8 +26,8 @@ SveltyCMS leverages a modern, class-based singleton pattern powered by **Svelte 
 
 The system is divided into two specialized stores, exported as singleton instances from `@src/stores/`:
 
-1.  **`screen`** (`screenSizeStore.svelte.ts`): Manages responsive breakpoints, window dimensions, and accessibility preferences.
-2.  **`ui`** (`UIStore.svelte.ts`): Manages the visibility of layout components, sidebars, and route-specific UI contexts.
+1.  **`screen`** (`screen-size-store.svelte.ts`): Manages responsive breakpoints, window dimensions, and accessibility preferences.
+2.  **`ui`** (`ui-store.svelte.ts`): Manages the visibility of layout components, sidebars, and route-specific UI contexts.
 
 ### Design Principles
 
@@ -92,7 +92,7 @@ Sidebars and headers can be in one of three states:
 Directly access the visibility of primary layout elements:
 
 - `leftSidebar`
-- `rightSidebar`
+- `right-sidebar`
 - `pageheader`
 - `pagefooter`
 
@@ -144,7 +144,7 @@ Deleting over **400 lines** of legacy boilerplate and compatibility logic reduce
 ### Layout Logic
 
 ```typescript
-import { screen } from '@stores/screenSizeStore.svelte';
+import { screen } from '@stores/screen-size-store.svelte';
 import { ui } from '@stores/UIStore.svelte';
 
 // Derived logic in scripts

@@ -603,10 +603,10 @@ Type error: Property 'user' does not exist on type 'Locals'
 
    ```javascript
    // Instead of
-   import Widget from './Widget.svelte';
+   import Widget from './widget.svelte';
 
    // Use
-   const Widget = await import('./Widget.svelte');
+   const Widget = await import('./widget.svelte');
    ```
 
 ---
@@ -785,10 +785,10 @@ db.widgets.find({ type: "custom" }).count()
 
 # Insert missing widget manually
 db.widgets.insertOne({
-	name: "CustomWidget",
+	name: "custom-widget",
 	type: "custom",
-	category: "Display",
-	path: "src/widgets/Display/CustomWidget.svelte",
+	category: "display",
+	path: "src/widgets/display/custom-widget.svelte",
 	enabled: true,
 	createdAt: new Date()
 })
@@ -870,16 +870,16 @@ npm run widgets:sync  # Custom script to call sync endpoint
 
    ```javascript
    // ✅ Correct
-   export default MyWidget;
+   export default my-widget;
 
    // ❌ Wrong
-   export { MyWidget }; // Named export not supported
+   export { my-widget }; // Named export not supported
    ```
 
 3. **Verify widget category:**
-   - Display widgets go in `src/widgets/Display/`
-   - Input widgets go in `src/widgets/Input/`
-   - Definition widgets go in `src/widgets/Definition/`
+   - Display widgets go in `src/widgets/display/`
+   - Input widgets go in `src/widgets/input/`
+   - Definition widgets go in `src/widgets/definition/`
 
 4. **Check widget metadata:**
 
@@ -887,8 +887,8 @@ npm run widgets:sync  # Custom script to call sync endpoint
    <script lang="ts">
    	// Widget metadata for registration
    	export const metadata = {
-   		name: 'MyWidget',
-   		category: 'Display',
+   		name: 'my-widget',
+   		category: 'display',
    		description: 'My custom widget'
    	};
    </script>
@@ -906,8 +906,8 @@ npm run widgets:sync  # Custom script to call sync endpoint
 **Symptoms:**
 
 ```
-Failed to load widget: Cannot find module './widgets/CustomWidget.svelte'
-Error: Widget 'CustomWidget' not found
+Failed to load widget: Cannot find module './widgets/custom-widget.svelte'
+Error: Widget 'custom-widget' not found
 ```
 
 **Solutions:**
@@ -916,15 +916,15 @@ Error: Widget 'CustomWidget' not found
 
    ```bash
    # Widget filename must match registration
-   ls src/widgets/Display/CustomWidget.svelte
+   ls src/widgets/display/custom-widget.svelte
    ```
 
 2. **Verify import in widget factory:**
 
    ```javascript
-   // src/widgets/widgetFactory.ts
+   // src/widgets/widget-factory.ts
    const displayWidgets = {
-   	CustomWidget: () => import('./Display/CustomWidget.svelte')
+   	'custom-widget': () => import('./display/custom-widget.svelte')
    };
    ```
 
@@ -932,7 +932,7 @@ Error: Widget 'CustomWidget' not found
 
    ```javascript
    // Database check
-   db.widgets.findOne({ name: 'CustomWidget' });
+   db.widgets.findOne({ name: 'custom-widget' });
    // Verify: { enabled: true }
    ```
 
@@ -1064,7 +1064,7 @@ Include in your bug report:
 ## Additional Resources
 
 - 🚀 [Production Deployment](/docs/installation#deployment)
-- ⚙️ [Setup Actions](/docs/api/Setup_Actions_API.mdx)
+- ⚙️ [Setup Actions](/docs/api/setup-actions-api.mdx)
 - 📈 [Performance Optimization](/docs/architecture/cache-system)
 - 💬 [GitHub Discussions](https://github.com/SveltyCMS/SveltyCMS/discussions)
 - 📧 [Email Support](mailto:support@sveltycms.com)

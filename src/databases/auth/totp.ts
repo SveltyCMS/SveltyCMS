@@ -140,7 +140,7 @@ export async function getCurrentTOTPCode(secret: string): Promise<string> {
 	hmac.update(counterBuffer);
 	const digest = hmac.digest();
 
-	const offset = digest.at(-1) & 0xf;
+	const offset = digest.at(-1)! & 0xf;
 	const truncated =
 		((digest[offset] & 0x7f) << 24) | ((digest[offset + 1] & 0xff) << 16) | ((digest[offset + 2] & 0xff) << 8) | (digest[offset + 3] & 0xff);
 
@@ -169,7 +169,7 @@ export async function verifyTOTPCode(secret: string, userCode: string): Promise<
 		hmac.update(counterBuffer);
 		const digest = hmac.digest();
 
-		const offset = digest.at(-1) & 0xf;
+		const offset = digest.at(-1)! & 0xf;
 		const truncated =
 			((digest[offset] & 0x7f) << 24) | ((digest[offset + 1] & 0xff) << 16) | ((digest[offset + 2] & 0xff) << 8) | (digest[offset + 3] & 0xff);
 

@@ -95,8 +95,8 @@ function formatValue(v: unknown): string {
 	}
 	if (v instanceof Error) {
 		const parts = [`message: \x1b[31m${v.message}\x1b[0m`, `name: \x1b[31m${v.name}\x1b[0m`];
-		if ((v as any).code) {
-			parts.push(`code: \x1b[31m${(v as any).code}\x1b[0m`);
+		if ('code' in v) {
+			parts.push(`code: \x1b[31m${(v as { code: unknown }).code}\x1b[0m`);
 		}
 		return `\x1b[33m{${parts.join(', ')}}\x1b[0m`;
 	}
@@ -128,8 +128,8 @@ function mask(v: unknown, depth = 0): unknown {
 		if (v.stack) {
 			plain.stack = v.stack;
 		}
-		if ((v as any).code) {
-			plain.code = (v as any).code;
+		if ('code' in v) {
+			plain.code = (v as { code: unknown }).code;
 		}
 		return mask(plain, depth + 1);
 	}
@@ -152,13 +152,22 @@ function mask(v: unknown, depth = 0): unknown {
 	return masked;
 }
 
+interface LoggerModules {
+	fs: typeof import('node:fs');
+	path: typeof import('node:path');
+	zlib: typeof import('node:zlib');
+	stream: typeof import('node:stream/promises');
+	promises: typeof import('node:fs/promises');
+	crypto: typeof import('node:crypto');
+}
+
 // File ops (lazy loaded)
 let stream: import('node:fs').WriteStream | null = null;
-let modules: any = null;
+let modules: LoggerModules | null = null;
 let lastHash = '';
 const HMAC_SECRET = process.env.LOG_CHAIN_SECRET || 'svelty-cms-default-log-secret';
 
-async function getMods() {
+async function getMods(): Promise<LoggerModules> {
 	if (modules) {
 		return modules;
 	}
@@ -175,7 +184,7 @@ async function getMods() {
 }
 
 function calculateHash(prevHash: string, content: string): string {
-	const { crypto } = modules;
+	const { crypto } = modules!;
 	return crypto
 		.createHmac('sha256', HMAC_SECRET)
 		.update(prevHash + content)
@@ -196,9 +205,11 @@ async function ensureStream() {
 			const lines = content.trim().split('\n');
 			if (lines.length > 0) {
 				const lastLine = lines.at(-1);
-				const match = lastLine.match(/\[CHAIN:([a-f0-9]{64})\]/);
-				if (match) {
-					lastHash = match[1];
+				if (lastLine) {
+					const match = lastLine.match(/\[CHAIN:([a-f0-9]{64})\]/);
+					if (match) {
+						lastHash = match[1];
+					}
 				}
 			}
 		} catch {
@@ -228,13 +239,12 @@ async function rotate() {
 		await promises.writeFile(file, '');
 		lastHash = ''; // Reset chain for new file
 
-		// compression enabled
 		const src = (await getMods()).fs.createReadStream(rotated);
 		const dst = (await getMods()).fs.createWriteStream(`${rotated}.gz`);
 		await sp.pipeline(src, zlib.createGzip(), dst);
 		await promises.unlink(rotated);
-	} catch (e: any) {
-		if (e.code !== 'ENOENT') {
+	} catch (e: unknown) {
+		if (e && typeof e === 'object' && 'code' in e && e.code !== 'ENOENT') {
 			console.error('Rotation failed:', e);
 		}
 	}
@@ -287,7 +297,10 @@ function enqueue(level: LogLevel, msg: string, args: unknown[]) {
 	const pretty = colorMessage(msg);
 
 	const ts = new Date().toISOString().slice(0, 19).replace('T', ' ');
-	process.stdout.write(`${ts} ${color}${icon} [${level.toUpperCase().padEnd(5)}]${RESET} ${pretty} ${argsStr}\n`);
+	// One-line enforcement: strip newlines
+	const safeMsg = pretty.replace(/\r?\n/g, ' ');
+	const safeArgs = argsStr.replace(/\r?\n/g, ' ');
+	process.stdout.write(`${ts} ${color}${icon} [${level.toUpperCase().padEnd(5)}]${RESET} ${safeMsg} ${safeArgs}\n`);
 
 	queue.push({ level, msg, args: masked });
 	if (queue.length >= 100) {

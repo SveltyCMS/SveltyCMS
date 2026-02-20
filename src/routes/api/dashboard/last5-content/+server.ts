@@ -119,7 +119,7 @@ export const GET = apiHandler(async ({ locals, url }) => {
 	const resolveTimestamp = (e: DashboardRawEntry): string | undefined =>
 		e.createdAt || (e.created as string | undefined) || (e.date as string | undefined);
 
-	const queryPromises = collectionsEntries.map(async ([collectionId, collection]) => {
+	const queryPromises = collectionsEntries.map(async ([collectionId, collection]: [string, any]) => {
 		try {
 			const collectionName = `collection_${collection._id}`;
 			const filter = getPrivateSettingSync('MULTI_TENANT') ? { tenantId } : {};

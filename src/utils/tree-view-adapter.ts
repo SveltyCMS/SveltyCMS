@@ -146,7 +146,7 @@ export function toFlatContentNodes(flatItems: TreeViewItem[]): ContentNode[] {
 			const aSegments = a.path.split('.');
 			const bSegments = b.path.split('.');
 			// Compare the last segment (their position at this level)
-			return aSegments.at(-1).localeCompare(bSegments.at(-1));
+			return aSegments.at(-1)!.localeCompare(bSegments.at(-1)!);
 		});
 	}
 

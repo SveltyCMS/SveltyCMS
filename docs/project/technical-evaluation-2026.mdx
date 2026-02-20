@@ -219,7 +219,7 @@ SveltyCMS 2026 introduces a lightweight, high-performance **Real-Time Collaborat
 - **Low Overhead**: By leveraging the central `EventBus`, SveltyCMS streams system activity, webhook status, and AI assistant tokens through a single, persistent GET request.
 - **AI Streaming**: The system supports real-time token delivery for AI assistance, providing a seamless "typing" experience for content generation and technical support.
 - **Multi-User Rooms**: Automatically joins "rooms" based on the active collection or entry, allowing users to see peer activity and collaborate on specific content items.
-- **System Resilience**: The connection is managed by the `collaborationStore` and respects the global `systemState`. If the system enters a `FAILED` state, the connection is closed to prevent ghost events and client-side errors.
+- **System Resilience**: The connection is managed by the `collaboration-store` and respects the global `systemState`. If the system enters a `FAILED` state, the connection is closed to prevent ghost events and client-side errors.
 - **Competitive Edge**:
   - **vs. Strapi/Payload**: Often require external Socket.io integrations or complex state management. SveltyCMS's implementation is native, stateless at the protocol level, and built directly into the Svelte 5 rune-based stores.
 

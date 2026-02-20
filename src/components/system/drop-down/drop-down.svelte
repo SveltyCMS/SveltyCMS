@@ -18,6 +18,8 @@
 -->
 
 <script lang="ts">
+	import { twMerge } from 'tailwind-merge';
+
 	// Define props using $props
 	const {
 		items, // Array of selectable items

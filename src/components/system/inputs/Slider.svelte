@@ -14,6 +14,8 @@
 -->
 
 <script lang="ts">
+	import { Slider } from '@skeletonlabs/skeleton-svelte';
+
 	let {
 		value = $bindable({
 			max: 100,
@@ -37,7 +39,7 @@
 	<Slider
 		name="range-slider"
 		value={[value.current]}
-		onValueChange={(e) => handleChange({ detail: e.value[0] } as any)}
+		onValueChange={(e: { value: number[] }) => handleChange({ detail: e.value[0] } as any)}
 		max={value.max}
 		step={0.5}
 		class="w-full"

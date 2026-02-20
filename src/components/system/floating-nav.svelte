@@ -25,6 +25,7 @@
 	import { logger } from '@utils/logger';
 	// Modals/Tooltips
 	import { modalState } from '@utils/modal-state.svelte';
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import { onDestroy, onMount, tick } from 'svelte';
 	import { linear } from 'svelte/easing';
 	import { browser } from '$app/environment';

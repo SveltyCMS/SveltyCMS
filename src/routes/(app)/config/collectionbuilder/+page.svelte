@@ -34,6 +34,10 @@ None (TreeView has its own keyboard navigation)
 <CollectionBuilder data={{ contentStructure, user, isAdmin }} />
 -->
 <script lang="ts">
+	import { collection_pagetitle, collection_addcategory, collection_add, button_save, collection_description } from '@src/paraglide/messages';
+	import PageTitle from '@src/components/page-title.svelte';
+	import TreeViewBoard from '@src/routes/(app)/config/collectionbuilder/nested-content/tree-view-board.svelte';
+
 	import type { ISODateString } from '@root/src/content/types';
 	import type { ContentNode, DatabaseId } from '@root/src/databases/db-interface';
 	// Stores

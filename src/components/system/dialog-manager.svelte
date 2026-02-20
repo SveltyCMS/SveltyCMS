@@ -1,16 +1,4 @@
-<!--
-@files src/components/system/dialog-manager.svelte
-@component 
-**DialogManager for handling modals**
-
-### Props
-- `modalState` 
-
-### Features
-- Handles opening and closing modals
-- Closes modals on backdrop click or Escape key press	
-
--->
+<!-- @file src/components/system/dialog-manager.svelte @description DialogManager for handling modals features: [modal lifecycle management, backdrop/escape close support, skeleton v4 integration, fullscreen mode support] -->
 
 <script lang="ts">
 	import { modalState } from '@utils/modal-state.svelte';

@@ -1,25 +1,4 @@
-/**
- * @file src/content/collection-scanner.ts
- * @description Standalone collection scanner for use during setup
- *
- * This module provides a simplified collection scanning function that can be used
- * during system setup without requiring the fullcontent-manageror global dbAdapter.
- *
- * ## Usage Contexts:
- * 1. **Setup Process** - Scans collections during initial system setup (`?/seedDatabase`)
- * 2. **Production Runtime** - Optimized filesystem scanning for better performance (`src/content/index.ts`)
- * 3. **Build Time** - Development-time collection scanning (Vite plugin)
- *
- * ## Testing:
- * This module is tested indirectly through:
- * - **Setup Actions Tests** (`tests/bun/api/setup-actions.test.ts`) - Tests the seed action which uses scanCompiledCollections
- * - **Integration Tests** - Runtime usage is tested through collection-related integration tests
- *
- * Direct unit testing is complex because processModule() requireswidget-registry-serviceinitialization,
- * which depends on Vite's import.meta.glob (not available in test environment).
- *
- * NOTE: This is SERVER-ONLY code that uses Node.js fs module.
- */
+/** @file src/content/collection-scanner.ts @description Standalone collection scanner for setup and production optimization features: [recursive filesystem scanning, cross-platform path normalization, parallel module processing, widget registry pre-initialization] */
 
 import fs from 'node:fs/promises';
 import path from 'node:path';

@@ -33,9 +33,12 @@
 	// Stores
 	import { collection, collectionValue, setCollectionValue } from '@src/stores/collection-store.svelte';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
-	// import { CodeBlock, Tab, TabGroup, clipboard } from '@skeletonlabs/skeleton-svelte';
+	import { Tabs } from '@skeletonlabs/skeleton-svelte';
 	import { contentLanguage, dataChangeStore, toaster, translationProgress, validationStore } from '@src/stores/store.svelte';
 	import { widgetFunctions as widgetFunctionsStore } from '@src/stores/widget-store.svelte';
+	import { button_edit, applayout_version, form_required, Fields_no_widgets_found } from '@src/paraglide/messages';
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+	import WidgetLoader from './widget-loader.svelte';
 
 	import { showConfirm } from '@utils/modal-utils';
 

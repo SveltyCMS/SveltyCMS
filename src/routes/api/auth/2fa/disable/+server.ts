@@ -1,6 +1,15 @@
 /**
  * @file src/routes/api/auth/2fa/disable/+server.ts
- * @description API endpoint for disabling 2FA
+ * @description
+ * API endpoint for disabling Two-Factor Authentication.
+ * Deactivates 2FA and clears security secrets, requiring
+ * manual re-authentication before sensitive changes.
+ *
+ * features:
+ * - 2FA deactivation logic
+ * - account security state transition
+ * - tenant-aware session monitoring
+ * - audit logging for security changes
  */
 
 import { auth } from '@databases/db';

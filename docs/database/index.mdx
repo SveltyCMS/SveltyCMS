@@ -27,21 +27,21 @@ Complete guide to SveltyCMS database architecture, covering both database-agnost
 
 These documents explain the core database infrastructure that works with **any** database backend (MongoDB, PostgreSQL, MySQL, SQLite, etc.):
 
-1. **[Core Infrastructure](./Core_Infrastructure.mdx)**
+1. **[Core Infrastructure](./core-infrastructure.mdx)**
    - `db.ts` - Database manager/orchestrator
-   - `dbInterface.ts` - Database adapter contract
-   - `themeManager.ts` - Theme service
+   - `db-interface.ts` - Database adapter contract
+   - `theme-manager.ts` - Theme service
    - How the adapter pattern enables database agnosticism
 
-2. **[Cache System](./Cache_System.mdx)**
-   - `CacheService.ts` - Dual-layer caching (Redis + MongoDB)
+2. **[Cache System](./cache-system.mdx)**
+   - `cache-service.ts` - Dual-layer caching (Redis + MongoDB)
    - `CacheMetrics.ts` - Performance monitoring
    - `CacheWarmingService.ts` - Predictive prefetching
    - 8 cache categories with dynamic TTL
    - **NEW**: Pattern-based predictive prefetching with custom fetchers
    - **ContentManager**: LRU cache & batch initialization optimization
 
-3. **[Authentication System](./Authentication_System.mdx)**
+3. **[Authentication System](./authentication-system.mdx)**
    - Complete auth infrastructure (12 files)
    - User authentication & authorization
    - Session management & cleanup
@@ -53,7 +53,7 @@ These documents explain the core database infrastructure that works with **any**
 
 Implementation guides for specific database backends:
 
-4. **[MongoDB Implementation](./MongoDB_Implementation.mdx)**
+4. **[MongoDB Implementation](./mongodb-implementation.mdx)**
    - Enterprise connection pool configuration
    - 29 optimized indexes (4 TTL + 25 compound)
    - Cursor pagination (99.9% faster)
@@ -62,7 +62,7 @@ Implementation guides for specific database backends:
    - 70-90% performance improvement
    - **NEW**: Optimized `upsertMany` with `bulkWrite` for high-volume writes
 
-5. **[MariaDB Implementation](./MariaDB_Implementation.mdx)** 🆕 (Beta)
+5. **[MariaDB Implementation](./mariadb-implementation.mdx)** 🆕 (Beta)
    - Drizzle ORM with mysql2 driver
    - 13 relational tables with proper indexes
    - Connection pooling and health monitoring
@@ -71,13 +71,13 @@ Implementation guides for specific database backends:
    - Type-safe queries with full TypeScript support
    - **Status**: Implementation Complete (100%)
 
-6. **[PostgreSQL Implementation](./PostgreSQL_Implementation.mdx)** 🆕 (Beta)
+6. **[PostgreSQL Implementation](./postgresql-implementation.mdx)** 🆕 (Beta)
    - Drizzle ORM with postgres.js driver
    - Full schema with PostgreSQL-specific types (UUID, JSONB)
    - Connection management and health checks
    - **Status**: Beta (Seeding and Core CRUD Implemented)
 
-7. **[SQLite Implementation](./SQLite_Implementation.mdx)** 🆕 (Beta)
+7. **[SQLite Implementation](./sqlite-implementation.mdx)** 🆕 (Beta)
    - Drizzle ORM with better-sqlite3/bun:sqlite
    - Zero-config single-file database
    - Ideal for local development and edge
@@ -89,16 +89,16 @@ Implementation guides for specific database backends:
 
 ### I want to...
 
-- **Understand the overall architecture** → Read [Core Infrastructure](./Core_Infrastructure.mdx)
-- **Learn about caching** → Read [Cache System](./Cache_System.mdx)
-- **Understand authentication** → Read [Authentication System](./Authentication_System.mdx)
-- **Optimize MongoDB** → Read [MongoDB Implementation](./MongoDB_Implementation.mdx)
-- **Implement MariaDB** → Read [MariaDB Implementation](./MariaDB_Implementation.mdx)
-- **Implement PostgreSQL** → Read [PostgreSQL Implementation](./PostgreSQL_Implementation.mdx)
-- **Implement SQLite** → Read [SQLite Implementation](./SQLite_Implementation.mdx)
-- **Add a new database** → Read [Core Infrastructure](./Core_Infrastructure.mdx) section "Adding New Adapters"
-- **Check cache performance** → Read [Cache System](./Cache_System.mdx) section "Metrics"
-- **Implement permissions** → Read [Authentication System](./Authentication_System.mdx) section "Permissions"
+- **Understand the overall architecture** → Read [Core Infrastructure](./core-infrastructure.mdx)
+- **Learn about caching** → Read [Cache System](./cache-system.mdx)
+- **Understand authentication** → Read [Authentication System](./authentication-system.mdx)
+- **Optimize MongoDB** → Read [MongoDB Implementation](./mongodb-implementation.mdx)
+- **Implement MariaDB** → Read [MariaDB Implementation](./mariadb-implementation.mdx)
+- **Implement PostgreSQL** → Read [PostgreSQL Implementation](./postgresql-implementation.mdx)
+- **Implement SQLite** → Read [SQLite Implementation](./sqlite-implementation.mdx)
+- **Add a new database** → Read [Core Infrastructure](./core-infrastructure.mdx) section "Adding New Adapters"
+- **Check cache performance** → Read [Cache System](./cache-system.mdx) section "Metrics"
+- **Implement permissions** → Read [Authentication System](./authentication-system.mdx) section "Permissions"
 
 ---
 
@@ -106,31 +106,31 @@ Implementation guides for specific database backends:
 
 ### For New Developers
 
-1. Start with [Core Infrastructure](./Core_Infrastructure.mdx) to understand the 3-layer architecture
-2. Read [Cache System](./Cache_System.mdx) to understand performance optimization
-3. Read [Authentication System](./Authentication_System.mdx) to understand security
+1. Start with [Core Infrastructure](./core-infrastructure.mdx) to understand the 3-layer architecture
+2. Read [Cache System](./cache-system.mdx) to understand performance optimization
+3. Read [Authentication System](./authentication-system.mdx) to understand security
 
 ### For MongoDB Users
 
-1. Read [MongoDB Implementation](./MongoDB_Implementation.mdx) for best practices
+1. Read [MongoDB Implementation](./mongodb-implementation.mdx) for best practices
 2. Check the "Quick Reference" section for common operations
 3. Review index strategy for your use case
 
 ### For MariaDB Users
 
-1. Read [MariaDB Implementation](./MariaDB_Implementation.mdx) for setup guide
+1. Read [MariaDB Implementation](./mariadb-implementation.mdx) for setup guide
 2. Review the schema design and migration system
 3. Check implementation roadmap for completion status
 
 ### For PostgreSQL Users
 
-1. Read [PostgreSQL Implementation](./PostgreSQL_Implementation.mdx) for current status
+1. Read [PostgreSQL Implementation](./postgresql-implementation.mdx) for current status
 2. Note: Beta implementation - stub methods need completion
 3. Follow MariaDB pattern for contributing implementations
 
 ### For Adding New Database Support
 
-1. Read [Core Infrastructure](./Core_Infrastructure.mdx) → "Adding New Adapters"
+1. Read [Core Infrastructure](./core-infrastructure.mdx) → "Adding New Adapters"
 2. Implement the `DatabaseAdapter` interface
 3. Follow the PostgreSQL or MariaDB example
 4. Test against the database-agnostic tests
@@ -151,7 +151,7 @@ graph TD
         E[Sub-1s API Readiness]
     end
 
-    subgraph Interface["Layer 2: Database Adapter (dbInterface.ts)"]
+    subgraph Interface["Layer 2: Database Adapter (db-interface.ts)"]
         F[Capability-Based Dependency Guards]
         G[Unified QueryCriteria translation]
     end
@@ -235,7 +235,7 @@ Benchmarks were conducted on the following production hardware:
 - **CPU**: AMD Ryzen 5 3600 6-Core Processor (12 threads)
 - **RAM**: 64GB DDR4
 - **OS**: Ubuntu 24.04.3 LTS
-- **Environment**: Node.js v22.x, Local Database Instance
+- **Environment**: Node.js v24.x, Local Database Instance
 
 ### Performance Matrix
 
@@ -267,7 +267,7 @@ The following metrics represent benchmarks across different environments. High-l
 
 ### API Documentation
 
-- [Database Agnostic Verification](../api/Database_Agnostic_Verification.mdx) - API endpoint verification
+- [Database Agnostic Verification](../api/database-agnostic-verification.mdx) - API endpoint verification
 
 ### Development Guides
 

@@ -21,13 +21,13 @@ This document describes the **canonical data flow** for loading, editing, and sa
 
 ## 🏗️ Store Architecture (Consolidated)
 
-As of late 2025, the content state management has been consolidated into a single **`CollectionStore`** (`src/stores/collectionStore.svelte.ts`). This unified store manages:
+As of late 2025, the content state management has been consolidated into a single **`collection-store`** (`src/stores/collection-store.svelte.ts`). This unified store manages:
 
 1.  **Content State**: The current collection schema, entry data, and content structure.
 2.  **Status Logic**: Entry publication status (`publish`, `unpublish`, `schedule`, etc.) and toggling logic.
 3.  **View Mode**: The current UI mode (`view`, `edit`, `create`, `media`) and valid transitions.
 
-This consolidation replaces the previous fragmented approach (`statusStore`, `modeStateMachine`) to provide a single source of truth and reduce circular dependencies. All consumers should import directly from `@stores/collectionStore.svelte`.
+This consolidation replaces the previous fragmented approach (`status-store`, `modeStateMachine`) to provide a single source of truth and reduce circular dependencies. All consumers should import directly from `@stores/collection-store.svelte`.
 
 ## 🎯 Architecture: The "SvelteKit Way"
 
@@ -37,7 +37,7 @@ This consolidation replaces the previous fragmented approach (`statusStore`, `mo
 - ✅ **Components are "dumb" and receive data as props** (no client-side fetching)
 - ✅ **Server-side caching** (Redis) with SvelteKit's built-in cache invalidation
 - ✅ **URL-driven state** (pagination, sorting, filtering via search params)
-- ✅ **Zero client-side data fetching** in EntryList.svelte and Fields.svelte
+- ✅ **Zero client-side data fetching** in entry-list.svelte and fields.svelte
 
 This eliminates the "God Component" anti-pattern and provides enterprise-grade performance.
 
@@ -58,11 +58,11 @@ sequenceDiagram
     participant User
     participant Browser
     participant PageServer as +page.server.ts
-    participant Store as collectionStore
+    participant Store as collection-store
     participant Cache as Redis Cache
     participant DB as Database
     participant PageSvelte as +page.svelte
-    participant Component as Fields/EntryList
+    participant Component as fields/entry-list
 
     User->>Browser: Navigate to /en/Collections/Posts?page=1
     Browser->>PageServer: GET (SSR Load)
@@ -111,10 +111,10 @@ sequenceDiagram
 2. **Component Hydration**
    - `+page.svelte` receives data from the server as props
    - Sets the collection schema in the store via `setCollection(data.collectionSchema)`
-   - Passes props down to "dumb" components (Fields, EntryList)
+   - Passes props down to "dumb" components (fields, entry-list)
 
 3. **UI Consumption**
-   - Components like `Fields.svelte` and `EntryList.svelte` receive all data as props
+   - Components like `fields.svelte` and `entry-list.svelte` receive all data as props
    - No client-side data fetching - components are purely presentational
    - Store is used for form state synchronization, not data fetching
 
@@ -156,14 +156,14 @@ export const load: PageServerLoad = async ({ params, url, locals }) => {
 
 // +page.svelte - Receive data as props
 <script lang="ts">
-  import EntryList from '@components/collectionDisplay/EntryList.svelte';
+  import entry-list from '@components/collectionDisplay/entry-list.svelte';
 
   let { data } = $props();
   let entries = $derived(data.entries);
   let pagination = $derived(data.pagination);
 </script>
 
-<EntryList {entries} {pagination} />
+<entry-list {entries} {pagination} />
 ```
 
 ## 🎯 Component Responsibilities
@@ -184,7 +184,7 @@ export const load: PageServerLoad = async ({ params, url, locals }) => {
 - ❌ NO data fetching
 - ❌ NO cache management
 
-### Fields.svelte / EntryList.svelte (Presentation)
+### fields.svelte / entry-list.svelte (Presentation)
 
 - ✅ Receive all data as props
 - ✅ Render UI based on props
@@ -197,7 +197,7 @@ export const load: PageServerLoad = async ({ params, url, locals }) => {
 
 - **Default Status:** By default, all new collection entries are initialized with `status: 'unpublish'`.
 - **Collection-Defined Status:** If a collection schema defines a `status` value, this value is used as the default when creating a new entry for that collection.
-- **UI Display:** The current status (from the store) is always shown in the HeaderEdit and/or RightSidebar components. These components do not set or override the status themselves; they only display the value from the store.
+- **UI Display:** The current status (from the store) is always shown in the header-edit and/or right-sidebar components. These components do not set or override the status themselves; they only display the value from the store.
 - **Status Persistence:** The status is only saved to the database if it is changed by the user. Until then, the status remains in the store and is not persisted.
 - **Best Practice:** Never set or override the status in UI components. Always rely on the store logic for status management.
 
@@ -275,16 +275,16 @@ This ensures that the next SSR load will always fetch fresh data after any data 
 **Server-Side:**
 
 - `src/routes/(app)/[language]/[...collection]/+page.server.ts` - SSR load function
-- `src/databases/CacheService.ts` - Redis caching layer
+- `src/databases/cache-service.ts` - Redis caching layer
 - `src/routes/api/collections/modifyRequest.ts` - Data enrichment
 
 **Client-Side:**
 
 - `src/routes/(app)/[language]/[...collection]/+page.svelte` - Props router
-- `src/stores/collectionStore.svelte.ts` - Unified store for Content, Status, and View Mode state
-- `src/stores/UIStore.svelte.ts` - UI visibility and layout state
-- `src/components/collectionDisplay/Fields.svelte` - Dumb component (props)
-- `src/components/collectionDisplay/EntryList.svelte` - Dumb component (props)
+- `src/stores/collection-store.svelte.ts` - Unified store for Content, Status, and View Mode state
+- `src/stores/ui-store.svelte.ts` - UI visibility and layout state
+- `src/components/collectionDisplay/fields.svelte` - Dumb component (props)
+- `src/components/collectionDisplay/entry-list.svelte` - Dumb component (props)
 
 **API Endpoints:**
 

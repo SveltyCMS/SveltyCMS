@@ -20,7 +20,7 @@
 	import { collection, collectionValue } from '@src/stores/collection-store.svelte';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { ui } from '@src/stores/ui-store.svelte';
-	import { nowIsoDateString } from '@utils/utils';
+	import { nowISODateString } from '@utils/date-utils';
 
 	import { page } from '$app/state';
 
@@ -66,7 +66,7 @@
 	});
 
 	let availableModifiers = $derived(
-		selectedToken ? modifierMetadata.filter((m) => m.accepts.includes(selectedToken?.type) || m.accepts.includes('any')) : []
+		selectedToken ? modifierMetadata.filter((m) => m.accepts.includes(selectedToken!.type) || m.accepts.includes('any')) : []
 	);
 
 	let tokenResult = $derived.by(() => {

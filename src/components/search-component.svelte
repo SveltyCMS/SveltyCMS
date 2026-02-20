@@ -39,10 +39,11 @@
 <script lang="ts">
 	import type { SearchData } from '@utils/global-search-index';
 	// Stores
-	import { isSearchVisible, triggerActionStore } from '@utils/global-search-index';
+	import { isSearchVisible, triggerActionStore, globalSearchIndex } from '@utils/global-search-index';
 	import { getEditDistance } from '@utils/utils';
 	import { onDestroy, onMount } from 'svelte';
 	import { goto } from '$app/navigation';
+	import HighlightedText from './highlighted-text.svelte';
 
 	// Types
 	interface Trigger {
@@ -287,8 +288,7 @@
 
 		const focusableElements = document.querySelectorAll('.search-component button, .search-component input');
 		const firstElement = focusableElements[0] as HTMLElement;
-		const lastElement = focusableElements.at(-1) as HTMLElement;
-
+		const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement;
 		if (event.shiftKey && document.activeElement === firstElement) {
 			event.preventDefault();
 			lastElement?.focus();

@@ -207,14 +207,14 @@ class CollaborationStore {
 		const text = (payload.data?.text as string) || '';
 		const isDone = payload.data?.done === true;
 
-		if (this.aiHistory.length === 0 || this.aiHistory.at(-1).role !== 'assistant') {
+		if (this.aiHistory.length === 0 || this.aiHistory.at(-1)!.role !== 'assistant') {
 			this.aiHistory.push({
 				role: 'assistant',
 				content: text,
 				timestamp: new Date().toISOString()
 			});
 		} else {
-			this.aiHistory.at(-1).content += text;
+			this.aiHistory.at(-1)!.content += text;
 		}
 
 		this.isTyping = !isDone;

@@ -44,6 +44,11 @@ const config = {
 		},
 
 		// Use SvelteKit's built-in CSP support
+		// Note: CSRF protection is enabled by default in SvelteKit for non-GET requests
+		// If specific cross-origin POST/PUT/DELETE requests need to be allowed, configure `trustedOrigins` here.
+		// csrf: {
+		// 	trustedOrigins: ['https://example.com']
+		// },
 		csp: {
 			mode: 'nonce', // Use nonce for inline scripts (not hash)
 			directives: {

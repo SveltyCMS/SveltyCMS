@@ -7,7 +7,6 @@ Watermark tool using svelte-canvas compatible state.
 	import { imageEditorStore } from '@src/stores/image-editor-store.svelte';
 	import { Layer } from 'svelte-canvas';
 	import WatermarkControls from './controls.svelte';
-	import type { WatermarkData } from './types';
 
 	let { onCancel }: { onCancel: () => void } = $props();
 

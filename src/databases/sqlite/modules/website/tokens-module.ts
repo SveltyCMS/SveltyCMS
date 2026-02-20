@@ -15,6 +15,7 @@ import type { DatabaseId, DatabaseResult, WebsiteToken } from '../../../db-inter
 import type { AdapterCore } from '../../adapter/adapter-core';
 import * as schema from '../../schema';
 import * as utils from '../../utils';
+import { nowISODateString } from '@src/utils/date-utils';
 
 export class WebsiteTokensModule {
 	private readonly core: AdapterCore;
@@ -30,7 +31,7 @@ export class WebsiteTokensModule {
 	async create(token: Omit<WebsiteToken, '_id' | 'createdAt'>): Promise<DatabaseResult<WebsiteToken>> {
 		return (this.core as any).wrap(async () => {
 			const id = utils.generateId();
-			const now = new Date();
+			const now = nowISODateString();
 			await this.db.insert(schema.websiteTokens).values({
 				...token,
 				_id: id,

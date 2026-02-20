@@ -1,0 +1,47 @@
+---
+path: 'docs/webmcp-support.mdx'
+title: 'WebMCP Support'
+description: 'Overview of Client-Side AI Agent integration via Web Model Context Protocol.'
+order: 10
+icon: 'mdi:robot-industrial'
+author: 'SveltyCMS Team'
+created: '2026-02-17'
+updated: '2026-02-17'
+tags:
+  - 'ai'
+  - 'webmcp'
+  - 'agents'
+---
+
+# WebMCP Support (Client-Side Agents)
+
+SveltyCMS now supports **WebMCP** (Web Model Context Protocol), a standard that allows browser-based AI agents (like Chrome AI, Cursor, Windsurf, or Claude Desktop via browser connectors) to "discover" and "control" the CMS interface.
+
+## How it Works
+
+The implementation is a lightweight **Plugin** running entirely in the browser. It polyfills `navigator.modelContext` and registers tools that AI agents can invoke.
+
+### Available Tools
+
+1.  **Content Management**:
+    - `get_collections`: Lists all schemas and fields.
+    - `search_content`: Finds entries in the database.
+2.  **Navigation**:
+    - `navigate_to`: Moves the user to a specific route.
+    - `get_current_route`: Reports current location.
+
+## Architecture
+
+This feature is implemented as a native plugin: `src/plugins/webmcp`.
+
+For deep technical details on the underlying AI architecture, please refer to:
+[AI Integration & RAG Architecture](guides/development/ai-integration.mdx)
+
+## Usage
+
+No configuration is required. The plugin is automatically initialized in the Admin Dashboard. Open your browser's devtools console to see the initialization log:
+
+```
+[WebMCP] Initializing...
+[WebMCP] Tools registered successfully.
+```

@@ -57,7 +57,6 @@
 			node.onpointerleave = onPointerUp;
 
 			timeOut = setTimeout(() => {
-				 
 				const clone = node.cloneNode(true) as HTMLElement;
 				// eslint-disable-next-line svelte/no-dom-manipulating
 				container?.appendChild(clone);

@@ -37,8 +37,9 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
 	const isStaticAsset = pathname.startsWith('/static') || pathname.startsWith('/assets') || pathname.startsWith('/_');
 
 	if (!(isHealthCheck || isStaticAsset)) {
+		const requestType = event.isDataRequest ? 'API' : 'PAGE';
 		logger.debug(
-			`[handleSystemState] ${event.request.method} ${pathname}${event.url.search} (Data: ${event.isDataRequest}), state: ${systemState.overallState}, initState: ${initializationState}`
+			`[handleSystemState] ${event.request.method} ${pathname}${event.url.search} [${requestType}], state: ${systemState.overallState}, initState: ${initializationState}`
 		);
 	}
 

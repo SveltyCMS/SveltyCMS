@@ -1,16 +1,15 @@
 /**
  * @file src/routes/api/auth/2fa/backup-codes/+server.ts
- * @description API endpoint for managing backup codes
+ * @description
+ * API endpoint for managing 2FA backup codes.
+ * Allows users to retrieve their existing backup codes or
+ * regenerate a new set for improved account recovery options.
  *
- * @param locals.user - The authenticated user
- * @param locals.user.tenantId - The tenant ID of the authenticated user
- * @param locals.user.is2FAEnabled - Whether 2FA is enabled for the user
- *
- * @returns JSON response with success status and data
- *
- * @throws AppError if authentication is required
- * @throws AppError if 2FA is not enabled for the user
- * @throws AppError if auth service is not initialized
+ * features:
+ * - backup code retrieval
+ * - on-demand backup code regeneration
+ * - tenant-aware management isolation
+ * - secure transmission via authenticated session
  */
 
 import { auth } from '@databases/db';

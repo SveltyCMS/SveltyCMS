@@ -17,6 +17,12 @@ Default value is 'blank'.
 	let canScrollLeft = $state(false);
 	let canScrollRight = $state(true);
 
+	// Mouse Drag Scroll State
+	let isDragging = $state(false);
+	let startX = $state(0);
+	let scrollLeft = $state(0);
+	let dragMoved = $state(false); // Used to differentiate between click and drag
+
 	function updateScrollState() {
 		if (!scrollEl) {
 			return;
@@ -25,11 +31,34 @@ Default value is 'blank'.
 		canScrollRight = scrollEl.scrollLeft < scrollEl.scrollWidth - scrollEl.clientWidth - 8;
 	}
 
+	function handleMouseDown(e: MouseEvent) {
+		if (!scrollEl) return;
+		isDragging = true;
+		startX = e.pageX - scrollEl.offsetLeft;
+		scrollLeft = scrollEl.scrollLeft;
+		dragMoved = false;
+	}
+
+	function handleMouseMove(e: MouseEvent) {
+		if (!isDragging || !scrollEl) return;
+		e.preventDefault();
+		const x = e.pageX - scrollEl.offsetLeft;
+		const walk = (x - startX) * 1.5; // Scroll speed multiplier
+		if (Math.abs(walk) > 5) dragMoved = true;
+		scrollEl.scrollLeft = scrollLeft - walk;
+	}
+
+	function handleMouseUp() {
+		isDragging = false;
+	}
+
 	function scrollBy(dir: -1 | 1) {
 		scrollEl?.scrollBy({ left: dir * 300, behavior: 'smooth' });
 	}
 
 	function select(id: string | null) {
+		// Prevent selection if we were just dragging
+		if (dragMoved) return;
 		selected = id;
 	}
 </script>
@@ -73,7 +102,19 @@ Default value is 'blank'.
 	<!-- Scroll track -->
 	<div class="track-wrapper">
 		<div class="fade-edge left" class:show={canScrollLeft}></div>
-		<div class="scroll-track" bind:this={scrollEl} onscroll={updateScrollState} role="listbox" aria-label="Select a project blueprint">
+		<div
+			class="scroll-track"
+			bind:this={scrollEl}
+			onscroll={updateScrollState}
+			onmousedown={handleMouseDown}
+			onmousemove={handleMouseMove}
+			onmouseup={handleMouseUp}
+			onmouseleave={handleMouseUp}
+			class:grabbing={isDragging}
+			role="listbox"
+			tabindex="0"
+			aria-label="Select a project blueprint"
+		>
 			<!-- ── Preset cards ── -->
 			{#each presets as preset (preset.id)}
 				<button
@@ -124,6 +165,7 @@ Default value is 'blank'.
 				type="button"
 				class="dot"
 				class:active={selected === preset.id}
+				aria-label={`Select preset ${preset.name || i + 1}`}
 				onclick={() => {
 					select(preset.id);
 					scrollEl?.scrollTo({ left: i * 268, behavior: 'smooth' });
@@ -133,9 +175,13 @@ Default value is 'blank'.
 	</div>
 
 	<p class="helper-text">
-		{selected
-			? `"${presets.find((p: Preset) => p.id === selected)?.title ?? selected}" selected — collections added automatically after setup.`
-			: 'No preset — configure collections manually after setup.'}
+		{#if selected === 'blank'}
+			"Blank Project" selected — start with a clean slate. No collections will be added automatically.
+		{:else if selected}
+			"{presets.find((p: Preset) => p.id === selected)?.title ?? selected}" selected — collections added automatically after setup.
+		{:else}
+			No preset — configure collections manually after setup.
+		{/if}
 	</p>
 </section>
 
@@ -144,6 +190,8 @@ Default value is 'blank'.
 		display: flex;
 		flex-direction: column;
 		gap: 12px;
+		max-width: 100%;
+		overflow-x: hidden;
 	}
 
 	.section-header {
@@ -195,6 +243,7 @@ Default value is 'blank'.
 
 	.track-wrapper {
 		position: relative;
+		min-width: 0;
 	}
 	.scroll-track {
 		display: flex;
@@ -204,6 +253,15 @@ Default value is 'blank'.
 		-webkit-overflow-scrolling: touch;
 		padding: 6px 4px 14px;
 		scrollbar-width: none;
+		width: 100%;
+		cursor: grab;
+		user-select: none;
+		transition: scroll-snap-type 0.3s;
+	}
+	.scroll-track.grabbing {
+		cursor: grabbing;
+		scroll-snap-type: none;
+		scroll-behavior: auto;
 	}
 	.scroll-track::-webkit-scrollbar {
 		display: none;
@@ -243,28 +301,33 @@ Default value is 'blank'.
 		text-align: left;
 		cursor: pointer;
 		scroll-snap-align: start;
-		background: rgba(255, 255, 255, 0.03);
-		border: 1.5px solid rgba(255, 255, 255, 0.08);
+		background: rgba(255, 255, 255, 0.02);
+		backdrop-filter: blur(8px);
+		-webkit-backdrop-filter: blur(8px);
+		border: 1px solid rgba(255, 255, 255, 0.06);
 		border-radius: 12px;
 		transition:
-			border-color 0.2s,
-			background 0.2s,
-			transform 0.15s,
-			box-shadow 0.2s;
+			border-color 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+			background 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+			transform 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+			box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 	}
 	.preset-card:hover {
-		background: rgba(110, 231, 183, 0.04);
+		background: rgba(110, 231, 183, 0.05);
 		border-color: rgba(110, 231, 183, 0.3);
-		box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28);
-		transform: translateY(-2px);
+		box-shadow:
+			0 10px 30px -10px rgba(0, 0, 0, 0.5),
+			inset 0 0 20px rgba(110, 231, 183, 0.05);
+		transform: translateY(-4px);
 	}
 	.preset-card.active {
-		background: rgba(110, 231, 183, 0.07);
-		border-color: rgba(110, 231, 183, 0.75);
+		background: rgba(110, 231, 183, 0.08);
+		border-color: #6ee7b7;
 		box-shadow:
-			0 0 0 3px rgba(110, 231, 183, 0.12),
-			0 10px 32px rgba(0, 0, 0, 0.35);
-		transform: translateY(-2px);
+			0 0 0 2px rgba(110, 231, 183, 0.2),
+			0 15px 35px -12px rgba(0, 0, 0, 0.6),
+			inset 0 0 15px rgba(110, 231, 183, 0.1);
+		transform: translateY(-4px);
 	}
 
 	/* ── Row 1: icon + title + complexity ── */
@@ -325,6 +388,7 @@ Default value is 'blank'.
 		margin-bottom: 10px;
 		overflow: hidden;
 		-webkit-line-clamp: 3;
+		line-clamp: 3;
 		font-size: 0.7rem;
 		line-height: 1.5;
 		color: rgba(255, 255, 255, 0.42);

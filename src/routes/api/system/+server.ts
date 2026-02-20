@@ -1,13 +1,4 @@
-/**
- * @file src/routes/api/system/+server.ts
- * @description System Management API - unified database-agnostic endpoint for system operations
- * @summary All system management goes through this single endpoint with action-based routing
- *  - GET: health - Get current system health status
- *  - POST: reinitialize - Reinitialize system services
- *  - POST: restart-service - Restart specific service
- *  - GET: metrics - Get system metrics (future)
- *  - POST: backup - Trigger system backup (future)
- */
+/** @file src/routes/api/system/+server.ts @description System Management API - unified database-agnostic endpoint for system operations features: [health monitoring, reinitialization, service restart, backup trigger, cache clearing] */
 
 import { reinitializeSystem } from '@src/databases/db';
 // System Utilities

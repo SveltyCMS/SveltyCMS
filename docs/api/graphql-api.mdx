@@ -1,0 +1,1176 @@
+---
+path: 'docs/api/graphql-api.mdx'
+title: 'GraphQL API'
+description: 'Complete GraphQL API reference for querying and mutating data in SveltyCMS with dynamic schema generation.'
+order: 11
+icon: 'mdi:graphql'
+author: 'admin'
+created: '2025-10-05'
+updated: '2025-11-08'
+tags:
+  - 'api'
+  - 'graphql'
+  - 'query'
+  - 'mutation'
+  - 'subscriptions'
+---
+
+# GraphQL API
+
+## Overview
+
+The GraphQL API provides a powerful, flexible query language for accessing and manipulating data in SveltyCMS. It features dynamic schema generation based on your collections, widgets, and content structure.
+
+**Endpoint:** `/api/graphql`  
+**Method:** `POST`  
+**Content-Type:** `application/json`
+
+**Key Features:**
+
+- ✅ Dynamic schema generation from collections
+- ✅ Type-safe queries with auto-completion
+- ✅ Pagination support for all queries
+- ✅ Real-time subscriptions via WebSocket
+- ✅ Multi-tenant data isolation
+- ✅ Redis caching integration
+- ✅ Permission-based access control
+- ✅ Introspection and GraphiQL playground
+
+---
+
+## Authentication
+
+All GraphQL requests require authentication via session cookie:
+
+```http
+Cookie: session=your-session-cookie
+```
+
+### Authentication Methods
+
+#### Browser/Frontend
+
+```javascript
+// Session cookie automatically sent
+fetch('/api/graphql', {
+	method: 'POST',
+	credentials: 'include',
+	headers: { 'Content-Type': 'application/json' },
+	body: JSON.stringify({ query })
+});
+```
+
+#### API Token (Bearer)
+
+```bash
+curl -X POST https://cms.example.com/api/graphql \
+  -H "Authorization: Bearer your-api-token" \
+  -H "Content-Type: application/json" \
+  -d '{"query":"{ users { _id email } }"}'
+```
+
+**Unauthorized Response (401):**
+
+```json
+{
+	"error": "Unauthorized",
+	"message": "You must be logged in to access the GraphQL endpoint."
+}
+```
+
+---
+
+## GraphiQL Playground
+
+Access the interactive GraphQL playground for development:
+
+```
+https://your-domain.com/api/graphql
+```
+
+The playground provides:
+
+- 📖 Full schema documentation browser
+- ✨ Auto-completion and syntax highlighting
+- ✔️ Real-time query validation
+- 🔍 Schema introspection
+- 📊 Query performance metrics
+- 🔌 WebSocket subscription testing
+
+---
+
+## Dynamic Schema Generation
+
+The GraphQL schema is dynamically generated based on your:
+
+1. **Collections** - Each collection becomes a queryable type
+2. **Widgets** - Widget schemas define field types
+3. **Custom fields** - Extracted and nested fields are supported
+4. **Media Types** - Images, documents, audio, video, remote
+
+### Example Generated Schema
+
+```graphql
+# Auto-generated from "Posts" collection
+type Posts_abc123 {
+	_id: String
+	title: String
+	content: String
+	author: User
+	tags: [String]
+	status: String
+	createdAt: String
+	updatedAt: String
+	createdBy: String
+	updatedBy: String
+}
+
+type Query {
+	# Collection queries (dynamically generated)
+	Posts_abc123: [Posts_abc123]
+	Articles_def456: [Articles_def456]
+
+	# User queries
+	users(pagination: PaginationInput): [User]
+
+	# Media queries
+	mediaImages(pagination: PaginationInput): [MediaImage]
+	mediaDocuments(pagination: PaginationInput): [MediaDocument]
+	mediaAudio(pagination: PaginationInput): [MediaAudio]
+	mediaVideos(pagination: PaginationInput): [MediaVideo]
+	mediaRemote(pagination: PaginationInput): [MediaRemote]
+
+	# Permission queries
+	accessManagementPermission: AccessManagementPermission
+}
+
+input PaginationInput {
+	page: Int = 1
+	limit: Int = 50
+}
+```
+
+---
+
+## Collection Queries
+
+### Query All Entries
+
+```graphql
+query GetPosts {
+	posts(limit: 10, filter: { status: "published" }) {
+		_id
+		title
+		content
+		author {
+			_id
+			username
+			email
+		}
+		createdAt
+		updatedAt
+	}
+}
+```
+
+**Response:**
+
+```json
+{
+	"data": {
+		"posts": [
+			{
+				"_id": "post123",
+				"title": "Hello World",
+				"content": "Post content...",
+				"author": {
+					"_id": "user123",
+					"username": "john_doe",
+					"email": "john@example.com"
+				},
+				"createdAt": "2025-10-05T14:30:00Z",
+				"updatedAt": "2025-10-05T14:30:00Z"
+			}
+		]
+	}
+}
+```
+
+### Query Single Entry
+
+```graphql
+query GetPost($id: ID!) {
+	post(id: $id) {
+		_id
+		title
+		content
+		status
+		author {
+			username
+		}
+	}
+}
+```
+
+**Variables:**
+
+```json
+{
+	"id": "post123"
+}
+```
+
+### Filter & Pagination
+
+```graphql
+query FilteredPosts {
+	posts(filter: { status: "published", author: "user123" }, limit: 20, skip: 0) {
+		_id
+		title
+		createdAt
+	}
+}
+```
+
+---
+
+## System Queries
+
+Advanced queries for CMS metadata, navigation, and diagnostics.
+
+### Collection Statistics
+
+```graphql
+query CollectionStats {
+	collectionStats(collectionId: "posts_123") {
+		_id
+		name
+		fieldCount
+		hasRevisions
+	}
+}
+```
+
+### Navigation Structure
+
+```graphql
+query Navigation($options: NavigationOptions) {
+	navigationStructure(options: { maxDepth: 2 }) {
+		_id
+		name
+		children {
+			_id
+			name
+		}
+	}
+}
+```
+
+### Breadcrumbs
+
+```graphql
+query Breadcrumb {
+	breadcrumb(path: "/blog/hello-world") {
+		name
+		path
+	}
+}
+```
+
+### Diagnostics (Admin Only)
+
+```graphql
+query Diagnostics {
+	contentManagerHealth {
+		state
+		nodeCount
+		cacheAge
+	}
+}
+```
+
+---
+
+## real-time Subscriptions
+
+Subscribe to real-time events via WebSocket.
+
+**Endpoint:** `ws://your-domain.com/api/graphql` (or port 3001 in dev)
+
+### Content Structure Updates
+
+Triggered when schemas or collections change.
+
+```graphql
+subscription OnStructureUpdate {
+	contentStructureUpdated {
+		version
+		timestamp
+		affectedCollections
+		changeType
+	}
+}
+```
+
+### Post Added (Example)
+
+```graphql
+subscription OnPostAdded {
+	postAdded {
+		_id
+		title
+		createdAt
+	}
+}
+```
+
+---
+
+## User Queries
+
+### Get Current User
+
+```graphql
+query Me {
+	me {
+		_id
+		username
+		email
+		role
+		permissions
+		createdAt
+	}
+}
+```
+
+### Query Users
+
+```graphql
+query GetUsers {
+	users(filter: { role: "editor" }, limit: 10) {
+		_id
+		username
+		email
+		role
+		blocked
+	}
+}
+```
+
+### Single User
+
+```graphql
+query GetUser($id: ID!) {
+	user(id: $id) {
+		_id
+		username
+		email
+		role
+		createdAt
+		lastLogin
+	}
+}
+```
+
+---
+
+## Media Queries
+
+### List Media
+
+```graphql
+query GetMedia {
+	media(limit: 20) {
+		_id
+		filename
+		url
+		mimeType
+		size
+		uploadedBy {
+			username
+		}
+		uploadedAt
+	}
+}
+```
+
+### Single Media File
+
+```graphql
+query GetMediaFile($id: ID!) {
+	mediaFile(id: $id) {
+		_id
+		filename
+		url
+		mimeType
+		size
+		width
+		height
+		metadata
+	}
+}
+```
+
+---
+
+## Mutations
+
+### Create Entry
+
+```graphql
+mutation CreatePost($input: PostInput!) {
+	createPost(input: $input) {
+		_id
+		title
+		content
+		status
+		createdAt
+	}
+}
+```
+
+**Variables:**
+
+```json
+{
+	"input": {
+		"title": "New Post",
+		"content": "Post content here...",
+		"status": "draft",
+		"author": "user123"
+	}
+}
+```
+
+### Update Entry
+
+```graphql
+mutation UpdatePost($id: ID!, $input: PostInput!) {
+	updatePost(id: $id, input: $input) {
+		_id
+		title
+		updatedAt
+	}
+}
+```
+
+**Variables:**
+
+```json
+{
+	"id": "post123",
+	"input": {
+		"title": "Updated Title",
+		"status": "published"
+	}
+}
+```
+
+### Delete Entry
+
+```graphql
+mutation DeletePost($id: ID!) {
+	deletePost(id: $id)
+}
+```
+
+---
+
+## Dynamic Collection Types
+
+SveltyCMS automatically generates GraphQL types for each collection:
+
+### Collection: Posts
+
+```graphql
+type Post {
+	_id: ID!
+	title: String!
+	content: String
+	excerpt: String
+	status: String
+	author: User
+	createdAt: DateTime
+	updatedAt: DateTime
+}
+
+input PostInput {
+	title: String!
+	content: String
+	excerpt: String
+	status: String
+	author: ID
+}
+```
+
+### Collection: Pages
+
+```graphql
+type Page {
+	_id: ID!
+	title: String!
+	slug: String!
+	content: String
+	template: String
+	createdAt: DateTime
+}
+
+input PageInput {
+	title: String!
+	slug: String!
+	content: String
+	template: String
+}
+```
+
+---
+
+## Permission-Based Access
+
+GraphQL queries respect user permissions:
+
+```typescript
+// Admin users
+query {
+  posts { _id title status } // ✅ All posts
+}
+
+// Editor users
+query {
+  posts { _id title status } // ✅ Published + own drafts
+}
+
+// Viewer users
+query {
+  posts { _id title } // ✅ Published only
+}
+```
+
+**Unauthorized Query:**
+
+```json
+{
+	"errors": [
+		{
+			"message": "Unauthorized: Insufficient permissions",
+			"extensions": {
+				"code": "FORBIDDEN"
+			}
+		}
+	]
+}
+```
+
+---
+
+## Caching
+
+GraphQL queries are cached for performance:
+
+```typescript
+// Cached queries (5 minutes)
+query GetPosts {
+  posts { _id title }
+}
+
+// Cache bypassed for authenticated requests with mutations
+mutation CreatePost {
+  createPost(input: {...}) { _id }
+}
+```
+
+**Cache Keys:**
+
+- Query hash + user ID
+- Collection name + filters
+- Tenant ID (multi-tenant mode)
+
+**Cache Invalidation:**
+
+- On mutations (create, update, delete)
+- Manual cache clear
+- TTL expiration (5 minutes default)
+
+---
+
+## Database-Agnostic Implementation
+
+GraphQL resolvers use database adapters:
+
+```typescript
+// Collections resolver
+const posts = await dbAdapter.crud.findMany('posts', filter, {
+	limit,
+	skip,
+	sort: { createdAt: -1 }
+});
+
+// User resolver
+const user = await dbAdapter.auth.user.findOne({ _id: userId });
+
+// Media resolver
+const media = await dbAdapter.media.files.getByFolder(folder);
+```
+
+**No direct database queries** - all through adapter interface.
+
+---
+
+## Multi-Tenancy Support
+
+When multi-tenant mode is enabled:
+
+- Queries automatically scoped to tenant
+- Users can only access own tenant data
+- Cross-tenant queries blocked
+
+**Tenant Filtering:**
+
+```typescript
+const baseFilter = MULTI_TENANT ? { tenantId } : {};
+const results = await dbAdapter.crud.findMany(collection, { ...filter, ...baseFilter });
+```
+
+---
+
+## Error Handling
+
+GraphQL errors follow standard format:
+
+```json
+{
+	"errors": [
+		{
+			"message": "Post not found",
+			"locations": [{ "line": 2, "column": 3 }],
+			"path": ["post"],
+			"extensions": {
+				"code": "NOT_FOUND",
+				"id": "post123"
+			}
+		}
+	],
+	"data": {
+		"post": null
+	}
+}
+```
+
+**Error Codes:**
+
+- `UNAUTHENTICATED` - Not logged in
+- `FORBIDDEN` - Insufficient permissions
+- `NOT_FOUND` - Resource doesn't exist
+- `BAD_USER_INPUT` - Invalid input data
+- `INTERNAL_SERVER_ERROR` - Server error
+
+---
+
+## Advanced Queries
+
+### Nested Relations
+
+```graphql
+query PostWithAuthorAndComments {
+	post(id: "post123") {
+		title
+		author {
+			username
+			email
+		}
+		comments {
+			_id
+			content
+			author {
+				username
+			}
+		}
+	}
+}
+```
+
+### Aggregations
+
+```graphql
+query PostStats {
+	postsCount: posts(filter: { status: "published" }) {
+		_id
+	}
+}
+```
+
+### Aliases
+
+```graphql
+query MultipleQueries {
+	published: posts(filter: { status: "published" }) {
+		_id
+		title
+	}
+	drafts: posts(filter: { status: "draft" }) {
+		_id
+		title
+	}
+}
+```
+
+---
+
+## Client Integration
+
+### JavaScript/Fetch
+
+```javascript
+async function queryGraphQL(query, variables = {}) {
+	const response = await fetch('/api/graphql', {
+		method: 'POST',
+		credentials: 'include',
+		headers: {
+			'Content-Type': 'application/json'
+		},
+		body: JSON.stringify({ query, variables })
+	});
+
+	const { data, errors } = await response.json();
+
+	if (errors) {
+		throw new Error(errors[0].message);
+	}
+
+	return data;
+}
+
+// Usage
+const data = await queryGraphQL(`
+  query GetPosts {
+    posts(limit: 10) {
+      _id
+      title
+    }
+  }
+`);
+```
+
+### Apollo Client
+
+```javascript
+import { ApolloClient, InMemoryCache, gql } from '@apollo/client';
+
+const client = new ApolloClient({
+	uri: '/api/graphql',
+	cache: new InMemoryCache(),
+	credentials: 'include'
+});
+
+const { data } = await client.query({
+	query: gql`
+		query GetPosts {
+			posts {
+				_id
+				title
+			}
+		}
+	`
+});
+```
+
+### urql
+
+```javascript
+import { createClient } from 'urql';
+
+const client = createClient({
+	url: '/api/graphql',
+	fetchOptions: {
+		credentials: 'include'
+	}
+});
+
+const result = await client
+	.query(
+		`
+  query GetPosts {
+    posts {
+      _id
+      title
+    }
+  }
+`
+	)
+	.toPromise();
+```
+
+---
+
+## Performance Optimization
+
+### Field Selection
+
+Only request fields you need:
+
+```graphql
+# ❌ Requesting all fields
+query {
+  posts {
+    _id
+    title
+    content
+    excerpt
+    author { ... }
+    createdAt
+    updatedAt
+  }
+}
+
+# ✅ Request only needed fields
+query {
+  posts {
+    _id
+    title
+  }
+}
+```
+
+### Pagination
+
+Use pagination for large datasets:
+
+```graphql
+query PaginatedPosts($limit: Int!, $skip: Int!) {
+	posts(limit: $limit, skip: $skip) {
+		_id
+		title
+	}
+}
+```
+
+### Batching
+
+Batch multiple queries:
+
+```graphql
+query BatchQuery {
+	posts {
+		_id
+		title
+	}
+	users {
+		_id
+		username
+	}
+	media {
+		_id
+		filename
+	}
+}
+```
+
+---
+
+## Security Best Practices
+
+### Input Validation
+
+All inputs are validated:
+
+```graphql
+mutation CreatePost($input: PostInput!) {
+	createPost(input: $input) {
+		_id
+	}
+}
+```
+
+### Query Depth Limiting
+
+Prevents deeply nested queries:
+
+```graphql
+# ❌ Too deep (blocked)
+query {
+  post {
+    author {
+      posts {
+        author {
+          posts { ... }
+        }
+      }
+    }
+  }
+}
+```
+
+### Rate Limiting
+
+GraphQL endpoint is rate limited:
+
+- 60 queries/minute per user
+- 100 mutations/hour per user
+
+---
+
+## Real-Time Subscriptions
+
+GraphQL subscriptions enable real-time data updates via WebSocket connections.
+
+### Available Subscriptions
+
+```graphql
+type Subscription {
+	postAdded: Post
+}
+```
+
+### Example Usage
+
+```graphql
+subscription OnPostAdded {
+	postAdded {
+		_id
+		title
+		content
+		createdAt
+		author {
+			username
+		}
+	}
+}
+```
+
+### WebSocket Connection
+
+Subscriptions require a WebSocket connection on **port 3001**:
+
+- **Endpoint:** `ws://localhost:3001/api/graphql`
+- **Protocol:** `graphql-ws`
+- **Authentication:** Session ID, Cookie, or Bearer Token
+
+### Quick Start
+
+```typescript
+import { createClient } from 'graphql-ws';
+
+const client = createClient({
+	url: 'ws://localhost:3001/api/graphql',
+	connectionParams: {
+		cookie: document.cookie
+	}
+});
+
+client.subscribe(
+	{
+		query: `
+      subscription {
+        postAdded {
+          _id
+          title
+        }
+      }
+    `
+	},
+	{
+		next: (data) => console.log('New post:', data),
+		error: (error) => console.error('Error:', error)
+	}
+);
+```
+
+For complete WebSocket authentication methods and implementation details, see:
+
+- [GraphQL WebSocket Subscriptions](/docs/api/graphql-websocket-subscriptions.mdx)
+
+---
+
+## Testing
+
+Comprehensive test coverage for all GraphQL features.
+
+### Test Suite Location
+
+```
+tests/bun/api/graphql.test.ts
+```
+
+### Running Tests
+
+```bash
+# Run all GraphQL tests
+bun test tests/bun/api/graphql.test.ts
+
+# Run specific test suite
+bun test tests/bun/api/graphql.test.ts -t "User Queries"
+
+# Run with coverage
+bun test --coverage tests/bun/api/graphql.test.ts
+```
+
+### Test Coverage
+
+**Authentication & Authorization (2 tests)**
+
+- ✅ Reject unauthenticated requests
+- ✅ Accept authenticated requests
+
+**User Queries (3 tests)**
+
+- ✅ Fetch users list
+- ✅ Fetch users with pagination
+- ✅ Verify sensitive fields not exposed
+
+**Media Queries (5 tests)**
+
+- ✅ Fetch media images
+- ✅ Fetch media documents
+- ✅ Fetch media with pagination
+- ✅ Fetch different media types
+- ✅ Verify media type isolation
+
+**Schema Introspection (2 tests)**
+
+- ✅ Support introspection queries
+- ✅ List available query fields
+
+**Error Handling (3 tests)**
+
+- ✅ Return errors for invalid queries
+- ✅ Return errors for malformed queries
+- ✅ Handle missing required fields
+
+**Complex Queries (3 tests)**
+
+- ✅ Support multiple queries in one request
+- ✅ Support query aliases
+- ✅ Support fragments
+
+**Multi-Tenant Support (1 test)**
+
+- ✅ Scope queries to tenant context
+
+**Performance & Caching (2 tests)**
+
+- ✅ Handle large pagination requests
+- ✅ Execute queries efficiently (<5s)
+
+**Total:** 21 test cases covering all GraphQL features
+
+### Example Test
+
+```typescript
+describe('User Queries', () => {
+	it('should fetch users with pagination', async () => {
+		const query = `
+      query GetUsers($pagination: PaginationInput) {
+        users(pagination: $pagination) {
+          _id
+          email
+          username
+        }
+      }
+    `;
+
+		const response = await executeGraphQL(
+			query,
+			{
+				pagination: {
+					page: 1,
+					limit: 5
+				}
+			},
+			authCookie
+		);
+
+		expect(response.status).toBe(200);
+		const result = await response.json();
+		expect(result.data.users).toBeDefined();
+		expect(Array.isArray(result.data.users)).toBe(true);
+	});
+});
+```
+
+### Manual Testing with cURL
+
+```bash
+# Test user query
+curl -X POST https://cms.example.com/api/graphql \
+  -H "Cookie: session=your-session-cookie" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "query { users { _id email username } }"
+  }'
+
+# Test media query with pagination
+curl -X POST https://cms.example.com/api/graphql \
+  -H "Cookie: session=your-session-cookie" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "query($pagination: PaginationInput) { mediaImages(pagination: $pagination) { _id url } }",
+    "variables": { "pagination": { "page": 1, "limit": 10 } }
+  }'
+
+# Test introspection
+curl -X POST https://cms.example.com/api/graphql \
+  -H "Cookie: session=your-session-cookie" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "query { __schema { types { name } } }"
+  }'
+```
+
+### Performance Testing
+
+```bash
+# Test query performance
+time curl -X POST https://cms.example.com/api/graphql \
+  -H "Cookie: session=your-session-cookie" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "query { users { _id } mediaImages { _id } }"
+  }'
+```
+
+### Integration Testing
+
+Test GraphQL with other API endpoints:
+
+```javascript
+// 1. Create user via REST API
+const userResponse = await fetch('/api/user/createUser', {
+	method: 'POST',
+	body: JSON.stringify({ email, username, password })
+});
+
+// 2. Query user via GraphQL
+const graphqlResponse = await fetch('/api/graphql', {
+	method: 'POST',
+	body: JSON.stringify({
+		query: `query { users { _id email } }`
+	})
+});
+
+// 3. Verify user exists in GraphQL response
+const result = await graphqlResponse.json();
+const user = result.data.users.find((u) => u.email === email);
+expect(user).toBeDefined();
+```
+
+---
+
+## Related Documentation
+
+- [GraphQL WebSocket Subscriptions](/docs/api/graphql-websocket-subscriptions.mdx) - Real-time updates guide
+- [Collection API](/docs/api/collection-api.mdx)
+- [User Management API](/docs/api/user-management-api.mdx)
+- [Media API](/docs/api/media-api.mdx)
+- [Testing Documentation](/docs/tests/) - Complete testing guide
+
+---
+
+## Implementation Details
+
+For implementation details, see:
+
+- `src/routes/api/graphql/+server.ts` - Main GraphQL endpoint
+- `src/routes/api/graphql/resolvers/collections.ts` - Dynamic collection schema generation
+- `src/routes/api/graphql/resolvers/users.ts` - User queries and type definitions
+- `src/routes/api/graphql/resolvers/media.ts` - Media queries for all media types
+- `tests/bun/api/graphql.test.ts` - Complete test suite

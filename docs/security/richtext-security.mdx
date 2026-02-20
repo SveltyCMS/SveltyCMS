@@ -23,8 +23,8 @@ tags:
 
 The RichText widget implements **defense-in-depth** security with multiple layers of XSS protection:
 
-1. **Input Sanitization** (Input.svelte) - Sanitizes before database storage
-2. **Output Sanitization** (Display.svelte) - Sanitizes before rendering
+1. **Input Sanitization** (input.svelte) - Sanitizes before database storage
+2. **Output Sanitization** (display.svelte) - Sanitizes before rendering
 3. **Extension Hardening** - Prevents CSS/attribute injection
 4. **URL Validation** - Blocks malicious URIs
 
@@ -34,7 +34,7 @@ The RichText widget implements **defense-in-depth** security with multiple layer
 
 ### 1. Input Sanitization (Storage Protection)
 
-**File:** `src/widgets/core/richText/Input.svelte`
+**File:** `src/widgets/core/rich-text/input.svelte`
 
 ```typescript
 // Sanitizes HTML before storing to database
@@ -60,7 +60,7 @@ editor.on('update', () => {
 
 ### 2. Output Sanitization (Render Protection)
 
-**File:** `src/widgets/core/richText/Display.svelte`
+**File:** `src/widgets/core/rich-text/display.svelte`
 
 ```svelte
 <Sanitize html={value.content} profile="rich-text" class="prose" />
@@ -72,7 +72,7 @@ editor.on('update', () => {
 
 ### 3. ImageResize Extension Hardening
 
-**File:** `src/widgets/core/richText/extensions/ImageResize.ts`
+**File:** `src/widgets/core/rich-text/extensions/ImageResize.ts`
 
 #### ✅ Fixed Vulnerabilities
 
@@ -95,7 +95,7 @@ container.style.float = safeFloat;
 
 ### 4. TextStyle Extension Hardening
 
-**File:** `src/widgets/core/richText/extensions/TextStyle.ts`
+**File:** `src/widgets/core/rich-text/extensions/TextStyle.ts`
 
 #### Font-Size Validation
 
@@ -120,7 +120,7 @@ setFontSize: (fontSize: string) => {
 
 ### 5. Video URL Validation
 
-**File:** `src/widgets/core/richText/components/VideoDialog.svelte`
+**File:** `src/widgets/core/rich-text/components/VideoDialog.svelte`
 
 ```typescript
 // Strict YouTube URL validation
@@ -147,7 +147,7 @@ if (!youtubePattern.test(youtube_url)) {
 
 | Component    | Vulnerabilities                | Risk Level  |
 | ------------ | ------------------------------ | ----------- |
-| Input.svelte | No sanitization                | 🔴 Critical |
+| input.svelte | No sanitization                | 🔴 Critical |
 | ImageResize  | Description XSS, CSS injection | 🔴 Critical |
 | TextStyle    | CSS injection                  | 🟠 High     |
 | VideoDialog  | URL injection                  | 🟠 High     |
@@ -156,7 +156,7 @@ if (!youtubePattern.test(youtube_url)) {
 
 | Component    | Protection                         | Risk Level |
 | ------------ | ---------------------------------- | ---------- |
-| Input.svelte | DOMPurify + strict whitelist       | 🟢 Low     |
+| input.svelte | DOMPurify + strict whitelist       | 🟢 Low     |
 | ImageResize  | Attribute validation + textContent | 🟢 Low     |
 | TextStyle    | Regex validation                   | 🟢 Low     |
 | VideoDialog  | URL pattern matching               | 🟢 Low     |

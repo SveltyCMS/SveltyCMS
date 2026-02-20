@@ -11,6 +11,7 @@ Features:
 - Integrated marketplace tab
 -->
 <script lang="ts">
+	import WidgetCard from './widget-card.svelte';
 	import { widgetStoreActions } from '@src/stores/widget-store.svelte.ts';
 	import { logger } from '@utils/logger';
 	// Using iconify-icon web component

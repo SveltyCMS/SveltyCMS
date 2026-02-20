@@ -11,6 +11,12 @@ Replaces the ModalWidgetForm, providing a full-screen or focused editor experien
 	// Components
 	import { widgets } from '@src/stores/widget-store.svelte.ts';
 	import type { Component } from 'svelte';
+	import Stepper from '@src/components/system/stepper.svelte';
+	import Default from './tabs-fields/default.svelte';
+	import Permission from './tabs-fields/permission.svelte';
+	import Specific from './tabs-fields/specific.svelte';
+	import * as m from '@src/paraglide/messages';
+	import { button_delete, button_cancel, button_previous, button_save, button_next } from '@src/paraglide/messages';
 
 	interface Props {
 		onCancel: () => void;

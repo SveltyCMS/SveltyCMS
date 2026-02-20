@@ -22,6 +22,9 @@
 -->
 
 <script lang="ts">
+	import { entrylist_page, entrylist_of, entrylist_showing, entrylist_items, entrylist_rows } from '@src/paraglide/messages';
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+
 	// Props with default values
 	let {
 		currentPage = $bindable(),

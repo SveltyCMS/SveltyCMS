@@ -10,7 +10,6 @@ Orchestrates annotations using svelte-canvas compatible state and rendering.
 	import { imageEditorStore } from '@src/stores/image-editor-store.svelte';
 	import { Layer } from 'svelte-canvas';
 	import AnnotateControls from './controls.svelte';
-	import type { Annotation, AnnotationType } from './types';
 
 	// --- Svelte 5 State ---
 	let currentTool = $state<any>(null);

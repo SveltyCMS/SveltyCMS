@@ -91,8 +91,13 @@ export class MariaDBAdapter extends AdapterCore implements IDBAdapter {
 		this.collection = new CollectionModule(this);
 	}
 
-	public async connect(connection: any, options?: any): Promise<DatabaseResult<void>> {
-		const result = await super.connect(connection, options);
+	async connect(connection: string | import('mysql2/promise').PoolOptions, options?: unknown): Promise<DatabaseResult<void>>;
+	async connect(poolOptions?: import('../../db-interface').ConnectionPoolOptions): Promise<DatabaseResult<void>>;
+	public async connect(
+		connectionOrOptions?: string | import('mysql2/promise').PoolOptions | import('../../db-interface').ConnectionPoolOptions,
+		options?: unknown
+	): Promise<DatabaseResult<void>> {
+		const result = await super.connect(connectionOrOptions as any, options);
 		if (result.success && this.pool) {
 			const { runMigrations } = await import('../migrations');
 			const migrationResult = await runMigrations(this.pool);
@@ -127,7 +132,7 @@ export class MariaDBAdapter extends AdapterCore implements IDBAdapter {
 	}
 
 	public queryBuilder = <T extends BaseEntity>(collection: string): QueryBuilder<T> => {
-		return new MariaDBQueryBuilder<T>(this as any, collection);
+		return new MariaDBQueryBuilder<T>(this, collection);
 	};
 
 	public transaction = async <T>(
@@ -154,7 +159,7 @@ export class MariaDBAdapter extends AdapterCore implements IDBAdapter {
 			metadata?: { totalCount: number; schema?: unknown; indexes?: string[] };
 		}>
 	> => {
-		return (this as any).wrap(async () => {
+		return this.wrap(async () => {
 			const res = await this.crud.findMany(collection, {}, options as any);
 			if (!res.success) {
 				throw new Error(res.message);
@@ -170,7 +175,7 @@ export class MariaDBAdapter extends AdapterCore implements IDBAdapter {
 		collectionNames: string[],
 		options?: { limit?: number; fields?: string[] }
 	): Promise<DatabaseResult<Record<string, any[]>>> => {
-		return (this as any).wrap(async () => {
+		return this.wrap(async () => {
 			const results: Record<string, any[]> = {};
 			for (const name of collectionNames) {
 				const res = await this.getCollectionData(name, {

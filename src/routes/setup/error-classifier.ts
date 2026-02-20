@@ -31,7 +31,7 @@ export function classifyDatabaseError(
 				classification: 'atlas_tls_error',
 				raw,
 				userFriendly:
-					'MongoDB Atlas TLS/SSL connection error. This usually happens due to: 1) Network firewall blocking the connection, 2) Outdated Node.js TLS configuration, or 3) Certificate validation issues. Try adding "retryWrites=true&w=majority" to your connection options, or check your Node.js version (requires Node.js 14.20+, 16.14+, or 18+).'
+					'MongoDB Atlas TLS/SSL connection error. This usually happens due to: 1) Network firewall blocking the connection, 2) Outdated Node.js TLS configuration, or 3) Certificate validation issues. Try adding "retryWrites=true&w=majority" to your connection options, or check your Node.js version (requires Node.js 18+, 20+, or 24+).'
 			};
 		}
 		// Common Atlas-specific issues

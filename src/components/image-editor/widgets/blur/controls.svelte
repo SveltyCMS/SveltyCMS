@@ -18,10 +18,7 @@ Pintura-style controls for the Blur tool with add/delete/rotate/flip functionali
 		onDeleteRegion,
 		onRotateLeft,
 		onRotateRight,
-		onFlipHorizontal,
-		onReset,
-		onCancel,
-		onApply
+		onFlipHorizontal
 	}: {
 		blurStrength: number;
 		shape: BlurShape;
@@ -35,9 +32,6 @@ Pintura-style controls for the Blur tool with add/delete/rotate/flip functionali
 		onRotateLeft: () => void;
 		onRotateRight: () => void;
 		onFlipHorizontal: () => void;
-		onReset: () => void;
-		onCancel: () => void;
-		onApply: () => void;
 	} = $props();
 
 	function handleStrengthInput(e: Event) {
@@ -114,26 +108,8 @@ Pintura-style controls for the Blur tool with add/delete/rotate/flip functionali
 		</div>
 	{/if}
 
-	<!-- Spacer -->
-	<div class="flex-1 hidden lg:block"></div>
-
-	<!-- Actions -->
-	<div class="actions">
-		<button onclick={onReset} class="btn btn-sm preset-outlined-surface-500 hidden sm:flex">
-			<iconify-icon icon="mdi:restore" width="18"></iconify-icon>
-			<span class="hidden sm:inline">Reset</span>
-		</button>
-
-		<button onclick={onCancel} class="btn btn-sm preset-outlined-error-500">
-			<iconify-icon icon="mdi:close" width="18"></iconify-icon>
-			<span class="hidden sm:inline">Cancel</span>
-		</button>
-
-		<button class="btn btn-sm preset-filled-success-500" onclick={onApply}>
-			<iconify-icon icon="mdi:check" width="18"></iconify-icon>
-			<span class="hidden sm:inline">Apply</span>
-		</button>
-	</div>
+	<!-- Actions removed: Handled by global toolbar -->
+	<div class="h-2"></div>
 </div>
 
 <style>
@@ -274,26 +250,10 @@ Pintura-style controls for the Blur tool with add/delete/rotate/flip functionali
 		background: rgb(var(--color-surface-600) / 1);
 	}
 
-	.actions {
-		display: flex;
-		flex-shrink: 0;
-		gap: 0.5rem;
-		align-items: center;
-		margin-left: auto;
-	}
-
 	/* Mobile */
 	@media (max-width: 1024px) {
 		.blur-controls {
 			row-gap: 1rem;
-		}
-
-		.actions {
-			justify-content: flex-end;
-			width: 100%;
-			padding-top: 0.75rem;
-			margin-left: 0;
-			border-top: 1px solid rgb(var(--color-surface-200) / 0.5);
 		}
 	}
 </style>

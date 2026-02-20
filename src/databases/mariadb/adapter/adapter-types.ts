@@ -1,12 +1,19 @@
 /**
- * @file src/databases/mariadb/adapter/adapterTypes.ts
- * @description Internal types for the MariaDB adapter and its modules.
+ * @file src/databases/mariadb/adapter/adapter-types.ts
+ * @description
+ * Internal types for the MariaDB adapter services.
+ * Defines connection structures and shared module interfaces.
+ *
+ * features:
+ * - internal typing
+ * - connection management types
  */
 
 import type { MySql2Database } from 'drizzle-orm/mysql2';
 import type * as schema from '../schema';
+import type mysql from 'mysql2/promise';
 
 export interface MariaDBConnection {
 	db: MySql2Database<typeof schema>;
-	pool: any;
+	pool: mysql.Pool;
 }

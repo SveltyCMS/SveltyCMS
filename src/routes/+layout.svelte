@@ -1,13 +1,4 @@
-<!--
- @file src/routes/+layout.svelte
- @component
- **This Svelte component serves as the layout for the entire application**
-
- ### Features
- - Paraglide i18n integration
- - Theme Management
- - Skeleton v4 Toasts & Modals
- -->
+<!-- @file src/routes/+layout.svelte @description Global layout component with theme, i18n, and UI managers features: [Paraglide i18n integration, Theme Management, Skeleton v4 Toasts & Modals, WebMCP Support, Flash Messaging] -->
 
 <script lang="ts">
 	// Selected theme

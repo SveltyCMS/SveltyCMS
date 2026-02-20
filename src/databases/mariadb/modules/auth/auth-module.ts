@@ -20,6 +20,7 @@ import type { DatabaseResult, PaginationOption, Role, Session, Token, User } fro
 import type { AdapterCore } from '../../adapter/adapter-core';
 import * as schema from '../../schema';
 import * as utils from '../../utils';
+import { isoDateStringToDate, nowISODateString } from '@src/utils/date-utils';
 
 export class AuthModule {
 	private readonly core: AdapterCore;
@@ -29,17 +30,17 @@ export class AuthModule {
 	}
 
 	private get db() {
-		return (this.core as any).db;
+		return this.core.db!;
 	}
 
-	private mapUser(dbUser: any): User {
+	private mapUser(dbUser: typeof schema.authUsers.$inferSelect): User {
 		if (!dbUser) {
 			throw new Error('User not found');
 		}
-		const user = utils.convertDatesToISO(dbUser) as any;
+		const converted = utils.convertDatesToISO(dbUser) as any;
 
 		// Handle roleIds - ensure it is an array
-		let roleIds = user.roleIds;
+		let roleIds = converted.roleIds;
 		if (typeof roleIds === 'string') {
 			try {
 				roleIds = JSON.parse(roleIds);
@@ -52,11 +53,11 @@ export class AuthModule {
 		const finalRoleIds = Array.isArray(roleIds) ? roleIds : [];
 
 		return {
-			...user,
+			...converted,
 			roleIds: finalRoleIds,
 			role: finalRoleIds.length > 0 ? finalRoleIds[0] : 'user',
-			permissions: user.permissions || []
-		} as unknown as User;
+			permissions: converted.permissions || []
+		} as User;
 	}
 
 	// Setup method for model registration
@@ -67,9 +68,9 @@ export class AuthModule {
 
 	// User methods
 	async createUser(userData: Partial<User>): Promise<DatabaseResult<User>> {
-		return (this.core as any).wrap(async () => {
+		return this.core.wrap(async () => {
 			const id = userData._id || utils.generateId();
-			const now = new Date();
+			const now = isoDateStringToDate(nowISODateString());
 
 			// Ensure password is hashed if provided and not already hashed
 			let password = userData.password;
@@ -78,22 +79,25 @@ export class AuthModule {
 				password = await argon2.hash(password);
 			}
 
-			const values = {
-				...userData,
+			const values: typeof schema.authUsers.$inferInsert = {
+				email: userData.email || '',
+				username: userData.username || null,
+				password: password || null,
+				firstName: userData.firstName || null,
+				lastName: userData.lastName || null,
+				avatar: userData.avatar || null,
+				roleIds: [],
+				tenantId: userData.tenantId || null,
 				_id: id,
-				password,
-				createdAt: now,
-				updatedAt: now
-			} as any;
+				createdAt: now as any,
+				updatedAt: now as any
+			};
 
 			// Map legacy 'role' string to 'roleIds' array if roleIds is missing/empty
-			const userDataAny = userData as any;
-			if (userDataAny.roleIds?.length) {
-				values.roleIds = userDataAny.roleIds;
+			if (userData.roleIds?.length) {
+				values.roleIds = userData.roleIds;
 			} else if (userData.role) {
 				values.roleIds = [userData.role];
-			} else {
-				values.roleIds = [];
 			}
 
 			await this.db.insert(schema.authUsers).values(values);
@@ -103,21 +107,25 @@ export class AuthModule {
 	}
 
 	async updateUserAttributes(user_id: string, userData: Partial<User>, tenantId?: string): Promise<DatabaseResult<User>> {
-		return (this.core as any).wrap(async () => {
+		return this.core.wrap(async () => {
 			const conditions = [eq(schema.authUsers._id, user_id)];
 			if (tenantId) {
 				conditions.push(eq(schema.authUsers.tenantId, tenantId));
 			}
 
-			const dataToUpdate = { ...userData } as any;
+			const updateData: Partial<typeof schema.authUsers.$inferInsert> = {
+				...userData,
+				updatedAt: isoDateStringToDate(nowISODateString())
+			};
+
 			// Map legacy role string to roleIds array if roleIds is missing
-			if (userData.role && !dataToUpdate.roleIds) {
-				dataToUpdate.roleIds = [userData.role];
+			if (userData.role && !updateData.roleIds) {
+				updateData.roleIds = [userData.role];
 			}
 
 			await this.db
 				.update(schema.authUsers)
-				.set({ ...dataToUpdate, updatedAt: new Date() } as any)
+				.set(updateData as Record<string, unknown>)
 				.where(and(...conditions));
 
 			const [result] = await this.db
@@ -130,7 +138,7 @@ export class AuthModule {
 	}
 
 	async deleteUser(user_id: string, tenantId?: string): Promise<DatabaseResult<void>> {
-		return (this.core as any).wrap(async () => {
+		return this.core.wrap(async () => {
 			const conditions = [eq(schema.authUsers._id, user_id)];
 			if (tenantId) {
 				conditions.push(eq(schema.authUsers.tenantId, tenantId));
@@ -140,7 +148,7 @@ export class AuthModule {
 	}
 
 	async getUserById(user_id: string, tenantId?: string): Promise<DatabaseResult<User | null>> {
-		return (this.core as any).wrap(async () => {
+		return this.core.wrap(async () => {
 			const conditions = [eq(schema.authUsers._id, user_id)];
 			if (tenantId) {
 				conditions.push(eq(schema.authUsers.tenantId, tenantId));
@@ -155,7 +163,7 @@ export class AuthModule {
 	}
 
 	async getUserByEmail(criteria: { email: string; tenantId?: string }): Promise<DatabaseResult<User | null>> {
-		return (this.core as any).wrap(async () => {
+		return this.core.wrap(async () => {
 			const conditions = [eq(schema.authUsers.email, criteria.email)];
 			if (criteria.tenantId) {
 				conditions.push(eq(schema.authUsers.tenantId, criteria.tenantId));
@@ -170,22 +178,24 @@ export class AuthModule {
 	}
 
 	async getAllUsers(options?: PaginationOption): Promise<DatabaseResult<User[]>> {
-		return (this.core as any).wrap(async () => {
-			let q: any = this.db.select().from(schema.authUsers);
+		return this.core.wrap(async () => {
+			let q = this.db.select().from(schema.authUsers).$dynamic();
 
 			if (options?.sort) {
 				if (Array.isArray(options.sort)) {
 					for (const [field, direction] of options.sort) {
 						const order = direction === 'desc' ? desc : asc;
-						if ((schema.authUsers as any)[field]) {
-							q = q.orderBy(order((schema.authUsers as any)[field]));
+						const column = (schema.authUsers as Record<string, any>)[field];
+						if (column) {
+							q = q.orderBy(order(column));
 						}
 					}
 				} else {
 					for (const [field, direction] of Object.entries(options.sort)) {
 						const order = direction === 'desc' ? desc : asc;
-						if ((schema.authUsers as any)[field]) {
-							q = q.orderBy(order((schema.authUsers as any)[field]));
+						const column = (schema.authUsers as Record<string, any>)[field];
+						if (column) {
+							q = q.orderBy(order(column));
 						}
 					}
 				}
@@ -199,15 +209,15 @@ export class AuthModule {
 			}
 
 			const results = await q;
-			return results.map((u: any) => this.mapUser(u));
+			return results.map((u) => this.mapUser(u));
 		}, 'GET_ALL_USERS_FAILED');
 	}
 
 	async getUserCount(filter?: Record<string, unknown>): Promise<DatabaseResult<number>> {
-		return (this.core as any).wrap(async () => {
+		return this.core.wrap(async () => {
 			const table = schema.authUsers;
 			// Pass table schema AND filter to mapQuery
-			const where = filter ? (this.core as any).mapQuery(table, filter) : undefined;
+			const where = filter ? this.core.mapQuery(table, filter) : undefined;
 
 			const query = this.db.select({ count: sql<number>`count(*)` }).from(table);
 
@@ -221,7 +231,7 @@ export class AuthModule {
 	}
 
 	async deleteUsers(user_ids: string[], tenantId?: string): Promise<DatabaseResult<{ deletedCount: number }>> {
-		return (this.core as any).wrap(async () => {
+		return this.core.wrap(async () => {
 			const conditions = [inArray(schema.authUsers._id, user_ids)];
 			if (tenantId) {
 				conditions.push(eq(schema.authUsers.tenantId, tenantId));
@@ -232,28 +242,28 @@ export class AuthModule {
 	}
 
 	async blockUsers(user_ids: string[], tenantId?: string): Promise<DatabaseResult<{ modifiedCount: number }>> {
-		return (this.core as any).wrap(async () => {
+		return this.core.wrap(async () => {
 			const conditions = [inArray(schema.authUsers._id, user_ids)];
 			if (tenantId) {
 				conditions.push(eq(schema.authUsers.tenantId, tenantId));
 			}
 			const result = await this.db
 				.update(schema.authUsers)
-				.set({ blocked: true, updatedAt: new Date() })
+				.set({ blocked: true, updatedAt: isoDateStringToDate(nowISODateString()) })
 				.where(and(...conditions));
 			return { modifiedCount: result[0].affectedRows };
 		}, 'BLOCK_USERS_FAILED');
 	}
 
 	async unblockUsers(user_ids: string[], tenantId?: string): Promise<DatabaseResult<{ modifiedCount: number }>> {
-		return (this.core as any).wrap(async () => {
+		return this.core.wrap(async () => {
 			const conditions = [inArray(schema.authUsers._id, user_ids)];
 			if (tenantId) {
 				conditions.push(eq(schema.authUsers.tenantId, tenantId));
 			}
 			const result = await this.db
 				.update(schema.authUsers)
-				.set({ blocked: false, updatedAt: new Date() })
+				.set({ blocked: false, updatedAt: isoDateStringToDate(nowISODateString()) })
 				.where(and(...conditions));
 			return { modifiedCount: result[0].affectedRows };
 		}, 'UNBLOCK_USERS_FAILED');
@@ -264,7 +274,7 @@ export class AuthModule {
 		userData: Partial<User>,
 		sessionData: { expires: ISODateString; tenantId?: string }
 	): Promise<DatabaseResult<{ user: User; session: Session }>> {
-		return (this.core as any).wrap(async () => {
+		return this.core.wrap(async () => {
 			const userResult = await this.createUser(userData);
 			if (!userResult.success) {
 				throw new Error(userResult.message);
@@ -285,7 +295,7 @@ export class AuthModule {
 	}
 
 	async deleteUserAndSessions(user_id: string, tenantId?: string): Promise<DatabaseResult<{ deletedUser: boolean; deletedSessionCount: number }>> {
-		return (this.core as any).wrap(async () => {
+		return this.core.wrap(async () => {
 			await this.invalidateAllUserSessions(user_id, tenantId);
 			const userDeleteResult = await this.deleteUser(user_id, tenantId);
 
@@ -298,7 +308,7 @@ export class AuthModule {
 
 	// Session methods
 	async createSession(sessionData: { user_id: string; expires: ISODateString; tenantId?: string }): Promise<DatabaseResult<Session>> {
-		return (this.core as any).wrap(async () => {
+		return this.core.wrap(async () => {
 			const id = utils.generateId();
 			await this.db.insert(schema.authSessions).values({
 				_id: id,
@@ -312,10 +322,10 @@ export class AuthModule {
 	}
 
 	async updateSessionExpiry(session_id: string, newExpiry: ISODateString): Promise<DatabaseResult<Session>> {
-		return (this.core as any).wrap(async () => {
+		return this.core.wrap(async () => {
 			await this.db
 				.update(schema.authSessions)
-				.set({ expires: new Date(newExpiry), updatedAt: new Date() })
+				.set({ expires: new Date(newExpiry), updatedAt: isoDateStringToDate(nowISODateString()) })
 				.where(eq(schema.authSessions._id, session_id));
 			const [result] = await this.db.select().from(schema.authSessions).where(eq(schema.authSessions._id, session_id)).limit(1);
 			return utils.convertDatesToISO(result) as unknown as Session;
@@ -323,24 +333,24 @@ export class AuthModule {
 	}
 
 	async deleteSession(session_id: string): Promise<DatabaseResult<void>> {
-		return (this.core as any).wrap(async () => {
+		return this.core.wrap(async () => {
 			await this.db.delete(schema.authSessions).where(eq(schema.authSessions._id, session_id));
 		}, 'DELETE_SESSION_FAILED');
 	}
 
 	async deleteExpiredSessions(): Promise<DatabaseResult<number>> {
-		return (this.core as any).wrap(async () => {
-			const result = await this.db.delete(schema.authSessions).where(lt(schema.authSessions.expires, new Date()));
+		return this.core.wrap(async () => {
+			const result = await this.db.delete(schema.authSessions).where(lt(schema.authSessions.expires, isoDateStringToDate(nowISODateString())));
 			return result[0].affectedRows;
 		}, 'DELETE_EXPIRED_SESSIONS_FAILED');
 	}
 
 	async validateSession(session_id: string): Promise<DatabaseResult<User | null>> {
-		return (this.core as any).wrap(async () => {
+		return this.core.wrap(async () => {
 			const [session] = await this.db
 				.select()
 				.from(schema.authSessions)
-				.where(and(eq(schema.authSessions._id, session_id), gt(schema.authSessions.expires, new Date())))
+				.where(and(eq(schema.authSessions._id, session_id), gt(schema.authSessions.expires, isoDateStringToDate(nowISODateString()))))
 				.limit(1);
 
 			if (!session) {
@@ -353,7 +363,7 @@ export class AuthModule {
 	}
 
 	async invalidateAllUserSessions(user_id: string, tenantId?: string): Promise<DatabaseResult<void>> {
-		return (this.core as any).wrap(async () => {
+		return this.core.wrap(async () => {
 			const conditions = [eq(schema.authSessions.user_id, user_id)];
 			if (tenantId) {
 				conditions.push(eq(schema.authSessions.tenantId, tenantId));
@@ -363,8 +373,8 @@ export class AuthModule {
 	}
 
 	async getActiveSessions(user_id: string, tenantId?: string): Promise<DatabaseResult<Session[]>> {
-		return (this.core as any).wrap(async () => {
-			const conditions = [eq(schema.authSessions.user_id, user_id), gt(schema.authSessions.expires, new Date())];
+		return this.core.wrap(async () => {
+			const conditions = [eq(schema.authSessions.user_id, user_id), gt(schema.authSessions.expires, isoDateStringToDate(nowISODateString()))];
 			if (tenantId) {
 				conditions.push(eq(schema.authSessions.tenantId, tenantId));
 			}
@@ -377,8 +387,8 @@ export class AuthModule {
 	}
 
 	async getAllActiveSessions(tenantId?: string): Promise<DatabaseResult<Session[]>> {
-		return (this.core as any).wrap(async () => {
-			const conditions = [gt(schema.authSessions.expires, new Date())];
+		return this.core.wrap(async () => {
+			const conditions = [gt(schema.authSessions.expires, isoDateStringToDate(nowISODateString()))];
 			if (tenantId) {
 				conditions.push(eq(schema.authSessions.tenantId, tenantId));
 			}
@@ -391,7 +401,7 @@ export class AuthModule {
 	}
 
 	async getSessionTokenData(session_id: string): Promise<DatabaseResult<{ expiresAt: ISODateString; user_id: string } | null>> {
-		return (this.core as any).wrap(async () => {
+		return this.core.wrap(async () => {
 			const [session] = await this.db.select().from(schema.authSessions).where(eq(schema.authSessions._id, session_id)).limit(1);
 			if (!session) {
 				return null;
@@ -404,7 +414,7 @@ export class AuthModule {
 	}
 
 	async rotateToken(oldToken: string, expires: ISODateString): Promise<DatabaseResult<string>> {
-		return (this.core as any).wrap(async () => {
+		return this.core.wrap(async () => {
 			const [oldSession] = await this.db.select().from(schema.authSessions).where(eq(schema.authSessions._id, oldToken)).limit(1);
 
 			if (!oldSession) {
@@ -412,11 +422,12 @@ export class AuthModule {
 			}
 
 			const newId = utils.generateId();
-			const now = new Date();
+			const now = isoDateStringToDate(nowISODateString());
 
 			await this.db.insert(schema.authSessions).values({
-				...oldSession,
 				_id: newId,
+				user_id: oldSession.user_id,
+				tenantId: oldSession.tenantId,
 				expires: new Date(expires),
 				createdAt: now,
 				updatedAt: now
@@ -429,7 +440,7 @@ export class AuthModule {
 	}
 
 	async cleanupRotatedSessions(): Promise<DatabaseResult<number>> {
-		return (this.core as any).notImplemented('auth.cleanupRotatedSessions');
+		return this.core.notImplemented('auth.cleanupRotatedSessions');
 	}
 
 	// Token methods
@@ -442,7 +453,7 @@ export class AuthModule {
 		role?: string;
 		username?: string;
 	}): Promise<DatabaseResult<string>> {
-		return (this.core as any).wrap(async () => {
+		return this.core.wrap(async () => {
 			const id = utils.generateId();
 			const tokenValue = utils.generateId(); // Returns a dash-less UUID now
 			await this.db.insert(schema.authTokens).values({
@@ -462,14 +473,14 @@ export class AuthModule {
 	}
 
 	async updateToken(token_id: string, tokenData: Partial<Token>, tenantId?: string): Promise<DatabaseResult<Token>> {
-		return (this.core as any).wrap(async () => {
+		return this.core.wrap(async () => {
 			const conditions = [eq(schema.authTokens._id, token_id)];
 			if (tenantId) {
 				conditions.push(eq(schema.authTokens.tenantId, tenantId));
 			}
 			await this.db
 				.update(schema.authTokens)
-				.set({ ...tokenData, updatedAt: new Date() } as any)
+				.set({ ...tokenData, updatedAt: isoDateStringToDate(nowISODateString()) } as any)
 				.where(and(...conditions));
 			const [result] = await this.db
 				.select()
@@ -486,8 +497,12 @@ export class AuthModule {
 		type?: string,
 		tenantId?: string
 	): Promise<DatabaseResult<{ success: boolean; message: string; email?: string }>> {
-		return (this.core as any).wrap(async () => {
-			const conditions = [eq(schema.authTokens.token, token), gt(schema.authTokens.expires, new Date()), eq(schema.authTokens.consumed, false)];
+		return this.core.wrap(async () => {
+			const conditions = [
+				eq(schema.authTokens.token, token),
+				gt(schema.authTokens.expires, isoDateStringToDate(nowISODateString())),
+				eq(schema.authTokens.consumed, false)
+			];
 			if (user_id) {
 				conditions.push(eq(schema.authTokens.user_id, user_id));
 			}
@@ -517,7 +532,7 @@ export class AuthModule {
 		type?: string,
 		tenantId?: string
 	): Promise<DatabaseResult<{ status: boolean; message: string }>> {
-		return (this.core as any).wrap(async () => {
+		return this.core.wrap(async () => {
 			const conditions = [eq(schema.authTokens.token, token)];
 			if (user_id) {
 				conditions.push(eq(schema.authTokens.user_id, user_id));
@@ -531,7 +546,7 @@ export class AuthModule {
 
 			const result = await this.db
 				.update(schema.authTokens)
-				.set({ consumed: true, updatedAt: new Date() })
+				.set({ consumed: true, updatedAt: isoDateStringToDate(nowISODateString()) })
 				.where(and(...conditions));
 
 			return {
@@ -542,7 +557,7 @@ export class AuthModule {
 	}
 
 	async getTokenData(token: string, user_id?: string, type?: string, tenantId?: string): Promise<DatabaseResult<Token | null>> {
-		return (this.core as any).wrap(async () => {
+		return this.core.wrap(async () => {
 			const conditions = [eq(schema.authTokens.token, token)];
 			if (user_id) {
 				conditions.push(eq(schema.authTokens.user_id, user_id));
@@ -568,7 +583,7 @@ export class AuthModule {
 	}
 
 	async getAllTokens(filter?: Record<string, unknown>): Promise<DatabaseResult<Token[]>> {
-		return (this.core as any).wrap(async () => {
+		return this.core.wrap(async () => {
 			const conditions: any[] = [];
 			if (filter?.email) {
 				conditions.push(eq(schema.authTokens.email, filter.email as string));
@@ -592,14 +607,14 @@ export class AuthModule {
 	}
 
 	async deleteExpiredTokens(): Promise<DatabaseResult<number>> {
-		return (this.core as any).wrap(async () => {
-			const result = await this.db.delete(schema.authTokens).where(lt(schema.authTokens.expires, new Date()));
+		return this.core.wrap(async () => {
+			const result = await this.db.delete(schema.authTokens).where(lt(schema.authTokens.expires, isoDateStringToDate(nowISODateString())));
 			return result[0].affectedRows;
 		}, 'DELETE_EXPIRED_TOKENS_FAILED');
 	}
 
 	async deleteTokens(token_ids: string[], tenantId?: string): Promise<DatabaseResult<{ deletedCount: number }>> {
-		return (this.core as any).wrap(async () => {
+		return this.core.wrap(async () => {
 			// Try matching by _id first, then fall back to token value
 			// (API endpoints pass token values, not _ids)
 			const conditions: any[] = [];
@@ -620,28 +635,28 @@ export class AuthModule {
 	}
 
 	async blockTokens(token_ids: string[], tenantId?: string): Promise<DatabaseResult<{ modifiedCount: number }>> {
-		return (this.core as any).wrap(async () => {
+		return this.core.wrap(async () => {
 			const conditions = [inArray(schema.authTokens._id, token_ids)];
 			if (tenantId) {
 				conditions.push(eq(schema.authTokens.tenantId, tenantId));
 			}
 			const result = await this.db
 				.update(schema.authTokens)
-				.set({ blocked: true, updatedAt: new Date() })
+				.set({ blocked: true, updatedAt: isoDateStringToDate(nowISODateString()) })
 				.where(and(...conditions));
 			return { modifiedCount: result[0].affectedRows };
 		}, 'BLOCK_TOKENS_FAILED');
 	}
 
 	async unblockTokens(token_ids: string[], tenantId?: string): Promise<DatabaseResult<{ modifiedCount: number }>> {
-		return (this.core as any).wrap(async () => {
+		return this.core.wrap(async () => {
 			const conditions = [inArray(schema.authTokens._id, token_ids)];
 			if (tenantId) {
 				conditions.push(eq(schema.authTokens.tenantId, tenantId));
 			}
 			const result = await this.db
 				.update(schema.authTokens)
-				.set({ blocked: false, updatedAt: new Date() })
+				.set({ blocked: false, updatedAt: isoDateStringToDate(nowISODateString()) })
 				.where(and(...conditions));
 			return { modifiedCount: result[0].affectedRows };
 		}, 'UNBLOCK_TOKENS_FAILED');
@@ -677,7 +692,7 @@ export class AuthModule {
 	}
 
 	async getRoleById(roleId: string, tenantId?: string): Promise<DatabaseResult<Role | null>> {
-		return (this.core as any).wrap(async () => {
+		return this.core.wrap(async () => {
 			const conditions = [eq(schema.roles._id, roleId)];
 			if (tenantId) {
 				conditions.push(eq(schema.roles.tenantId, tenantId));
@@ -692,13 +707,13 @@ export class AuthModule {
 	}
 
 	async createRole(role: Role): Promise<DatabaseResult<Role>> {
-		return (this.core as any).wrap(async () => {
+		return this.core.wrap(async () => {
 			const id = role._id || utils.generateId();
 			await this.db.insert(schema.roles).values({
 				...role,
 				_id: id,
-				createdAt: new Date(),
-				updatedAt: new Date(),
+				createdAt: isoDateStringToDate(nowISODateString()),
+				updatedAt: isoDateStringToDate(nowISODateString()),
 				permissions: role.permissions || []
 			} as any);
 			const [result] = await this.db.select().from(schema.roles).where(eq(schema.roles._id, id)).limit(1);
@@ -707,14 +722,14 @@ export class AuthModule {
 	}
 
 	async updateRole(roleId: string, roleData: Partial<Role>, tenantId?: string): Promise<DatabaseResult<Role>> {
-		return (this.core as any).wrap(async () => {
+		return this.core.wrap(async () => {
 			const conditions = [eq(schema.roles._id, roleId)];
 			if (tenantId) {
 				conditions.push(eq(schema.roles.tenantId, tenantId));
 			}
 			await this.db
 				.update(schema.roles)
-				.set({ ...roleData, updatedAt: new Date() } as any)
+				.set({ ...roleData, updatedAt: isoDateStringToDate(nowISODateString()) } as any)
 				.where(and(...conditions));
 			const [result] = await this.db
 				.select()
@@ -726,7 +741,7 @@ export class AuthModule {
 	}
 
 	async deleteRole(roleId: string, tenantId?: string): Promise<DatabaseResult<void>> {
-		return (this.core as any).wrap(async () => {
+		return this.core.wrap(async () => {
 			const conditions = [eq(schema.roles._id, roleId)];
 			if (tenantId) {
 				conditions.push(eq(schema.roles.tenantId, tenantId));

@@ -406,7 +406,7 @@ function cmsWatcherPlugin(): Plugin {
 				log.info('Widget file change detected. Reloading widget store...');
 				try {
 					// Invalidate and reload the widget store module to get the latest code
-					const { widgetStoreActions } = await server.ssrLoadModule(`./src/stores/widgetStore.svelte.ts?t=${Date.now()}`);
+					const { widgetStoreActions } = await server.ssrLoadModule(`./src/stores/widget-store.svelte.ts?t=${Date.now()}`);
 					// Call the reload action, which re-scans the filesystem
 					await widgetStoreActions.reload();
 					// Trigger a full reload on the client to reflect the changes
@@ -526,7 +526,14 @@ export default defineConfig((): UserConfig => {
 			},
 			watch: {
 				// Prevent watcher from triggering on generated/sensitive files
-				ignored: ['**/config/private.ts', '**/config/private.backup.*.ts', '**/.compiledCollections/**', '**/tests/**']
+				ignored: [
+					'**/config/private.ts',
+					'**/config/private.backup.*.ts',
+					'**/.compiledCollections/**',
+					'**/tests/**',
+					'**/src/content/types.ts',
+					'**/src/paraglide/**'
+				]
 			}
 		},
 		ssr: {
@@ -616,9 +623,9 @@ export default defineConfig((): UserConfig => {
 					// Suppress "dynamic import will not move module" warnings for specific files where this is intentional.
 					// See /docs/architecture/state-management.mdx for details.
 					if (warning.message?.includes('dynamic import will not move module')) {
-						const isWidgetStore = warning.id?.includes('widgetStore.svelte.ts');
-						const isRichTextInput = warning.id?.includes('richText/Input.svelte');
-						const isSettingsService = warning.id?.includes('services/settingsService.ts');
+						const isWidgetStore = warning.id?.includes('widget-store.svelte.ts');
+						const isRichTextInput = warning.id?.includes('rich-text/input.svelte');
+						const isSettingsService = warning.id?.includes('services/settings-service.ts');
 						const isDb = warning.id?.includes('databases/db.ts');
 						if (isWidgetStore || isRichTextInput || isSettingsService || isDb) {
 							return;

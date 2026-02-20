@@ -511,62 +511,71 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false, awa
 		logger.debug(`Scheduling non-critical I/O operations (awaitBackground: ${awaitBackground})...`);
 
 		const backgroundTask = async () => {
-			if (!settingsLoaded) {
-				logger.info('System initialized in Setup/Maintenance mode (Settings not loaded). Skipping Plugins & Widgets.');
+			try {
+				if (!settingsLoaded) {
+					logger.info('System initialized in Setup/Maintenance mode (Settings not loaded). Skipping Plugins & Widgets.');
 
-				// Explicitly mark services as skipped to trigger SETUP state
-				updateServiceHealth('widgets', 'skipped', 'Skipped in Setup Mode');
-				updateServiceHealth('themeManager', 'skipped', 'Skipped in Setup Mode');
-				updateServiceHealth('contentManager', 'skipped', 'Skipped in Setup Mode');
+					// Explicitly mark services as skipped to trigger SETUP state
+					updateServiceHealth('widgets', 'skipped', 'Skipped in Setup Mode');
+					updateServiceHealth('themeManager', 'skipped', 'Skipped in Setup Mode');
+					updateServiceHealth('contentManager', 'skipped', 'Skipped in Setup Mode');
 
+					cacheService.setBootstrapping(false);
+					return;
+				}
+
+				const backgroundStartTime = performance.now();
+
+				// Mark non-critical services as initializing to trigger WARMING phase
+				updateServiceHealth('cache', 'initializing', 'Warming up cache...');
+				updateServiceHealth('themeManager', 'initializing', 'Initializing themes...');
+				updateServiceHealth('widgets', 'initializing', 'Initializing widgets...');
+				updateServiceHealth('contentManager', 'initializing', 'Preparing content manager...');
+
+				if (dbAdapter?.ensureMedia) {
+					await dbAdapter.ensureMedia().catch((e) => logger.warn('Media activation issue:', e));
+				}
+
+				await Promise.all([
+					initializeMediaFolder().catch((e) => logger.warn('Media folder init failed:', e)),
+					initializeRevisions().catch((e) => logger.warn('Revisions init failed:', e)),
+					initializeVirtualFolders().catch((e) => logger.warn('Virtual folders init failed:', e)),
+					(async () => {
+						await initializeDefaultTheme();
+						await initializeThemeManager();
+						updateServiceHealth('themeManager', 'healthy', 'Theme manager initialized');
+					})().catch((e) => logger.warn('Theme init failed:', e)),
+					(async () => {
+						const { widgets } = await import('@src/stores/widget-store.svelte.ts');
+						await widgets.initialize(undefined, dbAdapter!);
+						updateServiceHealth('widgets', 'healthy', 'Widget store initialized');
+					})().catch((e) => logger.warn('Widget init failed:', e)),
+					(async () => {
+						updateServiceHealth('cache', 'healthy', 'System cache warmed up');
+					})()
+				]);
+
+				// Step 7: Initialize Plugins
+				if (dbAdapter) {
+					await initializePlugins(dbAdapter).catch((e) => logger.warn('Plugins init failed:', e));
+				}
+
+				// Finalize lazy services
+				updateServiceHealth('contentManager', 'healthy', 'ContentManager ready (lazy)');
+
+				// FINAL: Signal end of bootstrapping
 				cacheService.setBootstrapping(false);
-				return;
+
+				const bgTime = performance.now() - backgroundStartTime;
+				logger.info(`ℹ️ Background warm-up completed in ${bgTime.toFixed(2)}ms`);
+			} catch (error) {
+				const message = error instanceof Error ? error.message : String(error);
+				if (message.includes('Vite module runner has been closed')) {
+					logger.debug('Background task cancelled: Vite module runner closed during initialization.');
+				} else {
+					logger.warn('Background task failed:', error);
+				}
 			}
-
-			const backgroundStartTime = performance.now();
-
-			// Mark non-critical services as initializing to trigger WARMING phase
-			updateServiceHealth('cache', 'initializing', 'Warming up cache...');
-			updateServiceHealth('themeManager', 'initializing', 'Initializing themes...');
-			updateServiceHealth('widgets', 'initializing', 'Initializing widgets...');
-			updateServiceHealth('contentManager', 'initializing', 'Preparing content manager...');
-
-			if (dbAdapter?.ensureMedia) {
-				await dbAdapter.ensureMedia().catch((e) => logger.warn('Media activation issue:', e));
-			}
-
-			await Promise.all([
-				initializeMediaFolder().catch((e) => logger.warn('Media folder init failed:', e)),
-				initializeRevisions().catch((e) => logger.warn('Revisions init failed:', e)),
-				initializeVirtualFolders().catch((e) => logger.warn('Virtual folders init failed:', e)),
-				(async () => {
-					await initializeDefaultTheme();
-					await initializeThemeManager();
-					updateServiceHealth('themeManager', 'healthy', 'Theme manager initialized');
-				})().catch((e) => logger.warn('Theme init failed:', e)),
-				(async () => {
-					const { widgets } = await import('@src/stores/widget-store.svelte.ts');
-					await widgets.initialize(undefined, dbAdapter!);
-					updateServiceHealth('widgets', 'healthy', 'Widget store initialized');
-				})().catch((e) => logger.warn('Widget init failed:', e)),
-				(async () => {
-					updateServiceHealth('cache', 'healthy', 'System cache warmed up');
-				})()
-			]);
-
-			// Step 7: Initialize Plugins
-			if (dbAdapter) {
-				await initializePlugins(dbAdapter).catch((e) => logger.warn('Plugins init failed:', e));
-			}
-
-			// Finalize lazy services
-			updateServiceHealth('contentManager', 'healthy', 'ContentManager ready (lazy)');
-
-			// FINAL: Signal end of bootstrapping
-			cacheService.setBootstrapping(false);
-
-			const bgTime = performance.now() - backgroundStartTime;
-			logger.info(`ℹ️ Background warm-up completed in ${bgTime.toFixed(2)}ms`);
 		};
 
 		if (awaitBackground) {

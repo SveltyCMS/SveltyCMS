@@ -1,14 +1,18 @@
 /**
  * @file src/routes/api/collections/+server.ts
- * @description Optimized API endpoint for full CRUD (Create, Read, Update, Delete) operations on collections.
+ * @description
+ * Central API gateway for collection management.
+ * Features include:
+ * - Full CRUD operations on content collections.
+ * - Optimized metadata processing and token replacement.
+ * - Multi-tenant aware permission validation.
+ * - Proactive cache and structure invalidation.
  *
- * ### Features
- * - GET: Efficiently lists all collections with optional stats and fields. Fixes the N+1 query problem by batch-fetching statistics.
- * - POST: Creates a new collection.
- * - PUT: Updates an existing collection by its ID.
- * - DELETE: Removes a collection by its ID.
- * - Implements role-based permission checks for all operations.
- * - Automatically invalidates the global content structure cache on any create, update, or delete action.
+ * features:
+ * - batch statistics fetching
+ * - token-aware metadata replacement
+ * - multi-tenant permission validation
+ * - content structure invalidation
  */
 
 // Auth
@@ -44,7 +48,21 @@ export const GET = apiHandler(async ({ locals, url }) => {
 		// Get all collections fromcontent-manager(returns an array)
 		const allCollections = await contentManager.getCollections(tenantId);
 
-		const accessibleCollections: any[] = [];
+		const accessibleCollections: {
+			id: string | undefined;
+			name: string | undefined;
+			label: string | undefined;
+			description: string | undefined;
+			icon: string | undefined;
+			path: string | undefined;
+			permissions: { read: boolean; write: boolean };
+			fields?: unknown[];
+			stats?: {
+				totalEntries: number;
+				publishedEntries: number;
+				draftEntries: number;
+			};
+		}[] = [];
 
 		// Iterate over the array of collections
 		for (const collection of allCollections) {

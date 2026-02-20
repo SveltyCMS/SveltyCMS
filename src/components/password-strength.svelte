@@ -34,7 +34,7 @@ Visual password strength indicator with match validation and accessibility featu
 -->
 
 <script lang="ts">
-	import { fade, scale, slide } from 'svelte/transition';
+	import { fade, slide } from 'svelte/transition';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { onMount } from 'svelte';
 

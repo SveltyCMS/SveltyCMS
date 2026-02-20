@@ -4,7 +4,35 @@
 Provides DB type, host, port, name, user, password inputs, validation display, test button, and change warning.
 -->
 <script lang="ts">
-	import { common_confirm_no, common_confirm_yes, setup_db_not_found_desc, setup_db_not_found_title } from '@src/paraglide/messages';
+	import {
+		common_confirm_no,
+		common_confirm_yes,
+		setup_db_not_found_desc,
+		setup_db_not_found_title,
+		setup_database_intro,
+		setup_db_coming_soon,
+		setup_db_postgres_mysql_note,
+		setup_db_postgres_mysql_timeline,
+		setup_label_database_type,
+		setup_help_database_type,
+		setup_database_host,
+		setup_help_database_host,
+		setup_database_host_placeholder,
+		setup_database_port,
+		setup_help_database_port,
+		setup_database_port_placeholder,
+		setup_database_name,
+		setup_help_database_name,
+		setup_database_name_placeholder,
+		setup_database_user,
+		setup_help_database_user,
+		setup_database_user_placeholder,
+		setup_database_password,
+		setup_help_database_password,
+		setup_database_password_placeholder,
+		setup_button_test_connection
+	} from '@src/paraglide/messages';
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import type { ValidationErrors } from '@src/stores/setup-store.svelte';
 	import { setupStore } from '@src/stores/setup-store.svelte.ts';
 	import { dbConfigSchema } from '@utils/form-schemas';
@@ -123,6 +151,22 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 			logger.error('Error parsing connection string:', error);
 			return null;
 		}
+	}
+
+	// Fill specific defaults for MongoDB
+	function useSveltyDefaults() {
+		dbConfig.type = 'mongodb';
+		dbConfig.host = 'localhost';
+		dbConfig.port = '27017';
+		dbConfig.name = 'SveltyCMS';
+		dbConfig.user = '';
+		dbConfig.password = '';
+		handleTypeChange();
+		clearDbTestError();
+
+		// Mark all fields as touched to trigger validation visuals
+		['host', 'port', 'name'].forEach((f) => touchedFields.add(f));
+		touchedFields = touchedFields;
 	}
 
 	// Handle paste event to detect connection strings
@@ -368,58 +412,71 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 		class="space-y-4 sm:space-y-6"
 	>
 		<div class="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2">
-			<div>
-				<label for="db-type" class="mb-1 flex items-center gap-1 text-sm font-medium">
-					<iconify-icon icon="mdi:database" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-					<span class="text-black dark:text-white">{setup_label_database_type()}</span>
-					<SystemTooltip title={setup_help_database_type()}>
-						<button
-							type="button"
-							tabindex="-1"
-							aria-label="Help: Database Type"
-							class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-						>
-							<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-						</button>
-					</SystemTooltip>
-				</label>
+			<div class="flex items-end justify-between gap-4">
+				<div class="flex-1">
+					<label for="db-type" class="mb-1 flex items-center gap-1 text-sm font-medium">
+						<iconify-icon icon="mdi:database" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+						<span class="text-black dark:text-white">{setup_label_database_type()}</span>
+						<SystemTooltip title={setup_help_database_type()}>
+							<button
+								type="button"
+								tabindex="-1"
+								aria-label="Help: Database Type"
+								class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+							>
+								<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
+							</button>
+						</SystemTooltip>
+					</label>
 
-				<select id="db-type" bind:value={dbConfig.type} onchange={handleTypeChange} class="input rounded">
-					<option value="mongodb">MongoDB (localhost/Docker)</option>
-					<option value="mongodb+srv">MongoDB Atlas (SRV)</option>
-					<option value="mariadb">MariaDB (via Drizzle) (Beta)</option>
-					<option value="postgresql">PostgreSQL (via Drizzle) (Beta)</option>
-					<option value="sqlite">SQLite (via Drizzle) (Beta)</option>
-				</select>
-				{#if isInstallingDriver}
-					<div class="mt-2 flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400" role="status">
-						<iconify-icon icon="mdi:loading" class="animate-spin" width="16" aria-hidden="true"></iconify-icon>
-						<span>Installing database driver...</span>
-					</div>
-				{/if}
-				{#if installSuccess}
-					<div class="mt-2 flex items-center gap-2 text-sm text-green-600 dark:text-green-400" role="status">
-						<iconify-icon icon="mdi:check-circle" width="16" aria-hidden="true"></iconify-icon>
-						<span>{installSuccess}</span>
-					</div>
-				{/if}
-				{#if installError}
-					<div
-						class="mt-2 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300"
-						role="alert"
+					<select id="db-type" bind:value={dbConfig.type} onchange={handleTypeChange} class="input rounded">
+						<option value="mongodb">MongoDB (localhost/Docker)</option>
+						<option value="mongodb+srv">MongoDB Atlas (SRV)</option>
+						<option value="mariadb">MariaDB (via Drizzle) (Beta)</option>
+						<option value="postgresql">PostgreSQL (via Drizzle) (Beta)</option>
+						<option value="sqlite">SQLite (via Drizzle) (Beta)</option>
+					</select>
+				</div>
+
+				{#if dbConfig.type === 'mongodb'}
+					<button
+						type="button"
+						onclick={useSveltyDefaults}
+						class="btn-sm preset-outlined-tertiary-500 dark:preset-outlined-primary-500 mb-0.5 whitespace-nowrap rounded px-3 py-2 text-xs font-bold transition-all hover:scale-105"
 					>
-						<div class="flex items-center gap-2">
-							<iconify-icon icon="mdi:alert-circle" width="16" aria-hidden="true"></iconify-icon>
-							<span class="font-medium">Driver Installation Failed</span>
-						</div>
-						<p class="mt-1">{installError}</p>
-						<p class="mt-2 text-xs">
-							You can install the driver manually or continue with the setup (connection test will show installation instructions).
-						</p>
-					</div>
+						<iconify-icon icon="mdi:flash" width="14" class="mr-1"></iconify-icon>
+						Use Svelty Defaults
+					</button>
 				{/if}
 			</div>
 
+			{#if isInstallingDriver}
+				<div class="mt-2 flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400" role="status">
+					<iconify-icon icon="mdi:loading" class="animate-spin" width="16" aria-hidden="true"></iconify-icon>
+					<span>Installing database driver...</span>
+				</div>
+			{/if}
+			{#if installSuccess}
+				<div class="mt-2 flex items-center gap-2 text-sm text-green-600 dark:text-green-400" role="status">
+					<iconify-icon icon="mdi:check-circle" width="16" aria-hidden="true"></iconify-icon>
+					<span>{installSuccess}</span>
+				</div>
+			{/if}
+			{#if installError}
+				<div
+					class="mt-2 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300"
+					role="alert"
+				>
+					<div class="flex items-center gap-2">
+						<iconify-icon icon="mdi:alert-circle" width="16" aria-hidden="true"></iconify-icon>
+						<span class="font-medium">Driver Installation Failed</span>
+					</div>
+					<p class="mt-1">{installError}</p>
+					<p class="mt-2 text-xs">
+						You can install the driver manually or continue with the setup (connection test will show installation instructions).
+					</p>
+				</div>
+			{/if}
 			<div>
 				<label for="db-host" class="mb-1 flex items-center gap-1 text-sm font-medium">
 					<iconify-icon icon="mdi:server-network" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>

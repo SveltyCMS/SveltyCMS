@@ -1,0 +1,429 @@
+---
+path: 'docs/api/api-access-tokens.mdx'
+title: 'API Access Tokens'
+description: 'Secure programmatic access to SveltyCMS APIs via API access tokens for external integrations.'
+author: 'SveltyCMS Team'
+created: '2025-12-16'
+updated: '2025-12-16'
+tags:
+  - 'api'
+  - 'authentication'
+  - 'tokens'
+---
+
+# API Access Tokens
+
+API Access Tokens provide secure, programmatic access to SveltyCMS APIs without requiring user credentials. They enable external applications, scripts, and integrations to interact with your CMS programmatically.
+
+---
+
+## Overview
+
+SveltyCMS supports two types of tokens:
+
+1. **Invitation Tokens** (`type: 'user-invite'`) - One-time tokens for user registration
+2. **API Access Tokens** (`type: 'access'`) - Persistent tokens for API authentication
+
+This guide focuses on **API Access Tokens** for programmatic API access.
+
+> [!NOTE]
+> For management of **Website Tokens** (long-lived integrations), please refer to the **[Access Management Guide](/docs/guides/configuration/access-management.mdx#website-tokens)**.
+
+---
+
+## Token Structure
+
+API Access Tokens have the following properties:
+
+```typescript
+{
+  _id: string;           // Unique token identifier
+  value: string;         // The actual token string (hashed in database)
+  type: 'access';        // Token type
+  email: string;         // Associated user email
+  role: string;          // User role (admin, editor, user)
+  createdAt: Date;       // Creation timestamp
+  expiresAt?: Date;      // Optional expiration date
+  lastUsed?: Date;       // Last usage timestamp
+  permissions?: string[]; // Optional granular permissions
+}
+```
+
+---
+
+## Creating API Access Tokens
+
+### Via API Endpoint
+
+**Endpoint:** `POST /api/token/createToken`
+
+**Authentication:** Requires admin authentication
+
+**Request Body:**
+
+```json
+{
+	"email": "api-user@example.com",
+	"role": "editor",
+	"type": "access",
+	"expiresIn": "90 days",
+	"permissions": ["read:collections", "write:collections"]
+}
+```
+
+**Response:**
+
+```json
+{
+	"success": true,
+	"token": {
+		"_id": "token-id-123",
+		"value": "svc_live_abc123...",
+		"type": "access",
+		"email": "api-user@example.com",
+		"role": "editor",
+		"createdAt": "2025-11-21T16:00:00.000Z",
+		"expiresAt": "2026-02-19T16:00:00.000Z"
+	}
+}
+```
+
+### Example: Creating a Token
+
+```javascript
+const response = await fetch('https://your-cms.com/api/token/createToken', {
+	method: 'POST',
+	headers: {
+		'Content-Type': 'application/json',
+		Cookie: 'auth_session=your-admin-session'
+	},
+	body: JSON.stringify({
+		email: 'integration@example.com',
+		role: 'editor',
+		type: 'access',
+		expiresIn: '90 days'
+	})
+});
+
+const { token } = await response.json();
+console.log('API Token:', token.value);
+```
+
+---
+
+## Using API Access Tokens
+
+### Authentication Methods
+
+API Access Tokens can be used in two ways:
+
+#### 1. Bearer Token (Recommended)
+
+```bash
+curl -H "Authorization: Bearer svc_live_abc123..." \
+  https://your-cms.com/api/collections
+```
+
+```javascript
+fetch('https://your-cms.com/api/collections', {
+	headers: {
+		Authorization: 'Bearer svc_live_abc123...'
+	}
+});
+```
+
+#### 2. Cookie-Based Authentication
+
+```javascript
+fetch('https://your-cms.com/api/collections', {
+	headers: {
+		Cookie: 'api_token=svc_live_abc123...'
+	}
+});
+```
+
+---
+
+## Token Management
+
+### List All Tokens
+
+**Endpoint:** `GET /api/token`
+
+**Authentication:** Admin only
+
+```javascript
+const response = await fetch('https://your-cms.com/api/token', {
+	headers: {
+		Cookie: 'auth_session=your-admin-session'
+	}
+});
+
+const { tokens } = await response.json();
+```
+
+### Validate a Token
+
+**Endpoint:** `GET /api/token/[tokenID]`
+
+**Authentication:** Public (for validation)
+
+```javascript
+const response = await fetch('https://your-cms.com/api/token/svc_live_abc123');
+const { valid, data } = await response.json();
+```
+
+### Delete a Token
+
+**Endpoint:** `DELETE /api/token/[tokenID]`
+
+**Authentication:** Admin only
+
+```javascript
+await fetch('https://your-cms.com/api/token/token-id-123', {
+	method: 'DELETE',
+	headers: {
+		Cookie: 'auth_session=your-admin-session'
+	}
+});
+```
+
+---
+
+## Security Best Practices
+
+### 1. Token Storage
+
+> [!CAUTION]
+> Never commit API tokens to version control or expose them in client-side code.
+
+**Secure Storage Options:**
+
+- Environment variables (`.env` files)
+- Secret management services (AWS Secrets Manager, HashiCorp Vault)
+- Encrypted configuration files
+
+```bash
+# .env
+SVELTYCMS_API_TOKEN=svc_live_abc123...
+```
+
+### 2. Token Rotation
+
+Regularly rotate API tokens to minimize security risks:
+
+```javascript
+// 1. Create new token
+const newToken = await createApiToken({ email, role, type: 'access' });
+
+// 2. Update your application to use new token
+process.env.SVELTYCMS_API_TOKEN = newToken.value;
+
+// 3. Delete old token
+await deleteApiToken(oldTokenId);
+```
+
+### 3. Principle of Least Privilege
+
+Grant tokens only the permissions they need:
+
+```javascript
+// Good: Limited permissions
+{
+  "role": "editor",
+  "permissions": ["read:collections", "write:posts"]
+}
+
+// Bad: Overly broad permissions
+{
+  "role": "admin",
+  "permissions": ["*"]
+}
+```
+
+### 4. Token Expiration
+
+Always set expiration dates for API tokens:
+
+```javascript
+{
+  "expiresIn": "90 days"  // Recommended: 30-90 days
+}
+```
+
+### 5. Monitor Token Usage
+
+Track `lastUsed` timestamps to identify:
+
+- Unused tokens (can be revoked)
+- Suspicious activity (unusual usage patterns)
+
+---
+
+## Common Use Cases
+
+### 1. CI/CD Pipeline Integration
+
+```yaml
+# .github/workflows/deploy.yml
+name: Deploy Content
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish Content
+        env:
+          CMS_TOKEN: ${{ secrets.SVELTYCMS_API_TOKEN }}
+        run: |
+          curl -X POST \
+            -H "Authorization: Bearer $CMS_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d @content.json \
+            https://your-cms.com/api/collections/posts
+```
+
+### 2. Scheduled Content Updates
+
+```javascript
+// cron-job.js
+import fetch from 'node-fetch';
+
+const API_TOKEN = process.env.SVELTYCMS_API_TOKEN;
+
+async function updateContent() {
+	const response = await fetch('https://your-cms.com/api/collections/posts', {
+		method: 'POST',
+		headers: {
+			Authorization: `Bearer ${API_TOKEN}`,
+			'Content-Type': 'application/json'
+		},
+		body: JSON.stringify({
+			title: 'Daily Update',
+			content: 'Automated content update',
+			status: 'published'
+		})
+	});
+
+	return response.json();
+}
+
+// Run daily at midnight
+updateContent();
+```
+
+### 3. Third-Party Integrations
+
+```javascript
+// zapier-integration.js
+export async function syncToSveltyCMS(data) {
+	const response = await fetch('https://your-cms.com/api/import/full', {
+		method: 'POST',
+		headers: {
+			Authorization: `Bearer ${process.env.CMS_TOKEN}`,
+			'Content-Type': 'application/json'
+		},
+		body: JSON.stringify({
+			collectionName: 'Products',
+			data: data.items
+		})
+	});
+
+	return response.json();
+}
+```
+
+---
+
+## Troubleshooting
+
+### Token Not Working
+
+**Symptoms:** 401 Unauthorized errors
+
+**Solutions:**
+
+1. Verify token format: `svc_live_...` or `svc_test_...`
+2. Check token expiration: `GET /api/token/[tokenID]`
+3. Ensure correct authentication header: `Authorization: Bearer <token>`
+4. Verify token hasn't been deleted
+
+### Token Expired
+
+**Symptoms:** `{ "error": "Token expired" }`
+
+**Solution:** Create a new token and update your application
+
+### Insufficient Permissions
+
+**Symptoms:** 403 Forbidden errors
+
+**Solution:** Verify token role and permissions match required access level
+
+---
+
+## API Reference
+
+### Token Endpoints
+
+| Endpoint                 | Method | Auth   | Description          |
+| ------------------------ | ------ | ------ | -------------------- |
+| `/api/token/createToken` | POST   | Admin  | Create new token     |
+| `/api/token`             | GET    | Admin  | List all tokens      |
+| `/api/token/[id]`        | GET    | Public | Validate token       |
+| `/api/token/[id]`        | DELETE | Admin  | Delete token         |
+| `/api/getTokensProvided` | GET    | Admin  | Get token statistics |
+
+### Token Types
+
+| Type          | Purpose            | Expiration   | Reusable |
+| ------------- | ------------------ | ------------ | -------- |
+| `user-invite` | User registration  | 7 days       | No       |
+| `access`      | API authentication | Configurable | Yes      |
+
+---
+
+## Migration Guide
+
+### From Session-Based to Token-Based Auth
+
+**Before (Session-based):**
+
+```javascript
+// Login required for each request
+await fetch('/api/user/login', { ... });
+await fetch('/api/collections', { credentials: 'include' });
+```
+
+**After (Token-based):**
+
+```javascript
+// One-time token creation
+const token = 'svc_live_abc123...';
+
+// Use token for all requests
+await fetch('/api/collections', {
+	headers: { Authorization: `Bearer ${token}` }
+});
+```
+
+---
+
+## Related Documentation
+
+- [Token API Endpoints](./token-api-endpoints.mdx) - Detailed endpoint documentation
+- [Authentication Guide](../auth/index.mdx) - User authentication overview
+- [API Security](./security.mdx) - Security best practices
+
+---
+
+## Support
+
+For issues or questions about API Access Tokens:
+
+- GitHub Issues: [SveltyCMS Issues](https://github.com/your-org/sveltycms/issues)
+- Documentation: [docs.sveltycms.com](https://docs.sveltycms.com)

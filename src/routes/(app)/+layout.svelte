@@ -31,15 +31,14 @@
 	import LeftSidebar from '@src/components/left-sidebar.svelte';
 	import PageFooter from '@src/components/page-footer.svelte';
 	import RightSidebar from '@src/components/right-sidebar.svelte';
-	import SearchComponent from '@src/components/system/search/search-component.svelte';
+	import SearchComponent from '@src/components/search-component.svelte';
 	// Type Imports
 	import type { User } from '@src/databases/auth/types';
-	// Stores
 	// Stores
 	import { setCollection, setContentStructure } from '@src/stores/collection-store.svelte.ts';
 	import { publicEnv } from '@src/stores/global-settings.svelte.ts';
 	import { globalLoadingStore, loadingOperations } from '@src/stores/loading-store.svelte.ts';
-	import { screen } from '@src/stores/screen-store.svelte';
+	import { screen } from '@src/stores/screen-size-store.svelte';
 	import { app } from '@src/stores/store.svelte';
 	import { initializeDarkMode } from '@src/stores/theme-store.svelte.ts';
 	import { ui } from '@src/stores/ui-store.svelte';

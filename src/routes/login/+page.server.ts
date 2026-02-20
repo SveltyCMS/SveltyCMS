@@ -478,7 +478,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 						return [null, false];
 					}
 
-					const tokenData = await auth?.validateRegistrationToken(inviteToken);
+					const tokenData: any = await auth?.validateRegistrationToken(inviteToken);
 					if (!(tokenData.isValid && tokenData.details)) {
 						logger.warn('Invalid/expired invite token used in OAuth registration');
 						return [null, false];
@@ -543,7 +543,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 					} catch (emailError) {
 						logger.error('OAuth: Error fetching /api/sendMail for invited user', { email, error: emailError });
 					}
-					return [newUser, false];
+					return [newUser ?? null, false];
 				};
 
 				const [user] = await getUser();

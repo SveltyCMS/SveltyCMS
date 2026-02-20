@@ -24,6 +24,7 @@ Renders a color input with label, helper, and validation
 <script lang="ts">
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { app, validationStore } from '@src/stores/store.svelte';
+	import { colorPicker_hex } from '@src/paraglide/messages';
 	import { getFieldName } from '@utils/utils';
 	// Unified error handling
 	import { handleWidgetValidation } from '@widgets/widget-error-handler';

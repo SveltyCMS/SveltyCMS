@@ -955,14 +955,14 @@ await widgetMethods.delete(widget._id);
 
 ```typescript
 export class MongoSystemMethods {
-	constructor(systemPreferencesModel: Model<SystemPreferencesDocument>, systemSettingModel: Model<SystemSetting>);
+	constructor(system-preferencesModel: Model<system-preferencesDocument>, systemSettingModel: Model<SystemSetting>);
 
 	// User Preferences
 	async setUserPreferences(userId: string, layoutId: string, layout: Layout): Promise<void>;
-	async getSystemPreferences(userId: string, layoutId: string): Promise<Layout | null>;
+	async getsystem-preferences(userId: string, layoutId: string): Promise<Layout | null>;
 	async getWidgetState<T>(userId: string, layoutId: string, widgetId: string): Promise<T | null>;
 	async setWidgetState(userId: string, layoutId: string, widgetId: string, state: unknown): Promise<void>;
-	async clearSystemPreferences(userId: string): Promise<void>;
+	async clearsystem-preferences(userId: string): Promise<void>;
 
 	// Generic Preferences
 	async get<T>(key: string, scope: 'user' | 'system', userId?: DatabaseId): Promise<T | null>;
@@ -982,7 +982,7 @@ export class MongoSystemMethods {
 **Usage Example:**
 
 ```typescript
-const systemMethods = new MongoSystemMethods(SystemPreferencesModel, SystemSettingModel);
+const systemMethods = new MongoSystemMethods(system - preferencesModel, SystemSettingModel);
 
 // Set user layout preferences
 await systemMethods.setUserPreferences('user123', 'dashboard', {
@@ -1002,7 +1002,7 @@ await systemMethods.set('maintenanceMode', false, 'system');
 const userTheme = await systemMethods.get('theme', 'user', 'user123');
 
 // Clear all user preferences
-await systemMethods.clearSystemPreferences('user123');
+(await systemMethods.clearsystem) - preferences('user123');
 ```
 
 ---

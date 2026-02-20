@@ -26,7 +26,7 @@ export class TenantService {
 
 	private constructor() {}
 
-	public static getInstance(): tenantService {
+	public static getInstance(): TenantService {
 		if (!TenantService.instance) {
 			TenantService.instance = new TenantService();
 		}

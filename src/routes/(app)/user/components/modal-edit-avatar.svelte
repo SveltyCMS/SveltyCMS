@@ -14,7 +14,8 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 	// Lucide icons
 
 	// ParaglideJS
-	import { modaledit_avatarfilesize } from '@src/paraglide/messages';
+	import { modaledit_avatarfilesize, modaledit_avatarfilesallowed, button_delete, button_cancel, button_save } from '@src/paraglide/messages';
+	import { Avatar, FileUpload } from '@skeletonlabs/skeleton-svelte';
 	// Stores
 	import { avatarSrc, toaster } from '@src/stores/store.svelte.ts';
 	import { logger } from '@src/utils/logger';
@@ -113,7 +114,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 		imageLoadError = false;
 
 		// Create optimized preview for large files
-		createOptimizedPreview(lastFile);
+		createOptimizedPreview(lastFile!);
 	}
 
 	// Create optimized preview to avoid blocking UI

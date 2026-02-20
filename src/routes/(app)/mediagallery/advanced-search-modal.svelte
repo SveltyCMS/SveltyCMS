@@ -28,7 +28,7 @@ Structure optimized for LLM integration and AI-powered search.
 <script lang="ts">
 	import type { SearchCriteria } from '@utils/media/advanced-search';
 	import type { MediaBase } from '@utils/media/media-models';
-	import { SvelteSet } from 'svelte/reactivity';
+	import { SvelteDate, SvelteSet } from 'svelte/reactivity';
 
 	interface Props {
 		files: MediaBase[];

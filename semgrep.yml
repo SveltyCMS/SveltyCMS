@@ -1,0 +1,25 @@
+rules:
+  # Rule 1: Setup endpoints must always hit the handleSetup guard
+  - id: sveltycms-no-unauth-setup-bypass
+    languages: [typescript]
+    message: 'Setup endpoint detected without explicit guard. Must go through handleSetup middleware or return 403 when isSetupComplete() is true.'
+    severity: ERROR
+    patterns:
+      - pattern: |
+          event.url.pathname.startsWith('/api/setup')
+      - pattern-not-inside: |
+          isSetupCompleteAsync()
+      - pattern-not-inside: |
+          handleSetup
+
+  # Rule 2: Never set auth cookie on setup paths
+  - id: sveltycms-no-cookie-on-setup
+    languages: [typescript]
+    message: 'Do not set auth_sessions cookie on /api/setup/* paths (was the original vulnerability)'
+    severity: ERROR
+    patterns:
+      - pattern: cookies.set("auth_sessions", ...)
+      - pattern-inside: |
+          if (event.url.pathname.startsWith('/api/setup')) {
+            ...
+          }

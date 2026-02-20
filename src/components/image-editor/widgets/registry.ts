@@ -13,7 +13,7 @@ import type { Component } from 'svelte';
 
 export interface EditorWidget {
 	category?: string; // 'adjust' | 'transform' | 'annotate' | 'effects'
-	controls?: Component<any>;
+	controls?: Component<Record<string, unknown>>;
 	description?: string;
 	disabled?: boolean;
 	experimental?: boolean;
@@ -23,7 +23,7 @@ export interface EditorWidget {
 	// Metadata for conditional features
 	requiresImage?: boolean;
 	title: string;
-	tool: Component<any>;
+	tool: Component<Record<string, unknown>>;
 }
 
 // Type guard for widget validation

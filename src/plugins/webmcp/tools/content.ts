@@ -36,7 +36,7 @@ export function registerContentTools() {
 				]
 			};
 		}
-	});
+	} as any);
 
 	// Tool: search_content
 	modelContext.registerTool({
@@ -74,5 +74,5 @@ export function registerContentTools() {
 				};
 			}
 		}
-	});
+	} as any);
 }

@@ -46,6 +46,12 @@ Displays a collection of media files (images, documents, audio, video) with:
 	import { goto } from '$app/navigation';
 	import type { PageData } from './$types';
 	import AdvancedSearchModal from './advanced-search-modal.svelte';
+	import MediaGrid from './media-grid.svelte';
+	import MediaTable from './media-table.svelte';
+	import VirtualMediaGrid from './virtual-media-grid.svelte';
+	import Breadcrumb from '@src/components/breadcrumb.svelte';
+	import PageTitle from '@src/components/page-title.svelte';
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 
 	// Props using runes
 	let { data }: { data: PageData } = $props();
@@ -656,8 +662,15 @@ Displays a collection of media files (images, documents, audio, video) with:
 		});
 	}
 
-	async function handleEditorSave(detail: { dataURL: string; file: File; operations?: any; focalPoint?: any; mediaId?: string }) {
-		const { file, operations, focalPoint, mediaId } = detail;
+	async function handleEditorSave(detail: {
+		dataURL: string;
+		file: File;
+		operations?: any;
+		focalPoint?: any;
+		mediaId?: string;
+		saveBehavior?: 'new' | 'overwrite';
+	}) {
+		const { file, operations, focalPoint, mediaId, saveBehavior } = detail;
 
 		const formData = new FormData();
 		formData.append('file', file);
@@ -669,6 +682,9 @@ Displays a collection of media files (images, documents, audio, video) with:
 		}
 		if (focalPoint) {
 			formData.append('focalPoint', JSON.stringify(focalPoint));
+		}
+		if (saveBehavior) {
+			formData.append('saveBehavior', saveBehavior);
 		}
 
 		try {

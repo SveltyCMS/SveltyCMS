@@ -7,11 +7,10 @@ import type { CacheOptions, DatabaseResult } from '../../db-interface';
 import type { AdapterCore } from '../adapter/adapter-core';
 
 export class CacheModule {
-	private readonly core: AdapterCore;
 	private readonly cache: Map<string, { value: any; expiresAt?: number }> = new Map();
 
-	constructor(core: AdapterCore) {
-		this.core = core;
+	constructor(_core: AdapterCore) {
+		// core is currently unused but accepted for consistency with other modules
 	}
 
 	async get<T>(key: string): Promise<DatabaseResult<T | null>> {

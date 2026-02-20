@@ -19,6 +19,7 @@ import type { DatabaseId, DatabaseResult, MediaItem, SystemVirtualFolder } from 
 import type { AdapterCore } from '../../adapter/adapter-core';
 import * as schema from '../../schema';
 import * as utils from '../../utils';
+import { isoDateStringToDate, nowISODateString } from '@src/utils/date-utils';
 
 export class VirtualFoldersModule {
 	private readonly core: AdapterCore;
@@ -71,8 +72,8 @@ export class VirtualFoldersModule {
 				type: folder.type,
 				metadata: folder.metadata as any,
 				tenantId: folder.tenantId || null,
-				createdAt: new Date(),
-				updatedAt: new Date()
+				createdAt: isoDateStringToDate(nowISODateString()),
+				updatedAt: isoDateStringToDate(nowISODateString())
 			});
 
 			const [created] = await this.db.select().from(schema.systemVirtualFolders).where(eq(schema.systemVirtualFolders._id, id));
@@ -87,7 +88,7 @@ export class VirtualFoldersModule {
 				.set({
 					...updateData,
 					metadata: updateData.metadata as any,
-					updatedAt: new Date()
+					updatedAt: isoDateStringToDate(nowISODateString())
 				})
 				.where(eq(schema.systemVirtualFolders._id, folderId));
 

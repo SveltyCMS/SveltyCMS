@@ -19,6 +19,7 @@ import type { DatabaseId, DatabaseResult, Theme } from '../../../db-interface';
 import type { AdapterCore } from '../../adapter/adapter-core';
 import * as schema from '../../schema';
 import * as utils from '../../utils';
+import { isoDateStringToDate, nowISODateString } from '@src/utils/date-utils';
 
 export class ThemesModule {
 	private readonly core: AdapterCore;
@@ -28,7 +29,7 @@ export class ThemesModule {
 	}
 
 	private get db() {
-		return (this.core as any).db;
+		return this.core.db!;
 	}
 
 	async setupThemeModels(): Promise<void> {
@@ -37,26 +38,19 @@ export class ThemesModule {
 	}
 
 	async getActive(): Promise<DatabaseResult<Theme>> {
-		return (this.core as any).wrap(async () => {
+		return this.core.wrap(async () => {
 			const [theme] = await this.db.select().from(schema.themes).where(eq(schema.themes.isActive, true)).limit(1);
 
 			if (!theme) {
-				return {
-					success: false,
-					message: 'No active theme found',
-					error: utils.createDatabaseError('NOT_FOUND', 'No active theme')
-				};
+				throw utils.createDatabaseError('NOT_FOUND', 'No active theme');
 			}
 
-			return {
-				success: true,
-				data: utils.convertDatesToISO(theme) as unknown as Theme
-			};
+			return utils.convertDatesToISO(theme) as unknown as Theme;
 		}, 'GET_ACTIVE_THEME_FAILED');
 	}
 
 	async setDefault(themeId: DatabaseId): Promise<DatabaseResult<void>> {
-		return (this.core as any).wrap(async () => {
+		return this.core.wrap(async () => {
 			// Unset all defaults
 			await this.db.update(schema.themes).set({ isDefault: false });
 
@@ -66,42 +60,36 @@ export class ThemesModule {
 	}
 
 	async install(theme: Omit<Theme, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<Theme>> {
-		return (this.core as any).wrap(async () => {
+		return this.core.wrap(async () => {
 			const id = utils.generateId();
 			await this.db.insert(schema.themes).values({
 				_id: id,
 				...theme,
 				config: theme.config as any,
-				createdAt: new Date(),
-				updatedAt: new Date()
+				createdAt: isoDateStringToDate(nowISODateString()),
+				updatedAt: isoDateStringToDate(nowISODateString())
 			});
 
 			const [inserted] = await this.db.select().from(schema.themes).where(eq(schema.themes._id, id));
-			return {
-				success: true,
-				data: utils.convertDatesToISO(inserted) as unknown as Theme
-			};
+			return utils.convertDatesToISO(inserted) as unknown as Theme;
 		}, 'INSTALL_THEME_FAILED');
 	}
 
 	async uninstall(themeId: DatabaseId): Promise<DatabaseResult<void>> {
-		return (this.core as any).wrap(async () => {
+		return this.core.wrap(async () => {
 			await this.db.delete(schema.themes).where(eq(schema.themes._id, themeId));
 		}, 'UNINSTALL_THEME_FAILED');
 	}
 
 	async update(themeId: DatabaseId, theme: Partial<Omit<Theme, '_id' | 'createdAt' | 'updatedAt'>>): Promise<DatabaseResult<Theme>> {
-		return (this.core as any).wrap(async () => {
+		return this.core.wrap(async () => {
 			await this.db
 				.update(schema.themes)
-				.set({ ...theme, config: theme.config as any, updatedAt: new Date() })
+				.set({ ...theme, config: theme.config as any, updatedAt: isoDateStringToDate(nowISODateString()) })
 				.where(eq(schema.themes._id, themeId));
 
 			const [updated] = await this.db.select().from(schema.themes).where(eq(schema.themes._id, themeId));
-			return {
-				success: true,
-				data: utils.convertDatesToISO(updated) as unknown as Theme
-			};
+			return utils.convertDatesToISO(updated) as unknown as Theme;
 		}, 'UPDATE_THEME_FAILED');
 	}
 
@@ -133,8 +121,8 @@ export class ThemesModule {
 						isActive: theme.isActive,
 						isDefault: theme.isDefault,
 						config: theme.config as any,
-						createdAt: new Date(),
-						updatedAt: new Date()
+						createdAt: isoDateStringToDate(nowISODateString()),
+						updatedAt: isoDateStringToDate(nowISODateString())
 					});
 				}
 			}
@@ -145,7 +133,7 @@ export class ThemesModule {
 	}
 
 	async getDefaultTheme(_tenantId?: string): Promise<DatabaseResult<Theme | null>> {
-		return (this.core as any).wrap(async () => {
+		return this.core.wrap(async () => {
 			const [theme] = await this.db.select().from(schema.themes).where(eq(schema.themes.isDefault, true)).limit(1);
 			return theme ? (utils.convertDatesToISO(theme) as unknown as Theme) : null;
 		}, 'GET_DEFAULT_THEME_FAILED');

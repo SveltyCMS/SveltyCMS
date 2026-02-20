@@ -1,6 +1,15 @@
 /**
  * @file src/routes/api/auth/2fa/verify/+server.ts
- * @description API endpoint for verifying 2FA codes during authentication
+ * @description
+ * API endpoint for verifying 2FA codes during the login flow.
+ * Supports both standard TOTP codes and recovery backup codes to
+ * ensure secure access even if the primary device is lost.
+ *
+ * features:
+ * - standard OTP verification
+ * - backup code recovery support
+ * - seamless login flow integration
+ * - tenant-aware security isolation
  */
 
 import { auth } from '@databases/db';

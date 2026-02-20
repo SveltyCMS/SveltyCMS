@@ -4,6 +4,9 @@
 **This component displays a modal for editing a category**
 -->
 <script lang="ts">
+	import { modalcategory_placeholder, button_delete, button_cancel, button_save, modalcategory_categoryname } from '@src/paraglide/messages';
+	import IconifyIconsPicker from '@src/components/iconify-icons-picker.svelte';
+
 	// Stores
 	import { contentStructure } from '@src/stores/collection-store.svelte';
 	import { logger } from '@utils/logger';

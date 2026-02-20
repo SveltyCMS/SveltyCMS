@@ -28,9 +28,9 @@ The editor is built on a modular widget system, allowing each tool (Crop, Blur, 
 ```mermaid
 graph TB
     subgraph "Editor Core"
-        IE[Editor.svelte]
-        IES[imageEditorStore.svelte]
-        CV[EditorCanvas.svelte]
+        IE[editor.svelte]
+        IES[image-editor-store.svelte]
+        CV[editor-canvas.svelte]
     end
 
     subgraph "Widget Registry"
@@ -122,5 +122,5 @@ This triggers the server-side Sharp.js pipeline to generate the edited variant.
 ## 📚 Related Documentation
 
 - [**Media Gallery Guide**](./media-gallery.mdx) - DAM features and asset organization.
-- [**Media API Reference**](../api/Media_API.mdx) - Technical details on the manipulation API.
+- [**Media API Reference**](../api/media-api.mdx) - Technical details on the manipulation API.
 - [**Project Roadmap**](../project/roadmap-2026.mdx) - Future canvas migration details.

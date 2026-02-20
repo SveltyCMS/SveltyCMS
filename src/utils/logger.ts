@@ -1,17 +1,4 @@
-/**
- * @file src/utils/logger.ts
- * @description Universal logger (client + server) with formatting & tree-shaking
- *
- * Features:
- * - Level-based logging (fatal → trace)
- * - Smart token highlighting
- * - Sensitive data masking
- * - Channel support
- * - Dump helper
- * - Fully stripped when VITE_LOG_LEVELS=none
- *
- * Configure via VITE_LOG_LEVELS (build) or LOG_LEVELS (runtime)
- */
+/** @file src/utils/logger.ts @description Universal logger (client + server) with formatting and tree-shaking features: [level-based logging, smart token highlighting, sensitive data masking, channel support, dump helper, build-time stripping] */
 const IS_BROWSER = typeof window !== 'undefined';
 
 export type LoggableValue = string | number | boolean | null | undefined | object | Date | Error;

@@ -1,6 +1,15 @@
 /**
  * @file src/routes/api/auth/2fa/verify-setup/+server.ts
- * @description API endpoint for completing 2FA setup by verifying the first TOTP code
+ * @description
+ * API endpoint for completing the Two-Factor Authentication (2FA) setup.
+ * Verifies the initial TOTP code provided by the user to activate 2FA
+ * and registers backup codes for account recovery.
+ *
+ * features:
+ * - TOTP code verification
+ * - setup completion and state activation
+ * - backup code registration and storage
+ * - security hardening monitoring
  */
 
 import { auth } from '@databases/db';

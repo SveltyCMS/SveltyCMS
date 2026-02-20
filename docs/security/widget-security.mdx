@@ -31,13 +31,13 @@ All critical security vulnerabilities identified in the widget system have been 
 
 ### 1. RemoteVideo Widget - SSRF Prevention ✅
 
-**File**: `src/widgets/custom/remoteVideo/`
+**File**: `src/widgets/custom/remote-video/`
 
 **Vulnerability**: Server-Side Request Forgery (SSRF) allowing attackers to embed malicious URLs targeting internal services or metadata endpoints.
 
 **Implementation**:
 
-**Client-Side Validation** (`Input.svelte:58-65`):
+**Client-Side Validation** (`input.svelte:58-65`):
 
 ```typescript
 const ALLOWED_PLATFORMS = [
@@ -112,7 +112,7 @@ export async function aggregations(field: FieldInstance, tenantId?: string) {
 
 ### 3. Input Widget - ReDoS Protection ✅
 
-**File**: `src/widgets/core/input/Input.svelte`
+**File**: `src/widgets/core/input/input.svelte`
 
 **Vulnerability**: Regular Expression Denial of Service (ReDoS) via extremely long input strings causing CPU exhaustion.
 
@@ -183,7 +183,7 @@ const schema = object({
 
 ### 5. ColorPicker Widget - CSS Injection Prevention ✅
 
-**File**: `src/widgets/custom/colorPicker/Display.svelte`
+**File**: `src/widgets/custom/color-picker/display.svelte`
 
 **Vulnerability**: CSS injection allowing arbitrary CSS properties or expressions.
 
@@ -257,7 +257,7 @@ const schema = pipe(string(), email(), blockDisposableEmail);
 
 ### 7. PhoneNumber Widget - E.164 International Validation ✅
 
-**File**: `src/widgets/custom/phoneNumber/index.ts`
+**File**: `src/widgets/custom/phone-number/index.ts`
 
 **Vulnerability**: Malformed phone numbers bypassing validation, potential injection via special characters.
 
@@ -366,7 +366,7 @@ const schema = object({
 
 ### 9. MegaMenu Widget - XSS Prevention ✅
 
-**File**: `src/widgets/core/megaMenu/Display.svelte`
+**File**: `src/widgets/core/mega-menu/display.svelte`
 
 **Vulnerability**: Cross-Site Scripting (XSS) via malicious HTML in menu titles and descriptions.
 
@@ -374,7 +374,7 @@ const schema = object({
 
 ```svelte
 <script>
-	import Sanitize from '@root/src/components/Sanitize.svelte';
+	import Sanitize from '@root/src/components/sanitize.svelte';
 </script>
 
 <!-- Menu title with strict sanitization -->
@@ -399,7 +399,7 @@ const schema = object({
 
 ### 10. MediaUpload Widget - Comprehensive File Validation ✅
 
-**File**: `src/widgets/core/mediaUpload/Input.svelte`
+**File**: `src/widgets/core/media-upload/input.svelte`
 
 **Vulnerability**: Malicious file uploads bypassing validation (path traversal, oversized files, dangerous extensions).
 
@@ -618,7 +618,7 @@ Use this checklist when creating new widgets:
 
 ### Sanitize Component
 
-**File**: `src/components/Sanitize.svelte`
+**File**: `src/components/sanitize.svelte`
 
 ```svelte
 <Sanitize html={userContent} profile="strict" />

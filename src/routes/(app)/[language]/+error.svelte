@@ -17,6 +17,10 @@
 <script lang="ts">
 	// Stores
 	import { page } from '$app/state';
+	import { app } from '@src/stores/store.svelte';
+	import { error_pagenotfound, error_skip_content, error_wrong, error_page_moved, error_gofrontpage } from '@src/paraglide/messages';
+	import SiteName from '@src/components/site-name.svelte';
+	import SveltyCMSLogo from '@src/components/system/icons/svelty-cms-logo.svelte';
 
 	const size = 140;
 	const font = 0.9;

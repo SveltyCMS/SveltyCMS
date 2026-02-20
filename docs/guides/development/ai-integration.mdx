@@ -32,7 +32,7 @@ The system architecture supports a **Remote Retrieval-Augmented Generation (RAG)
 Hosted at `mcp.sveltycms.com`, this service:
 
 - **Indexes Documentation:** Recursively tracks `docs/**/*.mdx` from the main repo.
-- **Indexes Patterns:** Maintains embeddings of core architectural files (`dbInterface.ts`, etc.).
+- **Indexes Patterns:** Maintains embeddings of core architectural files (`db-interface.ts`, etc.).
 - **External Feeds:** Syncs with Svelte 5 and Skeleton official documentation.
 
 ### 2. Client-Side Inference (Local LLM)
@@ -73,7 +73,7 @@ const reply = await aiService.chat('How do I add a new language?');
 SveltyCMS leverages a lightweight Server-Sent Events (SSE) architecture to stream AI responses directly to the user interface.
 
 - **Infrastructure**: `api/events` endpoint broadcasts `eventBus` emissions.
-- **Client Handling**: The `collaborationStore` manages the `EventSource` connection, buffering activity events and assembling streamed AI tokens in real-time.
+- **Client Handling**: The `collaboration-store` manages the `EventSource` connection, buffering activity events and assembling streamed AI tokens in real-time.
 - **AI Response Event**: The `ai:response` event carries partial tokens in `payload.data.text` and a completion flag in `payload.data.done`.
 
 This ensures a responsive, "typing" experience for AI assistance without the overhead of WebSockets.

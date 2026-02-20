@@ -19,6 +19,9 @@ Features:
 	// Stores
 	import { collections } from '@src/stores/collection-store.svelte';
 	import type { Component } from 'svelte';
+	import { modalState } from '@utils/modal-state.svelte';
+	import InputSwitch from '@src/components/system/builder/input-switch.svelte';
+	import { asAny } from '@utils/utils';
 
 	// GuiSchema is a record of field properties with their widget configs
 	type GuiSchema = Record<string, { widget: Component<any> }>;

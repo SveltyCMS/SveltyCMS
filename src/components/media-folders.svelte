@@ -13,6 +13,7 @@
 
 <script lang="ts">
 	import { media_root_title } from '@src/paraglide/messages';
+	import TreeView from '@src/components/system/tree-view.svelte';
 	import { screen } from '@src/stores/screen-size-store.svelte.ts';
 	import { ui } from '@src/stores/ui-store.svelte.ts';
 	// Using iconify-icon web component

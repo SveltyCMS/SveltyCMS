@@ -71,7 +71,7 @@ Before installing SveltyCMS, ensure you have the following installed:
 
 ### Required Software
 
-#### 1. Node.js (v20.10.0 or higher recommended)
+#### 1. Node.js (>=24)
 
 - **Download:** [https://nodejs.org/](https://nodejs.org/)
 - **Check version:** `node --version`
@@ -81,7 +81,7 @@ Before installing SveltyCMS, ensure you have the following installed:
 
 Choose one of the following:
 
-- **Bun** (recommended for speed)
+- **Bun** (recommended - 3-4x faster runtime)
   ```bash
   curl -fsSL https://bun.sh/install | bash
   ```
@@ -713,15 +713,15 @@ flowchart TB
 
 ```mermaid
 stateDiagram-v2
-    [*] --> DatabaseConfig: Step 1
-    DatabaseConfig --> DatabaseTest: User fills DB form
+    [*] --> database-config: Step 1
+    database-config --> DatabaseTest: User fills DB form
     DatabaseTest --> SystemLanguage: Test passed ✓
     SystemLanguage --> SeedData: Language selected
     SeedData --> AdminUser: Database seeded ✓
     AdminUser --> Complete: Admin form submitted
     Complete --> [*]: Redirect to CMS
 
-    DatabaseTest --> DatabaseConfig: Test failed ✗
+    DatabaseTest --> database-config: Test failed ✗
 
     note right of DatabaseTest
         POST /setup?/testDatabase
@@ -1240,7 +1240,7 @@ const schemaUuidTransformer =
 | Service           | Purpose                      | File                              |
 | ----------------- | ---------------------------- | --------------------------------- |
 | `dbAdapter`       | Database abstraction layer   | `src/databases/db.ts`             |
-| `ContentManager`  | Collection management        | `src/content/ContentManager.ts`   |
+| `ContentManager`  | Collection management        | `src/content/content-manager.ts`  |
 | `Auth`            | Authentication/authorization | `src/databases/auth/index.ts`     |
 | `SettingsService` | Settings cache management    | `src/services/settingsService.ts` |
 
@@ -1879,14 +1879,14 @@ The system is production-ready and fully automated for both local development an
 
 ### API References
 
-- [Setup Actions](/docs/api/Setup_Actions_API.mdx) - Complete setup API reference
-- [Collection API](/docs/api/Collection_API.mdx) - Collection CRUD operations
-- [Authentication API](/docs/api/Authentication_2FA_API.mdx) - User authentication
+- [Setup Actions](/docs/api/setup-actions-api.mdx) - Complete setup API reference
+- [Collection API](/docs/api/collection-api.mdx) - Collection CRUD operations
+- [Authentication API](/docs/api/authentication-2fa-api.mdx) - User authentication
 
 ### Database
 
-- [Core Infrastructure](/docs/database/Core_Infrastructure.mdx) - Database adapter system
-- [MongoDB Methods](/docs/database/MongoDB_Methods.mdx) - MongoDB-specific implementation
+- [Core Infrastructure](/docs/database/core-infrastructure.mdx) - Database adapter system
+- [MongoDB Methods](/docs/database/mongodb-methods.mdx) - MongoDB-specific implementation
 
 ### Guides
 
@@ -1904,7 +1904,7 @@ The system is production-ready and fully automated for both local development an
 | `vite.config.ts`                   | Build-time setup detection | Rarely                          |
 | `src/hooks.server.ts`              | Runtime request gatekeeper | When adding middleware          |
 | `src/databases/db.ts`              | Database initialization    | When adding adapters            |
-| `src/content/ContentManager.ts`    | Collection management      | When changing collection logic  |
+| `src/content/content-manager.ts`   | Collection management      | When changing collection logic  |
 | `src/utils/compilation/compile.ts` | Smart compilation          | When changing collection format |
 
 ### Key Concepts

@@ -211,7 +211,7 @@ if (!Array.isArray(collection.fields)) {
 }
 
 // Safely map over fields
-const processedFields = collection.fields.map((field) => ({
+const processedfields = collection.fields.map((field) => ({
 	name: field.db_fieldName || field.label,
 	type: field.type || 'string'
 }));

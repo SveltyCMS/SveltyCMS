@@ -33,6 +33,8 @@
 	import { onMount, untrack } from 'svelte';
 	import { beforeNavigate, invalidateAll, replaceState } from '$app/navigation';
 	import { page } from '$app/state';
+	import EntryList from '@src/components/collection-display/entry-list.svelte';
+	import Fields from '@src/components/collection-display/fields.svelte';
 
 	interface PageData {
 		collectionSchema: Schema;

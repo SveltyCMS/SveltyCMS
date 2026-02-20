@@ -16,5 +16,5 @@ export interface RepeaterProps {
 }
 
 // Helper to define the data structure
-export type RepeaterItem = Record<string, any>;
+export type RepeaterItem = Record<string, unknown>;
 export type RepeaterValue = RepeaterItem[];

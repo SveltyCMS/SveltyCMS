@@ -112,11 +112,11 @@ type SystemState = 'IDLE' | 'INITIALIZING' | 'READY' | 'DEGRADED' | 'FAILED';
 
 ---
 
-### 2. Loading Store (`loadingStore.test.ts`)
+### 2. Loading Store (`loading-store.test.ts`)
 
 **Tests:** 22 | **Status:** ⚠️ Requires browser environment
 
-The LoadingStore uses Svelte 5 runes which require a browser runtime. These tests validate the **design and API contract** but need a browser test environment to execute.
+The loading-store uses Svelte 5 runes which require a browser runtime. These tests validate the **design and API contract** but need a browser test environment to execute.
 
 #### Basic Operations (4 tests)
 
@@ -175,7 +175,7 @@ const loadingOperations = {
 
 ---
 
-### 3. Screen Size Store (`screenSize.test.ts`)
+### 3. Screen Size Store (`screen-size.test.ts`)
 
 **Tests:** 26 | **Status:** ⚠️ Requires Svelte runtime
 
@@ -236,7 +236,7 @@ Validates enum definitions and consistency
 
 ---
 
-### 4. Setup Store (`setupStore.test.ts`)
+### 4. Setup Store (`setup-store.test.ts`)
 
 **Tests:** 26 | **Status:** ✅ All passing
 
@@ -361,9 +361,9 @@ bun test tests/bun/stores/
 
 ```bash
 bun test tests/bun/stores/system.test.ts
-bun test tests/bun/stores/loadingStore.test.ts
-bun test tests/bun/stores/screenSize.test.ts
-bun test tests/bun/stores/setupStore.test.ts
+bun test tests/bun/stores/loading-store.test.ts
+bun test tests/bun/stores/screen-size.test.ts
+bun test tests/bun/stores/setup-store.test.ts
 ```
 
 ### Run with Watch Mode

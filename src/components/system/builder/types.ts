@@ -21,7 +21,7 @@ export interface AddWidgetProps {
 	editField?: boolean;
 	field?: {
 		label: string;
-		widget: { key: string | null; GuiFields: Record<string, any> };
+		widget: { key: string | null; GuiFields: Record<string, unknown> };
 	};
 	fields?: FieldInstance[];
 	selected_widget?: string | null;

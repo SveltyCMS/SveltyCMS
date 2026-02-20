@@ -26,10 +26,10 @@ This guide covers everything you need to know about building 3-Pillar widgets, f
 Create a new directory in `src/widgets/custom/`. The folder name must match your widget name exactly.
 
 ```
-src/widgets/custom/MyWidget/
+src/widgets/custom/my-widget/
 ├── index.ts           # Definition Pillar
-├── Input.svelte       # Input Pillar
-├── Display.svelte     # Display Pillar
+├── input.svelte       # Input Pillar
+├── display.svelte     # Display Pillar
 └── types.ts           # Type Definitions
 ```
 
@@ -42,13 +42,13 @@ import { createWidget } from '@widgets/widgetFactory';
 import * as v from 'valibot';
 
 export default createWidget({
-	Name: 'MyWidget',
+	Name: 'my-widget',
 	Icon: 'mdi:star',
 	Description: 'A custom widget example',
 
 	// Component Paths
-	inputComponentPath: '/src/widgets/custom/MyWidget/Input.svelte',
-	displayComponentPath: '/src/widgets/custom/MyWidget/Display.svelte',
+	inputComponentPath: '/src/widgets/custom/my-widget/input.svelte',
+	displayComponentPath: '/src/widgets/custom/my-widget/display.svelte',
 
 	// Validation Schema (Valibot)
 	validationSchema: (field) => {
@@ -63,7 +63,7 @@ export default createWidget({
 });
 ```
 
-### 3. The Input Pillar (`Input.svelte`)
+### 3. The Input Pillar (`input.svelte`)
 
 Handles user interaction and data binding.
 
@@ -92,7 +92,7 @@ Handles user interaction and data binding.
 <input type="text" value={safeValue} oninput={(e) => update(e.currentTarget.value)} placeholder={field.label} />
 ```
 
-### 4. The Display Pillar (`Display.svelte`)
+### 4. The Display Pillar (`display.svelte`)
 
 Read-only rendering for lists and previews.
 
@@ -135,12 +135,12 @@ SveltyCMS uses a **dual-language system**:
 
 We use **Vitest** and **Testing Library**.
 
-### Unit Testing (`Input.test.ts`)
+### Unit Testing (`input.test.ts`)
 
 ```typescript
 import { render, fireEvent, screen } from '@testing-library/svelte';
 import { app } from '@stores/store.svelte';
-import Input from './Input.svelte';
+import Input from './input.svelte';
 
 test('updates correct language', async () => {
 	app.contentLanguage = 'en';
@@ -177,7 +177,7 @@ test('validates multilingual structure', () => {
 
 ## 📋 Security Checklist
 
-- [ ] **Sanitization**: Encode HTML output in `Display.svelte` unless explicitly using a sanitizer.
+- [ ] **Sanitization**: Encode HTML output in `display.svelte` unless explicitly using a sanitizer.
 - [ ] **Validation**: Ensure strict schemas (e.g., regex for colors/phones).
 - [ ] **Input Limits**: Set `maxLength` defaults to prevent DB bloat.
 - [ ] **Dependencies**: Avoid heavyweight libraries if native browser features suffice.

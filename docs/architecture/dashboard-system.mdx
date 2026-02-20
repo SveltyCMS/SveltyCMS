@@ -41,7 +41,7 @@ graph TD
     end
 
     subgraph "🔧 Widget Layer"
-        E["BaseWidget.svelte"]
+        E["base-widget.svelte"]
         F["Individual Widgets"]
         G["Widget Metadata"]
         H["Widget State Management"]
@@ -82,7 +82,7 @@ graph TD
 
 ### Base Widget System
 
-All dashboard widgets extend the `BaseWidget.svelte` component, which provides:
+All dashboard widgets extend the `base-widget.svelte` component, which provides:
 
 - **Standardized Layout**: Consistent header, content area, and controls
 - **State Management**: Persistent widget configuration and data caching
@@ -139,42 +139,42 @@ export const widgetMeta = {
 
 Real-time system performance and health monitoring:
 
-#### **CPUWidget.svelte**
+#### **cpu-widget.svelte**
 
 - **Purpose**: Live CPU usage monitoring with historical trends
 - **Features**: Multi-core visualization, load average, temperature alerts
 - **Refresh**: 2-second intervals for real-time monitoring
 - **Size**: 2x2 grid units (default)
 
-#### **MemoryWidget.svelte**
+#### **memory-widget.svelte**
 
 - **Purpose**: RAM and swap usage tracking
 - **Features**: Used/available memory, swap utilization, memory pressure alerts
 - **Refresh**: 5-second intervals
 - **Size**: 2x2 grid units
 
-#### **DiskWidget.svelte**
+#### **disk-widget.svelte**
 
 - **Purpose**: Storage usage and I/O performance
 - **Features**: Multiple disk monitoring, free space alerts, I/O statistics
 - **Refresh**: 30-second intervals (storage changes slowly)
 - **Size**: 2x2 grid units
 
-#### **CacheMonitorWidget.svelte**
+#### **cache-monitor-widget.svelte**
 
 - **Purpose**: Application cache performance monitoring
 - **Features**: Hit/miss ratios, cache size, eviction statistics
 - **Refresh**: 10-second intervals
 - **Size**: 2x1 grid units
 
-#### **SystemHealthWidget.svelte**
+#### **system-health-widget.svelte**
 
 - **Purpose**: Overall system health status
 - **Features**: Aggregate health score, service status, uptime tracking
 - **Refresh**: 15-second intervals
 - **Size**: 3x1 grid units
 
-#### **DatabasePoolDiagnostics.svelte** ⭐ _New_
+#### **database-pool-diagnostics.svelte** ⭐ _New_
 
 - **Purpose**: Real-time database connection pool monitoring
 - **Features**:
@@ -193,7 +193,7 @@ Real-time system performance and health monitoring:
 
 Enterprise-grade security monitoring and compliance tracking:
 
-#### **AuditLogWidget.svelte** ⭐ _New_
+#### **audit-log-widget.svelte** ⭐ _New_
 
 - **Purpose**: Real-time audit log monitoring and security event tracking
 - **Features**:
@@ -206,7 +206,7 @@ Enterprise-grade security monitoring and compliance tracking:
 - **Size**: 3x3 grid units (accommodates rich security data)
 - **Role-Based**: Dynamically adapts content based on user permissions
 
-#### **SecurityWidget.svelte**
+#### **Securitywidget.svelte**
 
 - **Purpose**: Advanced threat monitoring and incident response
 - **Features**: Threat level indicators, blocked IPs, CSP violations
@@ -217,14 +217,14 @@ Enterprise-grade security monitoring and compliance tracking:
 
 Content and media monitoring for editorial workflows:
 
-#### **Last5ContentWidget.svelte**
+#### **last5-content-widget.svelte**
 
 - **Purpose**: Recent content creation and editing activity
 - **Features**: Collection-based content listing, author attribution
 - **Refresh**: Manual refresh (content changes less frequently)
 - **Size**: 2x3 grid units
 
-#### **Last5MediaWidget.svelte**
+#### **last5-media-widget.svelte**
 
 - **Purpose**: Recent media uploads and management
 - **Features**: Thumbnail previews, upload statistics, storage usage
@@ -235,35 +235,35 @@ Content and media monitoring for editorial workflows:
 
 Operational insights and system communication:
 
-#### **LogsWidget.svelte**
+#### **logs-widget.svelte**
 
 - **Purpose**: Application log monitoring and debugging
 - **Features**: Log level filtering, real-time log streaming
 - **Refresh**: 5-second intervals
 - **Size**: 3x2 grid units
 
-#### **SystemMessagesWidget.svelte**
+#### **system-messages-widget.svelte**
 
 - **Purpose**: Important system announcements and notifications
 - **Features**: Administrative messages, maintenance notifications
 - **Refresh**: 60-second intervals
 - **Size**: 3x1 grid units
 
-#### **UserOnlineWidget.svelte**
+#### **user-online-widget.svelte**
 
 - **Purpose**: Active user sessions and concurrent usage
 - **Features**: Online user count, session duration statistics
 - **Refresh**: 30-second intervals
 - **Size**: 2x1 grid units
 
-#### **PerformanceWidget.svelte**
+#### **performance-widget.svelte**
 
 - **Purpose**: Application performance metrics and optimization insights
 - **Features**: Response times, throughput, performance trends
 - **Refresh**: 15-second intervals
 - **Size**: 3x2 grid units
 
-#### **UnifiedMetricsWidget.svelte**
+#### **unified-metrics-widget.svelte**
 
 - **Purpose**: Consolidated system metrics overview
 - **Features**: Multi-metric dashboard, customizable thresholds
@@ -303,7 +303,7 @@ function handleDragStart(event, widget) {
 }
 
 function handleDrop(event) {
-	// Update widget positions in systemPreferences
+	// Update widget positions in system-preferences
 	// Persist new layout configuration
 }
 ```
@@ -451,7 +451,7 @@ export const WIDGET_DEFAULTS = {
 
 ## Audit Log Widget Deep Dive
 
-The new **AuditLogWidget** represents the latest advancement in dashboard security monitoring:
+The new **audit-log-widget** represents the latest advancement in dashboard security monitoring:
 
 ### Role-Based Functionality
 
@@ -591,7 +591,7 @@ Performance metrics from the MetricsService.
 }
 ```
 
-**Use Case**: PerformanceWidget, UnifiedMetricsWidget
+**Use Case**: performance-widget, unified-metrics-widget
 
 ---
 
@@ -641,7 +641,7 @@ Comprehensive system information: CPU, memory, disk, network, OS, processes.
 }
 ```
 
-**Use Case**: CPUWidget, MemoryWidget, DiskWidget, SystemHealthWidget
+**Use Case**: cpu-widget, memory-widget, disk-widget, system-health-widget
 
 ---
 
@@ -685,7 +685,7 @@ System logs with ANSI color conversion to HTML.
 }
 ```
 
-**Use Case**: LogsWidget
+**Use Case**: logs-widget
 
 ---
 
@@ -721,7 +721,7 @@ Recent content from all collections.
 ]
 ```
 
-**Use Case**: Last5ContentWidget
+**Use Case**: last5-content-widget
 
 ---
 
@@ -751,7 +751,7 @@ Recent media files from the media library.
 ]
 ```
 
-**Use Case**: Last5MediaWidget
+**Use Case**: last5-media-widget
 
 ---
 
@@ -784,7 +784,7 @@ Currently online users with session duration.
 }
 ```
 
-**Use Case**: UserOnlineWidget
+**Use Case**: user-online-widget
 
 ---
 
@@ -820,7 +820,7 @@ System messages from log files.
 ]
 ```
 
-**Use Case**: SystemMessagesWidget
+**Use Case**: system-messages-widget
 
 ---
 
@@ -859,7 +859,7 @@ Cache performance metrics from CacheMetrics service.
 }
 ```
 
-**Use Case**: CacheMonitorWidget
+**Use Case**: cache-monitor-widget
 
 ---
 
@@ -909,9 +909,9 @@ beforeAll(async () => {
 
 ### Adding New Widgets
 
-1. **Create Widget File**: `src/routes/(app)/dashboard/widgets/MyWidget.svelte`
+1. **Create Widget File**: `src/routes/(app)/dashboard/widgets/my-widget.svelte`
 2. **Export Metadata**: Include `widgetMeta` object
-3. **Extend BaseWidget**: Use provided component infrastructure
+3. **Extend base-widget**: Use provided component infrastructure
 4. **Auto-Registration**: Widget appears automatically in picker
 
 ### Widget Development Best Practices
@@ -931,11 +931,11 @@ beforeAll(async () => {
   // Widget logic, data loading, state management
 </script>
 
-<BaseWidget {label} {size} {onSizeChange}>
+<base-widget {label} {size} {onSizeChange}>
   {#snippet children()}
     <!-- Widget content -->
   {/snippet}
-</BaseWidget>
+</base-widget>
 ```
 
 ### Configuration Persistence
@@ -944,11 +944,11 @@ Widget configurations are automatically persisted:
 
 ```typescript
 // System preferences store widget layouts
-systemPreferences: {
+system-preferences: {
 	preferences: [
 		{
 			id: 'widget-123',
-			component: 'AuditLogWidget',
+			component: 'audit-log-widget',
 			size: { w: 3, h: 3 },
 			position: { x: 0, y: 0 },
 			config: { showPersonalOnly: false }

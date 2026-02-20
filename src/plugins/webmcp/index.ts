@@ -45,7 +45,6 @@ export async function initWebMCP() {
 	console.log('[WebMCP] Initializing...');
 
 	// Wait for polyfill to be active
-	// @ts-expect-error - allow dynamic access to window.navigator.modelContext
 	if (!window.navigator.modelContext) {
 		console.warn('[WebMCP] navigator.modelContext not found. Ensure @mcp-b/global is loaded.');
 		return;

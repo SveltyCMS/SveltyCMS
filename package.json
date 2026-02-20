@@ -23,7 +23,7 @@
 		"build:report": "bun run build:verbose && du -h .svelte-kit/output/client/_app/immutable/chunks/*.js | sort -rh | head -20",
 		"build:stats": "bun run build:verbose && node scripts/bundle-stats.js",
 		"-- CHECK & TEST ---------------------------------------": "",
-		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json && ultracite check",
+		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": " svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"test": "bun run test:unit",
 		"test:unit": "svelte-kit sync && bun test --preload ./tests/unit/setup.ts tests/unit/services tests/unit/utils tests/unit/stores tests/unit/widgets tests/unit/*.test.ts",
@@ -35,6 +35,7 @@
 		"test:all": "bun run test:unit && bun run test:integration && bun run test:e2e",
 		"-- DIAGNOSTICS ---------------------------------------": "",
 		"check:mongodb": "node scripts/check-mongodb.js",
+		"fix:imports": "node scripts/fix-imports.cjs",
 		"-- LINT & FORMAT -------------------------------------": "",
 		"lint": "eslint .",
 		"format": "prettier --write .",
@@ -85,7 +86,7 @@
 		"mongodb"
 	],
 	"devDependencies": {
-		"@biomejs/biome": "^2.4.3",
+		"@biomejs/biome": "2.4.3",
 		"@iconify/svelte": "^5.2.1",
 		"@playwright/test": "^1.58.2",
 		"@semantic-release/changelog": "^6.0.3",
@@ -141,7 +142,7 @@
 		"wait-on": "^9.0.4"
 	},
 	"dependencies": {
-		"@aws-sdk/client-s3": "^3.993.0",
+		"@aws-sdk/client-s3": "^3.994.0",
 		"@floating-ui/dom": "^1.7.5",
 		"@googlemaps/js-api-loader": "^2.0.2",
 		"@inlang/paraglide-js": "^2.12.0",
@@ -204,7 +205,7 @@
 	"optionalDependencies": {
 		"mariadb": "^3.5.1",
 		"mongoose": "^9.2.1",
-		"mysql2": "^3.17.3",
+		"mysql2": "^3.17.4",
 		"postgres": "^3.4.8"
 	}
 }

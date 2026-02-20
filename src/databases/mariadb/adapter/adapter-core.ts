@@ -38,6 +38,8 @@ export class AdapterCore {
 
 	public pool: mysql.Pool | null = null;
 	public db: MySql2Database<typeof schema> | null = null;
+	public crud!: import('../crud/crud-module').CrudModule;
+	public batch!: import('../operations/batch-module').BatchModule;
 	protected connected = false;
 	public collectionRegistry = new Map<string, unknown>();
 
@@ -171,7 +173,7 @@ export class AdapterCore {
 		}
 	}
 
-	protected wrap<T>(fn: () => Promise<T>, code: string): Promise<DatabaseResult<T>> {
+	public async wrap<T>(fn: () => Promise<T>, code: string): Promise<DatabaseResult<T>> {
 		if (!this.db) {
 			return Promise.resolve(this.notConnectedError<T>());
 		}
@@ -184,7 +186,7 @@ export class AdapterCore {
 		}
 	}
 
-	protected handleError<T>(error: unknown, code: string): DatabaseResult<T> {
+	public handleError<T>(error: unknown, code: string): DatabaseResult<T> {
 		const message = error instanceof Error ? error.message : String(error);
 		logger.error(`MariaDB adapter error [${code}]:`, message);
 		return {
@@ -194,7 +196,7 @@ export class AdapterCore {
 		};
 	}
 
-	protected notImplemented<T>(method: string): DatabaseResult<T> {
+	public notImplemented<T>(method: string): DatabaseResult<T> {
 		const message = `Method ${method} not yet implemented for MariaDB adapter.`;
 		logger.warn(message);
 		return {
@@ -204,7 +206,7 @@ export class AdapterCore {
 		};
 	}
 
-	protected notConnectedError<T>(): DatabaseResult<T> {
+	public notConnectedError<T>(): DatabaseResult<T> {
 		return {
 			success: false,
 			message: 'Database not connected',

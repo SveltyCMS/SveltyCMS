@@ -1,0 +1,869 @@
+---
+path: 'docs/api/widget-api.mdx'
+title: 'Widget Management API'
+description: 'Complete API reference for managing widgets in SveltyCMS including installation, activation, and dependency management.'
+order: 6
+icon: 'mdi:puzzle'
+author: 'admin'
+created: '2025-10-05'
+updated: '2025-10-27'
+tags:
+  - 'api'
+  - 'widgets'
+  - 'plugins'
+  - 'extensions'
+---
+
+# Widget Management API
+
+## Overview
+
+The Widget API provides comprehensive endpoints for managing widgets (plugins/extensions) in SveltyCMS. Widgets extend functionality and can be core (built-in) or custom (user-installed). All API responses follow a standardized format for consistency and ease of parsing.
+
+**Base Path:** `/api/widgets`
+
+## Authentication
+
+All widget endpoints require authentication:
+
+```http
+Cookie: session=your-session-id
+```
+
+**Permissions Required:** `api:widgets` for all endpoints
+
+## Response Format
+
+All API endpoints return a standardized JSON response:
+
+```json
+{
+  "success": boolean,      // Request success status
+  "data": any,             // The requested data (if successful)
+  "message": string,       // Success or error message
+  "error": string,         // Error code/details (if failed)
+  "performance": {         // Performance metrics
+    "duration": number     // Execution time in ms
+  }
+}
+```
+
+## Endpoints
+
+### 1. List Widgets
+
+Retrieves comprehensive information about all available widgets.
+
+#### Request
+
+```http
+GET /api/widgets/list
+```
+
+**Query Parameters:**
+
+- `tenantId` (string, optional) - Filter by tenant (multi-tenant mode)
+- `category` (string, optional) - Filter by widget category
+- `status` (string, optional) - Filter by status (`active`, `inactive`, `core`)
+
+**Permissions Required:** `api:widgets`
+
+#### Response
+
+**Success (200):**
+
+```json
+{
+	"success": true,
+	"data": {
+		"widgets": [
+			{
+				"name": "widgetFunction",
+				"version": "1.0.0",
+				"category": "core",
+				"isActive": true,
+				"isCore": true,
+				"dependencies": [],
+				"pillar": {
+					"definition": { "exists": true },
+					"input": { "exists": true, "componentPath": "..." },
+					"display": { "exists": true, "componentPath": "..." }
+				},
+				"metadata": {
+					"author": "SveltyCMS",
+					"license": "MIT",
+					"icon": "mdi:puzzle"
+				}
+			}
+			// ... more widgets
+		],
+		"summary": {
+			"total": 25,
+			"active": 18,
+			"inactive": 5,
+			"core": 15,
+			"custom": 10
+		}
+	},
+	"message": "Widgets retrieved successfully",
+	"performance": { "duration": 45 }
+}
+```
+
+**Error Responses:**
+
+```json
+{
+	"success": false,
+	"message": "Unauthorized access",
+	"error": "UNAUTHORIZED"
+}
+```
+
+---
+
+### 2. Get Active Widgets
+
+Returns a list of currently active widgets with enriched 3-pillar architecture metadata.
+
+**Endpoint:** `GET /api/widgets/active`
+
+**Query Parameters:**
+
+- `refresh` (optional): Set to `true` to bypass cache.
+
+**Response:**
+
+```json
+{
+	"success": true,
+	"data": {
+		"widgets": [
+			{
+				"name": "WidgetName",
+				"isCore": true,
+				"icon": "mdi:icon",
+				"inputComponentPath": "...",
+				"displayComponentPath": "..."
+			}
+		]
+	}
+}
+```
+
+### 3. Install Widget
+
+Installs a widget from the marketplace or local package.
+
+#### Request
+
+```http
+POST /api/widgets/install
+```
+
+**Headers:**
+
+```http
+Cookie: session=your-session-id
+Content-Type: application/json
+```
+
+**Body:**
+
+```json
+{
+	"widgetId": "custom-widget-123",
+	"tenantId": "tenant-xyz",
+	"version": "1.0.0",
+	"config": {
+		"option1": "value1"
+	}
+}
+```
+
+**Permissions Required:** `api:widgets`, `config:widgetInstall`
+
+#### Response
+
+**Success (200):**
+
+```json
+{
+	"success": true,
+	"data": {
+		"widgetId": "custom-widget-123",
+		"installedAt": "2025-10-05T14:30:00Z",
+		"securityScan": {
+			"safe": true,
+			"issues": []
+		}
+	},
+	"message": "Widget installed successfully",
+	"performance": { "duration": 120 }
+}
+```
+
+**Security Failure (403):**
+
+```json
+{
+	"success": false,
+	"message": "Security scan failed: Malicious code detected",
+	"error": "SECURITY_VIOLATION",
+	"data": {
+		"issues": ["Use of forbidden function: eval()"]
+	}
+}
+```
+
+---
+
+### 3. Uninstall Widget
+
+Uninstalls a previously installed widget.
+
+#### Request
+
+```http
+POST /api/widgets/uninstall
+```
+
+**Headers:**
+
+```http
+Cookie: session=your-session-id
+Content-Type: application/json
+```
+
+**Body:**
+
+```json
+{
+	"widgetName": "custom-widget",
+	"tenantId": "tenant-xyz",
+	"force": false
+}
+```
+
+**Parameters:**
+
+- `widgetName` (string, required) - Name of widget to uninstall
+- `tenantId` (string, optional) - Tenant ID (defaults to user's tenant)
+- `force` (boolean, optional) - Force uninstall even with dependencies
+
+**Permissions Required:** `api:widgets`, `config:widgetUninstall`
+
+#### Response
+
+**Success (200):**
+
+```json
+{
+	"success": true,
+	"data": {
+		"widgetName": "custom-widget",
+		"uninstalledAt": "2025-10-05T14:30:00Z"
+	},
+	"message": "Widget uninstalled successfully",
+	"performance": { "duration": 85 }
+}
+```
+
+**Error Responses:**
+
+```json
+// 400 Bad Request - Missing widget name
+{
+  "success": false,
+  "message": "Widget name is required",
+  "error": "BAD_REQUEST"
+}
+
+// 400 Bad Request - Has dependencies
+{
+  "success": false,
+  "message": "Cannot uninstall: Other widgets depend on this widget",
+  "error": "DEPENDENCY_ERROR",
+  "data": {
+    "dependents": ["widget1", "widget2"]
+  }
+}
+
+// 409 Conflict - Core widget
+{
+  "success": false,
+  "message": "Cannot uninstall core widget",
+  "error": "CORE_WIDGET_ERROR"
+}
+```
+
+---
+
+### 4. Activate/Deactivate Widget
+
+Toggle widget status.
+
+#### Request
+
+```http
+POST /api/widgets/status
+```
+
+**Headers:**
+
+```http
+Cookie: session=your-session-id
+Content-Type: application/json
+```
+
+**Body:**
+
+```json
+{
+	"widgetName": "custom-widget",
+	"isActive": true, // or false
+	"tenantId": "tenant-xyz"
+}
+```
+
+**Permissions Required:** `api:widgets`
+
+#### Response
+
+**Success (200):**
+
+```json
+{
+	"success": true,
+	"data": {
+		"widgetName": "custom-widget",
+		"status": "active", // or inactive
+		"updatedAt": "2025-10-05T14:30:00Z"
+	},
+	"message": "Widget activated successfully",
+	"performance": { "duration": 40 }
+}
+```
+
+**Error Responses:**
+
+```json
+// 404 Not Found
+{
+  "success": false,
+  "message": "Widget not found",
+  "error": "WIDGET_NOT_FOUND"
+}
+
+// 400 Bad Request - Already in target state
+{
+  "success": false,
+  "message": "Widget is already active",
+  "error": "BAD_REQUEST"
+}
+```
+
+---
+
+### 5. Get Widget Status
+
+Retrieves the current status of a specific widget.
+
+#### Request
+
+```http
+GET /api/widgets/status?name=mediaUpload
+```
+
+**Query Parameters:**
+
+- `name` (string) - The widget name
+- `tenantId` (string, optional) - Tenant ID
+
+**Headers:**
+
+```http
+Cookie: session=your-session-id
+```
+
+**Permissions Required:** `api:widgets`
+
+#### Response
+
+**Success (200):**
+
+```json
+{
+	"success": true,
+	"data": {
+		"widget": {
+			"name": "mediaUpload",
+			"version": "1.2.0",
+			"status": "active",
+			"isCore": true,
+			"dependencies": ["widgetFunction"],
+			"dependents": ["imageGallery", "fileManager"],
+			"installedAt": "2025-01-01T00:00:00Z",
+			"lastUpdated": "2025-10-05T14:30:00Z"
+		}
+	},
+	"message": "Widget status retrieved",
+	"performance": { "duration": 15 }
+}
+```
+
+**Error Responses:**
+
+```json
+// 404 Not Found
+{
+	"success": false,
+	"message": "Widget 'mediaUpload' not found",
+	"error": "WIDGET_NOT_FOUND"
+}
+```
+
+---
+
+### 6. Validate Widget
+
+Validates a widget's integrity, dependencies, and security compliance.
+
+#### Request
+
+```http
+POST /api/widgets/validate
+```
+
+**Headers:**
+
+```http
+Cookie: session=your-session-id
+Content-Type: application/json
+```
+
+**Body:**
+
+```json
+{
+	"widgetName": "custom-widget",
+	"version": "1.0.0"
+}
+```
+
+**Permissions Required:** `api:widgets`
+
+#### Response
+
+**Success (200):**
+
+```json
+{
+	"success": true,
+	"data": {
+		"valid": true,
+		"checks": {
+			"fileIntegrity": "passed",
+			"dependencies": "passed",
+			"compatibility": "passed",
+			"permissions": "passed",
+			"security": "passed"
+		},
+		"securityReport": {
+			"scannedFiles": 5,
+			"threatsFound": 0
+		}
+	},
+	"message": "Widget validation successful",
+	"performance": { "duration": 150 }
+}
+```
+
+**Validation Failure (200 with warnings):**
+
+```json
+{
+	"success": true,
+	"valid": false,
+	"checks": {
+		"fileIntegrity": "passed",
+		"dependencies": "failed",
+		"compatibility": "warning",
+		"permissions": "passed",
+		"security": "passed"
+	},
+	"errors": ["Missing dependency: widgetFunction v2.0.0"],
+	"warnings": ["Newer version available: 1.3.0"],
+	"securityReport": {
+		"scannedFiles": 5,
+		"threatsFound": 0
+	}
+}
+```
+
+**Security Failure (403):**
+
+```json
+{
+	"success": false,
+	"message": "Security scan failed: Malicious code detected",
+	"error": "SECURITY_VIOLATION",
+	"data": {
+		"issues": ["Use of forbidden function: eval()"]
+	}
+}
+```
+
+---
+
+### 7. Sync Widgets
+
+Synchronizes widget registry with filesystem state.
+
+#### Request
+
+```http
+POST /api/widgets/sync
+```
+
+**Headers:**
+
+```http
+Cookie: session=your-session-id
+Content-Type: application/json
+```
+
+**Body:**
+
+```json
+{
+	"tenantId": "tenant-xyz",
+	"force": false
+}
+```
+
+**Permissions Required:** `api:widgets`
+
+#### Response
+
+**Success (200):**
+
+```json
+{
+	"success": true,
+	"data": {
+		"syncedAt": "2025-10-05T14:30:00Z",
+		"changes": {
+			"created": 2,
+			"skipped": 15,
+			"updated": 3,
+			"errors": 0
+		}
+	},
+	"message": "Widget registry synchronized",
+	"performance": { "duration": 200 }
+}
+```
+
+**Error Responses:**
+
+```json
+// 500 Internal Server Error
+{
+	"success": false,
+	"message": "Failed to synchronize widgets",
+	"error": "INTERNAL_ERROR"
+}
+```
+
+---
+
+### 8. Get Active Widgets
+
+Retrieves only currently active widgets for the tenant.
+
+#### Request
+
+```http
+GET /api/widgets/active
+```
+
+**Query Parameters:**
+
+- `tenantId` (string, optional) - Filter by tenant
+
+**Headers:**
+
+```http
+Cookie: session=your-session-id
+```
+
+**Permissions Required:** `api:widgets`
+
+#### Response
+
+**Success (200):**
+
+```json
+{
+	"success": true,
+	"data": {
+		"activeWidgets": ["widgetFunction", "mediaUpload", "userManagement", "collectionBuilder"],
+		"count": 4,
+		"tenantId": "default-tenant"
+	},
+	"message": "Active widgets retrieved",
+	"performance": { "duration": 25 }
+}
+```
+
+---
+
+### 9. Get Required Widgets
+
+Retrieves a list of required (core) widgets that cannot be disabled.
+
+#### Request
+
+```http
+GET /api/widgets/required
+```
+
+**Headers:**
+
+```http
+Cookie: session=your-session-id
+```
+
+**Permissions Required:** `api:widgets`
+
+#### Response
+
+**Success (200):**
+
+```json
+{
+	"success": true,
+	"data": {
+		"required": ["widgetFunction", "authentication", "userManagement", "systemSettings"],
+		"count": 4
+	},
+	"message": "Required widgets retrieved",
+	"performance": { "duration": 12 }
+}
+```
+
+## Security & Error Handling
+
+All endpoints implement robust error handling. Common error codes:
+
+- `UNAUTHORIZED`: Authentication missing or invalid.
+- `FORBIDDEN`: Insufficient permissions.
+- `WIDGET_NOT_FOUND`: The requested widget does not exist.
+- `DEPENDENCY_ERROR`: Action blocked by unsatisfied dependencies.
+- `SECURITY_VIOLATION`: Malicious code or security policy violation.
+- `INTERNAL_ERROR`: Unexpected server error.
+
+Log files are generated for all operations, including security scans and audit trails.
+
+---
+
+## Widget Lifecycle
+
+1. **Installation** - Download and install widget files
+2. **Validation** - Check integrity, dependencies, compatibility
+3. **Registration** - Add to widget registry
+4. **Activation** - Enable widget functionality
+5. **Usage** - Widget is active and functional
+6. **Deactivation** - Disable without removing
+7. **Uninstallation** - Remove widget completely
+
+---
+
+## Widget Dependencies
+
+Widgets can depend on other widgets:
+
+```json
+{
+	"name": "imageGallery",
+	"dependencies": ["widgetFunction", "mediaUpload"],
+	"dependents": ["portfolioWidget"]
+}
+```
+
+**Dependency Rules:**
+
+- Cannot uninstall widget if others depend on it
+- Dependencies must be installed before dependent
+- Circular dependencies are not allowed
+
+---
+
+## Database-Agnostic Implementation
+
+The Widget API uses permission-based authorization (no direct DB queries):
+
+```typescript
+// Permission check only - no database operations
+const hasPermission = hasPermissionWithRoles(user, 'api:widgets', roles);
+```
+
+Widget data is stored in:
+
+- **File System** - Widget code and assets
+- **Widget Store** - Runtime registry (Svelte store)
+- **Configuration** - Settings and metadata
+
+---
+
+## Multi-Tenancy Support
+
+When multi-tenant mode is enabled:
+
+- Each tenant has isolated widget installations
+- Core widgets are shared across tenants
+- Custom widgets are tenant-specific
+- Widget settings are tenant-scoped
+
+**Tenant-Scoped Installation:**
+
+```http
+POST /api/widgets/install
+Content-Type: application/json
+
+{
+  "widgetId": "custom-widget",
+  "tenantId": "tenant-abc"
+}
+```
+
+---
+
+## Widget Categories
+
+Widgets are organized by category:
+
+- **Core** - Essential system widgets
+- **Media** - Media management widgets
+- **Content** - Content creation/editing widgets
+- **User** - User management widgets
+- **Analytics** - Analytics and reporting widgets
+- **Integration** - Third-party integrations
+- **Custom** - User-created widgets
+
+---
+
+## Security Considerations
+
+### Access Control
+
+- Only users with `api:widgets` permission can manage widgets
+- Widget installation requires admin rights
+- Tenant isolation in multi-tenant mode
+
+### Widget Validation
+
+- Code signing verification
+- Dependency validation
+- Permission declaration
+- Sandbox execution (planned)
+
+### Widget Sources
+
+- Official marketplace (verified)
+- Third-party marketplace (community)
+- Local installation (custom)
+
+---
+
+## Widget Development
+
+### Widget Structure
+
+```
+my-widget/
+├── index.ts          # Main entry point
+├── widget.json       # Metadata and configuration
+├── Component.svelte  # UI component
+├── api/              # API endpoints
+└── assets/           # Static assets
+```
+
+### Widget Metadata (widget.json)
+
+```json
+{
+	"name": "my-widget",
+	"version": "1.0.0",
+	"description": "My custom widget",
+	"author": "Developer Name",
+	"license": "MIT",
+	"category": "custom",
+	"dependencies": ["widgetFunction"],
+	"permissions": ["media:write", "content:read"],
+	"icon": "mdi:puzzle",
+	"homepage": "https://example.com"
+}
+```
+
+---
+
+## Testing
+
+### JavaScript Example
+
+```javascript
+// List all widgets
+const response = await fetch('/api/widgets/list', {
+	credentials: 'include'
+});
+const { widgets, summary } = await response.json();
+
+// Install widget
+const installResponse = await fetch('/api/widgets/install', {
+	method: 'POST',
+	credentials: 'include',
+	headers: { 'Content-Type': 'application/json' },
+	body: JSON.stringify({
+		widgetId: 'custom-widget-123',
+		tenantId: 'my-tenant'
+	})
+});
+
+// Activate widget
+await fetch('/api/widgets/status', {
+	method: 'POST',
+	credentials: 'include',
+	headers: { 'Content-Type': 'application/json' },
+	body: JSON.stringify({
+		widgetName: 'custom-widget',
+		isActive: true
+	})
+});
+```
+
+---
+
+## Related Documentation
+
+- [Widget Architecture](/docs/dev-guide/widget-system-architecture)
+- [Widget Development Guide](/docs/widgets/development)
+- [Core Widgets Reference](/docs/widgets/core/)
+- [Custom Widget Examples](/docs/widgets/examples)
+
+---
+
+## Implementation Details
+
+For implementation details, see:
+
+- `src/routes/api/widgets/list/+server.ts` - List widgets
+- `src/routes/api/widgets/install/+server.ts` - Install endpoint
+- `src/routes/api/widgets/uninstall/+server.ts` - Uninstall endpoint
+- `src/stores/widget-store.svelte.ts` - Widget registry store
+- `src/databases/auth/permissions.ts` - Permission checking
+
+```
+
+```

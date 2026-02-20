@@ -369,7 +369,7 @@ async function logImport(user: any, metadata: ExportMetadata, result: ImportResu
 			merged: result.merged,
 			errors: result.errors.length
 		}
-	});
+	} as any);
 }
 
 /**

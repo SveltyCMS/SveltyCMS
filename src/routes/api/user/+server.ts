@@ -1,21 +1,4 @@
-/**
- * @file src/routes/api/user/index.ts
- * @description API endpoints for user management.
- *
- * This module provides functionality to:
- * - Retrieve all users for the current tenant (GET)
- * - Create a new user within the current tenant and send a token via email (POST)
- *
- * Features:
- * - **Defense in Depth**: Specific permission checks for both GET and POST.
- * - User creation with role assignment and email notification.
- * - Form validation
- * - Error handling and logging.
- *
- * Usage:
- * GET /api/user - Retrieve all users (requires 'read:user:all' permission)
- * POST /api/user - Create a new user (requires 'create:user:any' permission)
- */
+/** @file src/routes/api/user/+server.ts @description API endpoints for user management features: [user retrieval with pagination, tenant-scoped user creation, role assignment, invite token generation, email notifications] */
 import { auth, dbAdapter } from '@src/databases/db';
 import type { ISODateString } from '@src/databases/db-interface';
 import { getPrivateSettingSync } from '@src/services/settings-service';

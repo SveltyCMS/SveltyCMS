@@ -1,7 +1,4 @@
-/**
- * @file src/routes/api/system/version/+server.ts
- * @description API endpoint for checking system version and security updates.
- */
+/** @file src/routes/api/system/version/+server.ts @description API endpoint for checking system version and security updates features: [GitHub API integration, in-memory caching, fallback to package.json] */
 import { json } from '@sveltejs/kit';
 import pkg from '../../../../../package.json';
 

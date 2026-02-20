@@ -1,6 +1,6 @@
 ---
-path: 'docs/architecture/components/EntryList.mdx'
-title: 'EntryList Component'
+path: 'docs/architecture/components/entry-list.mdx'
+title: 'entry-list Component'
 description: 'Documentation for the main collection data table with search, filtering, pagination, and hover preloading.'
 order: 2
 icon: 'mdi:table'
@@ -9,15 +9,15 @@ created: '2026-01-04'
 updated: '2026-01-04'
 tags:
   - 'components'
-  - 'entrylist'
+  - 'entry-list'
   - 'table'
   - 'pagination'
   - 'filtering'
 ---
 
-# EntryList Component
+# entry-list Component
 
-The `EntryList` is the primary component for displaying collection data in a tabular format with enterprise features like server-side search, filtering, and intelligent preloading.
+The `entry-list` is the primary component for displaying collection data in a tabular format with enterprise features like server-side search, filtering, and intelligent preloading.
 
 ---
 
@@ -30,7 +30,7 @@ flowchart LR
         SC[Server Cache]
     end
 
-    subgraph EntryList["EntryList Component"]
+    subgraph entry-list["entry-list Component"]
         direction TB
         TH[Table Header]
         TR[Table Rows]
@@ -45,7 +45,7 @@ flowchart LR
     end
 
     DB --> SC
-    SC --> EntryList
+    SC --> entry-list
     TR -->|Hover| HP
     HP --> PC
 ```
@@ -71,7 +71,7 @@ flowchart LR
 ```mermaid
 sequenceDiagram
     participant U as User
-    participant EL as EntryList
+    participant EL as entry-list
     participant URL as URL State
     participant S as Server
 
@@ -92,7 +92,7 @@ sequenceDiagram
 ## Props
 
 ```typescript
-interface EntryListProps {
+interface entry-listProps {
 	entries: Entry[];
 	pagination: {
 		currentPage: number;
@@ -122,11 +122,11 @@ interface EntryListProps {
 
 ## Plugin Extensibility
 
-The EntryList component can be extended through plugins using the **`dashboard` injection zone** for list-level enhancements.
+The entry-list component can be extended through plugins using the **`dashboard` injection zone** for list-level enhancements.
 
 ### Plugin Integration Points
 
-Plugins can enhance the EntryList with:
+Plugins can enhance the entry-list with:
 
 - **Custom Actions**: Bulk operations, export tools, workflow automation
 - **Data Visualizations**: Charts, analytics overlays, trend indicators
@@ -160,13 +160,13 @@ export const exportPlugin: Plugin = {
 ```
 
 > [!NOTE]
-> For comprehensive plugin development, see [Plugin Architecture](/docs/guides/Plugin_Architecture.mdx).
+> For comprehensive plugin development, see [Plugin Architecture](/docs/guides/plugin-architecture.mdx).
 
 ---
 
 ## Related Documentation
 
-- [MultiButton Component](./EntryList_MultiButton.mdx)
-- [Fields Component](./Fields.mdx)
+- [MultiButton Component](./entry-list-multibutton.mdx)
+- [fields Component](./fields.mdx)
 - [Hover Preloading Architecture](/docs/architecture/hover-preloading.mdx)
 - [Collection Store Dataflow](/docs/architecture/collection-store-dataflow.mdx)

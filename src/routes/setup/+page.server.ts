@@ -116,7 +116,7 @@ export const actions = {
 			const { getSetupDatabaseAdapter } = await import('./utils');
 
 			try {
-				const { dbAdapter, connectionString } = await getSetupDatabaseAdapter(dbConfig);
+				const { dbAdapter } = await getSetupDatabaseAdapter(dbConfig);
 
 				logger.info('📡 Connection established, sending ping...');
 				const health = await dbAdapter.getConnectionHealth();

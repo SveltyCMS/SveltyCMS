@@ -1,20 +1,4 @@
-/**
- * @file src/routes/api/metrics/+server.ts
- * @description Unified metrics API endpoint for monitoring and observability
- *
- * ### Features
- * - Comprehensive system metrics from unifiedmetrics-service * - Prometheus-compatible format support
- * - Admin-only access with proper authorization
- * - Multiple output formats (JSON, Prometheus)
- * - Real-time performance data
- *
- * ### Endpoints
- * - `GET /api/metrics` - JSON format metrics
- * - `GET /api/metrics?format=prometheus` - Prometheus format
- * - `POST /api/metrics/reset` - Reset metrics (admin only)
- *
- * @monitoring Provides enterprise-grade metrics for system monitoring
- */
+/** @file src/routes/api/metrics/+server.ts @description Unified metrics API endpoint for monitoring and observability features: [Prometheus-compatible export, JSON metrics, real-time performance data, admin-only reset] */
 
 // Services
 import { metricsService } from '@src/services/metrics-service';

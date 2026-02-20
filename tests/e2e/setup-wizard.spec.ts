@@ -41,7 +41,6 @@ test('Setup Wizard: Configure DB and Create Admin', async ({ page }) => {
 
 	if (page.url().includes('/login')) {
 		console.log('System already configured. Skipping setup.');
-		test();
 		return;
 	}
 

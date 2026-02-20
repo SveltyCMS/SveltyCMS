@@ -43,7 +43,7 @@ export class AuditLogService {
 			await mkdir(this.logDir, { recursive: true });
 			const logs = await this.readLogs();
 			if (logs.length > 0) {
-				this.lastHash = logs.at(-1).hash;
+				this.lastHash = logs.at(-1)!.hash;
 			}
 			this.initialized = true;
 		} catch (e) {

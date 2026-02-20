@@ -1,0 +1,83 @@
+---
+path: 'src/widgets/core/select/README.mdx'
+title: 'Select Widget'
+description: 'Standard dropdown selection widget for choosing a single value from a predefined list.'
+order: 5
+icon: 'mdi:form-select'
+author: 'admin'
+created: '2026-02-20'
+updated: '2026-02-20'
+tags:
+  - 'widgets'
+  - 'core'
+  - 'select'
+  - 'forms'
+---
+
+# Select Widget
+
+The **Select Widget** provides a standard dropdown interface for users to choose a single option from a list of predefined choices. It is one of the most common core widgets used for categorical data.
+
+## 🚀 Features
+
+- **Flexible Options**: Supports both simple string arrays and complex label/value objects.
+- **Validation**: Automatically validates that the submitted value matches one of the provided options.
+- **Placeholder Support**: Custom text for the unselected state.
+- **Multilingual Support**: Can be marked as `translated` for per-language values.
+- **Type Safety**: Ensures the value returned from the form matches the option types.
+
+## 📦 Usage
+
+### Basic Example
+
+In your collection schema (e.g., `Posts.ts`):
+
+```typescript
+import { widgets } from '@widgets';
+
+export default {
+	fields: [
+		widgets.Select({
+			label: 'Category',
+			db_fieldName: 'category',
+			placeholder: 'Choose a category...',
+			options: ['News', 'Technology', 'Lifestyle', 'Health']
+		})
+	]
+};
+```
+
+### Complex Options
+
+For cases where the stored value differs from the display label:
+
+```typescript
+widgets.Select({
+	label: 'Status',
+	options: [
+		{ label: 'Published', value: 'pub' },
+		{ label: 'Draft', value: 'drf' },
+		{ label: 'Archived', value: 'arc' }
+	]
+});
+```
+
+## ⚙️ Configuration
+
+| Option        | Type                         | Default | Description                                                                |
+| :------------ | :--------------------------- | :------ | :------------------------------------------------------------------------- |
+| `options`     | `(string \| SelectOption)[]` | `[]`    | **Required.** The list of choices available in the dropdown.               |
+| `placeholder` | `string`                     | `""`    | The text shown when no option is selected.                                 |
+| `required`    | `boolean`                    | `false` | If true, a selection must be made.                                         |
+| `translated`  | `boolean`                    | `false` | If true, the field can have different values for each configured language. |
+| `color`       | `string`                     | `""`    | Optional theme color for the component.                                    |
+
+## 📊 Data Structure
+
+The widget stores a single value (string or number) corresponding to the selected option's `value` (or the string itself if using a simple array).
+
+```json
+"Technology"
+// or if using SelectOption
+"pub"
+```

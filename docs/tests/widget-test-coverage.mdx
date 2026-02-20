@@ -110,7 +110,7 @@ test('should create input widget with default parameters', () => {
 
 - Name property consistency
 - Icon property presence
-- Component paths (Input.svelte, Display.svelte)
+- Component paths (input.svelte, display.svelte)
 - Description metadata
 
 ---
@@ -285,8 +285,8 @@ test('should create widget with full configuration', () => {
 		Name: 'FullWidget',
 		Icon: 'mdi:test',
 		Description: 'A test widget',
-		inputComponentPath: '/test/Input.svelte',
-		displayComponentPath: '/test/Display.svelte',
+		inputComponentPath: '/test/input.svelte',
+		displayComponentPath: '/test/display.svelte',
 		validationSchema: string(),
 		defaults: {
 			color: 'primary',
@@ -295,7 +295,7 @@ test('should create widget with full configuration', () => {
 	});
 
 	expect(widget.Name).toBe('FullWidget');
-	expect(widget.__inputComponentPath).toBe('/test/Input.svelte');
+	expect(widget.__inputComponentPath).toBe('/test/input.svelte');
 });
 ```
 
@@ -367,7 +367,7 @@ test('should create widget with full configuration', () => {
 
 ### 5. Legacy Tests
 
-**RichText Widget Test** (`richText.test.ts`)
+**RichText Widget Test** (`rich-text.test.ts`)
 
 - ⚠️ Status: Needs refactoring for modern factory
 - Tests: 7 validation scenarios
@@ -491,7 +491,7 @@ bun test tests/bun/widgets/
 ✅ 16 tests passing (modern-widget-architecture.test.ts)
 ⚠️ 150+ tests created (core-widgets.test.ts)
 ⚠️ 120+ tests created (custom-widgets.test.ts)
-❌ 7 tests failing (richText.test.ts - legacy API)
+❌ 7 tests failing (rich-text.test.ts - legacy API)
 ❌ 5 tests failing (text.test.ts - requires browser)
 ```
 
@@ -667,7 +667,7 @@ const field = widget({ label: 'My Field' });
 
 **Problem**: Old tests expect legacy API format.
 
-**Fix**: Refactor richText.test.ts to use modern factory:
+**Fix**: Refactor rich-text.test.ts to use modern factory:
 
 ```typescript
 // Old (failing)
@@ -841,7 +841,7 @@ echo "✅ Widget tests passed"
 ### Previous
 
 - ✅ Created `modern-widget-architecture.test.ts` (16 tests)
-- ✅ Created `richText.test.ts` (7 tests - legacy)
+- ✅ Created `rich-text.test.ts` (7 tests - legacy)
 - ✅ Created `text.test.ts` (5 tests - needs browser)
 
 ---

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { deserialize } from '$app/forms';
 	import { preloadData } from '$app/navigation';
+	import { publicEnv } from '@src/stores/global-settings.svelte';
 
 	const { showOAuth = true } = $props();
 

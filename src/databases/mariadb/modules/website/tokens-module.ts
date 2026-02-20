@@ -24,7 +24,7 @@ export class WebsiteTokensModule {
 	}
 
 	private get db() {
-		return (this.core as any).db;
+		return this.core.db!;
 	}
 
 	private mapToken(dbToken: any): WebsiteToken {
@@ -36,7 +36,7 @@ export class WebsiteTokensModule {
 	}
 
 	async create(token: Omit<WebsiteToken, '_id' | 'createdAt'>): Promise<DatabaseResult<WebsiteToken>> {
-		return (this.core as any).wrap(async () => {
+		return this.core.wrap(async () => {
 			const id = utils.generateId();
 			const now = new Date();
 			// Convert ISO string dates to Date objects for Drizzle datetime columns
@@ -59,7 +59,7 @@ export class WebsiteTokensModule {
 		sort?: string;
 		order?: string;
 	}): Promise<DatabaseResult<{ data: WebsiteToken[]; total: number }>> {
-		return (this.core as any).wrap(async () => {
+		return this.core.wrap(async () => {
 			let q: any = this.db.select().from(schema.websiteTokens);
 
 			if (options.sort) {
@@ -89,14 +89,14 @@ export class WebsiteTokensModule {
 	}
 
 	async getByName(name: string): Promise<DatabaseResult<WebsiteToken | null>> {
-		return (this.core as any).wrap(async () => {
+		return this.core.wrap(async () => {
 			const [result] = await this.db.select().from(schema.websiteTokens).where(eq(schema.websiteTokens.name, name)).limit(1);
 			return result ? this.mapToken(result) : null;
 		}, 'GET_WEBSITE_TOKEN_BY_NAME_FAILED');
 	}
 
 	async delete(tokenId: DatabaseId): Promise<DatabaseResult<void>> {
-		return (this.core as any).wrap(async () => {
+		return this.core.wrap(async () => {
 			await this.db.delete(schema.websiteTokens).where(eq(schema.websiteTokens._id, tokenId));
 		}, 'DELETE_WEBSITE_TOKEN_FAILED');
 	}

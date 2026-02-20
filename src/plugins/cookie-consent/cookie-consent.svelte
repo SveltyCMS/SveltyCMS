@@ -8,6 +8,21 @@ Displays a GDPR-compliant cookie consent banner.
 	import { fade, slide } from 'svelte/transition';
 	import { consentStore } from '@src/stores/consent-store.svelte';
 	import { onMount } from 'svelte';
+	import Toggles from '@src/components/system/inputs/toggles.svelte';
+	import {
+		cookie_heading,
+		cookie_description,
+		cookie_necessary_title,
+		cookie_necessary_desc,
+		cookie_analytics_title,
+		cookie_analytics_desc,
+		cookie_marketing_title,
+		cookie_marketing_desc,
+		cookie_button_save,
+		cookie_button_customize,
+		cookie_button_reject,
+		cookie_button_accept
+	} from '@src/paraglide/messages';
 
 	let showBanner = $state(false);
 	let showDetails = $state(false);

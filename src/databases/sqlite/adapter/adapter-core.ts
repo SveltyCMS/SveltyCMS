@@ -14,10 +14,12 @@ import * as utils from '../utils';
 declare const Bun: any;
 
 export class AdapterCore {
-	protected db!: any;
-	protected sqlite!: any;
-	protected collectionRegistry = new Map<string, CollectionModel>();
-	protected dynamicTables = new Map<string, any>();
+	public db!: any;
+	public sqlite!: any;
+	public crud!: import('../crud/crud-module').CrudModule;
+	public batch!: import('../operations/batch-module').BatchModule;
+	public collectionRegistry = new Map<string, CollectionModel>();
+	public dynamicTables = new Map<string, any>();
 	protected isConnectedBoolean = false;
 	protected config: any;
 
@@ -176,7 +178,7 @@ export class AdapterCore {
 		};
 	}
 
-	protected notConnectedError(): DatabaseResult<any> {
+	public notConnectedError(): DatabaseResult<any> {
 		return {
 			success: false,
 			message: 'Database not connected',

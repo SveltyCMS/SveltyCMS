@@ -27,6 +27,15 @@ Key features:
 <script lang="ts">
 	// Utils
 	import type { MediaBase, MediaImage, MediaTypeEnum } from '@utils/media/media-models';
+	import { formatBytes } from '@utils/utils';
+	import { logger } from '@utils/logger';
+
+	// Components
+	import TableFilter from '@src/components/system/table/table-filter.svelte';
+	import TableIcons from '@src/components/system/table/table-icons.svelte';
+	import TablePagination from '@src/components/system/table/table-pagination.svelte';
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+	import TagEditorModal from '@src/components/media/tag-editor/tag-editor-modal.svelte';
 
 	interface Props {
 		filteredFiles?: (MediaBase | MediaImage)[];

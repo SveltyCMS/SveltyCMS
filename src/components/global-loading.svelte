@@ -51,6 +51,7 @@ Full-screen loading overlay with contextual messages, progress indication, and a
 	} from '@src/paraglide/messages';
 	import { globalLoadingStore, loadingOperations } from '@src/stores/loading-store.svelte';
 	import { onMount } from 'svelte';
+	import SveltyCMSLogo from './system/icons/svelty-cms-logo.svelte';
 
 	// Loading text configuration
 	interface LoadingText {

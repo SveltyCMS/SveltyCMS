@@ -1,18 +1,4 @@
-/**
- * @file src/content/utils.ts
- * @description Helper functions for Content
- *
- * Structure:
- * - constructNestedStructure: Converts a flat list of content nodes into a nested structure
- * - constructContentPaths: Converts a nested structure into a flat list of content nodes
- * - generateCategoryNodesFromPaths: Extracts category nodes from a flat list of content nodes
- *
- * Module Processing:
- * - processModule: Extracts schema from module content
- *
- * Widget Utilities:
- * - resolveWidgetPlaceholder: Resolves a widget placeholder
- */
+/** @file src/content/utils.ts @description Content management helper functions features: [nested structure construction, content path mapping, category node generation, dynamic module parsing, recursive sorting] */
 import { widgetRegistryService } from '@src/services/widget-registry-service';
 import { logger } from '@utils/logger';
 import type { ContentNode, MinimalContentNode, Schema } from './types';
@@ -177,7 +163,7 @@ export async function processModule(content: string): Promise<{ schema?: Schema 
 		`;
 
 		// Race condition safety: Only set/delete globalThis.widgets if it's not already populated
-		const alreadyPopulated = typeof globalThis !== 'undefined' && (globalThis as any).widgets;
+		const alreadyPopulated = typeof globalThis !== 'undefined' && (globalThis as unknown as { widgets?: Record<string, unknown> }).widgets;
 
 		if (!alreadyPopulated && typeof globalThis !== 'undefined') {
 			(globalThis as { widgets?: Record<string, unknown> }).widgets = widgetsObject;

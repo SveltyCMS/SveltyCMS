@@ -1,0 +1,855 @@
+---
+path: 'docs/api/dashboard-api.mdx'
+title: 'Dashboard & Monitoring API'
+description: 'Complete API reference for dashboard metrics, system monitoring, and analytics in SveltyCMS.'
+order: 8
+icon: 'mdi:view-dashboard'
+author: 'admin'
+created: '2025-10-05'
+updated: '2025-10-05'
+tags:
+  - 'api'
+  - 'dashboard'
+  - 'monitoring'
+  - 'metrics'
+  - 'analytics'
+---
+
+# Dashboard & Monitoring API
+
+## Overview
+
+The Dashboard API provides endpoints for system monitoring, performance metrics, and analytics data. These endpoints power the admin dashboard and system health monitoring.
+
+**Base Path:** `/api/dashboard`
+
+## Authentication
+
+All dashboard endpoints require authentication:
+
+```http
+Cookie: session=your-session-id
+```
+
+**Permissions Required:** `admin` or `dashboard:read`
+
+---
+
+## Endpoints
+
+### 1. System Metrics
+
+Retrieves performance and health metrics.
+
+#### Request
+
+```http
+GET /api/dashboard/metrics
+```
+
+**Query Parameters:**
+
+- `detailed` (boolean, optional) - Include detailed system metrics - default: `false`
+
+**Headers:**
+
+```http
+Cookie: session=your-session-id
+```
+
+**Permissions Required:** `admin` or `dashboard:read`
+
+#### Response
+
+**Success (200) - Basic:**
+
+```json
+{
+	"timestamp": "2025-10-05T14:30:00Z",
+	"requestCount": 1523,
+	"avgResponseTime": 45.3,
+	"errorRate": 0.02,
+	"cacheHitRate": 0.87,
+	"activeConnections": 12,
+	"uptime": 3600
+}
+```
+
+**Success (200) - Detailed:**
+
+```json
+{
+	"timestamp": "2025-10-05T14:30:00Z",
+	"requestCount": 1523,
+	"avgResponseTime": 45.3,
+	"errorRate": 0.02,
+	"cacheHitRate": 0.87,
+	"activeConnections": 12,
+	"uptime": 3600,
+	"system": {
+		"memory": {
+			"used": 256,
+			"total": 512,
+			"external": 32,
+			"rss": 384
+		},
+		"uptime": 86400,
+		"nodeVersion": "v20.10.0"
+	}
+}
+```
+
+**Metrics Explained:**
+
+- `requestCount` - Total HTTP requests served
+- `avgResponseTime` - Average response time in milliseconds
+- `errorRate` - Percentage of failed requests (0-1)
+- `cacheHitRate` - Cache hit percentage (0-1)
+- `activeConnections` - Current active connections
+- `uptime` - Server uptime in seconds
+- `memory.used` - Heap memory used (MB)
+- `memory.total` - Total heap allocated (MB)
+
+---
+
+### 2. System Information
+
+Retrieves detailed system information.
+
+#### Request
+
+```http
+GET /api/dashboard/systemInfo
+```
+
+**Headers:**
+
+```http
+Cookie: session=your-session-id
+```
+
+**Permissions Required:** `admin`
+
+#### Response
+
+**Success (200):**
+
+```json
+{
+	"success": true,
+	"system": {
+		"platform": "linux",
+		"arch": "x64",
+		"nodeVersion": "v20.10.0",
+		"hostname": "sveltycms-server",
+		"cpus": 4,
+		"totalMemory": 8192,
+		"freeMemory": 4096,
+		"uptime": 864000
+	},
+	"application": {
+		"version": "1.0.0",
+		"environment": "production",
+		"database": "mongodb",
+		"cacheEnabled": true,
+		"multiTenant": true
+	},
+	"runtime": {
+		"memoryUsage": {
+			"heapUsed": 256,
+			"heapTotal": 512,
+			"external": 32,
+			"rss": 384
+		},
+		"processUptime": 86400
+	}
+}
+```
+
+---
+
+### 3. Cache Metrics
+
+Retrieves cache performance statistics.
+
+#### Request
+
+```http
+GET /api/dashboard/cache-metrics
+```
+
+**Headers:**
+
+```http
+Cookie: session=your-session-id
+```
+
+**Permissions Required:** `admin` or `cache:read`
+
+#### Response
+
+**Success (200):**
+
+```json
+{
+	"success": true,
+	"cache": {
+		"enabled": true,
+		"size": 1024,
+		"maxSize": 10240,
+		"hitRate": 0.87,
+		"missRate": 0.13,
+		"hits": 8756,
+		"misses": 1244,
+		"evictions": 45,
+		"avgLookupTime": 0.5
+	},
+	"keys": {
+		"total": 342,
+		"byType": {
+			"settings": 25,
+			"collections": 150,
+			"media": 100,
+			"users": 67
+		}
+	},
+	"timestamp": "2025-10-05T14:30:00Z"
+}
+```
+
+---
+
+### 4. System Logs
+
+Retrieves recent system logs.
+
+#### Request
+
+```http
+GET /api/dashboard/logs
+```
+
+**Query Parameters:**
+
+- `level` (string, optional) - Filter by log level (`error`, `warn`, `info`, `debug`, `trace`)
+- `limit` (number, optional) - Max logs to return (1-1000) - default: `100`
+- `since` (string, optional) - ISO timestamp to fetch logs since
+
+**Headers:**
+
+```http
+Cookie: session=your-session-id
+```
+
+**Permissions Required:** `admin`
+
+#### Response
+
+**Success (200):**
+
+```json
+{
+	"success": true,
+	"logs": [
+		{
+			"timestamp": "2025-10-05T14:30:00Z",
+			"level": "info",
+			"message": "User logged in successfully",
+			"context": {
+				"userId": "user123",
+				"ip": "192.168.1.1"
+			}
+		},
+		{
+			"timestamp": "2025-10-05T14:29:45Z",
+			"level": "error",
+			"message": "Failed to connect to database",
+			"error": "Connection timeout"
+		}
+	],
+	"total": 2,
+	"limit": 100
+}
+```
+
+---
+
+### 5. Online Users
+
+Retrieves currently active/online users.
+
+#### Request
+
+```http
+GET /api/dashboard/online_user
+```
+
+**Query Parameters:**
+
+- `tenantId` (string, optional) - Filter by tenant (multi-tenant mode)
+
+**Headers:**
+
+```http
+Cookie: session=your-session-id
+```
+
+**Permissions Required:** `admin` or `user:read`
+
+#### Response
+
+**Success (200):**
+
+```json
+{
+	"success": true,
+	"onlineUsers": [
+		{
+			"userId": "user123",
+			"username": "john_doe",
+			"email": "john@example.com",
+			"lastActivity": "2025-10-05T14:30:00Z",
+			"sessionStart": "2025-10-05T14:00:00Z",
+			"ipAddress": "192.168.1.1",
+			"userAgent": "Mozilla/5.0..."
+		}
+	],
+	"count": 1,
+	"tenantId": "tenant-abc"
+}
+```
+
+**Activity Threshold:** Users shown if active within last 15 minutes
+
+---
+
+### 6. Last 5 Content Entries
+
+Retrieves the most recently created/updated content.
+
+#### Request
+
+```http
+GET /api/dashboard/last5Content
+```
+
+**Query Parameters:**
+
+- `tenantId` (string, optional) - Filter by tenant
+- `collection` (string, optional) - Filter by specific collection
+
+**Headers:**
+
+```http
+Cookie: session=your-session-id
+```
+
+**Permissions Required:** `admin` or `content:read`
+
+#### Response
+
+**Success (200):**
+
+```json
+{
+	"success": true,
+	"content": [
+		{
+			"_id": "entry123",
+			"collection": "posts",
+			"title": "New Blog Post",
+			"author": "user123",
+			"status": "published",
+			"createdAt": "2025-10-05T14:25:00Z",
+			"updatedAt": "2025-10-05T14:30:00Z"
+		},
+		{
+			"_id": "entry124",
+			"collection": "pages",
+			"title": "About Us",
+			"author": "user456",
+			"status": "draft",
+			"createdAt": "2025-10-05T14:20:00Z",
+			"updatedAt": "2025-10-05T14:22:00Z"
+		}
+	],
+	"count": 2
+}
+```
+
+---
+
+### 7. Last 5 Media Files
+
+Retrieves the most recently uploaded media files.
+
+#### Request
+
+```http
+GET /api/dashboard/last5media
+```
+
+**Query Parameters:**
+
+- `tenantId` (string, optional) - Filter by tenant
+
+**Headers:**
+
+```http
+Cookie: session=your-session-id
+```
+
+**Permissions Required:** `admin` or `media:read`
+
+#### Response
+
+**Success (200):**
+
+```json
+{
+	"success": true,
+	"media": [
+		{
+			"_id": "file123",
+			"filename": "image.jpg",
+			"mimeType": "image/jpeg",
+			"size": 245760,
+			"uploadedBy": "user123",
+			"uploadedAt": "2025-10-05T14:28:00Z",
+			"url": "/uploads/image.jpg"
+		},
+		{
+			"_id": "file124",
+			"filename": "video.mp4",
+			"mimeType": "video/mp4",
+			"size": 5242880,
+			"uploadedBy": "user456",
+			"uploadedAt": "2025-10-05T14:15:00Z",
+			"url": "/uploads/video.mp4"
+		}
+	],
+	"count": 2
+}
+```
+
+---
+
+### 8. System Messages
+
+Retrieves system announcements and messages.
+
+#### Request
+
+```http
+GET /api/dashboard/systemMessages
+```
+
+**Query Parameters:**
+
+- `status` (string, optional) - Filter by status (`active`, `archived`)
+
+**Headers:**
+
+```http
+Cookie: session=your-session-id
+```
+
+**Permissions Required:** Authenticated user
+
+#### Response
+
+**Success (200):**
+
+```json
+{
+	"success": true,
+	"messages": [
+		{
+			"_id": "msg123",
+			"title": "Scheduled Maintenance",
+			"message": "System will be down for maintenance on Oct 10",
+			"type": "warning",
+			"priority": "high",
+			"status": "active",
+			"createdAt": "2025-10-05T10:00:00Z",
+			"expiresAt": "2025-10-10T00:00:00Z"
+		}
+	],
+	"count": 1
+}
+```
+
+**Message Types:**
+
+- `info` - Informational message
+- `warning` - Warning message
+- `error` - Error/critical message
+- `success` - Success/positive message
+
+---
+
+### 9. User & System Preferences
+
+Manages user-specific preferences (like dashboard layouts) and system-wide settings through a flexible key-value API.
+
+**Base Path:** `/api/system-preferences`
+
+#### Permissions Required
+
+- **GET:** `admin` or `dashboard:read`
+- **POST/DELETE:** `admin` or `dashboard:manage`
+
+---
+
+#### A. Get Preference(s)
+
+Retrieves one or more preference values for the currently authenticated user.
+
+**Request:**
+
+```http
+GET /api/system-preferences?key={your_key}
+```
+
+or for multiple keys:
+
+```http
+GET /api/system-preferences?keys[]={key_1}&keys[]={key_2}
+```
+
+**Key Naming Convention:**
+For dashboard preferences, use the following structure:
+
+- **Layout:** `dashboard.layout.{layout_id}` (e.g., `dashboard.layout.default`)
+- **Widget State:** `dashboard.widget.{widget_id}.state`
+
+**Example: Get Dashboard Layout**
+
+```http
+GET /api/system-preferences?key=dashboard.layout.default
+```
+
+**Success Response (200):**
+
+```json
+{
+	"id": "default",
+	"name": "Default",
+	"preferences": [
+		{
+			"id": "widget-abc-123",
+			"component": "cpu-widget",
+			"label": "CPU Usage",
+			"size": { "w": 1, "h": 1 },
+			"order": 0
+		}
+	]
+}
+```
+
+---
+
+#### B. Set Preference(s)
+
+Creates or updates one or more preferences for the authenticated user.
+
+**Request:**
+
+To set a single preference:
+
+```http
+POST /api/system-preferences
+Content-Type: application/json
+
+{
+  "key": "dashboard.layout.default",
+  "value": {
+    "id": "default",
+    "name": "Default",
+    "preferences": [
+      { "id": "widget-abc-123", "component": "cpu-widget", "size": { "w": 2, "h": 1 }, "order": 0 }
+    ]
+  }
+}
+```
+
+To set multiple preferences in one request (e.g., for bulk widget state saving):
+
+```http
+POST /api/system-preferences
+Content-Type: application/json
+
+[
+  {
+    "key": "dashboard.widget.cpu.state",
+    "value": { "showPercentage": true }
+  },
+  {
+    "key": "dashboard.widget.memory.state",
+    "value": { "unit": "GB" }
+  }
+]
+```
+
+**Success Response (200):**
+
+```json
+{
+	"success": true,
+	"message": "Preference 'dashboard.layout.default' saved."
+}
+```
+
+---
+
+#### C. Delete a Preference
+
+Removes a specific preference for the authenticated user.
+
+**Request:**
+
+```http
+DELETE /api/system-preferences?key={your_key}
+```
+
+**Example: Delete a Widget's State**
+
+```http
+DELETE /api/system-preferences?key=dashboard.widget.cpu.state
+```
+
+**Success Response (200):**
+
+```json
+{
+	"success": true,
+	"message": "Preference 'dashboard.widget.cpu.state' deleted."
+}
+```
+
+---
+
+## Database-Agnostic Implementation
+
+Dashboard endpoints use abstraction layers:
+
+```typescript
+// Metrics from in-memory performance tracker
+const metrics = getHealthMetrics();
+
+// System info from Node.js runtime
+const systemInfo = {
+	platform: process.platform,
+	memory: process.memoryUsage()
+};
+
+// Database queries use adapter interface
+await dbAdapter.crud.findMany('content', filter, { limit: 5, sort: { createdAt: -1 } });
+```
+
+**No direct database queries** - all data access through adapters.
+
+---
+
+## Multi-Tenancy Support
+
+When multi-tenant mode is enabled:
+
+- Metrics filtered by tenant
+- Content/media scoped to tenant
+- Online users shown per tenant
+- System-wide metrics available to super-admin
+
+**Tenant-Scoped Metrics:**
+
+```http
+GET /api/dashboard/last5Content?tenantId=tenant-abc
+```
+
+---
+
+## Real-Time Updates
+
+Dashboard can be enhanced with real-time updates:
+
+```javascript
+// WebSocket connection for real-time metrics
+const ws = new WebSocket('wss://cms.example.com/ws/dashboard');
+
+ws.onmessage = (event) => {
+	const metrics = JSON.parse(event.data);
+	updateDashboard(metrics);
+};
+```
+
+---
+
+## Performance Optimization
+
+### Caching Strategy
+
+- Metrics cached for 30 seconds
+- System info cached for 5 minutes
+- Logs cached for 1 minute
+- Content/media queries optimized with indexes
+
+### Response Times
+
+Measured in production with 10,000+ entries:
+
+- **Metrics**: < 10ms (cached), < 50ms (fresh)
+- **System Info**: < 50ms
+- **Logs**: < 100ms (with filtering)
+- **Content queries**: < 200ms (indexed)
+- **Cache Metrics**: < 20ms
+- **Online Users**: < 30ms
+
+### Client-Side Optimization
+
+Dashboard implements aggressive client-side optimization:
+
+```typescript
+// Lazy loading reduces initial bundle by 250KB
+const widgetModules = import.meta.glob('./widgets/*.svelte');
+
+// Intersection Observer for on-demand loading
+const observer = new IntersectionObserver(
+	(entries) => {
+		entries.forEach(async (entry) => {
+			if (entry.isIntersecting) {
+				await loadWidget(entry.target.dataset.widget);
+			}
+		});
+	},
+	{ rootMargin: '100px' }
+);
+```
+
+**Performance Gains:**
+
+- Initial page load: **500ms** (down from 2.5s)
+- Time to Interactive: **1.2s** (down from 4.8s)
+- Bundle size: **85KB** initial (down from 335KB)
+- Memory usage: **40% reduction** from lazy loading
+
+### Database Query Optimization
+
+All dashboard queries use optimized patterns:
+
+```typescript
+// Indexed queries for fast retrieval
+await dbAdapter.crud.findMany(
+	'auditLogs',
+	{ timestamp: { $gte: sevenDaysAgo } },
+	{
+		limit: 100,
+		sort: { timestamp: -1 },
+		projection: { sensitiveData: 0 } // Exclude sensitive fields
+	}
+);
+
+// Aggregation pipelines for statistics
+const stats = await dbAdapter.crud.aggregate('auditLogs', [
+	{ $match: { timestamp: { $gte: sevenDaysAgo } } },
+	{ $group: { _id: '$eventType', count: { $sum: 1 } } },
+	{ $sort: { count: -1 } }
+]);
+```
+
+---
+
+## Security Considerations
+
+### Access Control
+
+- Admin-only endpoints for sensitive data
+- System info restricted to administrators
+- Logs contain no sensitive information
+- IP addresses anonymized in non-admin views
+
+### Rate Limiting
+
+- Metrics: 60 requests/minute
+- Logs: 10 requests/minute
+- Other endpoints: 30 requests/minute
+
+---
+
+## Testing
+
+### JavaScript Example
+
+```javascript
+// Get system metrics
+const metricsResponse = await fetch('/api/dashboard/metrics?detailed=true', {
+	credentials: 'include'
+});
+const metrics = await metricsResponse.json();
+console.log('Uptime:', metrics.system.uptime);
+
+// Get online users
+const usersResponse = await fetch('/api/dashboard/online_user', {
+	credentials: 'include'
+});
+const { onlineUsers, count } = await usersResponse.json();
+console.log(`${count} users online`);
+
+// Get recent content
+const contentResponse = await fetch('/api/dashboard/last5Content', {
+	credentials: 'include'
+});
+const { content } = await contentResponse.json();
+content.forEach((entry) => {
+	console.log(`${entry.title} - ${entry.collection}`);
+});
+```
+
+---
+
+## Monitoring Setup
+
+### Health Check Endpoint
+
+```bash
+# Basic health check
+curl -X GET https://cms.example.com/api/dashboard/metrics
+
+# Detailed metrics
+curl -X GET "https://cms.example.com/api/dashboard/metrics?detailed=true" \
+  -H "Cookie: session=$SESSION"
+```
+
+### Prometheus Integration
+
+Dashboard metrics can be exported for Prometheus:
+
+```yaml
+# prometheus.yml
+scrape_configs:
+  - job_name: 'sveltycms'
+    metrics_path: '/api/dashboard/metrics'
+    static_configs:
+      - targets: ['cms.example.com']
+```
+
+---
+
+## Related Documentation
+
+- [Cache System](/docs/architecture/cache-system)
+- [Logger Levels](/docs/dev-guide/logger-levels)
+- [System Settings](/docs/api/settings-api.mdx)
+- [Performance Tuning](/docs/admin/performance-tuning)
+
+---
+
+## Implementation Details
+
+For implementation details, see:
+
+- `src/routes/api/dashboard/metrics/+server.ts` - Metrics endpoint
+- `src/routes/api/dashboard/systemInfo/+server.ts` - System info
+- `src/routes/api/dashboard/cache-metrics/+server.ts` - Cache stats
+- `src/routes/api/dashboard/logs/+server.ts` - Log retrieval
+- `src/hooks.server.ts` - Performance tracking
+- `src/utils/logger.svelte.ts` - Logging system

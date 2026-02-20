@@ -33,7 +33,7 @@ export async function loadPrivateConfig(forceReload = false) {
 
 		try {
 			logger.debug('Loading @config/private configuration...');
-			let module: any;
+			let module: { privateEnv: InferOutput<typeof privateConfigSchema>; __VIRTUAL__?: boolean };
 			if (process.env.TEST_MODE) {
 				const pathUtil = await import('node:path');
 				const { pathToFileURL } = await import('node:url');

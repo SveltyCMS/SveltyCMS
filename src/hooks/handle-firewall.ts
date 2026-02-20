@@ -192,6 +192,11 @@ export const handleFirewall: Handle = async ({ event, resolve }) => {
 	const search = url.search.toLowerCase();
 
 	try {
+		// Bypass firewall in TEST_MODE
+		if (process.env.TEST_MODE === 'true') {
+			return await resolve(event);
+		}
+
 		// Check if firewall is enabled (default to true if not set)
 		const firewallEnabled = getPrivateSettingSync('FIREWALL_ENABLED') ?? true;
 		if (!firewallEnabled) {

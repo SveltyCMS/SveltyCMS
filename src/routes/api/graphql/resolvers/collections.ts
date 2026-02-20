@@ -205,7 +205,7 @@ export async function registerCollections(tenantId?: string) {
 			if (
 				'extract' in field &&
 				Array.isArray((field as FieldInstance & { fields?: FieldInstance[] }).fields) &&
-				(field as FieldInstance & { fields?: FieldInstance[] }).fields?.length > 0
+				((field as FieldInstance & { fields?: FieldInstance[] }).fields?.length ?? 0) > 0
 			) {
 				for (const _field of (field as FieldInstance & { fields?: FieldInstance[] }).fields!) {
 					const nestedWidgetNameRaw = _field.widget?.Name;

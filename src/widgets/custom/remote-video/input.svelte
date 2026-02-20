@@ -30,6 +30,7 @@ Part of the Three Pillars Architecture for widget system.
 <script lang="ts">
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { app, validationStore } from '@src/stores/store.svelte';
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import { logger } from '@utils/logger';
 	import { debounce, getFieldName } from '@utils/utils';
 	// Unified error handling

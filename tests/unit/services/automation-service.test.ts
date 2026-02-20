@@ -17,6 +17,8 @@ describe('AutomationService', () => {
 		mockDbAdapter.crud.update.mockClear();
 		mockEventBus.on.mockClear();
 		automationService.invalidateCache();
+		// Reset initialized state for testing
+		(automationService as any).initialized = false;
 	});
 
 	describe('init', () => {

@@ -1,11 +1,19 @@
 /**
  * @file src/content/index.ts
- * @description Index file for Content Management.
+ * @description
+ * Core content management orchestration and store management.
+ * This module is responsible for:
+ * - Coordinating state hydration across collection and widget stores.
+ * - Managing the global content structure and category tree generation.
+ * - Providing automated version polling for real-time content updates.
+ * - Orchestrating store actions for collections and unassigned content.
  *
- * Improvements:
- * - **SSR Safety:** Dynamically imports DB only on server.
- * - **Stable IDs:** Replaced random UUIDs with deterministic hashing for Category IDs (prevents hydration mismatches).
- * - **Type Safety:** Improved typing for the db adapter import.
+ * features:
+ * - category tree generation
+ * - stable ID hashing
+ * - hydration support
+ * - content version polling
+ * - batch processing automation
  */
 
 // Stores
@@ -398,7 +406,7 @@ async function getImports(recompile = false): Promise<Record<ContentTypes, Schem
 			// Production Client-Side Fallback
 			let files: string[] = [];
 			try {
-				let collectionsData: any;
+				let collectionsData: { collections: Schema[] } | Schema[] | Partial<Record<ContentTypes, Schema>> | null = null;
 				if (browser) {
 					const response = await fetch('/api/collections');
 					if (!response.ok) {
@@ -409,10 +417,16 @@ async function getImports(recompile = false): Promise<Record<ContentTypes, Schem
 					collectionsData = await getCollections();
 				}
 
-				if (collectionsData && Array.isArray(collectionsData.collections)) {
-					files = collectionsData.collections.map((c: { name: string }) => `${c.name}.js`);
+				if (collectionsData && 'collections' in collectionsData && Array.isArray(collectionsData.collections)) {
+					files = collectionsData.collections.map((c: Schema) => `${c.name}.js`);
 				} else if (Array.isArray(collectionsData)) {
-					files = collectionsData;
+					if (collectionsData.length > 0 && typeof collectionsData[0] === 'object') {
+						files = (collectionsData as Schema[]).map((c: Schema) => `${c.name}.js`);
+					} else {
+						files = collectionsData as unknown as string[];
+					}
+				} else if (collectionsData && typeof collectionsData === 'object') {
+					files = Object.values(collectionsData).map((c) => `${c!.name}.js`);
 				} else {
 					files = [];
 				}
@@ -430,7 +444,7 @@ async function getImports(recompile = false): Promise<Record<ContentTypes, Schem
 							batch.map(async (file) => {
 								const name = file.replace(/\.js$/, '');
 								try {
-									let collectionModule: any;
+									let collectionModule: (ProcessedModule & { schema?: Schema }) | null = null;
 									if (typeof window !== 'undefined') {
 										const response = await fetch(`/api/collections/${name}?includeFields=true&_t=${Math.floor(Date.now() / 1000)}`);
 										if (!response.ok) {
@@ -440,7 +454,9 @@ async function getImports(recompile = false): Promise<Record<ContentTypes, Schem
 									} else {
 										collectionModule = await import(/* @vite-ignore */ `${import.meta.env.collectionsFolderJS}${file}`);
 									}
-									await processModule(name, collectionModule, file);
+									if (collectionModule) {
+										await processModule(name, collectionModule as ProcessedModule, file);
+									}
 								} catch (moduleError) {
 									logger.error(`Error processing module ${name}: ${moduleError}`);
 								}
@@ -462,7 +478,7 @@ async function getImports(recompile = false): Promise<Record<ContentTypes, Schem
 let pollingInterval: NodeJS.Timeout | null = null;
 let currentVersion = 0;
 
-export async function initializeContent(pageData?: any) {
+export async function initializeContent(pageData?: { navigationStructure: unknown; contentVersion: number }) {
 	// 1. Hydration (Server -> Client)
 	if (pageData?.navigationStructure && pageData?.contentVersion) {
 		logger.info('💧 Hydrating content from server data');

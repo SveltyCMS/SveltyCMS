@@ -3,6 +3,8 @@
  * @description Type definitions for the Group widget
  */
 
+import type { FieldInstance } from '@src/content/types';
+
 // Defines the properties unique to the Group widget
 export interface GroupProps {
 	// Whether the group is collapsed by default @default false
@@ -11,7 +13,7 @@ export interface GroupProps {
 	collapsible?: boolean;
 
 	// Nested fields configuration
-	fields?: any[];
+	fields?: FieldInstance[];
 
 	// Group title/label
 	groupTitle?: string;

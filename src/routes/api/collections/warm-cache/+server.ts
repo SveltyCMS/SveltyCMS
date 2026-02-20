@@ -1,3 +1,16 @@
+/**
+ * @file src/routes/api/collections/warm-cache/+server.ts
+ * @description
+ * API endpoint for proactively warming the content cache for specific entries.
+ * This helps improve performance by ensures frequently accessed data is
+ * pre-loaded in the cache layer.
+ *
+ * features:
+ * - individual and bulk entry cache warming
+ * - tenant-isolated cache population
+ * - integration with content manager services
+ */
+
 import { contentManager } from '@src/content/content-manager';
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';

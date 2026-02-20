@@ -1,6 +1,6 @@
 ---
-path: 'docs/architecture/components/ScheduleModal.mdx'
-title: 'ScheduleModal Component'
+path: 'docs/architecture/components/schedule-modal.mdx'
+title: 'schedule-modal Component'
 description: 'Documentation for the scheduling modal that allows future-dated publish/unpublish/delete actions.'
 order: 4
 icon: 'mdi:calendar-clock'
@@ -14,9 +14,9 @@ tags:
   - 'publish'
 ---
 
-# ScheduleModal Component
+# schedule-modal Component
 
-The `ScheduleModal` component provides a user interface for scheduling future actions (publish, unpublish, delete) on collection entries.
+The `schedule-modal` component provides a user interface for scheduling future actions (publish, unpublish, delete) on collection entries.
 
 ---
 
@@ -29,7 +29,7 @@ flowchart LR
         EA[EntryActions]
     end
 
-    subgraph Modal["ScheduleModal"]
+    subgraph Modal["schedule-modal"]
         DI[Date Input]
         TI[Time Input]
         AS[Action Select]
@@ -69,7 +69,7 @@ flowchart LR
 sequenceDiagram
     participant U as User
     participant MB as MultiButton
-    participant SM as ScheduleModal
+    participant SM as schedule-modal
     participant MS as modalState
     participant API as Server
 
@@ -105,7 +105,7 @@ The modal is opened via `modalState` and returns a response object:
 ```typescript
 // Opening the modal
 modalState.open({
-	component: ScheduleModal,
+	component: schedule - modal,
 	props: {
 		meta: { initialAction: 'publish' }
 	}
@@ -119,5 +119,5 @@ modalState.open({
 
 ## Related Documentation
 
-- [MultiButton Component](./EntryList_MultiButton.mdx)
-- [EntryList Component](./EntryList.mdx)
+- [MultiButton Component](./entry-list-multibutton.mdx)
+- [entry-list Component](./entry-list.mdx)

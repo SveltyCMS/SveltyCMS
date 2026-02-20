@@ -31,7 +31,23 @@ This modal displays the QR code for setting up 2FA and handles verification.
 	// getModalStore deprecated - use modalState from @utils/modal-state.svelte;
 
 	// ParaglideJS
-	import { button_copy, twofa_error_invalid_code, twofa_setup_complete_title } from '@src/paraglide/messages';
+	import {
+		button_copy,
+		twofa_error_invalid_code,
+		twofa_setup_complete_title,
+		twofa_manual_entry_description,
+		twofa_verify_setup_description,
+		twofa_code_placeholder,
+		twofa_setup_complete_description,
+		twofa_backup_codes_title,
+		twofa_backup_codes_save_description,
+		button_copy_all,
+		twofa_backup_codes_warning,
+		button_cancel,
+		twofa_verifying,
+		twofa_verify_button,
+		button_complete
+	} from '@src/paraglide/messages';
 
 	// Props
 	interface Props {

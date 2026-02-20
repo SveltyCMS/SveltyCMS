@@ -33,14 +33,14 @@ describe('Group Widget - Creation', () => {
 		const subFields = [
 			{ label: 'Sub 1', type: 'text' },
 			{ label: 'Sub 2', type: 'text' }
-		];
+		] as any[];
 
 		const field = GroupWidget({
 			label: 'Parent Group',
-			fields: subFields
+			fields: subFields as import('@src/content/types').FieldInstance[]
 		});
 
-		expect(field.fields).toEqual(subFields);
+		expect(field.fields).toEqual(subFields as any);
 	});
 
 	it('should validate as an empty object by default', () => {

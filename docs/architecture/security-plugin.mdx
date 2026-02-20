@@ -40,7 +40,7 @@ SveltyCMS implements a **multi-layered, enterprise-grade security system** that 
 ### SecurityResponseService - Automated Threat Detection
 
 **Purpose**: Real-time threat analysis with automated response capabilities
-**File**: `src/services/SecurityResponseService.ts`
+**File**: `src/services/security-response-service.ts`
 
 ```typescript
 export class SecurityResponseService {
@@ -89,7 +89,7 @@ export class SecurityResponseService {
 ### MetricsService - Security Analytics
 
 **Purpose**: Unified security and performance metrics with real-time analysis
-**File**: `src/services/MetricsService.ts`
+**File**: `src/services/metrics-service.ts`
 
 ```typescript
 export class MetricsService {
@@ -239,7 +239,7 @@ The `src/utils/vitePluginSecurityCheck.ts` scans all code during build and **fai
 
    ```typescript
    // ❌ BLOCKED - Exposes ALL private settings to browser!
-   import { privateEnv } from '@src/stores/globalSettings';
+   import { privateEnv } from '@src/stores/global-settings';
    console.log(privateEnv.DB_PASSWORD); // Would be visible in browser
    ```
 
@@ -247,14 +247,14 @@ The `src/utils/vitePluginSecurityCheck.ts` scans all code during build and **fai
 
    ```typescript
    // ❌ BLOCKED - Attempts to access private data on client!
-   import { getPrivateSetting } from '@src/stores/globalSettings';
+   import { getPrivateSetting } from '@src/stores/global-settings';
    const secret = getPrivateSetting('JWT_SECRET_KEY');
    ```
 
 3. **`getAllSettings()` in client code**
    ```typescript
    // ❌ BLOCKED - Returns both public AND private settings!
-   import { getAllSettings } from '@src/stores/globalSettings';
+   import { getAllSettings } from '@src/stores/global-settings';
    const all = await getAllSettings(); // Includes passwords!
    ```
 
@@ -264,7 +264,7 @@ The `src/utils/vitePluginSecurityCheck.ts` scans all code during build and **fai
 
    ```typescript
    // ✅ SAFE - Public settings can be used anywhere
-   import { publicEnv, getPublicSetting } from '@src/stores/globalSettings';
+   import { publicEnv, getPublicSetting } from '@src/stores/global-settings';
    console.log(publicEnv.SITE_NAME); // Safe for browser
    ```
 
@@ -273,7 +273,7 @@ The `src/utils/vitePluginSecurityCheck.ts` scans all code during build and **fai
    ```typescript
    // ✅ SAFE - Server-only files can use private settings
    // Files: +page.server.ts, +layout.server.ts, +server.ts, /hooks/, /auth/, /databases/
-   import { privateEnv, getPrivateSetting } from '@src/stores/globalSettings';
+   import { privateEnv, getPrivateSetting } from '@src/stores/global-settings';
    const dbPass = privateEnv.DB_PASSWORD; // Never sent to client
    ```
 
@@ -331,7 +331,7 @@ Not all `.ts` files are client-side! The plugin intelligently skips:
 - **Auth modules**: All files in `/auth/`
 - **Database code**: All files in `/databases/`
 - **Widget utilities**: `.ts` files in `/widgets/` (typically server-only)
-- **The store itself**: `/stores/globalSettings.ts` (defines the functions)
+- **The store itself**: `/stores/global-settings.ts` (defines the functions)
 
 ### 3. Pattern Detection
 
@@ -340,7 +340,7 @@ For client-side files (primarily `.svelte` and client-facing `.ts`), the plugin 
 ```typescript
 const DANGEROUS_PATTERNS = [
 	{
-		pattern: /import\s+{[^}]*privateEnv[^}]*}\s+from\s+['"]@src\/stores\/globalSettings['"]/g,
+		pattern: /import\s+{[^}]*privateEnv[^}]*}\s+from\s+['"]@src\/stores\/global-settings['"]/g,
 		message: 'SECURITY: Importing privateEnv exposes passwords and secrets!'
 	},
 	{
@@ -365,7 +365,7 @@ Found 2 critical security issue(s):
 
   ✗ src/components/Settings.svelte:5
     SECURITY: Importing privateEnv exposes passwords and secrets!
-    → import { privateEnv } from '@src/stores/globalSettings';
+    → import { privateEnv } from '@src/stores/global-settings';
 
   ✗ src/routes/(app)/admin/+page.svelte:12
     SECURITY: getPrivateSetting() in client code!
@@ -387,7 +387,7 @@ How to fix:
 ```typescript
 <!-- src/routes/(app)/settings/+page.svelte -->
 <script lang="ts">
-  import { privateEnv } from '@src/stores/globalSettings';
+  import { privateEnv } from '@src/stores/global-settings';
 
   // 🚨 CRITICAL VULNERABILITY: ALL private settings exposed!
   // Browser DevTools can access:
@@ -413,7 +413,7 @@ How to fix:
 
 ```typescript
 <!-- src/routes/(app)/settings/+page.server.ts -->
-import { privateEnv } from '@src/stores/globalSettings';
+import { privateEnv } from '@src/stores/global-settings';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async () => {
@@ -531,9 +531,9 @@ securityCheckPlugin({
 
 ## Related Documentation
 
-- [Authentication System](./01_Authentication/Authentication_System.mdx) - 3-Layer Security Architecture
-- [Settings System](../User_Guide/Admin_User_Management.md) - Managing system settings
-- [Environment Variables](./00_Installation/environment-variables.md) - Static vs dynamic settings
+- [Authentication System](./01-authentication/authentication-system.mdx) - 3-Layer Security Architecture
+- [Settings System](../user-guide/admin-user-management.md) - Managing system settings
+- [Environment Variables](./00-installation/environment-variables.md) - Static vs dynamic settings
 - [Server Hooks Architecture](./server-hooks.mdx) - Enterprise middleware pipeline
 
 ---
@@ -542,8 +542,8 @@ securityCheckPlugin({
 
 ### Real-Time Security Monitoring
 
-**SecurityWidget** - Enterprise security dashboard component
-**File**: `src/components/dashboard/SecurityWidget.svelte`
+**security-widget.svelte** - Enterprise security dashboard component
+**File**: `src/components/dashboard/security-widget.svelte`
 
 ```svelte
 <script>

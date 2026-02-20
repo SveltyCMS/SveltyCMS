@@ -16,7 +16,7 @@
 -->
 
 <script lang="ts">
-	import type { DndEvent } from 'svelte-dnd-action';
+	import { dndzone, type DndEvent } from 'svelte-dnd-action';
 
 	interface Props {
 		children?: import('svelte').Snippet;

@@ -15,6 +15,8 @@ Usage:
 
 <script lang="ts">
 	import type { MediaItem } from '@utils/media/media-models';
+	import WatermarkSelector from './watermark-selector.svelte';
+	import WatermarkSettings from './watermark-settings.svelte';
 
 	interface Props {
 		// Props

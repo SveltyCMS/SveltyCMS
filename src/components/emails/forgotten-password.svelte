@@ -5,8 +5,13 @@
 -->
 
 <script lang="ts">
+	// @ts-nocheck
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { app } from '@src/stores/store.svelte';
+	import { dev } from '$app/environment';
+	import { Body, Button, Container, Head, Heading, Hr, Html, Img, Link, Preview, Section, Text } from 'better-svelte-email';
+	import { forgottenpassword_token, forgottenpassword_valid, forgottenpassword_ignore, forgottenpassword_resetbutton } from '@src/paraglide/messages';
+	import { ReadableExpireIn } from '@utils/utils';
 
 	interface Props {
 		email?: string;

@@ -5,10 +5,12 @@
 -->
 
 <script lang="ts">
+	// @ts-nocheck
 	import { publicEnv } from '@src/stores/global-settings.svelte';
-
-	// Stores
 	import { app } from '@src/stores/store.svelte';
+	import { dev } from '$app/environment';
+	import { Body, Button, Container, Head, Heading, Hr, Html, Img, Link, Preview, Section, Text } from 'better-svelte-email';
+	import { usertoken_button, usertoken_role, usertoken_email, usertoken_valid, usertoken_token } from '@src/paraglide/messages';
 
 	interface Props {
 		email?: string;

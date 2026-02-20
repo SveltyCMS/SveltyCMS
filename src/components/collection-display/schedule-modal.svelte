@@ -20,7 +20,13 @@
 <script lang="ts">
 	// Force recompile
 	// ParaglideJS
-	import { button_delete, entrylist_multibutton_publish, entrylist_multibutton_unpublish } from '@src/paraglide/messages';
+	import {
+		button_delete,
+		button_cancel,
+		entrylist_multibutton_publish,
+		entrylist_multibutton_unpublish,
+		entrylist_multibutton_schedule
+	} from '@src/paraglide/messages';
 
 	// Skeleton
 	import { modalState } from '@utils/modal-state.svelte';

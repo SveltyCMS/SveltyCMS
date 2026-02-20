@@ -217,7 +217,7 @@ export function reflectModeInURL(mode: ModeType, entryId?: string): void {
 }
 ```
 
-### 2. Client-Side Navigation (EntryList.svelte)
+### 2. Client-Side Navigation (entry-list.svelte)
 
 **GUI-FIRST PATTERN:**
 
@@ -269,7 +269,7 @@ function onCreate() {
 }
 ```
 
-### 3. Save/Cancel Actions (HeaderEdit.svelte, RightSidebar.svelte)
+### 3. Save/Cancel Actions (header-edit.svelte, right-sidebar.svelte)
 
 ```typescript
 // Save handler
@@ -413,7 +413,7 @@ $effect(() => {
 ### Example 1: User Clicks Edit Button
 
 ```typescript
-// 1. User clicks row in EntryList
+// 1. User clicks row in entry-list.svelte
 onClick={() => handleRowClick(entry)}
 
 // 2. Internal: Code uses UUID
@@ -491,7 +491,7 @@ await goto(url);
 The URL pattern enables **intelligent hover preloading**:
 
 ```typescript
-// EntryList.svelte - Hover handler
+// entry-list.svelte - Hover handler
 function handleRowHoverStart(entryId: string) {
 	setTimeout(async () => {
 		// Build preload URL
@@ -599,7 +599,7 @@ Cache includes entry ID, preventing conflicts:
 Edit parameter is preserved:
 
 ```typescript
-// TranslationStatus.svelte
+// translation-status.svelte
 const newPath = `/${selectedLanguage}/${collectionId}${page.url.search}`;
 // Preserves ?edit=UUID when switching languages
 ```
@@ -623,7 +623,7 @@ const newPath = `/${selectedLanguage}/${collectionId}${page.url.search}`;
 2. **Edit Mode**:
    - Click an entry row
    - Verify URL shows `?edit=UUID`
-   - Verify Fields component loads
+   - Verify fields component loads
    - Check full multilingual data available
 
 3. **Language Switch**:
@@ -643,7 +643,7 @@ const newPath = `/${selectedLanguage}/${collectionId}${page.url.search}`;
 // Example test
 describe('URL Pattern', () => {
 	it('sets edit parameter on entry click', async () => {
-		const { page } = await render(EntryList);
+		const { page } = await render(entry - list);
 		await page.click('[data-entry-id="123"]');
 		expect(page.url.search).toContain('?edit=123');
 	});

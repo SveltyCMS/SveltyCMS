@@ -19,11 +19,20 @@ It handles token creation, updates, and deletion with proper validation and erro
 <script lang="ts">
 	import FloatingInput from '@src/components/system/inputs/floating-input.svelte';
 	// ParaglideJS
-	import { modal_token_deleted_successfully } from '@src/paraglide/messages';
+	import {
+		modal_token_deleted_successfully,
+		email as m_email,
+		role as m_role,
+		modaltokenuser_tokenvalidity,
+		button_cancel,
+		button_delete,
+		button_save
+	} from '@src/paraglide/messages';
 
 	// Skeleton & Stores
 	import { toaster } from '@src/stores/store.svelte.ts';
 	// Utils
+	import { modalState } from '@utils/modal-state.svelte';
 	import { Form } from '@utils/form.svelte';
 	import { addUserTokenSchema } from '@utils/form-schemas';
 	import { invalidateAll } from '$app/navigation';

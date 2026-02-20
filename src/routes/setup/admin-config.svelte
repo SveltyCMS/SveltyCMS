@@ -22,6 +22,27 @@
 -->
 <script lang="ts">
 	import type { ValidationErrors } from '@src/stores/setup-store.svelte.ts';
+	import {
+		setup_help_admin_username,
+		form_username,
+		form_email,
+		setup_help_admin_email,
+		setup_admin_placeholder_email,
+		form_password,
+		setup_help_admin_password,
+		setup_help_admin_confirm_password,
+		setup_admin_placeholder_confirm_password,
+		setup_help_admin_password_requirements_account_note,
+		setup_admin_placeholder_username,
+		setup_admin_placeholder_password,
+		form_confirmpassword,
+		setup_help_admin_password_requirements_length,
+		setup_help_admin_password_requirements_letter,
+		setup_help_admin_password_requirements_number,
+		setup_help_admin_password_requirements_character,
+		setup_help_admin_password_requirements_match
+	} from '@src/paraglide/messages';
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import { setupAdminSchema } from '@utils/form-schemas';
 	import { safeParse } from 'valibot';
 
@@ -213,6 +234,26 @@
 						<iconify-icon icon={showAdminPassword ? 'mdi:eye-off' : 'mdi:eye'} width="18" height="18" aria-hidden="true"></iconify-icon>
 					</button>
 				</div>
+
+				<!-- Password Strength Meter -->
+				{#if adminUser.password}
+					{@const score = Object.values(passwordRequirements).filter(Boolean).length}
+					<div class="mt-2 space-y-1">
+						<div class="flex h-1.5 w-full gap-1 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
+							<div class="h-full transition-all duration-500 {score >= 1 ? 'bg-error-500' : ''}" style="width: 20%" aria-hidden="true"></div>
+							<div class="h-full transition-all duration-500 {score >= 2 ? 'bg-warning-500' : ''}" style="width: 20%" aria-hidden="true"></div>
+							<div class="h-full transition-all duration-500 {score >= 3 ? 'bg-yellow-500' : ''}" style="width: 20%" aria-hidden="true"></div>
+							<div class="h-full transition-all duration-500 {score >= 4 ? 'bg-primary-500' : ''}" style="width: 20%" aria-hidden="true"></div>
+							<div class="h-full transition-all duration-500 {score >= 5 ? 'bg-emerald-500' : ''}" style="width: 20%" aria-hidden="true"></div>
+						</div>
+						<div class="flex justify-between text-[10px] font-bold uppercase tracking-wider">
+							<span class={score >= 1 ? 'text-error-500' : 'text-slate-400'}>Weak</span>
+							<span class={score >= 3 ? 'text-yellow-500' : 'text-slate-400'}>Moderate</span>
+							<span class={score >= 5 ? 'text-emerald-500' : 'text-slate-400'}>Strong</span>
+						</div>
+					</div>
+				{/if}
+
 				{#if displayErrors.password}
 					<div id="admin-password-error" class="mt-1 text-xs text-error-500" role="alert">{displayErrors.password}</div>
 				{/if}

@@ -233,7 +233,7 @@ mock.module('@src/databases/CacheService', () => ({
 }));
 
 // Mock EventBus
-mock.module('@src/services/automation/eventBus', () => ({
+mock.module('@src/services/automation/event-bus', () => ({
 	eventBus: mockEventBus
 }));
 

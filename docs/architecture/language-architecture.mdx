@@ -297,7 +297,7 @@ let _contentLanguage = $state<Locale>(initialContentLanguage);
 **2. Language Switching:**
 
 ```svelte
-<!-- TranslationStatus.svelte - Recommended: Anchor tag dropdown -->
+<!-- translation-status.svelte - Recommended: Anchor tag dropdown -->
 <script lang="ts">
 	import { app } from '@stores/store.svelte';
 
@@ -423,7 +423,7 @@ export async function load({ params }) {
 }
 ```
 
-**Step 3: Update TranslationStatus Component**
+**Step 3: Update translation-status Component**
 
 The component automatically reads from `AVAILABLE_CONTENT_LANGUAGES`, so no code changes needed! 🎉
 
@@ -580,7 +580,7 @@ async function findOne(collection: string, id: string) {
 Widgets always work with the normalized format, regardless of database:
 
 ```svelte
-<!-- src/widgets/core/input/Input.svelte -->
+<!-- src/widgets/core/input/input.svelte -->
 <script lang="ts">
 	import { app } from '@stores/store.svelte';
 	import { DEFAULT_CONTENT_LANGUAGE } from '@src/utils/constants';
@@ -704,10 +704,10 @@ Same process:
 
 ### Translation Status Indicator
 
-The `TranslationStatus` component shows completion percentage:
+The `translation-status` component shows completion percentage:
 
 ```svelte
-<TranslationStatus entry={currentEntry} availableLanguages={['en', 'de', 'fr', 'es']} currentLanguage={app.contentLanguage} />
+<translation-status entry={currentEntry} availableLanguages={['en', 'de', 'fr', 'es']} currentLanguage={app.contentLanguage} />
 
 <!-- Displays:
   EN: 100% ✅ (3/3 translated fields filled)
@@ -721,13 +721,13 @@ The `TranslationStatus` component shows completion percentage:
 
 ```typescript
 function calculateCompletionPercentage(entry: any, language: string): number {
-	const translatedFields = schema.fields.filter((f) => f.translated);
-	const filledFields = translatedFields.filter((f) => {
+	const translatedfields = schema.fields.filter((f) => f.translated);
+	const filledfields = translatedfields.filter((f) => {
 		const value = entry[f.db_fieldName];
 		return value && typeof value === 'object' && value[language];
 	});
 
-	return (filledFields.length / translatedFields.length) * 100;
+	return (filledfields.length / translatedfields.length) * 100;
 }
 ```
 
@@ -747,7 +747,7 @@ function calculateCompletionPercentage(entry: any, language: string): number {
 }
 ```
 
-**2. Keep Technical Fields Untranslated:**
+**2. Keep Technical fields Untranslated:**
 
 ```typescript
 {
@@ -802,7 +802,7 @@ const title = value[app.contentLanguage]; // ✅ Dynamic
 const key = `entries:${id}`; // ❌ Missing language
 ```
 
-**4. Don't Assume All Fields Are Translated:**
+**4. Don't Assume All fields Are Translated:**
 
 ```typescript
 // ❌ WRONG
@@ -935,9 +935,9 @@ async function migrateMultilingualData() {
 			await sqlDb.insert(collection.id).values(mainData);
 
 			// Insert translations (translated fields)
-			const translatedFields = Object.entries(entry).filter(([key, value]) => typeof value === 'object' && value !== null);
+			const translatedfields = Object.entries(entry).filter(([key, value]) => typeof value === 'object' && value !== null);
 
-			for (const [fieldName, translations] of translatedFields) {
+			for (const [fieldName, translations] of translatedfields) {
 				for (const [lang, value] of Object.entries(translations)) {
 					await sqlDb.insert(`${collection.id}_translations`).values({
 						entity_id: entry._id,
@@ -984,27 +984,27 @@ export class DrizzleAdapter implements IDBAdapter {
 
 	async update(collection: string, id: string, data: any) {
 		// Split data into main and translations
-		const mainFields = {};
-		const translatedFields = {};
+		const mainfields = {};
+		const translatedfields = {};
 
 		for (const [key, value] of Object.entries(data)) {
 			if (typeof value === 'object' && value !== null) {
-				translatedFields[key] = value;
+				translatedfields[key] = value;
 			} else {
-				mainFields[key] = value;
+				mainfields[key] = value;
 			}
 		}
 
 		// Update main table
-		if (Object.keys(mainFields).length > 0) {
+		if (Object.keys(mainfields).length > 0) {
 			await this.db
 				.update(getTable(collection))
-				.set(mainFields)
+				.set(mainfields)
 				.where(eq(getTable(collection).id, id));
 		}
 
 		// Update translations
-		for (const [fieldName, translations] of Object.entries(translatedFields)) {
+		for (const [fieldName, translations] of Object.entries(translatedfields)) {
 			for (const [lang, value] of Object.entries(translations as any)) {
 				await this.db
 					.insert(getTranslationTable(collection))
@@ -1047,7 +1047,7 @@ SveltyCMS implements a clean separation of concerns where each layer respects th
 graph TD
     subgraph "UI Layer (systemLanguage)"
         Page[+page.svelte<br/>ParaglideJS messages]
-        Fields[Fields.svelte<br/>Tab labels, buttons]
+        fields[fields.svelte<br/>Tab labels, buttons]
         Widgets[Widget Components<br/>Validation messages]
     end
 
@@ -1062,8 +1062,8 @@ graph TD
         SQL[(SQL<br/>Translation Tables)]
     end
 
-    Page -->|Props| Fields
-    Fields -->|Props| Widgets
+    Page -->|Props| fields
+    fields -->|Props| Widgets
 
     Store -->|Reactive| WidgetLogic
     WidgetLogic -->|Read/Write| Adapter
@@ -1072,7 +1072,7 @@ graph TD
     Adapter -->|Optimal Format| SQL
 
     style Page fill:#e1f5fe
-    style Fields fill:#f3e5f5
+    style fields fill:#f3e5f5
     style Widgets fill:#fff8e1
     style Store fill:#e8f5e8
     style Adapter fill:#fce4ec
@@ -1108,10 +1108,10 @@ graph TD
 <h1>{m.collection_title()}</h1>
 
 <!-- Pass contentLanguage to child components -->
-<Fields {fields} {revisions} contentLanguage={serverContentLanguage} />
+<fields {fields} {revisions} contentLanguage={serverContentLanguage} />
 ```
 
-#### 2. Fields Component (`Fields.svelte`)
+#### 2. fields Component (`fields.svelte`)
 
 **Responsibilities:**
 
@@ -1150,12 +1150,12 @@ graph TD
 <div class="text-error-500">{m.form_required()}</div>
 
 <!-- Widgets handle their own contentLanguage for data -->
-{#each filteredFields as field}
+{#each filteredfields as field}
 	<WidgetComponent {field} bind:value={currentCollectionValue[fieldName]} />
 {/each}
 ```
 
-#### 3. Widget Components (`Input.svelte`, `Display.svelte`)
+#### 3. Widget Components (`input.svelte`, `display.svelte`)
 
 **Responsibilities:**
 
@@ -1169,7 +1169,7 @@ graph TD
 ```svelte
 <script lang="ts">
 	import { contentLanguage } from '@stores/store.svelte'; // For DATA
-	import { publicEnv } from '@stores/globalSettings.svelte';
+	import { publicEnv } from '@stores/global-settings.svelte';
 
 	// Determine language for THIS field's data
 	const _language = $derived(
@@ -1209,8 +1209,8 @@ graph TD
 sequenceDiagram
     participant User
     participant Page as +page.svelte<br/>(systemLanguage: en)
-    participant Fields as Fields.svelte<br/>(systemLanguage: en)
-    participant Widget as Input.svelte<br/>(contentLanguage: de)
+    participant fields as fields.svelte<br/>(systemLanguage: en)
+    participant Widget as input.svelte<br/>(contentLanguage: de)
     participant Store as collectionValue Store
     participant Adapter as MongoDBAdapter
     participant DB as MongoDB
@@ -1218,10 +1218,10 @@ sequenceDiagram
     User->>Page: Click "Edit" button
     Note over Page: Button text: "Edit" (from ParaglideJS)
 
-    Page->>Fields: Pass fields, contentLanguage="de"
-    Note over Fields: Tab label: "Edit" (from ParaglideJS)
+    Page->>fields: Pass fields, contentLanguage="de"
+    Note over fields: Tab label: "Edit" (from ParaglideJS)
 
-    Fields->>Widget: Render with field config
+    fields->>Widget: Render with field config
     Note over Widget: _language = "de" (from contentLanguage store)
 
     Widget->>Store: Read value.de

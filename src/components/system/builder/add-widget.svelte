@@ -6,6 +6,9 @@
 <script lang="ts">
 	import { widgets } from '@src/stores/widget-store.svelte';
 	import type { WidgetFactory } from '@src/widgets/types';
+	import PageTitle from '@src/components/page-title.svelte';
+	import DropDown from '@src/components/system/drop-down/drop-down.svelte';
+	import InputSwitch from '@src/components/system/builder/input-switch.svelte';
 
 	import type { AddWidgetProps } from './types';
 
@@ -41,7 +44,7 @@
 			return;
 		}
 		field.widget = { key: selected_widget, GuiFields: field.widget.GuiFields };
-		field.label = field.widget.GuiFields.label;
+		field.label = String(field.widget.GuiFields.label || '');
 		fields = [...fields, field as any];
 		addField = false;
 	}

@@ -4,6 +4,11 @@
  -->
 
 <script lang="ts">
+	import PageTitle from '@src/components/page-title.svelte';
+	import PluginsView from './plugins-view.svelte';
+	import WidgetDashboard from './widget-dashboard.svelte';
+	import ThemesView from './themes-view.svelte';
+
 	let { data }: { data: any } = $props();
 
 	let activeTab = $state('plugins');

@@ -315,7 +315,7 @@ export class TwoFactorAuthService {
 			const user = userResult.data;
 
 			return {
-				enabled: user.is2FAEnabled,
+				enabled: Boolean(user.is2FAEnabled),
 				hasBackupCodes: Boolean(user.backupCodes && user.backupCodes.length > 0),
 				backupCodesCount: user.backupCodes ? user.backupCodes.length : 0,
 				lastVerification: user.last2FAVerification

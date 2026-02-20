@@ -18,7 +18,6 @@
  * }
  */
 
-import type { User } from '@src/databases/auth/types';
 // Auth and permission helpers
 import { auth } from '@src/databases/db';
 import { getPrivateSettingSync } from '@src/services/settings-service';
@@ -67,7 +66,7 @@ export const POST: RequestHandler = apiHandler(async ({ request, locals }) => {
 				return await auth?.getUserById(userId, tenantId);
 			})
 		);
-		if (userChecks.some((u: User | null) => u === null)) {
+		if (userChecks.some((u: any) => u === null)) {
 			logger.warn('Attempt to act on users outside of tenant or non-existent users', {
 				userId: user?._id,
 				tenantId,

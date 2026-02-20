@@ -268,7 +268,7 @@ async function createUser(data: UserInput) {
 Widgets integrate with the `validationStore` for field-level error handling. The `handleWidgetValidation` helper standardizes this process:
 
 ```typescript
-// In widget Input.svelte
+// In widget input.svelte
 import { handleWidgetValidation } from '@widgets/widgetErrorHandler';
 import { validationStore } from '@stores/store.svelte';
 import { parse } from 'valibot';

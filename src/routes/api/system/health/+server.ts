@@ -1,12 +1,4 @@
-/**
- * @file src/routes/api/system/health/+server.ts
- * @description Public health check endpoint
- * @summary
- *  - Returns system health status with performance metrics
- *  - Maps overall status to HTTP status codes
- *  - Catches and reports errors gracefully
- *  - No authentication required
- */
+/** @file src/routes/api/system/health/+server.ts @description Public health check endpoint features: [performance metrics, HTTP status mapping, error reporting, test mode support] */
 
 import { getHealthCheckReport } from '@src/stores/system/reporting';
 import { json } from '@sveltejs/kit';

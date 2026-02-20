@@ -8,7 +8,13 @@ It handles widget configuration, permissions, and specific options.
 <script lang="ts">
 	// Stores
 	import { collectionValue, setCollectionValue, targetWidget } from '@src/stores/collection-store.svelte';
+	import { widgets } from '@src/stores/widget-store.svelte.ts';
 	import { modalState } from '@utils/modal-state.svelte';
+	import { Tabs } from '@skeletonlabs/skeleton-svelte';
+	import Default from './tabs-fields/default.svelte';
+	import Permission from './tabs-fields/permission.svelte';
+	import Specific from './tabs-fields/specific.svelte';
+	import { system_permission, button_delete, button_cancel, button_save } from '@src/paraglide/messages';
 	import type { SvelteComponent } from 'svelte';
 
 	let localTabSet = $state('0');
@@ -28,7 +34,7 @@ It handles widget configuration, permissions, and specific options.
 	// Use props directly instead of modalData
 	// Widget key is the folder name (lowercase), not the widget Name
 	const widgetKey = $derived(value?.widget?.key || (value?.widget?.Name?.toLowerCase() as string));
-	const availableWidgets = $derived($widgetFunctions || {});
+	const availableWidgets = $derived(widgets.widgetFunctions || {});
 	const guiSchema = $derived((availableWidgets[widgetKey]?.GuiSchema || {}) as Record<string, { widget: typeof SvelteComponent }>);
 
 	// Derive options from guiSchema

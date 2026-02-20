@@ -1,6 +1,15 @@
 /**
  * @file src/routes/api/auth/2fa/setup/+server.ts
- * @description API endpoint for initiating 2FA setup
+ * @description
+ * API endpoint for initiating the Two-Factor Authentication setup process.
+ * Generates a unique 2FA secret, creates the OTP URI for QR code generation,
+ * and prepares the account for security verification.
+ *
+ * features:
+ * - 2FA secret initialization
+ * - backup code generation
+ * - standard OTP URI creation
+ * - account security state verification
  */
 
 import { auth } from '@databases/db';

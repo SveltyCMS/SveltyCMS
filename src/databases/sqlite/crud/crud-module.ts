@@ -20,6 +20,7 @@ import { count, eq, inArray } from 'drizzle-orm';
 import type { BaseEntity, DatabaseId, DatabaseResult, QueryFilter } from '../../db-interface';
 import type { AdapterCore } from '../adapter/adapter-core';
 import * as utils from '../utils';
+import { nowISODateString } from '@src/utils/date-utils';
 
 export class CrudModule {
 	private readonly core: AdapterCore;
@@ -29,7 +30,7 @@ export class CrudModule {
 	}
 
 	private get db() {
-		return (this.core as any).db;
+		return this.core.db!;
 	}
 
 	/**
@@ -80,10 +81,10 @@ export class CrudModule {
 		query: QueryFilter<T>,
 		options?: { fields?: (keyof T)[]; tenantId?: string | null }
 	): Promise<DatabaseResult<T | null>> {
-		return (this.core as any).wrap(async () => {
+		return this.core.wrap(async () => {
 			const secureQuery = safeQuery(query, options?.tenantId);
-			const table = (this.core as any).getTable(collection);
-			const where = (this.core as any).mapQuery(table, secureQuery);
+			const table = this.core.getTable(collection);
+			const where = this.core.mapQuery(table, secureQuery);
 			const results = await this.db.select().from(table).where(where).limit(1);
 			if (results.length === 0) {
 				return null;
@@ -103,10 +104,10 @@ export class CrudModule {
 			tenantId?: string | null;
 		}
 	): Promise<DatabaseResult<T[]>> {
-		return (this.core as any).wrap(async () => {
+		return this.core.wrap(async () => {
 			const secureQuery = safeQuery(query, options?.tenantId);
-			const table = (this.core as any).getTable(collection);
-			const where = (this.core as any).mapQuery(table, secureQuery);
+			const table = this.core.getTable(collection);
+			const where = this.core.mapQuery(table, secureQuery);
 			let q = this.db.select().from(table).where(where);
 			if (options?.limit) {
 				q = q.limit(options.limit);
@@ -124,10 +125,10 @@ export class CrudModule {
 		ids: DatabaseId[],
 		options?: { fields?: (keyof T)[]; tenantId?: string | null }
 	): Promise<DatabaseResult<T[]>> {
-		return (this.core as any).wrap(async () => {
+		return this.core.wrap(async () => {
 			const query = safeQuery({ _id: { $in: ids } } as any, options?.tenantId);
-			const table = (this.core as any).getTable(collection);
-			const where = (this.core as any).mapQuery(table, query);
+			const table = this.core.getTable(collection);
+			const where = this.core.mapQuery(table, query);
 			const results = await this.db.select().from(table).where(where);
 			return utils.convertArrayDatesToISO(results).map((row) => this.unpackData(row)) as T[];
 		}, 'CRUD_FIND_BY_IDS_FAILED');
@@ -138,14 +139,14 @@ export class CrudModule {
 		data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>,
 		tenantId?: string | null
 	): Promise<DatabaseResult<T>> {
-		return (this.core as any).wrap(async () => {
-			const table = (this.core as any).getTable(collection);
-			const id = (data as any)._id || utils.generateId();
-			const now = new Date();
+		return this.core.wrap(async () => {
+			const table = this.core.getTable(collection);
+			const id = (data as Partial<T>)._id || utils.generateId();
+			const now = nowISODateString();
 			const packed = this.packData(table, {
 				...data,
 				_id: id,
-				tenantId: tenantId || (data as any).tenantId,
+				tenantId: tenantId || (data as Partial<T>).tenantId,
 				createdAt: now,
 				updatedAt: now
 			});
@@ -164,11 +165,11 @@ export class CrudModule {
 		data: Partial<Omit<T, 'createdAt' | 'updatedAt'>>,
 		tenantId?: string | null
 	): Promise<DatabaseResult<T>> {
-		return (this.core as any).wrap(async () => {
+		return this.core.wrap(async () => {
 			const query = safeQuery({ _id: id } as any, tenantId);
-			const table = (this.core as any).getTable(collection);
-			const where = (this.core as any).mapQuery(table, query);
-			const now = new Date();
+			const table = this.core.getTable(collection);
+			const where = this.core.mapQuery(table, query);
+			const now = nowISODateString();
 			const packed = this.packData(table, { ...data, updatedAt: now });
 
 			await this.db.update(table).set(packed).where(where);
@@ -180,10 +181,10 @@ export class CrudModule {
 	}
 
 	async delete(collection: string, id: DatabaseId, tenantId?: string | null): Promise<DatabaseResult<void>> {
-		return (this.core as any).wrap(async () => {
+		return this.core.wrap(async () => {
 			const query = safeQuery({ _id: id } as any, tenantId);
-			const table = (this.core as any).getTable(collection);
-			const where = (this.core as any).mapQuery(table, query);
+			const table = this.core.getTable(collection);
+			const where = this.core.mapQuery(table, query);
 			await this.db.delete(table).where(where);
 		}, 'CRUD_DELETE_FAILED');
 	}
@@ -194,13 +195,13 @@ export class CrudModule {
 		data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>,
 		tenantId?: string | null
 	): Promise<DatabaseResult<T>> {
-		return (this.core as any).wrap(async () => {
+		return this.core.wrap(async () => {
 			const secureQuery = safeQuery(query, tenantId);
-			const table = (this.core as any).getTable(collection);
-			const where = (this.core as any).mapQuery(table, secureQuery);
+			const table = this.core.getTable(collection);
+			const where = this.core.mapQuery(table, secureQuery);
 			const existing = await this.db.select().from(table).where(where).limit(1);
 			if (existing.length > 0) {
-				const res = await this.update<T>(collection, existing[0]._id, data as any, tenantId);
+				const res = await this.update<T>(collection, existing[0]._id, data as Partial<T>, tenantId);
 				if (!res.success) {
 					throw res.error;
 				}
@@ -215,17 +216,17 @@ export class CrudModule {
 	}
 
 	async count<T extends BaseEntity>(collection: string, query: QueryFilter<T> = {}, tenantId?: string | null): Promise<DatabaseResult<number>> {
-		return (this.core as any).wrap(async () => {
+		return this.core.wrap(async () => {
 			const secureQuery = safeQuery(query, tenantId);
-			const table = (this.core as any).getTable(collection);
-			const where = (this.core as any).mapQuery(table, secureQuery);
+			const table = this.core.getTable(collection);
+			const where = this.core.mapQuery(table, secureQuery);
 			const [result] = await this.db.select({ count: count() }).from(table).where(where);
 			return Number(result.count);
 		}, 'CRUD_COUNT_FAILED');
 	}
 
 	async exists<T extends BaseEntity>(collection: string, query: QueryFilter<T>, tenantId?: string | null): Promise<DatabaseResult<boolean>> {
-		return (this.core as any).wrap(async () => {
+		return this.core.wrap(async () => {
 			const res = await this.count(collection, query, tenantId);
 			if (!res.success) {
 				throw res.error;
@@ -239,22 +240,22 @@ export class CrudModule {
 		data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>[],
 		tenantId?: string | null
 	): Promise<DatabaseResult<T[]>> {
-		return (this.core as any).wrap(async () => {
+		return this.core.wrap(async () => {
 			if (data.length === 0) {
 				return [];
 			}
-			const table = (this.core as any).getTable(collection);
-			const now = new Date();
+			const table = this.core.getTable(collection);
+			const now = nowISODateString();
 			const values = data.map((d) => {
-				const id = (d as any)._id || utils.generateId();
+				const id = (d as Partial<T>)._id || utils.generateId();
 				return this.packData(table, {
 					...d,
 					_id: id,
-					tenantId: tenantId || (d as any).tenantId,
+					tenantId: tenantId || (d as Partial<T>).tenantId,
 					createdAt: now,
 					updatedAt: now
 				});
-			}) as any[];
+			});
 
 			await this.db.insert(table).values(values);
 
@@ -270,24 +271,24 @@ export class CrudModule {
 		data: Partial<Omit<T, 'createdAt' | 'updatedAt'>>,
 		tenantId?: string | null
 	): Promise<DatabaseResult<{ modifiedCount: number }>> {
-		return (this.core as any).wrap(async () => {
+		return this.core.wrap(async () => {
 			const secureQuery = safeQuery(query, tenantId);
-			const table = (this.core as any).getTable(collection);
-			const where = (this.core as any).mapQuery(table, secureQuery);
-			const now = new Date();
+			const table = this.core.getTable(collection);
+			const where = this.core.mapQuery(table, secureQuery);
+			const now = nowISODateString();
 			const result = await this.db
 				.update(table)
-				.set({ ...data, updatedAt: now } as any)
+				.set({ ...data, updatedAt: now } as Record<string, unknown>)
 				.where(where);
 			return { modifiedCount: result.changes };
 		}, 'CRUD_UPDATE_MANY_FAILED');
 	}
 
 	async deleteMany(collection: string, query: QueryFilter<BaseEntity>, tenantId?: string | null): Promise<DatabaseResult<{ deletedCount: number }>> {
-		return (this.core as any).wrap(async () => {
+		return this.core.wrap(async () => {
 			const secureQuery = safeQuery(query, tenantId);
-			const table = (this.core as any).getTable(collection);
-			const where = (this.core as any).mapQuery(table, secureQuery);
+			const table = this.core.getTable(collection);
+			const where = this.core.mapQuery(table, secureQuery);
 			const result = await this.db.delete(table).where(where);
 			return { deletedCount: result.changes };
 		}, 'CRUD_DELETE_MANY_FAILED');
@@ -301,7 +302,7 @@ export class CrudModule {
 		}>,
 		tenantId?: string | null
 	): Promise<DatabaseResult<{ upsertedCount: number; modifiedCount: number }>> {
-		return (this.core as any).wrap(async () => {
+		return this.core.wrap(async () => {
 			let upsertedCount = 0;
 			let modifiedCount = 0;
 			for (const item of items) {
@@ -309,7 +310,7 @@ export class CrudModule {
 					tenantId
 				});
 				if (existing.success && existing.data) {
-					await this.update(collection, existing.data._id, item.data as any, tenantId);
+					await this.update(collection, existing.data._id, item.data as Partial<T>, tenantId);
 					modifiedCount++;
 				} else {
 					await this.insert(collection, item.data, tenantId);
@@ -320,7 +321,11 @@ export class CrudModule {
 		}, 'CRUD_UPSERT_MANY_FAILED');
 	}
 
-	async aggregate<_T extends BaseEntity, R = any>(_collection: string, _pipeline: any[], _tenantId?: string | null): Promise<DatabaseResult<R[]>> {
-		return (this.core as any).notImplemented('crud.aggregate');
+	async aggregate<_T extends BaseEntity, R = unknown>(
+		_collection: string,
+		_pipeline: unknown[],
+		_tenantId?: string | null
+	): Promise<DatabaseResult<R[]>> {
+		return this.core.notImplemented('crud.aggregate');
 	}
 }

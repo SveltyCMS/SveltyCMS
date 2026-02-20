@@ -10,6 +10,7 @@ with the AI collaboration assistant.
 <script lang="ts">
 	import { slide } from 'svelte/transition';
 	import { collaboration } from '@src/stores/collaboration-store.svelte';
+	import { screen } from '@src/stores/screen-size-store.svelte';
 	import { tick } from 'svelte';
 
 	let newMessage = $state('');

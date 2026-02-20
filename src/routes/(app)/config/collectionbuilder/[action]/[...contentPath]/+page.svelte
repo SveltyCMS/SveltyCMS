@@ -14,7 +14,6 @@
 	// Paraglide Messages
 	import { button_delete, button_cancel, button_save } from '@src/paraglide/messages';
 
-	// Components
 	import PageTitle from '@src/components/page-title.svelte';
 	import CollectionForm from './tabs/collection-form.svelte';
 	import CollectionWidgetOptimized from './tabs/collection-widget-optimized.svelte';

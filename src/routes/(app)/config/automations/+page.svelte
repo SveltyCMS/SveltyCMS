@@ -19,6 +19,7 @@ and CRUD actions. Enterprise-grade workflow management GUI.
 	import { showToast } from '@utils/toast';
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
+	import PageTitle from '@src/components/page-title.svelte';
 
 	let flows: AutomationFlow[] = $state([]);
 	let isLoading = $state(true);

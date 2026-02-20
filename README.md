@@ -110,7 +110,7 @@ cd SveltyCMS
 
 ### Install all dependencies
 
-Install STABLE [Node.js](https://nodejs.org/en) to get started. Then choose your preferred package manager:
+Install STABLE [Node.js (>=24)](https://nodejs.org/en) to get started. Then choose your preferred package manager:
 
 <details open>
 <summary><b>npm</b></summary>
@@ -207,7 +207,7 @@ You can log in with email/password or Google OAuth. Role- and field-based access
 
 ## 🎨 Easy Theme Adaptions to your needs
 
-If you require a different look, use the [skeleton theme generator](https://www.skeleton.dev/docs/generator) and modify the `SveltyCMSTheme.ts` to your needs
+If you require a different look, use the [skeleton theme generator](https://www.skeleton.dev/docs/generator) and modify the `svelty-cms-theme.ts` to your needs
 
 ## 🌍 Great System Localization i18n infrastructure
 

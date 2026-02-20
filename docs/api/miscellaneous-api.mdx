@@ -1,0 +1,1028 @@
+---
+path: 'docs/api/miscellaneous-api.mdx'
+title: 'Miscellaneous API Endpoints'
+description: 'Documentation for additional API endpoints including permissions, email, folders, and utilities.'
+order: 12
+icon: 'mdi:dots-horizontal'
+author: 'admin'
+created: '2025-10-05'
+updated: '2025-10-05'
+tags:
+  - 'api'
+  - 'utilities'
+  - 'permissions'
+  - 'email'
+  - 'folders'
+---
+
+# Miscellaneous API Endpoints
+
+## Overview
+
+This document covers additional API endpoints that don't fit into major categories but provide important functionality for permissions, email, virtual folders, content structure, and system utilities.
+
+---
+
+## Permission Management
+
+### Update Permissions & Roles
+
+Updates system roles and permissions configuration.
+
+#### Request
+
+```http
+POST /api/permission/update
+```
+
+**Headers:**
+
+```http
+Cookie: session=your-session-id
+Content-Type: application/json
+```
+
+**Body:**
+
+```json
+{
+	"roles": [
+		{
+			"_id": "editor",
+			"name": "Editor",
+			"isAdmin": false,
+			"permissions": ["content:read", "content:write", "media:read", "media:write"]
+		},
+		{
+			"_id": "contributor",
+			"name": "Contributor",
+			"isAdmin": false,
+			"permissions": ["content:read", "content:create", "media:read"]
+		}
+	]
+}
+```
+
+**Permissions Required:** `admin` only
+
+#### Response
+
+**Success (200):**
+
+```json
+{
+	"success": true
+}
+```
+
+**Error Responses:**
+
+```json
+// 403 Forbidden - Not admin
+{
+  "success": false,
+  "error": "This feature is not available in multi-tenant mode."
+}
+
+// 403 Forbidden - Not admin
+{
+  "success": false,
+  "error": "Unauthorized"
+}
+
+// 400 Bad Request - Invalid role data
+{
+  "success": false,
+  "error": "Invalid role configuration",
+  "details": ["Role name cannot be empty"]
+}
+```
+
+**Important Notes:**
+
+- **Fully supports multi-tenant mode** with tenant-specific role isolation
+- Updates roles directly in database (`auth_roles` collection)
+- Changes take effect immediately (roles cache is invalidated)
+- Validates all roles before applying changes
+- Requires at least one admin role in the system
+
+---
+
+## Email API
+
+### Send Email
+
+Sends templated emails using Svelte components.
+
+#### Request
+
+```http
+POST /api/sendMail
+```
+
+**Headers:**
+
+```http
+Cookie: session=your-session-id
+Content-Type: application/json
+```
+
+**Body:**
+
+```json
+{
+	"recipientEmail": "user@example.com",
+	"subject": "Welcome to SveltyCMS",
+	"templateName": "welcomeUser",
+	"props": {
+		"username": "john_doe",
+		"activationLink": "https://cms.example.com/activate/token123"
+	}
+}
+```
+
+**Available Templates:**
+
+- `welcomeUser` - Welcome email for new users
+- `passwordReset` - Password reset email
+- `invitation` - User invitation email
+- `notification` - General notification email
+
+**Permissions Required:** `admin` or `email:send`
+
+#### Response
+
+**Success (200):**
+
+```json
+{
+	"success": true,
+	"message": "Email sent successfully",
+	"messageId": "<abc123@smtp.example.com>",
+	"recipient": "user@example.com"
+}
+```
+
+**Error Responses:**
+
+```json
+// 400 Bad Request - Missing parameters
+{
+  "success": false,
+  "error": "Missing required parameters: recipientEmail, subject, templateName"
+}
+
+// 400 Bad Request - Invalid template
+{
+  "success": false,
+  "error": "Template 'invalidTemplate' not found"
+}
+
+// 500 Internal Server Error - SMTP failure
+{
+  "success": false,
+  "error": "Failed to send email: SMTP connection failed"
+}
+```
+
+**SMTP Configuration:**
+Requires environment variables:
+
+- `SMTP_HOST` - SMTP server hostname
+- `SMTP_PORT` - SMTP port (25, 465, 587)
+- `SMTP_USER` - SMTP username
+- `SMTP_PASS` - SMTP password
+- `SMTP_FROM` - From email address
+
+---
+
+## System Virtual Folders
+
+System virtual folders organize media files in a hierarchical structure.
+
+### List All Virtual Folders
+
+Retrieves all system virtual folders for the current tenant.
+
+#### Request
+
+```http
+GET /api/systemVirtualFolder
+```
+
+**Headers:**
+
+```http
+Cookie: session=your-session-id
+```
+
+**Permissions Required:** Authenticated user
+
+#### Response
+
+**Success (200):**
+
+```json
+{
+	"success": true,
+	"data": [
+		{
+			"_id": "folder123",
+			"name": "Product Images",
+			"path": "/Product Images",
+			"parentId": null,
+			"type": "folder",
+			"order": 0,
+			"tenantId": "tenant-abc",
+			"createdAt": "2025-10-01T10:00:00Z",
+			"updatedAt": "2025-10-01T10:00:00Z"
+		},
+		{
+			"_id": "folder124",
+			"name": "Blog Images",
+			"path": "/Blog Images",
+			"parentId": null,
+			"type": "folder",
+			"order": 1,
+			"tenantId": "tenant-abc",
+			"createdAt": "2025-10-02T12:00:00Z",
+			"updatedAt": "2025-10-02T12:00:00Z"
+		}
+	]
+}
+```
+
+---
+
+### Create Virtual Folder
+
+Creates a new system virtual folder.
+
+#### Request
+
+```http
+POST /api/systemVirtualFolder
+```
+
+**Headers:**
+
+```http
+Cookie: session=your-session-id
+Content-Type: application/json
+```
+
+**Body:**
+
+```json
+{
+	"name": "Marketing Assets",
+	"parentId": null
+}
+```
+
+**Field Descriptions:**
+
+- `name` (string, required) - Name of the folder
+- `parentId` (string | null, optional) - ID of parent folder, null for root-level folder
+
+**Permissions Required:** Authenticated user
+
+#### Response
+
+**Success (200):**
+
+```json
+{
+	"success": true,
+	"folder": {
+		"_id": "folder125",
+		"name": "Marketing Assets",
+		"path": "/Marketing Assets",
+		"parentId": null,
+		"type": "folder",
+		"order": 0,
+		"tenantId": "tenant-abc",
+		"createdAt": "2025-10-05T14:30:00Z",
+		"updatedAt": "2025-10-05T14:30:00Z"
+	}
+}
+```
+
+**Error Responses:**
+
+```json
+// 400 Bad Request - Invalid name
+{
+	"success": false,
+	"error": "Name is required and must be a string"
+}
+
+// 400 Bad Request - Parent not found
+{
+	"success": false,
+	"error": "Parent folder not found"
+}
+```
+
+---
+
+### Get Folder Contents
+
+Retrieves a specific virtual folder with its contents (subfolders and files).
+
+#### Request
+
+```http
+GET /api/systemVirtualFolder/[id]
+```
+
+**Path Parameters:**
+
+- `id` (string) - The folder ID, or `"root"` for root folder
+
+**Headers:**
+
+```http
+Cookie: session=your-session-id
+```
+
+**Permissions Required:** Authenticated user
+
+#### Response
+
+**Success (200):**
+
+```json
+{
+	"success": true,
+	"data": {
+		"currentFolder": {
+			"_id": "folder123",
+			"name": "Product Images",
+			"path": "/Product Images",
+			"parentId": null,
+			"type": "folder",
+			"order": 0
+		},
+		"contents": {
+			"folders": [
+				{
+					"_id": "folder126",
+					"name": "Electronics",
+					"path": "/Product Images/Electronics",
+					"parentId": "folder123",
+					"order": 0
+				}
+			],
+			"files": [
+				{
+					"_id": "img001",
+					"filename": "product1.jpg",
+					"virtualFolderId": "folder123",
+					"url": "/media/images/product1.jpg",
+					"thumbnail": {
+						"url": "/media/thumbnails/product1.jpg",
+						"width": 200,
+						"height": 200
+					}
+				}
+			]
+		}
+	}
+}
+```
+
+**Note:** When `id` is `"root"`, `currentFolder` will be `null` and contents will show root-level items.
+
+---
+
+### Update Virtual Folder
+
+Updates an existing virtual folder's name.
+
+#### Request
+
+```http
+PATCH /api/systemVirtualFolder/[id]
+```
+
+**Headers:**
+
+```http
+Cookie: session=your-session-id
+Content-Type: application/json
+```
+
+**Body:**
+
+```json
+{
+	"name": "Updated Folder Name"
+}
+```
+
+**Permissions Required:** Authenticated user
+
+#### Response
+
+**Success (200):**
+
+```json
+{
+	"success": true,
+	"folder": {
+		"_id": "folder125",
+		"name": "Updated Folder Name",
+		"path": "/Updated Folder Name",
+		"parentId": null,
+		"updatedAt": "2025-10-05T14:35:00Z"
+	}
+}
+```
+
+**Error Responses:**
+
+```json
+// 404 Not Found
+{
+	"success": false,
+	"error": "Folder not found"
+}
+
+// 400 Bad Request
+{
+	"success": false,
+	"error": "Name is required and must be a string"
+}
+```
+
+---
+
+### Delete Virtual Folder
+
+Deletes a virtual folder. Cannot delete folders with subfolders or media files.
+
+#### Request
+
+```http
+DELETE /api/systemVirtualFolder/[id]
+```
+
+**Headers:**
+
+```http
+Cookie: session=your-session-id
+```
+
+**Permissions Required:** Authenticated user
+
+#### Response
+
+**Success (200):**
+
+```json
+{
+	"success": true
+}
+```
+
+**Error Responses:**
+
+```json
+// 400 Bad Request - Has children
+{
+	"success": false,
+	"error": "Cannot delete folder with subfolders. Delete subfolders first."
+}
+
+// 404 Not Found
+{
+	"success": false,
+	"error": "Folder not found"
+}
+```
+
+---
+
+### Reorder Folders
+
+Updates the order and/or parent of multiple folders.
+
+#### Request
+
+```http
+PATCH /api/systemVirtualFolder
+```
+
+**Headers:**
+
+```http
+Cookie: session=your-session-id
+Content-Type: application/json
+```
+
+**Body:**
+
+```json
+{
+	"action": "reorder",
+	"orderUpdates": [
+		{
+			"folderId": "folder123",
+			"order": 0,
+			"parentId": null
+		},
+		{
+			"folderId": "folder124",
+			"order": 1,
+			"parentId": "folder123"
+		}
+	]
+}
+```
+
+**Field Descriptions:**
+
+- `action` (string, required) - Must be `"reorder"`
+- `orderUpdates` (array, required) - Array of folder updates
+  - `folderId` (string, required) - ID of folder to update
+  - `order` (number, required) - New order position
+  - `parentId` (string | null, optional) - New parent folder ID
+
+**Permissions Required:** Authenticated user
+
+#### Response
+
+**Success (200):**
+
+```json
+{
+	"success": true
+}
+```
+
+**Error Responses:**
+
+```json
+// 400 Bad Request - Invalid action
+{
+	"success": false,
+	"error": "Invalid action"
+}
+
+// 500 Internal Server Error - Update failed
+{
+	"success": false,
+	"error": "Error reordering folders"
+}
+```
+
+---
+
+## Content Structure
+
+### Get Content Structure
+
+Retrieves the complete content structure including collections and their schemas.
+
+#### Request
+
+```http
+GET /api/content-structure
+```
+
+**Headers:**
+
+```http
+Cookie: session=your-session-id
+```
+
+**Permissions Required:** Authenticated user
+
+#### Response
+
+**Success (200):**
+
+```json
+{
+  "success": true,
+  "structure": {
+    "collections": {
+      "posts": {
+        "name": "posts",
+        "displayName": "Posts",
+        "fields": [
+          {
+            "name": "title",
+            "type": "text",
+            "required": true
+          },
+          {
+            "name": "content",
+            "type": "richtext",
+            "required": false
+          },
+          {
+            "name": "author",
+            "type": "relation",
+            "collection": "users"
+          }
+        ]
+      },
+      "pages": {
+        "name": "pages",
+        "displayName": "Pages",
+        "fields": [ ... ]
+      }
+    },
+    "tenantId": "tenant-abc"
+  }
+}
+```
+
+---
+
+## System Preferences
+
+### Get System Preferences
+
+Retrieves system-wide preferences.
+
+#### Request
+
+```http
+GET /api/system-preferences
+```
+
+**Headers:**
+
+```http
+Cookie: session=your-session-id
+```
+
+**Permissions Required:** Authenticated user
+
+#### Response
+
+**Success (200):**
+
+```json
+{
+	"success": true,
+	"preferences": {
+		"siteName": "My CMS",
+		"siteUrl": "https://cms.example.com",
+		"defaultLanguage": "en",
+		"timezone": "UTC",
+		"dateFormat": "YYYY-MM-DD",
+		"timeFormat": "HH:mm:ss"
+	}
+}
+```
+
+---
+
+### Update System Preferences
+
+Updates system preferences.
+
+#### Request
+
+```http
+POST /api/system-preferences
+```
+
+**Headers:**
+
+```http
+Cookie: session=your-session-id
+Content-Type: application/json
+```
+
+**Body:**
+
+```json
+{
+	"preferences": {
+		"siteName": "Updated CMS Name",
+		"defaultLanguage": "de"
+	}
+}
+```
+
+**Permissions Required:** `admin`
+
+#### Response
+
+**Success (200):**
+
+```json
+{
+	"success": true,
+	"message": "System preferences updated successfully"
+}
+```
+
+---
+
+## Marketplace
+
+### List Marketplace Widgets
+
+Retrieves available widgets from marketplace.
+
+#### Request
+
+```http
+GET /api/marketplace/widgets
+```
+
+**Query Parameters:**
+
+- `category` (string, optional) - Filter by category
+- `search` (string, optional) - Search query
+
+**Headers:**
+
+```http
+Cookie: session=your-session-id
+```
+
+**Permissions Required:** Authenticated user
+
+#### Response
+
+**Success (200):**
+
+```json
+{
+	"success": true,
+	"widgets": [
+		{
+			"id": "widget-gallery-pro",
+			"name": "Gallery Pro",
+			"description": "Advanced image gallery widget",
+			"version": "2.1.0",
+			"author": "SveltyCMS Team",
+			"category": "media",
+			"price": "free",
+			"downloads": 1523,
+			"rating": 4.8
+		}
+	],
+	"total": 1
+}
+```
+
+---
+
+## Debug Endpoints
+
+### Basic Debug Info
+
+Returns basic system debug information.
+
+#### Request
+
+```http
+GET /api/debug/basic
+```
+
+**Headers:**
+
+```http
+Cookie: session=your-session-id
+```
+
+**Permissions Required:** `admin`
+
+#### Response
+
+**Success (200):**
+
+```json
+{
+	"success": true,
+	"debug": {
+		"environment": "production",
+		"nodeVersion": "v20.10.0",
+		"platform": "linux",
+		"uptime": 86400,
+		"database": "mongodb",
+		"cacheEnabled": true
+	}
+}
+```
+
+---
+
+### Debug Settings
+
+Returns detailed settings debug information.
+
+#### Request
+
+```http
+GET /api/debug/settings
+```
+
+**Headers:**
+
+```http
+Cookie: session=your-session-id
+```
+
+**Permissions Required:** `admin`
+
+#### Response
+
+**Success (200):**
+
+```json
+{
+	"success": true,
+	"settings": {
+		"loaded": true,
+		"source": "database",
+		"groups": ["system", "theme", "security"],
+		"totalSettings": 45,
+		"cached": true
+	}
+}
+```
+
+---
+
+## Remote Video
+
+### Get Remote Video Info
+
+Retrieves information about remote video URLs (YouTube, Vimeo, etc.).
+
+#### Request
+
+```http
+POST /api/remoteVideo
+```
+
+**Headers:**
+
+```http
+Cookie: session=your-session-id
+Content-Type: application/json
+```
+
+**Body:**
+
+```json
+{
+	"url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+}
+```
+
+**Permissions Required:** Authenticated user
+
+#### Response
+
+**Success (200):**
+
+```json
+{
+	"success": true,
+	"video": {
+		"platform": "youtube",
+		"videoId": "dQw4w9WgXcQ",
+		"title": "Video Title",
+		"thumbnail": "https://img.youtube.com/vi/dQw4w9WgXcQ/maxresdefault.jpg",
+		"duration": 213,
+		"embedUrl": "https://www.youtube.com/embed/dQw4w9WgXcQ"
+	}
+}
+```
+
+---
+
+## Database-Agnostic Implementation
+
+All miscellaneous endpoints use database adapters:
+
+```typescript
+// System virtual folders
+await dbAdapter.systemVirtualFolder.getAll();
+await dbAdapter.systemVirtualFolder.create(folderData);
+await dbAdapter.systemVirtualFolder.getById(id);
+await dbAdapter.systemVirtualFolder.getByParentId(parentId);
+await dbAdapter.systemVirtualFolder.update(id, data);
+await dbAdapter.systemVirtualFolder.delete(id);
+
+// Permissions - Database-only via auth adapter
+await dbAdapter.auth.getAllRoles(tenantId);
+await dbAdapter.auth.createRole(roleData);
+await dbAdapter.auth.updateRole(roleId, roleData, tenantId);
+await dbAdapter.auth.deleteRole(roleId, tenantId);
+
+// Email (no database operations)
+// Uses Nodemailer with SMTP
+
+// Media files queried from multiple collections
+await dbAdapter.crud.findMany('media_images', filter);
+await dbAdapter.crud.findMany('media_documents', filter);
+await dbAdapter.crud.findMany('media_audio', filter);
+await dbAdapter.crud.findMany('media_videos', filter);
+```
+
+---
+
+## Multi-Tenancy Support
+
+All endpoints fully support multi-tenancy:
+
+- **System virtual folders**: Scoped per tenant, all operations respect `tenantId`
+- **Permissions**: Database-backed with tenant-specific role isolation
+- **Email**: Sent with tenant context
+- **Media files**: Filtered by tenant in folder queries
+
+---
+
+## Testing
+
+### JavaScript Examples
+
+```javascript
+// Send email
+await fetch('/api/sendMail', {
+	method: 'POST',
+	credentials: 'include',
+	headers: { 'Content-Type': 'application/json' },
+	body: JSON.stringify({
+		recipientEmail: 'user@example.com',
+		subject: 'Test Email',
+		templateName: 'welcomeUser',
+		props: { username: 'john' }
+	})
+});
+
+// Create system virtual folder
+await fetch('/api/systemVirtualFolder', {
+	method: 'POST',
+	credentials: 'include',
+	headers: { 'Content-Type': 'application/json' },
+	body: JSON.stringify({
+		name: 'New Folder',
+		parentId: null
+	})
+});
+
+// Get folder contents (root level)
+const response = await fetch('/api/systemVirtualFolder/root', {
+	credentials: 'include'
+});
+const { data } = await response.json();
+console.log(data.contents.folders, data.contents.files);
+
+// Update folder
+await fetch('/api/systemVirtualFolder/folder123', {
+	method: 'PATCH',
+	credentials: 'include',
+	headers: { 'Content-Type': 'application/json' },
+	body: JSON.stringify({
+		name: 'Renamed Folder'
+	})
+});
+
+// Reorder folders
+await fetch('/api/systemVirtualFolder', {
+	method: 'PATCH',
+	credentials: 'include',
+	headers: { 'Content-Type': 'application/json' },
+	body: JSON.stringify({
+		action: 'reorder',
+		orderUpdates: [
+			{ folderId: 'folder123', order: 0, parentId: null },
+			{ folderId: 'folder124', order: 1, parentId: 'folder123' }
+		]
+	})
+});
+```
+
+---
+
+## Related Documentation
+
+- [User Management API](/docs/api/user-management-api.mdx)
+- [Media API](/docs/api/media-api.mdx)
+- [Setup Actions API](/docs/api/setup-actions-api.mdx)
+- [Email Templates](/docs/dev-guide/email-templates)
+
+---
+
+## Implementation Details
+
+For implementation details, see:
+
+- `src/routes/api/permission/update/+server.ts` - Permission updates (database-backed roles)
+- `src/routes/api/sendMail/+server.ts` - Email sending
+- `src/routes/api/systemVirtualFolder/+server.ts` - Virtual folder management
+- `src/routes/api/systemVirtualFolder/[id]/+server.ts` - Individual folder operations
+- `src/routes/api/content-structure/+server.ts` - Content structure
+- `src/routes/api/marketplace/widgets/+server.ts` - Marketplace

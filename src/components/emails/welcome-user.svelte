@@ -5,9 +5,12 @@
 -->
 
 <script lang="ts">
+	// @ts-nocheck
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { app } from '@src/stores/store.svelte';
 	import { dev } from '$app/environment';
+	import { Body, Button, Container, Head, Heading, Hr, Html, Img, Link, Preview, Section, Text } from 'better-svelte-email';
+	import { welcomeuser_username, welcomeuser_headless, welcomeuser_discussion1, welcomeuser_discussion2 } from '@src/paraglide/messages';
 
 	interface Props {
 		hostLink?: string;

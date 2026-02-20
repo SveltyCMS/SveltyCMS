@@ -255,9 +255,9 @@ Since the `config/private.test.ts` defaults to SQLite, you can run integration t
 bun run test:unit
 
 # Specific test files
-bun test tests/unit/services/SecurityResponseService.test.ts
+bun test tests/unit/services/security-response-service.test.ts
 bun test tests/unit/stores/system.test.ts
-bun test tests/unit/widgets/richText.test.ts
+bun test tests/unit/widgets/rich-text.test.ts
 
 # Watch mode (re-run on file changes)
 bun test --watch tests/unit/services/
@@ -460,7 +460,7 @@ tests/
 
 ### Test File Naming Convention
 
-- **Unit Tests**: `*.test.ts` (e.g., `SecurityResponseService.test.ts`)
+- **Unit Tests**: `*.test.ts` (e.g., `security-response-service.test.ts`)
 - **Integration Tests**: `*.test.ts` in `api/`, `hooks/`, `databases/`
 - **E2E Tests**: `*.spec.ts` (e.g., `login.spec.ts`)
 
@@ -480,7 +480,7 @@ tests/
    - E2E tests for critical user flows (if needed)
 3. **Use watch mode during development**
    ```bash
-   bun test --watch tests/unit/services/MyNewService.test.ts
+   bun test --watch tests/unit/services/my-new-service.test.ts
    ```
 4. **Check CI before merging**
    - All tests must pass in GitHub Actions

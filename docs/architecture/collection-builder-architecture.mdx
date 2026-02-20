@@ -45,7 +45,7 @@ graph TD
     end
 
     subgraph Client_UI ["Client UI (Collection Builder)"]
-        UI_Store["CollectionStore (Flat List)"]
+        UI_Store["collection-store (Flat List)"]
         UI_Tree["buildTree() (Reactive Hierarchy)"]
         UI_Drag["Drag & Drop Operations"]
     end
@@ -85,7 +85,7 @@ The `config/collections` directory is the primary source of truth for **existenc
 
 ### 2. ContentManager (The Reconciliation Engine)
 
-Located at `src/content/ContentManager.ts`, this singleton is responsible for bridging the gap between static files and dynamic database state.
+Located at `src/content/content-manager.ts`, this singleton is responsible for bridging the gap between static files and dynamic database state.
 
 **Key responsibilities:**
 

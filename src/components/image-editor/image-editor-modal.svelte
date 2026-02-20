@@ -7,7 +7,8 @@ A reusable modal that wraps the main Image Editor.
 	import { imageEditorStore } from '@src/stores/image-editor-store.svelte';
 	import type { MediaImage, WatermarkOptions } from '@src/utils/media/media-models';
 	import { onMount, setContext } from 'svelte';
-	import type Editor from './editor.svelte';
+	import Editor from './editor.svelte';
+	import EditorToolbar from './editor-toolbar.svelte';
 
 	let {
 		image = null,

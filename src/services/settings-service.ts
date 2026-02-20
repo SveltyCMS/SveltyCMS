@@ -1,23 +1,11 @@
-/**
- * @file src/services/settings.ts
- * @description Server-only settings cache and management
- *
- * ⚠️ SECURITY: This file should NEVER be imported in client-side components
- * It handles both public AND private settings on the server only.
- *
- * ### Features
- * - Server-side cache for fast access
- * - Type-safe getters for public and private settings
- * - Database synchronization
- * - Settings import/export for admin operations
- */
+/** @file src/services/settings-service.ts @description Server-only settings cache and management features: [server-side cache, type-safe getters, database synchronization, settings import/export] */
 
 import { privateConfigSchema, publicConfigSchema } from '@src/databases/schemas';
 import { logger } from '@utils/logger';
 import type { InferOutput } from 'valibot';
 
-type PrivateEnv = InferOutput<typeof privateConfigSchema>;
-type PublicEnv = InferOutput<typeof publicConfigSchema> & {
+export type PrivateEnv = InferOutput<typeof privateConfigSchema>;
+export type PublicEnv = InferOutput<typeof publicConfigSchema> & {
 	PKG_VERSION?: string;
 };
 

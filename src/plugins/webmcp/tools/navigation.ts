@@ -40,7 +40,7 @@ export function registerNavigationTools() {
 				};
 			}
 		}
-	});
+	} as any);
 
 	// Tool: get_current_route
 	modelContext.registerTool({
@@ -69,5 +69,5 @@ export function registerNavigationTools() {
 				]
 			};
 		}
-	});
+	} as any);
 }

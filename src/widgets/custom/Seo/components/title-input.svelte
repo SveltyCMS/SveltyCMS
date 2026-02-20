@@ -16,6 +16,14 @@
 -->
 
 <script lang="ts">
+	import {
+		widget_seo_suggestiontitle,
+		widget_seo_suggestioncharacter,
+		widget_seo_suggestionwidthdesktop,
+		widget_seo_suggestionwidthmobile,
+		widget_seo_suggestionseotitle
+	} from '@src/paraglide/messages';
+
 	interface Props {
 		handleTitleChange: (event: Event) => void;
 		title: string;

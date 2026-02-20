@@ -1,7 +1,15 @@
 /**
  * @file src/routes/api/chat/+server.ts
- * @description API endpoint for sending chat messages.
- * Dispatches messages to the global EventBus for real-time distribution.
+ * @description
+ * API endpoint for real-time chat communication.
+ * Dispatches messages to the global EventBus and coordinates
+ * interactions between users and the AI Assistant.
+ *
+ * features:
+ * - multi-room chat support
+ * - real-time message distribution via EventBus
+ * - AI Assistant integration and message simulation
+ * - authenticated user payload resolution
  */
 
 import { eventBus } from '@src/services/automation/event-bus';

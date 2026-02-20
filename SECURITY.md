@@ -2,23 +2,32 @@
 
 ## Supported Versions
 
-We only support the latest version of this project.
-Always upgrade to the most recent version before reporting a vulnerability.
+Only the latest release on the `next` branch is supported.  
+Always upgrade before reporting.
 
-| Version | Supported          |
-| ------- | ------------------ |
-| Latest  | :white_check_mark: |
-
-The older versions are unsupported.
+| Version         | Supported          |
+| --------------- | ------------------ |
+| `next` (latest) | :white_check_mark: |
+| Older branches  | ❌                 |
 
 ## Reporting a Vulnerability
 
-If you discover a potential security vulnerability, please report it by creating a new issue in this GitHub repository. Be as detailed as possible in your report, providing steps to reproduce the vulnerability if possible.
+**Preferred method (private & recommended):**
 
-Please allow reasonable time for the issue to be evaluated and mitigated by the project maintainers. After the initial response to your report, the project team will keep you updated about the progress towards the resolution.
+1. Go to the [Security tab](https://github.com/SveltyCMS/SveltyCMS/security/advisories) → **Report a vulnerability**
+2. Use the private form (GitHub will notify only maintainers)
 
-Do not publicly disclose the issue until it has been addressed by the project maintainers.
+**Alternative:**
+Open a **private** issue or email security@sveltycms.com (PGP key available on request).
 
-Remember, the issue you report must correspond to this repository. If the issue is related to another project, it should be reported in its designated repository following its own security policy.
+**What to include:**
 
-Thank you for your contribution and for responsibly disclosing the vulnerabilities. Your efforts in ensuring the security of this project are greatly appreciated.
+- Description and steps to reproduce
+- Affected version/branch (`next`)
+- Impact (e.g. unauthenticated access, data leak, RCE)
+- Any PoC or screenshot
+
+We aim to reply within **48 hours** and fix critical issues within **7 days**.  
+You will be credited in the release notes and SECURITY.md unless you prefer to stay anonymous.
+
+Thank you for helping keep SveltyCMS safe! ❤️

@@ -15,7 +15,6 @@ Controller for Blur tool using svelte-canvas compatible state.
 	let shape = $state<BlurShape>('rectangle');
 	let activeId = $state<string | null>(null);
 
-	let { onCancel }: { onCancel: () => void } = $props();
 	const storeState = imageEditorStore.state;
 
 	// bind/unbind the tool when active state changes
@@ -44,10 +43,7 @@ Controller for Blur tool using svelte-canvas compatible state.
 				onDeleteRegion: () => {},
 				onRotateLeft: () => {},
 				onRotateRight: () => {},
-				onFlipHorizontal: () => {},
-				onReset: () => (storeState.blurRegions = []),
-				onCancel: () => onCancel(),
-				onApply: apply
+				onFlipHorizontal: () => {}
 			}
 		});
 	}
@@ -57,11 +53,6 @@ Controller for Blur tool using svelte-canvas compatible state.
 			updateToolbar();
 		}
 	});
-
-	function apply() {
-		imageEditorStore.takeSnapshot();
-		imageEditorStore.setActiveState('');
-	}
 
 	const renderBlurRegions = ({ context, width, height }: { context: CanvasRenderingContext2D; width: number; height: number }) => {
 		const { blurRegions, zoom, translateX, translateY, imageElement } = storeState;

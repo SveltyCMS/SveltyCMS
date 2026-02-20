@@ -26,7 +26,7 @@ For new developers, we recommend reading these documents in order to build a str
 1.  **[Code Structure & Organization](./code-structure.mdx)**: Start here for a high-level overview of the codebase.
 2.  **[Server Hooks & Middleware](./server-hooks.mdx)**: Understand how requests are processed.
 3.  **[System State & Health](./state-management.mdx)**: Learn about the application's lifecycle and health monitoring.
-4.  **[Database Core Infrastructure](/docs/database/Core_Infrastructure.mdx)**: Dive into the database-agnostic adapter pattern.
+4.  **[Database Core Infrastructure](/docs/database/core-infrastructure.mdx)**: Dive into the database-agnostic adapter pattern.
 5.  **[System Settings Architecture](./system-settings-architecture.mdx)**: See how dynamic configuration is managed.
 
 ---
@@ -42,15 +42,15 @@ For new developers, we recommend reading these documents in order to build a str
 
 ## 💾 Data & State
 
-- **[Database Core Infrastructure](/docs/database/Core_Infrastructure.mdx)**: The foundation of the database-agnostic architecture.
-- **[MongoDB Implementation](/docs/database/MongoDB_Implementation.mdx)**: A deep dive into the MongoDB-specific optimizations.
-  - **[Performance Architecture](/docs/database/Performance_Architecture.mdx)**: Complete performance implementation overview with caching, indexing, and field selection.
+- **[Database Core Infrastructure](/docs/database/core-infrastructure.mdx)**: The foundation of the database-agnostic architecture.
+- **[MongoDB Implementation](/docs/database/mongodb-implementation.mdx)**: A deep dive into the MongoDB-specific optimizations.
+  - **[Performance Architecture](/docs/database/performance-architecture.mdx)**: Complete performance implementation overview with caching, indexing, and field selection.
   - **[Database Resilience](./database-resilience.mdx)**: Unified guide covering features, integration points, metrics, diagnostics, and planned enhancements.
   - **[Database Methods](./database-methods.mdx)**: Database operation patterns and best practices.
 - **[System Settings Architecture](./system-settings-architecture.mdx)**: How dynamic settings are managed, cached, and synchronized.
   - **[Configuration Management](./configuration-management.mdx)**: Configuration lifecycle and deployment strategies.
 - **[Cache System](./cache-system.mdx)**: The dual-layer caching strategy for high performance.
-  - **[Cache System (Database)](/docs/database/Cache_System.mdx)**: Complete cache architecture with Redis + MongoDB dual-layer, 8 TTL categories, and performance monitoring.
+  - **[Cache System (Database)](/docs/database/cache-system.mdx)**: Complete cache architecture with Redis + MongoDB dual-layer, 8 TTL categories, and performance monitoring.
 - **[Collection Store Dataflow](./collection-store-dataflow.mdx)**: The SSR architecture for collection/entry data management with server-side caching.
 - **[Content System Architecture](./content-system.mdx)**: Detailed overview of the Content Manager, Scanner, Index, and Reactive Content System.
 - **[Content Type System](./content-type-system.mdx)**: Dynamic content type definition and validation.
@@ -59,7 +59,7 @@ For new developers, we recommend reading these documents in order to build a str
 - **[URL Pattern for Collection Editing](./url-pattern.mdx)**: Clean, semantic URL structure with flow diagrams and implementation details.
 - **[Hover Preloading](./hover-preloading.mdx)**: Intelligent speculative loading with connection awareness and predictive features.
 - **[Global Loading Store](./global-loading-store.mdx)**: Enterprise-grade loading state management with SSR safety.
-- [**Real-Time Events API**](../api/Real_Time_Events_API.mdx): Server-Sent Events (SSE) stream for system activity and AI assistant tokens.
+- [**Real-Time Events API**](../api/real-time-events-api.mdx): Server-Sent Events (SSE) stream for system activity and AI assistant tokens.
 - **[UI & Screen State Architecture](./ui-and-screen-state.mdx)**: Technical documentation of the responsive layout and visibility management system.
 
 ---
@@ -89,7 +89,7 @@ For new developers, we recommend reading these documents in order to build a str
 
 ## 📦 UI Components
 
-- **[EntryList MultiButton](./components/EntryList_MultiButton.mdx)**: Enterprise-grade bulk action button with action queue, optimistic UI, and keyboard navigation.
-- **[EntryList](./components/EntryList.mdx)**: Collection data table with search, filtering, pagination, and hover preloading.
-- **[Fields](./components/Fields.mdx)**: Dynamic field renderer with widget loading, validation, and revision history.
-- **[ScheduleModal](./components/ScheduleModal.mdx)**: Scheduling modal for future publish/unpublish/delete actions.
+- **[entry-list MultiButton](./components/entry-list-multibutton.mdx)**: Enterprise-grade bulk action button with action queue, optimistic UI, and keyboard navigation.
+- **[entry-list](./components/entry-list.mdx)**: Collection data table with search, filtering, pagination, and hover preloading.
+- **[fields](./components/fields.mdx)**: Dynamic field renderer with widget loading, validation, and revision history.
+- **[schedule-modal](./components/schedule-modal.mdx)**: Scheduling modal for future publish/unpublish/delete actions.

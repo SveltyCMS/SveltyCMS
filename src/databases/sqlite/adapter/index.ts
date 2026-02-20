@@ -11,7 +11,16 @@
  */
 
 import { eq } from 'drizzle-orm';
-import type { BaseEntity, DatabaseResult, DatabaseTransaction, IDBAdapter, QueryBuilder } from '../../db-interface';
+import type {
+	BaseEntity,
+	DatabaseId,
+	DatabaseResult,
+	DatabaseTransaction,
+	IDBAdapter,
+	PaginationOption,
+	QueryBuilder,
+	Tenant
+} from '../../db-interface';
 import { CollectionModule } from '../collection/collection-module';
 import { CrudModule } from '../crud/crud-module';
 import { AuthModule } from '../modules/auth/auth-module';
@@ -29,14 +38,15 @@ import { PerformanceModule } from '../performance/performance-module';
 import { SQLiteQueryBuilder } from '../query-builder/sq-lite-query-builder';
 import * as schema from '../schema';
 import * as utils from '../utils';
+import { nowISODateString } from '@src/utils/date-utils';
 import { AdapterCore } from './adapter-core';
 
 export class SQLiteAdapter extends AdapterCore implements IDBAdapter {
 	public readonly tenants = {
-		create: async (tenant: any): Promise<DatabaseResult<any>> => {
+		create: async (tenant: Omit<Tenant, '_id' | 'createdAt' | 'updatedAt'> & { _id?: DatabaseId }): Promise<DatabaseResult<Tenant>> => {
 			return this.wrap(async () => {
 				const id = tenant._id || utils.generateId();
-				const now = new Date();
+				const now = nowISODateString();
 				await this.db.insert(schema.tenants).values({
 					...tenant,
 					_id: id,
@@ -44,32 +54,32 @@ export class SQLiteAdapter extends AdapterCore implements IDBAdapter {
 					updatedAt: now
 				});
 				const [result] = await this.db.select().from(schema.tenants).where(eq(schema.tenants._id, id));
-				return result;
+				return result as Tenant;
 			}, 'TENANT_CREATE_FAILED');
 		},
-		getById: async (tenantId: string): Promise<DatabaseResult<any>> => {
+		getById: async (tenantId: DatabaseId): Promise<DatabaseResult<Tenant | null>> => {
 			return this.wrap(async () => {
 				const [result] = await this.db.select().from(schema.tenants).where(eq(schema.tenants._id, tenantId));
-				return result || null;
+				return (result as Tenant) || null;
 			}, 'TENANT_GET_FAILED');
 		},
-		update: async (tenantId: string, data: any): Promise<DatabaseResult<any>> => {
+		update: async (tenantId: DatabaseId, data: Partial<Omit<Tenant, 'createdAt' | 'updatedAt'>>): Promise<DatabaseResult<Tenant>> => {
 			return this.wrap(async () => {
-				const now = new Date();
+				const now = nowISODateString();
 				await this.db
 					.update(schema.tenants)
 					.set({ ...data, updatedAt: now })
 					.where(eq(schema.tenants._id, tenantId));
 				const [result] = await this.db.select().from(schema.tenants).where(eq(schema.tenants._id, tenantId));
-				return result;
+				return result as Tenant;
 			}, 'TENANT_UPDATE_FAILED');
 		},
-		delete: async (tenantId: string): Promise<DatabaseResult<void>> => {
+		delete: async (tenantId: DatabaseId): Promise<DatabaseResult<void>> => {
 			return this.wrap(async () => {
 				await this.db.delete(schema.tenants).where(eq(schema.tenants._id, tenantId));
 			}, 'TENANT_DELETE_FAILED');
 		},
-		list: async (options?: any): Promise<DatabaseResult<any[]>> => {
+		list: async (options?: PaginationOption): Promise<DatabaseResult<Tenant[]>> => {
 			return this.wrap(async () => {
 				let q = this.db.select().from(schema.tenants);
 				if (options?.limit) {
@@ -78,7 +88,8 @@ export class SQLiteAdapter extends AdapterCore implements IDBAdapter {
 				if (options?.offset) {
 					q = q.offset(options.offset);
 				}
-				return await q;
+				const results = await q;
+				return results as Tenant[];
 			}, 'TENANT_LIST_FAILED');
 		}
 	};
@@ -123,7 +134,7 @@ export class SQLiteAdapter extends AdapterCore implements IDBAdapter {
 			return;
 		}
 
-		const now = new Date();
+		const now = nowISODateString();
 		const rolesPayload = [
 			{
 				_id: 'admin',
@@ -206,8 +217,10 @@ export class SQLiteAdapter extends AdapterCore implements IDBAdapter {
 		return Promise.resolve();
 	}
 
-	public async connect(connection: any, _options?: any): Promise<DatabaseResult<void>> {
-		const result = await super.connect(connection);
+	async connect(connection: string | { connectionString?: string; filename?: string }, options?: unknown): Promise<DatabaseResult<void>>;
+	async connect(poolOptions?: import('../../db-interface').ConnectionPoolOptions): Promise<DatabaseResult<void>>;
+	public async connect(connectionOrOptions?: any, _options?: any): Promise<DatabaseResult<void>> {
+		const result = await super.connect(connectionOrOptions);
 		if (result.success && this.sqlite) {
 			const { runMigrations } = await import('../migrations');
 			const migrationResult = await runMigrations(this.sqlite);
@@ -279,7 +292,7 @@ export class SQLiteAdapter extends AdapterCore implements IDBAdapter {
 			metadata?: { totalCount: number; schema?: unknown; indexes?: string[] };
 		}>
 	> => {
-		return (this as any).wrap(async () => {
+		return this.wrap(async () => {
 			const res = await this.crud.findMany(collection, {}, options as any);
 			if (!res.success) {
 				throw new Error(res.message);
@@ -295,7 +308,7 @@ export class SQLiteAdapter extends AdapterCore implements IDBAdapter {
 		collectionNames: string[],
 		options?: { limit?: number; fields?: string[] }
 	): Promise<DatabaseResult<Record<string, any[]>>> => {
-		return (this as any).wrap(async () => {
+		return this.wrap(async () => {
 			const results: Record<string, any[]> = {};
 			for (const name of collectionNames) {
 				const res = await this.getCollectionData(name, {

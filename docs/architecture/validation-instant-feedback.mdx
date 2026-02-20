@@ -60,7 +60,7 @@ Save button becomes ENABLED ✅
 
 ### Smart Default: `validateOnMount = field.required`
 
-**File:** `src/widgets/core/input/Input.svelte`
+**File:** `src/widgets/core/input/input.svelte`
 
 ```typescript
 interface Props {
@@ -96,7 +96,7 @@ let {
 ### 1. Mount-Time Validation
 
 ```svelte
-<!-- Input.svelte -->
+<!-- input.svelte -->
 <script>
 	let hasValidatedOnMount = $state(false);
 
@@ -223,7 +223,7 @@ let {
 ┌─────────────────────────────────────────────────────────────────────┐
 │ Step 1: Component Mount                                              │
 │                                                                       │
-│ Input.svelte mounts                                                   │
+│ input.svelte mounts                                                   │
 │   ↓                                                                   │
 │ field.required === true?                                              │
 │   ↓ YES                                                               │
@@ -237,7 +237,7 @@ let {
 │   ↓                                                                   │
 │ validationStore.isValid = false                                       │
 │   ↓                                                                   │
-│ RightSidebar: <button disabled={true}>Save</button> ✅                │
+│ right-sidebar: <button disabled={true}>Save</button> ✅                │
 └─────────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -267,7 +267,7 @@ let {
 │   ↓                                                                   │
 │ validationStore.isValid = true                                        │
 │   ↓                                                                   │
-│ RightSidebar: <button disabled={false}>Save</button> ✅               │
+│ right-sidebar: <button disabled={false}>Save</button> ✅               │
 └─────────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -417,7 +417,7 @@ export const validationStore = (() => {
 
 ### Save Button Integration
 
-**File:** `src/components/RightSidebar.svelte`
+**File:** `src/components/right-sidebar.svelte`
 
 ```svelte
 <script lang="ts">
@@ -467,7 +467,7 @@ export const validationStore = (() => {
 ```typescript
 import { describe, it, expect } from 'bun:test';
 import { mount } from '@testing-library/svelte';
-import Input from '@widgets/core/input/Input.svelte';
+import input from '@widgets/core/input/input.svelte';
 import { validationStore } from '@stores/store.svelte';
 
 describe('Input Widget - Instant Validation', () => {
@@ -476,7 +476,7 @@ describe('Input Widget - Instant Validation', () => {
 		validationStore.reset();
 
 		// Mount component with required field
-		const { component } = mount(Input, {
+		const { component } = mount(input, {
 			props: {
 				field: {
 					label: 'Title',
@@ -498,7 +498,7 @@ describe('Input Widget - Instant Validation', () => {
 	it('should NOT validate optional field on mount', async () => {
 		validationStore.reset();
 
-		const { component } = mount(Input, {
+		const { component } = mount(input, {
 			props: {
 				field: {
 					label: 'Bio',
@@ -519,7 +519,7 @@ describe('Input Widget - Instant Validation', () => {
 	it('should debounce validation on input', async () => {
 		validationStore.reset();
 
-		const { getByRole } = mount(Input, {
+		const { getByRole } = mount(input, {
 			props: {
 				field: {
 					label: 'Title',
@@ -531,11 +531,11 @@ describe('Input Widget - Instant Validation', () => {
 			}
 		});
 
-		const input = getByRole('textbox');
+		const inputField = getByRole('textbox');
 
 		// Type "H"
-		input.value = 'H';
-		input.dispatchEvent(new Event('input'));
+		inputField.value = 'H';
+		inputField.dispatchEvent(new Event('input'));
 
 		// Validation should NOT run immediately (debounce)
 		expect(validationStore.getError('title')).toBe('This field is required.');
@@ -547,8 +547,8 @@ describe('Input Widget - Instant Validation', () => {
 		expect(validationStore.getError('title')).toBe('Must be at least 5 characters.');
 
 		// Type more
-		input.value = 'Hello';
-		input.dispatchEvent(new Event('input'));
+		inputField.value = 'Hello';
+		inputField.dispatchEvent(new Event('input'));
 		await new Promise((resolve) => setTimeout(resolve, 350));
 
 		// Validation passes
@@ -663,7 +663,7 @@ Total: 30 validations ✅ (73% reduction)
 
 ---
 
-### 2. **Multilingual Fields**
+### 2. **Multilingual fields**
 
 ```svelte
 <Input field={{ label: 'Title', required: true, translated: true }} value={{ en: 'Hello', fr: '' }} />
@@ -769,5 +769,5 @@ The **Instant Validation Feedback System** provides:
 ## Related Documentation
 
 - [Enterprise Widget System Architecture](./enterprise-widget-system.mdx)
-- [Validation Store API](../api/Validation_Store_API.mdx)
+- [Validation Store API](../api/validation-store-api.mdx)
 - [Widget Development Guide](../widgets/widget-development-guide.mdx)

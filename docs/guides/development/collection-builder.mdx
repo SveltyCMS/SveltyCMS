@@ -36,7 +36,7 @@ flowchart TB
     end
 
     subgraph "User Protection"
-        MODAL["Data Loss Modal<br/>(ModalSchemaWarning.svelte)"]
+        MODAL["Data Loss Modal<br/>(modal-schema-warning.svelte)"]
         CONFIRM["User Confirmation"]
     end
 
@@ -216,7 +216,7 @@ The collection editor has **two main tabs**:
 - SEO metadata fields
 - Custom permissions
 
-#### Tab 2: Collection Widgets (Fields Configuration)
+#### Tab 2: Collection Widgets (fields Configuration)
 
 This tab manages the fields (widgets) that make up your collection's content structure.
 
@@ -227,7 +227,7 @@ This tab manages the fields (widgets) that make up your collection's content str
 - Add/edit/delete fields
 - Field preview
 
-### Adding Fields to Collections
+### Adding fields to Collections
 
 **Step-by-Step Process**:
 
@@ -362,9 +362,9 @@ Field-level access control:
    - Widget added to collection
    - Appears in fields list
 
-### Managing Existing Fields
+### Managing Existing fields
 
-**Reorder Fields**:
+**Reorder fields**:
 
 1. Drag field up or down in the list
 2. Drop in desired position
@@ -472,7 +472,7 @@ Widgets are created using the factory pattern:
 import { createWidget } from '@widgets/widgetFactory';
 
 const widget = createWidget({
-	Name: 'MyWidget',
+	Name: 'my-widget',
 	Icon: 'mdi:my-icon',
 	Description: 'My custom widget',
 	GuiSchema: {

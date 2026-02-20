@@ -29,7 +29,7 @@ This document details the architecture of the SveltyCMS System Settings. The sys
 3.  **Filesystem for Defaults:**
     - **`/src/routes/setup/seed.ts`**: Defines the initial, default values for all system settings and default roles. This provides a predictable fallback and is used to seed the database during the initial setup.
     - User roles are stored in the `auth_roles` database collection and managed via the Access Management interface.
-4.  **Reactive Client-Side Store:** The `src/stores/globalSettings.svelte.ts` store holds **public** settings and automatically updates in near real-time using a polling mechanism, ensuring a dynamic UI.
+4.  **Reactive Client-Side Store:** The `src/stores/global-settings.svelte.ts` store holds **public** settings and automatically updates in near real-time using a polling mechanism, ensuring a dynamic UI.
 
 ## The Data Flow
 
@@ -40,7 +40,7 @@ sequenceDiagram
     participant API as Settings API
     participant ServerCache as In-Memory Cache
     participant DB as Database
-    participant ClientStore as globalSettings.svelte.ts
+    participant ClientStore as global-settings.svelte.ts
 
     User->>UI: Changes a setting (e.g., Site Name)
     UI->>API: PUT /api/settings/site { SITE_NAME: "New Name" }
@@ -70,7 +70,7 @@ sequenceDiagram
 
 ### Client-Side (Public Settings)
 
-1.  **Initial Load:** The client-side `globalSettings.svelte.ts` store is populated with public settings on initial page load.
+1.  **Initial Load:** The client-side `global-settings.svelte.ts` store is populated with public settings on initial page load.
 2.  **Polling for Versions:** The store polls the `/api/settings/public/version` endpoint every 5 seconds.
 3.  **Updating on Change:** If the client detects a new version number, it automatically fetches the complete set of public settings from `/api/settings/public` and updates the store. This makes UI elements that depend on public settings (like the site name) reactive and update in near real-time.
 
@@ -79,7 +79,7 @@ sequenceDiagram
 The main UI for managing settings is located at `/config/systemsetting`. It features:
 
 - A tabbed interface for each settings group.
-- A generic component (`GenericSettingsGroup.svelte`) that dynamically renders the fields for any group.
+- A generic component (`generic-settings-group.svelte`) that dynamically renders the fields for any group.
 - Real-time validation and unsaved changes indicators.
 - A search bar to quickly find settings.
 

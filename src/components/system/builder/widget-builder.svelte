@@ -25,6 +25,9 @@
 <script lang="ts">
 	import type { FieldInstance } from '@content/types';
 	import type { WidgetBuilderProps } from './types';
+	import AddWidget from './add-widget.svelte';
+	import WidgetFields from './widget-fields.svelte';
+	import { WidgetBuilder_AddColectionField } from '@src/paraglide/messages';
 
 	// Props
 	let { addField = $bindable(false), fields = $bindable([]), onFieldsChange }: WidgetBuilderProps = $props();

@@ -1,7 +1,4 @@
-/**
- * @file src/stores/store.svelte.ts
- * @description Global state management with Enterprise-grade reactivity (SveltyCMS 2025)
- */
+/** @file src/stores/store.svelte.ts @description Global state management with Enterprise-grade reactivity features: [language persistence, translation progress, UI state management, validation store, change tracking] */
 
 import type { Locale } from '@src/paraglide/runtime';
 import { publicEnv } from '@src/stores/global-settings.svelte';

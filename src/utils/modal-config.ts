@@ -28,6 +28,7 @@ export interface ModalSettings {
 }
 
 // ParaglideJS
+import * as m from '@src/paraglide/messages';
 import { button_cancel, button_confirm, scheduler_body, scheduler_title } from '@src/paraglide/messages';
 import { showToast } from '@utils/toast';
 import { writable } from 'svelte/store';

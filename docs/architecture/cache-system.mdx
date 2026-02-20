@@ -353,7 +353,7 @@ export const actions = {
 		// ... (validation and user creation) ...
 
 		// Initialize global system
-		await initializeWithConfig(databaseConfig);
+		await initializeWithConfig(database - config);
 
 		// PRE-WARM CACHE (Fire-and-forget optimization)
 		// Trigger background fetch of first collection so it's ready when user redirects

@@ -20,7 +20,16 @@
 		setup_step_email,
 		setup_step_email_desc,
 		setup_step_system,
-		setup_step_system_desc
+		setup_step_system_desc,
+		setup_db_test_details_hide,
+		setup_db_test_details_show,
+		setup_db_test_latency,
+		setup_db_test_engine,
+		label_host,
+		label_port,
+		label_database,
+		label_user,
+		setup_db_test_user
 	} from '@src/paraglide/messages';
 	import { locales as availableLocales, getLocale } from '@src/paraglide/runtime';
 	import { setupStore } from '@src/stores/setup-store.svelte.ts';
@@ -33,8 +42,21 @@
 	import { goto } from '$app/navigation';
 	// Step Content Components
 	import WelcomeModal from './welcome-modal.svelte';
+	import SetupHeader from './setup-header.svelte';
+	import SetupStepper from './setup-stepper.svelte';
+	import SetupCardHeader from './setup-card-header.svelte';
+	import SetupNavigation from './setup-navigation.svelte';
+	import DatabaseConfig from './database-config.svelte';
+	import AdminConfig from './admin-config.svelte';
+	import SystemConfig from './system-config.svelte';
+	import EmailConfig from './email-config.svelte';
+	import ReviewConfig from './review-config.svelte';
 
 	// Skeleton v4
+	import DialogManager from '@src/components/system/dialog-manager.svelte';
+
+	// Utils
+	import { showConfirm } from '@utils/modal-utils';
 
 	// --- 1. STATE MANAGEMENT (Wired to Store) ---
 	let { data } = $props();
@@ -99,10 +121,7 @@
 		{ label: setup_step_database(), shortDesc: setup_step_database_desc() },
 		{ label: setup_step_admin(), shortDesc: setup_step_admin_desc() },
 		{ label: setup_step_system(), shortDesc: setup_step_system_desc() },
-		{
-			label: setup_step_email ? setup_step_email() : 'Email (Optional)',
-			shortDesc: setup_step_email_desc ? setup_step_email_desc() : 'Configure SMTP'
-		},
+		{ label: setup_step_email(), shortDesc: setup_step_email_desc() },
 		{ label: setup_step_complete(), shortDesc: setup_step_complete_desc() }
 	]);
 	const totalSteps = $derived(steps.length);

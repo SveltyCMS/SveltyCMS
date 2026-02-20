@@ -27,6 +27,7 @@ import { and, asc, count, desc, eq, gte, inArray, like, lte, notInArray, or, sql
 import type { BaseEntity, DatabaseResult, PaginationOptions, QueryBuilder, QueryOptimizationHints } from '../../db-interface';
 import type { SQLiteAdapter } from '../adapter';
 import * as utils from '../utils';
+import { isoDateStringToDate, nowISODateString } from '@src/utils/date-utils';
 
 export class SQLiteQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> {
 	private readonly adapter: SQLiteAdapter;
@@ -43,11 +44,11 @@ export class SQLiteQueryBuilder<T extends BaseEntity> implements QueryBuilder<T>
 	}
 
 	private get table() {
-		return (this.adapter as any).getTable(this.collection);
+		return this.adapter.getTable(this.collection);
 	}
 
 	private get db() {
-		return (this.adapter as any).db;
+		return this.adapter.db!;
 	}
 
 	where(conditions: Partial<T> | ((item: T) => boolean)): this {
@@ -234,7 +235,7 @@ export class SQLiteQueryBuilder<T extends BaseEntity> implements QueryBuilder<T>
 				meta: { executionTime: Date.now() - startTime }
 			};
 		} catch (error) {
-			return (this.adapter as any).handleError(error, 'QUERY_BUILDER_COUNT_FAILED');
+			return this.adapter.handleError(error, 'QUERY_BUILDER_COUNT_FAILED');
 		}
 	}
 
@@ -257,12 +258,12 @@ export class SQLiteQueryBuilder<T extends BaseEntity> implements QueryBuilder<T>
 				meta: { executionTime: Date.now() - startTime }
 			};
 		} catch (error) {
-			return (this.adapter as any).handleError(error, 'QUERY_BUILDER_EXECUTE_FAILED');
+			return this.adapter.handleError(error, 'QUERY_BUILDER_EXECUTE_FAILED');
 		}
 	}
 
 	async stream(): Promise<DatabaseResult<AsyncIterable<T>>> {
-		return (this.adapter as any).notImplemented('queryBuilder.stream');
+		return this.adapter.notImplemented('queryBuilder.stream');
 	}
 
 	async findOne(): Promise<DatabaseResult<T | null>> {
@@ -276,7 +277,7 @@ export class SQLiteQueryBuilder<T extends BaseEntity> implements QueryBuilder<T>
 				meta: { executionTime: Date.now() - startTime }
 			};
 		} catch (error) {
-			return (this.adapter as any).handleError(error, 'QUERY_BUILDER_FIND_ONE_FAILED');
+			return this.adapter.handleError(error, 'QUERY_BUILDER_FIND_ONE_FAILED');
 		}
 	}
 
@@ -295,7 +296,10 @@ export class SQLiteQueryBuilder<T extends BaseEntity> implements QueryBuilder<T>
 	async updateMany(data: Partial<T>): Promise<DatabaseResult<{ modifiedCount: number }>> {
 		const startTime = Date.now();
 		try {
-			let q = this.db.update(this.table).set({ ...data, updatedAt: new Date() } as any);
+			let q = this.db
+				.update(this.table)
+				.set({ ...data, updatedAt: isoDateStringToDate(nowISODateString()) } as any)
+				.$dynamic();
 			if (this.conditions.length > 0) {
 				q = q.where(and(...this.conditions));
 			}
@@ -306,14 +310,14 @@ export class SQLiteQueryBuilder<T extends BaseEntity> implements QueryBuilder<T>
 				meta: { executionTime: Date.now() - startTime }
 			};
 		} catch (error) {
-			return (this.adapter as any).handleError(error, 'QUERY_BUILDER_UPDATE_MANY_FAILED');
+			return this.adapter.handleError(error, 'QUERY_BUILDER_UPDATE_MANY_FAILED');
 		}
 	}
 
 	async deleteMany(): Promise<DatabaseResult<{ deletedCount: number }>> {
 		const startTime = Date.now();
 		try {
-			let q = this.db.delete(this.table);
+			let q = this.db.delete(this.table).$dynamic();
 			if (this.conditions.length > 0) {
 				q = q.where(and(...this.conditions));
 			}
@@ -324,7 +328,7 @@ export class SQLiteQueryBuilder<T extends BaseEntity> implements QueryBuilder<T>
 				meta: { executionTime: Date.now() - startTime }
 			};
 		} catch (error) {
-			return (this.adapter as any).handleError(error, 'QUERY_BUILDER_DELETE_MANY_FAILED');
+			return this.adapter.handleError(error, 'QUERY_BUILDER_DELETE_MANY_FAILED');
 		}
 	}
 }

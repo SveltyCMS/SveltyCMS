@@ -1,30 +1,4 @@
-/**
- * @file src/routes/api/user/login/+server.ts
- * @description Quantum-resistant user authentication API endpoint.
- *
- * QUANTUM COMPUTING SECURITY:
- * ===========================
- * This endpoint uses quantum-resistant cryptography:
- * - Password verification: Argon2id (memory-hard, resists quantum speedup)
- * - Session tokens: AES-256-GCM (128-bit quantum security)
- * - No public-key crypto: Avoids RSA/ECC vulnerability to Shor's algorithm
- *
- * Security Timeline: Secure against quantum computers for 15-30+ years
- *
- * This endpoint handles user authentication by:
- * - Validating user credentials (email and password) within the scope of the current tenant
- * - Checking if the user account is blocked
- * - Creating a new session tagged with the tenant ID and setting a secure cookie
- *
- * Features:
- * - Quantum-resistant password verification using Argon2id
- * - Safeguard against blocked user login
- * - Prevents already authenticated users from logging in again
- * - Generic error messages prevent user enumeration
- * - Robust error handling and logging
- *
- * @see /docs/architecture/quantum-security.mdx for security details
- */
+/** @file src/routes/api/user/login/+server.ts @description Quantum-resistant user authentication API endpoint features: [Argon2id password verification, AES-256-GCM session tokens, multi-tenant awareness, blocked user protection, user enumeration prevention] */
 
 import { getPrivateSettingSync } from '@src/services/settings-service';
 import { type HttpError, json } from '@sveltejs/kit';

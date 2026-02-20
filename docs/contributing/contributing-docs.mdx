@@ -28,7 +28,7 @@ All contributions **must** adhere to these foundational rules.
 > 2.  **Centralized API Docs**: All API documentation **must** be located in `/docs/api/` to provide a single, unified reference.
 > 3.  **Current Functionality Only**: Document **only** what exists in the current codebase. Do not add documentation for planned features or unmerged changes.
 > 4.  **Assets in `/static/docs`**: All non-MDX assets (images, diagrams) **must** be placed in `/static/docs/` and referenced via an absolute path.
-> 5.  **Widget API Sync**: Any change to `src/routes/api/widgets/` or `src/stores/widgetStore.svelte.ts` (add/remove/rename endpoint, response shape change) MUST update `/docs/api/Widget_API.mdx` in the same PR (refresh `updated`, status table, remove obsolete endpoints). Never leave docs out-of-sync.
+> 5.  **Widget API Sync**: Any change to `src/routes/api/widgets/` or `src/stores/widget-store.svelte.ts` (add/remove/rename endpoint, response shape change) MUST update `/docs/api/Widget_API.mdx` in the same PR (refresh `updated`, status table, remove obsolete endpoints). Never leave docs out-of-sync.
 
 ---
 
@@ -126,7 +126,7 @@ src/
 
 Every MDX file must begin with a YAML frontmatter block enclosed by `---` lines. This metadata is critical for navigation, search, and display.
 
-### Required Fields
+### Required fields
 
 | Field       | Required | Purpose                                                                                        | Example Value                              |
 | ----------- | -------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------ |

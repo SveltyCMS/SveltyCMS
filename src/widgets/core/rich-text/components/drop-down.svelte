@@ -19,6 +19,7 @@
 
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
+	import { twMerge } from 'tailwind-merge';
 
 	// Lucide icons
 

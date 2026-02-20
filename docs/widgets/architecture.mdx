@@ -36,13 +36,13 @@ graph TB
     end
 
     subgraph "Widget Store Management"
-        WS[widgetStore.svelte.ts<br/>State Management]
+        WS[widget-store.svelte.ts<br/>State Management]
         WD[widgetDiscovery.ts<br/>Filesystem Scanner]
     end
 
     subgraph "Runtime System"
         CR[Collection Runtime<br/>Field Instances]
-        MW[MissingWidget.svelte<br/>Fallback Handler]
+        MW[missing-widget.svelte<br/>Fallback Handler]
     end
 
     WF --> WS
@@ -116,7 +116,7 @@ graph TD
 When widgets change state (install/enable/disable), the system automatically ensures consistency:
 
 ```typescript
-// src/stores/widgetStore.svelte.ts
+// src/stores/widget-store.svelte.ts
 async updateStatus(widgetName, status) {
     // 1. Update DB & Memory
 
@@ -197,7 +197,7 @@ CREATE TABLE widgets (
 
 - **Core Widgets**: Global, always active.
 - **Custom/Marketplace Widgets**: Tenant-specific. Tenant A can have `SEO` enabled while Tenant B has it disabled.
-- **Discovery**: The `widgetStore` initializes with a `tenantId`, filtering the active list accordingly.
+- **Discovery**: The `widget-store` initializes with a `tenantId`, filtering the active list accordingly.
 
 ---
 

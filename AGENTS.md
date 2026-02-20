@@ -55,15 +55,95 @@ To stay ahead: Implement cleaner features (e.g., isomorphic plugins > Payload's 
 
 ## Technical Standards
 
-- **Modern Stack**: Latest TypeScript (^5.9.3), Node.js (>=24), Svelte 5 (^5.46.4), Vite 7 (^7.3.1), Bun (3-4x faster runtime), Nx Monorepo (^22.3.3) for caching.
+- **Modern Stack**: Latest TypeScript (^5.9.3), Node.js (>=24), Svelte 5 (^5.46.4), Vite 7 (^7.3.1), Bun (3-4x faster runtime)
 - **Code Quality**: Verify with `bun run lint && bun run check` before commits. Use the hybrid Biome/ESLint setup (orchestrated by Ultracite) for sub-second formatting and comprehensive linting.
 
-| Category     | Convention           | Examples                                                   |
-| ------------ | -------------------- | ---------------------------------------------------------- |
-| Naming       | camelCase            | `dbAdapter`, `loadSettings`                                |
-|              | PascalCase           | `Auth`, `MediaService`, `Input.svelte`                     |
-|              | SCREAMING_SNAKE_CASE | `DB_TYPE`, `DEFAULT_THEME`                                 |
-| File Headers | Mandatory format     | `/** @file [path] @description [desc] features: [list] */` |
+| Category          | Convention           | Examples                                                 |
+| :---------------- | :------------------- | :------------------------------------------------------- |
+| **Naming**        | `camelCase`          | `dbAdapter`, `loadSettings` (logic, variables, props)    |
+|                   | `PascalCase`         | `Auth`, `MediaService` (types, interfaces, classes)      |
+|                   | `kebab-case`         | `user-avatar.svelte`, `auth-service.ts` (files, folders) |
+|                   | `UPPER_SNAKE_CASE`   | `DB_TYPE`, `DEFAULT_THEME` (global constants)            |
+| **Documentation** | **Mandatory Header** | `@file`, `@description`, `Features:`                     |
+
+> [!IMPORTANT]
+> **Comprehensive Headers**: Headers MUST be readable and provide full context. Avoid single-line compression for complex modules. If the header need to be informative about the code file, use the standard format.
+>
+> - **Typescript (.ts)**: Use `/** ... */` block comments.
+> - **Svelte (.svelte)**: Use `<!-- ... -->` HTML comments at the very top.
+>
+> **Standard Format Example (TS)**:
+>
+> ```typescript
+> /**
+>  * @file src/databases/db.ts
+>  * @description
+>  * Core initialization module for database and authentication.
+>  *
+>  * Responsibilities include:
+>  * - Dynamically loading adapters based on DB_TYPE.
+>  * - Managing connection resilience and retries.
+>  * - Initializing system models (auth, media, collections).
+>  *
+>  * ### Features:
+>  * - dynamic adapter loading
+>  * - connection resilience
+>  * - model auto-initialization
+>  */
+> ```
+>
+> **Standard Format Example (Svelte)**:
+>
+> ```html
+> <!-- 
+> @file src/components/avatar.svelte
+> @component
+> **Reusable user avatar component with fallback and status indicators**
+> 
+> ### Props
+> - `src` (string): Image source URL.
+> - `size` (number): Pixel size (default: 40).
+> 
+> ### Features:
+> - lazy-loading images
+> - fallback to initials
+> - presence indicators
+> -->
+> ```
+
+## Security Policy
+
+### Supported Versions
+
+Only the latest release on the `next` branch is supported.  
+Always upgrade before reporting.
+
+| Version         | Supported          |
+| --------------- | ------------------ |
+| `next` (latest) | :white_check_mark: |
+| Older branches  | ❌                 |
+
+### Reporting a Vulnerability
+
+**Preferred method (private & recommended):**
+
+1. Go to the [Security tab](https://github.com/SveltyCMS/SveltyCMS/security/advisories) → **Report a vulnerability**
+2. Use the private form (GitHub will notify only maintainers)
+
+**Alternative:**
+Open a **private** issue or email security@sveltycms.com (PGP key available on request).
+
+**What to include:**
+
+- Description and steps to reproduce
+- Affected version/branch (`next`)
+- Impact (e.g. unauthenticated access, data leak, RCE)
+- Any PoC or screenshot
+
+We aim to reply within **48 hours** and fix critical issues within **7 days**.  
+You will be credited in the release notes and SECURITY.md unless you prefer to stay anonymous.
+
+Thank you for helping keep SveltyCMS safe! ❤️
 
 ## AI Agent Best Practices
 
@@ -101,15 +181,17 @@ When generating/modifying code:
 
 **Feature-Specific Documentation:**
 
-| Feature Type                      | Primary MDX Location                                     | Also Update                                    |
-| --------------------------------- | -------------------------------------------------------- | ---------------------------------------------- |
-| Database adapters                 | `docs/database/` (e.g., `PostgreSQL_Implementation.mdx`) | `technical-evaluation-2026.mdx` feature matrix |
-| Auth/Security (SAML, OAuth, SCIM) | `docs/database/Authentication_System.mdx`                | `technical-evaluation-2026.mdx`                |
-| UI/UX features                    | `docs/guides/` or `docs/architecture/`                   | Widget docs if applicable                      |
-| Content/Preview features          | `docs/guides/` (e.g., `Live_Preview_Architecture.mdx`)   | Integration docs                               |
-| Widgets                           | `docs/widgets/` (per-widget `.mdx`)                      | `widget-system-overview.mdx`                   |
-| API endpoints                     | `docs/api/`                                              | Relevant service docs                          |
-| Performance/Infra                 | `docs/database/Performance_Architecture.mdx`             | `technical-evaluation-2026.mdx`                |
+### Documentation Matrix
+
+| Feature Type        | Primary MDX Location                         | Also Update                     |
+| :------------------ | :------------------------------------------- | :------------------------------ |
+| **Database**        | `docs/database/`                             | `technical-evaluation-2026.mdx` |
+| **Auth/Security**   | `docs/database/Authentication_System.mdx`    | `technical-evaluation-2026.mdx` |
+| **UI/UX**           | `docs/guides/`                               | Widget docs if applicable       |
+| **Content/Preview** | `docs/guides/Live_Preview_Architecture.mdx`  | Integration docs                |
+| **Widgets**         | `docs/widgets/`                              | `widget-system-overview.mdx`    |
+| **API**             | `docs/api/`                                  | Relevant service docs           |
+| **Performance**     | `docs/database/Performance_Architecture.mdx` | `technical-evaluation-2026.mdx` |
 
 **Key Documentation Files:**
 
@@ -211,17 +293,23 @@ Native; enabled in `config/private.ts`; Enforces isolation via `tenantId`.
 
 ### State Management
 
-Svelte 5 runes: `$state()` for state, `$derived()` for computations, `$effect()` for effects. Stores: `widgetStore.svelte.ts` (singleton), `stores/system/state.ts` (custom auto-recovery state machine).
+Svelte 5 runes: `$state()` for state, `$derived()` for computations, `$effect()` for effects. Stores: `widget-store.svelte.ts` (singleton), `stores/system/state.ts` (custom auto-recovery state machine).
 
 ## Important Patterns & Conventions
 
 1. **Security**: No secrets in client; use `.server.ts`.
 2. **Async Init**: Await `dbInitPromise`.
-3. **Type Safety & Validation**: Valibot schemas.
-4. **Error Handling & Logging**: Try-catch with structured logger.
-5. **Permissions**: `hasPermissionWithRoles()`.
-6. **i18n**: Paraglide messages.
-7. **API Responses**: Consistent `{ data, message }` or `{ error, code }`.
+3. **Date Handling & ISO Strings**: 
+   - **Type Safety**: Use `ISODateString` from `@src/content/types` for all dates in entities.
+   - **Utility**: Use `@src/utils/date-utils.ts` for ALL date operations.
+   - **Current Time**: Always use `nowISODateString()` instead of `new Date().toISOString()`.
+   - **Drizzle Consistency**: When assigning to Drizzle `Date` columns (MariaDB/SQLite), wrap ISO strings in `isoDateStringToDate()`: `updatedAt: isoDateStringToDate(nowISODateString())`.
+   - **Database Agnostic**: Use `toISOString(value)` when reading from any database to ensure a consistent `ISODateString`.
+4. **Type Safety & Validation**: Valibot schemas.
+5. **Error Handling & Logging**: Try-catch with structured logger.
+6. **Permissions**: `hasPermissionWithRoles()`.
+7. **i18n**: Paraglide messages.
+8. **API Responses**: Consistent `{ data, message }` or `{ error, code }`.
 
 ## Common Pitfalls
 
@@ -238,7 +326,7 @@ Svelte 5 runes: `$state()` for state, `$derived()` for computations, `$effect()`
 | :------------ | :--------------------------------------------------------------------------- |
 | **DB & Auth** | db.ts`, `dbInterface.ts`, database adapters like mongo, drizzle, etc.        |
 | **Content**   | `types.ts`, `collectionScanner.ts`, `config/collections/`                    |
-| **Widgets**   | `widgetFactory.ts`, `widgetStore.svelte.ts`                                  |
+| **Widgets**   | `widget-factory.ts`, `widget-store.svelte.ts`                                |
 | **API**       | `routes/api/`, `hooks.server.ts`                                             |
 | **Services**  | `settingsService.ts`, `scheduler/`, `AuditLogService.ts`,`MetricsService.ts` |
 | **Build**     | `vite.config.ts`, `svelte.config.js`, `tailwind.config.js`                   |

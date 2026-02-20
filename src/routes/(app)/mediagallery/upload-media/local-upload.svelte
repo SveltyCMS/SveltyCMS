@@ -17,6 +17,7 @@
 -->
 <script lang="ts">
 	import { toaster } from '@src/stores/store.svelte.ts';
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	// Using iconify-icon web component
 	import { logger } from '@utils/logger';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';

@@ -19,6 +19,7 @@ import type { DatabaseId, DatabaseResult, Theme } from '../../../db-interface';
 import type { AdapterCore } from '../../adapter/adapter-core';
 import * as schema from '../../schema';
 import * as utils from '../../utils';
+import { isoDateStringToDate, nowISODateString } from '@src/utils/date-utils';
 
 export class ThemesModule {
 	private readonly core: AdapterCore;
@@ -72,8 +73,8 @@ export class ThemesModule {
 				_id: id,
 				...theme,
 				config: theme.config as any,
-				createdAt: new Date(),
-				updatedAt: new Date()
+				createdAt: isoDateStringToDate(nowISODateString()),
+				updatedAt: isoDateStringToDate(nowISODateString())
 			});
 
 			const [inserted] = await this.db.select().from(schema.themes).where(eq(schema.themes._id, id));
@@ -94,7 +95,7 @@ export class ThemesModule {
 		return (this.core as any).wrap(async () => {
 			await this.db
 				.update(schema.themes)
-				.set({ ...theme, config: theme.config as any, updatedAt: new Date() })
+				.set({ ...theme, config: theme.config as any, updatedAt: isoDateStringToDate(nowISODateString()) })
 				.where(eq(schema.themes._id, themeId));
 
 			const [updated] = await this.db.select().from(schema.themes).where(eq(schema.themes._id, themeId));
@@ -133,8 +134,8 @@ export class ThemesModule {
 						isActive: theme.isActive,
 						isDefault: theme.isDefault,
 						config: theme.config as any,
-						createdAt: new Date(),
-						updatedAt: new Date()
+						createdAt: isoDateStringToDate(nowISODateString()),
+						updatedAt: isoDateStringToDate(nowISODateString())
 					});
 				}
 			}

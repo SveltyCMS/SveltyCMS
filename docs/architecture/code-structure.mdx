@@ -22,6 +22,21 @@ This document provides a comprehensive overview of the SveltyCMS codebase organi
 
 ---
 
+## 🛠️ Technical Standards
+
+- **Modern Stack**: Latest TypeScript (^5.9.3), Node.js (>=24), Svelte 5 (^5.46.4), Vite 7 (^7.3.1), Bun (3-4x faster runtime).
+- **Code Quality**: Verify with `bun run lint && bun run check` before commits. Use the hybrid Biome/ESLint setup (orchestrated by Ultracite) for sub-second formatting and comprehensive linting.
+
+| Category     | Convention       | Examples                                                   |
+| ------------ | ---------------- | ---------------------------------------------------------- |
+| Naming       | camelCase        | `dbAdapter`, `loadSettings` (logic, variables, props)      |
+|              | PascalCase       | `Auth`, `MediaService` (types, interfaces, classes)        |
+|              | kebab-case       | `user-avatar.svelte`, `auth-service.ts` (files, folders)   |
+|              | UPPER_SNAKE_CASE | `DB_TYPE`, `DEFAULT_THEME` (global constants)              |
+| File Headers | Mandatory format | `/** @file [path] @description [desc] features: [list] */` |
+
+---
+
 ## 📁 Directory Structure
 
 ```
@@ -80,7 +95,7 @@ The database layer provides a **unified interface** for different database backe
 
 **Key Files:**
 
-- `dbInterface.ts` - Database adapter interface definition (IDBAdapter)
+- `db-interface.ts` - Database adapter interface definition (IDBAdapter)
 - `index.ts` - Database initialization and adapter selection
 - Database adapters implement the IDBAdapter interface for consistency
 
@@ -261,19 +276,19 @@ Reusable UI components following **Atomic Design** principles.
 ```
 components/
 ├── atoms/              # Basic building blocks
-│   ├── Button.svelte
-│   ├── Input.svelte
-│   └── Icon.svelte
+│   ├── button.svelte
+│   ├── input.svelte
+│   └── icon.svelte
 │
 ├── molecules/          # Combinations of atoms
-│   ├── FormField.svelte
-│   ├── SearchBar.svelte
-│   └── Card.svelte
+│   ├── form-field.svelte
+│   ├── search-bar.svelte
+│   └── card.svelte
 │
 └── organisms/          # Complex UI sections
-    ├── Header.svelte
-    ├── Sidebar.svelte
-    └── DataTable.svelte
+    ├── header.svelte
+    ├── sidebar.svelte
+    └── data-table.svelte
 ```
 
 **Svelte 5 Patterns:**
@@ -328,7 +343,7 @@ export const privateConfig = {
 **Global Settings Store:**
 
 ```typescript
-// src/stores/globalSettings.svelte.ts
+// src/stores/global-settings.svelte.ts
 export class GlobalSettings {
 	// Settings loaded from database at startup
 	// Provides reactive, type-safe access throughout app
@@ -399,7 +414,7 @@ interface Widget {
 Widgets automatically handle translated content by reading the current language from the `contentLanguage` store:
 
 ```svelte
-<!-- src/widgets/core/input/Input.svelte -->
+<!-- src/widgets/core/input/input.svelte -->
 <script lang="ts">
 	import { app } from '@stores/store.svelte';
 	import { DEFAULT_CONTENT_LANGUAGE } from '@src/utils/constants';
@@ -666,7 +681,7 @@ export const app = new AppStore();
 
 1. **Initial Load**: Cookie → Environment Default → `'en'`
 2. **URL Navigation**: Server returns `contentLanguage` → Syncs to app singleton
-3. **User Toggle**: TranslationStatus dropdown → Updates app singleton → Navigates with `invalidateAll: true`
+3. **User Toggle**: translation-status dropdown → Updates app singleton → Navigates with `invalidateAll: true`
 4. **Widget Display**: Widgets read `app.contentLanguage` reactively
 
 ```svelte
@@ -786,7 +801,7 @@ User Action → Singleton Update → Server Request → Cache Lookup → Widget 
 **1. User Toggles Language:**
 
 ```svelte
-<!-- TranslationStatus.svelte -->
+<!-- translation-status.svelte -->
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { app } from '@stores/store.svelte';
@@ -905,7 +920,7 @@ db.collection('posts').insertOne(entry);
 // Adapter reads from DB and reconstructs: { title: { en: "...", de: "..." } }
 ```
 
-**EntryList Display:**
+**entry-list Display:**
 
 ```svelte
 <!-- Shows current language in table view -->
@@ -923,11 +938,11 @@ db.collection('posts').insertOne(entry);
 **Creating Multilingual Content:**
 
 1. **Start in Default Language** (usually 'en')
-   - Fields marked `translated: true` accept input in default language
+   - fields marked `translated: true` accept input in default language
    - System saves: `{ title: { en: "New Post" } }`
 
 2. **Switch to Secondary Language** (e.g., 'de')
-   - TranslationStatus dropdown shows completion: "EN: 100% | DE: 0%"
+   - translation-status dropdown shows completion: "EN: 100% | DE: 0%"
    - Same fields now show empty (no German translation yet)
    - User enters German text
    - System saves: `{ title: { en: "New Post", de: "Neuer Beitrag" } }`
@@ -940,7 +955,7 @@ db.collection('posts').insertOne(entry);
 
 ```svelte
 <!-- Shows % complete per language -->
-<TranslationStatus
+<translation-status
 	availableLanguages={['en', 'de', 'fr']}
 	currentLanguage={contentLanguage.value}
 	completionStatus={{
@@ -1038,7 +1053,7 @@ src/routes/
 ├── (app)/                       # Main application (grouped route)
 │   ├── [language]/              # Language parameter (en, de, fr, etc.)
 │   │   ├── [...collection]/     # Dynamic collection paths
-│   │   │   ├── +page.svelte     # Collection view (EntryList/Fields)
+│   │   │   ├── +page.svelte     # Collection view (entry-list/fields)
 │   │   │   └── +page.server.ts  # SSR data loading with language context
 │   │   └── +layout.svelte       # Language-aware layout
 │   └── +layout.svelte           # App layout wrapper

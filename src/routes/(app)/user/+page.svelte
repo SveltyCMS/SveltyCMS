@@ -22,12 +22,25 @@
 		usermodalconfirmtitle,
 		usermodaluser_edittitle,
 		usermodaluser_settingbody,
-		usermodaluser_settingtitle
+		usermodaluser_settingtitle,
+		userpage_title,
+		userpage_editavatar,
+		userpage_user_id,
+		role,
+		username,
+		email,
+		form_password,
+		userpage_edit_usersetting,
+		button_delete
 	} from '@src/paraglide/messages';
 	// Stores
 	import { collaboration } from '@src/stores/collaboration-store.svelte';
 	import { onMount } from 'svelte';
 	import { invalidateAll } from '$app/navigation';
+	import { avatarSrc, normalizeAvatarUrl } from '@src/stores/store.svelte.ts';
+	import { Avatar } from '@skeletonlabs/skeleton-svelte';
+	import PageTitle from '@src/components/page-title.svelte';
+	import AdminArea from './components/admin-area.svelte';
 	// Auth
 	import ModalTwoFactorAuth from './components/modal-two-factor-auth.svelte';
 	import '@src/stores/store.svelte.ts';
@@ -400,7 +413,7 @@
 	>
 		<div class="wrapper2">
 			<h2 class="h3 font-bold mb-4 px-2 dark:text-white">Admin Management</h2>
-			<AdminArea currentUser={{ ...user }} {isMultiTenant} roles={data.roles} />
+			<AdminArea currentUser={{ ...user }} isMultiTenant={isMultiTenant!} roles={data.roles} />
 		</div>
 	</PermissionGuard>
 </div>

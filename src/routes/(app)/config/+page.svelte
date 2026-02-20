@@ -6,6 +6,7 @@
 
 <script lang="ts">
 	import PermissionGuard from '@src/components/permission-guard.svelte';
+	import PageTitle from '@src/components/page-title.svelte';
 	import { collections } from '@src/stores/collection-store.svelte';
 	import { ui } from '@src/stores/ui-store.svelte.ts';
 	import { onMount } from 'svelte';

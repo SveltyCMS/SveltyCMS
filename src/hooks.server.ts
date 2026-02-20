@@ -1,33 +1,4 @@
-/**
- * @file src/hooks.server.ts
- * @description Hook middleware pipeline with unified metrics and automated security response
- *
- * This file orchestrates a streamlined sequence of middleware to handle
- * all incoming server requests. The architecture emphasizes security, observability,
- * and performance with unified metrics collection and automated threat detection.
- *
- * Middleware Sequence:
- * 1. Static asset caching (performance optimization, skip all processing)
- * 2. System state validation (gatekeeper)
- * 3. Rate limiting (abuse prevention)
- * 4. Application firewall (threat detection)
- * 5. Setup completion enforcement (installation gate)
- * 6. Language preferences (i18n cookie synchronization)
- * 7. Theme management (SSR dark mode support)
- * 8. Authentication & session management (identity)
- * 9. Authorization & access control (security)
- * 10. API request handling (optional, commented out by default)
- * 11. Security headers with nonce-based CSP (defense in depth)
- *
- * Core Services:
- * - MetricsService: Unified performance & security monitoring
- * - SecurityResponseService: Automated threat detection & response
- *
- * Utility Exports:
- * - getHealthMetrics(): Returns comprehensive metrics report
- * - invalidateSessionCache(): Invalidates specific user session
- * - clearAllSessionCaches(): Clears all cached sessions
- */
+/** @file src/hooks.server.ts @description Hook middleware pipeline with unified metrics and automated security response features: [static asset caching, system state validation, rate limiting, application firewall, setup check, i18n, theme management, authentication, authorization, API handling, security headers] */
 
 import { metricsService } from '@src/services/metrics-service';
 import type { Handle } from '@sveltejs/kit';

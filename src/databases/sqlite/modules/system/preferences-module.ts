@@ -17,6 +17,7 @@ import type { DatabaseId, DatabaseResult } from '../../../db-interface';
 import type { AdapterCore } from '../../adapter/adapter-core';
 import * as schema from '../../schema';
 import * as utils from '../../utils';
+import { isoDateStringToDate, nowISODateString } from '@src/utils/date-utils';
 
 export class PreferencesModule {
 	private readonly core: AdapterCore;
@@ -107,7 +108,7 @@ export class PreferencesModule {
 			if (exists.length > 0) {
 				await this.db
 					.update(schema.systemPreferences)
-					.set({ value: value as any, updatedAt: new Date() })
+					.set({ value: value as any, updatedAt: isoDateStringToDate(nowISODateString()) })
 					.where(eq(schema.systemPreferences.key, key));
 			} else {
 				await this.db.insert(schema.systemPreferences).values({
@@ -117,8 +118,8 @@ export class PreferencesModule {
 					scope: scope || 'system',
 					userId: userId || null,
 					visibility: 'private',
-					createdAt: new Date(),
-					updatedAt: new Date()
+					createdAt: isoDateStringToDate(nowISODateString()),
+					updatedAt: isoDateStringToDate(nowISODateString())
 				});
 			}
 		}, 'SET_PREFERENCE_FAILED');

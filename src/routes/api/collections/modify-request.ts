@@ -1,23 +1,17 @@
 /**
  * @file src/routes/api/collections/modify-request.ts
- * @description Utility function for modifyin							const entryDuration = performance.now() - entryStart;
-							logger.trace(`Entry ${index + 1} processed in ${entryDuration.toFixed(2)}ms`);request data based on field widgets.
+ * @description
+ * Advanced request modification utility for collection data.
+ * Intercepts incoming requests to:
+ * - Transform data based on widget configurations.
+ * - Resolve environmental and contextual tokens.
+ * - Apply tenant-specific constraints and defaults.
  *
- * This module provides functionality to:
- * - Process each field in a collection schema
- * - Apply widget-specific modifications to the request data, now with tenant context.
- * - Handle custom widget logic for different request types (GET, POST, etc.)
- *
- * Features:
- * - Support for custom widget-based data modifications
- * - Asynchronous processing of each entry in the data array
- * - Data accessor pattern for safe data manipulation
- * - Performance monitoring
- * - Detailed logging for debugging purposes
- *
- * Usage:
- * Called by various collection handlers (GET, POST, etc.) to modify request data
- * before final processing or database operations.
+ * features:
+ * - batch widget processing
+ * - tenant-aware data manipulation
+ * - token resolution
+ * - performance monitoring
  */
 
 import type { FieldInstance } from '@src/content/types';

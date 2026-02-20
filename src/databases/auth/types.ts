@@ -68,6 +68,7 @@ export interface User {
 	resetRequestedAt?: ISODateString; // The last time the user requested a password reset (ISO date string)
 	resetToken?: string; // Token for resetting the user's password
 	role: string; // Role of the user (e.g., admin, developer, editor, user)
+	roleIds?: string[]; // Array of role IDs associated with the user
 	tenantId?: string; // Identifier for the tenant the user belongs to (in multi-tenant mode)
 	totpSecret?: string; // TOTP secret for 2FA (base32 encoded)
 	username?: string; // Username of the user

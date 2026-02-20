@@ -8,6 +8,7 @@ Provides a persistent, draggable UI element that opens the ActivityStream panel.
 
 <script lang="ts">
 	import { fade, scale } from 'svelte/transition';
+	import ActivityStream from './activity-stream.svelte';
 	import { collaboration } from '@src/stores/collaboration-store.svelte';
 	import { screen } from '@src/stores/screen-size-store.svelte';
 	import { ui } from '@src/stores/ui-store.svelte';

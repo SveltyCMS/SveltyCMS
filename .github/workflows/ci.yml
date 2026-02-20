@@ -7,11 +7,51 @@ on:
   pull_request:
     branches: [main, next]
     paths-ignore: ['**/*.md', '**/*.mdx', 'docs/**']
+  schedule:
+    - cron: '0 3 * * *' # Nightly security-only scan at 3:00 AM UTC
   workflow_dispatch: {}
 
+permissions:
+  contents: read
+  security-events: write
+
 jobs:
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (full history for Semgrep baseline)
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Bun Audit (fail on high/critical)
+        run: |
+          bun audit --audit-level=high || { echo "::error title=Bun Audit Failed::High or critical vulnerability detected in dependencies!" ; exit 1; }
+      - name: Semgrep SAST (OWASP, auth bypasses, secrets, setup guards, etc.)
+        uses: returntocorp/semgrep-action@v1
+        with:
+          config: >-
+            p/default
+            p/security-audit
+            p/secrets
+            p/owasp-top-10
+            p/nodejs
+            p/typescript
+            p/svelte
+      - name: Upload Semgrep results to GitHub Security tab
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: semgrep.sarif
+
   unit-tests:
-    name: ⚡ Unit Tests
+    name: Unit Tests
+    needs: [security]
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -26,7 +66,9 @@ jobs:
         run: bun test --preload ./tests/unit/setup.ts --max-concurrency 1 tests/unit/services tests/unit/utils tests/unit/stores tests/unit/widgets tests/unit/*.test.ts
 
   build:
-    name: 🏗️ Production Build
+    name: Production Build
+    needs: [unit-tests, security]
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -46,14 +88,14 @@ jobs:
             bun.lock
 
   integration:
-    name: '🔌 Integration (${{ matrix.database }})'
-    needs: build
+    name: Integration (${{ matrix.database }})
+    needs: [build, security]
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         database: [mongodb, mariadb, postgresql, sqlite]
-
     services:
       db:
         image: >-
@@ -74,35 +116,28 @@ jobs:
             matrix.database == 'mariadb' && '3306:3306' ||
             matrix.database == 'postgresql' && '5432:5432' ||
             '9999:9999' }}
-
       mailhog:
         image: mailhog/mailhog
         ports:
           - 1025:1025
           - 8025:8025
-
     env:
       DB_TYPE: ${{ matrix.database }}
       TEST_MODE: 'true'
       API_BASE_URL: http://localhost:4173
-      # Specific DB configs for scripts
       MONGODB_URI: mongodb://localhost:27017/sveltycms_test
       MARIADB_URL: mysql://test:test@localhost:3306/sveltycms_test
       POSTGRESQL_URL: postgresql://test:test@localhost:5432/sveltycms_test
-
     steps:
       - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
-
       - name: Download Build
         uses: actions/download-artifact@v6
         with:
           name: sveltycms-build
-
       - name: Install Runtime Deps
         run: bun install --frozen-lockfile
-
-      - name: 🛠️ Generate config/private.test.ts
+      - name: Generate config/private.test.ts
         run: |
           mkdir -p config
           cat <<EOF > config/private.test.ts
@@ -119,27 +154,24 @@ jobs:
             SMTP_PORT: 1025
           };
           EOF
-
       - name: ⏳ Wait for Services
         run: |
           if [ "${{ matrix.database }}" == "mongodb" ]; then bun x wait-on tcp:27017; fi
           if [ "${{ matrix.database }}" == "mariadb" ]; then bun x wait-on tcp:3306; fi
           if [ "${{ matrix.database }}" == "postgresql" ]; then bun x wait-on tcp:5432; fi
           bun x wait-on tcp:1025
-
       - name: 🧪 Run Black-Box Tests
         run: bun run scripts/run-integration-tests.ts
         timeout-minutes: 15
 
   e2e:
-    name: '🎭 E2E (${{ matrix.database }})'
-    needs: build
+    name: E2E Tests (${{ matrix.database }})
+    needs: [integration, security]
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     strategy:
-      fail-fast: false
       matrix:
         database: [mongodb, sqlite, mariadb, postgresql]
-
     services:
       db:
         image: >-
@@ -163,35 +195,28 @@ jobs:
       mailhog:
         image: mailhog/mailhog
         ports: [1025:1025, 8025:8025]
-
     steps:
       - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
-
       - name: Download Build
         uses: actions/download-artifact@v6
         with:
           name: sveltycms-build
-
       - name: Install Runtime Deps
         run: bun install --frozen-lockfile
-
       - name: Get Playwright version
         id: playwright-version
         run: echo "version=$(bun x playwright --version | awk '{print $2}')" >> $GITHUB_OUTPUT
-
       - name: Cache Playwright Browsers
         id: playwright-cache
         uses: actions/cache@v5
         with:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-${{ steps.playwright-version.outputs.version }}
-
       - name: Install Playwright Browsers
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: bunx playwright install --with-deps chromium
-
-      - name: 🛠️ Generate config/private.test.ts
+      - name: Generate config/private.test.ts
         run: |
           mkdir -p config
           cat <<EOF > config/private.test.ts
@@ -208,14 +233,12 @@ jobs:
             SMTP_PORT: 1025
           };
           EOF
-
       - name: ⏳ Wait for Services
         run: |
           if [ "${{ matrix.database }}" == "mongodb" ]; then bun x wait-on tcp:27017; fi
           if [ "${{ matrix.database }}" == "mariadb" ]; then bun x wait-on tcp:3306; fi
           if [ "${{ matrix.database }}" == "postgresql" ]; then bun x wait-on tcp:5432; fi
           bun x wait-on tcp:1025
-
       - name: 🎭 Run Playwright E2E
         run: |
           TEST_MODE=true bun run preview > preview.log 2>&1 &
@@ -223,7 +246,6 @@ jobs:
           bun x playwright test tests/e2e/setup-wizard.spec.ts
           bun x playwright test tests/e2e/role-based-access.spec.ts
         timeout-minutes: 20
-
       - name: Upload Playwright Report
         uses: actions/upload-artifact@v6
         if: always()
@@ -231,7 +253,6 @@ jobs:
           name: playwright-report-${{ matrix.database }}
           path: playwright-report/
           retention-days: 14
-
       - name: Upload Server Logs
         if: failure()
         uses: actions/upload-artifact@v6

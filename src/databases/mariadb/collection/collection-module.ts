@@ -20,11 +20,11 @@ export class CollectionModule {
 	}
 
 	private get crud() {
-		return (this.core as any).crud;
+		return this.core.crud;
 	}
 
 	private get collectionRegistry() {
-		return (this.core as any).collectionRegistry;
+		return this.core.collectionRegistry as Map<string, CollectionModel>;
 	}
 
 	async getModel(id: string): Promise<CollectionModel> {
@@ -73,10 +73,10 @@ export class CollectionModule {
 	}
 
 	async getSchema(_collectionName: string): Promise<DatabaseResult<Schema | null>> {
-		return (this.core as any).notImplemented('getSchema');
+		return this.core.notImplemented('getSchema');
 	}
 
 	async listSchemas(): Promise<DatabaseResult<Schema[]>> {
-		return (this.core as any).notImplemented('listSchemas');
+		return this.core.notImplemented('listSchemas');
 	}
 }
