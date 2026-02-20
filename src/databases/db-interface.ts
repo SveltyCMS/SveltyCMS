@@ -1,24 +1,22 @@
 /**
- * @file src\databases\db-interface.ts
- * @description High-Performance Agnostic Database Interface for SveltyCMS
+ * @file src/databases/db-interface.ts
+ * @description
+ * High-performance, database-agnostic interface contracts for SveltyCMS.
+ * This contract defines a truly agnostic data layer with these key principles:
+ * 1. Single Database Call Optimization: Minimize round trips.
+ * 2. Standardized DatabaseResult<T>: Consistent error handling without exceptions.
+ * 3. Batch Operations First: Prefer bulk operations over individual calls.
+ * 4. Query Optimization: Built-in hints and strategies.
+ * 5. Connection Pooling Ready: Supports pooling patterns.
+ * 6. Cache-Friendly: Designed to work with caching layers.
  *
- * This contract defines a truly agnostic, performance-optimized data layer with these key principles:
- *
- * 1. **Single Database Call Optimization**: All operations are designed to minimize round trips
- * 2. **Standardized DatabaseResult<T>**: Consistent error handling without exceptions
- * 3. **Batch Operations First**: Prefer bulk operations over individual calls
- * 4. **Query Optimization**: Built-in query optimization hints and strategies
- * 5. **Connection Pooling Ready**: Interface supports connection pooling patterns
- * 6. **Cache-Friendly**: Operations designed to work with caching layers
- *
- * Performance Features:
- * - Batch CRUD operations to reduce network round trips
- * - Query result streaming for large datasets
- * - Connection pooling and reuse patterns
- * - Built-in query optimization hints
- * - Lazy loading and selective field fetching
- * - Efficient pagination with cursor-based navigation
- * - Bulk validation and constraint checking
+ * features:
+ * - agnostic adapter contracts
+ * - batch operation optimization
+ * - cursor-based pagination
+ * - streaming support
+ * - standardized error handling
+ * - performance telemetry
  */
 
 import type { BaseEntity, ContentNode as ContentNodeType, DatabaseId, ISODateString, Schema } from '../content/types';
@@ -178,7 +176,7 @@ export interface Widget extends BaseEntity {
 
 /** Media Management */
 export interface MediaMetadata {
-	advancedMetadata?: Record<string, any>; // For EXIF, IPTC, etc.
+	advancedMetadata?: Record<string, unknown>; // For EXIF, IPTC, etc.
 	codec?: string;
 	duration?: number;
 	format?: string;

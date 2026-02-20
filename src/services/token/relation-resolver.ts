@@ -52,7 +52,7 @@ export async function resolveRelationToken(tokenPath: string, context: TokenCont
 		const field = (schema.fields as FieldInstance[]).find((f) => (f.db_fieldName || f.label) === relationField);
 
 		if (field?.widget?.Name === 'Relation') {
-			const relatedCollectionId = (field.widget as Record<string, any>).collection;
+			const relatedCollectionId = (field.widget as unknown as { collection: string }).collection;
 			const hasAccess = await canAccessCollection(user, relatedCollectionId, tenantId, context.roles);
 
 			if (!hasAccess) {
@@ -63,12 +63,16 @@ export async function resolveRelationToken(tokenPath: string, context: TokenCont
 	}
 
 	// Navigate nested path
-	let value = relationData as any;
+	let value: unknown = relationData;
 	for (const key of nestedPath) {
 		if (Array.isArray(value)) {
 			value = value[0]; // For arrays, take first item
 		}
-		value = value?.[key];
+		if (value && typeof value === 'object') {
+			value = (value as Record<string, unknown>)[key];
+		} else {
+			value = undefined;
+		}
 		if (value === undefined || value === null) {
 			break;
 		}

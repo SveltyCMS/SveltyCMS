@@ -1,9 +1,10 @@
 ﻿<!-- 
 @file src/components/autocomplete.svelte
+@description
+Advanced autocomplete component with fuzzy search, keyboard navigation, and accessibility.
+
 @component
 **Enhanced Autocomplete - Svelte 5 Optimized**
-
-Advanced autocomplete component with fuzzy search, keyboard navigation, and accessibility.
 
 @example Basic usage
 <Autocomplete 
@@ -34,7 +35,7 @@ Advanced autocomplete component with fuzzy search, keyboard navigation, and acce
 - `maxResults` (number): Maximum results to show
 - `onSelect` (function): Callback when option selected
 
-### Features
+### Features:
 - Fuzzy search with customizable matching
 - Keyboard navigation (Arrow keys, Enter, Escape, Tab)
 - Mouse and keyboard support
@@ -45,7 +46,11 @@ Advanced autocomplete component with fuzzy search, keyboard navigation, and acce
 - Loading states
 - No results feedback
 - Clear button
-- Recent selections tracking
+### features:
+- fuzzy search logic
+- keyboard navigation
+- ARIA accessibility
+- reduced motion support
 -->
 
 <script lang="ts">

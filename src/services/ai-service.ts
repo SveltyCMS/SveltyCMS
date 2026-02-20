@@ -13,6 +13,12 @@ import { getPrivateSetting } from './settings-service';
 // Default to the official SveltyCMS Knowledge Core
 const DEFAULT_KNOWLEDGE_URL = 'https://mcp.sveltycms.com/api/v1/query';
 
+interface KnowledgeResult {
+	source: string;
+	text: string;
+	score?: number;
+}
+
 export class AIService {
 	private static instance: AIService;
 	private readonly knowledgeUrl: string;
@@ -31,7 +37,7 @@ export class AIService {
 	/**
 	 * Search the remote knowledge base for relevant context
 	 */
-	public async searchContext(query: string, limit = 3) {
+	public async searchContext(query: string, limit = 3): Promise<KnowledgeResult[]> {
 		try {
 			const useRemote = await getPrivateSetting('USE_REMOTE_AI_KNOWLEDGE');
 			if (!useRemote) {
@@ -116,14 +122,14 @@ export class AIService {
 	/**
 	 * Main chat interface for the CMS Dashboard
 	 */
-	public async chat(userMessage: string, history: any[] = []) {
+	public async chat(userMessage: string, history: import('ollama').Message[] = []) {
 		// 1. Get Context from Remote RAG (if enabled)
 		const useRemote = await getPrivateSetting('USE_REMOTE_AI_KNOWLEDGE');
 		const contextResults = useRemote ? await this.searchContext(userMessage) : [];
 
 		let contextText = '';
 		if (contextResults.length > 0) {
-			contextText = contextResults.map((r: any) => `[From ${r.source}]: ${r.text}`).join('\n\n');
+			contextText = contextResults.map((r) => `[From ${r.source}]: ${r.text}`).join('\n\n');
 		}
 
 		// 2. Query the Local LLM (Ollama)

@@ -1,5 +1,10 @@
 <!--
 @file src/components/collection-display/entry-list.svelte
+@description
+High-performance data table for managing collection entries.
+This component provides a robust interface for content orchestration, including search, 
+bulk actions, and predictive preloading.
+
 @component
 **EntryList component to display collections data in a tabular format.**
 
@@ -24,6 +29,14 @@
 - `Alt + U`: Unpublish selected
 - `Alt + D`: Move selected to Draft
 - `Alt + Del`: Delete selected
+
+### features:
+- search and filter orchestration
+- batch processing automation
+- predictive data preloading
+- drag-and-drop column management
+- multi-tenant aware selection
+- responsive layout for all screen sizes
 -->
 
 <script module lang="ts">
@@ -289,12 +302,16 @@
 
 					while (i < entriesToPreload.length && deadline.timeRemaining() > 0) {
 						const entry = entriesToPreload[i];
+						if (!entry._id) {
+							i++;
+							continue;
+						}
 						const cached = preloadedEntries.get(entry._id);
 
 						if (!cached || Date.now() - cached.timestamp > PRELOAD_CACHE_TTL) {
 							try {
 								const preloadUrl = new URL(page.url);
-								preloadUrl.searchParams.set('edit', entry._id);
+								preloadUrl.searchParams.set('edit', entry._id as string);
 
 								// Use new warm-cache endpoint for batch preloading
 								await fetch('/api/collections/warm-cache', {
@@ -302,7 +319,7 @@
 									headers: { 'Content-Type': 'application/json' },
 									body: JSON.stringify({
 										collectionId: currentCollection?._id,
-										entryIds: [entry._id] // We could batch this further if we refactor the loop
+										entryIds: [entry._id as string] // We could batch this further if we refactor the loop
 									})
 								});
 
@@ -313,13 +330,13 @@
 									headers: { 'X-Preload': 'true', 'X-Batch-Preload': 'true' }
 								}); */
 
-								preloadedEntries.set(entry._id, {
+								preloadedEntries.set(entry._id as string, {
 									data: null,
 									timestamp: Date.now(),
 									hoverCount: 0
 								});
 
-								logger.debug(`[Batch Preload] Entry ${entry._id.substring(0, 8)} preloaded during idle`);
+								logger.debug(`[Batch Preload] Entry ${entry._id?.substring(0, 8)} preloaded during idle`);
 							} catch (error) {
 								logger.warn('[Batch Preload] Failed:', error);
 							}
@@ -706,7 +723,8 @@
 	const getSelectedIds = () =>
 		Object.entries(selectedMap)
 			.filter(([, isSelected]) => isSelected)
-			.map(([index]) => tableData[Number(index)]._id);
+			.map(([index]) => tableData[Number(index)]._id as string)
+			.filter(Boolean);
 
 	const getSelectedRawEntries = () =>
 		Object.entries(selectedMap)
@@ -1057,7 +1075,7 @@
 						{#each tableData as entry, index (entry._id)}
 							<tr
 								class="divide-x divide-surface-400 dark:divide-surface-700 {selectedMap[index] ? 'bg-primary-500/5 dark:bg-secondary-500/10' : ''}"
-								onmouseenter={() => handleRowHoverStart(entry._id)}
+								onmouseenter={() => entry._id && handleRowHoverStart(entry._id)}
 								onmouseleave={handleRowHoverEnd}
 							>
 								<TableIcons
@@ -1106,7 +1124,7 @@
 															try {
 																const collId = collection.value?._id;
 																if (!collId) return;
-																const result = await updateEntryStatus(collId, entry._id, String(nextStatus));
+																const result = await updateEntryStatus(collId, entry._id as string, String(nextStatus));
 																if (result.success) {
 																	showToast(`Entry status updated to ${nextStatus}`, 'success');
 																	onActionSuccess();
@@ -1148,10 +1166,14 @@
 												{:else if (header as TableHeader).name === 'createdAt' || (header as TableHeader).name === 'updatedAt'}
 													<div class="flex flex-col text-xs">
 														<div class="font-semibold">
-															{formatDisplayDate(entry[(header as TableHeader).name], 'en', { year: 'numeric', month: 'short', day: 'numeric' })}
+															{formatDisplayDate(entry[(header as TableHeader).name] as string, 'en', {
+																year: 'numeric',
+																month: 'short',
+																day: 'numeric'
+															})}
 														</div>
 														<div class="text-surface-500 dark:text-surface-200">
-															{formatDisplayDate(entry[(header as TableHeader).name], 'en', {
+															{formatDisplayDate(entry[(header as TableHeader).name] as string, 'en', {
 																hour: '2-digit',
 																minute: '2-digit',
 																second: '2-digit',
@@ -1160,7 +1182,7 @@
 														</div>
 													</div>
 												{:else if typeof entry[(header as TableHeader).name] === 'object' && entry[(header as TableHeader).name] !== null}
-													{@const fieldData = entry[(header as TableHeader).name]}
+													{@const fieldData = entry[(header as TableHeader).name] as Record<string, any>}
 													{@const translatedValue = fieldData[currentLanguage] || Object.values(fieldData)[0] || '-'}
 													{@const debugInfo = `Field: ${(header as TableHeader).name}, Lang: ${currentLanguage}, Data: ${JSON.stringify(fieldData)}, Value: ${translatedValue}`}
 													{#if (header as TableHeader).name === 'last_name'}
@@ -1171,7 +1193,7 @@
 												{:else if (header as TableHeader).name === 'plugin'}
 													<!-- <PluginComponent /> -->
 												{:else}
-													<Sanitize html={entry[(header as TableHeader).name] || '-'} profile="strict" />
+													<Sanitize html={String(entry[(header as TableHeader).name] || '-')} profile="strict" />
 												{/if}
 											</SystemTooltip>
 										</td>

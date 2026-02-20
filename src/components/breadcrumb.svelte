@@ -1,9 +1,10 @@
 <!--
 @file src/components/breadcrumb.svelte
+@description
+Accessible breadcrumb navigation with icons, keyboard support, and visual feedback.
+
 @component 
 **Enhanced Breadcrumb - Svelte 5 Optimized**
-
-Accessible breadcrumb navigation with icons, keyboard support, and visual feedback.
 
 @example
 <Breadcrumb {breadcrumb} {openFolder} {folders} />
@@ -13,14 +14,18 @@ Accessible breadcrumb navigation with icons, keyboard support, and visual feedba
 - `openFolder` (function): Callback to open folder by ID
 - `folders` (Folder[]): Array of folder objects
 
-### Features
+### Features:
 - Full keyboard navigation
 - ARIA-compliant accessibility
 - Visual current page indicator
 - Home and folder icons
 - Truncation for long paths
 - Hover states and focus indicators
-- Copy path to clipboard
+### features:
+- keyboard navigation
+- ARIA accessibility
+- visual page indicators
+- clipboard integration
 -->
 
 <script lang="ts">

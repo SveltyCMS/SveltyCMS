@@ -86,7 +86,7 @@ export async function compile(options: CompileOptions = {}): Promise<Compilation
 		// 4. Process files with concurrency control
 		const processedJsPaths = new Set<string>();
 		const queue = [...sourceFiles]; // Clone array to manage queue
-		const workers: any[] = [];
+		const workers: Promise<void>[] = [];
 
 		// Simple concurrency implementation
 		const worker = async () => {
@@ -138,7 +138,7 @@ export async function compile(options: CompileOptions = {}): Promise<Compilation
 						file,
 						error: err instanceof Error ? err : new Error(String(err))
 					});
-					logger.error(`Failed to compile ${file}`, err);
+					logger.error(`Failed to compile ${file}`, err instanceof Error ? err : new Error(String(err)));
 				}
 			}
 		};
@@ -204,7 +204,7 @@ async function scanCompiledFiles(
 			}
 		} catch (e) {
 			if ((e as NodeJS.ErrnoException).code !== 'ENOENT') {
-				logger.error(`Error scanning ${current}`, e);
+				logger.error(`Error scanning ${current}`, e instanceof Error ? e : new Error(String(e)));
 			}
 		}
 	}

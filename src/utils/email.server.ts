@@ -45,7 +45,7 @@ export async function getEmailTemplate(templateName: string): Promise<ComponentT
 
 	if (moduleImporter) {
 		try {
-			const module = (await moduleImporter()) as any;
+			const module = (await moduleImporter()) as { default: ComponentType };
 			return module.default as ComponentType;
 		} catch (e) {
 			logger.error(`Failed to import email template '${templateName}' from path '${path}':`, e);
@@ -67,7 +67,11 @@ const renderer = new Renderer();
 /**
  * Renders a Svelte email component to HTML and plain text
  */
-export const renderEmailToStrings = async (component: any, templateNameForLog: string, props?: EmailTemplateProps): Promise<RenderedEmailContent> => {
+export const renderEmailToStrings = async (
+	component: ComponentType,
+	templateNameForLog: string,
+	props?: EmailTemplateProps
+): Promise<RenderedEmailContent> => {
 	try {
 		const html = await renderer.render(component, { props: props || {} });
 		const text = toPlainText(html);

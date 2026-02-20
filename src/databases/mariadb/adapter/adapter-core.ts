@@ -1,13 +1,19 @@
 /**
- * @file src/databases/mariadb/adapter/adapterCore.ts
- * @description Core functionality shared across MariaDB adapter modules.
+ * @file src/databases/mariadb/adapter/adapter-core.ts
+ * @description
+ * Core logic shared by MariaDB adapter modules.
+ * Key functions include:
+ * - Connection pool management and health monitoring.
+ * - Drizzle ORM integration and schema mapping.
+ * - Table resolution and alias management (e.g., snake_case to camelCase mapping).
+ * - Standardized error wrapping and query transformation utilities.
  *
- * Features:
- * - Connect to MariaDB
- * - Disconnect from MariaDB
- * - Wait for connection
- * - Get connection health
- *
+ * features:
+ * - connection pool management
+ * - drizzle-orm integration
+ * - table/alias resolution
+ * - standardized error handling
+ * - performance telemetry
  */
 
 import { logger } from '@utils/logger';
@@ -33,7 +39,7 @@ export class AdapterCore {
 	public pool: mysql.Pool | null = null;
 	public db: MySql2Database<typeof schema> | null = null;
 	protected connected = false;
-	public collectionRegistry = new Map<string, any>();
+	public collectionRegistry = new Map<string, unknown>();
 
 	public getCapabilities(): DatabaseCapabilities {
 		return this.capabilities;
@@ -43,7 +49,7 @@ export class AdapterCore {
 		return this.connected;
 	}
 
-	async connect(connection: any, _options?: any): Promise<DatabaseResult<void>> {
+	async connect(connection: string | mysql.PoolOptions, _options?: unknown): Promise<DatabaseResult<void>> {
 		try {
 			if (typeof connection === 'string') {
 				this.pool = mysql.createPool(connection);
@@ -103,13 +109,12 @@ export class AdapterCore {
 		try {
 			await this.pool.query('SELECT 1');
 			const latency = Date.now() - start;
-			const poolInfo = (this.pool as any).pool;
 			return {
 				success: true,
 				data: {
 					healthy: true,
 					latency,
-					activeConnections: poolInfo ? poolInfo._allConnections.length : 0
+					activeConnections: (this.pool as any).pool ? (this.pool as any).pool._allConnections.length : 0
 				}
 			};
 		} catch (error) {
@@ -168,18 +173,18 @@ export class AdapterCore {
 
 	protected wrap<T>(fn: () => Promise<T>, code: string): Promise<DatabaseResult<T>> {
 		if (!this.db) {
-			return Promise.resolve(this.notConnectedError());
+			return Promise.resolve(this.notConnectedError<T>());
 		}
 		try {
 			return fn()
 				.then((data) => ({ success: true, data }) as DatabaseResult<T>)
-				.catch((error) => this.handleError(error, code));
+				.catch((error) => this.handleError<T>(error, code));
 		} catch (error) {
-			return Promise.resolve(this.handleError(error, code));
+			return Promise.resolve(this.handleError<T>(error, code));
 		}
 	}
 
-	protected handleError(error: unknown, code: string): DatabaseResult<any> {
+	protected handleError<T>(error: unknown, code: string): DatabaseResult<T> {
 		const message = error instanceof Error ? error.message : String(error);
 		logger.error(`MariaDB adapter error [${code}]:`, message);
 		return {
@@ -189,7 +194,7 @@ export class AdapterCore {
 		};
 	}
 
-	protected notImplemented(method: string): DatabaseResult<any> {
+	protected notImplemented<T>(method: string): DatabaseResult<T> {
 		const message = `Method ${method} not yet implemented for MariaDB adapter.`;
 		logger.warn(message);
 		return {
@@ -199,7 +204,7 @@ export class AdapterCore {
 		};
 	}
 
-	protected notConnectedError(): DatabaseResult<any> {
+	protected notConnectedError<T>(): DatabaseResult<T> {
 		return {
 			success: false,
 			message: 'Database not connected',
@@ -245,7 +250,7 @@ export class AdapterCore {
 		throw new Error(`Unknown table: ${collection}`);
 	}
 
-	public mapQuery(table: any, query: Record<string, any>): any {
+	public mapQuery(table: any, query: Record<string, unknown>): any {
 		if (!query || Object.keys(query).length === 0) {
 			return undefined;
 		}

@@ -24,8 +24,10 @@
 
 <script lang="ts">
 	import type { FieldInstance } from '@content/types';
-
 	import { debounce } from '@utils/utils';
+	import AddWidget from './add-widget.svelte';
+	import { ui } from '@src/stores/ui-store.svelte';
+	import PageTitle from '@src/components/page-title.svelte';
 
 	// Props
 	const { fields = [], onFieldsUpdate = () => {} } = $props();
@@ -55,7 +57,9 @@
 			node.onpointerleave = onPointerUp;
 
 			timeOut = setTimeout(() => {
+				 
 				const clone = node.cloneNode(true) as HTMLElement;
+				// eslint-disable-next-line svelte/no-dom-manipulating
 				container?.appendChild(clone);
 				clone.setPointerCapture(pointerID);
 				node.style.opacity = '0.5';
@@ -69,8 +73,8 @@
 				let old_closest: HTMLElement;
 
 				clone.onpointermove = (e) => {
-					if (e.clientY < container?.offsetTop || e.clientY > container?.offsetTop + container?.offsetHeight - 60) {
-						if (e.clientY < container?.offsetTop) {
+					if (e.clientY < container!.offsetTop || e.clientY > container!.offsetTop + container!.offsetHeight - 60) {
+						if (e.clientY < container!.offsetTop) {
 							container?.scrollBy(0, -5);
 						} else {
 							container?.scrollBy(0, 5);

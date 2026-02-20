@@ -1,9 +1,10 @@
 <!--
 @file src/components/media.svelte
+@description
+Advanced media gallery with search, thumbnails, grid/list views, and selection.
+
 @component
 **Enhanced Media Gallery - Svelte 5 Optimized**
-
-Advanced media gallery with search, thumbnails, grid/list views, and selection.
 
 @example
 <Media onselect={(file) => handleFileSelection(file)} />
@@ -13,7 +14,7 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 - `multiple` (boolean): Allow multiple selections
 - `viewMode` ('grid' | 'list'): Initial view mode
 
-### Features
+### Features:
 - Searchable media library with debounced input
 - Grid and list view modes
 - Thumbnail previews with lazy loading
@@ -24,7 +25,12 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 - File filtering by type
 - Sort by name, date, size
 - Full ARIA accessibility
-- Reduced motion support
+### features:
+- grid and list view orchestration
+- thumbnail lazy loading
+- multiple selection logic
+- ARIA accessibility
+- search and sort automation
 -->
 
 <script lang="ts">

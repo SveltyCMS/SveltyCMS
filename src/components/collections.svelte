@@ -1,15 +1,24 @@
 <!--
 @file src/components/collections.svelte
-@component Collections – Tree navigation for content categories & collections
+@description
+Tree navigation for content categories and collections.
+Provides an organized interface for navigating hierarchical content structures.
 
-@features
-- Hierarchical tree with categories/collections
-- Debounced search with clear button
-- Widget validation warnings (inactive widgets)
-- Badges: collection count (categories), status/warning (collections)
-- Click navigation with proper routing
-- Expand/collapse persistence
-- Responsive compact mode
+@component
+**Collections** – Hierarchical tree navigation for content orchestration.
+
+### Features:
+- **Hierarchical Tree**: Nested categories and collections with count badges.
+- **Search**: Debounced real-time search with clear functionality.
+- **Validation**: Integrated widget validation warnings for schema health.
+- **Navigation**: Click-based routing with expansion state persistence.
+- **Responsive**: Compact and full sidebar modes support.
+
+### features:
+- hierarchical tree navigation
+- real-time debounced search
+- schema validation integration
+- responsive layout support
 -->
 
 <script lang="ts">

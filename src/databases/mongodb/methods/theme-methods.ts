@@ -141,7 +141,7 @@ export class MongoThemeMethods {
 	async ensure(themeData: Omit<Theme, '_id' | 'createdAt' | 'updatedAt'>): Promise<Theme> {
 		try {
 			// Strip timestamps and ID to let Mongoose handle them or avoid conflicts with $setOnInsert
-			const { _id, createdAt: _createdAt, updatedAt: _updatedAt, ...rest } = themeData as any;
+			const { _id, createdAt: _, updatedAt: __, ...rest } = themeData as Record<string, any>;
 			const result = await this.themeModel
 				.findOneAndUpdate(
 					{ name: themeData.name },

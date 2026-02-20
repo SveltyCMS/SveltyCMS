@@ -2,16 +2,21 @@
  * @file src/databases/db.ts
  * @description
  * Database and authentication initialization and management module.
+ * Responsibilities include:
+ * - Loading and initializing database and authentication adapters based on DB_TYPE.
+ * - Establishing database connections with a retry mechanism.
+ * - Managing initialization of authentication, media, and collection models.
+ * - Setting up default roles and permissions.
  *
- * This module is responsible for:
- * - Loading and initializing database and authentication adapters based on the configured DB_TYPE
- * - Establishing database connections with a retry mechanism
- * - Managing initialization of authentication models, media models, and collection models
- * - Setting up default roles and permissions
  * Multi-Tenancy Note:
  * This file handles the one-time global startup of the server. Tenant-specific
- * data scoping is handled by the API endpoints and server hooks that use the
- * initialized services from this module.
+ * data scoping is handled by the API endpoints and server hooks.
+ *
+ * features:
+ * - dynamic adapter loading
+ * - connection resilience
+ * - model auto-initialization
+ * - multi-tenant global startup
  */
 
 import { building } from '$app/environment';
@@ -51,10 +56,11 @@ import { Auth } from '@src/databases/auth';
 import { getDefaultSessionStore } from '@src/databases/auth/session-manager';
 // Settings loader
 import { privateConfigSchema, publicConfigSchema } from '@src/databases/schemas';
-import { getPublicSetting, invalidateSettingsCache, setSettingsCache } from '@src/services/settings-service';
+import { getPublicSetting, invalidateSettingsCache, setSettingsCache, type PublicEnv } from '@src/services/settings-service';
 import type { InferOutput } from 'valibot';
 // Adapters Interfaces
 import type { DatabaseAdapter } from './db-interface';
+import type { DatabaseResilience } from './database-resilience';
 
 // Type definition for private config schema
 
@@ -138,7 +144,7 @@ if (KNOWN_PUBLIC_KEYS.length === 0 || KNOWN_PRIVATE_KEYS.length === 0) {
 const CRITICAL_SETTINGS = ['MEDIA_FOLDER', 'MULTI_TENANT', 'DEFAULT_LANGUAGE'];
 
 // --- Resilience Utility (Singleton) ---
-let _resilienceInstance: any = null;
+let _resilienceInstance: DatabaseResilience | null = null;
 async function getResilience() {
 	if (!_resilienceInstance) {
 		const { getDatabaseResilience } = await import('./database-resilience');
@@ -176,7 +182,7 @@ export async function loadSettingsFromDB(criticalOnly = false): Promise<boolean>
 		// Parallel load of tiered settings
 		const [settingsResult, privateDynResult] = await Promise.all([
 			dbAdapter.systemPreferences.getMany(keysToLoad, 'system'),
-			privateKeys.length > 0 ? dbAdapter.systemPreferences.getMany(privateKeys, 'system') : Promise.resolve({ success: true, data: {} } as any)
+			privateKeys.length > 0 ? dbAdapter.systemPreferences.getMany(privateKeys, 'system') : Promise.resolve({ success: true, data: {} })
 		]);
 
 		logger.debug('Settings fetch results received', {
@@ -203,8 +209,8 @@ export async function loadSettingsFromDB(criticalOnly = false): Promise<boolean>
 		}
 
 		// Merge and cache
-		const mergedPrivate = { ...privateConfig, ...privateDynamic } as any;
-		await setSettingsCache(mergedPrivate, settings as any);
+		const mergedPrivate = { ...privateConfig, ...privateDynamic } as InferOutput<typeof privateConfigSchema>;
+		await setSettingsCache(mergedPrivate, settings as unknown as PublicEnv);
 
 		// Reconfigure CacheService to reflect potentially new Redis settings
 		await cacheService.reconfigure().catch((e) => logger.warn('Failed to reconfigure CacheService:', e));
@@ -870,7 +876,7 @@ export async function reinitializeSystem(force = false, waitForAuth = true): Pro
  * @returns Promise with initialization status
  */
 export async function initializeWithConfig(
-	config: any,
+	config: InferOutput<typeof privateConfigSchema>,
 	options?: {
 		multiTenant?: boolean;
 		demoMode?: boolean;
@@ -1029,7 +1035,7 @@ export async function initConnection(dbConfig: {
 		// Build connection string like the test endpoint does
 		const { buildDatabaseConnectionString } = await import('@src/routes/setup/utils');
 		const connectionString = buildDatabaseConnectionString({
-			type: dbConfig.type as any,
+			type: dbConfig.type as 'mongodb' | 'mongodb+srv' | 'sqlite' | 'mariadb' | 'postgresql',
 			host: dbConfig.host,
 			port: Number(dbConfig.port),
 			name: dbConfig.name,

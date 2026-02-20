@@ -6,7 +6,6 @@ export default ts.config(
 	...ts.configs.recommended,
 	...svelte.configs['flat/recommended'],
 	{
-		files: ['**/*.svelte'],
 		languageOptions: {
 			globals: {
 				...globals.browser,
@@ -14,7 +13,30 @@ export default ts.config(
 				NodeJS: true,
 				svelte: true,
 				globalThis: 'readonly'
-			},
+			}
+		},
+		rules: {
+			'@typescript-eslint/no-unused-vars': [
+				'error',
+				{
+					argsIgnorePattern: '^_',
+					varsIgnorePattern: '^_',
+					caughtErrorsIgnorePattern: '^_'
+				}
+			],
+			'@typescript-eslint/no-explicit-any': 'warn',
+			'svelte/no-navigation-without-resolve': 'off'
+		}
+	},
+	{
+		files: ['tests/**/*.ts', 'tests/**/*.js'],
+		rules: {
+			'@typescript-eslint/no-explicit-any': 'off'
+		}
+	},
+	{
+		files: ['**/*.svelte', '**/*.svelte.ts', '**/*.svelte.js'],
+		languageOptions: {
 			parserOptions: {
 				parser: ts.parser,
 				extraFileExtensions: ['.svelte']
@@ -29,6 +51,6 @@ export default ts.config(
 		}
 	},
 	{
-		ignores: ['src/paraglide/**', 'build', '.svelte-kit', 'package', 'dist', 'node_modules']
+		ignores: ['src/paraglide/**', 'scripts/**', 'build', '.svelte-kit', 'package', 'dist', 'node_modules']
 	}
 );
