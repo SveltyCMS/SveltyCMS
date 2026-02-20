@@ -37,7 +37,7 @@ export class AuthModule {
 		if (!dbUser) {
 			throw new Error('User not found');
 		}
-		const converted = utils.convertDatesToISO(dbUser) as any;
+		const converted = utils.convertDatesToISO(dbUser);
 
 		// Handle roleIds - ensure it is an array
 		let roleIds = converted.roleIds;
@@ -50,13 +50,13 @@ export class AuthModule {
 			}
 		}
 
-		const finalRoleIds = Array.isArray(roleIds) ? roleIds : [];
+		const finalRoleIds = Array.isArray(roleIds) ? (roleIds as string[]) : [];
 
 		return {
 			...converted,
 			roleIds: finalRoleIds,
 			role: finalRoleIds.length > 0 ? finalRoleIds[0] : 'user',
-			permissions: converted.permissions || []
+			permissions: (converted as unknown as { permissions?: string[] }).permissions || []
 		} as User;
 	}
 
@@ -69,7 +69,7 @@ export class AuthModule {
 	// User methods
 	async createUser(userData: Partial<User>): Promise<DatabaseResult<User>> {
 		return this.core.wrap(async () => {
-			const id = userData._id || utils.generateId();
+			const id = (userData._id || utils.generateId()) as string;
 			const now = isoDateStringToDate(nowISODateString());
 
 			// Ensure password is hashed if provided and not already hashed
@@ -89,8 +89,8 @@ export class AuthModule {
 				roleIds: [],
 				tenantId: userData.tenantId || null,
 				_id: id,
-				createdAt: now as any,
-				updatedAt: now as any
+				createdAt: now,
+				updatedAt: now
 			};
 
 			// Map legacy 'role' string to 'roleIds' array if roleIds is missing/empty
@@ -185,17 +185,17 @@ export class AuthModule {
 				if (Array.isArray(options.sort)) {
 					for (const [field, direction] of options.sort) {
 						const order = direction === 'desc' ? desc : asc;
-						const column = (schema.authUsers as Record<string, any>)[field];
-						if (column) {
-							q = q.orderBy(order(column));
+						const column = (schema.authUsers as unknown as Record<string, unknown>)[field];
+						if (column && typeof column === 'object') {
+							q = q.orderBy(order(column as import('drizzle-orm').Column));
 						}
 					}
 				} else {
 					for (const [field, direction] of Object.entries(options.sort)) {
 						const order = direction === 'desc' ? desc : asc;
-						const column = (schema.authUsers as Record<string, any>)[field];
-						if (column) {
-							q = q.orderBy(order(column));
+						const column = (schema.authUsers as unknown as Record<string, unknown>)[field];
+						if (column && typeof column === 'object') {
+							q = q.orderBy(order(column as import('drizzle-orm').Column));
 						}
 					}
 				}
@@ -217,12 +217,12 @@ export class AuthModule {
 		return this.core.wrap(async () => {
 			const table = schema.authUsers;
 			// Pass table schema AND filter to mapQuery
-			const where = filter ? this.core.mapQuery(table, filter) : undefined;
+			const where = filter ? this.core.mapQuery(table as unknown as Record<string, unknown>, filter) : undefined;
 
 			const query = this.db.select({ count: sql<number>`count(*)` }).from(table);
 
 			if (where) {
-				query.where(where);
+				query.where(where as import('drizzle-orm').SQL);
 			}
 
 			const [result] = await query;
@@ -309,7 +309,7 @@ export class AuthModule {
 	// Session methods
 	async createSession(sessionData: { user_id: string; expires: ISODateString; tenantId?: string }): Promise<DatabaseResult<Session>> {
 		return this.core.wrap(async () => {
-			const id = utils.generateId();
+			const id = utils.generateId() as string;
 			await this.db.insert(schema.authSessions).values({
 				_id: id,
 				user_id: sessionData.user_id,
@@ -326,15 +326,15 @@ export class AuthModule {
 			await this.db
 				.update(schema.authSessions)
 				.set({ expires: new Date(newExpiry), updatedAt: isoDateStringToDate(nowISODateString()) })
-				.where(eq(schema.authSessions._id, session_id));
-			const [result] = await this.db.select().from(schema.authSessions).where(eq(schema.authSessions._id, session_id)).limit(1);
+				.where(eq(schema.authSessions._id, session_id as string));
+			const [result] = await this.db.select().from(schema.authSessions).where(eq(schema.authSessions._id, session_id as string)).limit(1);
 			return utils.convertDatesToISO(result) as unknown as Session;
 		}, 'UPDATE_SESSION_FAILED');
 	}
 
 	async deleteSession(session_id: string): Promise<DatabaseResult<void>> {
 		return this.core.wrap(async () => {
-			await this.db.delete(schema.authSessions).where(eq(schema.authSessions._id, session_id));
+			await this.db.delete(schema.authSessions).where(eq(schema.authSessions._id, session_id as string));
 		}, 'DELETE_SESSION_FAILED');
 	}
 
@@ -350,14 +350,14 @@ export class AuthModule {
 			const [session] = await this.db
 				.select()
 				.from(schema.authSessions)
-				.where(and(eq(schema.authSessions._id, session_id), gt(schema.authSessions.expires, isoDateStringToDate(nowISODateString()))))
+				.where(and(eq(schema.authSessions._id, session_id as string), gt(schema.authSessions.expires, isoDateStringToDate(nowISODateString()))))
 				.limit(1);
 
 			if (!session) {
 				return null;
 			}
 
-			const userResult = await this.getUserById(session.user_id, session.tenantId || undefined);
+			const userResult = await this.getUserById(session.user_id as string, session.tenantId || undefined);
 			return userResult.success ? userResult.data : null;
 		}, 'VALIDATE_SESSION_FAILED');
 	}
@@ -402,26 +402,26 @@ export class AuthModule {
 
 	async getSessionTokenData(session_id: string): Promise<DatabaseResult<{ expiresAt: ISODateString; user_id: string } | null>> {
 		return this.core.wrap(async () => {
-			const [session] = await this.db.select().from(schema.authSessions).where(eq(schema.authSessions._id, session_id)).limit(1);
+			const [session] = await this.db.select().from(schema.authSessions).where(eq(schema.authSessions._id, session_id as string)).limit(1);
 			if (!session) {
 				return null;
 			}
 			return {
 				expiresAt: session.expires.toISOString() as unknown as ISODateString,
-				user_id: session.user_id
+				user_id: session.user_id as string
 			};
 		}, 'GET_SESSION_TOKEN_DATA_FAILED');
 	}
 
 	async rotateToken(oldToken: string, expires: ISODateString): Promise<DatabaseResult<string>> {
 		return this.core.wrap(async () => {
-			const [oldSession] = await this.db.select().from(schema.authSessions).where(eq(schema.authSessions._id, oldToken)).limit(1);
+			const [oldSession] = await this.db.select().from(schema.authSessions).where(eq(schema.authSessions._id, oldToken as string)).limit(1);
 
 			if (!oldSession) {
 				throw new Error('Session not found');
 			}
 
-			const newId = utils.generateId();
+			const newId = utils.generateId() as string;
 			const now = isoDateStringToDate(nowISODateString());
 
 			await this.db.insert(schema.authSessions).values({
@@ -433,7 +433,7 @@ export class AuthModule {
 				updatedAt: now
 			});
 
-			await this.db.delete(schema.authSessions).where(eq(schema.authSessions._id, oldToken));
+			await this.db.delete(schema.authSessions).where(eq(schema.authSessions._id, oldToken as string));
 
 			return newId;
 		}, 'ROTATE_TOKEN_FAILED');
@@ -454,8 +454,8 @@ export class AuthModule {
 		username?: string;
 	}): Promise<DatabaseResult<string>> {
 		return this.core.wrap(async () => {
-			const id = utils.generateId();
-			const tokenValue = utils.generateId(); // Returns a dash-less UUID now
+			const id = utils.generateId() as string;
+			const tokenValue = utils.generateId() as string; // Returns a dash-less UUID now
 			await this.db.insert(schema.authTokens).values({
 				_id: id,
 				user_id: data.user_id,
@@ -474,13 +474,13 @@ export class AuthModule {
 
 	async updateToken(token_id: string, tokenData: Partial<Token>, tenantId?: string): Promise<DatabaseResult<Token>> {
 		return this.core.wrap(async () => {
-			const conditions = [eq(schema.authTokens._id, token_id)];
+			const conditions = [eq(schema.authTokens._id, token_id as string)];
 			if (tenantId) {
 				conditions.push(eq(schema.authTokens.tenantId, tenantId));
 			}
 			await this.db
 				.update(schema.authTokens)
-				.set({ ...tokenData, updatedAt: isoDateStringToDate(nowISODateString()) } as any)
+				.set({ ...tokenData, updatedAt: isoDateStringToDate(nowISODateString()) } as Record<string, unknown>)
 				.where(and(...conditions));
 			const [result] = await this.db
 				.select()
@@ -499,7 +499,7 @@ export class AuthModule {
 	): Promise<DatabaseResult<{ success: boolean; message: string; email?: string }>> {
 		return this.core.wrap(async () => {
 			const conditions = [
-				eq(schema.authTokens.token, token),
+				eq(schema.authTokens.token, token as string),
 				gt(schema.authTokens.expires, isoDateStringToDate(nowISODateString())),
 				eq(schema.authTokens.consumed, false)
 			];
@@ -522,7 +522,7 @@ export class AuthModule {
 			if (!t) {
 				return { success: false, message: 'Invalid or expired token' };
 			}
-			return { success: true, message: 'Token is valid', email: t.email };
+			return { success: true, message: 'Token is valid', email: t.email as string };
 		}, 'VALIDATE_TOKEN_FAILED');
 	}
 
@@ -533,7 +533,7 @@ export class AuthModule {
 		tenantId?: string
 	): Promise<DatabaseResult<{ status: boolean; message: string }>> {
 		return this.core.wrap(async () => {
-			const conditions = [eq(schema.authTokens.token, token)];
+			const conditions = [eq(schema.authTokens.token, token as string)];
 			if (user_id) {
 				conditions.push(eq(schema.authTokens.user_id, user_id));
 			}
@@ -558,7 +558,7 @@ export class AuthModule {
 
 	async getTokenData(token: string, user_id?: string, type?: string, tenantId?: string): Promise<DatabaseResult<Token | null>> {
 		return this.core.wrap(async () => {
-			const conditions = [eq(schema.authTokens.token, token)];
+			const conditions = [eq(schema.authTokens.token, token as string)];
 			if (user_id) {
 				conditions.push(eq(schema.authTokens.user_id, user_id));
 			}
@@ -584,7 +584,7 @@ export class AuthModule {
 
 	async getAllTokens(filter?: Record<string, unknown>): Promise<DatabaseResult<Token[]>> {
 		return this.core.wrap(async () => {
-			const conditions: any[] = [];
+			const conditions: import('drizzle-orm').SQL[] = [];
 			if (filter?.email) {
 				conditions.push(eq(schema.authTokens.email, filter.email as string));
 			}
@@ -617,7 +617,7 @@ export class AuthModule {
 		return this.core.wrap(async () => {
 			// Try matching by _id first, then fall back to token value
 			// (API endpoints pass token values, not _ids)
-			const conditions: any[] = [];
+			const conditions: import('drizzle-orm').SQL[] = [];
 			if (tenantId) {
 				conditions.push(eq(schema.authTokens.tenantId, tenantId));
 			}
@@ -629,7 +629,7 @@ export class AuthModule {
 			}
 
 			// Fall back to delete by token value
-			const byValueResult = await this.db.delete(schema.authTokens).where(and(inArray(schema.authTokens.token, token_ids), ...conditions));
+			const byValueResult = await this.db.delete(schema.authTokens).where(and(inArray(schema.authTokens.token, token_ids as string[]), ...conditions));
 			return { deletedCount: byValueResult[0].affectedRows };
 		}, 'DELETE_TOKENS_FAILED');
 	}
@@ -662,11 +662,11 @@ export class AuthModule {
 		}, 'UNBLOCK_TOKENS_FAILED');
 	}
 
-	private mapRole(dbRole: any): Role {
-		const role = utils.convertDatesToISO(dbRole) as any;
+	private mapRole(dbRole: typeof schema.roles.$inferSelect): Role {
+		const role = utils.convertDatesToISO(dbRole);
 		return {
 			...role,
-			permissions: utils.parseJsonField<string[]>(role.permissions, [])
+			permissions: utils.parseJsonField<string[]>((role as unknown as { permissions: unknown }).permissions, [])
 		} as unknown as Role;
 	}
 
@@ -676,7 +676,7 @@ export class AuthModule {
 			return [];
 		}
 		try {
-			const conditions: any[] = [];
+			const conditions = [];
 			if (tenantId) {
 				conditions.push(eq(schema.roles.tenantId, tenantId));
 			}
@@ -684,7 +684,7 @@ export class AuthModule {
 				.select()
 				.from(schema.roles)
 				.where(conditions.length > 0 ? and(...conditions) : undefined);
-			return results.map((r: any) => this.mapRole(r));
+			return results.map((r) => this.mapRole(r));
 		} catch (error) {
 			logger.error('Get all roles failed:', error);
 			return [];
@@ -693,7 +693,7 @@ export class AuthModule {
 
 	async getRoleById(roleId: string, tenantId?: string): Promise<DatabaseResult<Role | null>> {
 		return this.core.wrap(async () => {
-			const conditions = [eq(schema.roles._id, roleId)];
+			const conditions = [eq(schema.roles._id, roleId as string)];
 			if (tenantId) {
 				conditions.push(eq(schema.roles.tenantId, tenantId));
 			}
@@ -708,14 +708,14 @@ export class AuthModule {
 
 	async createRole(role: Role): Promise<DatabaseResult<Role>> {
 		return this.core.wrap(async () => {
-			const id = role._id || utils.generateId();
+			const id = (role._id || utils.generateId()) as string;
 			await this.db.insert(schema.roles).values({
 				...role,
 				_id: id,
 				createdAt: isoDateStringToDate(nowISODateString()),
 				updatedAt: isoDateStringToDate(nowISODateString()),
 				permissions: role.permissions || []
-			} as any);
+			} as typeof schema.roles.$inferInsert);
 			const [result] = await this.db.select().from(schema.roles).where(eq(schema.roles._id, id)).limit(1);
 			return this.mapRole(result);
 		}, 'CREATE_ROLE_FAILED');
@@ -723,13 +723,13 @@ export class AuthModule {
 
 	async updateRole(roleId: string, roleData: Partial<Role>, tenantId?: string): Promise<DatabaseResult<Role>> {
 		return this.core.wrap(async () => {
-			const conditions = [eq(schema.roles._id, roleId)];
+			const conditions = [eq(schema.roles._id, roleId as string)];
 			if (tenantId) {
 				conditions.push(eq(schema.roles.tenantId, tenantId));
 			}
 			await this.db
 				.update(schema.roles)
-				.set({ ...roleData, updatedAt: isoDateStringToDate(nowISODateString()) } as any)
+				.set({ ...roleData, updatedAt: isoDateStringToDate(nowISODateString()) } as Record<string, unknown>)
 				.where(and(...conditions));
 			const [result] = await this.db
 				.select()
@@ -742,7 +742,7 @@ export class AuthModule {
 
 	async deleteRole(roleId: string, tenantId?: string): Promise<DatabaseResult<void>> {
 		return this.core.wrap(async () => {
-			const conditions = [eq(schema.roles._id, roleId)];
+			const conditions = [eq(schema.roles._id, roleId as string)];
 			if (tenantId) {
 				conditions.push(eq(schema.roles.tenantId, tenantId));
 			}

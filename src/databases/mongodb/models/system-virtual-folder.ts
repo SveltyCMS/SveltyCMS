@@ -176,7 +176,7 @@ export const systemVirtualFolderSchema = new Schema<SystemVirtualFolder>(
 							update: { $set: { order: update.order } }
 						}
 					}));
-					const result = await this.bulkWrite(bulkOps as any);
+					const result = await this.bulkWrite(bulkOps as mongoose.AnyBulkWriteOperation<SystemVirtualFolder>[]);
 					logger.info(`Updated order for ${result.modifiedCount} virtual folders under parent: ${parentId}`);
 					return { success: true, data: result.modifiedCount };
 				} catch (error) {

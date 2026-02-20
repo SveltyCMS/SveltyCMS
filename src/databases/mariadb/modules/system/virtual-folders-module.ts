@@ -61,16 +61,16 @@ export class VirtualFoldersModule {
 
 	async create(folder: Omit<SystemVirtualFolder, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<SystemVirtualFolder>> {
 		return this.core.wrap(async () => {
-			const id = utils.generateId();
+			const id = utils.generateId() as string;
 			await this.db.insert(schema.systemVirtualFolders).values({
 				_id: id,
 				name: folder.name,
 				path: folder.path,
-				parentId: folder.parentId || null,
+				parentId: (folder.parentId as string) || null,
 				icon: folder.icon || null,
 				order: folder.order,
 				type: folder.type,
-				metadata: folder.metadata as any,
+				metadata: folder.metadata as Record<string, unknown>,
 				tenantId: folder.tenantId || null,
 				createdAt: isoDateStringToDate(nowISODateString()),
 				updatedAt: isoDateStringToDate(nowISODateString())
@@ -87,13 +87,13 @@ export class VirtualFoldersModule {
 			await this.db
 				.update(schema.systemVirtualFolders)
 				.set({
-					...data,
-					metadata: updateData.metadata as any,
+					...(data as Record<string, unknown>),
+					metadata: updateData.metadata as Record<string, unknown>,
 					updatedAt: isoDateStringToDate(nowISODateString())
 				})
-				.where(eq(schema.systemVirtualFolders._id, folderId));
+				.where(eq(schema.systemVirtualFolders._id, folderId as string));
 
-			const [updated] = await this.db.select().from(schema.systemVirtualFolders).where(eq(schema.systemVirtualFolders._id, folderId));
+			const [updated] = await this.db.select().from(schema.systemVirtualFolders).where(eq(schema.systemVirtualFolders._id, folderId as string));
 			return utils.convertDatesToISO(updated) as unknown as SystemVirtualFolder;
 		}, 'UPDATE_VIRTUAL_FOLDER_FAILED');
 	}

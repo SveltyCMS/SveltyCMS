@@ -20,11 +20,11 @@ export class CollectionModule {
 	}
 
 	private get crud() {
-		return (this.core as any).crud;
+		return this.core.crud;
 	}
 
 	private get collectionRegistry() {
-		return (this.core as any).collectionRegistry;
+		return this.core.collectionRegistry;
 	}
 
 	async getModel(id: string): Promise<CollectionModel> {
@@ -35,12 +35,12 @@ export class CollectionModule {
 
 		return {
 			findOne: async (query) => {
-				const res = await this.crud.findOne(id, query as any);
-				return res.success ? (res.data as any) : null;
+				const res = await this.crud.findOne<any>(id, query as import('../../db-interface').QueryFilter<Record<string, unknown>>);
+				return res.success ? (res.data as Record<string, unknown>) : null;
 			},
 			aggregate: async (pipeline) => {
-				const res = await this.crud.aggregate(id, pipeline);
-				return res.success ? (res.data as any[]) : [];
+				const res = await this.crud.aggregate<Record<string, unknown>>(id, pipeline);
+				return res.success ? res.data : [];
 			}
 		};
 	}
@@ -65,12 +65,12 @@ export class CollectionModule {
 					"updatedAt" INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
 				);
 			`;
-			const client = (this.core as any).getClient();
+			const client = this.core.getClient();
 			if (client) {
 				if (typeof client.exec === 'function') {
 					client.exec(sql);
-				} else if (typeof client.run === 'function') {
-					client.run(sql);
+				} else if (typeof client.query === 'function') {
+					client.query(sql);
 				}
 			}
 		} catch (error) {
@@ -80,12 +80,12 @@ export class CollectionModule {
 
 		const wrappedModel: CollectionModel = {
 			findOne: async (query) => {
-				const res = await this.crud.findOne(id, query as any);
-				return res.success ? (res.data as any) : null;
+				const res = await this.crud.findOne<any>(id, query as import('../../db-interface').QueryFilter<Record<string, unknown>>);
+				return res.success ? (res.data as Record<string, unknown>) : null;
 			},
 			aggregate: async (pipeline) => {
-				const res = await this.crud.aggregate(id, pipeline);
-				return res.success ? (res.data as any[]) : [];
+				const res = await this.crud.aggregate<Record<string, unknown>>(id, pipeline);
+				return res.success ? res.data : [];
 			}
 		};
 		this.collectionRegistry.set(id, wrappedModel);
@@ -100,10 +100,10 @@ export class CollectionModule {
 	}
 
 	async getSchema(_collectionName: string): Promise<DatabaseResult<Schema | null>> {
-		return (this.core as any).notImplemented('getSchema');
+		return this.core.notImplemented('getSchema');
 	}
 
 	async listSchemas(): Promise<DatabaseResult<Schema[]>> {
-		return (this.core as any).notImplemented('listSchemas');
+		return this.core.notImplemented('listSchemas');
 	}
 }

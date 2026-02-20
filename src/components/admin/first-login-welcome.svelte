@@ -15,7 +15,7 @@
 	import { goto } from '$app/navigation';
 
 	// Components
-	import Button from '@src/components/system/buttons/button.svelte';
+	import Button from '@src/components/system/buttons/Button.svelte';
 	import ImportExportManager from './import-export-manager.svelte';
 
 	// Types

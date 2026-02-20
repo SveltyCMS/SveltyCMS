@@ -18,7 +18,7 @@ export class TransactionModule {
 	}
 
 	private get db() {
-		return (this.core as any).db;
+		return this.core.db;
 	}
 
 	async execute<T>(
@@ -28,11 +28,11 @@ export class TransactionModule {
 		}
 	): Promise<DatabaseResult<T>> {
 		if (!this.db) {
-			return (this.core as any).notConnectedError();
+			return this.core.notConnectedError();
 		}
 
 		try {
-			return await this.db.transaction(async (_tx: any) => {
+			return await this.db.transaction(async (_tx) => {
 				const dbTransaction: DatabaseTransaction = {
 					commit: async () => ({ success: true, data: undefined }),
 					rollback: async () => {
@@ -54,7 +54,7 @@ export class TransactionModule {
 					error: utils.createDatabaseError('TRANSACTION_ROLLED_BACK', 'Transaction rolled back')
 				};
 			}
-			return (this.core as any).handleError(error, 'TRANSACTION_FAILED');
+			return this.core.handleError(error, 'TRANSACTION_FAILED');
 		}
 	}
 }

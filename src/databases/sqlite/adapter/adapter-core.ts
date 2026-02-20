@@ -6,28 +6,45 @@
 import { logger } from '@src/utils/logger';
 import { and, eq, isNull, sql } from 'drizzle-orm';
 import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import type { BaseSQLiteDatabase } from 'drizzle-orm/sqlite-core';
 import type { CollectionModel, DatabaseCapabilities, DatabaseError, DatabaseResult } from '../../db-interface';
 import * as schema from '../schema';
 import * as utils from '../utils';
 
-// Runtime-specific global declaration (Bun detection)
-declare const Bun: any;
+// Define a type for our database to avoid 'any'
+type SQLiteDB = BaseSQLiteDatabase<'sync' | 'async', unknown, typeof schema>;
+
+// Interface for the underlying SQLite client (Bun or better-sqlite3)
+interface SQLiteClient {
+	close(): void;
+	exec(sql: string): void;
+	query?(sql: string): {
+		get(...args: unknown[]): unknown;
+		all(...args: unknown[]): unknown[];
+		run(...args: unknown[]): void;
+	};
+	prepare?(sql: string): {
+		get(...args: unknown[]): unknown;
+		all(...args: unknown[]): unknown[];
+		run(...args: unknown[]): unknown;
+	};
+}
 
 export class AdapterCore {
-	public db!: any;
-	public sqlite!: any;
+	public db!: SQLiteDB;
+	public sqlite!: SQLiteClient;
 	public crud!: import('../crud/crud-module').CrudModule;
 	public batch!: import('../operations/batch-module').BatchModule;
 	public collectionRegistry = new Map<string, CollectionModel>();
 	public dynamicTables = new Map<string, any>();
 	protected isConnectedBoolean = false;
-	protected config: any;
+	protected config: unknown;
 
-	public getDrizzle() {
+	public getDrizzle(): SQLiteDB {
 		return this.db;
 	}
 
-	public getClient() {
+	public getClient(): SQLiteClient {
 		return this.sqlite;
 	}
 
@@ -35,7 +52,7 @@ export class AdapterCore {
 		return this.isConnectedBoolean;
 	}
 
-	public async connect(config: any): Promise<DatabaseResult<void>> {
+	public async connect(config: string | { connectionString?: string; filename?: string }): Promise<DatabaseResult<void>> {
 		try {
 			this.config = config;
 
@@ -55,13 +72,13 @@ export class AdapterCore {
 
 			if (isBun) {
 				// Use dynamic import with string concatenation to avoid Node's static ESM loader errors
-				// and Vite's build time analysis warnigns
+				// and Vite's build time analysis warnings
 				const bunSqlite = 'bun:sqlite';
 				const { Database } = await import(/* @vite-ignore */ bunSqlite);
-				this.sqlite = new Database(dbPathResolved);
+				this.sqlite = new Database(dbPathResolved) as SQLiteClient;
 				const drizzleModule = 'drizzle-orm/bun-sqlite';
 				const { drizzle } = await import(/* @vite-ignore */ drizzleModule);
-				this.db = drizzle(this.sqlite, { schema });
+				this.db = drizzle(this.sqlite as unknown, { schema }) as unknown as SQLiteDB;
 
 				// WAL mode for better performance/concurrency
 				this.sqlite.exec('PRAGMA journal_mode = WAL;');
@@ -69,10 +86,10 @@ export class AdapterCore {
 				// Fallback to better-sqlite3 in Node.js (Vite dev)
 				const betterSqliteModule = 'better-sqlite3';
 				const Database = (await import(/* @vite-ignore */ betterSqliteModule)).default;
-				this.sqlite = new Database(dbPathResolved);
+				this.sqlite = new Database(dbPathResolved) as unknown as SQLiteClient;
 				const drizzleModule = 'drizzle-orm/better-sqlite3';
 				const { drizzle } = await import(/* @vite-ignore */ drizzleModule);
-				this.db = drizzle(this.sqlite, { schema });
+				this.db = drizzle(this.sqlite as unknown, { schema }) as unknown as SQLiteDB;
 
 				// WAL mode
 				this.sqlite.exec('PRAGMA journal_mode = WAL');
@@ -115,7 +132,11 @@ export class AdapterCore {
 	> {
 		try {
 			const start = performance.now();
-			this.sqlite.query('SELECT 1').get();
+			if (this.sqlite.query) {
+				this.sqlite.query('SELECT 1').get();
+			} else if (this.sqlite.prepare) {
+				this.sqlite.prepare('SELECT 1').get();
+			}
 			const latency = performance.now() - start;
 			return {
 				success: true,
@@ -158,7 +179,7 @@ export class AdapterCore {
 			.catch((error) => this.handleError(error, code));
 	}
 
-	public handleError(error: unknown, code: string): DatabaseResult<any> {
+	public handleError<T>(error: unknown, code: string): DatabaseResult<T> {
 		const message = error instanceof Error ? error.message : String(error);
 		logger.error(`SQLite adapter error [${code}]:`, message);
 		return {
@@ -168,7 +189,7 @@ export class AdapterCore {
 		};
 	}
 
-	public notImplemented(method: string): DatabaseResult<any> {
+	public notImplemented<T>(method: string): DatabaseResult<T> {
 		const message = `Method ${method} not yet implemented for SQLite adapter.`;
 		logger.warn(message);
 		return {
@@ -178,7 +199,7 @@ export class AdapterCore {
 		};
 	}
 
-	public notConnectedError(): DatabaseResult<any> {
+	public notConnectedError<T>(): DatabaseResult<T> {
 		return {
 			success: false,
 			message: 'Database not connected',
@@ -191,19 +212,20 @@ export class AdapterCore {
 	}
 
 	public getTable(collection: string): any {
+		const schemaAny = schema as unknown as Record<string, any>;
 		// 1. Static schema tables
-		if ((schema as any)[collection]) {
-			return (schema as any)[collection];
+		if (schemaAny[collection]) {
+			return schemaAny[collection];
 		}
 		const camelKey = this.snakeToCamel(collection);
-		if ((schema as any)[camelKey]) {
-			return (schema as any)[camelKey];
+		if (schemaAny[camelKey]) {
+			return schemaAny[camelKey];
 		}
 
 		// 2. Dynamic collection tables (UUID-based or Name-based)
 		// We use a prefix to distinguish them from static tables
 		if (this.dynamicTables.has(collection)) {
-			return this.dynamicTables.get(collection);
+			return this.dynamicTables.get(collection)!;
 		}
 
 		// If it looks like a UUID or is a known collection name that isn't a static table,
@@ -237,21 +259,22 @@ export class AdapterCore {
 		});
 	}
 
-	public mapQuery(table: any, query: Record<string, any>): any {
+	public mapQuery(table: Record<string, unknown>, query: Record<string, unknown>): import('drizzle-orm').SQL | undefined {
 		if (!query || Object.keys(query).length === 0) {
 			return undefined;
 		}
 
-		const conditions: any[] = [];
+		const conditions: import('drizzle-orm').SQL[] = [];
 		for (const [key, value] of Object.entries(query)) {
 			if (key.startsWith('$')) {
 				continue;
 			}
-			if (table[key]) {
+			const column = table[key] as import('drizzle-orm').Column;
+			if (column) {
 				if (value === null || value === undefined) {
-					conditions.push(isNull(table[key]));
+					conditions.push(isNull(column));
 				} else {
-					conditions.push(eq(table[key], value));
+					conditions.push(eq(column, value as string | number | boolean));
 				}
 			}
 		}
@@ -259,7 +282,6 @@ export class AdapterCore {
 		if (conditions.length === 0) {
 			return undefined;
 		}
-		// console.log(`[AdapterCore] Mapping query:`, JSON.stringify(query), '-> Conditions:', conditions.length);
 		return and(...conditions);
 	}
 }

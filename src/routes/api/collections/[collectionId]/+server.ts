@@ -60,20 +60,20 @@ export const POST = apiHandler(async ({ locals, params, request }) => {
 		throw new AppError('Collection not found', 404, 'COLLECTION_NOT_FOUND');
 	}
 
-	let body: any;
+	let body: Record<string, unknown>;
 	const contentType = request.headers.get('content-type');
 
 	if (contentType?.includes('application/json')) {
-		body = await request.json();
+		body = (await request.json()) as Record<string, unknown>;
 	} else if (contentType?.includes('multipart/form-data')) {
 		const formData = await request.formData();
-		body = Object.fromEntries(formData.entries());
+		body = Object.fromEntries(formData.entries()) as Record<string, unknown>;
 	} else {
 		throw new AppError('Unsupported content type', 400, 'INVALID_CONTENT_TYPE');
 	}
 
 	// Check if data is nested under a 'data' property
-	const sourceData = body.data && typeof body.data === 'object' ? body.data : body;
+	const sourceData = (body.data && typeof body.data === 'object' ? body.data : body) as Record<string, unknown>;
 
 	logger.trace('Data extraction completed', {
 		hasNestedData: !!body.data,
@@ -94,7 +94,7 @@ export const POST = apiHandler(async ({ locals, params, request }) => {
 
 	// Prepare entry data with user ID and required content_nodes fields
 	const entryId = randomUUID().replace(/-/g, '');
-	const entryData = {
+	const entryData: Record<string, unknown> = {
 		...sourceData,
 		_id: entryId,
 		nodeType: 'entry',
@@ -102,15 +102,15 @@ export const POST = apiHandler(async ({ locals, params, request }) => {
 		...(getPrivateSettingSync('MULTI_TENANT') && { tenantId }),
 		createdBy: user._id,
 		updatedBy: user._id,
-		status: sourceData.status || schema.status || 'draft'
+		status: (sourceData.status as string) || (schema.status as string) || 'draft'
 	};
 
-	// Applymodify-requestfor pre-processing
+	// Apply modify-request for pre-processing
 	const dataArray = [entryData];
 
 	try {
 		await modifyRequest({
-			data: dataArray,
+			data: dataArray as any[], // modifyRequest expects EntryData[] which is Record<string, unknown>[]
 			fields: schema.fields as FieldInstance[],
 			collection: collectionModel,
 			user,
@@ -124,16 +124,12 @@ export const POST = apiHandler(async ({ locals, params, request }) => {
 			error: (modifyError as Error).message,
 			userId: user._id
 		});
-		// Consider if we should throw here or just log. Original code logged.
 	}
 
 	if (!schema._id) {
 		throw new AppError('Collection ID is missing', 500, 'INVALID_SCHEMA');
 	}
 	const collectionName = `collection_${schema._id}`;
-	if (!dbAdapter) {
-		throw new AppError('Database adapter not initialized', 503, 'DB_ADAPTER_MISSING');
-	}
 
 	const result = await dbAdapter.crud.insert(collectionName, dataArray[0]);
 
@@ -162,7 +158,7 @@ export const POST = apiHandler(async ({ locals, params, request }) => {
 	const cachePattern = `collection:${schema._id}:*`;
 	logger.debug(`${endpoint} - Invalidating cache pattern: ${cachePattern}`);
 
-	await cacheService.clearByPattern(cachePattern, tenantId).catch((err) => {
+	await cacheService.clearByPattern(cachePattern, tenantId).catch((err: unknown) => {
 		logger.warn('Failed to invalidate page cache after POST', {
 			pattern: cachePattern,
 			error: err
@@ -175,9 +171,9 @@ export const POST = apiHandler(async ({ locals, params, request }) => {
 		const { pubSub } = await import('@src/services/pub-sub');
 		pubSub.publish('entryUpdated', {
 			collection: schema.name || params.collectionId,
-			id: result.data._id,
+			id: (result.data as unknown as Record<string, unknown>)._id as string,
 			action: 'create',
-			data: result.data,
+			data: result.data as unknown as Record<string, unknown>,
 			timestamp: new Date().toISOString(),
 			user
 		});

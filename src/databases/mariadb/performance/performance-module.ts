@@ -9,7 +9,7 @@
  * - Get slow queries
  */
 
-import type { DatabaseResult, PerformanceMetrics } from '../../db-interface';
+import type { DatabaseResult, PerformanceMetrics, ISODateString } from '../../db-interface';
 import type { AdapterCore } from '../adapter/adapter-core';
 
 export class PerformanceModule {
@@ -31,7 +31,7 @@ export class PerformanceModule {
 		return this.core.notImplemented('performance.enableProfiling');
 	}
 
-	async getSlowQueries(_limit?: number): Promise<DatabaseResult<any[]>> {
+	async getSlowQueries(_limit?: number): Promise<DatabaseResult<Array<{ query: string; duration: number; timestamp: ISODateString }>>> {
 		return this.core.notImplemented('performance.getSlowQueries');
 	}
 }

@@ -24,7 +24,7 @@ export class TransactionModule {
 	async execute<T>(
 		fn: (transaction: DatabaseTransaction) => Promise<DatabaseResult<T>>,
 		options?: {
-			isolationLevel?: 'READ UNCOMMITTED' | 'READ COMMITTED' | 'REPEATABLE READ' | 'SERIALIZABLE';
+			isolationLevel?: 'read uncommitted' | 'read committed' | 'repeatable read' | 'serializable';
 		}
 	): Promise<DatabaseResult<T>> {
 		if (!this.db) {
@@ -32,7 +32,7 @@ export class TransactionModule {
 		}
 
 		try {
-			return await this.db.transaction(async (_tx: any) => {
+			return await this.db.transaction(async (_tx) => {
 				const dbTransaction: DatabaseTransaction = {
 					commit: async () => ({ success: true, data: undefined }),
 					rollback: async () => {

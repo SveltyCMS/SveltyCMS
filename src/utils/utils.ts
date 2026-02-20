@@ -58,20 +58,22 @@ export interface GuiFieldConfig {
 	[key: string]: unknown;
 }
 
-export function uniqueItems(items: Record<string, unknown>[], key: string): object[] {
-	const uniqueItems = Array.from(new Map(items.map((item) => [item[key], item])).values());
-
-	return uniqueItems;
+export function uniqueItems<T extends Record<string, unknown>>(items: T[], key: string): T[] {
+	const uniqueMap = new Map(items.map((item) => [item[key], item]));
+	return Array.from(uniqueMap.values());
 }
 
 // This function generates GUI fields based on field parameters and a GUI schema.
 export const getGuiFields = (fieldParams: Record<string, unknown>, GuiSchema: Record<string, GuiFieldConfig>): Record<string, unknown> => {
 	const guiFields: Record<string, unknown> = {};
 	for (const key in GuiSchema) {
-		if (Object.hasOwn(fieldParams, key) && Array.isArray(fieldParams[key])) {
-			guiFields[key] = deepCopy(fieldParams[key] as unknown[]);
-		} else if (Object.hasOwn(fieldParams, key)) {
-			guiFields[key] = fieldParams[key];
+		const value = fieldParams[key];
+		if (value !== undefined) {
+			if (Array.isArray(value)) {
+				guiFields[key] = deepCopy(value);
+			} else {
+				guiFields[key] = value;
+			}
 		}
 	}
 	return guiFields;
@@ -159,8 +161,8 @@ export function parse<T>(obj: unknown): T {
 		return obj.map((item) => parse(item)) as unknown as T;
 	}
 
-	const result = {} as { [key: string]: unknown };
-	for (const [key, value] of Object.entries(obj as object)) {
+	const result: Record<string, unknown> = {};
+	for (const [key, value] of Object.entries(obj)) {
 		if (typeof value === 'string') {
 			try {
 				result[key] = JSON.parse(value);
@@ -224,7 +226,7 @@ export function getFieldName(field: Partial<FieldInstance> & { label: string }, 
 		name = field.widget.Name;
 	}
 	if (!name && 'type' in field) {
-		name = field.type as string;
+		name = (field as any).type as string;
 	}
 	if (!name) {
 		name = 'unknown_field';
@@ -285,7 +287,7 @@ export async function extractData(fieldsData: Record<string, FieldInstance>): Pr
 	return result;
 }
 
-function deepCopy<T>(obj: T): T {
+export function deepCopy<T>(obj: T): T {
 	if (obj === null || typeof obj !== 'object') {
 		return obj;
 	}
@@ -300,7 +302,7 @@ function deepCopy<T>(obj: T): T {
 
 	const copy = {} as T;
 	for (const key in obj) {
-		if (Object.hasOwn(obj, key)) {
+		if (Object.prototype.hasOwnProperty.call(obj, key)) {
 			copy[key] = deepCopy(obj[key]);
 		}
 	}

@@ -31,7 +31,7 @@
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 
 	// System Components
-	import Slot from '@src/components/system/slot.svelte';
+	import Slot from '@src/components/system/Slot.svelte';
 
 	import { getLanguageName } from '@utils/language-utils';
 	import { logger } from '@utils/logger';

@@ -34,11 +34,11 @@ export class MediaModule {
 	}
 
 	private get db() {
-		return (this.core as any).db;
+		return this.core.db;
 	}
 
 	private get crud() {
-		return (this.core as any).crud;
+		return this.core.crud;
 	}
 
 	async setupMediaModels(): Promise<void> {
@@ -48,11 +48,11 @@ export class MediaModule {
 
 	files = {
 		upload: async (file: Omit<MediaItem, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<MediaItem>> => {
-			return this.crud.insert('media_items', file as any);
+			return this.crud.insert<MediaItem>('media_items', file);
 		},
 
 		uploadMany: async (files: Omit<MediaItem, '_id' | 'createdAt' | 'updatedAt'>[]): Promise<DatabaseResult<MediaItem[]>> => {
-			return this.crud.insertMany('media_items', files as any);
+			return this.crud.insertMany<MediaItem>('media_items', files);
 		},
 
 		delete: async (fileId: DatabaseId): Promise<DatabaseResult<void>> => {
@@ -60,7 +60,10 @@ export class MediaModule {
 		},
 
 		deleteMany: async (fileIds: DatabaseId[]): Promise<DatabaseResult<{ deletedCount: number }>> => {
-			return this.crud.deleteMany('media_items', { _id: { $in: fileIds } } as any);
+			return this.core.wrap(async () => {
+				const result = await this.db.delete(schema.mediaItems).where(inArray(schema.mediaItems._id, fileIds as string[]));
+				return { deletedCount: (result as any).changes };
+			}, 'DELETE_MANY_FILES_FAILED');
 		},
 
 		getByFolder: async (
@@ -69,16 +72,16 @@ export class MediaModule {
 			_recursive?: boolean
 		): Promise<DatabaseResult<PaginatedResult<MediaItem>>> => {
 			return this.core.wrap(async () => {
-				const conditions = folderId ? [eq(schema.mediaItems.folderId, folderId)] : [isNull(schema.mediaItems.folderId)];
+				const conditions = folderId ? [eq(schema.mediaItems.folderId, folderId as string)] : [isNull(schema.mediaItems.folderId)];
 
 				let q = this.db.select().from(schema.mediaItems).$dynamic();
 				q = q.where(and(...conditions));
 
 				if (options?.sortField) {
 					const order = options.sortDirection === 'desc' ? desc : asc;
-					const column = (schema.mediaItems as Record<string, any>)[options.sortField];
-					if (column) {
-						q = q.orderBy(order(column));
+					const column = (schema.mediaItems as unknown as Record<string, unknown>)[options.sortField];
+					if (column && typeof column === 'object') {
+						q = q.orderBy(order(column as import('drizzle-orm/sqlite-core').SQLiteColumn));
 					}
 				}
 
@@ -97,7 +100,7 @@ export class MediaModule {
 				const total = Number(countResult?.count || 0);
 
 				return {
-					items: utils.convertArrayDatesToISO(results) as unknown as MediaItem[],
+					items: utils.convertArrayDatesToISO(results as Record<string, unknown>[]) as unknown as MediaItem[],
 					total,
 					page: options?.page || 1,
 					pageSize: limit,
@@ -117,9 +120,9 @@ export class MediaModule {
 
 				if (options?.sortField) {
 					const order = options.sortDirection === 'desc' ? desc : asc;
-					const column = (schema.mediaItems as Record<string, any>)[options.sortField];
-					if (column) {
-						q = q.orderBy(order(column));
+					const column = (schema.mediaItems as unknown as Record<string, unknown>)[options.sortField];
+					if (column && typeof column === 'object') {
+						q = q.orderBy(order(column as import('drizzle-orm/sqlite-core').SQLiteColumn));
 					}
 				}
 
@@ -138,7 +141,7 @@ export class MediaModule {
 				const total = Number(countResult?.count || 0);
 
 				return {
-					items: utils.convertArrayDatesToISO(results) as unknown as MediaItem[],
+					items: utils.convertArrayDatesToISO(results as Record<string, unknown>[]) as unknown as MediaItem[],
 					total,
 					page: options?.page || 1,
 					pageSize: limit,
@@ -149,17 +152,17 @@ export class MediaModule {
 		},
 
 		getMetadata: async (fileIds: DatabaseId[]): Promise<DatabaseResult<Record<string, MediaMetadata>>> => {
-			return (this.core as any).wrap(async () => {
+			return this.core.wrap(async () => {
 				const results = await this.db
 					.select({
 						_id: schema.mediaItems._id,
 						metadata: schema.mediaItems.metadata
 					})
 					.from(schema.mediaItems)
-					.where(inArray(schema.mediaItems._id, fileIds));
+					.where(inArray(schema.mediaItems._id, fileIds as string[]));
 
 				const metadataMap: Record<string, MediaMetadata> = {};
-				results.forEach((r: any) => {
+				results.forEach((r) => {
 					metadataMap[r._id] = r.metadata as MediaMetadata;
 				});
 				return metadataMap;
@@ -167,117 +170,117 @@ export class MediaModule {
 		},
 
 		updateMetadata: async (fileId: DatabaseId, metadata: Partial<MediaMetadata>): Promise<DatabaseResult<MediaItem>> => {
-			return (this.core as any).wrap(async () => {
+			return this.core.wrap(async () => {
 				const [existing] = await this.db
 					.select({ metadata: schema.mediaItems.metadata })
 					.from(schema.mediaItems)
-					.where(eq(schema.mediaItems._id, fileId))
+					.where(eq(schema.mediaItems._id, fileId as string))
 					.limit(1);
 
-				const newMetadata = { ...(existing?.metadata || {}), ...metadata };
+				const newMetadata = { ...((existing?.metadata as Record<string, unknown>) || {}), ...metadata };
 
 				await this.db
 					.update(schema.mediaItems)
-					.set({ metadata: newMetadata as any, updatedAt: isoDateStringToDate(nowISODateString()) })
-					.where(eq(schema.mediaItems._id, fileId));
+					.set({ metadata: newMetadata, updatedAt: isoDateStringToDate(nowISODateString()) })
+					.where(eq(schema.mediaItems._id, fileId as string));
 
-				const [updated] = await this.db.select().from(schema.mediaItems).where(eq(schema.mediaItems._id, fileId)).limit(1);
+				const [updated] = await this.db.select().from(schema.mediaItems).where(eq(schema.mediaItems._id, fileId as string)).limit(1);
 
-				return utils.convertDatesToISO(updated) as unknown as MediaItem;
+				return utils.convertDatesToISO(updated as Record<string, unknown>) as unknown as MediaItem;
 			}, 'UPDATE_FILE_METADATA_FAILED');
 		},
 
 		move: async (fileIds: DatabaseId[], targetFolderId?: DatabaseId): Promise<DatabaseResult<{ movedCount: number }>> => {
-			return (this.core as any).wrap(async () => {
+			return this.core.wrap(async () => {
 				const result = await this.db
 					.update(schema.mediaItems)
-					.set({ folderId: targetFolderId || null, updatedAt: isoDateStringToDate(nowISODateString()) })
-					.where(inArray(schema.mediaItems._id, fileIds));
-				return { movedCount: result.changes };
+					.set({ folderId: (targetFolderId || null) as string | null, updatedAt: isoDateStringToDate(nowISODateString()) })
+					.where(inArray(schema.mediaItems._id, fileIds as string[]));
+				return { movedCount: (result as any).changes };
 			}, 'MOVE_FILES_FAILED');
 		},
 
 		duplicate: async (fileId: DatabaseId, newName?: string): Promise<DatabaseResult<MediaItem>> => {
-			return (this.core as any).wrap(async () => {
-				const [existing] = await this.db.select().from(schema.mediaItems).where(eq(schema.mediaItems._id, fileId)).limit(1);
+			return this.core.wrap(async () => {
+				const [existing] = await this.db.select().from(schema.mediaItems).where(eq(schema.mediaItems._id, fileId as string)).limit(1);
 
 				if (!existing) {
 					throw new Error('File not found');
 				}
 
-				const id = utils.generateId();
+				const id = utils.generateId() as string;
 				const now = nowISODateString();
 				const copy = {
 					...existing,
 					_id: id,
 					filename: newName || `${existing.filename}_copy`,
-					createdAt: now,
-					updatedAt: now
+					createdAt: isoDateStringToDate(now),
+					updatedAt: isoDateStringToDate(now)
 				};
 
-				await this.db.insert(schema.mediaItems).values(copy as any);
+				await this.db.insert(schema.mediaItems).values(copy as typeof schema.mediaItems.$inferInsert);
 
 				const [created] = await this.db.select().from(schema.mediaItems).where(eq(schema.mediaItems._id, id)).limit(1);
 
-				return utils.convertDatesToISO(created) as unknown as MediaItem;
+				return utils.convertDatesToISO(created as Record<string, unknown>) as unknown as MediaItem;
 			}, 'DUPLICATE_FILE_FAILED');
 		}
 	};
 
 	folders = {
 		create: async (folder: Omit<MediaFolder, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<MediaFolder>> => {
-			return (this.core as any).wrap(async () => {
-				const id = utils.generateId();
+			return this.core.wrap(async () => {
+				const id = utils.generateId() as string;
 				const now = nowISODateString();
 				const values = {
 					...folder,
 					_id: id,
 					type: 'folder',
-					createdAt: now,
-					updatedAt: now
+					createdAt: isoDateStringToDate(now),
+					updatedAt: isoDateStringToDate(now)
 				};
-				await this.db.insert(schema.systemVirtualFolders).values(values as any);
+				await this.db.insert(schema.systemVirtualFolders).values(values as typeof schema.systemVirtualFolders.$inferInsert);
 				const [result] = await this.db.select().from(schema.systemVirtualFolders).where(eq(schema.systemVirtualFolders._id, id)).limit(1);
-				return utils.convertDatesToISO(result) as unknown as MediaFolder;
+				return utils.convertDatesToISO(result as Record<string, unknown>) as unknown as MediaFolder;
 			}, 'CREATE_MEDIA_FOLDER_FAILED');
 		},
 
 		createMany: async (folders: Omit<MediaFolder, '_id' | 'createdAt' | 'updatedAt'>[]): Promise<DatabaseResult<MediaFolder[]>> => {
-			return (this.core as any).wrap(async () => {
+			return this.core.wrap(async () => {
 				const now = nowISODateString();
 				const values = folders.map((f) => ({
 					...f,
-					_id: utils.generateId(),
+					_id: utils.generateId() as string,
 					type: 'folder',
-					createdAt: now,
-					updatedAt: now
+					createdAt: isoDateStringToDate(now),
+					updatedAt: isoDateStringToDate(now)
 				}));
-				await this.db.insert(schema.systemVirtualFolders).values(values as any);
+				await this.db.insert(schema.systemVirtualFolders).values(values as (typeof schema.systemVirtualFolders.$inferInsert)[]);
 
 				const ids = values.map((v) => v._id);
 				const results = await this.db.select().from(schema.systemVirtualFolders).where(inArray(schema.systemVirtualFolders._id, ids));
 
-				return utils.convertArrayDatesToISO(results) as unknown as MediaFolder[];
+				return utils.convertArrayDatesToISO(results as Record<string, unknown>[]) as unknown as MediaFolder[];
 			}, 'CREATE_MANY_MEDIA_FOLDERS_FAILED');
 		},
 
 		delete: async (folderId: DatabaseId): Promise<DatabaseResult<void>> => {
-			return (this.core as any).wrap(async () => {
-				await this.db.delete(schema.systemVirtualFolders).where(eq(schema.systemVirtualFolders._id, folderId));
+			return this.core.wrap(async () => {
+				await this.db.delete(schema.systemVirtualFolders).where(eq(schema.systemVirtualFolders._id, folderId as string));
 			}, 'DELETE_MEDIA_FOLDER_FAILED');
 		},
 
 		deleteMany: async (folderIds: DatabaseId[]): Promise<DatabaseResult<{ deletedCount: number }>> => {
-			return (this.core as any).wrap(async () => {
-				const result = await this.db.delete(schema.systemVirtualFolders).where(inArray(schema.systemVirtualFolders._id, folderIds));
-				return { deletedCount: result.changes };
+			return this.core.wrap(async () => {
+				const result = await this.db.delete(schema.systemVirtualFolders).where(inArray(schema.systemVirtualFolders._id, folderIds as string[]));
+				return { deletedCount: (result as any).changes };
 			}, 'DELETE_MANY_MEDIA_FOLDERS_FAILED');
 		},
 
 		getTree: async (_maxDepth?: number): Promise<DatabaseResult<MediaFolder[]>> => {
-			return (this.core as any).wrap(async () => {
+			return this.core.wrap(async () => {
 				const results = await this.db.select().from(schema.systemVirtualFolders).where(eq(schema.systemVirtualFolders.type, 'folder'));
-				return utils.convertArrayDatesToISO(results) as unknown as MediaFolder[];
+				return utils.convertArrayDatesToISO(results as Record<string, unknown>[]) as unknown as MediaFolder[];
 			}, 'GET_MEDIA_FOLDER_TREE_FAILED');
 		},
 
@@ -291,9 +294,9 @@ export class MediaModule {
 				totalCount: number;
 			}>
 		> => {
-			return (this.core as any).wrap(async () => {
-				const folderConditions = folderId ? [eq(schema.systemVirtualFolders.parentId, folderId)] : [eq(schema.systemVirtualFolders.parentId, '')];
-				const fileConditions = folderId ? [eq(schema.mediaItems.folderId, folderId)] : [];
+			return this.core.wrap(async () => {
+				const folderConditions = folderId ? [eq(schema.systemVirtualFolders.parentId, folderId as string)] : [eq(schema.systemVirtualFolders.parentId, '')];
+				const fileConditions = folderId ? [eq(schema.mediaItems.folderId, folderId as string)] : [];
 
 				const folders = await this.db
 					.select()
@@ -306,23 +309,23 @@ export class MediaModule {
 					.where(fileConditions.length > 0 ? and(...fileConditions) : undefined);
 
 				return {
-					folders: utils.convertArrayDatesToISO(folders) as unknown as MediaFolder[],
-					files: utils.convertArrayDatesToISO(files) as unknown as MediaItem[],
+					folders: utils.convertArrayDatesToISO(folders as Record<string, unknown>[]) as unknown as MediaFolder[],
+					files: utils.convertArrayDatesToISO(files as Record<string, unknown>[]) as unknown as MediaItem[],
 					totalCount: folders.length + files.length
 				};
 			}, 'GET_FOLDER_CONTENTS_FAILED');
 		},
 
 		move: async (folderId: DatabaseId, targetParentId?: DatabaseId): Promise<DatabaseResult<MediaFolder>> => {
-			return (this.core as any).wrap(async () => {
+			return this.core.wrap(async () => {
 				await this.db
 					.update(schema.systemVirtualFolders)
-					.set({ parentId: targetParentId || null, updatedAt: isoDateStringToDate(nowISODateString()) })
-					.where(eq(schema.systemVirtualFolders._id, folderId));
+					.set({ parentId: (targetParentId || null) as string | null, updatedAt: isoDateStringToDate(nowISODateString()) })
+					.where(eq(schema.systemVirtualFolders._id, folderId as string));
 
-				const [updated] = await this.db.select().from(schema.systemVirtualFolders).where(eq(schema.systemVirtualFolders._id, folderId)).limit(1);
+				const [updated] = await this.db.select().from(schema.systemVirtualFolders).where(eq(schema.systemVirtualFolders._id, folderId as string)).limit(1);
 
-				return utils.convertDatesToISO(updated) as unknown as MediaFolder;
+				return utils.convertDatesToISO(updated as Record<string, unknown>) as unknown as MediaFolder;
 			}, 'MOVE_MEDIA_FOLDER_FAILED');
 		}
 	};

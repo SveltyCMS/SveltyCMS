@@ -28,7 +28,7 @@
 	import { getLocale } from '@src/paraglide/runtime';
 
 	// Components
-	import Toggles from '@src/components/system/inputs/toggles.svelte';
+	import Toggles from '@src/components/system/inputs/Toggles.svelte';
 	import { collection, collectionValue, mode } from '@src/stores/collection-store.svelte';
 	// Stores
 	import { screen } from '@src/stores/screen-size-store.svelte';

@@ -354,7 +354,7 @@ export class SessionAdapter {
 			logger.debug('Session expiry updated', { session_id });
 			return {
 				success: true,
-				data: this.formatSession(session as any)
+				data: this.formatSession(session as unknown as Parameters<SessionAdapter['formatSession']>[0])
 			};
 		} catch (err) {
 			const message = `Error in SessionAdapter.updateSessionExpiry: ${err instanceof Error ? err.message : String(err)}`;
@@ -494,7 +494,7 @@ export class SessionAdapter {
 			});
 
 			if (results.length > 0) {
-				const user = results[0];
+				const user = results[0] as User & { _sessionRotated?: boolean; _sessionRotatedTo?: string };
 
 				// Log rotation status if applicable
 				if (user._sessionRotated && user._sessionRotatedTo) {
@@ -502,8 +502,8 @@ export class SessionAdapter {
 				}
 
 				// Remove session metadata from user object
-				user._sessionRotated = undefined;
-				user._sessionRotatedTo = undefined;
+				delete user._sessionRotated;
+				delete user._sessionRotatedTo;
 
 				// Normalize ID
 				user._id = user._id.toString();
@@ -588,7 +588,7 @@ export class SessionAdapter {
 			});
 			return {
 				success: true,
-				data: sessions.map((session) => this.formatSession(session as any))
+				data: sessions.map((session) => this.formatSession(session as unknown as Parameters<SessionAdapter['formatSession']>[0]))
 			};
 		} catch (err) {
 			const message = `Error in SessionAdapter.getActiveSessions: ${err instanceof Error ? err.message : String(err)}`;
@@ -620,7 +620,7 @@ export class SessionAdapter {
 			});
 			return {
 				success: true,
-				data: sessions.map((session) => this.formatSession(session as any))
+				data: sessions.map((session) => this.formatSession(session as unknown as Parameters<SessionAdapter['formatSession']>[0]))
 			};
 		} catch (err) {
 			const message = `Error in SessionAdapter.getAllActiveSessions: ${err instanceof Error ? err.message : String(err)}`;

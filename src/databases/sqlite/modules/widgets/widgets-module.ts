@@ -26,7 +26,7 @@ export class WidgetsModule {
 	}
 
 	private get db() {
-		return (this.core as any).db;
+		return this.core.db;
 	}
 
 	async setupWidgetModels(): Promise<void> {
@@ -35,7 +35,7 @@ export class WidgetsModule {
 	}
 
 	async register(widget: Omit<Widget, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<Widget>> {
-		return (this.core as any).wrap(async () => {
+		return this.core.wrap(async () => {
 			const exists = await this.db.select().from(schema.widgets).where(eq(schema.widgets.name, widget.name)).limit(1);
 
 			if (exists.length > 0) {
@@ -43,8 +43,8 @@ export class WidgetsModule {
 					.update(schema.widgets)
 					.set({
 						isActive: widget.isActive,
-						instances: (widget as any).instances as any,
-						dependencies: (widget as any).dependencies,
+						instances: widget.instances as Record<string, unknown>,
+						dependencies: widget.dependencies as string[],
 						updatedAt: isoDateStringToDate(nowISODateString())
 					})
 					.where(eq(schema.widgets.name, widget.name));
@@ -56,8 +56,8 @@ export class WidgetsModule {
 				_id: id,
 				name: widget.name,
 				isActive: widget.isActive,
-				instances: (widget as any).instances as any,
-				dependencies: (widget as any).dependencies,
+				instances: widget.instances as Record<string, unknown>,
+				dependencies: widget.dependencies as string[],
 				createdAt: isoDateStringToDate(nowISODateString()),
 				updatedAt: isoDateStringToDate(nowISODateString())
 			});
@@ -67,36 +67,36 @@ export class WidgetsModule {
 	}
 
 	async findAll(): Promise<DatabaseResult<Widget[]>> {
-		return (this.core as any).wrap(async () => {
+		return this.core.wrap(async () => {
 			const results = await this.db.select().from(schema.widgets);
 			return utils.convertArrayDatesToISO(results) as unknown as Widget[];
 		}, 'FIND_ALL_WIDGETS_FAILED');
 	}
 
 	async getActiveWidgets(): Promise<DatabaseResult<Widget[]>> {
-		return (this.core as any).wrap(async () => {
+		return this.core.wrap(async () => {
 			const results = await this.db.select().from(schema.widgets).where(eq(schema.widgets.isActive, true));
 			return utils.convertArrayDatesToISO(results) as unknown as Widget[];
 		}, 'GET_ACTIVE_WIDGETS_FAILED');
 	}
 
 	async activate(widgetId: DatabaseId): Promise<DatabaseResult<void>> {
-		return (this.core as any).wrap(async () => {
+		return this.core.wrap(async () => {
 			await this.db.update(schema.widgets).set({ isActive: true, updatedAt: isoDateStringToDate(nowISODateString()) }).where(eq(schema.widgets._id, widgetId));
 		}, 'ACTIVATE_WIDGET_FAILED');
 	}
 
 	async deactivate(widgetId: DatabaseId): Promise<DatabaseResult<void>> {
-		return (this.core as any).wrap(async () => {
+		return this.core.wrap(async () => {
 			await this.db.update(schema.widgets).set({ isActive: false, updatedAt: isoDateStringToDate(nowISODateString()) }).where(eq(schema.widgets._id, widgetId));
 		}, 'DEACTIVATE_WIDGET_FAILED');
 	}
 
 	async update(widgetId: DatabaseId, widget: Partial<Omit<Widget, '_id' | 'createdAt' | 'updatedAt'>>): Promise<DatabaseResult<Widget>> {
-		return (this.core as any).wrap(async () => {
+		return this.core.wrap(async () => {
 			await this.db
 				.update(schema.widgets)
-				.set({ ...widget, updatedAt: isoDateStringToDate(nowISODateString()) } as any)
+				.set({ ...widget, updatedAt: isoDateStringToDate(nowISODateString()) } as typeof schema.widgets.$inferInsert)
 				.where(eq(schema.widgets._id, widgetId));
 			const [updated] = await this.db.select().from(schema.widgets).where(eq(schema.widgets._id, widgetId)).limit(1);
 			return utils.convertDatesToISO(updated) as unknown as Widget;
@@ -104,7 +104,7 @@ export class WidgetsModule {
 	}
 
 	async delete(widgetId: DatabaseId): Promise<DatabaseResult<void>> {
-		return (this.core as any).wrap(async () => {
+		return this.core.wrap(async () => {
 			await this.db.delete(schema.widgets).where(eq(schema.widgets._id, widgetId));
 		}, 'DELETE_WIDGET_FAILED');
 	}

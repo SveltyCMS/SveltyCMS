@@ -89,40 +89,40 @@ export class UserAdapter {
 	// Map MongoDB user to User type with ISO strings for dates
 	private mapUser(user: any): User {
 		if (!user) {
-			return user;
+			return user as unknown as User;
 		}
 		const result = { ...user };
-		result._id = result._id.toString();
+		result._id = (result._id as string | { toString(): string }).toString();
 
 		// Convert all date fields to ISO strings
 		if (result.lastActiveAt) {
-			result.lastActiveAt = toISOString(result.lastActiveAt);
+			result.lastActiveAt = toISOString(result.lastActiveAt as string | number | Date);
 		}
 		if (result.expiresAt) {
-			result.expiresAt = toISOString(result.expiresAt);
+			result.expiresAt = toISOString(result.expiresAt as string | number | Date);
 		}
 		if (result.resetRequestedAt) {
-			result.resetRequestedAt = toISOString(result.resetRequestedAt);
+			result.resetRequestedAt = toISOString(result.resetRequestedAt as string | number | Date);
 		}
 		if (result.lockoutUntil) {
-			result.lockoutUntil = toISOString(result.lockoutUntil);
+			result.lockoutUntil = toISOString(result.lockoutUntil as string | number | Date);
 		}
 		if (result.last2FAVerification) {
-			result.last2FAVerification = toISOString(result.last2FAVerification);
+			result.last2FAVerification = toISOString(result.last2FAVerification as string | number | Date);
 		}
 		if (result.createdAt) {
-			result.createdAt = toISOString(result.createdAt);
+			result.createdAt = toISOString(result.createdAt as string | number | Date);
 		}
 		if (result.updatedAt) {
-			result.updatedAt = toISOString(result.updatedAt);
+			result.updatedAt = toISOString(result.updatedAt as string | number | Date);
 		}
 
 		// Ensure permissions are strings
 		if (result.permissions && Array.isArray(result.permissions)) {
-			result.permissions = result.permissions.map((p: any) => String(p));
+			result.permissions = (result.permissions as unknown[]).map((p) => String(p));
 		}
 
-		return result as User;
+		return result as unknown as User;
 	}
 
 	constructor() {
@@ -165,7 +165,7 @@ export class UserAdapter {
 				allFields: Object.keys(user.toObject())
 			});
 
-			const savedUser = user.toObject();
+			const savedUser = user.toObject() as unknown as Record<string, unknown>;
 			return {
 				success: true,
 				data: this.mapUser(savedUser)
@@ -214,7 +214,7 @@ export class UserAdapter {
 			logger.debug(`User attributes updated: ${user_id}`, { tenantId });
 			return {
 				success: true,
-				data: this.mapUser(user)
+				data: this.mapUser(user as unknown as Record<string, unknown>)
 			};
 		} catch (err) {
 			const message = `Error in UserAdapter.updateUserAttributes: ${err instanceof Error ? err.message : String(err)}`;
@@ -257,7 +257,7 @@ export class UserAdapter {
 			}
 
 			const users = await query.exec();
-			const mappedUsers = users.map((user) => this.mapUser(user));
+			const mappedUsers = users.map((user) => this.mapUser(user as unknown as Record<string, unknown>));
 			return {
 				success: true,
 				data: mappedUsers
@@ -306,7 +306,7 @@ export class UserAdapter {
 				permissions: permissionName
 			}).lean();
 			logger.debug(`Users with permission ${permissionName} retrieved`);
-			const mappedUsers = users.map((user) => this.mapUser(user));
+			const mappedUsers = users.map((user) => this.mapUser(user as unknown as Record<string, unknown>));
 			return {
 				success: true,
 				data: mappedUsers

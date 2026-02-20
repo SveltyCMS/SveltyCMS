@@ -55,8 +55,8 @@ export class MongoSystemMethods {
 
 			// Use projection to fetch only the needed field
 			const userPrefs = await this.SystemPreferencesModel.findOne({ userId: userId.toString() }, { [`preferences.${key}`]: 1 }).lean<{
-				preferences: any;
-			}>(); // Use 'any' because strict typing fails on dynamic nested structure
+				preferences: Record<string, unknown>;
+			}>(); // Use Record<string, unknown> instead of any for dynamic nested structure
 
 			if (!userPrefs?.preferences) {
 				return { success: true, data: null };
@@ -64,7 +64,7 @@ export class MongoSystemMethods {
 
 			// Traverse the nested object to find the value
 			// because Mongoose un-flattens 'a.b.c' into { a: { b: { c: val } } }
-			const value = key.split('.').reduce((obj, k) => (obj && obj[k] !== undefined ? obj[k] : undefined), userPrefs.preferences);
+			const value = key.split('.').reduce((obj, k) => (obj && (obj as any)[k] !== undefined ? (obj as any)[k] : undefined), userPrefs.preferences as any);
 
 			return { success: true, data: (value as T) ?? null };
 		} catch (error) {
@@ -250,11 +250,11 @@ export class MongoSystemMethods {
 				};
 			}
 
-			// User-scoped category filtering (preferences are stored in a Record<string, any>)
+			// User-scoped category filtering (preferences are stored in a Record<string, unknown>)
 			// This might be slower as we fetch the whole object and filter in JS
 			const userPrefs = (await this.SystemPreferencesModel.findOne({
 				userId: userId.toString()
-			}).lean()) as any;
+			}).lean()) as { preferences?: Record<string, unknown> } | null;
 			if (!userPrefs?.preferences) {
 				return { success: true, data: {} };
 			}
@@ -284,7 +284,7 @@ export class MongoSystemMethods {
 			value: T;
 			scope?: 'user' | 'system';
 			userId?: DatabaseId;
-			category?: 'public' | 'private';
+			category?: string;
 		}>
 	): Promise<DatabaseResult<void>> {
 		try {

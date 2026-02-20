@@ -33,7 +33,7 @@ export class MongoWebsiteTokenMethods {
 		skip?: number;
 		sort?: string;
 		order?: string;
-		filter?: any;
+		filter?: Record<string, unknown>;
 	}): Promise<DatabaseResult<{ data: WebsiteToken[]; total: number }>> {
 		const sort = options.sort && options.order ? { [options.sort]: options.order as 'asc' | 'desc' | 1 | -1 } : {};
 
@@ -47,10 +47,10 @@ export class MongoWebsiteTokenMethods {
 		]);
 
 		if (!dataRes.success) {
-			return dataRes as any;
+			return dataRes as unknown as DatabaseResult<{ data: WebsiteToken[]; total: number }>;
 		}
 		if (!totalRes.success) {
-			return totalRes as any;
+			return totalRes as unknown as DatabaseResult<{ data: WebsiteToken[]; total: number }>;
 		}
 
 		return {

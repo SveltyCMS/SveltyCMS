@@ -155,7 +155,10 @@ export async function forceCleanup(): Promise<{
 }
 
 // Graceful shutdown handling
-const g = globalThis as any;
+const g = globalThis as typeof globalThis & {
+	__SVELTY_SESSION_CLEANUP_HANDLERS_SET__?: boolean;
+	__SVELTY_SESSION_CLEANUP_STOP__?: () => void;
+};
 if (!g.__SVELTY_SESSION_CLEANUP_HANDLERS_SET__) {
 	process.on('SIGTERM', () => {
 		logger.info('SIGTERM received, stopping session cleanup');

@@ -18,8 +18,8 @@ import type { DatabaseResult, ISODateString } from '@src/databases/db-interface'
 import { generateId } from '@src/databases/mongodb/methods/mongodb-utils';
 // System Logging
 import { logger } from '@utils/logger';
-import type { Model } from 'mongoose';
-import mongoose, { type Document, type QueryFilter, Schema } from 'mongoose';
+import type { QueryFilter, Model } from 'mongoose';
+import mongoose, { Schema } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
 
 // Define the Token schema
@@ -53,7 +53,7 @@ TokenSchema.index({ tenantId: 1, type: 1, expires: 1 }); // Multi-tenant token q
 TokenSchema.index({ tenantId: 1, user_id: 1, type: 1 }); // Tenant-specific user tokens
 TokenSchema.index({ type: 1, expires: 1, blocked: 1 }); // Active tokens by type (admin queries)
 
-interface TokenDocument extends Omit<Document, '_id'>, Omit<Token, '_id'> {
+interface TokenDocument extends Omit<mongoose.Document, '_id'>, Omit<Token, '_id'> {
 	_id: string;
 }
 
@@ -116,7 +116,7 @@ export class TokenAdapter {
 		tenantId?: string
 	): Promise<DatabaseResult<{ success: boolean; message: string; email?: string }>> {
 		try {
-			const query: any = { token };
+			const query: Record<string, unknown> = { token };
 			if (user_id) {
 				query.user_id = user_id;
 			}
@@ -147,7 +147,7 @@ export class TokenAdapter {
 				};
 			}
 
-			if (new Date(tokenDoc.expires) > new Date()) {
+			if (new Date(tokenDoc.expires as unknown as string) > new Date()) {
 				logger.debug('Token validated', {
 					user_id: tokenDoc.user_id,
 					type: tokenDoc.type
@@ -157,7 +157,7 @@ export class TokenAdapter {
 					data: {
 						success: true,
 						message: 'Token is valid',
-						email: tokenDoc.email
+						email: tokenDoc.email as string
 					}
 				};
 			}
@@ -187,7 +187,7 @@ export class TokenAdapter {
 		tenantId?: string
 	): Promise<DatabaseResult<{ status: boolean; message: string }>> {
 		try {
-			const query: QueryFilter<TokenDocument> = { token };
+			const query: Record<string, unknown> = { token };
 			if (user_id) {
 				query.user_id = user_id;
 			}
@@ -198,7 +198,7 @@ export class TokenAdapter {
 				query.tenantId = tenantId;
 			}
 
-			const tokenDoc = await this.TokenModel.findOneAndDelete(query).lean();
+			const tokenDoc = await this.TokenModel.findOneAndDelete(query as QueryFilter<TokenDocument>).lean();
 			if (!tokenDoc) {
 				logger.warn('Invalid token consumption attempt', { token });
 				return {
@@ -218,7 +218,7 @@ export class TokenAdapter {
 				};
 			}
 
-			if (new Date(tokenDoc.expires) > new Date()) {
+			if (new Date(tokenDoc.expires as unknown as string) > new Date()) {
 				logger.debug('Token consumed', {
 					user_id: tokenDoc.user_id,
 					type: tokenDoc.type
@@ -249,11 +249,11 @@ export class TokenAdapter {
 
 	async getAllTokens(filter?: Record<string, unknown>): Promise<DatabaseResult<Token[]>> {
 		try {
-			const tokens = await this.TokenModel.find(filter || {}).lean();
+			const tokens = await this.TokenModel.find(filter as QueryFilter<TokenDocument> || {}).lean();
 			logger.debug('All tokens retrieved', { count: tokens.length });
 			return {
 				success: true,
-				data: tokens.map((tokenDoc) => this.formatToken(tokenDoc))
+				data: tokens.map((tokenDoc) => this.formatToken(tokenDoc as unknown as Partial<Token>))
 			};
 		} catch (err) {
 			const message = `Error in TokenAdapter.getAllTokens: ${err instanceof Error ? err.message : String(err)}`;
@@ -270,7 +270,7 @@ export class TokenAdapter {
 		try {
 			const result = await this.TokenModel.deleteMany({
 				expires: { $lte: new Date().toISOString() }
-			});
+			} as QueryFilter<TokenDocument>);
 			logger.info('Expired tokens deleted', {
 				deletedCount: result.deletedCount
 			});
@@ -292,7 +292,7 @@ export class TokenAdapter {
 			if (tenantId) {
 				filter.tenantId = tenantId;
 			}
-			const result = await this.TokenModel.deleteMany(filter);
+			const result = await this.TokenModel.deleteMany(filter as QueryFilter<TokenDocument>);
 			logger.info('Tokens deleted', {
 				deletedCount: result.deletedCount,
 				token_ids
@@ -316,7 +316,7 @@ export class TokenAdapter {
 				filter.tenantId = tenantId;
 			}
 			// Set blocked status to true
-			const result = await this.TokenModel.updateMany(filter, {
+			const result = await this.TokenModel.updateMany(filter as QueryFilter<TokenDocument>, {
 				blocked: true
 			});
 			logger.info('Tokens blocked', {
@@ -342,7 +342,7 @@ export class TokenAdapter {
 				filter.tenantId = tenantId;
 			}
 			// Set blocked status to false to unblock
-			const result = await this.TokenModel.updateMany(filter, {
+			const result = await this.TokenModel.updateMany(filter as QueryFilter<TokenDocument>, {
 				blocked: false
 			});
 			logger.info('Tokens unblocked', {
@@ -363,16 +363,16 @@ export class TokenAdapter {
 
 	async updateToken(token_id: string, tokenData: Partial<Token>, tenantId?: string): Promise<DatabaseResult<Token>> {
 		try {
-			const filter: any = { token: token_id };
+			const filter: Record<string, unknown> = { token: token_id };
 			if (tenantId) {
 				filter.tenantId = tenantId;
 			}
 
-			const result = (await this.TokenModel.findOneAndUpdate(filter, { $set: tokenData }, { returnDocument: 'after', lean: true })) as any;
+			const result = await this.TokenModel.findOneAndUpdate(filter as QueryFilter<TokenDocument>, { $set: tokenData }, { returnDocument: 'after', lean: true });
 
 			if (result) {
 				logger.debug('Token updated successfully', { token_id });
-				return { success: true, data: result as Token };
+				return { success: true, data: result as unknown as Token };
 			}
 			logger.warn('Token not found', { token_id });
 			return {

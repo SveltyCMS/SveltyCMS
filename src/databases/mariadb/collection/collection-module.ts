@@ -34,13 +34,13 @@ export class CollectionModule {
 		}
 
 		return {
-			findOne: async (query) => {
-				const res = await this.crud.findOne(id, query as any);
-				return res.success ? (res.data as any) : null;
+			findOne: async (query: Record<string, unknown>) => {
+				const res = await this.crud.findOne<any>(id, query);
+				return res.success ? (res.data as Record<string, unknown>) : null;
 			},
-			aggregate: async (pipeline) => {
-				const res = await this.crud.aggregate(id, pipeline);
-				return res.success ? (res.data as any[]) : [];
+			aggregate: async (pipeline: unknown[]) => {
+				const res = await this.crud.aggregate<Record<string, unknown>>(id, pipeline);
+				return res.success ? res.data : [];
 			}
 		};
 	}
@@ -52,13 +52,13 @@ export class CollectionModule {
 		}
 
 		const wrappedModel: CollectionModel = {
-			findOne: async (query) => {
-				const res = await this.crud.findOne(id, query as any);
-				return res.success ? (res.data as any) : null;
+			findOne: async (query: Record<string, unknown>) => {
+				const res = await this.crud.findOne<any>(id, query);
+				return res.success ? (res.data as Record<string, unknown>) : null;
 			},
-			aggregate: async (pipeline) => {
-				const res = await this.crud.aggregate(id, pipeline);
-				return res.success ? (res.data as any[]) : [];
+			aggregate: async (pipeline: unknown[]) => {
+				const res = await this.crud.aggregate<Record<string, unknown>>(id, pipeline);
+				return res.success ? res.data : [];
 			}
 		};
 		this.collectionRegistry.set(id, wrappedModel);

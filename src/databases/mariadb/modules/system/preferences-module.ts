@@ -108,15 +108,15 @@ export class PreferencesModule {
 			if (exists.length > 0) {
 				await this.db
 					.update(schema.systemPreferences)
-					.set({ value: value as any, updatedAt: isoDateStringToDate(nowISODateString()) })
+					.set({ value: value as unknown as Record<string, unknown>, updatedAt: isoDateStringToDate(nowISODateString()) })
 					.where(eq(schema.systemPreferences.key, key));
 			} else {
 				await this.db.insert(schema.systemPreferences).values({
-					_id: utils.generateId(),
+					_id: utils.generateId() as string,
 					key,
-					value: value as any,
+					value: value as unknown as Record<string, unknown>,
 					scope: scope || 'system',
-					userId: userId || null,
+					userId: (userId as string) || null,
 					visibility: 'private',
 					createdAt: isoDateStringToDate(nowISODateString()),
 					updatedAt: isoDateStringToDate(nowISODateString())

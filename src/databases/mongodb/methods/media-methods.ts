@@ -9,14 +9,15 @@
 
 import { safeQuery } from '@src/utils/security/safe-query';
 import { logger } from '@utils/logger';
-import type Mongoose from 'mongoose';
+import mongoose from 'mongoose';
+import type { Model, QueryFilter } from 'mongoose';
 import type { DatabaseId, DatabaseResult, MediaItem, MediaMetadata, PaginatedResult, PaginationOptions } from '../../db-interface';
 import { type IMedia, mediaSchema } from '../models/media';
 import { CacheCategory, invalidateCategoryCache, withCache } from './mongodb-cache-utils';
 import { createDatabaseError } from './mongodb-utils';
 
 // Define model types for dependency injection
-type MediaModelType = Mongoose.Model<IMedia>;
+type MediaModelType = Model<IMedia>;
 
 export class MongoMediaMethods {
 	private readonly mediaModel: MediaModelType;
@@ -33,9 +34,9 @@ export class MongoMediaMethods {
 	/**
 	 * Idempotently registers the required Mongoose models.
 	 * This should be called once during application startup.
-	 * @param {typeof Mongoose} mongooseInstance - The active Mongoose instance.
+	 * @param {typeof mongoose} mongooseInstance - The active Mongoose instance.
 	 */
-	static registerModels(mongooseInstance: typeof Mongoose): void {
+	static registerModels(mongooseInstance: typeof mongoose): void {
 		if (!mongooseInstance.models.media) {
 			mongooseInstance.model('media', mediaSchema);
 			logger.debug("Model 'media' was registered.");
@@ -56,7 +57,7 @@ export class MongoMediaMethods {
 
 			return {
 				success: true,
-				data: result.map((doc) => doc.toObject() as unknown as MediaItem)
+				data: result.map((doc) => (doc as mongoose.HydratedDocument<IMedia>).toObject() as unknown as MediaItem)
 			};
 		} catch (error) {
 			return {
@@ -74,7 +75,7 @@ export class MongoMediaMethods {
 				return { success: true, data: { deletedCount: 0 } };
 			}
 			const result = await this.mediaModel.deleteMany({
-				_id: { $in: fileIds }
+				_id: { $in: fileIds } as unknown as QueryFilter<IMedia>['_id']
 			});
 
 			// Invalidate media caches
@@ -103,7 +104,7 @@ export class MongoMediaMethods {
 
 			updateData.updatedAt = new Date();
 
-			const result = await this.mediaModel.findByIdAndUpdate(fileId, { $set: updateData }, { returnDocument: 'after' }).lean().exec();
+			const result = await this.mediaModel.findByIdAndUpdate(fileId as string, { $set: updateData }, { returnDocument: 'after' }).lean().exec();
 
 			// Invalidate media caches
 			await invalidateCategoryCache(CacheCategory.MEDIA);
@@ -121,7 +122,7 @@ export class MongoMediaMethods {
 	// Moves multiple files to a different folder
 	async move(fileIds: DatabaseId[], targetFolderId?: DatabaseId): Promise<DatabaseResult<{ movedCount: number }>> {
 		try {
-			const result = await this.mediaModel.updateMany({ _id: { $in: fileIds } }, { $set: { folderId: targetFolderId, updatedAt: new Date() } });
+			const result = await this.mediaModel.updateMany({ _id: { $in: fileIds } as unknown as QueryFilter<IMedia>['_id'] }, { $set: { folderId: targetFolderId as string, updatedAt: new Date() } });
 
 			// Invalidate media caches
 			await invalidateCategoryCache(CacheCategory.MEDIA);
@@ -148,14 +149,14 @@ export class MongoMediaMethods {
 		// Determine if we should filter by user ownership
 		// Admins see all files, others see only their own
 		const userId = user?._id?.toString();
-		const isAdmin = user?.role === 'admin' || (user as any)?.isAdmin === true;
+		const isAdmin = user?.role === 'admin' || user?.isAdmin === true;
 		const shouldFilterByUser = user && !isAdmin;
 
 		const cacheKey = `media:files:${folderId || 'root'}:${page}:${pageSize}:${sortField}:${sortDirection}:rec:${recursive}:${tenantId || 'no-tenant'}${shouldFilterByUser ? `:user:${userId}` : ''}`;
 
 		const fetchData = async (): Promise<DatabaseResult<PaginatedResult<MediaItem>>> => {
 			try {
-				let query: Record<string, any> = {};
+				let query: Record<string, unknown> = {};
 				if (recursive) {
 					// Fetch ALL files, ignoring folderId
 					query = {};
@@ -173,12 +174,12 @@ export class MongoMediaMethods {
 				}
 
 				// Apply tenant isolation and security
-				const secureQuery = safeQuery(query, tenantId);
+				const secureQuery = safeQuery(query as unknown as import('../../db-interface').QueryFilter<MediaItem>, tenantId);
 
 				// Add fallback for legacy/untenanted media if tenantId is provided
-				if (tenantId && secureQuery.tenantId === tenantId) {
+				if (tenantId && (secureQuery as Record<string, unknown>).tenantId === tenantId) {
 					// Allow items matching tenantId OR having no tenantId (legacy/system)
-					secureQuery.tenantId = { $in: [tenantId, null, undefined] };
+					(secureQuery as Record<string, unknown>).tenantId = { $in: [tenantId, null, undefined] };
 				}
 
 				const skip = (page - 1) * pageSize;
@@ -188,13 +189,13 @@ export class MongoMediaMethods {
 
 				const [items, total] = await Promise.all([
 					this.mediaModel
-						.find(secureQuery as any)
+						.find(secureQuery as QueryFilter<IMedia>)
 						.sort(sort)
 						.skip(skip)
 						.limit(pageSize)
 						.lean()
 						.exec(),
-					this.mediaModel.countDocuments(secureQuery as any)
+					this.mediaModel.countDocuments(secureQuery as QueryFilter<IMedia>)
 				]);
 
 				return {

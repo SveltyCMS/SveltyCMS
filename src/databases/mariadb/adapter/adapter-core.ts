@@ -16,13 +16,25 @@
  * - performance telemetry
  */
 
-import { logger } from '@utils/logger';
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, isNull, type Column, type SQL } from 'drizzle-orm';
 import { drizzle, type MySql2Database } from 'drizzle-orm/mysql2';
 import mysql from 'mysql2/promise';
 import type { DatabaseCapabilities, DatabaseError, DatabaseResult } from '../../db-interface';
 import * as schema from '../schema';
 import * as utils from '../utils';
+import { logger } from '@utils/logger';
+
+// Internal type for mysql2 pool to access statistics safely
+interface InternalPool {
+	pool?: {
+		_allConnections: unknown[];
+		_freeConnections: unknown[];
+		_connectionQueue: unknown[];
+		config?: {
+			connectionLimit: number;
+		};
+	};
+}
 
 export class AdapterCore {
 	public capabilities: DatabaseCapabilities = {
@@ -111,12 +123,13 @@ export class AdapterCore {
 		try {
 			await this.pool.query('SELECT 1');
 			const latency = Date.now() - start;
+			const internalPool = (this.pool as unknown as InternalPool).pool;
 			return {
 				success: true,
 				data: {
 					healthy: true,
 					latency,
-					activeConnections: (this.pool as any).pool ? (this.pool as any).pool._allConnections.length : 0
+					activeConnections: internalPool ? internalPool._allConnections.length : 0
 				}
 			};
 		} catch (error) {
@@ -139,7 +152,7 @@ export class AdapterCore {
 			}
 
 			// Access internal pool stats for mysql2 driver
-			const pool = (this.pool as any).pool;
+			const pool = (this.pool as unknown as InternalPool).pool;
 
 			if (!pool) {
 				return {
@@ -229,44 +242,46 @@ export class AdapterCore {
 		users: 'authUsers'
 	};
 
-	public getTable(collection: string): any {
+	public getTable(collection: string): Record<string, unknown> {
+		const schemaAny = schema as unknown as Record<string, Record<string, unknown>>;
 		// Direct lookup (already camelCase, e.g., 'mediaItems')
-		if ((schema as any)[collection]) {
-			return (schema as any)[collection];
+		if (schemaAny[collection]) {
+			return schemaAny[collection];
 		}
 		// Convert snake_case to camelCase (e.g., 'media_items' → 'mediaItems')
 		const camelKey = this.snakeToCamel(collection);
-		if ((schema as any)[camelKey]) {
-			return (schema as any)[camelKey];
+		if (schemaAny[camelKey]) {
+			return schemaAny[camelKey];
 		}
 		// Check common aliases (e.g., 'media' → 'mediaItems')
 		const alias = AdapterCore.TABLE_ALIASES[collection];
-		if (alias && (schema as any)[alias]) {
-			return (schema as any)[alias];
+		if (alias && schemaAny[alias]) {
+			return schemaAny[alias];
 		}
 		// Dynamic collection tables map to contentNodes
 		if (collection.startsWith('collection_')) {
-			return schema.contentNodes;
+			return schema.contentNodes as unknown as Record<string, unknown>;
 		}
 		// Throw for truly unknown tables
 		throw new Error(`Unknown table: ${collection}`);
 	}
 
-	public mapQuery(table: any, query: Record<string, unknown>): any {
+	public mapQuery(table: Record<string, unknown>, query: Record<string, unknown>): unknown {
 		if (!query || Object.keys(query).length === 0) {
 			return undefined;
 		}
 
-		const conditions: any[] = [];
+		const conditions: SQL[] = [];
 		for (const [key, value] of Object.entries(query)) {
 			if (key.startsWith('$')) {
 				continue; // Skip MongoDB operators
 			}
-			if (table[key]) {
+			const column = table[key] as Column;
+			if (column) {
 				if (value === null) {
-					conditions.push(isNull(table[key]));
+					conditions.push(isNull(column));
 				} else {
-					conditions.push(eq(table[key], value));
+					conditions.push(eq(column, value as string | number | boolean));
 				}
 			}
 		}

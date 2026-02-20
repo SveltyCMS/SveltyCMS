@@ -22,7 +22,7 @@ Renders: Title heading + XSS-protected HTML in prose container
 -->
 
 <script lang="ts">
-	import Sanitize from '@src/utils/sanitize.svelte';
+	import Sanitize from '@src/utils/Sanitize.svelte';
 	import type { RichTextData } from './types';
 
 	let { value }: { value: RichTextData | null | undefined } = $props();

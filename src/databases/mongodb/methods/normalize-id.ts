@@ -16,7 +16,7 @@ function isObjectId(value: unknown): value is Types.ObjectId {
 		return false;
 	}
 	// Check for toHexString method (most reliable for ObjectId)
-	return typeof (value as any).toHexString === 'function';
+	return typeof (value as Record<string, unknown>).toHexString === 'function';
 }
 
 /**

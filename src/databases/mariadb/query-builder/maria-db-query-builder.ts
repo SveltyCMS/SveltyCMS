@@ -23,7 +23,7 @@
  */
 
 import { logger } from '@src/utils/logger';
-import { and, asc, count, desc, eq, gte, inArray, like, lte, notInArray, or, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gte, inArray, isNull, like, lte, notInArray, or, sql, type SQL } from 'drizzle-orm';
 import type { BaseEntity, DatabaseResult, PaginationOptions, QueryBuilder, QueryOptimizationHints } from '../../db-interface';
 import type { MariaDBAdapter } from '../adapter';
 import * as utils from '../utils';
@@ -31,7 +31,7 @@ import * as utils from '../utils';
 export class MariaDBQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> {
 	private readonly adapter: MariaDBAdapter;
 	private readonly collection: string;
-	private readonly conditions: any[] = [];
+	private readonly conditions: SQL[] = [];
 	private sortOptions: Array<{ field: keyof T; direction: 'asc' | 'desc' }> = [];
 	private limitValue?: number;
 	private skipValue?: number;
@@ -57,44 +57,57 @@ export class MariaDBQueryBuilder<T extends BaseEntity> implements QueryBuilder<T
 		}
 
 		for (const [key, value] of Object.entries(conditions)) {
-			if (this.table[key]) {
-				this.conditions.push(eq(this.table[key], value));
+			const column = (this.table as unknown as Record<string, import('drizzle-orm/mysql-core').MySqlColumn>)[key];
+			if (column) {
+				if (value === null) {
+					this.conditions.push(isNull(column));
+				} else {
+					this.conditions.push(eq(column, value as string | number | boolean));
+				}
 			}
 		}
 		return this;
 	}
 
 	whereIn<K extends keyof T>(field: K, values: T[K][]): this {
-		if (this.table[field as string]) {
-			this.conditions.push(inArray(this.table[field as string], values));
+		const column = (this.table as unknown as Record<string, import('drizzle-orm/mysql-core').MySqlColumn>)[field as string];
+		if (column) {
+			this.conditions.push(inArray(column, values as (string | number | boolean)[]));
 		}
 		return this;
 	}
 
 	whereNotIn<K extends keyof T>(field: K, values: T[K][]): this {
-		if (this.table[field as string]) {
-			this.conditions.push(notInArray(this.table[field as string], values));
+		const column = (this.table as unknown as Record<string, import('drizzle-orm/mysql-core').MySqlColumn>)[field as string];
+		if (column) {
+			this.conditions.push(notInArray(column, values as (string | number | boolean)[]));
 		}
 		return this;
 	}
 
 	whereBetween<K extends keyof T>(field: K, min: T[K], max: T[K]): this {
-		if (this.table[field as string]) {
-			this.conditions.push(and(gte(this.table[field as string], min), lte(this.table[field as string], max)));
+		const column = (this.table as unknown as Record<string, import('drizzle-orm/mysql-core').MySqlColumn>)[field as string];
+		if (column) {
+			const condition = and(gte(column, min as string | number | boolean), lte(column, max as string | number | boolean));
+			if (condition) {
+				this.conditions.push(condition);
+			}
 		}
 		return this;
 	}
 
 	whereNull<K extends keyof T>(field: K): this {
-		if (this.table[field as string]) {
-			this.conditions.push(sql`${this.table[field as string]} IS NULL`);
+		const column = (this.table as unknown as Record<string, import('drizzle-orm/mysql-core').MySqlColumn>)[field as string];
+		if (column) {
+			this.conditions.push(isNull(column));
 		}
 		return this;
 	}
 
 	whereNotNull<K extends keyof T>(field: K): this {
-		if (this.table[field as string]) {
-			this.conditions.push(sql`${this.table[field as string]} IS NOT NULL`);
+		const column = (this.table as unknown as Record<string, import('drizzle-orm/mysql-core').MySqlColumn>)[field as string];
+		if (column) {
+			this.conditions.push(sql`${column} IS NOT NULL`);
 		}
 		return this;
 	}
@@ -103,15 +116,19 @@ export class MariaDBQueryBuilder<T extends BaseEntity> implements QueryBuilder<T
 		if (fields && fields.length > 0) {
 			const searchConditions = fields
 				.map((f) => {
-					if (this.table[f as string]) {
-						return like(this.table[f as string], `%${query}%`);
+					const column = (this.table as unknown as Record<string, import('drizzle-orm/mysql-core').MySqlColumn>)[f as string];
+					if (column) {
+						return like(column, `%${query}%`);
 					}
 					return null;
 				})
-				.filter(Boolean);
+				.filter((c): c is import('drizzle-orm').SQL => c !== null);
 
 			if (searchConditions.length > 0) {
-				this.conditions.push(or(...(searchConditions as any[])));
+				const condition = or(...searchConditions);
+				if (condition) {
+					this.conditions.push(condition);
+				}
 			}
 		}
 		return this;
@@ -180,15 +197,16 @@ export class MariaDBQueryBuilder<T extends BaseEntity> implements QueryBuilder<T
 
 		let q: any;
 		if (this.selectedFields) {
-			const projection: any = {};
+			const projection: Record<string, import('drizzle-orm/mysql-core').MySqlColumn> = {};
 			this.selectedFields.forEach((f) => {
-				if (this.table[f as string]) {
-					projection[f as string] = this.table[f as string];
+				const column = (this.table as unknown as Record<string, import('drizzle-orm/mysql-core').MySqlColumn>)[f as string];
+				if (column) {
+					projection[f as string] = column;
 				}
 			});
-			q = this.db.select(projection).from(this.table).$dynamic();
+			q = this.db.select(projection).from(this.table as unknown as import('drizzle-orm/mysql-core').MySqlTable).$dynamic();
 		} else {
-			q = this.db.select().from(this.table).$dynamic();
+			q = this.db.select().from(this.table as unknown as import('drizzle-orm/mysql-core').MySqlTable).$dynamic();
 		}
 
 		if (this.conditions.length > 0) {
@@ -200,7 +218,7 @@ export class MariaDBQueryBuilder<T extends BaseEntity> implements QueryBuilder<T
 				const order = s.direction === 'desc' ? desc : asc;
 				const fieldName = s.field as string;
 				// Resolve MongoDB-convention fields (e.g. _createdAt → createdAt)
-				const column = this.table[fieldName] ?? this.table[fieldName.replace(/^_/, '')];
+				const column = (this.table as unknown as Record<string, import('drizzle-orm/mysql-core').MySqlColumn>)[fieldName] ?? (this.table as unknown as Record<string, import('drizzle-orm/mysql-core').MySqlColumn>)[fieldName.replace(/^_/, '')];
 				if (!column) {
 					throw new Error(`Unknown sort field: ${fieldName}`);
 				}
@@ -222,7 +240,7 @@ export class MariaDBQueryBuilder<T extends BaseEntity> implements QueryBuilder<T
 	async count(): Promise<DatabaseResult<number>> {
 		const startTime = Date.now();
 		try {
-			const table = this.table;
+			const table = this.table as unknown as import('drizzle-orm/mysql-core').MySqlTable;
 			let q = this.db.select({ count: count() }).from(table).$dynamic();
 			if (this.conditions.length > 0) {
 				q = q.where(and(...this.conditions));
@@ -230,7 +248,7 @@ export class MariaDBQueryBuilder<T extends BaseEntity> implements QueryBuilder<T
 			const [result] = await q;
 			return {
 				success: true,
-				data: Number(result.count),
+				data: Number((result as { count: number }).count),
 				meta: { executionTime: Date.now() - startTime }
 			};
 		} catch (error) {
@@ -243,7 +261,7 @@ export class MariaDBQueryBuilder<T extends BaseEntity> implements QueryBuilder<T
 		if (res.success) {
 			return { ...res, data: res.data > 0 };
 		}
-		return res as any;
+		return res as unknown as DatabaseResult<boolean>;
 	}
 
 	async execute(): Promise<DatabaseResult<T[]>> {
@@ -296,8 +314,8 @@ export class MariaDBQueryBuilder<T extends BaseEntity> implements QueryBuilder<T
 		const startTime = Date.now();
 		try {
 			let q = this.db
-				.update(this.table)
-				.set({ ...data, updatedAt: new Date() } as any)
+				.update(this.table as unknown as import('drizzle-orm/mysql-core').MySqlTable)
+				.set({ ...data, updatedAt: new Date() } as unknown as Record<string, unknown>)
 				.$dynamic();
 			if (this.conditions.length > 0) {
 				q = q.where(and(...this.conditions));
@@ -305,7 +323,7 @@ export class MariaDBQueryBuilder<T extends BaseEntity> implements QueryBuilder<T
 			const result = await q;
 			return {
 				success: true,
-				data: { modifiedCount: result[0].affectedRows },
+				data: { modifiedCount: (result as unknown as [{ affectedRows: number }])[0].affectedRows },
 				meta: { executionTime: Date.now() - startTime }
 			};
 		} catch (error) {
@@ -316,14 +334,14 @@ export class MariaDBQueryBuilder<T extends BaseEntity> implements QueryBuilder<T
 	async deleteMany(): Promise<DatabaseResult<{ deletedCount: number }>> {
 		const startTime = Date.now();
 		try {
-			let q = this.db.delete(this.table).$dynamic();
+			let q = this.db.delete(this.table as unknown as import('drizzle-orm/mysql-core').MySqlTable).$dynamic();
 			if (this.conditions.length > 0) {
 				q = q.where(and(...this.conditions));
 			}
 			const result = await q;
 			return {
 				success: true,
-				data: { deletedCount: result[0].affectedRows },
+				data: { deletedCount: (result as unknown as [{ affectedRows: number }])[0].affectedRows },
 				meta: { executionTime: Date.now() - startTime }
 			};
 		} catch (error) {

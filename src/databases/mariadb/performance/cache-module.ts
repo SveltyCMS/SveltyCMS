@@ -7,7 +7,7 @@ import type { CacheOptions, DatabaseResult } from '../../db-interface';
 import type { AdapterCore } from '../adapter/adapter-core';
 
 export class CacheModule {
-	private readonly cache: Map<string, { value: any; expiresAt?: number }> = new Map();
+	private readonly cache: Map<string, { value: unknown; expiresAt?: number }> = new Map();
 
 	constructor(_core: AdapterCore) {
 		// core is currently unused but accepted for consistency with other modules

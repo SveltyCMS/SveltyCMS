@@ -22,6 +22,9 @@ import mongoose, { type Model, Schema as MongooseSchema } from 'mongoose';
 import type { CollectionModel } from '../../db-interface';
 import { CacheCategory, invalidateCollectionCache, withCache } from './mongodb-cache-utils';
 
+// Local alias for Mongoose 9 QueryFilter to avoid collision with CMS QueryFilter from db-interface
+type MongoQueryFilter<T> = mongoose.QueryFilter<T>;
+
 /**
  * MongoCollectionMethods manages dynamic model creation and registration.
  *
@@ -30,7 +33,7 @@ import { CacheCategory, invalidateCollectionCache, withCache } from './mongodb-c
  */
 export class MongoCollectionMethods {
 	// Internal registry of all dynamically created models
-	private readonly models = new Map<string, { model: Model<unknown>; wrapped: CollectionModel }>();
+	private readonly models = new Map<string, { model: Model<Record<string, unknown>>; wrapped: CollectionModel }>();
 
 	/**
 	 * Gets a registered collection model by ID
@@ -131,24 +134,24 @@ export class MongoCollectionMethods {
 		});
 
 		// Create and register the model
-		const model = mongoose.model(modelName, mongooseSchema) as any;
+		const model = mongoose.model(modelName, mongooseSchema);
 
 		// Wrap the model for the interface
 		const wrappedModel: CollectionModel = {
-			findOne: async (query) => {
-				const result = await model.findOne(query).lean().exec();
+			findOne: async (query: Record<string, unknown>) => {
+				const result = await (model as any).findOne(query as MongoQueryFilter<Record<string, unknown>>).lean().exec();
 				return result as Record<string, unknown> | null;
 			},
-			aggregate: async (pipeline) => {
-				return await model.aggregate(pipeline as unknown as mongoose.PipelineStage[]).exec();
+			aggregate: async (pipeline: unknown[]) => {
+				return await (model as any).aggregate(pipeline as mongoose.PipelineStage[]).exec();
 			}
 		};
 
-		this.models.set(collectionId, { model, wrapped: wrappedModel });
+		this.models.set(collectionId, { model: model as any, wrapped: wrappedModel });
 		logger.info(`Collection model created: ${collectionId} (${modelName})`);
 
 		// Create database indexes in background to avoid blocking system initialization
-		this.createIndexes(model, schema);
+		this.createIndexes(model as any, schema);
 
 		// Invalidate cache for this collection AFTER successful creation
 		await invalidateCollectionCache(`schema:collection:${collectionId}`);
@@ -239,7 +242,7 @@ export class MongoCollectionMethods {
 	/**
 	 * Gets the internal Mongoose model (for CRUD operations)
 	 */
-	getMongooseModel(id: string): Model<unknown> | null {
+	getMongooseModel(id: string): Model<Record<string, unknown>> | null {
 		const entry = this.models.get(id);
 		return entry ? entry.model : null;
 	}
@@ -260,7 +263,7 @@ export class MongoCollectionMethods {
 	 * - Multi-tenant fields (tenantId)
 	 * - Sortable and filterable fields
 	 */
-	private async createIndexes(model: Model<unknown>, schema: Schema): Promise<void> {
+	private async createIndexes(model: Model<Record<string, unknown>>, schema: Schema): Promise<void> {
 		try {
 			const collectionId = schema._id;
 			logger.debug(`Creating indexes for collection: ${collectionId}`);
@@ -344,7 +347,7 @@ export class MongoCollectionMethods {
 					logger.trace(`Created index on ${Object.keys(index.fields).join(', ')} for ${collectionId}`);
 				} catch (error) {
 					// Ignore duplicate index errors (Code 85: IndexOptionsConflict)
-					if ((error as any)?.code === 85 || (error as Error).message.includes('already exists')) {
+					if ((error as { code?: number })?.code === 85 || (error as Error).message.includes('already exists')) {
 						return;
 					}
 					logger.warn(`Failed to create index for ${collectionId}: ${error}`);

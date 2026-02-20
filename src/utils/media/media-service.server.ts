@@ -53,7 +53,7 @@ import { validateMediaFileServer } from '@src/utils/media/media-utils';
 import { AppError } from '@utils/error-handling';
 // System Logger
 import { logger } from '@utils/logger.server';
-import type { MediaAccess, MediaBase, MediaItem, MediaTypeEnum, ResizedImage, WatermarkOptions } from '@utils/media/media-models';
+import type { MediaAccess, MediaBase, MediaItem, MediaMetadata, MediaTypeEnum, ResizedImage, WatermarkOptions } from '@utils/media/media-models';
 import { MediaType as MediaTypeEnumValue } from '@utils/media/media-models';
 import sharp from 'sharp';
 
@@ -306,38 +306,39 @@ export class MediaService {
 
 			const isImage = mimeType.startsWith('image/');
 			const isVideo = mimeType.startsWith('video/');
-			let advancedMetadata = {};
+			let advancedMetadata: MediaMetadata = {};
 			let width: number | undefined;
 			let height: number | undefined;
 			let thumbnailBuffer: Buffer | null = null;
 
-			if (isImage && !mimeType.includes('svg')) {
-				try {
-					advancedMetadata = (await mediaProcessingService.getMetadata(buffer)) as any;
-					width = (advancedMetadata as any).width;
-					height = (advancedMetadata as any).height;
-				} catch (sharpError) {
-					logger.error('Failed to extract deep metadata', {
-						fileName: file.name,
-						error: sharpError
-					});
-				}
-			} else if (isVideo) {
-				try {
-					const dimensions = await this.getVideoDimensions(buffer);
-					width = dimensions.width;
-					height = dimensions.height;
-					advancedMetadata = { width, height };
-
-					// Generate a real thumbnail image from the video
-					thumbnailBuffer = await this.captureVideoThumbnail(buffer);
-				} catch (vError) {
-					logger.error('Video processing failed', {
-						fileName: file.name,
-						error: vError
-					});
-				}
-			} else if (mimeType === 'application/pdf') {
+						if (isImage && !mimeType.includes('svg')) {
+							try {
+								advancedMetadata = await mediaProcessingService.getMetadata(buffer);
+								width = advancedMetadata['width'] as number | undefined;
+								height = advancedMetadata['height'] as number | undefined;
+							} catch (sharpError) {
+								logger.error('Failed to extract deep metadata', {
+									fileName: file.name,
+									error: sharpError
+								});
+							}
+						} else if (isVideo) {
+							try {
+								const dimensions = await this.getVideoDimensions(buffer);
+								width = dimensions.width;
+								height = dimensions.height;
+								advancedMetadata = { width, height };
+			
+								// Generate a real thumbnail image from the video
+								thumbnailBuffer = await this.captureVideoThumbnail(buffer);
+							} catch (vError) {
+								logger.error('Video processing failed', {
+									fileName: file.name,
+									error: vError
+								});
+							}
+						}
+			 else if (mimeType === 'application/pdf') {
 				try {
 					// Generate a thumbnail image from the first page of the PDF
 					thumbnailBuffer = await this.generatePdfThumbnail(buffer);
@@ -379,7 +380,7 @@ export class MediaService {
 					uploadedBy: userId,
 					uploadTimestamp: new Date().toISOString(),
 					processingTimeMs: performance.now() - startTime,
-					advancedMetadata
+					...advancedMetadata
 				},
 				originalId,
 				versions: [
@@ -424,7 +425,7 @@ export class MediaService {
 			if (!result.success) {
 				throw result.error;
 			}
-			const savedMedia = result.data;
+			const savedMedia = result.data as unknown as MediaItem;
 			const mediaId = savedMedia._id;
 
 			logger.debug('Media saved to database', {
@@ -441,12 +442,12 @@ export class MediaService {
 
 			logger.info('Media processing completed successfully', {
 				mediaId,
-				originalUrl: (savedMedia as unknown as MediaItem).path,
-				thumbnails: Object.keys((savedMedia as unknown as MediaItem).thumbnails ?? {}),
+				originalUrl: savedMedia.path,
+				thumbnails: Object.keys(savedMedia.thumbnails ?? {}),
 				totalProcessingTime: performance.now() - startTime
 			});
 
-			return savedMedia as unknown as MediaItem;
+			return savedMedia;
 		} catch (err) {
 			const message = `Error saving media: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message, {
@@ -461,9 +462,9 @@ export class MediaService {
 
 	private createCleanMediaObject(object: Omit<MediaBaseWithThumbnails, '_id'>): Omit<MediaItem, '_id' | 'createdAt' | 'updatedAt'> {
 		// Type-safe mapping from MediaBaseWithThumbnails to a database-ready object
-		return {
+		const clean: Record<string, unknown> = {
 			filename: object.filename,
-			originalFilename: object.metadata?.originalFilename || object.filename,
+			originalFilename: (object.metadata?.originalFilename as string) || object.filename,
 			hash: object.hash,
 			path: object.path,
 			size: object.size,
@@ -472,13 +473,15 @@ export class MediaService {
 			metadata: object.metadata || {},
 			access: object.access,
 			user: object.user as DatabaseId,
-			type: object.type as any,
-			width: (object as any).width,
-			height: (object as any).height,
+			type: object.type,
+			width: object.width,
+			height: object.height,
 			createdBy: object.user as DatabaseId,
 			updatedBy: object.user as DatabaseId,
 			folderId: null
-		} as any;
+		};
+
+		return clean as unknown as Omit<MediaItem, '_id' | 'createdAt' | 'updatedAt'>;
 	}
 
 	private async getDb(): Promise<IDBAdapter> {
@@ -490,12 +493,20 @@ export class MediaService {
 	}
 
 	/**
-
-		 * Manipulates an existing media item using Sharp.js
-
-		 */
-
-	public async manipulateMedia(id: string, manipulations: any, userId: string): Promise<MediaItem> {
+	 * Manipulates an existing media item using Sharp.js
+	 */
+	public async manipulateMedia(
+		id: string,
+		manipulations: {
+			rotation?: number;
+			flipH?: boolean;
+			flipV?: boolean;
+			crop?: { x: number; y: number; width: number; height: number };
+			filters?: { brightness?: number; contrast?: number; saturation?: number };
+			focalPoint?: { x: number; y: number };
+		},
+		userId: string
+	): Promise<MediaItem> {
 		this.ensureInitialized();
 
 		const db = await this.getDb();
@@ -552,14 +563,12 @@ export class MediaService {
 
 		// Apply filters (simplified mapping)
 		if (manipulations.filters) {
-			const { brightness, contrast, saturation } = manipulations.filters;
-			if (brightness !== undefined || contrast !== undefined || saturation !== undefined) {
+			const { brightness, saturation } = manipulations.filters;
+			if (brightness !== undefined || saturation !== undefined) {
 				instance = instance.modulate({
 					brightness: brightness !== undefined ? 1 + brightness / 100 : 1,
 					saturation: saturation !== undefined ? 1 + saturation / 100 : 1
 				});
-				// Sharp doesn't have a direct contrast modulation like this,
-				// usually handled via linear or pipeline.
 			}
 		}
 
@@ -604,7 +613,7 @@ export class MediaService {
 				focalPoint: manipulations.focalPoint || mediaItem.metadata?.focalPoint,
 				lastManipulation: manipulations
 			}
-		};
+		} as Partial<MediaItem>;
 
 		await this.updateMedia(id, updates);
 		return { ...mediaItem, ...updates } as MediaItem;
@@ -716,7 +725,7 @@ export class MediaService {
 		// Access is now a string union, not array
 		try {
 			const db = await this.getDb();
-			const result = await db.crud.update('media', id as DatabaseId, { access } as unknown as Partial<MediaItem>);
+			const result = await db.crud.update('media', id as DatabaseId, { access } as Partial<MediaItem>);
 			if (!result.success) {
 				throw result.error;
 			}
@@ -860,7 +869,7 @@ export class MediaService {
 			}
 
 			return {
-				media: mediaResult.data as unknown as MediaItem[],
+				media: mediaResult.data,
 				total: totalResult.data
 			};
 		} catch (err) {
@@ -887,7 +896,7 @@ export class MediaService {
 			}
 
 			return {
-				media: mediaResult.data as unknown as MediaItem[],
+				media: mediaResult.data,
 				total: totalResult.data
 			};
 		} catch (err) {

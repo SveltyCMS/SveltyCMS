@@ -39,16 +39,16 @@ export class BatchModule {
 
 			for (const op of operations) {
 				try {
-					let res: DatabaseResult<any>;
+					let res: DatabaseResult<T | void>;
 					switch (op.operation) {
 						case 'insert':
-							res = await this.crud.insert(op.collection, op.data as any);
+							res = await this.crud.insert(op.collection, op.data as Omit<T & BaseEntity, '_id' | 'createdAt' | 'updatedAt'>);
 							break;
 						case 'update':
 							if (!op.id) {
 								throw new Error('ID required for update operation');
 							}
-							res = await this.crud.update(op.collection, op.id, op.data as any);
+							res = await this.crud.update(op.collection, op.id, op.data as Partial<Omit<T & BaseEntity, 'createdAt' | 'updatedAt'>>);
 							break;
 						case 'delete':
 							if (!op.id) {
@@ -60,13 +60,13 @@ export class BatchModule {
 							if (!(op.query && op.data)) {
 								throw new Error('Query and data required for upsert operation');
 							}
-							res = await this.crud.upsert(op.collection, op.query as any, op.data as any);
+							res = await this.crud.upsert(op.collection, op.query as import('../../db-interface').QueryFilter<T & BaseEntity>, op.data as Omit<T & BaseEntity, '_id' | 'createdAt' | 'updatedAt'>);
 							break;
 						default:
 							throw new Error(`Unsupported batch operation: ${op.operation}`);
 					}
 
-					results.push(res);
+					results.push(res as DatabaseResult<T>);
 					if (res.success) {
 						totalProcessed++;
 					} else {
@@ -105,10 +105,10 @@ export class BatchModule {
 			let modifiedCount = 0;
 			for (const update of updates) {
 				const result = await this.db
-					.update(table)
-					.set({ ...update.data, updatedAt: isoDateStringToDate(nowISODateString()) } as any)
-					.where(eq(table._id, update.id));
-				modifiedCount += result.changes;
+					.update(table as any)
+					.set({ ...update.data, updatedAt: isoDateStringToDate(nowISODateString()) } as unknown as Record<string, unknown>)
+					.where(eq((table as any)._id, update.id as string));
+				modifiedCount += (result as unknown as { changes: number }).changes;
 			}
 			return { modifiedCount };
 		}, 'BULK_UPDATE_FAILED');
@@ -117,16 +117,16 @@ export class BatchModule {
 	async bulkDelete(collection: string, ids: DatabaseId[]): Promise<DatabaseResult<{ deletedCount: number }>> {
 		return this.core.wrap(async () => {
 			const table = this.core.getTable(collection);
-			const result = await this.db.delete(table).where(inArray(table._id, ids));
-			return { deletedCount: result.changes };
+			const result = await this.db.delete(table as any).where(inArray((table as any)._id, ids as string[]));
+			return { deletedCount: (result as unknown as { changes: number }).changes };
 		}, 'BULK_DELETE_FAILED');
 	}
 
 	async bulkUpsert<T extends BaseEntity>(collection: string, items: Array<Partial<T> & { id?: DatabaseId }>): Promise<DatabaseResult<T[]>> {
 		const mappedItems = items.map((item) => ({
-			query: { _id: item.id } as any,
-			data: item as any
+			query: { _id: item.id } as unknown as import('../../db-interface').QueryFilter<T>,
+			data: item as unknown as Omit<T, '_id' | 'createdAt' | 'updatedAt'>
 		}));
-		return this.crud.upsertMany(collection, mappedItems) as any;
+		return this.crud.upsertMany<T>(collection, mappedItems) as unknown as DatabaseResult<T[]>;
 	}
 }

@@ -31,8 +31,10 @@ export class AdapterCore {
 
 	public sql: ReturnType<typeof postgres> | null = null;
 	public db: PostgresJsDatabase<typeof schema> | null = null;
+	public crud!: import('../crud/crud-module').CrudModule;
+	public batch!: import('../operations/batch-module').BatchModule;
 	protected connected = false;
-	public collectionRegistry = new Map<string, any>();
+	public collectionRegistry = new Map<string, unknown>();
 
 	public getCapabilities(): DatabaseCapabilities {
 		return this.capabilities;
@@ -42,9 +44,9 @@ export class AdapterCore {
 		return this.connected;
 	}
 
-	async connect(connection: any, _options?: any): Promise<DatabaseResult<void>> {
+	async connect(connection: string | Record<string, unknown>, _options?: unknown): Promise<DatabaseResult<void>> {
 		try {
-			let options: any = {
+			let options: Record<string, unknown> = {
 				max: 10,
 				connect_timeout: 10
 			};
@@ -149,7 +151,7 @@ export class AdapterCore {
 		}
 	}
 
-	async getConnectionPoolStats(): Promise<DatabaseResult<import('../../db-interface').ConnectionPoolStats>> {
+	public async getConnectionPoolStats(): Promise<DatabaseResult<import('../../db-interface').ConnectionPoolStats>> {
 		try {
 			if (!this.sql) {
 				return {
@@ -182,7 +184,7 @@ export class AdapterCore {
 		}
 	}
 
-	protected wrap<T>(fn: () => Promise<T>, code: string): Promise<DatabaseResult<T>> {
+	public wrap<T>(fn: () => Promise<T>, code: string): Promise<DatabaseResult<T>> {
 		if (!this.db) {
 			return Promise.resolve(this.notConnectedError());
 		}
@@ -195,7 +197,7 @@ export class AdapterCore {
 		}
 	}
 
-	protected handleError(error: unknown, code: string): DatabaseResult<any> {
+	public handleError<T>(error: unknown, code: string): DatabaseResult<T> {
 		const message = error instanceof Error ? error.message : String(error);
 		logger.error(`PostgreSQL adapter error [${code}]:`, message);
 		return {
@@ -205,7 +207,7 @@ export class AdapterCore {
 		};
 	}
 
-	protected notImplemented(method: string): DatabaseResult<any> {
+	public notImplemented<T>(method: string): DatabaseResult<T> {
 		const message = `Method ${method} not yet implemented for PostgreSQL adapter.`;
 		logger.warn(message);
 		return {
@@ -215,7 +217,7 @@ export class AdapterCore {
 		};
 	}
 
-	protected notConnectedError(): DatabaseResult<any> {
+	public notConnectedError<T>(): DatabaseResult<T> {
 		return {
 			success: false,
 			message: 'Database not connected',
@@ -238,44 +240,46 @@ export class AdapterCore {
 		users: 'authUsers'
 	};
 
-	public getTable(collection: string): any {
+	public getTable(collection: string): Record<string, unknown> {
+		const schemaAny = schema as unknown as Record<string, Record<string, unknown>>;
 		// Direct lookup (already camelCase, e.g., 'mediaItems')
-		if ((schema as any)[collection]) {
-			return (schema as any)[collection];
+		if (schemaAny[collection]) {
+			return schemaAny[collection];
 		}
 		// Convert snake_case to camelCase (e.g., 'media_items' → 'mediaItems')
 		const camelKey = this.snakeToCamel(collection);
-		if ((schema as any)[camelKey]) {
-			return (schema as any)[camelKey];
+		if (schemaAny[camelKey]) {
+			return schemaAny[camelKey];
 		}
 		// Check common aliases (e.g., 'media' → 'mediaItems')
 		const alias = AdapterCore.TABLE_ALIASES[collection];
-		if (alias && (schema as any)[alias]) {
-			return (schema as any)[alias];
+		if (alias && schemaAny[alias]) {
+			return schemaAny[alias];
 		}
 		// Dynamic collection tables map to contentNodes
 		if (collection.startsWith('collection_')) {
-			return schema.contentNodes;
+			return schema.contentNodes as unknown as Record<string, unknown>;
 		}
 		// Throw for truly unknown tables
 		throw new Error(`Unknown table: ${collection}`);
 	}
 
-	public mapQuery(table: any, query: Record<string, any>): any {
+	public mapQuery(table: Record<string, unknown>, query: Record<string, unknown>): unknown {
 		if (!query || Object.keys(query).length === 0) {
 			return undefined;
 		}
 
-		const conditions: any[] = [];
+		const conditions: import('drizzle-orm').SQL[] = [];
 		for (const [key, value] of Object.entries(query)) {
 			if (key.startsWith('$')) {
 				continue; // Skip MongoDB operators
 			}
-			if (table[key]) {
+			const column = table[key] as import('drizzle-orm').Column;
+			if (column) {
 				if (value === null) {
-					conditions.push(isNull(table[key]));
+					conditions.push(isNull(column));
 				} else {
-					conditions.push(eq(table[key], value));
+					conditions.push(eq(column, value as string | number | boolean));
 				}
 			}
 		}

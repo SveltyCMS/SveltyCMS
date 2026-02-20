@@ -47,7 +47,7 @@ bulk actions, and predictive preloading.
 	// Components
 	import FloatingInput from '@components/system/inputs/floating-input.svelte';
 	import SystemTooltip from '@components/system/system-tooltip.svelte';
-	import Status from '@components/system/table/status.svelte';
+	import Status from '@components/system/table/Status.svelte';
 	// import SystemTooltip from '@components/system/system-tooltip.svelte';
 	import TableFilter from '@components/system/table/table-filter.svelte';
 	import TableIcons from '@components/system/table/table-icons.svelte';
@@ -76,7 +76,7 @@ bulk actions, and predictive preloading.
 	import { screen } from '@src/stores/screen-size-store.svelte.ts';
 	import { app } from '@src/stores/store.svelte';
 	import { ui } from '@src/stores/ui-store.svelte.ts';
-	import Sanitize from '@src/utils/sanitize.svelte';
+	import Sanitize from '@src/utils/Sanitize.svelte';
 	// Utils
 	import { batchDeleteEntries, deleteEntry, invalidateCollectionCache, updateEntryStatus } from '@utils/api-client';
 	import { formatDisplayDate } from '@utils/date-utils';

@@ -62,6 +62,28 @@ export interface WidgetDefinition<TProps extends Record<string, unknown> = Recor
 	GuiFields?: Record<string, unknown>;
 	GuiSchema?: Record<string, unknown>; // Compatibility for legacy widgets
 
+	/** Optional request modification handler */
+	modifyRequest?: (args: {
+		collection: unknown;
+		collectionName?: string;
+		data: unknown;
+		field: FieldInstance;
+		tenantId?: string;
+		type: string;
+		user: User;
+	}) => Promise<unknown> | unknown;
+
+	/** Optional batch request modification handler */
+	modifyRequestBatch?: (args: {
+		collection: unknown;
+		collectionName?: string;
+		data: Record<string, unknown>[];
+		field: FieldInstance;
+		tenantId?: string;
+		type: string;
+		user: User;
+	}) => Promise<Record<string, unknown>[]>;
+
 	/** Optional function to return widget-specific translatable paths. */
 	getTranslatablePaths?: (basePath: string) => string[];
 	Icon?: string;
@@ -97,6 +119,8 @@ export interface WidgetFactory<TProps extends Record<string, unknown> = Record<s
 	GraphqlSchema?: WidgetDefinition['GraphqlSchema'];
 	GuiSchema?: Record<string, unknown>;
 	Icon?: string;
+	modifyRequest?: WidgetDefinition['modifyRequest'];
+	modifyRequestBatch?: WidgetDefinition['modifyRequestBatch'];
 
 	// Static properties attached to the function (for compatibility)
 	Name: string;

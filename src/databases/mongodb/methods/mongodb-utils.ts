@@ -75,7 +75,7 @@ export function isDateLike(val: unknown): val is { toISOString: () => string } {
 	// Using `!!val` handles null/undefined, and checking for the function is more robust
 	// than `instanceof Date` as it supports date-like objects from other libraries.
 	// We also ensure val is an object to avoid runtime errors on primitives.
-	return !!val && typeof val === 'object' && typeof (val as any).toISOString === 'function';
+	return !!val && typeof val === 'object' && typeof (val as { toISOString?: unknown }).toISOString === 'function';
 }
 
 /**

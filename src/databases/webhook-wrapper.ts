@@ -10,6 +10,7 @@
 
 import { logger } from '@utils/logger.server';
 import type { ICrudAdapter, IDBAdapter, IMediaAdapter } from './db-interface';
+import type { WebhookEvent } from '@src/services/webhook-service';
 
 // Constants for identifying events
 const CONTENT_COLLECTION_PREFIX = 'collection_';
@@ -45,9 +46,9 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
 	}
 
 	if (!originalCrud) {
-		// Fallback for some adapter structures or if it's not initialized yet
-		// (though it should be for class properties)
-		originalCrud = (adapter as any)._crud || (adapter as any)._cachedCrud;
+		// Fallback for some adapter structures
+		const internalAdapter = adapter as unknown as Record<string, ICrudAdapter>;
+		originalCrud = internalAdapter._crud || internalAdapter._cachedCrud;
 	}
 
 	if (originalCrud) {
@@ -81,8 +82,8 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
 					insert: async (collection, data) => {
 						const res = await capturedCrud.insert(collection, data);
 						if (res.success && (collection.startsWith(CONTENT_COLLECTION_PREFIX) || collection === 'MediaItem')) {
-							const event = collection === 'MediaItem' ? 'media:upload' : 'entry:create';
-							webhookService.trigger(event as any, {
+							const event: WebhookEvent = collection === 'MediaItem' ? 'media:upload' : 'entry:create';
+							webhookService.trigger(event, {
 								collection,
 								data: res.data
 							});
@@ -106,7 +107,7 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
 					update: async (collection, id, data) => {
 						const res = await capturedCrud.update(collection, id, data);
 						if (res.success && collection.startsWith(CONTENT_COLLECTION_PREFIX)) {
-							let event: any = 'entry:update';
+							let event: WebhookEvent = 'entry:update';
 							if ('status' in data) {
 								if (data.status === 'publish') {
 									event = 'entry:publish';
@@ -135,8 +136,8 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
 					delete: async (collection, id) => {
 						const res = await capturedCrud.delete(collection, id);
 						if (res.success && (collection.startsWith(CONTENT_COLLECTION_PREFIX) || collection === 'MediaItem')) {
-							const event = collection === 'MediaItem' ? 'media:delete' : 'entry:delete';
-							webhookService.trigger(event as any, { collection, id });
+							const event: WebhookEvent = collection === 'MediaItem' ? 'media:delete' : 'entry:delete';
+							webhookService.trigger(event, { collection, id });
 						}
 						return res;
 					},
@@ -169,8 +170,8 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
 				// Return Proxy to preserve all other methods (count, findOne, etc.)
 				return new Proxy(capturedCrud, {
 					get(target, prop, receiver) {
-						if (prop in wrappedMethods) {
-							return (wrappedMethods as any)[prop];
+						if (typeof prop === 'string' && prop in wrappedMethods) {
+							return wrappedMethods[prop as keyof ICrudAdapter];
 						}
 						const value = Reflect.get(target, prop, receiver);
 						return typeof value === 'function' ? value.bind(target) : value;
@@ -247,14 +248,14 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
 				};
 
 				// Return Proxy for media to preserve all methods, including wrapped files
-				return new Proxy(originalMedia, {
+				return new Proxy(capturedMedia, {
 					get(target, prop, receiver) {
 						if (prop === 'files') {
 							// Wrap files object with its own proxy
 							return new Proxy(originalFiles, {
 								get(fTarget, fProp, fReceiver) {
-									if (fProp in wrappedFiles) {
-										return (wrappedFiles as any)[fProp];
+									if (typeof fProp === 'string' && fProp in wrappedFiles) {
+										return wrappedFiles[fProp as keyof IMediaAdapter['files']];
 									}
 									const fValue = Reflect.get(fTarget, fProp, fReceiver);
 									return typeof fValue === 'function' ? fValue.bind(fTarget) : fValue;

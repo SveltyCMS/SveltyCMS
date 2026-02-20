@@ -86,6 +86,7 @@ export const authTokens = sqliteTable(
 		type: text('type', { length: 50 }).notNull(),
 		expires: integer('expires', { mode: 'timestamp_ms' }).notNull(),
 		consumed: integer('consumed', { mode: 'boolean' }).notNull().default(false),
+		blocked: integer('blocked', { mode: 'boolean' }).notNull().default(false),
 		role: text('role', { length: 50 }),
 		username: text('username', { length: 255 }),
 		tenantId: tenantField(),

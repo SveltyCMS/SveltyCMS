@@ -377,10 +377,10 @@ export class MongoQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> 
 
 			// Simplified ISO date conversion: check for object and toISOString method only.
 			const processedResults = results.map((doc) => ({
-				...doc,
-				createdAt: (doc.createdAt as any) instanceof Date ? (doc.createdAt as any).toISOString() : doc.createdAt,
-				updatedAt: (doc.updatedAt as any) instanceof Date ? (doc.updatedAt as any).toISOString() : doc.updatedAt
-			})) as T[];
+				...(doc as unknown as Record<string, unknown>),
+				createdAt: (doc as unknown as { createdAt: unknown }).createdAt instanceof Date ? ((doc as unknown as { createdAt: Date }).createdAt).toISOString() : (doc as unknown as { createdAt: string }).createdAt,
+				updatedAt: (doc as unknown as { updatedAt: unknown }).updatedAt instanceof Date ? ((doc as unknown as { updatedAt: Date }).updatedAt).toISOString() : (doc as unknown as { updatedAt: string }).updatedAt
+			})) as unknown as T[];
 
 			const meta = this.buildQueryMeta(startTime);
 			return { success: true, data: processedResults, meta };
@@ -435,10 +435,10 @@ export class MongoQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> 
 						for await (const doc of cursor) {
 							// FIX: Robust date processing that handles various formats
 							const processedDoc = {
-								...doc,
-								createdAt: (doc.createdAt as any) instanceof Date ? (doc.createdAt as any).toISOString() : doc.createdAt,
-								updatedAt: (doc.updatedAt as any) instanceof Date ? (doc.updatedAt as any).toISOString() : doc.updatedAt
-							} as T;
+								...(doc as unknown as Record<string, unknown>),
+								createdAt: (doc as unknown as { createdAt: unknown }).createdAt instanceof Date ? ((doc as unknown as { createdAt: Date }).createdAt).toISOString() : (doc as unknown as { createdAt: string }).createdAt,
+								updatedAt: (doc as unknown as { updatedAt: unknown }).updatedAt instanceof Date ? ((doc as unknown as { updatedAt: Date }).updatedAt).toISOString() : (doc as unknown as { updatedAt: string }).updatedAt
+							} as unknown as T;
 							yield processedDoc;
 						}
 					} catch (error) {
@@ -506,10 +506,10 @@ export class MongoQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> 
 
 			// FIX: Robust date processing that handles various formats
 			const processedResult = {
-				...result,
-				createdAt: (result.createdAt as any) instanceof Date ? (result.createdAt as any).toISOString() : result.createdAt,
-				updatedAt: (result.updatedAt as any) instanceof Date ? (result.updatedAt as any).toISOString() : result.updatedAt
-			} as T;
+				...(result as unknown as Record<string, unknown>),
+				createdAt: (result as unknown as { createdAt: unknown }).createdAt instanceof Date ? ((result as unknown as { createdAt: Date }).createdAt).toISOString() : (result as unknown as { createdAt: string }).createdAt,
+				updatedAt: (result as unknown as { updatedAt: unknown }).updatedAt instanceof Date ? ((result as unknown as { updatedAt: Date }).updatedAt).toISOString() : (result as unknown as { updatedAt: string }).updatedAt
+			} as unknown as T;
 
 			const meta = this.buildQueryMeta(startTime);
 			return { success: true, data: processedResult, meta };

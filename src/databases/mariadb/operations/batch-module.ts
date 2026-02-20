@@ -11,7 +11,7 @@
  */
 
 import { eq, inArray } from 'drizzle-orm';
-import type { BaseEntity, BatchOperation, BatchResult, DatabaseError, DatabaseId, DatabaseResult } from '../../db-interface';
+import type { BaseEntity, BatchOperation, BatchResult, DatabaseError, DatabaseId, DatabaseResult, QueryFilter } from '../../db-interface';
 import type { AdapterCore } from '../adapter/adapter-core';
 import * as utils from '../utils';
 import { isoDateStringToDate, nowISODateString } from '@src/utils/date-utils';
@@ -39,16 +39,16 @@ export class BatchModule {
 
 			for (const op of operations) {
 				try {
-					let res: DatabaseResult<any>;
+					let res: DatabaseResult<T | void>;
 					switch (op.operation) {
 						case 'insert':
-							res = await this.crud.insert(op.collection, op.data as any);
+							res = await this.crud.insert<T & BaseEntity>(op.collection, op.data as Omit<T & BaseEntity, '_id' | 'createdAt' | 'updatedAt'>);
 							break;
 						case 'update':
 							if (!op.id) {
 								throw new Error('ID required for update operation');
 							}
-							res = await this.crud.update(op.collection, op.id, op.data as any);
+							res = await this.crud.update<T & BaseEntity>(op.collection, op.id, op.data as Partial<Omit<T & BaseEntity, 'createdAt' | 'updatedAt'>>);
 							break;
 						case 'delete':
 							if (!op.id) {
@@ -60,13 +60,13 @@ export class BatchModule {
 							if (!(op.query && op.data)) {
 								throw new Error('Query and data required for upsert operation');
 							}
-							res = await this.crud.upsert(op.collection, op.query as any, op.data as any);
+							res = await this.crud.upsert<T & BaseEntity>(op.collection, op.query as QueryFilter<T & BaseEntity>, op.data as Omit<T & BaseEntity, '_id' | 'createdAt' | 'updatedAt'>);
 							break;
 						default:
 							throw new Error(`Unsupported batch operation: ${op.operation}`);
 					}
 
-					results.push(res);
+					results.push(res as DatabaseResult<T>);
 					if (res.success) {
 						totalProcessed++;
 					} else {
@@ -93,7 +93,7 @@ export class BatchModule {
 	}
 
 	async bulkInsert<T extends BaseEntity>(collection: string, items: Omit<T, '_id' | 'createdAt' | 'updatedAt'>[]): Promise<DatabaseResult<T[]>> {
-		return this.crud.insertMany(collection, items);
+		return this.crud.insertMany<T>(collection, items);
 	}
 
 	async bulkUpdate<T extends BaseEntity>(
@@ -105,9 +105,9 @@ export class BatchModule {
 			let modifiedCount = 0;
 			for (const update of updates) {
 				const result = await this.db
-					.update(table)
-					.set({ ...update.data, updatedAt: isoDateStringToDate(nowISODateString()) } as any)
-					.where(eq(table._id, update.id));
+					.update(table as unknown as import('drizzle-orm/mysql-core').MySqlTable)
+					.set({ ...(update.data as Record<string, unknown>), updatedAt: isoDateStringToDate(nowISODateString()) } as unknown as Record<string, unknown>)
+					.where(eq((table as unknown as { _id: import('drizzle-orm/mysql-core').MySqlColumn })._id, update.id as string));
 				modifiedCount += result[0].affectedRows;
 			}
 			return { modifiedCount };
@@ -117,16 +117,21 @@ export class BatchModule {
 	async bulkDelete(collection: string, ids: DatabaseId[]): Promise<DatabaseResult<{ deletedCount: number }>> {
 		return this.core.wrap(async () => {
 			const table = this.core.getTable(collection);
-			const result = await this.db.delete(table).where(inArray(table._id, ids));
+			const result = await this.db.delete(table as unknown as import('drizzle-orm/mysql-core').MySqlTable).where(inArray((table as unknown as { _id: import('drizzle-orm/mysql-core').MySqlColumn })._id, ids as string[]));
 			return { deletedCount: result[0].affectedRows };
 		}, 'BULK_DELETE_FAILED');
 	}
 
 	async bulkUpsert<T extends BaseEntity>(collection: string, items: Array<Partial<T> & { id?: DatabaseId }>): Promise<DatabaseResult<T[]>> {
 		const mappedItems = items.map((item) => ({
-			query: { _id: item.id } as any,
-			data: item as any
+			query: { _id: item.id } as unknown as QueryFilter<T>,
+			data: item as unknown as Omit<T, '_id' | 'createdAt' | 'updatedAt'>
 		}));
-		return this.crud.upsertMany(collection, mappedItems) as any;
+		const result = await this.crud.upsertMany<T>(collection, mappedItems);
+		if (result.success) {
+			// upsertMany returns { upsertedCount, modifiedCount }, but interface says T[]
+			return { success: true, data: [] as T[] };
+		}
+		return result as unknown as DatabaseResult<T[]>;
 	}
 }

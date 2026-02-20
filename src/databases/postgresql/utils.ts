@@ -4,7 +4,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import type { DatabaseError } from '../db-interface';
+import type { DatabaseError, DatabaseId } from '../db-interface';
 
 // Create a standardized database error object
 export function createDatabaseError(code: string, message: string, _originalError?: unknown): DatabaseError {
@@ -15,8 +15,8 @@ export function createDatabaseError(code: string, message: string, _originalErro
 }
 
 // Generate a new UUID v4 for database IDs
-export function generateId(): string {
-	return uuidv4();
+export function generateId(): DatabaseId {
+	return uuidv4() as DatabaseId;
 }
 
 // Serialize a value for PostgreSQL storage
@@ -48,8 +48,8 @@ export function deserializeValue(value: unknown): unknown {
 }
 
 // Convert MongoDB-style ObjectId filter to PostgreSQL compatible
-export function convertIdFilter(filter: Record<string, any>): Record<string, any> {
-	const result: Record<string, any> = {};
+export function convertIdFilter(filter: Record<string, unknown>): Record<string, unknown> {
+	const result: Record<string, unknown> = {};
 	for (const [key, value] of Object.entries(filter)) {
 		if (key === '_id') {
 			result.id = value;
@@ -82,8 +82,8 @@ export function parseJsonField<T>(value: unknown, fallback: T): T {
  * Convert Date objects in a record to ISO strings.
  * PostgreSQL TIMESTAMP fields come back as Date objects from postgres.js.
  */
-export function convertDatesToISO<T extends Record<string, any>>(obj: T): T {
-	const result: Record<string, any> = {};
+export function convertDatesToISO<T extends Record<string, unknown>>(obj: T): T {
+	const result: Record<string, unknown> = {};
 	for (const [key, value] of Object.entries(obj)) {
 		if (value instanceof Date) {
 			result[key] = value.toISOString();
@@ -97,6 +97,31 @@ export function convertDatesToISO<T extends Record<string, any>>(obj: T): T {
 /**
  * Convert dates in an array of records to ISO strings.
  */
-export function convertArrayDatesToISO<T extends Record<string, any>>(arr: T[]): T[] {
+export function convertArrayDatesToISO<T extends Record<string, unknown>>(arr: T[]): T[] {
 	return arr.map((item) => convertDatesToISO(item));
+}
+
+// Normalize file paths
+export function normalizePath(path: string): string {
+	return path.replace(/\\/g, '/');
+}
+
+// Validate a DatabaseId (UUID)
+export function validateId(id: string): boolean {
+	const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+	return uuidRegex.test(id) || /^[0-9a-f]{32,36}$/i.test(id);
+}
+
+// Create pagination helper
+export function createPagination<T>(items: T[], options: import('../db-interface').PaginationOptions): import('../db-interface').PaginatedResult<T> {
+	const page = options.page || 1;
+	const pageSize = options.pageSize || 10;
+	return {
+		items: items.slice((page - 1) * pageSize, page * pageSize),
+		total: items.length,
+		page,
+		pageSize,
+		hasNextPage: items.length > page * pageSize,
+		hasPreviousPage: page > 1
+	};
 }

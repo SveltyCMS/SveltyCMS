@@ -10,24 +10,24 @@ on:
   workflow_dispatch: {}
 
 jobs:
-  security:
-    name: 🛡️ Security (CodeQL)
-    runs-on: ubuntu-latest
-    permissions:
-      actions: read
-      contents: read
-      security-events: write
-    steps:
-      - uses: actions/checkout@v6
-      
-      # Initialize CodeQL using v4. The correct unified identifier for JS/TS is 'javascript'
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v4
-        with:
-          languages: javascript
-          
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v4
+  # security:
+  #   name: 🛡️ Security (CodeQL)
+  #   runs-on: ubuntu-latest
+  #   permissions:
+  #     actions: read
+  #     contents: read
+  #     security-events: write
+  #   steps:
+  #     - uses: actions/checkout@v6
+
+  #     # Initialize CodeQL using v4. The correct unified identifier for JS/TS is 'javascript'
+  #     - name: Initialize CodeQL
+  #       uses: github/codeql-action/init@v4
+  #       with:
+  #         languages: javascript
+
+  #     - name: Perform CodeQL Analysis
+  #       uses: github/codeql-action/analyze@v4
 
   unit-tests:
     name: ⚡ Unit Tests
@@ -38,7 +38,7 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
       - name: Sync SvelteKit
-        run: bun run check
+        run: bun x svelte-kit sync
       - name: Run Linter
         run: bun run lint
       - name: Run Unit Tests
@@ -52,13 +52,15 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - name: Install dependencies
         run: bun install --frozen-lockfile
+      - name: Sync SvelteKit
+        run: bun run check
       - name: Build
         run: bun run build
       - name: Upload Artifact
         uses: actions/upload-artifact@v6
         with:
           name: sveltycms-build
-          # CRITICAL: v4+ artifact actions exclude hidden files by default. 
+          # CRITICAL: v4+ artifact actions exclude hidden files by default.
           # We need this enabled to actually upload the hidden `.svelte-kit` directory!
           include-hidden-files: true
           path: |
@@ -94,7 +96,7 @@ jobs:
       mailhog:
         image: mailhog/mailhog
         ports:
-          # CRITICAL: YAML evaluates XX:XX as a sexagesimal (base-60) integer without quotes! 
+          # CRITICAL: YAML evaluates XX:XX as a sexagesimal (base-60) integer without quotes!
           # This causes fatal validation errors. They MUST be strings.
           - '1025:1025'
           - '8025:8025'

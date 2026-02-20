@@ -23,7 +23,7 @@
 
 import { safeQuery } from '@src/utils/security/safe-query';
 import { nowISODateString } from '@utils/date-utils';
-import mongoose, { type Model, type PipelineStage, type UpdateQuery } from 'mongoose';
+import mongoose, { type Model, type PipelineStage, type QueryFilter as MongoQueryFilter, type UpdateQuery } from 'mongoose';
 import type { BaseEntity, DatabaseId, DatabaseResult, QueryFilter } from '../../db-interface';
 import { createDatabaseError, generateId, processDates } from './mongodb-utils';
 
@@ -125,14 +125,14 @@ export class MongoCrudMethods<T extends BaseEntity> {
 
 	async insert(data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>, tenantId?: string | null): Promise<DatabaseResult<T>> {
 		try {
-			const doc = {
-				...data,
+			const docData = {
+				...(data as Record<string, unknown>),
 				_id: generateId(),
-				tenantId: tenantId || (data as any).tenantId,
+				tenantId: tenantId || (data as unknown as Record<string, unknown>).tenantId,
 				createdAt: nowISODateString(),
 				updatedAt: nowISODateString()
-			} as unknown as T;
-			const result = (await this.model.create(doc as any)) as any;
+			};
+			const result = await this.model.create(docData as unknown as mongoose.AnyKeys<T>);
 			return { success: true, data: result.toObject() as T };
 		} catch (error) {
 			if (error instanceof mongoose.mongo.MongoServerError && error.code === 11_000) {
@@ -153,14 +153,14 @@ export class MongoCrudMethods<T extends BaseEntity> {
 	async insertMany(data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>[], tenantId?: string | null): Promise<DatabaseResult<T[]>> {
 		try {
 			const docs = data.map((d) => ({
-				...d,
+				...(d as Record<string, unknown>),
 				_id: generateId(),
-				tenantId: tenantId || (d as any).tenantId,
+				tenantId: tenantId || (d as unknown as Record<string, unknown>).tenantId,
 				createdAt: nowISODateString(),
 				updatedAt: nowISODateString()
 			}));
 			const result = await this.model.insertMany(docs);
-			return { success: true, data: result.map((doc: any) => doc.toObject()) };
+			return { success: true, data: result.map((doc) => (doc as mongoose.HydratedDocument<T>).toObject() as T) };
 		} catch (error) {
 			return {
 				success: false,
@@ -199,11 +199,11 @@ export class MongoCrudMethods<T extends BaseEntity> {
 				.findOneAndUpdate(
 					secureQuery,
 					{
-						$set: { ...data, updatedAt: nowISODateString() },
+						$set: { ...(data as Record<string, unknown>), updatedAt: nowISODateString() },
 						$setOnInsert: {
 							_id: generateId(),
 							createdAt: nowISODateString(),
-							tenantId: tenantId || (data as any).tenantId
+							tenantId: tenantId || (data as unknown as Record<string, unknown>).tenantId
 						}
 					},
 					{ returnDocument: 'after', upsert: true, runValidators: true }
@@ -293,20 +293,20 @@ export class MongoCrudMethods<T extends BaseEntity> {
 			const now = nowISODateString();
 			const operations = items.map((item) => ({
 				updateOne: {
-					filter: safeQuery(item.query, tenantId) as any,
+					filter: safeQuery(item.query, tenantId) as MongoQueryFilter<T>,
 					update: {
-						$set: { ...item.data, updatedAt: now },
+						$set: { ...(item.data as Record<string, unknown>), updatedAt: now },
 						$setOnInsert: {
 							_id: generateId(),
 							createdAt: now,
-							tenantId: tenantId || (item.data as any).tenantId
+							tenantId: tenantId || (item.data as unknown as Record<string, unknown>).tenantId
 						}
 					},
 					upsert: true
 				}
 			}));
 
-			const result = await this.model.bulkWrite(operations as any);
+			const result = await this.model.bulkWrite(operations as any[]);
 			return {
 				success: true,
 				data: {

@@ -48,12 +48,12 @@ export async function fetchWatermarks(collectionId = 'Watermarks'): Promise<Wate
 			}
 
 			const json = await res.json();
-			const items = Array.isArray(json) ? json : Array.isArray(json.data) ? json.data : Array.isArray(json.items) ? json.items : [];
+			const items = (Array.isArray(json) ? json : Array.isArray(json.data) ? json.data : Array.isArray(json.items) ? json.items : []) as Array<Record<string, unknown>>;
 
-			return items.map((it: any) => ({
-				id: it._id ?? it.id,
-				name: it.name ?? it.title ?? `Watermark ${it._id ?? it.id}`,
-				url: it.url ?? it.image?.url
+			return items.map((it) => ({
+				id: (it._id || it.id) as string,
+				name: (it.name || it.title || `Watermark ${it._id || it.id}`) as string,
+				url: (it.url || (it.image as { url?: string })?.url) as string | undefined
 			}));
 		} catch {
 			// continue to next

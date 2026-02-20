@@ -283,21 +283,21 @@ contentStructureSchema.statics = {
 		session.startTransaction();
 
 		try {
-			const bulkOps = items.map((item) => ({
+			const bulkOps: mongoose.AnyBulkWriteOperation<ContentStructureDocument>[] = items.map((item) => ({
 				updateOne: {
 					filter: {
 						_id: item.id,
 						...(tenantId ? { tenantId } : {})
-					} as any,
+					} as mongoose.QueryFilter<ContentStructureDocument>,
 					update: {
 						$set: {
-							parentId: item.parentId as any,
+							parentId: item.parentId,
 							order: item.order,
 							path: item.path
 						}
 					}
 				}
-			}));
+			})) as any[];
 
 			if (bulkOps.length > 0) {
 				await this.bulkWrite(bulkOps, { session });

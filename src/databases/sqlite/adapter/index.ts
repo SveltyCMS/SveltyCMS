@@ -38,50 +38,50 @@ import { PerformanceModule } from '../performance/performance-module';
 import { SQLiteQueryBuilder } from '../query-builder/sq-lite-query-builder';
 import * as schema from '../schema';
 import * as utils from '../utils';
-import { nowISODateString } from '@src/utils/date-utils';
 import { AdapterCore } from './adapter-core';
 
 export class SQLiteAdapter extends AdapterCore implements IDBAdapter {
 	public readonly tenants = {
 		create: async (tenant: Omit<Tenant, '_id' | 'createdAt' | 'updatedAt'> & { _id?: DatabaseId }): Promise<DatabaseResult<Tenant>> => {
 			return this.wrap(async () => {
-				const id = tenant._id || utils.generateId();
-				const now = nowISODateString();
-				await this.db.insert(schema.tenants).values({
+				const id = (tenant._id || utils.generateId()) as string;
+				const now = new Date();
+				const values: typeof schema.tenants.$inferInsert = {
 					...tenant,
 					_id: id,
 					createdAt: now,
 					updatedAt: now
-				});
+				};
+				await this.db.insert(schema.tenants).values(values);
 				const [result] = await this.db.select().from(schema.tenants).where(eq(schema.tenants._id, id));
-				return result as Tenant;
+				return result as unknown as Tenant;
 			}, 'TENANT_CREATE_FAILED');
 		},
 		getById: async (tenantId: DatabaseId): Promise<DatabaseResult<Tenant | null>> => {
 			return this.wrap(async () => {
-				const [result] = await this.db.select().from(schema.tenants).where(eq(schema.tenants._id, tenantId));
-				return (result as Tenant) || null;
+				const [result] = await this.db.select().from(schema.tenants).where(eq(schema.tenants._id, tenantId as string));
+				return (result as unknown as Tenant) || null;
 			}, 'TENANT_GET_FAILED');
 		},
 		update: async (tenantId: DatabaseId, data: Partial<Omit<Tenant, 'createdAt' | 'updatedAt'>>): Promise<DatabaseResult<Tenant>> => {
 			return this.wrap(async () => {
-				const now = nowISODateString();
+				const now = new Date();
 				await this.db
 					.update(schema.tenants)
-					.set({ ...data, updatedAt: now })
-					.where(eq(schema.tenants._id, tenantId));
-				const [result] = await this.db.select().from(schema.tenants).where(eq(schema.tenants._id, tenantId));
-				return result as Tenant;
+					.set({ ...data, updatedAt: now } as typeof schema.tenants.$inferInsert)
+					.where(eq(schema.tenants._id, tenantId as string));
+				const [result] = await this.db.select().from(schema.tenants).where(eq(schema.tenants._id, tenantId as string));
+				return result as unknown as Tenant;
 			}, 'TENANT_UPDATE_FAILED');
 		},
 		delete: async (tenantId: DatabaseId): Promise<DatabaseResult<void>> => {
 			return this.wrap(async () => {
-				await this.db.delete(schema.tenants).where(eq(schema.tenants._id, tenantId));
+				await this.db.delete(schema.tenants).where(eq(schema.tenants._id, tenantId as string));
 			}, 'TENANT_DELETE_FAILED');
 		},
 		list: async (options?: PaginationOption): Promise<DatabaseResult<Tenant[]>> => {
 			return this.wrap(async () => {
-				let q = this.db.select().from(schema.tenants);
+				let q = this.db.select().from(schema.tenants).$dynamic();
 				if (options?.limit) {
 					q = q.limit(options.limit);
 				}
@@ -89,7 +89,7 @@ export class SQLiteAdapter extends AdapterCore implements IDBAdapter {
 					q = q.offset(options.offset);
 				}
 				const results = await q;
-				return results as Tenant[];
+				return results as unknown as Tenant[];
 			}, 'TENANT_LIST_FAILED');
 		}
 	};
@@ -134,8 +134,8 @@ export class SQLiteAdapter extends AdapterCore implements IDBAdapter {
 			return;
 		}
 
-		const now = nowISODateString();
-		const rolesPayload = [
+		const now = new Date();
+		const rolesPayload: (typeof schema.roles.$inferInsert)[] = [
 			{
 				_id: 'admin',
 				name: 'Administrator',
@@ -219,8 +219,8 @@ export class SQLiteAdapter extends AdapterCore implements IDBAdapter {
 
 	async connect(connection: string | { connectionString?: string; filename?: string }, options?: unknown): Promise<DatabaseResult<void>>;
 	async connect(poolOptions?: import('../../db-interface').ConnectionPoolOptions): Promise<DatabaseResult<void>>;
-	public async connect(connectionOrOptions?: any, _options?: any): Promise<DatabaseResult<void>> {
-		const result = await super.connect(connectionOrOptions);
+	public async connect(connectionOrOptions?: any, _options?: unknown): Promise<DatabaseResult<void>> {
+		const result = await super.connect(connectionOrOptions as string | { connectionString?: string; filename?: string });
 		if (result.success && this.sqlite) {
 			const { runMigrations } = await import('../migrations');
 			const migrationResult = await runMigrations(this.sqlite);
@@ -288,12 +288,12 @@ export class SQLiteAdapter extends AdapterCore implements IDBAdapter {
 		}
 	): Promise<
 		DatabaseResult<{
-			data: any[];
+			data: unknown[];
 			metadata?: { totalCount: number; schema?: unknown; indexes?: string[] };
 		}>
 	> => {
 		return this.wrap(async () => {
-			const res = await this.crud.findMany(collection, {}, options as any);
+			const res = await this.crud.findMany<BaseEntity>(collection, {}, options as Record<string, unknown>);
 			if (!res.success) {
 				throw new Error(res.message);
 			}
@@ -307,9 +307,9 @@ export class SQLiteAdapter extends AdapterCore implements IDBAdapter {
 	getMultipleCollectionData = async (
 		collectionNames: string[],
 		options?: { limit?: number; fields?: string[] }
-	): Promise<DatabaseResult<Record<string, any[]>>> => {
+	): Promise<DatabaseResult<Record<string, unknown[]>>> => {
 		return this.wrap(async () => {
-			const results: Record<string, any[]> = {};
+			const results: Record<string, unknown[]> = {};
 			for (const name of collectionNames) {
 				const res = await this.getCollectionData(name, {
 					limit: options?.limit,

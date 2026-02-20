@@ -306,6 +306,7 @@ export const systemPreferences = pgTable(
 			.default(sql`gen_random_uuid()`),
 		key: varchar('key', { length: 255 }).notNull(),
 		value: json('value'),
+		category: varchar('category', { length: 255 }),
 		scope: varchar('scope', { length: 50 }).notNull().default('system'),
 		userId: varchar('userId', { length: 36 }),
 		visibility: varchar('visibility', { length: 50 }).notNull().default('private'),
@@ -315,6 +316,7 @@ export const systemPreferences = pgTable(
 	(table) => ({
 		uniqueKeyTenant: uniqueIndex('system_preferences_key_tenant_unique').on(table.key, table.tenantId),
 		keyIdx: index('system_preferences_key_idx').on(table.key),
+		categoryIdx: index('system_preferences_category_idx').on(table.category),
 		scopeIdx: index('system_preferences_scope_idx').on(table.scope),
 		userIdx: index('system_preferences_user_idx').on(table.userId),
 		tenantIdx: index('system_preferences_tenant_idx').on(table.tenantId)

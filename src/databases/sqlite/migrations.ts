@@ -9,17 +9,22 @@
 
 import { logger } from '@src/utils/logger';
 
-export async function runMigrations(db: any): Promise<{ success: boolean; error?: string }> {
+export async function runMigrations(db: unknown): Promise<{ success: boolean; error?: string }> {
 	try {
 		logger.info('Running SQLite migrations...');
 
 		const execute = (sql: string) => {
-			if (typeof db.exec === 'function') {
-				db.exec(sql);
-			} else if (typeof db.query === 'function') {
-				db.query(sql).run();
-			} else if (typeof db.prepare === 'function') {
-				db.prepare(sql).run();
+			const d = db as {
+				exec?: (sql: string) => void;
+				query?: (sql: string) => { run: () => void };
+				prepare?: (sql: string) => { run: () => void };
+			};
+			if (typeof d.exec === 'function') {
+				d.exec(sql);
+			} else if (typeof d.query === 'function') {
+				d.query(sql).run();
+			} else if (typeof d.prepare === 'function') {
+				d.prepare(sql).run();
 			} else {
 				throw new Error('No valid execution method found on SQLite database object');
 			}

@@ -390,5 +390,5 @@ export function composeMongoAuthAdapter(): AuthInterface {
 	};
 
 	// Return the composed adapter (TypeScript will enforce type compatibility)
-	return adapter as any as AuthInterface;
+	return adapter as unknown as AuthInterface;
 }

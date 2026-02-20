@@ -6,7 +6,8 @@
 
 import { type HttpError, isRedirect, json, type RequestEvent } from '@sveltejs/kit';
 import { logger } from '@utils/logger.server';
-import type { ValiError } from 'valibot';
+import type { ValiError, GenericSchema } from 'valibot';
+import { dev } from '$app/environment';
 
 // --- Standardized Response Types ---
 
@@ -53,7 +54,7 @@ export class AppError extends Error {
 /**
  * Type Guard: Checks if an error is a Valibot validation error.
  */
-function isValiError(err: unknown): err is ValiError<any> {
+function isValiError(err: unknown): err is ValiError<GenericSchema> {
 	return typeof err === 'object' && err !== null && 'issues' in err && Array.isArray((err as Record<string, unknown>).issues);
 }
 
@@ -61,9 +62,9 @@ function isValiError(err: unknown): err is ValiError<any> {
  * Formats Valibot issues into a clean array of strings.
  * e.g., "email: Invalid email address"
  */
-function formatValibotIssues(err: ValiError<any>): string[] {
-	return err.issues.map((issue: any) => {
-		const pathKeys = issue.path?.map((p: any) => p.key).join('.');
+function formatValibotIssues(err: ValiError<GenericSchema>): string[] {
+	return err.issues.map((issue) => {
+		const pathKeys = issue.path?.map((p) => (p as { key: string }).key).join('.');
 		return pathKeys ? `${pathKeys}: ${issue.message}` : issue.message;
 	});
 }
@@ -110,10 +111,10 @@ export function handleApiError(err: unknown, event: RequestEvent) {
 		}
 	}
 	// 4. Handle SvelteKit HttpErrors (thrown via error())
-	else if (typeof err === 'object' && err !== null && 'status' in err && 'body' in err) {
+	else if (isHttpError(err)) {
 		const httpErr = err as HttpError;
 		status = httpErr.status;
-		message = (httpErr.body as any)?.message || 'HTTP Error';
+		message = (httpErr.body as { message?: string })?.message || 'HTTP Error';
 		code = `HTTP_${status}`;
 
 		logger.warn(`HttpError [${event.url.pathname}]: ${message}`, { status });
@@ -137,7 +138,7 @@ export function handleApiError(err: unknown, event: RequestEvent) {
 	};
 
 	// Include stack trace in development only for debugging
-	if (process.env.NODE_ENV === 'development' && err instanceof Error) {
+	if (dev && err instanceof Error) {
 		response.stack = err.stack;
 	}
 
@@ -157,7 +158,7 @@ export function getErrorMessage(err: unknown): string {
 
 	// Handle SvelteKit HttpError structure manually to avoid dependency issues
 	if (typeof err === 'object' && err !== null && 'body' in err) {
-		const body = (err as Record<string, unknown>).body as Record<string, unknown>;
+		const body = (err as { body: { message?: string } }).body;
 		if (body?.message) {
 			return String(body.message);
 		}
@@ -165,7 +166,7 @@ export function getErrorMessage(err: unknown): string {
 
 	if (typeof err === 'object' && err !== null) {
 		if ('message' in err) {
-			return String((err as Record<string, unknown>).message);
+			return String((err as { message: string }).message);
 		}
 
 		// If object has no message, try to stringify it for better debug info
@@ -205,8 +206,8 @@ export function wrapError(err: unknown, message = 'An unexpected error occurred'
 	}
 
 	if (isHttpError(err)) {
-		const bodyMsg = (err as any).body?.message;
-		return new AppError((bodyMsg as string) || message, err.status, `HTTP_${err.status}`, err);
+		const bodyMsg = (err as HttpError & { body?: { message?: string } }).body?.message;
+		return new AppError(bodyMsg || message, err.status, `HTTP_${err.status}`, err);
 	}
 
 	const errorMsg = getErrorMessage(err);

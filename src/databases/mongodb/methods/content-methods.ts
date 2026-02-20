@@ -15,8 +15,9 @@
  * - Model/schema creation (use collectionMethods.ts)
  */
 
-import type { ContentNode, DatabaseId } from '@src/content/types';
+import type { ContentNode, DatabaseId, ISODateString } from '@src/content/types';
 import { logger } from '@utils/logger';
+import mongoose, { type Model, type QueryFilter as MongoQueryFilter } from 'mongoose';
 import type {
 	BaseEntity,
 	DatabaseResult,
@@ -159,9 +160,9 @@ export class MongoContentMethods {
 						$set: {
 							...nodeData,
 							parentId: normalizedParentId,
-							updatedAt: new Date()
+							updatedAt: new Date().toISOString() as unknown as ISODateString
 						},
-						$setOnInsert: { _id: generateId(), createdAt: new Date() }
+						$setOnInsert: { _id: generateId(), createdAt: new Date().toISOString() as unknown as ISODateString }
 					},
 					{ returnDocument: 'after', upsert: true, runValidators: true }
 				)
@@ -221,7 +222,7 @@ export class MongoContentMethods {
 				}
 
 				// Build setOnInsert with _id if provided (for collections, use their UUID as document _id)
-				const setOnInsert: Record<string, unknown> = { createdAt: new Date() };
+				const setOnInsert: Record<string, unknown> = { createdAt: new Date().toISOString() as unknown as ISODateString };
 				const targetId = id || _id;
 
 				if (targetId) {
@@ -229,7 +230,7 @@ export class MongoContentMethods {
 				}
 
 				// Prepare filter: use ID if available, otherwise path + tenantId
-				const filter: any = targetId ? { _id: targetId } : { path };
+				const filter: Record<string, unknown> = targetId ? { _id: targetId } : { path };
 
 				// CRITICAL FIX: If we are filtering by path, we MUST also filter by tenantId
 				// to avoid hitting the unique index { tenantId: 1, path: 1 } with a duplicate
@@ -244,9 +245,9 @@ export class MongoContentMethods {
 				return {
 					updateOne: {
 						// Prefer ID if available (handles path moves), fallback to path + tenantId
-						filter,
+						filter: filter as MongoQueryFilter<ContentNode>,
 						update: {
-							$set: { ...normalizedChanges, path, updatedAt: new Date() },
+							$set: { ...normalizedChanges, path, updatedAt: new Date().toISOString() as unknown as ISODateString },
 							$setOnInsert: setOnInsert
 						},
 						upsert: true // Create the document if it doesn't exist
@@ -254,7 +255,7 @@ export class MongoContentMethods {
 				};
 			});
 			logger.trace(`[bulkUpdateNodes] Executing bulkWrite with ${operations.length} operations`);
-			const result = await this.nodesRepo.model.bulkWrite(operations as any);
+			const result = await this.nodesRepo.model.bulkWrite(operations as mongoose.AnyBulkWriteOperation<ContentNode>[]);
 			logger.info(
 				`[bulkUpdateNodes] Result: modified=${result.modifiedCount}, upserted=${result.upsertedCount}, total=${result.modifiedCount + result.upsertedCount}`
 			);
@@ -285,8 +286,12 @@ export class MongoContentMethods {
 		}>
 	): Promise<DatabaseResult<void>> {
 		try {
-			// Cast model to any to access the static method we added
-			const result = await (this.nodesRepo.model as any).reorderStructure(items);
+			// Cast model to access the static method we added in schema definitions
+			const modelWithReorder = this.nodesRepo.model as Model<ContentNode> & {
+				reorderStructure(items: unknown[]): Promise<DatabaseResult<void>>;
+			};
+			
+			const result = await modelWithReorder.reorderStructure(items);
 			if (!result.success) {
 				return {
 					// Propagate error from model static method if it follows the pattern, or wrap it
@@ -335,11 +340,12 @@ export class MongoContentMethods {
 						// ID mismatch - delete and recreate with correct ID
 						logger.info(`[fixMismatchedNodeIds] Fixing node at path="${path}": ${existingId} → ${expectedId}`);
 						await this.nodesRepo.model.deleteOne({ path });
-						await this.nodesRepo.model.insertOne({
+						// Use insertMany or create for single insert to satisfy type requirements
+						await this.nodesRepo.model.create({
+							...changes,
 							_id: expectedId,
-							...(changes as any),
-							createdAt: existing.createdAt || (new Date() as any),
-							updatedAt: new Date() as any
+							createdAt: ((existing as unknown as { createdAt: string }).createdAt || new Date().toISOString()) as unknown as ISODateString,
+							updatedAt: new Date().toISOString() as unknown as ISODateString
 						});
 						fixedCount++;
 					}
@@ -372,7 +378,7 @@ export class MongoContentMethods {
 	async getDraftsForContent(contentId: DatabaseId, options?: PaginationOptions): Promise<DatabaseResult<PaginatedResult<ContentDraft>>> {
 		try {
 			const { page = 1, pageSize = 10 } = options || {};
-			const query = { contentId };
+			const query = { contentId } as unknown as QueryFilter<ContentDraft>;
 
 			const [itemsRes, totalRes] = await Promise.all([
 				this.draftsRepo.findMany(query, {
@@ -383,10 +389,10 @@ export class MongoContentMethods {
 			]);
 
 			if (!itemsRes.success) {
-				return itemsRes as any;
+				return { success: false, message: itemsRes.message, error: itemsRes.error };
 			}
 			if (!totalRes.success) {
-				return totalRes as any;
+				return { success: false, message: totalRes.message, error: totalRes.error };
 			}
 
 			return {
@@ -415,7 +421,7 @@ export class MongoContentMethods {
 			return { success: true, data: { modifiedCount: 0 } };
 		}
 		try {
-			const result = await this.draftsRepo.model.updateMany({ _id: { $in: draftIds } }, { $set: { status: 'published', publishedAt: new Date() } });
+			const result = await this.draftsRepo.model.updateMany({ _id: { $in: draftIds } as MongoQueryFilter<ContentDraft> }, { $set: { status: 'published', publishedAt: new Date().toISOString() as unknown as ISODateString } });
 			return { success: true, data: { modifiedCount: result.modifiedCount } };
 		} catch (error) {
 			return {
@@ -431,18 +437,18 @@ export class MongoContentMethods {
 	// ============================================================
 
 	async createRevision(revision: Omit<ContentRevision, '_id' | 'createdAt'>): Promise<DatabaseResult<ContentRevision>> {
-		return this.revisionsRepo.insert(revision);
+		return this.revisionsRepo.insert(revision as Omit<ContentRevision, "_id" | "createdAt" | "updatedAt">);
 	}
 
 	async getRevisionHistory(contentId: DatabaseId, options?: PaginationOptions): Promise<DatabaseResult<PaginatedResult<ContentRevision>>> {
 		try {
 			const { page = 1, pageSize = 25 } = options || {};
-			const query = { contentId };
+			const query = { contentId } as MongoQueryFilter<ContentRevision>;
 
 			// RevisionsRepo count returns DatabaseResult
-			const totalRes = await this.revisionsRepo.count(query);
+			const totalRes = await this.revisionsRepo.count(query as unknown as QueryFilter<ContentRevision>);
 			if (!totalRes.success) {
-				return totalRes as any;
+				return { success: false, message: totalRes.message, error: totalRes.error };
 			}
 
 			const items = await this.revisionsRepo.model
@@ -456,7 +462,7 @@ export class MongoContentMethods {
 			return {
 				success: true,
 				data: {
-					items: items as ContentRevision[],
+					items: items as unknown as ContentRevision[],
 					total: totalRes.data,
 					page,
 					pageSize,
@@ -484,12 +490,12 @@ export class MongoContentMethods {
 				.lean()
 				.exec();
 
-			const keepIds = revisionsToKeep.map((r: { _id: { toString(): string } }) => r._id.toString() as DatabaseId);
+			const keepIds = (revisionsToKeep as unknown as { _id: { toString(): string } }[]).map((r) => r._id.toString() as DatabaseId);
 
 			// deleteMany returns DatabaseResult
 			return await this.revisionsRepo.deleteMany({
 				contentId,
-				_id: { $nin: keepIds }
+				_id: { $nin: keepIds } as unknown as QueryFilter<ContentRevision>['_id']
 			} as QueryFilter<ContentRevision>);
 		} catch (error) {
 			return {

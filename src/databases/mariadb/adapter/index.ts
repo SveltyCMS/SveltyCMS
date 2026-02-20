@@ -97,7 +97,7 @@ export class MariaDBAdapter extends AdapterCore implements IDBAdapter {
 		connectionOrOptions?: string | import('mysql2/promise').PoolOptions | import('../../db-interface').ConnectionPoolOptions,
 		options?: unknown
 	): Promise<DatabaseResult<void>> {
-		const result = await super.connect(connectionOrOptions as any, options);
+		const result = await super.connect(connectionOrOptions as string | import('mysql2/promise').PoolOptions, options);
 		if (result.success && this.pool) {
 			const { runMigrations } = await import('../migrations');
 			const migrationResult = await runMigrations(this.pool);
@@ -119,7 +119,7 @@ export class MariaDBAdapter extends AdapterCore implements IDBAdapter {
 			}
 			// Get all tables
 			const [rows] = await this.pool.query('SHOW TABLES');
-			const tables = (rows as any[]).map((row: any) => Object.values(row)[0]);
+			const tables = (rows as Record<string, string>[]).map((row) => Object.values(row)[0]);
 
 			if (tables.length > 0) {
 				await this.pool.query('SET FOREIGN_KEY_CHECKS = 0');
@@ -138,7 +138,7 @@ export class MariaDBAdapter extends AdapterCore implements IDBAdapter {
 	public transaction = async <T>(
 		fn: (transaction: DatabaseTransaction) => Promise<DatabaseResult<T>>,
 		options?: {
-			isolationLevel?: 'READ UNCOMMITTED' | 'READ COMMITTED' | 'REPEATABLE READ' | 'SERIALIZABLE';
+			isolationLevel?: 'read uncommitted' | 'read committed' | 'repeatable read' | 'serializable';
 		}
 	): Promise<DatabaseResult<T>> => {
 		return this.transactionModule.execute(fn, options);
@@ -155,12 +155,12 @@ export class MariaDBAdapter extends AdapterCore implements IDBAdapter {
 		}
 	): Promise<
 		DatabaseResult<{
-			data: any[];
+			data: unknown[];
 			metadata?: { totalCount: number; schema?: unknown; indexes?: string[] };
 		}>
 	> => {
 		return this.wrap(async () => {
-			const res = await this.crud.findMany(collection, {}, options as any);
+			const res = await this.crud.findMany<BaseEntity>(collection, {}, options as { limit?: number; offset?: number; fields?: never[] });
 			if (!res.success) {
 				throw new Error(res.message);
 			}
@@ -174,9 +174,9 @@ export class MariaDBAdapter extends AdapterCore implements IDBAdapter {
 	getMultipleCollectionData = async (
 		collectionNames: string[],
 		options?: { limit?: number; fields?: string[] }
-	): Promise<DatabaseResult<Record<string, any[]>>> => {
+	): Promise<DatabaseResult<Record<string, unknown[]>>> => {
 		return this.wrap(async () => {
-			const results: Record<string, any[]> = {};
+			const results: Record<string, unknown[]> = {};
 			for (const name of collectionNames) {
 				const res = await this.getCollectionData(name, {
 					limit: options?.limit,

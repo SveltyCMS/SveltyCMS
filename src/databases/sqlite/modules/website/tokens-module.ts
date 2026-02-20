@@ -15,7 +15,7 @@ import type { DatabaseId, DatabaseResult, WebsiteToken } from '../../../db-inter
 import type { AdapterCore } from '../../adapter/adapter-core';
 import * as schema from '../../schema';
 import * as utils from '../../utils';
-import { nowISODateString } from '@src/utils/date-utils';
+import { isoDateStringToDate, nowISODateString } from '@src/utils/date-utils';
 
 export class WebsiteTokensModule {
 	private readonly core: AdapterCore;
@@ -25,19 +25,22 @@ export class WebsiteTokensModule {
 	}
 
 	private get db() {
-		return (this.core as any).db;
+		return this.core.db;
 	}
 
 	async create(token: Omit<WebsiteToken, '_id' | 'createdAt'>): Promise<DatabaseResult<WebsiteToken>> {
-		return (this.core as any).wrap(async () => {
+		return this.core.wrap(async () => {
 			const id = utils.generateId();
-			const now = nowISODateString();
+			const now = isoDateStringToDate(nowISODateString());
+			// expiresAt might be ISODateString in token object
+			const expiresAt = token.expiresAt ? isoDateStringToDate(token.expiresAt) : null;
 			await this.db.insert(schema.websiteTokens).values({
 				...token,
 				_id: id,
+				expiresAt,
 				createdAt: now,
 				updatedAt: now
-			} as any);
+			} as typeof schema.websiteTokens.$inferInsert);
 			const [result] = await this.db.select().from(schema.websiteTokens).where(eq(schema.websiteTokens._id, id)).limit(1);
 			return utils.convertDatesToISO(result) as unknown as WebsiteToken;
 		}, 'CREATE_WEBSITE_TOKEN_FAILED');
@@ -49,13 +52,14 @@ export class WebsiteTokensModule {
 		sort?: string;
 		order?: string;
 	}): Promise<DatabaseResult<{ data: WebsiteToken[]; total: number }>> {
-		return (this.core as any).wrap(async () => {
-			let q: any = this.db.select().from(schema.websiteTokens);
+		return this.core.wrap(async () => {
+			let q = this.db.select().from(schema.websiteTokens).$dynamic();
 
 			if (options.sort) {
 				const order = options.order === 'desc' ? desc : asc;
-				if ((schema.websiteTokens as any)[options.sort]) {
-					q = q.orderBy(order((schema.websiteTokens as any)[options.sort]));
+				const column = (schema.websiteTokens as unknown as Record<string, import('drizzle-orm/sqlite-core').SQLiteColumn>)[options.sort];
+				if (column) {
+					q = q.orderBy(order(column));
 				}
 			}
 
@@ -68,8 +72,8 @@ export class WebsiteTokensModule {
 
 			const results = await q;
 			// total count
-			const [countResult] = await this.db.select({ count: sql`count(*)` }).from(schema.websiteTokens);
-			const total = (countResult as any).count;
+			const [countResult] = await this.db.select({ count: sql<number>`count(*)` }).from(schema.websiteTokens);
+			const total = countResult.count;
 
 			return {
 				data: utils.convertArrayDatesToISO(results) as unknown as WebsiteToken[],
@@ -79,14 +83,14 @@ export class WebsiteTokensModule {
 	}
 
 	async getByName(name: string): Promise<DatabaseResult<WebsiteToken | null>> {
-		return (this.core as any).wrap(async () => {
+		return this.core.wrap(async () => {
 			const [result] = await this.db.select().from(schema.websiteTokens).where(eq(schema.websiteTokens.name, name)).limit(1);
 			return result ? (utils.convertDatesToISO(result) as unknown as WebsiteToken) : null;
 		}, 'GET_WEBSITE_TOKEN_BY_NAME_FAILED');
 	}
 
 	async delete(tokenId: DatabaseId): Promise<DatabaseResult<void>> {
-		return (this.core as any).wrap(async () => {
+		return this.core.wrap(async () => {
 			await this.db.delete(schema.websiteTokens).where(eq(schema.websiteTokens._id, tokenId));
 		}, 'DELETE_WEBSITE_TOKEN_FAILED');
 	}

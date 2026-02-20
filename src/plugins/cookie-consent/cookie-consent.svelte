@@ -8,7 +8,7 @@ Displays a GDPR-compliant cookie consent banner.
 	import { fade, slide } from 'svelte/transition';
 	import { consentStore } from '@src/stores/consent-store.svelte';
 	import { onMount } from 'svelte';
-	import Toggles from '@src/components/system/inputs/toggles.svelte';
+	import Toggles from '@src/components/system/inputs/Toggles.svelte';
 	import {
 		cookie_heading,
 		cookie_description,

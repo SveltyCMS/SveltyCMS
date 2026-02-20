@@ -141,7 +141,7 @@ export class MongoThemeMethods {
 	async ensure(themeData: Omit<Theme, '_id' | 'createdAt' | 'updatedAt'>): Promise<Theme> {
 		try {
 			// Strip timestamps and ID to let Mongoose handle them or avoid conflicts with $setOnInsert
-			const { _id, createdAt: _, updatedAt: __, ...rest } = themeData as Record<string, any>;
+			const { _id, createdAt: _, updatedAt: __, ...rest } = themeData as unknown as Record<string, unknown>;
 			const result = await this.themeModel
 				.findOneAndUpdate(
 					{ name: themeData.name },
@@ -152,7 +152,7 @@ export class MongoThemeMethods {
 				.exec();
 
 			await invalidateCategoryCache(CacheCategory.THEME);
-			return result as Theme;
+			return result as unknown as Theme;
 		} catch (error) {
 			throw createDatabaseError(error, 'THEME_ENSURE_FAILED', 'Failed to ensure theme');
 		}

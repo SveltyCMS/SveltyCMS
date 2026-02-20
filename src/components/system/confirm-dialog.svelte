@@ -5,7 +5,7 @@
 -->
 
 <script lang="ts">
-	import Sanitize from '@src/utils/sanitize.svelte';
+	import Sanitize from '@src/utils/Sanitize.svelte';
 	interface Props {
 		body?: string;
 		buttonTextCancel?: string;

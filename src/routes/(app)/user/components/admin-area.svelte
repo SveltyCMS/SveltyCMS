@@ -83,8 +83,8 @@
 
 	// Components
 	import { Avatar } from '@skeletonlabs/skeleton-svelte';
-	import Boolean from '@src/components/system/table/boolean.svelte';
-	import Role from '@src/components/system/table/role.svelte';
+	import Boolean from '@src/components/system/table/Boolean.svelte';
+	import Role from '@src/components/system/table/Role.svelte';
 	import PermissionGuard from '@src/components/permission-guard.svelte';
 	import FloatingInput from '@src/components/system/inputs/floating-input.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
@@ -93,7 +93,7 @@
 	import TablePagination from '@src/components/system/table/table-pagination.svelte';
 
 	import ModalEditToken from './modal-edit-token.svelte';
-	import Multibutton from './multibutton.svelte';
+	import Multibutton from './Multibutton.svelte';
 
 	// Types
 	import { PermissionAction, PermissionType, type Role as RoleType, type Token, type User } from '@src/databases/auth/types';

@@ -20,18 +20,18 @@ export class PerformanceModule {
 	}
 
 	async getMetrics(_tags?: string[]): Promise<DatabaseResult<PerformanceMetrics>> {
-		return (this.core as any).notImplemented('performance.getMetrics');
+		return this.core.notImplemented('performance.getMetrics');
 	}
 
 	async clearMetrics(_tags?: string[]): Promise<DatabaseResult<void>> {
-		return (this.core as any).notImplemented('performance.clearMetrics');
+		return this.core.notImplemented('performance.clearMetrics');
 	}
 
 	async enableProfiling(_enabled: boolean): Promise<DatabaseResult<void>> {
-		return (this.core as any).notImplemented('performance.enableProfiling');
+		return this.core.notImplemented('performance.enableProfiling');
 	}
 
-	async getSlowQueries(_limit?: number): Promise<DatabaseResult<any[]>> {
-		return (this.core as any).notImplemented('performance.getSlowQueries');
+	async getSlowQueries(_limit?: number): Promise<DatabaseResult<Array<{ query: string; duration: number; timestamp: import('../../db-interface').ISODateString }>>> {
+		return this.core.notImplemented('performance.getSlowQueries');
 	}
 }

@@ -27,12 +27,12 @@ export class PreferencesModule {
 	}
 
 	private get db() {
-		return (this.core as any).db;
+		return this.core.db;
 	}
 
 	async get<T>(key: string, scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<T | null>> {
-		return (this.core as any).wrap(async () => {
-			const conditions: any[] = [eq(schema.systemPreferences.key, key)];
+		return this.core.wrap(async () => {
+			const conditions: import('drizzle-orm').SQL[] = [eq(schema.systemPreferences.key, key)];
 			if (scope) {
 				conditions.push(eq(schema.systemPreferences.scope, scope));
 			}
@@ -54,8 +54,8 @@ export class PreferencesModule {
 	}
 
 	async getMany<T>(keys: string[], scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<Record<string, T>>> {
-		return (this.core as any).wrap(async () => {
-			const conditions: any[] = [inArray(schema.systemPreferences.key, keys)];
+		return this.core.wrap(async () => {
+			const conditions: import('drizzle-orm').SQL[] = [inArray(schema.systemPreferences.key, keys)];
 			if (scope) {
 				conditions.push(eq(schema.systemPreferences.scope, scope));
 			}
@@ -78,8 +78,8 @@ export class PreferencesModule {
 	}
 
 	async getByCategory<T>(category: string, scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<Record<string, T>>> {
-		return (this.core as any).wrap(async () => {
-			const conditions: any[] = [eq(schema.systemPreferences.visibility, category)];
+		return this.core.wrap(async () => {
+			const conditions: import('drizzle-orm').SQL[] = [eq(schema.systemPreferences.visibility, category)];
 			if (scope) {
 				conditions.push(eq(schema.systemPreferences.scope, scope));
 			}
@@ -102,19 +102,19 @@ export class PreferencesModule {
 	}
 
 	async set<T>(key: string, value: T, scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<void>> {
-		return (this.core as any).wrap(async () => {
+		return this.core.wrap(async () => {
 			const exists = await this.db.select().from(schema.systemPreferences).where(eq(schema.systemPreferences.key, key)).limit(1);
 
 			if (exists.length > 0) {
 				await this.db
 					.update(schema.systemPreferences)
-					.set({ value: value as any, updatedAt: isoDateStringToDate(nowISODateString()) })
+					.set({ value: value as unknown as Record<string, unknown>, updatedAt: isoDateStringToDate(nowISODateString()) })
 					.where(eq(schema.systemPreferences.key, key));
 			} else {
 				await this.db.insert(schema.systemPreferences).values({
 					_id: utils.generateId(),
 					key,
-					value: value as any,
+					value: value as unknown as Record<string, unknown>,
 					scope: scope || 'system',
 					userId: userId || null,
 					visibility: 'private',
@@ -133,7 +133,7 @@ export class PreferencesModule {
 			userId?: DatabaseId;
 		}>
 	): Promise<DatabaseResult<void>> {
-		return (this.core as any).wrap(async () => {
+		return this.core.wrap(async () => {
 			for (const pref of preferences) {
 				const result = await this.set(pref.key, pref.value, pref.scope, pref.userId);
 				if (!result.success) {
@@ -144,8 +144,8 @@ export class PreferencesModule {
 	}
 
 	async delete(key: string, scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<void>> {
-		return (this.core as any).wrap(async () => {
-			const conditions: any[] = [eq(schema.systemPreferences.key, key)];
+		return this.core.wrap(async () => {
+			const conditions: import('drizzle-orm').SQL[] = [eq(schema.systemPreferences.key, key)];
 			if (scope) {
 				conditions.push(eq(schema.systemPreferences.scope, scope));
 			}
@@ -158,8 +158,8 @@ export class PreferencesModule {
 	}
 
 	async deleteMany(keys: string[], scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<void>> {
-		return (this.core as any).wrap(async () => {
-			const conditions: any[] = [];
+		return this.core.wrap(async () => {
+			const conditions: import('drizzle-orm').SQL[] = [];
 			if (keys.length > 0) {
 				conditions.push(inArray(schema.systemPreferences.key, keys));
 			}
@@ -180,8 +180,8 @@ export class PreferencesModule {
 	}
 
 	async clear(scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<void>> {
-		return (this.core as any).wrap(async () => {
-			const conditions: any[] = [];
+		return this.core.wrap(async () => {
+			const conditions: import('drizzle-orm').SQL[] = [];
 			if (scope) {
 				conditions.push(eq(schema.systemPreferences.scope, scope));
 			}

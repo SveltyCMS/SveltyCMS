@@ -39,8 +39,8 @@ export class CrudModule {
 	): Promise<DatabaseResult<T | null>> {
 		return this.core.wrap(async () => {
 			const table = this.core.getTable(collection);
-			const where = this.core.mapQuery(table, query);
-			const results = await this.db.select().from(table).where(where).limit(1);
+			const where = this.core.mapQuery(table, query as Record<string, unknown>) as import('drizzle-orm').SQL | undefined;
+			const results = await this.db.select().from(table as unknown as import('drizzle-orm/mysql-core').MySqlTable).where(where).limit(1);
 			if (results.length === 0) {
 				return null;
 			}
@@ -55,8 +55,8 @@ export class CrudModule {
 	): Promise<DatabaseResult<T[]>> {
 		return this.core.wrap(async () => {
 			const table = this.core.getTable(collection);
-			const where = this.core.mapQuery(table, query);
-			let q = this.db.select().from(table).where(where).$dynamic();
+			const where = this.core.mapQuery(table, query as Record<string, unknown>) as import('drizzle-orm').SQL | undefined;
+			let q = this.db.select().from(table as unknown as import('drizzle-orm/mysql-core').MySqlTable).where(where).$dynamic();
 			if (options?.limit) {
 				q = q.limit(options.limit);
 			}
@@ -71,7 +71,7 @@ export class CrudModule {
 	async findByIds<T extends BaseEntity>(collection: string, ids: DatabaseId[], _options?: { fields?: (keyof T)[] }): Promise<DatabaseResult<T[]>> {
 		return this.core.wrap(async () => {
 			const table = this.core.getTable(collection);
-			const results = await this.db.select().from(table).where(inArray(table._id, ids));
+			const results = await this.db.select().from(table as unknown as import('drizzle-orm/mysql-core').MySqlTable).where(inArray((table as unknown as { _id: import('drizzle-orm/mysql-core').MySqlColumn })._id, ids as string[]));
 			return utils.convertArrayDatesToISO(results) as T[];
 		}, 'CRUD_FIND_BY_IDS_FAILED');
 	}
@@ -79,7 +79,7 @@ export class CrudModule {
 	async insert<T extends BaseEntity>(collection: string, data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<T>> {
 		return this.core.wrap(async () => {
 			const table = this.core.getTable(collection);
-			const id = (data as Partial<T>)._id || utils.generateId();
+			const id = (data as Partial<T>)._id || (utils.generateId() as DatabaseId);
 			const now = nowISODateString();
 			const values = {
 				...data,
@@ -87,9 +87,9 @@ export class CrudModule {
 				createdAt: now,
 				updatedAt: now
 			};
-			await this.db.insert(table).values(values as any);
-			const result = await this.db.select().from(table).where(eq(table._id, id)).limit(1);
-			return utils.convertDatesToISO(result[0]) as T;
+			await this.db.insert(table as unknown as import('drizzle-orm/mysql-core').MySqlTable).values(values as unknown as Record<string, unknown>);
+			const result = await this.db.select().from(table as unknown as import('drizzle-orm/mysql-core').MySqlTable).where(eq((table as unknown as { _id: import('drizzle-orm/mysql-core').MySqlColumn })._id, id as string)).limit(1);
+			return utils.convertDatesToISO(result[0] as Record<string, unknown>) as T;
 		}, 'CRUD_INSERT_FAILED');
 	}
 
@@ -102,18 +102,18 @@ export class CrudModule {
 			const table = this.core.getTable(collection);
 			const now = nowISODateString();
 			await this.db
-				.update(table)
-				.set({ ...data, updatedAt: now } as Record<string, unknown>)
-				.where(eq(table._id, id));
-			const result = await this.db.select().from(table).where(eq(table._id, id)).limit(1);
-			return utils.convertDatesToISO(result[0]) as T;
+				.update(table as unknown as import('drizzle-orm/mysql-core').MySqlTable)
+				.set({ ...data, updatedAt: now } as unknown as Record<string, unknown>)
+				.where(eq((table as unknown as { _id: import('drizzle-orm/mysql-core').MySqlColumn })._id, id as string));
+			const result = await this.db.select().from(table as unknown as import('drizzle-orm/mysql-core').MySqlTable).where(eq((table as unknown as { _id: import('drizzle-orm/mysql-core').MySqlColumn })._id, id as string)).limit(1);
+			return utils.convertDatesToISO(result[0] as Record<string, unknown>) as T;
 		}, 'CRUD_UPDATE_FAILED');
 	}
 
 	async delete(collection: string, id: DatabaseId): Promise<DatabaseResult<void>> {
 		return this.core.wrap(async () => {
 			const table = this.core.getTable(collection);
-			await this.db.delete(table).where(eq(table._id, id));
+			await this.db.delete(table as unknown as import('drizzle-orm/mysql-core').MySqlTable).where(eq((table as unknown as { _id: import('drizzle-orm/mysql-core').MySqlColumn })._id, id as string));
 		}, 'CRUD_DELETE_FAILED');
 	}
 
@@ -124,10 +124,10 @@ export class CrudModule {
 	): Promise<DatabaseResult<T>> {
 		return this.core.wrap(async () => {
 			const table = this.core.getTable(collection);
-			const where = this.core.mapQuery(table, query);
-			const existing = await this.db.select().from(table).where(where).limit(1);
+			const where = this.core.mapQuery(table, query as Record<string, unknown>) as import('drizzle-orm').SQL | undefined;
+			const existing = await this.db.select().from(table as unknown as import('drizzle-orm/mysql-core').MySqlTable).where(where).limit(1);
 			if (existing.length > 0) {
-				const res = await this.update<T>(collection, existing[0]._id, data as Partial<T>);
+				const res = await this.update<T>(collection, (existing[0] as unknown as { _id: string })._id as unknown as DatabaseId, data as Partial<T>);
 				if (!res.success) {
 					throw res.error;
 				}
@@ -144,9 +144,9 @@ export class CrudModule {
 	async count<T extends BaseEntity>(collection: string, query: QueryFilter<T> = {}): Promise<DatabaseResult<number>> {
 		return this.core.wrap(async () => {
 			const table = this.core.getTable(collection);
-			const where = this.core.mapQuery(table, query);
-			const [result] = await this.db.select({ count: count() }).from(table).where(where);
-			return Number(result.count);
+			const where = this.core.mapQuery(table, query as Record<string, unknown>) as import('drizzle-orm').SQL | undefined;
+			const [result] = await this.db.select({ count: count() }).from(table as unknown as import('drizzle-orm/mysql-core').MySqlTable).where(where);
+			return Number((result as unknown as { count: number }).count);
 		}, 'CRUD_COUNT_FAILED');
 	}
 
@@ -169,13 +169,13 @@ export class CrudModule {
 			const now = nowISODateString();
 			const values = data.map((d) => ({
 				...d,
-				_id: utils.generateId(),
+				_id: utils.generateId() as DatabaseId,
 				createdAt: now,
 				updatedAt: now
 			}));
-			await this.db.insert(table).values(values as any[]);
-			const ids = values.map((v) => v._id);
-			const results = await this.db.select().from(table).where(inArray(table._id, ids));
+			await this.db.insert(table as unknown as import('drizzle-orm/mysql-core').MySqlTable).values(values as unknown as Record<string, unknown>[]);
+			const ids = values.map((v) => v._id as string);
+			const results = await this.db.select().from(table as unknown as import('drizzle-orm/mysql-core').MySqlTable).where(inArray((table as unknown as { _id: import('drizzle-orm/mysql-core').MySqlColumn })._id, ids));
 			return utils.convertArrayDatesToISO(results) as T[];
 		}, 'CRUD_INSERT_MANY_FAILED');
 	}
@@ -187,22 +187,22 @@ export class CrudModule {
 	): Promise<DatabaseResult<{ modifiedCount: number }>> {
 		return this.core.wrap(async () => {
 			const table = this.core.getTable(collection);
-			const where = this.core.mapQuery(table, query);
+			const where = this.core.mapQuery(table, query as Record<string, unknown>) as import('drizzle-orm').SQL | undefined;
 			const now = nowISODateString();
 			const result = await this.db
-				.update(table)
-				.set({ ...data, updatedAt: now } as Record<string, unknown>)
+				.update(table as unknown as import('drizzle-orm/mysql-core').MySqlTable)
+				.set({ ...data, updatedAt: now } as unknown as Record<string, unknown>)
 				.where(where);
-			return { modifiedCount: result[0].affectedRows };
+			return { modifiedCount: (result as unknown as [{ affectedRows: number }])[0].affectedRows };
 		}, 'CRUD_UPDATE_MANY_FAILED');
 	}
 
 	async deleteMany(collection: string, query: QueryFilter<BaseEntity>): Promise<DatabaseResult<{ deletedCount: number }>> {
 		return this.core.wrap(async () => {
 			const table = this.core.getTable(collection);
-			const where = this.core.mapQuery(table, query);
-			const result = await this.db.delete(table).where(where);
-			return { deletedCount: result[0].affectedRows };
+			const where = this.core.mapQuery(table, query as Record<string, unknown>) as import('drizzle-orm').SQL | undefined;
+			const result = await this.db.delete(table as unknown as import('drizzle-orm/mysql-core').MySqlTable).where(where);
+			return { deletedCount: (result as unknown as [{ affectedRows: number }])[0].affectedRows };
 		}, 'CRUD_DELETE_MANY_FAILED');
 	}
 
@@ -230,7 +230,7 @@ export class CrudModule {
 		}, 'CRUD_UPSERT_MANY_FAILED');
 	}
 
-	async aggregate<_T extends BaseEntity, R = unknown>(_collection: string, _pipeline: unknown[]): Promise<DatabaseResult<R[]>> {
-		return this.core.notImplemented('crud.aggregate');
+	async aggregate<R = unknown>(collection: string, _pipeline: unknown[]): Promise<DatabaseResult<R[]>> {
+		return this.core.notImplemented(`crud.aggregate for ${collection}`);
 	}
 }

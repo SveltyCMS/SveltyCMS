@@ -20,8 +20,8 @@
 	// Skeleton components
 	import { showToast } from '@utils/toast';
 	import { Progress as ProgressBar } from '@skeletonlabs/skeleton-svelte';
-	import Toggles from '@src/components/system/inputs/toggles.svelte';
-	import Input from '@src/components/system/inputs/input.svelte';
+	import Toggles from '@src/components/system/inputs/Toggles.svelte';
+	import Input from '@src/components/system/inputs/Input.svelte';
 
 	interface ExportOptions {
 		collections: string[];

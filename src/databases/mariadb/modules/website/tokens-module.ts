@@ -27,27 +27,27 @@ export class WebsiteTokensModule {
 		return this.core.db!;
 	}
 
-	private mapToken(dbToken: any): WebsiteToken {
-		const token = utils.convertDatesToISO(dbToken) as any;
+	private mapToken(dbToken: typeof schema.websiteTokens.$inferSelect): WebsiteToken {
+		const token = utils.convertDatesToISO(dbToken);
 		return {
 			...token,
-			permissions: utils.parseJsonField<string[]>(token.permissions, [])
+			permissions: utils.parseJsonField<string[]>((token as unknown as { permissions: unknown }).permissions, [])
 		} as unknown as WebsiteToken;
 	}
 
 	async create(token: Omit<WebsiteToken, '_id' | 'createdAt'>): Promise<DatabaseResult<WebsiteToken>> {
 		return this.core.wrap(async () => {
-			const id = utils.generateId();
+			const id = utils.generateId() as string;
 			const now = new Date();
 			// Convert ISO string dates to Date objects for Drizzle datetime columns
-			const expiresAt = (token as any).expiresAt ? new Date((token as any).expiresAt) : null;
+			const expiresAt = token.expiresAt ? new Date(token.expiresAt as unknown as string) : null;
 			await this.db.insert(schema.websiteTokens).values({
 				...token,
 				_id: id,
 				expiresAt,
 				createdAt: now,
 				updatedAt: now
-			} as any);
+			} as typeof schema.websiteTokens.$inferInsert);
 			const [result] = await this.db.select().from(schema.websiteTokens).where(eq(schema.websiteTokens._id, id)).limit(1);
 			return this.mapToken(result);
 		}, 'CREATE_WEBSITE_TOKEN_FAILED');
@@ -60,12 +60,13 @@ export class WebsiteTokensModule {
 		order?: string;
 	}): Promise<DatabaseResult<{ data: WebsiteToken[]; total: number }>> {
 		return this.core.wrap(async () => {
-			let q: any = this.db.select().from(schema.websiteTokens);
+			let q = this.db.select().from(schema.websiteTokens).$dynamic();
 
 			if (options.sort) {
 				const order = options.order === 'desc' ? desc : asc;
-				if ((schema.websiteTokens as any)[options.sort]) {
-					q = q.orderBy(order((schema.websiteTokens as any)[options.sort]));
+				const column = (schema.websiteTokens as unknown as Record<string, unknown>)[options.sort];
+				if (column && typeof column === 'object') {
+					q = q.orderBy(order(column as import('drizzle-orm').Column));
 				}
 			}
 
@@ -78,11 +79,11 @@ export class WebsiteTokensModule {
 
 			const results = await q;
 			// total count
-			const [countResult] = await this.db.select({ count: sql`count(*)` }).from(schema.websiteTokens);
-			const total = (countResult as any).count;
+			const [countResult] = await this.db.select({ count: sql<number>`count(*)` }).from(schema.websiteTokens);
+			const total = countResult.count;
 
 			return {
-				data: results.map((r: any) => this.mapToken(r)),
+				data: results.map((r) => this.mapToken(r)),
 				total: Number(total)
 			};
 		}, 'GET_WEBSITE_TOKENS_FAILED');

@@ -46,7 +46,7 @@
 	import { showToast } from '@utils/toast';
 	import { untrack } from 'svelte';
 	import TranslationStatus from '@src/components/collection-display/translation-status.svelte';
-	import Toggles from '@src/components/system/inputs/toggles.svelte';
+	import Toggles from '@src/components/system/inputs/Toggles.svelte';
 	// Modal types import
 	// Stores
 	import { page } from '$app/state';

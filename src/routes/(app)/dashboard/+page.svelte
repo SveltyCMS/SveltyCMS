@@ -25,7 +25,7 @@
 	import { SvelteMap } from 'svelte/reactivity';
 	// Components
 	import PageTitle from '@src/components/page-title.svelte';
-	import Slot from '@src/components/system/slot.svelte';
+	import Slot from '@src/components/system/Slot.svelte';
 	import ImportExportManager from '@src/components/admin/import-export-manager.svelte';
 	// Types
 	import type { PageData } from './$types';

@@ -65,8 +65,10 @@ export class ContentModule {
 
 		const sanitized: Partial<typeof schema.contentNodes.$inferInsert> = {};
 		for (const key of validColumns) {
-			if (node[key as keyof ContentNode] !== undefined) {
-				(sanitized as any)[key] = node[key as keyof ContentNode];
+			const value = node[key as keyof ContentNode];
+			if (value !== undefined) {
+				// Use type-safe assignment for known columns
+				(sanitized as Record<string, unknown>)[key] = value;
 			}
 		}
 		return sanitized;
@@ -80,13 +82,13 @@ export class ContentModule {
 				if (filter) {
 					const conditions = [];
 					if (filter._id) {
-						conditions.push(eq(schema.contentNodes._id, filter._id));
+						conditions.push(eq(schema.contentNodes._id, filter._id as string));
 					}
 					if (filter.path) {
 						conditions.push(eq(schema.contentNodes.path, filter.path));
 					}
 					if (filter.parentId) {
-						conditions.push(eq(schema.contentNodes.parentId, filter.parentId));
+						conditions.push(eq(schema.contentNodes.parentId, filter.parentId as string));
 					}
 					if (filter.tenantId) {
 						conditions.push(eq(schema.contentNodes.tenantId, filter.tenantId));
@@ -104,12 +106,12 @@ export class ContentModule {
 				if (mode === 'nested') {
 					const idMap = new Map<string, ContentNode>();
 					for (const n of nodes) {
-						idMap.set(n._id, { ...n, children: [] });
+						idMap.set(n._id as string, { ...n, children: [] });
 					}
 					const rootNodes: ContentNode[] = [];
 					for (const n of idMap.values()) {
-						if (n.parentId && idMap.has(n.parentId)) {
-							idMap.get(n.parentId)?.children?.push(n);
+						if (n.parentId && idMap.has(n.parentId as string)) {
+							idMap.get(n.parentId as string)?.children?.push(n);
 						} else {
 							rootNodes.push(n);
 						}
@@ -123,14 +125,14 @@ export class ContentModule {
 
 		upsertContentStructureNode: async (node: Omit<ContentNode, 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<ContentNode>> => {
 			return this.core.wrap(async () => {
-				const id = node._id || utils.generateId();
+				const id = (node._id || utils.generateId()) as string;
 				const sanitized = this.pickValidColumns(node);
 				const [existing] = await this.db.select().from(schema.contentNodes).where(eq(schema.contentNodes._id, id)).limit(1);
 
 				if (existing) {
 					await this.db
 						.update(schema.contentNodes)
-						.set({ ...sanitized, updatedAt: isoDateStringToDate(nowISODateString()) } as any)
+						.set({ ...sanitized, updatedAt: isoDateStringToDate(nowISODateString()) })
 						.where(eq(schema.contentNodes._id, id));
 				} else {
 					const now = isoDateStringToDate(nowISODateString());
@@ -139,7 +141,7 @@ export class ContentModule {
 						_id: id,
 						createdAt: now,
 						updatedAt: now
-					} as any);
+					} as typeof schema.contentNodes.$inferInsert);
 				}
 
 				const [result] = await this.db.select().from(schema.contentNodes).where(eq(schema.contentNodes._id, id)).limit(1);
@@ -149,7 +151,7 @@ export class ContentModule {
 
 		create: async (node: Omit<ContentNode, 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<ContentNode>> => {
 			return this.core.wrap(async () => {
-				const id = node._id || utils.generateId();
+				const id = (node._id || utils.generateId()) as string;
 				const now = isoDateStringToDate(nowISODateString());
 				const sanitized = this.pickValidColumns(node);
 				await this.db.insert(schema.contentNodes).values({
@@ -157,7 +159,7 @@ export class ContentModule {
 					_id: id,
 					createdAt: now,
 					updatedAt: now
-				} as any);
+				} as typeof schema.contentNodes.$inferInsert);
 				const [result] = await this.db.select().from(schema.contentNodes).where(eq(schema.contentNodes._id, id)).limit(1);
 				return utils.convertDatesToISO(result) as unknown as ContentNode;
 			}, 'CREATE_CONTENT_NODE_FAILED');
@@ -170,13 +172,13 @@ export class ContentModule {
 					const sanitized = this.pickValidColumns(node);
 					return {
 						...sanitized,
-						_id: node._id || utils.generateId(),
+						_id: (node._id || utils.generateId()) as string,
 						createdAt: now,
 						updatedAt: now
 					};
-				});
-				await this.db.insert(schema.contentNodes).values(values as any);
-				const ids = values.map((v) => v._id);
+				}) as (typeof schema.contentNodes.$inferInsert)[];
+				await this.db.insert(schema.contentNodes).values(values);
+				const ids = values.map((v) => v._id as string);
 				const results = await this.db.select().from(schema.contentNodes).where(inArray(schema.contentNodes._id, ids));
 				return utils.convertArrayDatesToISO(results) as unknown as ContentNode[];
 			}, 'CREATE_MANY_CONTENT_NODES_FAILED');
@@ -199,7 +201,7 @@ export class ContentModule {
 				const results: ContentNode[] = [];
 				for (const update of updates) {
 					const sanitized = this.pickValidColumns(update.changes);
-					let id = (update.changes as Partial<ContentNode>)._id || utils.generateId();
+					let id = ((update.changes as Partial<ContentNode>)._id || utils.generateId()) as string;
 
 					// Strip date fields from sanitized to handle them explicitly as Date objects for Drizzle
 					const { createdAt: _createdAt, updatedAt: _updatedAt, publishedAt, ...sanitizedWithoutDates } = sanitized;
@@ -212,7 +214,7 @@ export class ContentModule {
 					const [existingById] = await this.db.select().from(schema.contentNodes).where(eq(schema.contentNodes._id, id)).limit(1);
 					if (existingById) {
 						// Fallback: If ID exists, generate a new one
-						id = utils.generateId();
+						id = utils.generateId() as string;
 					}
 
 					// Check if a node exists with this PATH
@@ -220,17 +222,18 @@ export class ContentModule {
 
 					// If a node blocks the path and it is NOT the same node (different ID), we must remove it to allow the move/insert.
 					if (existingByPath && existingByPath._id !== id) {
-						await this.db.delete(schema.contentNodes).where(eq(schema.contentNodes._id, existingByPath._id));
+						await this.db.delete(schema.contentNodes).where(eq(schema.contentNodes._id, existingByPath._id as string));
 					}
 
 					// Now we can safely Upsert targeting the ID (primary key)
 					// If the ID exists, it updates (and takes the path, since we cleared the path blocker).
 					// If the ID does not exist, it inserts (and takes the path, since we cleared the path blocker).
 					const values: typeof schema.contentNodes.$inferInsert = {
-						...(sanitizedWithoutDates as any),
+						...(sanitizedWithoutDates as Record<string, unknown>),
 						_id: id,
 						path: update.path,
-						publishedAt: (publishedAt ? new Date(publishedAt as string) : null) as any,
+						nodeType: sanitizedWithoutDates.nodeType as string || update.changes.nodeType || 'collection',
+						publishedAt: (publishedAt ? new Date(publishedAt as unknown as string | number | Date) : null) as Date | null,
 						createdAt: isoDateStringToDate(nowISODateString()),
 						updatedAt: isoDateStringToDate(nowISODateString())
 					};
@@ -241,9 +244,9 @@ export class ContentModule {
 						.onConflictDoUpdate({
 							target: schema.contentNodes._id,
 							set: {
-								...(sanitizedWithoutDates as any),
+								...(sanitizedWithoutDates as Record<string, unknown>),
 								path: update.path, // Explicitly update path
-								publishedAt: (publishedAt ? new Date(publishedAt as string) : undefined) as any,
+								publishedAt: (publishedAt ? new Date(publishedAt as unknown as string | number | Date) : undefined) as Date | undefined,
 								updatedAt: isoDateStringToDate(nowISODateString())
 							}
 						});
@@ -267,7 +270,7 @@ export class ContentModule {
 		deleteMany: async (paths: string[]): Promise<DatabaseResult<{ deletedCount: number }>> => {
 			return this.core.wrap(async () => {
 				const result = await this.db.delete(schema.contentNodes).where(inArray(schema.contentNodes.path, paths));
-				return { deletedCount: result.changes };
+				return { deletedCount: (result as any).changes };
 			}, 'DELETE_MANY_CONTENT_NODES_FAILED');
 		},
 
@@ -311,14 +314,14 @@ export class ContentModule {
 	drafts = {
 		create: async (draft: Omit<ContentDraft, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<ContentDraft>> => {
 			return this.core.wrap(async () => {
-				const id = utils.generateId();
+				const id = utils.generateId() as string;
 				const now = isoDateStringToDate(nowISODateString());
 				await this.db.insert(schema.contentDrafts).values({
-					...(draft as any),
+					...(draft as unknown as typeof schema.contentDrafts.$inferInsert),
 					_id: id,
 					createdAt: now,
 					updatedAt: now
-				} as any);
+				});
 				const [result] = await this.db.select().from(schema.contentDrafts).where(eq(schema.contentDrafts._id, id)).limit(1);
 				return utils.convertDatesToISO(result) as unknown as ContentDraft;
 			}, 'CREATE_CONTENT_DRAFT_FAILED');
@@ -328,13 +331,13 @@ export class ContentModule {
 			return this.core.wrap(async () => {
 				const now = isoDateStringToDate(nowISODateString());
 				const values = drafts.map((draft) => ({
-					...(draft as any),
-					_id: utils.generateId(),
+					...(draft as unknown as typeof schema.contentDrafts.$inferInsert),
+					_id: utils.generateId() as string,
 					createdAt: now,
 					updatedAt: now
-				}));
-				await this.db.insert(schema.contentDrafts).values(values as any);
-				const ids = values.map((v) => v._id);
+				})) as (typeof schema.contentDrafts.$inferInsert)[];
+				await this.db.insert(schema.contentDrafts).values(values);
+				const ids = values.map((v) => v._id as string);
 				const results = await this.db.select().from(schema.contentDrafts).where(inArray(schema.contentDrafts._id, ids));
 				return utils.convertArrayDatesToISO(results) as unknown as ContentDraft[];
 			}, 'CREATE_MANY_CONTENT_DRAFTS_FAILED');
@@ -344,16 +347,16 @@ export class ContentModule {
 			return this.core.wrap(async () => {
 				await this.db
 					.update(schema.contentDrafts)
-					.set({ data: data as any, updatedAt: isoDateStringToDate(nowISODateString()) })
-					.where(eq(schema.contentDrafts._id, draftId));
-				const [result] = await this.db.select().from(schema.contentDrafts).where(eq(schema.contentDrafts._id, draftId)).limit(1);
+					.set({ data: data as Record<string, unknown>, updatedAt: isoDateStringToDate(nowISODateString()) })
+					.where(eq(schema.contentDrafts._id, draftId as string));
+				const [result] = await this.db.select().from(schema.contentDrafts).where(eq(schema.contentDrafts._id, draftId as string)).limit(1);
 				return utils.convertDatesToISO(result) as unknown as ContentDraft;
 			}, 'UPDATE_CONTENT_DRAFT_FAILED');
 		},
 
 		publish: async (draftId: DatabaseId): Promise<DatabaseResult<void>> => {
 			return this.core.wrap(async () => {
-				const [draft] = await this.db.select().from(schema.contentDrafts).where(eq(schema.contentDrafts._id, draftId)).limit(1);
+				const [draft] = await this.db.select().from(schema.contentDrafts).where(eq(schema.contentDrafts._id, draftId as string)).limit(1);
 				if (!draft) {
 					throw new Error('Draft not found');
 				}
@@ -361,12 +364,12 @@ export class ContentModule {
 				await this.db
 					.update(schema.contentNodes)
 					.set({
-						...(draft.data as any),
+						...(draft.data as Record<string, unknown>),
 						updatedAt: isoDateStringToDate(nowISODateString()),
 						isPublished: true,
 						publishedAt: isoDateStringToDate(nowISODateString())
-					} as any)
-					.where(eq(schema.contentNodes._id, draft.contentId));
+					})
+					.where(eq(schema.contentNodes._id, draft.contentId as string));
 
 				await this.db.delete(schema.contentDrafts).where(eq(schema.contentDrafts._id, draftId));
 			}, 'PUBLISH_CONTENT_DRAFT_FAILED');
@@ -387,11 +390,12 @@ export class ContentModule {
 
 		getForContent: async (contentId: DatabaseId, options?: PaginationOptions): Promise<DatabaseResult<PaginatedResult<ContentDraft>>> => {
 			return this.core.wrap(async () => {
-				const conditions = [eq(schema.contentDrafts.contentId, contentId)];
-				let q: any = this.db
+				const conditions = [eq(schema.contentDrafts.contentId, contentId as string)];
+				let q = this.db
 					.select()
 					.from(schema.contentDrafts)
-					.where(and(...conditions));
+					.where(and(...conditions))
+					.$dynamic();
 
 				const limit = options?.pageSize || 20;
 				const offset = ((options?.page || 1) - 1) * limit;
@@ -403,7 +407,7 @@ export class ContentModule {
 				const [countResult] = (await this.db
 					.select({ count: count() })
 					.from(schema.contentDrafts)
-					.where(and(...conditions))) as any;
+					.where(and(...conditions))) as unknown as [{ count: number }];
 
 				const total = Number(countResult?.count || 0);
 
@@ -427,7 +431,7 @@ export class ContentModule {
 		deleteMany: async (draftIds: DatabaseId[]): Promise<DatabaseResult<{ deletedCount: number }>> => {
 			return this.core.wrap(async () => {
 				const result = await this.db.delete(schema.contentDrafts).where(inArray(schema.contentDrafts._id, draftIds));
-				return { deletedCount: result.changes };
+				return { deletedCount: (result as any).changes };
 			}, 'DELETE_MANY_CONTENT_DRAFTS_FAILED');
 		}
 	};
@@ -435,14 +439,14 @@ export class ContentModule {
 	revisions = {
 		create: async (revision: Omit<ContentRevision, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<ContentRevision>> => {
 			return this.core.wrap(async () => {
-				const id = utils.generateId();
+				const id = utils.generateId() as string;
 				const now = isoDateStringToDate(nowISODateString());
 				await this.db.insert(schema.contentRevisions).values({
-					...(revision as any),
+					...(revision as unknown as typeof schema.contentRevisions.$inferInsert),
 					_id: id,
 					createdAt: now,
 					updatedAt: now
-				} as any);
+				});
 				const [result] = await this.db.select().from(schema.contentRevisions).where(eq(schema.contentRevisions._id, id)).limit(1);
 				return utils.convertDatesToISO(result) as unknown as ContentRevision;
 			}, 'CREATE_CONTENT_REVISION_FAILED');
@@ -450,11 +454,12 @@ export class ContentModule {
 
 		getHistory: async (contentId: DatabaseId, options?: PaginationOptions): Promise<DatabaseResult<PaginatedResult<ContentRevision>>> => {
 			return this.core.wrap(async () => {
-				const conditions = [eq(schema.contentRevisions.contentId, contentId)];
-				let q: any = this.db
+				const conditions = [eq(schema.contentRevisions.contentId, contentId as string)];
+				let q = this.db
 					.select()
 					.from(schema.contentRevisions)
-					.where(and(...conditions));
+					.where(and(...conditions))
+					.$dynamic();
 
 				const limit = options?.pageSize || 20;
 				const offset = ((options?.page || 1) - 1) * limit;
@@ -463,10 +468,10 @@ export class ContentModule {
 
 				const results = await q;
 
-				const [countResult] = (await this.db
+				const [countResult] = await this.db
 					.select({ count: count() })
 					.from(schema.contentRevisions)
-					.where(and(...conditions))) as any;
+					.where(and(...conditions));
 
 				const total = Number(countResult?.count || 0);
 
@@ -483,7 +488,7 @@ export class ContentModule {
 
 		restore: async (revisionId: DatabaseId): Promise<DatabaseResult<void>> => {
 			return this.core.wrap(async () => {
-				const [revision] = await this.db.select().from(schema.contentRevisions).where(eq(schema.contentRevisions._id, revisionId)).limit(1);
+				const [revision] = await this.db.select().from(schema.contentRevisions).where(eq(schema.contentRevisions._id, revisionId as string)).limit(1);
 
 				if (!revision) {
 					throw new Error('Revision not found');
@@ -491,8 +496,8 @@ export class ContentModule {
 
 				await this.db
 					.update(schema.contentNodes)
-					.set({ ...(revision.data as any), updatedAt: isoDateStringToDate(nowISODateString()) })
-					.where(eq(schema.contentNodes._id, revision.contentId));
+					.set({ ...(revision.data as Record<string, unknown>), updatedAt: isoDateStringToDate(nowISODateString()) })
+					.where(eq(schema.contentNodes._id, revision.contentId as string));
 			}, 'RESTORE_CONTENT_REVISION_FAILED');
 		},
 
@@ -505,7 +510,7 @@ export class ContentModule {
 		deleteMany: async (revisionIds: DatabaseId[]): Promise<DatabaseResult<{ deletedCount: number }>> => {
 			return this.core.wrap(async () => {
 				const result = await this.db.delete(schema.contentRevisions).where(inArray(schema.contentRevisions._id, revisionIds));
-				return { deletedCount: result.changes };
+				return { deletedCount: (result as any).changes };
 			}, 'DELETE_MANY_CONTENT_REVISIONS_FAILED');
 		},
 
@@ -522,9 +527,9 @@ export class ContentModule {
 					return { deletedCount: 0 };
 				}
 
-				const idsToDelete = revisions.map((r: any) => r._id);
+				const idsToDelete = revisions.map((r) => r._id);
 				const result = await this.db.delete(schema.contentRevisions).where(inArray(schema.contentRevisions._id, idsToDelete));
-				return { deletedCount: result.changes };
+				return { deletedCount: (result as any).changes };
 			}, 'CLEANUP_CONTENT_REVISIONS_FAILED');
 		}
 	};

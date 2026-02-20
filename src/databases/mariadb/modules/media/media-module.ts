@@ -48,11 +48,11 @@ export class MediaModule {
 
 	files = {
 		upload: async (file: Omit<MediaItem, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<MediaItem>> => {
-			return this.crud.insert('media_items', file as any);
+			return this.crud.insert<MediaItem>('media_items', file);
 		},
 
 		uploadMany: async (files: Omit<MediaItem, '_id' | 'createdAt' | 'updatedAt'>[]): Promise<DatabaseResult<MediaItem[]>> => {
-			return this.crud.insertMany('media_items', files as any);
+			return this.crud.insertMany<MediaItem>('media_items', files);
 		},
 
 		delete: async (fileId: DatabaseId): Promise<DatabaseResult<void>> => {
@@ -60,7 +60,11 @@ export class MediaModule {
 		},
 
 		deleteMany: async (fileIds: DatabaseId[]): Promise<DatabaseResult<{ deletedCount: number }>> => {
-			return this.crud.deleteMany('media_items', { _id: { $in: fileIds } } as any);
+			// Using simplified query filter for MariaDB
+			return this.core.wrap(async () => {
+				const result = await this.db.delete(schema.mediaItems).where(inArray(schema.mediaItems._id, fileIds as string[]));
+				return { deletedCount: result[0].affectedRows };
+			}, 'DELETE_MANY_FILES_FAILED');
 		},
 
 		getByFolder: async (
@@ -69,14 +73,14 @@ export class MediaModule {
 			_recursive?: boolean
 		): Promise<DatabaseResult<PaginatedResult<MediaItem>>> => {
 			return this.core.wrap(async () => {
-				const conditions = folderId ? [eq(schema.mediaItems.folderId, folderId)] : [isNull(schema.mediaItems.folderId)];
+				const conditions = folderId ? [eq(schema.mediaItems.folderId, folderId as string)] : [isNull(schema.mediaItems.folderId)];
 
 				// Ownership filtering
 				if (options?.user) {
 					const isAdmin = options.user.role === 'admin' || options.user.isAdmin === true;
 					if (!isAdmin) {
 						// ALLOW GLOBAL: Users see their own files OR anything in the 'global' folder
-						const userConditions = or(eq(schema.mediaItems.createdBy, options.user._id), like(schema.mediaItems.path, 'global/%'));
+						const userConditions = or(eq(schema.mediaItems.createdBy, options.user._id as string), like(schema.mediaItems.path, 'global/%'));
 						if (userConditions) {
 							conditions.push(userConditions);
 						}
@@ -90,9 +94,9 @@ export class MediaModule {
 
 				if (options?.sortField) {
 					const order = options.sortDirection === 'desc' ? desc : asc;
-					const column = (schema.mediaItems as Record<string, any>)[options.sortField];
-					if (column) {
-						q = q.orderBy(order(column));
+					const column = (schema.mediaItems as unknown as Record<string, unknown>)[options.sortField];
+					if (column && typeof column === 'object') {
+						q = q.orderBy(order(column as import('drizzle-orm').Column));
 					}
 				}
 
@@ -131,7 +135,7 @@ export class MediaModule {
 					const isAdmin = options.user.role === 'admin' || options.user.isAdmin === true;
 					if (!isAdmin) {
 						// ALLOW GLOBAL: Users see their own files OR anything in the 'global' folder
-						const userConditions = or(eq(schema.mediaItems.createdBy, options.user._id), like(schema.mediaItems.path, 'global/%'));
+						const userConditions = or(eq(schema.mediaItems.createdBy, options.user._id as string), like(schema.mediaItems.path, 'global/%'));
 						if (userConditions) {
 							conditions.push(userConditions);
 						}
@@ -139,13 +143,13 @@ export class MediaModule {
 				}
 
 				let q = this.db.select().from(schema.mediaItems).$dynamic();
-				q = q.where(and(...(conditions as any[])));
+				q = q.where(and(...conditions));
 
 				if (options?.sortField) {
 					const order = options.sortDirection === 'desc' ? desc : asc;
-					const column = (schema.mediaItems as Record<string, any>)[options.sortField];
-					if (column) {
-						q = q.orderBy(order(column));
+					const column = (schema.mediaItems as unknown as Record<string, unknown>)[options.sortField];
+					if (column && typeof column === 'object') {
+						q = q.orderBy(order(column as import('drizzle-orm').Column));
 					}
 				}
 
@@ -182,10 +186,10 @@ export class MediaModule {
 						metadata: schema.mediaItems.metadata
 					})
 					.from(schema.mediaItems)
-					.where(inArray(schema.mediaItems._id, fileIds));
+					.where(inArray(schema.mediaItems._id, fileIds as string[]));
 
 				const metadataMap: Record<string, MediaMetadata> = {};
-				results.forEach((r: any) => {
+				results.forEach((r) => {
 					metadataMap[r._id] = r.metadata as MediaMetadata;
 				});
 				return metadataMap;
@@ -197,17 +201,17 @@ export class MediaModule {
 				const [existing] = await this.db
 					.select({ metadata: schema.mediaItems.metadata })
 					.from(schema.mediaItems)
-					.where(eq(schema.mediaItems._id, fileId))
+					.where(eq(schema.mediaItems._id, fileId as string))
 					.limit(1);
 
-				const newMetadata = { ...(existing?.metadata || {}), ...metadata };
+				const newMetadata = { ...((existing?.metadata as Record<string, unknown>) || {}), ...metadata };
 
 				await this.db
 					.update(schema.mediaItems)
-					.set({ metadata: newMetadata as any, updatedAt: isoDateStringToDate(nowISODateString()) })
-					.where(eq(schema.mediaItems._id, fileId));
+					.set({ metadata: newMetadata, updatedAt: isoDateStringToDate(nowISODateString()) })
+					.where(eq(schema.mediaItems._id, fileId as string));
 
-				const [updated] = await this.db.select().from(schema.mediaItems).where(eq(schema.mediaItems._id, fileId)).limit(1);
+				const [updated] = await this.db.select().from(schema.mediaItems).where(eq(schema.mediaItems._id, fileId as string)).limit(1);
 
 				return utils.convertDatesToISO(updated) as unknown as MediaItem;
 			}, 'UPDATE_FILE_METADATA_FAILED');
@@ -217,31 +221,31 @@ export class MediaModule {
 			return this.core.wrap(async () => {
 				const result = await this.db
 					.update(schema.mediaItems)
-					.set({ folderId: targetFolderId || null, updatedAt: isoDateStringToDate(nowISODateString()) })
-					.where(inArray(schema.mediaItems._id, fileIds));
+					.set({ folderId: (targetFolderId || null) as string | null, updatedAt: isoDateStringToDate(nowISODateString()) })
+					.where(inArray(schema.mediaItems._id, fileIds as string[]));
 				return { movedCount: result[0].affectedRows };
 			}, 'MOVE_FILES_FAILED');
 		},
 
 		duplicate: async (fileId: DatabaseId, newName?: string): Promise<DatabaseResult<MediaItem>> => {
 			return this.core.wrap(async () => {
-				const [existing] = await this.db.select().from(schema.mediaItems).where(eq(schema.mediaItems._id, fileId)).limit(1);
+				const [existing] = await this.db.select().from(schema.mediaItems).where(eq(schema.mediaItems._id, fileId as string)).limit(1);
 
 				if (!existing) {
 					throw new Error('File not found');
 				}
 
-				const id = utils.generateId();
+				const id = utils.generateId() as string;
 				const now = nowISODateString();
 				const copy = {
 					...existing,
 					_id: id,
 					filename: newName || `${existing.filename}_copy`,
-					createdAt: now,
-					updatedAt: now
+					createdAt: isoDateStringToDate(now),
+					updatedAt: isoDateStringToDate(now)
 				};
 
-				await this.db.insert(schema.mediaItems).values(copy as any);
+				await this.db.insert(schema.mediaItems).values(copy as typeof schema.mediaItems.$inferInsert);
 
 				const [created] = await this.db.select().from(schema.mediaItems).where(eq(schema.mediaItems._id, id)).limit(1);
 
@@ -253,16 +257,16 @@ export class MediaModule {
 	folders = {
 		create: async (folder: Omit<MediaFolder, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<MediaFolder>> => {
 			return this.core.wrap(async () => {
-				const id = utils.generateId();
+				const id = utils.generateId() as string;
 				const now = nowISODateString();
 				const values = {
 					...folder,
 					_id: id,
 					type: 'folder',
-					createdAt: now,
-					updatedAt: now
+					createdAt: isoDateStringToDate(now),
+					updatedAt: isoDateStringToDate(now)
 				};
-				await this.db.insert(schema.systemVirtualFolders).values(values as any);
+				await this.db.insert(schema.systemVirtualFolders).values(values as typeof schema.systemVirtualFolders.$inferInsert);
 				const [result] = await this.db.select().from(schema.systemVirtualFolders).where(eq(schema.systemVirtualFolders._id, id)).limit(1);
 				return utils.convertDatesToISO(result) as unknown as MediaFolder;
 			}, 'CREATE_MEDIA_FOLDER_FAILED');
@@ -273,12 +277,12 @@ export class MediaModule {
 				const now = nowISODateString();
 				const values = folders.map((f) => ({
 					...f,
-					_id: utils.generateId(),
+					_id: utils.generateId() as string,
 					type: 'folder',
-					createdAt: now,
-					updatedAt: now
+					createdAt: isoDateStringToDate(now),
+					updatedAt: isoDateStringToDate(now)
 				}));
-				await this.db.insert(schema.systemVirtualFolders).values(values as any);
+				await this.db.insert(schema.systemVirtualFolders).values(values as (typeof schema.systemVirtualFolders.$inferInsert)[]);
 
 				const ids = values.map((v) => v._id);
 				const results = await this.db.select().from(schema.systemVirtualFolders).where(inArray(schema.systemVirtualFolders._id, ids));
@@ -289,13 +293,13 @@ export class MediaModule {
 
 		delete: async (folderId: DatabaseId): Promise<DatabaseResult<void>> => {
 			return this.core.wrap(async () => {
-				await this.db.delete(schema.systemVirtualFolders).where(eq(schema.systemVirtualFolders._id, folderId));
+				await this.db.delete(schema.systemVirtualFolders).where(eq(schema.systemVirtualFolders._id, folderId as string));
 			}, 'DELETE_MEDIA_FOLDER_FAILED');
 		},
 
 		deleteMany: async (folderIds: DatabaseId[]): Promise<DatabaseResult<{ deletedCount: number }>> => {
 			return this.core.wrap(async () => {
-				const result = await this.db.delete(schema.systemVirtualFolders).where(inArray(schema.systemVirtualFolders._id, folderIds));
+				const result = await this.db.delete(schema.systemVirtualFolders).where(inArray(schema.systemVirtualFolders._id, folderIds as string[]));
 				return { deletedCount: result[0].affectedRows };
 			}, 'DELETE_MANY_MEDIA_FOLDERS_FAILED');
 		},
@@ -318,8 +322,8 @@ export class MediaModule {
 			}>
 		> => {
 			return this.core.wrap(async () => {
-				const folderConditions = folderId ? [eq(schema.systemVirtualFolders.parentId, folderId)] : [eq(schema.systemVirtualFolders.parentId, '')];
-				const fileConditions = folderId ? [eq(schema.mediaItems.folderId, folderId)] : [];
+				const folderConditions = folderId ? [eq(schema.systemVirtualFolders.parentId, folderId as string)] : [eq(schema.systemVirtualFolders.parentId, '')];
+				const fileConditions = folderId ? [eq(schema.mediaItems.folderId, folderId as string)] : [];
 
 				const folders = await this.db
 					.select()
@@ -343,10 +347,10 @@ export class MediaModule {
 			return this.core.wrap(async () => {
 				await this.db
 					.update(schema.systemVirtualFolders)
-					.set({ parentId: targetParentId || null, updatedAt: isoDateStringToDate(nowISODateString()) })
-					.where(eq(schema.systemVirtualFolders._id, folderId));
+					.set({ parentId: (targetParentId || null) as string | null, updatedAt: isoDateStringToDate(nowISODateString()) })
+					.where(eq(schema.systemVirtualFolders._id, folderId as string));
 
-				const [updated] = await this.db.select().from(schema.systemVirtualFolders).where(eq(schema.systemVirtualFolders._id, folderId)).limit(1);
+				const [updated] = await this.db.select().from(schema.systemVirtualFolders).where(eq(schema.systemVirtualFolders._id, folderId as string)).limit(1);
 
 				return utils.convertDatesToISO(updated) as unknown as MediaFolder;
 			}, 'MOVE_MEDIA_FOLDER_FAILED');

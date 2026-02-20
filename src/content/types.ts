@@ -167,6 +167,7 @@ export interface FieldInstance {
 	permissions?: Record<string, Record<string, boolean>>;
 	required: boolean; // Now required (factory sets default)
 	translated: boolean; // Now required (factory sets default)
+	type?: string; // Optional field type
 	unique?: boolean;
 
 	// Functions

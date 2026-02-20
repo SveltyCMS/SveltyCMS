@@ -109,7 +109,7 @@ themeSchema.statics = {
 
 			// Execute all upserts in a single atomic database call
 			// Performance: 10 themes = 1 DB call instead of 20 (10 findOne + 10 updateOne/create)
-			const result = await this.bulkWrite(operations as any, {
+			const result = await this.bulkWrite(operations as mongoose.AnyBulkWriteOperation<Theme>[], {
 				ordered: false
 			});
 

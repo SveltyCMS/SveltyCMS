@@ -26,7 +26,7 @@
 	// Components
 	import SignIn from './components/sign-in.svelte';
 	import SignUp from './components/sign-up.svelte';
-	import Seasons from '@src/components/system/icons/seasons.svelte';
+	import Seasons from '@src/components/system/icons/Seasons.svelte';
 	import SveltyCMSLogoFull from '@src/components/system/icons/svelty-cms-logo-full.svelte';
 	import VersionCheck from '@src/components/version-check.svelte';
 
