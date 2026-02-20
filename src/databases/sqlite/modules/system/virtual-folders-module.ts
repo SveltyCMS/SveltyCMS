@@ -83,7 +83,7 @@ export class VirtualFoldersModule {
 
 	async update(folderId: DatabaseId, updateData: Partial<SystemVirtualFolder>): Promise<DatabaseResult<SystemVirtualFolder>> {
 		return this.core.wrap(async () => {
-			const { createdAt, updatedAt, ...rest } = updateData;
+			const { createdAt, ...rest } = updateData;
 			const values: any = { ...rest };
 			if (createdAt) {
 				values.createdAt = isoDateStringToDate(createdAt);

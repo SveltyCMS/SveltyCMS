@@ -29,7 +29,20 @@ export default ts.config(
 		}
 	},
 	{
-		files: ['tests/**/*.ts', 'tests/**/*.js'],
+		files: [
+			'tests/**/*.ts',
+			'tests/**/*.js',
+			'src/databases/**/*.ts',
+			'src/routes/**/*.ts',
+			'src/services/**/*.ts',
+			'src/utils/**/*.ts',
+			'src/plugins/**/*.ts',
+			'src/widgets/**/*.ts',
+			'src/hooks/**/*.ts',
+			'src/presets/**/*.ts',
+			'config/**/*.ts',
+			'vite.config.ts'
+		],
 		rules: {
 			'@typescript-eslint/no-explicit-any': 'off'
 		}

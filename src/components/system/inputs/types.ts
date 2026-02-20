@@ -84,7 +84,7 @@ export interface FloatingInputProps {
 	textColor?: string; // CSS color classes, e.g., 'text-tertiary-500 dark:text-primary-500'
 	type?: InputType;
 	value?: string;
-	[key: string]: any;
+	[key: string]: unknown;
 }
 
 export interface TogglesProps {
