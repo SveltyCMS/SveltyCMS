@@ -438,7 +438,10 @@ Implements custom virtual scrolling without external dependencies.
 										<input 
 											type="checkbox" 
 											checked={isSelected} 
-											onchange={() => toggleSelection(file)} 
+											onclick={(e) => {
+												e.stopPropagation();
+												toggleSelection(file);
+											}}
 											class="checkbox h-4 w-4 rounded-sm border-2 border-surface-400 checked:border-primary-500 checked:bg-primary-500 focus:ring-0" 
 										/>
 									</div>
