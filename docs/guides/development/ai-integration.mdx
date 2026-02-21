@@ -14,7 +14,7 @@ tags:
   - 'automation'
 ---
 
-# AI Integration & RAG Architecture (Planned)
+# AI Integration & WebMCP Support
 
 SveltyCMS 2026 is designed to integrate with a centralized **Model Context Protocol (MCP)** server to empower the built-in AI Assistant with deep project knowledge.
 
@@ -77,6 +77,7 @@ SveltyCMS leverages a lightweight Server-Sent Events (SSE) architecture to strea
 - **AI Response Event**: The `ai:response` event carries partial tokens in `payload.data.text` and a completion flag in `payload.data.done`.
 
 This ensures a responsive, "typing" experience for AI assistance without the overhead of WebSockets.
+
 ## WebMCP Support (Client-Side Agents)
 
 SveltyCMS supports **WebMCP** (Web Model Context Protocol), a standard that allows browser-based AI agents (like Chrome AI, Cursor, Windsurf, or Claude Desktop via browser connectors) to "discover" and "control" the CMS interface.
@@ -100,3 +101,8 @@ No configuration is required. The plugin is automatically initialized in the Adm
 [WebMCP] Initializing...
 [WebMCP] Tools registered successfully.
 ```
+
+## Legacy Webhooks vs. AI Integration
+
+> [!NOTE]
+> For traditional server-to-server notifications (e.g., triggering a static site rebuild), please refer to the **[HTTP Webhooks Guide](../../api/Webhooks.mdx)**. WebMCP is specifically for _active browser-based agents_ interacting with the UI.
