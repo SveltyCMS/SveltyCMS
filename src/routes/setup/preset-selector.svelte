@@ -61,12 +61,47 @@ Default value is 'blank'.
 		if (dragMoved) return;
 		selected = id;
 	}
+
+	// Update active index based on scroll position for dots
+	let visibleIndex = $state(0);
+
+	// Setup intersection observer when the component mounts
+	$effect(() => {
+		if (!scrollEl) return;
+
+		const observer = new IntersectionObserver(
+			(entries) => {
+				// Find the fully/mostly visible entry
+				entries.forEach((entry) => {
+					if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
+						// Figure out the index of this element
+						const target = entry.target as HTMLElement;
+						const index = Array.from(scrollEl?.children || []).indexOf(target);
+						if (index !== -1) {
+							visibleIndex = index;
+						}
+					}
+				});
+			},
+			{
+				root: scrollEl,
+				threshold: 0.5 // Trigger when a card is at least 50% visible
+			}
+		);
+
+		// Observe all preset cards
+		Array.from(scrollEl.children).forEach((child) => observer.observe(child));
+
+		return () => {
+			observer.disconnect();
+		};
+	});
 </script>
 
-<section class="preset-section">
+<section class="flex flex-col gap-3 overflow-hidden w-full">
 	<div class="section-header">
 		<div class="header-left">
-			<iconify-icon icon="mdi:package-variant-closed" width="22" class="icon-accent"></iconify-icon>
+			<iconify-icon icon="mdi:package-variant-closed" width="22" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 			<h3 class="section-title">Project Blueprint</h3>
 			<SystemTooltip title="Select a starting template for your CMS. This will pre-configure collections, roles, and settings.">
 				<button type="button" class="text-slate-400 hover:text-tertiary-500" aria-label="Help: Project Blueprint">
@@ -121,26 +156,22 @@ Default value is 'blank'.
 					type="button"
 					role="option"
 					aria-selected={selected === preset.id}
-					class="preset-card"
+					class="shadow-xl preset-card"
 					class:active={selected === preset.id}
 					onclick={() => select(preset.id)}
 				>
-					<!-- Badge -->
-					{#if preset.badge}
-						<span class="badge-pill">{preset.badge}</span>
-					{/if}
+					<div class="flex items-center gap-2">
+						<iconify-icon icon={preset.icon} width="22" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+						<span class="flex-1 font-bold color-inherit">{preset.title}</span>
 
-					<div class="card-row1">
-						<div class="card-icon"><iconify-icon icon={preset.icon} width="22"></iconify-icon></div>
-						<span class="card-title">{preset.title}</span>
 						{#if preset.complexity}
-							<span class="complexity {preset.complexity}"> {preset.complexity} </span>
+							<div class="absolute top-1 right-2 complexity {preset.complexity}">{preset.complexity}</div>
 						{/if}
 					</div>
 
-					<div class="card-desc">{preset.description}</div>
+					<div class="text-sm">{preset.description}</div>
 
-					<div class="card-tags">
+					<div class="flex-wrap gap-4 mt-auto">
 						{#each preset.features.slice(0, 2) as f}
 							<span class="chip">{f}</span>
 						{/each}
@@ -150,7 +181,7 @@ Default value is 'blank'.
 					</div>
 
 					{#if selected === preset.id}
-						<iconify-icon icon="mdi:check-circle" width="18" class="check-icon"></iconify-icon>
+						<iconify-icon icon="mdi:check-circle" width="28" class="check-icon"></iconify-icon>
 					{/if}
 				</button>
 			{/each}
@@ -164,7 +195,7 @@ Default value is 'blank'.
 			<button
 				type="button"
 				class="dot"
-				class:active={selected === preset.id}
+				class:active={visibleIndex === i}
 				aria-label={`Select preset ${preset.name || i + 1}`}
 				onclick={() => {
 					select(preset.id);
@@ -186,14 +217,6 @@ Default value is 'blank'.
 </section>
 
 <style>
-	.preset-section {
-		display: flex;
-		flex-direction: column;
-		gap: 12px;
-		max-width: 100%;
-		overflow-x: hidden;
-	}
-
 	.section-header {
 		display: flex;
 		align-items: center;
@@ -205,12 +228,7 @@ Default value is 'blank'.
 		gap: 9px;
 		align-items: center;
 	}
-	.icon-accent {
-		color: #10b981; /* Default emerald-500 */
-	}
-	:global(.dark) .icon-accent {
-		color: #6ee7b7; /* emerald-300 */
-	}
+
 	.section-title {
 		font-size: 1.05rem;
 		font-weight: 600;
@@ -368,27 +386,7 @@ Default value is 'blank'.
 	}
 
 	/* ── Row 1: icon + title + complexity ── */
-	.card-row1 {
-		display: flex;
-		gap: 10px;
-		align-items: center;
-		margin-bottom: 10px;
-	}
-	.card-icon {
-		display: flex;
-		flex-shrink: 0;
-		align-items: center;
-		justify-content: center;
-		width: 36px;
-		height: 36px;
-		color: #10b981;
-		background: rgba(16, 185, 129, 0.08);
-		border-radius: 8px;
-	}
-	:global(.dark) .card-icon {
-		color: #6ee7b7;
-		background: rgba(110, 231, 183, 0.1);
-	}
+
 	.card-title {
 		flex: 1;
 		font-size: 0.88rem;

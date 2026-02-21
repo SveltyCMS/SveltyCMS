@@ -33,7 +33,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 	import { toaster } from '@src/stores/store.svelte.ts';
 	// Utils
 	import { modalState } from '@utils/modal-state.svelte';
-	import { Form } from '@utils/form.svelte';
+	import { Form } from '@utils/form.svelte.ts';
 	import { addUserTokenSchema } from '@utils/form-schemas';
 	import { invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';

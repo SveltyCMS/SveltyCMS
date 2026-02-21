@@ -217,7 +217,9 @@
 				/>
 			</div>
 
-			<div class="flex flex-1 flex-col rounded-xl border border-surface-200 bg-white shadow-xl dark:text-surface-50 dark:bg-surface-800">
+			<div
+				class="flex flex-1 flex-col w-full min-w-0 rounded-xl border border-surface-200 bg-white shadow-xl dark:text-surface-50 dark:bg-surface-800"
+			>
 				<SetupCardHeader
 					currentStep={wizard.currentStep}
 					{steps}

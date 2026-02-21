@@ -269,12 +269,12 @@ Features:
 	const allTimezones = Intl.supportedValuesOf('timeZone');
 </script>
 
-<form onsubmit={(e) => e.preventDefault()} class="fade-in">
+<form onsubmit={(e) => e.preventDefault()} class="fade-in w-full min-w-0">
 	<div class="mb-6">
 		<p class="text-sm text-center text-tertiary-500 dark:text-primary-500 sm:text-base">{setup_system_intro()}</p>
 	</div>
 
-	<div class="space-y-4">
+	<div class="space-y-2">
 		{#if redisAvailable && !systemSettings.useRedis}
 			<div class="rounded-lg bg-surface-500 p-4 text-white shadow-lg animate-in fade-in slide-in-from-top-4 duration-500" role="alert">
 				<div class="flex items-start gap-4">
@@ -311,7 +311,7 @@ Features:
 		<section class="space-y-4">
 			<div class="grid grid-cols-1 gap-4 md:grid-cols-3 items-start">
 				<!-- Site Name -->
-				<div class="space-y-2">
+				<div class="flex flex-col gap-1">
 					<label for="site-name" class="mb-1 flex items-center gap-1 text-sm font-medium">
 						<iconify-icon icon="mdi:web" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 						<span class="text-black dark:text-white">{setup_system_site_name?.() || 'CMS Name'}</span>
@@ -338,7 +338,7 @@ Features:
 				</div>
 
 				<!-- Production URL -->
-				<div class="space-y-2">
+				<div class="flex flex-col gap-1">
 					<label for="host-prod" class="mb-1 flex items-center gap-1 text-sm font-medium">
 						<iconify-icon icon="mdi:earth" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 						<span class="text-black dark:text-white">{setup_system_host_prod?.() || 'Production URL'}</span>
@@ -365,7 +365,7 @@ Features:
 				</div>
 
 				<!-- Timezone (Enhanced with Autocomplete) -->
-				<div class="space-y-2">
+				<div class="flex flex-col gap-1">
 					<label for="timezone" class="mb-1 flex items-center gap-1 text-sm font-medium">
 						<iconify-icon icon="mdi:clock-outline" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 						<span class="text-black dark:text-white">{setup_system_timezone?.() || 'Timezone'}</span>
@@ -448,7 +448,7 @@ Features:
 		</section>
 
 		<!-- Languages -->
-		<section class="space-y-5 border-t border-surface-200 dark:border-white/10 pt-5">
+		<section class="space-y-5 border-t border-surface-200 dark:border-white/10 pt-2">
 			<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
 				<!-- Default System Language -->
 				<div class="space-y-2 rounded border border-surface-200 dark:border-white/5 p-4">
@@ -663,9 +663,9 @@ Features:
 		</section>
 
 		<!-- Optimization (Redis, Multi-Tenant, Demo) -->
-		<section id="redis-section" class="space-y-4 border-t border-surface-200 dark:border-white/10 pt-5">
+		<section id="redis-section" class="space-y-2 border-t border-surface-200 dark:border-white/10 pt-2">
 			<div class="rounded-lg border border-surface-200 dark:border-white/5 p-4 space-y-4">
-				<div class="flex items-center gap-3">
+				<div class="flex items-center gap-2">
 					<input
 						id="use-redis"
 						type="checkbox"
@@ -684,7 +684,7 @@ Features:
 				</div>
 
 				{#if systemSettings.useRedis}
-					<div class="grid grid-cols-1 gap-4 sm:grid-cols-3 pt-2 animate-in fade-in slide-in-from-top-2 duration-300">
+					<div class="grid grid-cols-1 gap-4 sm:grid-cols-3 animate-in fade-in slide-in-from-top-2 duration-300">
 						<div class="space-y-1.5 text-black dark:text-white">
 							<label for="redis-host" class="text-xs font-semibold text-slate-500 dark:text-white/40">Redis Host</label>
 							<input id="redis-host" bind:value={systemSettings.redisHost} type="text" placeholder="localhost" class="input text-sm py-1.5 rounded" />

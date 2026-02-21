@@ -30,7 +30,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 	const { roles, user } = page.data;
 	const isFirstUser = page.data.isFirstUser;
 
-	import { Form } from '@root/src/utils/form.svelte';
+	import { Form } from '@root/src/utils/form.svelte.ts';
 
 	// Config for the general edit form permissions
 	const modaleEditFormConfig = {

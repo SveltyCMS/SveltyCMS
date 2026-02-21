@@ -36,7 +36,7 @@
 		username
 	} from '@src/paraglide/messages';
 	import { toaster } from '@src/stores/store.svelte.ts';
-	import { Form } from '@utils/form.svelte';
+	import { Form } from '@utils/form.svelte.ts';
 	import { signUpFormSchema } from '@utils/form-schemas';
 	import { logger } from '@utils/logger';
 	import { browser } from '$app/environment';

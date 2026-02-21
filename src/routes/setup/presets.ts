@@ -5,7 +5,6 @@
  */
 
 export interface Preset {
-	badge?: string;
 	complexity?: 'simple' | 'moderate' | 'advanced';
 	description: string;
 	features: string[];
@@ -37,8 +36,7 @@ export const PRESETS: Preset[] = [
 		description: 'Classic blog setup with posts, categories, and authors.',
 		icon: 'mdi:post-outline',
 		features: ['Posts Collection', 'Categories', 'Authors', 'SEO Config'],
-		complexity: 'simple',
-		badge: 'Popular'
+		complexity: 'simple'
 	},
 	{
 		id: 'agency',

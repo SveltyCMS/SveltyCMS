@@ -136,9 +136,28 @@ export const actions: Actions = {
 			} catch (err: any) {
 				// Handle SQLite/SQL "database does not exist" for auto-creation
 				if (err.message?.includes('does not exist') || err.code === 'ER_BAD_DB_ERROR' || err.code === '3D000') {
-					if (createIfMissing) {
-						// ... existing create logic if needed, but getSetupDatabaseAdapter currently throws
-						// We'll let the user see the error and manually create for now, or improve utils.ts later
+					if (createIfMissing && dbConfig.type === 'sqlite') {
+						const { writeFileSync, mkdirSync } = await import('node:fs');
+						const { dirname } = await import('node:path');
+						const { buildDatabaseConnectionString } = await import('./utils');
+						const dbPath = buildDatabaseConnectionString(dbConfig);
+						try {
+							mkdirSync(dirname(dbPath), { recursive: true });
+							writeFileSync(dbPath, '');
+							// Retry connection now that file exists
+							const retry = await getSetupDatabaseAdapter(dbConfig);
+							const health = await retry.dbAdapter.getConnectionHealth();
+							if (health.success) {
+								await retry.dbAdapter.disconnect();
+								return {
+									success: true,
+									message: 'Database created and connected successfully! ✨',
+									latencyMs: Math.round(performance.now() - start)
+								};
+							}
+						} catch (createErr: any) {
+							return { success: false, error: 'Could not create database file: ' + createErr.message };
+						}
 					}
 					return {
 						success: false,

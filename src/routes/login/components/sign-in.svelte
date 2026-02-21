@@ -51,7 +51,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 	import { globalLoadingStore, loadingOperations } from '@src/stores/loading-store.svelte.ts';
 	// Skeleton
 	import { toaster } from '@src/stores/store.svelte.ts';
-	import { Form } from '@utils/form.svelte';
+	import { Form } from '@utils/form.svelte.ts';
 	import { forgotFormSchema, loginFormSchema, resetFormSchema } from '@utils/form-schemas';
 	import { browser } from '$app/environment';
 	import { enhance } from '$app/forms';
