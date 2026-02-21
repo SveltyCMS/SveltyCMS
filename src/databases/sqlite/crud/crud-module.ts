@@ -40,7 +40,8 @@ export class CrudModule {
 	private packData(table: Record<string, unknown>, data: Record<string, unknown>): Record<string, unknown> {
 		const result: Record<string, unknown> = {};
 		const existingData = data.data;
-		const jsonBlob: Record<string, unknown> = typeof existingData === 'string' ? JSON.parse(existingData) : { ...(existingData as Record<string, unknown>) || {} };
+		const jsonBlob: Record<string, unknown> =
+			typeof existingData === 'string' ? JSON.parse(existingData) : { ...((existingData as Record<string, unknown>) || {}) };
 
 		for (const [key, value] of Object.entries(data)) {
 			if (key === 'data') {
@@ -84,8 +85,14 @@ export class CrudModule {
 		return this.core.wrap(async () => {
 			const secureQuery = safeQuery(query, options?.tenantId);
 			const table = this.core.getTable(collection);
-			const where = this.core.mapQuery(table as unknown as Record<string, unknown>, secureQuery as Record<string, unknown>) as import('drizzle-orm').SQL | undefined;
-			const results = await this.db.select().from(table as unknown as import('drizzle-orm/sqlite-core').SQLiteTable).where(where).limit(1);
+			const where = this.core.mapQuery(table as unknown as Record<string, unknown>, secureQuery as Record<string, unknown>) as
+				| import('drizzle-orm').SQL
+				| undefined;
+			const results = await this.db
+				.select()
+				.from(table as unknown as import('drizzle-orm/sqlite-core').SQLiteTable)
+				.where(where)
+				.limit(1);
 			if (results.length === 0) {
 				return null;
 			}
@@ -107,8 +114,14 @@ export class CrudModule {
 		return this.core.wrap(async () => {
 			const secureQuery = safeQuery(query, options?.tenantId);
 			const table = this.core.getTable(collection);
-			const where = this.core.mapQuery(table as unknown as Record<string, unknown>, secureQuery as Record<string, unknown>) as import('drizzle-orm').SQL | undefined;
-			let q = this.db.select().from(table as unknown as import('drizzle-orm/sqlite-core').SQLiteTable).where(where).$dynamic();
+			const where = this.core.mapQuery(table as unknown as Record<string, unknown>, secureQuery as Record<string, unknown>) as
+				| import('drizzle-orm').SQL
+				| undefined;
+			let q = this.db
+				.select()
+				.from(table as unknown as import('drizzle-orm/sqlite-core').SQLiteTable)
+				.where(where)
+				.$dynamic();
 			if (options?.limit) {
 				q = q.limit(options.limit);
 			}
@@ -128,8 +141,13 @@ export class CrudModule {
 		return this.core.wrap(async () => {
 			const query = safeQuery({ _id: { $in: ids } } as unknown as QueryFilter<T>, options?.tenantId);
 			const table = this.core.getTable(collection);
-			const where = this.core.mapQuery(table as unknown as Record<string, unknown>, query as Record<string, unknown>) as import('drizzle-orm').SQL | undefined;
-			const results = await this.db.select().from(table as unknown as import('drizzle-orm/sqlite-core').SQLiteTable).where(where);
+			const where = this.core.mapQuery(table as unknown as Record<string, unknown>, query as Record<string, unknown>) as
+				| import('drizzle-orm').SQL
+				| undefined;
+			const results = await this.db
+				.select()
+				.from(table as unknown as import('drizzle-orm/sqlite-core').SQLiteTable)
+				.where(where);
 			return utils.convertArrayDatesToISO(results as Record<string, unknown>[]).map((row) => this.unpackData(row)) as unknown as T[];
 		}, 'CRUD_FIND_BY_IDS_FAILED');
 	}
@@ -153,7 +171,11 @@ export class CrudModule {
 
 			await this.db.insert(table as unknown as import('drizzle-orm/sqlite-core').SQLiteTable).values(packed as unknown as Record<string, unknown>);
 
-			const result = await this.db.select().from(table as unknown as import('drizzle-orm/sqlite-core').SQLiteTable).where(eq((table as unknown as { _id: import('drizzle-orm/sqlite-core').SQLiteColumn })._id, id as string)).limit(1);
+			const result = await this.db
+				.select()
+				.from(table as unknown as import('drizzle-orm/sqlite-core').SQLiteTable)
+				.where(eq((table as unknown as { _id: import('drizzle-orm/sqlite-core').SQLiteColumn })._id, id as string))
+				.limit(1);
 			const row = utils.convertDatesToISO(result[0] as Record<string, unknown>);
 			return this.unpackData(row) as unknown as T;
 		}, 'CRUD_INSERT_FAILED');
@@ -168,13 +190,22 @@ export class CrudModule {
 		return this.core.wrap(async () => {
 			const query = safeQuery({ _id: id } as unknown as QueryFilter<T>, tenantId);
 			const table = this.core.getTable(collection);
-			const where = this.core.mapQuery(table as unknown as Record<string, unknown>, query as Record<string, unknown>) as import('drizzle-orm').SQL | undefined;
+			const where = this.core.mapQuery(table as unknown as Record<string, unknown>, query as Record<string, unknown>) as
+				| import('drizzle-orm').SQL
+				| undefined;
 			const now = nowISODateString();
 			const packed = this.packData(table as unknown as Record<string, unknown>, { ...(data as unknown as Record<string, unknown>), updatedAt: now });
 
-			await this.db.update(table as unknown as import('drizzle-orm/sqlite-core').SQLiteTable).set(packed as unknown as Record<string, unknown>).where(where);
+			await this.db
+				.update(table as unknown as import('drizzle-orm/sqlite-core').SQLiteTable)
+				.set(packed as unknown as Record<string, unknown>)
+				.where(where);
 
-			const result = await this.db.select().from(table as unknown as import('drizzle-orm/sqlite-core').SQLiteTable).where(where).limit(1);
+			const result = await this.db
+				.select()
+				.from(table as unknown as import('drizzle-orm/sqlite-core').SQLiteTable)
+				.where(where)
+				.limit(1);
 			const row = utils.convertDatesToISO(result[0] as Record<string, unknown>);
 			return this.unpackData(row) as unknown as T;
 		}, 'CRUD_UPDATE_FAILED');
@@ -184,7 +215,9 @@ export class CrudModule {
 		return this.core.wrap(async () => {
 			const query = safeQuery({ _id: id } as unknown as QueryFilter<BaseEntity>, tenantId);
 			const table = this.core.getTable(collection);
-			const where = this.core.mapQuery(table as unknown as Record<string, unknown>, query as Record<string, unknown>) as import('drizzle-orm').SQL | undefined;
+			const where = this.core.mapQuery(table as unknown as Record<string, unknown>, query as Record<string, unknown>) as
+				| import('drizzle-orm').SQL
+				| undefined;
 			await this.db.delete(table as unknown as import('drizzle-orm/sqlite-core').SQLiteTable).where(where);
 		}, 'CRUD_DELETE_FAILED');
 	}
@@ -198,10 +231,21 @@ export class CrudModule {
 		return this.core.wrap(async () => {
 			const secureQuery = safeQuery(query, tenantId);
 			const table = this.core.getTable(collection);
-			const where = this.core.mapQuery(table as unknown as Record<string, unknown>, secureQuery as Record<string, unknown>) as import('drizzle-orm').SQL | undefined;
-			const existing = await this.db.select().from(table as unknown as import('drizzle-orm/sqlite-core').SQLiteTable).where(where).limit(1);
+			const where = this.core.mapQuery(table as unknown as Record<string, unknown>, secureQuery as Record<string, unknown>) as
+				| import('drizzle-orm').SQL
+				| undefined;
+			const existing = await this.db
+				.select()
+				.from(table as unknown as import('drizzle-orm/sqlite-core').SQLiteTable)
+				.where(where)
+				.limit(1);
 			if (existing.length > 0) {
-				const res = await this.update<T>(collection, (existing[0] as unknown as { _id: string })._id as unknown as DatabaseId, data as Partial<T>, tenantId);
+				const res = await this.update<T>(
+					collection,
+					(existing[0] as unknown as { _id: string })._id as unknown as DatabaseId,
+					data as Partial<T>,
+					tenantId
+				);
 				if (!res.success) {
 					throw res.error;
 				}
@@ -219,8 +263,13 @@ export class CrudModule {
 		return this.core.wrap(async () => {
 			const secureQuery = safeQuery(query, tenantId);
 			const table = this.core.getTable(collection);
-			const where = this.core.mapQuery(table as unknown as Record<string, unknown>, secureQuery as Record<string, unknown>) as import('drizzle-orm').SQL | undefined;
-			const [result] = await this.db.select({ count: count() }).from(table as any).where(where);
+			const where = this.core.mapQuery(table as unknown as Record<string, unknown>, secureQuery as Record<string, unknown>) as
+				| import('drizzle-orm').SQL
+				| undefined;
+			const [result] = await this.db
+				.select({ count: count() })
+				.from(table as any)
+				.where(where);
 			return Number((result as { count: number }).count);
 		}, 'CRUD_COUNT_FAILED');
 	}
@@ -260,7 +309,10 @@ export class CrudModule {
 			await this.db.insert(table as unknown as import('drizzle-orm/sqlite-core').SQLiteTable).values(values as unknown as Record<string, unknown>[]);
 
 			const ids = values.map((v) => v._id as string);
-			const results = await this.db.select().from(table as unknown as import('drizzle-orm/sqlite-core').SQLiteTable).where(inArray((table as unknown as { _id: import('drizzle-orm/sqlite-core').SQLiteColumn })._id, ids));
+			const results = await this.db
+				.select()
+				.from(table as unknown as import('drizzle-orm/sqlite-core').SQLiteTable)
+				.where(inArray((table as unknown as { _id: import('drizzle-orm/sqlite-core').SQLiteColumn })._id, ids));
 			return utils.convertArrayDatesToISO(results as Record<string, unknown>[]).map((row) => this.unpackData(row)) as unknown as T[];
 		}, 'CRUD_INSERT_MANY_FAILED');
 	}
@@ -274,7 +326,9 @@ export class CrudModule {
 		return this.core.wrap(async () => {
 			const secureQuery = safeQuery(query, tenantId);
 			const table = this.core.getTable(collection);
-			const where = this.core.mapQuery(table as unknown as Record<string, unknown>, secureQuery as Record<string, unknown>) as import('drizzle-orm').SQL | undefined;
+			const where = this.core.mapQuery(table as unknown as Record<string, unknown>, secureQuery as Record<string, unknown>) as
+				| import('drizzle-orm').SQL
+				| undefined;
 			const now = nowISODateString();
 			const result = await this.db
 				.update(table as unknown as import('drizzle-orm/sqlite-core').SQLiteTable)
@@ -288,7 +342,9 @@ export class CrudModule {
 		return this.core.wrap(async () => {
 			const secureQuery = safeQuery(query, tenantId);
 			const table = this.core.getTable(collection);
-			const where = this.core.mapQuery(table as unknown as Record<string, unknown>, secureQuery as Record<string, unknown>) as import('drizzle-orm').SQL | undefined;
+			const where = this.core.mapQuery(table as unknown as Record<string, unknown>, secureQuery as Record<string, unknown>) as
+				| import('drizzle-orm').SQL
+				| undefined;
 			const result = await this.db.delete(table as any).where(where);
 			return { deletedCount: (result as unknown as { changes: number }).changes };
 		}, 'CRUD_DELETE_MANY_FAILED');
@@ -321,11 +377,7 @@ export class CrudModule {
 		}, 'CRUD_UPSERT_MANY_FAILED');
 	}
 
-	async aggregate<R = unknown>(
-		_collection: string,
-		_pipeline: unknown[],
-		_tenantId?: string | null
-	): Promise<DatabaseResult<R[]>> {
+	async aggregate<R = unknown>(_collection: string, _pipeline: unknown[], _tenantId?: string | null): Promise<DatabaseResult<R[]>> {
 		return this.core.notImplemented('crud.aggregate');
 	}
 }

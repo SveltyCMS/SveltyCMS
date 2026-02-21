@@ -234,6 +234,13 @@ async function loadAdapters() {
 		return;
 	}
 
+	// Database adapters are server-side only.
+	// This guard ensures they and their heavy dependencies are tree-shaken from client builds.
+	if (!import.meta.env.SSR) {
+		logger.debug('[db] Skipping adapter load on client');
+		return;
+	}
+
 	const config = privateEnv || (await loadPrivateConfig(false));
 	if (!config?.DB_TYPE) {
 		updateServiceHealth('database', 'unhealthy', 'No DB_TYPE in config');

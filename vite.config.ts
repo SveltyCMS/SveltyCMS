@@ -592,9 +592,6 @@ export default defineConfig((): UserConfig => {
 							if (id.includes('@aws-sdk') || id.includes('aws-crt')) {
 								return 'vendor-aws';
 							}
-							if (id.includes('drizzle-orm') || id.includes('postgres') || id.includes('mysql2')) {
-								return 'vendor-db-sql';
-							}
 							if (id.includes('mapbox-gl')) {
 								return 'vendor-maps';
 							}

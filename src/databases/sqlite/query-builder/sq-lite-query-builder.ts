@@ -210,9 +210,15 @@ export class SQLiteQueryBuilder<T extends BaseEntity> implements QueryBuilder<T>
 					projection[f as string] = column;
 				}
 			});
-			q = this.db.select(projection).from(this.table as unknown as import('drizzle-orm/sqlite-core').SQLiteTable).$dynamic();
+			q = this.db
+				.select(projection)
+				.from(this.table as unknown as import('drizzle-orm/sqlite-core').SQLiteTable)
+				.$dynamic();
 		} else {
-			q = this.db.select().from(this.table as unknown as import('drizzle-orm/sqlite-core').SQLiteTable).$dynamic();
+			q = this.db
+				.select()
+				.from(this.table as unknown as import('drizzle-orm/sqlite-core').SQLiteTable)
+				.$dynamic();
 		}
 
 		if (this.conditions.length > 0) {
@@ -224,7 +230,9 @@ export class SQLiteQueryBuilder<T extends BaseEntity> implements QueryBuilder<T>
 				const order = s.direction === 'desc' ? desc : asc;
 				const fieldName = s.field as string;
 				// Resolve MongoDB-convention fields (e.g. _createdAt → createdAt)
-				const column = (this.table as unknown as Record<string, import('drizzle-orm/sqlite-core').SQLiteColumn>)[fieldName] ?? (this.table as unknown as Record<string, import('drizzle-orm/sqlite-core').SQLiteColumn>)[fieldName.replace(/^_/, '')];
+				const column =
+					(this.table as unknown as Record<string, import('drizzle-orm/sqlite-core').SQLiteColumn>)[fieldName] ??
+					(this.table as unknown as Record<string, import('drizzle-orm/sqlite-core').SQLiteColumn>)[fieldName.replace(/^_/, '')];
 				if (!column) {
 					throw new Error(`Unknown sort field: ${fieldName}`);
 				}

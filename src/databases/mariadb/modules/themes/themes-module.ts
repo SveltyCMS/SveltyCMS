@@ -92,7 +92,10 @@ export class ThemesModule {
 				})
 				.where(eq(schema.themes._id, themeId as string));
 
-			const [updated] = await this.db.select().from(schema.themes).where(eq(schema.themes._id, themeId as string));
+			const [updated] = await this.db
+				.select()
+				.from(schema.themes)
+				.where(eq(schema.themes._id, themeId as string));
 			return utils.convertDatesToISO(updated) as unknown as Theme;
 		}, 'UPDATE_THEME_FAILED');
 	}

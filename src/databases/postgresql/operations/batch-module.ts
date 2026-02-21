@@ -28,16 +28,28 @@ export class BatchModule {
 						res = await this.core.crud.insert(op.collection, op.data as Omit<T & BaseEntity, '_id' | 'createdAt' | 'updatedAt'>);
 						break;
 					case 'update':
-						res = await this.core.crud.update(op.collection, op.id as DatabaseId, op.data as Partial<Omit<T & BaseEntity, 'createdAt' | 'updatedAt'>>);
+						res = await this.core.crud.update(
+							op.collection,
+							op.id as DatabaseId,
+							op.data as Partial<Omit<T & BaseEntity, 'createdAt' | 'updatedAt'>>
+						);
 						break;
 					case 'delete':
-						res = await this.core.crud.delete(op.collection, op.id as DatabaseId) as unknown as DatabaseResult<void>;
+						res = (await this.core.crud.delete(op.collection, op.id as DatabaseId)) as unknown as DatabaseResult<void>;
 						break;
 					case 'upsert':
-						res = await this.core.crud.upsert(op.collection, op.query || {}, op.data as Omit<T & BaseEntity, '_id' | 'createdAt' | 'updatedAt'>) as unknown as DatabaseResult<T>;
+						res = (await this.core.crud.upsert(
+							op.collection,
+							op.query || {},
+							op.data as Omit<T & BaseEntity, '_id' | 'createdAt' | 'updatedAt'>
+						)) as unknown as DatabaseResult<T>;
 						break;
 					default:
-						res = { success: false, message: `Unknown operation: ${op.operation}`, error: { code: 'UNKNOWN_OPERATION', message: `Unknown operation: ${op.operation}` } };
+						res = {
+							success: false,
+							message: `Unknown operation: ${op.operation}`,
+							error: { code: 'UNKNOWN_OPERATION', message: `Unknown operation: ${op.operation}` }
+						};
 				}
 				results.push(res as DatabaseResult<T>);
 			}
@@ -73,7 +85,10 @@ export class BatchModule {
 	async bulkDelete(collection: string, ids: DatabaseId[]): Promise<DatabaseResult<{ deletedCount: number }>> {
 		return this.core.wrap(async () => {
 			const table = this.core.getTable(collection);
-			const results = await this.db.delete(table as unknown as import('drizzle-orm/pg-core').PgTable).where(inArray((table as unknown as { _id: import('drizzle-orm/pg-core').PgColumn })._id, ids as string[])).returning();
+			const results = await this.db
+				.delete(table as unknown as import('drizzle-orm/pg-core').PgTable)
+				.where(inArray((table as unknown as { _id: import('drizzle-orm/pg-core').PgColumn })._id, ids as string[]))
+				.returning();
 			return { deletedCount: results.length };
 		}, 'BULK_DELETE_FAILED');
 	}

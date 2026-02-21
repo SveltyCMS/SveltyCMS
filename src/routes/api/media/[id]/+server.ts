@@ -13,7 +13,7 @@
  */
 
 import { MediaService } from '@src/utils/media/media-service.server';
-import { error, json } from '@sveltejs/kit';
+import { error, json, type RequestHandler } from '@sveltejs/kit';
 import { logger } from '@utils/logger.server';
 
 async function getDbAdapter() {
@@ -21,7 +21,7 @@ async function getDbAdapter() {
 	return dbAdapter;
 }
 
-export async function GET({ params, locals }) {
+export const GET: RequestHandler = async ({ params, locals }) => {
 	const { id } = params;
 
 	const { user, roles } = locals;
@@ -61,9 +61,9 @@ export async function GET({ params, locals }) {
 
 		throw error(500, 'Internal Server Error');
 	}
-}
+};
 
-export async function PATCH({ params, request, locals }) {
+export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 	const { id } = params;
 
 	if (!id) {
@@ -118,4 +118,4 @@ export async function PATCH({ params, request, locals }) {
 		}
 		throw error(500, 'Internal Server Error');
 	}
-}
+};

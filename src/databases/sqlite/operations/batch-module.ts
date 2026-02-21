@@ -60,7 +60,11 @@ export class BatchModule {
 							if (!(op.query && op.data)) {
 								throw new Error('Query and data required for upsert operation');
 							}
-							res = await this.crud.upsert(op.collection, op.query as import('../../db-interface').QueryFilter<T & BaseEntity>, op.data as Omit<T & BaseEntity, '_id' | 'createdAt' | 'updatedAt'>);
+							res = await this.crud.upsert(
+								op.collection,
+								op.query as import('../../db-interface').QueryFilter<T & BaseEntity>,
+								op.data as Omit<T & BaseEntity, '_id' | 'createdAt' | 'updatedAt'>
+							);
 							break;
 						default:
 							throw new Error(`Unsupported batch operation: ${op.operation}`);

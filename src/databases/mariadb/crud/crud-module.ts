@@ -40,7 +40,11 @@ export class CrudModule {
 		return this.core.wrap(async () => {
 			const table = this.core.getTable(collection);
 			const where = this.core.mapQuery(table, query as Record<string, unknown>) as import('drizzle-orm').SQL | undefined;
-			const results = await this.db.select().from(table as unknown as import('drizzle-orm/mysql-core').MySqlTable).where(where).limit(1);
+			const results = await this.db
+				.select()
+				.from(table as unknown as import('drizzle-orm/mysql-core').MySqlTable)
+				.where(where)
+				.limit(1);
 			if (results.length === 0) {
 				return null;
 			}
@@ -56,7 +60,11 @@ export class CrudModule {
 		return this.core.wrap(async () => {
 			const table = this.core.getTable(collection);
 			const where = this.core.mapQuery(table, query as Record<string, unknown>) as import('drizzle-orm').SQL | undefined;
-			let q = this.db.select().from(table as unknown as import('drizzle-orm/mysql-core').MySqlTable).where(where).$dynamic();
+			let q = this.db
+				.select()
+				.from(table as unknown as import('drizzle-orm/mysql-core').MySqlTable)
+				.where(where)
+				.$dynamic();
 			if (options?.limit) {
 				q = q.limit(options.limit);
 			}
@@ -71,7 +79,10 @@ export class CrudModule {
 	async findByIds<T extends BaseEntity>(collection: string, ids: DatabaseId[], _options?: { fields?: (keyof T)[] }): Promise<DatabaseResult<T[]>> {
 		return this.core.wrap(async () => {
 			const table = this.core.getTable(collection);
-			const results = await this.db.select().from(table as unknown as import('drizzle-orm/mysql-core').MySqlTable).where(inArray((table as unknown as { _id: import('drizzle-orm/mysql-core').MySqlColumn })._id, ids as string[]));
+			const results = await this.db
+				.select()
+				.from(table as unknown as import('drizzle-orm/mysql-core').MySqlTable)
+				.where(inArray((table as unknown as { _id: import('drizzle-orm/mysql-core').MySqlColumn })._id, ids as string[]));
 			return utils.convertArrayDatesToISO(results) as T[];
 		}, 'CRUD_FIND_BY_IDS_FAILED');
 	}
@@ -88,7 +99,11 @@ export class CrudModule {
 				updatedAt: now
 			};
 			await this.db.insert(table as unknown as import('drizzle-orm/mysql-core').MySqlTable).values(values as unknown as Record<string, unknown>);
-			const result = await this.db.select().from(table as unknown as import('drizzle-orm/mysql-core').MySqlTable).where(eq((table as unknown as { _id: import('drizzle-orm/mysql-core').MySqlColumn })._id, id as string)).limit(1);
+			const result = await this.db
+				.select()
+				.from(table as unknown as import('drizzle-orm/mysql-core').MySqlTable)
+				.where(eq((table as unknown as { _id: import('drizzle-orm/mysql-core').MySqlColumn })._id, id as string))
+				.limit(1);
 			return utils.convertDatesToISO(result[0] as Record<string, unknown>) as T;
 		}, 'CRUD_INSERT_FAILED');
 	}
@@ -105,7 +120,11 @@ export class CrudModule {
 				.update(table as unknown as import('drizzle-orm/mysql-core').MySqlTable)
 				.set({ ...data, updatedAt: now } as unknown as Record<string, unknown>)
 				.where(eq((table as unknown as { _id: import('drizzle-orm/mysql-core').MySqlColumn })._id, id as string));
-			const result = await this.db.select().from(table as unknown as import('drizzle-orm/mysql-core').MySqlTable).where(eq((table as unknown as { _id: import('drizzle-orm/mysql-core').MySqlColumn })._id, id as string)).limit(1);
+			const result = await this.db
+				.select()
+				.from(table as unknown as import('drizzle-orm/mysql-core').MySqlTable)
+				.where(eq((table as unknown as { _id: import('drizzle-orm/mysql-core').MySqlColumn })._id, id as string))
+				.limit(1);
 			return utils.convertDatesToISO(result[0] as Record<string, unknown>) as T;
 		}, 'CRUD_UPDATE_FAILED');
 	}
@@ -113,7 +132,9 @@ export class CrudModule {
 	async delete(collection: string, id: DatabaseId): Promise<DatabaseResult<void>> {
 		return this.core.wrap(async () => {
 			const table = this.core.getTable(collection);
-			await this.db.delete(table as unknown as import('drizzle-orm/mysql-core').MySqlTable).where(eq((table as unknown as { _id: import('drizzle-orm/mysql-core').MySqlColumn })._id, id as string));
+			await this.db
+				.delete(table as unknown as import('drizzle-orm/mysql-core').MySqlTable)
+				.where(eq((table as unknown as { _id: import('drizzle-orm/mysql-core').MySqlColumn })._id, id as string));
 		}, 'CRUD_DELETE_FAILED');
 	}
 
@@ -125,7 +146,11 @@ export class CrudModule {
 		return this.core.wrap(async () => {
 			const table = this.core.getTable(collection);
 			const where = this.core.mapQuery(table, query as Record<string, unknown>) as import('drizzle-orm').SQL | undefined;
-			const existing = await this.db.select().from(table as unknown as import('drizzle-orm/mysql-core').MySqlTable).where(where).limit(1);
+			const existing = await this.db
+				.select()
+				.from(table as unknown as import('drizzle-orm/mysql-core').MySqlTable)
+				.where(where)
+				.limit(1);
 			if (existing.length > 0) {
 				const res = await this.update<T>(collection, (existing[0] as unknown as { _id: string })._id as unknown as DatabaseId, data as Partial<T>);
 				if (!res.success) {
@@ -145,7 +170,10 @@ export class CrudModule {
 		return this.core.wrap(async () => {
 			const table = this.core.getTable(collection);
 			const where = this.core.mapQuery(table, query as Record<string, unknown>) as import('drizzle-orm').SQL | undefined;
-			const [result] = await this.db.select({ count: count() }).from(table as unknown as import('drizzle-orm/mysql-core').MySqlTable).where(where);
+			const [result] = await this.db
+				.select({ count: count() })
+				.from(table as unknown as import('drizzle-orm/mysql-core').MySqlTable)
+				.where(where);
 			return Number((result as unknown as { count: number }).count);
 		}, 'CRUD_COUNT_FAILED');
 	}
@@ -175,7 +203,10 @@ export class CrudModule {
 			}));
 			await this.db.insert(table as unknown as import('drizzle-orm/mysql-core').MySqlTable).values(values as unknown as Record<string, unknown>[]);
 			const ids = values.map((v) => v._id as string);
-			const results = await this.db.select().from(table as unknown as import('drizzle-orm/mysql-core').MySqlTable).where(inArray((table as unknown as { _id: import('drizzle-orm/mysql-core').MySqlColumn })._id, ids));
+			const results = await this.db
+				.select()
+				.from(table as unknown as import('drizzle-orm/mysql-core').MySqlTable)
+				.where(inArray((table as unknown as { _id: import('drizzle-orm/mysql-core').MySqlColumn })._id, ids));
 			return utils.convertArrayDatesToISO(results) as T[];
 		}, 'CRUD_INSERT_MANY_FAILED');
 	}

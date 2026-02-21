@@ -82,13 +82,19 @@ export class WidgetsModule {
 
 	async activate(widgetId: DatabaseId): Promise<DatabaseResult<void>> {
 		return this.core.wrap(async () => {
-			await this.db.update(schema.widgets).set({ isActive: true, updatedAt: isoDateStringToDate(nowISODateString()) }).where(eq(schema.widgets._id, widgetId as string));
+			await this.db
+				.update(schema.widgets)
+				.set({ isActive: true, updatedAt: isoDateStringToDate(nowISODateString()) })
+				.where(eq(schema.widgets._id, widgetId as string));
 		}, 'ACTIVATE_WIDGET_FAILED');
 	}
 
 	async deactivate(widgetId: DatabaseId): Promise<DatabaseResult<void>> {
 		return this.core.wrap(async () => {
-			await this.db.update(schema.widgets).set({ isActive: false, updatedAt: isoDateStringToDate(nowISODateString()) }).where(eq(schema.widgets._id, widgetId as string));
+			await this.db
+				.update(schema.widgets)
+				.set({ isActive: false, updatedAt: isoDateStringToDate(nowISODateString()) })
+				.where(eq(schema.widgets._id, widgetId as string));
 		}, 'DEACTIVATE_WIDGET_FAILED');
 	}
 
@@ -98,7 +104,11 @@ export class WidgetsModule {
 				.update(schema.widgets)
 				.set({ ...(widget as Record<string, unknown>), updatedAt: isoDateStringToDate(nowISODateString()) })
 				.where(eq(schema.widgets._id, widgetId as string));
-			const [updated] = await this.db.select().from(schema.widgets).where(eq(schema.widgets._id, widgetId as string)).limit(1);
+			const [updated] = await this.db
+				.select()
+				.from(schema.widgets)
+				.where(eq(schema.widgets._id, widgetId as string))
+				.limit(1);
 			return utils.convertDatesToISO(updated) as unknown as Widget;
 		}, 'UPDATE_WIDGET_FAILED');
 	}

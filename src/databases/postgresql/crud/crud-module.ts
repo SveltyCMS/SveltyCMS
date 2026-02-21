@@ -40,7 +40,11 @@ export class CrudModule {
 		return this.core.wrap(async () => {
 			const table = this.core.getTable(collection);
 			const where = this.core.mapQuery(table, query as Record<string, unknown>) as import('drizzle-orm').SQL | undefined;
-			const results = await this.db.select().from(table as unknown as import('drizzle-orm/pg-core').PgTable).where(where).limit(1);
+			const results = await this.db
+				.select()
+				.from(table as unknown as import('drizzle-orm/pg-core').PgTable)
+				.where(where)
+				.limit(1);
 			if (results.length === 0) {
 				return null;
 			}
@@ -56,7 +60,11 @@ export class CrudModule {
 		return this.core.wrap(async () => {
 			const table = this.core.getTable(collection);
 			const where = this.core.mapQuery(table, query as Record<string, unknown>) as import('drizzle-orm').SQL | undefined;
-			let q = this.db.select().from(table as unknown as import('drizzle-orm/pg-core').PgTable).where(where).$dynamic();
+			let q = this.db
+				.select()
+				.from(table as unknown as import('drizzle-orm/pg-core').PgTable)
+				.where(where)
+				.$dynamic();
 			if (options?.limit) {
 				q = q.limit(options.limit);
 			}
@@ -71,7 +79,10 @@ export class CrudModule {
 	async findByIds<T extends BaseEntity>(collection: string, ids: DatabaseId[], _options?: { fields?: (keyof T)[] }): Promise<DatabaseResult<T[]>> {
 		return this.core.wrap(async () => {
 			const table = this.core.getTable(collection);
-			const results = await this.db.select().from(table as unknown as import('drizzle-orm/pg-core').PgTable).where(inArray((table as unknown as { _id: import('drizzle-orm/pg-core').PgColumn })._id, ids as string[]));
+			const results = await this.db
+				.select()
+				.from(table as unknown as import('drizzle-orm/pg-core').PgTable)
+				.where(inArray((table as unknown as { _id: import('drizzle-orm/pg-core').PgColumn })._id, ids as string[]));
 			return utils.convertArrayDatesToISO(results) as T[];
 		}, 'CRUD_FIND_BY_IDS_FAILED');
 	}
@@ -87,7 +98,10 @@ export class CrudModule {
 				createdAt: now,
 				updatedAt: now
 			};
-			const [result] = await this.db.insert(table as unknown as import('drizzle-orm/pg-core').PgTable).values(values as unknown as Record<string, unknown>).returning();
+			const [result] = await this.db
+				.insert(table as unknown as import('drizzle-orm/pg-core').PgTable)
+				.values(values as unknown as Record<string, unknown>)
+				.returning();
 			return utils.convertDatesToISO(result as Record<string, unknown>) as T;
 		}, 'CRUD_INSERT_FAILED');
 	}
@@ -112,7 +126,9 @@ export class CrudModule {
 	async delete(collection: string, id: DatabaseId): Promise<DatabaseResult<void>> {
 		return this.core.wrap(async () => {
 			const table = this.core.getTable(collection);
-			await this.db.delete(table as unknown as import('drizzle-orm/pg-core').PgTable).where(eq((table as unknown as { _id: import('drizzle-orm/pg-core').PgColumn })._id, id as string));
+			await this.db
+				.delete(table as unknown as import('drizzle-orm/pg-core').PgTable)
+				.where(eq((table as unknown as { _id: import('drizzle-orm/pg-core').PgColumn })._id, id as string));
 		}, 'CRUD_DELETE_FAILED');
 	}
 
@@ -124,7 +140,11 @@ export class CrudModule {
 		return this.core.wrap(async () => {
 			const table = this.core.getTable(collection);
 			const where = this.core.mapQuery(table, query as Record<string, unknown>) as import('drizzle-orm').SQL | undefined;
-			const existing = await this.db.select().from(table as unknown as import('drizzle-orm/pg-core').PgTable).where(where).limit(1);
+			const existing = await this.db
+				.select()
+				.from(table as unknown as import('drizzle-orm/pg-core').PgTable)
+				.where(where)
+				.limit(1);
 			if (existing.length > 0) {
 				const res = await this.update<T>(collection, (existing[0] as unknown as { _id: string })._id as unknown as DatabaseId, data as Partial<T>);
 				if (!res.success) {
@@ -144,7 +164,10 @@ export class CrudModule {
 		return this.core.wrap(async () => {
 			const table = this.core.getTable(collection);
 			const where = this.core.mapQuery(table, query as Record<string, unknown>) as import('drizzle-orm').SQL | undefined;
-			const [result] = await this.db.select({ count: count() }).from(table as unknown as import('drizzle-orm/pg-core').PgTable).where(where);
+			const [result] = await this.db
+				.select({ count: count() })
+				.from(table as unknown as import('drizzle-orm/pg-core').PgTable)
+				.where(where);
 			return Number((result as { count: number }).count);
 		}, 'CRUD_COUNT_FAILED');
 	}
@@ -172,7 +195,10 @@ export class CrudModule {
 				createdAt: now,
 				updatedAt: now
 			}));
-			const results = await this.db.insert(table as unknown as import('drizzle-orm/pg-core').PgTable).values(values as unknown as Record<string, unknown>[]).returning();
+			const results = await this.db
+				.insert(table as unknown as import('drizzle-orm/pg-core').PgTable)
+				.values(values as unknown as Record<string, unknown>[])
+				.returning();
 			return utils.convertArrayDatesToISO(results) as unknown as T[];
 		}, 'CRUD_INSERT_MANY_FAILED');
 	}
@@ -199,7 +225,10 @@ export class CrudModule {
 		return this.core.wrap(async () => {
 			const table = this.core.getTable(collection);
 			const where = this.core.mapQuery(table, query as Record<string, unknown>) as import('drizzle-orm').SQL | undefined;
-			const results = await this.db.delete(table as unknown as import('drizzle-orm/pg-core').PgTable).where(where).returning();
+			const results = await this.db
+				.delete(table as unknown as import('drizzle-orm/pg-core').PgTable)
+				.where(where)
+				.returning();
 			return { deletedCount: results.length };
 		}, 'CRUD_DELETE_MANY_FAILED');
 	}

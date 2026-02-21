@@ -104,7 +104,10 @@ export class MongoMediaMethods {
 
 			updateData.updatedAt = new Date();
 
-			const result = await this.mediaModel.findByIdAndUpdate(fileId as string, { $set: updateData }, { returnDocument: 'after' }).lean().exec();
+			const result = await this.mediaModel
+				.findByIdAndUpdate(fileId as string, { $set: updateData }, { returnDocument: 'after' })
+				.lean()
+				.exec();
 
 			// Invalidate media caches
 			await invalidateCategoryCache(CacheCategory.MEDIA);
@@ -122,7 +125,10 @@ export class MongoMediaMethods {
 	// Moves multiple files to a different folder
 	async move(fileIds: DatabaseId[], targetFolderId?: DatabaseId): Promise<DatabaseResult<{ movedCount: number }>> {
 		try {
-			const result = await this.mediaModel.updateMany({ _id: { $in: fileIds } as unknown as QueryFilter<IMedia>['_id'] }, { $set: { folderId: targetFolderId as string, updatedAt: new Date() } });
+			const result = await this.mediaModel.updateMany(
+				{ _id: { $in: fileIds } as unknown as QueryFilter<IMedia>['_id'] },
+				{ $set: { folderId: targetFolderId as string, updatedAt: new Date() } }
+			);
 
 			// Invalidate media caches
 			await invalidateCategoryCache(CacheCategory.MEDIA);

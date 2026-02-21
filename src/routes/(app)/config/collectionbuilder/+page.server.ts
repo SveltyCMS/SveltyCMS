@@ -18,7 +18,7 @@ import { contentManager } from '@root/src/content/content-manager';
 import { hasPermissionWithRoles } from '@src/databases/auth/permissions';
 import { error, fail, redirect } from '@sveltejs/kit';
 import { logger } from '@utils/logger.server';
-import type { PageServerLoad } from './$types';
+import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	try {
@@ -88,7 +88,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	}
 };
 
-export const actions = {
+export const actions: Actions = {
 	deleteCollections: async ({ request }) => {
 		const formData = await request.formData();
 		const ids = JSON.parse(formData.get('ids') as string);

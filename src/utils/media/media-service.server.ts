@@ -311,34 +311,33 @@ export class MediaService {
 			let height: number | undefined;
 			let thumbnailBuffer: Buffer | null = null;
 
-						if (isImage && !mimeType.includes('svg')) {
-							try {
-								advancedMetadata = await mediaProcessingService.getMetadata(buffer);
-								width = advancedMetadata['width'] as number | undefined;
-								height = advancedMetadata['height'] as number | undefined;
-							} catch (sharpError) {
-								logger.error('Failed to extract deep metadata', {
-									fileName: file.name,
-									error: sharpError
-								});
-							}
-						} else if (isVideo) {
-							try {
-								const dimensions = await this.getVideoDimensions(buffer);
-								width = dimensions.width;
-								height = dimensions.height;
-								advancedMetadata = { width, height };
-			
-								// Generate a real thumbnail image from the video
-								thumbnailBuffer = await this.captureVideoThumbnail(buffer);
-							} catch (vError) {
-								logger.error('Video processing failed', {
-									fileName: file.name,
-									error: vError
-								});
-							}
-						}
-			 else if (mimeType === 'application/pdf') {
+			if (isImage && !mimeType.includes('svg')) {
+				try {
+					advancedMetadata = await mediaProcessingService.getMetadata(buffer);
+					width = advancedMetadata['width'] as number | undefined;
+					height = advancedMetadata['height'] as number | undefined;
+				} catch (sharpError) {
+					logger.error('Failed to extract deep metadata', {
+						fileName: file.name,
+						error: sharpError
+					});
+				}
+			} else if (isVideo) {
+				try {
+					const dimensions = await this.getVideoDimensions(buffer);
+					width = dimensions.width;
+					height = dimensions.height;
+					advancedMetadata = { width, height };
+
+					// Generate a real thumbnail image from the video
+					thumbnailBuffer = await this.captureVideoThumbnail(buffer);
+				} catch (vError) {
+					logger.error('Video processing failed', {
+						fileName: file.name,
+						error: vError
+					});
+				}
+			} else if (mimeType === 'application/pdf') {
 				try {
 					// Generate a thumbnail image from the first page of the PDF
 					thumbnailBuffer = await this.generatePdfThumbnail(buffer);

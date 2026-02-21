@@ -37,8 +37,8 @@ export class SeoAnalyzer {
 		let previous: string;
 		do {
 			previous = input;
-			// Remove <script>...</script> blocks (with any whitespace/attributes)
-			input = input.replace(/<script[\s\S]*?>[\s\S]*?<\/script\s*>/gi, '');
+			// Remove <script>...</script> blocks (with any attributes and malformed end tags)
+			input = input.replace(/<script[\s\S]*?>[\s\S]*?<\/script[^>]*>/gi, '');
 			// Remove all other HTML tags
 			input = input.replace(/<[^>]*>/gi, '');
 		} while (input !== previous);

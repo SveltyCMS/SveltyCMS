@@ -184,7 +184,11 @@ export class MediaModule {
 					.set({ metadata: newMetadata, updatedAt: isoDateStringToDate(nowISODateString()) })
 					.where(eq(schema.mediaItems._id, fileId as string));
 
-				const [updated] = await this.db.select().from(schema.mediaItems).where(eq(schema.mediaItems._id, fileId as string)).limit(1);
+				const [updated] = await this.db
+					.select()
+					.from(schema.mediaItems)
+					.where(eq(schema.mediaItems._id, fileId as string))
+					.limit(1);
 
 				return utils.convertDatesToISO(updated as Record<string, unknown>) as unknown as MediaItem;
 			}, 'UPDATE_FILE_METADATA_FAILED');
@@ -202,7 +206,11 @@ export class MediaModule {
 
 		duplicate: async (fileId: DatabaseId, newName?: string): Promise<DatabaseResult<MediaItem>> => {
 			return this.core.wrap(async () => {
-				const [existing] = await this.db.select().from(schema.mediaItems).where(eq(schema.mediaItems._id, fileId as string)).limit(1);
+				const [existing] = await this.db
+					.select()
+					.from(schema.mediaItems)
+					.where(eq(schema.mediaItems._id, fileId as string))
+					.limit(1);
 
 				if (!existing) {
 					throw new Error('File not found');
@@ -295,7 +303,9 @@ export class MediaModule {
 			}>
 		> => {
 			return this.core.wrap(async () => {
-				const folderConditions = folderId ? [eq(schema.systemVirtualFolders.parentId, folderId as string)] : [eq(schema.systemVirtualFolders.parentId, '')];
+				const folderConditions = folderId
+					? [eq(schema.systemVirtualFolders.parentId, folderId as string)]
+					: [eq(schema.systemVirtualFolders.parentId, '')];
 				const fileConditions = folderId ? [eq(schema.mediaItems.folderId, folderId as string)] : [];
 
 				const folders = await this.db
@@ -323,7 +333,11 @@ export class MediaModule {
 					.set({ parentId: (targetParentId || null) as string | null, updatedAt: isoDateStringToDate(nowISODateString()) })
 					.where(eq(schema.systemVirtualFolders._id, folderId as string));
 
-				const [updated] = await this.db.select().from(schema.systemVirtualFolders).where(eq(schema.systemVirtualFolders._id, folderId as string)).limit(1);
+				const [updated] = await this.db
+					.select()
+					.from(schema.systemVirtualFolders)
+					.where(eq(schema.systemVirtualFolders._id, folderId as string))
+					.limit(1);
 
 				return utils.convertDatesToISO(updated as Record<string, unknown>) as unknown as MediaFolder;
 			}, 'MOVE_MEDIA_FOLDER_FAILED');

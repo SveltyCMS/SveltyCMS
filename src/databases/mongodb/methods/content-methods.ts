@@ -290,7 +290,7 @@ export class MongoContentMethods {
 			const modelWithReorder = this.nodesRepo.model as Model<ContentNode> & {
 				reorderStructure(items: unknown[]): Promise<DatabaseResult<void>>;
 			};
-			
+
 			const result = await modelWithReorder.reorderStructure(items);
 			if (!result.success) {
 				return {
@@ -421,7 +421,10 @@ export class MongoContentMethods {
 			return { success: true, data: { modifiedCount: 0 } };
 		}
 		try {
-			const result = await this.draftsRepo.model.updateMany({ _id: { $in: draftIds } as MongoQueryFilter<ContentDraft> }, { $set: { status: 'published', publishedAt: new Date().toISOString() as unknown as ISODateString } });
+			const result = await this.draftsRepo.model.updateMany(
+				{ _id: { $in: draftIds } as MongoQueryFilter<ContentDraft> },
+				{ $set: { status: 'published', publishedAt: new Date().toISOString() as unknown as ISODateString } }
+			);
 			return { success: true, data: { modifiedCount: result.modifiedCount } };
 		} catch (error) {
 			return {
@@ -437,7 +440,7 @@ export class MongoContentMethods {
 	// ============================================================
 
 	async createRevision(revision: Omit<ContentRevision, '_id' | 'createdAt'>): Promise<DatabaseResult<ContentRevision>> {
-		return this.revisionsRepo.insert(revision as Omit<ContentRevision, "_id" | "createdAt" | "updatedAt">);
+		return this.revisionsRepo.insert(revision as Omit<ContentRevision, '_id' | 'createdAt' | 'updatedAt'>);
 	}
 
 	async getRevisionHistory(contentId: DatabaseId, options?: PaginationOptions): Promise<DatabaseResult<PaginatedResult<ContentRevision>>> {

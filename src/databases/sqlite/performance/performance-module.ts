@@ -31,7 +31,9 @@ export class PerformanceModule {
 		return this.core.notImplemented('performance.enableProfiling');
 	}
 
-	async getSlowQueries(_limit?: number): Promise<DatabaseResult<Array<{ query: string; duration: number; timestamp: import('../../db-interface').ISODateString }>>> {
+	async getSlowQueries(
+		_limit?: number
+	): Promise<DatabaseResult<Array<{ query: string; duration: number; timestamp: import('../../db-interface').ISODateString }>>> {
 		return this.core.notImplemented('performance.getSlowQueries');
 	}
 }

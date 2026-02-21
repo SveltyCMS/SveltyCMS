@@ -38,7 +38,10 @@ export class ThemesModule {
 	async setDefault(themeId: DatabaseId): Promise<DatabaseResult<void>> {
 		return this.core.wrap(async () => {
 			await this.db.update(schema.themes).set({ isDefault: false });
-			await this.db.update(schema.themes).set({ isDefault: true }).where(eq(schema.themes._id, themeId as string));
+			await this.db
+				.update(schema.themes)
+				.set({ isDefault: true })
+				.where(eq(schema.themes._id, themeId as string));
 		}, 'SET_DEFAULT_THEME_FAILED');
 	}
 
@@ -98,7 +101,10 @@ export class ThemesModule {
 			createdAt: t.createdAt ? new Date(t.createdAt) : now,
 			updatedAt: t.updatedAt ? new Date(t.updatedAt) : now
 		}));
-		await this.db.insert(schema.themes).values(values as (typeof schema.themes.$inferInsert)[]).onConflictDoNothing();
+		await this.db
+			.insert(schema.themes)
+			.values(values as (typeof schema.themes.$inferInsert)[])
+			.onConflictDoNothing();
 	}
 
 	async ensure(theme: Omit<Theme, '_id' | 'createdAt' | 'updatedAt'>): Promise<Theme> {

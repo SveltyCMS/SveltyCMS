@@ -9,6 +9,9 @@ on:
     paths-ignore: ['**/*.md', '**/*.mdx', 'docs/**']
   workflow_dispatch: {}
 
+permissions:
+  contents: read
+
 jobs:
   # security:
   #   name: 🛡️ Security (CodeQL)
@@ -39,6 +42,8 @@ jobs:
         run: bun install --frozen-lockfile
       - name: Sync SvelteKit
         run: bun x svelte-kit sync
+      - name: Compile Paraglide
+        run: bun run paraglide
       - name: Run Linter
         run: bun run lint
       - name: Run Unit Tests
@@ -54,6 +59,8 @@ jobs:
         run: bun install --frozen-lockfile
       - name: Sync SvelteKit
         run: bun run check
+      - name: Compile Paraglide
+        run: bun run paraglide
       - name: Build
         run: bun run build
       - name: Upload Artifact

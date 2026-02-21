@@ -152,12 +152,15 @@ export class ContentModule {
 				const id = (node._id || utils.generateId()) as string;
 				const now = isoDateStringToDate(nowISODateString());
 				const sanitized = this.pickValidColumns(node);
-				const [result] = await this.db.insert(schema.contentNodes).values({
-					...sanitized,
-					_id: id,
-					createdAt: now,
-					updatedAt: now
-				} as typeof schema.contentNodes.$inferInsert).returning();
+				const [result] = await this.db
+					.insert(schema.contentNodes)
+					.values({
+						...sanitized,
+						_id: id,
+						createdAt: now,
+						updatedAt: now
+					} as typeof schema.contentNodes.$inferInsert)
+					.returning();
 				return utils.convertDatesToISO(result) as unknown as ContentNode;
 			}, 'CREATE_CONTENT_NODE_FAILED');
 		},
@@ -205,7 +208,7 @@ export class ContentModule {
 						...(sanitizedWithoutDates as Record<string, unknown>),
 						_id: id,
 						path: update.path,
-						nodeType: sanitizedWithoutDates.nodeType as string || update.changes.nodeType || 'collection',
+						nodeType: (sanitizedWithoutDates.nodeType as string) || update.changes.nodeType || 'collection',
 						publishedAt: (publishedAt ? new Date(publishedAt as unknown as string | number | Date) : null) as Date | null,
 						createdAt: now,
 						updatedAt: now
@@ -249,7 +252,11 @@ export class ContentModule {
 			return this.core.wrap(async () => {
 				const results: ContentNode[] = [];
 				for (const update of nodeUpdates) {
-					const [res] = await this.db.update(schema.contentNodes).set({ order: update.newOrder }).where(eq(schema.contentNodes.path, update.path)).returning();
+					const [res] = await this.db
+						.update(schema.contentNodes)
+						.set({ order: update.newOrder })
+						.where(eq(schema.contentNodes.path, update.path))
+						.returning();
 					if (res) {
 						results.push(utils.convertDatesToISO(res) as unknown as ContentNode);
 					}
@@ -284,14 +291,17 @@ export class ContentModule {
 	drafts = {
 		create: async (draft: Omit<ContentDraft, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<ContentDraft>> => {
 			return this.core.wrap(async () => {
-				const id = (utils.generateId()) as string;
+				const id = utils.generateId() as string;
 				const now = isoDateStringToDate(nowISODateString());
-				const [result] = await this.db.insert(schema.contentDrafts).values({
-					...(draft as unknown as typeof schema.contentDrafts.$inferInsert),
-					_id: id,
-					createdAt: now,
-					updatedAt: now
-				}).returning();
+				const [result] = await this.db
+					.insert(schema.contentDrafts)
+					.values({
+						...(draft as unknown as typeof schema.contentDrafts.$inferInsert),
+						_id: id,
+						createdAt: now,
+						updatedAt: now
+					})
+					.returning();
 				return utils.convertDatesToISO(result) as unknown as ContentDraft;
 			}, 'CREATE_CONTENT_DRAFT_FAILED');
 		},
@@ -323,7 +333,11 @@ export class ContentModule {
 
 		publish: async (draftId: DatabaseId): Promise<DatabaseResult<void>> => {
 			return this.core.wrap(async () => {
-				const [draft] = await this.db.select().from(schema.contentDrafts).where(eq(schema.contentDrafts._id, draftId as string)).limit(1);
+				const [draft] = await this.db
+					.select()
+					.from(schema.contentDrafts)
+					.where(eq(schema.contentDrafts._id, draftId as string))
+					.limit(1);
 				if (!draft) {
 					throw new Error('Draft not found');
 				}
@@ -408,12 +422,15 @@ export class ContentModule {
 			return this.core.wrap(async () => {
 				const id = utils.generateId() as string;
 				const now = isoDateStringToDate(nowISODateString());
-				const [result] = await this.db.insert(schema.contentRevisions).values({
-					...(revision as unknown as typeof schema.contentRevisions.$inferInsert),
-					_id: id,
-					createdAt: now,
-					updatedAt: now
-				}).returning();
+				const [result] = await this.db
+					.insert(schema.contentRevisions)
+					.values({
+						...(revision as unknown as typeof schema.contentRevisions.$inferInsert),
+						_id: id,
+						createdAt: now,
+						updatedAt: now
+					})
+					.returning();
 				return utils.convertDatesToISO(result) as unknown as ContentRevision;
 			}, 'CREATE_CONTENT_REVISION_FAILED');
 		},
@@ -454,7 +471,11 @@ export class ContentModule {
 
 		restore: async (revisionId: DatabaseId): Promise<DatabaseResult<void>> => {
 			return this.core.wrap(async () => {
-				const [revision] = await this.db.select().from(schema.contentRevisions).where(eq(schema.contentRevisions._id, revisionId as string)).limit(1);
+				const [revision] = await this.db
+					.select()
+					.from(schema.contentRevisions)
+					.where(eq(schema.contentRevisions._id, revisionId as string))
+					.limit(1);
 
 				if (!revision) {
 					throw new Error('Revision not found');

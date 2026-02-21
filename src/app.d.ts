@@ -118,6 +118,10 @@ declare global {
 		path?: string;
 	}
 
+	interface Navigator {
+		modelContext?: any;
+	}
+
 	interface RegExpConstructor {
 		escape(str: string): string;
 	}

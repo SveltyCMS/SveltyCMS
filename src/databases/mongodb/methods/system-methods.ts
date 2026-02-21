@@ -64,7 +64,9 @@ export class MongoSystemMethods {
 
 			// Traverse the nested object to find the value
 			// because Mongoose un-flattens 'a.b.c' into { a: { b: { c: val } } }
-			const value = key.split('.').reduce((obj, k) => (obj && (obj as any)[k] !== undefined ? (obj as any)[k] : undefined), userPrefs.preferences as any);
+			const value = key
+				.split('.')
+				.reduce((obj, k) => (obj && (obj as any)[k] !== undefined ? (obj as any)[k] : undefined), userPrefs.preferences as any);
 
 			return { success: true, data: (value as T) ?? null };
 		} catch (error) {

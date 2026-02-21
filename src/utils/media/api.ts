@@ -48,7 +48,9 @@ export async function fetchWatermarks(collectionId = 'Watermarks'): Promise<Wate
 			}
 
 			const json = await res.json();
-			const items = (Array.isArray(json) ? json : Array.isArray(json.data) ? json.data : Array.isArray(json.items) ? json.items : []) as Array<Record<string, unknown>>;
+			const items = (Array.isArray(json) ? json : Array.isArray(json.data) ? json.data : Array.isArray(json.items) ? json.items : []) as Array<
+				Record<string, unknown>
+			>;
 
 			return items.map((it) => ({
 				id: (it._id || it.id) as string,

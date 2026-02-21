@@ -24,7 +24,12 @@ export class CollectionModule {
 			findOne: async (query: Record<string, unknown>) => {
 				const table = this.core.getTable(id);
 				const where = this.core.mapQuery(table, query) as import('drizzle-orm').SQL | undefined;
-				const [result] = (await this.db.select().from(table as unknown as import('drizzle-orm/pg-core').PgTable).where(where).limit(1)) ?? [];
+				const [result] =
+					(await this.db
+						.select()
+						.from(table as unknown as import('drizzle-orm/pg-core').PgTable)
+						.where(where)
+						.limit(1)) ?? [];
 				return result as Record<string, unknown> | null;
 			},
 			aggregate: async (_pipeline: Record<string, unknown>[]) => {
@@ -47,7 +52,9 @@ export class CollectionModule {
 
 	async getSchema(collectionName: string): Promise<DatabaseResult<Schema | null>> {
 		return this.core.wrap(async () => {
-			const [result] = await this.db.execute(sql`SELECT "collectionDef" FROM "system_content_structure" WHERE "name" = ${collectionName} AND "nodeType" = 'collection' LIMIT 1`);
+			const [result] = await this.db.execute(
+				sql`SELECT "collectionDef" FROM "system_content_structure" WHERE "name" = ${collectionName} AND "nodeType" = 'collection' LIMIT 1`
+			);
 			if (!result) {
 				return null;
 			}

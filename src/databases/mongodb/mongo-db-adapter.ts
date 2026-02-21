@@ -217,7 +217,11 @@ export class MongoDBAdapter implements IDBAdapter {
 						'revisions'
 					].includes(prop as string)
 				) {
-					return this._createLazyProxy(`${name}.${String(prop)}`, ensureFn, () => (getReal() as Record<string | symbol, Record<string, unknown>>)?.[prop] as object);
+					return this._createLazyProxy(
+						`${name}.${String(prop)}`,
+						ensureFn,
+						() => (getReal() as Record<string | symbol, Record<string, unknown>>)?.[prop] as object
+					);
 				}
 
 				// Otherwise, assume it's a method and return a wrapper
@@ -372,7 +376,10 @@ export class MongoDBAdapter implements IDBAdapter {
 					create: (f) => this.crud.insert('media_folders', f),
 					createMany: (f) => this.crud.insertMany('media_folders', f),
 					delete: (id) => this.crud.delete('media_folders', id),
-					deleteMany: (ids) => this.crud.deleteMany('media_folders', { _id: { $in: ids } } as unknown as import('../db-interface').QueryFilter<import('../db-interface').BaseEntity>),
+					deleteMany: (ids) =>
+						this.crud.deleteMany('media_folders', { _id: { $in: ids } } as unknown as import('../db-interface').QueryFilter<
+							import('../db-interface').BaseEntity
+						>),
 					getTree: () => this._wrapResult(async () => []),
 					getFolderContents: () =>
 						this._wrapResult(async () => ({
@@ -427,7 +434,10 @@ export class MongoDBAdapter implements IDBAdapter {
 						if (o?.tenantId) {
 							query.tenantId = o.tenantId;
 						}
-						return this.crud.deleteMany('system_content_structure', query as unknown as import('../db-interface').QueryFilter<import('../db-interface').BaseEntity>);
+						return this.crud.deleteMany(
+							'system_content_structure',
+							query as unknown as import('../db-interface').QueryFilter<import('../db-interface').BaseEntity>
+						);
 					},
 					reorder: () => this._wrapResult(async () => [] as import('../db-interface').ContentNode[]),
 					reorderStructure: (i) =>
@@ -446,14 +456,23 @@ export class MongoDBAdapter implements IDBAdapter {
 					publishMany: (ids) => this._wrapResult(() => contentMethods.publishManyDrafts(ids)) as Promise<DatabaseResult<{ publishedCount: number }>>,
 					getForContent: (id, o) => this._wrapResult(() => contentMethods.getDraftsForContent(id, o)),
 					delete: (id) => this.crud.delete('content_drafts', id),
-					deleteMany: (ids) => this.crud.deleteMany('content_drafts', { _id: { $in: ids } } as unknown as import('../db-interface').QueryFilter<import('../db-interface').BaseEntity>)
+					deleteMany: (ids) =>
+						this.crud.deleteMany('content_drafts', { _id: { $in: ids } } as unknown as import('../db-interface').QueryFilter<
+							import('../db-interface').BaseEntity
+						>)
 				},
 				revisions: {
-					create: (r) => this._wrapResult(() => contentMethods.createRevision(r as unknown as Omit<import('../db-interface').ContentRevision, "_id" | "createdAt">)),
+					create: (r) =>
+						this._wrapResult(() =>
+							contentMethods.createRevision(r as unknown as Omit<import('../db-interface').ContentRevision, '_id' | 'createdAt'>)
+						),
 					getHistory: (id, o) => this._wrapResult(() => contentMethods.getRevisionHistory(id, o)),
 					restore: () => this._wrapResult(async () => {}),
 					delete: (id) => this.crud.delete('content_revisions', id),
-					deleteMany: (ids) => this.crud.deleteMany('content_revisions', { _id: { $in: ids } } as unknown as import('../db-interface').QueryFilter<import('../db-interface').BaseEntity>),
+					deleteMany: (ids) =>
+						this.crud.deleteMany('content_revisions', { _id: { $in: ids } } as unknown as import('../db-interface').QueryFilter<
+							import('../db-interface').BaseEntity
+						>),
 					cleanup: (id, k) => this._wrapResult(() => contentMethods.cleanupRevisions(id, k))
 				}
 			};
@@ -537,7 +556,9 @@ export class MongoDBAdapter implements IDBAdapter {
 			]);
 
 			this._realCollections = new MongoCollectionMethods();
-			this._MongoQueryBuilderConstructor = MongoQueryBuilder as unknown as new (model: mongoose.Model<Record<string, unknown>>) => import('../db-interface').QueryBuilder<Record<string, unknown>>;
+			this._MongoQueryBuilderConstructor = MongoQueryBuilder as unknown as new (
+				model: mongoose.Model<Record<string, unknown>>
+			) => import('../db-interface').QueryBuilder<Record<string, unknown>>;
 			this._mongoDBUtils = mongoDBUtils;
 			this._featureInit.collections = true;
 		})();
@@ -550,7 +571,7 @@ export class MongoDBAdapter implements IDBAdapter {
 		if (this._modelCache.has(name)) {
 			return this._modelCache.get(name)!;
 		}
-		const model = mongoose.models[name] as mongoose.Model<Record<string, unknown>> || this._createGenericModel(name, schemaDefinition);
+		const model = (mongoose.models[name] as mongoose.Model<Record<string, unknown>>) || this._createGenericModel(name, schemaDefinition);
 		this._modelCache.set(name, model);
 		return model;
 	}
@@ -724,10 +745,11 @@ export class MongoDBAdapter implements IDBAdapter {
 			upsert: (c, q, d) => this._wrapResult(() => getRepo(c).upsert(q, d)),
 			upsertMany: (c, items) => this._wrapResult(() => getRepo(c).upsertMany(items)),
 			count: (c, q) => this._wrapResult(() => getRepo(c).count(q)),
-			exists: (c, q) => this._wrapResult(async () => {
-				const res = await getRepo(c).count(q);
-				return res.success ? res.data > 0 : false;
-			}),
+			exists: (c, q) =>
+				this._wrapResult(async () => {
+					const res = await getRepo(c).count(q);
+					return res.success ? res.data > 0 : false;
+				}),
 			aggregate: (c, p) => this._wrapResult(() => getRepo(c).aggregate(p as mongoose.PipelineStage[]))
 		};
 	}
@@ -789,7 +811,9 @@ export class MongoDBAdapter implements IDBAdapter {
 						const { SystemPreferencesModel, SystemSettingModel } = await import('./models');
 						this._cachedSystemCore = new MongoSystemMethods(SystemPreferencesModel, SystemSettingModel);
 					}
-					return this._wrapResult(() => this._cachedSystemCore!.setMany(p as { key: string; value: unknown; scope?: "user" | "system"; userId?: DatabaseId; category?: string }[]));
+					return this._wrapResult(() =>
+						this._cachedSystemCore!.setMany(p as { key: string; value: unknown; scope?: 'user' | 'system'; userId?: DatabaseId; category?: string }[])
+					);
 				},
 				delete: async (k, s, u) => {
 					if (!this._cachedSystemCore) {
@@ -1132,7 +1156,9 @@ export class MongoDBAdapter implements IDBAdapter {
 		}
 	};
 
-	private _MongoQueryBuilderConstructor?: new (model: mongoose.Model<Record<string, unknown>>) => import('../db-interface').QueryBuilder<Record<string, unknown>>;
+	private _MongoQueryBuilderConstructor?: new (
+		model: mongoose.Model<Record<string, unknown>>
+	) => import('../db-interface').QueryBuilder<Record<string, unknown>>;
 	private _mongoDBUtils?: { normalizeCollectionName(name: string): string };
 
 	public queryBuilder<T extends BaseEntity>(collection: string): import('../db-interface').QueryBuilder<T> {
@@ -1211,7 +1237,9 @@ export class MongoDBAdapter implements IDBAdapter {
 			this.crud.upsertMany<T>(
 				c,
 				items.map((i) => ({
-					query: { _id: (i.id || (i as unknown as Record<string, unknown>)._id) as unknown as DatabaseId } as unknown as import('../db-interface').QueryFilter<T>,
+					query: {
+						_id: (i.id || (i as unknown as Record<string, unknown>)._id) as unknown as DatabaseId
+					} as unknown as import('../db-interface').QueryFilter<T>,
 					data: i as unknown as Omit<T, '_id' | 'createdAt' | 'updatedAt'>
 				}))
 			) as unknown as Promise<DatabaseResult<T[]>>
@@ -1231,7 +1259,11 @@ export class MongoDBAdapter implements IDBAdapter {
 			metadata?: { totalCount: number; schema?: unknown; indexes?: string[] };
 		}>
 	> {
-		const res = await this.crud.findMany<BaseEntity>(collectionName, {} as unknown as import('../db-interface').QueryFilter<BaseEntity>, options as { limit?: number; offset?: number; fields?: never[] });
+		const res = await this.crud.findMany<BaseEntity>(
+			collectionName,
+			{} as unknown as import('../db-interface').QueryFilter<BaseEntity>,
+			options as { limit?: number; offset?: number; fields?: never[] }
+		);
 		if (!res.success) {
 			return res as unknown as DatabaseResult<{
 				data: unknown[];
@@ -1306,5 +1338,3 @@ export class MongoDBAdapter implements IDBAdapter {
 		}
 	}
 }
-
-

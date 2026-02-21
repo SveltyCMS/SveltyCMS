@@ -17,7 +17,7 @@ import { TenantModel } from '@src/databases/mongodb/models/tenant';
 import { redirect } from '@sveltejs/kit';
 import { logger } from '@utils/logger';
 
-import type { PageServerLoad } from './$types';
+import type { Actions, PageServerLoad } from './$types';
 
 // Only System Admins can access this
 export const load: PageServerLoad = async ({ locals }) => {
@@ -46,7 +46,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	}
 };
 
-export const actions = {
+export const actions: Actions = {
 	// Action to suspend/activate a tenant
 	toggleStatus: async ({ request }) => {
 		const formData = await request.formData();

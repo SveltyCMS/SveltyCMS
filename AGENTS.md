@@ -299,7 +299,7 @@ Svelte 5 runes: `$state()` for state, `$derived()` for computations, `$effect()`
 
 1. **Security**: No secrets in client; use `.server.ts`.
 2. **Async Init**: Await `dbInitPromise`.
-3. **Date Handling & ISO Strings**: 
+3. **Date Handling & ISO Strings**:
    - **Type Safety**: Use `ISODateString` from `@src/content/types` for all dates in entities.
    - **Utility**: Use `@src/utils/date-utils.ts` for ALL date operations.
    - **Current Time**: Always use `nowISODateString()` instead of `new Date().toISOString()`.

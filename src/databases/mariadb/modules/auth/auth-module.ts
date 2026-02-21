@@ -327,7 +327,11 @@ export class AuthModule {
 				.update(schema.authSessions)
 				.set({ expires: new Date(newExpiry), updatedAt: isoDateStringToDate(nowISODateString()) })
 				.where(eq(schema.authSessions._id, session_id as string));
-			const [result] = await this.db.select().from(schema.authSessions).where(eq(schema.authSessions._id, session_id as string)).limit(1);
+			const [result] = await this.db
+				.select()
+				.from(schema.authSessions)
+				.where(eq(schema.authSessions._id, session_id as string))
+				.limit(1);
 			return utils.convertDatesToISO(result) as unknown as Session;
 		}, 'UPDATE_SESSION_FAILED');
 	}
@@ -402,7 +406,11 @@ export class AuthModule {
 
 	async getSessionTokenData(session_id: string): Promise<DatabaseResult<{ expiresAt: ISODateString; user_id: string } | null>> {
 		return this.core.wrap(async () => {
-			const [session] = await this.db.select().from(schema.authSessions).where(eq(schema.authSessions._id, session_id as string)).limit(1);
+			const [session] = await this.db
+				.select()
+				.from(schema.authSessions)
+				.where(eq(schema.authSessions._id, session_id as string))
+				.limit(1);
 			if (!session) {
 				return null;
 			}
@@ -415,7 +423,11 @@ export class AuthModule {
 
 	async rotateToken(oldToken: string, expires: ISODateString): Promise<DatabaseResult<string>> {
 		return this.core.wrap(async () => {
-			const [oldSession] = await this.db.select().from(schema.authSessions).where(eq(schema.authSessions._id, oldToken as string)).limit(1);
+			const [oldSession] = await this.db
+				.select()
+				.from(schema.authSessions)
+				.where(eq(schema.authSessions._id, oldToken as string))
+				.limit(1);
 
 			if (!oldSession) {
 				throw new Error('Session not found');
@@ -629,7 +641,9 @@ export class AuthModule {
 			}
 
 			// Fall back to delete by token value
-			const byValueResult = await this.db.delete(schema.authTokens).where(and(inArray(schema.authTokens.token, token_ids as string[]), ...conditions));
+			const byValueResult = await this.db
+				.delete(schema.authTokens)
+				.where(and(inArray(schema.authTokens.token, token_ids as string[]), ...conditions));
 			return { deletedCount: byValueResult[0].affectedRows };
 		}, 'DELETE_TOKENS_FAILED');
 	}

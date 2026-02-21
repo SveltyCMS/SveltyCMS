@@ -86,10 +86,12 @@ export class PostgresQueryBuilder<T extends BaseEntity> implements QueryBuilder<
 		if (!fields || fields.length === 0) {
 			return this;
 		}
-		const searchConditions = fields.map((f) => {
-			const column = (this.table as unknown as Record<string, import('drizzle-orm/pg-core').PgColumn>)[f as string];
-			return column ? sql`${column} ILIKE ${'%' + query + '%'}` : null;
-		}).filter((c): c is import('drizzle-orm').SQL => c !== null);
+		const searchConditions = fields
+			.map((f) => {
+				const column = (this.table as unknown as Record<string, import('drizzle-orm/pg-core').PgColumn>)[f as string];
+				return column ? sql`${column} ILIKE ${'%' + query + '%'}` : null;
+			})
+			.filter((c): c is import('drizzle-orm').SQL => c !== null);
 		if (searchConditions.length > 0) {
 			const condition = or(...searchConditions);
 			if (condition) {
@@ -161,7 +163,10 @@ export class PostgresQueryBuilder<T extends BaseEntity> implements QueryBuilder<
 
 	async execute(): Promise<DatabaseResult<T[]>> {
 		return this.core.wrap(async () => {
-			let q = this.db.select().from(this.table as unknown as import('drizzle-orm/pg-core').PgTable).$dynamic();
+			let q = this.db
+				.select()
+				.from(this.table as unknown as import('drizzle-orm/pg-core').PgTable)
+				.$dynamic();
 			if (this.conditions.length > 0) {
 				q = q.where(and(...this.conditions));
 			}
@@ -181,7 +186,10 @@ export class PostgresQueryBuilder<T extends BaseEntity> implements QueryBuilder<
 
 	async count(): Promise<DatabaseResult<number>> {
 		return this.core.wrap(async () => {
-			let q = this.db.select({ value: drizzleCount() }).from(this.table as unknown as import('drizzle-orm/pg-core').PgTable).$dynamic();
+			let q = this.db
+				.select({ value: drizzleCount() })
+				.from(this.table as unknown as import('drizzle-orm/pg-core').PgTable)
+				.$dynamic();
 			if (this.conditions.length > 0) {
 				q = q.where(and(...this.conditions));
 			}
@@ -220,7 +228,10 @@ export class PostgresQueryBuilder<T extends BaseEntity> implements QueryBuilder<
 
 	async updateMany(data: Partial<T>): Promise<DatabaseResult<{ modifiedCount: number }>> {
 		return this.core.wrap(async () => {
-			let q = this.db.update(this.table as unknown as import('drizzle-orm/pg-core').PgTable).set(data as Record<string, unknown>).$dynamic();
+			let q = this.db
+				.update(this.table as unknown as import('drizzle-orm/pg-core').PgTable)
+				.set(data as Record<string, unknown>)
+				.$dynamic();
 			if (this.conditions.length > 0) {
 				q = q.where(and(...this.conditions));
 			}

@@ -11,14 +11,12 @@ import { promisify } from 'node:util';
 import { SESSION_COOKIE_NAME } from '@src/databases/auth/constants';
 import type { ISODateString } from '@src/databases/db-interface';
 import { databaseConfigSchema } from '@src/databases/schemas';
-import { error } from '@sveltejs/kit';
 import { setupAdminSchema, smtpConfigSchema } from '@utils/form-schemas';
 import { logger } from '@utils/logger.server';
-import { isSetupCompleteAsync } from '@utils/setup-check';
 import nodemailer from 'nodemailer';
 import { safeParse } from 'valibot';
 import { version as pkgVersion } from '../../../package.json';
-import type { PageServerLoad } from './$types';
+import type { Actions, PageServerLoad } from './$types';
 import { checkRedis } from './utils';
 
 const execAsync = promisify(exec);
@@ -66,7 +64,7 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
  * ACTIONS
  * Standard SvelteKit 5 actions for setup operations
  */
-export const actions = {
+export const actions: Actions = {
 	/**
 	 * Tests the database connection
 	 */

@@ -211,7 +211,7 @@ export class ContentModule {
 						...(sanitizedWithoutDates as Record<string, unknown>),
 						_id: id,
 						path: update.path,
-						nodeType: sanitizedWithoutDates.nodeType as string || update.changes.nodeType || 'collection',
+						nodeType: (sanitizedWithoutDates.nodeType as string) || update.changes.nodeType || 'collection',
 						publishedAt: (publishedAt ? new Date(publishedAt as unknown as string | number | Date) : null) as Date | null,
 						createdAt: isoDateStringToDate(nowISODateString()),
 						updatedAt: isoDateStringToDate(nowISODateString())
@@ -291,7 +291,7 @@ export class ContentModule {
 	drafts = {
 		create: async (draft: Omit<ContentDraft, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<ContentDraft>> => {
 			return this.core.wrap(async () => {
-				const id = (utils.generateId()) as string;
+				const id = utils.generateId() as string;
 				const now = isoDateStringToDate(nowISODateString());
 				await this.db.insert(schema.contentDrafts).values({
 					...(draft as unknown as typeof schema.contentDrafts.$inferInsert),
@@ -326,14 +326,22 @@ export class ContentModule {
 					.update(schema.contentDrafts)
 					.set({ data: data as Record<string, unknown>, updatedAt: isoDateStringToDate(nowISODateString()) })
 					.where(eq(schema.contentDrafts._id, draftId as string));
-				const [result] = await this.db.select().from(schema.contentDrafts).where(eq(schema.contentDrafts._id, draftId as string)).limit(1);
+				const [result] = await this.db
+					.select()
+					.from(schema.contentDrafts)
+					.where(eq(schema.contentDrafts._id, draftId as string))
+					.limit(1);
 				return utils.convertDatesToISO(result) as unknown as ContentDraft;
 			}, 'UPDATE_CONTENT_DRAFT_FAILED');
 		},
 
 		publish: async (draftId: DatabaseId): Promise<DatabaseResult<void>> => {
 			return this.core.wrap(async () => {
-				const [draft] = await this.db.select().from(schema.contentDrafts).where(eq(schema.contentDrafts._id, draftId as string)).limit(1);
+				const [draft] = await this.db
+					.select()
+					.from(schema.contentDrafts)
+					.where(eq(schema.contentDrafts._id, draftId as string))
+					.limit(1);
 				if (!draft) {
 					throw new Error('Draft not found');
 				}
@@ -465,7 +473,11 @@ export class ContentModule {
 
 		restore: async (revisionId: DatabaseId): Promise<DatabaseResult<void>> => {
 			return this.core.wrap(async () => {
-				const [revision] = await this.db.select().from(schema.contentRevisions).where(eq(schema.contentRevisions._id, revisionId as string)).limit(1);
+				const [revision] = await this.db
+					.select()
+					.from(schema.contentRevisions)
+					.where(eq(schema.contentRevisions._id, revisionId as string))
+					.limit(1);
 
 				if (!revision) {
 					throw new Error('Revision not found');

@@ -249,7 +249,7 @@ export class TokenAdapter {
 
 	async getAllTokens(filter?: Record<string, unknown>): Promise<DatabaseResult<Token[]>> {
 		try {
-			const tokens = await this.TokenModel.find(filter as QueryFilter<TokenDocument> || {}).lean();
+			const tokens = await this.TokenModel.find((filter as QueryFilter<TokenDocument>) || {}).lean();
 			logger.debug('All tokens retrieved', { count: tokens.length });
 			return {
 				success: true,
@@ -368,7 +368,11 @@ export class TokenAdapter {
 				filter.tenantId = tenantId;
 			}
 
-			const result = await this.TokenModel.findOneAndUpdate(filter as QueryFilter<TokenDocument>, { $set: tokenData }, { returnDocument: 'after', lean: true });
+			const result = await this.TokenModel.findOneAndUpdate(
+				filter as QueryFilter<TokenDocument>,
+				{ $set: tokenData },
+				{ returnDocument: 'after', lean: true }
+			);
 
 			if (result) {
 				logger.debug('Token updated successfully', { token_id });

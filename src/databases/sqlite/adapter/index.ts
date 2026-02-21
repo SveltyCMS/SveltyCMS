@@ -59,7 +59,10 @@ export class SQLiteAdapter extends AdapterCore implements IDBAdapter {
 		},
 		getById: async (tenantId: DatabaseId): Promise<DatabaseResult<Tenant | null>> => {
 			return this.wrap(async () => {
-				const [result] = await this.db.select().from(schema.tenants).where(eq(schema.tenants._id, tenantId as string));
+				const [result] = await this.db
+					.select()
+					.from(schema.tenants)
+					.where(eq(schema.tenants._id, tenantId as string));
 				return (result as unknown as Tenant) || null;
 			}, 'TENANT_GET_FAILED');
 		},
@@ -70,7 +73,10 @@ export class SQLiteAdapter extends AdapterCore implements IDBAdapter {
 					.update(schema.tenants)
 					.set({ ...data, updatedAt: now } as typeof schema.tenants.$inferInsert)
 					.where(eq(schema.tenants._id, tenantId as string));
-				const [result] = await this.db.select().from(schema.tenants).where(eq(schema.tenants._id, tenantId as string));
+				const [result] = await this.db
+					.select()
+					.from(schema.tenants)
+					.where(eq(schema.tenants._id, tenantId as string));
 				return result as unknown as Tenant;
 			}, 'TENANT_UPDATE_FAILED');
 		},

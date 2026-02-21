@@ -98,7 +98,10 @@ export class VirtualFoldersModule {
 				.set(values)
 				.where(eq(schema.systemVirtualFolders._id, folderId as string));
 
-			const [updated] = await this.db.select().from(schema.systemVirtualFolders).where(eq(schema.systemVirtualFolders._id, folderId as string));
+			const [updated] = await this.db
+				.select()
+				.from(schema.systemVirtualFolders)
+				.where(eq(schema.systemVirtualFolders._id, folderId as string));
 			return utils.convertDatesToISO(updated) as unknown as SystemVirtualFolder;
 		}, 'UPDATE_VIRTUAL_FOLDER_FAILED');
 	}

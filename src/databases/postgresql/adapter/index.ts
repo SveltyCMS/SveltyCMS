@@ -182,5 +182,5 @@ export class PostgreSQLAdapter extends AdapterCore implements IDBAdapter {
 			}
 			return results;
 		}, 'GET_MULTIPLE_COLLECTION_DATA_FAILED');
-	}
+	};
 }

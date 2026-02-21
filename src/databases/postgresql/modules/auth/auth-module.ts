@@ -228,7 +228,10 @@ export class AuthModule {
 			if (tenantId) {
 				conditions.push(eq(schema.authUsers.tenantId, tenantId));
 			}
-			const results = await this.db.delete(schema.authUsers).where(and(...conditions)).returning();
+			const results = await this.db
+				.delete(schema.authUsers)
+				.where(and(...conditions))
+				.returning();
 			return { deletedCount: results.length };
 		}, 'DELETE_USERS_FAILED');
 	}
@@ -304,12 +307,15 @@ export class AuthModule {
 	async createSession(sessionData: { user_id: string; expires: ISODateString; tenantId?: string }): Promise<DatabaseResult<Session>> {
 		return this.core.wrap(async () => {
 			const id = utils.generateId() as string;
-			const [result] = await this.db.insert(schema.authSessions).values({
-				_id: id,
-				user_id: sessionData.user_id,
-				expires: new Date(sessionData.expires),
-				tenantId: sessionData.tenantId || null
-			}).returning();
+			const [result] = await this.db
+				.insert(schema.authSessions)
+				.values({
+					_id: id,
+					user_id: sessionData.user_id,
+					expires: new Date(sessionData.expires),
+					tenantId: sessionData.tenantId || null
+				})
+				.returning();
 			return utils.convertDatesToISO(result) as unknown as Session;
 		}, 'CREATE_SESSION_FAILED');
 	}
@@ -333,7 +339,10 @@ export class AuthModule {
 
 	async deleteExpiredSessions(): Promise<DatabaseResult<number>> {
 		return this.core.wrap(async () => {
-			const results = await this.db.delete(schema.authSessions).where(lt(schema.authSessions.expires, isoDateStringToDate(nowISODateString()))).returning();
+			const results = await this.db
+				.delete(schema.authSessions)
+				.where(lt(schema.authSessions.expires, isoDateStringToDate(nowISODateString())))
+				.returning();
 			return results.length;
 		}, 'DELETE_EXPIRED_SESSIONS_FAILED');
 	}
@@ -395,7 +404,11 @@ export class AuthModule {
 
 	async getSessionTokenData(session_id: string): Promise<DatabaseResult<{ expiresAt: ISODateString; user_id: string } | null>> {
 		return this.core.wrap(async () => {
-			const [session] = await this.db.select().from(schema.authSessions).where(eq(schema.authSessions._id, session_id as string)).limit(1);
+			const [session] = await this.db
+				.select()
+				.from(schema.authSessions)
+				.where(eq(schema.authSessions._id, session_id as string))
+				.limit(1);
 			if (!session) {
 				return null;
 			}
@@ -408,7 +421,11 @@ export class AuthModule {
 
 	async rotateToken(oldToken: string, expires: ISODateString): Promise<DatabaseResult<string>> {
 		return this.core.wrap(async () => {
-			const [oldSession] = await this.db.select().from(schema.authSessions).where(eq(schema.authSessions._id, oldToken as string)).limit(1);
+			const [oldSession] = await this.db
+				.select()
+				.from(schema.authSessions)
+				.where(eq(schema.authSessions._id, oldToken as string))
+				.limit(1);
 
 			if (!oldSession) {
 				throw new Error('Session not found');
@@ -598,7 +615,10 @@ export class AuthModule {
 
 	async deleteExpiredTokens(): Promise<DatabaseResult<number>> {
 		return this.core.wrap(async () => {
-			const results = await this.db.delete(schema.authTokens).where(lt(schema.authTokens.expires, isoDateStringToDate(nowISODateString()))).returning();
+			const results = await this.db
+				.delete(schema.authTokens)
+				.where(lt(schema.authTokens.expires, isoDateStringToDate(nowISODateString())))
+				.returning();
 			return results.length;
 		}, 'DELETE_EXPIRED_TOKENS_FAILED');
 	}
@@ -613,13 +633,19 @@ export class AuthModule {
 			}
 
 			// Try delete by _id
-			const byIdResults = await this.db.delete(schema.authTokens).where(and(inArray(schema.authTokens._id, token_ids), ...conditions)).returning();
+			const byIdResults = await this.db
+				.delete(schema.authTokens)
+				.where(and(inArray(schema.authTokens._id, token_ids), ...conditions))
+				.returning();
 			if (byIdResults.length > 0) {
 				return { deletedCount: byIdResults.length };
 			}
 
 			// Fall back to delete by token value
-			const byValueResults = await this.db.delete(schema.authTokens).where(and(inArray(schema.authTokens.token, token_ids as string[]), ...conditions)).returning();
+			const byValueResults = await this.db
+				.delete(schema.authTokens)
+				.where(and(inArray(schema.authTokens.token, token_ids as string[]), ...conditions))
+				.returning();
 			return { deletedCount: byValueResults.length };
 		}, 'DELETE_TOKENS_FAILED');
 	}
@@ -693,13 +719,16 @@ export class AuthModule {
 	async createRole(role: Role): Promise<DatabaseResult<Role>> {
 		return this.core.wrap(async () => {
 			const id = (role._id || utils.generateId()) as string;
-			const [result] = await this.db.insert(schema.roles).values({
-				...role,
-				_id: id,
-				createdAt: isoDateStringToDate(nowISODateString()),
-				updatedAt: isoDateStringToDate(nowISODateString()),
-				permissions: role.permissions || []
-			} as typeof schema.roles.$inferInsert).returning();
+			const [result] = await this.db
+				.insert(schema.roles)
+				.values({
+					...role,
+					_id: id,
+					createdAt: isoDateStringToDate(nowISODateString()),
+					updatedAt: isoDateStringToDate(nowISODateString()),
+					permissions: role.permissions || []
+				} as typeof schema.roles.$inferInsert)
+				.returning();
 			return this.mapRole(result);
 		}, 'CREATE_ROLE_FAILED');
 	}

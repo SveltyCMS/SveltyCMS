@@ -177,7 +177,8 @@ export async function seedCollectionsForSetup(
 	let firstCollection: { name: string; path: string } | null = null;
 
 	try {
-		// Import the collection scanner directly to avoidcontent-manager		const { scanCompiledCollections } = await import('@src/content/collection-scanner');
+		// Import the collection scanner directly to avoid content-manager dependency issues during setup phase
+		// scanCompiledCollections is already imported at the top of the file
 
 		const scanStart = performance.now();
 		const collections = (await scanCompiledCollections()).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
@@ -241,8 +242,8 @@ export async function seedCollectionsForSetup(
 
 		const modelCreationTime = performance.now() - modelCreationStart;
 
-		// Step 5: PERSISTENCE - Populate contentNodes table socontent-managersees them immediately
-		// This ensures skipReconciliation: true incontent-managerworks correctly after setup.
+		// Step 5: PERSISTENCE - Populate contentNodes table so content-manager sees them immediately
+		// This ensures skipReconciliation: true in content-manager works correctly after setup.
 		try {
 			logger.info('🌳 Generating category nodes and mapping structure...');
 			const categoryNodes = generateCategoryNodesFromPaths(collections as Schema[]);
@@ -413,7 +414,6 @@ export async function initSystemFromSetup(
 		(async () => {
 			const result = await seedCollectionsForSetup(adapter, tenantId);
 			if (isDemoSeed) {
-				const { scanCompiledCollections } = await import('@src/content/collection-scanner');
 				const collections = await scanCompiledCollections();
 				await seedDemoRecords(adapter, collections, tenantId);
 			}

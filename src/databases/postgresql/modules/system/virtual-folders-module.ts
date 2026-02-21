@@ -40,14 +40,21 @@ export class VirtualFoldersModule {
 
 	async getById(folderId: DatabaseId): Promise<DatabaseResult<SystemVirtualFolder | null>> {
 		return this.core.wrap(async () => {
-			const [result] = await this.db.select().from(schema.systemVirtualFolders).where(eq(schema.systemVirtualFolders._id, folderId as string)).limit(1);
+			const [result] = await this.db
+				.select()
+				.from(schema.systemVirtualFolders)
+				.where(eq(schema.systemVirtualFolders._id, folderId as string))
+				.limit(1);
 			return result ? (utils.convertDatesToISO(result) as unknown as SystemVirtualFolder) : null;
 		}, 'GET_VIRTUAL_FOLDER_FAILED');
 	}
 
 	async getByParentId(parentId: DatabaseId | null): Promise<DatabaseResult<SystemVirtualFolder[]>> {
 		return this.core.wrap(async () => {
-			const results = await this.db.select().from(schema.systemVirtualFolders).where(eq(schema.systemVirtualFolders.parentId, parentId as string || ''));
+			const results = await this.db
+				.select()
+				.from(schema.systemVirtualFolders)
+				.where(eq(schema.systemVirtualFolders.parentId, (parentId as string) || ''));
 			return utils.convertArrayDatesToISO(results) as unknown as SystemVirtualFolder[];
 		}, 'GET_VIRTUAL_FOLDERS_BY_PARENT_FAILED');
 	}
@@ -80,7 +87,9 @@ export class VirtualFoldersModule {
 		return this.core.notImplemented('systemVirtualFolder.addToFolder');
 	}
 
-	async getContents(folderPath: string): Promise<DatabaseResult<{ folders: SystemVirtualFolder[]; files: import('../../../db-interface').MediaItem[] }>> {
+	async getContents(
+		folderPath: string
+	): Promise<DatabaseResult<{ folders: SystemVirtualFolder[]; files: import('../../../db-interface').MediaItem[] }>> {
 		return this.core.wrap(async () => {
 			const folders = await this.db.select().from(schema.systemVirtualFolders).where(eq(schema.systemVirtualFolders.path, folderPath));
 			// Files logic would need mediaItems join or similar
@@ -100,11 +109,7 @@ export class VirtualFoldersModule {
 
 	async ensure(folder: Omit<SystemVirtualFolder, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<SystemVirtualFolder>> {
 		return this.core.wrap(async () => {
-			const [existing] = await this.db
-				.select()
-				.from(schema.systemVirtualFolders)
-				.where(eq(schema.systemVirtualFolders.path, folder.path))
-				.limit(1);
+			const [existing] = await this.db.select().from(schema.systemVirtualFolders).where(eq(schema.systemVirtualFolders.path, folder.path)).limit(1);
 			if (existing) {
 				return utils.convertDatesToISO(existing) as unknown as SystemVirtualFolder;
 			}

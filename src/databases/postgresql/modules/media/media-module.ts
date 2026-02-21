@@ -61,7 +61,10 @@ export class MediaModule {
 
 		deleteMany: async (fileIds: DatabaseId[]): Promise<DatabaseResult<{ deletedCount: number }>> => {
 			return this.core.wrap(async () => {
-				const results = await this.db.delete(schema.mediaItems).where(inArray(schema.mediaItems._id, fileIds as string[])).returning();
+				const results = await this.db
+					.delete(schema.mediaItems)
+					.where(inArray(schema.mediaItems._id, fileIds as string[]))
+					.returning();
 				return { deletedCount: results.length };
 			}, 'DELETE_MANY_FILES_FAILED');
 		},
@@ -228,7 +231,11 @@ export class MediaModule {
 
 		duplicate: async (fileId: DatabaseId, newName?: string): Promise<DatabaseResult<MediaItem>> => {
 			return this.core.wrap(async () => {
-				const [existing] = await this.db.select().from(schema.mediaItems).where(eq(schema.mediaItems._id, fileId as string)).limit(1);
+				const [existing] = await this.db
+					.select()
+					.from(schema.mediaItems)
+					.where(eq(schema.mediaItems._id, fileId as string))
+					.limit(1);
 
 				if (!existing) {
 					throw new Error('File not found');
@@ -244,7 +251,10 @@ export class MediaModule {
 					updatedAt: isoDateStringToDate(now)
 				};
 
-				const [created] = await this.db.insert(schema.mediaItems).values(copy as typeof schema.mediaItems.$inferInsert).returning();
+				const [created] = await this.db
+					.insert(schema.mediaItems)
+					.values(copy as typeof schema.mediaItems.$inferInsert)
+					.returning();
 
 				return utils.convertDatesToISO(created) as unknown as MediaItem;
 			}, 'DUPLICATE_FILE_FAILED');
@@ -263,7 +273,10 @@ export class MediaModule {
 					createdAt: isoDateStringToDate(now),
 					updatedAt: isoDateStringToDate(now)
 				};
-				const [result] = await this.db.insert(schema.systemVirtualFolders).values(values as typeof schema.systemVirtualFolders.$inferInsert).returning();
+				const [result] = await this.db
+					.insert(schema.systemVirtualFolders)
+					.values(values as typeof schema.systemVirtualFolders.$inferInsert)
+					.returning();
 				return utils.convertDatesToISO(result) as unknown as MediaFolder;
 			}, 'CREATE_MEDIA_FOLDER_FAILED');
 		},
@@ -278,7 +291,10 @@ export class MediaModule {
 					createdAt: isoDateStringToDate(now),
 					updatedAt: isoDateStringToDate(now)
 				}));
-				const results = await this.db.insert(schema.systemVirtualFolders).values(values as (typeof schema.systemVirtualFolders.$inferInsert)[]).returning();
+				const results = await this.db
+					.insert(schema.systemVirtualFolders)
+					.values(values as (typeof schema.systemVirtualFolders.$inferInsert)[])
+					.returning();
 
 				return utils.convertArrayDatesToISO(results) as unknown as MediaFolder[];
 			}, 'CREATE_MANY_MEDIA_FOLDERS_FAILED');
@@ -292,7 +308,10 @@ export class MediaModule {
 
 		deleteMany: async (folderIds: DatabaseId[]): Promise<DatabaseResult<{ deletedCount: number }>> => {
 			return this.core.wrap(async () => {
-				const results = await this.db.delete(schema.systemVirtualFolders).where(inArray(schema.systemVirtualFolders._id, folderIds as string[])).returning();
+				const results = await this.db
+					.delete(schema.systemVirtualFolders)
+					.where(inArray(schema.systemVirtualFolders._id, folderIds as string[]))
+					.returning();
 				return { deletedCount: results.length };
 			}, 'DELETE_MANY_MEDIA_FOLDERS_FAILED');
 		},
@@ -315,7 +334,9 @@ export class MediaModule {
 			}>
 		> => {
 			return this.core.wrap(async () => {
-				const folderConditions = folderId ? [eq(schema.systemVirtualFolders.parentId, folderId as string)] : [eq(schema.systemVirtualFolders.parentId, '')];
+				const folderConditions = folderId
+					? [eq(schema.systemVirtualFolders.parentId, folderId as string)]
+					: [eq(schema.systemVirtualFolders.parentId, '')];
 				const fileConditions = folderId ? [eq(schema.mediaItems.folderId, folderId as string)] : [];
 
 				const folders = await this.db

@@ -58,13 +58,19 @@ export class WidgetsModule {
 
 	async activate(widgetId: DatabaseId): Promise<DatabaseResult<void>> {
 		return this.core.wrap(async () => {
-			await this.db.update(schema.widgets).set({ isActive: true, updatedAt: isoDateStringToDate(nowISODateString()) }).where(eq(schema.widgets._id, widgetId as string));
+			await this.db
+				.update(schema.widgets)
+				.set({ isActive: true, updatedAt: isoDateStringToDate(nowISODateString()) })
+				.where(eq(schema.widgets._id, widgetId as string));
 		}, 'ACTIVATE_WIDGET_FAILED');
 	}
 
 	async deactivate(widgetId: DatabaseId): Promise<DatabaseResult<void>> {
 		return this.core.wrap(async () => {
-			await this.db.update(schema.widgets).set({ isActive: false, updatedAt: isoDateStringToDate(nowISODateString()) }).where(eq(schema.widgets._id, widgetId as string));
+			await this.db
+				.update(schema.widgets)
+				.set({ isActive: false, updatedAt: isoDateStringToDate(nowISODateString()) })
+				.where(eq(schema.widgets._id, widgetId as string));
 		}, 'DEACTIVATE_WIDGET_FAILED');
 	}
 

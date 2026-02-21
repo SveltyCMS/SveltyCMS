@@ -60,7 +60,11 @@ export class BatchModule {
 							if (!(op.query && op.data)) {
 								throw new Error('Query and data required for upsert operation');
 							}
-							res = await this.crud.upsert<T & BaseEntity>(op.collection, op.query as QueryFilter<T & BaseEntity>, op.data as Omit<T & BaseEntity, '_id' | 'createdAt' | 'updatedAt'>);
+							res = await this.crud.upsert<T & BaseEntity>(
+								op.collection,
+								op.query as QueryFilter<T & BaseEntity>,
+								op.data as Omit<T & BaseEntity, '_id' | 'createdAt' | 'updatedAt'>
+							);
 							break;
 						default:
 							throw new Error(`Unsupported batch operation: ${op.operation}`);
@@ -106,7 +110,10 @@ export class BatchModule {
 			for (const update of updates) {
 				const result = await this.db
 					.update(table as unknown as import('drizzle-orm/mysql-core').MySqlTable)
-					.set({ ...(update.data as Record<string, unknown>), updatedAt: isoDateStringToDate(nowISODateString()) } as unknown as Record<string, unknown>)
+					.set({ ...(update.data as Record<string, unknown>), updatedAt: isoDateStringToDate(nowISODateString()) } as unknown as Record<
+						string,
+						unknown
+					>)
 					.where(eq((table as unknown as { _id: import('drizzle-orm/mysql-core').MySqlColumn })._id, update.id as string));
 				modifiedCount += result[0].affectedRows;
 			}
@@ -117,7 +124,9 @@ export class BatchModule {
 	async bulkDelete(collection: string, ids: DatabaseId[]): Promise<DatabaseResult<{ deletedCount: number }>> {
 		return this.core.wrap(async () => {
 			const table = this.core.getTable(collection);
-			const result = await this.db.delete(table as unknown as import('drizzle-orm/mysql-core').MySqlTable).where(inArray((table as unknown as { _id: import('drizzle-orm/mysql-core').MySqlColumn })._id, ids as string[]));
+			const result = await this.db
+				.delete(table as unknown as import('drizzle-orm/mysql-core').MySqlTable)
+				.where(inArray((table as unknown as { _id: import('drizzle-orm/mysql-core').MySqlColumn })._id, ids as string[]));
 			return { deletedCount: result[0].affectedRows };
 		}, 'BULK_DELETE_FAILED');
 	}

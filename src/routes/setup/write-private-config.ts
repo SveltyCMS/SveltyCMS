@@ -38,7 +38,7 @@ export async function writePrivateConfig(dbConfig: DatabaseConfig, system: { mul
 		if (val === undefined) {
 			return '';
 		}
-		return String(val).replace(/'/g, "\\'");
+		return String(val).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 	};
 
 	// Generate the private.ts content
