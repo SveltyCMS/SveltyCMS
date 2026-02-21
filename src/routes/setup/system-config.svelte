@@ -270,11 +270,11 @@ Features:
 </script>
 
 <form onsubmit={(e) => e.preventDefault()} class="fade-in">
-	<div class="mb-8">
+	<div class="mb-6">
 		<p class="text-sm text-center text-tertiary-500 dark:text-primary-500 sm:text-base">{setup_system_intro()}</p>
 	</div>
 
-	<div class="space-y-6">
+	<div class="space-y-4">
 		{#if redisAvailable && !systemSettings.useRedis}
 			<div class="rounded-lg bg-surface-500 p-4 text-white shadow-lg animate-in fade-in slide-in-from-top-4 duration-500" role="alert">
 				<div class="flex items-start gap-4">
@@ -305,11 +305,11 @@ Features:
 		{/if}
 
 		<!-- Project Blueprint -->
-		<section class="mb-8"><PresetSelector {presets} bind:selected={systemSettings.preset} /></section>
+		<section class="mb-2"><PresetSelector {presets} bind:selected={systemSettings.preset} /></section>
 
 		<!-- Basic Site Settings -->
-		<section class="space-y-6">
-			<div class="grid grid-cols-1 gap-6 md:grid-cols-3 items-start">
+		<section class="space-y-4">
+			<div class="grid grid-cols-1 gap-4 md:grid-cols-3 items-start">
 				<!-- Site Name -->
 				<div class="space-y-2">
 					<label for="site-name" class="mb-1 flex items-center gap-1 text-sm font-medium">
@@ -388,7 +388,7 @@ Features:
 				</div>
 			</div>
 
-			<div class="grid grid-cols-1 gap-6 md:grid-cols-2 items-start pt-2">
+			<div class="grid grid-cols-1 gap-4 md:grid-cols-2 items-start pt-1">
 				<!-- Media Storage Configuration -->
 				<div class="space-y-2">
 					<label for="media-storage-type" class="mb-1 flex items-center gap-1 text-sm font-medium">
@@ -448,10 +448,10 @@ Features:
 		</section>
 
 		<!-- Languages -->
-		<section class="space-y-6 border-t border-white/10 pt-6">
-			<div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+		<section class="space-y-5 border-t border-surface-200 dark:border-white/10 pt-5">
+			<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
 				<!-- Default System Language -->
-				<div class="space-y-3 rounded border border-white/5 bg-white/2 p-4">
+				<div class="space-y-2 rounded border border-surface-200 dark:border-white/5 p-4">
 					<label for="default-system-lang" class="mb-1 flex items-center gap-1 text-sm font-medium">
 						<iconify-icon icon="mdi:translate" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 						<span class="text-black dark:text-white">{setup_label_default_system_language?.() || 'Default System Language'}</span>
@@ -462,7 +462,7 @@ Features:
 						</SystemTooltip>
 					</label>
 
-					<p class="text-[10px] text-white/40" id="system-lang-help">Select the primary language for the admin interface.</p>
+					<p class="text-[10px] text-slate-500 dark:text-white/40" id="system-lang-help">Select the primary language for the admin interface.</p>
 
 					<select id="default-system-lang" bind:value={systemSettings.defaultSystemLanguage} class="input w-full rounded">
 						{#each systemSettings.systemLanguages as lang (lang)}
@@ -480,7 +480,7 @@ Features:
 							</SystemTooltip>
 						</div>
 
-						<div class="relative flex min-h-[42px] flex-wrap items-center gap-2 rounded border border-white/5 bg-white/2 pr-16 p-2">
+						<div class="relative flex min-h-[42px] flex-wrap items-center gap-2 rounded border border-surface-200 dark:border-white/5 p-2 pr-16">
 							{#each systemSettings.systemLanguages as lang (lang)}
 								<span
 									class="group badge preset-filled-tertiary-500 dark:preset-filled-primary-500 inline-flex items-center gap-2 rounded-full px-3 py-1 text-white"
@@ -514,7 +514,7 @@ Features:
 							{#if showSystemPicker}
 								<div
 									id="system-lang-picker"
-									class="absolute left-0 top-full z-20 mt-2 w-64 rounded-md border border-white/10 bg-surface-800 p-2 shadow-xl"
+									class="absolute left-0 top-full z-20 mt-2 w-64 rounded-md border border-surface-200 dark:border-white/10 bg-white dark:bg-surface-800 p-2 shadow-xl"
 									role="dialog"
 									aria-label="Add system language"
 									tabindex="-1"
@@ -522,22 +522,23 @@ Features:
 								>
 									<input
 										id="system-lang-search"
-										class="mb-2 w-full rounded border border-white/10 bg-transparent px-2 py-1 text-xs outline-none focus:border-primary-500"
+										class="mb-2 w-full rounded border border-surface-200 dark:border-white/10 bg-transparent px-2 py-1 text-xs outline-none focus:border-tertiary-500 dark:focus:border-primary-500"
 										placeholder="Search..."
 										bind:value={systemPickerSearch}
 									/>
 									<div class="max-h-48 overflow-auto">
 										{#if systemAvailable.length === 0}
-											<p class="px-1 py-2 text-center text-[11px] text-white/40">{setup_help_no_matches?.() || 'No matches'}</p>
+											<p class="px-1 py-2 text-center text-[11px] text-slate-400 dark:text-white/40">{setup_help_no_matches?.() || 'No matches'}</p>
 										{/if}
 										{#each systemAvailable as sug (sug)}
 											<button
 												type="button"
-												class="flex w-full items-center justify-between rounded px-2 py-1 text-left text-xs hover:bg-primary-500/10"
+												class="flex w-full items-center justify-between rounded px-2 py-1 text-left text-xs hover:bg-tertiary-500/10 dark:hover:bg-primary-500/10"
 												onclick={() => addSystemLanguage(sug)}
 											>
-												<span>{displayLang(sug)}</span>
-												<iconify-icon icon="mdi:plus-circle-outline" width="14" class="text-primary-500" aria-hidden="true"></iconify-icon>
+												<span class="text-black dark:text-white">{displayLang(sug)}</span>
+												<iconify-icon icon="mdi:plus-circle-outline" width="14" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"
+												></iconify-icon>
 											</button>
 										{/each}
 									</div>
@@ -547,7 +548,7 @@ Features:
 					</div>
 				</div>
 				<!-- Default Content Language -->
-				<div class="space-y-3 rounded-md border border-white/5 bg-white/2 p-4">
+				<div class="space-y-2 rounded border border-surface-200 dark:border-white/5 p-4">
 					<div class="mb-1 flex items-center gap-1 text-sm font-medium">
 						<iconify-icon icon="mdi:book-open-page-variant" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"
 						></iconify-icon>
@@ -558,7 +559,7 @@ Features:
 							</button>
 						</SystemTooltip>
 					</div>
-					<p class="text-[10px] text-white/40" id="system-lang-help">Select the primary language for your content.</p>
+					<p class="text-[10px] text-slate-500 dark:text-white/40" id="system-lang-help">Select the primary language for your content.</p>
 					<select
 						bind:value={systemSettings.defaultContentLanguage}
 						onblur={() => handleBlur('defaultContentLanguage')}
@@ -587,7 +588,7 @@ Features:
 						<div
 							class="relative flex min-h-[42px] flex-wrap items-center gap-2 rounded border p-2 pr-16 {displayErrors.contentLanguages
 								? 'border-error-500 bg-error-50 dark:bg-error-900/20'
-								: 'border-white/5 bg-white/2'}"
+								: 'border-surface-200 dark:border-white/5 '}"
 						>
 							{#each systemSettings.contentLanguages as lang (lang)}
 								<span
@@ -639,11 +640,14 @@ Features:
 										{#each contentAvailable as sug (sug.code)}
 											<button
 												type="button"
-												class="flex w-full items-center justify-between rounded px-2 py-1 text-left text-xs hover:bg-primary-500/10"
+												class="flex w-full items-center justify-between rounded px-2 py-1 text-left text-xs hover:bg-tertiary-500/10 dark:hover:bg-primary-500/10"
 												onclick={() => addContentLanguage(sug.code)}
 											>
-												<span>{sug.name} ({sug.code.toUpperCase()}) <span class="text-white/40">- {sug.native}</span></span>
-												<iconify-icon icon="mdi:plus-circle-outline" width="14" class="text-primary-500" aria-hidden="true"></iconify-icon>
+												<span class="text-black dark:text-white"
+													>{sug.name} ({sug.code.toUpperCase()}) <span class="text-slate-500 dark:text-white/40">- {sug.native}</span></span
+												>
+												<iconify-icon icon="mdi:plus-circle-outline" width="14" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"
+												></iconify-icon>
 											</button>
 										{/each}
 									</div>
@@ -659,8 +663,8 @@ Features:
 		</section>
 
 		<!-- Optimization (Redis, Multi-Tenant, Demo) -->
-		<section id="redis-section" class="space-y-4 border-t border-white/10 pt-6">
-			<div class="rounded-lg border border-white/5 bg-white/2 p-4 space-y-4">
+		<section id="redis-section" class="space-y-4 border-t border-surface-200 dark:border-white/10 pt-5">
+			<div class="rounded-lg border border-surface-200 dark:border-white/5 p-4 space-y-4">
 				<div class="flex items-center gap-3">
 					<input
 						id="use-redis"
@@ -681,16 +685,16 @@ Features:
 
 				{#if systemSettings.useRedis}
 					<div class="grid grid-cols-1 gap-4 sm:grid-cols-3 pt-2 animate-in fade-in slide-in-from-top-2 duration-300">
-						<div class="space-y-1.5">
-							<label for="redis-host" class="text-xs font-semibold text-white/40">Redis Host</label>
+						<div class="space-y-1.5 text-black dark:text-white">
+							<label for="redis-host" class="text-xs font-semibold text-slate-500 dark:text-white/40">Redis Host</label>
 							<input id="redis-host" bind:value={systemSettings.redisHost} type="text" placeholder="localhost" class="input text-sm py-1.5 rounded" />
 						</div>
-						<div class="space-y-1.5">
-							<label for="redis-port" class="text-xs font-semibold text-white/40">Redis Port</label>
+						<div class="space-y-1.5 text-black dark:text-white">
+							<label for="redis-port" class="text-xs font-semibold text-slate-500 dark:text-white/40">Redis Port</label>
 							<input id="redis-port" bind:value={systemSettings.redisPort} type="text" placeholder="6379" class="input text-sm py-1.5 rounded" />
 						</div>
-						<div class="space-y-1.5">
-							<label for="redis-password" class="text-xs font-semibold text-white/40">Redis Password (Optional)</label>
+						<div class="space-y-1.5 text-black dark:text-white">
+							<label for="redis-password" class="text-xs font-semibold text-slate-500 dark:text-white/40">Redis Password (Optional)</label>
 							<input
 								id="redis-password"
 								bind:value={systemSettings.redisPassword}
@@ -705,9 +709,9 @@ Features:
 		</section>
 
 		<!-- System Infrastructure / Mode -->
-		<div class="grid grid-cols-1 gap-6 md:grid-cols-2 pb-4">
+		<div class="grid grid-cols-1 gap-4 md:grid-cols-2 pb-4">
 			<!-- Multi-Tenant Toggle -->
-			<div class="input flex items-center gap-3 rounded border border-white/5 bg-white/2 p-3">
+			<div class="input flex items-center gap-3 rounded border border-surface-200 dark:border-white/5 p-3">
 				<input
 					id="multi-tenant-mode"
 					type="checkbox"
@@ -726,7 +730,7 @@ Features:
 			</div>
 
 			<!-- Demo Mode Toggle -->
-			<div class="input flex items-center gap-3 rounded border border-white/5 bg-white/2 p-3">
+			<div class="input flex items-center gap-3 rounded border border-surface-200 dark:border-white/5 p-3">
 				<input
 					id="demo-mode"
 					type="checkbox"

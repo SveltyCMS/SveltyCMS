@@ -13,8 +13,6 @@ Orchestrates crop state using svelte-canvas compatible state.
 
 	let cropShape = $state<CropShape>('rectangle');
 
-	const { onCancel }: { onCancel: () => void } = $props();
-
 	const storeState = imageEditorStore.state;
 
 	// bind/unbind the tool when active state changes
@@ -54,12 +52,6 @@ Orchestrates crop state using svelte-canvas compatible state.
 					} else {
 						cropShape = 'rectangle';
 					}
-				},
-
-				onApply: apply,
-				onCancel: () => {
-					storeState.crop = null;
-					onCancel();
 				}
 			}
 		});
@@ -70,11 +62,6 @@ Orchestrates crop state using svelte-canvas compatible state.
 			updateToolbar();
 		}
 	});
-
-	function apply() {
-		imageEditorStore.takeSnapshot();
-		imageEditorStore.setActiveState('');
-	}
 
 	// Interactive state
 	let activeHandle = $state<string | null>(null);

@@ -8,8 +8,6 @@ Watermark tool using svelte-canvas compatible state.
 	import { Layer } from 'svelte-canvas';
 	import WatermarkControls from './controls.svelte';
 
-	let { onCancel }: { onCancel: () => void } = $props();
-
 	let selectedId = $state<string | null>(null);
 	let opacity = $state(0.8);
 	let currentSize = $state(100);
@@ -35,11 +33,6 @@ Watermark tool using svelte-canvas compatible state.
 				onPositionChange: () => {},
 				onOpacityChange: (v: number) => (opacity = v),
 				onSizeChange: (v: number) => (currentSize = v),
-				onCancel: () => {
-					storeState.watermarks = [];
-					onCancel();
-				},
-				onApply: apply,
 				hasSelection: !!selectedId,
 				currentOpacity: opacity,
 				currentSize,
@@ -53,11 +46,6 @@ Watermark tool using svelte-canvas compatible state.
 			updateToolbar();
 		}
 	});
-
-	function apply() {
-		imageEditorStore.takeSnapshot();
-		imageEditorStore.setActiveState('');
-	}
 
 	const renderWatermarks = ({ context, width, height }: { context: CanvasRenderingContext2D; width: number; height: number }) => {
 		const { watermarks, zoom, translateX, translateY, imageElement } = storeState;

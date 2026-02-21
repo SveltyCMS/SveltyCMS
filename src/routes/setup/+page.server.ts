@@ -71,9 +71,6 @@ export const actions = {
 	 * Tests the database connection
 	 */
 	testDatabase: async ({ request }) => {
-		if (await isSetupCompleteAsync()) {
-			throw error(403, 'Setup already complete.');
-		}
 		logger.info('🚀 Action: VerifyDatabaseConfig starting...');
 		try {
 			const formData = await request.formData();
@@ -163,9 +160,6 @@ export const actions = {
 	 * Seeds the database
 	 */
 	seedDatabase: async ({ request }) => {
-		if (await isSetupCompleteAsync()) {
-			throw error(403, 'Setup already complete.');
-		}
 		logger.info('🚀 Action: seedDatabase called');
 		const formData = await request.formData();
 		const configRaw = formData.get('config') as string;
@@ -242,9 +236,6 @@ export const actions = {
 	 * Completes the setup
 	 */
 	completeSetup: async ({ request, cookies, url }) => {
-		if (await isSetupCompleteAsync()) {
-			throw error(403, 'Setup already complete.');
-		}
 		const setupStartTime = performance.now();
 		logger.info('🚀 Action: completeSetup called');
 
@@ -645,9 +636,6 @@ export const actions = {
 
 	// Tests Email Configuration
 	testEmail: async ({ request }) => {
-		if (await isSetupCompleteAsync()) {
-			throw error(403, 'Setup already complete.');
-		}
 		logger.info('🚀 Action: testEmail called');
 		const formData = await request.formData();
 		const rawData = Object.fromEntries(formData.entries());
@@ -757,9 +745,6 @@ export const actions = {
 	 * Installs database drivers (optional)
 	 */
 	installDriver: async ({ request }) => {
-		if (await isSetupCompleteAsync()) {
-			throw error(403, 'Setup already complete.');
-		}
 		logger.info('🚀 Action: installDriver called');
 		const formData = await request.formData();
 		const dbType = formData.get('dbType') as DatabaseType;

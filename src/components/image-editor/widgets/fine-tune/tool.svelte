@@ -16,8 +16,6 @@ Orchestrates the filter modules using svelte-canvas compatible state.
 	let activeCategory = $state('basic');
 	let isComparing = $state(false);
 
-	let { onCancel }: { onCancel: () => void } = $props();
-
 	const storeState = imageEditorStore.state;
 
 	// Binds/unbounds the tool and registers the toolbar
@@ -74,9 +72,7 @@ Orchestrates the filter modules using svelte-canvas compatible state.
 					storeState.filters = { ...DEFAULT_ADJUSTMENTS };
 				},
 				onCompareToggle: () => (isComparing = !isComparing),
-				onAutoAdjust: autoAdjust,
-				onCancel: () => onCancel(),
-				onApply: () => apply()
+				onAutoAdjust: autoAdjust
 			}
 		});
 	}
@@ -91,11 +87,6 @@ Orchestrates the filter modules using svelte-canvas compatible state.
 			contrast: 10,
 			saturation: 20
 		};
-	}
-
-	function apply() {
-		imageEditorStore.takeSnapshot();
-		imageEditorStore.setActiveState('');
 	}
 
 	export function saveState() {}

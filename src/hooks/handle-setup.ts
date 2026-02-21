@@ -97,6 +97,12 @@ export const handleSetup: Handle = async ({ event, resolve }) => {
 		// This prevents unauthenticated setup actions from being called after initialization.
 		const isSetupRoute = pathname.startsWith('/setup') || /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/setup/.test(pathname);
 		if (isSetupRoute) {
+			// Special Case: Allow the finalization action to proceed
+			// This handles the transition where config exists but setup is just finishing.
+			if (event.request.method === 'POST' && event.url.search.includes('/completeSetup')) {
+				return await resolve(event, createSetupResolver());
+			}
+
 			if (event.request.method === 'GET') {
 				if (!event.locals.__setupLoginRedirectLogged) {
 					logger.trace(`Setup complete. Blocking access to ${pathname}, redirecting to /login`);

@@ -179,6 +179,9 @@ function createImageEditorStore() {
 			crop: $state.snapshot(state.crop),
 			focalPoint: $state.snapshot(state.focalPoint),
 			filters: $state.snapshot(state.filters),
+			annotations: $state.snapshot(state.annotations),
+			blurRegions: $state.snapshot(state.blurRegions),
+			watermarks: $state.snapshot(state.watermarks),
 			activeState: state.activeState,
 			timestamp: Date.now()
 		};
@@ -198,6 +201,9 @@ function createImageEditorStore() {
 			state.crop = snapshot.crop ?? null;
 			state.focalPoint = snapshot.focalPoint ?? { x: 0.5, y: 0.5 };
 			state.filters = snapshot.filters ?? {};
+			state.annotations = snapshot.annotations ?? [];
+			state.blurRegions = snapshot.blurRegions ?? [];
+			state.watermarks = snapshot.watermarks ?? [];
 			state.activeState = snapshot.activeState ?? '';
 		} catch (e) {
 			console.error('Failed to restore snapshot:', e);

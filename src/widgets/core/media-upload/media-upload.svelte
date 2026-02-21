@@ -125,8 +125,15 @@ functionality for image editing and basic file information display.
 		}, 300);
 	}
 
-	async function handleEditorSave(detail: { dataURL: string; file: File; operations?: unknown; focalPoint?: unknown; mediaId?: string }) {
-		const { file, operations, focalPoint, mediaId } = detail;
+	async function handleEditorSave(detail: {
+		dataURL: string;
+		file: File;
+		operations?: unknown;
+		focalPoint?: unknown;
+		mediaId?: string;
+		saveBehavior?: 'new' | 'overwrite';
+	}) {
+		const { file, operations, focalPoint, mediaId, saveBehavior } = detail;
 
 		const formData = new FormData();
 		formData.append('file', file);
@@ -138,6 +145,9 @@ functionality for image editing and basic file information display.
 		}
 		if (focalPoint) {
 			formData.append('focalPoint', JSON.stringify(focalPoint));
+		}
+		if (saveBehavior) {
+			formData.append('saveBehavior', saveBehavior);
 		}
 
 		try {

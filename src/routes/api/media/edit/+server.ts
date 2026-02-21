@@ -24,6 +24,7 @@ import { MediaService } from '@src/utils/media/media-service.server';
 import { json, type RequestHandler } from '@sveltejs/kit';
 import { logger } from '@utils/logger.server';
 import sharp from 'sharp';
+import type { DatabaseId } from '@src/content/types';
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 
@@ -215,38 +216,50 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const extension = file.type.split('/')[1] === 'jpeg' ? 'jpg' : file.type.split('/')[1];
 		const filename = `${sanitizedName}-edited-${timestamp}-${hash}.${extension}`;
 
-		// Usemedia-servicefor saving
+		// Use media-service for saving
 		try {
 			if (!dbAdapter) {
 				throw new Error('Database adapter not available');
 			}
 			const mediaService = new MediaService(dbAdapter);
+			const saveBehavior = (formData.get('saveBehavior') as string) || 'new';
+
 			// Buffer to Uint8Array/any to satisfy File constructor
 			const editedFile = new File([processedBuffer as any], filename, {
 				type: file.type
 			});
 
-			if (mediaId) {
-				// ADD AS NEW VERSION
-				logger.info(`Adding new version to media: ${mediaId}`);
-				const updatedItem = await mediaService.addVersion(mediaId, editedFile, userId, 'update');
+			let savedItem;
+
+			if (mediaId && saveBehavior === 'overwrite') {
+				// OVERWRITE: Add as new version to existing media
+				logger.info(`Overwriting: Adding new version to media: ${mediaId}`);
+				savedItem = await mediaService.addVersion(mediaId as DatabaseId, editedFile, userId as DatabaseId, 'update');
 
 				// Update metadata with operations and focal point
-				await mediaService.updateMedia(mediaId, {
+				await mediaService.updateMedia(mediaId as DatabaseId, {
 					metadata: {
-						...updatedItem.metadata,
-						focalPoint: focalPoint || updatedItem.metadata?.focalPoint,
+						...savedItem.metadata,
+						focalPoint: focalPoint || savedItem.metadata?.focalPoint,
 						lastOperations: operations
 					}
 				});
+			} else {
+				// SAVE AS NEW MEDIA (or if no mediaId provided)
+				logger.info('Saving as new media item');
+				savedItem = await mediaService.saveMedia(editedFile, userId as DatabaseId, 'public', MEDIA_FOLDER, undefined, mediaId as DatabaseId);
 
-				return json({
-					success: true,
-					data: updatedItem
-				});
+				// Update metadata for the new item
+				if (savedItem?._id) {
+					await mediaService.updateMedia(savedItem._id as DatabaseId, {
+						metadata: {
+							...savedItem.metadata,
+							focalPoint: focalPoint || savedItem.metadata?.focalPoint,
+							lastOperations: operations
+						}
+					});
+				}
 			}
-			// SAVE AS NEW MEDIA
-			const savedItem = await mediaService.saveMedia(editedFile, userId, 'public', MEDIA_FOLDER);
 
 			return json({
 				success: true,

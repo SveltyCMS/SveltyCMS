@@ -80,14 +80,14 @@ export async function isSetupCompleteAsync(): Promise<boolean> {
 
 		// Guard against uninitialized adapter
 		if (!dbAdapter) {
-			// If adapter isn't ready but config exists, we assume setup is done to avoid loop
-			return true;
+			// If adapter isn't ready but config exists, we stay in setup mode to allow finalization
+			return false;
 		}
 
 		// Check if database is connected before trying to access auth
 		if (typeof dbAdapter.isConnected === 'function' && !dbAdapter.isConnected()) {
-			// If DB not connected but config exists, assume setup is done
-			return true;
+			// If DB not connected but config exists, stay in setup mode
+			return false;
 		}
 
 		// Ensure auth is initialized before access
@@ -119,9 +119,9 @@ export async function isSetupCompleteAsync(): Promise<boolean> {
 		return true;
 	} catch (error) {
 		console.error('[SveltyCMS] ❌ Database validation failed during setup check:', error);
-		// If config exists but DB check fails, we still return true to avoid loop
-		// and let the main app handle DB connection errors
-		return true;
+		// If config exists but DB check fails, we return false to stay in setup mode
+		// This prevents blocking setup actions during transition.
+		return false;
 	}
 }
 

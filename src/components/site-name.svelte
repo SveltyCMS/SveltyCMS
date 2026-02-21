@@ -40,39 +40,44 @@
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 
 	interface Props {
+		char?: string | null;
 		highlight?: string;
 		siteName?: string;
 		textClass?: string;
-		char?: string;
 	}
 
-	const { siteName = '', highlight = '', textClass = '', char = '' }: Props = $props();
+	const { char = null, siteName: propSiteName, highlight, textClass = 'text-black dark:text-white' }: Props = $props();
 
-	// Use siteName prop if provided, else fall back to global store
-	const activeName = $derived(char || siteName || publicEnv.SITE_NAME || 'SveltyCMS');
+	// Get site name dynamically from global settings store (updates live!)
+	// Fallback chain: prop → live store → default (removed page.data access which causes SSR issues)
+	const siteName = $derived(propSiteName || publicEnv?.SITE_NAME || 'SveltyCMS');
 
-	// Derived logic to split site name for highlighting
+	// Split site name into parts if highlight is provided
 	const parts = $derived.by(() => {
-		if (!highlight || !activeName) {
+		if (!(highlight && siteName)) {
 			return null;
 		}
-		const index = activeName.toLowerCase().indexOf(highlight.toLowerCase());
+		const index = siteName.indexOf(highlight);
 		if (index === -1) {
 			return null;
 		}
-
 		return {
-			before: activeName.slice(0, index),
-			highlight: activeName.slice(index, index + highlight.length),
-			after: activeName.slice(index + highlight.length)
+			before: siteName.substring(0, index),
+			highlight: siteName.substring(index, index + highlight.length),
+			after: siteName.substring(index + highlight.length)
 		};
 	});
 </script>
 
-{#if parts}
+{#if char !== null}
+	<!-- Single character mode (for animations) -->
+	<span class="text-left font-bold {textClass}"> {char} </span>
+{:else if parts}
+	<!-- Site name with highlighted portion -->
 	<span class="text-left font-bold {textClass}">
 		{parts.before}<span class="text-primary-500">{parts.highlight}</span>{parts.after}
 	</span>
 {:else}
-	<span class="text-left font-bold {textClass}">{activeName}</span>
+	<!-- Full site name without highlighting -->
+	<span class="text-left font-bold {textClass}"> {siteName} </span>
 {/if}

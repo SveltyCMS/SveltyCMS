@@ -296,7 +296,11 @@
 									{/if}
 								</svg>
 								<div class="flex-1">{wizard.successMessage || wizard.errorMessage}</div>
-								<button type="button" class="btn-sm flex shrink-0 items-center gap-1" onclick={() => (wizard.showDbDetails = !wizard.showDbDetails)}>
+								<button
+									type="button"
+									class="btn-sm preset-outlined rounded flex shrink-0 items-center gap-1"
+									onclick={() => (wizard.showDbDetails = !wizard.showDbDetails)}
+								>
 									<iconify-icon icon={wizard.showDbDetails ? 'mdi:chevron-up' : 'mdi:chevron-down'} class="h-4 w-4"></iconify-icon>
 									<span class="hidden sm:inline">{wizard.showDbDetails ? setup_db_test_details_hide() : setup_db_test_details_show()}</span>
 								</button>
@@ -310,40 +314,40 @@
 								</button>
 							</div>
 							{#if wizard.showDbDetails && wizard.lastDbTestResult}
-								<div class="border-t border-surface-200 bg-surface-50 text-xs dark:border-surface-600 dark:bg-surface-700">
+								<div class="border-t border-surface-200 bg-secondary-50 text-xs dark:border-surface-600 dark:bg-surface-700">
 									<div class="grid grid-cols-2 gap-x-4 gap-y-2 p-3 sm:grid-cols-6">
-										<div class="sm:col-span-1">
+										<div class="sm:col-span-1 flex items-center gap-1 whitespace-nowrap">
 											<span class="font-semibold">{setup_db_test_latency()}:</span>
-											<span class="text-terrary-500 dark:text-primary-500">{wizard.lastDbTestResult.latencyMs ?? '—'} ms</span>
+											<span class="text-tertiary-500 dark:text-primary-500 font-semibold">{wizard.lastDbTestResult.latencyMs ?? '—'} ms</span>
 										</div>
-										<div class="sm:col-span-1">
+										<div class="sm:col-span-1 flex items-center gap-1 whitespace-nowrap">
 											<span class="font-semibold">{setup_db_test_engine()}:</span>
-											<span class="text-terrary-500 dark:text-primary-500">{wizard.dbConfig.type}</span>
+											<span class="text-tertiary-500 dark:text-primary-500 font-semibold">{wizard.dbConfig.type}</span>
 										</div>
-										<div class="sm:col-span-1">
+										<div class="sm:col-span-1 flex items-center gap-1 whitespace-nowrap">
 											<span class="font-semibold">{label_host()}:</span>
-											<span class="text-terrary-500 dark:text-primary-500">{wizard.dbConfig.host}</span>
+											<span class="text-tertiary-500 dark:text-primary-500 font-semibold">{wizard.dbConfig.host}</span>
 										</div>
 										{#if !isFullUri}
-											<div class="sm:col-span-1">
+											<div class="sm:col-span-1 flex items-center gap-1 whitespace-nowrap">
 												<span class="font-semibold">{label_port()}:</span>
-												<span class="text-terrary-500 dark:text-primary-500">{wizard.dbConfig.port}</span>
+												<span class="text-tertiary-500 dark:text-primary-500 font-semibold">{wizard.dbConfig.port}</span>
 											</div>
 										{/if}
-										<div class="sm:col-span-1">
+										<div class="sm:col-span-1 flex items-center gap-1 whitespace-nowrap">
 											<span class="font-semibold">{label_database()}:</span>
-											<span class="text-terrary-500 dark:text-primary-500">{wizard.dbConfig.name}</span>
+											<span class="text-tertiary-500 dark:text-primary-500 font-semibold">{wizard.dbConfig.name}</span>
 										</div>
 										{#if wizard.dbConfig.user}
-											<div class="sm:col-span-1">
+											<div class="sm:col-span-1 flex items-center gap-1 whitespace-nowrap">
 												<span class="font-semibold">{label_user?.() || setup_db_test_user()}:</span>
-												<span class="text-terrary-500 dark:text-primary-500">{wizard.dbConfig.user}</span>
+												<span class="text-tertiary-500 dark:text-primary-500 font-semibold">{wizard.dbConfig.user}</span>
 											</div>
 										{/if}
 										{#if wizard.lastDbTestResult.classification}
-											<div class="sm:col-span-2">
+											<div class="sm:col-span-2 flex items-center gap-1 whitespace-nowrap">
 												<span class="font-semibold">Code:</span>
-												<span class="text-terrary-500 dark:text-primary-500">{wizard.lastDbTestResult.classification}</span>
+												<span class="text-tertiary-500 dark:text-primary-500 font-semibold">{wizard.lastDbTestResult.classification}</span>
 											</div>
 										{/if}
 									</div>

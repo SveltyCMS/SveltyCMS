@@ -105,14 +105,14 @@
 </script>
 
 <div class="fade-in">
-	<div class="mb-8">
-		<p class="text-sm text-tertiary-500 dark:text-primary-500 sm:text-base">
+	<div class="mb-4">
+		<p class="text-sm text-center md:text-right text-tertiary-500 dark:text-primary-500 sm:text-base">
 			{setup_help_admin_username?.() || 'Create your administrator account with full access to manage content, users, and system settings.'}
 		</p>
 	</div>
 
-	<form onsubmit={(e) => e.preventDefault()} class="space-y-6">
-		<div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+	<form onsubmit={(e) => e.preventDefault()} class="space-y-4">
+		<div class="grid grid-cols-1 gap-4 md:grid-cols-2 items-start">
 			<!-- Username -->
 			<div>
 				<label for="admin-username" class="mb-1 flex items-center gap-1 text-sm font-medium">
@@ -238,7 +238,7 @@
 				<!-- Password Strength Meter -->
 				{#if adminUser.password}
 					{@const score = Object.values(passwordRequirements).filter(Boolean).length}
-					<div class="mt-2 space-y-1">
+					<div class="space-y-4">
 						<div class="flex h-1.5 w-full gap-1 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
 							<div class="h-full transition-all duration-500 {score >= 1 ? 'bg-error-500' : ''}" style="width: 20%" aria-hidden="true"></div>
 							<div class="h-full transition-all duration-500 {score >= 2 ? 'bg-warning-500' : ''}" style="width: 20%" aria-hidden="true"></div>
@@ -313,7 +313,7 @@
 			</h4>
 			<ul class="space-y-2 text-sm" aria-labelledby="password-reqs-heading">
 				<li
-					class="flex items-center {passwordRequirements.length
+					class="flex items-center font-semibold {passwordRequirements.length
 						? 'text-tertiary-500 dark:text-primary-500'
 						: 'text-surface-500 dark:text-surface-50'}"
 				>
@@ -330,7 +330,7 @@
 					<span class="sr-only">, {passwordRequirements.length ? 'complete' : 'incomplete'}.</span>
 				</li>
 				<li
-					class="flex items-center {passwordRequirements.letter
+					class="flex items-center font-semibold {passwordRequirements.letter
 						? 'text-tertiary-500 dark:text-primary-500'
 						: 'text-surface-500 dark:text-surface-50'}"
 				>
@@ -347,7 +347,7 @@
 					<span class="sr-only">, {passwordRequirements.letter ? 'complete' : 'incomplete'}.</span>
 				</li>
 				<li
-					class="flex items-center {passwordRequirements.number
+					class="flex items-center font-semibold {passwordRequirements.number
 						? 'text-tertiary-500 dark:text-primary-500'
 						: 'text-surface-500 dark:text-surface-50'}"
 				>
@@ -364,7 +364,7 @@
 					<span class="sr-only">, {passwordRequirements.number ? 'complete' : 'incomplete'}.</span>
 				</li>
 				<li
-					class="flex items-center {passwordRequirements.special
+					class="flex items-center font-semibold {passwordRequirements.special
 						? 'text-tertiary-500 dark:text-primary-500'
 						: 'text-surface-500 dark:text-surface-50'}"
 				>
@@ -381,7 +381,9 @@
 					<span class="sr-only">, {passwordRequirements.special ? 'complete' : 'incomplete'}.</span>
 				</li>
 				<li
-					class="flex items-center {passwordRequirements.match ? 'text-tertiary-500 dark:text-primary-500' : 'text-surface-500 dark:text-surface-50'}"
+					class="flex items-center font-semibold {passwordRequirements.match
+						? 'text-tertiary-500 dark:text-primary-500'
+						: 'text-surface-500 dark:text-surface-50'}"
 				>
 					<span
 						class="mr-2 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border {passwordRequirements.match

@@ -53,7 +53,7 @@ Middle-ground height (h-[38px]), fixed dropdown borders, and right-aligned mobil
 			</a>
 			<div class="flex min-w-0 flex-col justify-center overflow-hidden">
 				<h1 class="truncate text-lg font-bold leading-none sm:text-2xl lg:text-3xl">
-					<a href="https://github.com/SveltyCMS/SveltyCMS" target="_blank" rel="noopener noreferrer" class="transition-colors hover:text-primary-500">
+					<a href="https://github.com/SveltyCMS/SveltyCMS" target="_blank" rel="noopener noreferrer">
 						<SiteName {siteName} highlight="CMS" />
 					</a>
 				</h1>

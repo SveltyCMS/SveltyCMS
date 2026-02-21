@@ -461,7 +461,7 @@
 </script>
 
 <form
-	class="space-y-6"
+	class="space-y-4"
 	onsubmit={(e) => {
 		e.preventDefault();
 		testConnection();

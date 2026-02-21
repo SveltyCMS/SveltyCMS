@@ -7,19 +7,11 @@ Rotate tool using svelte-canvas compatible state.
 	import { imageEditorStore } from '@src/stores/image-editor-store.svelte';
 	import RotateControls from './controls.svelte';
 
-	let { onCancel }: { onCancel: () => void } = $props();
-
 	const storeState = imageEditorStore.state;
-
-	// Store original state for reset
-	let originalRotation = 0;
-	let originalFlipH = false;
-	let originalFlipV = false;
 
 	$effect(() => {
 		const activeState = imageEditorStore.state.activeState;
 		if (activeState === 'rotate') {
-			initializeTool();
 			updateToolbarControls();
 		} else if (imageEditorStore.state.toolbarControls?.component === RotateControls) {
 			imageEditorStore.setToolbarControls(null);
@@ -33,12 +25,6 @@ Rotate tool using svelte-canvas compatible state.
 		}
 	});
 
-	function initializeTool() {
-		originalRotation = storeState.rotation;
-		originalFlipH = storeState.flipH;
-		originalFlipV = storeState.flipV;
-	}
-
 	function updateToolbarControls() {
 		imageEditorStore.setToolbarControls({
 			component: RotateControls,
@@ -50,13 +36,7 @@ Rotate tool using svelte-canvas compatible state.
 				onRotateRight: () => setRotation(storeState.rotation + 90),
 				onRotationChange: setRotation,
 				onFlipHorizontal: toggleFlipH,
-				onFlipVertical: toggleFlipV,
-				onReset: reset,
-				onCancel: () => {
-					reset();
-					onCancel();
-				},
-				onApply: apply
+				onFlipVertical: toggleFlipV
 			}
 		});
 	}
@@ -71,17 +51,6 @@ Rotate tool using svelte-canvas compatible state.
 
 	function toggleFlipV() {
 		storeState.flipV = !storeState.flipV;
-	}
-
-	function reset() {
-		storeState.rotation = originalRotation;
-		storeState.flipH = originalFlipH;
-		storeState.flipV = originalFlipV;
-	}
-
-	function apply() {
-		imageEditorStore.takeSnapshot();
-		imageEditorStore.setActiveState('');
 	}
 
 	export function saveState() {}

@@ -695,7 +695,8 @@ Displays a collection of media files (images, documents, audio, video) with:
 
 			if (response.ok) {
 				toaster.success({ description: 'Image saved successfully!' });
-				fetchMediaFiles(true); // Force refresh
+				// Full page reload to ensure all state is refreshed
+				window.location.href = '/mediagallery';
 			} else {
 				const errorData = await response.json();
 				throw new Error(errorData.error || 'Failed to save edited image');

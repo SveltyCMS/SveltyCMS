@@ -12,8 +12,7 @@ Controls for the Annotate tool: tool selection (text, arrow, shapes) and styling
 		fillColor,
 		onSetTool,
 		onStrokeColorChange,
-		onFillColorChange,
-		onDelete
+		onFillColorChange
 	}: {
 		currentTool: ToolType;
 		strokeColor: string;
@@ -21,7 +20,6 @@ Controls for the Annotate tool: tool selection (text, arrow, shapes) and styling
 		onSetTool: (tool: ToolType) => void;
 		onStrokeColorChange: (color: string) => void;
 		onFillColorChange: (color: string) => void;
-		onDelete: () => void;
 	} = $props();
 </script>
 
@@ -73,13 +71,6 @@ Controls for the Annotate tool: tool selection (text, arrow, shapes) and styling
 			<iconify-icon icon="mdi:format-color-fill" class="picker-icon" width="12"></iconify-icon>
 		</label>
 	</div>
-
-	<div class="divider"></div>
-
-	<!-- Delete Action (Contextual) -->
-	<button onclick={onDelete} class="tool-btn delete-btn" title="Delete Selected">
-		<iconify-icon icon="mdi:delete-outline" width="20"></iconify-icon>
-	</button>
 </div>
 
 <style>
@@ -123,15 +114,6 @@ Controls for the Annotate tool: tool selection (text, arrow, shapes) and styling
 		color: white;
 		background: #3b82f6;
 		box-shadow: 0 0 10px rgba(59, 130, 246, 0.3);
-	}
-
-	.delete-btn {
-		color: #ef4444; /* Error-500 */
-	}
-
-	.delete-btn:hover {
-		color: #f87171;
-		background: rgba(239, 68, 68, 0.1);
 	}
 
 	.divider {

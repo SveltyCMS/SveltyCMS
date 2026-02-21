@@ -16,7 +16,6 @@ Orchestrates annotations using svelte-canvas compatible state and rendering.
 	let strokeColor = $state('#ff0000');
 	let fillColor = $state('transparent');
 
-	let { onCancel }: { onCancel: () => void } = $props();
 	const storeState = imageEditorStore.state;
 
 	// --- Lifecycle $effect ---
@@ -31,25 +30,13 @@ Orchestrates annotations using svelte-canvas compatible state and rendering.
 					fillColor,
 					onSetTool: (t: any) => (currentTool = t),
 					onStrokeColorChange: (v: string) => (strokeColor = v),
-					onFillColorChange: (v: string) => (fillColor = v),
-					onDelete: deleteSelected,
-					onCancel: () => onCancel(),
-					onApply: apply
+					onFillColorChange: (v: string) => (fillColor = v)
 				}
 			});
 		} else if (imageEditorStore.state.toolbarControls?.component === AnnotateControls) {
 			imageEditorStore.setToolbarControls(null);
 		}
 	});
-
-	function deleteSelected() {
-		// Implementation for deleting selected annotation
-	}
-
-	function apply() {
-		imageEditorStore.takeSnapshot();
-		imageEditorStore.setActiveState('');
-	}
 
 	const renderAnnotations = ({ context, width, height }: { context: CanvasRenderingContext2D; width: number; height: number }) => {
 		const { annotations, zoom, translateX, translateY, imageElement } = storeState;

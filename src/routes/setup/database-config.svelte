@@ -153,22 +153,6 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 		}
 	}
 
-	// Fill specific defaults for MongoDB
-	function useSveltyDefaults() {
-		dbConfig.type = 'mongodb';
-		dbConfig.host = 'localhost';
-		dbConfig.port = '27017';
-		dbConfig.name = 'SveltyCMS';
-		dbConfig.user = '';
-		dbConfig.password = '';
-		handleTypeChange();
-		clearDbTestError();
-
-		// Mark all fields as touched to trigger validation visuals
-		['host', 'port', 'name'].forEach((f) => touchedFields.add(f));
-		touchedFields = touchedFields;
-	}
-
 	// Handle paste event to detect connection strings
 	function handleHostPaste(event: ClipboardEvent) {
 		const pastedText = event.clipboardData?.getData('text') || '';
@@ -327,8 +311,8 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 </script>
 
 <div class="fade-in">
-	<div class="mb-6 sm:mb-8">
-		<p class="text-center text-sm text-tertiary-500 dark:text-primary-500 sm:text-base">{setup_database_intro()}</p>
+	<div class="mb-4 sm:mb-6">
+		<p class="text-center md:text-right text-sm text-tertiary-500 dark:text-primary-500 sm:text-base">{setup_database_intro()}</p>
 	</div>
 
 	<!-- MongoDB Atlas Helper Message -->
@@ -409,45 +393,32 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 			e.preventDefault();
 			handleTestConnection();
 		}}
-		class="space-y-4 sm:space-y-6"
+		class="space-y-4"
 	>
-		<div class="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2">
-			<div class="flex items-end justify-between gap-4">
-				<div class="flex-1">
-					<label for="db-type" class="mb-1 flex items-center gap-1 text-sm font-medium">
-						<iconify-icon icon="mdi:database" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-						<span class="text-black dark:text-white">{setup_label_database_type()}</span>
-						<SystemTooltip title={setup_help_database_type()}>
-							<button
-								type="button"
-								tabindex="-1"
-								aria-label="Help: Database Type"
-								class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-							>
-								<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-							</button>
-						</SystemTooltip>
-					</label>
+		<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+			<div>
+				<label for="db-type" class="mb-1 flex items-center gap-1 text-sm font-medium">
+					<iconify-icon icon="mdi:database" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+					<span class="text-black dark:text-white">{setup_label_database_type()}</span>
+					<SystemTooltip title={setup_help_database_type()}>
+						<button
+							type="button"
+							tabindex="-1"
+							aria-label="Help: Database Type"
+							class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+						>
+							<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
+						</button>
+					</SystemTooltip>
+				</label>
 
-					<select id="db-type" bind:value={dbConfig.type} onchange={handleTypeChange} class="input rounded">
-						<option value="mongodb">MongoDB (localhost/Docker)</option>
-						<option value="mongodb+srv">MongoDB Atlas (SRV)</option>
-						<option value="mariadb">MariaDB (via Drizzle) (Beta)</option>
-						<option value="postgresql">PostgreSQL (via Drizzle) (Beta)</option>
-						<option value="sqlite">SQLite (via Drizzle) (Beta)</option>
-					</select>
-				</div>
-
-				{#if dbConfig.type === 'mongodb'}
-					<button
-						type="button"
-						onclick={useSveltyDefaults}
-						class="btn-sm preset-outlined-tertiary-500 dark:preset-outlined-primary-500 mb-0.5 whitespace-nowrap rounded px-3 py-2 text-xs font-bold transition-all hover:scale-105"
-					>
-						<iconify-icon icon="mdi:flash" width="14" class="mr-1"></iconify-icon>
-						Use Svelty Defaults
-					</button>
-				{/if}
+				<select id="db-type" bind:value={dbConfig.type} onchange={handleTypeChange} class="input rounded">
+					<option value="mongodb">MongoDB (localhost/Docker)</option>
+					<option value="mongodb+srv">MongoDB Atlas (SRV)</option>
+					<option value="mariadb">MariaDB (via Drizzle) (Beta)</option>
+					<option value="postgresql">PostgreSQL (via Drizzle) (Beta)</option>
+					<option value="sqlite">SQLite (via Drizzle) (Beta)</option>
+				</select>
 			</div>
 
 			{#if isInstallingDriver}

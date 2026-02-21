@@ -14,8 +14,6 @@ Provides zoom functionality for the image editor using svelte-canvas compatible 
 	let minZoom = 0.1;
 	let maxZoom = 5;
 
-	let { onCancel }: { onCancel: () => void } = $props();
-
 	const storeState = imageEditorStore.state;
 
 	// --- Lifecycle $effect ---
@@ -41,9 +39,7 @@ Provides zoom functionality for the image editor using svelte-canvas compatible 
 				onFitToScreen: fitToScreen,
 				onFillScreen: fillScreen,
 				onActualSize: () => setZoom(1),
-				onReset: resetZoom,
-				onCancel: () => onCancel(),
-				onApply: apply
+				onReset: resetZoom
 			}
 		});
 	}
@@ -80,11 +76,6 @@ Provides zoom functionality for the image editor using svelte-canvas compatible 
 		setZoom(1);
 		storeState.translateX = 0;
 		storeState.translateY = 0;
-	}
-
-	function apply() {
-		imageEditorStore.takeSnapshot();
-		imageEditorStore.setActiveState('');
 	}
 
 	export function cleanup() {}
