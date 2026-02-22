@@ -664,7 +664,7 @@ Features:
 
 		<!-- Optimization (Redis, Multi-Tenant, Demo) -->
 		<section id="redis-section" class="space-y-2 border-t border-surface-200 dark:border-white/10 pt-2">
-			<div class="rounded-lg border border-surface-200 dark:border-white/5 p-4 space-y-4">
+			<div class="rounded border border-surface-200 dark:border-white/5 p-3">
 				<div class="flex items-center gap-2">
 					<input
 						id="use-redis"

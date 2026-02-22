@@ -106,7 +106,7 @@ async function fetchRoles() {
 
 ```typescript
 // Get current loading state statistics
-const stats = global - loading - store.getStats();
+const stats = globalLoadingStore.getStats();
 console.log(stats);
 // Output: { activeCount: 2, reasons: ['dataFetch', 'roleManagement'] }
 ```
@@ -118,9 +118,9 @@ The store uses browser guards to prevent SSR execution:
 ```typescript
 import { browser } from '$app/environment';
 
-export const globalLoadingStore = createloading-store();
+export const globalLoadingStore = createLoadingStore();
 
-function createloading-store() {
+function createLoadingStore() {
 	let loadingEntries = new SvelteMap<string, LoadingEntry>();
 	let isLoading = $state(false);
 
@@ -172,18 +172,18 @@ The store uses a `SvelteMap` to track multiple simultaneous operations:
 let loadingEntries = new SvelteMap<string, LoadingEntry>();
 
 // Multiple operations can be active simultaneously
-global - loading - store.startLoading(loadingOperations.dataFetch, 'Users');
-global - loading - store.startLoading(loadingOperations.roleManagement, 'Roles');
+globalLoadingStore.startLoading(loadingOperations.dataFetch, 'Users');
+globalLoadingStore.startLoading(loadingOperations.roleManagement, 'Roles');
 
-console.log(global - loading - store.getStats());
+console.log(globalLoadingStore.getStats());
 // { activeCount: 2, reasons: ['dataFetch', 'roleManagement'] }
 
 // isLoading remains true until ALL operations complete
-global - loading - store.stopLoading(loadingOperations.dataFetch);
-console.log(global - loading - store.isLoading); // true
+globalLoadingStore.stopLoading(loadingOperations.dataFetch);
+console.log(globalLoadingStore.isLoading); // true
 
-global - loading - store.stopLoading(loadingOperations.roleManagement);
-console.log(global - loading - store.isLoading); // false
+globalLoadingStore.stopLoading(loadingOperations.roleManagement);
+console.log(globalLoadingStore.isLoading); // false
 ```
 
 ## global-loading UI Component
@@ -192,17 +192,24 @@ The `global-loading.svelte` component displays operation-specific messages:
 
 ```svelte
 <script lang="ts">
-	import * as m from '$paraglide/messages';
-	import { globalLoadingStore, loadingOperations } from '$stores/loading-store.svelte';
+	import {
+		loading_dataFetch_bottom,
+		loading_dataFetch_top,
+		loading_loading,
+		loading_navigation_bottom,
+		loading_navigation_top,
+		loading_pleasewait
+	} from '@src/paraglide/messages';
+	import { globalLoadingStore, loadingOperations } from '@src/stores/loading-store.svelte';
 
 	const loadingTextMap = {
 		[loadingOperations.navigation]: {
-			top: m.loading_navigation_top(),
-			bottom: m.loading_navigation_bottom()
+			top: loading_navigation_top(),
+			bottom: loading_navigation_bottom()
 		},
 		[loadingOperations.dataFetch]: {
-			top: m.loading_dataFetch_top(),
-			bottom: m.loading_dataFetch_bottom()
+			top: loading_dataFetch_top(),
+			bottom: loading_dataFetch_bottom()
 		}
 		// ... additional operations
 	};
@@ -214,14 +221,14 @@ The `global-loading.svelte` component displays operation-specific messages:
 		const firstReason = stats.reasons[0];
 		return (
 			loadingTextMap[firstReason] || {
-				top: m.loading_pleasewait(),
-				bottom: m.loading_loading()
+				top: loading_pleasewait(),
+				bottom: loading_loading()
 			}
 		);
 	});
 </script>
 
-{#if global - loading - store.isLoading}
+{#if globalLoadingStore.isLoading}
 	<div class="loading-overlay">
 		<div class="loading-content">
 			<div class="loaders">
@@ -268,18 +275,15 @@ All loading messages use ParaglideJS for i18n:
 
 ```typescript
 async function loadRoles() {
-	roles =
-		(await global) -
-		loading -
-		store.withLoading(
-			async () => {
-				const res = await fetch('/api/roles');
-				if (!res.ok) throw new Error('Failed to fetch roles');
-				return await res.json();
-			},
-			loadingOperations.roleManagement,
-			'admin-role.loadRoles'
-		);
+	roles = await globalLoadingStore.withLoading(
+		async () => {
+			const res = await fetch('/api/roles');
+			if (!res.ok) throw new Error('Failed to fetch roles');
+			return await res.json();
+		},
+		loadingOperations.roleManagement,
+		'admin-role.loadRoles'
+	);
 }
 ```
 
@@ -287,20 +291,18 @@ async function loadRoles() {
 
 ```typescript
 async function saveAllChanges() {
-	(await global) -
-		loading -
-		store.withLoading(
-			async () => {
-				const response = await fetch('/api/config/access-management', {
-					method: 'POST',
-					body: JSON.stringify(allChanges)
-				});
-				if (!response.ok) throw new Error('Save failed');
-				invalidateAll(); // SvelteKit cache invalidation
-			},
-			loadingOperations.configSave,
-			'AccessManagement.saveAll'
-		);
+	await globalLoadingStore.withLoading(
+		async () => {
+			const response = await fetch('/api/config/access-management', {
+				method: 'POST',
+				body: JSON.stringify(allChanges)
+			});
+			if (!response.ok) throw new Error('Save failed');
+			invalidateAll(); // SvelteKit cache invalidation
+		},
+		loadingOperations.configSave,
+		'AccessManagement.saveAll'
+	);
 }
 ```
 
@@ -308,17 +310,14 @@ async function saveAllChanges() {
 
 ```typescript
 async function fetchTokens() {
-	const data =
-		(await global) -
-		loading -
-		store.withLoading(
-			async () => {
-				const res = await fetch('/api/tokens');
-				return await res.json();
-			},
-			loadingOperations.tokenGeneration,
-			'website-tokens.fetch'
-		);
+	const data = await globalLoadingStore.withLoading(
+		async () => {
+			const res = await fetch('/api/tokens');
+			return await res.json();
+		},
+		loadingOperations.tokenGeneration,
+		'website-tokens.fetch'
+	);
 	tokens = data.tokens;
 }
 ```
@@ -367,11 +366,11 @@ The global loading store is designed for **user-initiated actions** and **page-l
 
 ```typescript
 // Check what's active
-const stats = global - loading - store.getStats();
+const stats = globalLoadingStore.getStats();
 console.log('Active operations:', stats);
 
 // Manual cleanup (emergency only)
-global - loading - store.stopLoading(loadingOperations.dataFetch);
+globalLoadingStore.stopLoading(loadingOperations.dataFetch);
 ```
 
 ### SSR Hydration Mismatch
@@ -383,7 +382,7 @@ import { onMount } from 'svelte';
 
 onMount(() => {
 	// Safe - runs client-side only
-	global - loading - store.startLoading(loadingOperations.initialization);
+	globalLoadingStore.startLoading(loadingOperations.initialization);
 });
 ```
 
@@ -393,22 +392,18 @@ Remember timeout is the **third** parameter:
 
 ```typescript
 // ✅ Correct
-global -
-	loading -
-	store.withLoading(
-		asyncFn,
-		loadingOperations.dataFetch,
-		'context' // Optional but must be provided if using timeout
-	);
+await globalLoadingStore.withLoading(
+	asyncFn,
+	loadingOperations.dataFetch,
+	'context' // Optional but must be provided if using timeout
+);
 
 // With custom timeout
-global -
-	loading -
-	store.startLoading(
-		loadingOperations.dataFetch,
-		'MyComponent.load',
-		60000 // 60 seconds
-	);
+globalLoadingStore.startLoading(
+	loadingOperations.dataFetch,
+	'MyComponent.load',
+	60000 // 60 seconds
+);
 ```
 
 ## Future Enhancements

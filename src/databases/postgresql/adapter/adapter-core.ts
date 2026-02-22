@@ -62,11 +62,24 @@ export class AdapterCore {
 						user: decodeURIComponent(url.username),
 						password: decodeURIComponent(url.password),
 						database: url.pathname.slice(1), // Remove leading slash
-						ssl: url.searchParams.get('sslmode') === 'require' ? 'require' : undefined
+						ssl: url.searchParams.get('sslmode') === 'require' ? 'require' : undefined,
+						onnotice: () => {
+							/* Suppress notice messages */
+						},
+						transform: {
+							undefined: null // Transform undefined to null
+						}
 					};
 				} catch (e) {
 					logger.warn('Failed to parse PostgreSQL connection string, falling back to raw string (might fail auth):', e);
-					this.sql = postgres(connection);
+					this.sql = postgres(connection, {
+						onnotice: () => {
+							/* Suppress notice messages */
+						},
+						transform: {
+							undefined: null // Transform undefined to null
+						}
+					});
 					this.db = drizzle(this.sql, { schema });
 					this.connected = true;
 					logger.info('Connected to PostgreSQL (String Mode)');
@@ -80,7 +93,13 @@ export class AdapterCore {
 					user: connection.user,
 					password: connection.password,
 					database: connection.database,
-					ssl: connection.ssl === true || connection.ssl === 'require' ? 'require' : undefined
+					ssl: connection.ssl === true || connection.ssl === 'require' ? 'require' : undefined,
+					onnotice: () => {
+						/* Suppress notice messages */
+					},
+					transform: {
+						undefined: null // Transform undefined to null
+					}
 				};
 			}
 

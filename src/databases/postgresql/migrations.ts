@@ -259,6 +259,7 @@ async function createTablesIfNotExist(sql: postgres.Sql): Promise<void> {
 			"_id" VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid()::text,
 			"key" VARCHAR(255) NOT NULL,
 			"value" JSONB,
+			"category" VARCHAR(255),
 			"scope" VARCHAR(50) NOT NULL DEFAULT 'system',
 			"userId" VARCHAR(36),
 			"visibility" VARCHAR(50) NOT NULL DEFAULT 'private',
@@ -267,6 +268,7 @@ async function createTablesIfNotExist(sql: postgres.Sql): Promise<void> {
 			"updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 		)`,
 		`CREATE INDEX IF NOT EXISTS system_preferences_key_idx ON system_preferences ("key")`,
+		`CREATE INDEX IF NOT EXISTS system_preferences_category_idx ON system_preferences ("category")`,
 		'CREATE INDEX IF NOT EXISTS system_preferences_scope_idx ON system_preferences (scope)',
 		`CREATE INDEX IF NOT EXISTS system_preferences_user_idx ON system_preferences ("userId")`,
 		`CREATE INDEX IF NOT EXISTS system_preferences_tenant_idx ON system_preferences ("tenantId")`,

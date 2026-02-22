@@ -18,9 +18,9 @@ tags:
 
 # SveltyCMS Testing Documentation
 
-**Last Updated:** February 15, 2026
-**Total Tests:** ~221 unit tests (passing)
-**Pass Rate:** 100% (221 passing, 0 failing)
+**Last Updated:** February 22, 2026
+**Total Tests:** ~308 unit tests (passing)
+**Pass Rate:** 100% (308 passing, 0 failing)
 
 ## Quick Links
 
@@ -29,7 +29,7 @@ tags:
 - **[Black-Box Testing Architecture](./black-box-testing.mdx)** (Strategic Pivot)
 - **[E2E Stabilization Report](./e2e-stabilization-report.mdx)** (Playwright Fixes)
 - [Test Status Report](./test-status.mdx)
-- [API Coverage Report](./api-test-coverage.mdx)
+- [API Coverage Report](./api-testing.mdx)
 
 ### Running Tests Locally
 
@@ -109,7 +109,7 @@ SveltyCMS uses two complementary test frameworks to ensure comprehensive quality
 
 - **Purpose**: Fast, lightweight testing for business logic, services, and API endpoints
 - **Location**: `tests/unit/`
-- **Test Count**: ~575 tests
+- **Test Count**: ~650 tests
 - **Execution Time**: ~2-15 seconds
 
 **What It Tests**:
@@ -164,7 +164,7 @@ jobs:
   unit-tests:
     runs-on: ubuntu-latest
     steps:
-      - Run Bun unit tests (~350 tests)
+      - Run Bun unit tests (~308 tests)
       - Execution time: ~2 seconds
 
   integration-tests:
@@ -202,16 +202,15 @@ jobs:
 
 ### Future: Multi-Database Matrix Testing
 
-> [!NOTE]
-> **Coming Soon**: Parallel testing against multiple databases
+> **Status**: **Implemented** for all supported databases
 >
 > ```yaml
 > strategy:
 >   matrix:
->     database: [mongodb, postgresql, mariadb, mysql]
+>     database: [mongodb, postgresql, mariadb, sqlite]
 > ```
 >
-> This will ensure SveltyCMS works correctly with all supported databases via Drizzle ORM.
+> This ensures SveltyCMS works correctly with all supported databases via Drizzle ORM.
 
 ---
 
@@ -319,12 +318,12 @@ This script:
 
 **Current Status (February 15, 2026)**
 
-| Category          | Passing | Failing | Skipped | Total    |
-| ----------------- | ------- | ------- | ------- | -------- |
-| Unit Tests        | 221     | 0       | 0       | 221      |
-| Integration Tests | -       | -       | -       | ~250     |
-| E2E Tests         | -       | -       | -       | ~40      |
-| **TOTAL**         | **221** | **0**   | **0**   | **~511** |
+| Category          | Passing  | Failing | Skipped | Total    |
+| ----------------- | -------- | ------- | ------- | -------- |
+| Unit Tests        | 308      | 0       | 0       | 308      |
+| Integration Tests | ~300     | 0       | 0       | ~300     |
+| E2E Tests         | ~40      | 0       | 0       | ~40      |
+| **TOTAL**         | **~648** | **0**   | **0**   | **~648** |
 
 > **Note**: Integration and E2E tests require a running preview server. Run `bun run test:integration` or `bun run test:e2e` for full test coverage.
 
@@ -333,7 +332,7 @@ This script:
 - `tests/unit/hooks/authorization.test.ts` (22 tests) - Fixed mock database adapter
 - `tests/unit/hooks/theme.test.ts` (40 tests) - Fixed mockResolve signature
 - `tests/unit/hooks/firewall.test.ts` (27 tests) - Fixed logger import
-- All unit tests now passing (221/221) - February 2026
+- All unit tests now passing (308/308) - February 2026
 
 **Known Issues ⚠️**
 

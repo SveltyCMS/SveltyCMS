@@ -6,7 +6,7 @@ order: 4
 icon: 'mdi:database-check'
 author: 'admin'
 created: '2025-11-08'
-updated: '2025-11-08'
+updated: '2026-02-22'
 tags:
   - 'testing'
   - 'database'
@@ -19,7 +19,7 @@ tags:
 
 ## Overview
 
-SveltyCMS uses a **database-agnostic architecture** with an interface (`IDBAdapter`) that can be implemented for any database system. Currently, MongoDB is the primary adapter, with SQL support planned.
+SveltyCMS uses a **database-agnostic architecture** with an interface (`IDBAdapter`) that can be implemented for any database system. Currently, MongoDB is the primary adapter, with full SQL support for **PostgreSQL, MariaDB, and SQLite** (via Drizzle ORM).
 
 This guide covers testing for:
 
@@ -79,7 +79,7 @@ This guide covers testing for:
 
 ### 1. Database Interface Tests
 
-**File:** `tests/bun/databases/db-interface.test.ts`
+**File:** `tests/integration/databases/db-interface.test.ts`
 
 **Purpose:** Validate that database adapters properly implement the `IDBAdapter` interface contract.
 
@@ -155,7 +155,7 @@ bun test tests/bun/databases/db-interface.test.ts
 
 ### 2. MongoDB Adapter Tests
 
-**File:** `tests/bun/databases/mongodb-adapter.test.ts`
+**File:** `tests/integration/databases/mongodb-adapter.test.ts`
 
 **Purpose:** Test MongoDB-specific implementation details and optimizations.
 
@@ -239,7 +239,7 @@ bun test tests/bun/databases/mongodb-adapter.test.ts
 
 ### 3. Authentication System Tests
 
-**File:** `tests/bun/databases/auth-system.test.ts`
+**File:** `tests/integration/databases/auth-system.test.ts`
 
 **Purpose:** Comprehensive testing of authentication, authorization, and security features.
 
@@ -486,7 +486,7 @@ DISABLE_WEBHOOKS=true
 ### Test Helper Structure
 
 ```typescript
-// tests/bun/helpers/database.ts
+// tests/integration/helpers/database.ts
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import { initializeDatabase } from '@/databases/db';
 
@@ -546,37 +546,37 @@ describe('Database Tests', () => {
 
 ```bash
 # All database and auth tests
-bun test tests/bun/databases/
+bun test tests/integration/databases/
 
 # With coverage
-bun test --coverage tests/bun/databases/
+bun test --coverage tests/integration/databases/
 ```
 
 ### Run Specific Test Suite
 
 ```bash
 # Interface contract tests
-bun test tests/bun/databases/db-interface.test.ts
+bun test tests/integration/databases/db-interface.test.ts
 
 # MongoDB adapter tests
-bun test tests/bun/databases/mongodb-adapter.test.ts
+bun test tests/integration/databases/mongodb-adapter.test.ts
 
 # Authentication system tests
-bun test tests/bun/databases/auth-system.test.ts
+bun test tests/integration/databases/auth-system.test.ts
 ```
 
 ### Run Specific Test Case
 
 ```bash
 # Run single test by name
-bun test tests/bun/databases/auth-system.test.ts -t "should hash passwords with Argon2id"
+bun test tests/integration/databases/auth-system.test.ts -t "should hash passwords with Argon2id"
 ```
 
 ### Watch Mode
 
 ```bash
 # Re-run tests on file changes
-bun test --watch tests/bun/databases/
+bun test --watch tests/integration/databases/
 ```
 
 ---
@@ -588,8 +588,8 @@ bun test --watch tests/bun/databases/
 | Test File                 | Status         | Tests | Notes                        |
 | ------------------------- | -------------- | ----- | ---------------------------- |
 | `db-interface.test.ts`    | ✅ Implemented | 39    | Verifies DB adapter contract |
-| `mongodb-adapter.test.ts` | 📝 Scaffolded  | 0/40+ | Awaiting implementation      |
-| `auth-system.test.ts`     | 📝 Scaffolded  | 0/50+ | Awaiting implementation      |
+| `mongodb-adapter.test.ts` | ✅ Implemented | 40+   | MongoDB adapter logic        |
+| `auth-system.test.ts`     | ✅ Implemented | 50+   | Auth system logic            |
 
 ### Next Steps
 

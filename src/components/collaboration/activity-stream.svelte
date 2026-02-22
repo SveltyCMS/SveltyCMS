@@ -61,7 +61,7 @@ with the AI collaboration assistant.
 
 <div
 	class="flex flex-col bg-surface-100-800-token border border-surface-500/30 rounded-xl shadow-2xl overflow-hidden backdrop-blur-md transition-all"
-	style={screen.isMobile ? 'width: 100%; height: 100%;' : 'width: 350px; height: 500px;'}
+	style={screen.isMobile ? 'width: 100%; height: 100%;' : 'width: 350px; height: 100%; max-height: 100%;'}
 >
 	<!-- Header -->
 	<div class="flex items-center justify-between p-4 bg-surface-200-700-token border-b border-surface-500/30 shrink-0">

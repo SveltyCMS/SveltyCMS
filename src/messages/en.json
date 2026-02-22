@@ -1,4 +1,5 @@
 {
+	"$schema": "https://inlang.com/schema/inlang-message-format",
 	"setup_presets_helper": "Select a starting point for your project. You can always change this later by modifying collections.",
 	"db_error_title": "Database Connection Error",
 	"db_error_description": "We cannot connect to the database. This usually means the database server is down or the configuration is incorrect.",
@@ -11,7 +12,6 @@
 	"db_error_reset_confirm": "Are you sure you want to reset the setup? This will clear your configuration.",
 	"db_error_reset_setup": "Reset Setup",
 	"db_error_refresh_page": "Refresh Page",
-	"$schema": "https://inlang.com/schema/inlang-message-format",
 	"Collections_MediaGallery": "Media Gallery",
 	"EntryList_no_collection": "No Collection {name} Data",
 	"Fields_no_widgets_found": "Widget not found: {name}",

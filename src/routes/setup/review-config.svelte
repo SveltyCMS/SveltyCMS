@@ -14,7 +14,41 @@ This component presents a summary of all configuration steps before finalizing t
 <script lang="ts">
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	// ParaglideJS
-	import * as m from '@src/paraglide/messages';
+	import {
+		setup_review_intro,
+		setup_review_section_database,
+		setup_label_database_type,
+		setup_help_database_type,
+		label_host,
+		setup_help_database_host,
+		label_port,
+		setup_help_database_port,
+		label_database,
+		setup_help_database_name,
+		form_username,
+		setup_help_database_user,
+		setup_review_section_admin,
+		form_email,
+		setup_help_admin_email,
+		form_password,
+		setup_help_admin_password,
+		setup_help_admin_username,
+		setup_review_section_media,
+		setup_help_media_path,
+		setup_review_section_system,
+		setup_help_site_name,
+		setup_review_label_default_system_lang,
+		setup_help_default_system_language,
+		setup_review_label_system_languages,
+		setup_help_system_languages,
+		setup_review_label_default_content_lang,
+		setup_help_default_content_language,
+		setup_review_label_content_languages,
+		setup_help_content_languages,
+		setup_review_label_timezone,
+		setup_system_multi_tenant_desc,
+		setup_system_demo_mode_desc
+	} from '@src/paraglide/messages';
 	// Types from setupStore
 	import type { AdminUser, DbConfig, SystemSettings } from '@src/stores/setup-store.svelte.ts';
 
@@ -32,7 +66,7 @@ This component presents a summary of all configuration steps before finalizing t
 	<!-- Review & Complete -->
 	<div class="mb-4">
 		<p class="text-sm text-tertiary-500 dark:text-primary-500 sm:text-base">
-			{m.setup_review_intro?.() ||
+			{setup_review_intro?.() ||
 				"Please review your configuration before completing the setup. Once finished, you'll be redirected to the login page."}
 		</p>
 	</div>
@@ -45,12 +79,12 @@ This component presents a summary of all configuration steps before finalizing t
 				<div>
 					<h3 class="mb-3 flex items-center font-semibold tracking-tight text-black dark:text-white">
 						<iconify-icon icon="mdi:database" width="24" class="mr-2 text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-						{m.setup_review_section_database?.() || 'Database Configuration'}
+						{setup_review_section_database?.() || 'Database Configuration'}
 					</h3>
 					<dl class="grid grid-cols-[9rem_1fr] gap-x-3 gap-y-1 text-sm">
 						<dt class="flex items-center justify-between font-medium text-black dark:text-white">
-							{m.setup_label_database_type ? m.setup_label_database_type() : 'Type'}:
-							<SystemTooltip title={m.setup_help_database_type?.() || 'Database type'}>
+							{setup_label_database_type ? setup_label_database_type() : 'Type'}:
+							<SystemTooltip title={setup_help_database_type?.() || 'Database type'}>
 								<button
 									type="button"
 									tabindex="-1"
@@ -61,12 +95,12 @@ This component presents a summary of all configuration steps before finalizing t
 								</button>
 							</SystemTooltip>
 						</dt>
-						<dd class="text-tertiary-500 dark:text-primary-500 font-semibold uppercase">{dbConfig.type}</dd>
+						<dd class="text-tertiary-500 dark:text-primary-500 font-semibold">{dbConfig.type}</dd>
 
 						{#if dbConfig.host}
 							<dt class="flex items-center justify-between font-medium text-black dark:text-white">
-								{m.label_host?.() || 'Host'}:
-								<SystemTooltip title={m.setup_help_database_host?.() || 'Database host'}>
+								{label_host?.() || 'Host'}:
+								<SystemTooltip title={setup_help_database_host?.() || 'Database host'}>
 									<button
 										type="button"
 										tabindex="-1"
@@ -82,8 +116,8 @@ This component presents a summary of all configuration steps before finalizing t
 
 						{#if dbConfig.port}
 							<dt class="flex items-center justify-between font-medium text-black dark:text-white">
-								{m.label_port?.() || 'Port'}:
-								<SystemTooltip title={m.setup_help_database_port?.() || 'Database port'}>
+								{label_port?.() || 'Port'}:
+								<SystemTooltip title={setup_help_database_port?.() || 'Database port'}>
 									<button
 										type="button"
 										tabindex="-1"
@@ -99,8 +133,8 @@ This component presents a summary of all configuration steps before finalizing t
 
 						{#if dbConfig.name}
 							<dt class="flex items-center justify-between font-medium text-black dark:text-white">
-								{m.label_database?.() || 'Database'}:
-								<SystemTooltip title={m.setup_help_database_name?.() || 'Database name'}>
+								{label_database?.() || 'Database'}:
+								<SystemTooltip title={setup_help_database_name?.() || 'Database name'}>
 									<button
 										type="button"
 										tabindex="-1"
@@ -116,8 +150,8 @@ This component presents a summary of all configuration steps before finalizing t
 
 						{#if dbConfig.user}
 							<dt class="flex items-center justify-between font-medium text-black dark:text-white">
-								{m.form_username()}:
-								<SystemTooltip title={m.setup_help_database_user?.() || 'Database username'}>
+								{form_username()}:
+								<SystemTooltip title={setup_help_database_user?.() || 'Database username'}>
 									<button
 										type="button"
 										tabindex="-1"
@@ -137,12 +171,12 @@ This component presents a summary of all configuration steps before finalizing t
 				<div>
 					<h3 class="mb-3 flex items-center font-semibold tracking-tight text-black dark:text-white">
 						<iconify-icon icon="mdi:account" width="24" class="mr-2 text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-						{m.setup_review_section_admin?.() || 'Administrator Account'}
+						{setup_review_section_admin?.() || 'Administrator Account'}
 					</h3>
 					<dl class="grid grid-cols-[9rem_1fr] gap-x-3 gap-y-1 text-sm">
 						<dt class="flex items-center justify-between font-medium text-black dark:text-white">
-							{m.form_username()}:
-							<SystemTooltip title={m.setup_help_admin_username?.() || 'Admin username'}>
+							{form_username()}:
+							<SystemTooltip title={setup_help_admin_username?.() || 'Admin username'}>
 								<button
 									type="button"
 									tabindex="-1"
@@ -155,8 +189,8 @@ This component presents a summary of all configuration steps before finalizing t
 						</dt>
 						<dd class="text-tertiary-500 dark:text-primary-500 font-semibold">{adminUser.username}</dd>
 						<dt class="flex items-center justify-between font-medium text-black dark:text-white">
-							{m.form_email()}:
-							<SystemTooltip title={m.setup_help_admin_email?.() || 'Admin email'}>
+							{form_email()}:
+							<SystemTooltip title={setup_help_admin_email?.() || 'Admin email'}>
 								<button
 									type="button"
 									tabindex="-1"
@@ -169,8 +203,8 @@ This component presents a summary of all configuration steps before finalizing t
 						</dt>
 						<dd class="text-tertiary-500 dark:text-primary-500 font-semibold">{adminUser.email}</dd>
 						<dt class="flex items-center justify-between font-medium text-black dark:text-white">
-							{m.form_password()}:
-							<SystemTooltip title={m.setup_help_admin_password?.() || 'Admin password'}>
+							{form_password()}:
+							<SystemTooltip title={setup_help_admin_password?.() || 'Admin password'}>
 								<button
 									type="button"
 									tabindex="-1"
@@ -189,12 +223,12 @@ This component presents a summary of all configuration steps before finalizing t
 				<div>
 					<h3 class="mb-3 flex items-center font-semibold tracking-tight text-black dark:text-white">
 						<iconify-icon icon="mdi:folder" width="24" class="mr-2 text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-						{m.setup_review_section_media?.() || 'Media Storage'}
+						{setup_review_section_media?.() || 'Media Storage'}
 					</h3>
 					<dl class="grid grid-cols-[9rem_1fr] gap-x-3 gap-y-1 text-sm">
 						<dt class="flex items-center justify-between font-medium text-black dark:text-white">
 							Storage Type:
-							<SystemTooltip title={m.setup_help_media_path?.() || 'The storage mechanism for user uploads.'}>
+							<SystemTooltip title={setup_help_media_path?.() || 'The storage mechanism for user uploads.'}>
 								<button
 									type="button"
 									tabindex="-1"
@@ -242,12 +276,12 @@ This component presents a summary of all configuration steps before finalizing t
 				<div>
 					<h3 class="mb-3 flex items-center font-semibold tracking-tight text-black dark:text-white">
 						<iconify-icon icon="mdi:cog" width="24" class="mr-2 text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-						{m.setup_review_section_system?.() || 'System Settings'}
+						{setup_review_section_system?.() || 'System Settings'}
 					</h3>
 					<dl class="grid grid-cols-[9rem_1fr] gap-x-3 gap-y-1 text-sm">
 						<dt class="flex items-center justify-between font-medium text-black dark:text-white">
 							CMS Name:
-							<SystemTooltip title={m.setup_help_site_name?.() || 'The name for your CMS instance.'}>
+							<SystemTooltip title={setup_help_site_name?.() || 'The name for your CMS instance.'}>
 								<button
 									type="button"
 									tabindex="-1"
@@ -293,8 +327,8 @@ This component presents a summary of all configuration steps before finalizing t
 						</dt>
 						<dd class="text-tertiary-500 dark:text-primary-500 font-semibold">{systemSettings.hostProd}</dd>
 						<dt class="flex items-center justify-between font-medium text-black dark:text-white">
-							{m.setup_review_label_default_system_lang?.() || 'Default System Lang'}:
-							<SystemTooltip title={m.setup_help_default_system_language?.() || 'Primary language for the admin interface.'}>
+							{setup_review_label_default_system_lang?.() || 'Default System Lang'}:
+							<SystemTooltip title={setup_help_default_system_language?.() || 'Primary language for the admin interface.'}>
 								<button
 									type="button"
 									tabindex="-1"
@@ -307,8 +341,8 @@ This component presents a summary of all configuration steps before finalizing t
 						</dt>
 						<dd class="text-tertiary-500 dark:text-primary-500 font-semibold uppercase">{systemSettings.defaultSystemLanguage}</dd>
 						<dt class="flex items-center justify-between font-medium text-black dark:text-white">
-							{m.setup_review_label_system_languages?.() || 'System Languages'}:
-							<SystemTooltip title={m.setup_help_system_languages?.() || 'Available languages for the admin interface.'}>
+							{setup_review_label_system_languages?.() || 'System Languages'}:
+							<SystemTooltip title={setup_help_system_languages?.() || 'Available languages for the admin interface.'}>
 								<button
 									type="button"
 									tabindex="-1"
@@ -321,8 +355,8 @@ This component presents a summary of all configuration steps before finalizing t
 						</dt>
 						<dd class="text-tertiary-500 dark:text-primary-500 font-semibold uppercase">{systemSettings.systemLanguages.join(', ')}</dd>
 						<dt class="flex items-center justify-between font-medium text-black dark:text-white">
-							{m.setup_review_label_default_content_lang?.() || 'Default Content Lang'}:
-							<SystemTooltip title={m.setup_help_default_content_language?.() || 'Primary language for content creation.'}>
+							{setup_review_label_default_content_lang?.() || 'Default Content Lang'}:
+							<SystemTooltip title={setup_help_default_content_language?.() || 'Primary language for content creation.'}>
 								<button
 									type="button"
 									tabindex="-1"
@@ -335,8 +369,8 @@ This component presents a summary of all configuration steps before finalizing t
 						</dt>
 						<dd class="text-tertiary-500 dark:text-primary-500 font-semibold uppercase">{systemSettings.defaultContentLanguage}</dd>
 						<dt class="flex items-center justify-between font-medium text-black dark:text-white">
-							{m.setup_review_label_content_languages?.() || 'Content Languages'}:
-							<SystemTooltip title={m.setup_help_content_languages?.() || 'Available languages for content translations.'}>
+							{setup_review_label_content_languages?.() || 'Content Languages'}:
+							<SystemTooltip title={setup_help_content_languages?.() || 'Available languages for content translations.'}>
 								<button
 									type="button"
 									tabindex="-1"
@@ -349,7 +383,7 @@ This component presents a summary of all configuration steps before finalizing t
 						</dt>
 						<dd class="text-tertiary-500 dark:text-primary-500 font-semibold uppercase">{systemSettings.contentLanguages.join(', ')}</dd>
 						<dt class="flex items-center justify-between font-medium text-black dark:text-white">
-							{m.setup_review_label_timezone?.() || 'Timezone'}:
+							{setup_review_label_timezone?.() || 'Timezone'}:
 							<SystemTooltip title="The default timezone for the system. Used for scheduling and date displays.">
 								<button
 									type="button"
@@ -364,9 +398,7 @@ This component presents a summary of all configuration steps before finalizing t
 						<dd class="text-tertiary-500 dark:text-primary-500 font-semibold">{systemSettings.timezone}</dd>
 						<dt class="flex items-center justify-between font-medium text-black dark:text-white">
 							Multi-Tenant Mode:
-							<SystemTooltip
-								title={m.setup_system_multi_tenant_desc?.() || 'Enables support for multiple isolated tenants on a single installation.'}
-							>
+							<SystemTooltip title={setup_system_multi_tenant_desc?.() || 'Enables support for multiple isolated tenants on a single installation.'}>
 								<button
 									type="button"
 									tabindex="-1"
@@ -382,7 +414,7 @@ This component presents a summary of all configuration steps before finalizing t
 						<dt class="flex items-center justify-between font-medium text-black dark:text-white">
 							Demo Mode:
 							<SystemTooltip
-								title={m.setup_system_demo_mode_desc?.() || 'Warning: Creates ephemeral environments for visitors. Data is wiped automatically.'}
+								title={setup_system_demo_mode_desc?.() || 'Warning: Creates ephemeral environments for visitors. Data is wiped automatically.'}
 							>
 								<button
 									type="button"

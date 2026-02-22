@@ -67,6 +67,9 @@ export class PreferencesModule {
 
 	async getMany<T>(keys: string[], _scope?: 'user' | 'system', _userId?: DatabaseId): Promise<DatabaseResult<Record<string, T>>> {
 		return this.core.wrap(async () => {
+			if (!keys || keys.length === 0) {
+				return {};
+			}
 			const results = await this.db.select().from(schema.systemPreferences).where(inArray(schema.systemPreferences.key, keys));
 			const map: Record<string, T> = {};
 			results.forEach((r) => {
@@ -94,6 +97,9 @@ export class PreferencesModule {
 
 	async deleteMany(keys: string[], _scope?: 'user' | 'system', _userId?: DatabaseId): Promise<DatabaseResult<void>> {
 		return this.core.wrap(async () => {
+			if (!keys || keys.length === 0) {
+				return;
+			}
 			await this.db.delete(schema.systemPreferences).where(inArray(schema.systemPreferences.key, keys));
 		}, 'DELETE_MANY_PREFERENCES_FAILED');
 	}

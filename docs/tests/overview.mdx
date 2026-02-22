@@ -4,7 +4,7 @@ title: 'Testing Strategy for SveltyCMS'
 description: 'Comprehensive testing strategy including unit tests, integration tests, E2E tests, and role-based access control testing.'
 author: 'SveltyCMS Team'
 created: '2025-12-16'
-updated: '2025-12-17'
+updated: '2026-02-22'
 tags:
   - 'testing'
   - 'quality-assurance'
@@ -32,14 +32,14 @@ See [Testing Strategy (White-Box vs Black-Box)](./testing-strategy.mdx) for a de
 
 | Test Type            | Count    | Status     | Coverage                             |
 | -------------------- | -------- | ---------- | ------------------------------------ |
-| Unit Tests           | 222      | ✅ Passing | Services, utilities, stores, widgets |
-| Integration Tests    | ~50      | ✅ Passing | API endpoints, database ops, hooks   |
+| Unit Tests           | 308      | ✅ Passing | Services, utilities, stores, widgets |
+| Integration Tests    | ~300     | ✅ Passing | API endpoints, database ops, hooks   |
 | E2E: Setup Wizard    | 1        | ✅ Passing | Fresh installation flow              |
 | E2E: Authentication  | 4        | ✅ Passing | Login, logout, OAuth                 |
 | E2E: User Management | 3        | ✅ Passing | CRUD operations                      |
 | E2E: Collections     | 2        | ✅ Passing | Collection builder, content          |
 | E2E: RBAC            | 4        | ✅ **NEW** | Admin, developer, editor roles       |
-| **Total**            | **~286** | ✅         | **Hybrid Coverage Strategy**         |
+| **Total**            | **~622** | ✅         | **Hybrid Coverage Strategy**         |
 
 > **Note on Coverage**:
 >
@@ -171,9 +171,9 @@ The architecture fully supports database agnosticism via the Black-Box strategy.
 **Planned for Q2 2026**: Implementing the GitHub Actions workflow to run the suite in parallel against:
 
 - MongoDB (current default)
-- PostgreSQL (via Drizzle ORM)
-- MariaDB (via Drizzle ORM)
-- MySQL (via Drizzle ORM)
+- PostgreSQL (implemented)
+- MariaDB (implemented)
+- SQLite (implemented)
 
 ### 3. Enhanced Test Coverage
 
