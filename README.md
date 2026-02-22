@@ -34,9 +34,9 @@
 
 <h3 align="center"><strong>It's lightning fast, flexible and an easy to use modern content management system to provide a headless backend</strong></h3>
 
-This SveltyCMS headless CMS provides a powerful backend based on a modern [SvelteKit 2 / Svelte 5](https://svelte.dev) framework. Being designed to be database agnostic, we fully support **MongoDB 9** and **MariaDB/MySQL** (via [Drizzle ORM](https://drizzle-orm.netlify.app)).
+This SveltyCMS headless CMS provides a powerful backend based on a modern [SvelteKit 2 / Svelte 5](https://svelte.dev) framework. Being designed to be database agnostic, we fully support **MongoDB**, **PostgreSQL**, **SQLite**, and **MariaDB/MySQL** (via [Drizzle ORM](https://drizzle-orm.netlify.app)).
 
-- [x] **PostgreSQL Support (Working)**: Adapter implementation complete; core CRUD and Auth modules operational; currently in active testing/beta. Timeline: Available Now.
+- [x] **PostgreSQL Support**: Full adapter implementation; core CRUD and Auth modules operational. Verified production-ready.
       You can define Content Collections in two ways: in code or via the GUI-based collection builder. Full TypeScript support and a rich widget library make it straightforward to build custom data structures.
 
 All widget fields support localization, validation using [Valibot](https://valibot.dev), and access control.
@@ -49,18 +49,19 @@ Backend data is available via REST API or [GraphQL Yoga](https://the-guild.dev/g
 
 ## ⭐ Key Features
 
-| Feature                    | Status     | Notes                                                         |
-| -------------------------- | ---------- | ------------------------------------------------------------- |
-| Collection Builder         | ✅         | GUI and code-based definitions                                |
-| Typed Widget System        | ✅         | Localization, validation, access control                      |
-| Multi-language (Paraglide) | ✅         | Type-safe i18n out of the box                                 |
-| REST API                   | ✅         | CRUD and configuration endpoints                              |
-| GraphQL API (Yoga)         | ✅         | High-performance schema                                       |
-| Database Resilience        | ✅         | Retries, self-healing reconnection, diagnostics, log download |
-| Email Templating           | ✅         | Svelte Email + SMTP                                           |
-| Roles & Permissions        | ✅         | Database-backed access control                                |
-| MariaDB / MySQL            | ✅         | SQL support via Drizzle ORM                                   |
-| PostgreSQL                 | 📅 Planned | Roadmap item                                                  |
+| Feature                    | Status | Notes                                                         |
+| -------------------------- | ------ | ------------------------------------------------------------- |
+| Collection Builder         | ✅     | GUI and code-based definitions                                |
+| Typed Widget System        | ✅     | Localization, validation, access control                      |
+| Multi-language (Paraglide) | ✅     | Type-safe i18n out of the box                                 |
+| REST API                   | ✅     | CRUD and configuration endpoints                              |
+| GraphQL API (Yoga)         | ✅     | High-performance schema                                       |
+| Database Resilience        | ✅     | Retries, self-healing reconnection, diagnostics, log download |
+| Email Templating           | ✅     | Svelte Email + SMTP                                           |
+| Roles & Permissions        | ✅     | Database-backed access control                                |
+| MariaDB / MySQL            | ✅     | SQL support via Drizzle ORM                                   |
+| PostgreSQL                 | ✅     | Full production support via Drizzle ORM                       |
+| SQLite                     | ✅     | Lightweight file-based SQL support                            |
 
 ## 🚀 Quick Start
 
@@ -180,7 +181,7 @@ bun run preview
 When starting the dev server without configuration, the guided installer launches automatically:
 
 - Smart detection via `vite.config.ts`
-- Database configuration: MongoDB or MariaDB/MySQL (Postgres planned)
+- Database configuration: MongoDB, PostgreSQL, SQLite, or MariaDB/MySQL
 - Admin account setup, secrets/keys generation
 - Optional SMTP and Google OAuth configuration
 

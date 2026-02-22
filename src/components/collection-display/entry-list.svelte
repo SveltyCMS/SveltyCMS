@@ -555,6 +555,9 @@ bulk actions, and predictive preloading.
 			{ id: `${cacheKey}-status`, label: 'status', name: 'status', visible: true }
 		];
 
+		const schemaHeaderNames = new Set(schemaHeaders.map((h) => h.name));
+		const filteredSystemHeaders = systemHeaders.filter((h) => !schemaHeaderNames.has(h.name));
+
 		// Plugin Headers (Dynamic detection)
 		// Iterate over registered plugins and add their columns
 		for (const plugin of availablePlugins) {
@@ -567,7 +570,7 @@ bulk actions, and predictive preloading.
 					// Optional: Check if plugin is enabled for this collection?
 					// if (plugin.enabledCollections && !plugin.enabledCollections.includes(currentCollection._id)) continue;
 
-					systemHeaders.unshift({
+					filteredSystemHeaders.unshift({
 						id: `${plugin.metadata.id}-${col.id}`,
 						label: col.label,
 						name: col.id,
@@ -581,7 +584,7 @@ bulk actions, and predictive preloading.
 			}
 		}
 
-		return [...schemaHeaders, ...systemHeaders];
+		return [...schemaHeaders, ...filteredSystemHeaders];
 	});
 
 	// Effect to initialize/update the filters object in paginationSettings when tableHeaders change
@@ -874,7 +877,7 @@ bulk actions, and predictive preloading.
 				{#if categoryName}
 					<div class="mb-2 text-xs capitalize text-surface-500 dark:text-surface-50 rtl:text-left">{categoryName}</div>
 				{/if}
-				<h1 class="-mt-2 flex justify-start text-sm font-bold uppercase dark:text-white md:text-2xl lg:text-xl">
+				<h1 class="-mt-2 flex justify-start text-sm font-bold capitalize dark:text-white md:text-2xl lg:text-xl">
 					{#if currentCollection?.icon}
 						<span> <iconify-icon icon={currentCollection.icon} width="24" class="mr-1 text-error-500 sm:mr-2"></iconify-icon> </span>
 					{/if}

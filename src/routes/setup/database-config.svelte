@@ -272,20 +272,19 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 				break;
 			case 'mariadb':
 				dbConfig.port = '3306';
-				// Change default name for SQL DBs
-				if (dbConfig.name === 'SveltyCMS' || !dbConfig.name) {
-					dbConfig.name = 'SveltyCMS_Database';
+				if (!dbConfig.name) {
+					dbConfig.name = 'SveltyCMS';
 				}
 				break;
 			case 'postgresql':
 				dbConfig.port = '5432';
-				if (dbConfig.name === 'SveltyCMS' || !dbConfig.name) {
-					dbConfig.name = 'SveltyCMS_Database';
+				if (!dbConfig.name) {
+					dbConfig.name = 'SveltyCMS';
 				}
 				break;
 			case 'sqlite':
 				// SQLite uses a file path, no port
-				dbConfig.host = './config/database';
+				dbConfig.host = '/config/database';
 				dbConfig.port = '';
 				if (!dbConfig.name || dbConfig.name === 'SveltyCMS' || dbConfig.name === 'SveltyCMS.db') {
 					dbConfig.name = 'SveltyCMS.db';
@@ -312,7 +311,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 
 <div class="fade-in">
 	<div class="mb-4 sm:mb-6">
-		<p class="text-center md:text-right text-sm text-tertiary-500 dark:text-primary-500 sm:text-base">{setup_database_intro()}</p>
+		<p class="text-center md:text-left text-sm text-tertiary-500 dark:text-primary-500 sm:text-base">{setup_database_intro()}</p>
 	</div>
 
 	<!-- MongoDB Atlas Helper Message -->

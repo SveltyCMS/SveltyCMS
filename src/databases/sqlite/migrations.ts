@@ -226,6 +226,7 @@ export async function runMigrations(db: unknown): Promise<{ success: boolean; er
 				_id TEXT PRIMARY KEY,
 				key TEXT NOT NULL,
 				value TEXT,
+				category TEXT,
 				scope TEXT DEFAULT 'system',
 				userId TEXT,
 				visibility TEXT DEFAULT 'private',

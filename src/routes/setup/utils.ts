@@ -229,12 +229,7 @@ export async function getSetupDatabaseAdapter(config: DatabaseConfig): Promise<{
 			try {
 				const { existsSync } = await import('node:fs');
 				if (!existsSync(connectionString) && process.env.TEST_MODE !== 'true') {
-					return {
-						dbAdapter: null as any,
-						connectionString,
-						dbDoesNotExist: true,
-						error: `SQLite database file "${connectionString}" does not exist. Create it now?`
-					} as any;
+					throw new Error(`SQLite database file "${connectionString}" does not exist. Create it now?`);
 				}
 
 				const { SQLiteAdapter } = await import('@src/databases/sqlite/sqlite-adapter');

@@ -3,7 +3,7 @@
  * @description Unit tests for the Live Preview listener utility
  */
 
-import { beforeEach, describe, expect, it, mock } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
 import { createLivePreviewListener } from '@src/utils/use-live-preview';
 
 describe('LivePreview Utility', () => {
@@ -92,5 +92,9 @@ describe('LivePreview Utility', () => {
 			origin: 'https://trusted.com'
 		});
 		expect(mockOnUpdate).toHaveBeenCalledWith({ ok: true });
+	});
+
+	afterEach(() => {
+		delete (globalThis as any).window;
 	});
 });

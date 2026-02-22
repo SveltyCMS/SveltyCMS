@@ -177,6 +177,18 @@ mock.module('@utils/logger', () => ({
 	}
 }));
 
+// Mock server-only logger.server.ts
+mock.module('@utils/logger.server', () => ({
+	logger: {
+		fatal: () => {},
+		error: () => {},
+		warn: () => {},
+		info: () => {},
+		debug: () => {},
+		trace: () => {}
+	}
+}));
+
 // Mock @src/databases/db
 mock.module('@src/databases/db', () => ({
 	auth: mockDbAdapter.auth,
@@ -315,20 +327,37 @@ const createReactiveMock = (fn: any) => {
 (globalThis as any).$effect.root = (fn: any) => fn();
 (globalThis as any).$props = () => ({});
 
-// Mock paraglide with functions
+// Comprehensive Paraglide mock
 const mockMsgs = {
 	widget_richText_description: () => 'Rich Text',
+	widget_richtext_description: () => 'Rich Text',
+	widget_richtext_description1: () => 'Rich Text',
 	widget_relation_description: () => 'Relation',
 	widget_address_description: () => 'Address',
 	widget_group_description: () => 'Group'
 };
 
-mock.module('@src/paraglide/messages', () => mockMsgs);
+// Mock all possible import paths for paraglide messages
+const paraglidePaths = [
+	'@src/paraglide/messages',
+	'@src/paraglide/messages.js',
+	'./src/paraglide/messages.js',
+	'../src/paraglide/messages.js',
+	'../../src/paraglide/messages.js',
+	'/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/src/paraglide/messages.js',
+	'/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SveltyCMS/src/paraglide/messages/_index.js'
+];
 
+for (const p of paraglidePaths) {
+	mock.module(p, () => mockMsgs);
+}
+
+// Also mock the runtime
 mock.module('@src/paraglide/runtime', () => ({
 	getLocale: () => 'en',
 	setLocale: () => {},
-	locales: ['en']
+	locales: ['en'],
+	experimentalStaticLocale: 'en'
 }));
 
 console.log('✅ Global test environment setup complete');

@@ -112,7 +112,7 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 
 			// SELF-HEALING: If not found, it might be a stalecontent-managerafter setup
 			// Optimization: Skip refresh for "Collections" root, as it will be handled by redirect logic below
-			if (!currentCollection && collectionNameOnly !== 'Collections') {
+			if (!currentCollection && collectionNameOnly?.toLowerCase() !== 'collections') {
 				logger.warn(`Collection path ${collectionPath} not found. Triggeringcontent-managerrefresh...`);
 				await contentManager.refresh(tenantId);
 				currentCollection = contentManager.getCollection(collectionPath, tenantId);
@@ -120,7 +120,7 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 		}
 
 		if (!currentCollection) {
-			if (collectionNameOnly === 'Collections') {
+			if (collectionNameOnly?.toLowerCase() === 'collections') {
 				const allCollections = await contentManager.getCollections(tenantId);
 				if (allCollections.length > 0) {
 					throw redirect(302, `/${language}${allCollections[0].path}`);

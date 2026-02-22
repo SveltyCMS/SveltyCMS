@@ -529,7 +529,7 @@ class ContentManager {
 			const children: NavigationNode[] = [];
 
 			for (const node of this.contentNodeMap.values()) {
-				if (node.parentId === parentId) {
+				if ((node.parentId || undefined) === (parentId || undefined)) {
 					const nodeDepth = currentDepth + 1;
 					const shouldLoadChildren = nodeDepth < maxDepth || expandedIds.has(node._id);
 					const hasChildren = this.contentNodeMap.size > 0 && Array.from(this.contentNodeMap.values()).some((n) => n.parentId === node._id);
@@ -712,7 +712,18 @@ class ContentManager {
 		this.trackCacheHit(false);
 
 		// Try 1: Look up by path first
-		const nodeId = this.pathLookupMap.get(identifier) ?? identifier;
+		let nodeId = this.pathLookupMap.get(identifier);
+		// Fallback for case-insensitive URL paths (e.g. /collections matching /Collections)
+		if (!nodeId) {
+			const lowerId = identifier.toLowerCase();
+			for (const [pathKey, idValue] of this.pathLookupMap.entries()) {
+				if (pathKey.toLowerCase() === lowerId) {
+					nodeId = idValue;
+					break;
+				}
+			}
+		}
+		nodeId = nodeId ?? identifier;
 		let node = this.contentNodeMap.get(nodeId);
 
 		// Try 2: If not found, search by collection UUID (_id in collectionDef)
@@ -1021,7 +1032,17 @@ class ContentManager {
 			};
 		}
 
-		const nodeId = this.pathLookupMap.get(identifier) ?? identifier;
+		let nodeId = this.pathLookupMap.get(identifier);
+		if (!nodeId) {
+			const lowerId = identifier.toLowerCase();
+			for (const [pathKey, idValue] of this.pathLookupMap.entries()) {
+				if (pathKey.toLowerCase() === lowerId) {
+					nodeId = idValue;
+					break;
+				}
+			}
+		}
+		nodeId = nodeId ?? identifier;
 		let node = this.contentNodeMap.get(nodeId);
 
 		if (!node) {
@@ -1105,7 +1126,17 @@ class ContentManager {
 			throw new Error('ContentManager is not initialized.');
 		}
 
-		const nodeId = this.pathLookupMap.get(identifier) ?? identifier;
+		let nodeId = this.pathLookupMap.get(identifier);
+		if (!nodeId) {
+			const lowerId = identifier.toLowerCase();
+			for (const [pathKey, idValue] of this.pathLookupMap.entries()) {
+				if (pathKey.toLowerCase() === lowerId) {
+					nodeId = idValue;
+					break;
+				}
+			}
+		}
+		nodeId = nodeId ?? identifier;
 		let node = this.contentNodeMap.get(nodeId);
 
 		if (!node) {
@@ -2202,7 +2233,7 @@ class ContentManager {
 		const buildNavTree = (parentId?: string): NavigationNode[] => {
 			const children: NavigationNode[] = [];
 			for (const node of this.contentNodeMap.values()) {
-				if (node.parentId === parentId) {
+				if ((node.parentId || undefined) === (parentId || undefined)) {
 					children.push({
 						_id: node._id,
 						name: node.name,

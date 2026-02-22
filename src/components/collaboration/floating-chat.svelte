@@ -21,6 +21,26 @@ Provides a persistent, draggable UI element that opens the ActivityStream panel.
 	const isRtcEnabled = $derived(user?.preferences?.rtc?.enabled ?? true);
 	const isOpen = $derived(ui.state.chatPanel !== 'hidden');
 
+	// Constants for desktop layout
+	const DESKTOP_PANEL_WIDTH = 350;
+	const DESKTOP_PANEL_HEIGHT = 500;
+	const GAP = 16;
+
+	// Calculate expansion direction and height constraints
+	const layoutInfo = $derived.by(() => {
+		if (!browser) return { expandUp: true, maxHeight: DESKTOP_PANEL_HEIGHT };
+
+		const spaceAbove = pos.y - EDGE_MARGIN;
+		const spaceBelow = window.innerHeight - (pos.y + BUTTON_RADIUS * 2 + EDGE_MARGIN);
+
+		// Prefer expanding UP if there's more space or if it fits better
+		const expandUp = spaceAbove >= spaceBelow || spaceBelow < DESKTOP_PANEL_HEIGHT;
+		const availableSpace = expandUp ? spaceAbove : spaceBelow;
+		const maxHeight = Math.min(DESKTOP_PANEL_HEIGHT, availableSpace - GAP);
+
+		return { expandUp, maxHeight };
+	});
+
 	// --- Constants ---
 	const BUTTON_RADIUS = 28;
 	const EDGE_MARGIN = 20;
@@ -124,9 +144,25 @@ Provides a persistent, draggable UI element that opens the ActivityStream panel.
 	// Handle mobile layout: center the panel if screen is small
 	const panelStyle = $derived.by(() => {
 		if (screen.isMobile) {
-			return 'position: fixed; bottom: 80px; left: 10px; right: 10px; width: calc(100% - 20px); max-height: 70vh;';
+			return `position: fixed; bottom: 80px; left: 10px; right: 10px; width: calc(100% - 20px); max-height: 70vh;`;
 		}
-		return 'transform: translateY(-10px);';
+		// Desktop constraints
+		return `transform: translateY(${layoutInfo.expandUp ? '0' : '0'}); max-height: ${layoutInfo.maxHeight}px; width: ${DESKTOP_PANEL_WIDTH}px;`;
+	});
+
+	// Calculate container position and layout
+	const containerStyle = $derived.by(() => {
+		if (screen.isMobile && isOpen) return '';
+
+		if (!screen.isMobile && isOpen && layoutInfo.expandUp) {
+			// If expanding UP, the container top needs to move up by the ActivityStream height + gap
+			// We can use flex-col-reverse and adjust the top
+			// Actually, if we use flex-col-reverse, the container's TOP is still the top of the whole block.
+			// To keep the button at pos.y, container top must be adjusted.
+			return `left: ${pos.x}px; bottom: ${window.innerHeight - (pos.y + BUTTON_RADIUS * 2)}px; display: flex; flex-direction: column-reverse;`;
+		}
+
+		return `left: ${pos.x}px; top: ${pos.y}px; display: flex; flex-direction: column;`;
 	});
 </script>
 
@@ -144,10 +180,7 @@ Provides a persistent, draggable UI element that opens the ActivityStream panel.
 		></div>
 	{/if}
 
-	<div
-		class="fixed z-9999999 flex flex-col items-end gap-4 transition-transform {isDragging ? '' : 'duration-300'}"
-		style={screen.isMobile && isOpen ? '' : `left: ${pos.x}px; top: ${pos.y}px;`}
-	>
+	<div class="fixed z-9999999 items-end gap-4 transition-transform {isDragging ? '' : 'duration-300'}" style={containerStyle}>
 		<!-- Activity Panel -->
 		{#if isOpen}
 			<div transition:scale={{ duration: 200, start: 0.9 }} class={screen.isMobile ? '' : 'origin-bottom-right mb-2'} style={panelStyle}>
@@ -165,7 +198,7 @@ Provides a persistent, draggable UI element that opens the ActivityStream panel.
 				class="relative flex items-center justify-center bg-primary-500 hover:bg-primary-600 text-white rounded-full shadow-lg cursor-grab active:cursor-grabbing transition-colors group"
 				style="width: {BUTTON_RADIUS * 2}px; height: {BUTTON_RADIUS * 2}px;"
 			>
-				<iconify-icon icon={isOpen ? 'mdi:close' : 'material-symbols:Forum-outline'} width="32"></iconify-icon>
+				<iconify-icon icon={isOpen ? 'mdi:close' : 'material-symbols:forum-outline'} width="32"></iconify-icon>
 
 				<!-- Notification Badge -->
 				{#if !isOpen && collaboration.activities.length > 0}

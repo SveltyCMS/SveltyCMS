@@ -1,12 +1,13 @@
-import RepeaterWidget from '@src/widgets/core/repeater/index';
+/**
+ * @file tests/unit/widgets/repeater.test.ts
+ * @description Unit tests for the Repeater widget
+ */
+
+import RepeaterWidget from '@src/widgets/core/Repeater/index';
 import { parse } from 'valibot';
 import { describe, expect, it, mock } from 'bun:test';
 
 // Mock dependencies
-mock.module('@src/paraglide/messages', () => ({
-	widget_relation_description: () => 'Relation Description'
-}));
-
 // Mock Svelte store
 mock.module('@stores/widgetStore.svelte', () => ({
 	widgets: {

@@ -401,7 +401,7 @@ Advanced autocomplete component with fuzzy search, keyboard navigation, and acce
 			bind:value={keyword}
 			{placeholder}
 			{disabled}
-			class="input w-full rounded-lg border-2 border-surface-300 px-4 py-3 pr-20 transition-all duration-200 placeholder:text-surface-400 focus:border-primary-500 focus:shadow-lg disabled:cursor-not-allowed disabled:opacity-50 dark:border-surface-600 dark:bg-surface-800"
+			class="input w-full rounded-lg border-2 border-surface-300 px-4 py-2 pr-20 transition-all duration-200 placeholder:text-surface-400 focus:border-primary-500 focus:shadow-lg disabled:cursor-not-allowed disabled:opacity-50 dark:border-surface-600 dark:bg-surface-800"
 			oninput={handleInput}
 			onfocus={handleFocus}
 			onblur={handleBlur}

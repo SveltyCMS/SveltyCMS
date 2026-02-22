@@ -43,8 +43,9 @@ describe('GDPRService', () => {
 		});
 
 		it('should throw error if user not found', async () => {
+			const nonExistentUserId = 'non-existent-user-123';
 			mockDbAdapter.auth.getUserById.mockReturnValue(Promise.resolve({ success: false, data: null as any }));
-			expect(gdprService.exportUserData('missing')).rejects.toThrow('User not found');
+			expect(gdprService.exportUserData(nonExistentUserId)).rejects.toThrow('User not found');
 		});
 	});
 
@@ -64,9 +65,10 @@ describe('GDPRService', () => {
 			expect(mockAuditLog.log).toHaveBeenCalledWith('gdpr.erasure', expect.anything(), expect.anything(), expect.anything());
 		});
 
-		it('should return false if database adapter is missing', async () => {
+		it('should return false if user is not found', async () => {
+			const nonExistentUserId = 'non-existent-user-123';
 			mockDbAdapter.auth.getUserById.mockReturnValue(Promise.resolve({ success: false, data: null as any }));
-			const result = await gdprService.anonymizeUser('missing');
+			const result = await gdprService.anonymizeUser(nonExistentUserId);
 			expect(result).toBe(false);
 		});
 	});

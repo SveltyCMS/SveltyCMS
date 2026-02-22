@@ -724,6 +724,7 @@ export class AuthModule {
 				.values({
 					...role,
 					_id: id,
+					tenantId: role.tenantId || null,
 					createdAt: isoDateStringToDate(nowISODateString()),
 					updatedAt: isoDateStringToDate(nowISODateString()),
 					permissions: role.permissions || []

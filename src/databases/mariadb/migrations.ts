@@ -251,6 +251,7 @@ async function createTablesIfNotExist(connection: mysql.Pool): Promise<void> {
 			_id VARCHAR(36) PRIMARY KEY,
 			\`key\` VARCHAR(255) NOT NULL,
 			value JSON,
+			category VARCHAR(255),
 			scope VARCHAR(50) NOT NULL DEFAULT 'system',
 			userId VARCHAR(36),
 			visibility VARCHAR(50) NOT NULL DEFAULT 'private',
@@ -258,6 +259,7 @@ async function createTablesIfNotExist(connection: mysql.Pool): Promise<void> {
 			createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 			INDEX key_idx (\`key\`),
+			INDEX category_idx (category),
 			INDEX scope_idx (scope),
 			INDEX user_idx (userId),
 			INDEX tenant_idx (tenantId)

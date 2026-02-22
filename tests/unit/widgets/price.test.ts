@@ -1,9 +1,13 @@
-import PriceWidget from '@src/widgets/custom/price/index';
+/**
+ * @file tests/unit/widgets/price.test.ts
+ * @description Unit tests for the Price widget
+ */
+
+import PriceWidget from '@src/widgets/custom/Price/index';
 import { parse } from 'valibot';
 import { describe, expect, it, mock } from 'bun:test';
 
 // Mock dependencies
-mock.module('@src/paraglide/messages', () => ({}));
 mock.module('@stores/widgetStore.svelte', () => ({ widgets: {} }));
 
 describe('Price Widget', () => {

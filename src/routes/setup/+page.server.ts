@@ -135,14 +135,61 @@ export const actions: Actions = {
 				};
 			} catch (err: any) {
 				// Handle SQLite/SQL "database does not exist" for auto-creation
-				if (err.message?.includes('does not exist') || err.code === 'ER_BAD_DB_ERROR' || err.code === '3D000') {
+				if (
+					err.message?.includes('does not exist') ||
+					err.message?.includes('Unknown database') ||
+					err.code === 'ER_BAD_DB_ERROR' ||
+					err.code === '3D000'
+				) {
 					if (createIfMissing) {
-						// ... existing create logic if needed, but getSetupDatabaseAdapter currently throws
-						// We'll let the user see the error and manually create for now, or improve utils.ts later
+						try {
+							if (dbConfig.type === 'sqlite') {
+								const { mkdirSync } = await import('node:fs');
+								const { dirname } = await import('node:path');
+								const { buildDatabaseConnectionString } = await import('./utils');
+								const dbPath = buildDatabaseConnectionString(dbConfig);
+								mkdirSync(dirname(dbPath), { recursive: true });
+							} else if (dbConfig.type === 'postgresql') {
+								const postgres = (await import('postgres')).default;
+								const sql = postgres({
+									host: dbConfig.host,
+									port: dbConfig.port,
+									user: dbConfig.user,
+									password: dbConfig.password,
+									database: 'postgres'
+								});
+								await sql.unsafe(`CREATE DATABASE "${dbConfig.name}"`);
+								await sql.end();
+							} else if (dbConfig.type === 'mariadb' || (dbConfig.type as any) === 'mysql') {
+								const mysql = await import('mysql2/promise');
+								const connection = await mysql.createConnection({
+									host: dbConfig.host,
+									port: dbConfig.port,
+									user: dbConfig.user,
+									password: dbConfig.password
+								});
+								await connection.query(`CREATE DATABASE IF NOT EXISTS \`${dbConfig.name}\``);
+								await connection.end();
+							}
+
+							// Retry connection now that DB/file exists
+							const retry = await getSetupDatabaseAdapter(dbConfig);
+							const health = await retry.dbAdapter.getConnectionHealth();
+							if (health.success) {
+								await retry.dbAdapter.disconnect();
+								return {
+									success: true,
+									message: 'Database created and connected successfully! ✨',
+									latencyMs: Math.round(performance.now() - start)
+								};
+							}
+						} catch (createErr: any) {
+							return { success: false, error: 'Could not create database: ' + createErr.message };
+						}
 					}
 					return {
 						success: false,
-						dbDoesNotExist: err.message?.includes('does not exist'),
+						dbDoesNotExist: true,
 						error: err.message
 					};
 				}

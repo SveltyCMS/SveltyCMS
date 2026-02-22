@@ -61,13 +61,48 @@ Default value is 'blank'.
 		if (dragMoved) return;
 		selected = id;
 	}
+
+	// Update active index based on scroll position for dots
+	let visibleIndex = $state(0);
+
+	// Setup intersection observer when the component mounts
+	$effect(() => {
+		if (!scrollEl) return;
+
+		const observer = new IntersectionObserver(
+			(entries) => {
+				// Find the fully/mostly visible entry
+				entries.forEach((entry) => {
+					if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
+						// Figure out the index of this element
+						const target = entry.target as HTMLElement;
+						const index = Array.from(scrollEl?.children || []).indexOf(target);
+						if (index !== -1) {
+							visibleIndex = index;
+						}
+					}
+				});
+			},
+			{
+				root: scrollEl,
+				threshold: 0.5 // Trigger when a card is at least 50% visible
+			}
+		);
+
+		// Observe all preset cards
+		Array.from(scrollEl.children).forEach((child) => observer.observe(child));
+
+		return () => {
+			observer.disconnect();
+		};
+	});
 </script>
 
-<section class="preset-section">
-	<div class="section-header">
-		<div class="header-left">
-			<iconify-icon icon="mdi:package-variant-closed" width="22" class="icon-accent"></iconify-icon>
-			<h3 class="section-title">Project Blueprint</h3>
+<section class="flex flex-col gap-3 overflow-hidden w-full">
+	<div class="flex items-center justify-between mb-1">
+		<div class="flex gap-2.5 items-center">
+			<iconify-icon icon="mdi:package-variant-closed" width="22" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+			<h3 class="text-[1.05rem] font-semibold text-inherit">Project Blueprint</h3>
 			<SystemTooltip title="Select a starting template for your CMS. This will pre-configure collections, roles, and settings.">
 				<button type="button" class="text-slate-400 hover:text-tertiary-500" aria-label="Help: Project Blueprint">
 					<iconify-icon icon="mdi:help-circle-outline" width="16"></iconify-icon>
@@ -75,11 +110,10 @@ Default value is 'blank'.
 			</SystemTooltip>
 		</div>
 
-		<div class="scroll-controls">
+		<div class="flex gap-1.5">
 			<button
 				type="button"
-				class="scroll-btn"
-				class:disabled={!canScrollLeft}
+				class="flex items-center justify-center w-8 h-8 text-slate-500/70 dark:text-white/70 cursor-pointer bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-full transition-all duration-200 hover:not-disabled:text-emerald-500 hover:not-disabled:bg-emerald-500/10 hover:not-disabled:border-emerald-500/30 dark:hover:not-disabled:text-white dark:hover:not-disabled:bg-white/10 dark:hover:not-disabled:border-white/25 disabled:cursor-default disabled:opacity-25"
 				onclick={() => scrollBy(-1)}
 				aria-label="Scroll left"
 				disabled={!canScrollLeft}
@@ -88,8 +122,7 @@ Default value is 'blank'.
 			</button>
 			<button
 				type="button"
-				class="scroll-btn"
-				class:disabled={!canScrollRight}
+				class="flex items-center justify-center w-8 h-8 text-slate-500/70 dark:text-white/70 cursor-pointer bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-full transition-all duration-200 hover:not-disabled:text-emerald-500 hover:not-disabled:bg-emerald-500/10 hover:not-disabled:border-emerald-500/30 dark:hover:not-disabled:text-white dark:hover:not-disabled:bg-white/10 dark:hover:not-disabled:border-white/25 disabled:cursor-default disabled:opacity-25"
 				onclick={() => scrollBy(1)}
 				aria-label="Scroll right"
 				disabled={!canScrollRight}
@@ -100,17 +133,22 @@ Default value is 'blank'.
 	</div>
 
 	<!-- Scroll track -->
-	<div class="track-wrapper">
-		<div class="fade-edge left" class:show={canScrollLeft}></div>
+	<div class="relative min-w-0">
 		<div
-			class="scroll-track"
+			class="absolute top-0 bottom-[14px] z-2 w-14 pointer-events-none opacity-0 transition-opacity duration-250 left-0 bg-linear-to-r from-white dark:from-[#0d0f12] via-white/30 dark:via-[#0d0f12]/30 to-transparent {canScrollLeft
+				? 'opacity-100'
+				: ''}"
+		></div>
+		<div
+			class="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-3.5 pt-1.5 px-1 w-full cursor-grab select-none transition-[scroll-snap-type] duration-300 [&::-webkit-scrollbar]:hidden {isDragging
+				? 'cursor-grabbing! snap-none! scroll-auto!'
+				: ''}"
 			bind:this={scrollEl}
 			onscroll={updateScrollState}
 			onmousedown={handleMouseDown}
 			onmousemove={handleMouseMove}
 			onmouseup={handleMouseUp}
 			onmouseleave={handleMouseUp}
-			class:grabbing={isDragging}
 			role="listbox"
 			tabindex="0"
 			aria-label="Select a project blueprint"
@@ -121,50 +159,68 @@ Default value is 'blank'.
 					type="button"
 					role="option"
 					aria-selected={selected === preset.id}
-					class="preset-card"
-					class:active={selected === preset.id}
+					class="relative flex flex-col flex-none w-64 p-4 overflow-hidden text-left cursor-pointer snap-start bg-white dark:bg-white/5 dark:backdrop-blur-md border border-black/10 dark:border-white/10 rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.05)] dark:shadow-none transition-all duration-250 hover:bg-emerald-500/5 dark:hover:bg-emerald-300/5 hover:border-emerald-500/30 dark:hover:border-emerald-300/30 hover:shadow-[0_10px_20px_-10px_rgba(0,0,0,0.05)] dark:hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.5),inset_0_0_20px_rgba(110,231,183,0.05)] hover:-translate-y-1 {selected ===
+					preset.id
+						? 'bg-primary-500/5! dark:bg-primary-300/10! border-primary-500! dark:border-primary-300! shadow-[0_0_0_2px_rgba(16,185,129,0.1),0_10px_25px_-12px_rgba(16,185,129,0.2)]! dark:shadow-[0_0_0_2px_rgba(110,231,183,0.2),0_15px_35px_-12px_rgba(0,0,0,0.6),inset_0_0_15px_rgba(110,231,183,0.1)]! -translate-y-1!'
+						: ''}"
 					onclick={() => select(preset.id)}
 				>
-					<!-- Badge -->
-					{#if preset.badge}
-						<span class="badge-pill">{preset.badge}</span>
-					{/if}
+					<div class="flex items-center gap-2">
+						<iconify-icon icon={preset.icon} width="22" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+						<span class="flex-1 text-black dark:text-white font-bold text-[0.88rem] leading-[1.2]">{preset.title}</span>
 
-					<div class="card-row1">
-						<div class="card-icon"><iconify-icon icon={preset.icon} width="22"></iconify-icon></div>
-						<span class="card-title">{preset.title}</span>
 						{#if preset.complexity}
-							<span class="complexity {preset.complexity}"> {preset.complexity} </span>
+							<div
+								class="absolute top-2 right-2 shrink-0 px-2 py-0.5 text-[0.58rem] font-bold uppercase tracking-wider border rounded-full {preset.complexity ===
+								'simple'
+									? 'text-emerald-600 dark:text-emerald-400 bg-emerald-600/10 dark:bg-emerald-400/10 border-emerald-600/30 dark:border-emerald-400/40'
+									: preset.complexity === 'moderate'
+										? 'text-amber-600 dark:text-amber-400 bg-amber-600/10 dark:bg-amber-400/10 border-amber-600/30 dark:border-amber-400/40'
+										: 'text-red-600 dark:text-red-400 bg-red-600/10 dark:bg-red-400/10 border-red-600/30 dark:border-red-400/40'}"
+							>
+								{preset.complexity}
+							</div>
 						{/if}
 					</div>
 
-					<div class="card-desc">{preset.description}</div>
+					<div class="line-clamp-3 mb-2.5 text-[0.7rem] leading-relaxed text-black/60 dark:text-white/40">{preset.description}</div>
 
-					<div class="card-tags">
+					<div class="flex flex-wrap gap-1 mt-auto">
 						{#each preset.features.slice(0, 2) as f}
-							<span class="chip">{f}</span>
+							<span
+								class="px-2 py-0.5 text-[0.62rem] text-black/50 dark:text-white/50 bg-black/5 dark:bg-white/10 border border-black/10 dark:border-white/10 rounded-full"
+								>{f}</span
+							>
 						{/each}
 						{#if preset.features.length > 2}
-							<span class="chip more">+{preset.features.length - 2}</span>
+							<span
+								class="px-2 py-0.5 text-[0.62rem] text-black/50 dark:text-white/50 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-full"
+								>+{preset.features.length - 2}</span
+							>
 						{/if}
 					</div>
 
 					{#if selected === preset.id}
-						<iconify-icon icon="mdi:check-circle" width="18" class="check-icon"></iconify-icon>
+						<iconify-icon icon="mdi:check-circle" width="28" class="absolute right-2 bottom-3 text-primary-500"></iconify-icon>
 					{/if}
 				</button>
 			{/each}
 		</div>
-		<div class="fade-edge right" class:show={canScrollRight}></div>
+		<div
+			class="absolute top-0 bottom-[14px] z-2 w-14 pointer-events-none opacity-0 transition-opacity duration-250 right-0 bg-linear-to-l from-white dark:from-[#0d0f12] via-white/30 dark:via-[#0d0f12]/30 to-transparent {canScrollRight
+				? 'opacity-100'
+				: ''}"
+		></div>
 	</div>
 
 	<!-- Dot indicators -->
-	<div class="dot-row" aria-hidden="true">
+	<div class="flex gap-1.5 justify-center py-0.5" aria-hidden="true">
 		{#each presets as preset, i (preset.id)}
 			<button
 				type="button"
-				class="dot"
-				class:active={selected === preset.id}
+				class="w-1.5 h-1.5 p-0 cursor-pointer border-none rounded-full transition-all duration-250 bg-black/15 dark:bg-white/20 {visibleIndex === i
+					? 'w-[18px]! rounded-[3px]! bg-primary-500! dark:bg-primary-300!'
+					: ''}"
 				aria-label={`Select preset ${preset.name || i + 1}`}
 				onclick={() => {
 					select(preset.id);
@@ -174,7 +230,7 @@ Default value is 'blank'.
 		{/each}
 	</div>
 
-	<p class="helper-text">
+	<p class="mt-1 text-[0.71rem] italic text-center text-black/40 dark:text-white/30">
 		{#if selected === 'blank'}
 			"Blank Project" selected — start with a clean slate. No collections will be added automatically.
 		{:else if selected}
@@ -184,374 +240,3 @@ Default value is 'blank'.
 		{/if}
 	</p>
 </section>
-
-<style>
-	.preset-section {
-		display: flex;
-		flex-direction: column;
-		gap: 12px;
-		max-width: 100%;
-		overflow-x: hidden;
-	}
-
-	.section-header {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		margin-bottom: 4px;
-	}
-	.header-left {
-		display: flex;
-		gap: 9px;
-		align-items: center;
-	}
-	.icon-accent {
-		color: #10b981; /* Default emerald-500 */
-	}
-	:global(.dark) .icon-accent {
-		color: #6ee7b7; /* emerald-300 */
-	}
-	.section-title {
-		font-size: 1.05rem;
-		font-weight: 600;
-		color: inherit;
-	}
-
-	.scroll-controls {
-		display: flex;
-		gap: 6px;
-	}
-	.scroll-btn {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		width: 32px;
-		height: 32px;
-		color: rgba(100, 116, 139, 0.7); /* slate-500 */
-		cursor: pointer;
-		background: rgba(0, 0, 0, 0.03);
-		border: 1px solid rgba(0, 0, 0, 0.08);
-		border-radius: 50%;
-		transition: all 0.18s;
-	}
-	:global(.dark) .scroll-btn {
-		color: rgba(255, 255, 255, 0.7);
-		background: rgba(255, 255, 255, 0.05);
-		border-color: rgba(255, 255, 255, 0.12);
-	}
-	.scroll-btn:hover:not(:disabled) {
-		color: #10b981;
-		background: rgba(16, 185, 129, 0.08);
-		border-color: rgba(16, 185, 129, 0.3);
-	}
-	:global(.dark) .scroll-btn:hover:not(:disabled) {
-		color: white;
-		background: rgba(255, 255, 255, 0.12);
-		border-color: rgba(255, 255, 255, 0.25);
-	}
-	.scroll-btn.disabled {
-		cursor: default;
-		opacity: 0.22;
-	}
-
-	.track-wrapper {
-		position: relative;
-		min-width: 0;
-	}
-	.scroll-track {
-		display: flex;
-		gap: 12px;
-		overflow-x: auto;
-		scroll-snap-type: x mandatory;
-		-webkit-overflow-scrolling: touch;
-		padding: 6px 4px 14px;
-		scrollbar-width: none;
-		width: 100%;
-		cursor: grab;
-		user-select: none;
-		transition: scroll-snap-type 0.3s;
-	}
-	.scroll-track.grabbing {
-		cursor: grabbing;
-		scroll-snap-type: none;
-		scroll-behavior: auto;
-	}
-	.scroll-track::-webkit-scrollbar {
-		display: none;
-	}
-
-	.fade-edge {
-		position: absolute;
-		top: 0;
-		bottom: 14px;
-		z-index: 2;
-		width: 56px;
-		pointer-events: none;
-		opacity: 0;
-		transition: opacity 0.25s;
-	}
-	.fade-edge.left {
-		left: 0;
-		background: linear-gradient(to right, white 30%, transparent);
-	}
-	:global(.dark) .fade-edge.left {
-		background: linear-gradient(to right, #0d0f12 30%, transparent);
-	}
-	.fade-edge.right {
-		right: 0;
-		background: linear-gradient(to left, white 30%, transparent);
-	}
-	:global(.dark) .fade-edge.right {
-		background: linear-gradient(to left, #0d0f12 30%, transparent);
-	}
-	.fade-edge.show {
-		opacity: 1;
-	}
-
-	/* ── Card ── */
-	.preset-card {
-		position: relative;
-		display: flex;
-		flex: 0 0 256px;
-		flex-direction: column;
-		gap: 0;
-		padding: 16px;
-		overflow: hidden;
-		text-align: left;
-		cursor: pointer;
-		scroll-snap-align: start;
-		background: white;
-		border: 1px solid rgba(0, 0, 0, 0.08);
-		border-radius: 12px;
-		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-		transition:
-			border-color 0.25s cubic-bezier(0.4, 0, 0.2, 1),
-			background 0.25s cubic-bezier(0.4, 0, 0.2, 1),
-			transform 0.2s cubic-bezier(0.4, 0, 0.2, 1),
-			box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-	}
-	:global(.dark) .preset-card {
-		background: rgba(255, 255, 255, 0.02);
-		backdrop-filter: blur(8px);
-		-webkit-backdrop-filter: blur(8px);
-		border-color: rgba(255, 255, 255, 0.06);
-		box-shadow: none;
-	}
-	.preset-card:hover {
-		background: rgba(16, 185, 129, 0.02);
-		border-color: rgba(16, 185, 129, 0.3);
-		box-shadow: 0 10px 20px -10px rgba(0, 0, 0, 0.05);
-		transform: translateY(-4px);
-	}
-	:global(.dark) .preset-card:hover {
-		background: rgba(110, 231, 183, 0.05);
-		border-color: rgba(110, 231, 183, 0.3);
-		box-shadow:
-			0 10px 30px -10px rgba(0, 0, 0, 0.5),
-			inset 0 0 20px rgba(110, 231, 183, 0.05);
-	}
-	.preset-card.active {
-		background: rgba(16, 185, 129, 0.05);
-		border-color: #10b981;
-		box-shadow:
-			0 0 0 2px rgba(16, 185, 129, 0.1),
-			0 10px 25px -12px rgba(16, 185, 129, 0.2);
-		transform: translateY(-4px);
-	}
-	:global(.dark) .preset-card.active {
-		background: rgba(110, 231, 183, 0.08);
-		border-color: #6ee7b7;
-		box-shadow:
-			0 0 0 2px rgba(110, 231, 183, 0.2),
-			0 15px 35px -12px rgba(0, 0, 0, 0.6),
-			inset 0 0 15px rgba(110, 231, 183, 0.1);
-	}
-
-	/* ── Row 1: icon + title + complexity ── */
-	.card-row1 {
-		display: flex;
-		gap: 10px;
-		align-items: center;
-		margin-bottom: 10px;
-	}
-	.card-icon {
-		display: flex;
-		flex-shrink: 0;
-		align-items: center;
-		justify-content: center;
-		width: 36px;
-		height: 36px;
-		color: #10b981;
-		background: rgba(16, 185, 129, 0.08);
-		border-radius: 8px;
-	}
-	:global(.dark) .card-icon {
-		color: #6ee7b7;
-		background: rgba(110, 231, 183, 0.1);
-	}
-	.card-title {
-		flex: 1;
-		font-size: 0.88rem;
-		font-weight: 700;
-		line-height: 1.2;
-		color: inherit;
-	}
-	.complexity {
-		flex-shrink: 0;
-		padding: 2px 7px;
-		font-size: 0.58rem;
-		font-weight: 700;
-		text-transform: uppercase;
-		letter-spacing: 0.04em;
-		border: 1px solid;
-		border-radius: 20px;
-	}
-	.complexity.simple {
-		color: #059669;
-		background: rgba(5, 150, 105, 0.08);
-		border-color: rgba(5, 150, 105, 0.3);
-	}
-	:global(.dark) .complexity.simple {
-		color: #34d399;
-		background: rgba(52, 211, 153, 0.1);
-		border-color: rgba(52, 211, 153, 0.4);
-	}
-	.complexity.moderate {
-		color: #d97706;
-		background: rgba(217, 119, 6, 0.08);
-		border-color: rgba(217, 119, 6, 0.3);
-	}
-	:global(.dark) .complexity.moderate {
-		color: #fbbf24;
-		background: rgba(251, 191, 36, 0.1);
-		border-color: rgba(251, 191, 36, 0.4);
-	}
-	.complexity.advanced {
-		color: #dc2626;
-		background: rgba(220, 38, 38, 0.08);
-		border-color: rgba(220, 38, 38, 0.3);
-	}
-	:global(.dark) .complexity.advanced {
-		color: #f87171;
-		background: rgba(248, 113, 113, 0.1);
-		border-color: rgba(248, 113, 113, 0.4);
-	}
-
-	/* ── Row 2: description ── */
-	.card-desc {
-		display: -webkit-box;
-		-webkit-box-orient: vertical;
-		margin-bottom: 10px;
-		overflow: hidden;
-		-webkit-line-clamp: 3;
-		line-clamp: 3;
-		font-size: 0.7rem;
-		line-height: 1.5;
-		color: rgba(0, 0, 0, 0.6);
-	}
-	:global(.dark) .card-desc {
-		color: rgba(255, 255, 255, 0.42);
-	}
-
-	/* ── Row 3: tags ── */
-	.card-tags {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 4px;
-		margin-top: auto;
-	}
-	.chip {
-		padding: 2px 8px;
-		font-size: 0.62rem;
-		color: rgba(0, 0, 0, 0.5);
-		background: rgba(0, 0, 0, 0.05);
-		border: 1px solid rgba(0, 0, 0, 0.08);
-		border-radius: 20px;
-	}
-	:global(.dark) .chip {
-		color: rgba(255, 255, 255, 0.5);
-		background: rgba(255, 255, 255, 0.07);
-		border-color: rgba(255, 255, 255, 0.1);
-	}
-	.chip.more {
-		background: rgba(0, 0, 0, 0.03);
-	}
-	:global(.dark) .chip.more {
-		background: rgba(255, 255, 255, 0.04);
-	}
-
-	/* Badge (Popular / New) */
-	.badge-pill {
-		position: absolute;
-		top: 10px;
-		right: 10px;
-		padding: 2px 8px;
-		font-size: 0.57rem;
-		font-weight: 700;
-		color: #d97706;
-		text-transform: uppercase;
-		letter-spacing: 0.06em;
-		background: rgba(217, 119, 6, 0.08);
-		border: 1px solid rgba(217, 119, 6, 0.25);
-		border-radius: 20px;
-	}
-	:global(.dark) .badge-pill {
-		color: #fbbf24;
-		background: rgba(251, 191, 36, 0.15);
-		border-color: rgba(251, 191, 36, 0.35);
-	}
-
-	/* Check icon */
-	.check-icon {
-		position: absolute;
-		right: 10px;
-		bottom: 10px;
-		color: #10b981;
-	}
-	:global(.dark) .check-icon {
-		color: #6ee7b7;
-	}
-
-	/* ── Dots ── */
-	.dot-row {
-		display: flex;
-		gap: 5px;
-		justify-content: center;
-		padding: 2px 0;
-	}
-	.dot {
-		width: 6px;
-		height: 6px;
-		padding: 0;
-		cursor: pointer;
-		background: rgba(0, 0, 0, 0.15);
-		border: none;
-		border-radius: 50%;
-		transition:
-			background 0.2s,
-			width 0.25s cubic-bezier(0.4, 0, 0.2, 1),
-			border-radius 0.25s;
-	}
-	:global(.dark) .dot {
-		background: rgba(255, 255, 255, 0.18);
-	}
-	.dot.active {
-		width: 18px;
-		background: #10b981;
-		border-radius: 3px;
-	}
-	:global(.dark) .dot.active {
-		background: #6ee7b7;
-	}
-
-	.helper-text {
-		margin-top: 4px;
-		font-size: 0.71rem;
-		font-style: italic;
-		color: rgba(0, 0, 0, 0.4);
-		text-align: center;
-	}
-	:global(.dark) .helper-text {
-		color: rgba(255, 255, 255, 0.3);
-	}
-</style>
