@@ -1740,9 +1740,7 @@ class ContentManager {
 			const fileName = filePath.split('/').pop()?.replace('.js', '') ?? 'unknown';
 			// Use schema.path from file when it is id-based (so new/duplicate collections keep id-based path in DB)
 			const isIdBasedPath =
-				typeof schema.path === 'string' &&
-				!schema.path.includes('/') &&
-				(schema.path.includes('.') || /^[a-zA-Z0-9]{16,32}$/.test(schema.path));
+				typeof schema.path === 'string' && !schema.path.includes('/') && (schema.path.includes('.') || /^[a-zA-Z0-9]{16,32}$/.test(schema.path));
 			const path = isIdBasedPath ? schema.path : filePathExtracted;
 
 			return {
@@ -1916,21 +1914,11 @@ class ContentManager {
 			}
 
 			// Priority lookup: 1. By ID (normalized), 2. By Path, 3. For _copy collections by name + id-based path
-			let dbNode = (dbNodeMapById.get(normalizeId(String(schema._id ?? ''))) ||
-				dbNodeMapByPath.get(schema.path)) as ContentNode | undefined;
-			if (
-				!dbNode &&
-				typeof schema.name === 'string' &&
-				schema.name.endsWith('_copy')
-			) {
+			let dbNode = (dbNodeMapById.get(normalizeId(String(schema._id ?? ''))) || dbNodeMapByPath.get(schema.path)) as ContentNode | undefined;
+			if (!dbNode && typeof schema.name === 'string' && schema.name.endsWith('_copy')) {
 				// Schema from duplicate file may have compile-injected _id; find node we inserted by name + id-based path
 				dbNode = Array.from(dbNodeMapByPath.values()).find(
-					(n) =>
-						n.nodeType === 'collection' &&
-						n.name === schema.name &&
-						typeof n.path === 'string' &&
-						n.path.includes('.') &&
-						!n.path.includes('/')
+					(n) => n.nodeType === 'collection' && n.name === schema.name && typeof n.path === 'string' && n.path.includes('.') && !n.path.includes('/')
 				) as ContentNode | undefined;
 			}
 			const nodeId = toDatabaseId(String(dbNode?._id ?? schema._id ?? ''));

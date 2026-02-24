@@ -436,10 +436,9 @@ export class MongoDBAdapter implements IDBAdapter {
 						this._wrapResult(() => contentMethods.bulkUpdateNodes(u)) as Promise<DatabaseResult<import('../db-interface').ContentNode[]>>,
 					fixMismatchedNodeIds: (n) => contentMethods.fixMismatchedNodeIds(n),
 					delete: async (path) => {
-						const r = await this.crud.deleteMany(
-							'system_content_structure',
-							{ path } as import('../db-interface').QueryFilter<import('../db-interface').BaseEntity>
-						);
+						const r = await this.crud.deleteMany('system_content_structure', { path } as import('../db-interface').QueryFilter<
+							import('../db-interface').BaseEntity
+						>);
 						if (!r.success) return { success: false, message: r.message, error: r.error };
 						const { CacheCategory, invalidateCategoryCache } = await import('./methods/mongodb-cache-utils');
 						await invalidateCategoryCache(CacheCategory.CONTENT);

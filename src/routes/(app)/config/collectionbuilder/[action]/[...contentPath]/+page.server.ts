@@ -326,7 +326,11 @@ export const actions: Actions = {
 			let resolvedNodeForPath: (typeof flat)[0] | undefined;
 
 			// Sanitize collection name for use as filename (no slashes, safe chars)
-			const nameForFile = (contentName || 'new').trim().replace(/[/\\]+/g, '').replace(/\s+/g, '-') || 'new';
+			const nameForFile =
+				(contentName || 'new')
+					.trim()
+					.replace(/[/\\]+/g, '')
+					.replace(/\s+/g, '-') || 'new';
 
 			if (isNewCollection) {
 				// File path by name: <name>.ts or parentName/<name>.ts (ID is used only for _id and idBasedPath)
@@ -342,30 +346,37 @@ export const actions: Actions = {
 				let existingNode: (typeof flat)[0] | undefined;
 				if (collectionId) {
 					const idNorm = collectionId.replace(/-/g, '');
-					existingNode = flat.find(
-						(n) => n.nodeType === 'collection' && n._id?.toString().replace(/-/g, '') === idNorm
-					);
+					existingNode = flat.find((n) => n.nodeType === 'collection' && n._id?.toString().replace(/-/g, '') === idNorm);
 				}
 				const urlPathRaw = (contentPathParam || '').replace(/^\//, '').trim() || originalPathTrimmed || '';
 				const looksLikeId = !urlPathRaw.includes('/') && /^[a-zA-Z0-9_-]{16,32}$/.test(urlPathRaw);
 				const resolved =
-					looksLikeId && collectionId
-						? resolveCollectionFilePathById(collectionId, tenantId, existingNode?.path as string | undefined)
-						: null;
+					looksLikeId && collectionId ? resolveCollectionFilePathById(collectionId, tenantId, existingNode?.path as string | undefined) : null;
 				const urlFilePath = resolved ? resolved.logicalPath : urlPathRaw;
 				if (resolved) effectiveWriteTenantId = resolved.writeTenantId;
 				targetFilePath = urlFilePath || contentName.trim();
 				if (!existingNode) {
-					existingNode = flat.find(
-						(n) =>
-							n.nodeType === 'collection' &&
-							(n.path === targetFilePath ||
-								n._id?.toString() === targetFilePath ||
-								n._id?.toString().replace(/-/g, '') === targetFilePath.replace(/-/g, ''))
-					) ?? (collectionId ? flat.find((n) => n.nodeType === 'collection' && n._id?.toString().replace(/-/g, '') === collectionId.replace(/-/g, '')) : undefined);
+					existingNode =
+						flat.find(
+							(n) =>
+								n.nodeType === 'collection' &&
+								(n.path === targetFilePath ||
+									n._id?.toString() === targetFilePath ||
+									n._id?.toString().replace(/-/g, '') === targetFilePath.replace(/-/g, ''))
+						) ??
+						(collectionId
+							? flat.find((n) => n.nodeType === 'collection' && n._id?.toString().replace(/-/g, '') === collectionId.replace(/-/g, ''))
+							: undefined);
 				}
 				if (existingNode) resolvedNodeForPath = existingNode;
-				const newName = (contentName || '').trim().replace(/[/\\]+/g, '').replace(/\s+/g, '-') || (existingNode?.name as string)?.trim() || urlFilePath.split('/').pop() || 'new';
+				const newName =
+					(contentName || '')
+						.trim()
+						.replace(/[/\\]+/g, '')
+						.replace(/\s+/g, '-') ||
+					(existingNode?.name as string)?.trim() ||
+					urlFilePath.split('/').pop() ||
+					'new';
 				const renamed = newName && urlFilePath && newName !== urlFilePath.split('/').pop();
 				if (renamed) {
 					oldFilePathForRename = urlFilePath;
@@ -379,13 +390,15 @@ export const actions: Actions = {
 
 			// Id-based path: new collections get new path; when editing, keep existing node path in schema so refresh doesn't orphan
 			const idBasedPath = isNewCollection
-				? (parentIdParam ? `${parentIdParam}.${collectionId}` : collectionId)
-				: (resolvedNodeForPath?.path as string | undefined) ??
+				? parentIdParam
+					? `${parentIdParam}.${collectionId}`
+					: collectionId
+				: ((resolvedNodeForPath?.path as string | undefined) ??
 					(flat.find(
 						(n) =>
 							n.nodeType === 'collection' &&
 							(n._id?.toString() === collectionId || n._id?.toString().replace(/-/g, '') === collectionId?.replace(/-/g, ''))
-					)?.path as string | undefined);
+					)?.path as string | undefined));
 
 			// Generate collection file using AST transformation (preserve _id and path when editing so DB node is kept)
 			const content = await generateCollectionFileWithAST({

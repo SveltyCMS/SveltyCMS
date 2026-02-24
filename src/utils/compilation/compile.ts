@@ -391,9 +391,7 @@ async function cleanupOrphanedFiles(
 				await fs.unlink(fullPath);
 				logger.info(`Removed orphan: ${relativePath}`);
 			} catch (unlinkErr) {
-				logger.warn(
-					`Could not remove orphaned file ${relativePath}: ${unlinkErr instanceof Error ? unlinkErr.message : String(unlinkErr)}`
-				);
+				logger.warn(`Could not remove orphaned file ${relativePath}: ${unlinkErr instanceof Error ? unlinkErr.message : String(unlinkErr)}`);
 			}
 		}
 	}

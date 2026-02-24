@@ -71,7 +71,10 @@
 		if (typeof target.__fieldIndex === 'number' && target.__fieldIndex >= 0 && target.__fieldIndex < fields.length) {
 			idx = target.__fieldIndex;
 		} else {
-			const norm = (s: unknown) => String(s ?? '').trim().toLowerCase();
+			const norm = (s: unknown) =>
+				String(s ?? '')
+					.trim()
+					.toLowerCase();
 			const targetDbName = norm(target.db_fieldName);
 			const targetId = target.id;
 			const targetLabel = norm(target.label);
@@ -85,13 +88,14 @@
 
 		if (idx === -1) {
 			// Fallback: update store by matching field (id or db_fieldName) so Save still persists the edit
-			const norm = (s: unknown) => String(s ?? '').trim().toLowerCase();
+			const norm = (s: unknown) =>
+				String(s ?? '')
+					.trim()
+					.toLowerCase();
 			const targetId = target.id;
 			const targetDb = norm(target.db_fieldName);
 			const mappedFields = fields.map((f: Record<string, unknown>) => {
-				const match =
-					(targetId != null && (f.id === targetId || f.id == targetId)) ||
-					(targetDb && norm(f.db_fieldName) === targetDb);
+				const match = (targetId != null && (f.id === targetId || f.id == targetId)) || (targetDb && norm(f.db_fieldName) === targetDb);
 				return match ? { ...f, [property]: value } : f;
 			});
 			if (mappedFields.some((f: Record<string, unknown>, i: number) => fields[i] !== f)) {
@@ -105,9 +109,7 @@
 		const newFields = fields.slice(0, idx).concat(updatedField, fields.slice(idx + 1));
 		setCollection({ ...active, fields: newFields } as any);
 		const forTarget =
-			typeof (target as any).__fieldIndex === 'number'
-				? { ...updatedField, __fieldIndex: (target as any).__fieldIndex }
-				: updatedField;
+			typeof (target as any).__fieldIndex === 'number' ? { ...updatedField, __fieldIndex: (target as any).__fieldIndex } : updatedField;
 		collections.setTargetWidget(forTarget as any);
 	}
 </script>
@@ -142,7 +144,11 @@
 				<div class="shrink-0 overflow-x-auto border-b border-surface-200-800 tab-list-scroll">
 					<Tabs.List class="flex w-max min-w-full flex-nowrap border-none px-1 py-0 sm:px-2">
 						<Tabs.Trigger value="general" class="shrink-0 px-2 py-2 text-xs font-bold uppercase tracking-wider sm:px-3">Basic</Tabs.Trigger>
-						<Tabs.Trigger value="specific" class="shrink-0 px-2 py-2 text-xs font-bold uppercase tracking-wider sm:px-3" disabled={specificProperties.length === 0}>
+						<Tabs.Trigger
+							value="specific"
+							class="shrink-0 px-2 py-2 text-xs font-bold uppercase tracking-wider sm:px-3"
+							disabled={specificProperties.length === 0}
+						>
 							Settings
 						</Tabs.Trigger>
 						<Tabs.Trigger value="auth" class="shrink-0 px-2 py-2 text-xs font-bold uppercase tracking-wider sm:px-3">Auth</Tabs.Trigger>

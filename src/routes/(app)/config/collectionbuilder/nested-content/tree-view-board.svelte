@@ -435,8 +435,6 @@
 				});
 			};
 			newTreeRoots = updateTargetParent(cleanedRoots);
-
-			
 		}
 
 		// Ensure moved items appear only in their new location: strip them from any other node's children

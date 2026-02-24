@@ -69,10 +69,7 @@
 			slug = fromData.slug ?? '';
 			description = fromData.description ?? '';
 			status = fromData.status ?? 'unpublished';
-			const iconValue =
-				(fromStore?.icon != null && String(fromStore.icon).trim()) ||
-				(fromData?.icon != null && String(fromData.icon).trim()) ||
-				'';
+			const iconValue = (fromStore?.icon != null && String(fromStore.icon).trim()) || (fromData?.icon != null && String(fromData.icon).trim()) || '';
 			selectedIcon = iconValue;
 		}
 	});
