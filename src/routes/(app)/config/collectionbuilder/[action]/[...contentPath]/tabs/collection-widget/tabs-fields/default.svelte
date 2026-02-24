@@ -51,10 +51,11 @@ Features:
 		return (collections.targetWidget.widget as any)?.Name;
 	}
 
-	function handleUpdate(detail: { value: any }, property: string) {
-		// Update the targetWidget store
+	function handleUpdate(detail: { value?: any; icon?: any }, property: string) {
+		// Update the targetWidget store. Icon picker emits icon (not value); use detail.icon for 'icon' property.
 		const currentWidget = collections.targetWidget;
-		currentWidget[property] = detail.value;
+		const value = property === 'icon' ? (detail.icon ?? detail.value) : (detail.value ?? detail.icon);
+		currentWidget[property] = value;
 		collections.setTargetWidget(currentWidget);
 	}
 </script>

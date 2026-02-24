@@ -338,6 +338,7 @@ class ContentManager {
 		logger.info('Refreshingcontent-managerstate...');
 		this.initState = 'initializing';
 		this.clearFirstCollectionCache(); // Clear cache on refresh
+		this.collectionCache.clear(); // Avoid getCollection() returning stale schema (e.g. old status) after save
 		this.initPromise = this._fullReload(tenantId).then(() => {
 			this.initState = 'initialized';
 			this.contentVersion = Date.now(); // Update version to notify clients
@@ -589,7 +590,8 @@ class ContentManager {
 	/**
 	 * Returns a lightweight navigation structure without full collection definitions.
 	 * This is suitable for serialization to the client (e.g., for navigation menus and TreeView).
-	 * Includes only essential metadata needed for display and ordering.
+	 * Uses the database with cache bypass so the sidebar always reflects the current persisted
+	 * state (e.g. after delete + reload the deleted category does not reappear).
 	 */
 	public async getNavigationStructure(): Promise<NavigationNode[]> {
 		// If initialization is in progress, wait for it
@@ -602,9 +604,9 @@ class ContentManager {
 			await this.initialize();
 		}
 
-		const fullStructure = await this.getContentStructure();
-
-		// Strip out collection definitions, keep only metadata + translations for localization
+		// Use DB with cache bypass so sidebar matches persisted state after delete/save/reload
+		const flat = await this.getContentStructureFromDatabase('flat', true);
+		const fullStructure = this._buildTreeFromFlat(flat);
 
 		const stripToNavigation = (nodes: ContentNode[]): NavigationNode[] => {
 			return nodes.map((node) => ({
@@ -615,13 +617,37 @@ class ContentManager {
 				nodeType: node.nodeType,
 				order: node.order,
 				parentId: node.parentId,
-				translations: node.translations, // Include translations for client-side localization
+				translations: node.translations,
 				children: node.children && node.children.length > 0 ? stripToNavigation(node.children) : undefined
 			}));
 		};
 
-		const result = stripToNavigation(fullStructure);
-		return result;
+		return stripToNavigation(fullStructure);
+	}
+
+	/**
+	 * Builds a nested tree from a flat list of content nodes (by parentId).
+	 * Used by getNavigationStructure so we can serve from DB without relying on in-memory maps.
+	 */
+	private _buildTreeFromFlat(flat: ContentNode[]): ContentNode[] {
+		const idStr = (v: unknown) => (v == null ? '' : typeof v === 'string' ? v : String((v as { toString?: () => string }).toString?.() ?? v));
+		const nodes = new Map<string, ContentNode>();
+		for (const node of flat) {
+			const id = idStr(node._id);
+			nodes.set(id, { ...node, children: [] as ContentNode[] });
+		}
+		const tree: ContentNode[] = [];
+		for (const node of nodes.values()) {
+			const parentKey = idStr(node.parentId);
+			if (parentKey && nodes.has(parentKey)) {
+				nodes.get(parentKey)?.children?.push(node as ContentNode);
+			} else {
+				tree.push(node as ContentNode);
+			}
+		}
+		tree.sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
+		nodes.forEach((n) => n.children?.sort((a, b) => (a.order ?? 999) - (b.order ?? 999)));
+		return tree;
 	}
 
 	/**
@@ -664,9 +690,10 @@ class ContentManager {
 	 * Returns lightweight data without heavy collectionDef.fields arrays.
 	 *
 	 * @param format 'flat' or 'nested' - default 'nested'
+	 * @param bypassCache - if true, skip cache (e.g. when resolving paths for delete after recent changes)
 	 * @returns ContentNode[] from database (with minimal collectionDef, no fields)
 	 */
-	public async getContentStructureFromDatabase(format: 'flat' | 'nested' = 'nested'): Promise<ContentNode[]> {
+	public async getContentStructureFromDatabase(format: 'flat' | 'nested' = 'nested', bypassCache = false): Promise<ContentNode[]> {
 		if (this.initState !== 'initialized') {
 			throw new Error('ContentManager is not initialized.');
 		}
@@ -676,7 +703,7 @@ class ContentManager {
 			throw new Error('Database adapter is not available');
 		}
 
-		const result = await dbAdapter.content.nodes.getStructure(format);
+		const result = await dbAdapter.content.nodes.getStructure(format, {}, bypassCache);
 
 		if (!result.success) {
 			logger.error('[ContentManager] Failed to get content structure from database:', result.error);
@@ -1478,7 +1505,7 @@ class ContentManager {
 		logger.debug('[ContentManager] upsertContentNodes - processing operations:', operations.length);
 
 		// Process each operation
-		const bulkUpdates: Array<{ path: string; changes: Partial<ContentNode> }> = [];
+		const bulkUpdates: Array<{ path: string; id?: string; changes: Partial<ContentNode> }> = [];
 		const bulkCreates: Omit<ContentNode, 'createdAt' | 'updatedAt'>[] = [];
 
 		for (const operation of operations) {
@@ -1486,7 +1513,12 @@ class ContentManager {
 
 			switch (type) {
 				case 'create': {
-					if (!node.path) {
+					let path = node.path;
+					if (!path && node.nodeType === 'category' && node.name) {
+						path = this._deriveUniqueCategoryPath(node.name);
+						node.path = path;
+					}
+					if (!path) {
 						logger.warn('[ContentManager] Node missing path, skipping:', node);
 						continue;
 					}
@@ -1497,28 +1529,31 @@ class ContentManager {
 					bulkCreates.push(createFields);
 
 					this.contentNodeMap.set(node._id, node);
-					if (node.path) {
-						this.pathLookupMap.set(node.path, node._id);
-					}
+					this.pathLookupMap.set(path, node._id);
 					break;
 				}
 
 				case 'update':
 				case 'rename':
 				case 'move': {
-					if (!node.path) {
-						logger.warn('[ContentManager] Node missing path, skipping:', node);
+					// Require _id so we update by identity and avoid duplicates when path format differs (e.g. dot vs slash).
+					if (!node._id) {
+						logger.warn('[ContentManager] Node missing _id for update/move, skipping:', node);
 						continue;
 					}
+					// Path may be missing or in a different format (e.g. dot from tree); we still set it from payload.
+					const newPath = node.path ?? '';
 
 					// Exclude immutable fields from updates
 					// eslint-disable-next-line @typescript-eslint/no-unused-vars
 					const { _id, createdAt, ...changeableFields } = node;
 
 					bulkUpdates.push({
-						path: node.path,
+						id: String(node._id),
+						path: newPath,
 						changes: {
 							...changeableFields,
+							path: newPath,
 							updatedAt: dateToISODateString(new Date())
 						}
 					});
@@ -1532,7 +1567,10 @@ class ContentManager {
 
 				case 'delete': {
 					if (node.path) {
-						await dbAdapter.content.nodes.delete(node.path);
+						const deleteResult = await dbAdapter.content.nodes.delete(node.path);
+						if (!deleteResult.success) {
+							throw new Error(deleteResult.message ?? 'Failed to delete node');
+						}
 					}
 					this.contentNodeMap.delete(node._id);
 					if (node.path) {
@@ -1556,7 +1594,23 @@ class ContentManager {
 			logger.info('[ContentManager] Bulk updated nodes:', bulkUpdates.length);
 		}
 
-		return await this.getContentStructureFromDatabase('flat');
+		// Invalidate ContentManager state cache so next init (e.g. on page reload) loads fresh from DB
+		try {
+			const cacheService = await getCacheService();
+			await cacheService.initialize();
+			await cacheService.delete(['cms:content_structure', 'cms:navigation_structure']);
+			logger.trace('[ContentManager] Invalidated cms:content_structure and navigation cache after upsert');
+		} catch (e) {
+			logger.debug('[ContentManager] Cache invalidation after upsert skipped:', e instanceof Error ? e.message : String(e));
+		}
+
+		// Bypass cache so we return the just-written structure (new categories/collections included)
+		const freshResult = await dbAdapter.content.nodes.getStructure('flat', {}, true);
+		if (!freshResult.success) {
+			logger.error('[ContentManager] Failed to get content structure after upsert:', freshResult.error);
+			throw new Error(freshResult.message ?? 'Failed to load updated structure');
+		}
+		return freshResult.data;
 	}
 
 	/**
@@ -1612,6 +1666,24 @@ class ContentManager {
 	// PRIVATE METHODS (Core Logic)
 	// ===================================================================================
 
+	/** Derives a unique path for a category from name (slugified); avoids collisions with pathLookupMap. */
+	private _deriveUniqueCategoryPath(name: string): string {
+		const slug =
+			name
+				.trim()
+				.toLowerCase()
+				.replace(/\s+/g, '-')
+				.replace(/[^a-z0-9-]/g, '') || 'category';
+		let path = `/${slug}`;
+		let n = 1;
+		const lowerPaths = new Set([...this.pathLookupMap.keys()].map((p) => p.toLowerCase()));
+		while (lowerPaths.has(path.toLowerCase())) {
+			path = `/${slug}-${n}`;
+			n += 1;
+		}
+		return path;
+	}
+
 	private async _fullReload(tenantId?: string, skipReconciliation = false): Promise<void> {
 		const schemas = await this._scanAndProcessFiles();
 		await this._reconcileAndBuildStructure(schemas, tenantId, skipReconciliation);
@@ -1664,8 +1736,14 @@ class ContentManager {
 			}
 
 			const schema = moduleData.schema as Schema;
-			const path = this._extractPathFromFilePath(filePath);
+			const filePathExtracted = this._extractPathFromFilePath(filePath);
 			const fileName = filePath.split('/').pop()?.replace('.js', '') ?? 'unknown';
+			// Use schema.path from file when it is id-based (so new/duplicate collections keep id-based path in DB)
+			const isIdBasedPath =
+				typeof schema.path === 'string' &&
+				!schema.path.includes('/') &&
+				(schema.path.includes('.') || /^[a-zA-Z0-9]{16,32}$/.test(schema.path));
+			const path = isIdBasedPath ? schema.path : filePathExtracted;
 
 			return {
 				...schema,
@@ -1768,9 +1846,8 @@ class ContentManager {
 			logger.trace(JSON.stringify(schemas.map((s) => s.path)));
 			logger.trace('---------------------------------');
 
-			const dbResult = await dbAdapter.content.nodes.getStructure('flat', {
-				tenantId
-			});
+			// Bypass cache so we see nodes just inserted (e.g. id-based path/parentId from Collection Builder save)
+			const dbResult = await dbAdapter.content.nodes.getStructure('flat', { tenantId }, true);
 
 			const dbNodeMap = new Map<string, ContentNode>(
 				dbResult.success
@@ -1820,10 +1897,11 @@ class ContentManager {
 		const now = dateToISODateString(new Date());
 		const pathToIdMap = new Map<string, DatabaseId>();
 
-		// Build a second map for ID-based lookup to prioritize stable identifiers
+		// Build a second map for ID-based lookup (normalize keys so string/ObjectId match)
 		const dbNodeMapById = new Map<string, ContentNode>();
 		for (const node of dbNodeMapByPath.values()) {
-			dbNodeMapById.set(node._id.toString(), node);
+			const key = normalizeId(node._id.toString());
+			dbNodeMapById.set(key, node);
 		}
 
 		// Helper to cast string to DatabaseId
@@ -1837,14 +1915,34 @@ class ContentManager {
 				continue;
 			}
 
-			// Priority lookup: 1. By ID (most stable), 2. By Path
-			const dbNode = (dbNodeMapById.get(schema._id as string) || dbNodeMapByPath.get(schema.path)) as ContentNode | undefined;
-			const nodeId = toDatabaseId(schema._id as string);
+			// Priority lookup: 1. By ID (normalized), 2. By Path, 3. For _copy collections by name + id-based path
+			let dbNode = (dbNodeMapById.get(normalizeId(String(schema._id ?? ''))) ||
+				dbNodeMapByPath.get(schema.path)) as ContentNode | undefined;
+			if (
+				!dbNode &&
+				typeof schema.name === 'string' &&
+				schema.name.endsWith('_copy')
+			) {
+				// Schema from duplicate file may have compile-injected _id; find node we inserted by name + id-based path
+				dbNode = Array.from(dbNodeMapByPath.values()).find(
+					(n) =>
+						n.nodeType === 'collection' &&
+						n.name === schema.name &&
+						typeof n.path === 'string' &&
+						n.path.includes('.') &&
+						!n.path.includes('/')
+				) as ContentNode | undefined;
+			}
+			const nodeId = toDatabaseId(String(dbNode?._id ?? schema._id ?? ''));
+			// Preserve path and parentId from DB when present (e.g. id-based path from Collection Builder save)
+			// so refresh() does not overwrite them with schema.path (slash format from files)
+			const path = dbNode?.path ?? schema.path;
+			const parentId = dbNode?.parentId != null ? (dbNode.parentId.toString() as DatabaseId) : undefined;
 
 			operations.push({
 				_id: nodeId,
-				parentId: undefined,
-				path: schema.path,
+				parentId,
+				path,
 				name: typeof schema.name === 'string' ? schema.name : String(schema.name),
 				icon: schema.icon ?? dbNode?.icon ?? 'bi:file',
 				slug: schema.slug ?? dbNode?.slug,
@@ -1858,74 +1956,59 @@ class ContentManager {
 				updatedAt: now
 			});
 
-			pathToIdMap.set(schema.path, nodeId);
-			processedPaths.add(schema.path);
-		}
-
-		// 2. Process Categories (Derived from file paths or existing in DB)
-		for (const [path, fileNode] of fileCategoryNodes.entries()) {
-			if (processedPaths.has(path)) {
-				continue;
-			}
-
-			const dbNode = dbNodeMapByPath.get(path);
-			const nodeId = toDatabaseId(dbNode?._id ?? uuidv4().replace(/-/g, ''));
-
-			operations.push({
-				_id: nodeId,
-				parentId: undefined,
-				path,
-				name: (dbNode?.name ?? fileNode.name) as string,
-				icon: dbNode?.icon ?? 'bi:folder',
-				order: dbNode?.order ?? 999,
-				nodeType: 'category',
-				translations: dbNode?.translations ?? [],
-				createdAt: dbNode?.createdAt ? dateToISODateString(new Date(dbNode.createdAt)) : now,
-				updatedAt: now
-			});
-
 			pathToIdMap.set(path, nodeId);
+			if (schema.path && schema.path !== path) pathToIdMap.set(schema.path, nodeId);
+			processedPaths.add(schema.path);
 			processedPaths.add(path);
 		}
 
-		// 3. CRITICAL FIX: Only preserve DB categories that are ancestors of current collections
-		// This prevents "ghost folders" from persisting when files are reorganized
-		const allCollectionPaths = new Set<string>();
-		for (const schema of schemas) {
-			if (schema.path) {
-				allCollectionPaths.add(schema.path);
+		// 2. Process Categories (Derived from file paths or existing in DB)
+		// Skip file-derived categories when DB already has categories (id-based paths); otherwise we create
+		// duplicates (e.g. "Collections" and "Posts" at root) because file paths like "/Collections" don't match DB paths.
+		const dbHasCategories = Array.from(dbNodeMapByPath.values()).some((n) => n.nodeType === 'category');
+		if (!dbHasCategories) {
+			for (const [path, fileNode] of fileCategoryNodes.entries()) {
+				if (processedPaths.has(path)) {
+					continue;
+				}
+
+				const dbNode = dbNodeMapByPath.get(path);
+				const nodeId = toDatabaseId(dbNode?._id ?? uuidv4().replace(/-/g, ''));
+
+				operations.push({
+					_id: nodeId,
+					parentId: undefined,
+					path,
+					name: (dbNode?.name ?? fileNode.name) as string,
+					icon: dbNode?.icon ?? 'bi:folder',
+					order: dbNode?.order ?? 999,
+					nodeType: 'category',
+					translations: dbNode?.translations ?? [],
+					createdAt: dbNode?.createdAt ? dateToISODateString(new Date(dbNode.createdAt)) : now,
+					updatedAt: now
+				});
+
+				pathToIdMap.set(path, nodeId);
+				processedPaths.add(path);
 			}
 		}
 
-		// Build set of all ancestor paths that should exist
-		const requiredCategoryPaths = new Set<string>();
-		for (const collectionPath of allCollectionPaths) {
-			const parts = collectionPath.split('/').filter(Boolean);
-			// Add all ancestor paths (e.g., for "/Collections/Posts/names", add "/collections" and "/Collections/posts")
-			for (let i = 1; i < parts.length; i++) {
-				const ancestorPath = `/${parts.slice(0, i).join('/')}`;
-				requiredCategoryPaths.add(ancestorPath);
-			}
-		}
-
-		// Only preserve DB categories that are required ancestors
+		// 3. Preserve ALL existing DB categories so editing one collection does not delete others
+		// (Previously we only preserved "required ancestors", which deleted Menu/Collections when all collections were flat.)
+		// Allow both slash paths (/Category) and id-based paths (from Collection Builder save).
 		for (const [path, dbNode] of dbNodeMapByPath.entries()) {
-			const isValidPath = typeof path === 'string' && path.startsWith('/') && path.length > 1;
-			const isNotUuid = !(/^[0-9a-f]{32}$/i.test(path) || /^[0-9a-f-]{36}$/i.test(path));
-			const isRequiredAncestor = requiredCategoryPaths.has(path);
+			const isValidPath = typeof path === 'string' && path.length > 0;
 
-			if (!processedPaths.has(path) && dbNode.nodeType === 'category' && isValidPath && isNotUuid && isRequiredAncestor) {
-				logger.debug(`[ContentManager] Preserving DB category: ${path} (ancestor of current collections)`);
+			if (!processedPaths.has(path) && dbNode.nodeType === 'category' && isValidPath) {
+				logger.debug(`[ContentManager] Preserving DB category: ${path}`);
 				operations.push({
 					...dbNode,
 					_id: toDatabaseId(dbNode._id.toString()),
+					parentId: dbNode.parentId ? (dbNode.parentId.toString() as DatabaseId) : undefined,
 					createdAt: dbNode.createdAt ? dateToISODateString(new Date(dbNode.createdAt)) : now,
 					updatedAt: now
 				});
 				pathToIdMap.set(path, toDatabaseId(dbNode._id.toString()));
-			} else if (!processedPaths.has(path) && dbNode.nodeType === 'category' && isValidPath && !isRequiredAncestor) {
-				logger.info(`[ContentManager] Removing orphaned category: ${path} (no longer referenced by any collections)`);
-				// Category will be deleted by not including it in operations
 			}
 		}
 
@@ -1966,17 +2049,7 @@ class ContentManager {
 				...op,
 				_id: op._id.toString() as DatabaseId,
 				parentId: op.parentId ? (op.parentId.toString() as DatabaseId) : undefined,
-				collectionDef: op.collectionDef
-					? ({
-							_id: op.collectionDef._id,
-							name: op.collectionDef.name,
-							icon: op.collectionDef.icon,
-							status: op.collectionDef.status,
-							path: op.collectionDef.path,
-							tenantId: op.collectionDef.tenantId,
-							fields: []
-						} as Schema)
-					: undefined
+				collectionDef: op.collectionDef ?? undefined
 			} as Partial<ContentNode>
 		}));
 
@@ -2036,17 +2109,7 @@ class ContentManager {
 					...op,
 					_id: op._id.toString() as DatabaseId,
 					parentId: op.parentId ? (op.parentId.toString() as DatabaseId) : undefined,
-					collectionDef: op.collectionDef
-						? ({
-								_id: op.collectionDef._id,
-								name: op.collectionDef.name,
-								icon: op.collectionDef.icon,
-								status: op.collectionDef.status,
-								path: op.collectionDef.path,
-								tenantId: op.collectionDef.tenantId,
-								fields: []
-							} as Schema)
-						: undefined
+					collectionDef: op.collectionDef ?? undefined
 				} as Partial<ContentNode>
 			}));
 

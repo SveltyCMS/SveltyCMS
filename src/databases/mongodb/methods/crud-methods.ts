@@ -152,13 +152,16 @@ export class MongoCrudMethods<T extends BaseEntity> {
 
 	async insertMany(data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>[], tenantId?: string | null): Promise<DatabaseResult<T[]>> {
 		try {
-			const docs = data.map((d) => ({
-				...(d as Record<string, unknown>),
-				_id: generateId(),
-				tenantId: tenantId || (d as unknown as Record<string, unknown>).tenantId,
-				createdAt: nowISODateString(),
-				updatedAt: nowISODateString()
-			}));
+			const docs = data.map((d) => {
+				const record = d as Record<string, unknown>;
+				return {
+					...record,
+					_id: record._id ?? generateId(),
+					tenantId: tenantId ?? record.tenantId,
+					createdAt: nowISODateString(),
+					updatedAt: nowISODateString()
+				};
+			});
 			const result = await this.model.insertMany(docs);
 			return { success: true, data: result.map((doc) => (doc as mongoose.HydratedDocument<T>).toObject() as T) };
 		} catch (error) {

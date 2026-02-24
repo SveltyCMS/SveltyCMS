@@ -6,7 +6,7 @@
 import type { Schema } from '@content/types';
 import { dbAdapter } from '@src/databases/db';
 import { logger } from '@utils/logger';
-import { compareSchemas, type SchemaChange } from '@utils/schema/comparison';
+import { compareSchemas, type CompareSchemasOptions, type SchemaChange } from '@utils/schema/comparison';
 
 export interface MigrationPlan {
 	changes: SchemaChange[];
@@ -21,8 +21,9 @@ export interface MigrationPlan {
 export class MigrationEngine {
 	/**
 	 * Creates a migration plan by comparing the Code Schema (Target) vs Database Schema (Current).
+	 * @param options.compareByIndex When true (Collection Builder save), match fields by index so renames do not block save.
 	 */
-	static async createPlan(codeSchema: Schema): Promise<MigrationPlan> {
+	static async createPlan(codeSchema: Schema, options: CompareSchemasOptions = {}): Promise<MigrationPlan> {
 		// 1. Fetch current DB Schema
 		// Note: We need a way to get the *current* DB schema specifically.
 		// For now we assume dbAdapter.collection.getModel returns the current model definition.
@@ -50,7 +51,7 @@ export class MigrationEngine {
 		// For comparison purposes, comparing against an empty schema would show "everything is added".
 		const currentDbSchema = dbSchema || ({ _id: codeSchema._id, name: codeSchema.name, fields: [] } as Schema);
 
-		const comparison = compareSchemas(codeSchema, currentDbSchema);
+		const comparison = compareSchemas(codeSchema, currentDbSchema, options);
 
 		// 2. Assess Impact
 		const dataLossPotential = comparison.changes.some((c) => c.type === 'field_removed' || c.type === 'type_changed');

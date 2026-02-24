@@ -8,8 +8,10 @@
 	import IconifyIconsPicker from '@src/components/iconify-icons-picker.svelte';
 
 	// Stores
-	import { contentStructure } from '@src/stores/collection-store.svelte';
+	import { contentStructure, setContentStructure } from '@src/stores/collection-store.svelte';
 	import { logger } from '@utils/logger';
+	import { deserialize } from '$app/forms';
+	import { invalidate } from '$app/navigation';
 
 	// Lucide Icons
 
@@ -40,6 +42,8 @@
 		newCategoryName: '',
 		newCategoryIcon: ''
 	});
+	// Separate search query for icon picker (Iconify API expects search terms, not full icon ids like "ic:baseline-add-card")
+	let categoryIconSearch = $state('');
 	let isSubmitting = $state(false);
 	let formError = $state<string | null>(null);
 	let validationErrors = $state<Record<string, string>>({});
@@ -48,6 +52,18 @@
 		formData.newCategoryName = existingCategory.name ?? '';
 		formData.newCategoryIcon = existingCategory.icon ?? '';
 	});
+
+	/** Collect category id and all descendant node ids (for cascade delete; server deletes attached collections and their .ts files). */
+	function getDescendantIds(categoryId: string, flat: ContentNode[]): string[] {
+		const idSet = new Set<string>();
+		const add = (id: string) => {
+			if (idSet.has(id)) return;
+			idSet.add(id);
+			flat.filter((n) => n.parentId?.toString() === id).forEach((n) => add(n._id?.toString() ?? ''));
+		};
+		add(categoryId);
+		return Array.from(idSet);
+	}
 
 	/**
 	 * Validates the form input fields.
@@ -103,64 +119,68 @@
 
 	/**
 	 * Handles deletion of an existing category.
-	 * Requires confirmation and checks for child categories.
+	 * Cascades to all attached collections and subcategories; server also deletes collection .ts files.
 	 */
 	async function deleteCategory(): Promise<void> {
-		// Prevent deletion if category has children (collections or subcategories)
-		// This check is a simplification; a more robust solution would determine if `existingCategory.children`
-		// holds any values based on your `ContentNode` definition or fetch it live.
-		// For now, assuming `existingCategory.children` refers to a property that exists if children are present.
-		if (existingCategory.nodeType === 'category' && contentStructure.value.some((node) => node.parentId === existingCategory._id)) {
-			formError = 'Cannot delete category with nested items (collections or subcategories). Please move or delete them first.';
+		const categoryId = existingCategory._id?.toString();
+		if (!categoryId) {
+			formError = 'Category has no ID';
 			return;
 		}
 
-		// Using a simple confirm dialog for now, as the modalStore is being removed.
-		// In a real application, you'd likely replace this with a custom confirmation modal component.
-		const confirmed = confirm(`Are you sure you wish to delete the category "${existingCategory.name}"? This action cannot be undone.`);
+		const flat = contentStructure.value ?? [];
+		const idsToDelete = getDescendantIds(categoryId, flat);
+		const attachedCount = idsToDelete.length - 1;
 
-		if (!confirmed) {
-			return; // User cancelled confirmation
-		}
+		const body =
+			attachedCount > 0
+				? `Delete category "${existingCategory.name}" and all ${attachedCount} attached collection(s) and sub-categories? Their config files will be removed. This action cannot be undone.`
+				: `Are you sure you wish to delete the category "${existingCategory.name}"? This action cannot be undone.`;
+
+		const confirmed = confirm(body);
+		if (!confirmed) return;
 
 		isSubmitting = true;
 		formError = null;
 
 		try {
-			// Persist to backend
-			const response = await fetch('/api/content-structure', {
-				method: 'POST', // Use POST for actions that modify data
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify({
-					action: 'updateContentStructure', // Re-use updateContentStructure for deletion
-					items: [
-						{
-							type: 'delete', // Define a 'delete' operation type
-							node: existingCategory // Pass the node to be deleted
-						}
-					]
-				})
+			const formDataDelete = new FormData();
+			formDataDelete.append('ids', JSON.stringify(idsToDelete));
+			const response = await fetch('?/deleteCollections', {
+				method: 'POST',
+				body: formDataDelete
 			});
 
+			const text = await response.text();
+			const result = text
+				? (deserialize(text) as {
+						type?: string;
+						data?: { success?: boolean; message?: string; contentStructure?: ContentNode[] };
+						error?: { message?: string };
+					})
+				: {};
+			const payload = (result.type === 'success' || result.type === 'failure' ? result.data : result) as
+				| { success?: boolean; message?: string; contentStructure?: ContentNode[] }
+				| undefined;
+			const message = result.type === 'error' ? (result.error?.message ?? 'Server error') : (payload?.message ?? 'Deletion failed');
+
 			if (!response.ok) {
-				const errorResult = await response.json();
-				throw new Error(errorResult.error || 'Failed to delete category');
-			}
-			const {
-				success,
-				contentStructure: newStructure // API should return updated full structure
-			}: {
-				success: boolean;
-				contentStructure: ContentNode[];
-			} = await response.json();
-			if (!success) {
-				throw new Error('API reported failure to delete category.');
+				logger.error('Delete category failed', message);
+				formError = message;
+				return;
 			}
 
-			contentStructure.value = newStructure;
-			close?.(null); // Close modal after successful deletion, passing null as no data is returned
+			if ((result.type === 'success' && payload?.success) || payload?.success === true) {
+				const newStructure =
+					payload?.contentStructure && Array.isArray(payload.contentStructure)
+						? payload.contentStructure
+						: flat.filter((n) => !new Set(idsToDelete).has(n._id?.toString() ?? ''));
+				setContentStructure(newStructure);
+				await invalidate('app:content');
+				close?.({ __categoryDeleted: true, contentStructure: newStructure });
+			} else {
+				formError = message;
+			}
 		} catch (error) {
 			logger.error('Error deleting category:', error);
 			formError = error instanceof Error ? error.message : 'Failed to delete category';
@@ -198,7 +218,7 @@
 
 		<label class="label" for="icon-picker">
 			<span>Icon</span>
-			<IconifyIconsPicker bind:iconselected={formData.newCategoryIcon} searchQuery={formData.newCategoryIcon} />
+			<IconifyIconsPicker bind:iconselected={formData.newCategoryIcon} icon={formData.newCategoryIcon} bind:searchQuery={categoryIconSearch} />
 			{#if validationErrors.icon}
 				<span id="icon-error" class="text-sm text-error-500">{validationErrors.icon}</span>
 			{/if}

@@ -1,4 +1,4 @@
-﻿<!-- 
+<!-- 
 @file src/components/iconify-icons-picker.svelte
 @component
 **Enhanced IconifyIconsPicker - Svelte 5 Optimized**
@@ -59,12 +59,29 @@ Advanced icon picker with search, pagination, and favorites.
 	}
 
 	interface Props {
-		iconselected: string;
+		iconselected?: string;
+		/** Bindable alias so parent (e.g. InputSwitch) can bind:icon and receive updates when user picks an icon. */
+		icon?: string;
 		searchQuery?: string;
 		showFavorites?: boolean;
+		/** When true, hide the text input; user selects only by clicking icons. Shows a "Browse icons" button instead. */
+		hideSearchInput?: boolean;
 	}
 
-	let { iconselected = $bindable(), searchQuery = $bindable(''), showFavorites = true }: Props = $props();
+	let {
+		iconselected = $bindable(),
+		icon = $bindable(''),
+		searchQuery = $bindable(''),
+		showFavorites = true,
+		hideSearchInput = true
+	}: Props = $props();
+
+	// Sync icon ↔ iconselected so bind:icon from InputSwitch receives picker updates
+	$effect(() => {
+		if (icon !== undefined && icon !== null && icon !== iconselected) {
+			iconselected = icon;
+		}
+	});
 
 	// State
 	let icons = $state<string[]>([]);
@@ -92,7 +109,7 @@ Advanced icon picker with search, pagination, and favorites.
 	const startIndex = $derived(currentPage * ICONS_PER_PAGE);
 	const librariesLoaded = $derived(Object.keys(iconLibraries).length > 0);
 	const hasSearchQuery = $derived(searchQuery.trim().length > 0);
-	const isFavorite = $derived(favorites.includes(iconselected));
+	const isFavorite = $derived(favorites.includes(iconselected ?? ''));
 	const hasRecent = $derived(recentSelections.length > 0);
 	const hasFavorites = $derived(favorites.length > 0);
 
@@ -329,9 +346,10 @@ Advanced icon picker with search, pagination, and favorites.
 	// Navigation handlers
 
 	// Icon selection
-	function selectIcon(icon: string): void {
-		const fullIconName = icon.includes(':') ? icon : `${selectedLibrary}:${icon}`;
+	function selectIcon(iconName: string): void {
+		const fullIconName = iconName.includes(':') ? iconName : `${selectedLibrary}:${iconName}`;
 		iconselected = fullIconName;
+		icon = fullIconName;
 
 		// Add to recent (avoiding duplicates)
 		recentSelections = [fullIconName, ...recentSelections.filter((i) => i !== fullIconName)].slice(0, MAX_RECENT);
@@ -374,6 +392,7 @@ Advanced icon picker with search, pagination, and favorites.
 	// Remove icon
 	function removeIcon(): void {
 		iconselected = '';
+		icon = '';
 		searchQuery = '';
 		icons = [];
 	}
@@ -496,29 +515,39 @@ Advanced icon picker with search, pagination, and favorites.
 	});
 </script>
 
-```
 <div class="icon-picker-container flex w-full flex-col" bind:this={dropdownRef}>
-	<!-- Selected icon display -->
+	<!-- Selected icon display (when hideSearchInput, clicking the icon opens the dropdown) -->
 	{#if iconselected}
 		<div
-			class="mb-2 flex items-center justify-between gap-2"
+			class="mb-2 flex min-w-0 flex-wrap items-center justify-between gap-2"
 			in:scale={{ duration: prefersReducedMotion ? 0 : 200, easing: quintOut, start: 0.9 }}
 			out:scale={{ duration: prefersReducedMotion ? 0 : 150, easing: quintOut, start: 0.9 }}
 		>
-			<div class="flex flex-1 items-center gap-3 rounded-lg bg-surface-100 p-2 dark:bg-surface-800">
+			<button
+				type="button"
+				onclick={() => {
+					if (hideSearchInput) {
+						showDropdown = !showDropdown;
+						if (showDropdown) handleFocus();
+					}
+				}}
+				class="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-lg bg-surface-100 p-2 text-left transition-opacity hover:opacity-90 sm:gap-3 dark:bg-surface-800 {!hideSearchInput ? 'pointer-events-none' : ''}"
+				aria-expanded={hideSearchInput ? showDropdown : undefined}
+				aria-label={hideSearchInput ? 'Change icon (click to browse)' : undefined}
+			>
 				<iconify-icon
 					icon={iconselected}
 					width={previewSize}
-					class="text-tertiary-500 transition-transform duration-200 hover:scale-110 dark:text-primary-500"
+					class="shrink-0 text-tertiary-500 transition-transform duration-200 hover:scale-110 dark:text-primary-500"
 					aria-hidden="true"
 				></iconify-icon>
-				<div class="flex-1 overflow-hidden">
+				<div class="min-w-0 flex-1 overflow-hidden">
 					<p class="text-xs text-surface-600 dark:text-surface-50">Selected Icon</p>
 					<p class="truncate text-sm font-medium text-tertiary-500 dark:text-primary-500">{iconselected}</p>
 				</div>
-			</div>
+			</button>
 
-			<div class="flex gap-1">
+			<div class="flex shrink-0 gap-1">
 				<button
 					onclick={() => toggleFavorite(iconselected)}
 					type="button"
@@ -550,39 +579,57 @@ Advanced icon picker with search, pagination, and favorites.
 				</button>
 			</div>
 		</div>
+	{:else if hideSearchInput}
+		<!-- No icon selected: clickable placeholder to open dropdown (no extra button) -->
+		<button
+			type="button"
+			onclick={() => {
+				showDropdown = true;
+				handleFocus();
+			}}
+			class="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border-2 border-dashed border-surface-300 p-4 text-surface-500 transition-colors hover:border-primary-500 hover:text-primary-500 dark:border-surface-600 dark:text-surface-400 dark:hover:border-primary-500 dark:hover:text-primary-500"
+			aria-expanded={showDropdown}
+			aria-controls="icon-dropdown"
+			aria-label="Choose icon"
+		>
+			<iconify-icon icon="mdi:image-plus" width="24"></iconify-icon>
+			<span class="text-sm font-medium">Click to choose icon</span>
+		</button>
 	{/if}
 
-	<!-- Search input container -->
-	<div class="relative">
-		<input
-			type="text"
-			role="combobox"
-			bind:value={searchQuery}
-			placeholder={iconselected ? `Replace: ${iconselected}` : iconpicker_placeholder()}
-			class="input w-full pr-10 transition-all duration-200 focus:scale-[1.01] focus:shadow-lg"
-			oninput={() => debouncedSearch(searchQuery, selectedLibrary)}
-			onfocus={handleFocus}
-			aria-label="Search icons"
-			aria-controls="icon-dropdown"
-			aria-haspopup="listbox"
-			aria-expanded={showDropdown}
-			aria-activedescendant={selectedIndex >= 0 ? `icon-option-${selectedIndex}` : undefined}
-			aria-describedby={searchError ? 'search-error' : undefined}
-		/>
-		{#if searchQuery}
-			<button
-				type="button"
-				class="absolute right-2 top-1/2 -translate-y-1/2 text-surface-400 hover:text-surface-600 dark:hover:text-surface-200"
-				onclick={() => {
-					searchQuery = '';
-					debouncedSearch('', selectedLibrary);
-				}}
-				aria-label="Clear search"
-			>
-				<iconify-icon icon="mdi:close" width="20"></iconify-icon>
-			</button>
-		{/if}
-	</div>
+	<!-- Search input (when not hideSearchInput) -->
+	{#if !hideSearchInput}
+		<div class="relative">
+			<input
+				type="text"
+				role="combobox"
+				bind:value={searchQuery}
+				placeholder={iconselected ? `Replace: ${iconselected}` : iconpicker_placeholder()}
+				class="input w-full pr-10 transition-all duration-200 focus:scale-[1.01] focus:shadow-lg"
+				oninput={() => debouncedSearch(searchQuery, selectedLibrary)}
+				onfocus={handleFocus}
+				aria-label="Search icons"
+				aria-controls="icon-dropdown"
+				aria-haspopup="listbox"
+				aria-expanded={showDropdown}
+				aria-activedescendant={selectedIndex >= 0 ? `icon-option-${selectedIndex}` : undefined}
+				aria-describedby={searchError ? 'search-error' : undefined}
+			/>
+			{#if searchQuery}
+				<button
+					type="button"
+					class="absolute right-2 top-1/2 -translate-y-1/2 text-surface-400 hover:text-surface-600 dark:hover:text-surface-200"
+					onclick={() => {
+						searchQuery = '';
+						debouncedSearch('', selectedLibrary);
+					}}
+					aria-label="Clear search"
+				>
+					<iconify-icon icon="mdi:close" width="20"></iconify-icon>
+				</button>
+			{/if}
+		</div>
+	{/if}
 
 	<!-- Error message -->
 	{#if searchError}

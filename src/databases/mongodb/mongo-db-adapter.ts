@@ -423,12 +423,28 @@ export class MongoDBAdapter implements IDBAdapter {
 					getStructure: (m, f, b) => this._wrapResult(() => contentMethods.getStructure(m, f, b)),
 					upsertContentStructureNode: (n) => this._wrapResult(() => contentMethods.upsertNodeByPath(n)),
 					create: (n) => this.crud.insert('system_content_structure', n),
-					createMany: (n) => this.crud.insertMany('system_content_structure', n),
+					createMany: async (n) => {
+						const r = await this.crud.insertMany('system_content_structure', n);
+						if (r.success) {
+							const { CacheCategory, invalidateCategoryCache } = await import('./methods/mongodb-cache-utils');
+							await invalidateCategoryCache(CacheCategory.CONTENT);
+						}
+						return r;
+					},
 					update: (p, c) => this.crud.update('system_content_structure', p as DatabaseId, c),
 					bulkUpdate: (u) =>
 						this._wrapResult(() => contentMethods.bulkUpdateNodes(u)) as Promise<DatabaseResult<import('../db-interface').ContentNode[]>>,
 					fixMismatchedNodeIds: (n) => contentMethods.fixMismatchedNodeIds(n),
-					delete: (p) => this.crud.delete('system_content_structure', p as DatabaseId),
+					delete: async (path) => {
+						const r = await this.crud.deleteMany(
+							'system_content_structure',
+							{ path } as import('../db-interface').QueryFilter<import('../db-interface').BaseEntity>
+						);
+						if (!r.success) return { success: false, message: r.message, error: r.error };
+						const { CacheCategory, invalidateCategoryCache } = await import('./methods/mongodb-cache-utils');
+						await invalidateCategoryCache(CacheCategory.CONTENT);
+						return { success: true, data: undefined };
+					},
 					deleteMany: (p, o) => {
 						const query: Record<string, unknown> = { path: { $in: p } };
 						if (o?.tenantId) {

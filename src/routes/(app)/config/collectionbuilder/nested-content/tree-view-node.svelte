@@ -163,7 +163,7 @@ Features:
 	<!-- Description -->
 	{#if screen.isDesktop && item.description}
 		<div class="flex-1 px-4 min-w-0 flex justify-start">
-			<span class="italic text-sm opacity-70 truncate w-full max-w-[500px] text-left" title={item.description}> {item.description} </span>
+			<span class="italic text-sm opacity-70 truncate w-full max-w-[720px] text-left" title={item.description}> {item.description} </span>
 		</div>
 	{/if}
 
