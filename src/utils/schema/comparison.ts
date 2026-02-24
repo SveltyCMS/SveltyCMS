@@ -42,8 +42,7 @@ function normalizeField(field: any): any {
 	if (field.widget != null) {
 		const w = field.widget;
 		if (typeof w === 'object') {
-			widgetType =
-				String((w as { type?: string }).type ?? (w as { key?: string }).key ?? (w as { Name?: string }).Name ?? '') || '';
+			widgetType = String((w as { type?: string }).type ?? (w as { key?: string }).key ?? (w as { Name?: string }).Name ?? '') || '';
 		} else {
 			widgetType = String(w);
 		}
@@ -61,11 +60,7 @@ function normalizeField(field: any): any {
  * Compares two schemas (Code vs Database) and returns differences.
  * @param options.compareByIndex When true, match by index so renames do not produce field_removed + field_added.
  */
-export function compareSchemas(
-	codeSchema: Schema,
-	dbSchema: Schema,
-	options: CompareSchemasOptions = {}
-): ComparisonResult {
+export function compareSchemas(codeSchema: Schema, dbSchema: Schema, options: CompareSchemasOptions = {}): ComparisonResult {
 	const { compareByIndex = false } = options;
 	const changes: SchemaChange[] = [];
 	const collectionId = codeSchema._id || 'unknown';
@@ -219,11 +214,7 @@ export function compareSchemas(
 	const hasDrift = changes.length > 0;
 	const onlyRemovals = changes.length > 0 && changes.every((c) => c.type === 'field_removed');
 	const isBlockingChange = (c: SchemaChange) =>
-		c.severity === 'critical' || c.severity === 'warning'
-			? compareByIndex
-				? c.type === 'field_removed' || c.type === 'type_changed'
-				: true
-			: false;
+		c.severity === 'critical' || c.severity === 'warning' ? (compareByIndex ? c.type === 'field_removed' || c.type === 'type_changed' : true) : false;
 	const requiresMigration = !onlyRemovals && changes.some(isBlockingChange);
 
 	return {

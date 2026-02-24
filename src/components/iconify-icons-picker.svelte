@@ -531,7 +531,9 @@ Advanced icon picker with search, pagination, and favorites.
 						if (showDropdown) handleFocus();
 					}
 				}}
-				class="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-lg bg-surface-100 p-2 text-left transition-opacity hover:opacity-90 sm:gap-3 dark:bg-surface-800 {!hideSearchInput ? 'pointer-events-none' : ''}"
+				class="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-lg bg-surface-100 p-2 text-left transition-opacity hover:opacity-90 sm:gap-3 dark:bg-surface-800 {!hideSearchInput
+					? 'pointer-events-none'
+					: ''}"
 				aria-expanded={hideSearchInput ? showDropdown : undefined}
 				aria-label={hideSearchInput ? 'Change icon (click to browse)' : undefined}
 			>
