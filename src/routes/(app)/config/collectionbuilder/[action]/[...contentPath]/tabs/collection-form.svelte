@@ -53,15 +53,24 @@
 	let slug = $state(data?.slug ?? '');
 	let description = $state(data?.description ?? '');
 	let status = $state(data?.status ?? 'unpublished');
+	// Only sync from server data when collection identity changes (navigation/load), not on every store update (so typing in Name works)
+	let lastSyncedId = $state<string | null>(null);
 
-	// Update form fields when data changes (for async loading)
+	// Update form fields when we switch to a different collection (by _id/path) so load data applies; don't overwrite while user is typing.
+	// Only set selectedIcon when syncing a new collection to avoid effect loop with IconifyIconsPicker (effect_update_depth_exceeded).
 	$effect(() => {
-		if (data) {
-			name = data.name ?? '';
-			slug = data.slug ?? '';
-			description = data.description ?? '';
-			status = data.status ?? 'unpublished';
-			selectedIcon = data.icon ?? '';
+		const fromData = data;
+		const fromStore = collection.value;
+		const id = fromData?._id ?? fromData?.path ?? fromStore?._id ?? fromStore?.path ?? null;
+		const idStr = id != null ? String(id) : '';
+		if (fromData && idStr !== lastSyncedId) {
+			lastSyncedId = idStr;
+			name = fromData.name ?? '';
+			slug = fromData.slug ?? '';
+			description = fromData.description ?? '';
+			status = fromData.status ?? 'unpublished';
+			const iconValue = (fromStore?.icon != null && String(fromStore.icon).trim()) || (fromData?.icon != null && String(fromData.icon).trim()) || '';
+			selectedIcon = iconValue;
 		}
 	});
 
@@ -83,38 +92,36 @@
 		});
 	});
 
-	// Update collection value when form fields change (only if editing an existing collection)
+	// Sync form fields (name, slug, description, status, icon) into the collection store for both create and edit.
+	// Without this, Status/Icon/Description are never written to the store for new collections (no _id yet),
+	// so Save sends stale/empty values and they are not persisted.
 	$effect(() => {
-		// Only track the form field changes, not the collection itself
 		const currentName = name;
 		const currentSlug = slug;
 		const currentDescription = description;
 		const currentStatus = status;
 		const currentIcon = selectedIcon;
 
-		// Use untrack to prevent reading collection.value from triggering this effect again
 		untrack(() => {
-			if (collection.value?._id) {
-				// Check if values have actually changed to avoid unnecessary updates
-				if (
-					collection.value.name === currentName &&
-					collection.value.slug === currentSlug &&
-					collection.value.description === currentDescription &&
-					collection.value.status === currentStatus &&
-					collection.value.icon === currentIcon
-				) {
-					return;
-				}
-
-				setCollection({
-					...collection.value, // Spread existing values (including _id)
-					name: currentName,
-					slug: currentSlug,
-					description: currentDescription,
-					status: currentStatus,
-					icon: currentIcon // Ensure icon is updated
-				});
+			if (!collection.value) return;
+			if (
+				collection.value.name === currentName &&
+				collection.value.slug === currentSlug &&
+				collection.value.description === currentDescription &&
+				collection.value.status === currentStatus &&
+				collection.value.icon === currentIcon
+			) {
+				return;
 			}
+
+			setCollection({
+				...collection.value,
+				name: currentName,
+				slug: currentSlug,
+				description: currentDescription,
+				status: currentStatus,
+				icon: currentIcon
+			});
 		});
 	});
 
@@ -230,7 +237,7 @@
 			<!-- Icon -->
 			<div class="flex flex-col">
 				<label for="icon" class="mb-1 flex items-center font-bold text-sm"> {collectionname_labelicon()} </label>
-				<IconifyIconsPicker bind:iconselected={selectedIcon} bind:searchQuery />
+				<IconifyIconsPicker bind:iconselected={selectedIcon} icon={selectedIcon} bind:searchQuery />
 			</div>
 
 			<!-- Description -->

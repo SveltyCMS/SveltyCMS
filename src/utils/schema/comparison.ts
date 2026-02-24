@@ -31,122 +31,191 @@ export interface ComparisonResult {
 	requiresMigration: boolean;
 }
 
-/**
- * Normalizes a field definition to a comparable object.
- * This handles differences between how fields might be stored in DB vs defined in code.
- */
+export interface CompareSchemasOptions {
+	/** When true, match fields by array index. Use in Collection Builder so renames (label/db_fieldName) do not trigger field_removed + field_added. */
+	compareByIndex?: boolean;
+}
+
+/** Normalizes widget to a string (type only) so object vs string does not cause false type_changed. */
 function normalizeField(field: any): any {
-	// Simplified normalization - in a real app this would handle specific widget props
+	let widgetType = '';
+	if (field.widget != null) {
+		const w = field.widget;
+		if (typeof w === 'object') {
+			widgetType = String((w as { type?: string }).type ?? (w as { key?: string }).key ?? (w as { Name?: string }).Name ?? '') || '';
+		} else {
+			widgetType = String(w);
+		}
+	}
 	return {
-		name: field.db_fieldName || field.name || field.label, // Best effort name resolution
-		widget: field.widget?.type || field.widget,
+		...field,
+		name: field.db_fieldName || field.name || field.label,
+		widget: widgetType,
 		required: !!field.required,
-		unique: !!field.unique,
-		...field
+		unique: !!field.unique
 	};
 }
 
 /**
  * Compares two schemas (Code vs Database) and returns differences.
- * @param codeSchema The schema defined in code (Source of Truth)
- * @param dbSchema The schema currently in the database
+ * @param options.compareByIndex When true, match by index so renames do not produce field_removed + field_added.
  */
-export function compareSchemas(codeSchema: Schema, dbSchema: Schema): ComparisonResult {
+export function compareSchemas(codeSchema: Schema, dbSchema: Schema, options: CompareSchemasOptions = {}): ComparisonResult {
+	const { compareByIndex = false } = options;
 	const changes: SchemaChange[] = [];
 	const collectionId = codeSchema._id || 'unknown';
 
-	// Map fields by name for O(1) lookup
-	// Note: We assume db_fieldName or label is the key.
-	// In SveltyCMS, fields usually have a db_fieldName.
-	const codeFields = new Map<string, any>();
-	codeSchema.fields.forEach((f) => {
-		const norm = normalizeField(f);
-		if (norm.name) {
-			codeFields.set(norm.name, norm);
+	const codeList = (codeSchema.fields ?? []).map((f) => normalizeField(f));
+	const dbList = (dbSchema.fields ?? []).map((f) => normalizeField(f));
+
+	if (compareByIndex) {
+		const maxLen = Math.max(codeList.length, dbList.length);
+		for (let i = 0; i < maxLen; i++) {
+			const codeField = codeList[i];
+			const dbField = dbList[i];
+			const name = codeField?.name ?? dbField?.name ?? `field_${i}`;
+
+			if (!dbField) {
+				changes.push({
+					type: 'field_added',
+					collectionId,
+					fieldName: name,
+					newValue: codeField,
+					severity: 'info',
+					message: `New field "${name}" added at index ${i}.`,
+					suggestion: 'Check if you need to set default values for existing entries.'
+				});
+				continue;
+			}
+			if (!codeField) {
+				changes.push({
+					type: 'field_removed',
+					collectionId,
+					fieldName: dbField.name ?? String(i),
+					oldValue: dbField,
+					severity: 'critical',
+					message: `Field at index ${i} removed - all data in this field will be lost.`,
+					suggestion: `Backup data before proceeding if it's still needed.`
+				});
+				continue;
+			}
+
+			const codeWidget = codeField.widget ?? '';
+			const dbWidget = dbField.widget ?? '';
+			if (codeWidget !== dbWidget && (codeWidget || dbWidget)) {
+				changes.push({
+					type: 'type_changed',
+					collectionId,
+					fieldName: name,
+					oldValue: dbField.widget,
+					newValue: codeField.widget,
+					severity: 'critical',
+					message: `Field "${name}" type changed from "${dbWidget}" to "${codeWidget}".`,
+					suggestion: `Verify if existing data format for "${dbWidget}" is compatible with "${codeWidget}".`
+				});
+			}
+			if (codeField.required && !dbField.required) {
+				changes.push({
+					type: 'required_added',
+					collectionId,
+					fieldName: name,
+					severity: 'warning',
+					message: `Field "${name}" is now required.`,
+					suggestion: 'Ensure all existing entries have a value for this field to avoid validation errors.'
+				});
+			}
+			if (codeField.unique && !dbField.unique) {
+				changes.push({
+					type: 'unique_added',
+					collectionId,
+					fieldName: name,
+					severity: 'warning',
+					message: `Field "${name}" now requires unique values.`,
+					suggestion: 'Check for and remove duplicate values in existing entries before saving.'
+				});
+			}
 		}
-	});
+	} else {
+		const codeFields = new Map<string, any>();
+		codeList.forEach((norm) => {
+			if (norm.name) codeFields.set(norm.name, norm);
+		});
+		const dbFields = new Map<string, any>();
+		dbList.forEach((norm) => {
+			if (norm.name) dbFields.set(norm.name, norm);
+		});
 
-	const dbFields = new Map<string, any>();
-	dbSchema.fields.forEach((f) => {
-		const norm = normalizeField(f);
-		if (norm.name) {
-			dbFields.set(norm.name, norm);
-		}
-	});
-
-	// 1. Check for Removed Fields (Critical - Data Loss Risk)
-	for (const [name, dbField] of dbFields) {
-		if (!codeFields.has(name)) {
-			changes.push({
-				type: 'field_removed',
-				collectionId,
-				fieldName: name,
-				oldValue: dbField,
-				severity: 'critical',
-				message: `Field "${name}" removed - all data in this field will be lost.`,
-				suggestion: `Backup data from "${name}" before proceeding if it's still needed.`
-			});
-		}
-	}
-
-	// 2. Check for Modified Fields
-	for (const [name, codeField] of codeFields) {
-		const dbField = dbFields.get(name);
-
-		if (!dbField) {
-			changes.push({
-				type: 'field_added',
-				collectionId,
-				fieldName: name,
-				newValue: codeField,
-				severity: 'info',
-				message: `New field "${name}" added.`,
-				suggestion: 'Check if you need to set default values for existing entries.'
-			});
-			continue;
+		for (const [name, dbField] of dbFields) {
+			if (!codeFields.has(name)) {
+				changes.push({
+					type: 'field_removed',
+					collectionId,
+					fieldName: name,
+					oldValue: dbField,
+					severity: 'critical',
+					message: `Field "${name}" removed - all data in this field will be lost.`,
+					suggestion: `Backup data from "${name}" before proceeding if it's still needed.`
+				});
+			}
 		}
 
-		// Check Widget Type Change
-		if (codeField.widget !== dbField.widget) {
-			changes.push({
-				type: 'type_changed',
-				collectionId,
-				fieldName: name,
-				oldValue: dbField.widget,
-				newValue: codeField.widget,
-				severity: 'critical',
-				message: `Field "${name}" type changed from "${dbField.widget}" to "${codeField.widget}".`,
-				suggestion: `Verify if existing data format for "${dbField.widget}" is compatible with "${codeField.widget}".`
-			});
-		}
+		for (const [name, codeField] of codeFields) {
+			const dbField = dbFields.get(name);
+			if (!dbField) {
+				changes.push({
+					type: 'field_added',
+					collectionId,
+					fieldName: name,
+					newValue: codeField,
+					severity: 'info',
+					message: `New field "${name}" added.`,
+					suggestion: 'Check if you need to set default values for existing entries.'
+				});
+				continue;
+			}
 
-		// Check Constraints
-		if (codeField.required && !dbField.required) {
-			changes.push({
-				type: 'required_added',
-				collectionId,
-				fieldName: name,
-				severity: 'warning',
-				message: `Field "${name}" is now required.`,
-				suggestion: 'Ensure all existing entries have a value for this field to avoid validation errors.'
-			});
-		}
-
-		if (codeField.unique && !dbField.unique) {
-			changes.push({
-				type: 'unique_added',
-				collectionId,
-				fieldName: name,
-				severity: 'warning',
-				message: `Field "${name}" now requires unique values.`,
-				suggestion: 'Check for and remove duplicate values in existing entries before saving.'
-			});
+			const codeWidget = codeField.widget ?? '';
+			const dbWidget = dbField.widget ?? '';
+			if (codeWidget !== dbWidget && (codeWidget || dbWidget)) {
+				changes.push({
+					type: 'type_changed',
+					collectionId,
+					fieldName: name,
+					oldValue: dbField.widget,
+					newValue: codeField.widget,
+					severity: 'critical',
+					message: `Field "${name}" type changed from "${dbWidget}" to "${codeWidget}".`,
+					suggestion: `Verify if existing data format for "${dbWidget}" is compatible with "${codeWidget}".`
+				});
+			}
+			if (codeField.required && !dbField.required) {
+				changes.push({
+					type: 'required_added',
+					collectionId,
+					fieldName: name,
+					severity: 'warning',
+					message: `Field "${name}" is now required.`,
+					suggestion: 'Ensure all existing entries have a value for this field to avoid validation errors.'
+				});
+			}
+			if (codeField.unique && !dbField.unique) {
+				changes.push({
+					type: 'unique_added',
+					collectionId,
+					fieldName: name,
+					severity: 'warning',
+					message: `Field "${name}" now requires unique values.`,
+					suggestion: 'Check for and remove duplicate values in existing entries before saving.'
+				});
+			}
 		}
 	}
 
 	const hasDrift = changes.length > 0;
-	// Critical changes usually require manual intervention or careful migration
-	const requiresMigration = changes.some((c) => c.severity === 'critical' || c.severity === 'warning');
+	const onlyRemovals = changes.length > 0 && changes.every((c) => c.type === 'field_removed');
+	const isBlockingChange = (c: SchemaChange) =>
+		c.severity === 'critical' || c.severity === 'warning' ? (compareByIndex ? c.type === 'field_removed' || c.type === 'type_changed' : true) : false;
+	const requiresMigration = !onlyRemovals && changes.some(isBlockingChange);
 
 	return {
 		collectionId,

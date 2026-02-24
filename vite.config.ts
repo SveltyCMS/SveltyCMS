@@ -371,7 +371,7 @@ function cmsWatcherPlugin(): Plugin {
 					try {
 						const { dbAdapter } = await server.ssrLoadModule(`./src/databases/db.ts?t=${Date.now()}`);
 						if (dbAdapter?.collection) {
-							const { scanCompiledCollections } = await server.ssrLoadModule(`./src/content/collectionScanner.ts?t=${Date.now()}`);
+							const { scanCompiledCollections } = await server.ssrLoadModule(`./src/content/collection-scanner.ts?t=${Date.now()}`);
 							const collections = await scanCompiledCollections();
 							log.info(`Found ${collections.length} collections, registering models...`);
 

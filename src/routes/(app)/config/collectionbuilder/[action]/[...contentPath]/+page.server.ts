@@ -28,7 +28,7 @@ import { compile } from '@src/utils/compilation/compile';
 import { type Actions, error, redirect } from '@sveltejs/kit';
 // System Logger
 import { logger } from '@utils/logger.server';
-import { getCollectionDisplayPath, getCollectionFilePath } from '@utils/tenant-paths';
+import { getCollectionDisplayPath, getCollectionFilePath, getCollectionsPath, getCompiledCollectionsPath } from '@utils/tenant-paths';
 import prettier from 'prettier';
 import * as ts from 'typescript';
 import type { PageServerLoad } from './$types';
@@ -58,9 +58,6 @@ interface WidgetDefinition {
 
 type FieldsData = Record<string, FieldWithWidget>;
 
-/** Resolved path to the user collections directory (matches vite.config.ts paths.userCollections) */
-const userCollectionsPath = path.resolve(process.cwd(), process.env.COLLECTIONS_DIR || 'config/collections');
-
 // Load Prettier config
 async function getPrettierConfig() {
 	try {
@@ -73,7 +70,10 @@ async function getPrettierConfig() {
 }
 
 // Define load function as async function that takes an event parameter
-export const load: PageServerLoad = async ({ locals, params }) => {
+export const load: PageServerLoad = async ({ depends, locals, params }) => {
+	// Invalidate with layout so edit page gets fresh collection data after rename/save (avoids stale "new6" in UI)
+	depends('app:content');
+
 	try {
 		// 1. Get user, roles, and admin status from locals (set by hook)
 		const { user, roles: tenantRoles, isAdmin } = locals;
@@ -118,9 +118,19 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		}
 
 		// 6. Handle 'edit' action (default)
-		await contentManager.refresh(); // Force a refresh to bypass any stale cache
-		const collectionIdentifier = params.contentPath;
+		// await contentManager.refresh((locals as { tenantId?: string }).tenantId);
 
+		try {
+			await contentManager.refresh(); // Force a refresh to bypass any stale cache
+		} catch (refreshErr) {
+			logger.warn('ContentManager refresh failed during edit load, continuing with current state', refreshErr);
+			// Proceed so getCollection may still find the collection from existing state
+		}
+
+		const rawPath = params.contentPath;
+		const collectionIdentifier = Array.isArray(rawPath) ? (rawPath as string[]).join('/') : typeof rawPath === 'string' ? rawPath : String(rawPath);
+
+		console.log('collectionIdentifier', collectionIdentifier);
 		// Try resolving exactly as passed (UUID or relative path)
 		let currentCollection = await contentManager.getCollection(collectionIdentifier);
 
@@ -165,6 +175,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
 		const serializableCollection = currentCollection ? deepCloneAndRemoveFunctions(currentCollection) : null;
 
+		console.log('serializableCollection', JSON.stringify(serializableCollection));
+
 		return {
 			user: serializedUser,
 			roles: tenantRoles || [], // roles:' key
@@ -183,19 +195,91 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	}
 };
 
+/**
+ * Resolve collection to the .ts file on disk by _id (and optional path to disambiguate).
+ * Tries legacy config/collections first, then tenant path. Returns logical path + which root to write to.
+ */
+function resolveCollectionFilePathById(
+	collectionId: string,
+	tenantId: string | null | undefined,
+	expectedPath?: string
+): { logicalPath: string; writeTenantId: string | null | undefined } | null {
+	if (!collectionId?.trim()) return null;
+	const idNorm = collectionId.replace(/-/g, '');
+	const pathNorm = expectedPath?.replace(/-/g, '') ?? '';
+
+	function scanDir(dir: string, prefix = ''): string | null {
+		if (!fs.existsSync(dir)) return null;
+		const entries = fs.readdirSync(dir, { withFileTypes: true });
+		for (const e of entries) {
+			const rel = prefix ? `${prefix}/${e.name}` : e.name;
+			if (e.isDirectory()) {
+				const found = scanDir(path.join(dir, e.name), rel);
+				if (found) return found;
+			} else if (e.name.endsWith('.ts') && !e.name.endsWith('.d.ts')) {
+				try {
+					const content = fs.readFileSync(path.join(dir, e.name), 'utf-8');
+					const idMatch = content.match(/_id\s*:\s*["']([^"']+)["']/);
+					if (!idMatch?.[1] || idMatch[1].replace(/-/g, '') !== idNorm) continue;
+					if (pathNorm) {
+						const pathInFile = content.match(/path\s*:\s*["']([^"']+)["']/)?.[1];
+						if (pathInFile?.replace(/-/g, '') !== pathNorm) continue;
+					}
+					return rel.replace(/\.ts$/i, '');
+				} catch {
+					// skip unreadable files
+				}
+			}
+		}
+		return null;
+	}
+
+	// Try legacy first so we update/rename files in config/collections when that's where they live
+	const toTry: Array<{ writeTenantId: string | null | undefined }> = [
+		{ writeTenantId: undefined },
+		...(tenantId !== undefined ? [{ writeTenantId: tenantId }] : [])
+	];
+	for (const { writeTenantId } of toTry) {
+		const collectionsDir = getCollectionsPath(writeTenantId);
+		const logical = scanDir(collectionsDir);
+		if (logical) return { logicalPath: logical, writeTenantId };
+	}
+	return null;
+}
+
 export const actions: Actions = {
 	// Save Collection
 	saveCollection: async ({ request }) => {
 		try {
+			console.log('saveCollection');
 			const formData = await request.formData();
 			const fieldsData = formData.get('fields') as string;
 			const originalName = formData.get('originalName') as string;
+			const contentPathParam = (formData.get('contentPath') as string) || originalName || '';
 			const contentName = formData.get('name') as string;
-			const collectionIcon = formData.get('icon') as string;
+			const collectionIcon = String(formData.get('icon') ?? '');
 			const collectionSlug = formData.get('slug') as string;
 			const collectionDescription = formData.get('description');
 			const collectionStatus = formData.get('status') as string;
 			const confirmDeletions = formData.get('confirmDeletions') === 'true';
+			let collectionId = (formData.get('_id') as string) || '';
+			// Normalize _id (client may send string or JSON like {"$oid":"..."})
+			if (collectionId && typeof collectionId === 'string' && collectionId.trim().startsWith('{')) {
+				try {
+					const parsed = JSON.parse(collectionId) as { $oid?: string; toString?: () => string };
+					collectionId = parsed?.$oid ?? parsed?.toString?.() ?? String(parsed ?? '');
+				} catch {
+					// keep as-is
+				}
+			}
+			collectionId = (collectionId && String(collectionId).trim()) || '';
+			const parentIdParam = (formData.get('parentId') as string) || '';
+
+			// New collection: generate id and use id-based path (file path = id so DB gets path from file)
+			const isNewCollection = !collectionId;
+			if (isNewCollection) {
+				collectionId = (Math.random().toString(36).substring(2, 15) + Date.now().toString(36)).replace(/-/g, '');
+			}
 
 			// Widgets Fields
 			const fields = JSON.parse(fieldsData) as FieldsData;
@@ -211,11 +295,15 @@ export const actions: Actions = {
 				fields: Object.values(fields) as any[]
 			};
 
-			const migrationPlan = await MigrationEngine.createPlan(tempSchema);
+			console.log('tempSchema', JSON.stringify(tempSchema));
+
+			const migrationPlan = await MigrationEngine.createPlan(tempSchema, { compareByIndex: true });
+			console.log('migrationPlan', JSON.stringify(migrationPlan.requiresMigration));
+
 			if (migrationPlan.requiresMigration && !confirmDeletions) {
 				logger.warn(`Drift detected for collection ${contentName}. Save blocked pending confirmation.`);
 				return {
-					status: 202, // Accepted for check but not yet processed
+					status: 202,
 					driftDetected: true,
 					plan: migrationPlan
 				};
@@ -225,8 +313,94 @@ export const actions: Actions = {
 
 			// Get tenant ID from request locals (set by hooks.server.ts)
 			const tenantId = (request as any).locals?.tenantId;
+			// When we resolve file by id we may find it in legacy config/collections; use that for write/compile/rename
+			let effectiveWriteTenantId: string | null | undefined = tenantId;
 
-			// Generate collection file using AST transformation
+			// Resolve target file path.
+			// - New collection: use collection NAME for the file (e.g. new.ts); ID is used only for schema _id and DB path.
+			// - Existing (edit): id-based or name-based path as before.
+			const originalPathTrimmed = (originalName || '').replace(/^\//, '').trim();
+			const flat = await contentManager.getContentStructureFromDatabase('flat', true);
+			let targetFilePath: string;
+			let oldFilePathForRename: string | null = null;
+			let resolvedNodeForPath: (typeof flat)[0] | undefined;
+
+			// Sanitize collection name for use as filename (no slashes, safe chars)
+			const nameForFile =
+				(contentName || 'new')
+					.trim()
+					.replace(/[/\\]+/g, '')
+					.replace(/\s+/g, '-') || 'new';
+
+			if (isNewCollection) {
+				// File path by name: <name>.ts or parentName/<name>.ts (ID is used only for _id and idBasedPath)
+				if (parentIdParam) {
+					const parent = flat.find((n) => n._id?.toString() === parentIdParam);
+					const parentName = (parent?.name as string)?.replace(/\s+/g, '-').replace(/\/|\\/g, '').trim() ?? '';
+					targetFilePath = parentName ? `${parentName}/${nameForFile}` : nameForFile;
+				} else {
+					targetFilePath = nameForFile;
+				}
+			} else {
+				// Find node by id first so resolver can disambiguate (e.g. new6.ts vs new/new6.ts) and we write/rename in the right dir
+				let existingNode: (typeof flat)[0] | undefined;
+				if (collectionId) {
+					const idNorm = collectionId.replace(/-/g, '');
+					existingNode = flat.find((n) => n.nodeType === 'collection' && n._id?.toString().replace(/-/g, '') === idNorm);
+				}
+				const urlPathRaw = (contentPathParam || '').replace(/^\//, '').trim() || originalPathTrimmed || '';
+				const looksLikeId = !urlPathRaw.includes('/') && /^[a-zA-Z0-9_-]{16,32}$/.test(urlPathRaw);
+				const resolved =
+					looksLikeId && collectionId ? resolveCollectionFilePathById(collectionId, tenantId, existingNode?.path as string | undefined) : null;
+				const urlFilePath = resolved ? resolved.logicalPath : urlPathRaw;
+				if (resolved) effectiveWriteTenantId = resolved.writeTenantId;
+				targetFilePath = urlFilePath || contentName.trim();
+				if (!existingNode) {
+					existingNode =
+						flat.find(
+							(n) =>
+								n.nodeType === 'collection' &&
+								(n.path === targetFilePath ||
+									n._id?.toString() === targetFilePath ||
+									n._id?.toString().replace(/-/g, '') === targetFilePath.replace(/-/g, ''))
+						) ??
+						(collectionId
+							? flat.find((n) => n.nodeType === 'collection' && n._id?.toString().replace(/-/g, '') === collectionId.replace(/-/g, ''))
+							: undefined);
+				}
+				if (existingNode) resolvedNodeForPath = existingNode;
+				const newName =
+					(contentName || '')
+						.trim()
+						.replace(/[/\\]+/g, '')
+						.replace(/\s+/g, '-') ||
+					(existingNode?.name as string)?.trim() ||
+					urlFilePath.split('/').pop() ||
+					'new';
+				const renamed = newName && urlFilePath && newName !== urlFilePath.split('/').pop();
+				if (renamed) {
+					oldFilePathForRename = urlFilePath;
+					targetFilePath = urlFilePath.includes('/')
+						? `${urlFilePath.slice(0, urlFilePath.lastIndexOf('/'))}/${newName}`.replace(/^\/+/, '')
+						: newName;
+				} else {
+					targetFilePath = urlFilePath || newName;
+				}
+			}
+
+			// Id-based path: new collections get new path; when editing, keep existing node path in schema so refresh doesn't orphan
+			const idBasedPath = isNewCollection
+				? parentIdParam
+					? `${parentIdParam}.${collectionId}`
+					: collectionId
+				: ((resolvedNodeForPath?.path as string | undefined) ??
+					(flat.find(
+						(n) =>
+							n.nodeType === 'collection' &&
+							(n._id?.toString() === collectionId || n._id?.toString().replace(/-/g, '') === collectionId?.replace(/-/g, ''))
+					)?.path as string | undefined));
+
+			// Generate collection file using AST transformation (preserve _id and path when editing so DB node is kept)
 			const content = await generateCollectionFileWithAST({
 				contentName,
 				collectionIcon,
@@ -235,23 +409,50 @@ export const actions: Actions = {
 				collectionSlug,
 				fields,
 				imports,
-				tenantId
+				tenantId,
+				collectionId: collectionId || undefined,
+				collectionPath: idBasedPath
 			});
 
-			// Use tenant-aware path resolution
-			const collectionPath = getCollectionFilePath(contentName, tenantId);
-			const oldCollectionPath = originalName ? getCollectionFilePath(originalName, tenantId) : null;
+			console.log('content__', content);
 
-			if (originalName && originalName !== contentName && oldCollectionPath) {
-				fs.renameSync(oldCollectionPath, collectionPath);
+			// Write to the resolved path; use effectiveWriteTenantId so we touch the same dir as the existing file (e.g. legacy config/collections)
+			const collectionPath = getCollectionFilePath(targetFilePath, effectiveWriteTenantId);
+			const oldCollectionPath = isNewCollection
+				? null
+				: ((oldFilePathForRename ? getCollectionFilePath(oldFilePathForRename, effectiveWriteTenantId) : null) ??
+					(originalPathTrimmed ? getCollectionFilePath(originalPathTrimmed, effectiveWriteTenantId) : null));
+			const isRename = Boolean(oldCollectionPath && (oldFilePathForRename ?? originalPathTrimmed) !== targetFilePath);
+
+			if (isRename && oldCollectionPath) {
+				try {
+					if (!fs.existsSync(oldCollectionPath)) {
+						logger.warn(`Save: original file not found for rename (${oldCollectionPath}), writing new file only`);
+					} else {
+						if (collectionPath !== oldCollectionPath && fs.existsSync(collectionPath)) {
+							fs.unlinkSync(collectionPath);
+						}
+						fs.renameSync(oldCollectionPath, collectionPath);
+					}
+				} catch (renameErr) {
+					logger.warn('Save: rename failed, writing to new path', renameErr);
+				}
+			}
+			const targetDir = path.dirname(collectionPath);
+			if (!fs.existsSync(targetDir)) {
+				fs.mkdirSync(targetDir, { recursive: true });
 			}
 			fs.writeFileSync(collectionPath, content);
 
-			// Compile with tenant ID
-			await compile({ logger, tenantId });
-			//await contentManager.generateContentTypes();
-			//await contentManager.generateCollectionFieldTypes();
+			// Compile using same tenant/path we wrote to
+			await compile({ logger, tenantId: effectiveWriteTenantId });
+
 			await contentManager.refresh(tenantId);
+
+			// Return edit path for new collections so client can navigate to edit page
+			if (isNewCollection && idBasedPath) {
+				return { status: 200, editPath: idBasedPath };
+			}
 			return { status: 200 };
 		} catch (err) {
 			const message = `Error in saveCollection action: ${err instanceof Error ? err.message : String(err)}`;
@@ -300,14 +501,62 @@ export const actions: Actions = {
 		}
 	},
 
-	// Delete collection
+	// Delete collection(s): remove .ts and .js files and DB nodes (client sends ids)
 	deleteCollections: async ({ request }) => {
 		try {
 			const formData = await request.formData();
-			const contentTypes = JSON.parse(formData.get('contentTypes') as string);
-			fs.unlinkSync(`${userCollectionsPath}/${contentTypes}.ts`);
-			await compile({ logger });
-			await contentManager.refresh();
+			const ids = JSON.parse(formData.get('ids') as string) as string[];
+			const tenantId = (request as { locals?: { tenantId?: string } }).locals?.tenantId;
+			if (!ids?.length) {
+				return { status: 400, error: 'Invalid IDs for deletion' };
+			}
+			const currentStructure = await contentManager.getContentStructureFromDatabase('flat', true);
+			const nodesToDelete = currentStructure.filter((node) => node.path && ids.includes(node._id.toString()));
+			const pathsToDelete = nodesToDelete.map((node) => node.path as string);
+			// Try multiple path candidates (derived path + flat name) and both legacy + tenant dirs
+			const tenantIdsToTry: (string | null | undefined)[] = [undefined, ...(tenantId !== undefined ? [tenantId] : [])];
+			for (const node of nodesToDelete) {
+				if (node.nodeType !== 'collection' || !node.path) continue;
+				const rawPath = (node.path as string).replace(/^\//, '');
+				const hasDot = rawPath.includes('.') && !rawPath.includes('/');
+				const looksLikeBareId = !rawPath.includes('/') && /^[a-zA-Z0-9_-]{16,32}$/.test(rawPath);
+				const isIdBasedPath = hasDot || looksLikeBareId;
+				let collectionPathForFile: string;
+				if (isIdBasedPath) {
+					const parent = node.parentId ? currentStructure.find((n) => n._id?.toString() === node.parentId?.toString()) : null;
+					const parentName = (parent?.name as string)?.replace(/\s+/g, '-').replace(/\/|\\/g, '').trim() ?? '';
+					const nodeName = (node.name as string)?.replace(/\s+/g, '-').replace(/\/|\\/g, '').trim() ?? '';
+					collectionPathForFile = parentName ? `${parentName}/${nodeName}` : nodeName;
+				} else {
+					collectionPathForFile = rawPath;
+				}
+				const flatName = (node.name as string)?.replace(/\s+/g, '-').replace(/\/|\\/g, '').trim() ?? '';
+				const candidates = [...new Set([collectionPathForFile, flatName].filter(Boolean))];
+				for (const logicalPath of candidates) {
+					for (const tid of tenantIdsToTry) {
+						const tsPath = getCollectionFilePath(logicalPath, tid);
+						const compiledBase = getCompiledCollectionsPath(tid);
+						const jsPath = path.join(compiledBase, `${logicalPath}.js`);
+						for (const filePath of [tsPath, jsPath]) {
+							try {
+								if (fs.existsSync(filePath)) {
+									fs.unlinkSync(filePath);
+									logger.info(`Deleted collection file: ${filePath}`);
+								}
+							} catch (e) {
+								logger.warn(`Could not delete collection file ${filePath}`, e);
+							}
+						}
+					}
+				}
+			}
+			const operations = pathsToDelete.map((path) => ({
+				type: 'delete' as const,
+				node: { path } as import('@src/content/types').ContentNode
+			}));
+			await contentManager.upsertContentNodes(operations);
+			await compile({ logger, tenantId });
+			await contentManager.refresh(tenantId);
 			return { status: 200 };
 		} catch (err) {
 			const message = `Error in deleteCollections action: ${err instanceof Error ? err.message : String(err)}`;
@@ -440,6 +689,10 @@ interface CollectionData {
 	fields: FieldsData;
 	imports: string;
 	tenantId?: string | null;
+	/** When editing, preserve so compiled schema matches DB node and refresh does not orphan it */
+	collectionId?: string;
+	/** Id-based path for DB (e.g. "<id>" or "parentId.<id>"); when set, written into schema so reconciliation uses it */
+	collectionPath?: string;
 }
 
 async function generateCollectionFileWithAST(data: CollectionData): Promise<string> {
@@ -454,7 +707,7 @@ async function generateCollectionFileWithAST(data: CollectionData): Promise<stri
  */
 
 ${data.imports}
-import { widgets } from '@widgets/widget-manager.svelte';
+import { widgets } from '@src/stores/widget-store.svelte.ts';
 import type { Schema } from '@src/content/types';
 
 export const schema: Schema = {
@@ -545,19 +798,42 @@ function createCollectionTransformer(data: CollectionData): ts.TransformerFactor
 function createSchemaObjectLiteral(data: CollectionData): ts.ObjectLiteralExpression {
 	const properties: ts.ObjectLiteralElementLike[] = [];
 
-	// Add icon property
-	properties.push(ts.factory.createPropertyAssignment(ts.factory.createIdentifier('icon'), ts.factory.createStringLiteral(data.collectionIcon)));
+	// Preserve _id when editing so DB node is matched on refresh (id-based path duplicates)
+	if (data.collectionId) {
+		const idStr = String(data.collectionId).replace(/-/g, '');
+		properties.push(ts.factory.createPropertyAssignment(ts.factory.createIdentifier('_id'), ts.factory.createStringLiteral(idStr)));
+	}
 
-	// Add status property
-	properties.push(ts.factory.createPropertyAssignment(ts.factory.createIdentifier('status'), ts.factory.createStringLiteral(data.collectionStatus)));
+	// Id-based path for new collections so DB stores path by id (reconciliation uses schema.path when id-based)
+	if (data.collectionPath) {
+		properties.push(
+			ts.factory.createPropertyAssignment(ts.factory.createIdentifier('path'), ts.factory.createStringLiteral(String(data.collectionPath)))
+		);
+	}
 
-	// Add description property
+	// Name is required so UI and reconciliation show the collection name (not fileName/_id fallback)
 	properties.push(
 		ts.factory.createPropertyAssignment(
-			ts.factory.createIdentifier('description'),
-			ts.factory.createStringLiteral(String(data.collectionDescription || ''))
+			ts.factory.createIdentifier('name'),
+			ts.factory.createStringLiteral(typeof data.contentName === 'string' ? data.contentName : '')
 		)
 	);
+
+	// Add icon property (ensure string for AST)
+	properties.push(
+		ts.factory.createPropertyAssignment(
+			ts.factory.createIdentifier('icon'),
+			ts.factory.createStringLiteral(typeof data.collectionIcon === 'string' ? data.collectionIcon : '')
+		)
+	);
+
+	// Add status property (ensure string so we never write literal "null")
+	const statusStr = typeof data.collectionStatus === 'string' ? data.collectionStatus : 'unpublished';
+	properties.push(ts.factory.createPropertyAssignment(ts.factory.createIdentifier('status'), ts.factory.createStringLiteral(statusStr)));
+
+	// Add description property
+	const descriptionStr = data.collectionDescription != null ? String(data.collectionDescription) : '';
+	properties.push(ts.factory.createPropertyAssignment(ts.factory.createIdentifier('description'), ts.factory.createStringLiteral(descriptionStr)));
 
 	// Add slug property
 	properties.push(ts.factory.createPropertyAssignment(ts.factory.createIdentifier('slug'), ts.factory.createStringLiteral(data.collectionSlug)));

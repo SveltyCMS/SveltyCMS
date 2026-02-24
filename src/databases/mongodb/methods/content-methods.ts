@@ -124,7 +124,10 @@ export class MongoContentMethods {
 		const cacheKey = `content:structure:${mode}:${filterKey}`;
 
 		const fetchData = async (): Promise<DatabaseResult<ContentNode[]>> => {
-			const result = await this.nodesRepo.findMany(filter);
+			// Sort by parentId then order so siblings appear in correct order (e.g. Posts vs Names in a category)
+			const result = await this.nodesRepo.findMany(filter, {
+				sort: { parentId: 1, order: 1 }
+			});
 			if (!result.success) {
 				return result;
 			}

@@ -24,7 +24,7 @@
 	import type { User } from '@src/databases/auth/types';
 
 	// Stores
-	import { collection, setCollection } from '@src/stores/collection-store.svelte';
+	import { collection, collections, setCollection } from '@src/stores/collection-store.svelte';
 	import { toaster, validationStore } from '@src/stores/store.svelte';
 	import { setRouteContext } from '@src/stores/ui-store.svelte.ts';
 	import { widgetStoreActions } from '@src/stores/widget-store.svelte.ts';
@@ -34,7 +34,7 @@
 	import { showConfirm } from '@utils/modal-utils';
 	import { obj2formData } from '@utils/utils';
 	import { onMount } from 'svelte';
-	import { afterNavigate, goto } from '$app/navigation';
+	import { afterNavigate, goto, invalidate, invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
 
 	// Reactive: re-evaluates when URL params change during client-side navigation
@@ -53,18 +53,42 @@
 	let isLoading = $state(false);
 	let migrationPlan = $state<any>(null);
 	let showWarningModal = $state(false);
+	let justSaved = $state(false);
+	let lastLoadedCollectionId = $state<string | null>(null);
+
+	// Sync store from load data only when we switch to a different collection (navigation/load), not on every data update (so status/name edits are not overwritten)
+	$effect(() => {
+		if (justSaved) return;
+		const action = page.params.action;
+		const c = data?.collection;
+		if (action === 'edit' && c) {
+			const id = c._id ?? c.path ?? '';
+			const idStr = String(id);
+			if (idStr !== lastLoadedCollectionId) {
+				lastLoadedCollectionId = idStr;
+				setCollection(c);
+				const pathStr = c.path != null ? String(c.path).trim() : '';
+				originalName = pathStr ? pathStr.replace(/^\//, '') : String(c.name || '');
+			}
+		} else if (action === 'new') {
+			lastLoadedCollectionId = null;
+		}
+	});
 
 	// Use afterNavigate to update collection state after SPA navigation completes.
-	// This is critical because $effect fires BEFORE SvelteKit updates data.collection
-	// during SPA navigation, causing stale data to be displayed.
-
+	// Skip re-init when we just saved so we don't overwrite the store with stale load data.
 	function initializeCollectionFromData() {
+		if (justSaved) {
+			justSaved = false;
+			return;
+		}
 		const currentAction = page.params.action;
 		const currentCollection = data.collection;
 
 		if (currentAction === 'edit' && currentCollection) {
 			setCollection(currentCollection);
-			originalName = String(currentCollection.name || '');
+			const pathStr = currentCollection.path != null ? String(currentCollection.path).trim() : '';
+			originalName = pathStr ? pathStr.replace(/^\//, '') : String(currentCollection.name || '');
 		} else if (currentAction === 'new') {
 			setCollection({
 				name: 'new',
@@ -77,7 +101,6 @@
 		}
 	}
 
-	// afterNavigate fires after SvelteKit has fully updated data props
 	afterNavigate(() => {
 		initializeCollectionFromData();
 	});
@@ -86,6 +109,10 @@
 		widgetStoreActions.initializeWidgets();
 		// Also initialize on mount for the initial page load
 		initializeCollectionFromData();
+
+		// Set route context after mount to avoid "updated at / await in start" (Svelte 5:
+		// updating another store's $state inside $effect during component start can trigger this)
+		setRouteContext({ isCollectionBuilder: true });
 
 		// Keyboard Shortcuts
 		const handleKeyDown = (e: KeyboardEvent) => {
@@ -99,7 +126,10 @@
 			}
 		};
 		window.addEventListener('keydown', handleKeyDown);
-		return () => window.removeEventListener('keydown', handleKeyDown);
+		return () => {
+			window.removeEventListener('keydown', handleKeyDown);
+			setRouteContext({ isCollectionBuilder: false });
+		};
 	});
 
 	const collectionValue = $derived(collection.value);
@@ -114,10 +144,20 @@
 
 		try {
 			isLoading = true;
-			const currentCollection = collection.value;
+			// Use snapshot from store so Field Inspector edits (label, db_fieldName, required, icon) are included
+			const currentCollection = collections.active;
+			if (!currentCollection) {
+				toaster.error({ description: 'No collection to save' });
+				return;
+			}
+			const snapshot = JSON.parse(JSON.stringify(currentCollection)) as typeof currentCollection;
+
+			// Put originalName last so it is never overwritten by snapshot (enables correct rename)
+			const contentPath = Array.isArray(page.params.contentPath) ? page.params.contentPath.join('/') : (page.params.contentPath ?? '');
 			const payload: any = {
+				...snapshot,
 				originalName,
-				...currentCollection
+				contentPath: contentPath || snapshot.path || ''
 			};
 
 			if (confirmDeletions) {
@@ -153,9 +193,20 @@
 				toaster.success({ description: 'Collection Saved Successfully' });
 				showWarningModal = false;
 				migrationPlan = null;
-				if (originalName !== currentCollection?.name) {
-					originalName = String(currentCollection?.name);
-					goto(`/config/collectionbuilder/edit/${originalName}`);
+				if (originalName !== snapshot?.name) {
+					originalName = String(snapshot?.name ?? '');
+				}
+				setCollection(snapshot);
+				justSaved = true;
+				// Invalidate content so layout (sidebar) and edit page load get fresh data after rename/save
+				await invalidate('app:content');
+				await invalidateAll();
+				// Create: go to edit page for the new collection; Edit: go to collection builder list
+				const editPath = data?.editPath;
+				if (action === 'new' && typeof editPath === 'string' && editPath) {
+					goto(`/config/collectionbuilder/edit/${editPath}`);
+				} else {
+					goto('/config/collectionbuilder');
 				}
 			}
 		} catch (error) {
@@ -185,11 +236,6 @@
 			}
 		});
 	}
-
-	$effect(() => {
-		setRouteContext({ isCollectionBuilder: true });
-		return () => setRouteContext({ isCollectionBuilder: false });
-	});
 
 	let activeSection = $state('general');
 </script>
@@ -262,22 +308,25 @@
 			activeSection = target.scrollTop > fieldsTop - 100 ? 'fields' : 'general';
 		}}
 	>
-		<div class="mx-auto max-w-5xl space-y-12">
+		<div class="mx-auto max-w-7xl w-full space-y-12">
 			<!-- Section 1: General Info -->
 			<section id="general-info" class="rounded-xl border border-surface-200-800 bg-surface-50-950 p-6 shadow-sm">
 				<div class="mb-4 flex items-center gap-2 border-b border-surface-200-800 pb-2">
 					<iconify-icon icon="mdi:cog" width="24" class="text-primary-500"></iconify-icon>
 					<h2 class="text-xl font-bold">General Configuration</h2>
 				</div>
-				<CollectionForm data={collectionValue} handlePageTitleUpdate={(t: string) => collectionValue && (collectionValue.name = t)} />
+				<CollectionForm
+					data={data?.collection ?? collectionValue ?? undefined}
+					handlePageTitleUpdate={(t: string) => collectionValue && (collectionValue.name = t)}
+				/>
 			</section>
 
 			<!-- Section 2: Fields -->
-			<section id="fields-config" class="rounded-xl border border-surface-200-800 bg-surface-50-950 p-6 shadow-sm">
-				<div class="mb-4 flex items-center justify-between border-b border-surface-200-800 pb-2">
+			<section id="fields-config" class="rounded-xl border border-surface-200-800 bg-surface-50-950 p-4 shadow-sm sm:p-6">
+				<div class="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-surface-200-800 pb-2">
 					<div class="flex items-center gap-2">
-						<iconify-icon icon="mdi:widgets" width="24" class="text-primary-500"></iconify-icon>
-						<h2 class="text-xl font-bold">Field Definitions</h2>
+						<iconify-icon icon="mdi:widgets" width="24" class="shrink-0 text-primary-500"></iconify-icon>
+						<h2 class="text-lg font-bold sm:text-xl">Field Definitions</h2>
 					</div>
 					<span class="text-xs text-surface-500"> {collectionValue?.fields?.length || 0} fields total </span>
 				</div>
