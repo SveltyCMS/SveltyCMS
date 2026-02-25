@@ -34,6 +34,7 @@
 		"test:e2e:run": "wait-on http://localhost:5173 && bun x playwright test tests/e2e",
 		"test:all": "bun run test:unit && bun run test:integration && bun run test:e2e",
 		"-- DIAGNOSTICS ---------------------------------------": "",
+		"ci:local": "bun install --frozen-lockfile && bun x svelte-kit sync && bun run paraglide && bun run lint && bun run check && bun run build:high-memory && bun test --preload ./tests/unit/setup.ts --max-concurrency 1 tests/unit/services tests/unit/utils tests/unit/stores tests/unit/widgets tests/unit/*.test.ts",
 		"check:mongodb": "node scripts/check-mongodb.js",
 		"fix:imports": "node scripts/fix-imports.cjs",
 		"-- LINT & FORMAT -------------------------------------": "",

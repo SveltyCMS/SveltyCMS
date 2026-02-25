@@ -257,12 +257,13 @@ export const mediaItems = mysqlTable(
 );
 
 // System Virtual Folders Table
+// Note: path limited to 768 chars - InnoDB utf8mb4 max index key is 3072 bytes (768*4)
 export const systemVirtualFolders = mysqlTable(
 	'system_virtual_folders',
 	{
 		_id: uuidPk(),
 		name: varchar('name', { length: 500 }).notNull(),
-		path: varchar('path', { length: 1000 }).notNull(),
+		path: varchar('path', { length: 768 }).notNull(),
 		parentId: varchar('parentId', { length: 36 }),
 		icon: varchar('icon', { length: 100 }),
 		order: int('order').notNull().default(0),
