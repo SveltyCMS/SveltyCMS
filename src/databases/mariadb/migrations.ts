@@ -227,11 +227,11 @@ async function createTablesIfNotExist(connection: mysql.Pool): Promise<void> {
 			INDEX tenant_idx (tenantId)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 
-		// System Virtual Folders
+		// System Virtual Folders (path max 768 - InnoDB utf8mb4 index key limit 3072 bytes)
 		`CREATE TABLE IF NOT EXISTS system_virtual_folders (
 			_id VARCHAR(36) PRIMARY KEY,
 			name VARCHAR(500) NOT NULL,
-			path VARCHAR(1000) NOT NULL,
+			path VARCHAR(768) NOT NULL,
 			parentId VARCHAR(36),
 			icon VARCHAR(100),
 			\`order\` INT NOT NULL DEFAULT 0,

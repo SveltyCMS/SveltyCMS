@@ -118,8 +118,18 @@ declare global {
 		path?: string;
 	}
 
+	/** WebMCP Model Context - used by webmcp plugin tools */
+	interface ModelContext {
+		registerTool: (tool: {
+			name: string;
+			description: string;
+			parameters: { type: string; properties?: Record<string, unknown>; required?: string[] };
+			handler: (...args: unknown[]) => Promise<unknown>;
+		}) => void;
+	}
+
 	interface Navigator {
-		modelContext?: any;
+		modelContext?: ModelContext;
 	}
 
 	interface RegExpConstructor {

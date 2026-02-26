@@ -59,7 +59,7 @@ describe('Auth System Functional Tests', () => {
 		const adapterModule = await import('@src/databases/mongodb/mongo-db-adapter');
 		adapterClass = adapterModule.MongoDBAdapter;
 		try {
-			// @ts-ignore - Ignore missing file during static analysis
+			// @ts-expect-error - config/private.test may not exist in CI; fallback below
 			const configModule = await import('@config/private.test');
 			privateEnv = configModule.privateEnv;
 		} catch {

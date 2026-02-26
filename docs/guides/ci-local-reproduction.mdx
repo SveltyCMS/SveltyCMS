@@ -1,0 +1,57 @@
+---
+title: Reproduce CI Locally
+description: Run the same commands as GitHub Actions CI to debug failures locally.
+---
+
+# Reproducing CI Failures Locally
+
+When GitHub Actions CI fails but tests pass locally, use these steps to reproduce and fix the issues.
+
+## Quick Command
+
+Run the exact CI sequence with:
+
+```bash
+bun run ci:local
+```
+
+This runs: install → sync → paraglide → lint → check → build → unit tests.
+
+## Step-by-Step (CI Order)
+
+### Unit Tests Job (`.github/workflows/ci.yml`)
+
+1. `bun install --frozen-lockfile` — Use exact lockfile (no version drift)
+2. `bun x svelte-kit sync` — Regenerate SvelteKit types
+3. `bun run paraglide` — Compile i18n messages (required before build)
+4. `bun run lint` — ESLint
+5. `bun test --preload ./tests/unit/setup.ts --max-concurrency 1 tests/unit/services tests/unit/utils tests/unit/stores tests/unit/widgets tests/unit/*.test.ts`
+
+### Build Job
+
+1. `bun install --frozen-lockfile`
+2. `bun run check` — `svelte-kit sync` + `svelte-check` (type checking)
+3. `bun run paraglide`
+4. `bun run build`
+
+## Scripts
+
+- **PowerShell**: `./scripts/run-ci-local.ps1` — Logs to `scripts/ci-local-output.log`
+- **Bash**: `./scripts/run-ci-local.sh` — Logs to `scripts/ci-local-output.log`
+
+## Getting CI Error Details
+
+1. Open the failed run: [Actions](https://github.com/SveltyCMS/SveltyCMS/actions)
+2. Click the failed job (e.g. **⚡ Unit Tests** or **🏗️ Production Build**)
+3. Expand the failing step and copy the error output
+4. Share the output to fix the issue
+
+## Common Causes
+
+| Symptom | Cause |
+|---------|--------|
+| Lint fails in CI, passes locally | Run `bun run lint` — fix reported ESLint errors |
+| Type check fails | Run `bun run check` — fix svelte-check / TypeScript errors |
+| Build fails | Run `bun run build` — often due to type or import errors |
+| Tests fail in CI only | Use `--max-concurrency 1`; check for flaky tests or env differences |
+| Lockfile mismatch | Run `bun install --frozen-lockfile` — update bun.lock if needed |
