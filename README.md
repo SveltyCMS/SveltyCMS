@@ -338,7 +338,7 @@ Contact us if you're struggling with installation or other issues:
 
 ## 🚀 Semantic Versioning
 
-For detailed information on our Git workflow, branching strategy, and commit conventions, see our [Git Workflow & Automated Releases guide](docs/git-workflows.mdx).
+For detailed information on our Git workflow, branching strategy, and commit conventions, see our [Git Workflow & Automated Releases guide](docs/tests/git-workflow.mdx).
 
 We use [semantic versioning](https://semver.org/) to manage our releases. This means that our version numbers follow a specific format: `MAJOR.MINOR.PATCH`.
 

@@ -119,7 +119,7 @@ declare global {
 	}
 
 	interface Navigator {
-		modelContext?: any;
+		modelContext?: unknown;
 	}
 
 	interface RegExpConstructor {
