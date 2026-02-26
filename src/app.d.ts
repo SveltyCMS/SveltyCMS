@@ -118,8 +118,18 @@ declare global {
 		path?: string;
 	}
 
+	/** Experimental Web AI / Model Context Protocol (MCP) API. Not yet standardized. */
+	interface ModelContext {
+		registerTool(config: {
+			name: string;
+			description: string;
+			parameters: Record<string, unknown>;
+			execute: (...args: unknown[]) => unknown | Promise<unknown>;
+		}): void;
+	}
+
 	interface Navigator {
-		modelContext?: unknown;
+		modelContext?: ModelContext;
 	}
 
 	interface RegExpConstructor {
