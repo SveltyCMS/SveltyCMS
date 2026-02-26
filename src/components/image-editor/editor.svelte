@@ -10,8 +10,8 @@ Comprehensive image editing interface with svelte-canvas integration.
 	import { imageEditorStore } from '@src/stores/image-editor-store.svelte';
 	import { logger } from '@utils/logger';
 	import { onDestroy, onMount } from 'svelte';
-	import { editorWidgets } from './widgets/registry';
 	import EditorCanvas from './editor-canvas.svelte';
+	import { editorWidgets } from './widgets/registry';
 
 	interface Props {
 		focalPoint?: { x: number; y: number };

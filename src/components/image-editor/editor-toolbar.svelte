@@ -5,8 +5,8 @@ The new single, intelligent bottom toolbar for the image editor.
 It dynamically renders controls based on the active tool.
 -->
 <script lang="ts">
-	import { fade, slide } from 'svelte/transition';
 	import { imageEditorStore } from '@src/stores/image-editor-store.svelte';
+	import { fade, slide } from 'svelte/transition';
 
 	let {
 		onsave,

@@ -26,21 +26,21 @@ This modal			class="input text-center font-mono tracking-wider"
 
 <script lang="ts">
 	import {
+		button_cancel,
+		twofa_backup_code_placeholder,
+		twofa_backup_verify_description,
+		twofa_code_placeholder,
 		twofa_error_empty_code,
 		twofa_error_invalid_backup_code,
 		twofa_error_invalid_code,
-		twofa_verify_title,
-		twofa_backup_verify_description,
-		twofa_verify_description,
-		twofa_backup_code_placeholder,
-		twofa_code_placeholder,
+		twofa_help_authenticator,
+		twofa_help_backup,
 		twofa_use_authenticator,
 		twofa_use_backup_code,
-		button_cancel,
-		twofa_verifying,
 		twofa_verify_button,
-		twofa_help_authenticator,
-		twofa_help_backup
+		twofa_verify_description,
+		twofa_verify_title,
+		twofa_verifying
 	} from '@src/paraglide/messages';
 	import { modalState } from '@utils/modal-state.svelte';
 

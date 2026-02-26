@@ -207,7 +207,7 @@ SveltyCMS uses a **modern, database-driven approach** for all configuration:
 
 #### Dynamic Settings (Database)
 
-- ✅ 58 settings across 13 groups (General, Email, Security, Cache, etc.)
+- ✅ 75+ settings across 13 groups (General, Email, Security, Cache, etc.)
 - ✅ Real-time updates without server restart
 - ✅ Role-based access control
 - ✅ Admin GUI at `/config/systemsetting`
@@ -261,7 +261,7 @@ POST /api/import/full
 **Dual-layer caching for exceptional performance:**
 
 - **Layer 1 (Redis)**: Ultra-fast in-memory cache (~1ms reads)
-- **Layer 2 (MongoDB)**: Persistent cache across restarts
+- **Layer 2 (Database)**: Persistent cache across restarts
 - **8 TTL Categories**: Static, Dynamic, API, Query, Session, Widget, Computed, Media
 - **Automatic Expiration**: TTL-based with configurable values
 - **UI Management**: Configure via System Settings

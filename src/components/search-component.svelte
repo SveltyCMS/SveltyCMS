@@ -29,7 +29,7 @@
 
 ### Example
 <script lang="ts">
-	import SearchComponent from './search-component.svelte';
+import SearchComponent from './search-component.svelte';
 </script>
 
 <SearchComponent />

@@ -19,14 +19,14 @@
 - Lazy loading with Intersection Observer for optimal performance
 -->
 <script lang="ts">
+	import ImportExportManager from '@src/components/admin/import-export-manager.svelte';
+	// Components
+	import PageTitle from '@src/components/page-title.svelte';
+	import Slot from '@src/components/system/Slot.svelte';
 	import type { DashboardWidgetConfig, DropIndicator, WidgetComponent, WidgetMeta, WidgetSize } from '@src/content/types';
 	import { onMount } from 'svelte';
 	import { flip } from 'svelte/animate';
 	import { SvelteMap } from 'svelte/reactivity';
-	// Components
-	import PageTitle from '@src/components/page-title.svelte';
-	import Slot from '@src/components/system/Slot.svelte';
-	import ImportExportManager from '@src/components/admin/import-export-manager.svelte';
 	// Types
 	import type { PageData } from './$types';
 

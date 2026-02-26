@@ -1,11 +1,10 @@
 <!-- @file src/components/system/dialog-manager.svelte @description DialogManager for handling modals features: [modal lifecycle management, backdrop/escape close support, skeleton v4 integration, fullscreen mode support] -->
 
 <script lang="ts">
-	import { modalState } from '@utils/modal-state.svelte';
-	import { tick } from 'svelte';
-
 	// Skeleton V4
 	import { Dialog, Portal } from '@skeletonlabs/skeleton-svelte';
+	import { modalState } from '@utils/modal-state.svelte';
+	import { tick } from 'svelte';
 
 	// Handle closing via the Store
 	function onClose() {

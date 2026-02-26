@@ -17,14 +17,13 @@ Efficiently manages user data updates with validation, role selection, and delet
 <script lang="ts">
 	import PermissionGuard from '@src/components/permission-guard.svelte';
 	import FloatingInput from '@src/components/system/inputs/floating-input.svelte';
+	// Paraglide Messages
+	import { button_cancel, button_delete, button_save, form_confirmpassword, modaleditform_newpassword } from '@src/paraglide/messages';
 	import { toaster } from '@src/stores/store.svelte.ts';
 	import { editUserSchema } from '@utils/form-schemas';
 	import { modalState } from '@utils/modal-state.svelte';
 	import { invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
-
-	// Paraglide Messages
-	import { button_cancel, button_delete, button_save, modaleditform_newpassword, form_confirmpassword } from '@src/paraglide/messages';
 
 	// Get data from page store
 	const { roles, user } = page.data;

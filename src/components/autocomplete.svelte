@@ -54,8 +54,8 @@ Advanced autocomplete component with fuzzy search, keyboard navigation, and acce
 -->
 
 <script lang="ts">
-	import { fade, scale, slide } from 'svelte/transition';
 	import { onDestroy, onMount } from 'svelte';
+	import { fade, scale, slide } from 'svelte/transition';
 
 	interface Props {
 		allowCustomValue?: boolean;
@@ -401,7 +401,7 @@ Advanced autocomplete component with fuzzy search, keyboard navigation, and acce
 			bind:value={keyword}
 			{placeholder}
 			{disabled}
-			class="input w-full rounded-lg border-2 border-surface-300 px-4 py-2 pr-20 transition-all duration-200 placeholder:text-surface-400 focus:border-primary-500 focus:shadow-lg disabled:cursor-not-allowed disabled:opacity-50 dark:border-surface-600 dark:bg-surface-800"
+			class="input w-full rounded border-surface-200 px-3 py-1.5 pr-20 transition-all duration-200 placeholder:text-surface-400 focus:border-tertiary-500 focus:shadow-lg disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/10 dark:bg-surface-800"
 			oninput={handleInput}
 			onfocus={handleFocus}
 			onblur={handleBlur}
@@ -421,7 +421,7 @@ Advanced autocomplete component with fuzzy search, keyboard navigation, and acce
 			{#if keyword && !disabled}
 				<button
 					type="button"
-					class="btn-icon btn-icon-sm preset-outlined-surface-500 transition-all duration-200 hover:scale-110 hover:bg-error-500/10 hover:text-error-500"
+					class="btn-icon btn-icon-sm rounded-full transition-all duration-200 hover:scale-110 hover:bg-error-500/10 hover:text-error-500"
 					onclick={clearSelection}
 					aria-label="Clear selection"
 					tabindex="-1"

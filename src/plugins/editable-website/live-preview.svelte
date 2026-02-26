@@ -56,8 +56,8 @@
 	// Watch for data changes
 	$effect(() => {
 		// Proper dependency tracking by accessing the value
-		const _data = currentCollectionValue;
-		if (iframeEl && isConnected && _data) {
+		const DATA = currentCollectionValue;
+		if (iframeEl && isConnected && DATA) {
 			sendUpdate();
 		}
 	});

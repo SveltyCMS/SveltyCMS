@@ -17,6 +17,7 @@
  *   - focalPoint: (optional) JSON string of focal point {x, y}
  */
 
+import type { DatabaseId } from '@src/content/types';
 import { dbAdapter } from '@src/databases/db';
 import { getPublicSetting } from '@src/services/settings-service';
 import { hashFileContent } from '@src/utils/media/media-processing.server';
@@ -24,7 +25,6 @@ import { MediaService } from '@src/utils/media/media-service.server';
 import { json, type RequestHandler } from '@sveltejs/kit';
 import { logger } from '@utils/logger.server';
 import sharp from 'sharp';
-import type { DatabaseId } from '@src/content/types';
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 

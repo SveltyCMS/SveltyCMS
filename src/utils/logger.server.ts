@@ -15,6 +15,13 @@ if (typeof window !== 'undefined') {
 	throw new Error('logger.server.ts cannot be imported in browser code');
 }
 
+import * as crypto from 'node:crypto';
+import * as fs from 'node:fs';
+import * as promises from 'node:fs/promises';
+import * as path from 'node:path';
+import * as sp from 'node:stream/promises';
+import * as zlib from 'node:zlib';
+
 // Get LOG_LEVELS from environment variables directly (avoids Svelte store dependency)
 const LOG_LEVELS_RAW = process.env.LOG_LEVELS || import.meta.env?.VITE_LOG_LEVELS || 'fatal,error,warn,info';
 const LOG_LEVELS = LOG_LEVELS_RAW.split(',')
@@ -152,39 +159,11 @@ function mask(v: unknown, depth = 0): unknown {
 	return masked;
 }
 
-interface LoggerModules {
-	fs: typeof import('node:fs');
-	path: typeof import('node:path');
-	zlib: typeof import('node:zlib');
-	stream: typeof import('node:stream/promises');
-	promises: typeof import('node:fs/promises');
-	crypto: typeof import('node:crypto');
-}
-
-// File ops (lazy loaded)
 let stream: import('node:fs').WriteStream | null = null;
-let modules: LoggerModules | null = null;
 let lastHash = '';
 const HMAC_SECRET = process.env.LOG_CHAIN_SECRET || 'svelty-cms-default-log-secret';
 
-async function getMods(): Promise<LoggerModules> {
-	if (modules) {
-		return modules;
-	}
-	const cryptoMod = await import('node:crypto');
-	modules = {
-		fs: await import('node:fs'),
-		path: await import('node:path'),
-		zlib: await import('node:zlib'),
-		stream: await import('node:stream/promises'),
-		promises: await import('node:fs/promises'),
-		crypto: cryptoMod
-	};
-	return modules;
-}
-
 function calculateHash(prevHash: string, content: string): string {
-	const { crypto } = modules!;
 	return crypto
 		.createHmac('sha256', HMAC_SECRET)
 		.update(prevHash + content)
@@ -192,7 +171,6 @@ function calculateHash(prevHash: string, content: string): string {
 }
 
 async function ensureStream() {
-	const { path, fs, promises } = await getMods();
 	const dir = 'logs';
 	const file = path.join(dir, 'app.log');
 
@@ -222,7 +200,6 @@ async function ensureStream() {
 }
 
 async function rotate() {
-	const { path, promises, zlib, stream: sp } = await getMods();
 	const file = path.join('logs', 'app.log');
 	try {
 		const stat = await promises.stat(file);
@@ -239,8 +216,8 @@ async function rotate() {
 		await promises.writeFile(file, '');
 		lastHash = ''; // Reset chain for new file
 
-		const src = (await getMods()).fs.createReadStream(rotated);
-		const dst = (await getMods()).fs.createWriteStream(`${rotated}.gz`);
+		const src = fs.createReadStream(rotated);
+		const dst = fs.createWriteStream(`${rotated}.gz`);
 		await sp.pipeline(src, zlib.createGzip(), dst);
 		await promises.unlink(rotated);
 	} catch (e: unknown) {

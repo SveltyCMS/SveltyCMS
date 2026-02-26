@@ -21,6 +21,7 @@ import { browser } from '$app/environment';
 
 type PublicEnv = InferOutput<typeof publicConfigSchema> & {
 	PKG_VERSION?: string;
+	FIRST_COLLECTION_REDIRECT_URL?: string;
 };
 
 /**

@@ -36,10 +36,10 @@ export class CacheModule {
 		return { success: true, data: undefined };
 	}
 
-	async clear(_tags?: string[]): Promise<DatabaseResult<void>> {
-		if (_tags && _tags.length > 0) {
+	async clear(tags?: string[]): Promise<DatabaseResult<void>> {
+		if (tags && tags.length > 0) {
 			for (const [key] of this.cache) {
-				if (_tags.some((tag) => key.includes(tag))) {
+				if (tags.some((tag) => key.includes(tag))) {
 					this.cache.delete(key);
 				}
 			}

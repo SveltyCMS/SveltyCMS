@@ -23,7 +23,7 @@
  */
 
 import { logger } from '@src/utils/logger';
-import { and, asc, count, desc, eq, gte, inArray, isNull, like, lte, notInArray, or, sql, type SQL } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gte, inArray, isNull, like, lte, notInArray, or, type SQL, sql } from 'drizzle-orm';
 import type { BaseEntity, DatabaseResult, PaginationOptions, QueryBuilder, QueryOptimizationHints } from '../../db-interface';
 import type { SQLiteAdapter } from '../adapter';
 import * as utils from '../utils';

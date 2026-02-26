@@ -31,8 +31,8 @@ Intelligent text highlighting with character limits and expand/collapse function
 -->
 
 <script lang="ts">
-	import { fade } from 'svelte/transition';
 	import { onMount } from 'svelte';
+	import { fade } from 'svelte/transition';
 
 	interface Props {
 		caseSensitive?: boolean;

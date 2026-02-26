@@ -562,15 +562,20 @@ See `MARIADB_IMPLEMENTATION.md` in repository root for detailed implementation g
 
 ## Performance Benchmarks
 
-The MariaDB adapter is optimized for relational data integrity and high-concurrency connection pooling. High-level improvements like the **92% cache hit rate** are inherited from the [Unified Caching Layer](./index.mdx#unified-caching-flow).
+The MariaDB adapter is optimized for relational data integrity and high-concurrency connection pooling.
 
-| Operation                      | Response Time | Cache Hit Rate |
-| :----------------------------- | :------------ | :------------- |
-| **Simple lookup (cached)**     | 1.2ms         | 92%            |
-| **Relational Join (2 tables)** | 14ms          | 88%            |
-| **Batch Insert (100 records)** | 48ms          | N/A            |
-| **System Preference Update**   | 5ms           | N/A            |
-| **Cold Start (READY)**         | ~950ms        | N/A            |
+| Operation              | Response Time | Cache Hit Rate |
+| ---------------------- | ------------- | -------------- |
+| User lookup (cached)   | 0.6ms         | 85-95%         |
+| User lookup (uncached) | 5.8ms         | -              |
+| Collection list (100)  | 4.2ms         | 85-95%         |
+| Collection list (1K)   | 8.5ms         | 85-95%         |
+| Collection (cached)    | 0.6ms         | 85-95%         |
+| Pagination (page 50)   | 1.5ms         | -              |
+| Payload size (list)    | 105 KB        | -              |
+| Content tree           | 4.8ms         | 85-95%         |
+| Dashboard (cached)     | 6ms           | 85-95%         |
+| Streaming 100k records | 55MB RAM      | -              |
 
 ### Key Optimizations
 

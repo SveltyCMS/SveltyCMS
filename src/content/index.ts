@@ -274,20 +274,20 @@ export const updateCollections = async (recompile = false): Promise<void> => {
 
 	try {
 		const imports = await getImports(recompile);
-		const _categories = await createCategoriesFromPath(Object.values(imports));
+		const CATEGORIES = await createCategoriesFromPath(Object.values(imports));
 
-		const _collections: Partial<Record<ContentTypes, Schema>> = {};
-		for (const category of _categories) {
+		const COLLECTIONS: Record<string, Schema> = {};
+		for (const category of CATEGORIES) {
 			for (const collectionName of category.collections) {
-				const col = imports[collectionName as ContentTypes];
-				if (col?.name) {
-					_collections[col.name as ContentTypes] = col;
+				const col = imports[collectionName as keyof typeof imports] as Schema | undefined;
+				if (col && col.name) {
+					COLLECTIONS[col.name as string] = col;
 				}
 			}
 		}
 
 		// Update stores
-		contentStructure.value = _categories.map((cat) => ({
+		contentStructure.value = CATEGORIES.map((cat) => ({
 			_id: cat.id.toString() as DatabaseId,
 			name: cat.name,
 			nodeType: 'category',
@@ -305,9 +305,9 @@ export const updateCollections = async (recompile = false): Promise<void> => {
 		for (const key of Object.keys(collections.all)) {
 			delete collections.all[key];
 		}
-		Object.assign(collections.all, _collections);
+		Object.assign(collections.all, COLLECTIONS);
 
-		const unassigned = Object.values(imports).filter((x) => !Object.values(_collections).includes(x));
+		const unassigned = Object.values(imports).filter((x) => !(Object.values(COLLECTIONS) as unknown[]).includes(x));
 		Object.assign(unAssigned, unassigned.length > 0 ? unassigned[0] : { fields: [] });
 
 		setCollection({} as Schema);
@@ -321,7 +321,7 @@ export const updateCollections = async (recompile = false): Promise<void> => {
 			// Ideally, updateCollections should return the version or accept it.
 		}
 
-		logger.info(`Collections updated successfully. Count: ${Object.keys(_collections).length}`);
+		logger.info(`Collections updated successfully. Count: ${Object.keys(COLLECTIONS).length}`);
 	} catch (err) {
 		logger.error(`Error in updateCollections: ${err}`);
 	}
@@ -368,7 +368,7 @@ async function getImports(recompile = false): Promise<Record<ContentTypes, Schem
 				const collectionPath = pathSegments.slice(0, -1).join('/');
 				collection.path = collectionPath;
 
-				importsCache[name as ContentTypes] = collection as Schema;
+				(importsCache as Record<string, Schema>)[name] = collection as Schema;
 			} else {
 				logger.error(`Error importing collection: ${name}`);
 			}
@@ -426,7 +426,7 @@ async function getImports(recompile = false): Promise<Record<ContentTypes, Schem
 						files = collectionsData as unknown as string[];
 					}
 				} else if (collectionsData && typeof collectionsData === 'object') {
-					files = Object.values(collectionsData).map((c) => `${c!.name}.js`);
+					files = Object.values(collectionsData as Record<string, Schema>).map((c) => `${c.name}.js`);
 				} else {
 					files = [];
 				}

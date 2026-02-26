@@ -23,11 +23,11 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 
 <script lang="ts">
 	// Settings helper
+
+	import { login_Happy_Holi, login_happy_diwali, login_happy_navratri, login_new_year } from '@src/paraglide/messages';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	// Svelte 5 reactive Date
 	import { SvelteDate } from 'svelte/reactivity';
-	import { Confetti } from 'svelte-confetti';
-	import { login_new_year, login_happy_diwali, login_Happy_Holi, login_happy_navratri } from '@src/paraglide/messages';
 
 	// =====================================================================
 	// LUNAR PHASE CALCULATIONS (Meeus Algorithm - Simplified)
@@ -61,8 +61,8 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 	}
 
 	// Calculate full moon date (14.77 days after new moon)
-	function findFullMoonNear(year: number, month: number, _day: number): Date {
-		const newMoon = findNewMoonNear(year, month, _day);
+	function findFullMoonNear(year: number, month: number, day: number): Date {
+		const newMoon = findNewMoonNear(year, month, day);
 		const fullMoon = new SvelteDate(newMoon);
 		fullMoon.setDate(fullMoon.getDate() + 15);
 		return fullMoon;
@@ -244,18 +244,14 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 
 <!-- New Year Confetti - Always shows on Jan 1st regardless of settings -->
 {#if isNewYear}
-	<div class="pointer-events-none fixed inset-0 z-50 flex justify-center">
-		<Confetti x={[-0.5, 0.5]} y={[0.25, 1]} delay={[0, 2000]} duration={3500} amount={200} fallDistance="100vh" />
-	</div>
+	<div class="pointer-events-none fixed inset-0 z-50 flex justify-center"></div>
 {/if}
 
 {#if seasonsEnabled}
 	{#if seasonRegion === 'Western_Europe'}
 		{#if isNewYear}
 			<!-- New Year with Confetti -->
-			<div class="pointer-events-none fixed inset-0 z-50 flex justify-center">
-				<Confetti x={[-0.5, 0.5]} y={[0.25, 1]} delay={[0, 2000]} duration={3500} amount={200} fallDistance="100vh" />
-			</div>
+			<div class="pointer-events-none fixed inset-0 z-50 flex justify-center"></div>
 
 			<p class="absolute -top-28 left-1/2 z-20 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap text-4xl font-bold text-error-500">
 				{login_new_year()}

@@ -33,7 +33,7 @@ import { check, isoDate, minLength, object, pipe, string, type InferInput as Val
 import type { DateRangeProps } from './types';
 
 // Define the validation schema for the `{ start, end }` object.
-const DateRangeValidationSchema = pipe(
+const DATE_RANGE_VALIDATION_SCHEMA = pipe(
 	object({
 		start: pipe(string(), minLength(1, 'Start date is required.'), isoDate()),
 		end: pipe(string(), minLength(1, 'End date is required.'), isoDate())
@@ -52,7 +52,7 @@ const DateRangeWidget = createWidget<DateRangeProps>({
 	displayComponentPath: '/src/widgets/core/DateRange/Display.svelte',
 
 	// Assign the validation schema.
-	validationSchema: DateRangeValidationSchema,
+	validationSchema: DATE_RANGE_VALIDATION_SCHEMA,
 
 	// Set widget-specific defaults.
 	defaults: {
@@ -104,4 +104,4 @@ export default DateRangeWidget;
 
 // Export helper types for use in Svelte components.
 export type FieldType = ReturnType<typeof DateRangeWidget>;
-export type DateRangeWidgetData = ValibotInput<typeof DateRangeValidationSchema>;
+export type DateRangeWidgetData = ValibotInput<typeof DATE_RANGE_VALIDATION_SCHEMA>;

@@ -21,11 +21,11 @@
 	// Force recompile
 	// ParaglideJS
 	import {
-		button_delete,
 		button_cancel,
+		button_delete,
 		entrylist_multibutton_publish,
-		entrylist_multibutton_unpublish,
-		entrylist_multibutton_schedule
+		entrylist_multibutton_schedule,
+		entrylist_multibutton_unpublish
 	} from '@src/paraglide/messages';
 
 	// Skeleton

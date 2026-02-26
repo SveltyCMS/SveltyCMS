@@ -69,8 +69,8 @@ export function buildDatabaseConnectionString(config: DatabaseConfig): string {
 		default: {
 			// TypeScript ensures exhaustive checking - this should never be reached
 			// but provides a helpful message if the schema is extended without updating this function
-			const _exhaustiveCheck: never = config.type;
-			throw new Error(`Unsupported database type: ${_exhaustiveCheck}`);
+			const EXHAUSTIVE_CHECK: never = config.type;
+			throw new Error(`Unsupported database type: ${EXHAUSTIVE_CHECK}`);
 		}
 	}
 }
@@ -80,7 +80,10 @@ export function buildDatabaseConnectionString(config: DatabaseConfig): string {
  * for setup operations. This is the core of the refactor.
  */
 
-export async function getSetupDatabaseAdapter(config: DatabaseConfig): Promise<{
+export async function getSetupDatabaseAdapter(
+	config: DatabaseConfig,
+	options: { createIfMissing?: boolean } = {}
+): Promise<{
 	dbAdapter: IDBAdapter;
 	connectionString: string;
 }> {
@@ -228,7 +231,7 @@ export async function getSetupDatabaseAdapter(config: DatabaseConfig): Promise<{
 			// or just return a dummy if we are just testing connection in Wizard
 			try {
 				const { existsSync } = await import('node:fs');
-				if (!existsSync(connectionString) && process.env.TEST_MODE !== 'true') {
+				if (!existsSync(connectionString) && process.env.TEST_MODE !== 'true' && !options.createIfMissing) {
 					throw new Error(`SQLite database file "${connectionString}" does not exist. Create it now?`);
 				}
 
@@ -249,11 +252,11 @@ export async function getSetupDatabaseAdapter(config: DatabaseConfig): Promise<{
 		}
 		default: {
 			// TypeScript ensures exhaustive checking - this should never be reached
-			const _exhaustiveCheck: never = config.type;
-			logger.error(`Unsupported database type: ${_exhaustiveCheck}`, {
+			const EXHAUSTIVE_CHECK: never = config.type;
+			logger.error(`Unsupported database type: ${EXHAUSTIVE_CHECK}`, {
 				correlationId
 			});
-			throw new Error(`Database type '${_exhaustiveCheck}' is not supported for setup. Supported types: mongodb, mongodb+srv, mariadb, postgresql`);
+			throw new Error(`Database type '${EXHAUSTIVE_CHECK}' is not supported for setup. Supported types: mongodb, mongodb+srv, mariadb, postgresql`);
 		}
 	}
 

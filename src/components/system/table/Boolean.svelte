@@ -15,7 +15,7 @@
 -->
 
 <script lang="ts">
-	import { boolean_yes, boolean_no } from '@src/paraglide/messages';
+	import { boolean_no, boolean_yes } from '@src/paraglide/messages';
 
 	// Svelte 5 props
 	interface Props {

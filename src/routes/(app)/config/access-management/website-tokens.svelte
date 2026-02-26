@@ -14,6 +14,9 @@
 -->
 
 <script lang="ts">
+	// Components
+	import TableFilter from '@src/components/system/table/table-filter.svelte';
+	import TablePagination from '@src/components/system/table/table-pagination.svelte';
 	import type { Permission, User } from '@src/databases/auth/types';
 	import type { WebsiteToken } from '@src/databases/schemas';
 	import { globalLoadingStore, loadingOperations } from '@src/stores/loading-store.svelte.ts';
@@ -21,12 +24,8 @@
 	import { showConfirm } from '@utils/modal-utils';
 	import { onMount } from 'svelte';
 	import { flip } from 'svelte/animate';
-	import { dndzone } from 'svelte-dnd-action';
 	import { SvelteDate, SvelteURLSearchParams } from 'svelte/reactivity';
-
-	// Components
-	import TableFilter from '@src/components/system/table/table-filter.svelte';
-	import TablePagination from '@src/components/system/table/table-pagination.svelte';
+	import { dndzone } from 'svelte-dnd-action';
 
 	interface TableHeader {
 		id: string;

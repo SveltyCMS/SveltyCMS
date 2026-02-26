@@ -24,12 +24,12 @@ import { v4 as uuidv4 } from 'uuid';
 // Validation
 import * as v from 'valibot';
 
-const QuerySchema = v.object({
+const QUERY_SCHEMA = v.object({
 	limit: v.optional(v.pipe(v.number(), v.minValue(1), v.maxValue(20)), 5)
 });
 
 // All dates should be ISO date strings (see dateUtils)
-const ContentItemSchema = v.object({
+const CONTENT_ITEM_SCHEMA = v.object({
 	id: v.string(),
 	title: v.string(),
 	collection: v.string(),
@@ -56,7 +56,7 @@ export const GET = apiHandler(async ({ locals, url }) => {
 	}
 
 	// 1. Validate Input
-	const query = v.parse(QuerySchema, {
+	const query = v.parse(QUERY_SCHEMA, {
 		limit: Number(url.searchParams.get('limit')) || undefined
 	});
 
@@ -205,7 +205,7 @@ export const GET = apiHandler(async ({ locals, url }) => {
 		};
 	});
 
-	const validatedData = v.parse(v.array(ContentItemSchema), recentContent);
+	const validatedData = v.parse(v.array(CONTENT_ITEM_SCHEMA), recentContent);
 
 	logger.info('Recent content fetched efficiently', {
 		collectionsQueried: collectionsEntries.length,

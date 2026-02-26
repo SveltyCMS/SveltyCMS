@@ -25,7 +25,7 @@ const escapeHtml = (str: string): string => {
 };
 
 // Define a robust validation schema for the SeoData object.
-const SeoValidationSchema = object({
+const SEO_VALIDATION_SCHEMA = object({
 	title: pipe(string(), maxLength(60, 'Title should be under 60 characters.'), transform(escapeHtml)),
 	description: pipe(string(), maxLength(160, 'Description should be under 160 characters.'), transform(escapeHtml)),
 	focusKeyword: pipe(string(), transform(escapeHtml)),
@@ -67,7 +67,7 @@ const SeoWidget = createWidget({
 	Description: widget_seo_description(),
 	inputComponentPath: '/src/widgets/custom/Seo/Input.svelte',
 	displayComponentPath: '/src/widgets/custom/Seo/Display.svelte',
-	validationSchema: SeoValidationSchema,
+	validationSchema: SEO_VALIDATION_SCHEMA,
 
 	// Set widget-specific defaults.
 	defaults: {
@@ -116,4 +116,4 @@ export default SeoWidget;
 
 // Export helper types.
 export type FieldType = ReturnType<typeof SeoWidget>;
-export type SeoWidgetData = ValibotInput<typeof SeoValidationSchema>;
+export type SeoWidgetData = ValibotInput<typeof SEO_VALIDATION_SCHEMA>;

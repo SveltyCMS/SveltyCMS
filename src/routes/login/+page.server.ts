@@ -1467,16 +1467,16 @@ export const actions: Actions = {
 // remain largely the same as your provided code, with minor logging/error handling adjustments.
 // Ensure they are robust and correctly interact with your `auth` service.
 
-async function createSessionAndSetCookie(user_id: string, cookies: Cookies): Promise<void> {
+async function createSessionAndSetCookie(userId: string, cookies: Cookies): Promise<void> {
 	const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 	if (!auth) {
 		throw new Error('Auth service is not initialized when creating session.');
 	}
 	const session = await auth.createSession({
-		user_id,
+		user_id: userId,
 		expires: expiresAt.toISOString() as ISODateString
 	});
-	logger.debug(`Session created: ${session._id} for user ${user_id}`);
+	logger.debug(`Session created: ${session._id} for user ${userId}`);
 	const sessionCookie = auth.createSessionCookie(session._id);
 	const attributes = sessionCookie.attributes as Record<string, unknown>;
 	cookies.set(sessionCookie.name, sessionCookie.value, {

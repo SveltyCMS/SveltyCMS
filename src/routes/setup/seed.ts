@@ -213,12 +213,16 @@ export async function seedCollectionsForSetup(
 					successCount++;
 
 					// Capture the first collection for redirect (deterministic from sorted array)
-					if (!firstCollection && collections.length > 0 && collections[0].path && collections[0].name) {
-						firstCollection = {
-							name: collections[0].name,
-							path: collections[0].path
-						};
-						logger.debug(`First collection identified: ${firstCollection.name} at ${firstCollection.path}`);
+					// Skip utility collections and placeholders
+					if (!firstCollection) {
+						const candidate = collections.find((c) => !['Menu', 'Navigation', 'Form', 'WidgetTest', 'Relation'].includes(c.name as string));
+						if (candidate?.path && candidate?.name) {
+							firstCollection = {
+								name: candidate.name as string,
+								path: candidate.path
+							};
+							logger.debug(`First collection identified: ${firstCollection.name} at ${firstCollection.path}`);
+						}
 					}
 
 					setupManager.updateProgress(successCount + skipCount, totalCollections);
@@ -412,12 +416,20 @@ export async function initSystemFromSetup(
 	// Run seeding steps in parallel for maximum performance
 	const [seedResults] = await Promise.all([
 		(async () => {
-			const result = await seedCollectionsForSetup(adapter, tenantId);
+			// NEW: UseContentManager for unified seeding
+			const { contentManager } = await import('@src/content/content-manager');
+			await contentManager.initialize(tenantId, false, adapter);
+
 			if (isDemoSeed) {
+				const { scanCompiledCollections } = await import('@src/content/collection-scanner');
 				const collections = await scanCompiledCollections();
 				await seedDemoRecords(adapter, collections, tenantId);
 			}
-			return result;
+
+			const first = await contentManager.getFirstCollection(tenantId);
+			return {
+				firstCollection: first ? { name: first.name as string, path: first.path as string } : null
+			};
 		})(),
 		seedSettings(adapter, tenantId, isDemoSeed),
 		seedDefaultTheme(adapter, tenantId),
@@ -454,10 +466,38 @@ export async function initSystemFast(
 
 		await Promise.all([seedSettings(adapter, tenantId, isDemoSeed), seedDefaultTheme(adapter, tenantId), seedRoles(adapter, tenantId)]);
 
+		// Clear existing content nodes if it's a blank setup to prevent ghost data
+		if (!isDemoSeed) {
+			try {
+				logger.info('🧹 Choice: Blank setup. Clearing existing content structure...');
+				// Use the internal content_nodes collection name or adapter method if available
+				// For MongoDB, it's typically 'content_nodes'
+				if (adapter.crud) {
+					// Use database-agnostic crud interface to delete ghost nodes
+					await adapter.crud.deleteMany('system_content_structure', {
+						...(tenantId && { tenantId })
+					});
+					logger.info('✅ Content structure cleared successfully');
+				}
+			} catch (clearError) {
+				logger.warn('⚠️ Failed to clear ghost content nodes (might be first install):', clearError);
+			}
+		}
+
 		// Reload settings immediately
 		invalidateSettingsCache();
 		const { loadSettingsFromDB } = await import('@src/databases/db');
 		await loadSettingsFromDB();
+
+		// NEW: Pre-register collection models viaContentManager
+		// This creates the database tables/collections pre-emptively
+		try {
+			logger.info('📦 Pre-registering collection models...');
+			const { contentManager } = await import('@src/content/content-manager');
+			await contentManager.initialize(tenantId, false, adapter);
+		} catch (cmError) {
+			logger.warn('⚠️ContentManager pre-registration failed:', cmError);
+		}
 
 		logger.info(`✅ Critical system initialization completed${tenantId ? ` for tenant ${tenantId}` : ''}`);
 	})();
@@ -467,7 +507,8 @@ export async function initSystemFast(
 		if (!adapter) {
 			return;
 		}
-		await seedCollectionsForSetup(adapter, tenantId);
+		const { contentManager } = await import('@src/content/content-manager');
+		await contentManager.initialize(tenantId, false, adapter);
 	};
 
 	return { criticalPromise, backgroundTask };

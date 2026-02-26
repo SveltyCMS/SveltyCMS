@@ -22,7 +22,7 @@ import { minLength, number, object, pipe, string, type InferInput as ValibotInpu
 import type { AddressProps } from './types';
 
 // Define the validation schema for the address data object.
-const AddressValidationSchema = object({
+const ADDRESS_VALIDATION_SCHEMA = object({
 	street: pipe(string(), minLength(1, 'Street is required.')),
 	houseNumber: string(),
 	postalCode: pipe(string(), minLength(1, 'Postal code is required.')),
@@ -39,7 +39,7 @@ const AddressWidget = createWidget<AddressProps>({
 	Description: widget_address_description(),
 	inputComponentPath: '/src/widgets/custom/Address/Input.svelte',
 	displayComponentPath: '/src/widgets/custom/Address/Display.svelte',
-	validationSchema: AddressValidationSchema,
+	validationSchema: ADDRESS_VALIDATION_SCHEMA,
 
 	// Define the UI for configuring this widget's properties in the Collection Builder.
 	GuiSchema: {
@@ -90,4 +90,4 @@ export default AddressWidget;
 
 // Export helper types.
 export type FieldType = ReturnType<typeof AddressWidget>;
-export type AddressWidgetData = ValibotInput<typeof AddressValidationSchema>;
+export type AddressWidgetData = ValibotInput<typeof ADDRESS_VALIDATION_SCHEMA>;

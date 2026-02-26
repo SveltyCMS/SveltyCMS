@@ -161,34 +161,34 @@ export function composeMongoAuthAdapter(): AuthInterface {
 		},
 
 		deleteUserAndSessions: async (
-			user_id: string,
+			userId: string,
 			tenantId?: string
 		): Promise<DatabaseResult<{ deletedUser: boolean; deletedSessionCount: number }>> => {
 			try {
 				// Step 1: Get session count before deletion (for reporting)
 				let deletedSessionCount = 0;
 				try {
-					const activeSessions = await sessionAdapter.getActiveSessions(user_id, tenantId);
+					const activeSessions = await sessionAdapter.getActiveSessions(userId, tenantId);
 					if (activeSessions.success && activeSessions.data) {
 						deletedSessionCount = activeSessions.data.length;
 					}
 				} catch {
 					// Non-fatal: just log and continue
-					logger.debug('Could not count sessions before deletion', { user_id });
+					logger.debug('Could not count sessions before deletion', { user_id: userId });
 				}
 
 				// Step 2: Delete all user sessions
-				const sessionsResult = await sessionAdapter.invalidateAllUserSessions(user_id, tenantId);
+				const sessionsResult = await sessionAdapter.invalidateAllUserSessions(userId, tenantId);
 
 				if (!sessionsResult.success) {
 					logger.warn('Failed to invalidate user sessions, continuing with user deletion', {
-						user_id,
+						user_id: userId,
 						error: sessionsResult.message
 					});
 				}
 
 				// Step 3: Delete the user
-				const userResult = await userAdapter.deleteUser(user_id, tenantId);
+				const userResult = await userAdapter.deleteUser(userId, tenantId);
 
 				if (!userResult.success) {
 					return {
@@ -198,8 +198,8 @@ export function composeMongoAuthAdapter(): AuthInterface {
 					};
 				}
 
-				logger.info(`User and sessions deleted: user=${user_id}, sessions=${deletedSessionCount}`, {
-					user_id,
+				logger.info(`User and sessions deleted: user=${userId}, sessions=${deletedSessionCount}`, {
+					user_id: userId,
 					deletedSessionCount,
 					tenantId
 				});
@@ -213,7 +213,7 @@ export function composeMongoAuthAdapter(): AuthInterface {
 				};
 			} catch (err) {
 				const message = `Error in deleteUserAndSessions: ${err instanceof Error ? err.message : String(err)}`;
-				logger.error(message, { user_id, tenantId });
+				logger.error(message, { user_id: userId, tenantId });
 				return {
 					success: false,
 					message,
@@ -253,10 +253,10 @@ export function composeMongoAuthAdapter(): AuthInterface {
 		// Role Management Methods (normalized and de-duplicated)
 		createRole: async (role: Role): Promise<DatabaseResult<Role>> => {
 			try {
-				const RoleModel = getRoleModel();
+				const ROLE_MODEL = getRoleModel();
 				const filter = safeQuery({ _id: role._id }, role.tenantId);
 
-				const upsertedRole = await RoleModel.findOneAndUpdate(
+				const upsertedRole = await ROLE_MODEL.findOneAndUpdate(
 					filter,
 					{ $set: role },
 					{ upsert: true, returnDocument: 'after', runValidators: true }
@@ -282,9 +282,9 @@ export function composeMongoAuthAdapter(): AuthInterface {
 
 		getAllRoles: async (tenantId?: string): Promise<Role[]> => {
 			try {
-				const RoleModel = getRoleModel();
+				const ROLE_MODEL = getRoleModel();
 				const filter = safeQuery({}, tenantId);
-				return await RoleModel.find(filter).lean<Role[]>();
+				return await ROLE_MODEL.find(filter).lean<Role[]>();
 			} catch (err) {
 				logger.error(`Error fetching roles: ${err instanceof Error ? err.message : String(err)}`);
 				return [];
@@ -293,10 +293,10 @@ export function composeMongoAuthAdapter(): AuthInterface {
 
 		getRoleById: async (roleId: string, tenantId?: string): Promise<DatabaseResult<Role | null>> => {
 			try {
-				const RoleModel = getRoleModel();
+				const ROLE_MODEL = getRoleModel();
 				const filter = safeQuery({ _id: roleId }, tenantId);
 
-				const role = await RoleModel.findOne(filter).lean<Role>();
+				const role = await ROLE_MODEL.findOne(filter).lean<Role>();
 
 				return {
 					success: true,
@@ -318,10 +318,10 @@ export function composeMongoAuthAdapter(): AuthInterface {
 
 		updateRole: async (roleId: string, roleData: Partial<Role>, tenantId?: string): Promise<DatabaseResult<Role>> => {
 			try {
-				const RoleModel = getRoleModel();
+				const ROLE_MODEL = getRoleModel();
 				const filter = safeQuery({ _id: roleId }, tenantId);
 
-				const updatedRole = await RoleModel.findOneAndUpdate(filter, { $set: roleData }, { returnDocument: 'after' }).lean<Role>();
+				const updatedRole = await ROLE_MODEL.findOneAndUpdate(filter, { $set: roleData }, { returnDocument: 'after' }).lean<Role>();
 
 				if (!updatedRole) {
 					return {
@@ -354,10 +354,10 @@ export function composeMongoAuthAdapter(): AuthInterface {
 
 		deleteRole: async (roleId: string, tenantId?: string): Promise<DatabaseResult<void>> => {
 			try {
-				const RoleModel = getRoleModel();
+				const ROLE_MODEL = getRoleModel();
 				const filter = safeQuery({ _id: roleId }, tenantId);
 
-				const result = await RoleModel.deleteOne(filter);
+				const result = await ROLE_MODEL.deleteOne(filter);
 
 				if (result.deletedCount === 0) {
 					return {

@@ -22,10 +22,10 @@
 -->
 
 <script lang="ts">
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { app, validationStore } from '@src/stores/store.svelte';
 	import { getFieldName } from '@src/utils/utils';
-	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import { logger } from '@utils/logger';
 	// Unified error handling
 	import { handleWidgetValidation } from '@widgets/widget-error-handler';
@@ -65,12 +65,12 @@
 	}
 
 	// Use current content language for translated fields, default for non-translated
-	const _language = $derived(field.translated ? app.contentLanguage : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase());
+	const LANGUAGE = $derived(field.translated ? app.contentLanguage : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase());
 
 	// Initialize value if null/undefined
 	// Safe value access with fallback
 	// Safe value access with fallback
-	let safeValue = $derived(field.translated ? ((value as Record<string, string>)?.[_language] ?? '') : ((value as string) ?? ''));
+	let safeValue = $derived(field.translated ? ((value as Record<string, string>)?.[LANGUAGE] ?? '') : ((value as string) ?? ''));
 
 	// Character count
 	let count = $derived(safeValue?.length ?? 0);
@@ -194,7 +194,7 @@
 				value = {};
 			}
 			// Ensure value is treated as a new object for reactivity
-			value = { ...(value || {}), [_language]: sanitized };
+			value = { ...(value || {}), [LANGUAGE]: sanitized };
 		} else {
 			value = sanitized;
 		}

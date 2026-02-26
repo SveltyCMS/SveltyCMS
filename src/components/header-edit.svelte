@@ -28,10 +28,12 @@
 -->
 
 <script lang="ts">
+	import TranslationStatus from '@src/components/collection-display/translation-status.svelte';
+	import Toggles from '@src/components/system/inputs/Toggles.svelte';
 	import type { CollectionEntry } from '@src/content/types';
 	import { StatusTypes } from '@src/content/types';
 	// ParaglideJS
-	import { validation_fix_before_save, status_publish, status_unpublish } from '@src/paraglide/messages';
+	import { status_publish, status_unpublish, validation_fix_before_save } from '@src/paraglide/messages';
 	import { collection, collectionValue, mode, setCollectionValue, setMode } from '@src/stores/collection-store.svelte';
 	import { screen } from '@src/stores/screen-size-store.svelte';
 	import { statusStore } from '@src/stores/status-store.svelte';
@@ -45,8 +47,6 @@
 	import { navigationManager } from '@utils/navigation-manager';
 	import { showToast } from '@utils/toast';
 	import { untrack } from 'svelte';
-	import TranslationStatus from '@src/components/collection-display/translation-status.svelte';
-	import Toggles from '@src/components/system/inputs/Toggles.svelte';
 	// Modal types import
 	// Stores
 	import { page } from '$app/state';

@@ -4,11 +4,11 @@
 -->
 
 <script lang="ts">
+	import PageTitle from '@src/components/page-title.svelte';
+	import InputSwitch from '@src/components/system/builder/input-switch.svelte';
+	import DropDown from '@src/components/system/drop-down/drop-down.svelte';
 	import { widgets } from '@src/stores/widget-store.svelte';
 	import type { WidgetFactory } from '@src/widgets/types';
-	import PageTitle from '@src/components/page-title.svelte';
-	import DropDown from '@src/components/system/drop-down/drop-down.svelte';
-	import InputSwitch from '@src/components/system/builder/input-switch.svelte';
 
 	import type { AddWidgetProps } from './types';
 

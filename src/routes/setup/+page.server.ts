@@ -111,7 +111,7 @@ export const actions: Actions = {
 			const { getSetupDatabaseAdapter } = await import('./utils');
 
 			try {
-				const { dbAdapter } = await getSetupDatabaseAdapter(dbConfig);
+				const { dbAdapter } = await getSetupDatabaseAdapter(dbConfig, { createIfMissing });
 
 				logger.info('📡 Connection established, sending ping...');
 				const health = await dbAdapter.getConnectionHealth();
@@ -173,7 +173,7 @@ export const actions: Actions = {
 							}
 
 							// Retry connection now that DB/file exists
-							const retry = await getSetupDatabaseAdapter(dbConfig);
+							const retry = await getSetupDatabaseAdapter(dbConfig, { createIfMissing: true });
 							const health = await retry.dbAdapter.getConnectionHealth();
 							if (health.success) {
 								await retry.dbAdapter.disconnect();
@@ -250,7 +250,7 @@ export const actions: Actions = {
 			const { initSystemFast } = await import('./seed');
 			const { getSetupDatabaseAdapter } = await import('./utils');
 
-			const { dbAdapter } = await getSetupDatabaseAdapter(dbConfig);
+			const { dbAdapter } = await getSetupDatabaseAdapter(dbConfig, { createIfMissing: true });
 
 			// Get split promises
 			const { criticalPromise, backgroundTask } = await initSystemFast(dbAdapter);
@@ -301,7 +301,6 @@ export const actions: Actions = {
 
 		const formData = await request.formData();
 		const { database, admin, system = {} } = JSON.parse(formData.get('data') as string);
-		console.log('DEBUG: extracted system data (CONSOLE):', JSON.stringify(system, null, 2));
 		logger.info('DEBUG: extracted system data:', JSON.stringify(system, null, 2));
 
 		try {
@@ -311,7 +310,7 @@ export const actions: Actions = {
 			}
 
 			const { getSetupDatabaseAdapter } = await import('./utils');
-			const { dbAdapter } = await getSetupDatabaseAdapter(database);
+			const { dbAdapter } = await getSetupDatabaseAdapter(database, { createIfMissing: true });
 
 			const { Auth } = await import('@src/databases/auth');
 			const { getDefaultSessionStore } = await import('@src/databases/auth/session-manager');
@@ -397,12 +396,20 @@ export const actions: Actions = {
 			const updatePrivateConfigPromise = (async () => {
 				try {
 					// Optimization: Check if values actually changed to avoid unnecessary restart
-					const privateConfigModule = await import('@config/private');
-					const privateEnv = privateConfigModule.privateEnv as any; // Cast to any to avoid type issues with dynamic import
-					// Use loose equality to handle string/boolean differences if any
-					if (privateEnv.MULTI_TENANT === system.multiTenant && privateEnv.DEMO === system.demoMode) {
-						logger.info('DEBUG: Private config unchanged, skipping update to prevent restart.');
-						return;
+					let privateConfigModule: any;
+					try {
+						privateConfigModule = await import('@config/private');
+					} catch (e) {
+						logger.debug('Private config not found, proceeding with creation.');
+					}
+
+					if (privateConfigModule) {
+						const privateEnv = privateConfigModule.privateEnv as any;
+						// Use loose equality to handle string/boolean differences if any
+						if (privateEnv.MULTI_TENANT === system.multiTenant && privateEnv.DEMO === system.demoMode) {
+							logger.info('DEBUG: Private config unchanged, skipping update to prevent restart.');
+							return;
+						}
 					}
 
 					console.log('DEBUG: Updating private config with modes:', {
@@ -568,10 +575,11 @@ export const actions: Actions = {
 			// This prevents the 4s blocking delay on the subsequent redirect request.
 			// We trust the database state because we just seeded it.
 			try {
-				logger.info('🚀 [completeSetup] Initializingcontent-manager(with reconciliation)...');
+				logger.info('🚀 [completeSetup] Refreshing content-manager state (skipping reconciliation)...');
 				const { contentManager } = await import('@src/content/content-manager');
-				await contentManager.initialize(undefined, false);
-				logger.info('✅ [completeSetup]ContentManager initialized and reconciled successfully.');
+				// skipReconciliation: true is CRITICAL here to prevent the 4s blocking delay
+				await contentManager.refresh(undefined, true);
+				logger.info('✅ [completeSetup] ContentManager refreshed successfully (skipped reconciliation).');
 			} catch (cmError) {
 				logger.warn('⚠️ [completeSetup]ContentManager init/reconcile failed:', cmError);
 			}
@@ -631,7 +639,7 @@ export const actions: Actions = {
 			}
 
 			// 4. Determine redirect path
-			let redirectPath = '/en/collections';
+			let redirectPath = '/config/collectionbuilder';
 
 			// Use provided firstCollection if valid
 			if (system.firstCollection?.path) {

@@ -4,15 +4,14 @@
 -->
 
 <script lang="ts">
+	// Components
+	import SveltyCMSLogoFull from '@src/components/system/icons/svelty-cms-logo-full.svelte';
 	import FloatingInput from '@src/components/system/inputs/floating-input.svelte';
 	// ParaglideJS
 	import { button_cancel, button_send, oauth_entertoken, oauth_signup, registration_token, signup_registrationtoken } from '@src/paraglide/messages';
 	// Stores
 	import { globalLoadingStore, loadingOperations } from '@src/stores/loading-store.svelte.ts';
 	import type { PageData } from './$types';
-
-	// Components
-	import SveltyCMSLogoFull from '@src/components/system/icons/svelty-cms-logo-full.svelte';
 
 	interface Props {
 		data: PageData;

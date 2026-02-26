@@ -98,12 +98,12 @@ export const POST = apiHandler(async ({ request, locals, fetch, url }) => {
 
 		// Create token in database
 		// For invite tokens, we use the database adapter directly since the user doesn't exist yet
-		const user_id = uuidv4();
+		const userId = uuidv4();
 		const type = 'invite';
 
 		// Use dbAdapter directly for invite tokens since the user doesn't exist yet
 		const tokenResult = await dbAdapter.auth.createToken({
-			user_id,
+			user_id: userId,
 			email: validatedData.email.toLowerCase(), // Use the provided email directly
 			expires: expires.toISOString() as ISODateString,
 			type,

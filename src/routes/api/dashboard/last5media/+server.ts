@@ -19,7 +19,7 @@ import * as v from 'valibot';
 
 // --- Types & Schemas ---
 
-const MediaItemSchema = v.object({
+const MEDIA_ITEM_SCHEMA = v.object({
 	name: v.string(),
 	size: v.number(),
 	modified: v.date(),
@@ -105,7 +105,7 @@ export const GET = apiHandler(async ({ locals }) => {
 			url: `/files/${url}`
 		};
 	});
-	const validatedData = v.parse(v.array(MediaItemSchema), recentMedia);
+	const validatedData = v.parse(v.array(MEDIA_ITEM_SCHEMA), recentMedia);
 
 	logger.info('Recent media fetched successfully via database adapter', {
 		count: validatedData.length,

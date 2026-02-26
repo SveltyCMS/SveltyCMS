@@ -22,14 +22,14 @@ import { array, maxLength, object, pipe, string } from 'valibot';
 import type { MegaMenuProps, MenuItem } from './types';
 
 // SECURITY: Define a base schema for a nested menu item's data with validation
-const MenuItemSchema = object({
+const MENU_ITEM_SCHEMA = object({
 	_id: pipe(string(), maxLength(100)),
 	_fields: object({}), // The fields inside validated separately
 	children: array(object({})) // Nested children with same structure
 });
 
 // The top-level schema is an array of these menu items.
-const MegaMenuValidationSchema = array(MenuItemSchema);
+const MEGA_MENU_VALIDATION_SCHEMA = array(MENU_ITEM_SCHEMA);
 
 // Create the widget definition using the factory.
 const MegaMenuWidget = createWidget({
@@ -42,7 +42,7 @@ const MegaMenuWidget = createWidget({
 	displayComponentPath: '/src/widgets/core/megamenu/Display.svelte',
 
 	// Assign the validation schema.
-	validationSchema: MegaMenuValidationSchema,
+	validationSchema: MEGA_MENU_VALIDATION_SCHEMA,
 
 	// Set widget-specific defaults.
 	defaults: {

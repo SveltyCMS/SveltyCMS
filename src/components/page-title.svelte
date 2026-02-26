@@ -45,8 +45,8 @@
 - Fluid typography scaling
 -->
 <script lang="ts">
-	import { ui } from '@src/stores/ui-store.svelte.ts';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+	import { ui } from '@src/stores/ui-store.svelte.ts';
 
 	type DefaultBehaviorFn = () => void;
 

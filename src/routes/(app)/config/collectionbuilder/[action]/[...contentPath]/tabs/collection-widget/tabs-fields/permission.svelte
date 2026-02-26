@@ -9,10 +9,10 @@ Features:
 -->
 
 <script lang="ts">
+	import PermissionsSetting from '@src/components/permissions-setting.svelte';
 	import { collections } from '@src/stores/collection-store.svelte';
 	// Skeleton Stores
 	import { modalState } from '@utils/modal-state.svelte';
-	import PermissionsSetting from '@src/components/permissions-setting.svelte';
 
 	// Function to handle permission updates
 	function handlePermissionUpdate(updatedPermissions: Record<string, Record<string, boolean>>) {

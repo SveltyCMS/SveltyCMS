@@ -27,7 +27,7 @@ import type { GroupProps } from './types';
 
 // Define the validation schema for the group data.
 // Groups can contain any data structure, so we use a flexible object schema.
-const GroupValidationSchema = object({});
+const GROUP_VALIDATION_SCHEMA = object({});
 
 // Create the widget definition using the factory.
 const GroupWidget = createWidget<GroupProps>({
@@ -40,7 +40,7 @@ const GroupWidget = createWidget<GroupProps>({
 	displayComponentPath: '/src/widgets/core/Group/Display.svelte',
 
 	// Assign the validation schema.
-	validationSchema: GroupValidationSchema,
+	validationSchema: GROUP_VALIDATION_SCHEMA,
 
 	// Set widget-specific defaults.
 	defaults: {
@@ -71,4 +71,4 @@ export default GroupWidget;
 
 // Export helper types for use in Svelte components.
 export type FieldType = ReturnType<typeof GroupWidget>;
-export type GroupWidgetData = ValibotInput<typeof GroupValidationSchema>;
+export type GroupWidgetData = ValibotInput<typeof GROUP_VALIDATION_SCHEMA>;

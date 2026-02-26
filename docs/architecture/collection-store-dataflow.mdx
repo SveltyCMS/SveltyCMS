@@ -64,6 +64,11 @@ sequenceDiagram
     participant PageSvelte as +page.svelte
     participant Component as fields/entry-list
 
+    Note over User,PageServer: Initial Handshake (First Load after Setup/Login)
+    Browser->>PageServer: GET /
+    PageServer->>DB: Get Smart First Collection
+    PageServer-->>Browser: Redirect to FIRST_COLLECTION_REDIRECT_URL
+
     User->>Browser: Navigate to /en/Collections/Posts?page=1
     Browser->>PageServer: GET (SSR Load)
     PageServer->>Cache: Check cache key
@@ -233,14 +238,17 @@ export const load: PageServerLoad = async ({ params, url, locals }) => {
 
 ## 🚀 Performance Benefits
 
-The SSR architecture provides:
+The SSR architecture combined with refined initialization provides:
 
-1. **Faster Initial Load**: Server renders with data, no client-side fetch waterfall
-2. **Better Caching**: Redis cache shared across all users, not per-browser
-3. **SEO Friendly**: Full HTML with content on first load
-4. **Reduced Bundle Size**: No client-side data fetching libraries needed
-5. **Type Safety**: Server-to-client data flow is fully typed
-6. **Simpler Debugging**: All data loading logic in one place (+page.server.ts)
+1. **Faster Initial Load**: Server renders with data, no client-side fetch waterfall.
+2. **Zero-Restart Setup Hydration**: The system transitions from SETUP to READY state without requiring a server restart, thanks to in-memory configuration passing.
+3. **Pre-Seeded Database Models**: Database tables and collections are created during the setup seeding process, ensuring the CMS is ready for data entry immediately upon completion.
+4. **Intelligent First Collection Redirect**: The `FIRST_COLLECTION_REDIRECT_URL` is provided to the client during the initial handshake, ensuring users land on the most relevant collection page immediately after setup or login.
+5. **Better Caching**: Redis cache shared across all users, not per-browser.
+6. **SEO Friendly**: Full HTML with content on first load.
+7. **Reduced Bundle Size**: No client-side data fetching libraries needed.
+8. **Type Safety**: Server-to-client data flow is fully typed.
+9. **Simpler Debugging**: All data loading logic in one place (+page.server.ts).
 
 ## 📊 Cache Strategy
 

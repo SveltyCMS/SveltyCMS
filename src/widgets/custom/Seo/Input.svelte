@@ -1,22 +1,21 @@
 ﻿<script lang="ts">
-	import { slide } from 'svelte/transition';
 	import { publicEnv } from '@src/stores/global-settings.svelte.ts';
 	// Stores & Props
 	import { app } from '@src/stores/store.svelte';
 	import { onMount } from 'svelte';
+	import { slide } from 'svelte/transition';
+
 	// Lucide Icons
 
-	import type { SeoWidgetData } from '.';
-
-	// Logic
-	import { analyzeSeo } from './seo-analyzer';
 	import { tokenTarget } from '@src/services/token/token-target';
-
-	// Components
-	import SeoPreview from './components/seo-preview.svelte';
+	import type { SeoWidgetData } from '.';
 	import SeoAnalysisPanel from './components/seo-analysis-panel.svelte';
 	import SeoField from './components/seo-field.svelte';
+	// Components
+	import SeoPreview from './components/seo-preview.svelte';
 	import SocialPreview from './components/social-preview.svelte';
+	// Logic
+	import { analyzeSeo } from './seo-analyzer';
 
 	interface Props {
 		field: any;

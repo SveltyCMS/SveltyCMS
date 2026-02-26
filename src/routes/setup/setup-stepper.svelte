@@ -5,6 +5,7 @@ Shows horizontal stepper on mobile, vertical stepper on desktop with legend.
 -->
 <script lang="ts">
 	import VersionCheck from '@src/components/version-check.svelte';
+
 	const { steps, currentStep, stepCompleted, stepClickable, legendItems, onselectStep = () => {} } = $props();
 
 	function handleStepClick(stepIndex: number) {

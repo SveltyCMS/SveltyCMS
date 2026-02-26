@@ -14,10 +14,10 @@
 -->
 
 <script lang="ts">
-	import type { DndEvent } from 'svelte-dnd-action';
-	import { flip } from 'svelte/animate';
-	import { dndzone } from 'svelte-dnd-action';
 	import { collection as collections } from '@src/stores/collection-store.svelte';
+	import { flip } from 'svelte/animate';
+	import type { DndEvent } from 'svelte-dnd-action';
+	import { dndzone } from 'svelte-dnd-action';
 
 	interface Props {
 		fields: any[];

@@ -41,8 +41,8 @@ function extractCollectionPath(fullPath: string, baseDir: string): string {
 	// Remove extension
 	const withoutExt = relative.replace(/\.js$/, '');
 
-	// Normalize separators to forward slashes (essential for DB consistency across OS)
-	return withoutExt.split(path.sep).join('/');
+	const finalPath = withoutExt.split(path.sep).join('/');
+	return finalPath.startsWith('/') ? finalPath : `/${finalPath}`;
 }
 
 /**

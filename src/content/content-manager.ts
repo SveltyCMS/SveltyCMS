@@ -223,7 +223,7 @@ class ContentManager {
 	}
 
 	// Initializes the ContentManager, handling race conditions and loading data
-	public async initialize(tenantId?: string, skipReconciliation = false): Promise<void> {
+	public async initialize(tenantId?: string, skipReconciliation = false, adapter?: IDBAdapter): Promise<void> {
 		// Already initialized for this tenant?
 		if (this.initState === 'initialized') {
 			// If tenantId is provided, ensure it has been initialized.
@@ -255,7 +255,7 @@ class ContentManager {
 			tenantId,
 			skipReconciliation
 		});
-		this.initPromise = this._doInitialize(tenantId, skipReconciliation);
+		this.initPromise = this._doInitialize(tenantId, skipReconciliation, adapter);
 
 		try {
 			await this.initPromise;
@@ -267,18 +267,9 @@ class ContentManager {
 	}
 
 	// Core initialization logic
-	private async _doInitialize(tenantId?: string, skipReconciliation = false): Promise<void> {
+	private async _doInitialize(tenantId?: string, skipReconciliation = false, adapter?: IDBAdapter): Promise<void> {
 		const { isSetupComplete } = await import('@utils/setup-check');
-
-		// Guard: If setup is not complete, skip heavy content loading.
-		// The Setup Wizard does not need CMS content.
-		if (!isSetupComplete()) {
-			logger.info('Setup not complete.ContentManager skipping initialization (SETUP MODE).');
-			this.initState = 'initialized'; // Mark as initialized to prevent blocking
-			this.initializedInSetupMode = true; // Track that we are in setup-limited mode
-			this.metrics.initializationTime = 0;
-			return;
-		}
+		const setupComplete = isSetupComplete();
 
 		this.initState = 'initializing';
 		const startTime = performance.now();
@@ -290,7 +281,8 @@ class ContentManager {
 				logger.trace(`ContentManager initialization attempt ${attempt}/${maxRetries}`, { tenantId });
 
 				// 1. Attempt to load from a high-speed cache (e.g., Redis).
-				if (await this._loadStateFromCache(tenantId)) {
+				// Skip cache load in setup mode as it's unreliable/empty
+				if (setupComplete && (await this._loadStateFromCache(tenantId))) {
 					this.initState = 'initialized';
 					if (tenantId) {
 						this.initializedTenants.add(tenantId);
@@ -300,13 +292,18 @@ class ContentManager {
 					return;
 				}
 
-				// 2. If cache fails, perform a full load from source (files and DB).
-				await this._fullReload(tenantId, skipReconciliation);
+				// 2. If cache fails OR we are in setup mode, perform a full reload from source (files and DB).
+				// In setup mode, this will register models but skip heavy content reconciliation.
+				await this._fullReload(tenantId, skipReconciliation, adapter);
 
 				this.initState = 'initialized';
-				if (tenantId) {
+				if (!setupComplete) {
+					this.initializedInSetupMode = true;
+					logger.info('🛠️ ContentManager initialized in SETUP MODE (models registered).');
+				} else if (tenantId) {
 					this.initializedTenants.add(tenantId);
 				}
+
 				this.metrics.initializationTime = performance.now() - startTime;
 				this.metrics.lastRefresh = Date.now();
 				logger.info(`📦ContentManager fully initialized in ${this._getElapsedTime(startTime)}`);
@@ -334,11 +331,11 @@ class ContentManager {
 	 *
 	 * @param tenantId - Optional tenant ID for multi-tenant environments.
 	 */
-	public async refresh(tenantId?: string): Promise<void> {
-		logger.info('Refreshingcontent-managerstate...');
+	public async refresh(tenantId?: string, skipReconciliation = false): Promise<void> {
+		logger.info(`Refreshing ContentManager state${skipReconciliation ? ' (fast/skip-reconcile)' : ''}...`);
 		this.initState = 'initializing';
 		this.clearFirstCollectionCache(); // Clear cache on refresh
-		this.initPromise = this._fullReload(tenantId).then(() => {
+		this.initPromise = this._fullReload(tenantId, skipReconciliation).then(() => {
 			this.initState = 'initialized';
 			this.contentVersion = Date.now(); // Update version to notify clients
 		});
@@ -440,9 +437,10 @@ class ContentManager {
 	public async getFirstCollectionRedirectUrl(language = 'en', tenantId?: string): Promise<string | null> {
 		const collection = await this.getSmartFirstCollection(tenantId);
 
+		// [FIX] Explicitly check for valid ID to avoid /en/undefined redirects
 		if (!collection?._id) {
-			logger.debug('Cannot build redirect URL - no collection or _id available');
-			return null;
+			logger.debug('No collections found - redirecting to Collection Builder');
+			return `/config/collectionbuilder`;
 		}
 
 		// The collection ID is the UUID.
@@ -462,12 +460,14 @@ class ContentManager {
 			return null;
 		}
 
-		// Filter out utility collections that might not be the best landing page
-		// e.g. 'Menu' is a tree structure, 'Form' might be a builder.
-		// We prioritize standard EntryList-compatible collections.
-		const smartCandidates = collections.filter((c) => !['Menu', 'Navigation', 'Form', 'WidgetTest', 'Relation'].includes(c.name as string));
+		// [FIX] Filter out utility collections case-insensitively
+		const utilityNames = ['menu', 'navigation', 'form', 'widgettest', 'relation', 'placeholder'];
+		const smartCandidates = collections.filter((c) => {
+			const name = (c.name as string)?.toLowerCase();
+			return !utilityNames.includes(name);
+		});
 
-		return smartCandidates.length > 0 ? smartCandidates[0] : collections[0];
+		return smartCandidates.length > 0 ? smartCandidates[0] : null;
 	}
 
 	// Clear first collection cache (use when collections are modified)
@@ -1612,9 +1612,9 @@ class ContentManager {
 	// PRIVATE METHODS (Core Logic)
 	// ===================================================================================
 
-	private async _fullReload(tenantId?: string, skipReconciliation = false): Promise<void> {
+	private async _fullReload(tenantId?: string, skipReconciliation = false, adapter?: IDBAdapter): Promise<void> {
 		const schemas = await this._scanAndProcessFiles();
-		await this._reconcileAndBuildStructure(schemas, tenantId, skipReconciliation);
+		await this._reconcileAndBuildStructure(schemas, tenantId, skipReconciliation, adapter);
 		await this._populateCache(tenantId);
 	}
 
@@ -1681,8 +1681,13 @@ class ContentManager {
 	}
 
 	// Synchronizes schemas from files with the database and builds the in-memory maps
-	private async _reconcileAndBuildStructure(allSchemas: Schema[], tenantId?: string, skipReconciliation = false): Promise<void> {
-		const dbAdapter = (await getDbAdapter()) as IDBAdapter;
+	private async _reconcileAndBuildStructure(
+		allSchemas: Schema[],
+		tenantId?: string,
+		skipReconciliation = false,
+		adapter?: IDBAdapter
+	): Promise<void> {
+		const dbAdapter = adapter || ((await getDbAdapter()) as IDBAdapter);
 
 		// [NEW] Filter schemas relevant to the current tenant context
 		// - If tenantId is provided: Include global schemas (no tenantId) AND schemas for this tenant. Exclude other tenants.

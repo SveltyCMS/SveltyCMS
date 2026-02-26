@@ -4,35 +4,35 @@
 Provides DB type, host, port, name, user, password inputs, validation display, test button, and change warning.
 -->
 <script lang="ts">
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import {
 		common_confirm_no,
 		common_confirm_yes,
+		setup_button_test_connection,
+		setup_database_host,
+		setup_database_host_placeholder,
+		setup_database_intro,
+		setup_database_name,
+		setup_database_name_placeholder,
+		setup_database_password,
+		setup_database_password_placeholder,
+		setup_database_port,
+		setup_database_port_placeholder,
+		setup_database_user,
+		setup_database_user_placeholder,
+		setup_db_coming_soon,
 		setup_db_not_found_desc,
 		setup_db_not_found_title,
-		setup_database_intro,
-		setup_db_coming_soon,
 		setup_db_postgres_mysql_note,
 		setup_db_postgres_mysql_timeline,
-		setup_label_database_type,
-		setup_help_database_type,
-		setup_database_host,
 		setup_help_database_host,
-		setup_database_host_placeholder,
-		setup_database_port,
-		setup_help_database_port,
-		setup_database_port_placeholder,
-		setup_database_name,
 		setup_help_database_name,
-		setup_database_name_placeholder,
-		setup_database_user,
-		setup_help_database_user,
-		setup_database_user_placeholder,
-		setup_database_password,
 		setup_help_database_password,
-		setup_database_password_placeholder,
-		setup_button_test_connection
+		setup_help_database_port,
+		setup_help_database_type,
+		setup_help_database_user,
+		setup_label_database_type
 	} from '@src/paraglide/messages';
-	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import type { ValidationErrors } from '@src/stores/setup-store.svelte';
 	import { setupStore } from '@src/stores/setup-store.svelte.ts';
 	import { dbConfigSchema } from '@utils/form-schemas';
@@ -284,7 +284,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 				break;
 			case 'sqlite':
 				// SQLite uses a file path, no port
-				dbConfig.host = '/config/database';
+				dbConfig.host = 'config/database';
 				dbConfig.port = '';
 				if (!dbConfig.name || dbConfig.name === 'SveltyCMS' || dbConfig.name === 'SveltyCMS.db') {
 					dbConfig.name = 'SveltyCMS.db';

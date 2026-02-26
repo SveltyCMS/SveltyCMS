@@ -11,9 +11,9 @@
 - Drag and drop support for reassigning collections
 -->
 <script lang="ts">
+	import { Unassigned_Collections } from '@src/paraglide/messages';
 	import { flip } from 'svelte/animate';
 	import { dndzone } from 'svelte-dnd-action';
-	import { Unassigned_Collections } from '@src/paraglide/messages';
 
 	const flipDurationMs = 200;
 

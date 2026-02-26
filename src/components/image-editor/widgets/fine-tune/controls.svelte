@@ -5,7 +5,7 @@ Professional fine-tune controls with presets and categories
 -->
 <script lang="ts">
 	import type { Adjustments } from './adjustments';
-	import { getAdjustmentConfig, FILTER_PRESETS, getAdjustmentsByCategory } from './adjustments';
+	import { FILTER_PRESETS, getAdjustmentConfig, getAdjustmentsByCategory } from './adjustments';
 
 	const {
 		activeAdjustment,

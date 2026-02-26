@@ -143,8 +143,17 @@ function log(level: LogLevel, msg: string, args: unknown[]) {
 		const { formatted, styles } = clientFormat(msg);
 		console[method](`%c${ts}%c ${icons[level]} [${level.toUpperCase()}] %c${formatted}`, 'color:#9ca3af', '', 'color:inherit', ...styles, ...masked);
 	} else {
-		const colored = serverFormat(msg);
-		console[method](`${'\x1b[2m'}${ts}${'\x1b[0m'} ${icons[level]} [${level.toUpperCase().padEnd(5)}] ${colored}`, ...masked);
+		const colored = serverFormat(msg).replace(/\n/g, ' ');
+		// Force single-line output by stringifying objects and joining everything
+		const argsString =
+			masked.length > 0
+				? ' ' +
+					masked
+						.map((a) => (typeof a === 'object' ? JSON.stringify(a) : String(a)))
+						.join(' ')
+						.replace(/\n/g, ' ')
+				: '';
+		console[method](`${'\x1b[2m'}${ts}${'\x1b[0m'} ${icons[level]} [${level.toUpperCase().padEnd(5)}] ${colored}${argsString}`);
 	}
 }
 

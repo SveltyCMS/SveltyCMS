@@ -12,9 +12,9 @@ import { loginAsAdmin } from './helpers/auth';
 
 // Construct reliable file path for CI/CD environments
 // This looks for 'testthumb.png' in the SAME directory as this test file
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const AVATAR_PATH = path.join(__dirname, 'testthumb.png');
+const FILENAME = fileURLToPath(import.meta.url);
+const DIRNAME = path.dirname(FILENAME);
+const AVATAR_PATH = path.join(DIRNAME, 'testthumb.png');
 
 test.describe('User Profile Management', () => {
 	// 1. Setup: Run before every test in this group

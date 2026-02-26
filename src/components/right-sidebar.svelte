@@ -12,23 +12,22 @@
 -->
 
 <script lang="ts">
+	// Components
+	import Toggles from '@src/components/system/inputs/Toggles.svelte';
 	import { StatusTypes } from '@src/content/types';
 	// ParaglideJs
 	import {
 		button_delete,
 		button_next,
 		button_save,
-		siedabar_publish_options,
 		sidebar_createdby,
 		sidebar_will_publish_on,
+		siedabar_publish_options,
 		status_publish,
 		status_unpublish,
 		validation_fix_before_save
 	} from '@src/paraglide/messages';
 	import { getLocale } from '@src/paraglide/runtime';
-
-	// Components
-	import Toggles from '@src/components/system/inputs/Toggles.svelte';
 	import { collection, collectionValue, mode } from '@src/stores/collection-store.svelte';
 	// Stores
 	import { screen } from '@src/stores/screen-size-store.svelte';

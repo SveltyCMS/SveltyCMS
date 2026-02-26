@@ -64,9 +64,9 @@ export function uniqueItems<T extends Record<string, unknown>>(items: T[], key: 
 }
 
 // This function generates GUI fields based on field parameters and a GUI schema.
-export const getGuiFields = (fieldParams: Record<string, unknown>, GuiSchema: Record<string, GuiFieldConfig>): Record<string, unknown> => {
+export const getGuiFields = (fieldParams: Record<string, unknown>, guiSchema: Record<string, GuiFieldConfig>): Record<string, unknown> => {
 	const guiFields: Record<string, unknown> = {};
-	for (const key in GuiSchema) {
+	for (const key in guiSchema) {
 		const value = fieldParams[key];
 		if (value !== undefined) {
 			if (Array.isArray(value)) {
@@ -148,8 +148,8 @@ export function sanitize(str: string) {
 }
 
 // Get the environment variables for image sizes
-const env_sizes = publicEnv.IMAGE_SIZES || {};
-export const SIZES = { ...env_sizes, original: 0, thumbnail: 200 } as const;
+const envSizes = publicEnv.IMAGE_SIZES || {};
+export const SIZES = { ...envSizes, original: 0, thumbnail: 200 } as const;
 
 // Takes an object and recursively parses any values that can be converted to JSON
 export function parse<T>(obj: unknown): T {
@@ -302,7 +302,7 @@ export function deepCopy<T>(obj: T): T {
 
 	const copy = {} as T;
 	for (const key in obj) {
-		if (Object.prototype.hasOwnProperty.call(obj, key)) {
+		if (Object.hasOwn(obj, key)) {
 			copy[key] = deepCopy(obj[key]);
 		}
 	}
@@ -579,9 +579,9 @@ export async function motion(start: number[], end: number[], duration: number, c
 	const current = [...start];
 	let elapsed = 0;
 	let time = Date.now();
-	let has_passed = false;
+	let hasPassed = false;
 	setTimeout(() => {
-		has_passed = true;
+		hasPassed = true;
 	}, duration);
 	return new Promise<void>((resolve) => {
 		function animation(current: number[]) {
@@ -593,7 +593,7 @@ export async function motion(start: number[], end: number[], duration: number, c
 				current[index] -= d;
 			}
 
-			if (has_passed) {
+			if (hasPassed) {
 				cb(end);
 				resolve();
 				return;

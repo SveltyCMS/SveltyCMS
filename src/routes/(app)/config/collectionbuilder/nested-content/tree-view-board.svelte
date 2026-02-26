@@ -25,15 +25,14 @@
 -->
 <script lang="ts">
 	import type { ContentNode, DatabaseId } from '@databases/db-interface';
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import { sortContentNodes } from '@src/content/utils';
 	import { tick } from 'svelte';
 	import { flip } from 'svelte/animate';
-	import { dndzone, SHADOW_ITEM_MARKER_PROPERTY_NAME } from 'svelte-dnd-action';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
-
+	import { dndzone, SHADOW_ITEM_MARKER_PROPERTY_NAME } from 'svelte-dnd-action';
 	// Components
 	import TreeViewNode from './tree-view-node.svelte';
-	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 
 	export interface TreeViewItem extends Record<string, any> {
 		_id?: any;

@@ -23,7 +23,10 @@ Displays a collection of media files (images, documents, audio, video) with:
 
 <script lang="ts">
 	import ModalPrompt from '@components/modal-prompt.svelte';
+	import Breadcrumb from '@src/components/breadcrumb.svelte';
 	import ImageEditorModal from '@src/components/image-editor/image-editor-modal.svelte';
+	import PageTitle from '@src/components/page-title.svelte';
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	// Import types
 	import type { SystemVirtualFolder } from '@src/databases/db-interface';
 	// Utils & Media
@@ -49,9 +52,6 @@ Displays a collection of media files (images, documents, audio, video) with:
 	import MediaGrid from './media-grid.svelte';
 	import MediaTable from './media-table.svelte';
 	import VirtualMediaGrid from './virtual-media-grid.svelte';
-	import Breadcrumb from '@src/components/breadcrumb.svelte';
-	import PageTitle from '@src/components/page-title.svelte';
-	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 
 	// Props using runes
 	let { data }: { data: PageData } = $props();

@@ -31,6 +31,9 @@
 -->
 
 <script lang="ts">
+	// Components
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+	import { tokenTarget } from '@src/services/token/token-target';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	// Stores
 	import { app, validationStore } from '@src/stores/store.svelte.ts';
@@ -38,10 +41,6 @@
 	// Unified error handling
 	import { handleWidgetValidation } from '@widgets/widget-error-handler';
 	import { onDestroy } from 'svelte';
-	import { tokenTarget } from '@src/services/token/token-target';
-
-	// Components
-	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 
 	// Valibot validation
 	import { maxValue, minValue, number as numberSchema, optional, parse, pipe } from 'valibot';
@@ -56,17 +55,17 @@
 
 	const fieldName = $derived(getFieldName(field));
 	// Use current content language for translated fields, default for non-translated
-	const _language = $derived(field.translated ? app.contentLanguage : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase());
+	const LANGUAGE = $derived(field.translated ? app.contentLanguage : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase());
 	const language = $derived(app.contentLanguage);
 
 	// Initialize value if null/undefined
 	$effect(() => {
 		if (value === undefined || value === null) {
-			value = field.translated ? { [_language]: null } : null;
+			value = field.translated ? { [LANGUAGE]: null } : null;
 		}
 	});
 
-	const safeValue = $derived(value?.[_language]);
+	const safeValue = $derived(value?.[LANGUAGE]);
 	const validationError = $derived(validationStore.getError(fieldName));
 	let debounceTimeout: number | undefined;
 	let isTouched = $state(false);
@@ -104,7 +103,7 @@
 				if (!value || typeof value !== 'object') {
 					value = {};
 				}
-				value = { ...value, [_language]: null };
+				value = { ...value, [LANGUAGE]: null };
 			} else {
 				value = null;
 			}
@@ -128,7 +127,7 @@
 				if (!value || typeof value !== 'object') {
 					value = {};
 				}
-				value = { ...value, [_language]: number };
+				value = { ...value, [LANGUAGE]: number };
 			} else {
 				value = number;
 			}

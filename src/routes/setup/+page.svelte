@@ -6,8 +6,19 @@
 <script lang="ts">
 	// Stores
 
+	// Skeleton v4
+	import DialogManager from '@src/components/system/dialog-manager.svelte';
 	// ParaglideJS
 	import {
+		label_database,
+		label_host,
+		label_port,
+		label_user,
+		setup_db_test_details_hide,
+		setup_db_test_details_show,
+		setup_db_test_engine,
+		setup_db_test_latency,
+		setup_db_test_user,
 		setup_legend_completed,
 		setup_legend_current,
 		setup_legend_pending,
@@ -20,16 +31,7 @@
 		setup_step_email,
 		setup_step_email_desc,
 		setup_step_system,
-		setup_step_system_desc,
-		setup_db_test_details_hide,
-		setup_db_test_details_show,
-		setup_db_test_latency,
-		setup_db_test_engine,
-		label_host,
-		label_port,
-		label_database,
-		label_user,
-		setup_db_test_user
+		setup_step_system_desc
 	} from '@src/paraglide/messages';
 	import { locales as availableLocales, getLocale } from '@src/paraglide/runtime';
 	import { setupStore } from '@src/stores/setup-store.svelte.ts';
@@ -37,26 +39,22 @@
 	// Utils
 	import { getLanguageName } from '@utils/language-utils';
 	import { modalState } from '@utils/modal-state.svelte';
+	// Utils
+	import { showConfirm } from '@utils/modal-utils';
 	// Using iconify-icon web component
 	import { onMount, tick } from 'svelte';
 	import { goto } from '$app/navigation';
-	// Step Content Components
-	import WelcomeModal from './welcome-modal.svelte';
-	import SetupHeader from './setup-header.svelte';
-	import SetupStepper from './setup-stepper.svelte';
-	import SetupCardHeader from './setup-card-header.svelte';
-	import SetupNavigation from './setup-navigation.svelte';
-	import DatabaseConfig from './database-config.svelte';
 	import AdminConfig from './admin-config.svelte';
-	import SystemConfig from './system-config.svelte';
+	import DatabaseConfig from './database-config.svelte';
 	import EmailConfig from './email-config.svelte';
 	import ReviewConfig from './review-config.svelte';
-
-	// Skeleton v4
-	import DialogManager from '@src/components/system/dialog-manager.svelte';
-
-	// Utils
-	import { showConfirm } from '@utils/modal-utils';
+	import SetupCardHeader from './setup-card-header.svelte';
+	import SetupHeader from './setup-header.svelte';
+	import SetupNavigation from './setup-navigation.svelte';
+	import SetupStepper from './setup-stepper.svelte';
+	import SystemConfig from './system-config.svelte';
+	// Step Content Components
+	import WelcomeModal from './welcome-modal.svelte';
 
 	// --- 1. STATE MANAGEMENT (Wired to Store) ---
 	let { data } = $props();

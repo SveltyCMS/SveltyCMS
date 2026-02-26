@@ -23,7 +23,14 @@
 -->
 
 <script lang="ts">
+	import PasswordStrength from '@src/components/password-strength.svelte';
+	import SiteName from '@src/components/site-name.svelte';
+	// Components
+	import FloatingPaths from '@src/components/system/floating-paths.svelte';
+	import SveltyCMSLogo from '@src/components/system/icons/svelty-cms-logo.svelte';
+	import SveltyCMSLogoFull from '@src/components/system/icons/svelty-cms-logo-full.svelte';
 	import FloatingInput from '@src/components/system/inputs/floating-input.svelte';
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	// ParaglideJS
 	import {
 		confirm_password,
@@ -35,6 +42,8 @@
 		registration_token,
 		username
 	} from '@src/paraglide/messages';
+	import { publicEnv } from '@src/stores/global-settings.svelte';
+	import { screen } from '@src/stores/screen-size-store.svelte';
 	import { toaster } from '@src/stores/store.svelte.ts';
 	import { Form } from '@utils/form.svelte.ts';
 	import { signUpFormSchema } from '@utils/form-schemas';
@@ -45,18 +54,7 @@
 	// Stores
 	import { page } from '$app/state';
 	import type { PageData } from '../$types';
-
-	// Components
-	import FloatingPaths from '@src/components/system/floating-paths.svelte';
-	import PasswordStrength from '@src/components/password-strength.svelte';
-	import SiteName from '@src/components/site-name.svelte';
-	import SveltyCMSLogo from '@src/components/system/icons/svelty-cms-logo.svelte';
-	import SveltyCMSLogoFull from '@src/components/system/icons/svelty-cms-logo-full.svelte';
-	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import SignupIcon from './icons/signup-icon.svelte';
-
-	import { screen } from '@src/stores/screen-size-store.svelte';
-	import { publicEnv } from '@src/stores/global-settings.svelte';
 
 	// Props
 	const {

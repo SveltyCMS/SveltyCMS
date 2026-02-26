@@ -12,13 +12,12 @@ Renders a list of forms, one for each item in the array. Supports Drag-and-Drop 
 -->
 
 <script lang="ts">
-	import { flip } from 'svelte/animate';
-	import { dndzone } from 'svelte-dnd-action';
-	import { widgets } from '@src/stores/widget-store.svelte';
-
-	import { getFieldName } from '@utils/utils';
-	import type { DndEvent } from 'svelte-dnd-action';
 	import WidgetLoader from '@src/components/collection-display/widget-loader.svelte';
+	import { widgets } from '@src/stores/widget-store.svelte';
+	import { getFieldName } from '@utils/utils';
+	import { flip } from 'svelte/animate';
+	import type { DndEvent } from 'svelte-dnd-action';
+	import { dndzone } from 'svelte-dnd-action';
 	import { v4 as uuidv4 } from 'uuid'; // Ensure uuid is available, or use a simple generator
 	import type { FieldType } from './index';
 
@@ -31,23 +30,21 @@ Renders a list of forms, one for each item in the array. Supports Drag-and-Drop 
 
 	let { field, value = $bindable([]), tenantId, collectionName }: Props = $props();
 
-	// Ensure value is an array
+	// Ensure value is an array and handle null/undefined safely
 	$effect(() => {
-		if (!Array.isArray(value)) {
+		if (value === null || value === undefined || !Array.isArray(value)) {
 			value = [];
 		}
 	});
 
-	// --- WIDGET LOADING LOGIC (Copied from Group/Input.svelte) ---
+	// --- WIDGET LOADING LOGIC ---
 	const modules: Record<string, () => Promise<{ default: any }>> = import.meta.glob('/src/widgets/**/*.svelte') as Record<
 		string,
 		() => Promise<{ default: any }>
 	>;
 
 	function getWidgetLoader(widgetName: string) {
-		if (!widgetName) {
-			return null;
-		}
+		if (!widgetName) return null;
 
 		// 1. Exact match via store
 		const fn = widgets.widgetFunctions[widgetName];
@@ -56,48 +53,48 @@ Renders a list of forms, one for each item in the array. Supports Drag-and-Drop 
 			return modules[storePath];
 		}
 
-		// 2. Case insensitive fallback
+		// 2. Normalized casing and common path search
 		const normalized = widgetName.toLowerCase();
 		for (const path in modules) {
 			const lowerPath = path.toLowerCase();
 			if (
-				lowerPath.includes(`/${normalized}/input.svelte`) ||
-				lowerPath.includes(`/${normalized}/index.svelte`) ||
-				lowerPath.includes(`/${normalized}.svelte`)
+				lowerPath.includes(`/widgets/core/${normalized}/input.svelte`) ||
+				lowerPath.includes(`/widgets/core/${normalized}/index.svelte`) ||
+				lowerPath.includes(`/widgets/custom/${normalized}/input.svelte`) ||
+				lowerPath.includes(`/widgets/custom/${normalized}/index.svelte`)
 			) {
 				return modules[path];
 			}
 		}
+
+		// 3. Last resort fallback
+		for (const path in modules) {
+			if (path.toLowerCase().includes(`/${normalized}/input.svelte`)) {
+				return modules[path];
+			}
+		}
+
 		return null;
 	}
 	// -----------------------------------------------------------
 
 	// --- DnD Logic ---
-	// We need to augment items with an ephemeral ID for dnd-action if they don't have one
-	// But dnd-action expects an object with {id: string}.
-	// Our value is generic Record<string, any>. We shouldn't pollute the DB with UI IDs if possible.
-	// However, Svelte keyed each needs a key.
-	// Strategy: Wrap items in a UI state object { id, data }. Unwrap on save?
-	// OR: Just assume items have unique IDs or add a temporary `__dndId` property.
-
-	// Let's use a local state that syncs with `value`.
 	let items = $state<{ id: string; data: Record<string, any> }[]>([]);
 
-	// Sync value to items (one-way init or whenever value changes externally)
+	// Sync value to items
 	$effect(() => {
-		// Only sync if counts differ to avoid loops, or simple implementation:
-		if (value && value.length !== items.length) {
-			items = value.map((item) => ({
+		const safeValue = value || [];
+		if (safeValue.length !== items.length) {
+			items = safeValue.map((item) => ({
 				id: (item._dndId as string) || uuidv4(),
 				data: item
 			}));
-		} else if (!value) {
-			items = [];
 		}
 	});
 
 	// Sync items back to value
 	function updateValue() {
+		if (!value) return;
 		value = items.map((i) => i.data);
 	}
 
@@ -111,19 +108,18 @@ Renders a list of forms, one for each item in the array. Supports Drag-and-Drop 
 	}
 
 	function addItem() {
-		const newItem: { id: string; data: Record<string, any> } = {
-			id: uuidv4(),
-			data: {}
-		};
-		// Initialize fields
+		const newItemId = uuidv4();
+		const newItemData: Record<string, any> = { _dndId: newItemId };
+
+		// Initialize fields with defaults if possible
 		if ((field as any).fields) {
 			(field as any).fields.forEach((f: any) => {
 				const name = f.db_fieldName || getFieldName(f);
-				// TODO: Apply defaults from widget definition
-				newItem.data[name] = null;
+				newItemData[name] = f.default !== undefined ? f.default : null;
 			});
 		}
-		items = [...items, newItem];
+
+		items = [...items, { id: newItemId, data: newItemData }];
 		updateValue();
 	}
 

@@ -44,7 +44,7 @@ import { contentManager } from '@src/content/content-manager';
 import type { User } from '@src/databases/auth/types';
 import { collectionService } from '@src/services/collection-service';
 import { getPublicSettingSync } from '@src/services/settings-service';
-import { error, redirect } from '@sveltejs/kit';
+import { isRedirect, redirect } from '@sveltejs/kit';
 import { logger } from '@utils/logger.server';
 import type { PageServerLoad } from './$types';
 
@@ -125,10 +125,14 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 				if (allCollections.length > 0) {
 					throw redirect(302, `/${language}${allCollections[0].path}`);
 				}
+				// FRESH INSTALL: If no collections exist, send admins to the builder
+				if (locals.isAdmin) {
+					throw redirect(302, '/config/collectionbuilder');
+				}
 				throw redirect(302, '/dashboard');
 			}
-			logger.warn(`Collection not found: ${collection}`, { tenantId, isUUID });
-			throw error(404, `Collection not found: ${collection}`);
+			logger.warn(`Collection not found: ${collection}, redirecting to root.`, { tenantId, isUUID });
+			throw redirect(302, '/');
 		}
 
 		// If accessed via a non-canonical path, it will be handled by the client-side to update the URL,
@@ -212,7 +216,7 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 		return returnData;
 	} catch (err) {
 		// If it's a redirect (SvelteKit standard behavior), just rethrow it without logging an error
-		if ((err as any)?.status >= 300 && (err as any)?.status < 400 && (err as any)?.location) {
+		if (isRedirect(err)) {
 			throw err;
 		}
 

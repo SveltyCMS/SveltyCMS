@@ -9,7 +9,7 @@
  * - Get slow queries
  */
 
-import type { DatabaseResult, PerformanceMetrics, ISODateString } from '../../db-interface';
+import type { DatabaseResult, ISODateString, PerformanceMetrics } from '../../db-interface';
 import type { AdapterCore } from '../adapter/adapter-core';
 
 export class PerformanceModule {

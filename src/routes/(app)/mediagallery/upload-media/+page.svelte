@@ -20,12 +20,12 @@
 -->
 
 <script lang="ts">
-	import { goto } from '$app/navigation';
 	import { Tabs } from '@skeletonlabs/skeleton-svelte';
-	import LocalUpload from './local-upload.svelte';
-	import RemoteUpload from './remote-upload.svelte';
 	import PageTitle from '@src/components/page-title.svelte';
 	import { uploadMedia_title } from '@src/paraglide/messages';
+	import { goto } from '$app/navigation';
+	import LocalUpload from './local-upload.svelte';
+	import RemoteUpload from './remote-upload.svelte';
 
 	let tabSet = $state('0');
 

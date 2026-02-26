@@ -104,55 +104,74 @@ export function constructContentPaths(contentStructure: ContentNode[]): Record<s
 
 export async function processModule(content: string): Promise<{ schema?: Schema } | null> {
 	try {
-		const exportMatch = content.match(/export\s+const\s+schema\s*=\s*/);
-		if (!exportMatch) {
-			logger.warn('No schema export found in module');
+		// Support both 'export const schema =' and 'export default'
+		const schemaMatch = content.match(/export\s+const\s+schema\s*=\s*/);
+		const defaultMatch = content.match(/export\s+default\s+/);
+
+		const match = schemaMatch || defaultMatch;
+		if (!match) {
+			logger.warn('No schema or default export found in module');
 			return null;
 		}
 
-		const startIdx = exportMatch.index! + exportMatch[0].length;
-		let braceCount = 0;
-		let inString = false;
-		let stringChar = '';
-		let endIdx = startIdx;
-
-		for (let i = startIdx; i < content.length; i++) {
-			const char = content[i];
-			const prevChar = i > 0 ? content[i - 1] : '';
-
-			if ((char === '"' || char === "'" || char === '`') && prevChar !== '\\') {
-				if (!inString) {
-					inString = true;
-					stringChar = char;
-				} else if (char === stringChar) {
-					inString = false;
-					stringChar = '';
-				}
-			}
-
-			if (!inString) {
-				if (char === '{') {
-					braceCount++;
-				}
-				if (char === '}') {
-					braceCount--;
-				}
-
-				if (braceCount === 0 && char === '}') {
-					endIdx = i + 1;
-					break;
-				}
-			}
+		const startIdx = match.index! + match[0].length;
+		// Determine end of the expression (up to semicolon or end of content)
+		// This is a simplified approach that works well with our generated files
+		let endIdx = content.indexOf(';', startIdx);
+		if (endIdx === -1) {
+			endIdx = content.length;
 		}
 
-		const schemaContent = content.substring(startIdx, endIdx);
-		if (!schemaContent || schemaContent.trim() === '') {
+		let schemaContent = content.substring(startIdx, endIdx).trim();
+		if (!schemaContent || schemaContent === '') {
 			logger.warn('Could not extract schema content');
 			return null;
 		}
 
+		// If the extracted content is a variable name (like 'Clients'), we need to find its definition.
+		// In our compiled files, it's usually 'const Clients = { ... }; export default Clients;'
+		if (/^[a-zA-Z0-9_]+$/.test(schemaContent)) {
+			const varName = schemaContent;
+			const varMatch = content.match(new RegExp(`(?:const|let|var)\\s+${varName}\\s*=\s*`));
+			if (varMatch) {
+				const varStartIdx = varMatch.index! + varMatch[0].length;
+				let braceCount = 0;
+				let vEndIdx = varStartIdx;
+				for (let i = varStartIdx; i < content.length; i++) {
+					if (content[i] === '{') braceCount++;
+					if (content[i] === '}') {
+						braceCount--;
+						if (braceCount === 0) {
+							vEndIdx = i + 1;
+							break;
+						}
+					}
+				}
+				schemaContent = content.substring(varStartIdx, vEndIdx);
+			}
+		}
+
 		const widgetsMap = widgetRegistryService.getAllWidgets();
 		const widgetsObject = Object.fromEntries(widgetsMap.entries());
+
+		// CASE-INSENSITIVE PROXY: Ensure widgets.Seo, widgets.SEO, and widgets.seo all work
+		const caseInsensitiveWidgets = new Proxy(widgetsObject, {
+			get: (target, prop) => {
+				// Handle symbols (like those used by Svelte or test runners)
+				if (typeof prop !== 'string') {
+					// Use unknown as intermediate cast to satisfy TS strict checks for symbol-to-string conversion
+					return (target as any)[prop as unknown as string];
+				}
+				// Try exact match first (performance)
+				if (prop in target) {
+					return target[prop];
+				}
+				// Try case-insensitive match
+				const lowerProp = prop.toLowerCase();
+				const key = Object.keys(target).find((k) => k.toLowerCase() === lowerProp);
+				return key ? target[key] : undefined;
+			}
+		});
 
 		const moduleContent = `
 			return (function() {
@@ -163,17 +182,19 @@ export async function processModule(content: string): Promise<{ schema?: Schema 
 		`;
 
 		// Race condition safety: Only set/delete globalThis.widgets if it's not already populated
-		const alreadyPopulated = typeof globalThis !== 'undefined' && (globalThis as unknown as { widgets?: Record<string, unknown> }).widgets;
+		// We use the case-insensitive proxy here
+		const globalObj = globalThis as unknown as { widgets?: Record<string, unknown> };
+		const alreadyPopulated = typeof globalThis !== 'undefined' && globalObj.widgets;
 
 		if (!alreadyPopulated && typeof globalThis !== 'undefined') {
-			(globalThis as { widgets?: Record<string, unknown> }).widgets = widgetsObject;
+			globalObj.widgets = caseInsensitiveWidgets as unknown as Record<string, unknown>;
 		}
 
 		const moduleFunc = new Function(moduleContent);
 		const result = moduleFunc();
 
 		if (!alreadyPopulated && typeof globalThis !== 'undefined') {
-			(globalThis as { widgets?: Record<string, unknown> }).widgets = undefined;
+			globalObj.widgets = undefined;
 		}
 
 		if (result && typeof result === 'object' && 'fields' in result && '_id' in result) {

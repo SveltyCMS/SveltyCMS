@@ -118,10 +118,10 @@ export const POST: RequestHandler = apiHandler(async ({ request, locals }) => {
 	await auth.updateUserAttributes(targetUserId, { avatar: avatarUrl }, locals.tenantId);
 
 	// Invalidate any cached session data to reflect the change immediately.
-	const session_id = locals.session_id;
-	if (session_id) {
-		const user = await auth.validateSession(session_id);
-		await cacheService.set(session_id, { user, timestamp: Date.now() }, 3600);
+	const sessionId = locals.session_id;
+	if (sessionId) {
+		const user = await auth.validateSession(sessionId);
+		await cacheService.set(sessionId, { user, timestamp: Date.now() }, 3600);
 	}
 
 	// Invalidate cache for users list so UI updates

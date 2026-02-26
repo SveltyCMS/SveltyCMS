@@ -12,16 +12,16 @@
 
 <script lang="ts">
 	// Types
-	import type { Schema } from '@src/content/types';
 
+	import { Progress as ProgressBar } from '@skeletonlabs/skeleton-svelte';
+	import Input from '@src/components/system/inputs/Input.svelte';
+	import Toggles from '@src/components/system/inputs/Toggles.svelte';
+	import type { Schema } from '@src/content/types';
 	// Utils
 	import { getCollections } from '@utils/api-client';
 	import { logger } from '@utils/logger';
 	// Skeleton components
 	import { showToast } from '@utils/toast';
-	import { Progress as ProgressBar } from '@skeletonlabs/skeleton-svelte';
-	import Toggles from '@src/components/system/inputs/Toggles.svelte';
-	import Input from '@src/components/system/inputs/Input.svelte';
 
 	interface ExportOptions {
 		collections: string[];

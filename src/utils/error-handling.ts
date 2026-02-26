@@ -6,7 +6,7 @@
 
 import { type HttpError, isRedirect, json, type RequestEvent } from '@sveltejs/kit';
 import { logger } from '@utils/logger.server';
-import type { ValiError, GenericSchema } from 'valibot';
+import type { GenericSchema, ValiError } from 'valibot';
 import { dev } from '$app/environment';
 
 // --- Standardized Response Types ---

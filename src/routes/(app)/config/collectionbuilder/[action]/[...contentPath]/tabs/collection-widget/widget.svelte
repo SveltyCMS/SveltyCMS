@@ -4,7 +4,17 @@
 **The Widget component is used to display the widget form used in the CollectionWidget component**
 -->
 <script lang="ts">
+	import VerticalList from '@src/components/vertical-list.svelte';
+	import {
+		button_edit,
+		button_previous,
+		button_save,
+		collection_widgetfield_addFields,
+		collection_widgetfield_addrequired,
+		collection_widgetfield_drag
+	} from '@src/paraglide/messages';
 	import { collectionValue, setCollectionValue, setTargetWidget } from '@src/stores/collection-store.svelte';
+	import { tabSet } from '@src/stores/store.svelte.ts';
 	import { widgetFunctions } from '@src/stores/widget-store.svelte.ts';
 	// Skeleton
 	import { modalState } from '@utils/modal-state.svelte';
@@ -16,16 +26,6 @@
 	import { page } from '$app/state';
 	import ModalSelectWidget from './modal-select-widget.svelte';
 	import ModalWidgetForm from './modal-widget-form.svelte';
-	import VerticalList from '@src/components/vertical-list.svelte';
-	import { tabSet } from '@src/stores/store.svelte.ts';
-	import {
-		collection_widgetfield_drag,
-		button_edit,
-		collection_widgetfield_addFields,
-		collection_widgetfield_addrequired,
-		button_previous,
-		button_save
-	} from '@src/paraglide/messages';
 
 	interface Props {
 		'on:save'?: () => void;
@@ -165,13 +165,13 @@
 				return field;
 			}
 
-			const GuiFields = getGuiFields({ key: field.widget.Name }, guiSchema as any);
+			const GUI_FIELDS = getGuiFields({ key: field.widget.Name }, guiSchema as any);
 			for (const [property, value] of Object.entries(field)) {
 				if (typeof value !== 'object' && property !== 'id') {
-					GuiFields[property] = value;
+					GUI_FIELDS[property] = value;
 				}
 			}
-			field.widget.GuiFields = GuiFields;
+			field.widget.GuiFields = GUI_FIELDS;
 			return field;
 		});
 

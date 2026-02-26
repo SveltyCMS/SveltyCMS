@@ -5,8 +5,9 @@
 -->
 <script lang="ts">
 	// @ts-nocheck
-	import { Section, Text } from 'better-svelte-email';
+
 	import type { User } from '@src/databases/auth/types';
+	import { Section, Text } from 'better-svelte-email';
 
 	interface Props {
 		user: User;

@@ -3,12 +3,12 @@
  * @description Virtual folders module for PostgreSQL
  */
 
+import { isoDateStringToDate, nowISODateString } from '@src/utils/date-utils';
 import { eq } from 'drizzle-orm';
 import type { DatabaseId, DatabaseResult, SystemVirtualFolder } from '../../../db-interface';
 import type { AdapterCore } from '../../adapter/adapter-core';
 import * as schema from '../../schema';
 import * as utils from '../../utils';
-import { isoDateStringToDate, nowISODateString } from '@src/utils/date-utils';
 
 export class VirtualFoldersModule {
 	private readonly core: AdapterCore;

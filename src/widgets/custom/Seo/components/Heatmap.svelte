@@ -17,9 +17,9 @@
 -->
 
 <script lang="ts">
-	import { fade } from 'svelte/transition';
 	import { debounce } from '@utils/utils';
 	import { tick } from 'svelte';
+	import { fade } from 'svelte/transition';
 
 	interface HeatmapData {
 		heatmapData: Array<{ word: string; heatLevel: number; isKeyword: boolean }>;

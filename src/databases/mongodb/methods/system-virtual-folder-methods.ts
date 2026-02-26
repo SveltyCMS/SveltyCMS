@@ -15,10 +15,10 @@ import { createDatabaseError, generateId } from './mongodb-utils';
 export class MongoSystemVirtualFolderMethods {
 	async create(folder: Omit<SystemVirtualFolder, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<SystemVirtualFolder>> {
 		try {
-			const _id = generateId();
+			const ID = generateId();
 			const newFolder = new SystemVirtualFolderModel({
 				...folder,
-				_id
+				_id: ID
 			});
 			const savedFolder = await newFolder.save();
 			return { success: true, data: savedFolder.toObject() };

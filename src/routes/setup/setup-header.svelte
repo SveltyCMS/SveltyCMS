@@ -4,23 +4,20 @@
 Middle-ground height (h-[38px]), fixed dropdown borders, and right-aligned mobile menu.
 -->
 <script lang="ts">
-	import { getLanguageName } from '@utils/language-utils';
-
-	// Components
-	import SiteName from '@src/components/site-name.svelte';
-	import VersionCheck from '@src/components/version-check.svelte';
-	import ThemeToggle from '@src/components/theme-toggle.svelte';
-	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
-	import AccessibilityHelp from '@src/components/system/accessibility-help.svelte';
-
 	// Skeleton V4
 	import { Menu, Portal } from '@skeletonlabs/skeleton-svelte';
 
-	// Utils
-	import { modalState } from '@utils/modal-state.svelte';
-
+	// Components
+	import SiteName from '@src/components/site-name.svelte';
+	import AccessibilityHelp from '@src/components/system/accessibility-help.svelte';
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+	import ThemeToggle from '@src/components/theme-toggle.svelte';
+	import VersionCheck from '@src/components/version-check.svelte';
 	// Paraglide Messages
 	import { applayout_systemlanguage, setup_heading_subtitle, setup_search_placeholder } from '@src/paraglide/messages';
+	import { getLanguageName } from '@utils/language-utils';
+	// Utils
+	import { modalState } from '@utils/modal-state.svelte';
 
 	let { siteName, systemLanguages, currentLanguageTag, onselectLanguage = () => {} } = $props();
 
@@ -155,7 +152,7 @@ Middle-ground height (h-[38px]), fixed dropdown borders, and right-aligned mobil
 	</div>
 
 	<!-- Row 2: Description (Subtitle) -->
-	<div class="mt-4 border-t border-surface-100 pt-3 dark:border-surface-700">
+	<div class="mt-4 border-t border-surface-100 pt-3 dark:border-surface-50">
 		<p class="text-center text-xs leading-snug dark:text-white sm:text-base">{setup_heading_subtitle({ siteName: siteName || 'SveltyCMS' })}</p>
 	</div>
 </div>

@@ -24,7 +24,7 @@ export interface SystemSetting {
 	value: unknown;
 }
 
-const SystemSettingSchema = new Schema<SystemSetting>(
+const SYSTEM_SETTING_SCHEMA = new Schema<SystemSetting>(
 	{
 		_id: { type: String, required: true, default: () => generateId() }, // UUID primary key
 		key: { type: String, required: true, index: true, unique: true },
@@ -49,4 +49,4 @@ const SystemSettingSchema = new Schema<SystemSetting>(
 
 export const SystemSettingModel =
 	(mongoose.models?.SystemSetting as mongoose.Model<SystemSetting> | undefined) ||
-	mongoose.model<SystemSetting>('SystemSetting', SystemSettingSchema);
+	mongoose.model<SystemSetting>('SystemSetting', SYSTEM_SETTING_SCHEMA);

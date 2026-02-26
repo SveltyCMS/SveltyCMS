@@ -23,7 +23,14 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 -->
 
 <script lang="ts">
+	import PasswordStrength from '@src/components/password-strength.svelte';
+	import SiteName from '@src/components/site-name.svelte';
+	// Components
+	import FloatingPaths from '@src/components/system/floating-paths.svelte';
+	import SveltyCMSLogo from '@src/components/system/icons/svelty-cms-logo.svelte';
+	import SveltyCMSLogoFull from '@src/components/system/icons/svelty-cms-logo-full.svelte';
 	import FloatingInput from '@src/components/system/inputs/floating-input.svelte';
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	// ParaglideJS
 	import {
 		button_back,
@@ -43,12 +50,14 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 		twofa_error_invalid_code,
 		twofa_use_authenticator,
 		twofa_use_backup_code,
-		twofa_verifying,
 		twofa_verify_button,
 		twofa_verify_description,
-		twofa_verify_title
+		twofa_verify_title,
+		twofa_verifying
 	} from '@src/paraglide/messages';
+	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { globalLoadingStore, loadingOperations } from '@src/stores/loading-store.svelte.ts';
+	import { screen } from '@src/stores/screen-size-store.svelte';
 	// Skeleton
 	import { toaster } from '@src/stores/store.svelte.ts';
 	import { Form } from '@utils/form.svelte.ts';
@@ -59,18 +68,8 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 	// Stores
 	import { page } from '$app/state';
 	import type { PageData } from '../$types';
-	import { screen } from '@src/stores/screen-size-store.svelte';
-	import { publicEnv } from '@src/stores/global-settings.svelte';
-
-	// Components
-	import FloatingPaths from '@src/components/system/floating-paths.svelte';
-	import PasswordStrength from '@src/components/password-strength.svelte';
-	import SiteName from '@src/components/site-name.svelte';
-	import SveltyCMSLogo from '@src/components/system/icons/svelty-cms-logo.svelte';
-	import SveltyCMSLogoFull from '@src/components/system/icons/svelty-cms-logo-full.svelte';
-	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
-	import OauthLogin from './oauth-login.svelte';
 	import SigninIcon from './icons/signin-icon.svelte';
+	import OauthLogin from './oauth-login.svelte';
 
 	// Props
 	const {
@@ -104,7 +103,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 	const pageData = page.data as PageData;
 
 	// URL handling
-	const current_url = $state(browser ? window.location.href : '');
+	const currentUrl = $state(browser ? window.location.href : '');
 
 	// State for improved spinner control
 	let isSubmitting = $state(false);
@@ -423,8 +422,8 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 
 	// Side effect for URL token handling
 	$effect(() => {
-		if (browser && current_url.includes('/login') && current_url.includes('token')) {
-			const urlObj = new URL(current_url);
+		if (browser && currentUrl.includes('/login') && currentUrl.includes('token')) {
+			const urlObj = new URL(currentUrl);
 			const tokenParam = urlObj.searchParams.get('token') || '';
 			const emailParam = urlObj.searchParams.get('email') || '';
 			if (tokenParam && emailParam) {

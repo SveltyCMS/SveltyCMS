@@ -34,12 +34,11 @@ None (TreeView has its own keyboard navigation)
 <CollectionBuilder data={{ contentStructure, user, isAdmin }} />
 -->
 <script lang="ts">
-	import { collection_pagetitle, collection_addcategory, collection_add, button_save, collection_description } from '@src/paraglide/messages';
-	import PageTitle from '@src/components/page-title.svelte';
-	import TreeViewBoard from '@src/routes/(app)/config/collectionbuilder/nested-content/tree-view-board.svelte';
-
 	import type { ISODateString } from '@root/src/content/types';
 	import type { ContentNode, DatabaseId } from '@root/src/databases/db-interface';
+	import PageTitle from '@src/components/page-title.svelte';
+	import { button_save, collection_add, collection_addcategory, collection_description, collection_pagetitle } from '@src/paraglide/messages';
+	import TreeViewBoard from '@src/routes/(app)/config/collectionbuilder/nested-content/tree-view-board.svelte';
 	// Stores
 	import { setCollectionValue, setContentStructure, setMode } from '@src/stores/collection-store.svelte';
 	// Skeleton
@@ -54,6 +53,8 @@ None (TreeView has its own keyboard navigation)
 	// Removed axios import
 
 	import ModalCategory from './nested-content/modal-category.svelte';
+	import EmptyState from './nested-content/empty-state.svelte';
+	import { fade } from 'svelte/transition';
 
 	interface NodeOperation {
 		node: ContentNode;
@@ -275,47 +276,51 @@ None (TreeView has its own keyboard navigation)
 
 <PageTitle name={collection_pagetitle()} icon="fluent-mdl2:build-definition" showBackButton={true} backUrl="/config" />
 
-<div class="mb-4 flex flex-wrap gap-2 px-4">
-	<button onclick={() => modalAddCategory()} class="preset-filled-tertiary-500 btn flex items-center gap-1" disabled={isLoading}>
-		<iconify-icon icon="mdi:folder-plus" width="24"></iconify-icon>
-		<span class="hidden sm:inline">{collection_addcategory()}</span>
-	</button>
+{#if currentConfig.length > 0}
+	<div class="mb-4 flex flex-wrap gap-2 px-4" in:fade={{ duration: 300 }}>
+		<button onclick={() => modalAddCategory()} class="preset-filled-tertiary-500 btn flex items-center gap-1" disabled={isLoading}>
+			<iconify-icon icon="mdi:folder-plus" width="24"></iconify-icon>
+			<span class="hidden sm:inline">{collection_addcategory()}</span>
+		</button>
 
-	<button onclick={handleAddCollectionClick} class="preset-filled-surface-500 btn flex items-center gap-1 rounded" disabled={isLoading}>
-		<iconify-icon icon="ic:round-plus" width="24"></iconify-icon>
-		<span class="hidden sm:inline">{collection_add()}</span>
-	</button>
+		<button onclick={handleAddCollectionClick} class="preset-filled-surface-500 btn flex items-center gap-1 rounded" disabled={isLoading}>
+			<iconify-icon icon="ic:round-plus" width="24"></iconify-icon>
+			<span class="hidden sm:inline">{collection_add()}</span>
+		</button>
 
-	<button
-		onclick={handleSave}
-		class="preset-filled-primary-500 btn flex items-center gap-1"
-		disabled={isLoading || Object.keys(nodesToSave).length === 0}
-	>
-		{#if isLoading}
-			<iconify-icon icon="mdi:loading" width="24" class="animate-spin"></iconify-icon>
-		{:else}
-			<iconify-icon icon="mdi:content-save" width="24"></iconify-icon>
-		{/if}
-		<span>{button_save()}</span>
-	</button>
-</div>
-
-<div class="max-h-[calc(100vh-120px)] overflow-auto p-4">
-	<div class="mx-auto max-w-4xl">
-		<p class="mb-6 text-center text-surface-600-300 dark:text-primary-500">{collection_description()}</p>
-
-		<TreeViewBoard
-			contentNodes={currentConfig}
-			onNodeUpdate={handleNodeUpdate}
-			onEditCategory={modalAddCategory}
-			onDeleteNode={handleDeleteNode}
-			onDuplicateNode={handleDuplicateNode}
-		/>
-
-		{#if Object.keys(nodesToSave).length > 0}
-			<div class="mt-4 rounded-lg bg-warning-500/10 p-3 text-center text-sm text-warning-600">
-				You have unsaved organizational changes. Click <strong>Save</strong> to persist.
-			</div>
-		{/if}
+		<button
+			onclick={handleSave}
+			class="preset-filled-primary-500 btn flex items-center gap-1"
+			disabled={isLoading || Object.keys(nodesToSave).length === 0}
+		>
+			{#if isLoading}
+				<iconify-icon icon="mdi:loading" width="24" class="animate-spin"></iconify-icon>
+			{:else}
+				<iconify-icon icon="mdi:content-save" width="24"></iconify-icon>
+			{/if}
+			<span>{button_save()}</span>
+		</button>
 	</div>
-</div>
+
+	<div class="max-h-[calc(100vh-120px)] overflow-auto p-4">
+		<div class="mx-auto max-w-4xl">
+			<p class="mb-6 text-center text-surface-600-300 dark:text-primary-500">{collection_description()}</p>
+
+			<TreeViewBoard
+				contentNodes={currentConfig}
+				onNodeUpdate={handleNodeUpdate}
+				onEditCategory={modalAddCategory}
+				onDeleteNode={handleDeleteNode}
+				onDuplicateNode={handleDuplicateNode}
+			/>
+
+			{#if Object.keys(nodesToSave).length > 0}
+				<div class="mt-4 rounded-lg bg-warning-500/10 p-3 text-center text-sm text-warning-600">
+					You have unsaved organizational changes. Click <strong>Save</strong> to persist.
+				</div>
+			{/if}
+		</div>
+	</div>
+{:else}
+	<EmptyState onAddCollection={handleAddCollectionClick} />
+{/if}

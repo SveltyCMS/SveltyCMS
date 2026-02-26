@@ -22,6 +22,7 @@ import { DEFAULT_THEME } from '@src/databases/theme-manager';
 import { publicEnv } from '@src/stores/global-settings.svelte';
 import { error } from '@sveltejs/kit';
 import { logger } from '@utils/logger.server';
+import { getPrivateSetting } from '@src/services/settings-service';
 import type { LayoutServerLoad } from './$types';
 
 interface LayoutError {
@@ -88,11 +89,21 @@ export const load: LayoutServerLoad = async ({ locals, depends }) => {
 		// refreshUser is reasonably fast, so we can await it or stream it too
 		const freshUser = await refreshUser(sessionUser);
 
+		// Get total user count for smart UI logic (like hiding chat for single users)
+		const totalUsersResult = await auth?.getUserCount();
+		const totalUsers = typeof totalUsersResult === 'number' ? totalUsersResult : 1;
+
+		// Check if AI features are enabled for solo user assistant
+		const aiModelChat = await getPrivateSetting('AI_MODEL_CHAT');
+		const aiEnabled = !!(publicEnv.USE_AI_TAGGING || (aiModelChat && aiModelChat !== ''));
+
 		return {
 			theme: theme || DEFAULT_THEME,
 			// Streamed data (Promises)
 			contentStructure: contentPromise.then(([structure]) => structure),
 			user: freshUser,
+			totalUsers,
+			aiEnabled,
 			publicSettings: publicEnv, // Use the reactive store
 			cspNonce,
 			streamed: {}, // SvelteKit streaming marker

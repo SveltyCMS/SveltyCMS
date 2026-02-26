@@ -102,7 +102,7 @@ export class SessionAdapter {
 	// Validate token signature and claims
 	async validateToken(
 		token: string,
-		user_id?: string,
+		userId?: string,
 		_type?: string,
 		tenantId?: string
 	): Promise<DatabaseResult<{ success: boolean; message: string; email?: string }>> {
@@ -125,7 +125,7 @@ export class SessionAdapter {
 			}
 
 			// Additional validation if user_id is provided
-			if (user_id && session.user_id !== user_id) {
+			if (userId && session.user_id !== userId) {
 				return {
 					success: true,
 					data: { success: false, message: 'Session does not match user' }
@@ -337,21 +337,21 @@ export class SessionAdapter {
 	}
 
 	// Update the expiry of an existing session
-	async updateSessionExpiry(session_id: string, newExpiry: Date): Promise<DatabaseResult<Session>> {
+	async updateSessionExpiry(sessionId: string, newExpiry: Date): Promise<DatabaseResult<Session>> {
 		try {
-			const session = await this.SessionModel.findByIdAndUpdate(session_id, { expires: newExpiry }, { returnDocument: 'after' }).lean();
+			const session = await this.SessionModel.findByIdAndUpdate(sessionId, { expires: newExpiry }, { returnDocument: 'after' }).lean();
 			if (!session) {
 				return {
 					success: false,
-					message: `Session not found: ${session_id}`,
+					message: `Session not found: ${sessionId}`,
 					error: {
 						code: 'SESSION_NOT_FOUND',
-						message: `Session not found: ${session_id}`,
+						message: `Session not found: ${sessionId}`,
 						statusCode: 404
 					}
 				};
 			}
-			logger.debug('Session expiry updated', { session_id });
+			logger.debug('Session expiry updated', { session_id: sessionId });
 			return {
 				success: true,
 				data: this.formatSession(session as unknown as Parameters<SessionAdapter['formatSession']>[0])
@@ -371,10 +371,10 @@ export class SessionAdapter {
 	}
 
 	// Delete a session
-	async deleteSession(session_id: string): Promise<DatabaseResult<void>> {
+	async deleteSession(sessionId: string): Promise<DatabaseResult<void>> {
 		try {
-			await this.SessionModel.findByIdAndDelete(session_id);
-			logger.info(`Session deleted: ${session_id}`);
+			await this.SessionModel.findByIdAndDelete(sessionId);
+			logger.info(`Session deleted: ${sessionId}`);
 			return {
 				success: true,
 				data: undefined
@@ -425,18 +425,18 @@ export class SessionAdapter {
 	}
 
 	// Validate a session (optimized with MongoDB $lookup aggregation)
-	async validateSession(session_id: string): Promise<DatabaseResult<User | null>> {
+	async validateSession(sessionId: string): Promise<DatabaseResult<User | null>> {
 		try {
 			// UUID validation (UUIDs are strings, not ObjectIds)
-			if (!session_id || typeof session_id !== 'string' || session_id.length < 32) {
-				logger.warn('Invalid session ID format', { session_id });
+			if (!sessionId || typeof sessionId !== 'string' || sessionId.length < 32) {
+				logger.warn('Invalid session ID format', { session_id: sessionId });
 				return { success: true, data: null };
 			}
 
 			// DEBUG: Check if session exists in database
-			const sessionExists = await this.SessionModel.findById(session_id).lean();
+			const sessionExists = await this.SessionModel.findById(sessionId).lean();
 			logger.debug('Session lookup', {
-				session_id,
+				session_id: sessionId,
 				exists: !!sessionExists,
 				expires: sessionExists?.expires,
 				expired: sessionExists ? new Date(sessionExists.expires) <= new Date() : null
@@ -446,7 +446,7 @@ export class SessionAdapter {
 			// This replaces multiple sequential database calls with one optimized query
 			const results = await this.SessionModel.aggregate([
 				// Stage 1: Find the session by its ID (UUID string)
-				{ $match: { _id: session_id } },
+				{ $match: { _id: sessionId } },
 				// Stage 2: Check for expiration
 				{ $match: { expires: { $gt: new Date() } } },
 				// Stage 3: "Join" with the auth_users collection
@@ -488,7 +488,7 @@ export class SessionAdapter {
 			]);
 
 			logger.debug('Aggregation results', {
-				session_id,
+				session_id: sessionId,
 				resultsCount: results.length,
 				hasUser: results.length > 0 && !!results[0]
 			});
@@ -498,7 +498,7 @@ export class SessionAdapter {
 
 				// Log rotation status if applicable
 				if (user._sessionRotated && user._sessionRotatedTo) {
-					logger.debug(`Session ${session_id} was rotated to ${user._sessionRotatedTo}, but still valid during grace period`);
+					logger.debug(`Session ${sessionId} was rotated to ${user._sessionRotatedTo}, but still valid during grace period`);
 				}
 
 				// Remove session metadata from user object
@@ -513,14 +513,14 @@ export class SessionAdapter {
 					user.permissions = user.permissions.map((p: unknown) => String(p));
 				}
 
-				logger.debug('Session validated', { session_id });
+				logger.debug('Session validated', { session_id: sessionId });
 				return { success: true, data: user as User };
 			}
 
 			// If no results, the session is invalid, expired, or the user doesn't exist
 			// Clean up the potentially invalid session
-			await this.SessionModel.findByIdAndDelete(session_id);
-			logger.warn('Session invalid or expired', { session_id });
+			await this.SessionModel.findByIdAndDelete(sessionId);
+			logger.warn('Session invalid or expired', { session_id: sessionId });
 			return { success: true, data: null };
 		} catch (err) {
 			const message = `Error in SessionAdapter.validateSession: ${err instanceof Error ? err.message : String(err)}`;
@@ -534,11 +534,11 @@ export class SessionAdapter {
 	}
 
 	// Invalidate all sessions for a user (enhanced to handle rotated sessions)
-	async invalidateAllUserSessions(user_id: string, tenantId?: string): Promise<DatabaseResult<void>> {
+	async invalidateAllUserSessions(userId: string, tenantId?: string): Promise<DatabaseResult<void>> {
 		try {
 			const now = new Date();
 			const filter: Record<string, unknown> = {
-				user_id,
+				user_id: userId,
 				expires: { $gt: now.toISOString() }, // Only delete active (non-expired) sessions
 				$or: [
 					{ rotated: { $ne: true } }, // Delete non-rotated sessions
@@ -555,7 +555,7 @@ export class SessionAdapter {
 
 			const result = await this.SessionModel.deleteMany(filter);
 			logger.debug(
-				`InvalidateAllUserSessions: Attempted to delete sessions for user_id=${user_id} at ${now.toISOString()}. Deleted count: ${result.deletedCount}`
+				`InvalidateAllUserSessions: Attempted to delete sessions for user_id=${userId} at ${now.toISOString()}. Deleted count: ${result.deletedCount}`
 			);
 			return { success: true, data: undefined };
 		} catch (err) {
@@ -570,10 +570,10 @@ export class SessionAdapter {
 	}
 
 	// Get active sessions for a user (enhanced to show rotation status)
-	async getActiveSessions(user_id: string, tenantId?: string): Promise<DatabaseResult<Session[]>> {
+	async getActiveSessions(userId: string, tenantId?: string): Promise<DatabaseResult<Session[]>> {
 		try {
 			const filter: Record<string, unknown> = {
-				user_id,
+				user_id: userId,
 				expires: { $gt: new Date().toISOString() }
 			};
 
@@ -583,7 +583,7 @@ export class SessionAdapter {
 
 			const sessions = await this.SessionModel.find(filter).lean();
 			logger.debug('Active sessions retrieved for user', {
-				user_id,
+				user_id: userId,
 				count: sessions.length
 			});
 			return {
@@ -634,16 +634,16 @@ export class SessionAdapter {
 	}
 
 	// Get session token metadata including expiration (enhanced to handle rotated sessions)
-	async getSessionTokenData(session_id: string): Promise<DatabaseResult<{ expiresAt: ISODateString; user_id: string } | null>> {
+	async getSessionTokenData(sessionId: string): Promise<DatabaseResult<{ expiresAt: ISODateString; user_id: string } | null>> {
 		try {
-			const session = await this.SessionModel.findById(session_id).lean();
+			const session = await this.SessionModel.findById(sessionId).lean();
 			if (!session) {
 				return { success: true, data: null };
 			}
 
 			// Check if token is expired
 			if (new Date(session.expires) <= new Date()) {
-				await this.SessionModel.findByIdAndDelete(session_id);
+				await this.SessionModel.findByIdAndDelete(sessionId);
 				return { success: true, data: null };
 			}
 

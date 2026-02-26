@@ -43,7 +43,7 @@ export const setPrivateEnv = setPrivateEnvFromState;
 // Function to reset initialization state for self-healing (retries)
 export function resetDbInitPromise() {
 	logger.warn('Resetting DB initialization promise for retry...');
-	_dbInitPromise = null;
+	DB_INIT_PROMISE = null;
 	initializationPromise = null;
 	adaptersLoaded = false;
 	isInitialized = false;
@@ -56,11 +56,11 @@ import { Auth } from '@src/databases/auth';
 import { getDefaultSessionStore } from '@src/databases/auth/session-manager';
 // Settings loader
 import { privateConfigSchema, publicConfigSchema } from '@src/databases/schemas';
-import { getPublicSetting, invalidateSettingsCache, setSettingsCache, type PublicEnv } from '@src/services/settings-service';
+import { getPublicSetting, invalidateSettingsCache, type PublicEnv, setSettingsCache } from '@src/services/settings-service';
 import type { InferOutput } from 'valibot';
+import type { DatabaseResilience } from './database-resilience';
 // Adapters Interfaces
 import type { DatabaseAdapter } from './db-interface';
-import type { DatabaseResilience } from './database-resilience';
 
 // Type definition for private config schema
 
@@ -90,12 +90,12 @@ let initializationPromise: Promise<void> | null = null; // Initialization promis
 // }
 
 // Create a proper Promise for lazy initialization
-let _dbInitPromise: Promise<void> | null = null;
+let DB_INIT_PROMISE: Promise<void> | null = null;
 export function getDbInitPromise(forceInit = false): Promise<void> {
-	if (!_dbInitPromise || forceInit) {
-		_dbInitPromise = initializeOnRequest(forceInit);
+	if (!DB_INIT_PROMISE || forceInit) {
+		DB_INIT_PROMISE = initializeOnRequest(forceInit);
 	}
-	return _dbInitPromise;
+	return DB_INIT_PROMISE;
 }
 // Export a real Promise that will be initialized on first access
 export const dbInitPromise = getDbInitPromise();
@@ -144,11 +144,11 @@ if (KNOWN_PUBLIC_KEYS.length === 0 || KNOWN_PRIVATE_KEYS.length === 0) {
 const CRITICAL_SETTINGS = ['MEDIA_FOLDER', 'MULTI_TENANT', 'DEFAULT_LANGUAGE'];
 
 // --- Resilience Utility (Singleton) ---
-let _resilienceInstance: DatabaseResilience | null = null;
+let RESILIENCE_INSTANCE: DatabaseResilience | null = null;
 async function getResilience() {
-	if (!_resilienceInstance) {
+	if (!RESILIENCE_INSTANCE) {
 		const { getDatabaseResilience } = await import('./database-resilience');
-		_resilienceInstance = getDatabaseResilience({
+		RESILIENCE_INSTANCE = getDatabaseResilience({
 			maxAttempts: 3,
 			initialDelayMs: 500,
 			backoffMultiplier: 2,
@@ -156,7 +156,7 @@ async function getResilience() {
 			jitterMs: 200
 		});
 	}
-	return _resilienceInstance;
+	return RESILIENCE_INSTANCE;
 }
 
 export async function loadSettingsFromDB(criticalOnly = false): Promise<boolean> {
@@ -742,7 +742,7 @@ export function initializeOnRequest(forceInit = false): Promise<void> {
 				logger.error(`Initialization failed: ${err instanceof Error ? err.message : String(err)}`);
 				logger.error('Clearing initialization promise to allow retry');
 				initializationPromise = null;
-				_dbInitPromise = null;
+				DB_INIT_PROMISE = null;
 			});
 		}
 	} else if (!initializationPromise) {

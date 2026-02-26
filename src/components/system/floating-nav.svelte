@@ -13,19 +13,19 @@
 
 <script lang="ts">
 	import { fade } from 'svelte/transition';
-	type _any = any;
 
+	type Any = any;
+
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	// Auth
 	import type { User } from '@src/databases/auth/types';
 	// Stores
 	import { setMode } from '@src/stores/collection-store.svelte';
 	import { ui } from '@src/stores/ui-store.svelte';
 	import { motion } from '@src/utils/utils';
-
 	import { logger } from '@utils/logger';
 	// Modals/Tooltips
 	import { modalState } from '@utils/modal-state.svelte';
-	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import { onDestroy, onMount, tick } from 'svelte';
 	import { linear } from 'svelte/easing';
 	import { browser } from '$app/environment';
@@ -384,7 +384,7 @@
 
 	function setDash(node: SVGSVGElement): void {
 		let first = true;
-		for (const LINE_ELEMENT of node.children as _any) {
+		for (const LINE_ELEMENT of node.children as Any) {
 			const EL = LINE_ELEMENT as SVGLineElement;
 			const TOTAL_LENGTH = EL.getTotalLength().toString();
 			EL.style.strokeDasharray = TOTAL_LENGTH;
@@ -403,7 +403,7 @@
 		}
 
 		let first = true;
-		for (const LINE_ELEMENT of svg.children as _any) {
+		for (const LINE_ELEMENT of svg.children as Any) {
 			const EL = LINE_ELEMENT as SVGLineElement;
 			EL.style.transition = first ? 'stroke-dashoffset 0.2s 0.2s' : 'stroke-dashoffset 0.2s';
 			const TOTAL_LENGTH = EL.getTotalLength().toString();

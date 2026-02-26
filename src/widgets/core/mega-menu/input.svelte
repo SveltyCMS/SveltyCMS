@@ -36,9 +36,11 @@ Interactive menu builder with add/edit/reorder capabilities
 
 <script lang="ts">
 	import { app } from '@src/stores/store.svelte';
-	import MegaMenuInput from './input.svelte';
 	import { showModal } from '@utils/modal-utils';
 	import type { FieldType } from './';
+	// biome-ignore lint/correctness/noUnusedImports: used for recursive rendering in template
+	import MegaMenuInput from './input.svelte';
+	import MenuItemEditorModal from './menu-item-editor-modal.svelte';
 	import type { MenuEditContext, MenuItem } from './types';
 
 	let {
@@ -65,7 +67,9 @@ Interactive menu builder with add/edit/reorder capabilities
 		value = [
 			...(value || []),
 			{
+				// biome-ignore lint/style/useNamingConvention: system standard
 				_id: crypto.randomUUID(),
+				// biome-ignore lint/style/useNamingConvention: system standard
 				_fields: {},
 				children: []
 			}
@@ -163,7 +167,7 @@ Interactive menu builder with add/edit/reorder capabilities
 		};
 
 		showModal({
-			component: 'menuItemEditorModal',
+			component: MenuItemEditorModal,
 			meta: modalContext
 		});
 	}
@@ -185,7 +189,9 @@ Interactive menu builder with add/edit/reorder capabilities
 	// Function to add child item
 	function addChildItem(parentItem: MenuItem) {
 		const newChild: MenuItem = {
+			// biome-ignore lint/style/useNamingConvention: system standard
 			_id: crypto.randomUUID(),
+			// biome-ignore lint/style/useNamingConvention: system standard
 			_fields: {},
 			children: []
 		};

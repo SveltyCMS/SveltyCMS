@@ -140,7 +140,7 @@ export function initializeDarkMode(initialPreference?: ThemePreference) {
 
 	// 5. Save preference if not set
 	if (!cookieValue) {
-		_setCookie(preference);
+		setCookie(preference);
 		logger.debug('[Theme Init] Set cookie to default dark mode:', preference);
 	}
 
@@ -152,11 +152,11 @@ export function initializeDarkMode(initialPreference?: ThemePreference) {
 	}
 
 	// 7. Listen for system preference changes (only if using 'system' preference)
-	_setupSystemListener();
+	setupSystemListener();
 } /**
  * Apply dark mode state to DOM
  */
-function _applyThemeToDOM(isDark: boolean) {
+function applyThemeToDom(isDark: boolean) {
 	if (!browser) {
 		return;
 	}
@@ -182,7 +182,7 @@ function _applyThemeToDOM(isDark: boolean) {
 /**
  * Set the theme cookie
  */
-function _setCookie(preference: ThemePreference) {
+function setCookie(preference: ThemePreference) {
 	if (!browser) {
 		return;
 	}
@@ -197,7 +197,7 @@ function _setCookie(preference: ThemePreference) {
 /**
  * Setup listener for system preference changes
  */
-function _setupSystemListener() {
+function setupSystemListener() {
 	if (!browser) {
 		return;
 	}
@@ -214,7 +214,7 @@ function _setupSystemListener() {
 		if (state.themePreference === 'system') {
 			logger.debug('[Theme] System preference changed to:', e.matches ? 'dark' : 'light');
 			state.resolvedDarkMode = e.matches;
-			_applyThemeToDOM(e.matches);
+			applyThemeToDom(e.matches);
 		}
 	};
 
@@ -241,13 +241,13 @@ export function setThemePreference(preference: ThemePreference) {
 	state.resolvedDarkMode = resolveDarkMode(preference);
 
 	// Apply to DOM
-	_applyThemeToDOM(state.resolvedDarkMode);
+	applyThemeToDom(state.resolvedDarkMode);
 
 	// Save to cookie
-	_setCookie(preference);
+	setCookie(preference);
 
 	// Re-setup system listener (in case preference changed to/from 'system')
-	_setupSystemListener();
+	setupSystemListener();
 }
 
 /**

@@ -1,9 +1,9 @@
 ﻿<!-- @file src/components/system/toast-manager.svelte @description Enterprise-ready toast notification manager features: [type-based gradient styling, auto-dismiss with progress bar, optional actions, configurable positioning, ARIA compliance, smooth transitions] -->
 
 <script lang="ts">
-	import { fade, fly } from 'svelte/transition';
 	import { toaster } from '@src/stores/store.svelte.ts';
-	import DOMPurify from 'isomorphic-dompurify';
+	import { sanitize } from 'isomorphic-dompurify';
+	import { fade, fly } from 'svelte/transition';
 
 	interface Props {
 		/** Position of the toast container */
@@ -127,7 +127,7 @@
 						class="text-sm md:text-base font-bold opacity-100 leading-tight md:leading-relaxed text-white drop-shadow-sm inline-block max-w-full whitespace-normal"
 					>
 						<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-						{@html DOMPurify.sanitize(toast.description)}
+						{@html sanitize(toast.description)}
 					</div>
 
 					{#if toast.action}
@@ -145,8 +145,9 @@
 				<!-- Row 3: Timer / Progress Bar -->
 				{#if showProgress}
 					{@const duration = toast.duration || 5000}
+					{@const elapsed = toast.createdAt ? Date.now() - toast.createdAt : 0}
 					<div class="absolute bottom-0 left-0 h-1.5 w-full bg-black/10 overflow-hidden">
-						<div class="h-full bg-white/40 animate-shrink" style="animation-duration: {duration}ms;"></div>
+						<div class="h-full bg-white/40 animate-shrink" style="animation-duration: {duration}ms; animation-delay: -{elapsed}ms;"></div>
 					</div>
 				{/if}
 			</div>

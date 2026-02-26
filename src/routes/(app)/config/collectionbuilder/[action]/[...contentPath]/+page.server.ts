@@ -363,10 +363,10 @@ async function goThrough(object: FieldsData, fields: string): Promise<string> {
 					continue;
 				}
 
-				for (const _import of widgetImport) {
+				for (const IMPORT of widgetImport) {
 					const importValue = fieldWithWidget[importKey];
 					const replacement = (typeof importValue === 'string' ? importValue : '').replace(/🗑️/g, '').trim();
-					imports.add(_import.replace(`{${importKey}}`, replacement));
+					imports.add(IMPORT.replace(`{${importKey}}`, replacement));
 				}
 			}
 

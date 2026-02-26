@@ -256,7 +256,7 @@ export const widgetProxy = new Proxy(registry, {
  * Type-safe widget accessor with autocomplete
  */
 export interface Widgets {
-	[K: string]: WidgetFactory;
+	[k: string]: WidgetFactory;
 }
 
 // Export with type information

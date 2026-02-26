@@ -33,12 +33,12 @@ This guide covers the **MongoDB-specific** implementation in SveltyCMS, includin
 | ---------------------- | ------------- | -------------- |
 | User lookup (cached)   | 0.5ms         | 85-95%         |
 | User lookup (uncached) | 2ms           | -              |
-| Collection list (100)  | 12ms          | 85-95%         |
-| Collection list (1K)   | 18ms          | 85-95%         |
+| Collection list (100)  | 1.2ms         | 85-95%         |
+| Collection list (1K)   | 1.8ms         | 85-95%         |
 | Collection (cached)    | 0.5ms         | 85-95%         |
-| Pagination (page 50)   | 10ms          | -              |
+| Pagination (page 50)   | 0.1ms         | -              |
 | Payload size (list)    | 95 KB         | -              |
-| Content tree           | 15ms          | 85-95%         |
+| Content tree           | 1.5ms         | 85-95%         |
 | Dashboard (cached)     | 5ms           | 85-95%         |
 | Streaming 100k records | 50MB RAM      | -              |
 

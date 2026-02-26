@@ -12,23 +12,18 @@
 
 <script lang="ts">
 	// Paraglide Messages
-	import { button_delete, button_cancel, button_save } from '@src/paraglide/messages';
 
 	import PageTitle from '@src/components/page-title.svelte';
-	import CollectionForm from './tabs/collection-form.svelte';
-	import CollectionWidgetOptimized from './tabs/collection-widget-optimized.svelte';
-	import ModalSchemaWarning from '@src/routes/(app)/config/collectionbuilder/modal-schema-warning.svelte';
-
 	// Types
 	import type { FieldInstance, Schema } from '@src/content/types';
 	import type { User } from '@src/databases/auth/types';
-
+	import { button_cancel, button_delete, button_save } from '@src/paraglide/messages';
+	import ModalSchemaWarning from '@src/routes/(app)/config/collectionbuilder/modal-schema-warning.svelte';
 	// Stores
 	import { collection, setCollection } from '@src/stores/collection-store.svelte';
 	import { toaster, validationStore } from '@src/stores/store.svelte';
 	import { setRouteContext } from '@src/stores/ui-store.svelte.ts';
 	import { widgetStoreActions } from '@src/stores/widget-store.svelte.ts';
-
 	// Utils
 	import { logger } from '@utils/logger';
 	import { showConfirm } from '@utils/modal-utils';
@@ -36,6 +31,8 @@
 	import { onMount } from 'svelte';
 	import { afterNavigate, goto } from '$app/navigation';
 	import { page } from '$app/state';
+	import CollectionForm from './tabs/collection-form.svelte';
+	import CollectionWidgetOptimized from './tabs/collection-widget-optimized.svelte';
 
 	// Reactive: re-evaluates when URL params change during client-side navigation
 	const action = $derived(page.params.action);

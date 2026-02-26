@@ -60,9 +60,9 @@ Permission-based access control component with advanced features and security.
 -->
 
 <script lang="ts">
-	import { fade } from 'svelte/transition';
 	import type { PermissionConfig } from '@src/databases/auth/permissions';
 	import type { Snippet } from 'svelte';
+	import { fade } from 'svelte/transition';
 	import { page } from '$app/state';
 
 	interface ErrorMessages {

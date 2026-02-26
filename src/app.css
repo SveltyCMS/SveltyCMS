@@ -11,6 +11,7 @@
 @import '@skeletonlabs/skeleton-svelte';
 
 /* Tailwind v4: Enable class-based dark mode with .dark class on <html> */
+/* biome-ignore lint/nursery/noUnknownAtRule: Tailwind v4 custom variant */
 @custom-variant dark (&:where(.dark, .dark *));
 
 /* =~= SveltyCMS Theme (Skeleton v4 format) =~= */
@@ -398,10 +399,33 @@
 /* Global Accessibility Enhancements         */
 /* ========================================= */
 
-/* Global Focus Ring for Keyboard Navigation */
-:focus-visible {
-	outline: 2px solid var(--color-primary-500);
+/* Global Focus Ring for Keyboard Navigation (excluding form controls) */
+:focus-visible:not(input, textarea, select) {
+	outline: 2px solid var(--color-tertiary-500);
 	outline-offset: 2px;
+}
+:where(.dark) :focus-visible:not(input, textarea, select) {
+	outline-color: var(--color-primary-500);
+}
+
+/* Specific Focus logic for Skeleton & Standard Inputs */
+.input:focus,
+input:focus,
+textarea:focus,
+select:focus {
+	/* Blue in Light mode */
+	box-shadow: 0 0 0 1px inset var(--color-tertiary-500) !important;
+	border-color: var(--color-tertiary-500) !important;
+	outline: none !important;
+}
+
+:where(.dark) .input:focus,
+:where(.dark) input:focus,
+:where(.dark) textarea:focus,
+:where(.dark) select:focus {
+	/* Green in Dark mode */
+	box-shadow: 0 0 0 1px inset var(--color-primary-500) !important;
+	border-color: var(--color-primary-500) !important;
 }
 
 /* Reduced Motion Preference */

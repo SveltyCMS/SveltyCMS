@@ -12,10 +12,10 @@ for the image editor canvas with reactive rendering.
 
 <script lang="ts">
 	import { imageEditorStore } from '@src/stores/image-editor-store.svelte';
-	import { Canvas, Layer } from 'svelte-canvas';
-	import { fade } from 'svelte/transition';
 	import type { Snippet } from 'svelte';
 	import { onMount } from 'svelte';
+	import { fade } from 'svelte/transition';
+	import { Canvas, Layer } from 'svelte-canvas';
 
 	// Props
 	let {

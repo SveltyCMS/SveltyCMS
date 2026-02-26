@@ -19,41 +19,20 @@
 -->
 
 <script lang="ts">
-	import type { ContentNode } from '@src/content/types'; // Import Schema type (collection definition)
-	import type { Locale } from '@src/paraglide/runtime';
-	import { locales as availableLocales, getLocale } from '@src/paraglide/runtime';
-	// Stores
-	import { contentStructure, setMode } from '@src/stores/collection-store.svelte';
-	import { globalLoadingStore, loadingOperations } from '@src/stores/loading-store.svelte';
-	import { avatarSrc, systemLanguage } from '@src/stores/store.svelte';
-	import { themeStore } from '@src/stores/theme-store.svelte';
-	import { toggleUIElement, uiStateManager, userPreferredState } from '@src/stores/ui-store.svelte';
-	import { publicEnv } from '@src/stores/global-settings.svelte';
-
-	// System Components
-	import Slot from '@src/components/system/Slot.svelte';
-
-	import { getLanguageName } from '@utils/language-utils';
-	import { logger } from '@utils/logger';
-	// Removed axios import
-	import { browser } from '$app/environment';
-	import { goto } from '$app/navigation';
-	// Import necessary utilities and types
-	import { page } from '$app/state';
-
 	// Skeleton V4
 	import { Avatar, Menu, Portal } from '@skeletonlabs/skeleton-svelte';
-
+	import Collections from '@src/components/collections.svelte';
+	import MediaFolders from '@src/components/media-folders.svelte';
+	import SettingsMenu from '@src/components/settings-menu.svelte';
+	import SiteName from '@src/components/site-name.svelte';
 	// Components
 	import SveltyCMSLogo from '@src/components/system/icons/svelty-cms-logo.svelte';
-	import SiteName from '@src/components/site-name.svelte';
+	// System Components
+	import Slot from '@src/components/system/Slot.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import ThemeToggle from '@src/components/theme-toggle.svelte';
 	import VersionCheck from '@src/components/version-check.svelte';
-	import SettingsMenu from '@src/components/settings-menu.svelte';
-	import MediaFolders from '@src/components/media-folders.svelte';
-	import Collections from '@src/components/collections.svelte';
-
+	import type { ContentNode } from '@src/content/types'; // Import Schema type (collection definition)
 	// Paraglide Messages
 	import {
 		applayout_githubdiscussion,
@@ -62,9 +41,25 @@
 		applayout_systemlanguage,
 		applayout_userprofile,
 		button_Collections,
-		collections_media,
-		Collections_MediaGallery
+		Collections_MediaGallery,
+		collections_media
 	} from '@src/paraglide/messages';
+	import type { Locale } from '@src/paraglide/runtime';
+	import { locales as availableLocales, getLocale } from '@src/paraglide/runtime';
+	// Stores
+	import { contentStructure, setMode } from '@src/stores/collection-store.svelte';
+	import { publicEnv } from '@src/stores/global-settings.svelte';
+	import { globalLoadingStore, loadingOperations } from '@src/stores/loading-store.svelte';
+	import { avatarSrc, systemLanguage } from '@src/stores/store.svelte';
+	import { themeStore } from '@src/stores/theme-store.svelte';
+	import { toggleUIElement, uiStateManager, userPreferredState } from '@src/stores/ui-store.svelte';
+	import { getLanguageName } from '@utils/language-utils';
+	import { logger } from '@utils/logger';
+	// Removed axios import
+	import { browser } from '$app/environment';
+	import { goto } from '$app/navigation';
+	// Import necessary utilities and types
+	import { page } from '$app/state';
 
 	// Constants
 	const MOBILE_BREAKPOINT = 768;

@@ -7,18 +7,22 @@ Provides a persistent, draggable UI element that opens the ActivityStream panel.
 -->
 
 <script lang="ts">
-	import { fade, scale } from 'svelte/transition';
-	import ActivityStream from './activity-stream.svelte';
 	import { collaboration } from '@src/stores/collaboration-store.svelte';
 	import { screen } from '@src/stores/screen-size-store.svelte';
 	import { ui } from '@src/stores/ui-store.svelte';
 	import { onMount } from 'svelte';
+	import { fade, scale } from 'svelte/transition';
 	import { browser } from '$app/environment';
 	import { page } from '$app/state';
+	import ActivityStream from './activity-stream.svelte';
 
 	// --- Derived ---
 	const user = $derived(page.data.user);
+	const totalUsers = $derived(page.data.totalUsers ?? 1);
+	const aiEnabled = $derived(page.data.aiEnabled ?? false);
 	const isRtcEnabled = $derived(user?.preferences?.rtc?.enabled ?? true);
+	// Show chat if RTC is enabled AND (either multiple users OR AI is available)
+	const shouldShowChat = $derived(isRtcEnabled && (totalUsers > 1 || aiEnabled));
 	const isOpen = $derived(ui.state.chatPanel !== 'hidden');
 
 	// Constants for desktop layout
@@ -28,17 +32,22 @@ Provides a persistent, draggable UI element that opens the ActivityStream panel.
 
 	// Calculate expansion direction and height constraints
 	const layoutInfo = $derived.by(() => {
-		if (!browser) return { expandUp: true, maxHeight: DESKTOP_PANEL_HEIGHT };
+		if (!browser) return { expandUp: true, expandLeft: true, maxHeight: DESKTOP_PANEL_HEIGHT };
 
 		const spaceAbove = pos.y - EDGE_MARGIN;
 		const spaceBelow = window.innerHeight - (pos.y + BUTTON_RADIUS * 2 + EDGE_MARGIN);
+		const spaceLeft = pos.x - EDGE_MARGIN;
+		const spaceRight = window.innerWidth - (pos.x + BUTTON_RADIUS * 2 + EDGE_MARGIN);
 
 		// Prefer expanding UP if there's more space or if it fits better
 		const expandUp = spaceAbove >= spaceBelow || spaceBelow < DESKTOP_PANEL_HEIGHT;
-		const availableSpace = expandUp ? spaceAbove : spaceBelow;
-		const maxHeight = Math.min(DESKTOP_PANEL_HEIGHT, availableSpace - GAP);
+		// Prefer expanding LEFT if there's more space on the left
+		const expandLeft = spaceLeft >= spaceRight || spaceRight < DESKTOP_PANEL_WIDTH;
 
-		return { expandUp, maxHeight };
+		const availableHeight = expandUp ? spaceAbove : spaceBelow;
+		const maxHeight = Math.min(DESKTOP_PANEL_HEIGHT, availableHeight - GAP);
+
+		return { expandUp, expandLeft, maxHeight };
 	});
 
 	// --- Constants ---
@@ -144,29 +153,27 @@ Provides a persistent, draggable UI element that opens the ActivityStream panel.
 	// Handle mobile layout: center the panel if screen is small
 	const panelStyle = $derived.by(() => {
 		if (screen.isMobile) {
-			return `position: fixed; bottom: 80px; left: 10px; right: 10px; width: calc(100% - 20px); max-height: 70vh;`;
+			return `position: fixed; bottom: 80px; left: 10px; right: 10px; width: calc(100% - 20px); height: 70vh;`;
 		}
 		// Desktop constraints
-		return `transform: translateY(${layoutInfo.expandUp ? '0' : '0'}); max-height: ${layoutInfo.maxHeight}px; width: ${DESKTOP_PANEL_WIDTH}px;`;
+		return `transform: translateY(${layoutInfo.expandUp ? '0' : '0'}); height: ${layoutInfo.maxHeight}px; width: ${DESKTOP_PANEL_WIDTH}px; flex-direction: column; display: flex;`;
 	});
 
 	// Calculate container position and layout
 	const containerStyle = $derived.by(() => {
 		if (screen.isMobile && isOpen) return '';
 
+		const commonStyle = `left: ${pos.x}px; width: ${BUTTON_RADIUS * 2}px; display: flex; align-items: ${layoutInfo.expandLeft ? 'flex-end' : 'flex-start'};`;
+
 		if (!screen.isMobile && isOpen && layoutInfo.expandUp) {
-			// If expanding UP, the container top needs to move up by the ActivityStream height + gap
-			// We can use flex-col-reverse and adjust the top
-			// Actually, if we use flex-col-reverse, the container's TOP is still the top of the whole block.
-			// To keep the button at pos.y, container top must be adjusted.
-			return `left: ${pos.x}px; bottom: ${window.innerHeight - (pos.y + BUTTON_RADIUS * 2)}px; display: flex; flex-direction: column-reverse;`;
+			return `${commonStyle} bottom: ${window.innerHeight - (pos.y + BUTTON_RADIUS * 2)}px; flex-direction: column-reverse;`;
 		}
 
-		return `left: ${pos.x}px; top: ${pos.y}px; display: flex; flex-direction: column;`;
+		return `${commonStyle} top: ${pos.y}px; flex-direction: column;`;
 	});
 </script>
 
-{#if isRtcEnabled}
+{#if shouldShowChat}
 	<!-- Panel Overlay (Mobile only) -->
 	{#if isOpen && screen.isMobile}
 		<div
@@ -180,25 +187,29 @@ Provides a persistent, draggable UI element that opens the ActivityStream panel.
 		></div>
 	{/if}
 
-	<div class="fixed z-9999999 items-end gap-4 transition-transform {isDragging ? '' : 'duration-300'}" style={containerStyle}>
+	<div class="fixed z-9999999 flex flex-col items-end gap-2 transition-transform {isDragging ? '' : 'duration-300'}" style={containerStyle}>
 		<!-- Activity Panel -->
 		{#if isOpen}
-			<div transition:scale={{ duration: 200, start: 0.9 }} class={screen.isMobile ? '' : 'origin-bottom-right mb-2'} style={panelStyle}>
-				<ActivityStream />
+			<div
+				transition:scale={{ duration: 200, start: 0.9 }}
+				class={screen.isMobile ? '' : `${layoutInfo.expandUp ? 'origin-bottom' : 'origin-top'}-${layoutInfo.expandLeft ? 'right' : 'left'} mb-2`}
+				style={panelStyle}
+			>
+				<ActivityStream ondrag={drag} />
 			</div>
 		{/if}
 
 		<!-- Draggable Button -->
-		{#if !(screen.isMobile && isOpen)}
+		{#if !isOpen}
 			<div
 				use:drag
 				role="button"
 				tabindex="0"
 				aria-label="Toggle Collaboration Chat"
-				class="relative flex items-center justify-center bg-primary-500 hover:bg-primary-600 text-white rounded-full shadow-lg cursor-grab active:cursor-grabbing transition-colors group"
+				class="relative flex items-center justify-center bg-primary-500 hover:bg-primary-600 text-white rounded-full shadow-lg cursor-grab active:cursor-grabbing transition-colors group border-2 border-white/20 dark:border-white/10"
 				style="width: {BUTTON_RADIUS * 2}px; height: {BUTTON_RADIUS * 2}px;"
 			>
-				<iconify-icon icon={isOpen ? 'mdi:close' : 'material-symbols:forum-outline'} width="32"></iconify-icon>
+				<iconify-icon icon="material-symbols:forum-outline" width="32"></iconify-icon>
 
 				<!-- Notification Badge -->
 				{#if !isOpen && collaboration.activities.length > 0}

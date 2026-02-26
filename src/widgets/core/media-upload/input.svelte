@@ -19,12 +19,12 @@
 -->
 
 <script lang="ts">
-	import { flip } from 'svelte/animate';
-	import { dndzone } from 'svelte-dnd-action';
 	import MediaLibraryModal from '@components/media-library-modal.svelte';
 	import { logger } from '@utils/logger';
 	import type { MediaBase, MediaImage } from '@utils/media/media-models';
 	import { modalState } from '@utils/modal-state.svelte';
+	import { flip } from 'svelte/animate';
+	import { dndzone } from 'svelte-dnd-action';
 	import { page } from '$app/state';
 	import type { FieldType } from './';
 	import type { MediaFile } from './types';

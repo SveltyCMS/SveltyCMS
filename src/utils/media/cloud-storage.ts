@@ -62,8 +62,8 @@ async function getS3Client(config: CloudStorageConfig) {
 
 	const { S3Client } = await import('@aws-sdk/client-s3');
 	const { NodeHttpHandler } = await import('@smithy/node-http-handler');
-	const { Agent: HttpsAgent } = await import('node:https');
-	const { Agent: HttpAgent } = await import('node:http');
+	const { Agent: HTTPS_AGENT } = await import('node:https');
+	const { Agent: HTTP_AGENT } = await import('node:http');
 
 	if (!(config.accessKeyId && config.secretAccessKey)) {
 		throw error(500, 'S3/R2 credentials missing');
@@ -77,12 +77,12 @@ async function getS3Client(config: CloudStorageConfig) {
 			secretAccessKey: config.secretAccessKey
 		},
 		requestHandler: new NodeHttpHandler({
-			httpsAgent: new HttpsAgent({
+			httpsAgent: new HTTPS_AGENT({
 				keepAlive: true,
 				timeout: 60_000,
 				maxSockets: 50
 			}),
-			httpAgent: new HttpAgent({
+			httpAgent: new HTTP_AGENT({
 				keepAlive: true,
 				timeout: 60_000,
 				maxSockets: 50

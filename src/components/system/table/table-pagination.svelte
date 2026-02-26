@@ -22,8 +22,8 @@
 -->
 
 <script lang="ts">
-	import { entrylist_page, entrylist_of, entrylist_showing, entrylist_items, entrylist_rows } from '@src/paraglide/messages';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+	import { entrylist_items, entrylist_of, entrylist_page, entrylist_rows, entrylist_showing } from '@src/paraglide/messages';
 
 	// Props with default values
 	let {

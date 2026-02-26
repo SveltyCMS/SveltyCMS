@@ -8,10 +8,24 @@ with the AI collaboration assistant.
 -->
 
 <script lang="ts">
-	import { slide } from 'svelte/transition';
 	import { collaboration } from '@src/stores/collaboration-store.svelte';
 	import { screen } from '@src/stores/screen-size-store.svelte';
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import { tick } from 'svelte';
+	import { slide } from 'svelte/transition';
+	import { page } from '$app/state';
+
+	let { ondrag } = $props();
+
+	const totalUsers = $derived(page.data.totalUsers ?? 1);
+	const chatLabel = $derived(totalUsers === 1 ? 'AI Assistant' : 'Chat');
+	const aiEmptyText = $derived(
+		totalUsers === 1
+			? 'Ask me anything about your project'
+			: collaboration.currentRoom
+				? 'Start collaborating with others'
+				: 'Ask me anything about your data'
+	);
 
 	let newMessage = $state('');
 	let scrollContainer: HTMLDivElement | undefined = $state(undefined);
@@ -60,18 +74,29 @@ with the AI collaboration assistant.
 </script>
 
 <div
-	class="flex flex-col bg-surface-100-800-token border border-surface-500/30 rounded-xl shadow-2xl overflow-hidden backdrop-blur-md transition-all"
-	style={screen.isMobile ? 'width: 100%; height: 100%;' : 'width: 350px; height: 100%; max-height: 100%;'}
+	class="flex flex-col bg-surface-100-800-token border border-surface-500/30 dark:border-white/10 rounded-xl shadow-2xl dark:shadow-primary-500/10 overflow-hidden backdrop-blur-md transition-all h-full"
+	style={screen.isMobile ? 'width: 100%;' : 'width: 350px;'}
 >
 	<!-- Header -->
-	<div class="flex items-center justify-between p-4 bg-surface-200-700-token border-b border-surface-500/30 shrink-0">
-		<h3 class="font-bold text-lg flex items-center gap-2">
+	<div
+		use:ondrag
+		class="flex items-center justify-between p-4 bg-surface-200-700-token border-b border-surface-500/30 dark:border-white/10 shrink-0 cursor-grab active:cursor-grabbing"
+	>
+		<h3 class="font-bold text-lg flex items-center gap-2 pointer-events-none select-none">
 			<iconify-icon icon="material-symbols:Forum-outline" width="24"></iconify-icon>
 			{collaboration.currentRoom ? 'Room Collaboration' : 'Collaboration'}
 		</h3>
-		<div class="flex items-center gap-1">
-			<span class="flex h-2 w-2 rounded-full {collaboration.isConnected ? 'bg-primary-500' : 'bg-error-500'} animate-pulse"></span>
-			<span class="text-xs opacity-70">{collaboration.isConnected ? 'Live' : 'Offline'}</span>
+		<div class="flex items-center gap-3">
+			<SystemTooltip title={collaboration.isConnected ? 'Connected to real-time events' : 'Real-time collaboration is offline (Reconnecting...)'}>
+				<div class="flex items-center gap-1 cursor-help">
+					<span class="flex h-2 w-2 rounded-full {collaboration.isConnected ? 'bg-primary-500' : 'bg-error-500'} animate-pulse"></span>
+					<span class="text-xs opacity-70">{collaboration.isConnected ? 'Live' : 'Offline'}</span>
+				</div>
+			</SystemTooltip>
+
+			<button class="btn-icon preset-outlined rounded-full" onclick={() => collaboration.togglePanel()} aria-label="Close panel">
+				<iconify-icon icon="mdi:close" width="20"></iconify-icon>
+			</button>
 		</div>
 	</div>
 
@@ -91,7 +116,7 @@ with the AI collaboration assistant.
 				: 'opacity-60 hover:opacity-100'}"
 			onclick={() => (collaboration.activeTab = 'chat')}
 		>
-			Chat
+			{chatLabel}
 		</button>
 	</div>
 
@@ -136,7 +161,7 @@ with the AI collaboration assistant.
 				{#if collaboration.aiHistory.length === 0}
 					<div class="text-center py-10 opacity-50">
 						<iconify-icon icon="mdi:robot-happy-outline" width="48"></iconify-icon>
-						<p>{collaboration.currentRoom ? 'Start collaborating with others' : 'Ask me anything about your data'}</p>
+						<p>{aiEmptyText}</p>
 					</div>
 				{/if}
 				{#each collaboration.aiHistory as msg, index (msg.timestamp + index)}
@@ -146,7 +171,7 @@ with the AI collaboration assistant.
 								<span class="text-[10px] opacity-50 px-2">{msg.user.username}</span>
 							{/if}
 							<div
-								class="p-3 rounded-2xl text-sm {msg.role === 'user'
+								class="p-3 rounded-2xl text-sm wrap-break-word overflow-hidden {msg.role === 'user'
 									? 'bg-primary-500 text-white rounded-br-none'
 									: 'bg-surface-300-600-token rounded-bl-none'} shadow-sm"
 							>

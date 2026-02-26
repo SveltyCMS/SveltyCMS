@@ -17,11 +17,11 @@
 
 <script lang="ts">
 	import {
-		widget_seo_suggestiontitle,
 		widget_seo_suggestioncharacter,
+		widget_seo_suggestionseotitle,
+		widget_seo_suggestiontitle,
 		widget_seo_suggestionwidthdesktop,
-		widget_seo_suggestionwidthmobile,
-		widget_seo_suggestionseotitle
+		widget_seo_suggestionwidthmobile
 	} from '@src/paraglide/messages';
 
 	interface Props {

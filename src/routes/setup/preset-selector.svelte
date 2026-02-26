@@ -5,8 +5,8 @@ Horizontal snap-scroll preset carousel for selecting project blueprints.
 Default value is 'blank'.
 -->
 <script lang="ts">
-	import type { Preset } from './presets';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+	import type { Preset } from './presets';
 
 	let { presets, selected = $bindable('blank') } = $props<{
 		presets: Preset[];
@@ -102,7 +102,7 @@ Default value is 'blank'.
 	<div class="flex items-center justify-between mb-1">
 		<div class="flex gap-2.5 items-center">
 			<iconify-icon icon="mdi:package-variant-closed" width="22" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-			<h3 class="text-[1.05rem] font-semibold text-inherit">Project Blueprint</h3>
+			<h3 class="text-[1.05rem] font-semibold text-dark dark:text-white">Project Blueprint</h3>
 			<SystemTooltip title="Select a starting template for your CMS. This will pre-configure collections, roles, and settings.">
 				<button type="button" class="text-slate-400 hover:text-tertiary-500" aria-label="Help: Project Blueprint">
 					<iconify-icon icon="mdi:help-circle-outline" width="16"></iconify-icon>
@@ -113,7 +113,7 @@ Default value is 'blank'.
 		<div class="flex gap-1.5">
 			<button
 				type="button"
-				class="flex items-center justify-center w-8 h-8 text-slate-500/70 dark:text-white/70 cursor-pointer bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-full transition-all duration-200 hover:not-disabled:text-emerald-500 hover:not-disabled:bg-emerald-500/10 hover:not-disabled:border-emerald-500/30 dark:hover:not-disabled:text-white dark:hover:not-disabled:bg-white/10 dark:hover:not-disabled:border-white/25 disabled:cursor-default disabled:opacity-25"
+				class="btn-icon preset-filled rounded-full disabled:hidden"
 				onclick={() => scrollBy(-1)}
 				aria-label="Scroll left"
 				disabled={!canScrollLeft}
@@ -122,7 +122,7 @@ Default value is 'blank'.
 			</button>
 			<button
 				type="button"
-				class="flex items-center justify-center w-8 h-8 text-slate-500/70 dark:text-white/70 cursor-pointer bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-full transition-all duration-200 hover:not-disabled:text-emerald-500 hover:not-disabled:bg-emerald-500/10 hover:not-disabled:border-emerald-500/30 dark:hover:not-disabled:text-white dark:hover:not-disabled:bg-white/10 dark:hover:not-disabled:border-white/25 disabled:cursor-default disabled:opacity-25"
+				class="btn-icon preset-filled rounded-full disabled:hidden"
 				onclick={() => scrollBy(1)}
 				aria-label="Scroll right"
 				disabled={!canScrollRight}
@@ -140,7 +140,7 @@ Default value is 'blank'.
 				: ''}"
 		></div>
 		<div
-			class="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-3.5 pt-1.5 px-1 w-full cursor-grab select-none transition-[scroll-snap-type] duration-300 [&::-webkit-scrollbar]:hidden {isDragging
+			class="flex gap-2 overflow-x-auto snap-x snap-mandatory pb-1.5 pt-1.5 px-1 w-full cursor-grab select-none transition-[scroll-snap-type] duration-300 [&::-webkit-scrollbar]:hidden {isDragging
 				? 'cursor-grabbing! snap-none! scroll-auto!'
 				: ''}"
 			bind:this={scrollEl}
@@ -159,49 +159,49 @@ Default value is 'blank'.
 					type="button"
 					role="option"
 					aria-selected={selected === preset.id}
-					class="relative flex flex-col flex-none w-64 p-4 overflow-hidden text-left cursor-pointer snap-start bg-white dark:bg-white/5 dark:backdrop-blur-md border border-black/10 dark:border-white/10 rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.05)] dark:shadow-none transition-all duration-250 hover:bg-emerald-500/5 dark:hover:bg-emerald-300/5 hover:border-emerald-500/30 dark:hover:border-emerald-300/30 hover:shadow-[0_10px_20px_-10px_rgba(0,0,0,0.05)] dark:hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.5),inset_0_0_20px_rgba(110,231,183,0.05)] hover:-translate-y-1 {selected ===
+					class="relative flex flex-col flex-none w-64 p-4 overflow-hidden text-left cursor-pointer snap-start bg-white dark:bg-white/5 dark:backdrop-blur-md border border-black/10 dark:border-white/10 rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.05)] dark:shadow-none transition-all duration-250 hover:bg-primary-500/5 dark:hover:bg-primary-300/5 hover:border-primary-500/30 dark:hover:border-primary-300/30 hover:shadow-[0_10px_20px_-10px_rgba(0,0,0,0.05)] dark:hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.5),inset_0_0_20px_rgba(110,231,183,0.05)] hover:-translate-y-1 {selected ===
 					preset.id
 						? 'bg-primary-500/5! dark:bg-primary-300/10! border-primary-500! dark:border-primary-300! shadow-[0_0_0_2px_rgba(16,185,129,0.1),0_10px_25px_-12px_rgba(16,185,129,0.2)]! dark:shadow-[0_0_0_2px_rgba(110,231,183,0.2),0_15px_35px_-12px_rgba(0,0,0,0.6),inset_0_0_15px_rgba(110,231,183,0.1)]! -translate-y-1!'
 						: ''}"
 					onclick={() => select(preset.id)}
 				>
-					<div class="flex items-center gap-2">
+					<div class="  mt-2 flex items-center gap-2">
 						<iconify-icon icon={preset.icon} width="22" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 						<span class="flex-1 text-black dark:text-white font-bold text-[0.88rem] leading-[1.2]">{preset.title}</span>
 
 						{#if preset.complexity}
 							<div
-								class="absolute top-2 right-2 shrink-0 px-2 py-0.5 text-[0.58rem] font-bold uppercase tracking-wider border rounded-full {preset.complexity ===
+								class="absolute top-1 right-1 shrink-0 px-2 py-0.5 text-[0.58rem] font-bold uppercase tracking-wider border rounded-full {preset.complexity ===
 								'simple'
-									? 'text-emerald-600 dark:text-emerald-400 bg-emerald-600/10 dark:bg-emerald-400/10 border-emerald-600/30 dark:border-emerald-400/40'
+									? 'text-primary-600 dark:text-primary-400 bg-primary-600/10 dark:bg-primary-400/10 border-primary-600/30 dark:border-primary-400/40'
 									: preset.complexity === 'moderate'
-										? 'text-amber-600 dark:text-amber-400 bg-amber-600/10 dark:bg-amber-400/10 border-amber-600/30 dark:border-amber-400/40'
-										: 'text-red-600 dark:text-red-400 bg-red-600/10 dark:bg-red-400/10 border-red-600/30 dark:border-red-400/40'}"
+										? 'text-warning-600 dark:text-warning-400 bg-warning-600/10 dark:bg-warning-400/10 border-warning-600/30 dark:border-warning-400/40'
+										: 'text-error-600 dark:text-error-400 bg-error-600/10 dark:bg-error-400/10 border-error-600/30 dark:border-error-400/40'}"
 							>
 								{preset.complexity}
 							</div>
 						{/if}
 					</div>
 
-					<div class="line-clamp-3 mb-2.5 text-[0.7rem] leading-relaxed text-black/60 dark:text-white/40">{preset.description}</div>
+					<div class="line-clamp-3 text-xs leading-relaxed text-black/60 dark:text-white/40">{preset.description}</div>
 
 					<div class="flex flex-wrap gap-1 mt-auto">
 						{#each preset.features.slice(0, 2) as f}
 							<span
-								class="px-2 py-0.5 text-[0.62rem] text-black/50 dark:text-white/50 bg-black/5 dark:bg-white/10 border border-black/10 dark:border-white/10 rounded-full"
+								class="px-2 py-0.5 text-[0.62rem] text-black dark:text-white bg-black/5 dark:bg-white/10 border border-black/10 dark:border-white/10 rounded-full"
 								>{f}</span
 							>
 						{/each}
 						{#if preset.features.length > 2}
 							<span
-								class="px-2 py-0.5 text-[0.62rem] text-black/50 dark:text-white/50 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-full"
+								class="px-2 py-0.5 text-[0.62rem] text-black dark:text-white bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-full"
 								>+{preset.features.length - 2}</span
 							>
 						{/if}
 					</div>
 
 					{#if selected === preset.id}
-						<iconify-icon icon="mdi:check-circle" width="28" class="absolute right-2 bottom-3 text-primary-500"></iconify-icon>
+						<iconify-icon icon="mdi:check-circle" width="24" class="absolute right-1 bottom-2 text-primary-500"></iconify-icon>
 					{/if}
 				</button>
 			{/each}
@@ -230,7 +230,7 @@ Default value is 'blank'.
 		{/each}
 	</div>
 
-	<p class="mt-1 text-[0.71rem] italic text-center text-black/40 dark:text-white/30">
+	<p class="mb-1 text-[0.71rem] italic text-center text-black dark:text-white">
 		{#if selected === 'blank'}
 			"Blank Project" selected — start with a clean slate. No collections will be added automatically.
 		{:else if selected}

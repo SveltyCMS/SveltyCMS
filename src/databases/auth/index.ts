@@ -71,8 +71,8 @@ export class Auth {
 		return this.db.auth.createUserAndSession(userData, sessionData);
 	}
 
-	async deleteUserAndSessions(user_id: string, tenantId?: string): Promise<DatabaseResult<{ deletedUser: boolean; deletedSessionCount: number }>> {
-		return this.db.auth.deleteUserAndSessions(user_id, tenantId);
+	async deleteUserAndSessions(userId: string, tenantId?: string): Promise<DatabaseResult<{ deletedUser: boolean; deletedSessionCount: number }>> {
+		return this.db.auth.deleteUserAndSessions(userId, tenantId);
 	}
 
 	async blockUsers(userIds: string[], tenantId?: string): Promise<DatabaseResult<{ modifiedCount: number }>> {
@@ -131,10 +131,10 @@ export class Auth {
 		}
 	}
 
-	async getUserById(user_id: string, tenantId?: string): Promise<User | null> {
+	async getUserById(userId: string, tenantId?: string): Promise<User | null> {
 		// No caching - getUserById is fast enough and avoids cache invalidation complexity
 		// Session cache already stores user data for authenticated requests
-		const result = (await this.db.auth.getUserById(user_id, tenantId)) as unknown;
+		const result = (await this.db.auth.getUserById(userId, tenantId)) as unknown;
 		if (result && typeof result === 'object' && result !== null && 'success' in (result as Record<string, unknown>)) {
 			const r = result as DatabaseResult<User | null>;
 			if (r.success && r.data) {
@@ -171,17 +171,17 @@ export class Auth {
 		// Session cache is the only cache, and it's invalidated by updateUserAttributes API
 	}
 
-	async deleteUser(user_id: string, tenantId?: string): Promise<void> {
+	async deleteUser(userId: string, tenantId?: string): Promise<void> {
 		// Get user first to clear email cache
-		const user = await this.getUserById(user_id, tenantId);
+		const user = await this.getUserById(userId, tenantId);
 
-		const result = await this.db.auth.deleteUser(user_id, tenantId);
+		const result = await this.db.auth.deleteUser(userId, tenantId);
 		if (!result?.success) {
 			throw error(500, 'Failed to delete user');
 		}
 
 		// Invalidate all caches for this user
-		const cacheKey = `user:id:${user_id}`;
+		const cacheKey = `user:id:${userId}`;
 		await cacheService.delete(cacheKey, tenantId);
 
 		if (user?.email) {
@@ -241,21 +241,21 @@ export class Auth {
 		return session;
 	}
 
-	async validateSession(session_id: string): Promise<User | null> {
-		const result = await this.db.auth.validateSession(session_id);
+	async validateSession(sessionId: string): Promise<User | null> {
+		const result = await this.db.auth.validateSession(sessionId);
 		if (result?.success) {
 			return result.data;
 		}
 		return null;
 	}
 
-	async destroySession(session_id: string): Promise<void> {
-		await this.db.auth.deleteSession(session_id);
-		await this.sessionStore.delete(session_id);
+	async destroySession(sessionId: string): Promise<void> {
+		await this.db.auth.deleteSession(sessionId);
+		await this.sessionStore.delete(sessionId);
 	}
 
-	async getSessionTokenData(session_id: string): Promise<{ expiresAt: ISODateString; user_id: string } | null> {
-		const result = await this.db.auth.getSessionTokenData(session_id);
+	async getSessionTokenData(sessionId: string): Promise<{ expiresAt: ISODateString; user_id: string } | null> {
+		const result = await this.db.auth.getSessionTokenData(sessionId);
 		if (result?.success) {
 			return result.data;
 		}
@@ -315,32 +315,32 @@ export class Auth {
 	}
 
 	// Token management wrappers for interface completeness
-	async updateToken(token_id: string, tokenData: Partial<Token>, tenantId?: string): Promise<Token> {
-		const result = await this.db.auth.updateToken(token_id, tokenData, tenantId);
+	async updateToken(tokenId: string, tokenData: Partial<Token>, tenantId?: string): Promise<Token> {
+		const result = await this.db.auth.updateToken(tokenId, tokenData, tenantId);
 		if (result?.success) {
 			return result.data;
 		}
 		throw error(500, !result || result.success ? 'Failed to update token' : result.message || 'Failed to update token');
 	}
 
-	async deleteTokens(token_ids: string[], tenantId?: string): Promise<{ deletedCount: number }> {
-		const result = await this.db.auth.deleteTokens(token_ids, tenantId);
+	async deleteTokens(tokenIds: string[], tenantId?: string): Promise<{ deletedCount: number }> {
+		const result = await this.db.auth.deleteTokens(tokenIds, tenantId);
 		if (result?.success) {
 			return result.data;
 		}
 		throw error(500, !result || result.success ? 'Failed to delete tokens' : result.message || 'Failed to delete tokens');
 	}
 
-	async blockTokens(token_ids: string[], tenantId?: string): Promise<{ modifiedCount: number }> {
-		const result = await this.db.auth.blockTokens(token_ids, tenantId);
+	async blockTokens(tokenIds: string[], tenantId?: string): Promise<{ modifiedCount: number }> {
+		const result = await this.db.auth.blockTokens(tokenIds, tenantId);
 		if (result?.success) {
 			return result.data;
 		}
 		throw error(500, !result || result.success ? 'Failed to block tokens' : result.message || 'Failed to block tokens');
 	}
 
-	async unblockTokens(token_ids: string[], tenantId?: string): Promise<{ modifiedCount: number }> {
-		const result = await this.db.auth.unblockTokens(token_ids, tenantId);
+	async unblockTokens(tokenIds: string[], tenantId?: string): Promise<{ modifiedCount: number }> {
+		const result = await this.db.auth.unblockTokens(tokenIds, tenantId);
 		if (result?.success) {
 			return result.data;
 		}
@@ -355,8 +355,8 @@ export class Auth {
 		throw error(500, !result || result.success ? 'Failed to get token' : result.message || 'Failed to get token');
 	}
 
-	async validateToken(token: string, user_id?: string, type = 'access', tenantId?: string): Promise<{ success: boolean; message: string }> {
-		const result = await this.db.auth.validateToken(token, user_id, type, tenantId);
+	async validateToken(token: string, userId?: string, type = 'access', tenantId?: string): Promise<{ success: boolean; message: string }> {
+		const result = await this.db.auth.validateToken(token, userId, type, tenantId);
 		if (result?.success && result.data) {
 			return {
 				success: true,
@@ -392,8 +392,8 @@ export class Auth {
 		};
 	}
 
-	async consumeToken(token: string, user_id?: string, type = 'access', tenantId?: string): Promise<{ status: boolean; message: string }> {
-		const result = await this.db.auth.consumeToken(token, user_id, type, tenantId);
+	async consumeToken(token: string, userId?: string, type = 'access', tenantId?: string): Promise<{ status: boolean; message: string }> {
+		const result = await this.db.auth.consumeToken(token, userId, type, tenantId);
 		if (result?.success) {
 			return result.data;
 		}
@@ -462,8 +462,8 @@ export class Auth {
 		}
 	}
 
-	async logOut(session_id: string): Promise<void> {
-		await this.destroySession(session_id);
+	async logOut(sessionId: string): Promise<void> {
+		await this.destroySession(sessionId);
 	}
 
 	async checkUser(fields: { user_id?: string; email?: string; tenantId?: string }): Promise<User | null> {
@@ -487,14 +487,14 @@ export class Auth {
 		return null;
 	}
 
-	async updateUserAttributes(user_id: string, attributes: Partial<User>, tenantId?: string): Promise<User> {
+	async updateUserAttributes(userId: string, attributes: Partial<User>, tenantId?: string): Promise<User> {
 		if (attributes.password && typeof window === 'undefined') {
 			attributes.password = await cryptoHashPassword(attributes.password);
 		}
 		if (attributes.email === null) {
 			attributes.email = undefined;
 		}
-		const result = await this.db.auth.updateUserAttributes(user_id, attributes, tenantId);
+		const result = await this.db.auth.updateUserAttributes(userId, attributes, tenantId);
 		if (result?.success) {
 			return result.data;
 		}
@@ -519,13 +519,13 @@ export class Auth {
 		};
 	}
 
-	async invalidateAllUserSessions(user_id: string, tenantId?: string): Promise<void> {
-		await this.db.auth.invalidateAllUserSessions(user_id, tenantId);
+	async invalidateAllUserSessions(userId: string, tenantId?: string): Promise<void> {
+		await this.db.auth.invalidateAllUserSessions(userId, tenantId);
 	}
 
-	async getActiveSessions(user_id: string, tenantId?: string): Promise<{ success: boolean; data: Session[]; message?: string }> {
+	async getActiveSessions(userId: string, tenantId?: string): Promise<{ success: boolean; data: Session[]; message?: string }> {
 		try {
-			const result = await this.db.auth.getActiveSessions(user_id, tenantId);
+			const result = await this.db.auth.getActiveSessions(userId, tenantId);
 			if (result?.success) {
 				return { success: true, data: result.data };
 			}

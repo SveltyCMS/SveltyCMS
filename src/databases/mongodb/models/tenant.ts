@@ -39,7 +39,7 @@ export interface Tenant extends BaseEntity {
 	usage: TenantUsage;
 }
 
-const TenantSchema = new Schema<Tenant>(
+const TENANT_SCHEMA = new Schema<Tenant>(
 	{
 		_id: { type: String, required: true }, // UUID
 		name: { type: String, required: true },
@@ -77,7 +77,7 @@ const TenantSchema = new Schema<Tenant>(
 );
 
 // Indexes
-TenantSchema.index({ 'usage.storageBytes': 1 }); // For finding heavy users
-TenantSchema.index({ 'usage.lastUpdated': 1 }); // For finding stale stats
+TENANT_SCHEMA.index({ 'usage.storageBytes': 1 }); // For finding heavy users
+TENANT_SCHEMA.index({ 'usage.lastUpdated': 1 }); // For finding stale stats
 
-export const TenantModel = mongoose.models.Tenant || mongoose.model<Tenant>('Tenant', TenantSchema);
+export const TenantModel = mongoose.models.Tenant || mongoose.model<Tenant>('Tenant', TENANT_SCHEMA);

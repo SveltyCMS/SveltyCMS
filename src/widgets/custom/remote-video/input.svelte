@@ -28,9 +28,9 @@ Part of the Three Pillars Architecture for widget system.
 -->
 
 <script lang="ts">
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { app, validationStore } from '@src/stores/store.svelte';
-	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import { logger } from '@utils/logger';
 	import { debounce, getFieldName } from '@utils/utils';
 	// Unified error handling
@@ -50,7 +50,7 @@ Part of the Three Pillars Architecture for widget system.
 		error?: string | null;
 	} = $props();
 
-	const _language = $derived(field.translated ? app.contentLanguage : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase());
+	const LANGUAGE = $derived(field.translated ? app.contentLanguage : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase());
 
 	// Local state for the URL input.
 	let urlInput = $state('');
@@ -65,7 +65,7 @@ Part of the Three Pillars Architecture for widget system.
 		let extracted: RemoteVideoData | null = null;
 
 		if (field.translated && typeof parentVal === 'object' && parentVal !== null) {
-			extracted = (parentVal as Record<string, any>)[_language] ?? null;
+			extracted = (parentVal as Record<string, any>)[LANGUAGE] ?? null;
 		} else if (!field.translated && typeof parentVal === 'object') {
 			extracted = parentVal as RemoteVideoData;
 		}
@@ -131,7 +131,7 @@ Part of the Three Pillars Architecture for widget system.
 			if (!value || typeof value !== 'object') {
 				value = {};
 			}
-			value = { ...(value as object), [_language]: newData } as Record<string, RemoteVideoData>;
+			value = { ...(value as object), [LANGUAGE]: newData } as Record<string, RemoteVideoData>;
 		} else {
 			value = newData;
 		}

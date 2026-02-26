@@ -21,7 +21,7 @@ export function registerContentTools() {
 			properties: {},
 			required: []
 		},
-		handler: async () => {
+		execute: async () => {
 			const collectionList = Object.values(collections.all).map((c: any) => ({
 				name: c.name,
 				icon: c.icon,
@@ -53,7 +53,7 @@ export function registerContentTools() {
 			},
 			required: ['collectionName']
 		},
-		handler: async ({ collectionName, query }: { collectionName: string; query: string }) => {
+		execute: async ({ collectionName, query }: { collectionName: string; query: string }) => {
 			// In a real app, this would call the internal API
 			// using fetch to /api/graphql or /api/rest
 			try {

@@ -10,7 +10,7 @@ import { logger } from '@utils/logger.server';
 import * as v from 'valibot';
 
 // Schema for the outgoing API data
-const OnlineUserSchema = v.object({
+const ONLINE_USER_SCHEMA = v.object({
 	id: v.string(),
 	name: v.string(),
 	avatarUrl: v.optional(v.string()),
@@ -19,7 +19,7 @@ const OnlineUserSchema = v.object({
 });
 
 // TypeScript type from schema
-type OnlineUser = v.InferOutput<typeof OnlineUserSchema>;
+type OnlineUser = v.InferOutput<typeof ONLINE_USER_SCHEMA>;
 
 // Helper function to format online duration
 function formatOnlineTime(minutes: number): string {
@@ -142,7 +142,7 @@ export const GET = apiHandler(async ({ locals }) => {
 	// Sort users by online time (longest online first)
 	onlineUsers.sort((a, b) => b.onlineMinutes - a.onlineMinutes);
 	const responseData = { onlineUsers };
-	const validated = v.parse(v.object({ onlineUsers: v.array(OnlineUserSchema) }), responseData);
+	const validated = v.parse(v.object({ onlineUsers: v.array(ONLINE_USER_SCHEMA) }), responseData);
 	logger.info('Online users fetched successfully', {
 		count: validated.onlineUsers.length,
 		requestedBy: user._id

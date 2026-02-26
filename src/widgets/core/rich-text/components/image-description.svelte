@@ -29,7 +29,7 @@
 
 	let localValue = $state<string | undefined>(undefined);
 
-	let _value = {
+	let VALUE = {
 		get value() {
 			return localValue ?? propValue;
 		},
@@ -39,30 +39,30 @@
 		}
 	};
 
-	let show_input = $state(false);
+	let showInput = $state(false);
 
 	$effect(() => {
 		if (key !== active) {
-			show_input = false;
+			showInput = false;
 		}
 	});
 
 	$effect(() => {
 		if (!show) {
-			show_input = false;
+			showInput = false;
 		}
 	});
 
 	function handleKeydown(e: KeyboardEvent & { currentTarget: HTMLInputElement }) {
 		if (e.key === 'Enter') {
-			show_input = false;
+			showInput = false;
 
-			onSubmit?.(_value.value as string);
+			onSubmit?.(VALUE.value as string);
 		}
 	}
 
 	function handleClick() {
-		show_input = !show_input;
+		showInput = !showInput;
 
 		active = key;
 	}
@@ -75,9 +75,9 @@
 		<span class="hidden sm:inline">Description</span>
 	</button>
 
-	{#if show_input}
+	{#if showInput}
 		<div class="description absolute top-full mt-2">
-			<input type="text" bind:value={_value.value} onkeydown={handleKeydown} class="input" placeholder="Enter description" />
+			<input type="text" bind:value={VALUE.value} onkeydown={handleKeydown} class="input" placeholder="Enter description" />
 		</div>
 	{/if}
 </div>

@@ -23,13 +23,13 @@ import { logger } from '@utils/logger.server';
 import * as v from 'valibot';
 
 // Validation Schemas
-const PreferenceSchema = v.object({
+const PREFERENCE_SCHEMA = v.object({
 	key: v.pipe(v.string(), v.minLength(1, 'Preference key cannot be empty.')),
 	value: v.any()
 });
 
-const SetSinglePreferenceSchema = PreferenceSchema;
-const SetMultiplePreferencesSchema = v.array(PreferenceSchema);
+const SET_SINGLE_PREFERENCE_SCHEMA = PREFERENCE_SCHEMA;
+const SET_MULTIPLE_PREFERENCES_SCHEMA = v.array(PREFERENCE_SCHEMA);
 
 // GET Handler for retrieving one or more preferences
 // Unified Error Handling
@@ -107,7 +107,7 @@ export const POST = apiHandler(async ({ request, locals }) => {
 
 	try {
 		// Try parsing as a single preference
-		const singleResult = v.safeParse(SetSinglePreferenceSchema, data);
+		const singleResult = v.safeParse(SET_SINGLE_PREFERENCE_SCHEMA, data);
 		if (singleResult.success) {
 			if (!dbAdapter) {
 				throw new AppError('Database adapter not available', 500, 'DB_UNAVAILABLE');
@@ -121,7 +121,7 @@ export const POST = apiHandler(async ({ request, locals }) => {
 		}
 
 		// Try parsing as multiple preferences
-		const multipleResult = v.safeParse(SetMultiplePreferencesSchema, data);
+		const multipleResult = v.safeParse(SET_MULTIPLE_PREFERENCES_SCHEMA, data);
 		if (multipleResult.success) {
 			if (!dbAdapter) {
 				throw new AppError('Database adapter not available', 500, 'DB_UNAVAILABLE');

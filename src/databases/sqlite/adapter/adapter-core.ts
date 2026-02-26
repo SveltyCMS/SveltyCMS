@@ -5,8 +5,8 @@
 
 import { logger } from '@src/utils/logger';
 import { and, eq, isNull, sql } from 'drizzle-orm';
-import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import type { BaseSQLiteDatabase } from 'drizzle-orm/sqlite-core';
+import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import type { CollectionModel, DatabaseCapabilities, DatabaseError, DatabaseResult } from '../../db-interface';
 import * as schema from '../schema';
 import * as utils from '../utils';
@@ -85,8 +85,8 @@ export class AdapterCore {
 			} else {
 				// Fallback to better-sqlite3 in Node.js (Vite dev)
 				const betterSqliteModule = 'better-sqlite3';
-				const Database = (await import(/* @vite-ignore */ betterSqliteModule)).default;
-				this.sqlite = new Database(dbPathResolved) as unknown as SQLiteClient;
+				const DATABASE = (await import(/* @vite-ignore */ betterSqliteModule)).default;
+				this.sqlite = new DATABASE(dbPathResolved) as unknown as SQLiteClient;
 				const drizzleModule = 'drizzle-orm/better-sqlite3';
 				const { drizzle } = await import(/* @vite-ignore */ drizzleModule);
 				this.db = drizzle(this.sqlite as unknown, { schema }) as unknown as SQLiteDB;

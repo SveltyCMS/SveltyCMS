@@ -16,17 +16,17 @@
 -->
 
 <script lang="ts">
+	import { Tabs } from '@skeletonlabs/skeleton-svelte';
+	import PageTitle from '@src/components/page-title.svelte';
+	import { system_permission, system_roles } from '@src/paraglide/messages';
 	import { globalLoadingStore, loadingOperations } from '@src/stores/loading-store.svelte.ts';
 	import { toaster } from '@src/stores/store.svelte.ts';
 	import { logger } from '@utils/logger';
 	import { page } from '$app/state';
-	import PageTitle from '@src/components/page-title.svelte';
-	import { Tabs } from '@skeletonlabs/skeleton-svelte';
+	import AdminRole from './admin-role.svelte';
 	import Permissions from './permissions.svelte';
 	import Roles from './roles.svelte';
-	import AdminRole from './admin-role.svelte';
 	import WebsiteTokens from './website-tokens.svelte';
-	import { system_permission, system_roles } from '@src/paraglide/messages';
 
 	// Use $state for local component state
 	let currentTab = $state('0'); // Initial tab set to string '0' for Tabs component

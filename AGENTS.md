@@ -205,25 +205,37 @@ When generating/modifying code:
 
 From the 2026 roadmap (v0.0.6, target A+ grade), prioritize these for parity/leadership (some beta/implemented; harden for production):
 
-- [/] **PostgreSQL Support (Beta)**: Adapter scaffolding complete; stub methods implemented; needs full CRUD/Auth module implementation. Timeline: Q1 2026.
-- [ ] **SQLite Support**: Lightweight adapter via Drizzle ORM for local/embedded deployments. Timeline: Q1 2026.
-- [x] **SCIM 2.0 (Beta)**: Native endpoints (/scim/v2/Users, Groups, Bulk); support filters (eq, co), PATCH ops; integrate with Okta/Azure; timeline: Q1 polish (3-4 weeks).
-- [ ] **SAML 2.0 / Enterprise SSO**: Add via @boxyhq/saml-jackson; support IdPs (Okta, Azure); config interface for assertions; timeline: Q1 (4-6 weeks).
-- [x] **Crypto-Chained Audit Logs (Implemented)**: SHA-256 tamper-evident; schema with before/after changes; harden for SOC 2/GDPR.
+- [x] **MCP AI Knowledgebase Server (v1.0 Plan)**: Native Model Context Protocol server exposing CMS docs, schemas, and APIs. Uses LanceDB for vector storage and FastEmbed for in-process embeddings. Enables agentic workflows.
+- [ ] **n8n Automation Integration**: Native and secure integration with n8n for low-code workflows and competitive automation features.
+- [ ] **SAML 2.0 / Enterprise SSO**: Add via BoxyHQ or native @node-saml; support IdPs (Okta, Azure); timeline: Q1-Q2 (4-6 weeks).
+- [x] **Crypto-Chained Audit Logs (v1.1)**: SHA-256 tamper-evident logs with real-time security dashboard.
 - [x] **Self-Healing State Machines**: Custom Svelte store-based state machine with auto-recovery lifecycle (IDLE → READY <1s).
-- [x] **Live Preview (Iframe + Plugin)**: Enterprise handshake protocol with secure tokens; iframe + editable.website integration; see `docs/guides/Live_Preview_Architecture.mdx`.
-- [x] **Automation System (GUI Builder)**: Visual workflow engine for event-triggered actions (email, webhooks, field updates). Native and zero-config.
-- [ ] **Plugin System**: Isomorphic hook-based architecture for extensibility.
-- [x] **Real-Time Collaboration**: SSE-based lightweight activity stream and AI assistant. Support for AI chat, group/peer collaboration, and system-wide activity logs. Integrated with Svelte 5 runes and System State machine.
-- [ ] **BuzzForm Collection Builder**: Visual drag-and-drop form/collection builder (like [form.buildnbuzz.com](https://form.buildnbuzz.com/builder)); improved UX for non-technical users. Timeline: Q1 2026.
-- [ ] **MCP AI Knowledgebase Server**: Model Context Protocol server exposing CMS docs, schemas, and APIs as AI-accessible knowledge; enables AI coding assistants to understand SveltyCMS ecosystem. Timeline: Q1 2026.
-- [/] **Image Editor Enhancement**: Current implementation buggy; needs stabilization and feature improvements.
-- [/] **Collection Builder Enhancement**: Current implementation buggy; needs UX improvements and bug fixes.
-- [!] **GitHub Actions CI Fix**: Integration tests failing; needs investigation and fixes to restore green CI. **HIGH PRIORITY**
-- [ ] **Config Sync/Export Testing**: Full E2E testing of configuration sync and export functionality.
-- [ ] **Widget System Testing**: Comprehensive testing of all widgets for regressions.
-- [ ] **Collection Revisions Testing**: Full testing of revision history, rollback, and diff functionality.
-- Other Q1-Q4: ASR threat detection, full WCAG audit, Edge deployment guides.
+- [x] **Live Preview (v2.0)**: Enterprise handshake protocol with secure tokens; iframe + editable.website integration.
+- [x] **Automation System (v1.0)**: GUI-based workflow engine for event-triggered actions.
+- [ ] **Edge Computing & Multi-Region**: Multi-region deployment guides and edge-optimized data fetching.
+- [x] **Real-Time Collaboration (SSE v1.0)**: Lightweight activity stream, AI assistant, and peer collaboration.
+- [ ] **BuzzForm Visual Builder (v1.5)**: Visual drag-and-drop form/collection builder with real-time preview hardening.
+- [/] **Image Editor Enhancement**: Current implementation stabilized; adding cropping, filters, and focal point management.
+- [/] **Collection Builder Enhancement**: UX improvements and ergonomic field management in progress.
+- [x] **CI Pipeline Restoration**: Playwright E2E suite stabilized across MongoDB, MariaDB, and PostgreSQL.
+- [ ] **Svelte 5 / Skeleton v4 Migration**: Ongoing hardening of UI components using the latest runes and design tokens.
+
+## Common Development Issues
+
+### 1. Vite Cache Synchronization (504 Outdated Optimize Dep)
+
+If you encounter `504 (Outdated Optimize Dep)` errors in the browser console after a restart or configuration change, Vite's dependency optimization cache is out of sync.
+**Fix:**
+
+```bash
+rm -rf node_modules/.vite
+bun run dev
+```
+
+### 2. SQLite "value.getTime is not a function"
+
+This occurs if an `ISODateString` is passed to a Drizzle SQLite column configured with `mode: 'timestamp_ms'`.
+**Fix:** Ensure standard fields like `createdAt` and `updatedAt` are passed as JS `Date` objects in the SQLite adapter modules.
 
 ## Project Structure
 
@@ -355,4 +367,4 @@ Svelte 5 runes: `$state()` for state, `$derived()` for computations, `$effect()`
 
 ---
 
-_Last Updated: 2026-02-17_
+_Last Updated: 2026-02-24_

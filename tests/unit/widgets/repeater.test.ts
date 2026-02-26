@@ -3,9 +3,9 @@
  * @description Unit tests for the Repeater widget
  */
 
-import RepeaterWidget from '@src/widgets/core/Repeater/index';
-import { parse } from 'valibot';
 import { describe, expect, it, mock } from 'bun:test';
+import RepeaterWidget from '@src/widgets/core/repeater/index';
+import { parse } from 'valibot';
 
 // Mock dependencies
 // Mock Svelte store
@@ -34,6 +34,7 @@ describe('Repeater Widget', () => {
 			const schema = getSchema({
 				label: 'Test',
 				widget: instance.widget,
+				// biome-ignore lint/style/useNamingConvention: system standard
 				db_fieldName: 'test'
 			});
 
@@ -45,6 +46,7 @@ describe('Repeater Widget', () => {
 			const schema = getSchema({
 				label: 'Test',
 				widget: instance.widget,
+				// biome-ignore lint/style/useNamingConvention: system standard
 				db_fieldName: 'test',
 				min: 3
 			});
@@ -57,6 +59,7 @@ describe('Repeater Widget', () => {
 			const schema = getSchema({
 				label: 'Test',
 				widget: instance.widget,
+				// biome-ignore lint/style/useNamingConvention: system standard
 				db_fieldName: 'test',
 				max: 1
 			});
@@ -69,6 +72,7 @@ describe('Repeater Widget', () => {
 			const schema = getSchema({
 				label: 'Test',
 				widget: instance.widget,
+				// biome-ignore lint/style/useNamingConvention: system standard
 				db_fieldName: 'test',
 				required: true
 			});

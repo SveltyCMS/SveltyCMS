@@ -335,10 +335,10 @@ export function resetSystemState(): void {
 }
 
 // Get a readable store for the system state (for Svelte components)
-export const systemState: Readable<SystemStateStore> = derived(systemStateStore, ($state) => $state);
+export const systemState: Readable<SystemStateStore> = derived(systemStateStore, (state) => state);
 
 // Get a readable store for just the overall state (for simple checks)
-export const overallState: Readable<SystemState> = derived(systemStateStore, ($state) => $state.overallState);
+export const overallState: Readable<SystemState> = derived(systemStateStore, (state) => state.overallState);
 
 // --- Granular Derived Stores for Improved Reactivity ---
 
@@ -346,44 +346,44 @@ export const overallState: Readable<SystemState> = derived(systemStateStore, ($s
  * A derived store that returns true if the system is in a ready or degraded state.
  * Ideal for use in UI components to show/hide content based on system readiness.
  */
-export const isReady: Readable<boolean> = derived(overallState, ($s) => $s === 'READY' || $s === 'WARMED' || $s === 'WARMING' || $s === 'DEGRADED');
+export const isReady: Readable<boolean> = derived(overallState, (s) => s === 'READY' || s === 'WARMED' || s === 'WARMING' || s === 'DEGRADED');
 
 /**
  * A derived store that returns true if the system is currently initializing.
  */
-export const isInitializing: Readable<boolean> = derived(overallState, ($s) => $s === 'INITIALIZING');
+export const isInitializing: Readable<boolean> = derived(overallState, (s) => s === 'INITIALIZING');
 
 /**
  * A derived store that returns true if the system is currently serving traffic (READY, WARMING, or WARMED).
  */
-export const isServing: Readable<boolean> = derived(overallState, ($s) => $s === 'WARMING' || $s === 'READY' || $s === 'WARMED');
+export const isServing: Readable<boolean> = derived(overallState, (s) => s === 'WARMING' || s === 'READY' || s === 'WARMED');
 
 /**
  * A derived store that returns true if the system is fully warmed up.
  */
-export const isWarmed: Readable<boolean> = derived(overallState, ($s) => $s === 'WARMED');
+export const isWarmed: Readable<boolean> = derived(overallState, (s) => s === 'WARMED');
 
 /**
  * A derived store that returns true if the system has failed.
  */
-export const isFailed: Readable<boolean> = derived(overallState, ($s) => $s === 'FAILED');
+export const isFailed: Readable<boolean> = derived(overallState, (s) => s === 'FAILED');
 
 /**
  * A derived store that returns true if the system is in a degraded state.
  */
-export const isDegraded: Readable<boolean> = derived(overallState, ($s) => $s === 'DEGRADED');
+export const isDegraded: Readable<boolean> = derived(overallState, (s) => s === 'DEGRADED');
 
 /**
  * A derived store containing the status of all individual services.
  */
-export const servicesStatus: Readable<SystemStateStore['services']> = derived(systemState, ($s) => $s.services);
+export const servicesStatus: Readable<SystemStateStore['services']> = derived(systemState, (s) => s.services);
 
 /**
  * Individual derived stores for each service's status.
  * This allows components to subscribe to only the service they care about.
  */
-export const databaseStatus: Readable<ServiceStatus> = derived(servicesStatus, ($s) => $s.database);
-export const authStatus: Readable<ServiceStatus> = derived(servicesStatus, ($s) => $s.auth);
-export const cacheStatus: Readable<ServiceStatus> = derived(servicesStatus, ($s) => $s.cache);
-export const contentManagerStatus: Readable<ServiceStatus> = derived(servicesStatus, ($s) => $s.contentManager);
-export const themeManagerStatus: Readable<ServiceStatus> = derived(servicesStatus, ($s) => $s.themeManager);
+export const databaseStatus: Readable<ServiceStatus> = derived(servicesStatus, (s) => s.database);
+export const authStatus: Readable<ServiceStatus> = derived(servicesStatus, (s) => s.auth);
+export const cacheStatus: Readable<ServiceStatus> = derived(servicesStatus, (s) => s.cache);
+export const contentManagerStatus: Readable<ServiceStatus> = derived(servicesStatus, (s) => s.contentManager);
+export const themeManagerStatus: Readable<ServiceStatus> = derived(servicesStatus, (s) => s.themeManager);

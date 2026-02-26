@@ -17,13 +17,13 @@
 -->
 
 <script lang="ts">
+	import MediaGrid from '@src/routes/(app)/mediagallery/media-grid.svelte';
+	import LocalUpload from '@src/routes/(app)/mediagallery/upload-media/local-upload.svelte';
+	import RemoteUpload from '@src/routes/(app)/mediagallery/upload-media/remote-upload.svelte';
 	import { logger } from '@utils/logger';
 	import type { MediaBase, MediaImage } from '@utils/media/media-models';
 	import { modalState } from '@utils/modal-state.svelte';
 	import { onMount } from 'svelte';
-	import LocalUpload from '@src/routes/(app)/mediagallery/upload-media/local-upload.svelte';
-	import RemoteUpload from '@src/routes/(app)/mediagallery/upload-media/remote-upload.svelte';
-	import MediaGrid from '@src/routes/(app)/mediagallery/media-grid.svelte';
 
 	import { SvelteSet } from 'svelte/reactivity';
 

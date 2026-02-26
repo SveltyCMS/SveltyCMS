@@ -717,7 +717,7 @@ export class MongoDBAdapter implements IDBAdapter {
 			findOne: (c, q, o) => this._wrapResult(() => getRepo(c).findOne(q, { fields: o?.fields as (keyof BaseEntity)[], tenantId: o?.tenantId })),
 			findMany: (c, q, o) =>
 				this._wrapResult(() => {
-					let sort: Record<string, 1 | -1> | undefined = undefined;
+					let sort: Record<string, 1 | -1> | undefined;
 					if (o?.sort) {
 						if (Array.isArray(o.sort)) {
 							sort = {};

@@ -65,7 +65,7 @@ This component provides a tooltip for any element.
 	const ARROW_CLASS = '[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-900)] dark:[--arrow-background:var(--color-white)]';
 
 	// Skeleton V4
-	import { Tooltip, Portal } from '@skeletonlabs/skeleton-svelte';
+	import { Portal, Tooltip } from '@skeletonlabs/skeleton-svelte';
 </script>
 
 <Tooltip {positioning}>

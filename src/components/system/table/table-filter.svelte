@@ -28,18 +28,19 @@ It includes search, filter toggles, column visibility, and density controls, opt
 
 <script lang="ts">
 	// Stores
-	import { app } from '@src/stores/store.svelte';
+
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import {
-		table_search_placeholder,
-		table_search_aria,
 		table_clear_search,
-		table_search_toggle,
-		table_filter_toggle,
 		table_column_toggle,
 		table_density_label,
-		table_density_toggle
+		table_density_toggle,
+		table_filter_toggle,
+		table_search_aria,
+		table_search_placeholder,
+		table_search_toggle
 	} from '@src/paraglide/messages';
-	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+	import { app } from '@src/stores/store.svelte';
 	// Logger
 	import { logger } from '@utils/logger';
 	// Using iconify-icon web component

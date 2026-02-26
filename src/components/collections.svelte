@@ -22,9 +22,13 @@ Provides an organized interface for navigating hierarchical content structures.
 -->
 
 <script lang="ts">
+	// Components
+	import TreeView from '@src/components/system/tree-view.svelte';
 	import type { ContentNode, Schema } from '@src/content/types';
 	import { type StatusType, StatusTypes } from '@src/content/types';
 	import { sortContentNodes } from '@src/content/utils';
+	// Paraglide Messages
+	import { collection_no_collections_found, collections_search } from '@src/paraglide/messages';
 	import { collection, contentStructure, setMode } from '@src/stores/collection-store.svelte.ts';
 	import { app } from '@src/stores/store.svelte';
 	import { ui } from '@src/stores/ui-store.svelte.ts';
@@ -34,12 +38,6 @@ Provides an organized interface for navigating hierarchical content structures.
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
-
-	// Paraglide Messages
-	import { collections_search, collection_no_collections_found } from '@src/paraglide/messages';
-
-	// Components
-	import TreeView from '@src/components/system/tree-view.svelte';
 
 	interface ExtendedContentNode extends ContentNode {
 		children?: ExtendedContentNode[];

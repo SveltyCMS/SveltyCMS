@@ -7,15 +7,16 @@ It handles widget configuration, permissions, and specific options.
 
 <script lang="ts">
 	// Stores
+
+	import { Tabs } from '@skeletonlabs/skeleton-svelte';
+	import { button_cancel, button_delete, button_save, system_permission } from '@src/paraglide/messages';
 	import { collectionValue, setCollectionValue, targetWidget } from '@src/stores/collection-store.svelte';
 	import { widgets } from '@src/stores/widget-store.svelte.ts';
 	import { modalState } from '@utils/modal-state.svelte';
-	import { Tabs } from '@skeletonlabs/skeleton-svelte';
+	import type { SvelteComponent } from 'svelte';
 	import Default from './tabs-fields/default.svelte';
 	import Permission from './tabs-fields/permission.svelte';
 	import Specific from './tabs-fields/specific.svelte';
-	import { system_permission, button_delete, button_cancel, button_save } from '@src/paraglide/messages';
-	import type { SvelteComponent } from 'svelte';
 
 	let localTabSet = $state('0');
 

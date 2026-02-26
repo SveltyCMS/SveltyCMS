@@ -17,10 +17,10 @@
 -->
 
 <script lang="ts">
-	import { fade } from 'svelte/transition';
 	// ParaglideJS
 	import { widget_seo_powerwords } from '@src/paraglide/messages';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
+	import { fade } from 'svelte/transition';
 
 	// Logic for Heatmap
 	const POWER_WORDS = new Set(

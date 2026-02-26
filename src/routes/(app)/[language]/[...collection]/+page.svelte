@@ -23,6 +23,8 @@
 
 -->
 <script lang="ts">
+	import EntryList from '@src/components/collection-display/entry-list.svelte';
+	import Fields from '@src/components/collection-display/fields.svelte';
 	import type { Schema } from '@src/content/types';
 	import { collections } from '@src/stores/collection-store.svelte';
 	import { app, validationStore } from '@src/stores/store.svelte.ts';
@@ -33,8 +35,6 @@
 	import { onMount, untrack } from 'svelte';
 	import { beforeNavigate, invalidateAll, replaceState } from '$app/navigation';
 	import { page } from '$app/state';
-	import EntryList from '@src/components/collection-display/entry-list.svelte';
-	import Fields from '@src/components/collection-display/fields.svelte';
 
 	interface PageData {
 		collectionSchema: Schema;

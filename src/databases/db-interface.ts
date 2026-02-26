@@ -379,10 +379,10 @@ export interface ConnectionPoolStats {
 /** Domain-Specific Adapters */
 
 export interface IAuthAdapter {
-	blockTokens(token_ids: string[], tenantId?: string): Promise<DatabaseResult<{ modifiedCount: number }>>;
-	blockUsers(user_ids: string[], tenantId?: string): Promise<DatabaseResult<{ modifiedCount: number }>>;
+	blockTokens(tokenIds: string[], tenantId?: string): Promise<DatabaseResult<{ modifiedCount: number }>>;
+	blockUsers(userIds: string[], tenantId?: string): Promise<DatabaseResult<{ modifiedCount: number }>>;
 	cleanupRotatedSessions?(): Promise<DatabaseResult<number>>;
-	consumeToken(token: string, user_id?: string, type?: string, tenantId?: string): Promise<DatabaseResult<{ status: boolean; message: string }>>;
+	consumeToken(token: string, userId?: string, type?: string, tenantId?: string): Promise<DatabaseResult<{ status: boolean; message: string }>>;
 	createRole(role: Role): Promise<DatabaseResult<Role>>;
 
 	// Session Management Methods
@@ -402,12 +402,12 @@ export interface IAuthAdapter {
 	deleteExpiredSessions(): Promise<DatabaseResult<number>>;
 	deleteExpiredTokens(): Promise<DatabaseResult<number>>;
 	deleteRole(roleId: string, tenantId?: string): Promise<DatabaseResult<void>>;
-	deleteSession(session_id: string): Promise<DatabaseResult<void>>;
-	deleteTokens(token_ids: string[], tenantId?: string): Promise<DatabaseResult<{ deletedCount: number }>>;
-	deleteUser(user_id: string, tenantId?: string): Promise<DatabaseResult<void>>;
-	deleteUserAndSessions(user_id: string, tenantId?: string): Promise<DatabaseResult<{ deletedUser: boolean; deletedSessionCount: number }>>;
-	deleteUsers(user_ids: string[], tenantId?: string): Promise<DatabaseResult<{ deletedCount: number }>>;
-	getActiveSessions(user_id: string, tenantId?: string): Promise<DatabaseResult<Session[]>>;
+	deleteSession(sessionId: string): Promise<DatabaseResult<void>>;
+	deleteTokens(tokenIds: string[], tenantId?: string): Promise<DatabaseResult<{ deletedCount: number }>>;
+	deleteUser(userId: string, tenantId?: string): Promise<DatabaseResult<void>>;
+	deleteUserAndSessions(userId: string, tenantId?: string): Promise<DatabaseResult<{ deletedUser: boolean; deletedSessionCount: number }>>;
+	deleteUsers(userIds: string[], tenantId?: string): Promise<DatabaseResult<{ deletedCount: number }>>;
+	getActiveSessions(userId: string, tenantId?: string): Promise<DatabaseResult<Session[]>>;
 	getAllActiveSessions(tenantId?: string): Promise<DatabaseResult<Session[]>>;
 
 	// Role Management Methods
@@ -415,25 +415,25 @@ export interface IAuthAdapter {
 	getAllTokens(filter?: Record<string, unknown>): Promise<DatabaseResult<Token[]>>;
 	getAllUsers(options?: PaginationOption): Promise<DatabaseResult<User[]>>;
 	getRoleById(roleId: string, tenantId?: string): Promise<DatabaseResult<Role | null>>;
-	getSessionTokenData(session_id: string): Promise<DatabaseResult<{ expiresAt: ISODateString; user_id: string } | null>>;
+	getSessionTokenData(sessionId: string): Promise<DatabaseResult<{ expiresAt: ISODateString; user_id: string } | null>>;
 	getTokenByValue(token: string, tenantId?: string): Promise<DatabaseResult<Token | null>>;
-	getTokenData(token: string, user_id?: string, type?: string, tenantId?: string): Promise<DatabaseResult<Token | null>>;
+	getTokenData(token: string, userId?: string, type?: string, tenantId?: string): Promise<DatabaseResult<Token | null>>;
 	getUserByEmail(criteria: { email: string; tenantId?: string }): Promise<DatabaseResult<User | null>>;
-	getUserById(user_id: string, tenantId?: string): Promise<DatabaseResult<User | null>>;
+	getUserById(userId: string, tenantId?: string): Promise<DatabaseResult<User | null>>;
 	getUserCount(filter?: Record<string, unknown>): Promise<DatabaseResult<number>>;
-	invalidateAllUserSessions(user_id: string, tenantId?: string): Promise<DatabaseResult<void>>;
+	invalidateAllUserSessions(userId: string, tenantId?: string): Promise<DatabaseResult<void>>;
 	rotateToken(oldToken: string, expires: ISODateString): Promise<DatabaseResult<string>>;
 	setupAuthModels(): Promise<void>;
-	unblockTokens(token_ids: string[], tenantId?: string): Promise<DatabaseResult<{ modifiedCount: number }>>;
-	unblockUsers(user_ids: string[], tenantId?: string): Promise<DatabaseResult<{ modifiedCount: number }>>;
+	unblockTokens(tokenIds: string[], tenantId?: string): Promise<DatabaseResult<{ modifiedCount: number }>>;
+	unblockUsers(userIds: string[], tenantId?: string): Promise<DatabaseResult<{ modifiedCount: number }>>;
 	updateRole(roleId: string, roleData: Partial<Role>, tenantId?: string): Promise<DatabaseResult<Role>>;
-	updateSessionExpiry(session_id: string, newExpiry: ISODateString): Promise<DatabaseResult<Session>>;
-	updateToken(token_id: string, tokenData: Partial<Token>, tenantId?: string): Promise<DatabaseResult<Token>>;
-	updateUserAttributes(user_id: string, userData: Partial<User>, tenantId?: string): Promise<DatabaseResult<User>>;
-	validateSession(session_id: string): Promise<DatabaseResult<User | null>>;
+	updateSessionExpiry(sessionId: string, newExpiry: ISODateString): Promise<DatabaseResult<Session>>;
+	updateToken(tokenId: string, tokenData: Partial<Token>, tenantId?: string): Promise<DatabaseResult<Token>>;
+	updateUserAttributes(userId: string, userData: Partial<User>, tenantId?: string): Promise<DatabaseResult<User>>;
+	validateSession(sessionId: string): Promise<DatabaseResult<User | null>>;
 	validateToken(
 		token: string,
-		user_id?: string,
+		userId?: string,
 		type?: string,
 		tenantId?: string
 	): Promise<DatabaseResult<{ success: boolean; message: string; email?: string }>>;

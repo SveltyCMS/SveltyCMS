@@ -25,7 +25,7 @@ import { logger } from '@utils/logger.server';
 // Validation
 import * as v from 'valibot';
 
-const QuerySchema = v.object({
+const QUERY_SCHEMA = v.object({
 	level: v.optional(v.string(), 'all'),
 	search: v.optional(v.string(), ''),
 	startDate: v.optional(v.string()),
@@ -34,7 +34,7 @@ const QuerySchema = v.object({
 	limit: v.optional(v.pipe(v.number(), v.minValue(1), v.maxValue(100)), 20)
 });
 
-const LogEntrySchema = v.object({
+const LOG_ENTRY_SCHEMA = v.object({
 	timestamp: v.string(),
 	level: v.string(),
 	message: v.string(),
@@ -252,7 +252,7 @@ export const GET = apiHandler(async ({ locals, url }) => {
 		throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
 	}
 
-	const params = v.parse(QuerySchema, {
+	const params = v.parse(QUERY_SCHEMA, {
 		level: url.searchParams.get('level') || undefined,
 		search: url.searchParams.get('search') || undefined,
 		startDate: url.searchParams.get('startDate') || undefined,
@@ -368,7 +368,7 @@ export const GET = apiHandler(async ({ locals, url }) => {
 	// Since we collected in Newest->Oldest order, index 0 is the newest log.
 	const paginatedLogs = collectedLogs.slice(neededSkip, neededSkip + neededTake);
 
-	const validatedLogs = v.parse(v.array(LogEntrySchema), paginatedLogs);
+	const validatedLogs = v.parse(v.array(LOG_ENTRY_SCHEMA), paginatedLogs);
 
 	logger.info('Logs fetched (Optimized)', {
 		count: paginatedLogs.length,

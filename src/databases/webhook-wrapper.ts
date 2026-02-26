@@ -8,9 +8,9 @@
  * (count, findOne, findMany, etc.) on class-based adapter instances.
  */
 
+import type { WebhookEvent } from '@src/services/webhook-service';
 import { logger } from '@utils/logger.server';
 import type { ICrudAdapter, IDBAdapter, IMediaAdapter } from './db-interface';
-import type { WebhookEvent } from '@src/services/webhook-service';
 
 // Constants for identifying events
 const CONTENT_COLLECTION_PREFIX = 'collection_';

@@ -38,7 +38,7 @@ import { isoDate, minLength, pipe, string, type InferInput as ValibotInput } fro
 import type { DateProps } from './types';
 
 // Define the validation schema for the data this widget stores.
-const DateValidationSchema = pipe(
+const DATE_VALIDATION_SCHEMA = pipe(
 	string('A value is required.'), // This message shows if the value is not a string
 	minLength(1, 'This date is required.'), // This message shows for empty strings
 	isoDate('The date must be a valid ISO 8601 string.')
@@ -55,7 +55,7 @@ const DateWidget = createWidget<DateProps>({
 	displayComponentPath: '/src/widgets/core/Date/Display.svelte',
 
 	// Assign the validation schema.
-	validationSchema: DateValidationSchema,
+	validationSchema: DATE_VALIDATION_SCHEMA,
 
 	// Set widget-specific defaults. A date is typically not translated.
 	defaults: {
@@ -128,4 +128,4 @@ export default DateWidget;
 
 // Export helper types for use in Svelte components
 export type FieldType = ReturnType<typeof DateWidget>;
-export type DateWidgetData = ValibotInput<typeof DateValidationSchema>;
+export type DateWidgetData = ValibotInput<typeof DATE_VALIDATION_SCHEMA>;

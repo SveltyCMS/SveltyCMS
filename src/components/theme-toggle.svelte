@@ -10,9 +10,10 @@ It relies entirely on the centralized `themeStore` for its state and logic.
 -->
 <script lang="ts">
 	//Stores
-	import { setThemePreference, themeStore, useSystemPreference } from '@src/stores/theme-store.svelte.ts';
+
 	// Componets
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+	import { setThemePreference, themeStore, useSystemPreference } from '@src/stores/theme-store.svelte.ts';
 
 	interface Props {
 		buttonClass?: string;

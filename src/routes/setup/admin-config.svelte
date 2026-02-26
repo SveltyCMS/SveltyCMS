@@ -21,28 +21,28 @@
 
 -->
 <script lang="ts">
-	import type { ValidationErrors } from '@src/stores/setup-store.svelte.ts';
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import {
-		setup_help_admin_username,
-		form_username,
-		form_email,
-		setup_help_admin_email,
-		setup_admin_placeholder_email,
-		form_password,
-		setup_help_admin_password,
-		setup_help_admin_confirm_password,
-		setup_admin_placeholder_confirm_password,
-		setup_help_admin_password_requirements_account_note,
-		setup_admin_placeholder_username,
-		setup_admin_placeholder_password,
 		form_confirmpassword,
+		form_email,
+		form_password,
+		form_username,
+		setup_admin_placeholder_confirm_password,
+		setup_admin_placeholder_email,
+		setup_admin_placeholder_password,
+		setup_admin_placeholder_username,
+		setup_help_admin_confirm_password,
+		setup_help_admin_email,
+		setup_help_admin_password,
+		setup_help_admin_password_requirements_account_note,
+		setup_help_admin_password_requirements_character,
 		setup_help_admin_password_requirements_length,
 		setup_help_admin_password_requirements_letter,
+		setup_help_admin_password_requirements_match,
 		setup_help_admin_password_requirements_number,
-		setup_help_admin_password_requirements_character,
-		setup_help_admin_password_requirements_match
+		setup_help_admin_username
 	} from '@src/paraglide/messages';
-	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+	import type { ValidationErrors } from '@src/stores/setup-store.svelte.ts';
 	import { setupAdminSchema } from '@utils/form-schemas';
 	import { safeParse } from 'valibot';
 
@@ -106,7 +106,7 @@
 
 <div class="fade-in">
 	<div class="mb-4">
-		<p class="text-sm text-center md:text-right text-tertiary-500 dark:text-primary-500 sm:text-base">
+		<p class="text-sm text-center md:text-left text-tertiary-500 dark:text-primary-500 sm:text-base">
 			{setup_help_admin_username?.() || 'Create your administrator account with full access to manage content, users, and system settings.'}
 		</p>
 	</div>

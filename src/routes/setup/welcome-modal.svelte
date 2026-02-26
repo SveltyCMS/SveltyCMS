@@ -15,7 +15,7 @@ Features:
 	import SiteName from '@src/components/site-name.svelte';
 
 	// Paraglide Messages
-	import { welcome_modal_body, welcome_modal_eta, welcome_modal_cta } from '@src/paraglide/messages';
+	import { welcome_modal_body, welcome_modal_cta, welcome_modal_eta } from '@src/paraglide/messages';
 
 	// Props
 	interface Props {

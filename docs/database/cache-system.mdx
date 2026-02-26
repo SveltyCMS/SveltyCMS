@@ -76,11 +76,12 @@ SveltyCMS features a sophisticated **dual-layer caching system** with Redis L1 (
 | **L2: Database** | Disk    | 5-10ms   | Permanent   | Warm data, recovery       |
 | **Source DB**    | Disk    | 50-100ms | Permanent   | Cold data, cache miss     |
 
-**Cache Hit Rates**:
+**Cache Hit Rates (Steady State)**:
 
-- L1 (Redis): 85% of requests
-- L2 (Database): 10% of requests
-- Source DB: 5% of requests
+- **Static Layer (Warmed)**: 99.9% (Schemas, Roles, Navigation)
+- **L1 (Redis)**: 85-92% of dynamic requests
+- **L2 (Database)**: 5-10% of requests
+- **Source DB**: <1% after full hydration
 
 **Average Response Time**:
 

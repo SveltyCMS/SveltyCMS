@@ -14,6 +14,7 @@
 
 <script lang="ts">
 	import Sanitize from '@src/utils/Sanitize.svelte';
+
 	let {
 		body = '',
 		value = '',

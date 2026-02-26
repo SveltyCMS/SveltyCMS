@@ -49,7 +49,7 @@ Renders radio group with options from field.options array
 	} = $props();
 
 	const fieldId = $derived(field.db_fieldName);
-	const _language = $derived(field.translated ? app.contentLanguage : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase());
+	const LANGUAGE = $derived(field.translated ? app.contentLanguage : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase());
 
 	// Local state to bind the radio group to
 	let localValue = $state<string | number | null>(null);
@@ -60,7 +60,7 @@ Renders radio group with options from field.options array
 		let extracted: string | number | null = null;
 
 		if (field.translated && typeof parentVal === 'object' && parentVal !== null) {
-			extracted = (parentVal as Record<string, any>)[_language] ?? null;
+			extracted = (parentVal as Record<string, any>)[LANGUAGE] ?? null;
 		} else if (!field.translated && (typeof parentVal === 'string' || typeof parentVal === 'number')) {
 			extracted = parentVal;
 		}
@@ -77,7 +77,7 @@ Renders radio group with options from field.options array
 			if (!value || typeof value !== 'object') {
 				value = {};
 			}
-			value = { ...(value as object), [_language]: newVal };
+			value = { ...(value as object), [LANGUAGE]: newVal };
 		} else {
 			value = newVal;
 		}

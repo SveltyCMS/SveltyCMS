@@ -25,8 +25,8 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 	import { showConfirm } from '@utils/modal-utils';
 	// Using iconify-icon web component
 	import { onDestroy, onMount } from 'svelte';
-	import { scale } from 'svelte/transition';
 	import { quintOut } from 'svelte/easing';
+	import { scale } from 'svelte/transition';
 	import { invalidateAll } from '$app/navigation';
 	import ModalEditForm from './modal-edit-form.svelte';
 	import ModalEditToken from './modal-edit-token.svelte';

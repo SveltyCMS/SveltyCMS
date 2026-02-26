@@ -16,8 +16,8 @@ and rule-of-thirds grid overlay.
 -->
 
 <script lang="ts">
-	import { fade, scale } from 'svelte/transition';
 	import type { MediaImage } from '@utils/media/media-models';
+	import { fade, scale } from 'svelte/transition';
 
 	interface Props {
 		/** The media image to adjust focal point for */

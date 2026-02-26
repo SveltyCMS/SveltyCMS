@@ -17,25 +17,11 @@
 -->
 
 <script lang="ts">
-	import { locales as availableLocales } from '@src/paraglide/runtime';
-	import { getPublicSetting, publicEnv } from '@src/stores/global-settings.svelte';
-	// Stores
-	import { systemLanguage } from '@src/stores/store.svelte.ts';
-	import { getLanguageName } from '@utils/language-utils';
-
-	// Components
-	import SignIn from './components/sign-in.svelte';
-	import SignUp from './components/sign-up.svelte';
+	// Skeleton V4
+	import { Menu, Portal } from '@skeletonlabs/skeleton-svelte';
 	import Seasons from '@src/components/system/icons/Seasons.svelte';
 	import SveltyCMSLogoFull from '@src/components/system/icons/svelty-cms-logo-full.svelte';
 	import VersionCheck from '@src/components/version-check.svelte';
-
-	// Skeleton V4
-	import { Menu, Portal } from '@skeletonlabs/skeleton-svelte';
-
-	// SvelteKit
-	import { deserialize } from '$app/forms';
-
 	// Paraglide Messages
 	import {
 		applayout_systemlanguage,
@@ -54,6 +40,16 @@
 		login_demo_nextreset,
 		login_demo_title
 	} from '@src/paraglide/messages';
+	import { locales as availableLocales } from '@src/paraglide/runtime';
+	import { getPublicSetting, publicEnv } from '@src/stores/global-settings.svelte';
+	// Stores
+	import { systemLanguage } from '@src/stores/store.svelte.ts';
+	import { getLanguageName } from '@utils/language-utils';
+	// SvelteKit
+	import { deserialize } from '$app/forms';
+	// Components
+	import SignIn from './components/sign-in.svelte';
+	import SignUp from './components/sign-up.svelte';
 
 	// Props
 	const { data } = $props();

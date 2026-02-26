@@ -39,7 +39,7 @@ interface SystemPreferencesModelType extends Model<SystemPreferencesDocument> {
 }
 
 // Widget schema aligned with +server.ts
-const WidgetSchema = new Schema<DashboardWidgetConfig>(
+const WIDGET_SCHEMA = new Schema<DashboardWidgetConfig>(
 	{
 		id: { type: String, required: true, unique: true },
 		component: { type: String, required: true },
@@ -57,18 +57,18 @@ const WidgetSchema = new Schema<DashboardWidgetConfig>(
 );
 
 // Layout schema
-const LayoutSchema = new Schema({
+const LAYOUT_SCHEMA = new Schema({
 	id: { type: String, required: true },
 	name: { type: String, required: true },
-	preferences: { type: [WidgetSchema], default: [] }
+	preferences: { type: [WIDGET_SCHEMA], default: [] }
 });
 
-const SystemPreferencesSchema = new Schema(
+const SYSTEM_PREFERENCES_SCHEMA = new Schema(
 	{
 		_id: { type: String, required: true, default: () => generateId() }, // UUID as per dbInterface.ts
 		userId: { type: String, ref: 'auth_users', required: false }, // Optional userId for user-scoped preferences
 		layoutId: { type: String, required: false }, // Optional layout identifier
-		layout: { type: LayoutSchema, required: false }, // Optional structured layout data
+		layout: { type: LAYOUT_SCHEMA, required: false }, // Optional structured layout data
 		preferences: { type: Schema.Types.Mixed, default: {} }, // Generic key-value preferences
 		scope: {
 			type: String,
@@ -87,12 +87,12 @@ const SystemPreferencesSchema = new Schema(
 );
 
 // Indexes
-SystemPreferencesSchema.index({ userId: 1, layoutId: 1, scope: 1 }, { unique: true }); // Unique per user and layout
-SystemPreferencesSchema.index({ scope: 1, userId: 1 }); // Index for scope and userId queries
-SystemPreferencesSchema.index({ scope: 1 }); // Index for scope-based queries
+SYSTEM_PREFERENCES_SCHEMA.index({ userId: 1, layoutId: 1, scope: 1 }, { unique: true }); // Unique per user and layout
+SYSTEM_PREFERENCES_SCHEMA.index({ scope: 1, userId: 1 }); // Index for scope and userId queries
+SYSTEM_PREFERENCES_SCHEMA.index({ scope: 1 }); // Index for scope-based queries
 
 // Static methods
-SystemPreferencesSchema.statics = {
+SYSTEM_PREFERENCES_SCHEMA.statics = {
 	// Get preference by layoutId and userId
 	async getPreferenceByLayout(userId: string, layoutId: string): Promise<DatabaseResult<Layout | null>> {
 		try {
@@ -213,4 +213,4 @@ SystemPreferencesSchema.statics = {
 // Create and export the SystemPreferencesModel
 export const SystemPreferencesModel =
 	(mongoose.models?.SystemPreferences as unknown as SystemPreferencesModelType | undefined) ||
-	(mongoose.model<SystemPreferencesDocument>('SystemPreferences', SystemPreferencesSchema) as unknown as SystemPreferencesModelType);
+	(mongoose.model<SystemPreferencesDocument>('SystemPreferences', SYSTEM_PREFERENCES_SCHEMA) as unknown as SystemPreferencesModelType);

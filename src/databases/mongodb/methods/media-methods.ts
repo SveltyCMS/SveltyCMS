@@ -9,7 +9,7 @@
 
 import { safeQuery } from '@src/utils/security/safe-query';
 import { logger } from '@utils/logger';
-import mongoose from 'mongoose';
+import type mongoose from 'mongoose';
 import type { Model, QueryFilter } from 'mongoose';
 import type { DatabaseId, DatabaseResult, MediaItem, MediaMetadata, PaginatedResult, PaginationOptions } from '../../db-interface';
 import { type IMedia, mediaSchema } from '../models/media';

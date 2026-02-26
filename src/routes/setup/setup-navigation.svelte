@@ -16,7 +16,7 @@ Features:
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 
 	// Paraglide Messages
-	import { button_previous, button_next, button_complete, setup_progress_step_of } from '@src/paraglide/messages';
+	import { button_complete, button_next, button_previous, setup_progress_step_of } from '@src/paraglide/messages';
 
 	const {
 		currentStep,

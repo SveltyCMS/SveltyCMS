@@ -34,13 +34,13 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 -->
 
 <script lang="ts">
+	import { mediagallery_nomedia } from '@src/paraglide/messages';
 	import { logger } from '@utils/logger';
 	import type { MediaImage } from '@utils/media/media-models';
 	// Removed axios import
 	import { onDestroy, onMount } from 'svelte';
-	import { fade, scale } from 'svelte/transition';
-	import { mediagallery_nomedia } from '@src/paraglide/messages';
 	import { SvelteSet } from 'svelte/reactivity';
+	import { fade, scale } from 'svelte/transition';
 
 	type ThumbnailSize = 'sm' | 'md' | 'lg';
 	type ViewMode = 'grid' | 'list';

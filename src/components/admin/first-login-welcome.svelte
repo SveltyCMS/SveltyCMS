@@ -10,12 +10,12 @@
 
 <script lang="ts">
 	// Utils
-	import { logger } from '@utils/logger';
-	import { onMount, untrack } from 'svelte';
-	import { goto } from '$app/navigation';
 
 	// Components
 	import Button from '@src/components/system/buttons/Button.svelte';
+	import { logger } from '@utils/logger';
+	import { onMount, untrack } from 'svelte';
+	import { goto } from '$app/navigation';
 	import ImportExportManager from './import-export-manager.svelte';
 
 	// Types

@@ -22,23 +22,12 @@ functionality for image editing and basic file information display.
 - **Styling**: Adheres to the project's style guide using Tailwind CSS utility classes and semantic colors.
 -->
 <script lang="ts">
-	type _any = any;
+	type Any = any;
 
-	import type { ISODateString } from '@src/content/types';
-	import { collectionValue } from '@src/stores/collection-store.svelte.ts';
-
-	// Stores
-	import { validationStore } from '@src/stores/store.svelte.ts';
-	import { isoDateStringToDate } from '@utils/date-utils';
-	import { logger } from '@utils/logger';
-	import { updateMediaMetadata } from '@utils/media/api';
+	import ImageEditorModal from '@src/components/image-editor/image-editor-modal.svelte';
 	// Components
 	import FileInput from '@src/components/system/inputs/file-input.svelte';
-	import ImageEditorModal from '@src/components/image-editor/image-editor-modal.svelte';
-
-	import type { MediaImage, WatermarkOptions } from '@utils/media/media-models';
-	import { getFieldName, convertTimestampToDateString } from '@utils/utils';
-
+	import type { ISODateString } from '@src/content/types';
 	// Paraglide Messages
 	import {
 		widget_ImageUpload_LastModified,
@@ -47,6 +36,14 @@ functionality for image editing and basic file information display.
 		widget_ImageUpload_Type,
 		widget_ImageUpload_Uploaded
 	} from '@src/paraglide/messages';
+	import { collectionValue } from '@src/stores/collection-store.svelte.ts';
+	// Stores
+	import { validationStore } from '@src/stores/store.svelte.ts';
+	import { isoDateStringToDate } from '@utils/date-utils';
+	import { logger } from '@utils/logger';
+	import { updateMediaMetadata } from '@utils/media/api';
+	import type { MediaImage, WatermarkOptions } from '@utils/media/media-models';
+	import { convertTimestampToDateString, getFieldName } from '@utils/utils';
 
 	// Define reactive state
 	let isFlipped = $state(false);
@@ -105,8 +102,8 @@ functionality for image editing and basic file information display.
 			validationStore.clearError(getFieldName(field));
 			return null;
 		} catch (error) {
-			if ((error as ValiError<_any>).issues) {
-				const valiError = error as ValiError<_any>;
+			if ((error as ValiError<Any>).issues) {
+				const valiError = error as ValiError<Any>;
 				const errorMessage = valiError.issues[0]?.message || 'Invalid input';
 				validationStore.setError(getFieldName(field), errorMessage);
 				return errorMessage;
@@ -313,20 +310,16 @@ functionality for image editing and basic file information display.
 					{:else}
 						<div class="col-span-11 ml-2 grid grid-cols-2 gap-1 text-left">
 							<p class="">{widget_ImageUpload_Type()}</p>
-							<p class="font-bold text-tertiary-500 dark:text-primary-500">{(value as _any).type}</p>
+							<p class="font-bold text-tertiary-500 dark:text-primary-500">{(value as Any).type}</p>
 							<p class="">Path:</p>
-							<p class="font-bold text-tertiary-500 dark:text-primary-500">{(value as _any).path}</p>
+							<p class="font-bold text-tertiary-500 dark:text-primary-500">{(value as Any).path}</p>
 							<p class="">{widget_ImageUpload_Uploaded()}</p>
 							<p class="font-bold text-tertiary-500 dark:text-primary-500">
-								{convertTimestampToDateString(
-									getTimestamp((value as _any) instanceof File ? (value as _any).lastModified : (value as _any).createdAt)
-								)}
+								{convertTimestampToDateString(getTimestamp((value as Any) instanceof File ? (value as Any).lastModified : (value as Any).createdAt))}
 							</p>
 							<p class="">{widget_ImageUpload_LastModified()}</p>
 							<p class="font-bold text-tertiary-500 dark:text-primary-500">
-								{convertTimestampToDateString(
-									getTimestamp((value as _any) instanceof File ? (value as _any).lastModified : (value as _any).updatedAt)
-								)}
+								{convertTimestampToDateString(getTimestamp((value as Any) instanceof File ? (value as Any).lastModified : (value as Any).updatedAt))}
 							</p>
 
 							{#if !(value instanceof File) && value.metadata?.aiTags?.length}

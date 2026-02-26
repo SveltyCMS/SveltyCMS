@@ -12,24 +12,23 @@
 
 	// WebMCP Support (Polyfill + Plugin)
 	import '@mcp-b/global';
+	import { Portal } from '@skeletonlabs/skeleton-svelte';
+	// Components
+	import DialogManager from '@src/components/system/dialog-manager.svelte';
+	import FloatingNav from '@src/components/system/floating-nav.svelte';
+	import ToastManager from '@src/components/system/toast-manager.svelte';
 	// Paraglide locale bridge
 	import { locales as availableLocales, getLocale, setLocale } from '@src/paraglide/runtime';
+	import CookieConsent from '@src/plugins/cookie-consent/cookie-consent.svelte';
 	import { initWebMCP } from '@src/plugins/webmcp/index';
 	// Global Settings
 	import { initPublicEnv, publicEnv } from '@src/stores/global-settings.svelte';
-	// Skeleton v4
-	import { app, toaster } from '@src/stores/store.svelte';
-	import { Portal } from '@skeletonlabs/skeleton-svelte';
-	// Theme management
-	import { initializeDarkMode, initializeThemeStore, themeStore } from '@src/stores/theme-store.svelte';
 	// Stores
 	import { screen as screenSize } from '@src/stores/screen-size-store.svelte.ts';
-
-	// Components
-	import DialogManager from '@src/components/system/dialog-manager.svelte';
-	import ToastManager from '@src/components/system/toast-manager.svelte';
-	import FloatingNav from '@src/components/system/floating-nav.svelte';
-	import CookieConsent from '@src/plugins/cookie-consent/cookie-consent.svelte';
+	// Skeleton v4
+	import { app, toaster } from '@src/stores/store.svelte';
+	// Theme management
+	import { initializeDarkMode, initializeThemeStore, themeStore } from '@src/stores/theme-store.svelte';
 
 	// Components
 	// import TokenPicker from '@components/token-picker.svelte';
@@ -97,8 +96,7 @@
 
 	/**
 	 * Reactive Flash Message Detection
-	 * Watches for URL changes and checks sessionStorage for "flashMessage"
-	 * This ensures toasts appear correctly even during SPA navigation (goto).
+	 * Watches for URL changes and triggers toaster's flash message processor.
 	 */
 	$effect(() => {
 		if (!(browser && isMounted)) {
@@ -108,40 +106,8 @@
 		// Depend on page.url to trigger this effect on every navigation
 		void page.url.pathname;
 
-		const flashMessageJson = sessionStorage.getItem('flashMessage');
-		if (flashMessageJson) {
-			console.log('[RootLayout] Flash message detected:', flashMessageJson);
-			try {
-				const flashMessage = JSON.parse(flashMessageJson);
-				console.log('[RootLayout] Parsed flash message:', flashMessage);
-				sessionStorage.removeItem('flashMessage');
-
-				const opts = {
-					title: flashMessage.title,
-					description: flashMessage.description, // Use 'description' instead of 'message' for Skeleton v4
-					type: flashMessage.type,
-					duration: flashMessage.duration || 5000
-				};
-
-				// Small delay to ensure render cycle is complete
-				setTimeout(() => {
-					console.log('[RootLayout] Triggering toast:', flashMessage.type);
-					// Use static toaster import
-					if (flashMessage.type === 'success') {
-						toaster.success(opts);
-					} else if (flashMessage.type === 'warning') {
-						toaster.warning(opts);
-					} else if (flashMessage.type === 'error') {
-						toaster.error(opts);
-					} else {
-						toaster.info(opts);
-					}
-				}, 100);
-			} catch (e) {
-				console.error('Failed to parse flash message:', e);
-				sessionStorage.removeItem('flashMessage');
-			}
-		}
+		// Delegate to toaster store
+		toaster.checkFlash();
 	});
 
 	// ============================================================================
@@ -201,7 +167,7 @@
 
 		(async () => {
 			try {
-				const AccessibilityHelp = (await import('@components/system/accessibility-help.svelte')).default;
+				const ACCESSIBILITY_HELP = (await import('@components/system/accessibility-help.svelte')).default;
 				const { modalState } = await import('@utils/modal-state.svelte');
 
 				if (controller.signal.aborted) {
@@ -218,7 +184,7 @@
 						}
 
 						e.preventDefault();
-						modalState.trigger(AccessibilityHelp, {
+						modalState.trigger(ACCESSIBILITY_HELP, {
 							ariaLabel: 'Accessibility Help'
 						});
 					}

@@ -189,9 +189,9 @@ export class UserAdapter {
 	}
 
 	// Edit a user
-	async updateUserAttributes(user_id: string, userData: Partial<User>, tenantId?: string): Promise<DatabaseResult<User>> {
+	async updateUserAttributes(userId: string, userData: Partial<User>, tenantId?: string): Promise<DatabaseResult<User>> {
 		try {
-			const filter: Record<string, unknown> = { _id: user_id };
+			const filter: Record<string, unknown> = { _id: userId };
 			if (tenantId) {
 				filter.tenantId = tenantId;
 			}
@@ -203,22 +203,22 @@ export class UserAdapter {
 			if (!user) {
 				return {
 					success: false,
-					message: `User not found for ID: ${user_id} ${tenantId ? `in tenant: ${tenantId}` : ''}`,
+					message: `User not found for ID: ${userId} ${tenantId ? `in tenant: ${tenantId}` : ''}`,
 					error: {
 						code: 'USER_NOT_FOUND',
-						message: `User not found for ID: ${user_id} ${tenantId ? `in tenant: ${tenantId}` : ''}`
+						message: `User not found for ID: ${userId} ${tenantId ? `in tenant: ${tenantId}` : ''}`
 					}
 				};
 			}
 
-			logger.debug(`User attributes updated: ${user_id}`, { tenantId });
+			logger.debug(`User attributes updated: ${userId}`, { tenantId });
 			return {
 				success: true,
 				data: this.mapUser(user as unknown as Record<string, unknown>)
 			};
 		} catch (err) {
 			const message = `Error in UserAdapter.updateUserAttributes: ${err instanceof Error ? err.message : String(err)}`;
-			logger.error(message, { user_id, tenantId });
+			logger.error(message, { user_id: userId, tenantId });
 			return {
 				success: false,
 				message,
@@ -326,7 +326,7 @@ export class UserAdapter {
 	}
 
 	// Assign a permission to a user
-	async assignPermissionToUser(user_id: string, permissionName: string): Promise<DatabaseResult<void>> {
+	async assignPermissionToUser(userId: string, permissionName: string): Promise<DatabaseResult<void>> {
 		const allPermissions = await getAllPermissions();
 		const permission = allPermissions.find((p) => p._id === permissionName);
 		if (!permission) {
@@ -341,17 +341,17 @@ export class UserAdapter {
 			};
 		}
 		try {
-			await this.UserModel.findByIdAndUpdate(user_id, {
+			await this.UserModel.findByIdAndUpdate(userId, {
 				$addToSet: { permissions: permissionName }
 			});
-			logger.info(`Permission ${permissionName} assigned to user${user_id}`);
+			logger.info(`Permission ${permissionName} assigned to user${userId}`);
 			return {
 				success: true,
 				data: undefined
 			};
 		} catch (err) {
 			const message = `Error in UserAdapter.assignPermissionToUser: ${err instanceof Error ? err.message : String(err)}`;
-			logger.error(message, { user_id, permissionName });
+			logger.error(message, { user_id: userId, permissionName });
 			return {
 				success: false,
 				message,
@@ -364,19 +364,19 @@ export class UserAdapter {
 	}
 
 	// Remove a permission from a user
-	async deletePermissionFromUser(user_id: string, permissionName: string): Promise<DatabaseResult<void>> {
+	async deletePermissionFromUser(userId: string, permissionName: string): Promise<DatabaseResult<void>> {
 		try {
-			await this.UserModel.findByIdAndUpdate(user_id, {
+			await this.UserModel.findByIdAndUpdate(userId, {
 				$pull: { permissions: permissionName }
 			});
-			logger.info(`Permission ${permissionName} removed from user ${user_id}`);
+			logger.info(`Permission ${permissionName} removed from user ${userId}`);
 			return {
 				success: true,
 				data: undefined
 			};
 		} catch (err) {
 			const message = `Error in UserAdapter.deletePermissionFromUser: ${err instanceof Error ? err.message : String(err)}`;
-			logger.error(message, { user_id, permissionName });
+			logger.error(message, { user_id: userId, permissionName });
 			return {
 				success: false,
 				message,
@@ -389,11 +389,11 @@ export class UserAdapter {
 	}
 
 	// Get permissions for a user
-	async getPermissionsForUser(user_id: string): Promise<DatabaseResult<Permission[]>> {
+	async getPermissionsForUser(userId: string): Promise<DatabaseResult<Permission[]>> {
 		try {
-			const user = await this.UserModel.findById(user_id).lean();
+			const user = await this.UserModel.findById(userId).lean();
 			if (!user) {
-				logger.warn(`User not found: ${user_id}`);
+				logger.warn(`User not found: ${userId}`);
 				return {
 					success: true,
 					data: []
@@ -408,14 +408,14 @@ export class UserAdapter {
 				userPermissions.find((p) => p._id === id)
 			) as Permission[];
 
-			logger.debug(`Permissions retrieved for user: ${user_id}`);
+			logger.debug(`Permissions retrieved for user: ${userId}`);
 			return {
 				success: true,
 				data: uniquePermissions
 			};
 		} catch (err) {
 			const message = `Error in UserAdapter.getPermissionsForUser: ${err instanceof Error ? err.message : String(err)}`;
-			logger.error(message, { user_id });
+			logger.error(message, { user_id: userId });
 			return {
 				success: false,
 				message,
@@ -428,11 +428,11 @@ export class UserAdapter {
 	}
 
 	// Check if a user has a specific permission
-	async hasPermissionByAction(user_id: string, permissionName: string): Promise<DatabaseResult<boolean>> {
+	async hasPermissionByAction(userId: string, permissionName: string): Promise<DatabaseResult<boolean>> {
 		try {
-			const user = await this.UserModel.findById(user_id).lean();
+			const user = await this.UserModel.findById(userId).lean();
 			if (!user) {
-				logger.warn(`User not found: ${user_id}`);
+				logger.warn(`User not found: ${userId}`);
 				return {
 					success: true,
 					data: false
@@ -448,14 +448,14 @@ export class UserAdapter {
 				};
 			}
 
-			logger.debug(`User ${user_id} does not have permission: ${permissionName}`);
+			logger.debug(`User ${userId} does not have permission: ${permissionName}`);
 			return {
 				success: true,
 				data: false
 			};
 		} catch (err) {
 			const message = `Error in UserAdapter.hasPermissionByAction: ${err instanceof Error ? err.message : String(err)}`;
-			logger.error(message, { user_id, permissionName });
+			logger.error(message, { user_id: userId, permissionName });
 			return {
 				success: false,
 				message,
@@ -468,19 +468,19 @@ export class UserAdapter {
 	}
 
 	// Change user password
-	async changePassword(user_id: string, newPassword: string): Promise<DatabaseResult<void>> {
+	async changePassword(userId: string, newPassword: string): Promise<DatabaseResult<void>> {
 		try {
-			await this.UserModel.findByIdAndUpdate(user_id, {
+			await this.UserModel.findByIdAndUpdate(userId, {
 				password: newPassword
 			});
-			logger.info(`Password changed for user: ${user_id}`);
+			logger.info(`Password changed for user: ${userId}`);
 			return {
 				success: true,
 				data: undefined
 			};
 		} catch (err) {
 			const message = `Error in UserAdapter.changePassword: ${err instanceof Error ? err.message : String(err)}`;
-			logger.error(message, { user_id });
+			logger.error(message, { user_id: userId });
 			return {
 				success: false,
 				message,
@@ -493,20 +493,20 @@ export class UserAdapter {
 	}
 
 	// Block a user
-	async blockUser(user_id: string): Promise<DatabaseResult<void>> {
+	async blockUser(userId: string): Promise<DatabaseResult<void>> {
 		try {
-			await this.UserModel.findByIdAndUpdate(user_id, {
+			await this.UserModel.findByIdAndUpdate(userId, {
 				blocked: true,
 				lockoutUntil: new Date() // Set lockoutUntil to current time
 			});
-			logger.info(`User blocked: ${user_id}`);
+			logger.info(`User blocked: ${userId}`);
 			return {
 				success: true,
 				data: undefined
 			};
 		} catch (err) {
 			const message = `Error in UserAdapter.blockUser: ${err instanceof Error ? err.message : String(err)}`;
-			logger.error(message, { user_id });
+			logger.error(message, { user_id: userId });
 			return {
 				success: false,
 				message,
@@ -519,20 +519,20 @@ export class UserAdapter {
 	}
 
 	// Unblock a user
-	async unblockUser(user_id: string): Promise<DatabaseResult<void>> {
+	async unblockUser(userId: string): Promise<DatabaseResult<void>> {
 		try {
-			await this.UserModel.findByIdAndUpdate(user_id, {
+			await this.UserModel.findByIdAndUpdate(userId, {
 				blocked: false,
 				lockoutUntil: null // Clear lockoutUntil
 			});
-			logger.info(`User unblocked: ${user_id}`);
+			logger.info(`User unblocked: ${userId}`);
 			return {
 				success: true,
 				data: undefined
 			};
 		} catch (err) {
 			const message = `Error in UserAdapter.unblockUser: ${err instanceof Error ? err.message : String(err)}`;
-			logger.error(message, { user_id });
+			logger.error(message, { user_id: userId });
 			return {
 				success: false,
 				message,
@@ -607,22 +607,22 @@ export class UserAdapter {
 	}
 
 	// Delete a user
-	async deleteUser(user_id: string, tenantId?: string): Promise<DatabaseResult<void>> {
+	async deleteUser(userId: string, tenantId?: string): Promise<DatabaseResult<void>> {
 		try {
-			const filter: Record<string, unknown> = { _id: user_id };
+			const filter: Record<string, unknown> = { _id: userId };
 			if (tenantId) {
 				filter.tenantId = tenantId;
 			}
 
 			await this.UserModel.findOneAndDelete(filter);
-			logger.info(`User deleted: ${user_id}`, { tenantId });
+			logger.info(`User deleted: ${userId}`, { tenantId });
 			return {
 				success: true,
 				data: undefined
 			};
 		} catch (err) {
 			const message = `Error in UserAdapter.deleteUser: ${err instanceof Error ? err.message : String(err)}`;
-			logger.error(message, { user_id, tenantId });
+			logger.error(message, { user_id: userId, tenantId });
 			return {
 				success: false,
 				message,
@@ -663,16 +663,16 @@ export class UserAdapter {
 	}
 
 	// Get a user by ID
-	async getUserById(user_id: string, tenantId?: string): Promise<DatabaseResult<User | null>> {
+	async getUserById(userId: string, tenantId?: string): Promise<DatabaseResult<User | null>> {
 		try {
-			const filter: Record<string, unknown> = { _id: user_id };
+			const filter: Record<string, unknown> = { _id: userId };
 			if (tenantId) {
 				filter.tenantId = tenantId;
 			}
 
 			const user = await this.UserModel.findOne(filter).lean();
 			if (user) {
-				logger.debug(`User retrieved by ID: ${user_id}`, {
+				logger.debug(`User retrieved by ID: ${userId}`, {
 					tenantId: tenantId || 'none (single-tenant mode)'
 				});
 				return {
@@ -687,7 +687,7 @@ export class UserAdapter {
 		} catch (err) {
 			const message = `Error in UserAdapter.getUserById: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message, {
-				user_id,
+				user_id: userId,
 				tenantId: tenantId || 'none (single-tenant mode)'
 			});
 			return {
@@ -751,17 +751,17 @@ export class UserAdapter {
 	}
 
 	// Assign a role to a user
-	async assignRoleToUser(user_id: string, role: string): Promise<DatabaseResult<void>> {
+	async assignRoleToUser(userId: string, role: string): Promise<DatabaseResult<void>> {
 		try {
-			await this.UserModel.findByIdAndUpdate(user_id, { role });
-			logger.info(`Role ${role} assigned to user ${user_id}`);
+			await this.UserModel.findByIdAndUpdate(userId, { role });
+			logger.info(`Role ${role} assigned to user ${userId}`);
 			return {
 				success: true,
 				data: undefined
 			};
 		} catch (err) {
 			const message = `Error in UserAdapter.assignRoleToUser: ${err instanceof Error ? err.message : String(err)}`;
-			logger.error(message, { user_id, role });
+			logger.error(message, { user_id: userId, role });
 			return {
 				success: false,
 				message,
@@ -774,17 +774,17 @@ export class UserAdapter {
 	}
 
 	// Remove a role from a user
-	async removeRoleFromUser(user_id: string): Promise<DatabaseResult<void>> {
+	async removeRoleFromUser(userId: string): Promise<DatabaseResult<void>> {
 		try {
-			await this.UserModel.findByIdAndUpdate(user_id, { $unset: { role: '' } });
-			logger.info(`Role removed from user ${user_id}`);
+			await this.UserModel.findByIdAndUpdate(userId, { $unset: { role: '' } });
+			logger.info(`Role removed from user ${userId}`);
 			return {
 				success: true,
 				data: undefined
 			};
 		} catch (err) {
 			const message = `Error in UserAdapter.removeRoleFromUser: ${err instanceof Error ? err.message : String(err)}`;
-			logger.error(message, { user_id });
+			logger.error(message, { user_id: userId });
 			return {
 				success: false,
 				message,
@@ -797,11 +797,11 @@ export class UserAdapter {
 	}
 
 	// Get roles for a user
-	async getRolesForUser(user_id: string): Promise<DatabaseResult<Role[]>> {
+	async getRolesForUser(userId: string): Promise<DatabaseResult<Role[]>> {
 		try {
-			const user = await this.UserModel.findById(user_id).lean();
+			const user = await this.UserModel.findById(userId).lean();
 			if (!user?.role) {
-				logger.warn(`User or role not found for user ID: ${user_id}`);
+				logger.warn(`User or role not found for user ID: ${userId}`);
 				return {
 					success: true,
 					data: []
@@ -812,21 +812,21 @@ export class UserAdapter {
 			// Fetch the role from the file-based roles configuration
 			const role = getPrivateSettingSync('ROLES')?.find((r) => r._id === user.role);
 			if (!role) {
-				logger.warn(`Role not found: ${user.role} for user ID: ${user_id}`);
+				logger.warn(`Role not found: ${user.role} for user ID: ${userId}`);
 				return {
 					success: true,
 					data: []
 				};
 			}
 
-			logger.debug(`Roles retrieved for user ID: ${user_id}`);
+			logger.debug(`Roles retrieved for user ID: ${userId}`);
 			return {
 				success: true,
 				data: [role]
 			};
 		} catch (err) {
 			const message = `Error in UserAdapter.getRolesForUser: ${err instanceof Error ? err.message : String(err)}`;
-			logger.error(message, { user_id });
+			logger.error(message, { user_id: userId });
 			return {
 				success: false,
 				message,
@@ -873,14 +873,14 @@ export class UserAdapter {
 	}
 
 	// Check user role
-	async checkUserRole(user_id: string, role_name: string): Promise<DatabaseResult<boolean>> {
+	async checkUserRole(userId: string, roleName: string): Promise<DatabaseResult<boolean>> {
 		try {
-			const user = await this.UserModel.findById(user_id).lean();
+			const user = await this.UserModel.findById(userId).lean();
 			if (user) {
 				user._id = user._id.toString();
 				return {
 					success: true,
-					data: user.role === role_name
+					data: user.role === roleName
 				};
 			}
 			return {
@@ -889,7 +889,7 @@ export class UserAdapter {
 			};
 		} catch (err) {
 			const message = `Error in UserAdapter.checkUserRole: ${err instanceof Error ? err.message : String(err)}`;
-			logger.error(message, { user_id, role_name });
+			logger.error(message, { user_id: userId, role_name: roleName });
 			return {
 				success: false,
 				message,
@@ -902,19 +902,19 @@ export class UserAdapter {
 	}
 
 	// Update lastActiveAt
-	async updateLastActiveAt(user_id: string): Promise<DatabaseResult<void>> {
+	async updateLastActiveAt(userId: string): Promise<DatabaseResult<void>> {
 		try {
-			await this.UserModel.findByIdAndUpdate(user_id, {
+			await this.UserModel.findByIdAndUpdate(userId, {
 				lastActiveAt: new Date()
 			});
-			logger.debug(`Updated lastActiveAt for user: ${user_id}`);
+			logger.debug(`Updated lastActiveAt for user: ${userId}`);
 			return {
 				success: true,
 				data: undefined
 			};
 		} catch (err) {
 			const message = `Error in UserAdapter.updateLastActiveAt: ${err instanceof Error ? err.message : String(err)}`;
-			logger.error(message, { user_id });
+			logger.error(message, { user_id: userId });
 			return {
 				success: false,
 				message,
@@ -927,19 +927,19 @@ export class UserAdapter {
 	}
 
 	// Set expiration date
-	async setUserExpiration(user_id: string, expirationDate: Date): Promise<DatabaseResult<void>> {
+	async setUserExpiration(userId: string, expirationDate: Date): Promise<DatabaseResult<void>> {
 		try {
-			await this.UserModel.findByIdAndUpdate(user_id, {
+			await this.UserModel.findByIdAndUpdate(userId, {
 				expiresAt: expirationDate
 			});
-			logger.debug(`Set expiration date for user: ${user_id}`);
+			logger.debug(`Set expiration date for user: ${userId}`);
 			return {
 				success: true,
 				data: undefined
 			};
 		} catch (err) {
 			const message = `Error in UserAdapter.setUserExpiration: ${err instanceof Error ? err.message : String(err)}`;
-			logger.error(message, { user_id, expirationDate });
+			logger.error(message, { user_id: userId, expirationDate });
 			return {
 				success: false,
 				message,
@@ -952,9 +952,9 @@ export class UserAdapter {
 	}
 
 	// check if a user is expired
-	async isUserExpired(user_id: string): Promise<DatabaseResult<boolean>> {
+	async isUserExpired(userId: string): Promise<DatabaseResult<boolean>> {
 		try {
-			const user = await this.UserModel.findById(user_id).lean();
+			const user = await this.UserModel.findById(userId).lean();
 			if (user?.expiresAt) {
 				return {
 					success: true,
@@ -967,7 +967,7 @@ export class UserAdapter {
 			};
 		} catch (err) {
 			const message = `Error in UserAdapter.isUserExpired: ${err instanceof Error ? err.message : String(err)}`;
-			logger.error(message, { user_id });
+			logger.error(message, { user_id: userId });
 			return {
 				success: false,
 				message,

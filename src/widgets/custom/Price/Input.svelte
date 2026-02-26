@@ -19,43 +19,49 @@ Renders a currency selector and a number input side-by-side.
 		value: PriceValue | null | undefined;
 	}
 
-	let { field, value = $bindable(null) }: Props = $props();
+	let { field, value = $bindable() }: Props = $props();
 
-	// Initialize value if null
+	// Initialize value if null/undefined with a reactive default
 	$effect(() => {
-		if (value === null || typeof value !== 'object') {
-			// Do not overwrite if it's explicitly null/undefined unless we want to force defaults on mount?
-			// Better to init only partial if mostly empty.
-			const defaultCurr = (field as any).defaultCurrency || 'EUR';
+		if (value === null || value === undefined || typeof value !== 'object') {
+			const defaultCurr = (field as any).defaultCurrency || (field as any).defaults?.defaultCurrency || 'EUR';
 			value = { amount: null, currency: defaultCurr };
 		}
 	});
 
-	const currencies = $derived((field as any).allowedCurrencies || ['EUR', 'USD', 'GBP']);
+	const currencies = $derived((field as any).allowedCurrencies || (field as any).defaults?.allowedCurrencies || ['EUR', 'USD', 'GBP']);
 </script>
 
 <div class="flex gap-2 w-full">
 	<!-- Currency Selector -->
 	<div class="w-1/3 min-w-[80px]">
-		<select bind:value={value!.currency} class="select w-full" aria-label="{field.label} Currency" disabled={(field as any).readonly}>
-			{#each currencies as code}
-				<option value={code}>{code}</option>
-			{/each}
-		</select>
+		{#if value}
+			<select bind:value={value.currency} class="select w-full" aria-label="{field.label} Currency" disabled={(field as any).readonly}>
+				{#each currencies as code}
+					<option value={code}>{code}</option>
+				{/each}
+			</select>
+		{:else}
+			<div class="select w-full animate-pulse bg-surface-200 dark:bg-surface-700 h-10 rounded"></div>
+		{/if}
 	</div>
 
 	<!-- Amount Input -->
 	<div class="flex-1">
-		<input
-			type="number"
-			bind:value={value!.amount}
-			min={(field as any).min}
-			max={(field as any).max}
-			step={(field as any).step}
-			class="input w-full"
-			placeholder="0.00"
-			aria-label="{field.label} Amount"
-			disabled={(field as any).readonly}
-		/>
+		{#if value}
+			<input
+				type="number"
+				bind:value={value.amount}
+				min={(field as any).min ?? (field as any).defaults?.min}
+				max={(field as any).max ?? (field as any).defaults?.max}
+				step={(field as any).step ?? (field as any).defaults?.step}
+				class="input w-full"
+				placeholder="0.00"
+				aria-label="{field.label} Amount"
+				disabled={(field as any).readonly}
+			/>
+		{:else}
+			<div class="input w-full animate-pulse bg-surface-200 dark:bg-surface-700 h-10 rounded"></div>
+		{/if}
 	</div>
 </div>

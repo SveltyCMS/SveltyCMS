@@ -23,16 +23,14 @@ Key features:
 	// Using iconify-icon web component
 	// Utils
 
-	import type { MediaBase, MediaImage, MediaVideo } from '@utils/media/media-models';
-	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
-	import { scale } from 'svelte/transition';
-
+	import TagEditorModal from '@src/components/media/tag-editor/tag-editor-modal.svelte';
 	// Components
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
-	import TagEditorModal from '@src/components/media/tag-editor/tag-editor-modal.svelte';
-
+	import type { MediaBase, MediaImage, MediaVideo } from '@utils/media/media-models';
 	// Utils
 	import { formatBytes } from '@utils/utils';
+	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
+	import { scale } from 'svelte/transition';
 
 	interface Props {
 		filteredFiles?: (MediaBase | MediaImage)[];

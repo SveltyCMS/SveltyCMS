@@ -16,14 +16,14 @@
 -->
 
 <script lang="ts">
+	import { Tabs } from '@skeletonlabs/skeleton-svelte';
+	import InputSwitch from '@src/components/system/builder/input-switch.svelte';
 	import { collections } from '@src/stores/collection-store.svelte';
 	import { widgets } from '@src/stores/widget-store.svelte.ts';
 	import { asAny } from '@utils/utils';
 	import type { Component } from 'svelte';
-	import { Tabs } from '@skeletonlabs/skeleton-svelte';
-	import InputSwitch from '@src/components/system/builder/input-switch.svelte';
-	import Specific from '../[action]/[...contentPath]/tabs/collection-widget/tabs-fields/specific.svelte';
 	import Permission from '../[action]/[...contentPath]/tabs/collection-widget/tabs-fields/permission.svelte';
+	import Specific from '../[action]/[...contentPath]/tabs/collection-widget/tabs-fields/specific.svelte';
 
 	interface Props {
 		onDelete: () => void;

@@ -7,8 +7,8 @@
 	 */
 
 	import { publicEnv } from '@src/stores/global-settings.svelte';
-	import { dev } from '$app/environment';
 	import { Body, Container, Head, Hr, Html, Img, Link, Preview, Section, Text } from 'better-svelte-email';
+	import { dev } from '$app/environment';
 
 	interface Props {
 		body?: string;

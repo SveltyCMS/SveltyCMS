@@ -12,20 +12,8 @@ Features:
 	
 -->
 <script lang="ts">
-	import { locales as systemLocales } from '@src/paraglide/runtime';
-	//  Import types from the store
-	import type { ValidationErrors } from '@src/stores/setup-store.svelte.ts';
-	import { systemSettingsSchema } from '@utils/form-schemas';
-	import iso6391 from '@utils/iso639-1.json';
-	import { getLanguageName } from '@utils/language-utils';
-	import { safeParse } from 'valibot';
-	import { PRESETS } from './presets';
-
-	// Components
-	import PresetSelector from './preset-selector.svelte';
 	import Autocomplete from '@src/components/autocomplete.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
-
 	// Paraglide Messages
 	import {
 		button_add,
@@ -43,6 +31,10 @@ Features:
 		setup_label_default_content_language,
 		setup_label_default_system_language,
 		setup_label_system_languages,
+		setup_media_type_cloudinary,
+		setup_media_type_local,
+		setup_media_type_r2,
+		setup_media_type_s3,
 		setup_note_cloud_credentials,
 		setup_note_demo_requires_multitenant,
 		setup_system_bucket_placeholder,
@@ -59,12 +51,18 @@ Features:
 		setup_system_multi_tenant_desc,
 		setup_system_site_name,
 		setup_system_site_name_placeholder,
-		setup_system_timezone,
-		setup_media_type_local,
-		setup_media_type_s3,
-		setup_media_type_r2,
-		setup_media_type_cloudinary
+		setup_system_timezone
 	} from '@src/paraglide/messages';
+	import { locales as systemLocales } from '@src/paraglide/runtime';
+	//  Import types from the store
+	import type { ValidationErrors } from '@src/stores/setup-store.svelte.ts';
+	import { systemSettingsSchema } from '@utils/form-schemas';
+	import iso6391 from '@utils/iso639-1.json';
+	import { getLanguageName } from '@utils/language-utils';
+	import { safeParse } from 'valibot';
+	// Components
+	import PresetSelector from './preset-selector.svelte';
+	import { PRESETS } from './presets';
 
 	const presets = PRESETS;
 

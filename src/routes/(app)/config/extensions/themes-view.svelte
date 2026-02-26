@@ -4,9 +4,9 @@
 -->
 
 <script lang="ts">
-	import { marketplace } from '@src/paraglide/messages';
 	import type { DatabaseId } from '@src/content/types';
 	import type { Theme } from '@src/databases/db-interface';
+	import { marketplace } from '@src/paraglide/messages';
 	import { themeStore, updateTheme } from '@src/stores/theme-store.svelte';
 	import { dateToISODateString } from '@utils/date-utils';
 

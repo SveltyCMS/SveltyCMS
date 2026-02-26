@@ -18,8 +18,8 @@ import { createDatabaseError, generateId } from './mongodb-utils';
 export class MongoTenantMethods {
 	private readonly TenantModel: Model<Tenant>;
 
-	constructor(TenantModel: Model<Tenant>) {
-		this.TenantModel = TenantModel;
+	constructor(tenantModel: Model<Tenant>) {
+		this.TenantModel = tenantModel;
 	}
 
 	async create(

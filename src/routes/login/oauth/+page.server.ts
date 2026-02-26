@@ -322,8 +322,8 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 
 		const code = url.searchParams.get('code');
 		const state = url.searchParams.get('state');
-		const error_param = url.searchParams.get('error');
-		const error_subtype = url.searchParams.get('error_subtype');
+		const errorParam = url.searchParams.get('error');
+		const errorSubtype = url.searchParams.get('error_subtype');
 		const token = state ? decodeURIComponent(state) : null;
 
 		logger.debug(`Authorization code from URL: ${code}`);
@@ -331,16 +331,16 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 		logger.debug(`Is First User: ${!firstUserExists}`);
 
 		// Handle OAuth errors first
-		if (error_param) {
-			logger.error(`OAuth Error: ${error_param}`, {
-				error_subtype,
+		if (errorParam) {
+			logger.error(`OAuth Error: ${errorParam}`, {
+				error_subtype: errorSubtype,
 				url: url.toString()
 			});
-			if (error_param === 'interaction_required' || error_param === 'access_denied') {
+			if (errorParam === 'interaction_required' || errorParam === 'access_denied') {
 				const authUrl = await generateGoogleAuthUrl(token, 'consent');
 				redirect(302, authUrl);
 			} else {
-				throw error(400, `OAuth Authentication Failed: ${error_param}: ${error_subtype || 'Unknown error'}`);
+				throw error(400, `OAuth Authentication Failed: ${errorParam}: ${errorSubtype || 'Unknown error'}`);
 			}
 		}
 

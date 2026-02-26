@@ -18,15 +18,17 @@ Values form StatusTypes
 
 <script lang="ts">
 	import { StatusTypes } from '@src/content/types';
+
 	const { value } = $props(); // The status value to display
+
 	import {
-		entrylist_multibutton_publish,
-		entrylist_multibutton_unpublish,
-		entrylist_multibutton_schedule,
+		button_archive,
+		button_delete,
 		entrylist_multibutton_clone,
 		entrylist_multibutton_draft,
-		button_delete,
-		button_archive
+		entrylist_multibutton_publish,
+		entrylist_multibutton_schedule,
+		entrylist_multibutton_unpublish
 	} from '@src/paraglide/messages';
 </script>
 

@@ -13,10 +13,10 @@ Features:
 - Roving tabindex for accessibility
 -->
 <script lang="ts">
-	import type { TreeViewItem } from './tree-view-board.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
-	import { goto } from '$app/navigation';
 	import { screen } from '@src/stores/screen-size-store.svelte.ts';
+	import { goto } from '$app/navigation';
+	import type { TreeViewItem } from './tree-view-board.svelte';
 
 	interface Props {
 		isOpen?: boolean;

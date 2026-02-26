@@ -27,7 +27,7 @@ import { boolean, type InferInput as ValibotInput } from 'valibot';
 import type { CheckboxProps } from './types';
 
 // Define the validation schema for the data this widget stores.
-const CheckboxValidationSchema = boolean('Must be a boolean.');
+const CHECKBOX_VALIDATION_SCHEMA = boolean('Must be a boolean.');
 
 // Create the widget definition using the factory.
 const CheckboxWidget = createWidget<CheckboxProps>({
@@ -40,7 +40,7 @@ const CheckboxWidget = createWidget<CheckboxProps>({
 	displayComponentPath: '/src/widgets/core/Checkbox/Display.svelte',
 
 	// Assign the validation schema.
-	validationSchema: CheckboxValidationSchema,
+	validationSchema: CHECKBOX_VALIDATION_SCHEMA,
 
 	// Set widget-specific defaults.
 	defaults: {
@@ -79,4 +79,4 @@ export default CheckboxWidget;
 
 // Export helper types for use in Svelte components.
 export type FieldType = ReturnType<typeof CheckboxWidget>;
-export type CheckboxWidgetData = ValibotInput<typeof CheckboxValidationSchema>;
+export type CheckboxWidgetData = ValibotInput<typeof CHECKBOX_VALIDATION_SCHEMA>;

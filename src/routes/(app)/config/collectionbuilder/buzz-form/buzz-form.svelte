@@ -19,11 +19,10 @@
 	import { toaster } from '@src/stores/store.svelte';
 	import { widgets } from '@src/stores/widget-store.svelte.ts';
 	import { asAny, getGuiFields } from '@utils/utils';
-
-	// Components
-	import WidgetSidebar from './widget-sidebar.svelte';
 	import BuzzFormCanvas from './buzz-form-canvas.svelte';
 	import FieldInspector from './field-inspector.svelte';
+	// Components
+	import WidgetSidebar from './widget-sidebar.svelte';
 
 	let selectedFieldId = $state<number | string | undefined>(undefined);
 

@@ -21,22 +21,22 @@ import zlib from 'node:zlib';
 const gzip = promisify(zlib.gzip);
 const brotli = promisify(zlib.brotliCompress);
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const FILENAME = fileURLToPath(import.meta.url);
+const DIRNAME = path.dirname(FILENAME);
 
 // --- CONFIGURATION ---
 const CONFIG = {
 	// Scans the entire immutable folder to capture chunks, entry points, and assets
-	buildDir: path.resolve(__dirname, '../.svelte-kit/output/client/_app/immutable'),
-	metadataDir: path.resolve(__dirname, '../.svelte-kit/output'),
+	buildDir: path.resolve(DIRNAME, '../.svelte-kit/output/client/_app/immutable'),
+	metadataDir: path.resolve(DIRNAME, '../.svelte-kit/output'),
 	budgets: {
 		maxChunkSize: 500 * 1024, // 500 KB (Error)
 		warningSize: 350 * 1024, // 350 KB (Warning) - Lowered slightly for stricter control
 		totalBudget: 3.5 * 1024 * 1024 // 3.5 MB Total
 	},
 	fileTypes: ['.js', '.css'],
-	historyFile: path.resolve(__dirname, '../.bundle-history.json'),
-	reportFile: path.resolve(__dirname, '../bundle-report.json')
+	historyFile: path.resolve(DIRNAME, '../.bundle-history.json'),
+	reportFile: path.resolve(DIRNAME, '../bundle-report.json')
 };
 
 const COLORS = {

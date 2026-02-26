@@ -22,9 +22,9 @@
 
 import { sql } from 'drizzle-orm';
 import type { BaseEntity, DatabaseResult, DatabaseTransaction, IDBAdapter, QueryBuilder } from '../../db-interface';
-import { runMigrations } from '../migrations';
 import { CollectionModule } from '../collection/collection-module';
 import { CrudModule } from '../crud/crud-module';
+import { runMigrations } from '../migrations';
 import { AuthModule } from '../modules/auth/auth-module';
 import { ContentModule } from '../modules/content/content-module';
 import { MediaModule } from '../modules/media/media-module';

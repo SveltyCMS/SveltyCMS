@@ -24,10 +24,10 @@
 
 <script lang="ts">
 	import type { FieldInstance } from '@content/types';
+	import PageTitle from '@src/components/page-title.svelte';
+	import { ui } from '@src/stores/ui-store.svelte';
 	import { debounce } from '@utils/utils';
 	import AddWidget from './add-widget.svelte';
-	import { ui } from '@src/stores/ui-store.svelte';
-	import PageTitle from '@src/components/page-title.svelte';
 
 	// Props
 	const { fields = [], onFieldsUpdate = () => {} } = $props();
@@ -69,7 +69,7 @@
 				clone.style.width = `${node.getBoundingClientRect().width}px`;
 				const cloneHeight = `${clone.offsetHeight + 10}px`;
 				const deb = debounce(50);
-				let old_closest: HTMLElement;
+				let oldClosest: HTMLElement;
 
 				clone.onpointermove = (e) => {
 					if (e.clientY < container!.offsetTop || e.clientY > container!.offsetTop + container!.offsetHeight - 60) {
@@ -95,20 +95,20 @@
 						if (closest.el === node) {
 							return;
 						}
-						const closest_index = Number.parseInt(closest.el.getAttribute('data-index') as string, 10);
-						const clone_index = Number.parseInt(clone.getAttribute('data-index') as string, 10);
+						const closestIndex = Number.parseInt(closest.el.getAttribute('data-index') as string, 10);
+						const cloneIndex = Number.parseInt(clone.getAttribute('data-index') as string, 10);
 
-						if (old_closest) {
-							old_closest.style.removeProperty('border-color');
-							old_closest.style.margin = '10px 0';
+						if (oldClosest) {
+							oldClosest.style.removeProperty('border-color');
+							oldClosest.style.margin = '10px 0';
 						}
-						if (e.clientY > closest.center && clone_index - closest_index !== 1) {
+						if (e.clientY > closest.center && cloneIndex - closestIndex !== 1) {
 							closest.el.style.marginBottom = cloneHeight;
-						} else if (e.clientY < closest.center && closest_index - clone_index !== 1) {
+						} else if (e.clientY < closest.center && closestIndex - cloneIndex !== 1) {
 							closest.el.style.marginTop = cloneHeight;
 						}
 						closest.el.style.borderColor = 'red';
-						old_closest = closest.el;
+						oldClosest = closest.el;
 					});
 				};
 
@@ -117,18 +117,18 @@
 					clone.releasePointerCapture(pointerID);
 					targets.sort((a, b) => (Math.abs(b.center - e.clientY) < Math.abs(a.center - e.clientY) ? 1 : -1));
 					const closest = targets[0];
-					let closest_index = Number.parseInt(closest.el.getAttribute('data-index') as string, 10);
-					const clone_index = Number.parseInt(clone.getAttribute('data-index') as string, 10);
+					let closestIndex = Number.parseInt(closest.el.getAttribute('data-index') as string, 10);
+					const cloneIndex = Number.parseInt(clone.getAttribute('data-index') as string, 10);
 					const newFields = [...fields];
-					const dragged_item = newFields.splice(clone_index, 1)[0];
+					const draggedItem = newFields.splice(cloneIndex, 1)[0];
 
-					if (clone_index < closest_index) {
-						closest_index--;
+					if (cloneIndex < closestIndex) {
+						closestIndex--;
 					}
 					if (e.clientY > closest.center) {
-						closest_index++;
+						closestIndex++;
 					}
-					newFields.splice(closest_index, 0, dragged_item);
+					newFields.splice(closestIndex, 0, draggedItem);
 					onFieldsUpdate(newFields);
 					clone.remove();
 					setTimeout(() => {

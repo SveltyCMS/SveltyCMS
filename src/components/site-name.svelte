@@ -29,7 +29,7 @@
 
 ### Example
 <script lang="ts">
-	import SiteName from './site-name.svelte';
+import SiteName from './site-name.svelte';
 </script>
 
 <SiteName siteName="My Site" highlight="Site" />

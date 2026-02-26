@@ -5,10 +5,10 @@
 -->
 <script lang="ts">
 	import PageTitle from '@src/components/page-title.svelte';
-	import { fade, slide } from 'svelte/transition';
 	import type { Webhook } from '@src/services/webhook-service';
 	import { showToast } from '@utils/toast';
 	import { onMount } from 'svelte';
+	import { fade, slide } from 'svelte/transition';
 
 	let webhooks: Webhook[] = $state([]);
 	let isLoading = $state(true);

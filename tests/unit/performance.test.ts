@@ -8,7 +8,7 @@ const MOCK_ENTRIES = Array.from({ length: 100 }, (_, i) => ({
 }));
 
 // Mock Widget with Batch API
-const BatchWidget = {
+const BATCH_WIDGET = {
 	Name: 'BatchWidget',
 	modifyRequestBatch: async ({ data }: { data: any[] }) => {
 		// Simulate DB call with 50ms latency
@@ -22,7 +22,7 @@ const BatchWidget = {
 };
 
 // Mock Widget without Batch API (Legacy)
-const LegacyWidget = {
+const LEGACY_WIDGET = {
 	Name: 'LegacyWidget',
 	modifyRequest: async ({ data }: { data: any }) => {
 		// Simulate DB call with 50ms latency per entry
@@ -39,7 +39,7 @@ describe('Performance: Batch Widget API', () => {
 	test('Batch Widget should be significantly faster than Legacy Widget', async () => {
 		// 1. Measure Batch Performance
 		const startBatch = performance.now();
-		await BatchWidget.modifyRequestBatch({ data: MOCK_ENTRIES });
+		await BATCH_WIDGET.modifyRequestBatch({ data: MOCK_ENTRIES });
 		const endBatch = performance.now();
 		const durationBatch = endBatch - startBatch;
 
@@ -57,7 +57,7 @@ describe('Performance: Batch Widget API', () => {
 					get: () => entry,
 					update: () => {}
 				};
-				await LegacyWidget.modifyRequest({ data: dataAccessor });
+				await LEGACY_WIDGET.modifyRequest({ data: dataAccessor });
 			})
 		);
 		const endLegacy = performance.now();

@@ -86,6 +86,7 @@ export const load: LayoutServerLoad = async ({ cookies, locals, url }) => {
 	const { contentManager } = await import('@src/content/content-manager');
 	let navigationStructure: NavigationNode[] = [];
 	let contentVersion = 0;
+	let firstCollectionRedirectUrl = '';
 
 	try {
 		// Ensurecontent-manageris initialized before use to guarantee sidebar population.
@@ -97,6 +98,9 @@ export const load: LayoutServerLoad = async ({ cookies, locals, url }) => {
 			tenantId: locals.tenantId
 		});
 		contentVersion = contentManager.getContentVersion();
+
+		// Get the redirect URL for the first collection
+		firstCollectionRedirectUrl = (await contentManager.getFirstCollectionRedirectUrl(contentLanguage as string, locals.tenantId)) || '';
 	} catch (error) {
 		console.error('[Layout]ContentManager error (preview mode?):', error);
 		// Continue with empty navigation - don't block page load
@@ -116,7 +120,8 @@ export const load: LayoutServerLoad = async ({ cookies, locals, url }) => {
 		// Pass public settings to client for store initialization
 		settings: {
 			...publicSettings,
-			PKG_VERSION: version
+			PKG_VERSION: version,
+			FIRST_COLLECTION_REDIRECT_URL: firstCollectionRedirectUrl
 		}
 	};
 };

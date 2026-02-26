@@ -6,19 +6,19 @@
 <script lang="ts">
 	import { quintOut } from 'svelte/easing';
 	import { slide } from 'svelte/transition';
+
 	// Components
 	// Using iconify-icon web component
 
 	// Data
 
+	// Components
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+	import { tokenTarget } from '@src/services/token/token-target';
 	// Stores
 	import { app } from '@src/stores/store.svelte';
 	import type { Editor } from '@tiptap/core';
 	import { showModal } from '@utils/modal-utils';
-	import { tokenTarget } from '@src/services/token/token-target';
-
-	// Components
-	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	// Svelte
 	import { onMount } from 'svelte';
 	// Removed static createEditor import for lazy-loading

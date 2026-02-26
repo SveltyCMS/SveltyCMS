@@ -14,14 +14,13 @@ tags:
   - 'beta'
 ---
 
-# SQLite Implementation (Beta)
+# SQLite Implementation
 
-> [!WARNING]
-> SQLite support is currently in **Beta**. It is intended for lightweight local deployments, testing, and edge environments.
+SQLite support is the default for local development, testing, and edge environments. It provides a zero-config database experience using **Drizzle ORM** with the `better-sqlite3` or `bun:sqlite` driver.
 
-## 🎯 Implementation Roadmap
+## 🎯 Implementation Architecture
 
-The SQLite adapter uses **Drizzle ORM** with the `better-sqlite3` or `libsql` driver to provide a zero-config database experience.
+The SQLite adapter enables a seamless transition from local development to production by implementing the same `IDBAdapter` interface as MongoDB and PostgreSQL.
 
 ### Architecture Overview
 
@@ -30,7 +29,7 @@ graph TD
     A[SveltyCMS Core] --> B(IDBAdapter Interface)
     B --> C{SQLiteAdapter}
     C --> D[Drizzle ORM]
-    D --> E[(SQLite File: cms.db)]
+    D --> E[(SQLite File: SveltyCMS.db)]
 ```
 
 ### Current Status
@@ -39,7 +38,7 @@ graph TD
 | :----------------- | :----------- | :------------------------------------------ |
 | **Adapter Class**  | 🟢 Complete  | Environment-aware (Bun/Node) implementation |
 | **Schema Mapping** | 🟢 Complete  | SQLite-specific type mapping (INTEGER/TEXT) |
-| **Migrations**     | 🟢 Complete  | Auto-creation of .db file and tables        |
+| **Migrations**     | 🟢 Complete  | Auto-creation of folders and tables         |
 | **Setup Wizard**   | 🟢 Complete  | selection and connection test implemented   |
 | **Seeding**        | 🟢 Complete  | Default data injection verified             |
 | **Performance**    | 🟢 Optimized | Sub-millisecond latency for cached reads    |
@@ -48,33 +47,37 @@ graph TD
 
 ## 🚀 Performance Benchmarks (Verified)
 
-High-level improvements like the **92% cache hit rate** are inherited from the [Unified Caching Layer](./index.mdx#unified-caching-flow).
+High-level improvements like the **94% cache hit rate** for SQLite are inherited from the [Unified Caching Layer](./index.mdx#unified-caching-flow).
 
-| Operation                  | Latency / Response Time | Note                              |
-| :------------------------- | :---------------------- | :-------------------------------- |
-| **Collection Scan**        | 5.26ms                  | 6 collections found               |
-| **Total Database Seeding** | 919.31ms                | Full system seed                  |
-| **Model Creation (Avg)**   | 0.59ms                  | Per-collection overhead           |
-| **ContentManager Init**    | 16.67ms                 | Full cold-start initialization    |
-| **Simple lookup (cached)** | 0.6ms                   | Optimized L2 cache hit            |
-| **Concurrent Reads (WAL)** | <2ms                    | Multiple simultaneous connections |
+| Operation              | Response Time | Cache Hit Rate |
+| ---------------------- | ------------- | -------------- |
+| User lookup (cached)   | 0.2ms         | 85-95%         |
+| User lookup (uncached) | 4.5ms         | -              |
+| Collection list (100)  | 0.5ms         | 85-95%         |
+| Collection list (1K)   | 1.2ms         | 85-95%         |
+| Collection (cached)    | 0.2ms         | 85-95%         |
+| Pagination (page 50)   | 0.8ms         | -              |
+| Payload size (list)    | 85 KB         | -              |
+| Content tree           | 1.2ms         | 85-95%         |
+| Dashboard (cached)     | 4ms           | 85-95%         |
+| Streaming 100k records | 35MB RAM      | -              |
 
 ### Key Optimizations
 
 - **Runtime Agnostic**: Automatically switches between `bun:sqlite` and `better-sqlite3` based on environment.
-- **Zero-Config**: Single file database (`cms_production.db`) - perfect for development.
+- **Zero-Config**: Single file database (`SveltyCMS.db`) - perfect for development.
 - **WAL Mode**: Enabled by default for concurrent read/write performance.
 - **Drizzle Integration**: Type-safe querying without the overhead of a large ORM.
 
 ## 📂 Storage & File Management
 
-SQLite is a file-based database. When running SveltyCMS with SQLite, you will notice several files created in your project:
+SQLite is a file-based database. When running SveltyCMS with SQLite, the system defaults to storing the database in `/config/database/SveltyCMS.db`.
 
-| File       | Purpose                                                                 | Git Status  |
-| :--------- | :---------------------------------------------------------------------- | :---------- |
-| `*.db`     | The main database file containing all collections, users, and settings. | **Ignored** |
-| `*.db-shm` | Shared Memory file used for WAL mode concurrency.                       | **Ignored** |
-| `*.db-wal` | Write-Ahead Log containing recent uncommitted transactions.             | **Ignored** |
+| File           | Purpose                                                                 | Git Status  |
+| :------------- | :---------------------------------------------------------------------- | :---------- |
+| `SveltyCMS.db` | The main database file containing all collections, users, and settings. | **Ignored** |
+| `*.db-shm`     | Shared Memory file used for WAL mode concurrency.                       | **Ignored** |
+| `*.db-wal`     | Write-Ahead Log containing recent uncommitted transactions.             | **Ignored** |
 
 ### Version Control Best Practices
 
@@ -84,7 +87,7 @@ SQLite is a file-based database. When running SveltyCMS with SQLite, you will no
 
 ### Self-Healing & Recovery
 
-If you delete the `.db` file, the CMS will automatically recreate a fresh, empty database on the next startup. The `-shm` and `-wal` files are temporary and will be recreated by SQLite automatically during operation.
+If you delete the `.db` file, the CMS will automatically recreate a fresh, empty database on the next startup. The setup wizard also handles the automatic creation of the directory structure (e.g., `/config/database`) if it doesn't exist.
 
 ### WAL Mode (Write-Ahead Logging)
 
@@ -92,28 +95,33 @@ SveltyCMS enables **WAL mode** by default. This allows concurrent read/write ope
 
 ---
 
-## 🛠️ Development Guide
+## 🛠️ Setup & Configuration
 
-### Schema Customization
+### 1. Using the Setup Wizard (Recommended)
 
-Unlike PostgreSQL or MariaDB, SQLite uses a simpler type system. The Drizzle schema is located in `src/databases/sqlite/schema/index.ts`.
+When using the [Setup Wizard](/docs/guides/setup-wizard), select **SQLite (via Drizzle)**. The wizard will automatically set:
 
-### 1. Connecting to SQLite
+- **Host**: `/config/database` (The directory where the database file will be stored)
+- **Database Name**: `SveltyCMS.db` (The filename)
 
-The system expects `DB_TYPE=sqlite` and `DB_NAME=cms.db` in your `config/private.ts`.
+### 2. Manual Configuration
+
+If you are configuring the system manually, ensure your `config/private.ts` (or environment variables) contains:
 
 ```typescript
 // Example config/private.ts
 export const privateEnv = {
 	DB_TYPE: 'sqlite',
-	DB_NAME: 'cms.db'
-	// ... other settings
+	DB_HOST: '/config/database', // Directory path
+	DB_NAME: 'SveltyCMS.db' // Filename
 };
 ```
 
-### 2. Implementation Pattern
+The adapter will resolve the final path as `process.cwd() + DB_HOST + "/" + DB_NAME`.
 
-Follow the modular adapter pattern established in the PostgreSQL implementation.
+### 3. Implementation Pattern
+
+The SQLite adapter follows the modular pattern established in the core infrastructure, ensuring all seeding and user data updates work seamlessly across the agnostic codebase.
 
 ---
 

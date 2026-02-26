@@ -18,7 +18,7 @@ import type { DatabaseResult, ISODateString } from '@src/databases/db-interface'
 import { generateId } from '@src/databases/mongodb/methods/mongodb-utils';
 // System Logging
 import { logger } from '@utils/logger';
-import type { QueryFilter, Model } from 'mongoose';
+import type { Model, QueryFilter } from 'mongoose';
 import mongoose, { Schema } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -111,14 +111,14 @@ export class TokenAdapter {
 
 	async validateToken(
 		token: string,
-		user_id?: string,
+		userId?: string,
 		type?: string,
 		tenantId?: string
 	): Promise<DatabaseResult<{ success: boolean; message: string; email?: string }>> {
 		try {
 			const query: Record<string, unknown> = { token };
-			if (user_id) {
-				query.user_id = user_id;
+			if (userId) {
+				query.user_id = userId;
 			}
 			if (type) {
 				query.type = type;
@@ -171,7 +171,7 @@ export class TokenAdapter {
 			};
 		} catch (err) {
 			const message = `Error in TokenAdapter.validateToken: ${err instanceof Error ? err.message : String(err)}`;
-			logger.error(message, { token, user_id, type });
+			logger.error(message, { token, user_id: userId, type });
 			return {
 				success: false,
 				message,
@@ -182,14 +182,14 @@ export class TokenAdapter {
 
 	async consumeToken(
 		token: string,
-		user_id?: string,
+		userId?: string,
 		type?: string,
 		tenantId?: string
 	): Promise<DatabaseResult<{ status: boolean; message: string }>> {
 		try {
 			const query: Record<string, unknown> = { token };
-			if (user_id) {
-				query.user_id = user_id;
+			if (userId) {
+				query.user_id = userId;
 			}
 			if (type) {
 				query.type = type;
@@ -238,7 +238,7 @@ export class TokenAdapter {
 			};
 		} catch (err) {
 			const message = `Error in TokenAdapter.consumeToken: ${err instanceof Error ? err.message : String(err)}`;
-			logger.error(message, { token, user_id, type });
+			logger.error(message, { token, user_id: userId, type });
 			return {
 				success: false,
 				message,
@@ -286,21 +286,21 @@ export class TokenAdapter {
 		}
 	} // Delete multiple tokens by token strings
 
-	async deleteTokens(token_ids: string[], tenantId?: string): Promise<DatabaseResult<{ deletedCount: number }>> {
+	async deleteTokens(tokenIds: string[], tenantId?: string): Promise<DatabaseResult<{ deletedCount: number }>> {
 		try {
-			const filter: Record<string, unknown> = { token: { $in: token_ids } };
+			const filter: Record<string, unknown> = { token: { $in: tokenIds } };
 			if (tenantId) {
 				filter.tenantId = tenantId;
 			}
 			const result = await this.TokenModel.deleteMany(filter as QueryFilter<TokenDocument>);
 			logger.info('Tokens deleted', {
 				deletedCount: result.deletedCount,
-				token_ids
+				token_ids: tokenIds
 			});
 			return { success: true, data: { deletedCount: result.deletedCount } };
 		} catch (err) {
 			const message = `Error in TokenAdapter.deleteTokens: ${err instanceof Error ? err.message : String(err)}`;
-			logger.error(message, { token_ids });
+			logger.error(message, { token_ids: tokenIds });
 			return {
 				success: false,
 				message,
@@ -309,9 +309,9 @@ export class TokenAdapter {
 		}
 	} // Block multiple tokens (set them as blocked )
 
-	async blockTokens(token_ids: string[], tenantId?: string): Promise<DatabaseResult<{ modifiedCount: number }>> {
+	async blockTokens(tokenIds: string[], tenantId?: string): Promise<DatabaseResult<{ modifiedCount: number }>> {
 		try {
-			const filter: Record<string, unknown> = { token: { $in: token_ids } };
+			const filter: Record<string, unknown> = { token: { $in: tokenIds } };
 			if (tenantId) {
 				filter.tenantId = tenantId;
 			}
@@ -321,12 +321,12 @@ export class TokenAdapter {
 			});
 			logger.info('Tokens blocked', {
 				modifiedCount: result.modifiedCount,
-				token_ids
+				token_ids: tokenIds
 			});
 			return { success: true, data: { modifiedCount: result.modifiedCount } };
 		} catch (err) {
 			const message = `Error in TokenAdapter.blockTokens: ${err instanceof Error ? err.message : String(err)}`;
-			logger.error(message, { token_ids });
+			logger.error(message, { token_ids: tokenIds });
 			return {
 				success: false,
 				message,
@@ -335,9 +335,9 @@ export class TokenAdapter {
 		}
 	} // Unblock multiple tokens
 
-	async unblockTokens(token_ids: string[], tenantId?: string): Promise<DatabaseResult<{ modifiedCount: number }>> {
+	async unblockTokens(tokenIds: string[], tenantId?: string): Promise<DatabaseResult<{ modifiedCount: number }>> {
 		try {
-			const filter: Record<string, unknown> = { token: { $in: token_ids } };
+			const filter: Record<string, unknown> = { token: { $in: tokenIds } };
 			if (tenantId) {
 				filter.tenantId = tenantId;
 			}
@@ -347,12 +347,12 @@ export class TokenAdapter {
 			});
 			logger.info('Tokens unblocked', {
 				modifiedCount: result.modifiedCount,
-				token_ids
+				token_ids: tokenIds
 			});
 			return { success: true, data: { modifiedCount: result.modifiedCount } };
 		} catch (err) {
 			const message = `Error in TokenAdapter.unblockTokens: ${err instanceof Error ? err.message : String(err)}`;
-			logger.error(message, { token_ids });
+			logger.error(message, { token_ids: tokenIds });
 			return {
 				success: false,
 				message,
@@ -361,9 +361,9 @@ export class TokenAdapter {
 		}
 	} // Update a single token
 
-	async updateToken(token_id: string, tokenData: Partial<Token>, tenantId?: string): Promise<DatabaseResult<Token>> {
+	async updateToken(tokenId: string, tokenData: Partial<Token>, tenantId?: string): Promise<DatabaseResult<Token>> {
 		try {
-			const filter: Record<string, unknown> = { token: token_id };
+			const filter: Record<string, unknown> = { token: tokenId };
 			if (tenantId) {
 				filter.tenantId = tenantId;
 			}
@@ -375,10 +375,10 @@ export class TokenAdapter {
 			);
 
 			if (result) {
-				logger.debug('Token updated successfully', { token_id });
+				logger.debug('Token updated successfully', { token_id: tokenId });
 				return { success: true, data: result as unknown as Token };
 			}
-			logger.warn('Token not found', { token_id });
+			logger.warn('Token not found', { token_id: tokenId });
 			return {
 				success: false,
 				message: 'Token not found',
@@ -386,7 +386,7 @@ export class TokenAdapter {
 			};
 		} catch (err) {
 			const message = `Error in TokenAdapter.updateToken: ${err instanceof Error ? err.message : String(err)}`;
-			logger.error(message, { token_id, tokenData });
+			logger.error(message, { token_id: tokenId, tokenData });
 			return {
 				success: false,
 				message,

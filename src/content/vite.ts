@@ -10,6 +10,7 @@
  */
 
 import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
 import { logger } from '@utils/logger';
 import type { ViteDevServer } from 'vite';
 
@@ -27,8 +28,8 @@ interface ProcessedField {
 
 export async function generateContentTypes(server: ViteDevServer): Promise<Record<string, { fields: string[]; type: string }>> {
 	try {
-		// Loadcontent-managerfrom server-side (not client store!)
-		const { contentManager } = await server.ssrLoadModule('./src/content/content-manager.ts');
+		// Load content-manager from server-side (not client store!)
+		const { contentManager } = await server.ssrLoadModule(path.join(process.cwd(), 'src/content/content-manager.ts'));
 
 		// Initializecontent-managerand get collections
 		await contentManager.initialize();

@@ -38,7 +38,7 @@ const SAFE_VIDEO_URL_PATTERNS = [
 ];
 
 // Define the validation schema for the RemoteVideoData object.
-const RemoteVideoDataSchema = object({
+const REMOTE_VIDEO_DATA_SCHEMA = object({
 	platform: union([literal('youtube'), literal('vimeo'), literal('twitch'), literal('tiktok'), literal('other')]),
 	url: pipe(
 		string(),
@@ -59,7 +59,7 @@ const RemoteVideoDataSchema = object({
 });
 
 // The validation schema for the remote video data.
-const validationSchema = RemoteVideoDataSchema;
+const validationSchema = REMOTE_VIDEO_DATA_SCHEMA;
 
 // Create the widget definition using the factory.
 const RemoteVideoWidget = createWidget({

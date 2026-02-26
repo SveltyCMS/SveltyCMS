@@ -28,12 +28,11 @@ User types "1234.56" → displays "1.234,56 €" → stores 1234.56 as number
 -->
 
 <script lang="ts">
-	import { app, validationStore } from '@src/stores/store.svelte';
-	import { getFieldName } from '@utils/utils';
-	import { tokenTarget } from '@src/services/token/token-target';
-
 	// Components
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+	import { tokenTarget } from '@src/services/token/token-target';
+	import { app, validationStore } from '@src/stores/store.svelte';
+	import { getFieldName } from '@utils/utils';
 
 	// Unified error handling
 	import { handleWidgetValidation } from '@widgets/widget-error-handler';

@@ -25,14 +25,13 @@ Part of the Three Pillars Architecture for widget system.
 -->
 
 <script lang="ts">
+	// Components
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+	import { tokenTarget } from '@src/services/token/token-target';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { app, validationStore } from '@src/stores/store.svelte';
 	import { getFieldName } from '@src/utils/utils';
-	import { tokenTarget } from '@src/services/token/token-target';
 	import type { FieldType } from './';
-
-	// Components
-	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 
 	interface Props {
 		error?: string | null | undefined;
@@ -46,8 +45,8 @@ Part of the Three Pillars Architecture for widget system.
 
 	// Convert ISO string to YYYY-MM-DD format for native input
 
-	const _language = $derived(field.translated ? app.contentLanguage : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase());
-	const safeValue = $derived(field.translated ? ((value as Record<string, string>)?.[_language] ?? '') : ((value as string) ?? ''));
+	const LANGUAGE = $derived(field.translated ? app.contentLanguage : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase());
+	const safeValue = $derived(field.translated ? ((value as Record<string, string>)?.[LANGUAGE] ?? '') : ((value as string) ?? ''));
 
 	const inputValue = $derived.by(() => {
 		if (!safeValue) {
@@ -123,7 +122,7 @@ Part of the Three Pillars Architecture for widget system.
 			if (!value || typeof value !== 'object') {
 				value = {};
 			}
-			value = { ...(value as any), [_language]: newValue };
+			value = { ...(value as any), [LANGUAGE]: newValue };
 		} else {
 			value = newValue;
 		}

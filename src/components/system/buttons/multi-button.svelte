@@ -67,13 +67,13 @@
 	});
 
 	const buttons = $derived(props.buttons || defaultButtons);
-	let _expanded = $state(false);
+	let EXPANDED = $state(false);
 	let expanded = {
 		get value() {
-			return mode.value === 'modify' ? _expanded : false;
+			return mode.value === 'modify' ? EXPANDED : false;
 		},
 		set value(v: boolean) {
-			_expanded = v;
+			EXPANDED = v;
 		}
 	};
 

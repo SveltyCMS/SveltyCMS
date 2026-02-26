@@ -16,19 +16,19 @@
 
 	// Skeleton
 
+	import VerticalList from '@src/components/vertical-list.svelte';
+	import {
+		button_edit,
+		button_previous,
+		button_save,
+		collection_widgetfield_addFields,
+		collection_widgetfield_addrequired,
+		collection_widgetfield_drag
+	} from '@src/paraglide/messages';
+	import { tabSet } from '@src/stores/store.svelte.ts';
 	import { modalState } from '@utils/modal-state.svelte';
 	import ModalSelectWidget from './collection-widget/modal-select-widget.svelte';
 	import ModalWidgetForm from './collection-widget/modal-widget-form.svelte';
-	import VerticalList from '@src/components/vertical-list.svelte';
-	import { tabSet } from '@src/stores/store.svelte.ts';
-	import {
-		collection_widgetfield_drag,
-		button_edit,
-		collection_widgetfield_addFields,
-		collection_widgetfield_addrequired,
-		button_previous,
-		button_save
-	} from '@src/paraglide/messages';
 
 	const props = $props();
 
@@ -164,13 +164,13 @@
 			const updatedFields = fields.map((field) => {
 				const widgetInstance = field.widget?.Name ? get(widgetFunctions)[field.widget.Name] : undefined;
 				if (field.widget?.Name && widgetInstance) {
-					const GuiFields = getGuiFields({ key: field.widget.Name }, asAny(widgetInstance.GuiSchema));
+					const GUI_FIELDS = getGuiFields({ key: field.widget.Name }, asAny(widgetInstance.GuiSchema));
 					for (const [property, value] of Object.entries(field)) {
 						if (typeof value !== 'object' && property !== 'id') {
-							GuiFields[property] = field[property];
+							GUI_FIELDS[property] = field[property];
 						}
 					}
-					field.widget.GuiFields = GuiFields;
+					field.widget.GuiFields = GUI_FIELDS;
 				}
 				return field;
 			});

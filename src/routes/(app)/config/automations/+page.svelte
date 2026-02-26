@@ -13,13 +13,13 @@ and CRUD actions. Enterprise-grade workflow management GUI.
 -->
 
 <script lang="ts">
-	import { slide } from 'svelte/transition';
+	import PageTitle from '@src/components/page-title.svelte';
 	import type { AutomationFlow } from '@src/services/automation/types';
 	import { AUTOMATION_EVENTS, OPERATION_TYPES } from '@src/services/automation/types';
 	import { showToast } from '@utils/toast';
 	import { onMount } from 'svelte';
+	import { slide } from 'svelte/transition';
 	import { goto } from '$app/navigation';
-	import PageTitle from '@src/components/page-title.svelte';
 
 	let flows: AutomationFlow[] = $state([]);
 	let isLoading = $state(true);

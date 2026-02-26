@@ -14,9 +14,8 @@ Renders a group of fields, allowing for nested data structures.
 -->
 
 <script lang="ts">
-	import { widgets } from '@src/stores/widget-store.svelte';
-
 	import WidgetLoader from '@src/components/collection-display/widget-loader.svelte';
+	import { widgets } from '@src/stores/widget-store.svelte';
 	import { getFieldName } from '@utils/utils';
 	import type { FieldType } from './';
 

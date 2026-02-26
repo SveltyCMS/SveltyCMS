@@ -25,8 +25,8 @@ It provides the following functionality:
 	// Skeleton
 	import { modalState } from '@utils/modal-state.svelte';
 	import { SvelteSet } from 'svelte/reactivity';
-	import { v4 as uuidv4 } from 'uuid';
 	import { dndzone } from 'svelte-dnd-action';
+	import { v4 as uuidv4 } from 'uuid';
 	// Components
 	import RoleModal from './role-modal.svelte';
 

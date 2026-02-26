@@ -5,19 +5,19 @@
 -->
 <script lang="ts">
 	import type { FieldInstance } from '@src/content/types';
+	import BuzzForm from '@src/routes/(app)/config/collectionbuilder/buzz-form/buzz-form.svelte';
 	import { collection, setTargetWidget } from '@src/stores/collection-store.svelte';
 	import { toaster } from '@src/stores/store.svelte';
 	import { widgetFunctions } from '@src/stores/widget-store.svelte.ts';
 	import { modalState } from '@utils/modal-state.svelte';
 	import { asAny, getGuiFields } from '@utils/utils';
 	import { untrack } from 'svelte';
-	import { get } from 'svelte/store';
 	import { flip } from 'svelte/animate';
-	import { dndzone } from 'svelte-dnd-action';
+	import { get } from 'svelte/store';
 	import type { DndEvent } from 'svelte-dnd-action';
+	import { dndzone } from 'svelte-dnd-action';
 	import ModalSelectWidget from './collection-widget/modal-select-widget.svelte';
 	import ModalWidgetForm from './collection-widget/modal-widget-form.svelte';
-	import BuzzForm from '@src/routes/(app)/config/collectionbuilder/buzz-form/buzz-form.svelte';
 
 	let { fields = [] } = $props<{ fields: FieldInstance[] }>();
 

@@ -207,8 +207,8 @@ export async function registerCollections(tenantId?: string) {
 				Array.isArray((field as FieldInstance & { fields?: FieldInstance[] }).fields) &&
 				((field as FieldInstance & { fields?: FieldInstance[] }).fields?.length ?? 0) > 0
 			) {
-				for (const _field of (field as FieldInstance & { fields?: FieldInstance[] }).fields!) {
-					const nestedWidgetNameRaw = _field.widget?.Name;
+				for (const FIELD of (field as FieldInstance & { fields?: FieldInstance[] }).fields!) {
+					const nestedWidgetNameRaw = FIELD.widget?.Name;
 					if (!nestedWidgetNameRaw || typeof nestedWidgetNameRaw !== 'string') {
 						continue;
 					}
@@ -231,8 +231,8 @@ export async function registerCollections(tenantId?: string) {
 					}
 
 					const nestedSchema = nestedWidget.GraphqlSchema({
-						field: _field,
-						label: `${cleanTypeName}_${getFieldName(_field)}`,
+						field: FIELD,
+						label: `${cleanTypeName}_${getFieldName(FIELD)}`,
 						collection,
 						collectionNameMapping
 					});
@@ -244,14 +244,14 @@ export async function registerCollections(tenantId?: string) {
 						} else if (!nestedSchema.graphql?.trim()) {
 							typeIDs.add(nestedSchema.typeID);
 						}
-						collectionSchema += `                ${getFieldName(_field)}: ${nestedSchema.typeID}\n`;
+						collectionSchema += `                ${getFieldName(FIELD)}: ${nestedSchema.typeID}\n`;
 
 						// Robustly handle potentially localized data even if not marked translated
 						const nestedResolverFn = (parent: Record<string, unknown>, _args: unknown, ctx: { locale: string }) =>
-							getLocalizedValue(parent[getFieldName(_field)], ctx.locale);
+							getLocalizedValue(parent[getFieldName(FIELD)], ctx.locale);
 
 						if (nestedResolverFn) {
-							resolvers[cleanTypeName][getFieldName(_field)] = nestedResolverFn as GraphQLFieldResolver<unknown, unknown>;
+							resolvers[cleanTypeName][getFieldName(FIELD)] = nestedResolverFn as GraphQLFieldResolver<unknown, unknown>;
 						}
 					}
 				}

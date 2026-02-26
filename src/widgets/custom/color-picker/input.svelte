@@ -22,9 +22,9 @@ Renders a color input with label, helper, and validation
 - **Screen Reader Support**: Proper ARIA attributes and semantic markup
 -->
 <script lang="ts">
+	import { colorPicker_hex } from '@src/paraglide/messages';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { app, validationStore } from '@src/stores/store.svelte';
-	import { colorPicker_hex } from '@src/paraglide/messages';
 	import { getFieldName } from '@utils/utils';
 	// Unified error handling
 	import { handleWidgetValidation } from '@widgets/widget-error-handler';
@@ -43,7 +43,7 @@ Renders a color input with label, helper, and validation
 		error?: string | null;
 	} = $props();
 
-	const _language = $derived(field.translated ? app.contentLanguage : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase());
+	const LANGUAGE = $derived(field.translated ? app.contentLanguage : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase());
 
 	// Local state for the hex value
 	let localValue = $state<string>('');
@@ -54,7 +54,7 @@ Renders a color input with label, helper, and validation
 		let extracted = '#000000'; // Default
 
 		if (field.translated && typeof parentVal === 'object' && parentVal !== null) {
-			extracted = (parentVal as Record<string, any>)[_language] ?? '#000000';
+			extracted = (parentVal as Record<string, any>)[LANGUAGE] ?? '#000000';
 		} else if (!field.translated && typeof parentVal === 'string') {
 			extracted = parentVal;
 		} else if (!parentVal) {
@@ -74,7 +74,7 @@ Renders a color input with label, helper, and validation
 			if (!value || typeof value !== 'object') {
 				value = {};
 			}
-			value = { ...(value as object), [_language]: newVal };
+			value = { ...(value as object), [LANGUAGE]: newVal };
 		} else {
 			value = newVal;
 		}

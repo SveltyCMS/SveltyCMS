@@ -21,8 +21,8 @@ Requires user confirmation before proceeding with changes that may cause data lo
 -->
 
 <script lang="ts">
-	import { fade, slide } from 'svelte/transition';
 	import type { BreakingChange } from '@utils/collection-schema-warnings';
+	import { fade, slide } from 'svelte/transition';
 
 	interface Props {
 		breakingChanges: BreakingChange[];

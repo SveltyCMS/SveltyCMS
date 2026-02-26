@@ -46,8 +46,8 @@ export class CollectionModule {
 		logger.info(`PostgreSQL updateModel: Using existing tables for ${_schema.name}`);
 	}
 
-	async deleteModel(_id: string): Promise<void> {
-		logger.info(`PostgreSQL deleteModel: Removing reference for ${_id}`);
+	async deleteModel(id: string): Promise<void> {
+		logger.info(`PostgreSQL deleteModel: Removing reference for ${id}`);
 	}
 
 	async getSchema(collectionName: string): Promise<DatabaseResult<Schema | null>> {

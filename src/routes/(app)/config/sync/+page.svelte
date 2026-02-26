@@ -5,12 +5,12 @@
 Allows synchronization between filesystem and database, and full system backup/restore.
 -->
 <script lang="ts">
-	import { fade, slide } from 'svelte/transition';
-	import { showToast } from '@utils/toast';
-	import { onMount } from 'svelte';
+	import ImportExportManager from '@src/components/admin/import-export-manager.svelte';
 	import PageTitle from '@src/components/page-title.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
-	import ImportExportManager from '@src/components/admin/import-export-manager.svelte';
+	import { showToast } from '@utils/toast';
+	import { onMount } from 'svelte';
+	import { fade, slide } from 'svelte/transition';
 
 	type ConfigStatus = {
 		status: 'in_sync' | 'changes_detected' | 'error';

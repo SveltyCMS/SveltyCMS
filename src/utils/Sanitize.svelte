@@ -33,7 +33,8 @@
 
 	let { html, profile = 'default', class: className }: Props = $props();
 
-	let DOMPurify: any;
+	let sanitize: any;
+	let addHook: any;
 	let sanitized = $state('');
 
 	// Sanitization profiles
@@ -119,14 +120,15 @@
 	onMount(async () => {
 		// Dynamically import DOMPurify (client-side only)
 		const module = await import('isomorphic-dompurify');
-		DOMPurify = module.default;
+		sanitize = module.sanitize;
+		addHook = module.addHook;
 
 		// Sanitize HTML
 		sanitizeHtml();
 	});
 
 	function sanitizeHtml() {
-		if (!(DOMPurify && html)) {
+		if (!(sanitize && html)) {
 			sanitized = '';
 			return;
 		}
@@ -134,7 +136,7 @@
 		const config = PROFILES[profile];
 
 		// Add URL validation hook
-		DOMPurify.addHook('afterSanitizeAttributes', (node: any) => {
+		addHook('afterSanitizeAttributes', (node: any) => {
 			// Validate links
 			if (node.tagName === 'A' && node.hasAttribute('href')) {
 				const href = node.getAttribute('href');
@@ -162,12 +164,12 @@
 			}
 		});
 
-		sanitized = DOMPurify.sanitize(html, config);
+		sanitized = sanitize(html, config);
 	}
 
 	// Re-sanitize when html or profile changes
 	$effect(() => {
-		if (DOMPurify) {
+		if (sanitize) {
 			sanitizeHtml();
 		}
 	});

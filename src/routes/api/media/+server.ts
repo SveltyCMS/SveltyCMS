@@ -22,7 +22,7 @@ import { logger } from '@utils/logger.server';
 // Validation
 import * as v from 'valibot';
 
-const QuerySchema = v.object({
+const QUERY_SCHEMA = v.object({
 	limit: v.optional(v.pipe(v.number(), v.minValue(1), v.maxValue(100)), 100)
 });
 
@@ -47,7 +47,7 @@ export const GET = apiHandler(async ({ locals, url }) => {
 			throw new AppError('Tenant could not be identified for this operation.', 400, 'TENANT_MISSING');
 		} // Validate query parameters
 
-		const query = v.parse(QuerySchema, {
+		const query = v.parse(QUERY_SCHEMA, {
 			limit: Number(url.searchParams.get('limit')) || undefined
 		});
 		const recursive = url.searchParams.get('recursive') === 'true';

@@ -15,31 +15,31 @@
 -->
 
 <script lang="ts">
+	import { Avatar } from '@skeletonlabs/skeleton-svelte';
+	import PageTitle from '@src/components/page-title.svelte';
 	import PermissionGuard from '@src/components/permission-guard.svelte';
 	// ParaglideJS
 	import {
+		button_delete,
+		email,
+		form_password,
+		role,
 		usermodalconfirmbody,
 		usermodalconfirmtitle,
 		usermodaluser_edittitle,
 		usermodaluser_settingbody,
 		usermodaluser_settingtitle,
-		userpage_title,
-		userpage_editavatar,
-		userpage_user_id,
-		role,
 		username,
-		email,
-		form_password,
 		userpage_edit_usersetting,
-		button_delete
+		userpage_editavatar,
+		userpage_title,
+		userpage_user_id
 	} from '@src/paraglide/messages';
 	// Stores
 	import { collaboration } from '@src/stores/collaboration-store.svelte';
+	import { avatarSrc, normalizeAvatarUrl } from '@src/stores/store.svelte.ts';
 	import { onMount } from 'svelte';
 	import { invalidateAll } from '$app/navigation';
-	import { avatarSrc, normalizeAvatarUrl } from '@src/stores/store.svelte.ts';
-	import { Avatar } from '@skeletonlabs/skeleton-svelte';
-	import PageTitle from '@src/components/page-title.svelte';
 	import AdminArea from './components/admin-area.svelte';
 	// Auth
 	import ModalTwoFactorAuth from './components/modal-two-factor-auth.svelte';

@@ -12,7 +12,6 @@
 -->
 
 <script lang="ts">
-	import { fade, slide } from 'svelte/transition';
 	import { replaceTokens, TokenRegistry } from '@src/services/token/engine';
 	import { modifierMetadata } from '@src/services/token/modifiers';
 	import type { ModifierMetadata, TokenDefinition } from '@src/services/token/types';
@@ -21,6 +20,7 @@
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { ui } from '@src/stores/ui-store.svelte';
 	import { nowISODateString } from '@utils/date-utils';
+	import { fade, slide } from 'svelte/transition';
 
 	import { page } from '$app/state';
 

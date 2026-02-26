@@ -20,9 +20,9 @@ Displays a prominent banner when server restart is required with countdown and s
 -->
 
 <script lang="ts">
-	import { fade, slide } from 'svelte/transition';
 	import { showToast } from '@utils/toast';
 	import { onDestroy, onMount } from 'svelte';
+	import { fade, slide } from 'svelte/transition';
 
 	// State
 	let isRestarting = $state(false);

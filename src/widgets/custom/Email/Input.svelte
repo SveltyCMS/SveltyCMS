@@ -22,14 +22,13 @@
 -->
 
 <script lang="ts">
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import { activeInput } from '@src/stores/active-input-store.svelte';
 	import { collection } from '@src/stores/collection-store.svelte';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
-
 	// Stores
 	// Stores
 	import { app, validationStore } from '@src/stores/store.svelte.ts';
-	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	// Utils
 	import { getFieldName } from '@utils/utils';
 	// Unified error handling
@@ -50,16 +49,16 @@
 	// Use current content language for translated fields, default for non-translated
 	// Use current content language for translated fields, default for non-translated
 	const fieldName = $derived(getFieldName(field));
-	const _language = $derived(field.translated ? app.contentLanguage : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase());
+	const LANGUAGE = $derived(field.translated ? app.contentLanguage : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase());
 
 	// Initialize value if null/undefined
 	$effect(() => {
 		if (value === undefined || value === null) {
-			value = field.translated ? { [_language]: '' } : '';
+			value = field.translated ? { [LANGUAGE]: '' } : '';
 		}
 	});
 
-	const safeValue = $derived(((value as Record<string, string>)?.[_language] ?? (value as string)) || '');
+	const safeValue = $derived(((value as Record<string, string>)?.[LANGUAGE] ?? (value as string)) || '');
 	const validationError = $derived(validationStore.getError(fieldName));
 	let debounceTimeout: number | undefined;
 	let inputElement = $state<HTMLInputElement | null>(null);
@@ -133,7 +132,7 @@
 			if (!value || typeof value !== 'object') {
 				value = {};
 			}
-			value = { ...(value || {}), [_language]: sanitized };
+			value = { ...(value || {}), [LANGUAGE]: sanitized };
 		} else {
 			value = sanitized;
 		}

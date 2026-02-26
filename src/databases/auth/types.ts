@@ -136,11 +136,11 @@ export interface Token {
 // Session Store Interface
 export interface SessionStore {
 	close(): Promise<void>;
-	delete(session_id: string): Promise<void>;
+	delete(sessionId: string): Promise<void>;
 	deletePattern(pattern: string): Promise<number>;
-	get(session_id: string): Promise<User | null>;
-	set(session_id: string, user: User, expiration: ISODateString): Promise<void>;
-	validateWithDB(session_id: string, dbValidationFn: (session_id: string) => Promise<User | null>): Promise<User | null>;
+	get(sessionId: string): Promise<User | null>;
+	set(sessionId: string, user: User, expiration: ISODateString): Promise<void>;
+	validateWithDB(sessionId: string, dbValidationFn: (sessionId: string) => Promise<User | null>): Promise<User | null>;
 }
 
 // Collection Interface

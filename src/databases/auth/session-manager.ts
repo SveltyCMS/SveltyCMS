@@ -36,27 +36,27 @@ interface RedisLike {
 class InMemorySessionManager implements SessionStore {
 	private readonly sessions: Map<string, { user: User; expiresAt: Date }> = new Map();
 
-	async get(session_id: string): Promise<User | null> {
-		const session = this.sessions.get(session_id);
+	async get(sessionId: string): Promise<User | null> {
+		const session = this.sessions.get(sessionId);
 		if (!session) {
 			return null; // Check if session has expired
 		}
 
 		if (new Date() > session.expiresAt) {
-			this.sessions.delete(session_id);
+			this.sessions.delete(sessionId);
 			return null;
 		}
 
 		return session.user;
 	}
 
-	async set(session_id: string, user: User, expiration: ISODateString): Promise<void> {
+	async set(sessionId: string, user: User, expiration: ISODateString): Promise<void> {
 		const expirationDate = isoDateStringToDate(expiration);
-		this.sessions.set(session_id, { user, expiresAt: expirationDate });
+		this.sessions.set(sessionId, { user, expiresAt: expirationDate });
 	}
 
-	async delete(session_id: string): Promise<void> {
-		this.sessions.delete(session_id);
+	async delete(sessionId: string): Promise<void> {
+		this.sessions.delete(sessionId);
 	}
 
 	async deletePattern(pattern: string): Promise<number> {
@@ -73,19 +73,19 @@ class InMemorySessionManager implements SessionStore {
 		return deletedCount;
 	}
 
-	async validateWithDB(session_id: string, dbValidationFn: (session_id: string) => Promise<User | null>): Promise<User | null> {
+	async validateWithDB(sessionId: string, dbValidationFn: (sessionId: string) => Promise<User | null>): Promise<User | null> {
 		// For in-memory store, check memory first, then validate with DB if not found
-		const memoryUser = await this.get(session_id);
+		const memoryUser = await this.get(sessionId);
 		if (memoryUser) {
 			return memoryUser;
 		}
 
 		// If not in memory, try DB validation
-		const dbUser = await dbValidationFn(session_id);
+		const dbUser = await dbValidationFn(sessionId);
 		if (dbUser) {
 			// Cache the user in memory for future access (assuming 1 hour expiration)
 			const expiration = new Date(Date.now() + 60 * 60 * 1000).toISOString() as ISODateString;
-			await this.set(session_id, dbUser, expiration);
+			await this.set(sessionId, dbUser, expiration);
 		}
 		return dbUser;
 	}
@@ -114,14 +114,14 @@ class RedisSessionManager implements SessionStore {
 		this.fallbackManager = new InMemorySessionManager();
 	}
 
-	async get(session_id: string): Promise<User | null> {
+	async get(sessionId: string): Promise<User | null> {
 		try {
 			if (this.redisClient) {
-				const sessionData = await this.redisClient.get(session_id);
+				const sessionData = await this.redisClient.get(sessionId);
 				if (sessionData) {
 					const parsed = JSON.parse(sessionData); // Check expiration
 					if (new Date() > new Date(parsed.expiresAt)) {
-						await this.redisClient.del(session_id);
+						await this.redisClient.del(sessionId);
 						return null;
 					}
 					return parsed.user;
@@ -131,10 +131,10 @@ class RedisSessionManager implements SessionStore {
 			logger.warn(`Redis session get failed, falling back to memory: ${err instanceof Error ? err.message : String(err)}`);
 		} // Fallback to in-memory manager
 
-		return await this.fallbackManager.get(session_id);
+		return await this.fallbackManager.get(sessionId);
 	}
 
-	async set(session_id: string, user: User, expiration: ISODateString): Promise<void> {
+	async set(sessionId: string, user: User, expiration: ISODateString): Promise<void> {
 		const expirationDate = isoDateStringToDate(expiration);
 		const sessionData = { user, expiresAt: expirationDate };
 
@@ -142,7 +142,7 @@ class RedisSessionManager implements SessionStore {
 			if (this.redisClient) {
 				const ttlSeconds = Math.floor((expirationDate.getTime() - Date.now()) / 1000);
 				if (ttlSeconds > 0) {
-					await this.redisClient.setex(session_id, ttlSeconds, JSON.stringify(sessionData));
+					await this.redisClient.setex(sessionId, ttlSeconds, JSON.stringify(sessionData));
 					return;
 				}
 			}
@@ -150,19 +150,19 @@ class RedisSessionManager implements SessionStore {
 			logger.warn(`Redis session set failed, falling back to memory: ${err instanceof Error ? err.message : String(err)}`);
 		} // Fallback to in-memory manager
 
-		await this.fallbackManager.set(session_id, user, expiration);
+		await this.fallbackManager.set(sessionId, user, expiration);
 	}
 
-	async delete(session_id: string): Promise<void> {
+	async delete(sessionId: string): Promise<void> {
 		try {
 			if (this.redisClient) {
-				await this.redisClient.del(session_id);
+				await this.redisClient.del(sessionId);
 			}
 		} catch (err) {
 			logger.warn(`Redis session delete failed: ${err instanceof Error ? err.message : String(err)}`);
 		} // Also delete from fallback manager
 
-		await this.fallbackManager.delete(session_id);
+		await this.fallbackManager.delete(sessionId);
 	}
 
 	async deletePattern(pattern: string): Promise<number> {
@@ -195,19 +195,19 @@ class RedisSessionManager implements SessionStore {
 		await this.fallbackManager.close();
 	}
 
-	async validateWithDB(session_id: string, dbValidationFn: (session_id: string) => Promise<User | null>): Promise<User | null> {
+	async validateWithDB(sessionId: string, dbValidationFn: (sessionId: string) => Promise<User | null>): Promise<User | null> {
 		// Try to get from Redis/memory first
-		const cachedUser = await this.get(session_id);
+		const cachedUser = await this.get(sessionId);
 		if (cachedUser) {
 			return cachedUser;
 		}
 
 		// If not cached, validate with database
-		const dbUser = await dbValidationFn(session_id);
+		const dbUser = await dbValidationFn(sessionId);
 		if (dbUser) {
 			// Cache the validated user (assuming 1 hour expiration)
 			const expiration = new Date(Date.now() + 60 * 60 * 1000).toISOString() as ISODateString;
-			await this.set(session_id, dbUser, expiration);
+			await this.set(sessionId, dbUser, expiration);
 		}
 		return dbUser;
 	}

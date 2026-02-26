@@ -3,7 +3,7 @@
  * @description Query builder implementation for PostgreSQL
  */
 
-import { and, asc, desc, gte, inArray, isNotNull, isNull, lte, or, sql, count as drizzleCount } from 'drizzle-orm';
+import { and, asc, desc, count as drizzleCount, gte, inArray, isNotNull, isNull, lte, or, sql } from 'drizzle-orm';
 import type { BaseEntity, DatabaseResult, PaginationOptions, QueryBuilder, QueryOptimizationHints } from '../../db-interface';
 import type { AdapterCore } from '../adapter/adapter-core';
 

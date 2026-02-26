@@ -27,7 +27,7 @@ export function registerNavigationTools() {
 			},
 			required: ['path']
 		},
-		handler: async ({ path }: { path: string }) => {
+		execute: async ({ path }: { path: string }) => {
 			try {
 				await goto(path);
 				return {
@@ -51,7 +51,7 @@ export function registerNavigationTools() {
 			properties: {},
 			required: []
 		},
-		handler: async () => {
+		execute: async () => {
 			return {
 				content: [
 					{

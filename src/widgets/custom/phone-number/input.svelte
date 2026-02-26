@@ -33,6 +33,9 @@
 -->
 
 <script lang="ts">
+	// Components
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+	import { tokenTarget } from '@src/services/token/token-target';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	// Stores
 	import { app, validationStore } from '@src/stores/store.svelte.ts';
@@ -40,10 +43,6 @@
 	// Unified error handling
 	import { handleWidgetValidation } from '@widgets/widget-error-handler';
 	import { onDestroy, onMount } from 'svelte';
-	import { tokenTarget } from '@src/services/token/token-target';
-
-	// Components
-	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 
 	// Valibot validation
 	import { minLength, optional, parse, pipe, regex, string } from 'valibot';
@@ -58,16 +57,16 @@
 
 	const fieldName = $derived(getFieldName(field));
 	// Use current content language for translated fields, default for non-translated
-	const _language = $derived(field.translated ? app.contentLanguage : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase());
+	const LANGUAGE = $derived(field.translated ? app.contentLanguage : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase());
 
 	// Initialize value if null/undefined
 	$effect(() => {
 		if (value === undefined || value === null) {
-			value = field.translated ? { [_language]: '' } : '';
+			value = field.translated ? { [LANGUAGE]: '' } : '';
 		}
 	});
 
-	const safeValue = $derived(value?.[_language] ?? '');
+	const safeValue = $derived(value?.[LANGUAGE] ?? '');
 	const validationError = $derived(validationStore.getError(fieldName));
 	let debounceTimeout: number | undefined;
 	let inputElement = $state<HTMLInputElement | null>(null);
@@ -136,7 +135,7 @@
 			if (!value || typeof value !== 'object') {
 				value = {};
 			}
-			value = { ...value, [_language]: target.value };
+			value = { ...value, [LANGUAGE]: target.value };
 		} else {
 			value = target.value;
 		}

@@ -23,7 +23,7 @@
 
 import { safeQuery } from '@src/utils/security/safe-query';
 import { nowISODateString } from '@utils/date-utils';
-import mongoose, { type Model, type PipelineStage, type QueryFilter as MongoQueryFilter, type UpdateQuery } from 'mongoose';
+import mongoose, { type Model, type QueryFilter as MongoQueryFilter, type PipelineStage, type UpdateQuery } from 'mongoose';
 import type { BaseEntity, DatabaseId, DatabaseResult, QueryFilter } from '../../db-interface';
 import { createDatabaseError, generateId, processDates } from './mongodb-utils';
 

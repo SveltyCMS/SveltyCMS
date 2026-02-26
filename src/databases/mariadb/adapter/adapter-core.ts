@@ -16,13 +16,13 @@
  * - performance telemetry
  */
 
-import { and, eq, isNull, type Column, type SQL } from 'drizzle-orm';
+import { logger } from '@utils/logger';
+import { and, type Column, eq, isNull, type SQL } from 'drizzle-orm';
 import { drizzle, type MySql2Database } from 'drizzle-orm/mysql2';
 import mysql from 'mysql2/promise';
 import type { DatabaseCapabilities, DatabaseError, DatabaseResult } from '../../db-interface';
 import * as schema from '../schema';
 import * as utils from '../utils';
-import { logger } from '@utils/logger';
 
 // Internal type for mysql2 pool to access statistics safely
 interface InternalPool {

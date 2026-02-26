@@ -6,11 +6,12 @@
 
 <script lang="ts">
 	// @ts-nocheck
+
+	import { usertoken_button, usertoken_email, usertoken_role, usertoken_token, usertoken_valid } from '@src/paraglide/messages';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { app } from '@src/stores/store.svelte';
-	import { dev } from '$app/environment';
 	import { Body, Button, Container, Head, Heading, Hr, Html, Img, Link, Preview, Section, Text } from 'better-svelte-email';
-	import { usertoken_button, usertoken_role, usertoken_email, usertoken_valid, usertoken_token } from '@src/paraglide/messages';
+	import { dev } from '$app/environment';
 
 	interface Props {
 		email?: string;

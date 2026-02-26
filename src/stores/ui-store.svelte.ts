@@ -103,8 +103,8 @@ class UIStore {
 				const size = screen.size;
 				const currentMode = mode.value;
 				// Track route context changes to trigger updates
-				const _ctx = this.routeContext.isImageEditor || this.routeContext.isCollectionBuilder;
-				void _ctx;
+				const CTX = this.routeContext.isImageEditor || this.routeContext.isCollectionBuilder;
+				void CTX;
 
 				untrack(() => {
 					if (!this.manualOverrideActive) {

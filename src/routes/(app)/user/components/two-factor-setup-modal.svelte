@@ -32,21 +32,21 @@ This modal displays the QR code for setting up 2FA and handles verification.
 
 	// ParaglideJS
 	import {
-		button_copy,
-		twofa_error_invalid_code,
-		twofa_setup_complete_title,
-		twofa_manual_entry_description,
-		twofa_verify_setup_description,
-		twofa_code_placeholder,
-		twofa_setup_complete_description,
-		twofa_backup_codes_title,
-		twofa_backup_codes_save_description,
-		button_copy_all,
-		twofa_backup_codes_warning,
 		button_cancel,
-		twofa_verifying,
+		button_complete,
+		button_copy,
+		button_copy_all,
+		twofa_backup_codes_save_description,
+		twofa_backup_codes_title,
+		twofa_backup_codes_warning,
+		twofa_code_placeholder,
+		twofa_error_invalid_code,
+		twofa_manual_entry_description,
+		twofa_setup_complete_description,
+		twofa_setup_complete_title,
 		twofa_verify_button,
-		button_complete
+		twofa_verify_setup_description,
+		twofa_verifying
 	} from '@src/paraglide/messages';
 
 	// Props

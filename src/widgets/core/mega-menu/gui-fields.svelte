@@ -22,8 +22,8 @@ Interactive level configuration with add/remove level capabilities
 -->
 
 <script lang="ts">
-	import type { FieldInstance } from '@src/content/types';
 	import WidgetBuilder from '@src/components/system/builder/widget-builder.svelte';
+	import type { FieldInstance } from '@src/content/types';
 
 	let { value = $bindable([]) }: { value: FieldInstance[][] } = $props();
 

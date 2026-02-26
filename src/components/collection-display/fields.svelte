@@ -29,18 +29,17 @@
 	const user = $derived(page.data?.user);
 	const tenantId = $derived(page.data?.tenantId);
 
+	import { Tabs } from '@skeletonlabs/skeleton-svelte';
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+	import { applayout_version, button_edit, Fields_no_widgets_found, form_required } from '@src/paraglide/messages';
 	import type { Locale } from '@src/paraglide/runtime';
 	// Stores
 	import { collection, collectionValue, setCollectionValue } from '@src/stores/collection-store.svelte';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
-	import { Tabs } from '@skeletonlabs/skeleton-svelte';
 	import { contentLanguage, dataChangeStore, toaster, translationProgress, validationStore } from '@src/stores/store.svelte';
 	import { widgetFunctions as widgetFunctionsStore } from '@src/stores/widget-store.svelte';
-	import { button_edit, applayout_version, form_required, Fields_no_widgets_found } from '@src/paraglide/messages';
-	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
-	import WidgetLoader from './widget-loader.svelte';
-
 	import { showConfirm } from '@utils/modal-utils';
+	import WidgetLoader from './widget-loader.svelte';
 
 	// --- PERFORMANCE FIX: DYNAMIC WIDGET IMPORTS ---
 	// Lazy-load widgets for code-splitting (eager: false is default)

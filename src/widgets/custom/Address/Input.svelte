@@ -29,6 +29,7 @@ Interactive form with map, country selector, and address validation
 
 <script lang="ts">
 	import { importLibrary, setOptions } from '@googlemaps/js-api-loader';
+	import { tokenTarget } from '@src/services/token/token-target';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	/* global google */
 	import { app, validationStore } from '@src/stores/store.svelte';
@@ -36,7 +37,6 @@ Interactive form with map, country selector, and address validation
 	// Unified error handling
 	import { handleWidgetValidation } from '@widgets/widget-error-handler';
 	import { onMount } from 'svelte';
-	import { tokenTarget } from '@src/services/token/token-target';
 	// Valibot validation
 	import { minLength, object, optional, parse, pipe, string } from 'valibot';
 	import type { FieldType } from './';
@@ -60,17 +60,17 @@ Interactive form with map, country selector, and address validation
 
 	// Data Language: Which language version of the address are we editing?
 	// If field is translated, align with contentLanguage. Otherwise use default.
-	const _dataLanguage = $derived(field.translated ? app.contentLanguage : (publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en').toLowerCase());
+	const DATA_LANGUAGE = $derived(field.translated ? app.contentLanguage : (publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en').toLowerCase());
 
 	// UI Language: Which language should the Country Dropdown LABELS be in?
 	// Always use systemLanguage for UI elements.
-	const _uiLanguage = $derived(app.systemLanguage);
+	const UI_LANGUAGE = $derived(app.systemLanguage);
 
 	// Safe Value Access: Get the address object for the current data language
 	let safeValue = $derived.by(() => {
 		if (field.translated && value && typeof value === 'object') {
 			// It's a multilingual object { en: {...}, de: {...} }
-			return (value as Record<string, AddressData>)[_dataLanguage] as AddressData | undefined;
+			return (value as Record<string, AddressData>)[DATA_LANGUAGE] as AddressData | undefined;
 		}
 		// It's a single address object
 		return value as AddressData | undefined;
@@ -94,7 +94,7 @@ Interactive form with map, country selector, and address validation
 			// Merge into multilingual object
 			value = {
 				...(typeof value === 'object' ? value : {}),
-				[_dataLanguage]: updatedAddress
+				[DATA_LANGUAGE]: updatedAddress
 			} as Record<string, AddressData>;
 		} else {
 			// Direct update
@@ -151,8 +151,8 @@ Interactive form with map, country selector, and address validation
 
 	// Ensure full country list is loaded if UI language needs it
 	$effect(() => {
-		if (_uiLanguage) {
-			countryStore.ensureLanguageLoaded(_uiLanguage);
+		if (UI_LANGUAGE) {
+			countryStore.ensureLanguageLoaded(UI_LANGUAGE);
 		}
 	});
 
@@ -163,7 +163,7 @@ Interactive form with map, country selector, and address validation
 				return true;
 			}
 			const term = countrySearch.toLowerCase();
-			const name = countryStore.getCountryName(c.alpha2, _uiLanguage).toLowerCase();
+			const name = countryStore.getCountryName(c.alpha2, UI_LANGUAGE).toLowerCase();
 			return name.includes(term) || c.alpha2.toLowerCase().includes(term);
 		})
 	);
@@ -191,7 +191,7 @@ Interactive form with map, country selector, and address validation
 			};
 
 			if (field.translated) {
-				value = { [_dataLanguage]: initialAddress };
+				value = { [DATA_LANGUAGE]: initialAddress };
 			} else {
 				value = initialAddress;
 			}
@@ -429,7 +429,7 @@ Interactive form with map, country selector, and address validation
 				>
 					<option value="" disabled>Select a country</option>
 					{#each filteredCountries as country (country.alpha2)}
-						<option value={country.alpha2}>{countryStore.getCountryName(country.alpha2, _uiLanguage)}</option>
+						<option value={country.alpha2}>{countryStore.getCountryName(country.alpha2, UI_LANGUAGE)}</option>
 					{/each}
 				</select>
 			</div>

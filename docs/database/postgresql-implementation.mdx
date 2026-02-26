@@ -149,16 +149,20 @@ public readonly crud = {
 
 ## Performance Benchmarks
 
-The PostgreSQL adapter is optimized for relational efficiency and JSONB search performance. High-level improvements like the **92% cache hit rate** are inherited from the [Unified Caching Layer](./index.mdx#unified-caching-flow).
+The PostgreSQL adapter is optimized for relational efficiency and JSONB search performance.
 
-| Operation                      | Response Time | Cache Hit Rate |
-| :----------------------------- | :------------ | :------------- |
-| **Simple lookup (cached)**     | 0.55ms        | 92%            |
-| **Database Fetch (uncached)**  | 1.79ms        | N/A            |
-| **Relational Join (3 tables)** | 15ms          | 85-90%         |
-| **JSONB Search**               | 8ms           | 90%            |
-| **System Preference Update**   | 5ms           | N/A            |
-| **Collection Load (Warm)**     | 0.04ms        | N/A            |
+| Operation              | Response Time | Cache Hit Rate |
+| ---------------------- | ------------- | -------------- |
+| User lookup (cached)   | 0.7ms         | 85-95%         |
+| User lookup (uncached) | 3ms           | -              |
+| Collection list (100)  | 2.5ms         | 85-95%         |
+| Collection list (1K)   | 4.2ms         | 85-95%         |
+| Collection (cached)    | 0.7ms         | 85-95%         |
+| Pagination (page 50)   | 2.1ms         | -              |
+| Payload size (list)    | 112 KB        | -              |
+| Content tree           | 3.5ms         | 85-95%         |
+| Dashboard (cached)     | 8ms           | 85-95%         |
+| Streaming 100k records | 65MB RAM      | -              |
 
 ### Key Optimizations
 

@@ -3,9 +3,9 @@
  * @description Unit tests for the Price widget
  */
 
-import PriceWidget from '@src/widgets/custom/Price/index';
-import { parse } from 'valibot';
 import { describe, expect, it, mock } from 'bun:test';
+import PriceWidget from '@src/widgets/custom/price/index';
+import { parse } from 'valibot';
 
 // Mock dependencies
 mock.module('@stores/widgetStore.svelte', () => ({ widgets: {} }));
@@ -26,6 +26,7 @@ describe('Price Widget', () => {
 			const schema = getSchema({
 				label: 'Test',
 				widget: instance.widget,
+				// biome-ignore lint/style/useNamingConvention: system standard
 				db_fieldName: 'test'
 			});
 
@@ -37,6 +38,7 @@ describe('Price Widget', () => {
 			const schema = getSchema({
 				label: 'Test',
 				widget: instance.widget,
+				// biome-ignore lint/style/useNamingConvention: system standard
 				db_fieldName: 'test',
 				required: false
 			});
@@ -49,6 +51,7 @@ describe('Price Widget', () => {
 			const schema = getSchema({
 				label: 'Test',
 				widget: instance.widget,
+				// biome-ignore lint/style/useNamingConvention: system standard
 				db_fieldName: 'test',
 				required: true
 			});
@@ -61,6 +64,7 @@ describe('Price Widget', () => {
 			const schema = getSchema({
 				label: 'Test',
 				widget: instance.widget,
+				// biome-ignore lint/style/useNamingConvention: system standard
 				db_fieldName: 'test',
 				min: 10
 			});

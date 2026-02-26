@@ -101,8 +101,8 @@ export async function sendMail({ recipientEmail, subject, templateName, props = 
 		throw new AppError('Missing required fields: recipientEmail, subject, or templateName.', 400);
 	}
 
-	const SelectedTemplateComponent = await getEmailTemplate(templateName);
-	if (!SelectedTemplateComponent) {
+	const SELECTED_TEMPLATE_COMPONENT = await getEmailTemplate(templateName);
+	if (!SELECTED_TEMPLATE_COMPONENT) {
 		const availableTemplateNames = Object.keys(svelteEmailModules).map((path) => path.split('/').pop()?.replace('.svelte', ''));
 		throw new AppError(`Invalid email template name: '${templateName}'. Available templates: ${availableTemplateNames.join(', ')}`, 400);
 	}
@@ -163,7 +163,7 @@ export async function sendMail({ recipientEmail, subject, templateName, props = 
 	}
 
 	const templateProps = { ...props, languageTag };
-	const { html, text } = await renderEmailToStrings(SelectedTemplateComponent, templateName, templateProps);
+	const { html, text } = await renderEmailToStrings(SELECTED_TEMPLATE_COMPONENT, templateName, templateProps);
 
 	const transporter = nodemailer.createTransport({
 		host: smtpHost,

@@ -1,108 +1,77 @@
 ---
 path: 'docs/guides/development/ai-integration.mdx'
-title: 'AI Integration & WebMCP Support'
-description: 'Guide to the internal AI Knowledge Base and Remote MCP Server.'
+title: 'AI Integration & Local Knowledge Core'
+description: 'Guide to the high-performance local MPC Server and RAG pipeline.'
 order: 50
 icon: 'mdi:robot'
 author: 'admin'
 created: '2026-02-07'
-updated: '2026-02-10'
+updated: '2026-02-24'
 tags:
   - 'ai'
   - 'mcp'
   - 'rag'
-  - 'automation'
+  - 'npu'
+  - 'lancedb'
 ---
 
-# AI Integration & WebMCP Support
+# AI Integration & Local Knowledge Core (MPC)
 
-SveltyCMS 2026 is designed to integrate with a centralized **Model Context Protocol (MCP)** server to empower the built-in AI Assistant with deep project knowledge.
+SveltyCMS 2026 leverages a high-performance **Model Context Protocol (MCP)** server to provide AI agents with deep, real-time project knowledge.
 
-> [!NOTE]
-> **Status:** The remote knowledge core at `mcp.sveltycms.com` is currently under development and is not yet active. The AI Assistant currently relies on its internal knowledge base and local Ollama inference.
-
-## Overview
-
-The system architecture supports a **Remote Retrieval-Augmented Generation (RAG)** pipeline. Instead of hosting a heavy vector database inside each CMS instance, the CMS is prepared to query a centralized Knowledge Core.
+> [!TIP]
+> **Status:** Active. Your local knowledge core is running at `D:\mpc` using **LanceDB** and **DirectML (NPU/iGPU)** acceleration via **HuggingFace Transformers v3**.
 
 ## Architecture
 
-### 1. The Remote Knowledge Core
+### 1. The Local Knowledge Core (D:\mpc)
 
-Hosted at `mcp.sveltycms.com`, this service:
+This service acts as the "Long-term Memory" for SveltyCMS:
 
-- **Indexes Documentation:** Recursively tracks `docs/**/*.mdx` from the main repo.
-- **Indexes Patterns:** Maintains embeddings of core architectural files (`db-interface.ts`, etc.).
-- **External Feeds:** Syncs with Svelte 5 and Skeleton official documentation.
+- **DirectML / NPU Indexing:** Uses the **Intel NPU (AI Boost)** and **iGPU** via DirectML to handle embeddings, keeping your RTX 5080 and CPU cores free.
+- **Deep Implementation Knowledge:** Indexes `src/`, `docs/`, and `package.json` expert patterns.
+- **Expert Discovery:** Automatically syncs with `llms-full.txt` from Svelte 5, Skeleton UI, and Valibot.
 
-### 2. Client-Side Inference (Local LLM)
+### 2. Private Inference (NVIDIA 5080)
 
-While the _Knowledge_ is remote, the _Inference_ (Generation) remains local and private by default using **Ollama**:
+While the _Knowledge_ is retrieved via the NPU, the _Inference_ (Generation) remains on your **RTX 5080** via **Ollama**:
 
-- **Privacy:** Your prompts and chat history stay on your server (except for the search query sent to the Knowledge Core).
-- **Cost:** Uses local models (e.g., `ministral-3`, `llama3`) via Ollama.
-- **Speed:** Zero-latency inference if running on GPU nodes.
+- **Speed:** Maximum VRAM for large context windows.
+- **Privacy:** No code or data ever leaves your local D: drive.
 
-### 3. The Flow
+### 3. Hardware Workload Split
 
-1. **User Query:** "How do I create a widget?"
-2. **Context Retrieval:** `AIService` sends the query to `https://mcp.sveltycms.com/api/v1/query`.
-3. **Augmentation:** The remote server returns relevant code snippets and docs.
-4. **Generation:** `AIService` combines the snippets with the user prompt and feeds it to the local Ollama instance.
+| Task              | Processor            | Reason                                     |
+| :---------------- | :------------------- | :----------------------------------------- |
+| **Indexing/RAG**  | **Intel NPU / iGPU** | Offloads AI math from main processors.     |
+| **LLM Inference** | **NVIDIA 5080**      | Maximum throughput for complex reasoning.  |
+| **Compiling**     | **Intel 275HX CPU**  | 24 cores optimized for Vite/Svelte builds. |
 
 ## Usage for Developers
 
-### Setup
+### Background Sync
 
-1. **Ollama:** Ensure `ollama serve` is running.
-2. **Configuration:** (Optional) Set `AI_KNOWLEDGE_API_URL` in `private.ts` if using a self-hosted knowledge core. Defaults to `https://mcp.sveltycms.com`.
+To keep the knowledge base always up-to-date, run the sync service:
 
-### Usage in Chat
-
-The built-in Dashboard AI (SveltyAgent) automatically uses this architecture.
-To use it programmatically:
-
-```typescript
-import { aiService } from '$services/AIService';
-
-const reply = await aiService.chat('How do I add a new language?');
+```powershell
+cd D:\mpc; bun run sync-service.ts
 ```
 
-### 4. Real-Time Streaming (SSE)
+### Editor Integration
 
-SveltyCMS leverages a lightweight Server-Sent Events (SSE) architecture to stream AI responses directly to the user interface.
+Connect your AI assistant (Zed, Windsurf, or Antigravity) by adding the following to your context server settings:
 
-- **Infrastructure**: `api/events` endpoint broadcasts `eventBus` emissions.
-- **Client Handling**: The `collaboration-store` manages the `EventSource` connection, buffering activity events and assembling streamed AI tokens in real-time.
-- **AI Response Event**: The `ai:response` event carries partial tokens in `payload.data.text` and a completion flag in `payload.data.done`.
-
-This ensures a responsive, "typing" experience for AI assistance without the overhead of WebSockets.
-
-## WebMCP Support (Client-Side Agents)
-
-SveltyCMS supports **WebMCP** (Web Model Context Protocol), a standard that allows browser-based AI agents (like Chrome AI, Cursor, Windsurf, or Claude Desktop via browser connectors) to "discover" and "control" the CMS interface.
-
-The implementation is a lightweight **Plugin** running entirely in the browser (`src/plugins/webmcp`). It polyfills `navigator.modelContext` and registers tools that AI agents can invoke.
-
-### Available Tools
-
-1.  **Content Management**:
-    - `get_collections`: Lists all schemas and fields.
-    - `search_content`: Finds entries in the database.
-2.  **Navigation**:
-    - `navigate_to`: Moves the user to a specific route.
-    - `get_current_route`: Reports current location.
-
-### Usage
-
-No configuration is required. The plugin is automatically initialized in the Admin Dashboard. Open your browser's devtools console to see the initialization log:
-
-```
-[WebMCP] Initializing...
-[WebMCP] Tools registered successfully.
+```json
+"command": "bun",
+"args": ["run", "D:/mpc/index.ts"]
 ```
 
-## Legacy Webhooks vs. AI Integration
+## Troubleshooting: NPU Monitoring
 
-> [!NOTE]
-> For traditional server-to-server notifications (e.g., triggering a static site rebuild), please refer to the **[HTTP Webhooks Guide](../../api/Webhooks.mdx)**. WebMCP is specifically for _active browser-based agents_ interacting with the UI.
+If Windows 11 Task Manager shows **0% NPU usage** during indexing:
+
+- **Intel AI Boost:** For smaller models (BGE-Small), the DirectML driver often intelligently routes work to the **iGPU (GPU 1)** instead of the NPU. This is normal and still offloads work from your primary GPU.
+- **Performance Verification:**
+  - **CPU (Native):** ~9622ms
+  - **DirectML (NPU/iGPU):** **~8965ms** (Hardware engaged)
+- **Manual Check:** You can re-run the benchmark at `D:\mpc\benchmark-build.ts` at any time.

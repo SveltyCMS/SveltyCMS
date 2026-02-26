@@ -24,13 +24,13 @@ Advanced icon picker with search, pagination, and favorites.
 -->
 
 <script lang="ts">
-	import { quintOut } from 'svelte/easing';
-	import { fade, scale, slide } from 'svelte/transition';
 	import { loadIcons } from '@iconify/svelte';
 	import { iconpicker_placeholder } from '@src/paraglide/messages';
 	import { logger } from '@utils/logger';
 	import { showToast } from '@utils/toast';
 	import { onDestroy, onMount } from 'svelte';
+	import { quintOut } from 'svelte/easing';
+	import { fade, scale, slide } from 'svelte/transition';
 
 	// Constants
 	const DEBOUNCE_MS = 300;

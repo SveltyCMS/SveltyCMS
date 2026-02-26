@@ -13,26 +13,23 @@ FIXES:
 -->
 
 <script lang="ts">
+	// Skeleton V4
+	import { Menu, Portal } from '@skeletonlabs/skeleton-svelte';
+	// Components
+	import ProgressBar from '@src/components/system/progress-bar.svelte';
+	// Paraglide Messages
+	import { applayout_contentlanguage, translationsstatus_completed } from '@src/paraglide/messages';
 	import type { Locale } from '@src/paraglide/runtime';
 	import { collection, collectionValue, mode } from '@src/stores/collection-store.svelte';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { contentLanguage, translationProgress } from '@src/stores/store.svelte';
+	import { getLanguageName } from '@utils/language-utils';
 	import { logger } from '@utils/logger';
 	import { getFieldName } from '@utils/utils';
-	import { getLanguageName } from '@utils/language-utils';
 	import { untrack } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-
-	// Skeleton V4
-	import { Menu, Portal } from '@skeletonlabs/skeleton-svelte';
-
-	// Components
-	import ProgressBar from '@src/components/system/progress-bar.svelte';
-
-	// Paraglide Messages
-	import { applayout_contentlanguage, translationsstatus_completed } from '@src/paraglide/messages';
 
 	// State
 	let isInitialized = $state(false);

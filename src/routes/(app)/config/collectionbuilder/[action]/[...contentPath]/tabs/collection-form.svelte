@@ -15,19 +15,19 @@
 
 <script lang="ts">
 	// Paraglide Messages
+
+	// Components
+	import IconifyIconsPicker from '@src/components/iconify-icons-picker.svelte';
 	import {
+		collection_description_placeholder,
 		collection_name,
 		collection_name_placeholder,
 		collection_slug,
 		collection_slug_input,
 		collection_status,
-		collectionname_labelicon,
 		collectionname_description,
-		collection_description_placeholder
+		collectionname_labelicon
 	} from '@src/paraglide/messages';
-
-	// Components
-	import IconifyIconsPicker from '@src/components/iconify-icons-picker.svelte';
 
 	import { collection, setCollection } from '@src/stores/collection-store.svelte';
 	import { untrack } from 'svelte';

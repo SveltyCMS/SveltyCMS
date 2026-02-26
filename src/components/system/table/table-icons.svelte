@@ -24,6 +24,7 @@
 	// Props
 	import { StatusTypes } from '@src/content/types';
 	import { app } from '@src/stores/store.svelte';
+
 	// Props
 	let { checked = false, iconStatus = undefined, onCheck = () => {}, cellClass = '' } = $props(); // optional classes applied to the root <td>
 
