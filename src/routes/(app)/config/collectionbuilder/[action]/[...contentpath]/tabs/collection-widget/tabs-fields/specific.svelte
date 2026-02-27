@@ -12,7 +12,6 @@ Features:
 	import InputSwitch from '@src/components/system/builder/input-switch.svelte';
 	import { collections } from '@src/stores/collection-store.svelte';
 	import { widgets } from '@src/stores/widget-store.svelte.ts';
-	import InputSwitch from '@src/components/system/builder/input-switch.svelte';
 	import { asAny } from '@utils/utils';
 
 	// Removed modalStore
