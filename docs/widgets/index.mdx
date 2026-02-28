@@ -116,7 +116,10 @@ export default createWidget({
 
 	defaults: {
 		value: 0
-	}
+	},
+
+	// Enable AI-native generative layout support
+	jsonRender: true
 });
 ```
 
@@ -132,6 +135,7 @@ export default createWidget({
 - 🗄️ **Database Agnostic**: Widgets work seamlessly with MongoDB, PostgreSQL, MySQL, and MariaDB via abstract adapters.
 - 🌍 **Multilingual**: Native support for `contentLanguage` in all text-based widgets.
 - 🧪 **Testable**: Standardized testing patterns for all pillars.
+- 🤖 **AI-Native Generative UI**: Widgets with the `jsonRender: true` flag are automatically registered in the central `json-render-svelte` catalog, allowing you to build dynamic, interactive layouts instantly through AI prompts.
 
 ### Widget Management Interface
 

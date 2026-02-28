@@ -127,9 +127,8 @@ Comprehensive image editing interface with svelte-canvas integration.
 
 	function loadImage(imageSrc: string, file?: File, retryAttempt = 0) {
 		let cleanedSrc = imageSrc;
-		if (imageSrc.startsWith('/files//files/')) {
-			cleanedSrc = imageSrc.replace('/files//files/', '/files/');
-		}
+		// Handle duplicate /files/ paths correctly, allowing dynamic paths via regex
+		cleanedSrc = cleanedSrc.replace(/(?:\/files)+\//g, '/files/');
 
 		isProcessing = true;
 		error = null;

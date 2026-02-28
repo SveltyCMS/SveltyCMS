@@ -208,12 +208,14 @@ export const actions: Actions = {
 		logger.info('🚀 Action: seedDatabase called');
 		const formData = await request.formData();
 		const configRaw = formData.get('config') as string;
+		const systemRaw = formData.get('system') as string;
 
 		if (!configRaw) {
 			return { success: false, error: 'No configuration data provided' };
 		}
 
 		const configData = JSON.parse(configRaw);
+		const systemData = systemRaw ? JSON.parse(systemRaw) : {};
 
 		// Coerce port to number for validation
 		if (configData.port === '' || configData.port === null) {
@@ -236,6 +238,38 @@ export const actions: Actions = {
 		}
 
 		try {
+			// 0. Copy Preset Files Before Anything compile triggers
+			if (systemData.preset && systemData.preset !== 'blank') {
+				logger.info(`✨ Copying preset files for: ${systemData.preset}`);
+				try {
+					const { resolve } = await import('node:path');
+					const { cpSync, existsSync } = await import('node:fs');
+					const { compile } = await import('@utils/compilation/compile');
+
+					const sourceDir = resolve(process.cwd(), 'src', 'presets', systemData.preset);
+					const targetDir = resolve(process.cwd(), 'src', 'collections');
+
+					if (existsSync(sourceDir)) {
+						// Copy recursive
+						cpSync(sourceDir, targetDir, { recursive: true, force: true });
+						logger.info(`✅ Copied preset ${systemData.preset} to src/collections`);
+
+						// Force compilation of new preset files
+						try {
+							await compile();
+							logger.info(`✅ Compiled preset collections successfully`);
+						} catch (e) {
+							logger.error(`❌ Failed to compile newly copied preset files`, e);
+						}
+					} else {
+						logger.warn(`⚠️ Preset directory not found: ${sourceDir}`);
+					}
+				} catch (presetError) {
+					logger.error('Failed to copy preset files:', presetError);
+					// Non-fatal, continue with DB setup
+				}
+			}
+
 			// 1. Write private config
 			const { writePrivateConfig } = await import('./write-private-config');
 			await writePrivateConfig(dbConfig);
@@ -399,7 +433,7 @@ export const actions: Actions = {
 					let privateConfigModule: any;
 					try {
 						privateConfigModule = await import('@config/private');
-					} catch (e) {
+					} catch (_e) {
 						logger.debug('Private config not found, proceeding with creation.');
 					}
 

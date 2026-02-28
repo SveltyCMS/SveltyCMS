@@ -65,6 +65,10 @@ export interface Plugin {
 }
 ```
 
+### 2. AI-Native Generative Integration (json-render-svelte)
+
+Plugins can naturally extend the AI ecosystem of SveltyCMS. By providing custom widgets that include the `jsonRender: true` flag in their factory configuration, or by manually calling the `registerForJsonRender()` hook, marketplace plugins instantly become **AI-generatable**. This allows editors and remote AI agents (via the SveltyCMS MCP Server) to dynamically render Plugin-specific UI components via JSON specs.
+
 ### 2. Slots & Injection Zones
 
 **Slots** are specific locations within `Injection Zones` where plugins can render custom components.

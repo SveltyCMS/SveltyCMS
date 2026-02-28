@@ -450,9 +450,9 @@ Implements custom virtual scrolling without external dependencies.
 
 							<!-- Floating Actions (Reveal on Hover) -->
 							<div
-								class="absolute right-2 top-2 z-20 flex flex-col gap-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100 {isSelectionMode
+								class="absolute right-2 top-2 z-30 flex flex-col gap-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100 {isSelectionMode
 									? 'pointer-events-none'
-									: ''}"
+									: 'pointer-events-auto'}"
 							>
 								<!-- Info Button (Replaces Popup) -->
 								<button

@@ -156,6 +156,49 @@ export class AIService {
 			return "I'm having trouble connecting to my local brain (Ollama). Please ensure 'ollama serve' is running and OLLAMA_URL is correct.";
 		}
 	}
+
+	/**
+	 * Generate an AI-Native layout specification for json-render-svelte.
+	 * Returns parsed JSON structure directly consumable by <Renderer spec={...} />
+	 */
+	public async generateLayoutSpec(prompt: string, contextRules = ''): Promise<Record<string, unknown> | null> {
+		const systemPrompt = `You are SveltyAgent, an expert AI generating layout specs for json-render-svelte.
+Return ONLY valid JSON. No markdown blocks, no conversational text.
+The JSON must have a 'root' pointing to the root element's ID, and an 'elements' object containing the UI nodes.
+You have access to the following SveltyCMS widgets: 'Text', 'Input', 'RichText', 'Date', 'Repeater', 'VerticalLayout', 'HorizontalLayout'.
+
+Format example:
+{
+  "root": "layout",
+  "elements": {
+    "layout": { "type": "VerticalLayout", "elements": ["title", "desc"] },
+    "title": { "type": "Control", "scope": "#/properties/title", "label": "Title", "options": { "widget": "Text" } },
+    "desc": { "type": "Control", "scope": "#/properties/desc", "label": "Description", "options": { "widget": "RichText" } }
+  }
+}
+${contextRules}`;
+
+		try {
+			const ollamaUrl = await getPrivateSetting('OLLAMA_URL');
+			const chatModel = (await getPrivateSetting('AI_MODEL_CHAT')) || 'ministral-3:latest';
+			// Dynamically import Ollama to allow custom hosts
+			const localOllama = ollamaUrl ? new (await import('ollama')).Ollama({ host: ollamaUrl }) : ollama;
+
+			const response = await localOllama.chat({
+				model: chatModel,
+				format: 'json',
+				messages: [
+					{ role: 'system', content: systemPrompt },
+					{ role: 'user', content: prompt }
+				]
+			});
+
+			return JSON.parse(response.message.content);
+		} catch (err) {
+			console.error('Generative Layout Error:', err);
+			return null;
+		}
+	}
 }
 
 export const aiService = AIService.getInstance();

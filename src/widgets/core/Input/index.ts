@@ -126,7 +126,9 @@ const InputWidget = createWidget<InputProps>({
 	GraphqlSchema: () => ({
 		typeID: 'String', // Use primitive String type
 		graphql: '' // No custom type definition needed for primitives
-	})
+	}),
+
+	jsonRender: true
 });
 
 export default InputWidget;

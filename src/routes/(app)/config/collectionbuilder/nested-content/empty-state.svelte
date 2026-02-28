@@ -5,15 +5,16 @@
 -->
 
 <script lang="ts">
-	import { collection_add } from '@src/paraglide/messages';
+	import { collection_add, collection_addcategory } from '@src/paraglide/messages';
 	import { fade, scale } from 'svelte/transition';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 
 	interface Props {
 		onAddCollection: () => void;
+		onAddCategory: () => void;
 	}
 
-	let { onAddCollection }: Props = $props();
+	let { onAddCollection, onAddCategory }: Props = $props();
 </script>
 
 <div class="flex flex-col items-center justify-center p-8 py-16 text-center" in:fade={{ duration: 400 }}>
@@ -46,23 +47,35 @@
 			Your {publicEnv.SITE_NAME} Blueprint is Empty
 		</h2>
 		<p class="text-lg leading-relaxed text-surface-600 dark:text-surface-300">
-			Create your first collection to start structuring your content. A collection defines the fields and rules for your data.
+			Create your first collection or category to start structuring your content. A collection defines the fields and rules for your data, while
+			categories help you group them.
 		</p>
 	</div>
 
 	<!-- Call to Action -->
 	<div class="mt-10 flex flex-col items-center" in:fade={{ duration: 400, delay: 600 }}>
-		<button
-			type="button"
-			onclick={onAddCollection}
-			class="group relative flex items-center justify-center gap-3 overflow-hidden rounded-full bg-primary-500 px-8 py-4 text-lg font-bold text-white shadow-xl transition-all hover:scale-105 hover:bg-primary-600 active:scale-95"
-		>
-			<iconify-icon icon="ic:round-plus" width="28" class="transition-transform group-hover:rotate-90"></iconify-icon>
-			<span>{collection_add()}</span>
+		<div class="flex flex-wrap items-center justify-center gap-4">
+			<button
+				type="button"
+				onclick={onAddCategory}
+				class="group flex items-center justify-center gap-2 rounded-full border-2 border-primary-500/20 bg-transparent px-6 py-4 text-lg font-semibold text-primary-600 transition-all hover:bg-primary-50 dark:border-primary-400/30 dark:text-primary-400 dark:hover:bg-primary-900/20"
+			>
+				<iconify-icon icon="mdi:folder-plus" width="24" class="transition-transform group-hover:scale-110"></iconify-icon>
+				<span>{collection_addcategory()}</span>
+			</button>
 
-			<!-- Subtle Shine Effect -->
-			<div class="absolute inset-x-0 top-0 h-1/2 bg-white/20 blur-sm group-hover:bg-white/30"></div>
-		</button>
+			<button
+				type="button"
+				onclick={onAddCollection}
+				class="group relative flex items-center justify-center gap-3 overflow-hidden rounded-full bg-primary-500 px-8 py-4 text-lg font-bold text-white shadow-xl transition-all hover:scale-105 hover:bg-primary-600 active:scale-95"
+			>
+				<iconify-icon icon="ic:round-plus" width="28" class="transition-transform group-hover:rotate-90"></iconify-icon>
+				<span>{collection_add()}</span>
+
+				<!-- Subtle Shine Effect -->
+				<div class="absolute inset-x-0 top-0 h-1/2 bg-white/20 blur-sm group-hover:bg-white/30"></div>
+			</button>
+		</div>
 
 		<p class="mt-6 text-sm italic text-surface-400 dark:text-surface-500">
 			At least one collection is required to use the {publicEnv.SITE_NAME} features.

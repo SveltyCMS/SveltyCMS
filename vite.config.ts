@@ -42,7 +42,7 @@ function openUrl(url: string) {
  * Plugin to alias @config/private to config/private.test.ts when running in TEST_MODE.
  * This allows local tests to use an isolated configuration without modifying the production config.
  */
-function testConfigAliasPlugin(): Plugin {
+function _testConfigAliasPlugin(): Plugin {
 	return {
 		name: 'test-config-alias',
 		enforce: 'pre',
@@ -69,7 +69,7 @@ function testConfigAliasPlugin(): Plugin {
  * Vite plugin that provides a fallback for @config/private and @config/private.test when the file doesn't exist
  * This allows builds to succeed in fresh clones without committing sensitive credentials
  */
-function privateConfigFallbackPlugin(): Plugin {
+function _privateConfigFallbackPlugin(): Plugin {
 	const virtualModuleId = '@config/private';
 	const virtualTestModuleId = '@config/private.test';
 	const resolvedVirtualModuleId = `\0${virtualModuleId}`;
@@ -210,7 +210,7 @@ process.on('SIGINT', () => {
 /**
  * Plugin to suppress noisy third-party warnings during build
  */
-function suppressThirdPartyWarningsPlugin(): Plugin {
+function _suppressThirdPartyWarningsPlugin(): Plugin {
 	let originalConsoleWarn: typeof console.warn | undefined;
 	let isIntercepted = false;
 	const warningPatterns = [
@@ -399,7 +399,7 @@ function sveltyCmsPlugin(): Plugin {
  * Plugin to capture build metadata (time, module counts) for analytics.
  * Writes to .svelte-kit/output/build-metadata-{client|server}.json
  */
-function buildMetadataPlugin(): Plugin {
+function _buildMetadataPlugin(): Plugin {
 	let startTime: number;
 	let isSSR = false;
 	const outputPath = path.resolve(CWD, '.svelte-kit/output');

@@ -9,6 +9,8 @@
 	import { collection, setTargetWidget } from '@src/stores/collection-store.svelte';
 	import { toaster } from '@src/stores/store.svelte';
 	import { widgetFunctions } from '@src/stores/widget-store.svelte.ts';
+	import { sveltyRegistry } from '@src/services/json-render/catalog';
+	import { Renderer, JSONUIProvider, type Spec } from 'json-render-svelte';
 	import { modalState } from '@utils/modal-state.svelte';
 	import { asAny, getGuiFields } from '@utils/utils';
 	import { untrack } from 'svelte';
@@ -124,7 +126,36 @@
 		updateStore();
 	}
 
-	let builderView = $state<'list' | 'buzz'>('buzz');
+	let builderView = $state<'list' | 'buzz' | 'preview'>('buzz');
+
+	let mockData = $state<Record<string, any>>({});
+
+	function generatePreviewSpec(fieldsToRender: FieldInstance[]): Spec {
+		const elements: Record<string, any> = {
+			root: {
+				type: 'VerticalLayout',
+				elements: fieldsToRender.map((f) => f.db_fieldName || f.label)
+			}
+		};
+		fieldsToRender.forEach((field) => {
+			const widgetName = field.widget?.Name || 'Text';
+			const id = field.db_fieldName || field.label;
+			elements[id] = {
+				type: 'Control',
+				scope: `#/properties/${id}`,
+				label: field.label,
+				options: {
+					widget: widgetName,
+					...((field.GuiFields as any) || {})
+				}
+			};
+		});
+
+		return {
+			root: 'root',
+			elements
+		} as unknown as Spec;
+	}
 
 	const quickWidgets = [
 		{ key: 'Text', icon: 'material-symbols:text-fields', label: 'Short Text' },
@@ -182,11 +213,42 @@
 				<iconify-icon icon="mdi:format-list-bulleted" width="18"></iconify-icon>
 				<span>Standard List</span>
 			</button>
+			<button
+				onclick={() => (builderView = 'preview')}
+				class="btn btn-sm flex items-center gap-2 px-4 py-1.5 transition-all
+					{builderView === 'preview' ? 'preset-filled-primary-500 shadow-sm' : 'text-surface-500 hover:text-surface-700'}"
+			>
+				<iconify-icon icon="mdi:eye" width="18"></iconify-icon>
+				<span>Live Preview</span>
+			</button>
 		</div>
 	</div>
 
 	{#if builderView === 'buzz'}
 		<BuzzForm />
+	{:else if builderView === 'preview'}
+		<div class="rounded-lg border border-surface-200-800 bg-surface-50-950 p-6 shadow-sm">
+			<h3 class="mb-4 text-lg font-bold text-primary-500 flex items-center gap-2">
+				<iconify-icon icon="mdi:magic-staff"></iconify-icon>
+				Live AI-Native Preview
+			</h3>
+			<p class="text-sm text-surface-500 mb-6">
+				This live preview uses the exact same `json-render-svelte` engine that the frontend and the AI MCP agent use, ensuring perfect parity.
+			</p>
+
+			<div class="max-w-3xl border border-surface-200-800 rounded-lg p-4 bg-surface-100-900">
+				{#key items}
+					<JSONUIProvider initialState={mockData}>
+						<Renderer registry={sveltyRegistry} spec={generatePreviewSpec(items as FieldInstance[])} />
+					</JSONUIProvider>
+				{/key}
+			</div>
+
+			<div class="mt-8 border-t border-surface-200-800 pt-4">
+				<h4 class="text-xs font-bold uppercase text-surface-400 mb-2">Live State Data</h4>
+				<pre class="rounded bg-surface-900 p-4 text-xs text-primary-300 overflow-auto max-h-40">{JSON.stringify(mockData, null, 2)}</pre>
+			</div>
+		</div>
 	{:else}
 		<!-- Quick Add Bar -->
 		<div class="flex flex-wrap gap-2">

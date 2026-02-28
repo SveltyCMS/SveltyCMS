@@ -17,8 +17,23 @@
 		"allowArbitraryExtensions": true,
 		"resolveJsonModule": true,
 		"allowImportingTsExtensions": true,
-		"types": ["@types/bun", "google.maps"]
+		"types": [
+			"@types/bun",
+			"google.maps"
+		]
 	},
-	"include": ["src/**/*.js", "src/**/*.ts", "src/**/*.svelte", "config/**/*.ts", "types/**/*.ts", "scripts/**/*.ts", "tests/**/*.ts"],
-	"exclude": ["node_modules", ".svelte-kit"]
+	"include": [
+		"src/**/*.js",
+		"src/**/*.ts",
+		"src/**/*.svelte",
+		"config/**/*.ts",
+		"types/**/*.ts",
+		"scripts/**/*.ts",
+		"tests/**/*.ts"
+	],
+	"exclude": [
+		"node_modules",
+		".svelte-kit",
+		"src/paraglide/**/*.js"
+	]
 }

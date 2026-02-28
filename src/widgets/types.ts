@@ -99,6 +99,12 @@ export interface WidgetDefinition<TProps extends Record<string, unknown> = Recor
 	validationSchema: unknown | ((field: FieldInstance) => unknown);
 	// Core identity
 	widgetId: string;
+
+	/**
+	 * json-render-svelte configuration for AI-native generative layouts.
+	 * If true, uses default extraction. If object, specifies custom config.
+	 */
+	jsonRender?: boolean | Record<string, unknown>;
 }
 
 // ============================================================================

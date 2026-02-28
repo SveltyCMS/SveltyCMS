@@ -453,6 +453,7 @@ function createSetupStore() {
 			// Call the SvelteKit Action
 			const formData = new FormData();
 			formData.append('config', JSON.stringify(wizard.dbConfig));
+			formData.append('system', JSON.stringify(wizard.systemSettings));
 
 			const response = await fetch('?/seedDatabase', {
 				method: 'POST',

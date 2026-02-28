@@ -78,10 +78,13 @@ graph TD
 
 ### 1. Filesystem (The Configuration Truth)
 
-The `config/collections` directory is the primary source of truth for **existence**.
+The `config/collections` directory is the primary source of truth for **Collections** (existence and structure).
 
 - If a collection file exists on disk, it MUST exist in the system.
 - If a file is deleted from disk, the corresponding collection is marked for deletion (or becomes a "ghost" if not cleaned up).
+
+> [!NOTE]
+> **Categories (Folders)** are strictly structural metadata nodes (`nodeType: 'category'`). Unlike collections, categories do not correspond to files on disk. They exist exclusively within the database to organize the collections hierarchically.
 
 ### 2. ContentManager (The Reconciliation Engine)
 

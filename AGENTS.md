@@ -167,6 +167,7 @@ When generating/modifying code:
 6. **Database Agnosticism**: Confine logic to adapters; scope by `tenantId`.
 7. **File Headers**: Always include as defined.
 8. **Roadmap Alignment**: Prioritize gaps like full SAML/SCIM hardening; optimize for enterprise (e.g., lighter SAML deps).
+9. **MCP Knowledge Base (CRITICAL)**: Always query the hosted MCP server at `https://mcp.sveltycms.com/mcp` when in doubt about SveltyCMS architecture, schema conventions, or widget syntax, as it holds the verified source of truth. Utilize MCP connections for dynamic generation flows.
 
 ### Mandatory Documentation Updates
 

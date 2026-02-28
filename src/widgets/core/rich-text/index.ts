@@ -88,7 +88,9 @@ const RichTextWidget = createWidget<RichTextProps>({
 		// Provide a default full toolbar configuration.
 		toolbar: ['bold', 'italic', 'headings', 'lists', 'link', 'image', 'align', 'clear'],
 		translated: true
-	}
+	},
+
+	jsonRender: true
 });
 
 export default RichTextWidget;

@@ -20,32 +20,50 @@ tags:
 SveltyCMS 2026 leverages a high-performance **Model Context Protocol (MCP)** server to provide AI agents with deep, real-time project knowledge.
 
 > [!TIP]
-> **Status:** Active. Your local knowledge core is running at `D:\mpc` using **LanceDB** and **DirectML (NPU/iGPU)** acceleration via **HuggingFace Transformers v3**.
+> **Status:** Active. Your AI integration is powered by the **SveltyCMS Knowledge Core**.
+>
+> - **Hosted (Primary):** `https://mcp.sveltycms.com/mcp` (Cloud-native agentic memory)
+> - **Local (RAG):** Local environments using **LanceDB** and **hardware acceleration**.
 
-## Architecture
+### 1. Online MCP Server (https://mcp.sveltycms.com)
 
-### 1. The Local Knowledge Core (D:\mpc)
+The hosted Knowledge Core provides absolute project context for remote AI agents:
 
-This service acts as the "Long-term Memory" for SveltyCMS:
+- **SSE Connection**: Uses standard Server-Sent Events for real-time tool access.
+- **Global Search**: Semantic search across the entire SveltyCMS ecosystem.
+- **Read-Only Safety**: Agents can study the codebase and docs but cannot modify data.
 
-- **DirectML / NPU Indexing:** Uses the **Intel NPU (AI Boost)** and **iGPU** via DirectML to handle embeddings, keeping your RTX 5080 and CPU cores free.
+### 2. The Local Knowledge Core
+
+This service acts as the "Long-term Memory" for SveltyCMS locally:
+
+- **Hardware Accelerated Indexing:** Uses local AI acceleration (e.g. NPU/GPU) to handle embeddings.
 - **Deep Implementation Knowledge:** Indexes `src/`, `docs/`, and `package.json` expert patterns.
 - **Expert Discovery:** Automatically syncs with `llms-full.txt` from Svelte 5, Skeleton UI, and Valibot.
 
-### 2. Private Inference (NVIDIA 5080)
+### 3. AI-Native Generative Layouts
 
-While the _Knowledge_ is retrieved via the NPU, the _Inference_ (Generation) remains on your **RTX 5080** via **Ollama**:
+SveltyCMS pushes beyond Chat-based AI into interactive generative layouts powered by [`json-render-svelte`](https://github.com/dummdidumm/json-render/tree/skills/json-render-svelte).
+When a user prompts the MCP Server or the local AI service to build a complex collection form or a custom dashboard view, the LLM outputs a structured JSON spec. This spec is then fed directly into our `<Renderer>` component, instantly generating a fully functional, state-bound Svelte 5 interface utilizing your exact widgets and plugins without touching the codebase.
 
-- **Speed:** Maximum VRAM for large context windows.
-- **Privacy:** No code or data ever leaves your local D: drive.
+#### Where Generative UI is Integrated:
 
-### 3. Hardware Workload Split
+- **[Agentic Dashboard](./architecture/components/Dashboard.mdx)**: The main dashboard features an "AI Dashboard Mode" that bypasses manual grid configuration, rendering dynamic widget layouts streamed directly from the AI based on your natural language prompt.
+- **[Collection Builder](./architecture/components/WidgetBuilder.mdx)**: Translates schema configurations into live preview specs for immediate visual feedback of your custom fields.
+- **[AI Service](./api/ai-service.mdx)**: The robust local `AIService` directly integrates with Ollama to expose the `generateLayoutSpec()` method, ensuring local privacy while building these UI structures.
 
-| Task              | Processor            | Reason                                     |
-| :---------------- | :------------------- | :----------------------------------------- |
-| **Indexing/RAG**  | **Intel NPU / iGPU** | Offloads AI math from main processors.     |
-| **LLM Inference** | **NVIDIA 5080**      | Maximum throughput for complex reasoning.  |
-| **Compiling**     | **Intel 275HX CPU**  | 24 cores optimized for Vite/Svelte builds. |
+---
+
+## Why AI Makes SveltyCMS Superior
+
+Most headless CMS platforms boast "AI Integration," but essentially just bolt a ChatGPT wrapper onto a rich text field. SveltyCMS is built from the ground up to be **Agentic**.
+
+1.  **Zero-Boilerplate Customization**: Need a highly specific dashboard for a niche real estate tenant? You no longer write manual Svelte code. The MCP understands your available widgets and generates the interface instantly via `json-render-svelte`.
+2.  **Plugin Superpowers**: Any [Marketplace Plugin](../plugin-architecture.mdx) that registers itself with `jsonRender: true` instantly becomes part of the AI's vocabulary, meaning third-party tools can be effortlessly composed into Generative Layouts.
+3.  **Local Privacy First**: By splitting knowledge (Hosted MCP Server) from inference (Local Ollama via `AIService`), enterprise users get the intelligence of the official docs without sending their private schema or dashboard data to third-party endpoints.
+4.  **Self-Healing & Understanding**: The MCP Server constantly indexes your `src/` and `docs/`, meaning SveltyCMS understands its own architecture.
+
+---
 
 ## Usage for Developers
 
@@ -53,25 +71,39 @@ While the _Knowledge_ is retrieved via the NPU, the _Inference_ (Generation) rem
 
 To keep the knowledge base always up-to-date, run the sync service:
 
-```powershell
-cd D:\mpc; bun run sync-service.ts
+```bash
+bun run sync-service.ts
 ```
 
-### Editor Integration
+### Online Context Server (Recommended)
 
-Connect your AI assistant (Zed, Windsurf, or Antigravity) by adding the following to your context server settings:
+Add this to your MCP configuration (e.g., `claude_desktop_config.json`):
+
+```json
+{
+	"mcpServers": {
+		"sveltycms": {
+			"url": "https://mcp.sveltycms.com/mcp"
+		}
+	}
+}
+```
+
+### Local Executor Integration
+
+If running the local core directly:
 
 ```json
 "command": "bun",
-"args": ["run", "D:/mpc/index.ts"]
+"args": ["run", "./mpc-server/index.ts"]
 ```
 
-## Troubleshooting: NPU Monitoring
+### Deployment & Updates
 
-If Windows 11 Task Manager shows **0% NPU usage** during indexing:
+The SveltyCMS MCP server follows a "Local Build, Remote Host" model:
 
-- **Intel AI Boost:** For smaller models (BGE-Small), the DirectML driver often intelligently routes work to the **iGPU (GPU 1)** instead of the NPU. This is normal and still offloads work from your primary GPU.
-- **Performance Verification:**
-  - **CPU (Native):** ~9622ms
-  - **DirectML (NPU/iGPU):** **~8965ms** (Hardware engaged)
-- **Manual Check:** You can re-run the benchmark at `D:\mpc\benchmark-build.ts` at any time.
+1.  **Local Build**: The MCP server is built and bundled on your local development machine using `bun run build:mcp` (or equivalent build process).
+2.  **Upload**: The resulting bundle/knowledge core is then uploaded to `https://mcp.sveltycms.com` (or your private hosted instance).
+3.  **Consumption**: AI Agents (like Antigravity or Claude) connect to the hosted endpoint to obtain the most recent project context, regardless of where they are running.
+
+This ensures that the sensitive build process remains local, while the structured agentic knowledge is globally accessible exactly when needed.

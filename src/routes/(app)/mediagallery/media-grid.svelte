@@ -257,9 +257,9 @@ Key features:
 
 				<!-- Floating Actions (Reveal on Hover) -->
 				<div
-					class="absolute right-2 top-2 z-20 flex flex-col gap-1 opacity-0 transition-all duration-200 group-hover:opacity-100 {isSelectionMode.value
+					class="absolute right-2 top-2 z-30 flex flex-col gap-1 opacity-0 transition-all duration-200 group-hover:opacity-100 {isSelectionMode.value
 						? 'pointer-events-none'
-						: ''}"
+						: 'pointer-events-auto'}"
 				>
 					<!-- Info -->
 					<SystemTooltip title="Info" positioning={{ placement: 'left' }}>

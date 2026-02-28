@@ -119,7 +119,9 @@ declare global {
 	}
 
 	interface Navigator {
-		modelContext?: any;
+		modelContext?: {
+			registerTool: (tool: { name: string; description: string; inputSchema: unknown; handler: (args: unknown) => unknown }) => void;
+		};
 	}
 
 	interface RegExpConstructor {

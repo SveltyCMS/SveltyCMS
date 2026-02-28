@@ -121,7 +121,9 @@ const DateWidget = createWidget<DateProps>({
 	GraphqlSchema: () => ({
 		typeID: 'String', // ISO 8601 date string
 		graphql: '' // No custom type definition needed
-	})
+	}),
+
+	jsonRender: true
 });
 
 export default DateWidget;

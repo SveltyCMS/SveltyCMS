@@ -207,6 +207,7 @@ export interface Schema {
 	strict?: boolean;
 	tenantId?: string; // For multi-tenant support
 	translations?: Translation[]; // Optional translations with enhanced metadata
+	displaySpec?: Record<string, unknown>; // json-render-svelte display specification
 }
 
 export interface MinimalContentNode {

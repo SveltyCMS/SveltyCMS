@@ -117,29 +117,36 @@ SveltyCMS has leapfrogged competitors by replacing heavy, imperative canvas libr
 - **Status:** **✅ IMPLEMENTED (Backend)**
 - **Architecture:** Implements a cryptographic chain where each log entry contains the SHA-256 hash of the previous entry, creating a tamper-evident audit trail (SOC 2 compliant).
 
-### 3.8 WebMCP (Web Model Context Protocol)
+### 3.8 MCP Server (Model Context Protocol)
 
-- **Status:** **✅ IMPLEMENTED (Client-Side Plugin)**
-- **Architecture:** Implements a native, zero-runtime plugin that polyfills `navigator.modelContext`. This allows browser-based AI agents (like Chrome AI, Cursor, or local LLMs) to "discover" the CMS structure and perform actions (navigation, content search) via a standardized protocol.
-- **Strategic Value:** positions SveltyCMS as the first "AI-Ready" headless CMS for the next generation of browser-integrated agents.
+- **Status:** **✅ IMPLEMENTED (Production Ready)**
+- **Competitive Edge:** **SveltyCMS is currently the ONLY headless CMS in the market to offer a native, production-ready MCP server.**
+- **Architecture:** Exposes the entire project context (docs, schemas, and expert patterns) to agentic AI assistants.
+- **Strategic Value:** Enables true "Agent-in-the-Loop" development. While competitors like Strapi or Payload remain "AI-integrated" via simple chat interfaces, SveltyCMS is "AI-Native," allowing agents to navigate, understand, and modify the CMS structure autonomously via the Model Context Protocol.
 
-### 3.9 Accessibility & Inclusivity
+### 3.9 AI-Native Generative Layouts (New)
+
+- **Status:** **✅ IMPLEMENTED (via json-render-svelte)**
+- **Architecture:** Integrates a Svelte 5-based generative UI engine that transforms JSON specifications (derived from AI prompts) into fully interactive, state-bound layouts using the project's own widget library.
+- **Differentiator:** No other CMS offers a streaming, interactive generative layout system that uses the project's _exact_ widgets and plugins, ensuring 100% design consistency and full interactive capabilities (actions, bindings, validation).
+
+### 3.10 Accessibility & Inclusivity
 
 - **Status:** **✅ IMPLEMENTED (WCAG 2.2 AA / ATAG 2.0)**
 - **Audit:** Comprehensive audit completed covering Setup Wizard and Dashboard. Full keyboard support and ARIA-live announcements included.
 - **Key Features:** Full keyboard support for drag-and-drop, semantic tree views, and ARIA-live announcements for async operations. This positions SveltyCMS as a leader for government and public sector deployments.
 
-### 3.9 Legal & Compliance (GDPR)
+### 3.11 Legal & Compliance (GDPR)
 
 - **Status:** **✅ IMPLEMENTED (v1.1)**
 - **Architecture:** Native "Privacy Center" module handles Data Portability (Article 20) and Right to Erasure (Article 17) via automated self-service and admin workflows. Includes a native Cookie Consent Manager plugin.
 
-### 3.10 Self-Learning Architecture
+### 3.12 Self-Learning Architecture
 
 - **Status:** **✅ IMPLEMENTED (Adaptive Optimization)**
 - **Resiliency:** Implements a **Self-Learning State Machine** with persistent performance metrics to distinguish between "normal" slowness and service failures, preventing boot-loop death spirals.
 
-### 3.11 Verified Multi-Database Architecture (NEW)
+### 3.13 Verified Multi-Database Architecture (NEW)
 
 - **Status:** **✅ VERIFIED (All 4 Drivers Tested)**
 - **Significance:** Unlike competitors that lock users into one paradigm, SveltyCMS has successfully implemented and verified **Drizzle ORM** (for SQL) and **Mongoose** (for NoSQL) co-existence.
@@ -149,7 +156,7 @@ SveltyCMS has leapfrogged competitors by replacing heavy, imperative canvas libr
   - **SQLite:** Validated for Edge/Local workloads (WAL mode enabled).
 - **Result:** SveltyCMS offers strong multi-paradigm database support, allowing teams to choose the most suitable engine for their specific needs without drastic code changes.
 
-### 3.12 GUI-Based Automation System
+### 3.14 GUI-Based Automation System
 
 - **Architecture:** Visual workflow engine powered by a DB-agnostic `AutomationService` and a singleton `EventBus`. Lifecycle hooks (`entry:create`, `entry:publish`, `media:upload`, etc.) trigger operation chains including Webhooks, Email notifications, field transformations, and conditional logic.
 - **Design:** Non-blocking asynchronous execution model with per-operation timing and execution logs. Configured via an intuitive 3-step visual builder (Trigger → Operations → Preview).
@@ -277,6 +284,8 @@ In February 2026, SveltyCMS underwent a critical security remediation (GHSA-9hmx
 | **TW Email**         | **✅ Native**       | ❌ MJML/Ext   | ❌ No       | ⚠️ Component | ❌ No     | ❌ PHP-HTML | ⚠️ Limited    |
 | **DAM Engine**       | **✅ AI-Native**    | ⚠️ Basic      | ✅ Native   | ⚠️ Basic     | ⚠️ Basic  | ❌ Plugin   | ✅ Enterprise |
 | **Real-time Collab** | **✅ Native (SSE)** | ❌ No         | ✅ Native   | ❌ No        | ✅ Native | ⚠️ Plugins  | ✅ Enterprise |
+| **MCP Server**       | **✅ Native**       | ❌ No         | ❌ No       | ❌ No        | ❌ No     | ❌ No       | ❌ No         |
+| **Generative UI**    | **✅ Native**       | ⚠️ Plugins    | ⚠️ Integr.  | ⚠️ Addons    | ❌ No     | ⚠️ Plugins  | 💲 Enterprise |
 
 ### 4.2 Vs. Strapi & Directus (The Ecosystem Leaders)
 
@@ -345,6 +354,13 @@ Based on the [Official SveltyCMS Comparison](https://sveltycms.com/compare):
 | **Change DB w/o Code?** | ✅ **Yes (Config)** | ❌ Re-migration | ❌ Migration | ❌ No     | ❌ No       |
 
 **Key Finding:** SveltyCMS is the most versatile option for teams who may need to migrate from SQL to NoSQL (or vice versa) as they scale, or who want to develop on SQLite and deploy on MongoDB.
+
+### 4.10 The Agentic Advantage: MCP Server & Generative UI
+
+As AI coding assistants and agentic workflows become standard, CMS architectures must evolve beyond simple REST/GraphQL APIs. SveltyCMS is uniquely positioned as the **first CMS to provide a native Model Context Protocol (MCP) Server**.
+
+- **Competitors**: Systems like Strapi, Directus, and Payload rely on traditional APIs or third-party wrappers, requiring complex integration to expose their schemas to AI agents meaningfully.
+- **SveltyCMS**: Features a built-in MCP server that exposes the entire knowledge core (schemas, widgets, APIs, and docs). Furthermore, with **Generative UI** via `json-render-svelte`, SveltyCMS allows AI agents to dynamically construct functional, rich layouts in real-time, moving beyond intelligent completion to intelligent creation.
 
 ## 5. Strategic Recommendations & Promotion
 

@@ -322,5 +322,5 @@ None (TreeView has its own keyboard navigation)
 		</div>
 	</div>
 {:else}
-	<EmptyState onAddCollection={handleAddCollectionClick} />
+	<EmptyState onAddCollection={handleAddCollectionClick} onAddCategory={() => modalAddCategory()} />
 {/if}

@@ -14,7 +14,14 @@
  * @coverage ~60 tests
  */
 
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, test, mock, beforeEach } from 'bun:test';
+
+// Mock json-render catalog must be declared BEFORE importing widget-factory
+mock.module('@src/services/json-render/catalog', () => ({
+	registerForJsonRender: mock(() => {})
+}));
+import { registerForJsonRender } from '@src/services/json-render/catalog';
+
 import { boolean, minLength, number, object, string } from 'valibot';
 import { createWidget, type FieldConfig, type WidgetConfig } from '../../../src/widgets/widget-factory';
 
@@ -118,6 +125,37 @@ describe('Widget System - Factory Pattern', () => {
 			expect(widget.aggregations).toBeDefined();
 			expect(widget.aggregations?.filters).toBeFunction();
 			expect(widget.aggregations?.sorts).toBeFunction();
+		});
+
+		describe('jsonRender Integration', () => {
+			beforeEach(() => {
+				(registerForJsonRender as any).mockClear();
+			});
+
+			test('should auto-register widget if jsonRender is true', () => {
+				createWidget({
+					Name: 'JsonRenderWidget',
+					validationSchema: string(),
+					jsonRender: true
+				});
+
+				expect(registerForJsonRender).toHaveBeenCalledTimes(1);
+				expect(registerForJsonRender).toHaveBeenCalledWith(
+					expect.objectContaining({
+						Name: 'JsonRenderWidget',
+						jsonRender: true
+					})
+				);
+			});
+
+			test('should not register widget if jsonRender is absent or false', () => {
+				createWidget({
+					Name: 'StandardWidget',
+					validationSchema: string()
+				});
+
+				expect(registerForJsonRender).not.toHaveBeenCalled();
+			});
 		});
 	});
 

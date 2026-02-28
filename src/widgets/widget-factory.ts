@@ -10,6 +10,7 @@
  */
 
 import type { FieldInstance } from '@src/content/types';
+import { registerForJsonRender } from '@src/services/json-render/catalog';
 import type { WidgetDefinition, WidgetFactory } from '@widgets/types';
 import type { BaseIssue, BaseSchema } from 'valibot';
 
@@ -73,6 +74,9 @@ export interface WidgetConfig<TProps extends WidgetProps = WidgetProps> {
 	 *  Kept as `unknown` to avoid over-constraining the factory; callers may provide properly-typed Valibot schemas.
 	 */
 	validationSchema: unknown | ((field: FieldInstance) => unknown);
+
+	/** Optional json-render configuration for AI-native generative layouts. */
+	jsonRender?: boolean | Record<string, unknown>;
 }
 
 /**
@@ -95,9 +99,16 @@ export function createWidget<TProps extends WidgetProps = WidgetProps>(config: W
 		defaults: config.defaults,
 		GuiFields: config.GuiSchema || ({} as Record<string, unknown>),
 		aggregations: config.aggregations as WidgetDefinition['aggregations'],
-		getTranslatablePaths: config.getTranslatablePaths
+		getTranslatablePaths: config.getTranslatablePaths,
+		// json-render integration
+		jsonRender: config.jsonRender
 		// ... other definition properties like GraphqlSchema
 	};
+
+	if (config.jsonRender) {
+		// Automatically register this widget in the central json-render catalog
+		registerForJsonRender(widgetDefinition);
+	}
 
 	// 2. Return the factory function that creates field instances.
 	const widgetFactoryFunction = (fieldConfig: FieldConfig<TProps>): FieldInstance => {

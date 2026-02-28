@@ -87,10 +87,20 @@ with the AI collaboration assistant.
 			{collaboration.currentRoom ? 'Room Collaboration' : 'Collaboration'}
 		</h3>
 		<div class="flex items-center gap-3">
-			<SystemTooltip title={collaboration.isConnected ? 'Connected to real-time events' : 'Real-time collaboration is offline (Reconnecting...)'}>
+			<SystemTooltip
+				title={collaboration.isConnected
+					? 'Connected to SveltyCMS Knowledge Core (MCP) for real-time AI assistance'
+					: 'Real-time collaboration is offline (Reconnecting...)'}
+			>
 				<div class="flex items-center gap-1 cursor-help">
-					<span class="flex h-2 w-2 rounded-full {collaboration.isConnected ? 'bg-primary-500' : 'bg-error-500'} animate-pulse"></span>
-					<span class="text-xs opacity-70">{collaboration.isConnected ? 'Live' : 'Offline'}</span>
+					<span
+						class="flex h-2 w-2 rounded-full {collaboration.isConnected
+							? 'bg-primary-500 shadow-[0_0_8px_rgba(var(--color-primary-500),0.8)]'
+							: 'bg-error-500'} animate-pulse"
+					></span>
+					<span class="text-xs font-bold {collaboration.isConnected ? 'text-primary-500' : 'opacity-70'}"
+						>{collaboration.isConnected ? 'MCP Live' : 'Offline'}</span
+					>
 				</div>
 			</SystemTooltip>
 
@@ -202,7 +212,7 @@ with the AI collaboration assistant.
 			<form class="flex gap-2" onsubmit={handleSendMessage}>
 				<input
 					type="text"
-					placeholder="Type a message..."
+					placeholder="Ask AI via MCP Knowledge Core..."
 					class="flex-1 bg-surface-500/10 border border-surface-500/30 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary-500"
 					bind:value={newMessage}
 				/>

@@ -269,16 +269,28 @@ class WidgetState {
 	}
 }
 
-export const widgets = new WidgetState();
+const widgetStateInstance = new WidgetState();
+
+/**
+ * Single export for both store state and widget factory functions.
+ * Enables widgets.Date(), widgets.Group(), etc. in collection schemas while keeping store methods.
+ */
+export const widgets = new Proxy(widgetStateInstance, {
+	get(target, prop: string) {
+		const own = (target as unknown as Record<string, unknown>)[prop];
+		if (own !== undefined) return own;
+		return target.widgetFunctions[prop];
+	}
+}) as WidgetState & Record<string, WidgetFactory>;
 
 // --- Helper Functions ---
 
 export function getWidget(name: string) {
-	return widgets.widgets[name];
+	return widgetStateInstance.widgets[name];
 }
 
 export function getWidgetFunction(name: string) {
-	return widgets.widgetFunctions[name];
+	return widgetStateInstance.widgetFunctions[name];
 }
 
 export function isWidgetActive(name: string): boolean {
@@ -298,14 +310,14 @@ export function isWidgetMarketplace(name: string): boolean {
 }
 
 export function getWidgetDependencies(name: string): string[] {
-	return widgets.dependencyMap[name] || [];
+	return widgetStateInstance.dependencyMap[name] || [];
 }
 
 export function canDisableWidget(name: string): boolean {
 	if (isWidgetCore(name)) {
 		return false;
 	}
-	const dependents = Object.entries(widgets.dependencyMap)
+	const dependents = Object.entries(widgetStateInstance.dependencyMap)
 		.filter(([, deps]) => deps.includes(name))
 		.map(([n]) => n);
 	return !dependents.some(isWidgetActive);
@@ -317,16 +329,16 @@ export function isWidgetAvailable(name: string): boolean {
 
 // Compatibility export for theme branch components
 export const widgetStoreActions = {
-	updateStatus: widgets.updateStatus.bind(widgets),
-	updateConfig: widgets.updateConfig.bind(widgets),
-	reload: widgets.reload.bind(widgets),
-	initializeWidgets: widgets.initialize.bind(widgets)
+	updateStatus: widgetStateInstance.updateStatus.bind(widgetStateInstance),
+	updateConfig: widgetStateInstance.updateConfig.bind(widgetStateInstance),
+	reload: widgetStateInstance.reload.bind(widgetStateInstance),
+	initializeWidgets: widgetStateInstance.initialize.bind(widgetStateInstance)
 };
 
 // Compatibility store for legacy components
 export const widgetFunctions = {
 	subscribe(fn: (value: WidgetRegistry) => void) {
-		fn(widgets.widgetFunctions);
+		fn(widgetStateInstance.widgetFunctions);
 		return () => {}; // Non-reactive for now, sufficient for initial load or use $effect if needed
 	}
 };
@@ -334,6 +346,6 @@ export const widgetFunctions = {
 // HMR
 if (import.meta.hot) {
 	import.meta.hot.accept(() => {
-		widgets.reload();
+		widgetStateInstance.reload();
 	});
 }
