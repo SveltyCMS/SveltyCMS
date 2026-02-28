@@ -98,6 +98,19 @@ If running the local core directly:
 "args": ["run", "./mpc-server/index.ts"]
 ```
 
+#### Available Tools
+
+Once connected, your AI agent can use these read-only tools to explore the SveltyCMS codebase and documentation:
+
+| Tool                    | Description                                                                  | Parameters                                                                  |
+| :---------------------- | :--------------------------------------------------------------------------- | :-------------------------------------------------------------------------- |
+| `search_knowledge_base` | Semantic search across SveltyCMS docs and code via neural vector similarity. | `query` (string), `category` (code\|docs\|meta\|external), `limit` (number) |
+| `read_source_code`      | Read the full content of any source file from the SveltyCMS project.         | `filePath` (string, e.g., `src/widgets/index.ts`)                           |
+| `list_directory`        | List files and folders in a given directory.                                 | `dirPath` (string, relative directory path)                                 |
+| `get_file_tree`         | Get a recursive tree of the project structure up to a specified depth.       | `depth` (number, default: 3)                                                |
+
+All tools are **completely read-only** — your agent can explore and learn, but cannot modify, delete, or create anything. Sensitive paths like `.git`, `node_modules`, and `.env` are automatically blocked.
+
 ### Deployment & Updates
 
 The SveltyCMS MCP server follows a "Local Build, Remote Host" model:

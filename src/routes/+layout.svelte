@@ -11,7 +11,7 @@
 	import { page } from '$app/state';
 
 	// WebMCP Support (Polyfill + Plugin)
-	import '@mcp-b/global';
+	import '@mcp-b/webmcp-polyfill';
 	import { Portal } from '@skeletonlabs/skeleton-svelte';
 	// Components
 	import DialogManager from '@src/components/system/dialog-manager.svelte';

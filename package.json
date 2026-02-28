@@ -146,7 +146,7 @@
 		"@floating-ui/dom": "^1.7.5",
 		"@googlemaps/js-api-loader": "^2.0.2",
 		"@inlang/paraglide-js": "^2.13.0",
-		"@mcp-b/global": "^2.0.7",
+		"@mcp-b/webmcp-polyfill": "^2.0.7",
 		"@tailwindcss/forms": "^0.5.11",
 		"@tailwindcss/typography": "^0.5.19",
 		"@testing-library/jest-dom": "^6.9.1",
