@@ -117,8 +117,8 @@ See the [Installation Guide](docs/installation.mdx) for detailed setup instructi
 #### 2. Create a Branch
 
 ```bash
-# Create a new branch from main
-git checkout -b feature/my-awesome-feature
+# Create a new branch from next
+git checkout -b feature/my-awesome-feature next
 
 # Or for bug fixes
 git checkout -b fix/issue-123
@@ -487,18 +487,18 @@ When adding new dependencies:
 
 We use [GitHub Flow](https://guides.github.com/introduction/flow/):
 
-1. **Branch** from `main`
+1. **Branch** from `next`
 2. **Commit** changes with clear messages
-3. **Push** to your fork
-4. **Create** a pull request
+3. **Push** to your fork (or feature branch)
+4. **Create** a pull request targeting `next`
 5. **Discuss** and review
 6. **Merge** when approved
 
 **Important:**
 
-- Keep `main` stable and deployable
-- All changes via pull requests
-- Require at least one approval
+- Keep `main` stable (only for releases)
+- All changes via pull requests to `next`
+- Admin manages merges and direct `next` updates
 - CI must pass before merge
 
 ---

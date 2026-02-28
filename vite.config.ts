@@ -456,10 +456,14 @@ export default defineConfig((): UserConfig => {
 
 	return {
 		plugins: [
+			_testConfigAliasPlugin(),
+			_privateConfigFallbackPlugin(),
 			stubServerModulesPlugin(),
 			sveltekit(),
 			sveltyCmsPlugin(),
 			securityCheckPlugin(),
+			_suppressThirdPartyWarningsPlugin(),
+			_buildMetadataPlugin(),
 			paraglideVitePlugin({
 				project: './project.inlang',
 				outdir: './src/paraglide'

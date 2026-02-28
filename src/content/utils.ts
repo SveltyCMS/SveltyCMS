@@ -159,8 +159,7 @@ export async function processModule(content: string): Promise<{ schema?: Schema 
 			get: (target, prop) => {
 				// Handle symbols (like those used by Svelte or test runners)
 				if (typeof prop !== 'string') {
-					// Use unknown as intermediate cast to satisfy TS strict checks for symbol-to-string conversion
-					return (target as unknown as Record<string, unknown>)[prop as unknown as string];
+					return Reflect.get(target, prop);
 				}
 				// Try exact match first (performance)
 				if (prop in target) {
