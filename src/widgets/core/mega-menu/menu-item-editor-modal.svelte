@@ -19,7 +19,7 @@ menu item at a specific level. Uses the standard widget loading system.
 	let { meta }: { meta: MenuEditContext } = $props();
 
 	// Locally import modules for widget loading to support code-splitting
-	const modules: Record<string, () => Promise<{ default: any }>> = import.meta.glob('/src/widgets/**/*.svelte') as Record<
+	const modules: Record<string, () => Promise<{ default: any }>> = import.meta.glob('../../**/*.svelte') as Record<
 		string,
 		() => Promise<{ default: any }>
 	>;

@@ -32,8 +32,8 @@ const PriceWidget = createWidget<PriceProps>({
 	Name: 'Price',
 	Icon: 'mdi:currency-usd',
 	Description: 'Price with currency support',
-	inputComponentPath: ' $args[0].Value.ToLower() ',
-	displayComponentPath: ' $args[0].Value.ToLower() ',
+	inputComponentPath: '/src/widgets/custom/price/input.svelte',
+	displayComponentPath: '/src/widgets/custom/price/display.svelte',
 	validationSchema,
 
 	defaults: {
@@ -69,3 +69,4 @@ const PriceWidget = createWidget<PriceProps>({
 
 export default PriceWidget;
 export type FieldType = ReturnType<typeof PriceWidget>;
+

@@ -60,8 +60,8 @@ const RelationWidget = createWidget<RelationProps>({
 	Name: 'Relation',
 	Icon: 'mdi:relation-one-to-one',
 	Description: widget_relation_description(),
-	inputComponentPath: ' $args[0].Value.ToLower() ',
-	displayComponentPath: ' $args[0].Value.ToLower() ',
+	inputComponentPath: '/src/widgets/core/relation/input.svelte',
+	displayComponentPath: '/src/widgets/core/relation/display.svelte',
 	validationSchema,
 
 	// Define the UI for configuring this widget in the Collection Builder.
@@ -151,3 +151,4 @@ export default RelationWidget;
 // Export helper types.
 export type FieldType = ReturnType<typeof RelationWidget>;
 export type RelationWidgetData = ValibotInput<ReturnType<typeof validationSchema>>;
+

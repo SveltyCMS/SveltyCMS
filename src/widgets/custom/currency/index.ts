@@ -55,8 +55,8 @@ const CurrencyWidget = createWidget<CurrencyProps>({
 	Name: 'Currency',
 	Icon: 'mdi:currency-usd',
 	Description: widget_currency_description(),
-	inputComponentPath: ' $args[0].Value.ToLower() ',
-	displayComponentPath: ' $args[0].Value.ToLower() ',
+	inputComponentPath: '/src/widgets/custom/currency/input.svelte',
+	displayComponentPath: '/src/widgets/custom/currency/display.svelte',
 	validationSchema,
 
 	// Set widget-specific defaults.
@@ -108,3 +108,4 @@ export default CurrencyWidget;
 // Export helper types.
 export type FieldType = ReturnType<typeof CurrencyWidget>;
 export type CurrencyWidgetData = ValibotInput<ReturnType<typeof validationSchema>>;
+

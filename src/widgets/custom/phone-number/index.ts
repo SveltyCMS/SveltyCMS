@@ -50,8 +50,8 @@ const PhoneNumberWidget = createWidget<PhoneNumberProps>({
 	Name: 'PhoneNumber',
 	Icon: 'ic:baseline-phone-in-talk',
 	Description: widget_phoneNumber_description(),
-	inputComponentPath: ' $args[0].Value.ToLower() ',
-	displayComponentPath: ' $args[0].Value.ToLower() ',
+	inputComponentPath: '/src/widgets/custom/phone-number/input.svelte',
+	displayComponentPath: '/src/widgets/custom/phone-number/display.svelte',
 	validationSchema,
 
 	// Set widget-specific defaults.
@@ -78,3 +78,4 @@ export default PhoneNumberWidget;
 // Export helper types.
 export type FieldType = ReturnType<typeof PhoneNumberWidget>;
 export type PhoneNumberWidgetData = ValibotInput<ReturnType<typeof validationSchema>>;
+

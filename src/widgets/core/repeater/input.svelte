@@ -38,7 +38,7 @@ Renders a list of forms, one for each item in the array. Supports Drag-and-Drop 
 	});
 
 	// --- WIDGET LOADING LOGIC ---
-	const modules: Record<string, () => Promise<{ default: any }>> = import.meta.glob('/src/widgets/**/*.svelte') as Record<
+	const modules: Record<string, () => Promise<{ default: any }>> = import.meta.glob('../../**/*.svelte') as Record<
 		string,
 		() => Promise<{ default: any }>
 	>;

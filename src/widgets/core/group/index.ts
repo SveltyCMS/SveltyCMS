@@ -36,8 +36,8 @@ const GroupWidget = createWidget<GroupProps>({
 	Description: 'Group related fields together',
 
 	// Define paths to the dedicated Svelte components.
-	inputComponentPath: ' $args[0].Value.ToLower() ',
-	displayComponentPath: ' $args[0].Value.ToLower() ',
+	inputComponentPath: '/src/widgets/core/group/input.svelte',
+	displayComponentPath: '/src/widgets/core/group/display.svelte',
 
 	// Assign the validation schema.
 	validationSchema: GROUP_VALIDATION_SCHEMA,
@@ -72,3 +72,4 @@ export default GroupWidget;
 // Export helper types for use in Svelte components.
 export type FieldType = ReturnType<typeof GroupWidget>;
 export type GroupWidgetData = ValibotInput<typeof GROUP_VALIDATION_SCHEMA>;
+

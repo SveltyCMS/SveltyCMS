@@ -65,8 +65,8 @@ const SeoWidget = createWidget({
 	Name: 'SEO',
 	Icon: 'tabler:seo',
 	Description: widget_seo_description(),
-	inputComponentPath: ' $args[0].Value.ToLower() ',
-	displayComponentPath: ' $args[0].Value.ToLower() ',
+	inputComponentPath: '/src/widgets/custom/Seo/input.svelte',
+	displayComponentPath: '/src/widgets/custom/Seo/display.svelte',
 	validationSchema: SEO_VALIDATION_SCHEMA,
 
 	// Set widget-specific defaults.
@@ -117,3 +117,4 @@ export default SeoWidget;
 // Export helper types.
 export type FieldType = ReturnType<typeof SeoWidget>;
 export type SeoWidgetData = ValibotInput<typeof SEO_VALIDATION_SCHEMA>;
+

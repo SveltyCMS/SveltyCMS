@@ -37,8 +37,8 @@ const AddressWidget = createWidget<AddressProps>({
 	Name: 'Address',
 	Icon: 'mdi:home-map-marker',
 	Description: widget_address_description(),
-	inputComponentPath: ' $args[0].Value.ToLower() ',
-	displayComponentPath: ' $args[0].Value.ToLower() ',
+	inputComponentPath: '/src/widgets/custom/address/input.svelte',
+	displayComponentPath: '/src/widgets/custom/address/display.svelte',
 	validationSchema: ADDRESS_VALIDATION_SCHEMA,
 
 	// Define the UI for configuring this widget's properties in the Collection Builder.
@@ -91,3 +91,4 @@ export default AddressWidget;
 // Export helper types.
 export type FieldType = ReturnType<typeof AddressWidget>;
 export type AddressWidgetData = ValibotInput<typeof ADDRESS_VALIDATION_SCHEMA>;
+

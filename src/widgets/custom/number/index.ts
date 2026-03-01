@@ -53,8 +53,8 @@ const NumberWidget = createWidget<NumberProps>({
 	Name: 'Number',
 	Icon: 'mdi:numeric',
 	Description: widget_number_description(),
-	inputComponentPath: ' $args[0].Value.ToLower() ',
-	displayComponentPath: ' $args[0].Value.ToLower() ',
+	inputComponentPath: '/src/widgets/custom/number/input.svelte',
+	displayComponentPath: '/src/widgets/custom/number/display.svelte',
 	validationSchema,
 
 	// Set widget-specific defaults.
@@ -97,3 +97,4 @@ export default NumberWidget;
 // Export helper types.
 export type FieldType = ReturnType<typeof NumberWidget>;
 export type NumberWidgetData = ValibotInput<ReturnType<typeof validationSchema>>;
+

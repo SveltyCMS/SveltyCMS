@@ -16,8 +16,8 @@
 // Components needed for the GuiSchema
 import IconifyIconsPicker from '@components/iconify-icons-picker.svelte';
 import PermissionsSetting from '@components/permissions-setting.svelte';
-import Input from '@components/system/inputs/Input.svelte';
-import Toggles from '@components/system/inputs/Toggles.svelte';
+import Input from '@components/system/inputs/input.svelte';
+import Toggles from '@components/system/inputs/toggles.svelte';
 
 import { createWidget } from '@src/widgets/widget-factory';
 
@@ -48,8 +48,8 @@ const DateRangeWidget = createWidget<DateRangeProps>({
 	Description: widget_dateRange_description(),
 
 	// Define paths to the dedicated Svelte components.
-	inputComponentPath: ' $args[0].Value.ToLower() ',
-	displayComponentPath: ' $args[0].Value.ToLower() ',
+	inputComponentPath: '/src/widgets/core/date-range/input.svelte',
+	displayComponentPath: '/src/widgets/core/date-range/display.svelte',
 
 	// Assign the validation schema.
 	validationSchema: DATE_RANGE_VALIDATION_SCHEMA,
@@ -105,3 +105,4 @@ export default DateRangeWidget;
 // Export helper types for use in Svelte components.
 export type FieldType = ReturnType<typeof DateRangeWidget>;
 export type DateRangeWidgetData = ValibotInput<typeof DATE_RANGE_VALIDATION_SCHEMA>;
+

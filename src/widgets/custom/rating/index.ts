@@ -46,8 +46,8 @@ const RatingWidget = createWidget<RatingProps>({
 	Name: 'Rating',
 	Icon: 'material-symbols:star-outline',
 	Description: widget_rating_description(),
-	inputComponentPath: ' $args[0].Value.ToLower() ',
-	displayComponentPath: ' $args[0].Value.ToLower() ',
+	inputComponentPath: '/src/widgets/custom/rating/input.svelte',
+	displayComponentPath: '/src/widgets/custom/rating/display.svelte',
 	validationSchema,
 
 	// Set widget-specific defaults.
@@ -96,3 +96,4 @@ export default RatingWidget;
 // Export helper types.
 export type FieldType = ReturnType<typeof RatingWidget>;
 export type RatingWidgetData = ValibotInput<ReturnType<typeof validationSchema>>;
+

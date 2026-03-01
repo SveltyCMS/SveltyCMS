@@ -66,8 +66,8 @@ const RemoteVideoWidget = createWidget({
 	Name: 'RemoteVideo',
 	Icon: 'mdi:video-vintage',
 	Description: widget_remoteVideo_description(),
-	inputComponentPath: ' $args[0].Value.ToLower() ',
-	displayComponentPath: ' $args[0].Value.ToLower() ',
+	inputComponentPath: '/src/widgets/custom/remote-video/input.svelte',
+	displayComponentPath: '/src/widgets/custom/remote-video/display.svelte',
 	validationSchema,
 
 	// Set widget-specific defaults.
@@ -129,3 +129,4 @@ export default RemoteVideoWidget;
 // Export helper types.
 export type FieldType = ReturnType<typeof RemoteVideoWidget>;
 export type RemoteVideoWidgetData = ValibotInput<typeof validationSchema>;
+

@@ -111,12 +111,14 @@ export const actions: Actions = {
 			const { getSetupDatabaseAdapter } = await import('./utils');
 
 			try {
+				logger.info(`🔌 Attempting to connect to ${dbConfig.type} at ${dbConfig.host}...`);
 				const { dbAdapter } = await getSetupDatabaseAdapter(dbConfig, { createIfMissing });
 
 				logger.info('📡 Connection established, sending ping...');
 				const health = await dbAdapter.getConnectionHealth();
 
 				if (!health.success) {
+					logger.error('❌ Database ping failed:', health.message);
 					await dbAdapter.disconnect();
 					return {
 						success: false,
@@ -134,6 +136,7 @@ export const actions: Actions = {
 					latencyMs
 				};
 			} catch (err: any) {
+				logger.error('❌ Connection attempt failed:', err.message, err.code);
 				// Handle SQLite/SQL "database does not exist" for auto-creation
 				if (
 					err.message?.includes('does not exist') ||
@@ -143,6 +146,7 @@ export const actions: Actions = {
 				) {
 					if (createIfMissing) {
 						try {
+							logger.info('🛠 Attempting to create missing database:', dbConfig.name);
 							if (dbConfig.type === 'sqlite') {
 								const { mkdirSync } = await import('node:fs');
 								const { dirname } = await import('node:path');
@@ -184,6 +188,7 @@ export const actions: Actions = {
 								};
 							}
 						} catch (createErr: any) {
+							logger.error('❌ Database creation failed:', createErr.message);
 							return { success: false, error: 'Could not create database: ' + createErr.message };
 						}
 					}
@@ -196,7 +201,7 @@ export const actions: Actions = {
 				throw err;
 			}
 		} catch (err: any) {
-			logger.error('Database test failed:', err);
+			logger.error('❌ Database test failed critically:', err);
 			return { success: false, error: err.message || String(err) };
 		}
 	},

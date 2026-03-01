@@ -36,8 +36,8 @@ const CheckboxWidget = createWidget<CheckboxProps>({
 	Description: widget_checkbox_description(),
 
 	// Define paths to the dedicated Svelte components.
-	inputComponentPath: ' $args[0].Value.ToLower() ',
-	displayComponentPath: ' $args[0].Value.ToLower() ',
+	inputComponentPath: '/src/widgets/core/checkbox/input.svelte',
+	displayComponentPath: '/src/widgets/core/checkbox/display.svelte',
 
 	// Assign the validation schema.
 	validationSchema: CHECKBOX_VALIDATION_SCHEMA,
@@ -80,3 +80,4 @@ export default CheckboxWidget;
 // Export helper types for use in Svelte components.
 export type FieldType = ReturnType<typeof CheckboxWidget>;
 export type CheckboxWidgetData = ValibotInput<typeof CHECKBOX_VALIDATION_SCHEMA>;
+

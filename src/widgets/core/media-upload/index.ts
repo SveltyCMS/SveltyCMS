@@ -48,8 +48,8 @@ const MediaWidget = createWidget<MediaProps>({
 	Name: 'MediaUpload',
 	Icon: 'mdi:image-multiple',
 	Description: widget_media_description(),
-	inputComponentPath: ' $args[0].Value.ToLower() ',
-	displayComponentPath: ' $args[0].Value.ToLower() ',
+	inputComponentPath: '/src/widgets/core/media-upload/input.svelte',
+	displayComponentPath: '/src/widgets/core/media-upload/display.svelte',
 	validationSchema: createValidationSchema,
 
 	// Set widget-specific defaults.
@@ -168,3 +168,4 @@ export default MediaWidget;
 // Export helper types.
 export type FieldType = ReturnType<typeof MediaWidget>;
 export type MediaWidgetData = ValibotInput<ReturnType<typeof createValidationSchema>>;
+

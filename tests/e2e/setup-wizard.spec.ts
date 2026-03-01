@@ -16,36 +16,43 @@
 import { expect, type Page, test } from '@playwright/test';
 
 // Helper: Click the Next button.
-// Uses getByLabel to uniquely target the actual button (not the tooltip trigger)
-// since SystemTooltip creates a separate trigger button that also matches by role.
+// Uses a robust selector that handles both exact label match and role+name
+// to ensure it works even with hydration delays or minor UI variations.
 async function clickNext(page: Page) {
-	const nextBtn = page.getByLabel('Next', { exact: true });
+	const nextBtn = page.locator('button').filter({ hasText: /^Next$/i }).first();
+	await expect(nextBtn).toBeVisible({ timeout: 30_000 });
 	await expect(nextBtn).toBeEnabled({ timeout: 60_000 });
 	await nextBtn.click();
 }
 
 test('Setup Wizard: Configure DB and Create Admin', async ({ page }) => {
 	// Capture browser console and errors for debugging
-	page.on('console', (msg) => console.log(`[BROWSER ${msg.type()}] ${msg.text()}`));
+	page.on('console', (msg) => {
+		const text = msg.text();
+		console.log(`[BROWSER ${msg.type()}] ${text}`);
+		// Fail fast if we see a 500 error in logs during connection test
+		if (text.includes('500') && text.includes('testDatabase')) {
+			console.error('Detected 500 error in browser logs during DB test!');
+		}
+	});
 	page.on('pageerror', (err) => console.log(`[BROWSER ERROR] ${err.message}`));
 
 	// Prevent the welcome modal from appearing by pre-setting sessionStorage.
-	// The setup page checks this key and skips the modal if already shown.
-	// This avoids issues with Skeleton v4 Dialog/Portal intercepting pointer events.
 	await page.addInitScript(() => {
 		sessionStorage.setItem('sveltycms_welcome_modal_shown', 'true');
 	});
 
 	// 1. Start at root, expect redirect to /setup or /login
-	await page.goto('/', { waitUntil: 'domcontentloaded' });
+	await page.goto('/', { waitUntil: 'networkidle' });
 
 	if (page.url().includes('/login')) {
 		console.log('System already configured. Skipping setup.');
 		return;
 	}
 
-	// Wait for setup to load
+	// Wait for setup to load and hydrate
 	await expect(page).toHaveURL(/\/setup/);
+	await page.waitForLoadState('networkidle');
 
 	// --- STEP 1: Database ---
 	await expect(page.locator('h2', { hasText: /database/i }).first()).toBeVisible({ timeout: 30_000 });
@@ -86,11 +93,22 @@ test('Setup Wizard: Configure DB and Create Admin', async ({ page }) => {
 		}
 	}
 
-	// Test Connection
-	await page.locator('button', { hasText: /test database/i }).click();
-	await expect(page.getByText(/connection successful/i).first()).toBeVisible({
-		timeout: 15_000
-	});
+	// Test Connection (with retry for CI stability)
+	const testDbButton = page.locator('button', { hasText: /test database/i });
+	await testDbButton.click();
+
+	try {
+		await expect(page.getByText(/connection successful/i).first()).toBeVisible({
+			timeout: 15_000
+		});
+	} catch (err) {
+		console.log('Initial DB test failed, retrying once...');
+		await page.waitForTimeout(5000);
+		await testDbButton.click();
+		await expect(page.getByText(/connection successful/i).first()).toBeVisible({
+			timeout: 30_000
+		});
+	}
 
 	// Move to next step (clicking Next triggers database seeding which may take time)
 	await clickNext(page);

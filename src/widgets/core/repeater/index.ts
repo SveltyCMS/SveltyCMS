@@ -35,8 +35,8 @@ const RepeaterWidget = createWidget<RepeaterProps>({
 	Name: 'Repeater',
 	Icon: 'mdi:view-list-outline',
 	Description: 'A list of repeatable items',
-	inputComponentPath: ' $args[0].Value.ToLower() ',
-	displayComponentPath: ' $args[0].Value.ToLower() ',
+	inputComponentPath: '/src/widgets/core/repeater/input.svelte',
+	displayComponentPath: '/src/widgets/core/repeater/display.svelte',
 	validationSchema,
 
 	defaults: {
@@ -70,3 +70,4 @@ const RepeaterWidget = createWidget<RepeaterProps>({
 
 export default RepeaterWidget;
 export type FieldType = ReturnType<typeof RepeaterWidget>;
+

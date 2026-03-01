@@ -61,8 +61,8 @@ const EmailWidget = createWidget<EmailProps>({
 	Name: 'Email',
 	Icon: 'ic:outline-email',
 	Description: widget_email_description(),
-	inputComponentPath: ' $args[0].Value.ToLower() ',
-	displayComponentPath: ' $args[0].Value.ToLower() ',
+	inputComponentPath: '/src/widgets/custom/email/input.svelte',
+	displayComponentPath: '/src/widgets/custom/email/display.svelte',
 	validationSchema,
 
 	// Set widget-specific defaults.
@@ -90,3 +90,4 @@ export default EmailWidget;
 // Export helper types.
 export type FieldType = ReturnType<typeof EmailWidget>;
 export type EmailWidgetData = ValibotInput<ReturnType<typeof validationSchema>>;
+

@@ -77,8 +77,8 @@ const InputWidget = createWidget<InputProps>({
 	Name: 'Input',
 	Icon: 'mdi:form-textbox',
 	Description: widget_text_description(),
-	inputComponentPath: ' $args[0].Value.ToLower() ',
-	displayComponentPath: ' $args[0].Value.ToLower() ',
+	inputComponentPath: '/src/widgets/core/input/input.svelte',
+	displayComponentPath: '/src/widgets/core/input/display.svelte',
 
 	validationSchema: createValidationSchema,
 
@@ -136,3 +136,4 @@ export default InputWidget;
 // Export helper types.
 export type FieldType = ReturnType<typeof InputWidget>;
 export type InputWidgetData = ValibotInput<ReturnType<typeof createValidationSchema>>;
+

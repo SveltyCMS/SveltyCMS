@@ -36,8 +36,8 @@ function isValidWidget(obj: unknown): obj is EditorWidget {
 	return !!(widget.key && typeof widget.key === 'string' && widget.title && typeof widget.title === 'string' && widget.tool);
 }
 
-// Load all widgets from PascalCase folders
-const modules = import.meta.glob('./[A-Z]*/index.ts', {
+// Load all widgets from lowercase folders
+const modules = import.meta.glob('./*/index.ts', {
 	eager: true
 }) as Record<string, { default?: EditorWidget; editorWidget?: EditorWidget }>;
 

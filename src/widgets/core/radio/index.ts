@@ -41,8 +41,8 @@ const RadioWidget = createWidget<RadioProps>({
 	Description: widget_radio_description(),
 
 	// Define paths to the dedicated Svelte components.
-	inputComponentPath: ' $args[0].Value.ToLower() ',
-	displayComponentPath: ' $args[0].Value.ToLower() ',
+	inputComponentPath: '/src/widgets/core/radio/input.svelte',
+	displayComponentPath: '/src/widgets/core/radio/display.svelte',
 
 	// Assign the dynamic validation schema.
 	validationSchema,
@@ -83,3 +83,4 @@ export default RadioWidget;
 // Export helper types.
 export type FieldType = ReturnType<typeof RadioWidget>;
 export type RadioWidgetData = ValibotInput<ReturnType<typeof validationSchema>>;
+

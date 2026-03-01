@@ -40,7 +40,7 @@ Renders a group of fields, allowing for nested data structures.
 
 	// --- WIDGET LOADING LOGIC ---
 	// Locally import modules to allow independent widget loading
-	const modules: Record<string, () => Promise<{ default: any }>> = import.meta.glob('/src/widgets/**/*.svelte') as Record<
+	const modules: Record<string, () => Promise<{ default: any }>> = import.meta.glob('../../**/*.svelte') as Record<
 		string,
 		() => Promise<{ default: any }>
 	>;

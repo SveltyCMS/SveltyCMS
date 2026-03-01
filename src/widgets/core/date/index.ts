@@ -51,8 +51,8 @@ const DateWidget = createWidget<DateProps>({
 	Description: widget_date_description(),
 
 	// Define paths to the dedicated Svelte components.
-	inputComponentPath: ' $args[0].Value.ToLower() ',
-	displayComponentPath: ' $args[0].Value.ToLower() ',
+	inputComponentPath: '/src/widgets/core/date/input.svelte',
+	displayComponentPath: '/src/widgets/core/date/display.svelte',
 
 	// Assign the validation schema.
 	validationSchema: DATE_VALIDATION_SCHEMA,
@@ -131,3 +131,4 @@ export default DateWidget;
 // Export helper types for use in Svelte components
 export type FieldType = ReturnType<typeof DateWidget>;
 export type DateWidgetData = ValibotInput<typeof DATE_VALIDATION_SCHEMA>;
+
