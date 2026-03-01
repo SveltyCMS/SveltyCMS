@@ -25,7 +25,7 @@ Renders: Nested <ul> structure with proper hierarchy and localization
 
 <script lang="ts">
 	import { app } from '@src/stores/store.svelte';
-	import Sanitize from '@src/utils/Sanitize.svelte';
+	import Sanitize from '@src/utils/sanitize.svelte';
 	import Display from './display.svelte';
 	import type { MenuItem } from './types';
 

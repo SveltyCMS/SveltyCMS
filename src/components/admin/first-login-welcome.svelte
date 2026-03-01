@@ -12,7 +12,7 @@
 	// Utils
 
 	// Components
-	import Button from '@src/components/system/buttons/Button.svelte';
+	import Button from '@src/components/system/buttons/button.svelte';
 	import { logger } from '@utils/logger';
 	import { onMount, untrack } from 'svelte';
 	import { goto } from '$app/navigation';

@@ -19,7 +19,7 @@
 <script lang="ts">
 	// Skeleton V4
 	import { Menu, Portal } from '@skeletonlabs/skeleton-svelte';
-	import Seasons from '@src/components/system/icons/Seasons.svelte';
+	import Seasons from '@src/components/system/icons/seasons.svelte';
 	import SveltyCMSLogoFull from '@src/components/system/icons/svelty-cms-logo-full.svelte';
 	import VersionCheck from '@src/components/version-check.svelte';
 	// Paraglide Messages

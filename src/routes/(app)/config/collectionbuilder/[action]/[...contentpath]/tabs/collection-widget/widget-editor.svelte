@@ -8,7 +8,7 @@ Replaces the ModalWidgetForm, providing a full-screen or focused editor experien
 <script lang="ts">
 	// Stores
 
-	import Stepper from '@src/components/system/Stepper.svelte';
+	import Stepper from '@src/components/system/stepper.svelte';
 	import * as m from '@src/paraglide/messages';
 	import { button_cancel, button_delete, button_next, button_previous, button_save } from '@src/paraglide/messages';
 	import { collections } from '@src/stores/collection-store.svelte';

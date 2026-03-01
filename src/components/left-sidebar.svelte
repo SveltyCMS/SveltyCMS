@@ -28,7 +28,7 @@
 	// Components
 	import SveltyCMSLogo from '@src/components/system/icons/svelty-cms-logo.svelte';
 	// System Components
-	import Slot from '@src/components/system/Slot.svelte';
+	import Slot from '@src/components/system/slot.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import ThemeToggle from '@src/components/theme-toggle.svelte';
 	import VersionCheck from '@src/components/version-check.svelte';

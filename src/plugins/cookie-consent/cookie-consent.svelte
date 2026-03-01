@@ -5,7 +5,7 @@
 Displays a GDPR-compliant cookie consent banner.
 -->
 <script lang="ts">
-	import Toggles from '@src/components/system/inputs/Toggles.svelte';
+	import Toggles from '@src/components/system/inputs/toggles.svelte';
 	import {
 		cookie_analytics_desc,
 		cookie_analytics_title,

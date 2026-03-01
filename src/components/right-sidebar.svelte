@@ -13,7 +13,7 @@
 
 <script lang="ts">
 	// Components
-	import Toggles from '@src/components/system/inputs/Toggles.svelte';
+	import Toggles from '@src/components/system/inputs/toggles.svelte';
 	import { StatusTypes } from '@src/content/types';
 	// ParaglideJs
 	import {

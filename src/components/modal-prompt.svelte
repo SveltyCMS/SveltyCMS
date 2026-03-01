@@ -13,7 +13,7 @@
  -->
 
 <script lang="ts">
-	import Sanitize from '@src/utils/Sanitize.svelte';
+	import Sanitize from '@src/utils/sanitize.svelte';
 
 	let {
 		body = '',

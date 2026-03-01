@@ -45,8 +45,8 @@
 	import PermissionGuard from '@src/components/permission-guard.svelte';
 	import FloatingInput from '@src/components/system/inputs/floating-input.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
-	import Boolean from '@src/components/system/table/Boolean.svelte';
-	import Role from '@src/components/system/table/Role.svelte';
+	import Boolean from '@src/components/system/table/boolean.svelte';
+	import Role from '@src/components/system/table/role.svelte';
 	import TableFilter from '@src/components/system/table/table-filter.svelte';
 	import TableIcons from '@src/components/system/table/table-icons.svelte';
 	import TablePagination from '@src/components/system/table/table-pagination.svelte';
@@ -92,7 +92,7 @@
 	import { untrack } from 'svelte';
 	import { flip } from 'svelte/animate';
 	import { dndzone } from 'svelte-dnd-action';
-	import Multibutton from './Multibutton.svelte';
+	import Multibutton from './multibutton.svelte';
 	import ModalEditToken from './modal-edit-token.svelte';
 
 	type TableDataType = User | Token;

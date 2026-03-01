@@ -22,13 +22,13 @@
 	import ImportExportManager from '@src/components/admin/import-export-manager.svelte';
 	// Components
 	import PageTitle from '@src/components/page-title.svelte';
-	import Slot from '@src/components/system/Slot.svelte';
+	import Slot from '@src/components/system/slot.svelte';
 	import type { DashboardWidgetConfig, DropIndicator, WidgetComponent, WidgetMeta, WidgetSize } from '@src/content/types';
 	import { onMount } from 'svelte';
 	import { flip } from 'svelte/animate';
 	import { SvelteMap } from 'svelte/reactivity';
 	import type { Spec } from 'json-render-svelte';
-	import GenerativeDashboard from './GenerativeDashboard.svelte';
+	import GenerativeDashboard from './generativedashboard.svelte';
 	// Types
 	import type { PageData } from './$types';
 

@@ -29,7 +29,7 @@
 
 <script lang="ts">
 	import TranslationStatus from '@src/components/collection-display/translation-status.svelte';
-	import Toggles from '@src/components/system/inputs/Toggles.svelte';
+	import Toggles from '@src/components/system/inputs/toggles.svelte';
 	import type { CollectionEntry } from '@src/content/types';
 	import { StatusTypes } from '@src/content/types';
 	// ParaglideJS
