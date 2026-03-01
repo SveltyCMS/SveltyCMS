@@ -46,12 +46,25 @@ Features:
 		}
 	});
 
-	// Function to update the parent component
+	// Function to update the parent component (so Field Inspector → setCollection gets label, db_fieldName, icon, etc.)
 	function updateParent() {
 		if (props.onupdate) {
-			props.onupdate({ value });
+			props.onupdate({ value, icon });
 		}
 	}
+
+	// Many admin inputs (e.g. Input.svelte) only use bind:value and never dispatch 'update'.
+	// IconifyIconsPicker updates bind:icon; we must pass both so icon changes persist. Only sync when
+	// value or icon actually changed to avoid effect_update_depth_exceeded.
+	const lastReported = { value: undefined as unknown, icon: undefined as unknown };
+	$effect(() => {
+		const v = value;
+		const i = icon;
+		if (v === lastReported.value && i === lastReported.icon) return;
+		lastReported.value = v;
+		lastReported.icon = i;
+		updateParent();
+	});
 
 	import { resolveAdminComponent } from '@src/components/system/admin-component-registry';
 

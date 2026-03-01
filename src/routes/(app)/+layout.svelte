@@ -93,7 +93,7 @@
 
 	// Initialization loader is now managed in the data sync effect below
 
-	// Effect: Synchronize content structure with store
+	// Effect: Synchronize content structure with store (sidebar reads from this on all pages, including edit/create collection)
 	$effect(() => {
 		// Defer store updates to next microtask to prevent UpdatedAtError
 		const defer = (fn: () => void): void => {
