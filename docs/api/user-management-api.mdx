@@ -178,7 +178,7 @@ Creates a new user directly (admin only).
 #### Request
 
 ```http
-POST /api/user/createUser
+POST /api/user/create-user
 ```
 
 **Headers:**
@@ -247,7 +247,7 @@ Updates user profile information.
 #### Request
 
 ```http
-PATCH /api/user/updateUserAttributes
+PATCH /api/user/update-user-attributes
 ```
 
 **Headers:**
@@ -385,7 +385,7 @@ Uploads or updates user avatar image.
 #### Request
 
 ```http
-POST /api/user/saveAvatar
+POST /api/user/save-avatar
 ```
 
 **Headers:**
@@ -433,7 +433,7 @@ Removes user avatar image.
 #### Request
 
 ```http
-DELETE /api/user/deleteAvatar
+DELETE /api/user/delete-avatar
 ```
 
 **Headers:**
@@ -614,7 +614,7 @@ const { user } = await loginResponse.json();
 console.log('Logged in as:', user.username);
 
 // Create user (admin only)
-const createResponse = await fetch('/api/user/createUser', {
+const createResponse = await fetch('/api/user/create-user', {
 	method: 'POST',
 	credentials: 'include',
 	headers: { 'Content-Type': 'application/json' },
@@ -626,7 +626,7 @@ const createResponse = await fetch('/api/user/createUser', {
 });
 
 // Update profile
-await fetch('/api/user/updateUserAttributes', {
+await fetch('/api/user/update-user-attributes', {
 	method: 'PATCH',
 	credentials: 'include',
 	headers: { 'Content-Type': 'application/json' },
@@ -660,8 +660,8 @@ For implementation details, see:
 
 - `src/routes/api/user/login/+server.ts` - Login endpoint
 - `src/routes/api/user/logout/+server.ts` - Logout endpoint
-- `src/routes/api/user/createUser/+server.ts` - User creation
-- `src/routes/api/user/updateUserAttributes/+server.ts` - Profile updates
+- `src/routes/api/user/create-user/+server.ts` - User creation
+- `src/routes/api/user/update-user-attributes/+server.ts` - Profile updates
 - `src/routes/api/user/batch/+server.ts` - Batch operations
 - `src/databases/auth/index.ts` - Authentication service
 - `src/utils/password.ts` - Password utilities

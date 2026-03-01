@@ -48,17 +48,16 @@ export async function POST({ request }: RequestEvent) {
 				return json({ success: true, message: 'Database cleared' });
 
 			case 'seed': {
-				// Initialize default roles and permissions
-				if (currentDbAdapter.ensureAuth) {
-					await currentDbAdapter.ensureAuth();
-				}
-				if (currentDbAdapter.ensureSystem) {
-					await currentDbAdapter.ensureSystem();
-				}
+				// Initialize default roles, settings and themes
+				const { seedRoles, seedDefaultTheme, seedSettings } = await import('@src/routes/setup/seed');
+				
+				await seedSettings(currentDbAdapter);
+				await seedDefaultTheme(currentDbAdapter);
+				await seedRoles(currentDbAdapter);
 
 				// Seed Admin User
-				const adminEmail = body.email || 'admin@example.com';
-				const adminPassword = body.password || 'password123';
+				const adminEmail = body.email || 'admin@test.com';
+				const adminPassword = body.password || 'Test123!';
 
 				// Check if already exists
 				const existing = await currentAuth.getUserByEmail({ email: adminEmail });

@@ -1,5 +1,5 @@
 /**
- * @file: src/routes/api/user/createUser/+server.ts
+ * @file: src/routes/api/user/create-user/+server.ts
  * @description: API endpoint for creating a new user directly in the CMS.
  *
  * This endpoint handles POST requests to create a new user. It is a direct,
@@ -15,11 +15,11 @@
  *
  * @example
  * // Create user only
- * POST /api/user/createUser
+ * POST /api/user/create-user
  * { "email": "user@example.com", "role": "user", "password": "secret" }
  *
  * // Create user with session (optimized single transaction)
- * POST /api/user/createUser
+ * POST /api/user/create-user
  * { "email": "user@example.com", "role": "user", "password": "secret", "createSession": "7d" }
  * // Returns: { ...userData, sessionId: "...", sessionExpires: "..." }
  */

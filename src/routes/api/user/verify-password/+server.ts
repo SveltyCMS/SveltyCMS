@@ -1,5 +1,5 @@
 /**
- * @file src/routes/api/user/verifyPassword/+server.ts
+ * @file src/routes/api/user/verify-password/+server.ts
  * @description API endpoint for verifying a user's password.
  *
  */

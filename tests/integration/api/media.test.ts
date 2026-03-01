@@ -153,12 +153,12 @@ describe('Media API Endpoints', () => {
 		});
 	});
 
-	describe('POST /api/user/saveAvatar', () => {
+	describe('POST /api/user/save-avatar', () => {
 		it('should save avatar with valid image', async () => {
 			const formData = new FormData();
 			formData.append('avatar', createValidPngBlob(), 'avatar.png');
 
-			const response = await fetch(`${API_BASE_URL}/api/user/saveAvatar`, {
+			const response = await fetch(`${API_BASE_URL}/api/user/save-avatar`, {
 				method: 'POST',
 				headers: { Cookie: authCookie, Origin: API_BASE_URL },
 				body: formData
@@ -172,7 +172,7 @@ describe('Media API Endpoints', () => {
 
 		it('should return 400 with missing avatar file', async () => {
 			const formData = new FormData();
-			const response = await fetch(`${API_BASE_URL}/api/user/saveAvatar`, {
+			const response = await fetch(`${API_BASE_URL}/api/user/save-avatar`, {
 				method: 'POST',
 				headers: { Cookie: authCookie, Origin: API_BASE_URL },
 				body: formData
@@ -183,7 +183,7 @@ describe('Media API Endpoints', () => {
 		it('should fail without authentication', async () => {
 			const formData = new FormData();
 			formData.append('avatar', createValidPngBlob(), 'avatar.png');
-			const response = await fetch(`${API_BASE_URL}/api/user/saveAvatar`, {
+			const response = await fetch(`${API_BASE_URL}/api/user/save-avatar`, {
 				method: 'POST',
 				headers: { Origin: API_BASE_URL },
 				body: formData

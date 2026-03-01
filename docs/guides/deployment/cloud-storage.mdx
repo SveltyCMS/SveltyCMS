@@ -395,7 +395,7 @@ Check logs for upload/download operations:
 const formData = new FormData();
 formData.append('avatar', file);
 
-const response = await fetch('/api/user/saveAvatar', {
+const response = await fetch('/api/user/save-avatar', {
 	method: 'POST',
 	body: formData
 });

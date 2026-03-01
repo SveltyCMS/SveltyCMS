@@ -67,11 +67,11 @@ describe('Invitation-Based Signup Tests', () => {
 				email: 'admin@test.com',
 				username: 'admin',
 				password: 'Test123!',
-				confirm_password: 'Test123!'
+				confirmPassword: 'Test123!'
 			};
 
 			// Make signup request to API
-			const response = await fetch(`${API_BASE_URL}/api/user/createUser`, {
+			const response = await fetch(`${API_BASE_URL}/api/user/create-user`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json'
@@ -112,10 +112,10 @@ describe('Invitation-Based Signup Tests', () => {
 				email: 'admin@test.com',
 				username: 'admin',
 				password: 'Test123!',
-				confirm_password: 'Test123!'
+				confirmPassword: 'Test123!'
 			};
 
-			const response = await fetch(`${API_BASE_URL}/api/user/createUser`, {
+			const response = await fetch(`${API_BASE_URL}/api/user/create-user`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json'
@@ -146,10 +146,10 @@ describe('Invitation-Based Signup Tests', () => {
 				email: 'invalid-email',
 				username: 'testuser',
 				password: 'Test123!',
-				confirm_password: 'Test123!'
+				confirmPassword: 'Test123!'
 			};
 
-			const response = await fetch(`${API_BASE_URL}/api/user/createUser`, {
+			const response = await fetch(`${API_BASE_URL}/api/user/create-user`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json'
@@ -172,10 +172,10 @@ describe('Invitation-Based Signup Tests', () => {
 				email: 'test@test.com',
 				username: 'testuser',
 				password: 'weak',
-				confirm_password: 'weak'
+				confirmPassword: 'weak'
 			};
 
-			const response = await fetch(`${API_BASE_URL}/api/user/createUser`, {
+			const response = await fetch(`${API_BASE_URL}/api/user/create-user`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json'
@@ -198,10 +198,10 @@ describe('Invitation-Based Signup Tests', () => {
 				email: 'test@test.com',
 				username: 'testuser',
 				password: 'Test123!',
-				confirm_password: 'Different123!'
+				confirmPassword: 'Different123!'
 			};
 
-			const response = await fetch(`${API_BASE_URL}/api/user/createUser`, {
+			const response = await fetch(`${API_BASE_URL}/api/user/create-user`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json'
@@ -320,10 +320,10 @@ describe('Invitation-Based Signup Tests', () => {
 				email: 'admin@test.com',
 				username: 'admin',
 				password: 'Test123!',
-				confirm_password: 'Test123!'
+				confirmPassword: 'Test123!'
 			};
 
-			const response = await fetch(`${API_BASE_URL}/api/user/createUser`, {
+			const response = await fetch(`${API_BASE_URL}/api/user/create-user`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json'
@@ -351,10 +351,10 @@ describe('Invitation-Based Signup Tests', () => {
 				email: 'user2@test.com',
 				username: 'user2',
 				password: 'Test123!',
-				confirm_password: 'Test123!'
+				confirmPassword: 'Test123!'
 			};
 
-			const response = await fetch(`${API_BASE_URL}/api/user/createUser`, {
+			const response = await fetch(`${API_BASE_URL}/api/user/create-user`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json'

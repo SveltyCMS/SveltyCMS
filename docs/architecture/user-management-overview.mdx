@@ -88,8 +88,8 @@ All requests to the user page or its associated APIs pass through a security pip
 User management actions are executed via a suite of secure, tenant-aware REST API endpoints. Key endpoints include:
 
 - `/api/user/batch`: Performs bulk actions like deleting, blocking, or unblocking users.
-- `/api/user/updateUserAttributes`: Updates a user's profile information.
-- `/api/user/saveAvatar`: Handles avatar image uploads.
+- `/api/user/update-user-attributes`: Updates a user's profile information.
+- `/api/user/save-avatar`: Handles avatar image uploads.
 - `/api/auth/2fa/...`: Manages all two-factor authentication flows.
 
 All API endpoints automatically log relevant audit events when operations are performed.

@@ -1,5 +1,5 @@
 /**
- * @file src/routes/api/user/deleteAvatar/+server.ts
+ * @file src/routes/api/user/delete-avatar/+server.ts
  * @description API endpoint for moving a user's avatar image to trash.
  *
  * This module provides functionality to:
@@ -12,7 +12,7 @@
  * - Error handling and comprehensive logging
  *
  * Usage:
- * DELETE /api/user/deleteAvatar
+ * DELETE /api/user/delete-avatar
  * Body: JSON object with optional 'userId' (defaults to current user)
  */
 

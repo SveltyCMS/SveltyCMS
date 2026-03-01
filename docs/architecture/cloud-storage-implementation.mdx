@@ -247,7 +247,7 @@ else
    return publicUrl; // Cloud URL or /files/ URL
    ```
 
-#### `src/routes/api/user/saveAvatar/+server.ts`
+#### `src/routes/api/user/save-avatar/+server.ts`
 
 **Changes**:
 
@@ -271,7 +271,7 @@ const avatarUrl = await saveAvatarImage(...);
 user.avatar = avatarUrl; // Already correct
 ```
 
-#### `src/routes/api/user/deleteAvatar/+server.ts`
+#### `src/routes/api/user/delete-avatar/+server.ts`
 
 **Changes**: None needed - already uses `moveMediaToTrash()` which is now cloud-aware
 

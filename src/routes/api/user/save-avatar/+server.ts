@@ -1,5 +1,5 @@
 /**
- * @file src/routes/api/user/saveAvatar/+server.ts
+ * @file src/routes/api/user/save-avatar/+server.ts
  * @description API endpoint for saving a user's avatar image.
  *
  * This module provides functionality to:
@@ -14,7 +14,7 @@
  * - Error handling and logging
  *
  * Usage:
- * POST /api/user/saveAvatar
+ * POST /api/user/save-avatar
  * Body: FormData with 'avatar' file
  */
 

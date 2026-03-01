@@ -30,13 +30,13 @@ Complete test coverage for all user-related API endpoints in SveltyCMS.
 
 | Endpoint                             | Tests | Status |
 | ------------------------------------ | ----- | ------ |
-| `POST /api/user/createUser`          | 4     | ✅     |
+| `POST /api/user/create-user`          | 4     | ✅     |
 | `POST /api/user/login`               | 2     | ✅     |
-| `PUT /api/user/updateUserAttributes` | 4     | ✅     |
+| `PUT /api/user/update-user-attributes` | 4     | ✅     |
 | `POST /api/user/batch`               | 2     | ✅     |
 | `POST /api/user/logout`              | 1     | ✅     |
-| `POST /api/user/saveAvatar`          | 6     | ✅     |
-| `DELETE /api/user/deleteAvatar`      | 5     | ✅     |
+| `POST /api/user/save-avatar`          | 6     | ✅     |
+| `DELETE /api/user/delete-avatar`      | 5     | ✅     |
 | `GET /api/user` (index)              | 1     | ✅     |
 | `POST /api/user` (invitations)       | 5     | ✅     |
 | **Error Handling**                   | 8     | ✅     |
@@ -87,12 +87,12 @@ bun test tests/bun/api/user.test.ts --verbose
 
 ## Test Suites
 
-### 1. User Creation (`POST /api/user/createUser`)
+### 1. User Creation (`POST /api/user/create-user`)
 
 **Tests**: 4
 
 ```typescript
-describe('POST /api/user/createUser', () => {
+describe('POST /api/user/create-user', () => {
 	it('should create the first user successfully without authentication');
 	it('should reject user creation with an invalid email format');
 	it('should reject user creation with mismatched passwords');
@@ -138,12 +138,12 @@ describe('POST /api/user/login', () => {
 
 ---
 
-### 3. Profile Updates (`PUT /api/user/updateUserAttributes`)
+### 3. Profile Updates (`PUT /api/user/update-user-attributes`)
 
 **Tests**: 4
 
 ```typescript
-describe('PUT /api/user/updateUserAttributes', () => {
+describe('PUT /api/user/update-user-attributes', () => {
 	it('should allow a user to update their own attributes');
 	it('should allow an admin to update another user role');
 	it('should prevent any user, including an admin, from changing their own role');
@@ -186,12 +186,12 @@ describe('POST /api/user/batch', () => {
 
 ---
 
-### 5. Avatar Management (`POST /api/user/saveAvatar`)
+### 5. Avatar Management (`POST /api/user/save-avatar`)
 
 **Tests**: 6
 
 ```typescript
-describe('POST /api/user/saveAvatar', () => {
+describe('POST /api/user/save-avatar', () => {
 	it('should upload avatar for authenticated user');
 	it('should reject avatar upload without authentication');
 	it('should reject avatar upload without file');
@@ -228,12 +228,12 @@ describe('POST /api/user/saveAvatar', () => {
 
 ---
 
-### 6. Avatar Deletion (`DELETE /api/user/deleteAvatar`)
+### 6. Avatar Deletion (`DELETE /api/user/delete-avatar`)
 
 **Tests**: 5
 
 ```typescript
-describe('DELETE /api/user/deleteAvatar', () => {
+describe('DELETE /api/user/delete-avatar', () => {
 	it('should delete own avatar when authenticated');
 	it('should reject avatar deletion without authentication');
 	it('should allow deletion when no avatar exists');

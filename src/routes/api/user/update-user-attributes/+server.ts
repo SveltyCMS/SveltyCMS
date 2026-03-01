@@ -1,5 +1,5 @@
 /**
- * @file src/routes/api/user/updateUserAttributes/+server.ts
+ * @file src/routes/api/user/update-user-attributes/+server.ts
  * @description API endpoint for editing user attributes.
  *
  * This is a highly sensitive endpoint that handles all user profile updates.
@@ -14,7 +14,7 @@
  * - Robust error handling and session cache invalidation.
  *
  * Usage:
- * PUT /api/user/updateUserAttributes
+ * PUT /api/user/update-user-attributes
  * Body: JSON object with 'user_id' and 'newUserData' properties.
  */
 

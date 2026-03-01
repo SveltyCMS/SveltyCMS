@@ -93,7 +93,7 @@
 		};
 
 		try {
-			const res = await fetch('/api/user/updateUserAttributes', {
+			const res = await fetch('/api/user/update-user-attributes', {
 				method: 'PUT',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ user_id: 'self', newUserData })

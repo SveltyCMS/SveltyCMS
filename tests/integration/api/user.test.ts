@@ -24,12 +24,12 @@ describe('User API Integration', () => {
 	});
 
 	// --- TEST SUITE 1: USER CREATION ---
-	describe('POST /api/user/createUser', () => {
+	describe('POST /api/user/create-user', () => {
 		it('should create a new user successfully', async () => {
 			// Use unique email to avoid DB conflicts
 			const uniqueEmail = `newuser_${Date.now()}@test.com`;
 
-			const response = await fetch(`${API_BASE_URL}/api/user/createUser`, {
+			const response = await fetch(`${API_BASE_URL}/api/user/create-user`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
@@ -48,7 +48,7 @@ describe('User API Integration', () => {
 		});
 
 		it('should reject invalid email format', async () => {
-			const response = await fetch(`${API_BASE_URL}/api/user/createUser`, {
+			const response = await fetch(`${API_BASE_URL}/api/user/create-user`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json', Cookie: adminCookie },
 				body: JSON.stringify({
@@ -60,7 +60,7 @@ describe('User API Integration', () => {
 		});
 
 		it('should reject mismatched passwords', async () => {
-			const response = await fetch(`${API_BASE_URL}/api/user/createUser`, {
+			const response = await fetch(`${API_BASE_URL}/api/user/create-user`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json', Cookie: adminCookie },
 				body: JSON.stringify({
@@ -103,9 +103,9 @@ describe('User API Integration', () => {
 	});
 
 	// --- TEST SUITE 3: ATTRIBUTE UPDATES ---
-	describe('PUT /api/user/updateUserAttributes', () => {
+	describe('PUT /api/user/update-user-attributes', () => {
 		it('should allow user to update their own name', async () => {
-			const response = await fetch(`${API_BASE_URL}/api/user/updateUserAttributes`, {
+			const response = await fetch(`${API_BASE_URL}/api/user/update-user-attributes`, {
 				method: 'PUT',
 				headers: { 'Content-Type': 'application/json', Cookie: adminCookie },
 				body: JSON.stringify({
@@ -127,7 +127,7 @@ describe('User API Integration', () => {
 		});
 
 		it('should reject unauthorized token', async () => {
-			const response = await fetch(`${API_BASE_URL}/api/user/updateUserAttributes`, {
+			const response = await fetch(`${API_BASE_URL}/api/user/update-user-attributes`, {
 				method: 'PUT',
 				headers: { 'Content-Type': 'application/json' }, // No Cookie
 				body: JSON.stringify({ user_id: 'self', newUserData: {} })
@@ -137,7 +137,7 @@ describe('User API Integration', () => {
 	});
 
 	// --- TEST SUITE 4: AVATAR MANAGEMENT ---
-	describe('POST /api/user/saveAvatar', () => {
+	describe('POST /api/user/save-avatar', () => {
 		it('should upload avatar using FormData', async () => {
 			// 1x1 Pixel Transparent PNG
 			const pngBytes = new Uint8Array([
@@ -150,7 +150,7 @@ describe('User API Integration', () => {
 			const formData = new FormData();
 			formData.append('avatar', file);
 
-			const response = await fetch(`${API_BASE_URL}/api/user/saveAvatar`, {
+			const response = await fetch(`${API_BASE_URL}/api/user/save-avatar`, {
 				method: 'POST',
 				headers: { Cookie: adminCookie, Origin: API_BASE_URL },
 				body: formData

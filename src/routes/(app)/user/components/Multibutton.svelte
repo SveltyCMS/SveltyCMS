@@ -222,7 +222,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 			modalBody: () => (type === 'user' ? usermodaluser_editbody() : multibuttontoken_modalbody()),
 			endpoint: () => {
 				if (type === 'user') {
-					return '/api/user/updateUserAttributes';
+					return '/api/user/update-user-attributes';
 				}
 				const firstRow = safeSelectedRows[0];
 				if (isToken(firstRow)) {

@@ -12,7 +12,7 @@ async function testFirstUserSignup() {
 	console.log('🧪 Testing first user signup via email...');
 
 	// Test first user signup
-	const response = await fetch(`${API_BASE_URL}/api/user/createUser`, {
+	const response = await fetch(`${API_BASE_URL}/api/user/create-user`, {
 		method: 'POST',
 		headers: {
 			'Content-Type': 'application/json'
@@ -21,7 +21,7 @@ async function testFirstUserSignup() {
 			email: 'admin@test.com',
 			username: 'admin',
 			password: 'Test123!',
-			confirm_password: 'Test123!',
+			confirmPassword: 'Test123!',
 			firstName: 'Admin',
 			lastName: 'User'
 		})
@@ -43,7 +43,7 @@ async function testOAuthSignup() {
 	console.log('\n🧪 Testing OAuth signup after dropping database...');
 
 	// Test OAuth signup (simulated)
-	const response = await fetch(`${API_BASE_URL}/api/user/createUser`, {
+	const response = await fetch(`${API_BASE_URL}/api/user/create-user`, {
 		method: 'POST',
 		headers: {
 			'Content-Type': 'application/json'
@@ -74,7 +74,7 @@ async function testSubsequentUserRequiresToken() {
 	console.log('\n🧪 Testing subsequent user requires invitation token...');
 
 	// Create first user
-	await fetch(`${API_BASE_URL}/api/user/createUser`, {
+	await fetch(`${API_BASE_URL}/api/user/create-user`, {
 		method: 'POST',
 		headers: {
 			'Content-Type': 'application/json'
@@ -83,12 +83,12 @@ async function testSubsequentUserRequiresToken() {
 			email: 'first@test.com',
 			username: 'first',
 			password: 'Test123!',
-			confirm_password: 'Test123!'
+			confirmPassword: 'Test123!'
 		})
 	});
 
 	// Try to create second user without token
-	const response = await fetch(`${API_BASE_URL}/api/user/createUser`, {
+	const response = await fetch(`${API_BASE_URL}/api/user/create-user`, {
 		method: 'POST',
 		headers: {
 			'Content-Type': 'application/json'
@@ -97,7 +97,7 @@ async function testSubsequentUserRequiresToken() {
 			email: 'second@test.com',
 			username: 'second',
 			password: 'Test123!',
-			confirm_password: 'Test123!'
+			confirmPassword: 'Test123!'
 		})
 	});
 

@@ -143,7 +143,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 		}
 
 		try {
-			const response = await fetch('/api/user/updateUserAttributes', {
+			const response = await fetch('/api/user/update-user-attributes', {
 				method: 'PUT',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
@@ -194,7 +194,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 			return;
 		}
 		try {
-			const res = await fetch('/api/user/verifyPassword', {
+			const res = await fetch('/api/user/verify-password', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ password: editForm.data.currentPassword })
