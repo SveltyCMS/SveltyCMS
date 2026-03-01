@@ -5,7 +5,6 @@
  * STRICTLY GUARDED by TEST_MODE environment variable.
  */
 
-import { auth, dbAdapter, dbInitPromise } from '@src/databases/db';
 import { json, type RequestEvent } from '@sveltejs/kit';
 
 // Security Guard
