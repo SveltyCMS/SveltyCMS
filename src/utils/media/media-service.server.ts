@@ -630,7 +630,7 @@ export class MediaService {
 		}
 		try {
 			const db = await this.getDb();
-			const result = await db.crud.update('media', id as DatabaseId, updates);
+			const result = await db.crud.update('media', id as DatabaseId, updates as any);
 
 			if (!result.success) {
 				throw result.error;
@@ -724,7 +724,7 @@ export class MediaService {
 		// Access is now a string union, not array
 		try {
 			const db = await this.getDb();
-			const result = await db.crud.update('media', id as DatabaseId, { access } as Partial<MediaItem>);
+			const result = await db.crud.update('media', id as DatabaseId, { access } as any);
 			if (!result.success) {
 				throw result.error;
 			}

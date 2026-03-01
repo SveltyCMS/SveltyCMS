@@ -67,7 +67,7 @@
 			<button
 				type="button"
 				onclick={onAddCollection}
-				class="group relative flex items-center justify-center gap-3 overflow-hidden rounded-full bg-primary-500 px-8 py-4 text-lg font-bold text-white shadow-xl transition-all hover:scale-105 hover:bg-primary-600 active:scale-95"
+				class="group relative flex items-center justify-center gap-3 overflow-hidden rounded-full preset-filled-tertiary-500 px-8 py-4 text-lg font-bold text-white shadow-xl transition-all hover:scale-105 hover:bg-primary-600 active:scale-95"
 			>
 				<iconify-icon icon="ic:round-plus" width="28" class="transition-transform group-hover:rotate-90"></iconify-icon>
 				<span>{collection_add()}</span>
@@ -77,7 +77,7 @@
 			</button>
 		</div>
 
-		<p class="mt-6 text-sm italic text-surface-400 dark:text-surface-500">
+		<p class="mt-6 text-sm italic text-surface-400 dark:text-surface-50">
 			At least one collection is required to use the {publicEnv.SITE_NAME} features.
 		</p>
 	</div>

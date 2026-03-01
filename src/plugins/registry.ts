@@ -254,7 +254,7 @@ class PluginRegistry implements IPluginService {
 	private async ensureMigrationTable(dbAdapter: IDBAdapter): Promise<void> {
 		const table = 'pluginMigrations';
 		try {
-			const count = await dbAdapter.crud.count(table);
+			const count = await dbAdapter.crud.count(table, undefined, undefined, true);
 			if (count.success) {
 				return;
 			}
@@ -263,23 +263,32 @@ class PluginRegistry implements IPluginService {
 		}
 
 		logger.info(`Creating ${table} database collection...`);
-		await dbAdapter.crud.insert(table, {
-			pluginId: '__INIT__',
-			migrationId: '__INIT__',
-			version: 0,
-			appliedAt: new Date(),
-			tenantId: 'system'
-		} as any);
-		await dbAdapter.crud.deleteMany(table, { pluginId: '__INIT__' } as any);
+		await dbAdapter.crud.insert(
+			table,
+			{
+				pluginId: '__INIT__',
+				migrationId: '__INIT__',
+				version: 0,
+				appliedAt: new Date(),
+				tenantId: 'system'
+			} as any,
+			undefined,
+			true
+		);
+		await dbAdapter.crud.deleteMany(table, { pluginId: '__INIT__' } as any, undefined, true);
 	}
 
 	// Get applied migrations from database
 	private async getAppliedMigrations(dbAdapter: IDBAdapter, pluginId: string, tenantId: string): Promise<DatabaseResult<PluginMigrationRecord[]>> {
 		try {
-			const result = await dbAdapter.crud.findMany<PluginMigrationRecord>('pluginMigrations', {
-				pluginId,
-				tenantId
-			} as any);
+			const result = await dbAdapter.crud.findMany<PluginMigrationRecord>(
+				'pluginMigrations',
+				{
+					pluginId,
+					tenantId
+				} as any,
+				{ bypassTenantCheck: true }
+			);
 			return result as DatabaseResult<PluginMigrationRecord[]>;
 		} catch (error) {
 			return {
@@ -295,13 +304,18 @@ class PluginRegistry implements IPluginService {
 
 	// Record a successful migration
 	private async recordMigration(dbAdapter: IDBAdapter, pluginId: string, migrationId: string, version: number, tenantId: string): Promise<void> {
-		await dbAdapter.crud.insert('pluginMigrations', {
-			pluginId,
-			migrationId,
-			version,
-			tenantId,
-			appliedAt: new Date()
-		} as any);
+		await dbAdapter.crud.insert(
+			'pluginMigrations',
+			{
+				pluginId,
+				migrationId,
+				version,
+				tenantId,
+				appliedAt: new Date()
+			} as any,
+			undefined,
+			true
+		);
 	}
 }
 

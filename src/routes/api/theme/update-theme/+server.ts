@@ -57,7 +57,7 @@ export const POST = apiHandler(async ({ request, locals }) => {
 		}
 
 		// Fetch the theme from the database to ensure it exists for the current tenant
-		const themeResult = await dbAdapter.themes.update(themeId as unknown as DatabaseId, { customCss });
+		const themeResult = await dbAdapter.system.themes.update(themeId as unknown as DatabaseId, { customCss });
 
 		if (!(themeResult.success && themeResult.data)) {
 			logger.warn(`Theme '${themeId}' does not exist or update failed for this tenant.`, { tenantId });

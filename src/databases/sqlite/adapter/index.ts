@@ -41,79 +41,16 @@ import * as utils from '../utils';
 import { AdapterCore } from './adapter-core';
 
 export class SQLiteAdapter extends AdapterCore implements IDBAdapter {
-	public readonly tenants = {
-		create: async (tenant: Omit<Tenant, '_id' | 'createdAt' | 'updatedAt'> & { _id?: DatabaseId }): Promise<DatabaseResult<Tenant>> => {
-			return this.wrap(async () => {
-				const id = (tenant._id || utils.generateId()) as string;
-				const now = new Date();
-				const values: typeof schema.tenants.$inferInsert = {
-					...tenant,
-					_id: id,
-					createdAt: now,
-					updatedAt: now
-				};
-				await this.db.insert(schema.tenants).values(values);
-				const [result] = await this.db.select().from(schema.tenants).where(eq(schema.tenants._id, id));
-				return result as unknown as Tenant;
-			}, 'TENANT_CREATE_FAILED');
-		},
-		getById: async (tenantId: DatabaseId): Promise<DatabaseResult<Tenant | null>> => {
-			return this.wrap(async () => {
-				const [result] = await this.db
-					.select()
-					.from(schema.tenants)
-					.where(eq(schema.tenants._id, tenantId as string));
-				return (result as unknown as Tenant) || null;
-			}, 'TENANT_GET_FAILED');
-		},
-		update: async (tenantId: DatabaseId, data: Partial<Omit<Tenant, 'createdAt' | 'updatedAt'>>): Promise<DatabaseResult<Tenant>> => {
-			return this.wrap(async () => {
-				const now = new Date();
-				await this.db
-					.update(schema.tenants)
-					.set({ ...data, updatedAt: now } as typeof schema.tenants.$inferInsert)
-					.where(eq(schema.tenants._id, tenantId as string));
-				const [result] = await this.db
-					.select()
-					.from(schema.tenants)
-					.where(eq(schema.tenants._id, tenantId as string));
-				return result as unknown as Tenant;
-			}, 'TENANT_UPDATE_FAILED');
-		},
-		delete: async (tenantId: DatabaseId): Promise<DatabaseResult<void>> => {
-			return this.wrap(async () => {
-				await this.db.delete(schema.tenants).where(eq(schema.tenants._id, tenantId as string));
-			}, 'TENANT_DELETE_FAILED');
-		},
-		list: async (options?: PaginationOption): Promise<DatabaseResult<Tenant[]>> => {
-			return this.wrap(async () => {
-				let q = this.db.select().from(schema.tenants).$dynamic();
-				if (options?.limit) {
-					q = q.limit(options.limit);
-				}
-				if (options?.offset) {
-					q = q.offset(options.offset);
-				}
-				const results = await q;
-				return results as unknown as Tenant[];
-			}, 'TENANT_LIST_FAILED');
-		}
-	};
+	public readonly system: import('../../db-interface').ISystemAdapter;
+	public readonly monitoring: import('../../db-interface').IMonitoringAdapter;
 	public readonly crud: CrudModule;
 	public readonly auth: AuthModule;
 	public readonly content: ContentModule;
 	public readonly media: MediaModule;
-	public readonly systemPreferences: PreferencesModule;
-	public readonly systemVirtualFolder: VirtualFoldersModule;
-	public readonly themes: ThemesModule;
-	public readonly widgets: WidgetsModule;
-	public readonly websiteTokens: WebsiteTokensModule;
 	public readonly batch: BatchModule;
-	private readonly transactionModule: TransactionModule;
-	public readonly performance: PerformanceModule;
-	public readonly cache: CacheModule;
 	public readonly collection: CollectionModule;
 	public readonly utils = utils;
+	private readonly transactionModule: TransactionModule;
 
 	constructor() {
 		super();
@@ -121,16 +58,84 @@ export class SQLiteAdapter extends AdapterCore implements IDBAdapter {
 		this.auth = new AuthModule(this);
 		this.content = new ContentModule(this);
 		this.media = new MediaModule(this);
-		this.systemPreferences = new PreferencesModule(this);
-		this.systemVirtualFolder = new VirtualFoldersModule(this);
-		this.themes = new ThemesModule(this);
-		this.widgets = new WidgetsModule(this);
-		this.websiteTokens = new WebsiteTokensModule(this);
+		this.collection = new CollectionModule(this);
 		this.batch = new BatchModule(this);
 		this.transactionModule = new TransactionModule(this);
-		this.performance = new PerformanceModule(this);
-		this.cache = new CacheModule(this);
-		this.collection = new CollectionModule(this);
+
+		// Initialize nested adapters
+		this.system = {
+			preferences: new PreferencesModule(this),
+			virtualFolder: new VirtualFoldersModule(this),
+			themes: new ThemesModule(this),
+			widgets: new WidgetsModule(this),
+			websiteTokens: new WebsiteTokensModule(this),
+			tenants: {
+				create: async (tenant) =>
+					this.wrap(async () => {
+						const id = (tenant._id || utils.generateId()) as string;
+						const now = new Date();
+						const values: typeof schema.tenants.$inferInsert = {
+							...tenant,
+							_id: id,
+							createdAt: now,
+							updatedAt: now
+						};
+						await this.db.insert(schema.tenants).values(values);
+						const [result] = await this.db.select().from(schema.tenants).where(eq(schema.tenants._id, id));
+						return result as unknown as Tenant;
+					}, 'TENANT_CREATE_FAILED'),
+				getById: async (tenantId: DatabaseId) =>
+					this.wrap(async () => {
+						const [result] = await this.db
+							.select()
+							.from(schema.tenants)
+							.where(eq(schema.tenants._id, tenantId as string));
+						return (result as unknown as Tenant) || null;
+					}, 'TENANT_GET_FAILED'),
+				update: async (tenantId: DatabaseId, data: any) =>
+					this.wrap(async () => {
+						const now = new Date();
+						await this.db
+							.update(schema.tenants)
+							.set({ ...data, updatedAt: now } as any)
+							.where(eq(schema.tenants._id, tenantId as string));
+						const [result] = await this.db
+							.select()
+							.from(schema.tenants)
+							.where(eq(schema.tenants._id, tenantId as string));
+						return result as unknown as Tenant;
+					}, 'TENANT_UPDATE_FAILED'),
+				delete: async (tenantId: DatabaseId) =>
+					this.wrap(async () => {
+						await this.db.delete(schema.tenants).where(eq(schema.tenants._id, tenantId as string));
+					}, 'TENANT_DELETE_FAILED'),
+				list: async (options?: PaginationOption) =>
+					this.wrap(async () => {
+						let q = this.db.select().from(schema.tenants).$dynamic();
+						if (options?.limit) q = q.limit(options.limit);
+						if (options?.offset) q = q.offset(options.offset);
+						const results = await q;
+						return results as unknown as Tenant[];
+					}, 'TENANT_LIST_FAILED')
+			}
+		};
+
+		this.monitoring = {
+			performance: new PerformanceModule(this),
+			cache: new CacheModule(this),
+			getConnectionPoolStats: async () =>
+				this.wrap(async () => {
+					// SQLite doesn't have a connection pool in the same way asPG/MariaDB,
+					// but we return dummy stats or research Bun-specific pool stats if available.
+					return {
+						total: 1,
+						active: 1,
+						idle: 0,
+						waiting: 0,
+						avgConnectionTime: 0
+					};
+				}, 'POOL_STATS_FAILED')
+		};
 	}
 
 	public async ensureAuth(): Promise<void> {

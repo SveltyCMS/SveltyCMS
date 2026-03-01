@@ -42,13 +42,13 @@ export const POST = apiHandler(async ({ locals, request }) => {
 		const coreWidgetNames = widgets.coreWidgets;
 		const customWidgetNames = widgets.customWidgets;
 
-		if (!locals.dbAdapter?.widgets) {
+		if (!locals.dbAdapter?.system.widgets) {
 			logger.error('Widget database adapter not available');
 			throw new AppError('Widget database adapter not available', 500, 'DB_ADAPTER_UNAVAILABLE');
 		}
 
 		// Get current widgets from database
-		const dbResult = await locals.dbAdapter.widgets.findAll();
+		const dbResult = await locals.dbAdapter.system.widgets.findAll();
 		const dbWidgets: Record<string, unknown>[] = dbResult.success ? (dbResult.data as unknown as Record<string, unknown>[]) || [] : [];
 		const dbWidgetNames = dbWidgets.map((w) => w.name as string);
 
@@ -80,7 +80,7 @@ export const POST = apiHandler(async ({ locals, request }) => {
 					// Widget exists in DB - ensure it's active if it's core
 					const dbWidget = dbWidgets.find((w) => w.name === name);
 					if (isCore && dbWidget && !(dbWidget.isActive as boolean)) {
-						await locals.dbAdapter.widgets.update(dbWidget._id as unknown as import('@databases/db-interface').DatabaseId, { isActive: true });
+						await locals.dbAdapter.system.widgets.update(dbWidget._id as unknown as import('@databases/db-interface').DatabaseId, { isActive: true });
 						results.activated.push(name);
 						logger.trace(`Activated core widget: ${name}`);
 					} else {
@@ -88,7 +88,7 @@ export const POST = apiHandler(async ({ locals, request }) => {
 					}
 				} else {
 					// Widget doesn't exist - create it
-					const createResult = await locals.dbAdapter.widgets.register({
+					const createResult = await locals.dbAdapter.system.widgets.register({
 						name,
 						isActive: isCore, // Core widgets are active by default
 						instances: {},

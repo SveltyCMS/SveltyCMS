@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it, mock } from 'bun:test';
-import RepeaterWidget from '@src/widgets/core/Repeater/index';
+import RepeaterWidget from '@src/widgets/core/repeater/index';
 import { parse } from 'valibot';
 
 // Mock dependencies

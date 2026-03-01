@@ -329,9 +329,10 @@ Svelte 5 runes: `$state()` for state, `$derived()` for computations, `$effect()`
 1.  **Circular Dependencies**: Use dynamic imports for service initialization.
 2.  **HMR Reloads**: Expected for collections/widgets. Full page reload is normal.
 3.  **Setup Wizard**: Let it generate `config/private.ts`. Do NOT create manually.
-4.  **DB Seeding**: Safety checks prevent accidental production seeding.
-5.  **TS Errors**: Run `bunx svelte-kit sync` to regenerate types.
-6.  **Competitor Parity**: Use runes for lighter UIs vs. React hydration.
+4.  **Black-Box Testing (CI/CD)**: In E2E and integration test workflows, DO NOT manually create or bypass the configuration logic with fake `private.test.ts` files. Always orchestrate the tests to hit the Setup Wizard natively using Playwright, thereby letting the CMS naturally generate `config/private.ts` just like a real user.
+5.  **DB Seeding**: Safety checks prevent accidental production seeding.
+6.  **TS Errors**: Run `bunx svelte-kit sync` to regenerate types.
+7.  **Competitor Parity**: Use runes for lighter UIs vs. React hydration.
 
 ## Key Files Reference
 

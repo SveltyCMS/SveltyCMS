@@ -43,14 +43,14 @@ export const GET = apiHandler(async ({ locals }) => {
 			throw new AppError('Database adapter not initialized', 500, 'DB_UNAVAILABLE');
 		}
 
-		// Check if dbAdapter has systemVirtualFolder interface
-		if (!dbAdapter.systemVirtualFolder) {
-			logger.error('Database adapter systemVirtualFolder interface not available');
-			throw new AppError('Database adapter systemVirtualFolder interface not available', 500, 'FEATURE_UNAVAILABLE');
+		// Check if dbAdapter has system.virtualFolder interface
+		if (!dbAdapter.system.virtualFolder) {
+			logger.error('Database adapter system.virtualFolder interface not available');
+			throw new AppError('Database adapter system.virtualFolder interface not available', 500, 'FEATURE_UNAVAILABLE');
 		}
 
 		// --- MULTI-TENANCY: Scope the query by tenantId ---
-		const result = await dbAdapter.systemVirtualFolder.getAll();
+		const result = await dbAdapter.system.virtualFolder.getAll();
 
 		if (!result.success) {
 			logger.error('Database query failed', { error: result.error });
@@ -109,7 +109,7 @@ export const POST = apiHandler(async ({ request, locals }) => {
 		// Build the path based on parent folder
 		let folderPath = '';
 		if (parentId) {
-			const parentResult = await dbAdapter.systemVirtualFolder.getById(parentId as DatabaseId);
+			const parentResult = await dbAdapter.system.virtualFolder.getById(parentId as DatabaseId);
 			if (parentResult.success && parentResult.data) {
 				folderPath = `${parentResult.data.path}/${name.trim()}`;
 			} else {
@@ -130,7 +130,7 @@ export const POST = apiHandler(async ({ request, locals }) => {
 			...(getPrivateSettingSync('MULTI_TENANT') && { tenantId })
 		}; // Create the folder
 
-		const result = await dbAdapter.systemVirtualFolder.create(folderData);
+		const result = await dbAdapter.system.virtualFolder.create(folderData);
 
 		if (!result.success) {
 			logger.error('Database insert failed', { error: result.error });
@@ -199,7 +199,7 @@ export const PATCH = apiHandler(async ({ request, locals }) => {
 				const { folderId, order, parentId: newParentId } = update;
 
 				// Get current folder to access its name
-				const currentFolder = await adapter.systemVirtualFolder.getById(folderId as DatabaseId);
+				const currentFolder = await adapter.system.virtualFolder.getById(folderId as DatabaseId);
 				if (!(currentFolder.success && currentFolder.data)) {
 					logger.error('Folder not found for reordering', { folderId });
 					return { success: false, error: { message: 'Folder not found' } };
@@ -213,7 +213,7 @@ export const PATCH = apiHandler(async ({ request, locals }) => {
 
 					// Build new path based on new parent
 					if (newParentId) {
-						const parentResult = await adapter.systemVirtualFolder.getById(newParentId as DatabaseId);
+						const parentResult = await adapter.system.virtualFolder.getById(newParentId as DatabaseId);
 						if (parentResult.success && parentResult.data) {
 							updateData.path = `${parentResult.data.path}/${currentFolder.data.name}`;
 						} else {
@@ -228,7 +228,7 @@ export const PATCH = apiHandler(async ({ request, locals }) => {
 					}
 				}
 
-				return adapter.systemVirtualFolder.update(folderId as DatabaseId, updateData);
+				return adapter.system.virtualFolder.update(folderId as DatabaseId, updateData);
 			})
 		);
 

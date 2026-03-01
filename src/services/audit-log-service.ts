@@ -351,8 +351,8 @@ export class AuditLogService {
 			const { getPrivateEnv } = await import('@src/databases/db');
 			const isMultiTenant = getPrivateEnv()?.MULTI_TENANT;
 
-			if (isMultiTenant && db.tenants) {
-				const tenantsResult = await db.tenants.list();
+			if (isMultiTenant && db.system.tenants) {
+				const tenantsResult = await db.system.tenants.list();
 				if (tenantsResult.success && tenantsResult.data) {
 					let totalDeleted = 0;
 					for (const tenant of tenantsResult.data) {

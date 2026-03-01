@@ -36,7 +36,7 @@ export class PerformanceService {
 	 */
 	async saveMetrics(services: SystemStateStore['services']): Promise<void> {
 		const dbAdapter = await this.getDbAdapter();
-		if (!dbAdapter?.systemPreferences) {
+		if (!dbAdapter?.system.preferences) {
 			logger.warn('[PerformanceService] Cannot save metrics: dbAdapter not available');
 			return;
 		}
@@ -49,7 +49,7 @@ export class PerformanceService {
 				scope: 'system' as const
 			}));
 
-			await dbAdapter.systemPreferences.setMany(preferences);
+			await dbAdapter.system.preferences.setMany(preferences);
 			logger.debug('[PerformanceService] Saved historical metrics to database');
 		} catch (error) {
 			logger.error('[PerformanceService] Failed to save metrics:', error);
@@ -61,13 +61,13 @@ export class PerformanceService {
 	 */
 	async loadMetrics(): Promise<Record<string, ServicePerformanceMetrics>> {
 		const dbAdapter = await this.getDbAdapter();
-		if (!dbAdapter?.systemPreferences) {
+		if (!dbAdapter?.system.preferences) {
 			logger.warn('[PerformanceService] Cannot load metrics: dbAdapter not available');
 			return {};
 		}
 
 		try {
-			const result = await dbAdapter.systemPreferences.getByCategory('performance', 'system');
+			const result = await dbAdapter.system.preferences.getByCategory('performance', 'system');
 
 			if (!(result.success && result.data)) {
 				return {};
@@ -97,12 +97,12 @@ export class PerformanceService {
 	 */
 	async recordBenchmark(name: string, value: number): Promise<void> {
 		const dbAdapter = await this.getDbAdapter();
-		if (!dbAdapter?.systemPreferences) {
+		if (!dbAdapter?.system.preferences) {
 			return;
 		}
 
 		try {
-			await dbAdapter.systemPreferences.set(
+			await dbAdapter.system.preferences.set(
 				`BENCHMARK_${name}`,
 				JSON.stringify({
 					value,

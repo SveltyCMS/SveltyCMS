@@ -153,12 +153,12 @@ export class WebhookService {
 			// or assume a collection exists.
 			// Let's use system_settings for simplicity as it's existing infra.
 
-			const result = await db.systemPreferences.get<Webhook[]>('webhooks_config', 'system');
+			const result = await db.system.preferences.get<Webhook[]>('webhooks_config', 'system');
 
 			this.webhooksCache = result.success && Array.isArray(result.data) ? result.data : [];
 			this.cacheTimestamp = Date.now();
 
-			return this.webhooksCache;
+			return this.webhooksCache || [];
 		} catch (e) {
 			logger.error('Failed to load webhooks:', e);
 			return [];
@@ -191,8 +191,7 @@ export class WebhookService {
 		} else {
 			updated = [...current, newWebhook];
 		}
-
-		await db.systemPreferences.set('webhooks_config', updated, 'system');
+		await db.system.preferences.set('webhooks_config', updated, 'system');
 		this.webhooksCache = updated; // Update cache immediately
 
 		return newWebhook;
@@ -206,8 +205,7 @@ export class WebhookService {
 
 		const current = await this.getWebhooks();
 		const updated = current.filter((w) => w.id !== id);
-
-		await db.systemPreferences.set('webhooks_config', updated, 'system');
+		await db.system.preferences.set('webhooks_config', updated, 'system');
 		this.webhooksCache = updated;
 	}
 

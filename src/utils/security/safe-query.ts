@@ -11,7 +11,7 @@ import { AppError } from '@utils/error-handling';
 import { logger } from '@utils/logger';
 
 interface SafeQueryOptions {
-	sudo?: boolean; // Bypass check (e.g. for System Admin queries)
+	bypassTenantCheck?: boolean; // Bypass check (e.g. for System Admin queries)
 }
 
 /**
@@ -25,20 +25,21 @@ interface SafeQueryOptions {
 export function safeQuery<T extends Record<string, any>>(query: T, tenantId?: string | null, options: SafeQueryOptions = {}): T {
 	// 1. Get private config
 	const privateEnv = getPrivateEnv();
-	logger.trace(`[SafeQuery] Incoming Query: ${JSON.stringify(query)} TenantId: ${tenantId} MultiTenant: ${privateEnv?.MULTI_TENANT}`);
-
+	
 	// 2. Skip if Multi-Tenancy is disabled
-	if (!privateEnv?.MULTI_TENANT) {
+	const isMultiTenant = privateEnv?.MULTI_TENANT === true || privateEnv?.MULTI_TENANT === 'true';
+	if (!isMultiTenant) {
 		return query;
 	}
 
-	// 3. Skip if sudo mode (System Admin)
-	if (options.sudo) {
+	// 3. Skip if bypassTenantCheck mode (System Admin)
+	if (options.bypassTenantCheck) {
 		return query;
 	}
 
 	// 4. Strict Check
 	if (!tenantId) {
+		logger.error(`[SafeQuery] Security Violation! Query: ${JSON.stringify(query)}, Options: ${JSON.stringify(options)}, MultiTenant: ${privateEnv?.MULTI_TENANT}`);
 		throw new AppError('Security Violation: Attempted to execute query without tenant context in Multi-Tenant mode.', 500, 'TENANT_CONTEXT_MISSING');
 	}
 

@@ -135,7 +135,7 @@ class WidgetState {
 			// 2. Load active status from DB if available
 			let activeWidgetNames: string[] = [];
 			if (dbAdapter) {
-				const activeRes = await dbAdapter.widgets.getActiveWidgets();
+				const activeRes = await dbAdapter.system.widgets.getActiveWidgets();
 				if (activeRes.success) {
 					activeWidgetNames = (activeRes.data ?? []).map((w) => w.name);
 				}

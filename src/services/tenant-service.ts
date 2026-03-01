@@ -88,7 +88,7 @@ export class TenantService {
 			if (!dbAdapter) {
 				throw new Error('Database adapter not initialized');
 			}
-			const result = await dbAdapter.tenants.create(dataToSave as any);
+			const result = await dbAdapter.system.tenants.create(dataToSave as any);
 
 			if (!result.success) {
 				throw result.error || new Error('Failed to create tenant');
@@ -116,7 +116,7 @@ export class TenantService {
 		if (!dbAdapter) {
 			return null;
 		}
-		const result = await dbAdapter.tenants.getById(tenantId as any);
+		const result = await dbAdapter.system.tenants.getById(tenantId as any);
 		if (!result.success) {
 			return null;
 		}
@@ -234,7 +234,7 @@ export class TenantService {
 			if (!dbAdapter) {
 				return;
 			}
-			await dbAdapter.tenants.update(tenantId as any, { usage: newUsage });
+			await dbAdapter.system.tenants.update(tenantId as any, { usage: newUsage });
 		} catch (err) {
 			logger.error(`Failed to update usage for tenant ${tenantId}`, err);
 		}

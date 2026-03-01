@@ -31,7 +31,7 @@ export class BatchModule {
 						res = await this.core.crud.update(
 							op.collection,
 							op.id as DatabaseId,
-							op.data as Partial<Omit<T & BaseEntity, 'createdAt' | 'updatedAt'>>
+							op.data as Partial<Omit<T & BaseEntity, '_id' | 'createdAt' | 'updatedAt'>>
 						);
 						break;
 					case 'delete':
@@ -73,7 +73,7 @@ export class BatchModule {
 		return this.core.wrap(async () => {
 			let modifiedCount = 0;
 			for (const update of updates) {
-				const res = await this.core.crud.update(collection, update.id, update.data as Partial<Omit<T, 'createdAt' | 'updatedAt'>>);
+				const res = await this.core.crud.update(collection, update.id, update.data as Partial<Omit<T, '_id' | 'createdAt' | 'updatedAt'>>);
 				if (res.success) {
 					modifiedCount++;
 				}

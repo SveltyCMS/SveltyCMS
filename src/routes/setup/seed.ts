@@ -71,13 +71,13 @@ export const defaultRoles = importedDefaultRoles;
 export async function seedDefaultTheme(dbAdapter: DatabaseAdapter, tenantId?: string): Promise<void> {
 	logger.info(`🎨 Checking if default theme needs seeding${tenantId ? ` for tenant ${tenantId}` : ''}...`);
 
-	if (!dbAdapter?.themes) {
+	if (!dbAdapter?.system.themes) {
 		throw new Error('Database adapter or themes interface not available');
 	}
 
 	try {
 		// Check if themes already exist
-		const existingThemes = await dbAdapter.themes.getAllThemes();
+		const existingThemes = await dbAdapter.system.themes.getAllThemes();
 		if (Array.isArray(existingThemes) && existingThemes.length > 0) {
 			logger.info(`✅ Themes already exist${tenantId ? ` for tenant ${tenantId}` : ''}, skipping theme seeding`);
 			return;
@@ -89,7 +89,7 @@ export async function seedDefaultTheme(dbAdapter: DatabaseAdapter, tenantId?: st
 			...defaultTheme,
 			...(tenantId && { tenantId })
 		};
-		await dbAdapter.themes.storeThemes([themeToStore]);
+		await dbAdapter.system.themes.storeThemes([themeToStore]);
 		logger.info(`✅ Default theme seeded successfully${tenantId ? ` for tenant ${tenantId}` : ''}`);
 	} catch (error) {
 		logger.error(`Failed to seed default theme${tenantId ? ` for tenant ${tenantId}` : ''}:`, error);
@@ -914,14 +914,14 @@ export const defaultPrivateSettings: Array<{
 export async function seedSettings(dbAdapter: DatabaseAdapter, tenantId?: string, isDemoSeed = false): Promise<void> {
 	logger.info(`🌱 Checking which settings need seeding${tenantId ? ` for tenant ${tenantId}` : ''}...`);
 
-	if (!dbAdapter?.systemPreferences) {
-		throw new Error('Database adapter or systemPreferences interface not available');
+	if (!dbAdapter?.system.preferences) {
+		throw new Error('Database adapter or system.preferences interface not available');
 	}
 
 	// Test database accessibility
 	try {
 		// Try a simple getMany operation to test connectivity
-		await dbAdapter.systemPreferences.getMany(['HOST_DEV'], 'system');
+		await dbAdapter.system.preferences.getMany(['HOST_DEV'], 'system');
 		logger.debug('Database adapter is accessible');
 	} catch (error) {
 		logger.error('Database adapter is not accessible:', error);
@@ -938,7 +938,7 @@ export async function seedSettings(dbAdapter: DatabaseAdapter, tenantId?: string
 	let existingSettings: Record<string, unknown> = {};
 
 	try {
-		const result = await dbAdapter.systemPreferences.getMany(allKeys, 'system');
+		const result = await dbAdapter.system.preferences.getMany(allKeys, 'system');
 		if (result.success && result.data) {
 			existingSettings = result.data;
 		}
@@ -998,7 +998,7 @@ export async function seedSettings(dbAdapter: DatabaseAdapter, tenantId?: string
 
 	// Use batch operation for better performance
 	try {
-		const result = await dbAdapter.systemPreferences.setMany(settingsToSet);
+		const result = await dbAdapter.system.preferences.setMany(settingsToSet);
 
 		if (!result.success) {
 			throw new Error(result.error?.message || 'Failed to seed settings');
@@ -1062,15 +1062,15 @@ interface SettingsSnapshot {
 }
 
 export async function exportSettingsSnapshot(dbAdapter: DatabaseAdapter): Promise<SettingsSnapshot> {
-	if (!dbAdapter?.systemPreferences) {
-		throw new Error('Database adapter or systemPreferences interface not available');
+	if (!dbAdapter?.system.preferences) {
+		throw new Error('Database adapter or system.preferences interface not available');
 	}
 
 	// Get all system settings - we'll need to implement a method to get all settings
 	// For now, we'll get the known settings keys
 	const allSettingKeys = [...defaultPublicSettings, ...defaultPrivateSettings].map((s) => s.key);
 
-	const settingsResult = await dbAdapter.systemPreferences.getMany(allSettingKeys, 'system');
+	const settingsResult = await dbAdapter.system.preferences.getMany(allSettingKeys, 'system');
 
 	if (!settingsResult.success) {
 		throw new Error(`Failed to export settings: ${settingsResult.error?.message}`);
@@ -1102,8 +1102,8 @@ export async function exportSettingsSnapshot(dbAdapter: DatabaseAdapter): Promis
  * This allows restoring settings from a project template.
  */
 export async function importSettingsSnapshot(snapshot: Record<string, unknown>, dbAdapter: DatabaseAdapter): Promise<void> {
-	if (!dbAdapter?.systemPreferences) {
-		throw new Error('Database adapter or systemPreferences interface not available');
+	if (!dbAdapter?.system.preferences) {
+		throw new Error('Database adapter or system.preferences interface not available');
 	}
 
 	if (!snapshot.settings) {
@@ -1134,7 +1134,7 @@ export async function importSettingsSnapshot(snapshot: Record<string, unknown>, 
 		});
 	}
 
-	const result = await dbAdapter.systemPreferences.setMany(settingsToSet);
+	const result = await dbAdapter.system.preferences.setMany(settingsToSet);
 
 	if (!result.success) {
 		throw new Error(`Failed to import settings: ${result.error?.message}`);

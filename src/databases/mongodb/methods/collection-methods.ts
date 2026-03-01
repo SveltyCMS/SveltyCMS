@@ -138,15 +138,15 @@ export class MongoCollectionMethods {
 
 		// Wrap the model for the interface
 		const wrappedModel: CollectionModel = {
-			findOne: async (query: Record<string, unknown>) => {
+			findOne: async <R = unknown>(query: Record<string, unknown>) => {
 				const result = await (model as any)
 					.findOne(query as MongoQueryFilter<Record<string, unknown>>)
 					.lean()
 					.exec();
-				return result as Record<string, unknown> | null;
+				return result as R | null;
 			},
-			aggregate: async (pipeline: unknown[]) => {
-				return await (model as any).aggregate(pipeline as mongoose.PipelineStage[]).exec();
+			aggregate: async <R = unknown>(pipeline: Record<string, unknown>[]) => {
+				return await (model as any).aggregate(pipeline as unknown as mongoose.PipelineStage[]).exec() as R[];
 			}
 		};
 

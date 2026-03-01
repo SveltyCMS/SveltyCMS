@@ -43,9 +43,12 @@ export class MongoCrudMethods<T extends BaseEntity> {
 		this.model = model;
 	}
 
-	async findOne(query: QueryFilter<T>, options: { fields?: (keyof T)[]; tenantId?: string | null } = {}): Promise<DatabaseResult<T | null>> {
+	async findOne(
+		query: QueryFilter<T>,
+		options: { fields?: (keyof T)[]; tenantId?: string | null; bypassTenantCheck?: boolean } = {}
+	): Promise<DatabaseResult<T | null>> {
 		try {
-			const secureQuery = safeQuery(query, options.tenantId);
+			const secureQuery = safeQuery(query, options.tenantId, { bypassTenantCheck: options.bypassTenantCheck });
 			const result = await this.model.findOne(secureQuery, options.fields?.join(' ')).lean().exec();
 
 			if (!result) {
@@ -61,9 +64,9 @@ export class MongoCrudMethods<T extends BaseEntity> {
 		}
 	}
 
-	async findById(id: DatabaseId, tenantId?: string | null): Promise<DatabaseResult<T | null>> {
+	async findById(id: DatabaseId, tenantId?: string | null, bypassTenantCheck?: boolean): Promise<DatabaseResult<T | null>> {
 		try {
-			const query = safeQuery({ _id: id } as QueryFilter<T>, tenantId);
+			const query = safeQuery({ _id: id } as QueryFilter<T>, tenantId, { bypassTenantCheck });
 			const result = await this.model.findOne(query).lean().exec();
 			if (!result) {
 				return { success: true, data: null };
@@ -78,10 +81,17 @@ export class MongoCrudMethods<T extends BaseEntity> {
 		}
 	}
 
-	async findByIds(ids: DatabaseId[]): Promise<DatabaseResult<T[]>> {
+	async findByIds(
+		ids: DatabaseId[],
+		options?: { fields?: (keyof T)[]; tenantId?: string | null; bypassTenantCheck?: boolean }
+	): Promise<DatabaseResult<T[]>> {
 		try {
+			const secureQuery = safeQuery({ _id: { $in: ids } } as unknown as QueryFilter<T>, options?.tenantId, {
+				bypassTenantCheck: options?.bypassTenantCheck
+			});
 			const results = await this.model
-				.find({ _id: { $in: ids } } as QueryFilter<T>)
+				.find(secureQuery)
+				.select(options?.fields?.join(' ') || '')
 				.lean()
 				.exec();
 			return { success: true, data: processDates(results) as T[] };
@@ -102,10 +112,11 @@ export class MongoCrudMethods<T extends BaseEntity> {
 			sort?: { [key: string]: 'asc' | 'desc' | 1 | -1 };
 			fields?: (keyof T)[];
 			tenantId?: string | null;
+			bypassTenantCheck?: boolean;
 		} = {}
 	): Promise<DatabaseResult<T[]>> {
 		try {
-			const secureQuery = safeQuery(query, options.tenantId);
+			const secureQuery = safeQuery(query, options.tenantId, { bypassTenantCheck: options.bypassTenantCheck });
 			const results = await this.model
 				.find(secureQuery, options.fields?.join(' '))
 				.sort(options.sort || {})
@@ -123,17 +134,22 @@ export class MongoCrudMethods<T extends BaseEntity> {
 		}
 	}
 
-	async insert(data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>, tenantId?: string | null): Promise<DatabaseResult<T>> {
+	async insert(
+		data: import('../../db-interface').EntityCreate<T>,
+		tenantId?: string | null,
+		bypassTenantCheck?: boolean
+	): Promise<DatabaseResult<T>> {
 		try {
-			const docData = {
-				...(data as Record<string, unknown>),
+			const secureData = safeQuery(data as Record<string, unknown>, tenantId, { bypassTenantCheck });
+			const now = nowISODateString();
+			const doc = new this.model({
+				...secureData,
 				_id: generateId(),
-				tenantId: tenantId || (data as unknown as Record<string, unknown>).tenantId,
-				createdAt: nowISODateString(),
-				updatedAt: nowISODateString()
-			};
-			const result = await this.model.create(docData as unknown as mongoose.AnyKeys<T>);
-			return { success: true, data: result.toObject() as T };
+				createdAt: now,
+				updatedAt: now
+			});
+			const result = await doc.save();
+			return { success: true, data: (result as mongoose.HydratedDocument<T>).toObject() as T };
 		} catch (error) {
 			if (error instanceof mongoose.mongo.MongoServerError && error.code === 11_000) {
 				return {
@@ -150,14 +166,18 @@ export class MongoCrudMethods<T extends BaseEntity> {
 		}
 	}
 
-	async insertMany(data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>[], tenantId?: string | null): Promise<DatabaseResult<T[]>> {
+	async insertMany(
+		data: import('../../db-interface').EntityCreate<T>[],
+		tenantId?: string | null,
+		bypassTenantCheck?: boolean
+	): Promise<DatabaseResult<T[]>> {
 		try {
+			const now = nowISODateString();
 			const docs = data.map((d) => ({
-				...(d as Record<string, unknown>),
+				...safeQuery(d as Record<string, unknown>, tenantId, { bypassTenantCheck }),
 				_id: generateId(),
-				tenantId: tenantId || (d as unknown as Record<string, unknown>).tenantId,
-				createdAt: nowISODateString(),
-				updatedAt: nowISODateString()
+				createdAt: now,
+				updatedAt: now
 			}));
 			const result = await this.model.insertMany(docs);
 			return { success: true, data: result.map((doc) => (doc as mongoose.HydratedDocument<T>).toObject() as T) };
@@ -170,9 +190,9 @@ export class MongoCrudMethods<T extends BaseEntity> {
 		}
 	}
 
-	async update(id: DatabaseId, data: UpdateQuery<T>, tenantId?: string | null): Promise<DatabaseResult<T | null>> {
+	async update(id: DatabaseId, data: UpdateQuery<T>, tenantId?: string | null, bypassTenantCheck?: boolean): Promise<DatabaseResult<T | null>> {
 		try {
-			const query = safeQuery({ _id: id } as QueryFilter<T>, tenantId);
+			const query = safeQuery({ _id: id } as QueryFilter<T>, tenantId, { bypassTenantCheck });
 			const updateData = {
 				...(data as object),
 				updatedAt: nowISODateString()
@@ -192,9 +212,14 @@ export class MongoCrudMethods<T extends BaseEntity> {
 		}
 	}
 
-	async upsert(query: QueryFilter<T>, data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>, tenantId?: string | null): Promise<DatabaseResult<T>> {
+	async upsert(
+		query: QueryFilter<T>,
+		data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>,
+		tenantId?: string | null,
+		bypassTenantCheck?: boolean
+	): Promise<DatabaseResult<T>> {
 		try {
-			const secureQuery = safeQuery(query, tenantId);
+			const secureQuery = safeQuery(query, tenantId, { bypassTenantCheck });
 			const result = await this.model
 				.findOneAndUpdate(
 					secureQuery,
@@ -220,9 +245,9 @@ export class MongoCrudMethods<T extends BaseEntity> {
 		}
 	}
 
-	async delete(id: DatabaseId, tenantId?: string | null): Promise<DatabaseResult<boolean>> {
+	async delete(id: DatabaseId, tenantId?: string | null, bypassTenantCheck?: boolean): Promise<DatabaseResult<boolean>> {
 		try {
-			const query = safeQuery({ _id: id } as QueryFilter<T>, tenantId);
+			const query = safeQuery({ _id: id } as QueryFilter<T>, tenantId, { bypassTenantCheck });
 			const result = await this.model.deleteOne(query);
 			return { success: true, data: result.deletedCount > 0 };
 		} catch (error) {
@@ -237,10 +262,11 @@ export class MongoCrudMethods<T extends BaseEntity> {
 	async updateMany(
 		query: QueryFilter<T>,
 		data: UpdateQuery<T>,
-		tenantId?: string | null
+		tenantId?: string | null,
+		bypassTenantCheck?: boolean
 	): Promise<DatabaseResult<{ modifiedCount: number; matchedCount: number }>> {
 		try {
-			const secureQuery = safeQuery(query, tenantId);
+			const secureQuery = safeQuery(query, tenantId, { bypassTenantCheck });
 			const updateData = {
 				...(data as object),
 				updatedAt: nowISODateString()
@@ -264,9 +290,9 @@ export class MongoCrudMethods<T extends BaseEntity> {
 		}
 	}
 
-	async deleteMany(query: QueryFilter<T>, tenantId?: string | null): Promise<DatabaseResult<{ deletedCount: number }>> {
+	async deleteMany(query: QueryFilter<T>, tenantId?: string | null, bypassTenantCheck?: boolean): Promise<DatabaseResult<{ deletedCount: number }>> {
 		try {
-			const secureQuery = safeQuery(query, tenantId);
+			const secureQuery = safeQuery(query, tenantId, { bypassTenantCheck });
 			const result = await this.model.deleteMany(secureQuery);
 			return { success: true, data: { deletedCount: result.deletedCount } };
 		} catch (error) {
@@ -283,7 +309,8 @@ export class MongoCrudMethods<T extends BaseEntity> {
 			query: QueryFilter<T>;
 			data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>;
 		}>,
-		tenantId?: string | null
+		tenantId?: string | null,
+		bypassTenantCheck?: boolean
 	): Promise<DatabaseResult<{ upsertedCount: number; modifiedCount: number }>> {
 		try {
 			if (items.length === 0) {
@@ -293,7 +320,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
 			const now = nowISODateString();
 			const operations = items.map((item) => ({
 				updateOne: {
-					filter: safeQuery(item.query, tenantId) as MongoQueryFilter<T>,
+					filter: safeQuery(item.query, tenantId, { bypassTenantCheck }) as MongoQueryFilter<T>,
 					update: {
 						$set: { ...(item.data as Record<string, unknown>), updatedAt: now },
 						$setOnInsert: {
@@ -323,9 +350,9 @@ export class MongoCrudMethods<T extends BaseEntity> {
 		}
 	}
 
-	async count(query: QueryFilter<T> = {}, tenantId?: string | null): Promise<DatabaseResult<number>> {
+	async count(query: QueryFilter<T> = {}, tenantId?: string | null, bypassTenantCheck?: boolean): Promise<DatabaseResult<number>> {
 		try {
-			const secureQuery = safeQuery(query, tenantId);
+			const secureQuery = safeQuery(query, tenantId, { bypassTenantCheck });
 			const count = await this.model.countDocuments(secureQuery);
 			return { success: true, data: count };
 		} catch (error) {
@@ -342,9 +369,9 @@ export class MongoCrudMethods<T extends BaseEntity> {
 	 * Uses findOne with _id projection instead of exists() for faster execution.
 	 * MongoDB stops scanning as soon as it finds the first match, and projection reduces network overhead.
 	 */
-	async exists(query: QueryFilter<T>, tenantId?: string | null): Promise<DatabaseResult<boolean>> {
+	async exists(query: QueryFilter<T>, tenantId?: string | null, bypassTenantCheck?: boolean): Promise<DatabaseResult<boolean>> {
 		try {
-			const secureQuery = safeQuery(query, tenantId);
+			const secureQuery = safeQuery(query, tenantId, { bypassTenantCheck });
 			// Use findOne with projection for optimal performance
 			// Only fetches _id field, minimizing data transfer
 			const doc = await this.model.findOne(secureQuery, { _id: 1 }).lean().exec();
@@ -358,9 +385,17 @@ export class MongoCrudMethods<T extends BaseEntity> {
 		}
 	}
 
-	async aggregate<R>(pipeline: PipelineStage[]): Promise<DatabaseResult<R[]>> {
+	async aggregate(pipeline: PipelineStage[], tenantId?: string | null, bypassTenantCheck?: boolean): Promise<DatabaseResult<unknown[]>> {
 		try {
-			const result = await this.model.aggregate<R>(pipeline).exec();
+			// In multi-tenant systems, we generally want to limit aggregations to a single tenant.
+			const securePipeline = [...pipeline];
+			if (!bypassTenantCheck && tenantId) {
+				securePipeline.unshift({ $match: { tenantId } });
+			} else if (!bypassTenantCheck && !tenantId) {
+				// Use safeQuery logic here manually for pipeline context
+				safeQuery({}, tenantId, { bypassTenantCheck }); // This will throw if context is missing
+			}
+			const result = await this.model.aggregate(securePipeline).exec();
 			return { success: true, data: result };
 		} catch (error) {
 			return {

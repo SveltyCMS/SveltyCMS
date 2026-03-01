@@ -28,7 +28,7 @@ export const POST = apiHandler(async ({ locals, request }) => {
 			logger.warn(`User ${user._id} (role: ${user.role}) denied access to API /api/widgets due to insufficient role permissions`);
 			throw new AppError('Insufficient permissions', 403, 'FORBIDDEN');
 		} // Check database adapter availability
-		if (!locals.dbAdapter?.widgets) {
+		if (!locals.dbAdapter?.system?.widgets) {
 			throw new AppError('Widget database adapter not available', 500, 'DB_ADAPTER_UNAVAILABLE');
 		}
 
@@ -40,7 +40,7 @@ export const POST = apiHandler(async ({ locals, request }) => {
 		}
 
 		// Get all widgets to find the one we're updating
-		const allWidgetsResult = await locals.dbAdapter.widgets.findAll();
+		const allWidgetsResult = await locals.dbAdapter.system.widgets.findAll();
 		if (!allWidgetsResult.success) {
 			throw new AppError(`Failed to fetch widgets: ${allWidgetsResult.error?.message || 'Unknown error'}`, 500, 'FETCH_WIDGETS_FAILED');
 		}
@@ -114,7 +114,7 @@ export const POST = apiHandler(async ({ locals, request }) => {
 			widgetData: { isActive, updatedAt: new Date() }
 		});
 
-		const updateResult = await locals.dbAdapter.widgets.update(widget._id, {
+		const updateResult = await locals.dbAdapter.system.widgets.update(widget._id, {
 			isActive
 		});
 

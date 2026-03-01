@@ -51,90 +51,16 @@ import * as utils from '../utils';
 import { AdapterCore } from './adapter-core';
 
 export class PostgreSQLAdapter extends AdapterCore implements IDBAdapter {
-	public readonly tenants = {
-		create: async (tenant: Omit<Tenant, '_id' | 'createdAt' | 'updatedAt'> & { _id?: DatabaseId }): Promise<DatabaseResult<Tenant>> => {
-			return this.wrap(async () => {
-				const id = (tenant._id || utils.generateId()) as string;
-				const now = new Date();
-				const result = await this.sql!`
-					INSERT INTO tenants (_id, name, "ownerId", status, plan, quota, usage, settings, "createdAt", "updatedAt")
-					VALUES (${id}, ${tenant.name}, ${tenant.ownerId}, ${tenant.status || 'active'}, ${tenant.plan || 'free'},
-						${JSON.stringify(tenant.quota || {})}::json, ${JSON.stringify(tenant.usage || {})}::json,
-						${JSON.stringify(tenant.settings || {})}::json, ${now}, ${now})
-					RETURNING *`;
-				return result[0] as unknown as Tenant;
-			}, 'TENANT_CREATE_FAILED');
-		},
-		getById: async (tenantId: DatabaseId): Promise<DatabaseResult<Tenant | null>> => {
-			return this.wrap(async () => {
-				const result = await this.sql!`SELECT * FROM tenants WHERE _id = ${tenantId as string}`;
-				return (result[0] as unknown as Tenant) || null;
-			}, 'TENANT_GET_FAILED');
-		},
-		update: async (tenantId: DatabaseId, data: Partial<Omit<Tenant, 'createdAt' | 'updatedAt'>>): Promise<DatabaseResult<Tenant>> => {
-			return this.wrap(async () => {
-				const now = new Date();
-				const setClauses: string[] = ['"updatedAt" = $1'];
-				const values: unknown[] = [now];
-				let paramIdx = 2;
-				for (const [key, value] of Object.entries(data)) {
-					if (key === '_id') continue;
-					const quotedKey = key.includes(/[A-Z]/.test(key) ? '"' : '') ? `"${key}"` : key;
-					if (['quota', 'usage', 'settings'].includes(key)) {
-						setClauses.push(`${quotedKey} = $${paramIdx}::json`);
-						values.push(JSON.stringify(value));
-					} else {
-						setClauses.push(`${quotedKey} = $${paramIdx}`);
-						values.push(value);
-					}
-					paramIdx++;
-				}
-				values.push(tenantId as string);
-				// Use simple query approach
-				await this.sql!.unsafe(`UPDATE tenants SET ${setClauses.join(', ')} WHERE _id = $${paramIdx}`, values as never[]);
-				const result = await this.sql!`SELECT * FROM tenants WHERE _id = ${tenantId as string}`;
-				return result[0] as unknown as Tenant;
-			}, 'TENANT_UPDATE_FAILED');
-		},
-		delete: async (tenantId: DatabaseId): Promise<DatabaseResult<void>> => {
-			return this.wrap(async () => {
-				await this.sql!`DELETE FROM tenants WHERE _id = ${tenantId as string}`;
-			}, 'TENANT_DELETE_FAILED');
-		},
-		list: async (options?: PaginationOption): Promise<DatabaseResult<Tenant[]>> => {
-			return this.wrap(async () => {
-				let query = 'SELECT * FROM tenants';
-				const params: unknown[] = [];
-				let paramIdx = 1;
-				if (options?.limit) {
-					query += ` LIMIT $${paramIdx}`;
-					params.push(options.limit);
-					paramIdx++;
-				}
-				if (options?.offset) {
-					query += ` OFFSET $${paramIdx}`;
-					params.push(options.offset);
-				}
-				const result = await this.sql!.unsafe(query, params as never[]);
-				return result as unknown as Tenant[];
-			}, 'TENANT_LIST_FAILED');
-		}
-	};
+	public readonly system: import('../../db-interface').ISystemAdapter;
+	public readonly monitoring: import('../../db-interface').IMonitoringAdapter;
 	public readonly crud: CrudModule;
 	public readonly auth: AuthModule;
 	public readonly content: ContentModule;
 	public readonly media: MediaModule;
-	public readonly systemPreferences: PreferencesModule;
-	public readonly systemVirtualFolder: VirtualFoldersModule;
-	public readonly themes: ThemesModule;
-	public readonly widgets: WidgetsModule;
-	public readonly websiteTokens: WebsiteTokensModule;
 	public readonly batch: BatchModule;
-	private readonly transactionModule: TransactionModule;
-	public readonly performance: PerformanceModule;
-	public readonly cache: CacheModule;
 	public readonly collection: CollectionModule;
 	public readonly utils = utils;
+	private readonly transactionModule: TransactionModule;
 
 	constructor() {
 		super();
@@ -142,16 +68,97 @@ export class PostgreSQLAdapter extends AdapterCore implements IDBAdapter {
 		this.auth = new AuthModule(this);
 		this.content = new ContentModule(this);
 		this.media = new MediaModule(this);
-		this.systemPreferences = new PreferencesModule(this);
-		this.systemVirtualFolder = new VirtualFoldersModule(this);
-		this.themes = new ThemesModule(this);
-		this.widgets = new WidgetsModule(this);
-		this.websiteTokens = new WebsiteTokensModule(this);
+		this.collection = new CollectionModule(this);
 		this.batch = new BatchModule(this);
 		this.transactionModule = new TransactionModule(this);
-		this.performance = new PerformanceModule(this);
-		this.cache = new CacheModule(this);
-		this.collection = new CollectionModule(this);
+
+		// Initialize nested adapters
+		this.system = {
+			preferences: new PreferencesModule(this),
+			virtualFolder: new VirtualFoldersModule(this),
+			themes: new ThemesModule(this),
+			widgets: new WidgetsModule(this),
+			websiteTokens: new WebsiteTokensModule(this),
+			tenants: {
+				create: async (tenant: import('../../db-interface').EntityCreate<Tenant> & { _id?: DatabaseId }) =>
+					this.wrap(async () => {
+						const id = (tenant._id || utils.generateId()) as string;
+						const now = new Date();
+						const result = await this.sql!`
+							INSERT INTO tenants (_id, name, "ownerId", status, plan, quota, usage, settings, "createdAt", "updatedAt")
+							VALUES (${id}, ${tenant.name}, ${tenant.ownerId}, ${tenant.status || 'active'}, ${tenant.plan || 'free'},
+								${JSON.stringify(tenant.quota || {})}::json, ${JSON.stringify(tenant.usage || {})}::json,
+								${JSON.stringify(tenant.settings || {})}::json, ${now}, ${now})
+							RETURNING *`;
+						return result[0] as unknown as Tenant;
+					}, 'TENANT_CREATE_FAILED'),
+				getById: async (tenantId: DatabaseId) =>
+					this.wrap(async () => {
+						const result = await this.sql!`SELECT * FROM tenants WHERE _id = ${tenantId as string}`;
+						return (result[0] as unknown as Tenant) || null;
+					}, 'TENANT_GET_FAILED'),
+				update: async (tenantId: DatabaseId, data: import('../../db-interface').EntityUpdate<Tenant>) =>
+					this.wrap(async () => {
+						const now = new Date();
+						const setClauses: string[] = ['"updatedAt" = $1'];
+						const values: unknown[] = [now];
+						let paramIdx = 2;
+						for (const [key, value] of Object.entries(data)) {
+							if (key === '_id') continue;
+							const quotedKey = key.includes(/[A-Z]/.test(key) ? '"' : '') ? `"${key}"` : key;
+							if (['quota', 'usage', 'settings'].includes(key)) {
+								setClauses.push(`${quotedKey} = $${paramIdx}::json`);
+								values.push(JSON.stringify(value));
+							} else {
+								setClauses.push(`${quotedKey} = $${paramIdx}`);
+								values.push(value);
+							}
+							paramIdx++;
+						}
+						values.push(tenantId as string);
+						await this.sql!.unsafe(`UPDATE tenants SET ${setClauses.join(', ')} WHERE _id = $${paramIdx}`, values as never[]);
+						const result = await this.sql!`SELECT * FROM tenants WHERE _id = ${tenantId as string}`;
+						return result[0] as unknown as Tenant;
+					}, 'TENANT_UPDATE_FAILED'),
+				delete: async (tenantId: DatabaseId) =>
+					this.wrap(async () => {
+						await this.sql!`DELETE FROM tenants WHERE _id = ${tenantId as string}`;
+					}, 'TENANT_DELETE_FAILED'),
+				list: async (options?: PaginationOption) =>
+					this.wrap(async () => {
+						let query = 'SELECT * FROM tenants';
+						const params: unknown[] = [];
+						let paramIdx = 1;
+						if (options?.limit) {
+							query += ` LIMIT $${paramIdx}`;
+							params.push(options.limit);
+							paramIdx++;
+						}
+						if (options?.offset) {
+							query += ` OFFSET $${paramIdx}`;
+							params.push(options.offset);
+						}
+						const result = await this.sql!.unsafe(query, params as never[]);
+						return result as unknown as Tenant[];
+					}, 'TENANT_LIST_FAILED')
+			}
+		};
+
+		this.monitoring = {
+			performance: new PerformanceModule(this),
+			cache: new CacheModule(this),
+			getConnectionPoolStats: async () =>
+				this.wrap(async () => {
+					const pool = (this.sql as any)?.options?.pool;
+					return {
+						total: pool?.max || 10,
+						active: pool?.size || 0,
+						idle: pool?.available || 0,
+						waiting: pool?.queueSize || 0,
+						avgConnectionTime: 0
+					};
+				}, 'POOL_STATS_FAILED')
+		};
 	}
 
 	async connect(connection: string | Record<string, unknown>, options?: unknown): Promise<DatabaseResult<void>>;

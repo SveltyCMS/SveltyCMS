@@ -121,7 +121,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		logger.info(`Loading media gallery for folderId: ${folderId || 'root'} (recursive: ${recursive})`);
 
 		// Fetch all virtual folders first to find the current one
-		const allVirtualFoldersResult = await dbAdapter.systemVirtualFolder.getAll();
+		const allVirtualFoldersResult = await dbAdapter.system.virtualFolder.getAll();
 
 		if (!allVirtualFoldersResult.success) {
 			logger.error('Failed to fetch virtual folders', allVirtualFoldersResult.error);

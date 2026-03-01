@@ -116,15 +116,20 @@ export class MongoContentMethods {
 	 */
 	async getStructure(
 		mode: 'flat' | 'nested' = 'flat',
-		filter: Partial<ContentNode> = {},
-		bypassCache = false
+		filter: Partial<ContentNode> & { tenantId?: string } = {},
+		bypassCache = false,
+		bypassTenantCheck = false
 	): Promise<DatabaseResult<ContentNode[]>> {
 		// Create cache key based on mode and filter
 		const filterKey = JSON.stringify(filter);
 		const cacheKey = `content:structure:${mode}:${filterKey}`;
 
 		const fetchData = async (): Promise<DatabaseResult<ContentNode[]>> => {
-			const result = await this.nodesRepo.findMany(filter);
+			const options: { tenantId?: string; bypassTenantCheck?: boolean } = { bypassTenantCheck };
+			if (filter.tenantId) {
+				options.tenantId = filter.tenantId;
+			}
+			const result = await this.nodesRepo.findMany(filter, options);
 			if (!result.success) {
 				return result;
 			}

@@ -204,12 +204,12 @@ export class DatabaseResilience {
 			// Get the current database adapter
 			const { dbAdapter } = await import(/* @vite-ignore */ './db');
 
-			if (!dbAdapter || typeof dbAdapter.getConnectionPoolStats !== 'function') {
+			if (!dbAdapter || typeof dbAdapter.monitoring?.getConnectionPoolStats !== 'function') {
 				throw new Error('Database adapter does not support pool diagnostics');
 			}
 
 			// Get connection pool stats from the adapter
-			const result = await dbAdapter.getConnectionPoolStats();
+			const result = await dbAdapter.monitoring.getConnectionPoolStats();
 
 			if (!result.success) {
 				throw new Error(result.message);

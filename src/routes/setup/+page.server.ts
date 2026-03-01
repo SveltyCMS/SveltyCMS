@@ -568,7 +568,7 @@ export const actions: Actions = {
 					];
 
 					// Cast to any to bypass strict type check for now, or define a proper interface for the array item
-					await dbAdapter.systemPreferences.setMany(settingsToPersist as any);
+					await dbAdapter.system.preferences.setMany(settingsToPersist as any);
 					logger.info('System settings persisted to database successfully');
 				} catch (dbError) {
 					logger.warn('Failed to persist some system settings to DB:', dbError);
@@ -796,12 +796,12 @@ export const actions: Actions = {
 				try {
 					const { dbAdapter } = await import('@src/databases/db');
 					if (dbAdapter) {
-						await dbAdapter.systemPreferences.set('SMTP_HOST', host, 'system');
-						await dbAdapter.systemPreferences.set('SMTP_PORT', port.toString(), 'system');
-						await dbAdapter.systemPreferences.set('SMTP_USER', user, 'system');
-						await dbAdapter.systemPreferences.set('SMTP_PASS', password, 'system');
-						await dbAdapter.systemPreferences.set('SMTP_FROM', from, 'system');
-						await dbAdapter.systemPreferences.set('SMTP_SECURE', secure ? 'true' : 'false', 'system');
+						await dbAdapter.system.preferences.set('SMTP_HOST', host, 'system');
+						await dbAdapter.system.preferences.set('SMTP_PORT', port.toString(), 'system');
+						await dbAdapter.system.preferences.set('SMTP_USER', user, 'system');
+						await dbAdapter.system.preferences.set('SMTP_PASS', password, 'system');
+						await dbAdapter.system.preferences.set('SMTP_FROM', from, 'system');
+						await dbAdapter.system.preferences.set('SMTP_SECURE', secure ? 'true' : 'false', 'system');
 						saved = true;
 					}
 				} catch (e) {

@@ -36,11 +36,11 @@ export const POST = apiHandler(async ({ locals }) => {
 
 	const secret = randomBytes(32).toString('hex');
 
-	if (!dbAdapter?.systemPreferences) {
+	if (!dbAdapter?.system.preferences) {
 		throw new AppError('Database adapter not available', 503, 'DB_UNAVAILABLE');
 	}
 
-	await dbAdapter.systemPreferences.set('PREVIEW_SECRET', secret, 'system');
+	await dbAdapter.system.preferences.set('PREVIEW_SECRET', secret, 'system');
 	invalidateSettingsCache();
 
 	logger.info('Preview secret regenerated', { userId: locals.user._id });

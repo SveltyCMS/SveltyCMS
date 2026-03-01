@@ -141,25 +141,25 @@ export async function cleanupExpiredDemoTenants() {
 			// Instead, use the namespaced adapters: list all, filter by tenantId, delete individually.
 			try {
 				// Themes - list all, filter by tenantId, uninstall each
-				const allThemes = await db.themes.getAllThemes();
+				const allThemes = await db.system.themes.getAllThemes();
 				const tenantThemes = (allThemes || []).filter((t) => (t as unknown as Tenanted).tenantId === tenantId);
 				for (const theme of tenantThemes) {
-					await db.themes.uninstall(theme._id);
+					await db.system.themes.uninstall(theme._id);
 				}
 
 				// Widgets are global (no tenantId), skip
 
 				// System Preferences - clear user-scoped preferences for tenant users
 				for (const userId of tenantUserIds) {
-					await db.systemPreferences.clear('user', userId as DatabaseId);
+					await db.system.preferences.clear('user', userId as DatabaseId);
 				}
 
 				// Virtual Folders - list all, filter by tenantId, delete each
-				const foldersResult = await db.systemVirtualFolder.getAll();
+				const foldersResult = await db.system.virtualFolder.getAll();
 				if (foldersResult.success && foldersResult.data) {
 					const tenantFolders = foldersResult.data.filter((f) => (f as unknown as Tenanted).tenantId === tenantId);
 					for (const folder of tenantFolders) {
-						await db.systemVirtualFolder.delete(folder._id);
+						await db.system.virtualFolder.delete(folder._id);
 					}
 				}
 

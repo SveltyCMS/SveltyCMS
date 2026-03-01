@@ -34,12 +34,12 @@ export class CollectionModule {
 		}
 
 		return {
-			findOne: async (query) => {
+			findOne: async <R = unknown>(query: Record<string, unknown>) => {
 				const res = await this.crud.findOne<any>(id, query as import('../../db-interface').QueryFilter<Record<string, unknown>>);
-				return res.success ? (res.data as Record<string, unknown>) : null;
+				return res.success ? (res.data as R) : null;
 			},
-			aggregate: async (pipeline) => {
-				const res = await this.crud.aggregate<Record<string, unknown>>(id, pipeline);
+			aggregate: async <R = unknown>(pipeline: Record<string, unknown>[]) => {
+				const res = await this.crud.aggregate<R>(id, pipeline);
 				return res.success ? res.data : [];
 			}
 		};
@@ -79,12 +79,12 @@ export class CollectionModule {
 		}
 
 		const wrappedModel: CollectionModel = {
-			findOne: async (query) => {
+			findOne: async <R = unknown>(query: Record<string, unknown>) => {
 				const res = await this.crud.findOne<any>(id, query as import('../../db-interface').QueryFilter<Record<string, unknown>>);
-				return res.success ? (res.data as Record<string, unknown>) : null;
+				return res.success ? (res.data as R) : null;
 			},
-			aggregate: async (pipeline) => {
-				const res = await this.crud.aggregate<Record<string, unknown>>(id, pipeline);
+			aggregate: async <R = unknown>(pipeline: Record<string, unknown>[]) => {
+				const res = await this.crud.aggregate<R>(id, pipeline);
 				return res.success ? res.data : [];
 			}
 		};

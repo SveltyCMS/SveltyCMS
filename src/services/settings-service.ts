@@ -73,7 +73,7 @@ export async function loadSettingsCache(): Promise<typeof cache> {
 		const { dbAdapter, getPrivateEnv } = await import('@src/databases/db');
 
 		// Check if database adapter is available (might not be during setup)
-		if (!dbAdapter?.systemPreferences) {
+		if (!dbAdapter?.system.preferences) {
 			logger.warn('Database adapter not yet initialized, using empty settings cache');
 			// Return an empty cache but mark it as loaded to prevent repeated warnings
 			cache.loaded = true;
@@ -84,8 +84,8 @@ export async function loadSettingsCache(): Promise<typeof cache> {
 
 		// Load both public and private settings in parallel
 		const [publicResult, privateResult] = await Promise.all([
-			dbAdapter.systemPreferences.getMany(KNOWN_PUBLIC_KEYS, 'system'),
-			dbAdapter.systemPreferences.getMany(KNOWN_PRIVATE_KEYS, 'system')
+			dbAdapter.system.preferences.getMany(KNOWN_PUBLIC_KEYS, 'system'),
+			dbAdapter.system.preferences.getMany(KNOWN_PRIVATE_KEYS, 'system')
 		]);
 
 		if (!publicResult.success) {
@@ -264,7 +264,7 @@ export async function getAllSettings(): Promise<Record<string, unknown>> {
  */
 export async function updateSettingsFromSnapshot(snapshot: Record<string, unknown>): Promise<{ updated: number }> {
 	const { dbAdapter } = await import('@src/databases/db');
-	if (!dbAdapter?.systemPreferences) {
+	if (!dbAdapter?.system.preferences) {
 		throw new Error('Database adapter not available');
 	}
 
@@ -284,7 +284,7 @@ export async function updateSettingsFromSnapshot(snapshot: Record<string, unknow
 		ops.push({ key, value: v, scope: 'system' });
 	}
 
-	const res = await dbAdapter.systemPreferences.setMany(ops);
+	const res = await dbAdapter.system.preferences.setMany(ops);
 	if (!res.success) {
 		throw new Error(res.error?.message || 'Failed to update settings');
 	}

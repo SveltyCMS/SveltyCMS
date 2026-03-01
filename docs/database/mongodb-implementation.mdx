@@ -700,7 +700,6 @@ const connectOptions: mongoose.ConnectOptions = {
 | -------------------- | -------------------------------- | ---------------------- |
 | `maxPoolSize: 10`    | Balanced for CMS concurrency     | Efficient resource use |
 | `minPoolSize: 2`     | Pre-warmed connections           | Fast first query       |
-| Wire compression     | zstd + snappy (40-60% savings)   | -40-60% bandwidth      |
 | `retryWrites/Reads`  | Auto-retry on failures           | 99.9% reliability      |
 | `heartbeatFrequency` | 10s topology detection           | Fast failover          |
 | `socketTimeoutMS`    | 45s zombie connection prevention | No hanging queries     |

@@ -34,11 +34,11 @@ export const GET = apiHandler(async ({ url, locals }) => {
 
 		// Get active widgets from DATABASE (not cached widget store)
 		// This ensures the GUI always shows current database state
-		if (!locals.dbAdapter?.widgets?.getActiveWidgets) {
+		if (!locals.dbAdapter?.system?.widgets?.getActiveWidgets) {
 			throw new AppError('Widget database adapter not available', 500, 'DB_ADAPTER_UNAVAILABLE');
 		}
 
-		const activeWidgetsResult = await locals.dbAdapter.widgets.getActiveWidgets();
+		const activeWidgetsResult = await locals.dbAdapter.system.widgets.getActiveWidgets();
 		if (!activeWidgetsResult.success) {
 			throw new AppError(`Failed to fetch active widgets: ${activeWidgetsResult.error?.message || 'Unknown error'}`, 500, 'FETCH_ACTIVE_FAILED');
 		}

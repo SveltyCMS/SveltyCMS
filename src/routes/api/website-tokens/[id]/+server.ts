@@ -20,7 +20,7 @@ export const DELETE = apiHandler(async ({ locals, params }) => {
 		throw new AppError('Token ID is required', 400, 'MISSING_ID');
 	}
 
-	const result = await dbAdapter.websiteTokens.delete(id as DatabaseId);
+	const result = await dbAdapter.system.websiteTokens.delete(id as DatabaseId);
 
 	if (!result.success) {
 		logger.error(`Failed to delete website token ${id}:`, result.error);

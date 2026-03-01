@@ -59,28 +59,29 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
 				// Define mutations to intercept
 				const wrappedMethods: Partial<ICrudAdapter> = {
 					// --- Explicitly Proxy Read Methods (Fix for Proxy ambiguity) ---
-					count: async (collection, query) => {
-						return await capturedCrud.count(collection, query);
+					count: async (...args) => {
+						return await capturedCrud.count(...args);
 					},
-					findOne: async (collection, query, options) => {
-						return await capturedCrud.findOne(collection, query, options);
+					findOne: async (...args) => {
+						return await capturedCrud.findOne(...args);
 					},
-					findMany: async (collection, query, options) => {
-						return await capturedCrud.findMany(collection, query, options);
+					findMany: async (...args) => {
+						return await capturedCrud.findMany(...args);
 					},
-					findByIds: async (collection, ids, options) => {
-						return await capturedCrud.findByIds(collection, ids, options);
+					findByIds: async (...args) => {
+						return await capturedCrud.findByIds(...args);
 					},
-					exists: async (collection, query) => {
-						return await capturedCrud.exists(collection, query);
+					exists: async (...args) => {
+						return await capturedCrud.exists(...args);
 					},
-					aggregate: async (collection, pipeline) => {
-						return await capturedCrud.aggregate(collection, pipeline);
+					aggregate: async (...args) => {
+						return await capturedCrud.aggregate(...args);
 					},
 
 					// --- Wrapped Mutation Methods ---
-					insert: async (collection, data) => {
-						const res = await capturedCrud.insert(collection, data);
+					insert: async (...args) => {
+						const res = await capturedCrud.insert(...args);
+						const [collection] = args;
 						if (res.success && (collection.startsWith(CONTENT_COLLECTION_PREFIX) || collection === 'MediaItem')) {
 							const event: WebhookEvent = collection === 'MediaItem' ? 'media:upload' : 'entry:create';
 							webhookService.trigger(event, {
@@ -91,8 +92,9 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
 						return res;
 					},
 
-					insertMany: async (collection, data) => {
-						const res = await capturedCrud.insertMany(collection, data);
+					insertMany: async (...args) => {
+						const res = await capturedCrud.insertMany(...args);
+						const [collection] = args;
 						if (res.success && collection.startsWith(CONTENT_COLLECTION_PREFIX)) {
 							for (const item of res.data) {
 								webhookService.trigger('entry:create', {
@@ -104,62 +106,67 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
 						return res;
 					},
 
-					update: async (collection, id, data) => {
-						const res = await capturedCrud.update(collection, id, data);
+					update: async (...args) => {
+						const res = await capturedCrud.update(...args);
+						const [collection, id, data] = args;
 						if (res.success && collection.startsWith(CONTENT_COLLECTION_PREFIX)) {
 							let event: WebhookEvent = 'entry:update';
-							if ('status' in data) {
-								if (data.status === 'publish') {
+							if ('status' in (data as any)) {
+								if ((data as any).status === 'publish') {
 									event = 'entry:publish';
-								} else if (data.status === 'unpublish') {
+								} else if ((data as any).status === 'unpublish') {
 									event = 'entry:unpublish';
 								}
 							}
-							webhookService.trigger(event, { collection, id, data: res.data });
+							webhookService.trigger(event, { collection, id: id as any, data: res.data });
 						}
 						return res;
 					},
 
-					updateMany: async (collection, query, data) => {
-						const res = await capturedCrud.updateMany(collection, query, data);
+					updateMany: async (...args) => {
+						const res = await capturedCrud.updateMany(...args);
+						const [collection, query, data] = args;
 						if (res.success && collection.startsWith(CONTENT_COLLECTION_PREFIX)) {
 							webhookService.trigger('entry:update', {
 								collection,
-								query,
-								changes: data,
+								query: query as any,
+								changes: data as any,
 								modifiedCount: res.data.modifiedCount
 							});
 						}
 						return res;
 					},
 
-					delete: async (collection, id) => {
-						const res = await capturedCrud.delete(collection, id);
+					delete: async (...args) => {
+						const res = await capturedCrud.delete(...args);
+						const [collection, id] = args;
 						if (res.success && (collection.startsWith(CONTENT_COLLECTION_PREFIX) || collection === 'MediaItem')) {
 							const event: WebhookEvent = collection === 'MediaItem' ? 'media:delete' : 'entry:delete';
-							webhookService.trigger(event, { collection, id });
+							webhookService.trigger(event, { collection, id: id as any });
 						}
 						return res;
 					},
 
-					deleteMany: async (collection, query) => {
-						const res = await capturedCrud.deleteMany(collection, query);
+					deleteMany: async (...args) => {
+						const res = await capturedCrud.deleteMany(...args);
+						const [collection, query] = args;
 						if (res.success && collection.startsWith(CONTENT_COLLECTION_PREFIX)) {
 							webhookService.trigger('entry:delete', {
 								collection,
-								query,
+								query: query as any,
 								deletedCount: res.data.deletedCount
 							});
 						}
 						return res;
 					},
 
-					upsert: async (collection, query, data) => {
-						const res = await capturedCrud.upsert(collection, query, data);
+					upsert: async (...args) => {
+						const res = await capturedCrud.upsert(...args);
+						const [collection, query] = args;
 						if (res.success && collection.startsWith(CONTENT_COLLECTION_PREFIX)) {
 							webhookService.trigger('entry:update', {
 								collection,
-								query,
+								query: query as any,
 								data: res.data
 							});
 						}

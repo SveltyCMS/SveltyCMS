@@ -21,7 +21,7 @@ export class CollectionModule {
 
 	async getModel(id: string): Promise<CollectionModel> {
 		return {
-			findOne: async (query: Record<string, unknown>) => {
+			findOne: async <R = unknown>(query: Record<string, unknown>) => {
 				const table = this.core.getTable(id);
 				const where = this.core.mapQuery(table, query) as import('drizzle-orm').SQL | undefined;
 				const [result] =
@@ -30,9 +30,9 @@ export class CollectionModule {
 						.from(table as unknown as import('drizzle-orm/pg-core').PgTable)
 						.where(where)
 						.limit(1)) ?? [];
-				return result as Record<string, unknown> | null;
+				return result as R | null;
 			},
-			aggregate: async (_pipeline: Record<string, unknown>[]) => {
+			aggregate: async <R = unknown>(_pipeline: Record<string, unknown>[]): Promise<R[]> => {
 				throw new Error('Aggregate not yet implemented for PostgreSQL collection module');
 			}
 		};

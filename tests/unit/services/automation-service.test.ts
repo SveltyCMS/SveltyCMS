@@ -12,8 +12,8 @@ const mockEventBus = (globalThis as any).mockEventBus;
 
 describe('AutomationService', () => {
 	beforeEach(() => {
-		mockDbAdapter.systemPreferences.get.mockClear();
-		mockDbAdapter.systemPreferences.set.mockClear();
+		mockDbAdapter.system.preferences.get.mockClear();
+		mockDbAdapter.system.preferences.set.mockClear();
 		mockDbAdapter.crud.update.mockClear();
 		mockEventBus.on.mockClear();
 		automationService.invalidateCache();
@@ -41,11 +41,11 @@ describe('AutomationService', () => {
 					updatedAt: new Date()
 				}
 			];
-			mockDbAdapter.systemPreferences.get.mockReturnValue(Promise.resolve({ success: true, data: mockFlows as any }));
+			mockDbAdapter.system.preferences.get.mockReturnValue(Promise.resolve({ success: true, data: mockFlows as any }));
 
 			const flows = await automationService.getFlows();
 			expect(flows as any).toEqual(mockFlows);
-			expect(mockDbAdapter.systemPreferences.get).toHaveBeenCalledWith('automations_config', 'system');
+			expect(mockDbAdapter.system.preferences.get).toHaveBeenCalledWith('automations_config', 'system');
 		});
 
 		it('should save a new flow', async () => {
@@ -54,7 +54,7 @@ describe('AutomationService', () => {
 
 			expect(saved.id).toBeDefined();
 			expect(saved.name).toBe('New Automation');
-			expect(mockDbAdapter.systemPreferences.set).toHaveBeenCalled();
+			expect(mockDbAdapter.system.preferences.set).toHaveBeenCalled();
 		});
 
 		it('should delete a flow', async () => {
@@ -68,10 +68,10 @@ describe('AutomationService', () => {
 					updatedAt: new Date()
 				}
 			];
-			mockDbAdapter.systemPreferences.get.mockReturnValue(Promise.resolve({ success: true, data: mockFlows as any }));
+			mockDbAdapter.system.preferences.get.mockReturnValue(Promise.resolve({ success: true, data: mockFlows as any }));
 
 			await automationService.deleteFlow('flow-1');
-			expect(mockDbAdapter.systemPreferences.set).toHaveBeenCalledWith('automations_config', [], 'system');
+			expect(mockDbAdapter.system.preferences.set).toHaveBeenCalledWith('automations_config', [], 'system');
 		});
 	});
 

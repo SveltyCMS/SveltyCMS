@@ -50,99 +50,16 @@ import * as utils from '../utils';
 import { AdapterCore } from './adapter-core';
 
 export class MariaDBAdapter extends AdapterCore implements IDBAdapter {
-	public readonly tenants = {
-		create: async (tenant: Omit<Tenant, '_id' | 'createdAt' | 'updatedAt'> & { _id?: DatabaseId }): Promise<DatabaseResult<Tenant>> => {
-			return this.wrap(async () => {
-				const id = (tenant._id || utils.generateId()) as string;
-				const now = new Date();
-				const values: typeof schema.tenants.$inferInsert = {
-					...tenant,
-					_id: id,
-					createdAt: now,
-					updatedAt: now
-				};
-				await this.pool!.query(
-					`INSERT INTO tenants (_id, name, ownerId, status, plan, quota, \`usage\`, settings, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-					[
-						id,
-						values.name,
-						values.ownerId,
-						values.status,
-						values.plan,
-						JSON.stringify(values.quota),
-						JSON.stringify(values.usage),
-						JSON.stringify(values.settings),
-						now,
-						now
-					]
-				);
-				const [rows] = await this.pool!.query('SELECT * FROM tenants WHERE _id = ?', [id]);
-				const result = (rows as Record<string, unknown>[])[0];
-				return utils.parseJsonField(result, ['quota', 'usage', 'settings']) as unknown as Tenant;
-			}, 'TENANT_CREATE_FAILED');
-		},
-		getById: async (tenantId: DatabaseId): Promise<DatabaseResult<Tenant | null>> => {
-			return this.wrap(async () => {
-				const [rows] = await this.pool!.query('SELECT * FROM tenants WHERE _id = ?', [tenantId as string]);
-				const result = (rows as Record<string, unknown>[])[0];
-				if (!result) return null;
-				return utils.parseJsonField(result, ['quota', 'usage', 'settings']) as unknown as Tenant;
-			}, 'TENANT_GET_FAILED');
-		},
-		update: async (tenantId: DatabaseId, data: Partial<Omit<Tenant, 'createdAt' | 'updatedAt'>>): Promise<DatabaseResult<Tenant>> => {
-			return this.wrap(async () => {
-				const now = new Date();
-				const setClauses: string[] = ['updatedAt = ?'];
-				const values: unknown[] = [now];
-				for (const [key, value] of Object.entries(data)) {
-					if (key === '_id') continue;
-					setClauses.push(`\`${key}\` = ?`);
-					values.push(['quota', 'usage', 'settings'].includes(key) ? JSON.stringify(value) : value);
-				}
-				values.push(tenantId as string);
-				await this.pool!.query(`UPDATE tenants SET ${setClauses.join(', ')} WHERE _id = ?`, values);
-				const [rows] = await this.pool!.query('SELECT * FROM tenants WHERE _id = ?', [tenantId as string]);
-				const result = (rows as Record<string, unknown>[])[0];
-				return utils.parseJsonField(result, ['quota', 'usage', 'settings']) as unknown as Tenant;
-			}, 'TENANT_UPDATE_FAILED');
-		},
-		delete: async (tenantId: DatabaseId): Promise<DatabaseResult<void>> => {
-			return this.wrap(async () => {
-				await this.pool!.query('DELETE FROM tenants WHERE _id = ?', [tenantId as string]);
-			}, 'TENANT_DELETE_FAILED');
-		},
-		list: async (options?: PaginationOption): Promise<DatabaseResult<Tenant[]>> => {
-			return this.wrap(async () => {
-				let query = 'SELECT * FROM tenants';
-				const params: unknown[] = [];
-				if (options?.limit) {
-					query += ' LIMIT ?';
-					params.push(options.limit);
-				}
-				if (options?.offset) {
-					query += ' OFFSET ?';
-					params.push(options.offset);
-				}
-				const [rows] = await this.pool!.query(query, params);
-				return (rows as Record<string, unknown>[]).map((r) => utils.parseJsonField(r, ['quota', 'usage', 'settings'])) as unknown as Tenant[];
-			}, 'TENANT_LIST_FAILED');
-		}
-	};
+	public readonly system: import('../../db-interface').ISystemAdapter;
+	public readonly monitoring: import('../../db-interface').IMonitoringAdapter;
 	public readonly crud: CrudModule;
 	public readonly auth: AuthModule;
 	public readonly content: ContentModule;
 	public readonly media: MediaModule;
-	public readonly systemPreferences: PreferencesModule;
-	public readonly systemVirtualFolder: VirtualFoldersModule;
-	public readonly themes: ThemesModule;
-	public readonly widgets: WidgetsModule;
-	public readonly websiteTokens: WebsiteTokensModule;
 	public readonly batch: BatchModule;
-	private readonly transactionModule: TransactionModule;
-	public readonly performance: PerformanceModule;
-	public readonly cache: CacheModule;
 	public readonly collection: CollectionModule;
 	public readonly utils = utils;
+	private readonly transactionModule: TransactionModule;
 
 	constructor() {
 		super();
@@ -150,16 +67,107 @@ export class MariaDBAdapter extends AdapterCore implements IDBAdapter {
 		this.auth = new AuthModule(this);
 		this.content = new ContentModule(this);
 		this.media = new MediaModule(this);
-		this.systemPreferences = new PreferencesModule(this);
-		this.systemVirtualFolder = new VirtualFoldersModule(this);
-		this.themes = new ThemesModule(this);
-		this.widgets = new WidgetsModule(this);
-		this.websiteTokens = new WebsiteTokensModule(this);
+		this.collection = new CollectionModule(this);
 		this.batch = new BatchModule(this);
 		this.transactionModule = new TransactionModule(this);
-		this.performance = new PerformanceModule(this);
-		this.cache = new CacheModule(this);
-		this.collection = new CollectionModule(this);
+
+		// Initialize nested adapters
+		this.system = {
+			preferences: new PreferencesModule(this),
+			virtualFolder: new VirtualFoldersModule(this),
+			themes: new ThemesModule(this),
+			widgets: new WidgetsModule(this),
+			websiteTokens: new WebsiteTokensModule(this),
+			tenants: {
+				create: async (tenant) =>
+					this.wrap(async () => {
+						const id = (tenant._id || utils.generateId()) as string;
+						const now = new Date();
+						const values: typeof schema.tenants.$inferInsert = {
+							...tenant,
+							_id: id,
+							createdAt: now,
+							updatedAt: now
+						};
+						await this.pool!.query(
+							`INSERT INTO tenants (_id, name, ownerId, status, plan, quota, \`usage\`, settings, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+							[
+								id,
+								values.name,
+								values.ownerId,
+								values.status,
+								values.plan,
+								JSON.stringify(values.quota),
+								JSON.stringify(values.usage),
+								JSON.stringify(values.settings),
+								now,
+								now
+							]
+						);
+						const [rows] = await this.pool!.query('SELECT * FROM tenants WHERE _id = ?', [id]);
+						const result = (rows as Record<string, unknown>[])[0];
+						return utils.parseJsonField(result, ['quota', 'usage', 'settings']) as unknown as Tenant;
+					}, 'TENANT_CREATE_FAILED'),
+				getById: async (tenantId: DatabaseId) =>
+					this.wrap(async () => {
+						const [rows] = await this.pool!.query('SELECT * FROM tenants WHERE _id = ?', [tenantId as string]);
+						const result = (rows as Record<string, unknown>[])[0];
+						if (!result) return null;
+						return utils.parseJsonField(result, ['quota', 'usage', 'settings']) as unknown as Tenant;
+					}, 'TENANT_GET_FAILED'),
+				update: async (tenantId: DatabaseId, data: any) =>
+					this.wrap(async () => {
+						const now = new Date();
+						const setClauses: string[] = ['updatedAt = ?'];
+						const values: unknown[] = [now];
+						for (const [key, value] of Object.entries(data)) {
+							if (key === '_id') continue;
+							setClauses.push(`\`${key}\` = ?`);
+							values.push(['quota', 'usage', 'settings'].includes(key) ? JSON.stringify(value) : value);
+						}
+						values.push(tenantId as string);
+						await this.pool!.query(`UPDATE tenants SET ${setClauses.join(', ')} WHERE _id = ?`, values);
+						const [rows] = await this.pool!.query('SELECT * FROM tenants WHERE _id = ?', [tenantId as string]);
+						const result = (rows as Record<string, unknown>[])[0];
+						return utils.parseJsonField(result, ['quota', 'usage', 'settings']) as unknown as Tenant;
+					}, 'TENANT_UPDATE_FAILED'),
+				delete: async (tenantId: DatabaseId) =>
+					this.wrap(async () => {
+						await this.pool!.query('DELETE FROM tenants WHERE _id = ?', [tenantId as string]);
+					}, 'TENANT_DELETE_FAILED'),
+				list: async (options?: PaginationOption) =>
+					this.wrap(async () => {
+						let query = 'SELECT * FROM tenants';
+						const params: unknown[] = [];
+						if (options?.limit) {
+							query += ' LIMIT ?';
+							params.push(options.limit);
+						}
+						if (options?.offset) {
+							query += ' OFFSET ?';
+							params.push(options.offset);
+						}
+						const [rows] = await this.pool!.query(query, params);
+						return (rows as Record<string, unknown>[]).map((r) => utils.parseJsonField(r, ['quota', 'usage', 'settings'])) as unknown as Tenant[];
+					}, 'TENANT_LIST_FAILED')
+			}
+		};
+
+		this.monitoring = {
+			performance: new PerformanceModule(this),
+			cache: new CacheModule(this),
+			getConnectionPoolStats: async () =>
+				this.wrap(async () => {
+					if (!this.pool) return { total: 0, active: 0, idle: 0, waiting: 0, avgConnectionTime: 0 };
+					return {
+						total: (this.pool as any)._allConnections?.length || 10,
+						active: (this.pool as any)._allConnections?.length - (this.pool as any)._freeConnections?.length || 0,
+						idle: (this.pool as any)._freeConnections?.length || 0,
+						waiting: (this.pool as any)._connectionQueue?.length || 0,
+						avgConnectionTime: 0
+					};
+				}, 'POOL_STATS_FAILED')
+		};
 	}
 
 	async connect(connection: string | import('mysql2/promise').PoolOptions, options?: unknown): Promise<DatabaseResult<void>>;

@@ -48,7 +48,7 @@ export class BatchModule {
 							if (!op.id) {
 								throw new Error('ID required for update operation');
 							}
-							res = await this.crud.update<T & BaseEntity>(op.collection, op.id, op.data as Partial<Omit<T & BaseEntity, 'createdAt' | 'updatedAt'>>);
+							res = await this.crud.update<T & BaseEntity>(op.collection, op.id, op.data as Partial<Omit<T & BaseEntity, '_id' | 'createdAt' | 'updatedAt'>>);
 							break;
 						case 'delete':
 							if (!op.id) {

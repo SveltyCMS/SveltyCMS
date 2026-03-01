@@ -47,7 +47,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 
 		if (id === 'root') {
 			// Root folder - get top-level folders and files
-			const folderResult = await dbAdapter.systemVirtualFolder.getByParentId(null);
+			const folderResult = await dbAdapter.system.virtualFolder.getByParentId(null);
 			folders = folderResult.success ? folderResult.data || [] : [];
 
 			const fileQuery = { virtualFolderId: null, ...tenantFilter } as any;
@@ -64,14 +64,14 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 			files = [...images, ...documents, ...audio, ...videos];
 		} else {
 			// Specific folder
-			const folderResult = await dbAdapter.systemVirtualFolder.getById(id as any);
+			const folderResult = await dbAdapter.system.virtualFolder.getById(id as any);
 			currentFolder = folderResult.success ? folderResult.data : null;
 
 			if (!currentFolder) {
 				throw error(404, 'Folder not found');
 			}
 
-			const subfolderResult = await dbAdapter.systemVirtualFolder.getByParentId(id as any);
+			const subfolderResult = await dbAdapter.system.virtualFolder.getByParentId(id as any);
 			folders = subfolderResult.success ? subfolderResult.data || [] : [];
 
 			const fileQuery = { virtualFolderId: id, ...tenantFilter } as any;
@@ -163,7 +163,7 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 		}
 
 		// Get the current folder to update its path
-		const currentResult = await dbAdapter.systemVirtualFolder.getById(id as any);
+		const currentResult = await dbAdapter.system.virtualFolder.getById(id as any);
 		if (!(currentResult.success && currentResult.data)) {
 			throw error(404, 'Folder not found');
 		}
@@ -173,7 +173,7 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 		// Build new path
 		let newPath = '';
 		if (currentFolder.parentId) {
-			const parentResult = await dbAdapter.systemVirtualFolder.getById(currentFolder.parentId as any);
+			const parentResult = await dbAdapter.system.virtualFolder.getById(currentFolder.parentId as any);
 			if (parentResult.success && parentResult.data) {
 				newPath = `${parentResult.data.path}/${name.trim()}`;
 			} else {
@@ -189,7 +189,7 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 			updatedAt: new Date().toISOString() as ISODateString
 		};
 
-		const result = await dbAdapter.systemVirtualFolder.update(id as any, updateData);
+		const result = await dbAdapter.system.virtualFolder.update(id as any, updateData);
 
 		if (!result.success) {
 			logger.error('Failed to update folder', { error: result.error });
@@ -234,7 +234,7 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
 		}
 
 		// Check if folder has children
-		const allFoldersResult = await dbAdapter.systemVirtualFolder.getAll();
+		const allFoldersResult = await dbAdapter.system.virtualFolder.getAll();
 		if (allFoldersResult.success && allFoldersResult.data) {
 			const hasChildren = allFoldersResult.data.some((f: SystemVirtualFolder) => f.parentId === id);
 			if (hasChildren) {
@@ -245,7 +245,7 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
 		// Check if folder has media files
 		// TODO: Add media file check when media is properly linked to folders
 
-		const result = await dbAdapter.systemVirtualFolder.delete(id as any);
+		const result = await dbAdapter.system.virtualFolder.delete(id as any);
 
 		if (!result.success) {
 			logger.error('Failed to delete folder', { error: result.error });

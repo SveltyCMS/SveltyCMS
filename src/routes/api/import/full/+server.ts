@@ -253,7 +253,7 @@ async function applyImport(importData: ExportData, options: ImportOptions, confl
 					// Intelligent merge
 					const mergedValue = mergeValues(conflict.current, conflict.import);
 					try {
-						await db.systemPreferences.set(key, mergedValue, 'system');
+						await db.system.preferences.set(key, mergedValue, 'system');
 						result.merged++;
 					} catch (error) {
 						result.errors.push({
@@ -269,7 +269,7 @@ async function applyImport(importData: ExportData, options: ImportOptions, confl
 
 			// No conflict or overwrite strategy
 			try {
-				await db.systemPreferences.set(key, value, 'system');
+				await db.system.preferences.set(key, value, 'system');
 				result.imported++;
 			} catch (error) {
 				result.errors.push({

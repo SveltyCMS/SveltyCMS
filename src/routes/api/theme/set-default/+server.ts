@@ -54,7 +54,7 @@ export const POST = apiHandler(async ({ request, locals }) => {
 		}
 
 		// Set the selected theme as the default in the database for the current tenant
-		await dbAdapter.themes.setDefault(themeId as unknown as DatabaseId);
+		await dbAdapter.system.themes.setDefault(themeId as unknown as DatabaseId);
 
 		// Invalidate theme cache to apply changes immediately
 		await themeManager.refresh();

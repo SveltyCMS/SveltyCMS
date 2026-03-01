@@ -85,7 +85,7 @@ export class ThemeManager {
 
 		try {
 			// Single optimized database call - get all themes at once
-			const allThemes = await this.db.themes.getAllThemes();
+			const allThemes = await this.db.system.themes.getAllThemes();
 
 			if (!Array.isArray(allThemes) || allThemes.length === 0) {
 				logger.warn('No themes found in database. Using DEFAULT_THEME fallback.');
@@ -141,7 +141,7 @@ export class ThemeManager {
 
 		try {
 			// Update database to set this theme as default
-			const setDefaultResult = await this.db.themes.setDefault(theme._id);
+			const setDefaultResult = await this.db.system.themes.setDefault(theme._id);
 
 			if (!setDefaultResult.success) {
 				throw new Error(setDefaultResult.error?.message || 'Failed to set theme as default');

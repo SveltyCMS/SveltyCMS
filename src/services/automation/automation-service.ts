@@ -81,14 +81,14 @@ class AutomationService {
 
 		try {
 			const db = await getDbAdapter();
-			if (!db) {
+			if (!db || !db.system) {
 				return [];
 			}
 
-			const result = await db.systemPreferences.get<AutomationFlow[]>('automations_config', 'system');
+			const result = await db.system.preferences.get<AutomationFlow[]>('automations_config', 'system');
 			this.flowsCache = result.success && Array.isArray(result.data) ? result.data : [];
 			this.cacheTimestamp = Date.now();
-			return this.flowsCache;
+			return this.flowsCache || [];
 		} catch (e) {
 			logger.error('Failed to load automation flows:', e);
 			return [];
@@ -104,8 +104,8 @@ class AutomationService {
 	/** Create or update a flow */
 	public async saveFlow(flow: Partial<AutomationFlow>): Promise<AutomationFlow> {
 		const db = await getDbAdapter();
-		if (!db) {
-			throw new Error('Database not available');
+		if (!db || !db.system) {
+			throw new Error('Database or system not available');
 		}
 
 		const current = await this.getFlows();
@@ -132,7 +132,7 @@ class AutomationService {
 			updated = [...current, savedFlow];
 		}
 
-		await db.systemPreferences.set('automations_config', updated, 'system');
+		await db.system.preferences.set('automations_config', updated, 'system');
 		this.flowsCache = updated;
 		this.cacheTimestamp = Date.now();
 
@@ -142,14 +142,14 @@ class AutomationService {
 	/** Delete a flow by ID */
 	public async deleteFlow(id: string): Promise<void> {
 		const db = await getDbAdapter();
-		if (!db) {
+		if (!db || !db.system) {
 			return;
 		}
 
 		const current = await this.getFlows();
 		const updated = current.filter((f) => f.id !== id);
 
-		await db.systemPreferences.set('automations_config', updated, 'system');
+		await db.system.preferences.set('automations_config', updated, 'system');
 		this.flowsCache = updated;
 		this.cacheTimestamp = Date.now();
 	}
@@ -476,8 +476,8 @@ class AutomationService {
 
 			// Persist stats update
 			const db = await getDbAdapter();
-			if (db) {
-				await db.systemPreferences.set('automations_config', this.flowsCache, 'system').catch(() => {});
+			if (db && db.system) {
+				await db.system.preferences.set('automations_config', this.flowsCache!, 'system').catch(() => {});
 			}
 		}
 	}

@@ -20,11 +20,11 @@ export const GET = apiHandler(async ({ locals, url }) => {
 	const sort = url.searchParams.get('sort') ?? 'createdAt';
 	const order = url.searchParams.get('order') ?? 'desc';
 
-	// Note: The current dbAdapter.websiteTokens.getAll() doesn't support filter parameter
+	// Note: The current dbAdapter.system.websiteTokens.getAll() doesn't support filter parameter
 	// Search/filter functionality would need to be added to the database adapter
 	// For now, we fetch all and can filter client-side if needed
 
-	const result = await dbAdapter.websiteTokens.getAll({
+	const result = await dbAdapter.system.websiteTokens.getAll({
 		limit,
 		skip: (page - 1) * limit,
 		sort,
@@ -59,14 +59,14 @@ export const POST = apiHandler(async ({ locals, request }) => {
 		throw new AppError('Token name is required', 400, 'MISSING_NAME');
 	}
 
-	const existingToken = await dbAdapter.websiteTokens.getByName(name);
+	const existingToken = await dbAdapter.system.websiteTokens.getByName(name);
 	if (existingToken.success && existingToken.data) {
 		throw new AppError('A token with this name already exists', 409, 'TOKEN_EXISTS');
 	}
 
 	const token = `sv_${crypto.randomBytes(24).toString('hex')}`;
 
-	const result = await dbAdapter.websiteTokens.create({
+	const result = await dbAdapter.system.websiteTokens.create({
 		name,
 		token,
 		updatedAt: new Date().toISOString() as import('@databases/db-interface').ISODateString,

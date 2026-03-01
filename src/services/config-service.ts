@@ -247,7 +247,7 @@ class ConfigService {
 
 	/** Checks for missing system settings required by config entities. */
 	private async checkForUnmetRequirements(source: Map<string, ConfigEntity>): Promise<Array<{ key: string; value?: unknown }>> {
-		if (!dbAdapter?.systemPreferences) {
+		if (!dbAdapter?.system.preferences) {
 			throw new Error('System preferences adapter unavailable.');
 		}
 
@@ -258,7 +258,7 @@ class ConfigService {
 			}
 
 			for (const req of entity._requiredSettings) {
-				const result = await dbAdapter.systemPreferences.get(req.key, 'system');
+				const result = await dbAdapter.system.preferences.get(req.key, 'system');
 				if (!(result.success && result.data)) {
 					unmet.push(req);
 				}

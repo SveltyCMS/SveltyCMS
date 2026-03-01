@@ -181,8 +181,8 @@ export async function loadSettingsFromDB(criticalOnly = false): Promise<boolean>
 
 		// Parallel load of tiered settings
 		const [settingsResult, privateDynResult] = await Promise.all([
-			dbAdapter.systemPreferences.getMany(keysToLoad, 'system'),
-			privateKeys.length > 0 ? dbAdapter.systemPreferences.getMany(privateKeys, 'system') : Promise.resolve({ success: true, data: {} })
+			dbAdapter.system.preferences.getMany(keysToLoad, 'system'),
+			privateKeys.length > 0 ? dbAdapter.system.preferences.getMany(privateKeys, 'system') : Promise.resolve({ success: true, data: {} })
 		]);
 
 		logger.debug('Settings fetch results received', {
@@ -301,7 +301,7 @@ async function initializeDefaultTheme(): Promise<void> {
 			await dbAdapter.ensureSystem();
 		}
 
-		await dbAdapter.themes.ensure(DEFAULT_THEME);
+		await dbAdapter.system.themes.ensure(DEFAULT_THEME);
 		logger.debug('Default SveltyCMS theme ensured');
 	} catch (err) {
 		// Log but don't fail - theme initialization is not critical for system startup
@@ -352,7 +352,7 @@ async function initializeVirtualFolders(): Promise<void> {
 	if (!dbAdapter) {
 		throw new Error('Cannot initialize virtual folders: dbAdapter is not available.');
 	}
-	if (!dbAdapter.systemVirtualFolder) {
+	if (!dbAdapter.system.virtualFolder) {
 		return;
 	}
 
@@ -367,7 +367,7 @@ async function initializeVirtualFolders(): Promise<void> {
 		}
 
 		const defaultMediaFolder = (await getPublicSetting('MEDIA_FOLDER')) || 'mediaFolder';
-		await dbAdapter.systemVirtualFolder.ensure({
+		await dbAdapter.system.virtualFolder.ensure({
 			name: defaultMediaFolder,
 			path: defaultMediaFolder,
 			order: 0,

@@ -57,7 +57,7 @@ export const GET = apiHandler(async ({ locals, url }) => {
 			if (!dbAdapter) {
 				throw new AppError('Database adapter not available', 500, 'DB_UNAVAILABLE');
 			}
-			const result = await dbAdapter.systemPreferences.getMany(multipleKeys, 'user', userId as any);
+			const result = await dbAdapter.system.preferences.getMany(multipleKeys, 'user', userId as any);
 			if (!result.success) {
 				throw new Error(result.message);
 			}
@@ -69,7 +69,7 @@ export const GET = apiHandler(async ({ locals, url }) => {
 			if (!dbAdapter) {
 				throw new AppError('Database adapter not available', 500, 'DB_UNAVAILABLE');
 			}
-			const result = await dbAdapter.systemPreferences.get(singleKey, 'user', userId as any);
+			const result = await dbAdapter.system.preferences.get(singleKey, 'user', userId as any);
 			if (!result.success) {
 				// Return a default value for layout preferences to prevent UI breakage
 				if (singleKey.startsWith('dashboard.layout.')) {
@@ -113,7 +113,7 @@ export const POST = apiHandler(async ({ request, locals }) => {
 				throw new AppError('Database adapter not available', 500, 'DB_UNAVAILABLE');
 			}
 			const { key, value } = singleResult.output;
-			const result = await dbAdapter.systemPreferences.set(key, value, 'user', userId as any);
+			const result = await dbAdapter.system.preferences.set(key, value, 'user', userId as any);
 			if (!result.success) {
 				throw new Error(result.message);
 			}
@@ -131,7 +131,7 @@ export const POST = apiHandler(async ({ request, locals }) => {
 				scope: 'user' as const,
 				userId: userId as any
 			}));
-			const result = await dbAdapter.systemPreferences.setMany(preferencesToSet);
+			const result = await dbAdapter.system.preferences.setMany(preferencesToSet);
 			if (!result.success) {
 				throw new Error(result.message);
 			}
@@ -183,7 +183,7 @@ export const DELETE = apiHandler(async ({ locals, url }) => {
 		if (!dbAdapter) {
 			throw new AppError('Database adapter not available', 500, 'DB_UNAVAILABLE');
 		}
-		const result = await dbAdapter.systemPreferences.delete(key, 'user', userId as any);
+		const result = await dbAdapter.system.preferences.delete(key, 'user', userId as any);
 		if (!result.success) {
 			// It might not be an error if the key didn't exist, but we log it just in case.
 			logger.warn(`Attempted to delete non-existent preference key '${key}' for user ${userId}`);

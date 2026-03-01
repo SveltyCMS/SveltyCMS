@@ -15,18 +15,28 @@ export class PluginSettingsService {
 	// Ensure the plugin_states collection exists
 	async initialize(): Promise<void> {
 		try {
-			const count = await this.dbAdapter.crud.count(this.COLLECTION);
+			const count = await this.dbAdapter.crud.count(this.COLLECTION, undefined, undefined, true);
 			if (!count.success) {
 				logger.info(`Creating ${this.COLLECTION} collection...`);
 				// Create by inserting and deleting a dummy record if createCollection not explicitly available
-				await this.dbAdapter.crud.insert(this.COLLECTION, {
-					pluginId: '__INIT__',
-					tenantId: 'system',
-					enabled: false
-				} as any);
-				await this.dbAdapter.crud.deleteMany(this.COLLECTION, {
-					pluginId: '__INIT__'
-				} as any);
+				await this.dbAdapter.crud.insert(
+					this.COLLECTION,
+					{
+						pluginId: '__INIT__',
+						tenantId: 'system',
+						enabled: false
+					} as any,
+					undefined,
+					true
+				);
+				await this.dbAdapter.crud.deleteMany(
+					this.COLLECTION,
+					{
+						pluginId: '__INIT__'
+					} as any,
+					undefined,
+					true
+				);
 			}
 		} catch (error) {
 			logger.error(`Failed to initialize ${this.COLLECTION}`, { error });
@@ -36,10 +46,14 @@ export class PluginSettingsService {
 	// Get state for a specific plugin and tenant
 	async getPluginState(pluginId: string, tenantId: string): Promise<PluginState | null> {
 		try {
-			const result = await this.dbAdapter.crud.findOne<PluginState>(this.COLLECTION, {
-				pluginId,
-				tenantId
-			} as any);
+			const result = await this.dbAdapter.crud.findOne<PluginState>(
+				this.COLLECTION,
+				{
+					pluginId,
+					tenantId
+				} as any,
+				{ bypassTenantCheck: true }
+			);
 
 			if (result.success && result.data) {
 				return result.data;
@@ -54,9 +68,13 @@ export class PluginSettingsService {
 	// Get all plugin states for a tenant
 	async getAllPluginStates(tenantId: string): Promise<PluginState[]> {
 		try {
-			const result = await this.dbAdapter.crud.findMany<PluginState>(this.COLLECTION, {
-				tenantId
-			} as any);
+			const result = await this.dbAdapter.crud.findMany<PluginState>(
+				this.COLLECTION,
+				{
+					tenantId
+				} as any,
+				{ bypassTenantCheck: true }
+			);
 			return result.success && result.data ? result.data : [];
 		} catch (error) {
 			logger.error(`Failed to get all plugin states for tenant ${tenantId}`, {
@@ -73,20 +91,31 @@ export class PluginSettingsService {
 
 			if (existing?._id) {
 				// Update
-				const updateResult = await this.dbAdapter.crud.update<PluginState>(this.COLLECTION, existing._id, {
-					enabled,
-					updatedAt: new Date(),
-					updatedBy: userId
-				} as any);
+				const updateResult = await this.dbAdapter.crud.update<PluginState>(
+					this.COLLECTION,
+					existing._id,
+					{
+						enabled,
+						updatedAt: new Date(),
+						updatedBy: userId
+					} as any,
+					undefined,
+					true
+				);
 				return updateResult.success;
 			}
 			// Insert
-			const insertResult = await this.dbAdapter.crud.insert<PluginState>(this.COLLECTION, {
-				pluginId,
-				tenantId,
-				enabled,
-				updatedBy: userId
-			} as any);
+			const insertResult = await this.dbAdapter.crud.insert<PluginState>(
+				this.COLLECTION,
+				{
+					pluginId,
+					tenantId,
+					enabled,
+					updatedBy: userId
+				} as any,
+				undefined,
+				true
+			);
 			return insertResult.success;
 		} catch (error) {
 			logger.error(`Failed to set plugin state for ${pluginId}`, { error });

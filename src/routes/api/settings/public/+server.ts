@@ -30,9 +30,9 @@ export const GET = async () => {
 	}
 
 	// 3. If DB is available, fetch overrides in a single batch query
-	if (dbAdapter?.systemPreferences) {
+	if (dbAdapter?.system.preferences) {
 		try {
-			const dbResult = await dbAdapter.systemPreferences.getMany(publicKeys);
+			const dbResult = await dbAdapter.system.preferences.getMany(publicKeys);
 
 			if (dbResult.success && dbResult.data) {
 				for (const key of publicKeys) {

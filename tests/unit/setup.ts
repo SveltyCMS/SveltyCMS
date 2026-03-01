@@ -47,6 +47,12 @@ const mockDbAdapter = {
 		get: mock(() => Promise.resolve({ success: true, data: [] })),
 		set: mock(() => Promise.resolve({ success: true }))
 	},
+	system: {
+		preferences: {
+			get: mock(() => Promise.resolve({ success: true, data: [] })),
+			set: mock(() => Promise.resolve({ success: true }))
+		}
+	},
 	crud: {
 		update: mock(() => Promise.resolve({ success: true }))
 	},

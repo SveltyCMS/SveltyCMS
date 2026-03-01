@@ -69,7 +69,7 @@ export const GET = apiHandler(async ({ locals, params }) => {
 			throw new AppError('Database not initialized', 500, 'DB_UNAVAILABLE');
 		}
 
-		const dbResult = await dbAdapter.systemPreferences.getMany(fieldKeys);
+		const dbResult = await dbAdapter.system.preferences.getMany(fieldKeys);
 
 		// 3. Overlay database values over defaults
 		if (dbResult.success && dbResult.data) {
@@ -230,7 +230,7 @@ export const PUT = apiHandler(async ({ request, locals, params }) => {
 			throw new AppError('Database not initialized', 500, 'DB_UNAVAILABLE');
 		}
 
-		const updateResult = await dbAdapter.systemPreferences.setMany(settingsArray);
+		const updateResult = await dbAdapter.system.preferences.setMany(settingsArray);
 
 		if (!updateResult.success) {
 			logger.error('Failed to update settings in database:', updateResult.error);
@@ -298,7 +298,7 @@ export const DELETE = apiHandler(async ({ locals, params }) => {
 		}
 
 		// Delete database overrides - settings will revert to seed defaults
-		const deleteResult = await dbAdapter.systemPreferences.deleteMany(keysToReset);
+		const deleteResult = await dbAdapter.system.preferences.deleteMany(keysToReset);
 
 		if (!deleteResult.success) {
 			logger.error('Failed to delete settings:', deleteResult.error);
