@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it } from 'bun:test';
-import RichTextWidget from '@src/widgets/core/rich-text';
+import RichTextWidget from '@widgets/core/rich-text';
 import { safeParse } from 'valibot';
 
 describe('RichText Widget - Validation', () => {

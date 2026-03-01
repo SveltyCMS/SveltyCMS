@@ -27,7 +27,7 @@ export function safeQuery<T extends Record<string, any>>(query: T, tenantId?: st
 	const privateEnv = getPrivateEnv();
 	
 	// 2. Skip if Multi-Tenancy is disabled
-	const isMultiTenant = (privateEnv as any)?.MULTI_TENANT === true || (privateEnv as any)?.MULTI_TENANT === 'true';
+	const isMultiTenant = privateEnv?.MULTI_TENANT === true || String(privateEnv?.MULTI_TENANT) === 'true';
 	if (!isMultiTenant) {
 		return query;
 	}
