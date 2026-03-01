@@ -47,8 +47,8 @@ export default createWidget({
 	Description: 'A custom widget example',
 
 	// Component Paths
-	inputComponentPath: '/src/widgets/custom/my-widget/input.svelte',
-	displayComponentPath: '/src/widgets/custom/my-widget/display.svelte',
+	inputComponentPath: ' $args[0].Value.ToLower() ',
+	displayComponentPath: ' $args[0].Value.ToLower() ',
 
 	// Validation Schema (Valibot)
 	validationSchema: (field) => {

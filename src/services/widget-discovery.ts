@@ -162,7 +162,7 @@ export class WidgetDiscoveryService {
 
 		try {
 			// Scan core widgets
-			const coreModules = import.meta.glob<WidgetModule>('/src/widgets/core/*/index.ts', { eager: true });
+			const coreModules = import.meta.glob<WidgetModule>('/src/widgets/core/**/index.ts', { eager: true });
 			for (const [path, module] of Object.entries(coreModules)) {
 				const widget = this.processModule(path, module, 'core');
 				if (widget) {
@@ -171,7 +171,7 @@ export class WidgetDiscoveryService {
 			}
 
 			// Scan custom widgets
-			const customModules = import.meta.glob<WidgetModule>('/src/widgets/custom/*/index.ts', { eager: true });
+			const customModules = import.meta.glob<WidgetModule>('/src/widgets/custom/**/index.ts', { eager: true });
 			for (const [path, module] of Object.entries(customModules)) {
 				const widget = this.processModule(path, module, 'custom');
 				if (widget) {

@@ -33,8 +33,8 @@ const SelectWidget = createWidget<SelectProps>({
 	Description: widget_radio_description(), // Reusing radio description for now
 
 	// Define paths to the dedicated Svelte components.
-	inputComponentPath: '/src/widgets/core/select/input.svelte',
-	displayComponentPath: '/src/widgets/core/select/display.svelte',
+	inputComponentPath: ' $args[0].Value.ToLower() ',
+	displayComponentPath: ' $args[0].Value.ToLower() ',
 
 	// Assign the dynamic validation schema.
 	validationSchema,

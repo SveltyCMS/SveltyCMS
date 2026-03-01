@@ -208,7 +208,7 @@ describe('Collection Builder Widget Integration', () => {
 				Name: 'TextInput',
 				Icon: 'text-icon',
 				Description: 'Text input widget',
-				inputComponentPath: '/src/widgets/core/input/Input.svelte',
+				inputComponentPath: '/src/widgets/core/input/input.svelte',
 				validationSchema: {},
 				GuiSchema: {
 					properties: {
@@ -254,7 +254,7 @@ describe('Collection Builder Widget Integration', () => {
 			expect(fieldInstance.placeholder).toBe('Enter article title');
 			expect(fieldInstance.maxlength).toBe(100);
 			expect(fieldInstance.widget.Name).toBe('TextInput');
-			expect(fieldInstance.widget.inputComponentPath).toBe('/src/widgets/core/input/Input.svelte');
+			expect(fieldInstance.widget.inputComponentPath).toBe('/src/widgets/core/input/input.svelte');
 		});
 
 		test('should validate field configuration', () => {

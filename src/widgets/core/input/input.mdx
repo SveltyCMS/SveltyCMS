@@ -1,0 +1,318 @@
+---
+path: 'src/widgets/core/Input/input.mdx'
+title: 'Text Input Widget'
+description: 'A foundational widget for handling multilingual text input with validation, prefixes, suffixes, and character counting.'
+order: 1
+icon: 'mdi:form-textbox'
+author: 'admin'
+created: '2025-01-01'
+updated: '2026-02-03'
+tags:
+  - 'widget'
+  - 'input'
+  - 'text'
+  - 'validation'
+  - 'core'
+---
+
+# Text Input Widget
+
+The **Input Widget** is the fundamental building block for text-based content in SveltyCMS. It is strictly specialized for standard text strings.
+
+> [!NOTE]
+> For specific data formats like Email, Phone, or Numbers, please use their respective dedicated widgets defined in `src/widgets/custom/`.
+
+---
+
+## Architecture
+
+The following diagram illustrates the data flow, sanitization, and storage logic:
+
+```mermaid
+graph TD
+    User[User Input] --> Sanitize[Sanitization]
+    Sanitize -->|Remove zero-width chars| Normalize[Unicode Normalization]
+    Normalize --> Update[Update Local State]
+
+    subgraph Validation Logic
+        Update -->|Debounced| Validate[Valibot Schema]
+        Config[Field Config] -->|Generates| Schema[Validation Schema]
+        Schema --> Validate
+    end
+
+    subgraph Data Storage
+        Update -->|Translated| LangObj[Language Object]
+        Update -->|Raw| RawString[String Value]
+    end
+
+    Validate -->|Error| ErrorStore[Validation Store]
+    Validate -->|Success| Valid[Valid State]
+
+    ErrorStore --> UI[UI Feedback]
+    Data Storage --> UI
+```
+
+---
+
+## Component Structure
+
+The widget follows the **Three Pillars Architecture**:
+
+| Component      | Path                                     | Purpose                                             |
+| -------------- | ---------------------------------------- | --------------------------------------------------- |
+| **Definition** | ` $args[0].Value.ToLower()        | Widget configuration, validation schema, GUI schema |
+| **Input**      | ` $args[0].Value.ToLower()    | User input component with validation                |
+| **Display**    | ` $args[0].Value.ToLower()  | Read-only display of stored values                  |
+
+---
+
+## Configuration Options
+
+Configure the widget in your collection schema:
+
+| Field          | Widget             | Description                                      | Required |
+| -------------- | ------------------ | ------------------------------------------------ | -------- |
+| `label`        | Input              | Display label for the field                      | ✅       |
+| `db_fieldName` | Input              | Database field name                              |          |
+| `required`     | Toggles            | Make field mandatory (min length 1)              |          |
+| `translated`   | Toggles            | Enable multilingual storage (Default: `true`)    |          |
+| `icon`         | IconifyIconsPicker | Display icon for the field                       |          |
+| `helper`       | Input              | Helper text shown below the input                |          |
+| `width`        | Input              | Field width in the admin grid (e.g. `"50%"`)     |          |
+| `permissions`  | PermissionsSetting | Access control per role                          |          |
+| `placeholder`  | Input              | Placeholder text inside the input                |          |
+| `minLength`    | Input              | Minimum character length required                |          |
+| `maxLength`    | Input              | Maximum character length allowed                 |          |
+| `prefix`       | Input              | Visual text to display before input              |          |
+| `suffix`       | Input              | Visual text to display after input               |          |
+| `count`        | Input              | Expected character count (shows distinct visual) |          |
+
+---
+
+## Data Structure
+
+The storage format depends on the `translated` setting.
+
+### Translated (Default)
+
+```json
+{
+	"title": {
+		"en": "Hello World",
+		"de": "Hallo Welt",
+		"fr": "Bonjour le monde"
+	}
+}
+```
+
+### Non-Translated
+
+```json
+{
+	"slug": "hello-world"
+}
+```
+
+---
+
+## Usage Examples
+
+### Basic Title Field
+
+Standard configuration for a page title with character limits.
+
+```typescript
+{
+  widget: InputWidget,
+  label: "Page Title",
+  db_fieldName: "title",
+  required: true,
+  translated: true,
+  placeholder: "Enter the page title",
+  minLength: 5,
+  maxLength: 100
+}
+```
+
+### Slug / Identifier
+
+For technical IDs or URLs where translation is disabled.
+
+```typescript
+{
+  widget: InputWidget,
+  label: "URL Slug",
+  db_fieldName: "slug",
+  translated: false,
+  required: true,
+  prefix: "/",
+  helper: "URL-friendly identifier"
+}
+```
+
+### Contextual Display (Price)
+
+Using prefixes and suffixes for visual context (Note: data is stored as a string).
+
+```typescript
+{
+  widget: InputWidget,
+  label: "Price Display",
+  prefix: "$",
+  suffix: "USD",
+  width: "50%",
+  translated: false
+}
+```
+
+---
+
+## Validation & Sanitization
+
+The widget includes built-in security and validation features:
+
+### Security Features
+
+| Feature                          | Description                                             |
+| -------------------------------- | ------------------------------------------------------- |
+| **Zero-width Character Removal** | Strips `\u200B-\u200D\uFEFF` to prevent spoofing        |
+| **Unicode Normalization**        | Applies NFKC normalization to prevent homograph attacks |
+| **Length Protection**            | Truncates input > 100KB to prevent ReDoS attacks        |
+| **Automatic Trimming**           | Trims whitespace from start and end                     |
+
+### Validation Schema Generation
+
+The `createValidationSchema` function dynamically builds Valibot schemas:
+
+```typescript
+// From index.ts - SSOT for validation
+export const createValidationSchema = (field) => {
+	const stringRules = [transform((s) => s.trim())];
+
+	if (field.required) stringRules.push(minLength(1, 'This field is required.'));
+	if (field.minLength) stringRules.push(minLength(field.minLength, `Must be at least ${field.minLength} characters.`));
+	if (field.maxLength) stringRules.push(maxLength(field.maxLength, `Must be no more than ${field.maxLength} characters.`));
+
+	// For translated fields, use record<string, string>
+	if (field.translated) return optional(record(string(), string()), {});
+
+	return field.required ? schema : optional(schema, '');
+};
+```
+
+### Validation Behavior
+
+- **On Input**: Validation is debounced (300ms)
+- **On Blur**: Immediate validation when field loses focus
+- **Touch State**: Errors only show after user interaction
+- **Visual Feedback**: Error styling and validation spinner
+
+---
+
+## Database Aggregations
+
+The widget provides built-in MongoDB aggregation logic:
+
+### Filtering
+
+Performs case-insensitive regex search on the language-specific key:
+
+```typescript
+filters: async ({ field, filter, contentLanguage }) => [
+	{ $match: { [`${field.db_fieldName}.${contentLanguage}`]: { $regex: filter, $options: 'i' } } }
+];
+```
+
+### Sorting
+
+Sorts alphabetically based on the current content language:
+
+```typescript
+sorts: async ({ field, sortDirection, contentLanguage }) => ({
+	[`${field.db_fieldName}.${contentLanguage}`]: sortDirection
+});
+```
+
+---
+
+## Best Practices
+
+1. **Use Placeholders**: Provide example values in placeholder text to guide the user.
+2. **Set Reasonable Constraints**: Don't over-constrain with `minLength`/`maxLength` unless necessary.
+3. **Consider Translation**: Keep `translated: true` (default) unless data is technically invariant (slug, ID, SKU).
+4. **Use Helper Text**: Explain why the field is needed or specific format requirements.
+5. **Security First**: Input is automatically sanitized, but always validate server-side too.
+
+---
+
+## Troubleshooting
+
+### Validation Not Working
+
+- Verify `minLength` and `maxLength` values are numbers, not strings.
+- If using `required: true`, ensure the field isn't explicitly set to `null` in the database.
+- Check browser console for Valibot validation errors.
+
+### Translation Issues
+
+- Confirm `translated: true` is set in the field config.
+- Check that the system's `contentLanguage` matches the keys in your data object.
+- Verify data structure is an object `{ "en": "val" }` and not a flat string `"val"`.
+
+### Database Queries Failing
+
+- Ensure `db_fieldName` matches your query exactly.
+- Remember that sorting relies on the current content language context.
+- Ensure your API request includes the `lang` parameter.
+
+---
+
+## API Reference
+
+### InputProps Interface
+
+```typescript
+interface InputProps {
+	// Basic UI
+	placeholder?: string;
+	prefix?: string;
+	suffix?: string;
+
+	// Constraints
+	count?: number; // Target character count
+	minLength?: number;
+	maxLength?: number;
+
+	// Standard Widget Props
+	label: string;
+	db_fieldName?: string;
+	required?: boolean;
+	translated?: boolean;
+	icon?: string;
+	helper?: string;
+	width?: string;
+	permissions?: PermissionConfig;
+}
+```
+
+### Exported Functions
+
+```typescript
+// Validation schema generator - use in custom components
+export const createValidationSchema: (field: FieldType) => BaseSchema;
+
+// Widget factory function
+export default InputWidget;
+
+// Type exports
+export type FieldType = ReturnType<typeof InputWidget>;
+export type InputWidgetData = ValibotInput<ReturnType<typeof createValidationSchema>>;
+```
+
+---
+
+## Related Widgets
+
+- [Email Widget]( $args[0].Value.ToLower() ) - For email addresses with format validation
+- [Number Widget]( $args[0].Value.ToLower() ) - For numeric values with min/max constraints
+- [PhoneNumber Widget]( $args[0].Value.ToLower() ) - For phone numbers with E.164 validation

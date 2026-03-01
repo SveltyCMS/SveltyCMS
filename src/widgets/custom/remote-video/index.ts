@@ -66,8 +66,8 @@ const RemoteVideoWidget = createWidget({
 	Name: 'RemoteVideo',
 	Icon: 'mdi:video-vintage',
 	Description: widget_remoteVideo_description(),
-	inputComponentPath: '/src/widgets/custom/RemoteVideo/Input.svelte',
-	displayComponentPath: '/src/widgets/custom/RemoteVideo/Display.svelte',
+	inputComponentPath: ' $args[0].Value.ToLower() ',
+	displayComponentPath: ' $args[0].Value.ToLower() ',
 	validationSchema,
 
 	// Set widget-specific defaults.

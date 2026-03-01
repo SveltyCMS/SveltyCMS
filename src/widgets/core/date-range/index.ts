@@ -48,8 +48,8 @@ const DateRangeWidget = createWidget<DateRangeProps>({
 	Description: widget_dateRange_description(),
 
 	// Define paths to the dedicated Svelte components.
-	inputComponentPath: '/src/widgets/core/DateRange/Input.svelte',
-	displayComponentPath: '/src/widgets/core/DateRange/Display.svelte',
+	inputComponentPath: ' $args[0].Value.ToLower() ',
+	displayComponentPath: ' $args[0].Value.ToLower() ',
 
 	// Assign the validation schema.
 	validationSchema: DATE_RANGE_VALIDATION_SCHEMA,

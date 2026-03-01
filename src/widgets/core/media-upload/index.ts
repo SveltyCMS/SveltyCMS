@@ -48,8 +48,8 @@ const MediaWidget = createWidget<MediaProps>({
 	Name: 'MediaUpload',
 	Icon: 'mdi:image-multiple',
 	Description: widget_media_description(),
-	inputComponentPath: '/src/widgets/core/MediaUpload/Input.svelte',
-	displayComponentPath: '/src/widgets/core/MediaUpload/Display.svelte',
+	inputComponentPath: ' $args[0].Value.ToLower() ',
+	displayComponentPath: ' $args[0].Value.ToLower() ',
 	validationSchema: createValidationSchema,
 
 	// Set widget-specific defaults.

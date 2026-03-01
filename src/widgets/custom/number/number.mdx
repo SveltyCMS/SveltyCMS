@@ -1,0 +1,640 @@
+---
+path: 'src/widgets/custom/Number/number.mdx'
+title: 'Number Widget'
+description: 'Numeric input widget with proper number type storage and range validation.'
+order: 2
+icon: 'mdi:numeric'
+author: 'admin'
+created: '2025-10-01'
+updated: '2026-02-03'
+tags:
+  - 'widget'
+  - 'number'
+  - 'form'
+  - 'validation'
+  - 'custom'
+---
+
+# Number Widget
+
+The **Number Widget** is a specialized input component designed exclusively for numeric data entry. It stores values as actual number types (not strings), provides numeric range validation, and offers locale-aware formatting for an optimal user experience.
+
+## Overview
+
+The Number widget is part of the SveltyCMS specialized widget collection and provides features specifically tailored for numeric input. Unlike the generic Input widget with text, it correctly stores data as number type and provides numeric-specific validation and controls.
+
+### Key Features
+
+- ✅ **Number Type Storage**: Stores data as actual `number` type for calculations and aggregations
+- ✅ **Non-Translatable**: Correctly treats numbers as universal values (not language-specific)
+- ✅ **Semantic HTML**: Uses `type="number"` for proper mobile keyboards
+- ✅ **Range Validation**: Min/max value constraints with clear error messages
+- ✅ **Step Controls**: Configurable increment/decrement behavior
+- ✅ **Locale-Aware Formatting**: Respects user's number formatting preferences
+- ✅ **Prefix/Suffix Support**: Add units or currency symbols
+- ✅ **Enhanced Validation**: Integration with validation store
+- ✅ **Mobile Optimized**: Numeric keyboard layout on mobile devices
+- ✅ **Accessibility**: Full ARIA support and semantic HTML
+
+## When to Use
+
+**Use the Number widget for:**
+
+- Prices, quantities, and measurements
+- Age, weight, height fields
+- Ratings, scores, and counts
+- Any numeric value that needs calculations
+- Database aggregations (sum, average, min, max)
+
+**Don't use for:**
+
+- Phone numbers (use PhoneNumber widget - they're strings with special formatting)
+- ZIP codes (use Input widget - they can have leading zeros)
+- Credit card numbers (use Input widget - too large for number type)
+- Product codes (use Input widget - may contain letters or special chars)
+
+## Configuration
+
+### Basic Setup
+
+```typescript
+import widgets from '@widgets';
+
+widgets.Number({
+	label: 'Quantity',
+	db_fieldName: 'quantity',
+	required: true,
+	min: 1,
+	max: 100
+});
+```
+
+### With Step Controls
+
+```typescript
+widgets.Number({
+	label: 'Price',
+	db_fieldName: 'price',
+	min: 0,
+	step: 0.01, // Allows decimals
+	prefix: '$',
+	required: true
+});
+```
+
+### With Units
+
+```typescript
+widgets.Number({
+	label: 'Height',
+	db_fieldName: 'height',
+	min: 0,
+	max: 300,
+	prefix: 'Height:',
+	suffix: 'cm',
+	required: true
+});
+```
+
+## Properties
+
+### Required Properties
+
+| Property | Type     | Description                 |
+| -------- | -------- | --------------------------- |
+| `label`  | `string` | Display label for the field |
+
+### Optional Properties
+
+| Property       | Type      | Default        | Description                                 |
+| -------------- | --------- | -------------- | ------------------------------------------- |
+| `db_fieldName` | `string`  | auto-generated | Database field name                         |
+| `required`     | `boolean` | `false`        | Whether the field is required               |
+| `min`          | `number`  | -              | Minimum allowed value                       |
+| `max`          | `number`  | -              | Maximum allowed value                       |
+| `step`         | `number`  | `1`            | Step increment for spinner controls         |
+| `prefix`       | `string`  | -              | Text displayed before the input (e.g., "$") |
+| `suffix`       | `string`  | -              | Text displayed after the input (e.g., "kg") |
+| `placeholder`  | `string`  | `db_fieldName` | Placeholder text                            |
+| `readonly`     | `boolean` | `false`        | Make field read-only                        |
+| `disabled`     | `boolean` | `false`        | Disable the field                           |
+| `icon`         | `string`  | -              | Iconify icon name                           |
+| `width`        | `number`  | -              | Column width (1-12)                         |
+| `helper`       | `string`  | -              | Helper text displayed below                 |
+
+### Fixed Properties
+
+These properties are set automatically and cannot be changed:
+
+| Property     | Value    | Reason                            |
+| ------------ | -------- | --------------------------------- |
+| `translated` | `false`  | Numbers are not language-specific |
+| `inputType`  | `number` | HTML5 number input type           |
+
+## Validation
+
+The Number widget provides comprehensive numeric validation:
+
+### Validation Rules
+
+1. **Required Validation**: Ensures non-null value when `required: true`
+2. **Min Value Validation**: Ensures value >= `min` if specified
+3. **Max Value Validation**: Ensures value <= `max` if specified
+4. **Number Type Validation**: Ensures input is a valid number
+
+### Validation Messages
+
+```typescript
+// Required field error
+'This field is required';
+
+// Below minimum
+'Value must be at least {min}';
+
+// Above maximum
+'Value must not exceed {max}';
+
+// Invalid format
+'Value must be a number';
+```
+
+### Validation Behavior
+
+- **On Input**: Validation is debounced (300ms) to prevent excessive checks
+- **On Blur**: Immediate validation when field loses focus
+- **Touch State**: Errors only show after user has interacted with the field
+- **Visual Feedback**: Blue border with spinner during validation, red border on error
+
+## Data Structure
+
+### Storage Format
+
+Numbers are stored as actual number type in the default language:
+
+```typescript
+{
+	en: 42; // Stored as number, not string "42"
+}
+```
+
+### Why Number Type?
+
+Storing as number type enables:
+
+- **Calculations**: Sum, average, multiply without parsing
+- **Database operations**: Numeric comparisons and aggregations
+- **Sorting**: Proper numeric sorting (not lexicographic)
+- **Type safety**: TypeScript knows it's a number
+- **Performance**: No string-to-number conversion needed
+
+### Example Comparisons
+
+```typescript
+// As number (correct)
+{
+	en: 100;
+} // Greater than 20
+{
+	en: 5;
+} // Less than 100
+
+// As string (incorrect)
+{
+	en: '100';
+} // "100" < "20" (lexicographic!)
+{
+	en: '5';
+} // "5" > "100" (lexicographic!)
+```
+
+## Locale-Aware Formatting
+
+The Number widget respects the user's locale for number formatting:
+
+### Decimal Separators
+
+```typescript
+// English (US): 1,234.56
+// German: 1.234,56
+// French: 1 234,56
+```
+
+### Implementation
+
+The widget automatically:
+
+1. Detects user's locale from `contentLanguage`
+2. Parses input using locale-specific decimal separator
+3. Formats display using `Intl.NumberFormat`
+4. Stores as standard JavaScript number
+
+## Examples
+
+### Product Quantity
+
+```typescript
+widgets.Number({
+	label: 'Quantity',
+	db_fieldName: 'quantity',
+	required: true,
+	min: 1,
+	max: 999,
+	step: 1,
+	icon: 'mdi:package',
+	helper: 'How many units to order'
+});
+```
+
+### Product Price
+
+```typescript
+widgets.Number({
+	label: 'Price',
+	db_fieldName: 'price',
+	required: true,
+	min: 0,
+	step: 0.01,
+	prefix: '$',
+	placeholder: '0.00',
+	icon: 'mdi:currency-usd',
+	helper: 'Product price in USD'
+});
+```
+
+### Person Age
+
+```typescript
+widgets.Number({
+	label: 'Age',
+	db_fieldName: 'age',
+	required: false,
+	min: 0,
+	max: 150,
+	step: 1,
+	suffix: 'years',
+	icon: 'mdi:cake-variant',
+	helper: 'Age in years'
+});
+```
+
+### Product Weight
+
+```typescript
+widgets.Number({
+	label: 'Weight',
+	db_fieldName: 'weight',
+	required: true,
+	min: 0,
+	step: 0.1,
+	suffix: 'kg',
+	icon: 'mdi:weight-kilogram',
+	helper: 'Product weight for shipping calculation'
+});
+```
+
+### Temperature
+
+```typescript
+widgets.Number({
+	label: 'Temperature',
+	db_fieldName: 'temperature',
+	required: false,
+	min: -273.15, // Absolute zero
+	max: 1000,
+	step: 0.1,
+	suffix: '°C',
+	icon: 'mdi:thermometer',
+	helper: 'Operating temperature'
+});
+```
+
+### Rating Score
+
+```typescript
+widgets.Number({
+	label: 'Rating',
+	db_fieldName: 'rating',
+	required: true,
+	min: 1,
+	max: 5,
+	step: 0.5,
+	suffix: '/ 5',
+	icon: 'mdi:star',
+	helper: 'Rate from 1 to 5 stars'
+});
+```
+
+## Mobile Experience
+
+### Numeric Keyboard
+
+The widget automatically triggers the numeric keyboard on mobile devices:
+
+- **Number pad**: Easy-to-tap large buttons
+- **Decimal key**: Available when `step` allows decimals
+- **Plus/minus**: For negative numbers
+- **No letters**: Only numeric input possible
+
+### Browser Support
+
+- iOS: Numeric keyboard with decimal point
+- Android: Numeric keypad layout
+- Desktop: Standard keyboard with spinner controls
+
+## Best Practices
+
+### Choosing min/max Values
+
+1. **Set realistic ranges**: Don't allow impossible values
+2. **Consider use case**: Age 0-150, quantity 1-999, etc.
+3. **Allow zero when appropriate**: Prices can be 0 for free items
+4. **Negative numbers**: Set `min` to negative value if needed
+
+### Step Configuration
+
+1. **Integers**: Use `step: 1` (default)
+2. **Money**: Use `step: 0.01` for cents
+3. **Decimals**: Use `step: 0.1` or `step: 0.01`
+4. **Fractions**: Use smallest needed increment
+
+### Prefix/Suffix Usage
+
+1. **Currency**: Use prefix for currency symbols ($, €, £)
+2. **Units**: Use suffix for measurements (kg, cm, px)
+3. **Context**: Use prefix for labels (Height:, Weight:)
+4. **Keep short**: Long prefix/suffix clutters the UI
+
+### User Experience
+
+1. **Clear labels**: Describe what the number represents
+2. **Helpful placeholders**: Show expected format (0.00)
+3. **Helper text**: Explain constraints and purpose
+4. **Reasonable defaults**: Pre-fill with sensible values
+
+### Accessibility
+
+1. **Use semantic HTML**: The widget uses `type="number"` automatically
+2. **Provide labels**: Always include a clear label
+3. **Error association**: Errors are automatically linked via ARIA
+4. **Keyboard navigation**: Fully keyboard accessible
+5. **Screen readers**: ARIA attributes describe constraints
+
+## Technical Details
+
+### HTML5 Number Input
+
+The widget uses native HTML5 number input:
+
+```html
+<input type="number" min="0" max="100" step="1" />
+```
+
+This provides:
+
+- Browser-native validation
+- Spinner controls (up/down arrows)
+- Appropriate mobile keyboard
+- Accessibility improvements
+
+### Valibot Schema
+
+The validation schema is generated dynamically:
+
+```typescript
+// Required number with range
+pipe(number('Value must be a number'), minValue(0, 'Value must be at least 0'), maxValue(100, 'Value must not exceed 100'));
+
+// Optional number
+optional(pipe(number('Value must be a number'), minValue(0, 'Value must be at least 0')));
+```
+
+### State Management
+
+Uses Svelte 5 runes for reactive state:
+
+```typescript
+$state: isTouched, isValidating, inputElement
+$derived: safeValue, validationError, validationSchemaFunc
+$effect: value initialization, cleanup
+```
+
+### Number Parsing
+
+The widget handles locale-specific parsing:
+
+```typescript
+function parseLocaleNumber(value: string, locale: string): number {
+	const decimalSeparator = getDecimalSeparator(locale);
+	const normalized = value.replace(new RegExp(`[^0-9${decimalSeparator}-]`, 'g'), '').replace(decimalSeparator, '.');
+	return parseFloat(normalized);
+}
+```
+
+## Database Aggregations
+
+The Number widget supports MongoDB aggregation operations:
+
+### Available Aggregations
+
+```typescript
+// Sum all prices
+{ $group: { _id: null, total: { $sum: "$price" } } }
+
+// Average rating
+{ $group: { _id: null, avgRating: { $avg: "$rating" } } }
+
+// Min/Max values
+{ $group: { _id: null, min: { $min: "$age" }, max: { $max: "$age" } } }
+
+// Count items in range
+{ $match: { quantity: { $gte: 10, $lte: 100 } } }
+```
+
+### Sorting
+
+```typescript
+// Ascending
+{
+	$sort: {
+		price: 1;
+	}
+}
+
+// Descending
+{
+	$sort: {
+		quantity: -1;
+	}
+}
+```
+
+## Comparison with Input Widget
+
+| Feature             | Number Widget    | Input Widget      |
+| ------------------- | ---------------- | ----------------- |
+| **Data Type**       | number           | string            |
+| **Translatable**    | ❌ false (fixed) | ✅ true (default) |
+| **HTML Type**       | number           | text              |
+| **Validation**      | Numeric range    | Length only       |
+| **Mobile Keyboard** | Numeric keypad   | Standard          |
+| **Calculations**    | Direct           | Need parsing      |
+| **Aggregations**    | Native           | String-based      |
+| **Sorting**         | Numeric          | Lexicographic     |
+
+## Migration Guide
+
+If you were using the Input widget with `inputType: 'number'`, migrate to the Number widget:
+
+### Before (Deprecated)
+
+```typescript
+// ❌ Old approach
+widgets.Input({
+	inputType: 'number',
+	label: 'Price',
+	db_fieldName: 'price',
+	minLength: 0, // Wrong property name!
+	maxLength: 1000, // Wrong property name!
+	translated: false // Had to remember this!
+});
+```
+
+### After (Recommended)
+
+```typescript
+// ✅ New approach
+widgets.Number({
+	label: 'Price',
+	db_fieldName: 'price',
+	min: 0, // Correct property
+	max: 1000, // Correct property
+	step: 0.01,
+	prefix: '$'
+	// translated: false is automatic
+});
+```
+
+### Data Migration
+
+If you have existing string data, convert to numbers:
+
+```typescript
+// Migration script
+db.collection.updateMany({}, [
+	{
+		$set: {
+			'price.en': { $toDouble: '$price.en' }
+		}
+	}
+]);
+```
+
+## Troubleshooting
+
+### Common Issues
+
+**Value shows as string**
+
+- Check you're using `widgets.Number()` not `widgets.Input()`
+- Verify data is stored as number type in database
+- Test with `typeof value === 'number'`
+
+**Validation not working**
+
+- Ensure `min`/`max` properties are numbers, not strings
+- Check field has proper `db_fieldName`
+- Verify validationStore is initialized
+
+**Locale formatting issues**
+
+- Check `contentLanguage` store is set correctly
+- Verify browser supports `Intl.NumberFormat`
+- Test with different locales
+
+**Decimal places not working**
+
+- Set `step: 0.01` or `step: 0.1`
+- Check min/max don't restrict decimals
+- Verify locale uses correct decimal separator
+
+**Spinner controls not showing**
+
+- This is browser-dependent (some browsers hide them)
+- Can be styled with CSS pseudo-elements
+- Mobile keyboards provide alternative input
+
+## Security Considerations
+
+### Input Validation
+
+1. **Client-side validation**: Provides user feedback
+2. **Server-side validation**: Always validate on backend
+3. **Type checking**: Verify value is actually a number
+4. **Range checking**: Enforce min/max on server
+5. **Precision limits**: Be aware of JavaScript number limits
+
+### JavaScript Number Limits
+
+```typescript
+Number.MAX_SAFE_INTEGER; // 9,007,199,254,740,991
+Number.MIN_SAFE_INTEGER; // -9,007,199,254,740,991
+```
+
+For larger numbers, use string storage or BigInt.
+
+## Related Widgets
+
+- [Input Widget]( $args[0].Value.ToLower() ) - For general text input
+- [Email Widget]( $args[0].Value.ToLower() ) - For email addresses
+- [PhoneNumber Widget]( $args[0].Value.ToLower() ) - For phone numbers
+- [Currency Widget]( $args[0].Value.ToLower() ) - For money with currency codes
+
+## API Reference
+
+### Widget Configuration
+
+```typescript
+type NumberProps = {
+	// Required
+	label: string;
+
+	// Optional
+	db_fieldName?: string;
+	required?: boolean;
+	min?: number;
+	max?: number;
+	step?: number;
+	prefix?: string;
+	suffix?: string;
+	placeholder?: string;
+	icon?: string;
+	width?: number;
+	helper?: string;
+	readonly?: boolean;
+	disabled?: boolean;
+
+	// Fixed (cannot be changed)
+	translated: false; // Always false for numbers
+};
+```
+
+### Component Props
+
+```typescript
+interface NumberInputProps {
+	field: FieldType;
+	value?: any; // Bindable
+}
+```
+
+## Support
+
+For questions, bug reports, or feature requests:
+
+- [GitHub Issues](https://github.com/Svelte-CMS/SveltyCMS/issues)
+- [Documentation](https://docs.sveltycms.dev)
+- [Discord Community](https://discord.gg/sveltycms)
+
+## Contributing
+
+Contributions are welcome! Please read our [Contributing Guide](https://github.com/Svelte-CMS/SveltyCMS/blob/main/CONTRIBUTING.md) before submitting PRs.

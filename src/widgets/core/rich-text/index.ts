@@ -77,8 +77,8 @@ const RichTextWidget = createWidget<RichTextProps>({
 	Description: widget_richText_description(),
 
 	// Define paths to the dedicated Svelte components.
-	inputComponentPath: '/src/widgets/core/RichText/Input.svelte',
-	displayComponentPath: '/src/widgets/core/RichText/Display.svelte',
+	inputComponentPath: ' $args[0].Value.ToLower() ',
+	displayComponentPath: ' $args[0].Value.ToLower() ',
 
 	// Assign the validation schema function.
 	validationSchema,

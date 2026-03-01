@@ -25,9 +25,9 @@ Welcome to the comprehensive SveltyCMS widget system documentation. The widget s
 | **[Architecture](./architecture.mdx)**                            | Deep dive into the Factory Pattern, Runtime Discovery, and Data Flow. |
 | **[Development Guide](./development.mdx)**                        | Practical tutorial for building, testing, and translating widgets.    |
 | **[Marketplace](./marketplace.mdx)**                              | Discovering, installing, and publishing widgets to the ecosystem.     |
-| **[Select Widget](../../src/widgets/core/select/README.mdx)**     | Standard dropdown selection widget.                                   |
-| **[Repeater Widget](../../src/widgets/core/repeater/README.mdx)** | Documentation for the core Repeater widget.                           |
-| **[Price Widget](../../src/widgets/custom/price/README.mdx)**     | Documentation for the custom Price widget.                            |
+| **[Select Widget](../.. $args[0].Value.ToLower() )**     | Standard dropdown selection widget.                                   |
+| **[Repeater Widget](../.. $args[0].Value.ToLower() )** | Documentation for the core Repeater widget.                           |
+| **[Price Widget](../.. $args[0].Value.ToLower() )**     | Documentation for the custom Price widget.                            |
 
 ---
 
@@ -108,8 +108,8 @@ export default createWidget({
 	Name: 'Rating',
 	Icon: 'mdi:star',
 	Description: '5-star rating widget',
-	inputComponentPath: '/src/widgets/custom/rating/input.svelte',
-	displayComponentPath: '/src/widgets/custom/rating/display.svelte',
+	inputComponentPath: ' $args[0].Value.ToLower() ',
+	displayComponentPath: ' $args[0].Value.ToLower() ',
 
 	// Validation
 	validationSchema: v.number([v.minValue(1), v.maxValue(5)]),

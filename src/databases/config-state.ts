@@ -57,7 +57,7 @@ export async function loadPrivateConfig(forceReload = false) {
 					// Use variable to hide from static analysis during build/check
 					const configAlias = '@config/private';
 					module = await import(/* @vite-ignore */ configAlias);
-				} catch (importErr) {
+				} catch (_importErr) {
 					// Fallback for build/check process where alias might not resolve
 					logger.debug('Could not resolve @config/private - system in setup mode');
 					return null;

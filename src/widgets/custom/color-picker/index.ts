@@ -42,8 +42,8 @@ const ColorPickerWidget = createWidget<ColorPickerProps>({
 	Name: 'ColorPicker',
 	Icon: 'ic:outline-colorize',
 	Description: widget_colorPicker_description(),
-	inputComponentPath: '/src/widgets/custom/ColorPicker/Input.svelte',
-	displayComponentPath: '/src/widgets/custom/ColorPicker/Display.svelte',
+	inputComponentPath: ' $args[0].Value.ToLower() ',
+	displayComponentPath: ' $args[0].Value.ToLower() ',
 	validationSchema,
 
 	// Set widget-specific defaults. A color is a universal value.

@@ -38,8 +38,8 @@ const MegaMenuWidget = createWidget({
 	Description: widget_megaMenu_description(),
 
 	// Define paths to the dedicated Svelte components.
-	inputComponentPath: '/src/widgets/core/megamenu/Input.svelte',
-	displayComponentPath: '/src/widgets/core/megamenu/Display.svelte',
+	inputComponentPath: ' $args[0].Value.ToLower() ',
+	displayComponentPath: ' $args[0].Value.ToLower() ',
 
 	// Assign the validation schema.
 	validationSchema: MEGA_MENU_VALIDATION_SCHEMA,
