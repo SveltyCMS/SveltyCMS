@@ -40,8 +40,6 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - name: Install dependencies
         run: bun install --frozen-lockfile
-      - name: Ensure Config
-        run: bun run scripts/ensure-config.ts
       - name: Sync SvelteKit
         run: bun x svelte-kit sync
       - name: Compile Paraglide
@@ -59,8 +57,6 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - name: Install dependencies
         run: bun install --frozen-lockfile
-      - name: Ensure Config
-        run: bun run scripts/ensure-config.ts
       - name: Compile Paraglide
         run: bun run paraglide
       - name: Sync SvelteKit

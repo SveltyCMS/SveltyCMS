@@ -218,6 +218,17 @@ mock.module('@src/databases/db', () => ({
 	initializeOnRequest: () => Promise.resolve()
 }));
 
+// Mock @src/databases/config-state
+mock.module('@src/databases/config-state', () => ({
+	privateEnv: (globalThis as any).privateEnv,
+	getPrivateEnv: () => (globalThis as any).privateEnv,
+	loadPrivateConfig: () => Promise.resolve((globalThis as any).privateEnv),
+	setPrivateEnv: (env: any) => {
+		(globalThis as any).privateEnv = env;
+	},
+	clearPrivateConfigCache: () => {}
+}));
+
 // Mock settingsService
 mock.module('@src/services/settingsService', () => ({
 	getPrivateSetting: mock(async () => true),
