@@ -673,40 +673,37 @@ The MongoDB adapter uses an optimized connection pool for enterprise-scale perfo
 ```typescript
 // File: src/databases/mongodb/mongodb-adapter.ts
 
-const enterpriseOptions: mongoose.ConnectOptions = {
-	// Connection Pool Settings (MongoDB 6.0+ optimized)
-	maxPoolSize: 50, // Maximum concurrent connections
-	minPoolSize: 10, // Maintain minimum pool for fast response
-	maxIdleTimeMS: 30000, // Close idle connections after 30s
+const connectOptions: mongoose.ConnectOptions = {
+	// Connection Pool Settings
+	maxPoolSize: 10, // Optimized for CMS workloads
+	minPoolSize: 2, // Maintain warm connections
 
 	// Performance Optimizations
-	compressors: ['zstd', 'snappy', 'zlib'], // Network compression
-	readPreference: 'primaryPreferred', // Balance consistency/availability
+	compressors: ['zstd', 'snappy'], // Wire compression: 40-60% bandwidth reduction
+	heartbeatFrequencyMS: 10000, // Faster topology detection for replica sets
 
 	// Timeout Settings
 	serverSelectionTimeoutMS: 5000, // Fail fast on connection issues
-	socketTimeoutMS: 45000, // Socket timeout for long queries
-	connectTimeoutMS: 10000, // Connection timeout
+	connectTimeoutMS: 5000, // Connection timeout
+	socketTimeoutMS: 45000, // Prevent zombie connections (45s idle timeout)
 
 	// Reliability Settings
 	retryWrites: true, // Auto-retry failed writes
-	retryReads: true, // Auto-retry failed reads
-	w: 'majority', // Write concern for data durability
-
-	// Monitoring
-	monitorCommands: process.env.NODE_ENV === 'development'
+	retryReads: true, // Auto-retry transient read failures
+	w: 'majority' // Write concern for data durability
 };
 ```
 
 ### Configuration Benefits
 
-| Feature             | Benefit                       | Impact               |
-| ------------------- | ----------------------------- | -------------------- |
-| `maxPoolSize: 50`   | Handle 50 concurrent requests | +500% concurrency    |
-| `minPoolSize: 10`   | Pre-warmed connections        | -90% connection time |
-| Network compression | 30-50% bandwidth savings      | -40% data transfer   |
-| `retryWrites/Reads` | Auto-retry on failures        | 99.9% reliability    |
-| `primaryPreferred`  | Balance read performance      | +20% read throughput |
+| Feature              | Benefit                          | Impact                 |
+| -------------------- | -------------------------------- | ---------------------- |
+| `maxPoolSize: 10`    | Balanced for CMS concurrency     | Efficient resource use |
+| `minPoolSize: 2`     | Pre-warmed connections           | Fast first query       |
+| Wire compression     | zstd + snappy (40-60% savings)   | -40-60% bandwidth      |
+| `retryWrites/Reads`  | Auto-retry on failures           | 99.9% reliability      |
+| `heartbeatFrequency` | 10s topology detection           | Fast failover          |
+| `socketTimeoutMS`    | 45s zombie connection prevention | No hanging queries     |
 
 ### Connection Pool Monitoring
 

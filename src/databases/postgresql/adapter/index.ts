@@ -21,7 +21,16 @@
  */
 
 import { sql } from 'drizzle-orm';
-import type { BaseEntity, DatabaseResult, DatabaseTransaction, IDBAdapter, QueryBuilder } from '../../db-interface';
+import type {
+	BaseEntity,
+	DatabaseId,
+	DatabaseResult,
+	DatabaseTransaction,
+	IDBAdapter,
+	PaginationOption,
+	QueryBuilder,
+	Tenant
+} from '../../db-interface';
 import { CollectionModule } from '../collection/collection-module';
 import { CrudModule } from '../crud/crud-module';
 import { runMigrations } from '../migrations';
@@ -43,20 +52,72 @@ import { AdapterCore } from './adapter-core';
 
 export class PostgreSQLAdapter extends AdapterCore implements IDBAdapter {
 	public readonly tenants = {
-		create: async () => {
-			throw new Error('Not implemented');
+		create: async (tenant: Omit<Tenant, '_id' | 'createdAt' | 'updatedAt'> & { _id?: DatabaseId }): Promise<DatabaseResult<Tenant>> => {
+			return this.wrap(async () => {
+				const id = (tenant._id || utils.generateId()) as string;
+				const now = new Date();
+				const result = await this.sql!`
+					INSERT INTO tenants (_id, name, "ownerId", status, plan, quota, usage, settings, "createdAt", "updatedAt")
+					VALUES (${id}, ${tenant.name}, ${tenant.ownerId}, ${tenant.status || 'active'}, ${tenant.plan || 'free'},
+						${JSON.stringify(tenant.quota || {})}::json, ${JSON.stringify(tenant.usage || {})}::json,
+						${JSON.stringify(tenant.settings || {})}::json, ${now}, ${now})
+					RETURNING *`;
+				return result[0] as unknown as Tenant;
+			}, 'TENANT_CREATE_FAILED');
 		},
-		getById: async () => {
-			throw new Error('Not implemented');
+		getById: async (tenantId: DatabaseId): Promise<DatabaseResult<Tenant | null>> => {
+			return this.wrap(async () => {
+				const result = await this.sql!`SELECT * FROM tenants WHERE _id = ${tenantId as string}`;
+				return (result[0] as unknown as Tenant) || null;
+			}, 'TENANT_GET_FAILED');
 		},
-		update: async () => {
-			throw new Error('Not implemented');
+		update: async (tenantId: DatabaseId, data: Partial<Omit<Tenant, 'createdAt' | 'updatedAt'>>): Promise<DatabaseResult<Tenant>> => {
+			return this.wrap(async () => {
+				const now = new Date();
+				const setClauses: string[] = ['"updatedAt" = $1'];
+				const values: unknown[] = [now];
+				let paramIdx = 2;
+				for (const [key, value] of Object.entries(data)) {
+					if (key === '_id') continue;
+					const quotedKey = key.includes(/[A-Z]/.test(key) ? '"' : '') ? `"${key}"` : key;
+					if (['quota', 'usage', 'settings'].includes(key)) {
+						setClauses.push(`${quotedKey} = $${paramIdx}::json`);
+						values.push(JSON.stringify(value));
+					} else {
+						setClauses.push(`${quotedKey} = $${paramIdx}`);
+						values.push(value);
+					}
+					paramIdx++;
+				}
+				values.push(tenantId as string);
+				// Use simple query approach
+				await this.sql!.unsafe(`UPDATE tenants SET ${setClauses.join(', ')} WHERE _id = $${paramIdx}`, values as never[]);
+				const result = await this.sql!`SELECT * FROM tenants WHERE _id = ${tenantId as string}`;
+				return result[0] as unknown as Tenant;
+			}, 'TENANT_UPDATE_FAILED');
 		},
-		delete: async () => {
-			throw new Error('Not implemented');
+		delete: async (tenantId: DatabaseId): Promise<DatabaseResult<void>> => {
+			return this.wrap(async () => {
+				await this.sql!`DELETE FROM tenants WHERE _id = ${tenantId as string}`;
+			}, 'TENANT_DELETE_FAILED');
 		},
-		list: async () => {
-			throw new Error('Not implemented');
+		list: async (options?: PaginationOption): Promise<DatabaseResult<Tenant[]>> => {
+			return this.wrap(async () => {
+				let query = 'SELECT * FROM tenants';
+				const params: unknown[] = [];
+				let paramIdx = 1;
+				if (options?.limit) {
+					query += ` LIMIT $${paramIdx}`;
+					params.push(options.limit);
+					paramIdx++;
+				}
+				if (options?.offset) {
+					query += ` OFFSET $${paramIdx}`;
+					params.push(options.offset);
+				}
+				const result = await this.sql!.unsafe(query, params as never[]);
+				return result as unknown as Tenant[];
+			}, 'TENANT_LIST_FAILED');
 		}
 	};
 	public readonly crud: CrudModule;
@@ -123,6 +184,23 @@ export class PostgreSQLAdapter extends AdapterCore implements IDBAdapter {
 			await this.db.execute(sql`CREATE SCHEMA public;`);
 			await this.db.execute(sql`GRANT ALL ON SCHEMA public TO public;`);
 		}, 'CLEAR_DATABASE_FAILED');
+	}
+
+	/**
+	 * Cleanup expired sessions and tokens (TTL-equivalent for SQL databases).
+	 * MongoDB handles this automatically via TTL indexes; SQL databases need manual cleanup.
+	 */
+	public async cleanupExpiredData(): Promise<DatabaseResult<{ sessions: number; tokens: number }>> {
+		return this.wrap(async () => {
+			const sessionResult = await this.sql!`DELETE FROM auth_sessions WHERE expires < CURRENT_TIMESTAMP`;
+			const tokenResult = await this.sql!`
+				DELETE FROM auth_tokens WHERE (expires < CURRENT_TIMESTAMP)
+				OR (consumed = TRUE AND "updatedAt" < CURRENT_TIMESTAMP - INTERVAL '24 hours')`;
+			return {
+				sessions: sessionResult.count,
+				tokens: tokenResult.count
+			};
+		}, 'CLEANUP_EXPIRED_DATA_FAILED');
 	}
 
 	public queryBuilder = <T extends BaseEntity>(collection: string): QueryBuilder<T> => {

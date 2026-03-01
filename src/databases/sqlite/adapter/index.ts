@@ -270,6 +270,31 @@ export class SQLiteAdapter extends AdapterCore implements IDBAdapter {
 		}, 'CLEAR_DATABASE_FAILED');
 	}
 
+	/**
+	 * Cleanup expired sessions and tokens (TTL-equivalent for SQL databases).
+	 * MongoDB handles this automatically via TTL indexes; SQL databases need manual cleanup.
+	 */
+	public async cleanupExpiredData(): Promise<DatabaseResult<{ sessions: number; tokens: number }>> {
+		return this.wrap(async () => {
+			const now = Date.now();
+			const dayAgo = now - 86400000; // 24 hours in ms
+			// Delete expired sessions
+			const execQuery = (q: string, params: unknown[]): number => {
+				if (this.sqlite.query) {
+					const result = this.sqlite.query(q).run(...params) as unknown;
+					return (result as { changes?: number })?.changes || 0;
+				} else if (this.sqlite.prepare) {
+					const result = this.sqlite.prepare(q).run(...params) as unknown;
+					return (result as { changes?: number })?.changes || 0;
+				}
+				return 0;
+			};
+			const sessions = execQuery('DELETE FROM auth_sessions WHERE expires < ?', [now]);
+			const tokens = execQuery('DELETE FROM auth_tokens WHERE (expires < ?) OR (consumed = 1 AND updatedAt < ?)', [now, dayAgo]);
+			return { sessions, tokens };
+		}, 'CLEANUP_EXPIRED_DATA_FAILED');
+	}
+
 	public queryBuilder = <T extends BaseEntity>(collection: string): QueryBuilder<T> => {
 		return new SQLiteQueryBuilder<T>(this, collection);
 	};

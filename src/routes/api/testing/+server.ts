@@ -5,7 +5,7 @@
  * STRICTLY GUARDED by TEST_MODE environment variable.
  */
 
-import { auth, dbAdapter } from '@src/databases/db';
+import { auth, dbAdapter, dbInitPromise } from '@src/databases/db';
 import { json, type RequestEvent } from '@sveltejs/kit';
 
 // Security Guard
@@ -19,8 +19,20 @@ export async function POST({ request }: RequestEvent) {
 	try {
 		checkTestMode();
 
+		// In TEST_MODE, the middleware (handleSystemState) bypasses initialization.
+		// We must ensure the database is initialized before proceeding.
 		if (!(dbAdapter && auth)) {
-			return json({ error: 'Database or Auth not initialized' }, { status: 503 });
+			// Wait for the lazy initialization promise to resolve
+			await dbInitPromise;
+		}
+
+		// Re-import after initialization (module-level `dbAdapter` may have been reassigned)
+		const db = await import('@src/databases/db');
+		const currentDbAdapter = db.dbAdapter;
+		const currentAuth = db.auth;
+
+		if (!(currentDbAdapter && currentAuth)) {
+			return json({ error: 'Database or Auth not initialized after init attempt' }, { status: 503 });
 		}
 
 		const body = await request.json();
@@ -28,16 +40,16 @@ export async function POST({ request }: RequestEvent) {
 
 		switch (action) {
 			case 'reset':
-				await dbAdapter.clearDatabase();
+				await currentDbAdapter.clearDatabase();
 				return json({ success: true, message: 'Database cleared' });
 
 			case 'seed': {
 				// Initialize default roles and permissions
-				if (dbAdapter.ensureAuth) {
-					await dbAdapter.ensureAuth();
+				if (currentDbAdapter.ensureAuth) {
+					await currentDbAdapter.ensureAuth();
 				}
-				if (dbAdapter.ensureSystem) {
-					await dbAdapter.ensureSystem();
+				if (currentDbAdapter.ensureSystem) {
+					await currentDbAdapter.ensureSystem();
 				}
 
 				// Seed Admin User
@@ -45,9 +57,9 @@ export async function POST({ request }: RequestEvent) {
 				const adminPassword = body.password || 'password123';
 
 				// Check if already exists
-				const existing = await auth.getUserByEmail({ email: adminEmail });
+				const existing = await currentAuth.getUserByEmail({ email: adminEmail });
 				if (!existing) {
-					await auth.createUser({
+					await currentAuth.createUser({
 						email: adminEmail,
 						password: adminPassword,
 						username: 'admin',
@@ -63,7 +75,7 @@ export async function POST({ request }: RequestEvent) {
 				if (!(email && password && role)) {
 					return json({ error: 'Missing fields' }, { status: 400 });
 				}
-				const user = await auth.createUser({
+				const user = await currentAuth.createUser({
 					email,
 					password,
 					username: username || email.split('@')[0],

@@ -46,6 +46,8 @@ This guide covers the **MariaDB-specific** implementation in SveltyCMS using Dri
 - CRUD operations and batch processing
 - System methods (virtual folders, preferences)
 - Theme & Widget management
+- Multi-tenant CRUD (tenants: create, getById, update, delete, list)
+- TTL cleanup (cleanupExpiredData: expired sessions and consumed tokens)
 
 ---
 
@@ -63,7 +65,7 @@ SveltyCMS uses **Drizzle ORM** for MariaDB, providing:
 
 ### Schema Design
 
-#### Relational Tables (13 total)
+#### Relational Tables (14 total)
 
 ```typescript
 // Authentication Tables
@@ -83,6 +85,7 @@ SveltyCMS uses **Drizzle ORM** for MariaDB, providing:
 	widgets - // Widget instances
 	system_preferences - // System/user settings
 	website_tokens; // API tokens
+tenants; // Multi-tenant management (name, owner, plan, quota, usage, settings)
 ```
 
 ---
@@ -582,6 +585,8 @@ The MariaDB adapter is optimized for relational data integrity and high-concurre
 - **Relational Efficiency**: Optimized schema with secondary indexes on `tenantId`, `status`, and `createdAt` ensures fast filtering even without cache hits.
 - **mysql2 Pooling**: Leverages the high-performance `mysql2` driver with pre-warmed connection pools for sub-millisecond handshake in high-traffic environments.
 - **Idempotent Migrations**: Automatic schema synchronization ensures zero-downtime updates and predictable deployment cycles.
+- **TTL-Equivalent Cleanup**: `cleanupExpiredData()` method purges expired sessions and consumed tokens — replicating MongoDB's TTL indexes for SQL.
+- **Multi-Tenant CRUD**: Full tenant lifecycle management (create, read, update, delete, list) with JSON serialization for quota/usage/settings.
 
 ---
 

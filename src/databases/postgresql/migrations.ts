@@ -337,7 +337,37 @@ async function createTablesIfNotExist(sql: postgres.Sql): Promise<void> {
 		)`,
 		`CREATE INDEX IF NOT EXISTS plugin_migrations_plugin_idx ON plugin_migrations ("pluginId")`,
 		`CREATE INDEX IF NOT EXISTS plugin_migrations_tenant_idx ON plugin_migrations ("tenantId")`,
-		`CREATE UNIQUE INDEX IF NOT EXISTS plugin_migrations_unique ON plugin_migrations ("pluginId", "migrationId", "tenantId")`
+		`CREATE UNIQUE INDEX IF NOT EXISTS plugin_migrations_unique ON plugin_migrations ("pluginId", "migrationId", "tenantId")`,
+
+		// Tenants
+		`CREATE TABLE IF NOT EXISTS tenants (
+			"_id" VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid()::text,
+			"name" VARCHAR(255) NOT NULL,
+			"ownerId" VARCHAR(36) NOT NULL,
+			"status" VARCHAR(20) NOT NULL DEFAULT 'active',
+			"plan" VARCHAR(20) NOT NULL DEFAULT 'free',
+			"quota" JSONB NOT NULL DEFAULT '{}',
+			"usage" JSONB NOT NULL DEFAULT '{}',
+			"settings" JSONB DEFAULT '{}',
+			"createdAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			"updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+		)`,
+		'CREATE INDEX IF NOT EXISTS tenants_name_idx ON tenants (name)',
+		`CREATE INDEX IF NOT EXISTS tenants_owner_idx ON tenants ("ownerId")`,
+
+		// ── GIN Indexes on high-query JSONB columns ──
+		// Enables @>, ?, ?| operators for efficient containment/existence queries
+		'CREATE INDEX IF NOT EXISTS content_nodes_data_gin ON content_nodes USING gin (data)',
+		'CREATE INDEX IF NOT EXISTS content_nodes_metadata_gin ON content_nodes USING gin (metadata)',
+		'CREATE INDEX IF NOT EXISTS media_items_metadata_gin ON media_items USING gin (metadata)',
+		'CREATE INDEX IF NOT EXISTS roles_permissions_gin ON roles USING gin (permissions)',
+		`CREATE INDEX IF NOT EXISTS auth_users_roleIds_gin ON auth_users USING gin ("roleIds")`,
+
+		// ── Partial index for active sessions (skip expired rows) ──
+		`CREATE INDEX IF NOT EXISTS auth_sessions_active_idx ON auth_sessions (user_id) WHERE expires > CURRENT_TIMESTAMP`,
+
+		// ── Partial index for unconsumed tokens ──
+		'CREATE INDEX IF NOT EXISTS auth_tokens_active_idx ON auth_tokens (token) WHERE consumed = FALSE AND blocked = FALSE'
 	];
 
 	for (const query of queries) {

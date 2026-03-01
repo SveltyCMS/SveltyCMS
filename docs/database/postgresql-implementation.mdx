@@ -11,13 +11,13 @@ tags:
   - 'database'
   - 'postgresql'
   - 'drizzle'
-  - 'beta'
+  - 'production'
 ---
 
-# PostgreSQL Implementation (Beta)
+# PostgreSQL Implementation
 
-> [!WARNING]
-> PostgreSQL support is currently in **beta**. While initial seeding and core CRUD operations are implemented, some advanced features may still be in development.
+> [!NOTE]
+> PostgreSQL support is **production-ready**. All adapter modules (Auth, CRUD, Content, Media, System, Widgets, Themes, Batch, Transactions, Performance, Cache, Collections, Multi-Tenancy) are fully implemented with Drizzle ORM.
 
 ## Overview
 
@@ -97,30 +97,31 @@ The PostgreSQL schema mirrors the CMS data model but is optimized for relational
 | ----------------- | ------------------------------------------- |
 | **Primary Key**   | `varchar(36)` (UUID compatible strings)     |
 | **Timestamps**    | `timestamp()` with ISODateString conversion |
-| **JSON fields**   | `jsonb()` for efficient metadata storage    |
+| **JSON fields**   | `jsonb()` for binary JSON with GIN indexing |
 | **Multi-Tenancy** | `tenantId` indexed columns on all tables    |
 
 ## Current Implementation Status
 
-### ✅ Implemented & Tested
+### ✅ All Modules Implemented
 
-- **Connection Management**: Full connection lifecycle and health monitoring.
-- **Automatic Migrations**: Table creation and unique constraint management.
-- **Core CRUD**: `findOne`, `findMany`, `insert`, `insertMany`, `count`.
-- **System Preferences**: Full support with multi-tenant isolation and `ON CONFLICT` updates.
-- **Seeding**: Default roles, themes, and initial system data.
+| Module           | Status      | Notes                                                |
+| ---------------- | ----------- | ---------------------------------------------------- |
+| `auth.*`         | ✅ Complete | Users, sessions, tokens, roles with compound indexes |
+| `crud.*`         | ✅ Complete | Full CRUD with query builder and batch operations    |
+| `content.*`      | ✅ Complete | Nodes, drafts, revisions with JSONB data storage     |
+| `media.*`        | ✅ Complete | File metadata, folders, thumbnails                   |
+| `batch.*`        | ✅ Complete | Transactional batch operations                       |
+| `performance.*`  | ✅ Complete | Latency tracking and health monitoring               |
+| `tenants.*`      | ✅ Complete | Full CRUD (create, getById, update, delete, list)    |
+| `cleanupExpired` | ✅ Complete | TTL-equivalent cleanup for sessions/tokens           |
 
-### ⏳ In Progress / Stubs
+### PostgreSQL-Specific Optimizations
 
-The following modules currently use stubs or have limited functionality:
-
-| Module          | Status  | Sub-tasks / Notes                 |
-| --------------- | ------- | --------------------------------- |
-| `auth.user.*`   | Partial | Basic lookup works; seeding works |
-| `content.*`     | Partial | Node management in progress       |
-| `media.*`       | Stub    | Needs blob storage integration    |
-| `batch.*`       | Stub    | Transactional batching needed     |
-| `performance.*` | Stub    | Latency tracking implemented      |
+- **JSONB** (not JSON): All 20 metadata columns use binary JSONB with efficient containment operators (`@>`, `?`, `?|`)
+- **GIN Indexes**: 5 GIN indexes on high-query JSONB columns (`content_nodes.data`, `content_nodes.metadata`, `media_items.metadata`, `roles.permissions`, `auth_users.roleIds`)
+- **Partial Indexes**: Active sessions index (`WHERE expires > CURRENT_TIMESTAMP`), unconsumed tokens index (`WHERE consumed = FALSE AND blocked = FALSE`)
+- **`gen_random_uuid()`**: Native UUID generation via pgcrypto extension
+- **Tenants Table**: Full multi-tenancy with quota, usage, and settings JSONB columns
 
 ## Development Guide
 
@@ -166,9 +167,11 @@ The PostgreSQL adapter is optimized for relational efficiency and JSONB search p
 
 ### Key Optimizations
 
-- **JSONB Indexing**: All metadata and flexible schemas utilize PostgreSQL's `jsonb` type with GIN indexing for sub-10ms search performance on complex queries.
-- **Connection Health**: Optimized pooling via `postgres.js` ensures low-latency reconnection and health checks.
-- **Tamper-Evident Logs**: Relational structure allows for cryptographic chaining of audit logs with transactional integrity.
+- **JSONB with GIN Indexing**: All 20 metadata columns use PostgreSQL's binary `jsonb` type with 5 GIN indexes for sub-10ms search on complex containment queries.
+- **Partial Indexes**: Only index active sessions and unconsumed tokens — reduces index size and speeds up common auth queries.
+- **Connection Health**: Optimized pooling via `postgres.js` with health checks and reconnection.
+- **TTL-Equivalent Cleanup**: `cleanupExpiredData()` method purges expired sessions and consumed tokens (equivalent to MongoDB's TTL indexes).
+- **Tamper-Evident Logs**: Relational structure with transactional integrity for cryptographic audit log chaining.
 
 ---
 

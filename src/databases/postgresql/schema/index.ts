@@ -8,7 +8,8 @@
  */
 
 import { sql } from 'drizzle-orm';
-import { boolean, index, integer, json, pgTable, text, timestamp, unique, uniqueIndex, varchar } from 'drizzle-orm/pg-core';
+import { boolean, index, integer, jsonb, pgTable, text, timestamp, unique, uniqueIndex, varchar } from 'drizzle-orm/pg-core';
+import type { TenantQuota, TenantUsage } from '../../db-interface';
 
 // Helper for timestamps
 const timestamps = {
@@ -38,7 +39,7 @@ export const authUsers = pgTable(
 		firstName: varchar('firstName', { length: 255 }),
 		lastName: varchar('lastName', { length: 255 }),
 		avatar: text('avatar'),
-		roleIds: json('roleIds').$type<string[]>().notNull().default([]),
+		roleIds: jsonb('roleIds').$type<string[]>().notNull().default([]),
 		tenantId: tenantField(),
 		...timestamps
 	},
@@ -104,7 +105,7 @@ export const roles = pgTable(
 			.default(sql`gen_random_uuid()`),
 		name: varchar('name', { length: 255 }).notNull(),
 		description: text('description'),
-		permissions: json('permissions').$type<string[]>().notNull().default([]),
+		permissions: jsonb('permissions').$type<string[]>().notNull().default([]),
 		isAdmin: boolean('isAdmin').notNull().default(false),
 		icon: varchar('icon', { length: 100 }),
 		color: varchar('color', { length: 50 }),
@@ -132,9 +133,9 @@ export const contentNodes = pgTable(
 		slug: varchar('slug', { length: 500 }),
 		icon: varchar('icon', { length: 100 }),
 		description: text('description'),
-		data: json('data'),
-		metadata: json('metadata'),
-		translations: json('translations').$type<{ languageTag: string; translationName: string }[]>().default([]),
+		data: jsonb('data'),
+		metadata: jsonb('metadata'),
+		translations: jsonb('translations').$type<{ languageTag: string; translationName: string }[]>().default([]),
 		order: integer('order').notNull().default(0),
 		isPublished: boolean('isPublished').notNull().default(false),
 		publishedAt: timestamp('publishedAt'),
@@ -158,7 +159,7 @@ export const contentDrafts = pgTable(
 			.primaryKey()
 			.default(sql`gen_random_uuid()`),
 		contentId: varchar('contentId', { length: 36 }).notNull(),
-		data: json('data').notNull(),
+		data: jsonb('data').notNull(),
 		version: integer('version').notNull().default(1),
 		status: varchar('status', { length: 50 }).notNull().default('draft'),
 		authorId: varchar('authorId', { length: 36 }).notNull(),
@@ -181,7 +182,7 @@ export const contentRevisions = pgTable(
 			.primaryKey()
 			.default(sql`gen_random_uuid()`),
 		contentId: varchar('contentId', { length: 36 }).notNull(),
-		data: json('data').notNull(),
+		data: jsonb('data').notNull(),
 		version: integer('version').notNull().default(1),
 		commitMessage: text('commitMessage'),
 		authorId: varchar('authorId', { length: 36 }).notNull(),
@@ -207,7 +208,7 @@ export const themes = pgTable(
 		path: varchar('path', { length: 500 }).notNull(),
 		isActive: boolean('isActive').notNull().default(false),
 		isDefault: boolean('isDefault').notNull().default(false),
-		config: json('config').notNull(),
+		config: jsonb('config').notNull(),
 		previewImage: text('previewImage'),
 		customCss: text('customCss'),
 		tenantId: tenantField(),
@@ -229,8 +230,8 @@ export const widgets = pgTable(
 			.default(sql`gen_random_uuid()`),
 		name: varchar('name', { length: 255 }).notNull(),
 		isActive: boolean('isActive').notNull().default(true),
-		instances: json('instances').notNull().default({}),
-		dependencies: json('dependencies').$type<string[]>().notNull().default([]),
+		instances: jsonb('instances').notNull().default({}),
+		dependencies: jsonb('dependencies').$type<string[]>().notNull().default([]),
 		tenantId: tenantField(),
 		...timestamps
 	},
@@ -256,8 +257,8 @@ export const mediaItems = pgTable(
 		mimeType: varchar('mimeType', { length: 255 }).notNull(),
 		folderId: varchar('folderId', { length: 36 }),
 		originalId: varchar('originalId', { length: 36 }),
-		thumbnails: json('thumbnails').notNull().default({}),
-		metadata: json('metadata').notNull().default({}),
+		thumbnails: jsonb('thumbnails').notNull().default({}),
+		metadata: jsonb('metadata').notNull().default({}),
 		access: varchar('access', { length: 50 }).notNull().default('public'),
 		createdBy: varchar('createdBy', { length: 36 }).notNull(),
 		updatedBy: varchar('updatedBy', { length: 36 }).notNull(),
@@ -285,7 +286,7 @@ export const systemVirtualFolders = pgTable(
 		icon: varchar('icon', { length: 100 }),
 		order: integer('order').notNull().default(0),
 		type: varchar('type', { length: 50 }).notNull().default('folder'),
-		metadata: json('metadata'),
+		metadata: jsonb('metadata'),
 		tenantId: tenantField(),
 		...timestamps
 	},
@@ -305,7 +306,7 @@ export const systemPreferences = pgTable(
 			.primaryKey()
 			.default(sql`gen_random_uuid()`),
 		key: varchar('key', { length: 255 }).notNull(),
-		value: json('value'),
+		value: jsonb('value'),
 		category: varchar('category', { length: 255 }),
 		scope: varchar('scope', { length: 50 }).notNull().default('system'),
 		userId: varchar('userId', { length: 36 }),
@@ -333,7 +334,7 @@ export const websiteTokens = pgTable(
 		name: varchar('name', { length: 255 }).notNull(),
 		token: varchar('token', { length: 255 }).notNull(),
 		createdBy: varchar('createdBy', { length: 36 }).notNull(),
-		permissions: json('permissions').$type<string[]>().notNull().default([]),
+		permissions: jsonb('permissions').$type<string[]>().notNull().default([]),
 		expiresAt: timestamp('expiresAt'),
 		tenantId: tenantField(),
 		...timestamps
@@ -382,7 +383,7 @@ export const pluginStates = pgTable(
 		pluginId: varchar('pluginId', { length: 255 }).notNull(),
 		tenantId: tenantField(),
 		enabled: boolean('enabled').notNull().default(false),
-		settings: json('settings'),
+		settings: jsonb('settings'),
 		updatedBy: varchar('updatedBy', { length: 36 }),
 		...timestamps
 	},
@@ -416,6 +417,39 @@ export const pluginMigrations = pgTable(
 	})
 );
 
+// Tenants Table
+export const tenants = pgTable(
+	'tenants',
+	{
+		_id: varchar('_id', { length: 36 })
+			.primaryKey()
+			.default(sql`gen_random_uuid()`),
+		name: varchar('name', { length: 255 }).notNull(),
+		ownerId: varchar('ownerId', { length: 36 }).notNull(),
+		status: varchar('status', { length: 20 }).notNull().default('active'),
+		plan: varchar('plan', { length: 20 }).notNull().default('free'),
+		quota: jsonb('quota').$type<TenantQuota>().notNull().default({
+			maxUsers: 10,
+			maxStorageBytes: 1_073_741_824,
+			maxCollections: 20,
+			maxApiRequestsPerMonth: 10_000
+		}),
+		usage: jsonb('usage').$type<TenantUsage>().notNull().default({
+			usersCount: 0,
+			storageBytes: 0,
+			collectionsCount: 0,
+			apiRequestsMonth: 0,
+			lastUpdated: new Date()
+		}),
+		settings: jsonb('settings').default({}),
+		...timestamps
+	},
+	(table) => ({
+		nameIdx: index('tenants_name_idx').on(table.name),
+		ownerIdx: index('tenants_owner_idx').on(table.ownerId)
+	})
+);
+
 // Export all tables as a schema object for Drizzle
 export const schema = {
 	authUsers,
@@ -433,5 +467,6 @@ export const schema = {
 	websiteTokens,
 	pluginPagespeedResults,
 	pluginStates,
-	pluginMigrations
+	pluginMigrations,
+	tenants
 };

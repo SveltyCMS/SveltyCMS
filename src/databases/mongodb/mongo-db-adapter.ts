@@ -274,8 +274,12 @@ export class MongoDBAdapter implements IDBAdapter {
 					minPoolSize: 2,
 					serverSelectionTimeoutMS: 5000,
 					connectTimeoutMS: 5000,
+					socketTimeoutMS: 45000, // Prevent zombie connections (45s idle timeout)
+					heartbeatFrequencyMS: 10000, // Faster topology detection for replica sets
 					retryWrites: true,
-					w: 'majority'
+					retryReads: true, // Auto-retry transient read failures
+					w: 'majority',
+					compressors: ['zstd', 'snappy'] // Wire compression: 40-60% bandwidth reduction
 				};
 
 				if (typeof connectionStringOrOptions === 'string') {

@@ -20,7 +20,16 @@
  * - Query builder
  */
 
-import type { BaseEntity, DatabaseResult, DatabaseTransaction, IDBAdapter, QueryBuilder } from '../../db-interface';
+import type {
+	BaseEntity,
+	DatabaseId,
+	DatabaseResult,
+	DatabaseTransaction,
+	IDBAdapter,
+	PaginationOption,
+	QueryBuilder,
+	Tenant
+} from '../../db-interface';
 import { CollectionModule } from '../collection/collection-module';
 import { CrudModule } from '../crud/crud-module';
 import { AuthModule } from '../modules/auth/auth-module';
@@ -36,25 +45,87 @@ import { TransactionModule } from '../operations/transaction-module';
 import { CacheModule } from '../performance/cache-module';
 import { PerformanceModule } from '../performance/performance-module';
 import { MariaDBQueryBuilder } from '../query-builder/maria-db-query-builder';
+import * as schema from '../schema';
 import * as utils from '../utils';
 import { AdapterCore } from './adapter-core';
 
 export class MariaDBAdapter extends AdapterCore implements IDBAdapter {
 	public readonly tenants = {
-		create: async () => {
-			throw new Error('Not implemented');
+		create: async (tenant: Omit<Tenant, '_id' | 'createdAt' | 'updatedAt'> & { _id?: DatabaseId }): Promise<DatabaseResult<Tenant>> => {
+			return this.wrap(async () => {
+				const id = (tenant._id || utils.generateId()) as string;
+				const now = new Date();
+				const values: typeof schema.tenants.$inferInsert = {
+					...tenant,
+					_id: id,
+					createdAt: now,
+					updatedAt: now
+				};
+				await this.pool!.query(
+					`INSERT INTO tenants (_id, name, ownerId, status, plan, quota, \`usage\`, settings, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+					[
+						id,
+						values.name,
+						values.ownerId,
+						values.status,
+						values.plan,
+						JSON.stringify(values.quota),
+						JSON.stringify(values.usage),
+						JSON.stringify(values.settings),
+						now,
+						now
+					]
+				);
+				const [rows] = await this.pool!.query('SELECT * FROM tenants WHERE _id = ?', [id]);
+				const result = (rows as Record<string, unknown>[])[0];
+				return utils.parseJsonField(result, ['quota', 'usage', 'settings']) as unknown as Tenant;
+			}, 'TENANT_CREATE_FAILED');
 		},
-		getById: async () => {
-			throw new Error('Not implemented');
+		getById: async (tenantId: DatabaseId): Promise<DatabaseResult<Tenant | null>> => {
+			return this.wrap(async () => {
+				const [rows] = await this.pool!.query('SELECT * FROM tenants WHERE _id = ?', [tenantId as string]);
+				const result = (rows as Record<string, unknown>[])[0];
+				if (!result) return null;
+				return utils.parseJsonField(result, ['quota', 'usage', 'settings']) as unknown as Tenant;
+			}, 'TENANT_GET_FAILED');
 		},
-		update: async () => {
-			throw new Error('Not implemented');
+		update: async (tenantId: DatabaseId, data: Partial<Omit<Tenant, 'createdAt' | 'updatedAt'>>): Promise<DatabaseResult<Tenant>> => {
+			return this.wrap(async () => {
+				const now = new Date();
+				const setClauses: string[] = ['updatedAt = ?'];
+				const values: unknown[] = [now];
+				for (const [key, value] of Object.entries(data)) {
+					if (key === '_id') continue;
+					setClauses.push(`\`${key}\` = ?`);
+					values.push(['quota', 'usage', 'settings'].includes(key) ? JSON.stringify(value) : value);
+				}
+				values.push(tenantId as string);
+				await this.pool!.query(`UPDATE tenants SET ${setClauses.join(', ')} WHERE _id = ?`, values);
+				const [rows] = await this.pool!.query('SELECT * FROM tenants WHERE _id = ?', [tenantId as string]);
+				const result = (rows as Record<string, unknown>[])[0];
+				return utils.parseJsonField(result, ['quota', 'usage', 'settings']) as unknown as Tenant;
+			}, 'TENANT_UPDATE_FAILED');
 		},
-		delete: async () => {
-			throw new Error('Not implemented');
+		delete: async (tenantId: DatabaseId): Promise<DatabaseResult<void>> => {
+			return this.wrap(async () => {
+				await this.pool!.query('DELETE FROM tenants WHERE _id = ?', [tenantId as string]);
+			}, 'TENANT_DELETE_FAILED');
 		},
-		list: async () => {
-			throw new Error('Not implemented');
+		list: async (options?: PaginationOption): Promise<DatabaseResult<Tenant[]>> => {
+			return this.wrap(async () => {
+				let query = 'SELECT * FROM tenants';
+				const params: unknown[] = [];
+				if (options?.limit) {
+					query += ' LIMIT ?';
+					params.push(options.limit);
+				}
+				if (options?.offset) {
+					query += ' OFFSET ?';
+					params.push(options.offset);
+				}
+				const [rows] = await this.pool!.query(query, params);
+				return (rows as Record<string, unknown>[]).map((r) => utils.parseJsonField(r, ['quota', 'usage', 'settings'])) as unknown as Tenant[];
+			}, 'TENANT_LIST_FAILED');
 		}
 	};
 	public readonly crud: CrudModule;
@@ -129,6 +200,24 @@ export class MariaDBAdapter extends AdapterCore implements IDBAdapter {
 				await this.pool.query('SET FOREIGN_KEY_CHECKS = 1');
 			}
 		}, 'CLEAR_DATABASE_FAILED');
+	}
+
+	/**
+	 * Cleanup expired sessions and tokens (TTL-equivalent for SQL databases).
+	 * MongoDB handles this automatically via TTL indexes; SQL databases need manual cleanup.
+	 * @returns Number of rows cleaned up
+	 */
+	public async cleanupExpiredData(): Promise<DatabaseResult<{ sessions: number; tokens: number }>> {
+		return this.wrap(async () => {
+			if (!this.pool) throw new Error('Not connected');
+			const [sessionResult] = await this.pool.query('DELETE FROM auth_sessions WHERE expires < NOW()');
+			const [tokenResult] = await this.pool.query(
+				'DELETE FROM auth_tokens WHERE (expires < NOW()) OR (consumed = TRUE AND updatedAt < DATE_SUB(NOW(), INTERVAL 24 HOUR))'
+			);
+			const sessions = (sessionResult as { affectedRows?: number }).affectedRows || 0;
+			const tokens = (tokenResult as { affectedRows?: number }).affectedRows || 0;
+			return { sessions, tokens };
+		}, 'CLEANUP_EXPIRED_DATA_FAILED');
 	}
 
 	public queryBuilder = <T extends BaseEntity>(collection: string): QueryBuilder<T> => {

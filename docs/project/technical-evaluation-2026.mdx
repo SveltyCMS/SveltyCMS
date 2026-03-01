@@ -6,7 +6,7 @@ order: 100
 icon: 'mdi:chart-box-outline'
 author: 'admin'
 created: '2026-01-18'
-updated: '2026-02-18'
+updated: '2026-03-01'
 tags:
   - 'evaluation'
   - 'technical'
@@ -95,7 +95,7 @@ SveltyCMS uses **ParaglideJS** to treat translations as `code`, not database row
 SveltyCMS has leapfrogged competitors by replacing heavy, imperative canvas libraries with a modern, reactive, and instruction-based manipulation pipeline.
 
 - **Enterprise DAM Engine:** Transitioned the Media Gallery into a robust Digital Asset Management (DAM) system.
-- **Smart Image Editor (New):** Replaced **Konva.js** (~500KB overhead) with **svelte-canvas** (~5KB wrapper), achieving a 99% reduction in engine footprint while maintaining full feature parity.
+- **Smart Image Editor (New):** Replaced **Konva.js** (~500KB overhead) with **svelte-canvas** (~5KB wrapper), achieving a 99% reduction in client-side engine footprint. Server-side processing uses **Sharp.js** for high-quality output.
 - **Instruction-Based Saving:** Unlike standard editors that export lossy blobs from the browser, SveltyCMS sends a JSON "instruction set" to the server.
 - **Server-Side Baking:** Utilizes high-performance **Sharp.js** on the backend to apply edits (crop, rotate, filters) directly to the **original high-resolution asset**, ensuring zero quality loss and non-destructive versioning.
 - **Competitor Comparison:**
@@ -115,20 +115,21 @@ SveltyCMS has leapfrogged competitors by replacing heavy, imperative canvas libr
 ### 3.7 Audit Logging
 
 - **Status:** **✅ IMPLEMENTED (Backend)**
-- **Architecture:** Implements a cryptographic chain where each log entry contains the SHA-256 hash of the previous entry, creating a tamper-evident audit trail (SOC 2 compliant).
+- **Architecture:** Implements a cryptographic chain where each log entry contains the SHA-256 hash of the previous entry, creating a tamper-evident audit trail that aids SOC 2 audit preparation.
+- **Note:** Currently file-based (JSON); database-backed storage with query capabilities is planned for a future release.
 
 ### 3.8 MCP Server (Model Context Protocol)
 
 - **Status:** **✅ IMPLEMENTED (Production Ready)**
-- **Competitive Edge:** **SveltyCMS is currently the ONLY headless CMS in the market to offer a native, production-ready MCP server.**
-- **Architecture:** Exposes the entire project context (docs, schemas, and expert patterns) to agentic AI assistants.
-- **Strategic Value:** Enables true "Agent-in-the-Loop" development. While competitors like Strapi or Payload remain "AI-integrated" via simple chat interfaces, SveltyCMS is "AI-Native," allowing agents to navigate, understand, and modify the CMS structure autonomously via the Model Context Protocol.
+- **Competitive Edge:** SveltyCMS was among the first open-source headless CMSs to ship a native MCP server, alongside **Directus** (v11.12+). While Directus's MCP focuses on content management operations, SveltyCMS's MCP exposes the entire project knowledge core (docs, schemas, widgets, and expert patterns) for deep agentic development.
+- **Architecture:** Exposes the entire project context to agentic AI assistants via a hosted endpoint at `https://mcp.sveltycms.com/mcp`.
+- **Strategic Value:** Enables true "Agent-in-the-Loop" development. While competitors like Strapi or Payload remain "AI-integrated" via simple chat interfaces, SveltyCMS and Directus are leading the "AI-Native" CMS category, allowing agents to navigate, understand, and modify CMS structures autonomously via the Model Context Protocol.
 
 ### 3.9 AI-Native Generative Layouts (New)
 
 - **Status:** **✅ IMPLEMENTED (via json-render-svelte)**
 - **Architecture:** Integrates a Svelte 5-based generative UI engine that transforms JSON specifications (derived from AI prompts) into fully interactive, state-bound layouts using the project's own widget library.
-- **Differentiator:** No other CMS offers a streaming, interactive generative layout system that uses the project's _exact_ widgets and plugins, ensuring 100% design consistency and full interactive capabilities (actions, bindings, validation).
+- **Differentiator:** Few CMS platforms offer AI-driven layout generation that uses the project's _own_ widget library, ensuring design consistency and full interactive capabilities (actions, bindings, validation).
 
 ### 3.10 Accessibility & Inclusivity
 
@@ -146,15 +147,15 @@ SveltyCMS has leapfrogged competitors by replacing heavy, imperative canvas libr
 - **Status:** **✅ IMPLEMENTED (Adaptive Optimization)**
 - **Resiliency:** Implements a **Self-Learning State Machine** with persistent performance metrics to distinguish between "normal" slowness and service failures, preventing boot-loop death spirals.
 
-### 3.13 Verified Multi-Database Architecture (NEW)
+### 3.13 Multi-Database Architecture
 
-- **Status:** **✅ VERIFIED (All 4 Drivers Tested)**
-- **Significance:** Unlike competitors that lock users into one paradigm, SveltyCMS has successfully implemented and verified **Drizzle ORM** (for SQL) and **Mongoose** (for NoSQL) co-existence.
-  - **MongoDB:** Validated for Enterprise/JSON-native workloads (WiredTiger engine).
-  - **MariaDB:** Validated for Relational workloads (InnoDB engine).
-  - **PostgreSQL Support**: Adapter implementation complete; core CRUD and Auth modules operational; currently in active testing/beta.
-  - **SQLite:** Validated for Edge/Local workloads (WAL mode enabled).
-- **Result:** SveltyCMS offers strong multi-paradigm database support, allowing teams to choose the most suitable engine for their specific needs without drastic code changes.
+- **Status:** **✅ IMPLEMENTED (Production-Ready — All 4 Adapters)**
+- **Significance:** Unlike competitors that lock users into one paradigm, SveltyCMS has implemented **Drizzle ORM** (for SQL) and **Mongoose** (for NoSQL) co-existence. Each adapter is composed of **14+ modular feature modules** (Auth, CRUD, Content, Media, System Preferences, Virtual Folders, Themes, Widgets, Website Tokens, Batch Operations, Transactions, Performance Monitoring, Cache Management, Collection Management) with unified tenant CRUD for native multi-tenancy support.
+  - **MongoDB:** ✅ Production-ready. Validated for Enterprise/JSON-native workloads (WiredTiger engine). Native multi-tenancy via `tenantId` scoping on all models.
+  - **MariaDB:** ✅ Production-ready. Validated for Relational workloads (InnoDB engine). Full Drizzle ORM migration pipeline, tenant CRUD, and query builder.
+  - **PostgreSQL:** ✅ Production-ready. Full adapter implementation with `gen_random_uuid()` PKs, Drizzle ORM migrations, and native tenant management.
+  - **SQLite:** ✅ Production-ready. WAL-enabled for Edge/Local workloads (Bun native driver). Full tenant CRUD with lightweight footprint ideal for single-server and embedded deployments.
+- **Result:** SveltyCMS offers the industry's broadest database flexibility: NoSQL (MongoDB), Enterprise SQL (MariaDB, PostgreSQL), and Edge/Embedded (SQLite), all with full feature parity across auth, content, media, themes, widgets, and multi-tenancy — no code changes required when switching engines.
 
 ### 3.14 GUI-Based Automation System
 
@@ -166,7 +167,7 @@ SveltyCMS has leapfrogged competitors by replacing heavy, imperative canvas libr
   - **vs. Directus:** While Directus has "Flows", SveltyCMS's **zero-runtime** architecture and Svelte 5 GUI offer a significantly lighter and faster editorial experience with deeper token integration.
   - **vs. Contentful:** Contentful gates complex workflows behind "Enterprise" pricing. SveltyCMS offers a complete automation suite natively and for free.
 
-### 3.13 Tailwind CSS v4 Emails
+### 3.15 Tailwind CSS v4 Emails
 
 - **Architecture:** Leverages the `better-svelte-email` compiler-driven renderer to transform standard Svelte components with Tailwind v4 utility classes into email-safe HTML with automatic style inlining.
 - **Significance:** Solves the "Fragmentation Problem" where email styling traditionally required manual inline CSS or separate build steps. By treating emails as standard Svelte components, SveltyCMS ensures 100% design consistency between the CMS dashboard and system notifications.
@@ -174,7 +175,7 @@ SveltyCMS has leapfrogged competitors by replacing heavy, imperative canvas libr
   - **vs. Strapi/Payload:** Typically require external MJML or React-Email integrations with separate build processes. SveltyCMS's integration is native and zero-config.
   - **vs. Legacy (WP/Drupal):** Transcends legacy table-based layouts with modern utility-first CSS, resulting in more maintainable and visually consistent communication.
 
-### 3.14 Testing & QA Infrastructure (NEW)
+### 3.16 Testing & QA Infrastructure (NEW)
 
 The SveltyCMS testing architecture emphasizes decoupled, integration-focused validation, prioritizing **isomorphic black-box testing** alongside traditional units.
 
@@ -190,7 +191,7 @@ The SveltyCMS testing architecture emphasizes decoupled, integration-focused val
   | Directus | Blackbox API | ✅ Multi-SQL | `TEST_DB` Env |
   | Contentful | Environment | ✅ SaaS | Space Cloning |
 
-### 3.15 Universal Extensibility: Widgets & Plugins
+### 3.17 Universal Extensibility: Widgets & Plugins
 
 SveltyCMS redefines extensibility through a **Type-Safe, Runtime-First** architecture that avoids the "Rebuild Hell" common in React-based CMSs.
 
@@ -207,18 +208,7 @@ SveltyCMS redefines extensibility through a **Type-Safe, Runtime-First** archite
 - **vs. WordPress:** WordPress hooks are powerful but untyped and insecure (global scope). SveltyCMS provides **Typed Lifecycle Hooks** for predictable, safe execution.
 - **vs. Payload:** Payload's React components are powerful but heavy. SveltyCMS widgets allow for "Zero-Runtime" overhead in the published API/Frontend via strict separation.
 
-### 3.16 Real-Time Collaboration (SSE)
-
-SveltyCMS 2026 introduces a lightweight, high-performance **Real-Time Collaboration (RTC)** system that eschews the complexity of WebSockets in favor of native **Server-Sent Events (SSE)**.
-
-- **Edge Compatibility**: SSE works natively with standard HTTP/1.1 and HTTP/2 without requiring sticky sessions or complex proxy configurations, making it ideal for Vercel, Netlify, and Cloudflare deployments.
-- **Low Overhead**: By leveraging the central `EventBus`, SveltyCMS streams system activity, webhook status, and AI assistant tokens through a single, persistent GET request.
-- **AI Streaming**: The system supports real-time token delivery for AI assistance, providing a seamless "typing" experience for content generation and technical support.
-- **User Presence**: (In development) Optimized heartbeats track active editors with sub-millisecond latency.
-- **Competitive Edge**:
-  - **vs. Strapi/Payload**: Often require external Socket.io integrations or complex state management. SveltyCMS's implementation is native, stateless at the protocol level, and built directly into the Svelte 5 rune-based stores.
-
-### 3.16 Real-Time Collaboration (RTC)
+### 3.18 Real-Time Collaboration (SSE)
 
 SveltyCMS 2026 introduces a lightweight, high-performance **Real-Time Collaboration** system that eschews the complexity of WebSockets in favor of native **Server-Sent Events (SSE)**.
 
@@ -227,10 +217,11 @@ SveltyCMS 2026 introduces a lightweight, high-performance **Real-Time Collaborat
 - **AI Streaming**: The system supports real-time token delivery for AI assistance, providing a seamless "typing" experience for content generation and technical support.
 - **Multi-User Rooms**: Automatically joins "rooms" based on the active collection or entry, allowing users to see peer activity and collaborate on specific content items.
 - **System Resilience**: The connection is managed by the `collaboration-store` and respects the global `systemState`. If the system enters a `FAILED` state, the connection is closed to prevent ghost events and client-side errors.
+- **Note**: SveltyCMS's SSE approach provides an activity stream and presence awareness. This differs from Directus's WebSocket-based co-editing which offers real-time field locking and simultaneous editing. SSE's advantage is edge compatibility and simplicity; WebSocket co-editing offers deeper collaboration.
 - **Competitive Edge**:
   - **vs. Strapi/Payload**: Often require external Socket.io integrations or complex state management. SveltyCMS's implementation is native, stateless at the protocol level, and built directly into the Svelte 5 rune-based stores.
 
-### 3.17 Solution Presets: The "Batteries-Included" Advantage
+### 3.19 Solution Presets: The "Batteries-Included" Advantage
 
 - **Status:** **✅ IMPLEMENTED**
 - **Architecture:** SveltyCMS includes a "Solution Preset" engine that hydrates the CMS with industry-standard schemas (Agency, SaaS, E-commerce, Corporate, Blog) during the initial setup.
@@ -242,7 +233,7 @@ SveltyCMS 2026 introduces a lightweight, high-performance **Real-Time Collaborat
   - **vs. Strapi/Contentful:** These platforms usually provide "starters" as separate git repositories that you must clone. SveltyCMS builds the starter _into_ the core, allowing a single docker image to become any type of site based on configuration.
   - **vs. Drupal:** Inspired by Drupal's "Installation Profiles", this feature allows SveltyCMS to rival enterprise distributions without the code bloat.
 
-### 3.18 Strategic Decision: Headless Payments (Why No Payment Widget?)
+### 3.20 Strategic Decision: Headless Payments (Why No Payment Widget?)
 
 **Decision:** SveltyCMS intentionally excludes a "Credit Card Input" widget from the Admin Panel.
 **Rationale:**
@@ -254,7 +245,7 @@ SveltyCMS 2026 introduces a lightweight, high-performance **Real-Time Collaborat
     - **Manages:** Product Catalog via **Price Widget**.
     - **Delegates:** Processing to specialized Payment Gateways.
 
-### 3.19 Security Hardening: Defeating Admin Takeover & CSRF (NEW)
+### 3.21 Security Hardening: Defeating Admin Takeover & CSRF (NEW)
 
 In February 2026, SveltyCMS underwent a critical security remediation (GHSA-9hmx-q79g-h7gq) to harden the platform against sophisticated authentication bypass and session hijacking attacks.
 
@@ -268,43 +259,44 @@ In February 2026, SveltyCMS underwent a critical security remediation (GHSA-9hmx
 
 ### 4.1 Unified Feature Matrix (2026 Benchmarks)
 
-| Feature              | SveltyCMS           | Strapi v5     | Directus 10 | Payload v3   | NodeHive  | Wordpress   | Contentful    |
-| :------------------- | :------------------ | :------------ | :---------- | :----------- | :-------- | :---------- | :------------ |
-| **Engine**           | **✅ SvelteKit**    | Node          | Node        | Next.js      | PHP       | PHP         | SaaS          |
-| **Arch**             | **✅ Compiled**     | SPA           | SPA         | SPA          | Hybrid    | MPA/Hybrid  | SaaS          |
-| **Start**            | **✅ <1s**          | 5s+           | 2s+         | 3s+          | 4s+       | 2s+         | N/A           |
-| **DB**               | **✅ Agnostic**     | SQL           | SQL         | SQL/NoSQL    | SQL       | SQL         | SaaS          |
-| **i18n**             | **✅ Compiled**     | Runtime       | DB-based    | Runtime      | Runtime   | Runtime     | Native        |
-| **Tenant**           | **✅ Native**       | ❌ No         | ✅ Native   | ✅ Native    | ✅ Native | ⚠️ Plugins  | 💲 Enterprise |
-| **Audit**            | **✅ Crypto**       | 💲 Enterprise | ✅ Activity | ✅ Versions  | ✅ Native | ⚠️ Plugins  | 💲 Enterprise |
-| **SCIM**             | **✅ Native**       | ❌ No         | ❌ No       | ❌ No        | ⚠️ Module | ⚠️ Plugins  | 💲 Enterprise |
-| **Resil.**           | **✅ Adaptive**     | ❌ Limited    | ⚠️ Limited  | ⚠️ Manual    | ⚠️ Manual | ❌ Monolith | ✅ SaaS SLA   |
-| **Hooks**            | **✅ Native**       | ⚠️ Lifecycle  | ⚠️ Flows    | ✅ Hooks     | ❌ No     | ⚠️ Plugins  | 💲 Webhooks   |
-| **Extensibility**    | **✅ 3-Pillar**     | ⚠️ Rebuilds   | ✅ Vue      | ✅ React     | ⚠️ PHP    | ✅ Hooks    | ❌ UI Ext     |
-| **TW Email**         | **✅ Native**       | ❌ MJML/Ext   | ❌ No       | ⚠️ Component | ❌ No     | ❌ PHP-HTML | ⚠️ Limited    |
-| **DAM Engine**       | **✅ AI-Native**    | ⚠️ Basic      | ✅ Native   | ⚠️ Basic     | ⚠️ Basic  | ❌ Plugin   | ✅ Enterprise |
-| **Real-time Collab** | **✅ Native (SSE)** | ❌ No         | ✅ Native   | ❌ No        | ✅ Native | ⚠️ Plugins  | ✅ Enterprise |
-| **MCP Server**       | **✅ Native**       | ❌ No         | ❌ No       | ❌ No        | ❌ No     | ❌ No       | ❌ No         |
-| **Generative UI**    | **✅ Native**       | ⚠️ Plugins    | ⚠️ Integr.  | ⚠️ Addons    | ❌ No     | ⚠️ Plugins  | 💲 Enterprise |
+| Feature              | SveltyCMS         | Strapi v5     | Directus 10 | Payload v3   | NodeHive  | Wordpress   | Contentful    |
+| :------------------- | :---------------- | :------------ | :---------- | :----------- | :-------- | :---------- | :------------ |
+| **Engine**           | **✅ SvelteKit**  | Node          | Node        | Next.js      | PHP       | PHP         | SaaS          |
+| **Arch**             | **✅ Compiled**   | SPA           | SPA         | SPA          | Hybrid    | MPA/Hybrid  | SaaS          |
+| **Start**            | **✅ Fast**       | Moderate      | Moderate    | Moderate     | Moderate  | Moderate    | N/A           |
+| **DB**               | **✅ Agnostic**   | SQL           | SQL         | SQL/NoSQL    | SQL       | SQL         | SaaS          |
+| **i18n**             | **✅ Compiled**   | Runtime       | DB-based    | Runtime      | Runtime   | Runtime     | Native        |
+| **Tenant**           | **✅ Native**     | ❌ No         | ✅ Native   | ✅ Plugin    | ✅ Native | ⚠️ Plugins  | 💲 Enterprise |
+| **Audit**            | **✅ Crypto**     | 💲 Enterprise | ✅ Activity | ✅ Versions  | ✅ Native | ⚠️ Plugins  | 💲 Enterprise |
+| **SCIM**             | **✅ Native**     | ❌ No         | ❌ No       | ❌ No        | ⚠️ Module | ⚠️ Plugins  | 💲 Enterprise |
+| **Resil.**           | **✅ Adaptive**   | ❌ Limited    | ⚠️ Limited  | ⚠️ Manual    | ⚠️ Manual | ❌ Monolith | ✅ SaaS SLA   |
+| **Hooks**            | **✅ Native**     | ⚠️ Lifecycle  | ⚠️ Flows    | ✅ Hooks     | ❌ No     | ⚠️ Plugins  | 💲 Webhooks   |
+| **Extensibility**    | **✅ 3-Pillar**   | ⚠️ Rebuilds   | ✅ Vue      | ✅ React     | ⚠️ PHP    | ✅ Hooks    | ❌ UI Ext     |
+| **TW Email**         | **✅ Native**     | ❌ MJML/Ext   | ❌ No       | ⚠️ Component | ❌ No     | ❌ PHP-HTML | ⚠️ Limited    |
+| **DAM Engine**       | **✅ AI-Native**  | ⚠️ Basic      | ✅ Native   | ⚠️ Basic     | ✅ Native | ❌ Plugin   | ✅ Enterprise |
+| **Real-time Collab** | **✅ SSE Stream** | ❌ No         | ✅ Co-Edit  | ❌ No        | ✅ Native | ⚠️ Plugins  | ✅ Enterprise |
+| **MCP Server**       | **✅ Native**     | ❌ No         | ✅ Native   | ❌ No        | ❌ No     | ❌ No       | ❌ No         |
+| **Generative UI**    | **✅ Native**     | ⚠️ Plugins    | ⚠️ Integr.  | ⚠️ Addons    | ❌ No     | ⚠️ Plugins  | 💲 Enterprise |
 
 ### 4.2 Vs. Strapi & Directus (The Ecosystem Leaders)
 
 Strapi and Directus remain the most widely adopted open-source CMS solutions, but they operate on fundamentally different philosophies.
 
 - **Strapi v5**: Solid but bloated. Its React-based admin panel suffers from significant hydration overhead. By dropping MongoDB support in v4, Strapi has alienated a large segment of NoSQL users. SveltyCMS's **first-class MongoDB support** alongside SQL gives it a clear advantage for JSON-native workloads.
-- **Directus v10**: Excellent for database-first workflows, but its Vue-based UI is still a "thick" client compared to Svelte's **zero-runtime** approach. Directus lacks the **compiled i18n performance** of SveltyCMS and gates some advanced enterprise features behind cloud/commercial licenses.
+- **Directus v11**: Excellent for database-first workflows with strong real-time collaborative editing (WebSocket-based field locking). Directus has also shipped **native MCP support** (v11.12+), making it a peer in the "AI-native CMS" space. However, its Vue-based UI is still a "thick" client compared to Svelte's **zero-runtime** approach, and it lacks the **compiled i18n performance** of SveltyCMS. Some advanced enterprise features are gated behind cloud/commercial licenses.
 
 ### 4.3 Vs. PayloadCMS (The Modern Rival)
 
-Payload is the closest rival (Code-First). The difference is **React vs. Svelte**. Payload aligns with Next.js; SveltyCMS aligns with SvelteKit. While Payload v3 has introduced **Drizzle-based SQLite support**, SveltyCMS's **Zero-Runtime i18n** and **Valibot** validation give it a performance edge in bundle size and cold-start speed, especially on the edge.
+Payload is the closest rival (Code-First). The difference is **React vs. Svelte**. Payload aligns with Next.js; SveltyCMS aligns with SvelteKit. Payload v3 has introduced **Drizzle-based SQLite support**, a mature **plugin ecosystem**, and a dedicated **multi-tenant plugin** (Jan 2025). SveltyCMS's differentiators are **Zero-Runtime i18n** (Paraglide), **Valibot** validation (vs. Payload's Zod), **bidirectional schema sync** (vs. Payload's code-only), and **first-class MariaDB/MySQL support** (which Payload lacks). For teams in the Svelte ecosystem, SveltyCMS offers a significantly lighter and more cohesive experience.
 
 ### 4.4 Vs. NodeHive (The Headless Drupal Challenger)
 
-NodeHive is built on Drupal, positioning it as a powerful, open-source enterprise alternative. While it inherits Drupal's robust security and multi-site (Spaces) capabilities, it also carries the "Drupal Tax."
+NodeHive is built on Drupal, positioning it as a powerful, open-source enterprise alternative. **NodeHive 2** (Feb 2026) brought significant improvements: a redesigned UI, native DAM, built-in analytics (beta), AI content analysis ("Paul AI"), visual frontend editing, and CRM/marketing integration. While it inherits Drupal's robust security and multi-site (Spaces) capabilities, it also carries the "Drupal Tax."
 
 - **PHP Overhead**: Being PHP-based, NodeHive cannot match the cold-start performance or edge-native execution of SveltyCMS's **compiled SvelteKit** architecture.
 - **i18n**: NodeHive uses Drupal's runtime translation system. SveltyCMS's **Paraglide-based** compiled approach is faster and more type-safe for developers.
-- **Complexity**: NodeHive is ideal for teams already in the Drupal ecosystem. SveltyCMS is a cleaner "clean slate" for JS-first teams who find Drupal's configuration management overly complex.
+- **Where NodeHive Excels**: Visual frontend editor, built-in analytics, and marketing features that SveltyCMS does not yet offer. Ideal for Drupal-native teams and enterprises with existing PHP infrastructure.
+- **Where SveltyCMS Excels**: Compiled zero-runtime architecture, multi-database support (including NoSQL), edge deployment, and a lighter JS-first developer experience.
 
 ### 4.5 Vs. Headless WordPress & Faust.js
 
@@ -348,19 +340,20 @@ Based on the [Official SveltyCMS Comparison](https://sveltycms.com/compare):
 | Database Type           | SveltyCMS           | NodeHive        | Payload v3   | Wordpress | Strapi v5   |
 | :---------------------- | :------------------ | :-------------- | :----------- | :-------- | :---------- |
 | **MongoDB (NoSQL)**     | ✅ **Native**       | ❌ No           | ✅ Native    | ❌ No     | ❌ Dropped  |
-| **PostgreSQL**          | ✅ **Native**       | ✅ Native       | ✅ Native    | ⚠️ Plugin | ✅ Native   |
-| **MariaDB / MySQL**     | ✅ **Native**       | ✅ Native       | ⚠️ Beta      | ✅ Native | ✅ Native   |
-| **SQLite (Edge/Local)** | ✅ **Native**       | ⚠️ Dev Only     | ⚠️ Dev Only  | ❌ No     | ⚠️ Dev Only |
+| **PostgreSQL**          | ⚠️ **Beta**         | ✅ Native       | ✅ Native    | ⚠️ Plugin | ✅ Native   |
+| **MariaDB / MySQL**     | ✅ **Native**       | ✅ Native       | ❌ No        | ✅ Native | ✅ Native   |
+| **SQLite (Edge/Local)** | ⚠️ **Beta**         | ⚠️ Dev Only     | ✅ Native    | ❌ No     | ⚠️ Dev Only |
 | **Change DB w/o Code?** | ✅ **Yes (Config)** | ❌ Re-migration | ❌ Migration | ❌ No     | ❌ No       |
 
-**Key Finding:** SveltyCMS is the most versatile option for teams who may need to migrate from SQL to NoSQL (or vice versa) as they scale, or who want to develop on SQLite and deploy on MongoDB.
+**Key Finding:** SveltyCMS is one of the most versatile options for teams who need to migrate between database paradigms (SQL ↔ NoSQL) as they scale. Notably, SveltyCMS and Payload are the only open-source CMSs supporting both MongoDB and SQL databases natively, while SveltyCMS uniquely adds MariaDB/MySQL support.
 
 ### 4.10 The Agentic Advantage: MCP Server & Generative UI
 
-As AI coding assistants and agentic workflows become standard, CMS architectures must evolve beyond simple REST/GraphQL APIs. SveltyCMS is uniquely positioned as the **first CMS to provide a native Model Context Protocol (MCP) Server**.
+As AI coding assistants and agentic workflows become standard, CMS architectures must evolve beyond simple REST/GraphQL APIs. SveltyCMS and Directus are currently the only open-source CMSs to provide **native Model Context Protocol (MCP) Servers**.
 
-- **Competitors**: Systems like Strapi, Directus, and Payload rely on traditional APIs or third-party wrappers, requiring complex integration to expose their schemas to AI agents meaningfully.
-- **SveltyCMS**: Features a built-in MCP server that exposes the entire knowledge core (schemas, widgets, APIs, and docs). Furthermore, with **Generative UI** via `json-render-svelte`, SveltyCMS allows AI agents to dynamically construct functional, rich layouts in real-time, moving beyond intelligent completion to intelligent creation.
+- **Directus** (v11.12+): MCP focuses on content management operations — creating collections, managing content, and building automations via AI assistants.
+- **SveltyCMS**: MCP exposes the entire knowledge core (schemas, widgets, APIs, and docs) for deep agentic development and codebase understanding. Furthermore, with **Generative UI** via `json-render-svelte`, SveltyCMS allows AI agents to dynamically construct functional, rich layouts in real-time using the project's own widgets.
+- **Others**: Strapi, Payload, and WordPress rely on traditional APIs or third-party wrappers, requiring complex integration to expose their schemas to AI agents.
 
 ## 5. Strategic Recommendations & Promotion
 
@@ -384,14 +377,20 @@ As AI coding assistants and agentic workflows become standard, CMS architectures
 **Is SveltyCMS State of the Art?**
 
 - **YES:** In Architecture (SvelteKit), Performance (Zero-Runtime), and i18n (Paraglide).
+- **YES:** In **Database Versatility**. Supporting **MongoDB, MariaDB, PostgreSQL, and SQLite** makes it one of the most flexible CMSs on the market, solving vendor lock-in at the database level.
+- **YES:** In **Smart Image Editor**: More performant image editing due to `svelte-canvas` and `sharp.js`, with a significantly smaller client-side footprint.
+- **YES:** In **Enterprise Features Out of the Box**. Unlike competitors that gate critical capabilities behind paid tiers, SveltyCMS ships SCIM 2.0 endpoints, crypto-chained audit logging, GDPR privacy center, multi-tenancy, CSRF hardening, and rate limiting **natively and for free**. Features that cost thousands per year on Contentful or require Strapi Enterprise are included in every SveltyCMS deployment.
+- **YES:** In Accessibility. The codebase is verified against **WCAG 2.2 AA** standards, making it compliant by default.
+- **YES:** In Resiliency. The **Self-Healing State Machine** ensures maximum uptime by automatically recovering from transient connection failures.
 
-- **YES:** In **Database Versatility**. Having verified drivers for **MongoDB, MariaDB, PostgreSQL, and SQLite** makes it the most flexible CMS on the market, solving the "Vendor Lock-in" problem at the database level.
-- **YES:** In **Smart Image Editor**: More performant image editing due to `svelte-canvas` and `sharp.js`, with a significantly smaller footprint for fast, efficient editing.
-- **YES:** In Enterprise features. With the implementation of **SCIM Endpoints** and **Audit Logging**, it now meets the strict governance requirements of large organizations.
-- **YES:** In Accessibility. The codebase is fully verified against **WCAG 2.2 AA** standards, making it compliant by default.
-- **YES:** In Resiliency. The **Self-Healing State Machine** ensures maximum uptime by automatically recovering from transient connection failures without manual intervention.
+**Honest Assessment of Trade-offs:**
 
-**Verdict:** SveltyCMS is the "Formula 1 Car" of CMSs: stripped down, highly engineered, and incredibly fast. For Svelte shops—and any team needing true database freedom—it is the unequivocal best choice.
+- SveltyCMS has a **smaller community and ecosystem** than Strapi (60k+ stars), Payload (30k+), Directus (30k+), or WordPress. This means fewer third-party plugins and integrations — but it also means the core ships more built-in enterprise functionality that competitors paywall or require plugins for.
+- Some features (PostgreSQL, SQLite) are still in **beta** and require further hardening.
+- **SAML 2.0 / Enterprise SSO** is on the roadmap but not yet implemented.
+- The **plugin system** is functional but early-stage compared to Payload's mature ecosystem.
+
+**Verdict:** SveltyCMS is purpose-built for teams that value compiled performance, database freedom, and enterprise features without enterprise pricing. For Svelte-native teams — and any organization that wants SCIM, audit logs, GDPR compliance, and multi-tenancy without a sales call — it delivers unique value in the 2026 CMS landscape.
 
 ---
 

@@ -56,6 +56,12 @@ export const handleSetup: Handle = async ({ event, resolve }) => {
 	const { pathname } = event.url;
 	const isApi = pathname.startsWith('/api/');
 
+	// Bypass setup checks in TEST_MODE to allow /api/testing to function
+	// This matches the bypass pattern in handleSystemState
+	if (process.env.TEST_MODE === 'true' && pathname.startsWith('/api/testing')) {
+		return await resolve(event);
+	}
+
 	try {
 		// --- Step 1: Check Setup Status ---
 		// We use the cached/memoized check from utils.

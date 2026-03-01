@@ -62,7 +62,7 @@ Implementation guides for specific database backends:
    - 70-90% performance improvement
    - **NEW**: Optimized `upsertMany` with `bulkWrite` for high-volume writes
 
-5. **[MariaDB Implementation](./mariadb-implementation.mdx)** 🆕 (Beta)
+5. **[MariaDB Implementation](./mariadb-implementation.mdx)** ✅ Production-Ready
    - Drizzle ORM with mysql2 driver
    - 13 relational tables with proper indexes
    - Connection pooling and health monitoring
@@ -71,17 +71,17 @@ Implementation guides for specific database backends:
    - Type-safe queries with full TypeScript support
    - **Status**: Implementation Complete (100%)
 
-6. **[PostgreSQL Implementation](./postgresql-implementation.mdx)** 🆕 (Beta)
+6. **[PostgreSQL Implementation](./postgresql-implementation.mdx)** ✅ Production-Ready
    - Drizzle ORM with postgres.js driver
-   - Full schema with PostgreSQL-specific types (UUID, JSONB)
+   - Full schema with PostgreSQL-specific types (UUID, JSONB with GIN indexes)
    - Connection management and health checks
-   - **Status**: Beta (Seeding and Core CRUD Implemented)
+   - **Status**: Production-Ready (100%)
 
-7. **[SQLite Implementation](./sqlite-implementation.mdx)** 🆕 (Beta)
+7. **[SQLite Implementation](./sqlite-implementation.mdx)** ✅ Production-Ready
    - Drizzle ORM with better-sqlite3/bun:sqlite
-   - Zero-config single-file database
+   - Zero-config single-file database with 7 performance PRAGMAs
    - Ideal for local development and edge
-   - **Status**: Implementation Complete (100%)
+   - **Status**: Production-Ready (100%)
 
 ---
 
@@ -124,9 +124,9 @@ Implementation guides for specific database backends:
 
 ### For PostgreSQL Users
 
-1. Read [PostgreSQL Implementation](./postgresql-implementation.mdx) for current status
-2. Note: Beta implementation - stub methods need completion
-3. Follow MariaDB pattern for contributing implementations
+1. Read [PostgreSQL Implementation](./postgresql-implementation.mdx) for setup and optimization details
+2. JSONB columns with GIN indexes enable efficient metadata queries
+3. All modules fully implemented — production-ready
 
 ### For Adding New Database Support
 
@@ -333,5 +333,5 @@ Want to improve the database documentation?
 
 ---
 
-**Last Updated**: 2025-11-15  
+**Last Updated**: 2026-03-01  
 **Maintained by**: SveltyCMS Team

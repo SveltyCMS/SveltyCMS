@@ -82,6 +82,12 @@ export class AdapterCore {
 
 				// WAL mode for better performance/concurrency
 				this.sqlite.exec('PRAGMA journal_mode = WAL;');
+				this.sqlite.exec('PRAGMA synchronous = NORMAL;');
+				this.sqlite.exec('PRAGMA cache_size = -8000;');
+				this.sqlite.exec('PRAGMA mmap_size = 268435456;');
+				this.sqlite.exec('PRAGMA busy_timeout = 5000;');
+				this.sqlite.exec('PRAGMA temp_store = memory;');
+				this.sqlite.exec('PRAGMA foreign_keys = ON;');
 			} else {
 				// Fallback to better-sqlite3 in Node.js (Vite dev)
 				const betterSqliteModule = 'better-sqlite3';
@@ -93,6 +99,12 @@ export class AdapterCore {
 
 				// WAL mode
 				this.sqlite.exec('PRAGMA journal_mode = WAL');
+				this.sqlite.exec('PRAGMA synchronous = NORMAL');
+				this.sqlite.exec('PRAGMA cache_size = -8000');
+				this.sqlite.exec('PRAGMA mmap_size = 268435456');
+				this.sqlite.exec('PRAGMA busy_timeout = 5000');
+				this.sqlite.exec('PRAGMA temp_store = memory');
+				this.sqlite.exec('PRAGMA foreign_keys = ON');
 			}
 
 			this.isConnectedBoolean = true;

@@ -11,7 +11,7 @@ tags:
   - 'database'
   - 'sqlite'
   - 'drizzle'
-  - 'beta'
+  - 'production'
 ---
 
 # SQLite Implementation
@@ -66,8 +66,17 @@ High-level improvements like the **94% cache hit rate** for SQLite are inherited
 
 - **Runtime Agnostic**: Automatically switches between `bun:sqlite` and `better-sqlite3` based on environment.
 - **Zero-Config**: Single file database (`SveltyCMS.db`) - perfect for development.
-- **WAL Mode**: Enabled by default for concurrent read/write performance.
+- **WAL Mode**: Write-Ahead Logging enabled by default for concurrent read/write performance.
+- **Performance PRAGMAs**: 7 optimized PRAGMAs applied on connect:
+  - `synchronous = NORMAL` — 2-5x faster writes (safe with WAL)
+  - `cache_size = -8000` — 8MB page cache (default ~2MB)
+  - `mmap_size = 268435456` — 256MB memory-mapped I/O
+  - `busy_timeout = 5000` — 5s wait vs immediate SQLITE_BUSY errors
+  - `temp_store = memory` — temp tables in RAM
+  - `foreign_keys = ON` — enforce referential integrity
 - **Drizzle Integration**: Type-safe querying without the overhead of a large ORM.
+- **Multi-Tenancy**: Full tenant CRUD (create, getById, update, delete, list).
+- **TTL Cleanup**: `cleanupExpiredData()` purges expired sessions and consumed tokens.
 
 ## 📂 Storage & File Management
 
@@ -89,9 +98,9 @@ SQLite is a file-based database. When running SveltyCMS with SQLite, the system 
 
 If you delete the `.db` file, the CMS will automatically recreate a fresh, empty database on the next startup. The setup wizard also handles the automatic creation of the directory structure (e.g., `/config/database`) if it doesn't exist.
 
-### WAL Mode (Write-Ahead Logging)
+### WAL Mode & Performance PRAGMAs
 
-SveltyCMS enables **WAL mode** by default. This allows concurrent read/write operations, significantly improving performance in multi-user environments.
+SveltyCMS enables **WAL mode** and **6 performance PRAGMAs** on every connection. This provides concurrent read/write operations, 2-5x faster writes, resilience under load (busy_timeout), and enforced referential integrity.
 
 ---
 
