@@ -17,7 +17,7 @@
 <script lang="ts">
 	import { collections, setCollection, setTargetWidget } from '@src/stores/collection-store.svelte';
 	import { toaster } from '@src/stores/store.svelte';
-	import { widgets } from '@src/stores/widget-store.svelte.ts';
+	import { getWidgetFunction, widgets } from '@src/stores/widget-store.svelte.ts';
 	import { asAny, getGuiFields } from '@utils/utils';
 	import BuzzFormCanvas from './buzz-form-canvas.svelte';
 	import FieldInspector from './field-inspector.svelte';
@@ -30,28 +30,34 @@
 	const fields = $derived((collections.active?.fields as any[]) || []);
 
 	function handleAddWidget(key: string) {
-		const widgetInstance = asAny<any>(widgets.widgetFunctions)[key];
-		if (widgetInstance) {
-			const newId = fields.length + 1;
-			const newField = {
-				id: newId,
-				label: `New ${key}`,
-				db_fieldName: `field_${newId}_${key.toLowerCase()}`,
-				widget: { key, Name: key } as any,
-				icon: widgetInstance.Icon || 'mdi:widgets',
-				GuiFields: getGuiFields({ key }, asAny(widgetInstance.GuiSchema)),
-				permissions: {},
-				required: false
-			};
-
-			if (collections.active) {
-				setCollection({ ...collections.active, fields: [...fields, newField] });
-			}
-
-			// Auto-select the new field (index = new length - 1)
-			handleSelectField(newField, fields.length);
-			toaster.success({ description: `Added ${key} field to canvas` });
+		if (!collections.active) {
+			toaster.error({ description: 'No collection loaded. Save or select a collection first.' });
+			return;
 		}
+		// Use direct store lookup so widget is found even when accessed before full hydration
+		const raw = getWidgetFunction(key) ?? (widgets.widgetFunctions as Record<string, unknown>)[key];
+		if (!raw) {
+			toaster.error({ description: `Widget "${key}" is not available. Try refreshing the page.` });
+			return;
+		}
+		const w = raw as { GuiSchema?: unknown; Icon?: string };
+		const newId = fields.length + 1;
+		const newField = {
+			id: newId,
+			label: `New ${key}`,
+			db_fieldName: `field_${newId}_${key.toLowerCase()}`,
+			widget: { key, Name: key } as any,
+			icon: w.Icon || 'mdi:widgets',
+			GuiFields: getGuiFields({ key }, asAny(w.GuiSchema)),
+			permissions: {},
+			required: false
+		};
+
+		setCollection({ ...collections.active, fields: [...fields, newField] });
+
+		// Auto-select the new field (index = new length - 1)
+		handleSelectField(newField, fields.length);
+		toaster.success({ description: `Added ${key} field to canvas` });
 	}
 
 	function handleNodeUpdate(updatedItems: any[]) {

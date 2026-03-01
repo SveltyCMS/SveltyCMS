@@ -134,6 +134,8 @@ export const load: PageServerLoad = async ({ depends, locals, params }) => {
 		// Try resolving exactly as passed (UUID or relative path)
 		let currentCollection = await contentManager.getCollection(collectionIdentifier);
 
+		console.log('currentCollection', JSON.stringify(currentCollection));
+
 		// Fallback: Try identifying as an absolute path if not found
 		if (!(currentCollection || collectionIdentifier.startsWith('/'))) {
 			currentCollection = await contentManager.getCollection(`/${collectionIdentifier}`);
@@ -174,6 +176,47 @@ export const load: PageServerLoad = async ({ depends, locals, params }) => {
 		}
 
 		const serializableCollection = currentCollection ? deepCloneAndRemoveFunctions(currentCollection) : null;
+
+		// Attach parentId, path, and _id from content structure so snapshot matches DB (schema file can have different _id/path)
+		if (serializableCollection && typeof serializableCollection === 'object') {
+			const flat = await contentManager.getContentStructureFromDatabase('flat', true);
+			const cId = (serializableCollection as { _id?: string })._id?.toString?.() ?? (serializableCollection as { _id?: string })._id;
+			const schemaPath = (serializableCollection as { path?: string }).path;
+			const schemaName = (serializableCollection as { name?: string }).name;
+			// Find node: 1) by schema._id, 2) by URL identifier (path or _id), 3) by schema.path, 4) by name (same name under same parent)
+			let node = flat.find(
+				(n) =>
+					n.nodeType === 'collection' && cId && (n._id?.toString() === cId || n._id?.toString().replace(/-/g, '') === String(cId).replace(/-/g, ''))
+			);
+			if (!node && collectionIdentifier) {
+				const idNorm = collectionIdentifier.replace(/^\//, '').replace(/-/g, '');
+				node = flat.find(
+					(n) =>
+						n.nodeType === 'collection' &&
+						(n.path === collectionIdentifier ||
+							n.path === collectionIdentifier.replace(/^\//, '') ||
+							n._id?.toString() === collectionIdentifier ||
+							n._id?.toString().replace(/-/g, '') === idNorm)
+				);
+			}
+			if (!node && schemaPath) {
+				node = flat.find((n) => n.nodeType === 'collection' && n.path && (n.path === schemaPath || n.path === schemaPath.replace(/^\//, '')));
+			}
+			if (!node && (schemaName || schemaPath)) {
+				const pathSegment = typeof schemaPath === 'string' ? schemaPath.split('/').filter(Boolean).pop() : null;
+				node = flat.find(
+					(n) =>
+						n.nodeType === 'collection' && (n.name === schemaName || n.name === pathSegment || (pathSegment && (n.path ?? '').endsWith(pathSegment)))
+				);
+			}
+			if (node) {
+				const out = serializableCollection as Record<string, unknown>;
+				if (node.parentId != null) out.parentId = node.parentId.toString?.() ?? node.parentId;
+				if (node.path != null) out.path = node.path.toString?.() ?? node.path;
+				// Align _id with DB so save and future lookups use the correct id
+				if (node._id != null) out._id = node._id.toString?.() ?? node._id;
+			}
+		}
 
 		console.log('serializableCollection', JSON.stringify(serializableCollection));
 
@@ -251,7 +294,6 @@ export const actions: Actions = {
 	// Save Collection
 	saveCollection: async ({ request }) => {
 		try {
-			console.log('saveCollection');
 			const formData = await request.formData();
 			const fieldsData = formData.get('fields') as string;
 			const originalName = formData.get('originalName') as string;
@@ -273,6 +315,8 @@ export const actions: Actions = {
 				}
 			}
 			collectionId = (collectionId && String(collectionId).trim()) || '';
+
+			console.log('collectionId', collectionId);
 			const parentIdParam = (formData.get('parentId') as string) || '';
 
 			// New collection: generate id and use id-based path (file path = id so DB gets path from file)
@@ -352,7 +396,13 @@ export const actions: Actions = {
 				const looksLikeId = !urlPathRaw.includes('/') && /^[a-zA-Z0-9_-]{16,32}$/.test(urlPathRaw);
 				const resolved =
 					looksLikeId && collectionId ? resolveCollectionFilePathById(collectionId, tenantId, existingNode?.path as string | undefined) : null;
-				const urlFilePath = resolved ? resolved.logicalPath : urlPathRaw;
+				let urlFilePath = resolved ? resolved.logicalPath : urlPathRaw;
+				// When editing a collection that has a parent, ensure we operate on the file under the parent (e.g. Menu/Names_copy), not root
+				if (!resolved && parentIdParam && !urlFilePath.includes('/')) {
+					const parent = flat.find((n) => n._id?.toString() === parentIdParam);
+					const parentName = (parent?.name as string)?.replace(/\s+/g, '-').replace(/\/|\\/g, '').trim() ?? '';
+					if (parentName) urlFilePath = `${parentName}/${urlFilePath}`;
+				}
 				if (resolved) effectiveWriteTenantId = resolved.writeTenantId;
 				targetFilePath = urlFilePath || contentName.trim();
 				if (!existingNode) {
@@ -443,6 +493,62 @@ export const actions: Actions = {
 				fs.mkdirSync(targetDir, { recursive: true });
 			}
 			fs.writeFileSync(collectionPath, content);
+
+			// When the collection lives under a parent, remove any mistaken root-level file with the same name (leftover from a previous bug)
+			if (parentIdParam && targetFilePath.includes('/')) {
+				const basename = targetFilePath.split('/').pop() || '';
+				if (basename) {
+					const rootCollectionPath = getCollectionFilePath(basename, effectiveWriteTenantId);
+					if (rootCollectionPath !== collectionPath && fs.existsSync(rootCollectionPath)) {
+						try {
+							fs.unlinkSync(rootCollectionPath);
+							logger.info(`Save: removed mistaken root-level file ${rootCollectionPath}`);
+						} catch (unlinkErr) {
+							logger.warn('Save: could not remove root-level duplicate file', unlinkErr);
+						}
+					}
+				}
+				// Remove leftover file with the previous name under the same parent (e.g. Menu/Names_copy.ts when we just saved as Menu/Names_34)
+				const previousFileName =
+					(originalName || '')
+						.replace(/^\//, '')
+						.trim()
+						.split('/')
+						.pop()
+						?.replace(/[/\\]+/g, '')
+						.replace(/\s+/g, '-') ?? '';
+				if (previousFileName && previousFileName !== nameForFile) {
+					const parentDir = targetFilePath.slice(0, targetFilePath.lastIndexOf('/'));
+					const leftoverPath = getCollectionFilePath(`${parentDir}/${previousFileName}`, effectiveWriteTenantId);
+					if (leftoverPath !== collectionPath && fs.existsSync(leftoverPath)) {
+						try {
+							fs.unlinkSync(leftoverPath);
+							logger.info(`Save: removed leftover file ${leftoverPath} after rename`);
+						} catch (unlinkErr) {
+							logger.warn('Save: could not remove leftover file after rename', unlinkErr);
+						}
+					}
+				}
+				// Remove stale _copy file in same directory when we saved the renamed collection (e.g. Menu/Names_copy.ts when Menu/Names_34.ts exists)
+				const parentDirPath = path.dirname(collectionPath);
+				if (fs.existsSync(parentDirPath)) {
+					const targetBase = nameForFile.replace(/_\d+$/, '') || nameForFile; // "Names_34" -> "Names"
+					const entries = fs.readdirSync(parentDirPath, { withFileTypes: true });
+					for (const ent of entries) {
+						if (!ent.isFile() || !ent.name.endsWith('_copy.ts')) continue;
+						const copyBase = ent.name.replace(/_copy\.ts$/, ''); // "Names_copy.ts" -> "Names"
+						if (copyBase !== targetBase) continue;
+						const stalePath = path.join(parentDirPath, ent.name);
+						if (stalePath === collectionPath) continue;
+						try {
+							fs.unlinkSync(stalePath);
+							logger.info(`Save: removed stale _copy file ${stalePath} (duplicate of saved collection)`);
+						} catch (unlinkErr) {
+							logger.warn('Save: could not remove stale _copy file', unlinkErr);
+						}
+					}
+				}
+			}
 
 			// Compile using same tenant/path we wrote to
 			await compile({ logger, tenantId: effectiveWriteTenantId });

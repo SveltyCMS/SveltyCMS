@@ -92,6 +92,8 @@ None (TreeView has its own keyboard navigation)
 		const structure = data.contentStructure as unknown as ContentNode[];
 		currentConfig = structure;
 
+		console.log('currentConfig', JSON.stringify(currentConfig));
+
 		// Keep sidebar in sync: it reads from contentStructure store, so update it when we load fresh data from DB
 		setContentStructure(structure);
 	});

@@ -82,6 +82,8 @@
 		const currentAction = page.params.action;
 		const currentCollection = data.collection;
 
+		console.log('currentCollection', JSON.stringify(currentCollection));
+
 		if (currentAction === 'edit' && currentCollection) {
 			setCollection(currentCollection);
 			const pathStr = currentCollection.path != null ? String(currentCollection.path).trim() : '';
@@ -143,6 +145,7 @@
 			isLoading = true;
 			// Use snapshot from store so Field Inspector edits (label, db_fieldName, required, icon) are included
 			const currentCollection = collections.active;
+			console.log('currentCollection', JSON.stringify(currentCollection));
 			if (!currentCollection) {
 				toaster.error({ description: 'No collection to save' });
 				return;
@@ -160,6 +163,8 @@
 			if (confirmDeletions) {
 				payload.confirmDeletions = 'true';
 			}
+
+			console.log('payload', JSON.stringify(payload));
 
 			const response = await fetch('?/saveCollection', {
 				method: 'POST',
@@ -195,8 +200,9 @@
 				}
 				setCollection(snapshot);
 				justSaved = true;
-				// Invalidate content so layout (sidebar) and edit page load get fresh data after rename/save
+				// Invalidate caches so layout, list, and edit page loads get fresh data (avoids stale fields)
 				await invalidate('app:content');
+				await invalidate(page.url.pathname);
 				await invalidateAll();
 				// Create: go to edit page for the new collection; Edit: go to collection builder list
 				const editPath = data?.editPath;

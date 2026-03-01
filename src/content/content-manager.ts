@@ -1993,21 +1993,35 @@ class ContentManager {
 			return depthA - depthB;
 		});
 
-		// 4. Resolve parentIds using the built-up map
+		// 4. Resolve parentIds using the built-up map (and derive from id-based path when missing)
 		for (const op of operations) {
 			if (!op.path) {
 				continue;
 			}
+			// Id-based path (e.g. "parentId.collectionId"): derive parentId so DB stores it and node stays under category
+			const isIdBasedPath = op.path.includes('.') && !op.path.includes('/');
+			if (isIdBasedPath && (op.parentId == null || op.parentId === '')) {
+				const parentPathFromId = op.path.split('.').slice(0, -1).join('.');
+				if (parentPathFromId) {
+					op.parentId = toDatabaseId(parentPathFromId);
+				}
+			}
+			// Slash path (e.g. "Menu/Names_copy" or "/Menu/Names_copy"): resolve parentId from pathToIdMap
 			const pathParts = op.path.split('/').filter(Boolean);
-			if (pathParts.length > 1) {
-				const parentPath = `/${pathParts.slice(0, -1).join('/')}`;
-				op.parentId = pathToIdMap.get(parentPath);
-
+			if (pathParts.length > 1 && (op.parentId == null || op.parentId === '')) {
+				const parentPathWithSlash = `/${pathParts.slice(0, -1).join('/')}`;
+				const parentPathNoSlash = pathParts.slice(0, -1).join('/');
+				op.parentId = pathToIdMap.get(parentPathWithSlash) ?? pathToIdMap.get(parentPathNoSlash);
 				if (!op.parentId) {
-					const fallbackParent = dbNodeMapByPath.get(parentPath);
-					if (fallbackParent) {
-						op.parentId = toDatabaseId(fallbackParent._id.toString());
-					}
+					const fromDb = dbNodeMapByPath.get(parentPathWithSlash) ?? dbNodeMapByPath.get(parentPathNoSlash);
+					if (fromDb) op.parentId = toDatabaseId(fromDb._id.toString());
+				}
+				// When DB uses id-based category paths, pathToIdMap has no "/Menu"; find category by first segment name
+				if (!op.parentId && pathParts[0]) {
+					const categoryByName = Array.from(dbNodeMapByPath.values()).find(
+						(n) => n.nodeType === 'category' && (n.name === pathParts[0] || (n as { path?: string }).path === pathParts[0])
+					);
+					if (categoryByName) op.parentId = toDatabaseId(categoryByName._id.toString());
 				}
 			}
 		}
@@ -2331,6 +2345,15 @@ class ContentManager {
 			})
 		);
 		return files.flat();
+	}
+
+	/** Derives a unique slash-path for a category when path is missing (e.g. from tree create). */
+	private _deriveUniqueCategoryPath(name: string): string {
+		const sanitized = String(name || 'category')
+			.trim()
+			.replace(/\s+/g, '-')
+			.replace(/[/\\]+/g, '');
+		return `/${sanitized || 'category'}`;
 	}
 
 	private _extractPathFromFilePath(filePath: string): string {

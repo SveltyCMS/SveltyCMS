@@ -61,6 +61,7 @@
 	$effect(() => {
 		const fromData = data;
 		const fromStore = collection.value;
+
 		const id = fromData?._id ?? fromData?.path ?? fromStore?._id ?? fromStore?.path ?? null;
 		const idStr = id != null ? String(id) : '';
 		if (fromData && idStr !== lastSyncedId) {
@@ -123,6 +124,8 @@
 				icon: currentIcon
 			});
 		});
+
+		console.log('collection.value', JSON.stringify(collection.value));
 	});
 
 	function handleNameInput() {
