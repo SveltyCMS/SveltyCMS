@@ -426,5 +426,5 @@ export interface TablePaginationProps {
 }
 
 /* AUTOGEN_START: ContentTypes */
-export type ContentTypes = 'Categories' | 'WidgetTest' | 'Authors' | 'Menu' | 'Relation' | 'Names' | 'Categories_c' | 'Names_31';
+export type ContentTypes = 'Categories' | 'WidgetTest' | 'Authors' | 'Menu' | 'Relation' | 'Names' | 'Posts' | 'Names_31' | 'Categories_c';
 /* AUTOGEN_END: ContentTypes */

@@ -255,7 +255,9 @@ export class MongoDBAdapter implements IDBAdapter {
 					heartbeatFrequencyMS: 10000, // Faster topology detection for replica sets
 					retryWrites: true,
 					retryReads: true, // Auto-retry transient read failures
-					w: 'majority'
+					w: 'majority',
+					// No wire compression so the app works without optional deps (@mongodb-js/zstd, snappy).
+					compressors: []
 				};
 
 				if (typeof connectionStringOrOptions === 'string') {

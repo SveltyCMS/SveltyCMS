@@ -601,7 +601,8 @@ export default defineConfig((): UserConfig => {
 				'svelte-confetti',
 				'svelte-canvas',
 				'svelte-dnd-action',
-				'svelte-awesome-color-picker'
+				'svelte-awesome-color-picker',
+				'json-render-svelte'
 			],
 			include: [],
 			entries: ['!tests/**/*', '!**/*.server.ts', '!**/*.server.js']

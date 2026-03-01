@@ -115,11 +115,35 @@ export async function processModule(content: string): Promise<{ schema?: Schema 
 		}
 
 		const startIdx = match.index! + match[0].length;
-		// Determine end of the expression (up to semicolon or end of content)
-		// This is a simplified approach that works well with our generated files
-		let endIdx = content.indexOf(';', startIdx);
-		if (endIdx === -1) {
+		// Find the schema object by brace matching (so semicolons in strings don't truncate)
+		const firstBrace = content.indexOf('{', startIdx);
+		let endIdx: number;
+		if (firstBrace === -1) {
+			const semi = content.indexOf(';', startIdx);
+			endIdx = semi === -1 ? content.length : semi;
+		} else {
 			endIdx = content.length;
+			let depth = 0;
+			let inString: string | null = null;
+			for (let i = firstBrace; i < content.length; i++) {
+				const c = content[i];
+				if (inString) {
+					if (c === inString && content[i - 1] !== '\\') inString = null;
+					continue;
+				}
+				if (c === '"' || c === "'" || c === '`') {
+					inString = c;
+					continue;
+				}
+				if (c === '{') depth++;
+				else if (c === '}') {
+					depth--;
+					if (depth === 0) {
+						endIdx = i + 1;
+						break;
+					}
+				}
+			}
 		}
 
 		let schemaContent = content.substring(startIdx, endIdx).trim();
