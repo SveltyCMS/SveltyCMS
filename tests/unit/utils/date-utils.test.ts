@@ -14,7 +14,7 @@ import {
 	nowISODateString,
 	stringToISODateString,
 	toISOString
-} from '@utils/date-utils';
+} from '../../../src/utils/date-utils';
 
 describe('Date Utils - Type Guards', () => {
 	it('should validate ISO date strings', () => {

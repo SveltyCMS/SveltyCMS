@@ -19,7 +19,7 @@ const originalTestMode = process.env.TEST_MODE;
 process.env.TEST_MODE = undefined;
 
 // Import the hook - mocks are already set up by preload.ts
-import { handleSystemState } from '@src/hooks/handle-system-state';
+import { handleSystemState } from '../../../src/hooks/handle-system-state';
 
 /**
  * Helper to create a minimal RequestEvent for testing

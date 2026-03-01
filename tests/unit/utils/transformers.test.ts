@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it } from 'bun:test';
-import { addJsExtensionTransformer, schemaTenantIdTransformer, schemaUuidTransformer } from '@src/utils/compilation/transformers';
+import { addJsExtensionTransformer, schemaTenantIdTransformer, schemaUuidTransformer } from '../../../src/utils/compilation/transformers';
 import * as ts from 'typescript';
 
 function transform(code: string, transformers: ts.TransformerFactory<ts.SourceFile>[]) {

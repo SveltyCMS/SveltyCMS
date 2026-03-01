@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, mock } from 'bun:test';
-import { AIService } from '@src/services/ai-service';
+import { AIService } from '../../../src/services/ai-service';
 
 // Mock settings-service
 mock.module('@src/services/settings-service', () => ({

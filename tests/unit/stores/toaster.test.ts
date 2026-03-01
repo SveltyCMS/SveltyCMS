@@ -4,7 +4,7 @@
  */
 
 import { beforeEach, describe, expect, it } from 'bun:test';
-import { toaster } from '@stores/toaster.svelte';
+import { toaster } from '../../../src/stores/toaster.svelte';
 
 describe('ToasterStore', () => {
 	beforeEach(() => {

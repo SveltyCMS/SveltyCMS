@@ -4,7 +4,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
-import { createLivePreviewListener } from '@src/utils/use-live-preview';
+import { createLivePreviewListener } from '../../../src/utils/use-live-preview';
 
 describe('LivePreview Utility', () => {
 	let mockOnUpdate: any;
