@@ -27,9 +27,9 @@ export async function POST({ request }: RequestEvent) {
 		}
 
 		// Re-import after initialization (module-level `dbAdapter` may have been reassigned)
-		const db = await import('@src/databases/db');
-		const currentDbAdapter = db.dbAdapter;
-		const currentAuth = db.auth;
+		let db = await import('@src/databases/db');
+		let currentDbAdapter = db.dbAdapter;
+		let currentAuth = db.auth;
 
 		if (!(currentDbAdapter && currentAuth)) {
 			return json({ error: 'Database or Auth not initialized after init attempt' }, { status: 503 });

@@ -129,24 +129,6 @@ jobs:
       - name: Install Runtime Deps
         run: bun install --frozen-lockfile
 
-      - name: 🛠️ Generate config/private.test.ts
-        run: |
-          mkdir -p config
-          cat <<EOF > config/private.test.ts
-          export const privateEnv = {
-            DB_TYPE: '${{ matrix.database }}',
-            DB_HOST: 'localhost',
-            DB_PORT: ${{ matrix.database == 'mongodb' && 27017 || matrix.database == 'mariadb' && 3306 || matrix.database == 'postgresql' && 5432 || 0 }},
-            DB_NAME: 'sveltycms_test',
-            DB_USER: '${{ (matrix.database == 'mariadb' || matrix.database == 'postgresql') && 'test' || '' }}',
-            DB_PASSWORD: '${{ (matrix.database == 'mariadb' || matrix.database == 'postgresql') && 'test' || '' }}',
-            TEST_MODE: true,
-            JWT_SECRET_KEY: 'test-secret-key-for-internal-testing-only',
-            SMTP_HOST: 'localhost',
-            SMTP_PORT: 1025
-          };
-          EOF
-
       - name: ⏳ Wait for Services
         run: |
           if [ "${{ matrix.database }}" == "mongodb" ]; then bun x wait-on tcp:27017; fi
@@ -155,7 +137,24 @@ jobs:
           bun x wait-on tcp:1025
 
       - name: 🧪 Run Black-Box Tests
-        run: bun run scripts/run-integration-tests.ts
+        env:
+          DB_TYPE: ${{ matrix.database }}
+          DB_HOST: localhost
+          DB_NAME: sveltycms_test
+          DB_USER: ${{ (matrix.database == 'mariadb' || matrix.database == 'postgresql') && 'test' || '' }}
+          DB_PASSWORD: ${{ (matrix.database == 'mariadb' || matrix.database == 'postgresql') && 'test' || '' }}
+          TEST_MODE: true
+        run: |
+          # 1. Start preview server in background
+          bun run preview > preview.log 2>&1 &
+          bun x wait-on http://localhost:4173/api/system/health --timeout 60000
+
+          # 2. Run Setup Wizard via Playwright to generate config/private.test.ts naturally
+          bun x playwright install --with-deps chromium
+          bun x playwright test tests/e2e/setup-wizard.spec.ts
+
+          # 3. Now run the integration tests against the configured system
+          bun run scripts/run-integration-tests.ts
         timeout-minutes: 15
 
   e2e:
@@ -214,24 +213,6 @@ jobs:
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: bunx playwright install --with-deps chromium
 
-      - name: 🛠️ Generate config/private.test.ts
-        run: |
-          mkdir -p config
-          cat <<EOF > config/private.test.ts
-          export const privateEnv = {
-            DB_TYPE: '${{ matrix.database }}',
-            DB_HOST: 'localhost',
-            DB_PORT: ${{ matrix.database == 'mongodb' && 27017 || matrix.database == 'mariadb' && 3306 || matrix.database == 'postgresql' && 5432 || 0 }},
-            DB_NAME: 'sveltycms_test',
-            DB_USER: '${{ (matrix.database == 'mariadb' || matrix.database == 'postgresql') && 'test' || '' }}',
-            DB_PASSWORD: '${{ (matrix.database == 'mariadb' || matrix.database == 'postgresql') && 'test' || '' }}',
-            TEST_MODE: true,
-            JWT_SECRET_KEY: 'test-secret-key-for-internal-testing-only',
-            SMTP_HOST: 'localhost',
-            SMTP_PORT: 1025
-          };
-          EOF
-
       - name: ⏳ Wait for Services
         run: |
           if [ "${{ matrix.database }}" == "mongodb" ]; then bun x wait-on tcp:27017; fi
@@ -240,8 +221,15 @@ jobs:
           bun x wait-on tcp:1025
 
       - name: 🎭 Run Playwright E2E
+        env:
+          DB_TYPE: ${{ matrix.database }}
+          DB_HOST: localhost
+          DB_NAME: sveltycms_test
+          DB_USER: ${{ (matrix.database == 'mariadb' || matrix.database == 'postgresql') && 'test' || '' }}
+          DB_PASSWORD: ${{ (matrix.database == 'mariadb' || matrix.database == 'postgresql') && 'test' || '' }}
+          TEST_MODE: true
         run: |
-          TEST_MODE=true bun run preview > preview.log 2>&1 &
+          bun run preview > preview.log 2>&1 &
           bun x wait-on http://localhost:4173/api/system/health --timeout 60000
           bun x playwright test tests/e2e/setup-wizard.spec.ts
           bun x playwright test tests/e2e/role-based-access.spec.ts

@@ -9,7 +9,7 @@
         "@floating-ui/dom": "^1.7.5",
         "@googlemaps/js-api-loader": "^2.0.2",
         "@inlang/paraglide-js": "^2.13.0",
-        "@mcp-b/webmcp-polyfill": "^2.0.7",
+        "@mcp-b/webmcp-polyfill": "^2.0.8",
         "@tailwindcss/forms": "^0.5.11",
         "@tailwindcss/typography": "^0.5.19",
         "@testing-library/jest-dom": "^6.9.1",
@@ -99,7 +99,7 @@
         "eslint-config-prettier": "^10.1.8",
         "eslint-plugin-prettier": "^5.5.5",
         "eslint-plugin-svelte": "^3.15.0",
-        "globals": "^17.3.0",
+        "globals": "^17.4.0",
         "prettier": "^3.8.1",
         "prettier-plugin-svelte": "^3.5.0",
         "prettier-plugin-tailwindcss": "^0.7.2",
@@ -488,9 +488,9 @@
 
     "@lix-js/server-protocol-schema": ["@lix-js/server-protocol-schema@0.1.1", "", {}, "sha512-jBeALB6prAbtr5q4vTuxnRZZv1M2rKe8iNqRQhFJ4Tv7150unEa0vKyz0hs8Gl3fUGsWaNJBh3J8++fpbrpRBQ=="],
 
-    "@mcp-b/webmcp-polyfill": ["@mcp-b/webmcp-polyfill@2.0.7", "", { "dependencies": { "@cfworker/json-schema": "^4.1.1", "@mcp-b/webmcp-types": "2.0.7", "@standard-schema/spec": "^1.1.0" } }, "sha512-vgO3DtzltUXryqLRsTaEZkM9JPIQfwI3quI5gCdCHFFchi7tIK1OnZtR493K8XfNeeGSTD3HRL+3Prt/U7suqw=="],
+    "@mcp-b/webmcp-polyfill": ["@mcp-b/webmcp-polyfill@2.0.8", "", { "dependencies": { "@cfworker/json-schema": "^4.1.1", "@mcp-b/webmcp-types": "2.0.8", "@standard-schema/spec": "^1.1.0" } }, "sha512-KY1TdJ/4gPqSoEfqIZxa1eD5Xaj63A0hrp9R0Ft3Pe0l0ob7SUVYR1RG5axmaN7yM7DUq1giZpObUK5xjvuSiA=="],
 
-    "@mcp-b/webmcp-types": ["@mcp-b/webmcp-types@2.0.7", "", {}, "sha512-6ILuJM0F6YxIcyCDsMHvE6byez8eAr9yyfWvxFqzwVrBGbQoadBoWLBThJ/6lWlXMxxnfiRROzzJsB2bcVUcDg=="],
+    "@mcp-b/webmcp-types": ["@mcp-b/webmcp-types@2.0.8", "", {}, "sha512-P5KGlCaTt0sAWiKeT0ggrMqBGCyOIQ8d3fa7tWiDBvLJH2TOtfRXuV6Npn30lOSmZgvA4KDSGGFyNC+fF8w9Yg=="],
 
     "@mongodb-js/saslprep": ["@mongodb-js/saslprep@1.3.2", "", { "dependencies": { "sparse-bitfield": "^3.0.3" } }, "sha512-QgA5AySqB27cGTXBFmnpifAi7HxoGUeezwo6p9dI03MuDB6Pp33zgclqVb6oVK3j6I9Vesg0+oojW2XxB59SGg=="],
 
@@ -1484,7 +1484,7 @@
 
     "glob-parent": ["glob-parent@6.0.2", "", { "dependencies": { "is-glob": "^4.0.3" } }, "sha512-XxwI8EOhVQgWp6iDL+3b0r86f4d6AX6zSU55HfB4ydCEuXLXc5FcYeOu+nnGftS4TEju/11rt4KJPTMgbfmv4A=="],
 
-    "globals": ["globals@17.3.0", "", {}, "sha512-yMqGUQVVCkD4tqjOJf3TnrvaaHDMYp4VlUSObbkIiuCPe/ofdMBFIAcBbCSRFWOnos6qRiTVStDwqPLUclaxIw=="],
+    "globals": ["globals@17.4.0", "", {}, "sha512-hjrNztw/VajQwOLsMNT1cbJiH2muO3OROCHnbehc8eY5JyD2gqz4AcMHPqgaOR59DjgUjYAYLeH699g/eWi2jw=="],
 
     "google-auth-library": ["google-auth-library@10.6.1", "", { "dependencies": { "base64-js": "^1.3.0", "ecdsa-sig-formatter": "^1.0.11", "gaxios": "7.1.3", "gcp-metadata": "8.1.2", "google-logging-utils": "1.1.3", "jws": "^4.0.0" } }, "sha512-5awwuLrzNol+pFDmKJd0dKtZ0fPLAtoA5p7YO4ODsDu6ONJUVqbYwvv8y2ZBO5MBNp9TJXigB19710kYpBPdtA=="],
 

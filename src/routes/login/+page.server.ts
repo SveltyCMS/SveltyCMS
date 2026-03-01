@@ -900,6 +900,14 @@ export const actions: Actions = {
 			}
 			throw redirect(303, redirectPath);
 		} catch (error) {
+			// CRITICAL: SvelteKit's redirect() and error() throw special objects
+			// that must be re-thrown. Catching them converts a successful redirect into a 500 error.
+			const isRedirectOrHttpError =
+				error instanceof Response || (typeof error === 'object' && error !== null && 'status' in error && 'location' in error);
+			if (isRedirectOrHttpError) {
+				throw error;
+			}
+
 			const err = error as Error;
 			logger.error('Error during invited user signup', {
 				email,
