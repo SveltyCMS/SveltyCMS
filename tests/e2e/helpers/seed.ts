@@ -33,11 +33,11 @@ export async function seedTestUsers(page: Page) {
 		console.log(`Seeding user: ${user.email}...`);
 
 		// This requires a valid session.
-		const response = await page.request.post('/api/users', {
+		const response = await page.request.post('/api/user/create-user', {
 			data: {
 				email: user.email,
 				password: user.password,
-				confirmpassword: user.password, // API typically expects this
+				confirmPassword: user.password, // Schema expects confirmPassword (camelCase)
 				role: user.role,
 				username: key.charAt(0).toUpperCase() + key.slice(1) // Developer, Editor
 			}

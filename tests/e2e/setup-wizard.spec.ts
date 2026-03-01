@@ -58,11 +58,33 @@ test('Setup Wizard: Configure DB and Create Admin', async ({ page }) => {
 
 	// Fill credentials from ENV (CI) or Defaults (Local)
 	const defaultPort = dbType === 'mariadb' ? '3306' : dbType === 'postgresql' ? '5432' : '27017';
-	await page.locator('#db-host').fill(process.env.DB_HOST || 'localhost');
-	await page.locator('#db-port').fill(process.env.DB_PORT || defaultPort);
-	await page.locator('#db-name').fill(process.env.DB_NAME || 'SveltyCMS');
-	await page.locator('#db-user').fill(process.env.DB_USER || 'admin');
-	await page.locator('#db-password').fill(process.env.DB_PASSWORD || 'admin');
+	const dbHost = process.env.DB_HOST || 'localhost';
+	const dbName = process.env.DB_NAME || 'SveltyCMS';
+	const dbPort = process.env.DB_PORT || defaultPort;
+	const dbUser = process.env.DB_USER !== undefined ? process.env.DB_USER : 'admin';
+	const dbPass = process.env.DB_PASSWORD !== undefined ? process.env.DB_PASSWORD : 'admin';
+
+	await page.locator('#db-host').fill(dbHost);
+	await page.locator('#db-name').fill(dbName);
+
+	if (dbType !== 'sqlite') {
+		if (!page.url().includes('mongodb+srv')) {
+			const portLocator = page.locator('#db-port');
+			if (await portLocator.isVisible()) {
+				await portLocator.fill(dbPort);
+			}
+		}
+
+		const userLocator = page.locator('#db-user');
+		if (await userLocator.isVisible()) {
+			await userLocator.fill(dbUser);
+		}
+
+		const passLocator = page.locator('#db-password');
+		if (await passLocator.isVisible()) {
+			await passLocator.fill(dbPass);
+		}
+	}
 
 	// Test Connection
 	await page.locator('button', { hasText: /test database/i }).click();

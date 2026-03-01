@@ -21,9 +21,13 @@ export async function POST({ request }: RequestEvent) {
 
 		// In TEST_MODE, the middleware (handleSystemState) bypasses initialization.
 		// We must ensure the database is initialized before proceeding.
-		if (!(dbAdapter && auth)) {
-			// Wait for the lazy initialization promise to resolve
-			await dbInitPromise;
+		// We use reinitializeSystem(true) to force a reload of the private.test.ts file
+		// which might have just been created by the setup wizard.
+		const { dbAdapter: initialDb, auth: initialAuth, reinitializeSystem } = await import('@src/databases/db');
+		
+		if (!initialDb || !initialAuth) {
+			console.log('[API/Testing] Database not initialized. Attempting re-initialization...');
+			await reinitializeSystem(true);
 		}
 
 		// Re-import after initialization (module-level `dbAdapter` may have been reassigned)
