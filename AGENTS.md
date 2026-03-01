@@ -329,10 +329,13 @@ Svelte 5 runes: `$state()` for state, `$derived()` for computations, `$effect()`
 1.  **Circular Dependencies**: Use dynamic imports for service initialization.
 2.  **HMR Reloads**: Expected for collections/widgets. Full page reload is normal.
 3.  **Setup Wizard**: Let it generate `config/private.ts`. Do NOT create manually.
-4.  **Black-Box Testing (CI/CD)**: In E2E and integration test workflows, DO NOT manually create or bypass the configuration logic with fake `private.test.ts` files. Always orchestrate the tests to hit the Setup Wizard natively using Playwright, thereby letting the CMS naturally generate `config/private.ts` just like a real user.
-5.  **DB Seeding**: Safety checks prevent accidental production seeding.
-6.  **TS Errors**: Run `bunx svelte-kit sync` to regenerate types.
-7.  **Competitor Parity**: Use runes for lighter UIs vs. React hydration.
+4.  **Black-Box Testing (CI/CD)**: In E2E and integration test workflows, DO NOT manually create or bypass the configuration logic with fake `private.test.ts` files. Always orchestrate the tests to hit the Setup Wizard natively using Playwright, thereby letting the CMS naturally generate `config/private.ts` just like a real user. This ensures the entire system lifecycle is validated.
+5.  **White-Box Unit Testing**: Use purely in-memory mocks (configured in `tests/unit/setup.ts`) for configuration and database adapters. Unit tests must remain decoupled from the physical filesystem and should not depend on a pre-existing `config/private.ts`.
+6.  **Strict Case-Sensitivity (Linux/CI)**: ALL `.svelte` files and ALL widget folders MUST be strictly lowercase (kebab-case). Linux-based CI runners will fail with "Module not found" or "404" errors if imports or glob patterns do not match the exact casing on disk. Standardize all imports to lowercase.
+7.  **Robust Path Aliases**: Always use standard path aliases (`@src`, `@widgets`, `@utils`, etc.) instead of fragile relative paths like `../../../src/...`. Ensure aliases are synchronized via `bun x svelte-kit sync` before running checks.
+8.  **DB Seeding**: Safety checks prevent accidental production seeding.
+9.  **TS Errors**: Run `bun x svelte-kit sync` to regenerate types.
+10. **Competitor Parity**: Use runes for lighter UIs vs. React hydration.
 
 ## Key Files Reference
 

@@ -71,15 +71,16 @@ SveltyCMS/
 │   └── content/            # Content management system
 │
 ├── docs/                   # Documentation
-│   ├── api/                # API documentation (16 files)
+│   ├── api/                # API documentation
 │   ├── guides/             # User guides
 │   ├── architecture/       # Architecture docs
 │   ├── widgets/            # Widget documentation
 │   └── contributing/       # Contribution guides
 │
 ├── tests/                  # Test suites
-│   ├── playwright/         # E2E tests
-│   └── bun/                # Unit tests
+│   ├── e2e/                # E2E Black-Box tests (Playwright)
+│   ├── integration/        # Integration tests (Bun)
+│   └── unit/               # Unit White-Box tests (Bun)
 │
 ├── static/                 # Static assets
 └── build/                  # Production build output
@@ -96,7 +97,7 @@ The database layer provides a **unified interface** for different database backe
 **Key Files:**
 
 - `db-interface.ts` - Database adapter interface definition (IDBAdapter)
-- `index.ts` - Database initialization and adapter selection
+- `db.ts` - Database initialization and adapter selection
 - Database adapters implement the IDBAdapter interface for consistency
 
 **IDBAdapter Interface Structure:**
@@ -180,11 +181,14 @@ interface IDBAdapter {
 		deleteModel(id: string): Promise<void>;
 	};
 
-	// System Preferences
-	systemPreferences: {
-		get<T>(key: string, scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<T>>;
-		set<T>(key: string, value: T, scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<void>>;
-		// ... more preference operations
+	// System Preferences (system.preferences namespace)
+	system: {
+		preferences: {
+			get<T>(key: string, scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<T>>;
+			set<T>(key: string, value: T, scope?: 'user' | 'system', userId?: DatabaseId, category?: string): Promise<DatabaseResult<void>>;
+			getMany<T>(keys: string[], scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<Record<string, T>>>;
+			setMany(settings: Array<{ key: string; value: unknown; category: string; scope: 'user' | 'system'; userId?: DatabaseId }>): Promise<DatabaseResult<void>>;
+		}
 	};
 
 	// Performance & Caching
@@ -224,6 +228,7 @@ type DatabaseResult<T> = { success: true; data: T; meta?: QueryMeta } | { succes
 - ✅ **MongoDB** (`/src/databases/mongodb/`) - Via Mongoose
 - ✅ **MariaDB** (`/src/databases/mariadb/`) - Via mariadb driver
 - ✅ **PostgreSQL** (`/src/databases/postgresql/`) - Via pg driver
+- ✅ **SQLite** (`/src/databases/sqlite/`) - Via bun:sqlite
 
 **Why Adapter Pattern?**
 
@@ -245,7 +250,7 @@ Handles user authentication, authorization, and session management.
 - OAuth integration (Google, GitHub)
 - Role-based access control (RBAC)
 - 2FA (Two-Factor Authentication)
-- Password hashing (bcrypt)
+- Password hashing (Argon2 or Bcrypt)
 
 **Key Components:**
 
@@ -259,9 +264,9 @@ checkPermission() → getUserRole() → validatePermission() → allow/deny
 
 **Security Measures:**
 
-- Bcrypt password hashing (10 rounds)
+- Secure password hashing
 - JWT with expiration
-- CSRF token protection
+- CSRF protection
 - Secure session cookies (httpOnly, secure, sameSite)
 - Rate limiting on auth endpoints
 
@@ -269,7 +274,7 @@ checkPermission() → getUserRole() → validatePermission() → allow/deny
 
 ### 3. Component Library (`src/components/`)
 
-Reusable UI components following **Atomic Design** principles.
+Reusable UI components following **Atomic Design** principles. Standardized strictly to **lowercase (kebab-case)** for Linux/CI compatibility.
 
 **Structure:**
 
@@ -1226,68 +1231,21 @@ For more details, see [Hover Preloading Architecture](./hover-preloading.mdx).
 
 ## 🧪 Testing Strategy
 
-### 1. Unit Tests (Bun)
+SveltyCMS employs a dual-layered testing strategy to ensure both code quality and production reliability.
 
-```typescript
-import { describe, it, expect } from 'bun:test';
+### 1. Unit Tests (White-Box)
+Located in `tests/unit/`.
+*   **Engine**: Bun Test runner.
+*   **Focus**: Isolated logic, utility functions, state stores, and service layers.
+*   **Environment**: Purely in-memory. Uses global mocks (defined in `tests/unit/setup.ts`) for database adapters and configuration.
+*   **Isolation**: Tests **must not** depend on a physical `config/private.ts` or a live database.
 
-describe('ContentService', () => {
-	it('should create content', async () => {
-		const service = new ContentService(mockDB);
-		const content = await service.create({
-			title: 'Test',
-			content: 'Hello'
-		});
-
-		expect(content.title).toBe('Test');
-	});
-});
-```
-
-### 2. Integration Tests
-
-```typescript
-// Test API endpoints
-describe('Collections API', () => {
-	it('POST /api/collections - should create collection', async () => {
-		const response = await fetch('http://localhost:5173/api/collections', {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ name: 'test', fields: [] })
-		});
-
-		expect(response.ok).toBe(true);
-		const data = await response.json();
-		expect(data.name).toBe('test');
-	});
-});
-```
-
-### 3. E2E Tests (Playwright)
-
-```typescript
-import { test, expect } from '@playwright/test';
-
-test('admin can create post', async ({ page }) => {
-	// Login
-	await page.goto('/login');
-	await page.fill('input[name="email"]', 'admin@test.com');
-	await page.fill('input[name="password"]', 'password');
-	await page.click('button[type="submit"]');
-
-	// Navigate to posts
-	await page.goto('/admin/collections/posts');
-
-	// Create post
-	await page.click('button:has-text("New Post")');
-	await page.fill('input[name="title"]', 'My Test Post');
-	await page.fill('textarea[name="content"]', 'Hello World');
-	await page.click('button:has-text("Save")');
-
-	// Verify
-	await expect(page.locator('text=My Test Post')).toBeVisible();
-});
-```
+### 2. Integration & E2E Tests (Black-Box)
+Located in `tests/integration/` and `tests/e2e/`.
+*   **Engine**: Bun (for Integration) and Playwright (for E2E).
+*   **Focus**: Full system lifecycle, API contracts, and User Experience.
+*   **Environment**: Realistic. Runs against the production `build` output and real database containers (MongoDB, Postgres, etc.) via Docker.
+*   **The "Clean Slate" Rule**: These tests start with **zero configuration**. They must proceed through the **Setup Wizard** natively to generate `config/private.ts`, validating the authentic installation process.
 
 ---
 
@@ -1550,10 +1508,9 @@ await goto(`/${contentLanguage.value}/${path}`, { invalidateAll: true });
 
 When contributing code:
 
-1. **Follow the structure** - Place files in appropriate directories
-2. **Use TypeScript** - Type all functions and components
-3. **Write tests** - Unit tests for services, E2E for features
-4. **Document code** - JSDoc comments for complex functions
-5. **Follow patterns** - Use existing design patterns consistently
+1. **Strict Casing**: All `.svelte` files and widget folders must be strictly **lowercase (kebab-case)**.
+2. **Use Aliases**: Always use standard aliases (`@src`, `@widgets`, `@utils`, etc.) instead of relative paths.
+3. **Write Tests**: Unit tests for logic (White-Box), E2E for features (Black-Box).
+4. **Document**: Update relevant MDX docs in `docs/`.
 
 See [Contributing Guide](../../CONTRIBUTING.md) for detailed guidelines.
