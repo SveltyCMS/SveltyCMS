@@ -4,7 +4,7 @@
  */
 
 import { beforeEach, describe, expect, it, mock } from 'bun:test';
-import { getDatabaseResilience } from '../../../src/databases/database-resilience';
+import { getDatabaseResilience } from '@src/databases/database-resilience';
 
 describe('DatabaseResilience', () => {
 	let resilience: any;

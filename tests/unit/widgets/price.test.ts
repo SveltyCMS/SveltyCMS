@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it, mock } from 'bun:test';
-import PriceWidget from '../../../src/widgets/custom/price';
+import PriceWidget from '@src/widgets/custom/price';
 import { parse } from 'valibot';
 
 // Mock dependencies

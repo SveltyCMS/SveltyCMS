@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it } from 'bun:test';
 
-import { replaceTokens, TokenRegistry } from '../../../src/services/token/engine';
-import { processTokensInResponse } from '../../../src/services/token/helper';
-import { modifierRegistry } from '../../../src/services/token/modifiers';
+import { replaceTokens, TokenRegistry } from '@src/services/token/engine';
+import { processTokensInResponse } from '@src/services/token/helper';
+import { modifierRegistry } from '@src/services/token/modifiers';
 
 describe('Token System', () => {
 	beforeEach(() => {

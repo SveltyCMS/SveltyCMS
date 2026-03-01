@@ -1,8 +1,8 @@
 // tests/bun/collection-builder.test.ts
 
 import { beforeEach, describe, expect, test } from 'bun:test';
-import type { WidgetConfig } from '../../src/widgets/widget-factory';
-import { createWidget } from '../../src/widgets/widget-factory';
+import type { WidgetConfig } from '@src/widgets/widget-factory';
+import { createWidget } from '@src/widgets/widget-factory';
 
 // Mock widget store data
 const mockWidgetStore = {

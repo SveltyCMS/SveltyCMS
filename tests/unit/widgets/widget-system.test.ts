@@ -20,10 +20,10 @@ import { describe, expect, test, mock, beforeEach } from 'bun:test';
 mock.module('@src/services/json-render/catalog', () => ({
 	registerForJsonRender: mock(() => {})
 }));
-import { registerForJsonRender } from '../../../src/services/json-render/catalog';
+import { registerForJsonRender } from '@src/services/json-render/catalog';
 
 import { boolean, minLength, number, object, string } from 'valibot';
-import { createWidget, type FieldConfig, type WidgetConfig } from '../../../src/widgets/widget-factory';
+import { createWidget, type FieldConfig, type WidgetConfig } from '@src/widgets/widget-factory';
 
 describe('Widget System - Factory Pattern', () => {
 	describe('createWidget Function', () => {

@@ -5,7 +5,7 @@
  */
 
 import { beforeEach, describe, expect, it, mock } from 'bun:test';
-import type { Theme } from '../../../src/databases/db-interface';
+import type { Theme } from '@src/databases/db-interface';
 import type { RequestEvent, ResolveOptions } from '@sveltejs/kit';
 
 // --- Mock ThemeManager ---

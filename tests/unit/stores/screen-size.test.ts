@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it } from 'bun:test';
-import { getScreenSize, ScreenSize } from '../../../src/utils/screen-size';
+import { getScreenSize, ScreenSize } from '@src/utils/screen-size';
 
 describe('Screen Size Store - Size Detection', () => {
 	it('should detect extra small screens (XS)', () => {

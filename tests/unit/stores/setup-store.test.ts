@@ -4,7 +4,7 @@
  */
 
 import { beforeEach, describe, expect, it } from 'bun:test';
-import { setupStore } from '../../../src/stores/setup-store.svelte';
+import { setupStore } from '@src/stores/setup-store.svelte';
 
 describe('Setup Store', () => {
 	// Reset store before each test

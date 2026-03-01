@@ -4,7 +4,7 @@
  */
 
 import { beforeEach, describe, expect, it } from 'bun:test';
-import { gdprService } from '../../../src/services/gdpr-service';
+import { gdprService } from '@src/services/gdpr-service';
 
 // Access global mocks from setup.ts
 const mockAuditLog = (globalThis as any).mockAuditLog;

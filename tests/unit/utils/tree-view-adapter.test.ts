@@ -6,8 +6,8 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import type { ContentNode } from '../../../src/content/types';
-import { fromTreeViewData, recalculatePaths, type TreeViewItem, toFlatContentNodes, toTreeViewData } from '../../../src/utils/tree-view-adapter';
+import type { ContentNode } from '@src/content/types';
+import { fromTreeViewData, recalculatePaths, type TreeViewItem, toFlatContentNodes, toTreeViewData } from '@src/utils/tree-view-adapter';
 
 // Mock ContentNode data for testing
 // Uses Record type to avoid branded type issues in test code

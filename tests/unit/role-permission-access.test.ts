@@ -26,9 +26,9 @@ import {
 	hasPermissionWithRoles,
 	isAdminRoleWithRoles,
 	registerPermission
-} from '../../src/databases/auth/permissions';
-import type { Role, User } from '../../src/databases/auth/types';
-import { PermissionAction, PermissionType } from '../../src/databases/auth/types';
+} from '@src/databases/auth/permissions';
+import type { Role, User } from '@src/databases/auth/types';
+import { PermissionAction, PermissionType } from '@src/databases/auth/types';
 
 // Mock roles that would be in database
 const mockRoles: Role[] = [

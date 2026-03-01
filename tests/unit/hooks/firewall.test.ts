@@ -32,7 +32,7 @@ mock.module('@utils/logger.server', () => ({
 	}
 }));
 
-import { handleFirewall } from '../../../src/hooks/handle-firewall';
+import { handleFirewall } from '@src/hooks/handle-firewall';
 
 /**
  * Helper to create a RequestEvent with custom URL and User-Agent

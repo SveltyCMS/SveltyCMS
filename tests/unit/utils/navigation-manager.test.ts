@@ -3,10 +3,10 @@
  * @description Tests for navigationManager functions
  */
 import { beforeEach, describe, expect, it } from 'bun:test';
-import { navigationManager } from '../../../src/utils/navigation-manager';
-import { mode } from '../../../src/stores/collection-store.svelte';
-import { globalLoadingStore } from '../../../src/stores/loading-store.svelte';
-import { dataChangeStore } from '../../../src/stores/store.svelte';
+import { navigationManager } from '@src/utils/navigation-manager';
+import { mode } from '@src/stores/collection-store.svelte';
+import { globalLoadingStore } from '@src/stores/loading-store.svelte';
+import { dataChangeStore } from '@src/stores/store.svelte';
 
 // We need to spy on 'goto'.
 // We can re-mock the module for this test content if really needed,

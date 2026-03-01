@@ -14,7 +14,7 @@ import {
 	setSystemState,
 	startServiceInitialization,
 	updateServiceHealth
-} from '../../../src/stores/system/state';
+} from '@src/stores/system/state';
 
 describe('System Store - Service Health Management', () => {
 	beforeEach(() => {
