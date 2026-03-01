@@ -101,7 +101,7 @@ test('Setup Wizard: Configure DB and Create Admin', async ({ page }) => {
 		await expect(page.getByText(/connection successful/i).first()).toBeVisible({
 			timeout: 15_000
 		});
-	} catch (err) {
+	} catch (_err) {
 		console.log('Initial DB test failed, retrying once...');
 		await page.waitForTimeout(5000);
 		await testDbButton.click();
