@@ -570,7 +570,7 @@ Built-in status system supports:
 ### Frontend Integration (Svelte)
 
 ```javascript
-import { getData } from '@utils/apiClient';
+import { getData } from '@utils/api-client';
 
 // List entries with filters
 const entries = await getData({
@@ -814,7 +814,7 @@ beforeEach(async () => {
 For testing collection operations in your own code:
 
 ```typescript
-import { getData, postData, patchData, deleteData } from '@utils/apiClient';
+import { getData, postData, patchData, deleteData } from '@utils/api-client';
 
 // Test creating an entry
 const newEntry = await postData({

@@ -249,8 +249,8 @@ mock.module('@utils/setup-check', () => ({
 	invalidateSetupCache: () => {}
 }));
 
-// Mock @src/databases/CacheService
-mock.module('@src/databases/CacheService', () => ({
+// Mock @src/databases/cache-service
+mock.module('@src/databases/cache-service', () => ({
 	cacheService: {
 		get: async () => null,
 		set: async () => {},

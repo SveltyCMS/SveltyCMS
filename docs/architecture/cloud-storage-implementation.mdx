@@ -607,7 +607,7 @@ interface StorageStrategy {
 ### Custom Upload Handler
 
 ```typescript
-import { uploadToCloud, getCloudUrl } from '@utils/media/cloudStorage';
+import { uploadToCloud, getCloudUrl } from '@utils/media/cloud-storage';
 
 export async function uploadCustomFile(file: File, folder: string) {
 	const buffer = Buffer.from(await file.arrayBuffer());
@@ -625,7 +625,7 @@ export async function uploadCustomFile(file: File, folder: string) {
 ### Batch Delete
 
 ```typescript
-import { deleteFromCloud } from '@utils/media/cloudStorage';
+import { deleteFromCloud } from '@utils/media/cloud-storage';
 
 export async function batchDelete(files: string[]) {
 	const results = await Promise.allSettled(files.map((file) => deleteFromCloud(file)));

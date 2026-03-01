@@ -122,7 +122,7 @@ TTL settings are managed through **System Settings** (`/config/systemsetting`):
 ### Cache Store Methods
 
 ```typescript
-import { cacheService } from '@src/databases/CacheService';
+import { cacheService } from '@src/databases/cache-service';
 
 // Set cache value
 await cacheService.set('key', value, ttl, 'category');
@@ -737,7 +737,7 @@ Follow these steps to add caching to your API endpoints or data operations:
 3. **Import CacheService**:
 
    ```typescript
-   import { cacheService } from '@src/databases/CacheService';
+   import { cacheService } from '@src/databases/cache-service';
    ```
 
 4. **Add caching pattern**:

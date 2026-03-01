@@ -409,7 +409,7 @@ const { avatarUrl } = await response.json();
 
 ```typescript
 // Server-side - utils/media/cloudStorage.ts
-import { uploadToCloud, getCloudUrl } from '@utils/media/cloudStorage';
+import { uploadToCloud, getCloudUrl } from '@utils/media/cloud-storage';
 
 const buffer = await file.arrayBuffer();
 const publicUrl = await uploadToCloud(Buffer.from(buffer), 'avatars/image.avif');
@@ -420,7 +420,7 @@ const publicUrl = await uploadToCloud(Buffer.from(buffer), 'avatars/image.avif')
 
 ```typescript
 // Server-side
-import { isCloudStorage, getCloudStorageConfig } from '@utils/media/cloudStorage';
+import { isCloudStorage, getCloudStorageConfig } from '@utils/media/cloud-storage';
 
 if (isCloudStorage()) {
 	const config = getCloudStorageConfig();

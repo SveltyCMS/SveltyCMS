@@ -121,7 +121,7 @@ mock.module('@src/databases/auth/apiPermissions', () => ({
 
 const mockCache = new Map<string, unknown>();
 
-mock.module('@src/databases/CacheService', () => ({
+mock.module('@src/databases/cache-service', () => ({
 	cacheService: {
 		get: async (key: string, _tenantId?: string) => mockCache.get(key),
 		set: async (key: string, value: unknown, _ttl?: number, _tenantId?: string) => {
@@ -156,7 +156,7 @@ mock.module('@src/databases/CacheService', () => ({
 // Mock MetricsService for metrics tracking tests
 // ============================================================================
 
-mock.module('@src/services/MetricsService', () => ({
+mock.module('@src/services/metrics-service', () => ({
 	metricsService: {
 		incrementApiRequests: () => {},
 		incrementApiErrors: () => {},

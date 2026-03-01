@@ -18,7 +18,7 @@ import type { RequestEvent } from '@sveltejs/kit';
 // Mock dependencies
 const mockMetricsIncrementSecurityViolations = mock(() => {});
 
-mock.module('@src/services/MetricsService', () => ({
+mock.module('@src/services/metrics-service', () => ({
 	metricsService: {
 		incrementSecurityViolations: mockMetricsIncrementSecurityViolations
 	}

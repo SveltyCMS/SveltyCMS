@@ -483,7 +483,7 @@ class InMemoryStore implements ICacheStore {
 #### Basic Caching
 
 ```typescript
-import { cacheService, CacheCategory } from '@src/databases/CacheService';
+import { cacheService, CacheCategory } from '@src/databases/cache-service';
 
 // Get from cache
 const user = await cacheService.get<User>('user:123', tenantId, CacheCategory.USER);

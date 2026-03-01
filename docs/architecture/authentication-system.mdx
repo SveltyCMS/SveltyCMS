@@ -407,7 +407,7 @@ console.log(stats);
 
 ```typescript
 import { getSessionCacheStats } from '@src/hooks.server';
-import { metricsService } from '@src/services/MetricsService';
+import { metricsService } from '@src/services/metrics-service';
 
 export async function GET() {
 	const cacheStats = getSessionCacheStats();

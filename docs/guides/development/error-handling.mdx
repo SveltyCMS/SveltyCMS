@@ -178,7 +178,7 @@ throw new Error('Something went wrong');
 Use `fetchApi` for all API calls to get consistent error handling:
 
 ```typescript
-import { fetchApi } from '@utils/apiClient';
+import { fetchApi } from '@utils/api-client';
 
 // GET request
 const response = await fetchApi<User[]>('/api/users');
