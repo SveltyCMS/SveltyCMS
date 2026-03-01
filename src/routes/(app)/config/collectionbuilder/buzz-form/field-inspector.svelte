@@ -22,8 +22,8 @@
 	import { asAny } from '@utils/utils';
 	import type { Component } from 'svelte';
 	import { Tabs } from '@skeletonlabs/skeleton-svelte';
-	import Permission from '../[action]/[...contentPath]/tabs/collection-widget/tabs-fields/permission.svelte';
-	import Specific from '../[action]/[...contentPath]/tabs/collection-widget/tabs-fields/specific.svelte';
+	import Permission from '../[action]/[...contentpath]/tabs/collection-widget/tabs-fields/permission.svelte';
+	import Specific from '../[action]/[...contentpath]/tabs/collection-widget/tabs-fields/specific.svelte';
 
 	interface Props {
 		onDelete: () => void;

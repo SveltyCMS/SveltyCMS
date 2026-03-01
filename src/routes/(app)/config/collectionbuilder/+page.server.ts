@@ -19,12 +19,7 @@ import { contentManager } from '@root/src/content/content-manager';
 // Auth - Use cached roles from locals instead of global config
 import { hasPermissionWithRoles } from '@src/databases/auth/permissions';
 import { compile } from '@src/utils/compilation/compile';
-import {
-	getCollectionDisplayPath,
-	getCollectionFilePath,
-	getCollectionsPath,
-	getCompiledCollectionsPath
-} from '@utils/tenant-paths';
+import { getCollectionDisplayPath, getCollectionFilePath, getCollectionsPath, getCompiledCollectionsPath } from '@utils/tenant-paths';
 import { error, fail, redirect } from '@sveltejs/kit';
 import { logger } from '@utils/logger.server';
 import type { Actions, PageServerLoad } from './$types';
@@ -101,9 +96,7 @@ export const actions: Actions = {
 			const idsNorm = new Set(ids.map((id) => String(id).replace(/-/g, '')));
 			// Resolve paths for these IDs (bypass cache so we see latest structure)
 			const currentStructure = await contentManager.getContentStructureFromDatabase('flat', true);
-			const nodesToDelete = currentStructure.filter(
-				(node) => node.path && idsNorm.has((node._id?.toString() ?? '').replace(/-/g, ''))
-			);
+			const nodesToDelete = currentStructure.filter((node) => node.path && idsNorm.has((node._id?.toString() ?? '').replace(/-/g, '')));
 			const pathsToDelete = nodesToDelete.map((node) => node.path as string);
 
 			// Delete collection source (.ts) and compiled (.js) files so they do not reappear after next refresh.
@@ -234,10 +227,7 @@ export const actions: Actions = {
 			const currentFlat = await contentManager.getContentStructureFromDatabase('flat', true);
 
 			// Build full ancestor path (parentOfParentId.parentId) for id-based path consistency
-			function buildFullAncestorPath(
-				flatList: Array<{ _id?: unknown; parentId?: unknown }>,
-				directParentId: string
-			): string {
+			function buildFullAncestorPath(flatList: Array<{ _id?: unknown; parentId?: unknown }>, directParentId: string): string {
 				const ids: string[] = [];
 				let current = flatList.find(
 					(n) => n._id?.toString() === directParentId || n._id?.toString()?.replace(/-/g, '') === directParentId.replace(/-/g, '')
@@ -259,13 +249,8 @@ export const actions: Actions = {
 					.replace(/\s+/g, '-')
 					.replace(/[/\\]/g, '')
 					.trim() || 'category';
-			const getCategoryFolderPath = (
-				nodeId: string,
-				flat: Array<{ _id?: unknown; parentId?: unknown; name?: unknown }>
-			): string => {
-				const node = flat.find(
-					(n) => n._id?.toString() === nodeId || n._id?.toString()?.replace(/-/g, '') === nodeId.replace(/-/g, '')
-				);
+			const getCategoryFolderPath = (nodeId: string, flat: Array<{ _id?: unknown; parentId?: unknown; name?: unknown }>): string => {
+				const node = flat.find((n) => n._id?.toString() === nodeId || n._id?.toString()?.replace(/-/g, '') === nodeId.replace(/-/g, ''));
 				if (!node) return '';
 				const name = sanitizeFolderName(String(node.name ?? ''));
 				const parentId = node.parentId?.toString();
@@ -290,9 +275,7 @@ export const actions: Actions = {
 				const actualSegments: string[] = [];
 				for (const seg of segments) {
 					if (!fs.existsSync(current) || !fs.statSync(current).isDirectory()) return null;
-					const found = fs.readdirSync(current, { withFileTypes: true }).find(
-						(d) => d.isDirectory() && d.name.toLowerCase() === seg.toLowerCase()
-					);
+					const found = fs.readdirSync(current, { withFileTypes: true }).find((d) => d.isDirectory() && d.name.toLowerCase() === seg.toLowerCase());
 					if (!found) return null;
 					actualSegments.push(found.name);
 					current = path.join(current, found.name);

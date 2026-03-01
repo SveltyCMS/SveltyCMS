@@ -127,18 +127,25 @@ export const load: PageServerLoad = async ({ depends, locals, params }) => {
 			// Proceed so getCollection may still find the collection from existing state
 		}
 
-		const rawPath = params.contentPath;
+		const rawPath = params.contentpath;
 		const collectionIdentifier = Array.isArray(rawPath) ? (rawPath as string[]).join('/') : typeof rawPath === 'string' ? rawPath : String(rawPath);
 
 		console.log('collectionIdentifier', collectionIdentifier);
 		// Try resolving exactly as passed (UUID or relative path)
-		let currentCollection = await contentManager.getCollection(collectionIdentifier);
-
-		console.log('currentCollection', JSON.stringify(currentCollection));
+		let currentCollection = contentManager.getCollection(collectionIdentifier);
 
 		// Fallback: Try identifying as an absolute path if not found
 		if (!(currentCollection || collectionIdentifier.startsWith('/'))) {
-			currentCollection = await contentManager.getCollection(`/${collectionIdentifier}`);
+			currentCollection = contentManager.getCollection(`/${collectionIdentifier}`);
+		}
+
+		// Fallback for new collection: id-based path may not be in pathLookupMap yet; retry after one more refresh (race after create)
+		if (!currentCollection) {
+			await contentManager.refresh();
+			currentCollection = contentManager.getCollection(collectionIdentifier);
+			if (!currentCollection && !collectionIdentifier.startsWith('/')) {
+				currentCollection = contentManager.getCollection(`/${collectionIdentifier}`);
+			}
 		}
 
 		if (!currentCollection) {

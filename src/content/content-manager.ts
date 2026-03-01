@@ -752,10 +752,30 @@ class ContentManager {
 		nodeId = nodeId ?? identifier;
 		let node = this.contentNodeMap.get(nodeId);
 
+		// Try 1b: Map keys are normalized (no dashes); try normalized identifier for id-based paths
+		if (!node && identifier) {
+			const normalized = normalizeId(identifier);
+			if (normalized !== identifier) node = this.contentNodeMap.get(normalized);
+		}
+
 		// Try 2: If not found, search by collection UUID (_id in collectionDef)
 		if (!node) {
 			for (const [, contentNode] of this.contentNodeMap.entries()) {
 				if (contentNode.collectionDef?._id === identifier) {
+					node = contentNode;
+					break;
+				}
+			}
+		}
+
+		// Try 2b: Match by normalized _id (e.g. after creating new collection, edit path is id-based)
+		if (!node) {
+			const normalized = normalizeId(identifier);
+			const idSegment = identifier.includes('.') ? identifier.split('.').pop() : identifier;
+			const normalizedSegment = idSegment ? normalizeId(idSegment) : '';
+			for (const [, contentNode] of this.contentNodeMap.entries()) {
+				const nodeIdNorm = normalizeId(String(contentNode._id ?? ''));
+				if (contentNode.collectionDef && (nodeIdNorm === normalized || nodeIdNorm === normalizedSegment)) {
 					node = contentNode;
 					break;
 				}

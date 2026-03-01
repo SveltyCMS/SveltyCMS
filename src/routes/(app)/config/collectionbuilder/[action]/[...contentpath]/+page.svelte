@@ -155,7 +155,7 @@
 			const snapshot = JSON.parse(JSON.stringify(currentCollection)) as typeof currentCollection;
 
 			// Put originalName last so it is never overwritten by snapshot (enables correct rename)
-			const contentPath = Array.isArray(page.params.contentPath) ? page.params.contentPath.join('/') : (page.params.contentPath ?? '');
+			const contentPath = Array.isArray(page.params.contentpath) ? page.params.contentpath.join('/') : (page.params.contentpath ?? '');
 			const payload: any = {
 				...snapshot,
 				originalName,

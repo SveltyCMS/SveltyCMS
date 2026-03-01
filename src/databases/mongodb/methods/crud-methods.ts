@@ -142,9 +142,10 @@ export class MongoCrudMethods<T extends BaseEntity> {
 		try {
 			const secureData = safeQuery(data as Record<string, unknown>, tenantId, { bypassTenantCheck });
 			const now = nowISODateString();
+			const id = (secureData as Record<string, unknown>)._id != null ? (secureData as Record<string, unknown>)._id : generateId();
 			const doc = new this.model({
 				...secureData,
-				_id: generateId(),
+				_id: id,
 				createdAt: now,
 				updatedAt: now
 			});
@@ -173,12 +174,16 @@ export class MongoCrudMethods<T extends BaseEntity> {
 	): Promise<DatabaseResult<T[]>> {
 		try {
 			const now = nowISODateString();
-			const docs = data.map((d) => ({
-				...safeQuery(d as Record<string, unknown>, tenantId, { bypassTenantCheck }),
-				_id: generateId(),
-				createdAt: now,
-				updatedAt: now
-			}));
+			const docs = data.map((d) => {
+				const safe = safeQuery(d as Record<string, unknown>, tenantId, { bypassTenantCheck });
+				const id = (safe as Record<string, unknown>)._id != null ? (safe as Record<string, unknown>)._id : generateId();
+				return {
+					...safe,
+					_id: id,
+					createdAt: now,
+					updatedAt: now
+				};
+			});
 			const result = await this.model.insertMany(docs);
 			return { success: true, data: result.map((doc) => (doc as mongoose.HydratedDocument<T>).toObject() as T) };
 		} catch (error) {
