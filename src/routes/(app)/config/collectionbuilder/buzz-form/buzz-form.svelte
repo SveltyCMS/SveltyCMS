@@ -44,6 +44,7 @@
 		const newId = fields.length + 1;
 		const newField = {
 			id: newId,
+			order: fields.length,
 			label: `New ${key}`,
 			db_fieldName: `field_${newId}_${key.toLowerCase()}`,
 			widget: { key, Name: key } as any,
@@ -62,9 +63,10 @@
 
 	function handleNodeUpdate(updatedItems: any[]) {
 		if (collections.active) {
+			// Recalculate id and order from current index so saved order matches visual position
 			setCollection({
 				...collections.active,
-				fields: updatedItems.map((item, index) => ({ ...item, id: index + 1 }))
+				fields: updatedItems.map((item, index) => ({ ...item, id: index + 1, order: index }))
 			});
 		}
 	}
@@ -80,7 +82,7 @@
 			const newFields = fields.filter((f) => f.id !== selectedFieldId);
 			setCollection({
 				...collections.active,
-				fields: newFields.map((f, i) => ({ ...f, id: i + 1 }))
+				fields: newFields.map((f, i) => ({ ...f, id: i + 1, order: i }))
 			});
 			selectedFieldId = undefined;
 			setTargetWidget({ permissions: {} });

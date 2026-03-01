@@ -56,9 +56,14 @@ function normalizeField(field: any): any {
 	};
 }
 
+/** Stable key for a field so we can match code vs db regardless of array order (avoids false type_changed on reorder). */
+function fieldKey(norm: any, index: number): string {
+	return (norm._id != null && String(norm._id).trim()) || (norm.name && String(norm.name).trim()) || (norm.db_fieldName && String(norm.db_fieldName).trim()) || `idx_${index}`;
+}
+
 /**
  * Compares two schemas (Code vs Database) and returns differences.
- * @param options.compareByIndex When true, match by index so renames do not produce field_removed + field_added.
+ * @param options.compareByIndex When true, match by identity (id/db_fieldName) so reorder and renames do not produce false drift.
  */
 export function compareSchemas(codeSchema: Schema, dbSchema: Schema, options: CompareSchemasOptions = {}): ComparisonResult {
 	const { compareByIndex = false } = options;
@@ -69,12 +74,33 @@ export function compareSchemas(codeSchema: Schema, dbSchema: Schema, options: Co
 	const dbList = (dbSchema.fields ?? []).map((f) => normalizeField(f));
 
 	if (compareByIndex) {
-		const maxLen = Math.max(codeList.length, dbList.length);
-		for (let i = 0; i < maxLen; i++) {
-			const codeField = codeList[i];
-			const dbField = dbList[i];
-			const name = codeField?.name ?? dbField?.name ?? `field_${i}`;
+		// Match by identity (not array index) so reordering does not trigger type_changed; only real adds/removes/type changes do.
+		const codeFields = new Map<string, any>();
+		codeList.forEach((norm, i) => {
+			codeFields.set(fieldKey(norm, i), norm);
+		});
+		const dbFields = new Map<string, any>();
+		dbList.forEach((norm, i) => {
+			dbFields.set(fieldKey(norm, i), norm);
+		});
 
+		for (const [key, dbField] of dbFields) {
+			if (!codeFields.has(key)) {
+				changes.push({
+					type: 'field_removed',
+					collectionId,
+					fieldName: dbField.name ?? key,
+					oldValue: dbField,
+					severity: 'critical',
+					message: `Field "${dbField.name ?? key}" removed - all data in this field will be lost.`,
+					suggestion: `Backup data before proceeding if it's still needed.`
+				});
+			}
+		}
+
+		for (const [key, codeField] of codeFields) {
+			const dbField = dbFields.get(key);
+			const name = codeField.name ?? key;
 			if (!dbField) {
 				changes.push({
 					type: 'field_added',
@@ -82,20 +108,8 @@ export function compareSchemas(codeSchema: Schema, dbSchema: Schema, options: Co
 					fieldName: name,
 					newValue: codeField,
 					severity: 'info',
-					message: `New field "${name}" added at index ${i}.`,
+					message: `New field "${name}" added.`,
 					suggestion: 'Check if you need to set default values for existing entries.'
-				});
-				continue;
-			}
-			if (!codeField) {
-				changes.push({
-					type: 'field_removed',
-					collectionId,
-					fieldName: dbField.name ?? String(i),
-					oldValue: dbField,
-					severity: 'critical',
-					message: `Field at index ${i} removed - all data in this field will be lost.`,
-					suggestion: `Backup data before proceeding if it's still needed.`
 				});
 				continue;
 			}
@@ -215,7 +229,18 @@ export function compareSchemas(codeSchema: Schema, dbSchema: Schema, options: Co
 	const onlyRemovals = changes.length > 0 && changes.every((c) => c.type === 'field_removed');
 	const isBlockingChange = (c: SchemaChange) =>
 		c.severity === 'critical' || c.severity === 'warning' ? (compareByIndex ? c.type === 'field_removed' || c.type === 'type_changed' : true) : false;
-	const requiresMigration = !onlyRemovals && changes.some(isBlockingChange);
+	let requiresMigration = !onlyRemovals && changes.some(isBlockingChange);
+
+	// When comparing by identity: if both schemas have the same set of fields (same widget + stable id), treat as order-only — do not require migration
+	if (compareByIndex && requiresMigration && codeList.length === dbList.length && codeList.length > 0) {
+		const sig = (f: any) => `${f.widget ?? ''}\0${f.db_fieldName ?? f.name ?? ''}`;
+		const codeSigs = new Set(codeList.map(sig));
+		const dbSigs = new Set(dbList.map(sig));
+		const sameSet = codeSigs.size === dbSigs.size && [...codeSigs].every((s) => dbSigs.has(s));
+		if (sameSet) {
+			requiresMigration = false;
+		}
+	}
 
 	return {
 		collectionId,

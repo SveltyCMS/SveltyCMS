@@ -1998,12 +1998,13 @@ class ContentManager {
 			if (!op.path) {
 				continue;
 			}
-			// Id-based path (e.g. "parentId.collectionId"): derive parentId so DB stores it and node stays under category
+			// Id-based path (e.g. "parentOfParentId.parentId.currentId"): derive parentId as DIRECT parent ID only
 			const isIdBasedPath = op.path.includes('.') && !op.path.includes('/');
 			if (isIdBasedPath && (op.parentId == null || op.parentId === '')) {
-				const parentPathFromId = op.path.split('.').slice(0, -1).join('.');
-				if (parentPathFromId) {
-					op.parentId = toDatabaseId(parentPathFromId);
+				const idPathSegments = op.path.split('.');
+				const directParentId = idPathSegments.length >= 2 ? idPathSegments[idPathSegments.length - 2] : undefined;
+				if (directParentId) {
+					op.parentId = toDatabaseId(directParentId);
 				}
 			}
 			// Slash path (e.g. "Menu/Names_copy" or "/Menu/Names_copy"): resolve parentId from pathToIdMap

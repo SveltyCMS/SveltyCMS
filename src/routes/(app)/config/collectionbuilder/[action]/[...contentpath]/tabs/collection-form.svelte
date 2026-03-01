@@ -70,7 +70,8 @@
 			slug = fromData.slug ?? '';
 			description = fromData.description ?? '';
 			status = fromData.status ?? 'unpublished';
-			const iconValue = (fromStore?.icon != null && String(fromStore.icon).trim()) || (fromData?.icon != null && String(fromData.icon).trim()) || '';
+			// Prefer load data over store so edit page always shows latest icon (no stale cache)
+			const iconValue = (fromData?.icon != null && String(fromData.icon).trim()) || (fromStore?.icon != null && String(fromStore.icon).trim()) || '';
 			selectedIcon = iconValue;
 		}
 	});

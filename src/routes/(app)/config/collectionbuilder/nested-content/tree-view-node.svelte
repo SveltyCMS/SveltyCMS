@@ -21,6 +21,8 @@ Features:
 	interface Props {
 		isOpen?: boolean;
 		item: TreeViewItem & { hasChildren?: boolean };
+		/** When true, this category is the one selected for "add collection" (visual highlight). */
+		isSelectedCategory?: boolean;
 		// Keyboard reordering props
 		keyboardReorderMode?: boolean;
 		onDelete?: (item: TreeViewItem) => void;
@@ -31,6 +33,8 @@ Features:
 		onMoveDown?: () => void;
 		onMoveToParent?: () => void;
 		onMoveUp?: () => void;
+		/** Called when category row is clicked (toggle selection for add-collection target). */
+		onSelectCategory?: () => void;
 		// Roving tabindex for keyboard navigation
 		tabindex?: number;
 		toggle?: () => void;
@@ -39,10 +43,12 @@ Features:
 	let {
 		item,
 		isOpen,
+		isSelectedCategory = false,
 		toggle,
 		onEditCategory,
 		onDelete,
 		onDuplicate,
+		onSelectCategory,
 		keyboardReorderMode = false,
 		onMoveUp,
 		onMoveDown,
@@ -57,13 +63,15 @@ Features:
 	const icon = $derived(item.icon || (item.nodeType === 'category' ? 'bi:folder' : 'bi:collection'));
 	const isCategory = $derived(item.nodeType === 'category');
 
-	// Enhanced styling with better visual hierarchy
+	// Enhanced styling with better visual hierarchy; selected category = primary highlight (one at a time)
 	const containerClass = $derived(
 		keyboardReorderMode
 			? 'group w-full min-h-[48px] p-2 sm:p-3 rounded bg-gradient-to-r from-primary-500/20 to-primary-600/10 border-2 border-primary-500 ring-2 ring-primary-500/50 flex items-center gap-2 sm:gap-3 cursor-pointer transition-all duration-300 ease-out min-w-0 overflow-hidden'
-			: isCategory
-				? 'group w-full min-h-[48px] p-2 sm:p-3 rounded bg-gradient-to-r from-tertiary-500/10 to-tertiary-600/5 border-2 border-l-4 border-l-tertiary-500 border-tertiary-500/30 flex items-center gap-2 sm:gap-3 cursor-pointer hover:border-tertiary-500 hover:shadow-lg hover:from-tertiary-500/20 hover:to-tertiary-600/10 transition-all duration-300 ease-out min-w-0 overflow-hidden'
-				: 'group w-full min-h-[48px] p-2 sm:p-3 rounded bg-gradient-to-r from-surface-100 to-surface-50 dark:from-surface-700 dark:to-surface-800 border-2 border-l-4 border-l-primary-500 border-surface-500/40 flex items-center gap-2 sm:gap-3 cursor-pointer hover:border-surface-500 hover:shadow-lg hover:translate-x-1 transition-all duration-300 ease-out min-w-0 overflow-hidden'
+			: isCategory && isSelectedCategory
+				? 'group w-full min-h-[48px] p-2 sm:p-3 rounded bg-primary-500/20 dark:bg-primary-600/25 border-2 border-primary-500 ring-2 ring-primary-500/50 flex items-center gap-2 sm:gap-3 cursor-pointer transition-all duration-300 ease-out min-w-0 overflow-hidden'
+				: isCategory
+					? 'group w-full min-h-[48px] p-2 sm:p-3 rounded bg-gradient-to-r from-tertiary-500/10 to-tertiary-600/5 border-2 border-l-4 border-l-tertiary-500 border-tertiary-500/30 flex items-center gap-2 sm:gap-3 cursor-pointer hover:border-tertiary-500 hover:shadow-lg hover:from-tertiary-500/20 hover:to-tertiary-600/10 transition-all duration-300 ease-out min-w-0 overflow-hidden'
+					: 'group w-full min-h-[48px] p-2 sm:p-3 rounded bg-gradient-to-r from-surface-100 to-surface-50 dark:from-surface-700 dark:to-surface-800 border-2 border-l-4 border-l-primary-500 border-surface-500/40 flex items-center gap-2 sm:gap-3 cursor-pointer hover:border-surface-500 hover:shadow-lg hover:translate-x-1 transition-all duration-300 ease-out min-w-0 overflow-hidden'
 	);
 
 	const iconClass = $derived(
@@ -74,6 +82,11 @@ Features:
 
 	function handleClick(e: MouseEvent) {
 		if ((e.target as HTMLElement).closest('button, .drag-handle')) {
+			return;
+		}
+		// Category row click = toggle selection (highlight); expand/collapse via chevron only
+		if (isCategory && onSelectCategory) {
+			onSelectCategory();
 			return;
 		}
 		toggle?.();
@@ -117,7 +130,9 @@ Features:
 	{tabindex}
 	aria-label={keyboardReorderMode
 		? `${name}, reorder mode active. Arrow up/down to move, arrow left to move to parent, Enter or Escape to exit.`
-		: `${name}, ${isCategory ? 'category' : 'collection'}. Press Enter to ${isOpen ? 'collapse' : 'expand'}.`}
+		: isCategory
+			? `${name}, category. Click to ${isSelectedCategory ? 'deselect' : 'select'} as target for new collection.`
+			: `${name}, collection. Press Enter to ${isOpen ? 'collapse' : 'expand'}.`}
 >
 	<!-- Expand/Collapse Toggle -->
 	{#if item.hasChildren || isCategory}

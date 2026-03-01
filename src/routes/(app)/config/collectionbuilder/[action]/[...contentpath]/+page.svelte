@@ -89,12 +89,14 @@
 			const pathStr = currentCollection.path != null ? String(currentCollection.path).trim() : '';
 			originalName = pathStr ? pathStr.replace(/^\//, '') : String(currentCollection.name || '');
 		} else if (currentAction === 'new') {
+			const parentId = page.url.searchParams.get('parentId') ?? undefined;
 			setCollection({
 				name: 'new',
 				icon: 'bi:collection',
 				status: 'unpublished',
 				slug: '',
-				fields: []
+				fields: [],
+				...(parentId && { parentId })
 			} as any);
 			originalName = '';
 		}

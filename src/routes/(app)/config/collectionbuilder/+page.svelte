@@ -71,6 +71,8 @@ None (TreeView has its own keyboard navigation)
 	let currentConfig: ContentNode[] = $state([]);
 	let nodesToSave: Record<string, NodeOperation> = $state({});
 	let isLoading = $state(false);
+	/** Single category selected for "add collection" (only one at a time). */
+	let selectedCategoryId = $state<string | null>(null);
 	/** When true, next effect run must not overwrite currentConfig with data (we just applied save response). */
 	let skipNextSyncFromData = false;
 	/** Allow one sync from data when we land on the page; reset on navigate to avoid effect_update_depth_exceeded. */
@@ -354,17 +356,30 @@ None (TreeView has its own keyboard navigation)
 		}
 	}
 
+	function handleSelectCategory(node: { id: string; nodeType: string }): void {
+		if (node.nodeType !== 'category') return;
+		// Toggle: same category clicked again → deselect; otherwise select (only one at a time)
+		selectedCategoryId = selectedCategoryId === node.id ? null : node.id;
+	}
+
+	function handleClearCategorySelection(): void {
+		selectedCategoryId = null;
+	}
+
 	function handleAddCollectionClick(): void {
 		setMode('create');
+		const parentId = selectedCategoryId ?? undefined;
 		setCollectionValue({
 			name: 'new',
 			icon: '',
 			description: '',
 			status: 'unpublished',
 			slug: '',
-			fields: []
+			fields: [],
+			...(parentId && { parentId })
 		});
-		goto('/config/collectionbuilder/new');
+		const query = parentId ? `?parentId=${encodeURIComponent(parentId)}` : '';
+		goto(`/config/collectionbuilder/new${query}`);
 	}
 
 	/** Slugify name for path segment; ensure path is unique among currentConfig. */
@@ -458,6 +473,19 @@ None (TreeView has its own keyboard navigation)
 			<span class="hidden sm:inline">{collection_add()}</span>
 		</button>
 
+		{#if selectedCategoryId}
+			<button
+				type="button"
+				onclick={handleClearCategorySelection}
+				class="preset-ghost-surface-500 btn flex items-center gap-1 rounded"
+				disabled={isLoading}
+				aria-label="Clear category selection"
+			>
+				<iconify-icon icon="mdi:close-circle-outline" width="24"></iconify-icon>
+				<span class="hidden sm:inline">Clear selection</span>
+			</button>
+		{/if}
+
 		<button
 			onclick={handleSave}
 			class="preset-filled-primary-500 btn flex items-center gap-1"
@@ -482,6 +510,8 @@ None (TreeView has its own keyboard navigation)
 				onEditCategory={modalAddCategory}
 				onDeleteNode={handleDeleteNode}
 				onDuplicateNode={handleDuplicateNode}
+				selectedCategoryId={selectedCategoryId}
+				onSelectCategory={handleSelectCategory}
 			/>
 
 			{#if Object.keys(nodesToSave).length > 0}

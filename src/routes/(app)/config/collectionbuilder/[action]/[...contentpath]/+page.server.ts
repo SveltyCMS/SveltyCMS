@@ -215,6 +215,10 @@ export const load: PageServerLoad = async ({ depends, locals, params }) => {
 				if (node.path != null) out.path = node.path.toString?.() ?? node.path;
 				// Align _id with DB so save and future lookups use the correct id
 				if (node._id != null) out._id = node._id.toString?.() ?? node._id;
+				// Use DB-authoritative name/slug/icon so edit page always shows current values after save/rename
+				if (node.name != null) out.name = node.name;
+				if (node.slug != null) out.slug = node.slug;
+				if (node.icon != null) out.icon = node.icon;
 			}
 		}
 
@@ -438,11 +442,30 @@ export const actions: Actions = {
 				}
 			}
 
-			// Id-based path: new collections get new path; when editing, keep existing node path in schema so refresh doesn't orphan
+			// Id-based path: full hierarchy parentOfParentId.parentId.currentId (same format for all same-level items)
+			function buildFullAncestorPath(flatList: Array<{ _id?: unknown; parentId?: unknown }>, directParentId: string): string {
+				const ids: string[] = [];
+				let current = flatList.find(
+					(n) => n._id?.toString() === directParentId || n._id?.toString()?.replace(/-/g, '') === directParentId.replace(/-/g, '')
+				);
+				while (current) {
+					const idStr = (current._id?.toString() ?? '').replace(/-/g, '');
+					if (idStr) ids.unshift(idStr);
+					const pid = current.parentId?.toString();
+					current = pid
+						? flatList.find((n) => n._id?.toString() === pid || n._id?.toString()?.replace(/-/g, '') === pid.replace(/-/g, ''))
+						: undefined;
+				}
+				return ids.join('.');
+			}
+			const collectionIdNorm = (collectionId ?? '').replace(/-/g, '');
 			const idBasedPath = isNewCollection
 				? parentIdParam
-					? `${parentIdParam}.${collectionId}`
-					: collectionId
+					? (() => {
+							const ancestorPath = buildFullAncestorPath(flat, parentIdParam);
+							return ancestorPath ? `${ancestorPath}.${collectionIdNorm}` : `${parentIdParam.replace(/-/g, '')}.${collectionIdNorm}`;
+						})()
+					: collectionIdNorm
 				: ((resolvedNodeForPath?.path as string | undefined) ??
 					(flat.find(
 						(n) =>
@@ -553,11 +576,46 @@ export const actions: Actions = {
 			// Compile using same tenant/path we wrote to
 			await compile({ logger, tenantId: effectiveWriteTenantId });
 
+			// Keep DB in sync with renamed/updated name and slug (avoids stale name in tree and DB)
+			if (!isNewCollection && collectionId && idBasedPath) {
+				try {
+					const { dbAdapter } = await import('@src/databases/db');
+					if (dbAdapter?.content?.nodes) {
+						const now = new Date().toISOString();
+						const updateResult = await dbAdapter.content.nodes.bulkUpdate([
+							{
+								path: idBasedPath,
+								id: collectionId,
+								changes: {
+									name: contentName,
+									slug: collectionSlug ?? contentName,
+									icon: collectionIcon,
+									updatedAt: now as import('@src/content/types').ISODateString
+								} as Partial<import('@src/content/types').ContentNode>
+							}
+						]);
+						if (!updateResult.success) {
+							logger.warn('[saveCollection] DB name/slug update failed', updateResult);
+						}
+					}
+				} catch (updateErr) {
+					logger.warn('[saveCollection] Could not update node name/slug in DB', updateErr);
+				}
+			}
+
 			await contentManager.refresh(tenantId);
 
-			// Return edit path for new collections so client can navigate to edit page
+			// Invalidate collection cache so next edit load gets fresh schema (avoids stale name after rename)
+			if (collectionId) {
+				await contentManager.invalidateWithDependents(collectionId);
+			}
+
+			// Return edit path: for new collections so client can navigate; for renames so client can update URL and tree
 			if (isNewCollection && idBasedPath) {
 				return { status: 200, editPath: idBasedPath };
+			}
+			if (isRename && targetFilePath) {
+				return { status: 200, editPath: targetFilePath };
 			}
 			return { status: 200 };
 		} catch (err) {
@@ -616,8 +674,9 @@ export const actions: Actions = {
 			if (!ids?.length) {
 				return { status: 400, error: 'Invalid IDs for deletion' };
 			}
+			const idsNorm = new Set(ids.map((id) => String(id).replace(/-/g, '')));
 			const currentStructure = await contentManager.getContentStructureFromDatabase('flat', true);
-			const nodesToDelete = currentStructure.filter((node) => node.path && ids.includes(node._id.toString()));
+			const nodesToDelete = currentStructure.filter((node) => node.path && idsNorm.has((node._id?.toString() ?? '').replace(/-/g, '')));
 			const pathsToDelete = nodesToDelete.map((node) => node.path as string);
 			// Try multiple path candidates (derived path + flat name) and both legacy + tenant dirs
 			const tenantIdsToTry: (string | null | undefined)[] = [undefined, ...(tenantId !== undefined ? [tenantId] : [])];
@@ -655,6 +714,48 @@ export const actions: Actions = {
 						}
 					}
 				}
+			}
+			// Fallback: scan collection dirs for .ts files whose _id matches a deleted id
+			for (const tid of tenantIdsToTry) {
+				const dirToScan = path.dirname(getCollectionFilePath('_', tid));
+				if (!fs.existsSync(dirToScan)) continue;
+				const scanDir = (dir: string, relPrefix: string): void => {
+					try {
+						for (const name of fs.readdirSync(dir)) {
+							const full = path.join(dir, name);
+							const rel = relPrefix ? `${relPrefix}/${name}` : name;
+							if (fs.statSync(full).isDirectory()) {
+								scanDir(full, rel);
+								continue;
+							}
+							if (!name.endsWith('.ts') || name === 'index.ts') continue;
+							const content = fs.readFileSync(full, 'utf8');
+							const idMatch = content.match(/_id:\s*['"]([^'"]+)['"]/);
+							const id = idMatch?.[1];
+							if (id && idsNorm.has(String(id).replace(/-/g, ''))) {
+								try {
+									fs.unlinkSync(full);
+									logger.info(`Deleted collection file (fallback): ${full}`);
+								} catch (e) {
+									logger.warn(`Could not delete ${full}`, e);
+								}
+								const compiledBase = getCompiledCollectionsPath(tid);
+								const jsPath = path.join(compiledBase, `${rel.replace(/\.ts$/, '')}.js`);
+								try {
+									if (fs.existsSync(jsPath)) {
+										fs.unlinkSync(jsPath);
+										logger.info(`Deleted compiled file (fallback): ${jsPath}`);
+									}
+								} catch (e) {
+									logger.warn(`Could not delete ${jsPath}`, e);
+								}
+							}
+						}
+					} catch (e) {
+						logger.warn(`Fallback scan failed for ${dir}`, e);
+					}
+				};
+				scanDir(dirToScan, '');
 			}
 			const operations = pathsToDelete.map((path) => ({
 				type: 'delete' as const,

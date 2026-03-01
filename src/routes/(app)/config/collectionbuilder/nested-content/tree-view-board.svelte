@@ -53,9 +53,13 @@
 		onDuplicateNode?: (node: Partial<ContentNode>) => void;
 		onEditCategory: (category: Partial<ContentNode>) => void;
 		onNodeUpdate: (updatedNodes: ContentNode[]) => void;
+		/** Id of the single category selected for "add collection" (only one at a time). */
+		selectedCategoryId?: string | null;
+		/** Called when user clicks "Select" on a category. */
+		onSelectCategory?: (node: TreeViewItem) => void;
 	}
 
-	let { contentNodes = [], onNodeUpdate, onEditCategory, onDeleteNode, onDuplicateNode }: Props = $props();
+	let { contentNodes = [], onNodeUpdate, onEditCategory, onDeleteNode, onDuplicateNode, selectedCategoryId = null, onSelectCategory }: Props = $props();
 
 	// Search and UI State
 	let searchText = $state('');
@@ -987,10 +991,12 @@
 		<TreeViewNode
 			item={{ ...item, hasChildren: item.children?.length > 0 }}
 			isOpen={expandedNodes.has(item.id)}
+			isSelectedCategory={item.nodeType === 'category' && item.id === selectedCategoryId}
 			toggle={() => toggleNode(item.id)}
 			onEditCategory={() => onEditCategory(toPartialContentNode(item))}
 			onDelete={() => handleDeleteNode(toPartialContentNode(item))}
 			onDuplicate={() => onDuplicateNode?.(toPartialContentNode(item))}
+			onSelectCategory={item.nodeType === 'category' && onSelectCategory ? () => onSelectCategory(item) : undefined}
 			keyboardReorderMode={keyboardReorderMode === item.id}
 			onMoveUp={() => moveItemUp(item.id)}
 			onMoveDown={() => moveItemDown(item.id)}

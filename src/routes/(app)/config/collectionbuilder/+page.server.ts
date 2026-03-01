@@ -19,7 +19,12 @@ import { contentManager } from '@root/src/content/content-manager';
 // Auth - Use cached roles from locals instead of global config
 import { hasPermissionWithRoles } from '@src/databases/auth/permissions';
 import { compile } from '@src/utils/compilation/compile';
-import { getCollectionDisplayPath, getCollectionFilePath, getCompiledCollectionsPath } from '@utils/tenant-paths';
+import {
+	getCollectionDisplayPath,
+	getCollectionFilePath,
+	getCollectionsPath,
+	getCompiledCollectionsPath
+} from '@utils/tenant-paths';
 import { error, fail, redirect } from '@sveltejs/kit';
 import { logger } from '@utils/logger.server';
 import type { Actions, PageServerLoad } from './$types';
@@ -92,9 +97,13 @@ export const actions: Actions = {
 		}
 
 		try {
+			// Normalize ids for matching (e.g. with/without dashes)
+			const idsNorm = new Set(ids.map((id) => String(id).replace(/-/g, '')));
 			// Resolve paths for these IDs (bypass cache so we see latest structure)
 			const currentStructure = await contentManager.getContentStructureFromDatabase('flat', true);
-			const nodesToDelete = currentStructure.filter((node) => node.path && ids.includes(node._id.toString()));
+			const nodesToDelete = currentStructure.filter(
+				(node) => node.path && idsNorm.has((node._id?.toString() ?? '').replace(/-/g, ''))
+			);
 			const pathsToDelete = nodesToDelete.map((node) => node.path as string);
 
 			// Delete collection source (.ts) and compiled (.js) files so they do not reappear after next refresh.
@@ -133,6 +142,48 @@ export const actions: Actions = {
 							}
 						}
 					}
+				}
+			}
+
+			// Fallback: scan collection dirs for .ts files whose _id matches a deleted id (in case path derivation missed them)
+			for (const tid of tenantIdsToTry) {
+				const dirToScan = path.dirname(getCollectionFilePath('_', tid));
+				if (!fs.existsSync(dirToScan)) continue;
+				try {
+					const scanDir = (dirPath: string, prefix = ''): void => {
+						const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+						for (const e of entries) {
+							const rel = prefix ? `${prefix}/${e.name}` : e.name;
+							if (e.isDirectory()) {
+								scanDir(path.join(dirPath, e.name), rel);
+							} else if (e.name.endsWith('.ts') && !e.name.endsWith('.d.ts')) {
+								const fullPath = path.join(dirPath, e.name);
+								const content = fs.readFileSync(fullPath, 'utf-8');
+								const idMatch = content.match(/_id\s*:\s*["']([^"']+)["']/);
+								if (idMatch?.[1] && idsNorm.has(idMatch[1].replace(/-/g, ''))) {
+									try {
+										fs.unlinkSync(fullPath);
+										logger.info(`Deleted collection file (by _id): ${fullPath}`);
+									} catch (unlinkErr) {
+										logger.warn(`Could not delete ${fullPath}`, unlinkErr);
+									}
+									const compiledBase = getCompiledCollectionsPath(tid);
+									const jsPath = path.join(compiledBase, `${rel.replace(/\.ts$/i, '')}.js`);
+									if (fs.existsSync(jsPath)) {
+										try {
+											fs.unlinkSync(jsPath);
+											logger.info(`Deleted compiled file: ${jsPath}`);
+										} catch (jsErr) {
+											logger.warn(`Could not delete ${jsPath}`, jsErr);
+										}
+									}
+								}
+							}
+						}
+					};
+					scanDir(dirToScan);
+				} catch (scanErr) {
+					logger.warn('Fallback scan for deleted collection files failed', scanErr);
 				}
 			}
 
@@ -182,6 +233,131 @@ export const actions: Actions = {
 			// Current structure: resolve parent category name for id-based duplicate paths (parent is not in create ops)
 			const currentFlat = await contentManager.getContentStructureFromDatabase('flat', true);
 
+			// Build full ancestor path (parentOfParentId.parentId) for id-based path consistency
+			function buildFullAncestorPath(
+				flatList: Array<{ _id?: unknown; parentId?: unknown }>,
+				directParentId: string
+			): string {
+				const ids: string[] = [];
+				let current = flatList.find(
+					(n) => n._id?.toString() === directParentId || n._id?.toString()?.replace(/-/g, '') === directParentId.replace(/-/g, '')
+				);
+				while (current) {
+					const idStr = (current._id?.toString() ?? '').replace(/-/g, '');
+					if (idStr) ids.unshift(idStr);
+					const pid = current.parentId?.toString();
+					current = pid
+						? flatList.find((n) => n._id?.toString() === pid || n._id?.toString()?.replace(/-/g, '') === pid.replace(/-/g, ''))
+						: undefined;
+				}
+				return ids.join('.');
+			}
+
+			// New flat structure after applying items (for move detection and for path resolution in duplicates)
+			const sanitizeFolderName = (name: string) =>
+				String(name ?? '')
+					.replace(/\s+/g, '-')
+					.replace(/[/\\]/g, '')
+					.trim() || 'category';
+			const getCategoryFolderPath = (
+				nodeId: string,
+				flat: Array<{ _id?: unknown; parentId?: unknown; name?: unknown }>
+			): string => {
+				const node = flat.find(
+					(n) => n._id?.toString() === nodeId || n._id?.toString()?.replace(/-/g, '') === nodeId.replace(/-/g, '')
+				);
+				if (!node) return '';
+				const name = sanitizeFolderName(String(node.name ?? ''));
+				const parentId = node.parentId?.toString();
+				if (!parentId) return name;
+				const parentPath = getCategoryFolderPath(parentId, flat);
+				return parentPath ? `${parentPath}/${name}` : name;
+			};
+			const newFlat = currentFlat.map((n) => {
+				const op = items.find((o) => o.node && String(o.node._id) === String(n._id));
+				return op ? (op.node as (typeof currentFlat)[0]) : n;
+			});
+			for (const op of items) {
+				if (op.type === 'create' && op.node?._id != null && !newFlat.some((n) => String(n._id) === String(op.node!._id))) {
+					newFlat.push(op.node as (typeof currentFlat)[0]);
+				}
+			}
+
+			// Resolve actual folder path on disk (segment-by-segment, case-insensitive) so we MOVE not recreate
+			function resolveExistingFolder(rootDir: string, logicalPath: string): string | null {
+				const segments = logicalPath.split('/').filter(Boolean);
+				let current = rootDir;
+				const actualSegments: string[] = [];
+				for (const seg of segments) {
+					if (!fs.existsSync(current) || !fs.statSync(current).isDirectory()) return null;
+					const found = fs.readdirSync(current, { withFileTypes: true }).find(
+						(d) => d.isDirectory() && d.name.toLowerCase() === seg.toLowerCase()
+					);
+					if (!found) return null;
+					actualSegments.push(found.name);
+					current = path.join(current, found.name);
+				}
+				return actualSegments.length === segments.length ? current : null;
+			}
+
+			// 1. MOVE category folders first: use fs.rename only; never create dirs that would duplicate a moved folder
+			const movedCategories: { node: (typeof currentFlat)[0]; oldPath: string; newPath: string }[] = [];
+			for (const node of newFlat) {
+				if (node.nodeType !== 'category') continue;
+				const id = node._id?.toString() ?? '';
+				const oldPath = getCategoryFolderPath(id, currentFlat);
+				const newPath = getCategoryFolderPath(id, newFlat);
+				if (oldPath && newPath && oldPath !== newPath) {
+					movedCategories.push({ node, oldPath, newPath });
+				}
+			}
+			movedCategories.sort((a, b) => b.oldPath.split('/').length - a.oldPath.split('/').length);
+			const collectionsRoot = getCollectionsPath(tenantId);
+			const compiledRoot = getCompiledCollectionsPath(tenantId);
+			for (const { oldPath, newPath } of movedCategories) {
+				// Resolve source: exact path first, then segment-by-segment (case-insensitive)
+				let srcDir: string | null = path.join(collectionsRoot, oldPath);
+				if (!fs.existsSync(srcDir) || !fs.statSync(srcDir).isDirectory()) {
+					srcDir = resolveExistingFolder(collectionsRoot, oldPath);
+				}
+				if (!srcDir || !fs.existsSync(srcDir)) {
+					logger.warn(`[saveConfig] Source folder not found for move, skipping: ${oldPath}`);
+					continue;
+				}
+				const destDir = path.join(collectionsRoot, newPath);
+				if (fs.existsSync(destDir)) {
+					logger.warn(`[saveConfig] Destination already exists (skip): ${newPath}`);
+					continue;
+				}
+				const destParent = path.dirname(destDir);
+				// Only create parent if it does not exist (e.g. "Posts" may already exist)
+				if (destParent && destParent !== collectionsRoot && !fs.existsSync(destParent)) {
+					fs.mkdirSync(destParent, { recursive: true });
+				}
+				try {
+					fs.renameSync(srcDir, destDir);
+					logger.info(`[saveConfig] Moved category folder: ${oldPath} -> ${newPath}`);
+				} catch (e) {
+					logger.warn(`[saveConfig] Could not move category folder ${oldPath} to ${newPath}`, e);
+					continue;
+				}
+				const compiledSrc = path.join(compiledRoot, oldPath);
+				const compiledSrcResolved = resolveExistingFolder(compiledRoot, oldPath) ?? compiledSrc;
+				const compiledDest = path.join(compiledRoot, newPath);
+				if (fs.existsSync(compiledSrcResolved) && fs.statSync(compiledSrcResolved).isDirectory()) {
+					const compiledDestParent = path.dirname(compiledDest);
+					if (compiledDestParent && !fs.existsSync(compiledDestParent)) {
+						fs.mkdirSync(compiledDestParent, { recursive: true });
+					}
+					try {
+						fs.renameSync(compiledSrcResolved, compiledDest);
+						logger.info(`[saveConfig] Moved compiled category folder: ${oldPath} -> ${newPath}`);
+					} catch (e) {
+						logger.warn(`[saveConfig] Could not move compiled folder ${oldPath} to ${newPath}`, e);
+					}
+				}
+			}
+
 			// For duplicated collections: create the .ts source file (copy from original).
 			// Detect by node.name.endsWith('_copy') because path is often id-based (e.g. "categoryId.collectionId") and does not contain "_copy".
 			for (const op of items) {
@@ -197,8 +373,8 @@ export const actions: Actions = {
 				} else {
 					const parentId = op.node.parentId != null ? String(op.node.parentId) : '';
 					const parentFromOps = parentId ? createOpsById.get(parentId) : null;
-					let parentName = (parentFromOps?.node?.name as string) ?? (currentFlat.find((n) => n._id?.toString() === parentId)?.name as string) ?? '';
-					// Sanitize for filesystem: no slashes, no leading/trailing spaces
+					// Use newFlat so path reflects moved categories (folder already moved above)
+					let parentName = (parentFromOps?.node?.name as string) ?? (newFlat.find((n) => n._id?.toString() === parentId)?.name as string) ?? '';
 					parentName = String(parentName).replace(/\s+/g, '-').replace(/\/|\\/g, '').trim() || '';
 					filePathForCreation = parentName ? `${parentName}/${name}` : name;
 				}
@@ -227,6 +403,7 @@ export const actions: Actions = {
 						logger.info(`[saveConfig] Removed incorrect duplicate path: ${wrongPath}`);
 					}
 				}
+				// Only create dir if it does not exist (e.g. after move it may already exist)
 				const targetDir = path.dirname(targetPath);
 				if (!fs.existsSync(targetDir)) {
 					fs.mkdirSync(targetDir, { recursive: true });
@@ -239,9 +416,10 @@ export const actions: Actions = {
 				// So refresh shows the duplicate name (e.g. new_22_copy), not the original
 				content = content.replace(/name:\s*["']([^"']*)["']/, () => `name: "${displayName}"`);
 				const newId = op.node._id != null ? String(op.node._id).replace(/-/g, '') : '';
-				// Use id-based path (same format as other collections) so reconcile and orphan check match
+				// Full hierarchy path (parentOfParentId.parentId.currentId) for consistency with new collection path
 				const parentIdNorm = op.node.parentId != null ? String(op.node.parentId).replace(/-/g, '') : '';
-				const pathForReconcile = parentIdNorm ? `${parentIdNorm}.${newId}` : newId;
+				const ancestorPath = parentIdNorm ? buildFullAncestorPath(newFlat, op.node.parentId != null ? String(op.node.parentId) : '') : '';
+				const pathForReconcile = ancestorPath ? `${ancestorPath}.${newId}` : parentIdNorm ? `${parentIdNorm}.${newId}` : newId;
 				content = content.replace(/path:\s*["']([^"']*)["']/, () => `path: "${pathForReconcile}"`);
 				if (newId) {
 					// Remove any existing _id lines (match nanoid/uuid-style: alphanumeric + hyphen)
