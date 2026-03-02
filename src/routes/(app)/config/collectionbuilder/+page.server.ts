@@ -341,6 +341,65 @@ export const actions: Actions = {
 				}
 			}
 
+			// 2. MOVE collection .ts files when parentId changed (e.g. "new2" moved under "Posts" -> Posts/new2.ts)
+			const sanitizeCollectionName = (name: string) =>
+				String(name ?? '')
+					.replace(/\s+/g, '-')
+					.replace(/[/\\]+/g, '')
+					.trim() || 'collection';
+			for (const node of newFlat) {
+				if (node.nodeType !== 'collection') continue;
+				const name = String(node.name ?? '');
+				if (name.endsWith('_copy')) continue; // duplicates handled below
+				const currentNode = currentFlat.find(
+					(n) => n._id?.toString() === node._id?.toString() || (n._id?.toString() ?? '').replace(/-/g, '') === (node._id?.toString() ?? '').replace(/-/g, '')
+				);
+				if (!currentNode) continue;
+				const currentParentId = currentNode.parentId?.toString() ?? null;
+				const newParentId = node.parentId?.toString() ?? null;
+				if (currentParentId === newParentId) continue;
+				const nodeName = sanitizeCollectionName(name);
+				const oldParentPath = currentParentId ? getCategoryFolderPath(currentParentId, currentFlat) : '';
+				const newParentPath = newParentId ? getCategoryFolderPath(node.parentId!.toString(), newFlat) : '';
+				const oldLogicalPath = oldParentPath ? `${oldParentPath}/${nodeName}` : nodeName;
+				const newLogicalPath = newParentPath ? `${newParentPath}/${nodeName}` : nodeName;
+				if (oldLogicalPath === newLogicalPath) continue;
+				let oldFilePath = getCollectionFilePath(oldLogicalPath, tenantId);
+				if (!fs.existsSync(oldFilePath)) {
+					oldFilePath = getCollectionFilePath(nodeName, tenantId);
+				}
+				if (!fs.existsSync(oldFilePath)) {
+					logger.warn(`[saveConfig] Collection file not found for move, skipping: ${oldLogicalPath} (tried ${nodeName})`);
+					continue;
+				}
+				const newFilePath = getCollectionFilePath(newLogicalPath, tenantId);
+				if (oldFilePath === newFilePath) continue;
+				if (fs.existsSync(newFilePath)) {
+					logger.warn(`[saveConfig] Destination collection file already exists, skipping move: ${newLogicalPath}`);
+					continue;
+				}
+				const newDir = path.dirname(newFilePath);
+				if (!fs.existsSync(newDir)) {
+					fs.mkdirSync(newDir, { recursive: true });
+				}
+				try {
+					fs.renameSync(oldFilePath, newFilePath);
+					logger.info(`[saveConfig] Moved collection file: ${oldLogicalPath} -> ${newLogicalPath}`);
+				} catch (e) {
+					logger.warn(`[saveConfig] Could not move collection file ${oldLogicalPath} to ${newLogicalPath}`, e);
+					continue;
+				}
+				const oldJsPath = path.join(getCompiledCollectionsPath(tenantId), `${oldLogicalPath}.js`);
+				if (fs.existsSync(oldJsPath)) {
+					try {
+						fs.unlinkSync(oldJsPath);
+						logger.info(`[saveConfig] Removed old compiled file: ${oldJsPath}`);
+					} catch (unlinkErr) {
+						logger.warn(`[saveConfig] Could not remove old compiled file ${oldJsPath}`, unlinkErr);
+					}
+				}
+			}
+
 			// For duplicated collections: create the .ts source file (copy from original).
 			// Detect by node.name.endsWith('_copy') because path is often id-based (e.g. "categoryId.collectionId") and does not contain "_copy".
 			for (const op of items) {

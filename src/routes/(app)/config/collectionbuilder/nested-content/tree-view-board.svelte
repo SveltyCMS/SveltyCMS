@@ -49,6 +49,8 @@
 
 	interface Props {
 		contentNodes: ContentNode[];
+		/** Incremented by parent on save success so we rebuild from server order. */
+		structureKey?: number;
 		onDeleteNode?: (node: Partial<ContentNode>) => void;
 		onDuplicateNode?: (node: Partial<ContentNode>) => void;
 		onEditCategory: (category: Partial<ContentNode>) => void;
@@ -59,7 +61,7 @@
 		onSelectCategory?: (node: TreeViewItem) => void;
 	}
 
-	let { contentNodes = [], onNodeUpdate, onEditCategory, onDeleteNode, onDuplicateNode, selectedCategoryId = null, onSelectCategory }: Props = $props();
+	let { contentNodes = [], structureKey = 0, onNodeUpdate, onEditCategory, onDeleteNode, onDuplicateNode, selectedCategoryId = null, onSelectCategory }: Props = $props();
 
 	// Search and UI State
 	let searchText = $state('');
@@ -73,6 +75,8 @@
 	let lastContentNodesHash = $state('');
 	/** Hash of the nodes we last sent in saveTreeData; skip rebuilding until contentNodes matches this (avoids revert on same-level or next move). */
 	let lastPushedHash = $state('');
+	/** Last structureKey we saw; when it changes, clear hash guards to force rebuild from server order. */
+	let lastStructureKey = $state(0);
 	let rebuildTimeout: ReturnType<typeof setTimeout> | null = null;
 
 	// Accessibility State
@@ -110,6 +114,13 @@
 			return;
 		}
 
+		// When parent signals fresh server data (e.g. after save), clear hash guards so we rebuild from server order
+		if (structureKey !== lastStructureKey) {
+			lastStructureKey = structureKey;
+			lastContentNodesHash = '';
+			lastPushedHash = '';
+		}
+
 		const currentHash =
 			contentNodes
 				.map((n) => `${n._id}:${n.parentId}:${n.order}`)
@@ -134,7 +145,17 @@
 				lastContentNodesHash = currentHash;
 				lastPushedHash = '';
 
-				const flatItems: TreeViewItem[] = contentNodes.map((n) => ({
+				// Sort by parent then order so UI always reflects DB order (do not rely on array order)
+				const sortedNodes = [...contentNodes].sort((a, b) => {
+					const parentA = a.parentId != null ? String(a.parentId) : '';
+					const parentB = b.parentId != null ? String(b.parentId) : '';
+					if (parentA !== parentB) return parentA.localeCompare(parentB);
+					const orderDiff = (a.order ?? 0) - (b.order ?? 0);
+					if (orderDiff !== 0) return orderDiff;
+					return (a.name ?? '').localeCompare(b.name ?? '');
+				});
+
+				const flatItems: TreeViewItem[] = sortedNodes.map((n) => ({
 					id: String(n._id),
 					_id: n._id,
 					name: n.name,
@@ -150,8 +171,6 @@
 				}));
 				const flatItemsWithPaths = recalculatePaths(flatItems);
 				treeRoots = buildTree(flatItemsWithPaths);
-
-				console.log('[TreeViewBoard] treeRoots', treeRoots);
 
 				if (!initialized) {
 					initialized = true;
@@ -460,8 +479,6 @@
 		const treeWithPaths = buildTree(withPaths);
 		// Update state - JSON round-trip to strip proxies for svelte-dnd-action
 		treeRoots = JSON.parse(JSON.stringify(treeWithPaths)) as EnhancedTreeViewItem[];
-
-		console.log('treeWithPaths', treeWithPaths);
 
 		// Save and notify parent (path/parentId already correct in treeRoots)
 		saveTreeData();
