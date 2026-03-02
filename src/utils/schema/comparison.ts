@@ -61,6 +61,13 @@ function fieldKey(norm: any, index: number): string {
 	return (norm._id != null && String(norm._id).trim()) || (norm.name && String(norm.name).trim()) || (norm.db_fieldName && String(norm.db_fieldName).trim()) || `idx_${index}`;
 }
 
+/** Signature for matching fields by content when keys differ (e.g. after deletion, index-based keys no longer align). */
+function fieldSignature(norm: any): string {
+	const name = norm.name || norm.db_fieldName || '';
+	const widget = typeof norm.widget === 'string' ? norm.widget : (norm.widget?.Name ?? norm.widget?.key ?? '');
+	return `${String(widget)}\0${String(name)}`;
+}
+
 /**
  * Compares two schemas (Code vs Database) and returns differences.
  * @param options.compareByIndex When true, match by identity (id/db_fieldName) so reorder and renames do not produce false drift.
@@ -74,6 +81,62 @@ export function compareSchemas(codeSchema: Schema, dbSchema: Schema, options: Co
 	const dbList = (dbSchema.fields ?? []).map((f) => normalizeField(f));
 
 	if (compareByIndex) {
+		// When lengths differ (common when deleting widgets), key-based matching can misalign and produce false adds/changes.
+		// In that case, compare as a multiset by signature so deletions are recognized as pure removals.
+		if (codeList.length !== dbList.length) {
+			const codeBySig = new Map<string, any[]>();
+			for (const f of codeList) {
+				const sig = fieldSignature(f);
+				const arr = codeBySig.get(sig);
+				if (arr) arr.push(f);
+				else codeBySig.set(sig, [f]);
+			}
+
+			const dbBySig = new Map<string, any[]>();
+			for (const f of dbList) {
+				const sig = fieldSignature(f);
+				const arr = dbBySig.get(sig);
+				if (arr) arr.push(f);
+				else dbBySig.set(sig, [f]);
+			}
+
+			// Removals: present in DB but not in code (or fewer occurrences)
+			for (const [sig, dbFieldsForSig] of dbBySig) {
+				const codeCount = codeBySig.get(sig)?.length ?? 0;
+				const removeCount = Math.max(0, dbFieldsForSig.length - codeCount);
+				for (let i = 0; i < removeCount; i++) {
+					const dbField = dbFieldsForSig[i] ?? { name: sig };
+					changes.push({
+						type: 'field_removed',
+						collectionId,
+						fieldName: dbField.name ?? sig,
+						oldValue: dbField,
+						severity: 'critical',
+						message: `Field "${dbField.name ?? sig}" removed - all data in this field will be lost.`,
+						suggestion: `Backup data before proceeding if it's still needed.`
+					});
+				}
+			}
+
+			// Adds: present in code but not in DB (or more occurrences)
+			for (const [sig, codeFieldsForSig] of codeBySig) {
+				const dbCount = dbBySig.get(sig)?.length ?? 0;
+				const addCount = Math.max(0, codeFieldsForSig.length - dbCount);
+				for (let i = 0; i < addCount; i++) {
+					const codeField = codeFieldsForSig[i] ?? { name: sig };
+					const name = codeField.name ?? sig;
+					changes.push({
+						type: 'field_added',
+						collectionId,
+						fieldName: name,
+						newValue: codeField,
+						severity: 'info',
+						message: `New field "${name}" added.`,
+						suggestion: 'Check if you need to set default values for existing entries.'
+					});
+				}
+			}
+		} else {
 		// Match by identity (not array index) so reordering does not trigger type_changed; only real adds/removes/type changes do.
 		const codeFields = new Map<string, any>();
 		codeList.forEach((norm, i) => {
@@ -148,6 +211,7 @@ export function compareSchemas(codeSchema: Schema, dbSchema: Schema, options: Co
 					suggestion: 'Check for and remove duplicate values in existing entries before saving.'
 				});
 			}
+		}
 		}
 	} else {
 		const codeFields = new Map<string, any>();

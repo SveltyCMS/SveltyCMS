@@ -134,6 +134,17 @@ export interface EntryListMultiButtonProps {
 	unpublish: () => void;
 }
 
+/**
+ * AUTH tab: permission and access control for a single field.
+ * Stored in field.permissions. Defaults: public, no auth required, no role restrictions.
+ */
+export interface WidgetFieldPermissions {
+	visibility?: 'public' | 'private';
+	requiredAuth?: boolean;
+	readRoles?: string[];
+	writeRoles?: string[];
+}
+
 // Field Instance - An actual field using a widget with specific configuration
 export interface FieldInstance {
 	callback?: (args: { data: Record<string, FieldValue> }) => void;
@@ -163,8 +174,8 @@ export interface FieldInstance {
 		tenantId?: string;
 	}) => Promise<Record<string, unknown>[]>;
 
-	// Permissions
-	permissions?: Record<string, Record<string, boolean>>;
+	// Permissions: access control for this field (AUTH tab). Stored in widget.permissions.
+	permissions?: WidgetFieldPermissions | Record<string, Record<string, boolean>>;
 	required: boolean; // Now required (factory sets default)
 	translated: boolean; // Now required (factory sets default)
 	type?: string; // Optional field type
@@ -426,5 +437,5 @@ export interface TablePaginationProps {
 }
 
 /* AUTOGEN_START: ContentTypes */
-export type ContentTypes = 'Menu' | 'Authors' | 'Posts' | 'WidgetTest' | 'Categories' | 'Names' | 'new1' | 'Relation' | 'new1_copy23';
+export type ContentTypes = 'Menu' | 'Authors' | 'Posts' | 'WidgetTest' | 'Categories' | 'Names' | 'Relation' | 'new';
 /* AUTOGEN_END: ContentTypes */

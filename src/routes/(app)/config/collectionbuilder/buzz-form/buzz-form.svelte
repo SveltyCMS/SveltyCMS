@@ -15,6 +15,7 @@
 -->
 
 <script lang="ts">
+	import type { Role } from '@src/databases/auth/types';
 	import { collections, setCollection, setTargetWidget } from '@src/stores/collection-store.svelte';
 	import { toaster } from '@src/stores/store.svelte';
 	import { getWidgetFunction, widgets } from '@src/stores/widget-store.svelte.ts';
@@ -24,6 +25,7 @@
 	// Components
 	import WidgetSidebar from './widget-sidebar.svelte';
 
+	let { roles = [] } = $props<{ roles?: Role[] }>();
 	let selectedFieldId = $state<number | string | undefined>(undefined);
 
 	// Sync fields with collection store
@@ -154,7 +156,7 @@
 	<!-- Desktop: Right inspector always visible; flex + min-h-0 so content can scroll -->
 	<div class="hidden min-h-0 shrink-0 flex-col lg:flex lg:w-80">
 		<div class="flex min-h-0 flex-1 flex-col overflow-hidden">
-			<FieldInspector onDelete={handleDeleteField} />
+			<FieldInspector {roles} onDelete={handleDeleteField} />
 		</div>
 	</div>
 
@@ -180,7 +182,7 @@
 				</button>
 			</div>
 			<div class="h-[calc(100%-3rem)] min-h-0 overflow-y-auto">
-				<FieldInspector onDelete={handleDeleteField} />
+				<FieldInspector {roles} onDelete={handleDeleteField} />
 			</div>
 		</div>
 	{/if}

@@ -22,13 +22,15 @@
 	import { asAny } from '@utils/utils';
 	import type { Component } from 'svelte';
 	import { Tabs } from '@skeletonlabs/skeleton-svelte';
+	import type { Role } from '@src/databases/auth/types';
 	import Permission from '../[action]/[...contentpath]/tabs/collection-widget/tabs-fields/permission.svelte';
 	import Specific from '../[action]/[...contentpath]/tabs/collection-widget/tabs-fields/specific.svelte';
 
 	interface Props {
+		roles?: Role[];
 		onDelete: () => void;
 	}
-	const { onDelete }: Props = $props();
+	const { roles = [], onDelete }: Props = $props();
 
 	let activeTab = $state('general');
 
@@ -179,7 +181,7 @@
 
 					<Tabs.Content value="specific"><Specific /></Tabs.Content>
 
-					<Tabs.Content value="auth"><Permission /></Tabs.Content>
+					<Tabs.Content value="auth"><Permission {roles} /></Tabs.Content>
 				</div>
 			</Tabs>
 		</div>

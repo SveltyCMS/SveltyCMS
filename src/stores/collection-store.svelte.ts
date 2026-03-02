@@ -1,12 +1,12 @@
-import type { ContentNode, Schema } from '@src/content/types';
+import type { ContentNode, Schema, WidgetFieldPermissions } from '@src/content/types';
 import { logger } from '@utils/logger';
 
 // Types
 export type ModeType = 'view' | 'edit' | 'create' | 'delete' | 'modify' | 'media';
 
 export interface Widget {
-	permissions: Record<string, Record<string, boolean>>;
-	[key: string]: Record<string, Record<string, boolean>> | unknown;
+	permissions?: Record<string, Record<string, boolean>> | WidgetFieldPermissions;
+	[key: string]: Record<string, Record<string, boolean>> | WidgetFieldPermissions | unknown;
 }
 
 export const statusMap = {

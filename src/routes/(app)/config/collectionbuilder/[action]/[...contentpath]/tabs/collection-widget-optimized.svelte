@@ -5,6 +5,7 @@
 -->
 <script lang="ts">
 	import type { FieldInstance } from '@src/content/types';
+	import type { Role } from '@src/databases/auth/types';
 	import { collection, setCollection, setTargetWidget } from '@src/stores/collection-store.svelte';
 	import { toaster } from '@src/stores/store.svelte';
 	import { widgetFunctions } from '@src/stores/widget-store.svelte.ts';
@@ -23,7 +24,7 @@
 
 	type WidgetListItem = FieldInstance & { id: number; _dragId: string };
 
-	let { fields = [] } = $props<{ fields: FieldInstance[] }>();
+	let { fields = [], roles = [] } = $props<{ fields: FieldInstance[]; roles?: Role[] }>();
 
 	// Stable _dragId by index so we can sync items from props without losing drag identity
 	let dragIdsByIndex = $state<Record<number, string>>({});
@@ -110,7 +111,8 @@
 			ModalWidgetForm as any,
 			{
 				title: field.id ? 'Edit Field' : 'New Field',
-				value: field
+				value: field,
+				roles
 			},
 			(r: { id?: number; [key: string]: any } | undefined) => {
 				if (!r) {
@@ -265,7 +267,7 @@
 	</div>
 
 	{#if builderView === 'buzz'}
-		<BuzzForm />
+		<BuzzForm {roles} />
 	{:else if builderView === 'preview'}
 		<div class="rounded-lg border border-surface-200-800 bg-surface-50-950 p-6 shadow-sm">
 			<h3 class="mb-4 text-lg font-bold text-primary-500 flex items-center gap-2">

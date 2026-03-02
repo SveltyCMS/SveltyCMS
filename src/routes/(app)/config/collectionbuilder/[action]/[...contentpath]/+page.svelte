@@ -145,9 +145,8 @@
 
 		try {
 			isLoading = true;
-			// Use snapshot from store so Field Inspector edits (label, db_fieldName, required, icon) are included
-			const currentCollection = collections.active;
-			console.log('currentCollection', JSON.stringify(currentCollection));
+			// Use current store state (includes deletes, edits, reorder) as the single source of truth
+			const currentCollection = collectionValue ?? collections.active;
 			if (!currentCollection) {
 				toaster.error({ description: 'No collection to save' });
 				return;
@@ -165,8 +164,6 @@
 			if (confirmDeletions) {
 				payload.confirmDeletions = 'true';
 			}
-
-			console.log('payload', JSON.stringify(payload));
 
 			const response = await fetch('?/saveCollection', {
 				method: 'POST',
@@ -242,7 +239,7 @@
 		});
 	}
 
-	let activeSection = $state('general');
+	let activeTab = $state('general');
 </script>
 
 <PageTitle
@@ -278,65 +275,56 @@
 	<div class="flex border-b border-surface-200-800 bg-surface-50-950">
 		<button
 			class="flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors border-b-2
-				{activeSection === 'general'
+				{activeTab === 'general'
 				? 'border-primary-500 text-primary-500'
 				: 'border-transparent text-surface-500 hover:text-surface-700 dark:hover:text-surface-300'}"
-			onclick={() => {
-				activeSection = 'general';
-				document.getElementById('general-info')?.scrollIntoView({ behavior: 'smooth' });
-			}}
+			onclick={() => (activeTab = 'general')}
+			type="button"
 		>
 			<iconify-icon icon="mdi:information" width="18"></iconify-icon>
 			General Info
 		</button>
 		<button
 			class="flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors border-b-2
-				{activeSection === 'fields'
+				{activeTab === 'fields'
 				? 'border-primary-500 text-primary-500'
 				: 'border-transparent text-surface-500 hover:text-surface-700 dark:hover:text-surface-300'}"
-			onclick={() => {
-				activeSection = 'fields';
-				document.getElementById('fields-config')?.scrollIntoView({ behavior: 'smooth' });
-			}}
+			onclick={() => (activeTab = 'fields')}
+			type="button"
 		>
 			<iconify-icon icon="mdi:widgets" width="18"></iconify-icon>
 			Field Configuration
 		</button>
 	</div>
 
-	<!-- Scrollable Content (full width) -->
-	<div
-		class="flex-1 overflow-y-auto p-4 sm:p-6 scroll-smooth"
-		onscroll={(e) => {
-			const target = e.currentTarget as HTMLElement;
-			const fieldsTop = document.getElementById('fields-config')?.offsetTop || 0;
-			activeSection = target.scrollTop > fieldsTop - 100 ? 'fields' : 'general';
-		}}
-	>
-		<div class="mx-auto max-w-7xl w-full space-y-12">
-			<!-- Section 1: General Info -->
-			<section id="general-info" class="rounded-xl border border-surface-200-800 bg-surface-50-950 p-6 shadow-sm">
-				<div class="mb-4 flex items-center gap-2 border-b border-surface-200-800 pb-2">
-					<iconify-icon icon="mdi:cog" width="24" class="text-primary-500"></iconify-icon>
-					<h2 class="text-xl font-bold">General Configuration</h2>
-				</div>
-				<CollectionForm
-					data={data?.collection ?? collectionValue ?? undefined}
-					handlePageTitleUpdate={(t: string) => collectionValue && (collectionValue.name = t)}
-				/>
-			</section>
-
-			<!-- Section 2: Fields -->
-			<section id="fields-config" class="rounded-xl border border-surface-200-800 bg-surface-50-950 p-4 shadow-sm sm:p-6">
-				<div class="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-surface-200-800 pb-2">
-					<div class="flex items-center gap-2">
-						<iconify-icon icon="mdi:widgets" width="24" class="shrink-0 text-primary-500"></iconify-icon>
-						<h2 class="text-lg font-bold sm:text-xl">Field Definitions</h2>
+	<!-- Tab content: only one section visible at a time -->
+	<div class="flex-1 overflow-y-auto p-4 sm:p-6 scroll-smooth">
+		<div class="mx-auto max-w-7xl w-full">
+			{#if activeTab === 'general'}
+				<!-- General Info: Name, Slug, Status, Icon, Description -->
+				<section class="rounded-xl border border-surface-200-800 bg-surface-50-950 p-6 shadow-sm">
+					<div class="mb-4 flex items-center gap-2 border-b border-surface-200-800 pb-2">
+						<iconify-icon icon="mdi:cog" width="24" class="text-primary-500"></iconify-icon>
+						<h2 class="text-xl font-bold">General Configuration</h2>
 					</div>
-					<span class="text-xs text-surface-500"> {collectionValue?.fields?.length || 0} fields total </span>
-				</div>
-				<CollectionWidgetOptimized fields={(collectionValue?.fields as FieldInstance[]) || []} />
-			</section>
+					<CollectionForm
+						data={data?.collection ?? collectionValue ?? undefined}
+						handlePageTitleUpdate={(t: string) => collectionValue && (collectionValue.name = t)}
+					/>
+				</section>
+			{:else if activeTab === 'fields'}
+				<!-- Field Configuration: Field Definitions, Widgets, Drag & Drop builder -->
+				<section class="rounded-xl border border-surface-200-800 bg-surface-50-950 p-4 shadow-sm sm:p-6">
+					<div class="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-surface-200-800 pb-2">
+						<div class="flex items-center gap-2">
+							<iconify-icon icon="mdi:widgets" width="24" class="shrink-0 text-primary-500"></iconify-icon>
+							<h2 class="text-lg font-bold sm:text-xl">Field Definitions</h2>
+						</div>
+						<span class="text-xs text-surface-500"> {collectionValue?.fields?.length || 0} fields total </span>
+					</div>
+					<CollectionWidgetOptimized fields={(collectionValue?.fields as FieldInstance[]) || []} roles={(data?.roles as any) ?? []} />
+				</section>
+			{/if}
 		</div>
 	</div>
 </div>

@@ -336,8 +336,16 @@ export const actions: Actions = {
 				collectionId = (Math.random().toString(36).substring(2, 15) + Date.now().toString(36)).replace(/-/g, '');
 			}
 
-			// Widgets Fields
-			const fields = JSON.parse(fieldsData) as FieldsData;
+			// Widgets Fields (client sends an array; normalize defensively)
+			const parsedFieldsUnknown: unknown =
+				typeof fieldsData === 'string' && fieldsData.trim().length > 0 ? JSON.parse(fieldsData) : [];
+			const fieldsArray = Array.isArray(parsedFieldsUnknown)
+				? (parsedFieldsUnknown as FieldWithWidget[])
+				: (typeof parsedFieldsUnknown === 'object' && parsedFieldsUnknown !== null
+						? (Object.values(parsedFieldsUnknown as Record<string, FieldWithWidget>) as FieldWithWidget[])
+						: []);
+			// goThrough expects an object-like structure; arrays are fine (numeric keys)
+			const fields = parsedFieldsUnknown as unknown as FieldsData;
 
 			// 1. Drift Detection & Safety Check
 			// Construct a temporary schema for comparison
@@ -347,7 +355,7 @@ export const actions: Actions = {
 				status: collectionStatus as any,
 				slug: collectionSlug,
 				description: String(collectionDescription || ''),
-				fields: Object.values(fields) as any[]
+				fields: fieldsArray as any[]
 			};
 
 			console.log('tempSchema', JSON.stringify(tempSchema));
@@ -583,12 +591,24 @@ export const actions: Actions = {
 			// Compile using same tenant/path we wrote to
 			await compile({ logger, tenantId: effectiveWriteTenantId });
 
-			// Keep DB in sync with renamed/updated name and slug (avoids stale name in tree and DB)
-			if (!isNewCollection && collectionId && idBasedPath) {
+			// Overwrite DB node with the full current schema (including fields) so deletes persist (no merge/append).
+			if (collectionId && idBasedPath) {
 				try {
 					const { dbAdapter } = await import('@src/databases/db');
 					if (dbAdapter?.content?.nodes) {
-						const now = new Date().toISOString();
+						const now = new Date().toISOString() as import('@src/content/types').ISODateString;
+						const parentIdForDb = parentIdParam ? parentIdParam.replace(/-/g, '') : null;
+						const nextSchema: Schema = {
+							_id: collectionId,
+							path: idBasedPath,
+							name: contentName,
+							icon: collectionIcon,
+							status: (collectionStatus as any) ?? 'unpublished',
+							slug: collectionSlug ?? contentName,
+							description: String(collectionDescription || ''),
+							fields: fieldsArray as any[],
+							tenantId: tenantId ?? null
+						} as Schema;
 						const updateResult = await dbAdapter.content.nodes.bulkUpdate([
 							{
 								path: idBasedPath,
@@ -597,16 +617,20 @@ export const actions: Actions = {
 									name: contentName,
 									slug: collectionSlug ?? contentName,
 									icon: collectionIcon,
-									updatedAt: now as import('@src/content/types').ISODateString
-								} as Partial<import('@src/content/types').ContentNode>
+									status: collectionStatus as any,
+									description: String(collectionDescription || ''),
+									parentId: (parentIdForDb ?? undefined) as unknown as import('@src/content/types').DatabaseId | undefined,
+									collectionDef: nextSchema,
+									updatedAt: now
+								} as unknown as Partial<import('@src/content/types').ContentNode>
 							}
 						]);
 						if (!updateResult.success) {
-							logger.warn('[saveCollection] DB name/slug update failed', updateResult);
+							logger.warn('[saveCollection] DB collectionDef update failed', updateResult);
 						}
 					}
 				} catch (updateErr) {
-					logger.warn('[saveCollection] Could not update node name/slug in DB', updateErr);
+					logger.warn('[saveCollection] Could not update node collectionDef in DB', updateErr);
 				}
 			}
 
