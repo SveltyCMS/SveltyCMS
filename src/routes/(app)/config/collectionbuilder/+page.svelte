@@ -545,6 +545,15 @@ None (TreeView has its own keyboard navigation)
 
 	<div class="max-h-[calc(100vh-120px)] overflow-auto p-4">
 		<div class="mx-auto max-w-4xl">
+			{#if Object.keys(nodesToSave).length > 0}
+				<div
+					class="sticky top-0 z-50 mb-4 mt-0 rounded-lg border border-warning-500/30 bg-warning-500/15 px-4 py-3 text-center text-sm font-medium text-warning-600 shadow-sm dark:text-warning-400"
+					role="status"
+					aria-live="polite"
+				>
+					You have unsaved organizational changes. Click <strong>Save</strong> to persist.
+				</div>
+			{/if}
 			<p class="mb-6 text-center text-surface-600-300 dark:text-primary-500">{collection_description()}</p>
 
 			<TreeViewBoard
@@ -557,12 +566,6 @@ None (TreeView has its own keyboard navigation)
 				{selectedCategoryId}
 				onSelectCategory={handleSelectCategory}
 			/>
-
-			{#if Object.keys(nodesToSave).length > 0}
-				<div class="mt-4 rounded-lg bg-warning-500/10 p-3 text-center text-sm text-warning-600">
-					You have unsaved organizational changes. Click <strong>Save</strong> to persist.
-				</div>
-			{/if}
 		</div>
 	</div>
 {:else}
