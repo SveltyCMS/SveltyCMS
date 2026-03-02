@@ -17,6 +17,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 // Collections
 import { contentManager } from '@src/content/content-manager';
+import { hasDuplicateSiblingName } from '@src/content/utils';
 import type { Schema } from '@src/content/types';
 // Auth
 // Use hasPermissionWithRoles and roles from locals, like the example pattern
@@ -108,12 +109,19 @@ export const load: PageServerLoad = async ({ depends, locals, params }) => {
 
 		// 5. Handle 'new' action
 		if (action === 'new') {
+			const flatForNew = await contentManager.getContentStructureFromDatabase('flat', true);
+			const contentStructure = flatForNew.map((n) => ({
+				_id: n._id?.toString(),
+				parentId: n.parentId != null ? String(n.parentId) : undefined,
+				name: n.name
+			}));
 			return {
 				user: serializedUser,
 				roles: tenantRoles || [], // Roles:' key
 				permissions, // Permissions data
 				permissionConfigs, // Permission configs
-				collection: null // Pass null for 'new' action
+				collection: null, // Pass null for 'new' action
+				contentStructure
 			};
 		}
 
@@ -231,12 +239,20 @@ export const load: PageServerLoad = async ({ depends, locals, params }) => {
 
 		console.log('serializableCollection', JSON.stringify(serializableCollection));
 
+		const flatForEdit = await contentManager.getContentStructureFromDatabase('flat', true);
+		const contentStructure = flatForEdit.map((n) => ({
+			_id: n._id?.toString(),
+			parentId: n.parentId != null ? String(n.parentId) : undefined,
+			name: n.name
+		}));
+
 		return {
 			user: serializedUser,
 			roles: tenantRoles || [], // roles:' key
 			permissions, // Permissions data
 			permissionConfigs, //Permission configs
-			collection: serializableCollection
+			collection: serializableCollection,
+			contentStructure
 		};
 	} catch (err) {
 		if (err instanceof Error && 'status' in err) {
@@ -334,6 +350,20 @@ export const actions: Actions = {
 			const isNewCollection = !collectionId;
 			if (isNewCollection) {
 				collectionId = (Math.random().toString(36).substring(2, 15) + Date.now().toString(36)).replace(/-/g, '');
+			}
+
+			// Duplicate name validation FIRST: before any DB/fs work. No duplicate names in same category.
+			const nameTrimmed = (contentName ?? '').trim();
+			if (nameTrimmed) {
+				const flatForValidation = await contentManager.getContentStructureFromDatabase('flat', true);
+				const parentIdForCheck = parentIdParam && parentIdParam.trim() !== '' ? parentIdParam : undefined;
+				const excludeId = isNewCollection ? undefined : (collectionId ?? undefined);
+				if (hasDuplicateSiblingName(flatForValidation, parentIdForCheck ?? null, nameTrimmed, excludeId)) {
+					return {
+						status: 400,
+						error: 'A collection with this name already exists in this category. Please choose another name.'
+					};
+				}
 			}
 
 			// Widgets Fields (client sends an array; normalize defensively)

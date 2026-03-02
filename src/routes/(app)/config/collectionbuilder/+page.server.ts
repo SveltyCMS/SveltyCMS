@@ -16,6 +16,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 // System Logger
 import { contentManager } from '@root/src/content/content-manager';
+import { hasDuplicateSiblingName } from '@src/content/utils';
 // Auth - Use cached roles from locals instead of global config
 import { hasPermissionWithRoles } from '@src/databases/auth/permissions';
 import { compile } from '@src/utils/compilation/compile';
@@ -265,6 +266,23 @@ export const actions: Actions = {
 			for (const op of items) {
 				if (op.type === 'create' && op.node?._id != null && !newFlat.some((n) => String(n._id) === String(op.node!._id))) {
 					newFlat.push(op.node as (typeof currentFlat)[0]);
+				}
+			}
+
+			// Duplicate name validation: no sibling with same name (case-insensitive) at same level (create, rename, move)
+			for (const op of items) {
+				if (!op.node || (op.type !== 'create' && op.type !== 'rename' && op.type !== 'move')) continue;
+				const node = op.node as { name?: string; parentId?: unknown; _id?: unknown };
+				const name = node.name != null ? String(node.name).trim() : '';
+				if (!name) continue;
+				const parentId = node.parentId != null && node.parentId !== '' ? String(node.parentId) : undefined;
+				const excludeId = node._id != null ? String(node._id) : undefined;
+				if (hasDuplicateSiblingName(newFlat, parentId ?? null, name, excludeId)) {
+					const message =
+						op.type === 'move'
+							? 'A collection with this name already exists in the target category.'
+							: 'A category/collection with this name already exists at this level. Please choose another name.';
+					return fail(400, { message });
 				}
 			}
 

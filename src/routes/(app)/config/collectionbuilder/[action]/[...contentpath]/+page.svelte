@@ -16,6 +16,7 @@
 	import PageTitle from '@src/components/page-title.svelte';
 	// Types
 	import type { FieldInstance, Schema } from '@src/content/types';
+	import { hasDuplicateSiblingName } from '@src/content/utils';
 	import type { User } from '@src/databases/auth/types';
 	import { button_cancel, button_delete, button_save } from '@src/paraglide/messages';
 	import ModalSchemaWarning from '@src/routes/(app)/config/collectionbuilder/modal-schema-warning.svelte';
@@ -41,6 +42,8 @@
 		data: {
 			collection?: Schema;
 			contentLanguage: string;
+			/** Flat list for duplicate-name validation (same parentId, case-insensitive name). */
+			contentStructure?: Array<{ _id?: string; parentId?: string; name?: string }>;
 			user: User;
 		};
 	}
@@ -144,7 +147,6 @@
 		}
 
 		try {
-			isLoading = true;
 			// Use current store state (includes deletes, edits, reorder) as the single source of truth
 			const currentCollection = collectionValue ?? collections.active;
 			if (!currentCollection) {
@@ -152,6 +154,28 @@
 				return;
 			}
 			const snapshot = JSON.parse(JSON.stringify(currentCollection)) as typeof currentCollection;
+
+			// Frontend duplicate-name validation before submit (same category, case-insensitive)
+			const structure = data?.contentStructure ?? [];
+			if (structure.length > 0) {
+				const nameTrimmed = (snapshot?.name ?? '').trim();
+				if (nameTrimmed) {
+					const snapshotWithParent = snapshot as { parentId?: string; _id?: string };
+					const parentId =
+						snapshotWithParent?.parentId != null && snapshotWithParent.parentId !== ''
+							? String(snapshotWithParent.parentId)
+							: (page.url.searchParams.get('parentId') ?? undefined);
+					const excludeId = snapshotWithParent?._id != null ? String(snapshotWithParent._id) : undefined;
+					if (hasDuplicateSiblingName(structure, parentId ?? null, nameTrimmed, excludeId)) {
+						toaster.warning({
+							description: 'A collection with this name already exists in this category. Please choose another name.'
+						});
+						return;
+					}
+				}
+			}
+
+			isLoading = true;
 
 			// Put originalName last so it is never overwritten by snapshot (enables correct rename)
 			const contentPath = Array.isArray(page.params.contentpath) ? page.params.contentpath.join('/') : (page.params.contentpath ?? '');
@@ -170,19 +194,26 @@
 				body: obj2formData(payload)
 			});
 
+			const result = await response.json().catch(() => ({}));
 			if (!response.ok) {
-				throw new Error(`HTTP error! status: ${response.status}`);
+				const message = result?.error ?? `Save failed (${response.status})`;
+				toaster.warning({ description: message });
+				return;
+			}
+			let responseData = result;
+			if (result.type === 'success' && result.data) {
+				responseData = typeof result.data === 'string' ? JSON.parse(result.data) : result.data;
 			}
 
-			const result = await response.json();
-			let data = result;
-			if (result.type === 'success' && result.data) {
-				data = typeof result.data === 'string' ? JSON.parse(result.data) : result.data;
+			// Duplicate or validation failure: server may return 200 with status 400 in body — show warning only, never success
+			if ((responseData?.status === 400 || result?.status === 400) && (responseData?.error ?? result?.error)) {
+				toaster.warning({ description: (responseData?.error ?? result?.error) as string });
+				return;
 			}
 
 			// Check for drift detection from server (status 202)
-			if (data?.driftDetected) {
-				migrationPlan = data.plan;
+			if (responseData?.driftDetected) {
+				migrationPlan = responseData.plan;
 				showWarningModal = true;
 				toaster.info({
 					description: 'Manual confirmation required for schema changes'
@@ -190,7 +221,7 @@
 				return;
 			}
 
-			if (response.status === 200 || (data && data.status === 200)) {
+			if (response.status === 200 || (responseData && responseData.status === 200)) {
 				toaster.success({ description: 'Collection Saved Successfully' });
 				showWarningModal = false;
 				migrationPlan = null;
@@ -204,7 +235,7 @@
 				await invalidate(page.url.pathname);
 				await invalidateAll();
 				// Create: go to edit page for the new collection; Edit: go to collection builder list
-				const editPath = data?.editPath;
+				const editPath = responseData?.editPath;
 				if (action === 'new' && typeof editPath === 'string' && editPath) {
 					goto(`/config/collectionbuilder/edit/${editPath}`);
 				} else {

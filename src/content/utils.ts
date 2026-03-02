@@ -257,3 +257,41 @@ export function sortContentNodes<T extends { order?: number; name: string }>(a: 
 	}
 	return a.name.localeCompare(b.name);
 }
+
+/** Normalize ID for comparison (handles with/without dashes, ObjectId string forms). */
+function normalizeIdForCompare(id: string | null | undefined): string | null {
+	if (id == null || id === '') return null;
+	return String(id).replace(/-/g, '').toLowerCase();
+}
+
+/**
+ * Checks if a sibling with the same name already exists at the same hierarchy level.
+ * Used to prevent duplicate category/collection names under the same parent.
+ * Compares names case-insensitively with trimmed whitespace; normalizes parent/_id for comparison.
+ *
+ * @param nodes - Flat list of content nodes (categories and collections)
+ * @param parentId - Parent ID (null/undefined for root level)
+ * @param name - Name to check (trimmed and compared case-insensitively)
+ * @param excludeId - Optional node _id to exclude (e.g. when renaming, exclude self)
+ * @returns true if a duplicate sibling name exists
+ */
+export function hasDuplicateSiblingName(
+	nodes: Array<{ name?: unknown; parentId?: unknown; _id?: unknown }>,
+	parentId: string | null | undefined,
+	name: string,
+	excludeId?: string
+): boolean {
+	const nameNorm = String(name ?? '').trim().toLowerCase();
+	if (!nameNorm) return false;
+	const parentKeyNorm = normalizeIdForCompare(parentId == null || parentId === '' ? null : parentId);
+	const excludeNorm = excludeId != null && excludeId !== '' ? normalizeIdForCompare(excludeId) : null;
+	for (const node of nodes) {
+		const nodeIdNorm = node._id != null ? normalizeIdForCompare(String(node._id)) : null;
+		if (excludeNorm != null && nodeIdNorm === excludeNorm) continue;
+		const nodeParentNorm = node.parentId == null || node.parentId === '' ? null : normalizeIdForCompare(String(node.parentId));
+		if (nodeParentNorm !== parentKeyNorm) continue;
+		const nodeNameNorm = String(node.name ?? '').trim().toLowerCase();
+		if (nodeNameNorm === nameNorm) return true;
+	}
+	return false;
+}
