@@ -62,7 +62,16 @@
 		onSelectCategory?: (node: TreeViewItem) => void;
 	}
 
-	let { contentNodes = [], structureKey = 0, onNodeUpdate, onEditCategory, onDeleteNode, onDuplicateNode, selectedCategoryId = null, onSelectCategory }: Props = $props();
+	let {
+		contentNodes = [],
+		structureKey = 0,
+		onNodeUpdate,
+		onEditCategory,
+		onDeleteNode,
+		onDuplicateNode,
+		selectedCategoryId = null,
+		onSelectCategory
+	}: Props = $props();
 
 	// Search and UI State
 	let searchText = $state('');
@@ -408,14 +417,15 @@
 		}
 
 		// DUPLICATE NAME IN TARGET: No two siblings with same name (case-insensitive, trimmed)
-		const nameNorm = (name: unknown) => String(name ?? '').trim().toLowerCase();
+		const nameNorm = (name: unknown) =>
+			String(name ?? '')
+				.trim()
+				.toLowerCase();
 		for (const movedItem of newZoneItems) {
 			if (!movingIds.has(movedItem.id)) continue;
 			const movedName = nameNorm(movedItem.name);
 			if (!movedName) continue;
-			const hasDuplicate = newZoneItems.some(
-				(other: EnhancedTreeViewItem) => other.id !== movedItem.id && nameNorm(other.name) === movedName
-			);
+			const hasDuplicate = newZoneItems.some((other: EnhancedTreeViewItem) => other.id !== movedItem.id && nameNorm(other.name) === movedName);
 			if (hasDuplicate) {
 				announce('A collection with this name already exists in the target category.');
 				toaster.warning({

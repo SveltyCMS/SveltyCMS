@@ -370,7 +370,9 @@ export const actions: Actions = {
 				const name = String(node.name ?? '');
 				if (name.endsWith('_copy')) continue; // duplicates handled below
 				const currentNode = currentFlat.find(
-					(n) => n._id?.toString() === node._id?.toString() || (n._id?.toString() ?? '').replace(/-/g, '') === (node._id?.toString() ?? '').replace(/-/g, '')
+					(n) =>
+						n._id?.toString() === node._id?.toString() ||
+						(n._id?.toString() ?? '').replace(/-/g, '') === (node._id?.toString() ?? '').replace(/-/g, '')
 				);
 				if (!currentNode) continue;
 				const currentParentId = currentNode.parentId?.toString() ?? null;

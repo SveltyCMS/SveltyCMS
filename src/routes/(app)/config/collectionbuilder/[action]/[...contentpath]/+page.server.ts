@@ -367,13 +367,12 @@ export const actions: Actions = {
 			}
 
 			// Widgets Fields (client sends an array; normalize defensively)
-			const parsedFieldsUnknown: unknown =
-				typeof fieldsData === 'string' && fieldsData.trim().length > 0 ? JSON.parse(fieldsData) : [];
+			const parsedFieldsUnknown: unknown = typeof fieldsData === 'string' && fieldsData.trim().length > 0 ? JSON.parse(fieldsData) : [];
 			const fieldsArray = Array.isArray(parsedFieldsUnknown)
 				? (parsedFieldsUnknown as FieldWithWidget[])
-				: (typeof parsedFieldsUnknown === 'object' && parsedFieldsUnknown !== null
-						? (Object.values(parsedFieldsUnknown as Record<string, FieldWithWidget>) as FieldWithWidget[])
-						: []);
+				: typeof parsedFieldsUnknown === 'object' && parsedFieldsUnknown !== null
+					? (Object.values(parsedFieldsUnknown as Record<string, FieldWithWidget>) as FieldWithWidget[])
+					: [];
 			// goThrough expects an object-like structure; arrays are fine (numeric keys)
 			const fields = parsedFieldsUnknown as unknown as FieldsData;
 
