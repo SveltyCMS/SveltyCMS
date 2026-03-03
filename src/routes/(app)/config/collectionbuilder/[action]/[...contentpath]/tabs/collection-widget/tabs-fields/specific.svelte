@@ -11,9 +11,7 @@ Features:
 <script lang="ts">
 	import InputSwitch from '@src/components/system/builder/input-switch.svelte';
 	import { collections } from '@src/stores/collection-store.svelte';
-	// Components
 	import { widgets } from '@src/stores/widget-store.svelte.ts';
-	import { modalState } from '@utils/modal-state.svelte';
 	import { asAny } from '@utils/utils';
 
 	// Removed modalStore
@@ -34,7 +32,7 @@ Features:
 	}
 </script>
 
-{#if modalState.active && currentGuiSchema && specificFields.length > 0}
+{#if currentGuiSchema && specificFields.length > 0}
 	{#each specificFields as property (property)}
 		<InputSwitch
 			value={collections.targetWidget[property]}
@@ -43,6 +41,6 @@ Features:
 			key={property}
 		/>
 	{/each}
-{:else if modalState.active && currentWidgetName}
-	<div class="text-center text-sm text-gray-500">No specific options for this widget type</div>
+{:else if currentWidgetName}
+	<div class="text-center text-sm text-surface-500 py-4">No specific options for this widget type</div>
 {/if}

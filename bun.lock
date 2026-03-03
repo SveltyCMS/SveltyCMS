@@ -9,7 +9,7 @@
         "@floating-ui/dom": "^1.7.5",
         "@googlemaps/js-api-loader": "^2.0.2",
         "@inlang/paraglide-js": "^2.13.0",
-        "@mcp-b/webmcp-polyfill": "^2.0.8",
+        "@mcp-b/webmcp-polyfill": "^2.0.9",
         "@tailwindcss/forms": "^0.5.11",
         "@tailwindcss/typography": "^0.5.19",
         "@testing-library/jest-dom": "^6.9.1",
@@ -74,7 +74,7 @@
         "@semantic-release/commit-analyzer": "^13.0.1",
         "@semantic-release/git": "^10.0.1",
         "@semantic-release/github": "^12.0.6",
-        "@semantic-release/npm": "^13.1.4",
+        "@semantic-release/npm": "^13.1.5",
         "@semantic-release/release-notes-generator": "^14.1.0",
         "@skeletonlabs/skeleton": "^4.12.1",
         "@skeletonlabs/skeleton-svelte": "^4.12.1",
@@ -488,15 +488,9 @@
 
     "@lix-js/server-protocol-schema": ["@lix-js/server-protocol-schema@0.1.1", "", {}, "sha512-jBeALB6prAbtr5q4vTuxnRZZv1M2rKe8iNqRQhFJ4Tv7150unEa0vKyz0hs8Gl3fUGsWaNJBh3J8++fpbrpRBQ=="],
 
-<<<<<<< HEAD
     "@mcp-b/webmcp-polyfill": ["@mcp-b/webmcp-polyfill@2.0.9", "", { "dependencies": { "@cfworker/json-schema": "^4.1.1", "@mcp-b/webmcp-types": "2.0.9", "@standard-schema/spec": "^1.1.0" } }, "sha512-mKcIgpkCxgi4as6moU/lRbc9ANCsiHOjkIyln5ivJG4H2qa3U9Wv/euFq9B92Zbx5ZwuCvucdsmEsYsnpYHgpw=="],
 
     "@mcp-b/webmcp-types": ["@mcp-b/webmcp-types@2.0.9", "", {}, "sha512-ktgOElR4ODzlo5JtX+YAWsWFYoErrmIUBJ1U10396HNEdHPPFPZZSPpOCWc4a8RoKxC8RqEWyUt5dPj+wBps8Q=="],
-=======
-    "@mcp-b/webmcp-polyfill": ["@mcp-b/webmcp-polyfill@2.0.8", "", { "dependencies": { "@cfworker/json-schema": "^4.1.1", "@mcp-b/webmcp-types": "2.0.8", "@standard-schema/spec": "^1.1.0" } }, "sha512-KY1TdJ/4gPqSoEfqIZxa1eD5Xaj63A0hrp9R0Ft3Pe0l0ob7SUVYR1RG5axmaN7yM7DUq1giZpObUK5xjvuSiA=="],
-
-    "@mcp-b/webmcp-types": ["@mcp-b/webmcp-types@2.0.8", "", {}, "sha512-P5KGlCaTt0sAWiKeT0ggrMqBGCyOIQ8d3fa7tWiDBvLJH2TOtfRXuV6Npn30lOSmZgvA4KDSGGFyNC+fF8w9Yg=="],
->>>>>>> 8c9d82013cc49cb63620e263d9825a2b9d36719b
 
     "@mongodb-js/saslprep": ["@mongodb-js/saslprep@1.3.2", "", { "dependencies": { "sparse-bitfield": "^3.0.3" } }, "sha512-QgA5AySqB27cGTXBFmnpifAi7HxoGUeezwo6p9dI03MuDB6Pp33zgclqVb6oVK3j6I9Vesg0+oojW2XxB59SGg=="],
 

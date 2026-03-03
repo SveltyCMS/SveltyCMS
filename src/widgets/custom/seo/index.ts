@@ -117,4 +117,3 @@ export default SeoWidget;
 // Export helper types.
 export type FieldType = ReturnType<typeof SeoWidget>;
 export type SeoWidgetData = ValibotInput<typeof SEO_VALIDATION_SCHEMA>;
-

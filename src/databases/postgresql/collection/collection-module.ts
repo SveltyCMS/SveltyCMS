@@ -62,6 +62,22 @@ export class CollectionModule {
 		}, 'GET_SCHEMA_FAILED');
 	}
 
+	async getSchemaById(collectionId: string): Promise<DatabaseResult<Schema | null>> {
+		if (!collectionId || String(collectionId).trim() === '') {
+			return { success: true, data: null };
+		}
+		return this.core.wrap(async () => {
+			const idNorm = String(collectionId).trim().replace(/-/g, '');
+			const [result] = await this.db.execute(
+				sql`SELECT "collectionDef" FROM "system_content_structure" WHERE ("_id" = ${collectionId} OR "_id" = ${idNorm}) AND "nodeType" = 'collection' LIMIT 1`
+			);
+			if (!result) {
+				return null;
+			}
+			return (result as unknown as { collectionDef: Schema }).collectionDef;
+		}, 'GET_SCHEMA_BY_ID_FAILED');
+	}
+
 	async listSchemas(): Promise<DatabaseResult<Schema[]>> {
 		return this.core.wrap(async () => {
 			const results = await this.db.execute(sql`SELECT "collectionDef" FROM "system_content_structure" WHERE "nodeType" = 'collection'`);

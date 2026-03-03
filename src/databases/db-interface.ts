@@ -375,7 +375,6 @@ export interface IAuthAdapter {
 	blockUsers(userIds: string[], tenantId?: string): Promise<DatabaseResult<{ modifiedCount: number }>>;
 	cleanupRotatedSessions?(): Promise<DatabaseResult<number>>;
 	consumeToken(token: string, userId?: string, type?: string, tenantId?: string): Promise<DatabaseResult<{ status: boolean; message: string }>>;
-<<<<<<< HEAD
 	createRole(role: Role, options?: { sudo?: boolean }): Promise<DatabaseResult<Role>>;
 
 	// Session Management Methods
@@ -391,12 +390,6 @@ export interface IAuthAdapter {
 	createUser(userData: Partial<User>, options?: { sudo?: boolean }): Promise<DatabaseResult<User>>;
 
 	// Combined Performance-Optimized Methods
-=======
-	createRole(role: Role): Promise<DatabaseResult<Role>>;
-	createSession(sessionData: { user_id: string; expires: ISODateString; tenantId?: string }): Promise<DatabaseResult<Session>>;
-	createToken(data: { user_id: string; email: string; expires: ISODateString; type: string; tenantId?: string }): Promise<DatabaseResult<string>>;
-	createUser(userData: Partial<User>): Promise<DatabaseResult<User>>;
->>>>>>> 8c9d82013cc49cb63620e263d9825a2b9d36719b
 	createUserAndSession(
 		userData: Partial<User>,
 		sessionData: { expires: ISODateString; tenantId?: string },
@@ -416,13 +409,9 @@ export interface IAuthAdapter {
 	deleteUsers(userIds: string[], tenantId?: string): Promise<DatabaseResult<{ deletedCount: number }>>;
 	getActiveSessions(userId: string, tenantId?: string): Promise<DatabaseResult<Session[]>>;
 	getAllActiveSessions(tenantId?: string): Promise<DatabaseResult<Session[]>>;
-<<<<<<< HEAD
 
 	// Role Management Methods
 	getAllRoles(tenantId?: string, options?: { sudo?: boolean }): Promise<Role[]>;
-=======
-	getAllRoles(tenantId?: string): Promise<Role[]>;
->>>>>>> 8c9d82013cc49cb63620e263d9825a2b9d36719b
 	getAllTokens(filter?: Record<string, unknown>): Promise<DatabaseResult<Token[]>>;
 	getAllUsers(options?: PaginationOption, dbOptions?: { sudo?: boolean }): Promise<DatabaseResult<User[]>>;
 	getRoleById(roleId: string, tenantId?: string, options?: { sudo?: boolean }): Promise<DatabaseResult<Role | null>>;
@@ -451,20 +440,13 @@ export interface IAuthAdapter {
 }
 
 export interface ICrudAdapter {
-<<<<<<< HEAD
 	aggregate<R>(collection: string, pipeline: unknown[], tenantId?: string | null, options?: { sudo?: boolean }): Promise<DatabaseResult<R[]>>;
 	count(collection: string, query?: QueryFilter<BaseEntity>, tenantId?: string | null, options?: { sudo?: boolean }): Promise<DatabaseResult<number>>;
 	delete(collection: string, id: DatabaseId, tenantId?: string | null): Promise<DatabaseResult<void>>;
-=======
-	aggregate<R>(collection: string, pipeline: unknown[], tenantId?: string | null, bypassTenantCheck?: boolean): Promise<DatabaseResult<R[]>>;
-	count(collection: string, query?: QueryFilter<BaseEntity>, tenantId?: string | null, bypassTenantCheck?: boolean): Promise<DatabaseResult<number>>;
-	delete(collection: string, id: DatabaseId, tenantId?: string | null, bypassTenantCheck?: boolean): Promise<DatabaseResult<void>>;
->>>>>>> 8c9d82013cc49cb63620e263d9825a2b9d36719b
 	deleteMany(
 		collection: string,
 		query: QueryFilter<BaseEntity>,
 		tenantId?: string | null,
-<<<<<<< HEAD
 		options?: { sudo?: boolean }
 	): Promise<DatabaseResult<{ deletedCount: number }>>;
 	exists(
@@ -477,15 +459,6 @@ export interface ICrudAdapter {
 		collection: string,
 		ids: DatabaseId[],
 		options?: { fields?: (keyof T)[]; tenantId?: string | null; sudo?: boolean }
-=======
-		bypassTenantCheck?: boolean
-	): Promise<DatabaseResult<{ deletedCount: number }>>;
-	exists(collection: string, query: QueryFilter<BaseEntity>, tenantId?: string | null, bypassTenantCheck?: boolean): Promise<DatabaseResult<boolean>>;
-	findByIds<T extends BaseEntity>(
-		collection: string,
-		ids: DatabaseId[],
-		options?: { fields?: (keyof T)[]; tenantId?: string | null; bypassTenantCheck?: boolean }
->>>>>>> 8c9d82013cc49cb63620e263d9825a2b9d36719b
 	): Promise<DatabaseResult<T[]>>;
 	findMany<T extends BaseEntity>(
 		collection: string,
@@ -496,17 +469,12 @@ export interface ICrudAdapter {
 			fields?: (keyof T)[];
 			sort?: SortOption;
 			tenantId?: string | null;
-<<<<<<< HEAD
 			sudo?: boolean;
-=======
-			bypassTenantCheck?: boolean;
->>>>>>> 8c9d82013cc49cb63620e263d9825a2b9d36719b
 		}
 	): Promise<DatabaseResult<T[]>>;
 	findOne<T extends BaseEntity>(
 		collection: string,
 		query: QueryFilter<T>,
-<<<<<<< HEAD
 		options?: { fields?: (keyof T)[]; tenantId?: string | null; sudo?: boolean }
 	): Promise<DatabaseResult<T | null>>;
 	insert<T extends BaseEntity>(
@@ -520,52 +488,24 @@ export interface ICrudAdapter {
 		data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>[],
 		tenantId?: string | null,
 		options?: { sudo?: boolean }
-=======
-		options?: { fields?: (keyof T)[]; tenantId?: string | null; bypassTenantCheck?: boolean }
-	): Promise<DatabaseResult<T | null>>;
-	insert<T extends BaseEntity>(
-		collection: string,
-		data: EntityCreate<T>,
-		tenantId?: string | null,
-		bypassTenantCheck?: boolean
-	): Promise<DatabaseResult<T>>;
-	insertMany<T extends BaseEntity>(
-		collection: string,
-		data: EntityCreate<T>[],
-		tenantId?: string | null,
-		bypassTenantCheck?: boolean
->>>>>>> 8c9d82013cc49cb63620e263d9825a2b9d36719b
 	): Promise<DatabaseResult<T[]>>;
 	update<T extends BaseEntity>(
 		collection: string,
 		id: DatabaseId,
-<<<<<<< HEAD
 		data: Partial<Omit<T, 'createdAt' | 'updatedAt'>>,
 		tenantId?: string | null,
 		options?: { sudo?: boolean }
-=======
-		data: EntityUpdate<T>,
-		tenantId?: string | null,
-		bypassTenantCheck?: boolean
->>>>>>> 8c9d82013cc49cb63620e263d9825a2b9d36719b
 	): Promise<DatabaseResult<T>>;
 	updateMany<T extends BaseEntity>(
 		collection: string,
 		query: QueryFilter<T>,
-<<<<<<< HEAD
 		data: Partial<Omit<T, 'createdAt' | 'updatedAt'>>,
 		tenantId?: string | null,
 		options?: { sudo?: boolean }
-=======
-		data: EntityUpdate<T>,
-		tenantId?: string | null,
-		bypassTenantCheck?: boolean
->>>>>>> 8c9d82013cc49cb63620e263d9825a2b9d36719b
 	): Promise<DatabaseResult<{ modifiedCount: number }>>;
 	upsert<T extends BaseEntity>(
 		collection: string,
 		query: QueryFilter<T>,
-<<<<<<< HEAD
 		data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>,
 		tenantId?: string | null,
 		options?: { sudo?: boolean }
@@ -578,17 +518,6 @@ export interface ICrudAdapter {
 		}>,
 		tenantId?: string | null,
 		options?: { sudo?: boolean }
-=======
-		data: EntityCreate<T>,
-		tenantId?: string | null,
-		bypassTenantCheck?: boolean
-	): Promise<DatabaseResult<T>>;
-	upsertMany<T extends BaseEntity>(
-		collection: string,
-		items: Array<{ query: QueryFilter<T>; data: EntityCreate<T> }>,
-		tenantId?: string | null,
-		bypassTenantCheck?: boolean
->>>>>>> 8c9d82013cc49cb63620e263d9825a2b9d36719b
 	): Promise<DatabaseResult<T[] | { upsertedCount: number; modifiedCount: number }>>;
 }
 
@@ -639,28 +568,16 @@ export interface IContentAdapter {
 	nodes: {
 		getStructure(
 			mode: 'flat' | 'nested',
-<<<<<<< HEAD
-			options?: { filter?: Partial<ContentNode>; tenantId?: string | null; sudo?: boolean; bypassCache?: boolean }
-		): Promise<DatabaseResult<ContentNode[]>>;
-		upsertContentStructureNode(node: Omit<ContentNode, 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<ContentNode>>;
-		create(node: Omit<ContentNode, 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<ContentNode>>;
-		createMany(nodes: Omit<ContentNode, 'createdAt' | 'updatedAt'>[]): Promise<DatabaseResult<ContentNode[]>>;
-		update(path: string, changes: Partial<ContentNode>): Promise<DatabaseResult<ContentNode>>;
-		bulkUpdate(
-			updates: { path: string; id?: string; changes: Partial<ContentNode> }[],
-			options?: { tenantId?: string | null; sudo?: boolean; bypassCache?: boolean }
-		): Promise<DatabaseResult<ContentNode[]>>;
-=======
-			filter?: Partial<ContentNodeType> & { tenantId?: string },
-			bypassCache?: boolean,
-			bypassTenantCheck?: boolean
+			options?: { filter?: Partial<ContentNodeType>; tenantId?: string | null; sudo?: boolean; bypassCache?: boolean }
 		): Promise<DatabaseResult<ContentNodeType[]>>;
-		upsertContentStructureNode(node: EntityCreate<ContentNodeType>): Promise<DatabaseResult<ContentNodeType>>;
-		create(node: EntityCreate<ContentNodeType>): Promise<DatabaseResult<ContentNodeType>>;
-		createMany(nodes: EntityCreate<ContentNodeType>[]): Promise<DatabaseResult<ContentNodeType[]>>;
+		upsertContentStructureNode(node: Omit<ContentNodeType, 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<ContentNodeType>>;
+		create(node: Omit<ContentNodeType, 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<ContentNodeType>>;
+		createMany(nodes: Omit<ContentNodeType, 'createdAt' | 'updatedAt'>[]): Promise<DatabaseResult<ContentNodeType[]>>;
 		update(path: string, changes: Partial<ContentNodeType>): Promise<DatabaseResult<ContentNodeType>>;
-		bulkUpdate(updates: { path: string; id?: string; changes: Partial<ContentNodeType> }[]): Promise<DatabaseResult<ContentNodeType[]>>;
->>>>>>> 8c9d82013cc49cb63620e263d9825a2b9d36719b
+		bulkUpdate(
+			updates: { path: string; id?: string; changes: Partial<ContentNodeType> }[],
+			options?: { tenantId?: string | null; sudo?: boolean; bypassCache?: boolean }
+		): Promise<DatabaseResult<ContentNodeType[]>>;
 		fixMismatchedNodeIds?(
 			nodes: { path: string; expectedId: string; changes: Partial<ContentNodeType> }[]
 		): Promise<DatabaseResult<{ fixed: number }>>;
@@ -797,6 +714,7 @@ export interface IDBAdapter {
 		updateModel(schema: Schema): Promise<void>;
 		deleteModel(id: string): Promise<void>;
 		getSchema(collectionName: string): Promise<DatabaseResult<Schema | null>>;
+		getSchemaById(collectionId: string): Promise<DatabaseResult<Schema | null>>;
 		listSchemas(): Promise<DatabaseResult<Schema[]>>;
 	};
 

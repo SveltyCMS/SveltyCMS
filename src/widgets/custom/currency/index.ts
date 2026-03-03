@@ -108,4 +108,3 @@ export default CurrencyWidget;
 // Export helper types.
 export type FieldType = ReturnType<typeof CurrencyWidget>;
 export type CurrencyWidgetData = ValibotInput<ReturnType<typeof validationSchema>>;
-

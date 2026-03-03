@@ -379,10 +379,21 @@ async function cleanupOrphanedFiles(
 		logger.warn(`│    1. You renamed/moved a source collection file${' '.repeat(10)}│`);
 		logger.warn(`│    2. You deleted a collection that's no longer needed${' '.repeat(4)}│`);
 		logger.warn(`│${' '.repeat(61)}│`);
-		logger.warn(`│  To clean up manually, delete from:${' '.repeat(23)}│`);
+		logger.warn(`│  Removing orphaned compiled files from disk.${' '.repeat(18)}│`);
 		logger.warn(`│    ${compiledCollections.slice(-50)}${' '.repeat(Math.max(0, 55 - compiledCollections.slice(-50).length))}│`);
 		logger.warn(`│${' '.repeat(61)}│`);
 		logger.warn(`└${divider}┘\n`);
+
+		// Delete orphaned .js files so they don't linger (e.g. after rename new -> new1)
+		for (const relativePath of orphanedFiles) {
+			const fullPath = path.join(compiledCollections, relativePath);
+			try {
+				await fs.unlink(fullPath);
+				logger.info(`Removed orphan: ${relativePath}`);
+			} catch (unlinkErr) {
+				logger.warn(`Could not remove orphaned file ${relativePath}: ${unlinkErr instanceof Error ? unlinkErr.message : String(unlinkErr)}`);
+			}
+		}
 	}
 
 	// Return the list so GUI can display it appropriately

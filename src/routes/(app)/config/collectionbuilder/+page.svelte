@@ -36,6 +36,7 @@ None (TreeView has its own keyboard navigation)
 <script lang="ts">
 	import type { ISODateString } from '@root/src/content/types';
 	import type { ContentNode, DatabaseId } from '@root/src/databases/db-interface';
+	import { hasDuplicateSiblingName } from '@src/content/utils';
 	import PageTitle from '@src/components/page-title.svelte';
 	import { button_save, collection_add, collection_addcategory, collection_description, collection_pagetitle } from '@src/paraglide/messages';
 	import TreeViewBoard from '@src/routes/(app)/config/collectionbuilder/nested-content/tree-view-board.svelte';
@@ -48,9 +49,9 @@ None (TreeView has its own keyboard navigation)
 	import { logger } from '@utils/logger';
 	import { modalState } from '@utils/modal-state.svelte';
 	import { showConfirm } from '@utils/modal-utils';
-	import { goto } from '$app/navigation';
+	import { deserialize } from '$app/forms';
+	import { afterNavigate, goto, invalidate } from '$app/navigation';
 	import { page } from '$app/state';
-	// Removed axios import
 
 	import ModalCategory from './nested-content/modal-category.svelte';
 	import EmptyState from './nested-content/empty-state.svelte';
@@ -71,66 +72,159 @@ None (TreeView has its own keyboard navigation)
 	let currentConfig: ContentNode[] = $state([]);
 	let nodesToSave: Record<string, NodeOperation> = $state({});
 	let isLoading = $state(false);
+	/** Single category selected for "add collection" (only one at a time). */
+	let selectedCategoryId = $state<string | null>(null);
+	/** When true, next effect run must not overwrite currentConfig with data (we just applied save response). */
+	let skipNextSyncFromData = false;
+	/** Allow one sync from data when we land on the page; reset on navigate to avoid effect_update_depth_exceeded. */
+	let allowSyncFromData = $state(true);
+	/** Incremented on save success so TreeViewBoard rebuilds from server order. */
+	let contentStructureVersion = $state(0);
+
+	afterNavigate(() => {
+		if (page.url.pathname.startsWith('/config/collectionbuilder') && !page.url.pathname.includes('/edit')) {
+			allowSyncFromData = true;
+		}
+	});
 
 	$effect(() => {
-		// Only update from server data if we don't have pending changes
-		// This prevents the "Save" return data from conflicting with drag operations if a save happens
-		if (data.contentStructure && Object.keys(nodesToSave).length === 0) {
-			currentConfig = data.contentStructure as unknown as ContentNode[];
+		if (!allowSyncFromData || !data.contentStructure || Object.keys(nodesToSave).length > 0) return;
+		if (skipNextSyncFromData) {
+			skipNextSyncFromData = false;
+			return;
 		}
+		allowSyncFromData = false;
+		const structure = data.contentStructure as unknown as ContentNode[];
+		currentConfig = structure;
+
+		console.log('currentConfig', JSON.stringify(currentConfig));
+
+		// Keep sidebar in sync: it reads from contentStructure store, so update it when we load fresh data from DB
+		setContentStructure(structure);
 	});
 
 	async function handleNodeUpdate(updatedNodes: ContentNode[]) {
 		console.debug('[CollectionBuilder] Hierarchy updated via DnD');
 		currentConfig = updatedNodes;
 
-		// Optimization: Automatically stage all nodes as moved for consistency
+		// Stage all nodes: keep existing 'create' so duplicated collections get their files created on save
 		updatedNodes.forEach((node) => {
-			nodesToSave[node._id.toString()] = {
-				type: 'move',
+			const id = node._id.toString();
+			const existing = nodesToSave[id];
+			const keepCreate = existing?.type === 'create';
+			nodesToSave[id] = {
+				type: keepCreate ? 'create' : 'move',
 				node
 			};
 		});
 	}
 
-	function handleDeleteNode(node: Partial<ContentNode>) {
-		if (!node._id) {
+	/** Collect category id and all descendant node ids from flat list (for category delete). */
+	function getDescendantIds(categoryId: string, flat: ContentNode[]): string[] {
+		const idSet = new Set<string>();
+		const add = (id: string) => {
+			if (idSet.has(id)) return;
+			idSet.add(id);
+			flat.filter((n) => n.parentId?.toString() === id).forEach((n) => add(n._id?.toString() ?? ''));
+		};
+		add(categoryId);
+		return Array.from(idSet);
+	}
+
+	async function doDelete(idsToDelete: string[]) {
+		const formData = new FormData();
+		formData.append('ids', JSON.stringify(idsToDelete));
+		const response = await fetch('?/deleteCollections', {
+			method: 'POST',
+			body: formData
+		});
+
+		const text = await response.text();
+		const result = text
+			? (deserialize(text) as {
+					type?: string;
+					data?: { success?: boolean; message?: string; contentStructure?: ContentNode[] };
+					error?: { message?: string };
+				})
+			: {};
+		const payload = (result.type === 'success' || result.type === 'failure' ? result.data : result) as
+			| { success?: boolean; message?: string; contentStructure?: ContentNode[] }
+			| undefined;
+		const message = result.type === 'error' ? (result.error?.message ?? 'Server error') : (payload?.message ?? 'Deletion failed');
+
+		if (!response.ok) {
+			logger.error('Delete failed', message);
+			toast.error(message);
 			return;
 		}
-		showConfirm({
-			title: 'Delete Item?',
-			body: `Are you sure you want to delete "${node.name}"? This action cannot be undone.`,
-			onConfirm: async () => {
-				const formData = new FormData();
-				formData.append('ids', JSON.stringify([node._id?.toString()]));
-				try {
-					isLoading = true;
-					const response = await fetch('?/deleteCollections', {
-						method: 'POST',
-						body: formData
-					});
 
-					if (!response.ok) {
-						throw new Error(`HTTP error! status: ${response.status}`);
-					}
-
-					const result = await response.json();
-					const actionData = result.type === 'success' || result.type === 'failure' ? result.data : result;
-
-					if (result.type === 'success' && actionData.success) {
-						currentConfig = currentConfig.filter((n) => n._id.toString() !== node._id?.toString());
-						toast.success('Item deleted successfully');
-					} else {
-						throw new Error(actionData.message || 'Deletion failed');
-					}
-				} catch (err) {
-					logger.error('Delete failed', err);
-					toast.error('Failed to delete item');
-				} finally {
-					isLoading = false;
-				}
+		if ((result.type === 'success' && payload?.success) || payload?.success === true) {
+			if (payload?.contentStructure && Array.isArray(payload.contentStructure)) {
+				currentConfig = payload.contentStructure;
+				setContentStructure(payload.contentStructure);
+			} else {
+				const idSet = new Set(idsToDelete);
+				currentConfig = currentConfig.filter((n) => !idSet.has(n._id?.toString() ?? ''));
+				setContentStructure(currentConfig);
 			}
-		});
+			// Invalidate layout so edit/create page sidebar gets fresh structure (no deleted items)
+			await invalidate('app:content');
+			toast.success(idsToDelete.length > 1 ? 'Category and attached items deleted' : 'Item deleted successfully');
+		} else {
+			logger.error('Delete failed', message);
+			toast.error(message);
+		}
+	}
+
+	function handleDeleteNode(node: Partial<ContentNode>) {
+		const nodeId = node._id?.toString();
+		if (!nodeId) {
+			return;
+		}
+
+		const isCategory = node.nodeType === 'category';
+		if (isCategory) {
+			const idsToDelete = getDescendantIds(nodeId, currentConfig);
+			const attachedCount = idsToDelete.length - 1; // exclude the category itself
+			const body =
+				attachedCount > 0
+					? `Delete category "${node.name}" and all ${attachedCount} attached collection(s) and sub-categories? This action cannot be undone.`
+					: `Delete category "${node.name}"? This action cannot be undone.`;
+
+			showConfirm({
+				title: 'Delete Category and Contents?',
+				body,
+				onConfirm: async () => {
+					try {
+						isLoading = true;
+						await doDelete(idsToDelete);
+					} catch (err) {
+						const msg = err instanceof Error ? err.message : String(err);
+						logger.error('Delete failed', msg);
+						toast.error(msg || 'Failed to delete');
+					} finally {
+						isLoading = false;
+					}
+				}
+			});
+		} else {
+			showConfirm({
+				title: 'Delete Item?',
+				body: `Are you sure you want to delete "${node.name}"? This action cannot be undone.`,
+				onConfirm: async () => {
+					try {
+						isLoading = true;
+						await doDelete([nodeId]);
+					} catch (err) {
+						const msg = err instanceof Error ? err.message : String(err);
+						logger.error('Delete failed', msg);
+						toast.error(msg || 'Failed to delete item');
+					} finally {
+						isLoading = false;
+					}
+				}
+			});
+		}
 	}
 
 	function handleDuplicateNode(node: Partial<ContentNode>) {
@@ -142,22 +236,57 @@ None (TreeView has its own keyboard navigation)
 			return;
 		}
 
+		const isCategory = original.nodeType === 'category';
+		if (isCategory) {
+			// Duplicate only the category (no attached collections)
+			const now = new Date().toISOString() as ISODateString;
+			const newId = (Math.random().toString(36).substring(2, 15) + Date.now().toString(36)) as unknown as DatabaseId;
+			const baseName = (original.name || 'category').toString().replace(/\s+/g, '_');
+			const newName = `${baseName}_copy`;
+			const rootCount = currentConfig.filter((n) => !n.parentId).length;
+			const newNode: ContentNode = {
+				...JSON.parse(JSON.stringify(original)),
+				_id: newId,
+				name: newName,
+				parentId: undefined,
+				path: String(newId),
+				order: rootCount,
+				updatedAt: now,
+				createdAt: now
+			};
+			currentConfig = [...currentConfig, newNode];
+			nodesToSave[newNode._id?.toString() ?? ''] = { type: 'create', node: newNode };
+			toast.success('Category duplicated. Click Save to persist.');
+			return;
+		}
+
+		// Single collection duplicate — use id-based path so DB and refresh keep stable path (not name-based)
 		const newId = (Math.random().toString(36).substring(2, 15) + Date.now().toString(36)) as unknown as DatabaseId;
+		const baseName = (original.name || (original.collectionDef as { name?: string })?.name || 'copy').toString().replace(/\s+/g, '_');
+		const newName = `${baseName}_copy`;
+		const parentId = original.parentId as DatabaseId | undefined;
+		if (hasDuplicateSiblingName(currentConfig, parentId ?? undefined, newName)) {
+			toast.warning('A collection with this name already exists at this level. Please choose another name.');
+			return;
+		}
+		const idBasedPath = parentId != null ? `${String(parentId)}.${String(newId)}` : String(newId);
+
 		const newNode: ContentNode = JSON.parse(
 			JSON.stringify({
 				...original,
 				_id: newId,
-				name: `${original.name} (Copy)`,
+				name: newName,
+				parentId: parentId ?? undefined,
+				path: idBasedPath,
+				slug: undefined,
 				updatedAt: new Date().toISOString() as ISODateString,
 				createdAt: new Date().toISOString() as ISODateString
 			})
 		);
 
-		// Ensure path is reset or adjusted so it's not a collision
-		newNode.path = `${newNode.path}_copy`;
 		if (newNode.collectionDef) {
-			newNode.collectionDef.name = newNode.name;
-			newNode.collectionDef.path = newNode.path;
+			(newNode.collectionDef as { name?: string; path?: string }).name = newName;
+			(newNode.collectionDef as { name?: string; path?: string }).path = newNode.path;
 		}
 
 		currentConfig = [...currentConfig, newNode];
@@ -182,42 +311,115 @@ None (TreeView has its own keyboard navigation)
 				body: formData
 			});
 
-			if (!response.ok) {
-				throw new Error(`HTTP error! status: ${response.status}`);
+			const text = await response.text();
+			let result: {
+				type?: string;
+				data?: { success?: boolean; contentStructure?: unknown; message?: string };
+				error?: { message?: string };
+			};
+			try {
+				result = text ? (deserialize(text) as typeof result) : {};
+			} catch {
+				logger.error('Error saving categories: response was not valid', { status: response.status, body: text.slice(0, 200) });
+				toast.error(response.ok ? 'Invalid server response' : `Save failed (${response.status})`);
+				return;
 			}
 
-			const result = await response.json();
-			const actionData = result.type === 'success' || result.type === 'failure' ? result.data : result;
+			const payload: { success?: boolean; contentStructure?: unknown; message?: string } =
+				result.type === 'success' || result.type === 'failure' ? ((result.data as typeof payload) ?? {}) : ((result as typeof payload) ?? {});
 
-			if (result.type === 'success' && actionData.success) {
-				toast.success('Organization updated successfully');
-				nodesToSave = {};
-				if (actionData.contentStructure) {
-					currentConfig = actionData.contentStructure;
-					setContentStructure(currentConfig);
+			const message = result.type === 'error' ? (result.error?.message ?? 'Server error') : (payload?.message ?? 'Failed to save');
+
+			if (!response.ok) {
+				logger.error('Error saving categories:', message);
+				const isDuplicateName =
+					typeof message === 'string' &&
+					(message.includes('already exists at this level') || message.includes('already exists in the target category'));
+				if (isDuplicateName) {
+					toast.warning(message);
+				} else {
+					toast.error(message);
 				}
+				return;
+			}
+
+			// SvelteKit fail() returns HTTP 200 with result.type === 'failure' — treat as failure; never show success
+			const isFailureOrDuplicate =
+				result.type === 'failure' ||
+				(typeof message === 'string' &&
+					(message.includes('already exists at this level') || message.includes('already exists in the target category')));
+			if (isFailureOrDuplicate) {
+				logger.error('Error saving categories:', message);
+				toast.warning(message || 'A category/collection with this name already exists at this level. Please choose another name.');
+				return;
+			}
+
+			const isSuccess = (result.type === 'success' && payload?.success) || (payload?.success === true && payload?.contentStructure != null);
+			if (isSuccess) {
+				toast.success('Organization updated successfully');
+				if (payload?.contentStructure) {
+					currentConfig = payload.contentStructure as ContentNode[];
+					setContentStructure(currentConfig);
+					contentStructureVersion++;
+				}
+				skipNextSyncFromData = true;
+				nodesToSave = {};
+				await invalidate('app:content');
 			} else {
-				throw new Error(actionData.message || 'Failed to save');
+				logger.error('Error saving categories:', message);
+				toast.error(message);
 			}
 		} catch (error) {
-			logger.error('Error saving categories:', error);
-			toast.error('Failed to save configuration');
+			const msg = error instanceof Error ? error.message : String(error);
+			logger.error('Error saving categories:', msg);
+			toast.error(msg || 'Failed to save configuration');
 		} finally {
 			isLoading = false;
 		}
 	}
 
+	function handleSelectCategory(node: { id: string; nodeType: string }): void {
+		if (node.nodeType !== 'category') return;
+		// Toggle: same category clicked again → deselect; otherwise select (only one at a time)
+		selectedCategoryId = selectedCategoryId === node.id ? null : node.id;
+	}
+
+	function handleClearCategorySelection(): void {
+		selectedCategoryId = null;
+	}
+
 	function handleAddCollectionClick(): void {
 		setMode('create');
+		const parentId = selectedCategoryId ?? undefined;
 		setCollectionValue({
 			name: 'new',
 			icon: '',
 			description: '',
 			status: 'unpublished',
 			slug: '',
-			fields: []
+			fields: [],
+			...(parentId && { parentId })
 		});
-		goto('/config/collectionbuilder/new');
+		const query = parentId ? `?parentId=${encodeURIComponent(parentId)}` : '';
+		goto(`/config/collectionbuilder/new${query}`);
+	}
+
+	/** Slugify name for path segment; ensure path is unique among currentConfig. */
+	function uniquePathForCategory(name: string): string {
+		const slug =
+			name
+				.trim()
+				.toLowerCase()
+				.replace(/\s+/g, '-')
+				.replace(/[^a-z0-9-]/g, '') || 'category';
+		const existingPaths = new Set(currentConfig.map((n) => (n.path ?? '').toLowerCase()).filter(Boolean));
+		let path = `/${slug}`;
+		let n = 1;
+		while (existingPaths.has(path.toLowerCase())) {
+			path = `/${slug}-${n}`;
+			n += 1;
+		}
+		return path;
 	}
 
 	function modalAddCategory(existingCategory?: Partial<ContentNode>): void {
@@ -228,26 +430,42 @@ None (TreeView has its own keyboard navigation)
 				title: existingCategory ? 'Edit Category' : 'Add New Category',
 				body: existingCategory ? 'Modify Category Details' : 'Enter Unique Name and an Icon for your new category'
 			},
-			async (response: CategoryModalResponse | boolean) => {
+			async (response: CategoryModalResponse | boolean | { __categoryDeleted: true; contentStructure: ContentNode[] }) => {
 				if (!response || typeof response === 'boolean') {
 					return;
 				}
+				if (typeof response === 'object' && '__categoryDeleted' in response && response.contentStructure) {
+					currentConfig = response.contentStructure;
+					return;
+				}
+				const form = response as CategoryModalResponse;
+				const nameTrimmed = form.newCategoryName.trim();
 
 				if (existingCategory?._id) {
+					if (hasDuplicateSiblingName(currentConfig, existingCategory.parentId ?? undefined, nameTrimmed, existingCategory._id?.toString())) {
+						toast.warning('A category with this name already exists at this level. Please choose another name.');
+						return;
+					}
 					const updated = {
 						...existingCategory,
-						name: response.newCategoryName,
-						icon: response.newCategoryIcon,
+						name: form.newCategoryName,
+						icon: form.newCategoryIcon,
 						updatedAt: new Date().toISOString() as ISODateString
 					} as ContentNode;
 					currentConfig = currentConfig.map((n) => (n._id === updated._id ? updated : n));
 					nodesToSave[updated._id.toString()] = { type: 'rename', node: updated };
 				} else {
+					if (hasDuplicateSiblingName(currentConfig, undefined, nameTrimmed)) {
+						toast.warning('A category with this name already exists at this level. Please choose another name.');
+						return;
+					}
 					const newId = Math.random().toString(36).substring(2, 15) as unknown as DatabaseId;
+					const path = uniquePathForCategory(form.newCategoryName);
 					const newCategory: ContentNode = {
 						_id: newId,
-						name: response.newCategoryName,
-						icon: response.newCategoryIcon,
+						name: form.newCategoryName,
+						icon: form.newCategoryIcon,
+						path,
 						order: currentConfig.length,
 						translations: [],
 						updatedAt: new Date().toISOString() as ISODateString,
@@ -286,6 +504,19 @@ None (TreeView has its own keyboard navigation)
 			<span class="hidden sm:inline">{collection_add()}</span>
 		</button>
 
+		{#if selectedCategoryId}
+			<button
+				type="button"
+				onclick={handleClearCategorySelection}
+				class="preset-ghost-surface-500 btn flex items-center gap-1 rounded"
+				disabled={isLoading}
+				aria-label="Clear category selection"
+			>
+				<iconify-icon icon="mdi:close-circle-outline" width="24"></iconify-icon>
+				<span class="hidden sm:inline">Clear selection</span>
+			</button>
+		{/if}
+
 		<button
 			onclick={handleSave}
 			class="preset-filled-primary-500 btn flex items-center gap-1"
@@ -302,21 +533,27 @@ None (TreeView has its own keyboard navigation)
 
 	<div class="max-h-[calc(100vh-120px)] overflow-auto p-4">
 		<div class="mx-auto max-w-4xl">
+			{#if Object.keys(nodesToSave).length > 0}
+				<div
+					class="sticky top-0 z-50 mb-4 mt-0 rounded-lg border border-warning-500/30 bg-warning-500/15 px-4 py-3 text-center text-sm font-medium text-warning-600 shadow-sm dark:text-warning-400"
+					role="status"
+					aria-live="polite"
+				>
+					You have unsaved organizational changes. Click <strong>Save</strong> to persist.
+				</div>
+			{/if}
 			<p class="mb-6 text-center text-surface-600-300 dark:text-primary-500">{collection_description()}</p>
 
 			<TreeViewBoard
 				contentNodes={currentConfig}
+				structureKey={contentStructureVersion}
 				onNodeUpdate={handleNodeUpdate}
 				onEditCategory={modalAddCategory}
 				onDeleteNode={handleDeleteNode}
 				onDuplicateNode={handleDuplicateNode}
+				{selectedCategoryId}
+				onSelectCategory={handleSelectCategory}
 			/>
-
-			{#if Object.keys(nodesToSave).length > 0}
-				<div class="mt-4 rounded-lg bg-warning-500/10 p-3 text-center text-sm text-warning-600">
-					You have unsaved organizational changes. Click <strong>Save</strong> to persist.
-				</div>
-			{/if}
 		</div>
 	</div>
 {:else}

@@ -19,7 +19,10 @@ import { expect, type Page, test } from '@playwright/test';
 // Uses a robust selector that handles both exact label match and role+name
 // to ensure it works even with hydration delays or minor UI variations.
 async function clickNext(page: Page) {
-	const nextBtn = page.locator('button').filter({ hasText: /^Next$/i }).first();
+	const nextBtn = page
+		.locator('button')
+		.filter({ hasText: /^Next$/i })
+		.first();
 	await expect(nextBtn).toBeVisible({ timeout: 30_000 });
 	await expect(nextBtn).toBeEnabled({ timeout: 60_000 });
 	await nextBtn.click();

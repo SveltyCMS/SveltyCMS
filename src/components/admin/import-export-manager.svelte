@@ -15,7 +15,8 @@
 
 	import { Progress as ProgressBar } from '@skeletonlabs/skeleton-svelte';
 	import Input from '@src/components/system/inputs/input.svelte';
-	import Toggles from '@src/components/system/inputs/toggles.svelte';	import type { Schema } from '@src/content/types';
+	import Toggles from '@src/components/system/inputs/toggles.svelte';
+	import type { Schema } from '@src/content/types';
 	// Utils
 	import { getCollections } from '@utils/api-client';
 	import { logger } from '@utils/logger';
@@ -276,7 +277,15 @@
 	// --- UI & Utility Functions ---
 
 	function showAlertMessage(message: string, type: 'success' | 'error' | 'info' | 'warning') {
-		if(type==='success'){toast.success(message);}else if(type==='error'){toast.error(message);}else if(type==='warning'){toast.warning(message);}else{toast.info(message);}
+		if (type === 'success') {
+			toast.success(message);
+		} else if (type === 'error') {
+			toast.error(message);
+		} else if (type === 'warning') {
+			toast.warning(message);
+		} else {
+			toast.info(message);
+		}
 	}
 
 	function downloadExport() {

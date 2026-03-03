@@ -76,6 +76,10 @@ export class CollectionModule {
 		return this.core.notImplemented('getSchema');
 	}
 
+	async getSchemaById(_collectionId: string): Promise<DatabaseResult<Schema | null>> {
+		return { success: true, data: null };
+	}
+
 	async listSchemas(): Promise<DatabaseResult<Schema[]>> {
 		return this.core.notImplemented('listSchemas');
 	}

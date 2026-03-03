@@ -117,13 +117,7 @@ export class MongoContentMethods {
 	 */
 	async getStructure(
 		mode: 'flat' | 'nested' = 'flat',
-<<<<<<< HEAD
 		options: { filter?: Partial<ContentNode>; tenantId?: string | null; sudo?: boolean; bypassCache?: boolean } = {}
-=======
-		filter: Partial<ContentNode> & { tenantId?: string } = {},
-		bypassCache = false,
-		bypassTenantCheck = false
->>>>>>> 8c9d82013cc49cb63620e263d9825a2b9d36719b
 	): Promise<DatabaseResult<ContentNode[]>> {
 		const { filter = {}, tenantId = null, sudo = false, bypassCache = false } = options;
 
@@ -132,15 +126,7 @@ export class MongoContentMethods {
 		const cacheKey = `content:structure:${mode}:${tenantId}:${filterKey}`;
 
 		const fetchData = async (): Promise<DatabaseResult<ContentNode[]>> => {
-<<<<<<< HEAD
 			const result = await this.nodesRepo.findMany(filter, { tenantId, sudo });
-=======
-			const options: { tenantId?: string; bypassTenantCheck?: boolean } = { bypassTenantCheck };
-			if (filter.tenantId) {
-				options.tenantId = filter.tenantId;
-			}
-			const result = await this.nodesRepo.findMany(filter, options);
->>>>>>> 8c9d82013cc49cb63620e263d9825a2b9d36719b
 			if (!result.success) {
 				return result;
 			}

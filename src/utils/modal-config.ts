@@ -276,7 +276,15 @@ export function showActionToast(action: string, itemType: string, count = 1, suc
 		message = count > 1 ? `${count} ${itemType} ${action}ed.` : `${itemType} ${action}ed.`;
 	}
 
-	if(type==='success'){toast.success(message);}else if(type==='error'){toast.error(message);}else if(type==='warning'){toast.warning(message);}else{toast.info(message);}
+	if (type === 'success') {
+		toast.success(message);
+	} else if (type === 'error') {
+		toast.error(message);
+	} else if (type === 'warning') {
+		toast.warning(message);
+	} else {
+		toast.info(message);
+	}
 }
 
 // Validates if an action is available for current user permissions

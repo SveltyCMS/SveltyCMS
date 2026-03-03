@@ -254,11 +254,7 @@ class PluginRegistry implements IPluginService {
 	private async ensureMigrationTable(dbAdapter: IDBAdapter): Promise<void> {
 		const table = 'pluginMigrations';
 		try {
-<<<<<<< HEAD
 			const count = await dbAdapter.crud.count(table, {}, null, { sudo: true });
-=======
-			const count = await dbAdapter.crud.count(table, undefined, undefined, true);
->>>>>>> 8c9d82013cc49cb63620e263d9825a2b9d36719b
 			if (count.success) {
 				return;
 			}
@@ -276,17 +272,10 @@ class PluginRegistry implements IPluginService {
 				appliedAt: new Date(),
 				tenantId: 'system'
 			} as any,
-<<<<<<< HEAD
 			null,
 			{ sudo: true }
 		);
 		await dbAdapter.crud.deleteMany(table, {}, null, { sudo: true });
-=======
-			undefined,
-			true
-		);
-		await dbAdapter.crud.deleteMany(table, { pluginId: '__INIT__' } as any, undefined, true);
->>>>>>> 8c9d82013cc49cb63620e263d9825a2b9d36719b
 	}
 
 	// Get applied migrations from database
@@ -298,11 +287,7 @@ class PluginRegistry implements IPluginService {
 					pluginId,
 					tenantId
 				} as any,
-<<<<<<< HEAD
 				{ sudo: true }
-=======
-				{ bypassTenantCheck: true }
->>>>>>> 8c9d82013cc49cb63620e263d9825a2b9d36719b
 			);
 			return result as DatabaseResult<PluginMigrationRecord[]>;
 		} catch (error) {
@@ -328,13 +313,8 @@ class PluginRegistry implements IPluginService {
 				tenantId,
 				appliedAt: new Date()
 			} as any,
-<<<<<<< HEAD
 			null,
 			{ sudo: true }
-=======
-			undefined,
-			true
->>>>>>> 8c9d82013cc49cb63620e263d9825a2b9d36719b
 		);
 	}
 }

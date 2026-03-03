@@ -1,12 +1,12 @@
-import type { ContentNode, Schema } from '@src/content/types';
+import type { ContentNode, Schema, WidgetFieldPermissions } from '@src/content/types';
 import { logger } from '@utils/logger';
 
 // Types
 export type ModeType = 'view' | 'edit' | 'create' | 'delete' | 'modify' | 'media';
 
 export interface Widget {
-	permissions: Record<string, Record<string, boolean>>;
-	[key: string]: Record<string, Record<string, boolean>> | unknown;
+	permissions?: Record<string, Record<string, boolean>> | WidgetFieldPermissions;
+	[key: string]: Record<string, Record<string, boolean>> | WidgetFieldPermissions | unknown;
 }
 
 export const statusMap = {
@@ -87,6 +87,18 @@ class CollectionState {
 
 	setTargetWidget(newWidget: Widget) {
 		this.targetWidget = newWidget;
+		// Sync into active.fields so Save persists label, db_fieldName, required, icon, etc.
+		const idx = (newWidget as { __fieldIndex?: number }).__fieldIndex;
+		if (typeof idx === 'number' && this.active?.fields && idx >= 0 && idx < this.active.fields.length) {
+			const nextFields = [...this.active.fields];
+			const existing = nextFields[idx];
+			if (existing != null) {
+				const merged = { ...existing, ...newWidget };
+				delete (merged as Record<string, unknown>).__fieldIndex;
+				nextFields[idx] = merged;
+				this.active = { ...this.active, fields: nextFields };
+			}
+		}
 	}
 
 	// Entry selection management

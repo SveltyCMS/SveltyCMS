@@ -151,4 +151,3 @@ export default RelationWidget;
 // Export helper types.
 export type FieldType = ReturnType<typeof RelationWidget>;
 export type RelationWidgetData = ValibotInput<ReturnType<typeof validationSchema>>;
-

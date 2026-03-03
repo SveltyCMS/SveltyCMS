@@ -65,4 +65,3 @@ export default ColorPickerWidget;
 // Export helper types.
 export type FieldType = ReturnType<typeof ColorPickerWidget>;
 export type ColorPickerWidgetData = ValibotInput<ReturnType<typeof validationSchema>>;
-

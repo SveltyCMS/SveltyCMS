@@ -83,8 +83,8 @@
 		username
 	} from '@src/paraglide/messages';
 	import { globalLoadingStore, loadingOperations } from '@src/stores/loading-store.svelte.ts';
-	import { avatarSrc, normalizeAvatarUrl, } from '@src/stores/store.svelte.ts';
-import { toast } from '@src/stores/toast.svelte.ts';
+	import { avatarSrc, normalizeAvatarUrl } from '@src/stores/store.svelte.ts';
+	import { toast } from '@src/stores/toast.svelte.ts';
 	// Stores
 	import { logger } from '@utils/logger';
 	import { modalState } from '@utils/modal-state.svelte';

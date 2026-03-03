@@ -27,10 +27,11 @@
 	import type { ContentNode, DatabaseId } from '@databases/db-interface';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import { sortContentNodes } from '@src/content/utils';
+	import { toast } from '@src/stores/toast.svelte.ts';
 	import { tick } from 'svelte';
 	import { flip } from 'svelte/animate';
+	import { dndzone, SHADOW_ITEM_MARKER_PROPERTY_NAME, TRIGGERS } from 'svelte-dnd-action';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
-	import { dndzone, SHADOW_ITEM_MARKER_PROPERTY_NAME } from 'svelte-dnd-action';
 	// Components
 	import TreeViewNode from './tree-view-node.svelte';
 
@@ -49,13 +50,28 @@
 
 	interface Props {
 		contentNodes: ContentNode[];
+		/** Incremented by parent on save success so we rebuild from server order. */
+		structureKey?: number;
 		onDeleteNode?: (node: Partial<ContentNode>) => void;
 		onDuplicateNode?: (node: Partial<ContentNode>) => void;
 		onEditCategory: (category: Partial<ContentNode>) => void;
 		onNodeUpdate: (updatedNodes: ContentNode[]) => void;
+		/** Id of the single category selected for "add collection" (only one at a time). */
+		selectedCategoryId?: string | null;
+		/** Called when user clicks "Select" on a category. */
+		onSelectCategory?: (node: TreeViewItem) => void;
 	}
 
-	let { contentNodes = [], onNodeUpdate, onEditCategory, onDeleteNode, onDuplicateNode }: Props = $props();
+	let {
+		contentNodes = [],
+		structureKey = 0,
+		onNodeUpdate,
+		onEditCategory,
+		onDeleteNode,
+		onDuplicateNode,
+		selectedCategoryId = null,
+		onSelectCategory
+	}: Props = $props();
 
 	// Search and UI State
 	let searchText = $state('');
@@ -67,6 +83,10 @@
 	// eslint-disable-next-line svelte/no-unnecessary-state-wrap
 	let nodeSnapshot = $state(new SvelteMap<string, EnhancedTreeViewItem>());
 	let lastContentNodesHash = $state('');
+	/** Hash of the nodes we last sent in saveTreeData; skip rebuilding until contentNodes matches this (avoids revert on same-level or next move). */
+	let lastPushedHash = $state('');
+	/** Last structureKey we saw; when it changes, clear hash guards to force rebuild from server order. */
+	let lastStructureKey = $state(0);
 	let rebuildTimeout: ReturnType<typeof setTimeout> | null = null;
 
 	// Accessibility State
@@ -104,11 +124,27 @@
 			return;
 		}
 
+		// When parent signals fresh server data (e.g. after save), clear hash guards so we rebuild from server order
+		if (structureKey !== lastStructureKey) {
+			lastStructureKey = structureKey;
+			lastContentNodesHash = '';
+			lastPushedHash = '';
+		}
+
 		const currentHash =
 			contentNodes
 				.map((n) => `${n._id}:${n.parentId}:${n.order}`)
 				.sort()
 				.join('|') + contentNodes.length;
+
+		// Never rebuild from stale contentNodes when we've pushed an update that parent hasn't reflected yet
+		if (lastPushedHash && currentHash !== lastPushedHash) {
+			return;
+		}
+		// Parent synced (contentNodes matches what we sent); clear guard so server-driven updates can rebuild later
+		if (lastPushedHash && currentHash === lastPushedHash) {
+			lastPushedHash = '';
+		}
 
 		if (currentHash !== lastContentNodesHash) {
 			if (rebuildTimeout) {
@@ -117,24 +153,34 @@
 
 			rebuildTimeout = setTimeout(() => {
 				lastContentNodesHash = currentHash;
-				console.log('[TreeViewBoard] initializing tree from canonical contentNodes. Count:', contentNodes.length);
+				lastPushedHash = '';
 
-				const flatItems: TreeViewItem[] = contentNodes.map((n) => ({
+				// Sort by parent then order so UI always reflects DB order (do not rely on array order)
+				const sortedNodes = [...contentNodes].sort((a, b) => {
+					const parentA = a.parentId != null ? String(a.parentId) : '';
+					const parentB = b.parentId != null ? String(b.parentId) : '';
+					if (parentA !== parentB) return parentA.localeCompare(parentB);
+					const orderDiff = (a.order ?? 0) - (b.order ?? 0);
+					if (orderDiff !== 0) return orderDiff;
+					return (a.name ?? '').localeCompare(b.name ?? '');
+				});
+
+				const flatItems: TreeViewItem[] = sortedNodes.map((n) => ({
 					id: String(n._id),
 					_id: n._id,
 					name: n.name,
 					nodeType: n.nodeType || (n as any).type || 'collection',
 					parent: n.parentId ? String(n.parentId) : null,
 					order: n.order ?? 0,
-					path: n.path || '',
+					path: '', // Set below from id (path = id for root, parentPath.id for nested)
 					icon: n.icon,
 					slug: n.slug,
 					description: n.description,
 					isDraggable: true,
 					isDropAllowed: true
 				}));
-
-				treeRoots = buildTree(flatItems);
+				const flatItemsWithPaths = recalculatePaths(flatItems);
+				treeRoots = buildTree(flatItemsWithPaths);
 
 				if (!initialized) {
 					initialized = true;
@@ -346,7 +392,9 @@
 	}
 
 	function handleFinalize(e: CustomEvent, targetParentId: string | null) {
-		const { items: newZoneItems } = e.detail;
+		const { items: newZoneItems, info } = e.detail;
+		// Only process the zone that received the drop. The zone that lost the item gets trigger DROPPED_INTO_ANOTHER.
+		if (info?.trigger === TRIGGERS.DROPPED_INTO_ANOTHER) return;
 
 		// Get IDs of items being moved
 		const movingIds = new Set<string>(newZoneItems.map((i: EnhancedTreeViewItem) => i.id));
@@ -368,6 +416,27 @@
 			}
 		}
 
+		// DUPLICATE NAME IN TARGET: No two siblings with same name (case-insensitive, trimmed)
+		const nameNorm = (name: unknown) =>
+			String(name ?? '')
+				.trim()
+				.toLowerCase();
+		for (const movedItem of newZoneItems) {
+			if (!movingIds.has(movedItem.id)) continue;
+			const movedName = nameNorm(movedItem.name);
+			if (!movedName) continue;
+			const hasDuplicate = newZoneItems.some((other: EnhancedTreeViewItem) => other.id !== movedItem.id && nameNorm(other.name) === movedName);
+			if (hasDuplicate) {
+				announce('A collection with this name already exists in the target category.');
+				toast.warning('A collection with this name already exists in the target category.');
+				if (nodeSnapshot.size > 0) {
+					treeRoots = buildTree(flattenTree(Array.from(nodeSnapshot.values()).filter((n) => !n.parent)));
+				}
+				isDragging = false;
+				return;
+			}
+		}
+
 		// 1. Remove moving items from their current (old) positions in the tree
 		// This creates a "clean" tree where moved items only exist in newZoneItems
 		function cleanTree(nodes: EnhancedTreeViewItem[]): EnhancedTreeViewItem[] {
@@ -381,29 +450,35 @@
 
 		const cleanedRoots = cleanTree(treeRoots);
 
-		// 2. Reconstruct the tree with moved items in their new location
+		// 2. Reconstruct the tree with moved items in their new location.
+		// Use children from cleanedRoots so the old parent doesn't keep the moved node.
 		let newTreeRoots: EnhancedTreeViewItem[];
 
 		if (targetParentId === null) {
 			// Dropped at root level - newZoneItems are the new roots.
-			// newZoneItems already contains all items that should be at the root level.
-			newTreeRoots = newZoneItems.map((item: EnhancedTreeViewItem) => ({
-				...item,
-				parent: null,
-				children: item.children || []
-			}));
+			newTreeRoots = newZoneItems.map((item: EnhancedTreeViewItem) => {
+				const fromCleaned = findNode(cleanedRoots, item.id);
+				return {
+					...item,
+					parent: null,
+					children: fromCleaned ? fromCleaned.children || [] : item.children || []
+				};
+			});
 		} else {
-			// Dropped into a parent - find target and update its children
+			// Dropped into a parent - find target and update its children. Use children from cleanedRoots per item.
 			const updateTargetParent = (nodes: EnhancedTreeViewItem[]): EnhancedTreeViewItem[] => {
 				return nodes.map((n) => {
 					if (n.id === targetParentId) {
 						return {
 							...n,
-							children: newZoneItems.map((item: EnhancedTreeViewItem) => ({
-								...item,
-								parent: targetParentId,
-								children: item.children || []
-							}))
+							children: newZoneItems.map((item: EnhancedTreeViewItem) => {
+								const fromCleaned = findNode(cleanedRoots, item.id);
+								return {
+									...item,
+									parent: targetParentId,
+									children: fromCleaned ? fromCleaned.children || [] : item.children || []
+								};
+							})
 						};
 					}
 					return {
@@ -415,10 +490,28 @@
 			newTreeRoots = updateTargetParent(cleanedRoots);
 		}
 
-		// Update state - use structuredClone to strip Svelte 5 proxies for svelte-dnd-action compatibility
-		treeRoots = structuredClone(newTreeRoots);
+		// Ensure moved items appear only in their new location: strip them from any other node's children
+		function stripMovedFromTreeExceptTarget(nodes: EnhancedTreeViewItem[], ids: Set<string>, targetParentId: string | null): EnhancedTreeViewItem[] {
+			return nodes.map((n) => {
+				const isDropTarget = targetParentId !== null && n.id === targetParentId;
+				const children = n.children || [];
+				const filtered = isDropTarget ? children : children.filter((c) => !ids.has(c.id));
+				return {
+					...n,
+					children: stripMovedFromTreeExceptTarget(filtered, ids, targetParentId)
+				};
+			});
+		}
+		newTreeRoots = stripMovedFromTreeExceptTarget(newTreeRoots, movingIds, targetParentId);
 
-		// Save and notify parent
+		// Recompute path (and parent/order) for every node so moved items get correct path
+		const flatAfterMove = flattenTree(newTreeRoots);
+		const withPaths = recalculatePaths(flatAfterMove);
+		const treeWithPaths = buildTree(withPaths);
+		// Update state - JSON round-trip to strip proxies for svelte-dnd-action
+		treeRoots = JSON.parse(JSON.stringify(treeWithPaths)) as EnhancedTreeViewItem[];
+
+		// Save and notify parent (path/parentId already correct in treeRoots)
 		saveTreeData();
 
 		// Clear dragging state after a delay to let animations complete
@@ -483,14 +576,16 @@
 		const withPaths = recalculatePaths(flatItems);
 		const nodes = toFlatContentNodes(withPaths);
 
-		// Pre-emptively set hash to prevent race condition with parent updates
-		lastContentNodesHash =
+		const pushedHash =
 			nodes
 				.map((n) => `${n._id}:${n.parentId}:${n.order}`)
 				.sort()
 				.join('|') + nodes.length;
 
-		console.log('[TreeViewBoard] saving tree data with', nodes.length, 'nodes');
+		// Set hash and guard so we don't rebuild from stale contentNodes until parent syncs
+		lastContentNodesHash = pushedHash;
+		lastPushedHash = pushedHash;
+
 		onNodeUpdate(nodes);
 
 		// Delay releasing the dragging lock to ensure parent state updates
@@ -511,7 +606,7 @@
 			if (!childrenByParent.has(parentKey)) {
 				childrenByParent.set(parentKey, []);
 			}
-			childrenByParent.get(parentKey)?.push(itemMap.get(item.id)!);
+			childrenByParent.get(parentKey)!.push(itemMap.get(item.id)!);
 		}
 
 		// DO NOT SORT HERE. The items are already in the correct order from flattenTree which respects UI order.
@@ -520,9 +615,7 @@
 		function assignPaths(parentId: string | null, parentPath: string): void {
 			const key = parentId || '__root__';
 			const children = childrenByParent.get(key);
-			if (!children) {
-				return;
-			}
+			if (!children) return;
 
 			children.forEach((child, index) => {
 				const newPath = parentPath ? `${parentPath}.${child.id}` : child.id;
@@ -546,7 +639,8 @@
 				...item,
 				_id: item._id || item.id,
 				id: undefined,
-				parentId: item.parent || undefined,
+				// Send null for root so server persists it (undefined is omitted by JSON and DB keeps old parent).
+				parentId: item.parent != null ? item.parent : null,
 				name: item.name,
 				icon: item.icon,
 				nodeType: item.nodeType,
@@ -756,10 +850,17 @@
 			return;
 		}
 
-		parent.children = parent.children.filter((i) => i.id !== itemId);
-
 		const grandparent = getParent(treeRoots, parent.id);
 		const targetList = grandparent ? grandparent.children : treeRoots;
+		const nameNorm = (n: string) => (n ?? '').trim().toLowerCase();
+		const itemNameNorm = nameNorm(item.name ?? '');
+		if (itemNameNorm && targetList.some((sibling) => sibling.id !== item.id && nameNorm(sibling.name ?? '') === itemNameNorm)) {
+			toast.warning('A collection with this name already exists in the target category.');
+			announce('A collection with this name already exists in the target category.');
+			return;
+		}
+
+		parent.children = parent.children.filter((i) => i.id !== itemId);
 
 		const parentIndex = targetList.findIndex((i) => i.id === parent.id);
 		targetList.splice(parentIndex + 1, 0, item);
@@ -945,10 +1046,12 @@
 		<TreeViewNode
 			item={{ ...item, hasChildren: item.children?.length > 0 }}
 			isOpen={expandedNodes.has(item.id)}
+			isSelectedCategory={item.nodeType === 'category' && item.id === selectedCategoryId}
 			toggle={() => toggleNode(item.id)}
 			onEditCategory={() => onEditCategory(toPartialContentNode(item))}
 			onDelete={() => handleDeleteNode(toPartialContentNode(item))}
 			onDuplicate={() => onDuplicateNode?.(toPartialContentNode(item))}
+			onSelectCategory={item.nodeType === 'category' && onSelectCategory ? () => onSelectCategory(item) : undefined}
 			keyboardReorderMode={keyboardReorderMode === item.id}
 			onMoveUp={() => moveItemUp(item.id)}
 			onMoveDown={() => moveItemDown(item.id)}

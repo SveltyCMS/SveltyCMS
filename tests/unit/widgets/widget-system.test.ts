@@ -670,9 +670,10 @@ describe('Widget System - Advanced Features', () => {
 				}
 			});
 			expect(field.permissions).toBeDefined();
-			expect(field.permissions?.read.admin).toBe(true);
-			expect(field.permissions?.write.viewer).toBe(false);
-			expect(field.permissions?.delete.editor).toBe(false);
+			const perms = field.permissions as Record<string, Record<string, boolean>> | undefined;
+			expect(perms?.read?.admin).toBe(true);
+			expect(perms?.write?.viewer).toBe(false);
+			expect(perms?.delete?.editor).toBe(false);
 		});
 	});
 

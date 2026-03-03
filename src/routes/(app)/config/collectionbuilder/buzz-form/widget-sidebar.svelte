@@ -60,20 +60,20 @@
 	// but user asked for modern UX.
 </script>
 
-<div class="flex h-full flex-col border-r border-surface-200-800 bg-surface-50-950 p-4 w-72">
-	<div class="mb-4">
+<div class="flex h-full min-w-0 flex-col border-r border-surface-200-800 bg-surface-50-950 p-4 w-full lg:w-72">
+	<div class="mb-4 shrink-0">
 		<h2 class="text-lg font-bold">Widgets</h2>
 		<p class="text-xs text-surface-500">Pick a widget to add to your collection</p>
 	</div>
 
 	<!-- Search -->
-	<div class="relative mb-4">
+	<div class="relative mb-4 shrink-0">
 		<iconify-icon icon="mdi:magnify" width="18" class="absolute left-3 top-1/2 -translate-y-1/2 text-surface-400"></iconify-icon>
 		<input type="text" placeholder="Search widgets..." class="input pl-10 h-10 w-full text-sm rounded-lg" bind:value={searchTerm} />
 	</div>
 
 	<!-- Widget List -->
-	<div class="flex-1 overflow-y-auto space-y-6">
+	<div class="min-h-0 flex-1 overflow-y-auto space-y-6">
 		{#each categories as cat (cat)}
 			{@const catItems = paletteItems.filter((i) => i.category === cat)}
 			{#if catItems.length > 0}
@@ -83,7 +83,7 @@
 						{#each catItems as item (item.id)}
 							<button
 								onclick={() => onAddWidget(item.key)}
-								class="group flex flex-col items-center justify-center rounded-xl border border-surface-200-800 bg-surface-100-900 p-3 transition-all hover:border-primary-500 hover:bg-surface-200-800"
+								class="group flex min-h-[4rem] flex-col items-center justify-center rounded-xl border border-surface-200-800 bg-surface-100-900 p-3 transition-all hover:border-primary-500 hover:bg-surface-200-800 touch-manipulation"
 							>
 								<div
 									class="mb-2 flex h-10 w-10 items-center justify-center rounded-lg bg-surface-200-800 text-surface-500 group-hover:bg-primary-500 group-hover:text-white"

@@ -17,6 +17,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 // Collections
 import { contentManager } from '@src/content/content-manager';
+import { hasDuplicateSiblingName } from '@src/content/utils';
 import type { Schema } from '@src/content/types';
 // Auth
 // Use hasPermissionWithRoles and roles from locals, like the example pattern
@@ -28,7 +29,7 @@ import { compile } from '@src/utils/compilation/compile';
 import { type Actions, error, redirect } from '@sveltejs/kit';
 // System Logger
 import { logger } from '@utils/logger.server';
-import { getCollectionDisplayPath, getCollectionFilePath } from '@utils/tenant-paths';
+import { getCollectionDisplayPath, getCollectionFilePath, getCollectionsPath, getCompiledCollectionsPath } from '@utils/tenant-paths';
 import prettier from 'prettier';
 import * as ts from 'typescript';
 import type { PageServerLoad } from './$types';
@@ -58,8 +59,21 @@ interface WidgetDefinition {
 
 type FieldsData = Record<string, FieldWithWidget>;
 
-/** Resolved path to the user collections directory (matches vite.config.ts paths.userCollections) */
-const userCollectionsPath = path.resolve(process.cwd(), process.env.COLLECTIONS_DIR || 'config/collections');
+/** Resolve widget key by Name or key (try exact, camelCase, lowercase, kebab-case) so "New Radio" etc. persist. */
+function resolveWidgetKey(widgetName: string): string | null {
+	if (!widgetName || typeof widgetName !== 'string') return null;
+	const registry = (widgets as { widgetFunctions?: Record<string, unknown> }).widgetFunctions ?? {};
+	if (registry[widgetName]) return widgetName;
+	const trimmed = widgetName.trim();
+	if (registry[trimmed]) return trimmed;
+	const camel = trimmed.charAt(0).toLowerCase() + trimmed.slice(1);
+	if (registry[camel]) return camel;
+	const lower = trimmed.toLowerCase();
+	if (registry[lower]) return lower;
+	const kebab = trimmed.replace(/\s+/g, '-').toLowerCase();
+	if (registry[kebab]) return kebab;
+	return null;
+}
 
 // Load Prettier config
 async function getPrettierConfig() {
@@ -73,7 +87,10 @@ async function getPrettierConfig() {
 }
 
 // Define load function as async function that takes an event parameter
-export const load: PageServerLoad = async ({ locals, params }) => {
+export const load: PageServerLoad = async ({ depends, locals, params }) => {
+	// Invalidate with layout so edit page gets fresh collection data after rename/save (avoids stale "new6" in UI)
+	depends('app:content');
+
 	try {
 		// 1. Get user, roles, and admin status from locals (set by hook)
 		const { user, roles: tenantRoles, isAdmin } = locals;
@@ -108,25 +125,51 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
 		// 5. Handle 'new' action
 		if (action === 'new') {
+			const flatForNew = await contentManager.getContentStructureFromDatabase('flat', true);
+			const contentStructure = flatForNew.map((n) => ({
+				_id: n._id?.toString(),
+				parentId: n.parentId != null ? String(n.parentId) : undefined,
+				name: n.name
+			}));
 			return {
 				user: serializedUser,
 				roles: tenantRoles || [], // Roles:' key
 				permissions, // Permissions data
 				permissionConfigs, // Permission configs
-				collection: null // Pass null for 'new' action
+				collection: null, // Pass null for 'new' action
+				contentStructure
 			};
 		}
 
 		// 6. Handle 'edit' action (default)
-		await contentManager.refresh(); // Force a refresh to bypass any stale cache
-		const collectionIdentifier = params.contentPath;
+		// await contentManager.refresh((locals as { tenantId?: string }).tenantId);
 
+		try {
+			await contentManager.refresh(); // Force a refresh to bypass any stale cache
+		} catch (refreshErr) {
+			logger.warn('ContentManager refresh failed during edit load, continuing with current state', refreshErr);
+			// Proceed so getCollection may still find the collection from existing state
+		}
+
+		const rawPath = params.contentpath;
+		const collectionIdentifier = Array.isArray(rawPath) ? (rawPath as string[]).join('/') : typeof rawPath === 'string' ? rawPath : String(rawPath);
+
+		console.log('collectionIdentifier', collectionIdentifier);
 		// Try resolving exactly as passed (UUID or relative path)
-		let currentCollection = await contentManager.getCollection(collectionIdentifier);
+		let currentCollection = contentManager.getCollection(collectionIdentifier);
 
 		// Fallback: Try identifying as an absolute path if not found
 		if (!(currentCollection || collectionIdentifier.startsWith('/'))) {
-			currentCollection = await contentManager.getCollection(`/${collectionIdentifier}`);
+			currentCollection = contentManager.getCollection(`/${collectionIdentifier}`);
+		}
+
+		// Fallback for new collection: id-based path may not be in pathLookupMap yet; retry after one more refresh (race after create)
+		if (!currentCollection) {
+			await contentManager.refresh();
+			currentCollection = contentManager.getCollection(collectionIdentifier);
+			if (!currentCollection && !collectionIdentifier.startsWith('/')) {
+				currentCollection = contentManager.getCollection(`/${collectionIdentifier}`);
+			}
 		}
 
 		if (!currentCollection) {
@@ -165,12 +208,67 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
 		const serializableCollection = currentCollection ? deepCloneAndRemoveFunctions(currentCollection) : null;
 
+		// Attach parentId, path, and _id from content structure so snapshot matches DB (schema file can have different _id/path)
+		if (serializableCollection && typeof serializableCollection === 'object') {
+			const flat = await contentManager.getContentStructureFromDatabase('flat', true);
+			const cId = (serializableCollection as { _id?: string })._id?.toString?.() ?? (serializableCollection as { _id?: string })._id;
+			const schemaPath = (serializableCollection as { path?: string }).path;
+			const schemaName = (serializableCollection as { name?: string }).name;
+			// Find node: 1) by schema._id, 2) by URL identifier (path or _id), 3) by schema.path, 4) by name (same name under same parent)
+			let node = flat.find(
+				(n) =>
+					n.nodeType === 'collection' && cId && (n._id?.toString() === cId || n._id?.toString().replace(/-/g, '') === String(cId).replace(/-/g, ''))
+			);
+			if (!node && collectionIdentifier) {
+				const idNorm = collectionIdentifier.replace(/^\//, '').replace(/-/g, '');
+				node = flat.find(
+					(n) =>
+						n.nodeType === 'collection' &&
+						(n.path === collectionIdentifier ||
+							n.path === collectionIdentifier.replace(/^\//, '') ||
+							n._id?.toString() === collectionIdentifier ||
+							n._id?.toString().replace(/-/g, '') === idNorm)
+				);
+			}
+			if (!node && schemaPath) {
+				node = flat.find((n) => n.nodeType === 'collection' && n.path && (n.path === schemaPath || n.path === schemaPath.replace(/^\//, '')));
+			}
+			if (!node && (schemaName || schemaPath)) {
+				const pathSegment = typeof schemaPath === 'string' ? schemaPath.split('/').filter(Boolean).pop() : null;
+				node = flat.find(
+					(n) =>
+						n.nodeType === 'collection' && (n.name === schemaName || n.name === pathSegment || (pathSegment && (n.path ?? '').endsWith(pathSegment)))
+				);
+			}
+			if (node) {
+				const out = serializableCollection as Record<string, unknown>;
+				if (node.parentId != null) out.parentId = node.parentId.toString?.() ?? node.parentId;
+				if (node.path != null) out.path = node.path.toString?.() ?? node.path;
+				// Align _id with DB so save and future lookups use the correct id
+				if (node._id != null) out._id = node._id.toString?.() ?? node._id;
+				// Use DB-authoritative name/slug/icon so edit page always shows current values after save/rename
+				if (node.name != null) out.name = node.name;
+				if (node.slug != null) out.slug = node.slug;
+				if (node.icon != null) out.icon = node.icon;
+			}
+		}
+
+		console.log('serializableCollection', JSON.stringify(serializableCollection));
+
+		const flatForEdit = await contentManager.getContentStructureFromDatabase('flat', true);
+		const contentStructure = flatForEdit.map((n) => ({
+			_id: n._id?.toString(),
+			parentId: n.parentId != null ? String(n.parentId) : undefined,
+			name: n.name
+		}));
+
 		return {
 			user: serializedUser,
 			roles: tenantRoles || [], // roles:' key
 			permissions, // Permissions data
 			permissionConfigs, //Permission configs
-			collection: serializableCollection
+			collection: serializableCollection,
+			contentStructure
 		};
 	} catch (err) {
 		if (err instanceof Error && 'status' in err) {
@@ -183,6 +281,58 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	}
 };
 
+/**
+ * Resolve collection to the .ts file on disk by _id (and optional path to disambiguate).
+ * Tries legacy config/collections first, then tenant path. Returns logical path + which root to write to.
+ */
+function resolveCollectionFilePathById(
+	collectionId: string,
+	tenantId: string | null | undefined,
+	expectedPath?: string
+): { logicalPath: string; writeTenantId: string | null | undefined } | null {
+	if (!collectionId?.trim()) return null;
+	const idNorm = collectionId.replace(/-/g, '');
+	const pathNorm = expectedPath?.replace(/-/g, '') ?? '';
+
+	function scanDir(dir: string, prefix = ''): string | null {
+		if (!fs.existsSync(dir)) return null;
+		const entries = fs.readdirSync(dir, { withFileTypes: true });
+		for (const e of entries) {
+			const rel = prefix ? `${prefix}/${e.name}` : e.name;
+			if (e.isDirectory()) {
+				const found = scanDir(path.join(dir, e.name), rel);
+				if (found) return found;
+			} else if (e.name.endsWith('.ts') && !e.name.endsWith('.d.ts')) {
+				try {
+					const content = fs.readFileSync(path.join(dir, e.name), 'utf-8');
+					const idMatch = content.match(/_id\s*:\s*["']([^"']+)["']/);
+					if (!idMatch?.[1] || idMatch[1].replace(/-/g, '') !== idNorm) continue;
+					if (pathNorm) {
+						const pathInFile = content.match(/path\s*:\s*["']([^"']+)["']/)?.[1];
+						if (pathInFile?.replace(/-/g, '') !== pathNorm) continue;
+					}
+					return rel.replace(/\.ts$/i, '');
+				} catch {
+					// skip unreadable files
+				}
+			}
+		}
+		return null;
+	}
+
+	// Try legacy first so we update/rename files in config/collections when that's where they live
+	const toTry: Array<{ writeTenantId: string | null | undefined }> = [
+		{ writeTenantId: undefined },
+		...(tenantId !== undefined ? [{ writeTenantId: tenantId }] : [])
+	];
+	for (const { writeTenantId } of toTry) {
+		const collectionsDir = getCollectionsPath(writeTenantId);
+		const logical = scanDir(collectionsDir);
+		if (logical) return { logicalPath: logical, writeTenantId };
+	}
+	return null;
+}
+
 export const actions: Actions = {
 	// Save Collection
 	saveCollection: async ({ request }) => {
@@ -190,15 +340,68 @@ export const actions: Actions = {
 			const formData = await request.formData();
 			const fieldsData = formData.get('fields') as string;
 			const originalName = formData.get('originalName') as string;
+			const contentPathParam = (formData.get('contentPath') as string) || originalName || '';
 			const contentName = formData.get('name') as string;
-			const collectionIcon = formData.get('icon') as string;
+			const collectionIcon = String(formData.get('icon') ?? '');
 			const collectionSlug = formData.get('slug') as string;
 			const collectionDescription = formData.get('description');
 			const collectionStatus = formData.get('status') as string;
 			const confirmDeletions = formData.get('confirmDeletions') === 'true';
+			let collectionId = (formData.get('_id') as string) || '';
 
-			// Widgets Fields
-			const fields = JSON.parse(fieldsData) as FieldsData;
+			// Normalize _id (client may send string or JSON like {"$oid":"..."})
+			if (collectionId && typeof collectionId === 'string' && collectionId.trim().startsWith('{')) {
+				try {
+					const parsed = JSON.parse(collectionId) as { $oid?: string; toString?: () => string };
+					collectionId = parsed?.$oid ?? parsed?.toString?.() ?? String(parsed ?? '');
+				} catch {
+					// keep as-is
+				}
+			}
+			collectionId = (collectionId && String(collectionId).trim()) || '';
+
+			console.log('collectionId', collectionId);
+			const parentIdParam = (formData.get('parentId') as string) || '';
+
+			// New collection: generate id and use id-based path (file path = id so DB gets path from file)
+			const isNewCollection = !collectionId;
+			if (isNewCollection) {
+				collectionId = (Math.random().toString(36).substring(2, 15) + Date.now().toString(36)).replace(/-/g, '');
+			}
+
+			// Duplicate name validation FIRST: before any DB/fs work. No duplicate names in same category.
+			const nameTrimmed = (contentName ?? '').trim();
+			if (nameTrimmed) {
+				const flatForValidation = await contentManager.getContentStructureFromDatabase('flat', true);
+				const parentIdForCheck = parentIdParam && parentIdParam.trim() !== '' ? parentIdParam : undefined;
+				const excludeId = isNewCollection ? undefined : (collectionId ?? undefined);
+				if (hasDuplicateSiblingName(flatForValidation, parentIdForCheck ?? null, nameTrimmed, excludeId)) {
+					return {
+						status: 400,
+						success: false,
+						error: 'A collection with this name already exists in this category. Please choose another name.'
+					};
+				}
+			}
+
+			// Widgets Fields (client sends an array; normalize defensively so new widgets persist)
+			let parsedFieldsUnknown: unknown;
+			try {
+				parsedFieldsUnknown = typeof fieldsData === 'string' && fieldsData.trim().length > 0 ? JSON.parse(fieldsData) : [];
+			} catch {
+				logger.warn('[saveCollection] Failed to parse fields, using empty array');
+				parsedFieldsUnknown = [];
+			}
+			const fieldsArray = Array.isArray(parsedFieldsUnknown)
+				? (parsedFieldsUnknown as FieldWithWidget[])
+				: typeof parsedFieldsUnknown === 'object' && parsedFieldsUnknown !== null
+					? (Object.values(parsedFieldsUnknown as Record<string, FieldWithWidget>) as FieldWithWidget[])
+					: [];
+			// goThrough expects an object-like structure; arrays are fine (numeric keys)
+			const fields = parsedFieldsUnknown as unknown as FieldsData;
+			// Deep copy for file generation only: goThrough mutates in place (replaces fields with widget-call strings).
+			// Keep fieldsArray unchanged so the DB gets full field objects (label, db_fieldName, required, etc.).
+			const fieldsForFile = JSON.parse(JSON.stringify(fields)) as FieldsData;
 
 			// 1. Drift Detection & Safety Check
 			// Construct a temporary schema for comparison
@@ -208,55 +411,308 @@ export const actions: Actions = {
 				status: collectionStatus as any,
 				slug: collectionSlug,
 				description: String(collectionDescription || ''),
-				fields: Object.values(fields) as any[]
+				fields: fieldsArray as any[]
 			};
 
-			const migrationPlan = await MigrationEngine.createPlan(tempSchema);
+			console.log('tempSchema', JSON.stringify(tempSchema));
+
+			const migrationPlan = await MigrationEngine.createPlan(tempSchema, { compareByIndex: true });
+			console.log('migrationPlan', JSON.stringify(migrationPlan.requiresMigration));
+			console.log('confirmDeletions', JSON.stringify(confirmDeletions));
+
 			if (migrationPlan.requiresMigration && !confirmDeletions) {
 				logger.warn(`Drift detected for collection ${contentName}. Save blocked pending confirmation.`);
 				return {
-					status: 202, // Accepted for check but not yet processed
+					status: 202,
+					success: false,
 					driftDetected: true,
 					plan: migrationPlan
 				};
 			}
 
-			const imports = await goThrough(fields, fieldsData);
+			const imports = await goThrough(fieldsForFile, fieldsData);
 
 			// Get tenant ID from request locals (set by hooks.server.ts)
 			const tenantId = (request as any).locals?.tenantId;
+			// When we resolve file by id we may find it in legacy config/collections; use that for write/compile/rename
+			let effectiveWriteTenantId: string | null | undefined = tenantId;
 
-			// Generate collection file using AST transformation
+			// Resolve target file path.
+			// - New collection: use collection NAME for the file (e.g. new.ts); ID is used only for schema _id and DB path.
+			// - Existing (edit): id-based or name-based path as before.
+			const originalPathTrimmed = (originalName || '').replace(/^\//, '').trim();
+			const flat = await contentManager.getContentStructureFromDatabase('flat', true);
+			let targetFilePath: string;
+			let oldFilePathForRename: string | null = null;
+			let resolvedNodeForPath: (typeof flat)[0] | undefined;
+
+			// Sanitize collection name for use as filename (no slashes, safe chars)
+			const nameForFile =
+				(contentName || 'new')
+					.trim()
+					.replace(/[/\\]+/g, '')
+					.replace(/\s+/g, '-') || 'new';
+
+			if (isNewCollection) {
+				// File path by name: <name>.ts or parentName/<name>.ts (ID is used only for _id and idBasedPath)
+				if (parentIdParam) {
+					const parent = flat.find((n) => n._id?.toString() === parentIdParam);
+					const parentName = (parent?.name as string)?.replace(/\s+/g, '-').replace(/\/|\\/g, '').trim() ?? '';
+					targetFilePath = parentName ? `${parentName}/${nameForFile}` : nameForFile;
+				} else {
+					targetFilePath = nameForFile;
+				}
+			} else {
+				// Find node by id first so resolver can disambiguate (e.g. new6.ts vs new/new6.ts) and we write/rename in the right dir
+				let existingNode: (typeof flat)[0] | undefined;
+				if (collectionId) {
+					const idNorm = collectionId.replace(/-/g, '');
+					existingNode = flat.find((n) => n.nodeType === 'collection' && n._id?.toString().replace(/-/g, '') === idNorm);
+				}
+				const urlPathRaw = (contentPathParam || '').replace(/^\//, '').trim() || originalPathTrimmed || '';
+				const looksLikeId = !urlPathRaw.includes('/') && /^[a-zA-Z0-9_-]{16,32}$/.test(urlPathRaw);
+				const resolved =
+					looksLikeId && collectionId ? resolveCollectionFilePathById(collectionId, tenantId, existingNode?.path as string | undefined) : null;
+				let urlFilePath = resolved ? resolved.logicalPath : urlPathRaw;
+				// When editing a collection that has a parent, ensure we operate on the file under the parent (e.g. Menu/Names_copy), not root
+				if (!resolved && parentIdParam && !urlFilePath.includes('/')) {
+					const parent = flat.find((n) => n._id?.toString() === parentIdParam);
+					const parentName = (parent?.name as string)?.replace(/\s+/g, '-').replace(/\/|\\/g, '').trim() ?? '';
+					if (parentName) urlFilePath = `${parentName}/${urlFilePath}`;
+				}
+				if (resolved) effectiveWriteTenantId = resolved.writeTenantId;
+				targetFilePath = urlFilePath || contentName.trim();
+				if (!existingNode) {
+					existingNode =
+						flat.find(
+							(n) =>
+								n.nodeType === 'collection' &&
+								(n.path === targetFilePath ||
+									n._id?.toString() === targetFilePath ||
+									n._id?.toString().replace(/-/g, '') === targetFilePath.replace(/-/g, ''))
+						) ??
+						(collectionId
+							? flat.find((n) => n.nodeType === 'collection' && n._id?.toString().replace(/-/g, '') === collectionId.replace(/-/g, ''))
+							: undefined);
+				}
+				if (existingNode) resolvedNodeForPath = existingNode;
+				const newName =
+					(contentName || '')
+						.trim()
+						.replace(/[/\\]+/g, '')
+						.replace(/\s+/g, '-') ||
+					(existingNode?.name as string)?.trim() ||
+					urlFilePath.split('/').pop() ||
+					'new';
+				const renamed = newName && urlFilePath && newName !== urlFilePath.split('/').pop();
+				if (renamed) {
+					oldFilePathForRename = urlFilePath;
+					targetFilePath = urlFilePath.includes('/')
+						? `${urlFilePath.slice(0, urlFilePath.lastIndexOf('/'))}/${newName}`.replace(/^\/+/, '')
+						: newName;
+				} else {
+					targetFilePath = urlFilePath || newName;
+				}
+			}
+
+			// Id-based path: full hierarchy parentOfParentId.parentId.currentId (same format for all same-level items)
+			function buildFullAncestorPath(flatList: Array<{ _id?: unknown; parentId?: unknown }>, directParentId: string): string {
+				const ids: string[] = [];
+				let current = flatList.find(
+					(n) => n._id?.toString() === directParentId || n._id?.toString()?.replace(/-/g, '') === directParentId.replace(/-/g, '')
+				);
+				while (current) {
+					const idStr = (current._id?.toString() ?? '').replace(/-/g, '');
+					if (idStr) ids.unshift(idStr);
+					const pid = current.parentId?.toString();
+					current = pid
+						? flatList.find((n) => n._id?.toString() === pid || n._id?.toString()?.replace(/-/g, '') === pid.replace(/-/g, ''))
+						: undefined;
+				}
+				return ids.join('.');
+			}
+			const collectionIdNorm = (collectionId ?? '').replace(/-/g, '');
+			const idBasedPath = isNewCollection
+				? parentIdParam
+					? (() => {
+							const ancestorPath = buildFullAncestorPath(flat, parentIdParam);
+							return ancestorPath ? `${ancestorPath}.${collectionIdNorm}` : `${parentIdParam.replace(/-/g, '')}.${collectionIdNorm}`;
+						})()
+					: collectionIdNorm
+				: ((resolvedNodeForPath?.path as string | undefined) ??
+					(flat.find(
+						(n) =>
+							n.nodeType === 'collection' &&
+							(n._id?.toString() === collectionId || n._id?.toString().replace(/-/g, '') === collectionId?.replace(/-/g, ''))
+					)?.path as string | undefined));
+
+			// Generate collection file using AST transformation (preserve _id and path when editing so DB node is kept)
 			const content = await generateCollectionFileWithAST({
 				contentName,
 				collectionIcon,
 				collectionStatus,
 				collectionDescription,
 				collectionSlug,
-				fields,
+				fields: fieldsForFile,
 				imports,
-				tenantId
+				tenantId,
+				collectionId: collectionId || undefined,
+				collectionPath: idBasedPath
 			});
 
-			// Use tenant-aware path resolution
-			const collectionPath = getCollectionFilePath(contentName, tenantId);
-			const oldCollectionPath = originalName ? getCollectionFilePath(originalName, tenantId) : null;
+			console.log('content__', content);
 
-			if (originalName && originalName !== contentName && oldCollectionPath) {
-				fs.renameSync(oldCollectionPath, collectionPath);
+			// Write to the resolved path; use effectiveWriteTenantId so we touch the same dir as the existing file (e.g. legacy config/collections)
+			const collectionPath = getCollectionFilePath(targetFilePath, effectiveWriteTenantId);
+			const oldCollectionPath = isNewCollection
+				? null
+				: ((oldFilePathForRename ? getCollectionFilePath(oldFilePathForRename, effectiveWriteTenantId) : null) ??
+					(originalPathTrimmed ? getCollectionFilePath(originalPathTrimmed, effectiveWriteTenantId) : null));
+			const isRename = Boolean(oldCollectionPath && (oldFilePathForRename ?? originalPathTrimmed) !== targetFilePath);
+
+			if (isRename && oldCollectionPath) {
+				try {
+					if (!fs.existsSync(oldCollectionPath)) {
+						logger.warn(`Save: original file not found for rename (${oldCollectionPath}), writing new file only`);
+					} else {
+						if (collectionPath !== oldCollectionPath && fs.existsSync(collectionPath)) {
+							fs.unlinkSync(collectionPath);
+						}
+						fs.renameSync(oldCollectionPath, collectionPath);
+					}
+				} catch (renameErr) {
+					logger.warn('Save: rename failed, writing to new path', renameErr);
+				}
+			}
+			const targetDir = path.dirname(collectionPath);
+			if (!fs.existsSync(targetDir)) {
+				fs.mkdirSync(targetDir, { recursive: true });
 			}
 			fs.writeFileSync(collectionPath, content);
 
-			// Compile with tenant ID
-			await compile({ logger, tenantId });
-			//await contentManager.generateContentTypes();
-			//await contentManager.generateCollectionFieldTypes();
+			// When the collection lives under a parent, remove any mistaken root-level file with the same name (leftover from a previous bug)
+			if (parentIdParam && targetFilePath.includes('/')) {
+				const basename = targetFilePath.split('/').pop() || '';
+				if (basename) {
+					const rootCollectionPath = getCollectionFilePath(basename, effectiveWriteTenantId);
+					if (rootCollectionPath !== collectionPath && fs.existsSync(rootCollectionPath)) {
+						try {
+							fs.unlinkSync(rootCollectionPath);
+							logger.info(`Save: removed mistaken root-level file ${rootCollectionPath}`);
+						} catch (unlinkErr) {
+							logger.warn('Save: could not remove root-level duplicate file', unlinkErr);
+						}
+					}
+				}
+				// Remove leftover file with the previous name under the same parent (e.g. Menu/Names_copy.ts when we just saved as Menu/Names_34)
+				const previousFileName =
+					(originalName || '')
+						.replace(/^\//, '')
+						.trim()
+						.split('/')
+						.pop()
+						?.replace(/[/\\]+/g, '')
+						.replace(/\s+/g, '-') ?? '';
+				if (previousFileName && previousFileName !== nameForFile) {
+					const parentDir = targetFilePath.slice(0, targetFilePath.lastIndexOf('/'));
+					const leftoverPath = getCollectionFilePath(`${parentDir}/${previousFileName}`, effectiveWriteTenantId);
+					if (leftoverPath !== collectionPath && fs.existsSync(leftoverPath)) {
+						try {
+							fs.unlinkSync(leftoverPath);
+							logger.info(`Save: removed leftover file ${leftoverPath} after rename`);
+						} catch (unlinkErr) {
+							logger.warn('Save: could not remove leftover file after rename', unlinkErr);
+						}
+					}
+				}
+				// Remove stale _copy file in same directory when we saved the renamed collection (e.g. Menu/Names_copy.ts when Menu/Names_34.ts exists)
+				const parentDirPath = path.dirname(collectionPath);
+				if (fs.existsSync(parentDirPath)) {
+					const targetBase = nameForFile.replace(/_\d+$/, '') || nameForFile; // "Names_34" -> "Names"
+					const entries = fs.readdirSync(parentDirPath, { withFileTypes: true });
+					for (const ent of entries) {
+						if (!ent.isFile() || !ent.name.endsWith('_copy.ts')) continue;
+						const copyBase = ent.name.replace(/_copy\.ts$/, ''); // "Names_copy.ts" -> "Names"
+						if (copyBase !== targetBase) continue;
+						const stalePath = path.join(parentDirPath, ent.name);
+						if (stalePath === collectionPath) continue;
+						try {
+							fs.unlinkSync(stalePath);
+							logger.info(`Save: removed stale _copy file ${stalePath} (duplicate of saved collection)`);
+						} catch (unlinkErr) {
+							logger.warn('Save: could not remove stale _copy file', unlinkErr);
+						}
+					}
+				}
+			}
+
+			// Compile using same tenant/path we wrote to
+			await compile({ logger, tenantId: effectiveWriteTenantId });
+
+			// Overwrite DB node with the full current schema (including full field definitions for DB).
+			// Use fieldsArray (unchanged) so DB stores label, db_fieldName, required, widget config, etc.;
+			// goThrough mutates only fieldsForFile (used for the .ts file).
+			if (collectionId && idBasedPath) {
+				try {
+					const { dbAdapter } = await import('@src/databases/db');
+					if (dbAdapter?.content?.nodes) {
+						const now = new Date().toISOString() as import('@src/content/types').ISODateString;
+						const parentIdForDb = parentIdParam ? parentIdParam.replace(/-/g, '') : null;
+						const nextSchema: Schema = {
+							_id: collectionId,
+							path: idBasedPath,
+							name: contentName,
+							icon: collectionIcon,
+							status: (collectionStatus as any) ?? 'unpublished',
+							slug: collectionSlug ?? contentName,
+							description: String(collectionDescription || ''),
+							fields: fieldsArray as any[], // Full field objects for DB (label, db_fieldName, widget, etc.)
+							tenantId: tenantId ?? null
+						} as Schema;
+						const updateResult = await dbAdapter.content.nodes.bulkUpdate([
+							{
+								path: idBasedPath,
+								id: collectionId,
+								changes: {
+									name: contentName,
+									slug: collectionSlug ?? contentName,
+									icon: collectionIcon,
+									status: collectionStatus as any,
+									description: String(collectionDescription || ''),
+									parentId: (parentIdForDb ?? undefined) as unknown as import('@src/content/types').DatabaseId | undefined,
+									collectionDef: nextSchema,
+									updatedAt: now
+								} as unknown as Partial<import('@src/content/types').ContentNode>
+							}
+						]);
+						if (!updateResult.success) {
+							logger.warn('[saveCollection] DB collectionDef update failed', updateResult);
+						}
+					}
+				} catch (updateErr) {
+					logger.warn('[saveCollection] Could not update node collectionDef in DB', updateErr);
+				}
+			}
+
 			await contentManager.refresh(tenantId);
-			return { status: 200 };
+
+			// Invalidate collection cache so next edit load gets fresh schema (avoids stale name after rename)
+			if (collectionId) {
+				await contentManager.invalidateWithDependents(collectionId);
+			}
+
+			// Return edit path: for new collections so client can navigate; for renames so client can update URL and tree
+			if (isNewCollection && idBasedPath) {
+				return { status: 200, success: true, editPath: idBasedPath };
+			}
+			if (isRename && targetFilePath) {
+				return { status: 200, success: true, editPath: targetFilePath };
+			}
+			return { status: 200, success: true };
 		} catch (err) {
 			const message = `Error in saveCollection action: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message);
-			return { status: 500, error: message };
+			return { status: 500, success: false, error: message };
 		}
 	},
 
@@ -300,14 +756,105 @@ export const actions: Actions = {
 		}
 	},
 
-	// Delete collection
+	// Delete collection(s): remove .ts and .js files and DB nodes (client sends ids)
 	deleteCollections: async ({ request }) => {
 		try {
 			const formData = await request.formData();
-			const contentTypes = JSON.parse(formData.get('contentTypes') as string);
-			fs.unlinkSync(`${userCollectionsPath}/${contentTypes}.ts`);
-			await compile({ logger });
-			await contentManager.refresh();
+			const ids = JSON.parse(formData.get('ids') as string) as string[];
+			const tenantId = (request as { locals?: { tenantId?: string } }).locals?.tenantId;
+			if (!ids?.length) {
+				return { status: 400, error: 'Invalid IDs for deletion' };
+			}
+			const idsNorm = new Set(ids.map((id) => String(id).replace(/-/g, '')));
+			const currentStructure = await contentManager.getContentStructureFromDatabase('flat', true);
+			const nodesToDelete = currentStructure.filter((node) => node.path && idsNorm.has((node._id?.toString() ?? '').replace(/-/g, '')));
+			const pathsToDelete = nodesToDelete.map((node) => node.path as string);
+			// Try multiple path candidates (derived path + flat name) and both legacy + tenant dirs
+			const tenantIdsToTry: (string | null | undefined)[] = [undefined, ...(tenantId !== undefined ? [tenantId] : [])];
+			for (const node of nodesToDelete) {
+				if (node.nodeType !== 'collection' || !node.path) continue;
+				const rawPath = (node.path as string).replace(/^\//, '');
+				const hasDot = rawPath.includes('.') && !rawPath.includes('/');
+				const looksLikeBareId = !rawPath.includes('/') && /^[a-zA-Z0-9_-]{16,32}$/.test(rawPath);
+				const isIdBasedPath = hasDot || looksLikeBareId;
+				let collectionPathForFile: string;
+				if (isIdBasedPath) {
+					const parent = node.parentId ? currentStructure.find((n) => n._id?.toString() === node.parentId?.toString()) : null;
+					const parentName = (parent?.name as string)?.replace(/\s+/g, '-').replace(/\/|\\/g, '').trim() ?? '';
+					const nodeName = (node.name as string)?.replace(/\s+/g, '-').replace(/\/|\\/g, '').trim() ?? '';
+					collectionPathForFile = parentName ? `${parentName}/${nodeName}` : nodeName;
+				} else {
+					collectionPathForFile = rawPath;
+				}
+				const flatName = (node.name as string)?.replace(/\s+/g, '-').replace(/\/|\\/g, '').trim() ?? '';
+				const candidates = [...new Set([collectionPathForFile, flatName].filter(Boolean))];
+				for (const logicalPath of candidates) {
+					for (const tid of tenantIdsToTry) {
+						const tsPath = getCollectionFilePath(logicalPath, tid);
+						const compiledBase = getCompiledCollectionsPath(tid);
+						const jsPath = path.join(compiledBase, `${logicalPath}.js`);
+						for (const filePath of [tsPath, jsPath]) {
+							try {
+								if (fs.existsSync(filePath)) {
+									fs.unlinkSync(filePath);
+									logger.info(`Deleted collection file: ${filePath}`);
+								}
+							} catch (e) {
+								logger.warn(`Could not delete collection file ${filePath}`, e);
+							}
+						}
+					}
+				}
+			}
+			// Fallback: scan collection dirs for .ts files whose _id matches a deleted id
+			for (const tid of tenantIdsToTry) {
+				const dirToScan = path.dirname(getCollectionFilePath('_', tid));
+				if (!fs.existsSync(dirToScan)) continue;
+				const scanDir = (dir: string, relPrefix: string): void => {
+					try {
+						for (const name of fs.readdirSync(dir)) {
+							const full = path.join(dir, name);
+							const rel = relPrefix ? `${relPrefix}/${name}` : name;
+							if (fs.statSync(full).isDirectory()) {
+								scanDir(full, rel);
+								continue;
+							}
+							if (!name.endsWith('.ts') || name === 'index.ts') continue;
+							const content = fs.readFileSync(full, 'utf8');
+							const idMatch = content.match(/_id:\s*['"]([^'"]+)['"]/);
+							const id = idMatch?.[1];
+							if (id && idsNorm.has(String(id).replace(/-/g, ''))) {
+								try {
+									fs.unlinkSync(full);
+									logger.info(`Deleted collection file (fallback): ${full}`);
+								} catch (e) {
+									logger.warn(`Could not delete ${full}`, e);
+								}
+								const compiledBase = getCompiledCollectionsPath(tid);
+								const jsPath = path.join(compiledBase, `${rel.replace(/\.ts$/, '')}.js`);
+								try {
+									if (fs.existsSync(jsPath)) {
+										fs.unlinkSync(jsPath);
+										logger.info(`Deleted compiled file (fallback): ${jsPath}`);
+									}
+								} catch (e) {
+									logger.warn(`Could not delete ${jsPath}`, e);
+								}
+							}
+						}
+					} catch (e) {
+						logger.warn(`Fallback scan failed for ${dir}`, e);
+					}
+				};
+				scanDir(dirToScan, '');
+			}
+			const operations = pathsToDelete.map((path) => ({
+				type: 'delete' as const,
+				node: { path } as import('@src/content/types').ContentNode
+			}));
+			await contentManager.upsertContentNodes(operations);
+			await compile({ logger, tenantId });
+			await contentManager.refresh(tenantId);
 			return { status: 200 };
 		} catch (err) {
 			const message = `Error in deleteCollections action: ${err instanceof Error ? err.message : String(err)}`;
@@ -346,10 +893,15 @@ async function goThrough(object: FieldsData, fields: string): Promise<string> {
 				continue;
 			}
 
-			// Get widget definition
-			const widgetName = fieldWithWidget.widget.Name;
-			const widget = widgets.widgetFunctions[widgetName] as unknown as WidgetDefinition;
+			// Resolve widget by Name or key (supports "New Radio" etc.)
+			const widgetNameRaw =
+				(fieldWithWidget.widget as { Name?: string; key?: string }).Name ?? (fieldWithWidget.widget as { Name?: string; key?: string }).key;
+			const resolvedKey = resolveWidgetKey(String(widgetNameRaw ?? ''));
+			const widget = resolvedKey
+				? (widgets.widgetFunctions[resolvedKey] as unknown as WidgetDefinition)
+				: (widgets.widgetFunctions[widgetNameRaw as string] as unknown as WidgetDefinition);
 			if (!widget?.GuiSchema) {
+				logger.warn(`[goThrough] Widget not found for "${widgetNameRaw}" (resolved: ${resolvedKey ?? 'none'}), skipping field`);
 				continue;
 			}
 
@@ -370,32 +922,33 @@ async function goThrough(object: FieldsData, fields: string): Promise<string> {
 				}
 			}
 
-			// Convert widget to string representation
-			const widgetFnName = fieldWithWidget.widget.key || fieldWithWidget.widget.Name || fieldWithWidget.widget.widgetId;
+			// Convert widget to string representation (use resolved key for file so it loads correctly).
+			// Build widgetConfig from the full field so label, db_fieldName, icon, required, etc. are never dropped
+			// (GuiSchema-only keys can miss properties due to casing or Default-tab-only fields).
+			const widgetFnName = resolvedKey ?? fieldWithWidget.widget.key ?? fieldWithWidget.widget.Name ?? fieldWithWidget.widget.widgetId;
+			const internalKeys = new Set(['widget', 'permissions', '__fieldIndex', 'id', '_dragId']);
+			// Keys that must be numbers in generated schema (form/JSON often stringify them)
+			const numericKeys = new Set(['width', 'order', 'min', 'max', 'step', 'count', 'minLength', 'maxLength', 'minSize', 'maxSize']);
 			const widgetConfig: Record<string, unknown> = {};
-			for (const guiKey of Object.keys(widget.GuiSchema || {})) {
-				if (guiKey === 'permissions') {
-					continue;
+			for (const k of Object.keys(fieldWithWidget)) {
+				if (internalKeys.has(k)) continue;
+				let val = fieldWithWidget[k];
+				if (val === undefined) continue;
+				if (numericKeys.has(k) && typeof val === 'string' && val !== '' && /^-?\d+(\.\d+)?$/.test(val)) {
+					val = Number(val);
 				}
-				if (fieldWithWidget[guiKey] !== undefined) {
-					widgetConfig[guiKey] = fieldWithWidget[guiKey];
-				}
+				widgetConfig[k] = val;
+			}
+			// Include permissions in config so we don't need brittle string-split injection (which broke after GuiFields:{}).
+			const parsedFields = JSON.parse(fields || '{}') as FieldsData;
+			if (parsedFields[key]?.permissions) {
+				widgetConfig.permissions = removeFalseValues(parsedFields[key].permissions);
 			}
 			const widgetCall = `🗑️widgets.${widgetFnName}(${JSON.stringify(widgetConfig, (_k, value) =>
 				typeof value === 'string' ? String(value.replace(/\s*🗑️\s*/g, '🗑️').trim()) : value
 			)})🗑️`;
 
 			field[key] = widgetCall as unknown as FieldWithWidget;
-
-			// Add permissions if present
-			const parsedFields = JSON.parse(fields || '{}') as FieldsData;
-			if (parsedFields[key]?.permissions) {
-				const subWidget = widgetCall.split('}');
-				const permissions = removeFalseValues(parsedFields[key].permissions);
-				const permissionStr = `,"permissions":${JSON.stringify(permissions)}}`;
-				const newWidget = subWidget[0] + permissionStr + subWidget[1];
-				field[key] = newWidget as unknown as FieldWithWidget;
-			}
 		}
 	}
 
@@ -440,6 +993,10 @@ interface CollectionData {
 	fields: FieldsData;
 	imports: string;
 	tenantId?: string | null;
+	/** When editing, preserve so compiled schema matches DB node and refresh does not orphan it */
+	collectionId?: string;
+	/** Id-based path for DB (e.g. "<id>" or "parentId.<id>"); when set, written into schema so reconciliation uses it */
+	collectionPath?: string;
 }
 
 async function generateCollectionFileWithAST(data: CollectionData): Promise<string> {
@@ -447,27 +1004,25 @@ async function generateCollectionFileWithAST(data: CollectionData): Promise<stri
 		// Generate tenant-aware file path for header comment
 		const displayPath = getCollectionDisplayPath(data.contentName, data.tenantId);
 
-		// Create the base template with imports
+		// Create the base template with imports (standard format: proxy, Schema type, icon/description/fields only)
 		const sourceCode = `/**
  * @file ${displayPath}
  * @description Collection file for ${data.contentName}
  */
 
 ${data.imports}
-import { widgets } from '@widgets/widget-manager.svelte';
 import type { Schema } from '@src/content/types';
+import { widgets } from '@src/widgets/proxy';
 
 export const schema: Schema = {
-	// Collection Name coming from filename so not needed
-	
-	// Optional & Icon, status, slug
+	// Collection Name coming from filename, so not needed
+
+	// Optional: icon, status, slug
 	// See for possible Icons https://icon-sets.iconify.design/
 	icon: '',
-	status: '',
 	description: '',
-	slug: '',
-	
-	// Defined Fields that are used in your Collection
+
+	// Defined Fields that are used in Collection
 	// Widget fields can be inspected for individual options
 	fields: []
 };`;
@@ -517,12 +1072,11 @@ function createCollectionTransformer(data: CollectionData): ts.TransformerFactor
 					// Create the schema object with actual data
 					const schemaObject = createSchemaObjectLiteral(data);
 
-					// Create new variable declaration (TypeScript 5.9+ API)
-					// createVariableDeclaration(name, exclamationToken, type, initializer)
+					// Create new variable declaration with explicit Schema type (standard: export const schema: Schema = { ... })
 					const newDeclaration = ts.factory.createVariableDeclaration(
 						ts.factory.createIdentifier('schema'),
 						undefined, // exclamation token
-						undefined, // type  - let TypeScript infer
+						ts.factory.createTypeReferenceNode(ts.factory.createIdentifier('Schema'), undefined),
 						schemaObject // initializer
 					);
 
@@ -541,32 +1095,36 @@ function createCollectionTransformer(data: CollectionData): ts.TransformerFactor
 	};
 }
 
-// Create TypeScript AST nodes for the schema object
+// Create TypeScript AST nodes for the schema object (standard format: icon, description, fields; _id/path only when reconciling)
 function createSchemaObjectLiteral(data: CollectionData): ts.ObjectLiteralExpression {
 	const properties: ts.ObjectLiteralElementLike[] = [];
 
-	// Add icon property
-	properties.push(ts.factory.createPropertyAssignment(ts.factory.createIdentifier('icon'), ts.factory.createStringLiteral(data.collectionIcon)));
+	// Preserve _id when editing so DB node is matched on refresh (reconciliation)
+	if (data.collectionId) {
+		const idStr = String(data.collectionId).replace(/-/g, '');
+		properties.push(ts.factory.createPropertyAssignment(ts.factory.createIdentifier('_id'), ts.factory.createStringLiteral(idStr)));
+	}
 
-	// Add status property
-	properties.push(ts.factory.createPropertyAssignment(ts.factory.createIdentifier('status'), ts.factory.createStringLiteral(data.collectionStatus)));
+	// Id-based path when set so DB reconciliation uses schema.path
+	if (data.collectionPath) {
+		properties.push(
+			ts.factory.createPropertyAssignment(ts.factory.createIdentifier('path'), ts.factory.createStringLiteral(String(data.collectionPath)))
+		);
+	}
 
-	// Add description property
+	// Standard: icon, description (name/status/slug come from filename or UI when needed)
 	properties.push(
 		ts.factory.createPropertyAssignment(
-			ts.factory.createIdentifier('description'),
-			ts.factory.createStringLiteral(String(data.collectionDescription || ''))
+			ts.factory.createIdentifier('icon'),
+			ts.factory.createStringLiteral(typeof data.collectionIcon === 'string' ? data.collectionIcon : '')
 		)
 	);
+	const descriptionStr = data.collectionDescription != null ? String(data.collectionDescription) : '';
+	properties.push(ts.factory.createPropertyAssignment(ts.factory.createIdentifier('description'), ts.factory.createStringLiteral(descriptionStr)));
 
-	// Add slug property
-	properties.push(ts.factory.createPropertyAssignment(ts.factory.createIdentifier('slug'), ts.factory.createStringLiteral(data.collectionSlug)));
-
-	// Add fields property - this is more complex as it contains processed widget calls
+	// Fields: emit as placeholder for post-process (widget call strings from goThrough)
 	const fieldsString = JSON.stringify(data.fields);
-	// Parse the fields as a JavaScript expression (this handles the widget calls)
 	const fieldsExpression = ts.factory.createIdentifier(`🗑️${fieldsString}🗑️`);
-
 	properties.push(ts.factory.createPropertyAssignment(ts.factory.createIdentifier('fields'), fieldsExpression));
 
 	return ts.factory.createObjectLiteralExpression(properties, true);

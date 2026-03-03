@@ -115,11 +115,35 @@ export async function processModule(content: string): Promise<{ schema?: Schema 
 		}
 
 		const startIdx = match.index! + match[0].length;
-		// Determine end of the expression (up to semicolon or end of content)
-		// This is a simplified approach that works well with our generated files
-		let endIdx = content.indexOf(';', startIdx);
-		if (endIdx === -1) {
+		// Find the schema object by brace matching (so semicolons in strings don't truncate)
+		const firstBrace = content.indexOf('{', startIdx);
+		let endIdx: number;
+		if (firstBrace === -1) {
+			const semi = content.indexOf(';', startIdx);
+			endIdx = semi === -1 ? content.length : semi;
+		} else {
 			endIdx = content.length;
+			let depth = 0;
+			let inString: string | null = null;
+			for (let i = firstBrace; i < content.length; i++) {
+				const c = content[i];
+				if (inString) {
+					if (c === inString && content[i - 1] !== '\\') inString = null;
+					continue;
+				}
+				if (c === '"' || c === "'" || c === '`') {
+					inString = c;
+					continue;
+				}
+				if (c === '{') depth++;
+				else if (c === '}') {
+					depth--;
+					if (depth === 0) {
+						endIdx = i + 1;
+						break;
+					}
+				}
+			}
 		}
 
 		let schemaContent = content.substring(startIdx, endIdx).trim();
@@ -232,4 +256,46 @@ export function sortContentNodes<T extends { order?: number; name: string }>(a: 
 		return orderDiff;
 	}
 	return a.name.localeCompare(b.name);
+}
+
+/** Normalize ID for comparison (handles with/without dashes, ObjectId string forms). */
+function normalizeIdForCompare(id: string | null | undefined): string | null {
+	if (id == null || id === '') return null;
+	return String(id).replace(/-/g, '').toLowerCase();
+}
+
+/**
+ * Checks if a sibling with the same name already exists at the same hierarchy level.
+ * Used to prevent duplicate category/collection names under the same parent.
+ * Compares names case-insensitively with trimmed whitespace; normalizes parent/_id for comparison.
+ *
+ * @param nodes - Flat list of content nodes (categories and collections)
+ * @param parentId - Parent ID (null/undefined for root level)
+ * @param name - Name to check (trimmed and compared case-insensitively)
+ * @param excludeId - Optional node _id to exclude (e.g. when renaming, exclude self)
+ * @returns true if a duplicate sibling name exists
+ */
+export function hasDuplicateSiblingName(
+	nodes: Array<{ name?: unknown; parentId?: unknown; _id?: unknown }>,
+	parentId: string | null | undefined,
+	name: string,
+	excludeId?: string
+): boolean {
+	const nameNorm = String(name ?? '')
+		.trim()
+		.toLowerCase();
+	if (!nameNorm) return false;
+	const parentKeyNorm = normalizeIdForCompare(parentId == null || parentId === '' ? null : parentId);
+	const excludeNorm = excludeId != null && excludeId !== '' ? normalizeIdForCompare(excludeId) : null;
+	for (const node of nodes) {
+		const nodeIdNorm = node._id != null ? normalizeIdForCompare(String(node._id)) : null;
+		if (excludeNorm != null && nodeIdNorm === excludeNorm) continue;
+		const nodeParentNorm = node.parentId == null || node.parentId === '' ? null : normalizeIdForCompare(String(node.parentId));
+		if (nodeParentNorm !== parentKeyNorm) continue;
+		const nodeNameNorm = String(node.name ?? '')
+			.trim()
+			.toLowerCase();
+		if (nodeNameNorm === nameNorm) return true;
+	}
+	return false;
 }

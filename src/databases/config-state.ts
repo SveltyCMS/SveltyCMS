@@ -52,7 +52,7 @@ export async function loadPrivateConfig(forceReload = false) {
 					logger.error(msg);
 					throw new AppError(msg, 500, 'TEST_ENV_SAFETY_VIOLATION');
 				}
-				
+
 				try {
 					// Use variable to hide from static analysis during build/check
 					const configAlias = '@config/private';

@@ -70,4 +70,3 @@ const RepeaterWidget = createWidget<RepeaterProps>({
 
 export default RepeaterWidget;
 export type FieldType = ReturnType<typeof RepeaterWidget>;
-

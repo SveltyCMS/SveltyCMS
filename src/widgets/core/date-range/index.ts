@@ -105,4 +105,3 @@ export default DateRangeWidget;
 // Export helper types for use in Svelte components.
 export type FieldType = ReturnType<typeof DateRangeWidget>;
 export type DateRangeWidgetData = ValibotInput<typeof DATE_RANGE_VALIDATION_SCHEMA>;
-

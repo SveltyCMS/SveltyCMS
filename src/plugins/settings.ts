@@ -15,11 +15,7 @@ export class PluginSettingsService {
 	// Ensure the plugin_states collection exists
 	async initialize(): Promise<void> {
 		try {
-<<<<<<< HEAD
 			const count = await this.dbAdapter.crud.count(this.COLLECTION, {}, null, { sudo: true });
-=======
-			const count = await this.dbAdapter.crud.count(this.COLLECTION, undefined, undefined, true);
->>>>>>> 8c9d82013cc49cb63620e263d9825a2b9d36719b
 			if (!count.success) {
 				logger.info(`Creating ${this.COLLECTION} collection...`);
 				// Create by inserting and deleting a dummy record if createCollection not explicitly available
@@ -30,24 +26,10 @@ export class PluginSettingsService {
 						tenantId: 'system',
 						enabled: false
 					} as any,
-<<<<<<< HEAD
 					null,
 					{ sudo: true }
 				);
 				await this.dbAdapter.crud.deleteMany(this.COLLECTION, { pluginId: '__INIT__' } as any, null, { sudo: true });
-=======
-					undefined,
-					true
-				);
-				await this.dbAdapter.crud.deleteMany(
-					this.COLLECTION,
-					{
-						pluginId: '__INIT__'
-					} as any,
-					undefined,
-					true
-				);
->>>>>>> 8c9d82013cc49cb63620e263d9825a2b9d36719b
 			}
 		} catch (error) {
 			logger.error(`Failed to initialize ${this.COLLECTION}`, { error });
@@ -63,11 +45,7 @@ export class PluginSettingsService {
 					pluginId,
 					tenantId
 				} as any,
-<<<<<<< HEAD
 				{ sudo: true }
-=======
-				{ bypassTenantCheck: true }
->>>>>>> 8c9d82013cc49cb63620e263d9825a2b9d36719b
 			);
 
 			if (result.success && result.data) {
@@ -88,11 +66,7 @@ export class PluginSettingsService {
 				{
 					tenantId
 				} as any,
-<<<<<<< HEAD
 				{ sudo: true }
-=======
-				{ bypassTenantCheck: true }
->>>>>>> 8c9d82013cc49cb63620e263d9825a2b9d36719b
 			);
 			return result.success && result.data ? result.data : [];
 		} catch (error) {
@@ -118,13 +92,8 @@ export class PluginSettingsService {
 						updatedAt: new Date(),
 						updatedBy: userId
 					} as any,
-<<<<<<< HEAD
 					null,
 					{ sudo: true }
-=======
-					undefined,
-					true
->>>>>>> 8c9d82013cc49cb63620e263d9825a2b9d36719b
 				);
 				return updateResult.success;
 			}
@@ -137,13 +106,8 @@ export class PluginSettingsService {
 					enabled,
 					updatedBy: userId
 				} as any,
-<<<<<<< HEAD
 				null,
 				{ sudo: true }
-=======
-				undefined,
-				true
->>>>>>> 8c9d82013cc49cb63620e263d9825a2b9d36719b
 			);
 			return insertResult.success;
 		} catch (error) {

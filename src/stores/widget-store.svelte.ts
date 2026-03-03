@@ -274,11 +274,17 @@ const widgetStateInstance = new WidgetState();
 /**
  * Single export for both store state and widget factory functions.
  * Enables widgets.Date(), widgets.Group(), etc. in collection schemas while keeping store methods.
+ * Methods are bound to the real instance so $state/private fields work (Proxy would break them).
  */
 export const widgets = new Proxy(widgetStateInstance, {
 	get(target, prop: string) {
 		const own = (target as unknown as Record<string, unknown>)[prop];
-		if (own !== undefined) return own;
+		if (own !== undefined) {
+			if (typeof own === 'function') {
+				return (own as (...args: unknown[]) => unknown).bind(target);
+			}
+			return own;
+		}
 		return target.widgetFunctions[prop];
 	}
 }) as WidgetState & Record<string, WidgetFactory>;

@@ -146,11 +146,7 @@
 		"@floating-ui/dom": "^1.7.5",
 		"@googlemaps/js-api-loader": "^2.0.2",
 		"@inlang/paraglide-js": "^2.13.0",
-<<<<<<< HEAD
 		"@mcp-b/webmcp-polyfill": "^2.0.9",
-=======
-		"@mcp-b/webmcp-polyfill": "^2.0.8",
->>>>>>> 8c9d82013cc49cb63620e263d9825a2b9d36719b
 		"@tailwindcss/forms": "^0.5.11",
 		"@tailwindcss/typography": "^0.5.19",
 		"@testing-library/jest-dom": "^6.9.1",

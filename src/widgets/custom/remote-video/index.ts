@@ -129,4 +129,3 @@ export default RemoteVideoWidget;
 // Export helper types.
 export type FieldType = ReturnType<typeof RemoteVideoWidget>;
 export type RemoteVideoWidgetData = ValibotInput<typeof validationSchema>;
-

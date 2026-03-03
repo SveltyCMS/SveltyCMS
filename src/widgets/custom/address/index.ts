@@ -91,4 +91,3 @@ export default AddressWidget;
 // Export helper types.
 export type FieldType = ReturnType<typeof AddressWidget>;
 export type AddressWidgetData = ValibotInput<typeof ADDRESS_VALIDATION_SCHEMA>;
-

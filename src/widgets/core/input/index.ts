@@ -136,4 +136,3 @@ export default InputWidget;
 // Export helper types.
 export type FieldType = ReturnType<typeof InputWidget>;
 export type InputWidgetData = ValibotInput<ReturnType<typeof createValidationSchema>>;
-

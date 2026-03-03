@@ -187,8 +187,10 @@ interface IDBAdapter {
 			get<T>(key: string, scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<T>>;
 			set<T>(key: string, value: T, scope?: 'user' | 'system', userId?: DatabaseId, category?: string): Promise<DatabaseResult<void>>;
 			getMany<T>(keys: string[], scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<Record<string, T>>>;
-			setMany(settings: Array<{ key: string; value: unknown; category: string; scope: 'user' | 'system'; userId?: DatabaseId }>): Promise<DatabaseResult<void>>;
-		}
+			setMany(
+				settings: Array<{ key: string; value: unknown; category: string; scope: 'user' | 'system'; userId?: DatabaseId }>
+			): Promise<DatabaseResult<void>>;
+		};
 	};
 
 	// Performance & Caching
@@ -1234,18 +1236,22 @@ For more details, see [Hover Preloading Architecture](./hover-preloading.mdx).
 SveltyCMS employs a dual-layered testing strategy to ensure both code quality and production reliability.
 
 ### 1. Unit Tests (White-Box)
+
 Located in `tests/unit/`.
-*   **Engine**: Bun Test runner.
-*   **Focus**: Isolated logic, utility functions, state stores, and service layers.
-*   **Environment**: Purely in-memory. Uses global mocks (defined in `tests/unit/setup.ts`) for database adapters and configuration.
-*   **Isolation**: Tests **must not** depend on a physical `config/private.ts` or a live database.
+
+- **Engine**: Bun Test runner.
+- **Focus**: Isolated logic, utility functions, state stores, and service layers.
+- **Environment**: Purely in-memory. Uses global mocks (defined in `tests/unit/setup.ts`) for database adapters and configuration.
+- **Isolation**: Tests **must not** depend on a physical `config/private.ts` or a live database.
 
 ### 2. Integration & E2E Tests (Black-Box)
+
 Located in `tests/integration/` and `tests/e2e/`.
-*   **Engine**: Bun (for Integration) and Playwright (for E2E).
-*   **Focus**: Full system lifecycle, API contracts, and User Experience.
-*   **Environment**: Realistic. Runs against the production `build` output and real database containers (MongoDB, Postgres, etc.) via Docker.
-*   **The "Clean Slate" Rule**: These tests start with **zero configuration**. They must proceed through the **Setup Wizard** natively to generate `config/private.ts`, validating the authentic installation process.
+
+- **Engine**: Bun (for Integration) and Playwright (for E2E).
+- **Focus**: Full system lifecycle, API contracts, and User Experience.
+- **Environment**: Realistic. Runs against the production `build` output and real database containers (MongoDB, Postgres, etc.) via Docker.
+- **The "Clean Slate" Rule**: These tests start with **zero configuration**. They must proceed through the **Setup Wizard** natively to generate `config/private.ts`, validating the authentic installation process.
 
 ---
 

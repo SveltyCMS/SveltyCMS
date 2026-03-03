@@ -37,7 +37,7 @@
 	import { collection, collectionValue, setCollectionValue } from '@src/stores/collection-store.svelte';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { contentLanguage, dataChangeStore, translationProgress, validationStore } from '@src/stores/store.svelte.ts';
-import { toast } from '@src/stores/toast.svelte.ts';
+	import { toast } from '@src/stores/toast.svelte.ts';
 	import { widgetFunctions as widgetFunctionsStore } from '@src/stores/widget-store.svelte';
 	import { showConfirm } from '@utils/modal-utils';
 	import WidgetLoader from './widget-loader.svelte';

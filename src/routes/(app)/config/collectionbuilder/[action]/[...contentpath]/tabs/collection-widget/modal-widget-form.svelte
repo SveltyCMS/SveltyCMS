@@ -13,6 +13,7 @@ It handles widget configuration, permissions, and specific options.
 	import { collectionValue, setCollectionValue, targetWidget } from '@src/stores/collection-store.svelte';
 	import { widgets } from '@src/stores/widget-store.svelte.ts';
 	import { modalState } from '@utils/modal-state.svelte';
+	import type { Role } from '@src/databases/auth/types';
 	import type { SvelteComponent } from 'svelte';
 	import Default from './tabs-fields/default.svelte';
 	import Permission from './tabs-fields/permission.svelte';
@@ -21,15 +22,15 @@ It handles widget configuration, permissions, and specific options.
 	let localTabSet = $state('0');
 
 	// Props
-
 	interface Props {
 		/** Exposes parent props to this component. */
 		parent?: any;
 		response?: (r: any) => void;
 		value: any;
+		roles?: Role[];
 	}
 
-	const { value, response }: Props = $props();
+	const { value, response, roles: rolesProp = [] }: Props = $props();
 
 	// Local variables
 	// Use props directly instead of modalData
@@ -103,7 +104,7 @@ It handles widget configuration, permissions, and specific options.
 			</Tabs.List>
 
 			<Tabs.Content value="0"><Default guiSchema={guiSchema as any} /></Tabs.Content>
-			<Tabs.Content value="1"><Permission /></Tabs.Content>
+			<Tabs.Content value="1"><Permission roles={rolesProp} /></Tabs.Content>
 			{#if specificOptions.length > 0}
 				<Tabs.Content value="2"><Specific /></Tabs.Content>
 			{/if}

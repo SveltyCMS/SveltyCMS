@@ -98,4 +98,3 @@ export default RichTextWidget;
 // Export helper types.
 export type FieldType = ReturnType<typeof RichTextWidget>;
 export type RichTextWidgetData = InferInput<ReturnType<typeof validationSchema>>;
-

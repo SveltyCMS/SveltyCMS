@@ -90,4 +90,3 @@ export default EmailWidget;
 // Export helper types.
 export type FieldType = ReturnType<typeof EmailWidget>;
 export type EmailWidgetData = ValibotInput<ReturnType<typeof validationSchema>>;
-

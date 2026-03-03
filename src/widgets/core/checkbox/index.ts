@@ -80,4 +80,3 @@ export default CheckboxWidget;
 // Export helper types for use in Svelte components.
 export type FieldType = ReturnType<typeof CheckboxWidget>;
 export type CheckboxWidgetData = ValibotInput<typeof CHECKBOX_VALIDATION_SCHEMA>;
-

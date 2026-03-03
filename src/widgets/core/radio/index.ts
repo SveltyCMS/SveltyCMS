@@ -83,4 +83,3 @@ export default RadioWidget;
 // Export helper types.
 export type FieldType = ReturnType<typeof RadioWidget>;
 export type RadioWidgetData = ValibotInput<ReturnType<typeof validationSchema>>;
-

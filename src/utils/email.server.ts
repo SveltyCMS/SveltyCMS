@@ -41,11 +41,9 @@ export interface SendMailOptions {
  */
 export async function getEmailTemplate(templateName: string): Promise<ComponentType | null> {
 	const normalizedSearch = `${templateName}.svelte`.toLowerCase();
-	
+
 	// Search through available modules for a match (case-insensitive and path-agnostic)
-	const matchKey = Object.keys(svelteEmailModules).find(key => 
-		key.toLowerCase().endsWith(normalizedSearch)
-	);
+	const matchKey = Object.keys(svelteEmailModules).find((key) => key.toLowerCase().endsWith(normalizedSearch));
 
 	if (matchKey) {
 		try {

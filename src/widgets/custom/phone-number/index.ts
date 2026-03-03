@@ -78,4 +78,3 @@ export default PhoneNumberWidget;
 // Export helper types.
 export type FieldType = ReturnType<typeof PhoneNumberWidget>;
 export type PhoneNumberWidgetData = ValibotInput<ReturnType<typeof validationSchema>>;
-

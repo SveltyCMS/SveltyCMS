@@ -22,36 +22,49 @@
 	interface Props {
 		fields: any[];
 		onNodeUpdate: (updatedFields: any[]) => void;
-		onSelectField: (field: any) => void;
+		onSelectField: (field: any, index: number) => void;
 		selectedFieldId?: number | string;
 	}
 
 	let { fields = [], onNodeUpdate, onSelectField, selectedFieldId }: Props = $props();
 
-	// Ensure fields have IDs for dndzone
-	let items = $derived(
-		fields.map((f, i) => ({
-			id: f.id || i + 1,
+	// Local list for dndzone so we don't update the store during drag. Updating the store in
+	// consider() causes fields to change, re-render, and the dragged node to be replaced —
+	// svelte-dnd-action then hits "Cannot read properties of undefined (reading 'parentElement')".
+	type Item = { id: number | string; widget?: { key?: string }; [key: string]: unknown };
+	let items = $state<Item[]>([]);
+	let isDragging = $state(false);
+
+	$effect(() => {
+		if (isDragging) return;
+		const next: Item[] = (fields || []).map((f: any, i: number) => ({
+			id: f.id ?? i + 1,
 			...f
-		}))
-	);
+		}));
+		items = next;
+	});
 
 	const flipDurationMs = 200;
 
-	function handleDndConsider(e: CustomEvent<DndEvent<typeof items>>) {
-		// Just local update during drag
-		onNodeUpdate(e.detail.items);
+	function handleDndConsider(e: CustomEvent<DndEvent<Item>>) {
+		isDragging = true;
+		items = e.detail.items;
 	}
 
-	function handleDndFinalize(e: CustomEvent<DndEvent<typeof items>>) {
+	function handleDndFinalize(e: CustomEvent<DndEvent<Item>>) {
+		items = e.detail.items;
 		onNodeUpdate(e.detail.items);
+		// Defer so store update and parent re-render don't run in the same tick as the library cleanup
+		queueMicrotask(() => {
+			isDragging = false;
+		});
 	}
 </script>
 
-<div class="flex-1 bg-surface-100 dark:bg-surface-900 overflow-y-auto p-12 scroll-smooth">
-	<div class="mx-auto max-w-3xl">
-		<div class="mb-8 text-center">
-			<h2 class="text-2xl font-bold opacity-20 uppercase tracking-[0.2em]">{collections.value?.name || 'New Collection'}</h2>
+<div class="flex min-h-0 flex-1 bg-surface-100 dark:bg-surface-900 overflow-y-auto p-4 sm:p-8 lg:p-12 scroll-smooth">
+	<div class="mx-auto w-full max-w-3xl">
+		<div class="mb-4 sm:mb-8 text-center">
+			<h2 class="text-lg sm:text-2xl font-bold opacity-20 uppercase tracking-[0.2em]">{collections.value?.name || 'New Collection'}</h2>
 			<div class="mt-2 h-1 w-20 bg-primary-500 mx-auto opacity-30"></div>
 		</div>
 
@@ -59,11 +72,11 @@
 			use:dndzone={{ items, flipDurationMs, zoneTabIndex: -1 }}
 			onconsider={handleDndConsider}
 			onfinalize={handleDndFinalize}
-			class="min-h-[500px] space-y-4 rounded-2xl border-2 border-dashed border-surface-200-800 p-8 transition-colors hover:border-primary-500/20"
+			class="min-h-[300px] sm:min-h-[400px] lg:min-h-[500px] space-y-4 rounded-2xl border-2 border-dashed border-surface-200-800 p-4 sm:p-6 lg:p-8 transition-colors hover:border-primary-500/20"
 		>
-			{#each items as item (item.id)}
+			{#each items as item, index (item.id)}
 				<div animate:flip={{ duration: flipDurationMs }}>
-					<button onclick={() => onSelectField(item)} class="group relative w-full text-left">
+					<button onclick={() => onSelectField(item, index)} class="group relative w-full text-left">
 						<!-- Selection Indicator -->
 						{#if selectedFieldId === item.id}
 							<div class="absolute -left-1 -top-1 -right-1 -bottom-1 rounded-xl border-2 border-primary-500 ring-4 ring-primary-500/10"></div>
@@ -103,13 +116,13 @@
 			{/each}
 
 			{#if items.length === 0}
-				<div class="flex h-full min-h-[400px] flex-col items-center justify-center text-surface-400">
-					<div class="relative mb-6">
+				<div class="flex min-h-[280px] sm:min-h-[360px] flex-col items-center justify-center text-surface-400 px-4">
+					<div class="relative mb-4 sm:mb-6">
 						<iconify-icon icon="fluent:design-ideas-24-regular" width="80" class="opacity-10"></iconify-icon>
 						<iconify-icon icon="mdi:plus" width="32" class="absolute -bottom-2 -right-2 text-primary-500 animate-pulse"></iconify-icon>
 					</div>
-					<p class="text-lg font-medium">Your canvas is empty</p>
-					<p class="text-sm opacity-60">Drag widgets from the sidebar to start building</p>
+					<p class="text-base sm:text-lg font-medium">Your canvas is empty</p>
+					<p class="text-xs sm:text-sm opacity-60 text-center">Drag widgets from the sidebar to start building</p>
 				</div>
 			{/if}
 		</div>

@@ -168,4 +168,3 @@ export default MediaWidget;
 // Export helper types.
 export type FieldType = ReturnType<typeof MediaWidget>;
 export type MediaWidgetData = ValibotInput<ReturnType<typeof createValidationSchema>>;
-

@@ -131,4 +131,3 @@ export default DateWidget;
 // Export helper types for use in Svelte components
 export type FieldType = ReturnType<typeof DateWidget>;
 export type DateWidgetData = ValibotInput<typeof DATE_VALIDATION_SCHEMA>;
-

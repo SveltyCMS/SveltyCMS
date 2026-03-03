@@ -23,7 +23,7 @@ export async function POST({ request }: RequestEvent) {
 		// We use reinitializeSystem(true) to force a reload of the private.test.ts file
 		// which might have just been created by the setup wizard.
 		const { dbAdapter: initialDb, auth: initialAuth, reinitializeSystem } = await import('@src/databases/db');
-		
+
 		if (!initialDb || !initialAuth) {
 			console.log('[API/Testing] Database not initialized. Attempting re-initialization...');
 			await reinitializeSystem(true);
@@ -49,7 +49,7 @@ export async function POST({ request }: RequestEvent) {
 			case 'seed': {
 				// Initialize default roles, settings and themes
 				const { seedRoles, seedDefaultTheme, seedSettings } = await import('@src/routes/setup/seed');
-				
+
 				await seedSettings(currentDbAdapter);
 				await seedDefaultTheme(currentDbAdapter);
 				await seedRoles(currentDbAdapter);

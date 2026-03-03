@@ -69,4 +69,3 @@ const PriceWidget = createWidget<PriceProps>({
 
 export default PriceWidget;
 export type FieldType = ReturnType<typeof PriceWidget>;
-

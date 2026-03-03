@@ -96,4 +96,3 @@ export default RatingWidget;
 // Export helper types.
 export type FieldType = ReturnType<typeof RatingWidget>;
 export type RatingWidgetData = ValibotInput<ReturnType<typeof validationSchema>>;
-

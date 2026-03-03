@@ -97,4 +97,3 @@ export default NumberWidget;
 // Export helper types.
 export type FieldType = ReturnType<typeof NumberWidget>;
 export type NumberWidgetData = ValibotInput<ReturnType<typeof validationSchema>>;
-

@@ -72,4 +72,3 @@ export default GroupWidget;
 // Export helper types for use in Svelte components.
 export type FieldType = ReturnType<typeof GroupWidget>;
 export type GroupWidgetData = ValibotInput<typeof GROUP_VALIDATION_SCHEMA>;
-

@@ -5,8 +5,9 @@
 -->
 <script lang="ts">
 	import type { FieldInstance } from '@src/content/types';
+	import type { Role } from '@src/databases/auth/types';
 	import BuzzForm from '@src/routes/(app)/config/collectionbuilder/buzz-form/buzz-form.svelte';
-	import { collection, setTargetWidget } from '@src/stores/collection-store.svelte';
+	import { collection, setCollection, setTargetWidget } from '@src/stores/collection-store.svelte';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { widgetFunctions } from '@src/stores/widget-store.svelte.ts';
 	import { sveltyRegistry } from '@src/services/json-render/catalog';
@@ -21,34 +22,61 @@
 	import ModalSelectWidget from './collection-widget/modal-select-widget.svelte';
 	import ModalWidgetForm from './collection-widget/modal-widget-form.svelte';
 
-	let { fields = [] } = $props<{ fields: FieldInstance[] }>();
+	type WidgetListItem = FieldInstance & { id: number; _dragId: string };
 
-	let items = $state(
+	let { fields = [], roles = [] } = $props<{ fields: FieldInstance[]; roles?: Role[] }>();
+
+	// Stable _dragId by index so we can sync items from props without losing drag identity
+	let dragIdsByIndex = $state<Record<number, string>>({});
+
+	let items = $state<WidgetListItem[]>(
 		untrack(() =>
-			fields.map((f: FieldInstance, i: number) => ({
-				id: i + 1,
-				...f,
-				_dragId: Math.random().toString(36).substring(7)
-			}))
+			(fields ?? []).map((f: FieldInstance, i: number) => {
+				const id = (dragIdsByIndex[i] ??= Math.random().toString(36).substring(7));
+				return { id: i + 1, ...f, _dragId: id } as WidgetListItem;
+			})
 		)
 	);
 
+	// Sync items from props when store updates (e.g. after save) so list and inspector show saved data
+	$effect(() => {
+		const nextFields = fields ?? [];
+		const nextDragIds = { ...dragIdsByIndex };
+		let added = false;
+		for (let i = 0; i < nextFields.length; i++) {
+			if (nextDragIds[i] === undefined) {
+				nextDragIds[i] = Math.random().toString(36).substring(7);
+				added = true;
+			}
+		}
+		if (added) {
+			dragIdsByIndex = nextDragIds;
+		}
+		items = nextFields.map((f: FieldInstance, i: number) => ({
+			id: i + 1,
+			...f,
+			_dragId: nextDragIds[i] ?? Math.random().toString(36).substring(7)
+		})) as WidgetListItem[];
+	});
+
 	const flipDurationMs = 200;
 
-	function handleDndConsider(e: CustomEvent<DndEvent<typeof items>>) {
-		items = e.detail.items;
+	function handleDndConsider(_e: CustomEvent<DndEvent<WidgetListItem>>) {
+		// Do not update items during consider — re-render removes the dragged node from DOM
+		// and svelte-dnd-action throws "Cannot read properties of undefined (reading 'parentElement')".
+		// Only update on finalize.
 	}
 
-	function handleDndFinalize(e: CustomEvent<DndEvent<typeof items>>) {
+	function handleDndFinalize(e: CustomEvent<DndEvent<WidgetListItem>>) {
 		items = e.detail.items;
+		dragIdsByIndex = items.reduce((acc, it, i) => ({ ...acc, [i]: it._dragId }), {});
 		updateStore();
 	}
 
 	function updateStore() {
 		if (collection.value) {
-			collection.value.fields = items.map(
-				({ _dragId, id: _id, ...rest }: { _dragId?: string; id?: number; [key: string]: any }) => rest as FieldInstance
-			);
+			const nextFields = items.map(({ _dragId, id: _id, ...rest }: { _dragId?: string; id?: number; [key: string]: any }) => rest as FieldInstance);
+			setCollection({ ...collection.value, fields: nextFields });
 		}
 	}
 
@@ -77,52 +105,85 @@
 	}
 
 	function editField(field: any) {
-		setTargetWidget(field);
+		const idx = items.findIndex((i: WidgetListItem) => i.id === field.id);
+		setTargetWidget({ ...field, __fieldIndex: idx >= 0 ? idx : undefined });
 		modalState.trigger(
 			ModalWidgetForm as any,
 			{
 				title: field.id ? 'Edit Field' : 'New Field',
-				value: field
+				value: field,
+				roles
 			},
 			(r: { id?: number; [key: string]: any } | undefined) => {
 				if (!r) {
 					return;
 				}
-				const idx = items.findIndex((i: (typeof items)[number]) => i.id === r.id);
+				// Ensure new fields have a unique db_fieldName so they persist on save
+				const existingNames = new Set((items ?? []).map((i) => (i as FieldInstance).db_fieldName).filter(Boolean));
+				const ensureFieldName = (obj: Record<string, unknown>): string => {
+					const name = (obj.db_fieldName as string) || (obj.label as string) || (obj.widget as { Name?: string })?.Name || 'field';
+					const base =
+						String(name)
+							.trim()
+							.replace(/\s+/g, '_')
+							.replace(/[^a-zA-Z0-9_]/g, '') || 'field';
+					let candidate = base;
+					let n = 0;
+					while (existingNames.has(candidate)) {
+						candidate = `${base}_${++n}`;
+					}
+					existingNames.add(candidate);
+					return candidate;
+				};
+				const normalized = { ...r, db_fieldName: r.db_fieldName || ensureFieldName(r) };
+				const idx = items.findIndex((i: WidgetListItem) => i.id === r.id);
 				if (idx !== -1) {
-					items[idx] = { ...items[idx], ...r };
+					items = items.map((item, i) => (i === idx ? ({ ...item, ...normalized } as WidgetListItem) : item));
 				} else {
-					items.push({
-						id: items.length + 1,
-						_dragId: Math.random().toString(36).substring(7),
-						...r
-					});
+					const newIndex = items.length;
+					const newDragId = Math.random().toString(36).substring(7);
+					dragIdsByIndex = { ...dragIdsByIndex, [newIndex]: newDragId };
+					items = [...items, { id: newIndex + 1, _dragId: newDragId, ...normalized } as WidgetListItem];
 				}
 				updateStore();
+				// Refresh inspector so right panel shows saved field (label, db_fieldName, required, icon) without reload
+				const updatedIndex = idx !== -1 ? idx : items.length - 1;
+				const updated = items[updatedIndex];
+				if (updated) {
+					setTargetWidget({
+						...updated,
+						__fieldIndex: updatedIndex,
+						permissions: updated.permissions ?? {}
+					});
+				}
 			}
 		);
 	}
 
 	function deleteField(id: number) {
 		items = items
-			.filter((i: (typeof items)[number]) => i.id !== id)
-			.map((item: (typeof items)[number], idx: number) => ({
+			.filter((i: WidgetListItem) => i.id !== id)
+			.map((item: WidgetListItem, idx: number) => ({
 				...item,
 				id: idx + 1
 			}));
+		dragIdsByIndex = items.reduce((acc, it, i) => ({ ...acc, [i]: it._dragId }), {});
 		updateStore();
 		toast.info('Field removed from collection');
 	}
 
-	function duplicateField(field: (typeof items)[number]) {
+	function duplicateField(field: WidgetListItem) {
+		const newIndex = items.length;
+		const newDragId = Math.random().toString(36).substring(7);
+		dragIdsByIndex = { ...dragIdsByIndex, [newIndex]: newDragId };
 		const newField = {
 			...field,
-			id: items.length + 1,
-			_dragId: Math.random().toString(36).substring(7),
+			id: newIndex + 1,
+			_dragId: newDragId,
 			label: `${field.label} (Copy)`,
-			db_fieldName: field.db_fieldName ? `${field.db_fieldName}_copy` : undefined
-		};
-		items.push(newField);
+			db_fieldName: field.db_fieldName ? `${field.db_fieldName}_copy` : field.db_fieldName
+		} as WidgetListItem;
+		items = [...items, newField];
 		updateStore();
 	}
 
@@ -175,6 +236,9 @@
 	function addQuickWidget(key: string) {
 		const widgetInstance = get(widgetFunctions)[key];
 		if (widgetInstance) {
+			const newIndex = items.length;
+			const newDragId = Math.random().toString(36).substring(7);
+			dragIdsByIndex = { ...dragIdsByIndex, [newIndex]: newDragId };
 			const newWidget = {
 				label: `New ${key}`,
 				db_fieldName: `new_${key.toLowerCase()}`,
@@ -182,36 +246,32 @@
 				GuiFields: getGuiFields({ key }, asAny(widgetInstance.GuiSchema)),
 				permissions: {}
 			};
-			items.push({
-				id: items.length + 1,
-				_dragId: Math.random().toString(36).substring(7),
-				...newWidget
-			});
+			items = [...items, { id: newIndex + 1, _dragId: newDragId, ...newWidget } as unknown as WidgetListItem];
 			updateStore();
 			toast.success(`Added ${key} field`);
 		}
 	}
 </script>
 
-<div class="space-y-6">
-	<!-- View Toggle -->
-	<div class="flex items-center justify-between">
+<div class="space-y-4 sm:space-y-6">
+	<!-- View Toggle + fields count -->
+	<div class="flex flex-wrap items-center justify-between gap-3">
 		<div class="flex items-center gap-1 rounded-lg bg-surface-100-900 p-1 shadow-inner border border-surface-200-800">
 			<button
 				onclick={() => (builderView = 'buzz')}
-				class="btn btn-sm flex items-center gap-2 px-4 py-1.5 transition-all
+				class="btn btn-sm flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 transition-all min-h-[2.5rem] touch-manipulation
 					{builderView === 'buzz' ? 'preset-filled-primary-500 shadow-sm' : 'text-surface-500 hover:text-surface-700'}"
 			>
 				<iconify-icon icon="fluent:design-ideas-24-filled" width="18"></iconify-icon>
-				<span>BuzzForm</span>
+				<span class="text-sm sm:text-base">BuzzForm</span>
 			</button>
 			<button
 				onclick={() => (builderView = 'list')}
-				class="btn btn-sm flex items-center gap-2 px-4 py-1.5 transition-all
+				class="btn btn-sm flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 transition-all min-h-[2.5rem] touch-manipulation
 					{builderView === 'list' ? 'preset-filled-primary-500 shadow-sm' : 'text-surface-500 hover:text-surface-700'}"
 			>
 				<iconify-icon icon="mdi:format-list-bulleted" width="18"></iconify-icon>
-				<span>Standard List</span>
+				<span class="text-sm sm:text-base">Standard List</span>
 			</button>
 			<button
 				onclick={() => (builderView = 'preview')}
@@ -225,7 +285,7 @@
 	</div>
 
 	{#if builderView === 'buzz'}
-		<BuzzForm />
+		<BuzzForm {roles} />
 	{:else if builderView === 'preview'}
 		<div class="rounded-lg border border-surface-200-800 bg-surface-50-950 p-6 shadow-sm">
 			<h3 class="mb-4 text-lg font-bold text-primary-500 flex items-center gap-2">
@@ -255,13 +315,16 @@
 			{#each quickWidgets as qw (qw.key)}
 				<button
 					onclick={() => addQuickWidget(qw.key)}
-					class="preset-outlined-surface-500 btn flex items-center gap-1 text-xs hover:preset-filled-primary-500"
+					class="preset-outlined-surface-500 btn flex items-center gap-1 text-xs hover:preset-filled-primary-500 min-h-[2.25rem] touch-manipulation"
 				>
 					<iconify-icon icon={qw.icon} width="16"></iconify-icon>
 					{qw.label}
 				</button>
 			{/each}
-			<button onclick={addField} class="preset-filled-secondary-500 btn flex items-center gap-1 text-xs sm:ml-auto">
+			<button
+				onclick={addField}
+				class="preset-filled-secondary-500 btn flex items-center gap-1 text-xs min-h-[2.25rem] touch-manipulation w-full sm:w-auto sm:ml-auto"
+			>
 				<iconify-icon icon="mdi:plus" width="16"></iconify-icon>
 				More Widgets
 			</button>
@@ -295,7 +358,9 @@
 							</div>
 							<div class="flex items-center gap-3 text-xs text-surface-500">
 								<span class="font-mono">{item.db_fieldName || '-'}</span>
-								<span class="rounded bg-surface-300-700 px-1 py-0.5 text-[10px] uppercase"> {item.widget?.key || 'Generic'} </span>
+								<span class="rounded bg-surface-300-700 px-1 py-0.5 text-[10px] uppercase">
+									{(item.widget as { key?: string })?.key || 'Generic'}
+								</span>
 							</div>
 						</div>
 

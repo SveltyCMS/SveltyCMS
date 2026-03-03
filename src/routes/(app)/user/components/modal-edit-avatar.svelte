@@ -17,8 +17,8 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 	// ParaglideJS
 	import { button_cancel, button_delete, button_save, modaledit_avatarfilesallowed, modaledit_avatarfilesize } from '@src/paraglide/messages';
 	// Stores
-	import { avatarSrc, } from '@src/stores/store.svelte.ts';
-import { toast } from '@src/stores/toast.svelte.ts';
+	import { avatarSrc } from '@src/stores/store.svelte.ts';
+	import { toast } from '@src/stores/toast.svelte.ts';
 	import { logger } from '@src/utils/logger';
 	import { modalState } from '@utils/modal-state.svelte';
 	import { showConfirm } from '@utils/modal-utils';

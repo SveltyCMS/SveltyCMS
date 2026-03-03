@@ -481,7 +481,10 @@ function createSetupStore() {
 				return true;
 			}
 			logger.warn('⚠️  Database initialization had issues:', data.error);
-			toast.error(data.error || 'Seeding failed.', { duration: 4000 });
+			if (data.code === 'SETUP_ALREADY_COMPLETE') {
+				wizard.errorMessage = data.error || '';
+			}
+			toast.error(data.error || 'Seeding failed.', { duration: data.code === 'SETUP_ALREADY_COMPLETE' ? 8000 : 4000 });
 			return false;
 		} catch (error) {
 			logger.warn('⚠️  Error during database initialization server function:', error);
