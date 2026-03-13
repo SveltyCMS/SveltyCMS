@@ -234,11 +234,17 @@ jobs:
 
       - name: ⏳ Wait for Services
         run: |
+          # On n'attend une connexion TCP que pour les vrais serveurs de DB
           if [ "${{ matrix.database }}" == "mongodb" ]; then bun x wait-on tcp:127.0.0.1:27017; fi
           if [ "${{ matrix.database }}" == "mariadb" ]; then bun x wait-on tcp:127.0.0.1:3306; fi
           if [ "${{ matrix.database }}" == "postgresql" ]; then bun x wait-on tcp:127.0.0.1:5432; fi
+          
+          # Mailhog est toujours requis
           bun x wait-on tcp:127.0.0.1:1025
-          sleep 10 # Extra time for DB initialization
+          
+          # On ne fait une pause que si on a un conteneur externe à initialiser
+          if [ "${{ matrix.database }}" != "sqlite" ]; then sleep 10; fi
+
 
       - name: 🎭 Run Playwright E2E
         env:
