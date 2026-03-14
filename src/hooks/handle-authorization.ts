@@ -155,16 +155,18 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
 		return resolve(event);
 	}
 
+	// --- Check if first user (for setup flow) ---
+	const multiTenant = getPrivateSettingSync('MULTI_TENANT');
+
 	// --- Public routes require no auth ---
 	if (isPublic) {
 		locals.isAdmin = false;
 		locals.hasManageUsersPermission = false;
-		locals.isFirstUser = undefined as any;
+		// Still check user count (cached) — login page needs isFirstUser
+		const userCount = await getCachedUserCount(locals.tenantId, !!multiTenant);
+		locals.isFirstUser = userCount === 0;
 		return resolve(event);
 	}
-
-	// --- Check if first user (for setup flow) ---
-	const multiTenant = getPrivateSettingSync('MULTI_TENANT');
 
 	// 2. USER COUNT CHECK (First User detection)
 	if (process.env.BUN_TEST && pathname === '/dashboard') {

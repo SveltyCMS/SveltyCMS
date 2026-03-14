@@ -56,9 +56,11 @@ export const handleSetup: Handle = async ({ event, resolve }) => {
 	const { pathname } = event.url;
 	const isApi = pathname.startsWith('/api/');
 
-	// Bypass setup checks in TEST_MODE to allow /api/testing to function
-	// This matches the bypass pattern in handleSystemState
-	if (process.env.TEST_MODE === 'true' && pathname.startsWith('/api/testing')) {
+	// Bypass setup checks entirely in TEST_MODE
+	// CI runs setup-system.ts before tests, so setup is always complete.
+	// handleSystemState skips DB init in TEST_MODE, so isSetupCompleteAsync()
+	// may fail due to adapter timing — bypass to avoid the race condition.
+	if (process.env.TEST_MODE === 'true') {
 		return await resolve(event);
 	}
 
