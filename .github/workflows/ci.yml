@@ -377,27 +377,22 @@ jobs:
 
       - run: bun x playwright install --with-deps chromium
 
-      - name: System setup
-        env:
-          DB_TYPE: sqlite
-          TEST_MODE: true
-        run: |
-          bun run preview > preview.log 2>&1 &
-          bun x wait-on http://localhost:4173/api/system/health --timeout 60000
-          bun run scripts/setup-system.ts
-          pkill -f "bun run preview" || true
-
       - name: Run E2E tests (Playwright shard)
         env:
           DB_TYPE: sqlite
           TEST_MODE: true
+          PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:4173
         run: |
-          bun run preview > preview.log 2>&1 &
-          bun x wait-on http://localhost:4173/api/system/health --timeout 60000
+          bun run preview --host 127.0.0.1 > preview.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf http://127.0.0.1:4173/api/system/health > /dev/null 2>&1 && break; sleep 1; done
+          bun run scripts/setup-system.ts
+          sleep 3
           bun x playwright test --project=chromium --shard=${{ matrix.shard }}/3
 
       - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: playwright-report-${{ matrix.shard }}
-          path: playwright-report
+          path: |
+            playwright-report
+            preview.log

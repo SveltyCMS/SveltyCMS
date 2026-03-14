@@ -139,56 +139,29 @@ async function startPreviewServer() {
 		await new Promise((r) => setTimeout(r, 3000));
 	}
 
-	return new Promise<void>((resolve, reject) => {
-		console.log('📦 Spawning preview server...');
-		previewProcess = spawn(pkgManager, ['run', 'preview', '--port', '4173', '--host', '127.0.0.1'], {
-			cwd: rootDir,
-			stdio: ['ignore', 'pipe', 'inherit'],
-			shell: true,
-			env: { ...(globalThis as any).process?.env, TEST_MODE: 'true' }
-		});
+	const port = '4173';
+	API_BASE_URL = `http://127.0.0.1:${port}`;
 
-		let resolved = false;
-		const timeout = setTimeout(() => {
-			if (!resolved) {
-				reject(new Error('Timeout waiting for preview server port detection'));
-			}
-		}, 60000);
-
-		previewProcess.stdout?.on('data', (data) => {
-			const output = data.toString();
-			process.stdout.write(output); // Forward to terminal
-
-			const urlMatch = output.match(/http:\/\/127\.0\.0\.1:(\d+)/);
-			if (urlMatch) {
-				const port = urlMatch[1];
-				API_BASE_URL = `http://127.0.0.1:${port}`;
-				console.log(`📡 Detected server running at: ${API_BASE_URL}`);
-				clearTimeout(timeout);
-				resolved = true;
-				// Wait for health check to pass
-				waitForServer().then(resolve).catch(reject);
-			}
-		});
-
-		previewProcess.on('error', (err) => {
-			console.error('❌ Failed to start preview process:', err);
-			reject(err);
-		});
-
-		previewProcess.on('close', (code) => {
-			if (!resolved) {
-				console.error(`❌ Preview process exited with code ${code}`);
-				reject(new Error(`Preview process exited with code ${code}`));
-			}
-		});
+	console.log('📦 Spawning preview server...');
+	previewProcess = spawn(pkgManager, ['run', 'preview', '--port', port, '--host', '127.0.0.1'], {
+		cwd: rootDir,
+		stdio: 'inherit',
+		shell: true,
+		env: { ...(globalThis as any).process?.env, TEST_MODE: 'true' }
 	});
+
+	previewProcess.on('error', (err) => {
+		console.error('❌ Failed to start preview process:', err);
+	});
+
+	// Poll for server readiness instead of parsing stdout (Vite 8 prints to stderr)
+	await waitForServer();
 }
 
 async function checkServer() {
 	try {
-		const res = await fetch(`${API_BASE_URL}/api/system/health`);
-		return res.ok;
+		const res = await fetch(`${API_BASE_URL}/api/system/health`, { redirect: 'manual' });
+		return res.status > 0;
 	} catch {
 		return false;
 	}
