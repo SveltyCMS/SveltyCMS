@@ -68,6 +68,15 @@ export async function isSetupCompleteAsync(): Promise<boolean> {
 		return false;
 	}
 
+	// In TEST_MODE, skip DB validation — CI runs setup-system.ts which creates
+	// the config and DB records. But handleSystemState bypasses DB init in
+	// TEST_MODE, so the adapter may not be connected yet.
+	if (process.env.TEST_MODE === 'true') {
+		setupStatusCheckedDb = true;
+		setupStatus = true;
+		return true;
+	}
+
 	// 2. Cache hit: If we've already checked the database, return cached result
 	if (setupStatusCheckedDb) {
 		return setupStatus ?? true; // Default to true if config exists
