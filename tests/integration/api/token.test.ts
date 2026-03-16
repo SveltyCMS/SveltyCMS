@@ -7,7 +7,7 @@
  */
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'bun:test';
-import { getApiBaseUrl, waitForServer } from '../helpers/server';
+import { getApiBaseUrl, safeFetch, waitForServer } from '../helpers/server';
 import { cleanupTestDatabase, prepareAuthenticatedContext } from '../helpers/test-setup';
 
 const API_BASE_URL = getApiBaseUrl();
@@ -32,7 +32,7 @@ describe('Token API Endpoints', () => {
 		it('should create an invitation token with valid admin authentication', async () => {
 			// Use unique email that doesn't exist in the system
 			const uniqueEmail = `invite-test-${Date.now()}@example.com`;
-			const response = await fetch(`${API_BASE_URL}/api/token/create-token`, {
+			const response = await safeFetch(`${API_BASE_URL}/api/token/create-token`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
@@ -52,7 +52,7 @@ describe('Token API Endpoints', () => {
 		});
 
 		it('should reject token creation without authentication', async () => {
-			const response = await fetch(`${API_BASE_URL}/api/token/create-token`, {
+			const response = await safeFetch(`${API_BASE_URL}/api/token/create-token`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
@@ -66,7 +66,7 @@ describe('Token API Endpoints', () => {
 		});
 
 		it('should reject token creation for an invalid email format', async () => {
-			const response = await fetch(`${API_BASE_URL}/api/token/create-token`, {
+			const response = await safeFetch(`${API_BASE_URL}/api/token/create-token`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json', Cookie: authCookie },
 				body: JSON.stringify({
@@ -87,7 +87,7 @@ describe('Token API Endpoints', () => {
 		// Before each test in this block, create a fresh invitation token with unique email
 		beforeEach(async () => {
 			tokenEmail = `validate-test-${Date.now()}@example.com`;
-			const createResponse = await fetch(`${API_BASE_URL}/api/token/create-token`, {
+			const createResponse = await safeFetch(`${API_BASE_URL}/api/token/create-token`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json', Cookie: authCookie },
 				body: JSON.stringify({
@@ -102,7 +102,7 @@ describe('Token API Endpoints', () => {
 
 		describe('GET /api/token/[tokenID]', () => {
 			it('should validate an existing and valid token', async () => {
-				const response = await fetch(`${API_BASE_URL}/api/token/${invitationToken}`);
+				const response = await safeFetch(`${API_BASE_URL}/api/token/${invitationToken}`);
 				const result = await response.json();
 
 				expect(response.status).toBe(200);
@@ -111,26 +111,26 @@ describe('Token API Endpoints', () => {
 			});
 
 			it('should return 404 for a non-existent token', async () => {
-				const response = await fetch(`${API_BASE_URL}/api/token/non-existent-token`);
+				const response = await safeFetch(`${API_BASE_URL}/api/token/non-existent-token`);
 				expect(response.status).toBe(404);
 			});
 		});
 
 		describe('DELETE /api/token/[tokenID]', () => {
 			it('should delete a token with admin authentication', async () => {
-				const response = await fetch(`${API_BASE_URL}/api/token/${invitationToken}`, {
+				const response = await safeFetch(`${API_BASE_URL}/api/token/${invitationToken}`, {
 					method: 'DELETE',
 					headers: { Cookie: authCookie }
 				});
 				expect(response.status).toBe(200);
 
 				// Verify the token is actually deleted
-				const checkResponse = await fetch(`${API_BASE_URL}/api/token/${invitationToken}`);
+				const checkResponse = await safeFetch(`${API_BASE_URL}/api/token/${invitationToken}`);
 				expect(checkResponse.status).toBe(404);
 			});
 
 			it('should reject deletion without authentication', async () => {
-				const response = await fetch(`${API_BASE_URL}/api/token/${invitationToken}`, {
+				const response = await safeFetch(`${API_BASE_URL}/api/token/${invitationToken}`, {
 					method: 'DELETE'
 				});
 				expect(response.status).toBe(401);
@@ -142,7 +142,7 @@ describe('Token API Endpoints', () => {
 		it('should list all tokens with admin authentication', async () => {
 			// Create a token to ensure the list is not empty
 			const uniqueEmail = `list-test-${Date.now()}@example.com`;
-			await fetch(`${API_BASE_URL}/api/token/create-token`, {
+			await safeFetch(`${API_BASE_URL}/api/token/create-token`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json', Cookie: authCookie },
 				body: JSON.stringify({
@@ -152,7 +152,7 @@ describe('Token API Endpoints', () => {
 				})
 			});
 
-			const response = await fetch(`${API_BASE_URL}/api/token`, {
+			const response = await safeFetch(`${API_BASE_URL}/api/token`, {
 				headers: { Cookie: authCookie }
 			});
 
@@ -165,7 +165,7 @@ describe('Token API Endpoints', () => {
 		});
 
 		it('should reject listing tokens without authentication', async () => {
-			const response = await fetch(`${API_BASE_URL}/api/token`);
+			const response = await safeFetch(`${API_BASE_URL}/api/token`);
 			// Returns 401 or 403 depending on auth state
 			expect(response.status).toBeGreaterThanOrEqual(401);
 			expect(response.status).toBeLessThanOrEqual(403);
@@ -173,7 +173,7 @@ describe('Token API Endpoints', () => {
 
 		it('should return token list with pagination', async () => {
 			// Test pagination structure
-			const response = await fetch(`${API_BASE_URL}/api/token`, {
+			const response = await safeFetch(`${API_BASE_URL}/api/token`, {
 				headers: { Cookie: authCookie }
 			});
 
@@ -189,7 +189,7 @@ describe('Token API Endpoints', () => {
 
 	describe('GET /api/get-tokens-provided', () => {
 		it('should get tokens provided info with admin authentication', async () => {
-			const response = await fetch(`${API_BASE_URL}/api/get-tokens-provided`, {
+			const response = await safeFetch(`${API_BASE_URL}/api/get-tokens-provided`, {
 				headers: { Cookie: authCookie }
 			});
 
@@ -202,7 +202,7 @@ describe('Token API Endpoints', () => {
 		});
 
 		it('should reject the request without authentication', async () => {
-			const response = await fetch(`${API_BASE_URL}/api/get-tokens-provided`);
+			const response = await safeFetch(`${API_BASE_URL}/api/get-tokens-provided`);
 			// Returns 401 or 403 depending on auth state
 			expect(response.status).toBeGreaterThanOrEqual(401);
 			expect(response.status).toBeLessThanOrEqual(403);

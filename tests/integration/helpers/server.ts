@@ -55,11 +55,13 @@ export async function waitForServer(timeoutMs = 60_000): Promise<void> {
  */
 export async function safeFetch(url: string, init?: RequestInit): Promise<Response> {
 	const API_BASE_URL = getApiBaseUrl();
-	const headers = new Headers(init?.headers || {});
 
-	// Ensure Origin header is present to satisfy CSRF protection in hooks
-	if (!headers.has('Origin')) {
-		headers.set('Origin', API_BASE_URL);
+	// Merge Origin into headers as plain object to preserve Cookie
+	// (new Headers() strips Cookie per fetch spec)
+	const existingHeaders = (init?.headers as Record<string, string>) || {};
+	const headers: Record<string, string> = { ...existingHeaders };
+	if (!headers['Origin'] && !headers['origin']) {
+		headers['Origin'] = API_BASE_URL;
 	}
 
 	try {

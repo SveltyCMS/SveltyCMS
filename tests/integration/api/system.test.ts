@@ -6,7 +6,7 @@
  */
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'bun:test';
-import { getApiBaseUrl, waitForServer } from '../helpers/server';
+import { getApiBaseUrl, safeFetch, waitForServer } from '../helpers/server';
 import { cleanupTestDatabase, prepareAuthenticatedContext } from '../helpers/test-setup';
 
 const API_BASE_URL = getApiBaseUrl();
@@ -28,7 +28,7 @@ describe('System Configuration API Endpoints', () => {
 
 	describe('GET /api/settings/site', () => {
 		it('should return site settings with authentication', async () => {
-			const response = await fetch(`${API_BASE_URL}/api/settings/site`, {
+			const response = await safeFetch(`${API_BASE_URL}/api/settings/site`, {
 				headers: { Cookie: authCookie }
 			});
 			expect(response.status).toBe(200);
@@ -38,7 +38,7 @@ describe('System Configuration API Endpoints', () => {
 		});
 
 		it('should fail without authentication', async () => {
-			const response = await fetch(`${API_BASE_URL}/api/settings/site`);
+			const response = await safeFetch(`${API_BASE_URL}/api/settings/site`);
 			expect(response.status).toBe(401);
 		});
 	});
@@ -46,13 +46,13 @@ describe('System Configuration API Endpoints', () => {
 	describe('PUT /api/settings/site', () => {
 		it('should update site settings with admin authentication', async () => {
 			// First get current values to preserve others
-			const getResponse = await fetch(`${API_BASE_URL}/api/settings/site`, {
+			const getResponse = await safeFetch(`${API_BASE_URL}/api/settings/site`, {
 				headers: { Cookie: authCookie }
 			});
 			const current = await getResponse.json();
 			const siteName = current.values.SITE_NAME || 'SveltyCMS';
 
-			const response = await fetch(`${API_BASE_URL}/api/settings/site`, {
+			const response = await safeFetch(`${API_BASE_URL}/api/settings/site`, {
 				method: 'PUT',
 				headers: {
 					'Content-Type': 'application/json',
@@ -69,7 +69,7 @@ describe('System Configuration API Endpoints', () => {
 		});
 
 		it('should fail with invalid setting keys', async () => {
-			const response = await fetch(`${API_BASE_URL}/api/settings/site`, {
+			const response = await safeFetch(`${API_BASE_URL}/api/settings/site`, {
 				method: 'PUT',
 				headers: {
 					'Content-Type': 'application/json',
@@ -89,7 +89,7 @@ describe('System Configuration API Endpoints', () => {
 			const value = { some: 'data' };
 
 			// POST
-			const postResp = await fetch(`${API_BASE_URL}/api/system-preferences`, {
+			const postResp = await safeFetch(`${API_BASE_URL}/api/system-preferences`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
@@ -100,7 +100,7 @@ describe('System Configuration API Endpoints', () => {
 			expect(postResp.status).toBe(200);
 
 			// GET
-			const getResp = await fetch(`${API_BASE_URL}/api/system-preferences?key=${key}`, {
+			const getResp = await safeFetch(`${API_BASE_URL}/api/system-preferences?key=${key}`, {
 				headers: { Cookie: authCookie }
 			});
 			expect(getResp.status).toBe(200);

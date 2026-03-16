@@ -9,7 +9,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'bun:test'
 
 process.env.TEST_BASE_URL = 'http://localhost:5173';
 
-import { getApiBaseUrl, waitForServer } from '../helpers/server';
+import { getApiBaseUrl, safeFetch, waitForServer } from '../helpers/server';
 import { cleanupTestDatabase, prepareAuthenticatedContext } from '../helpers/test-setup';
 
 const API_BASE_URL = getApiBaseUrl();
@@ -32,7 +32,7 @@ describe('Website Token API Endpoints', () => {
 	describe('POST /api/website-tokens', () => {
 		it('should create a website token with basic details', async () => {
 			const tokenName = `Basic Token ${Date.now()}`;
-			const response = await fetch(`${API_BASE_URL}/api/website-tokens`, {
+			const response = await safeFetch(`${API_BASE_URL}/api/website-tokens`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
@@ -53,7 +53,7 @@ describe('Website Token API Endpoints', () => {
 		it('should create a website token with granular permissions', async () => {
 			const tokenName = `Perm Token ${Date.now()}`;
 			const permissions = ['collection:read', 'user:create'];
-			const response = await fetch(`${API_BASE_URL}/api/website-tokens`, {
+			const response = await safeFetch(`${API_BASE_URL}/api/website-tokens`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
@@ -73,7 +73,7 @@ describe('Website Token API Endpoints', () => {
 		it('should create a website token with an expiration date', async () => {
 			const tokenName = `Expiring Token ${Date.now()}`;
 			const expiresAt = new Date(Date.now() + 86_400_000).toISOString(); // +1 day
-			const response = await fetch(`${API_BASE_URL}/api/website-tokens`, {
+			const response = await safeFetch(`${API_BASE_URL}/api/website-tokens`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
@@ -92,7 +92,7 @@ describe('Website Token API Endpoints', () => {
 		});
 
 		it('should fail to create token without a name', async () => {
-			const response = await fetch(`${API_BASE_URL}/api/website-tokens`, {
+			const response = await safeFetch(`${API_BASE_URL}/api/website-tokens`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
@@ -107,7 +107,7 @@ describe('Website Token API Endpoints', () => {
 		});
 
 		it('should reject unauthenticated requests', async () => {
-			const response = await fetch(`${API_BASE_URL}/api/website-tokens`, {
+			const response = await safeFetch(`${API_BASE_URL}/api/website-tokens`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ name: 'Unauth Token' })
@@ -121,13 +121,13 @@ describe('Website Token API Endpoints', () => {
 		it('should list created tokens', async () => {
 			// Create a token first
 			const tokenName = `List Token ${Date.now()}`;
-			await fetch(`${API_BASE_URL}/api/website-tokens`, {
+			await safeFetch(`${API_BASE_URL}/api/website-tokens`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json', Cookie: authCookie },
 				body: JSON.stringify({ name: tokenName })
 			});
 
-			const response = await fetch(`${API_BASE_URL}/api/website-tokens`, {
+			const response = await safeFetch(`${API_BASE_URL}/api/website-tokens`, {
 				headers: { Cookie: authCookie }
 			});
 
@@ -144,7 +144,7 @@ describe('Website Token API Endpoints', () => {
 	describe('DELETE /api/website-tokens/[id]', () => {
 		it('should delete an existing token', async () => {
 			// Create
-			const createRes = await fetch(`${API_BASE_URL}/api/website-tokens`, {
+			const createRes = await safeFetch(`${API_BASE_URL}/api/website-tokens`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json', Cookie: authCookie },
 				body: JSON.stringify({ name: `Delete Me ${Date.now()}` })
@@ -153,14 +153,14 @@ describe('Website Token API Endpoints', () => {
 			const tokenId = createData._id;
 
 			// Delete
-			const deleteRes = await fetch(`${API_BASE_URL}/api/website-tokens/${tokenId}`, {
+			const deleteRes = await safeFetch(`${API_BASE_URL}/api/website-tokens/${tokenId}`, {
 				method: 'DELETE',
 				headers: { Cookie: authCookie }
 			});
 			expect(deleteRes.status).toBe(204);
 
 			// Verify gone (List shouldn't have it)
-			const listRes = await fetch(`${API_BASE_URL}/api/website-tokens`, {
+			const listRes = await safeFetch(`${API_BASE_URL}/api/website-tokens`, {
 				headers: { Cookie: authCookie }
 			});
 			const listData = await listRes.json();

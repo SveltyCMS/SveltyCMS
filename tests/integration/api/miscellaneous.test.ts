@@ -15,7 +15,7 @@
  */
 
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
-import { getApiBaseUrl, waitForServer } from '../helpers/server';
+import { getApiBaseUrl, safeFetch, waitForServer } from '../helpers/server';
 import { cleanupTestDatabase, prepareAuthenticatedContext } from '../helpers/test-setup';
 
 const BASE_URL = getApiBaseUrl();
@@ -32,7 +32,7 @@ afterAll(async () => {
 
 describe('Search API - Global Search', () => {
 	it('should search across collections', async () => {
-		const response = await fetch(`${BASE_URL}/api/search?q=test`, {
+		const response = await safeFetch(`${BASE_URL}/api/search?q=test`, {
 			headers: { Cookie: authCookie }
 		});
 
@@ -43,7 +43,7 @@ describe('Search API - Global Search', () => {
 	});
 
 	it('should handle empty search query', async () => {
-		const response = await fetch(`${BASE_URL}/api/search`, {
+		const response = await safeFetch(`${BASE_URL}/api/search`, {
 			headers: { Cookie: authCookie }
 		});
 
@@ -51,7 +51,7 @@ describe('Search API - Global Search', () => {
 	});
 
 	it('should filter by collection type', async () => {
-		const response = await fetch(`${BASE_URL}/api/search?q=test&type=Posts`, {
+		const response = await safeFetch(`${BASE_URL}/api/search?q=test&type=Posts`, {
 			headers: { Cookie: authCookie }
 		});
 
@@ -59,7 +59,7 @@ describe('Search API - Global Search', () => {
 	});
 
 	it('should support pagination', async () => {
-		const response = await fetch(`${BASE_URL}/api/search?q=test&page=1&limit=10`, {
+		const response = await safeFetch(`${BASE_URL}/api/search?q=test&page=1&limit=10`, {
 			headers: { Cookie: authCookie }
 		});
 
@@ -67,12 +67,12 @@ describe('Search API - Global Search', () => {
 	});
 
 	it('should require authentication', async () => {
-		const response = await fetch(`${BASE_URL}/api/search?q=test`);
+		const response = await safeFetch(`${BASE_URL}/api/search?q=test`);
 		expect(response.status).toBe(401);
 	});
 
 	it('should return relevant search results', async () => {
-		const response = await fetch(`${BASE_URL}/api/search?q=test`, {
+		const response = await safeFetch(`${BASE_URL}/api/search?q=test`, {
 			headers: { Cookie: authCookie }
 		});
 
@@ -85,7 +85,7 @@ describe('Search API - Global Search', () => {
 
 describe('Email API - Send Mail', () => {
 	it('should reject email when not configured', async () => {
-		const response = await fetch(`${BASE_URL}/api/send-mail`, {
+		const response = await safeFetch(`${BASE_URL}/api/send-mail`, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json',
@@ -102,7 +102,7 @@ describe('Email API - Send Mail', () => {
 	});
 
 	it('should validate email parameters', async () => {
-		const response = await fetch(`${BASE_URL}/api/send-mail`, {
+		const response = await safeFetch(`${BASE_URL}/api/send-mail`, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json',
@@ -118,7 +118,7 @@ describe('Email API - Send Mail', () => {
 	});
 
 	it('should validate email addresses', async () => {
-		const response = await fetch(`${BASE_URL}/api/send-mail`, {
+		const response = await safeFetch(`${BASE_URL}/api/send-mail`, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json',
@@ -135,7 +135,7 @@ describe('Email API - Send Mail', () => {
 	});
 
 	it('should require authentication', async () => {
-		const response = await fetch(`${BASE_URL}/api/send-mail`, {
+		const response = await safeFetch(`${BASE_URL}/api/send-mail`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({
@@ -149,7 +149,7 @@ describe('Email API - Send Mail', () => {
 	});
 
 	it('should reject HTML email when not configured', async () => {
-		const response = await fetch(`${BASE_URL}/api/send-mail`, {
+		const response = await safeFetch(`${BASE_URL}/api/send-mail`, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json',
@@ -169,7 +169,7 @@ describe('Email API - Send Mail', () => {
 
 describe('Cache API - Clear Cache', () => {
 	it('should clear cache', async () => {
-		const response = await fetch(`${BASE_URL}/api/cache/clear`, {
+		const response = await safeFetch(`${BASE_URL}/api/cache/clear`, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json',
@@ -181,7 +181,7 @@ describe('Cache API - Clear Cache', () => {
 	});
 
 	it('should support selective cache clearing', async () => {
-		const response = await fetch(`${BASE_URL}/api/cache/clear`, {
+		const response = await safeFetch(`${BASE_URL}/api/cache/clear`, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json',
@@ -196,7 +196,7 @@ describe('Cache API - Clear Cache', () => {
 	});
 
 	it('should require admin authentication', async () => {
-		const response = await fetch(`${BASE_URL}/api/cache/clear`, {
+		const response = await safeFetch(`${BASE_URL}/api/cache/clear`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' }
 		});
@@ -205,7 +205,7 @@ describe('Cache API - Clear Cache', () => {
 	});
 
 	it('should return cache clear results', async () => {
-		const response = await fetch(`${BASE_URL}/api/cache/clear`, {
+		const response = await safeFetch(`${BASE_URL}/api/cache/clear`, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json',
@@ -222,7 +222,7 @@ describe('Cache API - Clear Cache', () => {
 
 describe('Metrics API - Performance Metrics', () => {
 	it('should get performance metrics', async () => {
-		const response = await fetch(`${BASE_URL}/api/metrics`, {
+		const response = await safeFetch(`${BASE_URL}/api/metrics`, {
 			headers: { Cookie: authCookie }
 		});
 
@@ -233,7 +233,7 @@ describe('Metrics API - Performance Metrics', () => {
 	});
 
 	it('should include system metrics', async () => {
-		const response = await fetch(`${BASE_URL}/api/metrics`, {
+		const response = await safeFetch(`${BASE_URL}/api/metrics`, {
 			headers: { Cookie: authCookie }
 		});
 
@@ -244,12 +244,12 @@ describe('Metrics API - Performance Metrics', () => {
 	});
 
 	it('should require authentication', async () => {
-		const response = await fetch(`${BASE_URL}/api/metrics`);
+		const response = await safeFetch(`${BASE_URL}/api/metrics`);
 		expect(response.status).toBe(401);
 	});
 
 	it('should support metric filtering', async () => {
-		const response = await fetch(`${BASE_URL}/api/metrics?type=system`, {
+		const response = await safeFetch(`${BASE_URL}/api/metrics?type=system`, {
 			headers: { Cookie: authCookie }
 		});
 
@@ -259,7 +259,7 @@ describe('Metrics API - Performance Metrics', () => {
 
 describe('Permission API - Update Permissions', () => {
 	it('should reject invalid user permissions', async () => {
-		const response = await fetch(`${BASE_URL}/api/permission/update`, {
+		const response = await safeFetch(`${BASE_URL}/api/permission/update`, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json',
@@ -275,7 +275,7 @@ describe('Permission API - Update Permissions', () => {
 	});
 
 	it('should validate permission data', async () => {
-		const response = await fetch(`${BASE_URL}/api/permission/update`, {
+		const response = await safeFetch(`${BASE_URL}/api/permission/update`, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json',
@@ -290,7 +290,7 @@ describe('Permission API - Update Permissions', () => {
 	});
 
 	it('should require admin authentication', async () => {
-		const response = await fetch(`${BASE_URL}/api/permission/update`, {
+		const response = await safeFetch(`${BASE_URL}/api/permission/update`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({})
@@ -302,7 +302,7 @@ describe('Permission API - Update Permissions', () => {
 
 describe('Version Check API - Version Information', () => {
 	it('should get version information', async () => {
-		const response = await fetch(`${BASE_URL}/api/version-check`, {
+		const response = await safeFetch(`${BASE_URL}/api/version-check`, {
 			headers: { Cookie: authCookie }
 		});
 
@@ -313,7 +313,7 @@ describe('Version Check API - Version Information', () => {
 	});
 
 	it('should check for updates', async () => {
-		const response = await fetch(`${BASE_URL}/api/version-check?checkUpdates=true`, {
+		const response = await safeFetch(`${BASE_URL}/api/version-check?checkUpdates=true`, {
 			headers: { Cookie: authCookie }
 		});
 
@@ -321,7 +321,7 @@ describe('Version Check API - Version Information', () => {
 	});
 
 	it('should include current version', async () => {
-		const response = await fetch(`${BASE_URL}/api/version-check`, {
+		const response = await safeFetch(`${BASE_URL}/api/version-check`, {
 			headers: { Cookie: authCookie }
 		});
 
@@ -334,7 +334,7 @@ describe('Version Check API - Version Information', () => {
 
 describe('Marketplace API - Widget Marketplace', () => {
 	it('should list marketplace widgets', async () => {
-		const response = await fetch(`${BASE_URL}/api/marketplace`, {
+		const response = await safeFetch(`${BASE_URL}/api/marketplace`, {
 			headers: { Cookie: authCookie }
 		});
 
@@ -345,7 +345,7 @@ describe('Marketplace API - Widget Marketplace', () => {
 	});
 
 	it('should search marketplace', async () => {
-		const response = await fetch(`${BASE_URL}/api/marketplace?search=test`, {
+		const response = await safeFetch(`${BASE_URL}/api/marketplace?search=test`, {
 			headers: { Cookie: authCookie }
 		});
 
@@ -353,7 +353,7 @@ describe('Marketplace API - Widget Marketplace', () => {
 	});
 
 	it('should filter by category', async () => {
-		const response = await fetch(`${BASE_URL}/api/marketplace?category=analytics`, {
+		const response = await safeFetch(`${BASE_URL}/api/marketplace?category=analytics`, {
 			headers: { Cookie: authCookie }
 		});
 
@@ -361,14 +361,14 @@ describe('Marketplace API - Widget Marketplace', () => {
 	});
 
 	it('should require authentication', async () => {
-		const response = await fetch(`${BASE_URL}/api/marketplace`);
+		const response = await safeFetch(`${BASE_URL}/api/marketplace`);
 		expect(response.status).toBe(401);
 	});
 });
 
 describe('Config Sync API - Configuration Synchronization', () => {
 	it('should sync configuration', async () => {
-		const response = await fetch(`${BASE_URL}/api/config-sync`, {
+		const response = await safeFetch(`${BASE_URL}/api/config-sync`, {
 			headers: { Cookie: authCookie }
 		});
 
@@ -376,14 +376,14 @@ describe('Config Sync API - Configuration Synchronization', () => {
 	});
 
 	it('should require admin authentication', async () => {
-		const response = await fetch(`${BASE_URL}/api/config-sync`);
+		const response = await safeFetch(`${BASE_URL}/api/config-sync`);
 		expect(response.status).toBe(401);
 	});
 });
 
 describe('Debug API - Debug Information', () => {
 	it('should restrict debug information', async () => {
-		const response = await fetch(`${BASE_URL}/api/debug`, {
+		const response = await safeFetch(`${BASE_URL}/api/debug`, {
 			headers: { Cookie: authCookie }
 		});
 
@@ -391,12 +391,12 @@ describe('Debug API - Debug Information', () => {
 	});
 
 	it('should require admin authentication', async () => {
-		const response = await fetch(`${BASE_URL}/api/debug`);
+		const response = await safeFetch(`${BASE_URL}/api/debug`);
 		expect(response.status).toBe(401);
 	});
 
 	it('should restrict system information access', async () => {
-		const response = await fetch(`${BASE_URL}/api/debug`, {
+		const response = await safeFetch(`${BASE_URL}/api/debug`, {
 			headers: { Cookie: authCookie }
 		});
 
