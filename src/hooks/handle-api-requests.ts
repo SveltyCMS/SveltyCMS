@@ -133,7 +133,7 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
 			logger.trace('Logout endpoint - bypassing permission checks');
 			// Proceed to resolve
 		} else {
-			if (!hasApiPermission(locals.user.role, apiEndpoint)) {
+			if (!locals.isAdmin && !hasApiPermission(locals.user.role, apiEndpoint)) {
 				logger.warn(
 					`User ${locals.user._id} (role: ${locals.user.role}, tenant: ${locals.tenantId || 'global'}) ` +
 						`denied access to /api/${apiEndpoint} - insufficient permissions`
