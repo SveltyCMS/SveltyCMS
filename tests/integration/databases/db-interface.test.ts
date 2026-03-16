@@ -15,36 +15,77 @@ describe('Database Interface Contract Tests', () => {
 	let db: any = null;
 
 	beforeAll(async () => {
-		// Import the REAL adapter implementation directly, bypassing the mocked 'db.ts'
-		const { MongoDBAdapter } = await import('../../../src/databases/mongodb/mongo-db-adapter');
-		// biome-ignore lint/suspicious/noTsIgnore: private.test.ts is generated at runtime in CI
-		// @ts-ignore - private.test.ts is generated at runtime in CI, not present at type-check time
-		const { privateEnv } = await import('../../../config/private.test');
+		let privateEnv: any;
+		try {
+			// biome-ignore lint/suspicious/noTsIgnore: private.test.ts is generated at runtime in CI
+			// @ts-ignore - private.test.ts is generated at runtime in CI, not present at type-check time
+			const configModule = await import('../../../config/private.test');
+			privateEnv = configModule.privateEnv;
+		} catch {
+			privateEnv = {
+				DB_TYPE: process.env.DB_TYPE,
+				DB_HOST: process.env.DB_HOST,
+				DB_PORT: process.env.DB_PORT,
+				DB_NAME: process.env.DB_NAME,
+				DB_USER: process.env.DB_USER,
+				DB_PASSWORD: process.env.DB_PASSWORD
+			};
+		}
 
 		if (!privateEnv?.DB_TYPE) {
 			console.warn('Skipping DB Interface tests: No private.test.ts or DB_TYPE found');
 			return;
 		}
 
-		db = new MongoDBAdapter();
-
+		const dbType = privateEnv.DB_TYPE;
 		const host = privateEnv.DB_HOST || process.env.DB_HOST || '127.0.0.1';
-		const port = privateEnv.DB_PORT || process.env.DB_PORT || '27017';
 		const dbName = privateEnv.DB_NAME || process.env.DB_NAME || 'sveltycms_test';
 
-		// Construct basic connection string for test
-		const connectionString = `mongodb://${host}:${port}/${dbName}`;
-
+		// Dynamically import the correct adapter based on DB_TYPE
 		try {
-			await db.connect(connectionString);
-			console.log('DB Interface Test: Connected to', connectionString);
+			if (dbType === 'mongodb') {
+				const { MongoDBAdapter } = await import('../../../src/databases/mongodb/mongo-db-adapter');
+				db = new MongoDBAdapter();
+				const port = privateEnv.DB_PORT || process.env.DB_PORT || '27017';
+				let connectionString = `mongodb://${host}:${port}/${dbName}`;
+				if (privateEnv.DB_USER && privateEnv.DB_PASSWORD) {
+					connectionString = `mongodb://${privateEnv.DB_USER}:${privateEnv.DB_PASSWORD}@${host}:${port}/${dbName}`;
+				}
+				await db.connect(connectionString);
+			} else if (dbType === 'mariadb') {
+				const { MariaDBAdapter } = await import('../../../src/databases/mariadb/adapter');
+				db = new MariaDBAdapter();
+				const port = privateEnv.DB_PORT || process.env.DB_PORT || '3306';
+				const connStr = `mariadb://${privateEnv.DB_USER}:${privateEnv.DB_PASSWORD}@${host}:${port}/${dbName}`;
+				await db.connect(connStr);
+			} else if (dbType === 'postgresql') {
+				const { PostgreSQLAdapter } = await import('../../../src/databases/postgresql/adapter');
+				db = new PostgreSQLAdapter();
+				const port = privateEnv.DB_PORT || process.env.DB_PORT || '5432';
+				const connStr = `postgresql://${privateEnv.DB_USER}:${privateEnv.DB_PASSWORD}@${host}:${port}/${dbName}`;
+				await db.connect(connStr);
+			} else if (dbType === 'sqlite') {
+				const { SQLiteAdapter } = await import('../../../src/databases/sqlite/adapter');
+				db = new SQLiteAdapter();
+				await db.connect(dbName);
+			} else {
+				console.warn(`Skipping DB Interface tests: Unknown DB_TYPE '${dbType}'`);
+				return;
+			}
+
+			console.log(`DB Interface Test: Connected to ${dbType} at ${host}`);
 
 			// CRITICAL: Initialize lazy-loaded features for interface testing
-			await Promise.all([db.ensureAuth(), db.ensureMedia(), db.ensureContent(), db.ensureSystem(), db.ensureMonitoring()]);
+			const initPromises = [];
+			if (db.ensureAuth) initPromises.push(db.ensureAuth());
+			if (db.ensureMedia) initPromises.push(db.ensureMedia());
+			if (db.ensureContent) initPromises.push(db.ensureContent());
+			if (db.ensureSystem) initPromises.push(db.ensureSystem());
+			if (db.ensureMonitoring) initPromises.push(db.ensureMonitoring());
+			await Promise.all(initPromises);
 			console.log('DB Interface Test: All features initialized');
 		} catch (err) {
-			console.error('DB Interface Test Check: Failed to connect or initialize features', err);
-			// We don't throw here to allow tests to fail gracefully with "db not connected"
+			console.error('DB Interface Test: Failed to connect or initialize features', err);
 		}
 	});
 

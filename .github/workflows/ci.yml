@@ -344,7 +344,7 @@ jobs:
           DB_USER: testuser
           DB_PASSWORD: testpass
           TEST_MODE: true
-        run: bun run scripts/run-integration-tests.ts
+        run: bun run scripts/run-integration-tests.ts --filter=${{ matrix.db }}
 
   # ------------------------------------------------
   # 6. E2E tests (playwright shard)

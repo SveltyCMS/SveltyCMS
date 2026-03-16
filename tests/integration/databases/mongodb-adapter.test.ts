@@ -33,8 +33,8 @@ describe('MongoDB Adapter Functional Tests', () => {
 		const configModule = await import('../../../config/private.test');
 		privateEnv = configModule.privateEnv;
 
-		if (!privateEnv?.DB_TYPE) {
-			console.warn('Skipping MongoDB Adapter tests: No private.test.ts or DB_TYPE found');
+		if (!privateEnv?.DB_TYPE || privateEnv.DB_TYPE !== 'mongodb') {
+			console.warn(`Skipping MongoDB Adapter tests: DB_TYPE is '${privateEnv?.DB_TYPE}', not mongodb`);
 			return;
 		}
 

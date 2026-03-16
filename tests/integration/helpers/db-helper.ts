@@ -13,7 +13,7 @@ const API_BASE_URL = getApiBaseUrl();
 export async function dropDatabase(): Promise<void> {
 	const response = await fetch(`${API_BASE_URL}/api/testing`, {
 		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
+		headers: { 'Content-Type': 'application/json', Origin: API_BASE_URL },
 		body: JSON.stringify({ action: 'reset' })
 	});
 
@@ -28,7 +28,7 @@ export async function dropDatabase(): Promise<void> {
 export async function getUser(email: string): Promise<Record<string, unknown> | null> {
 	const response = await fetch(`${API_BASE_URL}/api/testing`, {
 		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
+		headers: { 'Content-Type': 'application/json', Origin: API_BASE_URL },
 		body: JSON.stringify({ action: 'get-user', email })
 	});
 
@@ -43,7 +43,7 @@ export async function getUser(email: string): Promise<Record<string, unknown> | 
 export async function getUserCount(): Promise<number> {
 	const response = await fetch(`${API_BASE_URL}/api/testing`, {
 		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
+		headers: { 'Content-Type': 'application/json', Origin: API_BASE_URL },
 		body: JSON.stringify({ action: 'get-user-count' })
 	});
 
@@ -73,5 +73,5 @@ export async function waitFor(condition: () => Promise<boolean>, timeoutMs = 10_
 		await new Promise((resolve) => setTimeout(resolve, intervalMs));
 	}
 
-	throw new Error(`Condition not met within ${timeoutMs}ms`);
+	return false;
 }

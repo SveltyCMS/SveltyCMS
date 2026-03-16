@@ -43,7 +43,8 @@ describe('Auth System Functional Tests', () => {
 			};
 		}
 
-		if (!privateEnv?.DB_TYPE) {
+		if (!privateEnv?.DB_TYPE || privateEnv.DB_TYPE !== 'mongodb') {
+			console.warn(`Skipping Auth System tests: DB_TYPE is '${privateEnv?.DB_TYPE}', not mongodb`);
 			return;
 		}
 
