@@ -105,7 +105,7 @@ jobs:
 
   check:
     name: ✅ Check
-    needs: bootstrap
+    needs: build
     runs-on: ubuntu-latest
 
     steps:
@@ -116,6 +116,10 @@ jobs:
         with:
           name: workspace-meta
 
+      - uses: actions/download-artifact@v6
+        with:
+          name: build-output
+
       - uses: actions/cache@v5
         with:
           path: |
@@ -124,7 +128,7 @@ jobs:
           key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
 
       - run: bun install --frozen-lockfile --prefer-offline --cache-dir .bun-cache
-      
+
       - name: Run System Setup (Real Black-Box)
         env:
           DB_TYPE: sqlite
@@ -132,11 +136,17 @@ jobs:
         run: |
           # Start server in background
           bun run preview --port 4173 --host 127.0.0.1 > preview.log 2>&1 &
-          # Wait for server health
-          bun x wait-on http://127.0.0.1:4173/api/system/health --timeout 60000
+          # Poll for server readiness
+          for i in $(seq 1 60); do
+            if curl -sf http://127.0.0.1:4173/api/system/health > /dev/null 2>&1; then
+              echo "Server is ready"
+              break
+            fi
+            sleep 1
+          done
           # Run system setup via API
           bun run scripts/setup-system.ts
-          
+
       - run: bun run check
 
   unit-vitest:
@@ -400,8 +410,14 @@ jobs:
           # Start server in background
           bun run preview --port 4173 --host 127.0.0.1 > preview.log 2>&1 &
 
-          # Wait for server health
-          bun x wait-on http://127.0.0.1:4173/api/system/health --timeout 60000
+          # Poll for server readiness
+          for i in $(seq 1 60); do
+            if curl -sf http://127.0.0.1:4173/api/system/health > /dev/null 2>&1; then
+              echo "Server is ready"
+              break
+            fi
+            sleep 1
+          done
 
           # Run system setup via API
           bun run scripts/setup-system.ts
@@ -452,8 +468,14 @@ jobs:
         run: |
           # Start server in background
           bun run preview --port 4173 --host 127.0.0.1 > preview.log 2>&1 &
-          # Wait for server health
-          bun x wait-on http://127.0.0.1:4173/api/system/health --timeout 60000
+          # Poll for server readiness
+          for i in $(seq 1 60); do
+            if curl -sf http://127.0.0.1:4173/api/system/health > /dev/null 2>&1; then
+              echo "Server is ready"
+              break
+            fi
+            sleep 1
+          done
           # Run system setup via API
           bun run scripts/setup-system.ts
 
