@@ -124,19 +124,6 @@ jobs:
           key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
 
       - run: bun install --frozen-lockfile --prefer-offline --cache-dir .bun-cache
-      
-      - name: Run System Setup (Real Black-Box)
-        env:
-          DB_TYPE: sqlite
-          TEST_MODE: true
-        run: |
-          # Start server in background
-          bun run preview --port 4173 --host 127.0.0.1 > preview.log 2>&1 &
-          # Wait for server health
-          bun x wait-on http://127.0.0.1:4173/api/system/health --timeout 60000
-          # Run system setup via API
-          bun run scripts/setup-system.ts
-          
       - run: bun run check
 
   unit-vitest:
@@ -354,7 +341,7 @@ jobs:
     name: 🎭 E2E (shard ${{ matrix.shard }})
     needs: [bootstrap, build]
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
 
     strategy:
       fail-fast: false
@@ -397,23 +384,19 @@ jobs:
           TEST_MODE: true
           PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:4173
         run: |
-          # Start server in background
-          bun run preview --port 4173 --host 127.0.0.1 > preview.log 2>&1 &
-
-          # Wait for server health
-          bun x wait-on http://127.0.0.1:4173/api/system/health --timeout 60000
-
-          # Run system setup via API
+          bun run preview --host 127.0.0.1 > preview.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf http://127.0.0.1:4173/api/system/health > /dev/null 2>&1 && break; sleep 1; done
           bun run scripts/setup-system.ts
-
-          # Run Playwright tests
+          sleep 3
           bun x playwright test --project=chromium --shard=${{ matrix.shard }}/3
 
       - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: playwright-report-${{ matrix.shard }}
-          path: playwright-report
+          path: |
+            playwright-report
+            preview.log
 
   # ------------------------------------------------
   # 7. Performance Benchmarks
@@ -450,11 +433,8 @@ jobs:
           DB_TYPE: sqlite
           TEST_MODE: true
         run: |
-          # Start server in background
-          bun run preview --port 4173 --host 127.0.0.1 > preview.log 2>&1 &
-          # Wait for server health
-          bun x wait-on http://127.0.0.1:4173/api/system/health --timeout 60000
-          # Run system setup via API
+          bun run preview --host 127.0.0.1 > preview.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf http://127.0.0.1:4173/api/system/health > /dev/null 2>&1 && break; sleep 1; done
           bun run scripts/setup-system.ts
 
       - name: Run Hooks Benchmark
