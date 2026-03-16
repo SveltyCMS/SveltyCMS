@@ -89,7 +89,7 @@ describe('System Configuration API Endpoints', () => {
 			const value = { some: 'data' };
 
 			// POST
-			const postResp = await fetch(`${API_BASE_URL}/api/systemPreferences`, {
+			const postResp = await fetch(`${API_BASE_URL}/api/system-preferences`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
@@ -100,7 +100,7 @@ describe('System Configuration API Endpoints', () => {
 			expect(postResp.status).toBe(200);
 
 			// GET
-			const getResp = await fetch(`${API_BASE_URL}/api/systemPreferences?key=${key}`, {
+			const getResp = await fetch(`${API_BASE_URL}/api/system-preferences?key=${key}`, {
 				headers: { Cookie: authCookie }
 			});
 			expect(getResp.status).toBe(200);

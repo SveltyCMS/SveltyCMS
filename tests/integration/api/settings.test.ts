@@ -9,8 +9,8 @@
  * - GET /api/settings/public/stream - Stream public settings (SSE)
  * - POST /api/system-settings/export - Export system settings
  * - POST /api/system-settings/import - Import system settings
- * - GET /api/systemPreferences - Get user preferences
- * - PUT /api/systemPreferences - Update user preferences
+ * - GET /api/system-preferences - Get user preferences
+ * - PUT /api/system-preferences - Update user preferences
  */
 
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
@@ -408,7 +408,7 @@ describe('Settings API - Import System Settings', () => {
 
 describe('Settings API - User Preferences', () => {
 	it('should get user preferences', async () => {
-		const response = await fetch(`${BASE_URL}/api/systemPreferences?key=theme`, {
+		const response = await fetch(`${BASE_URL}/api/system-preferences?key=theme`, {
 			headers: { Cookie: authCookie }
 		});
 
@@ -421,7 +421,7 @@ describe('Settings API - User Preferences', () => {
 	});
 
 	it('should update user preferences', async () => {
-		const response = await fetch(`${BASE_URL}/api/systemPreferences`, {
+		const response = await fetch(`${BASE_URL}/api/system-preferences`, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json',
@@ -437,13 +437,13 @@ describe('Settings API - User Preferences', () => {
 	});
 
 	it('should require authentication for preferences', async () => {
-		const response = await fetch(`${BASE_URL}/api/systemPreferences`);
+		const response = await fetch(`${BASE_URL}/api/system-preferences`);
 		expect([401, 403]).toContain(response.status);
 	});
 
 	it('should isolate preferences per user', async () => {
 		// User preferences should be scoped to the logged-in user
-		const response = await fetch(`${BASE_URL}/api/systemPreferences`, {
+		const response = await fetch(`${BASE_URL}/api/system-preferences`, {
 			headers: { Cookie: authCookie }
 		});
 

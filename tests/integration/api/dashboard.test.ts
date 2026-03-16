@@ -6,12 +6,12 @@
  * ============================
  * - GET /api/dashboard/health - System health check
  * - GET /api/dashboard/metrics - Performance metrics
- * - GET /api/dashboard/systemInfo - System information (CPU, memory, disk)
+ * - GET /api/dashboard/system-info - System information (CPU, memory, disk)
  * - GET /api/dashboard/logs - System logs with pagination and filtering
- * - GET /api/dashboard/last5Content - Recent content items
+ * - GET /api/dashboard/last5-content - Recent content items
  * - GET /api/dashboard/last5media - Recent media files
- * - GET /api/dashboard/online_user - Currently online users
- * - GET /api/dashboard/systemMessages - System messages from logs
+ * - GET /api/dashboard/online-user - Currently online users
+ * - GET /api/dashboard/system-messages - System messages from logs
  * - GET /api/dashboard/cache-metrics - Cache performance metrics
  */
 
@@ -137,7 +137,7 @@ describe('Dashboard API - Metrics Endpoint', () => {
 
 describe('Dashboard API - System Info Endpoint', () => {
 	test('should return all system info by default', async () => {
-		const response = await fetch(`${BASE_URL}/api/dashboard/systemInfo`, {
+		const response = await fetch(`${BASE_URL}/api/dashboard/system-info`, {
 			headers: { Cookie: authCookie }
 		});
 
@@ -151,7 +151,7 @@ describe('Dashboard API - System Info Endpoint', () => {
 	});
 
 	test('should return only CPU info when type=cpu', async () => {
-		const response = await fetch(`${BASE_URL}/api/dashboard/systemInfo?type=cpu`, {
+		const response = await fetch(`${BASE_URL}/api/dashboard/system-info?type=cpu`, {
 			headers: { Cookie: authCookie }
 		});
 
@@ -164,7 +164,7 @@ describe('Dashboard API - System Info Endpoint', () => {
 	});
 
 	test('should return only memory info when type=memory', async () => {
-		const response = await fetch(`${BASE_URL}/api/dashboard/systemInfo?type=memory`, {
+		const response = await fetch(`${BASE_URL}/api/dashboard/system-info?type=memory`, {
 			headers: { Cookie: authCookie }
 		});
 
@@ -177,7 +177,7 @@ describe('Dashboard API - System Info Endpoint', () => {
 	});
 
 	test('should return only disk info when type=disk', async () => {
-		const response = await fetch(`${BASE_URL}/api/dashboard/systemInfo?type=disk`, {
+		const response = await fetch(`${BASE_URL}/api/dashboard/system-info?type=disk`, {
 			headers: { Cookie: authCookie }
 		});
 
@@ -191,7 +191,7 @@ describe('Dashboard API - System Info Endpoint', () => {
 	});
 
 	test('should have valid CPU info structure', async () => {
-		const response = await fetch(`${BASE_URL}/api/dashboard/systemInfo?type=cpu`, {
+		const response = await fetch(`${BASE_URL}/api/dashboard/system-info?type=cpu`, {
 			headers: { Cookie: authCookie }
 		});
 
@@ -204,7 +204,7 @@ describe('Dashboard API - System Info Endpoint', () => {
 	});
 
 	test('should require authentication', async () => {
-		const response = await fetch(`${BASE_URL}/api/dashboard/systemInfo`);
+		const response = await fetch(`${BASE_URL}/api/dashboard/system-info`);
 		expect(response.status).toBe(401);
 	});
 });
@@ -284,7 +284,7 @@ describe('Dashboard API - Logs Endpoint', () => {
 
 describe('Dashboard API - Last 5 Content Endpoint', () => {
 	test('should return recent content items', async () => {
-		const response = await fetch(`${BASE_URL}/api/dashboard/last5Content`, {
+		const response = await fetch(`${BASE_URL}/api/dashboard/last5-content`, {
 			headers: { Cookie: authCookie }
 		});
 
@@ -296,7 +296,7 @@ describe('Dashboard API - Last 5 Content Endpoint', () => {
 	});
 
 	test('should have valid content item structure', async () => {
-		const response = await fetch(`${BASE_URL}/api/dashboard/last5Content`, {
+		const response = await fetch(`${BASE_URL}/api/dashboard/last5-content`, {
 			headers: { Cookie: authCookie }
 		});
 
@@ -314,7 +314,7 @@ describe('Dashboard API - Last 5 Content Endpoint', () => {
 	});
 
 	test('should respect custom limit parameter', async () => {
-		const response = await fetch(`${BASE_URL}/api/dashboard/last5Content?limit=3`, {
+		const response = await fetch(`${BASE_URL}/api/dashboard/last5-content?limit=3`, {
 			headers: { Cookie: authCookie }
 		});
 
@@ -326,7 +326,7 @@ describe('Dashboard API - Last 5 Content Endpoint', () => {
 	});
 
 	test('should require authentication', async () => {
-		const response = await fetch(`${BASE_URL}/api/dashboard/last5Content`);
+		const response = await fetch(`${BASE_URL}/api/dashboard/last5-content`);
 		expect(response.status).toBe(401);
 	});
 });
@@ -373,7 +373,7 @@ describe('Dashboard API - Last 5 Media Endpoint', () => {
 
 describe('Dashboard API - Online Users Endpoint', () => {
 	test('should return online users list', async () => {
-		const response = await fetch(`${BASE_URL}/api/dashboard/online_user`, {
+		const response = await fetch(`${BASE_URL}/api/dashboard/online-user`, {
 			headers: { Cookie: authCookie }
 		});
 
@@ -385,7 +385,7 @@ describe('Dashboard API - Online Users Endpoint', () => {
 	});
 
 	test('should have valid online user structure', async () => {
-		const response = await fetch(`${BASE_URL}/api/dashboard/online_user`, {
+		const response = await fetch(`${BASE_URL}/api/dashboard/online-user`, {
 			headers: { Cookie: authCookie }
 		});
 
@@ -402,7 +402,7 @@ describe('Dashboard API - Online Users Endpoint', () => {
 	});
 
 	test('should include current user in online list', async () => {
-		const response = await fetch(`${BASE_URL}/api/dashboard/online_user`, {
+		const response = await fetch(`${BASE_URL}/api/dashboard/online-user`, {
 			headers: { Cookie: authCookie }
 		});
 
@@ -413,7 +413,7 @@ describe('Dashboard API - Online Users Endpoint', () => {
 	});
 
 	test('should sort users by online time (longest first)', async () => {
-		const response = await fetch(`${BASE_URL}/api/dashboard/online_user`, {
+		const response = await fetch(`${BASE_URL}/api/dashboard/online-user`, {
 			headers: { Cookie: authCookie }
 		});
 
@@ -429,7 +429,7 @@ describe('Dashboard API - Online Users Endpoint', () => {
 
 describe('Dashboard API - System Messages Endpoint', () => {
 	test('should return system messages', async () => {
-		const response = await fetch(`${BASE_URL}/api/dashboard/systemMessages`, {
+		const response = await fetch(`${BASE_URL}/api/dashboard/system-messages`, {
 			headers: { Cookie: authCookie }
 		});
 
@@ -440,7 +440,7 @@ describe('Dashboard API - System Messages Endpoint', () => {
 	});
 
 	test('should have valid message structure', async () => {
-		const response = await fetch(`${BASE_URL}/api/dashboard/systemMessages`, {
+		const response = await fetch(`${BASE_URL}/api/dashboard/system-messages`, {
 			headers: { Cookie: authCookie }
 		});
 
@@ -459,7 +459,7 @@ describe('Dashboard API - System Messages Endpoint', () => {
 	});
 
 	test('should respect limit parameter', async () => {
-		const response = await fetch(`${BASE_URL}/api/dashboard/systemMessages?limit=3`, {
+		const response = await fetch(`${BASE_URL}/api/dashboard/system-messages?limit=3`, {
 			headers: { Cookie: authCookie }
 		});
 
@@ -469,7 +469,7 @@ describe('Dashboard API - System Messages Endpoint', () => {
 	});
 
 	test('should return default message when no logs exist', async () => {
-		const response = await fetch(`${BASE_URL}/api/dashboard/systemMessages`, {
+		const response = await fetch(`${BASE_URL}/api/dashboard/system-messages`, {
 			headers: { Cookie: authCookie }
 		});
 

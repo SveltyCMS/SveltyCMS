@@ -8,6 +8,16 @@
 
 import { mock } from 'bun:test';
 
+// Auto-add Origin header to all fetch requests for SvelteKit CSRF protection
+const originalFetch = globalThis.fetch;
+globalThis.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
+	const headers = new Headers(init?.headers || {});
+	if (!headers.has('Origin')) {
+		headers.set('Origin', process.env.API_BASE_URL || 'http://127.0.0.1:4173');
+	}
+	return originalFetch(input, { ...init, headers });
+};
+
 mock.module('$app/environment', () => ({
 	browser: false,
 	dev: true,

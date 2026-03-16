@@ -4,13 +4,13 @@
  *
  * Tests utility endpoints:
  * - GET /api/search - Global search
- * - POST /api/sendMail - Send email
+ * - POST /api/send-mail - Send email
  * - POST /api/cache/clear - Clear cache
  * - GET /api/metrics - Performance metrics
  * - POST /api/permission/update - Update permissions
  * - GET /api/version-check - Check version
  * - GET /api/marketplace - Widget marketplace
- * - GET /api/config_sync - Config synchronization
+ * - GET /api/config-sync - Config synchronization
  * - GET /api/debug - Debug information
  */
 
@@ -85,7 +85,7 @@ describe('Search API - Global Search', () => {
 
 describe('Email API - Send Mail', () => {
 	it('should reject email when not configured', async () => {
-		const response = await fetch(`${BASE_URL}/api/sendMail`, {
+		const response = await fetch(`${BASE_URL}/api/send-mail`, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json',
@@ -102,7 +102,7 @@ describe('Email API - Send Mail', () => {
 	});
 
 	it('should validate email parameters', async () => {
-		const response = await fetch(`${BASE_URL}/api/sendMail`, {
+		const response = await fetch(`${BASE_URL}/api/send-mail`, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json',
@@ -118,7 +118,7 @@ describe('Email API - Send Mail', () => {
 	});
 
 	it('should validate email addresses', async () => {
-		const response = await fetch(`${BASE_URL}/api/sendMail`, {
+		const response = await fetch(`${BASE_URL}/api/send-mail`, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json',
@@ -135,7 +135,7 @@ describe('Email API - Send Mail', () => {
 	});
 
 	it('should require authentication', async () => {
-		const response = await fetch(`${BASE_URL}/api/sendMail`, {
+		const response = await fetch(`${BASE_URL}/api/send-mail`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({
@@ -149,7 +149,7 @@ describe('Email API - Send Mail', () => {
 	});
 
 	it('should reject HTML email when not configured', async () => {
-		const response = await fetch(`${BASE_URL}/api/sendMail`, {
+		const response = await fetch(`${BASE_URL}/api/send-mail`, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json',
@@ -368,7 +368,7 @@ describe('Marketplace API - Widget Marketplace', () => {
 
 describe('Config Sync API - Configuration Synchronization', () => {
 	it('should sync configuration', async () => {
-		const response = await fetch(`${BASE_URL}/api/config_sync`, {
+		const response = await fetch(`${BASE_URL}/api/config-sync`, {
 			headers: { Cookie: authCookie }
 		});
 
@@ -376,7 +376,7 @@ describe('Config Sync API - Configuration Synchronization', () => {
 	});
 
 	it('should require admin authentication', async () => {
-		const response = await fetch(`${BASE_URL}/api/config_sync`);
+		const response = await fetch(`${BASE_URL}/api/config-sync`);
 		expect(response.status).toBe(401);
 	});
 });

@@ -3,18 +3,13 @@
  * @description Integration tests for Data Import/Export API endpoints
  *
  * Tests data import/export endpoints:
- * - POST /api/exportData - Export collection data
- * - POST /api/importData - Import collection data
+ * - POST /api/export-data - Export collection data
+ * - POST /api/import-data - Import collection data
  * - POST /api/export - General export endpoint
  * - POST /api/import/full - Full system import
  *
- * NOTE: These tests are currently skipped because the API endpoints have different
- * signatures than what the tests expect. The actual endpoints are:
- * - /api/collections/[collectionId]/export
- * - /api/export
- * - /api/export/full
- * - /api/system-settings/export
- * TODO: Update tests to match actual API structure
+ * NOTE: Tests use the kebab-case endpoint URLs (/api/export-data, /api/import-data)
+ * which match the SvelteKit route structure.
  */
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'bun:test';
@@ -38,7 +33,7 @@ afterAll(async () => {
 
 describe('Import/Export API - Export Collection Data', () => {
 	it('should export collection data or return 404 for non-existent collection', async () => {
-		const response = await safeFetch(`${BASE_URL}/api/exportData`, {
+		const response = await safeFetch(`${BASE_URL}/api/export-data`, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json',
@@ -59,7 +54,7 @@ describe('Import/Export API - Export Collection Data', () => {
 	});
 
 	it('should require collection name parameter', async () => {
-		const response = await safeFetch(`${BASE_URL}/api/exportData`, {
+		const response = await safeFetch(`${BASE_URL}/api/export-data`, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json',
@@ -72,7 +67,7 @@ describe('Import/Export API - Export Collection Data', () => {
 	});
 
 	it('should require authentication for export', async () => {
-		const response = await safeFetch(`${BASE_URL}/api/exportData`, {
+		const response = await safeFetch(`${BASE_URL}/api/export-data`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ collectionName: 'Posts' })
@@ -82,7 +77,7 @@ describe('Import/Export API - Export Collection Data', () => {
 	});
 
 	it('should handle non-existent collections', async () => {
-		const response = await safeFetch(`${BASE_URL}/api/exportData`, {
+		const response = await safeFetch(`${BASE_URL}/api/export-data`, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json',
@@ -97,7 +92,7 @@ describe('Import/Export API - Export Collection Data', () => {
 	});
 
 	it('should support export format options', async () => {
-		const response = await safeFetch(`${BASE_URL}/api/exportData`, {
+		const response = await safeFetch(`${BASE_URL}/api/export-data`, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json',
@@ -114,7 +109,7 @@ describe('Import/Export API - Export Collection Data', () => {
 	});
 
 	it('should include metadata in export', async () => {
-		const response = await safeFetch(`${BASE_URL}/api/exportData`, {
+		const response = await safeFetch(`${BASE_URL}/api/export-data`, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json',
@@ -136,7 +131,7 @@ describe('Import/Export API - Export Collection Data', () => {
 	});
 
 	it('should support filtered exports', async () => {
-		const response = await safeFetch(`${BASE_URL}/api/exportData`, {
+		const response = await safeFetch(`${BASE_URL}/api/export-data`, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json',
@@ -155,7 +150,7 @@ describe('Import/Export API - Export Collection Data', () => {
 
 describe('Import/Export API - Import Collection Data', () => {
 	it('should import collection data', async () => {
-		const response = await safeFetch(`${BASE_URL}/api/importData`, {
+		const response = await safeFetch(`${BASE_URL}/api/import-data`, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json',
@@ -181,7 +176,7 @@ describe('Import/Export API - Import Collection Data', () => {
 	});
 
 	it('should validate import data structure', async () => {
-		const response = await safeFetch(`${BASE_URL}/api/importData`, {
+		const response = await safeFetch(`${BASE_URL}/api/import-data`, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json',
@@ -197,7 +192,7 @@ describe('Import/Export API - Import Collection Data', () => {
 	});
 
 	it('should require authentication for import', async () => {
-		const response = await safeFetch(`${BASE_URL}/api/importData`, {
+		const response = await safeFetch(`${BASE_URL}/api/import-data`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({
@@ -210,7 +205,7 @@ describe('Import/Export API - Import Collection Data', () => {
 	});
 
 	it('should support replace vs merge import mode', async () => {
-		const response = await safeFetch(`${BASE_URL}/api/importData`, {
+		const response = await safeFetch(`${BASE_URL}/api/import-data`, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json',
@@ -227,7 +222,7 @@ describe('Import/Export API - Import Collection Data', () => {
 	});
 
 	it('should return import statistics', async () => {
-		const response = await safeFetch(`${BASE_URL}/api/importData`, {
+		const response = await safeFetch(`${BASE_URL}/api/import-data`, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json',
@@ -248,7 +243,7 @@ describe('Import/Export API - Import Collection Data', () => {
 	});
 
 	it('should handle validation errors in import data', async () => {
-		const response = await safeFetch(`${BASE_URL}/api/importData`, {
+		const response = await safeFetch(`${BASE_URL}/api/import-data`, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json',
@@ -264,7 +259,7 @@ describe('Import/Export API - Import Collection Data', () => {
 	});
 
 	it('should support duplicate handling strategies', async () => {
-		const response = await safeFetch(`${BASE_URL}/api/importData`, {
+		const response = await safeFetch(`${BASE_URL}/api/import-data`, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json',
@@ -451,7 +446,7 @@ describe('Import/Export API - Full System Import', () => {
 describe('Import/Export API - Data Integrity', () => {
 	it('should preserve relationships in export/import', async () => {
 		// Export data
-		const exportResponse = await safeFetch(`${BASE_URL}/api/exportData`, {
+		const exportResponse = await safeFetch(`${BASE_URL}/api/export-data`, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json',
@@ -468,7 +463,7 @@ describe('Import/Export API - Data Integrity', () => {
 		if (exportResponse.ok) {
 			const exportData = await exportResponse.json();
 
-			const importResponse = await safeFetch(`${BASE_URL}/api/importData`, {
+			const importResponse = await safeFetch(`${BASE_URL}/api/import-data`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
@@ -490,7 +485,7 @@ describe('Import/Export API - Data Integrity', () => {
 			content: `Content for post ${i}`
 		}));
 
-		const response = await safeFetch(`${BASE_URL}/api/importData`, {
+		const response = await safeFetch(`${BASE_URL}/api/import-data`, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json',
@@ -506,7 +501,7 @@ describe('Import/Export API - Data Integrity', () => {
 	});
 
 	it('should validate data integrity after import', async () => {
-		const response = await safeFetch(`${BASE_URL}/api/importData`, {
+		const response = await safeFetch(`${BASE_URL}/api/import-data`, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json',
