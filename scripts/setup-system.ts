@@ -45,18 +45,25 @@ function parseActionResult(result: any): any {
 }
 
 async function postAction(actionName: string, formData: FormData) {
-	const res = await fetch(`${API_BASE_URL}/setup?/${actionName}`, {
-		method: 'POST',
-		body: formData,
-		headers: {
-			'x-sveltekit-action': 'true',
-			Origin: API_BASE_URL
+	const controller = new AbortController();
+	const timeout = setTimeout(() => controller.abort(), 30_000);
+	try {
+		const res = await fetch(`${API_BASE_URL}/setup?/${actionName}`, {
+			method: 'POST',
+			body: formData,
+			signal: controller.signal,
+			headers: {
+				'x-sveltekit-action': 'true',
+				Origin: API_BASE_URL
+			}
+		});
+		if (!res.ok) {
+			throw new Error(`Action ${actionName} failed with status ${res.status}`);
 		}
-	});
-	if (!res.ok) {
-		throw new Error(`Action ${actionName} failed with status ${res.status}`);
+		return await res.json();
+	} finally {
+		clearTimeout(timeout);
 	}
-	return await res.json();
 }
 
 async function main() {

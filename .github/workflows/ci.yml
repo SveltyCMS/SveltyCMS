@@ -385,7 +385,20 @@ jobs:
           PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:4173
         run: |
           bun run preview --host 127.0.0.1 > preview.log 2>&1 &
-          for i in $(seq 1 60); do curl -sf http://127.0.0.1:4173/api/system/health > /dev/null 2>&1 && break; sleep 1; done
+          SERVER_PID=$!
+          SERVER_READY=false
+          for i in $(seq 1 60); do
+            if ! kill -0 $SERVER_PID 2>/dev/null; then
+              echo "::error::Preview server crashed"; cat preview.log; exit 1
+            fi
+            if curl -sf http://127.0.0.1:4173/api/system/health > /dev/null 2>&1; then
+              SERVER_READY=true; break
+            fi
+            sleep 1
+          done
+          if [ "$SERVER_READY" != "true" ]; then
+            echo "::error::Server not ready after 60s"; cat preview.log; exit 1
+          fi
           bun run scripts/setup-system.ts
           sleep 3
           bun x playwright test --project=chromium --shard=${{ matrix.shard }}/3
@@ -434,7 +447,20 @@ jobs:
           TEST_MODE: true
         run: |
           bun run preview --host 127.0.0.1 > preview.log 2>&1 &
-          for i in $(seq 1 60); do curl -sf http://127.0.0.1:4173/api/system/health > /dev/null 2>&1 && break; sleep 1; done
+          SERVER_PID=$!
+          SERVER_READY=false
+          for i in $(seq 1 60); do
+            if ! kill -0 $SERVER_PID 2>/dev/null; then
+              echo "::error::Preview server crashed"; cat preview.log; exit 1
+            fi
+            if curl -sf http://127.0.0.1:4173/api/system/health > /dev/null 2>&1; then
+              SERVER_READY=true; break
+            fi
+            sleep 1
+          done
+          if [ "$SERVER_READY" != "true" ]; then
+            echo "::error::Server not ready after 60s"; cat preview.log; exit 1
+          fi
           bun run scripts/setup-system.ts
 
       - name: Run Hooks Benchmark
