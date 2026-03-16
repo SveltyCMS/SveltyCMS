@@ -267,7 +267,7 @@ jobs:
           DB_TYPE: sqlite
           DB_NAME: sveltycms_test
           TEST_MODE: true
-        run: bun run scripts/run-integration-tests.ts
+        run: bun run scripts/run-integration-tests.ts --filter=sqlite
 
   # ------------------------------------------------
   # 5. DB tests (other)

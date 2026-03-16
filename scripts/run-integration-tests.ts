@@ -259,7 +259,7 @@ async function resetAndSeed() {
 
 function runTest(file: string): Promise<number> {
 	return new Promise((resolve) => {
-		const proc = spawn(pkgManager, ['test', file], {
+		const proc = spawn(pkgManager, ['test', '--preload', './tests/integration/preload.ts', file], {
 			cwd: rootDir,
 			stdio: 'inherit',
 			env: { ...(globalThis as any).process?.env, TEST_MODE: 'true', API_BASE_URL }
