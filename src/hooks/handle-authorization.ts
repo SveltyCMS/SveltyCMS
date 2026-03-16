@@ -171,7 +171,7 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
 		return resolve(event);
 	}
 	// --- Load cached roles (database-only) ---
-	const rolesData = await getCachedRoles(locals.tenantId);
+	let rolesData = await getCachedRoles(locals.tenantId);
 	locals.roles = rolesData;
 
 	// --- Redirect to setup if database not initialized (no roles found) ---
@@ -188,7 +188,8 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
 		if (locals.__setupConfigExists === true) {
 			logger.warn('No roles in DB but setup marked complete — using fallback roles to prevent redirect loop');
 			const { getDefaultRoles } = await import('@src/databases/auth/default-roles');
-			locals.roles = getDefaultRoles();
+			rolesData = getDefaultRoles();
+			locals.roles = rolesData;
 		} else {
 			logger.warn('No roles found in database - redirecting to setup', {
 				pathname,
