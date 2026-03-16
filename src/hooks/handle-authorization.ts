@@ -80,7 +80,7 @@ async function getCachedUserCount(tenantId?: string | null, multiTenant?: boolea
 					return -1; // Database adapter not initialized
 				}
 				const filter = multiTenant && tenantId ? { tenantId } : {};
-				const bypassOpts = !tenantId ? { bypassTenantCheck: true } : undefined;
+				const bypassOpts = !tenantId || tenantId === 'global' ? { bypassTenantCheck: true } : undefined;
 				userCount = await auth.getUserCount(filter, bypassOpts);
 				const cacheData = { count: userCount, timestamp: now };
 				userCountCache = cacheData; // Update in-memory cache
@@ -114,7 +114,8 @@ async function getCachedRoles(tenantId?: string | null): Promise<Role[]> {
 			return [];
 		}
 
-		const bypassOpts = !tenantId ? { bypassTenantCheck: true } : undefined;
+		// Bypass tenant filtering when tenantId is 'global' (single-tenant default)
+		const bypassOpts = !tenantId || tenantId === 'global' ? { bypassTenantCheck: true } : undefined;
 		const data = await auth.getAllRoles(tenantId, bypassOpts);
 		if (!data || data.length === 0) {
 			logger.debug('No roles found in database', { tenantId });
