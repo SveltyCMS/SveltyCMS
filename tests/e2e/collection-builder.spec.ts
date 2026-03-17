@@ -1,7 +1,7 @@
 // tests/playwright/collection-builder.spec.ts
 import { expect, test } from '@playwright/test';
 import { loginAsAdmin } from './helpers/auth';
-
+console.log("Hello");
 test.describe('Collection Builder with Modern Widgets', () => {
 	test.beforeEach(async ({ page }) => {
 		// Login as admin first
