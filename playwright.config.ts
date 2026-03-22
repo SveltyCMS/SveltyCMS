@@ -100,7 +100,7 @@ export default defineConfig({
 
 	/* Run your local dev server before starting the tests */
 	// In CI, the workflow starts the server manually, so we only use webServer locally
-	...(process.env.CI
+      ...(process.env.CI
 		? {}
 		: {
 				webServer: {
@@ -112,5 +112,5 @@ export default defineConfig({
 						PLAYWRIGHT_TEST: 'true'
 					}
 				}
-			})
-});
+			}) 
+}); 
