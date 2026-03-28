@@ -1,12 +1,12 @@
 /**
- * @file tests/bun/api/setup-utils.test.ts
+ * @file tests/unit/api/setup-utils.test.ts
  * @description Unit tests for setup utility functions.
  *
  * Tests the core logic for database connection string building and error classification
  * used during the initial setup process.
  */
 
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import type { DatabaseConfig } from "@src/databases/schemas";
 import { classifyDatabaseError } from "@src/routes/setup/error-classifier";
 import { buildDatabaseConnectionString } from "@src/routes/setup/utils";
