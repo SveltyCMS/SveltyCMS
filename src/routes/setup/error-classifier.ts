@@ -156,7 +156,6 @@ export function classifyDatabaseError(
     code === "DB_CONNECTION_FAILED" ||
     lower.includes("connection refused") ||
     lower.includes("failed to connect to server") ||
-    lower.includes("enotfound") ||
     lower.includes("econnrefused")
   ) {
     const hostHint =
