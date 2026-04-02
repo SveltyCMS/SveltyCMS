@@ -18,6 +18,7 @@
 import { contentManager } from "@src/content";
 import type { User } from "@src/databases/auth/types";
 import { auth } from "@src/databases/db";
+import type { DatabaseId } from "@src/databases/db-interface";
 import { DEFAULT_THEME } from "@src/databases/theme-manager";
 import { publicEnv } from "@src/stores/global-settings.svelte";
 import { error } from "@sveltejs/kit";
@@ -40,7 +41,8 @@ async function refreshUser(
   }
 
   try {
-    const dbUser = await auth?.getUserById(sessionUser._id.toString(), tenantId, {
+    const dbUser = await auth?.getUserById(sessionUser._id as DatabaseId, {
+      tenantId: tenantId as DatabaseId,
       bypassTenantCheck: true,
     });
 
@@ -98,8 +100,7 @@ export const load: LayoutServerLoad = async ({ locals, depends }) => {
     const freshUser = await refreshUser(sessionUser, tenantId);
 
     // Get total user count for smart UI logic (like hiding chat for single users)
-    const totalUsersResult = await auth?.getUserCount({ tenantId });
-    const totalUsers = typeof totalUsersResult === "number" ? totalUsersResult : 1;
+    const totalUsers = (await auth?.getUserCount({}, { tenantId: tenantId as DatabaseId })) ?? 1;
 
     // Check if AI features are enabled for solo user assistant
     const aiModelChat = await getPrivateSetting("AI_MODEL_CHAT");

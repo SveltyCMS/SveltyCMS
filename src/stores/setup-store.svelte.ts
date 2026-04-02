@@ -16,7 +16,7 @@
  * - Simplified components (pure UI, no fetch calls)
  */
 
-import { updatePublicEnv } from "@src/stores/global-settings.svelte";
+import { initPublicEnv } from "@src/stores/global-settings.svelte.ts";
 import { dbConfigSchema, setupAdminSchema, systemSettingsSchema } from "@utils/form-schemas";
 import { logger } from "@utils/logger";
 import { toast } from "@src/stores/toast.svelte.ts";
@@ -606,7 +606,7 @@ function createSetupStore() {
       // Update the public settings store instantly for near-zero delay
       if (data.publicSettings) {
         logger.debug("[SetupStore] Updating public environment...");
-        updatePublicEnv(data.publicSettings);
+        initPublicEnv(data.publicSettings);
       }
 
       // Success!

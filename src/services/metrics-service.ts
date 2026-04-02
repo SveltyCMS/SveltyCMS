@@ -322,7 +322,7 @@ export const cleanupMetrics = () => {
 };
 
 // Graceful shutdown (safe in Bun, Node, and test environments)
-if (typeof process !== "undefined" && process.on) {
+if (typeof process !== "undefined" && typeof process.on === "function") {
   const cleanup = () => cleanupMetrics();
   process.once("SIGTERM", cleanup);
   process.once("SIGINT", cleanup);

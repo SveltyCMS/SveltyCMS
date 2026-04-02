@@ -20,6 +20,7 @@ import type { PermissionConfig } from "@src/databases/auth/permissions";
 import type { Role, User } from "@src/databases/auth/types";
 // Auth
 import { auth } from "@src/databases/db";
+import type { DatabaseId } from "@src/databases/db-interface";
 // System Logger
 import { getUntypedSetting } from "@src/services/settings-service";
 import { logger } from "@utils/logger.server";
@@ -63,7 +64,8 @@ export const load: PageServerLoad = async (event) => {
     // This is especially important after profile updates
     let freshUser: User | null = null;
     if (user?._id && auth) {
-      freshUser = await auth.getUserById(user._id.toString(), event.locals.tenantId, {
+      freshUser = await auth.getUserById(user._id as DatabaseId, {
+        tenantId: event.locals.tenantId as DatabaseId,
         bypassTenantCheck: true,
       });
       if (freshUser) {

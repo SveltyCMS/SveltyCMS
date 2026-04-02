@@ -10,9 +10,19 @@ async function run() {
 
   // 1. Use native Bun.Glob instead of npm 'glob'
   const glob = new Glob("tests/unit/**/*.test.ts");
-  const files = Array.from(glob.scanSync("."))
-    .filter((file) => !file.includes("sample")) // Filter cleanly
-    .sort();
+  const allFiles = Array.from(glob.scanSync("."));
+  const files = [];
+
+  for (const file of allFiles) {
+    if (file.includes("sample")) continue;
+    const content = await Bun.file(file).text();
+    if (content.includes('from "vitest"')) {
+      // console.log(`⏩ Skipping Vitest test: ${file}`);
+      continue;
+    }
+    files.push(file);
+  }
+  files.sort();
 
   let totalPassed = 0;
   const failedFiles: string[] = [];

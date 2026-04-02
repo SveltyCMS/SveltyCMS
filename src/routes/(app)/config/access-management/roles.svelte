@@ -21,6 +21,7 @@ It provides the following functionality:
 import { toast } from "@src/stores/toast.svelte.ts";
 // Auth
 import type { Role } from "@src/databases/auth/types";
+import type { DatabaseId } from "@src/databases/db-interface";
 // Skeleton
 import { modalState } from "@utils/modal-state.svelte";
 import { SvelteSet } from "svelte/reactivity";
@@ -122,7 +123,7 @@ const saveRole = async (role: {
 
 	const roleId = currentRoleId ?? crypto.randomUUID().replace(/-/g, "");
 	const newRole = {
-		_id: roleId,
+		_id: roleId as DatabaseId,
 		id: roleId,
 		name: roleName,
 		description: roleDescription,

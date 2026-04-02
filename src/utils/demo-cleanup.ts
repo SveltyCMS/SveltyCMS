@@ -200,9 +200,13 @@ export async function cleanupExpiredDemoTenants() {
       // 5. Delete Auth Data (sessions, then users)
       try {
         for (const userId of tenantUserIds) {
-          await db.auth.invalidateAllUserSessions(userId, tenantId);
+          await db.auth.invalidateAllUserSessions(userId as DatabaseId, {
+            tenantId: tenantId as DatabaseId,
+          });
         }
-        await db.auth.deleteUsers(tenantUserIds, tenantId);
+        await db.auth.deleteUsers(tenantUserIds as DatabaseId[], {
+          tenantId: tenantId as DatabaseId,
+        });
       } catch (err) {
         logger.error(`[Demo Cleanup] Error cleaning up auth data for tenant ${tenantId}:`, err);
       }

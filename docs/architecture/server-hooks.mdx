@@ -43,21 +43,20 @@ The middleware architecture is built on **core enterprise principles**:
 // src/hooks.server.ts (simplified)
 const middleware: Handle[] = [
 addSecurityHeaders, // 1. MUST be first → headers on ALL responses
-handleTestIsolation, // 2. Test context & worker isolation
-handleStaticAssetCaching, // 3. Highest hit-rate early exit
+handleStaticAssetCaching, // 2. Highest hit-rate early exit
+handleTestIsolation, // 3. Test context & worker isolation
 handleCompression, // 4. Streaming-safe compression
-handleSystemState, // 5. Readiness gate & auto-init
-handleSecurity, // 6. Unified firewall & rate limiting
+handleSecurity, // 5. Unified firewall & rate limiting (protects state)
+handleSystemState, // 6. Readiness gate & auto-init
 handleSetup, // 7. Setup gate
-handleLocale, // 8. i18n
-handleTheme, // 9. SSR theme
-handleAuthentication, // 10. identity
-handleAuthorization, // 11. permissions
-handleLocalSdk, // 12. native server-side SDK injection
-handleContentInitialization, // 13. content + redirects
+handleUserPreferences, // 8. i18n and SSR theme (combined)
+handleAuthentication, // 9. identity
+handleAuthorization, // 10. permissions
+handleLocalSdk, // 11. native server-side SDK injection
+handleContentInitialization, // 12. content + redirects
+handleAuditLogging, // 13. async audit trails (must catch cache hits)
 handleApiRequests, // 14. API caching
-handleAuditLogging, // 15. async audit trails
-handleTokenResolution, // 16. token processing
+handleTokenResolution, // 15. token processing
 ];
 
 export const handle: Handle = sequence(...middleware);
@@ -277,9 +276,9 @@ Measured overhead per request type (100k iteration average):
 
 | Scenario                   | Avg Overhead | Optimization Strategy             |
 | :------------------------- | :----------- | :-------------------------------- |
-| **Static Asset Fast-Path** | **0.03 µs**  | Regex short-circuit (Early Exit)  |
-| **API Request Fast-Path**  | **0.07 µs**  | Locale/Theme/Auth validation skip |
-| **Dynamic Page Full-Path** | **0.11 µs**  | Optimized sequence (Runes-based)  |
+| **Static Asset Fast-Path** | **0.02 µs**  | Regex short-circuit (Early Exit)  |
+| **API Request Fast-Path**  | **0.05 µs**  | Locale/Theme/Auth validation skip |
+| **Dynamic Page Full-Path** | **0.06 µs**  | Optimized sequence (Runes-based)  |
 
 ### Competitive Comparison (2025–2026)
 
@@ -287,7 +286,7 @@ To put these numbers in perspective, SveltyCMS outperforms almost every major fr
 
 | Stack / Middleware Style           | Typical Overhead | SveltyCMS vs. Them |
 | :--------------------------------- | :--------------- | :----------------- |
-| **SveltyCMS Pipeline**             | **0.03–0.15 µs** | **World-Class**    |
+| **SveltyCMS Pipeline**             | **0.02–0.12 µs** | **World-Class**    |
 | Minimal Hono / Elysia              | 2–12 µs          | ~20–100× faster    |
 | Fastify (Rate-limit + 4 plugins)   | 15–60 µs         | ~150–600× faster   |
 | Next.js Middleware (Typical)       | 40–250 µs        | ~400–2,500× faster |

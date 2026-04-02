@@ -9,6 +9,7 @@
  */
 
 import { auth, dbAdapter } from "@src/databases/db";
+import type { DatabaseId } from "@src/content/types";
 import { SCIM_SCHEMAS } from "@src/types/scim";
 import type { ScimPatchRequest } from "@src/types/scim";
 import { json } from "@sveltejs/kit";
@@ -31,7 +32,7 @@ export const GET = apiHandler(async ({ params, url, locals, request }) => {
     return scimError(400, "Group ID is required", "invalidValue");
   }
 
-  const roleResult = await auth.authInterface.getRoleById(id, tenantId);
+  const roleResult = await auth.authInterface.getRoleById(id as any, { tenantId: tenantId as any });
   const role = roleResult?.success ? roleResult.data : null;
   if (!role) {
     return scimError(404, `Group ${id} not found`, "invalidValue");
@@ -75,7 +76,7 @@ export const PATCH = apiHandler(async ({ params, request, url, locals }) => {
     return scimError(400, "Request must include PatchOp schema", "invalidValue");
   }
 
-  const roleResult = await auth.authInterface.getRoleById(id, tenantId);
+  const roleResult = await auth.authInterface.getRoleById(id as any, { tenantId: tenantId as any });
   const role = roleResult?.success ? roleResult.data : null;
   if (!role) {
     return scimError(404, `Group ${id} not found`, "invalidValue");
@@ -95,7 +96,7 @@ export const PATCH = apiHandler(async ({ params, request, url, locals }) => {
               "users",
               { _id: { $in: userIds as any } },
               { role: role.name } as any,
-              tenantId,
+              { tenantId: tenantId as any },
             );
             logger.info("SCIM Group members added in bulk", {
               groupId: id,
@@ -118,7 +119,7 @@ export const PATCH = apiHandler(async ({ params, request, url, locals }) => {
               "users",
               { _id: { $in: userIds as any } },
               { role: "user" } as any,
-              tenantId,
+              { tenantId: tenantId as DatabaseId },
             );
             logger.info("SCIM Group members removed in bulk", {
               groupId: id,
@@ -136,7 +137,9 @@ export const PATCH = apiHandler(async ({ params, request, url, locals }) => {
         // Replace group displayName
         const val = op.value as Record<string, any>;
         if (val.displayName) {
-          await auth.authInterface.updateRole(id, { name: val.displayName } as any, tenantId);
+          await auth.authInterface.updateRole(id as any, { name: val.displayName } as any, {
+            tenantId: tenantId as any,
+          });
           logger.info("SCIM Group renamed", {
             groupId: id,
             newName: val.displayName,
@@ -149,7 +152,7 @@ export const PATCH = apiHandler(async ({ params, request, url, locals }) => {
 
   // Return updated group - Using optimized retrieval
   const [updatedRoleResult, usersResult] = await Promise.all([
-    auth.authInterface.getRoleById(id, tenantId),
+    auth.authInterface.getRoleById(id as any, { tenantId: tenantId as any }),
     auth.authInterface.getAllUsers({
       filter: {
         tenantId,
@@ -183,7 +186,7 @@ export const DELETE = apiHandler(async ({ params, request, locals }) => {
     return scimError(400, "Group ID is required", "invalidValue");
   }
 
-  const roleResult = await auth.authInterface.getRoleById(id, tenantId);
+  const roleResult = await auth.authInterface.getRoleById(id as any, { tenantId: tenantId as any });
   const role = roleResult?.success ? roleResult.data : null;
   if (!role) {
     return scimError(404, `Group ${id} not found`, "invalidValue");
@@ -194,7 +197,7 @@ export const DELETE = apiHandler(async ({ params, request, locals }) => {
     return scimError(400, "Cannot delete the admin role", "mutability");
   }
 
-  await auth.authInterface.deleteRole(id, tenantId);
+  await auth.authInterface.deleteRole(id as DatabaseId, { tenantId: tenantId as DatabaseId });
   logger.info("SCIM Group deleted", {
     groupId: id,
     roleName: role.name,

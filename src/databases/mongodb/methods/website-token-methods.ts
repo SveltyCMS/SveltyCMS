@@ -37,7 +37,7 @@ export class MongoWebsiteTokenMethods {
     order?: string;
     filter?: Record<string, unknown>;
   }): Promise<DatabaseResult<{ data: WebsiteToken[]; total: number }>> {
-    const sort =
+    const sort: any =
       options.sort && options.order
         ? { [options.sort]: options.order as "asc" | "desc" | 1 | -1 }
         : {};
@@ -45,9 +45,8 @@ export class MongoWebsiteTokenMethods {
     const [dataRes, totalRes] = await Promise.all([
       this.crud.findMany(options.filter || {}, {
         limit: options.limit,
-        skip: options.skip,
         sort,
-      }),
+      } as any),
       this.crud.count(options.filter || {}),
     ]);
 

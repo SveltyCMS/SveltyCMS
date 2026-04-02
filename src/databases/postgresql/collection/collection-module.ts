@@ -5,10 +5,16 @@
 
 import { logger } from "@utils/logger";
 import { sql } from "drizzle-orm";
-import type { CollectionModel, DatabaseResult, Schema } from "../../db-interface";
+import type {
+  CollectionModel,
+  DatabaseResult,
+  Schema,
+  ICollectionAdapter,
+} from "../../db-interface";
 import type { AdapterCore } from "../adapter/adapter-core";
+import type { DatabaseId } from "@src/content/types";
 
-export class CollectionModule {
+export class CollectionModule implements ICollectionAdapter {
   private readonly core: AdapterCore;
 
   constructor(core: AdapterCore) {
@@ -50,7 +56,10 @@ export class CollectionModule {
     logger.info(`PostgreSQL deleteModel: Removing reference for ${id}`);
   }
 
-  async getSchema(collectionName: string): Promise<DatabaseResult<Schema | null>> {
+  async getSchema(
+    collectionName: string,
+    _tenantId?: DatabaseId | null,
+  ): Promise<DatabaseResult<Schema | null>> {
     return this.core.wrap(async () => {
       const [result] = await this.db.execute(
         sql`SELECT "collectionDef" FROM "system_content_structure" WHERE "name" = ${collectionName} AND "nodeType" = 'collection' LIMIT 1`,
@@ -62,7 +71,10 @@ export class CollectionModule {
     }, "GET_SCHEMA_FAILED");
   }
 
-  async getSchemaById(collectionId: string): Promise<DatabaseResult<Schema | null>> {
+  async getSchemaById(
+    collectionId: string,
+    _tenantId?: DatabaseId | null,
+  ): Promise<DatabaseResult<Schema | null>> {
     if (!collectionId || String(collectionId).trim() === "") {
       return { success: true, data: null };
     }
@@ -78,7 +90,7 @@ export class CollectionModule {
     }, "GET_SCHEMA_BY_ID_FAILED");
   }
 
-  async listSchemas(): Promise<DatabaseResult<Schema[]>> {
+  async listSchemas(_tenantId?: DatabaseId | null): Promise<DatabaseResult<Schema[]>> {
     return this.core.wrap(async () => {
       const results = await this.db.execute(
         sql`SELECT "collectionDef" FROM "system_content_structure" WHERE "nodeType" = 'collection'`,

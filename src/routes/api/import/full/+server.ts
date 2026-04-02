@@ -132,14 +132,18 @@ async function applyImport(
               await dbAdapter.crud.update(
                 collectionName,
                 doc._id as DatabaseId,
-                { ...doc, tenantId },
+                { ...doc, tenantId: tenantId as any },
                 tenantId as any,
               );
               result.imported++;
             }
             // skip/merge logic...
           } else {
-            await dbAdapter.crud.insert(collectionName, { ...doc, tenantId }, tenantId as any);
+            await dbAdapter.crud.insert(
+              collectionName,
+              { ...doc, tenantId: tenantId as any },
+              tenantId as any,
+            );
             result.imported++;
           }
         } catch (e) {

@@ -61,7 +61,7 @@ describe("Plugin Sandbox - Scoped DB Access", () => {
     const { adapter } = createScopedDbAdapter(mock, "pagespeed");
 
     expect(() =>
-      adapter.crud.insert("plugin_pagespeed_results" as any, {} as any, undefined as any, true),
+      adapter.crud.insert("plugin_pagespeed_results" as any, {} as any, undefined as any),
     ).not.toThrow();
     expect(() =>
       adapter.crud.update("plugin_pagespeed_cache" as any, {} as any, {} as any),
@@ -72,7 +72,7 @@ describe("Plugin Sandbox - Scoped DB Access", () => {
     const mock = createMockAdapter();
     const { adapter } = createScopedDbAdapter(mock, "pagespeed");
 
-    expect(() => adapter.crud.insert("posts" as any, {} as any, undefined as any, true)).toThrow(
+    expect(() => adapter.crud.insert("posts" as any, {} as any, undefined as any)).toThrow(
       /can only write to collections prefixed/,
     );
     expect(() => adapter.crud.update("media" as any, {} as any, {} as any)).toThrow(
@@ -134,17 +134,17 @@ describe("Plugin Sandbox - Scoped DB Access", () => {
 
     // Plugin A can write to its own prefix
     expect(() =>
-      adapterA.crud.insert("plugin_plugin_a_data" as any, {} as any, undefined as any, true),
+      adapterA.crud.insert("plugin_plugin_a_data" as any, {} as any, undefined as any),
     ).not.toThrow();
 
     // Plugin A cannot write to Plugin B's prefix
     expect(() =>
-      adapterA.crud.insert("plugin_plugin_b_data" as any, {} as any, undefined as any, true),
+      adapterA.crud.insert("plugin_plugin_b_data" as any, {} as any, undefined as any),
     ).toThrow(/can only write/);
 
     // Plugin B can write to its own prefix
     expect(() =>
-      adapterB.crud.insert("plugin_plugin_b_data" as any, {} as any, undefined as any, true),
+      adapterB.crud.insert("plugin_plugin_b_data" as any, {} as any, undefined as any),
     ).not.toThrow();
   });
 });

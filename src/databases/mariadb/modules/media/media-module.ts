@@ -25,25 +25,27 @@ export class MediaModule {
   public readonly files = {
     upload: (
       file: EntityCreate<MediaItem>,
-      tenantId?: string | null,
+      tenantId?: DatabaseId | null,
     ): Promise<DatabaseResult<MediaItem>> =>
-      this.adapter.crud.insert("media", file as any, tenantId),
+      this.adapter.crud.insert("media", file as any, { tenantId }),
 
     uploadMany: (
       files: EntityCreate<MediaItem>[],
-      tenantId?: string | null,
+      tenantId?: DatabaseId | null,
     ): Promise<DatabaseResult<MediaItem[]>> =>
-      this.adapter.crud.insertMany("media", files as any[], tenantId),
+      this.adapter.crud.insertMany("media", files as any[], { tenantId }),
 
-    restore: async (fileId: DatabaseId, _tenantId?: string | null): Promise<DatabaseResult<void>> =>
-      this.adapter.crud.restore("media", fileId),
+    restore: async (
+      fileId: DatabaseId,
+      tenantId?: DatabaseId | null,
+    ): Promise<DatabaseResult<void>> => this.adapter.crud.restore("media", fileId, { tenantId }),
 
-    delete: (fileId: DatabaseId, _tenantId?: string | null): Promise<DatabaseResult<void>> =>
-      this.adapter.crud.delete("media", fileId),
+    delete: (fileId: DatabaseId, tenantId?: DatabaseId | null): Promise<DatabaseResult<void>> =>
+      this.adapter.crud.delete("media", fileId, { tenantId }),
 
     deleteMany: (
       fileIds: DatabaseId[],
-      tenantId?: string | null,
+      tenantId?: DatabaseId | null,
     ): Promise<DatabaseResult<{ deletedCount: number }>> =>
       this.adapter.crud.deleteMany("media", { _id: { $in: fileIds } } as any, {
         tenantId,
@@ -53,7 +55,7 @@ export class MediaModule {
       folderId?: DatabaseId,
       options?: PaginationOptions,
       _recursive?: boolean,
-      tenantId?: string | null | null,
+      tenantId?: DatabaseId | null,
     ): Promise<DatabaseResult<PaginatedResult<MediaItem>>> =>
       this.adapter.wrap(async () => {
         const res = await this.adapter.crud.findMany<MediaItem>(
@@ -61,7 +63,7 @@ export class MediaModule {
           { folderId: folderId || null } as any,
           {
             ...options,
-            tenantId: tenantId || undefined,
+            tenantId: tenantId ?? undefined,
           } as any,
         );
         return this.adapter.utils.createPagination(
@@ -73,7 +75,7 @@ export class MediaModule {
     search: (
       query: string,
       options?: PaginationOptions,
-      tenantId?: string | null | null,
+      tenantId?: DatabaseId | null,
     ): Promise<DatabaseResult<PaginatedResult<MediaItem>>> =>
       this.adapter.wrap(async () => {
         const res = await this.adapter.crud.findMany<MediaItem>(
@@ -81,7 +83,7 @@ export class MediaModule {
           { filename: { $regex: query } } as any,
           {
             ...options,
-            tenantId: tenantId || undefined,
+            tenantId: tenantId ?? undefined,
           } as any,
         );
         return this.adapter.utils.createPagination(
@@ -92,7 +94,7 @@ export class MediaModule {
 
     getMetadata: (
       fileIds: DatabaseId[],
-      tenantId?: string | null,
+      tenantId?: DatabaseId | null,
     ): Promise<DatabaseResult<Record<string, CmsMediaMetadata>>> =>
       this.adapter.wrap(async () => {
         const res = await this.adapter.crud.findMany<MediaItem>(
@@ -112,21 +114,21 @@ export class MediaModule {
     updateMetadata: (
       fileId: DatabaseId,
       metadata: Partial<CmsMediaMetadata>,
-      tenantId?: string | null,
+      tenantId?: DatabaseId | null,
     ): Promise<DatabaseResult<MediaItem>> =>
-      this.adapter.crud.update("media", fileId, { metadata } as any, tenantId),
+      this.adapter.crud.update("media", fileId, { metadata } as any, { tenantId }),
 
     move: (
       fileIds: DatabaseId[],
       targetFolderId?: DatabaseId,
-      tenantId?: string | null,
+      tenantId?: DatabaseId | null,
     ): Promise<DatabaseResult<{ movedCount: number }>> =>
       this.adapter.wrap(async () => {
         const res = await this.adapter.crud.updateMany(
           "media",
           { _id: { $in: fileIds } } as any,
           { folderId: targetFolderId || null } as any,
-          tenantId,
+          { tenantId },
         );
         return { movedCount: res.success ? res.data?.modifiedCount || 0 : 0 };
       }, "MOVE_FILES_FAILED"),
@@ -134,7 +136,7 @@ export class MediaModule {
     duplicate: async (
       fileId: DatabaseId,
       newName?: string,
-      tenantId?: string | null,
+      tenantId?: DatabaseId | null,
     ): Promise<DatabaseResult<MediaItem>> => {
       const res = await this.adapter.crud.findOne<MediaItem>("media", { _id: fileId } as any, {
         tenantId,
@@ -147,29 +149,29 @@ export class MediaModule {
         createdAt: undefined,
         updatedAt: undefined,
       };
-      return this.adapter.crud.insert("media", newItem as any, tenantId);
+      return this.adapter.crud.insert("media", newItem as any, { tenantId });
     },
   };
 
   public readonly folders = {
     create: (
       folder: EntityCreate<MediaFolder>,
-      tenantId?: string | null,
+      tenantId?: DatabaseId | null,
     ): Promise<DatabaseResult<MediaFolder>> =>
-      this.adapter.crud.insert("media_folders", folder as any, tenantId),
+      this.adapter.crud.insert("media_folders", folder as any, { tenantId }),
 
     createMany: (
       folders: EntityCreate<MediaFolder>[],
-      tenantId?: string | null,
+      tenantId?: DatabaseId | null,
     ): Promise<DatabaseResult<MediaFolder[]>> =>
-      this.adapter.crud.insertMany("media_folders", folders as any[], tenantId),
+      this.adapter.crud.insertMany("media_folders", folders as any[], { tenantId }),
 
-    delete: (folderId: DatabaseId, _tenantId?: string | null): Promise<DatabaseResult<void>> =>
-      this.adapter.crud.delete("media_folders", folderId),
+    delete: (folderId: DatabaseId, tenantId?: DatabaseId | null): Promise<DatabaseResult<void>> =>
+      this.adapter.crud.delete("media_folders", folderId, { tenantId }),
 
     deleteMany: (
       folderIds: DatabaseId[],
-      tenantId?: string | null,
+      tenantId?: DatabaseId | null,
     ): Promise<DatabaseResult<{ deletedCount: number }>> =>
       this.adapter.crud.deleteMany("media_folders", { _id: { $in: folderIds } } as any, {
         tenantId,
@@ -177,14 +179,14 @@ export class MediaModule {
 
     getTree: (
       maxDepth?: number,
-      tenantId?: string | null,
+      tenantId?: DatabaseId | null,
     ): Promise<DatabaseResult<MediaFolder[]>> =>
       this.adapter.crud.findMany("media_folders", {}, { limit: maxDepth, tenantId }),
 
     getFolderContents: (
       folderId?: DatabaseId,
       options?: PaginationOptions,
-      tenantId?: string | null,
+      tenantId?: DatabaseId | null,
     ): Promise<
       DatabaseResult<{
         folders: MediaFolder[];
@@ -213,13 +215,13 @@ export class MediaModule {
     move: (
       folderId: DatabaseId,
       targetParentId?: DatabaseId,
-      tenantId?: string | null,
+      tenantId?: DatabaseId | null,
     ): Promise<DatabaseResult<MediaFolder>> =>
       this.adapter.crud.update(
         "media_folders",
         folderId,
         { parentId: targetParentId || null } as any,
-        tenantId,
+        { tenantId },
       ),
   };
 

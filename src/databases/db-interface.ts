@@ -25,9 +25,9 @@ import type {
   DatabaseId,
   ISODateString,
   Schema,
+  WebsiteToken,
 } from "../content/types";
 import type { Role, Session, Token, User } from "./auth/types";
-import type { WebsiteToken } from "./schemas";
 
 /** * Utility Types for DRY CRUD Operations
  * Strips managed fields from entities when creating or updating.
@@ -99,6 +99,10 @@ export interface PaginationOptions {
   sortDirection?: "asc" | "desc";
   sortField?: string;
   user?: User; // Optional user for ownership-based filtering
+  filter?: Record<string, any>; // For filtering support
+  limit?: number; // fallback for pageSize
+  offset?: number; // fallback for page
+  sort?: SortOption; // fallback for sortField/sortDirection
 }
 
 export interface PaginatedResult<T> {
@@ -445,18 +449,18 @@ export interface DatabaseTransaction {
 export interface IAuthAdapter {
   blockTokens(
     tokenIds: DatabaseId[],
-    tenantId?: DatabaseId | null,
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<{ modifiedCount: number }>>;
   blockUsers(
     userIds: DatabaseId[],
-    tenantId?: DatabaseId | null,
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<{ modifiedCount: number }>>;
   cleanupRotatedSessions?(): Promise<DatabaseResult<number>>;
   consumeToken(
     token: string,
     userId?: DatabaseId,
     type?: string,
-    tenantId?: DatabaseId | null,
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<{ status: boolean; message: string }>>;
   createRole(role: Role): Promise<DatabaseResult<Role>>;
   createSession(sessionData: {
@@ -484,7 +488,7 @@ export interface IAuthAdapter {
   deleteSession(sessionId: DatabaseId): Promise<DatabaseResult<void>>;
   deleteTokens(
     tokenIds: DatabaseId[],
-    tenantId?: DatabaseId | null,
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<{ deletedCount: number }>>;
   deleteUser(userId: DatabaseId, options?: BaseQueryOptions): Promise<DatabaseResult<void>>;
   deleteUserAndSessions(
@@ -493,13 +497,13 @@ export interface IAuthAdapter {
   ): Promise<DatabaseResult<{ deletedUser: boolean; deletedSessionCount: number }>>;
   deleteUsers(
     userIds: DatabaseId[],
-    tenantId?: DatabaseId | null,
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<{ deletedCount: number }>>;
   getActiveSessions(
     userId: DatabaseId,
-    tenantId?: DatabaseId | null,
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<Session[]>>;
-  getAllActiveSessions(tenantId?: DatabaseId | null): Promise<DatabaseResult<Session[]>>;
+  getAllActiveSessions(options?: BaseQueryOptions): Promise<DatabaseResult<Session[]>>;
   getAllRoles(options?: BaseQueryOptions): Promise<Role[]>;
   getAllTokens(filter?: Record<string, unknown>): Promise<DatabaseResult<Token[]>>;
   getAllUsers(
@@ -510,19 +514,16 @@ export interface IAuthAdapter {
   getSessionTokenData(
     sessionId: DatabaseId,
   ): Promise<DatabaseResult<{ expiresAt: ISODateString; user_id: DatabaseId } | null>>;
-  getTokenByValue(
-    token: string,
-    tenantId?: DatabaseId | null,
-  ): Promise<DatabaseResult<Token | null>>;
+  getTokenByValue(token: string, options?: BaseQueryOptions): Promise<DatabaseResult<Token | null>>;
   getTokenById(
     tokenId: DatabaseId,
-    tenantId?: DatabaseId | null,
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<Token | null>>;
   getTokenData(
     token: string,
     userId?: DatabaseId,
     type?: string,
-    tenantId?: DatabaseId | null,
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<Token | null>>;
   getUserByEmail(
     criteria: { email: string; tenantId?: DatabaseId | null },
@@ -535,17 +536,17 @@ export interface IAuthAdapter {
   ): Promise<DatabaseResult<number>>;
   invalidateAllUserSessions(
     userId: DatabaseId,
-    tenantId?: DatabaseId | null,
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<void>>;
   rotateToken(oldToken: string, expires: ISODateString): Promise<DatabaseResult<string>>;
   setupAuthModels(): Promise<void>;
   unblockTokens(
     tokenIds: DatabaseId[],
-    tenantId?: DatabaseId | null,
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<{ modifiedCount: number }>>;
   unblockUsers(
     userIds: DatabaseId[],
-    tenantId?: DatabaseId | null,
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<{ modifiedCount: number }>>;
   updateRole(
     roleId: DatabaseId,
@@ -559,7 +560,7 @@ export interface IAuthAdapter {
   updateToken(
     tokenId: DatabaseId,
     tokenData: Partial<Token>,
-    tenantId?: DatabaseId | null,
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<Token>>;
   updateUserAttributes(
     userId: DatabaseId,
@@ -571,7 +572,7 @@ export interface IAuthAdapter {
     token: string,
     userId?: DatabaseId,
     type?: string,
-    tenantId?: DatabaseId | null,
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<{ success: boolean; message: string; email?: string }>>;
 }
 
@@ -660,68 +661,71 @@ export interface IMediaAdapter {
   files: {
     upload(
       file: EntityCreate<MediaItem>,
-      tenantId?: string | null,
+      tenantId?: DatabaseId | null,
     ): Promise<DatabaseResult<MediaItem>>;
     uploadMany(
       files: EntityCreate<MediaItem>[],
-      tenantId?: string | null,
+      tenantId?: DatabaseId | null,
     ): Promise<DatabaseResult<MediaItem[]>>;
-    restore(fileId: DatabaseId, tenantId?: string | null): Promise<DatabaseResult<void>>;
-    delete(fileId: DatabaseId, tenantId?: string | null): Promise<DatabaseResult<void>>;
+    restore(fileId: DatabaseId, tenantId?: DatabaseId | null): Promise<DatabaseResult<void>>;
+    delete(fileId: DatabaseId, tenantId?: DatabaseId | null): Promise<DatabaseResult<void>>;
     deleteMany(
       fileIds: DatabaseId[],
-      tenantId?: string | null,
+      tenantId?: DatabaseId | null,
     ): Promise<DatabaseResult<{ deletedCount: number }>>;
     getByFolder(
       folderId?: DatabaseId,
       options?: PaginationOptions,
       recursive?: boolean,
-      tenantId?: string | null | null,
+      tenantId?: DatabaseId | null | null,
     ): Promise<DatabaseResult<PaginatedResult<MediaItem>>>;
     search(
       query: string,
       options?: PaginationOptions,
-      tenantId?: string | null | null,
+      tenantId?: DatabaseId | null | null,
     ): Promise<DatabaseResult<PaginatedResult<MediaItem>>>;
     getMetadata(
       fileIds: DatabaseId[],
-      tenantId?: string | null,
+      tenantId?: DatabaseId | null,
     ): Promise<DatabaseResult<Record<string, CmsMediaMetadata>>>;
     updateMetadata(
       fileId: DatabaseId,
       metadata: Partial<CmsMediaMetadata>,
-      tenantId?: string | null,
+      tenantId?: DatabaseId | null,
     ): Promise<DatabaseResult<MediaItem>>;
     move(
       fileIds: DatabaseId[],
       targetFolderId?: DatabaseId,
-      tenantId?: string | null,
+      tenantId?: DatabaseId | null,
     ): Promise<DatabaseResult<{ movedCount: number }>>;
     duplicate(
       fileId: DatabaseId,
       newName?: string,
-      tenantId?: string | null,
+      tenantId?: DatabaseId | null,
     ): Promise<DatabaseResult<MediaItem>>;
   };
   folders: {
     create(
       folder: EntityCreate<MediaFolder>,
-      tenantId?: string | null,
+      tenantId?: DatabaseId | null,
     ): Promise<DatabaseResult<MediaFolder>>;
     createMany(
       folders: EntityCreate<MediaFolder>[],
-      tenantId?: string | null,
+      tenantId?: DatabaseId | null,
     ): Promise<DatabaseResult<MediaFolder[]>>;
-    delete(folderId: DatabaseId, tenantId?: string | null): Promise<DatabaseResult<void>>;
+    delete(folderId: DatabaseId, tenantId?: DatabaseId | null): Promise<DatabaseResult<void>>;
     deleteMany(
       folderIds: DatabaseId[],
-      tenantId?: string | null,
+      tenantId?: DatabaseId | null,
     ): Promise<DatabaseResult<{ deletedCount: number }>>;
-    getTree(maxDepth?: number, tenantId?: string | null): Promise<DatabaseResult<MediaFolder[]>>;
+    getTree(
+      maxDepth?: number,
+      tenantId?: DatabaseId | null,
+    ): Promise<DatabaseResult<MediaFolder[]>>;
     getFolderContents(
       folderId?: DatabaseId,
       options?: PaginationOptions,
-      tenantId?: string | null,
+      tenantId?: DatabaseId | null,
     ): Promise<
       DatabaseResult<{
         folders: MediaFolder[];
@@ -732,7 +736,7 @@ export interface IMediaAdapter {
     move(
       folderId: DatabaseId,
       targetParentId?: DatabaseId,
-      tenantId?: string | null,
+      tenantId?: DatabaseId | null,
     ): Promise<DatabaseResult<MediaFolder>>;
   };
   setupMediaModels(): Promise<void>;
@@ -758,7 +762,7 @@ export interface IContentAdapter {
       mode: "flat" | "nested",
       options?: {
         filter?: Partial<ContentNodeType>;
-        tenantId?: string | null;
+        tenantId?: DatabaseId | null;
         bypassCache?: boolean;
         bypassTenantCheck?: boolean;
       },
@@ -779,7 +783,7 @@ export interface IContentAdapter {
         changes: Partial<ContentNodeType>;
       }[],
       options?: {
-        tenantId?: string | null;
+        tenantId?: DatabaseId | null;
         bypassTenantCheck?: boolean;
         bypassCache?: boolean;
       },
@@ -794,7 +798,7 @@ export interface IContentAdapter {
     delete(path: string): Promise<DatabaseResult<void>>;
     deleteMany(
       paths: string[],
-      options?: { tenantId?: string | null },
+      options?: { tenantId?: DatabaseId | null },
     ): Promise<DatabaseResult<{ deletedCount: number }>>;
     reorder(
       nodeUpdates: Array<{ path: string; newOrder: number }>,
@@ -872,37 +876,37 @@ export interface ISystemAdapter {
   virtualFolder: {
     create(
       folder: EntityCreate<SystemVirtualFolder>,
-      tenantId?: string | null,
+      tenantId?: DatabaseId | null,
     ): Promise<DatabaseResult<SystemVirtualFolder>>;
     getById(
       folderId: DatabaseId,
-      tenantId?: string | null,
+      tenantId?: DatabaseId | null,
     ): Promise<DatabaseResult<SystemVirtualFolder | null>>;
     getByParentId(
       parentId: DatabaseId | null,
-      tenantId?: string | null,
+      tenantId?: DatabaseId | null,
     ): Promise<DatabaseResult<SystemVirtualFolder[]>>;
-    getAll(tenantId?: string | null): Promise<DatabaseResult<SystemVirtualFolder[]>>;
+    getAll(tenantId?: DatabaseId | null): Promise<DatabaseResult<SystemVirtualFolder[]>>;
     update(
       folderId: DatabaseId,
       updateData: Partial<SystemVirtualFolder>,
-      tenantId?: string | null,
+      tenantId?: DatabaseId | null,
     ): Promise<DatabaseResult<SystemVirtualFolder>>;
     addToFolder(
       contentId: DatabaseId,
       folderPath: string,
-      tenantId?: string | null,
+      tenantId?: DatabaseId | null,
     ): Promise<DatabaseResult<void>>;
     getContents(
       folderPath: string,
-      tenantId?: string | null,
+      tenantId?: DatabaseId | null,
     ): Promise<DatabaseResult<{ folders: SystemVirtualFolder[]; files: MediaItem[] }>>;
     ensure(
       folder: EntityCreate<SystemVirtualFolder>,
-      tenantId?: string | null,
+      tenantId?: DatabaseId | null,
     ): Promise<DatabaseResult<SystemVirtualFolder>>;
-    delete(folderId: DatabaseId, tenantId?: string | null): Promise<DatabaseResult<void>>;
-    exists(path: string, tenantId?: string | null): Promise<DatabaseResult<boolean>>;
+    delete(folderId: DatabaseId, tenantId?: DatabaseId | null): Promise<DatabaseResult<void>>;
+    exists(path: string, tenantId?: DatabaseId | null): Promise<DatabaseResult<boolean>>;
   };
   tenants: {
     create(tenant: EntityCreate<Tenant> & { _id?: DatabaseId }): Promise<DatabaseResult<Tenant>>;
@@ -927,7 +931,7 @@ export interface ISystemAdapter {
     getAllThemes(): Promise<Theme[]>;
     storeThemes(themes: Theme[]): Promise<void>;
     ensure(theme: EntityCreate<Theme>): Promise<Theme>;
-    getDefaultTheme(tenantId?: string | null): Promise<DatabaseResult<Theme | null>>;
+    getDefaultTheme(tenantId?: DatabaseId | null): Promise<DatabaseResult<Theme | null>>;
   };
   websiteTokens: {
     create(token: Omit<WebsiteToken, "_id" | "createdAt">): Promise<DatabaseResult<WebsiteToken>>;
@@ -943,7 +947,7 @@ export interface ISystemAdapter {
   jobs: {
     create(job: EntityCreate<Job>): Promise<DatabaseResult<Job>>;
     getById(jobId: DatabaseId): Promise<DatabaseResult<Job | null>>;
-    getNextReady(limit?: number, tenantId?: string | null): Promise<DatabaseResult<Job[]>>;
+    getNextReady(limit?: number, tenantId?: DatabaseId | null): Promise<DatabaseResult<Job[]>>;
     list(
       options?: PaginationOption & { status?: string; taskType?: string },
     ): Promise<DatabaseResult<Job[]>>;
@@ -975,18 +979,21 @@ export interface IMonitoringAdapter {
     clear(tags?: string[]): Promise<DatabaseResult<void>>;
     invalidateCollection(
       collection: string,
-      tenantId?: string | null,
+      tenantId?: DatabaseId | null,
     ): Promise<DatabaseResult<void>>;
-    invalidateCategory(category: string, tenantId?: string | null): Promise<DatabaseResult<void>>;
+    invalidateCategory(
+      category: string,
+      tenantId?: DatabaseId | null,
+    ): Promise<DatabaseResult<void>>;
     /**
      * Gets the current content version for a tenant or system-wide.
      */
-    getVersion(tenantId?: string | null): Promise<DatabaseResult<number>>;
+    getVersion(tenantId?: DatabaseId | null): Promise<DatabaseResult<number>>;
     /**
      * Atomically increments the content version.
      * Returns the new version number.
      */
-    incrementVersion(tenantId?: string | null): Promise<DatabaseResult<number>>;
+    incrementVersion(tenantId?: DatabaseId | null): Promise<DatabaseResult<number>>;
   };
   getConnectionPoolStats?(): Promise<DatabaseResult<ConnectionPoolStats>>;
   performance: {
@@ -1005,6 +1012,44 @@ export interface IMonitoringAdapter {
 // Main Root Database Adapter
 // ============================================================================
 
+export interface IBatchAdapter {
+  execute<T>(operations: BatchOperation<T>[]): Promise<DatabaseResult<BatchResult<T>>>;
+  bulkInsert<T extends BaseEntity>(
+    collection: string,
+    items: EntityCreate<T>[],
+  ): Promise<DatabaseResult<T[]>>;
+  bulkUpdate<T extends BaseEntity>(
+    collection: string,
+    updates: Array<{ id: DatabaseId; data: Partial<T> }>,
+  ): Promise<DatabaseResult<{ modifiedCount: number }>>;
+  bulkDelete(
+    collection: string,
+    ids: DatabaseId[],
+  ): Promise<DatabaseResult<{ deletedCount: number }>>;
+  bulkUpsert<T extends BaseEntity>(
+    collection: string,
+    items: Array<Partial<T> & { id?: DatabaseId }>,
+  ): Promise<DatabaseResult<T[]>>;
+}
+
+export interface ICollectionAdapter {
+  getModel(id: string): Promise<CollectionModel>;
+  createModel(schema: Schema, force?: boolean): Promise<void>;
+  updateModel(schema: Schema): Promise<void>;
+  deleteModel(id: string): Promise<void>;
+  createIndexes?(collectionId: string, schema: Schema): Promise<DatabaseResult<void>>;
+  getSchema(
+    collectionName: string,
+    tenantId?: DatabaseId | null,
+  ): Promise<DatabaseResult<Schema | null>>;
+  getSchemaById(
+    collectionId: string,
+    tenantId?: DatabaseId | null,
+  ): Promise<DatabaseResult<Schema | null>>;
+  listSchemas(tenantId?: DatabaseId | null): Promise<DatabaseResult<Schema[]>>;
+  getNativeDriverModel?<TNative = any>(collectionId: string): Promise<TNative>;
+}
+
 export interface IDBAdapter {
   // Top-Level Domains
   auth: IAuthAdapter;
@@ -1015,46 +1060,12 @@ export interface IDBAdapter {
   monitoring: IMonitoringAdapter;
 
   // High-Performance Batch Operations
-  batch: {
-    execute<T>(operations: BatchOperation<T>[]): Promise<DatabaseResult<BatchResult<T>>>;
-    bulkInsert<T extends BaseEntity>(
-      collection: string,
-      items: EntityCreate<T>[],
-    ): Promise<DatabaseResult<T[]>>;
-    bulkUpdate<T extends BaseEntity>(
-      collection: string,
-      updates: Array<{ id: DatabaseId; data: Partial<T> }>,
-    ): Promise<DatabaseResult<{ modifiedCount: number }>>;
-    bulkDelete(
-      collection: string,
-      ids: DatabaseId[],
-    ): Promise<DatabaseResult<{ deletedCount: number }>>;
-    bulkUpsert<T extends BaseEntity>(
-      collection: string,
-      items: Array<Partial<T> & { id?: DatabaseId }>,
-    ): Promise<DatabaseResult<T[]>>;
-  };
+  batch: IBatchAdapter;
 
   // Test/Dev Utilities
   clearDatabase(): Promise<DatabaseResult<void>>;
 
-  collection: {
-    getModel(id: string): Promise<CollectionModel>;
-    createModel(schema: Schema, force?: boolean): Promise<void>;
-    updateModel(schema: Schema): Promise<void>;
-    deleteModel(id: string): Promise<void>;
-    createIndexes?(collectionId: string, schema: Schema): Promise<DatabaseResult<void>>;
-    getSchema(
-      collectionName: string,
-      tenantId?: string | null,
-    ): Promise<DatabaseResult<Schema | null>>;
-    getSchemaById(
-      collectionId: string,
-      tenantId?: string | null,
-    ): Promise<DatabaseResult<Schema | null>>;
-    listSchemas(tenantId?: string | null): Promise<DatabaseResult<Schema[]>>;
-    getNativeDriverModel?<TNative = any>(collectionId: string): Promise<TNative>;
-  };
+  collection: ICollectionAdapter;
 
   // Connection Management with Pooling
   connect(connectionString: string, options?: unknown): Promise<DatabaseResult<void>>;

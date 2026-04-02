@@ -13,6 +13,7 @@ import { getPrivateSettingSync, getPublicSettingSync } from "@src/services/setti
 import { logger } from "@utils/logger.server";
 import jackson from "@boxyhq/saml-jackson";
 import { dbAdapter, getAuth } from "@src/databases/db";
+import type { DatabaseId } from "@src/databases/db-interface";
 import { json } from "@sveltejs/kit";
 import { dateToISODateString } from "@utils/date-utils";
 
@@ -166,10 +167,10 @@ export async function handleSAMLResponse({ request, cookies }: any): Promise<Res
     if (!dbAdapter) throw new Error("Database adapter not initialized");
 
     // Provision or find user
-    const userRes = await dbAdapter.auth.getUserByEmail({
-      email: profile.email,
-      tenantId: (body.tenant as string) || null,
-    });
+    const userRes = await dbAdapter.auth.getUserByEmail(
+      { email: profile.email, tenantId: (body.tenant as DatabaseId) || null },
+      { tenantId: (body.tenant as DatabaseId) || null },
+    );
     if (!userRes.success) throw new Error(`User lookup failed: ${userRes.message}`);
     let user = userRes.data;
 
@@ -182,7 +183,7 @@ export async function handleSAMLResponse({ request, cookies }: any): Promise<Res
         lastName: profile.lastName || "",
         role: "user", // Correct singular 'role' field
         blocked: false, // Correct field from User interface
-        tenantId: (body.tenant as string) || null,
+        tenantId: (body.tenant as DatabaseId) || null,
       });
       if (!newUserRes.success) throw new Error(`User creation failed: ${newUserRes.message}`);
       user = newUserRes.data;
@@ -198,7 +199,7 @@ export async function handleSAMLResponse({ request, cookies }: any): Promise<Res
     const sessionRes = await dbAdapter.auth.createSession({
       user_id: user._id,
       expires: expiresAt,
-      tenantId: (body.tenant as string) || null,
+      tenantId: (body.tenant as DatabaseId) || null,
     });
 
     if (!sessionRes.success) throw new Error(`SSO session failure: ${sessionRes.message}`);

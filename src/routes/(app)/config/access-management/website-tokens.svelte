@@ -18,7 +18,7 @@
 import TableFilter from "@src/components/system/table/table-filter.svelte";
 import TablePagination from "@src/components/system/table/table-pagination.svelte";
 import type { Permission, User } from "@src/databases/auth/types";
-import type { WebsiteToken } from "@src/databases/schemas";
+import type { DatabaseId, WebsiteToken } from "@src/content/types";
 import {
 	globalLoadingStore,
 	loadingOperations,
@@ -608,7 +608,7 @@ $effect(() => {
 												<span class="opacity-50">Never</span>
 											{/if}
 										{:else if header.key === 'createdBy'}
-											{userMap.get(token.createdBy) || token.createdBy}
+											{userMap.get(token.createdBy as DatabaseId) || token.createdBy}
 										{:else}
 											{token[header.key as keyof WebsiteToken]}
 										{/if}

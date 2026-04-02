@@ -28,8 +28,7 @@ export class PluginSettingsService {
             tenantId: "system",
             enabled: false,
           } as any,
-          undefined,
-          true,
+          { bypassTenantCheck: true },
         );
         await this.dbAdapter.crud.deleteMany(this.COLLECTION, { pluginId: "__INIT__" } as any, {
           bypassTenantCheck: true,
@@ -101,8 +100,7 @@ export class PluginSettingsService {
             updatedAt: new Date(),
             updatedBy: userId,
           } as any,
-          undefined,
-          true,
+          { bypassTenantCheck: true },
         );
         return updateResult.success;
       }
@@ -115,8 +113,7 @@ export class PluginSettingsService {
           enabled,
           updatedBy: userId,
         } as any,
-        undefined,
-        true,
+        { bypassTenantCheck: true },
       );
       return insertResult.success;
     } catch (error) {

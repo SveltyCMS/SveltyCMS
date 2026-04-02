@@ -65,6 +65,7 @@ class ContentStore {
   });
 
   isInitialized = $derived(this.state === "initialized");
+  contentNodes = $derived(Array.from(this.nodeMap.values()));
 
   // --- GETTERS ---
   get nodeCount() {
@@ -132,6 +133,26 @@ class ContentStore {
       return null;
     }
     return node?.collectionDef ?? null;
+  }
+
+  getSmartFirstCollection(tenantId?: string | null): Schema | null {
+    const collections = this.getAllCollections(tenantId);
+    return collections[0] || null;
+  }
+
+  getNodesForTenant(tenantId?: string | null): ContentNode[] {
+    if (!tenantId) return Array.from(this.nodeMap.values());
+    const results: ContentNode[] = [];
+    for (const node of this.nodeMap.values()) {
+      if (!node.tenantId || node.tenantId === tenantId) {
+        results.push(node);
+      }
+    }
+    return results;
+  }
+
+  getNodesEntries() {
+    return Array.from(this.nodeMap.entries());
   }
 
   sync(nodes: ContentNode[]) {
@@ -243,6 +264,9 @@ export const contentStore = {
   sync: (nodes: ContentNode[]) => getStore().sync(nodes),
   startLiveSync: (cb: () => void) => getStore().startLiveSync(cb),
   stopPolling: () => getStore().stopPolling(),
+  getNodesEntries: () => getStore().getNodesEntries(),
+  getSmartFirstCollection: (tId?: string | null) => getStore().getSmartFirstCollection(tId),
+  getNodesForTenant: (tId?: string | null) => getStore().getNodesForTenant(tId),
 
   // Minimal set for compatibility - others can be added as needed
   clear: () => {

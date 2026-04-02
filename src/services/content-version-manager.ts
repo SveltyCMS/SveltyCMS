@@ -15,7 +15,7 @@ export class ContentVersionManager {
    */
   static async getVersion(tenantId?: string | null): Promise<number> {
     if (!dbAdapter) return 0;
-    const result = await dbAdapter.monitoring.cache.getVersion(tenantId);
+    const result = await dbAdapter.monitoring.cache.getVersion(tenantId as any);
     return result.success ? result.data : 0;
   }
 
@@ -24,7 +24,7 @@ export class ContentVersionManager {
    */
   static async bumpVersion(tenantId?: string | null): Promise<number> {
     if (!dbAdapter) return 0;
-    const result = await dbAdapter.monitoring.cache.incrementVersion(tenantId);
+    const result = await dbAdapter.monitoring.cache.incrementVersion(tenantId as any);
 
     if (result.success) {
       const newVersion = result.data;

@@ -235,7 +235,7 @@ export class MediaService {
     file: File,
     userId: string,
     access: MediaAccess,
-    tenantId?: string | null,
+    tenantId?: DatabaseId | null,
     basePath = "global",
     watermarkOptions?: WatermarkOptions,
     originalId?: DatabaseId | null,
@@ -542,7 +542,7 @@ export class MediaService {
       saveBehavior?: "new" | "overwrite";
     },
     userId: string,
-    tenantId?: string | null,
+    tenantId?: DatabaseId | null,
   ): Promise<MediaItem> {
     this.ensureInitialized();
 
@@ -553,7 +553,7 @@ export class MediaService {
       {
         _id: id as DatabaseId,
       },
-      { tenantId },
+      { tenantId: tenantId ?? undefined },
     );
 
     if (!(mediaResult.success && mediaResult.data)) {
@@ -712,7 +712,7 @@ export class MediaService {
   public async updateMedia(
     id: string,
     updates: Partial<MediaItem>,
-    tenantId?: string | null,
+    tenantId?: DatabaseId | null,
   ): Promise<void> {
     this.ensureInitialized();
     if (!id || typeof id !== "string" || id.trim().length === 0) {
@@ -724,7 +724,9 @@ export class MediaService {
     }
     try {
       const db = await this.getDb();
-      const result = await db.crud.update("media", id as DatabaseId, updates as any, tenantId);
+      const result = await db.crud.update("media", id as DatabaseId, updates as any, {
+        tenantId: tenantId ?? undefined,
+      });
 
       if (!result.success) {
         throw result.error;
@@ -752,7 +754,7 @@ export class MediaService {
     ids: string[],
     config: any,
     userId: string,
-    tenantId?: string | null,
+    tenantId?: DatabaseId | null,
   ): Promise<MediaItem[]> {
     this.ensureInitialized();
     if (!Array.isArray(ids)) {
@@ -779,7 +781,7 @@ export class MediaService {
     id: string,
     file: File,
     userId: string,
-    tenantId?: string | null,
+    tenantId?: DatabaseId | null,
     action = "update",
   ): Promise<MediaItem> {
     this.ensureInitialized();
@@ -789,7 +791,7 @@ export class MediaService {
       {
         _id: id as DatabaseId,
       },
-      { tenantId },
+      { tenantId: tenantId ?? undefined },
     );
 
     if (!(mediaResult.success && mediaResult.data)) {
@@ -837,13 +839,13 @@ export class MediaService {
   }
 
   // Deletes a media item
-  public async deleteMedia(id: string, tenantId?: string | null): Promise<void> {
+  public async deleteMedia(id: string, tenantId?: DatabaseId | null): Promise<void> {
     this.ensureInitialized();
     if (!id || typeof id !== "string" || id.trim().length === 0) {
       throw new Error("Invalid id: Must be a non-empty string");
     }
     try {
-      const result = await this.db.media.files.delete(id as DatabaseId, tenantId);
+      const result = await this.db.media.files.delete(id as DatabaseId, tenantId as DatabaseId);
       if (!result.success) {
         throw result.error;
       }
@@ -1187,6 +1189,7 @@ export class MediaService {
     url: string,
     userId: string,
     access: MediaAccess,
+    tenantId?: DatabaseId | null,
     basePath = "global",
   ): Promise<MediaItem> {
     const response = await fetch(url);
@@ -1199,6 +1202,6 @@ export class MediaService {
       response.headers.get("content-type") || mime.lookup(fileName) || "application/octet-stream";
     const file = new File([buffer], fileName, { type: mimeType });
 
-    return this.saveMedia(file, userId, access, basePath);
+    return this.saveMedia(file, userId, access, tenantId, basePath);
   }
 }

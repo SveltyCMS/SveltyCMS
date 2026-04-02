@@ -369,14 +369,17 @@ export async function bulkUpsertWithParentIds(
     } as Partial<ContentNode>,
   }));
 
-  await dbAdapter.content.nodes.bulkUpdate(upsertOps, { tenantId, bypassTenantCheck: true });
+  await dbAdapter.content.nodes.bulkUpdate(upsertOps, {
+    tenantId: tenantId as DatabaseId,
+    bypassTenantCheck: true,
+  });
 
   const currentPaths = new Set(operations.map((op) => op.path));
   const result =
     dbNodes && dbNodes.length > 0
       ? { success: true, data: dbNodes }
       : await dbAdapter.content.nodes.getStructure("flat", {
-          tenantId,
+          tenantId: tenantId as DatabaseId,
           bypassCache: true,
           bypassTenantCheck: true,
         });
@@ -394,7 +397,10 @@ export async function bulkUpsertWithParentIds(
   }
 
   if (dbAdapter.monitoring?.cache?.invalidateCategory) {
-    await dbAdapter.monitoring.cache.invalidateCategory(CacheCategory.CONTENT, tenantId);
+    await dbAdapter.monitoring.cache.invalidateCategory(
+      CacheCategory.CONTENT,
+      tenantId as DatabaseId,
+    );
   }
 
   // Broadcast the update for real-time sync (SSE)
@@ -434,7 +440,7 @@ export const contentService = {
     // This avoids even the mtime check on cold starts.
     if (!incremental && !skipReconciliation && dbAdapter) {
       const result = await dbAdapter.content.nodes.getStructure("flat", {
-        tenantId,
+        tenantId: tenantId as DatabaseId,
         bypassTenantCheck: true,
         bypassCache: true,
       });
@@ -488,7 +494,7 @@ export const contentService = {
     if (dbAdapter.ensureContent) await dbAdapter.ensureContent();
 
     const result = await dbAdapter.content.nodes.getStructure("flat", {
-      tenantId,
+      tenantId: tenantId as DatabaseId,
       bypassTenantCheck: true,
       bypassCache: true,
     });
@@ -539,7 +545,9 @@ export const contentService = {
     tenantId?: string | null,
   ): Promise<ContentNode[]> {
     const dbAdapter = await getDbAdapter();
-    const result = await dbAdapter.content.nodes.getStructure(format, { tenantId });
+    const result = await dbAdapter.content.nodes.getStructure(format, {
+      tenantId: tenantId as DatabaseId,
+    });
     return result.success ? result.data : [];
   },
 
@@ -555,7 +563,10 @@ export const contentService = {
         id: item.id,
         changes: { order: item.order, parentId: item.parentId },
       }));
-      await dbAdapter.content.nodes.bulkUpdate(updates, { tenantId, bypassTenantCheck: true });
+      await dbAdapter.content.nodes.bulkUpdate(updates, {
+        tenantId: tenantId as DatabaseId,
+        bypassTenantCheck: true,
+      });
     }
 
     // Broadcast reorder event

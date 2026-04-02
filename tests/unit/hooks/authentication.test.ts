@@ -8,6 +8,7 @@ import { SESSION_COOKIE_NAME } from "@src/databases/auth/constants";
 import { handleAuthentication, clearAllSessionCaches } from "@src/hooks/handle-authentication";
 import { auth } from "@src/databases/db";
 import type { RequestEvent } from "@sveltejs/kit";
+import type { DatabaseId } from "@databases/db-interface";
 
 // Ensure SvelteKit internal mocks are present
 vi.mock("$app/environment", () => ({
@@ -111,7 +112,7 @@ describe("handleAuthentication Middleware", () => {
       (auth!.validateSession as any).mockImplementation(() => Promise.resolve(mockUser));
 
       const event = createMockEvent("/dashboard", "session-t1", "tenant2.example.com");
-      event.locals.tenantId = "tenant2";
+      event.locals.tenantId = "tenant2" as DatabaseId;
 
       try {
         await handleAuthentication({ event, resolve: mockResolve });
@@ -127,7 +128,7 @@ describe("handleAuthentication Middleware", () => {
       (auth!.validateSession as any).mockImplementation(() => Promise.resolve(mockUser));
 
       const event = createMockEvent("/dashboard", "session-global", "tenant2.example.com");
-      event.locals.tenantId = "tenant2";
+      event.locals.tenantId = "tenant2" as DatabaseId;
 
       await handleAuthentication({ event, resolve: mockResolve });
       expect(mockResolve).toHaveBeenCalled();

@@ -64,7 +64,7 @@ interface GraphQLContext {
 type MediaResolverParent = unknown;
 
 interface MediaEntity extends BaseEntity {
-  tenantId?: string | null;
+  tenantId?: DatabaseId | null;
   url?: string;
 }
 
@@ -115,7 +115,7 @@ export function mediaResolvers(dbAdapter: DatabaseAdapter) {
                     targetTenant: context.tenantId || "",
                     userTenant: userTenant || "",
                   },
-                  tenantId: context.tenantId,
+                  tenantId: (context.tenantId as DatabaseId) || null,
                 });
               })
               .catch(() => {});

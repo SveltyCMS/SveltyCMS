@@ -23,7 +23,7 @@ import { existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { promisify } from "node:util";
 import { SESSION_COOKIE_NAME } from "@src/databases/auth/constants";
-import type { ISODateString } from "@src/databases/db-interface";
+import type { ISODateString, DatabaseId } from "@src/databases/db-interface";
 import { databaseConfigSchema } from "@src/databases/schemas";
 import { setupAdminSchema, smtpConfigSchema } from "@utils/form-schemas";
 import { logger } from "@utils/logger.server";
@@ -341,13 +341,12 @@ export const actions: Actions = {
 
         // Update other attributes
         await setupAuth.updateUser(
-          existingUser._id,
+          existingUser._id as DatabaseId,
           {
             username: admin.username,
             role: "admin",
             isRegistered: true,
           },
-          undefined,
           { bypassTenantCheck: true },
         );
 

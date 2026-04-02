@@ -42,7 +42,7 @@ export const GET = apiHandler(async ({ locals, url }) => {
       collectionName,
       {},
       {
-        tenantId,
+        tenantId: tenantId as DatabaseId,
         includeDeleted: true,
         limit, // Limit per collection to keep it sane
       },
@@ -92,7 +92,9 @@ export const POST = apiHandler(async ({ locals, request }) => {
 
   const collectionName = normalizeCollectionName(schema._id);
 
-  const result = await dbAdapter.crud.restore(collectionName, entryId as DatabaseId, { tenantId });
+  const result = await dbAdapter.crud.restore(collectionName, entryId as DatabaseId, {
+    tenantId: tenantId as DatabaseId,
+  });
 
   if (!result.success) {
     const code = (result as any).error?.code === "COLLISION" ? 409 : 500;

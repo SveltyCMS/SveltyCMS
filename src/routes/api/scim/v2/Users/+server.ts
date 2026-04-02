@@ -11,6 +11,7 @@
  */
 
 import { auth } from "@src/databases/db";
+import type { DatabaseId } from "@src/databases/db-interface";
 import { json } from "@sveltejs/kit";
 import { apiHandler } from "@utils/api-handler";
 import { AppError } from "@utils/error-handling";
@@ -46,7 +47,10 @@ export const GET = apiHandler(async ({ url, locals, request }) => {
   const filters = parseScimFilter(filterString);
 
   // Fetch users from database with tenant isolation
-  const dbUsers = await auth.getAllUsers({ filter: { tenantId } });
+  const dbUsers = await auth.getAllUsers(
+    { filter: { tenantId: tenantId as DatabaseId } },
+    { tenantId: tenantId as DatabaseId },
+  );
 
   // Apply SCIM filters
   const filteredUsers = dbUsers.filter((u: Record<string, any>) => matchesScimFilter(u, filters));
@@ -90,7 +94,7 @@ export const POST = apiHandler(async ({ request, url, locals }) => {
   }
 
   // Check for duplicate in this tenant
-  const existingUser = await auth.checkUser({ email, tenantId });
+  const existingUser = await auth.checkUser({ email, tenantId: tenantId as DatabaseId });
   if (existingUser) {
     return scimError(409, "User already exists", "uniqueness");
   }
@@ -103,7 +107,7 @@ export const POST = apiHandler(async ({ request, url, locals }) => {
     role: "user",
     permissions: [],
     isRegistered: true,
-    tenantId,
+    tenantId: tenantId as DatabaseId,
   });
 
   if (!newUser) {

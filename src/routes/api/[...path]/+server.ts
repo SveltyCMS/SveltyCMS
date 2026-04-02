@@ -16,6 +16,7 @@ import { SESSION_COOKIE_NAME } from "@src/databases/auth/constants";
 import { getPrivateSettingSync } from "@src/services/settings-service";
 import { settingsGroups } from "../../(app)/config/system-settings/settings-groups";
 import crypto from "node:crypto";
+import type { DatabaseId } from "@src/content/types";
 
 /**
  * Main Dispatcher handles all HTTP methods (GET, POST, PATCH, DELETE)
@@ -68,7 +69,7 @@ const dispatch = async ({ request, url, params, locals, cookies }: RequestEvent)
           : undefined;
         const result = await cms.collections.search(query, {
           collections,
-          tenantId,
+          tenantId: tenantId as any,
           user,
           isAdmin: (locals as any).isAdmin,
         });
@@ -93,7 +94,7 @@ const dispatch = async ({ request, url, params, locals, cookies }: RequestEvent)
       // Root namespace request (e.g. GET /api/user)
       if (!method) {
         if (namespace === "user" && request.method === "GET") {
-          const data = await cms.auth.listUsers({ tenantId });
+          const data = await cms.auth.listUsers({ tenantId: tenantId as any });
           if (url.searchParams.get("raw") === "true") {
             return json(data);
           }
@@ -111,7 +112,11 @@ const dispatch = async ({ request, url, params, locals, cookies }: RequestEvent)
 
         if (action === "setup" && request.method === "POST") {
           if (!user) throw new AppError("Authentication required", 401);
-          const result = await twoFactorService.initiate2FASetup(user._id, user.email, tenantId);
+          const result = await twoFactorService.initiate2FASetup(
+            user._id as DatabaseId,
+            user.email,
+            tenantId as DatabaseId,
+          );
           // Tests expect result.success to be true at root of response
           return json(result);
         }
@@ -120,11 +125,11 @@ const dispatch = async ({ request, url, params, locals, cookies }: RequestEvent)
           if (!user) throw new AppError("Authentication required", 401);
           const { code, secret, backupCodes } = await request.json();
           const result = await twoFactorService.complete2FASetup(
-            user._id,
+            user._id as DatabaseId,
             secret,
             code,
             backupCodes,
-            tenantId,
+            tenantId as DatabaseId,
           );
           return json({ success: result });
         }
@@ -134,24 +139,37 @@ const dispatch = async ({ request, url, params, locals, cookies }: RequestEvent)
           if (getPrivateSettingSync("MULTI_TENANT") && !tenantId) {
             throw new AppError("Tenant context is required", 400);
           }
-          const result = await twoFactorService.verify2FA(userId, code, tenantId || undefined);
+          const result = await twoFactorService.verify2FA(
+            userId as DatabaseId,
+            code,
+            (tenantId || undefined) as DatabaseId | undefined,
+          );
           return json(result);
         }
 
         if (action === "disable" && request.method === "POST") {
           if (!user) throw new AppError("Authentication required", 401);
-          const result = await twoFactorService.disable2FA(user._id, tenantId);
+          const result = await twoFactorService.disable2FA(
+            user._id as DatabaseId,
+            tenantId as DatabaseId,
+          );
           return json({ success: result });
         }
 
         if (action === "backup-codes") {
           if (!user) throw new AppError("Authentication required", 401);
           if (request.method === "GET") {
-            const result = await twoFactorService.get2FAStatus(user._id, tenantId);
+            const result = await twoFactorService.get2FAStatus(
+              user._id as DatabaseId,
+              tenantId as DatabaseId,
+            );
             return json({ success: true, data: result });
           }
           if (request.method === "POST") {
-            const result = await twoFactorService.regenerateBackupCodes(user._id, tenantId);
+            const result = await twoFactorService.regenerateBackupCodes(
+              user._id as DatabaseId,
+              tenantId as DatabaseId,
+            );
             return json({ success: true, backupCodes: result });
           }
         }
@@ -193,7 +211,14 @@ const dispatch = async ({ request, url, params, locals, cookies }: RequestEvent)
           const sort = url.searchParams.get("sort") || undefined;
           const order = (url.searchParams.get("order") as "asc" | "desc") || "desc";
 
-          const result = await cms.auth.listUsers({ tenantId, search, page, limit, sort, order });
+          const result = await cms.auth.listUsers({
+            tenantId: tenantId as DatabaseId,
+            search,
+            page,
+            limit,
+            sort,
+            order,
+          });
 
           if (url.searchParams.get("raw") === "true") {
             return json(result.data);
@@ -204,13 +229,13 @@ const dispatch = async ({ request, url, params, locals, cookies }: RequestEvent)
           const body = await request.json();
           const newUser = await adapter.auth.createUser({
             ...body,
-            tenantId,
+            tenantId: tenantId as DatabaseId,
           });
           return json({ ...newUser }, { status: 201 });
         }
         if (method === "batch" && request.method === "POST") {
           const { userIds, action: batchAction } = await request.json();
-          const result = await cms.auth.batchAction(userIds, batchAction, tenantId);
+          const result = await cms.auth.batchAction(userIds, batchAction, tenantId as DatabaseId);
           return json(result);
         }
         if (
@@ -218,7 +243,11 @@ const dispatch = async ({ request, url, params, locals, cookies }: RequestEvent)
           (request.method === "PUT" || request.method === "PATCH")
         ) {
           const { user_id, newUserData } = await request.json();
-          const result = await cms.auth.updateUserAttributes(user_id, newUserData, tenantId);
+          const result = await cms.auth.updateUserAttributes(
+            user_id as DatabaseId,
+            newUserData,
+            tenantId as DatabaseId,
+          );
           return json(result);
         }
         if (method === "save-avatar" && request.method === "POST") {
@@ -226,16 +255,23 @@ const dispatch = async ({ request, url, params, locals, cookies }: RequestEvent)
           const avatarFile = formData.get("avatar") as File;
           const { saveAvatarImage } = await import("@utils/media/media-storage.server");
           const avatarUrl = await saveAvatarImage(avatarFile, user?._id || "guest");
-          const result = await cms.auth.saveAvatar(user?._id as string, avatarUrl, tenantId);
+          const result = await cms.auth.saveAvatar(
+            user?._id as DatabaseId,
+            avatarUrl,
+            tenantId as DatabaseId,
+          );
           return json(result);
         }
         if (method === "delete-avatar" && request.method === "DELETE") {
           const { userId } = await request.json().catch(() => ({}));
-          const result = await cms.auth.deleteAvatar(userId || user?._id, tenantId);
+          const result = await cms.auth.deleteAvatar(
+            (userId || user?._id) as DatabaseId,
+            tenantId as DatabaseId,
+          );
           return json(result);
         }
         if (method && !segments[2] && request.method === "GET") {
-          const result = await cms.auth.getUserById(method, tenantId);
+          const result = await cms.auth.getUserById(method as DatabaseId, tenantId as DatabaseId);
           return json({ success: true, data: result });
         }
       }
@@ -243,7 +279,9 @@ const dispatch = async ({ request, url, params, locals, cookies }: RequestEvent)
       // Standard Auth Routes
       if (method === "login" && request.method === "POST") {
         const credentials = await request.json();
-        const { user: authedUser, session } = await cms.auth.login(credentials, { tenantId });
+        const { user: authedUser, session } = await cms.auth.login(credentials, {
+          tenantId: tenantId as DatabaseId,
+        });
 
         const authInstance = getAuth();
         if (!authInstance) throw new AppError("Auth system not initialized", 500);
@@ -258,7 +296,7 @@ const dispatch = async ({ request, url, params, locals, cookies }: RequestEvent)
         if (sessionCookie) {
           const authInstance = getAuth();
           if (authInstance) {
-            await authInstance.logOut(sessionCookie);
+            await authInstance.logOut(sessionCookie as DatabaseId);
           }
           cookies.delete(SESSION_COOKIE_NAME, { path: "/" });
         }
@@ -271,12 +309,15 @@ const dispatch = async ({ request, url, params, locals, cookies }: RequestEvent)
 
       if (method === "update-roles" && request.method === "POST") {
         const { roles } = await request.json();
-        const result = await cms.auth.updateRoles(roles, { user, tenantId });
+        const result = await cms.auth.updateRoles(roles, {
+          user,
+          tenantId: tenantId as DatabaseId,
+        });
         return json(result);
       }
 
       if (namespace === "user" && !method && request.method === "GET") {
-        const data = await cms.auth.listUsers({ tenantId });
+        const data = await cms.auth.listUsers({ tenantId: tenantId as DatabaseId });
         if (url.searchParams.get("raw") === "true") {
           return json(data);
         }
@@ -309,7 +350,7 @@ const dispatch = async ({ request, url, params, locals, cookies }: RequestEvent)
 
         const result = await cms.collections.search(query, {
           collections,
-          tenantId,
+          tenantId: tenantId as DatabaseId,
           user,
           page,
           limit,
@@ -327,7 +368,11 @@ const dispatch = async ({ request, url, params, locals, cookies }: RequestEvent)
 
       // /api/collections/[collectionId]/revisions
       if (request.method === "GET" && collectionId && entryId === "revisions") {
-        const result = await cms.collections.getRevisions(collectionId, entryId, tenantId);
+        const result = await cms.collections.getRevisions(
+          collectionId,
+          entryId,
+          tenantId as DatabaseId,
+        );
         return json({ success: true, data: result });
       }
 
@@ -335,7 +380,11 @@ const dispatch = async ({ request, url, params, locals, cookies }: RequestEvent)
         if (!method || method === "list") {
           const includeFields = url.searchParams.get("includeFields") === "true";
           const includeStats = url.searchParams.get("includeStats") === "true";
-          const collections = await cms.collections.list({ tenantId, includeFields, includeStats });
+          const collections = await cms.collections.list({
+            tenantId: tenantId as DatabaseId,
+            includeFields,
+            includeStats,
+          });
 
           // If explicitly requested via internal list or search, return raw array.
           // Otherwise wrap for standard API consistency expected by unit tests.
@@ -346,19 +395,28 @@ const dispatch = async ({ request, url, params, locals, cookies }: RequestEvent)
         }
 
         if (entryId) {
-          const data = await cms.collections.findById(collectionId, entryId, { tenantId });
+          const data = await cms.collections.findById(collectionId, entryId, {
+            tenantId: tenantId as DatabaseId,
+          });
           return json({ success: true, data });
         } else {
           const limit = Number(url.searchParams.get("limit")) || 50;
           const offset = Number(url.searchParams.get("offset")) || 0;
-          const data = await cms.collections.find(collectionId, { tenantId, limit, offset });
+          const data = await cms.collections.find(collectionId, {
+            tenantId: tenantId as DatabaseId,
+            limit,
+            offset,
+          });
           return json({ success: true, data });
         }
       }
 
       if (request.method === "POST") {
         const data = await request.json();
-        const result = await cms.collections.create(collectionId, data, { user, tenantId });
+        const result = await cms.collections.create(collectionId, data, {
+          user,
+          tenantId: tenantId as DatabaseId,
+        });
         return json(result);
       }
 
@@ -366,7 +424,7 @@ const dispatch = async ({ request, url, params, locals, cookies }: RequestEvent)
         const data = await request.json();
         const result = await cms.collections.update(collectionId, entryId, data, {
           user,
-          tenantId,
+          tenantId: tenantId as DatabaseId,
         });
         return json(result);
       }
@@ -375,7 +433,7 @@ const dispatch = async ({ request, url, params, locals, cookies }: RequestEvent)
         const permanent = url.searchParams.get("permanent") === "true";
         const result = await cms.collections.delete(collectionId, entryId, {
           user,
-          tenantId,
+          tenantId: tenantId as DatabaseId,
           permanent,
         });
         return json(result);
@@ -391,10 +449,15 @@ const dispatch = async ({ request, url, params, locals, cookies }: RequestEvent)
       if (request.method === "GET") {
         const fileId = method;
         if (!fileId || fileId === "list") {
-          const result = await cms.media.find({ tenantId, limit, folderId, recursive });
+          const result = await cms.media.find({
+            tenantId: tenantId as DatabaseId,
+            limit,
+            folderId,
+            recursive,
+          });
           return json(result);
         }
-        const data = await cms.media.findById(fileId, { tenantId });
+        const data = await cms.media.findById(fileId, { tenantId: tenantId as DatabaseId });
         return json({ success: true, data });
       }
 
@@ -408,7 +471,7 @@ const dispatch = async ({ request, url, params, locals, cookies }: RequestEvent)
             if (file instanceof File) {
               const res = await cms.media.upload(file, {
                 userId: (user?._id as string) || "",
-                tenantId,
+                tenantId: tenantId as DatabaseId,
               });
               results.push({ fileName: file.name, success: true, data: res });
             }
@@ -427,7 +490,7 @@ const dispatch = async ({ request, url, params, locals, cookies }: RequestEvent)
               if (file instanceof File) {
                 const res = await cms.media.upload(file, {
                   userId: (user?._id as string) || "",
-                  tenantId,
+                  tenantId: tenantId as DatabaseId,
                 });
                 results.push({ fileName: file.name, success: true, data: res });
               }
@@ -437,7 +500,7 @@ const dispatch = async ({ request, url, params, locals, cookies }: RequestEvent)
 
           if (processType === "delete") {
             const mediaId = formData.get("mediaId") as string;
-            await cms.media.delete(mediaId, { tenantId });
+            await cms.media.delete(mediaId, { tenantId: tenantId as DatabaseId });
             return json({ success: true });
           }
 
@@ -448,7 +511,7 @@ const dispatch = async ({ request, url, params, locals, cookies }: RequestEvent)
               mediaIds,
               options,
               (user?._id as string) || "",
-              tenantId,
+              tenantId as DatabaseId,
             );
             return json({ success: true, data: result });
           }
@@ -457,12 +520,12 @@ const dispatch = async ({ request, url, params, locals, cookies }: RequestEvent)
 
       if (request.method === "PATCH" && method) {
         const data = await request.json();
-        const result = await cms.media.update(method, data, tenantId);
+        const result = await cms.media.update(method, data, tenantId as DatabaseId);
         return json(result);
       }
 
       if (request.method === "DELETE" && method) {
-        const result = await cms.media.delete(method, { tenantId });
+        const result = await cms.media.delete(method, { tenantId: tenantId as DatabaseId });
         return json(result);
       }
     }
@@ -543,20 +606,27 @@ const dispatch = async ({ request, url, params, locals, cookies }: RequestEvent)
           const sort = url.searchParams.get("sort") || undefined;
           const order = (url.searchParams.get("order") as "asc" | "desc") || "desc";
 
-          const result = await cms.auth.tokens.list({ tenantId, search, page, limit, sort, order });
+          const result = await cms.auth.tokens.list({
+            tenantId: tenantId as DatabaseId,
+            search,
+            page,
+            limit,
+            sort,
+            order,
+          });
 
           if (url.searchParams.get("raw") === "true") {
             return json(result.data);
           }
           return json({ success: true, ...result });
         }
-        const result = await cms.auth.tokens.findById(tokenId, tenantId);
+        const result = await cms.auth.tokens.findById(tokenId, tenantId as DatabaseId);
         return json(result);
       }
 
       if (request.method === "PATCH" && method) {
         const data = await request.json();
-        const result = await cms.auth.tokens.update(method, data, tenantId);
+        const result = await cms.auth.tokens.update(method, data, tenantId as DatabaseId);
         return json(result);
       }
 
@@ -566,7 +636,7 @@ const dispatch = async ({ request, url, params, locals, cookies }: RequestEvent)
         if (data.expiresIn && !data.expires) {
           data.expires = data.expiresIn;
         }
-        const result = await cms.auth.tokens.create({ ...data, tenantId });
+        const result = await cms.auth.tokens.create({ ...data, tenantId: tenantId as DatabaseId });
         if (result.success) {
           return json({ success: true, token: result.data });
         }
@@ -575,19 +645,23 @@ const dispatch = async ({ request, url, params, locals, cookies }: RequestEvent)
 
       if (request.method === "POST" && method === "batch") {
         const body = await request.json();
-        const result = await cms.auth.tokens.batchAction(body.tokenIds, body.action, tenantId);
+        const result = await cms.auth.tokens.batchAction(
+          body.tokenIds,
+          body.action,
+          tenantId as DatabaseId,
+        );
         return json(result);
       }
 
       if (request.method === "POST" && method === "resolve") {
         const { text } = await request.json();
         const locale = (locals as any).locale || "en";
-        const resolved = await cms.auth.tokens.resolve(text, user, tenantId, locale);
+        const resolved = await cms.auth.tokens.resolve(text, user, tenantId as DatabaseId, locale);
         return json({ resolved });
       }
 
       if (request.method === "DELETE" && method) {
-        const result = await cms.auth.tokens.delete(method, tenantId);
+        const result = await cms.auth.tokens.delete(method, tenantId as DatabaseId);
         return json(result);
       }
     }
@@ -670,7 +744,7 @@ const dispatch = async ({ request, url, params, locals, cookies }: RequestEvent)
     if (namespace === "system-settings") {
       if (request.method === "POST" && method === "import") {
         const body = await request.json();
-        const result = await cms.system.importer.importData(body, tenantId);
+        const result = await cms.system.importer.importData(body, tenantId as DatabaseId);
         return json(result);
       }
     }
@@ -684,14 +758,14 @@ const dispatch = async ({ request, url, params, locals, cookies }: RequestEvent)
 
       if (request.method === "POST" && method === "external") {
         const body = await request.json();
-        const result = await cms.system.importer.importExternal(body, user, tenantId);
+        const result = await cms.system.importer.importExternal(body, user, tenantId as DatabaseId);
         return json(result);
       }
     }
 
     if (namespace === "import-data" && request.method === "POST") {
       const body = await request.json();
-      const result = await cms.system.importer.importData(body, tenantId);
+      const result = await cms.system.importer.importData(body, tenantId as DatabaseId);
       return json(result);
     }
 

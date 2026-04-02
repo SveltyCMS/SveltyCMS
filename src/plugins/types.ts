@@ -227,13 +227,13 @@ export interface PluginRegistryEntry {
  * Migration tracking record
  * Stored in plugin_migrations collection to track applied migrations
  */
-export interface PluginMigrationRecord {
+export interface PluginMigrationRecord extends BaseEntity {
   _id: DatabaseId;
   appliedAt: Date;
   createdAt: ISODateString;
   migrationId: string;
   pluginId: string;
-  tenantId: string;
+  tenantId?: DatabaseId | null;
   updatedAt: ISODateString;
   version: number;
 }
@@ -248,7 +248,7 @@ export interface PluginState extends BaseEntity {
   enabled: boolean;
   pluginId: string;
   settings?: Record<string, any>;
-  tenantId: string;
+  tenantId?: DatabaseId | null;
   updatedAt: ISODateString;
   updatedBy?: string;
 }

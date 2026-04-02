@@ -170,7 +170,6 @@ export function composeMongoAuthAdapter(): AuthInterface {
     getAllActiveSessions: sessionAdapter.getAllActiveSessions.bind(sessionAdapter),
     getSessionTokenData: sessionAdapter.getSessionTokenData.bind(sessionAdapter),
     rotateToken: sessionAdapter.rotateToken.bind(sessionAdapter),
-    cleanupRotatedSessions: sessionAdapter.cleanupRotatedSessions?.bind(sessionAdapter),
 
     // Token Management Methods
     createToken: tokenAdapter.createToken.bind(tokenAdapter),

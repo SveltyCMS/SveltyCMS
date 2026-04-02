@@ -326,8 +326,7 @@ class PluginRegistry implements IPluginService {
         appliedAt: new Date(),
         tenantId: "system",
       } as any,
-      undefined,
-      true,
+      { bypassTenantCheck: true },
     );
     await dbAdapter.crud.deleteMany(table, { pluginId: "__INIT__" } as any, {
       bypassTenantCheck: true,
@@ -379,8 +378,7 @@ class PluginRegistry implements IPluginService {
         tenantId,
         appliedAt: new Date(),
       } as any,
-      undefined,
-      true,
+      { bypassTenantCheck: true },
     );
   }
 }

@@ -51,7 +51,7 @@ export interface AuditLogEntry extends BaseEntity {
   severity: AuditSeverity;
   targetId?: DatabaseId | null; // What was affected
   targetType?: string; // 'user', 'token', 'collection', etc.
-  tenantId?: string | null; // For multi-tenant support
+  tenantId?: DatabaseId | null; // For multi-tenant support
   timestamp: string;
   userAgent?: string;
 }
@@ -376,7 +376,7 @@ export class AuditLogService {
             // { timestamp: ... } is fine.
             // We pass tenantId as 3rd arg to deleteMany.
             const result = await db.crud.deleteMany(this.collectionName, timestampFilter, {
-              tenantId: tenant._id as string,
+              tenantId: tenant._id as DatabaseId,
             });
             if (result.success && result.data) {
               totalDeleted += result.data.deletedCount;

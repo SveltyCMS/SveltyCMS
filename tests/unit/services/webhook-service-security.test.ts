@@ -2,40 +2,38 @@
  * @file tests/unit/services/webhook-service-security.test.ts
  * @description Unit tests for WebhookService security, focusing on cache and tenant isolation.
  */
-import { describe, it, expect, beforeEach, mock } from "bun:test";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { WebhookService, type WebhookEvent } from "@src/services/webhook-service";
 
-// ─────────────────────────────────────────────────────────────
-// MOCKS (using Bun's native mock when possible)
-// ─────────────────────────────────────────────────────────────
-
-const mockDb = {
-  system: {
-    preferences: {
-      get: mock(),
-      set: mock(),
+const { mockDb } = vi.hoisted(() => ({
+  mockDb: {
+    system: {
+      preferences: {
+        get: vi.fn(),
+        set: vi.fn(),
+      },
     },
   },
-};
-
-mock.module("@src/databases/db", () => ({
-  dbAdapter: mockDb,
-  getDbInitPromise: mock().mockResolvedValue(undefined),
 }));
 
-mock.module("@utils/logger.server", () => ({
+vi.mock("@src/databases/db", () => ({
+  dbAdapter: mockDb,
+  getDbInitPromise: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("@utils/logger.server", () => ({
   logger: {
-    info: mock(),
-    error: mock(),
-    warn: mock(),
-    debug: mock(),
+    info: vi.fn(),
+    error: vi.fn(),
+    warn: vi.fn(),
+    debug: vi.fn(),
   },
 }));
 
 // Mock jobQueue (we'll control dispatch behavior)
-const mockDispatch = mock().mockResolvedValue("job-123");
+const mockDispatch = vi.fn().mockResolvedValue("job-123");
 
-mock.module("@src/services/jobs/job-queue-service", () => ({
+vi.mock("@src/services/jobs/job-queue-service", () => ({
   jobQueue: {
     dispatch: mockDispatch,
   },
@@ -48,7 +46,7 @@ describe("WebhookService Security - Tenant Isolation", () => {
 
   beforeEach(() => {
     // Reset all mocks
-    mock.restore();
+    vi.clearAllMocks();
 
     // Reset singleton
     // @ts-expect-error - testing private singleton
@@ -142,7 +140,7 @@ describe("WebhookService Security - Tenant Isolation", () => {
 
     expect(mockDispatch).toHaveBeenCalledTimes(1);
 
-    const [jobType, payload, tId] = mockDispatch.mock.calls[0]!;
+    const [jobType, payload, tId] = mockDispatch.mock.calls[0] as any;
 
     expect(jobType).toBe("webhook-delivery");
     expect(payload.webhook.id).toBe("h1");

@@ -11,6 +11,7 @@
 
 import { hasPermissionByAction } from "@src/databases/auth/permissions";
 import type { Role } from "@src/databases/auth/types";
+import type { DatabaseId } from "../content/types";
 import {
   cacheService,
   USER_COUNT_CACHE_TTL_MS,
@@ -66,7 +67,7 @@ function isOAuthRoute(pathname: string): boolean {
 
 /** Get cached user count with fallback */
 async function getCachedUserCount(
-  tenantId?: string | null,
+  tenantId?: DatabaseId | null,
   multiTenant?: boolean,
 ): Promise<number> {
   let userCount: number;
@@ -85,7 +86,7 @@ async function getCachedUserCount(
       const cached = await cacheService.get<{
         count: number;
         timestamp: number;
-      }>("userCount", tenantId);
+      }>("userCount", tenantId ?? undefined);
       if (cached && now - cached.timestamp < USER_COUNT_CACHE_TTL_MS) {
         userCountCache = cached; // Update in-memory cache from distributed cache
         userCount = cached.count;
@@ -94,12 +95,19 @@ async function getCachedUserCount(
         if (!auth) {
           return -1; // Database adapter not initialized
         }
-        const filter = multiTenant && tenantId ? { tenantId } : {};
-        const bypassOpts = !tenantId ? { bypassTenantCheck: true } : undefined;
+        const filter = multiTenant && tenantId ? { tenantId: tenantId as DatabaseId } : {};
+        const bypassOpts = !tenantId
+          ? { bypassTenantCheck: true }
+          : { tenantId: tenantId as DatabaseId };
         userCount = await auth.getUserCount(filter, bypassOpts);
         const cacheData = { count: userCount, timestamp: now };
         userCountCache = cacheData; // Update in-memory cache
-        await cacheService.set("userCount", cacheData, USER_COUNT_CACHE_TTL_S, tenantId); // Update distributed cache
+        await cacheService.set(
+          "userCount",
+          cacheData,
+          USER_COUNT_CACHE_TTL_S,
+          tenantId ?? undefined,
+        ); // Update distributed cache
       }
     } catch (err) {
       logger.warn(
@@ -116,11 +124,11 @@ async function getCachedUserCount(
  * Get cached roles for access checks (database-only)
  * Returns empty array if database is unavailable - caller should handle setup redirect
  */
-async function getCachedRoles(tenantId?: string | null): Promise<Role[]> {
+async function getCachedRoles(tenantId?: DatabaseId | null): Promise<Role[]> {
   const now = Date.now();
   const key = tenantId || "global";
 
-  const cached = rolesCache.get(key);
+  const cached = rolesCache.get(key.toString());
   if (cached && now - cached.timestamp < USER_PERM_CACHE_TTL_MS) {
     return cached.data;
   }
@@ -131,16 +139,19 @@ async function getCachedRoles(tenantId?: string | null): Promise<Role[]> {
       return [];
     }
 
-    const bypassOpts = !tenantId || tenantId === "global" ? { bypassTenantCheck: true } : undefined;
-    const data = await auth.getAllRoles(tenantId === "global" ? undefined : tenantId, bypassOpts);
+    const bypassOpts =
+      !tenantId || tenantId === "global"
+        ? { bypassTenantCheck: true }
+        : { tenantId: tenantId as DatabaseId };
+    const data = await auth.getAllRoles(bypassOpts);
     if (!data || data.length === 0) {
       logger.debug("No roles found in database", { tenantId });
       return [];
     }
 
     const cacheData = { data, timestamp: now };
-    rolesCache.set(key, cacheData);
-    await cacheService.set(`roles:${key}`, cacheData, USER_PERM_CACHE_TTL_S, tenantId);
+    rolesCache.set(key.toString(), cacheData);
+    await cacheService.set(`roles:${key}`, cacheData, USER_PERM_CACHE_TTL_S, tenantId ?? undefined);
     return data;
   } catch (err) {
     logger.error(
@@ -184,7 +195,7 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
   const multiTenant = getPrivateSettingSync("MULTI_TENANT");
 
   if (locals.isFirstUser === undefined) {
-    const userCount = await getCachedUserCount(locals.tenantId, !!multiTenant);
+    const userCount = await getCachedUserCount(locals.tenantId as DatabaseId, !!multiTenant);
     locals.isFirstUser = userCount === 0;
   }
 
@@ -195,7 +206,7 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
     return resolve(event);
   }
   // --- Load cached roles (database-only) ---
-  const rolesData = await getCachedRoles(locals.tenantId);
+  const rolesData = await getCachedRoles(locals.tenantId as DatabaseId);
 
   // Deduplicate roles by ID to prevent UI glitches
   const uniqueRolesMap = new Map();

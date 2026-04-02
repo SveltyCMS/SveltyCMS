@@ -5,7 +5,7 @@
 
 // Utils
 import { contentManager } from "@src/content";
-import type { ISODateString } from "@src/content/types";
+import type { DatabaseId, ISODateString } from "@src/content/types";
 // System Logger
 import { generateGoogleAuthUrl, getOAuthRedirectUri } from "@src/databases/auth/google-auth";
 //Db
@@ -203,7 +203,7 @@ async function handleGoogleUser(
     if (!auth) {
       throw new Error("Auth system not initialized");
     }
-    await auth.updateUserAttributes(user._id.toString(), updateData);
+    await auth.updateUserAttributes(user._id as DatabaseId, updateData);
     logger.debug(`Updated user attributes for: ${user._id}`);
   } else {
     // Handle new user creation with invite token validation

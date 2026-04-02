@@ -280,7 +280,7 @@ export const actions: Actions = {
         if (file instanceof File) {
           try {
             // Use MediaService.saveMedia which handles all media types
-            await mediaService.saveMedia(file, user._id, access, folder);
+            await mediaService.saveMedia(file, user._id as any, access, folder as any);
             logger.info(`File uploaded successfully to ${folder}: ${file.name}`);
           } catch (fileError) {
             const errorMessage = fileError instanceof Error ? fileError.message : String(fileError);
@@ -474,7 +474,7 @@ export const actions: Actions = {
           const file = new File([buffer], filename, { type: contentType });
 
           // Use MediaService.saveMedia which handles all media types
-          await mediaService.saveMedia(file, user._id, access, folder);
+          await mediaService.saveMedia(file, user._id as any, access, folder as any);
           logger.info(`Remote file uploaded successfully to ${folder}: ${file.name}`);
         } catch (fileError) {
           const errorMessage = fileError instanceof Error ? fileError.message : String(fileError);

@@ -28,25 +28,26 @@ import {
 } from "@src/databases/auth/permissions";
 import type { Role, User } from "@src/databases/auth/types";
 import { PermissionAction, PermissionType } from "@src/databases/auth/types";
+import type { DatabaseId } from "@src/content/types";
 
 // Mock roles that would be in database
 const mockRoles: Role[] = [
   {
-    _id: "admin",
+    _id: "admin" as DatabaseId,
     name: "Admin",
     description: "Administrator with full access",
     permissions: [], // Admins get all permissions via isAdmin flag
     isAdmin: true,
   },
   {
-    _id: "editor",
+    _id: "editor" as DatabaseId,
     name: "Editor",
     description: "Can create and edit content",
     permissions: ["collection:read", "collection:write", "collection:create"],
     isAdmin: false,
   },
   {
-    _id: "viewer",
+    _id: "viewer" as DatabaseId,
     name: "Viewer",
     description: "Can only view content",
     permissions: ["collection:read"],
@@ -58,19 +59,19 @@ describe("Role and Permission Access Management", () => {
   beforeEach(() => {
     // Register test permissions
     registerPermission({
-      _id: "collection:create",
+      _id: "collection:create" as DatabaseId,
       name: "Create Content",
       action: PermissionAction.CREATE,
       type: PermissionType.COLLECTION,
     });
     registerPermission({
-      _id: "collection:read",
+      _id: "collection:read" as DatabaseId,
       name: "Read Content",
       action: PermissionAction.READ,
       type: PermissionType.COLLECTION,
     });
     registerPermission({
-      _id: "collection:delete",
+      _id: "collection:delete" as DatabaseId,
       name: "Delete Content",
       action: PermissionAction.DELETE,
       type: PermissionType.COLLECTION,
@@ -79,7 +80,7 @@ describe("Role and Permission Access Management", () => {
 
   test("Check user permissions with roles", () => {
     const editorUser: User = {
-      _id: "user1",
+      _id: "user1" as DatabaseId,
       email: "editor@example.com",
       role: "editor",
       permissions: [],
@@ -99,7 +100,7 @@ describe("Role and Permission Access Management", () => {
 
   test("Admin role has all permissions", () => {
     const adminUser: User = {
-      _id: "admin1",
+      _id: "admin1" as DatabaseId,
       email: "admin@example.com",
       role: "admin",
       permissions: [],
@@ -130,7 +131,7 @@ describe("Role and Permission Access Management", () => {
 
   test("Permission checking by action and type", () => {
     const editorUser: User = {
-      _id: "user1",
+      _id: "user1" as DatabaseId,
       email: "editor@example.com",
       role: "editor",
       permissions: [],
@@ -157,14 +158,14 @@ describe("Role and Permission Access Management", () => {
 
   test("Admin role detection", () => {
     const adminUser: User = {
-      _id: "admin1",
+      _id: "admin1" as DatabaseId,
       email: "admin@example.com",
       role: "admin",
       permissions: [],
     };
 
     const editorUser: User = {
-      _id: "user1",
+      _id: "user1" as DatabaseId,
       email: "editor@example.com",
       role: "editor",
       permissions: [],
@@ -176,7 +177,7 @@ describe("Role and Permission Access Management", () => {
 
   test("Viewer has limited permissions", () => {
     const viewerUser: User = {
-      _id: "user2",
+      _id: "user2" as DatabaseId,
       email: "viewer@example.com",
       role: "viewer",
       permissions: [],

@@ -13,7 +13,7 @@
  * - Multi-tenant aware operations
  */
 
-import type { IDBAdapter, ISODateString } from "@src/databases/db-interface";
+import type { DatabaseId, IDBAdapter, ISODateString } from "@src/databases/db-interface";
 // System Logger
 import { logger } from "@utils/logger";
 import {
@@ -50,9 +50,9 @@ export class TwoFactorAuthService {
    * This generates a new secret and backup codes but doesn't enable 2FA yet
    */
   async initiate2FASetup(
-    userId: string,
+    userId: DatabaseId,
     userEmail: string,
-    tenantId?: string | null,
+    tenantId?: DatabaseId | null,
   ): Promise<TwoFactorSetupResponse> {
     try {
       logger.info("Initiating 2FA setup", { userId, tenantId });
@@ -91,11 +91,11 @@ export class TwoFactorAuthService {
    * This enables 2FA for the user and saves the secret and backup codes
    */
   async complete2FASetup(
-    userId: string,
+    userId: DatabaseId,
     secret: string,
     verificationCode: string,
     backupCodes: string[],
-    tenantId?: string | null,
+    tenantId?: DatabaseId | null,
   ): Promise<boolean> {
     try {
       logger.info("Completing 2FA setup", { userId, tenantId });
@@ -125,7 +125,9 @@ export class TwoFactorAuthService {
         last2FAVerification: new Date().toISOString() as ISODateString,
       };
 
-      const result = await this.db.updateUserAttributes(userId, updateData, tenantId);
+      const result = await this.db.updateUserAttributes(userId, updateData, {
+        tenantId: tenantId ?? undefined,
+      });
       if (!result.success) {
         throw new Error("Failed to update user 2FA settings");
       }
@@ -144,15 +146,15 @@ export class TwoFactorAuthService {
    * Supports both TOTP codes and backup codes
    */
   async verify2FA(
-    userId: string,
+    userId: DatabaseId,
     code: string,
-    tenantId?: string | null,
+    tenantId?: DatabaseId | null,
   ): Promise<TwoFactorVerificationResult> {
     try {
       logger.debug("Verifying 2FA code", { userId, tenantId });
 
       // Get user data
-      const userResult = await this.db.getUserById(userId, tenantId);
+      const userResult = await this.db.getUserById(userId, { tenantId: tenantId ?? undefined });
       if (!(userResult.success && userResult.data)) {
         return {
           success: false,
@@ -178,7 +180,7 @@ export class TwoFactorAuthService {
           {
             last2FAVerification: new Date().toISOString() as ISODateString,
           },
-          tenantId,
+          { tenantId: tenantId ?? undefined },
         );
 
         logger.info("2FA verification successful via TOTP", {
@@ -208,7 +210,7 @@ export class TwoFactorAuthService {
                 backupCodes: updatedBackupCodes,
                 last2FAVerification: new Date().toISOString() as ISODateString,
               },
-              tenantId,
+              { tenantId },
             );
 
             logger.info("2FA verification successful via backup code", {
@@ -243,7 +245,7 @@ export class TwoFactorAuthService {
   }
 
   // Disable 2FA for a user (requires current password or admin permission)
-  async disable2FA(userId: string, tenantId?: string | null): Promise<boolean> {
+  async disable2FA(userId: DatabaseId, tenantId?: DatabaseId | null): Promise<boolean> {
     try {
       logger.info("Disabling 2FA", { userId, tenantId });
 
@@ -255,7 +257,9 @@ export class TwoFactorAuthService {
         last2FAVerification: undefined,
       };
 
-      const result = await this.db.updateUserAttributes(userId, updateData, tenantId);
+      const result = await this.db.updateUserAttributes(userId, updateData, {
+        tenantId: tenantId ?? undefined,
+      });
 
       if (!result.success) {
         throw new Error("Failed to disable 2FA");
@@ -271,12 +275,12 @@ export class TwoFactorAuthService {
   }
 
   // Generate new backup codes for a user (invalidates old ones)
-  async regenerateBackupCodes(userId: string, tenantId?: string | null): Promise<string[]> {
+  async regenerateBackupCodes(userId: DatabaseId, tenantId?: DatabaseId | null): Promise<string[]> {
     try {
       logger.info("Regenerating backup codes", { userId, tenantId });
 
       // Get user to verify 2FA is enabled
-      const userResult = await this.db.getUserById(userId, tenantId);
+      const userResult = await this.db.getUserById(userId, { tenantId: tenantId ?? undefined });
       if (!(userResult.success && userResult.data && userResult.data.is2FAEnabled)) {
         throw new Error("2FA is not enabled for this user");
       }
@@ -293,7 +297,7 @@ export class TwoFactorAuthService {
         {
           backupCodes: hashedBackupCodes,
         },
-        tenantId,
+        { tenantId: tenantId ?? undefined },
       );
 
       if (!result.success) {
@@ -314,8 +318,8 @@ export class TwoFactorAuthService {
 
   //Get 2FA status for a user
   async get2FAStatus(
-    userId: string,
-    tenantId?: string | null,
+    userId: DatabaseId,
+    tenantId?: DatabaseId | null,
   ): Promise<{
     enabled: boolean;
     hasBackupCodes: boolean;
@@ -323,7 +327,7 @@ export class TwoFactorAuthService {
     lastVerification?: ISODateString;
   }> {
     try {
-      const userResult = await this.db.getUserById(userId, tenantId);
+      const userResult = await this.db.getUserById(userId, { tenantId: tenantId ?? undefined });
       if (!(userResult.success && userResult.data)) {
         throw new Error("User not found");
       }

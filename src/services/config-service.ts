@@ -188,7 +188,7 @@ class ConfigService {
         "collections",
         {},
         {
-          tenantId: tenantId || undefined,
+          tenantId: (tenantId as any) || undefined,
         },
       );
 

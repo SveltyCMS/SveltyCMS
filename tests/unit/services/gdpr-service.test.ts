@@ -50,7 +50,7 @@ describe("GDPRService", () => {
 
       const result = (await gdprService.exportUserData(userId, tenantId)) as any;
 
-      expect(mockDbAdapter.auth.getUserById).toHaveBeenCalledWith(userId, tenantId);
+      expect(mockDbAdapter.auth.getUserById).toHaveBeenCalledWith(userId, { tenantId });
       expect(mockAuditLog.getLogs).toHaveBeenCalled();
       expect(result.profile._id).toBe(userId);
       expect(result.history).toHaveLength(1);
@@ -86,7 +86,7 @@ describe("GDPRService", () => {
           email: expect.stringContaining("anonymized.sveltycms.com"),
           username: expect.stringContaining("ghost-"),
         }),
-        tenantId,
+        { tenantId },
       );
       expect(mockAuditLog.log).toHaveBeenCalledWith(
         "gdpr.erasure",

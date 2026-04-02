@@ -142,7 +142,7 @@ export const POST = apiHandler(async ({ request, locals }) => {
     const result: Omit<PageSpeedResult, "_id" | "createdAt" | "updatedAt"> = {
       entryId,
       collectionId,
-      tenantId: tenantId || "default",
+      tenantId: (tenantId as any) || "default",
       language,
       device,
       url,

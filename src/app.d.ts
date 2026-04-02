@@ -4,7 +4,7 @@
  */
 
 import type { Role, Token, User } from "@src/databases/auth/types";
-import type { DatabaseAdapter, Theme } from "@src/databases/db-interface";
+import type { DatabaseAdapter, Theme, DatabaseId } from "@src/databases/db-interface";
 
 declare global {
   namespace App {
@@ -86,8 +86,8 @@ declare global {
       language: string;
       permissions: string[];
       roles: Role[];
-      session_id?: string;
-      tenantId?: string | null;
+      session_id?: DatabaseId;
+      tenantId?: DatabaseId | null;
       theme: Theme | null;
       user: User | null;
     }

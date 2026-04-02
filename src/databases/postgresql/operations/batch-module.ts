@@ -10,10 +10,11 @@ import type {
   BatchResult,
   DatabaseId,
   DatabaseResult,
+  IBatchAdapter,
 } from "../../db-interface";
 import type { AdapterCore } from "../adapter/adapter-core";
 
-export class BatchModule {
+export class BatchModule implements IBatchAdapter {
   private readonly core: AdapterCore;
 
   constructor(core: AdapterCore) {
@@ -81,7 +82,7 @@ export class BatchModule {
 
   async bulkInsert<T extends BaseEntity>(
     collection: string,
-    items: Omit<T, "_id" | "createdAt" | "updatedAt">[],
+    items: import("../../db-interface").EntityCreate<T>[],
   ): Promise<DatabaseResult<T[]>> {
     return this.core.crud.insertMany<T>(collection, items);
   }

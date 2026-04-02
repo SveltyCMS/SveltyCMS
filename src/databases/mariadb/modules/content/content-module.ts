@@ -87,7 +87,7 @@ export class ContentModule {
       },
     ): Promise<DatabaseResult<ContentNode[]>> =>
       this.adapter.crud.findMany("system_content_structure", (options?.filter || {}) as any, {
-        tenantId: options?.tenantId || undefined,
+        tenantId: (options?.tenantId || undefined) as DatabaseId | undefined,
       }),
 
     upsertContentStructureNode: (
@@ -145,7 +145,7 @@ export class ContentModule {
       options?: { tenantId?: string | null },
     ): Promise<DatabaseResult<{ deletedCount: number }>> =>
       this.adapter.crud.deleteMany("system_content_structure", { path: { $in: paths } } as any, {
-        tenantId: options?.tenantId,
+        tenantId: options?.tenantId as DatabaseId | undefined,
       }),
 
     reorder: (
@@ -170,9 +170,9 @@ export class ContentModule {
         for (const item of items) {
           await this.adapter.crud.update(
             "system_content_structure",
-            item.id as any,
+            item.id as DatabaseId,
             {
-              parentId: item.parentId,
+              parentId: item.parentId as DatabaseId | null,
               order: item.order,
               path: item.path,
             } as any,

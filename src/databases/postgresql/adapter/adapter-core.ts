@@ -13,7 +13,13 @@ import { logger } from "@utils/logger";
 import { and, eq, isNull } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import type { DatabaseCapabilities, DatabaseError, DatabaseResult } from "../../db-interface";
+import type {
+  DatabaseCapabilities,
+  DatabaseError,
+  DatabaseResult,
+  ICrudAdapter,
+  IBatchAdapter,
+} from "../../db-interface";
 import * as schema from "../schema/index";
 import * as utils from "../utils";
 
@@ -31,8 +37,8 @@ export class AdapterCore {
 
   public sql: ReturnType<typeof postgres> | null = null;
   public db: PostgresJsDatabase<typeof schema> | null = null;
-  public crud!: import("../crud/crud-module").CrudModule;
-  public batch!: import("../operations/batch-module").BatchModule;
+  public crud!: ICrudAdapter;
+  public batch!: IBatchAdapter;
   protected connected = false;
   public collectionRegistry = new Map<string, unknown>();
 

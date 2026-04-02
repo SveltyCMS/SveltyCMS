@@ -3,6 +3,7 @@
  * @description API endpoint for last 5 media files for dashboard widgets using database-agnostic adapter.
  */
 
+import type { DatabaseId } from "@src/content/types";
 import { getPrivateSettingSync } from "@src/services/settings-service";
 import { json } from "@sveltejs/kit";
 
@@ -68,7 +69,7 @@ export const GET = apiHandler(async ({ locals }) => {
       sortDirection: "desc",
     },
     false,
-    getPrivateSettingSync("MULTI_TENANT") ? tenantId : undefined,
+    getPrivateSettingSync("MULTI_TENANT") ? (tenantId as DatabaseId) : undefined,
   );
 
   if (!result.success) {

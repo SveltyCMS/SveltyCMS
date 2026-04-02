@@ -369,16 +369,17 @@ async function initializeWebSocketServer(dbAdapter: DatabaseAdapter, tenantId?: 
                   token,
                   undefined,
                   "access",
-                  tenantId,
+                  { tenantId: tenantId as DatabaseId },
                 );
 
                 if (tokenValidation?.success) {
-                  const tokenData = await dbAdapter.auth.getTokenByValue(token, tenantId);
+                  const tokenData = await dbAdapter.auth.getTokenByValue(token, {
+                    tenantId: tenantId as DatabaseId,
+                  });
                   if (tokenData?.success && tokenData.data) {
-                    const userResult = await dbAdapter.auth.getUserById(
-                      tokenData.data.user_id,
-                      tenantId,
-                    );
+                    const userResult = await dbAdapter.auth.getUserById(tokenData.data.user_id, {
+                      tenantId: tenantId as DatabaseId,
+                    });
                     if (userResult?.success) {
                       user = userResult.data;
                       logger.info("WebSocket: User authenticated via token", {

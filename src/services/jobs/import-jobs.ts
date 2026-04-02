@@ -7,7 +7,7 @@ import { dbAdapter, getDb } from "@src/databases/db";
 import { logger } from "@utils/logger.server";
 import type { JobHandler } from "./job-queue-service";
 import { getTempPayload, deleteTempPayload } from "@utils/temp-store";
-import type { Job } from "@src/databases/db-interface";
+import type { Job, DatabaseId } from "@src/databases/db-interface";
 
 export const importDataHandler: JobHandler = async (
   payload: {
@@ -53,7 +53,11 @@ export const importDataHandler: JobHandler = async (
   try {
     // Handle replace mode
     if (mode === "replace") {
-      const deleteResult = await dbAdapter.crud.deleteMany(collectionName, {}, { tenantId });
+      const deleteResult = await dbAdapter.crud.deleteMany(
+        collectionName,
+        {},
+        { tenantId: tenantId as DatabaseId },
+      );
       if (!deleteResult.success) {
         logger.warn(`[ImportJob] Failed to clear collection ${collectionName} for replace mode`);
       }
@@ -73,7 +77,7 @@ export const importDataHandler: JobHandler = async (
             const existing = await dbAdapter.crud.findOne(
               collectionName,
               { _id: doc._id },
-              { tenantId },
+              { tenantId: tenantId as DatabaseId },
             );
             if (existing.success && existing.data) {
               skipped++;
@@ -83,8 +87,12 @@ export const importDataHandler: JobHandler = async (
 
           // Insert or update document
           const result = doc._id
-            ? await dbAdapter.crud.upsert(collectionName, { _id: doc._id }, doc, tenantId)
-            : await dbAdapter.crud.insert(collectionName, doc, tenantId);
+            ? await dbAdapter.crud.upsert(collectionName, { _id: doc._id }, doc, {
+                tenantId: tenantId as DatabaseId,
+              })
+            : await dbAdapter.crud.insert(collectionName, doc, {
+                tenantId: tenantId as DatabaseId,
+              });
 
           if (result.success) {
             imported++;

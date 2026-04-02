@@ -7,7 +7,7 @@
  * They remain server-only in src/services/settingsService.ts
  */
 
-import { publicConfigSchema } from "@src/databases/schemas";
+import { publicConfigSchema } from "../databases/public-config-schema";
 // Universal Logger (safe for client and server)
 import { logger } from "@utils/logger";
 import type { InferOutput } from "valibot";
@@ -129,6 +129,18 @@ function startListening() {
   } catch (err) {
     logger.error("[GlobalSettings] Failed to initialize SSE", err);
   }
+}
+
+/**
+ * Get a specific public environment setting.
+ * @param key - The setting key
+ * @param fallback - Optional fallback value
+ */
+export function getPublicSetting<K extends keyof PublicEnv>(
+  key: K,
+  fallback?: PublicEnv[K],
+): PublicEnv[K] | undefined {
+  return getStore().state[key] ?? fallback;
 }
 
 /**

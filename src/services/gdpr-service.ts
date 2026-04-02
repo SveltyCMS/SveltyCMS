@@ -12,6 +12,7 @@
 import { dbAdapter } from "@databases/db";
 import { logger } from "@utils/logger.server";
 import { auditLogService } from "./audit/audit-log-service";
+import type { DatabaseId } from "@src/content/types";
 
 export class GDPRService {
   private static instance: GDPRService;
@@ -36,7 +37,9 @@ export class GDPRService {
 
     try {
       // 1. Fetch Core User Profile using Auth Adapter (scoped to tenant)
-      const userResult = await dbAdapter.auth.getUserById(userId, tenantId);
+      const userResult = await dbAdapter.auth.getUserById(userId as DatabaseId, {
+        tenantId: tenantId as DatabaseId,
+      });
 
       if (!(userResult.success && userResult.data)) {
         throw new Error("User not found or access denied");
@@ -89,7 +92,9 @@ export class GDPRService {
 
     try {
       // 1. Fetch User to verify existence and get original email for logging (scoped to tenant)
-      const userResult = await dbAdapter.auth.getUserById(userId, tenantId);
+      const userResult = await dbAdapter.auth.getUserById(userId as DatabaseId, {
+        tenantId: tenantId as DatabaseId,
+      });
       if (!(userResult.success && userResult.data)) {
         throw new Error("User not found or access denied");
       }
@@ -99,12 +104,12 @@ export class GDPRService {
 
       // 2. Perform Soft Delete / Anonymization using Auth Adapter
       const updateResult = await dbAdapter.auth.updateUserAttributes(
-        userId,
+        userId as DatabaseId,
         {
           email: anonymizedEmail,
           username: `ghost-${userId.substring(0, 8)}`,
         },
-        tenantId,
+        { tenantId: tenantId as DatabaseId },
       );
 
       if (!updateResult.success) {

@@ -120,13 +120,13 @@ export class ContentModule {
       _mode: "flat" | "nested",
       options?: {
         filter?: Partial<ContentNode>;
-        tenantId?: string | null;
+        tenantId?: DatabaseId | null;
         bypassCache?: boolean;
         bypassTenantCheck?: boolean;
       },
     ): Promise<DatabaseResult<ContentNode[]>> => {
       return this.crud.findMany<ContentNode>("content_nodes", (options?.filter || {}) as any, {
-        tenantId: options?.tenantId,
+        tenantId: options?.tenantId as DatabaseId,
       });
     },
 

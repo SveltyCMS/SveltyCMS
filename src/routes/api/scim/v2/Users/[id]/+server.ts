@@ -10,6 +10,7 @@
  */
 
 import { auth } from "@src/databases/db";
+import type { DatabaseId } from "@src/databases/db-interface";
 import { SCIM_SCHEMAS } from "@src/types/scim";
 import type { ScimPatchRequest } from "@src/types/scim";
 import { json } from "@sveltejs/kit";
@@ -36,7 +37,7 @@ export const GET = apiHandler(async ({ params, url, locals, request }) => {
     throw new AppError("Authentication service not available", 500, "AUTH_UNAVAILABLE");
   }
 
-  const user = await auth.getUserById(id, tenantId);
+  const user = await auth.getUserById(id as DatabaseId, { tenantId: tenantId as DatabaseId });
   if (!user) {
     return scimError(404, `User ${id} not found`, "invalidValue");
   }
@@ -62,7 +63,9 @@ export const PUT = apiHandler(async ({ params, request, url, locals }) => {
     throw new AppError("Invalid JSON payload", 400, "INVALID_JSON");
   });
 
-  const existingUser = await auth.getUserById(id, tenantId);
+  const existingUser = await auth.getUserById(id as DatabaseId, {
+    tenantId: tenantId as DatabaseId,
+  });
   if (!existingUser) {
     return scimError(404, `User ${id} not found`, "invalidValue");
   }
@@ -83,8 +86,10 @@ export const PUT = apiHandler(async ({ params, request, url, locals }) => {
     if (primary?.value) updates.email = primary.value;
   }
 
-  await auth.updateUser(id, updates as any, tenantId);
-  const updatedUser = await auth.getUserById(id, tenantId);
+  await auth.updateUser(id as DatabaseId, updates as any, { tenantId: tenantId as DatabaseId });
+  const updatedUser = await auth.getUserById(id as DatabaseId, {
+    tenantId: tenantId as DatabaseId,
+  });
 
   logger.info("SCIM User replaced (full)", { userId: id, tenantId });
   return json(buildScimUser(updatedUser || existingUser, url.origin));
@@ -117,7 +122,9 @@ export const PATCH = apiHandler(async ({ params, request, url, locals }) => {
     return scimError(400, "Operations array is required", "invalidValue");
   }
 
-  const existingUser = await auth.getUserById(id, tenantId);
+  const existingUser = await auth.getUserById(id as DatabaseId, {
+    tenantId: tenantId as DatabaseId,
+  });
   if (!existingUser) {
     return scimError(404, `User ${id} not found`, "invalidValue");
   }
@@ -126,10 +133,14 @@ export const PATCH = apiHandler(async ({ params, request, url, locals }) => {
   const updates = applyScimPatchOps(existingUser, body.Operations);
 
   if (Object.keys(updates).length > 0) {
-    await auth.updateUserAttributes(id, updates, tenantId);
+    await auth.updateUserAttributes(id as DatabaseId, updates, {
+      tenantId: tenantId as DatabaseId,
+    });
   }
 
-  const updatedUser = await auth.getUserById(id, tenantId);
+  const updatedUser = await auth.getUserById(id as DatabaseId, {
+    tenantId: tenantId as DatabaseId,
+  });
   logger.info("SCIM User patched", {
     userId: id,
     ops: body.Operations.length,
@@ -152,14 +163,18 @@ export const DELETE = apiHandler(async ({ params, request, locals }) => {
     return scimError(400, "User ID is required", "invalidValue");
   }
 
-  const existingUser = await auth.getUserById(id, tenantId);
+  const existingUser = await auth.getUserById(id as DatabaseId, {
+    tenantId: tenantId as DatabaseId,
+  });
   if (!existingUser) {
     return scimError(404, `User ${id} not found`, "invalidValue");
   }
 
   // Soft delete: deactivate user instead of hard delete
   // Soft delete: deactivate user using system convention (blocked: true)
-  await auth.updateUser(id, { blocked: true } as any, tenantId);
+  await auth.updateUser(id as DatabaseId, { blocked: true } as any, {
+    tenantId: tenantId as DatabaseId,
+  });
 
   logger.info("SCIM User deactivated", { userId: id, tenantId });
   return new Response(null, { status: 204 });

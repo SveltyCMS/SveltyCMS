@@ -48,9 +48,9 @@ function generateGraphQLTypeDefsFromType<T extends Record<string, GraphQLValue>>
 
 // Use a partial User object to define the types
 const userTypeSample: Partial<User> = {
-  _id: "",
+  _id: "" as DatabaseId,
   email: "",
-  tenantId: "",
+  tenantId: "" as DatabaseId,
   password: "",
   role: "",
   username: "",
@@ -118,7 +118,7 @@ export function userResolvers(dbAdapter: DatabaseAdapter) {
                       targetTenant: context.tenantId || "",
                       userTenant: userTenant || "",
                     },
-                    tenantId: context.tenantId,
+                    tenantId: (context.tenantId as DatabaseId) || null,
                   });
                 })
                 .catch(() => {});
@@ -128,17 +128,17 @@ export function userResolvers(dbAdapter: DatabaseAdapter) {
 
         // Build filter for multi-tenant support
         const filter: Record<string, unknown> = {};
-        if (getPrivateSettingSync("MULTI_TENANT") && context.tenantId) {
-          filter.tenantId = context.tenantId;
-        }
 
         // Use auth.getAllUsers instead of queryBuilder for proper model access
-        const result = await dbAdapter.auth.getAllUsers({
-          filter,
-          sort: { updatedAt: "desc" },
-          offset: (page - 1) * limit,
-          limit,
-        });
+        const result = await dbAdapter.auth.getAllUsers(
+          {
+            filter,
+            sort: { updatedAt: "desc" },
+            offset: (page - 1) * limit,
+            limit,
+          },
+          { tenantId: context.tenantId as DatabaseId },
+        );
 
         if (!result.success) {
           throw new Error(result.error?.message || "Query failed");

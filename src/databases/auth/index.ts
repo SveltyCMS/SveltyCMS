@@ -14,6 +14,7 @@ import type {
   DatabaseAdapter,
   DatabaseResult,
   BaseQueryOptions,
+  PaginationOptions,
 } from "@src/databases/db-interface";
 // Import global settings service for DB-based configuration
 import { getPrivateSettingSync } from "@src/services/settings-service";
@@ -105,16 +106,16 @@ export class Auth {
 
   async blockUsers(
     userIds: DatabaseId[],
-    tenantId?: DatabaseId | null,
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<{ modifiedCount: number }>> {
-    return this.db.auth.blockUsers(userIds, tenantId);
+    return this.db.auth.blockUsers(userIds, options);
   }
 
   async unblockUsers(
     userIds: DatabaseId[],
-    tenantId?: DatabaseId | null,
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<{ modifiedCount: number }>> {
-    return this.db.auth.unblockUsers(userIds, tenantId);
+    return this.db.auth.unblockUsers(userIds, options);
   }
 
   // Permission management
@@ -165,14 +166,10 @@ export class Auth {
     }
   }
 
-  async getUserById(
-    userId: DatabaseId,
-    tenantId?: DatabaseId | null,
-    options?: BaseQueryOptions,
-  ): Promise<User | null> {
+  async getUserById(userId: DatabaseId, options?: BaseQueryOptions): Promise<User | null> {
     // No caching - getUserById is fast enough and avoids cache invalidation complexity
     // Session cache already stores user data for authenticated requests
-    const result = (await this.db.auth.getUserById(userId, { ...options, tenantId })) as unknown;
+    const result = (await this.db.auth.getUserById(userId, options)) as unknown;
     if (
       result &&
       typeof result === "object" &&
@@ -188,14 +185,10 @@ export class Auth {
     return (result as User | null) ?? null;
   }
 
-  async getUserBySamlId(
-    samlId: string,
-    tenantId?: DatabaseId | null,
-    options?: BaseQueryOptions,
-  ): Promise<User | null> {
+  async getUserBySamlId(samlId: string, options?: BaseQueryOptions): Promise<User | null> {
     // Uses generic checkUser structure mapping to adapter lookup
     return this.checkUser(
-      { user_id: undefined as any, email: undefined as any, samlId, tenantId },
+      { user_id: undefined as any, email: undefined as any, samlId, tenantId: options?.tenantId },
       options,
     );
   }
@@ -228,13 +221,9 @@ export class Auth {
   async updateUser(
     userId: DatabaseId,
     updates: Partial<User>,
-    tenantId?: DatabaseId | null,
     options?: BaseQueryOptions,
   ): Promise<void> {
-    const result = await this.db.auth.updateUserAttributes(userId, updates, {
-      ...options,
-      tenantId,
-    });
+    const result = await this.db.auth.updateUserAttributes(userId, updates, options);
     if (!result?.success) {
       throw error(500, "Failed to update user");
     }
@@ -243,22 +232,22 @@ export class Auth {
     // Session cache is the only cache, and it's invalidated by updateUserAttributes API
   }
 
-  async deleteUser(userId: DatabaseId, tenantId?: DatabaseId | null): Promise<void> {
+  async deleteUser(userId: DatabaseId, options?: BaseQueryOptions): Promise<void> {
     // Get user first to clear email cache
-    const user = await this.getUserById(userId, tenantId);
+    const user = await this.getUserById(userId, options);
 
-    const result = await this.db.auth.deleteUser(userId, { tenantId });
+    const result = await this.db.auth.deleteUser(userId, options);
     if (!result?.success) {
       throw error(500, "Failed to delete user");
     }
 
     // Invalidate all caches for this user
     const cacheKey = `user:id:${userId}`;
-    await cacheService.delete(cacheKey, tenantId);
+    await cacheService.delete(cacheKey, options?.tenantId);
 
     if (user?.email) {
       const emailCacheKey = `user:email:${user.email.toLowerCase()}`;
-      await cacheService.delete(emailCacheKey, tenantId);
+      await cacheService.delete(emailCacheKey, options?.tenantId);
     }
   }
   async getAllUsers(options?: PaginationOptions, dbOptions?: BaseQueryOptions): Promise<User[]> {
@@ -390,7 +379,7 @@ export class Auth {
     tenantId?: DatabaseId | null;
   }): Promise<string> {
     // Get user email (required for token creation)
-    const user = await this.getUserById(tokenData.user_id, tokenData.tenantId);
+    const user = await this.getUserById(tokenData.user_id, { tenantId: tokenData.tenantId });
     if (!user) {
       throw new Error("User not found");
     }
@@ -419,9 +408,9 @@ export class Auth {
   async updateToken(
     tokenId: DatabaseId,
     tokenData: Partial<Token>,
-    tenantId?: DatabaseId | null,
+    options?: BaseQueryOptions,
   ): Promise<Token> {
-    const result = await this.db.auth.updateToken(tokenId, tokenData, tenantId);
+    const result = await this.db.auth.updateToken(tokenId, tokenData, options);
     if (result?.success) {
       return result.data;
     }
@@ -435,9 +424,9 @@ export class Auth {
 
   async deleteTokens(
     tokenIds: DatabaseId[],
-    tenantId?: DatabaseId | null,
+    options?: BaseQueryOptions,
   ): Promise<{ deletedCount: number }> {
-    const result = await this.db.auth.deleteTokens(tokenIds, tenantId);
+    const result = await this.db.auth.deleteTokens(tokenIds, options);
     if (result?.success) {
       return result.data;
     }
@@ -451,9 +440,9 @@ export class Auth {
 
   async blockTokens(
     tokenIds: DatabaseId[],
-    tenantId?: DatabaseId | null,
+    options?: BaseQueryOptions,
   ): Promise<{ modifiedCount: number }> {
-    const result = await this.db.auth.blockTokens(tokenIds, tenantId);
+    const result = await this.db.auth.blockTokens(tokenIds, options);
     if (result?.success) {
       return result.data;
     }
@@ -467,9 +456,9 @@ export class Auth {
 
   async unblockTokens(
     tokenIds: DatabaseId[],
-    tenantId?: DatabaseId | null,
+    options?: BaseQueryOptions,
   ): Promise<{ modifiedCount: number }> {
-    const result = await this.db.auth.unblockTokens(tokenIds, tenantId);
+    const result = await this.db.auth.unblockTokens(tokenIds, options);
     if (result?.success) {
       return result.data;
     }
@@ -481,8 +470,8 @@ export class Auth {
     );
   }
 
-  async getTokenByValue(token: string, tenantId?: DatabaseId | null): Promise<Token | null> {
-    const result = await this.db.auth.getTokenByValue(token, tenantId);
+  async getTokenByValue(token: string, options?: BaseQueryOptions): Promise<Token | null> {
+    const result = await this.db.auth.getTokenByValue(token, options);
     if (result?.success) {
       return result.data;
     }
@@ -496,9 +485,9 @@ export class Auth {
     token: string,
     userId?: DatabaseId,
     type = "access",
-    tenantId?: DatabaseId | null,
+    options?: BaseQueryOptions,
   ): Promise<{ success: boolean; message: string }> {
-    const result = await this.db.auth.validateToken(token, userId, type, tenantId);
+    const result = await this.db.auth.validateToken(token, userId, type, options);
     if (result?.success && result.data) {
       return {
         success: true,
@@ -516,17 +505,17 @@ export class Auth {
 
   async validateRegistrationToken(
     token: string,
-    tenantId?: string | null,
+    options?: BaseQueryOptions,
   ): Promise<{ isValid: boolean; message: string; details?: Token }> {
     // Try both 'user-invite' (new) and 'invite' (legacy) types
-    let result = await this.db.auth.validateToken(token, undefined, "user-invite", tenantId);
+    let result = await this.db.auth.validateToken(token, undefined, "user-invite", options);
 
     if (!(result?.success && result.data && result.data.success)) {
-      result = await this.db.auth.validateToken(token, undefined, "invite", tenantId);
+      result = await this.db.auth.validateToken(token, undefined, "invite", options);
     }
 
     if (result?.success && result.data && result.data.success) {
-      const tokenResult = await this.db.auth.getTokenByValue(token, tenantId);
+      const tokenResult = await this.db.auth.getTokenByValue(token, options);
       const tokenDoc = tokenResult?.success ? tokenResult.data : null;
       return {
         isValid: true,
@@ -545,11 +534,11 @@ export class Auth {
 
   async consumeToken(
     token: string,
-    userId?: string,
+    userId?: DatabaseId,
     type = "access",
-    tenantId?: string | null,
+    options?: BaseQueryOptions,
   ): Promise<{ status: boolean; message: string }> {
-    const result = await this.db.auth.consumeToken(token, userId, type, tenantId);
+    const result = await this.db.auth.consumeToken(token, userId, type, options);
     if (result?.success) {
       return result.data;
     }
@@ -564,14 +553,14 @@ export class Auth {
 
   async consumeRegistrationToken(
     token: string,
-    tenantId?: string | null,
+    options?: BaseQueryOptions,
   ): Promise<{ status: boolean; message: string }> {
     // Attempt to consume as 'user-invite' first
-    let result = await this.db.auth.consumeToken(token, undefined, "user-invite", tenantId);
+    let result = await this.db.auth.consumeToken(token, undefined, "user-invite", options);
 
     // If fails (likely wrong type), try legacy 'invite'
     if (!(result?.success && result.data && result.data.status)) {
-      result = await this.db.auth.consumeToken(token, undefined, "invite", tenantId);
+      result = await this.db.auth.consumeToken(token, undefined, "invite", options);
     }
 
     if (result?.success && result.data) {
@@ -589,9 +578,9 @@ export class Auth {
   async authenticate(
     email: string,
     password: string,
-    tenantId?: string | null,
+    tenantId?: DatabaseId | null,
     options?: { bypassTenantCheck?: boolean },
-  ): Promise<{ user: User; sessionId: string } | null> {
+  ): Promise<{ user: User; sessionId: DatabaseId } | null> {
     try {
       const user = await this.getUserByEmail({ email, tenantId }, options);
       if (!user) {
@@ -635,16 +624,16 @@ export class Auth {
     }
   }
 
-  async logOut(sessionId: string): Promise<void> {
+  async logOut(sessionId: DatabaseId): Promise<void> {
     await this.destroySession(sessionId);
   }
 
   async checkUser(
     fields: {
-      user_id?: string;
+      user_id?: DatabaseId;
       email?: string;
       samlId?: string;
-      tenantId?: string | null;
+      tenantId?: DatabaseId | null;
     },
     options?: { bypassTenantCheck?: boolean },
   ): Promise<User | null> {
@@ -672,7 +661,10 @@ export class Auth {
       return null;
     }
     if (fields.user_id) {
-      const result = await this.db.auth.getUserById(fields.user_id, fields.tenantId, options);
+      const result = await this.db.auth.getUserById(fields.user_id, {
+        ...options,
+        tenantId: fields.tenantId,
+      });
       if (result?.success) {
         return result.data;
       }
@@ -682,10 +674,9 @@ export class Auth {
   }
 
   async updateUserAttributes(
-    userId: string,
+    userId: DatabaseId,
     attributes: Partial<User>,
-    tenantId?: string | null,
-    options?: { bypassTenantCheck?: boolean },
+    options?: BaseQueryOptions,
   ): Promise<User> {
     const isServer =
       typeof window === "undefined" || (typeof process !== "undefined" && process.versions != null);
@@ -695,14 +686,14 @@ export class Auth {
     if (attributes.email === null) {
       attributes.email = undefined;
     }
-    const result = await this.db.auth.updateUserAttributes(userId, attributes, tenantId, options);
+    const result = await this.db.auth.updateUserAttributes(userId, attributes, options);
     if (result?.success) {
       return result.data;
     }
     throw error(500, "Failed to update user attributes");
   }
 
-  createSessionCookie(sessionId: string): {
+  createSessionCookie(sessionId: DatabaseId): {
     name: string;
     value: string;
     attributes: unknown;
@@ -720,16 +711,16 @@ export class Auth {
     };
   }
 
-  async invalidateAllUserSessions(userId: string, tenantId?: string | null): Promise<void> {
-    await this.db.auth.invalidateAllUserSessions(userId, tenantId);
+  async invalidateAllUserSessions(userId: DatabaseId, options?: BaseQueryOptions): Promise<void> {
+    await this.db.auth.invalidateAllUserSessions(userId, options);
   }
 
   async getActiveSessions(
-    userId: string,
-    tenantId?: string | null,
+    userId: DatabaseId,
+    options?: BaseQueryOptions,
   ): Promise<{ success: boolean; data: Session[]; message?: string }> {
     try {
-      const result = await this.db.auth.getActiveSessions(userId, tenantId);
+      const result = await this.db.auth.getActiveSessions(userId, options);
       if (result?.success) {
         return { success: true, data: result.data };
       }
@@ -751,10 +742,10 @@ export class Auth {
   }
 
   async getAllActiveSessions(
-    tenantId?: string | null,
+    options?: BaseQueryOptions,
   ): Promise<{ success: boolean; data: Session[]; message?: string }> {
     try {
-      const result = await this.db.auth.getAllActiveSessions(tenantId);
+      const result = await this.db.auth.getAllActiveSessions(options);
       if (result?.success) {
         return { success: true, data: result.data };
       }
@@ -778,15 +769,14 @@ export class Auth {
   async updateUserPassword(
     email: string,
     password: string,
-    tenantId?: string | null,
-    options?: { bypassTenantCheck?: boolean },
+    options?: BaseQueryOptions,
   ): Promise<{ status: boolean; message?: string }> {
-    const user = await this.getUserByEmail({ email, tenantId }, options);
+    const user = await this.getUserByEmail({ email, tenantId: options?.tenantId }, options);
     if (!user) {
       return { status: false, message: "User not found" };
     }
     const hashedPassword = await cryptoHashPassword(password);
-    await this.updateUser(user._id, { password: hashedPassword }, tenantId, options);
+    await this.updateUser(user._id, { password: hashedPassword }, options);
     return { status: true };
   }
 }

@@ -43,35 +43,35 @@ export class MediaModule {
   files = {
     upload: async (
       file: EntityCreate<MediaItem>,
-      tenantId?: string | null,
+      tenantId?: DatabaseId | null,
     ): Promise<DatabaseResult<MediaItem>> => {
-      return this.crud.insert<MediaItem>("media_items", file, tenantId);
+      return this.crud.insert<MediaItem>("media_items", file, { tenantId: tenantId as any });
     },
 
     uploadMany: async (
       files: EntityCreate<MediaItem>[],
-      tenantId?: string | null,
+      tenantId?: DatabaseId | null,
     ): Promise<DatabaseResult<MediaItem[]>> => {
-      return this.crud.insertMany<MediaItem>("media_items", files, tenantId);
+      return this.crud.insertMany<MediaItem>("media_items", files, { tenantId: tenantId as any });
     },
 
     restore: async (
       fileId: DatabaseId,
-      _tenantId?: string | null,
+      _tenantId?: DatabaseId | null,
     ): Promise<DatabaseResult<void>> => {
       return this.crud.restore("media_items", fileId);
     },
 
     delete: async (
       fileId: DatabaseId,
-      _tenantId?: string | null,
+      _tenantId?: DatabaseId | null,
     ): Promise<DatabaseResult<void>> => {
       return this.crud.delete("media_items", fileId);
     },
 
     deleteMany: async (
       fileIds: DatabaseId[],
-      tenantId?: string | null,
+      tenantId?: DatabaseId | null,
     ): Promise<DatabaseResult<{ deletedCount: number }>> => {
       return this.crud.deleteMany("media_items", { _id: { $in: fileIds } } as any, { tenantId });
     },
@@ -80,7 +80,7 @@ export class MediaModule {
       folderId?: DatabaseId,
       options?: PaginationOptions,
       _recursive?: boolean,
-      tenantId?: string | null | null,
+      tenantId?: DatabaseId | null | null,
     ): Promise<DatabaseResult<PaginatedResult<MediaItem>>> => {
       return this.core.wrap(async () => {
         const conditions = folderId
@@ -149,7 +149,7 @@ export class MediaModule {
     search: async (
       query: string,
       options?: PaginationOptions,
-      tenantId?: string | null,
+      tenantId?: DatabaseId | null,
     ): Promise<DatabaseResult<PaginatedResult<MediaItem>>> => {
       return this.core.wrap(async () => {
         const qry = `%${query}%`;
@@ -219,7 +219,7 @@ export class MediaModule {
 
     getMetadata: async (
       fileIds: DatabaseId[],
-      tenantId?: string | null,
+      tenantId?: DatabaseId | null,
     ): Promise<DatabaseResult<Record<string, CmsMediaMetadata>>> => {
       return this.core.wrap(async () => {
         const conditions = [inArray(schema.mediaItems._id, fileIds as string[])];
@@ -244,7 +244,7 @@ export class MediaModule {
     updateMetadata: async (
       fileId: DatabaseId,
       metadata: Partial<CmsMediaMetadata>,
-      tenantId?: string | null,
+      tenantId?: DatabaseId | null,
     ): Promise<DatabaseResult<MediaItem>> => {
       return this.core.wrap(async () => {
         const conditions = [eq(schema.mediaItems._id, fileId as string)];
@@ -277,7 +277,7 @@ export class MediaModule {
     move: async (
       fileIds: DatabaseId[],
       targetFolderId?: DatabaseId,
-      tenantId?: string | null,
+      tenantId?: DatabaseId | null,
     ): Promise<DatabaseResult<{ movedCount: number }>> => {
       return this.core.wrap(async () => {
         const conditions = [inArray(schema.mediaItems._id, fileIds as string[])];
@@ -298,7 +298,7 @@ export class MediaModule {
     duplicate: async (
       fileId: DatabaseId,
       newName?: string,
-      tenantId?: string | null,
+      tenantId?: DatabaseId | null,
     ): Promise<DatabaseResult<MediaItem>> => {
       return this.core.wrap(async () => {
         const conditions = [eq(schema.mediaItems._id, fileId as string)];
@@ -337,7 +337,7 @@ export class MediaModule {
   folders = {
     create: async (
       folder: EntityCreate<MediaFolder>,
-      tenantId?: string | null,
+      tenantId?: DatabaseId | null,
     ): Promise<DatabaseResult<MediaFolder>> => {
       return this.core.wrap(async () => {
         const id = utils.generateId() as string;
@@ -360,7 +360,7 @@ export class MediaModule {
 
     createMany: async (
       folders: EntityCreate<MediaFolder>[],
-      tenantId?: string | null,
+      tenantId?: DatabaseId | null,
     ): Promise<DatabaseResult<MediaFolder[]>> => {
       return this.core.wrap(async () => {
         const now = nowISODateString();
@@ -383,14 +383,14 @@ export class MediaModule {
 
     delete: async (
       folderId: DatabaseId,
-      tenantId?: string | null,
+      tenantId?: DatabaseId | null,
     ): Promise<DatabaseResult<void>> => {
       return this.crud.delete("system_virtual_folders", folderId, { tenantId });
     },
 
     deleteMany: async (
       folderIds: DatabaseId[],
-      tenantId?: string | null,
+      tenantId?: DatabaseId | null,
     ): Promise<DatabaseResult<{ deletedCount: number }>> => {
       return this.crud.deleteMany("system_virtual_folders", { _id: { $in: folderIds } } as any, {
         tenantId,
@@ -399,7 +399,7 @@ export class MediaModule {
 
     getTree: async (
       _maxDepth?: number,
-      tenantId?: string | null,
+      tenantId?: DatabaseId | null,
     ): Promise<DatabaseResult<MediaFolder[]>> => {
       return this.core.wrap(async () => {
         const conditions = [eq(schema.systemVirtualFolders.type, "folder")];
@@ -416,7 +416,7 @@ export class MediaModule {
     getFolderContents: async (
       folderId?: DatabaseId,
       options?: PaginationOptions,
-      tenantId?: string | null,
+      tenantId?: DatabaseId | null,
     ): Promise<
       DatabaseResult<{
         folders: MediaFolder[];
@@ -455,7 +455,7 @@ export class MediaModule {
     move: async (
       folderId: DatabaseId,
       targetParentId?: DatabaseId,
-      tenantId?: string | null,
+      tenantId?: DatabaseId | null,
     ): Promise<DatabaseResult<MediaFolder>> => {
       return this.core.wrap(async () => {
         const conditions = [eq(schema.systemVirtualFolders._id, folderId as string)];

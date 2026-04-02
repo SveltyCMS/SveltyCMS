@@ -100,8 +100,14 @@ export class TokenAdapter {
     tenantId?: DatabaseId | null,
   ): Promise<DatabaseResult<{ status: boolean; message: string }>> {
     const val = await this.validateToken(token, userId, type, tenantId);
-    if (!val.success || !val.data.success) {
+    if (!val.success) {
       return { success: true, data: { status: false, message: val.message || "Invalid token" } };
+    }
+    if (!val.data.success) {
+      return {
+        success: true,
+        data: { status: false, message: val.data.message || "Invalid token" },
+      };
     }
     await this.TokenModel.deleteOne({ token });
     return { success: true, data: { status: true, message: "Token consumed" } };
@@ -232,7 +238,7 @@ export class TokenAdapter {
 
   async deleteExpiredTokens(): Promise<DatabaseResult<number>> {
     try {
-      const res = await this.TokenModel.deleteMany({ expires: { $lt: new Date() } });
+      const res = await this.TokenModel.deleteMany({ expires: { $lt: new Date() } } as any);
       return { success: true, data: res.deletedCount };
     } catch (err) {
       return {

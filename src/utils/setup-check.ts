@@ -114,7 +114,7 @@ export async function isSetupCompleteAsync(): Promise<boolean> {
     // We check for these to ensure a consistent system state before going READY
     const [userResult, roles, hostConfig] = await Promise.all([
       dbAdapter.auth.getAllUsers({ limit: 1 }, { bypassTenantCheck: true }),
-      dbAdapter.auth.getAllRoles(undefined, { bypassTenantCheck: true }),
+      dbAdapter.auth.getAllRoles({ bypassTenantCheck: true }),
       dbAdapter.system.preferences.get("HOST_PROD", "system"),
     ]);
 

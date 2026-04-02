@@ -126,7 +126,7 @@ export async function exportCollections(
           `collection_${collection._id}`,
           {},
           {
-            tenantId: isMultiTenant ? tenantId : undefined,
+            tenantId: isMultiTenant ? (tenantId as any) : undefined,
           },
         );
 

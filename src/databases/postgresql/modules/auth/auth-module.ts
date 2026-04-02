@@ -18,6 +18,8 @@ import { isoDateStringToDate, nowISODateString } from "@src/utils/date-utils";
 import { logger } from "@src/utils/logger";
 import { and, asc, desc, eq, gt, inArray, lt, or, sql } from "drizzle-orm";
 import type {
+  BaseQueryOptions,
+  DatabaseId,
   DatabaseResult,
   PaginationOption,
   Role,
@@ -46,17 +48,19 @@ export class AuthModule {
     }
     const converted = utils.convertDatesToISO(dbUser);
 
-    const finalRoleIds = utils.parseJsonField<string[]>(converted.roleIds, []);
+    const finalRoleIds = utils.parseJsonField<DatabaseId[]>(converted.roleIds, []);
 
     return {
       ...converted,
+      _id: converted._id as DatabaseId,
       roleIds: finalRoleIds,
-      role: finalRoleIds.length > 0 ? finalRoleIds[0] : "user",
+      role: finalRoleIds.length > 0 ? (finalRoleIds[0] as string) : "user",
       isRegistered: !!dbUser.isRegistered,
       blocked: !!dbUser.blocked,
       isAdmin: !!dbUser.isAdmin,
       emailVerified: !!dbUser.emailVerified,
       permissions: (dbUser as unknown as { permissions?: string[] }).permissions || [],
+      tenantId: converted.tenantId as DatabaseId | null,
     } as User;
   }
 
@@ -64,6 +68,8 @@ export class AuthModule {
     const role = utils.convertDatesToISO(dbRole);
     return {
       ...role,
+      _id: role._id as DatabaseId,
+      tenantId: role.tenantId as DatabaseId | null,
       permissions: utils.parseJsonField<string[]>(role.permissions, []),
     } as unknown as Role;
   }
@@ -109,7 +115,7 @@ export class AuthModule {
       if (userData.roleIds?.length) {
         values.roleIds = userData.roleIds;
       } else if (userData.role) {
-        values.roleIds = [userData.role];
+        values.roleIds = [userData.role as DatabaseId];
       }
 
       const [result] = await this.db.insert(schema.authUsers).values(values).returning();
@@ -118,14 +124,14 @@ export class AuthModule {
   }
 
   async updateUserAttributes(
-    userId: string,
+    userId: DatabaseId,
     userData: Partial<User>,
-    tenantId?: string | null,
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<User>> {
     return this.core.wrap(async () => {
-      const conditions = [eq(schema.authUsers._id, userId)];
-      if (tenantId) {
-        conditions.push(eq(schema.authUsers.tenantId, tenantId));
+      const conditions = [eq(schema.authUsers._id, userId as string)];
+      if (options?.tenantId) {
+        conditions.push(eq(schema.authUsers.tenantId, options.tenantId as string));
       }
 
       const updateData: Partial<typeof schema.authUsers.$inferInsert> = {
@@ -135,7 +141,7 @@ export class AuthModule {
 
       // Map legacy role string to roleIds array if roleIds is missing
       if (userData.role && !updateData.roleIds) {
-        updateData.roleIds = [userData.role];
+        updateData.roleIds = [userData.role as DatabaseId];
       }
 
       const [result] = await this.db
@@ -148,24 +154,24 @@ export class AuthModule {
     }, "UPDATE_USER_FAILED");
   }
 
-  async deleteUser(userId: string, tenantId?: string | null): Promise<DatabaseResult<void>> {
+  async deleteUser(userId: DatabaseId, options?: BaseQueryOptions): Promise<DatabaseResult<void>> {
     return this.core.wrap(async () => {
-      const conditions = [eq(schema.authUsers._id, userId)];
-      if (tenantId) {
-        conditions.push(eq(schema.authUsers.tenantId, tenantId));
+      const conditions = [eq(schema.authUsers._id, userId as string)];
+      if (options?.tenantId) {
+        conditions.push(eq(schema.authUsers.tenantId, options.tenantId as string));
       }
       await this.db.delete(schema.authUsers).where(and(...conditions));
     }, "DELETE_USER_FAILED");
   }
 
   async getUserById(
-    userId: string,
-    tenantId?: string | null,
+    userId: DatabaseId,
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<User | null>> {
     return this.core.wrap(async () => {
-      const conditions = [eq(schema.authUsers._id, userId)];
-      if (tenantId) {
-        conditions.push(eq(schema.authUsers.tenantId, tenantId));
+      const conditions = [eq(schema.authUsers._id, userId as string)];
+      if (options?.tenantId) {
+        conditions.push(eq(schema.authUsers.tenantId, options.tenantId as string));
       }
       const [result] = await this.db
         .select()
@@ -178,12 +184,12 @@ export class AuthModule {
 
   async getUserByEmail(criteria: {
     email: string;
-    tenantId?: string | null;
+    tenantId?: DatabaseId | null;
   }): Promise<DatabaseResult<User | null>> {
     return this.core.wrap(async () => {
       const conditions = [eq(schema.authUsers.email, criteria.email)];
       if (criteria.tenantId) {
-        conditions.push(eq(schema.authUsers.tenantId, criteria.tenantId));
+        conditions.push(eq(schema.authUsers.tenantId, criteria.tenantId as string));
       }
       const [result] = await this.db
         .select()
@@ -194,9 +200,20 @@ export class AuthModule {
     }, "GET_USER_BY_EMAIL_FAILED");
   }
 
-  async getAllUsers(options?: PaginationOption): Promise<DatabaseResult<User[]>> {
+  async getAllUsers(
+    options?: PaginationOption,
+    dbOptions?: BaseQueryOptions,
+  ): Promise<DatabaseResult<User[]>> {
     return this.core.wrap(async () => {
       let q = this.db.select().from(schema.authUsers).$dynamic();
+
+      const conditions: import("drizzle-orm").SQL[] = [];
+      if (dbOptions?.tenantId) {
+        conditions.push(eq(schema.authUsers.tenantId, dbOptions.tenantId as string));
+      }
+      if (conditions.length > 0) {
+        q = q.where(and(...conditions));
+      }
 
       if (options?.sort) {
         if (Array.isArray(options.sort)) {
@@ -230,16 +247,24 @@ export class AuthModule {
     }, "GET_ALL_USERS_FAILED");
   }
 
-  async getUserCount(filter?: Record<string, unknown>): Promise<DatabaseResult<number>> {
+  async getUserCount(
+    filter?: Record<string, unknown>,
+    options?: BaseQueryOptions,
+  ): Promise<DatabaseResult<number>> {
     return this.core.wrap(async () => {
       const table = schema.authUsers;
       // Pass table schema AND filter to mapQuery
-      const where = filter
+      let where = filter
         ? (this.core.mapQuery(
             table as unknown as Record<string, unknown>,
             filter,
           ) as import("drizzle-orm").SQL)
         : undefined;
+
+      if (options?.tenantId) {
+        const tenantWhere = eq(schema.authUsers.tenantId, options.tenantId as string);
+        where = where ? and(where, tenantWhere) : tenantWhere;
+      }
 
       const query = this.db.select({ count: sql<number>`count(*)` }).from(table);
 
@@ -253,13 +278,14 @@ export class AuthModule {
   }
 
   async deleteUsers(
-    userIds: string[],
-    tenantId?: string | null,
+    userIds: DatabaseId[],
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<{ deletedCount: number }>> {
     return this.core.wrap(async () => {
-      const conditions = [inArray(schema.authUsers._id, userIds)];
+      const tenantId = options?.tenantId;
+      const conditions = [inArray(schema.authUsers._id, userIds as string[])];
       if (tenantId) {
-        conditions.push(eq(schema.authUsers.tenantId, tenantId));
+        conditions.push(eq(schema.authUsers.tenantId, tenantId as string));
       }
       const results = await this.db
         .delete(schema.authUsers)
@@ -270,13 +296,14 @@ export class AuthModule {
   }
 
   async blockUsers(
-    userIds: string[],
-    tenantId?: string | null,
+    userIds: DatabaseId[],
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<{ modifiedCount: number }>> {
     return this.core.wrap(async () => {
-      const conditions = [inArray(schema.authUsers._id, userIds)];
+      const tenantId = options?.tenantId;
+      const conditions = [inArray(schema.authUsers._id, userIds as string[])];
       if (tenantId) {
-        conditions.push(eq(schema.authUsers.tenantId, tenantId));
+        conditions.push(eq(schema.authUsers.tenantId, tenantId as string));
       }
       const results = await this.db
         .update(schema.authUsers)
@@ -291,13 +318,14 @@ export class AuthModule {
   }
 
   async unblockUsers(
-    userIds: string[],
-    tenantId?: string | null,
+    userIds: DatabaseId[],
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<{ modifiedCount: number }>> {
     return this.core.wrap(async () => {
-      const conditions = [inArray(schema.authUsers._id, userIds)];
+      const tenantId = options?.tenantId;
+      const conditions = [inArray(schema.authUsers._id, userIds as string[])];
       if (tenantId) {
-        conditions.push(eq(schema.authUsers.tenantId, tenantId));
+        conditions.push(eq(schema.authUsers.tenantId, tenantId as string));
       }
       const results = await this.db
         .update(schema.authUsers)
@@ -314,7 +342,7 @@ export class AuthModule {
   // Combined methods
   async createUserAndSession(
     userData: Partial<User>,
-    sessionData: { expires: ISODateString; tenantId?: string | null },
+    sessionData: { expires: ISODateString; tenantId?: DatabaseId | null },
   ): Promise<DatabaseResult<{ user: User; session: Session }>> {
     return this.core.wrap(async () => {
       const userResult = await this.createUser(userData);
@@ -337,12 +365,12 @@ export class AuthModule {
   }
 
   async deleteUserAndSessions(
-    userId: string,
-    tenantId?: string | null,
+    userId: DatabaseId,
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<{ deletedUser: boolean; deletedSessionCount: number }>> {
     return this.core.wrap(async () => {
-      await this.invalidateAllUserSessions(userId, tenantId);
-      const userDeleteResult = await this.deleteUser(userId, tenantId);
+      await this.invalidateAllUserSessions(userId, options);
+      const userDeleteResult = await this.deleteUser(userId, options);
 
       return {
         deletedUser: userDeleteResult.success,
@@ -353,9 +381,9 @@ export class AuthModule {
 
   // Session methods
   async createSession(sessionData: {
-    user_id: string;
+    user_id: DatabaseId;
     expires: ISODateString;
-    tenantId?: string | null;
+    tenantId?: DatabaseId | null;
   }): Promise<DatabaseResult<Session>> {
     return this.core.wrap(async () => {
       const id = utils.generateId() as string;
@@ -363,17 +391,23 @@ export class AuthModule {
         .insert(schema.authSessions)
         .values({
           _id: id,
-          user_id: sessionData.user_id,
+          user_id: sessionData.user_id as string,
           expires: new Date(sessionData.expires),
-          tenantId: sessionData.tenantId || null,
+          tenantId: (sessionData.tenantId as string) || null,
         })
         .returning();
-      return utils.convertDatesToISO(result) as unknown as Session;
+      const converted = utils.convertDatesToISO(result);
+      return {
+        ...converted,
+        _id: converted._id as DatabaseId,
+        user_id: converted.user_id as DatabaseId,
+        tenantId: converted.tenantId as DatabaseId | null,
+      } as unknown as Session;
     }, "CREATE_SESSION_FAILED");
   }
 
   async updateSessionExpiry(
-    sessionId: string,
+    sessionId: DatabaseId,
     newExpiry: ISODateString,
   ): Promise<DatabaseResult<Session>> {
     return this.core.wrap(async () => {
@@ -385,11 +419,17 @@ export class AuthModule {
         })
         .where(eq(schema.authSessions._id, sessionId as string))
         .returning();
-      return utils.convertDatesToISO(result) as unknown as Session;
+      const converted = utils.convertDatesToISO(result);
+      return {
+        ...converted,
+        _id: converted._id as DatabaseId,
+        user_id: converted.user_id as DatabaseId,
+        tenantId: converted.tenantId as DatabaseId | null,
+      } as unknown as Session;
     }, "UPDATE_SESSION_FAILED");
   }
 
-  async deleteSession(sessionId: string): Promise<DatabaseResult<void>> {
+  async deleteSession(sessionId: DatabaseId): Promise<DatabaseResult<void>> {
     return this.core.wrap(async () => {
       await this.db
         .delete(schema.authSessions)
@@ -407,7 +447,7 @@ export class AuthModule {
     }, "DELETE_EXPIRED_SESSIONS_FAILED");
   }
 
-  async validateSession(sessionId: string): Promise<DatabaseResult<User | null>> {
+  async validateSession(sessionId: DatabaseId): Promise<DatabaseResult<User | null>> {
     return this.core.wrap(async () => {
       const [session] = await this.db
         .select()
@@ -424,64 +464,73 @@ export class AuthModule {
         return null;
       }
 
-      const userResult = await this.getUserById(
-        session.user_id as string,
-        session.tenantId || undefined,
-      );
+      const userResult = await this.getUserById(session.user_id as DatabaseId, {
+        tenantId: (session.tenantId as DatabaseId) || undefined,
+      });
       return userResult.success ? userResult.data : null;
     }, "VALIDATE_SESSION_FAILED");
   }
 
   async invalidateAllUserSessions(
-    userId: string,
-    tenantId?: string | null,
+    userId: DatabaseId,
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<void>> {
     return this.core.wrap(async () => {
-      const conditions = [eq(schema.authSessions.user_id, userId)];
-      if (tenantId) {
-        conditions.push(eq(schema.authSessions.tenantId, tenantId));
+      const conditions = [eq(schema.authSessions.user_id, userId as string)];
+      if (options?.tenantId) {
+        conditions.push(eq(schema.authSessions.tenantId, options.tenantId as string));
       }
       await this.db.delete(schema.authSessions).where(and(...conditions));
     }, "INVALIDATE_USER_SESSIONS_FAILED");
   }
 
   async getActiveSessions(
-    userId: string,
-    tenantId?: string | null,
+    userId: DatabaseId,
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<Session[]>> {
     return this.core.wrap(async () => {
       const conditions = [
-        eq(schema.authSessions.user_id, userId),
+        eq(schema.authSessions.user_id, userId as string),
         gt(schema.authSessions.expires, isoDateStringToDate(nowISODateString())),
       ];
-      if (tenantId) {
-        conditions.push(eq(schema.authSessions.tenantId, tenantId));
+      if (options?.tenantId) {
+        conditions.push(eq(schema.authSessions.tenantId, options.tenantId as string));
       }
       const results = await this.db
         .select()
         .from(schema.authSessions)
         .where(and(...conditions));
-      return utils.convertArrayDatesToISO(results) as unknown as Session[];
+      return (utils.convertArrayDatesToISO(results) as any[]).map((s) => ({
+        ...s,
+        _id: s._id as DatabaseId,
+        user_id: s.user_id as DatabaseId,
+        tenantId: s.tenantId as DatabaseId | null,
+      })) as Session[];
     }, "GET_ACTIVE_SESSIONS_FAILED");
   }
 
-  async getAllActiveSessions(tenantId?: string | null): Promise<DatabaseResult<Session[]>> {
+  async getAllActiveSessions(options?: BaseQueryOptions): Promise<DatabaseResult<Session[]>> {
     return this.core.wrap(async () => {
       const conditions = [gt(schema.authSessions.expires, isoDateStringToDate(nowISODateString()))];
-      if (tenantId) {
-        conditions.push(eq(schema.authSessions.tenantId, tenantId));
+      if (options?.tenantId) {
+        conditions.push(eq(schema.authSessions.tenantId, options.tenantId as string));
       }
       const results = await this.db
         .select()
         .from(schema.authSessions)
         .where(and(...conditions));
-      return utils.convertArrayDatesToISO(results) as unknown as Session[];
+      return (utils.convertArrayDatesToISO(results) as any[]).map((s) => ({
+        ...s,
+        _id: s._id as DatabaseId,
+        user_id: s.user_id as DatabaseId,
+        tenantId: s.tenantId as DatabaseId | null,
+      })) as Session[];
     }, "GET_ALL_ACTIVE_SESSIONS_FAILED");
   }
 
   async getSessionTokenData(
-    sessionId: string,
-  ): Promise<DatabaseResult<{ expiresAt: ISODateString; user_id: string } | null>> {
+    sessionId: DatabaseId,
+  ): Promise<DatabaseResult<{ expiresAt: ISODateString; user_id: DatabaseId } | null>> {
     return this.core.wrap(async () => {
       const [session] = await this.db
         .select()
@@ -493,7 +542,7 @@ export class AuthModule {
       }
       return {
         expiresAt: session.expires.toISOString() as unknown as ISODateString,
-        user_id: session.user_id as string,
+        user_id: session.user_id as DatabaseId,
       };
     }, "GET_SESSION_TOKEN_DATA_FAILED");
   }
@@ -536,11 +585,11 @@ export class AuthModule {
 
   // Token methods
   async createToken(data: {
-    user_id: string;
+    user_id: DatabaseId;
     email: string;
     expires: ISODateString;
     type: string;
-    tenantId?: string | null;
+    tenantId?: DatabaseId | null;
     role?: string;
     username?: string;
   }): Promise<DatabaseResult<string>> {
@@ -549,12 +598,12 @@ export class AuthModule {
       const tokenValue = utils.generateId() as string; // Returns a dash-less UUID now
       await this.db.insert(schema.authTokens).values({
         _id: id,
-        user_id: data.user_id,
+        user_id: data.user_id as string,
         email: data.email,
         token: tokenValue,
         type: data.type,
         expires: new Date(data.expires),
-        tenantId: data.tenantId || null,
+        tenantId: (data.tenantId as string) || null,
         role: data.role || null,
         username: data.username || null,
         consumed: false,
@@ -564,14 +613,14 @@ export class AuthModule {
   }
 
   async updateToken(
-    tokenId: string,
+    tokenId: DatabaseId,
     tokenData: Partial<Token>,
-    tenantId?: string | null,
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<Token>> {
     return this.core.wrap(async () => {
       const conditions = [eq(schema.authTokens._id, tokenId as string)];
-      if (tenantId) {
-        conditions.push(eq(schema.authTokens.tenantId, tenantId));
+      if (options?.tenantId) {
+        conditions.push(eq(schema.authTokens.tenantId, options.tenantId as string));
       }
       const [result] = await this.db
         .update(schema.authTokens)
@@ -581,15 +630,21 @@ export class AuthModule {
         } as Record<string, unknown>)
         .where(and(...conditions))
         .returning();
-      return utils.convertDatesToISO(result) as unknown as Token;
+      const converted = utils.convertDatesToISO(result);
+      return {
+        ...converted,
+        _id: converted._id as DatabaseId,
+        user_id: converted.user_id as DatabaseId,
+        tenantId: converted.tenantId as DatabaseId | null,
+      } as unknown as Token;
     }, "UPDATE_TOKEN_FAILED");
   }
 
   async validateToken(
     token: string,
-    userId?: string,
+    userId?: DatabaseId,
     type?: string,
-    tenantId?: string | null,
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<{ success: boolean; message: string; email?: string }>> {
     return this.core.wrap(async () => {
       const conditions = [
@@ -598,13 +653,13 @@ export class AuthModule {
         eq(schema.authTokens.consumed, false),
       ];
       if (userId) {
-        conditions.push(eq(schema.authTokens.user_id, userId));
+        conditions.push(eq(schema.authTokens.user_id, userId as string));
       }
       if (type) {
         conditions.push(eq(schema.authTokens.type, type));
       }
-      if (tenantId) {
-        conditions.push(eq(schema.authTokens.tenantId, tenantId));
+      if (options?.tenantId) {
+        conditions.push(eq(schema.authTokens.tenantId, options.tenantId as string));
       }
 
       const [t] = await this.db
@@ -626,20 +681,20 @@ export class AuthModule {
 
   async consumeToken(
     token: string,
-    userId?: string,
+    userId?: DatabaseId,
     type?: string,
-    tenantId?: string | null,
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<{ status: boolean; message: string }>> {
     return this.core.wrap(async () => {
       const conditions = [eq(schema.authTokens.token, token as string)];
       if (userId) {
-        conditions.push(eq(schema.authTokens.user_id, userId));
+        conditions.push(eq(schema.authTokens.user_id, userId as string));
       }
       if (type) {
         conditions.push(eq(schema.authTokens.type, type));
       }
-      if (tenantId) {
-        conditions.push(eq(schema.authTokens.tenantId, tenantId));
+      if (options?.tenantId) {
+        conditions.push(eq(schema.authTokens.tenantId, options.tenantId as string));
       }
 
       const results = await this.db
@@ -660,20 +715,20 @@ export class AuthModule {
 
   async getTokenData(
     token: string,
-    userId?: string,
+    userId?: DatabaseId,
     type?: string,
-    tenantId?: string | null,
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<Token | null>> {
     return this.core.wrap(async () => {
       const conditions = [eq(schema.authTokens.token, token as string)];
       if (userId) {
-        conditions.push(eq(schema.authTokens.user_id, userId));
+        conditions.push(eq(schema.authTokens.user_id, userId as string));
       }
       if (type) {
         conditions.push(eq(schema.authTokens.type, type));
       }
-      if (tenantId) {
-        conditions.push(eq(schema.authTokens.tenantId, tenantId));
+      if (options?.tenantId) {
+        conditions.push(eq(schema.authTokens.tenantId, options.tenantId as string));
       }
 
       const [t] = await this.db
@@ -681,15 +736,22 @@ export class AuthModule {
         .from(schema.authTokens)
         .where(and(...conditions))
         .limit(1);
-      return t ? (utils.convertDatesToISO(t) as unknown as Token) : null;
+      if (!t) return null;
+      const converted = utils.convertDatesToISO(t);
+      return {
+        ...converted,
+        _id: converted._id as DatabaseId,
+        user_id: converted.user_id as DatabaseId,
+        tenantId: converted.tenantId as DatabaseId | null,
+      } as unknown as Token;
     }, "GET_TOKEN_DATA_FAILED");
   }
 
   async getTokenByValue(
     token: string,
-    tenantId?: string | null,
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<Token | null>> {
-    return this.getTokenData(token, undefined, undefined, tenantId);
+    return this.getTokenData(token, undefined, undefined, options);
   }
 
   async getAllTokens(filter?: Record<string, unknown>): Promise<DatabaseResult<Token[]>> {
@@ -730,7 +792,12 @@ export class AuthModule {
         .select()
         .from(schema.authTokens)
         .where(conditions.length > 0 ? and(...conditions) : undefined);
-      return utils.convertArrayDatesToISO(results) as unknown as Token[];
+      return (utils.convertArrayDatesToISO(results) as any[]).map((t) => ({
+        ...t,
+        _id: t._id as DatabaseId,
+        user_id: t.user_id as DatabaseId,
+        tenantId: t.tenantId as DatabaseId | null,
+      })) as Token[];
     }, "GET_ALL_TOKENS_FAILED");
   }
 
@@ -745,32 +812,39 @@ export class AuthModule {
   }
 
   async getTokenById(
-    tokenId: string,
-    tenantId?: string | null,
+    tokenId: DatabaseId,
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<Token | null>> {
     return this.core.wrap(async () => {
       const conditions = [eq(schema.authTokens._id, tokenId as string)];
-      if (tenantId) {
-        conditions.push(eq(schema.authTokens.tenantId, tenantId));
+      if (options?.tenantId) {
+        conditions.push(eq(schema.authTokens.tenantId, options.tenantId as string));
       }
       const [t] = await this.db
         .select()
         .from(schema.authTokens)
         .where(and(...conditions))
         .limit(1);
-      return t ? (utils.convertDatesToISO(t) as unknown as Token) : null;
+      if (!t) return null;
+      const converted = utils.convertDatesToISO(t);
+      return {
+        ...converted,
+        _id: converted._id as DatabaseId,
+        user_id: converted.user_id as DatabaseId,
+        tenantId: converted.tenantId as DatabaseId | null,
+      } as unknown as Token;
     }, "GET_TOKEN_BY_ID_FAILED");
   }
 
   async deleteTokens(
-    tokenIds: string[],
-    tenantId?: string | null,
+    tokenIds: DatabaseId[],
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<{ deletedCount: number }>> {
     return this.core.wrap(async () => {
       // API endpoints often pass token values instead of _ids
       const conditions: import("drizzle-orm").SQL[] = [];
-      if (tenantId) {
-        conditions.push(eq(schema.authTokens.tenantId, tenantId));
+      if (options?.tenantId) {
+        conditions.push(eq(schema.authTokens.tenantId, options.tenantId as string));
       }
 
       // Try delete by BOTH _id and token value simultaneously to be safe
@@ -779,8 +853,8 @@ export class AuthModule {
         .where(
           and(
             or(
-              inArray(schema.authTokens._id, tokenIds),
-              inArray(schema.authTokens.token, tokenIds),
+              inArray(schema.authTokens._id, tokenIds as string[]),
+              inArray(schema.authTokens.token, tokenIds as string[]),
             ),
             ...conditions,
           ),
@@ -792,13 +866,13 @@ export class AuthModule {
   }
 
   async blockTokens(
-    tokenIds: string[],
-    tenantId?: string | null,
+    tokenIds: DatabaseId[],
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<{ modifiedCount: number }>> {
     return this.core.wrap(async () => {
       const conditions: import("drizzle-orm").SQL[] = [];
-      if (tenantId) {
-        conditions.push(eq(schema.authTokens.tenantId, tenantId));
+      if (options?.tenantId) {
+        conditions.push(eq(schema.authTokens.tenantId, options.tenantId as string));
       }
       const results = await this.db
         .update(schema.authTokens)
@@ -809,8 +883,8 @@ export class AuthModule {
         .where(
           and(
             or(
-              inArray(schema.authTokens._id, tokenIds),
-              inArray(schema.authTokens.token, tokenIds),
+              inArray(schema.authTokens._id, tokenIds as string[]),
+              inArray(schema.authTokens.token, tokenIds as string[]),
             ),
             ...conditions,
           ),
@@ -821,13 +895,13 @@ export class AuthModule {
   }
 
   async unblockTokens(
-    tokenIds: string[],
-    tenantId?: string | null,
+    tokenIds: DatabaseId[],
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<{ modifiedCount: number }>> {
     return this.core.wrap(async () => {
       const conditions: import("drizzle-orm").SQL[] = [];
-      if (tenantId) {
-        conditions.push(eq(schema.authTokens.tenantId, tenantId));
+      if (options?.tenantId) {
+        conditions.push(eq(schema.authTokens.tenantId, options.tenantId as string));
       }
       const results = await this.db
         .update(schema.authTokens)
@@ -838,8 +912,8 @@ export class AuthModule {
         .where(
           and(
             or(
-              inArray(schema.authTokens._id, tokenIds),
-              inArray(schema.authTokens.token, tokenIds),
+              inArray(schema.authTokens._id, tokenIds as string[]),
+              inArray(schema.authTokens.token, tokenIds as string[]),
             ),
             ...conditions,
           ),
@@ -850,14 +924,14 @@ export class AuthModule {
   }
 
   // Role methods
-  async getAllRoles(tenantId?: string | null): Promise<Role[]> {
+  async getAllRoles(options?: BaseQueryOptions): Promise<Role[]> {
     if (!this.db) {
       return [];
     }
     try {
       const conditions = [];
-      if (tenantId) {
-        conditions.push(eq(schema.roles.tenantId, tenantId));
+      if (options?.tenantId) {
+        conditions.push(eq(schema.roles.tenantId, options.tenantId as string));
       }
       const results = await this.db
         .select()
@@ -871,13 +945,13 @@ export class AuthModule {
   }
 
   async getRoleById(
-    roleId: string,
-    tenantId?: string | null,
+    roleId: DatabaseId,
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<Role | null>> {
     return this.core.wrap(async () => {
       const conditions = [eq(schema.roles._id, roleId as string)];
-      if (tenantId) {
-        conditions.push(eq(schema.roles.tenantId, tenantId));
+      if (options?.tenantId) {
+        conditions.push(eq(schema.roles.tenantId, options.tenantId as string));
       }
       const [result] = await this.db
         .select()
@@ -907,14 +981,14 @@ export class AuthModule {
   }
 
   async updateRole(
-    roleId: string,
+    roleId: DatabaseId,
     roleData: Partial<Role>,
-    tenantId?: string | null,
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<Role>> {
     return this.core.wrap(async () => {
       const conditions = [eq(schema.roles._id, roleId as string)];
-      if (tenantId) {
-        conditions.push(eq(schema.roles.tenantId, tenantId));
+      if (options?.tenantId) {
+        conditions.push(eq(schema.roles.tenantId, options.tenantId as string));
       }
       const [result] = await this.db
         .update(schema.roles)
@@ -928,11 +1002,11 @@ export class AuthModule {
     }, "UPDATE_ROLE_FAILED");
   }
 
-  async deleteRole(roleId: string, tenantId?: string | null): Promise<DatabaseResult<void>> {
+  async deleteRole(roleId: DatabaseId, options?: BaseQueryOptions): Promise<DatabaseResult<void>> {
     return this.core.wrap(async () => {
       const conditions = [eq(schema.roles._id, roleId as string)];
-      if (tenantId) {
-        conditions.push(eq(schema.roles.tenantId, tenantId));
+      if (options?.tenantId) {
+        conditions.push(eq(schema.roles.tenantId, options.tenantId as string));
       }
       await this.db.delete(schema.roles).where(and(...conditions));
     }, "DELETE_ROLE_FAILED");

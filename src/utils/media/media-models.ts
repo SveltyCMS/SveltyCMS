@@ -74,7 +74,7 @@ export interface MediaBase {
   originalId?: DatabaseId | null;
   path: string; // storage-relative
   size: number;
-  tenantId?: string | null; // For multi-tenant support
+  tenantId?: DatabaseId | null; // For multi-tenant support
   thumbnails?: Record<string, { url: string; width: number; height: number } | undefined>; // Aligned with db-interface.ts
   type: MediaType;
   updatedAt: ISODateString;

@@ -42,7 +42,7 @@ export const GET = apiHandler(async ({ url, locals, request }) => {
   const filters = parseScimFilter(filterString);
 
   // Fetch roles scoped to tenant
-  const dbRoles = await auth.getAllRoles(tenantId);
+  const dbRoles = await auth.getAllRoles({ tenantId: tenantId as any });
 
   // Apply filters (map displayName → name for matching)
   const filteredRoles = dbRoles.filter((r: Record<string, any>) => {
@@ -79,7 +79,7 @@ export const POST = apiHandler(async ({ request, url, locals }) => {
   }
 
   // Check for duplicate in this tenant
-  const existingRoles = await auth.getAllRoles(tenantId);
+  const existingRoles = await auth.getAllRoles({ tenantId: tenantId as any });
   const duplicate = existingRoles.find(
     (r: Record<string, any>) => r.name?.toLowerCase() === body.displayName.toLowerCase(),
   );

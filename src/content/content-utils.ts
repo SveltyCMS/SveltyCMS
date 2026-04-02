@@ -67,7 +67,7 @@ export const contentNavigation = {
     }
 
     const nodes = new Map<string, ContentNode>();
-    for (const node of contentStore.getNodes()) {
+    for (const node of contentStore.getAllNodes()) {
       nodes.set(node._id, { ...node, children: [] as ContentNode[] });
     }
 
@@ -121,14 +121,14 @@ export const contentNavigation = {
     const buildTree = (parentId: string | undefined, currentDepth: number): NavigationNode[] => {
       const children: NavigationNode[] = [];
 
-      for (const node of contentStore.getNodes()) {
+      for (const node of contentStore.getAllNodes()) {
         if (options?.tenantId && node.tenantId && node.tenantId !== options.tenantId) continue;
         if ((node.parentId || undefined) === (parentId || undefined)) {
           const nodeDepth = currentDepth + 1;
           const shouldLoadChildren = nodeDepth < maxDepth || expandedIds.has(node._id);
 
           let hasChildren = false;
-          for (const n of contentStore.getNodes()) {
+          for (const n of contentStore.getAllNodes()) {
             if (n.parentId === node._id) {
               hasChildren = true;
               break;
@@ -169,7 +169,7 @@ export const contentNavigation = {
       if (visited.has(currentId)) continue;
       visited.add(currentId);
 
-      for (const node of contentStore.getNodes()) {
+      for (const node of contentStore.getAllNodes()) {
         if (node.parentId === currentId) {
           descendants.push(node);
           queue.push(node._id);

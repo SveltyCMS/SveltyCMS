@@ -126,7 +126,7 @@ export class ContentModule {
       },
     ): Promise<DatabaseResult<ContentNode[]>> => {
       return this.crud.findMany<ContentNode>("content_nodes", (options?.filter || {}) as any, {
-        tenantId: options?.tenantId,
+        tenantId: options?.tenantId as any,
       });
     },
 
@@ -180,8 +180,10 @@ export class ContentModule {
             "content_nodes",
             { path: update.path } as any,
             update.changes as any,
-            _options?.tenantId,
-            _options?.bypassTenantCheck,
+            {
+              tenantId: _options?.tenantId as DatabaseId | undefined,
+              bypassTenantCheck: _options?.bypassTenantCheck,
+            },
           );
           if (res.success && res.data) results.push(res.data);
         }

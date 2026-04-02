@@ -429,7 +429,7 @@ function handleSignUpPointerEnter() {
 								{applayout_systemlanguage()}
 							</div>
 
-							{#if Array.isArray(getPublicSetting('LOCALES')) && getPublicSetting('LOCALES').length > 5}
+							{#if Array.isArray(getPublicSetting('LOCALES')) && (getPublicSetting('LOCALES') as any[]).length > 5}
 								<div class="px-2 pb-2 mb-1 border-b border-surface-200 dark:border-surface-50">
 									<input
 										type="text"

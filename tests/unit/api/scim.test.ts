@@ -107,9 +107,10 @@ describe("SCIM API Unit Tests", () => {
       const data = await response.json();
 
       expect(data.totalResults).toBe(2);
-      expect(mockAuth.getAllUsers).toHaveBeenCalledWith({
-        filter: { tenantId: "tenant-1" },
-      });
+      expect(mockAuth.getAllUsers).toHaveBeenCalledWith(
+        { filter: { tenantId: "tenant-1" } },
+        { tenantId: "tenant-1" },
+      );
     });
 
     it("POST /Users should create user in tenant", async () => {
@@ -155,7 +156,7 @@ describe("SCIM API Unit Tests", () => {
       const data = await response.json();
 
       expect(data.id).toBe("u1");
-      expect(mockAuth.getUserById).toHaveBeenCalledWith("u1", "tenant-1");
+      expect(mockAuth.getUserById).toHaveBeenCalledWith("u1", { tenantId: "tenant-1" });
     });
 
     it("DELETE /Users/[id] should deactivate user", async () => {
@@ -173,7 +174,7 @@ describe("SCIM API Unit Tests", () => {
       expect(mockAuth.updateUser).toHaveBeenCalledWith(
         "u1",
         expect.objectContaining({ blocked: true }),
-        "tenant-1",
+        { tenantId: "tenant-1" },
       );
     });
 
@@ -189,7 +190,7 @@ describe("SCIM API Unit Tests", () => {
       const data = await response.json();
 
       expect(data.Resources).toHaveLength(1);
-      expect(mockAuth.getAllRoles).toHaveBeenCalledWith("tenant-1");
+      expect(mockAuth.getAllRoles).toHaveBeenCalledWith({ tenantId: "tenant-1" });
     });
 
     it("PATCH /Groups/[id] should update membership in tenant via bulk update", async () => {
@@ -219,12 +220,14 @@ describe("SCIM API Unit Tests", () => {
       const response = await groupDetailHandlers.PATCH(event);
       expect(response.status).toBe(200);
 
-      expect(mockAuth.authInterface.getRoleById).toHaveBeenCalledWith("r1", "tenant-1");
+      expect(mockAuth.authInterface.getRoleById).toHaveBeenCalledWith("r1", {
+        tenantId: "tenant-1",
+      });
       expect(dbAdapter!.crud.updateMany).toHaveBeenCalledWith(
         "users",
         expect.objectContaining({ _id: { $in: ["u1"] } }),
         expect.objectContaining({ role: "Role 1" }),
-        "tenant-1",
+        { tenantId: "tenant-1" },
       );
     });
   });

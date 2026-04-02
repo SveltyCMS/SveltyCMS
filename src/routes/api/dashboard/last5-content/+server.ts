@@ -98,7 +98,7 @@ export const GET = apiHandler(async ({ locals, url }) => {
     name?: string;
     state?: string;
     status?: string;
-    tenantId?: string | null;
+    tenantId?: DatabaseId | null;
     title?: string;
     [key: string]: unknown;
   }
@@ -143,7 +143,9 @@ export const GET = apiHandler(async ({ locals, url }) => {
               "status",
               "state",
             ],
-            tenantId: getPrivateSettingSync("MULTI_TENANT") ? tenantId : undefined,
+            tenantId: getPrivateSettingSync("MULTI_TENANT")
+              ? (tenantId as DatabaseId | undefined)
+              : undefined,
           },
         );
 

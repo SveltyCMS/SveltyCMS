@@ -42,18 +42,18 @@ export const GET = apiHandler(async ({ params, locals }) => {
     let files: MediaDoc[] = [];
 
     const isMultiTenant = getPrivateSettingSync("MULTI_TENANT");
-    const effectiveTenantId = isMultiTenant ? tenantId : undefined;
+    const effectiveTenantId = isMultiTenant ? (tenantId as DatabaseId) : undefined;
 
     if (id === "root") {
       // Root level (scoped to tenant)
       const folderResult = await dbAdapter.system.virtualFolder.getByParentId(
         null,
-        effectiveTenantId!,
+        effectiveTenantId as DatabaseId,
       );
       folders = folderResult.success ? folderResult.data || [] : [];
 
       const fileQuery: Record<string, unknown> = { virtualFolderId: null };
-      const queryOptions = { tenantId: effectiveTenantId! };
+      const queryOptions = { tenantId: effectiveTenantId as DatabaseId };
 
       const [imagesResult, documentsResult, audioResult, videosResult] = await Promise.all([
         dbAdapter.crud.findMany("media_images", fileQuery as any, queryOptions),
@@ -72,7 +72,7 @@ export const GET = apiHandler(async ({ params, locals }) => {
       // Specific folder (verify ownership)
       const folderResult = await dbAdapter.system.virtualFolder.getById(
         id as DatabaseId,
-        effectiveTenantId!,
+        effectiveTenantId as DatabaseId,
       );
       if (!(folderResult.success && folderResult.data)) {
         throw new AppError("Folder not found or access denied", 404, "NOT_FOUND");
@@ -81,12 +81,12 @@ export const GET = apiHandler(async ({ params, locals }) => {
 
       const subfolderResult = await dbAdapter.system.virtualFolder.getByParentId(
         id as DatabaseId,
-        effectiveTenantId!,
+        effectiveTenantId as DatabaseId,
       );
       folders = subfolderResult.success ? subfolderResult.data || [] : [];
 
       const fileQuery: Record<string, unknown> = { virtualFolderId: id };
-      const queryOptions = { tenantId: effectiveTenantId! };
+      const queryOptions = { tenantId: effectiveTenantId as DatabaseId };
 
       const [imagesResult, documentsResult, audioResult, videosResult] = await Promise.all([
         dbAdapter.crud.findMany("media_images", fileQuery as any, queryOptions),
@@ -146,7 +146,10 @@ export const PATCH = apiHandler(async ({ params, request, locals }) => {
     if (!dbAdapter) throw new AppError("Database unavailable", 500, "DB_UNAVAILABLE");
 
     // 1. Verify ownership and get current state
-    const currentRes = await dbAdapter.system.virtualFolder.getById(id as DatabaseId, tenantId!);
+    const currentRes = await dbAdapter.system.virtualFolder.getById(
+      id as DatabaseId,
+      tenantId as DatabaseId,
+    );
     if (!(currentRes.success && currentRes.data)) {
       throw new AppError("Folder not found or access denied", 404, "NOT_FOUND");
     }
@@ -157,7 +160,7 @@ export const PATCH = apiHandler(async ({ params, request, locals }) => {
     if (currentFolder.parentId) {
       const parentRes = await dbAdapter.system.virtualFolder.getById(
         currentFolder.parentId as DatabaseId,
-        tenantId!,
+        tenantId as DatabaseId,
       );
       if (parentRes.success && parentRes.data) {
         newPath = `${parentRes.data.path}/${name.trim()}`;
@@ -175,7 +178,7 @@ export const PATCH = apiHandler(async ({ params, request, locals }) => {
         name: name.trim(),
         path: newPath,
       },
-      tenantId!,
+      tenantId as DatabaseId,
     );
 
     if (!result.success) throw new Error(result.message);
@@ -204,21 +207,27 @@ export const DELETE = apiHandler(async ({ params, locals }) => {
     if (!dbAdapter) throw new AppError("Database unavailable", 500, "DB_UNAVAILABLE");
 
     // 1. Verify ownership and check for children
-    const folderRes = await dbAdapter.system.virtualFolder.getById(id as DatabaseId, tenantId!);
+    const folderRes = await dbAdapter.system.virtualFolder.getById(
+      id as DatabaseId,
+      tenantId as DatabaseId,
+    );
     if (!(folderRes.success && folderRes.data)) {
       throw new AppError("Folder not found or access denied", 404, "NOT_FOUND");
     }
 
     const subfolders = await dbAdapter.system.virtualFolder.getByParentId(
       id as DatabaseId,
-      tenantId!,
+      tenantId as DatabaseId,
     );
     if (subfolders.success && subfolders.data.length > 0) {
       throw new AppError("Cannot delete folder with subfolders", 400, "HAS_CHILDREN");
     }
 
     // 2. Perform deletion
-    const result = await dbAdapter.system.virtualFolder.delete(id as DatabaseId, tenantId!);
+    const result = await dbAdapter.system.virtualFolder.delete(
+      id as DatabaseId,
+      tenantId as DatabaseId,
+    );
     if (!result.success) throw new Error(result.message);
 
     logger.info(`Deleted system virtual folder ${id} for tenant ${tenantId}`);

@@ -34,10 +34,10 @@ describe("Database Interface Contract Tests", () => {
       if (user && pass) {
         connectionString = `mongodb://${user}:${pass}@${host}:${port}/${dbName}?authSource=admin`;
       }
-      await db.connect(connectionString);
+      await (db as any).connect(connectionString);
     } else if (dbType === "mariadb") {
       const { MariaDBAdapter } = await import("../../../src/databases/mariadb/mariadb-adapter");
-      db = new MariaDBAdapter();
+      db = new MariaDBAdapter() as any;
       const host = privateEnv.DB_HOST || process.env.DB_HOST || "127.0.0.1";
       const port = privateEnv.DB_PORT || process.env.DB_PORT || "3306";
       const dbName = privateEnv.DB_NAME || process.env.DB_NAME || "sveltycms_test";
@@ -48,11 +48,11 @@ describe("Database Interface Contract Tests", () => {
       if (user && pass) {
         connectionString = `mariadb://${user}:${pass}@${host}:${port}/${dbName}`;
       }
-      await db.connect(connectionString);
+      await db!.connect(connectionString);
     } else if (dbType === "postgresql") {
       const { PostgreSQLAdapter } =
         await import("../../../src/databases/postgresql/postgres-adapter");
-      db = new PostgreSQLAdapter();
+      db = new PostgreSQLAdapter() as any;
       const host = privateEnv.DB_HOST || process.env.DB_HOST || "127.0.0.1";
       const port = privateEnv.DB_PORT || process.env.DB_PORT || "5432";
       const dbName = privateEnv.DB_NAME || process.env.DB_NAME || "sveltycms_test";
@@ -63,12 +63,12 @@ describe("Database Interface Contract Tests", () => {
       if (user && pass) {
         connectionString = `postgres://${user}:${pass}@${host}:${port}/${dbName}`;
       }
-      await db.connect(connectionString);
+      await db!.connect(connectionString);
     } else {
       const { SQLiteAdapter } = await import("../../../src/databases/sqlite/adapter/index");
-      db = new SQLiteAdapter();
+      db = new SQLiteAdapter() as any;
       const dbName = privateEnv.DB_NAME || process.env.DB_NAME || "sveltycms_test.db";
-      await db.connect(dbName);
+      await db!.connect(dbName);
     }
 
     try {

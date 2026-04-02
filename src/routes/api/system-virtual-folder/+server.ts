@@ -28,13 +28,16 @@ export const GET = apiHandler(async ({ locals, url }) => {
   try {
     if (folderPath) {
       // Get contents of a specific folder (scoped to tenant)
-      const result = await dbAdapter.system.virtualFolder.getContents(folderPath, tenantId!);
+      const result = await dbAdapter.system.virtualFolder.getContents(
+        folderPath,
+        tenantId as DatabaseId,
+      );
       if (!result.success) throw new AppError(result.message, 404, "NOT_FOUND");
       return json({ success: true, data: result.data });
     }
 
     // Get all folders (scoped to tenant)
-    const result = await dbAdapter.system.virtualFolder.getAll(tenantId!);
+    const result = await dbAdapter.system.virtualFolder.getAll(tenantId as DatabaseId);
     if (!result.success) throw new Error(result.message);
     return json({ success: true, data: result.data });
   } catch (e) {
@@ -64,7 +67,7 @@ export const POST = apiHandler(async ({ request, locals }) => {
     if (parentId) {
       const parentResult = await dbAdapter.system.virtualFolder.getById(
         parentId as DatabaseId,
-        tenantId!,
+        tenantId as DatabaseId,
       );
       if (parentResult.success && parentResult.data) {
         folderPath = `${parentResult.data.path}/${name.trim()}`;
@@ -83,7 +86,7 @@ export const POST = apiHandler(async ({ request, locals }) => {
       order: 0,
     };
 
-    const result = await dbAdapter.system.virtualFolder.create(folderData, tenantId!);
+    const result = await dbAdapter.system.virtualFolder.create(folderData, tenantId as DatabaseId);
     if (!result.success) throw new Error(result.message);
 
     logger.info(`System virtual folder created: ${result.data.name} for tenant ${tenantId}`);
@@ -120,7 +123,7 @@ export const PATCH = apiHandler(async ({ request, locals }) => {
           // Verify ownership and get current data
           const current = await dbAdapter!.system.virtualFolder.getById(
             folderId as DatabaseId,
-            tenantId!,
+            tenantId as DatabaseId,
           );
           if (!(current.success && current.data)) return { success: false };
 
@@ -131,7 +134,7 @@ export const PATCH = apiHandler(async ({ request, locals }) => {
             if (newParentId) {
               const parent = await dbAdapter!.system.virtualFolder.getById(
                 newParentId as DatabaseId,
-                tenantId!,
+                tenantId as DatabaseId,
               );
               updateData.path =
                 parent.success && parent.data
@@ -145,7 +148,7 @@ export const PATCH = apiHandler(async ({ request, locals }) => {
           return dbAdapter!.system.virtualFolder.update(
             folderId as DatabaseId,
             updateData,
-            tenantId!,
+            tenantId as DatabaseId,
           );
         },
       ),

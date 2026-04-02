@@ -237,10 +237,10 @@ const toggleAllForRole = (roleId: string, checked: boolean) => {
 				return { ...role, permissions: Array.from(newPerms) };
 			} else {
 				// Remove all filtered permissions
-				const filteredIds = new Set(filteredPermissions.map((p) => p._id));
+				const filteredIds = new Set(filteredPermissions.map((p) => p._id as string));
 				return {
 					...role,
-					permissions: role.permissions.filter((p) => !filteredIds.has(p)),
+					permissions: role.permissions.filter((p) => !filteredIds.has(p as string)),
 				};
 			}
 		}

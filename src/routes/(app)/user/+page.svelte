@@ -43,6 +43,8 @@ import { invalidateAll } from "$app/navigation";
 import AdminArea from "./components/admin-area.svelte";
 // Auth
 import ModalTwoFactorAuth from "./components/modal-two-factor-auth.svelte";
+import type { User } from "@src/databases/auth/types";
+import type { DatabaseId } from "@src/content/types";
 import "@src/stores/store.svelte.ts";
 import { setCollection } from "@src/stores/collection-store.svelte";
 import { toast } from "@src/stores/toast.svelte.ts";
@@ -64,15 +66,15 @@ const {
 
 // Make user data reactive
 const user = $derived({
-	_id: serverUser?._id ?? "",
+	_id: (serverUser?._id ?? "") as DatabaseId,
 	email: serverUser?.email ?? "",
 	username: serverUser?.username ?? "",
 	role: serverUser?.role ?? "",
 	avatar: serverUser?.avatar ?? "/Default_User.svg",
-	tenantId: serverUser?.tenantId ?? "", // Add tenantId
+	tenantId: (serverUser?.tenantId ?? "") as DatabaseId, // Add tenantId
 	is2FAEnabled: serverUser?.is2FAEnabled ?? false,
 	permissions: [],
-});
+} as User);
 
 // Define password as state
 let password = $state("hash-password");
@@ -376,7 +378,7 @@ function modalConfirm(): void {
 		silent={true}
 	>
 		<div class="wrapper2">
-			<AdminArea currentUser={{ ...user }} isMultiTenant={isMultiTenant!} roles={data.roles} />
+			<AdminArea currentUser={{ ...user } as User} isMultiTenant={isMultiTenant!} roles={data.roles} />
 		</div>
 	</PermissionGuard>
 </div>

@@ -34,8 +34,7 @@ import { handleTestIsolation } from "./hooks/handle-test-isolation";
 import { handleSystemState } from "./hooks/handle-system-state";
 import { handleSecurity } from "./hooks/handle-security";
 import { handleSetup } from "./hooks/handle-setup";
-import { handleLocale } from "./hooks/handle-locale";
-import { handleTheme } from "./hooks/handle-theme";
+import { handleUserPreferences } from "./hooks/handle-user-preferences";
 import { handleAuthentication } from "./hooks/handle-authentication";
 import { handleAuthorization } from "./hooks/handle-authorization";
 import { handleLocalSdk } from "./hooks/handle-local-sdk";
@@ -111,21 +110,20 @@ if (!building) {
 // --- Updated middleware sequence (security headers FIRST) ---
 const middleware: Handle[] = [
   addSecurityHeaders, // 1. MUST be first → headers on ALL responses, including errors
-  handleTestIsolation, // ✨ 2. Establish test context (PER-WORKER isolation)
-  handleStaticAssetCaching, // 3. highest hit-rate early exit
+  handleStaticAssetCaching, // 2. 🚀 MOVED UP: Absolute fastest exit for images/css
+  handleTestIsolation, // ✨ 3. Establish test context (PER-WORKER isolation)
   handleCompression, // 4. streaming-safe after static
-  handleSystemState, // 5. readiness gate
-  handleSecurity, // 6. Unified firewall & rate limiting
+  handleSecurity, // 5. 🛡️ MOVED UP: Protects the system state from DDoS!
+  handleSystemState, // 6. readiness gate
   handleSetup, // 7. setup gate
-  handleLocale, // 8. i18n
-  handleTheme, // 9. SSR theme
-  handleAuthentication, // 10. identity
-  handleAuthorization, // 11. permissions
-  handleLocalSdk, // 12. native server-side SDK injection
-  handleContentInitialization, // 13. content + redirects
+  handleUserPreferences, // 8. ⚡ COMBINED: Locale + Theme
+  handleAuthentication, // 9. identity
+  handleAuthorization, // 10. permissions
+  handleLocalSdk, // 11. native server-side SDK injection
+  handleContentInitialization, // 12. content + redirects
+  handleAuditLogging, // 13. 📝 MOVED UP: Ensures cached hits are still audited
   handleApiRequests, // 14. API caching
-  handleAuditLogging, // 15. async audit trails
-  handleTokenResolution, // 16. token processing
+  handleTokenResolution, // 15. token processing
 ];
 
 export const handle: Handle = sequence(...middleware);

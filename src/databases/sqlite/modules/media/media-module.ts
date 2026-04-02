@@ -45,14 +45,14 @@ export class MediaModule {
       file: EntityCreate<MediaItem>,
       tenantId?: string | null,
     ): Promise<DatabaseResult<MediaItem>> => {
-      return this.crud.insert<MediaItem>("media_items", file, tenantId);
+      return this.crud.insert<MediaItem>("media_items", file, { tenantId: tenantId as any });
     },
 
     uploadMany: async (
       files: EntityCreate<MediaItem>[],
       tenantId?: string | null,
     ): Promise<DatabaseResult<MediaItem[]>> => {
-      return this.crud.insertMany<MediaItem>("media_items", files, tenantId);
+      return this.crud.insertMany<MediaItem>("media_items", files, { tenantId: tenantId as any });
     },
 
     restore: async (
@@ -73,7 +73,9 @@ export class MediaModule {
       fileIds: DatabaseId[],
       tenantId?: string | null,
     ): Promise<DatabaseResult<{ deletedCount: number }>> => {
-      return this.crud.deleteMany("media_items", { _id: { $in: fileIds } } as any, { tenantId });
+      return this.crud.deleteMany("media_items", { _id: { $in: fileIds } } as any, {
+        tenantId: tenantId as any,
+      });
     },
 
     getByFolder: async (
@@ -389,7 +391,7 @@ export class MediaModule {
       folderId: DatabaseId,
       tenantId?: string | null,
     ): Promise<DatabaseResult<void>> => {
-      return this.crud.delete("system_virtual_folders", folderId, { tenantId });
+      return this.crud.delete("system_virtual_folders", folderId, { tenantId: tenantId as any });
     },
 
     deleteMany: async (
@@ -397,7 +399,7 @@ export class MediaModule {
       tenantId?: string | null,
     ): Promise<DatabaseResult<{ deletedCount: number }>> => {
       return this.crud.deleteMany("system_virtual_folders", { _id: { $in: folderIds } } as any, {
-        tenantId,
+        tenantId: tenantId as any,
       });
     },
 

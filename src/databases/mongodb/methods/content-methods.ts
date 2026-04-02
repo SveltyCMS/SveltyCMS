@@ -152,7 +152,7 @@ export class MongoContentMethods {
       } else if (filter.tenantId) {
         fetchOptions.tenantId = filter.tenantId;
       }
-      const result = await this.nodesRepo.findMany(filter, fetchOptions);
+      const result = await this.nodesRepo.findMany(filter, fetchOptions as any);
       if (!result.success) {
         return result;
       }
@@ -531,9 +531,9 @@ export class MongoContentMethods {
 
       const [itemsRes, totalRes] = await Promise.all([
         this.draftsRepo.findMany(query, {
-          skip: (page - 1) * pageSize,
+          offset: (page - 1) * pageSize,
           limit: pageSize,
-        }),
+        } as any),
         this.draftsRepo.count(query),
       ]);
 

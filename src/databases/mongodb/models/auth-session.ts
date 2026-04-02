@@ -189,7 +189,7 @@ export class SessionAdapter {
 
   async deleteExpiredSessions(): Promise<DatabaseResult<number>> {
     try {
-      const res = await this.SessionModel.deleteMany({ expires: { $lt: new Date() } });
+      const res = await this.SessionModel.deleteMany({ expires: { $lt: new Date() } } as any);
       return { success: true, data: res.deletedCount };
     } catch (err) {
       return {

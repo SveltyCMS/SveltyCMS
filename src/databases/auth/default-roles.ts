@@ -15,6 +15,7 @@
 
 import { getAllPermissions } from "@src/databases/auth";
 import type { Role } from "@src/databases/auth/types";
+import type { DatabaseId } from "@src/content/types";
 
 /**
  * Default roles for headless CMS workflow
@@ -27,7 +28,7 @@ import type { Role } from "@src/databases/auth/types";
  */
 export const defaultRoles: Role[] = [
   {
-    _id: "admin",
+    _id: "admin" as DatabaseId,
     name: "Administrator",
     description: "Superuser - Full system access to all features and settings",
     isAdmin: true,
@@ -36,7 +37,7 @@ export const defaultRoles: Role[] = [
     color: "gradient-primary",
   },
   {
-    _id: "developer",
+    _id: "developer" as DatabaseId,
     name: "Developer",
     description: "Technical users - Access to development tools, APIs, and system configuration",
     isAdmin: false,
@@ -62,7 +63,7 @@ export const defaultRoles: Role[] = [
     color: "gradient-pink",
   },
   {
-    _id: "editor",
+    _id: "editor" as DatabaseId,
     name: "Editor",
     description: "Content managers - Create and edit content, manage media and users",
     isAdmin: false,

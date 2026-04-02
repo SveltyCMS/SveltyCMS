@@ -12,7 +12,7 @@
  */
 
 import { generateId } from "@src/databases/mongodb/methods/mongodb-utils";
-import type { WebsiteToken } from "@src/databases/schemas";
+import type { WebsiteToken } from "@src/content/types";
 import { nowISODateString } from "@utils/date-utils";
 import type { Model } from "mongoose";
 import mongoose, { Schema } from "mongoose";

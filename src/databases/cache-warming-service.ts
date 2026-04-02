@@ -193,7 +193,7 @@ export async function warmTenantCache(tenantId: string): Promise<void> {
       keys: ["config", "settings", "theme"],
       fetcher: async () => {
         const [theme, settings] = await Promise.all([
-          dbAdapter!.system.themes.getDefaultTheme(tenantId),
+          dbAdapter!.system.themes.getDefaultTheme(tenantId as any),
           dbAdapter!.system.preferences.getByCategory("system", "system"), // Assuming tenantId isolation in adapter
         ]);
         return {

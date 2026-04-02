@@ -41,7 +41,7 @@ import type { PageServerLoad } from "./$types";
 // Content Manager for redirects
 import { contentManager } from "@src/content";
 // Utils
-import type { ISODateString } from "@src/content/types";
+import type { ISODateString, DatabaseId } from "@src/content/types";
 // Stores
 import type { Locale } from "@src/paraglide/runtime";
 import { getPrivateSettingSync } from "@src/services/settings-service";
@@ -127,7 +127,7 @@ async function checkDatabaseHealth(): Promise<{
 
     // Lightweight check: verify database has roles (indicates setup was completed)
     try {
-      const roles = await auth.getAllRoles(undefined, {
+      const roles = await auth.getAllRoles({
         bypassTenantCheck: true,
       });
       if (!roles || roles.length === 0) {
@@ -826,14 +826,14 @@ export const actions: Actions = {
           username,
           password,
           role, // Use determined role
-          tenantId, // Assign tenantId (new for demo, or from token)
+          tenantId: tenantId as DatabaseId, // Assign tenantId (new for demo, or from token)
           isRegistered: true,
           lastAuthMethod: "password",
           lastActiveAt: new Date().toISOString() as ISODateString,
         },
         {
           expires: sessionExpires.toISOString() as ISODateString,
-          tenantId, // Ensure session is also scoped to tenant if applicable
+          tenantId: tenantId as DatabaseId, // Ensure session is also scoped to tenant if applicable
         },
       );
 
@@ -1136,7 +1136,7 @@ export const actions: Actions = {
       const twoFactorService = getDefaultTwoFactorAuthService(
         auth as unknown as import("@src/databases/db-interface").IAuthAdapter,
       ); // Verify 2FA code
-      const result = await twoFactorService.verify2FA(userId, code);
+      const result = await twoFactorService.verify2FA(userId as any, code);
       if (!result.success) {
         logger.warn("2FA verification failed during login", {
           userId,
@@ -1144,7 +1144,7 @@ export const actions: Actions = {
         });
         return fail(400, { message: result.message });
       } // 2FA verification successful - get user and create session
-      const user = await auth.getUserById(userId);
+      const user = await auth.getUserById(userId as DatabaseId);
       if (!user) {
         logger.error("User not found after successful 2FA verification", {
           userId,
@@ -1153,10 +1153,10 @@ export const actions: Actions = {
       }
 
       // Create session
-      await createSessionAndSetCookie(userId, event.cookies);
+      await createSessionAndSetCookie(userId as DatabaseId, event.cookies);
 
       // Update user attributes
-      const updatePromise = auth.updateUserAttributes(userId, {
+      const updatePromise = auth.updateUserAttributes(userId as DatabaseId, {
         lastAuthMethod: "password+2fa",
         lastActiveAt: new Date().toISOString() as ISODateString,
       });
@@ -1501,7 +1501,7 @@ export const actions: Actions = {
 // remain largely the same as your provided code, with minor logging/error handling adjustments.
 // Ensure they are robust and correctly interact with your `auth` service.
 
-async function createSessionAndSetCookie(userId: string, cookies: Cookies): Promise<void> {
+async function createSessionAndSetCookie(userId: DatabaseId, cookies: Cookies): Promise<void> {
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
   if (!auth) {
     throw new Error("Auth service is not initialized when creating session.");
@@ -1511,7 +1511,7 @@ async function createSessionAndSetCookie(userId: string, cookies: Cookies): Prom
     expires: expiresAt.toISOString() as ISODateString,
   });
   logger.debug(`Session created: ${session._id} for user ${userId}`);
-  const sessionCookie = auth.createSessionCookie(session._id);
+  const sessionCookie = auth.createSessionCookie(session._id as DatabaseId);
   const attributes = sessionCookie.attributes as Record<string, unknown>;
   cookies.set(sessionCookie.name, sessionCookie.value, {
     ...attributes,
@@ -1609,12 +1609,11 @@ async function signInUser(
 
     // Parallelize user attribute update for better performance
     const updatePromise = auth.updateUserAttributes(
-      user._id,
+      user._id as DatabaseId,
       {
         lastAuthMethod: isToken ? "token" : "password",
         lastActiveAt: new Date().toISOString() as ISODateString,
       },
-      undefined,
       { bypassTenantCheck: true },
     ); // Don't wait for attribute update to complete - fire and forget for better UX
     updatePromise.catch((err) => {

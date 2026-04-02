@@ -17,7 +17,7 @@
  */
 
 // Auth
-import type { ISODateString, User } from "@databases/db-interface";
+import type { ISODateString, User, DatabaseId } from "@databases/db-interface";
 import { isoDateStringToDate } from "@utils/date-utils";
 // System Logger
 import { logger } from "@utils/logger";
@@ -74,8 +74,8 @@ class InMemorySessionManager implements SessionStore {
   }
 
   async validateWithDB(
-    sessionId: string,
-    dbValidationFn: (sessionId: string) => Promise<User | null>,
+    sessionId: DatabaseId,
+    dbValidationFn: (sessionId: DatabaseId) => Promise<User | null>,
   ): Promise<User | null> {
     // For in-memory store, check memory first, then validate with DB if not found
     const memoryUser = await this.get(sessionId);
@@ -207,8 +207,8 @@ class RedisSessionManager implements SessionStore {
   }
 
   async validateWithDB(
-    sessionId: string,
-    dbValidationFn: (sessionId: string) => Promise<User | null>,
+    sessionId: DatabaseId,
+    dbValidationFn: (sessionId: DatabaseId) => Promise<User | null>,
   ): Promise<User | null> {
     // Try to get from Redis/memory first
     const cachedUser = await this.get(sessionId);

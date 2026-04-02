@@ -31,7 +31,7 @@ export const bulkTranslateHandler: JobHandler = async (
   if (!dbAdapter) throw new Error("PERMANENT_FAILURE: Database adapter not initialized");
 
   // 1. Get Collection Schema to identify translatable fields
-  const schemasResult = await dbAdapter.collection.listSchemas(tenantId);
+  const schemasResult = await dbAdapter.collection.listSchemas(tenantId as any);
   const schemas = schemasResult.success ? schemasResult.data : [];
   const schema = schemas.find((c: Schema) => c.name === collectionName);
 
@@ -47,7 +47,11 @@ export const bulkTranslateHandler: JobHandler = async (
   }
 
   // 2. Fetch all entries
-  const entriesResult = await dbAdapter.crud.findMany(collectionName, {}, { tenantId });
+  const entriesResult = await dbAdapter.crud.findMany(
+    collectionName,
+    {},
+    { tenantId: tenantId as any },
+  );
   if (!entriesResult.success) throw new Error(`Failed to fetch entries: ${entriesResult.message}`);
 
   const entries = entriesResult.data;
@@ -90,7 +94,7 @@ export const bulkTranslateHandler: JobHandler = async (
     }
 
     if (updated) {
-      await dbAdapter.crud.update(collectionName, entry._id, entry, tenantId);
+      await dbAdapter.crud.update(collectionName, entry._id, entry, { tenantId: tenantId as any });
       translatedCount++;
     }
 

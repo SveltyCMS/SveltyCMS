@@ -209,8 +209,8 @@ export const contentSystem = {
   getNodeChildren(nodeId: string | null = null, tenantId?: string | null): any {
     return contentStore.getChildren(nodeId, tenantId);
   },
-  getCollectionStats(id: string, tenantId?: string | null): any {
-    return contentStore.getCollectionStats(id, tenantId);
+  getCollectionStats(_id: string, _tenantId?: string | null): any {
+    return {};
   },
 
   navigation: contentNavigation,

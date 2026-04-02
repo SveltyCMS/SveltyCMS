@@ -26,6 +26,7 @@ import type { ContentNode, DatabaseId, Schema } from "@src/content/types";
 import { generateCategoryNodesFromPaths } from "@src/content";
 import { getAllPermissions } from "@src/databases/auth";
 import { defaultRoles as importedDefaultRoles } from "@src/databases/auth/default-roles";
+import type { Role } from "@src/databases/auth/types";
 import type { DatabaseAdapter, Theme } from "@src/databases/db-interface";
 import { publicConfigSchema } from "@src/databases/schemas";
 import { invalidateSettingsCache } from "@src/services/settings-service";
@@ -99,7 +100,7 @@ export async function seedDefaultTheme(
     logger.info(`🎨 Seeding default theme${tenantId ? ` for tenant ${tenantId}` : ""}...`);
     const themeToStore = {
       ...defaultTheme,
-      ...(tenantId && { tenantId }),
+      ...(tenantId && { tenantId: tenantId as DatabaseId }),
     };
     await dbAdapter.system.themes.storeThemes([themeToStore]);
     logger.info(`✅ Default theme seeded successfully${tenantId ? ` for tenant ${tenantId}` : ""}`);
@@ -140,12 +141,12 @@ export async function seedRoles(
         // primary key collisions with roles from other tenants
         const roleToCreate = {
           ...role,
-          _id: tenantId ? crypto.randomUUID() : role._id,
+          _id: (tenantId ? crypto.randomUUID() : role._id) as DatabaseId,
           permissions: role._id === "admin" ? adminPermissions : role.permissions,
-          ...(tenantId && { tenantId }),
+          ...(tenantId && { tenantId: tenantId as DatabaseId }),
         };
 
-        const result = await dbAdapter.auth.createRole(roleToCreate);
+        const result = await dbAdapter.auth.createRole(roleToCreate as Role);
         // createRole returns DatabaseResult — check success instead of relying on exceptions
         if (result && "success" in result && !result.success) {
           logger.warn(
@@ -336,8 +337,8 @@ export async function seedCollectionsForSetup(
 
       if (updates.length > 0) {
         logger.info(`💾 Persisting ${updates.length} content nodes to database...`);
-        const structResult = await dbAdapter.content.nodes.bulkUpdate(updates, {
-          tenantId,
+        const structResult = await dbAdapter.content.nodes.bulkUpdate(updates as any, {
+          tenantId: tenantId as DatabaseId | undefined,
           bypassTenantCheck: true,
           bypassCache: true,
         });
@@ -419,40 +420,49 @@ export async function seedDemoRecords(
             content: "This is your first post, created automatically during setup.",
             status: "published",
             author: "Admin",
-            ...(tenantId && { tenantId }),
+            ...(tenantId && { tenantId: tenantId as DatabaseId }),
           },
           {
             title: "Modern CMS Architecture",
             content: "SveltyCMS uses Svelte 5 runes and a database-agnostic adapter pattern.",
             status: "published",
             author: "Admin",
-            ...(tenantId && { tenantId }),
+            ...(tenantId && { tenantId: tenantId as DatabaseId }),
           },
         ];
 
         // Use insertMany to trigger the new dynamic table + packData logic
-        await dbAdapter.crud.insertMany(collectionId, posts, tenantId, true);
+        await dbAdapter.crud.insertMany(collectionId, posts, {
+          tenantId: tenantId as DatabaseId,
+        });
         logger.info(`✅ Seeded ${posts.length} demo posts into ${collectionId}`);
       }
 
       // Seed "Menu" as a demo
       if (schema.name === "Menu") {
         const menuItems = [
-          { label: "Home", url: "/", order: 1, ...(tenantId && { tenantId }) },
+          {
+            label: "Home",
+            url: "/",
+            order: 1,
+            ...(tenantId && { tenantId: tenantId as DatabaseId }),
+          },
           {
             label: "Blog",
             url: "/blog",
             order: 2,
-            ...(tenantId && { tenantId }),
+            ...(tenantId && { tenantId: tenantId as DatabaseId }),
           },
           {
             label: "Contact",
             url: "/contact",
             order: 3,
-            ...(tenantId && { tenantId }),
+            ...(tenantId && { tenantId: tenantId as DatabaseId }),
           },
         ];
-        await dbAdapter.crud.insertMany(collectionId, menuItems, tenantId, true);
+        await dbAdapter.crud.insertMany(collectionId, menuItems, {
+          tenantId: tenantId as DatabaseId,
+        });
         logger.info(`✅ Seeded ${menuItems.length} demo menu items into ${collectionId}`);
       }
     }
@@ -545,9 +555,9 @@ export async function initSystemFast(
           await adapter.crud.deleteMany(
             "system_content_structure",
             {
-              ...(tenantId && { tenantId }),
+              ...(tenantId && { tenantId: tenantId as DatabaseId }),
             },
-            { tenantId, bypassTenantCheck: true },
+            { tenantId: tenantId as DatabaseId, bypassTenantCheck: true },
           );
           logger.info("✅ Content structure cleared successfully");
         }
@@ -1261,7 +1271,7 @@ export async function seedDemoTenant(dbAdapter: DatabaseAdapter, tenantId: strin
   if (dbAdapter.auth) {
     // For demo tenants, we should find the role by its name "admin" within the tenant context
     // because seedRoles creates tenant-scoped roles with random UUID IDs.
-    const roles = await dbAdapter.auth.getAllRoles(tenantId);
+    const roles = await dbAdapter.auth.getAllRoles({ tenantId: tenantId as DatabaseId });
     const adminRole = roles.find((r) => r.name === "admin") || null;
 
     if (adminRole) {
@@ -1271,9 +1281,9 @@ export async function seedDemoTenant(dbAdapter: DatabaseAdapter, tenantId: strin
         await dbAdapter.auth.createUser({
           email,
           password,
-          role: adminRole._id,
+          role: adminRole._id as any, // Use as any to bypass complex User.role vs Role._id mismatch if any
           username: "Demo Admin",
-          tenantId,
+          tenantId: tenantId as DatabaseId,
         });
         logger.info(`✅ Demo admin user created: ${email}`);
       } catch (e) {

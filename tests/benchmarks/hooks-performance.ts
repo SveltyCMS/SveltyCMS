@@ -23,8 +23,8 @@ async function getHooks() {
     handleSystemState: (await import("../../src/hooks/handle-system-state")).handleSystemState,
     handleSecurity: (await import("../../src/hooks/handle-security")).handleSecurity,
     handleSetup: (await import("../../src/hooks/handle-setup")).handleSetup,
-    handleLocale: (await import("../../src/hooks/handle-locale")).handleLocale,
-    handleTheme: (await import("../../src/hooks/handle-theme")).handleTheme,
+    handleUserPreferences: (await import("../../src/hooks/handle-user-preferences"))
+      .handleUserPreferences,
     handleAuthentication: (await import("../../src/hooks/handle-authentication"))
       .handleAuthentication,
     handleAuthorization: (await import("../../src/hooks/handle-authorization")).handleAuthorization,

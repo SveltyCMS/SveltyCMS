@@ -27,6 +27,7 @@ import { MongoCrudMethods } from "./methods/crud-methods";
 import { composeMongoAuthAdapter } from "./methods/auth-composition";
 import { MongoQueryBuilder } from "./mongo-query-builder";
 import { cacheService } from "@src/databases/cache/cache-service";
+import { generateId, validateId } from "./methods/mongodb-utils";
 
 export class MongoDBAdapter implements IDBAdapter {
   private _connection: mongoose.Connection | null = null;
@@ -60,7 +61,7 @@ export class MongoDBAdapter implements IDBAdapter {
     // Initialize basic media interface (extended in ensureMedia)
     this.media = {
       files: {
-        restore: (id: DatabaseId, t: string | null) =>
+        restore: (id: DatabaseId, t: DatabaseId | null) =>
           this.crud.restore("media", id, { tenantId: t }),
       },
     } as unknown as IMediaAdapter;
@@ -82,32 +83,21 @@ export class MongoDBAdapter implements IDBAdapter {
     };
 
     return {
-      aggregate: (c, p, t) =>
-        getRepo(c).aggregate(p as any[], { tenantId: t as string | null } as any) as any,
+      aggregate: (c, p, o) => getRepo(c).aggregate(p as any[], o),
       count: (c, q, o) => getRepo(c).count(q || {}, o as any),
       delete: (c, id, o) => getRepo(c).delete(id, o as any),
       deleteMany: (c, q, o) => getRepo(c).deleteMany(q as QueryFilter<any>, o as any),
-      exists: (c, q, o) =>
-        getRepo(c)
-          .count(q || {}, o as any)
-          .then((res: DatabaseResult<number>) => {
-            if (res.success) {
-              return { success: true, data: (res.data || 0) > 0 };
-            }
-            return res as any;
-          }),
+      exists: (c, q, o) => getRepo(c).exists(q || {}, o as any),
       findByIds: (c, ids, o) => getRepo(c).findByIds(ids, o as any),
       findMany: (c, q, o) => getRepo(c).findMany(q as QueryFilter<any>, o as any),
       findOne: (c, q, o) => getRepo(c).findOne(q as QueryFilter<any>, o as any),
-      insert: (c, d, t, s) => getRepo(c).insert(d as any, t as string | null, s),
-      insertMany: (c, d, t, s) => getRepo(c).insertMany(d as any[], t as string | null, s),
+      insert: (c, d, o) => getRepo(c).insert(d as any, o),
+      insertMany: (c, d, o) => getRepo(c).insertMany(d as any[], o),
       restore: (c, id, o) => getRepo(c).restore(id, o as any) as any,
-      update: (c, id, d, t, s) => getRepo(c).update(id, d as any, t as string | null, s),
-      updateMany: (c, q, d, t, s) =>
-        getRepo(c).updateMany(q as QueryFilter<any>, d as any, t as string | null, s),
-      upsert: (c, q, d, t, s) =>
-        getRepo(c).upsert(q as QueryFilter<any>, d as any, t as string | null, s),
-      upsertMany: (c, items, t, s) => getRepo(c).upsertMany(items as any[], t as string | null, s),
+      update: (c, id, d, o) => getRepo(c).update(id, d as any, o),
+      updateMany: (c, q, d, o) => getRepo(c).updateMany(q as QueryFilter<any>, d as any, o),
+      upsert: (c, q, d, o) => getRepo(c).upsert(q as QueryFilter<any>, d as any, o),
+      upsertMany: (c, items, o) => getRepo(c).upsertMany(items as any[], o),
     };
   }
 
@@ -343,48 +333,40 @@ export class MongoDBAdapter implements IDBAdapter {
 
     // Initialize tenants
     const { TenantModel } = await import("./models/tenant");
+    const tenantRepo = new MongoCrudMethods(TenantModel);
     this.system.tenants = {
-      create: (t: any) =>
-        new TenantModel(t).save().then((r: any) => ({ success: true, data: r.toObject() })),
-      getById: (id: DatabaseId) =>
-        TenantModel.findById(id)
-          .lean()
-          .exec()
-          .then((r) => ({ success: true, data: r })),
-      update: (id: DatabaseId, d: any) =>
-        TenantModel.findByIdAndUpdate(id, { $set: d }, { new: true })
-          .lean()
-          .exec()
-          .then((r) => ({ success: true, data: r })),
-      delete: (id: DatabaseId) =>
-        TenantModel.findByIdAndDelete(id)
-          .exec()
-          .then(() => ({ success: true, data: undefined })),
-      list: () =>
-        TenantModel.find()
-          .lean()
-          .exec()
-          .then((r) => ({ success: true, data: r })),
-    } as any;
+      create: (t) => tenantRepo.insert(t as any),
+      getById: (id) => tenantRepo.findOne({ _id: id } as any),
+      update: (id, d) => tenantRepo.update(id, d as any),
+      delete: (id) => tenantRepo.delete(id),
+      list: (o) => tenantRepo.findMany((o?.filter || {}) as any, o as any),
+    };
 
     // Initialize jobs
     const { JobModel } = await import("./models/job");
+    const jobRepo = new MongoCrudMethods(JobModel);
     this.system.jobs = {
-      create: (j: any) => new JobModel(j).save().then((r: any) => r.toObject()),
-      getById: (id: string) => JobModel.findById(id).lean().exec() as any,
-      update: (id: string, d: any) =>
-        JobModel.findByIdAndUpdate(id, { $set: d }, { new: true }).lean().exec() as any,
-      delete: (id: string) =>
-        JobModel.findByIdAndDelete(id)
-          .exec()
-          .then(() => {}),
-      list: (o: any) => JobModel.find(o).lean().exec() as any,
-      count: (f: any) =>
-        JobModel.countDocuments(f).then((c) => ({
-          success: true,
-          data: c,
-        })) as any,
-    } as any;
+      create: (j) => jobRepo.insert(j as any),
+      getById: (id) => jobRepo.findOne({ _id: id } as any),
+      getNextReady: (limit, tenantId) =>
+        jobRepo.findMany(
+          { status: "pending", nextRunAt: { $lte: new Date().toISOString() } } as any,
+          { limit, tenantId } as any,
+        ),
+      list: (o) => jobRepo.findMany((o?.filter || {}) as any, o as any),
+      count: (f) => jobRepo.count(f as any),
+      update: (id, d) => jobRepo.update(id, d as any),
+      delete: (id) => jobRepo.delete(id),
+      cleanup: async (olderThan) => {
+        const res = await jobRepo.deleteMany(
+          { createdAt: { $lt: olderThan.toISOString() } } as any,
+          {
+            permanent: true,
+          },
+        );
+        return res.success ? { success: true, data: res.data.deletedCount } : (res as any);
+      },
+    };
   }
 
   /**
@@ -421,13 +403,14 @@ export class MongoDBAdapter implements IDBAdapter {
           .createIndexes(model, schema)
           .then(() => ({ success: true, data: undefined }));
       },
-      getSchema: (name: string, tenantId?: string | null) =>
+      getSchema: (name: string, tenantId?: DatabaseId | null) =>
         collectionMethods.getSchema(name, tenantId).then((r) => ({ success: true, data: r })),
-      getSchemaById: (id: string, tenantId?: string | null) =>
+      getSchemaById: (id: string, tenantId?: DatabaseId | null) =>
         collectionMethods.getSchemaById(id, tenantId).then((r) => ({ success: true, data: r })),
-      listSchemas: (tenantId?: string | null) =>
+      listSchemas: (tenantId?: DatabaseId | null) =>
         collectionMethods.listSchemas(tenantId).then((r) => ({ success: true, data: r })),
-      getMongooseModel: async (id: string) => collectionMethods.getMongooseModel(id),
+      getNativeDriverModel: async <TNative = any>(id: string) =>
+        collectionMethods.getMongooseModel(id) as unknown as TNative,
     };
   }
 
@@ -454,13 +437,13 @@ export class MongoDBAdapter implements IDBAdapter {
     const mediaAdapter = {
       files: {
         ...this.media.files,
-        upload: (file: any, tenantId?: string | null) =>
+        upload: (file: any, tenantId?: DatabaseId | null) =>
           mediaMethods.uploadMany([file], tenantId).then((res) => ({
             ...res,
             data: res.success ? res.data[0] : (undefined as any),
           })),
         uploadMany: mediaMethods.uploadMany.bind(mediaMethods),
-        delete: (id: DatabaseId, tenantId?: string | null) =>
+        delete: (id: DatabaseId, tenantId?: DatabaseId | null) =>
           mediaMethods.deleteMany([id], tenantId).then((res) => ({
             ...res,
             data: undefined,
@@ -471,19 +454,47 @@ export class MongoDBAdapter implements IDBAdapter {
         move: mediaMethods.move.bind(mediaMethods),
         duplicate: mediaMethods.duplicate.bind(mediaMethods),
         getByFolder: mediaMethods.getFiles.bind(mediaMethods),
-        search: (query: string, options?: any, tenantId?: string | null) =>
+        restore: (id: DatabaseId, tenantId?: DatabaseId | null) =>
+          this.crud.restore("media", id, { tenantId }),
+        search: (query: string, options?: any, tenantId?: DatabaseId | null) =>
           mediaMethods.getFiles(undefined, { ...options, search: query }, false, tenantId),
       },
       folders: {
-        getTree: (_maxDepth?: number, tenantId?: string | null) =>
+        getTree: (_maxDepth?: number, tenantId?: DatabaseId | null) =>
           mediaMethods.getFolders(undefined, tenantId),
-        getFolderContents: mediaMethods.getFolders.bind(mediaMethods),
-        // Placeholder methods for other folder operations
-        create: (_folder: any) => Promise.resolve({ success: true, data: {} as any }),
-        createMany: (_folders: any) => Promise.resolve({ success: true, data: [] }),
-        delete: (_id: any) => Promise.resolve({ success: true, data: undefined }),
-        deleteMany: (_ids: any) => Promise.resolve({ success: true, data: { deletedCount: 0 } }),
-        move: (_id: any, _target: any) => Promise.resolve({ success: true, data: {} as any }),
+        getFolderContents: async (
+          folderId?: DatabaseId,
+          options?: any,
+          tenantId?: DatabaseId | null,
+        ) => {
+          const [foldersRes, filesRes] = await Promise.all([
+            mediaMethods.getFolders(folderId, tenantId),
+            mediaMethods.getFiles(folderId, options, false, tenantId),
+          ]);
+          if (!foldersRes.success) return foldersRes as any;
+          if (!filesRes.success) return filesRes as any;
+          return {
+            success: true,
+            data: {
+              folders: foldersRes.data,
+              files: filesRes.data.items,
+              totalCount: filesRes.data.total,
+            },
+          };
+        },
+        create: (folder: any, tenantId?: DatabaseId | null) =>
+          this.crud.insert("media_folders", { ...folder, tenantId }),
+        createMany: (folders: any[], tenantId?: DatabaseId | null) =>
+          this.crud.insertMany(
+            "media_folders",
+            folders.map((f) => ({ ...f, tenantId })),
+          ),
+        delete: (id: DatabaseId, tenantId?: DatabaseId | null) =>
+          this.crud.delete("media_folders", id, { tenantId }),
+        deleteMany: (ids: DatabaseId[], tenantId?: DatabaseId | null) =>
+          this.crud.deleteMany("media_folders", { _id: { $in: ids } } as any, { tenantId }),
+        move: (id: DatabaseId, target: DatabaseId, tenantId?: DatabaseId | null) =>
+          this.crud.update("media_folders", id, { parentId: target } as any, { tenantId }),
       },
       setupMediaModels: () => Promise.resolve(),
     } as unknown as IMediaAdapter;
@@ -516,10 +527,15 @@ export class MongoDBAdapter implements IDBAdapter {
       nodes: {
         getStructure: contentMethods.getStructure.bind(contentMethods),
         create: (n: any) => contentMethods.upsertNodeByPath(n),
-        createMany: (_n: any) => Promise.resolve({ success: true, data: [] }), // Placeholder
-        update: (_p: any, _c: any) => Promise.resolve({ success: true, data: {} as any }), // Placeholder
+        createMany: (nodes: any[]) =>
+          contentMethods.bulkUpdateNodes(nodes.map((n) => ({ path: n.path, changes: n }))),
+        update: (path: string, changes: any) =>
+          contentMethods.bulkUpdateNodes([{ path, changes }]).then((res) => ({
+            ...res,
+            data: res.success ? res.data[0] : (undefined as any),
+          })),
         delete: (path: string) => contentMethods.deleteNodeByPath(path),
-        deleteMany: (paths: string[], options?: { tenantId?: string | null }) =>
+        deleteMany: (paths: string[], options?: { tenantId?: DatabaseId | null }) =>
           contentMethods.deleteNodesByPaths(paths, options),
         bulkUpdate: contentMethods.bulkUpdateNodes.bind(contentMethods),
         reorderStructure: contentMethods.reorderStructure.bind(contentMethods),
@@ -527,13 +543,23 @@ export class MongoDBAdapter implements IDBAdapter {
       drafts: {
         ...this.content.drafts,
         create: contentMethods.createDraft.bind(contentMethods),
-        getForContent: contentMethods.getDraftsForContent.bind(contentMethods),
+        createMany: (drafts: any[]) => draftsRepo.insertMany(drafts),
+        update: (id: DatabaseId, data: any) => draftsRepo.update(id, { data } as any),
+        publish: (id: DatabaseId) =>
+          contentMethods.publishManyDrafts([id]).then((res) => ({ ...res, data: undefined })),
         publishMany: contentMethods.publishManyDrafts.bind(contentMethods),
+        getForContent: contentMethods.getDraftsForContent.bind(contentMethods),
+        delete: (id: DatabaseId) => draftsRepo.delete(id),
+        deleteMany: (ids: DatabaseId[]) =>
+          draftsRepo.deleteMany({ _id: { $in: ids } } as any, { permanent: true }),
       },
       revisions: {
         ...this.content.revisions,
         create: contentMethods.createRevision.bind(contentMethods),
         getHistory: contentMethods.getRevisionHistory.bind(contentMethods),
+        delete: (id: DatabaseId) => revisionsRepo.delete(id),
+        deleteMany: (ids: DatabaseId[]) =>
+          revisionsRepo.deleteMany({ _id: { $in: ids } } as any, { permanent: true }),
         cleanup: contentMethods.cleanupRevisions.bind(contentMethods),
       },
     } as unknown as IContentAdapter;
@@ -545,32 +571,32 @@ export class MongoDBAdapter implements IDBAdapter {
   async ensureMonitoring(): Promise<void> {
     this.monitoring = {
       cache: {
-        get: (key: string, tenantId?: string | null) =>
-          cacheService.get(key, tenantId).then((data) => ({ success: true, data })),
+        get: (key: string) =>
+          cacheService.get(key).then((data) => ({ success: true, data: data as any })),
         set: (key: string, value: any, options?: any) =>
           cacheService
-            .set(key, value, options?.ttl || 300, options?.tenantId, options?.category)
+            .set(key, value, options?.ttl || 300, undefined, options?.category, options?.tags)
             .then(() => ({ success: true, data: undefined })),
-        delete: (key: string, tenantId?: string | null) =>
-          cacheService.delete(key, tenantId).then(() => ({ success: true, data: undefined })),
-        clear: (tags?: string[], tenantId?: string | null) =>
-          (tags
-            ? cacheService.clearByTags(tags, tenantId)
-            : cacheService.invalidateAll(tenantId)
-          ).then(() => ({ success: true, data: undefined })),
-        invalidateCollection: (collection: string, tenantId?: string | null) =>
+        delete: (key: string) =>
+          cacheService.delete(key).then(() => ({ success: true, data: undefined })),
+        clear: (tags?: string[]) =>
+          (tags ? cacheService.clearByTags(tags) : cacheService.invalidateAll()).then(() => ({
+            success: true,
+            data: undefined,
+          })),
+        invalidateCollection: (collection: string, tenantId?: DatabaseId | null) =>
           cacheService
             .clearByPattern(`collection:${collection}:*`, tenantId)
             .then(() => ({ success: true, data: undefined })),
-        invalidateCategory: (category: string, tenantId?: string | null) =>
+        invalidateCategory: (category: string, tenantId?: DatabaseId | null) =>
           cacheService
             .clearByPattern(`*:${category}:*`, tenantId || "*")
             .then(() => ({ success: true, data: undefined })),
-        getVersion: async (tenantId?: string | null) => {
+        getVersion: async (tenantId?: DatabaseId | null) => {
           const version = await cacheService.get(`system:content_version`, tenantId);
           return { success: true, data: (version as number) || 0 };
         },
-        incrementVersion: async (tenantId?: string | null) => {
+        incrementVersion: async (tenantId?: DatabaseId | null) => {
           const key = `system:content_version`;
           const current = ((await cacheService.get(key, tenantId)) as number) || 0;
           const next = current + 1;
@@ -588,8 +614,8 @@ export class MongoDBAdapter implements IDBAdapter {
   }
 
   utils = {
-    generateId: () => new mongoose.Types.ObjectId().toHexString(),
-    validateId: (id: string) => mongoose.Types.ObjectId.isValid(id),
+    generateId: () => generateId(),
+    validateId: (id: string) => validateId(id),
     normalizePath: (p: string) => p,
     createPagination: <T>(items: T[]) => ({
       items: items,

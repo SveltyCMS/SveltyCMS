@@ -209,7 +209,7 @@ export async function collectionsResolvers(
                     userTenant: userTenant || "",
                     collection: collection._id,
                   },
-                  tenantId: ctx.tenantId,
+                  tenantId: (ctx.tenantId as DatabaseId) || null,
                 });
               })
               .catch(() => {});

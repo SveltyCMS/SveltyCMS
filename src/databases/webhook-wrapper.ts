@@ -158,7 +158,7 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
     const wrappedFiles: Partial<IMediaAdapter["files"]> = {
       upload: async (...args) => {
         const res = await originalFiles.upload(...args);
-        const [, tenantId] = args as [any, string];
+        const [, tenantId] = args as [any, any];
         if (res.success) {
           webhookService.trigger("media:upload", { data: res.data as any }, tenantId);
           eventBus.emit("media:upload", { data: res.data as any, tenantId });
@@ -167,7 +167,7 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
       },
       uploadMany: async (...args) => {
         const res = await originalFiles.uploadMany(...args);
-        const [, tenantId] = args as [any[], string];
+        const [, tenantId] = args as [any[], any];
         if (res.success) {
           for (const file of res.data) {
             webhookService.trigger("media:upload", { data: file as any }, tenantId);
@@ -178,7 +178,7 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
       },
       delete: async (...args) => {
         const res = await originalFiles.delete(...args);
-        const [id, tenantId] = args as [any, string];
+        const [id, tenantId] = args as [any, any];
         if (res.success) {
           webhookService.trigger("media:delete", { id }, tenantId);
           eventBus.emit("media:delete", { entryId: id as any, tenantId });
@@ -187,7 +187,7 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
       },
       deleteMany: async (...args) => {
         const res = await originalFiles.deleteMany(...args);
-        const [ids, tenantId] = args as [any[], string];
+        const [ids, tenantId] = args as [any[], any];
         if (res.success) {
           webhookService.trigger("media:delete", { ids }, tenantId);
           eventBus.emit("media:delete", { data: { ids }, tenantId });

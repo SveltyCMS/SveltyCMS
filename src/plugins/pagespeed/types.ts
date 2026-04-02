@@ -23,7 +23,7 @@ export interface PageSpeedResult {
   performanceScore?: number; // 0-100
   si?: number; // Speed Index (ms)
   tbt?: number; // Total Blocking Time (ms)
-  tenantId: string;
+  tenantId?: DatabaseId | null;
   tti?: number; // Time to Interactive (ms)
   updatedAt: ISODateString;
   url: string;

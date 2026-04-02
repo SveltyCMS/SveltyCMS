@@ -42,7 +42,7 @@ export interface BaseEntity {
   deletedAt?: ISODateString; // Timestamp of deletion
   deletedBy?: string; // User who performed deletion
   isDeleted?: boolean; // Soft delete flag
-  tenantId?: string | null; // For multi-tenant support
+  tenantId?: DatabaseId | null; // For multi-tenant support
   updatedAt: ISODateString;
 }
 
@@ -52,7 +52,7 @@ export interface CollectionEntry extends Record<string, unknown> {
   createdAt?: string;
   createdBy?: string;
   status?: StatusType;
-  tenantId?: string | null;
+  tenantId?: DatabaseId | null;
   updatedAt?: string;
   updatedBy?: string;
 }
@@ -64,7 +64,7 @@ export interface RevisionData {
   data: Record<string, unknown>;
   entryId: string;
   operation?: "create" | "update" | "delete" | "status_change";
-  tenantId?: string | null;
+  tenantId?: DatabaseId | null;
   timestamp: ISODateString;
   userId?: string;
   [key: string]: unknown;
@@ -94,8 +94,21 @@ export interface ContentNode {
   parentId?: DatabaseId;
   path?: string;
   slug?: string;
-  tenantId?: string | null; // For multi-tenant support
+  tenantId?: DatabaseId | null; // For multi-tenant support
   translations: Translation[];
+  updatedAt: ISODateString;
+}
+
+// --- Website Token ---
+// Represents an API token for headless website access.
+export interface WebsiteToken {
+  _id: DatabaseId;
+  createdAt: ISODateString;
+  createdBy: string;
+  expiresAt?: ISODateString;
+  name: string;
+  permissions?: string[];
+  token: string;
   updatedAt: ISODateString;
 }
 
@@ -126,7 +139,7 @@ export interface FieldsProps {
 export interface WidgetLoaderProps {
   field: FieldInstance;
   loader: () => Promise<{ default: unknown }>;
-  tenantId?: string | null;
+  tenantId?: DatabaseId | null;
   value?: unknown;
   WidgetData?: Record<string, unknown>;
 }
@@ -182,7 +195,7 @@ export interface FieldInstance {
     field: unknown;
     user: unknown;
     type: string;
-    tenantId?: string | null;
+    tenantId?: DatabaseId | null;
   }) => Promise<Record<string, unknown>[]>;
 
   // Permissions: access control for this field (AUTH tab). Stored in widget.permissions.
@@ -241,7 +254,7 @@ export interface Schema {
   slug?: string;
   status?: StatusType;
   strict?: boolean;
-  tenantId?: string | null; // For multi-tenant support
+  tenantId?: DatabaseId | null; // For multi-tenant support
   tenantScopedUnique?: boolean; // If true, unique schema-level indexes include tenantId
   translations?: Translation[]; // Optional translations with enhanced metadata
   displaySpec?: Record<string, unknown>; // json-render-svelte display specification

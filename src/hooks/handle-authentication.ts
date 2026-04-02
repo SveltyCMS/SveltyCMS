@@ -24,6 +24,7 @@
 import type { ISODateString } from "@databases/db-interface";
 import { SESSION_COOKIE_NAME } from "@src/databases/auth/constants";
 import type { User } from "@src/databases/auth/types";
+import type { DatabaseId } from "../content/types";
 import { cacheService, SESSION_CACHE_TTL_MS } from "@src/databases/cache/cache-service";
 import { auth, dbAdapter } from "@src/databases/db";
 import { metricsService } from "@src/services/metrics-service";
@@ -34,6 +35,7 @@ import { AppError, handleApiError } from "@utils/error-handling";
 import { logger } from "@utils/logger.server";
 import { RateLimiter } from "sveltekit-rate-limiter/server";
 import { dev } from "$app/environment";
+import { getTenantIdFromHostname } from "@utils/tenant-utils";
 
 // --- IN-MEMORY SESSION CACHE WITH WEAKREF-BASED CLEANUP ---
 
@@ -199,14 +201,12 @@ if (typeof setInterval !== "undefined") {
   );
 }
 
-import { getTenantIdFromHostname } from "@utils/tenant-utils";
-
 // --- UTILITY FUNCTIONS ---
 
 /** Multi-layer user session retrieval (in-memory → distributed → DB) */
 async function getUserFromSession(
   sessionId: string,
-  tenantId?: string | null,
+  tenantId?: DatabaseId | null,
 ): Promise<User | null> {
   const now = Date.now();
 
@@ -220,7 +220,7 @@ async function getUserFromSession(
   // Layer 2: Distributed cache (Redis)
   try {
     const cacheKey = tenantId ? `session:${tenantId}:${sessionId}` : `session:${sessionId}`;
-    const redisCached = await cacheService.get<SessionCacheEntry>(cacheKey, tenantId);
+    const redisCached = await cacheService.get<SessionCacheEntry>(cacheKey, tenantId ?? undefined);
     if (redisCached && now - redisCached.timestamp < SESSION_CACHE_TTL_MS) {
       setSessionInCache(sessionId, redisCached);
       logger.trace(`Session cache hit (redis): ${sessionId.substring(0, 8)}...`);
@@ -249,13 +249,13 @@ async function getUserFromSession(
   }
 
   try {
-    const user = await auth.validateSession(sessionId);
+    const user = await auth.validateSession(sessionId as DatabaseId);
     if (user) {
       const sessionData: SessionCacheEntry = { user, timestamp: now };
       setSessionInCache(sessionId, sessionData);
       const cacheKey = tenantId ? `session:${tenantId}:${sessionId}` : `session:${sessionId}`;
       await cacheService
-        .set(cacheKey, sessionData, Math.ceil(SESSION_CACHE_TTL_MS / 1000), tenantId)
+        .set(cacheKey, sessionData, Math.ceil(SESSION_CACHE_TTL_MS / 1000), tenantId as DatabaseId)
         .catch((err: any) => logger.warn(`Session cache set failed: ${err.message}`));
       logger.trace(`Session validated from DB: ${sessionId.substring(0, 8)}...`);
       return user;
@@ -306,9 +306,9 @@ async function handleSessionRotation(
 
     // Create new session with same user
     const newSession = await auth.createSession({
-      user_id: user._id,
+      user_id: user._id as DatabaseId,
       expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() as ISODateString, // 30 days
-      tenantId: event.locals.tenantId,
+      tenantId: event.locals.tenantId as DatabaseId,
     });
 
     if (newSession && newSession._id !== oldSessionId) {
@@ -329,7 +329,7 @@ async function handleSessionRotation(
 
       // Destroy old session
       await auth
-        .destroySession(oldSessionId)
+        .destroySession(oldSessionId as DatabaseId)
         .catch((err: any) =>
           logger.warn(
             `Failed to destroy old session ${oldSessionId.substring(0, 8)}: ${err.message}`,
@@ -337,7 +337,7 @@ async function handleSessionRotation(
         );
 
       // Invalidate old session from all caches
-      invalidateSessionCache(oldSessionId, event.locals.tenantId);
+      invalidateSessionCache(oldSessionId, event.locals.tenantId as DatabaseId);
 
       // Cache new session
       const sessionData: SessionCacheEntry = { user, timestamp: now };
@@ -347,7 +347,12 @@ async function handleSessionRotation(
         ? `session:${event.locals.tenantId}:${newSessionId}`
         : `session:${newSessionId}`;
       await cacheService
-        .set(cacheKey, sessionData, Math.ceil(SESSION_CACHE_TTL_MS / 1000), event.locals.tenantId)
+        .set(
+          cacheKey,
+          sessionData,
+          Math.ceil(SESSION_CACHE_TTL_MS / 1000),
+          event.locals.tenantId as DatabaseId,
+        )
         .catch((err: any) => logger.warn(`Failed to cache rotated session: ${err.message}`));
 
       // Update locals with new session ID
@@ -521,7 +526,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
           "TENANT_NOT_FOUND",
         );
       }
-      locals.tenantId = tenantId;
+      locals.tenantId = tenantId as DatabaseId;
       if (tenantId) logger.trace(`Tenant identified: ${tenantId}`);
     }
 
@@ -539,7 +544,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
         return await resolve(event);
       }
 
-      const user = await getUserFromSession(sessionId, locals.tenantId);
+      const user = await getUserFromSession(sessionId as string, locals.tenantId as DatabaseId);
 
       // Step 2.5: Late Demo Tenant Generation (if no tenant and no global admin session)
       if (isDemoMode && !locals.tenantId && !user) {
@@ -563,7 +568,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
           sameSite: "lax",
           maxAge: 60 * 60,
         });
-        locals.tenantId = tenantId;
+        locals.tenantId = tenantId as DatabaseId;
       }
 
       if (user) {
@@ -588,7 +593,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
 
         // Set user in locals
         locals.user = user;
-        locals.session_id = sessionId;
+        locals.session_id = sessionId as DatabaseId;
         locals.permissions = user.permissions || [];
         logger.trace(`User authenticated: ${user._id}`);
 
@@ -652,7 +657,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
  * @param sessionId - The session ID to invalidate
  * @param tenantId - Optional tenant ID for multi-tenant setups
  */
-export function invalidateSessionCache(sessionId: string, tenantId?: string | null): void {
+export function invalidateSessionCache(sessionId: string, tenantId?: DatabaseId | null): void {
   sessionCache.delete(sessionId);
   strongRefs.delete(sessionId);
   lastRefreshAttempt.delete(sessionId);
@@ -660,7 +665,7 @@ export function invalidateSessionCache(sessionId: string, tenantId?: string | nu
 
   const cacheKey = tenantId ? `session:${tenantId}:${sessionId}` : `session:${sessionId}`;
   cacheService
-    .delete(cacheKey, tenantId)
+    .delete(cacheKey, tenantId ?? undefined)
     .catch((err: any) => logger.warn(`Failed to delete session from Redis: ${err.message}`));
 
   logger.debug(`Session cache invalidated: ${sessionId.substring(0, 8)}...`);
