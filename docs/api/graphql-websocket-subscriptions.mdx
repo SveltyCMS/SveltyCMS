@@ -22,16 +22,17 @@ Real-time GraphQL subscriptions allow clients to receive instant updates when da
 
 ## ⚡ Quick Reference
 
-| Feature | Details |
-| :--- | :--- |
-| **Endpoint** | `ws://[domain]:3001/api/graphql` |
-| **Protocol** | `graphql-ws` |
-| **Auth Methods** | Session ID, Cookie, or Bearer Token |
+| Feature                     | Details                                                      |
+| :-------------------------- | :----------------------------------------------------------- |
+| **Endpoint**                | `ws://[domain]:3001/api/graphql`                             |
+| **Protocol**                | `graphql-ws`                                                 |
+| **Auth Methods**            | Session ID, Cookie, or Bearer Token                          |
 | **Server-Side Alternative** | [**Real-Time Events API (SSE)**](./real-time-events-api.mdx) |
 
 ---
 
 ## 1. The Goal
+
 Maintain a live, reactive UI (like a collaborative editor or a real-time dashboard) that updates instantly when content is modified by other users or background jobs.
 
 ---
@@ -39,23 +40,24 @@ Maintain a live, reactive UI (like a collaborative editor or a real-time dashboa
 ## 2. The Solution
 
 ### Svelte 5 Integration
+
 Using `graphql-ws` to create a reactive state from a subscription.
 
 ```typescript
-import { createClient } from 'graphql-ws';
-import { onMount, onDestroy } from 'svelte';
+import { createClient } from "graphql-ws";
+import { onMount, onDestroy } from "svelte";
 
 let latestPost = $state(null);
 
 onMount(() => {
   const client = createClient({
-    url: 'ws://localhost:3001/api/graphql',
-    connectionParams: { cookie: document.cookie }
+    url: "ws://localhost:3001/api/graphql",
+    connectionParams: { cookie: document.cookie },
   });
 
   const unsubscribe = client.subscribe(
-    { query: 'subscription { postAdded { title } }' },
-    { next: (res) => (latestPost = res.data.postAdded) }
+    { query: "subscription { postAdded { title } }" },
+    { next: (res) => (latestPost = res.data.postAdded) },
   );
 
   return () => {
@@ -66,12 +68,13 @@ onMount(() => {
 ```
 
 ### Authentication Header (Node/Native)
+
 ```typescript
 const client = createClient({
-  url: 'ws://localhost:3001/api/graphql',
+  url: "ws://localhost:3001/api/graphql",
   connectionParams: {
-    authorization: 'Bearer your-api-token-here'
-  }
+    authorization: "Bearer your-api-token-here",
+  },
 });
 ```
 
@@ -87,15 +90,15 @@ sequenceDiagram
     participant WS as WS Server (Port 3001)
     participant JIT as JIT Compiler
     participant PubSub as Redis/In-Memory PubSub
-    
+
     Client->>WS: Connection Init (Auth Params)
     WS->>WS: Validate Session/Token
     WS-->>Client: Connection Ack
-    
+
     Client->>WS: Subscribe (Query)
     WS->>JIT: Compile Subscription Resolver
     JIT-->>WS: Optimized JS Function
-    
+
     Note over PubSub: Data Mutation in CMS
     PubSub->>WS: Publish "postAdded"
     WS->>WS: Check User Permissions
@@ -103,6 +106,7 @@ sequenceDiagram
 ```
 
 ### Performance & Security
+
 - **JIT Execution**: Subscription resolvers are compiled into optimized machine-ready code, reducing latency for high-frequency broadcasts.
 - **Tenant Isolation**: Subscription streams are strictly filtered by `tenantId` at the PubSub layer.
 - **Depth Limiting**: The native AST validator blocks subscriptions deeper than **8 levels** to prevent DoS.
@@ -113,7 +117,7 @@ sequenceDiagram
 ---
 
 ## Related Documents
+
 - [GraphQL API Reference](./graphql-api.mdx)
 - [Real-Time Events API Reference](./real-time-events-api.mdx)
 - [Security Architecture](../architecture/security/index.mdx)
-

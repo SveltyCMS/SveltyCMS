@@ -21,13 +21,14 @@ The Email API provides a robust, Svelte-powered system for sending transactional
 
 ## ⚡ Quick Start
 
-| Feature | HTTP Endpoint | Local SDK Equivalent |
-| :--- | :--- | :--- |
+| Feature        | HTTP Endpoint         | Local SDK Equivalent         |
+| :------------- | :-------------------- | :--------------------------- |
 | **Send Email** | `POST /api/send-mail` | `locals.cms.system.sendMail` |
 
 ---
 
 ## 1. The Goal
+
 Send a beautifully rendered, Svelte-powered email to a user triggered by a server-side event or an external API call.
 
 ---
@@ -35,6 +36,7 @@ Send a beautifully rendered, Svelte-powered email to a user triggered by a serve
 ## 2. The Solution
 
 ### Local SDK (Recommended for SvelteKit)
+
 In your `+page.server.ts` or `actions`, use the zero-latency Local SDK:
 
 ```typescript
@@ -44,17 +46,19 @@ export const actions = {
       recipientEmail: "user@example.com",
       subject: "Your order is ready!",
       templateName: "orderNotification",
-      props: { orderId: "ORD-123", status: "Shipped" }
+      props: { orderId: "ORD-123", status: "Shipped" },
     });
-  }
+  },
 };
 ```
 
 ### External REST API
+
 For non-SvelteKit environments, use the standard POST endpoint.
 
 **Endpoint**: `POST /api/send-mail`
 **Payload**:
+
 ```json
 {
   "recipientEmail": "user@example.com",
@@ -79,7 +83,7 @@ sequenceDiagram
     participant SDK as Local SDK / API Handler
     participant Render as Svelte Render Engine
     participant SMTP as SMTP / AWS SES / Postmark
-    
+
     App->>SDK: Send Request (Template + Props)
     SDK->>Render: Compile & Inject Props
     Render-->>SDK: HTML + Plaintext strings
@@ -89,13 +93,13 @@ sequenceDiagram
 
 ### Payload Specification
 
-| Parameter | Type | Required | Description |
-| :--- | :--- | :--- | :--- |
-| `recipientEmail` | `string` | **Yes** | Target email address. |
-| `subject` | `string` | **Yes** | Subject line (supports tokens). |
-| `templateName` | `string` | **Yes** | Filename in `src/components/emails/` (e.g., `welcomeUser`). |
-| `props` | `object` | No | Data passed to the Svelte component. |
-| `languageTag` | `string` | No | IETF tag for i18n rendering (default: `en`). |
+| Parameter        | Type     | Required | Description                                                 |
+| :--------------- | :------- | :------- | :---------------------------------------------------------- |
+| `recipientEmail` | `string` | **Yes**  | Target email address.                                       |
+| `subject`        | `string` | **Yes**  | Subject line (supports tokens).                             |
+| `templateName`   | `string` | **Yes**  | Filename in `src/components/emails/` (e.g., `welcomeUser`). |
+| `props`          | `object` | No       | Data passed to the Svelte component.                        |
+| `languageTag`    | `string` | No       | IETF tag for i18n rendering (default: `en`).                |
 
 > [!TIP]
 > **Performance**: The Local SDK uses an internal direct-dispatch mechanism that is **300% faster** than the REST API for high-volume notification bursts.
@@ -103,6 +107,7 @@ sequenceDiagram
 ---
 
 ## Related Documents
+
 - [Email System Architecture](../guides/development/email-system.mdx)
 - [SMTP Configuration Guide](../guides/development/email-system.mdx)
 - [Automation System API](../guides/development/automation-system.mdx)

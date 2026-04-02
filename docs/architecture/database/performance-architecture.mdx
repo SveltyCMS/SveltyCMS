@@ -27,6 +27,9 @@ Key architectural improvements include:
 - **95-99% reduction** in latency across typical user flows.
 - **Sub-10ms response** for cached operations across all supported databases.
 - **80%+ payload reduction** through smart field selection.
+- **Instant Cold Starts**: L2 Schema Persistence eliminates filesystem scanning on server startup.
+- **Vectorized Processing**: Chunked parallel modification prevents event-loop blocking during large imports.
+- **Auto-Optimization**: Background Index Optimizer ensures database performance as schemas evolve.
 
 > [!NOTE]
 > Performance gains represent a **95–99% reduction** in latency across typical user flows (translates to 20–160× faster operations depending on hit rate and query complexity).
@@ -43,143 +46,20 @@ This document details the production-ready performance architecture implemented 
 
 ---
 
-## ✅ Phase 1: Database Indexing (COMPLETED)
+## ✅ Phase 1: Database Indexing & Optimization (ENHANCED)
 
-**From:** `FUTURE_IMPROVEMENTS.md` - Item #1
-**Status:** ✅ FULLY IMPLEMENTED
+**Status:** ✅ FULLY IMPLEMENTED (Enhanced April 2026)
 **Impact:** Exponential query speedup (O(n) → O(log n))
 
-### Implementation
+### Automatic Index Optimizer
 
-- **MongoDB**: `/src/databases/mongodb/methods/collectionMethods.ts` → `createIndexes(model, schema)`
-- **SQL (Drizzle)**: `/src/databases/sqlite/migrations.ts` (and variants) → `runMigrations(db)`
+The system now includes a background `IndexOptimizer` service that automatically manages database performance:
 
-### Features (Agnostic)
+1. **Schema-Driven Indexing**: Analyzes collection schemas to identify `unique`, `searchable`, or `indexed` fields.
+2. **Background Building**: Creates indexes in the background to ensure API responsiveness is never compromised.
+3. **Multi-Database Support**: Optimized for MongoDB (Compound/Text indexes) and SQL (B-Tree indexes).
 
-1. **Essential Indexes** - Created for all collections:
-   - `status` - Filter by draft/published
-   - `createdAt` - Sort by creation date (descending)
-   - `updatedAt` - Sort by modification date (descending)
-   - `createdBy` - Filter by author
-
-2. **Compound Indexes** - Optimized common query patterns:
-   - `status + createdAt` - Published posts, newest first
-   - `status + updatedAt` - Recently modified drafts
-   - Performance boost: **16% faster** than separate indexes
-
-3. **Multi-Tenant Indexes** - For SaaS deployments:
-   - `tenantId` - Isolate tenant data
-   - `tenantId + status` - Tenant-specific filtering
-   - `tenantId + createdAt` - Tenant-specific sorting
-
-4. **Field-Specific Indexes** - Based on schema configuration:
-   - **Unique indexes**: `{ unique: true, sparse: true }`
-   - **Searchable fields**: Standard B-tree index
-   - **Text indexes**: Full-text search on text/textarea fields
-   - **Sortable fields**: Optimized for ORDER BY queries
-
-### Performance Metrics
-
-Indexing results in exponential query speedups, especially as collection sizes grow. Comprehensive metrics for indexed vs. unindexed queries are available in the [centralized benchmarks](/docs/project/benchmarks).
-
-### Auto-Execution
-
-Indexes are created automatically when:
-
-- New collection created via API
-- Collection seeded during setup
-- Schema updated via ContentManager
-
-**Trigger:** Line 156 in `createModel()`:
-
-```typescript
-await this.createIndexes(model, schema);
-```
-
----
-
-## ✅ Phase 2: Smaller Prop Payloads (COMPLETED)
-
-**From:** `FUTURE_IMPROVEMENTS.md` - Item #3
-**Status:** ✅ FULLY IMPLEMENTED
-**Impact:** 50-80% payload reduction for list views
-
-### Implementation
-
-#### 2.1 Field Selection Utility
-
-**File:** `/src/utils/fieldselection.ts`
-**Lines:** 1-217
-
-**Functions:**
-
-- `getDisplayfields(collection, mode, config)` - Smart field detection
-- `createProjection(fields)` - MongoDB projection objects
-- `filterEntryfields(entry, fields)` - Client-side filtering
-- `estimatePayloadReduction(total, selected)` - Performance metrics
-
-**Logic:**
-
-```typescript
-// List view: Show only essential + display fields
-getDisplayfields(collection, "list");
-// Returns: ['_id', 'status', 'createdAt', 'title', 'thumbnail']
-// Skips: 15+ other fields not shown in table view
-
-// Edit view: Load all fields for full editing
-getDisplayfields(collection, "edit");
-// Returns: all fields for comprehensive editing
-```
-
-#### 2.2 QueryBuilder Integration
-
-The system uses a unified QueryBuilder pattern across all adapters.
-
-- **MongoDB**: `src/databases/mongodb/MongoQueryBuilder.ts`
-- **SQL (Drizzle)**: `src/databases/sqlite/queryBuilder/SQLiteQueryBuilder.ts` (and variants)
-
-**Features:**
-
-- Line 34: `private selectedfields?: (keyof T)[]`
-- Line 114: `select<K extends keyof T>(fields: K[]): this`
-- Field selection is applied at the driver level for maximum performance.
-
-**No changes needed** - Builder already supports field selection!
-
-#### 2.3 SSR Page Integration
-
-**File:** `/src/routes/(app)/[language]/[...collection]/+page.server.ts`
-**Lines:** 195-213
-
-**Implementation:**
-
-```typescript
-// Only load display fields for list views
-if (!editEntryId) {
-  const displayfields = getDisplayfields(currentCollection, "list", {
-    maxDisplayfields: 5,
-  });
-  query = query.select(displayfields);
-}
-```
-
-### Performance Metrics
-
-Smart field selection dramatically reduces network overhead and JSON serialization time. For detailed KB reduction metrics and page load comparisons, see the [benchmarks doc](/docs/project/benchmarks).
-
-### Auto-Execution
-
-Field selection applies automatically to:
-
-- Collection list views (paginated tables)
-- API responses with mode parameter
-- Search results
-
-**Does NOT apply to:**
-
-- Edit mode (needs all fields)
-- Single entry fetches
-- Export operations
+**Trigger:** Automatically runs during the `WARMING` phase of system initialization.
 
 ---
 
@@ -189,12 +69,23 @@ Field selection applies automatically to:
 **Impact:** 70% reduction in function overhead; Race-condition free sync.
 
 ### 6.1 Vectorized Request Modification
-The `modifyRequest` pipeline now uses **Chunked Parallel Processing** ($O(N/chunk)$) instead of standard loops.
+
+The `modifyRequest` pipeline now uses **Chunked Parallel Processing** ($O(N/chunk)$).
+
 - **Goal**: Prevent event loop blocking during 10,000+ item imports.
 - **Mechanics**: Data is processed in groups of 100 with `setTimeout(0)` yields, ensuring the CMS dashboard remains responsive during massive background imports.
 
-### 6.2 Atomic Content Versioning
+### 6.2 L2 Schema Persistence
+
+Implemented a persistent schema cache in the `system_content_structure` collection.
+
+- **Goal**: Achieve <100ms cold-start latency.
+- **Implementation**: The full schema (including field definitions) is stored in the database. On server restart, `LocalCMS` loads the schema directly from DB, bypassing the expensive filesystem scan and module evaluation unless an `incremental` update is detected.
+
+### 6.3 Atomic Content Versioning
+
 Implemented the `ContentVersionManager` to handle global state increments.
+
 - **Goal**: Ensure all connected clients (SSE/Polling) receive a single, consistent version bump after bulk operations.
 - **Implementation**: Uses native database atomic operations (`$inc` in MongoDB, `RETURNING` in SQL) to prevent version drift in multi-tenant environments.
 

@@ -67,12 +67,22 @@ export async function generateContentTypes(
     // Read existing types file
     let types = await fs.readFile("src/content/types.ts", "utf-8");
 
-    // Generate new ContentTypes union
+    // Generate new ContentTypes union and CollectionMap
     const collectionNames = Object.keys(contentTypes)
       .map((name) => `'${name}'`)
       .join(" | ");
 
-    const newTypeDefinition = `/* AUTOGEN_START: ContentTypes */\nexport type ContentTypes = ${collectionNames || "never"};\n/* AUTOGEN_END: ContentTypes */`;
+    const collectionMapEntries = Object.entries(contentTypes)
+      .map(([name, config]) => `  ${name}: ${config.type}`)
+      .join(",\n");
+
+    const newTypeDefinition = `/* AUTOGEN_START: ContentTypes */
+export type ContentTypes = ${collectionNames || "never"};
+
+export interface CollectionMap {
+${collectionMapEntries || ""}
+}
+/* AUTOGEN_END: ContentTypes */`;
 
     // Replace the block between markers
     const markerStart = "/* AUTOGEN_START: ContentTypes */";

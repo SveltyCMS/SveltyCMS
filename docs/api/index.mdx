@@ -25,12 +25,12 @@ SveltyCMS provides a comprehensive programmatic surface for building custom fron
 
 Choose the access pattern that best fits your development environment.
 
-| Pattern | Context | performance | Best For |
-| :--- | :--- | :--- | :--- |
-| [⚡ **Local SDK**](./local-vs-http-api.mdx) | **Server-side** (`.server.ts`, hooks, actions) | **0–5ms** | Native SvelteKit development, high-throughput tasks. |
-| [🌐 **REST API**](./collection-api.mdx) | **External** (Mobile apps, microservices) | 50–150ms | Cross-origin integrations, simple CRUD. |
-| [📊 **GraphQL API**](./graphql-api.mdx) | **Frontend** (React, Vue, SPA) | 50–200ms | Complex data fetching, reducing overfetching. |
-| [📡 **SSE / WebSockets**](./real-time-events-api.mdx) | **Real-Time** (Dashboards, AI streaming) | < 50ms | Live updates, collaboration, and progress tracking. |
+| Pattern                                               | Context                                        | performance | Best For                                             |
+| :---------------------------------------------------- | :--------------------------------------------- | :---------- | :--------------------------------------------------- |
+| [⚡ **Local SDK**](./local-vs-http-api.mdx)           | **Server-side** (`.server.ts`, hooks, actions) | **0–5ms**   | Native SvelteKit development, high-throughput tasks. |
+| [🌐 **REST API**](./collection-api.mdx)               | **External** (Mobile apps, microservices)      | 50–150ms    | Cross-origin integrations, simple CRUD.              |
+| [📊 **GraphQL API**](./graphql-api.mdx)               | **Frontend** (React, Vue, SPA)                 | 50–200ms    | Complex data fetching, reducing overfetching.        |
+| [📡 **SSE / WebSockets**](./real-time-events-api.mdx) | **Real-Time** (Dashboards, AI streaming)       | < 50ms      | Live updates, collaboration, and progress tracking.  |
 
 ---
 
@@ -45,13 +45,13 @@ Choose the access pattern that best fits your development environment.
 
 ## 🛠 Technical Evidence from the Codebase
 
-| Feature | Implementation | Performance Level |
-| :--- | :--- | :--- |
-| **Validation** | Valibot (Agnostic Schema) | Faster than Zod; optimized for tree-shaking. |
-| **Hashing** | Argon2id | Industry standard for resisting GPU/ASIC brute force. |
-| **Database** | Native Adapters (Drizzle/Mongoose) | Zero "ORM Bloat"; queries are optimized per-engine. |
-| **Observability** | MetricsService | High-performance atomic counters (no blocking). |
-| **Integrations** | HMAC-Signed Webhooks | Secure, durable delivery with exponential backoff. |
+| Feature           | Implementation                     | Performance Level                                     |
+| :---------------- | :--------------------------------- | :---------------------------------------------------- |
+| **Validation**    | Valibot (Agnostic Schema)          | Faster than Zod; optimized for tree-shaking.          |
+| **Hashing**       | Argon2id                           | Industry standard for resisting GPU/ASIC brute force. |
+| **Database**      | Native Adapters (Drizzle/Mongoose) | Zero "ORM Bloat"; queries are optimized per-engine.   |
+| **Observability** | MetricsService                     | High-performance atomic counters (no blocking).       |
+| **Integrations**  | HMAC-Signed Webhooks               | Secure, durable delivery with exponential backoff.    |
 
 ---
 

@@ -22,15 +22,16 @@ The Settings API provides a centralized interface for managing global and tenant
 
 ## ⚡ Quick Start
 
-| Feature | HTTP Endpoint | Local SDK Equivalent |
-| :--- | :--- | :--- |
-| **Get Settings** | `GET /api/settings/[group]` | `locals.cms.system.getPreferences` |
-| **Update Settings** | `POST /api/settings/update` | `locals.cms.system.setPreference` |
-| **List All** | `GET /api/settings/all` | `locals.cms.system.settings.getAll` |
+| Feature             | HTTP Endpoint               | Local SDK Equivalent                |
+| :------------------ | :-------------------------- | :---------------------------------- |
+| **Get Settings**    | `GET /api/settings/[group]` | `locals.cms.system.getPreferences`  |
+| **Update Settings** | `POST /api/settings/update` | `locals.cms.system.setPreference`   |
+| **List All**        | `GET /api/settings/all`     | `locals.cms.system.settings.getAll` |
 
 ---
 
 ## 1. The Goal
+
 Retrieve or modify system configuration (e.g., Site Name, SMTP settings, Security policies) programmatically while ensuring data consistency and audit trail generation.
 
 ---
@@ -38,6 +39,7 @@ Retrieve or modify system configuration (e.g., Site Name, SMTP settings, Securit
 ## 2. The Solution
 
 ### Local SDK (Recommended)
+
 In SvelteKit `+page.server.ts` or `hooks`, use the Local SDK for typed, zero-latency access.
 
 ```typescript
@@ -49,10 +51,12 @@ await locals.cms.system.setPreference("siteName", "My Awesome CMS");
 ```
 
 ### External REST API
+
 For external integrations or CLI tools.
 
 **Endpoint**: `POST /api/settings/update`
 **Payload**:
+
 ```json
 {
   "SITE_NAME": "Updated Site Name",
@@ -74,7 +78,7 @@ sequenceDiagram
     participant DB as Database Adapter
     participant Cache as Redis/In-Memory Cache
     participant SSE as Real-Time Bus
-    
+
     App->>API: Update Setting (SITE_NAME)
     API->>Val: Validate Schema
     Val-->>API: OK
@@ -85,14 +89,15 @@ sequenceDiagram
 ```
 
 ### Configuration Scopes
+
 Settings are categorized into logical groups to simplify permission management:
 
-| Group | Description | Sensitive? |
-| :--- | :--- | :--- |
-| `system` | Core site identity, URL, and default language. | No |
-| `security` | Session TTL, 2FA status, and Rate Limiting. | Yes |
-| `email` | SMTP host, port, and credentials. | Yes |
-| `database` | Connection strings and pool settings. | **Critical** |
+| Group      | Description                                    | Sensitive?   |
+| :--------- | :--------------------------------------------- | :----------- |
+| `system`   | Core site identity, URL, and default language. | No           |
+| `security` | Session TTL, 2FA status, and Rate Limiting.    | Yes          |
+| `email`    | SMTP host, port, and credentials.              | Yes          |
+| `database` | Connection strings and pool settings.          | **Critical** |
 
 > [!IMPORTANT]
 > **Environment Precedence**: Settings defined in `.env` (e.g., `DATABASE_URL`) take absolute precedence. If a setting is defined via an environment variable, it becomes **read-only** in the API and UI to prevent configuration drift.
@@ -100,6 +105,7 @@ Settings are categorized into logical groups to simplify permission management:
 ---
 
 ## Related Documents
+
 - [Multi-Tenant Isolation](../architecture/multi-tenancy.mdx)
 - [Security Architecture](../architecture/security/index.mdx)
 - [Local SDK vs HTTP API](./local-vs-http-api.mdx)

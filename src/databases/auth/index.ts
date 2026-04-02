@@ -9,12 +9,17 @@
  * - tenant scoping
  */
 
-import type { ISODateString } from "@src/content/types";
-import type { DatabaseAdapter, DatabaseResult } from "@src/databases/db-interface";
+import type { ISODateString, DatabaseId } from "@src/content/types";
+import type {
+  DatabaseAdapter,
+  DatabaseResult,
+  BaseQueryOptions,
+} from "@src/databases/db-interface";
 // Import global settings service for DB-based configuration
 import { getPrivateSettingSync } from "@src/services/settings-service";
 import { dateToISODateString } from "@src/utils/date-utils";
 import { error } from "@sveltejs/kit";
+import { cacheService } from "@src/databases/cache/cache-service";
 // System Logger
 import { logger } from "@utils/logger";
 import { dev } from "$app/environment";
@@ -59,9 +64,6 @@ export type {
   User,
 } from "./types";
 
-// Import caching
-import { cacheService } from "@src/databases/cache/cache-service";
-
 // Import shared crypto utilities with Argon2
 import {
   hashPassword as cryptoHashPassword,
@@ -88,29 +90,29 @@ export class Auth {
   // Combined Performance-Optimized Methods (wrapper for db.auth methods)
   async createUserAndSession(
     userData: Partial<User>,
-    sessionData: { expires: ISODateString; tenantId?: string | null },
-    options?: { bypassTenantCheck?: boolean },
+    sessionData: { expires: ISODateString; tenantId?: DatabaseId | null },
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<{ user: User; session: Session }>> {
     return this.db.auth.createUserAndSession(userData, sessionData, options);
   }
 
   async deleteUserAndSessions(
-    userId: string,
-    tenantId?: string | null,
+    userId: DatabaseId,
+    tenantId?: DatabaseId | null,
   ): Promise<DatabaseResult<{ deletedUser: boolean; deletedSessionCount: number }>> {
-    return this.db.auth.deleteUserAndSessions(userId, tenantId);
+    return this.db.auth.deleteUserAndSessions(userId, { tenantId });
   }
 
   async blockUsers(
-    userIds: string[],
-    tenantId?: string | null,
+    userIds: DatabaseId[],
+    tenantId?: DatabaseId | null,
   ): Promise<DatabaseResult<{ modifiedCount: number }>> {
     return this.db.auth.blockUsers(userIds, tenantId);
   }
 
   async unblockUsers(
-    userIds: string[],
-    tenantId?: string | null,
+    userIds: DatabaseId[],
+    tenantId?: DatabaseId | null,
   ): Promise<DatabaseResult<{ modifiedCount: number }>> {
     return this.db.auth.unblockUsers(userIds, tenantId);
   }
@@ -164,13 +166,13 @@ export class Auth {
   }
 
   async getUserById(
-    userId: string,
-    tenantId?: string | null,
-    options?: { bypassTenantCheck?: boolean },
+    userId: DatabaseId,
+    tenantId?: DatabaseId | null,
+    options?: BaseQueryOptions,
   ): Promise<User | null> {
     // No caching - getUserById is fast enough and avoids cache invalidation complexity
     // Session cache already stores user data for authenticated requests
-    const result = (await this.db.auth.getUserById(userId, tenantId, options)) as unknown;
+    const result = (await this.db.auth.getUserById(userId, { ...options, tenantId })) as unknown;
     if (
       result &&
       typeof result === "object" &&
@@ -188,16 +190,19 @@ export class Auth {
 
   async getUserBySamlId(
     samlId: string,
-    tenantId?: string | null,
-    options?: { bypassTenantCheck?: boolean },
+    tenantId?: DatabaseId | null,
+    options?: BaseQueryOptions,
   ): Promise<User | null> {
     // Uses generic checkUser structure mapping to adapter lookup
-    return this.checkUser({ user_id: undefined, email: undefined, samlId, tenantId }, options);
+    return this.checkUser(
+      { user_id: undefined as any, email: undefined as any, samlId, tenantId },
+      options,
+    );
   }
 
   async getUserByEmail(
-    criteria: { email: string; tenantId?: string | null },
-    options?: { bypassTenantCheck?: boolean },
+    criteria: { email: string; tenantId?: DatabaseId | null },
+    options?: BaseQueryOptions,
   ): Promise<User | null> {
     // No caching - getUserByEmail is only used during login/registration
     // Caching here adds complexity without significant performance benefit
@@ -221,12 +226,15 @@ export class Auth {
     return (result as User | null) ?? null;
   }
   async updateUser(
-    userId: string,
+    userId: DatabaseId,
     updates: Partial<User>,
-    tenantId?: string | null,
-    options?: { bypassTenantCheck?: boolean },
+    tenantId?: DatabaseId | null,
+    options?: BaseQueryOptions,
   ): Promise<void> {
-    const result = await this.db.auth.updateUserAttributes(userId, updates, tenantId, options);
+    const result = await this.db.auth.updateUserAttributes(userId, updates, {
+      ...options,
+      tenantId,
+    });
     if (!result?.success) {
       throw error(500, "Failed to update user");
     }
@@ -235,11 +243,11 @@ export class Auth {
     // Session cache is the only cache, and it's invalidated by updateUserAttributes API
   }
 
-  async deleteUser(userId: string, tenantId?: string | null): Promise<void> {
+  async deleteUser(userId: DatabaseId, tenantId?: DatabaseId | null): Promise<void> {
     // Get user first to clear email cache
     const user = await this.getUserById(userId, tenantId);
 
-    const result = await this.db.auth.deleteUser(userId, tenantId);
+    const result = await this.db.auth.deleteUser(userId, { tenantId });
     if (!result?.success) {
       throw error(500, "Failed to delete user");
     }
@@ -253,8 +261,8 @@ export class Auth {
       await cacheService.delete(emailCacheKey, tenantId);
     }
   }
-  async getAllUsers(options?: { filter?: { tenantId?: string | null } }): Promise<User[]> {
-    const result = await this.db.auth.getAllUsers(options);
+  async getAllUsers(options?: PaginationOptions, dbOptions?: BaseQueryOptions): Promise<User[]> {
+    const result = await this.db.auth.getAllUsers(options, dbOptions);
     if (result?.success) {
       return result.data;
     }
@@ -262,8 +270,8 @@ export class Auth {
   }
 
   async getUserCount(
-    filter?: { tenantId?: string | null },
-    options?: { bypassTenantCheck?: boolean },
+    filter?: { tenantId?: DatabaseId | null },
+    options?: BaseQueryOptions,
   ): Promise<number> {
     const result = await this.db.auth.getUserCount(filter, options);
     if (result?.success) {
@@ -274,11 +282,11 @@ export class Auth {
 
   async createSession(
     sessionData: {
-      user_id: string;
+      user_id: DatabaseId;
       expires: ISODateString;
-      tenantId?: string | null;
+      tenantId?: DatabaseId | null;
     },
-    options?: { bypassTenantCheck?: boolean },
+    _options?: BaseQueryOptions,
   ): Promise<Session> {
     const sr = (await this.db.auth.createSession(sessionData)) as unknown;
     let session: Session | null = null;
@@ -301,11 +309,9 @@ export class Auth {
       throw error(500, "Session creation failed");
     }
 
-    const ur = (await this.db.auth.getUserById(
-      sessionData.user_id,
-      sessionData.tenantId,
-      options,
-    )) as unknown;
+    const ur = (await this.db.auth.getUserById(sessionData.user_id, {
+      tenantId: sessionData.tenantId,
+    })) as unknown;
     let user: User | null = null;
     if (
       ur &&
@@ -329,7 +335,7 @@ export class Auth {
     return session;
   }
 
-  async validateSession(sessionId: string): Promise<User | null> {
+  async validateSession(sessionId: DatabaseId): Promise<User | null> {
     const result = await this.db.auth.validateSession(sessionId);
     if (result?.success) {
       return result.data;
@@ -337,14 +343,14 @@ export class Auth {
     return null;
   }
 
-  async destroySession(sessionId: string): Promise<void> {
+  async destroySession(sessionId: DatabaseId): Promise<void> {
     await this.db.auth.deleteSession(sessionId);
     await this.sessionStore.delete(sessionId);
   }
 
   async getSessionTokenData(
-    sessionId: string,
-  ): Promise<{ expiresAt: ISODateString; user_id: string } | null> {
+    sessionId: DatabaseId,
+  ): Promise<{ expiresAt: ISODateString; user_id: DatabaseId } | null> {
     const result = await this.db.auth.getSessionTokenData(sessionId);
     if (result?.success) {
       return result.data;
@@ -363,14 +369,11 @@ export class Auth {
     throw error(500, "Token rotation failed");
   }
 
-  async getAllRoles(
-    tenantId?: string | null,
-    options?: { bypassTenantCheck?: boolean },
-  ): Promise<Role[]> {
-    return this.db.auth.getAllRoles(tenantId, options);
+  async getAllRoles(options?: BaseQueryOptions): Promise<Role[]> {
+    return this.db.auth.getAllRoles(options);
   }
 
-  async getAllTokens(filter?: { tenantId?: string | null }): Promise<DatabaseResult<Token[]>> {
+  async getAllTokens(filter?: { tenantId?: DatabaseId | null }): Promise<DatabaseResult<Token[]>> {
     const result = await this.db.auth.getAllTokens(filter);
     return result;
   }
@@ -381,10 +384,10 @@ export class Auth {
    * @returns The created token string
    */
   async createToken(tokenData: {
-    user_id: string;
+    user_id: DatabaseId;
     expires: ISODateString;
     type: string;
-    tenantId?: string | null;
+    tenantId?: DatabaseId | null;
   }): Promise<string> {
     // Get user email (required for token creation)
     const user = await this.getUserById(tokenData.user_id, tokenData.tenantId);
@@ -414,9 +417,9 @@ export class Auth {
 
   // Token management wrappers for interface completeness
   async updateToken(
-    tokenId: string,
+    tokenId: DatabaseId,
     tokenData: Partial<Token>,
-    tenantId?: string | null,
+    tenantId?: DatabaseId | null,
   ): Promise<Token> {
     const result = await this.db.auth.updateToken(tokenId, tokenData, tenantId);
     if (result?.success) {
@@ -431,8 +434,8 @@ export class Auth {
   }
 
   async deleteTokens(
-    tokenIds: string[],
-    tenantId?: string | null,
+    tokenIds: DatabaseId[],
+    tenantId?: DatabaseId | null,
   ): Promise<{ deletedCount: number }> {
     const result = await this.db.auth.deleteTokens(tokenIds, tenantId);
     if (result?.success) {
@@ -447,8 +450,8 @@ export class Auth {
   }
 
   async blockTokens(
-    tokenIds: string[],
-    tenantId?: string | null,
+    tokenIds: DatabaseId[],
+    tenantId?: DatabaseId | null,
   ): Promise<{ modifiedCount: number }> {
     const result = await this.db.auth.blockTokens(tokenIds, tenantId);
     if (result?.success) {
@@ -463,8 +466,8 @@ export class Auth {
   }
 
   async unblockTokens(
-    tokenIds: string[],
-    tenantId?: string | null,
+    tokenIds: DatabaseId[],
+    tenantId?: DatabaseId | null,
   ): Promise<{ modifiedCount: number }> {
     const result = await this.db.auth.unblockTokens(tokenIds, tenantId);
     if (result?.success) {
@@ -478,7 +481,7 @@ export class Auth {
     );
   }
 
-  async getTokenByValue(token: string, tenantId?: string | null): Promise<Token | null> {
+  async getTokenByValue(token: string, tenantId?: DatabaseId | null): Promise<Token | null> {
     const result = await this.db.auth.getTokenByValue(token, tenantId);
     if (result?.success) {
       return result.data;
@@ -491,9 +494,9 @@ export class Auth {
 
   async validateToken(
     token: string,
-    userId?: string,
+    userId?: DatabaseId,
     type = "access",
-    tenantId?: string | null,
+    tenantId?: DatabaseId | null,
   ): Promise<{ success: boolean; message: string }> {
     const result = await this.db.auth.validateToken(token, userId, type, tenantId);
     if (result?.success && result.data) {

@@ -490,4 +490,10 @@ export interface TablePaginationProps {
 
 /* AUTOGEN_START: ContentTypes */
 export type ContentTypes = "Authors" | "Categories" | "Posts";
+
+export interface CollectionMap {
+  Authors: { name: string; bio: string };
+  Categories: { name: string; slug: string };
+  Posts: { title: string; content: string; author: string; category: string };
+}
 /* AUTOGEN_END: ContentTypes */

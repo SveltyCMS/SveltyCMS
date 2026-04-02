@@ -29,6 +29,8 @@ async function run() {
         "bun",
         "test",
         "--preload",
+        "./tests/unit/global-setup.ts",
+        "--preload",
         "./tests/unit/bun-preload.ts",
         "--preload",
         "./tests/unit/setup.ts",

@@ -189,7 +189,7 @@ export async function seedRoles(
 
 /**
  * Seeds collections from filesystem into database
- * This bypassescontent-managerto avoid global dbAdapter dependency during setup
+ * This bypasses contentSystem to avoid global dbAdapter dependency during setup
  *
  * @returns Information about the first collection (for faster redirects)
  */
@@ -209,7 +209,7 @@ export async function seedCollectionsForSetup(
   let firstCollection: { name: string; path: string } | null = null;
 
   try {
-    // Import the collection scanner directly to avoid content-manager dependency issues during setup phase
+    // Import the collection scanner directly to avoid contentSystem dependency issues during setup phase
     // scanCompiledCollections is already imported at the top of the file
 
     const scanStart = performance.now();
@@ -295,8 +295,8 @@ export async function seedCollectionsForSetup(
 
     const modelCreationTime = performance.now() - modelCreationStart;
 
-    // Step 5: PERSISTENCE - Populate contentNodes table so content-manager sees them immediately
-    // This ensures skipReconciliation: true in content-manager works correctly after setup.
+    // Step 5: PERSISTENCE - Populate contentNodes table so contentSystem sees them immediately
+    // This ensures skipReconciliation: true in contentSystem works correctly after setup.
     try {
       logger.info("🌳 Generating category nodes and mapping structure...");
       const categoryNodes = generateCategoryNodesFromPaths(collections as Schema[]);
@@ -479,16 +479,16 @@ export async function initSystemFromSetup(
   // Run seeding steps in parallel for maximum performance
   const [seedResults] = await Promise.all([
     (async () => {
-      // NEW: UseContentManager for unified seeding
-      const { contentManager } = await import("@src/content");
-      await contentManager.initialize(tenantId, false, adapter);
+      // NEW: Use ContentSystem for unified seeding
+      const { contentSystem } = await import("@src/content");
+      await contentSystem.initialize(tenantId, false, adapter);
 
       if (isDemoSeed) {
         const collections = await scanCompiledCollections();
         await seedDemoRecords(adapter, collections, tenantId);
       }
 
-      const first = await contentManager.getFirstCollection(tenantId);
+      const first = await contentSystem.getFirstCollection(tenantId);
       return {
         firstCollection: first ? { name: first.name as string, path: first.path as string } : null,
       };
@@ -583,8 +583,8 @@ export async function initSystemFast(
     if (!adapter) {
       return;
     }
-    const { contentManager } = await import("@src/content");
-    await contentManager.initialize(tenantId, false, adapter);
+    const { contentSystem } = await import("@src/content");
+    await contentSystem.initialize(tenantId, false, adapter);
   };
 
   return { criticalPromise, backgroundTask };

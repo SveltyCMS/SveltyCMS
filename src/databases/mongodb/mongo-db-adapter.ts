@@ -409,6 +409,18 @@ export class MongoDBAdapter implements IDBAdapter {
         collectionMethods.createModel(schema, force),
       updateModel: (schema: Schema) => collectionMethods.updateModel(schema),
       deleteModel: (id: string) => collectionMethods.deleteModel(id),
+      createIndexes: (id: string, schema: Schema) => {
+        const model = collectionMethods.getMongooseModel(id);
+        if (!model)
+          return Promise.resolve({
+            success: false,
+            message: "Model not found",
+            error: { code: "NOT_FOUND", message: "Model not found" },
+          });
+        return (collectionMethods as any)
+          .createIndexes(model, schema)
+          .then(() => ({ success: true, data: undefined }));
+      },
       getSchema: (name: string, tenantId?: string | null) =>
         collectionMethods.getSchema(name, tenantId).then((r) => ({ success: true, data: r })),
       getSchemaById: (id: string, tenantId?: string | null) =>

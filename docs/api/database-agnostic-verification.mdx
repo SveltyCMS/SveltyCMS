@@ -17,6 +17,7 @@ tags:
 # Database Agnostic Verification
 
 ## 1. The Goal
+
 Ensure that the SveltyCMS API remains 100% portable across all supported database engines (PostgreSQL, MySQL, SQLite, MongoDB). By enforcing strict architectural boundaries, we prevent vendor lock-in and allow users to switch databases without changing a single line of application code.
 
 ---
@@ -25,10 +26,10 @@ Ensure that the SveltyCMS API remains 100% portable across all supported databas
 
 ### 🚀 Architecture Reference
 
-| Layer | Responsibility | **Local SDK Role** |
-| :--- | :--- | :--- |
-| **API Route** | Request parsing & Auth | Directs calls to the SDK |
-| **Local SDK** | Business logic & Validation | Injected via `locals.cms` |
+| Layer          | Responsibility               | **Local SDK Role**               |
+| :------------- | :--------------------------- | :------------------------------- |
+| **API Route**  | Request parsing & Auth       | Directs calls to the SDK         |
+| **Local SDK**  | Business logic & Validation  | Injected via `locals.cms`        |
 | **DB Adapter** | Query generation (SQL/NoSQL) | Implementation detail of the SDK |
 
 > [!IMPORTANT]
@@ -56,7 +57,9 @@ graph TD
 ```
 
 ### Implementation Checklist
+
 Every API endpoint is verified against these four non-negotiable rules:
+
 1. **No Raw SQL**: No string-templated queries or direct database driver imports.
 2. **Adapter Injection**: Use of `dbAdapter` or the high-level `locals.cms` facade.
 3. **Abstraction Usage**: Preferring `getAllSettings()` over direct collection queries.

@@ -1,17 +1,13 @@
 /**
- * @file src\routes\api\content\version\+server.ts
- * @description API endpoint for fetching content version.
- *
- * Security: Protected by hooks, admin-only.
+ * @file src/routes/api/content/version/+server.ts
+ * @description Thin API wrapper for fetching content version delegating to Local SDK.
  */
 
-import { contentManager } from "@src/content";
 import { json } from "@sveltejs/kit";
-
-// Unified Error Handling
 import { apiHandler } from "@utils/api-handler";
 
-export const GET = apiHandler(async () => {
-  const version = contentManager.getContentVersion();
-  return json({ version });
+export const GET = apiHandler(async ({ locals }) => {
+  const { cms } = locals;
+  const version = cms?.version || 0;
+  return json({ success: true, version });
 });

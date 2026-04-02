@@ -3,12 +3,12 @@
  * @description Unit tests for Webhook API security, focusing on IDOR and tenant isolation.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { GET as getWebhooks, POST as createWebhook } from "@src/routes/api/webhooks/+server";
+import { GET as getWebhooks, POST as createWebhook } from "@src/routes/api/system/webhooks/+server";
 import {
   PATCH as updateWebhook,
   DELETE as deleteWebhook,
-} from "@src/routes/api/webhooks/[id]/+server";
-import { POST as testWebhook } from "@src/routes/api/webhooks/[id]/test/+server";
+} from "@src/routes/api/system/webhooks/[id]/+server";
+import { POST as testWebhook } from "@src/routes/api/system/webhooks/[id]/test/+server";
 import { webhookService } from "@src/services/webhook-service";
 
 console.log("--- vi keys in test:", typeof vi !== "undefined" ? Object.keys(vi) : "undefined");
@@ -113,6 +113,7 @@ describe("Webhook API Security - IDOR and Tenant Isolation", () => {
       const event = {
         params: { id: webhookId },
         locals: { user: mockUser, tenantId: myTenant },
+        url: new URL(`http://localhost/api/system/webhooks/${webhookId}`),
         request: { json: vi.fn().mockResolvedValue({ name: "Updated" }) },
       } as any;
 
@@ -130,6 +131,7 @@ describe("Webhook API Security - IDOR and Tenant Isolation", () => {
       const event = {
         params: { id: webhookId },
         locals: { user: mockUser, tenantId: myTenant },
+        url: new URL(`http://localhost/api/system/webhooks/${webhookId}`),
       } as any;
 
       try {
@@ -168,6 +170,7 @@ describe("Webhook API Security - IDOR and Tenant Isolation", () => {
       const event = {
         params: { id: webhookId },
         locals: { user: mockUser, tenantId: myTenant },
+        url: new URL(`http://localhost/api/system/webhooks/${webhookId}`),
       } as any;
 
       const response = await deleteWebhook(event);
@@ -185,6 +188,7 @@ describe("Webhook API Security - IDOR and Tenant Isolation", () => {
       const event = {
         params: { id: webhookId },
         locals: { user: mockUser, tenantId: myTenant },
+        url: new URL(`http://localhost/api/system/webhooks/${webhookId}`),
       } as any;
 
       try {
@@ -203,6 +207,7 @@ describe("Webhook API Security - IDOR and Tenant Isolation", () => {
       const event = {
         params: { id: webhookId },
         locals: { user: mockSuperAdmin, tenantId: myTenant },
+        url: new URL(`http://localhost/api/system/webhooks/${webhookId}`),
       } as any;
 
       const response = await testWebhook(event);

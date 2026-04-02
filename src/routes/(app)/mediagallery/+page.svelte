@@ -160,6 +160,60 @@ async function handleBulkDelete(filesToDelete: (MediaBase | MediaImage)[]) {
 		},
 	});
 }
+
+async function handleUpload(e: Event) {
+	const input = e.target as HTMLInputElement;
+	if (!input.files?.length) return;
+
+	const formData = new FormData();
+	for (const file of input.files) {
+		formData.append("files", file);
+	}
+	formData.append("folder", data.currentFolder?._id || "global");
+
+	try {
+		const response = await fetch("?/upload", {
+			method: "POST",
+			body: formData,
+		});
+		if (response.ok) {
+			toast.success("Media uploaded successfully");
+			window.location.reload();
+		}
+	} catch (err) {
+		logger.error("Upload failed", err);
+		toast.error("Upload failed");
+	}
+}
+
+async function handleCreateFolder() {
+	showConfirm({
+		title: "Create New Folder",
+		body: `<input id="new-folder-name" type="text" class="input" placeholder="Folder name..." />`,
+		onConfirm: async () => {
+			const name = (document.getElementById("new-folder-name") as HTMLInputElement)?.value;
+			if (!name) return;
+
+			try {
+				const response = await fetch("/api/system-virtual-folder", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						name,
+						parent: data.currentFolder?._id,
+					}),
+				});
+				if (response.ok) {
+					toast.success("Folder created");
+					window.location.reload();
+				}
+			} catch (err) {
+				logger.error("Folder creation failed", err);
+				toast.error("Folder creation failed");
+			}
+		},
+	});
+}
 </script>
 
 <div class="flex flex-col gap-4">
@@ -209,6 +263,29 @@ async function handleBulkDelete(filesToDelete: (MediaBase | MediaImage)[]) {
 			>
 				{isSelectionMode ? 'Exit Selection' : 'Select'}
 			</button>
+
+			<div class="flex items-center gap-2 border-l border-surface-300 dark:border-surface-600 pl-2 ml-2">
+				<button 
+					onclick={handleCreateFolder}
+					class="btn preset-tonal-secondary"
+					aria-label="Create new virtual folder"
+				>
+					<iconify-icon icon="mdi:folder-plus" width="20"></iconify-icon>
+					<span class="hidden md:inline">New Folder</span>
+				</button>
+
+				<label class="btn preset-filled-primary-500 cursor-pointer">
+					<iconify-icon icon="mdi:upload" width="20"></iconify-icon>
+					<span class="hidden md:inline">Upload</span>
+					<input 
+						type="file" 
+						multiple 
+						class="hidden" 
+						onchange={handleUpload}
+						accept="image/*,video/*,audio/*,application/pdf"
+					/>
+				</label>
+			</div>
 		</div>
 	</div>
 

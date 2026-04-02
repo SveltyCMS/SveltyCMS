@@ -49,52 +49,63 @@ import { addSecurityHeaders } from "./hooks/add-security-headers";
 if (!building) {
   import("@src/databases/db");
 
-  import("@src/services/scheduler").then(({ scheduler }) => {
-    scheduler.start();
-  });
+  // ✨ NEW: Smart initialization logic that respects the system state machine
+  // This ensures setup-wizard stays lean and non-critical services only start when needed.
+  import("@src/stores/system/state").then(({ overallState }) => {
+    let isServicesInitialized = false;
 
-  import("@utils/setup-check").then(({ isSetupComplete }) => {
-    if (!isSetupComplete()) {
-      return;
-    }
+    const unsubscribe = overallState.subscribe(async (state) => {
+      const readyStates = ["READY", "WARMING", "WARMED", "DEGRADED"];
+      if (readyStates.includes(state) && !isServicesInitialized) {
+        isServicesInitialized = true;
+        logger.info(`🚀 System reached ${state}. Initializing background services...`);
 
-    // Initialize AutomationService
-    import("@src/services/automation").then(({ automationService }) => {
-      automationService.init();
-    });
+        // Initialize Scheduler
+        const { scheduler } = await import("@src/services/scheduler");
+        scheduler.start();
 
-    import("@src/services/telemetry-service").then(({ telemetryService }) => {
-      const globalWithTelemetry = globalThis as typeof globalThis & {
-        __SVELTY_TELEMETRY_INTERVAL__?: NodeJS.Timeout;
-      };
+        // Initialize Automation
+        const { automationService } = await import("@src/services/automation");
+        automationService.init();
 
-      if (globalWithTelemetry.__SVELTY_TELEMETRY_INTERVAL__) {
-        logger.debug("Stopping old telemetry interval (HMR detected)");
-        clearInterval(globalWithTelemetry.__SVELTY_TELEMETRY_INTERVAL__);
-      }
+        // Initialize Telemetry
+        const { telemetryService } = await import("@src/services/telemetry-service");
 
-      logger.info("📡 Initializing Telemetry Service...");
+        // Start Content Watcher (dev only)
+        const { startContentWatcher } = await import("@src/content/content-watcher.server");
+        startContentWatcher();
 
-      setTimeout(() => {
-        telemetryService
-          .checkUpdateStatus()
-          .catch((err) => logger.error("Initial telemetry check failed", err));
-      }, 10_000);
+        const globalWithTelemetry = globalThis as typeof globalThis & {
+          __SVELTY_TELEMETRY_INTERVAL__?: NodeJS.Timeout;
+        };
 
-      globalWithTelemetry.__SVELTY_TELEMETRY_INTERVAL__ = setInterval(
-        () => {
+        if (globalWithTelemetry.__SVELTY_TELEMETRY_INTERVAL__) {
+          logger.debug("Stopping old telemetry interval (HMR detected)");
+          clearInterval(globalWithTelemetry.__SVELTY_TELEMETRY_INTERVAL__);
+        }
+
+        setTimeout(() => {
           telemetryService
             .checkUpdateStatus()
-            .catch((err) => logger.error("Periodic telemetry check failed", err));
-        },
-        1000 * 60 * 60 * 12, // 12 hours
-      );
+            .catch((err) => logger.error("Initial telemetry check failed", err));
+        }, 10_000);
+
+        globalWithTelemetry.__SVELTY_TELEMETRY_INTERVAL__ = setInterval(
+          () => {
+            telemetryService
+              .checkUpdateStatus()
+              .catch((err) => logger.error("Periodic telemetry check failed", err));
+          },
+          1000 * 60 * 60 * 12, // 12 hours
+        );
+
+        // Cleanup: Unsubscribe once services are initialized
+        unsubscribe();
+      }
     });
   });
 
-  logger.info(
-    "✅ DB module loaded. System will initialize on first request via handleSystemState.",
-  );
+  logger.info("✅ DB module loaded. System will initialize background services when READY.");
 }
 
 // --- Updated middleware sequence (security headers FIRST) ---

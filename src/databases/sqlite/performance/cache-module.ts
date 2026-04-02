@@ -8,46 +8,65 @@
  * - Delete cache
  * - Clear cache
  * - Invalidate collection
+ * - Invalidate category
  */
 
 import type { CacheOptions, DatabaseResult } from "../../db-interface";
 import type { AdapterCore } from "../adapter/adapter-core";
 
 export class CacheModule {
-  private readonly core: AdapterCore;
+  constructor(_core: AdapterCore) {}
 
-  constructor(core: AdapterCore) {
-    this.core = core;
+  async get<T>(key: string): Promise<DatabaseResult<T | null>> {
+    const { cacheService } = await import("@src/databases/cache/cache-service");
+    // We default to null tenant if not specified in key context, or assume key already includes it
+    const data = await cacheService.get<T>(key);
+    return { success: true, data };
   }
 
-  async get<T>(_key: string): Promise<DatabaseResult<T | null>> {
-    return this.core.notImplemented("cache.get");
+  async set<T>(key: string, value: T, options?: CacheOptions): Promise<DatabaseResult<void>> {
+    const { cacheService } = await import("@src/databases/cache/cache-service");
+    // Extract tenantId and category from options if available in your system,
+    // or pass through to service which handles TTL.
+    await cacheService.set(key, value, options?.ttl || 0, undefined, (options as any)?.category);
+    return { success: true, data: undefined };
   }
 
-  async set<T>(_key: string, _value: T, _options?: CacheOptions): Promise<DatabaseResult<void>> {
-    return this.core.notImplemented("cache.set");
+  async delete(key: string): Promise<DatabaseResult<void>> {
+    const { cacheService } = await import("@src/databases/cache/cache-service");
+    await cacheService.delete(key);
+    return { success: true, data: undefined };
   }
 
-  async delete(_key: string): Promise<DatabaseResult<void>> {
-    return this.core.notImplemented("cache.delete");
-  }
-
-  async clear(_tags?: string[]): Promise<DatabaseResult<void>> {
-    return this.core.notImplemented("cache.clear");
+  async clear(tags?: string[]): Promise<DatabaseResult<void>> {
+    const { cacheService } = await import("@src/databases/cache/cache-service");
+    if (tags && tags.length > 0) {
+      await cacheService.clearByTags(tags);
+    } else {
+      await cacheService.invalidateAll();
+    }
+    return { success: true, data: undefined };
   }
 
   async invalidateCollection(
-    _collection: string,
-    _tenantId?: string | null,
+    collection: string,
+    tenantId?: string | null,
   ): Promise<DatabaseResult<void>> {
-    return this.core.notImplemented("cache.invalidateCollection");
+    const { cacheService } = await import("@src/databases/cache/cache-service");
+    await cacheService.clearByTags([`collection:${collection}`], tenantId);
+    await this.incrementVersion(tenantId);
+    return { success: true, data: undefined };
   }
 
   async invalidateCategory(
-    _category: string,
-    _tenantId?: string | null,
+    category: string,
+    tenantId?: string | null,
   ): Promise<DatabaseResult<void>> {
-    return this.core.notImplemented("cache.invalidateCategory");
+    const { cacheService } = await import("@src/databases/cache/cache-service");
+    // Clear all entries belonging to a specific category by tag
+    await cacheService.clearByTags([`category:${category}`], tenantId);
+    await this.incrementVersion(tenantId);
+    return { success: true, data: undefined };
   }
 
   async getVersion(tenantId?: string | null): Promise<DatabaseResult<number>> {

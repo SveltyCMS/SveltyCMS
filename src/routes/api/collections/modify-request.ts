@@ -112,62 +112,61 @@ export async function modifyRequest({
           logger.error(`Batch widget error for field ${fieldName}: ${errorMessage}`);
         }
       } else if (modifyFn && typeof modifyFn === "function") {
-        // --- CHUNKED INDIVIDUAL PROCESSING (Vectorized Optimization) ---
-        const chunkSize = 100; // Process 100 items at a time to keep event loop responsive
-        const processedItems: EntryData[] = [];
+        // --- VECTORIZED CHUNKED PROCESSING ---
+        // Process in chunks to keep event loop responsive while maintaining high throughput
+        const chunkSize = 100;
+        const totalItems = data.length;
 
-        for (let i = 0; i < data.length; i += chunkSize) {
+        for (let i = 0; i < totalItems; i += chunkSize) {
           const chunk = data.slice(i, i + chunkSize);
-          const processedChunk = await Promise.all(
-            chunk.map(async (entry: EntryData) => {
+
+          // Process chunk in parallel
+          const results = await Promise.all(
+            chunk.map(async (entry) => {
               try {
+                // Use a copy to prevent accidental side effects across fields
                 const entryCopy = { ...entry };
                 const dataAccessor: DataAccessor<unknown> = {
                   get() {
                     return entryCopy[fieldName];
                   },
-                  update(newData: unknown) {
+                  update(newData) {
                     entryCopy[fieldName] = newData;
                   },
                 };
 
-                try {
-                  await modifyFn({
-                    collection,
-                    field,
-                    data: dataAccessor,
-                    user,
-                    type,
-                    tenantId,
-                    collectionName,
-                  });
-                } catch (widgetError) {
-                  const errorMessage =
-                    widgetError instanceof Error ? widgetError.message : "Unknown widget error";
-                  logger.error(`Widget error for field ${fieldName}: ${errorMessage}`);
-                }
-
+                await modifyFn({
+                  collection,
+                  field,
+                  data: dataAccessor,
+                  user,
+                  type,
+                  tenantId,
+                  collectionName,
+                });
                 return entryCopy;
-              } catch {
-                return entry;
+              } catch (widgetError) {
+                const errorMessage =
+                  widgetError instanceof Error ? widgetError.message : "Unknown widget error";
+                logger.error(`[Vectorized] Widget error for field ${fieldName}: ${errorMessage}`);
+                return entry; // Fallback to original entry on failure
               }
             }),
           );
-          processedItems.push(...processedChunk);
 
-          // Yield to event loop if processing large data
-          if (data.length > 500) {
+          // Update original data array with processed results
+          for (let j = 0; j < results.length; j++) {
+            data[i + j] = results[j];
+          }
+
+          // Yield to event loop if more chunks remain, prevents blocking on massive imports
+          if (i + chunkSize < totalItems) {
             await new Promise((resolve) => setTimeout(resolve, 0));
           }
         }
 
-        // Update the original array elements to ensure changes are returned
-        for (let i = 0; i < data.length; i++) {
-          data[i] = processedItems[i];
-        }
-
         const fieldDuration = performance.now() - fieldStart;
-        logger.trace(`Field ${fieldName} processed in ${fieldDuration.toFixed(2)}ms`);
+        logger.trace(`Field ${fieldName} vectorized in ${fieldDuration.toFixed(2)}ms`);
       }
     }
 

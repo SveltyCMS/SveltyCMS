@@ -23,15 +23,16 @@ Programmatic tokens (also known as API Keys or Bearer Tokens) allow external scr
 
 ## ⚡ Quick Start
 
-| Feature | HTTP Endpoint | Local SDK Equivalent |
-| :--- | :--- | :--- |
+| Feature          | HTTP Endpoint                  | Local SDK Equivalent          |
+| :--------------- | :----------------------------- | :---------------------------- |
 | **Create Token** | `POST /api/token/create-token` | `locals.cms.auth.createToken` |
-| **List Tokens** | `GET /api/token` | `locals.cms.auth.listTokens` |
-| **Revoke Token** | `DELETE /api/token/[id]` | `locals.cms.auth.revokeToken` |
+| **List Tokens**  | `GET /api/token`               | `locals.cms.auth.listTokens`  |
+| **Revoke Token** | `DELETE /api/token/[id]`       | `locals.cms.auth.revokeToken` |
 
 ---
 
 ## 1. The Goal
+
 Generate a secure, long-lived access token for a specific user or service account to enable headless API interactions.
 
 ---
@@ -39,8 +40,10 @@ Generate a secure, long-lived access token for a specific user or service accoun
 ## 2. The Solution
 
 ### Creating a Developer Token
+
 **Endpoint**: `POST /api/token/create-token`
 **Payload**:
+
 ```json
 {
   "name": "Production Frontend",
@@ -50,6 +53,7 @@ Generate a secure, long-lived access token for a specific user or service accoun
 ```
 
 ### Local SDK (Recommended for Automation)
+
 Use the Local SDK to programmatically rotate tokens in background jobs or CLI tools.
 
 ```typescript
@@ -57,7 +61,7 @@ Use the Local SDK to programmatically rotate tokens in background jobs or CLI to
 const token = await locals.cms.auth.createToken({
   name: "Migration Runner",
   role: "admin",
-  expiresIn: "1 hour"
+  expiresIn: "1 hour",
 });
 
 console.log(`Your Bearer Token: ${token.value}`);
@@ -75,7 +79,7 @@ sequenceDiagram
     participant API as Token API
     participant Crypto as Crypto Service
     participant DB as Database (auth_tokens)
-    
+
     Dev->>API: Create Token (expiresIn: 30d)
     API->>Crypto: Generate Random 64-char String
     Crypto-->>API: Raw Token (abc...123)
@@ -83,12 +87,14 @@ sequenceDiagram
     Crypto-->>API: Hashed Token (xyz...789)
     API->>DB: Store Hashed Token + Expiry
     API-->>Dev: Return Raw Token (abc...123)
-    
+
     Note over Dev, API: Raw token is never shown again!
 ```
 
 ### Token Resolution Flow
+
 When a request arrives with `Authorization: Bearer <token>`, the `handleTokenResolution` middleware:
+
 1. Hashes the incoming token string.
 2. Performs a constant-time comparison against the `auth_tokens` collection.
 3. Checks for expiry and tenant isolation.
@@ -97,6 +103,7 @@ When a request arrives with `Authorization: Bearer <token>`, the `handleTokenRes
 ---
 
 ## Security & Best Practices
+
 - **Least Privilege**: Always assign the most restrictive role possible to a programmatic token.
 - **Rotation**: Revoke and re-generate tokens every 90 days to minimize risk.
 - **Exposure**: Never check raw token values into version control. Use environment variables (e.g., `SVELTY_API_TOKEN`).
@@ -104,6 +111,7 @@ When a request arrives with `Authorization: Bearer <token>`, the `handleTokenRes
 ---
 
 ## Related Documents
+
 - [User Management API Reference](./user-management-api.mdx)
 - [Invitation Tokens Guide](./api-access-tokens.mdx)
 - [Security Middleware Architecture](../architecture/security-plugin.mdx)

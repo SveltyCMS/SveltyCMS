@@ -6,7 +6,7 @@
  * throughout the authentication system to avoid circular imports.
  */
 
-import type { ISODateString } from "@src/content/types";
+import type { ISODateString, DatabaseId, FieldDefinition } from "@src/content/types";
 
 // Re-export client-safe constants from the dedicated file
 // This preserves backward compatibility for all existing server-side consumers
@@ -18,7 +18,7 @@ export type {
 
 // User Interface
 export interface User {
-  _id: string; // Unique identifier for the user
+  _id: DatabaseId; // Unique identifier for the user
   activeSessions?: number; // Number of active sessions
   avatar?: string; // URL of the user's avatar image
   backupCodes?: string[]; // Array of hashed backup codes for 2FA recovery
@@ -29,7 +29,7 @@ export interface User {
   failedAttempts?: number; // Tracks the number of consecutive failed login attempts
   firstName?: string; // First name of the user
   googleRefreshToken?: string | null; // Stores the refresh token from Google OAuth for token revocation on logout.
-  id?: string; // Alias for _id, used in some contexts
+  id?: DatabaseId; // Alias for _id, used in some contexts
   is2FAEnabled?: boolean; // Indicates if the user has enabled two-factor authentication
   isAdmin?: boolean; // Indicates if the user has admin privileges
   isRegistered?: boolean; // Indicates if the user has completed registration
@@ -51,17 +51,17 @@ export interface User {
   resetRequestedAt?: ISODateString; // The last time the user requested a password reset (ISO date string)
   resetToken?: string; // Token for resetting the user's password
   role: string; // Role of the user (e.g., admin, developer, editor, user)
-  roleIds?: string[]; // Array of role IDs associated with the user
+  roleIds?: DatabaseId[]; // Array of role IDs associated with the user
   samlId?: string; // Unique identifier from SAML Identity Provider (IdP)
   samlProvider?: string; // Identifier for the SAML Identity Provider (IdP)
-  tenantId?: string | null; // Identifier for the tenant the user belongs to (in multi-tenant mode)
+  tenantId?: DatabaseId | null; // Identifier for the tenant the user belongs to (in multi-tenant mode)
   totpSecret?: string; // TOTP secret for 2FA (base32 encoded)
   username?: string; // Username of the user
 }
 
 // Role Interface
 export interface Role {
-  _id: string; // Unique identifier for the role
+  _id: DatabaseId; // Unique identifier for the role
   color?: string; // Optional color for the role (e.g., for UI display)
   description?: string; // Optional description of the role
   groupName?: string; // Optional group name associated with the role
@@ -69,11 +69,11 @@ export interface Role {
   isAdmin?: boolean; // Indicates if the role has admin privileges
   name: string; // Name of the role
   permissions: string[]; // Array of permission IDs associated with the role
-  tenantId?: string | null; // Optional tenant identifier for multi-tenant installations
+  tenantId?: DatabaseId | null; // Optional tenant identifier for multi-tenant installations
 }
 
 export interface Permission {
-  _id: string; // Use _id for a unique identifier
+  _id: DatabaseId; // Use _id for a unique identifier
   action: import("./permission-constants").PermissionAction; // Use the PermissionAction type
   contextId?: string; // Identifier for the context in which the permission is used (optional)
   description?: string; // Optional description for the permission
@@ -94,40 +94,40 @@ export interface RolePermissions {
 
 // Session Interface
 export interface Session {
-  _id: string; // Unique identifier for the session
+  _id: DatabaseId; // Unique identifier for the session
   expires: ISODateString; // When the session expires (ISO date string)
   rotated?: boolean; // Flag to mark rotated sessions
-  rotatedTo?: string; // ID of the new session this was rotated to
-  tenantId?: string | null; // Identifier for the tenant the session belongs to (in multi-tenant mode)
-  user_id: string; // The ID of the user who owns the session
+  rotatedTo?: DatabaseId; // ID of the new session this was rotated to
+  tenantId?: DatabaseId | null; // Identifier for the tenant the session belongs to (in multi-tenant mode)
+  user_id: DatabaseId; // The ID of the user who owns the session
 }
 
 // Token Interface
 export interface Token {
-  _id: string; // Unique identifier for the token
+  _id: DatabaseId; // Unique identifier for the token
   blocked?: boolean; // Whether the token is blocked
   createdAt?: ISODateString; // When the token was created
   email: string; // Email associated with the token
   expires: ISODateString; // When the session expires (ISO date string)
   role?: string; // Role associated with the token
-  tenantId?: string | null; // Tenant ID for multi-tenancy support
+  tenantId?: DatabaseId | null; // Tenant ID for multi-tenancy support
   token: string; // The token string
   type: string; // Type of the token (e.g., 'create', 'register', 'reset')
   updatedAt?: ISODateString; // When the token was last updated
-  user_id: string; // The ID of the user who owns the token
+  user_id: DatabaseId; // The ID of the user who owns the token
   username?: string; // Username associated with the token
 }
 
 // Session Store Interface
 export interface SessionStore {
   close(): Promise<void>;
-  delete(sessionId: string): Promise<void>;
+  delete(sessionId: DatabaseId): Promise<void>;
   deletePattern(pattern: string): Promise<number>;
-  get(sessionId: string): Promise<User | null>;
-  set(sessionId: string, user: User, expiration: ISODateString): Promise<void>;
+  get(sessionId: DatabaseId): Promise<User | null>;
+  set(sessionId: DatabaseId, user: User, expiration: ISODateString): Promise<void>;
   validateWithDB(
-    sessionId: string,
-    dbValidationFn: (sessionId: string) => Promise<User | null>,
+    sessionId: DatabaseId,
+    dbValidationFn: (sessionId: DatabaseId) => Promise<User | null>,
   ): Promise<User | null>;
 }
 
@@ -212,11 +212,11 @@ export type WidgetId = string; // Unique identifier for a widget
 export declare const permissionMap: Map<string, Permission>;
 export type PermissionId = string;
 export type ConfigPermissionAction = string;
-export type Field = unknown;
+export type Field = FieldDefinition;
 
 // Schema Interface
 export interface Schema {
-  fields: Field[]; // Array of fields defined in the schema, using the Field type from collections/types
+  fields: Field[]; // Array of fields defined in the schema
   icon?: string; // Optional icon representing the schema
   permissions?: RolePermissions; // Role-based permissions associated with the schema
   revision?: boolean; // Indicates if the schema supports revisions
@@ -224,13 +224,19 @@ export interface Schema {
 }
 
 // Helper to assign all permissions to a role (e.g., admin)
-export function assignAllPermissionsToRole(role: Role): void {
-  role.permissions = Array.from(permissionMap.keys());
+export function assignAllPermissionsToRole(role: Role): Role {
+  return {
+    ...role,
+    permissions: Array.from(permissionMap.keys()),
+  };
 }
 
 // Helper to assign permissions by type or action
-export function assignPermissionsByFilter(role: Role, filter: (perm: Permission) => boolean): void {
-  role.permissions = Array.from(permissionMap.values())
-    .filter(filter)
-    .map((perm) => perm._id);
+export function assignPermissionsByFilter(role: Role, filter: (perm: Permission) => boolean): Role {
+  return {
+    ...role,
+    permissions: Array.from(permissionMap.values())
+      .filter(filter)
+      .map((perm) => perm._id as string),
+  };
 }

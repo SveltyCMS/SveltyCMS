@@ -95,6 +95,33 @@ export class CollectionModule {
     this.collectionRegistry.delete(id);
   }
 
+  async createIndexes(id: string, schema: Schema): Promise<DatabaseResult<void>> {
+    return this.core.wrap(async () => {
+      const tableName = `collection_${id}`;
+      const fields = (schema.fields || []) as any[];
+      const client = this.core.getClient();
+      if (!client) throw new Error("Client not available");
+
+      for (const field of fields) {
+        if (field.unique || field.indexed) {
+          const fieldName = field.db_fieldName || field.label;
+          const indexName = `idx_${id}_${fieldName}`;
+          const unique = field.unique ? "UNIQUE " : "";
+          try {
+            const sql = `CREATE ${unique}INDEX IF NOT EXISTS "${indexName}" ON "${tableName}" ("${fieldName}")`;
+            if (typeof client.exec === "function") {
+              client.exec(sql);
+            } else if (typeof client.query === "function") {
+              client.query(sql);
+            }
+          } catch (e) {
+            console.warn(`Failed to create index ${indexName}:`, e);
+          }
+        }
+      }
+    }, "CREATE_INDEXES_FAILED");
+  }
+
   async getSchema(_collectionName: string): Promise<DatabaseResult<Schema | null>> {
     return this.core.notImplemented("getSchema");
   }

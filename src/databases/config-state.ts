@@ -1,5 +1,5 @@
 /**
- * @file src\databases\config-state.ts
+ * @file src/databases/config-state.ts
  * @description
  * Configuration state management.
  *
@@ -13,117 +13,133 @@ import { logger } from "@utils/logger";
 import type { InferOutput } from "valibot";
 
 export let privateEnv: InferOutput<typeof privateConfigSchema> | null = null;
+let loadPromise: Promise<InferOutput<typeof privateConfigSchema> | null> | null = null;
 
 export function setPrivateEnv(env: InferOutput<typeof privateConfigSchema> | null) {
   privateEnv = env;
+  loadPromise = null;
 }
 
 // Function to load private config when needed
-export async function loadPrivateConfig(forceReload = false) {
+export async function loadPrivateConfig(
+  forceReload = false,
+): Promise<InferOutput<typeof privateConfigSchema> | null> {
   if (privateEnv && !forceReload) {
     return privateEnv;
   }
 
-  try {
-    // SAFETY: Force TEST_MODE if running in test environment (Bun test)
-    if (process.env.NODE_ENV === "test" && !process.env.TEST_MODE) {
-      console.warn(
-        "⚠️ Running in TEST environment but TEST_MODE is not set. Forcing usage of private.test.ts to protect live database.",
-      );
-      process.env.TEST_MODE = "true";
-    }
+  if (loadPromise && !forceReload) {
+    return loadPromise;
+  }
 
+  loadPromise = (async () => {
     try {
-      logger.debug("Loading @config/private configuration...");
-      let module: {
-        privateEnv: InferOutput<typeof privateConfigSchema>;
-        __VIRTUAL__?: boolean;
-      };
-      if (process.env.TEST_MODE) {
-        const pathUtil = await import("node:path");
-        const { pathToFileURL } = await import("node:url");
-        const configPath = pathUtil
-          .resolve(process.cwd(), "config/private.test.ts")
-          .replace(/\\/g, "/");
-        if (!(await import("node:fs")).existsSync(configPath)) {
-          logger.debug("TEST_MODE: config/private.test.ts not found");
-          return null;
-        }
-        const configURL = `${pathToFileURL(configPath).href}?t=${Date.now()}`;
+      // SAFETY: Force TEST_MODE if running in test environment (Bun test)
+      if (process.env.NODE_ENV === "test" && !process.env.TEST_MODE) {
+        console.warn(
+          "⚠️ Running in TEST environment but TEST_MODE is not set. Forcing usage of private.test.ts to protect live database.",
+        );
+        process.env.TEST_MODE = "true";
+      }
 
-        try {
-          module = await import(/* @vite-ignore */ configURL);
-          if (!module.privateEnv && (module as any).DB_TYPE) {
-            module = {
-              privateEnv: { ...module } as any,
-              __VIRTUAL__: true,
-            };
-          }
-        } catch (err) {
-          // Fallback for Node.js (e.g. vite preview) which cannot import .ts files natively
-          logger.debug(
-            "Dynamic import of private.test.ts failed (likely Node.js). Falling back to string parser.",
-          );
-          const fs = await import("node:fs");
-          const content = fs.readFileSync(configPath, "utf8");
-          const match = content.match(/export const privateEnv = ({[\s\S]*?});/);
-          if (match) {
-            const getObj = new Function(`return ${match[1]}`);
-            module = { privateEnv: getObj() };
-            module.__VIRTUAL__ = true;
-          } else {
-            throw err;
-          }
-        }
-      } else {
-        // STRICT SAFETY: Never allow loading live config if NODE_ENV is 'test'
-        if (process.env.NODE_ENV === "test") {
-          const msg =
-            "CRITICAL SAFETY ERROR: Attempted to load live config/private.ts in TEST environment. Strict isolation requires config/private.test.ts.";
-          logger.error(msg);
-          throw new AppError(msg, 500, "TEST_ENV_SAFETY_VIOLATION");
-        }
-
-        try {
+      try {
+        logger.debug("Loading @config/private configuration...");
+        let module: any;
+        if (process.env.TEST_MODE) {
           const pathUtil = await import("node:path");
           const { pathToFileURL } = await import("node:url");
-          const configPath = pathUtil.resolve(process.cwd(), "config", "private.ts");
-          // We must cast it to any because the dynamic import path is unknown at compile time
+          const configPath = pathUtil
+            .resolve(process.cwd(), "config/private.test.ts")
+            .replace(/\\/g, "/");
+          if (!(await import("node:fs")).existsSync(configPath)) {
+            logger.debug("TEST_MODE: config/private.test.ts not found");
+            return null;
+          }
           const configURL = `${pathToFileURL(configPath).href}?t=${Date.now()}`;
-          module = await import(/* @vite-ignore */ configURL);
-        } catch (err: unknown) {
-          logger.debug(
-            "Could not load config/private: " + (err instanceof Error ? err.message : String(err)),
-          );
-          return null;
+
+          try {
+            module = await import(/* @vite-ignore */ configURL);
+            if (!module.privateEnv && (module as any).DB_TYPE) {
+              module = {
+                privateEnv: { ...module } as any,
+                __VIRTUAL__: true,
+              };
+            }
+          } catch (err) {
+            // Fallback for Node.js (e.g. vite preview) which cannot import .ts files natively
+            logger.debug(
+              "Dynamic import of private.test.ts failed (likely Node.js). Falling back to string parser.",
+            );
+            const fs = await import("node:fs");
+            const content = fs.readFileSync(configPath, "utf8");
+            const match = content.match(/export const privateEnv = ({[\s\S]*?});/);
+            if (match) {
+              const getObj = new Function(`return ${match[1]}`);
+              module = { privateEnv: getObj() };
+              module.__VIRTUAL__ = true;
+            } else {
+              throw err;
+            }
+          }
+        } else {
+          // STRICT SAFETY: Never allow loading live config if NODE_ENV is 'test'
+          if (process.env.NODE_ENV === "test") {
+            const msg =
+              "CRITICAL SAFETY ERROR: Attempted to load live config/private.ts in TEST environment. Strict isolation requires config/private.test.ts.";
+            logger.error(msg);
+            throw new AppError(msg, 500, "TEST_ENV_SAFETY_VIOLATION");
+          }
+
+          try {
+            const pathUtil = await import("node:path");
+            const { pathToFileURL } = await import("node:url");
+            const configPath = pathUtil.resolve(process.cwd(), "config", "private.ts");
+            const configURL = `${pathToFileURL(configPath).href}?t=${Date.now()}`;
+            module = await import(/* @vite-ignore */ configURL);
+          } catch (err: unknown) {
+            logger.debug(
+              "Could not load config/private: " +
+                (err instanceof Error ? err.message : String(err)),
+            );
+            return null;
+          }
         }
-      }
-      privateEnv = module.privateEnv;
+        privateEnv = module.privateEnv;
 
-      // SAFETY: Double-check we are not connecting to production in test mode
-      if (
-        (process.env.TEST_MODE || process.env.NODE_ENV === "test") &&
-        privateEnv?.DB_NAME &&
-        !privateEnv.DB_NAME.includes("test") &&
-        !privateEnv.DB_NAME.endsWith("_functional")
-      ) {
-        const msg = `⚠️ SAFETY ERROR: DB_NAME '${privateEnv.DB_NAME}' does not look like a test database! Tests must use isolated databases.`;
-        logger.error(msg);
-        throw new AppError(msg, 500, "TEST_DB_SAFETY_VIOLATION");
-      }
+        // SAFETY: Double-check we are not connecting to production in test mode
+        if (
+          (process.env.TEST_MODE || process.env.NODE_ENV === "test") &&
+          privateEnv?.DB_NAME &&
+          !privateEnv.DB_NAME.includes("test") &&
+          !privateEnv.DB_NAME.endsWith("_functional")
+        ) {
+          const msg = `⚠️ SAFETY ERROR: DB_NAME '${privateEnv.DB_NAME}' does not look like a test database! Tests must use isolated databases.`;
+          logger.error(msg);
+          throw new AppError(msg, 500, "TEST_DB_SAFETY_VIOLATION");
+        }
 
-      logger.debug(
-        module.__VIRTUAL__
-          ? "Using fallback configuration (Setup Mode active)"
-          : "Private config loaded successfully from config/private.ts",
-        {
-          hasConfig: !!privateEnv,
-          dbType: privateEnv?.DB_TYPE,
-          dbHost: privateEnv?.DB_HOST ? "***" : "missing",
-        },
-      );
-      return privateEnv;
-    } catch (error) {
+        logger.debug(
+          module.__VIRTUAL__
+            ? "Using fallback configuration (Setup Mode active)"
+            : "Private config loaded successfully from config/private.ts",
+          {
+            hasConfig: !!privateEnv,
+            dbType: privateEnv?.DB_TYPE,
+            dbHost: privateEnv?.DB_HOST ? "***" : "missing",
+          },
+        );
+        return privateEnv;
+      } catch (error: any) {
+        // Private config doesn't exist during setup - this is expected
+        logger.trace(
+          "Private config not found during setup - this is expected during initial setup",
+          {
+            error: error instanceof Error ? error.message : String(error),
+          },
+        );
+        return null;
+      }
+    } catch (error: any) {
       // Private config doesn't exist during setup - this is expected
       logger.trace(
         "Private config not found during setup - this is expected during initial setup",
@@ -133,13 +149,9 @@ export async function loadPrivateConfig(forceReload = false) {
       );
       return null;
     }
-  } catch (error) {
-    // Private config doesn't exist during setup - this is expected
-    logger.trace("Private config not found during setup - this is expected during initial setup", {
-      error: error instanceof Error ? error.message : String(error),
-    });
-    return null;
-  }
+  })();
+
+  return loadPromise;
 }
 
 /**
@@ -237,7 +249,7 @@ export function getDatabaseConnectionString(): string {
     case "mongodb+srv": {
       // mongodb+srv (Atlas) often requires authSource=admin
       const authParam = user ? `&authSource=admin` : "";
-      return `mongodb+srv://${authPart}${host}/${name}?retryWrites=true&w=majority${authParam}`;
+      return `mongodb+srv://${authPart}${host}:${port}/${name}?retryWrites=true&w=majority${authParam}`;
     }
     case "mariadb":
       return `mysql://${authPart}${host}:${port}/${name}`;

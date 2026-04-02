@@ -22,15 +22,16 @@ Invitation tokens are single-use, time-limited keys used to onboard new users to
 
 ## ⚡ Quick Reference
 
-| Feature | HTTP Endpoint | Local SDK Equivalent |
-| :--- | :--- | :--- |
+| Feature           | HTTP Endpoint                  | Local SDK Equivalent          |
+| :---------------- | :----------------------------- | :---------------------------- |
 | **Create Invite** | `POST /api/token/create-token` | `locals.cms.auth.createToken` |
-| **List Invites** | `GET /api/token` | `locals.cms.auth.listTokens` |
-| **Revoke Invite** | `DELETE /api/token/[id]` | `locals.cms.auth.revokeToken` |
+| **List Invites**  | `GET /api/token`               | `locals.cms.auth.listTokens`  |
+| **Revoke Invite** | `DELETE /api/token/[id]`       | `locals.cms.auth.revokeToken` |
 
 ---
 
 ## 1. The Goal
+
 Invite a new team member to join a specific tenant with a predefined role (e.g., Editor) while ensuring they set their own secure password during registration.
 
 ---
@@ -38,13 +39,14 @@ Invite a new team member to join a specific tenant with a predefined role (e.g.,
 ## 2. The Solution
 
 ### Sending an Invite (Local SDK)
+
 Ideal for automated provisioning or custom admin tools.
 
 ```typescript
 const invite = await locals.cms.auth.createToken({
   email: "newhire@company.com",
   role: "editor",
-  expiresIn: "2 days"
+  expiresIn: "2 days",
 });
 
 // The link sent in the email will be:
@@ -52,14 +54,14 @@ const invite = await locals.cms.auth.createToken({
 ```
 
 ### Listing Active Invites
+
 **Endpoint**: `GET /api/token`
 **Response**:
+
 ```json
 {
   "success": true,
-  "data": [
-    { "email": "test@test.com", "role": "user", "expires": "2026-04-03T..." }
-  ]
+  "data": [{ "email": "test@test.com", "role": "user", "expires": "2026-04-03T..." }]
 }
 ```
 
@@ -76,23 +78,25 @@ sequenceDiagram
     participant Mail as Email Service
     participant User
     participant Auth as handleAuthentication
-    
+
     Admin->>API: Create Invite (email, role)
     API->>API: Generate Hashed Token
     API->>Mail: Send Link with Raw Token
     Mail-->>User: Email Notification
-    
+
     User->>Auth: Clicks link (/login?invite_token=...)
     Auth->>Auth: Validate Token & Expiry
     Auth-->>User: Show Registration Form
-    
+
     User->>Auth: Submit Password
     Auth->>Auth: Create User + Consume Token
     Auth-->>User: Session Established
 ```
 
 ### Expiration Policies
+
 Tokens must have an explicit expiration window. The following strings are supported:
+
 - `2 hrs`, `12 hrs`
 - `2 days`, `1 week`
 - `2 weeks`, `1 month`
@@ -103,6 +107,7 @@ Tokens must have an explicit expiration window. The following strings are suppor
 ---
 
 ## Related Documents
+
 - [User Management API Reference](./user-management-api.mdx)
 - [Programmatic API Tokens Reference](./user-token-management-api.mdx)
 - [Email System Configuration](../guides/development/email-system.mdx)

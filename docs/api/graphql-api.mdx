@@ -23,15 +23,16 @@ The GraphQL API provides a powerful, flexible query language for accessing and m
 
 ## ⚡ Quick Reference
 
-| Feature | HTTP Endpoint | High-Performance Alternative |
-| :--- | :--- | :--- |
-| **Queries / Mutations** | `POST /api/graphql` | [**Local SDK QueryBuilder**](./local-vs-http-api.mdx) |
-| **Real-Time Subscriptions** | `ws://[domain]/api/graphql` | [**Event Bus / SSE**](./real-time-events-api.mdx) |
-| **Playground** | `/api/graphql` (GET) | N/A (Dev only) |
+| Feature                     | HTTP Endpoint               | High-Performance Alternative                          |
+| :-------------------------- | :-------------------------- | :---------------------------------------------------- |
+| **Queries / Mutations**     | `POST /api/graphql`         | [**Local SDK QueryBuilder**](./local-vs-http-api.mdx) |
+| **Real-Time Subscriptions** | `ws://[domain]/api/graphql` | [**Event Bus / SSE**](./real-time-events-api.mdx)     |
+| **Playground**              | `/api/graphql` (GET)        | N/A (Dev only)                                        |
 
 ---
 
 ## 1. The Goal
+
 Fetch complex, relational data structures in a single request while minimizing overfetching and maintaining strict type safety.
 
 ---
@@ -39,10 +40,12 @@ Fetch complex, relational data structures in a single request while minimizing o
 ## 2. The Solution
 
 ### External Querying
+
 Use standard GraphQL syntax to retrieve exactly the fields you need.
 
 **Endpoint**: `POST /api/graphql`
 **Example Query**:
+
 ```graphql
 query GetPosts {
   posts(limit: 5, filter: { status: "published" }) {
@@ -57,11 +60,13 @@ query GetPosts {
 ```
 
 ### Server-Side Alternative (Recommended)
+
 In SvelteKit `+page.server.ts`, avoid the overhead of a GraphQL POST request. Use the **Local SDK QueryBuilder** for identical flexibility with **0ms network latency**.
 
 ```typescript
 // Faster, typed, and direct
-const posts = await locals.cms.queryBuilder("posts")
+const posts = await locals.cms
+  .queryBuilder("posts")
   .where({ status: "published" })
   .select(["title", "author"])
   .limit(5)
@@ -86,6 +91,7 @@ graph TD
 ```
 
 ### Security Throttling
+
 - **Depth Limit**: Maximum 8 levels deep.
 - **Alias Limit**: Maximum 15 aliases per query.
 - **Payload Anomaly Detection**: Native recursive scanning for SQLi and XSS before execution.
@@ -93,6 +99,7 @@ graph TD
 ---
 
 ## Real-Time Subscriptions
+
 Subscribe to content changes via WebSockets (port 3001 in dev, standard port in prod).
 
 ```graphql
@@ -110,6 +117,7 @@ subscription OnPostAdded {
 ---
 
 ## Related Documents
+
 - [Collection API](./collection-api.mdx)
 - [Real-Time Events API](./real-time-events-api.mdx)
 - [Local SDK vs HTTP API](./local-vs-http-api.mdx)

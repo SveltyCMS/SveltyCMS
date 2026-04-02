@@ -23,15 +23,16 @@ The Export & Import API provides a database-agnostic interface for moving data b
 
 ## ⚡ Quick Start
 
-| Feature | HTTP Endpoint | Local SDK Equivalent |
-| :--- | :--- | :--- |
-| **Import Data** | `POST /api/import-data` | `locals.cms.system.importer.importData` |
-| **External Smart Import** | `POST /api/importer/external` | `locals.cms.system.importer.importExternal` |
-| **Full System Export** | `POST /api/system-settings/export` | `locals.cms.system.settings.getAll` |
+| Feature                   | HTTP Endpoint                      | Local SDK Equivalent                        |
+| :------------------------ | :--------------------------------- | :------------------------------------------ |
+| **Import Data**           | `POST /api/import-data`            | `locals.cms.system.importer.importData`     |
+| **External Smart Import** | `POST /api/importer/external`      | `locals.cms.system.importer.importExternal` |
+| **Full System Export**    | `POST /api/system-settings/export` | `locals.cms.system.settings.getAll`         |
 
 ---
 
 ## 1. The Goal
+
 Migrate content from an external source (CSV, JSON, WordPress, Drupal) or perform a full system backup while maintaining data integrity and multi-tenant isolation.
 
 ---
@@ -39,10 +40,12 @@ Migrate content from an external source (CSV, JSON, WordPress, Drupal) or perfor
 ## 2. The Solution
 
 ### Standard Collection Import
+
 To import an array of items into a specific collection.
 
 **Endpoint**: `POST /api/import-data`
 **Payload**:
+
 ```json
 {
   "collectionName": "posts",
@@ -53,21 +56,24 @@ To import an array of items into a specific collection.
 ```
 
 ### Local SDK (Recommended for Migrations)
+
 Use the Local SDK for maximum performance when running migration scripts within SvelteKit.
 
 ```typescript
 const result = await locals.cms.system.importer.importData({
   collectionName: "products",
   data: myProductArray,
-  async: true // Dispatches to background job queue
+  async: true, // Dispatches to background job queue
 });
 ```
 
 ### AI-Powered External Import
+
 Automatically map fields from external CMS platforms to SveltyCMS collections.
 
 **Endpoint**: `POST /api/importer/external`
 **Payload**:
+
 ```json
 {
   "sourceType": "wordpress",
@@ -88,24 +94,24 @@ graph TD
     A[Import Request] --> B{Items > 50?}
     B -- No --> C[Synchronous Processing]
     B -- Yes --> D[Job Queue Dispatch]
-    
+
     C --> E[Insert / Upsert]
     D --> F[Worker: Process in Chunks]
-    
+
     E --> G[Cache Invalidation]
     F --> G
-    
+
     G --> H[Update Content Version]
     H --> I[Trigger SSE Events]
 ```
 
 ### Import Modes & Strategies
 
-| Parameter | Options | Description |
-| :--- | :--- | :--- |
-| `mode` | `merge`, `replace` | `replace` clears the target collection before importing. |
-| `duplicateStrategy` | `skip`, `overwrite` | `overwrite` updates existing records based on `_id`. |
-| `async` | `true`, `false` | Forces background processing regardless of size. |
+| Parameter           | Options             | Description                                              |
+| :------------------ | :------------------ | :------------------------------------------------------- |
+| `mode`              | `merge`, `replace`  | `replace` clears the target collection before importing. |
+| `duplicateStrategy` | `skip`, `overwrite` | `overwrite` updates existing records based on `_id`.     |
+| `async`             | `true`, `false`     | Forces background processing regardless of size.         |
 
 > [!IMPORTANT]
 > **Payload Limits**: Requests exceeding 5MB should use the `async: true` flag. The system will automatically offload the payload to a temporary file-store to prevent memory exhaustion.
@@ -113,6 +119,7 @@ graph TD
 ---
 
 ## Security & Isolation
+
 - **Tenant Lockdown**: Imports are strictly scoped to the current `tenantId`. Attempting to import data with a mismatched `tenantId` returns `403 FORBIDDEN`.
 - **Validation**: All imported data is passed through the **Widget Validation Layer** (Valibot) to ensure schema compliance.
 - **Audit Logging**: Every import operation creates a `SYSTEM_IMPORT` audit entry with the actor's ID and record count.
@@ -120,6 +127,7 @@ graph TD
 ---
 
 ## Related Documents
+
 - [Smart Importer Architecture](../guides/content/smart-importer.mdx)
 - [Database Adapter Interface](../architecture/database/database-methods.mdx)
 - [Job Queue System](../architecture/configuration-management.mdx)

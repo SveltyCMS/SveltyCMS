@@ -33,9 +33,9 @@ const getRedisTTL = async () => (await import("@src/databases/cache/cache-servic
 const CONTENT_CONTEXT_KEY = Symbol("content-context");
 
 /**
- * Central orchestrator for content operations.
+ * Central orchestrator for the SveltyCMS Content System.
  */
-export const contentManager = {
+export const contentSystem = {
   // --- Reactive State ---
   get version() {
     return contentStore.contentVersion;
@@ -55,10 +55,12 @@ export const contentManager = {
     tenantId: string | null = null,
     skipReconciliation = false,
     adapter?: IDBAdapter,
+    incremental = false,
   ): Promise<void> {
     if (browser) {
       if (contentStore.initState === "uninitialized") contentStore.initState = "initialized";
-      contentStore.startLiveSync(() => this.initialize(tenantId, true));
+      const { contentLiveSync } = await import("./content-sse.svelte");
+      contentLiveSync.start();
       return;
     }
 
@@ -83,9 +85,9 @@ export const contentManager = {
         }
       }
 
-      // 2. Full Reload via Server Service
+      // 2. Reload via Server Service (supports incremental)
       const { contentService } = await import("./content-service.server");
-      await contentService.fullReload(tenantId, skipReconciliation, adapter);
+      await contentService.fullReload(tenantId, skipReconciliation, adapter, incremental);
 
       // 3. Populate Cache
       if (setupComplete) {
@@ -141,8 +143,8 @@ export const contentManager = {
     if (!first) return null;
     return `/${lang}/collection/${first.name}`;
   },
-  async refresh(tenantId?: string | null, skipReconciliation?: boolean) {
-    return this.initialize(tenantId, skipReconciliation);
+  async refresh(tenantId?: string | null, skipReconciliation?: boolean, incremental = false) {
+    return this.initialize(tenantId, skipReconciliation, undefined, incremental);
   },
   async getNavigationStructure(tenantId: string | null = null) {
     return contentNavigation.getNavigationStructure(tenantId);
@@ -250,8 +252,14 @@ export const contentManager = {
   },
 };
 
+/**
+ * Backward compatibility alias for the Content System.
+ * @deprecated Use contentSystem instead.
+ */
+export const contentManager = contentSystem;
+
 export interface ContentContext {
-  content: typeof contentManager;
+  content: typeof contentSystem;
   tenantId: string | null;
   collections: Schema[];
   navigation: NavigationNode[];
@@ -265,7 +273,7 @@ export function useContent(): ContentContext {
   const context = getContext<ContentContext>(CONTENT_CONTEXT_KEY);
   return (
     context || {
-      content: contentManager,
+      content: contentSystem,
       tenantId: null,
       collections: contentStore.getAllCollections(null),
       navigation: [],
@@ -278,7 +286,7 @@ export function useContent(): ContentContext {
  * Setup content context for the application.
  */
 export function setContentContext(tenantId: string | null = null) {
-  return contentManager.setContext(tenantId);
+  return contentSystem.setContext(tenantId);
 }
 
 /**
@@ -286,5 +294,5 @@ export function setContentContext(tenantId: string | null = null) {
  */
 export async function initializeContent(pageData?: any) {
   if (pageData?.contentNodes) contentStore.sync(pageData.contentNodes);
-  await contentManager.initialize(pageData?.tenantId, true);
+  await contentSystem.initialize(pageData?.tenantId, true);
 }

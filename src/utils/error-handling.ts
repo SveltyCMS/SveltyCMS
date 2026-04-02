@@ -7,7 +7,15 @@
 import { type HttpError, isRedirect, json, type RequestEvent } from "@sveltejs/kit";
 import { logger } from "@utils/logger.server";
 import type { GenericSchema, ValiError } from "valibot";
-import { dev } from "$app/environment";
+
+// Helper to safely get dev mode without crashing if $app/environment is missing (e.g. in some Bun test contexts)
+const isDev = (() => {
+  try {
+    return (import.meta as any).env?.DEV || process.env.NODE_ENV === "development";
+  } catch {
+    return false;
+  }
+})();
 
 // --- Standardized Response Types ---
 
@@ -148,7 +156,7 @@ export function handleApiError(err: unknown, event: RequestEvent) {
   };
 
   // Include stack trace in development only for debugging
-  if (dev && err instanceof Error) {
+  if (isDev && err instanceof Error) {
     response.stack = err.stack;
   }
 

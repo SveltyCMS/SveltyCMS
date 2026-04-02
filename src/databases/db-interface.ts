@@ -116,6 +116,21 @@ export interface PaginatedResult<T> {
 // Performance, Telemetry & Caching
 // ============================================================================
 
+export interface BaseQueryOptions {
+  tenantId?: DatabaseId | null;
+  bypassTenantCheck?: boolean;
+  silent?: boolean; // Useful for skipping trigger/audit logs
+}
+
+export interface FindOptions<T> extends BaseQueryOptions {
+  limit?: number;
+  offset?: number;
+  fields?: (keyof T)[];
+  sort?: SortOption;
+  populate?: string[];
+  includeDeleted?: boolean;
+}
+
 export interface QueryOptimizationHints {
   batchSize?: number;
   maxExecutionTime?: number;
@@ -429,144 +444,134 @@ export interface DatabaseTransaction {
 
 export interface IAuthAdapter {
   blockTokens(
-    tokenIds: string[],
-    tenantId?: string | null,
+    tokenIds: DatabaseId[],
+    tenantId?: DatabaseId | null,
   ): Promise<DatabaseResult<{ modifiedCount: number }>>;
   blockUsers(
-    userIds: string[],
-    tenantId?: string | null,
+    userIds: DatabaseId[],
+    tenantId?: DatabaseId | null,
   ): Promise<DatabaseResult<{ modifiedCount: number }>>;
   cleanupRotatedSessions?(): Promise<DatabaseResult<number>>;
   consumeToken(
     token: string,
-    userId?: string,
+    userId?: DatabaseId,
     type?: string,
-    tenantId?: string | null,
+    tenantId?: DatabaseId | null,
   ): Promise<DatabaseResult<{ status: boolean; message: string }>>;
   createRole(role: Role): Promise<DatabaseResult<Role>>;
   createSession(sessionData: {
-    user_id: string;
+    user_id: DatabaseId;
     expires: ISODateString;
-    tenantId?: string | null;
+    tenantId?: DatabaseId | null;
   }): Promise<DatabaseResult<Session>>;
   createToken(data: {
-    user_id: string;
+    user_id: DatabaseId;
     email: string;
     expires: ISODateString;
     type: string;
-    tenantId?: string | null;
+    tenantId?: DatabaseId | null;
     role?: string;
   }): Promise<DatabaseResult<string>>;
   createUser(userData: Partial<User>): Promise<DatabaseResult<User>>;
   createUserAndSession(
     userData: Partial<User>,
-    sessionData: { expires: ISODateString; tenantId?: string | null },
-    options?: { bypassTenantCheck?: boolean },
+    sessionData: { expires: ISODateString; tenantId?: DatabaseId | null },
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<{ user: User; session: Session }>>;
   deleteExpiredSessions(): Promise<DatabaseResult<number>>;
   deleteExpiredTokens(): Promise<DatabaseResult<number>>;
-  deleteRole(
-    roleId: string,
-    tenantId?: string | null,
-    options?: { bypassTenantCheck?: boolean },
-  ): Promise<DatabaseResult<void>>;
-  deleteSession(sessionId: string): Promise<DatabaseResult<void>>;
+  deleteRole(roleId: DatabaseId, options?: BaseQueryOptions): Promise<DatabaseResult<void>>;
+  deleteSession(sessionId: DatabaseId): Promise<DatabaseResult<void>>;
   deleteTokens(
-    tokenIds: string[],
-    tenantId?: string | null,
+    tokenIds: DatabaseId[],
+    tenantId?: DatabaseId | null,
   ): Promise<DatabaseResult<{ deletedCount: number }>>;
-  deleteUser(
-    userId: string,
-    tenantId?: string | null,
-    options?: { bypassTenantCheck?: boolean },
-  ): Promise<DatabaseResult<void>>;
+  deleteUser(userId: DatabaseId, options?: BaseQueryOptions): Promise<DatabaseResult<void>>;
   deleteUserAndSessions(
-    userId: string,
-    tenantId?: string | null,
-    options?: { bypassTenantCheck?: boolean },
+    userId: DatabaseId,
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<{ deletedUser: boolean; deletedSessionCount: number }>>;
   deleteUsers(
-    userIds: string[],
-    tenantId?: string | null,
+    userIds: DatabaseId[],
+    tenantId?: DatabaseId | null,
   ): Promise<DatabaseResult<{ deletedCount: number }>>;
-  getActiveSessions(userId: string, tenantId?: string | null): Promise<DatabaseResult<Session[]>>;
-  getAllActiveSessions(tenantId?: string | null): Promise<DatabaseResult<Session[]>>;
-  getAllRoles(tenantId?: string | null, options?: { bypassTenantCheck?: boolean }): Promise<Role[]>;
+  getActiveSessions(
+    userId: DatabaseId,
+    tenantId?: DatabaseId | null,
+  ): Promise<DatabaseResult<Session[]>>;
+  getAllActiveSessions(tenantId?: DatabaseId | null): Promise<DatabaseResult<Session[]>>;
+  getAllRoles(options?: BaseQueryOptions): Promise<Role[]>;
   getAllTokens(filter?: Record<string, unknown>): Promise<DatabaseResult<Token[]>>;
   getAllUsers(
-    options?: PaginationOption,
-    dbOptions?: { bypassTenantCheck?: boolean },
+    options?: PaginationOptions,
+    dbOptions?: BaseQueryOptions,
   ): Promise<DatabaseResult<User[]>>;
-  getRoleById(
-    roleId: string,
-    tenantId?: string | null,
-    options?: { bypassTenantCheck?: boolean },
-  ): Promise<DatabaseResult<Role | null>>;
+  getRoleById(roleId: DatabaseId, options?: BaseQueryOptions): Promise<DatabaseResult<Role | null>>;
   getSessionTokenData(
-    sessionId: string,
-  ): Promise<DatabaseResult<{ expiresAt: ISODateString; user_id: string } | null>>;
-  getTokenByValue(token: string, tenantId?: string | null): Promise<DatabaseResult<Token | null>>;
-  getTokenById(tokenId: string, tenantId?: string | null): Promise<DatabaseResult<Token | null>>;
+    sessionId: DatabaseId,
+  ): Promise<DatabaseResult<{ expiresAt: ISODateString; user_id: DatabaseId } | null>>;
+  getTokenByValue(
+    token: string,
+    tenantId?: DatabaseId | null,
+  ): Promise<DatabaseResult<Token | null>>;
+  getTokenById(
+    tokenId: DatabaseId,
+    tenantId?: DatabaseId | null,
+  ): Promise<DatabaseResult<Token | null>>;
   getTokenData(
     token: string,
-    userId?: string,
+    userId?: DatabaseId,
     type?: string,
-    tenantId?: string | null,
+    tenantId?: DatabaseId | null,
   ): Promise<DatabaseResult<Token | null>>;
   getUserByEmail(
-    criteria: { email: string; tenantId?: string | null },
-    options?: { bypassTenantCheck?: boolean },
+    criteria: { email: string; tenantId?: DatabaseId | null },
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<User | null>>;
-  getUserById(
-    userId: string,
-    tenantId?: string | null,
-    options?: { bypassTenantCheck?: boolean },
-  ): Promise<DatabaseResult<User | null>>;
+  getUserById(userId: DatabaseId, options?: BaseQueryOptions): Promise<DatabaseResult<User | null>>;
   getUserCount(
     filter?: Record<string, unknown>,
-    options?: { bypassTenantCheck?: boolean },
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<number>>;
   invalidateAllUserSessions(
-    userId: string,
-    tenantId?: string | null,
+    userId: DatabaseId,
+    tenantId?: DatabaseId | null,
   ): Promise<DatabaseResult<void>>;
   rotateToken(oldToken: string, expires: ISODateString): Promise<DatabaseResult<string>>;
   setupAuthModels(): Promise<void>;
   unblockTokens(
-    tokenIds: string[],
-    tenantId?: string | null,
+    tokenIds: DatabaseId[],
+    tenantId?: DatabaseId | null,
   ): Promise<DatabaseResult<{ modifiedCount: number }>>;
   unblockUsers(
-    userIds: string[],
-    tenantId?: string | null,
+    userIds: DatabaseId[],
+    tenantId?: DatabaseId | null,
   ): Promise<DatabaseResult<{ modifiedCount: number }>>;
   updateRole(
-    roleId: string,
+    roleId: DatabaseId,
     roleData: Partial<Role>,
-    tenantId?: string | null,
-    options?: { bypassTenantCheck?: boolean },
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<Role>>;
   updateSessionExpiry(
-    sessionId: string,
+    sessionId: DatabaseId,
     newExpiry: ISODateString,
   ): Promise<DatabaseResult<Session>>;
   updateToken(
-    tokenId: string,
+    tokenId: DatabaseId,
     tokenData: Partial<Token>,
-    tenantId?: string | null,
+    tenantId?: DatabaseId | null,
   ): Promise<DatabaseResult<Token>>;
   updateUserAttributes(
-    userId: string,
+    userId: DatabaseId,
     userData: Partial<User>,
-    tenantId?: string | null,
-    options?: { bypassTenantCheck?: boolean },
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<User>>;
-  validateSession(sessionId: string): Promise<DatabaseResult<User | null>>;
+  validateSession(sessionId: DatabaseId): Promise<DatabaseResult<User | null>>;
   validateToken(
     token: string,
-    userId?: string,
+    userId?: DatabaseId,
     type?: string,
-    tenantId?: string | null,
+    tenantId?: DatabaseId | null,
   ): Promise<DatabaseResult<{ success: boolean; message: string; email?: string }>>;
 }
 
@@ -574,127 +579,80 @@ export interface ICrudAdapter {
   aggregate<R>(
     collection: string,
     pipeline: unknown[],
-    tenantId?: string | null | null,
-    bypassTenantCheck?: boolean,
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<R[]>>;
   count<T extends BaseEntity>(
     collection: string,
     query?: QueryFilter<T>,
-    options?: {
-      tenantId?: string | null;
-      bypassTenantCheck?: boolean;
-      includeDeleted?: boolean;
-      silent?: boolean;
-    },
+    options?: BaseQueryOptions & { includeDeleted?: boolean },
   ): Promise<DatabaseResult<number>>;
   delete(
     collection: string,
     id: DatabaseId,
-    options?: {
-      tenantId?: string | null;
-      bypassTenantCheck?: boolean;
-      permanent?: boolean;
-      userId?: string;
-    },
+    options?: BaseQueryOptions & { permanent?: boolean; userId?: DatabaseId },
   ): Promise<DatabaseResult<void>>;
   deleteMany<T extends BaseEntity>(
     collection: string,
     query: QueryFilter<T>,
-    options?: {
-      tenantId?: string | null;
-      bypassTenantCheck?: boolean;
-      permanent?: boolean;
-      userId?: string;
-    },
+    options?: BaseQueryOptions & { permanent?: boolean; userId?: DatabaseId },
   ): Promise<DatabaseResult<{ deletedCount: number }>>;
   restore(
     collection: string,
     id: DatabaseId,
-    options?: { tenantId?: string | null; bypassTenantCheck?: boolean },
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<void>>;
   exists<T extends BaseEntity>(
     collection: string,
     query: QueryFilter<T>,
-    options?: {
-      tenantId?: string | null;
-      bypassTenantCheck?: boolean;
-      includeDeleted?: boolean;
-    },
+    options?: BaseQueryOptions & { includeDeleted?: boolean },
   ): Promise<DatabaseResult<boolean>>;
   findByIds<T extends BaseEntity>(
     collection: string,
     ids: DatabaseId[],
-    options?: {
-      fields?: (keyof T)[];
-      tenantId?: string | null | null;
-      bypassTenantCheck?: boolean;
-      populate?: string[];
-      includeDeleted?: boolean;
-    },
+    options?: FindOptions<T>,
   ): Promise<DatabaseResult<T[]>>;
   findMany<T extends BaseEntity>(
     collection: string,
     query: QueryFilter<T>,
-    options?: {
-      limit?: number;
-      offset?: number;
-      fields?: (keyof T)[];
-      sort?: SortOption;
-      tenantId?: string | null | null;
-      bypassTenantCheck?: boolean;
-      populate?: string[];
-      includeDeleted?: boolean;
-    },
+    options?: FindOptions<T>,
   ): Promise<DatabaseResult<T[]>>;
   findOne<T extends BaseEntity>(
     collection: string,
     query: QueryFilter<T>,
-    options?: {
-      fields?: (keyof T)[];
-      tenantId?: string | null | null;
-      bypassTenantCheck?: boolean;
-      populate?: string[];
-      includeDeleted?: boolean;
-    },
+    options?: FindOptions<T>,
   ): Promise<DatabaseResult<T | null>>;
   insert<T extends BaseEntity>(
     collection: string,
     data: EntityCreate<T>,
-    tenantId?: string | null | null,
-    bypassTenantCheck?: boolean,
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<T>>;
   insertMany<T extends BaseEntity>(
     collection: string,
     data: EntityCreate<T>[],
-    tenantId?: string | null | null,
-    bypassTenantCheck?: boolean,
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<T[]>>;
   update<T extends BaseEntity>(
     collection: string,
     id: DatabaseId,
     data: EntityUpdate<T>,
-    tenantId?: string | null | null,
-    bypassTenantCheck?: boolean,
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<T>>;
   updateMany<T extends BaseEntity>(
     collection: string,
     query: QueryFilter<T>,
     data: EntityUpdate<T>,
-    tenantId?: string | null | null,
-    bypassTenantCheck?: boolean,
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<{ modifiedCount: number }>>;
   upsert<T extends BaseEntity>(
     collection: string,
     query: QueryFilter<T>,
     data: EntityCreate<T>,
-    tenantId?: string | null | null,
-    bypassTenantCheck?: boolean,
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<T>>;
   upsertMany<T extends BaseEntity>(
     collection: string,
     items: Array<{ query: QueryFilter<T>; data: EntityCreate<T> }>,
-    tenantId?: string | null | null,
-    bypassTenantCheck?: boolean,
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<T[] | { upsertedCount: number; modifiedCount: number }>>;
 }
 
@@ -1085,6 +1043,7 @@ export interface IDBAdapter {
     createModel(schema: Schema, force?: boolean): Promise<void>;
     updateModel(schema: Schema): Promise<void>;
     deleteModel(id: string): Promise<void>;
+    createIndexes?(collectionId: string, schema: Schema): Promise<DatabaseResult<void>>;
     getSchema(
       collectionName: string,
       tenantId?: string | null,
@@ -1094,7 +1053,7 @@ export interface IDBAdapter {
       tenantId?: string | null,
     ): Promise<DatabaseResult<Schema | null>>;
     listSchemas(tenantId?: string | null): Promise<DatabaseResult<Schema[]>>;
-    getMongooseModel?(collectionId: string): Promise<any>;
+    getNativeDriverModel?<TNative = any>(collectionId: string): Promise<TNative>;
   };
 
   // Connection Management with Pooling

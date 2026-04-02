@@ -28,13 +28,30 @@ import { aiService } from "@src/services/ai-service";
 import { scaffoldCollectionSchema } from "@src/services/importer/scaffolder";
 import fs from "node:fs/promises";
 import path from "node:path";
+import crypto from "node:crypto";
 import { getAllPermissions } from "@src/databases/auth/permissions";
 import type { Role } from "@src/databases/auth/types";
 import { invalidateRolesCache } from "@src/hooks/handle-authorization";
 import { withTenant } from "@src/databases/db-adapter-wrapper";
 import { auditLogService, AuditEventType } from "@src/services/audit-log-service";
 import type { DatabaseId, IDBAdapter, ISODateString } from "@src/databases/db-interface";
-import type { Schema, FieldInstance } from "@src/content/types";
+import type { Schema, FieldInstance, CollectionMap } from "@src/content/types";
+
+/**
+ * Type-safe proxy for collection operations.
+ * Enables dot-notation access to collections with full IDE autocomplete.
+ */
+export type CollectionProxy = {
+  [K in keyof CollectionMap]: {
+    find(options?: any): Promise<any>;
+    findById(id: string, options?: any): Promise<any>;
+    create(data: Partial<CollectionMap[K]>, options?: any): Promise<any>;
+    update(id: string, data: Partial<CollectionMap[K]>, options?: any): Promise<any>;
+    delete(id: string, options?: any): Promise<any>;
+    queryBuilder(options?: any): any;
+  };
+};
+
 import { automationService } from "@src/services/automation/automation-service";
 import { metricsService } from "@src/services/metrics-service";
 import { telemetryService } from "@src/services/telemetry-service";
@@ -58,6 +75,7 @@ export class LocalCMS {
   public media: MediaNamespace;
   public widgets: WidgetsNamespace;
   public system: SystemNamespace;
+  public websiteTokens: WebsiteTokensNamespace;
   public ai = aiService;
   public automation = automationService;
   public metrics = metricsService;
@@ -72,11 +90,106 @@ export class LocalCMS {
     this.media = new MediaNamespace(this._dbAdapter);
     this.widgets = new WidgetsNamespace(this._dbAdapter);
     this.system = new SystemNamespace(this._dbAdapter);
+    this.websiteTokens = new WebsiteTokensNamespace(this._dbAdapter);
 
     // Register SDK initialization in metrics
     if (typeof metricsService?.recordMetric === "function") {
       metricsService.recordMetric("sdk:init", 1);
     }
+  }
+
+  /**
+   * Helper to create a clean locals.cms object with proper context
+   * This moves mapping logic out of the hook and into the SDK.
+   */
+  static getLocals(dbAdapter: IDBAdapter, eventLocals: any = {}) {
+    const cms = new LocalCMS(dbAdapter);
+    const { tenantId, user, isAdmin } = eventLocals;
+
+    const collections = {
+      find: (collection: string, options?: any) =>
+        cms.collections.find(collection, { ...options, tenantId, user }),
+      findById: (collection: string, id: string, options?: any) =>
+        cms.collections.findById(collection, id, { ...options, tenantId, user }),
+      create: (collection: string, data: any, options?: any) =>
+        cms.collections.create(collection, data, { ...options, tenantId, user }),
+      update: (collection: string, id: string, data: any, options?: any) =>
+        cms.collections.update(collection, id, data, { ...options, tenantId, user }),
+      delete: (collection: string, id: string, options?: any) =>
+        cms.collections.delete(collection, id, {
+          ...options,
+          tenantId,
+          user,
+          permanent: options?.permanent,
+        }),
+      bulkCreate: (collection: string, data: any[], options?: any) =>
+        cms.collections.bulkCreate(collection, data, { ...options, tenantId, user }),
+      bulkUpdate: (collection: string, updates: any[], options?: any) =>
+        cms.collections.bulkUpdate(collection, updates, { ...options, tenantId, user }),
+      bulkDelete: (collection: string, ids: string[], options?: any) =>
+        cms.collections.bulkDelete(collection, ids, { ...options, tenantId, user }),
+      queryBuilder: (collection: string, options?: any) =>
+        cms.collections.queryBuilder(collection, { ...options, tenantId }),
+      modifyRequest: (params: any) => cms.collections.modifyRequest(params),
+
+      // Convenient shortcuts
+      refresh: (tId?: string) => cms.collections.refresh(tId || tenantId),
+      reorderContentNodes: (items: any[], tId?: string) =>
+        cms.collections.reorderContentNodes(items, tId || tenantId),
+    };
+
+    return {
+      auth: cms.auth,
+      collections,
+
+      // Top-level CRUD for App.Locals compatibility
+      find: collections.find,
+      findById: collections.findById,
+      create: collections.create,
+      update: collections.update,
+      delete: collections.delete,
+      bulkCreate: collections.bulkCreate,
+      bulkUpdate: collections.bulkUpdate,
+      bulkDelete: collections.bulkDelete,
+      queryBuilder: collections.queryBuilder,
+
+      media: {
+        find: (options?: any) => cms.media.find({ ...options, tenantId }),
+        findById: (id: string, options?: any) => cms.media.findById(id, { ...options, tenantId }),
+        upload: (file: File, options?: any) =>
+          cms.media.upload(file, { ...options, userId: user?._id, tenantId }),
+        update: (id: string, data: any) => cms.media.update(id, data, tenantId),
+        delete: (id: string) => cms.media.delete(id, { tenantId }),
+      },
+      widgets: {
+        list: () => cms.widgets.list(tenantId || "default-tenant"),
+        activate: (id: string) => cms.widgets.activate(id),
+        deactivate: (id: string) => cms.widgets.deactivate(id),
+      },
+      system: {
+        getHealth: () => cms.system.getHealth(),
+        getPreferences: (keys: string[], options?: any) =>
+          cms.system.getPreferences(keys, { ...options, userId: user?._id }),
+        setPreference: (key: string, value: any, options?: any) =>
+          cms.system.setPreference(key, value, { ...options, userId: user?._id }),
+        sendMail: (params: any) => cms.system.sendMail(params),
+      },
+      websiteTokens: {
+        list: (options?: any) => cms.websiteTokens.list({ ...options, tenantId }),
+        create: (data: any) => cms.websiteTokens.create({ ...data, user, tenantId }),
+        delete: (id: string) => cms.websiteTokens.delete(id, tenantId),
+      },
+      transaction: (fn: any, options?: any) => cms.transaction(fn, options),
+      context: { isLocal: true, tenantId, user, isAdmin },
+      db: cms.db,
+
+      // Content System methods
+      version: contentManager.getContentVersion(),
+      getContentStructure: (tId?: string) => contentManager.getContentStructure(tId || tenantId),
+      getNodeChildren: (parentId: string, tId?: string) =>
+        contentManager.getNodeChildren(parentId, tId || tenantId),
+      getContentVersion: () => contentManager.getContentVersion(),
+    };
   }
 
   /**
@@ -567,18 +680,38 @@ class TokensNamespace {
 }
 
 /**
- * Collections Namespace
+ * Collections Namespace with support for typed proxies.
  */
 class CollectionsNamespace {
+  private _proxy: CollectionProxy;
+
   constructor(private _dbAdapter: IDBAdapter) {
     if (!_dbAdapter) {
       console.error("[LocalCMS/Collections] ERROR: dbAdapter is null/undefined in constructor");
-    } else {
-      console.log(
-        `[LocalCMS/Collections] Initialized. Keys: ${Object.keys(_dbAdapter).join(", ")}`,
-      );
-      console.log(`[LocalCMS/Collections] collection exists: ${!!(_dbAdapter as any).collection}`);
     }
+
+    // Initialize the Typed Proxy for dot-notation access
+    this._proxy = new Proxy({} as CollectionProxy, {
+      get: (_, prop: string) => {
+        if (prop in this) return (this as any)[prop];
+        return {
+          find: (options?: any) => this.find(prop, options),
+          findById: (id: string, options?: any) => this.findById(prop, id, options),
+          create: (data: any, options?: any) => this.create(prop, data, options),
+          update: (id: string, data: any, options?: any) => this.update(prop, id, data, options),
+          delete: (id: string, options?: any) => this.delete(prop, id, options),
+          queryBuilder: (options?: any) => this.queryBuilder(prop, options),
+        };
+      },
+    });
+  }
+
+  /**
+   * Fully-typed access to collections (e.g. cms.collections.Posts.find())
+   * This is the primary entry point for modern CMS usage.
+   */
+  public get typed(): CollectionProxy {
+    return this._proxy;
   }
 
   private getCollectionName(schemaId: string): string {
@@ -775,6 +908,18 @@ class CollectionsNamespace {
     }
 
     return builder;
+  }
+
+  async modifyRequest(params: any) {
+    return modifyRequest(params);
+  }
+
+  async refresh(tenantId?: string | null) {
+    return contentManager.initialize(tenantId, true); // skipReconciliation = true for speed
+  }
+
+  async reorderContentNodes(items: any[], tenantId?: string | null) {
+    return contentManager.reorderContentNodes(items, tenantId);
   }
 
   async bulkCreate(collectionId: string, data: any[], options: LocalApiOptions = {}) {
@@ -1262,6 +1407,74 @@ class SettingsNamespace {
 
   async invalidateCache(tenantId?: string) {
     return invalidateSettingsCache(tenantId);
+  }
+}
+
+/**
+ * Website Tokens Namespace
+ */
+class WebsiteTokensNamespace {
+  constructor(private _dbAdapter: IDBAdapter) {}
+
+  async list(
+    options: {
+      tenantId?: string | null;
+      page?: number;
+      limit?: number;
+      sort?: string;
+      order?: string;
+    } = {},
+  ) {
+    const { tenantId, page = 1, limit = 10, sort = "createdAt", order = "desc" } = options;
+    return withTenant(
+      tenantId ?? "",
+      async () => {
+        const result = await this._dbAdapter.system.websiteTokens.getAll({
+          limit,
+          skip: (page - 1) * limit,
+          sort,
+          order,
+        });
+        if (!result.success) throw new AppError(result.message, 500);
+        return { data: result.data.data, total: result.data.total };
+      },
+      { collection: "websiteTokens" },
+    );
+  }
+
+  async create(options: {
+    name: string;
+    permissions?: string[];
+    expiresAt?: string;
+    user: any;
+    tenantId?: string | null;
+  }) {
+    const { name, permissions, expiresAt, user, tenantId } = options;
+    return withTenant(
+      tenantId ?? "",
+      async () => {
+        const token = `sv_${crypto.randomBytes(24).toString("hex")}`;
+        return await this._dbAdapter.system.websiteTokens.create({
+          name,
+          token,
+          updatedAt: new Date().toISOString() as ISODateString,
+          createdBy: user!._id,
+          permissions: permissions || [],
+          expiresAt: (expiresAt || undefined) as ISODateString | undefined,
+        });
+      },
+      { collection: "websiteTokens" },
+    );
+  }
+
+  async delete(tokenId: string, tenantId?: string | null) {
+    return withTenant(
+      tenantId ?? "",
+      async () => {
+        return await this._dbAdapter.system.websiteTokens.delete(tokenId as any);
+      },
+      { collection: "websiteTokens" },
+    );
   }
 }
 

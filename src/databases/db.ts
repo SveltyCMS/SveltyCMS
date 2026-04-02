@@ -583,6 +583,16 @@ async function initializeSystem(
           return;
         }
 
+        // Initialize Index Optimizer
+        try {
+          const { initializeIndexOptimizer, indexOptimizer } =
+            await import("@src/services/database/index-optimizer.server");
+          initializeIndexOptimizer(dbAdapter!);
+          void indexOptimizer?.optimizeAll();
+        } catch (e) {
+          logger.warn("[db] Index optimization failed to start:", e);
+        }
+
         const backgroundStartTime = performance.now();
 
         // Mark non-critical services as initializing to trigger WARMING phase

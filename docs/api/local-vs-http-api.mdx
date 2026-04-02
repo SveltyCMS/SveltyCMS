@@ -44,7 +44,7 @@ graph TB
             CH[Cache Hooks]
             EB[Event Bus]
         end
-        
+
         subgraph API["Access Layers"]
             EX[External API Handler]
             SDK[Local SDK / cms.ts]
@@ -80,16 +80,17 @@ graph TB
 
 ## When to Use Which
 
-| Context | Recommended | Latency | Reason |
-| :--- | :--- | :--- | :--- |
-| **Client-side** (`.svelte`, `+page.ts`) | **HTTP / GraphQL** | 50–150 ms | Browser environment; requires auth, CORS, and network. |
-| **Server-side** (`.server.ts`, actions) | **Local SDK** | **0–5 ms** | Direct function calls; zero serialization or network overhead. |
-| **Plugins / Background Jobs** | **Local SDK** | **0–5 ms** | Full access to core logic and security context. |
-| **External / Third-party** | **HTTP / GraphQL** | 80–300+ ms | Needs API keys / JWT; works across network boundaries. |
+| Context                                 | Recommended        | Latency    | Reason                                                         |
+| :-------------------------------------- | :----------------- | :--------- | :------------------------------------------------------------- |
+| **Client-side** (`.svelte`, `+page.ts`) | **HTTP / GraphQL** | 50–150 ms  | Browser environment; requires auth, CORS, and network.         |
+| **Server-side** (`.server.ts`, actions) | **Local SDK**      | **0–5 ms** | Direct function calls; zero serialization or network overhead. |
+| **Plugins / Background Jobs**           | **Local SDK**      | **0–5 ms** | Full access to core logic and security context.                |
+| **External / Third-party**              | **HTTP / GraphQL** | 80–300+ ms | Needs API keys / JWT; works across network boundaries.         |
 
 > [!TIP]
 > **Rule of thumb**: If your code runs server-side (files ending in `.server.ts` or inside `+server.ts` routes), use the Local SDK.
 > Only use `fetch('/api/...')` when you need to:
+>
 > - Call an external service
 > - Intentionally test the full middleware stack (auth, rate limiting, logging)
 > - Communicate between separate SvelteKit instances
@@ -110,7 +111,7 @@ The Local SDK (`src/routes/api/cms.ts` or injected via `locals.cms`) is a high-p
 ## Example: Data Loading in `+page.server.ts`
 
 ```typescript
-import type { PageServerLoad } from './$types';
+import type { PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = async ({ locals }) => {
   // locals.cms is the recommended way (typed via App.Locals)
@@ -146,18 +147,21 @@ await locals.cms.transaction(async (tx) => {
 ## Technical Details
 
 ### Local SDK Guarantees
+
 - Widget/request modification pipeline (`modifyRequest`) runs identically to HTTP requests.
 - Cache hooks, invalidation, and version bumping happen automatically.
 - Real-time updates (SSE / WebSocket) are triggered for connected clients.
 - Multi-tenancy, user context, and permissions are applied consistently.
 
 ### Advanced Features Available
+
 - **Bulk operations**: `bulkCreate`, `bulkUpdate`, `bulkDelete` for high-throughput tasks.
 - **Transactions**: Full atomic transaction support (wrapped from database adapter).
 - **Fluent Query Builder**: Native `queryBuilder` support for complex filtering and joins.
 - **SDK Telemetry**: Automated performance metrics via `metricsService`.
 
 ### When You Might Still Use HTTP from Server Code
+
 - Calling a completely external microservice or third-party API.
 - Deliberately exercising the full external middleware (e.g., for testing or logging).
 - Cross-origin or cross-instance communication.

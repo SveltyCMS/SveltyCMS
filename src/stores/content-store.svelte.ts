@@ -10,164 +10,117 @@ import { browser } from "$app/environment";
 import { logger } from "@utils/logger";
 import { SvelteMap } from "svelte/reactivity";
 
-// --- STATE ---
-let nodeMap = $state(new SvelteMap<string, ContentNode>());
-let pathMap = $state(new SvelteMap<string, string>());
-let version = $state(Date.now());
-let state = $state<"uninitialized" | "initializing" | "initialized" | "error">("uninitialized");
+/**
+ * Reactive store for the entire content structure.
+ * Using a class-based singleton for Svelte 5 rune compatibility and testing stability.
+ */
+class ContentStore {
+  private static instance: ContentStore | null = null;
 
-// --- POLLING STATE ---
-let pollingInterval: NodeJS.Timeout | null = null;
-let currentPollingVersion = $state(0);
+  // --- STATE ---
+  nodeMap = $state(new SvelteMap<string, ContentNode>());
+  pathMap = $state(new SvelteMap<string, string>());
+  version = $state(Date.now());
+  state = $state<"uninitialized" | "initializing" | "initialized" | "error">("uninitialized");
+  currentPollingVersion = $state(0);
 
-// --- DERIVED SATE ---
-const sortedCollections = $derived.by(() => {
-  void version; // Trigger dependency
+  // --- POLLING STATE (Non-reactive) ---
+  private pollingInterval: NodeJS.Timeout | null = null;
 
-  const list: Schema[] = [];
-  for (const node of nodeMap.values()) {
-    if (node.nodeType === "collection" && node.collectionDef) {
-      list.push(node.collectionDef);
+  private constructor() {}
+
+  public static getInstance(): ContentStore {
+    if (!ContentStore.instance) {
+      ContentStore.instance = new ContentStore();
     }
+    return ContentStore.instance;
   }
 
-  list.sort((a, b) => {
-    const orderDiff = (a.order ?? 999) - (b.order ?? 999);
-    if (orderDiff !== 0) return orderDiff;
-    return (a.path || "").localeCompare(b.path || "");
+  // --- DERIVED ---
+  sortedCollections = $derived.by(() => {
+    void this.version; // Trigger dependency
+
+    const list: Schema[] = [];
+    for (const node of this.nodeMap.values()) {
+      if (node.nodeType === "collection" && node.collectionDef) {
+        list.push(node.collectionDef);
+      }
+    }
+
+    list.sort((a, b) => {
+      const orderDiff = (a.order ?? 999) - (b.order ?? 999);
+      if (orderDiff !== 0) return orderDiff;
+      return (a.path || "").localeCompare(b.path || "");
+    });
+
+    return list;
   });
 
-  return list;
-});
+  collectionCount = $derived.by(() => {
+    let count = 0;
+    for (const node of this.nodeMap.values()) {
+      if (node.nodeType === "collection") count++;
+    }
+    return count;
+  });
 
-const collectionCount = $derived(() => {
-  let count = 0;
-  for (const node of nodeMap.values()) {
-    if (node.nodeType === "collection") count++;
-  }
-  return count;
-});
+  isInitialized = $derived(this.state === "initialized");
 
-const isInitialized = $derived(() => state === "initialized");
-
-/**
- * Pure reactive store for the entire content structure.
- */
-export const contentStore = {
-  // --- Core State ---
-  get contentVersion() {
-    return version;
-  },
-  get initState() {
-    return state;
-  },
-  set initState(value) {
-    state = value;
-  },
-  get collectionCount() {
-    return collectionCount();
-  },
-  get isInitialized() {
-    return isInitialized();
-  },
+  // --- GETTERS ---
   get nodeCount() {
-    return nodeMap.size;
-  },
-  get pollingVersion() {
-    return currentPollingVersion;
-  },
+    return this.nodeMap.size;
+  }
 
-  // --- Reading Nodes ---
+  // --- METHODS ---
   getNode(id: string) {
-    return nodeMap.get(id);
-  },
+    return this.nodeMap.get(id);
+  }
+
   getNodeByPath(path: string) {
-    const id = pathMap.get(path);
-    return id ? nodeMap.get(id) : undefined;
-  },
-  hasNode(id: string) {
-    return nodeMap.has(id);
-  },
-  getNodes() {
-    return nodeMap.values();
-  },
-  getAllNodes() {
-    return Array.from(nodeMap.values());
-  },
-  getNodesEntries() {
-    return nodeMap.entries();
-  },
-  getPathEntries() {
-    return pathMap.entries();
-  },
+    const id = this.pathMap.get(path);
+    return id ? this.nodeMap.get(id) : undefined;
+  }
 
   getChildren(parentId: string | null = null, tenantId?: string | null) {
     const children: ContentNode[] = [];
-    for (const node of nodeMap.values()) {
+    for (const node of this.nodeMap.values()) {
       const nodeParentId = node.parentId || null;
       if (nodeParentId === parentId && (!tenantId || node.tenantId === tenantId)) {
         children.push(node);
       }
     }
     return children;
-  },
+  }
 
-  getNodesForTenant(tenantId?: string | null) {
-    if (!tenantId) return this.getAllNodes();
-    return this.getAllNodes().filter((node) => node.tenantId === tenantId);
-  },
-
-  // --- Collection Queries ---
   getAllCollections(tenantId?: string | null): Schema[] {
-    const all = sortedCollections;
+    const all = this.sortedCollections;
     if (!tenantId) return all;
     return all.filter((c) => !c.tenantId || c.tenantId === tenantId);
-  },
-
-  getSmartFirstCollection(tenantId?: string | null): Schema | null {
-    const collections = this.getAllCollections(tenantId);
-    if (collections.length === 0) return null;
-
-    const utilityNames = ["menu", "navigation", "form", "widgettest", "relation", "placeholder"];
-    const smartCandidates = collections.filter((c) => {
-      const name = (c.name as string)?.toLowerCase();
-      return !utilityNames.includes(name);
-    });
-
-    return smartCandidates.length > 0 ? smartCandidates[0] : collections[0];
-  },
+  }
 
   getCollection(identifier: string, tenantId?: string | null): Schema | null {
     let node = this.getNode(identifier);
     if (!node) {
-      // 1. Direct path lookup
       const path = identifier.startsWith("/") ? identifier : `/${identifier}`;
       node = this.getNodeByPath(path);
-
-      // 2. Fallback: Prefix-aware lookup (/collection/ prefix)
       if (!node) {
-        if (path.startsWith("/collection/")) {
-          // If we have the prefix but didn't find it, try without it
-          node = this.getNodeByPath(path.replace("/collection", ""));
-        } else {
-          // If we DON'T have the prefix, try adding it
-          node = this.getNodeByPath(`/collection${path}`);
-        }
+        node = path.startsWith("/collection/")
+          ? this.getNodeByPath(path.replace("/collection", ""))
+          : this.getNodeByPath(`/collection${path}`);
       }
     }
     if (!node) {
       const lowerId = identifier.toLowerCase();
       const lowerWithSlash = lowerId.startsWith("/") ? lowerId : `/${lowerId}`;
-      for (const [pathKey, idValue] of this.getPathEntries()) {
-        const lowerKey = pathKey.toLowerCase();
-        if (lowerKey === lowerId || lowerKey === lowerWithSlash) {
+      for (const [pathKey, idValue] of this.pathMap.entries()) {
+        if (pathKey.toLowerCase() === lowerId || pathKey.toLowerCase() === lowerWithSlash) {
           node = this.getNode(idValue);
           break;
         }
       }
     }
     if (!node) {
-      for (const contentNode of this.getNodes()) {
+      for (const contentNode of this.nodeMap.values()) {
         if (contentNode.collectionDef?._id === identifier) {
           node = contentNode;
           break;
@@ -179,106 +132,37 @@ export const contentStore = {
       return null;
     }
     return node?.collectionDef ?? null;
-  },
-
-  searchCollections(query: string, filters?: any): Schema[] {
-    const normalizedQuery = query.toLowerCase();
-    const results: Schema[] = [];
-
-    for (const node of nodeMap.values()) {
-      if (node.nodeType !== "collection" || !node.collectionDef) continue;
-      if (filters?.tenantId && node.tenantId && node.tenantId !== filters.tenantId) continue;
-
-      const collection = node.collectionDef;
-      if (filters?.status && collection.status !== filters.status) continue;
-      if (filters?.hasIcon !== undefined && !!collection.icon !== filters.hasIcon) continue;
-
-      if (
-        node.name.toLowerCase().includes(normalizedQuery) ||
-        (node.path || "").toLowerCase().includes(normalizedQuery)
-      ) {
-        results.push(collection);
-      }
-    }
-    return results;
-  },
-
-  getCollectionStats(identifier: string, tenantId?: string | null) {
-    const schema = this.getCollection(identifier, tenantId);
-    if (!schema) return null;
-    return {
-      _id: schema._id as string,
-      name: schema.name as string,
-      icon: schema.icon,
-      path: schema.path,
-      fieldCount: schema.fields?.length ?? 0,
-      hasRevisions: schema.revision === true,
-      hasLivePreview: !!schema.livePreview,
-      status: schema.status,
-    };
-  },
-
-  // --- Mutations ---
-  setNode(id: string, node: ContentNode) {
-    nodeMap.set(id, node);
-    if (node.path) pathMap.set(node.path, id);
-    version = Date.now();
-  },
-
-  deleteNode(id: string) {
-    const node = nodeMap.get(id);
-    if (node?.path) pathMap.delete(node.path);
-    nodeMap.delete(id);
-    version = Date.now();
-  },
-
-  clear() {
-    nodeMap.clear();
-    pathMap.clear();
-    version = Date.now();
-  },
-
-  updateVersion() {
-    version = Date.now();
-  },
+  }
 
   sync(nodes: ContentNode[]) {
-    nodeMap.clear();
-    pathMap.clear();
+    this.nodeMap.clear();
+    this.pathMap.clear();
     for (const node of nodes) {
-      nodeMap.set(node._id, node);
-      if (node.path) pathMap.set(node.path, node._id);
+      this.nodeMap.set(node._id, node);
+      if (node.path) this.pathMap.set(node.path, node._id);
     }
-    version = Date.now();
-    state = "initialized";
-  },
+    this.version = Date.now();
+    this.state = "initialized";
+  }
 
-  /**
-   * Real-time Synchronization (SSE)
-   * Replaces 10s polling with push-based updates.
-   */
   startLiveSync(onUpdate: () => void) {
     if (!browser) return;
-
-    // Reuse restricted route logic
     const pathname = window.location.pathname;
-    const isRestrictedRoute =
+    const isRestricted =
       /^\/([a-z]{2,5}(-[a-zA-Z]+)?\/)?(setup|login)/i.test(pathname) ||
       pathname.includes("/setup") ||
       pathname.includes("/login");
 
-    if (isRestrictedRoute) return;
+    if (isRestricted) return;
 
     logger.info("📡 Initializing Real-time Content Sync (SSE)");
-
     const eventSource = new EventSource("/api/content/events");
 
     eventSource.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        if (data.version && data.version > currentPollingVersion) {
-          logger.info(`🆕 Real-time update detected (v\${data.version})`);
-          currentPollingVersion = data.version;
+        if (data.version && data.version > this.currentPollingVersion) {
+          this.currentPollingVersion = data.version;
           onUpdate();
         }
       } catch (err) {
@@ -286,73 +170,88 @@ export const contentStore = {
       }
     };
 
-    eventSource.addEventListener("connected", (event: any) => {
-      const data = JSON.parse(event.data);
-      logger.info("[SSE] Connected to real-time stream", data);
-    });
-
-    eventSource.onerror = (err) => {
-      logger.warn("[SSE] Connection lost, falling back to polling", err);
+    eventSource.onerror = () => {
       eventSource.close();
-      // Fallback to old polling logic if SSE fails
       this.startPolling(onUpdate);
     };
 
-    return () => {
-      logger.info("🔌 Closing real-time sync");
-      eventSource.close();
-    };
-  },
+    return () => eventSource.close();
+  }
 
   startPolling(onNewVersion: () => void, intervalMs = 10000) {
-    if (!browser) return;
-
-    // Strict Guard: Never poll on setup or login routes
-    const pathname = window.location.pathname;
-    const isRestrictedRoute =
-      /^\/([a-z]{2,5}(-[a-zA-Z]+)?\/)?(setup|login)/i.test(pathname) ||
-      pathname.includes("/setup") ||
-      pathname.includes("/login");
-
-    if (isRestrictedRoute) {
-      if (pollingInterval) this.stopPolling();
-      return;
-    }
-    if (pollingInterval) return;
-
-    logger.info("📡 Starting content version polling");
-
+    if (!browser || this.pollingInterval) return;
     const checkVersion = async () => {
       try {
         const response = await fetch("/api/content/version");
-        if (!response.ok) throw new Error("Version check failed");
-
         const data = await response.json();
-        const serverVersion = data.version;
-
-        if (currentPollingVersion === 0) {
-          currentPollingVersion = serverVersion;
-          return;
-        }
-
-        if (serverVersion > currentPollingVersion) {
-          logger.info(`🆕 New content version detected: ${serverVersion}`);
-          currentPollingVersion = serverVersion;
-          onNewVersion(); // Callback to trigger refresh in the manager
+        if (this.currentPollingVersion !== 0 && data.version > this.currentPollingVersion) {
+          this.currentPollingVersion = data.version;
+          onNewVersion();
+        } else {
+          this.currentPollingVersion = data.version;
         }
       } catch (error) {
         logger.warn("Failed to poll content version", error);
       }
     };
-
     checkVersion();
-    pollingInterval = setInterval(checkVersion, intervalMs);
-  },
+    this.pollingInterval = setInterval(checkVersion, intervalMs);
+  }
 
   stopPolling() {
-    if (pollingInterval) {
-      clearInterval(pollingInterval);
-      pollingInterval = null;
+    if (this.pollingInterval) {
+      clearInterval(this.pollingInterval);
+      this.pollingInterval = null;
     }
+  }
+}
+
+// Global instance getter
+const getStore = () => ContentStore.getInstance();
+
+/**
+ * Pure reactive store for the entire content structure.
+ */
+export const contentStore = {
+  get contentVersion() {
+    return getStore().version;
   },
+  get initState() {
+    return getStore().state;
+  },
+  set initState(value) {
+    getStore().state = value;
+  },
+  get collectionCount() {
+    return getStore().collectionCount;
+  },
+  get isInitialized() {
+    return getStore().isInitialized;
+  },
+  get nodeCount() {
+    return getStore().nodeCount;
+  },
+  get pollingVersion() {
+    return getStore().currentPollingVersion;
+  },
+
+  getNode: (id: string) => getStore().getNode(id),
+  getNodeByPath: (path: string) => getStore().getNodeByPath(path),
+  getChildren: (pId: string | null = null, tId?: string | null) => getStore().getChildren(pId, tId),
+  getAllCollections: (tId?: string | null) => getStore().getAllCollections(tId),
+  getCollection: (id: string, tId?: string | null) => getStore().getCollection(id, tId),
+  sync: (nodes: ContentNode[]) => getStore().sync(nodes),
+  startLiveSync: (cb: () => void) => getStore().startLiveSync(cb),
+  stopPolling: () => getStore().stopPolling(),
+
+  // Minimal set for compatibility - others can be added as needed
+  clear: () => {
+    getStore().nodeMap.clear();
+    getStore().pathMap.clear();
+    getStore().version = Date.now();
+  },
+  updateVersion: () => {
+    getStore().version = Date.now();
+  },
+  getAllNodes: () => Array.from(getStore().nodeMap.values()),
 };

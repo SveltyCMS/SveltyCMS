@@ -22,15 +22,16 @@ SveltyCMS implements a **Native Soft Delete** system. By default, content is mov
 
 ## ⚡ Quick Start
 
-| Feature | HTTP Endpoint | Local SDK Equivalent |
-| :--- | :--- | :--- |
-| **Soft Delete** | `DELETE /api/collections/[id]/[entry]` | `locals.cms.delete(id, entry)` |
-| **Restore** | `POST /api/trash/restore` | `locals.cms.collections.update(id, entry, { isDeleted: false })` |
-| **Hard Delete** | `DELETE ...?permanent=true` | `locals.cms.delete(id, entry, { permanent: true })` |
+| Feature         | HTTP Endpoint                          | Local SDK Equivalent                                             |
+| :-------------- | :------------------------------------- | :--------------------------------------------------------------- |
+| **Soft Delete** | `DELETE /api/collections/[id]/[entry]` | `locals.cms.delete(id, entry)`                                   |
+| **Restore**     | `POST /api/trash/restore`              | `locals.cms.collections.update(id, entry, { isDeleted: false })` |
+| **Hard Delete** | `DELETE ...?permanent=true`            | `locals.cms.delete(id, entry, { permanent: true })`              |
 
 ---
 
 ## 1. The Goal
+
 Safely remove content from public view without data loss, or recover previously deleted items to their active state.
 
 ---
@@ -38,14 +39,17 @@ Safely remove content from public view without data loss, or recover previously 
 ## 2. The Solution
 
 ### Soft Deleting Content
+
 By default, all delete operations are "soft."
 
 **Endpoint**: `DELETE /api/collections/posts/123`
 **Mechanics**: Sets `isDeleted: true` and appends a `_DELETED_[timestamp]` suffix to unique fields (like slugs) to prevent index collisions.
 
 ### Restoring from Trash
+
 **Endpoint**: `POST /api/trash/restore`
 **Payload**:
+
 ```json
 {
   "collectionId": "posts",
@@ -54,6 +58,7 @@ By default, all delete operations are "soft."
 ```
 
 ### Local SDK (Permanent Purge)
+
 To bypass the trash and remove data forever (e.g., for GDPR compliance).
 
 ```typescript
@@ -71,11 +76,11 @@ graph TD
     A[Delete Request] --> B{Permanent?}
     B -- Yes --> C[Hard Delete from DB]
     B -- No --> D[Soft Delete]
-    
+
     D --> E[isDeleted = true]
     E --> F[Mangle Unique Fields]
     F --> G[Invalidate Cache]
-    
+
     subgraph "Query Layer"
     H[findMany / Search] --> I{Include Deleted?}
     I -- No (Default) --> J[Filter: {isDeleted: false}]
@@ -84,7 +89,9 @@ graph TD
 ```
 
 ### Unique Field Mangling
+
 To prevent "Slug Collisions" (where a new post wants a slug used by a deleted one), SveltyCMS mangles unique fields:
+
 - **Active**: `my-post`
 - **Trashed**: `my-post_DELETED_1710793389`
 
@@ -94,6 +101,7 @@ To prevent "Slug Collisions" (where a new post wants a slug used by a deleted on
 ---
 
 ## Related Documents
+
 - [Collection API Reference](./collection-api.mdx)
 - [Audit Log System](../architecture/admin-user-management.mdx)
 - [Database Adapter Architecture](../architecture/database/database-methods.mdx)

@@ -91,6 +91,9 @@ export enum AuditEventType {
   PRIVILEGE_ESCALATION = "privilege_escalation",
   DATA_BREACH_ATTEMPT = "data_breach_attempt",
   SUSPICIOUS_ACTIVITY = "suspicious_activity",
+
+  // Webhook events
+  WEBHOOK_TRIGGERED = "webhook_triggered",
 }
 
 // Severity levels for audit events

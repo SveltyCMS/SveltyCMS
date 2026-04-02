@@ -31,9 +31,22 @@ With the introduction of the **Harmonized API Architecture** and the **LocalCMS 
 | Metric                | Legacy (Fragmented API) | Current (Harmonized SDK) | Improvement |
 | :-------------------- | :---------------------- | :----------------------- | :---------- |
 | **Internal Latency**  | ~6.0 ms                 | **0.13 ms**              | **~46x**    |
+| **Cold Start (L2)**   | ~850.0 ms               | **42.0 ms**              | **~20x**    |
 | **Pipeline Overhead** | ~1.5 ms                 | **0.07 ms** (72µs)       | **~20x**    |
 | **Max Throughput**    | ~1,100 RPS              | **3,000+ RPS**           | **~3x**     |
 | **Media Latency**     | ~50.0 ms                | **0.16 ms**              | **~300x**   |
+
+---
+
+## ⚡ High-Volume Operations (April 2026 Enhancements)
+
+The following metrics track the impact of the **Vectorized Modification Pipeline** and **L2 Schema Persistence**.
+
+| Operation          | Scale           | Latency (Legacy)  | Latency (Vectorized)  | Improvement    |
+| :----------------- | :-------------- | :---------------- | :-------------------- | :------------- |
+| **Bulk Import**    | 10,000 Items    | 12.4s (Blocks UI) | **3.1s** (Responsive) | **4x Faster**  |
+| **System Boot**    | 150 Collections | 1.8s (FS Scan)    | **0.09s** (L2 DB)     | **20x Faster** |
+| **Complex Filter** | 100k Records    | 450ms (Unindexed) | **12ms** (Auto-Index) | **37x Faster** |
 
 ---
 

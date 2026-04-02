@@ -13,6 +13,8 @@ import type {
   QueryFilter,
   EntityCreate,
   EntityUpdate,
+  BaseQueryOptions,
+  FindOptions,
 } from "../../db-interface";
 import type { AdapterCore } from "../adapter/adapter-core";
 import * as utils from "../utils";
@@ -31,17 +33,12 @@ export class CrudModule {
   async findOne<T extends BaseEntity>(
     collection: string,
     query: QueryFilter<T>,
-    options: {
-      fields?: (keyof T)[];
-      tenantId?: string | null | null;
-      bypassTenantCheck?: boolean;
-      includeDeleted?: boolean;
-    } = {},
+    options: FindOptions<T> = {},
   ): Promise<DatabaseResult<T | null>> {
     const startTime = performance.now();
     return this.core
       .wrap(async () => {
-        const secureQuery = safeQuery(query, options.tenantId, {
+        const secureQuery = safeQuery(query, options.tenantId as string, {
           bypassTenantCheck: options.bypassTenantCheck,
           includeDeleted: options.includeDeleted,
         });
@@ -70,19 +67,12 @@ export class CrudModule {
   async findMany<T extends BaseEntity>(
     collection: string,
     query: QueryFilter<T>,
-    options: {
-      limit?: number;
-      offset?: number;
-      fields?: (keyof T)[];
-      tenantId?: string | null | null;
-      bypassTenantCheck?: boolean;
-      includeDeleted?: boolean;
-    } = {},
+    options: FindOptions<T> = {},
   ): Promise<DatabaseResult<T[]>> {
     const startTime = performance.now();
     return this.core
       .wrap(async () => {
-        const secureQuery = safeQuery(query, options.tenantId, {
+        const secureQuery = safeQuery(query, options.tenantId as string, {
           bypassTenantCheck: options.bypassTenantCheck,
           includeDeleted: options.includeDeleted,
         });
@@ -113,20 +103,14 @@ export class CrudModule {
   async findByIds<T extends BaseEntity>(
     collection: string,
     ids: DatabaseId[],
-    options: {
-      fields?: (keyof T)[];
-      tenantId?: string | null | null;
-      bypassTenantCheck?: boolean;
-      includeDeleted?: boolean;
-      populate?: string[];
-    } = {},
+    options: FindOptions<T> = {},
   ): Promise<DatabaseResult<T[]>> {
     const startTime = performance.now();
     return this.core
       .wrap(async () => {
         const query = safeQuery(
           { _id: { $in: ids } } as unknown as QueryFilter<T>,
-          options.tenantId,
+          options.tenantId as string,
           {
             bypassTenantCheck: options.bypassTenantCheck,
             includeDeleted: options.includeDeleted,
@@ -151,8 +135,7 @@ export class CrudModule {
   async insert<T extends BaseEntity>(
     collection: string,
     data: EntityCreate<T>,
-    tenantId?: string | null | null,
-    _bypassTenantCheck?: boolean,
+    options: BaseQueryOptions = {},
   ): Promise<DatabaseResult<T>> {
     const startTime = performance.now();
     return this.core
@@ -163,7 +146,7 @@ export class CrudModule {
         const values = utils.convertISOToDates({
           ...data,
           _id: id,
-          tenantId: tenantId || (data as any).tenantId,
+          tenantId: options.tenantId || (data as any).tenantId,
           createdAt: now,
           updatedAt: now,
         } as Record<string, unknown>);
@@ -190,15 +173,18 @@ export class CrudModule {
     collection: string,
     id: DatabaseId,
     data: EntityUpdate<T>,
-    tenantId?: string | null | null,
-    bypassTenantCheck?: boolean,
+    options: BaseQueryOptions = {},
   ): Promise<DatabaseResult<T>> {
     const startTime = performance.now();
     return this.core
       .wrap(async () => {
-        const secureQuery = safeQuery({ _id: id } as unknown as QueryFilter<T>, tenantId, {
-          bypassTenantCheck,
-        });
+        const secureQuery = safeQuery(
+          { _id: id } as unknown as QueryFilter<T>,
+          options.tenantId as string,
+          {
+            bypassTenantCheck: options.bypassTenantCheck,
+          },
+        );
         const table = this.core.getTable(collection);
         const where = this.core.mapQuery(table, secureQuery as Record<string, unknown>) as
           | import("drizzle-orm").SQL
@@ -231,19 +217,14 @@ export class CrudModule {
   async delete(
     collection: string,
     id: DatabaseId,
-    options: {
-      tenantId?: string | null;
-      bypassTenantCheck?: boolean;
-      permanent?: boolean;
-      userId?: string;
-    } = {},
+    options: BaseQueryOptions & { permanent?: boolean; userId?: DatabaseId } = {},
   ): Promise<DatabaseResult<void>> {
     const startTime = performance.now();
     return this.core
       .wrap(async () => {
         const query = safeQuery(
           { _id: id } as unknown as QueryFilter<BaseEntity>,
-          options.tenantId,
+          options.tenantId as string,
           {
             bypassTenantCheck: options.bypassTenantCheck,
           },
@@ -265,7 +246,7 @@ export class CrudModule {
   async restore(
     collection: string,
     _id: DatabaseId,
-    _options: { tenantId?: string | null; bypassTenantCheck?: boolean } = {},
+    _options: BaseQueryOptions = {},
   ): Promise<DatabaseResult<void>> {
     return this.core.notImplemented(`crud.restore for ${collection}`);
   }
@@ -273,14 +254,15 @@ export class CrudModule {
   async upsert<T extends BaseEntity>(
     collection: string,
     query: QueryFilter<T>,
-    data: Omit<T, "_id" | "createdAt" | "updatedAt">,
-    tenantId?: string | null | null,
-    bypassTenantCheck?: boolean,
+    data: EntityCreate<T>,
+    options: BaseQueryOptions = {},
   ): Promise<DatabaseResult<T>> {
     const startTime = performance.now();
     return this.core
       .wrap(async () => {
-        const secureQuery = safeQuery(query, tenantId, { bypassTenantCheck });
+        const secureQuery = safeQuery(query, options.tenantId as string, {
+          bypassTenantCheck: options.bypassTenantCheck,
+        });
         const table = this.core.getTable(collection);
         const where = this.core.mapQuery(table, secureQuery as Record<string, unknown>) as
           | import("drizzle-orm").SQL
@@ -296,15 +278,14 @@ export class CrudModule {
             collection,
             (existing[0] as any)._id as unknown as DatabaseId,
             data as Partial<T>,
-            tenantId,
-            bypassTenantCheck,
+            options,
           );
           if (!res.success) {
             throw res.error;
           }
           return res.data;
         }
-        const res = await this.insert<T>(collection, data, tenantId, bypassTenantCheck);
+        const res = await this.insert<T>(collection, data, options);
         if (!res.success) {
           throw res.error;
         }
@@ -319,16 +300,12 @@ export class CrudModule {
   async count<T extends BaseEntity>(
     collection: string,
     query: QueryFilter<T> = {},
-    options: {
-      tenantId?: string | null;
-      bypassTenantCheck?: boolean;
-      includeDeleted?: boolean;
-    } = {},
+    options: BaseQueryOptions & { includeDeleted?: boolean } = {},
   ): Promise<DatabaseResult<number>> {
     const startTime = performance.now();
     return this.core
       .wrap(async () => {
-        const secureQuery = safeQuery(query, options.tenantId, {
+        const secureQuery = safeQuery(query, options.tenantId as string, {
           bypassTenantCheck: options.bypassTenantCheck,
           includeDeleted: options.includeDeleted,
         });
@@ -351,11 +328,7 @@ export class CrudModule {
   async exists<T extends BaseEntity>(
     collection: string,
     query: QueryFilter<T>,
-    options: {
-      tenantId?: string | null;
-      bypassTenantCheck?: boolean;
-      includeDeleted?: boolean;
-    } = {},
+    options: BaseQueryOptions & { includeDeleted?: boolean } = {},
   ): Promise<DatabaseResult<boolean>> {
     const startTime = performance.now();
     return this.core
@@ -374,9 +347,8 @@ export class CrudModule {
 
   async insertMany<T extends BaseEntity>(
     collection: string,
-    data: Omit<T, "_id" | "createdAt" | "updatedAt">[],
-    tenantId?: string | null | null,
-    _bypassTenantCheck?: boolean,
+    data: EntityCreate<T>[],
+    options: BaseQueryOptions = {},
   ): Promise<DatabaseResult<T[]>> {
     const startTime = performance.now();
     return this.core
@@ -390,7 +362,7 @@ export class CrudModule {
           utils.convertISOToDates({
             ...d,
             _id: (d as any)._id || (utils.generateId() as DatabaseId),
-            tenantId: tenantId || (d as any).tenantId,
+            tenantId: options.tenantId || (d as any).tenantId,
             createdAt: now,
             updatedAt: now,
           } as Record<string, unknown>),
@@ -418,14 +390,15 @@ export class CrudModule {
     collection: string,
     query: QueryFilter<T>,
     data: EntityUpdate<T>,
-    tenantId?: string | null | null,
-    bypassTenantCheck?: boolean,
+    options: BaseQueryOptions = {},
   ): Promise<DatabaseResult<{ modifiedCount: number }>> {
     const startTime = performance.now();
     return this.core
       .wrap(async () => {
         const table = this.core.getTable(collection);
-        const secureQuery = safeQuery(query, tenantId, { bypassTenantCheck });
+        const secureQuery = safeQuery(query, options.tenantId as string, {
+          bypassTenantCheck: options.bypassTenantCheck,
+        });
         const where = this.core.mapQuery(table, secureQuery as Record<string, unknown>) as
           | import("drizzle-orm").SQL
           | undefined;
@@ -446,21 +419,16 @@ export class CrudModule {
       });
   }
 
-  async deleteMany(
+  async deleteMany<T extends BaseEntity>(
     collection: string,
-    query: QueryFilter<BaseEntity>,
-    options: {
-      tenantId?: string | null;
-      bypassTenantCheck?: boolean;
-      permanent?: boolean;
-      userId?: string;
-    } = {},
+    query: QueryFilter<T>,
+    options: BaseQueryOptions & { permanent?: boolean; userId?: DatabaseId } = {},
   ): Promise<DatabaseResult<{ deletedCount: number }>> {
     const startTime = performance.now();
     return this.core
       .wrap(async () => {
         const table = this.core.getTable(collection);
-        const secureQuery = safeQuery(query, options.tenantId, {
+        const secureQuery = safeQuery(query, options.tenantId as string, {
           bypassTenantCheck: options.bypassTenantCheck,
         });
         const where = this.core.mapQuery(table, secureQuery as Record<string, unknown>) as
@@ -483,8 +451,7 @@ export class CrudModule {
       query: QueryFilter<T>;
       data: EntityCreate<T>;
     }>,
-    tenantId?: string | null | null,
-    bypassTenantCheck?: boolean,
+    options: BaseQueryOptions = {},
   ): Promise<DatabaseResult<{ upsertedCount: number; modifiedCount: number }>> {
     const startTime = performance.now();
     return this.core
@@ -492,21 +459,17 @@ export class CrudModule {
         let upsertedCount = 0;
         let modifiedCount = 0;
         for (const item of items) {
-          const existing = await this.findOne(collection, item.query, {
-            tenantId,
-            bypassTenantCheck,
-          });
+          const existing = await this.findOne(collection, item.query, options);
           if (existing.success && existing.data) {
             await this.update(
               collection,
               (existing.data as any)._id,
               item.data as Partial<T>,
-              tenantId,
-              bypassTenantCheck,
+              options,
             );
             modifiedCount++;
           } else {
-            await this.insert(collection, item.data, tenantId, bypassTenantCheck);
+            await this.insert(collection, item.data, options);
             upsertedCount++;
           }
         }
@@ -518,11 +481,10 @@ export class CrudModule {
       });
   }
 
-  async aggregate<R = unknown>(
+  async aggregate<R>(
     collection: string,
     _pipeline: unknown[],
-    _tenantId?: string | null | null,
-    _bypassTenantCheck?: boolean,
+    _options: BaseQueryOptions = {},
   ): Promise<DatabaseResult<R[]>> {
     return this.core.notImplemented(`crud.aggregate for ${collection}`);
   }

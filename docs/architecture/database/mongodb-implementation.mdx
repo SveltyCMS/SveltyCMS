@@ -45,10 +45,13 @@ This guide covers the **MongoDB-specific** implementation in SveltyCMS, includin
 ### Performance Improvements
 
 - **Sub-1s Cold Start**: Progressive initialization reaches READY state (API-safe) in <850ms.
+- **Instant Cold Starts (L2)**: Persistent schema storage in `system_content_structure` allows booting from DB in <100ms.
+- **Typed Collection Proxy**: Fully-typed access via `locals.cms.collections.typed.Posts.find()`.
 - **95-99% faster** operations through intelligent caching.
 - **85-95% cache hit rate** with dual-layer Redis + MongoDB.
 - **79% smaller payloads** via smart field selection.
 - **O(log n) queries** through comprehensive indexing.
+- **Automatic Indexing**: Background `IndexOptimizer` ensures fields remain optimized as schemas change.
 - **O(1) pagination** with cursor-based navigation.
 - **O(1) memory** with streaming for large datasets.
 - **Atomic Versioning**: Native `$inc` support for `system:content_version` tracking.
@@ -106,6 +109,12 @@ SveltyCMS MongoDB implementation is built with **enterprise-scale performance as
 - **Lazy Model Registration**: Models are only compiled on-demand and cached in a local `Map` to prevent Mongoose re-registration errors and reduce cold-start memory.
 - **Dependency Guards (`ensure<Feature>`)**: Background services explicitly await the readiness of their specific database sub-systems.
 - **Promise-Based Locking**: Internal initialization is protected by a promise map to prevent race conditions during concurrent startup requests.
+
+**Phase 6**: L2 Persistence & Typed SDK (NEW)
+
+- **L2 Schema Persistence**: The full `Schema` object is stored in the database. Cold starts skip the filesystem scan entirely if the DB version matches.
+- **Typed Collection Proxy**: Generated types provide full IntelliSense for database operations, reducing developer error and improving speed.
+- **Index Optimizer**: A background service that periodically verifies and builds missing indexes based on field configurations.
 
 ---
 

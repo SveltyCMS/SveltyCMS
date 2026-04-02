@@ -6,7 +6,7 @@
 import { dbAdapter, getDb } from "@src/databases/db";
 import { logger } from "@utils/logger.server";
 import { aiService } from "@src/services/ai-service";
-import { publicEnv } from "@src/stores/global-settings.svelte";
+import { getPublicSettingSync } from "@src/services/settings-service";
 import type { JobHandler } from "./job-queue-service";
 import type { Job } from "@src/databases/db-interface";
 import type { Schema } from "@src/content/types";
@@ -22,7 +22,11 @@ export const bulkTranslateHandler: JobHandler = async (
 ) => {
   const { collectionName, targetLanguages, sourceLanguage, tenantId } = payload;
   const db = getDb();
-  const defaultLang = (sourceLanguage || publicEnv.DEFAULT_CONTENT_LANGUAGE || "en").toLowerCase();
+  const defaultLang = (
+    sourceLanguage ||
+    getPublicSettingSync("DEFAULT_CONTENT_LANGUAGE", tenantId) ||
+    "en"
+  ).toLowerCase();
 
   if (!dbAdapter) throw new Error("PERMANENT_FAILURE: Database adapter not initialized");
 

@@ -68,6 +68,8 @@ Key SQLite highlights:
   - `temp_store = memory` — temp tables in RAM
   - `foreign_keys = ON` — enforce referential integrity
 - **Drizzle Integration**: Type-safe querying without the overhead of a large ORM.
+- **Typed Collection Proxy**: Fully-typed access via `locals.cms.collections.typed.Posts.find()`.
+- **Background Index Optimizer**: Automatically builds SQLite indexes based on schema configurations.
 - **Multi-Tenancy**: Full tenant CRUD (create, getById, update, delete, list).
 - **TTL Cleanup**: `cleanupExpiredData()` purges expired sessions and consumed tokens.
 - **Atomic Versioning**: Native `getVersion` and `incrementVersion` support.

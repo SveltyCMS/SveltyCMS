@@ -591,6 +591,8 @@ Key MariaDB optimizations include:
 
 - **Relational Efficiency**: Optimized schema with secondary indexes on `tenantId`, `status`, and `createdAt` ensures fast filtering even without cache hits.
 - **mysql2 Pooling**: Leverages the high-performance `mysql2` driver with pre-warmed connection pools for sub-millisecond handshake in high-traffic environments.
+- **Typed Collection Proxy**: Fully-typed access via `locals.cms.collections.typed.Posts.find()`.
+- **Background Index Optimizer**: Automatically manages MariaDB indexes based on evolving schemas.
 - **Idempotent Migrations**: Automatic schema synchronization ensures zero-downtime updates and predictable deployment cycles.
 - **TTL-Equivalent Cleanup**: `cleanupExpiredData()` method purges expired sessions and consumed tokens — replicating MongoDB's TTL indexes for SQL.
 - **Multi-Tenant CRUD**: Full tenant lifecycle management (create, read, update, delete, list) with JSON serialization for quota/usage/settings.

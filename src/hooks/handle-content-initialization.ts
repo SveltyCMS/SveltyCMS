@@ -5,8 +5,13 @@
 
 import { redirect, type Handle } from "@sveltejs/kit";
 import { isBootstrapRoute, isSetupCompleteAsync } from "@utils/setup-check";
-import { contentManager } from "@src/content";
+import { contentSystem } from "@src/content";
 import { logger } from "@utils/logger.server";
+
+// 🚀 OPTIMIZATION: Compile Regex once globally.
+// Matches unlocalized (e.g., /api) and localized (e.g., /en-US/api) paths.
+const WHITELIST_REGEX =
+  /^(?:\/[a-z]{2,5}(?:-[a-zA-Z]+)?)?\/(api|config|user|dashboard|mediagallery|login)/;
 
 export const handleContentInitialization: Handle = async ({ event, resolve }) => {
   const { locals, url } = event;
@@ -14,8 +19,6 @@ export const handleContentInitialization: Handle = async ({ event, resolve }) =>
   const tenantId = locals.tenantId ?? null;
 
   // --- Phase 1: Gated Initialization ---
-  // We only initialize the content system if setup is complete.
-  // This prevents unnecessary background polling and warnings during installation.
   if (locals.__setupConfigExists === undefined) {
     locals.__setupConfigExists = await isSetupCompleteAsync();
   }
@@ -27,69 +30,53 @@ export const handleContentInitialization: Handle = async ({ event, resolve }) =>
     return await resolve(event);
   }
 
-  // Initialize content system for the resolved tenant if not already ready
-  if (!contentManager.isInitializedForTenant(tenantId)) {
-    // Set skipReconciliation to false to ensure stale DB nodes are cleaned up
-    const initPromise = contentManager.initialize(tenantId, false);
+  // --- Phase 2: Content System Initialization ---
+  if (!contentSystem.isInitializedForTenant(tenantId)) {
+    // 🛡️ SAFETY: Catch background errors to prevent unhandled promise rejections
+    const initPromise = contentSystem.initialize(tenantId, false).catch((err) => {
+      logger.error(`[handleContentInitialization] Init failed for tenant ${tenantId}:`, err);
+    });
 
-    // 🚀 OPTIMIZATION: Don't block the first byte for bootstrap page requests!
-    // However, the root path '/' requires collections to be loaded to determine
-    // the correct redirect for authenticated users, so we must await it.
-    if (isBootstrapRoute(pathname) && pathname !== "/") {
-      logger.debug(`[handleContentInitialization] Fast-tracking bootstrap page: ${pathname}`);
-    } else {
+    // Await initialization for authenticated requests or specific bootstrap routes
+    if (
+      locals.user ||
+      (isBootstrapRoute(pathname) && pathname !== "/" && !pathname.includes("dashboard"))
+    ) {
+      logger.info(`[handleContentInitialization] Awaiting content system sync for ${pathname}...`);
       await initPromise;
+    } else {
+      logger.debug(`[handleContentInitialization] Fast-tracking bootstrap page: ${pathname}`);
     }
   }
 
-  // FRESH INSTALL: If no collections exist, redirect authenticated users to builder or dashboard
+  // --- Phase 3: Auth & Fresh Install Redirects ---
   if (locals.user) {
-    const pathname = url.pathname;
-    // Enhanced whitelist check that handles both unlocalized and localized paths
-    const isWhitelisted = (path: string) => {
-      // Check unlocalized
-      if (
-        path.startsWith("/api") ||
-        path.startsWith("/config") ||
-        path.startsWith("/user") ||
-        path.startsWith("/dashboard") ||
-        path.startsWith("/mediagallery") ||
-        path.includes("/login")
-      ) {
-        return true;
-      }
-      // Check localized versions (e.g. /en/mediagallery)
-      return /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/(api|config|user|dashboard|mediagallery|login)/.test(
-        path,
-      );
-    };
+    const collections = contentSystem.getCollections(tenantId);
 
-    if (!isWhitelisted(pathname)) {
-      const collections = contentManager.getCollections(tenantId);
-      if (collections.length === 0) {
-        // Admins go to collection builder, others to dashboard
-        if (locals.isAdmin) {
-          logger.info(
-            `[handleContentInitialization] No collections found for tenant: ${tenantId}. Redirecting Admin to builder.`,
-          );
-          throw redirect(302, "/config/collectionbuilder");
-        }
-        if (pathname !== "/dashboard") {
-          logger.info(
-            `[handleContentInitialization] No collections found for tenant: ${tenantId}. Redirecting to dashboard.`,
-          );
-          throw redirect(302, "/dashboard");
-        }
-      }
-    }
-
-    // Root -> first collection (when collections exist)
+    // 1. Root Routing (Highest Priority)
     if (pathname === "/") {
-      const lang = locals.language || "en";
-      const firstUrl = await contentManager.getFirstCollectionRedirectUrl(lang, tenantId);
-      if (firstUrl) {
-        logger.info(`[handleContentInitialization] Root -> first collection: ${firstUrl}`);
-        throw redirect(302, firstUrl);
+      if (collections.length > 0) {
+        const lang = locals.language || "en";
+        const firstUrl = await contentSystem.getFirstCollectionRedirectUrl(lang, tenantId);
+        if (firstUrl) {
+          logger.info(`[handleContentInitialization] Root -> first collection: ${firstUrl}`);
+          throw redirect(302, firstUrl);
+        }
+      }
+      // If no collections, we let it fall through to the fresh install logic below.
+    }
+    // 2. Fresh Install / No Collections logic
+    else if (collections.length === 0 && !WHITELIST_REGEX.test(pathname)) {
+      if (locals.isAdmin) {
+        logger.info(
+          `[handleContentInitialization] No collections for tenant: ${tenantId}. Redirecting Admin to builder.`,
+        );
+        throw redirect(302, "/config/collectionbuilder");
+      } else {
+        logger.info(
+          `[handleContentInitialization] No collections for tenant: ${tenantId}. Redirecting to dashboard.`,
+        );
+        throw redirect(302, "/dashboard");
       }
     }
   }

@@ -60,6 +60,11 @@ declare global {
         media: any;
         widgets: any;
         system: any;
+        websiteTokens: any;
+        version: number;
+        getContentStructure: (tenantId?: string) => Promise<any>;
+        getNodeChildren: (parentId: string, tenantId?: string) => Promise<any>;
+        getContentVersion: () => number;
         context: {
           isLocal: boolean;
           tenantId: string | null | undefined;

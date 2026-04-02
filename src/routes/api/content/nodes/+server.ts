@@ -1,38 +1,33 @@
 /**
- * @file src\routes\api\content\nodes\+server.ts
- * @description API endpoint for fetching node children.
- *
- * Security: Protected by hooks, admin-only.
+ * @file src/routes/api/content/nodes/+server.ts
+ * @description Thin API wrapper for fetching node children delegating to Local SDK.
  */
 
-import { contentManager } from "@src/content";
 import { json } from "@sveltejs/kit";
-
-// Unified Error Handling
 import { apiHandler } from "@utils/api-handler";
 import { AppError } from "@utils/error-handling";
 
 export const GET = apiHandler(async ({ url, locals }) => {
+  const { tenantId, cms } = locals;
   const parentId = url.searchParams.get("parentId");
-  const tenantId = locals.tenantId;
 
-  if (!parentId) {
-    throw new AppError("parentId is required", 400, "VALIDATION_ERROR");
-  }
+  if (!parentId) throw new AppError("parentId is required", 400);
+  if (!cms) throw new AppError("CMS not initialized", 500);
 
-  const children = contentManager.getNodeChildren(parentId, tenantId);
+  const children = await cms.collections.getNodeChildren(parentId, tenantId);
 
-  const navigationChildren = children.map((node: any) => ({
-    _id: node._id,
-    name: node.name,
-    path: node.path,
-    icon: node.icon,
-    nodeType: node.nodeType,
-    order: node.order,
-    parentId: node.parentId,
-    translations: node.translations,
-    hasChildren: node.children && node.children.length > 0,
-  }));
-
-  return json({ nodes: navigationChildren });
+  return json({
+    success: true,
+    nodes: children.map((node: any) => ({
+      _id: node._id,
+      name: node.name,
+      path: node.path,
+      icon: node.icon,
+      nodeType: node.nodeType,
+      order: node.order,
+      parentId: node.parentId,
+      translations: node.translations,
+      hasChildren: !!node.children?.length,
+    })),
+  });
 });

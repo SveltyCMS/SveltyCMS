@@ -41,11 +41,11 @@ In the 2026 SveltyCMS engine, **direct GET endpoints for listing collection entr
 
 ### How to READ data now?
 
-| Scenario | Recommended Solution | Latency |
-| :--- | :--- | :--- |
-| **SvelteKit App** | Use [**Local SDK**](./local-vs-http-api.mdx) (`locals.cms.find`) | **0–5ms** |
-| **Headless (Next/Nuxt)** | Use the [**Search API**](./search-api.mdx) (filters & sorting) | 50–150ms |
-| **Complex Queries** | Use the [**GraphQL API**](./graphql-api.mdx) (query exactly what you need) | 50–200ms |
+| Scenario                 | Recommended Solution                                                       | Latency   |
+| :----------------------- | :------------------------------------------------------------------------- | :-------- |
+| **SvelteKit App**        | Use [**Local SDK**](./local-vs-http-api.mdx) (`locals.cms.find`)           | **0–5ms** |
+| **Headless (Next/Nuxt)** | Use the [**Search API**](./search-api.mdx) (filters & sorting)             | 50–150ms  |
+| **Complex Queries**      | Use the [**GraphQL API**](./graphql-api.mdx) (query exactly what you need) | 50–200ms  |
 
 > [!TIP]
 > **Pro-Tip**: In SvelteKit `+page.server.ts` or `actions`, **always use `locals.cms`**. It bypasses the entire network stack, JSON serialization, and external auth overhead, making your app significantly faster and more secure.

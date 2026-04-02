@@ -1,59 +1,114 @@
 /**
  * @file tests/unit/bun-preload.ts
- * @description Global preload script for Bun unit tests.
- * Registers the Svelte 5 compiler plugin to enable native Svelte component testing in Bun.
- *
- * ### Features:
- * - Native Svelte 5 SSR compilation for Bun
- * - Automatic default export handling for compiled components
- * - Global test environment setup
+ * @description Global preload script for Bun unit tests (Svelte 5 + SvelteKit).
  */
 
-import { plugin } from "bun";
-import { compile } from "svelte/compiler";
+// ─────────────────────────────────────────────────────────────
+// SVELTE 5 RUNES MOCK (MUST BE DEFINED BEFORE ANY IMPORTS)
+// ─────────────────────────────────────────────────────────────
+const createRuneMock = (initial?: any) => {
+  let value = initial;
 
-// Register Svelte 5 compiler plugin for Bun - GLOBAL PRELOAD
+  const state = (newVal?: any) => {
+    if (newVal !== undefined) value = newVal;
+    return value;
+  };
+
+  // Basic support for $state.raw and $state.snapshot
+  state.raw = (val: any) => val;
+  state.snapshot = (val: any) => structuredClone?.(val) ?? val;
+
+  return state;
+};
+
+(globalThis as any).$state = createRuneMock;
+(globalThis as any).$derived = (fn: any) => (typeof fn === "function" ? fn() : fn);
+(globalThis as any).$derived.by = (fn: () => any) => fn(); // for $derived.by(() => ...)
+
+(globalThis as any).$effect = (fn: any) => {
+  // In tests we usually don't want real side effects
+  const cleanup = fn();
+  return typeof cleanup === "function" ? cleanup : undefined;
+};
+
+(globalThis as any).$props = () => ({});
+(globalThis as any).$bindable = (fallback?: any) => ({ ...fallback });
+(globalThis as any).$inspect = () => ({});
+(globalThis as any).$effect.root = (fn: any) => fn(); // sometimes used internally
+
+// ─────────────────────────────────────────────────────────────
+// SVELTE COMPILER PLUGIN FOR BUN
+// ─────────────────────────────────────────────────────────────
+import { plugin } from "bun";
+import { compile, compileModule } from "svelte/compiler";
+
+const transpiler = new Bun.Transpiler({ loader: "ts" });
+
 plugin({
   name: "svelte-loader",
   setup(build) {
+    // 1. .svelte files (components)
     build.onLoad({ filter: /\.svelte$/ }, async ({ path }) => {
       const source = await Bun.file(path).text();
-      // Always server for Bun unit tests to support SSR testing
-      const { js } = compile(source, {
+
+      const { js, css } = compile(source, {
         filename: path,
-        generate: "server",
-        dev: false, // Disable dev to avoid complex SSR context requirements
+        generate: "server", // Important for most unit tests
+        dev: false,
+        css: "injected", // or "external" if you handle CSS separately
       });
 
       let contents = js.code;
 
-      // Svelte 5 SSR (generate: "server") exports the component.
-      // We need to ensure it's compatible with our render() mock/shim if needed,
-      // but native Svelte 5 SSR components should just work if we call them correctly.
-
-      // If it's a Svelte 5 component, it often uses a pattern that doesn't
-      // play well with some test runners. We ensure a default export exists.
+      // Ensure it has a default export (some Svelte 5 outputs are named functions)
       if (!contents.includes("export default")) {
-        const functionName = contents.match(/function\s+(\w+)/)?.[1];
-        if (functionName) {
-          contents += `\nexport default ${functionName};`;
+        const match = contents.match(/function\s+([A-Za-z0-9_$]+)/);
+        if (match?.[1]) {
+          contents += `\nexport default ${match[1]};`;
         }
       }
 
-      // our tests expect a render(Component, { props }) function.
+      // Optional: inject CSS if present (helps with tests using <style>)
+      if (css?.code) {
+        contents = `// Injected CSS from ${path}\n${css.code}\n\n${contents}`;
+      }
 
-      return {
-        contents,
-        loader: "js",
-      };
+      return { contents, loader: "js" };
+    });
+
+    // 2. .svelte.ts / .svelte.js (Svelte 5 modules / runes modules)
+    build.onLoad({ filter: /\.svelte\.(ts|js)$/ }, async ({ path }) => {
+      let source = await Bun.file(path).text();
+
+      if (path.endsWith(".ts")) {
+        source = await transpiler.transform(source);
+      }
+
+      const { js } = compileModule(source, {
+        filename: path,
+        dev: false,
+      });
+
+      return { contents: js.code, loader: "js" };
     });
   },
 });
 
-// --- GLOBAL MOCKS FOR BUN:TEST ---
-import { vi } from "vitest";
+// ─────────────────────────────────────────────────────────────
+// MOCKS
+// ─────────────────────────────────────────────────────────────
+import { mock } from "bun:test";
+import { vi } from "vitest"; // kept for compatibility if you mix styles
 
-// Mock metrics-service
+// SvelteKit environment
+mock.module("$app/environment", () => ({
+  browser: false,
+  dev: true,
+  building: false,
+  version: "test",
+}));
+
+// Metrics service mock
 const mockMetrics = {
   recordMetric: vi.fn(),
   incrementApiRequests: vi.fn(),
@@ -67,5 +122,12 @@ vi.mock("@src/services/metrics-service", () => ({
   metricsService: mockMetrics,
 }));
 
-// Also attach to globalThis for safety in some execution contexts
+// Also expose globally if any code accesses it directly
 (globalThis as any).metricsService = mockMetrics;
+
+// Optional: reset mocks between tests
+import { beforeEach } from "bun:test";
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});

@@ -45,7 +45,7 @@ interface Props {
 
 const { currentFolder = null }: Props = $props();
 let folders: SystemVirtualFolder[] = $state([]);
-let newFolderName = "";
+let newFolderName = $state("");
 let isLoading = $state(false);
 let error = $state<string | null>(null);
 
@@ -62,7 +62,7 @@ export async function fetchVirtualFolders(): Promise<void> {
 	isLoading = true;
 	error = null;
 	try {
-		const response = await fetch("/api/systemVirtualFolder");
+		const response = await fetch("/api/system-virtual-folder");
 		if (!response.ok) {
 			throw new Error(`HTTP error! status: ${response.status}`);
 		}
@@ -96,7 +96,7 @@ export async function createFolder(): Promise<void> {
 	isLoading = true;
 
 	try {
-		const response = await fetch("/api/systemVirtualFolder", {
+		const response = await fetch("/api/system-virtual-folder", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({
@@ -132,7 +132,7 @@ export async function updateFolder(
 	newName: string,
 ): Promise<void> {
 	try {
-		const response = await fetch("/api/systemVirtualFolder", {
+		const response = await fetch("/api/system-virtual-folder", {
 			method: "PATCH",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({ folderId, name: newName }),
@@ -154,7 +154,7 @@ export async function updateFolder(
 // Delete a folder
 export async function deleteFolder(folderId: string): Promise<void> {
 	try {
-		const response = await fetch("/api/systemVirtualFolder", {
+		const response = await fetch("/api/system-virtual-folder", {
 			method: "DELETE",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({ folderId }),
@@ -192,7 +192,27 @@ onMount(() => {
 });
 </script>
 
-<div class="mt-2 overflow-y-auto">
+<div class="mt-2 flex flex-col gap-1 overflow-y-auto max-h-[70vh]">
+	<!-- Create Folder Input (Sidebar-style) -->
+	{#if ui.state.leftSidebar === 'full'}
+		<div class="flex items-center gap-1 p-1 bg-surface-100/50 dark:bg-surface-800/50 rounded mb-2">
+			<input 
+				bind:value={newFolderName}
+				type="text" 
+				placeholder="New folder..." 
+				class="input input-sm bg-transparent border-none focus:ring-0 text-sm"
+				onkeydown={(e) => e.key === 'Enter' && createFolder()}
+			/>
+			<button 
+				onclick={createFolder}
+				class="btn btn-sm btn-icon bg-surface-200 dark:bg-surface-700" 
+				disabled={!newFolderName.trim()}
+				aria-label="Create Folder"
+			>
+				<iconify-icon icon="mdi:plus" width="16"></iconify-icon>
+			</button>
+		</div>
+	{/if}
 	<!-- Return to Collections Button -->
 	{#if ui.state.leftSidebar === 'full'}
 		<!-- Sidebar Expanded -->
@@ -265,9 +285,20 @@ onMount(() => {
 			{/each}
 		</div>
 	{:else}
-		<!-- No Folders Found Message -->
-		<div class="w-full pt-4 text-center">
-			<p class="preset-outline-secondary-500 btn w-full text-sm text-warning-500">No folders</p>
+		<!-- Fallback: Ensure root is visible even if fetch fails or is empty -->
+		<div class="relative flex flex-wrap">
+			<div class="nowrap variant-outline-surface flex w-full">
+				<a
+					href="/mediagallery"
+					onclick={handleMobileSidebarClose}
+					aria-label="Open Root Folder"
+					class="btn flex w-full items-center space-x-2 p-2 hover:bg-surface-100/10"
+					data-sveltekit-preload-data="hover"
+				>
+					<iconify-icon icon="bi:folder" width="28" class="text-yellow-500"></iconify-icon>
+					<span class="flex-1 overflow-hidden text-ellipsis text-left text-sm">{publicEnv.MEDIA_FOLDER || 'Media Root'}</span>
+				</a>
+			</div>
 		</div>
 	{/if}
 </div>

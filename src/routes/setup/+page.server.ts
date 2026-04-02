@@ -659,13 +659,13 @@ export const actions: Actions = {
       if (system.firstCollection?.path) {
         redirectPath = `/${system.defaultContentLanguage || "en"}${system.firstCollection.path}`;
       } else {
-        // Fallback: Querycontent-managerfor smart first collection
+        // Fallback: Query contentSystem for smart first collection
         try {
-          const { contentManager } = await import("@src/content");
+          const { contentSystem } = await import("@src/content");
           // Clear cache to ensure we see the newly initialized collections
-          contentManager.clearFirstCollectionCache();
+          contentSystem.clearFirstCollectionCache();
 
-          const smartRedirect = await contentManager.getFirstCollectionRedirectUrl(
+          const smartRedirect = await contentSystem.getFirstCollectionRedirectUrl(
             system.defaultContentLanguage || "en",
           );
           if (smartRedirect) {

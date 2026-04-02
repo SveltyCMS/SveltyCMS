@@ -21,6 +21,17 @@ import { cacheService } from "@src/databases/cache/cache-service";
 
 // --- HELPERS ---
 
+function schemasAreEqual(a: Schema, b: Schema | undefined): boolean {
+  if (!b) return false;
+  return (
+    a.name === b.name &&
+    a.slug === b.slug &&
+    a.icon === b.icon &&
+    JSON.stringify(a.fields || []) === JSON.stringify(b.fields || []) &&
+    JSON.stringify(a.translations || []) === JSON.stringify(b.translations || [])
+  );
+}
+
 const getDbAdapter = async () => {
   const { dbInitPromise, dbAdapter } = await import("@src/databases/db");
   await dbInitPromise;
@@ -174,6 +185,10 @@ export async function scanAndProcessFiles(): Promise<Schema[]> {
   }
 
   const filesWithStats = await recursivelyGetFilesWithStats(collectionsDir, extension);
+  logger.info(
+    `[ContentService] Found ${filesWithStats.length} compiled collection files in ${collectionsDir}`,
+  );
+
   const results = await Promise.all(
     filesWithStats.map(async ({ path: filePath, mtime }) => {
       const cacheKey = `schema_mtime:${filePath}`;
@@ -187,9 +202,13 @@ export async function scanAndProcessFiles(): Promise<Schema[]> {
       try {
         const content = await fs.readFile(filePath, "utf-8");
         const moduleData = await processModule(content);
-        if (!moduleData?.schema) return null;
+        if (!moduleData?.schema) {
+          logger.warn(`[ContentService] Failed to extract schema from ${filePath}`);
+          return null;
+        }
 
         const schema = moduleData.schema;
+        logger.info(`[ContentService] Successfully processed schema: ${schema.name || filePath}`);
         const collectionSlug =
           schema.slug ||
           (schema.name as string)?.toLowerCase() ||
@@ -344,17 +363,9 @@ export async function bulkUpsertWithParentIds(
       ...op,
       _id: op._id.toString() as DatabaseId,
       parentId: op.parentId ? (op.parentId.toString() as DatabaseId) : undefined,
-      collectionDef: op.collectionDef
-        ? ({
-            _id: op.collectionDef._id,
-            name: op.collectionDef.name,
-            icon: op.collectionDef.icon,
-            status: op.collectionDef.status,
-            path: op.collectionDef.path,
-            tenantId: op.collectionDef.tenantId,
-            fields: [],
-          } as Schema)
-        : undefined,
+      // L2 CACHE: Store the full collection definition (including fields) in the database
+      // This allows the system to boot instantly from DB without scanning the filesystem.
+      collectionDef: op.collectionDef,
     } as Partial<ContentNode>,
   }));
 
@@ -415,9 +426,36 @@ export const contentService = {
     tenantId?: string | null,
     skipReconciliation = false,
     adapter?: IDBAdapter,
+    incremental = false, // new flag
   ): Promise<void> {
+    const dbAdapter = adapter || (await getDbAdapter());
+
+    // L2 CACHE: If not forced and setup is complete, try loading everything from DB first.
+    // This avoids even the mtime check on cold starts.
+    if (!incremental && !skipReconciliation && dbAdapter) {
+      const result = await dbAdapter.content.nodes.getStructure("flat", {
+        tenantId,
+        bypassTenantCheck: true,
+        bypassCache: true,
+      });
+
+      if (result.success && result.data.length > 0) {
+        const schemas = result.data
+          .filter((node) => node.nodeType === "collection" && node.collectionDef)
+          .map((node) => node.collectionDef!);
+
+        if (schemas.length > 0) {
+          logger.info(
+            `[ContentService] L2 Cache HIT: Loaded ${schemas.length} schemas from database`,
+          );
+          await this.reconcile(schemas, tenantId, skipReconciliation, dbAdapter, incremental);
+          return;
+        }
+      }
+    }
+
     const schemas = await scanAndProcessFiles();
-    await this.reconcile(schemas, tenantId, skipReconciliation, adapter);
+    await this.reconcile(schemas, tenantId, skipReconciliation, dbAdapter, incremental);
   },
 
   async reconcile(
@@ -425,6 +463,7 @@ export const contentService = {
     tenantId?: string | null,
     skipReconciliation = false,
     adapter?: IDBAdapter,
+    incremental = false, // new flag
   ): Promise<void> {
     const dbAdapter = adapter || (await getDbAdapter());
     const schemas = allSchemas.filter((s) => !(tenantId && s.tenantId) || s.tenantId === tenantId);
@@ -454,6 +493,20 @@ export const contentService = {
       bypassCache: true,
     });
     const dbNodes: ContentNode[] = result.success ? result.data : [];
+
+    // --- INCREMENTAL CHECK ---
+    if (incremental && dbNodes.length > 0) {
+      const changed = allSchemas.filter((schema) => {
+        const existing = dbNodes.find((n) => n._id === schema._id || n.path === schema.path);
+        return !existing || !schemasAreEqual(schema, existing.collectionDef);
+      });
+
+      if (changed.length === 0) {
+        logger.debug("✅ No schema changes — skipping reconciliation");
+        return;
+      }
+      logger.info(`🔄 Incremental reconciliation: ${changed.length} schemas changed`);
+    }
 
     await registerModels(dbAdapter, schemas);
 

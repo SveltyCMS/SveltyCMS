@@ -6,12 +6,36 @@
 import { AppError } from "@utils/error-handling";
 import { logger } from "@utils/logger.server";
 import { getPrivateEnv, loadPrivateConfig } from "./db";
+import type { DatabaseId } from "@src/content/types";
 
+/**
+ * Options for tenant isolation wrapper.
+ */
+export interface TenantOptions {
+  /**
+   * Whether to allow access to global/system context when multi-tenancy is enabled but no tenantId is provided.
+   */
+  allowGlobal?: boolean;
+  /**
+   * Optional collection name for better error reporting.
+   */
+  collection?: string;
+}
+
+/**
+ * Central wrapper to enforce strict tenant isolation across database calls.
+ * Ensures operations are either scoped to a tenant or allowed in single-tenant/global mode.
+ */
 export async function withTenant<T>(
-  tenantId: string | null | undefined,
+  tenantId: DatabaseId | string | null | undefined,
   operation: () => Promise<T>,
-  options: { allowGlobal?: boolean; collection?: string } = {},
+  options: TenantOptions = {},
 ): Promise<T> {
+  // Guard against empty strings which might indicate a bug in tenant resolution
+  if (tenantId === "") {
+    throw new AppError("Invalid tenant context: empty string provided", 400, "INVALID_TENANT_ID");
+  }
+
   // If tenantId is provided, we always allow (tenant context is active)
   if (tenantId) {
     return operation();

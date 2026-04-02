@@ -21,15 +21,16 @@ The Widget API manages the lifecycle and availability of SveltyCMS extensions. U
 
 ## ⚡ Quick Start
 
-| Feature | HTTP Endpoint | Local SDK Equivalent |
-| :--- | :--- | :--- |
-| **List All Widgets** | `GET /api/widgets/list` | `locals.cms.widgets.list` |
-| **Activate Widget** | `POST /api/widgets/status` | `locals.cms.widgets.activate` |
+| Feature               | HTTP Endpoint              | Local SDK Equivalent            |
+| :-------------------- | :------------------------- | :------------------------------ |
+| **List All Widgets**  | `GET /api/widgets/list`    | `locals.cms.widgets.list`       |
+| **Activate Widget**   | `POST /api/widgets/status` | `locals.cms.widgets.activate`   |
 | **Deactivate Widget** | `POST /api/widgets/status` | `locals.cms.widgets.deactivate` |
 
 ---
 
 ## 1. The Goal
+
 Discover available field types (widgets), enable or disable them for specific tenants, and ensure the system registry is in sync with the physical files on disk.
 
 ---
@@ -37,10 +38,12 @@ Discover available field types (widgets), enable or disable them for specific te
 ## 2. The Solution
 
 ### Discovering Field Types
+
 To see which widgets are available for building a new collection.
 
 **Endpoint**: `GET /api/widgets/active`
 **Response**:
+
 ```json
 {
   "success": true,
@@ -51,6 +54,7 @@ To see which widgets are available for building a new collection.
 ```
 
 ### Local SDK (Recommended for Setup Scripts)
+
 Use the Local SDK to programmatically enable custom widgets during tenant provisioning.
 
 ```typescript
@@ -71,7 +75,7 @@ sequenceDiagram
     participant Store as Widget Store (Svelte State)
     participant FS as Filesystem (src/widgets)
     participant DB as Database (system_widgets)
-    
+
     Admin->>API: POST /api/widgets/sync
     API->>FS: Scan directories
     FS-->>API: List of widget definitions
@@ -81,7 +85,9 @@ sequenceDiagram
 ```
 
 ### The 3-Pillar Requirement
+
 Every widget must provide three distinct "pillars" to be considered valid by the API:
+
 1. **Definition**: The JSON schema and metadata (`index.ts`).
 2. **Input**: The Svelte 5 component used for editing content.
 3. **Display**: The Svelte 5 component used for viewing content in tables/lists.
@@ -92,6 +98,7 @@ Every widget must provide three distinct "pillars" to be considered valid by the
 ---
 
 ## Related Documents
+
 - [Widget Development Guide](../guides/development/widgets/index.mdx)
 - [Collection API Reference](./collection-api.mdx)
 - [3-Pillar Architecture Overview](../architecture/widgets/architecture.mdx)

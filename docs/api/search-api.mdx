@@ -22,14 +22,15 @@ The Search API is the primary **Content Delivery** interface for headless implem
 
 ## ⚡ Quick Start
 
-| Feature | HTTP Endpoint | Local SDK Equivalent |
-| :--- | :--- | :--- |
-| **Global Search** | `GET /api/search?q=...` | `locals.cms.collections.find` |
-| **Filtered Search** | `GET /api/search?filter={...}` | `locals.cms.queryBuilder` |
+| Feature             | HTTP Endpoint                  | Local SDK Equivalent          |
+| :------------------ | :----------------------------- | :---------------------------- |
+| **Global Search**   | `GET /api/search?q=...`        | `locals.cms.collections.find` |
+| **Filtered Search** | `GET /api/search?filter={...}` | `locals.cms.queryBuilder`     |
 
 ---
 
 ## 1. The Goal
+
 Find specific content across the entire CMS or a subset of collections using natural language terms or exact field filters.
 
 ---
@@ -37,10 +38,12 @@ Find specific content across the entire CMS or a subset of collections using nat
 ## 2. The Solution
 
 ### External Headless Search
+
 Ideal for search bars in React, Vue, or mobile applications.
 
 **Endpoint**: `GET /api/search?q=svelte&collections=posts,pages`
 **Response**:
+
 ```json
 {
   "success": true,
@@ -52,16 +55,17 @@ Ideal for search bars in React, Vue, or mobile applications.
 ```
 
 ### Local SDK (Recommended for SvelteKit)
+
 In your `+page.server.ts`, use the Local SDK to query the database directly with **0ms network overhead**.
 
 ```typescript
 export const load = async ({ locals, url }) => {
-  const q = url.searchParams.get('q');
-  
+  const q = url.searchParams.get("q");
+
   // High-performance internal search
   const results = await locals.cms.collections.find("posts", {
-    filter: { title: { $regex: q, $options: 'i' } },
-    limit: 10
+    filter: { title: { $regex: q, $options: "i" } },
+    limit: 10,
   });
 
   return { results };
@@ -80,23 +84,24 @@ sequenceDiagram
     participant API as Search API
     participant Auth as Permission Layer
     participant DB as Database Adapter
-    
+
     App->>API: GET /api/search?q=term
     API->>Auth: Identify User & Tenant
     Auth-->>API: Authorized Collections (Posts, Pages)
-    
+
     par Query Posts
         API->>DB: findMany(Posts, q, status:published)
     and Query Pages
         API->>DB: findMany(Pages, q, status:published)
     end
-    
+
     DB-->>API: Results Array
     API->>API: Flatten & Sort by updatedAt
     API-->>App: JSON Payload (Items + Meta)
 ```
 
 ### Status & Permission Gating
+
 - **Public Users**: Are **always** restricted to `status: "published"`. Even if they pass `status: "draft"` in the URL, the system overrides it.
 - **Admins**: Can query any status (`draft`, `archived`, `scheduled`).
 - **Collection Access**: If a user lacks `read` permissions for a collection, that collection is silently excluded from the search results to prevent metadata leakage.
@@ -104,6 +109,7 @@ sequenceDiagram
 ---
 
 ## Related Documents
+
 - [Collection API Reference](./collection-api.mdx)
 - [GraphQL API Reference](./graphql-api.mdx)
 - [Local SDK vs HTTP API](./local-vs-http-api.mdx)

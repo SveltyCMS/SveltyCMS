@@ -22,15 +22,16 @@ The Setup API handles the critical first-run experience of SveltyCMS. Unlike the
 
 ## ⚡ Quick Reference
 
-| Action | Form Action Path | Description |
-| :--- | :--- | :--- |
-| **Test DB** | `?/testDatabase` | Verifies credentials and connectivity. |
-| **Seed DB** | `?/seedDatabase` | Creates core tables/collections and roles. |
+| Action       | Form Action Path  | Description                                  |
+| :----------- | :---------------- | :------------------------------------------- |
+| **Test DB**  | `?/testDatabase`  | Verifies credentials and connectivity.       |
+| **Seed DB**  | `?/seedDatabase`  | Creates core tables/collections and roles.   |
 | **Finalize** | `?/completeSetup` | Creates the first admin and enables the CMS. |
 
 ---
 
 ## 1. The Goal
+
 Initialize a fresh SveltyCMS instance by connecting to a database, seeding the required schema, and provisioning the primary administrative user.
 
 ---
@@ -38,17 +39,24 @@ Initialize a fresh SveltyCMS instance by connecting to a database, seeding the r
 ## 2. The Solution
 
 ### Initial Setup Wizard
+
 The setup process is typically handled by the built-in wizard at `/setup`. However, it can be triggered programmatically via form actions.
 
 **Example: Completing Setup**
+
 ```html
 <form method="POST" action="/setup?/completeSetup">
-  <input type="hidden" name="data" value='{"admin": {"email": "admin@test.com", "password": "..."}}' />
+  <input
+    type="hidden"
+    name="data"
+    value='{"admin": {"email": "admin@test.com", "password": "..."}}'
+  />
   <button>Finish Setup</button>
 </form>
 ```
 
 ### Post-Setup Verification (Local SDK)
+
 Once setup is complete, use the Local SDK to verify system health.
 
 ```typescript
@@ -70,17 +78,17 @@ sequenceDiagram
     participant Setup as SetupService
     participant DB as Database Engine
     participant File as config/private.ts
-    
+
     User->>Route: POST ?/testDatabase
     Route->>Setup: Ping Connection
     Setup->>DB: Attempt Auth
     DB-->>User: Success / Error
-    
+
     User->>Route: POST ?/seedDatabase
     Route->>Setup: writeConfig + seed
     Setup->>File: Write Database Credentials
     Setup->>DB: Create Collections & Default Roles
-    
+
     User->>Route: POST ?/completeSetup
     Route->>Setup: Create Admin User
     Setup->>DB: Insert User (Role: Admin)
@@ -88,6 +96,7 @@ sequenceDiagram
 ```
 
 ### Security Guardrails
+
 - **Setup Lock**: Once the admin user is created and `config/private.ts` exists, the `/setup` route is **automatically disabled** and redirects to the login page.
 - **Credential Masking**: Database passwords are never echoed back in the action response.
 - **CSRF Protection**: Native SvelteKit form action tokens prevent unauthorized remote execution.
@@ -95,6 +104,7 @@ sequenceDiagram
 ---
 
 ## Related Documents
+
 - [Installation Guide](../getting-started.mdx)
 - [Database Adapter Architecture](../architecture/database/database-methods.mdx)
 - [Multi-Tenant Provisioning](../architecture/multi-tenancy.mdx)

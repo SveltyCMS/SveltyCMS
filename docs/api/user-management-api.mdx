@@ -22,16 +22,17 @@ The User Management API is the core identity layer of SveltyCMS. It handles user
 
 ## ⚡ Quick Start
 
-| Feature | HTTP Endpoint | Local SDK Equivalent |
-| :--- | :--- | :--- |
-| **Login** | `POST /api/user/login` | `locals.cms.auth.login` |
-| **Get User** | `GET /api/user/[id]` | `locals.cms.auth.getUser` |
+| Feature            | HTTP Endpoint                            | Local SDK Equivalent         |
+| :----------------- | :--------------------------------------- | :--------------------------- |
+| **Login**          | `POST /api/user/login`                   | `locals.cms.auth.login`      |
+| **Get User**       | `GET /api/user/[id]`                     | `locals.cms.auth.getUser`    |
 | **Update Profile** | `PATCH /api/user/update-user-attributes` | `locals.cms.auth.updateUser` |
-| **List Users** | `GET /api/user` | `locals.cms.auth.listUsers` |
+| **List Users**     | `GET /api/user`                          | `locals.cms.auth.listUsers`  |
 
 ---
 
 ## 1. The Goal
+
 Manage the complete lifecycle of a user identity—from initial invitation and login to profile updates and account deactivation.
 
 ---
@@ -39,13 +40,16 @@ Manage the complete lifecycle of a user identity—from initial invitation and l
 ## 2. The Solution
 
 ### User Authentication (Login)
+
 **Endpoint**: `POST /api/user/login`
 **Payload**:
+
 ```json
 { "email": "admin@example.com", "password": "..." }
 ```
 
 ### Local SDK (Recommended for Hooks/Server)
+
 Use the Local SDK to manage users directly within your SvelteKit backend.
 
 ```typescript
@@ -57,8 +61,10 @@ const isValid = await locals.cms.auth.verifyPassword(userId, password);
 ```
 
 ### Batch User Operations
+
 **Endpoint**: `POST /api/user/batch`
 **Payload**:
+
 ```json
 {
   "userIds": ["user1", "user2"],
@@ -79,33 +85,35 @@ sequenceDiagram
     participant Auth as Auth Service
     participant DB as Database (auth_users)
     participant Cache as Redis/In-Memory Cache
-    
+
     App->>Hook: Request (with Session Cookie)
     Hook->>Cache: Lookup Session ID
     Cache-->>Hook: Session Data (userId, role)
-    
+
     alt Cache Miss
         Hook->>DB: Fetch User + Role
         DB-->>Hook: User Object
         Hook->>Cache: Set Session
     end
-    
+
     Hook->>Hook: Hydrate locals.user
     Hook-->>App: Proceed to Route (+page.server.ts)
 ```
 
 ### Password Security (Argon2id)
+
 All passwords are hashed using **Argon2id**, the winner of the Password Hashing Competition. It is specifically designed to resist both GPU-based brute force and side-channel attacks.
 
-| Parameter | Value | Rationale |
-| :--- | :--- | :--- |
-| **Memory Cost** | 64 MB | Defeats parallel ASIC/GPU attacks. |
-| **Iterations** | 3 | Balances safety with login latency. |
-| **Parallelism** | 4 | Optimizes for multi-core server hardware. |
+| Parameter       | Value | Rationale                                 |
+| :-------------- | :---- | :---------------------------------------- |
+| **Memory Cost** | 64 MB | Defeats parallel ASIC/GPU attacks.        |
+| **Iterations**  | 3     | Balances safety with login latency.       |
+| **Parallelism** | 4     | Optimizes for multi-core server hardware. |
 
 ---
 
 ## Security & Isolation
+
 - **Tenant Scope**: User lists and management actions are strictly scoped to the current `tenantId`.
 - **Self-Action Prevention**: Users are blocked from performing destructive actions (delete, block) on their own accounts via the API.
 - **Role Hierarchy**: Only users with the `admin` role can modify the roles or status of other users.
@@ -113,6 +121,7 @@ All passwords are hashed using **Argon2id**, the winner of the Password Hashing 
 ---
 
 ## Related Documents
+
 - [Auth Token API Reference](./api-access-tokens.mdx)
 - [Multi-Tenant Architecture](../architecture/multi-tenancy.mdx)
 - [SAML SSO Integration](../guides/configuration/access-management.mdx)

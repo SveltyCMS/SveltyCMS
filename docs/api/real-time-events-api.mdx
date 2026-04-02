@@ -22,14 +22,15 @@ SveltyCMS provides a persistent, real-time event stream using **Server-Sent Even
 
 ## ⚡ Quick Reference
 
-| Feature | HTTP Endpoint | Local SDK Equivalent |
-| :--- | :--- | :--- |
-| **Event Stream** | `GET /api/events` | `import { pubSub } from "@src/services/pub-sub"` |
-| **Emit Event** | N/A (Internal only) | `pubSub.publish(name, payload)` |
+| Feature          | HTTP Endpoint       | Local SDK Equivalent                             |
+| :--------------- | :------------------ | :----------------------------------------------- |
+| **Event Stream** | `GET /api/events`   | `import { pubSub } from "@src/services/pub-sub"` |
+| **Emit Event**   | N/A (Internal only) | `pubSub.publish(name, payload)`                  |
 
 ---
 
 ## 1. The Goal
+
 Receive instantaneous updates about content changes, system health, or AI generation progress in a web browser or external application.
 
 ---
@@ -37,6 +38,7 @@ Receive instantaneous updates about content changes, system health, or AI genera
 ## 2. The Solution
 
 ### Browser Integration (EventSource)
+
 Establish a native connection to the SSE stream.
 
 ```javascript
@@ -54,6 +56,7 @@ evtSource.addEventListener("entryUpdated", (e) => {
 ```
 
 ### Server-Side / Plugin Integration
+
 Within the CMS (plugins, hooks, or the Local SDK), use the internal `pubSub` service to listen for or trigger events with **zero network overhead**.
 
 ```typescript
@@ -77,31 +80,33 @@ sequenceDiagram
     participant SSE as SSE Handler (/api/events)
     participant Bus as Internal EventBus (pubSub)
     participant Core as CMS Core / AI Service
-    
+
     App->>SSE: GET /api/events (Keep-Alive)
     SSE->>Bus: Subscribe to All (*)
     SSE-->>App: connected event
-    
+
     Core->>Bus: publish("entryUpdated", { id: 123 })
     Bus->>SSE: notify(event)
     SSE-->>App: data: { "event": "entryUpdated", ... }
-    
+
     Note over SSE, App: 30s Heartbeat (: keep-alive)
 ```
 
 ### Event Payload Structure
+
 All events follow a consistent JSON envelope:
 
-| Field | Type | Description |
-| :--- | :--- | :--- |
-| `event` | `string` | The unique event name (e.g., `entryUpdated`, `ai:token`). |
-| `timestamp` | `string` | ISO-8601 timestamp of when the event was emitted. |
-| `payload` | `object` | Event-specific data (IDs, snippets, user context). |
-| `tenantId` | `string` | ID of the tenant where the event originated. |
+| Field       | Type     | Description                                               |
+| :---------- | :------- | :-------------------------------------------------------- |
+| `event`     | `string` | The unique event name (e.g., `entryUpdated`, `ai:token`). |
+| `timestamp` | `string` | ISO-8601 timestamp of when the event was emitted.         |
+| `payload`   | `object` | Event-specific data (IDs, snippets, user context).        |
+| `tenantId`  | `string` | ID of the tenant where the event originated.              |
 
 ---
 
 ## Security & Performance
+
 - **Automatic Cleanup**: Connections are strictly monitored. If a client disconnects, the server immediately unsubscribes from the internal bus to prevent memory leaks.
 - **Tenant Isolation**: Users only receive events for the `tenantId` associated with their session/token.
 - **WAF Friendly**: SSE uses standard HTTP/1.1 or HTTP/2, making it compatible with most Firewalls and Load Balancers that struggle with WebSockets.
@@ -109,6 +114,7 @@ All events follow a consistent JSON envelope:
 ---
 
 ## Related Documents
+
 - [GraphQL Subscriptions](./graphql-websocket-subscriptions.mdx)
 - [Audit Log Service](../architecture/admin-user-management.mdx)
 - [Collaboration Store Reference](../architecture/state-management.mdx)

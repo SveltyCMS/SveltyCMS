@@ -341,6 +341,39 @@ export async function runMigrations(db: unknown): Promise<{ success: boolean; er
 			)
 		`);
 
+    // Svelty Jobs
+    execute(`
+			CREATE TABLE IF NOT EXISTS svelty_jobs (
+				_id TEXT PRIMARY KEY,
+				taskType TEXT NOT NULL,
+				payload TEXT NOT NULL,
+				status TEXT DEFAULT 'pending',
+				attempts INTEGER DEFAULT 0,
+				maxAttempts INTEGER DEFAULT 3,
+				nextRunAt INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+				lastError TEXT,
+				tenantId TEXT,
+				createdAt INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+				updatedAt INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+			)
+		`);
+
+    // Tenants
+    execute(`
+			CREATE TABLE IF NOT EXISTS tenants (
+				_id TEXT PRIMARY KEY,
+				name TEXT NOT NULL,
+				ownerId TEXT NOT NULL,
+				status TEXT DEFAULT 'active',
+				plan TEXT DEFAULT 'free',
+				quota TEXT DEFAULT '{}',
+				usage TEXT DEFAULT '{}',
+				settings TEXT DEFAULT '{}',
+				createdAt INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+				updatedAt INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+			)
+		`);
+
     logger.info("SQLite migrations completed successfully.");
     return { success: true };
   } catch (error) {
