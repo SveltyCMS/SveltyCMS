@@ -101,6 +101,8 @@
     "@googlemaps/js-api-loader": "^2.0.2",
     "@inlang/paraglide-js": "^2.15.1",
     "@mcp-b/webmcp-polyfill": "^2.2.0",
+    "@skeletonlabs/skeleton": "4.13.0",
+    "@skeletonlabs/skeleton-svelte": "4.13.0",
     "@tailwindcss/forms": "^0.5.11",
     "@tailwindcss/typography": "^0.5.19",
     "@testing-library/jest-dom": "^6.9.1",
