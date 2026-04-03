@@ -6,6 +6,8 @@
  */
 
 import { json } from "@sveltejs/kit";
+import { dev } from "$app/environment";
+import { validateCsrfForRequest } from "@utils/security/csrf-utils";
 import type { RequestEvent } from "@sveltejs/kit";
 import { apiHandler } from "@utils/api-handler";
 import { AppError } from "@utils/error-handling";
@@ -113,6 +115,7 @@ function checkEndpointPermission(
   if (namespace === "auth" && subPath === "login") return true;
   if (namespace === "auth" && subPath === "2fa" && fullSegments[2] === "verify") return true;
   if (namespace === "auth" && subPath === "saml" && fullSegments[2] === "acs") return true;
+  if (namespace === "auth" && subPath === "saml" && fullSegments[2] === "config") return true;
   if (namespace === "auth" && subPath === "saml" && fullSegments[2] === "login") return true;
   if (namespace === "system" && subPath === "health") return true;
 
@@ -131,13 +134,18 @@ function checkEndpointPermission(
   const baseKey = `/${namespace}${subPath ? `/${subPath}` : ""}`;
   const keyWithEntry = `${httpMethod} ${baseKey}${entryId ? `/${entryId}` : ""}`;
   const fallbackKey = `${httpMethod} ${baseKey}`;
+  const namespaceKey = `${httpMethod} /${namespace}`;
 
   const requiredPermission =
-    ENDPOINT_PERMISSIONS[keyWithEntry] || ENDPOINT_PERMISSIONS[fallbackKey];
+    ENDPOINT_PERMISSIONS[keyWithEntry] ||
+    ENDPOINT_PERMISSIONS[fallbackKey] ||
+    ENDPOINT_PERMISSIONS[namespaceKey];
 
   // FAIL-CLOSED: If no explicit permission is mapped, assume forbidden
   if (!requiredPermission) {
-    logger.warn(`Unmapped API endpoint access attempt: ${keyWithEntry} (fallback: ${fallbackKey})`);
+    logger.warn(
+      `Unmapped API endpoint access attempt: ${keyWithEntry} (namespace fallback: ${namespaceKey})`,
+    );
     return false;
   }
 
@@ -156,11 +164,39 @@ const dispatch = async ({ request, url, params, locals, cookies }: RequestEvent)
   const { path } = params;
   const { user, tenantId } = locals;
 
+  // --- CSRF Protection (Critical for state-changing endpoints) ---
+  const isSecure = url.protocol === "https:" || (!dev && url.hostname !== "localhost");
+  const csrfCriticalEndpoints = ["POST", "PUT", "PATCH", "DELETE"];
+
+  if (
+    process.env.TEST_MODE !== "true" &&
+    csrfCriticalEndpoints.includes(request.method) &&
+    !path.includes("/auth/login") &&
+    !path.includes("/auth/saml/acs")
+  ) {
+    const csrfValidation = validateCsrfForRequest(cookies, request, isSecure);
+    if (!csrfValidation.isValid) {
+      logger.warn(`CSRF validation failed for ${request.method} ${path}: ${csrfValidation.error}`);
+      throw new AppError(`Security violation: ${csrfValidation.error}`, 403, "CSRF_VIOLATION");
+    }
+  }
+
   // Dispatch logic based on path segments
   const segments = path.split("/");
   const namespace = segments[0];
   const method = segments[1] || "";
   const _entryId = segments[2] || "";
+
+  const MULTI_TENANT = getPrivateSettingSync("MULTI_TENANT");
+  const isExemptFromTenant =
+    namespace === "auth" ||
+    namespace === "setup" ||
+    namespace === "system" ||
+    namespace === "health";
+
+  if (MULTI_TENANT && !tenantId && !isExemptFromTenant) {
+    throw new AppError("Tenant ID required", 400, "TENANT_MISSING");
+  }
 
   // SPECIAL CASE: Health check must work even without a DB to allow orchestrators to wait for boot
   if (namespace === "system" && method === "health") {

@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, vi } from "vitest";
-import type { RequestEvent } from "@sveltejs/kit";
+import { createMockRequestEvent } from "../utils/mock-event";
 
 // Mock dependencies
 vi.mock("@src/databases/db", () => ({
@@ -29,11 +29,6 @@ vi.mock("@src/services/settings-service", () => ({
   getPublicSettingSync: vi.fn().mockReturnValue(undefined),
 }));
 
-vi.mock("$app/environment", () => ({
-  browser: true,
-  dev: true,
-}));
-
 vi.mock("@utils/api-handler", () => ({
   apiHandler: (fn: any) => fn,
 }));
@@ -49,24 +44,17 @@ describe("SAML API Unit Tests", () => {
     user: any = null,
     tenantId?: string,
   ) => {
-    return {
-      url: new URL(`http://localhost/api/${path}`),
-      params: { path },
-      request: {
-        method,
-        json: vi.fn().mockResolvedValue(body),
-        headers: new Map(),
+    return createMockRequestEvent({
+      method,
+      url: `http://localhost/api/${path}`,
+      body,
+      user,
+      tenantId,
+      dbAdapter: {
+        auth: { getUserById: vi.fn() },
       },
-      locals: {
-        user: user || { _id: "admin-1", email: "admin@test.com", isAdmin: true },
-        tenantId,
-        roles: user ? [] : [{ _id: "admin-role", name: "Admin", isAdmin: true, permissions: [] }],
-        dbAdapter: {
-          auth: { getUserById: vi.fn() },
-        },
-      },
-      cookies: { get: vi.fn(), set: vi.fn(), delete: vi.fn() },
-    } as unknown as RequestEvent;
+      roles: user ? [] : [{ _id: "admin-role", name: "Admin", isAdmin: true, permissions: [] }],
+    });
   };
 
   it("should return SAML config", async () => {

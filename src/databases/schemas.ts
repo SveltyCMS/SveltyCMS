@@ -119,6 +119,21 @@ export const privateConfigSchema = object({
   TWITCH_TOKEN: optional(pipe(string(), minLength(1))),
   TIKTOK_TOKEN: optional(pipe(string(), minLength(1))),
 
+  // --- CORS Configuration ---
+  CORS_ENABLED: optional(boolean(), false),
+  CORS_ALLOWED_ORIGINS: optional(array(string()), []),
+  CORS_ALLOW_CREDENTIALS: optional(boolean(), false),
+  CORS_MAX_AGE: optional(pipe(number(), minValue(0)), 86400),
+  CORS_ALLOWED_METHODS: optional(array(string()), [
+    "GET",
+    "POST",
+    "PUT",
+    "PATCH",
+    "DELETE",
+    "OPTIONS",
+  ]),
+  CORS_ALLOWED_HEADERS: optional(array(string()), ["Content-Type", "Authorization"]),
+
   // --- Live Preview ---
   PREVIEW_SECRET: optional(pipe(string(), minLength(32))),
 

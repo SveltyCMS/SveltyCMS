@@ -101,71 +101,66 @@ import { _handler as dispatcher } from "@src/routes/api/[...path]/+server";
 
 import { dbAdapter } from "@src/databases/db";
 
+import { createMockRequestEvent } from "../utils/mock-event";
+
 const mediaIdHandler = {
   GET: (event: any) => {
     const id = event.params?.id || "media-1";
-    event.params = { path: `media/${id}` };
-    event.url = new URL(`http://localhost/api/media/${id}`);
-    event.request = event.request || { method: "GET" };
-    event.request.method = "GET";
-    event.locals = { ...event.locals, dbAdapter };
-    event.cookies = event.cookies || {
-      get: vi.fn(),
-      set: vi.fn(),
-      delete: vi.fn(),
-      serialize: vi.fn(),
-    };
-    return dispatcher(event);
+    const mockEvent = createMockRequestEvent({
+      method: "GET",
+      url: `http://localhost/api/media/${id}`,
+      user: event.locals?.user,
+      tenantId: event.locals?.tenantId,
+      roles: event.locals?.roles,
+      dbAdapter: event.locals?.dbAdapter || dbAdapter,
+    });
+    return dispatcher(mockEvent);
   },
-  PATCH: (event: any) => {
+  PATCH: async (event: any) => {
     const id = event.params?.id || "media-1";
-    event.params = { path: `media/${id}` };
-    event.url = new URL(`http://localhost/api/media/${id}`);
-    event.request = event.request || { method: "PATCH" };
-    event.request.method = "PATCH";
-    event.locals = { ...event.locals, dbAdapter };
-    event.cookies = event.cookies || {
-      get: vi.fn(),
-      set: vi.fn(),
-      delete: vi.fn(),
-      serialize: vi.fn(),
-    };
-    return dispatcher(event);
+    const mockEvent = createMockRequestEvent({
+      method: "PATCH",
+      url: `http://localhost/api/media/${id}`,
+      user: event.locals?.user,
+      tenantId: event.locals?.tenantId,
+      roles: event.locals?.roles,
+      dbAdapter: event.locals?.dbAdapter || dbAdapter,
+      body: event.request?.json ? await event.request.json() : {},
+    });
+    return dispatcher(mockEvent);
   },
 };
 
 const mediaDeleteHandler = {
   DELETE: (event: any) => {
     const id = event.params?.id || "media-1";
-    event.params = { path: `media/${id}` };
-    event.url = new URL(`http://localhost/api/media/${id}`);
-    event.request = event.request || { method: "DELETE" };
-    event.request.method = "DELETE";
-    event.locals = { ...event.locals, dbAdapter };
-    event.cookies = event.cookies || {
-      get: vi.fn(),
-      set: vi.fn(),
-      delete: vi.fn(),
-      serialize: vi.fn(),
-    };
-    return dispatcher(event);
+    const mockEvent = createMockRequestEvent({
+      method: "DELETE",
+      url: `http://localhost/api/media/${id}`,
+      user: event.locals?.user,
+      tenantId: event.locals?.tenantId,
+      roles: event.locals?.roles,
+      dbAdapter: event.locals?.dbAdapter || dbAdapter,
+    });
+    return dispatcher(mockEvent);
   },
 };
 
 const mediaProcessHandler = {
   POST: (event: any) => {
-    event.params = { path: "media/process" };
-    event.url = new URL("http://localhost/api/media/process");
-    event.request = event.request || { method: "POST" };
-    event.request.method = "POST";
-    event.locals = { ...event.locals, dbAdapter };
-    event.cookies = event.cookies || {
-      get: vi.fn(),
-      set: vi.fn(),
-      delete: vi.fn(),
-      serialize: vi.fn(),
-    };
-    return dispatcher(event);
+    const mockEvent = createMockRequestEvent({
+      method: "POST",
+      url: "http://localhost/api/media/process",
+      user: event.locals?.user,
+      tenantId: event.locals?.tenantId,
+      roles: event.locals?.roles,
+      dbAdapter: event.locals?.dbAdapter || dbAdapter,
+    });
+    // FormData needs to be handled specially if passed as override
+    if (event.request?.formData) {
+      mockEvent.request.formData = event.request.formData;
+    }
+    return dispatcher(mockEvent);
   },
 };
 

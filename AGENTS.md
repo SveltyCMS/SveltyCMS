@@ -291,6 +291,28 @@ bun run dev
 This occurs if an `ISODateString` is passed to a Drizzle SQLite column configured with `mode: 'timestamp_ms'`.
 **Fix:** Ensure standard fields like `createdAt` and `updatedAt` are passed as JS `Date` objects in the SQLite adapter modules.
 
+### 3. Windows `bun install` Corruption (Upstream Bun Bug)
+
+**The Problem**: `bun install` v1.3.11+ on Windows may corrupt `node_modules` — writing null bytes into package.json files and leaving package directories empty. This is an upstream bun bug.
+
+**Symptoms**:
+
+- `bun install` fails with `ParserError` for `@sveltejs/kit` or `esbuild`
+- After install, `bun run dev` fails with `Error: Invalid package config`
+- 155 of 1143 `package.json` files contain only null bytes
+- 37 package directories created but completely empty
+
+**Workaround**: Use `npm install` instead of `bun install`:
+
+```bash
+npm install    # Works cleanly on Windows
+bun run dev    # bun's runner works fine after npm install
+```
+
+All `bun run` commands (dev, check, test, etc.) work normally after `npm install` since they just invoke vite/svelte-kit.
+
+**Note**: This only affects the Bun installer on Windows; Bun's runtime remains fully functional.
+
 ## Project Structure
 
 - **CMS (`/src`)**: Core logic, adapters, services, widgets (each with `.mdx` docs).
@@ -414,6 +436,7 @@ Svelte 5 runes: `$state()` for state, `$derived()` for computations, `$effect()`
 10. **OS-Aware Commands (CRITICAL)**: Always check the operating system before issuing shell commands. On Windows (PowerShell), NEVER use `&&` for chaining commands. Use `;` instead, or issue commands separately.
     - ✅ Windows: `bun install; bun run dev`
     - ✅ Linux/macOS: `bun install && bun run dev`
+    - ⚠️ **Windows `bun install` corruption**: If `bun install` fails on Windows, use `npm install` as a workaround (see Common Development Issues section 3).
 
 ## Key Files Reference
 

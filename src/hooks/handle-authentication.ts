@@ -22,6 +22,7 @@
  */
 
 import type { ISODateString } from "@databases/db-interface";
+import { generateCsrfToken } from "@utils/security/csrf-utils";
 import { SESSION_COOKIE_NAME } from "@src/databases/auth/constants";
 import type { User } from "@src/databases/auth/types";
 import type { DatabaseId } from "../content/types";
@@ -319,13 +320,21 @@ async function handleSessionRotation(
       const isSecure =
         event.url.protocol === "https:" || (event.url.hostname !== "localhost" && isProd);
 
-      event.cookies.set(SESSION_COOKIE_NAME, newSessionId, {
+      // Use __Host- prefix for enhanced security when using HTTPS
+      const cookieName = isSecure ? `__Host-${SESSION_COOKIE_NAME}` : SESSION_COOKIE_NAME;
+
+      event.cookies.set(cookieName, newSessionId, {
         path: "/",
         httpOnly: true,
         secure: isSecure,
-        sameSite: "lax",
+        sameSite: isSecure ? "strict" : "lax",
         maxAge: 60 * 60 * 24 * 30, // 30 days
+        // __Host- prefix requires no Domain attribute
+        ...(isSecure ? {} : { domain: undefined }),
       });
+
+      // Generate new CSRF token
+      generateCsrfToken(event.cookies, isSecure);
 
       // Destroy old session
       await auth
@@ -531,7 +540,11 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
     }
 
     // Step 2: Session validation
-    const sessionId = cookies.get(SESSION_COOKIE_NAME);
+    const isProd = !dev && process.env.TEST_MODE !== "true";
+    const isSecure = url.protocol === "https:" || (url.hostname !== "localhost" && isProd);
+    const cookieName = isSecure ? `__Host-${SESSION_COOKIE_NAME}` : SESSION_COOKIE_NAME;
+
+    const sessionId = cookies.get(cookieName) || cookies.get(SESSION_COOKIE_NAME);
     if (sessionId) {
       metricsService.incrementAuthValidations();
 
@@ -569,6 +582,9 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
           maxAge: 60 * 60,
         });
         locals.tenantId = tenantId as DatabaseId;
+
+        // Generate CSRF token
+        generateCsrfToken(cookies, isSecure);
       }
 
       if (user) {
@@ -643,7 +659,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
         // getUserFromSession returns null if session not found/expired OR if auth not ready
         // But we checked !auth above, so here it means session is truly invalid
         metricsService.incrementAuthFailures();
-        cookies.delete(SESSION_COOKIE_NAME, { path: "/" });
+        cookies.delete(cookieName, { path: "/" });
         logger.trace(`Invalid session removed: ${sessionId.substring(0, 8)}...`);
       }
     }

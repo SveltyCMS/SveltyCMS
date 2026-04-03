@@ -1,23 +1,13 @@
 /**
  * @file tests/unit/api/auth-2fa.test.ts
  * @description Whitebox unit tests for 2FA Authentication API endpoints
- *
- * Tests:
- * - POST /api/auth/2fa/verify - Verify code during login
- * - POST /api/auth/2fa/setup - Initiate setup
- * - POST /api/auth/2fa/verify-setup - Complete setup
- * - POST /api/auth/2fa/disable - Disable 2FA
- * - GET/POST /api/auth/2fa/backup-codes - Backup code management
- *
- * Note: These are WHITEBOX unit tests that mock internal dependencies.
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import type { RequestEvent } from "@sveltejs/kit";
+import { createMockRequestEvent } from "../utils/mock-event";
 
-// Mock all dependencies
-vi.mock("@src/databases/db", () => {
-  const mockAdapter = {
+const { mockDbAdapter } = vi.hoisted(() => ({
+  mockDbAdapter: {
     auth: {
       authInterface: {},
       validateSession: vi.fn(),
@@ -59,25 +49,32 @@ vi.mock("@src/databases/db", () => {
       update: vi.fn(),
       delete: vi.fn(),
     },
-  };
+  },
+}));
 
+// Mock all dependencies
+vi.mock("@src/databases/db", () => {
   return {
-    dbAdapter: mockAdapter,
-    auth: mockAdapter.auth,
+    dbAdapter: mockDbAdapter,
+    auth: mockDbAdapter.auth,
     getDbInitPromise: vi.fn().mockResolvedValue(undefined),
-    getAuth: vi.fn().mockReturnValue(mockAdapter.auth),
+    getAuth: vi.fn().mockReturnValue(mockDbAdapter.auth),
   };
 });
 
-vi.mock("@src/databases/auth/two-factor-auth", () => ({
-  getDefaultTwoFactorAuthService: vi.fn().mockReturnValue({
+const { mockTwoFactorAuthService } = vi.hoisted(() => ({
+  mockTwoFactorAuthService: {
     verify2FA: vi.fn(),
     initiate2FASetup: vi.fn(),
     complete2FASetup: vi.fn(),
     disable2FA: vi.fn(),
     get2FAStatus: vi.fn(),
     regenerateBackupCodes: vi.fn(),
-  }),
+  },
+}));
+
+vi.mock("@src/databases/auth/two-factor-auth", () => ({
+  getDefaultTwoFactorAuthService: vi.fn().mockReturnValue(mockTwoFactorAuthService),
 }));
 
 vi.mock("@src/services/settings-service", () => ({
@@ -109,77 +106,38 @@ vi.mock("@src/databases/auth", () => ({
 // Import dispatcher (handler)
 import { _handler as dispatcher } from "@src/routes/api/[...path]/+server";
 
-const POST_SETUP = (event: any) => {
-  event.params = { ...event.params, path: "auth/2fa/setup" };
-  event.request = event.request || {};
-  event.request.method = "POST";
-  event.cookies = event.cookies || {
-    get: vi.fn(),
-    set: vi.fn(),
-    delete: vi.fn(),
-    serialize: vi.fn(),
-  };
-  return dispatcher(event);
-};
-const POST_VERIFY_SETUP = (event: any) => {
-  event.params = { ...event.params, path: "auth/2fa/verify-setup" };
-  event.request = event.request || {};
-  event.request.method = "POST";
-  event.cookies = event.cookies || {
-    get: vi.fn(),
-    set: vi.fn(),
-    delete: vi.fn(),
-    serialize: vi.fn(),
-  };
-  return dispatcher(event);
-};
-const POST_VERIFY = (event: any) => {
-  event.params = { ...event.params, path: "auth/2fa/verify" };
-  event.request = event.request || {};
-  event.request.method = "POST";
-  event.cookies = event.cookies || {
-    get: vi.fn(),
-    set: vi.fn(),
-    delete: vi.fn(),
-    serialize: vi.fn(),
-  };
-  return dispatcher(event);
-};
-const POST_DISABLE = (event: any) => {
-  event.params = { ...event.params, path: "auth/2fa/disable" };
-  event.request = event.request || {};
-  event.request.method = "POST";
-  event.cookies = event.cookies || {
-    get: vi.fn(),
-    set: vi.fn(),
-    delete: vi.fn(),
-    serialize: vi.fn(),
-  };
-  return dispatcher(event);
-};
-const GET_BACKUP_CODES = (event: any) => {
-  event.params = { ...event.params, path: "auth/2fa/backup-codes" };
-  event.request = event.request || {};
-  event.request.method = "GET";
-  event.cookies = event.cookies || {
-    get: vi.fn(),
-    set: vi.fn(),
-    delete: vi.fn(),
-    serialize: vi.fn(),
-  };
-  return dispatcher(event);
-};
-const POST_BACKUP_CODES = (event: any) => {
-  event.params = { ...event.params, path: "auth/2fa/backup-codes" };
-  event.request = event.request || {};
-  event.request.method = "POST";
-  event.cookies = event.cookies || {
-    get: vi.fn(),
-    set: vi.fn(),
-    delete: vi.fn(),
-    serialize: vi.fn(),
-  };
-  return dispatcher(event);
+const POST_SETUP = (event: any) => dispatcher(event);
+const POST_VERIFY_SETUP = (event: any) => dispatcher(event);
+const POST_VERIFY = (event: any) => dispatcher(event);
+const POST_DISABLE = (event: any) => dispatcher(event);
+const GET_BACKUP_CODES = (event: any) => dispatcher(event);
+const POST_BACKUP_CODES = (event: any) => dispatcher(event);
+
+// Helper to create mock event
+const createMockEvent = (
+  body: any = {},
+  user: any = null,
+  tenantId: string | undefined = "t1",
+  action: string = "verify",
+  options: {
+    headers?: Record<string, string>;
+    cookies?: Record<string, string>;
+    method?: string;
+  } = {},
+) => {
+  const method =
+    options.method ||
+    (action === "backup-codes" && Object.keys(body).length === 0 ? "GET" : "POST");
+  return createMockRequestEvent({
+    method,
+    url: `http://localhost/api/auth/2fa/${action}`,
+    body,
+    user,
+    tenantId,
+    dbAdapter: mockDbAdapter,
+    headers: options.headers,
+    cookies: options.cookies,
+  });
 };
 
 describe("2FA API Unit Tests", () => {
@@ -201,39 +159,6 @@ describe("2FA API Unit Tests", () => {
     mockVerifyPassword = verifyPassword;
   });
 
-  // Helper to create mock event
-  const createMockEvent = (
-    body: any = {},
-    user: any = null,
-    tenantId?: string,
-    action: string = "verify",
-  ) => {
-    const path = `auth/2fa/${action}`;
-    return {
-      url: new URL(`http://localhost/api/${path}`),
-      request: {
-        json: vi.fn().mockResolvedValue(body),
-        method: "POST",
-        headers: new Map(),
-      },
-      locals: {
-        user,
-        tenantId: tenantId ?? "t1",
-        roles: user
-          ? [{ _id: "admin-role", name: "Administrator", isAdmin: true, permissions: [] }]
-          : [],
-        dbAdapter: mockDbAdapter,
-      },
-      params: { path },
-      cookies: {
-        get: vi.fn(),
-        set: vi.fn(),
-        delete: vi.fn(),
-        serialize: vi.fn(),
-      },
-    } as unknown as RequestEvent;
-  };
-
   describe("POST /api/auth/2fa/verify", () => {
     it("should verify TOTP code successfully", async () => {
       mockTwoFactorService.verify2FA.mockResolvedValue({
@@ -241,12 +166,21 @@ describe("2FA API Unit Tests", () => {
         user: { _id: "user-1" },
       });
 
-      const event = createMockEvent({ userId: "user-1", code: "123456" });
+      const event = createMockEvent(
+        { userId: "user-1", code: "123456" },
+        { _id: "user-1", is2FAEnabled: true },
+        undefined,
+        "verify",
+        {
+          headers: { "X-CSRF-Token": "mock-csrf-token" },
+          cookies: { csrf_token: "mock-csrf-token" },
+        },
+      );
       const response = await POST_VERIFY(event);
       const result = await response.json();
 
       expect(result.success).toBe(true);
-      expect(mockTwoFactorService.verify2FA).toHaveBeenCalledWith("user-1", "123456", undefined);
+      expect(mockTwoFactorService.verify2FA).toHaveBeenCalledWith("user-1", "123456", "t1");
     });
 
     it("should verify backup code successfully", async () => {
@@ -255,7 +189,16 @@ describe("2FA API Unit Tests", () => {
         user: { _id: "user-1" },
       });
 
-      const event = createMockEvent({ userId: "user-1", code: "backup-123" });
+      const event = createMockEvent(
+        { userId: "user-1", code: "backup-123" },
+        { _id: "user-1", is2FAEnabled: true },
+        undefined,
+        "verify",
+        {
+          headers: { "X-CSRF-Token": "mock-csrf-token" },
+          cookies: { csrf_token: "mock-csrf-token" },
+        },
+      );
       const response = await POST_VERIFY(event);
       const result = await response.json();
 
@@ -268,7 +211,16 @@ describe("2FA API Unit Tests", () => {
         message: "Invalid code",
       });
 
-      const event = createMockEvent({ userId: "user-1", code: "000000" });
+      const event = createMockEvent(
+        { userId: "user-1", code: "000000" },
+        { _id: "user-1", is2FAEnabled: true },
+        undefined,
+        "verify",
+        {
+          headers: { "X-CSRF-Token": "mock-csrf-token" },
+          cookies: { csrf_token: "mock-csrf-token" },
+        },
+      );
       const response = await POST_VERIFY(event);
       const result = await response.json();
 
@@ -279,8 +231,19 @@ describe("2FA API Unit Tests", () => {
     it("should throw TENANT_REQUIRED in multi-tenant mode without tenant context", async () => {
       mockGetPrivateSettingSync.mockReturnValue(true);
 
-      const event = createMockEvent({ userId: "user-1", code: "123456" });
-      // locals.tenantId is undefined by default in createMockEvent
+      const event = createMockEvent(
+        { userId: "user-1", code: "123456" },
+        { _id: "user-1" },
+        undefined,
+        "verify",
+        {
+          headers: { "X-CSRF-Token": "mock-csrf-token" },
+          cookies: { csrf_token: "mock-csrf-token" },
+        },
+      );
+
+      // Override tenantId for this specific test to be undefined
+      (event.locals as any).tenantId = undefined;
 
       await expect(POST_VERIFY(event)).rejects.toThrow("Tenant context is required");
     });
@@ -289,7 +252,16 @@ describe("2FA API Unit Tests", () => {
       mockGetPrivateSettingSync.mockReturnValue(true);
       mockTwoFactorService.verify2FA.mockResolvedValue({ success: true });
 
-      const event = createMockEvent({ userId: "user-1", code: "123456" }, null, "tenant-1");
+      const event = createMockEvent(
+        { userId: "user-1", code: "123456" },
+        { _id: "user-1" },
+        "tenant-1",
+        "verify",
+        {
+          headers: { "X-CSRF-Token": "mock-csrf-token" },
+          cookies: { csrf_token: "mock-csrf-token" },
+        },
+      );
       await POST_VERIFY(event);
 
       expect(mockTwoFactorService.verify2FA).toHaveBeenCalledWith("user-1", "123456", "tenant-1");
@@ -307,7 +279,10 @@ describe("2FA API Unit Tests", () => {
         },
       });
 
-      const event = createMockEvent({}, user);
+      const event = createMockEvent({}, user, undefined, "setup", {
+        headers: { "X-CSRF-Token": "mock-csrf-token" },
+        cookies: { csrf_token: "mock-csrf-token" },
+      });
       const response = await POST_SETUP(event);
       const result = await response.json();
 
@@ -326,7 +301,10 @@ describe("2FA API Unit Tests", () => {
         success: false,
         message: "2FA is already enabled",
       });
-      const event = createMockEvent({}, user);
+      const event = createMockEvent({}, user, undefined, "setup", {
+        headers: { "X-CSRF-Token": "mock-csrf-token" },
+        cookies: { csrf_token: "mock-csrf-token" },
+      });
       const response = await POST_SETUP(event);
       const result = await response.json();
       expect(result.success).toBe(false);
@@ -338,7 +316,10 @@ describe("2FA API Unit Tests", () => {
       const user = { _id: "user-1" };
       mockTwoFactorService.complete2FASetup.mockResolvedValue(true);
 
-      const event = createMockEvent({ code: "123456" }, user);
+      const event = createMockEvent({ code: "123456" }, user, undefined, "verify-setup", {
+        headers: { "X-CSRF-Token": "mock-csrf-token" },
+        cookies: { csrf_token: "mock-csrf-token" },
+      });
       const response = await POST_VERIFY_SETUP(event);
       const result = await response.json();
 
@@ -349,7 +330,10 @@ describe("2FA API Unit Tests", () => {
       const user = { _id: "user-1" };
       mockTwoFactorService.complete2FASetup.mockResolvedValue(false);
 
-      const event = createMockEvent({ code: "000000" }, user);
+      const event = createMockEvent({ code: "000000" }, user, undefined, "verify-setup", {
+        headers: { "X-CSRF-Token": "mock-csrf-token" },
+        cookies: { csrf_token: "mock-csrf-token" },
+      });
       const response = await POST_VERIFY_SETUP(event);
       const result = await response.json();
       expect(result.success).toBe(false);
@@ -366,7 +350,10 @@ describe("2FA API Unit Tests", () => {
       mockVerifyPassword.mockResolvedValue(true);
       mockTwoFactorService.disable2FA.mockResolvedValue(true);
 
-      const event = createMockEvent({ password: "correct_password" }, user);
+      const event = createMockEvent({ password: "correct_password" }, user, undefined, "disable", {
+        headers: { "X-CSRF-Token": "mock-csrf-token" },
+        cookies: { csrf_token: "mock-csrf-token" },
+      });
       const response = await POST_DISABLE(event);
       const result = await response.json();
 
@@ -381,7 +368,10 @@ describe("2FA API Unit Tests", () => {
       mockVerifyPassword.mockResolvedValue(true);
       mockTwoFactorService.disable2FA.mockResolvedValue(false);
 
-      const event = createMockEvent({ password: "correct_password" }, user);
+      const event = createMockEvent({ password: "correct_password" }, user, undefined, "disable", {
+        headers: { "X-CSRF-Token": "mock-csrf-token" },
+        cookies: { csrf_token: "mock-csrf-token" },
+      });
       const response = await POST_DISABLE(event);
       const result = await response.json();
       expect(result.success).toBe(false);
@@ -396,7 +386,10 @@ describe("2FA API Unit Tests", () => {
         backupCodesRemaining: 5,
       });
 
-      const event = createMockEvent({}, user);
+      const event = createMockEvent({}, user, undefined, "backup-codes", {
+        headers: { "X-CSRF-Token": "mock-csrf-token" },
+        cookies: { csrf_token: "mock-csrf-token" },
+      });
       const response = await GET_BACKUP_CODES(event);
       const result = await response.json();
 
@@ -408,7 +401,11 @@ describe("2FA API Unit Tests", () => {
       const user = { _id: "user-1" };
       mockTwoFactorService.regenerateBackupCodes.mockResolvedValue(["n1", "n2"]);
 
-      const event = createMockEvent({}, user);
+      const event = createMockEvent({}, user, undefined, "backup-codes", {
+        headers: { "X-CSRF-Token": "mock-csrf-token" },
+        cookies: { csrf_token: "mock-csrf-token" },
+        method: "POST",
+      });
       const response = await POST_BACKUP_CODES(event);
       const result = await response.json();
 

@@ -299,6 +299,8 @@ moduleMock("$app/environment", () => ({
   dev: true,
   building: false,
   version: "1.0.0",
+  __esModule: true,
+  default: { browser: true, dev: true, building: false, version: "1.0.0" },
 }));
 
 moduleMock("$app/navigation", () => ({
@@ -991,25 +993,27 @@ const mockSetupCheck = {
   setSetupComplete: mock((val: boolean) => {
     isSetupCompleteValue = val;
   }),
-  isBootstrapRoute: mock((path: string) => {
+  isBootstrapRoute: mock((p: string) => {
+    const path = p.startsWith("/") ? p.slice(1) : p;
     return (
-      path === "/" ||
-      path === "/setup" ||
-      path.startsWith("/setup/") ||
-      path === "/login" ||
-      path.startsWith("/login/") ||
-      path.startsWith("/api/system/") ||
-      path.startsWith("/api/dashboard/") ||
-      path.startsWith("/api/setup/") ||
-      path.startsWith("/api/auth/") ||
-      path.startsWith("/api/content/version") ||
-      path.startsWith("/api/settings/public") ||
-      path.startsWith("/api/debug/") ||
-      path.startsWith("/_") ||
-      path.startsWith("/static") ||
-      path.startsWith("/assets") ||
-      path.startsWith("/.well-known") ||
-      path === "/favicon.ico"
+      path === "" ||
+      path === "setup" ||
+      path.startsWith("setup/") ||
+      path === "login" ||
+      path.startsWith("login/") ||
+      path.startsWith("api/system/") ||
+      path.startsWith("api/dashboard/") ||
+      path.startsWith("api/setup/") ||
+      path.startsWith("api/auth/") ||
+      path.startsWith("api/content/version") ||
+      path.startsWith("api/settings/public") ||
+      path.startsWith("api/debug/") ||
+      path.startsWith("auth/") || // Handle non-api prefixed paths as well
+      path.startsWith("_") ||
+      path.startsWith("static") ||
+      path.startsWith("assets") ||
+      path.startsWith(".well-known") ||
+      path === "favicon.ico"
     );
   }),
 };

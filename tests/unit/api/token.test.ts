@@ -6,11 +6,9 @@
 import { describe, it, expect, vi } from "vitest";
 import type { RequestEvent } from "@sveltejs/kit";
 
-// Mock SvelteKit environment
-vi.mock("$app/environment", () => ({
-  browser: true,
-}));
+// Mock dependencies
 
+// Mock dependencies
 // Mock dependencies
 vi.mock("@src/databases/db", () => ({
   dbAdapter: {

@@ -284,30 +284,29 @@ describe("Token API Endpoints", () => {
     let email2: string;
 
     beforeEach(async () => {
-      // Create two tokens for batch operations
+      // Create two tokens for batch operations (Sequential to avoid race conditions)
       email1 = `batch1-${Date.now()}@example.com`;
       email2 = `batch2-${Date.now()}@example.com`;
 
-      const [res1, res2] = await Promise.all([
-        safeFetch(`${API_BASE_URL}/api/token/create-token`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Cookie: authCookie },
-          body: JSON.stringify({
-            email: email1,
-            role: "editor",
-            expiresIn: "2 days",
-          }),
+      const res1 = await safeFetch(`${API_BASE_URL}/api/token/create-token`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Cookie: authCookie },
+        body: JSON.stringify({
+          email: email1,
+          role: "editor",
+          expiresIn: "2 days",
         }),
-        safeFetch(`${API_BASE_URL}/api/token/create-token`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Cookie: authCookie },
-          body: JSON.stringify({
-            email: email2,
-            role: "editor",
-            expiresIn: "2 days",
-          }),
+      });
+
+      const res2 = await safeFetch(`${API_BASE_URL}/api/token/create-token`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Cookie: authCookie },
+        body: JSON.stringify({
+          email: email2,
+          role: "editor",
+          expiresIn: "2 days",
         }),
-      ]);
+      });
 
       const [result1, result2] = await Promise.all([res1.json(), res2.json()]);
       token1 = result1.token.value;

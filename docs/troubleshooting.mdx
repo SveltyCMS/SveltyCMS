@@ -106,3 +106,26 @@ bun run build
     bun run test:unit
     ```
 3.  **Ask the Community**: Join our **[Discord](https://discord.gg/sveltycms)** or open a **[GitHub Discussion](https://github.com/SveltyCMS/SveltyCMS/discussions)**.
+
+---
+
+## 💻 Environment & OS-Specific Issues
+
+### Goal: Fix Windows `bun install` Corruption
+
+**The Problem**: `bun install` version 1.3.11+ on Windows may result in corrupted `node_modules`. This is an upstream bug where the installer writes null bytes into `package.json` files and leaves package directories empty.
+
+**Symptoms**:
+
+- `bun install` fails with a `ParserError` for packages like `@sveltejs/kit` or `esbuild`.
+- After a seemingly successful install, `bun run dev` fails with `Error: Invalid package config`.
+- Checking `node_modules` shows many `package.json` files containing only null bytes or empty directories.
+
+**🛠️ The Solution**: Use `npm install` instead of `bun install`.
+
+```bash
+npm install    # Works reliably on Windows
+bun run dev    # bun's runtime/runner works fine once packages are installed
+```
+
+_Note: This only affects the Bun installer on Windows; Bun's runtime and other commands remain fully functional._

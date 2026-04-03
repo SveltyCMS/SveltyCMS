@@ -170,6 +170,8 @@ bun run build
 bun run preview
 ```
 
+**⚠️ Windows users**: If `bun install` fails with `ParserError` or corrupted packages (null bytes in package.json files), use `npm install` instead. `bun run dev` and other commands work normally after `npm install`. This is an upstream bun bug affecting Windows only.
+
 </details>
 
 ### Setup Wizard (auto)

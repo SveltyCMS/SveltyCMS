@@ -77,6 +77,7 @@ bun run test:unit -- user --coverage
 All User API endpoints are now protected by a central gatekeeper. If an endpoint is not explicitly mapped in the security registry, it is **denied by default** with a 403 Forbidden response.
 
 ### 🛡️ Mandatory Authorization
+
 - **Self-profile updates**: Requires valid session and ownership.
 - **Admin actions**: Requires `isAdmin: true` flag in session roles.
 - **Role Escalation Protection**: Users are prevented from modifying their own roles.
@@ -110,5 +111,6 @@ function createMockEvent(pathname: string, method: string = "GET"): RequestEvent
 - [Git Workflow](./git-workflow.mdx) - CI/CD and automated testing
 - [API Documentation](/docs/api/user) - User API reference
 - [Security Architecture](../architecture/security/index.mdx) - Fail-Closed model details
-overage in related endpoints
+  overage in related endpoints
+
 4. Contribute improvements via pull requests

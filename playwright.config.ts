@@ -91,6 +91,8 @@ export default defineConfig({
       name: "auth-setup",
       testMatch: /auth\.setup\.ts/,
       dependencies: ["wizard"],
+      // Force sequential to avoid race conditions during auth bootstrapping
+      workers: 1,
     },
     {
       name: "chromium",
@@ -111,7 +113,7 @@ export default defineConfig({
         webServer: {
           command: "bun run build && bun run preview --port 4173",
           port: 4173,
-          timeout: 120_000, // Increased timeout to 2 minutes for build
+          timeout: 300_000, // Increased timeout to 5 minutes for build/preview
           reuseExistingServer: true,
           env: {
             PLAYWRIGHT_TEST: "true",

@@ -3,16 +3,21 @@
  * @description Whitebox unit tests for Collections API endpoints
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import type { RequestEvent } from "@sveltejs/kit";
+import { describe, it, expect, vi } from "vitest";
 
 // Mock all dependencies
 vi.mock("@src/content", () => ({
   contentManager: {
     getCollections: vi.fn(),
     getCollectionById: vi.fn(),
-    invalidateSpecificCaches: vi.fn(),
   },
+}));
+
+vi.mock("@src/services/settings-service", () => ({
+  getPrivateSettingSync: vi.fn().mockReturnValue(false),
+  getPublicSettingSync: vi.fn().mockReturnValue(false),
+  loadSettingsCache: vi.fn(),
+  invalidateSettingsCache: vi.fn(),
 }));
 
 vi.mock("@src/services/token/engine", () => ({
@@ -47,11 +52,14 @@ const POST_CREATE = dispatcher;
 const PATCH_ENTRY = dispatcher;
 const DELETE_ENTRY = dispatcher;
 
+import { createMockRequestEvent } from "../utils/mock-event";
+
 describe("Collections API Unit Tests", () => {
   let mockContentManager: any;
   let mockGetPrivateSettingSync: any;
 
   beforeEach(async () => {
+    vi.resetAllMocks();
     vi.clearAllMocks();
 
     const contentModule = await import("@src/content");
@@ -59,47 +67,39 @@ describe("Collections API Unit Tests", () => {
 
     const settingsModule = await import("@src/services/settings-service");
     mockGetPrivateSettingSync = settingsModule.getPrivateSettingSync;
-    mockGetPrivateSettingSync.mockReturnValue(false);
+    // mockGetPrivateSettingSync is already a vi.fn() from the top-level mock
   });
 
   const createMockEvent = (
     method: string,
     path: string,
     body: any = {},
-    user: any = { _id: "user-123", email: "test@example.com" },
-    tenantId?: string,
+    user: any = { _id: "user-123", email: "test@example.com", isAdmin: true },
+    tenantId: any = "t1",
   ) => {
-    return {
-      url: new URL(`http://localhost/api/${path}`),
-      params: { path },
-      request: {
-        method,
-        json: vi.fn().mockResolvedValue(body),
-        headers: {
-          get: vi.fn().mockReturnValue("application/json"),
+    return createMockRequestEvent({
+      method,
+      url: `http://localhost/api/${path}`,
+      body,
+      user: user === null ? null : { ...user, isAdmin: user?.isAdmin ?? true },
+      tenantId,
+      roles:
+        user === null
+          ? []
+          : [{ _id: "admin-role", name: "Administrator", isAdmin: true, permissions: [] }],
+      dbAdapter: {
+        collection: {
+          getModel: vi.fn().mockResolvedValue({ name: "collection_test" }),
+        },
+        crud: {
+          findMany: vi.fn().mockResolvedValue({ success: true, data: [] }),
+          findOne: vi.fn().mockResolvedValue({ success: true, data: {} }),
+          insert: vi.fn().mockResolvedValue({ success: true, data: { _id: "new-id" } }),
+          update: vi.fn().mockResolvedValue({ success: true, data: { _id: "updated-id" } }),
+          delete: vi.fn().mockResolvedValue({ success: true }),
         },
       },
-      locals: {
-        user: user ? { ...user, role: "admin-role" } : null,
-        tenantId,
-        roles: user
-          ? [{ _id: "admin-role", name: "Administrator", isAdmin: true, permissions: [] }]
-          : [],
-        dbAdapter: {
-          collection: {
-            getModel: vi.fn().mockResolvedValue({ name: "collection_test" }),
-          },
-          crud: {
-            findMany: vi.fn().mockResolvedValue({ success: true, data: [] }),
-            findOne: vi.fn().mockResolvedValue({ success: true, data: {} }),
-            insert: vi.fn().mockResolvedValue({ success: true, data: { _id: "new-id" } }),
-            update: vi.fn().mockResolvedValue({ success: true, data: { _id: "updated-id" } }),
-            delete: vi.fn().mockResolvedValue({ success: true }),
-          },
-        },
-      },
-      cookies: { get: vi.fn(), set: vi.fn(), delete: vi.fn() },
-    } as unknown as RequestEvent;
+    });
   };
 
   describe("GET /api/collections - List Collections", () => {
@@ -113,7 +113,7 @@ describe("Collections API Unit Tests", () => {
 
     it("should throw TENANT_MISSING in multi-tenant mode without tenantId", async () => {
       mockGetPrivateSettingSync.mockReturnValue(true);
-      const event = createMockEvent("GET", "collections", {}, { _id: "u1" }, undefined);
+      const event = createMockEvent("GET", "collections", {}, { _id: "u1" }, null);
       await expect(GET_LIST(event)).rejects.toThrow("Tenant ID required");
     });
   });

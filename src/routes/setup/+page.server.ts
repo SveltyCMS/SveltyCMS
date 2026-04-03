@@ -23,6 +23,7 @@ import { existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { promisify } from "node:util";
 import { SESSION_COOKIE_NAME } from "@src/databases/auth/constants";
+import { invalidateUserCountCache } from "@src/hooks/handle-authorization";
 import type { ISODateString, DatabaseId } from "@src/databases/db-interface";
 import { databaseConfigSchema } from "@src/databases/schemas";
 import { setupAdminSchema, smtpConfigSchema } from "@utils/form-schemas";
@@ -381,6 +382,9 @@ export const actions: Actions = {
         session = authResult.data.session;
       }
 
+      // Invalidate user count cache so the frontend realizes the system is now setup
+      await invalidateUserCountCache();
+
       if (!session) {
         return { success: false, error: "Failed to create session" };
       }
@@ -394,22 +398,26 @@ export const actions: Actions = {
       // Environment-aware security: Only force secure if strictly HTTPS
       // This prevents cookie blocking on http://localhost or http://127.0.0.1 in preview mode
       const isSecure = url.protocol === "https:";
+      const cookieName = isSecure ? `__Host-${SESSION_COOKIE_NAME}` : SESSION_COOKIE_NAME;
+      const sameSiteSetting = isSecure ? "strict" : "lax";
 
       logger.info("DEBUG: Setting cookie:", {
-        name: SESSION_COOKIE_NAME,
+        name: cookieName,
         value: session._id,
         secure: isSecure,
       });
 
       // Set session cookie
-      cookies.set(SESSION_COOKIE_NAME, session._id, {
+      cookies.set(cookieName, session._id, {
         path: "/",
         httpOnly: true,
-        sameSite: "lax",
+        sameSite: sameSiteSetting,
         secure: isSecure,
         maxAge: 60 * 60 * 24, // 1 day
+        // __Host- prefix requires no Domain attribute
+        ...(isSecure ? {} : { domain: undefined }),
       });
-      logger.info(`Set ${SESSION_COOKIE_NAME} cookie for new admin user`);
+      logger.info(`Set ${cookieName} cookie for new admin user`);
 
       // 3. Parallel Execution: Update private config & Persist system settings
       const updatePrivateConfigPromise = (async () => {

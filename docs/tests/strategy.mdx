@@ -55,10 +55,10 @@ flowchart TD
 
 ## When to use each tool
 
-| Layer            | Tool           | When to use                                      | Speed (local) | Speed (CI)      | DB state              |
-| ---------------- | -------------- | ------------------------------------------------ | ------------- | --------------- | --------------------- |
+| Layer            | Tool           | When to use                                      | Speed (local)  | Speed (CI)         | DB state              |
+| ---------------- | -------------- | ------------------------------------------------ | -------------- | ------------------ | --------------------- |
 | Unit / Logic     | Vite+ / Vitest | Pure functions, stores, utils, Svelte components | < 0.1 s / test | < 10 s total (670) | Mocked / :memory:     |
-| Integration      | Vite+ / Vitest | API endpoints, Drizzle queries, server actions   | 1–5 s         | < 90 s (312)    | Real SQLite per suite |
-| E2E – Wizard     | Playwright     | First-time install flow (UI steps)               | 10–30 s       | 20–40 s         | Completely empty      |
-| E2E – Auth+Roles | Playwright     | Login, signup via invite, role switching         | —             | —               | After wizard          |
-| E2E – Business   | Playwright     | CRUD, RBAC violations, security scenarios        | 5–15 s / test | < 3 min sharded | After auth setup      |
+| Integration      | Vite+ / Vitest | API endpoints, Drizzle queries, server actions   | 1–5 s          | < 90 s (312)       | Real SQLite per suite |
+| E2E – Wizard     | Playwright     | First-time install flow (UI steps)               | 10–30 s        | 20–40 s            | Completely empty      |
+| E2E – Auth+Roles | Playwright     | Login, signup via invite, role switching         | —              | —                  | After wizard          |
+| E2E – Business   | Playwright     | CRUD, RBAC violations, security scenarios        | 5–15 s / test  | < 3 min sharded    | After auth setup      |

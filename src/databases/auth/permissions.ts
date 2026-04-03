@@ -9,6 +9,7 @@
 // System Logger
 import { logger } from "@utils/logger";
 import { corePermissions } from "./core-permissions";
+import { permissionCache } from "@utils/security/permission-cache";
 // Auth
 import type { Permission, Role, User } from "./types";
 
@@ -46,6 +47,19 @@ export function getPermissionById(permissionId: string): Permission | undefined 
 
 // Check if a user has a specific permission (with roles parameter to avoid circular dependency)
 export function hasPermissionWithRoles(user: User, permissionId: string, roles: Role[]): boolean {
+  // Check cache first (skip for admin users as they always have permission)
+  if (!user.isAdmin) {
+    const cachedResult = permissionCache.get(
+      user._id as string,
+      permissionId,
+      roles.map((r) => r._id as string),
+    );
+
+    if (cachedResult !== null) {
+      return cachedResult;
+    }
+  }
+
   let userRole = roles.find((role) => role._id === user.role);
 
   // Fallback: user.role may reference a default role name ('admin', 'developer', 'editor')
@@ -99,7 +113,23 @@ export function hasPermissionWithRoles(user: User, permissionId: string, roles: 
     granted: hasPermission,
     email: user.email,
   });
+
+  // Cache the result (except for admin users)
+  if (!user.isAdmin) {
+    permissionCache.set(
+      user._id as string,
+      permissionId,
+      roles.map((r) => r._id as string),
+      hasPermission,
+    );
+  }
+
   return hasPermission;
+}
+
+// Add cache invalidation function
+export function invalidatePermissionCache(userId: string): void {
+  permissionCache.invalidateUser(userId);
 }
 
 // Check if a user has permission by action and type

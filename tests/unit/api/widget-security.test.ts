@@ -7,10 +7,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { RequestEvent } from "@sveltejs/kit";
 
 // Mock SvelteKit environment
-vi.mock("$app/environment", () => ({
-  building: false,
-  browser: true,
-}));
+
+// Mock all dependencies
 
 // Mock all dependencies
 vi.mock("@utils/api-handler", () => ({

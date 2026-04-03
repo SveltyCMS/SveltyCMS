@@ -51,9 +51,14 @@ export async function generateContentTypes(
         continue;
       }
 
+      const typeMapping: Record<string, string> = {
+        date: "ISODateString",
+        datetime: "ISODateString",
+      };
+
       const processedFields: ProcessedField[] = collection.fields.map((field: Field) => ({
         name: field.db_fieldName || field.label,
-        type: field.type || "string",
+        type: field.type ? typeMapping[field.type] || field.type : "string",
       }));
 
       // Use collection name or _id as key
@@ -77,7 +82,7 @@ export async function generateContentTypes(
       .join(",\n");
 
     const newTypeDefinition = `/* AUTOGEN_START: ContentTypes */
-export type ContentTypes = ${collectionNames || "never"};
+export type ContentTypes = ${collectionNames ? collectionNames + " | " : ""}(string & {});
 
 export interface CollectionMap {
 ${collectionMapEntries || ""}

@@ -6,6 +6,7 @@
  */
 
 import { json, type RequestEvent } from "@sveltejs/kit";
+import { invalidateUserCountCache } from "@src/hooks/handle-authorization";
 
 // Security Guard
 function checkTestMode(event: RequestEvent) {
@@ -147,6 +148,11 @@ export async function POST(event: RequestEvent) {
         });
       }
 
+      case "invalidate-cache": {
+        await invalidateUserCountCache();
+        return json({ success: true, message: "User count cache invalidated" });
+      }
+
       case "get-user-count": {
         const countResult = await currentAuth.getUserCount();
         return json({ success: true, count: countResult });
@@ -193,6 +199,8 @@ export async function POST(event: RequestEvent) {
         const { invalidateSetupCache: invalidateAfterSeed } =
           await import("@src/utils/setup-check");
         invalidateAfterSeed(true);
+
+        await invalidateUserCountCache();
 
         return json({ success: true, message: "Database seeded" });
       }

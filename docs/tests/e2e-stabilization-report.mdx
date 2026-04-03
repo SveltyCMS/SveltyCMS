@@ -29,10 +29,12 @@ E2E tests have been fully stabilized and integrated with the new **Fail-Closed A
 ## 2026 Security Hardening Fixes
 
 ### 1. Fail-Closed Authorization Verification
+
 **Issue:** New endpoints required explicit registration in `src/routes/api/[...path]/+server.ts`.
 **Fix:** Updated the E2E suite to verify that unregistered paths correctly return `403 Forbidden` rather than falling through to handlers.
 
 ### 2. Multi-Tenant Role Injection
+
 **Issue:** Mock events in tests needed to correctly simulate the `locals.roles` structure used by the new `checkEndpointPermission` logic.
 **Fix:** Synchronized the `createMockEvent` helper across all test suites to include mandatory `tenantId` and `Role` objects.
 
@@ -52,13 +54,13 @@ E2E tests have been fully stabilized and integrated with the new **Fail-Closed A
 
 ## Tests Currently Verified
 
-| Test                | Status                                   |
-| ------------------- | ---------------------------------------- |
-| Setup Wizard        | Passing (all 4 DBs)                      |
-| RBAC - Admin Access | Passing (Fail-Closed Verified)           |
-| RBAC - Developer    | Passing                                  |
-| RBAC - Editor       | Passing                                  |
-| API Gatekeeper      | Passing (100% Registration Coverage)     |
+| Test                | Status                               |
+| ------------------- | ------------------------------------ |
+| Setup Wizard        | Passing (all 4 DBs)                  |
+| RBAC - Admin Access | Passing (Fail-Closed Verified)       |
+| RBAC - Developer    | Passing                              |
+| RBAC - Editor       | Passing                              |
+| API Gatekeeper      | Passing (100% Registration Coverage) |
 
 ---
 

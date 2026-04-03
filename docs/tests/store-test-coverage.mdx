@@ -48,12 +48,14 @@ SveltyCMS leverages **Svelte 5 runes** (`$state`, `$derived`, `$effect`) for dee
 **Tests:** 18 | **Status:** ✅ Passing
 
 #### Service Health Management
+
 - ✅ Initializes with default state (IDLE)
 - ✅ Updates service health status (database, auth, cache)
 - ✅ Transitions to READY when all services healthy
 - ✅ Transitions to FAILED when critical services down
 
 **System States:**
+
 ```typescript
 type SystemState = "IDLE" | "INITIALIZING" | "READY" | "DEGRADED" | "FAILED";
 ```
@@ -63,6 +65,7 @@ type SystemState = "IDLE" | "INITIALIZING" | "READY" | "DEGRADED" | "FAILED";
 **Tests:** 22 | **Status:** ✅ Passing (Simplified Logic)
 
 #### Key Operations
+
 - ✅ Starts loading operation with specific reasons
 - ✅ Handles multiple concurrent operations
 - ✅ Automatic timeout protection (30s default)
@@ -73,6 +76,7 @@ type SystemState = "IDLE" | "INITIALIZING" | "READY" | "DEGRADED" | "FAILED";
 **Tests:** 26 | **Status:** ✅ Passing
 
 #### Size Detection
+
 - ✅ Tailwind CSS Breakpoint Alignment (XS, SM, MD, LG, XL, 2XL)
 - ✅ Device-specific mock testing (iPhone, iPad, MacBook, 4K)
 - ✅ Zero-width and boundary condition handling
@@ -102,7 +106,7 @@ All stores have been migrated to Svelte 5 runes to enable fine-grained reactivit
 // Svelte 5 State Rune
 export const systemState = $state({
   overallState: "IDLE" as SystemState,
-  services: {} as Record<string, ServiceStatus>
+  services: {} as Record<string, ServiceStatus>,
 });
 
 // Svelte 5 Derived Rune (Computed)
@@ -114,12 +118,15 @@ export const isSystemReady = $derived(systemState.overallState === "READY");
 ## Integration Strategy
 
 ### Unit Tests (Vitest)
+
 Verifies pure logic, state transitions, and reactive computations without a full browser environment.
 
 ### Component Tests (Vitest + JSDOM)
+
 Verifies how components react to store changes in a simulated DOM.
 
 ### E2E Tests (Playwright)
+
 Verifies state persistence and UI reflections in real user workflows.
 
 ---

@@ -293,7 +293,7 @@ jobs:
         run: |
           # Use curl polling for DB readiness if possible, or wait-on for TCP
           bun x wait-on tcp:127.0.0.1:${{ matrix.port }} --timeout 60000
-          sleep 5
+          sleep 10
 
       - name: Run Integration Tests
         env:

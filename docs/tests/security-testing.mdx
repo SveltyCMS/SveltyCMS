@@ -48,18 +48,20 @@ We verify the integrity of the Live Preview handshake to prevent unauthorized ac
 
 ### 3. Authentication & Authorization
 
-| Account Lockout         | 10    | ✅ Passing |
-| Session Management      | 13    | ✅ Passing |
-| Fail-Closed API Gateway | 24    | ✅ Passing |
-| RBAC Enforcement        | 33    | ✅ Passing |
+| Account Lockout | 10 | ✅ Passing |
+| Session Management | 13 | ✅ Passing |
+| Fail-Closed API Gateway | 24 | ✅ Passing |
+| RBAC Enforcement | 33 | ✅ Passing |
 
 ## Running Security Tests
 
 # Run cryptography and preview verification tests
+
 bun run test:unit -- crypto
 bun run test:unit -- preview-verification
 
 # Run full API security suite
+
 bun run test:unit -- api
 
 | Category            | Tests  | Pass Rate |

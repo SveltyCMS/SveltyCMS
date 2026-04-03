@@ -52,7 +52,7 @@ describe("Media Security Critical Unit Tests", () => {
         headers: new Map(),
       },
       locals: {
-        user: { ...user, role: "admin-role" },
+        user: { ...user, role: "admin-role", isAdmin: true },
         tenantId: "t1",
         roles: [{ _id: "admin-role", name: "Administrator", isAdmin: true, permissions: [] }],
         dbAdapter: adapter,
