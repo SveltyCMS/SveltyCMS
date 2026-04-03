@@ -6,7 +6,7 @@ order: 1
 icon: "mdi:shield-check"
 author: "SveltyCMS Team"
 created: "2025-11-14"
-updated: "2026-03-27"
+updated: "2026-04-02"
 tags:
   - "security"
   - "widgets"
@@ -24,6 +24,9 @@ This document details the comprehensive security measures implemented across all
 **Implementation Status: ✅ 10/10 Major Security Fixes Fully Implemented**
 
 All critical security vulnerabilities identified in the widget system have been addressed with proper validation, sanitization, and security controls.
+
+> [!IMPORTANT]
+> **Centralized Dispatcher Gating**: As of April 2026, all widget-specific API endpoints (e.g., `/api/media`, `/api/collections/[name]/aggregations`) are centrally gated by the **Fail-Closed API Dispatcher**. This ensures that even if an individual widget resolver lacks an internal check, the request is blocked unless the user possesses the required granular Permission ID (e.g., `media:read`, `collections:read`).
 
 ---
 
@@ -694,6 +697,6 @@ All implemented security measures comply with:
 
 ---
 
-**Last Updated**: November 14, 2025  
-**Security Review Status**: ✅ All Critical Fixes Implemented  
-**Next Review**: Quarterly (February 2026)
+**Last Updated**: April 2, 2026  
+**Security Review Status**: ✅ All Critical Fixes Implemented & API Dispatch Hardened  
+**Next Review**: Quarterly (June 2026)

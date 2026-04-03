@@ -55,8 +55,9 @@ describe("Token API Unit Tests", () => {
         headers: new Map(),
       },
       locals: {
-        user,
-        tenantId,
+        user: { ...user, role: "admin-role" },
+        tenantId: tenantId ?? "t1",
+        roles: [{ _id: "admin-role", name: "Administrator", isAdmin: true, permissions: [] }],
         dbAdapter: {
           auth: {
             getAllTokens: vi.fn().mockResolvedValue({ success: true, data: [] }),

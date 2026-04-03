@@ -22,12 +22,12 @@ The User Management API is the core identity layer of SveltyCMS. It handles user
 
 ## ⚡ Quick Start
 
-| Feature            | HTTP Endpoint                            | Local SDK Equivalent         |
-| :----------------- | :--------------------------------------- | :--------------------------- |
-| **Login**          | `POST /api/user/login`                   | `locals.cms.auth.login`      |
-| **Get User**       | `GET /api/user/[id]`                     | `locals.cms.auth.getUser`    |
-| **Update Profile** | `PATCH /api/user/update-user-attributes` | `locals.cms.auth.updateUser` |
-| **List Users**     | `GET /api/user`                          | `locals.cms.auth.listUsers`  |
+| Feature            | HTTP Endpoint                            | Permission    | Local SDK Equivalent         |
+| :----------------- | :--------------------------------------- | :------------ | :--------------------------- |
+| **Login**          | `POST /api/user/login`                   | **Public**    | `locals.cms.auth.login`      |
+| **Get User**       | `GET /api/user/[id]`                     | `user:read`   | `locals.cms.auth.getUser`    |
+| **Update Profile** | `PATCH /api/user/update-user-attributes` | `user:update` | `locals.cms.auth.updateUser` |
+| **List Users**     | `GET /api/user`                          | `user:read`   | `locals.cms.auth.listUsers`  |
 
 ---
 

@@ -71,6 +71,7 @@ describe("Widget API Security - Tenant Isolation", () => {
   });
 
   const callDispatcher = (path: string, method: string, eventOverrides: any = {}) => {
+    const { locals, ...overrides } = eventOverrides;
     const event = {
       params: { path },
       url: new URL(`http://localhost/api/${path}`),
@@ -81,7 +82,9 @@ describe("Widget API Security - Tenant Isolation", () => {
       },
       locals: {
         dbAdapter: mockDbAdapter,
-        ...eventOverrides.locals,
+        user: { _id: "u1", email: "admin@test.com", role: "admin-role" },
+        roles: [{ _id: "admin-role", name: "Administrator", isAdmin: true, permissions: [] }],
+        ...locals,
       },
       cookies: {
         get: vi.fn(),
@@ -89,7 +92,7 @@ describe("Widget API Security - Tenant Isolation", () => {
         delete: vi.fn(),
       },
       fetch: vi.fn(),
-      ...eventOverrides,
+      ...overrides,
     } as unknown as RequestEvent;
 
     return dispatcher(event);

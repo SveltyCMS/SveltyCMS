@@ -16,6 +16,7 @@ import { dbAdapter, getAuth } from "@src/databases/db";
 import type { DatabaseId } from "@src/databases/db-interface";
 import { json } from "@sveltejs/kit";
 import { dateToISODateString } from "@utils/date-utils";
+import { generateSecureToken } from "@utils/native-utils";
 
 // Use any for Jackson instance to avoid version-specific type mismatches in build environments
 let jacksonInstance: any = null;
@@ -88,9 +89,14 @@ export async function getJackson(): Promise<any> {
             : "sql",
         url: dbUrl,
       },
-      clientSecretVerifier: "sveltycms-jackson-secret",
+      clientSecretVerifier:
+        getPrivateSettingSync("SAML_CLIENT_SECRET_VERIFIER") || generateSecureToken(64),
       openid: {
-        jwtSigningKeys: { private: "private-key", public: "public-key" }, // Needed to boot jackson but we rely on its core SAML ACS.
+        jwtSigningKeys: {
+          private:
+            getPrivateSettingSync("SAML_JWT_SIGNING_PRIVATE_KEY") || generateSecureToken(128),
+          public: getPrivateSettingSync("SAML_JWT_SIGNING_PUBLIC_KEY") || generateSecureToken(128),
+        },
       },
     };
 
@@ -149,7 +155,8 @@ export async function handleSAMLResponse({ request, cookies }: any): Promise<Res
 
     const { access_token } = await j.oauthController.token({
       client_id: `tenant=${body.tenant || "default"}&product=sveltycms`,
-      client_secret: "sveltycms-jackson-secret",
+      client_secret:
+        getPrivateSettingSync("SAML_CLIENT_SECRET_VERIFIER") || "sveltycms-jackson-secret",
       code: body.SAMLResponse,
       grant_type: "authorization_code",
       redirect_uri:

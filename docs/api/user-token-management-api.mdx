@@ -23,11 +23,11 @@ Programmatic tokens (also known as API Keys or Bearer Tokens) allow external scr
 
 ## ⚡ Quick Start
 
-| Feature          | HTTP Endpoint                  | Local SDK Equivalent          |
-| :--------------- | :----------------------------- | :---------------------------- |
-| **Create Token** | `POST /api/token/create-token` | `locals.cms.auth.createToken` |
-| **List Tokens**  | `GET /api/token`               | `locals.cms.auth.listTokens`  |
-| **Revoke Token** | `DELETE /api/token/[id]`       | `locals.cms.auth.revokeToken` |
+| Feature          | HTTP Endpoint                  | Permission    | Local SDK Equivalent          |
+| :--------------- | :----------------------------- | :------------ | :---------------------------- |
+| **Create Token** | `POST /api/token/create-token` | `user:manage` | `locals.cms.auth.createToken` |
+| **List Tokens**  | `GET /api/token`               | `api:user`    | `locals.cms.auth.listTokens`  |
+| **Revoke Token** | `DELETE /api/token/[id]`       | `user:manage` | `locals.cms.auth.revokeToken` |
 
 ---
 

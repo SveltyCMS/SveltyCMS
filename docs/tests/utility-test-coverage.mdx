@@ -6,19 +6,19 @@ order: 7
 icon: "mdi:tools"
 author: "Test Suite"
 created: "2025-01-20"
-updated: "2026-03-27"
-tags: ["testing", "utilities", "coverage", "unit-tests"]
+updated: "2026-04-03"
+tags: ["testing", "utilities", "coverage", "unit-tests", "vitest"]
 ---
 
 # Utility Function Test Coverage
 
 ## Executive Summary
 
-**Total Tests:** 695 unit tests  
-**Test Files:** 51 files  
-**Coverage:** Services, Utilities, Stores, Widgets, Hooks  
-**Status:** ✅ All tests passing  
-**Framework:** Bun Test v1.3.10
+**Total Tests:** ~670 unit tests (consolidated)
+**Test Files:** 51 files
+**Coverage:** Services, Utilities, Stores, Widgets, Hooks
+**Status:** ✅ All tests passing
+**Framework:** Vitest 3.0 (Vite 7)
 
 This document provides comprehensive test coverage information for SveltyCMS utility functions.
 
@@ -178,10 +178,10 @@ This document provides comprehensive test coverage information for SveltyCMS uti
 
 | File                                     | Tests  | Categories                                       | Status             |
 | ---------------------------------------- | ------ | ------------------------------------------------ | ------------------ |
-| `tests/bun/utils/date-utils.test.ts`     | 18     | Type Guards, Conversions, Formatting, Edge Cases | ✅ Passing         |
-| `tests/bun/utils/crypto.test.ts`         | 25     | Password Hashing, Tokens, Checksums, Security    | ✅ Passing         |
-| `tests/bun/utils/error-handling.test.ts` | 22     | AppError, Type Guards, Messages, Wrapping        | ✅ Passing         |
-| `tests/bun/utils/language-utils.test.ts` | 11     | Basic, Common Languages, Edge Cases              | ✅ Passing         |
+| `tests/unit/utils/date-utils.test.ts`     | 18     | Type Guards, Conversions, Formatting, Edge Cases | ✅ Passing         |
+| `tests/unit/utils/crypto.test.ts`         | 25     | Password Hashing, Tokens, Checksums, Security    | ✅ Passing         |
+| `tests/unit/utils/error-handling.test.ts` | 22     | AppError, Type Guards, Messages, Wrapping        | ✅ Passing         |
+| `tests/unit/utils/language-utils.test.ts` | 11     | Basic, Common Languages, Edge Cases              | ✅ Passing         |
 | **Total**                                | **76** | **15 categories**                                | **✅ All Passing** |
 
 ---
@@ -191,16 +191,14 @@ This document provides comprehensive test coverage information for SveltyCMS uti
 ### Run All Utility Tests
 
 ```bash
-bun test tests/bun/utils/
+bun run test:unit -- utils
 ```
 
 ### Run Specific Utility Test File
 
 ```bash
-bun test tests/bun/utils/crypto.test.ts
-bun test tests/bun/utils/date-utils.test.ts
-bun test tests/bun/utils/error-handling.test.ts
-bun test tests/bun/utils/language-utils.test.ts
+bun run test:unit -- crypto
+bun run test:unit -- date-utils
 ```
 
 ### Run with Coverage

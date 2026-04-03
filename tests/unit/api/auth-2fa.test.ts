@@ -202,9 +202,15 @@ describe("2FA API Unit Tests", () => {
   });
 
   // Helper to create mock event
-  const createMockEvent = (body: any = {}, user: any = null, tenantId?: string) => {
+  const createMockEvent = (
+    body: any = {},
+    user: any = null,
+    tenantId?: string,
+    action: string = "verify",
+  ) => {
+    const path = `auth/2fa/${action}`;
     return {
-      url: new URL(`http://localhost/api/auth/2fa`),
+      url: new URL(`http://localhost/api/${path}`),
       request: {
         json: vi.fn().mockResolvedValue(body),
         method: "POST",
@@ -212,10 +218,13 @@ describe("2FA API Unit Tests", () => {
       },
       locals: {
         user,
-        tenantId,
+        tenantId: tenantId ?? "t1",
+        roles: user
+          ? [{ _id: "admin-role", name: "Administrator", isAdmin: true, permissions: [] }]
+          : [],
         dbAdapter: mockDbAdapter,
       },
-      params: {},
+      params: { path },
       cookies: {
         get: vi.fn(),
         set: vi.fn(),
@@ -307,7 +316,7 @@ describe("2FA API Unit Tests", () => {
     });
 
     it("should throw UNAUTHORIZED for unauthenticated user", async () => {
-      const event = createMockEvent({});
+      const event = createMockEvent({}, null, "t1", "setup");
       await expect(POST_SETUP(event)).rejects.toThrow("Authentication required");
     });
 

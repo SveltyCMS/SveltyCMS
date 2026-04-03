@@ -138,6 +138,9 @@ export const privateConfigSchema = object({
 
   // --- SAML SSO Configs ---
   SAML_JIT_PROVISIONING: optional(boolean(), false),
+  SAML_CLIENT_SECRET_VERIFIER: optional(pipe(string(), minLength(32))),
+  SAML_JWT_SIGNING_PRIVATE_KEY: optional(pipe(string(), minLength(32))),
+  SAML_JWT_SIGNING_PUBLIC_KEY: optional(pipe(string(), minLength(32))),
 });
 
 // The PUBLIC configuration for the application.

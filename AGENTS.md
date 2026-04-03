@@ -11,6 +11,8 @@ This file provides comprehensive guidance to **AI Coding Assistants (Agents)** (
 - [Core Philosophy & Focus](#core-philosophy--focus)
 - [Competitive Awareness](#competitive-awareness)
 - [Technical Standards](#technical-standards)
+- [Security Policy](#security-policy)
+- [Security Hardening (Audit Remediation)](#security-hardening-audit-remediation)
 - [AI Agent Best Practices](#ai-agent-best-practices)
 - [Roadmap (Missing Features)](#roadmap-missing-features)
 - [Project Structure](#project-structure)
@@ -145,6 +147,39 @@ We aim to reply within **48 hours** and fix critical issues within **7 days**.
 You will be credited in the release notes and SECURITY.md unless you prefer to stay anonymous.
 
 Thank you for helping keep SveltyCMS safe! ❤️
+
+## Security Hardening (Audit Remediation)
+
+To maintain our **A++ Security Grade**, agents must adhere to these strictly enforced patterns:
+
+### 1. Cryptographic Randomness (CSPRNG)
+
+- **NEVER** use `Math.random()` for security-sensitive tokens (sessions, resets, API keys, UUIDs).
+- **ALWAYS** use `globalThis.crypto.getRandomValues()` or `globalThis.crypto.randomUUID()`.
+- **Location**: Use utilities in `@src/utils/native-utils.ts` (`generateSecureToken`, `generateUUID`) or `@src/databases/auth/constants.ts` (`generateRandomToken`).
+- **Policy**: If `crypto` is unavailable, the system MUST throw an error rather than falling back to weak randomness.
+
+### 2. SSO & SAML Security
+
+- **No Hard-coded Secrets**: All SSO/SAML secrets (Jackson verifiers, JWT signing keys) MUST be stored in `config/private.ts` and validated via `privateConfigSchema`.
+- **Uniqueness**: Each deployment must have its own unique, high-entropy secrets.
+
+### 3. API Authorization (Granular Gatekeeping)
+
+- **POST-Authentication Check**: Authentication (knowing _who_ someone is) is necessary but not sufficient.
+- **Enforcement**: All API requests in `src/routes/api/[...path]/+server.ts` must pass through `checkEndpointPermission` using the `ENDPOINT_PERMISSIONS` mapping.
+- **RBAC**: Use `hasPermissionWithRoles` to validate specific actions (e.g., `manage:user`, `manage:collection`).
+
+### 4. Account Protection & Lockout
+
+- **Password Strength**: Minimum 12 characters, including uppercase, lowercase, numbers, and special characters. Enforced via `Auth.validatePasswordStrength`.
+- **Brute-Force Prevention**: Accounts are automatically locked for 15 minutes after 5 consecutive failed attempts.
+- **Tracking**: `failedAttempts` and `lockoutUntil` are tracked on the `User` object and reset upon successful authentication.
+
+### 5. Secure Session Management
+
+- **Cookies**: Use `httpOnly: true`, `sameSite: "strict"`, and `secure: true` (in production).
+- **Prefixes**: Use `__Host-` or `__Secure-` prefixes for session cookies where applicable to prevent cross-subdomain leakage.
 
 ## AI Agent Best Practices
 

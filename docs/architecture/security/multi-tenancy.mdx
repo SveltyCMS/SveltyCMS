@@ -4,7 +4,7 @@ title: "Multi-Tenant Security Architecture"
 description: "In-depth documentation of the security boundaries and tenant isolation in SveltyCMS."
 author: "SveltyCMS Team"
 created: "2026-03-20"
-updated: "2026-03-27"
+updated: "2026-04-02"
 tags:
   - security
   - multi-tenancy
@@ -21,16 +21,17 @@ SveltyCMS employs a rigorous "Defense in Depth" strategy for multi-tenant enviro
 
 SveltyCMS leverages the **Vite+** middleware pipeline to enforce hard isolation at every request:
 
-- **Middleware Gating**: All requests pass through `handleSystemState` and `handleAuthorization`.
+- **Middleware Gating**: All requests pass through `handleSystemState`, `handleAuthentication`, and the central API dispatcher.
 - **Tenant Context**: The `tenantId` is resolved early and injected into the SvelteKit `locals` and GraphQL context.
+- **Hardened TBAC**: The authentication hook (`handleAuthentication.ts`) now dynamically fetches and populates `locals.roles` specifically for the current `tenantId` context. This ensures that permissions granted in one tenant do not leak into another, even for the same user ID.
 - **Adapter Scoping**: Every database operation is automatically scoped by the resolved `tenantId`.
 
 ## 2. API Security Boundaries
 
 Both REST and GraphQL APIs are subject to tenant-level security checks:
 
-- **REST CRUD**: All routes (`/api/crud/[collection]`) append a mandatory `tenantId` filter to every query.
-- **GraphQL Yoga**: The schema is filtered based on the requester's tenant permissions, and resolvers utilize the **Vite+** context to ensure data isolation.
+- **REST API Dispatcher**: All routes under `/api/[...path]` are centrally gated by a **Fail-Closed** security layer. It validates the required Permission ID against the user's `locals.roles` for the current tenant before any adapter logic is executed.
+- **GraphQL Yoga**: The schema is filtered based on the requester's tenant permissions via the same robust TBAC layer.
 - **Performance Quotas**: Rate limiting is applied per-tenant to prevent resource exhaustion.
 
 ### 3.1 GraphQL Schema Isolation & Protection

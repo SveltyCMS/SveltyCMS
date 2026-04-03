@@ -476,13 +476,13 @@ export function toStringHelper({ data }: StringHelperParams): string {
 
 // Get random hex string
 export function getRandomHex(size: number): string {
-  const bytes = new Uint8Array(size);
-  for (let i = 0; i < size; i++) {
-    bytes[i] = Math.floor(Math.random() * 256);
+  const crypto = globalThis?.crypto;
+  if (typeof crypto !== "undefined" && typeof crypto.getRandomValues === "function") {
+    const bytes = new Uint8Array(size);
+    crypto.getRandomValues(bytes);
+    return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
   }
-  return Array.from(bytes)
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
+  throw new Error("Cryptographic API unavailable");
 }
 
 // Escape regex metacharacters

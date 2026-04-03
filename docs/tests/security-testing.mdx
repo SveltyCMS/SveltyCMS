@@ -1,17 +1,17 @@
 ---
 path: "docs/tests/security-testing.mdx"
 title: "Security Testing"
-description: "Comprehensive security testing for SveltyCMS including encryption, authentication, signed preview tokens, and access control."
+description: "Comprehensive security testing for SveltyCMS including encryption, authentication, Fail-Closed API authorization, and access control."
 author: "SveltyCMS Team"
 created: "2026-03-13"
-updated: "2026-03-27"
+updated: "2026-04-03"
 tags:
   - "testing"
   - "security"
   - "encryption"
   - "authentication"
   - "authorization"
-  - "preview"
+  - "fail-closed"
 ---
 
 # Security Testing
@@ -33,7 +33,7 @@ SveltyCMS implements rigorous security testing to ensure the highest level of pr
 **Test Files:**
 
 - [`tests/unit/utils/crypto.test.ts`](../../tests/unit/utils/crypto.test.ts)
-- [`tests/unit/utils/preview-verification.test.bun.ts`](../../tests/unit/utils/preview-verification.test.bun.ts)
+- [`tests/unit/utils/preview-verification.test.ts`](../../tests/unit/utils/preview-verification.test.ts)
 
 ### 2. Preview Security (Enterprise Handshake)
 
@@ -48,32 +48,28 @@ We verify the integrity of the Live Preview handshake to prevent unauthorized ac
 
 ### 3. Authentication & Authorization
 
-| Test Suite         | Tests | Status     |
-| ------------------ | ----- | ---------- |
-| Account Lockout    | 10    | ✅ Passing |
-| Session Management | 13    | ✅ Passing |
-| RBAC Enforcement   | 33    | ✅ Passing |
+| Account Lockout         | 10    | ✅ Passing |
+| Session Management      | 13    | ✅ Passing |
+| Fail-Closed API Gateway | 24    | ✅ Passing |
+| RBAC Enforcement        | 33    | ✅ Passing |
 
 ## Running Security Tests
 
-```bash
 # Run cryptography and preview verification tests
-bun test tests/unit/utils/crypto.test.ts
-bun test tests/unit/utils/preview-verification.test.bun.ts
+bun run test:unit -- crypto
+bun run test:unit -- preview-verification
 
-# Run auth security tests
-npm run test:unit -- auth-lockout
-```
-
-## Test Results
+# Run full API security suite
+bun run test:unit -- api
 
 | Category            | Tests  | Pass Rate |
 | ------------------- | ------ | --------- |
 | Encryption & Crypto | 14     | 100%      |
 | Preview Security    | 4      | 100%      |
 | Account Lockout     | 10     | 100%      |
+| Fail-Closed API     | 24     | 100%      |
 | Session Timeout     | 13     | 100%      |
-| **Total Security**  | **41** | **100%**  |
+| **Total Security**  | **65** | **100%**  |
 
 ## Related Documentation
 

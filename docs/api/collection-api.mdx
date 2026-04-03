@@ -65,7 +65,8 @@ All mutations require an `Authorization: Bearer <token>` header and a valid `Con
 
 ### A. Create Entry (POST)
 
-**Endpoint**: `POST /api/collections/[collectionId]`
+**Endpoint**: `POST /api/collections/[collectionId]`  
+**Permission**: `collections:create`
 
 **Payload**:
 
@@ -84,7 +85,8 @@ All mutations require an `Authorization: Bearer <token>` header and a valid `Con
 
 ### B. Update Entry (PATCH)
 
-**Endpoint**: `PATCH /api/collections/[collectionId]/[entryId]`
+**Endpoint**: `PATCH /api/collections/[collectionId]/[entryId]`  
+**Permission**: `collections:update`
 
 **Payload**:
 
@@ -102,7 +104,8 @@ All mutations require an `Authorization: Bearer <token>` header and a valid `Con
 
 ### C. Delete Entry (DELETE)
 
-**Endpoint**: `DELETE /api/collections/[collectionId]/[entryId]`
+**Endpoint**: `DELETE /api/collections/[collectionId]/[entryId]`  
+**Permission**: `collections:delete`
 
 **Query Params**:
 
@@ -114,7 +117,8 @@ All mutations require an `Authorization: Bearer <token>` header and a valid `Con
 
 For managing multiple items (e.g., publishing 50 drafts at once), use the `/batch` endpoint to avoid multiple network roundtrips.
 
-**Endpoint**: `POST /api/collections/[collectionId]/batch`
+**Endpoint**: `POST /api/collections/[collectionId]/batch`  
+**Permission**: `collections:update` (or as per individual action)
 
 **Payload**:
 

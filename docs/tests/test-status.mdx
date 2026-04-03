@@ -6,63 +6,67 @@ order: 2
 icon: "mdi:chart-box"
 author: "SveltyCMS Team"
 created: "2025-11-08"
-updated: "2026-03-27"
+updated: "2026-04-03"
 tags:
   - "testing"
   - "status"
   - "coverage"
-  - "bun"
+  - "fail-closed"
   - "playwright"
 ---
 
 # SveltyCMS Test Suite Status
 
-> **Last Updated:** March 15, 2026
-> **Total Tests:** ~1100+ (Unit + Integration + E2E)
+> **Last Updated:** April 3, 2026
+> **Total Tests:** 1028 (Unit + Integration + E2E)
 > **Overall Pass Rate:** 100%
 
 ## Executive Summary
 
-The testing suite has been fully optimized for **Enterprise-grade reliability and security**. Recent enhancements include **Triple-Lock Security** for test utilities and **Database-per-Worker isolation** for lightning-fast parallel execution.
+The testing suite has been fully optimized for **Enterprise-grade reliability and security**. Recent enhancements include **Fail-Closed API Authorization** for all dispatcher routes and **Database-per-Worker isolation** for lightning-fast parallel execution.
 
-- **Unit Tests:** 741 tests across 54 suites (Passing - 100%)
+- **Unit Tests:** ~670 tests across 79 files (Passing - 100%)
 - **Integration Tests:** ~300+ tests (Passing - 100%)
 - **E2E Tests:** All critical flows verified across all databases with parallel worker support.
+- **API Security:** 100% coverage of the dispatcher gatekeeper with Fail-Closed enforcement.
 
 ### Test Coverage by Category
 
-| Category                     | Status       | Pass Rate | Tests   |
-| ---------------------------- | ------------ | --------- | ------- |
-| **Triple-Lock Security**     | ✅ Verified  | 100%      | 12/12   |
-| **Parallel Isolation**       | ✅ Verified  | 100%      | 8/8     |
-| **Server Hooks (Latencies)** | ✅ Excellent | 100%      | 287/287 |
-| **Preview Token System**     | ✅ Verified  | 100%      | 4/4     |
-| **Database Micro-Telemetry** | ✅ Verified  | 100%      | 8/8     |
-| **API - User**               | ✅ Complete  | 100%      | 47/47   |
-| **Encryption & Crypto**      | ✅ Excellent | 100%      | 14/14   |
-| **Auth & Lockout Security**  | ✅ Excellent | 100%      | 23/23   |
+| Category                       | Status       | Pass Rate | Tests   |
+| ------------------------------ | ------------ | --------- | ------- |
+| **Fail-Closed API Security**   | ✅ Verified  | 100%      | 24/24   |
+| **Triple-Lock Security**       | ✅ Verified  | 100%      | 12/12   |
+| **Parallel Isolation**         | ✅ Verified  | 100%      | 8/8     |
+| **Server Hooks (Latencies)**   | ✅ Excellent | 100%      | 287/287 |
+| **Preview Token System**       | ✅ Verified  | 100%      | 4/4     |
+| **Database Micro-Telemetry**   | ✅ Verified  | 100%      | 8/8     |
+| **API - User & Management**    | ✅ Complete  | 100%      | 62/62   |
+| **Encryption & Cryptography**  | ✅ Excellent | 100%      | 14/14   |
+| **Auth & Lockout Security**    | ✅ Excellent | 100%      | 23/23   |
 
 ---
 
 ## ✅ Passing Tests (Latest Wins)
 
-### 1. Triple-Lock Security 🛡️
+### 1. Fail-Closed API Security 🛡️
 
-The test infrastructure is now guarded by physical and cryptographic locks:
+The new central API dispatcher in `+server.ts` now enforces strict authorization:
+
+- ✅ **Mandatory Registry**: All accessible endpoints must be explicitly mapped in `ENDPOINT_PERMISSIONS`.
+- ✅ **Default Block**: Unmapped or unauthorized routes return `403 Forbidden` by default.
+- ✅ **Unauthenticated Gate**: Anonymous users are blocked with `401 Unauthorized`.
+- ✅ **Segment Verification**: Verified nested routes like `/auth/2fa/setup` and `/scim/v2/Users/[id]`.
+
+### 2. Triple-Lock Security 🛡️
 
 - ✅ **Build Stripping**: Verified that `/api/testing` is removed from production builds.
 - ✅ **Secure Handshake**: All test requests now require a high-entropy UUID secret.
 - ✅ **Network Lock**: Testing utilities strictly restricted to `127.0.0.1`.
 
-### 2. Database-per-Worker Isolation ⚡
+### 3. Database-per-Worker Isolation ⚡
 
 - ✅ **Parallel Speed**: E2E tests now run with `workers: 4` without SQLite locking issues.
 - ✅ **Atomic State**: Each worker operates on a unique `.db` file, ensuring total data isolation.
-
-### 3. Explicit Forbidden State 🚫
-
-- ✅ **RBAC Reliability**: Added dedicated `/forbidden` route with `data-testid="access-denied"` for stable RBAC assertions.
-- ✅ **Atomic Auth**: Login helpers now perform a "clean slate" clear of cookies and storage.
 
 ---
 
@@ -75,16 +79,13 @@ The test infrastructure is now guarded by physical and cryptographic locks:
 npx playwright test --workers=4
 ```
 
-### Unit Tests (Dual Suite)
+### Unit Tests (Unified Suite)
 
 ```bash
-# Component & Browser logic (jsdom)
+# Component, Service & Browser logic (jsdom)
 bun run test:unit
-
-# Core utility & Logic (Native)
-bun run test:unit:bun
 ```
 
-Last Updated: 2026-03-15
+Last Updated: 2026-04-03
 Current Pass Rate: 100%
-Current State: Triple-Locked / Parallel Optimized
+Current State: Fail-Closed / Parallel Optimized

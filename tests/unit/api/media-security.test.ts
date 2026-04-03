@@ -170,8 +170,8 @@ const mediaProcessHandler = {
 };
 
 describe("Media API Security Unit Tests", () => {
-  const user = { _id: "user-1", email: "test@example.com" };
-  const roles = [{ name: "admin", isAdmin: true }];
+  const user = { _id: "user-1", email: "test@example.com", role: "admin-id" };
+  const roles = [{ _id: "admin-id", name: "Administrator", isAdmin: true, permissions: [] }];
   const tenantId = "tenant-A";
 
   beforeEach(() => {

@@ -595,6 +595,20 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
         locals.user = user;
         locals.session_id = sessionId as DatabaseId;
         locals.permissions = user.permissions || [];
+
+        // --- NEW: Populate roles for authorization checks ---
+        // Fetch all roles for the current tenant to allow hasPermissionWithRoles() to work
+        try {
+          const roles = await dbAdapter.auth.getAllRoles({
+            tenantId: (locals.tenantId || user.tenantId) as DatabaseId,
+          });
+          (locals as any).roles = roles;
+          logger.trace(`Populated ${roles.length} roles for user ${user._id}`);
+        } catch (roleError) {
+          logger.error("Failed to populate roles for auth hook:", roleError);
+          (locals as any).roles = [];
+        }
+
         logger.trace(`User authenticated: ${user._id}`);
 
         // Step 3: Automatic session rotation (security enhancement)

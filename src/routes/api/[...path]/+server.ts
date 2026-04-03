@@ -17,6 +17,137 @@ import { getPrivateSettingSync } from "@src/services/settings-service";
 import { settingsGroups } from "../../(app)/config/system-settings/settings-groups";
 import crypto from "node:crypto";
 import type { DatabaseId } from "@src/content/types";
+import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
+
+/**
+ * Granular mapping of API endpoints to required permissions.
+ * Format: "METHOD /api/path/subpath" -> "required:permission"
+ */
+/**
+ * Granular mapping of API endpoints to required permissions.
+ * Format: "METHOD /api/path/subpath" -> "required:permission"
+ */
+const ENDPOINT_PERMISSIONS: Record<string, string> = {
+  // --- User & Role Management ---
+  "GET /user": "user:read",
+  "POST /user/create-user": "user:create",
+  "POST /user/batch": "user:delete",
+  "PUT /user/update-user-attributes": "user:update",
+  "PATCH /user/update-user-attributes": "user:update",
+  "POST /auth/update-roles": "user:manage",
+
+  // --- Collections ---
+  "GET /collections": "collections:read",
+  "POST /collections": "collections:create",
+  "PUT /collections": "collections:update",
+  "PATCH /collections": "collections:update",
+  "DELETE /collections": "collections:delete",
+  "GET /collections/search": "search:read",
+  "GET /collections/revisions": "collections:read",
+
+  // --- Media ---
+  "GET /media": "media:read",
+  "POST /media/upload": "media:write",
+  "POST /media/process": "media:write",
+  "PATCH /media": "media:write",
+  "DELETE /media": "media:delete",
+
+  // --- Widgets ---
+  "GET /widgets/list": "api:widgets",
+  "GET /widgets/active": "api:widgets",
+  "POST /widgets/activate": "config:widgetManagement",
+  "POST /widgets/deactivate": "config:widgetManagement",
+  "POST /widgets/install": "config:widgetManagement",
+  "POST /widgets/uninstall": "config:widgetManagement",
+
+  // --- System & Settings ---
+  "GET /settings/all": "system:settings",
+  "GET /search": "search:read",
+
+  // --- Tokens ---
+  "GET /token": "api:user",
+  "POST /token/create-token": "user:manage",
+  "PATCH /token": "user:manage",
+  "DELETE /token": "user:manage",
+  "POST /token/batch": "user:manage",
+  "POST /token/resolve": "api:user",
+  "GET /auth/2fa/backup-codes": "user:read",
+  "POST /auth/2fa/backup-codes": "user:update",
+  "POST /auth/2fa/setup": "user:update",
+  "POST /auth/2fa/verify-setup": "user:update",
+  "POST /auth/2fa/disable": "user:update",
+
+  // --- SAML 2.0 ---
+  "GET /auth/saml/config": "system:settings",
+  "POST /auth/saml/config": "system:settings",
+
+  // --- SCIM 2.0 ---
+  "GET /scim/v2/Users": "user:manage",
+  "POST /scim/v2/Users": "user:manage",
+  "GET /scim/v2/Users/[id]": "user:manage",
+  "PUT /scim/v2/Users/[id]": "user:manage",
+  "PATCH /scim/v2/Users/[id]": "user:manage",
+  "DELETE /scim/v2/Users/[id]": "user:manage",
+  "GET /scim/v2/Groups": "user:manage",
+  "POST /scim/v2/Groups": "user:manage",
+  "GET /scim/v2/Groups/[id]": "user:manage",
+  "PUT /scim/v2/Groups/[id]": "user:manage",
+  "PATCH /scim/v2/Groups/[id]": "user:manage",
+  "DELETE /scim/v2/Groups/[id]": "user:manage",
+};
+
+/**
+ * Validates if the current user has the required permission for an endpoint.
+ * Implements a FAIL-CLOSED strategy (default-deny).
+ */
+function checkEndpointPermission(
+  user: any,
+  roles: any[],
+  httpMethod: string,
+  namespace: string,
+  subPath: string,
+  entryId: string,
+  fullSegments: string[],
+): boolean {
+  // --- EXEMPTIONS: Publicly accessible endpoints (even if unauthenticated) ---
+  if (namespace === "auth" && subPath === "login") return true;
+  if (namespace === "auth" && subPath === "2fa" && fullSegments[2] === "verify") return true;
+  if (namespace === "auth" && subPath === "saml" && fullSegments[2] === "acs") return true;
+  if (namespace === "auth" && subPath === "saml" && fullSegments[2] === "login") return true;
+  if (namespace === "system" && subPath === "health") return true;
+
+  // Global Admins bypass all checks
+  if (user?.isAdmin) return true;
+
+  // --- IMPLICIT: Self-service routes (authenticated users only) ---
+  if (user) {
+    if (namespace === "auth" && (subPath === "logout" || subPath === "me" || subPath === "2fa"))
+      return true;
+    if (namespace === "user" && (subPath === "save-avatar" || subPath === "delete-avatar"))
+      return true;
+    if (namespace === "get-tokens-provided") return true;
+  }
+
+  const baseKey = `/${namespace}${subPath ? `/${subPath}` : ""}`;
+  const keyWithEntry = `${httpMethod} ${baseKey}${entryId ? `/${entryId}` : ""}`;
+  const fallbackKey = `${httpMethod} ${baseKey}`;
+
+  const requiredPermission =
+    ENDPOINT_PERMISSIONS[keyWithEntry] || ENDPOINT_PERMISSIONS[fallbackKey];
+
+  // FAIL-CLOSED: If no explicit permission is mapped, assume forbidden
+  if (!requiredPermission) {
+    logger.warn(`Unmapped API endpoint access attempt: ${keyWithEntry} (fallback: ${fallbackKey})`);
+    return false;
+  }
+
+  // Authenticated check: Required for any remaining non-exempt/non-implicit routes
+  if (!user || !roles) {
+    throw new AppError("Authentication required", 401, "UNAUTHORIZED");
+  }
+
+  return hasPermissionWithRoles(user, requiredPermission, roles);
+}
 
 /**
  * Main Dispatcher handles all HTTP methods (GET, POST, PATCH, DELETE)
@@ -57,6 +188,23 @@ const dispatch = async ({ request, url, params, locals, cookies }: RequestEvent)
   }
 
   const cms = new LocalCMS(adapter);
+
+  // --- API AUTHORIZATION CHECK ---
+  // Ensure the user has granular permission for the requested endpoint
+  const isAuthorized = checkEndpointPermission(
+    user,
+    (locals as any).roles || [],
+    request.method,
+    namespace,
+    method,
+    _entryId,
+    segments,
+  );
+
+  if (!isAuthorized) {
+    logger.warn(`Forbidden API access attempt: ${request.method} ${path} by user ${user?._id}`);
+    throw new AppError("Forbidden: Insufficient permissions", 403, "FORBIDDEN");
+  }
 
   try {
     // --- ROOT-LEVEL ENDPOINTS (Directly under /api/) ---

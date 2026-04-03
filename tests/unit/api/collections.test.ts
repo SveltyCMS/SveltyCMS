@@ -80,8 +80,11 @@ describe("Collections API Unit Tests", () => {
         },
       },
       locals: {
-        user,
+        user: user ? { ...user, role: "admin-role" } : null,
         tenantId,
+        roles: user
+          ? [{ _id: "admin-role", name: "Administrator", isAdmin: true, permissions: [] }]
+          : [],
         dbAdapter: {
           collection: {
             getModel: vi.fn().mockResolvedValue({ name: "collection_test" }),

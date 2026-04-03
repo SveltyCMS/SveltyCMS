@@ -58,8 +58,9 @@ describe("SAML API Unit Tests", () => {
         headers: new Map(),
       },
       locals: {
-        user,
+        user: user || { _id: "admin-1", email: "admin@test.com", isAdmin: true },
         tenantId,
+        roles: user ? [] : [{ _id: "admin-role", name: "Admin", isAdmin: true, permissions: [] }],
         dbAdapter: {
           auth: { getUserById: vi.fn() },
         },

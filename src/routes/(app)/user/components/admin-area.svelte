@@ -125,6 +125,8 @@ const flipDurationMs = 300;
 // State for API-fetched data (replaces adminData usage for scalability)
 let tableData: TableDataType[] = $state([]);
 let totalItems = $state(0);
+let isAccessDenied = $state(false);
+let requiredPermission = $state("");
 
 async function fetchData() {
 	await globalLoadingStore.withLoading(
@@ -145,10 +147,18 @@ async function fetchData() {
 
 			try {
 				const response = await fetch(`${endpoint}?${params.toString()}`);
+				if (response.status === 403) {
+					isAccessDenied = true;
+					requiredPermission = showUserList ? "user:read" : "api:user";
+					tableData = [];
+					totalItems = 0;
+					return;
+				}
 				if (!response.ok) {
 					const errorData = await response.json();
 					throw new Error(errorData.message || "Failed to fetch data");
 				}
+				isAccessDenied = false; // Reset on success
 				const result = await response.json();
 				if (result.success) {
 					tableData = result.data;
@@ -679,7 +689,56 @@ function handleInputChange(value: string, headerKey: string) {
 <div class="flex flex-col">
 	<p class="h2 mb-2 text-center text-3xl font-bold dark:text-white">{adminarea_adminarea()}</p>
 
-	<div class="flex flex-col flex-wrap items-center justify-evenly gap-2 sm:flex-row xl:justify-between">
+	{#if isAccessDenied}
+		<div
+			class="flex flex-col items-center justify-center p-20 space-y-6 text-center animate-fade-in"
+		>
+			<div class="relative">
+				<div
+					class="absolute inset-0 rounded-full bg-error-500/10 blur-3xl -z-10"
+				></div>
+				<iconify-icon
+					icon="material-symbols:lock-person-outline"
+					class="text-error-500"
+					width="120"
+				></iconify-icon>
+			</div>
+
+			<div class="space-y-4">
+				<h2 class="text-4xl font-black tracking-tight h2">Access Restricted</h2>
+				<p class="max-w-md mx-auto text-surface-600 dark:text-surface-400">
+					Your account lacks the necessary granular permissions to access requested administrative resources.
+				</p>
+			</div>
+
+			{#if requiredPermission}
+				<div
+					class="inline-flex items-center gap-2 px-4 py-2 font-mono text-sm rounded-full bg-error-500/10 text-error-500"
+				>
+					<iconify-icon icon="mdi:shield-alert"></iconify-icon>
+					<span>Required: <span class="font-bold">{requiredPermission}</span></span>
+				</div>
+			{/if}
+
+			<div class="flex flex-col gap-4 pt-8 sm:flex-row">
+				<button
+					onclick={() => fetchData()}
+					class="text-white btn preset-filled-primary-500"
+				>
+					<iconify-icon icon="material-symbols:refresh" width="20"
+					></iconify-icon>
+					<span>Retry Connection</span>
+				</button>
+				<a href="/" class="btn preset-outline-primary-500"> Return to Dashboard </a>
+			</div>
+
+			<p class="pt-12 text-xs italic text-surface-500">
+				If you believe this is an error, please contact your System
+				Administrator to request elevated credentials.
+			</p>
+		</div>
+	{:else}
+		<div class="flex flex-col flex-wrap items-center justify-evenly gap-2 sm:flex-row xl:justify-between">
 		<button onclick={modalTokenUser} aria-label={adminarea_emailtoken()} class="gradient-primary btn w-full text-white sm:max-w-xs">
 			<iconify-icon icon="material-symbols:mail" width={24}></iconify-icon>
 			<span class="whitespace-normal wrap-break-word">{adminarea_emailtoken()}</span>
@@ -1013,4 +1072,5 @@ function handleInputChange(value: string, headerKey: string) {
 			</div>
 		{/if}
 	{/if}
+{/if}
 </div>

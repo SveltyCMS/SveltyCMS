@@ -52,7 +52,9 @@ describe("Media Security Critical Unit Tests", () => {
         headers: new Map(),
       },
       locals: {
-        user,
+        user: { ...user, role: "admin-role" },
+        tenantId: "t1",
+        roles: [{ _id: "admin-role", name: "Administrator", isAdmin: true, permissions: [] }],
         dbAdapter: adapter,
       },
       cookies: { get: vi.fn(), set: vi.fn(), delete: vi.fn() },

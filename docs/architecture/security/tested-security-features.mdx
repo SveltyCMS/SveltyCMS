@@ -4,7 +4,7 @@ title: "Tested Security Features"
 description: "Comprehensive list of security features covered by automated tests"
 author: "SveltyCMS Team"
 created: "2026-03-13"
-updated: "2026-03-27"
+updated: "2026-04-02"
 tags:
   - security
   - testing
@@ -46,6 +46,16 @@ SveltyCMS has **comprehensive security test coverage** across multiple test suit
 **Fix**: Restricted `TEST_MODE` bypass in `src/hooks/handle-firewall.ts` to only apply in non-unit-test integration environments. Unit tests still execute the firewall logic. In production, the firewall is always active unless explicitly disabled via settings.
 
 **Tests**: `tests/unit/hooks/firewall.test.ts`
+
+### 3. Missing POST-Authentication Authorization Gap (Resolved April 2026)
+
+**Issue**: Authenticated users could access various `/api/` endpoints within their tenant without granular permission checks.
+
+**Fix**: Implemented a **Fail-Closed API Dispatcher** in `src/routes/api/[...path]/+server.ts` using an exhaustive `ENDPOINT_PERMISSIONS` mapping. Any route not explicitly authorized is denied by default.
+
+**Tests**: `tests/unit/routes/api/authorization.test.ts`, `tests/integration/api/dispatcher.test.ts`
+
+**UI**: Added "Access Denied" feedback logic in `admin-area.svelte` to handle 403 status codes.
 
 ---
 
@@ -147,6 +157,9 @@ All tests adhere to strict no-backdoor principles:
 
 | Feature                          | Test Location                               | Status |
 | -------------------------------- | ------------------------------------------- | ------ |
+| **Fail-Closed Dispatcher**       | `src/routes/api/[...path]/+server.ts`       | ✅     |
+| **TBAC Role Isolation**          | `src/hooks/handle-authentication.ts`        | ✅     |
+| **Informative 403 UI**           | `admin-area.svelte`                         | ✅     |
 | Authentication required for APIs | `tests/unit/hooks/api-requests.test.ts`     | ✅     |
 | Valid session required           | `tests/integration/api/collections.test.ts` | ✅     |
 | Admin-only API access            | `tests/integration/api/token.test.ts`       | ✅     |

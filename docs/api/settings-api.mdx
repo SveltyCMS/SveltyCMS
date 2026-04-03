@@ -22,11 +22,11 @@ The Settings API provides a centralized interface for managing global and tenant
 
 ## ⚡ Quick Start
 
-| Feature             | HTTP Endpoint               | Local SDK Equivalent                |
-| :------------------ | :-------------------------- | :---------------------------------- |
-| **Get Settings**    | `GET /api/settings/[group]` | `locals.cms.system.getPreferences`  |
-| **Update Settings** | `POST /api/settings/update` | `locals.cms.system.setPreference`   |
-| **List All**        | `GET /api/settings/all`     | `locals.cms.system.settings.getAll` |
+| Feature             | HTTP Endpoint               | Permission        | Local SDK Equivalent                |
+| :------------------ | :-------------------------- | :---------------- | :---------------------------------- |
+| **Get Settings**    | `GET /api/settings/[group]` | `system:read`     | `locals.cms.system.getPreferences`  |
+| **Update Settings** | `POST /api/settings/update` | `system:settings` | `locals.cms.system.setPreference`   |
+| **List All**        | `GET /api/settings/all`     | `system:settings` | `locals.cms.system.settings.getAll` |
 
 ---
 

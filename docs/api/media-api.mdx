@@ -31,13 +31,13 @@ The SveltyCMS Media API provides a robust, type-safe system for managing digital
 
 ## 🚀 Quick Reference
 
-| Method     | Endpoint             | **Local SDK Equivalent**    | Description                           |
-| :--------- | :------------------- | :-------------------------- | :------------------------------------ |
-| **POST**   | `/api/media/process` | `locals.cms.media.upload`   | Upload files (multipart/form-data)    |
-| **GET**    | `/api/media`         | `locals.cms.media.find`     | List media files (paginated)          |
-| **GET**    | `/api/media/[id]`    | `locals.cms.media.findById` | Get media details                     |
-| **PATCH**  | `/api/media/[id]`    | `locals.cms.media.update`   | Update metadata (alt, tags, filename) |
-| **DELETE** | `/api/media/[id]`    | `locals.cms.media.delete`   | Delete media permanently              |
+| Method     | Endpoint             | Permission     | **Local SDK Equivalent**    | Description                           |
+| :--------- | :------------------- | :------------- | :-------------------------- | :------------------------------------ |
+| **POST**   | `/api/media/process` | `media:write`  | `locals.cms.media.upload`   | Upload files (multipart/form-data)    |
+| **GET**    | `/api/media`         | `media:read`   | `locals.cms.media.find`     | List media files (paginated)          |
+| **GET**    | `/api/media/[id]`    | `media:read`   | `locals.cms.media.findById` | Get media details                     |
+| **PATCH**  | `/api/media/[id]`    | `media:write`  | `locals.cms.media.update`   | Update metadata (alt, tags, filename) |
+| **DELETE** | `/api/media/[id]`    | `media:delete` | `locals.cms.media.delete`   | Delete media permanently              |
 
 > [!TIP]
 > **Use the Local SDK**: For server-side tasks like processing a form action or generating an image gallery in `+page.server.ts`, **always use `locals.cms.media`**. It is **10-20x faster** than using `fetch()` because it communicates directly with the database and file storage.

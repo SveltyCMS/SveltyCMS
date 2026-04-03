@@ -7,6 +7,7 @@ import type { Token } from "@src/databases/auth/types";
 import type { DatabaseId, DatabaseResult, ISODateString } from "@src/databases/db-interface";
 import mongoose, { Schema, type Model } from "mongoose";
 import { generateId } from "../methods/mongodb-utils";
+import { generateRandomToken } from "@src/databases/auth/constants";
 
 export const TokenSchema = new Schema(
   {
@@ -49,8 +50,7 @@ export class TokenAdapter {
     role?: string;
   }): Promise<DatabaseResult<string>> {
     try {
-      const tokenValue =
-        Math.random().toString(36).substring(2) + Math.random().toString(36).substring(2);
+      const tokenValue = generateRandomToken(32);
       const token = new this.TokenModel({
         ...data,
         token: tokenValue,

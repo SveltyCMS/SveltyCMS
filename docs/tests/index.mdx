@@ -1,26 +1,27 @@
 ---
 path: "docs/tests/index.mdx"
 title: "Testing Documentation"
-description: "Complete testing guide for SveltyCMS including Bun unit tests, Playwright E2E tests, GitHub Actions automation, and local testing workflows."
+description: "Complete testing guide for SveltyCMS including Unit tests (Vitest/Bun), Playwright E2E tests, GitHub Actions automation, and local testing workflows."
 order: 1
 icon: "mdi:test-tube"
 author: "SveltyCMS Team"
 created: "2025-11-08"
-updated: "2026-03-27"
+updated: "2026-04-03"
 tags:
   - "testing"
   - "documentation"
   - "quality-assurance"
   - "ci-cd"
+  - "vitest"
   - "bun"
   - "playwright"
 ---
 
 # SveltyCMS Testing Documentation
 
-**Last Updated:** March 15, 2026
-**Total Tests:** ~1090+ (741 unit + ~350 integration/E2E)
-**Pass Rate:** 100% (All 741 unit tests passing, 0 failing)
+**Last Updated:** April 3, 2026
+**Total Tests:** 1028 (670 unit + 358 integration/E2E)
+**Pass Rate:** 100% (All 670 unit tests passing, 0 failing)
 
 ## Quick Links
 
@@ -28,7 +29,7 @@ tags:
 - **[Testing Strategy (White-Box vs Black-Box)](./testing-strategy.mdx)**
 - **[Black-Box Testing Architecture](./black-box-testing.mdx)**
 - **[Git Workflow & Quality Gate](./git-workflow.mdx)**
-- **[Security Testing](./security-testing.mdx)** (Encryption, Auth, Signed Tokens)
+- **[Security Testing](./security-testing.mdx)** (Encryption, Auth, Fail-Closed API)
 - [Test Status Report](./test-status.mdx)
 - [API Coverage Report](./api-testing.mdx)
 
@@ -37,9 +38,6 @@ tags:
 ```bash
 # Run all unit tests (Vitest/jsdom)
 bun run test:unit
-
-# Run fast unit tests (Bun Native)
-bun run test:unit:bun
 
 # Run performance benchmarks
 bun run tests/benchmarks/hooks-performance.ts
@@ -73,19 +71,18 @@ graph TD
 
 ## Test Frameworks Overview
 
-### 🧪 Bun & Vitest - Unit & Integration
-
 - **Purpose**: Fast validation of business logic, services, and API endpoints.
 - **Location**: `tests/unit/`
-- **Test Count**: 741 tests
-- **Execution Time**: ~10 seconds (dual suite)
+- **Test Count**: 670 tests (consolidated for performance)
+- **Execution Time**: ~8 seconds
 
 **What It Tests**:
 
 - ✅ **Middleware Hooks**: 71% latency reduction and fast-path short-circuits.
-- ✅ **Database Adapters**: Single-trip operations (.returning) and micro-telemetry.
+- ✅ **Database System**: Unified adapter logic with micro-telemetry verification.
 - ✅ **Secure Preview**: Signed HMAC-SHA256 handshake tokens and expiration logic.
 - ✅ **Audit Logging**: Non-blocking mutation interceptor with duration tracking.
+- ✅ **Fail-Closed API Security**: Granular authorization gatekeeper for the dispatcher.
 - ✅ **Environment Parity**: jsdom (Vitest) for component logic + Native (Bun) for core utilities.
 
 ### 🚀 Performance Benchmarks
@@ -104,14 +101,14 @@ graph TD
 
 ## Test Status & Coverage
 
-**Current Status (March 14, 2026)**
+**Current Status (April 3, 2026)**
 
 | Category          | Passing   | Failing | Skipped | Total     |
 | ----------------- | --------- | ------- | ------- | --------- |
-| Unit Tests        | 732       | 0       | 0       | 732       |
-| Integration Tests | ~300      | 0       | 0       | ~300      |
-| E2E Tests         | ~40       | 0       | 0       | ~40       |
-| **TOTAL**         | **~1072** | **0**   | **0**   | **~1072** |
+| Unit Tests        | 670       | 0       | 0       | 670       |
+| Integration Tests | 318       | 0       | 0       | 318       |
+| E2E Tests         | 40        | 0       | 0       | 40        |
+| **TOTAL**         | **1028**  | **0**   | **0**   | **1028**  |
 
 ## Related Documentation
 

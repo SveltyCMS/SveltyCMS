@@ -18,7 +18,7 @@ import type {
 } from "@src/databases/db-interface";
 // Import global settings service for DB-based configuration
 import { getPrivateSettingSync } from "@src/services/settings-service";
-import { dateToISODateString } from "@src/utils/date-utils";
+import { dateToISODateString, isoDateStringToDate } from "@src/utils/date-utils";
 import { error } from "@sveltejs/kit";
 import { cacheService } from "@src/databases/cache/cache-service";
 // System Logger
@@ -146,6 +146,12 @@ export class Auth {
       }
 
       const normalizedEmail = email.toLowerCase();
+
+      // --- PASSWORD STRENGTH VALIDATION ---
+      if (!oauth && !samlId && password) {
+        this.validatePasswordStrength(password);
+      }
+
       let hashedPassword: string | undefined;
       if (!oauth && !samlId && password) {
         hashedPassword = await cryptoHashPassword(password);
@@ -587,6 +593,28 @@ export class Auth {
         logger.debug("User not found for authentication", { email, tenantId });
         return null;
       }
+
+      // --- ACCOUNT LOCKOUT CHECK ---
+      if (user.lockoutUntil) {
+        const lockoutDate = isoDateStringToDate(user.lockoutUntil);
+        if (lockoutDate > new Date()) {
+          const remainingMinutes = Math.ceil((lockoutDate.getTime() - Date.now()) / 60000);
+          logger.warn("Authentication attempt on locked account", {
+            email,
+            lockoutUntil: user.lockoutUntil,
+          });
+          throw error(
+            403,
+            `Account is temporarily locked. Please try again in ${remainingMinutes} minutes.`,
+          );
+        }
+        // Lockout expired, clear it
+        await this.db.auth.updateUserAttributes(user._id, {
+          lockoutUntil: null,
+          failedAttempts: 0,
+        });
+      }
+
       if (!user.password) {
         logger.debug("User has no password field", {
           email,
@@ -601,8 +629,28 @@ export class Auth {
       logger.debug("Password verification result", { email, isValid });
 
       if (!isValid) {
-        logger.warn("Password authentication failed", { email });
+        // --- FAILED ATTEMPT TRACKING ---
+        const failedAttempts = (user.failedAttempts || 0) + 1;
+        const updates: Partial<User> = { failedAttempts };
+
+        if (failedAttempts >= 5) {
+          // Lock for 15 minutes after 5 failures
+          const lockoutUntil = new Date(Date.now() + 15 * 60 * 1000);
+          updates.lockoutUntil = dateToISODateString(lockoutUntil);
+          logger.error("Account locked due to multiple failed attempts", { email });
+        }
+
+        await this.db.auth.updateUserAttributes(user._id, updates);
+        logger.warn("Password authentication failed", { email, failedAttempts });
         return null;
+      }
+
+      // --- SUCCESS: RESET LOCKOUT STATE ---
+      if (user.failedAttempts || user.lockoutUntil) {
+        await this.db.auth.updateUserAttributes(user._id, {
+          failedAttempts: 0,
+          lockoutUntil: null,
+        });
       }
 
       const expiresAt = dateToISODateString(new Date(Date.now() + 24 * 60 * 60 * 1000)); // 24 hours
@@ -775,9 +823,36 @@ export class Auth {
     if (!user) {
       return { status: false, message: "User not found" };
     }
+
+    // --- PASSWORD STRENGTH VALIDATION ---
+    this.validatePasswordStrength(password);
+
     const hashedPassword = await cryptoHashPassword(password);
     await this.updateUser(user._id, { password: hashedPassword }, options);
     return { status: true };
+  }
+
+  /**
+   * Validates password strength based on enterprise standards.
+   * - Minimum 12 characters
+   * - Includes uppercase, lowercase, numbers, and special characters
+   */
+  private validatePasswordStrength(password: string): void {
+    if (password.length < 12) {
+      throw error(400, "Password must be at least 12 characters long.");
+    }
+
+    const hasUpper = /[A-Z]/.test(password);
+    const hasLower = /[a-z]/.test(password);
+    const hasNumber = /[0-9]/.test(password);
+    const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+
+    if (!(hasUpper && hasLower && hasNumber && hasSpecial)) {
+      throw error(
+        400,
+        "Password must contain uppercase, lowercase, numbers, and special characters.",
+      );
+    }
   }
 }
 

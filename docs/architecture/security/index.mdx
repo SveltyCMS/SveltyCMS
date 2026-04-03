@@ -169,7 +169,9 @@ SveltyCMS security architecture includes:
 
 **Features:**
 
-- ✅ **Advanced Role-Based Access Control (RBAC)**: Comprehensive access evaluation with isolated `tenantId` enforcement, natively preventing cross-tenant and cross-collection data exploits.
+- ✅ **Fail-Closed API Authorization**: All REST API endpoints must be explicitly registered in the central `ENDPOINT_PERMISSIONS` dispatcher. Unmapped routes are denied by default with a `403 Forbidden` response.
+- ✅ **Tenant-Based Access Control (TBAC)**: User roles are dynamically resolved and isolated per `tenantId` during the authentication handshake, preventing cross-tenant privilege escalation.
+- ✅ **Informative 403 Feedback**: The Admin Area natively detects authorization failures and provides granular feedback including the specific required permission.
 - ✅ **UUIDv4 Primary Keys Out-of-the-box**: Protects against Cross-Collection IDOR (Insecure Direct Object Reference) vulnerability collision chains common in serial/auto-increment multi-auth environments.
 - ✅ Permission-based authorization
 - ✅ Multi-tenant isolation
@@ -179,7 +181,8 @@ SveltyCMS security architecture includes:
 
 **Implementation:**
 
-- Permission checks at API layer
+- **Central Dispatcher**: Permission checks enforced at the single entry point for all `/api/[...path]` routes.
+- **Namespace Fallback**: Dynamic resource IDs (e.g., `/api/collections/[id]`) are authorized via parent namespace permissions (e.g., `api:collections`).
 - Database query filtering by tenant
 - Cache key prefixing for isolation
 - **Tamper-Evident Audit Logging**: Immutable, database-backed audit trail for all sensitive operations
@@ -505,6 +508,6 @@ For security-related questions or to report vulnerabilities:
 
 ---
 
-**Last Updated**: March 15, 2026  
-**Security Review Status**: ✅ All Critical Components Reviewed  
+**Last Updated**: April 2, 2026  
+**Security Review Status**: ✅ All Critical Components Reviewed (API Dispatch Hardened)  
 **Next Review**: Quarterly (June 2026)
