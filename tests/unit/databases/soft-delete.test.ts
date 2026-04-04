@@ -71,9 +71,11 @@ describe("Soft Delete Engine", () => {
         undefined,
         expect.objectContaining({ includeDeleted: undefined }),
       );
-      // Mongoose find is called with (query, projection)
+      // Mongoose find is called with (query, projection, options)
       expect(mockModel.find).toHaveBeenCalledWith(
         expect.objectContaining({ isDeleted: { $ne: true } }),
+        "",
+        expect.any(Object),
       );
     });
 
@@ -115,6 +117,7 @@ describe("Soft Delete Engine", () => {
             slug: expect.stringMatching(/my-slug_DELETED_\d+/),
           }),
         }),
+        expect.any(Object),
       );
       // Non-unique fields should NOT be mangled
       const updateSet = mockModel.updateOne.mock.calls[0][1].$set;
@@ -163,6 +166,7 @@ describe("Soft Delete Engine", () => {
           }),
           $unset: { deletedAt: "", deletedBy: "" },
         }),
+        expect.any(Object),
       );
     });
 
