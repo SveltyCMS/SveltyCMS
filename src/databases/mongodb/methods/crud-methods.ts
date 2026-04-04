@@ -35,7 +35,18 @@ export class MongoCrudMethods<T extends BaseEntity> {
         bypassTenantCheck: options.bypassTenantCheck,
         includeDeleted: options.includeDeleted,
       });
-      const result = await this.model.findOne(secureQuery, options.fields?.join(" ")).lean().exec();
+      const queryOptions: any = {};
+      if (options.hints?.readConcern) {
+        queryOptions.readConcern = options.hints.readConcern;
+      }
+      if (options.hints?.readPreference) {
+        queryOptions.readPreference = options.hints.readPreference;
+      }
+
+      const result = await this.model
+        .findOne(secureQuery, options.fields?.join(" "), queryOptions)
+        .lean()
+        .exec();
 
       const meta = { executionTime: performance.now() - startTime };
       if (!result) {
@@ -66,9 +77,16 @@ export class MongoCrudMethods<T extends BaseEntity> {
           includeDeleted: options.includeDeleted,
         },
       );
+      const queryOptions: any = {};
+      if (options.hints?.readConcern) {
+        queryOptions.readConcern = options.hints.readConcern;
+      }
+      if (options.hints?.readPreference) {
+        queryOptions.readPreference = options.hints.readPreference;
+      }
+
       const results = await this.model
-        .find(secureQuery)
-        .select(options.fields?.join(" ") || "")
+        .find(secureQuery, options.fields?.join(" ") || "", queryOptions)
         .lean()
         .exec();
       return {
@@ -103,12 +121,19 @@ export class MongoCrudMethods<T extends BaseEntity> {
       // Convert sort options if they exist
       const sort = options.sort as any;
 
+      const queryOptions: any = {};
+      if (options.hints?.readConcern) {
+        queryOptions.readConcern = options.hints.readConcern;
+      }
+      if (options.hints?.readPreference) {
+        queryOptions.readPreference = options.hints.readPreference;
+      }
+
       const results = await this.model
-        .find(secureQuery)
+        .find(secureQuery, options.fields?.join(" ") || "", queryOptions)
         .sort(sort || {})
         .skip(options.offset ?? 0)
         .limit(options.limit ?? 0)
-        .select(options.fields?.join(" ") || "")
         .lean()
         .exec();
       return {
@@ -144,7 +169,11 @@ export class MongoCrudMethods<T extends BaseEntity> {
         updatedAt: now,
         isDeleted: false,
       });
-      const result = await doc.save();
+      const saveOptions: any = {};
+      if (options.hints?.writeConcern) {
+        saveOptions.w = options.hints.writeConcern;
+      }
+      const result = await doc.save(saveOptions);
       return {
         success: true,
         data: (result as mongoose.HydratedDocument<T>).toObject() as T,
@@ -186,10 +215,14 @@ export class MongoCrudMethods<T extends BaseEntity> {
           isDeleted: false,
         };
       });
-      const result = await this.model.insertMany(docs);
+      const insertOptions: any = { lean: true };
+      if (options.hints?.writeConcern) {
+        insertOptions.w = options.hints.writeConcern;
+      }
+      const result = await this.model.insertMany(docs, insertOptions);
       return {
         success: true,
-        data: result.map((doc) => (doc as unknown as mongoose.HydratedDocument<T>).toObject() as T),
+        data: result as unknown as T[],
         meta: { executionTime: performance.now() - startTime },
       };
     } catch (error) {
@@ -215,8 +248,13 @@ export class MongoCrudMethods<T extends BaseEntity> {
         ...(data as object),
         updatedAt: nowISODateString(),
       };
+      const updateOptions: any = { returnDocument: "after" };
+      if (options.hints?.writeConcern) {
+        updateOptions.w = options.hints.writeConcern;
+      }
+
       const result = await this.model
-        .findOneAndUpdate(query, { $set: updateData }, { returnDocument: "after" })
+        .findOneAndUpdate(query, { $set: updateData }, updateOptions)
         .lean()
         .exec();
 
@@ -254,7 +292,11 @@ export class MongoCrudMethods<T extends BaseEntity> {
         ...(data as object),
         updatedAt: nowISODateString(),
       };
-      const result = await this.model.updateMany(secureQuery, { $set: updateData });
+      const updateOptions: any = {};
+      if (options.hints?.writeConcern) {
+        updateOptions.w = options.hints.writeConcern;
+      }
+      const result = await this.model.updateMany(secureQuery, { $set: updateData }, updateOptions);
       return { success: true, data: { modifiedCount: result.modifiedCount } };
     } catch (error) {
       return {
@@ -274,6 +316,11 @@ export class MongoCrudMethods<T extends BaseEntity> {
       const secureQuery = safeQuery(query, options.tenantId as string, {
         bypassTenantCheck: options.bypassTenantCheck,
       });
+      const upsertOptions: any = { returnDocument: "after", upsert: true, runValidators: true };
+      if (options.hints?.writeConcern) {
+        upsertOptions.w = options.hints.writeConcern;
+      }
+
       const result = await this.model
         .findOneAndUpdate(
           secureQuery,
@@ -285,7 +332,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
               tenantId: options.tenantId || (data as any).tenantId,
             },
           },
-          { returnDocument: "after", upsert: true, runValidators: true },
+          upsertOptions,
         )
         .lean()
         .exec();
@@ -309,8 +356,13 @@ export class MongoCrudMethods<T extends BaseEntity> {
         bypassTenantCheck,
       });
 
+      const deleteOptions: any = {};
+      if (options.hints?.writeConcern) {
+        deleteOptions.w = options.hints.writeConcern;
+      }
+
       if (permanent) {
-        const result = await this.model.deleteOne(query);
+        const result = await this.model.deleteOne(query, deleteOptions);
         if ((result.deletedCount ?? 0) === 0) {
           return {
             success: false,
@@ -348,7 +400,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
         }
       }
 
-      await this.model.updateOne(query, { $set: updateData });
+      await this.model.updateOne(query, { $set: updateData }, deleteOptions);
       return { success: true, data: undefined };
     } catch (error) {
       return {
@@ -367,15 +419,24 @@ export class MongoCrudMethods<T extends BaseEntity> {
       const { tenantId, bypassTenantCheck, permanent, userId } = options;
       const secureQuery = safeQuery(query, tenantId as string, { bypassTenantCheck });
 
+      const deleteOptions: any = {};
+      if (options.hints?.writeConcern) {
+        deleteOptions.w = options.hints.writeConcern;
+      }
+
       if (permanent) {
-        const result = await this.model.deleteMany(secureQuery);
+        const result = await this.model.deleteMany(secureQuery, deleteOptions);
         return { success: true, data: { deletedCount: result.deletedCount } };
       }
 
       const now = nowISODateString();
-      const result = await this.model.updateMany(secureQuery, {
-        $set: { isDeleted: true, deletedAt: now, deletedBy: userId, updatedAt: now },
-      });
+      const result = await this.model.updateMany(
+        secureQuery,
+        {
+          $set: { isDeleted: true, deletedAt: now, deletedBy: userId, updatedAt: now },
+        },
+        deleteOptions,
+      );
       return { success: true, data: { deletedCount: result.modifiedCount } };
     } catch (error) {
       return {
@@ -434,10 +495,19 @@ export class MongoCrudMethods<T extends BaseEntity> {
         }
       }
 
-      await this.model.updateOne(query, {
-        $set: updateData,
-        $unset: { deletedAt: "", deletedBy: "" },
-      });
+      const restoreOptions: any = {};
+      if (options.hints?.writeConcern) {
+        restoreOptions.w = options.hints.writeConcern;
+      }
+
+      await this.model.updateOne(
+        query,
+        {
+          $set: updateData,
+          $unset: { deletedAt: "", deletedBy: "" },
+        },
+        restoreOptions,
+      );
       return { success: true, data: undefined };
     } catch (error) {
       return {
@@ -533,7 +603,11 @@ export class MongoCrudMethods<T extends BaseEntity> {
           upsert: true,
         },
       }));
-      const res = await this.model.bulkWrite(ops as any[]);
+      const bulkOptions: any = {};
+      if (options.hints?.writeConcern) {
+        bulkOptions.w = options.hints.writeConcern;
+      }
+      const res = await this.model.bulkWrite(ops as any[], bulkOptions);
       return {
         success: true,
         data: { upsertedCount: res.upsertedCount, modifiedCount: res.modifiedCount },

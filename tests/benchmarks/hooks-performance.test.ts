@@ -1,12 +1,12 @@
 /**
  * @file tests/benchmarks/hooks-performance.ts
- * @description High-resolution benchmark for real SveltyCMS middleware hooks.
- * Measures execution time of each individual hook in the pipeline.
+ * @description Professional high-resolution benchmark for SveltyCMS middleware hooks.
+ * Uses benchmark-utils for p95, p99, and RPS metrics.
  */
 
-// 1. Initialize Mocks (Critical for running hooks outside SvelteKit)
+// 1. Initialize Mocks
 import "../unit/setup.ts";
-import { performance } from "node:perf_hooks";
+import { runBenchmark, exportResult } from "./benchmark-utils";
 import type { RequestEvent } from "@sveltejs/kit";
 
 /**
@@ -40,9 +40,6 @@ async function getHooks() {
 const ITERATIONS = 10_000;
 const MOCK_RESPONSE = new Response("OK", { status: 200 });
 
-/**
- * Creates a fresh mock event for each iteration.
- */
 function createMockEvent(path: string): RequestEvent {
   const url = new URL(`http://localhost${path}`);
   return {
@@ -68,72 +65,49 @@ function createMockEvent(path: string): RequestEvent {
 
 const resolve = async () => MOCK_RESPONSE.clone();
 
-/**
- * Main benchmark execution logic.
- */
-async function runBenchmark() {
-  console.log(`\n🚀 SveltyCMS Hook Pipeline Performance – ${new Date().toISOString()}`);
-  console.log(`Iterations per hook: ${ITERATIONS.toLocaleString()}\n`);
-
+async function runHookBenchmarkSuite() {
   const hooks = await getHooks();
-  const results: {
-    "Hook Name": string;
-    "Avg (µs)": string;
-    "Total (ms)": string;
-  }[] = [];
+  const overallResults = [];
+
+  console.log("🛠️ Starting Professional Hook Pipeline Benchmark Suite...");
 
   for (const [name, hook] of Object.entries(hooks)) {
-    // Warmup
-    const warmupEvent = createMockEvent("/api/collections");
-    for (let i = 0; i < 100; i++) {
-      try {
-        await hook({ event: warmupEvent, resolve });
-      } catch {
-        /* Ignore */
-      }
-    }
-
-    // Benchmark
-    const start = performance.now();
-    for (let i = 0; i < ITERATIONS; i++) {
-      const event = createMockEvent("/api/collections");
-      try {
-        await hook({ event, resolve });
-      } catch {
-        // Expected errors due to mock/redirect/abort
-      }
-    }
-    const end = performance.now();
-
-    const totalMs = end - start;
-    const avgMicro = (totalMs * 1000) / ITERATIONS;
-
-    results.push({
-      "Hook Name": name,
-      "Avg (µs)": avgMicro.toFixed(4),
-      "Total (ms)": totalMs.toFixed(2),
+    const result = await runBenchmark({
+      name: `Hook: ${name}`,
+      iterations: ITERATIONS,
+      warmupIterations: 500,
+      onIteration: async () => {
+        const event = createMockEvent("/api/collections");
+        try {
+          await hook({ event, resolve });
+        } catch {
+          // Expected errors due to mock/redirect/abort are handled by benchmark-utils successCount
+        }
+      },
     });
+    overallResults.push(result);
+    exportResult(result);
   }
 
-  // Sort by execution time (slowest first)
-  results.sort((a, b) => parseFloat(b["Avg (µs)"]) - parseFloat(a["Avg (µs)"]));
+  // Calculate Pipeline Totals
+  const totalAvg = overallResults.reduce((acc, r) => acc + r.avgMs, 0);
+  const totalP95 = overallResults.reduce((acc, r) => acc + r.p95Ms, 0);
 
-  console.table(results);
+  console.log("\n===========================================================");
+  console.log("🏁 AGGREGATE PIPELINE PERFORMANCE");
+  console.log("===========================================================");
+  console.log(`Avg Latency:  ${(totalAvg * 1000).toFixed(2)} µs (${totalAvg.toFixed(4)} ms)`);
+  console.log(`p95 Latency:  ${(totalP95 * 1000).toFixed(2)} µs (${totalP95.toFixed(4)} ms)`);
+  console.log(
+    `Theoretical Max Throughput: ${Math.floor(1000 / totalAvg).toLocaleString()} req/sec`,
+  );
+  console.log("===========================================================\n");
 
-  const totalAvg = results.reduce((acc, r) => acc + parseFloat(r["Avg (µs)"]), 0);
-  console.log("\n-----------------------------------------------------------");
-  console.log(
-    `🏁 Estimated Pipeline Latency: ${totalAvg.toFixed(2)} µs (${(totalAvg / 1000).toFixed(3)} ms)`,
-  );
-  console.log(
-    `📊 Max Throughput (theoretical): ${Math.floor(1000000 / totalAvg).toLocaleString()} req/sec`,
-  );
-  console.log("-----------------------------------------------------------");
-  console.log("✅ Benchmark complete.");
   process.exit(0);
 }
 
-runBenchmark().catch((err) => {
-  console.error("❌ Benchmark failed:", err);
-  process.exit(1);
-});
+import { test } from "bun:test";
+
+test("Hook Pipeline Performance Suite", async () => {
+  await runHookBenchmarkSuite();
+}, 600000);

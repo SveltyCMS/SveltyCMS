@@ -28,6 +28,7 @@ import type { ISODateString, DatabaseId } from "@src/databases/db-interface";
 import { databaseConfigSchema } from "@src/databases/schemas";
 import { setupAdminSchema, smtpConfigSchema } from "@utils/form-schemas";
 import { logger } from "@utils/logger.server";
+import { isSetupComplete } from "@utils/setup-check";
 import nodemailer from "nodemailer";
 import { safeParse } from "valibot";
 import { version as pkgVersion } from "../../../package.json";
@@ -71,6 +72,7 @@ export const load: PageServerLoad = async ({ locals, cookies, url }) => {
     availableLanguages, // Pass the languages from settings.json
     redisAvailable: await checkRedis(),
     origin: url.origin, // Dynamic origin detection (localhost vs 127.0.0.1 vs custom port)
+    configLocked: isSetupComplete(), // Check if private.ts exists
     settings: {
       PKG_VERSION: pkgVersion,
     },
@@ -87,6 +89,14 @@ export const actions: Actions = {
    */
   testDatabase: async ({ request }) => {
     logger.info("🚀 Action: VerifyDatabaseConfig starting...");
+    const isTestMode = process.env.TEST_MODE === "true";
+    if (isSetupComplete() && !isTestMode) {
+      logger.warn("❌ Action: testDatabase BLOCKED - configuration already exists");
+      return {
+        success: false,
+        error: "Configuration already exists. Database settings are locked.",
+      };
+    }
     try {
       const formData = await request.formData();
       const configRaw = formData.get("config") as string;
@@ -147,6 +157,14 @@ export const actions: Actions = {
    */
   seedDatabase: async ({ request }) => {
     logger.info("🚀 Action: seedDatabase called");
+    const isTestMode = process.env.TEST_MODE === "true";
+    if (isSetupComplete() && !isTestMode) {
+      logger.warn("❌ Action: seedDatabase BLOCKED - configuration already exists");
+      return {
+        success: false,
+        error: "Configuration already exists. Seeding is locked.",
+      };
+    }
     const formData = await request.formData();
     const configRaw = formData.get("config") as string;
     const systemRaw = formData.get("system") as string;
@@ -368,6 +386,7 @@ export const actions: Actions = {
             email: admin.email,
             password: admin.password,
             role: "admin",
+            isAdmin: true,
             isRegistered: true,
           },
           {
@@ -627,27 +646,22 @@ export const actions: Actions = {
         logger.warn("Failed to read keys from private.ts, using fallbacks:", e);
       }
 
-      await initializeWithConfig(
-        {
-          DB_TYPE: database.type,
-          DB_HOST: database.host,
-          DB_PORT: Number(database.port),
-          DB_NAME: database.name,
-          DB_USER: database.user || "",
-          DB_PASSWORD: database.password || "",
-          JWT_SECRET_KEY: jwtSecret,
-          ENCRYPTION_KEY: encryptionKey,
-          USE_REDIS: system.useRedis,
-          REDIS_HOST: system.redisHost,
-          REDIS_PORT: Number(system.redisPort),
-          REDIS_PASSWORD: system.redisPassword,
-        } as any,
-        {
-          multiTenant: system.multiTenant,
-          demoMode: system.demoMode,
-          awaitBackground: false, // Speed up response by not waiting for non-critical tasks
-        },
-      );
+      await initializeWithConfig({
+        DB_TYPE: database.type,
+        DB_HOST: database.host,
+        DB_PORT: Number(database.port),
+        DB_NAME: database.name,
+        DB_USER: database.user || "",
+        DB_PASSWORD: database.password || "",
+        JWT_SECRET_KEY: jwtSecret,
+        ENCRYPTION_KEY: encryptionKey,
+        USE_REDIS: system.useRedis,
+        REDIS_HOST: system.redisHost,
+        REDIS_PORT: Number(system.redisPort),
+        REDIS_PASSWORD: system.redisPassword,
+        MULTI_TENANT: system.multiTenant,
+        DEMO: system.demoMode,
+      } as any);
 
       // 4. Force Content Manager synchronization REMOVED (Handled lazily or in background)
       // This ensures the dashboard can find the newly seeded collections immediately.

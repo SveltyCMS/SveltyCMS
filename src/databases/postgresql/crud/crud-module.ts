@@ -5,7 +5,7 @@
 
 import { nowISODateString } from "@src/utils/date-utils";
 import { safeQuery } from "@src/utils/security/safe-query";
-import { count, eq, inArray } from "drizzle-orm";
+import { count, eq, inArray, placeholder } from "drizzle-orm";
 import type {
   BaseEntity,
   DatabaseId,
@@ -21,6 +21,7 @@ import * as utils from "../utils";
 
 export class CrudModule implements ICrudAdapter {
   private readonly core: AdapterCore;
+  private readonly preparedStatements = new Map<string, any>();
 
   constructor(core: AdapterCore) {
     this.core = core;
@@ -28,6 +29,14 @@ export class CrudModule implements ICrudAdapter {
 
   private get db() {
     return this.core.db!;
+  }
+
+  /**
+   * Helper to determine if a query is a simple ID lookup.
+   */
+  private isSimpleIdQuery(query: any): boolean {
+    const keys = Object.keys(query);
+    return keys.length === 1 && keys[0] === "_id" && typeof query._id === "string";
   }
 
   async findOne<T extends BaseEntity>(
@@ -47,6 +56,30 @@ export class CrudModule implements ICrudAdapter {
           bypassTenantCheck: options.bypassTenantCheck,
           includeDeleted: options.includeDeleted,
         });
+
+        // 🚀 OPTIMIZATION: Use Prepared Statement for simple ID lookups
+        if (this.isSimpleIdQuery(secureQuery)) {
+          const table = this.core.getTable(collection);
+          const cacheKey = `findOne:${collection}`;
+
+          let prepared = this.preparedStatements.get(cacheKey);
+          if (!prepared) {
+            prepared = this.db
+              .select()
+              .from(table as unknown as import("drizzle-orm/pg-core").PgTable)
+              .where(eq((table as any)._id, placeholder("id")))
+              .prepare(cacheKey);
+            this.preparedStatements.set(cacheKey, prepared);
+          }
+
+          const results = await prepared.execute({ id: secureQuery._id });
+          const data =
+            results.length === 0
+              ? null
+              : (utils.convertDatesToISO(results[0] as Record<string, unknown>) as T);
+          return data;
+        }
+
         const table = this.core.getTable(collection);
         const where = this.core.mapQuery(table, secureQuery as Record<string, unknown>) as
           | import("drizzle-orm").SQL
@@ -171,15 +204,30 @@ export class CrudModule implements ICrudAdapter {
           updatedAt: now,
         };
 
-        await this.db
-          .insert(table as unknown as import("drizzle-orm/pg-core").PgTable)
-          .values(values as unknown as Record<string, unknown>);
+        // 🚀 OPTIMIZATION: Use Prepared Statement for inserts
+        const cacheKey = `insert:${collection}`;
+        let prepared = this.preparedStatements.get(cacheKey);
+        if (!prepared) {
+          prepared = this.db
+            .insert(table as unknown as import("drizzle-orm/pg-core").PgTable)
+            .values(placeholder("values"))
+            .prepare(cacheKey);
+          this.preparedStatements.set(cacheKey, prepared);
+        }
+        await prepared.execute({ values });
 
-        const [result] = await this.db
-          .select()
-          .from(table as unknown as import("drizzle-orm/pg-core").PgTable)
-          .where(eq((table as any)._id, id as string))
-          .limit(1);
+        // Reuse the findOne prepared statement for the result
+        const findCacheKey = `findOne:${collection}`;
+        let findPrepared = this.preparedStatements.get(findCacheKey);
+        if (!findPrepared) {
+          findPrepared = this.db
+            .select()
+            .from(table as unknown as import("drizzle-orm/pg-core").PgTable)
+            .where(eq((table as any)._id, placeholder("id")))
+            .prepare(findCacheKey);
+          this.preparedStatements.set(findCacheKey, findPrepared);
+        }
+        const [result] = await findPrepared.execute({ id: id as string });
 
         return utils.convertDatesToISO(result as Record<string, unknown>) as T;
       }, "CRUD_INSERT_FAILED")
@@ -201,15 +249,47 @@ export class CrudModule implements ICrudAdapter {
         const secureQuery = safeQuery({ _id: id } as unknown as QueryFilter<T>, options?.tenantId, {
           bypassTenantCheck: options?.bypassTenantCheck,
         });
+
         const table = this.core.getTable(collection);
+        const now = new Date(nowISODateString());
+        const updateData = { ...data, updatedAt: now };
+
+        // 🚀 OPTIMIZATION: Use Prepared Statement for simple ID updates
+        if (this.isSimpleIdQuery(secureQuery)) {
+          const cacheKey = `update:${collection}`;
+          let prepared = this.preparedStatements.get(cacheKey);
+          if (!prepared) {
+            prepared = this.db
+              .update(table as unknown as import("drizzle-orm/pg-core").PgTable)
+              .set(placeholder("data"))
+              .where(eq((table as any)._id, placeholder("id")))
+              .prepare(cacheKey);
+            this.preparedStatements.set(cacheKey, prepared);
+          }
+          await prepared.execute({ id: id as string, data: updateData });
+
+          // Reuse the findOne prepared statement
+          const findCacheKey = `findOne:${collection}`;
+          let findPrepared = this.preparedStatements.get(findCacheKey);
+          if (!findPrepared) {
+            findPrepared = this.db
+              .select()
+              .from(table as unknown as import("drizzle-orm/pg-core").PgTable)
+              .where(eq((table as any)._id, placeholder("id")))
+              .prepare(findCacheKey);
+            this.preparedStatements.set(findCacheKey, findPrepared);
+          }
+          const [result] = await findPrepared.execute({ id: id as string });
+          return utils.convertDatesToISO(result as Record<string, unknown>) as T;
+        }
+
         const where = this.core.mapQuery(table, secureQuery as Record<string, unknown>) as
           | import("drizzle-orm").SQL
           | undefined;
-        const now = new Date(nowISODateString());
 
         await this.db
           .update(table as unknown as import("drizzle-orm/pg-core").PgTable)
-          .set({ ...data, updatedAt: now } as unknown as Record<string, unknown>)
+          .set(updateData as unknown as Record<string, unknown>)
           .where(where);
 
         const [result] = await this.db
@@ -245,6 +325,23 @@ export class CrudModule implements ICrudAdapter {
             bypassTenantCheck: options.bypassTenantCheck,
           },
         );
+
+        // 🚀 OPTIMIZATION: Use Prepared Statement for simple ID deletes
+        if (this.isSimpleIdQuery(query)) {
+          const table = this.core.getTable(collection);
+          const cacheKey = `delete:${collection}`;
+          let prepared = this.preparedStatements.get(cacheKey);
+          if (!prepared) {
+            prepared = this.db
+              .delete(table as unknown as import("drizzle-orm/pg-core").PgTable)
+              .where(eq((table as any)._id, placeholder("id")))
+              .prepare(cacheKey);
+            this.preparedStatements.set(cacheKey, prepared);
+          }
+          await prepared.execute({ id: id as string });
+          return;
+        }
+
         const table = this.core.getTable(collection);
         const where = this.core.mapQuery(table, query as Record<string, unknown>) as
           | import("drizzle-orm").SQL

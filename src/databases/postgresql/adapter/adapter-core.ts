@@ -119,7 +119,34 @@ export class AdapterCore {
       this.db = drizzle(this.sql, { schema });
 
       // Verification: Ensure the connection is actually established
-      await this.sql`SELECT 1`;
+      try {
+        await this.sql`SELECT 1`;
+      } catch (err: any) {
+        logger.error(
+          `Initial PostgreSQL connection check failed (Code: ${err.code}):`,
+          err.message,
+        );
+        // If database doesn't exist (code 3D000 in Postgres), try creating it
+        if (err.code === "3D000" && options.database) {
+          logger.info(`Database "${options.database}" not found. Attempting to create it...`);
+          const adminOptions = { ...options, database: "postgres" };
+          const adminSql = postgres(adminOptions);
+          try {
+            await adminSql.unsafe(`CREATE DATABASE "${options.database}"`);
+            logger.info(`Successfully created database "${options.database}".`);
+            await adminSql.end();
+            // Reconnect to the new database
+            this.sql = postgres(options);
+            this.db = drizzle(this.sql, { schema });
+            await this.sql`SELECT 1`;
+          } catch (createErr) {
+            await adminSql.end();
+            throw createErr;
+          }
+        } else {
+          throw err;
+        }
+      }
 
       this.connected = true;
       logger.info("Connected to PostgreSQL");

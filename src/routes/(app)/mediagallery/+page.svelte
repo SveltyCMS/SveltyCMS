@@ -217,7 +217,38 @@ async function handleCreateFolder() {
 </script>
 
 <div class="flex flex-col gap-4">
-	<PageTitle name="Media Gallery" icon="bi:images" showBackButton={true} backUrl="/" helpUrl="/docs/guides/media-gallery" />
+	<PageTitle 
+		name="Media Gallery" 
+		icon="bi:images" 
+		showBackButton={true} 
+		backUrl="/" 
+		helpUrl="/docs/guides/media-gallery"
+	>
+		{#snippet children()}
+			<div class="flex items-center gap-2">
+				<button 
+					onclick={handleCreateFolder}
+					class="btn preset-tonal-secondary"
+					aria-label="Create new virtual folder"
+				>
+					<iconify-icon icon="mdi:folder-plus" width="20"></iconify-icon>
+					<span class="hidden md:inline">New Folder</span>
+				</button>
+
+				<label class="btn preset-filled-primary-500 cursor-pointer">
+					<iconify-icon icon="mdi:upload" width="20"></iconify-icon>
+					<span class="hidden md:inline">Upload</span>
+					<input 
+						type="file" 
+						multiple 
+						class="hidden" 
+						onchange={handleUpload}
+						accept="image/*,video/*,audio/*,application/pdf"
+					/>
+				</label>
+			</div>
+		{/snippet}
+	</PageTitle>
 
 	<!-- Toolbar -->
 	<div class="flex flex-wrap items-center justify-between gap-4 bg-surface-100 dark:bg-surface-800 p-4 rounded-xl shadow-sm border border-surface-200 dark:border-surface-700">
@@ -263,29 +294,6 @@ async function handleCreateFolder() {
 			>
 				{isSelectionMode ? 'Exit Selection' : 'Select'}
 			</button>
-
-			<div class="flex items-center gap-2 border-l border-surface-300 dark:border-surface-600 pl-2 ml-2">
-				<button 
-					onclick={handleCreateFolder}
-					class="btn preset-tonal-secondary"
-					aria-label="Create new virtual folder"
-				>
-					<iconify-icon icon="mdi:folder-plus" width="20"></iconify-icon>
-					<span class="hidden md:inline">New Folder</span>
-				</button>
-
-				<label class="btn preset-filled-primary-500 cursor-pointer">
-					<iconify-icon icon="mdi:upload" width="20"></iconify-icon>
-					<span class="hidden md:inline">Upload</span>
-					<input 
-						type="file" 
-						multiple 
-						class="hidden" 
-						onchange={handleUpload}
-						accept="image/*,video/*,audio/*,application/pdf"
-					/>
-				</label>
-			</div>
 		</div>
 	</div>
 

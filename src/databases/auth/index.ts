@@ -834,12 +834,13 @@ export class Auth {
 
   /**
    * Validates password strength based on enterprise standards.
-   * - Minimum 12 characters
+   * - Minimum 8 characters (default, configurable via PASSWORD_MIN_LENGTH)
    * - Includes uppercase, lowercase, numbers, and special characters
    */
   private validatePasswordStrength(password: string): void {
-    if (password.length < 12) {
-      throw error(400, "Password must be at least 12 characters long.");
+    const minLength = getPrivateSettingSync("PASSWORD_MIN_LENGTH") || 8;
+    if (password.length < minLength) {
+      throw error(400, `Password must be at least ${minLength} characters long.`);
     }
 
     const hasUpper = /[A-Z]/.test(password);

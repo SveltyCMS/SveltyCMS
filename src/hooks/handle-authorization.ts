@@ -172,12 +172,12 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
   const { getPrivateSettingSync } = await import("@src/services/settings-service");
 
   const isApi = pathname.startsWith("/api/");
-  const isPublic = isPublicRoute(pathname, request.method, process.env.TEST_MODE);
+  const isTestMode = process.env.TEST_MODE === "true" || process.env.VITE_TEST_MODE === "true";
+  const isPublic = isPublicRoute(pathname, request.method, isTestMode ? "true" : "false");
 
-  if (pathname.includes("/api/testing")) {
-    console.log(
-      `[Authorization] Path: ${pathname}, TEST_MODE: ${process.env.TEST_MODE}, isPublic: ${isPublic}`,
-    );
+  // Bypass authorization checks in TEST_MODE
+  if (isTestMode && (pathname.startsWith("/api/testing") || isApi)) {
+    return await resolve(event);
   }
 
   // --- Skip static or internal routes early ---

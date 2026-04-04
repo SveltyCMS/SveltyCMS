@@ -8,10 +8,10 @@ import mongoose from "mongoose";
 
 // Load config at top-level (Bun supports top-level await) to determine skip status
 // @ts-ignore - runtime file
-const { privateEnv } = await import("../../../config/private.test").catch(() => ({
+const { privateEnv } = (await import("../../../config/private.test").catch(() => ({
   privateEnv: null,
-}));
-const isMongo = privateEnv?.DB_TYPE === "mongodb";
+}))) as any;
+const isMongo = (privateEnv as any)?.DB_TYPE === "mongodb";
 
 // Use conditional describe to show skip status in runner output
 describe(
@@ -36,11 +36,11 @@ describe(
       db = new adapterClass();
 
       // Construct connection string using environment settings
-      const dbName = `${privateEnv.DB_NAME || "sveltycms_test"}_functional`;
-      let connectionString = `mongodb://${privateEnv.DB_HOST}:${privateEnv.DB_PORT}/${dbName}`;
+      const dbName = `${(privateEnv as any).DB_NAME || "sveltycms_test"}_functional`;
+      let connectionString = `mongodb://${(privateEnv as any).DB_HOST}:${(privateEnv as any).DB_PORT}/${dbName}`;
 
-      if (privateEnv.DB_USER && privateEnv.DB_PASSWORD) {
-        connectionString = `mongodb://${privateEnv.DB_USER}:${privateEnv.DB_PASSWORD}@${privateEnv.DB_HOST}:${privateEnv.DB_PORT}/${dbName}?authSource=admin`;
+      if ((privateEnv as any).DB_USER && (privateEnv as any).DB_PASSWORD) {
+        connectionString = `mongodb://${(privateEnv as any).DB_USER}:${(privateEnv as any).DB_PASSWORD}@${(privateEnv as any).DB_HOST}:${(privateEnv as any).DB_PORT}/${dbName}?authSource=admin`;
       }
 
       // Set longer timeout for CI environments

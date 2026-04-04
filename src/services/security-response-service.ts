@@ -99,8 +99,8 @@ class SecurityResponseService {
 
     const keyPrefix =
       tenantId && isGraphql
-        ? `rate:tenant:${tenantId}:graphql:minute`
-        : `svelty:sec:rl:${scope.replace(/\//g, "_").replace(/^_/, "")}`;
+        ? `rate:tenant:${tenantId}:graphql:v11:min`
+        : `svelty:sec:rl:v11:${scope.replace(/\//g, "_").replace(/^_/, "")}`;
 
     const options = {
       points: limit,
@@ -117,7 +117,7 @@ class SecurityResponseService {
       limiter = new RateLimiterMemory(options);
     }
 
-    this.limiters.set(scope, limiter);
+    this.limiters.set(cacheKey, limiter); // Fixed: was using 'scope' instead of 'cacheKey'
     return limiter;
   }
 
@@ -137,7 +137,7 @@ class SecurityResponseService {
 
     const forceSecurity = request.headers.get("x-test-security") === "true";
 
-    // 2. Rate Limit check
+    // 2. Rate Limit check (Basic protection)
     const rateLimit = await this.checkRateLimit(clientIp, pathname, tenantId, forceSecurity);
     if (rateLimit.action !== "allow") return rateLimit;
 
@@ -351,33 +351,51 @@ class SecurityResponseService {
     await this.dispatchAlert(ip, "critical", reason, tenantId);
   }
 
+  /**
+   * Performs an adaptive rate limit check.
+   * @param points - The number of points to consume (higher for suspicious requests)
+   */
   public async checkRateLimit(
     ip: string,
     endpoint: string,
     tenantId?: string,
     forceSecurity = false,
+    points = 1,
   ): Promise<SecurityStatus> {
     if ((building || process.env.TEST_MODE === "true") && !forceSecurity) {
-      logger.debug(
-        `[SecurityResponseService] Rate limit check skipped: TEST_MODE=${process.env.TEST_MODE}, building=${building}`,
-      );
       return { level: "none", action: "allow" };
     }
 
     try {
       const limiter = await this.getOrCreateLimiter(endpoint, tenantId);
-      await limiter.consume(ip);
+      await limiter.consume(ip, points);
       return { level: "none", action: "allow" };
     } catch (rej: any) {
       const retryAfter = Math.ceil((rej.msBeforeNext || 1000) / 1000);
       logger.warn(
-        `[SecurityResponseService] Rate limit exceeded for IP: ${ip} on endpoint: ${endpoint}. Retry after ${retryAfter}s`,
+        `[Security] Rate limit exceeded [IP: ${ip}, Points: ${points}, Retry: ${retryAfter}s]`,
       );
       return {
         level: "low",
         action: "throttle",
         reason: `Rate limit exceeded (Retry after ${retryAfter}s)`,
       };
+    }
+  }
+
+  /** Maps threat levels to quantitative point penalties for rate limiting. */
+  public getPointsForThreat(level: ThreatLevel): number {
+    switch (level) {
+      case "low":
+        return 5;
+      case "medium":
+        return 20;
+      case "high":
+        return 50;
+      case "critical":
+        return 100;
+      default:
+        return 1;
     }
   }
 

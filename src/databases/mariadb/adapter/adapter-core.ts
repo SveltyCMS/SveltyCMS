@@ -68,15 +68,52 @@ export class AdapterCore {
     _options?: unknown,
   ): Promise<DatabaseResult<void>> {
     try {
-      if (typeof connection === "string") {
-        this.pool = mysql.createPool(connection);
-      } else {
-        this.pool = mysql.createPool(connection);
-      }
+      this.pool = mysql.createPool(connection as any);
       this.db = drizzle(this.pool, { schema, mode: "default" });
 
       // Verification: Ensure the connection is actually established
-      await this.pool.query("SELECT 1");
+      try {
+        await this.pool.query("SELECT 1");
+      } catch (err: any) {
+        logger.error(`Initial MariaDB connection check failed (Code: ${err.code}):`, err.message);
+        // If database doesn't exist (code ER_BAD_DB_ERROR in MariaDB/MySQL)
+        if (err.code === "ER_BAD_DB_ERROR") {
+          let dbName = "";
+          let connectionOptions: any = {};
+
+          if (typeof connection === "string") {
+            const url = new URL(connection);
+            dbName = url.pathname.slice(1);
+            url.pathname = ""; // Connect to server without DB
+            connectionOptions = url.toString();
+          } else {
+            dbName = (connection as any).database;
+            connectionOptions = { ...connection, database: undefined };
+          }
+
+          if (dbName) {
+            logger.info(`Database "${dbName}" not found. Attempting to create it...`);
+            const adminPool = mysql.createPool(connectionOptions as any);
+            try {
+              await adminPool.query(`CREATE DATABASE IF NOT EXISTS \`${dbName}\``);
+              logger.info(`Successfully created database "${dbName}".`);
+              await adminPool.end();
+              // Reconnect with the original connection (which now has the DB)
+              await this.pool.end();
+              this.pool = mysql.createPool(connection as any);
+              this.db = drizzle(this.pool, { schema, mode: "default" });
+              await this.pool.query("SELECT 1");
+            } catch (createErr) {
+              await adminPool.end();
+              throw createErr;
+            }
+          } else {
+            throw err;
+          }
+        } else {
+          throw err;
+        }
+      }
 
       this.connected = true;
       logger.info("Connected to MariaDB");

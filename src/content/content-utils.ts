@@ -49,8 +49,13 @@ export function hasDuplicateSiblingName(
   name: string,
   excludeId?: string,
 ): boolean {
+  const pId = parentId?.toString() || undefined;
+  const exId = excludeId?.toString() || undefined;
   return nodes.some(
-    (node) => node.name === name && node.parentId === parentId && node._id !== excludeId,
+    (node) =>
+      node.name === name &&
+      (node.parentId?.toString() || undefined) === pId &&
+      node._id?.toString() !== exId,
   );
 }
 
@@ -122,29 +127,43 @@ export const contentNavigation = {
       const children: NavigationNode[] = [];
 
       for (const node of contentStore.getAllNodes()) {
-        if (options?.tenantId && node.tenantId && node.tenantId !== options.tenantId) continue;
-        if ((node.parentId || undefined) === (parentId || undefined)) {
+        // Robust tenant check: treat undefined/null as matching if requested tenant is null/undefined
+        const nTenantId = node.tenantId?.toString() || undefined;
+        const targetTenantId = options?.tenantId?.toString() || undefined;
+        if (targetTenantId && nTenantId !== targetTenantId) continue;
+
+        // Robust parent check: treat null, empty string, and "null" as undefined (Root)
+        const rawParentId = node.parentId?.toString() || undefined;
+        const nParentId = rawParentId === "null" || rawParentId === "" ? undefined : rawParentId;
+
+        const rawTargetParentId = parentId?.toString() || undefined;
+        const targetParentId =
+          rawTargetParentId === "null" || rawTargetParentId === "" ? undefined : rawTargetParentId;
+
+        if (nParentId === targetParentId) {
           const nodeDepth = currentDepth + 1;
-          const shouldLoadChildren = nodeDepth < maxDepth || expandedIds.has(node._id);
+          const node_id = node._id.toString();
+          const shouldLoadChildren = nodeDepth < maxDepth || expandedIds.has(node_id);
 
           let hasChildren = false;
           for (const n of contentStore.getAllNodes()) {
-            if (n.parentId === node._id) {
+            const childParentId = n.parentId?.toString() || undefined;
+            if (childParentId === node_id) {
               hasChildren = true;
               break;
             }
           }
 
           children.push({
-            _id: node._id,
+            _id: node_id,
             name: node.name,
             path: node.path,
             icon: node.icon,
             nodeType: node.nodeType,
             order: node.order,
-            parentId: node.parentId,
+            parentId: nParentId,
             translations: node.translations,
-            children: shouldLoadChildren ? buildTree(node._id, nodeDepth) : undefined,
+            children: shouldLoadChildren ? buildTree(node_id, nodeDepth) : undefined,
             hasChildren: hasChildren && !shouldLoadChildren,
           });
         }

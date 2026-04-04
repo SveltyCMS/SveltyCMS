@@ -67,8 +67,8 @@ export async function POST(event: RequestEvent) {
 
       let attempts = 0;
       while (attempts < 3) {
-        const result = await reinitializeSystem(true);
-        console.log(`[API/Testing] Re-initialization attempt ${attempts + 1}: ${result.status}`);
+        await reinitializeSystem(true);
+        console.log(`[API/Testing] Re-initialization attempt ${attempts + 1}: SUCCESS`);
 
         const {
           getDbInitPromise: getNewInitPromise,

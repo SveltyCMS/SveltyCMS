@@ -5,7 +5,7 @@
  * Replaces content-structure, content-collections, and content-polling.
  * Uses Svelte 5 runes for tree-shakable reactivity.
  */
-import type { ContentNode, Schema } from "@src/content/types";
+import type { ContentNode, Schema, DatabaseId } from "@src/content/types";
 import { browser } from "$app/environment";
 import { logger } from "@utils/logger";
 import { SvelteMap } from "svelte/reactivity";
@@ -156,14 +156,32 @@ class ContentStore {
   }
 
   sync(nodes: ContentNode[]) {
+    logger.debug(`[ContentStore] Syncing ${nodes.length} nodes for tenant: ${getStore().state}`);
     this.nodeMap.clear();
     this.pathMap.clear();
+
     for (const node of nodes) {
-      this.nodeMap.set(node._id, node);
-      if (node.path) this.pathMap.set(node.path, node._id);
+      const id = node._id.toString();
+      // Normalize parentId: null, empty string, or "null" (string) -> undefined
+      const rawParentId = node.parentId?.toString() || undefined;
+      const parentId =
+        rawParentId === "null" || rawParentId === "" ? undefined : (rawParentId as DatabaseId);
+
+      // Normalize tenantId: null or empty -> undefined
+      const tenantId = (node.tenantId?.toString() || undefined) as DatabaseId | undefined;
+
+      this.nodeMap.set(id, {
+        ...node,
+        _id: id as DatabaseId,
+        parentId,
+        tenantId,
+      });
+
+      if (node.path) this.pathMap.set(node.path, id);
     }
     this.version = Date.now();
     this.state = "initialized";
+    logger.debug("[ContentStore] Sync complete, nodes mapped:", this.nodeMap.size);
   }
 
   startLiveSync(onUpdate: () => void) {
@@ -254,6 +272,9 @@ export const contentStore = {
   },
   get pollingVersion() {
     return getStore().currentPollingVersion;
+  },
+  get version() {
+    return getStore().version;
   },
 
   getNode: (id: string) => getStore().getNode(id),

@@ -421,7 +421,7 @@ export const settingsGroups: SettingGroup[] = [
         },
       },
       {
-        key: "PASSWORD_LENGTH",
+        key: "PASSWORD_MIN_LENGTH",
         label: "Minimum Password Length",
         description: "Minimum required length for user passwords",
         type: "number",

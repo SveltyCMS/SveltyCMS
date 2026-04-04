@@ -107,6 +107,9 @@ export class LocalCMS {
     const { tenantId, user, isAdmin } = eventLocals;
 
     const collections = {
+      list: (options?: any) => cms.collections.list({ ...options, tenantId }),
+      search: (query: string, options?: any) =>
+        cms.collections.search(query, { ...options, tenantId, user, isAdmin }),
       find: (collection: string, options?: any) =>
         cms.collections.find(collection, { ...options, tenantId, user }),
       findById: (collection: string, id: string, options?: any) =>
@@ -733,6 +736,8 @@ class TokensNamespace {
  */
 class CollectionsNamespace {
   private _proxy: CollectionProxy;
+  private _requestCache = new Map<string, any>();
+  private _batchLoaders = new Map<string, { ids: Set<string>; promises: Map<string, any> }>();
 
   constructor(private _dbAdapter: IDBAdapter) {
     if (!_dbAdapter) {
@@ -932,15 +937,75 @@ class CollectionsNamespace {
   }
 
   async find(collectionId: string, options: any = {}) {
-    const { tenantId, filter = {}, limit = 50, offset = 0 } = options;
+    const { tenantId, filter = {}, limit = 50, offset = 0, bypassCache = false } = options;
+    const ttl = options.ttl ? Number(options.ttl) : undefined;
     const schema = await this.getSchema(collectionId, tenantId);
     const query = { ...filter, ...(tenantId && { tenantId: tenantId as DatabaseId }) };
 
-    return this._dbAdapter.crud.findMany(this.getCollectionName(schema._id as string), query, {
-      limit,
-      offset,
-      tenantId: tenantId as DatabaseId,
-    });
+    // --- 1. Request-Level Memory Cache (Deduplication) ---
+    const queryHash = crypto
+      .createHash("md5")
+      .update(JSON.stringify({ query, limit, offset }))
+      .digest("hex");
+    const cacheKey = `collection:${schema._id}:find:${queryHash}`;
+
+    if (!bypassCache && this._requestCache.has(cacheKey)) {
+      if (typeof metricsService?.recordMetric === "function") {
+        metricsService.recordApiCacheHit(tenantId || undefined, "l1");
+      }
+      logger.debug(`[LocalSDK] L1 Cache HIT (Request Memory): ${cacheKey}`);
+      return this._requestCache.get(cacheKey);
+    }
+
+    // --- 2. Multi-Layer Cache Service (Redis/Memory) ---
+    if (!bypassCache) {
+      try {
+        const cached = await cacheService.get(cacheKey, (tenantId || undefined) as string);
+        if (cached) {
+          if (typeof metricsService?.recordMetric === "function") {
+            metricsService.recordApiCacheHit(tenantId || undefined, "l2");
+          }
+          logger.debug(`[LocalSDK] L2 Cache HIT (Service/Redis): ${cacheKey}`);
+          this._requestCache.set(cacheKey, cached);
+          return cached;
+        }
+      } catch (err) {
+        console.warn(`[LocalSDK] Cache read error: ${err}`);
+      }
+    }
+
+    const result = await this._dbAdapter.crud.findMany(
+      this.getCollectionName(schema._id as string),
+      query,
+      {
+        limit,
+        offset,
+        tenantId: tenantId as DatabaseId,
+      },
+    );
+
+    if (result.success && !bypassCache) {
+      try {
+        const { CacheCategory } = await import("@src/databases/cache/types");
+        // Use provided TTL or default content TTL (180s)
+        await cacheService.set(
+          cacheKey,
+          result,
+          ttl || 180,
+          (tenantId || undefined) as string,
+          CacheCategory.CONTENT,
+        );
+
+        if (typeof metricsService?.recordMetric === "function") {
+          metricsService.recordApiCacheMiss(tenantId || undefined);
+        }
+        this._requestCache.set(cacheKey, result);
+      } catch (err) {
+        console.warn(`[LocalSDK] Cache write error: ${err}`);
+      }
+    }
+
+    return result;
   }
 
   /**
@@ -1068,16 +1133,141 @@ class CollectionsNamespace {
   }
 
   async findById(collectionId: string, entryId: string, options: LocalApiOptions = {}) {
-    const { tenantId } = options;
+    const { tenantId, bypassCache = false } = options as any;
+    const ttl = (options as any).ttl ? Number((options as any).ttl) : undefined;
     const schema = await this.getSchema(collectionId, tenantId);
-    const query: any = {
-      _id: entryId as DatabaseId,
-      ...(tenantId && { tenantId: tenantId as DatabaseId }),
-    };
+    const cacheKey = `collection:${schema._id}:${entryId}`;
 
-    return this._dbAdapter.crud.findOne(this.getCollectionName(schema._id as string), query, {
-      tenantId: tenantId as DatabaseId,
-    });
+    // 1. Request-Level Memory Cache (L1) - Instant return
+    if (!bypassCache && this._requestCache.has(cacheKey)) {
+      if (typeof metricsService?.recordMetric === "function") {
+        metricsService.recordApiCacheHit(tenantId || undefined, "l1");
+      }
+      logger.debug(`[LocalSDK] findById L1 HIT: ${cacheKey}`);
+      return this._requestCache.get(cacheKey);
+    }
+
+    // 2. Global Multi-Layer Cache (L2) - Rapid return
+    if (!bypassCache) {
+      try {
+        const cached = await cacheService.get(cacheKey, (tenantId || undefined) as string);
+        if (cached) {
+          if (typeof metricsService?.recordMetric === "function") {
+            metricsService.recordApiCacheHit(tenantId || undefined, "l2");
+          }
+          logger.debug(`[LocalSDK] findById L2 HIT: ${cacheKey}`);
+          this._requestCache.set(cacheKey, cached);
+          return cached;
+        }
+      } catch (err) {
+        console.warn(`[LocalSDK] Cache read error: ${err}`);
+      }
+    }
+
+    // 3. Batch Loading (DataLoader Pattern) - Coalesced DB/Cache-Miss fetch
+    return this.enqueueBatchLoad(schema, entryId, { tenantId, bypassCache, ttl });
+  }
+
+  /**
+   * Internal helper to batch multiple findById calls into a single database query.
+   */
+  private async enqueueBatchLoad(schema: Schema, entryId: string, options: any) {
+    const { tenantId } = options;
+    const collectionId = schema._id as string;
+    const loaderKey = `${collectionId}:${tenantId || "global"}`;
+
+    if (!this._batchLoaders.has(loaderKey)) {
+      this._batchLoaders.set(loaderKey, { ids: new Set(), promises: new Map() });
+
+      // Schedule the batch execution for the next microtask
+      Promise.resolve().then(() => this.executeBatch(schema, loaderKey, options));
+    }
+
+    const loader = this._batchLoaders.get(loaderKey)!;
+    loader.ids.add(entryId);
+
+    if (!loader.promises.has(entryId)) {
+      let resolve, reject;
+      const promise = new Promise((res, rej) => {
+        resolve = res;
+        reject = rej;
+      });
+      loader.promises.set(entryId, { promise, resolve, reject });
+    }
+
+    return loader.promises.get(entryId).promise;
+  }
+
+  /**
+   * Executes the accumulated batch of ID lookups.
+   */
+  private async executeBatch(schema: Schema, loaderKey: string, options: any) {
+    const loader = this._batchLoaders.get(loaderKey);
+    if (!loader || loader.ids.size === 0) return;
+
+    // Clear the loader state for future batches in the same request
+    this._batchLoaders.delete(loaderKey);
+
+    const ids = Array.from(loader.ids);
+    const { tenantId, ttl } = options;
+
+    try {
+      if (typeof metricsService?.recordMetric === "function") {
+        metricsService.recordMetric("sdk:batch:size", ids.length);
+        metricsService.recordApiCacheMiss(tenantId || undefined);
+      }
+
+      // Perform a single bulk query for all IDs in the batch
+      const query = {
+        _id: { $in: ids.map((id) => id as any) },
+        ...(tenantId && { tenantId: tenantId as DatabaseId }),
+      };
+
+      const result = await this._dbAdapter.crud.findMany(
+        this.getCollectionName(schema._id as string),
+        query,
+        {
+          limit: ids.length,
+          tenantId: tenantId as DatabaseId,
+        },
+      );
+
+      const foundItems = (result.success && result.data ? result.data : []) as any[];
+      const itemsMap = new Map(foundItems.map((item) => [String(item._id), item]));
+
+      // Resolve all waiting promises
+      for (const id of ids) {
+        const item = itemsMap.get(id);
+        const entryPromise = loader.promises.get(id);
+
+        if (entryPromise) {
+          const finalResult = { success: true, data: item || null };
+
+          // Update L1/L2 caches for individual items found
+          if (item && !options.bypassCache) {
+            const { CacheCategory } = await import("@src/databases/cache/types");
+            const cacheKey = `collection:${schema._id}:${id}`;
+            this._requestCache.set(cacheKey, finalResult);
+            await cacheService
+              .set(
+                cacheKey,
+                finalResult,
+                ttl || 180,
+                (tenantId || undefined) as string,
+                CacheCategory.CONTENT,
+              )
+              .catch(() => {});
+          }
+
+          entryPromise.resolve(finalResult);
+        }
+      }
+    } catch (err) {
+      // Reject all waiting promises on failure
+      for (const id of ids) {
+        loader.promises.get(id)?.reject(err);
+      }
+    }
   }
 
   async create(collectionId: string, data: any, options: LocalApiOptions = {}) {

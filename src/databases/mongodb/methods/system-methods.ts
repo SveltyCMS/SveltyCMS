@@ -75,7 +75,7 @@ export class MongoSystemMethods {
         { [`preferences.${key}`]: 1 },
       ).lean<{
         preferences: Record<string, unknown>;
-      }>(); // Use Record<string, unknown> instead of any for dynamic nested structure
+      }>();
 
       if (!userPrefs?.preferences) {
         return { success: true, data: null };

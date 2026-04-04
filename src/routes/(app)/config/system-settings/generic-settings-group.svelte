@@ -391,12 +391,20 @@ function validateAll(): boolean {
 	return isValid;
 }
 
+import { modalState } from "@utils/modal-state.svelte";
+import { page } from "$app/state";
+
+// ... previous code until saveSettings ...
+
 // Save settings
 async function saveSettings() {
 	if (!validateAll()) {
 		error = "Please fix the validation errors";
 		return;
 	}
+
+	const oldPasswordMinLength = originalValues["PASSWORD_MIN_LENGTH"] as number;
+	const newPasswordMinLength = values["PASSWORD_MIN_LENGTH"] as number;
 
 	saving = true;
 	error = null;
@@ -416,8 +424,46 @@ async function saveSettings() {
 			let message = `${group.name} settings saved successfully!`;
 			if (group.requiresRestart) {
 				message += " Server restart required for changes to take effect.";
+				toast.warning({
+					title: "Restart Required",
+					description:
+						"One or more settings in this group require a server restart to take effect.",
+					duration: 10000,
+				});
 			}
 			toast.success({ description: message });
+
+			// Check if password policy changed and if current user is affected
+			if (
+				newPasswordMinLength &&
+				newPasswordMinLength > (oldPasswordMinLength || 0)
+			) {
+				const currentUser = page.data.user;
+				// We don't have the user's plain password, but we can check if they've been informed.
+				// In reality, the server doesn't know the password length easily from the hash without checking at login.
+				// However, if the admin just changed it, we should warn them.
+				toast.warning({
+					title: "Password Policy Updated",
+					description: `The minimum password length is now ${newPasswordMinLength} characters. Your current password might be too short for future updates.`,
+					action: {
+						label: "Update Now",
+						onClick: async () => {
+							const ModalEditForm = (
+								await import("@src/routes/(app)/user/components/modal-edit-form.svelte")
+							).default;
+							modalState.trigger(ModalEditForm, {
+								user_id: currentUser._id,
+								username: currentUser.username,
+								email: currentUser.email,
+								role: currentUser.role,
+								isGivenData: true,
+							});
+						},
+					},
+					duration: 15000,
+				});
+			}
+
 			await loadSettings(true); // Bypass cache after save - this also resets originalValues
 			checkForEmptyFields(); // Update the warning status after save
 		} else {

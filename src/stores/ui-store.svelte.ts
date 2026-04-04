@@ -151,7 +151,7 @@ class UIStore {
       return;
     }
 
-    const showPageHeader = ["edit", "create", "modify", "media"].includes(currentMode);
+    const showPageHeader = ["edit", "create", "modify"].includes(currentMode);
 
     // Mobile
     if (size === ScreenSize.XS || size === ScreenSize.SM) {

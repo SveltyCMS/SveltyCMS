@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 /**
- * @src\components\system\inputs\file-input.svelte run-integration-tests.ts
- * @src\widgets\core\rich-text\components\image-description.svelte Truly Black-Box Integration Test Runner
+ * @file scripts/run-integration-tests.ts
+ * @description Truly Black-Box Integration Test Runner
  * Uses /api/testing for state management. No internal imports allowed.
  */
 
@@ -97,7 +97,7 @@ async function main() {
       if (requiresRebuild()) {
         console.log("🏗️ Detected changes in src/ or missing build. Rebuilding...");
         const buildCode = await runCommand(pkgManager, ["run", "build"]);
-        if (buildCode !== 0) throw new Error("Build failed. Aborting tests.");
+        if (buildCode !== 0) throw new Error("Build failed. Aborting benchmarks.");
       } else {
         console.log("✅ Build is up to date. Skipping rebuild.");
       }
@@ -317,7 +317,7 @@ async function startPreviewServer(dbHost?: string) {
 }
 
 async function waitForServer() {
-  console.log(`⏳ Waiting for server health check at ${API_BASE_URL}...`);
+  console.log(`⏳ Waiting for server health check at ${API_BASE_URL}/api/system/health...`);
   const maxRetries = process.env.CI === "true" ? 120 : 60;
   for (let i = 0; i < maxRetries; i++) {
     try {

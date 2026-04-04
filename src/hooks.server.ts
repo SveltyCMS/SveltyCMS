@@ -18,6 +18,31 @@ import { logger } from "@utils/logger.server";
 import { building } from "$app/environment";
 import { fileURLToPath } from "node:url";
 import { dirname } from "node:path";
+import os from "node:os";
+
+/**
+ * ✨ Hardware Optimization (Enterprise)
+ * Maximizes usage of available CPU cores for I/O and heavy processing.
+ */
+if (!building) {
+  const cores = os.cpus().length;
+  // Node/Bun I/O Thread Pool
+  process.env.UV_THREADPOOL_SIZE = String(cores);
+
+  // Sharp (Image Engine) Concurrency - targeting performance cores
+  import("sharp")
+    .then((sharp) => {
+      // Standard rule: match concurrency to physical cores (approx 33-50% of total logical cores on hybrid CPUs)
+      const physicalCores = Math.max(4, Math.floor(cores * 0.33));
+      sharp.default.concurrency(physicalCores);
+      logger.info(
+        `[System] Hardware optimized: ThreadPool=${cores} | SharpConcurrency=${physicalCores}`,
+      );
+    })
+    .catch(() => {
+      // Sharp might not be available in all environments
+    });
+}
 
 // ESM Shims for legacy CJS compatibility in production build
 if (typeof globalThis.__filename === "undefined") {

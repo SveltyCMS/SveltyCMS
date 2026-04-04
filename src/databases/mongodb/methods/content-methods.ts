@@ -584,15 +584,12 @@ export class MongoContentMethods {
       return { success: true, data: { modifiedCount: 0 } };
     }
     try {
-      const result = await this.draftsRepo.model.updateMany(
-        { _id: { $in: draftIds } as MongoQueryFilter<ContentDraft> },
-        {
-          $set: {
-            status: "published",
-            publishedAt: new Date().toISOString() as unknown as ISODateString,
-          },
+      const result = await this.draftsRepo.model.updateMany({ _id: { $in: draftIds } } as any, {
+        $set: {
+          status: "published",
+          publishedAt: new Date().toISOString() as unknown as ISODateString,
         },
-      );
+      });
       return { success: true, data: { modifiedCount: result.modifiedCount } };
     } catch (error) {
       return {

@@ -438,6 +438,21 @@ export async function seedDemoRecords(
         logger.info(`✅ Seeded ${posts.length} demo posts into ${collectionId}`);
       }
 
+      // ✨ NEW: Seed "Stress" collection for proper benchmarking
+      if (schema.name === "StressTest") {
+        const stressItems = Array.from({ length: 100 }).map((_, i) => ({
+          title: `Stress Test Entry #${i}`,
+          content: `Automated performance test payload for entry ${i}.`,
+          metadata: { iteration: i, random: Math.random() },
+          status: "published",
+          ...(tenantId && { tenantId: tenantId as DatabaseId }),
+        }));
+        await dbAdapter.crud.insertMany(collectionId, stressItems, {
+          tenantId: tenantId as DatabaseId,
+        });
+        logger.info(`🔥 Seeded 100 StressTest items for enterprise benchmarking`);
+      }
+
       // Seed "Menu" as a demo
       if (schema.name === "Menu") {
         const menuItems = [
@@ -630,7 +645,7 @@ export const defaultPublicSettings: Array<{
     description: "Default timezone for the system",
   },
   {
-    key: "PASSWORD_LENGTH",
+    key: "PASSWORD_MIN_LENGTH",
     value: 8,
     description: "Minimum required length for user passwords",
   },

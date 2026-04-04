@@ -11,7 +11,7 @@
 import { error, type Handle, redirect } from "@sveltejs/kit";
 import { AppError, handleApiError } from "@utils/error-handling";
 import { logger } from "@utils/logger.server";
-import { isSetupCompleteAsync } from "@utils/setup-check";
+import { getSetupState, SetupState } from "@utils/setup-check";
 
 // --- CONSTANTS ---
 
@@ -63,39 +63,49 @@ export const handleSetup: Handle = async ({ event, resolve }) => {
   const { pathname } = event.url;
   const isApi = pathname.startsWith("/api/");
 
-  // Bypass setup checks in TEST_MODE to allow /api/testing to function
-  // This matches the bypass pattern in handleSystemState
-  if (process.env.TEST_MODE === "true" && pathname.startsWith("/api/testing")) {
+  const isTestMode = process.env.TEST_MODE === "true" || process.env.VITE_TEST_MODE === "true";
+
+  // Bypass setup checks in TEST_MODE to allow /api/testing and setup actions to function
+  // We explicitly check for /api/testing or /api/setup or /setup to allow them
+  const isAllowedTestRoute =
+    pathname.startsWith("/api/testing") ||
+    pathname.startsWith("/api/setup") ||
+    pathname.startsWith("/setup") ||
+    pathname.startsWith("/api/auth") || // Auth must work during setup for admin creation
+    pathname.startsWith("/api/system"); // System health must work
+
+  if (isTestMode && isAllowedTestRoute) {
     return await resolve(event);
   }
 
   try {
     // --- Step 1: Check Setup Status ---
-    // We use the cached/memoized check from utils.
-    // This utility checks if the config exists AND if the database has admin users.
-    if (event.locals.__setupConfigExists === undefined) {
-      event.locals.__setupConfigExists = await isSetupCompleteAsync();
-    }
-    const isComplete = event.locals.__setupConfigExists;
+    // We use the granular setup state to decide what to allow.
+    const state = await getSetupState();
+    const isComplete = state === SetupState.COMPLETE;
+    const isConfigReady = state === SetupState.MISSING_ADMIN;
 
     // --- Step 2: Handle Incomplete Setup ---
     if (!isComplete) {
       // Log warning only once per request flow to prevent spam
-      // AND only if the user is attempting to access a non-setup route
       if (!(event.locals.__setupLogged || isAllowedDuringSetup(pathname))) {
-        logger.warn("System requires initial setup.");
+        logger.warn(`System requires initial setup. State: ${state}`);
         event.locals.__setupLogged = true;
       }
 
       // Allow access to setup routes and assets
       if (isAllowedDuringSetup(pathname)) {
+        // ✨ SECURITY GATING:
+        // If config exists but we're on /setup without an admin step,
+        // we might want to hint to the frontend or skip the redirect.
+        // For now, we allow the request and the frontend + server actions will enforce the lock.
         return await resolve(event, createSetupResolver());
       }
 
       // For API requests, return a proper error instead of redirecting
       if (isApi) {
         throw new AppError(
-          "System setup required. Please complete the setup.",
+          isConfigReady ? "Admin creation required." : "System setup required.",
           503,
           "SETUP_REQUIRED",
         );
@@ -115,7 +125,9 @@ export const handleSetup: Handle = async ({ event, resolve }) => {
     // EXCEPTION: Allow in TEST_MODE for automated testing of the wizard logic.
     const isSetupRoute =
       pathname.startsWith("/setup") || /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/setup/.test(pathname);
-    if (isSetupRoute && process.env.TEST_MODE !== "true") {
+    const isTestMode = process.env.TEST_MODE === "true" || process.env.VITE_TEST_MODE === "true";
+
+    if (isSetupRoute && !isTestMode) {
       // Special Case: Allow the finalization action to proceed
       // This handles the transition where config exists but setup is just finishing.
       if (event.request.method === "POST" && event.url.search.includes("/completeSetup")) {

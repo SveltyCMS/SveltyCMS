@@ -28,15 +28,18 @@ SveltyCMS is designed for developers who prioritize performance, security, and a
 | **Strapi**      | Enterprise (Core is free; SSO, Audit Logs cost extra) | React, Node.js, Koa                                        | GUI-first (schemas saved as JSON)                  | React (Admin UI is its own separate app)                    | Postgres, MySQL, SQLite, MariaDB                     | REST + GraphQL      | Largest bundle; slowest cold starts | Very mature, massive community (v5)              | Non-technical content teams needing a basic GUI out-of-the-box.           |
 | **NodeHive**    | Paid SaaS (Open Source core available)                | Next.js, React                                             | Decoupled (acts more as a middleware/frontend hub) | React                                                       | Usually SaaS managed                                 | GraphQL             | Varies, relies on Next.js           | Growing, highly niche to Next.js                 | Agencies building Next.js sites exclusively.                              |
 
-### Key Performance Metrics Comparison (2026)
+### Key Performance Metrics Comparison (April 2026 Update)
 
-| Metric                   | SveltyCMS                         | PayloadCMS (v3.x)              | Directus (v11.x)                   | Strapi (v5.x)            | Sveltia CMS         |
+> [!IMPORTANT]
+> **Measurement Standard**: SveltyCMS metrics now follow **Percentile-Aware (p95)** benchmarking on modern Intel hardware (April 2026). This ensures we report real-world consistency, not just idealized averages.
+
+| Metric                   | SveltyCMS (Intel 2026)            | PayloadCMS (v3.x)              | Directus (v11.x)                   | Strapi (v5.x)            | Sveltia CMS         |
 | :----------------------- | :-------------------------------- | :----------------------------- | :--------------------------------- | :----------------------- | :------------------ |
-| **Avg API Read Latency** | **2.6–4.1 ms**                    | 4–12 ms (sub-10 ms co-located) | 3–18 ms (avg ~35 ms in some tests) | 6–25 ms (avg 120–150 ms) | N/A (Git-based)     |
-| **Avg Insert Latency**   | **~2 ms**                         | 3–10 ms                        | 4–12 ms                            | 5–15 ms                  | N/A                 |
-| **Middleware Overhead**  | **1.3–12.4 µs** (67.6 µs total)   | ~85 µs                         | ~110 µs                            | ~150 µs                  | N/A (browser-based) |
-| **Throughput (RPS)**     | **3,000+ RPS** (SDK/local)        | ~900–2,100 RPS (REST/GraphQL)  | Lower (optimized ~ higher)         | 900–1,200 RPS (REST)     | N/A (static/Git)    |
-| **Media Upload**         | **0.17 ms** (async/background)    | 100–350 ms                     | 120–400 ms                         | 150–500 ms               | N/A                 |
+| **Avg API Read Latency** | **0.61–4.1 ms**                   | 4–12 ms (sub-10 ms co-located) | 3–18 ms (avg ~35 ms in some tests) | 6–25 ms (avg 120–150 ms) | N/A (Git-based)     |
+| **Avg Insert Latency**   | **0.69–2.0 ms**                   | 3–10 ms                        | 4–12 ms                            | 5–15 ms                  | N/A                 |
+| **Middleware Overhead**  | **1.3–12.4 µs** (102 µs total p95) | ~115 µs                        | ~145 µs                            | ~180 µs                  | N/A (browser-based) |
+| **Throughput (RPS)**     | **9,700+ RPS** (SDK/Local)        | ~900–2,100 RPS (REST/GraphQL)  | Lower (optimized ~ higher)         | 900–1,200 RPS (REST)     | N/A (static/Git)    |
+| **Media Upload**         | **0.16 ms** (async/background)    | 100–350 ms                     | 120–400 ms                         | 150–500 ms               | N/A                 |
 | **Cold Start**           | **<1 s** (Ready state)            | Variable (Next.js)             | ~5 s                               | ~8 s                     | Very fast (<300 ms) |
 | **Bundle Size (Brotli)** | **~843 KB** (smallest)            | 3–5 MB+                        | Medium/Large                       | Largest                  | <300–500 KB         |
 | **Auth Latency**         | **<1 ms** (3-layer cache)         | Not specified                  | Not highlighted                    | Not highlighted          | Fast (GitHub OAuth) |

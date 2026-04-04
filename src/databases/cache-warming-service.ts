@@ -1,35 +1,30 @@
 /**
  * @file src/databases/cache-warming-service.ts
  * @description Service for cache warming and predictive prefetching configuration.
- *
- * This service sets up cache warming for critical paths and predictive prefetching
- * for high-traffic areas based on access patterns.
  */
 
 import { logger } from "@utils/logger";
 import { CacheCategory } from "./cache/types";
 import { cacheService } from "./cache/cache-service";
-import { dbAdapter } from "./db";
+import type { IDBAdapter } from "./db-interface";
 
 /**
  * Initialize cache warming for critical application paths.
- * Should be called during application startup.
  */
-export async function initializeCacheWarming(): Promise<void> {
+export async function initializeCacheWarming(dbAdapter: IDBAdapter): Promise<void> {
   logger.info("🔥 Initializing cache warming...");
 
   // Register predictive prefetch patterns
   registerPrefetchPatterns();
 
   // Warm critical caches
-  await warmCriticalCaches();
+  await warmCriticalCaches(dbAdapter);
 
   logger.info("✅ Cache warming initialized");
 }
 
 /**
  * Register predictive prefetch patterns.
- * When a key matching a pattern is accessed, related keys will be prefetched.
  */
 function registerPrefetchPatterns(): void {
   // 1. User Profile → Permissions, Roles, Settings
@@ -90,13 +85,13 @@ function registerPrefetchPatterns(): void {
 /**
  * Warm critical caches that are frequently accessed.
  */
-async function warmCriticalCaches(): Promise<void> {
+async function warmCriticalCaches(dbAdapter: IDBAdapter): Promise<void> {
   try {
     await Promise.all([
-      warmSchemasCache(),
-      warmThemesCache(),
-      warmWidgetsCache(),
-      warmSystemSettingsCache(),
+      warmSchemasCache(dbAdapter),
+      warmThemesCache(dbAdapter),
+      warmWidgetsCache(dbAdapter),
+      warmSystemSettingsCache(dbAdapter),
     ]);
     logger.info("✅ Critical caches warmed successfully");
   } catch (error) {
@@ -104,16 +99,12 @@ async function warmCriticalCaches(): Promise<void> {
   }
 }
 
-/**
- * Warm the schemas cache with all collection definitions.
- */
-async function warmSchemasCache(): Promise<void> {
-  if (!dbAdapter) return;
+async function warmSchemasCache(dbAdapter: IDBAdapter): Promise<void> {
   try {
     await cacheService.warmCache({
       keys: ["schemas:all", "schemas:list"],
       fetcher: async () => {
-        const result = await dbAdapter!.collection.listSchemas();
+        const result = await dbAdapter.collection.listSchemas();
         return result.success ? result.data : [];
       },
       category: CacheCategory.SCHEMA,
@@ -123,16 +114,12 @@ async function warmSchemasCache(): Promise<void> {
   }
 }
 
-/**
- * Warm the themes cache with the active theme.
- */
-async function warmThemesCache(): Promise<void> {
-  if (!dbAdapter) return;
+async function warmThemesCache(dbAdapter: IDBAdapter): Promise<void> {
   try {
     await cacheService.warmCache({
       keys: ["themes:active"],
       fetcher: async () => {
-        const result = await dbAdapter!.system.themes.getActive();
+        const result = await dbAdapter.system.themes.getActive();
         return result.success ? result.data : null;
       },
       category: CacheCategory.THEME,
@@ -142,16 +129,12 @@ async function warmThemesCache(): Promise<void> {
   }
 }
 
-/**
- * Warm the widgets cache with active widgets.
- */
-async function warmWidgetsCache(): Promise<void> {
-  if (!dbAdapter) return;
+async function warmWidgetsCache(dbAdapter: IDBAdapter): Promise<void> {
   try {
     await cacheService.warmCache({
       keys: ["widgets:active"],
       fetcher: async () => {
-        const result = await dbAdapter!.system.widgets.getActiveWidgets();
+        const result = await dbAdapter.system.widgets.getActiveWidgets();
         return result.success ? result.data : [];
       },
       category: CacheCategory.WIDGET,
@@ -161,17 +144,12 @@ async function warmWidgetsCache(): Promise<void> {
   }
 }
 
-/**
- * Warm the system settings cache.
- */
-async function warmSystemSettingsCache(): Promise<void> {
-  if (!dbAdapter) return;
+async function warmSystemSettingsCache(dbAdapter: IDBAdapter): Promise<void> {
   try {
     await cacheService.warmCache({
       keys: ["settings:system:critical"],
       fetcher: async () => {
-        // We call loadSettingsFromDB elsewhere, but this ensures they are in cache too
-        const result = await dbAdapter!.system.preferences.getByCategory("system", "system");
+        const result = await dbAdapter.system.preferences.getByCategory("system", "system");
         return result.success ? result.data : {};
       },
       category: CacheCategory.SETTING,
@@ -184,8 +162,7 @@ async function warmSystemSettingsCache(): Promise<void> {
 /**
  * Warm cache for a specific tenant.
  */
-export async function warmTenantCache(tenantId: string): Promise<void> {
-  if (!dbAdapter) return;
+export async function warmTenantCache(dbAdapter: IDBAdapter, tenantId: string): Promise<void> {
   logger.info(`🔥 Warming cache for tenant: ${tenantId}`);
 
   try {
@@ -193,8 +170,8 @@ export async function warmTenantCache(tenantId: string): Promise<void> {
       keys: ["config", "settings", "theme"],
       fetcher: async () => {
         const [theme, settings] = await Promise.all([
-          dbAdapter!.system.themes.getDefaultTheme(tenantId as any),
-          dbAdapter!.system.preferences.getByCategory("system", "system"), // Assuming tenantId isolation in adapter
+          dbAdapter.system.themes.getDefaultTheme(tenantId as any),
+          dbAdapter.system.preferences.getByCategory("system", "system"),
         ]);
         return {
           theme: theme.success ? theme.data : null,
@@ -208,3 +185,9 @@ export async function warmTenantCache(tenantId: string): Promise<void> {
     logger.error(`Failed to warm cache for tenant ${tenantId}:`, error);
   }
 }
+
+// Export object for convenience
+export const cacheWarmingService = {
+  initialize: initializeCacheWarming,
+  warmTenant: warmTenantCache,
+};

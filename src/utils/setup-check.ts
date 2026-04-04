@@ -15,6 +15,25 @@ import path from "node:path";
 let setupStatus: boolean | null = null;
 let setupStatusCheckedDb = false;
 
+export enum SetupState {
+  MISSING_CONFIG = "MISSING_CONFIG", // File config/private.ts not found or empty
+  MISSING_ADMIN = "MISSING_ADMIN", // Config exists but no users/roles in DB
+  COMPLETE = "COMPLETE", // Both config and DB are ready
+}
+
+/**
+ * Returns the current setup state of the system.
+ * Higher-level wrapper around isSetupCompleteAsync.
+ */
+export async function getSetupState(): Promise<SetupState> {
+  if (!isSetupComplete()) {
+    return SetupState.MISSING_CONFIG;
+  }
+
+  const isComplete = await isSetupCompleteAsync();
+  return isComplete ? SetupState.COMPLETE : SetupState.MISSING_ADMIN;
+}
+
 export function isSetupComplete(): boolean {
   if (setupStatus !== null) {
     return setupStatus;

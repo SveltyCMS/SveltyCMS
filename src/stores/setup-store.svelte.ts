@@ -16,7 +16,7 @@
  * - Simplified components (pure UI, no fetch calls)
  */
 
-import { initPublicEnv } from "@src/stores/global-settings.svelte.ts";
+import { initPublicEnv, publicEnv } from "@src/stores/global-settings.svelte.ts";
 import { dbConfigSchema, setupAdminSchema, systemSettingsSchema } from "@utils/form-schemas";
 import { logger } from "@utils/logger";
 import { toast } from "@src/stores/toast.svelte.ts";
@@ -358,15 +358,18 @@ function createSetupStore() {
   });
 
   // Password requirements checker for admin password
-  const passwordRequirements = $derived.by(() => ({
-    length: wizard.adminUser.password.length >= 8,
-    letter: /[a-zA-Z]/.test(wizard.adminUser.password),
-    number: /[0-9]/.test(wizard.adminUser.password),
-    special: /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>?]/.test(wizard.adminUser.password),
-    match:
-      wizard.adminUser.password === wizard.adminUser.confirmPassword &&
-      wizard.adminUser.password !== "",
-  }));
+  const passwordRequirements = $derived.by(() => {
+    const minLength = publicEnv?.PASSWORD_MIN_LENGTH ?? 8;
+    return {
+      length: wizard.adminUser.password.length >= minLength,
+      letter: /[a-zA-Z]/.test(wizard.adminUser.password),
+      number: /[0-9]/.test(wizard.adminUser.password),
+      special: /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>?]/.test(wizard.adminUser.password),
+      match:
+        wizard.adminUser.password === wizard.adminUser.confirmPassword &&
+        wizard.adminUser.password !== "",
+    };
+  });
 
   // DB config fingerprint for change detection
   const dbConfigFingerprint = $derived.by<string>(() => JSON.stringify(wizard.dbConfig));

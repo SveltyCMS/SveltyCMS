@@ -9,6 +9,7 @@ import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 
 const API_BASE_URL = process.env.API_BASE_URL || "http://localhost:4173";
+const TEST_API_SECRET = process.env.TEST_API_SECRET || "";
 const rootDir = process.cwd();
 
 /**
@@ -46,15 +47,18 @@ function parseActionResult(result: any): any {
 
 async function postAction(actionName: string, formData: FormData) {
   let lastError: any;
-  for (let attempt = 1; attempt <= 5; attempt++) {
+  const maxAttempts = 8;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       const res = await fetch(`${API_BASE_URL}/setup?/${actionName}`, {
         method: "POST",
         body: formData,
         headers: {
           "x-sveltekit-action": "true",
+          "x-test-secret": TEST_API_SECRET,
           Origin: API_BASE_URL,
         },
+        signal: AbortSignal.timeout(60000), // 60s timeout
       });
       if (!res.ok) {
         const text = await res.text();
@@ -63,11 +67,18 @@ async function postAction(actionName: string, formData: FormData) {
       return await res.json();
     } catch (error: any) {
       lastError = error;
-      if (error.code === "ConnectionRefused" || error.message?.includes("ConnectionRefused")) {
+      const isConnectionError =
+        error.code === "ConnectionRefused" ||
+        error.message?.includes("ConnectionRefused") ||
+        error.message?.includes("Unable to connect") ||
+        error.message?.includes("fetch failed");
+
+      if (isConnectionError) {
+        const delay = 2000 * attempt;
         console.warn(
-          `⚠️ Connection refused on attempt ${attempt} for ${actionName}. Retrying in 2s...`,
+          `⚠️ Connection issue on attempt ${attempt}/${maxAttempts} for ${actionName}. Retrying in ${delay}ms... (${error.message})`,
         );
-        await new Promise((resolve) => setTimeout(resolve, 2000));
+        await new Promise((resolve) => setTimeout(resolve, delay));
         continue;
       }
       throw error;
@@ -104,12 +115,12 @@ async function waitForReady() {
 async function main() {
   await waitForReady();
 
+  const isClean = process.argv.includes("--clean");
   const dbType = process.env.DB_TYPE || "sqlite";
   const dbHost = process.env.DB_HOST || "127.0.0.1";
   const dbPort =
-    process.env.DB_PORT ||
-    (dbType === "mariadb" ? "3306" : dbType === "postgresql" ? "5432" : "27017");
-  const dbName = process.env.DB_NAME || "sveltycms_test";
+    process.env.DB_PORT || (dbType === "mariadb" ? 3306 : dbType === "postgresql" ? 5432 : 27017);
+  const dbName = process.env.DB_NAME || "SveltyCMS_test";
   const dbUser = process.env.DB_USER || "";
   const dbPass = process.env.DB_PASSWORD || "";
 
@@ -128,6 +139,22 @@ async function main() {
   const demoMode = process.env.DEMO === "true";
 
   try {
+    // 0. Clean Database if requested
+    if (isClean) {
+      console.log("🧹 Dropping existing database collections (--clean)...");
+      const cleanForm = new FormData();
+      cleanForm.append("config", JSON.stringify(dbConfig));
+      const cleanRes = await postAction("cleanDatabase", cleanForm);
+      const cleanData = parseActionResult(cleanRes);
+      if (!cleanData?.success) {
+        console.warn(
+          `⚠️ Warning: cleanDatabase reported failure: ${cleanData?.error || "Unknown"}`,
+        );
+      } else {
+        console.log("✅ Database cleaned successfully.");
+      }
+    }
+
     // 1. Test Database
     console.log("🔗 Testing database connection...");
     const testForm = new FormData();

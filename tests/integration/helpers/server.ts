@@ -6,13 +6,13 @@
 /**
  * Base URL constant for tests (alias for getApiBaseUrl for compatibility)
  */
-export const BASE_URL = "http://localhost:4173";
+export const BASE_URL = process.env.API_BASE_URL || "http://localhost:4173";
 
 /**
  * Returns the API base URL from environment or default.
  */
 export function getApiBaseUrl(): string {
-  return "http://localhost:4173";
+  return process.env.API_BASE_URL || "http://localhost:4173";
 }
 
 /**

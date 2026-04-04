@@ -276,7 +276,7 @@ async function setupMongoDB(
 
 // Strategy: setup MariaDB adapter
 async function setupMariaDB(
-  _config: DatabaseConfig,
+  config: DatabaseConfig,
   connectionString: string,
   _correlationId: string,
 ): Promise<IDBAdapter> {
@@ -285,12 +285,18 @@ async function setupMariaDB(
 
   const connectResult = await dbAdapter.connect(connectionString);
   if (!connectResult.success) {
-    throw new SetupDatabaseError(classifyDatabaseError(connectResult.error), connectResult.error);
+    throw new SetupDatabaseError(
+      classifyDatabaseError(connectResult.error, { host: config.host, name: config.name }),
+      connectResult.error,
+    );
   }
 
   const probeResult = await dbAdapter.crud.count("system_content_structure", {});
   if (!probeResult.success) {
-    throw new SetupDatabaseError(classifyDatabaseError(probeResult.error), probeResult.error);
+    throw new SetupDatabaseError(
+      classifyDatabaseError(probeResult.error, { host: config.host, name: config.name }),
+      probeResult.error,
+    );
   }
 
   return dbAdapter;
@@ -298,7 +304,7 @@ async function setupMariaDB(
 
 // Strategy: setup PostgreSQL adapter
 async function setupPostgreSQL(
-  _config: DatabaseConfig,
+  config: DatabaseConfig,
   connectionString: string,
   _correlationId: string,
 ): Promise<IDBAdapter> {
@@ -307,12 +313,18 @@ async function setupPostgreSQL(
 
   const connectResult = await dbAdapter.connect(connectionString);
   if (!connectResult.success) {
-    throw new SetupDatabaseError(classifyDatabaseError(connectResult.error), connectResult.error);
+    throw new SetupDatabaseError(
+      classifyDatabaseError(connectResult.error, { host: config.host, name: config.name }),
+      connectResult.error,
+    );
   }
 
   const probeResult = await dbAdapter.crud.count("system_content_structure", {});
   if (!probeResult.success) {
-    throw new SetupDatabaseError(classifyDatabaseError(probeResult.error), probeResult.error);
+    throw new SetupDatabaseError(
+      classifyDatabaseError(probeResult.error, { host: config.host, name: config.name }),
+      probeResult.error,
+    );
   }
   return dbAdapter;
 }

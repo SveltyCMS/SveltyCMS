@@ -51,9 +51,9 @@ const {
 }: Props = $props();
 
 // Configuration
-const MIN_PASSWORD_LENGTH = publicEnv?.PASSWORD_LENGTH ?? 8;
-const YELLOW_LENGTH = MIN_PASSWORD_LENGTH + 3;
-const GREEN_LENGTH = YELLOW_LENGTH + 4;
+const MIN_PASSWORD_LENGTH = $derived(publicEnv?.PASSWORD_MIN_LENGTH ?? 8);
+const YELLOW_LENGTH = $derived(MIN_PASSWORD_LENGTH + 3);
+const GREEN_LENGTH = $derived(YELLOW_LENGTH + 4);
 
 // State
 let prefersReducedMotion = $state(false);

@@ -30,8 +30,10 @@ import {
   trim,
 } from "valibot";
 
+import { publicEnv } from "@src/stores/global-settings.svelte";
+
 // NOTE: Error messages are plain strings for universal (client/server) compatibility.
-const MIN_PPASSWORD_LENGTH = 8;
+const getMinPasswordLength = () => publicEnv?.PASSWORD_MIN_LENGTH ?? 8;
 
 // --- Reusable Username Schemas ---
 const usernameSchema = pipe(
@@ -58,13 +60,16 @@ const passwordSchema = pipe(
   string(),
   trim(),
   minLength(
-    MIN_PPASSWORD_LENGTH,
-    `Password must be at least ${MIN_PPASSWORD_LENGTH} characters and include a letter, number, and special character`,
+    getMinPasswordLength(),
+    `Password must be at least ${getMinPasswordLength()} characters and include a letter, number, and special character`,
   ),
-  regex(
-    /^(?=.*[A-Za-z])(?=.*[0-9])(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>?]).{8,}$/,
-    `Password must be at least ${MIN_PPASSWORD_LENGTH} characters and include a letter, number, and special character`,
-  ),
+  custom((value) => {
+    const min = getMinPasswordLength();
+    const regex = new RegExp(
+      `^(?=.*[A-Za-z])(?=.*[0-9])(?=.*[!@#$%^&*()_+\\-=[\\]{};':"\\\\|,.<>?]).{${min},}$`,
+    );
+    return regex.test(value as string);
+  }, `Password must be at least ${getMinPasswordLength()} characters and include a letter, number, and special character`),
 );
 
 // --- Reusable Confirm Password Schemas ---

@@ -66,8 +66,8 @@ const limiter = new RateLimiter({
 });
 
 // Password strength configuration
-const MIN_PPASSWORD_LENGTH = publicEnv.PASSWORD_LENGTH || 8;
-const YELLOW_LENGTH = MIN_PPASSWORD_LENGTH + 3;
+const MIN_PASSWORD_LENGTH = publicEnv.PASSWORD_MIN_LENGTH || 8;
+const YELLOW_LENGTH = MIN_PASSWORD_LENGTH + 3;
 const GREEN_LENGTH = YELLOW_LENGTH + 4;
 
 // Function to calculate password strength (matches the logic in PasswordStrength.svelte)
@@ -78,7 +78,7 @@ function calculatePasswordStrength(password: string): number {
   if (password.length >= YELLOW_LENGTH) {
     return 2;
   }
-  if (password.length >= MIN_PPASSWORD_LENGTH) {
+  if (password.length >= MIN_PASSWORD_LENGTH) {
     return 1;
   }
   return 0;
@@ -1366,7 +1366,9 @@ export const actions: Actions = {
             languageTag: userLanguage,
           });
           if (mailResult.success) {
-            logger.info("Password updated confirmation email sent directly", { email });
+            logger.info("Password updated confirmation email sent directly", {
+              email,
+            });
           } else {
             logger.error(`Failed to send password updated email directly.`, {
               email,

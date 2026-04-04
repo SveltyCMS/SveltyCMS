@@ -116,7 +116,6 @@ function toggleMedia(showMediaValue: boolean) {
 	>
 		<div class="grid grid-cols-6 items-center p-4">
 			<iconify-icon icon="fa6-solid:file-arrow-up" width="40"></iconify-icon>
-			<span class="text-white"> test</span>
 
 			<div class="col-span-5">
 				{#if !show}

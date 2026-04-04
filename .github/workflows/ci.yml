@@ -500,7 +500,7 @@ jobs:
 
           echo "#### ⚡ Middleware Hooks" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          bun run tests/benchmarks/hooks-performance.ts >> $GITHUB_STEP_SUMMARY
+          bun test tests/benchmarks/hooks-performance.test.ts >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
           echo "#### 💾 Raw Database CRUD" >> $GITHUB_STEP_SUMMARY
@@ -510,7 +510,7 @@ jobs:
 
           echo "#### 📡 REST API Throughput" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          bun run tests/benchmarks/rest-api-performance.ts >> $GITHUB_STEP_SUMMARY
+          bun test tests/benchmarks/rest-api-performance.test.ts >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
       - name: Upload Logs

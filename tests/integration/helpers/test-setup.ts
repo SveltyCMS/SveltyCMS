@@ -8,7 +8,16 @@
 import { getApiBaseUrl, safeFetch } from "./server";
 
 const API_BASE_URL = getApiBaseUrl();
-const TEST_API_SECRET = (globalThis as any).process?.env?.TEST_API_SECRET || "";
+
+// Hardened secret resolution
+const TEST_API_SECRET =
+  process.env.TEST_API_SECRET ||
+  (globalThis as any).process?.env?.TEST_API_SECRET ||
+  "enterprise-audit-2026";
+
+if (!TEST_API_SECRET) {
+  console.warn("⚠️ [TestSetup] TEST_API_SECRET is not defined in the environment!");
+}
 
 /**
  * Test fixtures for reusing test data across tests
@@ -16,39 +25,39 @@ const TEST_API_SECRET = (globalThis as any).process?.env?.TEST_API_SECRET || "";
 export const testFixtures = {
   users: {
     admin: {
-      email: "admin@test.com",
-      password: "Test123!",
+      email: "admin@example.com",
+      password: "Admin123!",
       username: "admin",
       role: "admin",
     },
     developer: {
       email: "developer@test.com",
-      password: "Test123!",
+      password: "Admin123!",
       username: "developer",
       role: "developer",
     },
     editor: {
       email: "editor@test.com",
-      password: "Test123!",
+      password: "Admin123!",
       username: "editor",
       role: "editor",
     },
   },
   adminUser: {
-    email: "admin@test.com",
-    password: "Test123!",
+    email: "admin@example.com",
+    password: "Admin123!",
     username: "admin",
     role: "admin",
   },
   developerUser: {
     email: "developer@test.com",
-    password: "Test123!",
+    password: "Admin123!",
     username: "developer",
     role: "developer",
   },
   editorUser: {
     email: "editor@test.com",
-    password: "Test123!",
+    password: "Admin123!",
     username: "editor",
     role: "editor",
   },
@@ -99,7 +108,8 @@ export async function prepareAuthenticatedContext(): Promise<string> {
   });
 
   if (!seedResp.ok) {
-    throw new Error("Failed to seed database");
+    const error = await seedResp.text();
+    throw new Error(`Failed to seed database: ${error}`);
   }
 
   // Small delay to ensure DB state is stable
@@ -120,7 +130,8 @@ export async function prepareAuthenticatedContext(): Promise<string> {
   });
 
   if (!loginResp.ok) {
-    throw new Error("Login failed");
+    const error = await loginResp.text();
+    throw new Error(`Login failed: ${error}`);
   }
 
   const setCookie = loginResp.headers.get("set-cookie");

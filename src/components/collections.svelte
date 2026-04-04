@@ -9,8 +9,7 @@ Updated to use the modern Content Context and modular navigation engine.
 // Components
 import TreeView from "@src/components/system/tree-view.svelte";
 import type { NavigationNode, StatusType } from "@src/content/types";
-import { sortContentNodes } from "@src/content";
-import { useContent } from "@src/content";
+import { useContent, contentStore, sortContentNodes } from "@src/content";
 
 // Paraglide Messages
 import {
@@ -54,7 +53,7 @@ interface CollectionTreeNode {
 }
 
 // Content Context
-const { content, navigation } = useContent();
+const contentContext = useContent();
 
 // Mutable state
 let search = $state("");
@@ -77,10 +76,31 @@ let isFullSidebar = $derived(ui.state.leftSidebar === "full");
 let currentLanguage = $derived(app.contentLanguage);
 let selectedId = $derived(collection.value?._id ?? null);
 
+// Auto-expand parents of selected node
+$effect(() => {
+	if (selectedId) {
+		const node = contentContext.content.getNode(selectedId);
+		if (node?.parentId) {
+			let currentParentId: string | undefined = node.parentId;
+			while (currentParentId) {
+				expandedNodes.add(currentParentId);
+				const parent = contentContext.content.getNode(currentParentId);
+				currentParentId = parent?.parentId;
+			}
+		}
+	}
+});
+
 /**
  * Optimized tree generation using the modular navigation service.
  */
 let treeNodes = $derived.by(() => {
+	// Explicitly depend on content version to trigger re-calculation when store is synced
+	void contentStore.version;
+
+	const nav = contentContext.navigation;
+	if (nav.length === 0) return [];
+
 	function mapToTreeNode(node: NavigationNode, depth = 0): CollectionTreeNode {
 		const translation = node.translations?.find(
 			(t: any) => t.languageTag === currentLanguage,
@@ -119,7 +139,6 @@ let treeNodes = $derived.by(() => {
 				title: "This collection uses inactive widgets",
 			};
 		} else if (node.status) {
-			// SAFELY map StatusType to UI-supported literals
 			const uiStatus = node.status as StatusType;
 			if (uiStatus !== "unpublish") {
 				badge = {
@@ -146,7 +165,7 @@ let treeNodes = $derived.by(() => {
 		};
 	}
 
-	return navigation.map((n: NavigationNode) => mapToTreeNode(n)) as any;
+	return nav.map((n: NavigationNode) => mapToTreeNode(n)) as any;
 });
 
 async function navigate(path: string, force = false): Promise<void> {
@@ -218,7 +237,7 @@ function clearSearch(): void {
 
 	<!-- Tree -->
 	<div class="collections-list" role="tree" aria-label="Collection tree">
-		{#if !content.isInitialized}
+		{#if !contentContext.content.isInitialized}
 			<div class="flex h-24 items-center justify-center" transition:scale={{ duration: 200, start: 0.95 }}>
 				<div class="h-6 w-6 animate-spin rounded-full border-2 border-surface-300 border-t-tertiary-500"></div>
 			</div>

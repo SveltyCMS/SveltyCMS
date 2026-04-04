@@ -342,9 +342,13 @@ export function getApiHealthMetrics() {
   const report = metricsService.getReport();
   return {
     cache: {
-      hits: report.api.cacheHits,
+      hits: report.api.l1Hits + report.api.l2Hits,
       misses: report.api.cacheMisses,
       hitRate: report.api.cacheHitRate,
+      layers: {
+        l1: report.api.l1Hits,
+        l2: report.api.l2Hits,
+      },
     },
     requests: {
       total: report.api.requests,

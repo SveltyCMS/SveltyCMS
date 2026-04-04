@@ -91,12 +91,23 @@ const documentMock: any = {
 windowMock.document = documentMock;
 documentMock.defaultView = windowMock;
 
+class EventSourceMock {
+  onmessage: any;
+  onerror: any;
+  onopen: any;
+  constructor(public url: string) {}
+  close() {}
+  addEventListener() {}
+  removeEventListener() {}
+}
+
 if (isBun) {
   setGlobal("Node", Node);
   setGlobal("HTMLElement", HTMLElement);
   setGlobal("window", windowMock);
   setGlobal("document", documentMock);
   setGlobal("navigator", { userAgent: "bun" });
+  setGlobal("EventSource", EventSourceMock);
 
   const documentBodyMock = new HTMLElement();
   documentBodyMock.ownerDocument = documentMock;
@@ -243,8 +254,13 @@ if (isBun) {
 }
 
 // 2. COMMON MOCKS
+// Master switch for benchmarking - allows running 'bun test' with ZERO mocks
+const ENABLE_MOCKS = process.env.BUN_TEST_MOCKS !== "false";
+
 // Helper for cross-runner module mocking
 const moduleMock = (path: string, factory: () => any) => {
+  if (!ENABLE_MOCKS) return; // ⚡ BENCHMARK MODE: Skip all module mocks
+
   if (isBun) {
     mock.module(path, factory);
   } else if (vitest?.vi) {
@@ -985,10 +1001,20 @@ moduleMock("@src/services/automation/event-bus", () => ({
   default: mockEventBus,
 }));
 
+const SetupState = {
+  MISSING_CONFIG: "MISSING_CONFIG",
+  MISSING_ADMIN: "MISSING_ADMIN",
+  COMPLETE: "COMPLETE",
+};
+
 let isSetupCompleteValue = true;
 const mockSetupCheck = {
   isSetupComplete: mock(() => isSetupCompleteValue),
   isSetupCompleteAsync: mock(async () => isSetupCompleteValue),
+  getSetupState: mock(async () =>
+    isSetupCompleteValue ? SetupState.COMPLETE : SetupState.MISSING_CONFIG,
+  ),
+  SetupState,
   invalidateSetupCache: mock(() => {}),
   setSetupComplete: mock((val: boolean) => {
     isSetupCompleteValue = val;

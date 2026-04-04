@@ -156,6 +156,9 @@ export const privateConfigSchema = object({
   SAML_CLIENT_SECRET_VERIFIER: optional(pipe(string(), minLength(32))),
   SAML_JWT_SIGNING_PRIVATE_KEY: optional(pipe(string(), minLength(32))),
   SAML_JWT_SIGNING_PUBLIC_KEY: optional(pipe(string(), minLength(32))),
+
+  // --- Auth Configuration ---
+  PASSWORD_MIN_LENGTH: optional(pipe(number(), minValue(1)), 8),
 });
 
 // The PUBLIC configuration for the application.

@@ -124,6 +124,7 @@ export interface BaseQueryOptions {
   tenantId?: DatabaseId | null;
   bypassTenantCheck?: boolean;
   silent?: boolean; // Useful for skipping trigger/audit logs
+  hints?: QueryOptimizationHints;
 }
 
 export interface FindOptions<T> extends BaseQueryOptions {
@@ -133,12 +134,15 @@ export interface FindOptions<T> extends BaseQueryOptions {
   sort?: SortOption;
   populate?: string[];
   includeDeleted?: boolean;
+  hints?: QueryOptimizationHints;
 }
 
 export interface QueryOptimizationHints {
   batchSize?: number;
   maxExecutionTime?: number;
   readPreference?: "primary" | "secondary" | "nearest";
+  readConcern?: "local" | "majority" | "snapshot" | "linearizable" | "available";
+  writeConcern?: "majority" | number | { w: "majority" | number; wtimeout?: number; j?: boolean };
   streaming?: boolean;
   useIndex?: string[];
 }

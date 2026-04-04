@@ -28,8 +28,14 @@ export const GET: RequestHandler = ({ locals }) => {
           return;
         }
 
-        logger.debug(`[SSE] Sending content update to client [${data.type}]`);
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
+        try {
+          logger.debug(`[SSE] Sending content update to client [${data.type}]`);
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
+        } catch (err) {
+          logger.warn(
+            `[SSE] Failed to enqueue content update: ${err instanceof Error ? err.message : String(err)}`,
+          );
+        }
       };
 
       // 3. Subscribe to the event bus
@@ -37,7 +43,12 @@ export const GET: RequestHandler = ({ locals }) => {
 
       // 4. Keep-alive heartbeat (every 30s) to prevent timeout
       const heartbeat = setInterval(() => {
-        controller.enqueue(encoder.encode(": heartbeat\n\n"));
+        try {
+          controller.enqueue(encoder.encode(": heartbeat\n\n"));
+        } catch {
+          // Normal if client disconnected
+          clearInterval(heartbeat);
+        }
       }, 30000);
 
       // 5. Cleanup on close

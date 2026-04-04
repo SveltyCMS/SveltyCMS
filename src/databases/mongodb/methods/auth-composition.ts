@@ -164,7 +164,7 @@ export function composeMongoAuthAdapter(): AuthInterface {
     updateSessionExpiry: sessionAdapter.updateSessionExpiry.bind(sessionAdapter),
     deleteSession: sessionAdapter.deleteSession.bind(sessionAdapter),
     deleteExpiredSessions: sessionAdapter.deleteExpiredSessions.bind(sessionAdapter),
-    validateSession: sessionAdapter.validateSession.bind(sessionAdapter),
+    validateSession: userAdapter.validateSession.bind(userAdapter),
     invalidateAllUserSessions: sessionAdapter.invalidateAllUserSessions.bind(sessionAdapter),
     getActiveSessions: sessionAdapter.getActiveSessions.bind(sessionAdapter),
     getAllActiveSessions: sessionAdapter.getAllActiveSessions.bind(sessionAdapter),

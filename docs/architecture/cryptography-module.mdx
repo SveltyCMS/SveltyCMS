@@ -393,7 +393,7 @@ const cipher = crypto.createCipheriv("aes-256-cbc", key, iv);
 
 | Password Strength          | Keyspace          | Time to Crack (Argon2) |
 | -------------------------- | ----------------- | ---------------------- |
-| 8 chars (lowercase)        | 26^8 = 2.1×10^11  | ~24 days               |
+| 8 chars (mixed)            | 62^8 = 2.2×10^14  | ~70 years              |
 | 12 chars (mixed)           | 62^12 = 3.2×10^21 | **10 billion years**   |
 | 16 chars (mixed + symbols) | 95^16 = 4.4×10^31 | **10^23 years**        |
 
@@ -757,8 +757,9 @@ For maximum security with Argon2id:
 
 ```typescript
 export function validatePassword(password: string): { valid: boolean; message: string } {
-  if (password.length < 12) {
-    return { valid: false, message: "Password must be at least 12 characters" };
+  // Default minimum length is 8, but 12+ is recommended for enterprise security
+  if (password.length < 8) {
+    return { valid: false, message: "Password must be at least 8 characters" };
   }
   if (!/[A-Z]/.test(password)) {
     return { valid: false, message: "Password must contain uppercase letter" };

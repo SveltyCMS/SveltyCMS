@@ -28,7 +28,7 @@ export const publicConfigSchema = object({
   // --- Site configuration ---
   SITE_NAME: pipe(string(), minLength(1)),
   TIMEZONE: optional(string()),
-  PASSWORD_LENGTH: pipe(number(), minValue(8)),
+  PASSWORD_MIN_LENGTH: pipe(number(), minValue(1)),
 
   // --- Language Configuration ---
   DEFAULT_CONTENT_LANGUAGE: pipe(string(), minLength(1)),

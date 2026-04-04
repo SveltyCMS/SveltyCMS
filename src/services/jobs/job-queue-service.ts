@@ -15,6 +15,8 @@ import { importDataHandler } from "./import-jobs";
 import { bulkTranslateHandler } from "./translation-jobs";
 import { cleanupTempStore } from "@utils/temp-store";
 
+import os from "node:os";
+
 export type JobHandler = (payload: any, job: Job) => Promise<void>;
 
 class JobQueueService {
@@ -22,7 +24,9 @@ class JobQueueService {
   private isProcessing = false;
   private pollInterval: NodeJS.Timeout | null = null;
   private currentRunning = 0;
-  private readonly CONCURRENT_MAX = 5; // Default max concurrency
+
+  // Adaptive concurrency: 50% of cores, min 5, max 50
+  private readonly CONCURRENT_MAX = Math.min(50, Math.max(5, Math.floor(os.cpus().length * 0.5)));
 
   constructor() {
     // Register core handlers
@@ -91,7 +95,7 @@ class JobQueueService {
   /**
    * Process the next batch of ready jobs.
    */
-  async processNextBatch(batchSize = 5) {
+  async processNextBatch(batchSize = this.CONCURRENT_MAX) {
     if (this.isProcessing) return;
     this.isProcessing = true;
 

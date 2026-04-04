@@ -24,11 +24,13 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
   const clientIp = getClientIp(event);
 
   // Skip for static assets and dev mode/test mode localhost (unless forced)
+  const isTestMode = process.env.TEST_MODE === "true" || process.env.VITE_TEST_MODE === "true";
+  const isLocal =
+    isLocalhost(clientIp) || url.hostname === "localhost" || url.hostname === "127.0.0.1";
+
   if (
     isStaticAsset(url.pathname) ||
-    (isLocalhost(clientIp) &&
-      (dev || process.env.TEST_MODE === "true") &&
-      request.headers.get("x-test-security") !== "true")
+    (isLocal && (dev || isTestMode) && request.headers.get("x-test-security") !== "true")
   ) {
     return await resolve(event);
   }
@@ -64,12 +66,14 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
 
     const forceSecurity = request.headers.get("x-test-security") === "true";
 
-    // 2. Additional Rate Limiting Check (if not already handled by analyzeRequest)
+    // 2. Additional Rate Limiting Check (Adaptive Throttling)
+    const points = securityResponseService.getPointsForThreat(securityStatus.level);
     const rateLimit = await securityResponseService.checkRateLimit(
       clientIp,
       url.pathname,
       tenantId,
       forceSecurity,
+      points,
     );
     if (rateLimit.action !== "allow") {
       metricsService.incrementRateLimitViolations();

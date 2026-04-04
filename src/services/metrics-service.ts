@@ -39,7 +39,8 @@ export interface MetricsReport {
   api: {
     requests: number;
     errors: number;
-    cacheHits: number;
+    l1Hits: number;
+    l2Hits: number;
     cacheMisses: number;
     cacheHitRate: number;
   };
@@ -66,7 +67,7 @@ class MetricsCounters {
   auth = { validations: 0, failures: 0, cacheHits: 0, cacheMisses: 0 };
 
   // API
-  api = { requests: 0, errors: 0, cacheHits: 0, cacheMisses: 0 };
+  api = { requests: 0, errors: 0, l1Hits: 0, l2Hits: 0, cacheMisses: 0 };
 
   // Security
   security = { rateLimitViolations: 0, cspViolations: 0, authFailures: 0 };
@@ -149,8 +150,10 @@ class MetricsService {
     this.getCounters(tenantId).api.errors++;
   }
 
-  recordApiCacheHit(tenantId?: string): void {
-    this.getCounters(tenantId).api.cacheHits++;
+  recordApiCacheHit(tenantId?: string, layer: "l1" | "l2" = "l2"): void {
+    const c = this.getCounters(tenantId);
+    if (layer === "l1") c.api.l1Hits++;
+    else c.api.l2Hits++;
   }
 
   recordApiCacheMiss(tenantId?: string): void {
@@ -242,9 +245,13 @@ class MetricsService {
       api: {
         requests: c.api.requests,
         errors: c.api.errors,
-        cacheHits: c.api.cacheHits,
+        l1Hits: c.api.l1Hits,
+        l2Hits: c.api.l2Hits,
         cacheMisses: c.api.cacheMisses,
-        cacheHitRate: safeRate(c.api.cacheHits, c.api.cacheHits + c.api.cacheMisses),
+        cacheHitRate: safeRate(
+          c.api.l1Hits + c.api.l2Hits,
+          c.api.l1Hits + c.api.l2Hits + c.api.cacheMisses,
+        ),
       },
       performance: {
         slowRequests: c.performance.slowRequests,

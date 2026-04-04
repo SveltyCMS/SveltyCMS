@@ -206,6 +206,9 @@ export const contentSystem = {
   getNavigationStructureProgressive(options: any): any {
     return contentNavigation.getNavigationStructureProgressive(options);
   },
+  getNode(id: string, _tenantId?: string | null): any {
+    return contentStore.getNode(id);
+  },
   getNodeChildren(nodeId: string | null = null, tenantId?: string | null): any {
     return contentStore.getChildren(nodeId, tenantId);
   },

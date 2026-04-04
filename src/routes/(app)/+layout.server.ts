@@ -110,9 +110,18 @@ export const load: LayoutServerLoad = async ({ locals, depends }) => {
       theme: theme || DEFAULT_THEME,
       tenantId,
       // Streamed data (Promises)
-      contentStructure: contentPromise.then(([structure]) =>
-        structure ? JSON.parse(JSON.stringify(structure)) : structure,
-      ),
+      contentStructure: contentPromise.then(async () => {
+        const nodes = await contentManager.getContentStructure(tenantId);
+        return nodes.map((node: any) => {
+          const sanitized = JSON.parse(JSON.stringify(node));
+          return {
+            ...sanitized,
+            _id: node._id.toString(),
+            ...(node.parentId ? { parentId: node.parentId.toString() } : {}),
+          };
+        });
+      }),
+
       user: freshUser,
       totalUsers,
       aiEnabled,

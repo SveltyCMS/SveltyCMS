@@ -34,6 +34,25 @@ export async function loadPrivateConfig(
 
   loadPromise = (async () => {
     try {
+      // ⚡ ENTERPRISE OVERRIDE: Check Environment Variables first
+      const envOverride: any = {};
+      if (process.env.DB_TYPE) {
+        logger.info("Using Environment Variable overrides for database configuration");
+        envOverride.DB_TYPE = process.env.DB_TYPE;
+        if (process.env.DB_NAME) envOverride.DB_NAME = process.env.DB_NAME;
+        if (process.env.DB_HOST) envOverride.DB_HOST = process.env.DB_HOST;
+        if (process.env.DB_PORT) envOverride.DB_PORT = process.env.DB_PORT;
+        if (process.env.DB_USER) envOverride.DB_USER = process.env.DB_USER;
+        if (process.env.DB_PASSWORD) envOverride.DB_PASSWORD = process.env.DB_PASSWORD;
+        if (process.env.USE_REDIS) envOverride.USE_REDIS = process.env.USE_REDIS === "true";
+        if (process.env.REDIS_HOST) envOverride.REDIS_HOST = process.env.REDIS_HOST;
+        if (process.env.REDIS_PORT) envOverride.REDIS_PORT = process.env.REDIS_PORT;
+        if (process.env.TEST_API_SECRET) envOverride.TEST_API_SECRET = process.env.TEST_API_SECRET;
+
+        // If we have at least a DB_TYPE, we can bypass the file load if it fails
+        privateEnv = envOverride as any;
+      }
+
       // SAFETY: Force TEST_MODE if running in test environment (Bun test)
       if (process.env.NODE_ENV === "test" && !process.env.TEST_MODE) {
         console.warn(
