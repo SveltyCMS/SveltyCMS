@@ -57,7 +57,7 @@ export class NavigationManager {
   async toList(options?: { invalidate?: boolean }): Promise<void> {
     await this.executeNavigation("toList", async () => {
       // Signal save completion (prevents auto-draft/save triggers)
-      if (typeof document !== "undefined") {
+      if (typeof document !== "undefined" && typeof document.dispatchEvent === "function") {
         document.dispatchEvent(
           new CustomEvent("entrySaved", {
             bubbles: true,

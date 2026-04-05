@@ -54,6 +54,7 @@ export class AdapterCore {
   public batch!: import("../operations/batch-module").BatchModule;
   protected connected = false;
   public collectionRegistry = new Map<string, unknown>();
+  public dynamicTables = new Map<string, any>();
 
   public getCapabilities(): DatabaseCapabilities {
     return this.capabilities;
@@ -294,26 +295,62 @@ export class AdapterCore {
 
   public getTable(collection: string): Record<string, unknown> {
     const schemaAny = schema as unknown as Record<string, Record<string, unknown>>;
-    // Direct lookup (already camelCase, e.g., 'mediaItems')
+
+    // 1. Static schema tables
     if (schemaAny[collection]) {
       return schemaAny[collection];
     }
+
     // Convert snake_case to camelCase (e.g., 'media_items' → 'mediaItems')
     const camelKey = this.snakeToCamel(collection);
     if (schemaAny[camelKey]) {
       return schemaAny[camelKey];
     }
+
     // Check common aliases (e.g., 'media' → 'mediaItems')
     const alias = AdapterCore.TABLE_ALIASES[collection];
     if (alias && schemaAny[alias]) {
       return schemaAny[alias];
     }
-    // Dynamic collection tables map to contentNodes
-    if (collection.startsWith("collection_")) {
-      return schema.contentNodes as unknown as Record<string, unknown>;
+
+    // 2. Dynamic collection tables (UUID-based or Name-based)
+    if (this.dynamicTables.has(collection)) {
+      return this.dynamicTables.get(collection)!;
     }
-    // Throw for truly unknown tables
-    throw new Error(`Unknown table: ${collection}`);
+
+    if (/^[a-f0-9]{32,36}$/i.test(collection) || collection.startsWith("collection_")) {
+      const tableId = collection.startsWith("collection_")
+        ? collection
+        : `collection_${collection}`;
+      const dynamicTable = this.createDynamicTableDefinition(tableId);
+      this.dynamicTables.set(collection, dynamicTable);
+      return dynamicTable as unknown as Record<string, unknown>;
+    }
+
+    // Fallback to contentNodes
+    return schema.contentNodes as unknown as Record<string, unknown>;
+  }
+
+  /**
+   * Creates a Drizzle table definition for a dynamic collection at runtime.
+   * All dynamic collections sharing a common relational structure for flexibility.
+   */
+  private createDynamicTableDefinition(tableName: string) {
+    const { mysqlTable, varchar, json, datetime } = require("drizzle-orm/mysql-core");
+    const { sql } = require("drizzle-orm");
+
+    return mysqlTable(tableName, {
+      _id: varchar("_id", { length: 36 }).primaryKey(),
+      tenantId: varchar("tenantId", { length: 36 }),
+      data: json("data").notNull().default({}),
+      status: varchar("status", { length: 50 }).notNull().default("draft"),
+      createdAt: datetime("createdAt")
+        .notNull()
+        .default(sql`CURRENT_TIMESTAMP`),
+      updatedAt: datetime("updatedAt")
+        .notNull()
+        .default(sql`CURRENT_TIMESTAMP`),
+    });
   }
 
   public mapQuery(table: Record<string, unknown>, query: Record<string, unknown>): unknown {

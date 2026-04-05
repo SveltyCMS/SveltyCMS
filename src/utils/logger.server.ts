@@ -11,7 +11,7 @@
  * - Graceful degradation & cleanup
  */
 
-if (typeof window !== "undefined") {
+if (typeof window !== "undefined" && typeof Bun === "undefined") {
   throw new Error("logger.server.ts cannot be imported in browser code");
 }
 
@@ -292,10 +292,42 @@ async function flush() {
   }
 }
 
+// De-duplication Cache (Enterprise Optimization)
+const dedupCache = new Map<string, { count: number; lastTs: number; lastLevel: LogLevel }>();
+const DEDUP_WINDOW_MS = 5000; // 5 seconds
+
 function enqueue(level: LogLevel, msg: string, args: unknown[]) {
   if (DISABLED || LEVELS[level].prio > maxPrio) {
     return;
   }
+
+  // Generate deduplication key from level, msg, and stable stringified args
+  const dedupKey = `${level}:${msg}:${JSON.stringify(args)}`;
+  const now = Date.now();
+  const cached = dedupCache.get(dedupKey);
+
+  if (cached && now - cached.lastTs < DEDUP_WINDOW_MS) {
+    cached.count++;
+    // Periodically flush dedup counts for very frequent logs
+    if (cached.count % 100 === 0) {
+      const ts = pc.gray(new Date(now).toISOString().slice(0, 19).replace("T", " "));
+      const color = LEVELS[level].color;
+      process.stdout.write(
+        `${ts} ${color(`[SUPPRESSED]`)} Suppressed ${cached.count} repeats of: ${msg}\n`,
+      );
+    }
+    return;
+  }
+
+  if (cached && cached.count > 0) {
+    const ts = pc.gray(new Date(now).toISOString().slice(0, 19).replace("T", " "));
+    const color = LEVELS[level].color;
+    process.stdout.write(
+      `${ts} ${color(`[SUMMARY]`)} Previously suppressed ${cached.count} repeats of: ${msg}\n`,
+    );
+  }
+
+  dedupCache.set(dedupKey, { count: 0, lastTs: now, lastLevel: level });
 
   const masked = args.map(mask);
 

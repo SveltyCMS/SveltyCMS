@@ -165,6 +165,36 @@ export class CrudModule {
       });
   }
 
+  /**
+   * Prepares values for insert/update by separating fixed schema columns from dynamic data.
+   */
+  private prepareValues(table: any, data: any, id: DatabaseId, now: Date, options: any) {
+    const fixedColumns = ["_id", "tenantId", "status", "createdAt", "updatedAt", "data"];
+    const values: any = {
+      _id: id,
+      tenantId: options.tenantId || data.tenantId,
+      status: data.status || "draft",
+      createdAt: data.createdAt || now,
+      updatedAt: now,
+    };
+
+    // If it's a dynamic table, we MUST pack extra fields into 'data'
+    if (table.data) {
+      const extra: any = {};
+      for (const [k, v] of Object.entries(data)) {
+        if (!fixedColumns.includes(k)) {
+          extra[k] = v;
+        }
+      }
+      values.data = extra;
+    } else {
+      // Static table: keep fields as-is (Drizzle will filter them based on schema)
+      Object.assign(values, data);
+    }
+
+    return values;
+  }
+
   async insert<T extends BaseEntity>(
     collection: string,
     data: EntityCreate<T>,
@@ -176,25 +206,11 @@ export class CrudModule {
         const table = this.core.getTable(collection);
         const id = (data as Partial<T>)._id || (utils.generateId() as DatabaseId);
         const now = new Date(nowISODateString());
-        const values = {
-          ...data,
-          _id: id,
-          tenantId: options.tenantId || (data as any).tenantId,
-          createdAt: now,
-          updatedAt: now,
-        };
+        const values = this.prepareValues(table, data, id, now, options);
 
-        // 🚀 OPTIMIZATION: Use Prepared Statement for inserts
-        const cacheKey = `insert:${collection}`;
-        let prepared = this.preparedStatements.get(cacheKey);
-        if (!prepared) {
-          prepared = this.db
-            .insert(table as unknown as import("drizzle-orm/mysql-core").MySqlTable)
-            .values(placeholder("values"))
-            .prepare();
-          this.preparedStatements.set(cacheKey, prepared);
-        }
-        await prepared.execute({ values });
+        await this.db
+          .insert(table as unknown as import("drizzle-orm/mysql-core").MySqlTable)
+          .values(values as unknown as Record<string, unknown>);
 
         // Reuse the findOne prepared statement for the result
         const findCacheKey = `findOne:${collection}`;
@@ -236,51 +252,40 @@ export class CrudModule {
 
         const table = this.core.getTable(collection);
         const now = new Date(nowISODateString());
-        const updateData = { ...data, updatedAt: now };
+        const values = this.prepareValues(table, data, id, now, options);
 
-        // 🚀 OPTIMIZATION: Use Prepared Statement for simple ID updates
+        // Remove createdAt/updatedAt from values if they shouldn't be overridden during update
+        // but Drizzle handled it gracefully.
+
+        // 1. Perform Update
         if (this.isSimpleIdQuery(secureQuery)) {
-          const cacheKey = `update:${collection}`;
-          let prepared = this.preparedStatements.get(cacheKey);
-          if (!prepared) {
-            prepared = this.db
-              .update(table as unknown as import("drizzle-orm/mysql-core").MySqlTable)
-              .set(placeholder("data"))
-              .where(eq((table as any)._id, placeholder("id")))
-              .prepare();
-            this.preparedStatements.set(cacheKey, prepared);
-          }
-          await prepared.execute({ id: id as string, data: updateData });
+          await this.db
+            .update(table as unknown as import("drizzle-orm/mysql-core").MySqlTable)
+            .set(values as unknown as Record<string, unknown>)
+            .where(eq((table as any)._id, id as string));
+        } else {
+          const where = this.core.mapQuery(table, secureQuery as Record<string, unknown>) as
+            | import("drizzle-orm").SQL
+            | undefined;
 
-          // Reuse the findOne prepared statement
-          const findCacheKey = `findOne:${collection}`;
-          let findPrepared = this.preparedStatements.get(findCacheKey);
-          if (!findPrepared) {
-            findPrepared = this.db
-              .select()
-              .from(table as unknown as import("drizzle-orm/mysql-core").MySqlTable)
-              .where(eq((table as any)._id, placeholder("id")))
-              .prepare();
-            this.preparedStatements.set(findCacheKey, findPrepared);
-          }
-          const [result] = await findPrepared.execute({ id: id as string });
-          return utils.convertDatesToISO(result as Record<string, unknown>) as T;
+          await this.db
+            .update(table as unknown as import("drizzle-orm/mysql-core").MySqlTable)
+            .set(values as unknown as Record<string, unknown>)
+            .where(where);
         }
 
-        const where = this.core.mapQuery(table, secureQuery as Record<string, unknown>) as
-          | import("drizzle-orm").SQL
-          | undefined;
-
-        await this.db
-          .update(table as unknown as import("drizzle-orm/mysql-core").MySqlTable)
-          .set(updateData as unknown as Record<string, unknown>)
-          .where(where);
-
-        const [result] = await this.db
-          .select()
-          .from(table as unknown as import("drizzle-orm/mysql-core").MySqlTable)
-          .where(where)
-          .limit(1);
+        // 2. Fetch Result
+        const findCacheKey = `findOne:${collection}`;
+        let findPrepared = this.preparedStatements.get(findCacheKey);
+        if (!findPrepared) {
+          findPrepared = this.db
+            .select()
+            .from(table as unknown as import("drizzle-orm/mysql-core").MySqlTable)
+            .where(eq((table as any)._id, placeholder("id")))
+            .prepare();
+          this.preparedStatements.set(findCacheKey, findPrepared);
+        }
+        const [result] = await findPrepared.execute({ id: id as string });
         return utils.convertDatesToISO(result as Record<string, unknown>) as T;
       }, "CRUD_UPDATE_FAILED")
       .then((res) => {

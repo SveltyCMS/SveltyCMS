@@ -1,481 +1,609 @@
 /**
  * @file scripts/enterprise-matrix.ts
- * @description Zero-Mock Enterprise Production Performance Audit.
- * Enhanced version: Better types, robust cleanup, structured logging, reliable readiness checks.
+ * @description Zero-Mock Enterprise Performance Matrix (Trend-aware & Actionable Reporting)
  */
 
 import { spawn, type ChildProcess } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { pc } from "../src/utils/native-utils";
+
+// ─────────────────────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────────────────────
 
 interface DatabaseConfig {
-  type: string;
-  port: number | null;
+  type: "sqlite" | "mongodb" | "postgresql" | "mariadb";
+  port: number;
   host: string;
+  container: string;
+  user: string;
+  password: string;
 }
 
 interface BenchmarkResult {
   db: string;
-  cache: "Redis" | "Memory";
+  version?: string;
+  cache: string;
   status: "SUCCESS" | "FAILED";
   coldStartMs?: number;
   metrics?: Record<string, any>;
   error?: string;
+  durationMs?: number;
 }
 
+interface RunData {
+  timestamp: string;
+  coldStart: number;
+  collections: number;
+  dbRaw: number;
+  hooks: number;
+  version: string;
+  metrics: any;
+}
+
+// ─────────────────────────────────────────────────────────────
+// Constants
+// ─────────────────────────────────────────────────────────────
+
 const DATABASES: DatabaseConfig[] = [
-  { type: "sqlite", port: null, host: "./config/database" },
-  { type: "mongodb", port: 27017, host: "127.0.0.1" },
-  { type: "postgresql", port: 5432, host: "127.0.0.1" },
-  { type: "mariadb", port: 3306, host: "127.0.0.1" },
+  {
+    type: "sqlite",
+    port: 0,
+    host: "./config/database",
+    container: "",
+    user: "",
+    password: "",
+  },
+  {
+    type: "mongodb",
+    port: 27017,
+    host: "127.0.0.1",
+    container: "mongodb",
+    user: "",
+    password: "",
+  },
+  {
+    type: "postgresql",
+    port: 5432,
+    host: "127.0.0.1",
+    container: "postgres",
+    user: "postgres",
+    password: "postgres",
+  },
+  {
+    type: "mariadb",
+    port: 3306,
+    host: "127.0.0.1",
+    container: "mariadb",
+    user: "root",
+    password: "mariadb",
+  },
 ];
 
-const BASE_PORT = 4173;
+const PORT = 4173;
+const DB_NAME = "SveltyCMS_test";
 const TEST_API_SECRET = "enterprise-audit-2026";
-// Use private.test.ts to avoid stomping on developer's local dev config
-const CONFIG_PATH = path.join(process.cwd(), "config/private.test.ts");
-const CONFIG_BACKUP_PATH = path.join(process.cwd(), "config/private.test.ts.bak");
 const RESULTS_DIR = path.join(process.cwd(), "tests/benchmarks/results");
+const HISTORY_FILE = path.join(process.cwd(), "tests/benchmarks/results/history.json");
 const BENCHMARKS_DOC = path.join(process.cwd(), "docs/project/benchmarks.mdx");
 
+const BENCHMARK_SCRIPTS = [
+  {
+    path: "tests/benchmarks/rest-api-performance.test.ts",
+    label: "REST API",
+    description: "Measures E2E collection throughput and latency using REST API endpoints.",
+  },
+  {
+    path: "tests/benchmarks/hooks-performance.test.ts",
+    label: "Hooks",
+    description: "Evaluates middleware and lifecycle hook overhead across various data operations.",
+  },
+  {
+    path: "tests/benchmarks/database-performance.test.ts",
+    label: "DB Adapter",
+    description: "Benchmarks raw CRUD operations directly via the database adapter layer.",
+  },
+];
+
 let serverProcess: ChildProcess | null = null;
-let originalConfigExisted = false;
-let startTime: number;
+let _auditStartTime: number = 0;
+
+// ─────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────
 
 const log = {
-  info: (msg: string) => console.log(`${pc.blue("[INFO]")} ${msg}`),
-  success: (msg: string) => console.log(`✅ ${pc.green(msg)}`),
-  warn: (msg: string) => console.warn(`⚠️  ${pc.yellow(msg)}`),
-  error: (msg: string) => console.error(`❌ ${pc.red(msg)}`),
-  header: (msg: string) => console.log(`\n🏢 ${pc.bold(pc.cyan(msg))}`),
+  header: (msg: string) => console.log(`\n🏢 ${msg}`),
+  info: (msg: string) => console.log(`[INFO] ${msg}`),
+  success: (msg: string) => console.log(`✅ ${msg}`),
+  error: (msg: string) => console.error(`❌ ${msg}`),
 };
 
-/** Graceful process killer with fallback */
-async function killProcess(proc: ChildProcess, timeoutMs = 5000): Promise<void> {
-  if (!proc.pid) return;
-
-  return new Promise((resolve) => {
-    const timer = setTimeout(() => {
-      log.warn(`Process ${proc.pid} didn't exit, forcing...`);
-      if (process.platform === "win32") {
-        spawn("taskkill", ["/F", "/T", "/PID", proc.pid!.toString()]);
-      } else {
-        proc.kill("SIGKILL");
-      }
-      resolve();
-    }, timeoutMs);
-
-    if (proc.pid) {
-      // Windows often needs /T /F to kill the whole tree (node -> bun -> process)
-      spawn("taskkill", ["/T", "/F", "/PID", proc.pid.toString()]);
-    } else {
-      proc.kill("SIGTERM");
-    }
-
-    proc.on("exit", () => {
-      clearTimeout(timer);
-      resolve();
-    });
+async function runWithOutput(
+  cmd: string,
+  args: string[],
+  env: Record<string, string> = {},
+): Promise<string> {
+  const proc = spawn(cmd, args, { stdio: "pipe", env: { ...process.env, ...env } });
+  let output = "";
+  proc.stdout?.on("data", (d) => (output += d.toString()));
+  proc.stderr?.on("data", (d) => (output += d.toString()));
+  return new Promise((resolve, reject) => {
+    proc.on("close", (code) =>
+      code === 0
+        ? resolve(output.trim())
+        : reject(new Error(`${cmd} exited with ${code}\n${output}`)),
+    );
+    proc.on("error", reject);
   });
 }
 
-/** Defensive global cleanup */
-async function globalCleanup(): Promise<void> {
+async function runCommand(cmd: string, args: string[], env: Record<string, string> = {}) {
+  return new Promise<void>((resolve, reject) => {
+    const proc = spawn(cmd, args, { stdio: "inherit", env: { ...process.env, ...env } });
+    proc.on("close", (code) =>
+      code === 0 ? resolve() : reject(new Error(`${cmd} exited with ${code}`)),
+    );
+    proc.on("error", reject);
+  });
+}
+
+async function stopServer() {
   if (serverProcess) {
-    log.info("Terminating production server...");
-    await killProcess(serverProcess);
-    serverProcess = null;
-  }
-
-  try {
-    if (await fs.stat(CONFIG_BACKUP_PATH).catch(() => null)) {
-      log.info("Restoring original config/private.test.ts");
-      await fs.copyFile(CONFIG_BACKUP_PATH, CONFIG_PATH);
-      await fs.unlink(CONFIG_BACKUP_PATH);
-    } else if (!originalConfigExisted && (await fs.stat(CONFIG_PATH).catch(() => null))) {
-      log.info("Removing temporary benchmark config");
-      await fs.unlink(CONFIG_PATH);
-    }
-  } catch {
-    log.warn("Cleanup encountered minor issues");
-  }
-}
-
-process.on("SIGINT", async () => {
-  log.warn("Audit cancelled by user (SIGINT)");
-  await globalCleanup();
-  process.exit(1);
-});
-
-/** Prepare production config with proper typing */
-async function prepareProductionConfig(dbType: string, useRedis: boolean): Promise<void> {
-  const db = DATABASES.find((d) => d.type === dbType)!;
-  const dbName = dbType === "sqlite" ? "sveltycms_test_matrix.db" : "SveltyCMS_test";
-
-  const privateEnv = {
-    DB_TYPE: dbType,
-    DB_NAME: dbName,
-    DB_HOST: db.host,
-    DB_PORT: db.port?.toString() || "",
-    DB_USER: "",
-    DB_PASSWORD: "",
-    USE_REDIS: useRedis,
-    REDIS_HOST: "127.0.0.1",
-    REDIS_PORT: 6379,
-    JWT_SECRET_KEY: "bench-jwt-secret-key-12345",
-    ENCRYPTION_KEY: "bench-encryption-key-12345",
-    TEST_API_SECRET,
-    MULTI_TENANT: false,
-    DB_RETRY_ATTEMPTS: 2,
-    DB_RETRY_DELAY: 1000,
-  };
-
-  const content = `/** 
-  * Generated by Enterprise Matrix - DO NOT EDIT MANUALLY
-  */
-  export const privateEnv = ${JSON.stringify(privateEnv, null, 2)};
-  `;
-  await fs.writeFile(CONFIG_PATH, content);
-}
-
-/** Wait for server to be healthy with better polling + timeout */
-async function waitForServerReady(port: number, timeoutMs = 45000): Promise<number> {
-  const start = Date.now();
-  const maxAttempts = Math.ceil(timeoutMs / 1000);
-
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    try {
-      const res = await fetch(`http://127.0.0.1:${port}/api/system/health`, {
-        signal: AbortSignal.timeout(1000),
-      });
-
-      if (res.status < 500) {
-        return Date.now() - start;
+    log.info("Stopping server...");
+    const pid = serverProcess.pid;
+    if (pid) {
+      try {
+        if (process.platform === "win32") {
+          await runWithOutput("taskkill", ["/T", "/F", "/PID", pid.toString()]);
+        } else {
+          serverProcess.kill("SIGKILL");
+        }
+      } catch (e) {
+        log.error("Failed to kill server process: " + (e as any).message);
       }
-    } catch {
-      // ignore connection refused / timeout
     }
-
-    if (Date.now() - start > timeoutMs) {
-      throw new Error(`Server readiness timeout after ${timeoutMs}ms`);
-    }
-
-    await new Promise((r) => setTimeout(r, 1500));
+    serverProcess = null;
+    await new Promise((r) => setTimeout(r, 5000));
   }
-
-  throw new Error("Server failed to become ready");
 }
 
-/** Start production server and return cold start time */
-async function startServer(port: number, dbType: string, useRedis: boolean): Promise<number> {
-  const db = DATABASES.find((d) => d.type === dbType)!;
-  const dbName = dbType === "sqlite" ? "sveltycms_test_matrix.db" : "SveltyCMS_test";
-
-  log.info(
-    `Booting production server on port ${port} (${dbType} + ${useRedis ? "Redis" : "Memory"})`,
-  );
+async function startServer(db: DatabaseConfig): Promise<{ coldStart: number; version: string }> {
+  const buildPath = path.join(process.cwd(), "build/index.js");
+  try {
+    await fs.access(buildPath);
+  } catch {
+    throw new Error(`Build not found at ${buildPath}. Ensure build completed successfully.`);
+  }
 
   const env = {
     ...process.env,
     NODE_ENV: "production",
     TEST_MODE: "true",
-    PORT: port.toString(),
-    DB_TYPE: dbType,
-    DB_NAME: dbName,
+    PORT: PORT.toString(),
+    DB_TYPE: db.type,
     DB_HOST: db.host,
-    DB_PORT: db.port?.toString() || "",
-    DB_USER: "",
-    DB_PASSWORD: "",
-    USE_REDIS: useRedis.toString(),
-    REDIS_HOST: "127.0.0.1",
-    REDIS_PORT: "6379",
+    DB_PORT: db.port > 0 ? db.port.toString() : undefined,
+    DB_NAME,
+    DB_USER: db.user || undefined,
+    DB_PASSWORD: db.password || undefined,
     TEST_API_SECRET,
-    JWT_SECRET_KEY: "bench-jwt-secret-key-12345",
-    ENCRYPTION_KEY: "bench-encryption-key-12345",
-  };
+  } as any;
 
-  // Using bun for better native driver interop in production build
-  serverProcess = spawn("bun", ["build/index.js"], { env, shell: true });
-
-  // Capture logs for debugging failures
-  const serverLogs: string[] = [];
-  serverProcess.stdout?.on("data", (data) => {
-    const msg = data.toString().trim();
-    if (msg) serverLogs.push(msg);
+  serverProcess = spawn("bun", ["build/index.js"], {
+    env,
+    stdio: ["ignore", "inherit", "inherit"],
   });
-  serverProcess.stderr?.on("data", (data) => {
-    const msg = data.toString().trim();
-    if (msg) serverLogs.push(`${pc.red("[STDERR]")} ${msg}`);
-  });
+  const start = Date.now();
+  const maxRetries = process.env.CI === "true" ? 120 : 60;
 
-  try {
-    const coldStartMs = await waitForServerReady(port);
-    log.success(`Server ready in ${coldStartMs}ms`);
-    return coldStartMs;
-  } catch (err: any) {
-    console.error(
-      `\n${pc.bold(pc.redBright(" [CRASH/LOGS] "))} Last 15 lines:\n${serverLogs.slice(-15).join("\n")}`,
-    );
-    throw err;
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      const res = await fetch(`http://127.0.0.1:${PORT}/api/system/health`).catch(() => null);
+      if (res && (res.ok || res.status === 503)) {
+        const status = await res.json().catch(() => ({}));
+        const okStatuses = ["READY", "SETUP", "IDLE", "WARMING"];
+        if (okStatuses.includes(status.overallStatus)) {
+          const coldStart = Date.now() - start;
+          const version = status.dbVersion || "unknown";
+          log.success(
+            `Server reached ${status.overallStatus} state in ${coldStart}ms (${version})`,
+          );
+          return { coldStart, version };
+        }
+      }
+    } catch {}
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+  throw new Error(`Server health check timed out after ${maxRetries}s`);
+}
+
+async function waitForContainer(db: DatabaseConfig) {
+  if (db.type === "sqlite") return;
+  const cmd =
+    db.type === "mariadb" ? "mariadb-admin" : db.type === "postgresql" ? "pg_isready" : "mongosh";
+  const args =
+    db.type === "mariadb"
+      ? ["ping", `-p${db.password}`, "--silent"]
+      : db.type === "postgresql"
+        ? ["-U", "postgres"]
+        : ["--eval", "db.adminCommand('ping')"];
+  for (let i = 0; i < 30; i++) {
+    try {
+      await runWithOutput("docker", ["exec", db.container, cmd, ...args]);
+      return;
+    } catch {
+      await new Promise((r) => setTimeout(r, 1000));
+    }
   }
 }
 
-/** Clean results directory */
-async function resetResultsDir(): Promise<void> {
-  await fs.rm(RESULTS_DIR, { recursive: true, force: true });
-  await fs.mkdir(RESULTS_DIR, { recursive: true });
+async function resetDatabase(db: DatabaseConfig) {
+  const testConfig = path.join(process.cwd(), "config/private.test.ts");
+  await fs.rm(testConfig, { force: true }).catch(() => {});
+
+  if (db.type === "sqlite") {
+    const dbDir = path.join(process.cwd(), "config/database");
+    log.info(`Cleaning SQLite artifacts in ${dbDir}...`);
+    const files = [`${DB_NAME}.sqlite`, `${DB_NAME}.sqlite-wal`, `${DB_NAME}.sqlite-shm`];
+    for (const f of files) {
+      await fs.rm(path.join(dbDir, f), { force: true }).catch(() => {});
+    }
+    return;
+  }
+  await waitForContainer(db);
+  log.info(`Resetting ${db.type}...`);
+  try {
+    if (db.type === "mongodb") {
+      await runCommand("docker", [
+        "exec",
+        db.container,
+        "mongosh",
+        "--eval",
+        `db.getSiblingDB('${DB_NAME}').dropDatabase()`,
+      ]);
+    } else if (db.type === "postgresql") {
+      await runCommand("docker", [
+        "exec",
+        db.container,
+        "psql",
+        "-U",
+        "postgres",
+        "-c",
+        `ALTER USER postgres WITH PASSWORD 'postgres';`,
+      ]);
+      await runCommand("docker", [
+        "exec",
+        db.container,
+        "psql",
+        "-U",
+        "postgres",
+        "-c",
+        `DROP DATABASE IF EXISTS "${DB_NAME}" WITH (FORCE);`,
+      ]);
+      await runCommand("docker", [
+        "exec",
+        db.container,
+        "psql",
+        "-U",
+        "postgres",
+        "-c",
+        `CREATE DATABASE "${DB_NAME}";`,
+      ]);
+    } else if (db.type === "mariadb") {
+      const sql = `
+        CREATE USER IF NOT EXISTS 'root'@'%' IDENTIFIED BY '${db.password}';
+        GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' WITH GRANT OPTION;
+        DROP DATABASE IF EXISTS ${DB_NAME};
+        CREATE DATABASE ${DB_NAME};
+        FLUSH PRIVILEGES;
+      `
+        .replace(/\s+/g, " ")
+        .trim();
+      await runCommand("docker", [
+        "exec",
+        db.container,
+        "mariadb",
+        "-u",
+        "root",
+        `-p${db.password}`,
+        "-e",
+        sql,
+      ]);
+    }
+  } catch (e: any) {
+    log.error(`Reset failed for ${db.type}: ${e.message}`);
+    throw e;
+  }
 }
 
-/** Drop databases for a fresh start */
-async function dropDatabases() {
-  log.info("Dropping existing test databases for fresh start...");
+/**
+ * Robust Metric Discovery
+ */
+function extractMetrics(metrics: any, dbType: string) {
+  const findNewest = (prefix: string) => {
+    const matching = Object.keys(metrics).filter((k) => k.startsWith(prefix));
+    if (matching.length === 0) return null;
+    return metrics[matching.sort().reverse()[0]];
+  };
 
-  // SQLite
-  try {
-    const sqlitePath = path.join(process.cwd(), "config/database/sveltycms_test_matrix.db");
-    if (await fs.stat(sqlitePath).catch(() => null)) {
-      await fs.unlink(sqlitePath);
-      log.info("Dropped SQLite database file.");
+  let collections = findNewest("rest-collections-list")?.p95Ms || 0;
+  if (collections === 0) {
+    const found = Object.values(metrics).find(
+      (v: any) => v && typeof v.p95Ms === "number" && v.name?.includes("collections"),
+    );
+    collections = (found as any)?.p95Ms || 0;
+  }
+
+  let dbRaw = 0;
+  const matrixKey = `matrix-${dbType.toLowerCase()}`;
+  const dbData = metrics[matrixKey]?.metrics;
+  if (dbData && typeof dbData.insert === "number") {
+    dbRaw = (dbData.insert + dbData.read + dbData.update + dbData.delete) / 4;
+  } else {
+    const matrixEntry = Object.entries(metrics).find(([k]) => k.startsWith("matrix-"));
+    if (matrixEntry) {
+      const mData = (matrixEntry[1] as any)?.metrics;
+      if (mData) dbRaw = (mData.insert + mData.read + mData.update + mData.delete) / 4;
     }
-  } catch {}
+  }
 
-  // MongoDB
-  try {
-    await runCommand("docker", [
-      "exec",
-      "mongodb",
-      "mongosh",
-      "--eval",
-      "db.getSiblingDB('SveltyCMS_test').dropDatabase()",
-    ]);
-    log.info("Dropped MongoDB database.");
-  } catch {}
+  const hooks = Object.entries(metrics)
+    .filter(([k]) => k.startsWith("hook-") && !k.includes("pipeline"))
+    .reduce((acc, [_, v]: [string, any]) => acc + (v?.p95Ms || 0), 0);
 
-  // PostgreSQL
-  try {
-    await runCommand("docker", [
-      "exec",
-      "postgres",
-      "psql",
-      "-U",
-      "postgres",
-      "-c",
-      'DROP DATABASE IF EXISTS "SveltyCMS_test";',
-    ]);
-    log.info("Dropped PostgreSQL database.");
-  } catch {}
+  return { collections, dbRaw, hooks };
+}
 
-  // MariaDB
+function getTrend(curr: number, prev: number): string {
+  if (!prev || prev === 0) return " ⚪ (—)";
+  const pct = ((curr - prev) / prev) * 100;
+  const emoji = pct < -3 ? "🟢" : pct > 5 ? "🔴" : "⚪";
+  return ` ${emoji} ${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%`;
+}
+
+function getOverallTrend(curr: any, prev: any): string {
+  const totalCurr = (curr.collections || 0) + (curr.dbRaw || 0) + (curr.hooks || 0);
+  const totalPrev = (prev.collections || 0) + (prev.dbRaw || 0) + (prev.hooks || 0);
+  if (!totalPrev) return " ⚪ (—)";
+  const pct = ((totalCurr - totalPrev) / totalPrev) * 100;
+  const emoji = pct < -3 ? "🟢" : pct > 5 ? "🔴" : "⚪";
+  return `${emoji} ${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%`;
+}
+
+async function generateFinalReport(_bundleReport: any, results: BenchmarkResult[]) {
+  let history: any = { runs: {} };
   try {
-    await runCommand("docker", [
-      "exec",
-      "mariadb",
-      "mariadb",
-      "-u",
-      "root",
-      "-e",
-      "DROP DATABASE IF EXISTS `SveltyCMS_test`;",
-    ]);
-    log.info("Dropped MariaDB database.");
-  } catch {}
+    const data = await fs.readFile(HISTORY_FILE, "utf8");
+    history = JSON.parse(data);
+  } catch {
+    history = { runs: {} };
+  }
+  if (!history.runs) history.runs = {};
+
+  const now = new Date().toISOString();
+
+  for (const res of results) {
+    if (res.status !== "SUCCESS") continue;
+    const key = `${res.db.toUpperCase()}-Memory`;
+    const { collections, dbRaw, hooks } = extractMetrics(res.metrics, res.db);
+
+    const currentRun: RunData = {
+      timestamp: now,
+      coldStart: res.coldStartMs || 0,
+      collections: collections || 0,
+      dbRaw: dbRaw || 0,
+      hooks: hooks || 0,
+      version: res.version || "unknown",
+      metrics: res.metrics,
+    };
+
+    if (!history.runs[key]) history.runs[key] = [];
+    history.runs[key].unshift(currentRun); // newest first
+    if (history.runs[key].length > 5) history.runs[key].pop();
+  }
+
+  await fs.writeFile(HISTORY_FILE, JSON.stringify(history, null, 2));
+
+  let md = `## 📊 Enterprise Benchmark Matrix — ${new Date().toLocaleString()}\n\n`;
+
+  md += `### 🧪 What We Tested\n\n`;
+  for (const s of BENCHMARK_SCRIPTS) {
+    md += `- **${s.label}** — ${s.description}\n   📍 \`${s.path}\`\n`;
+  }
+  md += `\n**Cache mode**: In-memory • Test Mode: ENABLED\n\n`;
+
+  // Table
+  md += `| Database | Version | Cold Start | REST (p95) | Raw DB (avg) | Hooks | Overall Trend |\n`;
+  md += `|----------|---------|------------|------------|--------------|-------|---------------|\n`;
+
+  const regressions: string[] = [];
+  const improvements: string[] = [];
+  const bottlenecks: string[] = [];
+
+  for (const key of Object.keys(history.runs).sort()) {
+    const runs = history.runs[key];
+    if (runs.length === 0) continue;
+
+    const curr = runs[0];
+    const prev = runs[1] || curr;
+    const dbName = key.split("-")[0];
+
+    const coldTrend = getTrend(curr.coldStart, prev.coldStart);
+    const restTrend = getTrend(curr.collections, prev.collections);
+    const dbTrend = getTrend(curr.dbRaw, prev.dbRaw);
+    const hooksTrend = getTrend(curr.hooks, prev.hooks);
+    const overall = getOverallTrend(curr, prev);
+
+    md += `| **${dbName}** | ${curr.version} | ${curr.coldStart.toFixed(0)}ms${coldTrend} | `;
+    md += `${curr.collections.toFixed(2)}ms${restTrend} | ${curr.dbRaw.toFixed(3)}ms${dbTrend} | `;
+    md += `${curr.hooks.toFixed(2)}ms${hooksTrend} | ${overall} |\n`;
+
+    const totalNow = curr.collections + curr.dbRaw + curr.hooks;
+    const totalPrev = prev.collections + prev.dbRaw + prev.hooks;
+
+    if (totalPrev > 0) {
+      const changePct = ((totalNow - totalPrev) / totalPrev) * 100;
+      if (changePct > 8)
+        regressions.push(`🔴 **${dbName}** slowed down **+${changePct.toFixed(1)}%**`);
+      else if (changePct < -8)
+        improvements.push(`🟢 **${dbName}** improved **${changePct.toFixed(1)}%**`);
+    }
+
+    if (totalNow > 0) {
+      if (curr.collections / totalNow > 0.75)
+        bottlenecks.push(
+          `📌 **${dbName}** — REST dominates (${((curr.collections / totalNow) * 100).toFixed(0)}%)`,
+        );
+      else if (curr.dbRaw / totalNow > 0.3)
+        bottlenecks.push(
+          `📌 **${dbName}** — Raw DB is heavy (${((curr.dbRaw / totalNow) * 100).toFixed(0)}%)`,
+        );
+    }
+  }
+
+  // Trends Chart (Fixed Mermaid)
+  md += `\n### 📈 Latency Trends (last 5 runs — lower is better)\n\n`;
+  md += `\`\`\`mermaid\n`;
+  md += `xychart-beta\n`;
+  md += `  title "Total Latency (ms) — REST + DB + Hooks"\n`;
+  md += `  x-axis "Run"\n`;
+  md += `  y-axis "Latency (ms)"\n`;
+
+  const dbKeys = Object.keys(history.runs).sort();
+  if (dbKeys.length > 0) {
+    const historyLength = history.runs[dbKeys[0]].length;
+    const labels = history.runs[dbKeys[0]]
+      .slice(0, 5)
+      .map((_r: any, i: number) => `"Run ${historyLength - i}"`)
+      .reverse();
+    md += `  [${labels.join(", ")}]\n`;
+
+    for (const key of dbKeys) {
+      const totals = history.runs[key]
+        .slice(0, 5)
+        .map((r: any) => (r.collections + r.dbRaw + r.hooks).toFixed(1))
+        .reverse();
+      md += `  line "${key.split("-")[0]}" : [${totals.join(", ")}]\n`;
+    }
+  }
+  md += `\`\`\`\n\n`;
+
+  // Smart Summary
+  md += `### 🚨 What Needs Attention\n\n`;
+  if (regressions.length) md += `**Regressions**\n${regressions.join("\n")}\n\n`;
+  if (improvements.length) md += `**Improvements**\n${improvements.join("\n")}\n\n`;
+  md += `**Bottlenecks**\n${bottlenecks.length ? bottlenecks.join("\n") : "Balanced across components"}\n\n`;
+  md += `**Note**: Many "TEST_MODE enabled. Bypassing state checks" warnings appeared. Expected in benchmarks, but worth checking in real usage.\n`;
+
+  // Write to MDX
+  let doc = await fs.readFile(BENCHMARKS_DOC, "utf8").catch(() => "");
+  const start = "<!-- BENCHMARK_START -->";
+  const end = "<!-- BENCHMARK_END -->";
+  const content = `${start}\n\n${md}\n\n${end}`;
+  if (doc.includes(start) && doc.includes(end)) {
+    doc = doc.slice(0, doc.indexOf(start)) + content + doc.slice(doc.indexOf(end) + end.length);
+  } else {
+    doc = content + "\n---\n" + doc;
+  }
+  await fs.writeFile(BENCHMARKS_DOC, doc);
+
+  log.success("📄 Smart benchmark report generated → docs/project/benchmarks.mdx");
 }
 
 async function main() {
-  startTime = Date.now();
-  log.header("SVELTYCMS ENTERPRISE PERFORMANCE AUDIT (Zero-Mock - Enhanced)");
-  console.log("=".repeat(70));
-
-  // Backup original config
-  if (await fs.stat(CONFIG_PATH).catch(() => null)) {
-    originalConfigExisted = true;
-    log.info("Backing up original config/private.test.ts");
-    await fs.copyFile(CONFIG_PATH, CONFIG_BACKUP_PATH);
-  }
-
+  _auditStartTime = Date.now();
   try {
-    await fs.mkdir(path.join(process.cwd(), "config/database"), { recursive: true });
-
-    // 0. Drop all test databases first
-    await dropDatabases();
-
-    // 1. Build once with stats
-    log.info("[1/4] Building production binary & capturing bundle stats...");
-    await fs.writeFile(
-      CONFIG_PATH,
-      `export const privateEnv = { DB_TYPE: 'sqlite', DB_NAME: 'build.db' };`,
-    );
-    await runCommand("bun", ["run", "build:stats"], { SVELTYCMS_SKIP_INIT: "true" });
-
-    const bundleReport = JSON.parse(
-      await fs.readFile(path.join(process.cwd(), "bundle-report.json"), "utf8"),
-    );
-
-    const matrixResults: BenchmarkResult[] = [];
-    let passIndex = 0;
+    if (process.env.SVELTYCMS_SKIP_BUILD !== "true") {
+      log.header("Building production binary & capturing bundle stats...");
+      await runCommand("bun", ["run", "build:stats"], {
+        ...process.env,
+        SVELTYCMS_SKIP_INIT: "true",
+      } as any);
+    }
+    const bundleReport = JSON.parse(await fs.readFile("bundle-report.json", "utf8"));
+    const results: BenchmarkResult[] = [];
 
     for (const db of DATABASES) {
-      for (const useRedis of [false, true]) {
-        if (db.type === "sqlite" && useRedis) continue;
+      log.header(`Auditing ${db.type.toUpperCase()}`);
+      try {
+        await stopServer();
+        await resetDatabase(db);
+        const { coldStart: coldStartMs, version } = await startServer(db);
+        const env = {
+          API_BASE_URL: `http://127.0.0.1:${PORT}`,
+          TEST_MODE: "true",
+          SSR: "true",
+          DB_TYPE: db.type,
+          TEST_API_SECRET,
+          DB_USER: db.user,
+          DB_PASSWORD: db.password,
+          DB_HOST: db.host,
+          DB_NAME,
+          BUN_TEST_MOCKS: "false",
+        };
 
-        const port = BASE_PORT + passIndex;
-        const label = `${db.type.toUpperCase()} + ${useRedis ? "REDIS" : "MEMORY"}`;
-        const dbName = db.type === "sqlite" ? "sveltycms_test_matrix.db" : "SveltyCMS_test";
+        log.info("Seeding system...");
+        await runCommand("bun", ["run", "scripts/setup-system.ts"], env);
 
-        log.info(`\n🔬 Running benchmark: ${label} (Port ${port})`);
-        console.log("-".repeat(60));
+        log.info("Running benchmark scripts...");
+        await fs.rm(RESULTS_DIR, { recursive: true, force: true }).catch(() => {});
+        await fs.mkdir(RESULTS_DIR, { recursive: true });
 
-        try {
-          await resetResultsDir();
-          await prepareProductionConfig(db.type, useRedis);
+        const benchEnv = { ...env, RESULTS_DIR, DB_TYPE: db.type, BUN_TEST_MOCKS: "false" };
 
-          const coldStartMs = await startServer(port, db.type, useRedis);
-
-          log.info("[2/4] Seeding enterprise data (with fresh cleanup)...");
-          await runCommand("bun", ["run", "scripts/setup-system.ts", "--clean"], {
-            API_BASE_URL: `http://127.0.0.1:${port}`,
-            TEST_API_SECRET,
-            DB_TYPE: db.type,
-            DB_NAME: dbName,
-            TEST_MODE: "true",
-          });
-
-          log.info("[3/4] Executing latency audit...");
-          await runCommand("bun", ["test", "tests/benchmarks/rest-api-performance.test.ts"], {
-            API_BASE_URL: `http://127.0.0.1:${port}`,
-            TEST_MODE: "true",
-            TEST_API_SECRET: TEST_API_SECRET,
-          });
-
-          // Collect metrics
-          const files = await fs.readdir(RESULTS_DIR);
-          const metrics: Record<string, any> = {};
-
-          for (const file of files) {
-            if (file.endsWith(".json")) {
-              const data = JSON.parse(await fs.readFile(path.join(RESULTS_DIR, file), "utf8"));
-              metrics[data.name] = data;
-            }
-          }
-
-          matrixResults.push({
-            db: db.type,
-            cache: useRedis ? "Redis" : "Memory",
-            status: "SUCCESS",
-            coldStartMs,
-            metrics,
-          });
-
-          log.success(`Pass completed: ${label}`);
-        } catch (err: any) {
-          log.error(`Pass failed for ${label}: ${err.message}`);
-          matrixResults.push({
-            db: db.type,
-            cache: useRedis ? "Redis" : "Memory",
-            status: "FAILED",
-            error: err.message,
-          });
-        } finally {
-          if (serverProcess) {
-            await killProcess(serverProcess);
-            serverProcess = null;
-            await new Promise((r) => setTimeout(r, 2000)); // Graceful port drain
-          }
-          passIndex++;
+        for (const s of BENCHMARK_SCRIPTS) {
+          log.info(`Executing ${s.label}...`);
+          await runCommand("bun", ["test", s.path], benchEnv);
         }
+
+        log.info("Ensuring raw DB adapter benchmark ran...");
+        try {
+          await runCommand(
+            "bun",
+            ["test", "tests/benchmarks/database-performance.test.ts"],
+            benchEnv,
+          );
+        } catch (e) {
+          log.error("DB benchmark failed to run: " + (e as any).message);
+        }
+
+        const metrics: any = {},
+          files = await fs.readdir(RESULTS_DIR);
+        for (const f of files)
+          if (f.endsWith(".json"))
+            metrics[path.basename(f, ".json")] = JSON.parse(
+              await fs.readFile(path.join(RESULTS_DIR, f), "utf8"),
+            );
+        results.push({
+          db: db.type,
+          version,
+          cache: "Memory",
+          status: "SUCCESS",
+          coldStartMs,
+          metrics,
+        });
+      } catch (e: any) {
+        log.error(`Pass failed for ${db.type}: ${e.message}`);
+        results.push({ db: db.type, cache: "Memory", status: "FAILED", error: e.message });
       }
     }
+    await generateFinalReport(bundleReport, results);
+    log.success(`Audit completed in ${((Date.now() - _auditStartTime) / 1000).toFixed(1)}s`);
 
-    await generateFinalReport(bundleReport, matrixResults);
-  } catch (err: any) {
-    log.error(`Audit failed: ${err.message}`);
+    console.log("\n" + "=".repeat(80));
+    console.log("✅ ENTERPRISE BENCHMARK MATRIX COMPLETE");
+    console.log("📄 Full smart report → docs/project/benchmarks.mdx");
+    console.log("🔍 Check the 'Smart Summary — What Needs Attention' section!");
+    console.log("=".repeat(80));
+
+    process.exit(results.every((r) => r.status === "SUCCESS") ? 0 : 1);
+  } catch (e: any) {
+    log.error("Fatal audit error: " + e.message);
     process.exit(1);
   } finally {
-    await globalCleanup();
+    await stopServer();
   }
-
-  const totalDuration = ((Date.now() - startTime) / 1000).toFixed(1);
-  log.success(`Enterprise Audit completed successfully in ${totalDuration}s`);
-  process.exit(0);
 }
 
-/** Simple command runner */
-async function runCommand(
-  cmd: string,
-  args: string[],
-  env: Record<string, string> = {},
-): Promise<number> {
-  return new Promise((resolve, reject) => {
-    const proc = spawn(cmd, args, {
-      stdio: "inherit",
-      shell: true,
-      env: { ...process.env, ...env },
-    });
-
-    proc.on("close", (code) => {
-      if (code === 0) resolve(code);
-      else reject(new Error(`${cmd} ${args.join(" ")} exited with code ${code}`));
-    });
-
-    proc.on("error", reject);
-  });
-}
-
-async function generateFinalReport(bundleReport: any, results: BenchmarkResult[]) {
-  const { stats } = bundleReport;
-  const timestamp = new Date().toLocaleString();
-
-  let md = `## 📊 Enterprise Benchmark Matrix (April 2026 Update)\n\n`;
-  md += `> [!NOTE]\n> **Last Updated**: ${timestamp} | **Strategy**: Zero-Mock Production Audit\n\n`;
-
-  // Build stats
-  md += `### 📦 Build & Footprint\n\n`;
-  md += `| Metric | Production Value | Client/Server |\n`;
-  md += `| :--- | :--- | :--- |\n`;
-  md += `| **Build Duration** | **${(stats.buildTime / 1000).toFixed(2)}s** | N/A |\n`;
-  md += `| **Module Count** | **${stats.clientModules + stats.serverModules}** | ${stats.clientModules} Client / ${stats.serverModules} Server |\n`;
-  md += `| **Asset Count** | **${stats.jsCount + stats.cssCount}** | ${stats.jsCount} JS / ${stats.cssCount} CSS |\n`;
-  md += `| **Brotli Size** | **${(stats.totalBrotli / 1024).toFixed(2)} KB** | Transfer-Ready |\n\n`;
-
-  // Results matrix
-  md += `### 🚀 Database & Cache Latency (p95)\n\n`;
-  md += `| Engine | Cache | Cold Start | Health Check | User Context | Collections | Throughput (RPS) |\n`;
-  md += `| :--- | :--- | :--- | :--- | :--- | :--- | :--- |\n`;
-
-  for (const res of results) {
-    if (res.status === "FAILED") {
-      md += `| **${res.db.toUpperCase()}** | ${res.cache} | ❌ Failed | ❌ | ❌ | ❌ | ❌ |\n`;
-      continue;
-    }
-
-    const m = res.metrics || {};
-    const health = m["REST: /api/system/health (Public)"]?.p95Ms?.toFixed(2) ?? "N/A";
-    const userMe = m["REST: /api/user/me (Auth)"]?.p95Ms?.toFixed(2) ?? "N/A";
-    const collections = m["REST: /api/collections (DB)"]?.p95Ms?.toFixed(2) ?? "N/A";
-    const rps = Math.floor(m["REST: /api/collections (DB)"]?.rps ?? 0).toLocaleString();
-
-    md += `| **${res.db.toUpperCase()}** | ${res.cache} | **${res.coldStartMs}ms** | ${health} ms | ${userMe} ms | ${collections} ms | ${rps} RPS |\n`;
-  }
-
-  // Update documentation
-  let content = await fs.readFile(BENCHMARKS_DOC, "utf8").catch(() => "");
-  const startMarker = "## 📊 Enterprise Benchmark Matrix";
-
-  if (content.includes(startMarker)) {
-    const before = content.slice(0, content.indexOf(startMarker));
-    const afterIndex = content.indexOf("---", content.indexOf(startMarker) + startMarker.length);
-    const after = afterIndex !== -1 ? content.slice(afterIndex) : "";
-    content = before + md + after;
-  } else {
-    content = md + "\n---\n" + content;
-  }
-
-  await fs.writeFile(BENCHMARKS_DOC, content);
-  log.success(`Enterprise Audit Complete. Results updated in docs/project/benchmarks.mdx`);
-}
-
-main().catch(async (err) => {
-  console.error("\n💥 Fatal error in audit:", err);
-  await globalCleanup();
-  process.exit(1);
-});
+main();

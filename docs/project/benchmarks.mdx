@@ -1,3 +1,52 @@
+<!-- BENCHMARK_START -->
+
+## 📊 Enterprise Benchmark Matrix — 05/04/2026, 04:03:28
+
+### 🧪 What We Tested
+
+- **REST API** — Measures E2E collection throughput and latency using REST API endpoints.
+   📍 `tests/benchmarks/rest-api-performance.test.ts`
+- **Hooks** — Evaluates middleware and lifecycle hook overhead across various data operations.
+   📍 `tests/benchmarks/hooks-performance.test.ts`
+- **DB Adapter** — Benchmarks raw CRUD operations directly via the database adapter layer.
+   📍 `tests/benchmarks/database-performance.test.ts`
+
+**Cache mode**: In-memory • Test Mode: ENABLED
+
+| Database | Version | Cold Start | REST (p95) | Raw DB (avg) | Hooks | Overall Trend |
+|----------|---------|------------|------------|--------------|-------|---------------|
+| **MARIADB** | unknown | 1048ms ⚪ +0.0% | 13.05ms ⚪ +0.0% | 3.189ms ⚪ +0.0% | 0.09ms ⚪ +0.0% | ⚪ +0.0% |
+| **MONGODB** | unknown | 1044ms ⚪ +0.0% | 11.95ms ⚪ +0.0% | 0.740ms ⚪ +0.0% | 0.10ms ⚪ +0.0% | ⚪ +0.0% |
+| **POSTGRESQL** | unknown | 1048ms ⚪ +0.0% | 10.36ms ⚪ +0.0% | 0.095ms ⚪ +0.0% | 0.09ms ⚪ +0.0% | ⚪ +0.0% |
+| **SQLITE** | unknown | 1055ms ⚪ +0.0% | 9.60ms ⚪ +0.0% | 0.114ms ⚪ +0.0% | 0.09ms ⚪ +0.0% | ⚪ +0.0% |
+
+### 📈 Latency Trends (last 5 runs — lower is better)
+
+```mermaid
+xychart-beta
+  title "Total Latency (ms) — REST + DB + Hooks"
+  x-axis "Run"
+  y-axis "Latency (ms)"
+  ["Run 1"]
+  line "MARIADB" : [16.3]
+  line "MONGODB" : [12.8]
+  line "POSTGRESQL" : [10.6]
+  line "SQLITE" : [9.8]
+```
+
+### 🚨 What Needs Attention
+
+**Bottlenecks**
+📌 **MARIADB** — REST dominates (80%)
+📌 **MONGODB** — REST dominates (93%)
+📌 **POSTGRESQL** — REST dominates (98%)
+📌 **SQLITE** — REST dominates (98%)
+
+**Note**: Many "TEST_MODE enabled. Bypassing state checks" warnings appeared. Expected in benchmarks, but worth checking in real usage.
+
+
+<!-- BENCHMARK_END -->
+---
 ## 📊 Enterprise Benchmark Matrix (April 2026 Update)
 
 > [!NOTE]
