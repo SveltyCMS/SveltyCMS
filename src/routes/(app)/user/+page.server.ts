@@ -83,10 +83,10 @@ export const load: PageServerLoad = async (event) => {
     }
 
     // Prepare user object for return, ensuring _id is a string and including admin status
-    const safeUser = freshUser
+    const safeUser: User | null = freshUser
       ? {
           ...freshUser,
-          _id: freshUser._id.toString(),
+          _id: freshUser._id.toString() as DatabaseId,
           password: "[REDACTED]", // Ensure password is not sent to client
           isAdmin, // Add the properly calculated admin status
         }

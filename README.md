@@ -18,6 +18,7 @@
   <a href="https://kit.svelte.dev"><img src="https://img.shields.io/badge/SvelteKit-V2-FF3E00?logo=svelte" alt="SvelteKit"></a>
   <a href="https://voidzero.dev"><img src="https://img.shields.io/badge/Toolchain-Vite%2B-646CFF?logo=vite" alt="Vite+"></a>
   <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-6.0-3178C6?logo=typescript" alt="TypeScript"></a>
+  <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-24%2B-339933?logo=node.js" alt="Node.js"></a>
   <a href="https://tailwindcss.com/"><img src="https://img.shields.io/badge/Tailwind%20CSS-4-38B2AC" alt="Tailwindcss"></a>
 </div>
 

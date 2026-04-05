@@ -61,6 +61,7 @@ async function createTablesIfNotExist(sql: postgres.Sql): Promise<void> {
 			"lastName" VARCHAR(255),
 			"avatar" TEXT,
 			"roleIds" JSONB NOT NULL DEFAULT '[]',
+			"role" VARCHAR(50) NOT NULL DEFAULT 'user',
 			"isRegistered" BOOLEAN NOT NULL DEFAULT FALSE,
 			"tenantId" VARCHAR(36),
 			"createdAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -379,6 +380,9 @@ async function createTablesIfNotExist(sql: postgres.Sql): Promise<void> {
   try {
     await sql.unsafe(
       `ALTER TABLE auth_users ADD COLUMN IF NOT EXISTS "isRegistered" BOOLEAN NOT NULL DEFAULT FALSE`,
+    );
+    await sql.unsafe(
+      `ALTER TABLE auth_users ADD COLUMN IF NOT EXISTS "role" VARCHAR(50) NOT NULL DEFAULT 'user'`,
     );
   } catch {
     // Ignore error

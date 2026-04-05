@@ -12,6 +12,9 @@ async function runCommand(command: string, args: string[]): Promise<number> {
   });
 }
 
+import path from "node:path";
+import fs from "node:fs/promises";
+
 async function benchmark() {
   console.log(pc.bold(pc.blue("\n📊 SveltyCMS Upgrade & Codemod Benchmarks")));
   console.log(pc.dim("---------------------------------------"));
@@ -29,12 +32,30 @@ async function benchmark() {
 
   // 2. Benchmark: Codemod (TS-Morph AST transformation)
   console.log(pc.cyan("\n2. Benchmarking: 'bun run scripts/codemods/2026-migrate-schema.ts'"));
-  // We'll run it directly to see the AST overhead
   const codemodTime = await runCommand("bun", ["run", "scripts/codemods/2026-migrate-schema.ts"]);
   console.log(`   ⏱️  Codemod (TS-Morph) took: ${pc.yellow(codemodTime.toFixed(2) + "ms")}`);
 
   console.log(pc.dim("---------------------------------------"));
   console.log(pc.green("✅ Benchmarking complete."));
+
+  // Export to JSON
+  const resDir = process.env.RESULTS_DIR || path.join(process.cwd(), "tests/benchmarks/results");
+  const filePath = path.join(resDir, "upgrade-performance.json");
+  await fs.mkdir(resDir, { recursive: true });
+  await fs.writeFile(
+    filePath,
+    JSON.stringify(
+      {
+        name: "Upgrade CLI",
+        upgradeMs: upgradeTime,
+        codemodMs: codemodTime,
+        timestamp: new Date().toISOString(),
+      },
+      null,
+      2,
+    ),
+  );
+  console.log(`💾 Results exported to: ${filePath}`);
 }
 
 benchmark().catch(console.error);

@@ -57,6 +57,8 @@ export interface User {
   tenantId?: DatabaseId | null; // Identifier for the tenant the user belongs to (in multi-tenant mode)
   totpSecret?: string; // TOTP secret for 2FA (base32 encoded)
   username?: string; // Username of the user
+  createdAt?: ISODateString; // When the user was created
+  updatedAt?: ISODateString; // When the user was last updated
 }
 
 // Role Interface
@@ -70,6 +72,8 @@ export interface Role {
   name: string; // Name of the role
   permissions: string[]; // Array of permission IDs associated with the role
   tenantId?: DatabaseId | null; // Optional tenant identifier for multi-tenant installations
+  createdAt?: ISODateString; // When the role was created
+  updatedAt?: ISODateString; // When the role was last updated
 }
 
 export interface Permission {

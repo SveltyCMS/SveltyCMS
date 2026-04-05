@@ -344,6 +344,14 @@ export class MariaDBAdapter extends AdapterCore implements IDBAdapter {
       return results;
     }, "GET_MULTIPLE_COLLECTION_DATA_FAILED");
   };
+
+  public async getVersion(): Promise<DatabaseResult<string>> {
+    return this.wrap(async () => {
+      if (!this.pool) throw new Error("MariaDB pool not available");
+      const [rows] = await this.pool.query("SELECT version() as version");
+      return (rows as any)[0].version as string;
+    }, "GET_VERSION_FAILED");
+  }
 }
 
 export * from "./adapter-core";

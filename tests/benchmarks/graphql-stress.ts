@@ -11,6 +11,8 @@
  */
 
 import { performance } from "node:perf_hooks";
+import fs from "node:fs/promises";
+import path from "node:path";
 import { getApiBaseUrl } from "../integration/helpers/server";
 
 const API_BASE_URL = getApiBaseUrl();
@@ -214,19 +216,41 @@ async function runStressTest(level: keyof typeof LOAD_PROFILES) {
 
 async function main() {
   const target = (process.env.LOAD_LEVEL as keyof typeof LOAD_PROFILES) || "TINY";
+  const resultsDir =
+    process.env.RESULTS_DIR || path.join(process.cwd(), "tests/benchmarks/results");
 
   try {
+    const results: any[] = [];
     if ((target as any) === "ALL") {
       for (const level of Object.keys(LOAD_PROFILES)) {
         const result = await runStressTest(level as any);
+        if (result) results.push(result);
         if (result && result.failures > result.successes * 0.1) {
           console.warn(`\n⚠️  System breaking point reached at level: ${level}`);
           break;
         }
       }
     } else {
-      await runStressTest(target);
+      const result = await runStressTest(target);
+      if (result) results.push(result);
     }
+
+    // Export to JSON
+    const filePath = path.join(resultsDir, "graphql-stress.json");
+    await fs.mkdir(resultsDir, { recursive: true });
+    await fs.writeFile(
+      filePath,
+      JSON.stringify(
+        {
+          name: "GraphQL Stress",
+          timestamp: new Date().toISOString(),
+          profiles: results,
+        },
+        null,
+        2,
+      ),
+    );
+    console.log(`💾 Results exported to: ${filePath}`);
   } catch (err) {
     console.error("\n❌ Benchmark failed:", err);
     process.exit(1);

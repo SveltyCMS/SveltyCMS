@@ -63,14 +63,20 @@ export class AuthModule implements IAuthAdapter {
       ...user,
       _id: user._id as DatabaseId,
       roleIds: finalRoleIds,
-      role: finalRoleIds.length > 0 ? (finalRoleIds[0] as string) : "user",
+      role: dbUser.role || (finalRoleIds.length > 0 ? (finalRoleIds[0] as string) : "user"),
       isAdmin: !!dbUser.isAdmin,
       isRegistered: !!dbUser.isRegistered,
       blocked: !!dbUser.blocked,
       emailVerified: !!dbUser.emailVerified,
       permissions: (user as unknown as { permissions?: string[] }).permissions || [],
       tenantId: user.tenantId as DatabaseId | null,
-    } as User;
+      createdAt: (user.createdAt instanceof Date
+        ? user.createdAt.toISOString()
+        : user.createdAt) as ISODateString,
+      updatedAt: (user.updatedAt instanceof Date
+        ? user.updatedAt.toISOString()
+        : user.updatedAt) as ISODateString,
+    } as unknown as User;
   }
 
   // Setup method for model registration
@@ -113,6 +119,7 @@ export class AuthModule implements IAuthAdapter {
         blocked: userData.blocked || false,
         emailVerified: userData.emailVerified || false,
         tenantId: (userData.tenantId as string | null) || null,
+        role: userData.role || (roleIds.length > 0 ? (roleIds[0] as string) : "user"),
         _id: id,
         createdAt: now,
         updatedAt: now,
@@ -144,14 +151,18 @@ export class AuthModule implements IAuthAdapter {
         conditions.push(eq(schema.authUsers.tenantId, options.tenantId as string));
       }
 
+      const { createdAt: _createdAt, updatedAt: _updatedAt, ...rest } = userData;
       const updateData: Partial<typeof schema.authUsers.$inferInsert> = {
-        ...userData,
+        ...(rest as any),
         updatedAt: now,
-      } as any;
+      };
 
       // Handle role mapping if needed
-      if (userData.role && !userData.roleIds) {
-        updateData.roleIds = [userData.role as DatabaseId];
+      if (userData.role) {
+        updateData.role = userData.role;
+        if (!userData.roleIds) {
+          updateData.roleIds = [userData.role as DatabaseId];
+        }
       }
 
       await this.db

@@ -46,7 +46,7 @@ async function runRestBenchmarkSuite() {
         await safeFetch(`${API_BASE_URL}/api/system/health`);
       },
     });
-    exportResult(healthResult);
+    exportResult(healthResult, "rest-system-health.json");
 
     // 2. Authenticated Me
     const meResult = await runBenchmark({
@@ -57,7 +57,7 @@ async function runRestBenchmarkSuite() {
         await safeFetch(`${API_BASE_URL}/api/user/me`, { headers: authHeaders });
       },
     });
-    exportResult(meResult);
+    exportResult(meResult, "rest-user-me.json");
 
     // 3. List Collections
     const collectionsResult = await runBenchmark({
@@ -68,7 +68,7 @@ async function runRestBenchmarkSuite() {
         await safeFetch(`${API_BASE_URL}/api/collections`, { headers: authHeaders });
       },
     });
-    exportResult(collectionsResult);
+    exportResult(collectionsResult, "rest-collections-list.json");
 
     process.exit(0);
   } catch (error) {

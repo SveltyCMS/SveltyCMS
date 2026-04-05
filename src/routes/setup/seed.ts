@@ -308,6 +308,7 @@ export async function seedCollectionsForSetup(
         updates.push({
           path,
           changes: {
+            path, // Explicitly include path for SQLite NOT NULL constraint
             name: node.name,
             nodeType: "category",
             order: 0,
@@ -324,6 +325,7 @@ export async function seedCollectionsForSetup(
         updates.push({
           path: schema.path,
           changes: {
+            path: schema.path, // Explicitly include path for SQLite NOT NULL constraint
             _id: schema._id as any,
             name: schema.name || schema._id,
             nodeType: "collection",

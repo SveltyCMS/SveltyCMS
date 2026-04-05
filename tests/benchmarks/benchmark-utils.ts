@@ -172,16 +172,16 @@ function printReport(r: BenchmarkResult) {
  * Exports results to a JSON file for documentation integration.
  */
 export function exportResult(result: BenchmarkResult, filename?: string) {
-  const dir = path.join(process.cwd(), "tests/benchmarks/results");
+  const dir = process.env.RESULTS_DIR || path.join(process.cwd(), "tests/benchmarks/results");
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 
   const sanitizedName = result.name
     .toLowerCase()
-    .replace(/[:\\/]/g, "-") // Replace invalid path characters with dash
+    .replace(/[:\\/]/g, "-")
     .replace(/\s+/g, "-")
-    .replace(/-+/g, "-"); // Consolidate multiple dashes
+    .replace(/-+/g, "-");
 
-  const name = filename || `${sanitizedName}-${Date.now()}.json`;
+  const name = filename || `${sanitizedName}.json`;
   const filePath = path.join(dir, name);
   fs.writeFileSync(filePath, JSON.stringify(result, null, 2));
   console.log(`💾 Results exported to: ${filePath}`);

@@ -184,17 +184,9 @@ export class CrudModule {
           updatedAt: now,
         } as Record<string, unknown>);
 
-        // 🚀 OPTIMIZATION: Use Prepared Statement for inserts
-        const cacheKey = `insert:${collection}`;
-        let prepared = this.preparedStatements.get(cacheKey);
-        if (!prepared) {
-          prepared = this.db
-            .insert(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
-            .values(placeholder("values"))
-            .prepare();
-          this.preparedStatements.set(cacheKey, prepared);
-        }
-        await prepared.run({ values });
+        await this.db
+          .insert(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
+          .values(values as any);
 
         // Reuse the findOne prepared statement for the result
         const findCacheKey = `findOne:${collection}`;

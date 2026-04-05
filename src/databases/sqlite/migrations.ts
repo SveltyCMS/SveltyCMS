@@ -43,6 +43,7 @@ export async function runMigrations(db: unknown): Promise<{ success: boolean; er
 				lastName TEXT,
 				avatar TEXT,
 				roleIds TEXT DEFAULT '[]',
+				role TEXT NOT NULL DEFAULT 'user',
 				isAdmin INTEGER DEFAULT 0,
 				isRegistered INTEGER DEFAULT 0,
 				tenantId TEXT,
@@ -62,6 +63,7 @@ export async function runMigrations(db: unknown): Promise<{ success: boolean; er
 
     addColumn("auth_users", "isRegistered", "INTEGER DEFAULT 0");
     addColumn("auth_users", "isAdmin", "INTEGER DEFAULT 0");
+    addColumn("auth_users", "role", "TEXT NOT NULL DEFAULT 'user'");
 
     // Auth Sessions
     execute(`

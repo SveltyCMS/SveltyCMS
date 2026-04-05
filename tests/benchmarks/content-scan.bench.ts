@@ -22,9 +22,28 @@ async function scanFiles() {
   try {
     const files = await recursivelyGetFiles(collectionsDir, extension);
     const end = performance.now();
+    const duration = (end - start).toFixed(2);
     console.log("--- Content Scan Baseline ---");
     console.log("Files scanned:", files.length);
-    console.log("Scanning duration:", (end - start).toFixed(2), "ms");
+    console.log("Scanning duration:", duration, "ms");
+
+    const resDir = process.env.RESULTS_DIR || path.join(process.cwd(), "tests/benchmarks/results");
+    const fsNode = await import("node:fs/promises");
+    await fsNode.mkdir(resDir, { recursive: true });
+    const filePath = path.join(resDir, "content-scan.json");
+    await fsNode.writeFile(
+      filePath,
+      JSON.stringify(
+        {
+          name: "Self-Healing Scan",
+          files: files.length,
+          durationMs: parseFloat(duration),
+        },
+        null,
+        2,
+      ),
+    );
+    console.log(`💾 Results exported to: ${filePath}`);
   } catch (e) {
     console.error("Scan failed:", (e as Error).message);
   }

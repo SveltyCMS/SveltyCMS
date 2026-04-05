@@ -48,6 +48,7 @@ export const authUsers = sqliteTable(
     lastName: text("lastName", { length: 255 }),
     avatar: text("avatar"),
     roleIds: text("roleIds", { mode: "json" }).$type<string[]>().notNull().default([]),
+    role: text("role", { length: 50 }).notNull().default("user"),
     isAdmin: integer("isAdmin", { mode: "boolean" }).notNull().default(false),
     isRegistered: integer("isRegistered", { mode: "boolean" }).notNull().default(false),
     tenantId: tenantField(),

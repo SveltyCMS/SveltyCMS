@@ -21,7 +21,7 @@ It provides the following functionality:
 import { toast } from "@src/stores/toast.svelte.ts";
 // Auth
 import type { Role } from "@src/databases/auth/types";
-import type { DatabaseId } from "@src/databases/db-interface";
+import type { DatabaseId, ISODateString } from "@src/databases/db-interface";
 // Skeleton
 import { modalState } from "@utils/modal-state.svelte";
 import { SvelteSet } from "svelte/reactivity";
@@ -129,6 +129,8 @@ const saveRole = async (role: {
 		description: roleDescription,
 		groupName: currentGroupName,
 		permissions: selectedPermissions,
+		createdAt: new Date().toISOString() as ISODateString,
+		updatedAt: new Date().toISOString() as ISODateString,
 	};
 
 	if (!isEditMode) {

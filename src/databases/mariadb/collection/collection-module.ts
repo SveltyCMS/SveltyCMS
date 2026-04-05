@@ -8,6 +8,7 @@
  * - Delete collection
  */
 
+import { logger } from "@src/utils/logger";
 import type { Schema } from "@src/content/types";
 import type { CollectionModel, DatabaseResult } from "../../db-interface";
 import type { AdapterCore } from "../adapter/adapter-core";
@@ -45,10 +46,33 @@ export class CollectionModule {
     };
   }
 
-  async createModel(schemaData: Schema): Promise<void> {
-    const id = schemaData._id;
+  async createModel(schemaData: Schema, force?: boolean): Promise<void> {
+    const id = schemaData._id || schemaData.name;
     if (!id) {
-      throw new Error("Schema must have an _id");
+      throw new Error("Schema must have an _id or name");
+    }
+
+    const tableName = id.startsWith("collection_") ? id : `collection_${id}`;
+    logger.info(`MariaDB createModel: Creating table "${tableName}"...`);
+
+    if (force) {
+      if (this.core.pool) {
+        await this.core.pool.query(`DROP TABLE IF EXISTS \`${tableName}\``);
+      }
+    }
+
+    if (this.core.pool) {
+      await this.core.pool.query(`
+        CREATE TABLE IF NOT EXISTS \`${tableName}\` (
+          \`_id\` VARCHAR(36) PRIMARY KEY,
+          \`tenantId\` VARCHAR(36),
+          \`data\` JSON NOT NULL,
+          \`status\` VARCHAR(50) NOT NULL DEFAULT 'draft',
+          \`createdAt\` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          \`updatedAt\` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          INDEX idx_tenantid (\`tenantId\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
     }
 
     const wrappedModel: CollectionModel = {
@@ -62,6 +86,7 @@ export class CollectionModule {
       },
     };
     this.collectionRegistry.set(id, wrappedModel);
+    logger.info(`✅ MariaDB table "${tableName}" created successfully.`);
   }
 
   async updateModel(schemaData: Schema): Promise<void> {

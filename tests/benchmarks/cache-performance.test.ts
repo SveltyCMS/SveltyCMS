@@ -72,9 +72,9 @@ test("Local SDK Cache Performance Suite", async () => {
   );
   console.log("===========================================================\n");
 
-  exportResult(missResult);
-  exportResult(hitL2Result);
-  exportResult(hitL1Result);
+  exportResult(missResult, "sdk-cache-miss-cold-db-read.json");
+  exportResult(hitL2Result, "sdk-cache-hit-l2-global-cache-service.json");
+  exportResult(hitL1Result, "sdk-cache-hit-l1-request-memory.json");
 
   process.exit(0);
 }, 600000);

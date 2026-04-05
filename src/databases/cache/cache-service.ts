@@ -1,35 +1,27 @@
 /**
- * @file src/databases/cache-service.ts
- * @description Unified caching service for the CMS (in-memory or Redis), with tenant-aware keys
+ * @file src/databases/cache/cache-service.ts
+ * @description Enterprise Hybrid Caching Service (L1 Memory + L2 Redis).
  *
- * Enhancements:
- * - Split InMemoryStore/RedisStore into separate classes for modularity.
- * - Added cache tags for bulk invalidation.
- * - Memoized generateKey for performance.
- * - Reduced browser checks; centralized config.
- * - Inlined CacheCategory enum to reduce files.
+ * This implementation provides:
+ * 1. L1 (In-Memory): Near-zero latency for hot data, process-local.
+ * 2. L2 (Redis): Shared state across instances, persistent, large capacity.
+ * 3. Automatic Backfilling: L2 hits replenish L1.
+ * 4. High-Performance Keys: Memoized tenant-aware key generation.
+ * 5. Debounced Tags: Optimized bulk-invalidation for high-throughput content.
  */
 
 import { getPrivateSettingSync } from "@src/services/settings-service";
-// System Logger - use universal logger for client/server compatibility
 import { logger } from "@utils/logger";
 import type { RedisClientType } from "redis";
 import { InMemoryStore } from "./inmemory-store";
 import { RedisStore } from "./redis-store";
-import {
-  CacheCategory,
-  type CacheStore,
-  type WarmCacheConfig,
-  type PrefetchPattern,
-} from "./types";
+import { CacheCategory, type WarmCacheConfig, type PrefetchPattern } from "./types";
 
 // Re-export for convenience
 export { CacheCategory };
 
 // Environment detection
-// We use a combination of checks to be robust across SvelteKit and Vitest
 const isBrowser = typeof window !== "undefined" && typeof window.document !== "undefined";
-// In Vitest, we can check for VITEST global or process.env.VITEST
 const isTest =
   typeof process !== "undefined" && (process.env.VITEST === "true" || !!(globalThis as any).vi);
 
@@ -64,48 +56,26 @@ function getCategoryTTL(category: CacheCategory): number {
     const configuredTTL = getPrivateSettingSync(configKey);
     if (typeof configuredTTL === "number" && configuredTTL > 0) return configuredTTL;
   } catch {
-    logger.debug(`Failed to get TTL for ${category}, using default`);
+    // Silent fallback
   }
   return DEFAULT_CATEGORY_TTLS[category];
 }
 
-// Cache config will be loaded lazily when cache is initialized
-let CACHE_CONFIG: {
-  USE_REDIS: boolean;
-  URL: string;
-  PASSWORD?: string;
-  RETRY_ATTEMPTS: number;
-  RETRY_DELAY: number;
-} | null = null;
-
-function getCacheConfig(forceReload = false) {
-  if (!CACHE_CONFIG || forceReload) {
-    const USE_REDIS = getPrivateSettingSync("USE_REDIS");
-    const REDIS_HOST = getPrivateSettingSync("REDIS_HOST") || "localhost";
-    const REDIS_PORT = getPrivateSettingSync("REDIS_PORT") || 6379;
-    const REDIS_PASSWORD = getPrivateSettingSync("REDIS_PASSWORD");
-
-    CACHE_CONFIG = {
-      USE_REDIS: USE_REDIS === true,
-      URL: `redis://${REDIS_HOST}:${REDIS_PORT}`,
-      PASSWORD: REDIS_PASSWORD || undefined,
-      RETRY_ATTEMPTS: 3,
-      RETRY_DELAY: 2000,
-    };
-  }
-  return CACHE_CONFIG;
-}
-
 export class CacheService {
   private static instance: CacheService;
-  private store: CacheStore | null = null;
+  private l1: InMemoryStore; // L1: Local In-Memory (Zero-latency hit)
+  private l2: RedisStore | null = null; // L2: Shared Redis (Cross-instance sync)
   private initialized = false;
   private initPromise: Promise<void> | null = null;
-  private readonly prefetchPatterns: PrefetchPattern[] = [];
-  private readonly accessLog = new Map<string, number[]>(); // Track access times for analytics
-  private readonly keyCache = new Map<string, string>(); // Memoized generateKey
-  private readonly debounceTimers = new Map<string, NodeJS.Timeout>(); // For bulk invalidations
   private bootstrapping = true;
+  private readonly prefetchPatterns: PrefetchPattern[] = [];
+  private readonly keyCache = new Map<string, string>(); // Memoized keys
+  private readonly debounceTimers = new Map<string, NodeJS.Timeout>();
+  private readonly accessLog = new Map<string, number[]>(); // Track access times for analytics
+
+  constructor() {
+    this.l1 = new InMemoryStore();
+  }
 
   static getInstance(): CacheService {
     if (!CacheService.instance) {
@@ -117,7 +87,7 @@ export class CacheService {
   setBootstrapping(val: boolean): void {
     this.bootstrapping = val;
     if (!val) {
-      logger.info("CacheService: Bootstrapping complete. Metrics and full logging enabled.");
+      logger.info("CacheService: Bootstrapping complete. L1/L2 Hybrid active.");
     }
   }
 
@@ -130,19 +100,31 @@ export class CacheService {
     if (!this.initPromise || force) {
       this.initPromise = (async () => {
         try {
-          const config = getCacheConfig(force);
-          const isRedis = !isBrowser && !isTest && config.USE_REDIS;
+          const USE_REDIS = getPrivateSettingSync("USE_REDIS");
+          const isRedisEnabled = !isBrowser && !isTest && USE_REDIS === true;
 
-          if (this.store) await this.store.disconnect();
+          // Always initialize L1
+          await this.l1.initialize();
 
-          this.store = isRedis ? new RedisStore(config) : new InMemoryStore();
-          await this.store.initialize();
+          // Initialize L2 if enabled
+          if (isRedisEnabled) {
+            const config = {
+              USE_REDIS: true,
+              URL: `redis://${getPrivateSettingSync("REDIS_HOST") || "localhost"}:${getPrivateSettingSync("REDIS_PORT") || 6379}`,
+              PASSWORD: getPrivateSettingSync("REDIS_PASSWORD") || undefined,
+              RETRY_ATTEMPTS: 3,
+              RETRY_DELAY: 2000,
+            };
+            this.l2 = new RedisStore(config);
+            await this.l2.initialize();
+          }
+
           this.initialized = true;
           logger.info(
-            `CacheService initialized successfully (${isRedis ? "Redis" : "In-Memory"}).`,
+            `CacheService: L1 Memory initialized. L2 Redis: ${isRedisEnabled ? "Active" : "Disabled"}.`,
           );
         } catch (error) {
-          logger.error("CacheService initialization failed:", error);
+          logger.error("CacheService hybrid initialization failed:", error);
           this.initPromise = null;
           throw error;
         }
@@ -152,7 +134,6 @@ export class CacheService {
   }
 
   async reconfigure(): Promise<void> {
-    logger.info("🔄 Reconfiguring CacheService...");
     this.initialized = false;
     return this.initialize(true);
   }
@@ -162,23 +143,52 @@ export class CacheService {
   }
 
   private generateKey(baseKey: string, tenantId?: string | null): string {
-    const cacheKeyRequested = `${baseKey}:${tenantId || "none"}`;
-    if (this.keyCache.has(cacheKeyRequested)) {
-      return this.keyCache.get(cacheKeyRequested)!;
-    }
+    const requested = `${baseKey}:${tenantId || "none"}`;
+    const memoed = this.keyCache.get(requested);
+    if (memoed) return memoed;
 
     let result: string;
+    const isMultiTenant = getPrivateSettingSync("MULTI_TENANT");
+
     if (baseKey.startsWith("tenant:")) {
       result = baseKey;
-    } else if (getPrivateSettingSync("MULTI_TENANT")) {
-      const tenant = tenantId || "default";
-      result = `tenant:${tenant}:${baseKey}`;
+    } else if (isMultiTenant) {
+      result = `tenant:${tenantId || "default"}:${baseKey}`;
     } else {
       result = baseKey;
     }
 
-    this.keyCache.set(cacheKeyRequested, result);
+    if (this.keyCache.size < 5000) this.keyCache.set(requested, result);
     return result;
+  }
+
+  async get<T>(
+    baseKey: string,
+    tenantId?: string | null,
+    category?: CacheCategory,
+  ): Promise<T | null> {
+    await this.ensureInitialized();
+    const key = this.generateKey(baseKey, tenantId);
+
+    // 1. Try L1 (Memory) - Ultra fast
+    const hot = await this.l1.get<T>(key);
+    if (hot !== null) {
+      this.trackAccess(key);
+      return hot;
+    }
+
+    // 2. Try L2 (Redis) + Backfill L1
+    if (this.l2) {
+      const cold = await this.l2.get<T>(key);
+      if (cold !== null) {
+        this.trackAccess(key);
+        const ttl = category ? getCategoryTTL(category) : REDIS_TTL_S;
+        void this.l1.set(key, cold, ttl); // Async backfill
+        return cold;
+      }
+    }
+
+    return null;
   }
 
   private trackAccess(key: string): void {
@@ -189,55 +199,23 @@ export class CacheService {
     this.accessLog.set(key, accesses);
   }
 
-  private async checkPrefetch(key: string, tenantId?: string | null): Promise<void> {
-    for (const pattern of this.prefetchPatterns) {
-      if (pattern.pattern.test(key)) {
-        const keysToFetch = pattern.prefetchKeys(key);
-        if (keysToFetch.length > 0 && pattern.fetcher) {
-          void this.executePrefetch(keysToFetch, pattern.fetcher, pattern.category, tenantId);
-        }
-        break;
-      }
-    }
-  }
-
-  private async executePrefetch(
-    keys: string[],
-    fetcher: (keys: string[]) => Promise<Record<string, unknown>>,
-    category?: CacheCategory,
-    tenantId?: string | null,
-  ): Promise<void> {
+  async warmCache(config: WarmCacheConfig): Promise<void> {
+    await this.ensureInitialized();
+    logger.info(`Cache: Warming category ${config.category} with ${config.keys.length} keys`);
     try {
-      const missingKeys: string[] = [];
-      for (const key of keys) {
-        const fullKey = this.generateKey(key, tenantId);
-        const exists = await this.store?.get(fullKey);
-        if (!exists) missingKeys.push(key);
-      }
-
-      if (missingKeys.length === 0) return;
-
-      logger.debug(`Prefetching ${missingKeys.length} missing keys`);
-      const dataMap = await fetcher(missingKeys);
-      const ttl = category ? getCategoryTTL(category) : REDIS_TTL_S;
-      for (const [key, value] of Object.entries(dataMap)) {
-        await this.set(key, value, ttl, tenantId, category);
+      const data = await config.fetcher();
+      const ttl = config.category ? getCategoryTTL(config.category) : REDIS_TTL_S;
+      for (const key of config.keys) {
+        await this.set(key, data, ttl, config.tenantId, config.category);
       }
     } catch (error) {
-      logger.warn("Predictive prefetch failed:", error);
+      logger.error("Cache: Warming failed", error);
     }
   }
 
-  async get<T>(
-    baseKey: string,
-    tenantId?: string | null,
-    _category?: CacheCategory,
-  ): Promise<T | null> {
-    await this.ensureInitialized();
-    const key = this.generateKey(baseKey, tenantId);
-    this.trackAccess(key);
-    void this.checkPrefetch(key, tenantId);
-    return (await this.store?.get<T>(key)) ?? null;
+  registerPrefetchPattern(pattern: PrefetchPattern): void {
+    this.prefetchPatterns.push(pattern);
+    logger.debug(`Cache: Registered prefetch for: ${pattern.category}`);
   }
 
   async set<T>(
@@ -250,8 +228,13 @@ export class CacheService {
   ): Promise<void> {
     await this.ensureInitialized();
     const key = this.generateKey(baseKey, tenantId);
-    const finalTTL = category && ttlSeconds === 0 ? getCategoryTTL(category) : ttlSeconds;
-    await this.store?.set<T>(key, value, finalTTL, tags);
+    const ttl = category && ttlSeconds === 0 ? getCategoryTTL(category) : ttlSeconds;
+
+    // Set globally/shared (L2) and locally (L1)
+    await Promise.all([
+      this.l1.set(key, value, ttl, tags),
+      this.l2 ? this.l2.set(key, value, ttl, tags) : Promise.resolve(),
+    ]);
   }
 
   async setWithCategory<T>(
@@ -261,10 +244,8 @@ export class CacheService {
     tenantId?: string | null,
     tags?: string[],
   ): Promise<void> {
-    await this.ensureInitialized();
-    const key = this.generateKey(baseKey, tenantId);
     const ttl = getCategoryTTL(category);
-    await this.store?.set<T>(key, value, ttl, tags);
+    return this.set(baseKey, value, ttl, tenantId, category, tags);
   }
 
   async delete(baseKey: string | string[], tenantId?: string | null): Promise<void> {
@@ -272,138 +253,66 @@ export class CacheService {
     const keys = Array.isArray(baseKey)
       ? baseKey.map((k) => this.generateKey(k, tenantId))
       : this.generateKey(baseKey, tenantId);
-    await this.store?.delete(keys);
-  }
 
-  /**
-   * Finalize a tag by adding tenant prefix if multi-tenant is enabled.
-   */
-  private finalizeTags(tags: string | string[], tenantId?: string | null): string[] {
-    const tagsArray = Array.isArray(tags) ? tags : [tags];
-    if (!getPrivateSettingSync("MULTI_TENANT")) {
-      return tagsArray;
-    }
-    const tenant = tenantId || "default";
-    return tagsArray.map((tag) => (tag.startsWith("tenant:") ? tag : `tenant:${tenant}:${tag}`));
+    await Promise.all([this.l1.delete(keys), this.l2 ? this.l2.delete(keys) : Promise.resolve()]);
   }
 
   async clearByPattern(pattern: string, tenantId?: string | null): Promise<void> {
     await this.ensureInitialized();
     const keyPattern = this.generateKey(pattern, tenantId);
-    await this.store?.clearByPattern(keyPattern);
+
+    await Promise.all([
+      this.l1.clearByPattern(keyPattern),
+      this.l2 ? this.l2.clearByPattern(keyPattern) : Promise.resolve(),
+    ]);
   }
 
   async clearByTags(tags: string[] | string, tenantId?: string | null): Promise<void> {
     await this.ensureInitialized();
-    const finalTags = this.finalizeTags(tags, tenantId);
+    const tagsArray = Array.isArray(tags) ? tags : [tags];
+    const isMultiTenant = getPrivateSettingSync("MULTI_TENANT");
+
+    const finalTags = !isMultiTenant
+      ? tagsArray
+      : tagsArray.map((t) =>
+          t.startsWith("tenant:") ? t : `tenant:${tenantId || "default"}:${t}`,
+        );
+
     const debounceKey = finalTags.sort().join(",");
 
-    // Clear existing timer if any
     if (this.debounceTimers.has(debounceKey)) {
       clearTimeout(this.debounceTimers.get(debounceKey)!);
     }
 
-    // Set new debounce timer (300ms)
     const timer = setTimeout(async () => {
       this.debounceTimers.delete(debounceKey);
-      await this.store?.clearByTags(finalTags);
-      logger.debug(`Bulk cache invalidations executed for tags: ${debounceKey}`);
+      await Promise.all([
+        this.l1.clearByTags(finalTags),
+        this.l2 ? this.l2.clearByTags(finalTags) : Promise.resolve(),
+      ]);
+      if (!this.bootstrapping)
+        logger.debug(`Cache: Bulk tag invalidation executed for: ${debounceKey}`);
     }, 300);
 
     this.debounceTimers.set(debounceKey, timer);
   }
 
-  async warmCache(config: WarmCacheConfig): Promise<void> {
-    await this.ensureInitialized();
-    logger.info(
-      `Warming cache for ${config.keys.length} keys in category ${config.category || "default"}`,
-    );
-    try {
-      const data = await config.fetcher();
-      const ttl = config.category ? getCategoryTTL(config.category) : REDIS_TTL_S;
-      for (const key of config.keys) {
-        await this.set(key, data, ttl, config.tenantId, config.category);
-      }
-      logger.info(`Cache warmed successfully for ${config.keys.length} keys`);
-    } catch (error) {
-      logger.error("Cache warming failed:", error);
-    }
-  }
-
-  registerPrefetchPattern(pattern: PrefetchPattern): void {
-    this.prefetchPatterns.push(pattern);
-    logger.info(`Registered prefetch pattern: ${pattern.pattern.source}`);
-  }
-
-  getAccessAnalytics(
-    key: string,
-  ): { count: number; avgInterval: number; lastAccess: number } | null {
-    const accesses = this.accessLog.get(key);
-    if (!accesses || accesses.length === 0) return null;
-    const count = accesses.length;
-    const lastAccess = accesses.at(-1) || 0;
-    let totalInterval = 0;
-    for (let i = 1; i < accesses.length; i++) {
-      totalInterval += accesses[i] - accesses[i - 1];
-    }
-    const avgInterval = accesses.length > 1 ? totalInterval / (accesses.length - 1) : 0;
-    return { count, avgInterval, lastAccess };
-  }
-
-  getRecommendedTTL(key: string): number | null {
-    const analytics = this.getAccessAnalytics(key);
-    if (!analytics) return null;
-    if (analytics.avgInterval < 60_000) return 600;
-    if (analytics.avgInterval < 300_000) return 300;
-    return 180;
-  }
-
   async invalidateAll(tenantId?: string | null): Promise<void> {
     await this.ensureInitialized();
-    if (getPrivateSettingSync("MULTI_TENANT") && tenantId) {
-      logger.info(`🔄 Invalidating all cache entries for tenant ${tenantId}`);
-      if (this.store) {
-        await this.store.clearByPattern(`tenant:${tenantId}:*`);
-      }
-    } else {
-      logger.info("🔄 Invalidating all cache entries");
-      if (this.store) {
-        await this.store.clearByPattern("*");
-      }
-    }
-    logger.info("✅ Cache invalidated successfully");
-  }
+    const isMultiTenant = getPrivateSettingSync("MULTI_TENANT");
+    const pattern = isMultiTenant && tenantId ? `tenant:${tenantId}:*` : "*";
 
-  getCurrentTTLConfig(): Record<string, number> {
-    return {
-      schema: getCategoryTTL(CacheCategory.SCHEMA),
-      widget: getCategoryTTL(CacheCategory.WIDGET),
-      theme: getCategoryTTL(CacheCategory.THEME),
-      content: getCategoryTTL(CacheCategory.CONTENT),
-      media: getCategoryTTL(CacheCategory.MEDIA),
-      session: getCategoryTTL(CacheCategory.SESSION),
-      user: getCategoryTTL(CacheCategory.USER),
-      api: getCategoryTTL(CacheCategory.API),
-    };
+    await this.clearByPattern(pattern);
+    logger.info(`Cache: Full invalidation completed for scope: ${pattern}`);
   }
 
   getRedisClient(): RedisClientType | null {
-    return this.store ? this.store.getClient() : null;
+    return this.l2 ? this.l2.getClient() : null;
   }
 
   async disconnect(): Promise<void> {
-    if (this.store) await this.store.disconnect();
+    await Promise.all([this.l1.disconnect(), this.l2 ? this.l2.disconnect() : Promise.resolve()]);
   }
 }
 
 export const cacheService = CacheService.getInstance();
-
-export function getSessionCacheTTL(): number {
-  return getCategoryTTL(CacheCategory.SESSION);
-}
-export function getUserPermCacheTTL(): number {
-  return getCategoryTTL(CacheCategory.USER);
-}
-export function getApiCacheTTL(): number {
-  return getCategoryTTL(CacheCategory.API);
-}

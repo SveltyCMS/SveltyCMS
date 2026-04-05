@@ -11,7 +11,9 @@ import nodemailer from "nodemailer";
 import type { ComponentType } from "svelte";
 
 // --- Dynamic Email Template Imports ---
-const svelteEmailModules = import.meta.glob("../components/emails/*.svelte");
+const svelteEmailModules = (import.meta as any).glob
+  ? (import.meta as any).glob("../components/emails/*.svelte")
+  : {};
 
 export interface EmailTemplateProps {
   email?: string;

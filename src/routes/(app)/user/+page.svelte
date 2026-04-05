@@ -44,7 +44,7 @@ import AdminArea from "./components/admin-area.svelte";
 // Auth
 import ModalTwoFactorAuth from "./components/modal-two-factor-auth.svelte";
 import type { User } from "@src/databases/auth/types";
-import type { DatabaseId } from "@src/content/types";
+import type { DatabaseId, ISODateString } from "@src/content/types";
 import "@src/stores/store.svelte.ts";
 import { setCollection } from "@src/stores/collection-store.svelte";
 import { toast } from "@src/stores/toast.svelte.ts";
@@ -57,12 +57,7 @@ import ModalPrivacyData from "./components/modal-privacy-data.svelte";
 
 // Props
 const { data } = $props();
-const {
-	user: serverUser,
-	isFirstUser,
-	isMultiTenant,
-	is2FAEnabledGlobal,
-} = $derived(data);
+const { user: serverUser, isFirstUser, isMultiTenant, is2FAEnabledGlobal } = $derived(data as any as { user: User; isFirstUser: boolean; isMultiTenant: boolean; is2FAEnabledGlobal: boolean });
 
 // Make user data reactive
 const user = $derived({
@@ -74,6 +69,8 @@ const user = $derived({
 	tenantId: (serverUser?.tenantId ?? "") as DatabaseId, // Add tenantId
 	is2FAEnabled: serverUser?.is2FAEnabled ?? false,
 	permissions: [],
+	createdAt: (serverUser?.createdAt ?? "") as ISODateString,
+	updatedAt: (serverUser?.updatedAt ?? "") as ISODateString,
 } as User);
 
 // Define password as state

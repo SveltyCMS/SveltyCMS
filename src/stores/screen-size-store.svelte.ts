@@ -64,7 +64,7 @@ class ScreenSizeStore {
   private readonly cleanup?: () => void;
 
   constructor() {
-    if (typeof window === "undefined") {
+    if (typeof window === "undefined" || typeof window.addEventListener === "undefined") {
       return;
     }
 

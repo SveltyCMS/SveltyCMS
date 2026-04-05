@@ -22,7 +22,6 @@ const WARMUP_ROUNDS = 5;
 
 const TMP_DIR = path.join(os.tmpdir(), "svelty-bench-media");
 const TEST_IMAGE_PATH = path.join(TMP_DIR, "test-1920x1080.jpg");
-const RESULTS_JSON_PATH = path.join(TMP_DIR, "benchmark-results.json");
 
 async function setup() {
   await fs.mkdir(TMP_DIR, { recursive: true });
@@ -175,7 +174,12 @@ async function runBenchmark() {
   console.log("-----------------------------------------------------------");
 
   // Save results to JSON for CI tracking
+  const resultsDir =
+    process.env.RESULTS_DIR || path.join(process.cwd(), "tests/benchmarks/results");
+  const filePath = path.join(resultsDir, "media-performance.json");
+
   const results = {
+    name: "Media Engine",
     timestamp: new Date().toISOString(),
     node: process.version,
     cores: os.cpus().length,
@@ -189,8 +193,9 @@ async function runBenchmark() {
     reduction: `${reduction}%`,
   };
 
-  await fs.writeFile(RESULTS_JSON_PATH, JSON.stringify(results, null, 2));
-  console.log(`✅ Benchmark results saved to ${RESULTS_JSON_PATH}`);
+  await fs.mkdir(resultsDir, { recursive: true });
+  await fs.writeFile(filePath, JSON.stringify(results, null, 2));
+  console.log(`💾 Results exported to: ${filePath}`);
 }
 
 runBenchmark().catch(console.error);

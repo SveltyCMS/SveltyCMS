@@ -26,16 +26,41 @@ export function generateId(): DatabaseId {
   return uuidv4() as DatabaseId;
 }
 
+// Convert Date or string to ISODateString
+export function dateToISO(date: unknown): string | undefined {
+  if (!date) return undefined;
+  if (typeof date === "string") return date;
+  if (date instanceof Date && typeof date.toISOString === "function") {
+    return date.toISOString();
+  }
+  return undefined;
+}
+
+// Convert ISODateString or Date to Date
+export function isoToDate(iso: Date | string | null | undefined): Date | undefined {
+  if (!iso) {
+    return undefined;
+  }
+  if (iso instanceof Date) {
+    return iso;
+  }
+  return new Date(iso);
+}
+
 // Serialize a value for PostgreSQL storage
 export function serializeValue(value: unknown): unknown {
-  if (value === undefined) {
+  if (value === undefined || value === null) {
     return null;
   }
-  if (value instanceof Date) {
+  if (value instanceof Date && typeof value.toISOString === "function") {
     return value.toISOString();
   }
-  if (typeof value === "object" && value !== null) {
-    return JSON.stringify(value);
+  if (typeof value === "object") {
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return String(value);
+    }
   }
   return value;
 }
@@ -55,7 +80,10 @@ export function deserializeValue(value: unknown): unknown {
 }
 
 // Convert MongoDB-style ObjectId filter to PostgreSQL compatible
-export function convertIdFilter(filter: Record<string, unknown>): Record<string, unknown> {
+export function convertIdFilter(
+  filter: Record<string, unknown> | null | undefined,
+): Record<string, unknown> {
+  if (!filter || typeof filter !== "object") return {};
   const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(filter)) {
     if (key === "_id") {
@@ -90,9 +118,10 @@ export function parseJsonField<T>(value: unknown, fallback: T): T {
  * PostgreSQL TIMESTAMP fields come back as Date objects from postgres.js.
  */
 export function convertDatesToISO<T extends Record<string, unknown>>(obj: T): T {
+  if (!obj || typeof obj !== "object") return obj;
   const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(obj)) {
-    if (value instanceof Date) {
+    if (value instanceof Date && typeof value.toISOString === "function") {
       result[key] = value.toISOString();
     } else {
       result[key] = value;
@@ -108,9 +137,11 @@ export function convertArrayDatesToISO<T extends Record<string, unknown>>(arr: T
   return arr.map((item) => convertDatesToISO(item));
 }
 
-// Normalize file paths
+// Normalize file paths by removing leading/trailing slashes and deduplicating slashes
 export function normalizePath(path: string): string {
-  return path.replace(/\\/g, "/");
+  return path
+    .replace(/^\/+|\/+$/g, "") // Remove leading/trailing slashes
+    .replace(/\/+/g, "/"); // Deduplicate slashes
 }
 
 // Validate a DatabaseId (UUID)

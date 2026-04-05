@@ -1,122 +1,157 @@
 /**
- * @file tests/bun/databases/mariadb-adapter.test.ts
- * @description MariaDB adapter functional tests
- *
- * Verifies:
- * - Connection handling
- * - CRUD operations via Drizzle
- * - Query Builder
- * - DatabaseResilience integration
+ * @file tests/integration/databases/mariadb-adapter.test.ts
+ * @description
+ * High-performance integration tests for the MariaDB adapter.
+ * Performs full CRUD round-trips with Drizzle ORM mappings.
  */
 
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
+import type { IDBAdapter, DatabaseId } from "../../../src/databases/db-interface";
 
-// Dynamic import for adapter
-let adapterClass: typeof import("../../../src/databases/mariadb/adapter").MariaDBAdapter;
-let privateEnv: any;
+// 1. CONFIGURATION (Isolation for CI)
+const { privateEnv } = (await import("../../../config/private.test").catch(() => ({
+  privateEnv: { DB_TYPE: process.env.DB_TYPE || "sqlite" },
+}))) as any;
 
-describe("MariaDB Adapter Functional Tests", () => {
-  let db: any = null;
-  // const testTable = 'test_users_' + Date.now(); // Note: MariaDB requires real table existence, this might fail if migrations aren't run
+const isMariaDB = privateEnv?.DB_TYPE === "mariadb";
+const describeMariaDB = isMariaDB ? describe : describe.skip;
+
+describeMariaDB("MariaDB Adapter Integration", () => {
+  let db: IDBAdapter | null = null;
+  const TEST_TENANT = "test_tenant_mariadb" as any as DatabaseId;
 
   beforeAll(async () => {
-    const adapterModule = await import("../../../src/databases/mariadb/adapter");
-    adapterClass = adapterModule.MariaDBAdapter;
+    if (!isMariaDB) return;
 
     try {
-      // @ts-ignore - private.test.ts is generated at runtime in CI, not present at type-check time
-      const configModule = await import("../../../config/private.test");
-      privateEnv = {
-        // @ts-ignore
-        DB_TYPE: (configModule.DB_TYPE = "mariadb"),
-        // @ts-ignore
-        DB_HOST: (configModule.DB_HOST = "localhost"),
-        // @ts-ignore
-        DB_PORT: (configModule.DB_PORT = 3306),
-        // @ts-ignore
-        DB_NAME: (configModule.DB_NAME = "sveltycms_test"),
-        // @ts-ignore
-        DB_USER: (configModule.DB_USER = "root"),
-        // @ts-ignore
-        DB_PASSWORD: (configModule.DB_PASSWORD = ""),
-      };
-    } catch {
-      privateEnv = {
-        DB_TYPE: process.env.DB_TYPE,
-        DB_HOST: process.env.DB_HOST,
-        DB_PORT: process.env.DB_PORT,
-        DB_NAME: process.env.DB_NAME,
-        DB_USER: process.env.DB_USER,
-        DB_PASSWORD: process.env.DB_PASSWORD,
-      };
-    }
+      const { MariaDBAdapter } = await import("../../../src/databases/mariadb/mariadb-adapter");
+      db = new MariaDBAdapter() as any;
 
-    // Only run if configured for MariaDB
-    if (!privateEnv || privateEnv.DB_TYPE !== "mariadb") {
-      console.warn("Skipping MariaDB tests: DB_TYPE is not mariadb");
-      return;
-    }
+      // MariaDB test connection string from privateEnv
+      const host = privateEnv.DB_HOST || "127.0.0.1";
+      const port = privateEnv.DB_PORT || "3306";
+      const user = privateEnv.DB_USER || "root";
+      const pass = privateEnv.DB_PASSWORD || "mariadb";
+      const dbName = `${privateEnv.DB_NAME || "sveltycms_test"}_integration`;
 
-    db = new adapterClass();
+      const connStr = `mariadb://${user}:${pass}@${host}:${port}/${dbName}`;
 
-    // Setup connection
-    const dbConfig = {
-      host: privateEnv.DB_HOST,
-      port: Number(privateEnv.DB_PORT),
-      user: privateEnv.DB_USER,
-      password: privateEnv.DB_PASSWORD,
-      database: privateEnv.DB_NAME,
-    };
-
-    try {
-      // Use connection string format if adapter requires it, or config object
-      // Looking at IDBAdapter.connect(connectionString), we need a string?
-      // MariaDB adapter usually parses it or takes object?
-      // For this test, we assume connectionString or we manually configure via 'privateEnv' mocks if adapter uses them internally.
-      // Actually adapter uses 'privateEnv' internally often.
-      // But 'connect' method likely takes string.
-      // Construct standard MariaDB connection string: mariadb://user:pass@host:port/db
-      const connStr = `mariadb://${dbConfig.user}:${dbConfig.password}@${dbConfig.host}:${dbConfig.port}/${dbConfig.database}`;
-      await db.connect(connStr);
+      const result = await db!.connect(connStr);
+      if (!result.success) {
+        throw new Error(result.message);
+      }
     } catch (err: any) {
-      console.warn("MariaDB Connection Failed:", err.message);
+      console.warn(
+        "MariaDB not available on 127.0.0.1/sveltycms_test. Skipping functional tests.",
+        err.message,
+      );
       db = null;
     }
   });
 
   afterAll(async () => {
-    if (db) {
+    if (db && db.isConnected()) {
       await db.disconnect();
     }
   });
 
-  describe("Connection", () => {
-    it("should be connected (if config provided)", () => {
-      if (!db) {
-        return;
-      }
+  describe("Connection & Setup", () => {
+    it("should report connectivity correctly", () => {
+      if (!db) return;
       expect(db.isConnected()).toBe(true);
+    });
+
+    it("should have CRUD initialized", () => {
+      if (!db) return;
+      expect(db.crud).toBeDefined();
     });
   });
 
-  describe("CRUD Operations (DatabaseResult)", () => {
-    it("should return DatabaseResult structure", async () => {
-      if (!db) {
-        return;
+  describe("Functional CRUD Operations (Drizzle Contract)", () => {
+    const testCollection = "system_preferences";
+    let createdId: DatabaseId;
+
+    it("should handle full record lifecycle on system_preferences", async () => {
+      if (!db) return;
+
+      const testId = `pref-mariadb-${Date.now()}` as any as DatabaseId;
+      const testDoc = {
+        _id: testId,
+        key: "test_mariadb_key",
+        value: { adapter: "mariadb", validated: true },
+        scope: "test",
+        visibility: "private",
+      };
+
+      // 1. Insert
+      const insertRes = await db.crud.insert(testCollection, testDoc as any, {
+        tenantId: TEST_TENANT,
+      });
+      expect(insertRes.success).toBe(true);
+      if (insertRes.success && insertRes.data) {
+        createdId = (insertRes.data as any)._id;
+        expect(createdId).toBeDefined();
+        expect((insertRes.data as any).key).toBe("test_mariadb_key");
       }
 
-      // We might not have 'testTable' created.
-      // We should try a safe operation like 'count' or 'findMany' on system tables if possible,
-      // or expect failure but wrapped in separate DatabaseResult object.
+      // 2. FindOne
+      const findRes = await db.crud.findOne(testCollection, {
+        _id: createdId as any,
+        tenantId: TEST_TENANT,
+      } as any);
+      expect(findRes.success).toBe(true);
+      if (findRes.success && findRes.data) {
+        console.log("DEBUG findOne data:", JSON.stringify(findRes.data, null, 2));
+        const val =
+          typeof (findRes.data as any).value === "string"
+            ? JSON.parse((findRes.data as any).value)
+            : (findRes.data as any).value;
+        expect(val.adapter).toBe("mariadb");
+      }
 
-      // Try to query a non-existent table to verify error handling
-      const result = await db.crud.findMany("non_existent_table");
+      // 3. Update
+      const updateRes = await db.crud.update(
+        testCollection,
+        createdId as any,
+        {
+          scope: "updated_scope",
+        } as any,
+        { tenantId: TEST_TENANT },
+      );
+      expect(updateRes.success).toBe(true);
+      if (updateRes.success && updateRes.data) {
+        expect((updateRes.data as any).scope).toBe("updated_scope");
+      }
 
-      // Should return { success: false, error: ... } instead of throwing
-      expect(result).toBeDefined();
-      expect(result.success).toBe(false);
-      expect(result.error).toBeDefined();
-      expect(result.error.code).toBeDefined();
+      // 4. Exists
+      const existsRes = await db.crud.exists(testCollection, { _id: createdId as any } as any, {
+        tenantId: TEST_TENANT,
+      });
+      expect(existsRes.success).toBe(true);
+      if (existsRes.success) {
+        expect(existsRes.data).toBe(true);
+      }
+
+      // 5. Delete cleanup
+      const deleteRes = await db.crud.delete(testCollection, createdId, { tenantId: TEST_TENANT });
+      expect(deleteRes.success).toBe(true);
+
+      // 6. Verify deletion
+      const verifyRes = await db.crud.findOne(testCollection, { _id: createdId as any } as any, {
+        tenantId: TEST_TENANT,
+      });
+      expect(verifyRes.success).toBe(true);
+      if (verifyRes.success) {
+        expect(verifyRes.data).toBeNull();
+      }
+    });
+
+    it("should support path-based filtering (Relational Simulation)", async () => {
+      if (!db) return;
+      // QueryBuilder test
+      const qb = db.queryBuilder(testCollection);
+      const res = await qb.where({ scope: "test", tenantId: TEST_TENANT } as any).execute();
+      expect(res.success).toBe(true);
     });
   });
 });

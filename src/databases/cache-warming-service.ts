@@ -104,8 +104,8 @@ async function warmSchemasCache(dbAdapter: IDBAdapter): Promise<void> {
     await cacheService.warmCache({
       keys: ["schemas:all", "schemas:list"],
       fetcher: async () => {
-        const result = await dbAdapter.collection.listSchemas();
-        return result.success ? result.data : [];
+        const result = await dbAdapter.collection?.listSchemas();
+        return result?.success ? result.data : [];
       },
       category: CacheCategory.SCHEMA,
     });
@@ -119,8 +119,8 @@ async function warmThemesCache(dbAdapter: IDBAdapter): Promise<void> {
     await cacheService.warmCache({
       keys: ["themes:active"],
       fetcher: async () => {
-        const result = await dbAdapter.system.themes.getActive();
-        return result.success ? result.data : null;
+        const result = await dbAdapter.system?.themes?.getActive();
+        return result?.success ? result.data : null;
       },
       category: CacheCategory.THEME,
     });
@@ -134,8 +134,8 @@ async function warmWidgetsCache(dbAdapter: IDBAdapter): Promise<void> {
     await cacheService.warmCache({
       keys: ["widgets:active"],
       fetcher: async () => {
-        const result = await dbAdapter.system.widgets.getActiveWidgets();
-        return result.success ? result.data : [];
+        const result = await dbAdapter.system?.widgets?.getActiveWidgets();
+        return result?.success ? result.data : [];
       },
       category: CacheCategory.WIDGET,
     });
@@ -149,8 +149,8 @@ async function warmSystemSettingsCache(dbAdapter: IDBAdapter): Promise<void> {
     await cacheService.warmCache({
       keys: ["settings:system:critical"],
       fetcher: async () => {
-        const result = await dbAdapter.system.preferences.getByCategory("system", "system");
-        return result.success ? result.data : {};
+        const result = await dbAdapter.system?.preferences?.getByCategory("system", "system");
+        return result?.success ? result.data : {};
       },
       category: CacheCategory.SETTING,
     });
@@ -170,12 +170,12 @@ export async function warmTenantCache(dbAdapter: IDBAdapter, tenantId: string): 
       keys: ["config", "settings", "theme"],
       fetcher: async () => {
         const [theme, settings] = await Promise.all([
-          dbAdapter.system.themes.getDefaultTheme(tenantId as any),
-          dbAdapter.system.preferences.getByCategory("system", "system"),
+          dbAdapter.system?.themes?.getDefaultTheme(tenantId as any),
+          dbAdapter.system?.preferences?.getByCategory("system", "system"),
         ]);
         return {
-          theme: theme.success ? theme.data : null,
-          settings: settings.success ? settings.data : {},
+          theme: theme?.success ? theme.data : null,
+          settings: settings?.success ? settings.data : {},
         };
       },
       category: CacheCategory.API,

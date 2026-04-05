@@ -46,8 +46,8 @@ async function startServer(db: DatabaseConfig, port: number): Promise<void> {
     DB_NAME: "SveltyCMS_test",
     DB_HOST: db.host,
     DB_PORT: db.port?.toString() || "",
-    DB_USER: "",
-    DB_PASSWORD: "",
+    DB_USER: process.env.DB_USER || "",
+    DB_PASSWORD: process.env.DB_PASSWORD || "",
   };
 
   serverProcess = spawn("bun", ["build/index.js"], { env, shell: true });
@@ -65,8 +65,8 @@ async function main() {
       DB_NAME: "SveltyCMS_test",
       DB_HOST: db.host,
       DB_PORT: db.port?.toString() || "",
-      DB_USER: "",
-      DB_PASSWORD: "",
+      DB_USER: process.env.DB_USER || "",
+      DB_PASSWORD: process.env.DB_PASSWORD || "",
       JWT_SECRET_KEY: "bench-jwt-secret-key-12345",
       ENCRYPTION_KEY: "bench-encryption-key-12345",
       TEST_API_SECRET: "matrix-secret-12345",

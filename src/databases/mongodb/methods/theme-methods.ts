@@ -104,12 +104,40 @@ export class MongoThemeMethods {
       "theme:all",
       async () => {
         try {
-          return await this.themeModel.find().sort({ order: 1 }).lean().exec();
+          return (await this.themeModel.find().sort({ order: 1 }).lean().exec()) as Theme[];
         } catch (error) {
           throw createDatabaseError(error, "THEME_FETCH_ALL_FAILED", "Failed to get all themes");
         }
       },
       { category: CacheCategory.THEME },
+    );
+  }
+
+  /**
+   * Retrieves a specific theme by name.
+   * @param {string} themeName - The name of the theme to retrieve.
+   * @param {DatabaseId} [tenantId] - Optional tenant ID.
+   * @returns {Promise<DatabaseResult<Theme | null>>} The theme object or null if not found.
+   */
+  async getTheme(themeName: string, tenantId?: DatabaseId): Promise<DatabaseResult<Theme | null>> {
+    return withCache(
+      `theme:${themeName}`,
+      async () => {
+        try {
+          const theme = await this.themeModel
+            .findOne({ name: themeName, tenantId: tenantId || null })
+            .lean()
+            .exec();
+          return { success: true, data: theme as Theme | null };
+        } catch (error) {
+          return {
+            success: false,
+            message: `Failed to get theme ${themeName}`,
+            error: createDatabaseError(error, "THEME_FETCH_FAILED", "Failed to fetch theme"),
+          };
+        }
+      },
+      { category: CacheCategory.THEME, tenantId: tenantId as string },
     );
   }
 

@@ -41,7 +41,7 @@ export const GET = apiHandler(async ({ locals }) => {
       misses: snapshot.misses,
       sets: 0, // Not tracked in current implementation
       deletes: 0, // Not tracked in current implementation
-      hitRate: snapshot.hitRate,
+      hitRate: snapshot.hitRate * 100,
       totalOperations: snapshot.totalRequests,
     },
     byCategory: Object.entries(snapshot.byCategory || {}).reduce(
@@ -49,7 +49,7 @@ export const GET = apiHandler(async ({ locals }) => {
         acc[category] = {
           hits: stats.hits,
           misses: stats.misses,
-          hitRate: stats.hitRate,
+          hitRate: stats.hitRate * 100,
         };
         return acc;
       },
@@ -60,7 +60,7 @@ export const GET = apiHandler(async ({ locals }) => {
         acc[tenant] = {
           hits: stats.hits,
           misses: stats.misses,
-          hitRate: stats.hitRate,
+          hitRate: stats.hitRate * 100,
         };
         return acc;
       },

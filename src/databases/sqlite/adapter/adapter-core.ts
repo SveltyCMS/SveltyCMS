@@ -148,10 +148,16 @@ export class AdapterCore {
       const fs = await import("node:fs");
 
       // Ensure directory exists
-      const dbPath =
+      let dbPath =
         typeof config === "string"
           ? config
           : config.connectionString || config.filename || "cms.db";
+
+      // 🚀 Critical: Ensure database is stored in /config/database if it's just a filename
+      if (!path.isAbsolute(dbPath) && !dbPath.includes("/") && !dbPath.includes("\\")) {
+        dbPath = path.join("config", "database", dbPath);
+      }
+
       const dbPathResolved = path.resolve(process.cwd(), dbPath);
       const dbDir = path.dirname(dbPathResolved);
 

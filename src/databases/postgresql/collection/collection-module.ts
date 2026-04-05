@@ -44,8 +44,36 @@ export class CollectionModule implements ICollectionAdapter {
     };
   }
 
-  async createModel(_schema: Schema, _force?: boolean): Promise<void> {
-    logger.info(`PostgreSQL createModel: Using existing tables for ${_schema.name}`);
+  async createModel(schema: Schema, force?: boolean): Promise<void> {
+    const name = schema.name || "unnamed_collection";
+    const tableName = name.startsWith("collection_") ? name : `collection_${name}`;
+
+    logger.info(`PostgreSQL createModel: Creating table "${tableName}"...`);
+
+    if (force) {
+      await this.db.execute(sql`DROP TABLE IF EXISTS ${sql.identifier(tableName)} CASCADE`);
+    }
+
+    await this.db.execute(sql`
+      CREATE TABLE IF NOT EXISTS ${sql.identifier(tableName)} (
+        "_id" VARCHAR(36) PRIMARY KEY,
+        "tenantId" VARCHAR(36),
+        "data" JSONB NOT NULL DEFAULT '{}',
+        "status" VARCHAR(50) NOT NULL DEFAULT 'draft',
+        "createdAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Create indexes
+    await this.db.execute(
+      sql`CREATE INDEX IF NOT EXISTS ${sql.identifier(`${tableName}_tenant_idx`)} ON ${sql.identifier(tableName)} ("tenantId")`,
+    );
+    await this.db.execute(
+      sql`CREATE INDEX IF NOT EXISTS ${sql.identifier(`${tableName}_data_gin`)} ON ${sql.identifier(tableName)} USING gin (data)`,
+    );
+
+    logger.info(`✅ PostgreSQL table "${tableName}" created successfully.`);
   }
 
   async updateModel(_schema: Schema): Promise<void> {
@@ -62,12 +90,12 @@ export class CollectionModule implements ICollectionAdapter {
   ): Promise<DatabaseResult<Schema | null>> {
     return this.core.wrap(async () => {
       const [result] = await this.db.execute(
-        sql`SELECT "collectionDef" FROM "system_content_structure" WHERE "name" = ${collectionName} AND "nodeType" = 'collection' LIMIT 1`,
+        sql`SELECT "data" FROM "content_nodes" WHERE "name" = ${collectionName} AND "nodeType" = 'collection' LIMIT 1`,
       );
       if (!result) {
         return null;
       }
-      return (result as unknown as { collectionDef: Schema }).collectionDef;
+      return (result as unknown as { data: Schema }).data;
     }, "GET_SCHEMA_FAILED");
   }
 
@@ -81,23 +109,21 @@ export class CollectionModule implements ICollectionAdapter {
     return this.core.wrap(async () => {
       const idNorm = String(collectionId).trim().replace(/-/g, "");
       const [result] = await this.db.execute(
-        sql`SELECT "collectionDef" FROM "system_content_structure" WHERE ("_id" = ${collectionId} OR "_id" = ${idNorm}) AND "nodeType" = 'collection' LIMIT 1`,
+        sql`SELECT "data" FROM "content_nodes" WHERE ("_id" = ${collectionId} OR "_id" = ${idNorm}) AND "nodeType" = 'collection' LIMIT 1`,
       );
       if (!result) {
         return null;
       }
-      return (result as unknown as { collectionDef: Schema }).collectionDef;
+      return (result as unknown as { data: Schema }).data;
     }, "GET_SCHEMA_BY_ID_FAILED");
   }
 
   async listSchemas(_tenantId?: DatabaseId | null): Promise<DatabaseResult<Schema[]>> {
     return this.core.wrap(async () => {
       const results = await this.db.execute(
-        sql`SELECT "collectionDef" FROM "system_content_structure" WHERE "nodeType" = 'collection'`,
+        sql`SELECT "data" FROM "content_nodes" WHERE "nodeType" = 'collection'`,
       );
-      return (results as unknown as { collectionDef: Schema }[])
-        .map((r) => r.collectionDef)
-        .filter(Boolean);
+      return (results as unknown as { data: Schema }[]).map((r) => r.data).filter(Boolean);
     }, "LIST_SCHEMAS_FAILED");
   }
 }

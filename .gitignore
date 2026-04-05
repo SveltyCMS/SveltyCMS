@@ -72,3 +72,4 @@ src/paraglide/**/*.js
 .mcp.json
 LOCAL.md
 bundle-report.json
+tests/benchmarks/results/*

@@ -3,6 +3,7 @@
  * @description MongoDB adapter for SveltyCMS.
  */
 
+import { BaseAdapter } from "../base-adapter";
 import mongoose from "mongoose";
 import type {
   ICrudAdapter,
@@ -29,7 +30,7 @@ import { MongoQueryBuilder } from "./mongo-query-builder";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { generateId, validateId } from "./methods/mongodb-utils";
 
-export class MongoDBAdapter implements IDBAdapter {
+export class MongoDBAdapter extends BaseAdapter implements IDBAdapter {
   private _connection: mongoose.Connection | null = null;
   private _models: Map<string, mongoose.Model<any>> = new Map();
   private _repos: Map<string, MongoCrudMethods<any>> = new Map();
@@ -45,6 +46,7 @@ export class MongoDBAdapter implements IDBAdapter {
   collection: IDBAdapter["collection"] = {} as IDBAdapter["collection"];
 
   constructor() {
+    super();
     this.auth = composeMongoAuthAdapter();
     this.crud = this._createCrudMethods();
 
@@ -115,6 +117,7 @@ export class MongoDBAdapter implements IDBAdapter {
       // If already connected, just return success
       if (mongoose.connection.readyState === 1) {
         this._connection = mongoose.connection;
+        this.connected = true;
         return { success: true, data: undefined };
       }
 
@@ -137,14 +140,17 @@ export class MongoDBAdapter implements IDBAdapter {
           mongoose.connection.on("error", onError);
         });
         this._connection = mongoose.connection;
+        this.connected = true;
         return { success: true, data: undefined };
       }
 
       // Otherwise, initiate new connection
       await mongoose.connect(connectionString, options || {});
       this._connection = mongoose.connection;
+      this.connected = true;
       return { success: true, data: undefined };
     } catch (err: any) {
+      this.connected = false;
       return {
         success: false,
         message: err.message,
@@ -162,6 +168,7 @@ export class MongoDBAdapter implements IDBAdapter {
     try {
       await mongoose.disconnect();
       this._connection = null;
+      this.connected = false;
       return { success: true, data: undefined };
     } catch (err: any) {
       return {
@@ -172,8 +179,19 @@ export class MongoDBAdapter implements IDBAdapter {
     }
   }
 
-  isConnected(): boolean {
+  override isConnected(): boolean {
     return !!this._connection && mongoose.connection.readyState === 1;
+  }
+
+  async getVersion(): Promise<DatabaseResult<string>> {
+    if (!this.isConnected()) return this.notConnectedError();
+    try {
+      const admin = mongoose.connection.db!.admin();
+      const serverStatus = await admin.serverStatus();
+      return { success: true, data: serverStatus.version };
+    } catch (err: any) {
+      return this.handleError(err, "GET_VERSION_FAILED");
+    }
   }
 
   async clearDatabase(): Promise<DatabaseResult<void>> {

@@ -204,17 +204,9 @@ export class CrudModule implements ICrudAdapter {
           updatedAt: now,
         };
 
-        // 🚀 OPTIMIZATION: Use Prepared Statement for inserts
-        const cacheKey = `insert:${collection}`;
-        let prepared = this.preparedStatements.get(cacheKey);
-        if (!prepared) {
-          prepared = this.db
-            .insert(table as unknown as import("drizzle-orm/pg-core").PgTable)
-            .values(placeholder("values"))
-            .prepare(cacheKey);
-          this.preparedStatements.set(cacheKey, prepared);
-        }
-        await prepared.execute({ values });
+        await this.db
+          .insert(table as unknown as import("drizzle-orm/pg-core").PgTable)
+          .values(values as unknown as Record<string, unknown>);
 
         // Reuse the findOne prepared statement for the result
         const findCacheKey = `findOne:${collection}`;
@@ -232,6 +224,7 @@ export class CrudModule implements ICrudAdapter {
         return utils.convertDatesToISO(result as Record<string, unknown>) as T;
       }, "CRUD_INSERT_FAILED")
       .then((res) => {
+        if (!res.success) console.error("CRUD_INSERT_FAILED:", res.error);
         if (res.success) res.meta = { executionTime: performance.now() - startTime };
         return res;
       });

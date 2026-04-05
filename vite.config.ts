@@ -651,7 +651,7 @@ export default defineConfig((): any => {
         "svelte-awesome-color-picker",
         "json-render-svelte",
       ],
-      external: ["bun:sqlite", "bun:test", "redis"],
+      external: ["bun:sqlite", "bun:test", "redis", "better-sqlite3", "postgres", "mysql2"],
     },
     resolve: {
       alias: [

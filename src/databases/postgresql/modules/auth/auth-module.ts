@@ -54,14 +54,16 @@ export class AuthModule {
       ...converted,
       _id: converted._id as DatabaseId,
       roleIds: finalRoleIds,
-      role: finalRoleIds.length > 0 ? (finalRoleIds[0] as string) : "user",
+      role: dbUser.role || (finalRoleIds.length > 0 ? (finalRoleIds[0] as string) : "user"),
       isRegistered: !!dbUser.isRegistered,
       blocked: !!dbUser.blocked,
       isAdmin: !!dbUser.isAdmin,
       emailVerified: !!dbUser.emailVerified,
       permissions: (dbUser as unknown as { permissions?: string[] }).permissions || [],
       tenantId: converted.tenantId as DatabaseId | null,
-    } as User;
+      createdAt: converted.createdAt as unknown as ISODateString,
+      updatedAt: converted.updatedAt as unknown as ISODateString,
+    } as unknown as User;
   }
 
   private mapRole(dbRole: typeof schema.roles.$inferSelect): Role {
@@ -106,6 +108,7 @@ export class AuthModule {
         isAdmin: userData.isAdmin || false,
         emailVerified: userData.emailVerified || false,
         tenantId: userData.tenantId || null,
+        role: userData.role || "user",
         _id: id,
         createdAt: now,
         updatedAt: now,
@@ -118,8 +121,13 @@ export class AuthModule {
         values.roleIds = [userData.role as DatabaseId];
       }
 
-      const [result] = await this.db.insert(schema.authUsers).values(values).returning();
-      return this.mapUser(result);
+      try {
+        const [result] = await this.db.insert(schema.authUsers).values(values).returning();
+        return this.mapUser(result);
+      } catch (e: any) {
+        logger.error("POSTGRES_CREATE_USER_ERROR:", e.message, e);
+        throw e;
+      }
     }, "CREATE_USER_FAILED");
   }
 
@@ -134,14 +142,18 @@ export class AuthModule {
         conditions.push(eq(schema.authUsers.tenantId, options.tenantId as string));
       }
 
+      const { createdAt: _createdAt, updatedAt: _updatedAt, ...rest } = userData;
       const updateData: Partial<typeof schema.authUsers.$inferInsert> = {
-        ...userData,
+        ...(rest as any),
         updatedAt: isoDateStringToDate(nowISODateString()),
       } as Record<string, unknown>;
 
-      // Map legacy role string to roleIds array if roleIds is missing
-      if (userData.role && !updateData.roleIds) {
-        updateData.roleIds = [userData.role as DatabaseId];
+      // Map legacy role string to database columns
+      if (userData.role) {
+        updateData.role = userData.role;
+        if (!updateData.roleIds) {
+          updateData.roleIds = [userData.role as DatabaseId];
+        }
       }
 
       const [result] = await this.db
@@ -541,7 +553,7 @@ export class AuthModule {
         return null;
       }
       return {
-        expiresAt: session.expires.toISOString() as unknown as ISODateString,
+        expiresAt: utils.dateToISO(session.expires) as ISODateString,
         user_id: session.user_id as DatabaseId,
       };
     }, "GET_SESSION_TOKEN_DATA_FAILED");

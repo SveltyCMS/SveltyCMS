@@ -200,13 +200,20 @@ const dispatch = async ({ request, url, params, locals, cookies }: RequestEvent)
 
   // SPECIAL CASE: Health check must work even without a DB to allow orchestrators to wait for boot
   if (namespace === "system" && method === "health") {
-    const health = {
+    const health: any = {
       status: dbAdapter ? "healthy" : "initializing",
       overallStatus: dbAdapter ? "READY" : "SETUP", // Match setup-system.ts expectations
       database: !!dbAdapter,
       uptime: process.uptime(),
       timestamp: Date.now(),
     };
+
+    if (dbAdapter) {
+      const versionRes = await dbAdapter.getVersion();
+      health.dbVersion = versionRes.success ? versionRes.data : "unknown";
+      health.dbType = process.env.DB_TYPE || "unknown";
+    }
+
     // Always return 200 during health check to let benchmark runner proceed
     return json(health, { status: 200 });
   }

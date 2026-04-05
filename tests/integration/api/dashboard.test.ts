@@ -555,8 +555,8 @@ describe("Dashboard API - Cache Metrics Endpoint", () => {
 
     const total = data.overall.hits + data.overall.misses;
     if (total > 0) {
-      const expectedHitRate = data.overall.hits / total;
-      expect(Math.abs(data.overall.hitRate - expectedHitRate)).toBeLessThan(0.01);
+      const expectedHitRate = (data.overall.hits / total) * 100;
+      expect(Math.abs(data.overall.hitRate - expectedHitRate)).toBeLessThan(1);
     } else {
       expect(data.overall.hitRate).toBe(0);
     }

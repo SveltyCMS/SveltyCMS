@@ -29,16 +29,36 @@ async function runDatabaseBenchmark() {
     process.exit(1);
   }
 
-  const dbType = adapter.constructor.name.replace("Adapter", "").toUpperCase();
-  console.log(`📂 Testing Adapter: ${dbType}`);
+  const dbType =
+    process.env.DB_TYPE || adapter.constructor.name.replace("Adapter", "").toLowerCase();
+  console.log(`📂 Testing Adapter: ${dbType.toUpperCase()}`);
 
   const collection = "collection_benchmarks";
   const dummyData = {
     firstName: "Bench",
     lastName: "User",
+    role: "admin",
     status: "active",
     benchmarkId: "test",
   };
+
+  // --- 0. ENSURE COLLECTION EXISTS ---
+  console.log("🛠️ Preparing benchmark schema...");
+  try {
+    await adapter.collection.createModel({
+      _id: "benchmarks",
+      name: "benchmarks",
+      fields: [
+        { name: "firstName", type: "text", required: true },
+        { name: "lastName", type: "text", required: true },
+        { name: "role", type: "text", required: true },
+        { name: "status", type: "text", required: true },
+        { name: "benchmarkId", type: "text", required: true },
+      ],
+    } as any);
+  } catch (err) {
+    console.warn("Schema creation skipped or failed (might already exist):", err);
+  }
 
   // --- 1. WARMUP ---
   console.log("🔥 Warming up (20 iterations)...");
@@ -51,7 +71,9 @@ async function runDatabaseBenchmark() {
   }
 
   // --- 2. MEASUREMENT ---
-  console.log(`💾 Measuring ${dbType} Adapter Latencies (${ITERATIONS} iterations)...`);
+  console.log(
+    `💾 Measuring ${dbType.toUpperCase()} Adapter Latencies (${ITERATIONS} iterations)...`,
+  );
 
   const metrics = {
     insert: [] as number[],
@@ -92,7 +114,7 @@ async function runDatabaseBenchmark() {
     delete: avg(metrics.delete),
   };
 
-  console.log(`\n📊 Average ${dbType} Adapter Latencies (ms):`);
+  console.log(`\n📊 Average ${dbType.toUpperCase()} Adapter Latencies (ms):`);
   console.log("-----------------------------------------------------------");
   console.log(`Insert : ${results.insert.toFixed(4)} ms`);
   console.log(`Read   : ${results.read.toFixed(4)} ms`);
@@ -116,7 +138,7 @@ async function runDatabaseBenchmark() {
     ),
   );
 
-  console.log(`✅ Benchmark complete for ${dbType}.`);
+  console.log(`✅ Benchmark complete for ${dbType.toUpperCase()}.`);
   process.exit(0);
 }
 

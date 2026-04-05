@@ -86,15 +86,27 @@ async function runHookBenchmarkSuite() {
       },
     });
     overallResults.push(result);
-    exportResult(result);
+    // Standardized filename for individual hooks
+    exportResult(result, `hook-${name.toLowerCase()}.json`);
   }
 
   // Calculate Pipeline Totals
   const totalAvg = overallResults.reduce((acc, r) => acc + r.avgMs, 0);
   const totalP95 = overallResults.reduce((acc, r) => acc + r.p95Ms, 0);
+  const totalP99 = overallResults.reduce((acc, r) => acc + r.p99Ms, 0);
+
+  const pipelineResult = {
+    name: "Pipeline Overall",
+    avgMs: totalAvg,
+    p95Ms: totalP95,
+    p99Ms: totalP99,
+    rps: 1000 / totalAvg,
+    timestamp: new Date().toISOString(),
+    metrics: { avgMs: totalAvg, p95Ms: totalP95 },
+  } as any;
 
   console.log("\n===========================================================");
-  console.log("🏁 AGGREGATE PIPELINE PERFORMANCE");
+  console.log("🏁 AGGREGATE HOOK PIPELINE PERFORMANCE");
   console.log("===========================================================");
   console.log(`Avg Latency:  ${(totalAvg * 1000).toFixed(2)} µs (${totalAvg.toFixed(4)} ms)`);
   console.log(`p95 Latency:  ${(totalP95 * 1000).toFixed(2)} µs (${totalP95.toFixed(4)} ms)`);
@@ -103,6 +115,7 @@ async function runHookBenchmarkSuite() {
   );
   console.log("===========================================================\n");
 
+  exportResult(pipelineResult, "hook-pipeline.json");
   process.exit(0);
 }
 

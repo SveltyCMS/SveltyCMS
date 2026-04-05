@@ -65,14 +65,16 @@ export class AuthModule {
       ...converted,
       _id: converted._id as DatabaseId,
       roleIds: finalRoleIds,
-      role: finalRoleIds.length > 0 ? (finalRoleIds[0] as string) : "user",
+      role: dbUser.role || (finalRoleIds.length > 0 ? (finalRoleIds[0] as string) : "user"),
       isRegistered: !!dbUser.isRegistered,
       blocked: !!dbUser.blocked,
       isAdmin: !!dbUser.isAdmin,
       emailVerified: !!dbUser.emailVerified,
       permissions: (dbUser as unknown as { permissions?: string[] }).permissions || [],
       tenantId: converted.tenantId as DatabaseId | null,
-    } as User;
+      createdAt: converted.createdAt as unknown as ISODateString,
+      updatedAt: converted.updatedAt as unknown as ISODateString,
+    } as unknown as User;
   }
 
   // Setup method for model registration
@@ -107,6 +109,7 @@ export class AuthModule {
         isAdmin: userData.isAdmin || false,
         emailVerified: userData.emailVerified || false,
         tenantId: userData.tenantId || null,
+        role: userData.role || "user",
         _id: id,
         createdAt: now,
         updatedAt: now,
@@ -140,14 +143,18 @@ export class AuthModule {
         conditions.push(eq(schema.authUsers.tenantId, options.tenantId as string));
       }
 
+      const { createdAt: _createdAt, updatedAt: _updatedAt, ...rest } = userData;
       const updateData: Partial<typeof schema.authUsers.$inferInsert> = {
-        ...userData,
+        ...(rest as any),
         updatedAt: isoDateStringToDate(nowISODateString()),
       };
 
-      // Map legacy role string to roleIds array if roleIds is missing
-      if (userData.role && !updateData.roleIds) {
-        updateData.roleIds = [userData.role as DatabaseId];
+      // Map legacy role string to database columns
+      if (userData.role) {
+        updateData.role = userData.role;
+        if (!updateData.roleIds) {
+          updateData.roleIds = [userData.role as DatabaseId];
+        }
       }
 
       await this.db
@@ -551,7 +558,7 @@ export class AuthModule {
         return null;
       }
       return {
-        expiresAt: session.expires.toISOString() as unknown as ISODateString,
+        expiresAt: session.expires as unknown as ISODateString,
         user_id: session.user_id as DatabaseId,
       };
     }, "GET_SESSION_TOKEN_DATA_FAILED");

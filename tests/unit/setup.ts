@@ -4,6 +4,11 @@ const require = createRequire(import.meta.url);
 // 1. EARLY DOM SHIMS (Critical for Bun; Vitest uses native jsdom)
 const isBun = typeof Bun !== "undefined";
 
+// Shimming import.meta.glob specifically for Bun/Node
+if (typeof (import.meta as any).glob !== "function") {
+  (import.meta as any).glob = () => ({});
+}
+
 const setGlobal = (name: string, value: any) => {
   if (globalThis[name as keyof typeof globalThis] !== undefined) return;
   try {
@@ -257,9 +262,14 @@ if (isBun) {
 // Master switch for benchmarking - allows running 'bun test' with ZERO mocks
 const ENABLE_MOCKS = process.env.BUN_TEST_MOCKS !== "false";
 
-// Helper for cross-runner module mocking
 const moduleMock = (path: string, factory: () => any) => {
-  if (!ENABLE_MOCKS) return; // ⚡ BENCHMARK MODE: Skip all module mocks
+  if (
+    !ENABLE_MOCKS &&
+    !path.startsWith("$") &&
+    !path.startsWith("svelte") &&
+    !path.includes("scanner")
+  )
+    return; // ⚡ BENCHMARK MODE: Skip db/service mocks but keep SvelteKit environment intact
 
   if (isBun) {
     mock.module(path, factory);
@@ -404,6 +414,7 @@ setGlobal("logger", mockLogger);
 process.env.BROWSER = "false";
 process.env.NODE_ENV = "test";
 process.env.TEST_MODE = "true";
+process.env.SSR = process.env.SSR || "true";
 
 // 3. SVELTE 5 RUNES
 // For unit tests without a compiler, $state should be transparent for primitives

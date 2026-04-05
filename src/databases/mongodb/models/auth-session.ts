@@ -7,6 +7,7 @@ import type { Session } from "@src/databases/auth/types";
 import type { DatabaseId, DatabaseResult, ISODateString } from "@src/databases/db-interface";
 import mongoose, { Schema, type Model } from "mongoose";
 import { generateId } from "../methods/mongodb-utils";
+import { toISOString } from "@src/utils/date-utils";
 
 export const SessionSchema = new Schema(
   {
@@ -169,7 +170,7 @@ export class SessionAdapter {
       return {
         success: true,
         data: {
-          expiresAt: (session.expires as any).toISOString(),
+          expiresAt: toISOString(session.expires),
           user_id: session.user_id as DatabaseId,
         },
       };

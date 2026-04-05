@@ -395,4 +395,21 @@ export class SQLiteAdapter extends AdapterCore implements IDBAdapter {
       return results;
     }, "GET_MULTIPLE_COLLECTION_DATA_FAILED");
   };
+
+  public async getVersion(): Promise<DatabaseResult<string>> {
+    return this.wrap(async () => {
+      if (this.sqlite.query) {
+        const res = this.sqlite.query("SELECT sqlite_version() as version").get() as {
+          version: string;
+        };
+        return res.version;
+      } else if (this.sqlite.prepare) {
+        const res = this.sqlite.prepare("SELECT sqlite_version() as version").get() as {
+          version: string;
+        };
+        return res.version;
+      }
+      throw new Error("SQLite client not available");
+    }, "GET_VERSION_FAILED");
+  }
 }

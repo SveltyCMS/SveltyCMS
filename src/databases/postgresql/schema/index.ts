@@ -52,6 +52,7 @@ export const authUsers = pgTable(
     lastName: varchar("lastName", { length: 255 }),
     avatar: text("avatar"),
     roleIds: jsonb("roleIds").$type<string[]>().notNull().default([]),
+    role: varchar("role", { length: 50 }).notNull().default("user"),
     isRegistered: boolean("isRegistered").notNull().default(false),
     tenantId: tenantField(),
     ...timestamps,
