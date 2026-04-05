@@ -47,7 +47,7 @@ function parseActionResult(result: any): any {
 
 async function postAction(actionName: string, formData: FormData) {
   let lastError: any;
-  const maxAttempts = 8;
+  const maxAttempts = 15; // Increased for slow DB startup in CI
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       const res = await fetch(`${API_BASE_URL}/setup?/${actionName}`, {
@@ -71,10 +71,11 @@ async function postAction(actionName: string, formData: FormData) {
         error.code === "ConnectionRefused" ||
         error.message?.includes("ConnectionRefused") ||
         error.message?.includes("Unable to connect") ||
-        error.message?.includes("fetch failed");
+        error.message?.includes("fetch failed") ||
+        error.message?.includes("refused the connection");
 
       if (isConnectionError) {
-        const delay = 2000 * attempt;
+        const delay = 3000 * attempt; // Longer exponential backoff
         console.warn(
           `⚠️ Connection issue on attempt ${attempt}/${maxAttempts} for ${actionName}. Retrying in ${delay}ms... (${error.message})`,
         );
@@ -216,7 +217,7 @@ async function main() {
     if (!completeData || completeData.success === false) {
       throw new Error(`Setup completion failed: ${completeData?.error || "Unknown error"}`);
     }
-    console.log("✅ Setup completed successfully! 🎉");
+    console.log("✅ Enterprise seeding successful! 🎉");
 
     // 4. Verification
     const configDir = join(rootDir, "config");

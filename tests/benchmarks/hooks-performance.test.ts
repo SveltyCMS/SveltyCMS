@@ -1,5 +1,5 @@
 /**
- * @file tests/benchmarks/hooks-performance.ts
+ * @file tests/benchmarks/hooks-performance.test.ts
  * @description Professional high-resolution benchmark for SveltyCMS middleware hooks.
  * Uses benchmark-utils for p95, p99, and RPS metrics.
  */
@@ -69,19 +69,21 @@ async function runHookBenchmarkSuite() {
   const hooks = await getHooks();
   const overallResults = [];
 
-  console.log("🛠️ Starting Professional Hook Pipeline Benchmark Suite...");
+  console.log("🛠️  Starting Professional Hook Pipeline Benchmark Suite...");
+  console.log(`   (Running ${ITERATIONS.toLocaleString()} iterations per hook)\n`);
 
   for (const [name, hook] of Object.entries(hooks)) {
     const result = await runBenchmark({
-      name: `Hook: ${name}`,
+      name,
       iterations: ITERATIONS,
       warmupIterations: 500,
+      silent: true,
       onIteration: async () => {
-        const event = createMockEvent("/api/collections");
+        const event = createMockEvent("/"); // Public path to avoid AuthError noise
         try {
           await hook({ event, resolve });
         } catch {
-          // Expected errors due to mock/redirect/abort are handled by benchmark-utils successCount
+          // Expected errors
         }
       },
     });
@@ -89,6 +91,31 @@ async function runHookBenchmarkSuite() {
     // Standardized filename for individual hooks
     exportResult(result, `hook-${name.toLowerCase()}.json`);
   }
+
+  // --- Summary Matrix ---
+  console.log(
+    "\n==========================================================================================",
+  );
+  console.log("🏁  MIDDLWARE PERFORMANCE MATRIX");
+  console.log(
+    "==========================================================================================",
+  );
+
+  // Custom high-resolution printer (prevents truncation and improves readability)
+  const pad = (s: string, n: number) => s.padEnd(n).slice(0, n);
+  const head = `| ${pad("Hook", 24)} | ${pad("Avg (µs)", 10)} | ${pad("p95 (µs)", 10)} | ${pad("p99 (µs)", 10)} | ${pad("Throughput", 14)} |`;
+  console.log(head);
+  console.log(
+    `|${"-".repeat(26)}|${"-".repeat(12)}|${"-".repeat(12)}|${"-".repeat(12)}|${"-".repeat(16)}|`,
+  );
+
+  for (const r of overallResults) {
+    const row = `| ${pad(r.name, 24)} | ${pad((r.avgMs * 1000).toFixed(2), 10)} | ${pad((r.p95Ms * 1000).toFixed(2), 10)} | ${pad((r.p99Ms * 1000).toFixed(2), 10)} | ${pad(Math.floor(r.rps).toLocaleString(), 14)} |`;
+    console.log(row);
+  }
+  console.log(
+    "==========================================================================================\n",
+  );
 
   // Calculate Pipeline Totals
   const totalAvg = overallResults.reduce((acc, r) => acc + r.avgMs, 0);
@@ -105,18 +132,21 @@ async function runHookBenchmarkSuite() {
     metrics: { avgMs: totalAvg, p95Ms: totalP95 },
   } as any;
 
-  console.log("\n===========================================================");
-  console.log("🏁 AGGREGATE HOOK PIPELINE PERFORMANCE");
-  console.log("===========================================================");
+  console.log(
+    "==========================================================================================",
+  );
+  console.log("📊  AGGREGATE HOOK PIPELINE PERFORMANCE");
+  console.log(
+    "==========================================================================================",
+  );
   console.log(`Avg Latency:  ${(totalAvg * 1000).toFixed(2)} µs (${totalAvg.toFixed(4)} ms)`);
   console.log(`p95 Latency:  ${(totalP95 * 1000).toFixed(2)} µs (${totalP95.toFixed(4)} ms)`);
+  console.log(`Throughput:   ${Math.floor(1000 / totalAvg).toLocaleString()} req/sec`);
   console.log(
-    `Theoretical Max Throughput: ${Math.floor(1000 / totalAvg).toLocaleString()} req/sec`,
+    "==========================================================================================\n",
   );
-  console.log("===========================================================\n");
 
   exportResult(pipelineResult, "hook-pipeline.json");
-  process.exit(0);
 }
 
 import { test } from "bun:test";

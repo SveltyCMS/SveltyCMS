@@ -29,7 +29,7 @@ export const TokenSchema = new Schema(
   },
 );
 
-TokenSchema.index({ token: 1 });
+// TokenSchema.index({ token: 1 }); // Redundant, already part of unique: true in schema
 TokenSchema.index({ expires: 1 }, { expireAfterSeconds: 0 });
 TokenSchema.index({ tenantId: 1 });
 

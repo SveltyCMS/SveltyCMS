@@ -28,7 +28,20 @@ beforeAll(async () => {
   // Use shared helper to prepare authenticated context
   authCookie = await prepareAuthenticatedContext();
 
-  console.log("✅ Authentication successful - running dashboard tests\n");
+  console.log("✅ Authentication successful - warming up metrics\n");
+
+  // WARMUP: Trigger some cache and API activity so metrics are not zero
+  // This avoids failures in 'should calculate hit rate correctly' and structure tests
+  await fetch(`${BASE_URL}/api/dashboard/health`, { headers: { Cookie: authCookie } });
+  await fetch(`${BASE_URL}/api/dashboard/system-info`, { headers: { Cookie: authCookie } });
+
+  // Make redundant calls to ensure cache hits/misses are registered
+  // First call is a miss, second should be a hit for many endpoints
+  await fetch(`${BASE_URL}/api/dashboard/metrics`, { headers: { Cookie: authCookie } });
+  await fetch(`${BASE_URL}/api/dashboard/metrics`, { headers: { Cookie: authCookie } });
+
+  // Trigger cache category activity
+  await fetch(`${BASE_URL}/api/dashboard/cache-metrics`, { headers: { Cookie: authCookie } });
 });
 
 describe("Dashboard API - Health Endpoint", () => {

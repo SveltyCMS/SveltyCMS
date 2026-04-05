@@ -631,7 +631,7 @@ export const defaultPublicSettings: Array<{
   },
   {
     key: "HOST_PROD",
-    value: "https://yourdomain.com",
+    value: "https://SveltyCMS.com",
     description: "Production server URL",
   },
 

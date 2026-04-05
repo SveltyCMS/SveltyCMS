@@ -38,53 +38,51 @@ The application can be in one of the following states:
 
 ## 🛡️ Request Gating Middleware
 
-The `handleSystemState` hook (`src/hooks/handleSystemState.ts`) intercepts every request to ensure the system is ready to handle it.
+The `handleSystemState` hook (`src/hooks/handle-system-state.ts`) is the primary gatekeeper, intercepting every request to ensure system operational readiness.
 
-### Logic Flow
+### Logic Flow (Phases)
 
-1.  **Health Checks & Static Assets**: Always allowed, regardless of state.
-2.  **IDLE State (Setup Mode)**:
-    - Checks if `isSetupComplete()`.
-    - If **No**: Allows access to `/setup`, the setup **Server Functions** in `+page.server.ts`, and `/login`. Blocks others.
-    - If **Yes**: Triggers initialization and transitions to `INITIALIZING`.
-3.  **INITIALIZING State**:
-    - Pauses incoming requests until initialization completes (or times out).
-    - If initialization succeeds -> Proceeds to `READY`.
-    - If initialization fails -> Transitions to `FAILED` and returns 503.
-4.  **FAILED State**:
-    - Blocks all traffic with a 503 error.
-    - _Exception_: In `TEST_MODE`, requests may be allowed with a warning to facilitate debugging.
-5.  **READY / DEGRADED State**:
-    - Allows request to proceed.
-    - If `DEGRADED`, injects `event.locals.degradedServices` for UI notifications.
+1.  **Fast-Path Resolution**: Static assets and well-known paths (SSCP, health checks) are resolved immediately to maximize performance.
+2.  **Initialization Phase**: 
+    - If the system is `IDLE` but configured, it triggers a backgrounded initialization flow via `waitForInitialization`.
+    - **Optimization**: For bootstrap UI routes (Login, Setup), requests are non-blocking to allow the frontend to load while the backend warms up.
+3.  **Bootstrap & Host Validation**:
+    - Ensures that during restricted states, only authorized hosts (localhost, ORIGIN, or Demo) can access sensitive bootstrap routes.
+    - Prevents unauthorized access to `/setup` or `/login` during initialization.
+4.  **Restricted Access Handling**:
+    - Pauses non-bootstrap requests if the system is `INITIALIZING` until the boot sequence completes (or times out at 60s).
+    - Blocks traffic with state-specific 503 errors if the system is in `SETUP`, `MAINTENANCE`, or `FAILED` modes.
+5.  **Final Readiness & Enrichment**:
+    - Performs a final `isSystemReady()` check.
+    - If `DEGRADED`, injects `event.locals.degradedServices` with a list of unhealthy dependencies for UI awareness.
 
 ---
 
 ## 🧠 Implemented Advanced Features
 
-### 1. Smart Self-Healing & Automatic Recovery
+### 1. Robust Boot Protection (Self-Healing)
 
-The system now includes a robust self-healing mechanism for initialization failures (e.g., temporary database outages):
+The system manages a one-shot initialization lifecycle using a `dbInitPromise`:
 
-- **Automatic Retry**: If initialization fails, the system enters a temporary `FAILED` state.
-- **Cooldown Period**: Calls to the server during this state return a 503 error with a "Retrying in X seconds" message.
-- **Auto-Recovery**: After a 5-second cooldown, the next request automatically triggers a fresh initialization attempt (resetting internal promises and connection states).
+- **Timeout Safety**: Initialization has a hard 60-second limit. If services fail to start, the system enters the `FAILED` state to protect the underlying infrastructure.
+- **Background Warming**: For high-concurrency environments, only the first request triggers the init flow; subsequent requests wait on the same shared promise, preventing "thundering herd" connection storms.
+- **Cleanup on Failure**: Failed boot attempts log the full stack trace and inform the `metricsService` for alerting.
 
-### 2. Lazy Initialization & Race Condition Prevention
+### 2. Trusted Host Validation
 
-To prevent "DB not connected" errors during the bootstrapping phase:
+To prevent SSRF and unauthorized configuration during the setup phase, the middleware enforces **Dynamic Host Trust**:
 
-- **Lazy Proxies**: Database adapters and webhook wrappers use lazy property access (getters) rather than eager initialization. This ensures dependencies are only accessed _after_ a successful connection is established.
-- **Order-of-Operations Safety**: The system is Architected to handle out-of-order module loading gracefully without crashing the startup sequence.
+- **Local Trust**: Loops back (127.0.0.1) are always trusted for local admin access.
+- **Origin Sync**: If `process.env.ORIGIN` is defined, only that specific host is allowed access to bootstrap routes.
+- **Fail-Safe**: If no host is configured, only local access is permitted.
 
-### 3. Self-Learning Performance Metrics
+### 3. Integrated Performance Telemetry
 
-The system tracks its own performance and "learns" optimal operational parameters over time:
+The gatekeeper tracks system health metrics in real-time:
 
-- **Metrics Persistence**: Initialization durations, success rates, and performance trends are persisted to the database using `PerformanceService`.
-- **Hydration on Startup**: Learned historical metrics are loaded during system initialization to inform self-healing thresholds from the start.
-- **Adaptive Calibration**: Anomaly detection thresholds (e.g., `maxStartupTime`) are automatically calibrated based on historical Exponential Moving Averages (EMA), reducing false positives.
-- **Setup Benchmarking**: The setup process is instrumented to establish performance baselines for different environments.
+- **Init Duration**: Records how long the system takes to reach the `READY` state.
+- **Security Violations**: Increments counters for untrusted host attempts or restricted route access.
+- **Service Degradation**: Real-time heartbeat monitoring of DB, Cache, and Media adapters.
 
 ## 🔮 Future Improvements
 

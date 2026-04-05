@@ -348,71 +348,29 @@ export const handleStaticAssetCaching: Handle = async ({ event, resolve }) => {
 
 ### 2. handleSystemState - System Gateway
 
-**File**: `src/hooks/handleSystemState.ts`
-**Purpose**: Validates system readiness before processing requests
+**File**: `src/hooks/handle-system-state.ts`
+**Purpose**: Validates system readiness and authorized host context before processing requests.
 
 **State Machine**: `IDLE → INITIALIZING → READY/DEGRADED/FAILED`
 
 ```typescript
 export const handleSystemState: Handle = async ({ event, resolve }) => {
-  const { pathname } = event.url;
-  let systemState = getSystemState();
+  const systemState = getSystemState();
 
-  // Wait for initialization on first request
-  if (systemState.overallState === "IDLE" && !initializationAttempted) {
-    initializationAttempted = true;
-    await dbInitPromise;
-    systemState = getSystemState();
+  // 1. Initial boot trigger
+  if (systemState.overallState === "IDLE" && isSetupComplete()) {
+    await waitForInitialization(); // Consolidated promise waiter
   }
 
-  // Allow setup wizard and root redirect during IDLE state
-  if (systemState.overallState === "IDLE") {
-    const allowedPaths = ["/setup", "/api/system/health", "/login", "/static", "/.well-known"];
-    if (allowedPaths.some((prefix) => pathname.startsWith(prefix)) || pathname === "/") {
-      return resolve(event);
-    }
+  // 2. Host Trust Validation (SSRF Protection)
+  if (isBootstrapRoute(pathname) && !isTrustedHost(event)) {
+     throw new AppError("Access from untrusted host blocked", 403, "UNTRUSTED_HOST");
   }
 
-  // Block all requests if system FAILED
-  if (systemState.overallState === "FAILED") {
-    const allowedPaths = ["/api/system/health", "/api/dashboard/health", "/.well-known"];
-    if (allowedPaths.some((prefix) => pathname.startsWith(prefix))) {
-      return resolve(event);
-    }
-    throw error(503, "Service Unavailable: A critical system component has failed.");
-  }
-
-  // During INITIALIZING, wait for initialization to complete
-  if (systemState.overallState === "INITIALIZING") {
-    const allowedPaths = [
-      "/api/system/health",
-      "/api/dashboard/health",
-      "/setup",
-      "/login",
-      "/.well-known",
-    ];
-    if (allowedPaths.some((prefix) => pathname.startsWith(prefix)) || pathname === "/") {
-      return resolve(event);
-    }
-
-    // Wait for initialization to complete
-    await dbInitPromise;
-    systemState = getSystemState();
-
-    // If still not ready after initialization, block the request
-    if (!isSystemReady()) {
-      throw error(503, "Service Unavailable: The system failed to initialize.");
-    }
-  }
-
-  // Allow requests only when READY or DEGRADED
-  const isReady = isSystemReady();
-  if (!isReady) {
-    const allowedPaths = ["/api/system/health", "/setup"];
-    if (allowedPaths.some((prefix) => pathname.startsWith(prefix))) {
-      return resolve(event);
-    }
-    throw error(503, "Service Unavailable: The system is starting up.");
+  // 3. Readiness Blocking
+  const restricted = ["IDLE", "INITIALIZING", "SETUP", "MAINTENANCE", "FAILED"];
+  if (restricted.includes(systemState.overallState) && !isBootstrapRoute(pathname)) {
+    throw error(503, `System is currenty in ${systemState.overallState} mode.`);
   }
 
   return resolve(event);
@@ -421,11 +379,10 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
 
 **Key Features**:
 
-- **Smart Initialization**: Waits for initialization during INITIALIZING state instead of blocking
-- **Root Path Handling**: Allows `/` during IDLE and INITIALIZING for proper redirects to /setup, /login, or first collection
-- **State Machine Enforcement**: Blocks requests appropriately based on system state
-- **Partial Functionality**: Allows essential routes in DEGRADED state
-- **Always-On Health Checks**: Health check endpoints accessible in all states
+- **Phase-Based Gating**: Efficiently distinguishes between high-performance static assets, setup routes, and standard content requests.
+- **Trusted Host Check**: Dynamic origin validation for bootstrap flows (Setup, Login) to prevent environmental exposure.
+- **Shared Promise Waiter**: Thundering herd protection ensures that concurrent requests during startup all wait for the single `dbInitPromise`.
+- **Degraded Enforcement**: Transparently alerts the frontend via `locals.degradedServices` if non-critical dependencies are failing.
 
 ---
 
@@ -791,13 +748,27 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
 
 ---
 
-### 10. handleApiRequests - API Authorization & Caching
+### 10. handleApiRequests - Modular Dispatcher & Caching
 
-**File**: `src/hooks/handleApiRequests.ts`
-**Purpose**: Middleware for API security, tenant-aware caching, and streaming optimization.
+**File**: `src/hooks/handle-api-requests.ts`
+**Purpose**: Advanced API orchestration layer providing unified error handling, high-performance caching (ETags), and domain routing.
 
-**Key Features**:
+**Core Responsibilities**:
 
+- **Modular Delegation**: Routes non-cachable API traffic to specialized handlers (`auth.ts`, `collections.ts`, `media.ts`, etc.) for better maintainability.
+- **ETag / 304 Support**: Automatically computes content hashes for `GET` requests. Returns `304 Not Modified` if the client holds a current version, saving significant bandwidth.
+- **Non-Blocking Cache Invalidation**: Asynchronous cache purging on mutation (`POST`, `PATCH`, `DELETE`) to ensure zero-latency writes.
+- **Unified Error Normalization**: Wraps all downstream handler errors into consistent JSON envelopes using the `handleApiError` utility.
+
+**Caching Strategy**:
+
+| Request Type | Strategy                     | Cache Duration |
+| :----------- | :--------------------------- | :------------- |
+| `GET` (List) | Tenant-isolated Memory Cache | 60s (Default)  |
+| `GET` (Item) | Strong ETag Validation       | Browser-side   |
+| Mutations    | Instant Cache Purge          | N/A            |
+
+---
 - **RBAC Enforcement**: Validates `apiEndpoint` permissions against `locals.user.role`.
 - **Intelligent Caching**: Implements per-user, per-tenant caching for GET requests (except GraphQL).
 - **Auto-Invalidation**: Automatically clears relevant cache patterns on `POST`, `PUT`, `DELETE`, or `PATCH` mutations.

@@ -186,26 +186,33 @@ const RelationWidget = createWidget<RelationProps>({
             return props.multiple ? [] : null;
           }
 
-          const { dbAdapter, tenantId } = context;
-          if (!dbAdapter) {
-            return null;
+          const { loaders } = context;
+          if (!loaders) {
+            // Fallback for cases where loaders might not be present (should not happen in optimized flows)
+            const { dbAdapter, tenantId } = context;
+            const collectionId = (target as any)?._id || props.collection;
+            const collectionName = `collection_${collectionId}`;
+            if (props.multiple && Array.isArray(value)) {
+              const result = await dbAdapter.crud.findMany(collectionName, {
+                _id: { $in: value },
+                ...(tenantId ? { tenantId } : {}),
+              });
+              return result.success ? result.data : [];
+            }
+            const result = await dbAdapter.crud.findOne(collectionName, {
+              _id: value,
+              ...(tenantId ? { tenantId } : {}),
+            });
+            return result.success ? result.data : null;
           }
 
           const collectionId = (target as any)?._id || props.collection;
-          const collectionName = `collection_${collectionId}`;
+          const loader = loaders.collectionLoader.get(collectionId);
 
           if (props.multiple && Array.isArray(value)) {
-            const result = await dbAdapter.crud.findMany(collectionName, {
-              _id: { $in: value },
-              ...(tenantId ? { tenantId } : {}),
-            });
-            return result.success ? result.data : [];
+            return Promise.all(value.map((id) => loader.load(id)));
           }
-          const result = await dbAdapter.crud.findOne(collectionName, {
-            _id: value,
-            ...(tenantId ? { tenantId } : {}),
-          });
-          return result.success ? result.data : null;
+          return loader.load(value as string);
         },
       },
     };

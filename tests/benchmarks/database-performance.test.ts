@@ -11,7 +11,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 
 const ITERATIONS = 100;
-const RESULTS_DIR = path.join(process.cwd(), "tests/benchmarks/results");
+const RESULTS_DIR = process.env.RESULTS_DIR || path.join(process.cwd(), "tests/benchmarks/results");
 
 async function runDatabaseBenchmark() {
   console.log("\n🚀 SveltyCMS Adapter Performance Benchmark");

@@ -309,7 +309,12 @@ function enqueue(level: LogLevel, msg: string, args: unknown[]) {
   if (cached && now - cached.lastTs < DEDUP_WINDOW_MS) {
     cached.count++;
     // Periodically flush dedup counts for very frequent logs
-    if (cached.count % 100 === 0) {
+    if (
+      cached.count === 10 ||
+      cached.count === 100 ||
+      cached.count === 1000 ||
+      cached.count % 2500 === 0
+    ) {
       const ts = pc.gray(new Date(now).toISOString().slice(0, 19).replace("T", " "));
       const color = LEVELS[level].color;
       process.stdout.write(

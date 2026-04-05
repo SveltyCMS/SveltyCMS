@@ -6,7 +6,7 @@ order: 101
 icon: "mdi:format-pilcrow-arrow-right"
 author: "admin"
 created: "2025-01-15"
-updated: "2025-01-15"
+updated: "2026-04-05"
 tags:
   - widget
   - core
@@ -31,7 +31,7 @@ The **RichText widget** provides a powerful, user-friendly WYSIWYG (What You See
 
 ### Key Features
 
-- ✅ **Tiptap-Powered**: Built on Tiptap 2.x for extensibility and performance
+- ✅ **Tiptap-Powered**: Built on Tiptap 3.x for superior extensibility and performance
 - ✅ **Configurable Toolbar**: Choose which editing features to enable (popovers for Links/Videos)
 - ✅ **Structured Storage**: Stores title and HTML content separately
 - ✅ **Content Validation**: Intelligent empty content detection (strips HTML tags to check)
@@ -45,7 +45,8 @@ The **RichText widget** provides a powerful, user-friendly WYSIWYG (What You See
 - ✅ **Source View**: View and edit raw HTML code
 - ✅ **Paste Options**: Easy paste as plain text feature
 - ✅ **AI "Magic Wand" Translation**: One-click content localization via configured LLM
-- ✅ **Global Accessibility (RTL)**: Automatic Right-to-Left detection and alignment for Middle Eastern locales
+- ✅ **Global Accessibility (RTL)**: Native Right-to-Left detection and optimized alignment for Middle Eastern locales
+- ✅ **Dynamic Logic**: High-performance NodeView stability for custom interactive widgets
 
 ---
 
@@ -68,7 +69,7 @@ The RichText widget features a dedicated **AI Translate** button in the toolbar 
 SveltyCMS provides first-class support for global audiences. The RichText widget automatically detects the active content language:
 
 - **Automatic Alignment**: If the language is set to Arabic (`ar`), Hebrew (`he`), or Farsi (`fa`), the editor defaults to Right-to-Left (RTL) alignment.
-- **Directional UI**: The underlying Tiptap engine applies `dir="rtl"` to the content editable area, ensuring that punctuation and cursor behavior follow RTL standards.
+- **Directional UI**: The Tiptap 3.x engine applies `dir="rtl"` to the content editable area, with improved ghost image positioning for drag handles in mixed-direction content.
 - **Toggleable Alignment**: Users can still manually override alignment using the standard alignment tools in the toolbar.
 
 ---
@@ -703,12 +704,10 @@ interface RichTextData {
 
 ### Version 1.0.0 (2025-01-15)
 
-- ✅ Tiptap 2.x integration
-- ✅ Configurable toolbar
-- ✅ Intelligent empty content validation
-- ✅ Multilingual support
-- ✅ Security-aware design
-- ✅ Full accessibility
+- ✅ Tiptap 3.x integration
+- ✅ Enhanced RTL drag-and-drop stability
+- ✅ Improved NodeView re-rendering logic
+- ✅ Markdown roundtrip HTML entity decoding fixes
 
 ---
 

@@ -1,6 +1,12 @@
 /**
  * @file scripts/enterprise-matrix.ts
  * @description Zero-Mock Enterprise Performance Matrix (Trend-aware & Actionable Reporting)
+ *
+ * Features:
+ * - Selective DB filtering via --db flag (e.g. --db sqlite,mongodb)
+ * - Sub-directory result isolation (results/sqlite/, results/mongodb/)
+ * - CROSS-PLATFORM port clearing and zombie process prevention
+ * - COMBINED HEAD-TO-HEAD TABLES for REST, GraphQL, and Middleware
  */
 
 import { spawn, type ChildProcess } from "node:child_process";
@@ -29,23 +35,25 @@ interface BenchmarkResult {
   metrics?: Record<string, any>;
   error?: string;
   durationMs?: number;
+  isHistorical?: boolean;
 }
 
 interface RunData {
   timestamp: string;
   coldStart: number;
   collections: number;
+  graphqlAvg: number;
   dbRaw: number;
   hooks: number;
   version: string;
-  metrics: any;
+  metrics: Record<string, any>;
 }
 
 // ─────────────────────────────────────────────────────────────
 // Constants
 // ─────────────────────────────────────────────────────────────
 
-const DATABASES: DatabaseConfig[] = [
+const ALL_DATABASES: DatabaseConfig[] = [
   {
     type: "sqlite",
     port: 0,
@@ -62,32 +70,22 @@ const DATABASES: DatabaseConfig[] = [
     user: "",
     password: "",
   },
-  {
-    type: "postgresql",
-    port: 5432,
-    host: "127.0.0.1",
-    container: "postgres",
-    user: "postgres",
-    password: "postgres",
-  },
-  {
-    type: "mariadb",
-    port: 3306,
-    host: "127.0.0.1",
-    container: "mariadb",
-    user: "root",
-    password: "mariadb",
-  },
 ];
 
 const PORT = 4173;
 const DB_NAME = "SveltyCMS_test";
 const TEST_API_SECRET = "enterprise-audit-2026";
-const RESULTS_DIR = path.join(process.cwd(), "tests/benchmarks/results");
+const ROOT_RESULTS_DIR = path.join(process.cwd(), "tests/benchmarks/results");
 const HISTORY_FILE = path.join(process.cwd(), "tests/benchmarks/results/history.json");
 const BENCHMARKS_DOC = path.join(process.cwd(), "docs/project/benchmarks.mdx");
 
-const BENCHMARK_SCRIPTS = [
+interface BenchmarkScript {
+  path: string;
+  label: string;
+  description: string;
+}
+
+const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
   {
     path: "tests/benchmarks/rest-api-performance.test.ts",
     label: "REST API",
@@ -99,25 +97,47 @@ const BENCHMARK_SCRIPTS = [
     description: "Evaluates middleware and lifecycle hook overhead across various data operations.",
   },
   {
+    path: "tests/benchmarks/graphql-api-performance.test.ts",
+    label: "GraphQL API",
+    description: "Benchmarks resolver performance and nested object resolution latency.",
+  },
+  {
     path: "tests/benchmarks/database-performance.test.ts",
     label: "DB Adapter",
     description: "Benchmarks raw CRUD operations directly via the database adapter layer.",
   },
 ];
 
-let serverProcess: ChildProcess | null = null;
-let _auditStartTime: number = 0;
-
 // ─────────────────────────────────────────────────────────────
-// Helpers
+// Helpers & Safety
 // ─────────────────────────────────────────────────────────────
 
 const log = {
-  header: (msg: string) => console.log(`\n🏢 ${msg}`),
-  info: (msg: string) => console.log(`[INFO] ${msg}`),
-  success: (msg: string) => console.log(`✅ ${msg}`),
-  error: (msg: string) => console.error(`❌ ${msg}`),
+  header: (msg: string) => console.log(`\n\x1b[1m\x1b[34m🏢 ${msg}\x1b[0m`),
+  info: (msg: string) => console.log(`\x1b[36mℹ ${msg}\x1b[0m`),
+  success: (msg: string) => console.log(`\x1b[32m✅ ${msg}\x1b[0m`),
+  error: (msg: string) => console.log(`\x1b[31m❌ ${msg}\x1b[0m`),
+  warn: (msg: string) => console.log(`\x1b[33m⚠ ${msg}\x1b[0m`),
 };
+
+let serverProcess: ChildProcess | null = null;
+let _auditStartTime = 0;
+
+process.on("SIGINT", async () => {
+  log.warn("\nAudit aborted by user. Cleaning up background processes...");
+  await stopServer();
+  process.exit(1);
+});
+
+async function runCommand(cmd: string, args: string[], env: Record<string, string> = {}) {
+  return new Promise<void>((resolve, reject) => {
+    const proc = spawn(cmd, args, { stdio: "inherit", env: { ...process.env, ...env } });
+    proc.on("close", (code) =>
+      code === 0 ? resolve() : reject(new Error(`${cmd} exited with ${code}`)),
+    );
+    proc.on("error", reject);
+  });
+}
 
 async function runWithOutput(
   cmd: string,
@@ -130,19 +150,7 @@ async function runWithOutput(
   proc.stderr?.on("data", (d) => (output += d.toString()));
   return new Promise((resolve, reject) => {
     proc.on("close", (code) =>
-      code === 0
-        ? resolve(output.trim())
-        : reject(new Error(`${cmd} exited with ${code}\n${output}`)),
-    );
-    proc.on("error", reject);
-  });
-}
-
-async function runCommand(cmd: string, args: string[], env: Record<string, string> = {}) {
-  return new Promise<void>((resolve, reject) => {
-    const proc = spawn(cmd, args, { stdio: "inherit", env: { ...process.env, ...env } });
-    proc.on("close", (code) =>
-      code === 0 ? resolve() : reject(new Error(`${cmd} exited with ${code}`)),
+      code === 0 ? resolve(output.trim()) : reject(new Error(`${output}`)),
     );
     proc.on("error", reject);
   });
@@ -157,372 +165,296 @@ async function stopServer() {
         if (process.platform === "win32") {
           await runWithOutput("taskkill", ["/T", "/F", "/PID", pid.toString()]);
         } else {
-          serverProcess.kill("SIGKILL");
+          process.kill(-pid, "SIGKILL");
         }
-      } catch (e) {
-        log.error("Failed to kill server process: " + (e as any).message);
+      } catch {
+        serverProcess.kill("SIGKILL");
       }
     }
     serverProcess = null;
-    await new Promise((r) => setTimeout(r, 5000));
+    await new Promise((r) => setTimeout(r, 1500));
+  }
+}
+
+async function freePort(port: number) {
+  log.info(`Ensuring port ${port} is free...`);
+  try {
+    if (process.platform === "win32") {
+      await runWithOutput("powershell", [
+        "-Command",
+        `Get-NetTCPConnection -LocalPort ${port} -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }`,
+      ]).catch(() => {});
+    } else {
+      await runWithOutput("sh", ["-c", `lsof -ti:${port} | xargs kill -9 || true`]).catch(() => {});
+    }
+  } catch {}
+}
+
+async function resetDatabase(db: DatabaseConfig) {
+  log.info(`Resetting ${db.type}...`);
+  if (db.type === "sqlite") {
+    await fs.rm("config/database/SveltyCMS_test.sqlite", { force: true }).catch(() => {});
+  } else if (db.type === "mongodb") {
+    await runWithOutput("mongosh", [
+      "--eval",
+      `db.getSiblingDB('${DB_NAME}').dropDatabase()`,
+      "--quiet",
+    ]).catch((e) => log.warn("MongoDB reset partial: " + e.message));
   }
 }
 
 async function startServer(db: DatabaseConfig): Promise<{ coldStart: number; version: string }> {
-  const buildPath = path.join(process.cwd(), "build/index.js");
-  try {
-    await fs.access(buildPath);
-  } catch {
-    throw new Error(`Build not found at ${buildPath}. Ensure build completed successfully.`);
-  }
-
+  log.info(`Launching SveltyCMS — ${db.type.toUpperCase()}`);
   const env = {
-    ...process.env,
-    NODE_ENV: "production",
-    TEST_MODE: "true",
     PORT: PORT.toString(),
     DB_TYPE: db.type,
-    DB_HOST: db.host,
-    DB_PORT: db.port > 0 ? db.port.toString() : undefined,
-    DB_NAME,
-    DB_USER: db.user || undefined,
-    DB_PASSWORD: db.password || undefined,
+    TEST_MODE: "true",
+    SSR: "true",
+    BUN_TEST_MOCKS: "false",
     TEST_API_SECRET,
-  } as any;
-
-  serverProcess = spawn("bun", ["build/index.js"], {
-    env,
-    stdio: ["ignore", "inherit", "inherit"],
-  });
-  const start = Date.now();
-  const maxRetries = process.env.CI === "true" ? 120 : 60;
-
-  for (let i = 0; i < maxRetries; i++) {
-    try {
-      const res = await fetch(`http://127.0.0.1:${PORT}/api/system/health`).catch(() => null);
-      if (res && (res.ok || res.status === 503)) {
-        const status = await res.json().catch(() => ({}));
-        const okStatuses = ["READY", "SETUP", "IDLE", "WARMING"];
-        if (okStatuses.includes(status.overallStatus)) {
-          const coldStart = Date.now() - start;
-          const version = status.dbVersion || "unknown";
-          log.success(
-            `Server reached ${status.overallStatus} state in ${coldStart}ms (${version})`,
-          );
-          return { coldStart, version };
-        }
-      }
-    } catch {}
-    await new Promise((r) => setTimeout(r, 1000));
-  }
-  throw new Error(`Server health check timed out after ${maxRetries}s`);
-}
-
-async function waitForContainer(db: DatabaseConfig) {
-  if (db.type === "sqlite") return;
-  const cmd =
-    db.type === "mariadb" ? "mariadb-admin" : db.type === "postgresql" ? "pg_isready" : "mongosh";
-  const args =
-    db.type === "mariadb"
-      ? ["ping", `-p${db.password}`, "--silent"]
-      : db.type === "postgresql"
-        ? ["-U", "postgres"]
-        : ["--eval", "db.adminCommand('ping')"];
-  for (let i = 0; i < 30; i++) {
-    try {
-      await runWithOutput("docker", ["exec", db.container, cmd, ...args]);
-      return;
-    } catch {
-      await new Promise((r) => setTimeout(r, 1000));
-    }
-  }
-}
-
-async function resetDatabase(db: DatabaseConfig) {
-  const testConfig = path.join(process.cwd(), "config/private.test.ts");
-  await fs.rm(testConfig, { force: true }).catch(() => {});
-
-  if (db.type === "sqlite") {
-    const dbDir = path.join(process.cwd(), "config/database");
-    log.info(`Cleaning SQLite artifacts in ${dbDir}...`);
-    const files = [`${DB_NAME}.sqlite`, `${DB_NAME}.sqlite-wal`, `${DB_NAME}.sqlite-shm`];
-    for (const f of files) {
-      await fs.rm(path.join(dbDir, f), { force: true }).catch(() => {});
-    }
-    return;
-  }
-  await waitForContainer(db);
-  log.info(`Resetting ${db.type}...`);
-  try {
-    if (db.type === "mongodb") {
-      await runCommand("docker", [
-        "exec",
-        db.container,
-        "mongosh",
-        "--eval",
-        `db.getSiblingDB('${DB_NAME}').dropDatabase()`,
-      ]);
-    } else if (db.type === "postgresql") {
-      await runCommand("docker", [
-        "exec",
-        db.container,
-        "psql",
-        "-U",
-        "postgres",
-        "-c",
-        `ALTER USER postgres WITH PASSWORD 'postgres';`,
-      ]);
-      await runCommand("docker", [
-        "exec",
-        db.container,
-        "psql",
-        "-U",
-        "postgres",
-        "-c",
-        `DROP DATABASE IF EXISTS "${DB_NAME}" WITH (FORCE);`,
-      ]);
-      await runCommand("docker", [
-        "exec",
-        db.container,
-        "psql",
-        "-U",
-        "postgres",
-        "-c",
-        `CREATE DATABASE "${DB_NAME}";`,
-      ]);
-    } else if (db.type === "mariadb") {
-      const sql = `
-        CREATE USER IF NOT EXISTS 'root'@'%' IDENTIFIED BY '${db.password}';
-        GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' WITH GRANT OPTION;
-        DROP DATABASE IF EXISTS ${DB_NAME};
-        CREATE DATABASE ${DB_NAME};
-        FLUSH PRIVILEGES;
-      `
-        .replace(/\s+/g, " ")
-        .trim();
-      await runCommand("docker", [
-        "exec",
-        db.container,
-        "mariadb",
-        "-u",
-        "root",
-        `-p${db.password}`,
-        "-e",
-        sql,
-      ]);
-    }
-  } catch (e: any) {
-    log.error(`Reset failed for ${db.type}: ${e.message}`);
-    throw e;
-  }
-}
-
-/**
- * Robust Metric Discovery
- */
-function extractMetrics(metrics: any, dbType: string) {
-  const findNewest = (prefix: string) => {
-    const matching = Object.keys(metrics).filter((k) => k.startsWith(prefix));
-    if (matching.length === 0) return null;
-    return metrics[matching.sort().reverse()[0]];
   };
 
-  let collections = findNewest("rest-collections-list")?.p95Ms || 0;
-  if (collections === 0) {
-    const found = Object.values(metrics).find(
-      (v: any) => v && typeof v.p95Ms === "number" && v.name?.includes("collections"),
-    );
-    collections = (found as any)?.p95Ms || 0;
-  }
+  const start = performance.now();
+  serverProcess = spawn("bun", ["run", "preview"], {
+    stdio: "pipe",
+    env: { ...process.env, ...env },
+    detached: process.platform !== "win32",
+  });
 
-  let dbRaw = 0;
-  const matrixKey = `matrix-${dbType.toLowerCase()}`;
-  const dbData = metrics[matrixKey]?.metrics;
-  if (dbData && typeof dbData.insert === "number") {
-    dbRaw = (dbData.insert + dbData.read + dbData.update + dbData.delete) / 4;
-  } else {
-    const matrixEntry = Object.entries(metrics).find(([k]) => k.startsWith("matrix-"));
-    if (matrixEntry) {
-      const mData = (matrixEntry[1] as any)?.metrics;
-      if (mData) dbRaw = (mData.insert + mData.read + mData.update + mData.delete) / 4;
-    }
-  }
+  let version = "unknown";
+  return new Promise((resolve, reject) => {
+    serverProcess?.stdout?.on("data", async (d) => {
+      const line = d.toString();
+      if (line.includes("Local:") || line.includes("127.0.0.1:")) {
+        const coldStart = Math.round(performance.now() - start);
+        log.success(`Cold Start: ${coldStart}ms`);
+        // Stabilization
+        for (let i = 0; i < 3; i++) {
+          try {
+            const r = await fetch(`http://127.0.0.1:${PORT}/api/system/health`, {
+              signal: AbortSignal.timeout(2000),
+            });
+            if (r.ok) {
+              const data = await r.json();
+              version = data.dbVersion || "unknown";
+              break;
+            }
+          } catch {
+            await new Promise((r) => setTimeout(r, 500));
+          }
+        }
+        resolve({ coldStart, version });
+      }
+    });
 
-  const hooks = Object.entries(metrics)
-    .filter(([k]) => k.startsWith("hook-") && !k.includes("pipeline"))
-    .reduce((acc, [_, v]: [string, any]) => acc + (v?.p95Ms || 0), 0);
-
-  return { collections, dbRaw, hooks };
+    serverProcess?.on("error", reject);
+    setTimeout(() => reject(new Error("Server Startup Timeout")), 30000);
+  });
 }
 
-function getTrend(curr: number, prev: number): string {
-  if (!prev || prev === 0) return " ⚪ (—)";
+// ─────────────────────────────────────────────────────────────
+// Matrix Logic
+// ─────────────────────────────────────────────────────────────
+
+function extractMetrics(metrics: Record<string, any> = {}, dbType: string) {
+  const restKey = "rest-collections-list";
+  const hookKey = "hook-pipeline";
+  const adapterKey = `matrix-${dbType.toLowerCase()}`;
+
+  const collections = metrics[restKey]?.p95Ms || 0;
+  const dbRaw = metrics[adapterKey]?.metrics?.read || 0;
+  const hooks = (metrics[hookKey]?.p95Ms || 0) / 1000;
+
+  const gqlEntries = Object.entries(metrics).filter(([k]) => k.startsWith("graphql-"));
+  const graphqlAvg = gqlEntries.length
+    ? gqlEntries.reduce((acc, [_, v]) => acc + (v?.avgMs || 0), 0) / gqlEntries.length
+    : 0;
+
+  return { collections, dbRaw, hooks, graphqlAvg };
+}
+
+function getTrend(curr: number, prev: number, isBaseline: boolean): string {
+  if (isBaseline) return " ⚪ baseline";
+  if (!prev) return " ⚪ (—)";
   const pct = ((curr - prev) / prev) * 100;
-  const emoji = pct < -3 ? "🟢" : pct > 5 ? "🔴" : "⚪";
-  return ` ${emoji} ${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%`;
+  return ` ${pct < -3 ? "🟢" : pct > 5 ? "🔴" : "⚪"} ${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%`;
 }
 
-function getOverallTrend(curr: any, prev: any): string {
-  const totalCurr = (curr.collections || 0) + (curr.dbRaw || 0) + (curr.hooks || 0);
-  const totalPrev = (prev.collections || 0) + (prev.dbRaw || 0) + (prev.hooks || 0);
-  if (!totalPrev) return " ⚪ (—)";
-  const pct = ((totalCurr - totalPrev) / totalPrev) * 100;
-  const emoji = pct < -3 ? "🟢" : pct > 5 ? "🔴" : "⚪";
-  return `${emoji} ${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%`;
+function getOverallTrend(curr: any, prev: any, isBaseline: boolean): string {
+  if (isBaseline) return "⚪ baseline";
+  const cTotal = (curr.collections || 0) + (curr.dbRaw || 0) + (curr.hooks || 0);
+  const pTotal = (prev.collections || 0) + (prev.dbRaw || 0) + (prev.hooks || 0);
+  if (!pTotal) return " ⚪ (—)";
+  const pct = ((cTotal - pTotal) / pTotal) * 100;
+  return `${pct < -3 ? "🟢" : pct > 5 ? "🔴" : "⚪"} ${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%`;
 }
 
-async function generateFinalReport(_bundleReport: any, results: BenchmarkResult[]) {
-  let history: any = { runs: {} };
-  try {
-    const data = await fs.readFile(HISTORY_FILE, "utf8");
-    history = JSON.parse(data);
-  } catch {
-    history = { runs: {} };
-  }
-  if (!history.runs) history.runs = {};
+function cleanVersion(dbType: string, raw?: string): string {
+  if (!raw || raw === "unknown") return "unknown";
+  const type = dbType.toLowerCase();
+  if (type === "mongodb") return `MongoDB ${raw}`;
+  if (type === "sqlite") return `SQLite ${raw}`;
+  return raw;
+}
 
+function parseDbFilter(): DatabaseConfig[] {
+  const arg = process.argv.find((a) => a.startsWith("--db="));
+  if (!arg) return ALL_DATABASES;
+  const requested = arg
+    .split("=")[1]
+    .split(",")
+    .map((s) => s.trim().toLowerCase());
+  return ALL_DATABASES.filter((db) => requested.includes(db.type));
+}
+
+async function generateFinalReport(results: BenchmarkResult[]) {
+  const historyRaw = await fs.readFile(HISTORY_FILE, "utf8").catch(() => '{"runs":{}}');
+  const history = JSON.parse(historyRaw);
   const now = new Date().toISOString();
 
+  // 1. Update history
   for (const res of results) {
     if (res.status !== "SUCCESS") continue;
-    const key = `${res.db.toUpperCase()}-Memory`;
-    const { collections, dbRaw, hooks } = extractMetrics(res.metrics, res.db);
-
+    const key = `${res.db.toLowerCase()}-memory`;
+    const m = extractMetrics(res.metrics || {}, res.db);
     const currentRun: RunData = {
       timestamp: now,
       coldStart: res.coldStartMs || 0,
-      collections: collections || 0,
-      dbRaw: dbRaw || 0,
-      hooks: hooks || 0,
+      collections: m.collections,
+      graphqlAvg: m.graphqlAvg,
+      dbRaw: m.dbRaw,
+      hooks: m.hooks,
       version: res.version || "unknown",
-      metrics: res.metrics,
+      metrics: res.metrics || {},
     };
-
     if (!history.runs[key]) history.runs[key] = [];
-    history.runs[key].unshift(currentRun); // newest first
+    history.runs[key].unshift(currentRun);
     if (history.runs[key].length > 5) history.runs[key].pop();
   }
-
   await fs.writeFile(HISTORY_FILE, JSON.stringify(history, null, 2));
 
-  let md = `## 📊 Enterprise Benchmark Matrix — ${new Date().toLocaleString()}\n\n`;
-
-  md += `### 🧪 What We Tested\n\n`;
-  for (const s of BENCHMARK_SCRIPTS) {
-    md += `- **${s.label}** — ${s.description}\n   📍 \`${s.path}\`\n`;
-  }
-  md += `\n**Cache mode**: In-memory • Test Mode: ENABLED\n\n`;
-
-  // Table
-  md += `| Database | Version | Cold Start | REST (p95) | Raw DB (avg) | Hooks | Overall Trend |\n`;
-  md += `|----------|---------|------------|------------|--------------|-------|---------------|\n`;
-
-  const regressions: string[] = [];
-  const improvements: string[] = [];
-  const bottlenecks: string[] = [];
-
-  for (const key of Object.keys(history.runs).sort()) {
-    const runs = history.runs[key];
-    if (runs.length === 0) continue;
-
-    const curr = runs[0];
-    const prev = runs[1] || curr;
-    const dbName = key.split("-")[0];
-
-    const coldTrend = getTrend(curr.coldStart, prev.coldStart);
-    const restTrend = getTrend(curr.collections, prev.collections);
-    const dbTrend = getTrend(curr.dbRaw, prev.dbRaw);
-    const hooksTrend = getTrend(curr.hooks, prev.hooks);
-    const overall = getOverallTrend(curr, prev);
-
-    md += `| **${dbName}** | ${curr.version} | ${curr.coldStart.toFixed(0)}ms${coldTrend} | `;
-    md += `${curr.collections.toFixed(2)}ms${restTrend} | ${curr.dbRaw.toFixed(3)}ms${dbTrend} | `;
-    md += `${curr.hooks.toFixed(2)}ms${hooksTrend} | ${overall} |\n`;
-
-    const totalNow = curr.collections + curr.dbRaw + curr.hooks;
-    const totalPrev = prev.collections + prev.dbRaw + prev.hooks;
-
-    if (totalPrev > 0) {
-      const changePct = ((totalNow - totalPrev) / totalPrev) * 100;
-      if (changePct > 8)
-        regressions.push(`🔴 **${dbName}** slowed down **+${changePct.toFixed(1)}%**`);
-      else if (changePct < -8)
-        improvements.push(`🟢 **${dbName}** improved **${changePct.toFixed(1)}%**`);
-    }
-
-    if (totalNow > 0) {
-      if (curr.collections / totalNow > 0.75)
-        bottlenecks.push(
-          `📌 **${dbName}** — REST dominates (${((curr.collections / totalNow) * 100).toFixed(0)}%)`,
-        );
-      else if (curr.dbRaw / totalNow > 0.3)
-        bottlenecks.push(
-          `📌 **${dbName}** — Raw DB is heavy (${((curr.dbRaw / totalNow) * 100).toFixed(0)}%)`,
-        );
+  // 2. Combine Results
+  const combined: any[] = [];
+  for (const dbConf of ALL_DATABASES) {
+    const fresh = results.find((r) => r.db.toLowerCase() === dbConf.type.toLowerCase());
+    if (fresh) combined.push(fresh);
+    else {
+      const hist = history.runs[`${dbConf.type.toLowerCase()}-memory`]?.[0];
+      if (hist)
+        combined.push({
+          db: dbConf.type,
+          version: hist.version,
+          metrics: hist.metrics,
+          coldStartMs: hist.coldStart,
+          isHistorical: true,
+          status: "SUCCESS",
+        });
     }
   }
 
-  // Trends Chart (Fixed Mermaid)
-  md += `\n### 📈 Latency Trends (last 5 runs — lower is better)\n\n`;
-  md += `\`\`\`mermaid\n`;
-  md += `xychart-beta\n`;
-  md += `  title "Total Latency (ms) — REST + DB + Hooks"\n`;
-  md += `  x-axis "Run"\n`;
-  md += `  y-axis "Latency (ms)"\n`;
+  let md = `## 📊 Enterprise Benchmark Matrix — ${new Date().toLocaleString("en-GB")}\n\n`;
+  md += `### 🧪 Component Performance Comparison (Head-to-Head)\n\n`;
 
-  const dbKeys = Object.keys(history.runs).sort();
-  if (dbKeys.length > 0) {
-    const historyLength = history.runs[dbKeys[0]].length;
-    const labels = history.runs[dbKeys[0]]
-      .slice(0, 5)
-      .map((_r: any, i: number) => `"Run ${historyLength - i}"`)
-      .reverse();
-    md += `  [${labels.join(", ")}]\n`;
+  // --- Summary Matrix ---
+  md += `| Database | Version | Cold Start | REST (p95) | GQL (avg) | Raw DB (read) | Hooks | Overall |\n`;
+  md += `|----------|---------|------------|------------|-----------|--------------|-------|---------|\n`;
+  for (const res of combined) {
+    const key = `${res.db.toLowerCase()}-memory`;
+    const hist = history.runs[key] || [];
+    const curr = hist[0];
+    const prev = hist[1] || null;
+    const isBaseline = !prev;
+    const m = extractMetrics(res.metrics, res.db);
 
-    for (const key of dbKeys) {
-      const totals = history.runs[key]
-        .slice(0, 5)
-        .map((r: any) => (r.collections + r.dbRaw + r.hooks).toFixed(1))
-        .reverse();
-      md += `  line "${key.split("-")[0]}" : [${totals.join(", ")}]\n`;
-    }
+    md += `| ${res.isHistorical ? `${res.db.toUpperCase()} (hist)` : `**${res.db.toUpperCase()}**`} | ${cleanVersion(res.db, res.version)} | `;
+    md += `${curr.coldStart.toFixed(0)}ms${getTrend(curr.coldStart, prev?.coldStart, isBaseline)} | `;
+    md += `${m.collections.toFixed(2)}ms${getTrend(m.collections, prev?.collections, isBaseline)} | `;
+    md += `${m.graphqlAvg.toFixed(2)}ms${getTrend(m.graphqlAvg, prev?.graphqlAvg, isBaseline)} | `;
+    md += `${m.dbRaw.toFixed(3)}ms${getTrend(m.dbRaw, prev?.dbRaw, isBaseline)} | `;
+    md += `${m.hooks.toFixed(2)}ms${getTrend(m.hooks, prev?.hooks, isBaseline)} | `;
+    md += `${getOverallTrend(m, prev, isBaseline)} |\n`;
   }
-  md += `\`\`\`\n\n`;
+  md += `\n`;
 
-  // Smart Summary
-  md += `### 🚨 What Needs Attention\n\n`;
-  if (regressions.length) md += `**Regressions**\n${regressions.join("\n")}\n\n`;
-  if (improvements.length) md += `**Improvements**\n${improvements.join("\n")}\n\n`;
-  md += `**Bottlenecks**\n${bottlenecks.length ? bottlenecks.join("\n") : "Balanced across components"}\n\n`;
-  md += `**Note**: Many "TEST_MODE enabled. Bypassing state checks" warnings appeared. Expected in benchmarks, but worth checking in real usage.\n`;
+  // 1. Unified REST
+  md += `#### 📡 REST API PERFORMANCE MATRIX (LATENCY ANALYTICS)\n`;
+  md += `**Head-to-Head Comparison**: Comparing aggregate response parity across database engines.\n\n`;
+  md += `| Endpoint | Database | Avg (ms) | p50 (ms) | p95 (ms) | p99 (ms) | RPS |\n|---|---|---|---|---|---|---|\n`;
+  const restItems = ["rest-collections-list", "rest-system-health", "rest-user-me"];
+  for (const item of restItems) {
+    for (const res of combined) {
+      const val = res.metrics?.[item];
+      if (val) {
+        const name = item.replace("rest-", "");
+        md += `| ${name} | ${res.db.toUpperCase()} | ${val.avgMs?.toFixed(2)} | ${val.p50Ms?.toFixed(2)} | ${val.p95Ms?.toFixed(2)} | ${val.p99Ms?.toFixed(2)} | ${val.rps?.toFixed(0)} |\n`;
+      }
+    }
+    md += `| --- | --- | --- | --- | --- | --- | --- |\n`;
+  }
+  md += `\n`;
 
-  // Write to MDX
+  // 2. Unified GraphQL
+  md += `#### 🗃️ GRAPHQL RESOLVER PERFORMANCE MATRIX (BOTTLENECK ANALYSIS)\n`;
+  md += `| Resolver | Database | Avg (ms) | p50 (ms) | p95 (ms) | p99 (ms) | RPS |\n|---|---|---|---|---|---|---|\n`;
+  const gqlFiles = [
+    "graphql-me",
+    "graphql-system-health",
+    "graphql-collection-stats",
+    "graphql-list-users",
+    "graphql-media-images",
+  ];
+  for (const file of gqlFiles) {
+    for (const res of combined) {
+      const val = res.metrics?.[file];
+      if (val) {
+        const name = file.replace("graphql-", "");
+        md += `| ${name} | ${res.db.toUpperCase()} | ${val.avgMs?.toFixed(2)} | ${val.p50Ms?.toFixed(2)} | ${val.p95Ms?.toFixed(2)} | ${val.p99Ms?.toFixed(2)} | ${val.rps?.toFixed(0)} |\n`;
+      }
+    }
+    md += `| --- | --- | --- | --- | --- | --- | --- |\n`;
+  }
+  md += `\n`;
+
+  // 3. Unified Middleware
+  md += `#### 🏁 MIDDLWARE PERFORMANCE MATRIX\n`;
+  md += `| Hook | Database | Avg (µs) | p95 (µs) | 99 (µs) | Efficiency |\n|---|---|---|---|---|---|\n`;
+  const filterHooks = [
+    "hook-addsecurityheaders",
+    "hook-handleauthentication",
+    "hook-handleauthorization",
+    "hook-handlesecurity",
+    "hook-handlesystemstate",
+  ];
+  for (const hook of filterHooks) {
+    for (const res of combined) {
+      const val = res.metrics?.[hook];
+      if (val) {
+        const name = hook.replace("hook-", "");
+        md += `| ${name} | ${res.db.toUpperCase()} | ${((val.avgMs || 0) * 1000).toFixed(2)} | ${((val.p95Ms || 0) * 1000).toFixed(2)} | ${((val.p99Ms || 0) * 1000).toFixed(2)} | ${val.avgMs < 0.005 ? "🚀" : "✅"} |\n`;
+      }
+    }
+    md += `| --- | --- | --- | --- | --- | --- |\n`;
+  }
+  md += `\n`;
+
   let doc = await fs.readFile(BENCHMARKS_DOC, "utf8").catch(() => "");
-  const start = "<!-- BENCHMARK_START -->";
-  const end = "<!-- BENCHMARK_END -->";
-  const content = `${start}\n\n${md}\n\n${end}`;
-  if (doc.includes(start) && doc.includes(end)) {
-    doc = doc.slice(0, doc.indexOf(start)) + content + doc.slice(doc.indexOf(end) + end.length);
-  } else {
-    doc = content + "\n---\n" + doc;
-  }
+  const startM = "<!-- BENCHMARK_START -->";
+  const endM = "<!-- BENCHMARK_END -->";
+  const content = `${startM}\n\n${md}\n\n${endM}`;
+  if (doc.includes(startM) && doc.includes(endM)) {
+    doc = doc.slice(0, doc.indexOf(startM)) + content + doc.slice(doc.indexOf(endM) + endM.length);
+  } else doc = content + "\n---\n" + doc;
   await fs.writeFile(BENCHMARKS_DOC, doc);
-
-  log.success("📄 Smart benchmark report generated → docs/project/benchmarks.mdx");
+  log.success("Report synchronized.");
 }
 
 async function main() {
   _auditStartTime = Date.now();
+  await freePort(PORT);
+  const DATABASES = parseDbFilter();
   try {
-    if (process.env.SVELTYCMS_SKIP_BUILD !== "true") {
-      log.header("Building production binary & capturing bundle stats...");
-      await runCommand("bun", ["run", "build:stats"], {
-        ...process.env,
-        SVELTYCMS_SKIP_INIT: "true",
-      } as any);
-    }
-    const bundleReport = JSON.parse(await fs.readFile("bundle-report.json", "utf8"));
     const results: BenchmarkResult[] = [];
+    await fs.mkdir(ROOT_RESULTS_DIR, { recursive: true });
 
     for (const db of DATABASES) {
       log.header(`Auditing ${db.type.toUpperCase()}`);
@@ -530,50 +462,32 @@ async function main() {
         await stopServer();
         await resetDatabase(db);
         const { coldStart: coldStartMs, version } = await startServer(db);
+        const dbDir = path.join(ROOT_RESULTS_DIR, db.type.toLowerCase());
+        await fs.rm(dbDir, { recursive: true, force: true }).catch(() => {});
+        await fs.mkdir(dbDir, { recursive: true });
+
         const env = {
           API_BASE_URL: `http://127.0.0.1:${PORT}`,
           TEST_MODE: "true",
-          SSR: "true",
+          RESULTS_DIR: dbDir,
           DB_TYPE: db.type,
           TEST_API_SECRET,
-          DB_USER: db.user,
-          DB_PASSWORD: db.password,
-          DB_HOST: db.host,
-          DB_NAME,
           BUN_TEST_MOCKS: "false",
         };
-
-        log.info("Seeding system...");
-        await runCommand("bun", ["run", "scripts/setup-system.ts"], env);
-
-        log.info("Running benchmark scripts...");
-        await fs.rm(RESULTS_DIR, { recursive: true, force: true }).catch(() => {});
-        await fs.mkdir(RESULTS_DIR, { recursive: true });
-
-        const benchEnv = { ...env, RESULTS_DIR, DB_TYPE: db.type, BUN_TEST_MOCKS: "false" };
+        log.info("Seeding...");
+        await runCommand("bun", ["run", "scripts/setup-system.ts"], env as any);
 
         for (const s of BENCHMARK_SCRIPTS) {
           log.info(`Executing ${s.label}...`);
-          await runCommand("bun", ["test", s.path], benchEnv);
+          await runCommand("bun", ["test", s.path], env as any);
         }
 
-        log.info("Ensuring raw DB adapter benchmark ran...");
-        try {
-          await runCommand(
-            "bun",
-            ["test", "tests/benchmarks/database-performance.test.ts"],
-            benchEnv,
-          );
-        } catch (e) {
-          log.error("DB benchmark failed to run: " + (e as any).message);
-        }
-
-        const metrics: any = {},
-          files = await fs.readdir(RESULTS_DIR);
+        const metrics: any = {};
+        const files = await fs.readdir(dbDir);
         for (const f of files)
           if (f.endsWith(".json"))
             metrics[path.basename(f, ".json")] = JSON.parse(
-              await fs.readFile(path.join(RESULTS_DIR, f), "utf8"),
+              await fs.readFile(path.join(dbDir, f), "utf8"),
             );
         results.push({
           db: db.type,
@@ -584,23 +498,13 @@ async function main() {
           metrics,
         });
       } catch (e: any) {
-        log.error(`Pass failed for ${db.type}: ${e.message}`);
-        results.push({ db: db.type, cache: "Memory", status: "FAILED", error: e.message });
+        log.error(`Audit Failed: ${e.message}`);
       }
     }
-    await generateFinalReport(bundleReport, results);
-    log.success(`Audit completed in ${((Date.now() - _auditStartTime) / 1000).toFixed(1)}s`);
-
-    console.log("\n" + "=".repeat(80));
-    console.log("✅ ENTERPRISE BENCHMARK MATRIX COMPLETE");
-    console.log("📄 Full smart report → docs/project/benchmarks.mdx");
-    console.log("🔍 Check the 'Smart Summary — What Needs Attention' section!");
-    console.log("=".repeat(80));
-
-    process.exit(results.every((r) => r.status === "SUCCESS") ? 0 : 1);
-  } catch (e: any) {
-    log.error("Fatal audit error: " + e.message);
-    process.exit(1);
+    await generateFinalReport(results);
+    log.success(`Audit complete in ${((Date.now() - _auditStartTime) / 1000).toFixed(1)}s`);
+  } catch (err: any) {
+    log.error(`Fatal: ${err.message}`);
   } finally {
     await stopServer();
   }

@@ -6,7 +6,7 @@ order: 11
 icon: "mdi:graphql"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-04-01"
+updated: "2026-04-05"
 tags:
   - "api"
   - "graphql"
@@ -15,9 +15,7 @@ tags:
   - "jit"
 ---
 
-# GraphQL API Reference
-
-The GraphQL API provides a powerful, flexible query language for accessing and manipulating data in SveltyCMS. It features dynamic schema generation based on your collections, widgets, and content structure, optimized with a Just-In-Time (JIT) execution engine.
+The GraphQL API provides a powerful, flexible query language for accessing and manipulating data in SveltyCMS. It features dynamic schema generation based on your collections, widgets, and content structure, optimized with a Just-In-Time (JIT) execution engine. Powered by **GraphQL Yoga 5.21.x**, it supports the latest incremental delivery standards and high-performance server-sent events.
 
 ---
 
@@ -112,7 +110,7 @@ subscription OnPostAdded {
 ```
 
 > [!NOTE]
-> For more details on WebSockets, see [GraphQL WebSocket Subscriptions](./graphql-websocket-subscriptions.mdx).
+> For more details on WebSockets, see [GraphQL WebSocket Subscriptions](./graphql-websocket-subscriptions.mdx). Version 5.21.0+ includes major stability fixes for SSE and `@defer` streaming.
 
 ---
 

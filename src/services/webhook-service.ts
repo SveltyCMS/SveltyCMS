@@ -54,7 +54,11 @@ export class WebhookService {
    */
   public async trigger(event: WebhookEvent, payload: unknown, tenantId: string): Promise<void> {
     if (!tenantId) {
-      logger.warn(`Webhook trigger called without tenantId for event: ${event}`);
+      if (process.env.TEST_MODE !== "true") {
+        logger.warn(`Webhook trigger called without tenantId for event: ${event}`);
+      } else {
+        logger.debug(`Webhook trigger called without tenantId for event: ${event}`);
+      }
       return;
     }
 

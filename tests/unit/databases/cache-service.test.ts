@@ -48,11 +48,13 @@ describe("CacheService (Whitebox)", () => {
     });
 
     it("should memoize generated keys", () => {
-      const spy = vi.spyOn(service as any, "keyCache", "get");
+      const getSpy = vi.spyOn(service["keyCache"], "get");
+      const setSpy = vi.spyOn(service["keyCache"], "set");
       service["generateKey"]("cached-key");
       service["generateKey"]("cached-key");
 
-      expect(spy).toBeTruthy();
+      expect(getSpy).toHaveBeenCalledTimes(2);
+      expect(setSpy).toHaveBeenCalledTimes(1);
     });
   });
 });

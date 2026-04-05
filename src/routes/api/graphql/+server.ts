@@ -67,6 +67,7 @@ import { WebSocketServer } from "ws";
 import { NoSchemaIntrospectionCustomRule } from "graphql";
 import { dev } from "$app/environment";
 
+import { createLoaders } from "./loaders";
 import { createDepthLimitRule, createMaxAliasesRule } from "./rules";
 import { collectionsResolvers, registerCollections } from "./resolvers/collections";
 import { createCleanTypeName } from "@utils/utils";
@@ -292,6 +293,11 @@ async function setupGraphQL(dbAdapter: DatabaseAdapter, tenantId?: string | null
             };
           }
         ).contextData;
+        const loaders = createLoaders(
+          contextData?.dbAdapter as DatabaseAdapter,
+          contextData?.tenantId ?? null,
+        );
+
         return {
           user: contextData?.user,
           dbAdapter: contextData?.dbAdapter,
@@ -299,6 +305,7 @@ async function setupGraphQL(dbAdapter: DatabaseAdapter, tenantId?: string | null
           bypassTenantIsolation: contextData?.bypassTenantIsolation,
           locale: request.headers.get("accept-language")?.split(",")[0]?.trim().slice(0, 2) || "en", // Simple locale extraction
           pubSub,
+          loaders,
         };
       },
     });
@@ -503,10 +510,8 @@ const handler = apiHandler(async (event: RequestEvent) => {
       throw new AppError("GraphQL Yoga returned no response", 500, "GRAPHQL_NO_RESPONSE");
     }
 
-    // Return a SvelteKit-compatible Response
-    const bodyBuffer = await yogaResponse.arrayBuffer();
-
-    return new Response(bodyBuffer, {
+    // Return a SvelteKit-compatible Response that supports streaming (for @defer and SSE)
+    return new Response(yogaResponse.body, {
       status: yogaResponse.status,
       statusText: yogaResponse.statusText,
       headers: yogaResponse.headers,

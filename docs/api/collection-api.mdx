@@ -16,170 +16,120 @@ tags:
 
 # Collection API Reference
 
-The Collection API is the primary interface for **mutating** data within SveltyCMS. While reading data is prioritized via SvelteKit `load()` functions or the [Search API](./search-api.mdx), this API provides the critical endpoints for creating, updating, and managing the lifecycle of your content.
+The Collection API is the primary interface for **mutating** and **reading** data within SveltyCMS. While the system prioritizes server-side performance using [**Local SDK**](./local-vs-http-api.mdx), this API provides the critical dispatcher for external consumers (including headless frontends and third-party integrations).
 
 ---
 
-## 👥 Choose Your Path
+## 📡 Modern Dispatcher Architecture
 
-- 🏗️ **[Data Architect Guide](#1-architecture-the-ssr-first-shift)** — Why `GET` was removed and how to query correctly.
-- 🛠️ **[Mutation Reference](#2-mutation-reference-create-update-delete)** — Managing individual entries.
-- 📦 **[Batch Operations](#3-batch-operations)** — Handling large-scale changes efficiently.
-- 🛡️ **[Security & Multi-Tenancy](#4-security--multi-tenancy)** — Permission levels and data isolation.
+As of version 2026.4, the Collection API uses a **Modular Dispatcher** structure. This provides:
 
----
-
-## 1. Architecture: The SSR-First Shift
-
-In the 2026 SveltyCMS engine, **direct GET endpoints for listing collection entries have been removed** from the Collection API route.
-
-### Why this change?
-
-1.  **Eliminate Waterfall**: For the Admin Studio and standard frontend pages, data is fetched during SSR via `+page.server.ts`, preventing the "Double Fetch" pattern (Server -> Browser -> API -> Server).
-2.  **Type Safety**: Native DB adapters provide full TypeScript intellisense that REST strings cannot.
-3.  **Performance**: Sub-1ms hot-paths are achieved by querying the database directly within the SvelteKit request lifecycle.
-
-### How to READ data now?
-
-| Scenario                 | Recommended Solution                                                       | Latency   |
-| :----------------------- | :------------------------------------------------------------------------- | :-------- |
-| **SvelteKit App**        | Use [**Local SDK**](./local-vs-http-api.mdx) (`locals.cms.find`)           | **0–5ms** |
-| **Headless (Next/Nuxt)** | Use the [**Search API**](./search-api.mdx) (filters & sorting)             | 50–150ms  |
-| **Complex Queries**      | Use the [**GraphQL API**](./graphql-api.mdx) (query exactly what you need) | 50–200ms  |
-
-> [!TIP]
-> **Pro-Tip**: In SvelteKit `+page.server.ts` or `actions`, **always use `locals.cms`**. It bypasses the entire network stack, JSON serialization, and external auth overhead, making your app significantly faster and more secure.
+- **Consistent Response Shapes**: Unified success/error JSON.
+- **304 Support**: Built-in ETag-based caching for high-performance GET requests.
+- **Improved Security**: Enhanced CSRF and Multi-tenant verification.
 
 ---
 
-## 2. Mutation Reference (Create, Update, Delete)
+## 🏗️ Querying & Mutations
 
-All mutations require an `Authorization: Bearer <token>` header and a valid `Content-Type: application/json`.
+All requests require an `Authorization: Bearer <token>` header and set `Content-Type: application/json`.
 
-### Base Endpoint Pattern
+### 1. Read Operations (GET)
 
-`/api/collections/[collectionId]`
+While we recommend [**Local SDK**](./local-vs-http-api.mdx) for SSR, these endpoints are fully available for external apps.
 
-> [!NOTE]
-> Use the **Internal ID** (e.g., `23d772dd3783492...`) for `[collectionId]`, which you can find in the Collection list or retrieve via the **Content Manager** (`contentManager.getCollectionById`).
+#### A. List Collections
+
+**Endpoint**: `GET /api/collections`  
+**Description**: Returns a list of all authorized schemas/collections.  
+**Query Params**:
+
+- `includeFields=true`: Include full schema definitions.
+- `includeStats=true`: Include item counts (performance-heavy logic).
+
+#### B. Search & Query entries
+
+**Endpoint**: `GET /api/collections/search`  
+**Query Params**:
+
+- `q`: Search string in indexed fields.
+- `collections`: Comma-separated list of IDs to filter by.
+- `limit`/`page`: Standard pagination.
+- `filter`: JSON-stringified Mongo-style filter.
+
+---
+
+## 🛡️ Response Shape
+
+All SveltyCMS API responses follow a unified structure to simplify frontend integration.
+
+### Success Response (200 OK)
+
+Standard responses wrap results in a `data` property.
+
+```json
+{
+  "success": true,
+  "data": { "title": "My Post", "id": "..." }
+}
+```
+
+### Not Modified (304)
+
+The API automatically sends `etag` headers. If the client sends an `If-None-Match` header that matches the current data hash, the server returns a **304** with NO body, saving significant bandwidth.
+
+### Error Response (4xx/5xx)
+
+Errors follow a consistent structure via the Unified Error Handler.
+
+```json
+{
+  "success": false,
+  "message": "Authentication required",
+  "error": {
+    "code": "UNAUTHORIZED",
+    "status": 401
+  }
+}
+```
+
+---
+
+## 🛠️ Mutation Reference
 
 ### A. Create Entry (POST)
 
 **Endpoint**: `POST /api/collections/[collectionId]`  
+**Payload**: JSON object matching the collection schema.  
 **Permission**: `collections:create`
-
-**Payload**:
-
-```json
-{
-  "title": "My New Post",
-  "content": "Full article content...",
-  "status": "published"
-}
-```
-
-**Mechanics**:
-
-- The system automatically assigns `_id`, `createdAt`, `updatedAt`, and `createdBy`.
-- All data passes through the **Widget Validation System** before persistence.
 
 ### B. Update Entry (PATCH)
 
 **Endpoint**: `PATCH /api/collections/[collectionId]/[entryId]`  
-**Permission**: `collections:update`
-
-**Payload**:
-
-```json
-{
-  "status": "archived"
-}
-```
-
-**Mechanics**:
-
-- Performs a partial merge. Fields not included in the payload are preserved.
-- Refreshes the `updatedAt` and `updatedBy` metadata.
-- Automatically invalidates the page cache for this collection.
+**Mechanics**: Performs a partial merge. Only include the fields you wish to change.
 
 ### C. Delete Entry (DELETE)
 
-**Endpoint**: `DELETE /api/collections/[collectionId]/[entryId]`  
-**Permission**: `collections:delete`
-
-**Query Params**:
-
-- `permanent=true` (Optional): Forces a hard delete. Otherwise, entries are soft-deleted to the Trash.
+**Endpoint**: `DELETE /api/collections/[collectionId]/[entryId]?permanent=true`
 
 ---
 
-## 3. Batch Operations
+## 📦 Batch Operations
 
-For managing multiple items (e.g., publishing 50 drafts at once), use the `/batch` endpoint to avoid multiple network roundtrips.
+For large-scale changes, use the `/batch` endpoint to avoid multiple roundtrips.
 
 **Endpoint**: `POST /api/collections/[collectionId]/batch`  
-**Permission**: `collections:update` (or as per individual action)
-
 **Payload**:
 
 ```json
 {
   "action": "status",
-  "entryIds": ["id1", "id2", "id3"],
+  "entryIds": ["id1", "id2"],
   "status": "published"
 }
 ```
 
-**Available Actions**:
-
-- `status`: Update the publishing state.
-- `delete`: Soft or hard delete the group.
-- `clone`: Duplicate the targeted entries.
-
 ---
 
-## 4. Security & Multi-Tenancy
-
-### Automatic Tenant Scoping
-
-If `MULTI_TENANT` is enabled in your `private.ts` config, the API **automatically** scopes every request:
-
-- **Write**: New entries are stamped with the `tenantId` from the authenticated user.
-- **Access**: Attempting to PATCH or DELETE an entry belonging to a different tenant returns a `404 NOT_FOUND` for security obfuscation.
-
-### Permission Gates
-
-Endpoints check permissions sequentially:
-
-1.  **Auth Check**: Is the request signed with a valid JWT?
-2.  **Role Check**: Does the user's role permit `write` or `delete` on this specific collection?
-3.  **Widget Check**: Are there field-level restrictions (e.g., "Read-Only" fields) defined in the widget schema?
-
----
-
-## 📡 Response Shape
-
-All Collection API responses include performance telemetry.
-
-```json
-{
-  "success": true,
-  "data": { ... },
-  "performance": {
-    "duration": 4.5,
-    "dbTime": 2.1
-  }
-}
-```
-
-**Error Codes**:
-
-- `COLLECTION_NOT_FOUND` (404)
-- `VALIDATION_FAILED` (400) — Check `details` for field-specific errors.
-- `UNAUTHORIZED` (401) — Token missing or expired.
-
----
-
-**Next Steps**: For read-only access, transition to the [Search API Reference](./search-api.mdx) or the [GraphQL Playground](./graphql-api.mdx).
-
-For structural operations and collection metadata, refer to the [Content System Architecture](../architecture/content-system.mdx).
+**Next Steps**: For real-time updates, see the [Events & Content Streams](./events-api.mdx).  
+For structural operations, refer to the [Content Manager Documentation](../architecture/content-system.mdx).

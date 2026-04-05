@@ -72,22 +72,22 @@ pubSub.subscribe("entryUpdated", (event) => {
 
 ## 3. The Mechanics
 
-The Real-Time Events API acts as a **Unidirectional Bridge** between the internal `EventBus` and the external HTTP world.
+The Real-Time Events API acts as a **Unidirectional Bridge** between the internal **`EventBus`** (powering SSE) and the external HTTP world. While the **`pubSub`** service handles typed GraphQL subscriptions, the **`eventBus`** provides the high-concurrency backplane required for hundreds of persistent SSE connections.
 
 ```mermaid
 sequenceDiagram
     participant App as External App
-    participant SSE as SSE Handler (/api/events)
-    participant Bus as Internal EventBus (pubSub)
+    participant SSE as Modular Handler (content.ts)
+    participant Bus as Internal EventBus (EventEmitter)
     participant Core as CMS Core / AI Service
 
     App->>SSE: GET /api/events (Keep-Alive)
-    SSE->>Bus: Subscribe to All (*)
+    SSE->>Bus: Subscribe to content:update
     SSE-->>App: connected event
 
-    Core->>Bus: publish("entryUpdated", { id: 123 })
+    Core->>Bus: emit("content:update", { payload })
     Bus->>SSE: notify(event)
-    SSE-->>App: data: { "event": "entryUpdated", ... }
+    SSE-->>App: data: { "event": "content:update", ... }
 
     Note over SSE, App: 30s Heartbeat (: keep-alive)
 ```

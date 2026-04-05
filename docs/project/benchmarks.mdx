@@ -1,96 +1,3 @@
-<!-- BENCHMARK_START -->
-
-## 📊 Enterprise Benchmark Matrix — 05/04/2026, 04:03:28
-
-### 🧪 What We Tested
-
-- **REST API** — Measures E2E collection throughput and latency using REST API endpoints.
-   📍 `tests/benchmarks/rest-api-performance.test.ts`
-- **Hooks** — Evaluates middleware and lifecycle hook overhead across various data operations.
-   📍 `tests/benchmarks/hooks-performance.test.ts`
-- **DB Adapter** — Benchmarks raw CRUD operations directly via the database adapter layer.
-   📍 `tests/benchmarks/database-performance.test.ts`
-
-**Cache mode**: In-memory • Test Mode: ENABLED
-
-| Database | Version | Cold Start | REST (p95) | Raw DB (avg) | Hooks | Overall Trend |
-|----------|---------|------------|------------|--------------|-------|---------------|
-| **MARIADB** | unknown | 1048ms ⚪ +0.0% | 13.05ms ⚪ +0.0% | 3.189ms ⚪ +0.0% | 0.09ms ⚪ +0.0% | ⚪ +0.0% |
-| **MONGODB** | unknown | 1044ms ⚪ +0.0% | 11.95ms ⚪ +0.0% | 0.740ms ⚪ +0.0% | 0.10ms ⚪ +0.0% | ⚪ +0.0% |
-| **POSTGRESQL** | unknown | 1048ms ⚪ +0.0% | 10.36ms ⚪ +0.0% | 0.095ms ⚪ +0.0% | 0.09ms ⚪ +0.0% | ⚪ +0.0% |
-| **SQLITE** | unknown | 1055ms ⚪ +0.0% | 9.60ms ⚪ +0.0% | 0.114ms ⚪ +0.0% | 0.09ms ⚪ +0.0% | ⚪ +0.0% |
-
-### 📈 Latency Trends (last 5 runs — lower is better)
-
-```mermaid
-xychart-beta
-  title "Total Latency (ms) — REST + DB + Hooks"
-  x-axis "Run"
-  y-axis "Latency (ms)"
-  ["Run 1"]
-  line "MARIADB" : [16.3]
-  line "MONGODB" : [12.8]
-  line "POSTGRESQL" : [10.6]
-  line "SQLITE" : [9.8]
-```
-
-### 🚨 What Needs Attention
-
-**Bottlenecks**
-📌 **MARIADB** — REST dominates (80%)
-📌 **MONGODB** — REST dominates (93%)
-📌 **POSTGRESQL** — REST dominates (98%)
-📌 **SQLITE** — REST dominates (98%)
-
-**Note**: Many "TEST_MODE enabled. Bypassing state checks" warnings appeared. Expected in benchmarks, but worth checking in real usage.
-
-
-<!-- BENCHMARK_END -->
----
-## 📊 Enterprise Benchmark Matrix (April 2026 Update)
-
-> [!NOTE]
-> **Last Updated**: 04/04/2026, 11:21:00 | **Strategy**: Zero-Mock Production Audit
-
-### 📦 Build & Footprint
-
-| Metric | Production Value | Client/Server |
-| :--- | :--- | :--- |
-| **Build Duration** | **7.48s** | N/A |
-| **Module Count** | **1476** | 500 Client / 976 Server |
-| **Asset Count** | **275** | 235 JS / 40 CSS |
-| **Brotli Size** | **881.19 KB** | Transfer-Ready |
-
-### 🚀 Database & Cache Latency (p95)
-
-| Engine | Cache | Cold Start | Health Check | User Context | Collections | Throughput (RPS) |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **SQLITE** | Memory | **1591ms** | 6.19 ms | 11.91 ms | 9.35 ms | 2,157 RPS |
-| **MONGODB** | Memory | **1541ms** | 4.41 ms | 17.66 ms | 11.50 ms | 1,617 RPS |
-| **MONGODB** | Redis | **1573ms** | 4.54 ms | 18.78 ms | 10.43 ms | 1,571 RPS |
-| **POSTGRESQL** | Memory | ❌ Failed | ❌ | ❌ | ❌ | ❌ |
-| **POSTGRESQL** | Redis | ❌ Failed | ❌ | ❌ | ❌ | ❌ |
-| **MARIADB** | Memory | ❌ Failed | ❌ | ❌ | ❌ | ❌ |
-| **MARIADB** | Redis | ❌ Failed | ❌ | ❌ | ❌ | ❌ |
---- | :--- | :--- |
-| **Build Duration** | **7.94s** | N/A |
-| **Module Count** | **1476** | 500 Client / 976 Server |
-| **Asset Count** | **275** | 235 JS / 40 CSS |
-| **Brotli Size** | **881.15 KB** | Transfer-Ready |
-
-### 🚀 Database & Cache Latency (p95)
-
-| Engine | Cache | Cold Start | Health Check | User Context | Collections | Throughput (RPS) |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **SQLITE** | Memory | **1609ms** | 6.04 ms | 13.41 ms | 6.83 ms | 2,334 RPS |
-| **MONGODB** | Memory | **1526ms** | 4.82 ms | 22.69 ms | 11.00 ms | 1,828 RPS |
-| **MONGODB** | Redis | **1543ms** | 7.10 ms | 21.80 ms | 11.07 ms | 1,587 RPS |
-| **POSTGRESQL** | Memory | ❌ Failed | ❌ | ❌ | ❌ | ❌ |
-| **POSTGRESQL** | Redis | ❌ Failed | ❌ | ❌ | ❌ | ❌ |
-| **MARIADB** | Memory | ❌ Failed | ❌ | ❌ | ❌ | ❌ |
-| **MARIADB** | Redis | ❌ Failed | ❌ | ❌ | ❌ | ❌ |
-
----
 ---
 path: "docs/project/benchmarks.mdx"
 title: "Performance Benchmarks"
@@ -99,13 +6,81 @@ order: 5
 icon: "mdi:speedometer"
 author: "SveltyCMS Team"
 created: "2026-03-15"
-updated: "2026-04-04"
+updated: "2026-04-05"
 tags:
   - "benchmarks"
   - "performance"
   - "scalability"
   - "metrics"
 ---
+
+<!-- BENCHMARK_START -->
+
+## 📊 Enterprise Benchmark Matrix — 05/04/2026, 16:10:00
+
+### 🧪 Component Performance Comparison (Head-to-Head)
+
+| Database | Version | Cold Start | REST (p95) | GQL (avg) | Raw DB (read) | Hooks | Overall |
+|----------|---------|------------|------------|-----------|--------------|-------|---------|
+| **SQLITE** | SQLite 8.2.3 | 1515ms ⚪ +1.5% | 3.45ms 🟢 -12.8% | 5.18ms ⚪ -1.4% | 0.107ms ⚪ (—) | 0.00ms ⚪ -2.0% | 🟢 -10.1% |
+| **MONGODB** | MongoDB 3.51.3 | 1591ms ⚪ -1.0% | 6.78ms 🟢 -22.9% | 6.35ms ⚪ +2.4% | 0.509ms ⚪ (—) | 0.00ms ⚪ +3.9% | 🟢 -17.1% |
+
+#### 📡 REST API PERFORMANCE MATRIX (LATENCY ANALYTICS)
+**Head-to-Head Comparison**: Comparing aggregate response parity across database engines.
+
+| Endpoint | Database | Avg (ms) | p50 (ms) | p95 (ms) | p99 (ms) | RPS |
+|---|---|---|---|---|---|---|
+| collections-list | SQLITE | 2.51 | 2.20 | 3.45 | 3.68 | 3935 |
+| collections-list | MONGODB | 3.01 | 2.82 | 6.78 | 6.92 | 3287 |
+| --- | --- | --- | --- | --- | --- | --- |
+| system-health | SQLITE | 4.16 | 4.03 | 8.02 | 8.38 | 2338 |
+| system-health | MONGODB | 3.59 | 3.60 | 4.14 | 5.35 | 2717 |
+| --- | --- | --- | --- | --- | --- | --- |
+| user-me | SQLITE | 5.60 | 5.56 | 6.28 | 6.39 | 1760 |
+| user-me | MONGODB | 7.06 | 6.92 | 9.64 | 10.14 | 1403 |
+| --- | --- | --- | --- | --- | --- | --- |
+
+#### 🗃️ GRAPHQL RESOLVER PERFORMANCE MATRIX (BOTTLENECK ANALYSIS)
+| Resolver | Database | Avg (ms) | p50 (ms) | p95 (ms) | p99 (ms) | RPS |
+|---|---|---|---|---|---|---|
+| me | SQLITE | 5.92 | 5.88 | 7.11 | 7.51 | 1595 |
+| me | MONGODB | 6.68 | 6.41 | 9.44 | 9.60 | 1462 |
+| --- | --- | --- | --- | --- | --- | --- |
+| system-health | SQLITE | 5.89 | 5.85 | 8.02 | 8.50 | 1650 |
+| system-health | MONGODB | 6.45 | 6.28 | 9.79 | 10.02 | 1516 |
+| --- | --- | --- | --- | --- | --- | --- |
+| collection-stats | SQLITE | 5.13 | 5.20 | 5.79 | 5.94 | 1909 |
+| collection-stats | MONGODB | 8.60 | 8.58 | 10.99 | 11.74 | 1143 |
+| --- | --- | --- | --- | --- | --- | --- |
+| list-users | SQLITE | 5.89 | 5.60 | 8.37 | 8.50 | 1654 |
+| list-users | MONGODB | 7.32 | 6.77 | 9.43 | 9.46 | 1351 |
+| --- | --- | --- | --- | --- | --- | --- |
+| media-images | SQLITE | 5.79 | 5.63 | 9.52 | 10.10 | 1687 |
+| media-images | MONGODB | 6.62 | 6.44 | 8.28 | 8.47 | 1494 |
+| --- | --- | --- | --- | --- | --- | --- |
+
+#### 🏁 MIDDLWARE PERFORMANCE MATRIX
+| Hook | Database | Avg (µs) | p95 (µs) | 99 (µs) | Efficiency |
+|---|---|---|---|---|---|
+| addsecurityheaders | SQLITE | 2.79 | 4.70 | 7.20 | 🚀 |
+| addsecurityheaders | MONGODB | 2.74 | 5.10 | 7.80 | 🚀 |
+| --- | --- | --- | --- | --- | --- |
+| handleauthentication | SQLITE | 1.66 | 2.40 | 8.30 | 🚀 |
+| handleauthentication | MONGODB | 2.23 | 2.70 | 8.10 | 🚀 |
+| --- | --- | --- | --- | --- | --- |
+| handleauthorization | SQLITE | 3.02 | 4.50 | 10.50 | 🚀 |
+| handleauthorization | MONGODB | 3.05 | 5.00 | 10.60 | 🚀 |
+| --- | --- | --- | --- | --- | --- |
+| handlesecurity | SQLITE | 1.77 | 2.30 | 8.10 | 🚀 |
+| handlesecurity | MONGODB | 1.87 | 2.00 | 8.80 | 🚀 |
+| --- | --- | --- | --- | --- | --- |
+| handlesystemstate | SQLITE | 1.92 | 2.60 | 8.10 | 🚀 |
+| handlesystemstate | MONGODB | 1.60 | 2.40 | 10.10 | 🚀 |
+| --- | --- | --- | --- | --- | --- |
+
+
+
+<!-- BENCHMARK_END -->
 
 # Performance Benchmarks (April 2026 Update)
 
@@ -124,17 +99,27 @@ With the introduction of the **Harmonized API Architecture**, SveltyCMS has tran
 To run the automated benchmark matrix (`bun run scripts/enterprise-matrix.ts`) successfully, your environment must match our production-parity testing stack.
 
 ### 🐳 Docker Requirements
+
 The benchmark suite is **Zero-Mock**, meaning it requires real, running instances of every supported database. You must have Docker installed and the following services active with their default ports exposed:
 
-| Service | Image | Port | Purpose |
-| :--- | :--- | :--- | :--- |
-| **MongoDB** | `mongo:latest` | `27017` | Document Store Benchmark |
-| **PostgreSQL**| `postgres:latest`| `5432` | Relational Benchmark |
-| **MariaDB** | `mariadb:latest` | `3306` | SQL Compliance Benchmark |
-| **Redis** | `redis:latest` | `6379` | L2 Cache Tier Benchmark |
+| Service        | Image             | Port    | Purpose                  |
+| :------------- | :---------------- | :------ | :----------------------- |
+| **MongoDB**    | `mongo:latest`    | `27017` | Document Store Benchmark |
+| **PostgreSQL** | `postgres:latest` | `5432`  | Relational Benchmark     |
+| **MariaDB**    | `mariadb:latest`  | `3306`  | SQL Compliance Benchmark |
+| **Redis**      | `redis:latest`    | `6379`  | L2 Cache Tier Benchmark  |
 
 > [!IMPORTANT]
 > **No Credentials Required**: The benchmark suite expects these services to be accessible via `localhost` without mandatory passwords (standard Docker development setup). If your environment requires authentication, update `scripts/enterprise-matrix.ts` accordingly.
+
+> [!TIP]
+> **Quick Start — Selective DB Testing**: You can run benchmarks for specific databases only:
+>
+> ```bash
+> bun run scripts/enterprise-matrix.ts --db sqlite,mongodb
+> ```
+>
+> This is useful for faster iteration when debugging specific adapters.
 
 ---
 
@@ -143,24 +128,26 @@ The benchmark suite is **Zero-Mock**, meaning it requires real, running instance
 To provide "Enterprise-Ready" transparency, our April 2026 suite moves beyond simple averages.
 
 ### 1. Percentiles (p50, p95, p99)
-*   **Why**: Averages hide "jitter" (outliers). 99 fast requests and 1 slow request can result in a misleading average.
-*   **Insight**: **p95** represents the "worst-case" experience for 95% of users. **p99** identifies critical bottlenecks or Garbage Collection (GC) pauses that impact high-traffic stability.
+
+- **Why**: Averages hide "jitter" (outliers). 99 fast requests and 1 slow request can result in a misleading average.
+- **Insight**: **p95** represents the "worst-case" experience for 95% of users. **p99** identifies critical bottlenecks or Garbage Collection (GC) pauses that impact high-traffic stability.
 
 ### 2. Throughput (RPS - Requests Per Second)
-*   **Why**: Latency measures speed; RPS measures **capacity**.
-*   **Insight**: High RPS demonstrates that SveltyCMS can handle massive traffic spikes without crashing, vital for global edge deployments.
+
+- **Why**: Latency measures speed; RPS measures **capacity**.
+- **Insight**: High RPS demonstrates that SveltyCMS can handle massive traffic spikes without crashing, vital for global edge deployments.
 
 ---
 
 ## 🚀 Key Performance Gains: Cross-Platform Comparison
 
-| Metric | **Standard Server (AMD)** | **Legion Pro 7 (Intel + SQL)** | Improvement |
-| :--- | :--- | :--- | :--- |
-| **Pipeline Overhead** | 0.15 ms | **0.10 ms (102µs)** | **~33%** |
-| **Internal Latency** | 0.13 ms | **0.08 ms (80µs)** | **~38%** |
-| **Raw DB Read** | 0.94 ms | **0.42 ms (420µs)** | **~55%** |
-| **Raw DB Insert** | 1.05 ms | **0.48 ms (480µs)** | **~54%** |
-| **Max Throughput** | 8,000+ RPS | **12,000+ RPS** | **~50%** |
+| Metric                | **Standard Server (AMD Ryzen 5 3600)** | **PC (Intel 275hx)** | Improvement |
+| :-------------------- | :------------------------------------- | :------------------- | :---------- |
+| **Pipeline Overhead** | 0.15 ms                                | **0.10 ms (102µs)**  | **~33%**    |
+| **Internal Latency**  | 0.13 ms                                | **0.08 ms (80µs)**   | **~38%**    |
+| **Raw DB Read**       | 0.94 ms                                | **0.42 ms (420µs)**  | **~55%**    |
+| **Raw DB Insert**     | 1.05 ms                                | **0.48 ms (480µs)**  | **~54%**    |
+| **Max Throughput**    | 8,000+ RPS                             | **12,000+ RPS**      | **~50%**    |
 
 ---
 
@@ -168,11 +155,11 @@ To provide "Enterprise-Ready" transparency, our April 2026 suite moves beyond si
 
 The April 2026 update introduces a specialized 3-layer caching strategy for the Local SDK to eliminate database bottlenecks during high-concurrency SSR.
 
-| Layer | p95 Latency | Insight | Impact |
-| :--- | :--- | :--- | :--- |
-| **Cold DB Read** | 0.016 ms (16µs) | Initial data fetch from adapter. | Baseline |
-| **L2 Global Cache** | **0.006 ms (6µs)** | **Redis-Optimized** service-level deduplication. | **2.0x Faster** |
-| **L1 Request Cache** | **0.005 ms (5µs)** | **In-Memory** same-request deduplication (Map). | **2.8x Faster** |
+| Layer                | p95 Latency        | Insight                                          | Impact          |
+| :------------------- | :----------------- | :----------------------------------------------- | :-------------- |
+| **Cold DB Read**     | 0.016 ms (16µs)    | Initial data fetch from adapter.                 | Baseline        |
+| **L2 Global Cache**  | **0.006 ms (6µs)** | **Redis-Optimized** service-level deduplication. | **2.0x Faster** |
+| **L1 Request Cache** | **0.005 ms (5µs)** | **In-Memory** same-request deduplication (Map).  | **2.8x Faster** |
 
 ---
 

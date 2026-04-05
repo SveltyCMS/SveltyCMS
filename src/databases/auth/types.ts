@@ -6,7 +6,7 @@
  * throughout the authentication system to avoid circular imports.
  */
 
-import type { ISODateString, DatabaseId, FieldDefinition } from "@src/content/types";
+import type { ISODateString, DatabaseId, FieldDefinition, BaseEntity } from "@src/content/types";
 
 // Re-export client-safe constants from the dedicated file
 // This preserves backward compatibility for all existing server-side consumers
@@ -17,8 +17,7 @@ export type {
 } from "./permission-constants";
 
 // User Interface
-export interface User {
-  _id: DatabaseId; // Unique identifier for the user
+export interface User extends BaseEntity {
   activeSessions?: number; // Number of active sessions
   avatar?: string; // URL of the user's avatar image
   backupCodes?: string[]; // Array of hashed backup codes for 2FA recovery
@@ -54,11 +53,8 @@ export interface User {
   roleIds?: DatabaseId[]; // Array of role IDs associated with the user
   samlId?: string; // Unique identifier from SAML Identity Provider (IdP)
   samlProvider?: string; // Identifier for the SAML Identity Provider (IdP)
-  tenantId?: DatabaseId | null; // Identifier for the tenant the user belongs to (in multi-tenant mode)
   totpSecret?: string; // TOTP secret for 2FA (base32 encoded)
   username?: string; // Username of the user
-  createdAt?: ISODateString; // When the user was created
-  updatedAt?: ISODateString; // When the user was last updated
 }
 
 // Role Interface

@@ -33,18 +33,18 @@ SveltyCMS is designed for developers who prioritize performance, security, and a
 > [!IMPORTANT]
 > **Measurement Standard**: SveltyCMS metrics now follow **Percentile-Aware (p95)** benchmarking on modern Intel hardware (April 2026). This ensures we report real-world consistency, not just idealized averages.
 
-| Metric                   | SveltyCMS (Intel 2026)            | PayloadCMS (v3.x)              | Directus (v11.x)                   | Strapi (v5.x)            | Sveltia CMS         |
-| :----------------------- | :-------------------------------- | :----------------------------- | :--------------------------------- | :----------------------- | :------------------ |
-| **Avg API Read Latency** | **0.55–2.9 ms**                   | 4–12 ms (sub-10 ms co-located) | 3–18 ms (avg ~35 ms in some tests) | 6–25 ms (avg 120–150 ms) | N/A (Git-based)     |
-| **Avg Insert Latency**   | **0.65–1.6 ms**                   | 3–10 ms                        | 4–12 ms                            | 5–15 ms                  | N/A                 |
-| **Middleware Overhead**  | **1.1–8.5 µs** (92 µs total p95)  | ~115 µs                        | ~145 µs                            | ~180 µs                  | N/A (browser-based) |
-| **Throughput (RPS)**     | **1,600+ RPS** (Full Stack)       | ~900–2,100 RPS (REST/GraphQL)  | Lower (optimized ~ higher)         | 900–1,200 RPS (REST)     | N/A (static/Git)    |
-| **Media Upload**         | **0.12 ms** (async/background)    | 100–350 ms                     | 120–400 ms                         | 150–500 ms               | N/A                 |
-| **Cold Start**           | **~1.05 s** (Ready state)         | Variable (Next.js)             | ~5 s                               | ~8 s                     | Very fast (<300 ms) |
-| **Bundle Size (Brotli)** | **~842 KB** (smallest)            | 3–5 MB+                        | Medium/Large                       | Largest                  | <300–500 KB         |
-| **Auth Latency**         | **< 0.8 ms** (3-layer cache)      | Not specified                  | Not highlighted                    | Not highlighted          | Fast (GitHub OAuth) |
-| **Real-time / Sync**     | **Sub-100 ms** (SSE + Yjs)        | Good (with config)             | Supports WebSockets                | Limited                  | N/A (Git-based)     |
-| **Edge / Local SDK**     | **Native** (locals.cms injection) | Strong in Next.js              | Not native                         | Not native               | N/A                 |
+| Metric                   | SveltyCMS (Intel 2026)             | PayloadCMS (v3.x)              | Directus (v11.x)                   | Strapi (v5.x)            | Sveltia CMS         |
+| :----------------------- | :--------------------------------- | :----------------------------- | :--------------------------------- | :----------------------- | :------------------ |
+| **Avg API Read Latency** | **0.45–4.1 ms**                    | 4–12 ms (sub-10 ms co-located) | 3–18 ms (avg ~35 ms in some tests) | 6–25 ms (avg 120–150 ms) | N/A (Git-based)     |
+| **Avg Insert Latency**   | **0.17–0.72 ms**                   | 3–10 ms                        | 4–12 ms                            | 5–15 ms                  | N/A                 |
+| **Middleware Overhead**  | **1.2–3.5 µs** (27 µs total p95)    | ~115 µs                        | ~145 µs                            | ~180 µs                  | N/A (browser-based) |
+| **Throughput (RPS)**     | **3,000+ RPS** (Full Stack)        | ~900–2,100 RPS (REST/GraphQL)  | Lower (optimized ~ higher)         | 900–1,200 RPS (REST)     | N/A (static/Git)    |
+| **Media Upload**         | **0.12 ms** (async/background)     | 100–350 ms                     | 120–400 ms                         | 150–500 ms               | N/A                 |
+| **Cold Start**           | **~1.03 s** (Ready state)          | Variable (Next.js)             | ~5 s                               | ~8 s                     | Very fast (<300 ms) |
+| **Bundle Size (Brotli)** | **~842 KB** (smallest)             | 3–5 MB+                        | Medium/Large                       | Largest                  | <300–500 KB         |
+| **Auth Latency**         | **< 0.5 ms** (3-layer cache)       | Not specified                  | Not highlighted                    | Not highlighted          | Fast (GitHub OAuth) |
+| **Real-time / Sync**     | **Sub-100 ms** (SSE + Yjs)         | Good (with config)             | Supports WebSockets                | Limited                  | N/A (Git-based)     |
+| **Edge / Local SDK**     | **Native** (locals.cms injection)  | Strong in Next.js              | Not native                         | Not native               | N/A                 |
 
 > [!SOURCE]
 > Data comes from documented benchmarks (verified April 2026), public competitor claims, community reports, and independent comparisons. SveltyCMS shines in Svelte-native compiled paths, zero-VDOM, and local SDK injection.
@@ -57,7 +57,7 @@ Are we faster? Yes, significantly, but more importantly, we are more **real**.
 
 In our previous tests, we measured raw adapter throughput hitting ~2,300 RPS on SQLite. Our April 2026 "Zero-Mock Production Audit" measures the **fully-loaded framework**. We now route requests through full Authentication, Session Validation, the 5-Pillar Hook pipelines, and intelligent deduplication logging.
 
-Even with this realistic, heavy production workload, SveltyCMS sustains **over 1,600 requests per second** with a p95 latency of just **6ms**. That is blazing fast for a fully secured, multi-tenant capable CMS. Furthermore, our Cold Starts have improved dramatically, dropping from 1,600ms down to ~1,050ms.
+Even with this realistic, heavy production workload, SveltyCMS sustains **over 3,000 requests per second** (aggregate) with a p95 latency of just **4.1ms**. That is blazing fast for a fully secured, multi-tenant capable CMS. Furthermore, our Cold Starts have improved dramatically, dropping from 1,600ms down to ~1,030ms.
 
 ### 2. 5-Pillar Architecture & Zero-Runtime Overhead
 

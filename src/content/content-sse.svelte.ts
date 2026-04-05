@@ -22,7 +22,8 @@ export const contentLiveSync = {
     if (!browser || eventSource) return;
 
     // Do not connect on setup or login pages
-    const pathname = typeof window !== "undefined" ? window.location.pathname : "";
+    const pathname =
+      typeof window !== "undefined" && window.location ? window.location.pathname : "";
     if (pathname.startsWith("/setup") || pathname.startsWith("/login")) return;
 
     logger.debug("📡 Initializing content live sync via SSE...");
