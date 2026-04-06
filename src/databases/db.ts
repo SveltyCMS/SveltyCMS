@@ -79,13 +79,16 @@ export const dbInitPromise = getDbInitPromise();
  */
 async function initializeSystem(forceReload = false): Promise<void> {
   // Guard for non-server environments (build/check) or explicit skip
-  if (
+  const isChecking =
     typeof process !== "undefined" &&
-    (process.env.SVELTYCMS_SKIP_INIT === "true" ||
-      process.argv?.some((arg) => ["build", "check", "vp"].includes(arg.toLowerCase())) ||
-      process.env.VITE ||
-      process.env.BUILDING)
-  ) {
+    process.argv?.some((arg) => ["build", "check", "vp"].includes(arg.toLowerCase()));
+  const isBuilding =
+    typeof process !== "undefined" &&
+    (process.env.BUILDING === "true" || process.env.VITE_BUILD === "true");
+  const isExplicitSkip =
+    typeof process !== "undefined" && process.env.SVELTYCMS_SKIP_INIT === "true";
+
+  if (isExplicitSkip || isChecking || isBuilding) {
     return;
   }
   if (isInitialized && !forceReload) return;

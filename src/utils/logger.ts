@@ -15,7 +15,11 @@ const IS_BROWSER = typeof window !== "undefined";
 export type LoggableValue = string | number | boolean | null | undefined | object | Date | Error;
 
 // Log levels from env
-const LOG_LEVELS = (import.meta.env?.VITE_LOG_LEVELS ?? process?.env?.LOG_LEVELS ?? "info")
+const LOG_LEVELS = (
+  import.meta.env?.VITE_LOG_LEVELS ??
+  (typeof process !== "undefined" ? process.env?.LOG_LEVELS : undefined) ??
+  "info"
+)
   .split(",")
   .map((l) => l.trim().toLowerCase()) as LogLevel[];
 
@@ -141,7 +145,9 @@ function log(level: LogLevel, msg: string, args: unknown[]) {
 
   // Enterprise optimization: Prevent console clogging
   // In production, only show WARN and above unless explicitly requested
-  const isDev = import.meta.env?.DEV || process?.env?.NODE_ENV === "development";
+  const isDev =
+    import.meta.env?.DEV ||
+    (typeof process !== "undefined" && process?.env?.NODE_ENV === "development");
   const verboseEnabled =
     (IS_BROWSER && localStorage.getItem("VITE_VERBOSE_LOGS") === "true") ||
     import.meta.env?.VITE_VERBOSE_LOGS === "true";

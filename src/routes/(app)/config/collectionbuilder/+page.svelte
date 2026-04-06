@@ -118,6 +118,8 @@ afterNavigate(() => {
 	}
 });
 
+import { untrack } from "svelte";
+
 $effect(() => {
 	if (
 		!allowSyncFromData ||
@@ -129,14 +131,22 @@ $effect(() => {
 		skipNextSyncFromData = false;
 		return;
 	}
-	allowSyncFromData = false;
+	
 	const structure = data.contentStructure as unknown as ContentNode[];
+	
+	// Prevent unnecessary state updates if data hasn't actually changed (shallow check)
+	const currentHash = JSON.stringify(structure);
+	const existingHash = JSON.stringify(currentConfig);
+	if (currentHash === existingHash) return;
+
+	allowSyncFromData = false;
 	currentConfig = structure;
-
-	console.log("currentConfig", JSON.stringify(currentConfig));
-
+	
 	// Keep sidebar in sync: it reads from contentStructure store, so update it when we load fresh data from DB
-	setContentStructure(structure);
+	// Use untrack to ensure this doesn't create a circular dependency if setContentStructure triggers a re-render
+	untrack(() => {
+		setContentStructure(structure);
+	});
 });
 
 async function handleNodeUpdate(updatedNodes: ContentNode[]) {

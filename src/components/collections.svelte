@@ -247,7 +247,7 @@ function clearSearch(): void {
 				<p class="text-xs text-surface-500 dark:text-surface-300">{collection_no_collections_found()}</p>
 			</div>
 		{:else}
-			<TreeView nodes={treeNodes} {selectedId} compact={!isFullSidebar} search={debouncedSearch} iconColorClass="text-error-500" showBadges={true} />
+			<TreeView nodes={treeNodes} {selectedId} compact={!isFullSidebar} search={debouncedSearch} iconColorClass="text-tertiary-500" showBadges={true} />
 		{/if}
 	</div>
 </div>

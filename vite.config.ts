@@ -453,7 +453,7 @@ function sveltyCmsPlugin(): Plugin {
               );
               if (dbAdapter?.collection) {
                 const { scanCompiledCollections } = await server.ssrLoadModule(
-                  path.join(CWD, "src/content/content-reconciler/scan-files.ts"),
+                  path.join(CWD, "src/content/content-reconciler/scan-files.server.ts"),
                 );
                 const collections = await scanCompiledCollections();
                 log.info(`Found ${collections.length} collections, registering models...`);

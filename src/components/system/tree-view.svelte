@@ -451,7 +451,7 @@ export interface TreeNode {
 				}}
 			>
 				<!-- Expand/Collapse icon with RTL support -->
-				{#if node.children}
+				{#if node.children && !compact}
 					{#if node.isLoading}
 						<div class="flex h-4 w-4 items-center justify-center">
 							<div class="h-3 w-3 animate-spin rounded-full border-2 border-surface-400 border-t-transparent"></div>
@@ -478,27 +478,29 @@ export interface TreeNode {
 							{node.badge.count}
 						</div>
 					{/if}
-				{:else}
+				{:else if !compact}
 					<div class="h-4 w-4" aria-hidden="true"></div>
 				{/if}
 
 				<!-- Icon -->
 				{#if node.icon}
-					<div class="relative flex shrink-0 items-center">
-						<iconify-icon icon={node.icon} width={compact ? '20' : '24'} height={compact ? '20' : '24'} class={iconColorClass} aria-hidden="true"
+					<div class="relative flex shrink-0 items-center {compact ? 'mx-auto' : ''}">
+						<iconify-icon icon={node.icon} width={compact ? '24' : '24'} height={compact ? '24' : '24'} class={iconColorClass} aria-hidden="true"
 						></iconify-icon>
 					</div>
 				{/if}
 
 				<!-- Node label -->
-				<span
-					class="flex-1 select-none overflow-hidden text-ellipsis whitespace-nowrap text-left dark:text-white
-									       {compact ? 'text-xs' : 'text-sm'}
-									       {selectedId === node.id ? 'font-semibold' : ''}"
-					style="margin-left: {node.depth ? node.depth * 8 : 0}px"
-				>
-					{node.name}
-				</span>
+				{#if !compact}
+					<span
+						class="flex-1 select-none overflow-hidden text-ellipsis whitespace-nowrap text-left dark:text-white
+												 text-sm
+												 {selectedId === node.id ? 'font-semibold' : ''}"
+						style="margin-left: {node.depth ? node.depth * 8 : 0}px"
+					>
+						{node.name}
+					</span>
+				{/if}
 			</button>
 
 			<!-- Drop indicator: after -->

@@ -9,6 +9,7 @@ import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import type { IDBAdapter, DatabaseId } from "../../../src/databases/db-interface";
 
 // 1. CONFIGURATION (Isolation for CI)
+// @ts-ignore - optional test config
 const { privateEnv } = (await import("../../../config/private.test").catch(() => ({
   privateEnv: { DB_TYPE: process.env.DB_TYPE || "sqlite" },
 }))) as any;

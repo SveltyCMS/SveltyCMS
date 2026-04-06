@@ -1,26 +1,20 @@
 <!--
 @file src/routes/(app)/[language]/[...collection]/+page.svelte
 @component
-**This component acts as a layout and data router for the collection view.**
+**Collection Dashboard**: The main router for entry listing, editing, and creation.
 
-## Navigation Architecture (GUI-First Pattern):
+This page dynamically switches between List views and Field editors based on the `?edit` or `?create` parameters.
 
-### PRIMARY: GUI Actions (90% of navigation)
-1. User hovers button → Preload data to cache
-2. User clicks button → Check cache → setMode() → URL reflects change
-3. FAST: No goto(), no SSR reload, instant mode switching
+### Current Mode Logic:
+- `view`: Displays EntryList with pagination and search.
+- `edit`: Displays Fields editor with revision history.
+- `create`: Displays empty Fields editor for new entry creation.
 
-### SECONDARY: URL Changes (10% - manual edits)
-1. User manually edits URL → Detect change in $effect
-2. Parse URL → Translate to UUID → setMode() → Load if not cached
-3. SLOWER: Required SSR reload only when user types URL directly
-
-## Features:
-- Receives all page data (schema, entries, pagination) from the server-side `load` function.
-- Passes server-loaded data as props to the `EntryList` or `Fields` components.
-- URL-to-mode translation for manual URL edits (browser address bar changes).
-- Auto-saves unsaved changes as draft when navigating away to prevent data loss.
-
+### Next Steps & Options:
+- Click a row to enter `edit` mode.
+- Press "Create New" to enter `create` mode.
+- Change language in the translation dropdown to translate specific entries.
+- Save or Cancel edits (triggers auto-save/draft logic).
 -->
 <script lang="ts">
 import EntryList from "@src/components/collection-display/entry-list.svelte";
@@ -133,50 +127,44 @@ $effect.pre(() => {
 });
 
 // Sync contentLanguage store with server data
-// IMPORTANT: Server language (URL) takes precedence over cookie/store
-// This MUST run immediately when data changes to ensure widgets get correct language
-// BUT: Only sync when we receive NEW server data (not on client-side URL changes)
 $effect(() => {
 	if (serverContentLanguage) {
-		// Only sync if server language actually changed (indicates new server load)
-		if (serverContentLanguage !== lastServerLanguage) {
-			const currentStoreLanguage = app.contentLanguage;
-			if (currentStoreLanguage !== serverContentLanguage) {
-				logger.debug(
-					"[+page.svelte] Syncing contentLanguage from server:",
-					currentStoreLanguage,
-					"→",
-					serverContentLanguage,
-				);
-				// Set without untrack to ensure all reactive subscribers are notified
-				app.contentLanguage = serverContentLanguage as any;
-				logger.debug(
-					"[+page.svelte] ContentLanguage store now:",
-					app.contentLanguage,
-				);
+		untrack(() => {
+			// Only sync if server language actually changed (indicates new server load)
+			if (serverContentLanguage !== lastServerLanguage) {
+				const currentStoreLanguage = app.contentLanguage;
+				if (currentStoreLanguage !== serverContentLanguage) {
+					logger.debug(
+						"[+page.svelte] Syncing contentLanguage from server:",
+						currentStoreLanguage,
+						"→",
+						serverContentLanguage,
+					);
+					app.contentLanguage = serverContentLanguage as any;
+				}
+				lastServerLanguage = serverContentLanguage;
 			}
-			lastServerLanguage = serverContentLanguage;
-		}
+		});
 	}
 });
 
-// Initial collection store sync - ensures store has correct schema on first load
-// CRITICAL: Always sync when collectionSchema changes to keep store in sync with server data
+// Sync collection schema from server data
 $effect(() => {
 	if (collectionSchema) {
-		const currentStoreId = collections.active?._id;
-		const schemaId = collectionSchema._id;
-		// Only update if different to avoid unnecessary re-renders
-		if (currentStoreId !== schemaId) {
-			logger.debug(
-				"[+page.svelte] Syncing collection store:",
-				currentStoreId,
-				"→",
-				schemaId,
-				collectionSchema.name,
-			);
-			collections.setCollection(collectionSchema);
-		}
+		untrack(() => {
+			const currentStoreId = collections.active?._id;
+			const schemaId = collectionSchema._id;
+			if (currentStoreId !== schemaId) {
+				logger.debug(
+					"[+page.svelte] Syncing collection store:",
+					currentStoreId,
+					"→",
+					schemaId,
+					collectionSchema.name,
+				);
+				collections.setCollection(collectionSchema);
+			}
+		});
 	}
 });
 
@@ -438,12 +426,6 @@ $effect(() => {
 	}
 });
 
-// Sync collection schema from server data
-$effect(() => {
-	if (collectionSchema) {
-		collections.setCollection(collectionSchema);
-	}
-});
 
 // Track initial state when entering edit mode
 // This runs AFTER collections.activeValue is set, but doesn't trigger when collections.activeValue changes

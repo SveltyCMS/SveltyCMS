@@ -168,19 +168,26 @@ export async function runBackgroundTasks(dbAdapter: DatabaseAdapter) {
     await Promise.all([
       (async () => {
         const { ThemeManager } = await import("@src/databases/theme-manager");
-        await ThemeManager.getInstance().initialize(dbAdapter);
-        updateServiceHealth("themeManager", "healthy", "Themes initialized");
+        const instance = ThemeManager?.getInstance();
+        if (instance?.initialize) {
+          await instance.initialize(dbAdapter);
+          updateServiceHealth("themeManager", "healthy", "Themes initialized");
+        }
       })(),
       (async () => {
         const { cacheWarmingService } = await import("@src/databases/cache-warming-service");
-        await cacheWarmingService.initialize(dbAdapter);
-        updateServiceHealth("cache", "healthy", "Cache warmed up");
+        if (cacheWarmingService?.initialize) {
+          await cacheWarmingService.initialize(dbAdapter);
+          updateServiceHealth("cache", "healthy", "Cache warmed up");
+        }
       })(),
       (async () => {
         updateServiceHealth("contentManager", "initializing", "Initializing content manager...");
         const { contentSystem } = await import("@src/content");
-        await contentSystem.initialize(null, true, dbAdapter);
-        updateServiceHealth("contentManager", "healthy", "Content manager initialized");
+        if (contentSystem?.initialize) {
+          await contentSystem.initialize(null, true, dbAdapter);
+          updateServiceHealth("contentManager", "healthy", "Content manager initialized");
+        }
       })(),
     ]);
 

@@ -1,3 +1,16 @@
+/**
+ * @file src/stores/collection-store.svelte.ts
+ * @description
+ * **Active Context Store**: Reactive state for the current collection, mode, and entry values.
+ *
+ * This store dictates what the user is currently looking at (View, Edit, Create) and holds the reactive transient state of any entry being modified.
+ *
+ * ### Responsibilities:
+ * - Managing the Active Collection Schema.
+ * - Mode Switching (View/Edit/Create/Media).
+ * - Holding the `activeValue` (Svelte 5 $state) for forms.
+ * - Guarding against redundant content structure updates (Circuit Breaker).
+ */
 import type { ContentNode, Schema, WidgetFieldPermissions } from "@src/content/types";
 import { logger } from "@utils/logger";
 
@@ -94,7 +107,14 @@ class CollectionState {
     this.modifyEntry = newFn;
   }
 
+  private lastStructureHash = "";
+
   setContentStructure(newContentStructure: ContentNode[]) {
+    // Prevent redundant syncs that trigger reactivity loops
+    const currentHash = JSON.stringify(newContentStructure);
+    if (currentHash === this.lastStructureHash) return;
+    this.lastStructureHash = currentHash;
+
     this.contentStructure = newContentStructure;
   }
 

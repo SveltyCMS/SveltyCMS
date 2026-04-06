@@ -18,6 +18,7 @@ import type { IDBAdapter, DatabaseId } from "../../../src/databases/db-interface
 import mongoose from "mongoose";
 
 // Configuration load with fallback
+// @ts-ignore - optional test config
 const imported = await import("../../../config/private.test").catch(() => ({
   privateEnv: { DB_TYPE: process.env.DB_TYPE || "mongodb" } as any,
 }));

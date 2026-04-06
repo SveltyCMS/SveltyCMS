@@ -31,6 +31,7 @@ export const contentLiveSync = {
     // Connect to the events endpoint
     eventSource = new EventSource("/api/content/events");
 
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
     eventSource.onmessage = async (event) => {
       try {
         const data = JSON.parse(event.data);
@@ -41,10 +42,13 @@ export const contentLiveSync = {
           data.type === "content_update" ||
           data.type === "reorder"
         ) {
-          logger.info(`📡 Content update received [${data.type}]. Refreshing...`);
-
-          // Trigger a fast refresh (skip reconciliation on server, just sync state)
-          await contentManager.refresh(null, true);
+          if (debounceTimer) clearTimeout(debounceTimer);
+          debounceTimer = setTimeout(async () => {
+            logger.info(`📡 Content update received [${data.type}]. Refreshing...`);
+            // Trigger a fast refresh (skip reconciliation on server, just sync state)
+            await contentManager.refresh(null, true);
+            debounceTimer = null;
+          }, 250); // 250ms debounce
         }
       } catch (error) {
         logger.error("❌ Failed to parse SSE message", error);

@@ -1,28 +1,19 @@
 <!--
 @file src/routes/(app)/+layout.svelte
-@component Main application layout with comprehensive state management
+@component
+**Authenticated Admin Layout**: Wraps all core CMS views (Collections, Media, User Settings).
 
-## Features
-- Type-safe props and state management
-- Centralized theme initialization and management
-- Performance-optimized loading states with granular control
-- Accessibility-compliant keyboard shortcuts
-- SEO optimization with dynamic meta tags
-- Modular component architecture
-- Memory leak prevention with proper cleanup
-- Content structure synchronization
-- Restart polling for dev/production hot-reload notifications
-- CSP-compliant nonce handling for inline scripts
+This layout provides the administrative shell, including sidebars and header controls.
 
-## Architecture
-- Separation of concerns: UI state, loading state, theme state
-- Reactive data synchronization with microtask deferral
-- Event listener lifecycle management
-- Progressive enhancement strategy
+### Responsibilities:
+- Managing admin-specific UI state (Sidebar expansion, Mode switching).
+- Initializing Widgets and Theme in the authenticated context.
+- Providing navigation guards and auto-save draft functionality.
 
-## Props
-@prop {Snippet} children - Page content slot
-@prop {LayoutData} data - Server-provided data (user, contentStructure, nonce)
+### Next Steps & Options:
+- Expand/Collapse sidebars for more horizontal space.
+- Use Command Bar (Mod+K) for quick navigation.
+- Switch between Content (Collections) and Media Gallery modes.
 -->
 
 <script lang="ts">
@@ -37,8 +28,6 @@ import SearchComponent from "@src/components/search-component.svelte";
 import type { User } from "@src/databases/auth/types";
 // Stores
 import {
-	setCollection,
-	setContentStructure,
 	setMode,
 } from "@src/stores/collection-store.svelte.ts";
 import {
@@ -62,7 +51,6 @@ import { afterNavigate, beforeNavigate } from "$app/navigation";
 import { page } from "$app/state";
 import type { Schema, NavigationNode } from "../../content/types";
 import { setContentContext } from "@src/content";
-import { contentManager } from "@src/content";
 
 // =============================================
 // TYPE DEFINITIONS
@@ -122,40 +110,6 @@ $effect(() => {
 	}
 });
 
-// Effect: Synchronize content structure with store (sidebar reads from this on all pages, including edit/create collection)
-$effect(() => {
-	// Defer store updates to next microtask to prevent UpdatedAtError
-	const defer = (fn: () => void): void => {
-		if (typeof queueMicrotask === "function") {
-			queueMicrotask(fn);
-		} else {
-			Promise.resolve().then(fn);
-		}
-	};
-
-	// Handle the nodes from server data
-	if (data.contentStructure) {
-		data.contentStructure.then((nodes) => {
-			if (Array.isArray(nodes)) {
-				defer(() => {
-					setContentStructure(nodes as any);
-					// Synchronize contentManager structure on client (Fixes "Initializing..." hang)
-					contentManager.sync(nodes as any);
-					globalLoadingStore.stopLoading(loadingOperations.initialization);
-				});
-			}
-		});
-	}
-
-	// Hydrate first collection if available and no collection is currently set
-	if (data.firstCollection) {
-		data.firstCollection.then((collection) => {
-			if (collection) {
-				defer(() => setCollection(collection));
-			}
-		});
-	}
-});
 
 // Effect: Handle system language changes
 $effect(() => {
@@ -203,16 +157,6 @@ function initializeUserAvatar(user: User | null): void {
 onMount(() => {
 	console.log("[AppLayout] Mounted. User:", data.user?.username || "None");
 
-	// Start loading if content structure isn't ready yet
-	Promise.resolve(data.contentStructure).then((_) => {
-		// Already handled in effect, but if we wanted to check initial state:
-		// If it resolves immediately, we're good.
-	});
-
-	// Always ensure loading is started if we don't have data yet.
-	// Since we are streaming, we assume it's loading effectively.
-	// We rely on the effect to clear it.
-	globalLoadingStore.startLoading(loadingOperations.initialization);
 
 	widgets.initialize();
 	initializeDarkMode(data.theme as any);

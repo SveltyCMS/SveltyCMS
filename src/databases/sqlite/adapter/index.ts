@@ -228,7 +228,7 @@ export class SQLiteAdapter extends AdapterCore implements IDBAdapter {
       },
     ];
 
-    await this.db.insert(schema.roles).values(rolesPayload);
+    await this.db.insert(schema.roles).values(rolesPayload).onConflictDoNothing();
   }
 
   public async ensureSystem(): Promise<void> {

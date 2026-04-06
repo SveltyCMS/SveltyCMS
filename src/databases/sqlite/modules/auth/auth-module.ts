@@ -809,7 +809,7 @@ export class AuthModule implements IAuthAdapter {
         updatedAt: now,
       };
 
-      await this.db.insert(schema.roles).values(values);
+      await this.db.insert(schema.roles).values(values).onConflictDoNothing();
       const [result] = await this.db
         .select()
         .from(schema.roles)

@@ -142,8 +142,31 @@ export async function loadPrivateConfig(
           throw new AppError(msg, 500, "TEST_DB_SAFETY_VIOLATION");
         }
 
+        // ✨ DEV FALLBACK: If import worked but result is empty, try direct file read
+        // This handles cases where Vite's dynamic import might return an empty module during setup.
+        if (!privateEnv?.DB_TYPE && !process.env.TEST_MODE) {
+          try {
+            const fs = await import("node:fs");
+            const pathUtil = await import("node:path");
+            const configPath = pathUtil.resolve(process.cwd(), "config", "private.ts");
+            if (fs.existsSync(configPath)) {
+              logger.debug("Falling back to direct file read for config/private.ts");
+              const content = fs.readFileSync(configPath, "utf8");
+              const match = content.match(/export const privateEnv = ({[\s\S]*?});/);
+              if (match) {
+                const getObj = new Function(`return ${match[1]}`);
+                const parsed = getObj();
+                privateEnv = { ...parsed, ...envOverride };
+                logger.info("✅ Successfully loaded config via direct file read fallback");
+              }
+            }
+          } catch (fallbackError) {
+            logger.warn("Config fallback reading failed:", fallbackError);
+          }
+        }
+
         logger.debug(
-          module.__VIRTUAL__
+          module.__VIRTUAL__ || (!module.privateEnv && privateEnv?.DB_TYPE)
             ? "Using fallback configuration (Setup Mode active)"
             : "Private config loaded successfully",
           {

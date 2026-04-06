@@ -65,7 +65,7 @@ const passwordSchema = pipe(
   ),
   custom((value) => {
     // Skip complexity check in test mode for convenience during benchmarks
-    if (process.env.TEST_MODE === "true") return true;
+    if (typeof process !== "undefined" && process.env?.TEST_MODE === "true") return true;
 
     const min = getMinPasswordLength();
     const regex = new RegExp(

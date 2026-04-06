@@ -25,6 +25,7 @@ import { redirect } from "@sveltejs/kit";
 import { STATIC_ASSET_REGEX } from "./handle-static-asset-caching";
 import { getSystemState } from "@src/stores/system/state";
 import { isBootstrapRoute, getSetupState, SetupState } from "@utils/setup-check";
+import { logger } from "@utils/logger.server";
 import type { Handle, RequestEvent } from "@sveltejs/kit";
 
 // ---------------------------------------------------------------------------
@@ -188,14 +189,16 @@ function generateRequestId(): string {
   return Math.random().toString(16).slice(2, 10);
 }
 
-/** Logs a structured one-liner in dev; no-ops in production (remove log call entirely). */
+/** Logs a structured one-liner in dev via the enterprise logger. */
 function logRequest(event: RequestEvent, durationMs: number, status: number): void {
   if (!dev) return;
   const { method } = event.request;
   const { pathname } = event.url;
   const id = event.locals.requestId;
   const color = status >= 500 ? "\x1b[31m" : status >= 400 ? "\x1b[33m" : "\x1b[32m";
-  console.log(
+
+  // Use logger.debug for request tracing to keep info logs clean for system events
+  logger.debug(
     `${color}[${id}] ${method} ${pathname} → ${status} (${durationMs.toFixed(2)}ms)\x1b[0m`,
   );
 }
