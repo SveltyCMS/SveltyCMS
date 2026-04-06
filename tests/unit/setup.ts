@@ -687,7 +687,10 @@ moduleMock("@src/utils/error-handling", () => ({
   wrapError,
   handleApiError: mock((err: any) => {
     const status = err?.status || (isHttpError(err) ? (err as any).status : 500);
-    if (status >= 500) {
+    // Don't log expected errors during tests unless requested
+    if (status >= 500 && process.env.VERBOSE_TEST !== "true") {
+      // Quiet mode for tests
+    } else if (status >= 500) {
       console.error("--- handleApiError Details:", {
         message: getErrorMessage(err),
         status,
@@ -717,7 +720,10 @@ moduleMock("@utils/error-handling", () => ({
   wrapError,
   handleApiError: mock((err: any) => {
     const status = err?.status || (isHttpError(err) ? (err as any).status : 500);
-    if (status >= 500) {
+    // Don't log expected errors during tests unless requested
+    if (status >= 500 && process.env.VERBOSE_TEST !== "true") {
+      // Quiet mode for tests
+    } else if (status >= 500) {
       console.error("--- handleApiError Details:", {
         message: getErrorMessage(err),
         status,
@@ -1018,17 +1024,18 @@ const SetupState = {
   COMPLETE: "COMPLETE",
 };
 
-let isSetupCompleteValue = true;
+let setupStateValue = SetupState.COMPLETE;
 const mockSetupCheck = {
-  isSetupComplete: mock(() => isSetupCompleteValue),
-  isSetupCompleteAsync: mock(async () => isSetupCompleteValue),
-  getSetupState: mock(async () =>
-    isSetupCompleteValue ? SetupState.COMPLETE : SetupState.MISSING_CONFIG,
-  ),
+  isSetupComplete: mock(() => setupStateValue === SetupState.COMPLETE),
+  isSetupCompleteAsync: mock(async () => setupStateValue === SetupState.COMPLETE),
+  getSetupState: mock(async () => setupStateValue),
   SetupState,
   invalidateSetupCache: mock(() => {}),
   setSetupComplete: mock((val: boolean) => {
-    isSetupCompleteValue = val;
+    setupStateValue = val ? SetupState.COMPLETE : SetupState.MISSING_CONFIG;
+  }),
+  setSetupState: mock((state: any) => {
+    setupStateValue = state;
   }),
   isBootstrapRoute: mock((p: string) => {
     const path = p.startsWith("/") ? p.slice(1) : p;

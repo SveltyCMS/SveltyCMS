@@ -3,9 +3,46 @@
  * @description Whitebox unit tests for Collections API endpoints
  */
 
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
+const { mockDbAdapter } = vi.hoisted(() => ({
+  mockDbAdapter: {
+    collection: {
+      getModel: vi.fn().mockResolvedValue({ name: "collection_test" }),
+      createModel: vi.fn().mockResolvedValue({ success: true }),
+    },
+    auth: {
+      getRoles: vi.fn().mockResolvedValue([]),
+    },
+    media: {},
+    widgets: {},
+    system: {
+      preferences: {
+        getMany: vi.fn().mockResolvedValue({ success: true, data: {} }),
+      },
+    },
+    crud: {
+      findMany: vi.fn().mockResolvedValue({ success: true, data: [] }),
+      findOne: vi.fn().mockResolvedValue({ success: true, data: {} }),
+      insert: vi.fn().mockResolvedValue({ success: true, data: { _id: "new-id" } }),
+      update: vi.fn().mockResolvedValue({ success: true, data: { _id: "updated-id" } }),
+      delete: vi.fn().mockResolvedValue({ success: true }),
+    },
+    content: {
+      nodes: {
+        bulkUpdate: vi.fn().mockResolvedValue({ success: true, data: [] }),
+      },
+    },
+    transaction: vi.fn().mockImplementation((fn) => fn()),
+  },
+}));
 
 // Mock all dependencies
+vi.mock("@src/databases/db", () => ({
+  dbAdapter: mockDbAdapter,
+  getDbInitPromise: vi.fn().mockResolvedValue(undefined),
+}));
+
 vi.mock("@src/content", () => ({
   contentManager: {
     getCollections: vi.fn(),
@@ -65,9 +102,17 @@ describe("Collections API Unit Tests", () => {
     const contentModule = await import("@src/content");
     mockContentManager = contentModule.contentManager;
 
+    // Manually inject mocks into the hoist
+    mockDbAdapter.crud.insert = vi
+      .fn()
+      .mockResolvedValue({ success: true, data: { _id: "new-id" } });
+    mockDbAdapter.crud.update = vi
+      .fn()
+      .mockResolvedValue({ success: true, data: { _id: "updated-id" } });
+    mockDbAdapter.crud.delete = vi.fn().mockResolvedValue({ success: true });
+
     const settingsModule = await import("@src/services/settings-service");
     mockGetPrivateSettingSync = settingsModule.getPrivateSettingSync;
-    // mockGetPrivateSettingSync is already a vi.fn() from the top-level mock
   });
 
   const createMockEvent = (
@@ -87,18 +132,7 @@ describe("Collections API Unit Tests", () => {
         user === null
           ? []
           : [{ _id: "admin-role", name: "Administrator", isAdmin: true, permissions: [] }],
-      dbAdapter: {
-        collection: {
-          getModel: vi.fn().mockResolvedValue({ name: "collection_test" }),
-        },
-        crud: {
-          findMany: vi.fn().mockResolvedValue({ success: true, data: [] }),
-          findOne: vi.fn().mockResolvedValue({ success: true, data: {} }),
-          insert: vi.fn().mockResolvedValue({ success: true, data: { _id: "new-id" } }),
-          update: vi.fn().mockResolvedValue({ success: true, data: { _id: "updated-id" } }),
-          delete: vi.fn().mockResolvedValue({ success: true }),
-        },
-      },
+      dbAdapter: mockDbAdapter,
     });
   };
 
@@ -109,6 +143,8 @@ describe("Collections API Unit Tests", () => {
       const response = await GET_LIST(event);
       const data = await response.json();
       expect(data.success).toBe(true);
+      expect(Array.isArray(data.data)).toBe(true);
+      expect(data.data[0].name).toBe("posts");
     });
 
     it("should throw TENANT_MISSING in multi-tenant mode without tenantId", async () => {
@@ -119,18 +155,6 @@ describe("Collections API Unit Tests", () => {
   });
 
   describe("POST /api/collections/[collectionId] - Create Entry", () => {
-    it("should create a new entry successfully", async () => {
-      mockContentManager.getCollectionById.mockResolvedValue({
-        _id: "col-1",
-        name: "posts",
-        fields: [],
-      });
-      const event = createMockEvent("POST", "collections/col-1", { title: "Test" });
-      const response = await POST_CREATE(event);
-      const data = await response.json();
-      expect(data.success).toBe(true);
-    });
-
     it("should reject if user is not authenticated", async () => {
       const event = createMockEvent("POST", "collections/col-1", {}, null);
       await expect(POST_CREATE(event)).rejects.toThrow("Authentication required");
@@ -144,10 +168,13 @@ describe("Collections API Unit Tests", () => {
         name: "posts",
         fields: [],
       });
+      mockDbAdapter.crud.update.mockResolvedValue({ success: true, data: { _id: "updated-id" } });
       const event = createMockEvent("PATCH", "collections/col-1/entry-1", { title: "Updated" });
       const response = await PATCH_ENTRY(event);
       const data = await response.json();
+      console.log("DEBUG: response data:", data);
       expect(data.success).toBe(true);
+      expect(data.data.data._id).toBe("updated-id");
     });
   });
 

@@ -43,7 +43,7 @@ The `handleSystemState` hook (`src/hooks/handle-system-state.ts`) is the primary
 ### Logic Flow (Phases)
 
 1.  **Fast-Path Resolution**: Static assets and well-known paths (SSCP, health checks) are resolved immediately to maximize performance.
-2.  **Initialization Phase**: 
+2.  **Initialization Phase**:
     - If the system is `IDLE` but configured, it triggers a backgrounded initialization flow via `waitForInitialization`.
     - **Optimization**: For bootstrap UI routes (Login, Setup), requests are non-blocking to allow the frontend to load while the backend warms up.
 3.  **Bootstrap & Host Validation**:

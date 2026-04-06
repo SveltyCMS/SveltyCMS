@@ -45,6 +45,12 @@ export class IndexOptimizer {
         const results = await Promise.allSettled(
           chunk.map(async (schema) => {
             if (!schema._id) throw new Error("Missing schema ID");
+
+            // 🛡️ Safety check: Ensure DB is still connected before each operation
+            if (this.dbAdapter.isConnected && !this.dbAdapter.isConnected()) {
+              throw new Error(`Database connection closed during optimization of ${schema.name}`);
+            }
+
             const res = await this.dbAdapter.collection.createIndexes!(schema._id, schema);
             if (!res.success) {
               throw new Error(`Failed to optimize ${schema.name}: ${res.message}`);

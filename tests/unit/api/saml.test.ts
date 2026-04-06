@@ -75,6 +75,6 @@ describe("SAML API Unit Tests", () => {
     const response = await dispatcher(event);
     const result = await response.json();
     expect(result.success).toBe(true);
-    expect(result.url).toBeDefined();
+    expect(result.data.url).toBeDefined();
   });
 });

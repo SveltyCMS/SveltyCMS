@@ -1,75 +1,45 @@
 #!/usr/bin/env bun
 /**
- * @file scripts/codemods/2026-migrate-schema.ts
- * @description Enhanced Codemod: Migrate collection schemas to 2026 format
- *
- * Features:
- * - Safe file backup before modification
- * - Dry-run support
- * - Detailed reporting
- * - Robust AST transformations using ts-morph
- * - Extensible migration rules
- * - Better error handling and logging
+ * @file scripts/codemods/01-migrate-collection-schema-v2.ts
+ * @description Migrate collection schemas to v2 (2026 format)
  */
 
-import { Project, SyntaxKind, type ObjectLiteralExpression, type SourceFile } from "ts-morph";
-import fs from "node:fs/promises";
+import { type ObjectLiteralExpression } from "ts-morph";
 import path from "node:path";
 import { pc } from "../../src/utils/native-utils";
+import {
+  createCodemodProject,
+  isCollectionSchema,
+  getDefaultExportedObject,
+  backupFile,
+  upsertProperty,
+  renameProperty,
+} from "./_utils";
 
 interface MigrationRule {
   name: string;
   apply: (obj: ObjectLiteralExpression) => boolean; // returns true if modified
 }
 
-const MIGRATION_VERSION = 1;
+const MIGRATION_VERSION = 2;
 
 const rules: MigrationRule[] = [
   {
     name: "Add version field",
-    apply: (obj) => {
-      if (obj.getProperty("version")) return false;
-
-      obj.addPropertyAssignment({
-        name: "version",
-        initializer: MIGRATION_VERSION.toString(),
-      });
-      return true;
-    },
+    apply: (obj) => upsertProperty(obj, "version", MIGRATION_VERSION.toString()),
   },
   {
     name: "Rename old_prop → new_prop",
-    apply: (obj) => {
-      const oldProp = obj.getProperty("old_prop");
-      if (!oldProp || !oldProp.isKind(SyntaxKind.PropertyAssignment)) return false;
-
-      oldProp.getNameNode().replaceWithText("new_prop");
-      return true;
-    },
+    apply: (obj) => renameProperty(obj, "old_prop", "new_prop"),
   },
-  // Add more rules here as needed (e.g. field structure changes, permission updates, etc.)
 ];
-
-function createProject(): Project {
-  return new Project({
-    tsConfigFilePath: path.join(process.cwd(), "tsconfig.json"),
-    skipAddingFilesFromTsConfig: true,
-    compilerOptions: { allowJs: true },
-  });
-}
-
-async function backupFile(filePath: string): Promise<void> {
-  const backupPath = `${filePath}.bak.${Date.now()}`;
-  await fs.copyFile(filePath, backupPath);
-  console.log(pc.dim(`   Backup created: ${path.basename(backupPath)}`));
-}
 
 async function run() {
   const isDryRun = process.argv.includes("--dry-run");
-  const project = createProject();
+  const project = createCodemodProject();
   const collectionsDir = path.join(process.cwd(), "config", "collections");
 
-  console.log(pc.bold(pc.blue("\n🚀 Running 2026 Schema Migration Codemod")));
+  console.log(pc.bold(pc.blue("\n🚀 Running 2026 Schema Migration Codemod (v2)")));
   if (isDryRun) {
     console.log(pc.yellow("   DRY-RUN MODE — No files will be modified\n"));
   }
@@ -87,10 +57,7 @@ async function run() {
 
       if (!isCollectionSchema(sourceFile)) continue;
 
-      const defaultExport = sourceFile.getExportAssignment((exp) => !exp.isExportEquals());
-      if (!defaultExport) continue;
-
-      const schemaObj = defaultExport.getExpressionIfKind(SyntaxKind.ObjectLiteralExpression);
+      const schemaObj = getDefaultExportedObject(sourceFile);
       if (!schemaObj) continue;
 
       let fileModified = false;
@@ -143,17 +110,6 @@ async function run() {
     console.error(pc.red("\n❌ Migration failed:"), err.message);
     process.exit(1);
   }
-}
-
-/** Helper to identify collection schema files */
-function isCollectionSchema(sourceFile: SourceFile): boolean {
-  const text = sourceFile.getFullText().toLowerCase();
-  return (
-    text.includes("collection") ||
-    text.includes("schema") ||
-    text.includes("fields") ||
-    text.includes("permissions")
-  );
 }
 
 run().catch((err) => {

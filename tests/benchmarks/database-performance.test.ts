@@ -4,6 +4,9 @@
  * Measures real-world latencies using our internal adapter abstraction.
  */
 
+// Tell Mongoose to ignore the Bun/Jest/JSDOM environment globals
+process.env.SUPPRESS_JEST_WARNINGS = "true";
+
 // 1. Initialize Mocks
 import "../unit/setup.ts";
 import { performance } from "node:perf_hooks";

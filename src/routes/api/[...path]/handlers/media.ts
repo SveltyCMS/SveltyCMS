@@ -27,10 +27,10 @@ export async function handleMediaRoutes(
     const fileId = method;
     if (!fileId || fileId === "list") {
       const result = await cms.media.find({ tenantId, limit, folderId, recursive });
-      return rawResponse(result);
+      return rawResponse(event, result);
     }
     const data = await cms.media.findById(fileId, { tenantId });
-    return successResponse(data);
+    return successResponse(event, data);
   }
 
   if (request.method === "POST") {
@@ -47,7 +47,7 @@ export async function handleMediaRoutes(
           results.push({ fileName: file.name, success: true, data: res });
         }
       }
-      return successResponse(results);
+      return successResponse(event, results);
     }
 
     if (method === "process") {
@@ -66,13 +66,13 @@ export async function handleMediaRoutes(
             results.push({ fileName: file.name, success: true, data: res });
           }
         }
-        return successResponse(results);
+        return successResponse(event, results);
       }
 
       if (processType === "delete") {
         const mediaId = formData.get("mediaId") as string;
         await cms.media.delete(mediaId, { tenantId });
-        return successResponse(null);
+        return successResponse(event, null);
       }
 
       if (processType === "batch") {
@@ -84,7 +84,7 @@ export async function handleMediaRoutes(
           (user?._id as string) || "",
           tenantId,
         );
-        return successResponse(result);
+        return successResponse(event, result);
       }
     }
   }
@@ -92,12 +92,12 @@ export async function handleMediaRoutes(
   if (request.method === "PATCH" && method) {
     const data = await request.json();
     const result = await cms.media.update(method, data, tenantId);
-    return rawResponse(result);
+    return rawResponse(event, result);
   }
 
   if (request.method === "DELETE" && method) {
     const result = await cms.media.delete(method, { tenantId });
-    return rawResponse(result);
+    return rawResponse(event, result);
   }
 
   throw new AppError(`Media endpoint /api/media/${segments.join("/")} not implemented`, 404);

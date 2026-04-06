@@ -5,7 +5,6 @@
  */
 
 import { runBenchmark, exportResult } from "./benchmark-utils";
-import { prepareAuthenticatedContext } from "../integration/helpers/test-setup";
 import { getApiBaseUrl, safeFetch } from "../integration/helpers/server";
 
 const API_BASE_URL = getApiBaseUrl();
@@ -17,10 +16,10 @@ async function runGraphQLBenchmarkSuite() {
   console.log("==========================================================");
 
   try {
-    const authCookie = await prepareAuthenticatedContext();
-    const authHeaders = {
+    const TEST_API_SECRET = process.env.TEST_API_SECRET || "enterprise-audit-2026";
+    const authHeaders: Record<string, string> = {
       "Content-Type": "application/json",
-      Cookie: authCookie,
+      "x-test-secret": TEST_API_SECRET,
     };
 
     const overallResults: any[] = [];
@@ -34,11 +33,12 @@ async function runGraphQLBenchmarkSuite() {
       concurrency: CONCURRENCY,
       silent: true,
       onIteration: async () => {
-        await safeFetch(`${API_BASE_URL}/api/graphql`, {
+        const res = await safeFetch(`${API_BASE_URL}/api/graphql`, {
           method: "POST",
           headers: authHeaders,
           body: JSON.stringify({ query: "query { me { _id username email role } }" }),
         });
+        if (!res.ok) throw new Error(`GraphQL Me Query failed: ${res.status}`);
       },
     });
     overallResults.push(meResult);
@@ -51,13 +51,14 @@ async function runGraphQLBenchmarkSuite() {
       concurrency: CONCURRENCY,
       silent: true,
       onIteration: async () => {
-        await safeFetch(`${API_BASE_URL}/api/graphql`, {
+        const res = await safeFetch(`${API_BASE_URL}/api/graphql`, {
           method: "POST",
           headers: authHeaders,
           body: JSON.stringify({
             query: "query { contentManagerHealth { state version collectionCount } }",
           }),
         });
+        if (!res.ok) throw new Error(`GraphQL Health Query failed: ${res.status}`);
       },
     });
     overallResults.push(healthResult);
@@ -70,11 +71,12 @@ async function runGraphQLBenchmarkSuite() {
       concurrency: CONCURRENCY,
       silent: true,
       onIteration: async () => {
-        await safeFetch(`${API_BASE_URL}/api/graphql`, {
+        const res = await safeFetch(`${API_BASE_URL}/api/graphql`, {
           method: "POST",
           headers: authHeaders,
           body: JSON.stringify({ query: "query { allCollectionStats { _id name fieldCount } }" }),
         });
+        if (!res.ok) throw new Error(`GraphQL Stats Query failed: ${res.status}`);
       },
     });
     overallResults.push(statsResult);
@@ -87,13 +89,14 @@ async function runGraphQLBenchmarkSuite() {
       concurrency: CONCURRENCY,
       silent: true,
       onIteration: async () => {
-        await safeFetch(`${API_BASE_URL}/api/graphql`, {
+        const res = await safeFetch(`${API_BASE_URL}/api/graphql`, {
           method: "POST",
           headers: authHeaders,
           body: JSON.stringify({
             query: "query { users(pagination: { limit: 5 }) { _id username role } }",
           }),
         });
+        if (!res.ok) throw new Error(`GraphQL Users Query failed: ${res.status}`);
       },
     });
     overallResults.push(usersResult);
@@ -106,13 +109,14 @@ async function runGraphQLBenchmarkSuite() {
       concurrency: CONCURRENCY,
       silent: true,
       onIteration: async () => {
-        await safeFetch(`${API_BASE_URL}/api/graphql`, {
+        const res = await safeFetch(`${API_BASE_URL}/api/graphql`, {
           method: "POST",
           headers: authHeaders,
           body: JSON.stringify({
             query: "query { mediaImages(pagination: { limit: 10 }) { _id url } }",
           }),
         });
+        if (!res.ok) throw new Error(`GraphQL Media Query failed: ${res.status}`);
       },
     });
     overallResults.push(mediaResult);
@@ -125,7 +129,7 @@ async function runGraphQLBenchmarkSuite() {
       concurrency: 5,
       silent: true,
       onIteration: async () => {
-        await safeFetch(`${API_BASE_URL}/api/graphql`, {
+        const res = await safeFetch(`${API_BASE_URL}/api/graphql`, {
           method: "POST",
           headers: authHeaders,
           body: JSON.stringify({
@@ -140,6 +144,7 @@ async function runGraphQLBenchmarkSuite() {
             }`,
           }),
         });
+        if (!res.ok) throw new Error(`GraphQL Nested Query failed: ${res.status}`);
       },
     });
     overallResults.push(nestedResult);

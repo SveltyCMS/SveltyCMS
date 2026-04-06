@@ -16,68 +16,138 @@ tags:
 
 <!-- BENCHMARK_START -->
 
-## 📊 Enterprise Benchmark Matrix — 05/04/2026, 16:10:00
+## 📊 Enterprise Benchmark Matrix — 06/04/2026, 14:31:52
 
-### 🧪 Component Performance Comparison (Head-to-Head)
+### 🧪 What We Tested
 
-| Database | Version | Cold Start | REST (p95) | GQL (avg) | Raw DB (read) | Hooks | Overall |
-|----------|---------|------------|------------|-----------|--------------|-------|---------|
-| **SQLITE** | SQLite 8.2.3 | 1515ms ⚪ +1.5% | 3.45ms 🟢 -12.8% | 5.18ms ⚪ -1.4% | 0.107ms ⚪ (—) | 0.00ms ⚪ -2.0% | 🟢 -10.1% |
-| **MONGODB** | MongoDB 3.51.3 | 1591ms ⚪ -1.0% | 6.78ms 🟢 -22.9% | 6.35ms ⚪ +2.4% | 0.509ms ⚪ (—) | 0.00ms ⚪ +3.9% | 🟢 -17.1% |
+- **REST API** — Measures E2E collection throughput and latency using REST API endpoints.
+   📍 `tests/benchmarks/rest-api-performance.test.ts`
+- **GraphQL API** — Measures resolver efficiency and N+1 relationship resolution.
+   📍 `tests/benchmarks/graphql-api-performance.test.ts`
+- **Relational** — JOINs, population, and nested relation performance (Depth 2-3).
+   📍 `tests/benchmarks/relational-performance.test.ts`
+- **Hooks** — Evaluates middleware and lifecycle hook overhead across various data operations.
+   📍 `tests/benchmarks/hooks-performance.test.ts`
+- **DB Adapter** — Benchmarks raw CRUD operations directly via the database adapter layer.
+   📍 `tests/benchmarks/database-performance.test.ts`
 
-#### 📡 REST API PERFORMANCE MATRIX (LATENCY ANALYTICS)
-**Head-to-Head Comparison**: Comparing aggregate response parity across database engines.
+| Database | Cold Start | REST (p95) | GQL (avg) | Relational (avg) | Raw DB (read) | Status |
+|----------|------------|------------|-----------|------------------|--------------|--------|
+| **SQLITE** | 4309ms ⚪ (—) | 28.48ms ⚪ (—) | 29.12ms ⚪ (—) | 13.18ms ⚪ (—) | 0.320ms ⚪ (—) | ✅ |
+| **SQLITE** | 4309ms ⚪ (—) | 28.48ms ⚪ (—) | 29.12ms ⚪ (—) | 13.18ms ⚪ (—) | 0.320ms ⚪ (—) | ✅ |
+| **MONGODB** | 1905ms ⚪ (—) | 15.16ms ⚪ (—) | 17.64ms ⚪ (—) | 0.00ms ⚪ (—) | 0.773ms ⚪ (—) | ✅ |
+| **POSTGRESQL** | 0ms ⚪ (—) | 13.25ms ⚪ (—) | 14.14ms ⚪ (—) | 0.00ms ⚪ (—) | 1.786ms ⚪ (—) | ❌ |
+| **MARIADB** | 2076ms ⚪ (—) | 12.34ms ⚪ (—) | 14.69ms ⚪ (—) | 0.00ms ⚪ (—) | 0.159ms ⚪ (—) | ✅ |
 
-| Endpoint | Database | Avg (ms) | p50 (ms) | p95 (ms) | p99 (ms) | RPS |
-|---|---|---|---|---|---|---|
-| collections-list | SQLITE | 2.51 | 2.20 | 3.45 | 3.68 | 3935 |
-| collections-list | MONGODB | 3.01 | 2.82 | 6.78 | 6.92 | 3287 |
-| --- | --- | --- | --- | --- | --- | --- |
-| system-health | SQLITE | 4.16 | 4.03 | 8.02 | 8.38 | 2338 |
-| system-health | MONGODB | 3.59 | 3.60 | 4.14 | 5.35 | 2717 |
-| --- | --- | --- | --- | --- | --- | --- |
-| user-me | SQLITE | 5.60 | 5.56 | 6.28 | 6.39 | 1760 |
-| user-me | MONGODB | 7.06 | 6.92 | 9.64 | 10.14 | 1403 |
-| --- | --- | --- | --- | --- | --- | --- |
+### 📈 Latency Trends (last 5 runs — lower is better)
 
-#### 🗃️ GRAPHQL RESOLVER PERFORMANCE MATRIX (BOTTLENECK ANALYSIS)
-| Resolver | Database | Avg (ms) | p50 (ms) | p95 (ms) | p99 (ms) | RPS |
-|---|---|---|---|---|---|---|
-| me | SQLITE | 5.92 | 5.88 | 7.11 | 7.51 | 1595 |
-| me | MONGODB | 6.68 | 6.41 | 9.44 | 9.60 | 1462 |
-| --- | --- | --- | --- | --- | --- | --- |
-| system-health | SQLITE | 5.89 | 5.85 | 8.02 | 8.50 | 1650 |
-| system-health | MONGODB | 6.45 | 6.28 | 9.79 | 10.02 | 1516 |
-| --- | --- | --- | --- | --- | --- | --- |
-| collection-stats | SQLITE | 5.13 | 5.20 | 5.79 | 5.94 | 1909 |
-| collection-stats | MONGODB | 8.60 | 8.58 | 10.99 | 11.74 | 1143 |
-| --- | --- | --- | --- | --- | --- | --- |
-| list-users | SQLITE | 5.89 | 5.60 | 8.37 | 8.50 | 1654 |
-| list-users | MONGODB | 7.32 | 6.77 | 9.43 | 9.46 | 1351 |
-| --- | --- | --- | --- | --- | --- | --- |
-| media-images | SQLITE | 5.79 | 5.63 | 9.52 | 10.10 | 1687 |
-| media-images | MONGODB | 6.62 | 6.44 | 8.28 | 8.47 | 1494 |
-| --- | --- | --- | --- | --- | --- | --- |
+```mermaid
+xychart-beta
+  title "Total Latency (ms) — REST + DB + Hooks"
+  x-axis "Run"
+  y-axis "Latency (ms)"
+  ["Run 1", "Run 2", "Run 3", "Run 4", "Run 5"]
+  line "SQLITE" : [14.64, 13.33, 22.32, 14.59, 28.80]
+  line "MONGODB" : [16.22, 16.12, 19.55, 19.01, 15.93]
+  line "POSTGRESQL" : [14.74, 17.42, 15.03]
+  line "MARIADB" : [12.50]
+```
 
-#### 🏁 MIDDLWARE PERFORMANCE MATRIX
-| Hook | Database | Avg (µs) | p95 (µs) | 99 (µs) | Efficiency |
-|---|---|---|---|---|---|
-| addsecurityheaders | SQLITE | 2.79 | 4.70 | 7.20 | 🚀 |
-| addsecurityheaders | MONGODB | 2.74 | 5.10 | 7.80 | 🚀 |
+---
+
+## 🧩 Component Performance Comparison (Head-to-Head)
+
+### 📡 REST API PERFORMANCE MATRIX (LATENCY ANALYTICS)
+> **Why it matters**: Validates the overhead of the unified dispatcher and JSON serialization. Direct memory calls in SveltyCMS aim for sub-1ms overhead.
+> **Test File**: [`tests/benchmarks/rest-api-performance.test.ts`](file:///tests/benchmarks/rest-api-performance.test.ts)
+
+| Database | Avg Latency | p95 Latency | Throughput (RPS) |
+|----------|-------------|-------------|------------------|
+| SQLITE | 20.98ms | 28.48ms | 465 |
+| SQLITE | 20.98ms | 28.48ms | 465 |
+| MONGODB | 11.48ms | 15.16ms | 865 |
+| POSTGRESQL | 9.93ms | 13.25ms | 998 |
+| MARIADB | 9.44ms | 12.34ms | 1015 |
+
+### 🗃️ GRAPHQL RESOLVER PERFORMANCE MATRIX (BOTTLENECK ANALYSIS)
+> **Why it matters**: Tests resolver efficiency and N+1 relationship resolution. Professional benchmarks ensure deep queries don't block the event loop.
+> **Test File**: [`tests/benchmarks/graphql-api-performance.test.ts`](file:///tests/benchmarks/graphql-api-performance.test.ts)
+
+| Database | Me Query (avg) | Health (avg) | Throughput (RPS) |
+|----------|----------------|--------------|------------------|
+| SQLITE | 29.12ms | 30.00ms | 331 |
+| SQLITE | 29.12ms | 30.00ms | 331 |
+| MONGODB | 17.64ms | 15.26ms | 559 |
+| POSTGRESQL | 14.14ms | 15.20ms | 696 |
+| MARIADB | 14.69ms | 13.55ms | 662 |
+
+### 🔗 RELATIONAL PERFORMANCE MATRIX (JOIN & POPULATION)
+> **Why it matters**: Validates the efficiency of JOINs, populations, and nested relationship resolution (Depth 2-3). Essential for complex data structures.
+> **Test File**: [`tests/benchmarks/relational-performance.test.ts`](file:///tests/benchmarks/relational-performance.test.ts)
+
+| Database | GQL Nested (Depth 2) | REST Search (Aggregated) | Throughput (RPS) |
+|----------|-----------------------|--------------------------|------------------|
+| SQLITE | 13.18ms | 11.34ms | 372 |
+| SQLITE | 13.18ms | 11.34ms | 372 |
+
+### 🏁 MIDDLWARE PERFORMANCE MATRIX
+> **Why it matters**: SveltyCMS middleware handles Security, Auth, and Multi-tenancy. This matrix ensures these layers add negligible overhead.
+> **Test File**: [`tests/benchmarks/hooks-performance.test.ts`](file:///tests/benchmarks/hooks-performance.test.ts)
+
+| Hook | Database | Avg (µs) | p95 (µs) | p99 (µs) | Efficiency |
+|------|----------|----------|----------|----------|------------|
+| **handleturbopipeline** | SQLITE | 20.29 | 32.20 | 67.50 | ⚡ |
+| --- | MONGODB | 9.40 | 14.20 | 34.90 | ⚡ |
+| --- | POSTGRESQL | 74.33 | 119.40 | 162.30 | ⚡ |
+| --- | MARIADB | 9.65 | 16.80 | 37.80 | ⚡ |
 | --- | --- | --- | --- | --- | --- |
-| handleauthentication | SQLITE | 1.66 | 2.40 | 8.30 | 🚀 |
-| handleauthentication | MONGODB | 2.23 | 2.70 | 8.10 | 🚀 |
+| **handleauthentication** | SQLITE | 68.20 | 92.30 | 164.40 | ⚡ |
+| --- | MONGODB | 32.97 | 40.50 | 88.50 | ⚡ |
+| --- | POSTGRESQL | 27.27 | 32.70 | 65.20 | ⚡ |
+| --- | MARIADB | 31.63 | 48.70 | 94.30 | ⚡ |
 | --- | --- | --- | --- | --- | --- |
-| handleauthorization | SQLITE | 3.02 | 4.50 | 10.50 | 🚀 |
-| handleauthorization | MONGODB | 3.05 | 5.00 | 10.60 | 🚀 |
+| **handleauthorization** | SQLITE | 8.66 | 13.00 | 30.70 | ⚡ |
+| --- | MONGODB | 4.10 | 6.70 | 15.10 | 🚀 |
+| --- | POSTGRESQL | 3.43 | 5.40 | 8.70 | 🚀 |
+| --- | MARIADB | 4.27 | 6.00 | 16.70 | 🚀 |
 | --- | --- | --- | --- | --- | --- |
-| handlesecurity | SQLITE | 1.77 | 2.30 | 8.10 | 🚀 |
-| handlesecurity | MONGODB | 1.87 | 2.00 | 8.80 | 🚀 |
+| **handlesecurity** | SQLITE | 5.25 | 7.40 | 24.00 | ⚡ |
+| --- | MONGODB | 2.80 | 3.20 | 10.00 | 🚀 |
+| --- | POSTGRESQL | 2.05 | 3.00 | 9.00 | 🚀 |
+| --- | MARIADB | 2.20 | 3.30 | 12.60 | 🚀 |
 | --- | --- | --- | --- | --- | --- |
-| handlesystemstate | SQLITE | 1.92 | 2.60 | 8.10 | 🚀 |
-| handlesystemstate | MONGODB | 1.60 | 2.40 | 10.10 | 🚀 |
+| **handleapirequests** | SQLITE | 4.14 | 5.00 | 15.00 | 🚀 |
+| --- | MONGODB | 1.97 | 2.60 | 7.90 | 🚀 |
+| --- | POSTGRESQL | 1.92 | 2.20 | 7.60 | 🚀 |
+| --- | MARIADB | 2.23 | 2.50 | 9.00 | 🚀 |
 | --- | --- | --- | --- | --- | --- |
 
+### 🚨 Bottleneck Analysis (Latency Distribution)
+> **Insight**: Identifies whether the API layer (serialization/routing) or the DB Adapter layer is the primary performance contributor.
+
+📌 **SQLITE** — REST dominates (99% REST vs 1% DB)
+📌 **MONGODB** — REST dominates (95% REST vs 5% DB)
+📌 **POSTGRESQL** — REST dominates (87% REST vs 13% DB)
+📌 **MARIADB** — REST dominates (99% REST vs 1% DB)
+
+### ⚡ CACHE STRATEGY PERFORMANCE (REDIS VS IN-MEMORY)
+> **Why it matters**: Demonstrates the overhead of network L2 cache (Redis) vs local L1 cache (In-Memory).
+
+| Strategy | Avg Latency | p95 Latency | Throughput |
+|----------|-------------|-------------|------------|
+| **L1 (In-Memory)** | 137.71µs | 194.20µs | 7262 |
+| **L2 (Redis)** | 141.52µs | 198.00µs | 7066 |
+
+
+### 📖 Benchmark Glossary
+
+| Test Label | File Path | Description |
+|------------|-----------|-------------|
+| **REST API** | `tests/benchmarks/rest-api-performance.test.ts` | Validates unified dispatcher overhead and JSON serialization latency. |
+| **Hooks** | `tests/benchmarks/hooks-performance.test.ts` | High-resolution micro-benchmarks for individual middleware layers (µs). |
+| **GraphQL API** | `tests/benchmarks/graphql-api-performance.test.ts` | Resolvers performance and N+1 relationship stress testing. |
+| **Relational** | `tests/benchmarks/relational-performance.test.ts` | JOINs, population, and nested relation performance (Depth 2-3). |
+| **DB Adapter** | `tests/benchmarks/database-performance.test.ts` | Raw CRUD latency for the current database adapter. |
 
 
 <!-- BENCHMARK_END -->

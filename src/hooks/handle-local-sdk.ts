@@ -14,7 +14,7 @@ export const handleLocalSdk: Handle = async ({ event, resolve }) => {
 
   if (dbAdapter) {
     // Attach clean Local SDK using the new helper
-    event.locals.cms = LocalCMS.getLocals(dbAdapter, event.locals);
+    event.locals.cms = LocalCMS.getLocals(dbAdapter, event.locals) as any;
   }
 
   return resolve(event);

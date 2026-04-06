@@ -113,6 +113,7 @@ export function parseJsonField<T>(value: unknown, fallback: T): T {
   return value as T;
 }
 
+import { toISOString } from "@src/utils/date-utils";
 /**
  * Convert Date objects in a record to ISO strings.
  * PostgreSQL TIMESTAMP fields come back as Date objects from postgres.js.
@@ -121,8 +122,8 @@ export function convertDatesToISO<T extends Record<string, unknown>>(obj: T): T 
   if (!obj || typeof obj !== "object") return obj;
   const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(obj)) {
-    if (value instanceof Date && typeof value.toISOString === "function") {
-      result[key] = value.toISOString();
+    if (value instanceof Date) {
+      result[key] = toISOString(value);
     } else {
       result[key] = value;
     }

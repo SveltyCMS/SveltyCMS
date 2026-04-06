@@ -36,18 +36,11 @@ async function runRestBenchmarkSuite() {
     // However, to keep CI/Developer experience clean, we log it clearly.
     return;
   }
-
   try {
-    // Use the cookie provided by the matrix runner, or fall back to internal helper
-    let authHeaders: Record<string, string> = {};
-    if (process.env.AUTH_COOKIE) {
-      console.log("🔑 Using external AUTH_COOKIE from matrix runner.");
-      authHeaders = { Cookie: process.env.AUTH_COOKIE };
-    } else {
-      const { prepareAuthenticatedContext } = await import("../integration/helpers/test-setup");
-      const authCookie = await prepareAuthenticatedContext();
-      authHeaders = { Cookie: authCookie };
-    }
+    const TEST_API_SECRET = process.env.TEST_API_SECRET || "enterprise-audit-2026";
+    const authHeaders: Record<string, string> = {
+      "x-test-secret": TEST_API_SECRET,
+    };
 
     const overallResults: any[] = [];
 

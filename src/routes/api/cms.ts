@@ -1299,14 +1299,13 @@ class CollectionsNamespace {
       tenantId,
       collectionName: schema.name,
     });
-
     const result = await this._dbAdapter.crud.insert(
       this.getCollectionName(schema._id as string),
       entryData,
       { tenantId: tenantId as DatabaseId },
     );
 
-    if (result.success && result.data) {
+    if (result && result.success && result.data) {
       await this.afterMutation(
         schema,
         tenantId,
@@ -1356,7 +1355,10 @@ class CollectionsNamespace {
       { tenantId: tenantId as DatabaseId },
     );
 
-    if (result.success && result.data) {
+    console.log("DEBUG: update mutation entryId:", entryId);
+    console.log("DEBUG: update mutation result:", result);
+
+    if (result && result.success && result.data) {
       await this.afterMutation(schema, tenantId, "update", entryId, result.data, effectiveUser);
     }
 
@@ -1378,8 +1380,8 @@ class CollectionsNamespace {
       { tenantId: tenantId as DatabaseId, permanent, userId: user?._id as DatabaseId },
     );
 
-    if (!result.success) {
-      throw new AppError(result.error?.message || "Delete failed", 500);
+    if (!result || !result.success) {
+      throw new AppError(result?.error?.message || "Delete failed", 500);
     }
 
     await this.afterMutation(
@@ -1391,7 +1393,8 @@ class CollectionsNamespace {
       user,
     );
 
-    return result;
+    if (!result.success) return result;
+    return { success: true, data: { _id: entryId } };
   }
 
   async getRevisions(collectionId: string, entryId: string, tenantId?: DatabaseId | null) {

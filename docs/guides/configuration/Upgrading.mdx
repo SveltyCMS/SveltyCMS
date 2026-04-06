@@ -1,5 +1,5 @@
 ---
-path: "docs/guides/configuration/Upgrading.mdx"
+path: "docs/guides/configuration/upgrading.mdx"
 title: "Upgrading SveltyCMS"
 description: "Guide on how to safely upgrade your SveltyCMS installation."
 order: 10
@@ -24,24 +24,30 @@ The upgrade tool performs the following steps:
 ```mermaid
 graph TD
     A[Start Upgrade] --> B{Git Clean?}
-    B -- No --> C[Error: Stash/Commit first]
-    B -- Yes --> D[Fetch from upstream/next]
-    D --> E[Git Merge --no-commit]
-    E --> F{Conflicts?}
-    F -- Yes --> G[Pause: User resolves]
-    F -- No --> H[Run bun install]
-    H --> I[Run Codemods]
-    I --> J[Run db:push]
-    J --> K[Run test:unit]
-    K --> L[Upgrade Complete]
+    B -- No --> C{--force flag?}
+    C -- No --> D[Error: Stash/Commit first]
+    C -- Yes --> E[Auto-stash changes]
+    B -- Yes --> F[Create Rollback Tag]
+    E --> F
+    F --> G[Fetch & Merge updates]
+    G --> H{Conflicts?}
+    H -- Yes --> I[Pause: Manual Resolution]
+    H -- No --> J[Run bun install]
+    J --> K[Run Codemods]
+    K --> L[Run db:push]
+    L --> M[Run test:unit]
+    M --> N[Restore Stash if any]
+    N --> O[Upgrade Complete]
 ```
 
-1. **Git Verification**: Ensures you are in a valid Git repository and have no uncommitted changes.
-2. **Upstream Fetch**: Fetches the latest changes from the official SveltyCMS repository.
-3. **Pre-commit Merge**: Merges changes into your local branch without committing, allowing you to review.
-4. **Dependency Refresh**: Runs `bun install` to ensure all new packages are installed.
-5. **Codemods**: Automatically executes scripts in `scripts/codemods/` to handle breaking changes.
-6. **Database & Tests**: Runs `db:push` and `test:unit` to ensure everything is working correctly.
+1. **Git Verification**: Ensures you are in a valid Git repository.
+2. **Auto-Stash**: If you have uncommitted changes and use the `--force` flag, the tool automatically stashes them and restores them after the upgrade.
+3. **Rollback Tag**: Creates a local Git tag (e.g., `pre-upgrade-2026-04-06-12-00-00`) as a safety net before any changes are merged.
+4. **Upstream Fetch**: Fetches the latest changes from the official SveltyCMS repository.
+5. **Pre-commit Merge**: Merges changes into your local branch without committing, allowing you to review.
+6. **Dependency Refresh**: Runs `bun install` to ensure all new packages are installed.
+7. **Codemods**: Automatically executes scripts in `scripts/codemods/`. Scripts starting with an underscore (e.g., `_utils.ts`) are ignored by the runner.
+8. **Database & Tests**: Runs `db:push` and `test:unit` to ensure everything is working correctly.
 
 ## How to Run the Upgrade
 
@@ -53,44 +59,50 @@ bun run scripts/upgrade.ts
 
 ### Advanced Options
 
-| Flag            | Description                                          |
-| --------------- | ---------------------------------------------------- |
-| `--dry-run`     | See what would happen without making any changes.    |
-| `--skip-tests`  | Do not run the unit test suite after upgrade.        |
-| `--skip-db`     | Do not run `db:push` after upgrade.                  |
-| `--force`       | Ignore uncommitted changes (not recommended).        |
-| `--branch=NAME` | Upgrade from a specific branch (defaults to `next`). |
+| Flag            | Description                                                             |
+| --------------- | ----------------------------------------------------------------------- |
+| `--dry-run`     | See what would happen without making any changes.                       |
+| `--skip-tests`  | Do not run the unit test suite after upgrade.                           |
+| `--skip-db`     | Do not run `db:push` after upgrade.                                     |
+| `--skip-merge`  | Skip fetch+merge (useful if resuming after manual conflict resolution). |
+| `--force`       | Auto-stash uncommitted changes before upgrade.                          |
+| `--branch=NAME` | Upgrade from a specific branch (defaults to `next`).                    |
 
 ## Codemods
 
 SveltyCMS uses "codemods" to automate the tedious parts of an upgrade. If a new version renames a property in a configuration file or changes a component's API, a codemod script will automatically update your local files during the upgrade.
 
-You can find available codemods or add your own in the `scripts/codemods/` directory.
+### Naming Convention
+
+Codemods in `scripts/codemods/` follow a specific naming pattern:
+
+- **`NN-description.ts`**: Numbered prefix (e.g., `01-migrate-schema.ts`) determines the execution order.
+- **`_name.ts`**: Files starting with an underscore are treated as internal utilities and are **not** executed by the upgrade runner.
 
 ## Best Practices
 
-- **Backup First**: While the script is safe, always ensure your important data is backed up.
+- **Review the Rollback Tag**: Before starting, the tool provides a rollback tag. If anything goes wrong, you can return to your previous state using `git reset --hard <tag-name>`.
 - **Review Changes**: After the script finishes, use `git diff` to review the changes before committing.
-- **Resolve Conflicts**: If the merge fails, resolve conflicts in your IDE, then run `bun install` and `scripts/upgrade.ts` again.
+- **Resolve Conflicts**: If the merge fails, the tool will pause. Resolve conflicts in your editor, `git add` the changes, then run the upgrade again with `--skip-merge`.
 
 ## Troubleshooting
 
-### "Not a git repository"
+### Rolling Back
 
-The upgrade tool requires Git. If you downloaded SveltyCMS as a ZIP, initialize a repository first:
-
-```bash
-git init
-git remote add origin https://github.com/SveltyCMS/SveltyCMS.git
-git fetch origin
-git checkout -b next origin/next
-```
-
-### Dependency Errors
-
-If `bun install` fails after an upgrade, try clearing the cache:
+If the upgrade causes issues, you can roll back to the state before the upgrade started:
 
 ```bash
-rm -rf node_modules/.vite
-bun install
+# List available rollback tags
+git tag --list "pre-upgrade-*"
+
+# Reset to the desired tag
+git reset --hard pre-upgrade-YYYY-MM-DD-HH-MM-SS
 ```
+
+### "Merge conflict — manual resolution required"
+
+If conflicts occur:
+
+1. Resolve them in your IDE.
+2. `git add .`
+3. Run `bun run scripts/upgrade.ts --skip-merge` to complete the remaining steps (install, codemods, etc.).

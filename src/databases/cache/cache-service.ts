@@ -228,7 +228,7 @@ export class CacheService {
   ): Promise<void> {
     await this.ensureInitialized();
     const key = this.generateKey(baseKey, tenantId);
-    const ttl = category && ttlSeconds === 0 ? getCategoryTTL(category) : ttlSeconds;
+    const ttl = ttlSeconds === 0 ? (category ? getCategoryTTL(category) : REDIS_TTL_S) : ttlSeconds;
 
     // Set globally/shared (L2) and locally (L1)
     await Promise.all([

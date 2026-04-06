@@ -127,7 +127,9 @@ const dispatch = async (event: RequestEvent) => {
 
   // --- 2. Multi-Tenant Validation ---
   const MULTI_TENANT = getPrivateSettingSync("MULTI_TENANT");
-  const exemptFromTenant = ["auth", "setup", "system", "health", "metrics"].includes(namespace);
+  const exemptFromTenant =
+    ["setup", "system", "health", "metrics"].includes(namespace) ||
+    (namespace === "auth" && ["login", "saml"].includes(segments[1]));
 
   if (MULTI_TENANT && !tenantId && !exemptFromTenant) {
     throw new AppError("Tenant ID required for this endpoint", 400, "TENANT_MISSING");
@@ -169,7 +171,6 @@ const dispatch = async (event: RequestEvent) => {
   const cms = new LocalCMS(dbAdapter!);
 
   try {
-    // ── Root-level / Namespace special logic ──
     if (namespace === "search" && request.method === "GET") {
       const query = url.searchParams.get("q") || "";
       const collections = url.searchParams
@@ -181,11 +182,13 @@ const dispatch = async (event: RequestEvent) => {
         tenantId: tenantId as any,
         user,
       });
-      return url.searchParams.get("raw") === "true" ? rawResponse(result) : successResponse(result);
+      return url.searchParams.get("raw") === "true"
+        ? rawResponse(event, result)
+        : successResponse(event, result);
     }
 
     if (namespace === "get-tokens-provided" && request.method === "GET") {
-      return rawResponse({
+      return rawResponse(event, {
         google: Boolean(getPrivateSettingSync("GOOGLE_API_KEY", tenantId!)),
         twitch: Boolean(getPrivateSettingSync("TWITCH_TOKEN", tenantId!)),
         tiktok: Boolean(getPrivateSettingSync("TIKTOK_TOKEN", tenantId!)),
@@ -232,6 +235,7 @@ const dispatch = async (event: RequestEvent) => {
     logger.error(`API Refactored Dispatcher Error: ${err.message}`, {
       path,
       method: request.method,
+      stack: err.stack,
     });
     throw new AppError(err.message || "Internal Server Error", err.status || 500);
   }

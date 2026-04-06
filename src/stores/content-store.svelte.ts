@@ -113,8 +113,13 @@ class ContentStore {
     if (!node) {
       const lowerId = identifier.toLowerCase();
       const lowerWithSlash = lowerId.startsWith("/") ? lowerId : `/${lowerId}`;
+      const lowerWithPrefix = lowerWithSlash.startsWith("/collection/")
+        ? lowerWithSlash
+        : `/collection${lowerWithSlash}`;
+
       for (const [pathKey, idValue] of this.pathMap.entries()) {
-        if (pathKey.toLowerCase() === lowerId || pathKey.toLowerCase() === lowerWithSlash) {
+        const lowerKey = pathKey.toLowerCase();
+        if (lowerKey === lowerId || lowerKey === lowerWithSlash || lowerKey === lowerWithPrefix) {
           node = this.getNode(idValue);
           break;
         }

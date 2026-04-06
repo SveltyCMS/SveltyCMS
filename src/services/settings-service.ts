@@ -38,6 +38,7 @@ const INFRASTRUCTURE_KEYS = new Set([
   "ENCRYPTION_KEY",
   "MULTI_TENANT",
   "DEMO",
+  "TEST_API_SECRET",
 ]);
 
 const KNOWN_PRIVATE_KEYS = Object.keys(privateConfigSchema.entries).filter(

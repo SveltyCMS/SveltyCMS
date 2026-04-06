@@ -402,16 +402,26 @@ export class MongoCollectionMethods {
       const collection = model.collection;
       const indexPromises = indexes.map(async (index) => {
         try {
+          // 🛡️ Safety Check: Bypass if connection was closed during high-concurrency reloads
+          if (mongoose.connection.readyState !== 1) return;
+
           await collection.createIndex(index.fields as any, index.options || {});
           logger.trace(
             `Created index on ${Object.keys(index.fields).join(", ")} for ${collectionId}`,
           );
-        } catch (error) {
-          // Ignore duplicate index errors (Code 85: IndexOptionsConflict)
+        } catch (error: any) {
+          // 🤫 SILENCE: If the client was closed or we are disconnecting, suppress the warning noise
           if (
-            (error as { code?: number })?.code === 85 ||
-            (error as Error).message.includes("already exists")
+            mongoose.connection.readyState === 0 ||
+            error?.name === "MongoClientClosedError" ||
+            error?.message?.includes("client was closed") ||
+            error?.message?.includes("interrupted because client was closed")
           ) {
+            return;
+          }
+
+          // Ignore duplicate index errors (Code 85: IndexOptionsConflict)
+          if (error?.code === 85 || error?.message?.includes("already exists")) {
             return;
           }
           logger.warn(`Failed to create index for ${collectionId}: ${error}`);

@@ -123,7 +123,12 @@ export async function loadPrivateConfig(
             return null;
           }
         }
-        privateEnv = module.privateEnv;
+        privateEnv = { ...module.privateEnv, ...envOverride };
+
+        // 🛡️ ENHANCED MERGE: Ensure environment variables ALWAYS take precedence for infrastructure
+        if (process.env.TEST_API_SECRET) privateEnv!.TEST_API_SECRET = process.env.TEST_API_SECRET;
+        if (process.env.JWT_SECRET_KEY) privateEnv!.JWT_SECRET_KEY = process.env.JWT_SECRET_KEY;
+        if (process.env.ENCRYPTION_KEY) privateEnv!.ENCRYPTION_KEY = process.env.ENCRYPTION_KEY;
 
         // SAFETY: Double-check we are not connecting to production in test mode
         if (
@@ -140,11 +145,11 @@ export async function loadPrivateConfig(
         logger.debug(
           module.__VIRTUAL__
             ? "Using fallback configuration (Setup Mode active)"
-            : "Private config loaded successfully from config/private.ts",
+            : "Private config loaded successfully",
           {
             hasConfig: !!privateEnv,
             dbType: privateEnv?.DB_TYPE,
-            dbHost: privateEnv?.DB_HOST ? "***" : "missing",
+            hasTestSecret: !!privateEnv?.TEST_API_SECRET,
           },
         );
         return privateEnv;

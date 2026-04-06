@@ -55,18 +55,29 @@ export function stringToISODateString(dateString: string): ISODateString {
  * };
  */
 export function toISOString(value: unknown): ISODateString {
-  // Handle Date objects (common from ORMs and document databases)
-  if (value && typeof value === "object" && "toISOString" in value) {
-    return (value as Date).toISOString() as ISODateString;
+  // Handle Date-like objects (common from ORMs and document databases)
+  if (
+    value &&
+    typeof value === "object" &&
+    "toISOString" in value &&
+    typeof (value as any).toISOString === "function"
+  ) {
+    const date = value as any;
+    if (!Number.isNaN(date.getTime?.() ?? NaN)) {
+      return date.toISOString() as ISODateString;
+    }
   }
   // Handle already converted ISO strings (idempotent operation)
   if (typeof value === "string" && isISODateString(value)) {
     return value;
   }
   // Handle timestamps or date strings
-  if (value) {
+  if (value && (typeof value === "string" || typeof value === "number")) {
     try {
-      return new Date(value as string | number).toISOString() as ISODateString;
+      const date = new Date(value);
+      if (!Number.isNaN(date.getTime())) {
+        return date.toISOString() as ISODateString;
+      }
     } catch {
       logger.warn("Failed to convert value to ISODateString, using current date", { value });
     }

@@ -245,7 +245,7 @@ describe("2FA API Unit Tests", () => {
       // Override tenantId for this specific test to be undefined
       (event.locals as any).tenantId = undefined;
 
-      await expect(POST_VERIFY(event)).rejects.toThrow("Tenant context is required");
+      await expect(POST_VERIFY(event)).rejects.toThrow("Tenant ID required");
     });
 
     it("should use locals.tenantId in multi-tenant mode", async () => {
@@ -273,10 +273,8 @@ describe("2FA API Unit Tests", () => {
       const user = { _id: "user-1", email: "test@example.com" };
       mockTwoFactorService.initiate2FASetup.mockResolvedValue({
         success: true,
-        data: {
-          qrCode: "qr-data",
-          secret: "secret",
-        },
+        qrCode: "qr-data",
+        secret: "secret",
       });
 
       const event = createMockEvent({}, user, undefined, "setup", {
@@ -287,7 +285,7 @@ describe("2FA API Unit Tests", () => {
       const result = await response.json();
 
       expect(result.success).toBe(true);
-      expect(result.data.secret).toBe("secret");
+      expect(result.secret).toBe("secret");
     });
 
     it("should throw UNAUTHORIZED for unauthenticated user", async () => {
@@ -410,7 +408,7 @@ describe("2FA API Unit Tests", () => {
       const result = await response.json();
 
       expect(result.success).toBe(true);
-      expect(result.backupCodes).toEqual(["n1", "n2"]);
+      expect(result.data).toEqual(["n1", "n2"]);
     });
   });
 });

@@ -352,8 +352,8 @@ export class AdapterCore {
    * All dynamic collections sharing a common relational structure for flexibility.
    */
   private createDynamicTableDefinition(tableName: string) {
-    const { pgTable, varchar, jsonb, timestamp } = import("drizzle-orm/pg-core") as unknown as any;
-    const { sql } = import("drizzle-orm") as unknown as any;
+    const { pgTable, varchar, jsonb, timestamp } = require("drizzle-orm/pg-core");
+    const { sql } = require("drizzle-orm");
 
     return pgTable(tableName, {
       _id: varchar("_id", { length: 36 }).primaryKey(),

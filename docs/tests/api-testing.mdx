@@ -70,11 +70,12 @@ Our API tests operate at the **Integration** level. Unlike unit tests, these int
 - **State Verification**: Usage of `get-user` action to verify post-registration database state.
 - **Files**: `tests/unit/api/user.test.ts`, `token.test.ts`
 
-### 📦 Content & Media (82 tests)
+### 📦 Content & Relational (82 tests)
 
 - **Collections**: CRUD operations, complex relations, and schema validation.
+- **Relational Benchmarks**: Dedicated performance testing for Depth 2-3 populations and JOINs.
 - **Media DAM**: AI tagging (Ollama), EXIF extraction, and non-destructive editing.
-- **Files**: `tests/unit/api/collections.test.ts`, `media.test.ts`
+- **Files**: `tests/unit/api/collections.test.ts`, `media.test.ts`, `tests/benchmarks/relational-performance.test.ts`
 
 ### ⚙️ System & Dashboard (126 tests)
 

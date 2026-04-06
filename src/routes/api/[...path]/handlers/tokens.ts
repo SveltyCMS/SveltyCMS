@@ -97,15 +97,15 @@ export async function handleTokenRoutes(
           order: (url.searchParams.get("order") as "asc" | "desc") || "desc",
         });
         return url.searchParams.get("raw") === "true"
-          ? rawResponse(result.data)
-          : successResponse(result);
+          ? rawResponse(event, result.data)
+          : successResponse(event, result);
       }
-      return rawResponse(await cms.auth.tokens.findById(tokenId, tenantId));
+      return rawResponse(event, await cms.auth.tokens.findById(tokenId, tenantId));
     }
 
     if (request.method === "PATCH" && method) {
       const data = await request.json();
-      return rawResponse(await cms.auth.tokens.update(method, data, tenantId));
+      return rawResponse(event, await cms.auth.tokens.update(method, data, tenantId));
     }
 
     if (request.method === "POST") {
@@ -113,10 +113,15 @@ export async function handleTokenRoutes(
       if (method === "create-token") {
         if (body.expiresIn && !body.expires) body.expires = body.expiresIn;
         const result = await cms.auth.tokens.create({ ...body, tenantId });
-        return result.success ? successResponse({ token: result.data }) : rawResponse(result, 400);
+        return result.success
+          ? successResponse(event, { token: result.data })
+          : rawResponse(event, result, 400);
       }
       if (method === "batch") {
-        return rawResponse(await cms.auth.tokens.batchAction(body.tokenIds, body.action, tenantId));
+        return rawResponse(
+          event,
+          await cms.auth.tokens.batchAction(body.tokenIds, body.action, tenantId),
+        );
       }
       if (method === "resolve") {
         const locale = (locals as any).locale || "en";
@@ -126,7 +131,7 @@ export async function handleTokenRoutes(
     }
 
     if (request.method === "DELETE" && method) {
-      return rawResponse(await cms.auth.tokens.delete(method, tenantId));
+      return rawResponse(event, await cms.auth.tokens.delete(method, tenantId));
     }
   }
 

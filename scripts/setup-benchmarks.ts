@@ -1,158 +1,175 @@
 #!/usr/bin/env bun
 /**
  * @file scripts/setup-benchmarks.ts
- * @description Sets up relational collections and seeds data for GraphQL benchmarking using HTTP API.
+ * @description Sets up relational collections and seeds benchmark data via HTTP API.
+ * Optimized for SveltyCMS v3 architecture.
  */
 
-const API_BASE_URL = process.env.API_BASE_URL || "http://localhost:4173";
+const API_BASE_URL = process.env.API_BASE_URL ?? "http://localhost:4173";
+const AUTHOR_COUNT = Number(process.env.AUTHOR_COUNT ?? 10);
+const POSTS_PER_AUTHOR = Number(process.env.POSTS_PER_AUTHOR ?? 5);
+const SEED_CONCURRENCY = Number(process.env.SEED_CONCURRENCY ?? 5);
+const FETCH_TIMEOUT_MS = 30_000;
+const TEST_API_SECRET = process.env.TEST_API_SECRET || "enterprise-audit-2026";
 
-async function main() {
-  console.log(`🚀 Starting relational setup via API at ${API_BASE_URL}...`);
+const AUTHORS_COLLECTION_ID = "00000000000000000000000000000001";
+const POSTS_COLLECTION_ID = "00000000000000000000000000000002";
 
-  // 1. Login to get cookie
-  console.log("🔐 Logging in as admin...");
-  const loginRes = await fetch(`${API_BASE_URL}/api/user/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      email: "admin@example.com",
-      password: "Admin123!",
-    }),
-  });
-
-  if (!loginRes.ok) {
-    console.error("❌ Login failed. Ensure server is running and admin user exists.");
-    process.exit(1);
-  }
-
-  const cookie = loginRes.headers.get("set-cookie") || "";
-  console.log("✅ Logged in successfully.");
-
-  const headers = {
-    "Content-Type": "application/json",
-    Cookie: cookie,
-  };
-
-  // 2. Create/Update Collections via content-structure API
-  console.log("📂 Setting up 'Authors' and 'Posts' collections...");
-
-  // UUIDs for collections
-  const AUTHORS_ID = "00000000000000000000000000000001";
-  const POSTS_ID = "00000000000000000000000000000002";
-
-  const setupCollectionsRes = await fetch(`${API_BASE_URL}/api/content-structure`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({
-      action: "updateContentStructure",
-      items: [
-        {
-          type: "create",
-          node: {
-            _id: AUTHORS_ID,
-            path: "Authors",
-            name: "Authors",
-            nodeType: "collection",
-            status: "publish",
-            order: 1,
-            icon: "mdi:account-details",
-            collectionDef: {
-              _id: AUTHORS_ID,
-              name: "Authors",
-              fields: [
-                { label: "Name", widget: "Input", required: true },
-                { label: "Bio", widget: "Input" },
-                {
-                  label: "Posts",
-                  widget: "Relation",
-                  collection: "Posts",
-                  multiple: true,
-                },
-              ],
-              permissions: { public: { read: true } },
-            },
-          },
-        },
-        {
-          type: "create",
-          node: {
-            _id: POSTS_ID,
-            path: "Posts",
-            name: "Posts",
-            nodeType: "collection",
-            status: "publish",
-            order: 2,
-            icon: "mdi:post",
-            collectionDef: {
-              _id: POSTS_ID,
-              name: "Posts",
-              fields: [
-                { label: "Title", widget: "Input", required: true },
-                {
-                  label: "Author",
-                  widget: "Relation",
-                  collection: "Authors",
-                  multiple: false,
-                },
-              ],
-              permissions: { public: { read: true } },
-            },
-          },
-        },
-      ],
-    }),
-  });
-
-  const setupText = await setupCollectionsRes.text();
-  console.log(`📡 Setup collections response [${setupCollectionsRes.status}]: ${setupText}`);
-
-  // Wait a moment for reactivity to settle (optional but safer)
-  await new Promise((r) => setTimeout(r, 500));
-
-  // 5. Seed Data
-  console.log("🌱 Seeding relational data...");
-
-  // Seed Authors
-  const authorIds = [];
-  for (let i = 1; i <= 10; i++) {
-    const res = await fetch(`${API_BASE_URL}/api/collections/${AUTHORS_ID}`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        Name: `Author ${i}`,
-        Bio: `Bio for author ${i}`,
-      }),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      authorIds.push(data.data._id);
-      console.log(`✅ Created author ${i}: ${data.data._id}`);
-    } else {
-      const text = await res.text();
-      console.error(`❌ Failed to create author ${i}: ${res.status} ${text}`);
-    }
-  }
-  console.log(`✅ Created ${authorIds.length} authors.`);
-
-  // Seed Posts
-  let postCount = 0;
-  for (const authorId of authorIds) {
-    for (let j = 1; j <= 5; j++) {
-      const res = await fetch(`${API_BASE_URL}/api/collections/${POSTS_ID}`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          Title: `Post ${j} by ${authorId}`,
-          Author: authorId,
-        }),
-      });
-      if (res.ok) postCount++;
-    }
-  }
-  console.log(`✅ Created ${postCount} posts.`);
-
-  console.log("🎉 Relational benchmark data setup complete!");
-  process.exit(0);
+function log(msg: string): void {
+  console.log(`[${new Date().toISOString()}] ${msg}`);
 }
 
-main();
+async function apiFetch<T = unknown>(url: string, init: RequestInit, label: string): Promise<T> {
+  const res = await fetch(url, {
+    ...init,
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+  });
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => "(unreadable body)");
+    throw new Error(
+      `${label} → HTTP ${res.status} ${res.statusText}\n  URL: ${url}\n  Body: ${body.slice(0, 300)}`,
+    );
+  }
+
+  return res.json() as Promise<T>;
+}
+
+async function batchRun<T>(
+  tasks: (() => Promise<T>)[],
+  concurrency: number,
+): Promise<PromiseSettledResult<T>[]> {
+  const results: PromiseSettledResult<T>[] = [];
+  for (let i = 0; i < tasks.length; i += concurrency) {
+    const slice = tasks.slice(i, i + concurrency).map((t) => t());
+    const settled = await Promise.allSettled(slice);
+    results.push(...settled);
+  }
+  return results;
+}
+
+async function setupCollections(authHeaders: Record<string, string>): Promise<void> {
+  log("Creating 'Authors' and 'Posts' collections…");
+
+  // Create Authors Collection
+  await apiFetch(
+    `${API_BASE_URL}/api/testing`,
+    {
+      method: "POST",
+      headers: authHeaders,
+      body: JSON.stringify({
+        action: "create-collection",
+        name: "Authors",
+        schema: {
+          _id: AUTHORS_COLLECTION_ID,
+          icon: "mdi:account-details",
+          fields: [
+            { label: "Name", widget: "Input", required: true },
+            { label: "Bio", widget: "Input" },
+          ],
+        },
+      }),
+    },
+    "setupAuthorsCollection",
+  );
+
+  // Create Posts Collection
+  await apiFetch(
+    `${API_BASE_URL}/api/testing`,
+    {
+      method: "POST",
+      headers: authHeaders,
+      body: JSON.stringify({
+        action: "create-collection",
+        name: "Posts",
+        schema: {
+          _id: POSTS_COLLECTION_ID,
+          icon: "mdi:post",
+          fields: [
+            { label: "Title", widget: "Input", required: true },
+            {
+              label: "Author",
+              widget: "Relation",
+              collection: "Authors",
+              multiple: false,
+            },
+          ],
+        },
+      }),
+    },
+    "setupPostsCollection",
+  );
+
+  log("Collections creation request sent and reconciled.");
+}
+
+async function seedAuthors(authHeaders: Record<string, string>): Promise<string[]> {
+  log(`Seeding ${AUTHOR_COUNT} authors…`);
+  const tasks = Array.from({ length: AUTHOR_COUNT }, (_, i) => {
+    const n = i + 1;
+    return () =>
+      apiFetch<any>(
+        `${API_BASE_URL}/api/collections/${AUTHORS_COLLECTION_ID}`,
+        {
+          method: "POST",
+          headers: authHeaders,
+          body: JSON.stringify({
+            Name: `Author ${n}`,
+            Bio: `Bio for author ${n}`,
+          }),
+        },
+        `createAuthor(${n})`,
+      );
+  });
+
+  const settled = await batchRun(tasks, SEED_CONCURRENCY);
+  return settled
+    .filter((r): r is PromiseFulfilledResult<any> => r.status === "fulfilled")
+    .map((r) => r.value.data._id);
+}
+
+async function seedPosts(authHeaders: Record<string, string>, authorIds: string[]): Promise<void> {
+  const total = authorIds.length * POSTS_PER_AUTHOR;
+  log(`Seeding ${total} posts…`);
+  const tasks = authorIds.flatMap((authorId, ai) =>
+    Array.from({ length: POSTS_PER_AUTHOR }, (_, pi) => {
+      const n = pi + 1;
+      return () =>
+        apiFetch<any>(
+          `${API_BASE_URL}/api/collections/${POSTS_COLLECTION_ID}`,
+          {
+            method: "POST",
+            headers: authHeaders,
+            body: JSON.stringify({
+              Title: `Post ${n} by Author ${ai + 1}`,
+              Author: authorId,
+            }),
+          },
+          `createPost(author=${ai + 1}, post=${n})`,
+        );
+    }),
+  );
+
+  await batchRun(tasks, SEED_CONCURRENCY);
+}
+
+async function main(): Promise<void> {
+  log(`Starting relational benchmark setup at ${API_BASE_URL}`);
+
+  const authHeaders: Record<string, string> = {
+    "Content-Type": "application/json",
+    "x-test-secret": TEST_API_SECRET,
+  };
+
+  await setupCollections(authHeaders);
+  const authorIds = await seedAuthors(authHeaders);
+  if (authorIds.length === 0) throw new Error("Failed to seed authors");
+  await seedPosts(authHeaders, authorIds);
+
+  log(`🎉 Setup complete: ${authorIds.length} author(s) seeded.`);
+}
+
+main().catch((err) => {
+  console.error("❌ Setup failed:", err);
+  process.exit(1);
+});

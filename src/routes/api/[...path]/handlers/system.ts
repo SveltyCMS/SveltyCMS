@@ -27,11 +27,11 @@ export async function handleSystemRoutes(
       if (method === "active") {
         const widgetList = await cms.widgets.list(tenantId || "default");
         const activeWidgets = widgetList.filter((w: any) => w.isActive);
-        return successResponse(activeWidgets);
+        return successResponse(event, activeWidgets);
       }
       if (method === "list") {
         const widgetList = await cms.widgets.list(tenantId || "default");
-        return successResponse({
+        return successResponse(event, {
           widgets: widgetList,
           summary: {
             total: widgetList.length,
@@ -46,21 +46,21 @@ export async function handleSystemRoutes(
     if (request.method === "POST") {
       if (method === "activate" && segments[2]) {
         const result = await cms.widgets.activate(segments[2]);
-        return rawResponse(result);
+        return rawResponse(event, result);
       }
       if (method === "deactivate" && segments[2]) {
         const result = await cms.widgets.deactivate(segments[2]);
-        return rawResponse(result);
+        return rawResponse(event, result);
       }
       if (method === "install") {
         const { widgetId } = await request.json();
         await cms.widgets.activate(widgetId);
-        return successResponse({ widgetId });
+        return successResponse(event, { widgetId });
       }
       if (method === "uninstall") {
         const { widgetName } = await request.json();
         await cms.widgets.deactivate(widgetName);
-        return successResponse({ widgetName });
+        return successResponse(event, { widgetName });
       }
     }
   }
@@ -70,7 +70,7 @@ export async function handleSystemRoutes(
     if (method === "reinitialize" && request.method === "POST") {
       const body = await request.json().catch(() => ({}));
       const result = await cms.system.reinitialize(body.force ?? true);
-      return rawResponse(result);
+      return rawResponse(event, result);
     }
   }
 
@@ -87,7 +87,7 @@ export async function handleSystemRoutes(
           groups[group.id][field.key] = flatSettings[field.key];
         }
       }
-      return successResponse(groups);
+      return successResponse(event, groups);
     }
 
     if (request.method === "GET" && method === "public") {
@@ -128,13 +128,13 @@ export async function handleSystemRoutes(
           },
         });
       }
-      return successResponse(publicSettings);
+      return successResponse(event, publicSettings);
     }
 
     if (request.method === "POST" && method === "import") {
       const snapshot = await request.json();
       const result = await cms.system.settings.updateFromSnapshot(snapshot);
-      return successResponse(result);
+      return successResponse(event, result);
     }
   }
 
@@ -142,42 +142,42 @@ export async function handleSystemRoutes(
   if (namespace === "system-settings" && request.method === "POST" && method === "import") {
     const body = await request.json();
     const result = await cms.system.importer.importData(body, tenantId as DatabaseId);
-    return rawResponse(result);
+    return rawResponse(event, result);
   }
   if (namespace === "importer") {
     if (request.method === "POST" && method === "scaffold") {
       const body = await request.json();
       const result = await cms.system.importer.scaffold(body);
-      return rawResponse(result);
+      return rawResponse(event, result);
     }
     if (request.method === "POST" && method === "external") {
       const body = await request.json();
       const result = await cms.system.importer.importExternal(body, user, tenantId as DatabaseId);
-      return rawResponse(result);
+      return rawResponse(event, result);
     }
   }
   if (namespace === "import-data" && request.method === "POST") {
     const body = await request.json();
     const result = await cms.system.importer.importData(body, tenantId as DatabaseId);
-    return rawResponse(result);
+    return rawResponse(event, result);
   }
 
   // --- AI & Automation ---
   if (namespace === "ai") {
     const body = await request.json();
     if (method === "chat")
-      return successResponse(await cms.ai.chat(body.userMessage, body.history));
+      return successResponse(event, await cms.ai.chat(body.userMessage, body.history));
     if (method === "enrich")
-      return successResponse(await cms.ai.enrichText(body.text, body.action, body.language));
+      return successResponse(event, await cms.ai.enrichText(body.text, body.action, body.language));
   }
   if (namespace === "automations" && request.method === "GET") {
-    return successResponse(await cms.automation.getFlows(tenantId || "default"));
+    return successResponse(event, await cms.automation.getFlows(tenantId || "default"));
   }
 
   // --- Metrics & Telemetry ---
-  if (namespace === "metrics") return successResponse(await cms.metrics.getReport());
+  if (namespace === "metrics") return successResponse(event, await cms.metrics.getReport());
   if (namespace === "telemetry" && method === "stats")
-    return successResponse(await cms.telemetry.checkUpdateStatus());
+    return successResponse(event, await cms.telemetry.checkUpdateStatus());
 
   throw new AppError(`System endpoint /api/${segments.join("/")} not implemented`, 404);
 }

@@ -41,12 +41,12 @@ export async function handleAuthUserRoutes(
       });
 
       return url.searchParams.get("raw") === "true"
-        ? rawResponse(result.data)
-        : successResponse(result);
+        ? rawResponse(event, result.data)
+        : successResponse(event, result);
     }
 
     if (namespace === "auth" && method === "me" && request.method === "GET") {
-      return successResponse(user);
+      return successResponse(event, user);
     }
   }
 
@@ -63,7 +63,7 @@ export async function handleAuthUserRoutes(
         user.email,
         tenantId,
       );
-      return rawResponse(result);
+      return rawResponse(event, result);
     }
     if (action === "verify-setup" && request.method === "POST") {
       if (!user) throw new AppError("Authentication required", 401);
@@ -75,30 +75,30 @@ export async function handleAuthUserRoutes(
         backupCodes,
         tenantId,
       );
-      return successResponse(result);
+      return rawResponse(event, { success: result });
     }
     if (action === "verify" && request.method === "POST") {
       const { userId, code } = await request.json();
       const result = await twoFactorService.verify2FA(userId as DatabaseId, code, tenantId);
-      return rawResponse(result);
+      return rawResponse(event, result);
     }
     if (action === "disable" && request.method === "POST") {
       if (!user) throw new AppError("Authentication required", 401);
       const result = await twoFactorService.disable2FA(user._id as DatabaseId, tenantId);
-      return successResponse(result);
+      return rawResponse(event, { success: result });
     }
     if (action === "backup-codes") {
       if (!user) throw new AppError("Authentication required", 401);
       if (request.method === "GET") {
         const result = await twoFactorService.get2FAStatus(user._id as DatabaseId, tenantId);
-        return successResponse(result);
+        return successResponse(event, result);
       }
       if (request.method === "POST") {
         const result = await twoFactorService.regenerateBackupCodes(
           user._id as DatabaseId,
           tenantId,
         );
-        return successResponse(result);
+        return successResponse(event, result);
       }
     }
   }
@@ -111,18 +111,18 @@ export async function handleAuthUserRoutes(
     if (action === "config") {
       if (request.method === "GET") {
         const config = await samlModule.getJackson();
-        return successResponse(config);
+        return successResponse(event, config);
       }
       if (request.method === "POST") {
         const body = await request.json();
         const result = await samlModule.createSAMLConnection(body);
-        return successResponse(result);
+        return successResponse(event, result);
       }
     }
     if (action === "login" && request.method === "POST") {
       await request.json().catch(() => ({}));
       const url = await samlModule.generateSAMLAuthUrl(tenantId || "default", "sveltycms");
-      return successResponse({ url });
+      return successResponse(event, { url });
     }
     if (action === "acs" && request.method === "POST") {
       return samlModule.handleSAMLResponse(event as any);
@@ -134,12 +134,12 @@ export async function handleAuthUserRoutes(
     if (method === "create-user" && request.method === "POST") {
       const body = await request.json();
       const newUser = await cms.db.auth.createUser({ ...body, tenantId });
-      return rawResponse(newUser, 201);
+      return rawResponse(event, newUser, 201);
     }
     if (method === "batch" && request.method === "POST") {
       const { userIds, action: batchAction } = await request.json();
       const result = await cms.auth.batchAction(userIds, batchAction, tenantId);
-      return rawResponse(result);
+      return rawResponse(event, result);
     }
     if (
       method === "update-user-attributes" &&
@@ -151,7 +151,7 @@ export async function handleAuthUserRoutes(
         newUserData,
         tenantId,
       );
-      return rawResponse(result);
+      return rawResponse(event, result);
     }
     if (method === "save-avatar" && request.method === "POST") {
       const formData = await request.formData();
@@ -159,16 +159,16 @@ export async function handleAuthUserRoutes(
       const { saveAvatarImage } = await import("@utils/media/media-storage.server");
       const avatarUrl = await saveAvatarImage(avatarFile, user?._id || "guest");
       const result = await cms.auth.saveAvatar(user?._id as DatabaseId, avatarUrl, tenantId);
-      return rawResponse(result);
+      return rawResponse(event, result);
     }
     if (method === "delete-avatar" && request.method === "DELETE") {
       const { userId } = await request.json().catch(() => ({}));
       const result = await cms.auth.deleteAvatar((userId || user?._id) as DatabaseId, tenantId);
-      return rawResponse(result);
+      return rawResponse(event, result);
     }
-    if (method && !segments[2] && request.method === "GET") {
+    if (method && method !== "me" && !segments[2] && request.method === "GET") {
       const result = await cms.auth.getUserById(method as DatabaseId, tenantId);
-      return successResponse(result);
+      return successResponse(event, result);
     }
   }
 
@@ -180,7 +180,7 @@ export async function handleAuthUserRoutes(
     if (!authInstance) throw new AppError("Auth system not initialized", 500);
     const sessionCookie = authInstance.createSessionCookie(session._id);
     cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes as any);
-    return successResponse({ user: authedUser });
+    return successResponse(event, { user: authedUser });
   }
 
   if (method === "logout" && request.method === "POST") {
@@ -190,17 +190,17 @@ export async function handleAuthUserRoutes(
       if (authInstance) await authInstance.logOut(sessionCookieKey as DatabaseId);
       cookies.delete(SESSION_COOKIE_NAME, { path: "/" });
     }
-    return successResponse({ message: "Logged out successfully" });
+    return successResponse(event, { message: "Logged out successfully" });
   }
 
   if (method === "me" && request.method === "GET") {
-    return successResponse(user);
+    return successResponse(event, user);
   }
 
   if (method === "update-roles" && request.method === "POST") {
     const { roles } = await request.json();
     const result = await cms.auth.updateRoles(roles, { user: user!, tenantId });
-    return rawResponse(result);
+    return rawResponse(event, result);
   }
 
   throw new AppError(`Auth endpoint /api/${segments.join("/")} not implemented`, 404);

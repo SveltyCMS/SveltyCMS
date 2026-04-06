@@ -232,6 +232,8 @@ export function isBootstrapRoute(pathname: string): boolean {
   if (
     pathname.startsWith("/api/system") ||
     pathname.startsWith("/api/debug") ||
+    pathname.startsWith("/api/testing") ||
+    pathname.startsWith("/api/graphql") ||
     pathname.startsWith("/api/settings/public") ||
     pathname.startsWith("/api/content/version") ||
     pathname.startsWith("/api/dashboard/health") ||

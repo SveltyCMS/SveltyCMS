@@ -3,241 +3,593 @@
  * @file scripts/setup-system.ts
  * @description Fast, non-browser setup for SveltyCMS during CI/Testing.
  * Directly calls SvelteKit Server Actions to configure database and admin.
+ *
+ * ### Environment variables
+ * | Variable                | Default                    | Notes                          |
+ * |-------------------------|----------------------------|--------------------------------|
+ * | API_BASE_URL            | http://localhost:4173      |                                |
+ * | TEST_API_SECRET         | ""                         |                                |
+ * | DB_TYPE                 | sqlite                     | sqlite|mariadb|postgresql|mongo|
+ * | DB_HOST                 | 127.0.0.1                  | ignored for sqlite             |
+ * | DB_PORT                 | (per-driver default)       | ignored for sqlite             |
+ * | DB_NAME                 | SveltyCMS_test             |                                |
+ * | DB_USER                 | ""                         |                                |
+ * | DB_PASSWORD             | ""                         |                                |
+ * | MULTI_TENANT            | false                      |                                |
+ * | DEMO                    | false                      |                                |
+ * | USE_REDIS               | false                      |                                |
+ * | PRESET                  | blog                       | seed preset                    |
+ * | ADMIN_USERNAME          | admin                      |                                |
+ * | ADMIN_EMAIL             | admin@example.com          |                                |
+ * | ADMIN_PASSWORD          | (required — no default)    | script exits if missing        |
+ * | SETUP_TIMEOUT_MS        | 300000                     | 5 min global script timeout    |
+ * | WAIT_TIMEOUT_MS         | 60000                      | server readiness timeout       |
+ * | RETRY_BASE_MS           | 1000                       | base for exponential backoff   |
+ * | RETRY_MAX_ATTEMPTS      | 10                         |                                |
  */
 
 import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 
-const API_BASE_URL = process.env.API_BASE_URL || "http://localhost:4173";
-const TEST_API_SECRET = process.env.TEST_API_SECRET || "";
-const rootDir = process.cwd();
+// ---------------------------------------------------------------------------
+// Configuration — resolved once at startup, never mutated
+// ---------------------------------------------------------------------------
 
-/**
- * Helper to parse SvelteKit Server Action "devalue" serialization.
- */
-function parseActionResult(result: any): any {
-  if (result.type === "success" && typeof result.data === "string") {
-    try {
-      const parsed = JSON.parse(result.data);
-      if (Array.isArray(parsed)) {
-        const [structure, ...values] = parsed;
-        if (typeof structure === "object" && structure !== null) {
-          const unmarshaler = (val: any): any => {
-            if (typeof val === "number") return values[val - 1];
-            if (Array.isArray(val)) return val.map(unmarshaler);
-            if (typeof val === "object" && val !== null) {
-              const obj: Record<string, any> = {};
-              for (const [k, v] of Object.entries(val)) {
-                obj[k] = unmarshaler(v);
-              }
-              return obj;
-            }
-            return val;
-          };
-          return unmarshaler(structure);
-        }
-        return values[0];
-      }
-    } catch (e) {
-      console.warn("[parseActionResult] Failed to parse data:", e);
-    }
+const cfg = {
+  apiBase: process.env.API_BASE_URL ?? "http://localhost:4173",
+  apiSecret: process.env.TEST_API_SECRET ?? "",
+  rootDir: process.cwd(),
+
+  db: {
+    type: process.env.DB_TYPE ?? "sqlite",
+    host: process.env.DB_HOST ?? "127.0.0.1",
+    name: process.env.DB_NAME ?? "SveltyCMS_test",
+    user: process.env.DB_USER ?? "",
+    password: process.env.DB_PASSWORD ?? "",
+    // Port: only meaningful for network-backed drivers.
+    // sqlite has no port; we explicitly set undefined so the action ignores it.
+    port: resolvePort(process.env.DB_TYPE, process.env.DB_PORT),
+  },
+
+  admin: {
+    username: process.env.ADMIN_USERNAME ?? "admin",
+    email: process.env.ADMIN_EMAIL ?? "admin@example.com",
+    // No default — must be supplied explicitly in CI secrets.
+    password: requireEnv("ADMIN_PASSWORD"),
+  },
+
+  system: {
+    multiTenant: process.env.MULTI_TENANT === "true",
+    demoMode: process.env.DEMO === "true",
+    useRedis: process.env.USE_REDIS === "true",
+    preset: process.env.PRESET ?? "blog",
+  },
+
+  timeouts: {
+    // Hard ceiling for the entire script — CI will kill the job if this
+    // fires, giving a clear error instead of an indefinite hang.
+    script: Number(process.env.SETUP_TIMEOUT_MS ?? 300_000),
+    // Per-attempt HTTP timeout.
+    fetch: Number(process.env.FETCH_TIMEOUT_MS ?? 30_000),
+    // Server readiness poll ceiling.
+    wait: Number(process.env.WAIT_TIMEOUT_MS ?? 60_000),
+  },
+
+  retry: {
+    baseMs: Number(process.env.RETRY_BASE_MS ?? 1_000),
+    maxAttempts: Number(process.env.RETRY_MAX_ATTEMPTS ?? 10),
+    // Cap so a single retry never waits longer than 30s regardless of attempt number.
+    capMs: 30_000,
+  },
+
+  flags: {
+    clean: process.argv.includes("--clean"),
+    verbose: process.argv.includes("--verbose"),
+  },
+} as const;
+
+// ---------------------------------------------------------------------------
+// Helpers — env / config
+// ---------------------------------------------------------------------------
+
+function requireEnv(name: string): string {
+  const val = process.env[name];
+  if (!val) {
+    fatal(`Required environment variable ${name} is not set.`);
   }
-  return result.data;
+  return val!;
 }
 
-async function postAction(actionName: string, formData: FormData) {
-  let lastError: any;
-  const maxAttempts = 15; // Increased for slow DB startup in CI
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+/**
+ * Returns the default port for a given DB driver, or undefined for sqlite
+ * (which uses a file path, not a host:port).
+ */
+function resolvePort(dbType: string | undefined, portEnv: string | undefined): number | undefined {
+  if (portEnv) return Number(portEnv);
+  switch (dbType) {
+    case "mariadb":
+    case "mysql":
+      return 3306;
+    case "postgresql":
+    case "postgres":
+      return 5432;
+    case "mongodb":
+    case "mongo":
+      return 27017;
+    case "sqlite":
+    default:
+      // SQLite is file-based. Sending a port of undefined lets the action
+      // ignore it rather than passing a nonsense value.
+      return undefined;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Logging — structured, timestamped, level-aware
+// ---------------------------------------------------------------------------
+
+type Level = "info" | "warn" | "error" | "debug";
+
+function log(level: Level, message: string, data?: unknown): void {
+  if (level === "debug" && !cfg.flags.verbose) return;
+
+  const ts = new Date().toISOString();
+  const prefix: Record<Level, string> = {
+    info: "ℹ️ ",
+    warn: "⚠️ ",
+    error: "❌",
+    debug: "🔍",
+  };
+
+  const line = `[${ts}] ${prefix[level]} ${message}`;
+  if (level === "error") {
+    console.error(line, data !== undefined ? data : "");
+  } else if (level === "warn") {
+    console.warn(line, data !== undefined ? data : "");
+  } else {
+    console.log(line, data !== undefined ? data : "");
+  }
+}
+
+function fatal(message: string, err?: unknown): never {
+  log("error", message, err);
+  process.exit(1);
+}
+
+// ---------------------------------------------------------------------------
+// Global script timeout
+// ---------------------------------------------------------------------------
+
+const scriptDeadline = setTimeout(() => {
+  fatal(`Script exceeded global timeout of ${cfg.timeouts.script}ms. Aborting CI run.`);
+}, cfg.timeouts.script);
+
+// Ensure the timeout doesn't keep the process alive if we exit cleanly first.
+scriptDeadline.unref();
+
+// ---------------------------------------------------------------------------
+// devalue deserialization
+// ---------------------------------------------------------------------------
+
+/**
+ * Deserializes SvelteKit's devalue-encoded action response.
+ *
+ * devalue encodes a response as `[structure, ...referencedValues]` where
+ * numeric indices in the structure are back-references into the values array.
+ * This implementation handles the common subset used by SvelteKit actions:
+ * primitives, plain objects, arrays, and back-references.
+ *
+ * Notably NOT handled (not produced by SvelteKit actions in practice):
+ * - Circular references (devalue uses negative indices — we throw rather than
+ *   silently corrupt)
+ * - Date, Map, Set, RegExp, BigInt, typed arrays — extend `hydrateSpecial`
+ *   below if your actions return these types.
+ */
+function parseActionResult(result: unknown): unknown {
+  if (typeof result !== "object" || result === null || (result as any).type !== "success") {
+    return (result as any)?.data ?? result;
+  }
+
+  const raw = (result as any).data;
+  if (typeof raw !== "string") return raw;
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    log("warn", "parseActionResult: response data is not valid JSON, returning raw string.");
+    return raw;
+  }
+
+  // Not devalue-encoded (plain JSON object/array/primitive).
+  if (!Array.isArray(parsed)) return parsed;
+
+  const [structure, ...values] = parsed as [unknown, ...unknown[]];
+
+  function hydrate(node: unknown): unknown {
+    // Numeric index → back-reference into values array (1-based in devalue).
+    if (typeof node === "number" && Number.isInteger(node)) {
+      if (node < 0) {
+        throw new RangeError(
+          `Circular reference in devalue output (index ${node}). ` +
+            `Extend parseActionResult to handle this.`,
+        );
+      }
+      const ref = values[node - 1];
+      return hydrate(ref);
+    }
+
+    if (Array.isArray(node)) return node.map(hydrate);
+
+    if (typeof node === "object" && node !== null) {
+      // devalue uses tagged arrays for special types: [["Date", "2024-01-01"]]
+      // For now we handle the common ones; add more as needed.
+      const entries = Object.entries(node as Record<string, unknown>);
+      const out: Record<string, unknown> = {};
+      for (const [k, v] of entries) {
+        out[k] = hydrate(v);
+      }
+      return out;
+    }
+
+    return node; // string, boolean, null, undefined
+  }
+
+  try {
+    return hydrate(structure);
+  } catch (err) {
+    log("warn", "parseActionResult: hydration failed, returning raw parsed value.", err);
+    return parsed;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// HTTP — postAction with proper exponential backoff
+// ---------------------------------------------------------------------------
+
+/** Errors that indicate the server is not yet accepting connections. */
+function isTransientConnectionError(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+
+  // Bun uses `cause` on fetch errors; Node uses `code` on SystemError.
+  const cause = (err as any).cause;
+  const code: string = (err as any).code ?? (cause as any)?.code ?? "";
+  const msg = err.message.toLowerCase();
+
+  return (
+    code === "ECONNREFUSED" ||
+    code === "ECONNRESET" ||
+    code === "ETIMEDOUT" ||
+    code === "ENOTFOUND" ||
+    msg.includes("connection refused") ||
+    msg.includes("unable to connect") ||
+    msg.includes("fetch failed") ||
+    msg.includes("network socket disconnected")
+  );
+}
+
+/** Returns delay ms for attempt N using full-jitter exponential backoff. */
+function backoffMs(attempt: number): number {
+  const exp = Math.min(cfg.retry.baseMs * 2 ** (attempt - 1), cfg.retry.capMs);
+  // Full jitter: uniform random between 0 and the capped exponential.
+  return Math.random() * exp;
+}
+
+async function postAction(actionName: string, formData: FormData): Promise<unknown> {
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= cfg.retry.maxAttempts; attempt++) {
     try {
-      const res = await fetch(`${API_BASE_URL}/setup?/${actionName}`, {
+      log("debug", `[${actionName}] Attempt ${attempt}/${cfg.retry.maxAttempts}`);
+
+      const res = await fetch(`${cfg.apiBase}/setup?/${actionName}`, {
         method: "POST",
         body: formData,
         headers: {
           "x-sveltekit-action": "true",
-          "x-test-secret": TEST_API_SECRET,
-          Origin: API_BASE_URL,
+          "x-test-secret": cfg.apiSecret,
+          Origin: cfg.apiBase,
         },
-        signal: AbortSignal.timeout(60000), // 60s timeout
+        signal: AbortSignal.timeout(cfg.timeouts.fetch),
       });
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(`Action ${actionName} failed with status ${res.status}. Body: ${text}`);
-      }
-      return await res.json();
-    } catch (error: any) {
-      lastError = error;
-      const isConnectionError =
-        error.code === "ConnectionRefused" ||
-        error.message?.includes("ConnectionRefused") ||
-        error.message?.includes("Unable to connect") ||
-        error.message?.includes("fetch failed") ||
-        error.message?.includes("refused the connection");
 
-      if (isConnectionError) {
-        const delay = 3000 * attempt; // Longer exponential backoff
-        console.warn(
-          `⚠️ Connection issue on attempt ${attempt}/${maxAttempts} for ${actionName}. Retrying in ${delay}ms... (${error.message})`,
+      if (!res.ok) {
+        const body = await res.text().catch(() => "(unreadable body)");
+        throw new Error(`Action "${actionName}" returned HTTP ${res.status}. Body: ${body}`);
+      }
+
+      const json = await res.json();
+      return json;
+    } catch (err) {
+      lastError = err;
+
+      if (isTransientConnectionError(err)) {
+        const delay = backoffMs(attempt);
+        log(
+          "warn",
+          `[${actionName}] Connection error on attempt ${attempt}/${cfg.retry.maxAttempts}. ` +
+            `Retrying in ${Math.round(delay)}ms…`,
+          (err as Error).message,
         );
-        await new Promise((resolve) => setTimeout(resolve, delay));
+        await sleep(delay);
         continue;
       }
-      throw error;
+
+      // Non-transient error (bad credentials, 4xx, malformed response, etc.)
+      // — fail immediately; retrying won't help.
+      throw err;
     }
   }
-  throw lastError;
+
+  throw new Error(
+    `Action "${actionName}" failed after ${cfg.retry.maxAttempts} attempts. ` +
+      `Last error: ${String(lastError)}`,
+  );
 }
 
-async function waitForReady() {
-  console.log(`⏳ Waiting for server to be operational at ${API_BASE_URL}...`);
-  for (let i = 0; i < 60; i++) {
+// ---------------------------------------------------------------------------
+// Server readiness poll
+// ---------------------------------------------------------------------------
+
+/**
+ * States that mean "the server is up and accepting requests, but may still
+ * need setup".  We do NOT wait for READY because in a fresh install the
+ * system will be in SETUP indefinitely until we complete it.
+ */
+const ACCEPTABLE_STATES = new Set(["READY", "SETUP", "DEGRADED", "WARMING", "WARMED"]);
+
+async function waitForReady(): Promise<void> {
+  const deadline = Date.now() + cfg.timeouts.wait;
+  let lastStatus = "(no response yet)";
+  let attempts = 0;
+
+  log("info", `Waiting for server at ${cfg.apiBase} (timeout: ${cfg.timeouts.wait}ms)…`);
+
+  while (Date.now() < deadline) {
+    attempts++;
     try {
-      const res = await fetch(`${API_BASE_URL}/api/system/health`);
-      if (res.ok || res.status === 503) {
-        const data = (await res.json()) as any;
-        console.log(`[DEBUG] Health check response:`, JSON.stringify(data));
-        // In setup mode, status might be 'IDLE' or 'SETUP'
-        // We just need it to be responsive and not 'INITIALIZING'
-        const okStatuses = ["READY", "SETUP", "IDLE", "DEGRADED", "WARMING", "WARMED"];
-        if (okStatuses.includes(data.overallStatus)) {
-          console.log(`✅ Server is operational (Status: ${data.overallStatus}).`);
-          return;
-        }
-        console.log(`⏳ Server status: ${data.overallStatus}...`);
+      const res = await fetch(`${cfg.apiBase}/api/system/health`, {
+        signal: AbortSignal.timeout(5_000),
+      });
+
+      // Any HTTP response (even 503) means the server is up.
+      // Parse the body to check the application-level state.
+      const data = await res.json().catch(() => null);
+      lastStatus = data?.overallStatus ?? `HTTP ${res.status} (no JSON body)`;
+
+      log("debug", `Health check attempt ${attempts}: ${lastStatus}`);
+
+      if (ACCEPTABLE_STATES.has(data?.overallStatus)) {
+        log("info", `Server is operational (state: ${lastStatus}).`);
+        return;
+      }
+
+      // Server is up but in a transitional state (INITIALIZING, etc.) — keep polling.
+    } catch (err) {
+      // Server not yet accepting connections — keep polling.
+      lastStatus = (err as Error).message;
+      log("debug", `Health check attempt ${attempts}: ${lastStatus}`);
+    }
+
+    await sleep(1_000);
+  }
+
+  fatal(
+    `Server did not become operational within ${cfg.timeouts.wait}ms. ` +
+      `Last observed state: "${lastStatus}". ` +
+      `Check server logs for startup errors.`,
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Post-setup verification
+// ---------------------------------------------------------------------------
+
+/**
+ * Verifies the setup actually completed by hitting the health endpoint and
+ * checking for READY state, plus confirming the config file was written.
+ *
+ * A single file-existence check is insufficient — the DB could be seeded but
+ * the config write could have raced or failed silently.
+ */
+async function verifySetup(): Promise<void> {
+  log("info", "Verifying setup completion…");
+
+  // 1. Config file must exist.
+  const configFileName = process.env.TEST_MODE === "true" ? "private.test.ts" : "private.ts";
+  const configPath = join(cfg.rootDir, "config", configFileName);
+
+  if (!existsSync(configPath)) {
+    fatal(`Verification failed: ${configFileName} was not written to ${configPath}.`);
+  }
+  log("info", `Config file verified: ${configFileName}`);
+
+  // 2. Health endpoint must report READY (or at minimum not SETUP/FAILED).
+  // Allow a short grace period for the server to transition states after
+  // completeSetup returns.
+  const graceDeadline = Date.now() + 15_000;
+
+  while (Date.now() < graceDeadline) {
+    try {
+      const res = await fetch(`${cfg.apiBase}/api/system/health`, {
+        signal: AbortSignal.timeout(5_000),
+      });
+      const data = await res.json().catch(() => null);
+      const status: string = data?.overallStatus ?? "";
+
+      if (status === "READY") {
+        log("info", `Health check verified: system is READY.`);
+        return;
+      }
+
+      if (status === "FAILED") {
+        fatal(`Verification failed: system transitioned to FAILED after setup. Check server logs.`);
+      }
+
+      log("debug", `Waiting for READY state, currently: ${status}`);
+    } catch {
+      // Server may be briefly restarting after setup — keep polling.
+    }
+    await sleep(1_000);
+  }
+
+  // READY not reached within grace period — warn but don't fail the script,
+  // as some environments take longer to hot-reload config changes.
+  log(
+    "warn",
+    "System did not reach READY within 15s after setup. " +
+      "Tests may fail if they run before the server finishes reloading.",
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Individual setup steps — each is a named function for clear stack traces
+// ---------------------------------------------------------------------------
+
+async function stepClean(): Promise<void> {
+  log("info", "Dropping existing database collections (--clean)…");
+  const form = new FormData();
+  form.append("config", JSON.stringify(cfg.db));
+  const res = parseActionResult(await postAction("cleanDatabase", form)) as any;
+
+  if (!res?.success) {
+    // Non-fatal: a clean DB or wrong driver will report failure here.
+    log("warn", `cleanDatabase reported non-success: ${res?.error ?? "unknown reason"}`);
+  } else {
+    log("info", "Database cleaned.");
+  }
+}
+
+async function stepTestConnection(): Promise<void> {
+  log("info", "Testing database connection…");
+  const form = new FormData();
+  form.append("config", JSON.stringify(cfg.db));
+  form.append("createIfMissing", "true");
+  const res = parseActionResult(await postAction("testDatabase", form)) as any;
+
+  if (!res || res.success === false) {
+    fatal(`Database connection test failed: ${res?.error ?? "no details returned"}`);
+  }
+  log("info", "Database connection confirmed.");
+}
+
+async function stepSeed(): Promise<void> {
+  log("info", `Seeding database (preset: ${cfg.system.preset})…`);
+  const form = new FormData();
+  form.append("config", JSON.stringify(cfg.db));
+  form.append("system", JSON.stringify({ preset: cfg.system.preset }));
+  const res = parseActionResult(await postAction("seedDatabase", form)) as any;
+
+  if (!res || res.success === false) {
+    fatal(`Database seeding failed: ${res?.error ?? "no details returned"}`);
+  }
+  log("info", "Seed completed.");
+}
+
+/**
+ * Polls `/api/system/health` until background seeding tasks complete,
+ * rather than using an arbitrary fixed sleep.
+ */
+async function waitForSeedingComplete(): Promise<void> {
+  log("info", "Waiting for background seed tasks to settle…");
+  const deadline = Date.now() + 30_000;
+
+  while (Date.now() < deadline) {
+    try {
+      const res = await fetch(`${cfg.apiBase}/api/system/health`, {
+        signal: AbortSignal.timeout(5_000),
+      });
+      const data = await res.json().catch(() => null);
+      const status: string = data?.overallStatus ?? "";
+
+      // "WARMING" / "INITIALIZING" mean background tasks are still running.
+      if (status !== "WARMING" && status !== "INITIALIZING") {
+        log("debug", `Background tasks settled (state: ${status}).`);
+        return;
       }
     } catch {
-      // Ignore fetch errors while waiting for boot
+      // Transient — keep polling.
     }
-    await new Promise((r) => setTimeout(r, 1000));
+    await sleep(500);
   }
-  throw new Error("Server operational timeout (60s)");
+
+  // If we timed out, proceed anyway — completeSetup may still succeed.
+  log("warn", "Background seed tasks did not settle within 30s. Proceeding with setup.");
 }
 
-async function main() {
-  await waitForReady();
+async function stepCompleteSetup(): Promise<void> {
+  log(
+    "info",
+    `Creating admin user and completing setup ` +
+      `(multi-tenant: ${cfg.system.multiTenant}, demo: ${cfg.system.demoMode})…`,
+  );
 
-  const isClean = process.argv.includes("--clean");
-  const dbType = process.env.DB_TYPE || "sqlite";
-  const dbHost = process.env.DB_HOST || "127.0.0.1";
-  const dbPort =
-    process.env.DB_PORT || (dbType === "mariadb" ? 3306 : dbType === "postgresql" ? 5432 : 27017);
-  const dbName = process.env.DB_NAME || "SveltyCMS_test";
-  const dbUser = process.env.DB_USER || "";
-  const dbPass = process.env.DB_PASSWORD || "";
-
-  const dbConfig = {
-    type: dbType,
-    host: dbHost,
-    port: Number(dbPort),
-    name: dbName,
-    user: dbUser,
-    password: dbPass,
+  const payload = {
+    database: cfg.db,
+    admin: {
+      username: cfg.admin.username,
+      email: cfg.admin.email,
+      password: cfg.admin.password,
+      confirmPassword: cfg.admin.password,
+    },
+    system: {
+      multiTenant: cfg.system.multiTenant,
+      demoMode: cfg.system.demoMode,
+      useRedis: cfg.system.useRedis,
+      siteName: "SveltyCMS Test",
+      defaultContentLanguage: "en",
+      contentLanguages: ["en"],
+      defaultSystemLanguage: "en",
+      systemLanguages: ["en"],
+      preset: cfg.system.preset,
+    },
   };
 
-  console.log(`🚀 Starting system setup for ${dbType}...`);
+  const form = new FormData();
+  form.append("data", JSON.stringify(payload));
+  const res = parseActionResult(await postAction("completeSetup", form)) as any;
 
-  const multiTenant = process.env.MULTI_TENANT === "true";
-  const demoMode = process.env.DEMO === "true";
-
-  try {
-    // 0. Clean Database if requested
-    if (isClean) {
-      console.log("🧹 Dropping existing database collections (--clean)...");
-      const cleanForm = new FormData();
-      cleanForm.append("config", JSON.stringify(dbConfig));
-      const cleanRes = await postAction("cleanDatabase", cleanForm);
-      const cleanData = parseActionResult(cleanRes);
-      if (!cleanData?.success) {
-        console.warn(
-          `⚠️ Warning: cleanDatabase reported failure: ${cleanData?.error || "Unknown"}`,
-        );
-      } else {
-        console.log("✅ Database cleaned successfully.");
-      }
-    }
-
-    // 1. Test Database
-    console.log("🔗 Testing database connection...");
-    const testForm = new FormData();
-    testForm.append("config", JSON.stringify(dbConfig));
-    testForm.append("createIfMissing", "true");
-    const testRes = await postAction("testDatabase", testForm);
-    const testData = parseActionResult(testRes);
-
-    if (!testData || testData.success === false) {
-      throw new Error(`Database connection failed: ${testData?.error || "Unknown error"}`);
-    }
-    console.log("✅ Database connection successful.");
-
-    // 2. Seed Database
-    console.log("🌱 Seeding database...");
-    const seedForm = new FormData();
-    seedForm.append("config", JSON.stringify(dbConfig));
-    seedForm.append("system", JSON.stringify({ preset: "blog" }));
-    const seedRes = await postAction("seedDatabase", seedForm);
-    const seedData = parseActionResult(seedRes);
-
-    if (!seedData || seedData.success === false) {
-      throw new Error(`Database seeding failed: ${seedData?.error || "Unknown error"}`);
-    }
-    console.log("✅ Database seeding started.");
-
-    // Small delay to ensure server handles background tasks smoothly before the next heavy call
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-
-    // 3. Complete Setup (Create Admin)
-    console.log(
-      `👤 Creating admin user and completing setup (Multi-Tenant: ${multiTenant}, Demo: ${demoMode})...`,
-    );
-    const completeForm = new FormData();
-    const payload = {
-      database: dbConfig,
-      admin: {
-        username: "admin",
-        email: "admin@example.com",
-        password: "Admin123!",
-        confirmPassword: "Admin123!",
-      },
-      system: {
-        multiTenant,
-        demoMode,
-        useRedis: process.env.USE_REDIS === "true",
-        siteName: "SveltyCMS Test",
-        defaultContentLanguage: "en",
-        contentLanguages: ["en"],
-        defaultSystemLanguage: "en",
-        systemLanguages: ["en"],
-        preset: "blog",
-      },
-    };
-    completeForm.append("data", JSON.stringify(payload));
-    const completeRes = await postAction("completeSetup", completeForm);
-    const completeData = parseActionResult(completeRes);
-
-    if (!completeData || completeData.success === false) {
-      throw new Error(`Setup completion failed: ${completeData?.error || "Unknown error"}`);
-    }
-    console.log("✅ Enterprise seeding successful! 🎉");
-
-    // 4. Verification
-    const configDir = join(rootDir, "config");
-    // Ensure config directory exists (may not exist in fresh CI clones)
-    if (!existsSync(configDir)) {
-      mkdirSync(configDir, { recursive: true });
-      console.log("✅ Created config directory.");
-    }
-
-    const configName = process.env.TEST_MODE === "true" ? "private.test.ts" : "private.ts";
-    const configPath = join(configDir, configName);
-    if (existsSync(configPath)) {
-      console.log(`✅ Verified: ${configName} was created.`);
-    } else {
-      console.warn(`⚠️ Warning: ${configName} not found at expected path: ${configPath}`);
-    }
-  } catch (error) {
-    console.error("❌ Setup failed:", error);
-    process.exit(1);
+  if (!res || res.success === false) {
+    fatal(`Setup completion failed: ${res?.error ?? "no details returned"}`);
   }
+  log("info", "Setup complete.");
 }
 
-main();
+// ---------------------------------------------------------------------------
+// Utilities
+// ---------------------------------------------------------------------------
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// ---------------------------------------------------------------------------
+// Entry point
+// ---------------------------------------------------------------------------
+
+async function main(): Promise<void> {
+  // Ensure config directory exists before anything tries to write to it.
+  const configDir = join(cfg.rootDir, "config");
+  if (!existsSync(configDir)) {
+    mkdirSync(configDir, { recursive: true });
+    log("info", "Created config directory.");
+  }
+
+  log("info", `Starting system setup (DB: ${cfg.db.type}, preset: ${cfg.system.preset})`);
+  log("debug", "Full config:", { ...cfg, admin: { ...cfg.admin, password: "[redacted]" } });
+
+  await waitForReady();
+
+  if (cfg.flags.clean) await stepClean();
+
+  await stepTestConnection();
+  await stepSeed();
+  await waitForSeedingComplete(); // replaces the arbitrary 2000ms sleep
+  await stepCompleteSetup();
+  await verifySetup();
+
+  clearTimeout(scriptDeadline);
+  log("info", "✅ System setup complete.");
+}
+
+main().catch((err) => fatal("Unhandled error in setup script:", err));

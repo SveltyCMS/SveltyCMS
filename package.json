@@ -106,8 +106,8 @@
     "@googlemaps/js-api-loader": "^2.0.2",
     "@inlang/paraglide-js": "^2.15.1",
     "@mcp-b/webmcp-polyfill": "^2.2.0",
-    "@skeletonlabs/skeleton": "^4.14.0",
-    "@skeletonlabs/skeleton-svelte": "^4.14.0",
+    "@skeletonlabs/skeleton": "^4.15.0",
+    "@skeletonlabs/skeleton-svelte": "^4.15.0",
     "@tailwindcss/forms": "^0.5.11",
     "@tailwindcss/typography": "^0.5.19",
     "@testing-library/jest-dom": "^6.9.1",
@@ -148,7 +148,7 @@
     "iconify-icon": "^3.0.2",
     "isomorphic-dompurify": "^3.7.1",
     "json-render-svelte": "^0.6.1",
-    "lru-cache": "^11.2.7",
+    "lru-cache": "^11.3.0",
     "mime-types": "^3.0.2",
     "node-os-utils": "^2.0.1",
     "nodemailer": "^8.0.4",
@@ -210,7 +210,7 @@
     "tailwindcss": "^4.2.2",
     "tslib": "^2.8.1",
     "ultracite": "^7.4.3",
-    "vite": "^8.0.3",
+    "vite": "^8.0.4",
     "vite-plus": "^0.1.15",
     "vitest": "^4.1.2",
     "wait-on": "^9.0.4"
@@ -220,7 +220,7 @@
     "mariadb": "^3.5.2",
     "mongoose": "^9.4.1",
     "mysql2": "^3.20.0",
-    "postgres": "^3.4.8"
+    "postgres": "^3.4.9"
   },
   "engines": {
     "node": ">=22.0.0"

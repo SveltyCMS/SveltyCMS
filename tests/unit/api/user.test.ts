@@ -13,10 +13,10 @@ import type { RequestEvent } from "@sveltejs/kit";
 vi.mock("@src/databases/db", () => ({
   dbAdapter: {
     auth: {
-      getAllUsers: vi.fn(),
-      getUserCount: vi.fn(),
-      updateUserAttributes: vi.fn(),
-      batchAction: vi.fn(),
+      getAllUsers: vi.fn().mockResolvedValue({ success: true, data: [] }),
+      getUserCount: vi.fn().mockResolvedValue({ success: true, data: 0 }),
+      updateUserAttributes: vi.fn().mockResolvedValue({ success: true, data: { _id: "u1" } }),
+      batchAction: vi.fn().mockResolvedValue({ success: true, data: { modifiedCount: 1 } }),
     },
   },
   getDbInitPromise: vi.fn().mockResolvedValue(undefined),
@@ -48,7 +48,7 @@ describe("User API Unit Tests", () => {
       params: { path },
       request: {
         method,
-        json: vi.fn().mockResolvedValue(body),
+        json: async () => body,
         formData: vi.fn(),
         headers: new Map(),
       },
@@ -67,8 +67,8 @@ describe("User API Unit Tests", () => {
           auth: {
             getAllUsers: vi.fn().mockResolvedValue({ success: true, data: [] }),
             getUserCount: vi.fn().mockResolvedValue({ success: true, data: 0 }),
-            updateUserAttributes: vi.fn().mockResolvedValue({ success: true }),
-            batchAction: vi.fn().mockResolvedValue({ success: true }),
+            updateUserAttributes: vi.fn().mockResolvedValue({ success: true, data: { _id: "u1" } }),
+            batchAction: vi.fn().mockResolvedValue({ success: true, data: { modifiedCount: 1 } }),
           },
           collections: {},
           media: {},
@@ -86,6 +86,8 @@ describe("User API Unit Tests", () => {
     const response = await dispatcher(event);
     const result = await response.json();
     expect(result.success).toBe(true);
+    expect(result.data).toBeDefined();
+    expect(Array.isArray(result.data.data)).toBe(true);
   });
 
   it("should update user attributes", async () => {

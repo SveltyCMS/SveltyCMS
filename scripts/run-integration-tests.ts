@@ -1,401 +1,693 @@
 #!/usr/bin/env bun
 /**
  * @file scripts/run-integration-tests.ts
- * @description Truly Black-Box Integration Test Runner
- * Uses /api/testing for state management. No internal imports allowed.
+ * @description Black-Box Integration Test Runner.
+ * Uses /api/testing for state management. No internal imports.
+ *
+ * ### Flags
+ * | Flag              | Description                                           |
+ * |-------------------|-------------------------------------------------------|
+ * | --no-build        | Skip build step even if src/ is newer than build/     |
+ * | --filter=<db>     | Only run tests matching this DB adapter name          |
+ * | --timeout=<ms>    | Global script timeout in ms (default: 600000)         |
+ * | [files...]        | Explicit test files to run (skips auto-discovery)     |
+ *
+ * ### Environment
+ * | Variable          | Default           | Notes                          |
+ * |-------------------|-------------------|--------------------------------|
+ * | HOST              | 127.0.0.1 (CI)    |                                |
+ * | PORT              | 4173              |                                |
+ * | API_BASE_URL      | http://HOST:PORT  |                                |
+ * | TEST_API_SECRET   | (required)        | No hardcoded default           |
+ * | DB_TYPE           | sqlite            |                                |
+ * | GLOBAL_TIMEOUT_MS | 600000            | 10 min                         |
  */
 
 import { spawn, type ChildProcess } from "node:child_process";
-import { existsSync, readdirSync, statSync, unlinkSync } from "node:fs";
+import {
+  closeSync,
+  existsSync,
+  openSync,
+  readdirSync,
+  rmSync,
+  statSync,
+  unlinkSync,
+} from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join, relative } from "node:path";
+
+// ---------------------------------------------------------------------------
+// Bootstrap
+// ---------------------------------------------------------------------------
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const rootDir = join(__dirname, "..");
 
-// ✨ Configuration Constants
-const HOST = process.env.HOST || (process.env.CI ? "127.0.0.1" : "localhost");
-const PORT = "4173";
-const API_BASE_URL = process.env.API_BASE_URL || `http://${HOST}:${PORT}`;
-const pkgManager = process.env.npm_execpath || "bun";
-const TEST_API_SECRET = process.env.TEST_API_SECRET || "test-secret-123456789";
+// ---------------------------------------------------------------------------
+// Configuration
+// ---------------------------------------------------------------------------
 
-// Export to environment for spawned processes
+const HOST = process.env.HOST ?? (process.env.CI ? "127.0.0.1" : "localhost");
+const PORT = process.env.PORT ?? "4173";
+const API_BASE_URL = process.env.API_BASE_URL ?? `http://${HOST}:${PORT}`;
+
+/**
+ * TEST_API_SECRET has no hardcoded default.
+ *
+ * A predictable default in source is effectively no secret — any attacker
+ * who reads this file can call /api/testing on a misconfigured staging server.
+ * CI must supply the secret via an environment variable or secrets manager.
+ */
+const TEST_API_SECRET = process.env.TEST_API_SECRET;
+if (!TEST_API_SECRET) {
+  console.error(
+    "❌ TEST_API_SECRET is not set. " +
+      "Provide it via environment variable. " +
+      "A hardcoded default is a security risk.",
+  );
+  process.exit(1);
+}
+// Propagate to child processes.
 process.env.TEST_API_SECRET = TEST_API_SECRET;
 
-let previewProcess: ChildProcess | null = null;
+const pkgManager = process.env.npm_execpath ?? "bun";
 
-async function cleanup(exitCode = 0) {
-  console.log("\n🧹 Cleaning up test environment...");
-  if (previewProcess && previewProcess.pid) {
-    if (process.platform === "win32") {
-      spawn("taskkill", ["/F", "/T", "/PID", previewProcess.pid.toString()], {
-        stdio: "ignore",
-      });
-    } else {
-      // Using negative PID kills the entire process group (prevents orphaned children)
-      try {
-        process.kill(-previewProcess.pid, "SIGTERM");
-      } catch {
-        previewProcess.kill("SIGTERM");
-      }
+// Test files that should never be run as standalone integration tests.
+// These are setup helpers, not test suites.
+const EXCLUDED_TEST_PATTERNS: ReadonlyArray<string> = [
+  "setup-actions",
+  "setup-wizard",
+  "setup-presets",
+  "setup-utils",
+];
+
+// ---------------------------------------------------------------------------
+// CLI parsing
+// ---------------------------------------------------------------------------
+
+function parseCli() {
+  const argv = process.argv.slice(2);
+  const flags = argv.filter((a) => a.startsWith("--"));
+  const files = argv.filter((a) => !a.startsWith("--"));
+
+  const filterFlag = flags.find((f) => f.startsWith("--filter="));
+  // Use indexOf to handle values that themselves contain "="
+  const dbFilter = filterFlag ? filterFlag.slice(filterFlag.indexOf("=") + 1) : null;
+
+  const timeoutFlag = flags.find((f) => f.startsWith("--timeout="));
+  const globalTimeoutMs = timeoutFlag
+    ? Number(timeoutFlag.slice(timeoutFlag.indexOf("=") + 1))
+    : Number(process.env.GLOBAL_TIMEOUT_MS ?? 600_000);
+
+  return {
+    skipBuild: flags.includes("--no-build"),
+    dbFilter,
+    globalTimeoutMs,
+    explicitFiles: files,
+  };
+}
+
+const cli = parseCli();
+
+// ---------------------------------------------------------------------------
+// Global timeout
+// ---------------------------------------------------------------------------
+
+const globalTimeout = setTimeout(() => {
+  console.error(`\n❌ Global timeout of ${cli.globalTimeoutMs}ms exceeded. Aborting CI run.`);
+  // teardown() is best-effort here — the process is already overdue.
+  teardown().finally(() => process.exit(1));
+}, cli.globalTimeoutMs);
+globalTimeout.unref();
+
+// ---------------------------------------------------------------------------
+// Process lifecycle — single teardown path
+// ---------------------------------------------------------------------------
+
+let previewProcess: ChildProcess | null = null;
+let previewLogFd: number | null = null;
+let isShuttingDown = false;
+
+/**
+ * Tears down the preview server and cleans up test artefacts.
+ * Safe to call multiple times (idempotent).
+ * Does NOT call process.exit() — callers decide the exit code.
+ */
+async function teardown(): Promise<void> {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+
+  console.log("\n🧹 Tearing down test environment…");
+
+  // Kill preview server.
+  await killPreviewProcess();
+
+  // Close log file descriptor before removing files.
+  if (previewLogFd !== null) {
+    try {
+      closeSync(previewLogFd);
+    } catch {
+      // Already closed — ignore.
     }
+    previewLogFd = null;
   }
 
-  // Clean up SQLite files explicitly created by the test
+  // Remove SQLite test database files from the project root.
+  const dbName = process.env.DB_NAME ?? "sveltycms_test";
   try {
-    const fs = require("node:fs");
-    const path = require("node:path");
-    const dbName = process.env.DB_NAME || "sveltycms_test";
-
-    // Clean up dynamically created test workers
-    for (const file of fs.readdirSync(rootDir)) {
-      // Catch sveltycms_test, sveltycms_test-wal, sveltycms_test_worker1, etc.
-      // Making sure it's a file, not a directory.
+    for (const file of readdirSync(rootDir)) {
       if (file.startsWith(dbName)) {
-        const fullPath = path.join(rootDir, file);
+        const fullPath = join(rootDir, file);
         try {
-          if (fs.statSync(fullPath).isFile()) {
-            fs.unlinkSync(fullPath);
-          }
+          if (statSync(fullPath).isFile()) unlinkSync(fullPath);
         } catch {
-          // Ignore
+          // Ignore — another process may have already removed it.
         }
       }
     }
 
-    // Also clean up any legacy 127.0.0.1 directory if it exists
-    const badDir = path.join(rootDir, "127.0.0.1");
-    if (fs.existsSync(badDir)) {
-      fs.rmSync(badDir, { recursive: true, force: true });
+    // Remove any legacy "127.0.0.1" directory created by old SQLite path handling.
+    const legacyDir = join(rootDir, "127.0.0.1");
+    if (existsSync(legacyDir)) {
+      rmSync(legacyDir, { recursive: true, force: true });
     }
   } catch (e) {
-    console.warn("Non-fatal error cleaning up sqlite directories:", e);
+    console.warn("⚠️  Non-fatal error during SQLite cleanup:", e);
   }
-
-  process.exit(exitCode);
 }
 
-process.on("SIGINT", () => cleanup(130));
-process.on("SIGTERM", () => cleanup(143));
+async function killPreviewProcess(): Promise<void> {
+  const proc = previewProcess;
+  if (!proc || proc.killed || proc.exitCode !== null) return;
+  previewProcess = null;
 
-async function main() {
-  try {
-    console.log("🚀 Starting Black-Box Integration Suite...");
+  return new Promise((resolve) => {
+    if (!proc.pid) {
+      resolve();
+      return;
+    }
 
-    const args = process.argv.slice(2);
-    const skipBuild = args.includes("--no-build");
-    const filterArg = args.find((arg) => arg.startsWith("--filter="));
-    const dbFilter = filterArg ? filterArg.split("=")[1] : null;
+    const onExit = () => resolve();
+    proc.once("close", onExit);
+    proc.once("exit", onExit);
 
-    // Fix: Properly filter out all flags (starting with --)
-    const testFiles = args.filter((arg) => !arg.startsWith("--"));
-
-    // 0. Build check
-    if (!skipBuild) {
-      if (requiresRebuild()) {
-        console.log("🏗️ Detected changes in src/ or missing build. Rebuilding...");
-        const buildCode = await runCommand(pkgManager, ["run", "build"]);
-        if (buildCode !== 0) throw new Error("Build failed. Aborting benchmarks.");
-      } else {
-        console.log("✅ Build is up to date. Skipping rebuild.");
+    // Give the process 5s to exit gracefully before force-killing.
+    const forceKill = setTimeout(() => {
+      try {
+        if (process.platform === "win32") {
+          spawn("taskkill", ["/F", "/T", "/PID", proc.pid!.toString()], {
+            stdio: "ignore",
+          });
+        } else {
+          process.kill(-proc.pid!, "SIGKILL");
+        }
+      } catch {
+        // Already dead.
       }
+    }, 5_000);
+    forceKill.unref();
+
+    try {
+      if (process.platform === "win32") {
+        spawn("taskkill", ["/F", "/T", "/PID", proc.pid.toString()], {
+          stdio: "ignore",
+        });
+      } else {
+        // Negative PID sends signal to the entire process group.
+        process.kill(-proc.pid, "SIGTERM");
+      }
+    } catch {
+      proc.kill("SIGTERM");
     }
+  });
+}
 
-    // 0.5 Clean up stale config
-    const privateTestPath = join(rootDir, "config", "private.test.ts");
-    if (existsSync(privateTestPath)) {
-      console.log("🧹 Removing stale private.test.ts...");
-      unlinkSync(privateTestPath);
-    }
+// Signal handlers — await teardown before exiting so the OS releases ports
+// and files before the next CI step runs.
+async function handleSignal(signal: NodeJS.Signals, code: number): Promise<never> {
+  console.log(`\nReceived ${signal}.`);
+  await teardown();
+  process.exit(code);
+}
+process.on("SIGINT", () => handleSignal("SIGINT", 130));
+process.on("SIGTERM", () => handleSignal("SIGTERM", 143));
 
-    // 1. Build & Start Server (Initial startup in setup mode)
-    console.log("📦 Starting preview server for initial setup...");
-    await startPreviewServer();
+// ---------------------------------------------------------------------------
+// runCommand — no shell on non-Windows, error handler present
+// ---------------------------------------------------------------------------
 
-    // 1.5. Run Fast System Setup
-    console.log("⚙️ Running Fast System Setup to configure system...");
-    const dbType = process.env.DB_TYPE || "sqlite";
-    console.log(`📡 DB_TYPE: ${dbType}`);
+interface RunResult {
+  code: number;
+  stdout: string;
+  stderr: string;
+}
 
-    // For SQLite, redirect the host to the current directory to avoid creating a '127.0.0.1' folder
-    const originalHost = process.env.DB_HOST || HOST;
-    const dbHost = dbType === "sqlite" ? "." : originalHost;
+interface RunOpts {
+  capture?: boolean;
+  silent?: boolean;
+  env?: Record<string, string>;
+  cwd?: string;
+}
 
-    const setupResult = await runCommand(pkgManager, ["run", "scripts/setup-system.ts"], {
-      DB_TYPE: dbType,
-      DB_HOST: dbHost,
-      DB_NAME: process.env.DB_NAME || "sveltycms_test",
-      DB_USER: process.env.DB_USER || "",
-      DB_PASSWORD: process.env.DB_PASSWORD || "",
-      DB_PORT: process.env.DB_PORT || "",
-      TEST_MODE: "true",
-      API_BASE_URL,
-      TEST_API_SECRET,
+function runCommand(command: string, args: string[], opts: RunOpts = {}): Promise<RunResult> {
+  return new Promise((resolve, reject) => {
+    const proc = spawn(command, args, {
+      cwd: opts.cwd ?? rootDir,
+      // shell:true only on Windows where it is actually necessary to resolve
+      // .cmd/.bat script wrappers. Avoid it on POSIX to eliminate injection risk.
+      shell: process.platform === "win32",
+      stdio: opts.capture || opts.silent ? "pipe" : "inherit",
+      env: { ...process.env, ...opts.env },
     });
 
-    if (setupResult !== 0) throw new Error("Fast setup failed. Cannot proceed.");
-    console.log("✅ System configured successfully via API.");
+    let stdout = "";
+    let stderr = "";
 
-    // 1.6. RESTART SERVER to pick up new config/private.test.ts
-    console.log("🔄 Restarting preview server to apply new configuration...");
-    await startPreviewServer(dbHost);
-    console.log("✅ Server restarted and ready.");
-
-    // 2. Discover tests
-    let filesToRun =
-      testFiles.length > 0 ? testFiles : findTestFiles(join(rootDir, "tests/integration"));
-
-    // 2.1. Filter files based on DB_TYPE
-    if (dbFilter) {
-      console.log(`🔍 Applying filter: ${dbFilter}`);
-      const otherDbs = ["mongodb", "mariadb", "postgresql", "sqlite"].filter(
-        (db) => db !== dbFilter,
-      );
-      filesToRun = filesToRun.filter((file) => {
-        const lowerFile = file.toLowerCase();
-        return !otherDbs.some(
-          (other) => lowerFile.includes(`${other}-adapter`) || lowerFile.includes(`${other}.test`),
-        );
+    if (proc.stdout)
+      proc.stdout.on("data", (d: Buffer) => {
+        stdout += d.toString();
       });
-    }
+    if (proc.stderr)
+      proc.stderr.on("data", (d: Buffer) => {
+        stderr += d.toString();
+      });
 
-    console.log(`🧪 Running ${filesToRun.length} test files sequentially...`);
-    const results: Array<{ file: string; success: boolean; code: number }> = [];
+    // Without this handler, ENOENT hangs the promise indefinitely.
+    proc.on("error", (err) => reject(new Error(`Failed to spawn "${command}": ${err.message}`)));
 
-    for (const file of filesToRun) {
-      const relPath = relative(rootDir, file);
-      console.log(`\n▶️  [TEST] ${relPath}`);
-
-      // Reset & Seed via God-Mode API
-      if (!(await invokeTestApi("reset")) || !(await invokeTestApi("seed"))) {
-        console.error("❌ Failed to reset/seed via API. Aborting current test.");
-        results.push({ file: relPath, success: false, code: -1 });
-        break;
-      }
-
-      // Run Bun test
-      const code = await runTest(file);
-      results.push({ file: relPath, success: code === 0, code });
-
-      if (code !== 0) console.error(`❌ Failed: ${relPath}`);
-      else console.log(`✅ Passed: ${relPath}`);
-    }
-
-    // 3. Output Summary
-    const failedCount = results.filter((r) => !r.success).length;
-    console.log(
-      `\n🏁 Total: ${results.length}, Success: ${results.length - failedCount}, Errors: ${failedCount}`,
-    );
-
-    if (failedCount > 0) {
-      console.log("\n❌ FAILED TESTS SUMMARY:");
-      results
-        .filter((r) => !r.success)
-        .forEach((r) => console.log(`  - ${r.file} (Code: ${r.code})`));
-    } else if (results.length > 0) {
-      console.log("\n✅ ALL INTEGRATION TESTS PASSED!");
-    }
-
-    cleanup(failedCount > 0 ? 1 : 0);
-  } catch (error) {
-    console.error("❌ Runner Error:", error instanceof Error ? error.message : error);
-    cleanup(1);
-  }
+    proc.on("close", (code) => resolve({ code: code ?? 1, stdout, stderr }));
+  });
 }
 
-// --- Helper Functions ---
+// ---------------------------------------------------------------------------
+// Build check
+// ---------------------------------------------------------------------------
 
+/**
+ * Returns true if the build directory is missing or any file directly under
+ * src/ (non-recursive, capped at depth 1) is newer than the build directory.
+ *
+ * A full recursive mtime walk is fragile (symlinks, .svelte-kit cache churn,
+ * node_modules inside src/).  The shallow check catches the common case;
+ * use --no-build to override when you know the build is current.
+ */
 function requiresRebuild(): boolean {
   const buildPath = join(rootDir, "build");
-  const srcPath = join(rootDir, "src");
   if (!existsSync(buildPath)) return true;
 
   const buildTime = statSync(buildPath).mtimeMs;
-  const checkNewer = (dir: string): boolean => {
-    for (const item of readdirSync(dir)) {
-      const fullPath = join(dir, item);
-      if (statSync(fullPath).isDirectory()) {
-        if (checkNewer(fullPath)) return true;
-      } else if (statSync(fullPath).mtimeMs > buildTime) {
-        return true;
-      }
+  const srcPath = join(rootDir, "src");
+
+  try {
+    for (const entry of readdirSync(srcPath, { withFileTypes: true })) {
+      const fullPath = join(srcPath, entry.name);
+      if (statSync(fullPath).mtimeMs > buildTime) return true;
     }
+  } catch {
+    // src/ doesn't exist or isn't readable — treat as no rebuild needed.
     return false;
-  };
-  return checkNewer(srcPath);
-}
-
-function runCommand(
-  command: string,
-  args: string[],
-  extraEnv: Record<string, string> = {},
-): Promise<number> {
-  return new Promise((resolve) => {
-    const proc = spawn(command, args, {
-      cwd: rootDir,
-      stdio: "inherit",
-      shell: process.platform === "win32", // Only use shell on Windows where necessary
-      env: { ...process.env, ...extraEnv },
-    });
-    proc.on("close", (code) => resolve(code || 0));
-  });
-}
-
-async function startPreviewServer(dbHost?: string) {
-  if (previewProcess) {
-    console.log("🛑 Killing existing preview process...");
-    if (process.platform === "win32") {
-      spawn("taskkill", ["/F", "/T", "/PID", previewProcess.pid?.toString() || ""], {
-        stdio: "ignore",
-      });
-    } else if (previewProcess.pid) {
-      try {
-        process.kill(-previewProcess.pid, "SIGTERM");
-      } catch {
-        previewProcess.kill("SIGTERM");
-      }
-    }
-    await new Promise((r) => setTimeout(r, 2000)); // Wait for OS to release port
   }
 
-  return new Promise<void>((resolve, reject) => {
-    // 💡 CI OPTIMIZATION: Use 'preview' if 'build/' exists (much faster than 'dev')
-    const buildExists = existsSync(join(rootDir, "build"));
-    const usePreview =
-      buildExists && (process.env.CI === "true" || process.env.USE_PREVIEW === "true");
-    const cmd = usePreview ? "preview" : "dev";
+  return false;
+}
 
-    console.log(`📦 Spawning ${cmd} server (${HOST}:${PORT})...`);
-    const logFd = require("node:fs").openSync(join(rootDir, "preview.log"), "a");
+// ---------------------------------------------------------------------------
+// Server management
+// ---------------------------------------------------------------------------
 
-    const spawnArgs = ["run", cmd, "--port", PORT, "--host", HOST, "--strictPort"];
+/**
+ * Starts (or restarts) the preview/dev server.
+ * Properly closes the previous log file descriptor before opening a new one.
+ */
+async function startPreviewServer(dbHost?: string): Promise<void> {
+  if (previewProcess) {
+    console.log("🛑 Stopping existing preview process…");
+    await killPreviewProcess();
 
-    previewProcess = spawn("bun", spawnArgs, {
-      cwd: rootDir,
-      stdio: ["ignore", logFd, logFd],
-      detached: process.platform !== "win32", // Detach to create a new process group for clean killing
-      shell: process.platform === "win32",
-      env: {
-        ...process.env,
-        NODE_ENV: usePreview ? "production" : "development",
-        DB_TYPE: process.env.DB_TYPE || "sqlite",
-        DB_HOST: dbHost || process.env.DB_HOST || HOST,
-        DB_NAME: process.env.DB_NAME || "sveltycms_test",
-        DB_USER: process.env.DB_USER || "",
-        DB_PASSWORD: process.env.DB_PASSWORD || "",
-        DB_PORT: process.env.DB_PORT || "",
-        TEST_MODE: "true",
-        TEST_API_SECRET,
-        ORIGIN: API_BASE_URL,
-        SUPPRESS_JEST_WARNINGS: "true",
-      },
+    // Close old log fd before opening a new one.
+    if (previewLogFd !== null) {
+      try {
+        closeSync(previewLogFd);
+      } catch {
+        /* ignore */
+      }
+      previewLogFd = null;
+    }
+
+    // Poll until the port is free rather than sleeping a fixed amount.
+    await waitForPortFree(Number(PORT), 10_000);
+  }
+
+  const buildExists = existsSync(join(rootDir, "build"));
+  const usePreview =
+    buildExists && (process.env.CI === "true" || process.env.USE_PREVIEW === "true");
+  const cmd = usePreview ? "preview" : "dev";
+
+  console.log(`📦 Spawning ${cmd} server (${HOST}:${PORT})…`);
+
+  // Open log file once; store the fd so we can close it in teardown.
+  previewLogFd = openSync(join(rootDir, "preview.log"), "a");
+
+  previewProcess = spawn("bun", ["run", cmd, "--port", PORT, "--host", HOST, "--strictPort"], {
+    cwd: rootDir,
+    stdio: ["ignore", previewLogFd, previewLogFd],
+    detached: process.platform !== "win32",
+    shell: process.platform === "win32",
+    env: {
+      ...process.env,
+      NODE_ENV: usePreview ? "production" : "development",
+      DB_TYPE: process.env.DB_TYPE ?? "sqlite",
+      DB_HOST: dbHost ?? process.env.DB_HOST ?? HOST,
+      DB_NAME: process.env.DB_NAME ?? "sveltycms_test",
+      DB_USER: process.env.DB_USER ?? "",
+      DB_PASSWORD: process.env.DB_PASSWORD ?? "",
+      DB_PORT: process.env.DB_PORT ?? "",
+      TEST_MODE: "true",
+      TEST_API_SECRET,
+      ORIGIN: API_BASE_URL,
+    },
+  });
+
+  return new Promise((resolve, reject) => {
+    let settled = false;
+
+    const settle = (fn: () => void) => {
+      if (!settled) {
+        settled = true;
+        fn();
+      }
+    };
+
+    previewProcess!.on("error", (err) =>
+      settle(() => reject(new Error(`Preview server spawn failed: ${err.message}`))),
+    );
+
+    previewProcess!.on("close", (code) => {
+      settle(() => reject(new Error(`Preview server exited unexpectedly with code ${code}`)));
     });
-
-    let resolved = false;
-    const timeoutMs = 120000;
-    const timeout = setTimeout(() => {
-      if (!resolved)
-        reject(new Error(`Timeout waiting for ${cmd} server health check (${timeoutMs}ms)`));
-    }, timeoutMs);
 
     waitForServer()
-      .then(() => {
-        clearTimeout(timeout);
-        resolved = true;
-        resolve();
-      })
-      .catch((err) => {
-        if (!resolved) reject(err);
-      });
-
-    previewProcess.on("close", (code) => {
-      if (!resolved && code !== null) reject(new Error(`Preview process exited with code ${code}`));
-    });
+      .then(() => settle(resolve))
+      .catch((err) => settle(() => reject(err)));
   });
 }
 
-async function waitForServer() {
-  console.log(`⏳ Waiting for server health check at ${API_BASE_URL}/api/system/health...`);
-  const maxRetries = process.env.CI === "true" ? 120 : 60;
-  for (let i = 0; i < maxRetries; i++) {
+/**
+ * Polls until the given TCP port stops accepting connections (i.e. is free).
+ * Used after killing the old server to avoid EADDRINUSE on restart.
+ */
+async function waitForPortFree(port: number, timeoutMs: number): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+
+  while (Date.now() < deadline) {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/system/health`);
-      if (res.ok || res.status === 503) {
-        console.log("✅ Server reached.");
-        return;
-      }
-    } catch (err: any) {
-      if (i % 10 === 0) {
-        console.log(`   Attempt ${i}: Server not yet available (${err.message})...`);
-      }
+      // A successful fetch means the port is still occupied.
+      await fetch(`http://${HOST}:${port}/`, { signal: AbortSignal.timeout(500) });
+      await sleep(200);
+    } catch {
+      // Fetch failed — port is free.
+      return;
     }
-    await new Promise((r) => setTimeout(r, 1000));
   }
-  throw new Error("Server health check timeout");
+  // Timed out but proceed anyway — the new server will fail with EADDRINUSE
+  // if the port truly isn't free, which is a clearer error than a timeout here.
+  console.warn(`⚠️  Port ${port} did not free within ${timeoutMs}ms. Proceeding anyway.`);
 }
 
+/**
+ * Polls the health endpoint until the server reports an actionable state.
+ *
+ * We require an explicit application-level status, not just HTTP reachability,
+ * because a 503 during INITIALIZING is not ready for test setup actions.
+ */
+async function waitForServer(): Promise<void> {
+  const maxAttempts = process.env.CI === "true" ? 120 : 60;
+  const ACCEPTABLE = new Set(["READY", "SETUP", "DEGRADED", "WARMING", "WARMED"]);
+
+  console.log(`⏳ Waiting for server at ${API_BASE_URL}/api/system/health…`);
+
+  for (let i = 0; i < maxAttempts; i++) {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/system/health`, {
+        signal: AbortSignal.timeout(5_000),
+      });
+      const data = await res.json().catch(() => null);
+      const status: string = data?.overallStatus ?? "";
+
+      if (ACCEPTABLE.has(status)) {
+        console.log(`✅ Server ready (state: ${status}).`);
+        return;
+      }
+
+      if (i % 10 === 0) {
+        console.log(`   Attempt ${i}: status="${status || `HTTP ${res.status}`}"…`);
+      }
+    } catch (err) {
+      if (i % 10 === 0) {
+        console.log(`   Attempt ${i}: not yet reachable (${(err as Error).message})…`);
+      }
+    }
+    await sleep(1_000);
+  }
+
+  throw new Error(`Server did not reach a ready state within ${maxAttempts}s.`);
+}
+
+// ---------------------------------------------------------------------------
+// Test API (reset / seed)
+// ---------------------------------------------------------------------------
+
+/**
+ * Invokes /api/testing with exponential backoff.
+ * Returns false only after all retries are exhausted — never throws.
+ */
 async function invokeTestApi(action: "reset" | "seed"): Promise<boolean> {
-  const maxRetries = 5;
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+  const maxAttempts = 5;
+  const baseMs = 500;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       const res = await fetch(`${API_BASE_URL}/api/testing`, {
         method: "POST",
         body: JSON.stringify({ action }),
         headers: {
           "Content-Type": "application/json",
-          "x-test-secret": TEST_API_SECRET,
-          Origin: API_BASE_URL,
+          "x-test-secret": TEST_API_SECRET || "",
+          Origin: API_BASE_URL || "",
         },
+        signal: AbortSignal.timeout(15_000),
       });
+
       if (res.ok) return true;
 
+      const body = await res.text().catch(() => "(unreadable)");
       console.warn(
-        `⚠️ ${action.toUpperCase()} attempt ${attempt} failed: ${res.status} ${res.statusText}`,
+        `⚠️  ${action} attempt ${attempt}/${maxAttempts}: ` +
+          `HTTP ${res.status} — ${body.slice(0, 200)}`,
       );
-      if (attempt === maxRetries) {
-        console.error(`Body: ${await res.text()}`);
-      }
-    } catch (e: any) {
-      console.warn(`[Runner] ${action} API error attempt ${attempt}:`, e.message);
+    } catch (err) {
+      console.warn(`⚠️  ${action} attempt ${attempt}/${maxAttempts}: ${(err as Error).message}`);
     }
-    await new Promise((r) => setTimeout(r, 2000));
+
+    if (attempt < maxAttempts) {
+      // Exponential backoff capped at 10s, with jitter.
+      const delay = Math.min(baseMs * 2 ** (attempt - 1), 10_000) * (0.5 + Math.random() * 0.5);
+      await sleep(delay);
+    }
   }
+
+  console.error(`❌ ${action} failed after ${maxAttempts} attempts.`);
   return false;
 }
 
-function runTest(file: string): Promise<number> {
-  const args = ["test"];
-  // Black-box integration tests should not preload unit test shims
-  // args.push("--preload", "./tests/unit/setup.ts");
-  args.push(file);
+// ---------------------------------------------------------------------------
+// Test discovery and execution
+// ---------------------------------------------------------------------------
 
-  return runCommand(pkgManager, args, {
-    TEST_MODE: "true",
-    API_BASE_URL,
-    TEST_API_SECRET,
-    SUPPRESS_JEST_WARNINGS: "true",
-  });
-}
-
-function findTestFiles(dir: string, list: string[] = []) {
+function findTestFiles(dir: string, list: string[] = []): string[] {
   if (!existsSync(dir)) return list;
-  for (const f of readdirSync(dir)) {
-    const p = join(dir, f);
-    if (statSync(p).isDirectory()) {
-      findTestFiles(p, list);
+
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = join(dir, entry.name);
+
+    if (entry.isDirectory()) {
+      findTestFiles(fullPath, list);
     } else if (
-      f.endsWith(".test.ts") &&
-      !f.includes("setup-actions") &&
-      !f.includes("setup-wizard") &&
-      !f.includes("setup-presets") &&
-      !f.includes("setup-utils")
+      entry.name.endsWith(".test.ts") &&
+      !EXCLUDED_TEST_PATTERNS.some((pat) => entry.name.includes(pat))
     ) {
-      list.push(p);
+      list.push(fullPath);
     }
   }
+
   return list;
 }
 
-main();
+function filterByDb(files: string[], dbFilter: string): string[] {
+  const ALL_DB_ADAPTERS = ["mongodb", "mariadb", "postgresql", "sqlite"];
+  const others = ALL_DB_ADAPTERS.filter((db) => db !== dbFilter.toLowerCase());
+
+  return files.filter((file) => {
+    const lower = file.toLowerCase();
+    return !others.some(
+      (other) => lower.includes(`${other}-adapter`) || lower.includes(`${other}.test`),
+    );
+  });
+}
+
+async function runTestFile(file: string): Promise<number> {
+  const { code } = await runCommand(pkgManager, ["test", file], {
+    env: {
+      ...process.env,
+      API_BASE_URL: API_BASE_URL || "http://localhost:4173",
+      TEST_API_SECRET: TEST_API_SECRET || "",
+    },
+  });
+  return code;
+}
+
+// ---------------------------------------------------------------------------
+// Utilities
+// ---------------------------------------------------------------------------
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+// ---------------------------------------------------------------------------
+// Main
+// ---------------------------------------------------------------------------
+
+interface TestResult {
+  file: string;
+  success: boolean;
+  code: number;
+}
+
+async function main(): Promise<void> {
+  console.log("🚀 Starting Black-Box Integration Suite…");
+
+  // 1. Build check.
+  if (!cli.skipBuild) {
+    if (requiresRebuild()) {
+      console.log("🏗️  src/ has changes — rebuilding…");
+      const { code } = await runCommand(pkgManager, ["run", "build"]);
+      if (code !== 0) throw new Error("Build failed. Aborting.");
+    } else {
+      console.log("✅ Build is current — skipping rebuild.");
+    }
+  }
+
+  // 2. Clean stale test config.
+  const privateTestPath = join(rootDir, "config", "private.test.ts");
+  if (existsSync(privateTestPath)) {
+    console.log("🧹 Removing stale private.test.ts…");
+    unlinkSync(privateTestPath);
+  }
+
+  // 3. Start server in setup mode.
+  console.log("📦 Starting preview server for initial setup…");
+  await startPreviewServer();
+
+  // 4. Run system setup.
+  const dbType = process.env.DB_TYPE ?? "sqlite";
+  // SQLite is file-based: using "." as host avoids creating a "127.0.0.1/"
+  // directory in the project root.
+  const dbHost = dbType === "sqlite" ? "." : (process.env.DB_HOST ?? HOST);
+
+  console.log(`⚙️  Running system setup (DB: ${dbType})…`);
+  const { code: setupCode } = await runCommand(pkgManager, ["run", "scripts/setup-system.ts"], {
+    env: {
+      DB_TYPE: dbType,
+      DB_HOST: dbHost,
+      DB_NAME: process.env.DB_NAME ?? "sveltycms_test",
+      DB_USER: process.env.DB_USER ?? "",
+      DB_PASSWORD: process.env.DB_PASSWORD ?? "",
+      DB_PORT: process.env.DB_PORT ?? "",
+      TEST_MODE: "true",
+      API_BASE_URL: API_BASE_URL || "",
+      TEST_API_SECRET: TEST_API_SECRET || "",
+    },
+  });
+  if (setupCode !== 0) throw new Error("System setup failed — cannot proceed.");
+  console.log("✅ System configured.");
+
+  // 5. Restart server to pick up new config.
+  console.log("🔄 Restarting server to apply new configuration…");
+  await startPreviewServer(dbHost);
+  console.log("✅ Server restarted.");
+
+  // 6. Discover test files.
+  let filesToRun =
+    cli.explicitFiles.length > 0
+      ? cli.explicitFiles
+      : findTestFiles(join(rootDir, "tests/integration"));
+
+  if (cli.dbFilter) {
+    console.log(`🔍 Filtering to DB adapter: ${cli.dbFilter}`);
+    filesToRun = filterByDb(filesToRun, cli.dbFilter);
+  }
+
+  if (filesToRun.length === 0) {
+    console.warn("⚠️  No test files matched. Check your --filter or test directory.");
+    return;
+  }
+
+  console.log(`🧪 Running ${filesToRun.length} test file(s) sequentially…`);
+
+  // 7. Run tests.
+  const results: TestResult[] = [];
+
+  for (const file of filesToRun) {
+    const relPath = relative(rootDir, file);
+    console.log(`\n▶️  ${relPath}`);
+
+    const resetOk = await invokeTestApi("reset");
+    const seedOk = resetOk && (await invokeTestApi("seed"));
+
+    if (!seedOk) {
+      console.error(`❌ reset/seed failed for ${relPath}. Marking as failed and continuing.`);
+      results.push({ file: relPath, success: false, code: -1 });
+      // Continue to the next test rather than aborting — other tests may still
+      // be runnable and a full suite result is more useful than a partial one.
+      continue;
+    }
+
+    const code = await runTestFile(file);
+    const success = code === 0;
+    results.push({ file: relPath, success, code });
+
+    if (success) {
+      console.log(`✅ Passed: ${relPath}`);
+    } else {
+      console.error(`❌ Failed: ${relPath} (exit code ${code})`);
+    }
+  }
+
+  // 8. Summary.
+  const passed = results.filter((r) => r.success).length;
+  const failed = results.length - passed;
+
+  console.log("\n────────────────────────────────────────");
+  console.log(`🏁 Results: ${passed} passed, ${failed} failed, ${results.length} total`);
+
+  if (failed > 0) {
+    console.log("\nFailed tests:");
+    results
+      .filter((r) => !r.success)
+      .forEach((r) => console.log(`  ✗ ${r.file} (code: ${r.code})`));
+  } else {
+    console.log("\n✅ All integration tests passed.");
+  }
+
+  clearTimeout(globalTimeout);
+  await teardown();
+  process.exit(failed > 0 ? 1 : 0);
+}
+
+main().catch(async (err) => {
+  console.error("\n❌ Runner error:", err instanceof Error ? err.message : err);
+  await teardown();
+  process.exit(1);
+});

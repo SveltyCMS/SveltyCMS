@@ -35,6 +35,7 @@ import { AppError, handleApiError } from "@utils/error-handling";
 import { logger } from "@utils/logger.server";
 import { RateLimiter } from "sveltekit-rate-limiter/server";
 import { isStaticOrInternalRequest, isPublicRoute } from "@utils/hook-utils";
+import { isBootstrapRoute } from "@utils/setup-check";
 import { getPrivateSettingSync } from "@src/services/settings-service";
 import { getTenantIdFromHostname } from "@utils/tenant-utils";
 import { dev } from "$app/environment";
@@ -301,6 +302,41 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
   const pathname = url.pathname;
 
   if (isStaticOrInternalRequest(pathname)) return resolve(event);
+
+  // Ensure DB is initialized before proceeding with auth checks
+  const { dbInitPromise, auth, dbAdapter } = await import("@src/databases/db");
+  await dbInitPromise;
+
+  // High-performance bypass for internal test orchestration
+  const testSecret = event.request.headers.get("x-test-secret");
+  if (process.env.TEST_MODE === "true" && testSecret) {
+    const expected = getPrivateSettingSync("TEST_API_SECRET");
+    if (testSecret === expected) {
+      if (dbAdapter && auth) {
+        const adminResult = await auth
+          .getUserByEmail(
+            { email: "admin@example.com", tenantId: undefined },
+            { bypassTenantCheck: true },
+          )
+          .catch(() => null);
+        if (adminResult) {
+          locals.dbAdapter = dbAdapter;
+          locals.user = adminResult;
+          locals.permissions = adminResult.permissions || [];
+          return resolve(event);
+        } else if (!isBootstrapRoute(pathname)) {
+          console.log(`[AuthBypass] Admin user not found in DB for ${pathname}`);
+        }
+      } else if (!isBootstrapRoute(pathname)) {
+        console.log(`[AuthBypass] dbAdapter or auth not ready for ${pathname}`);
+      }
+    } else if (!isBootstrapRoute(pathname)) {
+      console.log(
+        `[AuthBypass] Secret mismatch for ${pathname}: got ${testSecret}, expected ${expected}`,
+      );
+    }
+  }
+
   if (isPublicRoute(pathname, process.env.TEST_MODE === "true")) return resolve(event);
 
   try {

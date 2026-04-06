@@ -3,27 +3,32 @@
  * @description Common types and response helpers for API handlers.
  */
 
-import { json } from "@sveltejs/kit";
+import { json, type RequestEvent } from "@sveltejs/kit";
 
 /**
  * Standard success response wrapper
  */
-export function successResponse(data: any, status = 200) {
-  return json({ success: true, data }, { status });
+export function successResponse(event: RequestEvent, data: any, status = 200) {
+  const body = { success: true, data };
+  if (event?.locals) (event.locals as any).apiData = body;
+  return json(body, { status });
 }
 
 /**
  * Raw response for endpoints that expect specific shapes (e.g. legacy/third-party)
  */
-export function rawResponse(data: any, status = 200) {
+export function rawResponse(event: RequestEvent, data: any, status = 200) {
+  if (event?.locals) (event.locals as any).apiData = data;
   return json(data, { status });
 }
 
 /**
  * Standard created response wrapper (201)
  */
-export function createdResponse(data: any) {
-  return json({ success: true, data }, { status: 201 });
+export function createdResponse(event: RequestEvent, data: any) {
+  const body = { success: true, data };
+  if (event?.locals) (event.locals as any).apiData = body;
+  return json(body, { status: 201 });
 }
 
 /**

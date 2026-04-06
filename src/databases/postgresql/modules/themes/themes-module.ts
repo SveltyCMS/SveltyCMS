@@ -25,7 +25,7 @@ export class ThemesModule {
     // No-op for SQL
   }
 
-  async getActive(): Promise<DatabaseResult<Theme>> {
+  async getActive(): Promise<DatabaseResult<Theme | null>> {
     return this.core.wrap(async () => {
       const [result] = await this.db
         .select()
@@ -33,7 +33,7 @@ export class ThemesModule {
         .where(eq(schema.themes.isActive, true))
         .limit(1);
       if (!result) {
-        throw new Error("No active theme found");
+        return null;
       }
       return utils.convertDatesToISO(result) as unknown as Theme;
     }, "GET_ACTIVE_THEME_FAILED");

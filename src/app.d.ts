@@ -21,56 +21,50 @@ declare global {
       // High-performance Local API (Payload style)
       cms?: {
         auth: any;
-        collections?: any; // For legacy calls if any
-        find: (
-          collection: string,
-          options?: any,
-        ) => Promise<import("@src/databases/db-interface").DatabaseResult<any[]>>;
-        findById: (
-          collection: string,
-          id: string,
-          options?: any,
-        ) => Promise<import("@src/databases/db-interface").DatabaseResult<any | null>>;
-        create: (
-          collection: string,
-          data: any,
-          options?: any,
-        ) => Promise<import("@src/databases/db-interface").DatabaseResult<any>>;
-        update: (
-          collection: string,
-          id: string,
-          data: any,
-          options?: any,
-        ) => Promise<import("@src/databases/db-interface").DatabaseResult<any>>;
-        delete: (
-          collection: string,
-          id: string,
-          options?: any,
-        ) => Promise<import("@src/databases/db-interface").DatabaseResult<void>>;
-
-        // Bulk Operations
-        bulkCreate: (collection: string, data: any[], options?: any) => Promise<any>;
-        bulkUpdate: (collection: string, updates: any[], options?: any) => Promise<any>;
-        bulkDelete: (collection: string, ids: string[], options?: any) => Promise<any>;
-
-        // Advanced Querying
-        queryBuilder: (collection: string, options?: any) => any;
-        transaction: (fn: any, options?: any) => Promise<any>;
-
+        collections: {
+          list: (options?: any) => Promise<any[]>;
+          search: (query: string, options?: any) => Promise<any>;
+          find: (
+            collection: string,
+            options?: any,
+          ) => Promise<import("@src/databases/db-interface").DatabaseResult<any[]>>;
+          findById: (
+            collection: string,
+            id: string,
+            options?: any,
+          ) => Promise<import("@src/databases/db-interface").DatabaseResult<any | null>>;
+          getNodeChildren: (parentId: string, tenantId?: any) => Promise<any>;
+          create: (
+            collection: string,
+            data: any,
+            options?: any,
+          ) => Promise<import("@src/databases/db-interface").DatabaseResult<any>>;
+          getRevisions: (collection: string, id: string, tenantId?: any) => Promise<any>;
+          update: (
+            collection: string,
+            id: string,
+            data: any,
+            options?: any,
+          ) => Promise<import("@src/databases/db-interface").DatabaseResult<any>>;
+          delete: (
+            collection: string,
+            id: string,
+            options?: any,
+          ) => Promise<import("@src/databases/db-interface").DatabaseResult<any>>;
+          bulkCreate: (collection: string, data: any[], options?: any) => Promise<any>;
+          bulkUpdate: (collection: string, updates: any[], options?: any) => Promise<any>;
+          bulkDelete: (collection: string, ids: string[], options?: any) => Promise<any>;
+          queryBuilder: (collection: string, options?: any) => any;
+          modifyRequest: (params: any) => Promise<any>;
+          refresh: (tId?: string) => Promise<any>;
+          reorderContentNodes: (items: any[], tId?: string) => Promise<any>;
+        };
         media: any;
         widgets: any;
         system: any;
         websiteTokens: any;
-        version: number;
-        getContentStructure: (tenantId?: string) => Promise<any>;
-        getNodeChildren: (parentId: string, tenantId?: string) => Promise<any>;
-        getContentVersion: () => number;
-        context: {
-          isLocal: boolean;
-          tenantId: string | null | undefined;
-          user: User | null;
-        };
         db: import("@src/databases/db-interface").IDBAdapter;
+        [key: string]: any;
       };
 
       cspNonce?: string;

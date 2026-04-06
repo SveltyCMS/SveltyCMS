@@ -136,6 +136,18 @@ Ensure your `config/private.test.ts` has the correct credentials. Always use `12
 
 ---
 
+## Performance & Relational Integrity
+
+We use the **Enterprise Benchmark Matrix** to validate database adapter performance under stress, including relational scenarios:
+
+- **Relational Benchmarks**: Tests the overhead of JOINs and populations across different adapters.
+- **Nested Populations**: Ensures that Depth 2-3 relationships are resolved efficiently.
+- **Cross-Database Parity**: Validates that all adapters (SQL and NoSQL) handle relations consistently.
+
+**Tools**: `scripts/enterprise-matrix.ts`, `tests/benchmarks/relational-performance.test.ts`
+
+---
+
 ## Related Documentation
 
 - [Test Status Report](./test-status.mdx)

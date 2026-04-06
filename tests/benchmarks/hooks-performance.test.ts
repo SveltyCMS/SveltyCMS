@@ -14,13 +14,9 @@ import type { RequestEvent } from "@sveltejs/kit";
  */
 async function getHooks() {
   return {
-    addSecurityHeaders: (await import("../../src/hooks/add-security-headers")).addSecurityHeaders,
-    handleTestIsolation: (await import("../../src/hooks/handle-test-isolation"))
-      .handleTestIsolation,
-    handleStaticAssetCaching: (await import("../../src/hooks/handle-static-asset-caching"))
-      .handleStaticAssetCaching,
+    handleTurboPipeline: (await import("../../src/hooks/handle-turbo-pipeline.server"))
+      .handleTurboPipeline,
     handleCompression: (await import("../../src/hooks/handle-compression")).handleCompression,
-    handleSystemState: (await import("../../src/hooks/handle-system-state")).handleSystemState,
     handleSecurity: (await import("../../src/hooks/handle-security")).handleSecurity,
     handleSetup: (await import("../../src/hooks/handle-setup")).handleSetup,
     handleUserPreferences: (await import("../../src/hooks/handle-user-preferences"))

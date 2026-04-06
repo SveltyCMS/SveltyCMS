@@ -13,11 +13,11 @@ import type { RequestEvent } from "@sveltejs/kit";
 vi.mock("@src/databases/db", () => ({
   dbAdapter: {
     auth: {
-      getAllTokens: vi.fn(),
-      getTokenById: vi.fn(),
-      updateToken: vi.fn(),
-      createToken: vi.fn(),
-      deleteTokens: vi.fn(),
+      getAllTokens: vi.fn().mockResolvedValue({ success: true, data: [] }),
+      getTokenById: vi.fn().mockResolvedValue({ success: true, data: {} }),
+      updateToken: vi.fn().mockResolvedValue({ success: true, data: { _id: "token-id" } }),
+      createToken: vi.fn().mockResolvedValue({ success: true, data: { _id: "new-token" } }),
+      deleteTokens: vi.fn().mockResolvedValue({ success: true, data: { deletedCount: 1 } }),
     },
   },
   getDbInitPromise: vi.fn().mockResolvedValue(undefined),
@@ -60,9 +60,9 @@ describe("Token API Unit Tests", () => {
           auth: {
             getAllTokens: vi.fn().mockResolvedValue({ success: true, data: [] }),
             getTokenById: vi.fn().mockResolvedValue({ success: true, data: {} }),
-            updateToken: vi.fn().mockResolvedValue({ success: true }),
+            updateToken: vi.fn().mockResolvedValue({ success: true, data: { _id: "token-id" } }),
             createToken: vi.fn().mockResolvedValue({ success: true, data: { _id: "new-token" } }),
-            deleteTokens: vi.fn().mockResolvedValue({ success: true }),
+            deleteTokens: vi.fn().mockResolvedValue({ success: true, data: { deletedCount: 1 } }),
           },
           collections: {},
           media: {},
@@ -80,6 +80,8 @@ describe("Token API Unit Tests", () => {
     const response = await dispatcher(event);
     const result = await response.json();
     expect(result.success).toBe(true);
+    expect(result.data).toBeDefined();
+    expect(Array.isArray(result.data.data)).toBe(true);
   });
 
   it("should create token", async () => {
@@ -91,5 +93,7 @@ describe("Token API Unit Tests", () => {
     const response = await dispatcher(event);
     const result = await response.json();
     expect(result.success).toBe(true);
+    expect(result.data.token).toBeDefined();
+    expect(result.data.token._id).toBe("new-token");
   });
 });

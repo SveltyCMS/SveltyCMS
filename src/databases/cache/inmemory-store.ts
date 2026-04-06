@@ -9,7 +9,7 @@ import type { RedisClientType } from "redis";
 
 // In-memory cache store implementation with tag support and TTL.
 export class InMemoryStore implements CacheStore {
-  private readonly cache = new Map<string, { value: string; expiresAt: number; tags?: string[] }>();
+  private readonly cache = new Map<string, { value: any; expiresAt: number; tags?: string[] }>();
   private readonly tagMap = new Map<string, Set<string>>();
   private isInitialized = false;
   private interval: ReturnType<typeof setInterval> | null = null;
@@ -18,7 +18,7 @@ export class InMemoryStore implements CacheStore {
     if (this.isInitialized) return;
     this.interval = setInterval(() => this.cleanup(), 60_000);
     this.isInitialized = true;
-    logger.info("In-memory cache initialized.");
+    logger.info("In-memory cache initialized (Zero-serialization mode).");
   }
 
   private cleanup() {
@@ -51,11 +51,10 @@ export class InMemoryStore implements CacheStore {
       this.cache.delete(key);
       return null;
     }
-    try {
-      return JSON.parse(item.value) as T;
-    } catch {
-      return null;
-    }
+
+    // Near-zero latency: Return direct reference for maximum speed.
+    // In strict enterprise mode, we could use structuredClone(item.value) to prevent mutations.
+    return item.value as T;
   }
 
   async set<T>(key: string, value: T, ttlSeconds: number, tags?: string[]): Promise<void> {
@@ -66,7 +65,8 @@ export class InMemoryStore implements CacheStore {
       this.removeFromTags(key, existing.tags || []);
     }
 
-    this.cache.set(key, { value: JSON.stringify(value), expiresAt, tags });
+    // Zero-overhead: Store direct reference
+    this.cache.set(key, { value, expiresAt, tags });
 
     if (tags) {
       for (const tag of tags) {

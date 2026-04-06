@@ -42,21 +42,18 @@ The middleware architecture is built on **core enterprise principles**:
 
 // src/hooks.server.ts (simplified)
 const middleware: Handle[] = [
-addSecurityHeaders, // 1. MUST be first → headers on ALL responses
-handleStaticAssetCaching, // 2. Highest hit-rate early exit
-handleTestIsolation, // 3. Test context & worker isolation
-handleCompression, // 4. Streaming-safe compression
-handleSecurity, // 5. Unified firewall & rate limiting (protects state)
-handleSystemState, // 6. Readiness gate & auto-init
-handleSetup, // 7. Setup gate
-handleUserPreferences, // 8. i18n and SSR theme (combined)
-handleAuthentication, // 9. identity
-handleAuthorization, // 10. permissions
-handleLocalSdk, // 11. native server-side SDK injection
-handleContentInitialization, // 12. content + redirects
-handleAuditLogging, // 13. async audit trails (must catch cache hits)
-handleApiRequests, // 14. API caching
-handleTokenResolution, // 15. token processing
+  handleTurboPipeline, // 1. FAST-PATH (Headers, Asset Cache, State Gate, CORS)
+  handleCompression, // 2. Streaming-safe compression
+  handleSecurity, // 3. Unified firewall & rate limiting
+  handleSetup, // 4. Setup gate
+  handleUserPreferences, // 5. i18n and SSR theme
+  handleAuthentication, // 6. identity
+  handleAuthorization, // 7. permissions
+  handleLocalSdk, // 8. native server-side SDK injection
+  handleContentInitialization, // 9. content + redirects
+  handleAuditLogging, // 10. async audit trails
+  handleApiRequests, // 11. API caching
+  handleTokenResolution, // 12. token processing
 ];
 
 export const handle: Handle = sequence(...middleware);
@@ -301,7 +298,22 @@ To put these numbers in perspective, SveltyCMS outperforms almost every major fr
 
 ## Hook Implementations
 
-### 0. handleCompression - Response Optimization
+### ✨ handleTurboPipeline - High-Performance Fast-Path
+
+**File**: `src/hooks/handle-turbo-pipeline.server.ts`
+**Purpose**: Consolidates essential, performance-critical middleware into a single high-efficiency pass.
+
+**Key Features**:
+
+- **Static Asset Fast-Exit**: Regex-based detection for `/_app/` and `/static/` paths with immediate resolution and immutable caching.
+- **Bootstrap Bypass**: Allows `setup`, `login`, and `health` routes to bypass standard system gates.
+- **System State Gate**: Enforces `503 Service Unavailable` responses when the system is in `INITIALIZING`, `MAINTENANCE`, or `FAILED` states.
+- **CORS Management**: High-speed OPTIONS preflight handling and automatic header injection for API routes.
+- **Request Tracing**: Generates unique `X-Request-ID` for every request, enabling cross-service log correlation.
+
+---
+
+### 1. handleCompression - Response Optimization
 
 **File**: `src/hooks/handleCompression.ts`
 **Purpose**: Efficiently compresses outgoing responses using GZIP or Brotli.
@@ -314,79 +326,7 @@ To put these numbers in perspective, SveltyCMS outperforms almost every major fr
 
 ---
 
-### 1. handleStaticAssetCaching - Performance Optimization
-
-**File**: `src/hooks/handleStaticAssetCaching.ts`
-**Purpose**: Aggressive caching for static assets (runs FIRST for maximum performance)
-
-**Strategy**: `max-age=31536000, public, immutable` (1 year cache)
-
-```typescript
-export const handleStaticAssetCaching: Handle = async ({ event, resolve }) => {
-  // Regex-based detection for performance
-  if (STATIC_ASSET_REGEX.test(event.url.pathname)) {
-    const response = await resolve(event);
-    response.headers.set("Cache-Control", "public, max-age=31536000, immutable");
-    return response;
-  }
-  return resolve(event);
-};
-```
-
-**Assets Cached**:
-
-- SvelteKit build artifacts (`/_app/`)
-- Static files (`/static/`)
-- JavaScript, CSS, source maps (`.js`, `.css`, `.map`)
-- Images (`.svg`, `.png`, `.jpg`, `.webp`, `.avif`)
-- Fonts (`.woff`, `.woff2`, `.ttf`, `.eot`)
-- Manifests, favicons
-
-**Performance Impact**: Skips ALL other middleware (~15-20ms saved per static request)
-
----
-
-### 2. handleSystemState - System Gateway
-
-**File**: `src/hooks/handle-system-state.ts`
-**Purpose**: Validates system readiness and authorized host context before processing requests.
-
-**State Machine**: `IDLE → INITIALIZING → READY/DEGRADED/FAILED`
-
-```typescript
-export const handleSystemState: Handle = async ({ event, resolve }) => {
-  const systemState = getSystemState();
-
-  // 1. Initial boot trigger
-  if (systemState.overallState === "IDLE" && isSetupComplete()) {
-    await waitForInitialization(); // Consolidated promise waiter
-  }
-
-  // 2. Host Trust Validation (SSRF Protection)
-  if (isBootstrapRoute(pathname) && !isTrustedHost(event)) {
-     throw new AppError("Access from untrusted host blocked", 403, "UNTRUSTED_HOST");
-  }
-
-  // 3. Readiness Blocking
-  const restricted = ["IDLE", "INITIALIZING", "SETUP", "MAINTENANCE", "FAILED"];
-  if (restricted.includes(systemState.overallState) && !isBootstrapRoute(pathname)) {
-    throw error(503, `System is currenty in ${systemState.overallState} mode.`);
-  }
-
-  return resolve(event);
-};
-```
-
-**Key Features**:
-
-- **Phase-Based Gating**: Efficiently distinguishes between high-performance static assets, setup routes, and standard content requests.
-- **Trusted Host Check**: Dynamic origin validation for bootstrap flows (Setup, Login) to prevent environmental exposure.
-- **Shared Promise Waiter**: Thundering herd protection ensures that concurrent requests during startup all wait for the single `dbInitPromise`.
-- **Degraded Enforcement**: Transparently alerts the frontend via `locals.degradedServices` if non-critical dependencies are failing.
-
----
-
-### 3. handleSecurity - Unified Threat Protection
+### 2. handleSecurity - Unified Threat Protection
 
 **File**: `src/hooks/handle-security.ts`
 **Purpose**: High-performance, consolidated security layer combining firewall, rate limiting, and payload analysis.
@@ -432,7 +372,7 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
 
 ---
 
-### 5. handleSetup - Installation Gateway
+### 3. handleSetup - Installation Gateway
 
 **File**: `src/hooks/handleSetup.ts`
 **Purpose**: Ensures CMS installation is complete
@@ -547,7 +487,7 @@ Blocking `/` during initialization would prevent these essential flows from work
 
 ---
 
-### 6. handleLocale - Language Management
+### 4. handleLocale - Language Management
 
 **File**: `src/hooks/handleLocale.ts`
 **Purpose**: Synchronizes language preferences from cookies to stores
@@ -597,7 +537,7 @@ export const handleLocale: Handle = async ({ event, resolve }) => {
 
 ---
 
-### 7. handleTheme - SSR Theme Management
+### 5. handleTheme - SSR Theme Management
 
 **File**: `src/hooks/handleTheme.ts`
 **Purpose**: Prevents theme flickering with server-side injection
@@ -635,7 +575,7 @@ export const handleTheme: Handle = async ({ event, resolve }) => {
 
 ---
 
-### 8. Authentication & Multi-Tenancy (`handleAuthentication`)
+### 6. Authentication & Multi-Tenancy (`handleAuthentication`)
 
 **File**: `src/hooks/handleAuthentication.ts`
 **Purpose**: Manages user identity, session security, and tenant isolation.
@@ -688,7 +628,7 @@ if (multiTenant) {
 
 ---
 
-### 9. handleAuthorization - Role-Based Access Control
+### 7. handleAuthorization - Role-Based Access Control
 
 **File**: `src/hooks/handleAuthorization.ts`
 **Purpose**: Enforces granular permissions and protects routes based on user roles.
@@ -748,7 +688,7 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
 
 ---
 
-### 10. handleApiRequests - Modular Dispatcher & Caching
+### 8. handleApiRequests - Modular Dispatcher & Caching
 
 **File**: `src/hooks/handle-api-requests.ts`
 **Purpose**: Advanced API orchestration layer providing unified error handling, high-performance caching (ETags), and domain routing.
@@ -769,6 +709,7 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
 | Mutations    | Instant Cache Purge          | N/A            |
 
 ---
+
 - **RBAC Enforcement**: Validates `apiEndpoint` permissions against `locals.user.role`.
 - **Intelligent Caching**: Implements per-user, per-tenant caching for GET requests (except GraphQL).
 - **Auto-Invalidation**: Automatically clears relevant cache patterns on `POST`, `PUT`, `DELETE`, or `PATCH` mutations.
@@ -777,7 +718,7 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
 
 ---
 
-### 11. handleTokenResolution - RBAC Token Replacement
+### 9. handleTokenResolution - RBAC Token Replacement
 
 **File**: `src/hooks/tokenResolution.ts`
 **Purpose**: Processes JSON API responses to replace secure placeholders with actual data based on user permissions.
@@ -790,7 +731,7 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
 
 ---
 
-### 12. addSecurityHeaders - Defense in Depth
+### 10. addSecurityHeaders - Defense in Depth
 
 **File**: `src/hooks/addSecurityHeaders.ts`
 **Purpose**: Hardens the application by injecting essential security headers.

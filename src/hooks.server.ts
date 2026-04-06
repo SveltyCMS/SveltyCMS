@@ -52,11 +52,8 @@ if (typeof globalThis.__dirname === "undefined") {
   (globalThis as any).__dirname = dirname((globalThis as any).__filename);
 }
 
-// --- Core middleware ---
-import { handleStaticAssetCaching } from "./hooks/handle-static-asset-caching";
+import { handleTurboPipeline } from "./hooks/handle-turbo-pipeline.server";
 import { handleCompression } from "./hooks/handle-compression";
-import { handleTestIsolation } from "./hooks/handle-test-isolation";
-import { handleSystemState } from "./hooks/handle-system-state";
 import { handleSecurity } from "./hooks/handle-security";
 import { handleSetup } from "./hooks/handle-setup";
 import { handleUserPreferences } from "./hooks/handle-user-preferences";
@@ -67,7 +64,6 @@ import { handleContentInitialization } from "./hooks/handle-content-initializati
 import { handleApiRequests } from "./hooks/handle-api-requests";
 import { handleAuditLogging } from "./hooks/handle-audit-logging";
 import { handleTokenResolution } from "./hooks/token-resolution";
-import { addSecurityHeaders } from "./hooks/add-security-headers";
 
 // --- Server Startup Logic ---
 if (!building) {
@@ -134,21 +130,18 @@ if (!building) {
 
 // --- Updated middleware sequence (security headers FIRST) ---
 const middleware: Handle[] = [
-  addSecurityHeaders, // 1. MUST be first → headers on ALL responses, including errors
-  handleStaticAssetCaching, // 2. 🚀 MOVED UP: Absolute fastest exit for images/css
-  handleTestIsolation, // ✨ 3. Establish test context (PER-WORKER isolation)
-  handleCompression, // 4. streaming-safe after static
-  handleSecurity, // 5. 🛡️ MOVED UP: Protects the system state from DDoS!
-  handleSystemState, // 6. readiness gate
-  handleSetup, // 7. setup gate
-  handleUserPreferences, // 8. ⚡ COMBINED: Locale + Theme
-  handleAuthentication, // 9. identity
-  handleAuthorization, // 10. permissions
-  handleLocalSdk, // 11. native server-side SDK injection
-  handleContentInitialization, // 12. content + redirects
-  handleAuditLogging, // 13. 📝 MOVED UP: Ensures cached hits are still audited
-  handleApiRequests, // 14. API caching
-  handleTokenResolution, // 15. token processing
+  handleTurboPipeline, // ✨ CONSOLIDATED FAST-PATH (Headers, Asset Cache, State Gate, Test Isolation)
+  handleCompression,
+  handleSecurity,
+  handleSetup,
+  handleUserPreferences,
+  handleAuthentication,
+  handleAuthorization,
+  handleLocalSdk,
+  handleContentInitialization,
+  handleAuditLogging,
+  handleApiRequests,
+  handleTokenResolution,
 ];
 
 export const handle: Handle = sequence(...middleware);

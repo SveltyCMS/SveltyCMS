@@ -54,7 +54,7 @@ export async function handleCollectionsRoutes(
       status,
       isAdmin: (locals as any).isAdmin,
     });
-    return successResponse(result);
+    return successResponse(event, result);
   }
 
   const collectionId = method;
@@ -62,7 +62,7 @@ export async function handleCollectionsRoutes(
   // --- Revisions ---
   if (request.method === "GET" && collectionId && entryId === "revisions") {
     const result = await cms.collections.getRevisions(collectionId, entryId, tenantId);
-    return successResponse(result);
+    return successResponse(event, result);
   }
 
   // --- Standard CRUD ---
@@ -72,24 +72,26 @@ export async function handleCollectionsRoutes(
       const includeStats = url.searchParams.get("includeStats") === "true";
       const result = await cms.collections.list({ tenantId, includeFields, includeStats });
 
-      return url.searchParams.get("raw") === "true" ? rawResponse(result) : successResponse(result);
+      return url.searchParams.get("raw") === "true"
+        ? rawResponse(event, result)
+        : successResponse(event, result);
     }
 
     if (entryId) {
       const data = await cms.collections.findById(collectionId, entryId, { tenantId });
-      return successResponse(data);
+      return successResponse(event, data);
     } else {
       const limit = Number(url.searchParams.get("limit")) || 50;
       const offset = Number(url.searchParams.get("offset")) || 0;
       const result = await cms.collections.find(collectionId, { tenantId, limit, offset });
-      return successResponse(result);
+      return successResponse(event, result);
     }
   }
 
   if (request.method === "POST") {
     const data = await request.json();
     const result = await cms.collections.create(collectionId, data, { user: user!, tenantId });
-    return rawResponse(result, 201);
+    return successResponse(event, result, 201);
   }
 
   if (request.method === "PATCH" && entryId) {
@@ -98,7 +100,7 @@ export async function handleCollectionsRoutes(
       user: user!,
       tenantId,
     });
-    return rawResponse(result);
+    return successResponse(event, result);
   }
 
   if (request.method === "DELETE" && entryId) {
@@ -108,7 +110,7 @@ export async function handleCollectionsRoutes(
       tenantId,
       permanent,
     });
-    return rawResponse(result);
+    return successResponse(event, result);
   }
 
   throw new AppError(

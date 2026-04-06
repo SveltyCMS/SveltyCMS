@@ -924,7 +924,7 @@ export interface ISystemAdapter {
   };
   themes: {
     setupThemeModels(): Promise<void>;
-    getActive(): Promise<DatabaseResult<Theme>>;
+    getActive(): Promise<DatabaseResult<Theme | null>>;
     setDefault(themeId: DatabaseId): Promise<DatabaseResult<void>>;
     install(theme: EntityCreate<Theme>): Promise<DatabaseResult<Theme>>;
     uninstall(themeId: DatabaseId): Promise<DatabaseResult<void>>;

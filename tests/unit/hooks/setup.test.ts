@@ -176,6 +176,17 @@ describe("handleSetup Middleware", () => {
       const event = createMockEvent("/api/collections");
       const response = await handleSetup({ event, resolve: mockResolve });
       expect(response.status).toBe(503);
+      const data = await response.json();
+      expect(data.message).toContain("System setup required");
+    });
+
+    it("returns 503 with 'Admin creation required' when config exists but no admin", async () => {
+      mockSetupCheck.setSetupState(mockSetupCheck.SetupState.MISSING_ADMIN);
+      const event = createMockEvent("/api/collections");
+      const response = await handleSetup({ event, resolve: mockResolve });
+      expect(response.status).toBe(503);
+      const data = await response.json();
+      expect(data.message).toContain("Admin creation required");
     });
   });
 
