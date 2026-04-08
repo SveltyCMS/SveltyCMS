@@ -148,6 +148,7 @@ Handles the creation of the first system administrator with real-time validation
 
         <input
           id="admin-username"
+          data-testid="admin-username"
           bind:value={adminUser.username}
           onblur={() => {
             const trimmed = adminUser.username.trim();
@@ -212,6 +213,7 @@ Handles the creation of the first system administrator with real-time validation
 
         <input
           id="admin-email"
+          data-testid="admin-email"
           bind:value={adminUser.email}
           onblur={() => {
             const trimmed = adminUser.email.trim();
@@ -275,6 +277,7 @@ Handles the creation of the first system administrator with real-time validation
         <div class="relative">
           <input
             id="admin-password"
+            data-testid="admin-password"
             bind:value={adminUser.password}
             oninput={checkPasswordRequirements}
             onblur={() => handleBlur("password")}
@@ -413,6 +416,7 @@ Handles the creation of the first system administrator with real-time validation
         <div class="relative">
           <input
             id="admin-confirm-password"
+            data-testid="admin-confirm-password"
             bind:value={adminUser.confirmPassword}
             oninput={checkPasswordRequirements}
             onblur={() => handleBlur("confirmPassword")}

@@ -42,18 +42,18 @@ The middleware architecture is built on **core enterprise principles**:
 
 // src/hooks.server.ts (simplified)
 const middleware: Handle[] = [
-  handleTurboPipeline, // 1. FAST-PATH (Headers, Asset Cache, State Gate, CORS)
-  handleCompression, // 2. Streaming-safe compression
-  handleSecurity, // 3. Unified firewall & rate limiting
-  handleSetup, // 4. Setup gate
-  handleUserPreferences, // 5. i18n and SSR theme
-  handleAuthentication, // 6. identity
-  handleAuthorization, // 7. permissions
-  handleLocalSdk, // 8. native server-side SDK injection
-  handleContentInitialization, // 9. content + redirects
-  handleAuditLogging, // 10. async audit trails
-  handleApiRequests, // 11. API caching
-  handleTokenResolution, // 12. token processing
+handleTurboPipeline, // 1. FAST-PATH (Headers, Asset Cache, State Gate, CORS)
+handleCompression, // 2. Streaming-safe compression
+handleSecurity, // 3. Unified firewall & rate limiting
+handleSetup, // 4. Setup gate
+handleUserPreferences, // 5. i18n and SSR theme
+handleAuthentication, // 6. identity
+handleAuthorization, // 7. permissions
+handleLocalSdk, // 8. native server-side SDK injection
+handleContentInitialization, // 9. content + redirects
+handleAuditLogging, // 10. async audit trails
+handleApiRequests, // 11. API caching
+handleTokenResolution, // 12. token processing
 ];
 
 export const handle: Handle = sequence(...middleware);

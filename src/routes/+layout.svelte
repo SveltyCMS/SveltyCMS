@@ -87,6 +87,10 @@ import { initializeContent } from "@src/content";
 
 // Initialize public environment settings from server data
 // Note: Only access page.data after mount to avoid hydration issues
+if (browser) {
+	globalLoadingStore.startLoading(loadingOperations.initialization);
+}
+
 $effect(() => {
 	if (browser && page.data) {
 		untrack(() => {
@@ -98,6 +102,10 @@ $effect(() => {
 				// Initialize the modern content system with hydration data
 				initializeContent(page.data as any);
 				// Mark initialization as finished successfully here
+				globalLoadingStore.stopLoading(loadingOperations.initialization);
+			} else if (page.data.user === null) {
+				// If no user and no structure, we might be on a setup/login page
+				// Clear initialization to allow the page to render
 				globalLoadingStore.stopLoading(loadingOperations.initialization);
 			}
 		});

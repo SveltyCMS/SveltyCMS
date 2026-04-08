@@ -37,7 +37,7 @@ export class ThemesModule {
     logger.debug("Theme models setup (no-op for SQL)");
   }
 
-  async getActive(): Promise<DatabaseResult<Theme>> {
+  async getActive(): Promise<DatabaseResult<Theme | null>> {
     return this.core.wrap(async () => {
       const [theme] = await this.db
         .select()
@@ -46,7 +46,7 @@ export class ThemesModule {
         .limit(1);
 
       if (!theme) {
-        throw utils.createDatabaseError("NOT_FOUND", "No active theme");
+        return null;
       }
 
       return utils.convertDatesToISO(theme) as unknown as Theme;

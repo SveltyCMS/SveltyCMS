@@ -404,7 +404,7 @@ $effect(() => {
 					</SystemTooltip>
 				</label>
 
-				<select id="db-type" bind:value={dbConfig.type} onchange={handleTypeChange} class="input rounded">
+				<select id="db-type" data-testid="db-type" bind:value={dbConfig.type} onchange={handleTypeChange} class="input rounded">
 					<option value="mongodb">MongoDB (localhost/Docker)</option>
 					<option value="mongodb+srv">MongoDB Atlas (SRV)</option>
 					<option value="mariadb">MariaDB (via Drizzle)</option>
@@ -458,6 +458,7 @@ $effect(() => {
 
 				<input
 					id="db-host"
+					data-testid="db-host"
 					bind:value={dbConfig.host}
 					type="text"
 					onchange={clearDbTestError}
@@ -548,6 +549,7 @@ $effect(() => {
 
 				<input
 					id="db-name"
+					data-testid="db-name"
 					bind:value={dbConfig.name}
 					type="text"
 					onchange={clearDbTestError}

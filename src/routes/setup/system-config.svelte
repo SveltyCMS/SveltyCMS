@@ -435,6 +435,7 @@ const allTimezones = Intl.supportedValuesOf("timeZone");
 
           <input
             id="site-name"
+            data-testid="site-name"
             bind:value={systemSettings.siteName}
             onblur={() => handleBlur("siteName")}
             type="text"
@@ -494,6 +495,7 @@ const allTimezones = Intl.supportedValuesOf("timeZone");
 
           <input
             id="host-prod"
+            data-testid="host-prod"
             bind:value={systemSettings.hostProd}
             type="url"
             onblur={() => handleBlur("hostProd")}
@@ -660,6 +662,7 @@ const allTimezones = Intl.supportedValuesOf("timeZone");
 
           <input
             id="media-folder"
+            data-testid="media-folder"
             bind:value={systemSettings.mediaFolder}
             type="text"
             placeholder={systemSettings.mediaStorageType === "local"

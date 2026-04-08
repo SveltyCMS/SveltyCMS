@@ -122,6 +122,21 @@ export async function POST(event: RequestEvent) {
         const { invalidateSetupCache } = await import("@src/utils/setup-check");
         invalidateSetupCache(true, false); // forceStatus = false (Setup NOT complete)
 
+        // 🔥 Hard Reset: Delete private.test.ts to force system back into setup mode
+        if (process.env.TEST_MODE === "true") {
+          try {
+            const fs = await import("node:fs");
+            const path = await import("node:path");
+            const testConfigPath = path.join(process.cwd(), "config", "private.test.ts");
+            if (fs.existsSync(testConfigPath)) {
+              fs.unlinkSync(testConfigPath);
+              console.log("[API/Testing] Hard Reset: Deleted config/private.test.ts");
+            }
+          } catch (e) {
+            console.warn("[API/Testing] Non-fatal error deleting test config:", e);
+          }
+        }
+
         // Clear all session caches to prevent session bleed
         const { clearAllSessionCaches } = await import("@src/hooks/handle-authentication");
         await clearAllSessionCaches();
@@ -151,7 +166,7 @@ export async function POST(event: RequestEvent) {
 
         return json({
           success: true,
-          message: "Database cleared, caches invalidated, and media files wiped",
+          message: "Database cleared, test config deleted, and caches invalidated",
         });
       }
 
