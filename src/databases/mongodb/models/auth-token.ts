@@ -53,6 +53,7 @@ export class TokenAdapter {
       const tokenValue = generateRandomToken(32);
       const token = new this.TokenModel({
         ...data,
+        email: data.email.toLowerCase(),
         token: tokenValue,
         _id: generateId(),
       });

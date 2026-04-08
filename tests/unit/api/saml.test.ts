@@ -53,7 +53,7 @@ describe("SAML API Unit Tests", () => {
       dbAdapter: {
         auth: { getUserById: vi.fn() },
       },
-      roles: user ? [] : [{ _id: "admin-role", name: "Admin", isAdmin: true, permissions: [] }],
+      roles: user ? [] : [{ _id: "admin", name: "Admin", isAdmin: true, permissions: [] }],
     });
   };
 

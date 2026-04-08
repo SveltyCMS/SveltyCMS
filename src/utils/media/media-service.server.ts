@@ -44,7 +44,7 @@ import { cacheService } from "@src/databases/cache/cache-service";
 // Database Interface
 import type { DatabaseId, IDBAdapter } from "@src/databases/db-interface";
 import { getPublicSettingSync } from "@src/services/settings-service";
-import { isCloud } from "@src/utils/media/cloud-storage";
+import { getUrl, isCloud } from "@src/utils/media/cloud-storage";
 import { getSanitizedFileName } from "@src/utils/media/media-processing";
 import { hashFileContent, mediaProcessingService } from "@src/utils/media/media-processing.server";
 import { saveFileToDisk, saveResizedImages } from "@src/utils/media/media-storage.server";
@@ -303,6 +303,20 @@ export class MediaService {
     }
 
     try {
+      // --- HASH-BASED DEDUPLICATION (PRE-UPLOAD CHECK) ---
+      // This prevents redundant storage and database records for identical content.
+      // Logic inspired by Payload CMS v3.82.0 storage-layer hardening.
+      const hash = await hashFileContent(buffer);
+      const existingMedia = await this.db.media.files.getByHash(hash, tenantId);
+      if (existingMedia.success && existingMedia.data) {
+        logger.info("Deduplication: Identical file already exists. Skipping upload.", {
+          fileName: file.name,
+          hash,
+          existingId: (existingMedia.data as any)._id,
+        });
+        return this.enrichMediaWithUrl(existingMedia.data as any);
+      }
+
       // Ensure filename has correct extension
       let safeFileName = file.name;
       if (extension && !safeFileName.toLowerCase().endsWith(`.${extension}`)) {
@@ -314,14 +328,12 @@ export class MediaService {
       }
 
       // First upload the file and get basic file info
-      const { url, path, hash, resized } = await this.uploadFile(
-        buffer,
-        safeFileName,
-        mimeType,
-        userId,
-        basePath,
-        watermarkOptions,
-      );
+      const {
+        url,
+        path,
+        hash: uploadedHash,
+        resized,
+      } = await this.uploadFile(buffer, safeFileName, mimeType, userId, basePath, watermarkOptions);
 
       const isImage = mimeType.startsWith("image/");
       const isVideo = mimeType.startsWith("video/");
@@ -384,7 +396,7 @@ export class MediaService {
 
       const media: Omit<MediaBaseWithThumbnails, "_id"> = {
         type: mediaType,
-        hash,
+        hash: uploadedHash,
         size: file.size,
         filename: safeFileName, // Use the sanitized filename with extension
         path, // Store the relative path
@@ -424,7 +436,7 @@ export class MediaService {
           const { fileNameWithoutExt } = getSanitizedFileName(file.name);
           const resizedThumbnails = await saveResizedImages(
             thumbnailBuffer,
-            hash,
+            uploadedHash,
             fileNameWithoutExt,
             "jpg",
             basePath,
@@ -898,7 +910,7 @@ export class MediaService {
         if (isAdmin || cachedMedia.user === user._id || cachedMedia.access === "public") {
           logger.info("Media retrieved from cache", { id });
           // Ensure cached media has URL (in case it was cached without it)
-          return this.enrichMediaWithUrl(cachedMedia);
+          return this.enrichMediaWithUrl(cachedMedia, (roles as any)._prefix);
         }
         // If cached but no access, fall through to DB fetch for fresh check (or just deny)
       }
@@ -934,7 +946,7 @@ export class MediaService {
       // Cache the media for future requests
       await cacheService.set(`media:${id}`, media, 3600);
 
-      return this.enrichMediaWithUrl(media);
+      return this.enrichMediaWithUrl(media, (roles as any)._prefix);
     } catch (err) {
       const message = `Error getting media: ${err instanceof Error ? err.message : String(err)}`;
       logger.error(message, { error: err });
@@ -948,20 +960,29 @@ export class MediaService {
     }
   }
 
-  // Helper to add URL to media object
-  private enrichMediaWithUrl(media: MediaItem): MediaItem {
-    let url = media.path;
-    // If path is already a URL, use it
-    if (url.startsWith("http://") || url.startsWith("https://")) {
-      // do nothing
-    } else if (!url.startsWith("/")) {
-      // Assume local file path, prepend /files/
-      url = `/files/${url}`;
+  /**
+   * Enriches media object with public URL based on current storage provider
+   */
+  public enrichMediaWithUrl(media: MediaItem, prefix?: string): MediaItem {
+    const url = media.path.startsWith("http") ? media.path : getUrl(media.path, prefix);
+
+    // Enrich thumbnails with the same logic
+    const thumbnails: Record<string, any> = {};
+    if (media.thumbnails) {
+      for (const [key, thumb] of Object.entries(media.thumbnails)) {
+        if (!thumb) continue;
+        const thumbPath = (thumb as any).path || (thumb as any).url || "";
+        thumbnails[key] = {
+          ...thumb,
+          url: thumbPath.startsWith("http") ? thumbPath : getUrl(thumbPath, prefix),
+        };
+      }
     }
 
     return {
       ...media,
       url,
+      thumbnails,
     } as MediaItem;
   }
 
@@ -1192,6 +1213,25 @@ export class MediaService {
     tenantId?: DatabaseId | null,
     basePath = "global",
   ): Promise<MediaItem> {
+    // 🚀 Loop Protection: Check if URL is already a local CMS file
+    const isLocal = url.startsWith("/files/");
+    const cloudUrl = getPublicSettingSync("MEDIA_CLOUD_PUBLIC_URL");
+    const isCloudLocal = cloudUrl && url.startsWith(cloudUrl);
+
+    if (isLocal || isCloudLocal) {
+      // Extract hash from filename e.g. "image-hash.png"
+      const filename = Path.basename(url);
+      const match = filename.match(/-([a-f0-9]{32,64})\./i);
+      if (match) {
+        const hash = match[1];
+        const existing = await this.db.media.files.getByHash(hash, tenantId);
+        if (existing.success && existing.data) {
+          logger.info("Remote upload loop protected: File already exists", { hash });
+          return this.enrichMediaWithUrl(existing.data as any);
+        }
+      }
+    }
+
     const response = await fetch(url);
     if (!response.ok) {
       throw new Error(`Failed to fetch remote file: ${response.statusText}`);

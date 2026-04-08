@@ -3,7 +3,7 @@
  * @description Authentication and User management handlers for the dispatcher.
  */
 
-import { AppError } from "@utils/error-handling";
+import { AppError, handleApiError } from "@utils/error-handling";
 import type { RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "../../cms";
 import type { DatabaseId } from "@src/content/types";
@@ -63,7 +63,7 @@ export async function handleAuthUserRoutes(
         user.email,
         tenantId,
       );
-      return rawResponse(event, result);
+      return successResponse(event, result);
     }
     if (action === "verify-setup" && request.method === "POST") {
       if (!user) throw new AppError("Authentication required", 401);
@@ -75,17 +75,20 @@ export async function handleAuthUserRoutes(
         backupCodes,
         tenantId,
       );
-      return rawResponse(event, { success: result });
+      if (!result) throw new AppError("Invalid verification code format or code", 400);
+      return rawResponse(event, { success: true });
     }
     if (action === "verify" && request.method === "POST") {
       const { userId, code } = await request.json();
       const result = await twoFactorService.verify2FA(userId as DatabaseId, code, tenantId);
+      if (!result.success) throw new AppError(result.message, 400);
       return rawResponse(event, result);
     }
     if (action === "disable" && request.method === "POST") {
       if (!user) throw new AppError("Authentication required", 401);
       const result = await twoFactorService.disable2FA(user._id as DatabaseId, tenantId);
-      return rawResponse(event, { success: result });
+      if (!result) throw new AppError("Failed to disable 2FA", 400);
+      return rawResponse(event, { success: true });
     }
     if (action === "backup-codes") {
       if (!user) throw new AppError("Authentication required", 401);
@@ -133,8 +136,11 @@ export async function handleAuthUserRoutes(
   if (namespace === "user") {
     if (method === "create-user" && request.method === "POST") {
       const body = await request.json();
-      const newUser = await cms.db.auth.createUser({ ...body, tenantId });
-      return rawResponse(event, newUser, 201);
+      const newUser = await cms.auth.createUser(body, tenantId);
+      if (!newUser.success) {
+        return handleApiError(new Error(newUser.message), event);
+      }
+      return successResponse(event, newUser.data, 201);
     }
     if (method === "batch" && request.method === "POST") {
       const { userIds, action: batchAction } = await request.json();
@@ -146,8 +152,9 @@ export async function handleAuthUserRoutes(
       (request.method === "PUT" || request.method === "PATCH")
     ) {
       const { user_id, newUserData } = await request.json();
+      const resolvedUserId = user_id === "self" ? user?._id : user_id;
       const result = await cms.auth.updateUserAttributes(
-        user_id as DatabaseId,
+        resolvedUserId as DatabaseId,
         newUserData,
         tenantId,
       );
@@ -159,7 +166,9 @@ export async function handleAuthUserRoutes(
       const { saveAvatarImage } = await import("@utils/media/media-storage.server");
       const avatarUrl = await saveAvatarImage(avatarFile, user?._id || "guest");
       const result = await cms.auth.saveAvatar(user?._id as DatabaseId, avatarUrl, tenantId);
-      return rawResponse(event, result);
+
+      // Return consistent avatarUrl property for test compatibility
+      return rawResponse(event, { success: result.success, avatarUrl });
     }
     if (method === "delete-avatar" && request.method === "DELETE") {
       const { userId } = await request.json().catch(() => ({}));
@@ -188,6 +197,11 @@ export async function handleAuthUserRoutes(
     if (sessionCookieKey) {
       const authInstance = getAuth();
       if (authInstance) await authInstance.logOut(sessionCookieKey as DatabaseId);
+
+      // CRITICAL: Invalidate the in-memory cache in the authentication hook
+      const { invalidateSessionCache } = await import("@src/hooks/handle-authentication");
+      invalidateSessionCache(sessionCookieKey, tenantId as DatabaseId);
+
       cookies.delete(SESSION_COOKIE_NAME, { path: "/" });
     }
     return successResponse(event, { message: "Logged out successfully" });

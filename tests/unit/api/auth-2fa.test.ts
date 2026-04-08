@@ -221,11 +221,7 @@ describe("2FA API Unit Tests", () => {
           cookies: { csrf_token: "mock-csrf-token" },
         },
       );
-      const response = await POST_VERIFY(event);
-      const result = await response.json();
-
-      expect(result.success).toBe(false);
-      expect(result.message).toBe("Invalid code");
+      await expect(POST_VERIFY(event)).rejects.toThrow("Invalid code");
     });
 
     it("should throw TENANT_REQUIRED in multi-tenant mode without tenant context", async () => {
@@ -285,7 +281,7 @@ describe("2FA API Unit Tests", () => {
       const result = await response.json();
 
       expect(result.success).toBe(true);
-      expect(result.secret).toBe("secret");
+      expect(result.data.secret).toBe("secret");
     });
 
     it("should throw UNAUTHORIZED for unauthenticated user", async () => {
@@ -305,7 +301,8 @@ describe("2FA API Unit Tests", () => {
       });
       const response = await POST_SETUP(event);
       const result = await response.json();
-      expect(result.success).toBe(false);
+      expect(result.success).toBe(true);
+      expect(result.data.success).toBe(false);
     });
   });
 
@@ -332,9 +329,7 @@ describe("2FA API Unit Tests", () => {
         headers: { "X-CSRF-Token": "mock-csrf-token" },
         cookies: { csrf_token: "mock-csrf-token" },
       });
-      const response = await POST_VERIFY_SETUP(event);
-      const result = await response.json();
-      expect(result.success).toBe(false);
+      await expect(POST_VERIFY_SETUP(event)).rejects.toThrow("Invalid verification code");
     });
   });
 
@@ -370,9 +365,7 @@ describe("2FA API Unit Tests", () => {
         headers: { "X-CSRF-Token": "mock-csrf-token" },
         cookies: { csrf_token: "mock-csrf-token" },
       });
-      const response = await POST_DISABLE(event);
-      const result = await response.json();
-      expect(result.success).toBe(false);
+      await expect(POST_DISABLE(event)).rejects.toThrow("Failed to disable 2FA");
     });
   });
 
@@ -380,7 +373,7 @@ describe("2FA API Unit Tests", () => {
     it("should return 2FA status (GET)", async () => {
       const user = { _id: "user-1" };
       mockTwoFactorService.get2FAStatus.mockResolvedValue({
-        is2FAEnabled: true,
+        enabled: true,
         backupCodesRemaining: 5,
       });
 
@@ -392,7 +385,7 @@ describe("2FA API Unit Tests", () => {
       const result = await response.json();
 
       expect(result.success).toBe(true);
-      expect(result.data.is2FAEnabled).toBe(true);
+      expect(result.data.enabled).toBe(true);
     });
 
     it("should regenerate backup codes (POST)", async () => {

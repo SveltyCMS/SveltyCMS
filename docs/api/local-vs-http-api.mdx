@@ -41,6 +41,8 @@ graph TB
         subgraph Logic["CMS Core Logic"]
             MC[modifyRequest]
             VB[Valibot Validation]
+            IS[Intelligent Storage Tier]
+            DL[DataLoader Batching]
             CH[Cache Hooks]
             EB[Event Bus]
         end
@@ -153,9 +155,9 @@ await locals.cms.transaction(async (tx) => {
 - Real-time updates (SSE / WebSocket) are triggered for connected clients.
 - Multi-tenancy, user context, and permissions are applied consistently.
 
-### Advanced Features Available
-
+- **Media Intelligent Storage**: Shared deduplication and loop protection logic for all uploads.
 - **Bulk operations**: `bulkCreate`, `bulkUpdate`, `bulkDelete` for high-throughput tasks.
+- **DataLoader Batching**: `findById` calls are autonomously coalesced to reduce database I/O.
 - **Transactions**: Full atomic transaction support (wrapped from database adapter).
 - **Fluent Query Builder**: Native `queryBuilder` support for complex filtering and joins.
 - **SDK Telemetry**: Automated performance metrics via `metricsService`.

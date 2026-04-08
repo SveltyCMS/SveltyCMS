@@ -38,7 +38,7 @@ async function runRelationalBenchmarkSuite() {
           method: "POST",
           headers: authHeaders,
           body: JSON.stringify({
-            query: "query { Authors { Name Posts { Title } } }",
+            query: "query { Authors { name posts { title } } }",
           }),
         });
         if (!res.ok) throw new Error(`GraphQL Population failed: ${res.status}`);
@@ -58,7 +58,7 @@ async function runRelationalBenchmarkSuite() {
           method: "POST",
           headers: authHeaders,
           body: JSON.stringify({
-            query: "query { Authors { Name Posts { Title Author { Name } } } }",
+            query: "query { Authors { name posts { title author { name } } } }",
           }),
         });
         if (!res.ok) throw new Error(`GraphQL Nested failed: ${res.status}`);
@@ -76,7 +76,7 @@ async function runRelationalBenchmarkSuite() {
       silent: true,
       onIteration: async () => {
         // Search posts where Author's name matches "Author"
-        const filter = JSON.stringify({ "Author.Name": { $regex: "Author", $options: "i" } });
+        const filter = JSON.stringify({ "author.name": { $regex: "Author", $options: "i" } });
         const res = await safeFetch(
           `${API_BASE_URL}/api/collections/${POSTS_COLLECTION_ID}?filter=${encodeURIComponent(filter)}`,
           {

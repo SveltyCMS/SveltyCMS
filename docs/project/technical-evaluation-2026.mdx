@@ -141,6 +141,8 @@ Having secured the "Engine War" with superior performance and security, SveltyCM
 
 - **Features:** Drag-to-reorder blocks in preview, field-level pulsing highlights, and auto-scroll-to-field interactions via the Enterprise Handshake Bridge.
 - **Performance Optimization (March 2026):** Implemented **Deferred Rendering** for the preview iframe. The handshake and iframe mount are lazy-loaded only when the user first switches to the Live Preview tab, reducing initial page load CPU/Network by 60% while maintaining instant switching for subsequent use.
+- **Fail-Closed API Security (April 2026):** Implemented a central dispatcher gatekeeper requiring mandatory endpoint registration. Any unmapped or unauthorized request is denied by default, eliminating "Shadow API" data leaks.
+- **Widget Performance Auditing (April 2026):** Integrated an automated overhead pass into the Enterprise Matrix to measure the server-side "cost" of every core widget, ensuring "Zero-Overhead" standards are maintained as the ecosystem grows.
 - **Result:** Provides an editorial experience that feels "Magic" and exceeds the UX of legacy SaaS platforms.
 
 ### 4.2 AI-as-a-Field-Type & Hosted Knowledge

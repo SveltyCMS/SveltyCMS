@@ -26,6 +26,7 @@ import { widget_text_description } from "@src/paraglide/messages";
 import { createWidget } from "@src/widgets/widget-factory";
 
 // Type for aggregation field parameter
+
 interface AggregationField {
   db_fieldName: string;
   [key: string]: unknown;
@@ -91,7 +92,7 @@ export const createValidationSchema = (
 const InputWidget = createWidget<InputProps>({
   Name: "Input",
   Icon: "mdi:form-textbox",
-  Description: widget_text_description(),
+  Description: widget_text_description,
   inputComponent: () => import("./input.svelte"),
   inputComponentPath: "/src/widgets/core/input/input.svelte",
   displayComponent: () => import("./display.svelte"),

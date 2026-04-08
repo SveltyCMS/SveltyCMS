@@ -126,6 +126,13 @@ export const load: LayoutServerLoad = async ({ cookies, locals, url }) => {
     navigationStructure,
     contentNodes: contentNodes ? JSON.parse(JSON.stringify(contentNodes)) : [],
     contentVersion,
+    // Pass CSRF token for state-changing API calls
+    csrfToken:
+      cookies.get(
+        url.protocol === "https:" || (url.hostname !== "localhost" && !dev)
+          ? "__Host-csrf_token"
+          : "csrf_token",
+      ) ?? null,
     // Pass public settings to client for store initialization
     settings: {
       ...publicSettings,

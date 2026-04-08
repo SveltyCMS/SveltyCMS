@@ -129,7 +129,24 @@ export class CollectionModule {
     return { success: true, data: null };
   }
 
-  async listSchemas(): Promise<DatabaseResult<Schema[]>> {
-    return this.core.notImplemented("listSchemas");
+  async listSchemas(_tenantId?: string | null): Promise<DatabaseResult<Schema[]>> {
+    return this.core.wrap(async () => {
+      if (!this.core.pool) throw new Error("Pool not available");
+
+      // MariaDB standard introspection
+      const [rows] = (await this.core.pool.query(
+        "SELECT TABLE_NAME as name FROM information_schema.tables WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME LIKE 'collection_%'",
+      )) as any[];
+
+      const schemas: Schema[] = rows.map((t: any) => ({
+        _id: t.name.replace("collection_", ""),
+        name: t.name.replace("collection_", ""),
+        slug: t.name.replace("collection_", ""),
+        fields: [],
+        status: "publish",
+      }));
+
+      return schemas;
+    }, "LIST_SCHEMAS_FAILED");
   }
 }

@@ -39,7 +39,7 @@ const validationSchema = (field: FieldInstance & RadioProps) => {
 const RadioWidget = createWidget<RadioProps>({
   Name: "Radio",
   Icon: "mdi:radiobox-marked",
-  Description: widget_radio_description(),
+  Description: widget_radio_description,
 
   // Define paths to the dedicated Svelte components.
   inputComponent: () => import("./input.svelte"),

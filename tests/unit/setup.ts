@@ -995,6 +995,7 @@ const dbMock = {
   media: mockDbAdapter.media,
   system: mockDbAdapter.system,
   loadSettingsFromDB: mock(() => Promise.resolve(true)),
+  isAuthReady: () => true,
 };
 moduleMock("@src/databases/db", () => dbMock);
 moduleMock("@databases/db", () => dbMock);

@@ -232,7 +232,11 @@ export function isBootstrapRoute(pathname: string): boolean {
   }
 
   // 2. Auth flow (login, register, logout)
-  if (pathname.startsWith("/login") || pathname.startsWith("/api/auth")) {
+  if (
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/api/auth") ||
+    pathname.startsWith("/api/user/login")
+  ) {
     return true;
   }
 

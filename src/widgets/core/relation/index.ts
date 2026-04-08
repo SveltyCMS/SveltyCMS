@@ -77,8 +77,9 @@ const validationSchema = (field: FieldInstance) => {
 // Create the widget definition using the factory.
 const RelationWidget = createWidget<RelationProps>({
   Name: "Relation",
-  Icon: "mdi:relation-one-to-one",
-  Description: widget_relation_description(),
+  Icon: "mdi:relation-many-to-many",
+  Description: widget_relation_description,
+
   inputComponent: () => import("./input.svelte"),
   inputComponentPath: "/src/widgets/core/relation/input.svelte",
   displayComponent: () => import("./display.svelte"),

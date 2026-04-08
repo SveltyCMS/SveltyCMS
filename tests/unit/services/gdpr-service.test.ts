@@ -68,7 +68,7 @@ describe("GDPRService", () => {
       mockDbAdapter.auth.getUserById.mockReturnValue(
         Promise.resolve({ success: false, data: null as any }),
       );
-      expect(gdprService.exportUserData(nonExistentUserId, tenantId)).rejects.toThrow(
+      await expect(gdprService.exportUserData(nonExistentUserId, tenantId)).rejects.toThrow(
         "User not found",
       );
     });

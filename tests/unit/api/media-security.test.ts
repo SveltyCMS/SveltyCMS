@@ -15,6 +15,7 @@ const mockMediaService = {
   saveMedia: vi.fn(),
   manipulateMedia: vi.fn(),
   batchProcessImages: vi.fn(),
+  enrichMediaWithUrl: vi.fn((m) => ({ ...m, url: `http://localhost/files/${m.path}` })),
 };
 
 // Mock dependencies
@@ -165,8 +166,8 @@ const mediaProcessHandler = {
 };
 
 describe("Media API Security Unit Tests", () => {
-  const user = { _id: "user-1", email: "test@example.com", role: "admin-id" };
-  const roles = [{ _id: "admin-id", name: "Administrator", isAdmin: true, permissions: [] }];
+  const user = { _id: "user-1", email: "test@example.com", role: "admin", isAdmin: true };
+  const roles = [{ _id: "admin", name: "Administrator", isAdmin: true, permissions: [] }];
   const tenantId = "tenant-A";
 
   beforeEach(() => {

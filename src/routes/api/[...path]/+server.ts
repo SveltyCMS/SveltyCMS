@@ -43,6 +43,7 @@ let cachedDbVersion: string | null = null;
 /** Endpoints that bypass authentication entirely */
 const PUBLIC_ENDPOINTS = new Set([
   "auth/login",
+  "user/login",
   "auth/saml/acs",
   "auth/saml/login",
   "auth/saml/config",
@@ -54,8 +55,9 @@ function isPublicEndpoint(namespace: string, subPath: string, method: string): b
   const fullPath = `${namespace}${subPath ? `/${subPath}` : ""}`;
   if (PUBLIC_ENDPOINTS.has(fullPath)) return true;
 
-  // Registration flow token validation
-  if (method === "GET" && namespace === "token" && subPath.length > 0) return true;
+  // Registration flow token validation: /api/token/[tokenId]
+  // Note: subPath is e.g. "create-token" or "[tokenId]"
+  if (method === "GET" && namespace === "token" && subPath && subPath !== "list") return true;
 
   return false;
 }
@@ -70,10 +72,7 @@ async function checkAuthorization(
   // 1. Bypass for Public Endpoints
   if (isPublicEndpoint(namespace, subPath, event.request.method)) return;
 
-  // 2. Bypass for Test Mode
-  if (process.env.TEST_MODE === "true" || process.env.VITE_TEST_MODE === "true") return;
-
-  // 3. Authentication Required
+  // 2. Authentication Required
   if (!user) {
     throw new AppError("Authentication required", 401, "UNAUTHORIZED");
   }
@@ -123,13 +122,15 @@ const dispatch = async (event: RequestEvent) => {
 
   const segments = getSegments(path as string);
   const namespace = segments[0];
+  // subPath is everything after namespace
   const subPath = segments.slice(1).join("/");
 
   // --- 2. Multi-Tenant Validation ---
   const MULTI_TENANT = getPrivateSettingSync("MULTI_TENANT");
   const exemptFromTenant =
     ["setup", "system", "health", "metrics"].includes(namespace) ||
-    (namespace === "auth" && ["login", "saml"].includes(segments[1]));
+    (namespace === "auth" && ["login", "saml"].includes(segments[1])) ||
+    (namespace === "token" && subPath && subPath !== "list"); // Token validation is tenant-agnostic or handles it internally
 
   if (MULTI_TENANT && !tenantId && !exemptFromTenant) {
     throw new AppError("Tenant ID required for this endpoint", 400, "TENANT_MISSING");
@@ -163,6 +164,10 @@ const dispatch = async (event: RequestEvent) => {
 
   // --- 4. Initialization & Authorization ---
   await getDbInitPromise();
+
+  logger.info(
+    `Dispatcher TRACE: ${request.method} /api/${path} | TEST_MODE: ${process.env.TEST_MODE} | user: ${locals.user?._id || "none"}`,
+  );
 
   // Auth logic after DB init to ensure roles/permissions are available
   await checkAuthorization(event, namespace, subPath);
@@ -217,6 +222,7 @@ const dispatch = async (event: RequestEvent) => {
       case "automations":
       case "metrics":
       case "telemetry":
+      case "theme":
         return await handleSystemRoutes(event, cms, tenantId as string, namespace, segments);
 
       case "token":
@@ -225,6 +231,7 @@ const dispatch = async (event: RequestEvent) => {
 
       case "events":
       case "content":
+      case "content-structure":
         return await handleContentRoutes(event, namespace, segments);
 
       default:

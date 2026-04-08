@@ -1,12 +1,12 @@
 <!--
-@file src/components/media/tag-editor/tag-editor-modal.svelte
-@component
-**A modal for managing media tags**
+ @file src/components/media/tag-editor/tag-editor-modal.svelte
+ @component
+ **A modal for managing media tags**
 
-Features:
-- AI Tagging
-- Manual Tagging
-- Tag Management
+ Features:
+ - AI Tagging
+ - Manual Tagging
+ - Tag Management
 -->
 <script lang="ts">
 import { toast } from "@src/stores/toast.svelte.ts";

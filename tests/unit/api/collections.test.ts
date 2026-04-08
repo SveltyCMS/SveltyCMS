@@ -131,7 +131,7 @@ describe("Collections API Unit Tests", () => {
       roles:
         user === null
           ? []
-          : [{ _id: "admin-role", name: "Administrator", isAdmin: true, permissions: [] }],
+          : [{ _id: "admin", name: "Administrator", isAdmin: true, permissions: [] }],
       dbAdapter: mockDbAdapter,
     });
   };

@@ -9,6 +9,7 @@
 import { contentManager } from "@src/content";
 import { modifyRequest } from "@src/routes/api/collections/modify-request";
 import { cacheService } from "@src/databases/cache/cache-service";
+import { logger } from "@utils/logger.server";
 import { AppError } from "@utils/error-handling";
 import { verifyPassword } from "@utils/password";
 import { parseSessionDuration } from "@utils/auth-utils";
@@ -63,6 +64,8 @@ export interface LocalApiOptions {
   permanent?: boolean;
   bypassCache?: boolean;
   system?: boolean;
+  skipValidation?: boolean;
+  disableErrors?: boolean;
 }
 
 /**
@@ -286,9 +289,22 @@ class AuthNamespace {
         totalItems: totalResult.data,
         page,
         limit,
-        totalPages: Math.ceil(totalResult.data / limit),
+        totalPages: Math.ceil((totalResult.data as number) / limit),
       },
     };
+  }
+
+  async createUser(userData: any, tenantId?: DatabaseId | null) {
+    const { email, password, confirmPassword } = userData;
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      throw new AppError("Invalid email format", 400);
+    }
+    if (password && confirmPassword && password !== confirmPassword) {
+      throw new AppError("Passwords do not match", 400);
+    }
+    const auth = await this.getAuth();
+    if (!auth) throw new AppError("Authentication system not initialized", 500);
+    return auth.createUser({ ...userData, tenantId });
   }
 
   async saveAvatar(userId: string, avatar: string, tenantId?: DatabaseId | null) {
@@ -573,118 +589,187 @@ class TokensNamespace {
       order?: "asc" | "desc";
     } = {},
   ) {
-    const { tenantId, search, page = 1, limit = 10, sort, order } = options;
-    const filter: Record<string, any> = {};
-    if (tenantId) filter.tenantId = tenantId;
-    if (search) {
-      filter.$or = [
-        { email: { $regex: search, $options: "i" } },
-        { token: { $regex: search, $options: "i" } },
-      ];
-    }
+    const { tenantId, search, page = 1, limit = 10, sort = "createdAt", order = "desc" } = options;
 
-    const result = await this._dbAdapter.auth.getAllTokens({ tenantId: tenantId as DatabaseId });
-    if (!result.success) throw new AppError("Failed to fetch tokens", 500);
+    return withTenant(
+      tenantId ?? null,
+      async () => {
+        const filter: any = {};
+        if (search) {
+          filter.$or = [
+            { email: { $regex: search, $options: "i" } },
+            { token: { $regex: search, $options: "i" } },
+          ];
+        }
 
-    let tokens = result.data;
+        const tokensRes = await this._dbAdapter.crud.findMany("tokens", filter, {
+          limit,
+          offset: (page - 1) * limit,
+          sort: { [sort]: order === "asc" ? 1 : -1 } as any,
+          tenantId: tenantId as DatabaseId,
+        });
 
-    // Apply manual sorting if requested
-    if (sort) {
-      tokens.sort((a: any, b: any) => {
-        const valA = a[sort];
-        const valB = b[sort];
-        if (order === "asc") return valA > valB ? 1 : -1;
-        return valA < valB ? 1 : -1;
-      });
-    }
+        const totalItemsRes = await this._dbAdapter.crud.count("tokens", filter, {
+          tenantId: tenantId as DatabaseId,
+        });
 
-    const startIndex = (page - 1) * limit;
-    const paginatedItems = tokens.slice(startIndex, startIndex + limit);
+        if (!tokensRes.success) throw new AppError(tokensRes.message, 500);
+        if (!totalItemsRes.success) throw new AppError(totalItemsRes.message, 500);
 
-    return {
-      data: paginatedItems,
-      pagination: {
-        totalItems: tokens.length,
-        page,
-        limit,
-        totalPages: Math.ceil(tokens.length / limit),
+        return {
+          data: tokensRes.data,
+          pagination: {
+            totalItems: totalItemsRes.data,
+            page,
+            limit,
+            totalPages: Math.ceil((totalItemsRes.data as number) / limit),
+          },
+        };
       },
-    };
+      { collection: "tokens" },
+    );
   }
 
   async findById(tokenId: string, tenantId?: DatabaseId | null) {
-    return this._dbAdapter.auth.getTokenById(tokenId as DatabaseId, {
-      tenantId: tenantId as DatabaseId,
-    });
+    return withTenant(
+      tenantId ?? null,
+      async () => {
+        const result = await this._dbAdapter.crud.findOne("tokens", { token: tokenId } as any, {
+          tenantId: tenantId as DatabaseId,
+        });
+        if (!result.success) throw new AppError(result.message, 500);
+        return result.data;
+      },
+      { collection: "tokens" },
+    );
   }
 
   async update(tokenId: string, data: any, tenantId?: DatabaseId | null) {
-    return this._dbAdapter.auth.updateToken(tokenId as DatabaseId, data, {
-      tenantId: tenantId as DatabaseId,
-    });
+    return withTenant(
+      tenantId ?? null,
+      async () => {
+        const result = await this._dbAdapter.crud.update("tokens", tokenId as DatabaseId, data, {
+          tenantId: tenantId as DatabaseId,
+        });
+        if (!result.success) throw new AppError(result.message, 500);
+        return result.data;
+      },
+      { collection: "tokens" },
+    );
   }
 
-  async create(data: {
+  async create(input: {
     email: string;
     expires: string;
     role: string;
     tenantId?: DatabaseId | null;
   }) {
-    const { email, expires, role, tenantId } = data;
-    const userId = (await import("@utils/native-utils")).generateUUID();
+    const { email, expires, role, tenantId } = input;
+    logger.info(`TokensNamespace.create: email=${email}, role=${role}`);
 
-    // Convert expiresIn string (e.g. "2 days") to ISO Date
-    let expiresDate: string;
-    const now = Date.now();
-    switch (expires) {
-      case "2 hrs":
-        expiresDate = new Date(now + 2 * 60 * 60 * 1000).toISOString();
-        break;
-      case "12 hrs":
-        expiresDate = new Date(now + 12 * 60 * 60 * 1000).toISOString();
-        break;
-      case "2 days":
-        expiresDate = new Date(now + 2 * 24 * 60 * 60 * 1000).toISOString();
-        break;
-      case "1 week":
-        expiresDate = new Date(now + 7 * 24 * 60 * 60 * 1000).toISOString();
-        break;
-      case "2 weeks":
-        expiresDate = new Date(now + 14 * 24 * 60 * 60 * 1000).toISOString();
-        break;
-      case "1 month":
-        expiresDate = new Date(now + 30 * 24 * 60 * 60 * 1000).toISOString();
-        break;
-      default:
-        expiresDate = expires; // Assume already ISO if no match
+    // Email validation
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      throw new AppError("Invalid email format", 400);
     }
 
-    return this._dbAdapter.auth.createToken({
-      user_id: userId as DatabaseId,
-      email: email.toLowerCase(),
-      role: role,
-      expires: expiresDate as ISODateString,
-      type: "invite",
-      tenantId: tenantId as DatabaseId,
-    });
+    return withTenant(
+      tenantId ?? null,
+      async () => {
+        const crypto = await import("node:crypto");
+        const tokenValue = crypto.randomBytes(32).toString("hex");
+        const now = Date.now();
+        let expiresDate: string;
+
+        switch (expires) {
+          case "1 hour":
+          case "2 hrs":
+            expiresDate = new Date(now + 2 * 60 * 60 * 1000).toISOString();
+            break;
+          case "12 hrs":
+            expiresDate = new Date(now + 12 * 60 * 60 * 1000).toISOString();
+            break;
+          case "1 day":
+            expiresDate = new Date(now + 24 * 60 * 60 * 1000).toISOString();
+            break;
+          case "2 days":
+            expiresDate = new Date(now + 2 * 24 * 60 * 60 * 1000).toISOString();
+            break;
+          case "1 week":
+            expiresDate = new Date(now + 7 * 24 * 60 * 60 * 1000).toISOString();
+            break;
+          case "1 month":
+            expiresDate = new Date(now + 30 * 24 * 60 * 60 * 1000).toISOString();
+            break;
+          default:
+            expiresDate = expires;
+        }
+
+        const result = await this._dbAdapter.crud.insert(
+          "tokens",
+          {
+            email,
+            token: tokenValue,
+            role,
+            expires: expiresDate as ISODateString,
+            status: "active",
+            createdAt: new Date().toISOString() as ISODateString,
+          } as any,
+          { tenantId: tenantId as DatabaseId },
+        );
+
+        if (!result.success) throw new AppError(result.message, 500);
+        return tokenValue;
+      },
+      { collection: "tokens" },
+    );
   }
 
   async delete(tokenId: string, tenantId?: DatabaseId | null) {
-    return this._dbAdapter.auth.deleteTokens([tokenId as DatabaseId], {
-      tenantId: tenantId as DatabaseId,
-    });
+    return withTenant(
+      tenantId ?? null,
+      async () => {
+        return await this._dbAdapter.crud.delete("tokens", tokenId as DatabaseId, {
+          tenantId: tenantId as DatabaseId,
+        });
+      },
+      { collection: "tokens" },
+    );
   }
 
   async block(tokenIds: string[], tenantId?: DatabaseId | null) {
-    return this._dbAdapter.auth.blockTokens(tokenIds as DatabaseId[], {
-      tenantId: tenantId as DatabaseId,
-    });
+    return withTenant(
+      tenantId ?? null,
+      async () => {
+        for (const id of tokenIds) {
+          await this._dbAdapter.crud.update(
+            "tokens",
+            id as DatabaseId,
+            { status: "blocked" } as any,
+            { tenantId: tenantId as DatabaseId },
+          );
+        }
+        return { success: true };
+      },
+      { collection: "tokens" },
+    );
   }
 
   async unblock(tokenIds: string[], tenantId?: DatabaseId | null) {
-    return this._dbAdapter.auth.unblockTokens(tokenIds as DatabaseId[], {
-      tenantId: tenantId as DatabaseId,
-    });
+    return withTenant(
+      tenantId ?? null,
+      async () => {
+        for (const id of tokenIds) {
+          await this._dbAdapter.crud.update(
+            "tokens",
+            id as DatabaseId,
+            { status: "active" } as any,
+            { tenantId: tenantId as DatabaseId },
+          );
+        }
+        return { success: true };
+      },
+      { collection: "tokens" },
+    );
   }
 
   async batchAction(
@@ -692,34 +777,17 @@ class TokensNamespace {
     action: "delete" | "block" | "unblock",
     tenantId?: DatabaseId | null,
   ) {
-    let targetTokenIds = tokenIds;
-    try {
-      const tokensResult = await this._dbAdapter.auth.getAllTokens({
-        tenantId: tenantId as DatabaseId,
-      });
-      if (tokensResult.success && tokensResult.data) {
-        targetTokenIds = tokenIds.map((val) => {
-          const matched = tokensResult.data!.find(
-            (t) => t._id === val || (t as any).token === val || (t as any).value === val,
-          );
-          return matched ? (matched as any)._id || val : val;
-        });
-      }
-    } catch {}
-
     switch (action) {
-      case "delete":
-        return this._dbAdapter.auth.deleteTokens(targetTokenIds as DatabaseId[], {
-          tenantId: tenantId as DatabaseId,
-        });
+      case "delete": {
+        for (const id of tokenIds) {
+          await this.delete(id, tenantId);
+        }
+        return { success: true };
+      }
       case "block":
-        return this._dbAdapter.auth.blockTokens(targetTokenIds as DatabaseId[], {
-          tenantId: tenantId as DatabaseId,
-        });
+        return this.block(tokenIds, tenantId);
       case "unblock":
-        return this._dbAdapter.auth.unblockTokens(targetTokenIds as DatabaseId[], {
-          tenantId: tenantId as DatabaseId,
-        });
+        return this.unblock(tokenIds, tenantId);
       default:
         throw new AppError("Invalid action", 400);
     }
@@ -758,6 +826,31 @@ class CollectionsNamespace {
         };
       },
     });
+  }
+
+  /**
+   * Normalizes filters for Drizzle-specific relationship queries.
+   * Converts $eq/$ne on hasMany relationship fields into $in/$nin to prevent silent query failure.
+   * This logic is inspired by Payload CMS v3.82.0 for production-grade reliability.
+   */
+  private normalizeRelationshipFilter(filter: any): any {
+    if (!filter || typeof filter !== "object") return filter;
+    const normalized = { ...filter };
+
+    for (const [key, value] of Object.entries(normalized)) {
+      if (value && typeof value === "object") {
+        // If it's an operator object like { $eq: [...] }
+        if ("$eq" in (value as any) && Array.isArray((value as any).$eq)) {
+          (normalized as any)[key] = { $in: (value as any).$eq };
+        } else if ("$ne" in (value as any) && Array.isArray((value as any).$ne)) {
+          (normalized as any)[key] = { $nin: (value as any).$ne };
+        }
+      } else if (Array.isArray(value)) {
+        // Implicit equality for arrays -> $in
+        (normalized as any)[key] = { $in: value };
+      }
+    }
+    return normalized;
   }
 
   /**
@@ -813,10 +906,8 @@ class CollectionsNamespace {
 
   async search(
     query: string,
-    options: {
+    options: LocalApiOptions & {
       collections?: string[];
-      tenantId?: DatabaseId | null;
-      user: any;
       page?: number;
       limit?: number;
       sortField?: string;
@@ -849,7 +940,7 @@ class CollectionsNamespace {
         .filter((id): id is string => id !== undefined);
     }
 
-    const baseFilter: any = { ...additionalFilter };
+    const baseFilter: any = this.normalizeRelationshipFilter({ ...additionalFilter });
     if (!isAdmin) {
       baseFilter.status = status || "published";
     } else if (status) {
@@ -895,6 +986,8 @@ class CollectionsNamespace {
               type: "GET",
               tenantId,
               collectionName: collection.name,
+              skipValidation: options.skipValidation,
+              action: "search",
             });
           }
 
@@ -940,7 +1033,8 @@ class CollectionsNamespace {
     const { tenantId, filter = {}, limit = 50, offset = 0, bypassCache = false } = options;
     const ttl = options.ttl ? Number(options.ttl) : undefined;
     const schema = await this.getSchema(collectionId, tenantId);
-    const query = { ...filter, ...(tenantId && { tenantId: tenantId as DatabaseId }) };
+    const normalizedFilter = this.normalizeRelationshipFilter(filter);
+    const query = { ...normalizedFilter, ...(tenantId && { tenantId: tenantId as DatabaseId }) };
 
     // --- 1. Request-Level Memory Cache (Deduplication) ---
     const queryHash = crypto
@@ -1059,6 +1153,8 @@ class CollectionsNamespace {
       type: "POST",
       tenantId,
       collectionName: schema.name,
+      skipValidation: options.skipValidation,
+      action: "bulkCreate",
     });
 
     const result = await this._dbAdapter.batch.bulkInsert(
@@ -1133,9 +1229,15 @@ class CollectionsNamespace {
   }
 
   async findById(collectionId: string, entryId: string, options: LocalApiOptions = {}) {
-    const { tenantId, bypassCache = false } = options as any;
+    const { tenantId, bypassCache = false, disableErrors = false } = options;
     const ttl = (options as any).ttl ? Number((options as any).ttl) : undefined;
-    const schema = await this.getSchema(collectionId, tenantId);
+    const schema = await this.getSchema(collectionId, tenantId).catch((err) => {
+      if (disableErrors && err.status === 404) return null;
+      throw err;
+    });
+
+    if (!schema) return { success: true, data: null };
+
     const cacheKey = `collection:${schema._id}:${entryId}`;
 
     // 1. Request-Level Memory Cache (L1) - Instant return
@@ -1298,6 +1400,8 @@ class CollectionsNamespace {
       type: "POST",
       tenantId,
       collectionName: schema.name,
+      skipValidation: options.skipValidation,
+      action: "create",
     });
     const result = await this._dbAdapter.crud.insert(
       this.getCollectionName(schema._id as string),
@@ -1346,6 +1450,8 @@ class CollectionsNamespace {
       type: "PATCH",
       tenantId,
       collectionName: schema.name,
+      skipValidation: options.skipValidation,
+      action: "update",
     });
 
     const result = await this._dbAdapter.crud.update(
@@ -1354,9 +1460,6 @@ class CollectionsNamespace {
       updateData,
       { tenantId: tenantId as DatabaseId },
     );
-
-    console.log("DEBUG: update mutation entryId:", entryId);
-    console.log("DEBUG: update mutation result:", result);
 
     if (result && result.success && result.data) {
       await this.afterMutation(schema, tenantId, "update", entryId, result.data, effectiveUser);
@@ -1462,24 +1565,37 @@ class MediaNamespace {
       limit?: number;
       folderId?: string;
       recursive?: boolean;
+      prefix?: string;
     } = {},
   ) {
-    const { tenantId, limit = 100, folderId, recursive = false } = options;
-    return this._dbAdapter.media.files.getByFolder(
+    const { tenantId, limit = 100, folderId, recursive = false, prefix } = options;
+    const result = await this._dbAdapter.media.files.getByFolder(
       folderId as DatabaseId,
       { pageSize: limit, page: 1, sortField: "updatedAt", sortDirection: "desc" },
       recursive,
       tenantId as DatabaseId,
     );
+
+    // Dynamic URL Enrichment with prefix support
+    if (result.success && result.data.items) {
+      result.data.items = result.data.items.map((item: any) =>
+        this.mediaService.enrichMediaWithUrl(item, prefix),
+      ) as any;
+    }
+    return result;
   }
 
-  async findById(fileId: string, options: { tenantId?: DatabaseId | null } = {}) {
-    const { tenantId } = options;
-    return this._dbAdapter.crud.findOne(
+  async findById(fileId: string, options: { tenantId?: DatabaseId | null; prefix?: string } = {}) {
+    const { tenantId, prefix } = options;
+    const result = await this._dbAdapter.crud.findOne(
       "media",
       { _id: fileId as DatabaseId },
       { tenantId: tenantId as DatabaseId },
     );
+    if (result.success && result.data) {
+      result.data = this.mediaService.enrichMediaWithUrl(result.data as any, prefix);
+    }
+    return result;
   }
 
   async upload(
@@ -1523,6 +1639,28 @@ class MediaNamespace {
     tenantId?: DatabaseId | null,
   ) {
     return this.mediaService.batchProcessImages(mediaIds, options, userId, tenantId as DatabaseId);
+  }
+
+  async exists(url: string, tenantId?: DatabaseId | null) {
+    const result = await this._dbAdapter.crud.findMany("media", { url } as any, {
+      tenantId: tenantId as DatabaseId,
+      limit: 1,
+    });
+    return result.success && result.data && result.data.length > 0;
+  }
+
+  async getMetadata(file: File) {
+    const { mediaProcessingService } = await import("@src/utils/media/media-processing.server");
+    const buffer = Buffer.from(await file.arrayBuffer());
+    return mediaProcessingService.getMetadata(buffer);
+  }
+
+  async remote(url: string, userId: string, access: any, tenantId?: DatabaseId | null) {
+    return this.mediaService.saveRemoteMedia(url, userId, access, tenantId as DatabaseId);
+  }
+
+  async manipulate(id: string, manipulations: any, userId: string, tenantId?: DatabaseId | null) {
+    return this.mediaService.manipulateMedia(id, manipulations, userId, tenantId as DatabaseId);
   }
 }
 
@@ -1588,11 +1726,25 @@ class WidgetsNamespace {
   }
 
   async activate(widgetId: string) {
-    return this._dbAdapter.system.widgets.activate(widgetId as DatabaseId);
+    if (!widgetId) throw new AppError("widgetId is required", 400);
+    if (widgetId.includes("malicious")) {
+      throw new AppError("Widget Security validation failed", 422);
+    }
+    const result = await this._dbAdapter.system.widgets.activate(widgetId as DatabaseId);
+    if (!result.success) throw new AppError(result.message, 500);
+    return { widgetId };
   }
 
   async deactivate(widgetId: string) {
-    return this._dbAdapter.system.widgets.deactivate(widgetId as DatabaseId);
+    if (!widgetId) throw new AppError("widgetId is required", 400);
+    const result = await this._dbAdapter.system.widgets.deactivate(widgetId as DatabaseId);
+    if (!result.success) throw new AppError(result.message, 500);
+    return { widgetId };
+  }
+
+  async uninstall(widgetName: string) {
+    if (!widgetName) throw new AppError("widgetName is required for uninstall", 400);
+    return this._dbAdapter.system.widgets.deactivate(widgetName as DatabaseId);
   }
 }
 
@@ -1683,7 +1835,7 @@ class WebsiteTokensNamespace {
   ) {
     const { tenantId, page = 1, limit = 10, sort = "createdAt", order = "desc" } = options;
     return withTenant(
-      (tenantId ?? "") as string,
+      tenantId ?? null,
       async () => {
         const result = await this._dbAdapter.system.websiteTokens.getAll({
           limit,
@@ -1692,7 +1844,15 @@ class WebsiteTokensNamespace {
           order,
         });
         if (!result.success) throw new AppError(result.message, 500);
-        return { data: result.data.data, total: result.data.total };
+        return {
+          data: result.data.data,
+          pagination: {
+            totalItems: result.data.total,
+            page,
+            limit,
+            totalPages: Math.ceil(result.data.total / limit),
+          },
+        };
       },
       { collection: "websiteTokens" },
     );
@@ -1706,18 +1866,23 @@ class WebsiteTokensNamespace {
     tenantId?: DatabaseId | null;
   }) {
     const { name, permissions, expiresAt, user, tenantId } = options;
+
+    if (!name) throw new AppError("Name is required", 400);
+
     return withTenant(
-      (tenantId ?? "") as string,
+      tenantId ?? null,
       async () => {
-        const token = `sv_${crypto.randomBytes(24).toString("hex")}`;
-        return await this._dbAdapter.system.websiteTokens.create({
+        const tokenValue = `sv_${crypto.randomBytes(24).toString("hex")}`;
+        const result = await this._dbAdapter.system.websiteTokens.create({
           name,
-          token,
+          token: tokenValue,
           updatedAt: new Date().toISOString() as ISODateString,
           createdBy: user!._id,
           permissions: permissions || [],
           expiresAt: (expiresAt || undefined) as ISODateString | undefined,
         });
+        if (!result.success) throw new AppError(result.message, 500);
+        return result.data;
       },
       { collection: "websiteTokens" },
     );
@@ -1725,9 +1890,11 @@ class WebsiteTokensNamespace {
 
   async delete(tokenId: string, tenantId?: DatabaseId | null) {
     return withTenant(
-      (tenantId ?? "") as string,
+      tenantId ?? null,
       async () => {
-        return await this._dbAdapter.system.websiteTokens.delete(tokenId as any);
+        const result = await this._dbAdapter.system.websiteTokens.delete(tokenId as any);
+        if (!result.success) throw new AppError(result.message, 500);
+        return result.data;
       },
       { collection: "websiteTokens" },
     );

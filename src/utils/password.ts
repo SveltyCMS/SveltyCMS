@@ -38,8 +38,8 @@ import { logger } from "@utils/logger";
  * This makes Argon2id secure against quantum attacks for decades to come.
  */
 const ARGON2_CONFIG = {
-  memory: 65_536, // 64 MB - Quantum-resistant memory requirement
-  time: 3, // 3 iterations - Computational complexity
+  memoryCost: 65_536, // 64 MB - Quantum-resistant memory requirement
+  timeCost: 3, // 3 iterations - Computational complexity
   parallelism: 4, // 4 parallel threads - CPU optimization
   type: 2, // argon2id (hybrid: side-channel + GPU resistant)
 } as const;
@@ -69,8 +69,8 @@ export async function hashPassword(password: string): Promise<string> {
     const argon2 = await import("argon2");
 
     const hashedPassword = await argon2.hash(password, {
-      memoryCost: ARGON2_CONFIG.memory,
-      timeCost: ARGON2_CONFIG.time,
+      memoryCost: ARGON2_CONFIG.memoryCost,
+      timeCost: ARGON2_CONFIG.timeCost,
       parallelism: ARGON2_CONFIG.parallelism,
       type: argon2.argon2id,
     });
@@ -136,8 +136,8 @@ export async function needsRehashing(hashedPassword: string): Promise<boolean> {
     // Check if the hash uses our current secure parameters
     // argon2.needsRehash will return true if the hash doesn't match our current settings
     return argon2.needsRehash(hashedPassword, {
-      memoryCost: ARGON2_CONFIG.memory,
-      timeCost: ARGON2_CONFIG.time,
+      memoryCost: ARGON2_CONFIG.memoryCost,
+      timeCost: ARGON2_CONFIG.timeCost,
       parallelism: ARGON2_CONFIG.parallelism,
     });
   } catch (error) {

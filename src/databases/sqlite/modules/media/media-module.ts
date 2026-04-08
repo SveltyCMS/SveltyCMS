@@ -338,6 +338,25 @@ export class MediaModule {
         return utils.convertDatesToISO(created) as unknown as MediaItem;
       }, "DUPLICATE_FILE_FAILED");
     },
+
+    getByHash: async (
+      hash: string,
+      tenantId?: string | null,
+    ): Promise<DatabaseResult<MediaItem | null>> => {
+      return this.core.wrap(async () => {
+        const conditions = [eq(schema.mediaItems.hash, hash)];
+        if (tenantId) conditions.push(eq(schema.mediaItems.tenantId, tenantId));
+
+        const [item] = await this.db
+          .select()
+          .from(schema.mediaItems)
+          .where(and(...conditions))
+          .limit(1);
+
+        if (!item) return null;
+        return utils.convertDatesToISO(item) as unknown as MediaItem;
+      }, "GET_FILE_BY_HASH_FAILED");
+    },
   };
 
   folders = {

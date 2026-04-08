@@ -58,3 +58,16 @@ This generates detailed reports including:
 - Comparison with the previous build size.
 - Warnings reported if predefined performance budgets are exceeded.
 - An exported `bundle-report.json` designed for automated CI consumption.
+
+## 🧩 Widget Performance Auditing (Core & Custom)
+
+As part of the **Enterprise Matrix**, SveltyCMS performs a specialized overhead pass for widgets. This ensures that custom widgets do not introduce "Silent Regressions" into the core API.
+
+### The Audit Process:
+
+1. **Definition Pillar Profiling**: Measures the latency added by a widget's `modifyRequest` and `transform` logic in the server-side pipeline.
+2. **Aggregation Stress Test**: Verifies that custom `listSchemas` and search aggregations remain efficient as database sizes grow.
+3. **Core Baseline**: All custom widgets are measured against the **Input (Core)** baseline (~0.01ms overhead).
+
+> [!WARNING]
+> Custom widgets exceeding a **2ms per-field overhead** are flagged in the matrix as "Performance Hazards" and should be optimized using the **Vectorized Processing** patterns.

@@ -12,13 +12,50 @@ export async function handleContentRoutes(
   namespace: string,
   segments: string[],
 ) {
-  const { request } = event;
+  const { request, url } = event;
   const method = segments[1];
 
   // --- Content Version ---
   if (namespace === "content" && method === "version") {
     const { contentManager } = await import("@src/content");
     return json({ version: contentManager.getContentVersion() });
+  }
+
+  // --- Content Structure ---
+  if (namespace === "content-structure") {
+    const { cms } = event.locals as any;
+    if (!cms) throw new AppError("CMS not initialized", 500);
+    const tenantId = (event.locals as any).tenantId;
+
+    if (request.method === "GET") {
+      const action = url.searchParams.get("action") || "getStructure";
+      if (action === "getStructure" || action === "getContentStructure") {
+        const nodes = await cms.getContentStructure(tenantId ?? undefined);
+        return json({
+          success: true,
+          contentNodes: nodes,
+          version: cms.version,
+        });
+      }
+      throw new AppError(`Invalid GET action: ${action}`, 400);
+    }
+
+    if (request.method === "POST") {
+      const body = await request.json().catch(() => ({}));
+      const { action, items } = body;
+
+      if (action === "reorderContentStructure") {
+        if (!Array.isArray(items)) throw new AppError("Items must be an array", 422);
+        const updated = await cms.collections.reorderContentNodes(items, tenantId ?? undefined);
+        return json({ success: true, contentStructure: updated });
+      }
+
+      if (action === "refresh" || action === "recompile" || action === "refreshCollections") {
+        await cms.collections.refresh(tenantId ?? undefined);
+        return json({ success: true, message: "Content structure refreshed" });
+      }
+      throw new AppError(`Invalid POST action: ${action}`, 400);
+    }
   }
 
   // --- Event & Content SSE Streams ---

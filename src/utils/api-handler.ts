@@ -6,6 +6,7 @@
 
 import type { RequestEvent, RequestHandler } from "@sveltejs/kit";
 import { handleApiError } from "./error-handling";
+import { logger } from "@utils/logger.server";
 
 type ApiHandlerCallback = (event: RequestEvent) => Promise<Response> | Response;
 
@@ -26,6 +27,7 @@ export const apiHandler = (handler: ApiHandlerCallback): RequestHandler => {
     try {
       return await handler(event);
     } catch (err) {
+      logger.error("API Error:", err);
       return handleApiError(err, event);
     }
   };

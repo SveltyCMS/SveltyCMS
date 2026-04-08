@@ -123,7 +123,15 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
   if (isStaticOrInternalRequest(pathname)) return resolve(event);
 
   const isApi = pathname.startsWith("/api/");
-  if (isTestMode && (pathname.startsWith("/api/testing") || isApi)) return await resolve(event);
+  if (isTestMode && (pathname.startsWith("/api/testing") || isApi)) {
+    if (user) {
+      locals.isAdmin =
+        (user as any).isAdmin || user.role === "admin" || user.role === "super-admin";
+    } else {
+      locals.isAdmin = true; // Default to true for anonymous test calls if needed, or keep false
+    }
+    return await resolve(event);
+  }
 
   const isPublic = isPublicRoute(pathname, isTestMode);
 

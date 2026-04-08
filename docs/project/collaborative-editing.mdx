@@ -1,0 +1,74 @@
+---
+path: "docs/project/collaborative-editing.mdx"
+title: "Collaborative Editing Implementation"
+description: "Implementation strategy for real-time collaborative editing using Yjs and the 3-Pillar Widget Architecture."
+author: "SveltyCMS Team"
+created: "2026-04-08"
+updated: "2026-04-08"
+tags:
+  - "collaboration"
+  - "yjs"
+  - "real-time"
+  - "crdt"
+---
+
+# Collaborative Editing Implementation Strategy
+
+SveltyCMS is evolving into a proactive **Autonomous Agency OS**. A critical component of this evolution is **Collaborative Editing**, allowing multiple users to work on the same content simultaneously without conflict.
+
+## 🚀 Architectural Advantage: The 3-Pillar Shield
+
+Our 3-pillar architecture (Definition, Input, Display) provides the perfect foundation for collaboration:
+
+- **Server-Side Authority**: The **Definition** pillar manages field-level locks and session state.
+- **Isomorphic State**: Svelte 5 Runes allow us to bind real-time CRDT updates directly to the **Input** pillar UI.
+
+---
+
+## 📈 Implementation Roadmap
+
+### Phase 1: Presence & Field-Level Locking (MVP)
+
+The goal is to prevent users from overwriting each other's work by indicating active editing.
+
+1. **Awareness Engine**: Use the existing SSE (`/api/events`) stream to broadcast user presence.
+2. **Field Locking**:
+   - When a user focuses an input (`on:focus`), a `LOCK_FIELD` event is broadcast.
+   - Other users see an avatar and a "User X is editing" tooltip next to the field.
+   - The field becomes `disabled` or `readonly` for others while locked.
+3. **Automatic Expiry**: Locks expire after 60 seconds of inactivity or upon `on:blur`.
+
+### Phase 2: Full CRDT-based Concurrent Editing (Enterprise)
+
+The goal is a "Google Docs" style experience where multiple users can edit the same field simultaneously.
+
+1. **Yjs Integration**: Utilize **Yjs** (the industry-standard CRDT library) for conflict-free state merging.
+2. **Persistence Layer**:
+   - Store temporary document binary state in **Redis** (via `cacheService`) for ultra-low latency.
+   - Periodically persist the merged state to the primary database (PostgreSQL/MongoDB/etc.).
+3. **RichText Sync**: Use `y-prosemirror` or `y-quill` bindings to enable real-time collaborative rich text editing.
+4. **Awareness Protocol**: Use the Yjs awareness protocol over WebSockets (or SSE fallback) for high-fidelity cursor tracking and presence.
+
+---
+
+## 🛠️ Technical Components
+
+| Component                     | Responsibility                                                              |
+| :---------------------------- | :-------------------------------------------------------------------------- |
+| **CollaborativeService**      | Backend service managing Redis document storage and lock arbitration.       |
+| **PresenceAvatars.svelte**    | A UI primitive showing active editors in the current collection entry.      |
+| **CollaborativeField.svelte** | A wrapper component for widgets that injects locking and CRDT sync logic.   |
+| **Yjs-WebSocket Provider**    | High-performance sync gateway integrated into the SveltyCMS API dispatcher. |
+
+---
+
+## ⚙️ Configuration
+
+Collaborative editing will be an **optional plugin extension**:
+
+- **Enable Globally**: System-wide activation.
+- **Per-Collection Toggle**: Enable only for high-traffic collections (e.g., Blog Posts).
+- **Strict Mode**: Force full document locking if CRDT is not desired.
+
+> [!TIP]
+> **Performance Note**: By using **Redis** as the coordination layer, we ensure that real-time sync adds **< 5ms** overhead to the editorial experience, maintaining SveltyCMS's lead in performance.

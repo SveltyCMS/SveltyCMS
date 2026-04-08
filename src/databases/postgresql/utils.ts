@@ -138,6 +138,30 @@ export function convertArrayDatesToISO<T extends Record<string, unknown>>(arr: T
   return arr.map((item) => convertDatesToISO(item));
 }
 
+/**
+ * Convert ISO strings in a record to Date objects.
+ */
+export function convertISOToDates<T extends Record<string, unknown>>(obj: T): T {
+  if (!obj || typeof obj !== "object") return obj;
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (
+      typeof value === "string" &&
+      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z?$/.test(value)
+    ) {
+      const date = new Date(value);
+      if (!isNaN(date.getTime())) {
+        result[key] = date;
+      } else {
+        result[key] = value;
+      }
+    } else {
+      result[key] = value;
+    }
+  }
+  return result as T;
+}
+
 // Normalize file paths by removing leading/trailing slashes and deduplicating slashes
 export function normalizePath(path: string): string {
   return path

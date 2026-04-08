@@ -316,7 +316,15 @@ export class MongoSystemMethods {
   ): Promise<DatabaseResult<Record<string, T>>> {
     try {
       if (scope === "system") {
-        const tenantId = (userId as string) || null;
+        let tenantId: string | null = null;
+        if (typeof userId === "string") {
+          tenantId = userId;
+        } else if (userId && typeof userId === "object" && "tenantId" in userId) {
+          tenantId = (userId as any).tenantId;
+        } else if (userId !== undefined && userId !== null) {
+          tenantId = String(userId);
+        }
+
         const settings = await this.SystemSettingModel.find({
           category,
           tenantId,

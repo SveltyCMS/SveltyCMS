@@ -10,7 +10,7 @@
  */
 
 import { logger } from "@utils/logger";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import type {
@@ -383,6 +383,8 @@ export class AdapterCore {
       if (column) {
         if (value === null) {
           conditions.push(isNull(column));
+        } else if (Array.isArray(value)) {
+          conditions.push(inArray(column, value));
         } else {
           conditions.push(eq(column, value as string | number | boolean));
         }

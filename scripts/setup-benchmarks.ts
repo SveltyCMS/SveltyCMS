@@ -64,8 +64,8 @@ async function setupCollections(authHeaders: Record<string, string>): Promise<vo
           _id: AUTHORS_COLLECTION_ID,
           icon: "mdi:account-details",
           fields: [
-            { label: "Name", widget: "Input", required: true },
-            { label: "Bio", widget: "Input" },
+            { label: "Name", db_fieldName: "name", widget: "Input", required: true },
+            { label: "Bio", db_fieldName: "bio", widget: "Input" },
           ],
         },
       }),
@@ -86,9 +86,10 @@ async function setupCollections(authHeaders: Record<string, string>): Promise<vo
           _id: POSTS_COLLECTION_ID,
           icon: "mdi:post",
           fields: [
-            { label: "Title", widget: "Input", required: true },
+            { label: "Title", db_fieldName: "title", widget: "Input", required: true },
             {
               label: "Author",
+              db_fieldName: "author",
               widget: "Relation",
               collection: "Authors",
               multiple: false,
@@ -114,8 +115,8 @@ async function seedAuthors(authHeaders: Record<string, string>): Promise<string[
           method: "POST",
           headers: authHeaders,
           body: JSON.stringify({
-            Name: `Author ${n}`,
-            Bio: `Bio for author ${n}`,
+            name: `Author ${n}`,
+            bio: `Bio for author ${n}`,
           }),
         },
         `createAuthor(${n})`,
@@ -141,8 +142,8 @@ async function seedPosts(authHeaders: Record<string, string>, authorIds: string[
             method: "POST",
             headers: authHeaders,
             body: JSON.stringify({
-              Title: `Post ${n} by Author ${ai + 1}`,
-              Author: authorId,
+              title: `Post ${n} by Author ${ai + 1}`,
+              author: authorId,
             }),
           },
           `createPost(author=${ai + 1}, post=${n})`,

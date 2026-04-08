@@ -179,7 +179,7 @@ describe("Crypto Utils - Password Hashing", () => {
     const password = "TestPassword123!";
     const hash = await hashPassword(password);
 
-    const isValid = await verifyPassword(password, hash);
+    const isValid = await verifyPassword(hash, password);
     expect(isValid).toBe(true);
   });
 
@@ -188,7 +188,7 @@ describe("Crypto Utils - Password Hashing", () => {
     const wrongPassword = "WrongPassword123!";
     const hash = await hashPassword(password);
 
-    const isValid = await verifyPassword(wrongPassword, hash);
+    const isValid = await verifyPassword(hash, wrongPassword);
     expect(isValid).toBe(false);
   });
 
@@ -196,7 +196,7 @@ describe("Crypto Utils - Password Hashing", () => {
     const hash = await hashPassword("");
     expect(typeof hash).toBe("string");
 
-    const isValid = await verifyPassword("", hash);
+    const isValid = await verifyPassword(hash, "");
     expect(isValid).toBe(true);
   });
 
@@ -204,7 +204,7 @@ describe("Crypto Utils - Password Hashing", () => {
     const longPassword = "a".repeat(1000);
     const hash = await hashPassword(longPassword);
 
-    const isValid = await verifyPassword(longPassword, hash);
+    const isValid = await verifyPassword(hash, longPassword);
     expect(isValid).toBe(true);
   });
 
@@ -212,7 +212,7 @@ describe("Crypto Utils - Password Hashing", () => {
     const password = "!@#$%^&*()_+-=[]{}|;:,.<>?/~`";
     const hash = await hashPassword(password);
 
-    const isValid = await verifyPassword(password, hash);
+    const isValid = await verifyPassword(hash, password);
     expect(isValid).toBe(true);
   });
 
@@ -220,7 +220,7 @@ describe("Crypto Utils - Password Hashing", () => {
     const password = "パスワード🔒密码";
     const hash = await hashPassword(password);
 
-    const isValid = await verifyPassword(password, hash);
+    const isValid = await verifyPassword(hash, password);
     expect(isValid).toBe(true);
   });
 });

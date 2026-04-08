@@ -45,43 +45,38 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
   }
 
   try {
-    // 1. Analyze request for threats (Firewall + Payload Scan)
+    // 1. Analyze request for threats (Firewall + Payload Scan + Rate Limiting)
     const securityStatus = await securityResponseService.analyzeRequest(
       request,
       clientIp,
       tenantId,
     );
 
-    if (securityStatus.action === "block" || securityStatus.action === "challenge") {
-      metricsService.incrementSecurityViolations();
+    if (securityStatus.action !== "allow") {
+      metricsService.incrementSecurityViolations(tenantId);
+
+      const statusCode = securityStatus.action === "block" ? 403 : 429;
+
       logger.warn(
         `Security action triggered: ${securityStatus.action} - ${securityStatus.reason}`,
         {
           ip: clientIp,
           url: url.pathname,
+          level: securityStatus.level,
         },
       );
-      throw new AppError(securityStatus.reason || "Forbidden", 403, "SECURITY_BLOCK");
+
+      if (url.pathname.startsWith("/api/")) {
+        return handleApiError(
+          new AppError(securityStatus.reason || "Security violation", statusCode),
+          event,
+        );
+      }
+
+      throw error(statusCode, securityStatus.reason || "Forbidden");
     }
 
-    const forceSecurity = request.headers.get("x-test-security") === "true";
-
-    // 2. Additional Rate Limiting Check (Adaptive Throttling)
-    const points = securityResponseService.getPointsForThreat(securityStatus.level);
-    const rateLimit = await securityResponseService.checkRateLimit(
-      clientIp,
-      url.pathname,
-      tenantId,
-      forceSecurity,
-      points,
-    );
-    if (rateLimit.action !== "allow") {
-      metricsService.incrementRateLimitViolations();
-      logger.warn(`Rate limit exceeded: ${clientIp}`, { url: url.pathname });
-      throw new AppError("Too Many Requests", 429, "RATE_LIMIT_EXCEEDED");
-    }
-
-    // 3. Request passed security checks
+    // 2. Request passed security checks
     return await resolve(event);
   } catch (err) {
     if (url.pathname.startsWith("/api/")) {

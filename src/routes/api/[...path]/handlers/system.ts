@@ -43,24 +43,20 @@ export async function handleSystemRoutes(
         });
       }
     }
+
     if (request.method === "POST") {
-      if (method === "activate" && segments[2]) {
-        const result = await cms.widgets.activate(segments[2]);
-        return rawResponse(event, result);
+      const body = await request.json().catch(() => ({}));
+      const widgetId = body.widgetId || body.widgetName || segments[2];
+
+      if (method === "install" || method === "activate") {
+        if (!widgetId) throw new AppError("widgetId is required", 400);
+        const result = await cms.widgets.activate(widgetId);
+        return successResponse(event, result);
       }
-      if (method === "deactivate" && segments[2]) {
-        const result = await cms.widgets.deactivate(segments[2]);
-        return rawResponse(event, result);
-      }
-      if (method === "install") {
-        const { widgetId } = await request.json();
-        await cms.widgets.activate(widgetId);
-        return successResponse(event, { widgetId });
-      }
-      if (method === "uninstall") {
-        const { widgetName } = await request.json();
-        await cms.widgets.deactivate(widgetName);
-        return successResponse(event, { widgetName });
+      if (method === "deactivate" || method === "uninstall") {
+        if (!widgetId) throw new AppError("widgetId/widgetName is required", 400);
+        const result = await cms.widgets.deactivate(widgetId);
+        return successResponse(event, result);
       }
     }
   }
@@ -178,6 +174,37 @@ export async function handleSystemRoutes(
   if (namespace === "metrics") return successResponse(event, await cms.metrics.getReport());
   if (namespace === "telemetry" && method === "stats")
     return successResponse(event, await cms.telemetry.checkUpdateStatus());
+
+  // --- Theme Management ---
+  if (namespace === "theme") {
+    const { ThemeManager } = await import("@src/databases/theme-manager");
+    const themeManager = ThemeManager.getInstance();
+
+    if (method === "get-current-theme" && request.method === "GET") {
+      const currentTheme = await themeManager.getTheme(tenantId);
+      if (!currentTheme) throw new AppError("No active theme found.", 404);
+      return successResponse(event, currentTheme);
+    }
+
+    if (method === "update-theme" && request.method === "POST") {
+      const { themeId, customCss } = await request.json();
+      if (!themeId) throw new AppError("Invalid theme ID.", 400);
+
+      const themeResult = await cms.db.system.themes.update(themeId as DatabaseId, { customCss });
+      if (!themeResult.success || !themeResult.data) {
+        throw new AppError(`Theme '${themeId}' does not exist or update failed.`, 404);
+      }
+      await themeManager.refresh();
+      return successResponse(event, { success: true, theme: themeResult.data });
+    }
+
+    if (method === "set-default" && request.method === "POST") {
+      const { themeId } = await request.json();
+      const result = await cms.db.system.themes.setDefault(themeId as DatabaseId);
+      await themeManager.refresh();
+      return rawResponse(event, result);
+    }
+  }
 
   throw new AppError(`System endpoint /api/${segments.join("/")} not implemented`, 404);
 }

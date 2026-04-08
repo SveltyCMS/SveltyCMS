@@ -19,6 +19,13 @@ vi.mock("@src/databases/db", () => ({
       createToken: vi.fn().mockResolvedValue({ success: true, data: { _id: "new-token" } }),
       deleteTokens: vi.fn().mockResolvedValue({ success: true, data: { deletedCount: 1 } }),
     },
+    crud: {
+      findMany: vi.fn().mockResolvedValue({ success: true, data: [] }),
+      insert: vi.fn().mockResolvedValue({ success: true, data: { _id: "new-token" } }),
+      update: vi.fn().mockResolvedValue({ success: true }),
+      delete: vi.fn().mockResolvedValue({ success: true }),
+      count: vi.fn().mockResolvedValue({ success: true, data: 0 }),
+    },
   },
   getDbInitPromise: vi.fn().mockResolvedValue(undefined),
   getAuth: vi.fn(),
@@ -53,9 +60,9 @@ describe("Token API Unit Tests", () => {
         headers: new Map(),
       },
       locals: {
-        user: { ...user, role: "admin-role" },
+        user: { ...user, role: "admin", isAdmin: true },
         tenantId: tenantId ?? "t1",
-        roles: [{ _id: "admin-role", name: "Administrator", isAdmin: true, permissions: [] }],
+        roles: [{ _id: "admin", name: "Administrator", isAdmin: true, permissions: [] }],
         dbAdapter: {
           auth: {
             getAllTokens: vi.fn().mockResolvedValue({ success: true, data: [] }),
@@ -68,7 +75,10 @@ describe("Token API Unit Tests", () => {
           media: {},
           widgets: {},
           system: {},
-          crud: {},
+          crud: {
+            findMany: vi.fn().mockResolvedValue({ success: true, data: [] }),
+            insert: vi.fn().mockResolvedValue({ success: true, data: { _id: "new-token" } }),
+          },
         },
       },
       cookies: { get: vi.fn(), set: vi.fn(), delete: vi.fn() },
@@ -93,7 +103,7 @@ describe("Token API Unit Tests", () => {
     const response = await dispatcher(event);
     const result = await response.json();
     expect(result.success).toBe(true);
-    expect(result.data.token).toBeDefined();
-    expect(result.data.token._id).toBe("new-token");
+    expect(result.token).toBeDefined();
+    expect(result.token.token).toMatch(/^[a-f0-9]{64}$/);
   });
 });

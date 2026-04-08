@@ -5,7 +5,7 @@
 
 import { logger } from "@src/utils/logger";
 import { testWorkerContext } from "@src/utils/test-worker-context";
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import type {
@@ -416,6 +416,13 @@ export class AdapterCore {
       if (column) {
         if (value === null || value === undefined) {
           conditions.push(isNull(column));
+        } else if (Array.isArray(value)) {
+          if (value.length > 0) {
+            conditions.push(inArray(column, value));
+          } else {
+            // An empty array in inArray() throws "Too few parameter values" in SQLite
+            conditions.push(sql`1 = 0`);
+          }
         } else {
           conditions.push(eq(column, value as string | number | boolean));
         }

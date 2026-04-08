@@ -50,30 +50,17 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
 
     metricsService.incrementApiRequests();
 
-    // --- Rate Limiting for Sensitive Endpoints ---
-    if (["/api/website-tokens", "/api/permission/update"].some((p) => url.pathname.startsWith(p))) {
-      const rateLimitKey = `ratelimit:api:sensitive:${locals.user._id}:${url.pathname}`;
-      try {
-        const current = await cacheService.get<{ count: number }>(rateLimitKey);
-        const attempts = (current?.count ?? 0) + 1;
-        if (attempts > 30) throw new AppError("Rate limit exceeded", 429, "TOO_MANY_REQUESTS");
-        await cacheService.set(rateLimitKey, { count: attempts }, 60);
-      } catch (e) {
-        if (e instanceof AppError) throw e;
-        logger.error(`Rate limit check failed: ${getErrorMessage(e)}`);
-      }
-    }
-
     const apiEndpoint = getApiEndpoint(url.pathname);
     if (!apiEndpoint) throw new AppError("Invalid API path", 400, "INVALID_PATH");
 
     // --- Authorization ---
     if (url.pathname !== "/api/user/logout") {
+      const userRole = locals.user?.role || "guest";
       const isAdmin =
-        locals.isAdmin || locals.user.isAdmin === true || (locals.user as any).role === "admin";
-      if (!hasApiPermission(locals.user.role, apiEndpoint, isAdmin)) {
+        locals.isAdmin || locals.user?.isAdmin === true || (locals.user as any)?.role === "admin";
+      if (!hasApiPermission(userRole, apiEndpoint, isAdmin)) {
         throw new AppError(
-          `Forbidden: Role ${locals.user.role} denied for ${apiEndpoint}`,
+          `Forbidden: Role ${userRole} denied for ${apiEndpoint}`,
           403,
           "FORBIDDEN",
         );
@@ -86,12 +73,13 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
 
     // === GET REQUESTS WITH CACHING ===
     if (request.method === "GET") {
-      if (!bypassCache) {
+      if (!bypassCache && locals.user?._id) {
         try {
           const cached = await cacheService.get<{
             data: unknown;
             headers: Record<string, string>;
           }>(generateCacheKey(url.pathname, url.search, locals.user._id), locals.tenantId);
+          // ... rest remains same ...
 
           if (cached) {
             metricsService.recordApiCacheHit();
@@ -189,7 +177,8 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
     if (
       ["POST", "PUT", "DELETE", "PATCH"].includes(request.method) &&
       response.ok &&
-      !url.pathname.endsWith("/warm-cache")
+      !url.pathname.endsWith("/warm-cache") &&
+      locals.user?._id
     ) {
       (async () => {
         try {

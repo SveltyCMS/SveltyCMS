@@ -17,7 +17,7 @@ tags:
 
 # Media API Reference
 
-The SveltyCMS Media API provides a robust, type-safe system for managing digital assets. It features a **3-Tier Processing Pipeline**: Secure Ingestion, AI Enrichment, and Dynamic Delivery.
+The SveltyCMS Media API provides a robust, type-safe system for managing digital assets. It features a **4-Tier Pipeline**: Secure Ingestion, Intelligent Storage (Deduplication), AI Enrichment, and Dynamic Delivery.
 
 ---
 
@@ -95,7 +95,7 @@ interface MediaItem {
 **Payload**: `{"url": "https://..."}`
 
 > [!IMPORTANT]
-> **SSRF Protection**: SveltyCMS uses a hardened gateway that blocks all non-public IP ranges (RFC 1918) and loopback addresses.
+> **SSRF & Loop Protection**: SveltyCMS uses a hardened gateway that blocks non-public IP ranges (RFC 1918). It also detects internal URLs to prevent infinite re-upload loops, resolving to existing items instead of fetching.
 
 ### C. Bulk Download
 
@@ -154,11 +154,29 @@ The Search API allows for granular asset discovery using the following criteria:
 
 ## 5. Security & Hardening
 
-SveltyCMS treats the Media Hub as a high-risk security vector. The following protections are mandatory:
+- **Path Resolution**: All filesystem requests are strictly sandboxed. Any path containing `..` or leading outside the `MEDIA_ROOT` is rejected.
+- **MIME Validation**: Every upload is inspected via our native **SlimSniffer** utility to determine the true file signature using Magic Bytes.
+- **Storage Deduplication**: Automated hash checking prevents redundant re-uploads of the same content, keeping the storage layer clean and performant.
+- **Remote Loop Prevention**: Hardened ingestion layer prevents the server from re-downloading files that are already hosted within the CMS environment.
+- **Command Injection**: Image processing (Sharp) and Video transcoding (FFmpeg) are executed in isolated processes with strict argument sanitization.
 
-- **Path Resolution**: All filesystem requests are strictly sandboxed. Any path containing `..` or leading outside the `MEDIA_ROOT` is rejected with `403 FORBIDDEN`.
-- **MIME Validation**: We do not trust the `Content-Type` header from the client. Every upload is inspected via our native **SlimSniffer** utility to determine the true file signature using Magic Bytes, without heavy third-party dependencies.
-- **Command Injection**: Image processing (via Sharp) and Video transcoding (via FFmpeg) are executed in isolated processes with strict argument sanitization.
+---
+
+## 6. Intelligent Storage Operations
+
+SveltyCMS includes an autonomous storage management tier designed for efficiency and isolation.
+
+### A. Hash-based Deduplication
+
+Every file upload undergoes a pre-storage hash check. If the content hash exists for the current tenant, the uploader is returned the existing `MediaItem`, skipping expensive cloud I/O and database growth.
+
+### B. Multi-Tenant URL Isolation
+
+To support multi-tenant environments without complex bucket management, use the `prefix` query parameter:
+
+**Endpoint**: `GET /files/[path]?prefix=[tenant-id]`
+
+This dynamically prepends the isolation prefix to the generated URLs and thumbnails, ensuring content is correctly scoped during delivery.
 
 ---
 

@@ -35,6 +35,12 @@ export class MediaModule {
     ): Promise<DatabaseResult<MediaItem[]>> =>
       this.adapter.crud.insertMany("media", files as any[], { tenantId }),
 
+    getByHash: async (
+      hash: string,
+      tenantId?: DatabaseId | null,
+    ): Promise<DatabaseResult<MediaItem | null>> =>
+      this.adapter.crud.findOne("media", { hash } as any, { tenantId }),
+
     restore: async (
       fileId: DatabaseId,
       tenantId?: DatabaseId | null,

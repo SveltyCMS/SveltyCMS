@@ -198,7 +198,11 @@ function toggleSidebar(): void {
 
 async function signOut(): Promise<void> {
 	try {
-		await fetch("/api/user/logout", { method: "POST" });
+		const csrfToken = page.data.csrfToken;
+		await fetch("/api/user/logout", {
+			method: "POST",
+			headers: csrfToken ? { "X-CSRF-Token": csrfToken } : {},
+		});
 	} catch (error) {
 		logger.error("Error during sign-out:", error);
 	} finally {

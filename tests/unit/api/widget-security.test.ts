@@ -20,9 +20,9 @@ vi.mock("@src/databases/db", () => ({
   dbAdapter: {
     system: {
       widgets: {
-        getActiveWidgets: vi.fn(),
-        activate: vi.fn(),
-        deactivate: vi.fn(),
+        getActiveWidgets: vi.fn().mockResolvedValue({ success: true, data: [] }),
+        activate: vi.fn().mockResolvedValue({ success: true }),
+        deactivate: vi.fn().mockResolvedValue({ success: true }),
       },
     },
   },
@@ -80,8 +80,8 @@ describe("Widget API Security - Tenant Isolation", () => {
       },
       locals: {
         dbAdapter: mockDbAdapter,
-        user: { _id: "u1", email: "admin@test.com", role: "admin-role" },
-        roles: [{ _id: "admin-role", name: "Administrator", isAdmin: true, permissions: [] }],
+        user: { _id: "u1", email: "admin@test.com", role: "admin", isAdmin: true },
+        roles: [{ _id: "admin", name: "Administrator", isAdmin: true, permissions: [] }],
         ...locals,
       },
       cookies: {

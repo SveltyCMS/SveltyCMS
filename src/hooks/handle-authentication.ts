@@ -301,6 +301,9 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
   const { locals, url, cookies } = event;
   const pathname = url.pathname;
 
+  // Initialize tenant context
+  locals.tenantId = null as any;
+
   if (isStaticOrInternalRequest(pathname)) return resolve(event);
 
   // Ensure DB is initialized before proceeding with auth checks
@@ -431,6 +434,8 @@ export function clearAllSessionCaches(): void {
   strongRefs.clear();
   lastRefreshAttempt.clear();
   lastRotationAttempt.clear();
+  multiTenantCached = null;
+  demoModeCached = null;
 }
 
 export function getSessionCacheStats() {

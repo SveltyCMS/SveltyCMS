@@ -131,6 +131,25 @@ export class CollectionModule {
   }
 
   async listSchemas(): Promise<DatabaseResult<Schema[]>> {
-    return this.core.notImplemented("listSchemas");
+    return this.core.wrap(async () => {
+      const client = this.core.getClient();
+      // SQLite-specific minimalist introspection
+      const query =
+        "SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'collection_%'";
+      const tables = (
+        client.query ? client.query(query).all() : client.prepare?.(query).all()
+      ) as any[];
+
+      return tables.map(
+        (t: any) =>
+          ({
+            _id: t.name.replace("collection_", ""),
+            name: t.name.replace("collection_", ""),
+            slug: t.name.replace("collection_", ""),
+            fields: [],
+            status: "publish",
+          }) as Schema,
+      );
+    }, "LIST_SCHEMAS_FAILED");
   }
 }

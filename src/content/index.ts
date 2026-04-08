@@ -276,11 +276,17 @@ export function useContent(): ContentContext {
   const context = getContext<ContentContext>(CONTENT_CONTEXT_KEY);
   return (
     context || {
+      get isReady() {
+        return contentSystem.isInitialized;
+      },
+      get collections() {
+        return contentSystem.collections;
+      },
+      get navigation() {
+        return contentSystem.navigation || [];
+      },
+      tenantId: null as any,
       content: contentSystem,
-      tenantId: null,
-      collections: contentStore.getAllCollections(null),
-      navigation: [],
-      isReady: contentStore.isInitialized,
     }
   );
 }

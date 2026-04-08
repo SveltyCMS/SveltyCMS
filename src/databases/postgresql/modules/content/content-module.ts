@@ -151,12 +151,22 @@ export class ContentModule {
       changes: Partial<ContentNode>,
     ): Promise<DatabaseResult<ContentNode>> => {
       return this.core.wrap(async () => {
+        // Explicitly map properties to avoid sending non-column props to Drizzle
+        const c = changes as any;
+        const updateData: any = {
+          updatedAt: isoDateStringToDate(nowISODateString()),
+        };
+        if (c.status !== undefined) updateData.status = c.status;
+        if (c.name !== undefined) updateData.name = c.name;
+        if (c.slug !== undefined) updateData.slug = c.slug;
+        if (c.icon !== undefined) updateData.icon = c.icon;
+        if (c.description !== undefined) updateData.description = c.description;
+        if (c.data !== undefined) updateData.data = c.data;
+        if (c.parentId !== undefined) updateData.parentId = c.parentId;
+
         const [updated] = await this.db
           .update(schema.contentNodes)
-          .set({
-            ...changes,
-            updatedAt: isoDateStringToDate(nowISODateString()),
-          } as any)
+          .set(updateData)
           .where(eq(schema.contentNodes.path, path))
           .returning();
         return utils.convertDatesToISO(updated) as unknown as ContentNode;

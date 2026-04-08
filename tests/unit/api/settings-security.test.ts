@@ -49,9 +49,9 @@ describe("Settings API Security Unit Tests", () => {
         headers: new Map(),
       },
       locals: {
-        user: { ...user, role: "admin-role" },
+        user: { ...user, role: "admin", isAdmin: true },
         tenantId: tenantId ?? "t1",
-        roles: [{ _id: "admin-role", name: "Administrator", isAdmin: true, permissions: [] }],
+        roles: [{ _id: "admin", name: "Administrator", isAdmin: true, permissions: [] }],
         dbAdapter: {
           system: { preferences: { getMany: vi.fn() } },
         },

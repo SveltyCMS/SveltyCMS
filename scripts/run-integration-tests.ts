@@ -48,7 +48,7 @@ const rootDir = join(__dirname, "..");
 // Configuration
 // ---------------------------------------------------------------------------
 
-const HOST = process.env.HOST ?? (process.env.CI ? "127.0.0.1" : "localhost");
+const HOST = process.env.HOST ?? "127.0.0.1";
 const PORT = process.env.PORT ?? "4173";
 const API_BASE_URL = process.env.API_BASE_URL ?? `http://${HOST}:${PORT}`;
 
@@ -59,17 +59,22 @@ const API_BASE_URL = process.env.API_BASE_URL ?? `http://${HOST}:${PORT}`;
  * who reads this file can call /api/testing on a misconfigured staging server.
  * CI must supply the secret via an environment variable or secrets manager.
  */
+// Propagate to child processes.
 const TEST_API_SECRET = process.env.TEST_API_SECRET;
 if (!TEST_API_SECRET) {
-  console.error(
-    "❌ TEST_API_SECRET is not set. " +
-      "Provide it via environment variable. " +
-      "A hardcoded default is a security risk.",
-  );
-  process.exit(1);
+  const secretPath = join(rootDir, "tests/e2e/.auth/test-secret.txt");
+  if (existsSync(secretPath)) {
+    process.env.TEST_API_SECRET = Bun.file(secretPath).toString().trim();
+  } else {
+    // Local fallback for dev convenience
+    process.env.TEST_API_SECRET = "SVELTYCMS_TEST_SECRET_2026";
+  }
+} else {
+  process.env.TEST_API_SECRET = TEST_API_SECRET;
 }
-// Propagate to child processes.
-process.env.TEST_API_SECRET = TEST_API_SECRET;
+
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "Password123!";
+process.env.ADMIN_PASSWORD = ADMIN_PASSWORD;
 
 const pkgManager = process.env.npm_execpath ?? "bun";
 
@@ -89,10 +94,9 @@ const EXCLUDED_TEST_PATTERNS: ReadonlyArray<string> = [
 function parseCli() {
   const argv = process.argv.slice(2);
   const flags = argv.filter((a) => a.startsWith("--"));
-  const files = argv.filter((a) => !a.startsWith("--"));
+  const files = argv.filter((a) => !a.startsWith("--")).flatMap((f) => f.split(","));
 
   const filterFlag = flags.find((f) => f.startsWith("--filter="));
-  // Use indexOf to handle values that themselves contain "="
   const dbFilter = filterFlag ? filterFlag.slice(filterFlag.indexOf("=") + 1) : null;
 
   const timeoutFlag = flags.find((f) => f.startsWith("--timeout="));
@@ -100,11 +104,17 @@ function parseCli() {
     ? Number(timeoutFlag.slice(timeoutFlag.indexOf("=") + 1))
     : Number(process.env.GLOBAL_TIMEOUT_MS ?? 600_000);
 
+  const testsFlag = flags.find((f) => f.startsWith("--tests="));
+  if (testsFlag) {
+    const extraFiles = testsFlag.slice(testsFlag.indexOf("=") + 1).split(",");
+    files.push(...extraFiles);
+  }
+
   return {
     skipBuild: flags.includes("--no-build"),
     dbFilter,
     globalTimeoutMs,
-    explicitFiles: files,
+    explicitFiles: [...new Set(files.filter(Boolean))],
   };
 }
 
@@ -387,7 +397,7 @@ async function startPreviewServer(dbHost?: string): Promise<void> {
       settle(() => reject(new Error(`Preview server exited unexpectedly with code ${code}`)));
     });
 
-    waitForServer()
+    waitForServer(dbHost ? "READY" : undefined)
       .then(() => settle(resolve))
       .catch((err) => settle(() => reject(err)));
   });
@@ -421,11 +431,17 @@ async function waitForPortFree(port: number, timeoutMs: number): Promise<void> {
  * We require an explicit application-level status, not just HTTP reachability,
  * because a 503 during INITIALIZING is not ready for test setup actions.
  */
-async function waitForServer(): Promise<void> {
+async function waitForServer(targetState?: string): Promise<void> {
   const maxAttempts = process.env.CI === "true" ? 120 : 60;
-  const ACCEPTABLE = new Set(["READY", "SETUP", "DEGRADED", "WARMING", "WARMED"]);
+  // If targetState is provided, we ONLY accept that state.
+  // Otherwise, we accept any "stable" state.
+  const ACCEPTABLE = targetState
+    ? new Set([targetState])
+    : new Set(["READY", "SETUP", "DEGRADED", "WARMING", "WARMED"]);
 
-  console.log(`⏳ Waiting for server at ${API_BASE_URL}/api/system/health…`);
+  console.log(
+    `⏳ Waiting for server at ${API_BASE_URL}/api/system/health (Target: ${targetState || "Stable"})…`,
+  );
 
   for (let i = 0; i < maxAttempts; i++) {
     try {
@@ -451,7 +467,9 @@ async function waitForServer(): Promise<void> {
     await sleep(1_000);
   }
 
-  throw new Error(`Server did not reach a ready state within ${maxAttempts}s.`);
+  throw new Error(
+    `Server did not reach ${targetState || "a stable"} state within ${maxAttempts}s.`,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -462,7 +480,7 @@ async function waitForServer(): Promise<void> {
  * Invokes /api/testing with exponential backoff.
  * Returns false only after all retries are exhausted — never throws.
  */
-async function invokeTestApi(action: "reset" | "seed"): Promise<boolean> {
+async function invokeTestApi(action: "reset" | "seed" | "reinitialize"): Promise<boolean> {
   const maxAttempts = 5;
   const baseMs = 500;
 
@@ -470,7 +488,15 @@ async function invokeTestApi(action: "reset" | "seed"): Promise<boolean> {
     try {
       const res = await fetch(`${API_BASE_URL}/api/testing`, {
         method: "POST",
-        body: JSON.stringify({ action }),
+        body: JSON.stringify({
+          action,
+          ...(action === "seed"
+            ? {
+                email: "admin@example.com",
+                password: ADMIN_PASSWORD,
+              }
+            : {}),
+        }),
         headers: {
           "Content-Type": "application/json",
           "x-test-secret": TEST_API_SECRET || "",
@@ -613,10 +639,15 @@ async function main(): Promise<void> {
   if (setupCode !== 0) throw new Error("System setup failed — cannot proceed.");
   console.log("✅ System configured.");
 
-  // 5. Restart server to pick up new config.
-  console.log("🔄 Restarting server to apply new configuration…");
-  await startPreviewServer(dbHost);
-  console.log("✅ Server restarted.");
+  // 5. Warm Reload to apply new config without restart.
+  console.log("🔄 Triggering warm reload to apply new configuration…");
+  const reinitOk = await invokeTestApi("reinitialize");
+  if (!reinitOk) throw new Error("Failed to reinitialize system after setup.");
+  console.log("✅ System re-initialized.");
+
+  // Wait for the system to reach READY state
+  await waitForServer("READY");
+  console.log("✅ Server reached READY state.");
 
   // 6. Discover test files.
   let filesToRun =

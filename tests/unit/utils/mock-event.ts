@@ -36,7 +36,7 @@ export function createMockRequestEvent(options: MockEventOptions = {}): RequestE
   const roles =
     "roles" in options
       ? options.roles
-      : [{ _id: "admin-role", name: "Administrator", isAdmin: true, permissions: [] }];
+      : [{ _id: "admin", name: "Administrator", isAdmin: true, permissions: [] }];
 
   // Default CSRF token for state-changing methods if not provided
   const isStateChanging = ["POST", "PUT", "PATCH", "DELETE"].includes(method);

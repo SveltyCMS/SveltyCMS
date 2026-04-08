@@ -53,11 +53,11 @@ describe("User API Unit Tests", () => {
         headers: new Map(),
       },
       locals: {
-        user: { ...user, role: "admin-role" },
+        user: { ...user, role: "admin", isAdmin: true },
         tenantId: tenantId ?? "t1",
         roles: [
           {
-            _id: "admin-role",
+            _id: "admin",
             name: "Administrator",
             isAdmin: true,
             permissions: ["user:read", "user:update", "api:user"],

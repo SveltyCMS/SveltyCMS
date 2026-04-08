@@ -96,7 +96,7 @@ export class AuthModule {
       }
 
       const values: typeof schema.authUsers.$inferInsert = {
-        email: userData.email || "",
+        email: (userData.email || "").toLowerCase(),
         username: userData.username || null,
         password: password || null,
         firstName: userData.firstName || null,
@@ -147,6 +147,11 @@ export class AuthModule {
         ...(rest as any),
         updatedAt: isoDateStringToDate(nowISODateString()),
       } as Record<string, unknown>;
+
+      // Normalize email if provided
+      if (updateData.email) {
+        updateData.email = (updateData.email as string).toLowerCase();
+      }
 
       // Map legacy role string to database columns
       if (userData.role) {
@@ -199,7 +204,8 @@ export class AuthModule {
     tenantId?: DatabaseId | null;
   }): Promise<DatabaseResult<User | null>> {
     return this.core.wrap(async () => {
-      const conditions = [eq(schema.authUsers.email, criteria.email)];
+      const email = criteria.email.toLowerCase();
+      const conditions = [sql`lower(${schema.authUsers.email}) = ${email}`];
       if (criteria.tenantId) {
         conditions.push(eq(schema.authUsers.tenantId, criteria.tenantId as string));
       }
@@ -611,7 +617,7 @@ export class AuthModule {
       await this.db.insert(schema.authTokens).values({
         _id: id,
         user_id: data.user_id as string,
-        email: data.email,
+        email: data.email.toLowerCase(),
         token: tokenValue,
         type: data.type,
         expires: new Date(data.expires),

@@ -183,26 +183,68 @@ export class CrudModule implements ICrudAdapter {
       });
   }
 
+  /**
+   * Prepares values for insert/update by separating fixed schema columns from dynamic data.
+   */
+  private prepareValues(table: any, data: any, id: DatabaseId, now: Date, options: any) {
+    const fixedColumns = ["_id", "tenantId", "status", "createdAt", "updatedAt", "data"];
+
+    // Ensure createdAt is a Date object if it was passed as an ISO string
+    let createdAt = data.createdAt || now;
+    if (typeof createdAt === "string") {
+      createdAt = new Date(createdAt);
+    }
+
+    const values: any = {
+      _id: id,
+      tenantId: options?.tenantId || data.tenantId || null,
+      status: data.status || "draft",
+      createdAt,
+      updatedAt: now,
+    };
+
+    // If it's a dynamic table, we MUST pack extra fields into 'data'
+    if (table.data) {
+      const extra: any = {};
+      for (const [k, v] of Object.entries(data)) {
+        if (!fixedColumns.includes(k)) {
+          extra[k] = v;
+        }
+      }
+      values.data = extra;
+    } else {
+      // Static table: keep fields as-is (Drizzle will filter them based on schema)
+      // Explicitly map properties to avoid typos from source object
+      if (data.name !== undefined) values.name = data.name;
+      if (data.description !== undefined) values.description = data.description;
+      if (data.permissions !== undefined) values.permissions = data.permissions;
+      if (data.isAdmin !== undefined) values.isAdmin = data.isAdmin;
+      if (data.icon !== undefined) values.icon = data.icon;
+      if (data.color !== undefined) values.color = data.color;
+
+      // Fallback for other fields if table is static but not one of our known ones
+      for (const [k, v] of Object.entries(data)) {
+        if (!fixedColumns.includes(k) && !Object.keys(values).includes(k)) {
+          values[k] = v;
+        }
+      }
+    }
+
+    return utils.convertISOToDates(values as Record<string, unknown>);
+  }
+
   async insert<T extends BaseEntity>(
     collection: string,
     data: EntityCreate<T>,
     options?: BaseQueryOptions,
   ): Promise<DatabaseResult<T>> {
-    const tenantId = options?.tenantId;
-
     const startTime = performance.now();
     return this.core
       .wrap(async () => {
         const table = this.core.getTable(collection);
         const id = (data as Partial<T>)._id || (utils.generateId() as DatabaseId);
         const now = new Date(nowISODateString());
-        const values = {
-          ...data,
-          _id: id,
-          tenantId: tenantId || (data as any).tenantId,
-          createdAt: now,
-          updatedAt: now,
-        };
+        const values = this.prepareValues(table, data, id, now, options || {});
 
         await this.db
           .insert(table as unknown as import("drizzle-orm/pg-core").PgTable)
@@ -245,7 +287,9 @@ export class CrudModule implements ICrudAdapter {
 
         const table = this.core.getTable(collection);
         const now = new Date(nowISODateString());
-        const updateData = { ...data, updatedAt: now };
+        const updateData = this.prepareValues(table, data, id, now, options || {});
+        // Remove _id from update payload
+        delete updateData._id;
 
         // 🚀 OPTIMIZATION: Use Prepared Statement for simple ID updates
         if (this.isSimpleIdQuery(secureQuery)) {
@@ -467,8 +511,6 @@ export class CrudModule implements ICrudAdapter {
     data: EntityCreate<T>[],
     options?: BaseQueryOptions,
   ): Promise<DatabaseResult<T[]>> {
-    const tenantId = options?.tenantId;
-
     const startTime = performance.now();
     return this.core
       .wrap(async () => {
@@ -477,13 +519,15 @@ export class CrudModule implements ICrudAdapter {
         }
         const table = this.core.getTable(collection);
         const now = new Date(nowISODateString());
-        const values = data.map((d) => ({
-          ...d,
-          _id: utils.generateId() as DatabaseId,
-          tenantId: tenantId || (d as any).tenantId,
-          createdAt: now,
-          updatedAt: now,
-        }));
+        const values = data.map((d) =>
+          this.prepareValues(
+            table,
+            d,
+            (d as any)._id || (utils.generateId() as DatabaseId),
+            now,
+            options || {},
+          ),
+        );
         await this.db
           .insert(table as unknown as import("drizzle-orm/pg-core").PgTable)
           .values(values as unknown as Record<string, unknown>[]);
@@ -520,9 +564,15 @@ export class CrudModule implements ICrudAdapter {
           | import("drizzle-orm").SQL
           | undefined;
         const now = new Date(nowISODateString());
+        // For updateMany, we don't have an ID, so we pass a dummy ID that will be ignored or we only map fields
+        const values = this.prepareValues(table, data, "" as DatabaseId, now, options || {});
+        // Remove _id from update payload
+        delete values._id;
+        delete values.createdAt; // Don't override createdAt on bulk update
+
         const result = await this.db
           .update(table as unknown as import("drizzle-orm/pg-core").PgTable)
-          .set({ ...data, updatedAt: now } as unknown as Record<string, unknown>)
+          .set(values as unknown as Record<string, unknown>)
           .where(where);
         return { modifiedCount: (result as any).rowCount };
       }, "CRUD_UPDATE_MANY_FAILED")

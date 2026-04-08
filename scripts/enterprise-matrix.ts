@@ -30,7 +30,13 @@ interface BenchmarkResult {
 }
 
 const ALL_DATABASES: DatabaseConfig[] = [
-  { type: "sqlite", port: 0, host: "./config/database", user: "", password: "" },
+  {
+    type: "sqlite",
+    port: 0,
+    host: "./config/database",
+    user: "",
+    password: "",
+  },
   {
     type: "sqlite",
     port: 0,
@@ -41,13 +47,25 @@ const ALL_DATABASES: DatabaseConfig[] = [
     label: "SQLITE+REDIS",
   },
   { type: "mongodb", port: 27017, host: "127.0.0.1", user: "", password: "" },
-  { type: "postgresql", port: 5432, host: "127.0.0.1", user: "postgres", password: "postgres" },
-  { type: "mariadb", port: 3306, host: "127.0.0.1", user: "mariadb", password: "password" },
+  {
+    type: "postgresql",
+    port: 5432,
+    host: "127.0.0.1",
+    user: "postgres",
+    password: "postgres",
+  },
+  {
+    type: "mariadb",
+    port: 3306,
+    host: "127.0.0.1",
+    user: "mariadb",
+    password: "password",
+  },
 ];
 
 const PORT = 4173;
 const DB_NAME = "SveltyCMS_test";
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "password123!";
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "Password123!";
 const TEST_API_SECRET = process.env.TEST_API_SECRET || randomBytes(32).toString("hex");
 const ROOT_RESULTS_DIR = path.join(process.cwd(), "tests/benchmarks/results");
 const HISTORY_FILE = path.join(process.cwd(), "tests/benchmarks/results/history.json");
@@ -56,32 +74,52 @@ const BENCHMARKS_DOC = path.join(process.cwd(), "docs/project/benchmarks.mdx");
 const BENCHMARK_SCRIPTS = [
   {
     path: "tests/benchmarks/rest-api-performance.test.ts",
-    label: "REST API",
-    desc: "Validates unified dispatcher overhead and JSON serialization latency.",
+    label: "REST API Performance",
+    shortLabel: "REST API",
+    desc: "Measures end-to-end throughput and latency of the unified REST dispatcher, including JSON serialization/deserialization overhead and collection listing under realistic load.",
   },
   {
     path: "tests/benchmarks/hooks-performance.test.ts",
-    label: "Hooks",
-    desc: "High-resolution micro-benchmarks for individual middleware layers (µs).",
+    label: "Middleware & Hooks Performance",
+    shortLabel: "Hooks",
+    desc: "High-resolution micro-benchmarks (in microseconds) for individual middleware layers: Turbo Pipeline, Authentication, Authorization, Security, and API Request handling.",
   },
   {
     path: "tests/benchmarks/graphql-api-performance.test.ts",
-    label: "GraphQL API",
-    desc: "Resolvers performance and N+1 relationship stress testing.",
+    label: "GraphQL API Performance",
+    shortLabel: "GraphQL",
+    desc: "Evaluates resolver execution time, N+1 query problem mitigation, and overall throughput for common queries (e.g., 'me' and system health).",
   },
   {
     path: "tests/benchmarks/relational-performance.test.ts",
-    label: "Relational",
-    desc: "JOINs, population, and nested relation performance (Depth 2-3).",
+    label: "Relational & Nested Queries Performance",
+    shortLabel: "Relational",
+    desc: "Stress-tests JOINs, population strategies, and deeply nested relationships (depth 2–3) via both REST search and GraphQL queries.",
+  },
+  {
+    path: "tests/benchmarks/widget-performance.test.ts",
+    label: "Core Widgets Overhead",
+    shortLabel: "Widgets",
+    desc: "Audits server-side processing cost of built-in widgets (Input, RichText, Relation) inside the modifyRequest pipeline to ensure near-zero overhead.",
   },
   {
     path: "tests/benchmarks/database-performance.test.ts",
-    label: "DB Adapter",
-    desc: "Raw CRUD latency for the current database adapter.",
+    label: "Database Adapter Raw CRUD",
+    shortLabel: "DB Adapter",
+    desc: "Direct low-level benchmarks of Create, Read, Update, Delete operations on the current database adapter (bypassing higher layers).",
   },
 ];
 
-const TARGET_DB_ORDER = ["sqlite", "sqlite+redis", "mongodb", "postgresql", "mariadb"];
+const TARGET_DB_ORDER = [
+  "sqlite",
+  "sqlite+redis",
+  "mongodb",
+  "mongodb+redis",
+  "postgresql",
+  "postgresql+redis",
+  "mariadb",
+  "mariadb+redis",
+];
 
 const log = {
   header: (msg: string) => console.log(`\n\x1b[1m\x1b[34m🏢 ${msg}\x1b[0m`),
@@ -104,7 +142,11 @@ function extractMetrics(metrics: any, dbType: string) {
     dbRaw: m[`matrix-${dbType}`]?.metrics?.read || 0,
     hooks: (m["hook-handleturbopipeline"]?.p95Ms || 0) / 1000,
     graphqlAvg: m["graphql-me"]?.avgMs || 0,
-    relationalAvg: m["relational-graphql-nested"]?.avgMs || 0,
+    relationalAvg:
+      m["relational-graphql-nested"]?.avgMs || m["relational-graphql-population"]?.avgMs || 0,
+    widgetInputAvg: m["widget-overhead-input"]?.avgMs || 0,
+    widgetRichTextAvg: m["widget-overhead-richtext"]?.avgMs || 0,
+    widgetRelationAvg: m["widget-overhead-relation"]?.avgMs || 0,
   };
 }
 
@@ -148,7 +190,9 @@ async function freePort(port: number) {
         { stdio: "ignore" },
       );
     } else {
-      execSync(`lsof -ti:${port},3001 | xargs kill -9 || true`, { stdio: "ignore" });
+      execSync(`lsof -ti:${port},3001 | xargs kill -9 || true`, {
+        stdio: "ignore",
+      });
     }
   } catch {}
 }
@@ -170,9 +214,7 @@ async function stopServer() {
   }
 }
 
-/**
- * Executes a command and captures output, only displaying it on failure.
- */
+// Executes a command and captures output, only displaying it on failure.
 function runTask(name: string, command: string, env: any) {
   process.stdout.write(`\x1b[36mℹ ${name}...\x1b[0m`);
   try {
@@ -193,9 +235,7 @@ function runTask(name: string, command: string, env: any) {
   }
 }
 
-/**
- * Self-healing DB creation helpers
- */
+// Self-healing DB creation helpers
 async function ensureDatabaseExists(db: DatabaseConfig) {
   if (db.type === "postgresql") {
     try {
@@ -320,8 +360,11 @@ async function startServer(db: DatabaseConfig): Promise<{ coldStartMs: number; v
             }
           }
 
-          if (healthy) resolve({ coldStartMs, version });
-          else reject(new Error("Server reached but health check failed (timeout)"));
+          if (healthy) {
+            // Give server an extra moment to settle internal caches and DB connections
+            await new Promise((r) => setTimeout(r, 5000));
+            resolve({ coldStartMs, version });
+          } else reject(new Error("Server reached but health check failed (timeout)"));
         }
       }
     });
@@ -383,16 +426,11 @@ async function generateFinalReport(results: BenchmarkResult[]) {
   let md = `## 📊 Enterprise Benchmark Matrix — ${new Date().toLocaleString()}\n\n`;
 
   md += `### 🧪 What We Tested\n\n`;
-  md += `- **REST API** — Measures E2E collection throughput and latency using REST API endpoints.\n`;
-  md += `   📍 \`tests/benchmarks/rest-api-performance.test.ts\`\n`;
-  md += `- **GraphQL API** — Measures resolver efficiency and N+1 relationship resolution.\n`;
-  md += `   📍 \`tests/benchmarks/graphql-api-performance.test.ts\`\n`;
-  md += `- **Relational** — JOINs, population, and nested relation performance (Depth 2-3).\n`;
-  md += `   📍 \`tests/benchmarks/relational-performance.test.ts\`\n`;
-  md += `- **Hooks** — Evaluates middleware and lifecycle hook overhead across various data operations.\n`;
-  md += `   📍 \`tests/benchmarks/hooks-performance.test.ts\`\n`;
-  md += `- **DB Adapter** — Benchmarks raw CRUD operations directly via the database adapter layer.\n`;
-  md += `   📍 \`tests/benchmarks/database-performance.test.ts\`\n\n`;
+  BENCHMARK_SCRIPTS.forEach((s) => {
+    md += `- **${s.label}** — ${s.desc}\n`;
+    md += `   📍 \`${s.path}\`\n`;
+  });
+  md += `\n`;
 
   md += `| Database | Cold Start | REST (p95) | GQL (avg) | Relational (avg) | Raw DB (read) | Status |\n`;
   md += `|----------|------------|------------|-----------|------------------|--------------|--------|\n`;
@@ -446,7 +484,7 @@ async function generateFinalReport(results: BenchmarkResult[]) {
     }
 
     const cold = curr.coldStartMs || 0;
-    md += `| **${dbConf.type.toUpperCase()}** | `;
+    md += `| **${(dbConf.label || dbConf.type).toUpperCase()}** | `;
     md += `${cold}ms ${coldTrend.icon} (${coldTrend.pct}) | `;
     md += `${latestMetrics[dbConf.type].collections.toFixed(2)}ms ${restTrend.icon} (${restTrend.pct}) | `;
     md += `${latestMetrics[dbConf.type].graphqlAvg.toFixed(2)}ms ${gqlTrend.icon} (${gqlTrend.pct}) | `;
@@ -464,8 +502,7 @@ async function generateFinalReport(results: BenchmarkResult[]) {
   md += `\`\`\`mermaid\nxychart-beta\n  title "Total Latency (ms) — REST + DB + Hooks"\n  x-axis "Run"\n  y-axis "Latency (ms)"\n  ["Run 1", "Run 2", "Run 3", "Run 4", "Run 5"]\n`;
 
   for (const dbConf of ALL_DATABASES) {
-    if (dbConf.useRedis) continue;
-    const key = `${dbConf.type}-memory`;
+    const key = `${dbConf.type}${dbConf.useRedis ? "-redis" : ""}-memory`;
     const hist = history.runs[key] || [];
     const points = hist
       .slice(0, 5)
@@ -475,7 +512,7 @@ async function generateFinalReport(results: BenchmarkResult[]) {
       })
       .reverse();
     if (points.length > 0) {
-      md += `  line "${dbConf.type.toUpperCase()}" : [${points.join(", ")}]\n`;
+      md += `  line "${(dbConf.label || dbConf.type).toUpperCase()}" : [${points.join(", ")}]\n`;
     }
   }
   md += `\`\`\`\n`;
@@ -484,65 +521,91 @@ async function generateFinalReport(results: BenchmarkResult[]) {
 
   // 1. REST API
   md += `### 📡 REST API PERFORMANCE MATRIX (LATENCY ANALYTICS)\n`;
-  md += `> **Why it matters**: Validates the overhead of the unified dispatcher and JSON serialization. Direct memory calls in SveltyCMS aim for sub-1ms overhead.\n`;
+  md += `> **Business Value**: Ensures the public API stays fast for end users and scales well under production load.\n`;
   md += `> **Test File**: [\`tests/benchmarks/rest-api-performance.test.ts\`](file:///tests/benchmarks/rest-api-performance.test.ts)\n\n`;
-  md += `| Database | Avg Latency | p95 Latency | Throughput (RPS) |\n`;
+  md += `| Adapter Variant | Avg Latency | p95 Latency | Throughput (RPS) |\n`;
   md += `|----------|-------------|-------------|------------------|\n`;
   for (const db of ALL_DATABASES) {
-    const key = `${db.type}-memory`;
+    const key = `${db.type}${db.useRedis ? "-redis" : ""}-memory`;
     const hist = history.runs[key] || [];
-    const curr = results.find((r) => r.db === db.type) || hist[0];
+    const curr =
+      results.find((r) => r.db === `${db.type}${db.useRedis ? "-redis" : ""}`) || hist[0];
     const m = curr?.metrics?.["rest-collections-list"];
     if (m)
-      md += `| ${db.type.toUpperCase()} | ${m.avgMs.toFixed(2)}ms | ${m.p95Ms.toFixed(2)}ms | ${m.rps.toFixed(0)} |\n`;
+      md += `| ${(db.label || db.type).toUpperCase()} | ${m.avgMs.toFixed(2)}ms | ${m.p95Ms.toFixed(2)}ms | ${m.rps.toFixed(0)} |\n`;
   }
   md += `\n`;
 
   // 2. GraphQL
   md += `### 🗃️ GRAPHQL RESOLVER PERFORMANCE MATRIX (BOTTLENECK ANALYSIS)\n`;
-  md += `> **Why it matters**: Tests resolver efficiency and N+1 relationship resolution. Professional benchmarks ensure deep queries don't block the event loop.\n`;
+  md += `> **Business Value**: Validates that complex data relationships can be queried efficiently without blocking the event loop.\n`;
   md += `> **Test File**: [\`tests/benchmarks/graphql-api-performance.test.ts\`](file:///tests/benchmarks/graphql-api-performance.test.ts)\n\n`;
-  md += `| Database | Me Query (avg) | Health (avg) | Throughput (RPS) |\n`;
+  md += `| Adapter Variant | Me Query (avg) | Health (avg) | Throughput (RPS) |\n`;
   md += `|----------|----------------|--------------|------------------|\n`;
   for (const db of ALL_DATABASES) {
-    const key = `${db.type}-memory`;
+    const key = `${db.type}${db.useRedis ? "-redis" : ""}-memory`;
     const hist = history.runs[key] || [];
-    const curr = results.find((r) => r.db === db.type) || hist[0];
+    const curr =
+      results.find((r) => r.db === `${db.type}${db.useRedis ? "-redis" : ""}`) || hist[0];
     if (curr?.metrics) {
       const me = curr.metrics["graphql-me"]?.avgMs || 0;
       const health = curr.metrics["graphql-system-health"]?.avgMs || 0;
       const rps = curr.metrics["graphql-me"]?.rps || 0;
       if (me > 0)
-        md += `| ${db.type.toUpperCase()} | ${me.toFixed(2)}ms | ${health.toFixed(2)}ms | ${rps.toFixed(0)} |\n`;
+        md += `| ${(db.label || db.type).toUpperCase()} | ${me.toFixed(2)}ms | ${health.toFixed(2)}ms | ${rps.toFixed(0)} |\n`;
     }
   }
   md += `\n`;
 
   // 2.5 Relational Queries
   md += `### 🔗 RELATIONAL PERFORMANCE MATRIX (JOIN & POPULATION)\n`;
-  md += `> **Why it matters**: Validates the efficiency of JOINs, populations, and nested relationship resolution (Depth 2-3). Essential for complex data structures.\n`;
+  md += `> **Business Value**: Essential for complex applications; stress-tests deep nesting and cross-collection data integrity.\n`;
   md += `> **Test File**: [\`tests/benchmarks/relational-performance.test.ts\`](file:///tests/benchmarks/relational-performance.test.ts)\n\n`;
-  md += `| Database | GQL Nested (Depth 2) | REST Search (Aggregated) | Throughput (RPS) |\n`;
+  md += `| Adapter Variant | GQL Nested (Depth 2) | REST Search (Aggregated) | Throughput (RPS) |\n`;
   md += `|----------|-----------------------|--------------------------|------------------|\n`;
   for (const db of ALL_DATABASES) {
-    const key = `${db.type}-memory`;
+    const key = `${db.type}${db.useRedis ? "-redis" : ""}-memory`;
     const hist = history.runs[key] || [];
-    const curr = results.find((r) => r.db === db.type) || hist[0];
+    const curr =
+      results.find((r) => r.db === `${db.type}${db.useRedis ? "-redis" : ""}`) || hist[0];
     if (curr?.metrics) {
       const nested = curr.metrics["relational-graphql-nested"]?.avgMs || 0;
       const search = curr.metrics["relational-rest-search"]?.avgMs || 0;
       const rps = curr.metrics["relational-graphql-nested"]?.rps || 0;
       if (nested > 0)
-        md += `| ${db.type.toUpperCase()} | ${nested.toFixed(2)}ms | ${search.toFixed(2)}ms | ${rps.toFixed(0)} |\n`;
+        md += `| ${(db.label || db.type).toUpperCase()} | ${nested.toFixed(2)}ms | ${search.toFixed(2)}ms | ${rps.toFixed(0)} |\n`;
+    }
+  }
+  md += `\n`;
+
+  // 2.6 Widget Overhead
+  md += `### 🧩 WIDGET PERFORMANCE OVERHEAD MATRIX\n`;
+  md += `> **Business Value**: Ensures that custom UI components don't introduce performance bottlenecks in the core data pipeline.\n`;
+  md += `> **Test File**: [\`tests/benchmarks/widget-performance.test.ts\`](file:///tests/benchmarks/widget-performance.test.ts)\n\n`;
+  md += `| Adapter Variant | Input (avg) | RichText (avg) | Relation (avg) | Status |\n`;
+  md += `|----------|-------------|----------------|----------------|--------|\n`;
+  for (const db of ALL_DATABASES) {
+    const key = `${db.type}${db.useRedis ? "-redis" : ""}-memory`;
+    const hist = history.runs[key] || [];
+    const curr =
+      results.find((r) => r.db === `${db.type}${db.useRedis ? "-redis" : ""}`) || hist[0];
+    if (curr?.metrics) {
+      const input = curr.metrics["widget-overhead-input"]?.avgMs || 0;
+      const richtext = curr.metrics["widget-overhead-richtext"]?.avgMs || 0;
+      const relation = curr.metrics["widget-overhead-relation"]?.avgMs || 0;
+      if (input > 0) {
+        const status = input < 5 ? "✅ PASS" : "⚠️ WARN";
+        md += `| ${(db.label || db.type).toUpperCase()} | ${input.toFixed(2)}ms | ${richtext.toFixed(2)}ms | ${relation.toFixed(2)}ms | ${status} |\n`;
+      }
     }
   }
   md += `\n`;
 
   // 3. Middleware
   md += `### 🏁 MIDDLWARE PERFORMANCE MATRIX\n`;
-  md += `> **Why it matters**: SveltyCMS middleware handles Security, Auth, and Multi-tenancy. This matrix ensures these layers add negligible overhead.\n`;
+  md += `> **Business Value**: Guarantees that security and multi-tenancy layers add negligible overhead to every request.\n`;
   md += `> **Test File**: [\`tests/benchmarks/hooks-performance.test.ts\`](file:///tests/benchmarks/hooks-performance.test.ts)\n\n`;
-  md += `| Hook | Database | Avg (µs) | p95 (µs) | p99 (µs) | Efficiency |\n`;
+  md += `| Hook | Adapter Variant | Avg (µs) | p95 (µs) | p99 (µs) | Efficiency |\n`;
   md += `|------|----------|----------|----------|----------|------------|\n`;
 
   const targetHooks = [
@@ -556,10 +619,10 @@ async function generateFinalReport(results: BenchmarkResult[]) {
   for (const hook of targetHooks) {
     let first = true;
     for (const dbConf of ALL_DATABASES) {
-      if (dbConf.useRedis) continue; // Skip redis for the primary middleware table
-      const key = `${dbConf.type}-memory`;
+      const key = `${dbConf.type}${dbConf.useRedis ? "-redis" : ""}-memory`;
       const hist = history.runs[key] || [];
-      const curr = results.find((r) => r.db === dbConf.type) || hist[0];
+      const curr =
+        results.find((r) => r.db === `${dbConf.type}${dbConf.useRedis ? "-redis" : ""}`) || hist[0];
       const m = curr?.metrics?.[`hook-${hook}`];
 
       if (m) {
@@ -567,7 +630,7 @@ async function generateFinalReport(results: BenchmarkResult[]) {
         const p95 = (m.p95Ms * 1000).toFixed(2);
         const p99 = (m.p99Ms * 1000).toFixed(2);
         const icon = Number(avg) < 5 ? "🚀" : "⚡";
-        md += `| ${first ? `**${hook}**` : "---"} | ${dbConf.type.toUpperCase()} | ${avg} | ${p95} | ${p99} | ${icon} |\n`;
+        md += `| ${first ? `**${hook}**` : "---"} | ${(dbConf.label || dbConf.type).toUpperCase()} | ${avg} | ${p95} | ${p99} | ${icon} |\n`;
         first = false;
       }
     }
@@ -614,8 +677,8 @@ async function generateFinalReport(results: BenchmarkResult[]) {
   md += `\n`;
 
   md += `\n### 📖 Benchmark Glossary\n\n`;
-  md += `| Test Label | File Path | Description |\n`;
-  md += `|------------|-----------|-------------|\n`;
+  md += `| Test | File Path | Business Value |\n`;
+  md += `|------|-----------|------------------|\n`;
   for (const s of BENCHMARK_SCRIPTS) {
     md += `| **${s.label}** | \`${s.path}\` | ${s.desc} |\n`;
   }
@@ -759,7 +822,13 @@ async function main() {
       }
 
       const resultDBName = db.useRedis ? `${db.type}-redis` : db.type;
-      results.push({ db: resultDBName, status: "SUCCESS", coldStartMs, version, metrics });
+      results.push({
+        db: resultDBName,
+        status: "SUCCESS",
+        coldStartMs,
+        version,
+        metrics,
+      });
     } catch (e: any) {
       log.error(`${db.label || db.type} suite failed: ${e.message}`);
       const resultDBName = db.useRedis ? `${db.type}-redis` : db.type;

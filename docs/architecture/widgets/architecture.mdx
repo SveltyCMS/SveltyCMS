@@ -203,9 +203,17 @@ CREATE TABLE widgets (
 
 ---
 
-## 🚀 Performance Optimizations
+### 🚀 Performance Optimizations
 
 1.  **Code Splitting**: Custom and Marketplace widgets are lazy-loaded chunks.
 2.  **LRU Caching**: Widget instances are cached to avoid factory overhead.
 3.  **Memory Management**: Unused widget components are garbage collected when not in view.
 4.  **Batch Loading**: The `modifyRequestBatch` API allows widgets to aggregate data fetching (e.g., Relation widgets fetching multiple IDs in one query).
+
+### 🛡️ The 3-Pillar Performance Shield
+
+Our 3-pillar architecture is designed to protect the CMS core from performance degradation caused by custom or third-party widgets:
+
+- **UI Isolation**: The **Input** and **Display** pillars are strictly client-side. A heavy UI component may slow down the browser, but it cannot block the SvelteKit server or API.
+- **Hook Profiling**: The **Definition** pillar (index.ts) contains all server-side logic (`modifyRequest`, `aggregations`). Because these are isolated into a standard interface, SveltyCMS can profile the execution time of each widget's hook.
+- **Fail-Safe Dispatching**: If a custom widget's server-side logic exceeds a defined latency threshold (e.g., 50ms), the system can log a performance violation or trigger a "Fast-Path" fallback to protect the rest of the API request.

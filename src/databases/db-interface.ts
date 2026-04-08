@@ -667,6 +667,10 @@ export interface IMediaAdapter {
       file: EntityCreate<MediaItem>,
       tenantId?: DatabaseId | null,
     ): Promise<DatabaseResult<MediaItem>>;
+    getByHash(
+      hash: string,
+      tenantId?: DatabaseId | null,
+    ): Promise<DatabaseResult<MediaItem | null>>;
     uploadMany(
       files: EntityCreate<MediaItem>[],
       tenantId?: DatabaseId | null,
@@ -681,12 +685,12 @@ export interface IMediaAdapter {
       folderId?: DatabaseId,
       options?: PaginationOptions,
       recursive?: boolean,
-      tenantId?: DatabaseId | null | null,
+      tenantId?: DatabaseId | null,
     ): Promise<DatabaseResult<PaginatedResult<MediaItem>>>;
     search(
       query: string,
       options?: PaginationOptions,
-      tenantId?: DatabaseId | null | null,
+      tenantId?: DatabaseId | null,
     ): Promise<DatabaseResult<PaginatedResult<MediaItem>>>;
     getMetadata(
       fileIds: DatabaseId[],

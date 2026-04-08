@@ -13,7 +13,7 @@ const API_BASE_URL = getApiBaseUrl();
 const TEST_API_SECRET =
   process.env.TEST_API_SECRET ||
   (globalThis as any).process?.env?.TEST_API_SECRET ||
-  "enterprise-audit-2026";
+  "SVELTYCMS_TEST_SECRET_2026";
 
 if (!TEST_API_SECRET) {
   console.warn("⚠️ [TestSetup] TEST_API_SECRET is not defined in the environment!");
@@ -26,38 +26,38 @@ export const testFixtures = {
   users: {
     admin: {
       email: "admin@example.com",
-      password: "Admin123!",
+      password: "Password123!",
       username: "admin",
       role: "admin",
     },
     developer: {
       email: "developer@test.com",
-      password: "Admin123!",
+      password: "Password123!",
       username: "developer",
       role: "developer",
     },
     editor: {
       email: "editor@test.com",
-      password: "Admin123!",
+      password: "Password123!",
       username: "editor",
       role: "editor",
     },
   },
   adminUser: {
     email: "admin@example.com",
-    password: "Admin123!",
+    password: "Password123!",
     username: "admin",
     role: "admin",
   },
   developerUser: {
     email: "developer@test.com",
-    password: "Admin123!",
+    password: "Password123!",
     username: "developer",
     role: "developer",
   },
   editorUser: {
     email: "editor@test.com",
-    password: "Admin123!",
+    password: "Password123!",
     username: "editor",
     role: "editor",
   },
@@ -139,8 +139,13 @@ export async function prepareAuthenticatedContext(): Promise<string> {
     throw new Error("No session cookie returned");
   }
 
-  // Return the cookie string (often includes more than just the session ID)
-  return setCookie;
+  // Extract only the 'name=value' part, ignoring Path, HttpOnly, etc.
+  const cookieMatch = setCookie.match(/^([^;]+)/);
+  if (!cookieMatch) {
+    throw new Error(`Failed to parse session cookie: ${setCookie}`);
+  }
+
+  return cookieMatch[1];
 }
 
 /**

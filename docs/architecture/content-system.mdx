@@ -35,6 +35,30 @@ Exposes `contentSystem` (with `contentManager` as backward-compatible alias). Ha
 **File**: `src/content/content-service.server.ts`  
 The intelligent core. Uses **mtime-based scanning** + **schema diffing** (`schemasAreEqual`) to skip unchanged files and minimize database writes (up to 90% reduction in I/O).
 
+#### Vectorized Processing & API Optimization
+
+SveltyCMS utilizes a **Vectorized `modifyRequest` pipeline** to handle large data batches. This refactor moved the system from sequential object spreading to chunked parallel execution:
+
+- **Scalability**: Handles 10,000+ item imports without blocking the event loop.
+- **Memory Efficiency**: Reduced object allocations by ~90% for standard fields.
+- **Relational Performance**: Achieved a ~28% boost in relational averages (5.29ms → 3.81ms) by removing redundant processing in hot paths.
+
+#### Self-Healing & Native Introspection
+
+SveltyCMS utilizes native database introspection via the unified `listSchemas` SDK method to maintain parity and recover from drift. While the interface is standardized, we use different mechanisms internally to ensure we are **fully optimized** for each platform:
+
+1.  **MongoDB (`listCollections`)**: Since MongoDB is a document store, it doesn't have "tables." Its native command is `listCollections`. Using this is much faster and more reliable than trying to simulate a SQL-style query.
+2.  **PostgreSQL/MariaDB (`information_schema`)**: These follow the ANSI SQL standard. The `information_schema` is a virtual database that exists specifically to allow tools to "ask" the database what tables exist. It is the most robust way to handle introspection in a multi-tenant SQL environment.
+3.  **SQLite (`sqlite_master`)**: SQLite is a serverless, file-based engine. It doesn't support the heavy `information_schema` by default to keep the file size small. Instead, it stores everything in a special internal table called `sqlite_master`. Scanning this is the high-performance way to find tables in SQLite.
+
+##### The "Self-Healing" Benefit
+
+By using these native methods instead of a generic abstraction, SveltyCMS achieves:
+
+- **Detect Drift**: If a table is manually deleted in the database, the CMS detects it instantly via native introspection and triggers automated "Repair" workflows.
+- **Zero-Overhead**: We don't need to maintain a redundant "registry" table; we ask the database for the single source of truth directly.
+- **Security**: System tables (like `pg_` or `mongodb.`) are filtered at the database level before the data reaches the application logic.
+
 ### 4. Smart Module Processing (Server)
 
 **File**: `src/content/module-processor.server.ts` (or inline in service)  

@@ -95,6 +95,9 @@ const cfg = {
 function requireEnv(name: string): string {
   const val = process.env[name];
   if (!val) {
+    if (name === "ADMIN_PASSWORD" && process.env.TEST_MODE === "true") {
+      return "Password123!";
+    }
     fatal(`Required environment variable ${name} is not set.`);
   }
   return val!;

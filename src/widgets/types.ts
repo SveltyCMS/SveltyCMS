@@ -63,7 +63,7 @@ export interface WidgetDefinition<
       contentLanguage: string;
     }) => Promise<Record<string, number>>;
   };
-  Description?: string;
+  Description?: string | (() => string);
 
   // Default values for widget-specific props
   defaults?: Partial<TProps>;
@@ -104,6 +104,8 @@ export interface WidgetDefinition<
     tenantId?: string | null;
     type: string;
     user: User;
+    skipValidation?: boolean;
+    action?: string;
   }) => Promise<unknown> | unknown;
 
   /** Optional batch request modification handler */
@@ -115,6 +117,8 @@ export interface WidgetDefinition<
     tenantId?: string | null;
     type: string;
     user: User;
+    skipValidation?: boolean;
+    action?: string;
   }) => Promise<Record<string, unknown>[]>;
 
   /** Optional function to return widget-specific translatable paths. */

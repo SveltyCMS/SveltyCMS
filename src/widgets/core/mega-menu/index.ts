@@ -35,7 +35,7 @@ const MEGA_MENU_VALIDATION_SCHEMA = array(MENU_ITEM_SCHEMA);
 const MegaMenuWidget = createWidget({
   Name: "MegaMenu",
   Icon: "mdi:menu",
-  Description: widget_megaMenu_description(),
+  Description: widget_megaMenu_description,
 
   // Define paths to the dedicated Svelte components.
   inputComponent: () => import("./input.svelte"),

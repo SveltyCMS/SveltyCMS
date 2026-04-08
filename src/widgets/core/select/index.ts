@@ -30,7 +30,7 @@ const validationSchema = (field: FieldInstance & SelectProps) => {
 const SelectWidget = createWidget<SelectProps>({
   Name: "Select",
   Icon: "mdi:form-select",
-  Description: widget_radio_description(), // Reusing radio description for now
+  Description: widget_radio_description, // Reusing radio description for now
 
   // Define paths to the dedicated Svelte components.
   inputComponent: () => import("./input.svelte"),

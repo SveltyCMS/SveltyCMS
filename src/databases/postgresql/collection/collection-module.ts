@@ -45,8 +45,8 @@ export class CollectionModule implements ICollectionAdapter {
   }
 
   async createModel(schema: Schema, force?: boolean): Promise<void> {
-    const name = schema.name || "unnamed_collection";
-    const tableName = name.startsWith("collection_") ? name : `collection_${name}`;
+    const id = schema._id || schema.name || "unnamed";
+    const tableName = id.startsWith("collection_") ? id : `collection_${id}`;
 
     logger.info(`PostgreSQL createModel: Creating table "${tableName}"...`);
 

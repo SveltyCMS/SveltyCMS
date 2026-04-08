@@ -3,34 +3,28 @@
  * @description Helper functions for server interaction in integration tests.
  */
 
-/**
- * Base URL constant for tests (alias for getApiBaseUrl for compatibility)
- */
-export const BASE_URL = process.env.API_BASE_URL || "http://localhost:4173";
+// Base URL constant for tests (alias for getApiBaseUrl for compatibility)
+export const BASE_URL = process.env.API_BASE_URL || "http://127.0.0.1:4173";
 
-/**
- * Returns the API base URL from environment or default.
- */
+// Returns the API base URL from environment or default.
 export function getApiBaseUrl(): string {
-  return process.env.API_BASE_URL || "http://localhost:4173";
+  return process.env.API_BASE_URL || "http://127.0.0.1:4173";
 }
 
-/**
- * Pings the server health endpoint to ensure it's ready.
- */
+// Pings the server health endpoint to ensure it's ready.
 export async function checkServer(): Promise<boolean> {
   const url = `${getApiBaseUrl()}/api/system/health`;
   try {
-    const response = await fetch(url);
-    return response.status === 200;
+    const response = await fetch(url, { signal: AbortSignal.timeout(2000) });
+    if (response.status !== 200) return false;
+    const data = await response.json();
+    return data?.overallStatus === "READY";
   } catch {
     return false;
   }
 }
 
-/**
- * Waits for the server to become healthy with a timeout.
- */
+// Waits for the server to become healthy with a timeout.
 export async function waitForServer(timeoutMs = 60_000): Promise<void> {
   const start = Date.now();
   const baseUrl = getApiBaseUrl();

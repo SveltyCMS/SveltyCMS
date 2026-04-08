@@ -72,9 +72,8 @@ export async function handleCollectionsRoutes(
       const includeStats = url.searchParams.get("includeStats") === "true";
       const result = await cms.collections.list({ tenantId, includeFields, includeStats });
 
-      return url.searchParams.get("raw") === "true"
-        ? rawResponse(event, result)
-        : successResponse(event, result);
+      if (url.searchParams.get("raw") === "true") return rawResponse(event, result);
+      return successResponse(event, result);
     }
 
     if (entryId) {

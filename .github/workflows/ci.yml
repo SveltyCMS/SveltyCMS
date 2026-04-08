@@ -14,7 +14,7 @@ on:
       - "docs/**"
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -27,17 +27,14 @@ env:
 
 jobs:
   # ------------------------------------------------
-  # 1. Bootstrap
+  # 1. Bootstrap (fast, produces artifacts)
   # ------------------------------------------------
-
   bootstrap:
     name: 🏁 Bootstrap
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-
+    timeout-minutes: 8
     outputs:
       pw-version: ${{ steps.pw.outputs.version }}
-
     steps:
       - uses: actions/checkout@v6
         with:
@@ -48,6 +45,7 @@ jobs:
           bun-version: latest
 
       - uses: actions/cache@v5
+        id: cache-bun
         with:
           path: |
             .bun-cache
@@ -58,7 +56,8 @@ jobs:
 
       - run: mkdir -p ${{ env.BUN_CACHE_DIR }}
 
-      - run: bun install --frozen-lockfile --prefer-offline --cache-dir ${{ env.BUN_CACHE_DIR }}
+      - name: Install dependencies
+        run: bun install --frozen-lockfile --prefer-offline --cache-dir ${{ env.BUN_CACHE_DIR }}
 
       - name: Verify Codegen
         run: |
@@ -81,115 +80,67 @@ jobs:
             src/paraglide
             .svelte-kit
             tests/e2e/.auth/test-secret.txt
+          retention-days: 1
 
   # ------------------------------------------------
-  # 2. Quality gates
+  # 2. Quality gates (parallel)
   # ------------------------------------------------
-
   lint:
     name: 🔎 Lint
     needs: bootstrap
     runs-on: ubuntu-latest
-
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
-
       - uses: actions/download-artifact@v7
-        with:
-          name: workspace-meta
-
+        with: { name: workspace-meta }
       - uses: actions/cache@v5
         with:
           path: |
             .bun-cache
             ~/.bun/install/cache
           key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
-
       - run: bun install --frozen-lockfile --prefer-offline --cache-dir .bun-cache
       - run: bun run lint
 
-  #  check:
-  #    name: ✅ Check
-  #    needs: bootstrap
-  #    runs-on: ubuntu-latest
-  #
-  #    steps:
-  #      - uses: actions/checkout@v6
-  #      - uses: oven-sh/setup-bun@v2
-  #
-  #      - uses: actions/download-artifact@v7
-  #        with:
-  #          name: workspace-meta
-  #
-  #      - uses: actions/cache@v5
-  #        with:
-  #          path: |
-  #            .bun-cache
-  #            ~/.bun/install/cache
-  #          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
-  #
-  #      - run: bun install --frozen-lockfile --prefer-offline --cache-dir .bun-cache
-  #      - run: bun run check
-
-  # ------------------------------------------------
-  # 3. Build (moved up to support db-tests/e2e)
-  # ------------------------------------------------
-
-  build:
-    name: 🏗️ Build
+  check:
+    name: ✅ Type Check
     needs: bootstrap
     runs-on: ubuntu-latest
-
+    timeout-minutes: 6
     steps:
       - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
-
       - uses: actions/download-artifact@v7
-        with:
-          name: workspace-meta
-
+        with: { name: workspace-meta }
       - uses: actions/cache@v5
         with:
           path: |
             .bun-cache
             ~/.bun/install/cache
           key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
-
       - run: bun install --frozen-lockfile --prefer-offline --cache-dir .bun-cache
-      - run: bun run build
-
-      - uses: actions/upload-artifact@v7
-        with:
-          name: build-output
-          include-hidden-files: true
-          path: |
-            .svelte-kit/output
-            build
+      - run: bun run check
 
   unit-vitest:
     name: ⚡ Unit (Vitest)
     needs: bootstrap
     runs-on: ubuntu-latest
-
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
-
       - uses: actions/download-artifact@v7
-        with:
-          name: workspace-meta
-
+        with: { name: workspace-meta }
       - uses: actions/cache@v5
         with:
           path: |
             .bun-cache
             ~/.bun/install/cache
           key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
-
       - run: bun install --frozen-lockfile --prefer-offline --cache-dir .bun-cache
       - run: bun run test:unit
-
       - uses: codecov/codecov-action@v4
         if: success()
         with:
@@ -200,25 +151,20 @@ jobs:
     name: ⚡ Unit (Bun)
     needs: bootstrap
     runs-on: ubuntu-latest
-
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
-
       - uses: actions/download-artifact@v7
-        with:
-          name: workspace-meta
-
+        with: { name: workspace-meta }
       - uses: actions/cache@v5
         with:
           path: |
             .bun-cache
             ~/.bun/install/cache
           key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
-
       - run: bun install --frozen-lockfile --prefer-offline --cache-dir .bun-cache
       - run: bun run test:unit:bun
-
       - uses: codecov/codecov-action@v4
         if: success()
         with:
@@ -226,21 +172,50 @@ jobs:
           flags: bun
 
   # ------------------------------------------------
-  # 4. Database Matrix Tests
+  # 3. Build (supports db-tests + e2e)
   # ------------------------------------------------
+  build:
+    name: 🏗️ Build
+    needs: bootstrap
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: oven-sh/setup-bun@v2
+      - uses: actions/download-artifact@v7
+        with: { name: workspace-meta }
+      - uses: actions/cache@v5
+        with:
+          path: |
+            .bun-cache
+            ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+      - run: bun install --frozen-lockfile --prefer-offline --cache-dir .bun-cache
+      - run: bun run build
+      - uses: actions/upload-artifact@v7
+        with:
+          name: build-output
+          include-hidden-files: true
+          path: |
+            .svelte-kit/output
+            build
+          retention-days: 1
 
+  # ------------------------------------------------
+  # 4. Database Matrix Tests (with health checks)
+  # ------------------------------------------------
   db-tests:
     name: 🧪 DB (${{ matrix.db }})
     needs: build
     runs-on: ubuntu-latest
-
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
         db: [sqlite, mongodb, mariadb, postgresql]
         include:
           - db: sqlite
-            image: alpine # Dummy image
+            image: alpine # dummy
           - db: mongodb
             image: mongo:7
             port: 27017
@@ -250,7 +225,6 @@ jobs:
           - db: postgresql
             image: postgres:16
             port: 5432
-
     services:
       db:
         image: ${{ matrix.image }}
@@ -266,34 +240,33 @@ jobs:
           POSTGRES_DB: ${{ matrix.db == 'postgresql' && 'sveltycms_test' || '' }}
           MONGO_INITDB_ROOT_USERNAME: ${{ matrix.db == 'mongodb' && 'testuser' || '' }}
           MONGO_INITDB_ROOT_PASSWORD: ${{ matrix.db == 'mongodb' && 'testpass' || '' }}
+        options: >-
+          --health-cmd ${{ matrix.db == 'postgresql' && 'pg_isready -U testuser' || 
+                         matrix.db == 'mariadb' && 'mariadb-admin ping' || 
+                         matrix.db == 'mongodb' && 'mongosh --eval "db.runCommand({ping:1})"' || 
+                         'echo healthy' }}
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
-
       - uses: actions/download-artifact@v7
-        with:
-          name: workspace-meta
-
+        with: { name: workspace-meta }
       - uses: actions/download-artifact@v7
-        with:
-          name: build-output
-
+        with: { name: build-output }
       - uses: actions/cache@v5
         with:
           path: |
             .bun-cache
             ~/.bun/install/cache
           key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
-
       - run: bun install --frozen-lockfile --prefer-offline --cache-dir .bun-cache
 
       - name: Wait for DB
         if: matrix.db != 'sqlite'
-        run: |
-          # Use curl polling for DB readiness if possible, or wait-on for TCP
-          bun x wait-on tcp:127.0.0.1:${{ matrix.port }} --timeout 120000
-          sleep 15
+        run: bun x wait-on tcp:127.0.0.1:${{ matrix.port }} --timeout 60000
 
       - name: Run Integration Tests
         env:
@@ -303,12 +276,11 @@ jobs:
           DB_NAME: sveltycms_test
           DB_USER: ${{ matrix.db == 'sqlite' && '' || 'testuser' }}
           DB_PASSWORD: ${{ matrix.db == 'sqlite' && '' || 'testpass' }}
+          ADMIN_PASSWORD: Password123!
           TEST_MODE: true
-          SUPPRESS_JEST_WARNINGS: true
         run: |
           if [ -f tests/e2e/.auth/test-secret.txt ]; then
             export TEST_API_SECRET=$(cat tests/e2e/.auth/test-secret.txt)
-            echo "Using pre-generated TEST_API_SECRET"
           fi
           bun run scripts/run-integration-tests.ts --filter=${{ matrix.db }}
 
@@ -316,19 +288,18 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: preview-log-${{ matrix.db }}
+          name: db-log-${{ matrix.db }}
           path: preview.log
+          retention-days: 7
 
   # ------------------------------------------------
-  # 5. E2E tests (playwright shard)
+  # 5. E2E tests (Playwright sharded)
   # ------------------------------------------------
-
   e2e:
     name: 🎭 E2E (${{ matrix.name }})
     needs: [bootstrap, build]
     runs-on: ubuntu-latest
     timeout-minutes: 20
-
     strategy:
       fail-fast: false
       matrix:
@@ -341,57 +312,42 @@ jobs:
             name: "Content"
           - shard: 4
             name: "System"
-
     steps:
       - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
-
       - uses: actions/download-artifact@v7
-        with:
-          name: workspace-meta
-
+        with: { name: workspace-meta }
       - uses: actions/download-artifact@v7
-        with:
-          name: build-output
-
+        with: { name: build-output }
       - uses: actions/cache@v5
         with:
           path: |
             .bun-cache
             ~/.bun/install/cache
           key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
-
       - uses: actions/cache@v5
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ needs.bootstrap.outputs.pw-version }}
-          restore-keys: |
-            playwright-${{ runner.os }}-
+          restore-keys: playwright-${{ runner.os }}-
 
       - run: bun install --frozen-lockfile --prefer-offline --cache-dir .bun-cache
-
       - run: bun x playwright install --with-deps chromium
 
-      - name: Run E2E tests (Playwright sharded)
+      - name: Run E2E tests
         env:
           DB_TYPE: sqlite
           TEST_MODE: true
+          ADMIN_PASSWORD: Password123!
           PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:4173
         run: |
-          # Read the pre-generated secret for both server and Playwright
           export TEST_API_SECRET=$(cat tests/e2e/.auth/test-secret.txt)
-          echo "Using pre-generated TEST_API_SECRET"
-
-          # Start server in background
           bun run preview --port 4173 --host 127.0.0.1 > preview.log 2>&1 &
-
-          # Wait for server health using curl
-          for i in {1..60}; do curl -s http://127.0.0.1:4173/api/system/health && break || sleep 1; done
-
-          # Run system setup via API
+          # Better waiting (health + setup)
+          for i in {1..90}; do
+            curl -s http://127.0.0.1:4173/api/system/health && break || sleep 1
+          done
           bun run scripts/setup-system.ts
-
-          # Run Playwright tests with sharding
           bun x playwright test --project=chromium --shard=${{ matrix.shard }}/4
 
       - uses: actions/upload-artifact@v7
@@ -399,16 +355,16 @@ jobs:
         with:
           name: playwright-report-${{ matrix.name }}
           path: playwright-report
+          retention-days: 14
 
   # ------------------------------------------------
-  # 6. Performance Benchmarks
+  # 6. Benchmarks (runs after db-tests)
   # ------------------------------------------------
-
   benchmarks:
     name: 📊 Benchmarks (${{ matrix.db }})
     needs: [db-tests]
     runs-on: ubuntu-latest
-
+    if: github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'run-benchmarks')
     strategy:
       fail-fast: false
       matrix:
