@@ -1,12 +1,12 @@
 ---
 path: "docs/tests/store-test-coverage.mdx"
 title: "Store Test Coverage"
-description: "Comprehensive test coverage documentation for SvelteCMS store management"
+description: "Comprehensive test coverage documentation for SveltyCMS store management"
 order: 8
 icon: "mdi:database"
 author: "SveltyCMS Team"
 created: "2025-11-09"
-updated: "2026-04-03"
+updated: "2026-04-09"
 tags:
   - "testing"
   - "stores"
@@ -19,13 +19,13 @@ tags:
 
 ## Executive Summary
 
-**Total Suite:** ~670 highly performant unit tests (consolidated)
-**Test Files:** 4 core store files
+**Total Suite:** 668 highly performant unit tests (consolidated)
+**Total Store Tests:** 79 tests across 5 core files
 **Coverage:** 100% Logic Coverage (Svelte 5 Runes)
 **Status:** ✅ All tests passing
-**Framework:** Vitest 3.0 (Vite 7) + Svelte 5 Runes
+**Framework:** Vitest 4.1.3 (Vite 7) + Svelte 5 Runes
 
-This document provides comprehensive test coverage information for SvelteCMS state management stores, focusing on fine-grained reactivity and Fail-Closed state integrity.
+This document provides comprehensive test coverage information for SveltyCMS state management stores, focusing on fine-grained reactivity and Fail-Closed state integrity.
 
 ---
 
@@ -37,6 +37,7 @@ SveltyCMS leverages **Svelte 5 runes** (`$state`, `$derived`, `$effect`) for dee
 - **Loading states** - Prevent UI flashes with intelligent loading tracking
 - **Screen responsiveness** - Detect breakpoints and device types
 - **Setup wizard** - Multi-step configuration flow
+- **Notification integrity** - Toast delivery and auto-removal validation
 - **Fail-Closed State**: Ensures that any invalid state transition results in a secure, stable system posture.
 
 ---
@@ -45,7 +46,7 @@ SveltyCMS leverages **Svelte 5 runes** (`$state`, `$derived`, `$effect`) for dee
 
 ### 1. System Store (`tests/unit/stores/system.test.ts`)
 
-**Tests:** 18 | **Status:** ✅ Passing
+**Tests:** 17 | **Status:** ✅ Passing
 
 #### Service Health Management
 
@@ -54,15 +55,9 @@ SveltyCMS leverages **Svelte 5 runes** (`$state`, `$derived`, `$effect`) for dee
 - ✅ Transitions to READY when all services healthy
 - ✅ Transitions to FAILED when critical services down
 
-**System States:**
-
-```typescript
-type SystemState = "IDLE" | "INITIALIZING" | "READY" | "DEGRADED" | "FAILED";
-```
-
 ### 2. Loading Store (`tests/unit/stores/loading-store.test.ts`)
 
-**Tests:** 22 | **Status:** ✅ Passing (Simplified Logic)
+**Tests:** 22 | **Status:** ✅ Passing
 
 #### Key Operations
 
@@ -81,6 +76,28 @@ type SystemState = "IDLE" | "INITIALIZING" | "READY" | "DEGRADED" | "FAILED";
 - ✅ Device-specific mock testing (iPhone, iPad, MacBook, 4K)
 - ✅ Zero-width and boundary condition handling
 
+### 4. Setup Store (`tests/unit/stores/setup-store.test.ts`)
+
+**Tests:** 5 | **Status:** ✅ Passing
+
+#### Configuration Flow
+
+- ✅ Multi-step wizard initialization
+- ✅ Database configuration validation (MongoDB, SQL)
+- ✅ Admin user creation validation
+- ✅ Password matching and strength checks
+
+### 5. Toast Store (`tests/unit/stores/toast.test.ts`)
+
+**Tests:** 9 | **Status:** ✅ Passing
+
+#### Notification Lifecycle
+
+- ✅ Flash message persistence across sessions
+- ✅ Auto-removal after duration timeout
+- ✅ Maximum toast limit enforcement (non-persistent removal)
+- ✅ Manual close and pause/resume logic
+
 ---
 
 ## Running Store Tests
@@ -89,28 +106,34 @@ type SystemState = "IDLE" | "INITIALIZING" | "READY" | "DEGRADED" | "FAILED";
 
 ```bash
 # Run all store tests
-bun run test:unit -- stores
+bun run vitest run tests/unit/stores
 
 # Run specific store tests
-bun run test:unit -- stores/system
-bun run test:unit -- stores/loading-store
+bun run vitest run tests/unit/stores/system
+bun run vitest run tests/unit/stores/loading-store
 ```
 
 ---
 
 ## Store Architecture Patterns (Svelte 5)
 
-All stores have been migrated to Svelte 5 runes to enable fine-grained reactivity and remove legacy store overhead:
+All stores use Svelte 5 runes to enable fine-grained reactivity and remove legacy store overhead:
 
 ```typescript
-// Svelte 5 State Rune
+// Svelte 5 State Rune (Single Source of Truth)
 export const systemState = $state({
   overallState: "IDLE" as SystemState,
   services: {} as Record<string, ServiceStatus>,
 });
 
-// Svelte 5 Derived Rune (Computed)
+// Svelte 5 Derived Rune (Reactive Computation)
 export const isSystemReady = $derived(systemState.overallState === "READY");
+
+// Svelte 5 Export Pattern
+export const systemStore = {
+  get state() { return systemState; },
+  set state(val) { /* controlled updates */ }
+};
 ```
 
 ---
@@ -121,13 +144,13 @@ export const isSystemReady = $derived(systemState.overallState === "READY");
 
 Verifies pure logic, state transitions, and reactive computations without a full browser environment.
 
-### Component Tests (Vitest + JSDOM)
+### Component Tests (Vitest + Browser)
 
-Verifies how components react to store changes in a simulated DOM.
+Verifies how components react to store changes in a real browser environment using Playwright/Vitest Browser.
 
 ### E2E Tests (Playwright)
 
-Verifies state persistence and UI reflections in real user workflows.
+Verifies state persistence and UI reflections in real user workflows across multiple tenants.
 
 ---
 
