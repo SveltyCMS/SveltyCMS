@@ -131,8 +131,12 @@ export const isSystemReady = $derived(systemState.overallState === "READY");
 
 // Svelte 5 Export Pattern
 export const systemStore = {
-  get state() { return systemState; },
-  set state(val) { /* controlled updates */ }
+  get state() {
+    return systemState;
+  },
+  set state(val) {
+    /* controlled updates */
+  },
 };
 ```
 

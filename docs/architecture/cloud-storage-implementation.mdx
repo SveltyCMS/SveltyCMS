@@ -160,8 +160,8 @@ if (isCloudStorage())
     cloudUrl = getCloudUrl('avatars/image.avif')
     // Returns: https://cdn.example.com/cms-media/avatars/image.avif
     ↓
-    return new Response(null, { 
-      status: 307, 
+    return new Response(null, {
+      status: 307,
       location: cloudUrl,
       headers: { 'ETag': metadata.etag }
     })

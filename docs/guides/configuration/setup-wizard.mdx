@@ -472,7 +472,7 @@ async function clickNext(page: Page) {
   const nextButton = page.getByLabel("Next", { exact: true });
   await expect(nextButton).toBeEnabled();
   await nextButton.click({ force: true });
-  await page.waitForTimeout(1000); 
+  await page.waitForTimeout(1000);
 }
 
 test("Setup Wizard: Configure DB and Create Admin", async ({ page }) => {
@@ -481,9 +481,9 @@ test("Setup Wizard: Configure DB and Create Admin", async ({ page }) => {
   // 1. Start at root, expect redirect to /setup
   await page.goto("/");
   await expect(page).toHaveURL(/\/setup/);
-  
+
   // Wait for hydration and modals
-  await page.waitForTimeout(5000); 
+  await page.waitForTimeout(5000);
 
   // Dismiss cookie consent if present
   const cookieAcceptBtn = page.getByRole("button", { name: /accept all/i });
@@ -492,10 +492,13 @@ test("Setup Wizard: Configure DB and Create Admin", async ({ page }) => {
   }
 
   // Handle "Welcome" popup (Skeleton v4 portal detection)
-  const welcomeModal = page.locator('#welcome-heading').first();
+  const welcomeModal = page.locator("#welcome-heading").first();
   if (await welcomeModal.isVisible({ timeout: 3000 }).catch(() => false)) {
-    const getStartedBtn = page.locator('button').filter({ hasText: /get started/i }).first();
-    await getStartedBtn.click({ force: true }); 
+    const getStartedBtn = page
+      .locator("button")
+      .filter({ hasText: /get started/i })
+      .first();
+    await getStartedBtn.click({ force: true });
   }
 
   // --- STEP 1: Database ---

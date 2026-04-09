@@ -128,9 +128,9 @@ SveltyCMS has been optimized to remove legacy dependencies, replacing them with 
 SveltyCMS employs several advanced techniques to ensure the Media Hub scales to hundreds of thousands of assets:
 
 - **Trigram GIN Indexes (PostgreSQL)**: The `media_items` table utilizes GIN-based trigram indexes on the `filename` and `originalFilename` fields. This enables high-performance, case-insensitive partial searches (e.g., searching for "logo" within a filename), achieving O(log n) complexity instead of full table scans.
-- **Unified ETag Caching**: The `/files/[...path]` route implements a unified ETag strategy. 
-    - **Local Storage**: Generates stable ETags based on file `mtimeMs` and `size`.
-    - **Cloud Storage**: Prefetches asset ETags (from S3/R2 metadata) to support **304 Not Modified** responses, avoiding redundant 307 redirects and saving client-side round-trips.
+- **Unified ETag Caching**: The `/files/[...path]` route implements a unified ETag strategy.
+  - **Local Storage**: Generates stable ETags based on file `mtimeMs` and `size`.
+  - **Cloud Storage**: Prefetches asset ETags (from S3/R2 metadata) to support **304 Not Modified** responses, avoiding redundant 307 redirects and saving client-side round-trips.
 - **Incremental Settings Reload**: System-wide media settings changes (like switching from Local to S3) are applied instantly via optimized `reinitializeSystem` logic, which reloads specific database settings without a destructive system reset.
 
 ---

@@ -3,25 +3,37 @@
  * @description Tiptap Editor Configuration with dynamic imports for SSR compatibility.
  */
 
+import type { Editor } from "@tiptap/core";
+
+export interface CollaborationOptions {
+  doc: any; // Y.Doc
+  field: string;
+  awareness?: any; // Yjs Awareness
+  user?: { name: string; color: string; [key: string]: any };
+}
+
+export interface CreateEditorOptions {
+  aiEnabled?: boolean;
+  collaboration?: CollaborationOptions;
+  /** Additional custom extensions */
+  extensions?: any[];
+  /** Extra editor props */
+  editorProps?: any;
+}
+
 /**
  * Creates a pre-configured Tiptap editor instance.
- * @param element The HTML element to bind the editor to.
- * @param content The initial HTML content for the editor.
- * @param language The current language code (e.g., 'en', 'ar') for text direction.
- * @param options Additional options for the editor.
  */
 export async function createEditor(
   element: HTMLElement,
   content: string,
-  language: string,
-  options: {
-    aiEnabled?: boolean;
-    collaboration?: { doc: any; field: string };
-  } = {},
-) {
+  language: string = "en",
+  options: CreateEditorOptions = {},
+): Promise<Editor> {
   // Dynamically import all Tiptap modules only when needed (client-side)
   const [
     { Editor, Extension },
+    { StarterKit },
     { CharacterCount },
     { Color },
     { FontFamily },
@@ -34,13 +46,14 @@ export async function createEditor(
     { TextAlign },
     { Underline },
     { Youtube },
-    { StarterKit },
     { getTextDirection },
     { ImageResize },
     { TextStyleExtension: TextStyle },
     { Collaboration },
+    { CollaborationCursor },
   ] = await Promise.all([
     import("@tiptap/core"),
+    import("@tiptap/starter-kit"),
     import("@tiptap/extension-character-count"),
     import("@tiptap/extension-color"),
     import("@tiptap/extension-font-family"),
@@ -53,26 +66,30 @@ export async function createEditor(
     import("@tiptap/extension-text-align"),
     import("@tiptap/extension-underline"),
     import("@tiptap/extension-youtube"),
-    import("@tiptap/starter-kit"),
     import("@utils/utils"),
     import("./extensions/image-resize"),
     import("./extensions/text-style"),
     import("@tiptap/extension-collaboration"),
+    import("@tiptap/extension-collaboration-cursor"),
   ]);
 
-  const extensions = [
+  const extensions: any[] = [
     StarterKit.configure({
       link: false,
       underline: false,
       history: !options.collaboration, // Collaboration extension handles history internally
     }),
-    TextStyle, // Custom extension for font-size
+    TextStyle,
     FontFamily,
     Color,
-    ImageResize, // Custom Image extension
+    ImageResize,
     Underline,
     Link.configure({
       openOnClick: false,
+      HTMLAttributes: {
+        target: "_blank",
+        rel: "noopener noreferrer",
+      },
     }),
     Placeholder.configure({
       placeholder: ({ node }: any) => {
@@ -93,13 +110,12 @@ export async function createEditor(
     TextAlign.configure({
       types: ["heading", "paragraph", "image"],
       alignments: ["left", "center", "right", "justify"],
-      defaultAlignment:
-        language === "ar" || language === "he" || language === "fa" ? "right" : "left",
+      defaultAlignment: ["ar", "he", "fa"].includes(language) ? "right" : "left",
     }),
     Youtube.configure({
       modestBranding: true,
       HTMLAttributes: {
-        class: "w-full aspect-video",
+        class: "w-full aspect-video rounded-lg",
       },
     }),
     CharacterCount,
@@ -121,18 +137,35 @@ export async function createEditor(
         field: options.collaboration.field,
       }),
     );
+
+    if (options.collaboration.awareness) {
+      extensions.push(
+        CollaborationCursor.configure({
+          awareness: options.collaboration.awareness,
+          user: options.collaboration.user || { name: "Anonymous", color: "#3b82f6" },
+        }),
+      );
+    }
   }
 
-  // All extensions are now configured here.
+  // Inject additional custom extensions if provided
+  if (options.extensions?.length) {
+    extensions.push(...options.extensions);
+  }
+
   return new Editor({
     element,
     extensions,
-    content: options.collaboration ? undefined : content, // Yjs provides content if collab is on
+    content: options.collaboration ? undefined : content,
     editorProps: {
       attributes: {
-        class: "prose dark:prose-invert max-w-none focus:outline-none",
-        dir: getTextDirection(language), // Set text direction dynamically
+        class: "prose dark:prose-invert max-w-none focus:outline-none min-h-[200px]",
+        dir: getTextDirection(language),
+        spellcheck: "true",
       },
+      ...options.editorProps,
     },
+    // Performance: reduce unnecessary re-renders during high-concurrency sync
+    shouldRerenderOnTransaction: false,
   });
 }

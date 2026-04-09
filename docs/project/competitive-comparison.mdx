@@ -42,9 +42,9 @@ SveltyCMS is designed for developers who prioritize performance, security, and a
 | **Media Upload**         | **0.12 ms** (async/background)    | 100–350 ms                     | 120–400 ms                         | 150–500 ms               | N/A                 |
 | **Cold Start**           | **~1.03 s** (Ready state)         | Variable (Next.js)             | ~5 s                               | ~8 s                     | Very fast (<300 ms) |
 | **Bundle Size (Brotli)** | **~842 KB** (smallest)            | 3–5 MB+                        | Medium/Large                       | Largest                  | <300–500 KB         |
-| **Auth Latency**         | **< 0.5 ms** (3-layer cache)      | Not specified                  | Not highlighted                    | Not highlighted          | Fast (GitHub OAuth) |
-| **Real-time / Sync**     | **Sub-100 ms** (SSE + Yjs)        | Good (with config)             | Supports WebSockets                | Limited                  | N/A (Git-based)     |
-| **Edge / Local SDK**     | **Native** (locals.cms injection) | Strong in Next.js              | Not native                         | Not native               | N/A                 |
+| Auth Latency             | **< 0.5 ms** (3-layer cache)      | Not specified                  | Not highlighted                    | Not highlighted          | Fast (GitHub OAuth) |
+| Real-time / Sync         | **Sub-10 ms** (WebSocket/Yjs)     | Good (with config)             | Supports WebSockets                | Limited                  | N/A (Git-based)     |
+| Edge / Local SDK         | **Native** (locals.cms injection) | Strong in Next.js              | Not native                         | Not native               | N/A                 |
 
 > [!SOURCE]
 > Data comes from documented benchmarks (verified April 2026), public competitor claims, community reports, and independent comparisons. SveltyCMS shines in Svelte-native compiled paths, zero-VDOM, and local SDK injection.

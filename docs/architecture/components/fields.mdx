@@ -65,15 +65,70 @@ flowchart TB
 
 ### Component Roles
 
-| Component              | Path                                                         | Role                                                 |
-| ---------------------- | ------------------------------------------------------------ | ---------------------------------------------------- |
-| **header-edit**        | `src/components/header-edit.svelte`                          | Mobile save/cancel/delete actions, validation gating |
-| **right-sidebar**      | `src/components/right-sidebar.svelte`                        | Desktop save/status/scheduling actions               |
-| **fields**             | `src/components/collectionDisplay/fields.svelte`             | Dynamic field rendering, validation                  |
-| **widget-loader**      | `src/components/collectionDisplay/widget-loader.svelte`      | Async widget loading with error handling             |
-| **translation-status** | `src/components/collectionDisplay/translation-status.svelte` | Translation progress per language                    |
-| **TokenPicker**        | `src/components/TokenPicker.svelte`                          | Dynamic token insertion for fields                   |
-| **Revisions**          | (within fields)                                              | Historical snapshots with revert capability          |
+| Component              | Path                                                          | Role                                                 |
+| ---------------------- | ------------------------------------------------------------- | ---------------------------------------------------- |
+| **header-edit**        | `src/components/header-edit.svelte`                           | Mobile save/cancel/delete actions, validation gating |
+| **right-sidebar**      | `src/components/right-sidebar.svelte`                         | Desktop save/status/scheduling actions               |
+| **fields**             | `src/components/collection-display/fields.svelte`             | Dynamic field rendering, validation                  |
+| **widget-loader**      | `src/components/collection-display/widget-loader.svelte`      | Async widget loading with error handling             |
+| **translation-status** | `src/components/collection-display/translation-status.svelte` | Translation progress per language                    |
+| **TokenPicker**        | `src/components/TokenPicker.svelte`                           | Dynamic token insertion for fields                   |
+| **Revisions**          | (within fields)                                               | Historical snapshots with revert capability          |
+
+---
+
+## 👥 Collaborative Editing (Phase 2 - Yjs Integration)
+
+SveltyCMS implements real-time collaborative editing using **Yjs CRDTs**. This ensures that multiple users can edit the same entry simultaneously without data loss or conflicts.
+
+### Collaborative Architecture
+
+The collaborative system uses a **Single Source of Truth (SSoT)** model during the editing session, synchronized via a WebSocket provider (e.g., Hocuspocus).
+
+```mermaid
+flowchart TB
+    subgraph Clients["Concurrent Editors"]
+        C1[User A]
+        C2[User B]
+    end
+
+    subgraph Sync["Synchronization Layer"]
+        P[Yjs Provider<br/>WebSocket/Hocuspocus]
+        YD[Y.Doc<br/>Shared Document State]
+        AW[Awareness<br/>Cursors/Presence]
+    end
+
+    subgraph CMS["SveltyCMS Core"]
+        F[fields Component]
+        CV[collectionValue Store]
+        DB[(Database)]
+    end
+
+    C1 <--> P
+    C2 <--> P
+    P <--> YD
+    YD <--> AW
+    YD --"Reconciles"--> F
+    F --"Updates"--> CV
+    CV --"Saves (Debounced)"--> DB
+```
+
+### Key Components of Collaboration
+
+| Feature            | Implementation | Description                                                                                                    |
+| :----------------- | :------------- | :------------------------------------------------------------------------------------------------------------- |
+| **Shared State**   | `Y.Doc`        | A Conflict-free Replicated Data Type (CRDT) document that holds all entry fields.                              |
+| **Presence**       | `Awareness`    | Tracks remote cursors, active users, and field-level focus highlights.                                         |
+| **Sync Provider**  | `Hocuspocus`   | The recommended enterprise WebSocket provider for synchronizing Yjs docs with the server.                      |
+| **Widget Binding** | `y-svelte`     | Widgets bind their inputs directly to the `Y.Doc` sub-types (e.g., `Y.Text` for inputs, `Y.Xml` for RichText). |
+
+### Data Flow for Real-time Sync
+
+1. **Initialization**: When an entry is opened, `fields.svelte` initializes a `Y.Doc` and connects to the provider.
+2. **Local Change**: A user types in a widget. The widget updates its corresponding sub-type in the `Y.Doc`.
+3. **Propagation**: Yjs automatically propagates the delta to all other connected clients and the server.
+4. **Reconciliation**: `fields.svelte` watches the `Y.Doc` for changes and updates the global `collectionValue` store to maintain compatibility with non-collaborative parts of the system (like Save actions).
+5. **Awareness**: Remote cursors are rendered using absolute positioning relative to the field containers, providing visual feedback of where others are working.
 
 ---
 

@@ -136,9 +136,9 @@ async updateStatus(widgetName, status) {
 
 ---
 
-## 🔄 Data Flow & Lifecycle diagrams
+### 🔄 Data Flow & Lifecycle diagrams
 
-### Widget Lifecycle
+#### Widget Lifecycle
 
 ```mermaid
 sequencer
@@ -156,26 +156,30 @@ sequencer
     WS->>DB: Persist changes
 ```
 
-### Multilingual Data Flow
+#### Collaborative & Multilingual Data Flow
 
-SveltyCMS uses a dual-language system (`systemLanguage` for UI, `contentLanguage` for data).
+Widgets in SveltyCMS must support both multilingual contexts and real-time collaborative editing via Yjs.
 
 ```mermaid
 sequenceDiagram
     participant User
     participant Input as Input Component
+    participant YJS as Y.Doc (Shared State)
     participant Store as app Singleton
-    participant Widget as Widget Logic
     participant DB as Database
 
+    Note over User, YJS: Collaborative Sync
+    User->>Input: Edit text/value
+    Input->>YJS: Update Y.Map/Y.Text
+    YJS-->>Input: Remote delta (User B)
+    Input->>User: Render remote cursor & text
+
+    Note over User, DB: Multilingual Flow
     User->>Store: Switch language (en → de)
     Store->>Input: Language change notification
-    Input->>Widget: Access value[_language]
-    Widget-->>Input: "Guten Tag" (German value)
-
-    User->>Input: Edit text
-    Input->>Widget: updateValue({...value, de: "Neuer Text"})
-    Widget->>DB: Save multilingual object
+    Input->>YJS: Switch active sub-map (de)
+    YJS-->>Input: "Guten Tag"
+    Input->>DB: Debounced Save (via fields.svelte)
 ```
 
 ---
