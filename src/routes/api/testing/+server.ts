@@ -361,11 +361,27 @@ export async function POST(event: RequestEvent) {
           console.warn("[API/Testing] Non-fatal error clearing session caches:", e);
         }
 
-        // 3. Invalidate setup cache
+        // 3. Delete private.test.ts to force back to SETUP mode
+        try {
+          const fs = await import("node:fs");
+          const path = await import("node:path");
+          const isTestMode = process.env.TEST_MODE === "true";
+          const configFileName = isTestMode ? "private.test.ts" : "private.ts";
+          const privateConfigPath = path.join(process.cwd(), "config", configFileName);
+
+          if (fs.existsSync(privateConfigPath)) {
+            fs.unlinkSync(privateConfigPath);
+            console.log(`[API/Testing] Deleted ${configFileName} during hard-reset.`);
+          }
+        } catch (e) {
+          console.warn("[API/Testing] Non-fatal error deleting config file:", e);
+        }
+
+        // 4. Invalidate setup cache
         const { invalidateSetupCache } = await import("@src/utils/setup-check");
         invalidateSetupCache(true, false);
 
-        // 4. Wipe uploaded media files
+        // 5. Wipe uploaded media files
         try {
           const { getPublicSetting } = await import("@src/services/settings-service");
           const fs = await import("node:fs");
@@ -386,13 +402,13 @@ export async function POST(event: RequestEvent) {
           console.warn("[API/Testing] Non-fatal error clearing media:", e);
         }
 
-        // 5. Explicitly RE-SEED basic system state if needed to avoid 503s
-        // (Don't delete private.test.ts - we want to stay "WARM")
+        // 6. Explicitly RE-SEED basic system state if needed to avoid 503s
+        // (Stay COOL - we want to be UNINITIALIZED but ready)
         const { reinitializeSystem, getDbInitPromise } = await import("@src/databases/db");
         await reinitializeSystem(true);
         await getDbInitPromise();
 
-        console.log("[API/Testing] Warm hard-reset completed.");
+        console.log("[API/Testing] Cold hard-reset completed.");
 
         return json({
           success: true,

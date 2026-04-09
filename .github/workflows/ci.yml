@@ -453,7 +453,7 @@ jobs:
           DB_PASSWORD: ${{ matrix.db == 'sqlite' && '' || 'testpass' }}
           TEST_MODE: true
         run: |
-          echo "### 📊 Performance Results (${{ matrix.db }})" >> $GITHUB_STEP_SUMMARY
+          echo "### 📊 Performance Results ($DB_TYPE)" >> $GITHUB_STEP_SUMMARY
 
           echo "#### ⚡ Middleware Hooks" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
