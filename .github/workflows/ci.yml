@@ -216,15 +216,19 @@ jobs:
         include:
           - db: sqlite
             image: alpine # dummy
+            health: "true"
           - db: mongodb
             image: mongo:7
             port: 27017
+            health: "mongosh --eval 'db.runCommand({ping:1})'"
           - db: mariadb
             image: mariadb:11
             port: 3306
+            health: "mariadb-admin ping"
           - db: postgresql
             image: postgres:16
             port: 5432
+            health: "pg_isready -U testuser"
     services:
       db:
         image: ${{ matrix.image }}
@@ -241,10 +245,7 @@ jobs:
           MONGO_INITDB_ROOT_USERNAME: ${{ matrix.db == 'mongodb' && 'testuser' || '' }}
           MONGO_INITDB_ROOT_PASSWORD: ${{ matrix.db == 'mongodb' && 'testpass' || '' }}
         options: >-
-          --health-cmd ${{ matrix.db == 'postgresql' && 'pg_isready -U testuser' || 
-                         matrix.db == 'mariadb' && 'mariadb-admin ping' || 
-                         matrix.db == 'mongodb' && 'mongosh --eval "db.runCommand({ping:1})"' || 
-                         'echo healthy' }}
+          --health-cmd "${{ matrix.health }}"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
