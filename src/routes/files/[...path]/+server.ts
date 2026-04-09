@@ -38,8 +38,19 @@ export const GET = apiHandler(async ({ params, request }) => {
   // Check storage type
   const storageType = getPublicSettingSync("MEDIA_STORAGE_TYPE");
 
+  // --- BROWSER CACHE OPTIMIZATION (ETag / 304) ---
+  const ifNoneMatch = request.headers.get("if-none-match");
+
   // --- CLOUD STORAGE REDIRECT ---
   if (storageType !== "local") {
+    // Performance: Try to use ETag to avoid redirect if browser already has it
+    const { getMetadata } = await import("@src/utils/media/cloud-storage");
+    const metadata = await getMetadata(filePath);
+
+    if (metadata?.etag && ifNoneMatch === metadata.etag) {
+      return new Response(null, { status: 304 });
+    }
+
     const cloudUrl =
       getPublicSettingSync("MEDIA_CLOUD_PUBLIC_URL") || getPublicSettingSync("MEDIASERVER_URL");
 
@@ -58,7 +69,16 @@ export const GET = apiHandler(async ({ params, request }) => {
         filePath,
         cloudUrl: fullUrl,
       });
-      throw redirect(307, fullUrl);
+
+      // Add ETag to redirect response to help future requests
+      return new Response(null, {
+        status: 307,
+        headers: {
+          Location: fullUrl,
+          ETag: metadata?.etag || "",
+          "Cache-Control": "public, max-age=31536000, immutable",
+        },
+      });
     }
     logger.error("Cloud storage configured but no public URL available", {
       storageType,
@@ -108,9 +128,12 @@ export const GET = apiHandler(async ({ params, request }) => {
     throw new AppError("Invalid file request", 400, "INVALID_FILE");
   }
 
+  // Local ETag calculation
+  const etag = `W/"${stats.size}-${stats.mtimeMs}"`;
+
   // Browser Cache Optimization (304 Not Modified)
   const lastModified = stats.mtime.toUTCString();
-  if (request.headers.get("if-modified-since") === lastModified) {
+  if (ifNoneMatch === etag || request.headers.get("if-modified-since") === lastModified) {
     return new Response(null, { status: 304 });
   }
 
@@ -129,6 +152,7 @@ export const GET = apiHandler(async ({ params, request }) => {
       "Content-Length": stats.size.toString(),
       "Cache-Control": "public, max-age=31536000, immutable",
       "Last-Modified": lastModified,
+      ETag: etag,
     },
   });
 });

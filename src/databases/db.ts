@@ -153,8 +153,19 @@ async function initializeSystem(forceReload = false): Promise<void> {
  */
 export async function reinitializeSystem(force: boolean = true) {
   clearPrivateConfigCache();
-  resetDbInitPromise();
-  return getDbInitPromise(force);
+  if (force) {
+    initializationPromise = null;
+    isInitialized = false;
+  }
+
+  await getDbInitPromise(force);
+
+  // Also reload settings from DB after initialization
+  if (dbAdapter) {
+    await loadSettingsFromDB(false);
+  }
+
+  return { status: "reinitialized" };
 }
 
 /**

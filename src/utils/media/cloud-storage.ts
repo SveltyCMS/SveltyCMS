@@ -151,7 +151,7 @@ export async function upload(buffer: Buffer, relativePath: string): Promise<stri
 
   if (config.storageType === "s3" || config.storageType === "r2") {
     const client = await getS3Client(config);
-    const { PutObjectCommand } = await import("@aws-sdk/client-s3");
+    const { PutObjectCommand, HeadObjectCommand } = await import("@aws-sdk/client-s3");
     const mime =
       (await import("./media-utils")).getMimeType(relativePath) || "application/octet-stream";
 
@@ -190,6 +190,43 @@ export async function upload(buffer: Buffer, relativePath: string): Promise<stri
   }
 
   throw error(500, "Invalid storage type for cloud upload");
+}
+
+/** Get metadata (ETag, Size, etc.) */
+export async function getMetadata(
+  relativePath: string,
+): Promise<{ etag?: string; size?: number; lastModified?: Date } | null> {
+  const config = getConfig();
+  const fullPath = getPath(relativePath);
+
+  try {
+    if (config.storageType === "s3" || config.storageType === "r2") {
+      const client = await getS3Client(config);
+      const { HeadObjectCommand } = await import("@aws-sdk/client-s3");
+      const res = await client.send(
+        new HeadObjectCommand({ Bucket: config.bucketName, Key: fullPath }),
+      );
+      return {
+        etag: res.ETag,
+        size: res.ContentLength,
+        lastModified: res.LastModified,
+      };
+    }
+
+    if (config.storageType === "cloudinary") {
+      const cld = await getCloudinary(config);
+      const publicId = `${config.mediaFolder}/${relativePath.replace(/\.[^.]+$/, "")}`;
+      const res = await cld.api.resource(publicId);
+      return {
+        etag: res.etag,
+        size: res.bytes,
+        lastModified: new Date(res.created_at),
+      };
+    }
+  } catch {
+    return null;
+  }
+  return null;
 }
 
 /** Delete file */

@@ -1,5 +1,5 @@
 /**
- * @file tests/playwright/setup-wizard.spec.ts
+ * @file tests/e2e/setup-wizard.spec.ts
  * @description Setup wizard test for SveltyCMS
  *
  * This test completes the initial setup wizard by:
@@ -55,12 +55,47 @@ test("Setup Wizard: Configure DB and Create Admin", async ({ page }) => {
   // Wait for setup to load and hydrate
   await expect(page).toHaveURL(/\/setup/);
   await page.waitForLoadState("networkidle");
+  await page.waitForTimeout(5000); // Hard wait for page to fully render and modals to appear
 
-  // Wait for any 'Welcome' or cookie modals and dismiss them
-  const dismissBtn = page.getByRole("button", { name: /accept|dismiss|close|get started/i });
-  if (await dismissBtn.isVisible({ timeout: 5000 })) {
-    await dismissBtn.click({ force: true });
+  // Dismiss cookie consent banner if present (e.g. "Accept All")
+  const cookieAcceptBtn = page.getByRole("button", { name: /accept all/i });
+  if (await cookieAcceptBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+    console.log("Cookie consent banner detected. Clicking Accept All...");
+    await cookieAcceptBtn.click();
+    await page.waitForTimeout(300);
   }
+
+  console.log("Starting setup wizard...");
+
+  // Check for "Welcome to SveltyCMS" popup and click "Get Started" if present
+  // NOTE: Skeleton v4 renders the modal twice (component tree + portal), so #welcome-heading
+  // resolves to 2 elements. Use .first() to avoid strict mode violation.
+  const welcomeModal = page.locator("#welcome-heading").first();
+  if (await welcomeModal.isVisible({ timeout: 3000 }).catch(() => false)) {
+    console.log("Welcome to SveltyCMS popup detected. Clicking Get Started...");
+    const getStartedBtn = page
+      .locator("button")
+      .filter({ hasText: /get started/i })
+      .first();
+    await expect(getStartedBtn).toBeVisible({ timeout: 3000 });
+    await getStartedBtn.click({ force: true }); // force: bypass ghost overlay interception
+    await page
+      .locator("#welcome-heading")
+      .first()
+      .waitFor({ state: "hidden", timeout: 5000 })
+      .catch(() => {});
+    await page.waitForTimeout(300);
+  }
+
+  console.log("Proceeding with setup steps...");
+
+  // Dismiss any remaining generic overlays (dismiss/close)
+  const dismissBtn = page.getByRole("button", { name: /^(dismiss|close)$/i });
+  if (await dismissBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+    await dismissBtn.click();
+  }
+
+  console.log("Starting Step 1: Database Configuration...");
 
   // --- STEP 1: Database ---
   await expect(page.locator("h2", { hasText: /database/i }).first()).toBeVisible({
