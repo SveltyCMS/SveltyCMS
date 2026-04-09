@@ -176,7 +176,20 @@ To support multi-tenant environments without complex bucket management, use the 
 
 **Endpoint**: `GET /files/[path]?prefix=[tenant-id]`
 
-This dynamically prepends the isolation prefix to the generated URLs and thumbnails, ensuring content is correctly scoped during delivery.
+This dynamically prepends the isolation prefix to the generated URLs and thumbnails, ensuring content is correctly scoped during delivery. This is also used to resolve S3/UUID disambiguation when multiple tenants share a single bucket.
+
+### C. Performance: Unified ETag Caching
+
+The `/files/[...path]` delivery endpoint supports **ETag-based 304 Not Modified** responses for all storage types:
+
+- **Local**: Calculated from file metadata.
+- **Cloud (S3/R2)**: Propagated from cloud provider headers.
+
+This prevents redundant data transfer and 307 redirects for already-cached assets.
+
+### D. PostgreSQL Search Optimization
+
+For systems using PostgreSQL, the Media API leverages **GIN Trigram Indexes** on filenames. This ensures that partial searches remain fast even with millions of records.
 
 ---
 

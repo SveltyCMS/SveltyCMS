@@ -84,6 +84,14 @@ The gatekeeper tracks system health metrics in real-time:
 - **Security Violations**: Increments counters for untrusted host attempts or restricted route access.
 - **Service Degradation**: Real-time heartbeat monitoring of DB, Cache, and Media adapters.
 
+### 4. Incremental Service Refresh
+
+The `reinitializeSystem` logic has been optimized to perform surgical updates rather than full destructive resets:
+
+- **Config Hot-Reload**: Re-parses `private.ts` without dropping active database connections.
+- **Dynamic Settings Sync**: Automatically re-synchronizes the in-memory settings cache with the database after configuration changes.
+- **Zero-Downtime Transitions**: Minimizes the window where requests are blocked during system updates, ensuring high availability during administrative operations.
+
 ## 🔮 Future Improvements
 
 1.  **Granular Sub-States**:

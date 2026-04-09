@@ -435,7 +435,7 @@ stateDiagram-v2
 - OR step skipped (optional)
 - "Next" button always enabled
 
-### Step 5: Review & Complete
+### 5. Review & Complete
 
 **Purpose**: Review all settings and finalize setup
 
@@ -454,46 +454,82 @@ stateDiagram-v2
 - **Auto-login**: Creates session cookie on success
 - **Smart Redirect**: Redirects to first collection or dashboard
 
-**API Calls** (Server Actions):
+---
 
-1. `POST /setup?/seedDatabase` (if not already called)
-2. `POST /setup?/completeSetup`
+## 🧪 Automated Testing & E2E
 
-**Success Flow**:
+SveltyCMS includes a robust Playwright-based E2E test suite to verify the setup wizard flow. This is critical for CI/CD pipelines to ensure that fresh installations and upgrades remain stable.
 
-```mermaid
-sequenceDiagram
-    autonumber
-    participant U as User (Browser)
-    participant W as Setup Wizard
-    participant Svr as SvelteKit Server
-    participant FS as File System (private.ts)
-    participant DB as Database
-    participant Sys as System State
+### Setup Wizard Test Example
 
-    Note over U, Sys: Transitioning from IDLE to READY
+The following test (`tests/e2e/setup-wizard.spec.ts`) demonstrates how to automate the multi-step configuration, including handling Skeleton v4's modal portals and cookie consent banners:
 
-    U->>W: Click "Complete Setup"
-    W->>W: Final Validation
-    W->>Svr: POST /setup?/completeSetup
+```typescript
+import { expect, test, type Page } from "@playwright/test";
 
-    Svr->>FS: Write private.ts (Keys, DB Config)
-    Svr->>FS: Read back real JWT_SECRET & ENCRYPTION_KEY
+// Helper to click "Next" button and wait for transition
+async function clickNext(page: Page) {
+  const nextButton = page.getByLabel("Next", { exact: true });
+  await expect(nextButton).toBeEnabled();
+  await nextButton.click({ force: true });
+  await page.waitForTimeout(1000); 
+}
 
-    Svr->>DB: Create Admin User & Default Roles
-    Svr->>DB: Seed System Settings (per-tenant)
+test("Setup Wizard: Configure DB and Create Admin", async ({ page }) => {
+  test.setTimeout(180_000);
 
-    Svr->>Sys: initializeWithConfig(realKeys)
-    Sys->>Sys: Register Adapters
-    Sys->>Sys: Warm Content Cache
+  // 1. Start at root, expect redirect to /setup
+  await page.goto("/");
+  await expect(page).toHaveURL(/\/setup/);
+  
+  // Wait for hydration and modals
+  await page.waitForTimeout(5000); 
 
-    Svr->>Svr: Create Session Cookie (Signed with real JWT_SECRET)
+  // Dismiss cookie consent if present
+  const cookieAcceptBtn = page.getByRole("button", { name: /accept all/i });
+  if (await cookieAcceptBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+    await cookieAcceptBtn.click();
+  }
 
-    Svr-->>W: Success Response
-    W->>W: Clear localStorage
-    W-->>U: Redirect to Dashboard
+  // Handle "Welcome" popup (Skeleton v4 portal detection)
+  const welcomeModal = page.locator('#welcome-heading').first();
+  if (await welcomeModal.isVisible({ timeout: 3000 }).catch(() => false)) {
+    const getStartedBtn = page.locator('button').filter({ hasText: /get started/i }).first();
+    await getStartedBtn.click({ force: true }); 
+  }
 
-    Note over U, Sys: System is now READY (No restart occurred)
+  // --- STEP 1: Database ---
+  const dbType = process.env.DB_TYPE || "sqlite";
+  await page.getByTestId("db-type").selectOption(dbType);
+  await page.getByTestId("db-host").fill("localhost");
+  await page.getByTestId("db-name").fill("sveltycms_test");
+
+  const testDbButton = page.getByRole("button", { name: /test database/i });
+  await testDbButton.click({ force: true });
+
+  // Handle SQLite missing DB modal
+  const confirmBtn = page.getByRole("button", { name: /yes/i });
+  if (await confirmBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
+    await confirmBtn.click({ force: true });
+  }
+
+  await expect(page.getByText(/success/i).first()).toBeVisible({ timeout: 45000 });
+  await clickNext(page);
+
+  // --- STEP 2: Admin User ---
+  await page.getByTestId("admin-username").fill("admin");
+  await page.getByTestId("admin-email").fill("admin@test.com");
+  await page.getByTestId("admin-password").fill("Admin123!");
+  await page.getByTestId("admin-confirm-password").fill("Admin123!");
+  await clickNext(page);
+
+  // Final Step: Complete
+  const finishButton = page.getByRole("button", { name: /finish|complete/i });
+  await finishButton.click();
+
+  // Redirect to dashboard
+  await page.waitForURL(/\/en\/collections/, { timeout: 120_000 });
+});
 ```
 
 ---

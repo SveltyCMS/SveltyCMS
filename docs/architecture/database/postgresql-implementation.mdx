@@ -120,7 +120,7 @@ The PostgreSQL schema mirrors the CMS data model but is optimized for relational
 
 - **JSONB** (not JSON): All 20 metadata columns use binary JSONB with efficient containment operators (`@>`, `?`, `?|`)
 - **GIN Indexes**: 5 GIN indexes on high-query JSONB columns (`content_nodes.data`, `content_nodes.metadata`, `media_items.metadata`, `roles.permissions`, `auth_users.roleIds`)
-- **Partial Indexes**: Active sessions index (`WHERE expires > CURRENT_TIMESTAMP`), unconsumed tokens index (`WHERE consumed = FALSE AND blocked = FALSE`)
+- **Trigram Search**: High-performance `ilike` searching for media filenames using `pg_trgm` GIN indexes (`media_items_filename_trgm_idx`).
 - **`gen_random_uuid()`**: Native UUID generation via pgcrypto extension
 - **Tenants Table**: Full multi-tenancy with quota, usage, and settings JSONB columns
 

@@ -151,7 +151,7 @@ export async function upload(buffer: Buffer, relativePath: string): Promise<stri
 
   if (config.storageType === "s3" || config.storageType === "r2") {
     const client = await getS3Client(config);
-    const { PutObjectCommand, HeadObjectCommand } = await import("@aws-sdk/client-s3");
+    const { PutObjectCommand } = await import("@aws-sdk/client-s3");
     const mime =
       (await import("./media-utils")).getMimeType(relativePath) || "application/octet-stream";
 

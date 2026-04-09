@@ -14,7 +14,6 @@ import { stat } from "node:fs/promises";
 import path from "node:path";
 import { Readable } from "node:stream";
 import { getPublicSettingSync } from "@src/services/settings-service";
-import { redirect } from "@sveltejs/kit";
 // Unified Error Handling
 import { apiHandler } from "@utils/api-handler";
 import { AppError } from "@utils/error-handling";
