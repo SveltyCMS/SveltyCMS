@@ -28,6 +28,7 @@ export type DbErrorClassification =
   | "INVALID_CONFIG"
   | "DRIVER_MISSING"
   | "PERMISSION_DENIED"
+  | "CASE_MISMATCH"
   | "UNKNOWN";
 
 export interface ClassifiedError {
@@ -149,6 +150,17 @@ export function classifyDatabaseError(
     message: raw,
     context,
   });
+
+  // 0. Case Mismatch (MongoDB specific 13297)
+  if (code === 13297 || lower.includes("db already exists with different case")) {
+    const existingName = lower.match(/already have: \[([^\]]+)\]/)?.[1] || "sveltycms";
+    return {
+      classification: "CASE_MISMATCH",
+      userFriendly: `Database "${context.name}" conflicts with an existing database named "${existingName}".`,
+      hint: `MongoDB is case-sensitive on this system. You must either:\n1. Use the existing name: "${existingName}"\n2. Manually drop the existing "${existingName}" database from your MongoDB server if you want to use "${context.name}".`,
+      raw,
+    };
+  }
 
   // 1. Connection Refused / Host Unreachable
   if (
@@ -319,6 +331,7 @@ export function getBannerForClassification(classification: DbErrorClassification
     INVALID_CONFIG: "Configuration error",
     DRIVER_MISSING: "Drivers required",
     PERMISSION_DENIED: "Permission denied",
+    CASE_MISMATCH: "Case Conflict",
     UNKNOWN: "Connection error",
   };
   return banners[classification] || banners.UNKNOWN;

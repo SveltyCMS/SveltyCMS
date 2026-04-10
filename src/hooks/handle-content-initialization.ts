@@ -7,6 +7,7 @@ import { redirect, type Handle } from "@sveltejs/kit";
 import { isBootstrapRoute, isSetupCompleteAsync } from "@utils/setup-check";
 import { contentSystem } from "@src/content";
 import { logger } from "@utils/logger.server";
+import { getDbInitPromise } from "@src/databases/db";
 
 // 🚀 OPTIMIZATION: Compile Regex once globally.
 // Matches unlocalized (e.g., /api) and localized (e.g., /en-US/api) paths.
@@ -14,6 +15,9 @@ const WHITELIST_REGEX =
   /^(?:\/[a-z]{2,5}(?:-[a-zA-Z]+)?)?\/(api|config|user|dashboard|mediagallery|login)/;
 
 export const handleContentInitialization: Handle = async ({ event, resolve }) => {
+  // Ensure system is fully initialized for content requests
+  await getDbInitPromise(false, "FULL");
+
   const { locals, url } = event;
   const { pathname } = url;
   const tenantId = locals.tenantId ?? null;

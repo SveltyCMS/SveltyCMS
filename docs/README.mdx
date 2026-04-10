@@ -63,7 +63,8 @@ How SveltyCMS compares to traditional and modern CMS platforms:
 | Feature           | SveltyCMS Approach                 | Why Better than Competitors                              |
 | ----------------- | ---------------------------------- | -------------------------------------------------------- |
 | **Core Tech**     | SvelteKit + Svelte 5 (Runes)       | No VDOM/hydration tax vs. React-based (Payload, Strapi). |
-| **Cold Start**    | <1s (Progressive, self-healing)    | Faster than 3s+ in Payload/Strapi; edge-ready.           |
+| **Cold Start**    | **<1s (Phased, Self-Healing)**     | Multi-stage boot only loads what's needed for the task.  |
+| **Resilience**    | **Autonomous Watchdog**            | Self-heals from DB/Auth failures without downtime.       |
 | **i18n**          | Paraglide (Compiled, zero-runtime) | Type-safe, no runtime lookups vs. i18next in rivals.     |
 | **Multi-Tenancy** | Native (tenantId isolation)        | Core/free vs. enterprise-gated in Strapi/Contentful.     |
 | **SCIM 2.0**      | Native endpoints (RFC 7644)        | Automated provisioning vs. manual/enterprise in others.  |

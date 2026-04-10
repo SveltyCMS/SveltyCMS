@@ -7,6 +7,7 @@
 export type SystemState =
   | "IDLE"
   | "INITIALIZING"
+  | "RECOVERY"
   | "READY"
   | "WARMING"
   | "WARMED"
@@ -110,6 +111,8 @@ export interface SystemPerformanceMetrics {
   lastInitDuration?: number;
   maxTotalInitTime?: number;
   minTotalInitTime?: number;
+  recoveryCount: number;
+  lastRecoveryAt?: number;
   stateTransitions: Array<{
     from: SystemState;
     to: SystemState;

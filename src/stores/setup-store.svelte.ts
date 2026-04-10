@@ -118,7 +118,7 @@ const initialDbConfig: DbConfig = {
   type: "mongodb",
   host: "localhost",
   port: "27017",
-  name: "SveltyCMS",
+  name: "sveltycms",
   user: "",
   password: "",
   authSource: "admin",

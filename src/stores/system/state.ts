@@ -358,7 +358,16 @@ function deriveOverallState(services: SystemStateStore["services"]): SystemState
     return "MAINTENANCE";
   }
 
-  // 2. Check if any critical service is unhealthy
+  // 2. Check for RECOVERY mode (Autonomous healing in progress)
+  const anyRecovery = criticalServices.some(
+    (service) =>
+      services[service].status === "initializing" && services[service].message.includes("recovery"),
+  );
+  if (anyRecovery) {
+    return "RECOVERY";
+  }
+
+  // 3. Check if any critical service is unhealthy
   const criticalUnhealthy = criticalServices.some(
     (service) => services[service].status === "unhealthy",
   );

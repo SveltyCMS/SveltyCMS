@@ -8,6 +8,7 @@
  * - **Logic:** Simplified flow—if `isSetupComplete` returns true, the config is valid.
  */
 
+import { getDbInitPromise } from "@src/databases/db";
 import { error, type Handle, redirect } from "@sveltejs/kit";
 import { AppError, handleApiError } from "@utils/error-handling";
 import { logger } from "@utils/logger.server";
@@ -79,6 +80,10 @@ export const handleSetup: Handle = async ({ event, resolve }) => {
   }
 
   try {
+    // --- Step 0: Intelligent Initialization ---
+    // Ensure we are at least in SETUP phase (DB connection available)
+    await getDbInitPromise(false, "SETUP");
+
     // --- Step 1: Check Setup Status ---
     // We use the granular setup state to decide what to allow.
     const state = await getSetupState();

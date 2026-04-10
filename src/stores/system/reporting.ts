@@ -82,6 +82,8 @@ export function getHealthCheckReport() {
       totalInits: state.performanceMetrics.totalInitializations,
       successfulInits: state.performanceMetrics.successfulInitializations,
       failedInits: state.performanceMetrics.failedInitializations,
+      recoveryCount: state.performanceMetrics.recoveryCount,
+      lastRecoveryAt: state.performanceMetrics.lastRecoveryAt,
       successRate:
         state.performanceMetrics.totalInitializations > 0
           ? `${((state.performanceMetrics.successfulInitializations / state.performanceMetrics.totalInitializations) * 100).toFixed(1)}%`

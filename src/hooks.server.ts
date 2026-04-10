@@ -91,6 +91,10 @@ if (!building) {
         // Initialize Telemetry
         const { telemetryService } = await import("@src/services/telemetry-service");
 
+        // ✨ ENTERPRISE: Start the Autonomous Watchdog
+        const { watchdog } = await import("@src/services/system/watchdog");
+        watchdog.start();
+
         // Start Content Watcher (dev only)
         const { startContentWatcher } = await import("@src/content/content-watcher.server");
         startContentWatcher();

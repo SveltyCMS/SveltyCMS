@@ -27,7 +27,7 @@ import { SESSION_COOKIE_NAME } from "@src/databases/auth/constants";
 import type { User } from "@src/databases/auth/types";
 import type { DatabaseId } from "../content/types";
 import { cacheService, SESSION_CACHE_TTL_MS } from "@src/databases/cache/cache-service";
-import { auth, dbAdapter } from "@src/databases/db";
+import { getDbInitPromise, auth, dbAdapter } from "@src/databases/db";
 import { metricsService } from "@src/services/metrics-service";
 import type { Handle, RequestEvent } from "@sveltejs/kit";
 import { error } from "@sveltejs/kit";
@@ -306,9 +306,8 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
 
   if (isStaticOrInternalRequest(pathname)) return resolve(event);
 
-  // Ensure DB is initialized before proceeding with auth checks
-  const { dbInitPromise, auth, dbAdapter } = await import("@src/databases/db");
-  await dbInitPromise;
+  // Ensure DB is initialized to at least CORE phase before proceeding with auth checks
+  await getDbInitPromise(false, "CORE");
 
   // High-performance bypass for internal test orchestration
   const testSecret = event.request.headers.get("x-test-secret");

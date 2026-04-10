@@ -15,6 +15,7 @@ import {
   type PublicEnv,
 } from "@src/services/settings-service";
 import type { DatabaseAdapter } from "./db-interface";
+import { metricsService } from "@src/services/metrics-service";
 
 async function getResilience() {
   const { getDatabaseResilience } = await import("./database-resilience");
@@ -130,14 +131,13 @@ export async function loadAdapters(config: any): Promise<DatabaseAdapter | null>
 }
 
 export async function initializeCriticalServices(dbAdapter: DatabaseAdapter) {
+  const start = performance.now();
   updateServiceHealth("auth", "initializing", "Initializing authentication service...");
 
   if (dbAdapter?.ensureAuth) await dbAdapter.ensureAuth();
-  if (dbAdapter?.ensureCollections) await dbAdapter.ensureCollections();
-  if (dbAdapter?.ensureContent) await dbAdapter.ensureContent();
-  if (dbAdapter?.ensureMedia)
-    await dbAdapter.ensureMedia().catch((e) => logger.warn("Media activation issue:", e));
-  if (dbAdapter?.ensureMonitoring) await dbAdapter.ensureMonitoring();
+
+  // NOTE: ensureCollections/Content/Media moved to background tasks or FULL phase
+  // to keep CORE phase (Login) fast and lightweight.
 
   const [{ Auth }, { getDefaultSessionStore }] = await Promise.all([
     import("@src/databases/auth"),
@@ -147,11 +147,20 @@ export async function initializeCriticalServices(dbAdapter: DatabaseAdapter) {
   const auth = new Auth(dbAdapter, getDefaultSessionStore());
   updateServiceHealth("auth", "healthy", "Authentication service ready");
 
+  metricsService.recordMetric("boot:service:auth", performance.now() - start);
   return auth;
 }
 
 export async function runBackgroundTasks(dbAdapter: DatabaseAdapter) {
+  const start = performance.now();
   try {
+    // Phase 2: Ensure core content schemas are live before managers start
+    if (dbAdapter?.ensureCollections) await dbAdapter.ensureCollections();
+    if (dbAdapter?.ensureContent) await dbAdapter.ensureContent();
+    if (dbAdapter?.ensureMedia)
+      await dbAdapter.ensureMedia().catch((e) => logger.warn("Media activation issue:", e));
+    if (dbAdapter?.ensureMonitoring) await dbAdapter.ensureMonitoring();
+
     // Initialize Index Optimizer
     try {
       const { initializeIndexOptimizer, indexOptimizer } =
@@ -192,6 +201,7 @@ export async function runBackgroundTasks(dbAdapter: DatabaseAdapter) {
     ]);
 
     logger.info("✅ All background services ready.");
+    metricsService.recordMetric("boot:background:total", performance.now() - start);
   } catch (error) {
     logger.error("Error in background system tasks:", error);
   } finally {

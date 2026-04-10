@@ -88,13 +88,17 @@ function applySecurityHeaders(headers: Headers, isHttps: boolean): void {
 // ---------------------------------------------------------------------------
 // System state gate
 // ---------------------------------------------------------------------------
-
-const RESTRICTED_STATES = new Set(["IDLE", "INITIALIZING", "MAINTENANCE", "FAILED"]);
+const RESTRICTED_STATES = new Set(["IDLE", "INITIALIZING", "RECOVERY", "MAINTENANCE", "FAILED"]);
 
 const STATE_MESSAGES: Record<string, { status: number; message: string; retryAfter?: string }> = {
   INITIALIZING: {
     status: 503,
     message: "System is starting up — please retry shortly.",
+    retryAfter: "5",
+  },
+  RECOVERY: {
+    status: 503,
+    message: "System is autonomously healing from a service failure. Please wait...",
     retryAfter: "5",
   },
   MAINTENANCE: {

@@ -256,19 +256,19 @@ function handleTypeChange() {
 		case "mongodb":
 			dbConfig.port = "27017";
 			if (!dbConfig.name) {
-				dbConfig.name = "SveltyCMS";
+				dbConfig.name = "sveltycms";
 			}
 			break;
 		case "mariadb":
 			dbConfig.port = "3306";
 			if (!dbConfig.name) {
-				dbConfig.name = "SveltyCMS";
+				dbConfig.name = "sveltycms";
 			}
 			break;
 		case "postgresql":
 			dbConfig.port = "5432";
 			if (!dbConfig.name) {
-				dbConfig.name = "SveltyCMS";
+				dbConfig.name = "sveltycms";
 			}
 			break;
 		case "sqlite":
@@ -286,7 +286,7 @@ function handleTypeChange() {
 		case "mongodb+srv":
 			dbConfig.port = "";
 			if (!dbConfig.name) {
-				dbConfig.name = "SveltyCMS";
+				dbConfig.name = "sveltycms";
 			}
 			break;
 	}
@@ -295,7 +295,7 @@ function handleTypeChange() {
 $effect(() => {
 	// Set default database name if empty
 	if (!dbConfig.name) {
-		dbConfig.name = "SveltyCMS";
+		dbConfig.name = "sveltycms";
 	}
 
 	unsupportedDbSelected = false; // All database types are now supported

@@ -29,6 +29,8 @@ export {
   setPrivateEnv,
 };
 
+import { metricsService } from "@src/services/metrics-service";
+
 // Global State
 export let dbAdapter: DatabaseAdapter | null = null;
 export let auth: AuthType | null = null;
@@ -37,38 +39,38 @@ let isInitialized = false;
 let initializationPromise: Promise<void> | null = null;
 
 /**
- * Public API to get the database instance.
+ * Boot Phases for Intelligent Initialization
+ * - SETUP: Database connection only (Wizard mode)
+ * - CORE: Auth + Critical Settings (Login mode)
+ * - FULL: Content + Widgets + Background Tasks (Dashboard mode)
  */
-export function getDb(): DatabaseAdapter | null {
-  return dbAdapter;
-}
+export type BootPhase = "SETUP" | "CORE" | "FULL";
+let currentPhase: BootPhase | null = null;
 
 /**
- * Public API to get the auth instance.
+ * Public API to get the current boot phase.
  */
-export function getAuth(): AuthType | null {
-  return auth;
-}
-
-/**
- * Public API to reset the database system (used in setup/tests).
- */
-export function resetDbInitPromise() {
-  logger.warn("Resetting DB initialization system...");
-  initializationPromise = null;
-  isInitialized = false;
-  isConnected = false;
-  dbAdapter = null;
-  auth = null;
+export function getBootPhase(): BootPhase | null {
+  return currentPhase;
 }
 
 /**
  * Initialization entry point.
  */
-export function getDbInitPromise(forceInit = false): Promise<void> {
-  if (!initializationPromise || forceInit) {
-    initializationPromise = initializeSystem(forceInit);
+export function getDbInitPromise(
+  forceInit = false,
+  targetPhase: BootPhase = "FULL",
+): Promise<void> {
+  // If we already reached or exceeded the target phase, return existing promise
+  if (isInitialized && !forceInit) {
+    if (targetPhase === "FULL" && currentPhase === "FULL") return initializationPromise!;
+    if (targetPhase === "CORE" && (currentPhase === "CORE" || currentPhase === "FULL"))
+      return initializationPromise!;
+    if (targetPhase === "SETUP" && currentPhase) return initializationPromise!;
   }
+
+  // Otherwise, trigger or extend initialization
+  initializationPromise = initializeSystem(forceInit, targetPhase);
   return initializationPromise;
 }
 
@@ -77,7 +79,10 @@ export const dbInitPromise = getDbInitPromise();
 /**
  * Core lazy-loader for system initialization.
  */
-async function initializeSystem(forceReload = false): Promise<void> {
+async function initializeSystem(
+  forceReload = false,
+  targetPhase: BootPhase = "FULL",
+): Promise<void> {
   // Guard for non-server environments (build/check) or explicit skip
   const isChecking =
     typeof process !== "undefined" &&
@@ -91,10 +96,9 @@ async function initializeSystem(forceReload = false): Promise<void> {
   if (isExplicitSkip || isChecking || isBuilding) {
     return;
   }
-  if (isInitialized && !forceReload) return;
 
   const start = performance.now();
-  setSystemState("INITIALIZING", "Loading database configuration");
+  setSystemState("INITIALIZING", `Starting boot phase: ${targetPhase}`);
 
   try {
     const config = await loadPrivateConfig(forceReload);
@@ -102,6 +106,7 @@ async function initializeSystem(forceReload = false): Promise<void> {
     if (!config?.DB_TYPE) {
       logger.info("Database not configured - entering setup mode.");
       setSystemState("IDLE", "Awaiting configuration");
+      currentPhase = "SETUP";
       return;
     }
 
@@ -109,34 +114,59 @@ async function initializeSystem(forceReload = false): Promise<void> {
     const { loadAdapters, loadSettingsFromDB, initializeCriticalServices, runBackgroundTasks } =
       await import("./db-init");
 
-    // 1. Load Adapters
-    updateServiceHealth("database", "initializing", "Loading adapter...");
-    dbAdapter = await loadAdapters(config);
-    if (!dbAdapter) throw new Error("Failed to load database adapter");
+    // PHASE 0: SETUP (Connection)
+    if (!currentPhase || forceReload) {
+      updateServiceHealth("database", "initializing", "Loading adapter...");
+      dbAdapter = await loadAdapters(config);
+      if (!dbAdapter) throw new Error("Failed to load database adapter");
 
-    // 2. Connect
-    const connectionString = getDatabaseConnectionString();
-    const connectionResult = await dbAdapter.connect(connectionString);
-    if (!connectionResult.success) {
-      updateServiceHealth("database", "unhealthy", connectionResult.error?.message);
-      throw new Error(`Database connection failed: ${connectionResult.error?.message}`);
+      const connectionString = getDatabaseConnectionString();
+      const connectionResult = await dbAdapter.connect(connectionString);
+      if (!connectionResult.success) {
+        updateServiceHealth("database", "unhealthy", connectionResult.error?.message);
+        throw new Error(`Database connection failed: ${connectionResult.error?.message}`);
+      }
+
+      isConnected = true;
+      currentPhase = "SETUP";
+      updateServiceHealth("database", "healthy", "Database connected");
+      metricsService.recordMetric("boot:phase:setup", performance.now() - start);
     }
 
-    isConnected = true;
-    updateServiceHealth("database", "healthy", "Database connected");
+    if (targetPhase === "SETUP") {
+      setSystemState("SETUP", "Database connected (Setup Mode)");
+      return;
+    }
 
-    // 3. Critical Services (Auth, Settings)
-    await loadSettingsFromDB(dbAdapter, true);
-    auth = await initializeCriticalServices(dbAdapter);
+    // PHASE 1: CORE (Auth + Settings)
+    if (currentPhase === "SETUP" || forceReload) {
+      const phaseStart = performance.now();
+      await loadSettingsFromDB(dbAdapter!, true);
+      auth = await initializeCriticalServices(dbAdapter!);
 
-    // 4. Mark Ready
-    isInitialized = true;
-    setSystemState("READY", "Core services initialized");
+      currentPhase = "CORE";
+      metricsService.recordMetric("boot:phase:core", performance.now() - phaseStart);
+    }
 
-    logger.info(`✅ System core ready in ${(performance.now() - start).toFixed(2)}ms`);
+    if (targetPhase === "CORE") {
+      isInitialized = true;
+      setSystemState("READY", "Core services initialized (Login Mode)");
+      return;
+    }
 
-    // 5. Background Tasks (Non-blocking)
-    void runBackgroundTasks(dbAdapter);
+    // PHASE 2: FULL (Content + Widgets + Background Tasks)
+    if (currentPhase === "CORE" || forceReload) {
+      const phaseStart = performance.now();
+      // Non-blocking background tasks - now truly non-blocking for core ready
+      void runBackgroundTasks(dbAdapter!);
+
+      currentPhase = "FULL";
+      isInitialized = true;
+      metricsService.recordMetric("boot:phase:full", performance.now() - phaseStart);
+    }
+
+    setSystemState("WARMED", "Full system operational");
+    logger.info(`✅ System ${targetPhase} ready in ${(performance.now() - start).toFixed(2)}ms`);
   } catch (error) {
     isInitialized = false;
     isConnected = false;

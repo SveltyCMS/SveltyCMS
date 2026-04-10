@@ -538,7 +538,7 @@ graph TB
         A16 --> A17[READY State]
     end
 
-    subgraph "Server Restart"
+    subgraph "Server Restart (Phased)"
         B1[Server Start] -->|private.ts exists| B2[Vite: Normal Mode]
         B2 --> B3[Scan Compiled Collections]
         B3 --> B4{For Each Collection}
@@ -548,11 +548,10 @@ graph TB
         B6 --> B8[First Request]
         B7 --> B8
         B8 --> B9[handleSystemState]
-        B9 --> B10[dbInitPromise]
-        B10 --> B11[Connect Database]
-        B11 --> B12[Load Settings]
-        B12 --> B13[Init Services]
-        B13 --> B14[READY State]
+        B9 --> B10[Boot Phase: SETUP]
+        B10 --> B11[Boot Phase: CORE]
+        B11 --> B12[Boot Phase: FULL]
+        B12 --> B13[READY State]
     end
 
     A17 -.->|Restart Server| B1
@@ -618,21 +617,19 @@ graph TB
 
     H --> I[First HTTP Request]
     I --> J[handleSystemState]
-    J --> K[dbInitPromise]
-    K --> L[Load private.ts]
-    K --> M[Connect to Database]
-    K --> N[Load Settings]
-    K --> O[Initialize Services]
+    J --> K[Boot Phase: SETUP (Connection)]
+    K --> L[Boot Phase: CORE (Auth/Settings)]
+    L --> M[Boot Phase: FULL (Content/Widgets)]
+    M --> N[READY State]
 
-    O --> P[READY State]
-    P --> Q[Content System Auto-Init]
+    N --> Q[Content System Auto-Init]
     Q --> R[Register Collections]
 
     style A fill:#f0f0f0,stroke:#333,stroke-width:3px
     style B fill:#e0e0e0,stroke:#333,stroke-width:2px
     style G fill:#e0e0e0,stroke:#333,stroke-width:2px
     style H fill:#d0d0d0,stroke:#333,stroke-width:3px
-    style P fill:#d0d0d0,stroke:#333,stroke-width:4px
+    style N fill:#d0d0d0,stroke:#333,stroke-width:4px
 ```
 
 ---

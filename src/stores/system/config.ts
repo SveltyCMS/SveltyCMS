@@ -91,6 +91,7 @@ export const initialState: SystemStateStore = {
     totalInitializations: 0,
     successfulInitializations: 0,
     failedInitializations: 0,
+    recoveryCount: 0,
     stateTransitions: [],
   },
 };

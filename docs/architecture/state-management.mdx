@@ -30,9 +30,24 @@ The application can be in one of the following states:
 | :----------------- | :---------------------------------------------------------------- | :------------------------------------------------ |
 | **`IDLE`**         | Initial state. System is waiting for setup or initialization.     | **Blocked** (except Setup Wizard & Health Checks) |
 | **`INITIALIZING`** | Database connection and core services are starting up.            | **Blocked** (requests wait for completion)        |
+| **`RECOVERY`**     | **[NEW]** Autonomous healing in progress after a service failure. | **Blocked** (503 Service Unavailable + Retry-After) |
 | **`READY`**        | Normal operational state. All systems go.                         | **Allowed**                                       |
 | **`DEGRADED`**     | System is operational but some non-critical services are failing. | **Allowed** (with warning logs)                   |
 | **`FAILED`**       | Critical failure (e.g., DB down). System cannot function.         | **Blocked** (503 Service Unavailable)             |
+
+---
+
+## 🧠 Intelligent Phased Initialization
+
+SveltyCMS 2026 utilizes a **Context-Aware Phased Boot** to minimize resource waste and maximize startup speed. Instead of a monolithic boot, the system targets specific "Minimum Viable Services" based on the request intent.
+
+### Boot Phases
+
+1.  **`SETUP` Phase**: Establishes basic database connectivity. Results in system state **`SETUP`**. Required for the Setup Wizard. No heavy widgets or background jobs are loaded.
+2.  **`CORE` Phase**: Loads Authentication, Security, and Critical Settings. Results in system state **`READY`**. Required for the Login screen. Triggers non-critical background services.
+3.  **`FULL` Phase**: Finalizes the boot by loading the Content Manager, Widget Proxy, and all background optimization tasks. Results in system state **`WARMED`**. Required for the CMS Dashboard.
+
+This **Just-In-Time (JIT) Escalation** ensures that the Setup Wizard remains ultra-lean and starts in milliseconds, even in environments with hundreds of custom collections.
 
 ---
 
@@ -60,7 +75,24 @@ The `handleSystemState` hook (`src/hooks/handle-system-state.ts`) is the primary
 
 ## 🧠 Implemented Advanced Features
 
-### 1. Robust Boot Protection (Self-Healing)
+### 1. Autonomous Self-Recovery (The Watchdog)
+
+SveltyCMS features an **Autonomous System Watchdog** (`src/services/system/watchdog.ts`) that acts as a background "guardian."
+
+- **Heal-on-Failure**: If a critical service (Database or Auth) becomes `unhealthy`, the Watchdog automatically triggers a targeted re-initialization.
+- **Exponential Backoff**: Recovery attempts use a progressive delay (5s, 10s, 20s) to prevent overloading infrastructure during transient network outages.
+- **Drift Detection**: The Watchdog continuously compares the system's "internal map" of health against reality. If the system claims to be `READY` but the database connection is dead, it autonomously demotes the state to `RECOVERY` and initiates healing.
+
+### 2. High-Resolution Boot Telemetry
+
+Every boot phase is measured with `performance.now()` precision. These metrics are exposed via the health API and recorded in the `MetricsService`:
+
+- `boot:phase:setup`: Latency for database handshake.
+- `boot:phase:core`: Latency for auth/settings hydration.
+- `boot:phase:full`: Latency for content/widget system reconciliation.
+- `recoveryCount`: Number of times the system successfully healed itself without human intervention.
+
+### 3. Robust Boot Protection (Self-Healing)
 
 The system manages a one-shot initialization lifecycle using a `dbInitPromise`:
 
