@@ -35,6 +35,12 @@ bun run scripts/enterprise-matrix.ts
 > [!NOTE]
 > This requires running Docker instances of MongoDB, PostgreSQL, and MariaDB.
 
+### Retention & Trend Analysis
+The matrix maintains a specialized retention policy to balance historical context with actionable trends:
+- **Trend Window**: Mermaid charts and trend indicators (🟢/🔴) analyze the **last 5 runs**.
+- **Historical Depth**: `history.json` persists up to **20 runs** per database variant before the oldest entries are pruned.
+- **Artifact Lifecycle**: Raw `.json` files in `tests/benchmarks/results/` are treated as temporary staging artifacts and are automatically cleaned up after documentation synchronization.
+
 ## 🔗 Relational Performance Testing
 
 With the 2026 update, we've introduced specialized relational benchmarks to ensure that complex data structures remain performant:

@@ -19,7 +19,7 @@ async function runRelationalBenchmarkSuite() {
   console.log("=============================================");
 
   try {
-    const TEST_API_SECRET = process.env.TEST_API_SECRET || "enterprise-audit-2026";
+    const TEST_API_SECRET = process.env.TEST_API_SECRET || "SveltyCMS-Benchmark-Secret-2026";
     const authHeaders: Record<string, string> = {
       "Content-Type": "application/json",
       "x-test-secret": TEST_API_SECRET,
@@ -41,7 +41,15 @@ async function runRelationalBenchmarkSuite() {
             query: "query { Authors { name posts { title } } }",
           }),
         });
-        if (!res.ok) throw new Error(`GraphQL Population failed: ${res.status}`);
+        if (!res.ok) throw new Error(`GraphQL Population failed Status: ${res.status}`);
+        const data = await res.json();
+        if (!data.data?.Authors) {
+          console.error("[Relational-Debug] GQL Population Data:", data);
+          throw new Error("GraphQL Population: Authors field missing in response");
+        }
+        if (!data.data?.Authors?.length) {
+          throw new Error("GraphQL Population returned zero results (Database might be empty)");
+        }
       },
     });
     overallResults.push(gqlPopulationResult);
@@ -61,7 +69,11 @@ async function runRelationalBenchmarkSuite() {
             query: "query { Authors { name posts { title author { name } } } }",
           }),
         });
-        if (!res.ok) throw new Error(`GraphQL Nested failed: ${res.status}`);
+        if (!res.ok) throw new Error(`GraphQL Nested failed Status: ${res.status}`);
+        const data = await res.json();
+        if (!data.data?.Authors?.length) {
+          throw new Error("GraphQL Nested: Authors not found or data structure mismatch");
+        }
       },
     });
     overallResults.push(gqlNestedResult);
@@ -83,7 +95,11 @@ async function runRelationalBenchmarkSuite() {
             headers: authHeaders,
           },
         );
-        if (!res.ok) throw new Error(`REST Relational Search failed: ${res.status}`);
+        if (!res.ok) throw new Error(`REST Relational Search failed Status: ${res.status}`);
+        const data = await res.json();
+        if (!data.data?.length) {
+          throw new Error(`REST Relational Search: No results found for filter: ${filter}`);
+        }
       },
     });
     overallResults.push(restRelationalSearchResult);

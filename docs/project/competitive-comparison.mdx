@@ -83,6 +83,19 @@ SveltyCMS treats security as a core feature, not a plugin:
 
 ## Competitive Context
 
+### 👥 The Contenders: Real-Time Collaboration Comparison
+
+The table below breaks down the core technical differences in how each platform handles real-time collaboration.
+
+| Platform | Technology Stack | Implementation Type | Key Features | The "Best" For... |
+| :--- | :--- | :--- | :--- | :--- |
+| **SveltyCMS** | Yjs CRDTs, Hocuspocus | Deep Native Integration | Character-level sync, remote cursors, local-first architecture | Unmatched technical sophistication and future-proof sync. |
+| **Directus** | WebSockets, Redis | Native Core Integration | Field-level locking, real-time presence | A stable, production-ready enterprise locking solution. |
+| **Sanity** | CRDT-based, Real-time API | Native & SaaS | Real-time Studio, Live Content API | Fully-managed enterprise SaaS with native real-time. |
+| **Payload** | WebSockets (via Plugin) | Community Plugin | Document change events, custom rooms | Flexibility to add basic real-time to code-first CMS. |
+| **Contentful** | Proprietary SaaS | Native (SaaS) | Simultaneous editing, version history | Reliable enterprise SaaS with standard real-time features. |
+| **Strapi** | WebSockets (via Plugin) | Community Plugin | Event broadcasting (CUD operations) | Basic real-time event notifications for local setups. |
+
 ### Payload CMS
 
 Payload is a mature and powerful ecosystem, particularly with its v3 Next.js integration. It offers excellent developer experience and a robust cloud offering. SveltyCMS positions itself as a lighter, faster alternative for teams who prefer the Svelte ecosystem and require absolute performance at the edge.

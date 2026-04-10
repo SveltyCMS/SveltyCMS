@@ -313,14 +313,13 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
   // High-performance bypass for internal test orchestration
   const testSecret = event.request.headers.get("x-test-secret");
   if (process.env.TEST_MODE === "true" && testSecret) {
-    const expected = getPrivateSettingSync("TEST_API_SECRET");
-    if (testSecret === expected) {
+    const expected = process.env.TEST_API_SECRET;
+
+    if (expected && testSecret === expected) {
       if (dbAdapter && auth) {
+        const adminEmail = event.request.headers.get("x-admin-email") || "admin@example.com";
         const adminResult = await auth
-          .getUserByEmail(
-            { email: "admin@example.com", tenantId: undefined },
-            { bypassTenantCheck: true },
-          )
+          .getUserByEmail({ email: adminEmail, tenantId: undefined }, { bypassTenantCheck: true })
           .catch(() => null);
         if (adminResult) {
           locals.dbAdapter = dbAdapter;

@@ -10,7 +10,7 @@ const AUTHOR_COUNT = Number(process.env.AUTHOR_COUNT ?? 10);
 const POSTS_PER_AUTHOR = Number(process.env.POSTS_PER_AUTHOR ?? 5);
 const SEED_CONCURRENCY = Number(process.env.SEED_CONCURRENCY ?? 5);
 const FETCH_TIMEOUT_MS = 30_000;
-const TEST_API_SECRET = process.env.TEST_API_SECRET || "enterprise-audit-2026";
+const TEST_API_SECRET = process.env.TEST_API_SECRET || "SveltyCMS-Benchmark-Secret-2026";
 
 const AUTHORS_COLLECTION_ID = "00000000000000000000000000000001";
 const POSTS_COLLECTION_ID = "00000000000000000000000000000002";

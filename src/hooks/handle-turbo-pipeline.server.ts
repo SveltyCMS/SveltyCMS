@@ -252,6 +252,16 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
   const baseHeaderMap = Object.fromEntries(BASE_HEADERS);
 
   try {
+    // ── 0. AUTH BYPASS FOR TESTING ──────────────────────────────────────────
+    const testSecret = event.request.headers.get("x-test-secret");
+    if (process.env.TEST_MODE === "true" && testSecret) {
+      const expected = process.env.TEST_API_SECRET;
+      if (expected && testSecret === expected) {
+        // Authenticated bypass - skip all remaining gates in this pipeline
+        return resolve(event);
+      }
+    }
+
     // ── 1. STATIC ASSET FAST EXIT ───────────────────────────────────────────
     if (STATIC_ASSET_REGEX.test(pathname)) {
       const response = await resolve(event);

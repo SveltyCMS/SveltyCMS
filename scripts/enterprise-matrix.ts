@@ -76,15 +76,15 @@ const ALL_DATABASES: DatabaseConfig[] = [
     type: "mariadb",
     port: 3306,
     host: "127.0.0.1",
-    user: "mariadb",
-    password: "password",
+    user: "root",
+    password: "mariadb",
   },
   {
     type: "mariadb",
     port: 3306,
     host: "127.0.0.1",
-    user: "mariadb",
-    password: "password",
+    user: "root",
+    password: "mariadb",
     useRedis: true,
     label: "MARIADB+REDIS",
   },
@@ -93,7 +93,7 @@ const ALL_DATABASES: DatabaseConfig[] = [
 const PORT = 4173;
 const DB_NAME = "SveltyCMS_test";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "Password123!";
-const TEST_API_SECRET = process.env.TEST_API_SECRET || randomBytes(32).toString("hex");
+const TEST_API_SECRET = process.env.TEST_API_SECRET || "SveltyCMS-Benchmark-Secret-2026";
 const ROOT_RESULTS_DIR = path.join(process.cwd(), "tests/benchmarks/results");
 const HISTORY_FILE = path.join(process.cwd(), "tests/benchmarks/results/history.json");
 const BENCHMARKS_DOC = path.join(process.cwd(), "docs/project/benchmarks.mdx");
@@ -135,6 +135,18 @@ const BENCHMARK_SCRIPTS = [
     shortLabel: "DB Adapter",
     desc: "Direct low-level benchmarks of Create, Read, Update, Delete operations on the current database adapter (bypassing higher layers).",
   },
+  {
+    path: "tests/benchmarks/security-audit.test.ts",
+    label: "Security Hardening & Audit",
+    shortLabel: "Security",
+    desc: "Measures the performance impact of security features: Fail-Closed Dispatcher overhead, Payload scanning latency, and SHA-256 Audit Chaining.",
+  },
+  {
+    path: "tests/benchmarks/graphql-stress.ts",
+    label: "GraphQL Load Stress",
+    shortLabel: "GQL Stress",
+    desc: "Executes massive concurrency loads (1000+ requests) to determine the breaking point of the GraphQL resolver engine under pressure.",
+  },
 ];
 
 const TARGET_DB_ORDER = [
@@ -174,6 +186,10 @@ function extractMetrics(metrics: any, dbType: string) {
     widgetInputAvg: m["widget-overhead-input"]?.avgMs || 0,
     widgetRichTextAvg: m["widget-overhead-richtext"]?.avgMs || 0,
     widgetRelationAvg: m["widget-overhead-relation"]?.avgMs || 0,
+    securityFirewallMs: m["security-firewall-clean"]?.p95Ms || 0,
+    securityAuditMs: m["security-audit-logging"]?.p95Ms || 0,
+    securityArgon2Ms: m["security-crypto-argon2"]?.avgMs || 0,
+    gqlStressRps: m["graphql-stress"]?.profiles?.[0]?.rps || 0,
   };
 }
 
@@ -328,12 +344,13 @@ async function ensureDatabaseExists(db: DatabaseConfig) {
     try {
       const mysql = (await import("mysql2/promise")).default;
       const conn = await mysql.createConnection({
-        host: db.host,
+        host: db.host === "localhost" ? "127.0.0.1" : db.host,
         port: db.port,
         user: db.user,
         password: db.password,
+        authProtocol: "mysql_native_password",
       });
-      await conn.query(`CREATE DATABASE IF NOT EXISTS ${DB_NAME}`);
+      await conn.query(`CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\``);
       await conn.end();
       log.info(`MariaDB database ready: ${DB_NAME}`);
     } catch (e: any) {
@@ -362,14 +379,18 @@ async function startServer(db: DatabaseConfig): Promise<{ coldStartMs: number; v
   };
   const start = performance.now();
 
-  serverProcess = spawn(
-    "bun",
-    ["x", "vite", "preview", "--port", PORT.toString(), "--host", "127.0.0.1"],
-    {
-      stdio: ["ignore", "pipe", "pipe"],
-      env: { ...process.env, ...env },
+  serverProcess = spawn("bun", ["build/index.js"], {
+    stdio: ["ignore", "pipe", "pipe"],
+    env: {
+      ...process.env,
+      ...env,
+      HOST: "127.0.0.1",
+      PORT: PORT.toString(),
+      ORIGIN: `http://127.0.0.1:${PORT}`,
+      PROTOCOL_HEADER: "x-forwarded-proto",
+      HOST_HEADER: "host",
     },
-  );
+  });
 
   return new Promise((resolve, reject) => {
     let resolved = false;
@@ -433,7 +454,7 @@ async function startServer(db: DatabaseConfig): Promise<{ coldStartMs: number; v
                 healthy = true;
                 break;
               }
-            } catch (_e: any) {}
+            } catch {}
           }
 
           if (healthy) {
@@ -479,11 +500,21 @@ async function generateFinalReport(results: BenchmarkResult[]) {
   if (!history.runs) history.runs = {};
   const now = new Date().toISOString();
 
+  // Load stress metrics separately if they exist
+  const stressRaw = await fs
+    .readFile(path.join(ROOT_RESULTS_DIR, "graphql-stress.json"), "utf8")
+    .catch(() => null);
+  const stressData = stressRaw ? JSON.parse(stressRaw) : null;
+
   for (const res of results) {
     if (res.status !== "SUCCESS") continue;
     const dbKey = res.db;
     const key = `${dbKey}-memory`;
     if (!history.runs[key]) history.runs[key] = [];
+    // Inject stress metrics into the result object if this is the target DB
+    if (stressData && res.status === "SUCCESS") {
+      res.metrics = { ...res.metrics, "graphql-stress": stressData };
+    }
     history.runs[key].unshift({ timestamp: now, ...res });
     if (history.runs[key].length > 20) history.runs[key].pop();
   }
@@ -499,8 +530,8 @@ async function generateFinalReport(results: BenchmarkResult[]) {
   });
   md += `\n`;
 
-  md += `| Database | Cold Start | REST (p95) | GQL (avg) | Relational (avg) | Raw DB (read) | Status |\n`;
-  md += `|----------|------------|------------|-----------|------------------|--------------|--------|\n`;
+  md += `| Database | Cold Start | REST (p95) | GQL (avg) | GQL Stress | Relational (avg) | Status |\n`;
+  md += `|----------|------------|------------|-----------|-------------|------------------|--------|\n`;
 
   let regressions: string[] = [];
   const latestMetrics: Record<string, any> = {};
@@ -556,8 +587,9 @@ async function generateFinalReport(results: BenchmarkResult[]) {
     md += `${curr.coldStartMs || 0}ms ${coldTrend.icon} (${coldTrend.pct}) | `;
     md += `${metrics.collections.toFixed(2)}ms ${restTrend.icon} (${restTrend.pct}) | `;
     md += `${metrics.graphqlAvg.toFixed(2)}ms ${gqlTrend.icon} (${gqlTrend.pct}) | `;
+    md += `${metrics.gqlStressRps > 0 ? metrics.gqlStressRps.toFixed(0) + " RPS" : "—"} | `;
     md += `${metrics.relationalAvg.toFixed(2)}ms ${relationalTrend.icon} (${relationalTrend.pct}) | `;
-    md += `${metrics.dbRaw.toFixed(3)}ms ${dbTrend.icon} (${dbTrend.pct}) | ${curr.status === "SUCCESS" ? "✅" : "❌"} |\n`;
+    md += `${curr.status === "SUCCESS" ? "✅" : "❌"} |\n`;
   }
 
   if (regressions.length > 0) {
@@ -717,6 +749,28 @@ async function generateFinalReport(results: BenchmarkResult[]) {
   }
   md += `\n`;
 
+  // 2.7 Security Hardening
+  md += `### 🛡️ SECURITY HARDENING & AUDIT MATRIX\n`;
+  md += `> **Business Value**: Validates that security features (Firewall, Audit Chaining) provide maximum protection with minimal performance impact.\n`;
+  md += `> **Test File**: [\`tests/benchmarks/security-audit.test.ts\`](../../tests/benchmarks/security-audit.test.ts)\n\n`;
+  md += `| Adapter Variant | Firewall (p95) | Audit Logging | Argon2id (Cost) | Status |\n`;
+  md += `|----------|----------------|---------------|-----------------|--------|\n`;
+  for (const db of ALL_DATABASES) {
+    const dbKey = db.useRedis ? `${db.type}-redis` : db.type;
+    const key = `${dbKey}-memory`;
+    const hist = history.runs[key] || [];
+    const curr = results.find((r) => r.db === dbKey) || hist[0];
+    if (curr?.metrics) {
+      const firewall = curr.metrics["security-firewall-clean"]?.p95Ms || 0;
+      const audit = curr.metrics["security-audit-logging"]?.p95Ms || 0;
+      const argon = curr.metrics["security-crypto-argon2"]?.avgMs || 0;
+      if (firewall > 0) {
+        md += `| ${(db.label || db.type).toUpperCase()} | ${firewall.toFixed(3)}ms | ${audit.toFixed(3)}ms | ${argon.toFixed(0)}ms | ${firewall < 0.1 ? "🟢 CLEAN" : "🟡 AUDIT"} |\n`;
+      }
+    }
+  }
+  md += `\n`;
+
   // 3. Middleware
   md += `### 🏁 MIDDLWARE PERFORMANCE MATRIX\n`;
   md += `> **Business Value**: Guarantees that security and multi-tenancy layers add negligible overhead to every request.\n`;
@@ -793,6 +847,27 @@ async function generateFinalReport(results: BenchmarkResult[]) {
 
   await fs.writeFile(BENCHMARKS_DOC, doc);
   log.success("Benchmarks synchronized to documentation.");
+
+  // Cleanup temporary JSON files (preserving history)
+  await cleanupResults();
+}
+
+/**
+ * Removes raw benchmark result files to keep the workspace clean.
+ */
+async function cleanupResults() {
+  log.info("Cleaning up temporary benchmark results...");
+  try {
+    const files = await fs.readdir(ROOT_RESULTS_DIR);
+    for (const file of files) {
+      if (file !== "history.json") {
+        const fullPath = path.join(ROOT_RESULTS_DIR, file);
+        await fs.rm(fullPath, { recursive: true, force: true }).catch(() => {});
+      }
+    }
+  } catch (err) {
+    log.error(`Cleanup failed: ${err}`);
+  }
 }
 
 async function main() {
@@ -814,6 +889,20 @@ async function main() {
       process.exit(1);
     }
   }
+
+  // Phase 1.5: Infrastructure Pre-check
+  log.info("Phase 1.5: Infrastructure Pre-check...");
+  for (const db of ALL_DATABASES) {
+    if (dbArg && !targetTypes.includes(db.type)) continue;
+    try {
+      log.info(`  Checking ${db.label || db.type}...`);
+      await ensureDatabaseExists(db);
+    } catch (e: any) {
+      log.warn(`Infrastructure check failed for ${db.type}: ${e.message}`);
+      // Non-fatal for pre-check
+    }
+  }
+  log.success("Infrastructure readiness documented.");
 
   const results: BenchmarkResult[] = [];
   await fs.mkdir(ROOT_RESULTS_DIR, { recursive: true });
@@ -863,14 +952,14 @@ async function main() {
       if (!runTask("Seeding Relational Data", `bun run scripts/setup-benchmarks.ts`, env))
         throw new Error("Relational Setup failed");
 
-      log.info("Settling database engine (2s)...");
-      await new Promise((r) => setTimeout(r, 2000));
+      log.info(`Settling ${db.type} engine (5s for stability)...`);
+      await new Promise((r) => setTimeout(r, 5000));
       await stopServer();
       await startServer(db);
 
       for (const s of BENCHMARK_SCRIPTS) {
-        if (!runTask(`Benchmark: ${s.label}`, `bun test ${s.path}`, env))
-          throw new Error(`${s.label} failed`);
+        const cmd = s.path.endsWith(".test.ts") ? `bun test ${s.path}` : `bun run ${s.path}`;
+        if (!runTask(`Benchmark: ${s.label}`, cmd, env)) throw new Error(`${s.label} failed`);
       }
 
       const metrics: any = {};

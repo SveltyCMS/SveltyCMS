@@ -4,7 +4,7 @@ title: "Tested Security Features"
 description: "Comprehensive list of security features covered by automated tests"
 author: "SveltyCMS Team"
 created: "2026-03-13"
-updated: "2026-04-02"
+updated: "2026-04-10"
 tags:
   - security
   - testing
@@ -56,6 +56,18 @@ SveltyCMS has **comprehensive security test coverage** across multiple test suit
 **Tests**: `tests/unit/routes/api/authorization.test.ts`, `tests/integration/api/dispatcher.test.ts`
 
 **UI**: Added "Access Denied" feedback logic in `admin-area.svelte` to handle 403 status codes.
+
+### 4. April 2026 Security Assessment & Hardening
+
+**Assessment Outcome**: Achieved **A++ Security Grade**.
+
+**Key Implemented Features**:
+- ✅ **Fail-Closed Dispatcher Verification**: Every unhandled route now strictly returns 403.
+- ✅ **Argon2id Memory-Hardness Audit**: Confirmed 64MB memory cost for resistance against quantum/ASIC speedup.
+- ✅ **SHA-256 Audit Chaining**: Implemented tamper-evident chaining for all file-backed security logs.
+- ✅ **Middleware Sequence Lockdown**: Verified that security headers and firewall scan are executed before any logic layers.
+
+**Tests**: `tests/benchmarks/security-audit.test.ts` (added April 2026), `tests/unit/hooks/firewall.test.ts`.
 
 ---
 

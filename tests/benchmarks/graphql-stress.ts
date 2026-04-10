@@ -112,7 +112,10 @@ async function runStressTest(level: keyof typeof LOAD_PROFILES) {
   const loginRes = await fetch(`${apiBase}/api/user/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email: "admin@example.com", password: "Admin123!" }),
+    body: JSON.stringify({
+      email: "admin@example.com",
+      password: process.env.ADMIN_PASSWORD || "Password123!",
+    }),
   });
 
   if (!loginRes.ok) {

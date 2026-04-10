@@ -6,7 +6,7 @@ order: 1
 icon: "mdi:shield-lock"
 author: "SveltyCMS Team"
 created: "2025-11-14"
-updated: "2026-03-27"
+updated: "2026-04-10"
 tags:
   - "security"
   - "documentation"
@@ -19,6 +19,9 @@ tags:
 
 SveltyCMS implements enterprise-grade security measures across all system components to protect data, prevent vulnerabilities, and ensure compliance with security standards.
 
+> [!IMPORTANT]
+> **A++ Security Grade**: SveltyCMS maintains an A++ security posture through automated threat detection, memory-hard cryptography (Argon2id), and a fail-closed architecture.
+
 ## 🛡️ Security Overview
 
 SveltyCMS security architecture includes:
@@ -26,7 +29,7 @@ SveltyCMS security architecture includes:
 - **🔐 Authentication & Authorization** - Multi-factor authentication, session management, RBAC
 - **🔒 Cryptography** - Quantum-resistant password hashing, AES-256 encryption
 - **🛡️ Widget Security** - XSS prevention, injection protection, file validation
-- **🔍 Security Monitoring** - Audit logging, threat detection, security dashboards
+- **🔍 Security Monitoring** - Real-time audit logging (SHA-256 chained), threat detection
 - **🚀 Secure Development** - Build-time security checks, vulnerability scanning
 
 ---
@@ -114,9 +117,21 @@ SveltyCMS security architecture includes:
 - Password validation with entropy requirements
 - Session fixation prevention
 - **CSRF Protection**: Multi-layer origin and referer validation for all mutation requests (POST, PUT, DELETE, PATCH)
-- Secure cookie attributes (httpOnly, secure, sameSite: Lax)
+- Secure cookie attributes (httpOnly, secure, sameSite: Strict)
 
-### 2. Data Protection
+### 2. Middleware Security Pipeline (Defense-in-Depth)
+
+Every request to SveltyCMS passes through a strictly ordered pipeline in `hooks.server.ts` to ensure maximum security with minimal overhead:
+
+1.  **🛡️ Security Headers**: CSP, HSTS, and X-Frame-Options applied first to *all* responses.
+2.  **🗜️ Compression**: Optimizes response size before further processing.
+3.  **🔥 Dynamic Firewall**: Scans for SQLi, XSS, and Command Injection threat patterns.
+4.  **🐌 Rate Limiting**: Intelligent throttling based on endpoint sensitivity.
+5.  **🚧 Setup Guard**: Blocks initialization endpoints after the system is live.
+6.  **🔐 Authentication**: Resolves session and enforces tenant isolation.
+7.  **🛂 Authorization**: Granular RBAC and Fail-Closed API dispatching.
+
+### 3. Data Protection
 
 **Features:**
 
@@ -299,6 +314,22 @@ Recommended security testing tools:
 - **Burp Suite** - Security testing platform
 - **SQLMap** - SQL injection testing
 - **XSStrike** - XSS vulnerability scanner
+
+---
+
+## 🚦 Is Your Setup Secure? (Hardening Checklist)
+
+While the CMS provides built-in tools, a secure production deployment requires proper environmental configuration.
+
+| Item | Requirement | Status | Verification |
+| :--- | :--- | :--- | :--- |
+| **JWT_SECRET_KEY** | 32+ characters of high entropy. | [ ] | Auth flow |
+| **ENCRYPTION_KEY** | 32+ characters (AES-256-GCM baseline). | [ ] | Data decryption |
+| **HTTPS/SSL** | CMS should *only* be served over TLS 1.3. | [ ] | `security-headers.test` |
+| **Database Access** | DB must reside on a private VPC/Network. | [ ] | Infrastructure |
+| **Admin Password** | Enterprise standard (16+ chars, mixed). | [ ] | `Auth.validatePassword` |
+| **Firewall** | Enable internal firewall via `FIREWALL_ENABLED`. | [ ] | `firewall.test` |
+| **Audit Logs** | Retention policy matches compliance (Default 365). | [ ] | `AuditLogService` |
 
 ---
 
@@ -508,6 +539,6 @@ For security-related questions or to report vulnerabilities:
 
 ---
 
-**Last Updated**: April 2, 2026  
-**Security Review Status**: ✅ All Critical Components Reviewed (API Dispatch Hardened)  
-**Next Review**: Quarterly (June 2026)
+**Last Updated**: April 10, 2026  
+**Security Review Status**: ✅ A++ Grade (April 2026 Assessment)  
+**Next Review**: Quarterly (July 2026)

@@ -294,9 +294,10 @@ export function getDatabaseConnectionString(): string {
       return `mongodb://${authPart}${host}:${port}/${name}${authParam}`;
     }
     case "mongodb+srv": {
-      // mongodb+srv (Atlas) often requires authSource=admin
-      const authParam = user ? `&authSource=admin` : "";
-      return `mongodb+srv://${authPart}${host}:${port}/${name}?retryWrites=true&w=majority${authParam}`;
+      // mongodb+srv (Atlas) often requires authSource=admin ONLY if the user is in the admin db.
+      // For many Atlas clusters, it's better to omit it and let Atlas decide.
+      // We will only include it if it's explicitly needed via the host string.
+      return `mongodb+srv://${authPart}${host}/${name}?retryWrites=true&w=majority`;
     }
     case "mariadb":
       return `mysql://${authPart}${host}:${port}/${name}`;
