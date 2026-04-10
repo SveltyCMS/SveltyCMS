@@ -1,5 +1,5 @@
 import { test as setup, expect } from "@playwright/test";
-import { loginAsAdmin, ADMIN_CREDENTIALS } from "./helpers/auth";
+import { loginAsAdmin, loginAs, ADMIN_CREDENTIALS } from "./helpers/auth";
 import { readFileSync } from "node:fs";
 
 const ADMIN_AUTH_FILE = "tests/e2e/.auth/admin.json";
@@ -69,10 +69,7 @@ setup.describe("E2E Role-Based Setup", () => {
       expect(signupResponse.ok()).toBeTruthy();
 
       // Login as the new user to capture their state
-      await page.goto("/login");
-      await page.getByPlaceholder(/email/i).fill(`${role.toLowerCase()}@example.com`);
-      await page.getByPlaceholder(/password/i).fill("Password123!");
-      await page.getByRole("button", { name: /sign in/i }).click();
+      await loginAs(page, `${role.toLowerCase()}@example.com`, "Password123!");
 
       const targetFile = role === "Editor" ? EDITOR_AUTH_FILE : AUTHOR_AUTH_FILE;
       await page.context().storageState({ path: targetFile });

@@ -32,6 +32,8 @@ if (!TEST_API_SECRET) {
 export default defineConfig({
   testDir: "./tests/e2e",
   testMatch: "**/*.{test,spec,spect}.ts",
+  /* Global setup to ensure required directories exist (critical for CI) */
+  globalSetup: "./tests/e2e/global.setup.ts",
   /* Maximum time one test can run for. */
   timeout: 60 * 1000,
   expect: {

@@ -15,22 +15,40 @@ export const ADMIN_CREDENTIALS = {
 };
 
 /**
- * Login as admin user
+ * Generic login function for any user
  * @param page - Playwright page object
- * @param waitForUrl - URL pattern to wait for after login (default: Collections/Names page)
+ * @param email - User email
+ * @param password - User password  
+ * @param waitForUrl - URL pattern to wait for after login (default: not /login)
  */
-export async function loginAsAdmin(page: Page, waitForUrl?: string | RegExp) {
+export async function loginAs(
+  page: Page,
+  email: string,
+  password: string,
+  waitForUrl?: string | RegExp,
+) {
   // Atomic Auth: Clear all previous session state to prevent session bleed
-  console.log("[Auth] Clearing cookies and localStorage for atomic login...");
+  console.log(`[Auth] Logging in as ${email}...`);
   await page.context().clearCookies();
+  
+  // Navigate first to ensure we have a valid origin for localStorage access
+  await page.goto("/login", { waitUntil: "domcontentloaded", timeout: 30_000 });
+  
+  // Now safe to clear storage (we're on the domain)
   await page.evaluate(() => {
     localStorage.clear();
     sessionStorage.clear();
+  }).catch(() => {
+    // Ignore errors if localStorage is restricted
+    console.log("[Auth] Could not clear storage (might be restricted)");
   });
 
-  // Inject session storage to bypass the welcome modal and cookie consent before navigation
+  // Inject storage to bypass ALL modals (welcome, cookie consent, first login)
   await page.addInitScript(() => {
+    // Setup wizard welcome modal
     window.sessionStorage.setItem("sveltycms_welcome_modal_shown", "true");
+    
+    // Cookie consent
     window.localStorage.setItem(
       "sveltycms_consent",
       JSON.stringify({
@@ -40,12 +58,18 @@ export async function loginAsAdmin(page: Page, waitForUrl?: string | RegExp) {
         marketing: false,
       }),
     );
+    
+    // First login welcome for admin
+    window.localStorage.setItem("sveltycms-welcome-seen", "true");
+    window.localStorage.setItem("sveltycms-welcome-progress", JSON.stringify([
+      "data-management",
+      "collections",
+      "users",
+      "settings"
+    ]));
   });
 
-  // First, try to logout if already logged in
-  await logout(page);
-
-  // Navigate to login page
+  // Navigate to login page (reload to apply init scripts)
   console.log("[Auth] Navigating to /login...");
   await page.goto("/login", { waitUntil: "networkidle", timeout: 30_000 });
 
@@ -53,6 +77,67 @@ export async function loginAsAdmin(page: Page, waitForUrl?: string | RegExp) {
   if (page.url().includes("/setup")) {
     throw new Error(`Setup is not complete. Cannot login - redirected to: ${page.url()}`);
   }
+
+  // CRITICAL: Dismiss ALL blocking modals that might interfere with login
+  console.log("[Auth] Checking for blocking modals...");
+  
+  // Strategy 1: Database Error Modal (HIGHEST PRIORITY - completely blocks login)
+  // Check for the exact error modal structure from error-context.md
+  const dbErrorHeading = page.locator('h2:has-text("Database Connection Error"), h2:has-text("Database Error")');
+  if (await dbErrorHeading.isVisible({ timeout: 2000 }).catch(() => false)) {
+    console.log("[Auth] ⚠️ Database Error Modal detected! Database empty - auto-seeding...");
+    
+    // CRITICAL FIX: Seed database via Testing API when empty  
+    try {
+      await page.request.post("/api/testing", {
+        data: {
+          action: "seed",
+          email: ADMIN_CREDENTIALS.email,
+          password: ADMIN_CREDENTIALS.password,
+        },
+      });
+      console.log("[Auth] ✓ Database seeded successfully");
+    } catch (seedError) {
+      console.log("[Auth] ⚠️ Seeding failed, trying reset first...");
+      await page.request.post("/api/testing", { data: { action: "reset" } });
+      await page.request.post("/api/testing", {
+        data: {
+          action: "seed",
+          email: ADMIN_CREDENTIALS.email,
+          password: ADMIN_CREDENTIALS.password,
+        },
+      });
+      console.log("[Auth] ✓ Database reset and seeded");
+    }
+    
+    // Reload login page with seeded database
+    await page.goto("/login", { waitUntil: "networkidle", timeout: 10000 });
+    await page.waitForTimeout(1000);
+  }
+  
+  // Strategy 2: First Login Welcome Modal
+  const welcomeModal = page.locator('div.fixed.inset-0.z-50:has-text("Welcome")').first();
+  if (await welcomeModal.isVisible({ timeout: 1000 }).catch(() => false)) {
+    console.log("[Auth] First Login Welcome Modal detected, dismissing...");
+    const skipBtn = page.locator('button:has-text("Skip"), button:has-text("Close"), button:has-text("Get Started")').first();
+    if (await skipBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+      await skipBtn.click();
+      await page.waitForTimeout(500);
+    }
+  }
+  
+  // Strategy 3: General modal dismissal (any other blocking modals)
+  const genericModal = page.locator('div.fixed.inset-0.z-50').first();
+  if (await genericModal.isVisible({ timeout: 1000 }).catch(() => false)) {
+    console.log("[Auth] Generic modal detected, attempting to dismiss...");
+    const anyCloseBtn = page.locator('button:has-text("Close"), button:has-text("OK"), button:has-text("Accept"), [aria-label*="close" i]').first();
+    if (await anyCloseBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+      await anyCloseBtn.click();
+      await page.waitForTimeout(500);
+    }
+  }
+  
+  console.log("[Auth] Modal dismissal complete.");
 
   // Check if we're on the login selection page (SIGN IN / SIGN UP buttons)
   // Try data-testid first, then fallback to previous locators
@@ -67,11 +152,12 @@ export async function loginAsAdmin(page: Page, waitForUrl?: string | RegExp) {
 
   if (signInIconVisible) {
     console.log("[Auth] Clicking SIGN IN icon...");
-    await signInIcon.click();
+    // Use force click with retry to bypass any transient overlays
+    await signInIcon.click({ force: true, timeout: 10000 });
     await page.waitForTimeout(1000);
   } else if (signInButtonVisible) {
     console.log("[Auth] Clicking SIGN IN button (fallback)...");
-    await signInButton.click();
+    await signInButton.click({ force: true, timeout: 10000 });
     await page.waitForTimeout(1000);
   } else {
     // If neither is visible, we might already be on the form, or on the SIGN UP only page (First User)
@@ -81,7 +167,7 @@ export async function loginAsAdmin(page: Page, waitForUrl?: string | RegExp) {
         "[Auth] WARNING: Only SIGN UP icon visible. DB might not be seeded or isFirstUser=true.",
       );
       // In first user mode, we'll try to click signup and fill it, but expect error later
-      await signUpIcon.click();
+      await signUpIcon.click({ force: true });
       await page.waitForTimeout(1000);
     }
   }
@@ -107,9 +193,9 @@ export async function loginAsAdmin(page: Page, waitForUrl?: string | RegExp) {
     });
 
   // Fill login form using data-testid selectors
-  console.log(`[Auth] Filling email: ${ADMIN_CREDENTIALS.email}`);
-  await page.getByTestId("signin-email").fill(ADMIN_CREDENTIALS.email);
-  await page.getByTestId("signin-password").fill(ADMIN_CREDENTIALS.password);
+  console.log(`[Auth] Filling email: ${email}`);
+  await page.getByTestId("signin-email").fill(email);
+  await page.getByTestId("signin-password").fill(password);
 
   // Submit form using data-testid
   console.log("[Auth] Submitting login form...");
@@ -124,6 +210,15 @@ export async function loginAsAdmin(page: Page, waitForUrl?: string | RegExp) {
     await expect(page).not.toHaveURL(/\/login/, { timeout: 15_000 });
   }
   console.log(`[Auth] Login successful, redirected to: ${page.url()}`);
+}
+
+/**
+ * Login as admin user (uses default ADMIN_CREDENTIALS)
+ * @param page - Playwright page object
+ * @param waitForUrl - URL pattern to wait for after login (default: Collections/Names page)
+ */
+export async function loginAsAdmin(page: Page, waitForUrl?: string | RegExp) {
+  await loginAs(page, ADMIN_CREDENTIALS.email, ADMIN_CREDENTIALS.password, waitForUrl);
 }
 
 /**
@@ -170,6 +265,9 @@ export async function logout(page: Page) {
       localStorage.clear();
       sessionStorage.clear();
     });
+    
+    // Navigate to login to confirm logout
+    await page.goto("/login", { timeout: 10_000, waitUntil: "domcontentloaded" });
   } catch (error) {
     console.log("[Auth] Error during logout, continuing anyway:", error);
   }

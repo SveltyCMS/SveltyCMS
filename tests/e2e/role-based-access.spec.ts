@@ -11,7 +11,7 @@
  */
 
 import { expect, type Page, test } from "@playwright/test";
-import { loginAsAdmin } from "./helpers/auth";
+import { loginAsAdmin, loginAs } from "./helpers/auth";
 import { seedTestUsers, TEST_USERS } from "./helpers/seed";
 
 // Test credentials (created by setup wizard + seed script)
@@ -23,44 +23,9 @@ const USERS = {
   ...TEST_USERS,
 };
 
+// Use shared loginAs helper instead of custom login function
 async function login(page: Page, user: { email: string; password: string }) {
-  await page.goto("/login", { waitUntil: "networkidle", timeout: 30_000 });
-
-  // Inject session storage to bypass the welcome modal and cookie consent
-  await page.addInitScript(() => {
-    window.sessionStorage.setItem("sveltycms_welcome_modal_shown", "true");
-    window.localStorage.setItem(
-      "sveltycms_consent",
-      JSON.stringify({
-        responded: true,
-        necessary: true,
-        analytics: false,
-        marketing: false,
-      }),
-    );
-  });
-
-  // The login page starts with Sign In / Sign Up selection.
-  // Click the Sign In icon to reveal the login form.
-  const signInIcon = page.getByTestId("signin-icon");
-  const signInVisible = await signInIcon.isVisible({ timeout: 5000 }).catch(() => false);
-  if (signInVisible) {
-    await signInIcon.click();
-    await page.waitForTimeout(1000);
-  }
-
-  // Wait for the form to appear, then fill it using data-testid
-  await page.waitForSelector('[data-testid="signin-email"]', {
-    timeout: 15_000,
-    state: "visible",
-  });
-  await page.getByTestId("signin-email").fill(user.email);
-  await page.getByTestId("signin-password").fill(user.password);
-  await page.getByTestId("signin-submit").click();
-
-  // Wait for redirect away from login
-  // Fresh installs redirect to collectionbuilder or dashboard depending on role
-  await expect(page).not.toHaveURL(/\/login/, { timeout: 15_000 });
+  await loginAs(page, user.email, user.password);
 }
 
 async function logout(page: Page) {
