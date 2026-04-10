@@ -112,6 +112,15 @@ test("Setup Wizard: Configure DB and Create Admin", async ({ page }) => {
   const dbHost = process.env.DB_HOST || (dbType === "sqlite" ? "config/database" : "localhost");
   const dbName =
     process.env.DB_NAME || (dbType === "sqlite" ? "sveltycms_test.db" : "sveltycms_test");
+  const dbPort = process.env.DB_PORT || defaultPort;
+  const dbUser =
+    process.env.DB_USER !== undefined ? process.env.DB_USER : dbType === "sqlite" ? "" : "test";
+  const dbPass =
+    process.env.DB_PASSWORD !== undefined
+      ? process.env.DB_PASSWORD
+      : dbType === "sqlite"
+        ? ""
+        : "test";
 
   const dbTypeSelect = page.getByTestId("db-type");
   await dbTypeSelect.selectOption(dbType);
@@ -122,6 +131,7 @@ test("Setup Wizard: Configure DB and Create Admin", async ({ page }) => {
   // Click Test Database and handle SQLite "create missing" modal
   const testDbButton = page.getByRole("button", { name: /test database/i });
   await testDbButton.click({ force: true });
+  await page.waitForTimeout(1000); // Wait for connection test to complete
 
   // Handle "Database does not exist" confirmation for SQLite
   const confirmBtn = page.getByRole("button", { name: /yes/i });
