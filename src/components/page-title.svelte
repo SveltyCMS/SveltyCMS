@@ -45,67 +45,65 @@
 - Fluid typography scaling
 -->
 <script lang="ts">
-import SystemTooltip from "@src/components/system/system-tooltip.svelte";
-import { ui } from "@src/stores/ui-store.svelte.ts";
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+	import { ui } from '@src/stores/ui-store.svelte.ts';
 
-type DefaultBehaviorFn = () => void;
+	type DefaultBehaviorFn = () => void;
 
-// Props
-interface Props {
-	backUrl?: string;
-	children?: import("svelte").Snippet; // For action buttons
-	highlight?: string;
-	helpUrl?: string; // Documentation URL
-	icon?: string;
-	iconColor?: string;
-	iconSize?: string;
-	name: string;
-	onBackClick?: (defaultBehavior: DefaultBehaviorFn) => void;
-	showBackButton?: boolean;
-	truncate?: boolean;
-}
-
-const {
-	name,
-	highlight = "",
-	helpUrl = "",
-	icon,
-	iconColor = "text-tertiary-500 dark:text-primary-500",
-	iconSize = "32",
-	showBackButton = false,
-	backUrl = "",
-	truncate = true,
-	onBackClick,
-	children,
-}: Props = $props();
-
-const titleParts = $derived(() => {
-	if (highlight && name.toLowerCase().includes(highlight.toLowerCase())) {
-		const regex = new RegExp(`(${highlight})`, "gi");
-		return name.split(regex);
+	// Props
+	interface Props {
+		backUrl?: string;
+		children?: import('svelte').Snippet; // For action buttons
+		highlight?: string;
+		icon?: string;
+		iconColor?: string;
+		iconSize?: string;
+		name: string;
+		onBackClick?: (defaultBehavior: DefaultBehaviorFn) => void;
+		showBackButton?: boolean;
+		truncate?: boolean;
 	}
-	return [name];
-});
 
-function handleBackClick(event: Event) {
-	const defaultBehavior: DefaultBehaviorFn = () => {
-		if (!backUrl) {
+	const {
+		name,
+		highlight = '',
+		icon,
+		iconColor = 'text-tertiary-500 dark:text-primary-500',
+		iconSize = '32',
+		showBackButton = false,
+		backUrl = '',
+		truncate = true,
+		onBackClick,
+		children
+	}: Props = $props();
+
+	const titleParts = $derived(() => {
+		if (highlight && name.toLowerCase().includes(highlight.toLowerCase())) {
+			const regex = new RegExp(`(${highlight})`, 'gi');
+			return name.split(regex);
+		}
+		return [name];
+	});
+
+	function handleBackClick(event: Event) {
+		const defaultBehavior: DefaultBehaviorFn = () => {
+			if (!backUrl) {
+				event.preventDefault();
+				window.history.back();
+			}
+			// If backUrl exists, let the link handle navigation naturally
+		};
+
+		if (onBackClick) {
+			event.preventDefault();
+			onBackClick(defaultBehavior);
+		} else if (!backUrl) {
+			// No backUrl provided, use browser history
 			event.preventDefault();
 			window.history.back();
 		}
-		// If backUrl exists, let the link handle navigation naturally
-	};
-
-	if (onBackClick) {
-		event.preventDefault();
-		onBackClick(defaultBehavior);
-	} else if (!backUrl) {
-		// No backUrl provided, use browser history
-		event.preventDefault();
-		window.history.back();
+		// Otherwise, let the <a> tag handle navigation with preloading
 	}
-	// Otherwise, let the <a> tag handle navigation with preloading
-}
 </script>
 
 <div class="my-1.5 flex w-full min-w-0 items-center justify-between gap-4">
@@ -136,20 +134,6 @@ function handleBackClick(event: Event) {
 					<span class={i % 2 === 1 ? 'font-semibold text-tertiary-500 dark:text-primary-500' : ''}> {part} </span>
 				{/each}
 			</span>
-
-			{#if helpUrl}
-				<SystemTooltip title="Open documentation">
-					<a
-						href={helpUrl}
-						target="_blank"
-						rel="noopener noreferrer"
-						class="ml-2 text-surface-500 hover:text-primary-500 transition-all hover:scale-110 flex items-center justify-center"
-						aria-label="View documentation"
-					>
-						<iconify-icon icon="mdi:help-circle-outline" width="20"></iconify-icon>
-					</a>
-				</SystemTooltip>
-			{/if}
 
 			<span class="sr-only absolute inset-0 overflow-hidden whitespace-normal"> {name} </span>
 		</h1>

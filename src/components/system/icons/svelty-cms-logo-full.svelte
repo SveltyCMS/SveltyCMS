@@ -5,30 +5,30 @@
 -->
 
 <script lang="ts">
-//ParaglideJS
+	//ParaglideJS
 
-import SiteName from "@src/components/site-name.svelte";
-import { logo_slogan } from "@src/paraglide/messages";
-import { getLocale } from "@src/paraglide/runtime";
-import { publicEnv } from "@src/stores/global-settings.svelte";
-import { browser } from "$app/environment";
-import Logo from "./svelty-cms-logo.svelte";
+	import SiteName from '@src/components/site-name.svelte';
+	import { logo_slogan } from '@src/paraglide/messages';
+	import { getLocale } from '@src/paraglide/runtime';
+	import { publicEnv } from '@src/stores/global-settings.svelte';
+	import { browser } from '$app/environment';
+	import Logo from './svelty-cms-logo.svelte';
 
-// Safely get the slogan - paraglide may not be ready during initial render in production
-function getSlogan(): string {
-	try {
-		// Only call message if we're in browser and locale is available
-		if (browser && getLocale()) {
-			return logo_slogan();
+	// Safely get the slogan - paraglide may not be ready during initial render in production
+	function getSlogan(): string {
+		try {
+			// Only call message if we're in browser and locale is available
+			if (browser && getLocale()) {
+				return logo_slogan();
+			}
+			return 'Content made simple';
+		} catch {
+			return 'Content made simple';
 		}
-		return "Content made simple";
-	} catch {
-		return "Content made simple";
 	}
-}
 
-const slogan = $derived(getSlogan());
-const siteName = $derived(publicEnv.SITE_NAME || "SveltyCMS");
+	const slogan = $derived(getSlogan());
+	const siteName = $derived(publicEnv.SITE_NAME || 'SveltyCMS');
 </script>
 
 <!-- CSS Logo - Removed <a> tag to prevent navigation interference -->

@@ -34,69 +34,63 @@
 -->
 
 <script lang="ts">
-// Using iconify-icon web component
-import type { FloatingInputProps } from "./types";
+	// Using iconify-icon web component
+	import type { FloatingInputProps } from './types';
 
-let {
-	value = $bindable(""),
-	showPassword = $bindable(false),
-	disabled = false,
-	icon = "",
-	iconColor = "gray",
-	inputClass = "",
-	label = "",
-	labelClass = "",
-	minlength,
-	maxlength,
-	name = "",
-	required = false,
-	passwordIconColor = "gray",
-	textColor = "black",
-	type = "text",
-	tabindex = 0,
-	id = "",
-	autocomplete,
-	autocapitalize = "none",
-	spellcheck = false,
-	autofocus = false,
-	invalid = false,
-	errorMessage = "",
-	onClick,
-	onInput,
-	onkeydown,
-	onPaste,
-	...rest
-}: FloatingInputProps = $props();
+	let {
+		value = $bindable(''),
+		showPassword = $bindable(false),
+		disabled = false,
+		icon = '',
+		iconColor = 'gray',
+		inputClass = '',
+		label = '',
+		labelClass = '',
+		minlength,
+		maxlength,
+		name = '',
+		required = false,
+		passwordIconColor = 'gray',
+		textColor = 'black',
+		type = 'text',
+		tabindex = 0,
+		id = '',
+		autocomplete,
+		autocapitalize = 'none',
+		spellcheck = false,
+		autofocus = false,
+		invalid = false,
+		errorMessage = '',
+		onClick,
+		onInput,
+		onkeydown,
+		onPaste,
+		...rest
+	}: FloatingInputProps = $props();
 
-let inputElement = $state<HTMLInputElement | null>(null);
-const currentId = $derived(
-	id || (label ? label.toLowerCase().replace(/\s+/g, "-") : "defaultInputId"),
-);
-const errorId = $derived(errorMessage ? `error-${currentId}` : undefined);
-const effectiveType = $derived(
-	showPassword && type === "password" ? "text" : type,
-);
-const isTextColorClass = $derived(
-	textColor.includes("text-") || textColor.includes(" "),
-);
+	let inputElement = $state<HTMLInputElement | null>(null);
+	const currentId = $derived(id || (label ? label.toLowerCase().replace(/\s+/g, '-') : 'defaultInputId'));
+	const errorId = $derived(errorMessage ? `error-${currentId}` : undefined);
+	const effectiveType = $derived(showPassword && type === 'password' ? 'text' : type);
+	const isTextColorClass = $derived(textColor.includes('text-') || textColor.includes(' '));
 
-$effect(() => {
-	if (autofocus && inputElement) {
-		inputElement.focus();
-	}
-});
+	$effect(() => {
+		if (autofocus && inputElement) {
+			inputElement.focus();
+		}
+	});
 
-function togglePasswordVisibility(event: Event): void {
-	event.preventDefault();
-	showPassword = !showPassword;
-}
-
-function handleIconKeyDown(event: KeyboardEvent): void {
-	if (event.key === "Enter" || event.key === " ") {
+	function togglePasswordVisibility(event: Event): void {
 		event.preventDefault();
-		togglePasswordVisibility(event);
+		showPassword = !showPassword;
 	}
-}
+
+	function handleIconKeyDown(event: KeyboardEvent): void {
+		if (event.key === 'Enter' || event.key === ' ') {
+			event.preventDefault();
+			togglePasswordVisibility(event);
+		}
+	}
 </script>
 
 <div class="relative w-full">

@@ -1,93 +1,80 @@
 /**
  * @file src/routes/setup/utils.ts
- * @description
- * Low-level utility engine for the SveltyCMS Setup Wizard.
- * Orchestrates database adapter life-cycles, connection validation, and technical error handling.
+ * @description Core utility functions for the setup process, including database connection helpers,
+ * adapter factories, and validation logic.
  *
- * Responsibilities include:
- * - Dynamic loading and initialization of database adapters during setup mode.
- * - Validating raw connection strings and configuration payloads.
- * - Implementing engine-specific connection health checks (MongoDB, SQL).
- * - Identifying and classifying technical dependencies (e.g., missing drivers).
- * - Providing a unified interface for database-agnostic operations during setup.
- *
- * ### Features:
- * - transient adapter factory patterns
- * - cross-engine connection verification
- * - structured error normalization
- * - driver availability heuristics
- * - server-side validation logic orchestration
+ * This file is part of the SveltyCMS setup wizard and handles low-level setup operations
+ * such as building connection strings and initializing database adapters during the setup phase.
  */
 
 import type { IDBAdapter } from "@src/databases/db-interface";
 import type { DatabaseConfig } from "@src/databases/schemas";
-import { logger } from "@utils/logger.server";
-import { SetupDatabaseError } from "./error-classifier";
-import { classifyDatabaseError } from "./error-classifier";
-
-/**
- * Internal helper to wrap any database error into a SetupDatabaseError.
- */
-function toSetupError(err: unknown, config: DatabaseConfig): SetupDatabaseError {
-  return SetupDatabaseError.fromError(err, (e) =>
-    classifyDatabaseError(e, {
-      host: config.host,
-      name: config.name,
-      isSrv: config.type === "mongodb+srv",
-    }),
-  );
-}
+import { logger } from "@utils/logger";
+import { createClient } from "redis";
 
 /**
  * Database connection string builder for supported database types.
+ * Currently supports: MongoDB (standard and Atlas SRV), MariaDB
+ * Future support planned: PostgreSQL
  */
 export function buildDatabaseConnectionString(config: DatabaseConfig): string {
+  // Validate config
   switch (config.type) {
     case "mongodb":
     case "mongodb+srv": {
       const isSrv = config.type === "mongodb+srv";
       const protocol = isSrv ? "mongodb+srv" : "mongodb";
       const port = isSrv || !config.port ? "" : `:${config.port}`;
+
+      // Check if username is provided
       const user = config.user
         ? `${encodeURIComponent(config.user)}${config.password ? `:${encodeURIComponent(config.password)}` : ""}@`
         : "";
+
+      // Only add authSource when credentials are provided
+      // For MongoDB Atlas (mongodb+srv), default authSource to 'admin' when user is provided
+      // For local MongoDB, only use authSource if explicitly provided
       let queryParams = "";
-      if (isSrv) {
-        queryParams = "retryWrites=true&w=majority";
+      if (config.user) {
+        const authSource = "admin";
+        queryParams = `?authSource=${encodeURIComponent(authSource)}${isSrv ? "&retryWrites=true&w=majority" : ""}`;
+      } else if (isSrv) {
+        // Atlas without credentials
+        queryParams = "?retryWrites=true&w=majority";
       }
-      // Add authSource if explicitly provided in config (or if we'll add it later in setup)
-      if ((config as any).authSource) {
-        queryParams += (queryParams ? "&" : "") + `authSource=${(config as any).authSource}`;
-      }
-      const finalParams = queryParams ? `?${queryParams}` : "";
-      return `${protocol}://${user}${config.host}${port}/${config.name}${finalParams}`;
+
+      // Logging happens in getSetupDatabaseAdapter with correlationId
+      return `${protocol}://${user}${config.host}${port}/${config.name}${queryParams}`;
     }
     case "mariadb": {
+      // MariaDB connection string
       const port = config.port ? `:${config.port}` : ":3306";
       const hasCredentials = config.user && config.password;
       const user = hasCredentials
         ? `${encodeURIComponent(config.user!)}:${encodeURIComponent(config.password!)}@`
         : "";
+
       return `mysql://${user}${config.host}${port}/${config.name}`;
     }
     case "postgresql": {
+      // PostgreSQL connection string
       const port = config.port ? `:${config.port}` : ":5432";
       const hasCredentials = config.user && config.password;
       const user = hasCredentials
         ? `${encodeURIComponent(config.user!)}:${encodeURIComponent(config.password!)}@`
         : "";
+
       return `postgresql://${user}${config.host}${port}/${config.name}`;
     }
     case "sqlite": {
-      // Standardize SQLite placement under config/database/ unless an absolute path is provided
-      const name = config.name.endsWith(".sqlite") ? config.name : `${config.name}.sqlite`;
-      if (config.host && (config.host.startsWith("/") || config.host.startsWith("C:"))) {
-        const path = config.host.endsWith("/") ? config.host : `${config.host}/`;
-        return `${path}${name}`;
-      }
-      return `config/database/${name}`;
+      // SQLite connection "string" (file path)
+      // Ensure host is treated as directory and name as filename
+      const path = config.host.endsWith("/") ? config.host : `${config.host}/`;
+      return `${path}${config.name}`;
     }
     default: {
+      // TypeScript ensures exhaustive checking - this should never be reached
+      // but provides a helpful message if the schema is extended without updating this function
       const EXHAUSTIVE_CHECK: never = config.type;
       throw new Error(`Unsupported database type: ${EXHAUSTIVE_CHECK}`);
     }
@@ -96,8 +83,9 @@ export function buildDatabaseConnectionString(config: DatabaseConfig): string {
 
 /**
  * A centralized factory function to get a temporary, connected database adapter
- * for setup operations.
+ * for setup operations. This is the core of the refactor.
  */
+
 export async function getSetupDatabaseAdapter(
   config: DatabaseConfig,
   options: { createIfMissing?: boolean } = {},
@@ -109,7 +97,6 @@ export async function getSetupDatabaseAdapter(
     typeof globalThis.crypto?.randomUUID === "function"
       ? globalThis.crypto.randomUUID()
       : (await import("node:crypto")).randomUUID();
-
   logger.info(`Creating setup database adapter for ${config.type}`, {
     correlationId,
   });
@@ -121,61 +108,221 @@ export async function getSetupDatabaseAdapter(
     port: config.port,
     name: config.name,
     hasUser: !!config.user,
+    hasPassword: !!config.password,
     // Only log sanitized connection string (without password)
     connectionStringPreview: connectionString.replace(/:[^:@]+@/, ":***@"),
   });
 
-  // Handle TEST_MODE
-  if (process.env.TEST_MODE === "true" && config.host === "mock-host") {
-    const mockAdapter = {
-      connect: async () => ({ success: true, data: undefined }),
-      disconnect: async () => {},
-      auth: { setupAuthModels: async () => {} },
-      crud: { count: async () => 0 },
-      getConnectionHealth: async () => ({
-        success: true,
-        data: { healthy: true, latency: 10, activeConnections: 1 },
-      }),
-    } as unknown as IDBAdapter;
-    return { dbAdapter: mockAdapter, connectionString };
-  }
-
   let dbAdapter: IDBAdapter;
 
-  try {
-    switch (config.type) {
-      case "mongodb":
-      case "mongodb+srv":
-        dbAdapter = await setupMongoDB(config, connectionString, correlationId);
-        break;
-      case "mariadb":
-        dbAdapter = await setupMariaDB(config, connectionString, correlationId);
-        break;
-      case "postgresql":
-        dbAdapter = await setupPostgreSQL(config, connectionString, correlationId);
-        break;
-      case "sqlite":
-        dbAdapter = await setupSQLite(config, connectionString, options, correlationId);
-        break;
-      default: {
-        const EXHAUSTIVE_CHECK: never = config.type;
-        throw new Error(`Database type '${EXHAUSTIVE_CHECK}' is not supported for setup.`);
+  switch (config.type) {
+    case "mongodb":
+    case "mongodb+srv": {
+      // Mock success in TEST_MODE if host is 'mock-host' for UI audit purposes
+      if (process.env.TEST_MODE === "true" && config.host === "mock-host") {
+        logger.info("🛠️ Mocking DB connection for setup in TEST_MODE");
+        const { MongoDBAdapter } = await import("@src/databases/mongodb/mongo-db-adapter");
+        dbAdapter = new MongoDBAdapter() as unknown as IDBAdapter;
+
+        // Mock the connect method to return success
+        dbAdapter.connect = async () => ({ success: true, data: undefined });
+        // Mock the auth setup to do nothing
+        dbAdapter.auth.setupAuthModels = async () => {};
+
+        return { dbAdapter, connectionString };
       }
+
+      const { MongoDBAdapter } = await import("@src/databases/mongodb/mongo-db-adapter");
+      dbAdapter = new MongoDBAdapter() as unknown as IDBAdapter;
+
+      // Prepare connection options for MongoDB
+      const connectionOptions: any = {
+        serverSelectionTimeoutMS: 15_000,
+        socketTimeoutMS: 45_000,
+        maxPoolSize: 50, // Increased to handle parallel seeding
+        retryWrites: true,
+        dbName: config.name,
+      };
+
+      if (config.user) {
+        connectionOptions.user = config.user;
+        if (config.password) {
+          connectionOptions.pass = config.password;
+        }
+
+        // Default authSource to 'admin' when user is provided
+        const authSource = "admin";
+        connectionOptions.authSource = authSource;
+      }
+
+      try {
+        const connectResult = await dbAdapter.connect(connectionString, connectionOptions);
+        if (!connectResult.success) {
+          logger.error(`MongoDB connection failed: ${connectResult.error.message}`, {
+            correlationId,
+          });
+          throw new Error(`Database connection failed: ${connectResult.error.message}`);
+        }
+
+        // VERIFICATION PROBE: MongoDB connection might succeed but fail on first CRUD if auth is wrong
+        logger.info("Running authentication verification probe...", { correlationId });
+        try {
+          // We try to list collections - this requires 'admin' or specific DB permissions
+          // If this fails with "Command find requires authentication", we know auth is wrong
+          await dbAdapter.crud.count("system_content_structure", {});
+          logger.info("✅ Authentication verification probe successful", { correlationId });
+        } catch (probeErr: any) {
+          logger.warn(`⚠️ Auth probe warning (non-fatal if DB is empty): ${probeErr.message}`, {
+            correlationId,
+          });
+          if (
+            probeErr.message.toLowerCase().includes("authentication") ||
+            probeErr.message.toLowerCase().includes("unauthorized")
+          ) {
+            throw new Error(`Authentication failed: ${probeErr.message}`);
+          }
+        }
+      } catch (err: any) {
+        logger.error(`MongoDB adapter connect threw: ${err.message}`, {
+          correlationId,
+        });
+        throw err;
+      }
+
+      break;
     }
+    case "mariadb": {
+      // Mock success in TEST_MODE if host is 'mock-host' for UI audit purposes
+      if (process.env.TEST_MODE === "true" && config.host === "mock-host") {
+        logger.info("🛠️ Mocking MariaDB connection for setup in TEST_MODE");
+        const { MariaDBAdapter } = await import("@src/databases/mariadb/mariadb-adapter");
+        dbAdapter = new MariaDBAdapter() as unknown as IDBAdapter;
 
-    // Initialize models and interfaces for all domain modules
-    if (dbAdapter.ensureAuth) await dbAdapter.ensureAuth();
-    else if (dbAdapter.auth?.setupAuthModels) await dbAdapter.auth.setupAuthModels();
+        // Mock the connect method to return success
+        dbAdapter.connect = async () => ({ success: true, data: undefined });
+        // Mock the auth setup to do nothing
+        dbAdapter.auth.setupAuthModels = async () => {};
 
-    if (dbAdapter.ensureSystem) await dbAdapter.ensureSystem();
-    if (dbAdapter.ensureCollections) await dbAdapter.ensureCollections();
-    if (dbAdapter.ensureMedia) await dbAdapter.ensureMedia();
-    if (dbAdapter.ensureContent) await dbAdapter.ensureContent();
+        return { dbAdapter, connectionString };
+      }
+
+      const { MariaDBAdapter } = await import("@src/databases/mariadb/mariadb-adapter");
+      dbAdapter = new MariaDBAdapter() as unknown as IDBAdapter;
+
+      const connectResult = await dbAdapter.connect(connectionString);
+      if (!connectResult.success) {
+        logger.error(`MariaDB connection failed: ${connectResult.error?.message}`, {
+          correlationId,
+        });
+        throw new Error(`Database connection failed: ${connectResult.error?.message}`);
+      }
+
+      break;
+    }
+    case "postgresql": {
+      // Mock success in TEST_MODE if host is 'mock-host' for UI audit purposes
+      if (process.env.TEST_MODE === "true" && config.host === "mock-host") {
+        logger.info("🛠️ Mocking PostgreSQL connection for setup in TEST_MODE");
+        const { PostgreSQLAdapter } = await import("@src/databases/postgresql/postgres-adapter");
+        dbAdapter = new PostgreSQLAdapter() as unknown as IDBAdapter;
+
+        // Mock the connect method to return success
+        dbAdapter.connect = async () => ({ success: true, data: undefined });
+        // Mock the auth setup to do nothing
+        dbAdapter.auth = {
+          setupAuthModels: async () => {},
+        } as IDBAdapter["auth"];
+
+        return { dbAdapter, connectionString };
+      }
+
+      const { PostgreSQLAdapter } = await import("@src/databases/postgresql/postgres-adapter");
+      dbAdapter = new PostgreSQLAdapter() as unknown as IDBAdapter;
+
+      const connectResult = await dbAdapter.connect(connectionString);
+      if (!connectResult.success) {
+        logger.error(`PostgreSQL connection failed: ${connectResult.error?.message}`, {
+          correlationId,
+        });
+        throw new Error(`Database connection failed: ${connectResult.error?.message}`);
+      }
+
+      break;
+    }
+    case "sqlite": {
+      // Mock success in TEST_MODE if host is 'mock-host' for UI audit
+      if (process.env.TEST_MODE === "true" && config.host === "mock-host") {
+        logger.info("🛠️ Mocking SQLite connection for setup in TEST_MODE");
+        // We'll create the folder/file in execution block below
+        return {
+          dbAdapter: {
+            connect: async () => ({ success: true, data: undefined }),
+            auth: { setupAuthModels: async () => {} },
+          } as unknown as IDBAdapter,
+          connectionString,
+        };
+      }
+
+      // For SQLite during setup, we'll try to import a minimal adapter if it exists
+      // or just return a dummy if we are just testing connection in Wizard
+      try {
+        const { existsSync } = await import("node:fs");
+        if (
+          !existsSync(connectionString) &&
+          process.env.TEST_MODE !== "true" &&
+          !options.createIfMissing
+        ) {
+          throw new Error(
+            `SQLite database file "${connectionString}" does not exist. Create it now?`,
+          );
+        }
+
+        const { SQLiteAdapter } = await import("@src/databases/sqlite/sqlite-adapter");
+        dbAdapter = new SQLiteAdapter() as unknown as IDBAdapter;
+        const connectResult = await dbAdapter.connect(connectionString);
+        if (!connectResult.success) {
+          throw new Error(connectResult.error?.message);
+        }
+      } catch (err: any) {
+        logger.error(`SQLite connection failed: ${err.message}`, {
+          correlationId,
+        });
+        throw new Error(`SQLite Connection failed: ${err.message}`);
+      }
+
+      break;
+    }
+    default: {
+      // TypeScript ensures exhaustive checking - this should never be reached
+      const EXHAUSTIVE_CHECK: never = config.type;
+      logger.error(`Unsupported database type: ${EXHAUSTIVE_CHECK}`, {
+        correlationId,
+      });
+      throw new Error(
+        `Database type '${EXHAUSTIVE_CHECK}' is not supported for setup. Supported types: mongodb, mongodb+srv, mariadb, postgresql`,
+      );
+    }
+  }
+
+  // Initialize auth models with error handling
+  try {
+    // Ensure auth module is initialized before accessing it
+    if (dbAdapter.ensureAuth) {
+      await dbAdapter.ensureAuth();
+    } else {
+      // Fallback for adapters that might not implement ensureAuth (though they should)
+      // or if it's already initialized.
+      await dbAdapter.auth.setupAuthModels();
+    }
   } catch (err) {
-    // If it's already a SetupDatabaseError, just rethrow
-    if (err instanceof SetupDatabaseError) throw err;
-    // Otherwise wrap it
-    throw toSetupError(err, config);
+    logger.error(
+      `Model initialization failed: ${err instanceof Error ? err.message : String(err)}`,
+      { correlationId },
+    );
+    await dbAdapter.disconnect();
+    throw new Error(
+      `Model initialization failed: ${err instanceof Error ? err.message : "Unknown error"}`,
+    );
   }
 
   logger.info(`✅ Successfully created and connected adapters for ${config.type}`, {
@@ -184,198 +331,17 @@ export async function getSetupDatabaseAdapter(
   return { dbAdapter, connectionString };
 }
 
-// Strategy: setup MongoDB adapter
-async function setupMongoDB(
-  config: DatabaseConfig,
-  connectionString: string,
-  correlationId: string,
-): Promise<IDBAdapter> {
-  const { MongoDBAdapter } = await import("@src/databases/mongodb/mongo-db-adapter");
-  const dbAdapter = new MongoDBAdapter() as IDBAdapter;
-
-  const connectionOptions: any = {
-    serverSelectionTimeoutMS: 15_000,
-    socketTimeoutMS: 45_000,
-    maxPoolSize: 50,
-    retryWrites: true,
-    dbName: config.name,
-  };
-
-  if (config.user) {
-    connectionOptions.user = config.user;
-    if (config.password) connectionOptions.pass = config.password;
-  }
-
-  // Multi-phase Authentication Strategy
-  // 1. Try as provided (default or user-specified authSource)
-  // 2. Try authSource: "admin"
-  // 3. Try authSource: [dbName]
-  const authSourcesToTry = ["DEFAULT", "admin", config.name];
-  let lastError: any = null;
-
-  for (const source of authSourcesToTry) {
-    try {
-      if (source !== "DEFAULT") {
-        logger.info(`🔄 Retrying MongoDB with authSource: ${source}...`, { correlationId });
-        await dbAdapter.disconnect().catch(() => {});
-
-        // Update config and rebuild connection string
-        const retryConfig = { ...config, authSource: source } as any;
-        connectionString = buildDatabaseConnectionString(retryConfig);
-        connectionOptions.authSource = source;
-      } else {
-        logger.info("📡 Attempting initial MongoDB connection...", { correlationId });
-      }
-
-      const connectResult = await dbAdapter.connect(connectionString, connectionOptions);
-      if (!connectResult.success) {
-        lastError = connectResult.error;
-        const classified = classifyDatabaseError(lastError);
-        if (classified.classification === "AUTH_FAILED" && config.user) {
-          continue; // Try next authSource
-        }
-        throw new SetupDatabaseError(classified, lastError);
-      }
-
-      // Verify connection with a probe
-      const probeResult = await dbAdapter.crud.count(
-        "system_content_structure",
-        {},
-        { silent: true },
-      );
-      if (probeResult.success) {
-        logger.info(
-          `✅ MongoDB connection successful (authSource: ${source === "DEFAULT" ? (config as any).authSource || "implicit" : source})`,
-        );
-        return dbAdapter;
-      }
-
-      const classifiedProbe = classifyDatabaseError(probeResult.error);
-      if (classifiedProbe.classification === "AUTH_FAILED" && config.user) {
-        lastError = probeResult.error;
-        continue;
-      }
-      throw new SetupDatabaseError(classifiedProbe, probeResult.error);
-    } catch (err) {
-      if (err instanceof SetupDatabaseError) {
-        if (err.classification === "AUTH_FAILED" && config.user) {
-          lastError = err;
-          continue;
-        }
-        throw err;
-      }
-      throw toSetupError(err, config);
-    }
-  }
-
-  // If we reach here, all retries failed
-  throw lastError instanceof SetupDatabaseError
-    ? lastError
-    : toSetupError(lastError || new Error("Authentication failed after all retries"), config);
-}
-
-// Strategy: setup MariaDB adapter
-async function setupMariaDB(
-  config: DatabaseConfig,
-  connectionString: string,
-  _correlationId: string,
-): Promise<IDBAdapter> {
-  const { MariaDBAdapter } = await import("@src/databases/mariadb/mariadb-adapter");
-  const dbAdapter = new MariaDBAdapter() as IDBAdapter;
-
-  const connectResult = await dbAdapter.connect(connectionString);
-  if (!connectResult.success) {
-    throw new SetupDatabaseError(
-      classifyDatabaseError(connectResult.error, { host: config.host, name: config.name }),
-      connectResult.error,
-    );
-  }
-
-  const probeResult = await dbAdapter.crud.count("system_content_structure", {});
-  if (!probeResult.success) {
-    throw new SetupDatabaseError(
-      classifyDatabaseError(probeResult.error, { host: config.host, name: config.name }),
-      probeResult.error,
-    );
-  }
-
-  return dbAdapter;
-}
-
-// Strategy: setup PostgreSQL adapter
-async function setupPostgreSQL(
-  config: DatabaseConfig,
-  connectionString: string,
-  _correlationId: string,
-): Promise<IDBAdapter> {
-  const { PostgreSQLAdapter } = await import("@src/databases/postgresql/postgres-adapter");
-  const dbAdapter = new PostgreSQLAdapter() as IDBAdapter;
-
-  const connectResult = await dbAdapter.connect(connectionString);
-  if (!connectResult.success) {
-    throw new SetupDatabaseError(
-      classifyDatabaseError(connectResult.error, { host: config.host, name: config.name }),
-      connectResult.error,
-    );
-  }
-
-  const probeResult = await dbAdapter.crud.count("system_content_structure", {});
-  if (!probeResult.success) {
-    throw new SetupDatabaseError(
-      classifyDatabaseError(probeResult.error, { host: config.host, name: config.name }),
-      probeResult.error,
-    );
-  }
-  return dbAdapter;
-}
-
-// Strategy: setup SQLite adapter
-async function setupSQLite(
-  config: DatabaseConfig,
-  connectionString: string,
-  options: { createIfMissing?: boolean },
-  correlationId: string,
-): Promise<IDBAdapter> {
-  try {
-    const { existsSync, writeFileSync, mkdirSync } = await import("node:fs");
-    const { dirname } = await import("node:path");
-    if (!existsSync(connectionString)) {
-      if (options.createIfMissing) {
-        logger.info(`[setupSQLite] Creating missing SQLite database file: ${connectionString}`, {
-          correlationId,
-        });
-        const dir = dirname(connectionString);
-        if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-        writeFileSync(connectionString, Buffer.alloc(0));
-      } else {
-        // Use the specific classification for DB missing
-        throw new SetupDatabaseError({
-          classification: "DB_NOT_FOUND",
-          userFriendly: `SQLite database file "${config.name}" does not exist.`,
-          hint: 'SveltyCMS can create the file for you automatically. Click "Yes, Create" in the confirmation dialog.',
-          raw: "",
-        });
-      }
-    }
-
-    const { SQLiteAdapter } = await import("@src/databases/sqlite/sqlite-adapter");
-    const dbAdapter = new SQLiteAdapter() as IDBAdapter;
-    const connectResult = await dbAdapter.connect(connectionString);
-    if (!connectResult.success) {
-      throw new SetupDatabaseError(classifyDatabaseError(connectResult.error), connectResult.error);
-    }
-    return dbAdapter;
-  } catch (err) {
-    if (err instanceof SetupDatabaseError) throw err;
-    throw toSetupError(err, config);
-  }
-}
-
-// Probes for a local Redis server on port 6379.
+/**
+ * Probes for a local Redis server on port 6379.
+ * Used to suggest performance optimizations to the user during setup.
+ */
 export async function checkRedis(): Promise<boolean> {
-  const { createClient } = await import("redis");
   const client = createClient({
-    socket: { host: "localhost", port: 6379, connectTimeout: 1000 },
+    socket: {
+      host: "localhost",
+      port: 6379,
+      connectTimeout: 1000,
+    },
   });
 
   try {
@@ -385,37 +351,7 @@ export async function checkRedis(): Promise<boolean> {
     logger.info("🚀 Local Redis detected during setup probe");
     return true;
   } catch {
+    // Redis not available - silent failure, it's just a probe
     return false;
-  }
-}
-
-/**
- * Tests connection to a Redis server with provided credentials.
- */
-export async function testRedisConnection(config: {
-  host: string;
-  port: number;
-  password?: string;
-}): Promise<{ success: boolean; message?: string }> {
-  const { createClient } = await import("redis");
-  const client = createClient({
-    socket: { host: config.host, port: config.port, connectTimeout: 2000 },
-    password: config.password || undefined,
-  });
-
-  try {
-    client.on("error", (err) => logger.debug("Redis test connection error event:", err.message));
-    await client.connect();
-    await client.ping();
-    await client.quit();
-    return { success: true };
-  } catch (error: any) {
-    logger.error("Redis connection test failed:", error);
-    // Wrap Redis errors too? We could use SetupDatabaseError but let's see.
-    // For now just return the message as before but we'll integrate it into +page.server.ts
-    return {
-      success: false,
-      message: error.message || "Could not connect to Redis",
-    };
   }
 }

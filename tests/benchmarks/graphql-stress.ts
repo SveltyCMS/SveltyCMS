@@ -33,7 +33,7 @@ const QUERIES = [
   {
     name: "System Health",
     body: JSON.stringify({
-      query: `query { contentManagerHealth { state version collectionCount } }`,
+      query: `query { contentSystemHealth { state version collectionCount } }`,
     }),
   },
   {

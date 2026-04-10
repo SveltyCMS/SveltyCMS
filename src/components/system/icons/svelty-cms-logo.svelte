@@ -9,18 +9,18 @@ Features:
 -->
 
 <script lang="ts">
-// Props
-interface Props {
-	className?: string;
-	fill?: string;
-	size?: number;
-}
+	// Props
+	interface Props {
+		className?: string;
+		fill?: string;
+		size?: number;
+	}
 
-const {
-	fill = "currentColor", // Better default - respects text color
-	className = "",
-	size = 72,
-}: Props = $props();
+	const {
+		fill = 'currentColor', // Better default - respects text color
+		className = '',
+		size = 72
+	}: Props = $props();
 </script>
 
 <svg

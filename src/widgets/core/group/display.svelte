@@ -24,75 +24,69 @@ Renders grouped content in a read-only display format with collapsible functiona
 -->
 
 <script lang="ts">
-import { getFieldName } from "@src/utils/utils";
-import type { FieldType, GroupWidgetData } from "./";
+	import { getFieldName } from '@src/utils/utils';
+	import type { FieldType, GroupWidgetData } from './';
 
-interface Props {
-	children?: any;
-	field: FieldType;
-	value: GroupWidgetData | null | undefined;
-}
-
-const { field, value, children }: Props = $props();
-
-const fieldName = $derived(getFieldName(field));
-
-// Variant classes
-const variantClasses = {
-	default: {
-		container: "",
-		header: "border-b border-gray-200 bg-transparent dark:border-gray-700",
-		content: "bg-transparent pt-3",
-	},
-	card: {
-		container:
-			"rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-700",
-		header:
-			"rounded-t-lg border-b border-gray-200 bg-gray-50 dark:border-gray-600 dark:bg-gray-700",
-		content: "p-4",
-	},
-	bordered: {
-		container: "rounded-lg border border-gray-300 dark:border-gray-600",
-		header:
-			"rounded-t-lg border-b border-gray-300 bg-gray-100 dark:border-gray-600 dark:bg-gray-700",
-		content: "rounded-b-lg bg-white p-4 dark:bg-gray-800",
-	},
-};
-
-const variant = $derived(
-	variantClasses[field.variant as keyof typeof variantClasses] ||
-		variantClasses.default,
-);
-
-// State for collapsible functionality
-let localIsCollapsed = $state<boolean | undefined>(undefined);
-let isCollapsed = {
-	get value() {
-		return localIsCollapsed ?? (field.collapsed as boolean);
-	},
-	set value(v: boolean) {
-		localIsCollapsed = v;
-	},
-};
-
-/**
- * Toggle collapse state
- */
-function toggleCollapse(): void {
-	if (field.collapsible) {
-		isCollapsed.value = !isCollapsed.value;
+	interface Props {
+		children?: any;
+		field: FieldType;
+		value: GroupWidgetData | null | undefined;
 	}
-}
 
-/**
- * Handle keyboard navigation
- */
-function handleKeyDown(event: KeyboardEvent): void {
-	if (event.key === "Enter" || event.key === " ") {
-		event.preventDefault();
-		toggleCollapse();
+	const { field, value, children }: Props = $props();
+
+	const fieldName = $derived(getFieldName(field));
+
+	// Variant classes
+	const variantClasses = {
+		default: {
+			container: '',
+			header: 'border-b border-gray-200 bg-transparent dark:border-gray-700',
+			content: 'bg-transparent pt-3'
+		},
+		card: {
+			container: 'rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-700',
+			header: 'rounded-t-lg border-b border-gray-200 bg-gray-50 dark:border-gray-600 dark:bg-gray-700',
+			content: 'p-4'
+		},
+		bordered: {
+			container: 'rounded-lg border border-gray-300 dark:border-gray-600',
+			header: 'rounded-t-lg border-b border-gray-300 bg-gray-100 dark:border-gray-600 dark:bg-gray-700',
+			content: 'rounded-b-lg bg-white p-4 dark:bg-gray-800'
+		}
+	};
+
+	const variant = $derived(variantClasses[field.variant as keyof typeof variantClasses] || variantClasses.default);
+
+	// State for collapsible functionality
+	let localIsCollapsed = $state<boolean | undefined>(undefined);
+	let isCollapsed = {
+		get value() {
+			return localIsCollapsed ?? (field.collapsed as boolean);
+		},
+		set value(v: boolean) {
+			localIsCollapsed = v;
+		}
+	};
+
+	/**
+	 * Toggle collapse state
+	 */
+	function toggleCollapse(): void {
+		if (field.collapsible) {
+			isCollapsed.value = !isCollapsed.value;
+		}
 	}
-}
+
+	/**
+	 * Handle keyboard navigation
+	 */
+	function handleKeyDown(event: KeyboardEvent): void {
+		if (event.key === 'Enter' || event.key === ' ') {
+			event.preventDefault();
+			toggleCollapse();
+		}
+	}
 </script>
 
 <div class="mb-4 w-full {variant.container}">

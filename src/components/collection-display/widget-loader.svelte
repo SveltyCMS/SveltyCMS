@@ -25,62 +25,55 @@ rather than bundling all widgets upfront.
 -->
 
 <script lang="ts">
-import type { FieldInstance } from "@src/content/types";
-import { logger } from "@utils/logger";
-import { onMount } from "svelte";
+	import type { FieldInstance } from '@src/content/types';
+	import { logger } from '@utils/logger';
+	import { onMount } from 'svelte';
 
-interface Props {
-	collectionName?: string;
-	field: FieldInstance;
-	loader: () => Promise<{ default: any }>;
-	tenantId?: string | null;
-	value?: any;
-	WidgetData?: Record<string, any>;
-}
-
-let {
-	loader,
-	field,
-	WidgetData = {},
-	value = $bindable(),
-	tenantId,
-	collectionName,
-}: Props = $props();
-
-// Component state
-let component: any = $state(null);
-let loading = $state(true);
-let error = $state<Error | null>(null);
-
-// Load the widget component asynchronously
-async function loadComponent() {
-	try {
-		loading = true;
-		error = null;
-
-		const module = await loader();
-		component = module.default;
-
-		logger.debug("[WidgetLoader] Component loaded:", {
-			widget: field.widget?.Name || "unknown",
-			field: field.label,
-		});
-	} catch (err) {
-		error = err instanceof Error ? err : new Error(String(err));
-		logger.error("[WidgetLoader] Failed to load component:", {
-			widget: field.widget?.Name || "unknown",
-			field: field.label,
-			error: error.message,
-		});
-	} finally {
-		loading = false;
+	interface Props {
+		collectionName?: string;
+		field: FieldInstance;
+		loader: () => Promise<{ default: any }>;
+		tenantId?: string | null;
+		value?: any;
+		WidgetData?: Record<string, any>;
 	}
-}
 
-// Load on mount
-onMount(() => {
-	loadComponent();
-});
+	let { loader, field, WidgetData = {}, value = $bindable(), tenantId, collectionName }: Props = $props();
+
+	// Component state
+	let component: any = $state(null);
+	let loading = $state(true);
+	let error = $state<Error | null>(null);
+
+	// Load the widget component asynchronously
+	async function loadComponent() {
+		try {
+			loading = true;
+			error = null;
+
+			const module = await loader();
+			component = module.default;
+
+			logger.debug('[WidgetLoader] Component loaded:', {
+				widget: field.widget?.Name || 'unknown',
+				field: field.label
+			});
+		} catch (err) {
+			error = err instanceof Error ? err : new Error(String(err));
+			logger.error('[WidgetLoader] Failed to load component:', {
+				widget: field.widget?.Name || 'unknown',
+				field: field.label,
+				error: error.message
+			});
+		} finally {
+			loading = false;
+		}
+	}
+
+	// Load on mount
+	onMount(() => {
+		loadComponent();
+	});
 </script>
 
 {#if loading}

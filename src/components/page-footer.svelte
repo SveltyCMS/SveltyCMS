@@ -11,39 +11,39 @@
 -->
 
 <script lang="ts">
-import { collections } from "@src/stores/collection-store.svelte";
-import { page } from "$app/state";
+	import { collections } from '@src/stores/collection-store.svelte';
+	import { page } from '$app/state';
 
-const { user } = page.data;
+	const { user } = page.data;
 
-const activeEntry = $derived(
-	collections.activeValue as {
-		createdAt?: string | number | Date;
-		updatedAt?: string | number | Date;
-	},
-);
+	const activeEntry = $derived(
+		collections.activeValue as {
+			createdAt?: string | number | Date;
+			updatedAt?: string | number | Date;
+		}
+	);
 
-// Convert ISO date string to formatted date
-const dates = $derived({
-	created: activeEntry?.createdAt
-		? new Date(activeEntry.createdAt).toLocaleDateString("en-US", {
-				year: "numeric",
-				month: "2-digit",
-				day: "2-digit",
-				hour: "2-digit",
-				minute: "2-digit",
-			})
-		: "-",
-	updated: activeEntry?.updatedAt
-		? new Date(activeEntry.updatedAt).toLocaleDateString("en-US", {
-				year: "numeric",
-				month: "2-digit",
-				day: "2-digit",
-				hour: "2-digit",
-				minute: "2-digit",
-			})
-		: "-",
-});
+	// Convert ISO date string to formatted date
+	const dates = $derived({
+		created: activeEntry?.createdAt
+			? new Date(activeEntry.createdAt).toLocaleDateString('en-US', {
+					year: 'numeric',
+					month: '2-digit',
+					day: '2-digit',
+					hour: '2-digit',
+					minute: '2-digit'
+				})
+			: '-',
+		updated: activeEntry?.updatedAt
+			? new Date(activeEntry.updatedAt).toLocaleDateString('en-US', {
+					year: 'numeric',
+					month: '2-digit',
+					day: '2-digit',
+					hour: '2-digit',
+					minute: '2-digit'
+				})
+			: '-'
+	});
 </script>
 
 <div class="grid grid-cols-2 items-center gap-x-2 border-t border-surface-400 py-2 text-[12px] leading-tight">

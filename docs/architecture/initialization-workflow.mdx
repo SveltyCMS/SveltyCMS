@@ -955,7 +955,7 @@ Called when user submits admin user form.
                         ↓
 ┌─────────────────────────────────────────────────────┐
 │ 5. Initialize Content System                       │
-│    - contentManager.initialize(undefined, true)    │
+│    - contentSystem.initialize(undefined, true)    │
 │    - Loads collections from database               │
 │    - Builds content structure cache                │
 └─────────────────────────────────────────────────────┘
@@ -1237,7 +1237,7 @@ const schemaUuidTransformer =
 | Service           | Purpose                      | File                              |
 | ----------------- | ---------------------------- | --------------------------------- |
 | `dbAdapter`       | Database abstraction layer   | `src/databases/db.ts`             |
-| `contentManager`  | Public system facade         | `src/content/index.ts`            |
+| `contentSystem`  | Public system facade         | `src/content/index.ts`            |
 | `Auth`            | Authentication/authorization | `src/databases/auth/index.ts`     |
 | `SettingsService` | Settings cache management    | `src/services/settingsService.ts` |
 

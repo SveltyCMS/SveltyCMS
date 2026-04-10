@@ -6,7 +6,7 @@
  * the HTTP API for external consumers.
  */
 
-import { contentManager } from "@src/content";
+import { contentSystem } from "@src/content";
 import { modifyRequest } from "@src/routes/api/collections/modify-request";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { logger } from "@utils/logger.server";
@@ -190,12 +190,12 @@ export class LocalCMS {
       db: cms.db,
 
       // Content System methods
-      version: contentManager.getContentVersion(),
+      version: contentSystem.getContentVersion(),
       getContentStructure: (tId?: string) =>
-        contentManager.getContentStructure((tId || tenantId) as DatabaseId),
+        contentSystem.getContentStructure((tId || tenantId) as DatabaseId),
       getNodeChildren: (parentId: string, tId?: string) =>
-        contentManager.getNodeChildren(parentId as DatabaseId, (tId || tenantId) as DatabaseId),
-      getContentVersion: () => contentManager.getContentVersion(),
+        contentSystem.getNodeChildren(parentId as DatabaseId, (tId || tenantId) as DatabaseId),
+      getContentVersion: () => contentSystem.getContentVersion(),
     };
   }
 
@@ -866,7 +866,7 @@ class CollectionsNamespace {
   }
 
   private async getSchema(collectionId: string, tenantId?: DatabaseId | null): Promise<Schema> {
-    const schema = await contentManager.getCollectionById(collectionId, tenantId);
+    const schema = await contentSystem.getCollectionById(collectionId, tenantId);
     if (!schema?._id)
       throw new AppError(`Collection "${collectionId}" not found`, 404, "COLLECTION_NOT_FOUND");
     return schema;
@@ -881,7 +881,7 @@ class CollectionsNamespace {
       throw new AppError("Tenant ID required", 400, "TENANT_MISSING");
     }
 
-    const collections = await contentManager.getCollections(tenantId);
+    const collections = await contentSystem.getCollections(tenantId);
 
     // Process collections (token replacement, etc.)
     const processed = await Promise.all(
@@ -934,7 +934,7 @@ class CollectionsNamespace {
     if (collections && collections.length > 0) {
       collectionsToSearch = collections;
     } else {
-      const allCollections = await contentManager.getCollections(tenantId);
+      const allCollections = await contentSystem.getCollections(tenantId);
       collectionsToSearch = allCollections
         .map((c) => c._id)
         .filter((id): id is string => id !== undefined);
@@ -948,7 +948,7 @@ class CollectionsNamespace {
     }
 
     const searchPromises = collectionsToSearch.map(async (collectionId) => {
-      const collection = await contentManager.getCollectionById(collectionId, tenantId);
+      const collection = await contentSystem.getCollectionById(collectionId, tenantId);
       if (!collection) return [];
 
       try {
@@ -1123,11 +1123,11 @@ class CollectionsNamespace {
   }
 
   async refresh(tenantId?: DatabaseId | null) {
-    return contentManager.initialize(tenantId, true); // skipReconciliation = true for speed
+    return contentSystem.initialize(tenantId, true); // skipReconciliation = true for speed
   }
 
   async reorderContentNodes(items: any[], tenantId?: DatabaseId | null) {
-    return contentManager.reorderContentNodes(items, tenantId);
+    return contentSystem.reorderContentNodes(items, tenantId);
   }
 
   async bulkCreate(collectionId: string, data: any[], options: LocalApiOptions = {}) {

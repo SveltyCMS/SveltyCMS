@@ -17,20 +17,20 @@ declare module "@tiptap/core" {
   }
 }
 
-export const TextStyleExtension = TextStyle.extend({
+export default TextStyle.extend({
   addAttributes() {
     return {
       ...this.parent?.(),
       fontSize: {
         default: null,
-        parseHTML: (element: any) => {
+        parseHTML: (element) => {
           const fontSize = element.style.fontSize;
           if (!fontSize) {
             return null;
           }
           return fontSize.replace(/px$/, "");
         },
-        renderHTML: (attributes: any) => {
+        renderHTML: (attributes) => {
           if (!attributes.fontSize) {
             return {};
           }
@@ -51,7 +51,7 @@ export const TextStyleExtension = TextStyle.extend({
       ...this.parent?.(),
       setFontSize:
         (fontSize: string) =>
-        ({ chain }: any) => {
+        ({ chain }) => {
           // SECURITY: Sanitize font-size to prevent CSS injection
           // Only allow numeric values with px/em/rem/% units
           const size = String(fontSize);
@@ -60,7 +60,7 @@ export const TextStyleExtension = TextStyle.extend({
         },
       unsetFontSize:
         () =>
-        ({ chain }: any) => {
+        ({ chain }) => {
           return chain()
             .focus()
             .setMark(this.name, { fontSize: null })

@@ -16,89 +16,83 @@
 -->
 
 <script lang="ts">
-import Media from "@src/components/media.svelte";
-import {
-	widget_ImageUpload_Allowed,
-	widget_ImageUpload_BrowseNew,
-	widget_ImageUpload_Drag,
-	widget_ImageUpload_Replace,
-	widget_ImageUpload_SelectImage,
-	widget_ImageUpload_SelectMedia,
-	widget_ImageUpload_Upload,
-} from "@src/paraglide/messages";
-import type { MediaImage } from "@utils/media/media-models";
-import { twMerge } from "tailwind-merge";
+	import Media from '@src/components/media.svelte';
+	import {
+		widget_ImageUpload_Allowed,
+		widget_ImageUpload_BrowseNew,
+		widget_ImageUpload_Drag,
+		widget_ImageUpload_Replace,
+		widget_ImageUpload_SelectImage,
+		widget_ImageUpload_SelectMedia,
+		widget_ImageUpload_Upload
+	} from '@src/paraglide/messages';
+	import type { MediaImage } from '@utils/media/media-models';
+	import { twMerge } from 'tailwind-merge';
 
-// Props
-let {
-	value = $bindable(),
-	multiple = $bindable(false),
-	show = $bindable(true),
-	className = "",
-	onChange,
-} = $props();
+	// Props
+	let { value = $bindable(), multiple = $bindable(false), show = $bindable(true), className = '', onChange } = $props();
 
-// Declare reactive state with $state
-let input: HTMLInputElement | null = $state(null);
-let showMedia = $state(false);
+	// Declare reactive state with $state
+	let input: HTMLInputElement | null = $state(null);
+	let showMedia = $state(false);
 
-// Handle media selection
-function handleMediaSelect(data: MediaImage | MediaImage[]) {
-	show = false;
-	showMedia = false;
-	// If multiple support is added later, this logic will need update
-	const selected = Array.isArray(data) ? data[0] : data;
-	if (selected) {
-		value = selected;
-		onChange?.(selected);
+	// Handle media selection
+	function handleMediaSelect(data: MediaImage | MediaImage[]) {
+		show = false;
+		showMedia = false;
+		// If multiple support is added later, this logic will need update
+		const selected = Array.isArray(data) ? data[0] : data;
+		if (selected) {
+			value = selected;
+			onChange?.(selected);
+		}
 	}
-}
 
-// Handle file change
-function handleFileChange() {
-	if (!input?.files || input.files.length === 0) {
-		return;
-	}
-	const file = input.files[0];
-	value = file;
-	show = false;
-	onChange?.(file);
-}
-
-// Handle file drop
-function handleDrop(e: DragEvent) {
-	e.preventDefault();
-	const file = e?.dataTransfer?.files[0];
-	if (file) {
+	// Handle file change
+	function handleFileChange() {
+		if (!input?.files || input.files.length === 0) {
+			return;
+		}
+		const file = input.files[0];
 		value = file;
 		show = false;
 		onChange?.(file);
 	}
-}
 
-// Handle drag over
-function handleDragOver(e: DragEvent) {
-	e.preventDefault();
-	const target = e.target as HTMLElement;
-	target.style.borderColor = "#6bdfff";
-}
+	// Handle file drop
+	function handleDrop(e: DragEvent) {
+		e.preventDefault();
+		const file = e?.dataTransfer?.files[0];
+		if (file) {
+			value = file;
+			show = false;
+			onChange?.(file);
+		}
+	}
 
-// Handle drag leave
-function handleDragLeave(e: DragEvent) {
-	e.preventDefault();
-	const target = e.target as HTMLElement;
-	target.style.removeProperty("border-color");
-}
+	// Handle drag over
+	function handleDragOver(e: DragEvent) {
+		e.preventDefault();
+		const target = e.target as HTMLElement;
+		target.style.borderColor = '#6bdfff';
+	}
 
-// Open file input dialog
-function openFileInput() {
-	input?.click();
-}
+	// Handle drag leave
+	function handleDragLeave(e: DragEvent) {
+		e.preventDefault();
+		const target = e.target as HTMLElement;
+		target.style.removeProperty('border-color');
+	}
 
-// Toggle media selection modal
-function toggleMedia(showMediaValue: boolean) {
-	showMedia = showMediaValue;
-}
+	// Open file input dialog
+	function openFileInput() {
+		input?.click();
+	}
+
+	// Toggle media selection modal
+	function toggleMedia(showMediaValue: boolean) {
+		showMedia = showMediaValue;
+	}
 </script>
 
 {#if show}
@@ -116,6 +110,7 @@ function toggleMedia(showMediaValue: boolean) {
 	>
 		<div class="grid grid-cols-6 items-center p-4">
 			<iconify-icon icon="fa6-solid:file-arrow-up" width="40"></iconify-icon>
+			<span class="text-white"> test</span>
 
 			<div class="col-span-5">
 				{#if !show}

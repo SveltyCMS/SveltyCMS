@@ -139,8 +139,8 @@ for (let attempt = 1; attempt <= 3; attempt++) {
 auth = new Auth(dbAdapter, sessionStore);
 await auth.initialize();
 
-contentManager = ContentManager.getInstance();
-await contentManager.initialize(dbAdapter);
+contentSystem = ContentSystem.getInstance();
+await contentSystem.initialize(dbAdapter);
 
 themeManager = ThemeManager.getInstance();
 await themeManager.initialize(dbAdapter);
@@ -826,7 +826,7 @@ graph TD
     I --> J[Background Task Scheduling - WARMING]
     J --> K[ThemeManager.initialize]
     J --> L[WidgetRegistry.scan]
-    J --> M[ContentManager - LAZY]
+    J --> M[ContentSystem - LAZY]
     K & L & M --> N[FULL HYDRATION - WARMED]
 ```
 

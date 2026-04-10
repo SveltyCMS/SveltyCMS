@@ -33,7 +33,7 @@ graph TD
         FS_Compiler["Vite Compiler"]
     end
 
-    subgraph Server_Layer ["Server Layer (ContentManager)"]
+    subgraph Server_Layer ["Server Layer (ContentSystem)"]
         CM_Loader["Schema Loader"]
         CM_Reconcile["Reconciliation Logic"]
         CM_Validation["Path & Integrity Validation"]
@@ -86,7 +86,7 @@ The `config/collections` directory is the primary source of truth for **Collecti
 > [!NOTE]
 > **Categories (Folders)** are strictly structural metadata nodes (`nodeType: 'category'`). Unlike collections, categories do not correspond to files on disk. They exist exclusively within the database to organize the collections hierarchically.
 
-### 2. ContentManager (The Reconciliation Engine)
+### 2. ContentSystem (The Reconciliation Engine)
 
 Located at `src/content/index.ts`, this singleton is responsible for bridging the gap between static files and dynamic database state.
 
@@ -145,7 +145,7 @@ The Collection Builder is designed for rapid iteration using a unified hotkey sy
 | Scenario                      | Handling                                                                                                                       |
 | :---------------------------- | :----------------------------------------------------------------------------------------------------------------------------- |
 | **Invalid Component Loaders** | The `createWidget` factory and TypeScript/Vite validate loaders at compile-time. Broken imports fail during build/development. |
-| **Orphaned Database Nodes**   | The `ContentManager` validation logic detects nodes with invalid structure and prevents them from loading into memory.         |
+| **Orphaned Database Nodes**   | The `ContentSystem` validation logic detects nodes with invalid structure and prevents them from loading into memory.         |
 | **Disk/DB Mismatch**          | The Filesystem is treated as the "Definition of Done". If a collection is in DB but not Disk, it is flagged for removal.       |
 | **Circular Dependencies**     | The `buildTree` logic includes cycle detection to prevent infinite recursion loop crashing the UI.                             |
 

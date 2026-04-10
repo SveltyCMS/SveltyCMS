@@ -201,13 +201,11 @@ const fetchDiskInfo = async () => {
     if (diskData) {
       // Convert v2.x format to expected format
       rootDiskUsage = {
-        totalGb: Number.parseFloat(((diskData?.total?.bytes ?? 0) / 1024 / 1024 / 1024).toFixed(2)),
-        usedGb: Number.parseFloat(((diskData?.used?.bytes ?? 0) / 1024 / 1024 / 1024).toFixed(2)),
-        freeGb: Number.parseFloat(
-          ((diskData?.available?.bytes ?? 0) / 1024 / 1024 / 1024).toFixed(2),
-        ),
-        usedPercentage: Number.parseFloat((diskData?.usagePercentage ?? 0).toFixed(2)),
-        freePercentage: Number.parseFloat((100 - (diskData?.usagePercentage ?? 0)).toFixed(2)),
+        totalGb: Number.parseFloat((diskData.total.bytes / 1024 / 1024 / 1024).toFixed(2)),
+        usedGb: Number.parseFloat((diskData.used.bytes / 1024 / 1024 / 1024).toFixed(2)),
+        freeGb: Number.parseFloat((diskData.available.bytes / 1024 / 1024 / 1024).toFixed(2)),
+        usedPercentage: Number.parseFloat(diskData.usagePercentage.toFixed(2)),
+        freePercentage: Number.parseFloat((100 - diskData.usagePercentage).toFixed(2)),
       };
     }
   }
@@ -327,11 +325,11 @@ const fetchMemoryInfo = async () => {
     // v2.x format - convert to expected format
     const memData = memoryInfoResult.data;
     memoryInfo = {
-      totalMemMb: Number.parseFloat(((memData?.total?.bytes ?? 0) / 1024 / 1024).toFixed(2)),
-      usedMemMb: Number.parseFloat(((memData?.used?.bytes ?? 0) / 1024 / 1024).toFixed(2)),
-      freeMemMb: Number.parseFloat(((memData?.free?.bytes ?? 0) / 1024 / 1024).toFixed(2)),
-      usedMemPercentage: Number.parseFloat((memData?.usagePercentage ?? 0).toFixed(2)),
-      freeMemPercentage: Number.parseFloat((100 - (memData?.usagePercentage ?? 0)).toFixed(2)),
+      totalMemMb: Number.parseFloat((memData.total.bytes / 1024 / 1024).toFixed(2)),
+      usedMemMb: Number.parseFloat((memData.used.bytes / 1024 / 1024).toFixed(2)),
+      freeMemMb: Number.parseFloat((memData.free.bytes / 1024 / 1024).toFixed(2)),
+      usedMemPercentage: Number.parseFloat(memData.usagePercentage.toFixed(2)),
+      freeMemPercentage: Number.parseFloat((100 - memData.usagePercentage).toFixed(2)),
     };
   }
 
@@ -632,30 +630,12 @@ const getSystemInfo = async (type?: string) => {
 import { apiHandler } from "@utils/api-handler";
 import { AppError } from "@utils/error-handling";
 
-import { getPrivateSettingSync } from "@src/services/settings-service";
-
 // Fetches and returns system information including CPU, disk, memory, and OS details.
 export const GET = apiHandler(async ({ url, locals }) => {
-  const { user, tenantId } = locals;
-  const isMultiTenant = getPrivateSettingSync("MULTI_TENANT");
-  const isSuperAdmin = user?.role === "super-admin";
-
   // Authentication is handled by hooks.server.ts
-  if (!user) {
+  if (!locals.user) {
     logger.warn("Unauthorized attempt to access system info");
     throw new AppError("Unauthorized", 401, "UNAUTHORIZED");
-  }
-
-  // SECURITY: In multi-tenant mode, only super-admins can see global system info
-  if (isMultiTenant && !isSuperAdmin) {
-    logger.warn(
-      `Unauthorized system-info access attempt by tenant admin ${user._id} (tenant: ${tenantId})`,
-    );
-    throw new AppError(
-      "Insufficient permissions: Only super-admins can view global system information in multi-tenant mode.",
-      403,
-      "FORBIDDEN",
-    );
   }
 
   // Check if specific type of information is requested
@@ -673,8 +653,8 @@ export const GET = apiHandler(async ({ url, locals }) => {
       });
     }
     logger.info(`System information (${type}) fetched successfully`, {
-      userId: user?._id,
-      userEmail: user?.email,
+      userId: locals.user?._id,
+      userEmail: locals.user?.email,
     });
 
     // Return the system information as a JSON response

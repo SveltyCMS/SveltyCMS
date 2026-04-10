@@ -26,7 +26,6 @@ import { widget_text_description } from "@src/paraglide/messages";
 import { createWidget } from "@src/widgets/widget-factory";
 
 // Type for aggregation field parameter
-
 interface AggregationField {
   db_fieldName: string;
   [key: string]: unknown;
@@ -92,10 +91,8 @@ export const createValidationSchema = (
 const InputWidget = createWidget<InputProps>({
   Name: "Input",
   Icon: "mdi:form-textbox",
-  Description: widget_text_description,
-  inputComponent: () => import("./input.svelte"),
+  Description: widget_text_description(),
   inputComponentPath: "/src/widgets/core/input/input.svelte",
-  displayComponent: () => import("./display.svelte"),
   displayComponentPath: "/src/widgets/core/input/display.svelte",
 
   validationSchema: createValidationSchema,
@@ -121,9 +118,6 @@ const InputWidget = createWidget<InputProps>({
     prefix: { widget: "Input", required: false },
     suffix: { widget: "Input", required: false },
     count: { widget: "Input", required: false },
-    unique: { widget: "Toggles", required: false },
-    disableUnique: { widget: "Toggles", required: false },
-    tenantScopedUnique: { widget: "Toggles", required: false },
   },
 
   // Aggregations for text search and sorting.

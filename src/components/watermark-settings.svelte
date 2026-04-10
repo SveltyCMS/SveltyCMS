@@ -13,52 +13,52 @@ Usage:
 -->
 
 <script lang="ts">
-interface Props {
-	opacity?: number;
-	positionX?: number;
-	positionY?: number;
-	rotation?: number;
-	// Export props for external binding
-	size?: string;
-}
+	interface Props {
+		opacity?: number;
+		positionX?: number;
+		positionY?: number;
+		rotation?: number;
+		// Export props for external binding
+		size?: string;
+	}
 
-let {
-	size = $bindable("100%"),
-	opacity = $bindable(1),
-	positionX = $bindable(0),
-	positionY = $bindable(0),
-	rotation = $bindable(0),
-}: Props = $props();
+	let {
+		size = $bindable('100%'),
+		opacity = $bindable(1),
+		positionX = $bindable(0),
+		positionY = $bindable(0),
+		rotation = $bindable(0)
+	}: Props = $props();
 
-// Handle size input change
-function handleSizeChange(event: Event) {
-	const target = event.target as HTMLInputElement;
-	size = target.value;
-}
+	// Handle size input change
+	function handleSizeChange(event: Event) {
+		const target = event.target as HTMLInputElement;
+		size = target.value;
+	}
 
-// Handle opacity input change
-function handleOpacityChange(event: Event) {
-	const target = event.target as HTMLInputElement;
-	opacity = Number.parseFloat(target.value);
-}
+	// Handle opacity input change
+	function handleOpacityChange(event: Event) {
+		const target = event.target as HTMLInputElement;
+		opacity = Number.parseFloat(target.value);
+	}
 
-// Handle X position input change
-function handlePositionXChange(event: Event) {
-	const target = event.target as HTMLInputElement;
-	positionX = Number.parseInt(target.value, 10);
-}
+	// Handle X position input change
+	function handlePositionXChange(event: Event) {
+		const target = event.target as HTMLInputElement;
+		positionX = Number.parseInt(target.value, 10);
+	}
 
-// Handle Y position input change
-function handlePositionYChange(event: Event) {
-	const target = event.target as HTMLInputElement;
-	positionY = Number.parseInt(target.value, 10);
-}
+	// Handle Y position input change
+	function handlePositionYChange(event: Event) {
+		const target = event.target as HTMLInputElement;
+		positionY = Number.parseInt(target.value, 10);
+	}
 
-// Handle rotation input change
-function handleRotationChange(event: Event) {
-	const target = event.target as HTMLInputElement;
-	rotation = Number.parseInt(target.value, 10);
-}
+	// Handle rotation input change
+	function handleRotationChange(event: Event) {
+		const target = event.target as HTMLInputElement;
+		rotation = Number.parseInt(target.value, 10);
+	}
 </script>
 
 <div class="grid grid-cols-2 gap-2">

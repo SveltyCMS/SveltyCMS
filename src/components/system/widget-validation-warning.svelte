@@ -26,38 +26,32 @@ Provides clear information about the issue and actionable steps to resolve it.
 -->
 
 <script lang="ts">
-// Utils
-import { logger } from "@utils/logger";
+	// Utils
+	import { logger } from '@utils/logger';
 
-// Lucide Icons
+	// Lucide Icons
 
-const {
-	collectionName = "",
-	fieldsWithIssues = [],
-	missingWidgets = [],
-	onActivateWidgets = () => {},
-	onDismiss = undefined,
-} = $props();
+	const { collectionName = '', fieldsWithIssues = [], missingWidgets = [], onActivateWidgets = () => {}, onDismiss = undefined } = $props();
 
-let dismissed = $state(false);
+	let dismissed = $state(false);
 
-function handleDismiss() {
-	dismissed = true;
-	if (onDismiss) {
-		onDismiss();
+	function handleDismiss() {
+		dismissed = true;
+		if (onDismiss) {
+			onDismiss();
+		}
+		logger.debug('[WidgetValidationWarning] Warning dismissed', {
+			collectionName
+		});
 	}
-	logger.debug("[WidgetValidationWarning] Warning dismissed", {
-		collectionName,
-	});
-}
 
-function handleActivate() {
-	onActivateWidgets();
-	logger.info("[WidgetValidationWarning] Activate widgets requested", {
-		collectionName,
-		widgetsToActivate: missingWidgets,
-	});
-}
+	function handleActivate() {
+		onActivateWidgets();
+		logger.info('[WidgetValidationWarning] Activate widgets requested', {
+			collectionName,
+			widgetsToActivate: missingWidgets
+		});
+	}
 </script>
 
 {#if !dismissed && fieldsWithIssues.length > 0}

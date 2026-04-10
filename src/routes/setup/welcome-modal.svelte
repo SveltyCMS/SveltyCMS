@@ -1,41 +1,32 @@
-<!--
-@file src/routes/setup/welcome-modal.svelte
+<!-- 
+@file src/routes/setup/WelcomeModal.svelte
 @component
-**Initial system greeting and orientation modal.**
-Presents a friendly introduction to SveltyCMS, setting expectations for the setup duration and facilitating the entry point into the wizard.
+**This component displays the welcome modal**
 
-### Props
-- `close` (function): Modal closure callback to initiate the setup workflow.
+Features:
+- Close button
+- Get Started button
+- Close button
 
-### Features:
-- high-impact branding with SVG logo integration
-- localized welcome messaging and ETA indicators
-- standardized primary CTA for wizard initiation
-- automated focus management and keyboard accessibility
-- responsive and centered layout optimized for orientation
 -->
 
 <script lang="ts">
-// Components
-import SiteName from "@src/components/site-name.svelte";
+	// Components
+	import SiteName from '@src/components/site-name.svelte';
 
-// Paraglide Messages
-import {
-	welcome_modal_body,
-	welcome_modal_cta,
-	welcome_modal_eta,
-} from "@src/paraglide/messages";
+	// Paraglide Messages
+	import { welcome_modal_body, welcome_modal_cta, welcome_modal_eta } from '@src/paraglide/messages';
 
-// Props
-interface Props {
-	close?: (result?: boolean) => void;
-}
-const { close }: Props = $props();
+	// Props
+	interface Props {
+		close?: (result?: boolean) => void;
+	}
+	const { close }: Props = $props();
 
-// Function to close the modal and trigger the 'Get Started' action
-function handleGetStarted() {
-	close?.(true);
-}
+	// Function to close the modal and trigger the 'Get Started' action
+	function handleGetStarted() {
+		close?.(true);
+	}
 </script>
 
 <div class="space-y-4 text-center">

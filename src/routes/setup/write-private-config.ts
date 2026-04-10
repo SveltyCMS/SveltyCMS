@@ -1,23 +1,7 @@
 /**
- * @file src/routes/setup/write-private-config.ts
- * @description
- * Configuration persistence engine for the SveltyCMS Setup Wizard.
- * Manages the generation, validation, and atomic updates of the `config/private.ts` bootstrap file.
- *
- * Responsibilities include:
- * - Generating standardized `privateEnv` objects with sanitized credentials.
- * - Automating the creation of cryptographically secure JWT secrets and encryption keys.
- * - Implementing safety guards to prevent accidental configuration overwrites post-setup.
- * - Providing atomic update mechanisms for architectural modes (Demo, Multi-tenant).
- * - Validating file write integrity to ensure system bootability.
- *
- * ### Features:
- * - injection-safe credential sanitization
- * - automated directory creation & file management
- * - integrated JWT/Encryption key generation (Node Crypto)
- * - post-write integrity verification
- * - specialized TEST_MODE support for CI/CD pipelines
- * - regex-based incremental configuration updates
+ * @file src/routes/setup/writePrivateConfig.ts
+ * @description Utility to write the `config/private.ts` file with database credentials
+ * during the setup process.
  */
 
 import type { DatabaseConfig } from "@src/databases/schemas";
@@ -31,16 +15,14 @@ import { isSetupComplete } from "@utils/setup-check";
 export async function writePrivateConfig(
   dbConfig: DatabaseConfig,
   system: { multiTenant?: boolean; demoMode?: boolean } = {},
-): Promise<{ jwtSecret: string; encryptionKey: string }> {
+): Promise<void> {
   const fs = await import("node:fs/promises");
   const path = await import("node:path");
   const { randomBytes } = await import("node:crypto");
 
   // Support TEST_MODE for isolated testing
   const configFileName = process.env.TEST_MODE ? "private.test.ts" : "private.ts";
-  const cwd = process.cwd();
-  const privateConfigPath = path.resolve(cwd, "config", configFileName);
-  logger.info(`DEBUG: [writePrivateConfig] process.cwd()=${cwd}, writing to ${privateConfigPath}`);
+  const privateConfigPath = path.resolve(process.cwd(), "config", configFileName);
 
   // Prevent overwrite after setup complete (unless in TEST_MODE)
   if (isSetupComplete() && !process.env.TEST_MODE) {
@@ -101,10 +83,6 @@ export const privateEnv = {
 `;
 
   try {
-    // Ensure config directory exists before writing the file
-    const configDir = path.resolve(process.cwd(), "config");
-    await fs.mkdir(configDir, { recursive: true });
-
     await fs.writeFile(privateConfigPath, privateConfigContent, "utf-8");
 
     // Validate written file to ensure integrity
@@ -128,7 +106,6 @@ export const privateEnv = {
     }
 
     logger.info("Private configuration file written and validated successfully");
-    return { jwtSecret, encryptionKey };
   } catch (error) {
     logger.error("Failed to write private config:", error);
     throw new Error(
@@ -150,19 +127,10 @@ export async function updatePrivateConfigMode(modes: {
 
   // Support TEST_MODE for isolated testing
   const configFileName = process.env.TEST_MODE ? "private.test.ts" : "private.ts";
-  const cwd = process.cwd();
-  const privateConfigPath = path.resolve(cwd, "config", configFileName);
-  logger.info(
-    `DEBUG: [updatePrivateConfigMode] process.cwd()=${cwd}, writing to ${privateConfigPath}`,
-  );
+  const privateConfigPath = path.resolve(process.cwd(), "config", configFileName);
 
   try {
     logger.debug("DEBUG: [updatePrivateConfigMode] CALLED with:", JSON.stringify(modes));
-
-    // Ensure config directory exists before writing the file
-    const configDir = path.resolve(process.cwd(), "config");
-    await fs.mkdir(configDir, { recursive: true });
-
     let content = await fs.readFile(privateConfigPath, "utf-8");
     logger.debug("DEBUG: [updatePrivateConfigMode] READ content length:", content.length);
     let modified = false;

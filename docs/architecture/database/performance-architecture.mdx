@@ -301,7 +301,7 @@ Layer 3: Database (Persistent)   → Sub-10ms latency (resilient pool)
 Caching applies automatically to:
 
 - Session management (authentication)
-- Collection schemas (ContentManager)
+- Collection schemas (ContentSystem)
 - User data (session-based)
 - GraphQL queries (resolver-level)
 - Media metadata
@@ -464,7 +464,7 @@ All performance optimizations apply automatically:
 Performance features update seamlessly:
 
 - API: `PUT /api/collections/{id}`
-- ContentManager: `updateCollection()`
+- ContentSystem: `updateCollection()`
 - Indexes rebuild automatically
 - Cache invalidation by pattern
 

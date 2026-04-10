@@ -8,321 +8,356 @@
 - **Reactivity**: Binds form data to the `collectionValue` store with real-time sync.
 - **Revision History**: Displays entry revisions with compare and revert functionality.
 - **Validation**: Performs field-level validation based on schema constraints.
-- **Collaboration**: Real-time multi-user editing with Yjs and Presence indicators.
+- **Translation Aware**: Manages multilingual data input through widget-integrated language context.
 
 ### Props
 - `fields` (Array): The array of field instances from the collection schema.
 - `revisions` (Array): Historical snapshot data for the current entry.
-- `contentLanguage` (String): The language for data entry.
+- `contentLanguage` (String): The language for data entry (GUI remains in systemLanguage).
+
+### Keyboard Shortcuts
+- `Alt + S`: Save currently edited entry (if focused)
 -->
 <script lang="ts">
-import { getFieldName } from "@utils/utils";
-import { untrack } from "svelte";
+	import { logger } from '@utils/logger';
+	import { getFieldName } from '@utils/utils';
+	import { untrack } from 'svelte';
 
-// Auth & Page data
-import { page } from "$app/state";
+	// Auth & Page data
+	import { page } from '$app/state';
 
-const user = $derived(page.data?.user);
-const tenantId = $derived(page.data?.tenantId);
+	const user = $derived(page.data?.user);
+	const tenantId = $derived(page.data?.tenantId);
 
-import { Tabs } from "@skeletonlabs/skeleton-svelte";
-import SystemTooltip from "@src/components/system/system-tooltip.svelte";
-import {
-	applayout_version,
-	button_edit,
-	Fields_no_widgets_found,
-	form_required,
-} from "@src/paraglide/messages";
-import type { Locale } from "@src/paraglide/runtime";
-// Types
-import {
-	collection,
-	collectionValue,
-	setCollectionValue,
-} from "@src/stores/collection-store.svelte";
-import { useContent } from "@src/content";
-import { publicEnv } from "@src/stores/global-settings.svelte";
-import {
-	contentLanguage,
-	dataChangeStore,
-	translationProgress,
-	validationStore,
-} from "@src/stores/store.svelte.ts";
-import { toast } from "@src/stores/toast.svelte.ts";
-import { showConfirm } from "@utils/modal-utils";
-import WidgetLoader from "./widget-loader.svelte";
+	import { Tabs } from '@skeletonlabs/skeleton-svelte';
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+	import { applayout_version, button_edit, Fields_no_widgets_found, form_required } from '@src/paraglide/messages';
+	import type { Locale } from '@src/paraglide/runtime';
+	// Stores
+	import { collection, collectionValue, setCollectionValue } from '@src/stores/collection-store.svelte';
+	import { publicEnv } from '@src/stores/global-settings.svelte';
+	import { contentLanguage, dataChangeStore, translationProgress, validationStore } from '@src/stores/store.svelte.ts';
+	import { toast } from '@src/stores/toast.svelte.ts';
+	import { widgetFunctions as widgetFunctionsStore, widgets } from '@src/stores/widget-store.svelte';
+	import { showConfirm } from '@utils/modal-utils';
+	import WidgetLoader from './widget-loader.svelte';
 
-// Collaboration
-import { collaborationService } from "@src/services/collaboration/collaboration-service.svelte";
-import { activeInputStore } from "@src/stores/active-input-store.svelte";
-import { slotRegistry } from "@src/plugins/slot-registry";
+	// --- PERFORMANCE FIX: DYNAMIC WIDGET IMPORTS ---
+	// Lazy-load widgets for code-splitting (eager: false is default)
+	// Returns loader functions instead of eager-loaded components
+	const modules: Record<string, () => Promise<{ default: any }>> = import.meta.glob('../../widgets/**/*.svelte') as Record<
+		string,
+		() => Promise<{ default: any }>
+	>;
 
-// Content Context
-const contentContext = useContent();
+	// Plugin Slot System
+	import { slotRegistry } from '@src/plugins/slot-registry';
+	import { activeInputStore } from '@src/stores/active-input-store.svelte';
 
-// --- 1. RECEIVE DATA AS PROPS ---
-let {
-	fields,
-	revisions = [],
-} = $props<{
-	fields?: NonNullable<(typeof collection)["value"]>["fields"];
-	revisions?: any[];
-	contentLanguage?: string;
-}>();
+	// Token Picker
+	// Token Picker
 
-// --- COLLABORATION INIT ---
-$effect(() => {
-	if (collection.value) {
-		collaborationService.init(collection.value, (collectionValue as any).value);
+	function openTokenPicker(field: any, e: MouseEvent) {
+		e.preventDefault();
+		e.stopPropagation();
+
+		// Fallback: Try to find the input by ID (using db_fieldName as ID)
+		const id = field.db_fieldName;
+		const el = document.getElementById(id) as HTMLInputElement | HTMLTextAreaElement;
+		if (el) {
+			el.focus();
+			activeInputStore.set({ element: el, field }); // Explicitly open picker on button click
+		} else {
+			console.warn('Could not find input for field', field);
+		}
 	}
-	return () => collaborationService.destroy();
-});
+	// --- END PERFORMANCE FIX ---
 
-// Sync local changes to Yjs if collaborative
-$effect(() => {
-	if (collaborationService.isCollaborative) {
-		const val = currentCollectionValue;
-		Object.keys(val).forEach(key => {
-			collaborationService.updateField(key, val[key]);
+	let widgetFunctions = $state<Record<string, any>>({});
+	$effect(() => {
+		const unsubscribe = widgetFunctionsStore.subscribe((value) => {
+			widgetFunctions = value;
+		});
+		return unsubscribe;
+	});
+
+	// --- 1. RECEIVE DATA AS PROPS ---
+	let {
+		fields,
+		revisions = []
+		// contentLanguage prop received but not directly used - widgets access contentLanguage store
+	} = $props<{
+		fields?: NonNullable<(typeof collection)['value']>['fields'];
+		revisions?: any[];
+		contentLanguage?: string; // Passed for documentation, widgets use store directly
+	}>();
+
+	// --- 2. SIMPLIFIED STATE ---
+	let localTabSet = $state('0');
+	let apiUrl = $state('');
+
+	// This is form state, not fetched data, so it remains.
+	let currentCollectionValue = $state<Record<string, any>>({});
+
+	// Revisions State (now simpler)
+	let selectedRevisionId = $state('');
+
+	// Track the last entry ID to detect when switching entries
+	let lastEntryId = $state<string | undefined>(undefined);
+
+	// Track current content language for reactivity
+	let currentContentLanguage = $state<Locale>(contentLanguage.value as Locale);
+
+	// React to contentLanguage store changes and update local state
+	// This ensures widgets remount with the correct language
+	$effect(() => {
+		const newLang = contentLanguage.value as Locale;
+		if (currentContentLanguage !== newLang) {
+			logger.debug('Language changed:', currentContentLanguage, '→', newLang);
+			logger.debug('Current collectionValue keys:', Object.keys(currentCollectionValue));
+			// Update immediately to trigger {#key} block
+			currentContentLanguage = newLang;
+			logger.debug('Updated currentContentLanguage to:', currentContentLanguage);
+		}
+	});
+
+	// --- 3. DERIVED STATE FROM PROPS ---
+	let selectedRevision = $derived(Array.isArray(revisions) ? revisions.find((r: any) => r._id === selectedRevisionId) || null : null);
+
+	// --- 4. SIMPLIFIED LOGIC ---
+	let derivedFields = $derived(fields || []);
+
+	// Get translation progress
+	let currentTranslationProgress = $derived(translationProgress.value);
+
+	// Track changes to translation progress for debugging
+	$effect(() => {
+		logger.debug('Translation progress updated:', {
+			showProgress: translationProgress.value?.show,
+			languages: Object.keys(translationProgress.value || {}).filter((k) => k !== 'show')
+		});
+	});
+
+	// Get available languages
+	let availableLanguages = $derived.by<Locale[]>(() => {
+		// Wait for publicEnv to be initialized
+		const languages = publicEnv?.AVAILABLE_CONTENT_LANGUAGES;
+		if (!(languages && Array.isArray(languages))) {
+			return ['en'] as Locale[];
+		}
+		return languages as Locale[];
+	});
+
+	// Helper to get field translation percentage across all languages
+	function getFieldTranslationPercentage(field: any): number {
+		if (!field.translated) {
+			return 100; // Not a translatable field
+		}
+
+		const fieldName = `${collection.value?.name}.${getFieldName(field)}`;
+		const allLangs = availableLanguages; // Use the new derived state
+
+		// Avoid division by zero if no languages are configured
+		if (allLangs.length === 0) {
+			return 100;
+		}
+
+		let translatedCount = 0;
+
+		// Count how many languages have this field translated
+		for (const lang of allLangs) {
+			const langProgress = currentTranslationProgress?.[lang as Locale];
+			if (langProgress?.translated.has(fieldName)) {
+				translatedCount++;
+			}
+		}
+
+		// Calculate the overall percentage for this field
+		return Math.round((translatedCount / allLangs.length) * 100);
+	}
+
+	// Helper to get text color based on translation status
+	function getTranslationTextColor(percentage: number): string {
+		if (percentage === 100) {
+			return 'text-tertiary-500 dark:text-primary-500';
+		}
+		return 'text-error-500';
+	}
+
+	function ensureFieldProperties(field: any) {
+		if (!field) {
+			return null;
+		}
+		return {
+			...field,
+			db_fieldName: field.db_fieldName || getFieldName(field, true),
+			widget: field.widget || { Name: field.type || 'Input' },
+			permissions: field.permissions || {}
+		};
+	}
+
+	let filteredFields = $derived(
+		derivedFields
+			.map(ensureFieldProperties)
+			.filter(Boolean)
+			.filter((field: any) => {
+				if (!field.permissions || page.data?.isAdmin || !user?.role) {
+					return true;
+				}
+				const rolePermissions = field.permissions[user.role];
+				return !rolePermissions || rolePermissions.read !== false;
+			})
+	);
+
+	// Sync local form state with global store
+	// When collectionValue changes (new entry loaded), update local state
+	// When local state changes (user editing), update global state
+	$effect(() => {
+		const global = collectionValue.value as Record<string, unknown> | undefined;
+		const globalId = (global as any)?._id;
+
+		// When a new entry is loaded (different ID), pull from global -> local
+		if (globalId && globalId !== lastEntryId) {
+			logger.debug('Loading entry data:', globalId);
+			currentCollectionValue = { ...global } as any;
+			lastEntryId = globalId;
+			// Set initial snapshot for change tracking
+			dataChangeStore.setInitialSnapshot(global as Record<string, any>);
+			return;
+		}
+
+		// If creating new entry (no ID), initialize with global state
+		if (!(globalId || lastEntryId) && global && Object.keys(global).length > 0) {
+			logger.debug('Initializing new entry');
+			currentCollectionValue = { ...global } as any;
+			// Set initial snapshot for change tracking
+			dataChangeStore.setInitialSnapshot(global as Record<string, any>);
+			return;
+		}
+
+		// Otherwise, push local changes to global (user is editing)
+		// Use untrack to read currentCollectionValue without creating a dependency loop
+		const local = untrack(() => currentCollectionValue) as Record<string, unknown> | undefined;
+		if (local && Object.keys(local).length > 0) {
+			const currentDataStr = JSON.stringify(local);
+			const globalDataStr = JSON.stringify(global ?? {});
+			if (currentDataStr !== globalDataStr) {
+				logger.debug('Pushing local changes to global store');
+				untrack(() => setCollectionValue({ ...local }));
+				// Track changes for save button state
+				dataChangeStore.compareWithCurrent(local as Record<string, any>);
+			}
+		}
+	});
+
+	// Separate effect to detect changes in currentCollectionValue and sync to store
+	// This is needed because the widget bind:value updates currentCollectionValue
+	let lastLocalValueStr = $state<string>('');
+	$effect(() => {
+		// React to currentCollectionValue changes (from widget inputs)
+		const localStr = JSON.stringify(currentCollectionValue);
+
+		// Skip if this is the initial load or empty
+		if (!currentCollectionValue || Object.keys(currentCollectionValue).length === 0) {
+			return;
+		}
+
+		// Only update if value actually changed
+		if (localStr !== lastLocalValueStr) {
+			logger.debug('currentCollectionValue changed, syncing to store');
+			lastLocalValueStr = localStr;
+
+			// Update the global store (using untrack to avoid creating dependency)
+			const global = untrack(() => collectionValue.value);
+			const globalStr = JSON.stringify(global ?? {});
+
+			if (localStr !== globalStr) {
+				untrack(() => setCollectionValue({ ...currentCollectionValue }));
+				// Track changes for save button state
+				dataChangeStore.compareWithCurrent(currentCollectionValue as Record<string, any>);
+			}
+		}
+	});
+
+	// --- 5. REFACTORED REVISION LOGIC ---
+	function handleRevert() {
+		if (!selectedRevision?.data) {
+			return;
+		}
+		showConfirm({
+			title: 'Confirm Revert',
+			body: 'Are you sure you want to revert to this version? Any unsaved changes will be lost.',
+			confirmText: 'Revert',
+			onConfirm: () => {
+				const revertData = {
+					...selectedRevision.data,
+					_id: (collectionValue as any).value?._id
+				};
+				setCollectionValue(revertData);
+				currentCollectionValue = revertData; // also update local state
+				toast.info('Content reverted. Please save your changes.');
+				localTabSet = '0';
+			}
 		});
 	}
-});
 
-// --- STATE ---
-let localTabSet = $state("0");
-let apiUrl = $state("");
-let currentCollectionValue = $state<Record<string, any>>({});
-let selectedRevisionId = $state("");
-let lastEntryId = $state<string | undefined>(undefined);
-let currentContentLanguage = $state<Locale>(contentLanguage.value as Locale);
+	// --- 6. VALIDATION LOGIC ---
+	// Reactively validate fields whenever values change
+	$effect(() => {
+		const values = currentCollectionValue; // React to value changes
 
-// --- REFRESH DATA ON LANG CHANGE ---
-$effect(() => {
-	const newLang = contentLanguage.value as Locale;
-	if (currentContentLanguage !== newLang) {
-		currentContentLanguage = newLang;
-	}
-});
+		// Iterate over fields to validate them
+		filteredFields.forEach((field: any) => {
+			if (field.required) {
+				const fieldName = getFieldName(field, false);
+				const value = values[fieldName];
 
-// --- DERIVED ---
-let selectedRevision = $derived(
-	Array.isArray(revisions)
-		? revisions.find((r: any) => r._id === selectedRevisionId) || null
-		: null,
-);
+				// Check for empty values
+				// Handle various types: string, array, null, undefined
+				const isEmpty =
+					value === null || value === undefined || (typeof value === 'string' && value.trim() === '') || (Array.isArray(value) && value.length === 0);
 
-let derivedFields = $derived(fields || []);
-let currentTranslationProgress = $derived(translationProgress.value);
-
-let availableLanguages = $derived.by<Locale[]>(() => {
-	const languages = publicEnv?.AVAILABLE_CONTENT_LANGUAGES;
-	return (Array.isArray(languages) ? languages : ["en"]) as Locale[];
-});
-
-function getFieldTranslationPercentage(field: any): number {
-	if (!field.translated) return 100;
-	const fieldName = `${collection.value?.name}.${getFieldName(field)}`;
-	const allLangs = availableLanguages;
-	if (allLangs.length === 0) return 100;
-	let translatedCount = 0;
-	for (const lang of allLangs) {
-		const langProgress = currentTranslationProgress?.[lang as Locale];
-		if (langProgress?.translated.has(fieldName)) translatedCount++;
-	}
-	return Math.round((translatedCount / allLangs.length) * 100);
-}
-
-function getTranslationTextColor(percentage: number): string {
-	return percentage === 100 ? "text-tertiary-500 dark:text-primary-500" : "text-error-500";
-}
-
-function ensureFieldProperties(field: any) {
-	if (!field) return null;
-	return {
-		...field,
-		db_fieldName: field.db_fieldName || getFieldName(field, true),
-		widget: field.widget || { Name: field.type || "Input" },
-		permissions: field.permissions || {},
-	};
-}
-
-let filteredFields = $derived(
-	derivedFields
-		.map(ensureFieldProperties)
-		.filter(Boolean)
-		.filter((field: any) => {
-			if (!field.permissions || page.data?.isAdmin || !user?.role) return true;
-			const rolePermissions = field.permissions[user.role];
-			return !rolePermissions || rolePermissions.read !== false;
-		}),
-);
-
-// --- SYNC DATA ---
-$effect(() => {
-	const global = collectionValue.value as Record<string, unknown> | undefined;
-	const globalId = (global as any)?._id;
-
-	if (globalId && globalId !== lastEntryId) {
-		currentCollectionValue = { ...global } as any;
-		lastEntryId = globalId;
-		dataChangeStore.setInitialSnapshot(global as Record<string, any>);
-		return;
-	}
-
-	if (!(globalId || lastEntryId) && global && Object.keys(global).length > 0) {
-		currentCollectionValue = { ...global } as any;
-		dataChangeStore.setInitialSnapshot(global as Record<string, any>);
-		return;
-	}
-
-	const local = untrack(() => currentCollectionValue) as Record<string, unknown> | undefined;
-	if (local && Object.keys(local).length > 0) {
-		if (JSON.stringify(local) !== JSON.stringify(global ?? {})) {
-			untrack(() => setCollectionValue({ ...local }));
-			dataChangeStore.compareWithCurrent(local as Record<string, any>);
-		}
-	}
-});
-
-// --- REVISION ---
-function handleRevert() {
-	if (!selectedRevision?.data) return;
-	showConfirm({
-		title: "Confirm Revert",
-		body: "Are you sure you want to revert to this version? Any unsaved changes will be lost.",
-		confirmText: "Revert",
-		onConfirm: () => {
-			const revertData = { ...selectedRevision.data, _id: (collectionValue as any).value?._id };
-			setCollectionValue(revertData);
-			currentCollectionValue = revertData;
-			toast.info("Content reverted. Please save your changes.");
-			localTabSet = "0";
-		},
-	});
-}
-
-// --- VALIDATION ---
-$effect(() => {
-	const values = currentCollectionValue;
-	filteredFields.forEach((field: any) => {
-		if (field.required) {
-			const fieldName = getFieldName(field, false);
-			const value = values[fieldName];
-			const isEmpty = value === null || value === undefined || (typeof value === "string" && value.trim() === "") || (Array.isArray(value) && value.length === 0);
-			if (isEmpty) {
-				if (!validationStore.hasError(fieldName)) {
-					validationStore.setError(fieldName, `${field.label || fieldName} is required`);
+				if (isEmpty) {
+					// Only set error if it's not already set to avoid loop (though store handles this)
+					if (!validationStore.hasError(fieldName)) {
+						validationStore.setError(fieldName, `${field.label || fieldName} is required`);
+					}
+				} else if (validationStore.hasError(fieldName)) {
+					validationStore.clearError(fieldName);
 				}
-			} else if (validationStore.hasError(fieldName)) {
-				validationStore.clearError(fieldName);
 			}
+		});
+	});
+
+	$effect(() => {
+		if ((collectionValue as any).value?._id) {
+			apiUrl = `${location.origin}/api/collection/${collection.value?._id}/${(collectionValue as any).value._id}`;
 		}
 	});
-});
 
-$effect(() => {
-	if ((collectionValue as any).value?._id) {
-		apiUrl = `${location.origin}/api/collection/${collection.value?._id}/${(collectionValue as any).value._id}`;
-	}
-});
-
-// --- TOKEN PICKER ---
-function openTokenPicker(field: any, e: MouseEvent) {
-	e.preventDefault();
-	e.stopPropagation();
-	const id = field.db_fieldName;
-	const el = document.getElementById(id) as HTMLInputElement | HTMLTextAreaElement;
-	if (el) {
-		el.focus();
-		activeInputStore.set({ element: el, field });
-	}
-}
-
-// --- PLUGIN SLOTS ---
-const entryEditSlots = $derived(slotRegistry.getSlots("entry_edit"));
-
-// --- VISUAL EDITING HANDLER ---
-$effect(() => {
-	const handleFocusField = (e: any) => {
-		const fieldName = e.detail?.fieldName;
-		if (!fieldName) return;
-		localTabSet = "0";
-		setTimeout(() => {
-			const el = document.getElementById(fieldName) || document.querySelector(`[data-field-name="${fieldName}"]`);
-			if (el) {
-				el.scrollIntoView({ behavior: "smooth", block: "center" });
-				el.classList.add("svelty-highlight-pulse");
-				setTimeout(() => el.classList.remove("svelty-highlight-pulse"), 2000);
-				if (el instanceof HTMLElement) el.focus();
-			}
-		}, 100);
-	};
-	document.addEventListener("svelty:focus-field", handleFocusField);
-	return () => document.removeEventListener("svelty:focus-field", handleFocusField);
-});
+	// --- 7. PLUGIN SLOTS ---
+	const entryEditSlots = $derived(slotRegistry.getSlots('entry_edit'));
 </script>
-
-{#snippet PresenceBar()}
-	{#if collaborationService.isCollaborative && collaborationService.activeUsers.length > 0}
-		<div class="flex items-center gap-2 px-4 py-2 bg-surface-100/50 dark:bg-surface-800/50 border-b border-surface-200 dark:border-surface-700 w-full overflow-x-auto">
-			<div class="flex items-center gap-1.5 mr-4">
-				<div class="h-2 w-2 rounded-full {collaborationService.isConnected ? 'bg-success-500' : 'bg-error-500'}"></div>
-				<span class="text-xs font-medium uppercase tracking-wider text-surface-500">Live</span>
-			</div>
-			<div class="flex -space-x-2">
-				{#each collaborationService.activeUsers as user (user.clientId)}
-					<SystemTooltip title={user.name}>
-						<div 
-							class="h-8 w-8 rounded-full border-2 border-white dark:border-surface-900 flex items-center justify-center text-xs font-bold text-white shadow-sm transition-transform hover:z-10 hover:scale-110"
-							style="background-color: {user.color}"
-						>
-							{#if user.avatar}
-								<img src={user.avatar} alt={user.name} class="h-full w-full rounded-full object-cover" />
-							{:else}
-								{user.name.charAt(0).toUpperCase()}
-							{/if}
-						</div>
-					</SystemTooltip>
-				{/each}
-			</div>
-			{#if collaborationService.activeUsers.length > 1}
-				<span class="text-xs text-surface-500 ml-2">{collaborationService.activeUsers.length} editors</span>
-			{/if}
-		</div>
-	{/if}
-{/snippet}
-
-<style>
-	:global(.svelty-highlight-pulse) {
-		outline: 3px solid #ff3e00 !important;
-		outline-offset: 4px;
-		border-radius: 4px;
-		transition: outline 0.2s ease-in-out;
-		animation: pulse-bg 1s ease-in-out 2;
-	}
-	@keyframes pulse-bg {
-		0% { background-color: transparent; }
-		50% { background-color: rgba(255, 62, 0, 0.1); }
-		100% { background-color: transparent; }
-	}
-</style>
 
 <h1 class="sr-only">{collection.value?.name ? `Edit ${collection.value.name} Entry` : 'Edit Entry'}</h1>
 
-{#if !contentContext.isReady}
+{#if !widgets.isLoaded}
 	<div class="flex h-64 flex-col items-center justify-center gap-4">
 		<div class="h-12 w-12 animate-spin rounded-full border-4 border-surface-200 border-t-primary-500"></div>
-		<p class="text-surface-500 animate-pulse">Initializing content system...</p>
+		<p class="text-surface-500 animate-pulse">Initializing widgets...</p>
 	</div>
 {:else}
 	<Tabs value={localTabSet} onValueChange={(e) => (localTabSet = e.value)} class="flex flex-1 flex-col items-center">
-		<Tabs.List class="flex justify-between md:justify-around rounded-tl-container rounded-tr-container border-b border-tertiary-500 dark:border-primary-500 w-full">
+		<Tabs.List
+			class="flex justify-between md:justify-around rounded-tl-container rounded-tr-container border-b border-tertiary-500 dark:border-primary-500 w-full"
+		>
 			<Tabs.Trigger value="0" class="flex-1">
 				<div class="flex items-center justify-center gap-2 py-2">
 					<iconify-icon icon="mdi:pen" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 					{button_edit()}
 				</div>
 			</Tabs.Trigger>
+
 			{#if collection.value?.revision}
 				<Tabs.Trigger value="1" class="flex-1">
 					<div class="flex items-center justify-center gap-2 py-2">
@@ -331,6 +366,7 @@ $effect(() => {
 					</div>
 				</Tabs.Trigger>
 			{/if}
+
 			{#if user?.isAdmin}
 				<Tabs.Trigger value="3" class="flex-1">
 					<div class="flex items-center justify-center gap-2 py-2">
@@ -339,78 +375,140 @@ $effect(() => {
 					</div>
 				</Tabs.Trigger>
 			{/if}
+
+			<!-- Plugin Slots Triggers -->
 			{#each entryEditSlots as slot (slot.id)}
 				{#if slot.id !== 'live_preview' || collection.value?.livePreview}
 					<Tabs.Trigger value={slot.id} class="flex-1">
 						<div class="flex items-center justify-center gap-2 py-2">
-							<iconify-icon icon={slot.props?.icon || "mdi:puzzle-outline"} width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+							{#if slot.props?.icon}
+								<iconify-icon icon={slot.props.icon} width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+							{:else}
+								<iconify-icon icon="mdi:puzzle-outline" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+							{/if}
 							{slot.props?.label || slot.id}
 						</div>
 					</Tabs.Trigger>
 				{/if}
 			{/each}
+
 			<Tabs.Indicator />
 		</Tabs.List>
 
 		<Tabs.Content value="0" class="w-full">
-			{@render PresenceBar()}
 			<div class="mb-2 text-center text-xs text-error-500">{form_required()}</div>
 			<div class="rounded-md border bg-white px-4 py-6 drop-shadow-2xl dark:border-surface-500 dark:bg-surface-900">
 				<div class="flex flex-wrap items-center justify-center gap-1 overflow-auto">
 					{#each filteredFields as rawField (rawField.db_fieldName || rawField.id || rawField.label || rawField.name)}
 						{#if rawField.widget}
 							{@const field = ensureFieldProperties(rawField)}
-							{@const fieldName = getFieldName(field, false)}
-							{@const remoteUser = collaborationService.activeUsers.find(u => u.activeField === fieldName)}
 							<div
-								class="mx-auto text-center {!field?.width ? 'w-full ' : 'max-md:w-full!'} transition-all duration-300 rounded-lg p-1 {remoteUser ? 'ring-2 ring-offset-2 ring-dashed' : ''}"
-								style={'min-width:min(300px,100%);' + (field.width ? `width:calc(${(field.width / 12) * 100}% - 0.5rem)` : '') + (remoteUser ? ` --tw-ring-color: ${remoteUser.color};` : '')}
-								onfocusin={() => collaborationService.setFieldFocus(fieldName)}
-								onfocusout={() => collaborationService.setFieldFocus(null)}
+								class="mx-auto text-center {!field?.width ? 'w-full ' : 'max-md:w-full!'}"
+								style={'min-width:min(300px,100%);' + (field.width ? `width:calc(${(field.width / 12) * 100}% - 0.5rem)` : '')}
 							>
-								<div class="flex items-center justify-between gap-2 px-1.25 text-start field-label">
+								<div class="flex items-center justify-between gap-2 px-[5px] text-start field-label">
+									<!-- Field label -->
 									<div class="flex items-center gap-2">
 										<p class="inline-block font-semibold capitalize">
 											{field.label || field.db_fieldName}
-											{#if field.required}<span class="text-error-500">*</span>{/if}
+											{#if field.required}
+												<span class="text-error-500">*</span>
+											{/if}
 										</p>
 										{#if field.helper}
 											<SystemTooltip title={field.helper} positioning={{ placement: 'top' }}>
 												<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
 											</SystemTooltip>
 										{/if}
-										{#if remoteUser}
-											<span class="text-[10px] px-1.5 py-0.5 rounded-full text-white animate-pulse" style="background-color: {remoteUser.color}">{remoteUser.name}</span>
-										{/if}
 									</div>
 									<div class="flex items-center gap-2">
-										<button type="button" onclick={(e) => openTokenPicker(field, e)} aria-label="Insert token">
-											<iconify-icon icon="mdi:code-braces" width="16" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-										</button>
+										<SystemTooltip title="Insert Token">
+											<button type="button" onclick={(e) => openTokenPicker(field, e)} class="" aria-label="Insert token into {field.label}">
+												<iconify-icon icon="mdi:code-braces" width="16" class="font-bold text-tertiary-500 dark:text-primary-500"></iconify-icon>
+											</button>
+										</SystemTooltip>
+										<!-- Translation status -->
 										{#if field.translated}
 											{@const percentage = getFieldTranslationPercentage(field)}
+											{@const textColor = getTranslationTextColor(percentage)}
 											<div class="flex items-center gap-1 text-xs">
 												<iconify-icon icon="bi:translate" width="16"></iconify-icon>
-												<span class="font-medium {getTranslationTextColor(percentage)}">{currentContentLanguage.toUpperCase()} ({percentage}%)</span>
+												<span class="font-medium text-tertiary-500 dark:text-primary-500">{currentContentLanguage.toUpperCase()}</span>
+												<span class="font-medium {textColor}">({percentage}%)</span>
 											</div>
 										{/if}
-										{#if field.icon}<iconify-icon icon={field.icon} width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>{/if}
+										<!-- Icon for field type -->
+										{#if field.icon}
+											<iconify-icon icon={field.icon} width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+										{/if}
 									</div>
 								</div>
 
-								{#if field.widget?.inputComponent}
-									{#key currentContentLanguage}
-										<WidgetLoader
-											loader={field.widget.inputComponent}
-											{field}
-											WidgetData={{}}
-											bind:value={currentCollectionValue[fieldName]}
-											tenantId={tenantId || contentContext.tenantId}
-											collectionName={collection.value?.name}
-										/>
-									{/key}
-								{:else}
-									<p class="text-error-500">{Fields_no_widgets_found({ name: field.widget?.Name || 'Unknown' })}</p>
+								{#if field.widget}
+									{@const widgetName = field.widget.Name}
+
+									<!-- --- PERFORMANCE FIX: ROBUST WIDGET FINDER --- -->
+									{@const loadedWidget = (() => {
+										// 1. Try exact path from widget store (fastest)
+										const storePath = widgetFunctions[widgetName]?.componentPath;
+										if (storePath && storePath in modules) return modules[storePath];
+
+										// 2. Try casing variations from store
+										const camelPath = widgetFunctions[widgetName.charAt(0).toLowerCase() + widgetName.slice(1)]?.componentPath;
+										if (camelPath && camelPath in modules) return modules[camelPath];
+
+										const lowerPath = widgetFunctions[widgetName.toLowerCase()]?.componentPath;
+										if (lowerPath && lowerPath in modules) return modules[lowerPath];
+
+										// 3. Robust Search in modules (fallback)
+										const normalized = widgetName.toLowerCase();
+										const kebabMatch = normalized.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase();
+										const flatMatch = normalized.replace(/-/g, '');
+
+										for (const path in modules) {
+											const lowerPath = path.toLowerCase();
+											const parts = lowerPath.split('/');
+											const fileName = parts.pop();
+											const folderName = parts.pop();
+
+											// A. Match 3-Pillar Structure: /WidgetName/Input.svelte
+											// IMPORTANT: Enforce folder name matches widget name (handle kebab-case and flat naming)
+											const isFolderMatch =
+												folderName === normalized ||
+												folderName === kebabMatch ||
+												folderName === flatMatch ||
+												folderName?.replace(/-/g, '') === flatMatch;
+
+											if (isFolderMatch && fileName === 'input.svelte') return modules[path];
+
+											// B. Match 3-Pillar Index: /WidgetName/index.svelte
+											if (isFolderMatch && fileName === 'index.svelte') return modules[path];
+
+											// C. Match Single File: /WidgetName.svelte
+											// EXCEPTION: Do not loosely match "Input.svelte" as it causes collisions with standard 3-pillar components
+											if (fileName === `${normalized}.svelte` && normalized !== 'input') return modules[path];
+											if (fileName === `${kebabMatch}.svelte` && kebabMatch !== 'input') return modules[path];
+										}
+										return null;
+									})()}
+
+									{#if loadedWidget}
+										{@const fieldName = getFieldName(field, false)}
+										{#key currentContentLanguage}
+											<!-- Widget remounts when currentContentLanguage changes -->
+											<WidgetLoader
+												loader={loadedWidget}
+												{field}
+												WidgetData={{}}
+												bind:value={currentCollectionValue[fieldName]}
+												{tenantId}
+												collectionName={collection.value?.name}
+											/>
+										{/key}
+									{:else}
+										<p class="text-error-500">{Fields_no_widgets_found({ name: widgetName })}</p>
+									{/if}
+									<!-- --- END PERFORMANCE FIX --- -->
 								{/if}
 							</div>
 						{/if}
@@ -421,54 +519,103 @@ $effect(() => {
 		<Tabs.Content value="1" class="w-full">
 			<div class="p-4">
 				{#if revisions.length === 0}
-					<p class="p-4 text-center text-surface-500">No revision history found.</p>
+					<p class="p-4 text-center text-surface-500">No revision history found for this entry.</p>
 				{:else}
 					<div class="mb-4 flex items-center justify-between gap-4">
 						<select class="select grow" bind:value={selectedRevisionId}>
-							<option value="" disabled>-- Select a revision --</option>
+							<option value="" disabled>-- Select a revision to compare --</option>
 							{#each revisions as revision (revision._id)}
-								<option value={revision._id}>{new Date(revision.revision_at).toLocaleString()} by {revision.revision_by.substring(0, 8)}</option>
+								<option value={revision._id}>{new Date(revision.revision_at).toLocaleString()} by {revision.revision_by.substring(0, 8)}...</option>
 							{/each}
 						</select>
-						<button class="preset-filled-primary-500 btn" onclick={handleRevert} disabled={!selectedRevision?.data}>Revert</button>
+						<button class="preset-filled-primary-500 btn" onclick={handleRevert} disabled={!selectedRevision?.data}>
+							<iconify-icon icon="mdi:restore" class="mr-1"></iconify-icon>
+							Revert
+						</button>
 					</div>
-					{#if selectedRevision}
-						<div class="rounded-lg border p-4 dark:text-surface-50">
-							<h3 class="mb-3 text-lg font-bold">Changes</h3>
-							{#each Object.entries(selectedRevision.diff || {}) as [key, change] (key)}
-								{@const ch = change as any}
-								<div class="mb-2">
-									<strong>{key}:</strong>
-									{#if ch.status === 'modified'}
-										<div class="text-error-500">- {JSON.stringify(ch.old)}</div>
-										<div class="text-success-500">+ {JSON.stringify(ch.new)}</div>
-									{:else}
-										<div class="text-primary-500">{JSON.stringify(ch.value || ch.new)}</div>
-									{/if}
+
+					<div class="rounded-lg border p-4 dark:text-surface-50">
+						<h3 class="mb-3 text-lg font-bold">Changes from Selected Revision</h3>
+						{#if selectedRevision}
+							{@const diffObject = selectedRevision?.diff || null}
+							{#if diffObject && Object.keys(diffObject).length > 0}
+								<div class="space-y-3 font-mono text-sm">
+									{#each Object.entries(diffObject) as [key, change] (key)}
+										{@const ch = change as any}
+										<div>
+											<strong class="font-bold text-surface-600 dark:text-surface-300">{key}:</strong>
+											{#if ch.status === 'modified'}
+												<div class="mt-1 rounded border border-error-500/30 bg-error-500/10 p-2">
+													<span class="text-error-700 dark:text-error-300">- {JSON.stringify(ch.old)}</span>
+												</div>
+												<div class="mt-1 rounded border border-success-500/30 bg-primary-500/10 p-2">
+													<span class="text-success-700 dark:text-success-300">+ {JSON.stringify(ch.new)}</span>
+												</div>
+											{:else if ch.status === 'added'}
+												<div class="mt-1 rounded border border-success-500/30 bg-primary-500/10 p-2">
+													<span class="text-success-700 dark:text-success-300">+ {JSON.stringify(ch.value)}</span>
+												</div>
+											{:else if ch.status === 'deleted'}
+												<div class="mt-1 rounded border border-error-500/30 bg-error-500/10 p-2">
+													<span class="text-error-700 dark:text-error-300">- {JSON.stringify(ch.value)}</span>
+												</div>
+											{/if}
+										</div>
+									{/each}
 								</div>
-							{/each}
-						</div>
-					{/if}
+							{:else if selectedRevisionId}
+								<p class="text-center text-surface-500">No differences found.</p>
+							{:else}
+								<p class="text-center text-surface-500">Select a revision to see what's changed.</p>
+							{/if}
+						{:else}
+							<p class="text-center text-surface-500">Select a revision to see what's changed.</p>
+						{/if}
+					</div>
 				{/if}
 			</div>
 		</Tabs.Content>
-		<Tabs.Content value="3" class="w-full p-4">
-			<div class="flex gap-2 mb-4">
-				<input type="text" class="input grow" readonly value={apiUrl} />
-				<button class="btn preset-outline-surface-500" onclick={() => { navigator.clipboard.writeText(apiUrl); toast.success('Copied'); }}>Copy</button>
+		<Tabs.Content value="3" class="w-full">
+			<div class="space-y-4 p-4">
+				<div class="flex items-center gap-2">
+					<input type="text" class="input grow" readonly value={apiUrl} />
+					<button
+						class="preset-outline-surface-500 btn"
+						onclick={() => {
+							navigator.clipboard.writeText(apiUrl);
+							toast.success('API URL Copied');
+						}}
+					>
+						Copy
+					</button>
+				</div>
+				<div class="card p-4 overflow-x-auto bg-surface-800 text-white font-mono text-sm max-h-[500px]">
+					<pre>{JSON.stringify((collectionValue as any).value, null, 2)}</pre>
+				</div>
 			</div>
-			<pre class="card p-4 bg-surface-800 text-white overflow-auto max-h-96">{JSON.stringify(collectionValue.value, null, 2)}</pre>
 		</Tabs.Content>
+
+		<!-- Plugin Slots Content -->
 		{#each entryEditSlots as slot (slot.id)}
 			{#if slot.id !== 'live_preview' || collection.value?.livePreview}
 				<Tabs.Content value={slot.id} class="w-full">
 					{#await slot.component()}
-						<div class="flex h-40 items-center justify-center"><div class="h-10 w-10 animate-spin rounded-full border-4 border-t-primary-500"></div></div>
+						<div class="flex h-40 items-center justify-center">
+							<div class="h-10 w-10 animate-spin rounded-full border-4 border-surface-200 border-t-primary-500"></div>
+						</div>
 					{:then Component}
-						{@const C = Component.default || Component}
-						<C {collection} {currentCollectionValue} {user} tenantId={tenantId || contentContext.tenantId} contentLanguage={currentContentLanguage} active={localTabSet === slot.id} {...slot.props} />
+						{#if Component.default}
+							<Component.default {collection} {currentCollectionValue} {user} {tenantId} contentLanguage={currentContentLanguage} {...slot.props} />
+						{:else}
+							<Component {collection} {currentCollectionValue} {user} {tenantId} contentLanguage={currentContentLanguage} {...slot.props} />
+						{/if}
 					{:catch error}
-						<div class="p-4 text-error-500">Error loading {slot.id}: {error.message}</div>
+						<div class="p-4">
+							<div class="rounded border border-error-500/50 bg-error-50 p-4 text-error-600 dark:bg-error-900/10 dark:text-error-400">
+								<h3 class="mb-2 font-bold">Plugin Error ({slot.id})</h3>
+								<p>{error.message}</p>
+							</div>
+						</div>
 					{/await}
 				</Tabs.Content>
 			{/if}

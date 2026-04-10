@@ -44,7 +44,7 @@ vi.mock("@src/databases/db", () => ({
 }));
 
 vi.mock("@src/content", () => ({
-  contentManager: {
+  contentSystem: {
     getCollections: vi.fn(),
     getCollectionById: vi.fn(),
   },
@@ -92,7 +92,7 @@ const DELETE_ENTRY = dispatcher;
 import { createMockRequestEvent } from "../utils/mock-event";
 
 describe("Collections API Unit Tests", () => {
-  let mockContentManager: any;
+  let mockContentSystem: any;
   let mockGetPrivateSettingSync: any;
 
   beforeEach(async () => {
@@ -100,7 +100,7 @@ describe("Collections API Unit Tests", () => {
     vi.clearAllMocks();
 
     const contentModule = await import("@src/content");
-    mockContentManager = contentModule.contentManager;
+    mockContentSystem = contentModule.contentSystem;
 
     // Manually inject mocks into the hoist
     mockDbAdapter.crud.insert = vi
@@ -138,7 +138,7 @@ describe("Collections API Unit Tests", () => {
 
   describe("GET /api/collections - List Collections", () => {
     it("should return list of collections", async () => {
-      mockContentManager.getCollections.mockResolvedValue([{ _id: "col-1", name: "posts" }]);
+      mockContentSystem.getCollections.mockResolvedValue([{ _id: "col-1", name: "posts" }]);
       const event = createMockEvent("GET", "collections", {});
       const response = await GET_LIST(event);
       const data = await response.json();
@@ -163,7 +163,7 @@ describe("Collections API Unit Tests", () => {
 
   describe("PATCH /api/collections/[collectionId]/[entryId] - Update Entry", () => {
     it("should update an entry successfully", async () => {
-      mockContentManager.getCollectionById.mockResolvedValue({
+      mockContentSystem.getCollectionById.mockResolvedValue({
         _id: "col-1",
         name: "posts",
         fields: [],
@@ -180,7 +180,7 @@ describe("Collections API Unit Tests", () => {
 
   describe("DELETE /api/collections/[collectionId]/[entryId] - Delete Entry", () => {
     it("should delete an entry successfully", async () => {
-      mockContentManager.getCollectionById.mockResolvedValue({
+      mockContentSystem.getCollectionById.mockResolvedValue({
         _id: "col-1",
         name: "posts",
         fields: [],

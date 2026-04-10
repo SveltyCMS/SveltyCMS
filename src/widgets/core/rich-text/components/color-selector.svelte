@@ -17,104 +17,97 @@
 -->
 
 <script lang="ts">
-import { onMount } from "svelte";
-import ColorPicker, { ChromeVariant } from "svelte-awesome-color-picker";
+	import { onMount } from 'svelte';
+	import ColorPicker, { ChromeVariant } from 'svelte-awesome-color-picker';
 
-interface Props {
-	active?: string; // Tracks the currently active dropdown on the page
-	color?: string;
-	key?: string; // Unique key for this dropdown instance
-	onChange?: (color: string) => void;
-	show?: boolean;
-}
-
-let {
-	color = $bindable(""),
-	show = true,
-	key = "color-selector",
-	active = $bindable(""),
-	onChange,
-}: Props = $props();
-
-let expanded = $state(false);
-let wrapperRef = $state<HTMLDivElement | null>(null);
-
-// Effect to call onChange when color changes
-$effect(() => {
-	if (onChange) {
-		onChange(color);
+	interface Props {
+		active?: string; // Tracks the currently active dropdown on the page
+		color?: string;
+		key?: string; // Unique key for this dropdown instance
+		onChange?: (color: string) => void;
+		show?: boolean;
 	}
-});
 
-// Effect to close this component if another one becomes active
-$effect(() => {
-	if (key !== active) {
+	let { color = $bindable(''), show = true, key = 'color-selector', active = $bindable(''), onChange }: Props = $props();
+
+	let expanded = $state(false);
+	let wrapperRef = $state<HTMLDivElement | null>(null);
+
+	// Effect to call onChange when color changes
+	$effect(() => {
+		if (onChange) {
+			onChange(color);
+		}
+	});
+
+	// Effect to close this component if another one becomes active
+	$effect(() => {
+		if (key !== active) {
+			expanded = false;
+		}
+	});
+
+	function close() {
 		expanded = false;
+		if (active === key) {
+			active = '';
+		}
 	}
-});
 
-function close() {
-	expanded = false;
-	if (active === key) {
-		active = "";
-	}
-}
+	function toggle() {
+		const wasExpanded = expanded;
+		// Ensure other dropdowns are closed before opening this one
+		if (!wasExpanded) {
+			active = key;
+		}
+		expanded = !wasExpanded;
 
-function toggle() {
-	const wasExpanded = expanded;
-	// Ensure other dropdowns are closed before opening this one
-	if (!wasExpanded) {
-		active = key;
-	}
-	expanded = !wasExpanded;
-
-	// If we just closed it, clear the active key
-	if (wasExpanded) {
-		close();
-	}
-}
-
-onMount(() => {
-	const handleClickOutside = (event: MouseEvent) => {
-		if (wrapperRef && !wrapperRef.contains(event.target as Node)) {
+		// If we just closed it, clear the active key
+		if (wasExpanded) {
 			close();
 		}
-	};
+	}
 
-	const handleKeydown = (event: KeyboardEvent) => {
-		if (event.key === "Escape") {
-			close();
+	onMount(() => {
+		const handleClickOutside = (event: MouseEvent) => {
+			if (wrapperRef && !wrapperRef.contains(event.target as Node)) {
+				close();
+			}
+		};
+
+		const handleKeydown = (event: KeyboardEvent) => {
+			if (event.key === 'Escape') {
+				close();
+			}
+		};
+
+		document.addEventListener('click', handleClickOutside);
+		document.addEventListener('keydown', handleKeydown);
+
+		return () => {
+			document.removeEventListener('click', handleClickOutside);
+			document.removeEventListener('keydown', handleKeydown);
+		};
+	});
+
+	// Action to dynamically position the palette to avoid overflow
+	function setPosition(node: HTMLDivElement) {
+		if (!wrapperRef) {
+			return;
 		}
-	};
+		const parent = wrapperRef.parentElement as HTMLElement;
+		const { left: wrapperLeft } = wrapperRef.getBoundingClientRect();
+		const { left: parentLeft, width: parentWidth } = parent.getBoundingClientRect();
 
-	document.addEventListener("click", handleClickOutside);
-	document.addEventListener("keydown", handleKeydown);
-
-	return () => {
-		document.removeEventListener("click", handleClickOutside);
-		document.removeEventListener("keydown", handleKeydown);
-	};
-});
-
-// Action to dynamically position the palette to avoid overflow
-function setPosition(node: HTMLDivElement) {
-	if (!wrapperRef) {
-		return;
+		const leftPos = wrapperLeft - parentLeft;
+		if (leftPos + node.offsetWidth > parentWidth) {
+			node.style.left = 'auto';
+			node.style.right = '0';
+		} else {
+			node.style.right = 'auto';
+			node.style.left = '0'; // Position relative to the wrapper
+		}
 	}
-	const parent = wrapperRef.parentElement as HTMLElement;
-	const { left: wrapperLeft } = wrapperRef.getBoundingClientRect();
-	const { left: parentLeft, width: parentWidth } =
-		parent.getBoundingClientRect();
-
-	const leftPos = wrapperLeft - parentLeft;
-	if (leftPos + node.offsetWidth > parentWidth) {
-		node.style.left = "auto";
-		node.style.right = "0";
-	} else {
-		node.style.right = "auto";
-		node.style.left = "0"; // Position relative to the wrapper
-	}
-}
 </script>
 
 <div class="wrapper" class:hidden={!show} bind:this={wrapperRef}>

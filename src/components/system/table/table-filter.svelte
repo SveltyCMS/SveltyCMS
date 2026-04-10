@@ -27,118 +27,114 @@ It includes search, filter toggles, column visibility, and density controls, opt
 -->
 
 <script lang="ts">
-// Stores
+	// Stores
 
-import SystemTooltip from "@src/components/system/system-tooltip.svelte";
-import {
-	table_clear_search,
-	table_column_toggle,
-	table_density_label,
-	table_density_toggle,
-	table_filter_toggle,
-	table_search_aria,
-	table_search_placeholder,
-	table_search_toggle,
-} from "@src/paraglide/messages";
-import { app } from "@src/stores/store.svelte";
-// Logger
-import { logger } from "@utils/logger";
-// Using iconify-icon web component
-import { browser } from "$app/environment";
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+	import {
+		table_clear_search,
+		table_column_toggle,
+		table_density_label,
+		table_density_toggle,
+		table_filter_toggle,
+		table_search_aria,
+		table_search_placeholder,
+		table_search_toggle
+	} from '@src/paraglide/messages';
+	import { app } from '@src/stores/store.svelte';
+	// Logger
+	import { logger } from '@utils/logger';
+	// Using iconify-icon web component
+	import { browser } from '$app/environment';
 
-// Props with types
-let {
-	globalSearchValue = $bindable(""),
-	searchShow = $bindable(false),
-	filterShow = $bindable(false),
-	columnShow = $bindable(false),
-	density = $bindable("normal"),
-	densityOptions = $bindable(["compact", "normal", "comfortable"]),
-	showDeleted = $bindable(false),
-} = $props();
+	// Props with types
+	let {
+		globalSearchValue = $bindable(''),
+		searchShow = $bindable(false),
+		filterShow = $bindable(false),
+		columnShow = $bindable(false),
+		density = $bindable('normal'),
+		densityOptions = $bindable(['compact', 'normal', 'comfortable']),
+		showDeleted = $bindable(false)
+	} = $props();
 
-let searchInput = $state<HTMLInputElement>();
+	let searchInput = $state<HTMLInputElement>();
 
-$effect(() => {
-	if (searchShow && searchInput) {
-		searchInput.focus();
-	}
-});
+	$effect(() => {
+		if (searchShow && searchInput) {
+			searchInput.focus();
+		}
+	});
 
-// Storage key for user settings
-const USER_SETTINGS_KEY = "userTableSettings";
+	// Storage key for user settings
+	const USER_SETTINGS_KEY = 'userTableSettings';
 
-// Load density from localStorage on component mount
-$effect(() => {
-	if (browser) {
-		try {
-			const settings = JSON.parse(
-				localStorage.getItem(USER_SETTINGS_KEY) || "{}",
-			);
-			if (settings.density && densityOptions.includes(settings.density)) {
-				density = settings.density;
+	// Load density from localStorage on component mount
+	$effect(() => {
+		if (browser) {
+			try {
+				const settings = JSON.parse(localStorage.getItem(USER_SETTINGS_KEY) || '{}');
+				if (settings.density && densityOptions.includes(settings.density)) {
+					density = settings.density;
+				}
+			} catch (e) {
+				logger.error('Failed to load user table settings', e);
+				// Keep default if error
 			}
-		} catch (e) {
-			logger.error("Failed to load user table settings", e);
-			// Keep default if error
+		}
+	});
+
+	// Store user settings when density changes
+	$effect(() => {
+		if (browser && density) {
+			try {
+				const settings = JSON.parse(localStorage.getItem(USER_SETTINGS_KEY) || '{}');
+				settings.density = density;
+				localStorage.setItem(USER_SETTINGS_KEY, JSON.stringify(settings));
+			} catch (e) {
+				logger.error('Failed to save user table settings', e);
+			}
+		}
+	});
+
+	// Function to close all open states except the specified one
+	function closeOpenStates(except?: 'search' | 'filter' | 'column' | 'density') {
+		if (except !== 'search') {
+			searchShow = false;
+		}
+		if (except !== 'filter') {
+			filterShow = false;
+		}
+		if (except !== 'column') {
+			columnShow = false;
+		}
+		app.setTranslationStatusOpen(false);
+	}
+
+	// Function to cycle density
+	function cycleDensity() {
+		const currentIndex = densityOptions.indexOf(density);
+		const nextIndex = (currentIndex + 1) % densityOptions.length;
+		density = densityOptions[nextIndex];
+	}
+
+	// Get density display name with first letter capitalized
+	function getDensityDisplayName() {
+		return density.charAt(0).toUpperCase() + density.slice(1);
+	}
+
+	// Function to get density icon based on current setting
+	function getDensityIcon() {
+		switch (density) {
+			case 'compact':
+				return 'material-symbols:align-space-even-rounded';
+			case 'normal':
+				return 'material-symbols:align-space-around-rounded';
+			case 'comfortable':
+				return 'material-symbols:align-space-between-rounded';
+			default:
+				return 'material-symbols:align-space-around-rounded';
 		}
 	}
-});
-
-// Store user settings when density changes
-$effect(() => {
-	if (browser && density) {
-		try {
-			const settings = JSON.parse(
-				localStorage.getItem(USER_SETTINGS_KEY) || "{}",
-			);
-			settings.density = density;
-			localStorage.setItem(USER_SETTINGS_KEY, JSON.stringify(settings));
-		} catch (e) {
-			logger.error("Failed to save user table settings", e);
-		}
-	}
-});
-
-// Function to close all open states except the specified one
-function closeOpenStates(except?: "search" | "filter" | "column" | "density") {
-	if (except !== "search") {
-		searchShow = false;
-	}
-	if (except !== "filter") {
-		filterShow = false;
-	}
-	if (except !== "column") {
-		columnShow = false;
-	}
-	app.setTranslationStatusOpen(false);
-}
-
-// Function to cycle density
-function cycleDensity() {
-	const currentIndex = densityOptions.indexOf(density);
-	const nextIndex = (currentIndex + 1) % densityOptions.length;
-	density = densityOptions[nextIndex];
-}
-
-// Get density display name with first letter capitalized
-function getDensityDisplayName() {
-	return density.charAt(0).toUpperCase() + density.slice(1);
-}
-
-// Function to get density icon based on current setting
-function getDensityIcon() {
-	switch (density) {
-		case "compact":
-			return "material-symbols:align-space-even-rounded";
-		case "normal":
-			return "material-symbols:align-space-around-rounded";
-		case "comfortable":
-			return "material-symbols:align-space-between-rounded";
-		default:
-			return "material-symbols:align-space-around-rounded";
-	}
-}
 </script>
 
 <!-- Expanding Search -->

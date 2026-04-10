@@ -17,8 +17,8 @@ export async function handleContentRoutes(
 
   // --- Content Version ---
   if (namespace === "content" && method === "version") {
-    const { contentManager } = await import("@src/content");
-    return json({ version: contentManager.getContentVersion() });
+    const { contentSystem } = await import("@src/content");
+    return json({ version: contentSystem.getContentVersion() });
   }
 
   // --- Content Structure ---

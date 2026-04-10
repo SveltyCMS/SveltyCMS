@@ -17,244 +17,215 @@ It handles token creation, updates, and deletion with proper validation and erro
 -->
 
 <script lang="ts">
-import FloatingInput from "@src/components/system/inputs/floating-input.svelte";
-// ParaglideJS
-import {
-	button_cancel,
-	button_delete,
-	button_save,
-	email as m_email,
-	modal_token_deleted_successfully,
-	modaltokenuser_tokenvalidity,
-	role as m_role,
-} from "@src/paraglide/messages";
+	import FloatingInput from '@src/components/system/inputs/floating-input.svelte';
+	// ParaglideJS
+	import {
+		button_cancel,
+		button_delete,
+		button_save,
+		email as m_email,
+		modal_token_deleted_successfully,
+		modaltokenuser_tokenvalidity,
+		role as m_role
+	} from '@src/paraglide/messages';
 
-// Skeleton & Stores
-import { toast } from "@src/stores/toast.svelte.ts";
-import { Form } from "@utils/form.svelte.ts";
-import { addUserTokenSchema } from "@utils/form-schemas";
-// Utils
-import { modalState } from "@utils/modal-state.svelte";
-import { invalidateAll } from "$app/navigation";
-import { page } from "$app/state";
+	// Skeleton & Stores
+	import { toast } from '@src/stores/toast.svelte.ts';
+	import { Form } from '@utils/form.svelte.ts';
+	import { addUserTokenSchema } from '@utils/form-schemas';
+	// Utils
+	import { modalState } from '@utils/modal-state.svelte';
+	import { invalidateAll } from '$app/navigation';
+	import { page } from '$app/state';
 
-// Props
-interface Props {
-	close?: (val?: any) => void;
-	email?: string;
-	expires?: string;
-	role?: string;
-	roles?: any[];
-	token?: string;
-	// Allow passing user/roles as props for flexibility/testing
-	user?: any;
-	userId?: string;
-}
+	// Props
+	interface Props {
+		close?: (val?: any) => void;
+		email?: string;
+		expires?: string;
+		role?: string;
+		roles?: any[];
+		token?: string;
+		// Allow passing user/roles as props for flexibility/testing
+		user?: any;
+		user_id?: string;
+	}
 
-let {
-	token = "",
-	userId = "",
-	email = "",
-	role = "admin",
-	expires = "",
-	user = page.data.user,
-	roles: initialRoles = page.data.roles,
-	close,
-}: Props = $props();
+	let { token = '', user_id = '', email = '', role = 'admin', expires = '', user = page.data.user, roles = page.data.roles, close }: Props = $props();
 
-// Deduplicate roles to prevent UI glitches
-const roles = $derived.by(() => {
-	const uniqueMap = new Map();
-	for (const r of initialRoles || []) {
-		if (r?._id && !uniqueMap.has(r._id.toString())) {
-			uniqueMap.set(r._id.toString(), r);
+	// Form Data with format conversion
+	function convertLegacyFormat(expires: string): string {
+		// Convert old format to new API format
+		switch (expires) {
+			case '1h':
+				return '2 hrs'; // Map 1h to closest option
+			case '2h':
+				return '2 hrs';
+			case '12h':
+				return '12 hrs';
+			case '1d':
+				return '2 days'; // Default
+			case '2d':
+				return '2 days';
+			case '7d':
+				return '1 week'; // 7 days = 1 week
+			case '30d':
+				return '1 month'; // 30 days ≈ 1 month
+			case '90d':
+				return '1 month'; // 90 days, use 1 month as closest
+			default:
+				// If it's already in new format, return as-is
+				if (['2 hrs', '12 hrs', '2 days', '1 week', '2 weeks', '1 month'].includes(expires)) {
+					return expires;
+				}
+				return '2 days'; // Default fallback
 		}
 	}
-	return Array.from(uniqueMap.values());
-});
 
-// Form Data with format conversion
-function convertLegacyFormat(expires: string): string {
-	// Convert old format to new API format
-	switch (expires) {
-		case "1h":
-			return "2 hrs"; // Map 1h to closest option
-		case "2h":
-			return "2 hrs";
-		case "12h":
-			return "12 hrs";
-		case "1d":
-			return "2 days"; // Default
-		case "2d":
-			return "2 days";
-		case "7d":
-			return "1 week"; // 7 days = 1 week
-		case "30d":
-			return "1 month"; // 30 days ≈ 1 month
-		case "90d":
-			return "1 month"; // 90 days, use 1 month as closest
-		default:
-			// If it's already in new format, return as-is
-			if (
-				["2 hrs", "12 hrs", "2 days", "1 week", "2 weeks", "1 month"].includes(
-					expires,
-				)
-			) {
-				return expires;
-			}
-			return "2 days"; // Default fallback
-	}
-}
+	const tokenForm = new Form(
+		{
+			user_id: '',
+			email: '',
+			token: '',
+			role: 'admin',
+			expiresIn: '2 days'
+		},
+		addUserTokenSchema
+	);
 
-const tokenForm = new Form(
-	{
-		userId: "",
-		email: "",
-		token: "",
-		role: "admin",
-		expiresIn: "2 days",
-	},
-	addUserTokenSchema,
-);
+	$effect(() => {
+		tokenForm.data.user_id = user_id;
+		tokenForm.data.email = email;
+		tokenForm.data.token = token;
+		tokenForm.data.role = role || 'admin';
+		tokenForm.data.expiresIn = !expires || expires === '' ? '2 days' : convertLegacyFormat(expires);
+	});
 
-$effect(() => {
-	tokenForm.data.userId = userId;
-	tokenForm.data.email = email;
-	tokenForm.data.token = token;
-	tokenForm.data.role = role || "admin";
-	tokenForm.data.expiresIn =
-		!expires || expires === "" ? "2 days" : convertLegacyFormat(expires);
-});
+	async function onFormSubmit(event: SubmitEvent): Promise<void> {
+		event.preventDefault();
 
-async function onFormSubmit(event: SubmitEvent): Promise<void> {
-	event.preventDefault();
+		if (!tokenForm.validate()) {
+			return;
+		}
 
-	if (!tokenForm.validate()) {
-		return;
-	}
+		tokenForm.submitting = true;
 
-	tokenForm.submitting = true;
+		try {
+			const isEditMode = !!tokenForm.data.token;
+			const endpoint = isEditMode ? `/api/token/${tokenForm.data.token}` : '/api/token/createToken';
+			const method = isEditMode ? 'PUT' : 'POST';
 
-	try {
-		const isEditMode = !!tokenForm.data.token;
-		const endpoint = isEditMode
-			? `/api/token/${tokenForm.data.token}`
-			: "/api/token/create-token";
-		const method = isEditMode ? "PUT" : "POST";
-
-		const body = isEditMode
-			? {
-					newTokenData: {
+			const body = isEditMode
+				? {
+						newTokenData: {
+							email: tokenForm.data.email,
+							role: tokenForm.data.role,
+							expiresInHours: convertExpiresToHours(tokenForm.data.expiresIn)
+						}
+					}
+				: {
 						email: tokenForm.data.email,
 						role: tokenForm.data.role,
-						expiresInHours: convertExpiresToHours(tokenForm.data.expiresIn),
-					},
-				}
-			: {
-					email: tokenForm.data.email,
-					role: tokenForm.data.role,
-					expiresIn: tokenForm.data.expiresIn, // Send the API format directly
-				};
+						expiresIn: tokenForm.data.expiresIn // Send the API format directly
+					};
 
-		const response = await fetch(endpoint, {
-			method,
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify(body),
-		});
-		const responseData = await response.json();
-
-		if (!response.ok) {
-			throw new Error(responseData.message || "Operation failed");
-		}
-
-		// Check if SMTP is not configured
-		if (responseData.smtp_not_configured) {
-			toast.warning({
-				title: "Warning",
-				description: `${isEditMode ? "Token updated" : "Token created"} - Email not sent: SMTP not configured. Token is listed in Admin Area.`,
+			const response = await fetch(endpoint, {
+				method,
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(body)
 			});
-		} else if (responseData.dev_mode && !responseData.email_sent) {
-			// Email was skipped due to dev mode or dummy config
-			toast.info({
-				title: "Info",
-				description: `${isEditMode ? "Token updated" : "Token created"} - Email sending skipped (dev mode)`,
+			const responseData = await response.json();
+
+			if (!response.ok) {
+				throw new Error(responseData.message || 'Operation failed');
+			}
+
+			// Check if SMTP is not configured
+			if (responseData.smtp_not_configured) {
+				toast.warning({
+					title: 'Warning',
+					description: `${isEditMode ? 'Token updated' : 'Token created'} - Email not sent: SMTP not configured. Token is listed in Admin Area.`
+				});
+			} else if (responseData.dev_mode && !responseData.email_sent) {
+				// Email was skipped due to dev mode or dummy config
+				toast.info({
+					title: 'Info',
+					description: `${isEditMode ? 'Token updated' : 'Token created'} - Email sending skipped (dev mode)`
+				});
+			} else {
+				// Success - email sent
+				// TODO: Add 'user_token_created' to messages or find correct key
+				toast.success({ title: 'Success', description: 'User token created' });
+			}
+
+			// Invalidate data first, then close modal
+			await invalidateAll();
+
+			// Close modal and trigger response handler
+			if (close) {
+				close({ success: true });
+			}
+		} catch (err) {
+			const message = err instanceof Error ? err.message : 'An unknown error occurred';
+			toast.error({ title: 'Error', description: message });
+		} finally {
+			tokenForm.submitting = false;
+		}
+	}
+
+	async function deleteToken(): Promise<void> {
+		if (!tokenForm.data.token) {
+			return;
+		}
+		try {
+			const response = await fetch(`/api/token/${tokenForm.data.token}`, {
+				method: 'DELETE',
+				headers: { 'Content-Type': 'application/json' }
 			});
-		} else {
-			// Success - email sent
-			// TODO: Add 'user_token_created' to messages or find correct key
-			toast.success({ title: "Success", description: "User token created" });
+
+			const data = await response.json();
+			if (!response.ok) {
+				// This will now correctly show the JSON error message from the API
+				throw new Error(data.message || 'Failed to delete token');
+			}
+
+			toast.success({
+				title: 'Success',
+				description: modal_token_deleted_successfully()
+			});
+			// Invalidate data first, then close modal
+			await invalidateAll();
+
+			// Close modal and trigger response handler
+			if (close) {
+				close({ success: true });
+			}
+		} catch (err) {
+			const message = err instanceof Error ? err.message : 'Failed to delete token';
+			// This catch block will now receive a proper error message if the API fails.
+			toast.error({ title: 'Error', description: message });
 		}
+	}
 
-		// Invalidate data first, then close modal
-		await invalidateAll();
-
-		// Close modal and trigger response handler
-		if (close) {
-			close({ success: true });
+	function convertExpiresToHours(expires: string): number {
+		// Convert API format back to hours for the edit endpoint
+		switch (expires) {
+			case '2 hrs':
+				return 2;
+			case '12 hrs':
+				return 12;
+			case '2 days':
+				return 48;
+			case '1 week':
+				return 168;
+			case '2 weeks':
+				return 336;
+			case '1 month':
+				return 720;
+			default:
+				return 48; // Default 2 days
 		}
-	} catch (err) {
-		const message =
-			err instanceof Error ? err.message : "An unknown error occurred";
-		toast.error({ title: "Error", description: message });
-	} finally {
-		tokenForm.submitting = false;
 	}
-}
-
-async function deleteToken(): Promise<void> {
-	if (!tokenForm.data.token) {
-		return;
-	}
-	try {
-		const response = await fetch(`/api/token/${tokenForm.data.token}`, {
-			method: "DELETE",
-			headers: { "Content-Type": "application/json" },
-		});
-
-		const data = await response.json();
-		if (!response.ok) {
-			// This will now correctly show the JSON error message from the API
-			throw new Error(data.message || "Failed to delete token");
-		}
-
-		toast.success({
-			title: "Success",
-			description: modal_token_deleted_successfully(),
-		});
-		// Invalidate data first, then close modal
-		await invalidateAll();
-
-		// Close modal and trigger response handler
-		if (close) {
-			close({ success: true });
-		}
-	} catch (err) {
-		const message =
-			err instanceof Error ? err.message : "Failed to delete token";
-		// This catch block will now receive a proper error message if the API fails.
-		toast.error({ title: "Error", description: message });
-	}
-}
-
-function convertExpiresToHours(expires: string): number {
-	// Convert API format back to hours for the edit endpoint
-	switch (expires) {
-		case "2 hrs":
-			return 2;
-		case "12 hrs":
-			return 12;
-		case "2 days":
-			return 48;
-		case "1 week":
-			return 168;
-		case "2 weeks":
-			return 336;
-		case "1 month":
-			return 720;
-		default:
-			return 48; // Default 2 days
-	}
-}
 </script>
 
 <div class="modal-example-form space-y-4 text-black dark:text-white">

@@ -18,355 +18,332 @@ Displays real-time system state and individual service health with comprehensive
 -->
 
 <script lang="ts">
-import { systemState } from "@src/stores/system/state";
-import type { ServiceHealth, SystemState } from "@src/stores/system/types";
-import { formatDisplayDate } from "@utils/date-utils";
-import { logger } from "@utils/logger";
-import { toast } from "@src/stores/toast.svelte.ts";
-import { onDestroy, onMount } from "svelte";
+	import { systemState } from '@src/stores/system/state';
+	import type { ServiceHealth, SystemState } from '@src/stores/system/types';
+	import { formatDisplayDate } from '@utils/date-utils';
+	import { logger } from '@utils/logger';
+	import { toast } from '@src/stores/toast.svelte.ts';
+	import { onDestroy, onMount } from 'svelte';
 
-// Type for service data
-interface ServiceData {
-	error?: string;
-	lastChecked?: number;
-	message: string;
-	status: ServiceHealth;
-}
-
-// State configuration maps
-const STATE_CONFIG = {
-	IDLE: { icon: "💤", color: "text-surface-500", label: "Idle" },
-	INITIALIZING: {
-		icon: "⏳",
-		color: "text-primary-500",
-		label: "Initializing",
-	},
-	WARMING: { icon: "🔥", color: "text-tertiary-500", label: "Warming Up" },
-	WARMED: { icon: "🚀", color: "text-primary-600", label: "Warmed Up" },
-	READY: { icon: "✅", color: "text-primary-500", label: "Ready" },
-	DEGRADED: { icon: "⚠️", color: "text-warning-500", label: "Degraded" },
-	FAILED: { icon: "❌", color: "text-error-500", label: "Failed" },
-	SETUP: { icon: "🛠️", color: "text-secondary-500", label: "Setup Mode" },
-	MAINTENANCE: { icon: "🔧", color: "text-warning-600", label: "Maintenance" },
-} as const;
-
-const SERVICE_CONFIG = {
-	healthy: { color: "preset-filled-primary-500", icon: "✓", label: "Healthy" },
-	unhealthy: {
-		color: "preset-filled-error-500",
-		icon: "✗",
-		label: "Unhealthy",
-	},
-	initializing: {
-		color: "preset-filled-primary-500",
-		icon: "⟳",
-		label: "Initializing",
-	},
-	skipped: { color: "preset-filled-surface-500", icon: "⏭️", label: "Skipped" },
-	maintenance: {
-		color: "preset-filled-warning-500",
-		icon: "🔧",
-		label: "Maintenance",
-	},
-	unknown: { color: "preset-filled-surface-500", icon: "?", label: "Unknown" },
-} as const;
-
-const REFRESH_INTERVAL_MS = 5000;
-const MAX_RETRIES = 3;
-
-// Reactive state
-let currentState = $state<SystemState>("IDLE");
-let services = $state<Record<string, ServiceData>>({});
-let initializationStartedAt = $state<number | null>(null);
-let lastChecked = $state(new Date().toISOString());
-let autoRefresh = $state(true);
-let isLoading = $state(false);
-let isReinitializing = $state(false);
-let retryCount = $state(0);
-let prefersReducedMotion = $state(false);
-let copiedEndpoint = $state(false);
-
-// Refs
-let refreshInterval: ReturnType<typeof setInterval> | null = null;
-let unsubscribe: (() => void) | null = null;
-
-// Derived values with proper memoization
-const uptime = $derived.by(() => {
-	if (!initializationStartedAt) {
-		return 0;
+	// Type for service data
+	interface ServiceData {
+		error?: string;
+		lastChecked?: number;
+		message: string;
+		status: ServiceHealth;
 	}
-	return Date.now() - initializationStartedAt;
-});
 
-const serviceEntries = $derived(Object.entries(services));
-const serviceCount = $derived(serviceEntries.length);
+	// State configuration maps
+	const STATE_CONFIG = {
+		IDLE: { icon: '💤', color: 'text-surface-500', label: 'Idle' },
+		INITIALIZING: {
+			icon: '⏳',
+			color: 'text-primary-500',
+			label: 'Initializing'
+		},
+		WARMING: { icon: '🔥', color: 'text-tertiary-500', label: 'Warming Up' },
+		WARMED: { icon: '🚀', color: 'text-primary-600', label: 'Warmed Up' },
+		READY: { icon: '✅', color: 'text-primary-500', label: 'Ready' },
+		DEGRADED: { icon: '⚠️', color: 'text-warning-500', label: 'Degraded' },
+		FAILED: { icon: '❌', color: 'text-error-500', label: 'Failed' },
+		SETUP: { icon: '🛠️', color: 'text-secondary-500', label: 'Setup Mode' },
+		MAINTENANCE: { icon: '🔧', color: 'text-warning-600', label: 'Maintenance' }
+	} as const;
 
-const healthyServices = $derived(
-	serviceEntries.filter(([, service]) => service.status === "healthy").length,
-);
+	const SERVICE_CONFIG = {
+		healthy: { color: 'preset-filled-primary-500', icon: '✓', label: 'Healthy' },
+		unhealthy: {
+			color: 'preset-filled-error-500',
+			icon: '✗',
+			label: 'Unhealthy'
+		},
+		initializing: {
+			color: 'preset-filled-primary-500',
+			icon: '⟳',
+			label: 'Initializing'
+		},
+		skipped: { color: 'preset-filled-surface-500', icon: '⏭️', label: 'Skipped' },
+		maintenance: {
+			color: 'preset-filled-warning-500',
+			icon: '🔧',
+			label: 'Maintenance'
+		},
+		unknown: { color: 'preset-filled-surface-500', icon: '?', label: 'Unknown' }
+	} as const;
 
-const unhealthyServices = $derived(
-	serviceEntries.filter(([, service]) => service.status === "unhealthy").length,
-);
+	const REFRESH_INTERVAL_MS = 5000;
+	const MAX_RETRIES = 3;
 
-const formattedLastChecked = $derived(
-	formatDisplayDate(lastChecked, "en", {
-		hour: "2-digit",
-		minute: "2-digit",
-		second: "2-digit",
-	}),
-);
+	// Reactive state
+	let currentState = $state<SystemState>('IDLE');
+	let services = $state<Record<string, ServiceData>>({});
+	let initializationStartedAt = $state<number | null>(null);
+	let lastChecked = $state(new Date().toISOString());
+	let autoRefresh = $state(true);
+	let isLoading = $state(false);
+	let isReinitializing = $state(false);
+	let retryCount = $state(0);
+	let prefersReducedMotion = $state(false);
+	let copiedEndpoint = $state(false);
 
-const apiHealthUrl = $derived(
-	typeof window !== "undefined"
-		? `${window.location.origin}/api/system?action=health`
-		: "/api/system?action=health",
-);
+	// Refs
+	let refreshInterval: ReturnType<typeof setInterval> | null = null;
+	let unsubscribe: (() => void) | null = null;
 
-const healthPercentage = $derived(
-	serviceCount > 0 ? Math.round((healthyServices / serviceCount) * 100) : 0,
-);
-
-// Subscribe to store with proper cleanup
-$effect(() => {
-	unsubscribe = systemState.subscribe((state) => {
-		currentState = state.overallState;
-		services = state.services;
-		initializationStartedAt = state.initializationStartedAt || null;
-		lastChecked = new Date().toISOString();
+	// Derived values with proper memoization
+	const uptime = $derived.by(() => {
+		if (!initializationStartedAt) {
+			return 0;
+		}
+		return Date.now() - initializationStartedAt;
 	});
 
-	return () => {
-		unsubscribe?.();
-	};
-});
+	const serviceEntries = $derived(Object.entries(services));
+	const serviceCount = $derived(serviceEntries.length);
 
-// Auto-refresh with proper cleanup
-$effect(() => {
-	if (autoRefresh && !isLoading) {
-		refreshInterval = setInterval(() => {
-			fetchHealth();
-		}, REFRESH_INTERVAL_MS);
-	} else if (refreshInterval) {
-		clearInterval(refreshInterval);
-		refreshInterval = null;
-	}
+	const healthyServices = $derived(serviceEntries.filter(([, service]) => service.status === 'healthy').length);
 
-	return () => {
-		if (refreshInterval) {
+	const unhealthyServices = $derived(serviceEntries.filter(([, service]) => service.status === 'unhealthy').length);
+
+	const formattedLastChecked = $derived(
+		formatDisplayDate(lastChecked, 'en', {
+			hour: '2-digit',
+			minute: '2-digit',
+			second: '2-digit'
+		})
+	);
+
+	const apiHealthUrl = $derived(typeof window !== 'undefined' ? `${window.location.origin}/api/system?action=health` : '/api/system?action=health');
+
+	const healthPercentage = $derived(serviceCount > 0 ? Math.round((healthyServices / serviceCount) * 100) : 0);
+
+	// Subscribe to store with proper cleanup
+	$effect(() => {
+		unsubscribe = systemState.subscribe((state) => {
+			currentState = state.overallState;
+			services = state.services;
+			initializationStartedAt = state.initializationStartedAt || null;
+			lastChecked = new Date().toISOString();
+		});
+
+		return () => {
+			unsubscribe?.();
+		};
+	});
+
+	// Auto-refresh with proper cleanup
+	$effect(() => {
+		if (autoRefresh && !isLoading) {
+			refreshInterval = setInterval(() => {
+				fetchHealth();
+			}, REFRESH_INTERVAL_MS);
+		} else if (refreshInterval) {
 			clearInterval(refreshInterval);
 			refreshInterval = null;
 		}
-	};
-});
 
-// Fetch health with retry logic
-async function fetchHealth(): Promise<void> {
-	if (isLoading) {
-		return;
-	}
+		return () => {
+			if (refreshInterval) {
+				clearInterval(refreshInterval);
+				refreshInterval = null;
+			}
+		};
+	});
 
-	isLoading = true;
-
-	try {
-		const response = await fetch("/api/system?action=health", {
-			method: "GET",
-			headers: {
-				"Content-Type": "application/json",
-			},
-		});
-
-		// Even if status is 503, we should try to parse the body as it contains health report
-		const data = await response.json();
-
-		if (data?.overallStatus) {
-			// Update local reactive state from API response
-			currentState = data.overallStatus;
-			services = data.components || {};
-			initializationStartedAt =
-				data.initializationStartedAt || data.uptime
-					? Date.now() - data.uptime
-					: null;
-			lastChecked = new Date().toISOString();
-			retryCount = 0; // Reset on success
-		} else if (!response.ok) {
-			throw new Error(`Health check failed: ${response.status}`);
+	// Fetch health with retry logic
+	async function fetchHealth(): Promise<void> {
+		if (isLoading) {
+			return;
 		}
-	} catch (err) {
-		logger.error("Failed to fetch health:", err);
 
-		if (retryCount < MAX_RETRIES) {
-			retryCount++;
-			toast.warning(
-				`Health check failed. Retrying... (${retryCount}/${MAX_RETRIES})`,
-				{ duration: 2000 },
-			);
+		isLoading = true;
 
-			// Exponential backoff
-			setTimeout(() => fetchHealth(), 1000 * 2 ** retryCount);
-		} else {
-			toast.error("Failed to fetch system health after multiple retries", {
-				duration: 5000,
+		try {
+			const response = await fetch('/api/system?action=health', {
+				method: 'GET',
+				headers: {
+					'Content-Type': 'application/json'
+				}
 			});
-			retryCount = 0;
+
+			// Even if status is 503, we should try to parse the body as it contains health report
+			const data = await response.json();
+
+			if (data?.overallStatus) {
+				// Update local reactive state from API response
+				currentState = data.overallStatus;
+				services = data.components || {};
+				initializationStartedAt = data.initializationStartedAt || data.uptime ? Date.now() - data.uptime : null;
+				lastChecked = new Date().toISOString();
+				retryCount = 0; // Reset on success
+			} else if (!response.ok) {
+				throw new Error(`Health check failed: ${response.status}`);
+			}
+		} catch (err) {
+			logger.error('Failed to fetch health:', err);
+
+			if (retryCount < MAX_RETRIES) {
+				retryCount++;
+				toast.warning('Health check failed. Retrying... (${retryCount}/${MAX_RETRIES})', { duration: 2000 });
+
+				// Exponential backoff
+				setTimeout(() => fetchHealth(), 1000 * 2 ** retryCount);
+			} else {
+				toast.error('Failed to fetch system health after multiple retries', { duration: 5000 });
+				retryCount = 0;
+			}
+		} finally {
+			isLoading = false;
 		}
-	} finally {
-		isLoading = false;
-	}
-}
-
-// Reinitialize with loading state
-async function reinitializeSystem(): Promise<void> {
-	if (isReinitializing) {
-		return;
 	}
 
-	const confirmed = confirm(
-		"Are you sure you want to reinitialize the system? This may cause temporary downtime.",
-	);
-	if (!confirmed) {
-		return;
-	}
-
-	isReinitializing = true;
-
-	try {
-		toast.warning("Reinitializing system...");
-
-		const response = await fetch("/api/system", {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify({
-				action: "reinitialize",
-				force: true,
-			}),
-		});
-
-		if (response.ok) {
-			const result = await response.json();
-			toast.success(
-				result.message || `System reinitialized: ${result.status}`,
-				{ duration: 5000 },
-			);
-
-			// Wait a bit before fetching health
-			setTimeout(() => fetchHealth(), 1000);
-		} else {
-			const error = await response.json();
-			throw new Error(error.error || "Reinitialization failed");
+	// Reinitialize with loading state
+	async function reinitializeSystem(): Promise<void> {
+		if (isReinitializing) {
+			return;
 		}
-	} catch (err) {
-		const message = err instanceof Error ? err.message : "Unknown error";
-		logger.error("Reinitialization failed:", err);
-		toast.error(`Reinitialization failed: ${message}`);
 
-		toast.error(`Failed to reinitialize: ${message}`, { duration: 5000 });
-	} finally {
-		isReinitializing = false;
-	}
-}
+		const confirmed = confirm('Are you sure you want to reinitialize the system? This may cause temporary downtime.');
+		if (!confirmed) {
+			return;
+		}
 
-// Copy endpoint to clipboard
-async function copyEndpoint(): Promise<void> {
-	try {
-		await navigator.clipboard.writeText(apiHealthUrl);
-		copiedEndpoint = true;
-		toast.success("Endpoint copied to clipboard", { duration: 2000 });
+		isReinitializing = true;
 
-		setTimeout(() => {
-			copiedEndpoint = false;
-		}, 2000);
-	} catch (err) {
-		logger.error("Failed to copy:", err);
-		toast.error("Failed to copy endpoint", { duration: 2000 });
-	}
-}
+		try {
+			toast.warning('Reinitializing system...');
 
-// Helper functions
-function getStateColor(state: SystemState): string {
-	return STATE_CONFIG[state]?.color || STATE_CONFIG.IDLE.color;
-}
+			const response = await fetch('/api/system', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					action: 'reinitialize',
+					force: true
+				})
+			});
 
-function getStateIcon(state: SystemState): string {
-	return STATE_CONFIG[state]?.icon || "❓";
-}
+			if (response.ok) {
+				const result = await response.json();
+				toast.success(result.message || `System reinitialized: ${result.status}`, { duration: 5000 });
 
-function getStateLabel(state: SystemState): string {
-	return STATE_CONFIG[state]?.label || "Unknown";
-}
+				// Wait a bit before fetching health
+				setTimeout(() => fetchHealth(), 1000);
+			} else {
+				const error = await response.json();
+				throw new Error(error.error || 'Reinitialization failed');
+			}
+		} catch (err) {
+			const message = err instanceof Error ? err.message : 'Unknown error';
+			logger.error('Reinitialization failed:', err);
+			toast.error(`Reinitialization failed: ${message}`);
 
-function getServiceColor(status: ServiceHealth): string {
-	return SERVICE_CONFIG[status]?.color || SERVICE_CONFIG.unknown.color;
-}
-
-function getServiceIcon(status: ServiceHealth): string {
-	return SERVICE_CONFIG[status]?.icon || SERVICE_CONFIG.unknown.icon;
-}
-
-function getServiceLabel(status: ServiceHealth): string {
-	return SERVICE_CONFIG[status]?.label || "Unknown";
-}
-
-function formatUptime(ms: number): string {
-	if (ms <= 0) {
-		return "0s";
+			toast.error('Failed to reinitialize: ${message}', { duration: 5000 });
+		} finally {
+			isReinitializing = false;
+		}
 	}
 
-	const seconds = Math.floor(ms / 1000);
-	const minutes = Math.floor(seconds / 60);
-	const hours = Math.floor(minutes / 60);
-	const days = Math.floor(hours / 24);
+	// Copy endpoint to clipboard
+	async function copyEndpoint(): Promise<void> {
+		try {
+			await navigator.clipboard.writeText(apiHealthUrl);
+			copiedEndpoint = true;
+			toast.success('Endpoint copied to clipboard', { duration: 2000 });
 
-	if (days > 0) {
-		return `${days}d ${hours % 24}h`;
+			setTimeout(() => {
+				copiedEndpoint = false;
+			}, 2000);
+		} catch (err) {
+			logger.error('Failed to copy:', err);
+			toast.error('Failed to copy endpoint', { duration: 2000 });
+		}
 	}
-	if (hours > 0) {
-		return `${hours}h ${minutes % 60}m`;
+
+	// Helper functions
+	function getStateColor(state: SystemState): string {
+		return STATE_CONFIG[state]?.color || STATE_CONFIG.IDLE.color;
 	}
-	if (minutes > 0) {
-		return `${minutes}m ${seconds % 60}s`;
+
+	function getStateIcon(state: SystemState): string {
+		return STATE_CONFIG[state]?.icon || '❓';
 	}
-	return `${seconds}s`;
-}
 
-function formatServiceName(name: string): string {
-	return (
-		name.charAt(0).toUpperCase() +
-		name
-			.slice(1)
-			.replace(/([A-Z])/g, " $1")
-			.trim()
-	);
-}
-
-// Lifecycle
-onMount(() => {
-	// Check reduced motion preference
-	const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
-	prefersReducedMotion = mediaQuery.matches;
-
-	const handleMotionChange = (e: MediaQueryListEvent) => {
-		prefersReducedMotion = e.matches;
-	};
-
-	mediaQuery.addEventListener("change", handleMotionChange);
-
-	// Initial health check
-	fetchHealth();
-
-	return () => {
-		mediaQuery.removeEventListener("change", handleMotionChange);
-	};
-});
-
-onDestroy(() => {
-	if (refreshInterval) {
-		clearInterval(refreshInterval);
+	function getStateLabel(state: SystemState): string {
+		return STATE_CONFIG[state]?.label || 'Unknown';
 	}
-	unsubscribe?.();
-});
+
+	function getServiceColor(status: ServiceHealth): string {
+		return SERVICE_CONFIG[status]?.color || SERVICE_CONFIG.unknown.color;
+	}
+
+	function getServiceIcon(status: ServiceHealth): string {
+		return SERVICE_CONFIG[status]?.icon || SERVICE_CONFIG.unknown.icon;
+	}
+
+	function getServiceLabel(status: ServiceHealth): string {
+		return SERVICE_CONFIG[status]?.label || 'Unknown';
+	}
+
+	function formatUptime(ms: number): string {
+		if (ms <= 0) {
+			return '0s';
+		}
+
+		const seconds = Math.floor(ms / 1000);
+		const minutes = Math.floor(seconds / 60);
+		const hours = Math.floor(minutes / 60);
+		const days = Math.floor(hours / 24);
+
+		if (days > 0) {
+			return `${days}d ${hours % 24}h`;
+		}
+		if (hours > 0) {
+			return `${hours}h ${minutes % 60}m`;
+		}
+		if (minutes > 0) {
+			return `${minutes}m ${seconds % 60}s`;
+		}
+		return `${seconds}s`;
+	}
+
+	function formatServiceName(name: string): string {
+		return (
+			name.charAt(0).toUpperCase() +
+			name
+				.slice(1)
+				.replace(/([A-Z])/g, ' $1')
+				.trim()
+		);
+	}
+
+	// Lifecycle
+	onMount(() => {
+		// Check reduced motion preference
+		const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+		prefersReducedMotion = mediaQuery.matches;
+
+		const handleMotionChange = (e: MediaQueryListEvent) => {
+			prefersReducedMotion = e.matches;
+		};
+
+		mediaQuery.addEventListener('change', handleMotionChange);
+
+		// Initial health check
+		fetchHealth();
+
+		return () => {
+			mediaQuery.removeEventListener('change', handleMotionChange);
+		};
+	});
+
+	onDestroy(() => {
+		if (refreshInterval) {
+			clearInterval(refreshInterval);
+		}
+		unsubscribe?.();
+	});
 </script>
 
 <div class="card space-y-4 p-4" role="region" aria-label="System health monitoring">

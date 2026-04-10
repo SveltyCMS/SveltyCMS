@@ -20,7 +20,6 @@ import type { PermissionConfig } from "@src/databases/auth/permissions";
 import type { Role, User } from "@src/databases/auth/types";
 // Auth
 import { auth } from "@src/databases/db";
-import type { DatabaseId } from "@src/databases/db-interface";
 // System Logger
 import { getUntypedSetting } from "@src/services/settings-service";
 import { logger } from "@utils/logger.server";
@@ -64,8 +63,7 @@ export const load: PageServerLoad = async (event) => {
     // This is especially important after profile updates
     let freshUser: User | null = null;
     if (user?._id && auth) {
-      freshUser = await auth.getUserById(user._id as DatabaseId, {
-        tenantId: event.locals.tenantId as DatabaseId,
+      freshUser = await auth.getUserById(user._id.toString(), event.locals.tenantId, {
         bypassTenantCheck: true,
       });
       if (freshUser) {
@@ -83,10 +81,10 @@ export const load: PageServerLoad = async (event) => {
     }
 
     // Prepare user object for return, ensuring _id is a string and including admin status
-    const safeUser: User | null = freshUser
+    const safeUser = freshUser
       ? {
           ...freshUser,
-          _id: freshUser._id.toString() as DatabaseId,
+          _id: freshUser._id.toString(),
           password: "[REDACTED]", // Ensure password is not sent to client
           isAdmin, // Add the properly calculated admin status
         }
@@ -115,22 +113,12 @@ export const load: PageServerLoad = async (event) => {
     };
 
     // Return data to the client
-    const mappedRoles = roles.map((role) => ({
-      ...role,
-      _id: role._id.toString(),
-    }));
-
-    // Deduplicate roles to prevent UI glitches
-    const uniqueRolesMap = new Map();
-    for (const r of mappedRoles) {
-      if (!uniqueRolesMap.has(r._id)) {
-        uniqueRolesMap.set(r._id, r);
-      }
-    }
-
     return {
       user: safeUser,
-      roles: Array.from(uniqueRolesMap.values()),
+      roles: roles.map((role) => ({
+        ...role,
+        _id: role._id.toString(),
+      })),
       isFirstUser,
       is2FAEnabledGlobal: Boolean(getUntypedSetting("USE_2FA")),
       manageUsersPermissionConfig,

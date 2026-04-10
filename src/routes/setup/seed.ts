@@ -1,32 +1,26 @@
 /**
  * @file src/routes/setup/seed.ts
- * @description
- * Database seeding engine for the SveltyCMS Setup Wizard.
- * Handles the initial population of roles, settings, themes, and collection schemas.
+ * @description Functions for seeding the database with initial data (settings, themes, collections)
+ * during the setup process.
  *
- * Responsibilities include:
- * - Seeding default system and content languages from `project.inlang/settings.json`.
- * - Initializing core system settings and preferences.
- * - Creating default roles and permissions (Admin, Editor, etc.).
- * - Populating initial database schemas from compiled collection files.
- * - Generating the initial system content structure and category nodes.
+ * This replaces the static configuration files with database settings.
+ * Uses database-agnostic interfaces for compatibility across different database engines.
  *
- * ### Features:
- * - database-agnostic seeding patterns
- * - filesystem-to-database schema migration
- * - demo content generation for starter presets
- * - idempotent role and theme creation
- * - parallelized seeding for performance
+ * Collection Seeding Strategy:
+ * - seedCollectionsForSetup(): Lightweight version for setup that directly reads compiled
+ * collections from filesystem and creates models. Bypassescontent-managerto avoid
+ * global dbAdapter dependency issues during setup mode.
+ * - This allowscontent-managerto have collections pre-cached when system fully initializes,
+ * resulting in faster redirects and better UX after setup completion.
  */
 
 // Import inlang settings directly (TypeScript/SvelteKit handles JSON imports)
 import inlangSettings from "@root/project.inlang/settings.json";
-import { scanCompiledCollections } from "@src/content/content-service.server";
+import { scanCompiledCollections } from "@src/content/collection-scanner";
 import type { ContentNode, DatabaseId, Schema } from "@src/content/types";
-import { generateCategoryNodesFromPaths } from "@src/content";
+import { generateCategoryNodesFromPaths } from "@src/content/utils";
 import { getAllPermissions } from "@src/databases/auth";
 import { defaultRoles as importedDefaultRoles } from "@src/databases/auth/default-roles";
-import type { Role } from "@src/databases/auth/types";
 import type { DatabaseAdapter, Theme } from "@src/databases/db-interface";
 import { publicConfigSchema } from "@src/databases/schemas";
 import { invalidateSettingsCache } from "@src/services/settings-service";
@@ -100,7 +94,7 @@ export async function seedDefaultTheme(
     logger.info(`🎨 Seeding default theme${tenantId ? ` for tenant ${tenantId}` : ""}...`);
     const themeToStore = {
       ...defaultTheme,
-      ...(tenantId && { tenantId: tenantId as DatabaseId }),
+      ...(tenantId && { tenantId }),
     };
     await dbAdapter.system.themes.storeThemes([themeToStore]);
     logger.info(`✅ Default theme seeded successfully${tenantId ? ` for tenant ${tenantId}` : ""}`);
@@ -141,12 +135,12 @@ export async function seedRoles(
         // primary key collisions with roles from other tenants
         const roleToCreate = {
           ...role,
-          _id: (tenantId ? crypto.randomUUID() : role._id) as DatabaseId,
+          _id: tenantId ? crypto.randomUUID() : role._id,
           permissions: role._id === "admin" ? adminPermissions : role.permissions,
-          ...(tenantId && { tenantId: tenantId as DatabaseId }),
+          ...(tenantId && { tenantId }),
         };
 
-        const result = await dbAdapter.auth.createRole(roleToCreate as Role);
+        const result = await dbAdapter.auth.createRole(roleToCreate);
         // createRole returns DatabaseResult — check success instead of relying on exceptions
         if (result && "success" in result && !result.success) {
           logger.warn(
@@ -163,8 +157,7 @@ export async function seedRoles(
         if (
           errorMessage.includes("duplicate") ||
           errorMessage.includes("E11000") ||
-          errorMessage.includes("ER_DUP_ENTRY") ||
-          errorMessage.includes("UNIQUE constraint failed")
+          errorMessage.includes("ER_DUP_ENTRY")
         ) {
           logger.debug(
             `ℹ️  Role "${role.name}" already exists${tenantId ? ` for tenant ${tenantId}` : ""}, skipping`,
@@ -190,7 +183,7 @@ export async function seedRoles(
 
 /**
  * Seeds collections from filesystem into database
- * This bypasses contentSystem to avoid global dbAdapter dependency during setup
+ * This bypassescontent-managerto avoid global dbAdapter dependency during setup
  *
  * @returns Information about the first collection (for faster redirects)
  */
@@ -210,7 +203,7 @@ export async function seedCollectionsForSetup(
   let firstCollection: { name: string; path: string } | null = null;
 
   try {
-    // Import the collection scanner directly to avoid contentSystem dependency issues during setup phase
+    // Import the collection scanner directly to avoid content-manager dependency issues during setup phase
     // scanCompiledCollections is already imported at the top of the file
 
     const scanStart = performance.now();
@@ -296,8 +289,8 @@ export async function seedCollectionsForSetup(
 
     const modelCreationTime = performance.now() - modelCreationStart;
 
-    // Step 5: PERSISTENCE - Populate contentNodes table so contentSystem sees them immediately
-    // This ensures skipReconciliation: true in contentSystem works correctly after setup.
+    // Step 5: PERSISTENCE - Populate contentNodes table so content-manager sees them immediately
+    // This ensures skipReconciliation: true in content-manager works correctly after setup.
     try {
       logger.info("🌳 Generating category nodes and mapping structure...");
       const categoryNodes = generateCategoryNodesFromPaths(collections as Schema[]);
@@ -308,7 +301,6 @@ export async function seedCollectionsForSetup(
         updates.push({
           path,
           changes: {
-            path, // Explicitly include path for SQLite NOT NULL constraint
             name: node.name,
             nodeType: "category",
             order: 0,
@@ -325,7 +317,6 @@ export async function seedCollectionsForSetup(
         updates.push({
           path: schema.path,
           changes: {
-            path: schema.path, // Explicitly include path for SQLite NOT NULL constraint
             _id: schema._id as any,
             name: schema.name || schema._id,
             nodeType: "collection",
@@ -339,8 +330,8 @@ export async function seedCollectionsForSetup(
 
       if (updates.length > 0) {
         logger.info(`💾 Persisting ${updates.length} content nodes to database...`);
-        const structResult = await dbAdapter.content.nodes.bulkUpdate(updates as any, {
-          tenantId: tenantId as DatabaseId | undefined,
+        const structResult = await dbAdapter.content.nodes.bulkUpdate(updates, {
+          tenantId,
           bypassTenantCheck: true,
           bypassCache: true,
         });
@@ -408,127 +399,54 @@ export async function seedDemoRecords(
   }
 
   try {
-    // 1. Seed "Authors"
-    const authorsSchema = collections.find((s) => s.name === "Authors");
-    if (authorsSchema && authorsSchema._id) {
-      const authors = [
-        {
-          Name: "Admin",
-          Bio: "The system administrator.",
-          status: "publish",
-          ...(tenantId && { tenantId: tenantId as DatabaseId }),
-        },
-        {
-          Name: "Editor",
-          Bio: "A content creator.",
-          status: "publish",
-          ...(tenantId && { tenantId: tenantId as DatabaseId }),
-        },
-      ];
-      await dbAdapter.crud.insertMany(authorsSchema._id, authors, {
-        tenantId: tenantId as DatabaseId,
-      });
-      logger.info(`✅ Seeded ${authors.length} demo authors into ${authorsSchema._id}`);
-    }
-
-    // 2. Seed "Categories"
-    const categoriesSchema = collections.find((s) => s.name === "Categories");
-    if (categoriesSchema && categoriesSchema._id) {
-      const categories = [
-        {
-          name: "News",
-          slug: "news",
-          description: "Latest news and updates.",
-          status: "publish",
-          ...(tenantId && { tenantId: tenantId as DatabaseId }),
-        },
-        {
-          name: "Technology",
-          slug: "technology",
-          description: "Everything tech.",
-          status: "publish",
-          ...(tenantId && { tenantId: tenantId as DatabaseId }),
-        },
-      ];
-      await dbAdapter.crud.insertMany(categoriesSchema._id, categories, {
-        tenantId: tenantId as DatabaseId,
-      });
-      logger.info(`✅ Seeded ${categories.length} demo categories into ${categoriesSchema._id}`);
-    }
-
     for (const schema of collections) {
       const collectionId = schema._id;
       if (!collectionId) {
         continue;
       }
 
-      // 3. Seed "Posts" as a demo
+      // Seed "Posts" as a demo
       if (schema.name === "Posts") {
         const posts = [
           {
-            Title: "Welcome to SveltyCMS",
-            Author: "Admin", // Assuming the relation is handled by name or needs ID
-            status: "publish",
-            ...(tenantId && { tenantId: tenantId as DatabaseId }),
+            title: "Welcome to SveltyCMS",
+            content: "This is your first post, created automatically during setup.",
+            status: "published",
+            author: "Admin",
+            ...(tenantId && { tenantId }),
           },
           {
-            Title: "Modern CMS Architecture",
-            Author: "Admin",
-            status: "publish",
-            ...(tenantId && { tenantId: tenantId as DatabaseId }),
+            title: "Modern CMS Architecture",
+            content: "SveltyCMS uses Svelte 5 runes and a database-agnostic adapter pattern.",
+            status: "published",
+            author: "Admin",
+            ...(tenantId && { tenantId }),
           },
         ];
 
         // Use insertMany to trigger the new dynamic table + packData logic
-        await dbAdapter.crud.insertMany(collectionId, posts, {
-          tenantId: tenantId as DatabaseId,
-        });
+        await dbAdapter.crud.insertMany(collectionId, posts, tenantId, true);
         logger.info(`✅ Seeded ${posts.length} demo posts into ${collectionId}`);
-      }
-
-      // ✨ NEW: Seed "Stress" collection for proper benchmarking
-      if (schema.name === "StressTest") {
-        const stressItems = Array.from({ length: 100 }).map((_, i) => ({
-          title: `Stress Test Entry #${i}`,
-          content: `Automated performance test payload for entry ${i}.`,
-          metadata: { iteration: i, random: Math.random() },
-          status: "publish",
-          ...(tenantId && { tenantId: tenantId as DatabaseId }),
-        }));
-        await dbAdapter.crud.insertMany(collectionId, stressItems, {
-          tenantId: tenantId as DatabaseId,
-        });
-        logger.info(`🔥 Seeded 100 StressTest items for enterprise benchmarking`);
       }
 
       // Seed "Menu" as a demo
       if (schema.name === "Menu") {
         const menuItems = [
-          {
-            label: "Home",
-            url: "/",
-            order: 1,
-            status: "publish",
-            ...(tenantId && { tenantId: tenantId as DatabaseId }),
-          },
+          { label: "Home", url: "/", order: 1, ...(tenantId && { tenantId }) },
           {
             label: "Blog",
             url: "/blog",
             order: 2,
-            status: "publish",
-            ...(tenantId && { tenantId: tenantId as DatabaseId }),
+            ...(tenantId && { tenantId }),
           },
           {
             label: "Contact",
             url: "/contact",
             order: 3,
-            status: "publish",
-            ...(tenantId && { tenantId: tenantId as DatabaseId }),
+            ...(tenantId && { tenantId }),
           },
         ];
-        await dbAdapter.crud.insertMany(collectionId, menuItems, {
-          tenantId: tenantId as DatabaseId,
-        });
+        await dbAdapter.crud.insertMany(collectionId, menuItems, tenantId, true);
         logger.info(`✅ Seeded ${menuItems.length} demo menu items into ${collectionId}`);
       }
     }
@@ -555,16 +473,16 @@ export async function initSystemFromSetup(
   // Run seeding steps in parallel for maximum performance
   const [seedResults] = await Promise.all([
     (async () => {
-      // NEW: Use ContentSystem for unified seeding
-      const { contentSystem } = await import("@src/content");
-      await contentSystem.initialize(tenantId, false, adapter);
+      // NEW: UseContentManager for unified seeding
+      const { contentManager } = await import("@src/content/content-manager");
+      await contentManager.initialize(tenantId, false, adapter);
 
       if (isDemoSeed) {
         const collections = await scanCompiledCollections();
         await seedDemoRecords(adapter, collections, tenantId);
       }
 
-      const first = await contentSystem.getFirstCollection(tenantId);
+      const first = await contentManager.getFirstCollection(tenantId);
       return {
         firstCollection: first ? { name: first.name as string, path: first.path as string } : null,
       };
@@ -621,9 +539,10 @@ export async function initSystemFast(
           await adapter.crud.deleteMany(
             "system_content_structure",
             {
-              ...(tenantId && { tenantId: tenantId as DatabaseId }),
+              ...(tenantId && { tenantId }),
             },
-            { tenantId: tenantId as DatabaseId, bypassTenantCheck: true },
+            tenantId,
+            true,
           );
           logger.info("✅ Content structure cleared successfully");
         }
@@ -634,20 +553,18 @@ export async function initSystemFast(
 
     // Reload settings immediately
     invalidateSettingsCache();
-    const dbModule = await import("@src/databases/db");
-    const loadSettings = dbModule.loadSettingsFromDB;
+    const { loadSettingsFromDB } = await import("@src/databases/db");
+    await loadSettingsFromDB();
 
-    if (typeof loadSettings === "function") {
-      await loadSettings();
-    } else {
-      logger.warn(
-        "loadSettingsFromDB not found in db module (likely circular dependency during initialization)",
-      );
-      // Fallback: the next request will trigger a cache load anyway
+    // NEW: Pre-register collection models viaContentManager
+    // This creates the database tables/collections pre-emptively
+    try {
+      logger.info("📦 Pre-registering collection models...");
+      const { contentManager } = await import("@src/content/content-manager");
+      await contentManager.initialize(tenantId, false, adapter);
+    } catch (cmError) {
+      logger.warn("⚠️ContentManager pre-registration failed:", cmError);
     }
-
-    // NEW: System monitor and heartbeat will be started after setup is fully complete
-    // to avoid background noise during orchestration.
 
     logger.info(
       `✅ Critical system initialization completed${tenantId ? ` for tenant ${tenantId}` : ""}`,
@@ -659,8 +576,8 @@ export async function initSystemFast(
     if (!adapter) {
       return;
     }
-    const { contentSystem } = await import("@src/content");
-    await contentSystem.initialize(tenantId, false, adapter);
+    const { contentManager } = await import("@src/content/content-manager");
+    await contentManager.initialize(tenantId, false, adapter);
   };
 
   return { criticalPromise, backgroundTask };
@@ -680,7 +597,7 @@ export const defaultPublicSettings: Array<{
   },
   {
     key: "HOST_PROD",
-    value: "https://SveltyCMS.com",
+    value: "https://yourdomain.com",
     description: "Production server URL",
   },
 
@@ -696,7 +613,7 @@ export const defaultPublicSettings: Array<{
     description: "Default timezone for the system",
   },
   {
-    key: "PASSWORD_MIN_LENGTH",
+    key: "PASSWORD_LENGTH",
     value: 8,
     description: "Minimum required length for user passwords",
   },
@@ -1135,6 +1052,7 @@ export async function seedSettings(
     category: "public" | "private";
     scope: "user" | "system";
     userId?: DatabaseId;
+    tenantId?: string | null;
   }> = [];
 
   for (const setting of settingsToSeed) {
@@ -1161,7 +1079,7 @@ export async function seedSettings(
       value, // Store the actual value directly
       category, // Add category field for proper classification
       scope: "system",
-      userId: tenantId as any, // In system scope, userId is used as tenantId
+      ...(tenantId && { tenantId }),
     });
   }
 
@@ -1335,11 +1253,8 @@ export async function seedDemoTenant(dbAdapter: DatabaseAdapter, tenantId: strin
   // 4. Create Admin User
   // We need to import auth service or use dbAdapter.auth directly
   if (dbAdapter.auth) {
-    // For demo tenants, we should find the role by its name "admin" within the tenant context
-    // because seedRoles creates tenant-scoped roles with random UUID IDs.
-    const roles = await dbAdapter.auth.getAllRoles({ tenantId: tenantId as DatabaseId });
-    const adminRole = roles.find((r) => r.name === "admin") || null;
-
+    const result = await dbAdapter.auth.getRoleById("admin", tenantId, { bypassTenantCheck: true });
+    const adminRole = result.success ? result.data : null;
     if (adminRole) {
       const email = `demo-${tenantId.substring(0, 8)}@sveltycms.com`;
       const password = "demo"; // Simple password for demo
@@ -1347,9 +1262,9 @@ export async function seedDemoTenant(dbAdapter: DatabaseAdapter, tenantId: strin
         await dbAdapter.auth.createUser({
           email,
           password,
-          role: adminRole._id as any, // Use as any to bypass complex User.role vs Role._id mismatch if any
+          role: adminRole._id,
           username: "Demo Admin",
-          tenantId: tenantId as DatabaseId,
+          tenantId,
         });
         logger.info(`✅ Demo admin user created: ${email}`);
       } catch (e) {

@@ -6,7 +6,7 @@
 import { json } from "@sveltejs/kit";
 import { apiHandler } from "@utils/api-handler";
 import { AppError } from "@utils/error-handling";
-import { contentManager } from "@src/content";
+import { contentSystem } from "@src/content";
 import { getPrivateSettingSync } from "@src/services/settings-service";
 import type { DatabaseId } from "@src/databases/db-interface";
 
@@ -26,7 +26,7 @@ export const GET = apiHandler(async ({ locals, url }) => {
   if (isMultiTenant && !tenantId) throw new AppError("Tenant ID missing", 400, "TENANT_MISSING");
 
   // 1. Get all collections
-  const schemas = await contentManager.getCollections(tenantId);
+  const schemas = await contentSystem.getCollections(tenantId);
   const allDeletedItems: any[] = [];
 
   // 2. Fetch deleted items from each collection
@@ -85,7 +85,7 @@ export const POST = apiHandler(async ({ locals, request }) => {
     throw new AppError("collectionId and entryId are required", 400, "BAD_REQUEST");
   }
 
-  const schema = await contentManager.getCollectionById(collectionId, tenantId);
+  const schema = await contentSystem.getCollectionById(collectionId, tenantId);
   if (!schema || !schema._id) {
     throw new AppError("Collection not found", 404, "NOT_FOUND");
   }

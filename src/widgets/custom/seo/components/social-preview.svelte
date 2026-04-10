@@ -6,81 +6,71 @@ Displays a preview of the shared link for different platforms.
 -->
 
 <script lang="ts">
-import SystemTooltip from "@src/components/system/system-tooltip.svelte";
-// Using iconify-icon web component
-interface Props {
-	hostUrl: string;
-	ogDescription?: string;
-	ogImage?: string;
-	ogTitle?: string;
-	twitterDescription?: string;
-	twitterImage?: string;
-	twitterTitle?: string;
-}
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+	// Using iconify-icon web component
+	interface Props {
+		hostUrl: string;
+		ogDescription?: string;
+		ogImage?: string;
+		ogTitle?: string;
+		twitterDescription?: string;
+		twitterImage?: string;
+		twitterTitle?: string;
+	}
 
-let {
-	ogTitle = "",
-	ogDescription = "",
-	ogImage = "",
-	twitterTitle = "",
-	twitterDescription = "",
-	twitterImage = "",
-	hostUrl = "",
-}: Props = $props();
+	let {
+		ogTitle = '',
+		ogDescription = '',
+		ogImage = '',
+		twitterTitle = '',
+		twitterDescription = '',
+		twitterImage = '',
+		hostUrl = ''
+	}: Props = $props();
 
-let activePlatform = $state<
-	"facebook" | "whatsapp" | "twitter" | "linkedin" | "discord"
->("facebook");
+	let activePlatform = $state<'facebook' | 'whatsapp' | 'twitter' | 'linkedin' | 'discord'>('facebook');
 
-// Fallback logic
-let displayTitle = $derived(
-	activePlatform === "twitter"
-		? twitterTitle || ogTitle || "Page Title"
-		: ogTitle || "Page Title",
-);
-let displayDescription = $derived(
-	activePlatform === "twitter"
-		? twitterDescription || ogDescription || "Page description..."
-		: ogDescription || "Page description...",
-);
+	// Fallback logic
+	let displayTitle = $derived(activePlatform === 'twitter' ? twitterTitle || ogTitle || 'Page Title' : ogTitle || 'Page Title');
+	let displayDescription = $derived(
+		activePlatform === 'twitter' ? twitterDescription || ogDescription || 'Page description...' : ogDescription || 'Page description...'
+	);
 
-// Image placeholder if no image provided
-let displayImage = $derived(
-	activePlatform === "twitter" && twitterImage ? twitterImage : ogImage,
-);
+	// Image placeholder if no image provided
+	let displayImage = $derived(activePlatform === 'twitter' && twitterImage ? twitterImage : ogImage);
 
-const platforms = [
-	{
-		id: "facebook",
-		icon: "mdi:facebook",
-		color: "text-blue-600",
-		label: "Facebook",
-	},
-	{
-		id: "whatsapp",
-		icon: "mdi:whatsapp",
-		color: "text-green-500",
-		label: "WhatsApp",
-	},
-	{
-		id: "twitter",
-		icon: "mdi:twitter",
-		color: "text-black dark:text-white",
-		label: "X (Twitter)",
-	},
-	{
-		id: "linkedin",
-		icon: "mdi:linkedin",
-		color: "text-blue-700",
-		label: "LinkedIn",
-	},
-	{
-		id: "discord",
-		icon: "mdi:discord",
-		color: "text-indigo-500",
-		label: "Discord",
-	},
-] as const;
+	const platforms = [
+		{
+			id: 'facebook',
+			icon: 'mdi:facebook',
+			color: 'text-blue-600',
+			label: 'Facebook'
+		},
+		{
+			id: 'whatsapp',
+			icon: 'mdi:whatsapp',
+			color: 'text-green-500',
+			label: 'WhatsApp'
+		},
+		{
+			id: 'twitter',
+			icon: 'mdi:twitter',
+			color: 'text-black dark:text-white',
+			label: 'X (Twitter)'
+		},
+		{
+			id: 'linkedin',
+			icon: 'mdi:linkedin',
+			color: 'text-blue-700',
+			label: 'LinkedIn'
+		},
+		{
+			id: 'discord',
+			icon: 'mdi:discord',
+			color: 'text-indigo-500',
+			label: 'Discord'
+		}
+	] as const;
 </script>
 
 <div class="card preset-tonal-surface p-4 rounded-container-token mb-6">

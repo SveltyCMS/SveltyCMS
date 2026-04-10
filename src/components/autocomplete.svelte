@@ -54,355 +54,339 @@ Advanced autocomplete component with fuzzy search, keyboard navigation, and acce
 -->
 
 <script lang="ts">
-import { onDestroy, onMount } from "svelte";
-import { fade, scale, slide } from "svelte/transition";
+	import { onDestroy, onMount } from 'svelte';
+	import { fade, scale, slide } from 'svelte/transition';
 
-interface Props {
-	allowCustomValue?: boolean;
-	caseSensitive?: boolean;
-	disabled?: boolean;
-	fuzzySearch?: boolean;
-	maxResults?: number;
-	onSelect?: (value: string) => void;
-	options?: string[];
-	placeholder?: string;
-	showCreateOption?: boolean;
-	value?: string;
-}
-
-let {
-	options = [],
-	value = $bindable(""),
-	placeholder = "Select an option",
-	disabled = false,
-	allowCustomValue = false,
-	showCreateOption = false,
-	fuzzySearch = true,
-	caseSensitive = false,
-	maxResults = 50,
-	onSelect = () => {},
-}: Props = $props();
-
-// State
-let keyword = $state("");
-let showDropdown = $state(false);
-let selectedIndex = $state(-1);
-let listElement = $state<HTMLUListElement | null>(null);
-let inputElement = $state<HTMLInputElement | null>(null);
-let dropdownElement = $state<HTMLDivElement | null>(null);
-let prefersReducedMotion = $state(false);
-let recentSelections = $state<string[]>([]);
-let isLoading = $state(false);
-
-// Constants
-const MAX_RECENT = 5;
-const BLUR_DELAY = 150;
-
-// Fuzzy match scoring
-function fuzzyMatchScore(text: string, query: string): number {
-	const textLower = caseSensitive ? text : text.toLowerCase();
-	const queryLower = caseSensitive ? query : query.toLowerCase();
-
-	// Exact match gets highest score
-	if (textLower === queryLower) {
-		return 1000;
+	interface Props {
+		allowCustomValue?: boolean;
+		caseSensitive?: boolean;
+		disabled?: boolean;
+		fuzzySearch?: boolean;
+		maxResults?: number;
+		onSelect?: (value: string) => void;
+		options?: string[];
+		placeholder?: string;
+		showCreateOption?: boolean;
+		value?: string;
 	}
 
-	// Starts with gets high score
-	if (textLower.startsWith(queryLower)) {
-		return 500;
-	}
+	let {
+		options = [],
+		value = $bindable(''),
+		placeholder = 'Select an option',
+		disabled = false,
+		allowCustomValue = false,
+		showCreateOption = false,
+		fuzzySearch = true,
+		caseSensitive = false,
+		maxResults = 50,
+		onSelect = () => {}
+	}: Props = $props();
 
-	// Contains gets medium score
-	if (textLower.includes(queryLower)) {
-		return 100;
-	}
+	// State
+	let keyword = $state('');
+	let showDropdown = $state(false);
+	let selectedIndex = $state(-1);
+	let listElement = $state<HTMLUListElement | null>(null);
+	let inputElement = $state<HTMLInputElement | null>(null);
+	let dropdownElement = $state<HTMLDivElement | null>(null);
+	let prefersReducedMotion = $state(false);
+	let recentSelections = $state<string[]>([]);
+	let isLoading = $state(false);
 
-	// Fuzzy match (each character of query in order)
-	let score = 0;
-	let textIndex = 0;
-	for (let i = 0; i < queryLower.length; i++) {
-		const charIndex = textLower.indexOf(queryLower[i], textIndex);
-		if (charIndex === -1) {
-			return 0; // No match
+	// Constants
+	const MAX_RECENT = 5;
+	const BLUR_DELAY = 150;
+
+	// Fuzzy match scoring
+	function fuzzyMatchScore(text: string, query: string): number {
+		const textLower = caseSensitive ? text : text.toLowerCase();
+		const queryLower = caseSensitive ? query : query.toLowerCase();
+
+		// Exact match gets highest score
+		if (textLower === queryLower) {
+			return 1000;
 		}
-		score += 50 - (charIndex - textIndex); // Closer characters = higher score
-		textIndex = charIndex + 1;
-	}
 
-	return Math.max(0, score);
-}
-
-// Filter and sort options
-const filteredOptions = $derived.by(() => {
-	if (!keyword.trim()) {
-		// Show recent selections when no keyword
-		if (recentSelections.length > 0) {
-			return recentSelections.slice(0, MAX_RECENT);
+		// Starts with gets high score
+		if (textLower.startsWith(queryLower)) {
+			return 500;
 		}
-		return options.slice(0, maxResults);
+
+		// Contains gets medium score
+		if (textLower.includes(queryLower)) {
+			return 100;
+		}
+
+		// Fuzzy match (each character of query in order)
+		let score = 0;
+		let textIndex = 0;
+		for (let i = 0; i < queryLower.length; i++) {
+			const charIndex = textLower.indexOf(queryLower[i], textIndex);
+			if (charIndex === -1) {
+				return 0; // No match
+			}
+			score += 50 - (charIndex - textIndex); // Closer characters = higher score
+			textIndex = charIndex + 1;
+		}
+
+		return Math.max(0, score);
 	}
 
-	if (fuzzySearch) {
-		// Fuzzy search with scoring
+	// Filter and sort options
+	const filteredOptions = $derived.by(() => {
+		if (!keyword.trim()) {
+			// Show recent selections when no keyword
+			if (recentSelections.length > 0) {
+				return recentSelections.slice(0, MAX_RECENT);
+			}
+			return options.slice(0, maxResults);
+		}
+
+		if (fuzzySearch) {
+			// Fuzzy search with scoring
+			return options
+				.map((option) => ({
+					option,
+					score: fuzzyMatchScore(option, keyword)
+				}))
+				.filter((item) => item.score > 0)
+				.sort((a, b) => b.score - a.score)
+				.map((item) => item.option)
+				.slice(0, maxResults);
+		}
+		// Simple substring search
+		const keywordCompare = caseSensitive ? keyword : keyword.toLowerCase();
 		return options
-			.map((option) => ({
-				option,
-				score: fuzzyMatchScore(option, keyword),
-			}))
-			.filter((item) => item.score > 0)
-			.sort((a, b) => b.score - a.score)
-			.map((item) => item.option)
+			.filter((option) => {
+				const optionCompare = caseSensitive ? option : option.toLowerCase();
+				return optionCompare.includes(keywordCompare);
+			})
 			.slice(0, maxResults);
-	}
-	// Simple substring search
-	const keywordCompare = caseSensitive ? keyword : keyword.toLowerCase();
-	return options
-		.filter((option) => {
-			const optionCompare = caseSensitive ? option : option.toLowerCase();
-			return optionCompare.includes(keywordCompare);
-		})
-		.slice(0, maxResults);
-});
+	});
 
-// Check if we should show "Create new" option
-const shouldShowCreateOption = $derived(
-	showCreateOption &&
-		allowCustomValue &&
-		keyword.trim() &&
-		!filteredOptions.some((opt) =>
-			caseSensitive
-				? opt === keyword
-				: opt.toLowerCase() === keyword.toLowerCase(),
-		),
-);
+	// Check if we should show "Create new" option
+	const shouldShowCreateOption = $derived(
+		showCreateOption &&
+			allowCustomValue &&
+			keyword.trim() &&
+			!filteredOptions.some((opt) => (caseSensitive ? opt === keyword : opt.toLowerCase() === keyword.toLowerCase()))
+	);
 
-// Combined display options (filtered + create option)
-const displayOptions = $derived(
-	shouldShowCreateOption
-		? [...filteredOptions, `Create: "${keyword}"`]
-		: filteredOptions,
-);
+	// Combined display options (filtered + create option)
+	const displayOptions = $derived(shouldShowCreateOption ? [...filteredOptions, `Create: "${keyword}"`] : filteredOptions);
 
-const hasOptions = $derived(displayOptions.length > 0);
-const showNoResults = $derived(keyword.trim() && !hasOptions && !isLoading);
+	const hasOptions = $derived(displayOptions.length > 0);
+	const showNoResults = $derived(keyword.trim() && !hasOptions && !isLoading);
 
-// Select option
-function selectOption(selectedOption: string) {
-	// Handle "Create new" option
-	if (selectedOption.startsWith('Create: "')) {
-		const newValue = keyword.trim();
-		value = newValue;
-		keyword = newValue;
+	// Select option
+	function selectOption(selectedOption: string) {
+		// Handle "Create new" option
+		if (selectedOption.startsWith('Create: "')) {
+			const newValue = keyword.trim();
+			value = newValue;
+			keyword = newValue;
 
-		// Add to recent selections
-		addToRecent(newValue);
-	} else {
-		value = selectedOption;
-		keyword = selectedOption;
+			// Add to recent selections
+			addToRecent(newValue);
+		} else {
+			value = selectedOption;
+			keyword = selectedOption;
 
-		// Add to recent selections
-		addToRecent(selectedOption);
+			// Add to recent selections
+			addToRecent(selectedOption);
+		}
+
+		showDropdown = false;
+		selectedIndex = -1;
+		onSelect(value);
 	}
 
-	showDropdown = false;
-	selectedIndex = -1;
-	onSelect(value);
-}
-
-// Add to recent selections
-function addToRecent(option: string) {
-	recentSelections = [
-		option,
-		...recentSelections.filter((item) => item !== option),
-	].slice(0, MAX_RECENT);
-}
-
-// Clear selection
-function clearSelection() {
-	keyword = "";
-	value = "";
-	showDropdown = false;
-	selectedIndex = -1;
-	inputElement?.focus();
-}
-
-// Scroll selected item into view
-function scrollIntoView(index: number) {
-	if (!listElement || index < 0 || index >= displayOptions.length) {
-		return;
+	// Add to recent selections
+	function addToRecent(option: string) {
+		recentSelections = [option, ...recentSelections.filter((item) => item !== option)].slice(0, MAX_RECENT);
 	}
 
-	const selectedItem = listElement.children[index] as HTMLElement | undefined;
-	if (selectedItem) {
-		selectedItem.scrollIntoView({
-			block: "nearest",
-			behavior: prefersReducedMotion ? "auto" : "smooth",
-		});
-	}
-}
-
-// Keyboard navigation
-function handleKeydown(event: KeyboardEvent) {
-	if (disabled) {
-		return;
-	}
-
-	const optionsLength = displayOptions.length;
-
-	switch (event.key) {
-		case "ArrowDown":
-			event.preventDefault();
-			if (showDropdown) {
-				selectedIndex = (selectedIndex + 1) % optionsLength;
-			} else {
-				showDropdown = true;
-				selectedIndex = 0;
-			}
-			scrollIntoView(selectedIndex);
-			break;
-
-		case "ArrowUp":
-			event.preventDefault();
-			if (showDropdown) {
-				selectedIndex = (selectedIndex - 1 + optionsLength) % optionsLength;
-			} else {
-				showDropdown = true;
-				selectedIndex = optionsLength - 1;
-			}
-			scrollIntoView(selectedIndex);
-			break;
-
-		case "Enter":
-			event.preventDefault();
-			if (showDropdown && selectedIndex >= 0 && displayOptions[selectedIndex]) {
-				selectOption(displayOptions[selectedIndex]);
-			} else if (showDropdown && optionsLength === 1) {
-				// Auto-select if only one option
-				selectOption(displayOptions[0]);
-			} else if (allowCustomValue && keyword.trim()) {
-				// Allow custom value on Enter
-				selectOption(keyword.trim());
-			}
-			break;
-
-		case "Escape":
-			event.preventDefault();
-			if (showDropdown) {
-				showDropdown = false;
-				selectedIndex = -1;
-			} else {
-				clearSelection();
-			}
-			break;
-
-		case "Tab":
-			// Close dropdown on Tab
-			showDropdown = false;
-			selectedIndex = -1;
-			break;
-	}
-}
-
-// Toggle dropdown
-function toggleDropdown() {
-	if (disabled) {
-		return;
-	}
-	showDropdown = !showDropdown;
-	if (showDropdown) {
+	// Clear selection
+	function clearSelection() {
+		keyword = '';
+		value = '';
+		showDropdown = false;
 		selectedIndex = -1;
 		inputElement?.focus();
 	}
-}
 
-// Focus handler
-function handleFocus() {
-	if (disabled) {
-		return;
-	}
-	showDropdown = true;
-}
+	// Scroll selected item into view
+	function scrollIntoView(index: number) {
+		if (!listElement || index < 0 || index >= displayOptions.length) {
+			return;
+		}
 
-// Blur handler with delay
-let blurTimeout: ReturnType<typeof setTimeout> | null = null;
-
-function handleBlur(event: FocusEvent) {
-	const relatedTarget = event.relatedTarget as HTMLElement | null;
-
-	// Don't close if focus moved to dropdown
-	if (dropdownElement?.contains(relatedTarget)) {
-		return;
+		const selectedItem = listElement.children[index] as HTMLElement | undefined;
+		if (selectedItem) {
+			selectedItem.scrollIntoView({
+				block: 'nearest',
+				behavior: prefersReducedMotion ? 'auto' : 'smooth'
+			});
+		}
 	}
 
-	blurTimeout = setTimeout(() => {
-		showDropdown = false;
+	// Keyboard navigation
+	function handleKeydown(event: KeyboardEvent) {
+		if (disabled) {
+			return;
+		}
+
+		const optionsLength = displayOptions.length;
+
+		switch (event.key) {
+			case 'ArrowDown':
+				event.preventDefault();
+				if (showDropdown) {
+					selectedIndex = (selectedIndex + 1) % optionsLength;
+				} else {
+					showDropdown = true;
+					selectedIndex = 0;
+				}
+				scrollIntoView(selectedIndex);
+				break;
+
+			case 'ArrowUp':
+				event.preventDefault();
+				if (showDropdown) {
+					selectedIndex = (selectedIndex - 1 + optionsLength) % optionsLength;
+				} else {
+					showDropdown = true;
+					selectedIndex = optionsLength - 1;
+				}
+				scrollIntoView(selectedIndex);
+				break;
+
+			case 'Enter':
+				event.preventDefault();
+				if (showDropdown && selectedIndex >= 0 && displayOptions[selectedIndex]) {
+					selectOption(displayOptions[selectedIndex]);
+				} else if (showDropdown && optionsLength === 1) {
+					// Auto-select if only one option
+					selectOption(displayOptions[0]);
+				} else if (allowCustomValue && keyword.trim()) {
+					// Allow custom value on Enter
+					selectOption(keyword.trim());
+				}
+				break;
+
+			case 'Escape':
+				event.preventDefault();
+				if (showDropdown) {
+					showDropdown = false;
+					selectedIndex = -1;
+				} else {
+					clearSelection();
+				}
+				break;
+
+			case 'Tab':
+				// Close dropdown on Tab
+				showDropdown = false;
+				selectedIndex = -1;
+				break;
+		}
+	}
+
+	// Toggle dropdown
+	function toggleDropdown() {
+		if (disabled) {
+			return;
+		}
+		showDropdown = !showDropdown;
+		if (showDropdown) {
+			selectedIndex = -1;
+			inputElement?.focus();
+		}
+	}
+
+	// Focus handler
+	function handleFocus() {
+		if (disabled) {
+			return;
+		}
+		showDropdown = true;
+	}
+
+	// Blur handler with delay
+	let blurTimeout: ReturnType<typeof setTimeout> | null = null;
+
+	function handleBlur(event: FocusEvent) {
+		const relatedTarget = event.relatedTarget as HTMLElement | null;
+
+		// Don't close if focus moved to dropdown
+		if (dropdownElement?.contains(relatedTarget)) {
+			return;
+		}
+
+		blurTimeout = setTimeout(() => {
+			showDropdown = false;
+			selectedIndex = -1;
+		}, BLUR_DELAY);
+	}
+
+	// Input handler
+	function handleInput() {
+		if (disabled) {
+			return;
+		}
+		showDropdown = true;
 		selectedIndex = -1;
-	}, BLUR_DELAY);
-}
-
-// Input handler
-function handleInput() {
-	if (disabled) {
-		return;
 	}
-	showDropdown = true;
-	selectedIndex = -1;
-}
 
-// Click outside handler
-function handleClickOutside(event: MouseEvent) {
-	const target = event.target as HTMLElement;
-	if (
-		dropdownElement &&
-		!dropdownElement.contains(target) &&
-		inputElement &&
-		!inputElement.contains(target)
-	) {
-		showDropdown = false;
-		selectedIndex = -1;
+	// Click outside handler
+	function handleClickOutside(event: MouseEvent) {
+		const target = event.target as HTMLElement;
+		if (dropdownElement && !dropdownElement.contains(target) && inputElement && !inputElement.contains(target)) {
+			showDropdown = false;
+			selectedIndex = -1;
+		}
 	}
-}
 
-// Option click handler (mousedown prevents blur)
-function handleOptionMouseDown(option: string, event: MouseEvent) {
-	event.preventDefault();
-	selectOption(option);
-}
-
-// Setup click outside listener
-$effect(() => {
-	if (showDropdown) {
-		document.addEventListener("click", handleClickOutside);
-		return () => document.removeEventListener("click", handleClickOutside);
+	// Option click handler (mousedown prevents blur)
+	function handleOptionMouseDown(option: string, event: MouseEvent) {
+		event.preventDefault();
+		selectOption(option);
 	}
-});
 
-// Sync keyword with value
-$effect(() => {
-	if (value && !keyword) {
-		keyword = value;
-	}
-});
+	// Setup click outside listener
+	$effect(() => {
+		if (showDropdown) {
+			document.addEventListener('click', handleClickOutside);
+			return () => document.removeEventListener('click', handleClickOutside);
+		}
+	});
 
-// Lifecycle
-onMount(() => {
-	const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
-	prefersReducedMotion = mediaQuery.matches;
+	// Sync keyword with value
+	$effect(() => {
+		if (value && !keyword) {
+			keyword = value;
+		}
+	});
 
-	const handleChange = (e: MediaQueryListEvent) => {
-		prefersReducedMotion = e.matches;
-	};
+	// Lifecycle
+	onMount(() => {
+		const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+		prefersReducedMotion = mediaQuery.matches;
 
-	mediaQuery.addEventListener("change", handleChange);
-	return () => mediaQuery.removeEventListener("change", handleChange);
-});
+		const handleChange = (e: MediaQueryListEvent) => {
+			prefersReducedMotion = e.matches;
+		};
 
-onDestroy(() => {
-	if (blurTimeout) {
-		clearTimeout(blurTimeout);
-	}
-});
+		mediaQuery.addEventListener('change', handleChange);
+		return () => mediaQuery.removeEventListener('change', handleChange);
+	});
+
+	onDestroy(() => {
+		if (blurTimeout) {
+			clearTimeout(blurTimeout);
+		}
+	});
 </script>
 
 <div class="relative w-full" bind:this={dropdownElement}>

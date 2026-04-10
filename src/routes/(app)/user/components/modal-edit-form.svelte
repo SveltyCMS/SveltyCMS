@@ -15,278 +15,241 @@ Efficiently manages user data updates with validation, role selection, and delet
 -->
 
 <script lang="ts">
-import PermissionGuard from "@src/components/permission-guard.svelte";
-import FloatingInput from "@src/components/system/inputs/floating-input.svelte";
-// Paraglide Messages
-import {
-	button_cancel,
-	button_delete,
-	button_save,
-	form_confirmpassword,
-	modaleditform_newpassword,
-} from "@src/paraglide/messages";
-import { toast } from "@src/stores/toast.svelte.ts";
-import { editUserSchema } from "@utils/form-schemas";
-import { modalState } from "@utils/modal-state.svelte";
-import { invalidateAll } from "$app/navigation";
-import { page } from "$app/state";
+	import PermissionGuard from '@src/components/permission-guard.svelte';
+	import FloatingInput from '@src/components/system/inputs/floating-input.svelte';
+	// Paraglide Messages
+	import { button_cancel, button_delete, button_save, form_confirmpassword, modaleditform_newpassword } from '@src/paraglide/messages';
+	import { toast } from '@src/stores/toast.svelte.ts';
+	import { editUserSchema } from '@utils/form-schemas';
+	import { modalState } from '@utils/modal-state.svelte';
+	import { invalidateAll } from '$app/navigation';
+	import { page } from '$app/state';
 
-// Get data from page store
-const { roles: initialRoles, user } = page.data;
-const isFirstUser = page.data.isFirstUser;
+	// Get data from page store
+	const { roles, user } = page.data;
+	const isFirstUser = page.data.isFirstUser;
 
-// Deduplicate roles to prevent UI glitches
-const roles = $derived.by(() => {
-	const uniqueMap = new Map();
-	for (const r of initialRoles || []) {
-		if (r?._id && !uniqueMap.has(r._id.toString())) {
-			uniqueMap.set(r._id.toString(), r);
-		}
-	}
-	return Array.from(uniqueMap.values());
-});
+	import { Form } from '@root/src/utils/form.svelte.ts';
 
-import { Form } from "@root/src/utils/form.svelte.ts";
-
-// Config for the general edit form permissions
-const modaleEditFormConfig = {
-	name: "Admin User Edit Form",
-	description:
-		"Allows admins to manage user accounts, including editing and assigning roles.",
-	contextId: "user:manage",
-	action: "manage",
-	contextType: "user",
-};
-
-// Config for delete permission guard
-const deleteUserPermissionConfig = {
-	name: "Delete User",
-	description: "Allows deleting a user account.",
-	contextId: "user:delete",
-	action: "delete",
-	contextType: "user",
-};
-
-// Props
-interface Props {
-	body?: string;
-	email?: string | null;
-	isGivenData?: boolean;
-	parent?: any; // Was ModalComponent['props']
-	role?: string | null;
-	title?: string;
-	user_id?: string | null;
-	username?: string | null;
-}
-const {
-	isGivenData = false,
-	username = null,
-	email = null,
-	role = null,
-	user_id = null,
-}: Props = $props();
-
-// Store initialization
-
-// Form Data Initialization
-const editForm = new Form(
-	{
-		user_id: "",
-		username: "",
-		email: "",
-		password: "",
-		confirmPassword: "",
-		currentPassword: "",
-		role: "",
-	},
-	editUserSchema,
-);
-
-$effect(() => {
-	editForm.data.user_id = isGivenData ? user_id : user?._id;
-	editForm.data.username = isGivenData
-		? (username ?? "")
-		: (user?.username ?? "");
-	editForm.data.email = isGivenData ? (email ?? "") : (user?.email ?? "");
-	editForm.data.role = isGivenData ? (role ?? "") : (user?.role ?? "");
-});
-
-let showPassword = $state(false);
-const isOwnProfile = $derived(
-	editForm.data.user_id === user?._id || !isGivenData,
-);
-const canChangePassword = $derived(isOwnProfile || user?.isAdmin);
-
-// Check if user has delete permission for layout purposes
-const hasDeletePermission = user?.isAdmin || user?.role === "admin";
-const showDeleteButton = $derived(
-	hasDeletePermission && !isOwnProfile && !isFirstUser,
-);
-
-async function onFormSubmit(event: SubmitEvent): Promise<void> {
-	event.preventDefault();
-
-	if (!editForm.validate()) {
-		return;
-	}
-
-	editForm.submitting = true;
-
-	// Track what changed for smart toast messages
-	const changes: string[] = [];
-	const originalData = {
-		username: isGivenData ? username : user?.username,
-		email: isGivenData ? email : user?.email,
-		role: isGivenData ? role : user?.role,
+	// Config for the general edit form permissions
+	const modaleEditFormConfig = {
+		name: 'Admin User Edit Form',
+		description: 'Allows admins to manage user accounts, including editing and assigning roles.',
+		contextId: 'user:manage',
+		action: 'manage',
+		contextType: 'user'
 	};
 
-	// Check what actually changed
-	if (editForm.data.username !== originalData.username) {
-		changes.push("username");
-	}
-	if (!isOwnProfile && editForm.data.role !== originalData.role) {
-		const oldRole =
-			roles?.find((r: any) => r._id === originalData.role)?.name ||
-			originalData.role;
-		const newRole =
-			roles?.find((r: any) => r._id === editForm.data.role)?.name ||
-			editForm.data.role;
-		changes.push(`role (${oldRole} → ${newRole})`);
-	}
-	if (editForm.data.password && editForm.data.password.trim() !== "") {
-		changes.push("password");
-	}
-
-	// Create a clean data object for the API call (just the user fields)
-	const submitData: Record<string, any> = {
-		username: editForm.data.username,
-		email: editForm.data.email,
+	// Config for delete permission guard
+	const deleteUserPermissionConfig = {
+		name: 'Delete User',
+		description: 'Allows deleting a user account.',
+		contextId: 'user:delete',
+		action: 'delete',
+		contextType: 'user'
 	};
 
-	// Only include role if user is not editing their own profile
-	if (!isOwnProfile) {
-		submitData.role = editForm.data.role;
+	// Props
+	interface Props {
+		body?: string;
+		email?: string | null;
+		isGivenData?: boolean;
+		parent?: any; // Was ModalComponent['props']
+		role?: string | null;
+		title?: string;
+		user_id?: string | null;
+		username?: string | null;
 	}
+	const { isGivenData = false, username = null, email = null, role = null, user_id = null }: Props = $props();
 
-	// Only include password fields if they're not empty
-	if (editForm.data.password && editForm.data.password.trim() !== "") {
-		submitData.password = editForm.data.password;
-		if (isOwnProfile) {
-			submitData.currentPassword = editForm.data.currentPassword;
+	// Store initialization
+
+	// Form Data Initialization
+	const editForm = new Form(
+		{
+			user_id: '',
+			username: '',
+			email: '',
+			password: '',
+			confirmPassword: '',
+			currentPassword: '',
+			role: ''
+		},
+		editUserSchema
+	);
+
+	$effect(() => {
+		editForm.data.user_id = isGivenData ? user_id : user?._id;
+		editForm.data.username = isGivenData ? (username ?? '') : (user?.username ?? '');
+		editForm.data.email = isGivenData ? (email ?? '') : (user?.email ?? '');
+		editForm.data.role = isGivenData ? (role ?? '') : (user?.role ?? '');
+	});
+
+	let showPassword = $state(false);
+	const isOwnProfile = $derived(editForm.data.user_id === user?._id || !isGivenData);
+	const canChangePassword = $derived(isOwnProfile || user?.isAdmin);
+
+	// Check if user has delete permission for layout purposes
+	const hasDeletePermission = user?.isAdmin || user?.role === 'admin';
+	const showDeleteButton = $derived(hasDeletePermission && !isOwnProfile && !isFirstUser);
+
+	async function onFormSubmit(event: SubmitEvent): Promise<void> {
+		event.preventDefault();
+
+		if (!editForm.validate()) {
+			return;
+		}
+
+		editForm.submitting = true;
+
+		// Track what changed for smart toast messages
+		const changes: string[] = [];
+		const originalData = {
+			username: isGivenData ? username : user?.username,
+			email: isGivenData ? email : user?.email,
+			role: isGivenData ? role : user?.role
+		};
+
+		// Check what actually changed
+		if (editForm.data.username !== originalData.username) {
+			changes.push('username');
+		}
+		if (!isOwnProfile && editForm.data.role !== originalData.role) {
+			const oldRole = roles?.find((r: any) => r._id === originalData.role)?.name || originalData.role;
+			const newRole = roles?.find((r: any) => r._id === editForm.data.role)?.name || editForm.data.role;
+			changes.push(`role (${oldRole} → ${newRole})`);
+		}
+		if (editForm.data.password && editForm.data.password.trim() !== '') {
+			changes.push('password');
+		}
+
+		// Create a clean data object for the API call (just the user fields)
+		const submitData: Record<string, any> = {
+			username: editForm.data.username,
+			email: editForm.data.email
+		};
+
+		// Only include role if user is not editing their own profile
+		if (!isOwnProfile) {
+			submitData.role = editForm.data.role;
+		}
+
+		// Only include password fields if they're not empty
+		if (editForm.data.password && editForm.data.password.trim() !== '') {
+			submitData.password = editForm.data.password;
+			if (isOwnProfile) {
+				submitData.currentPassword = editForm.data.currentPassword;
+			}
+		}
+
+		try {
+			const response = await fetch('/api/user/update-user-attributes', {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					user_id: editForm.data.user_id,
+					newUserData: submitData
+				})
+			});
+
+			const result = await response.json();
+
+			if (!response.ok) {
+				throw new Error(result.message || 'Failed to update user.');
+			}
+
+			toast.success({
+				description: '<iconify-icon icon="mdi:check-outline" width={24} ></iconify-icon> User Data Updated'
+			});
+			await invalidateAll();
+			// modalStore.close();
+			modalState.close();
+		} catch (err) {
+			const message = err instanceof Error ? err.message : 'An unknown error occurred.';
+			toast.error(`<CircleAlert size={24}/> ${message}`);
+		} finally {
+			editForm.submitting = false;
 		}
 	}
 
-	try {
-		const response = await fetch("/api/user/update-user-attributes", {
-			method: "PUT",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({
-				user_id: editForm.data.user_id,
-				newUserData: submitData,
-			}),
-		});
+	let isCurrentPasswordValidated = $state(false);
+	let debounceTimer: ReturnType<typeof setTimeout>;
 
-		const result = await response.json();
+	function debounceVerifyCurrentPassword() {
+		clearTimeout(debounceTimer);
+		isCurrentPasswordValidated = false;
+		editForm.errors.currentPassword = [];
 
-		if (!response.ok) {
-			throw new Error(result.message || "Failed to update user.");
+		if (!editForm.data.currentPassword) {
+			return;
 		}
 
-		toast.success({
-			description:
-				'<iconify-icon icon="mdi:check-outline" width={24} ></iconify-icon> User Data Updated',
-		});
-		await invalidateAll();
-		// modalStore.close();
-		modalState.close();
-	} catch (err) {
-		const message =
-			err instanceof Error ? err.message : "An unknown error occurred.";
-		toast.error(`<CircleAlert size={24}/> ${message}`);
-	} finally {
-		editForm.submitting = false;
-	}
-}
-
-let isCurrentPasswordValidated = $state(false);
-let debounceTimer: ReturnType<typeof setTimeout>;
-
-function debounceVerifyCurrentPassword() {
-	clearTimeout(debounceTimer);
-	isCurrentPasswordValidated = false;
-	editForm.errors.currentPassword = [];
-
-	if (!editForm.data.currentPassword) {
-		return;
+		debounceTimer = setTimeout(() => {
+			verifyCurrentPassword();
+		}, 800); // 800ms delay
 	}
 
-	debounceTimer = setTimeout(() => {
-		verifyCurrentPassword();
-	}, 800); // 800ms delay
-}
-
-async function verifyCurrentPassword() {
-	if (!editForm.data.currentPassword) {
-		return;
-	}
-	try {
-		const res = await fetch("/api/user/verify-password", {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ password: editForm.data.currentPassword }),
-		});
-		const data = await res.json();
-		if (data.valid) {
-			isCurrentPasswordValidated = true;
-			editForm.errors.currentPassword = [];
-			toast.success({ description: "Password verified", duration: 5000 });
-		} else {
-			isCurrentPasswordValidated = false;
-			editForm.errors.currentPassword = ["Incorrect password"];
+	async function verifyCurrentPassword() {
+		if (!editForm.data.currentPassword) {
+			return;
 		}
-	} catch (e) {
-		console.error(e);
-		editForm.errors.currentPassword = ["Error verifying password"];
-	}
-}
-
-async function deleteUser() {
-	if (!editForm.data.user_id) {
-		return;
-	}
-	try {
-		const response = await fetch("/api/user/batch", {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({
-				userIds: [editForm.data.user_id],
-				action: "delete",
-			}),
-		});
-		const data = await response.json();
-
-		if (!response.ok) {
-			throw new Error(data.message || "Failed to delete user.");
+		try {
+			const res = await fetch('/api/user/verify-password', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ password: editForm.data.currentPassword })
+			});
+			const data = await res.json();
+			if (data.valid) {
+				isCurrentPasswordValidated = true;
+				editForm.errors.currentPassword = [];
+				toast.success({ description: 'Password verified', duration: 5000 });
+			} else {
+				isCurrentPasswordValidated = false;
+				editForm.errors.currentPassword = ['Incorrect password'];
+			}
+		} catch (e) {
+			console.error(e);
+			editForm.errors.currentPassword = ['Error verifying password'];
 		}
-
-		// Use the success message from the API response
-		const successMessage = data.message || "User deleted successfully.";
-		toast.success({
-			description: `<iconify-icon icon="mdi:alert-circle" width={24}></iconify-icon> ${successMessage}`,
-		});
-
-		await invalidateAll();
-		// modalStore.close();
-		modalState.close();
-	} catch (err) {
-		const message =
-			err instanceof Error ? err.message : "An unknown error occurred.";
-		toast.error(`<CircleAlert size={24}/> ${message}`);
 	}
-}
 
-// Base Classes
-const cForm = "border border-surface-500 p-4 space-y-4 rounded-xl";
+	async function deleteUser() {
+		if (!editForm.data.user_id) {
+			return;
+		}
+		try {
+			const response = await fetch('/api/user/batch', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					userIds: [editForm.data.user_id],
+					action: 'delete'
+				})
+			});
+			const data = await response.json();
+
+			if (!response.ok) {
+				throw new Error(data.message || 'Failed to delete user.');
+			}
+
+			// Use the success message from the API response
+			const successMessage = data.message || 'User deleted successfully.';
+			toast.success({
+				description: `<iconify-icon icon="mdi:alert-circle" width={24}></iconify-icon> ${successMessage}`
+			});
+
+			await invalidateAll();
+			// modalStore.close();
+			modalState.close();
+		} catch (err) {
+			const message = err instanceof Error ? err.message : 'An unknown error occurred.';
+			toast.error(`<CircleAlert size={24}/> ${message}`);
+		}
+	}
+
+	// Base Classes
+	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-xl';
 </script>
 
 <div class="modal-example-form space-y-4 text-black dark:text-white">

@@ -74,7 +74,7 @@ function setMockState(state: {
     "database",
     "auth",
     "cache",
-    "contentManager",
+    "contentSystem",
     "themeManager",
     "widgets",
   ];

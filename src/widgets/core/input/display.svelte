@@ -25,32 +25,20 @@ Renders current language text with truncation for long content
 -->
 
 <script lang="ts">
-import { publicEnv } from "@src/stores/global-settings.svelte";
-import { app } from "@src/stores/store.svelte";
-import type { FieldType } from "./";
+	import { publicEnv } from '@src/stores/global-settings.svelte';
+	import { app } from '@src/stores/store.svelte';
+	import type { FieldType } from './';
 
-const {
-	field,
-	value,
-}: { field: FieldType; value: Record<string, any> | null | undefined } =
-	$props();
-// Determine the current language (uses store API from contentLanguage)
-const lang = $derived(
-	field?.translated
-		? app.contentLanguage.toLowerCase()
-		: ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || "en").toLowerCase(),
-);
+	const { field, value }: { field: FieldType; value: Record<string, any> | null | undefined } = $props();
+	// Determine the current language (uses store API from contentLanguage)
+	const lang = $derived(
+		field?.translated ? app.contentLanguage.toLowerCase() : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase()
+	);
 
-// ✨ IMPROVED: Separate truncation logic from display logic for better performance
-const fullText = $derived(
-	value?.[lang] ?? value?.[Object.keys(value || {})[0]] ?? "–",
-);
-const shouldTruncate = $derived(
-	typeof fullText === "string" && fullText.length > 50,
-);
-const displayText = $derived(
-	shouldTruncate ? `${fullText.substring(0, 50)}...` : fullText,
-);
+	// ✨ IMPROVED: Separate truncation logic from display logic for better performance
+	const fullText = $derived(value?.[lang] ?? value?.[Object.keys(value || {})[0]] ?? '–');
+	const shouldTruncate = $derived(typeof fullText === 'string' && fullText.length > 50);
+	const displayText = $derived(shouldTruncate ? `${fullText.substring(0, 50)}...` : fullText);
 </script>
 
 <!-- ✨ IMPROVED: Better accessibility and visual truncation -->

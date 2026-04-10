@@ -20,109 +20,106 @@ Displays a prominent banner when server restart is required with countdown and s
 -->
 
 <script lang="ts">
-import { toast } from "@src/stores/toast.svelte.ts";
-import { onDestroy, onMount } from "svelte";
-import { fade, slide } from "svelte/transition";
+	import { toast } from '@src/stores/toast.svelte.ts';
+	import { onDestroy, onMount } from 'svelte';
+	import { fade, slide } from 'svelte/transition';
 
-// State
-let isRestarting = $state(false);
-let countdown = $state<number | null>(null);
-let isDismissed = $state(false);
-let countdownInterval: ReturnType<typeof setInterval> | null = null;
-let prefersReducedMotion = $state(false);
+	// State
+	let isRestarting = $state(false);
+	let countdown = $state<number | null>(null);
+	let isDismissed = $state(false);
+	let countdownInterval: ReturnType<typeof setInterval> | null = null;
+	let prefersReducedMotion = $state(false);
 
-// Auto-restart countdown (optional feature)
-const AUTO_RESTART_SECONDS = 30;
+	// Auto-restart countdown (optional feature)
+	const AUTO_RESTART_SECONDS = 30;
 
-// Restart server
-async function restartServer(skipConfirmation = false) {
-	if (isRestarting) {
-		return;
-	}
-
-	if (!skipConfirmation) {
-		const confirmed = confirm(
-			"Are you sure you want to restart the server? This will temporarily interrupt service.",
-		);
-		if (!confirmed) {
+	// Restart server
+	async function restartServer(skipConfirmation = false) {
+		if (isRestarting) {
 			return;
 		}
-	}
 
-	isRestarting = true;
-
-	try {
-		const response = await fetch("/api/system/restart", {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-			},
-		});
-
-		if (response.ok) {
-			toast.success("Server is restarting... Please wait.");
-
-			// Optionally reload page after delay
-			setTimeout(() => {
-				window.location.reload();
-			}, 5000);
-		} else {
-			const data = await response.json();
-			throw new Error(data.error || "Restart failed");
+		if (!skipConfirmation) {
+			const confirmed = confirm('Are you sure you want to restart the server? This will temporarily interrupt service.');
+			if (!confirmed) {
+				return;
+			}
 		}
-	} catch (error) {
-		const message =
-			error instanceof Error ? error.message : "Failed to restart server";
-		toast.error(message);
-		isRestarting = false;
-	}
-}
 
-// Start countdown
-function startCountdown() {
-	countdown = AUTO_RESTART_SECONDS;
+		isRestarting = true;
 
-	countdownInterval = setInterval(() => {
-		if (countdown! > 0) {
-			countdown = countdown! - 1;
-		} else {
-			stopCountdown();
-			restartServer(true);
+		try {
+			const response = await fetch('/api/system/restart', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				}
+			});
+
+			if (response.ok) {
+				toast.success('Server is restarting... Please wait.');
+
+				// Optionally reload page after delay
+				setTimeout(() => {
+					window.location.reload();
+				}, 5000);
+			} else {
+				const data = await response.json();
+				throw new Error(data.error || 'Restart failed');
+			}
+		} catch (error) {
+			const message = error instanceof Error ? error.message : 'Failed to restart server';
+			toast.error(message);
+			isRestarting = false;
 		}
-	}, 1000);
-}
-
-// Stop countdown
-function stopCountdown() {
-	if (countdownInterval) {
-		clearInterval(countdownInterval);
-		countdownInterval = null;
 	}
-	countdown = null;
-}
 
-// Dismiss banner
-function dismiss() {
-	stopCountdown();
-	isDismissed = true;
-}
+	// Start countdown
+	function startCountdown() {
+		countdown = AUTO_RESTART_SECONDS;
 
-// Lifecycle
-onMount(() => {
-	const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
-	prefersReducedMotion = mediaQuery.matches;
+		countdownInterval = setInterval(() => {
+			if (countdown! > 0) {
+				countdown = countdown! - 1;
+			} else {
+				stopCountdown();
+				restartServer(true);
+			}
+		}, 1000);
+	}
 
-	const handleChange = (e: MediaQueryListEvent) => {
-		prefersReducedMotion = e.matches;
-	};
+	// Stop countdown
+	function stopCountdown() {
+		if (countdownInterval) {
+			clearInterval(countdownInterval);
+			countdownInterval = null;
+		}
+		countdown = null;
+	}
 
-	mediaQuery.addEventListener("change", handleChange);
-	return () => mediaQuery.removeEventListener("change", handleChange);
-});
+	// Dismiss banner
+	function dismiss() {
+		stopCountdown();
+		isDismissed = true;
+	}
 
-onDestroy(() => {
-	stopCountdown();
-});
+	// Lifecycle
+	onMount(() => {
+		const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+		prefersReducedMotion = mediaQuery.matches;
+
+		const handleChange = (e: MediaQueryListEvent) => {
+			prefersReducedMotion = e.matches;
+		};
+
+		mediaQuery.addEventListener('change', handleChange);
+		return () => mediaQuery.removeEventListener('change', handleChange);
+	});
+
+	onDestroy(() => {
+		stopCountdown();
+	});
 </script>
 
 {#if !isDismissed}

@@ -5,78 +5,78 @@
 -->
 
 <script lang="ts">
-import { toast } from "@src/stores/toast.svelte.ts";
-import { modalState } from "@utils/modal-state.svelte";
-import { showConfirm } from "@utils/modal-utils";
-import { page } from "$app/state";
+	import { toast } from '@src/stores/toast.svelte.ts';
+	import { modalState } from '@utils/modal-state.svelte';
+	import { showConfirm } from '@utils/modal-utils';
+	import { page } from '$app/state';
 
-// Props
-interface Props {
-	user: any;
-}
-const { user }: Props = $props();
-
-// Get data from page store for additional context
-const { totalUsers, isAdmin } = page.data;
-
-// GDPR: Data Portability
-async function handleExportData() {
-	try {
-		const res = await fetch("/api/gdpr", {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ action: "export", userId: user._id }),
-		});
-		const result = await res.json();
-		if (result.success) {
-			const blob = new Blob([JSON.stringify(result.data, null, 2)], {
-				type: "application/json",
-			});
-			const url = URL.createObjectURL(blob);
-			const a = document.createElement("a");
-			a.href = url;
-			a.download = `sveltycms-data-export-${user.username}-${new Date().toISOString().split("T")[0]}.json`;
-			a.click();
-			URL.revokeObjectURL(url);
-			toast.success("Data export started");
-		} else {
-			toast.error(result.error || "Export failed");
-		}
-	} catch (_err) {
-		toast.error("Failed to export data");
+	// Props
+	interface Props {
+		user: any;
 	}
-}
+	const { user }: Props = $props();
 
-// GDPR: Right to Erasure
-function handleAnonymize() {
-	showConfirm({
-		title: "Delete & Anonymize Account",
-		body: "This will permanently anonymize your account. This action cannot be undone. Are you sure?",
-		onConfirm: async () => {
-			try {
-				const res = await fetch("/api/gdpr", {
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({
-						action: "anonymize",
-						userId: user._id,
-						reason: "User self-request (Right to Erasure)",
-					}),
+	// Get data from page store for additional context
+	const { totalUsers, isAdmin } = page.data;
+
+	// GDPR: Data Portability
+	async function handleExportData() {
+		try {
+			const res = await fetch('/api/gdpr', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ action: 'export', userId: user._id })
+			});
+			const result = await res.json();
+			if (result.success) {
+				const blob = new Blob([JSON.stringify(result.data, null, 2)], {
+					type: 'application/json'
 				});
-				const result = await res.json();
-				if (result.success) {
-					toast.success("Account anonymized successfully");
-					// Force logout by redirecting to logout
-					window.location.href = "/api/user/logout";
-				} else {
-					toast.error(result.error || "Anonymization failed");
-				}
-			} catch (_err) {
-				toast.error("Failed to anonymize account");
+				const url = URL.createObjectURL(blob);
+				const a = document.createElement('a');
+				a.href = url;
+				a.download = `sveltycms-data-export-${user.username}-${new Date().toISOString().split('T')[0]}.json`;
+				a.click();
+				URL.revokeObjectURL(url);
+				toast.success('Data export started');
+			} else {
+				toast.error(result.error || 'Export failed');
 			}
-		},
-	});
-}
+		} catch (_err) {
+			toast.error('Failed to export data');
+		}
+	}
+
+	// GDPR: Right to Erasure
+	function handleAnonymize() {
+		showConfirm({
+			title: 'Delete & Anonymize Account',
+			body: 'This will permanently anonymize your account. This action cannot be undone. Are you sure?',
+			onConfirm: async () => {
+				try {
+					const res = await fetch('/api/gdpr', {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({
+							action: 'anonymize',
+							userId: user._id,
+							reason: 'User self-request (Right to Erasure)'
+						})
+					});
+					const result = await res.json();
+					if (result.success) {
+						toast.success('Account anonymized successfully');
+						// Force logout by redirecting to logout
+						window.location.href = '/api/user/logout';
+					} else {
+						toast.error(result.error || 'Anonymization failed');
+					}
+				} catch (_err) {
+					toast.error('Failed to anonymize account');
+				}
+			}
+		});
+	}
 </script>
 
 <div class="space-y-6 text-black dark:text-white p-2">

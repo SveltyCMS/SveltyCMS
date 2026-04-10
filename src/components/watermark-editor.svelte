@@ -14,29 +14,29 @@ Usage:
 -->
 
 <script lang="ts">
-import type { MediaItem } from "@utils/media/media-models";
-import WatermarkSelector from "./watermark-selector.svelte";
-import WatermarkSettings from "./watermark-settings.svelte";
+	import type { MediaItem } from '@utils/media/media-models';
+	import WatermarkSelector from './watermark-selector.svelte';
+	import WatermarkSettings from './watermark-settings.svelte';
 
-interface Props {
-	// Props
-	mediaItems?: MediaItem[];
-}
+	interface Props {
+		// Props
+		mediaItems?: MediaItem[];
+	}
 
-const { mediaItems = [] }: Props = $props();
+	const { mediaItems = [] }: Props = $props();
 
-// Local state
-let selectedMedia: MediaItem | null = $state(null);
-let size = $state("100%");
-let opacity = $state(1);
-let positionX = $state(0);
-let positionY = $state(0);
-let rotation = $state(0);
+	// Local state
+	let selectedMedia: MediaItem | null = $state(null);
+	let size = $state('100%');
+	let opacity = $state(1);
+	let positionX = $state(0);
+	let positionY = $state(0);
+	let rotation = $state(0);
 
-// Handle media selection
-function handleMediaSelect(media: MediaItem) {
-	selectedMedia = media;
-}
+	// Handle media selection
+	function handleMediaSelect(media: MediaItem) {
+		selectedMedia = media;
+	}
 </script>
 
 <div class="space-y-6 p-5">

@@ -129,7 +129,7 @@ export const SERVICE_NAMES = [
   "database",
   "auth",
   "cache",
-  "contentManager",
+  "contentSystem",
   "themeManager",
   "widgets",
 ] as const;

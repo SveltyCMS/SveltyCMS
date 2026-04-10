@@ -25,25 +25,25 @@ Renders: "1,234,567.89" (US) or "1.234.567,89" (German) based on system language
 -->
 
 <script lang="ts">
-import { app } from "@src/stores/store.svelte";
+	import { app } from '@src/stores/store.svelte';
 
-const { value }: { value: number | null | undefined } = $props();
+	const { value }: { value: number | null | undefined } = $props();
 
-// Get the user's current UI language.
-const lang = $derived(app.systemLanguage);
+	// Get the user's current UI language.
+	const lang = $derived(app.systemLanguage);
 
-// Format the number as a localized string.
-const formattedNumber = $derived.by(() => {
-	if (typeof value !== "number") {
-		return "–";
-	}
-	try {
-		// Use the browser's built-in localization for perfect formatting.
-		return new Intl.NumberFormat(lang).format(value);
-	} catch (_e) {
-		return "Invalid Number";
-	}
-});
+	// Format the number as a localized string.
+	const formattedNumber = $derived.by(() => {
+		if (typeof value !== 'number') {
+			return '–';
+		}
+		try {
+			// Use the browser's built-in localization for perfect formatting.
+			return new Intl.NumberFormat(lang).format(value);
+		} catch (_e) {
+			return 'Invalid Number';
+		}
+	});
 </script>
 
 <span>{formattedNumber}</span>

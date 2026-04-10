@@ -12,83 +12,83 @@ and proper active state indication.
 -->
 
 <script lang="ts">
-import { onMount } from "svelte";
-import { type EditorWidget, editorWidgets } from "./widgets/registry";
+	import { onMount } from 'svelte';
+	import { type EditorWidget, editorWidgets } from './widgets/registry';
 
-// Props
-const {
-	activeState,
-	onToolSelect,
-	hasImage = false,
-}: {
-	activeState: string;
-	onToolSelect: (tool: string) => void;
-	hasImage?: boolean;
-} = $props();
+	// Props
+	const {
+		activeState,
+		onToolSelect,
+		hasImage = false
+	}: {
+		activeState: string;
+		onToolSelect: (tool: string) => void;
+		hasImage?: boolean;
+	} = $props();
 
-// Tool list derived from registry
-const tools = $derived(
-	editorWidgets.map((w: EditorWidget) => ({
-		id: w.key,
-		name: w.title,
-		icon: w.icon ?? "mdi:cog",
-		description: w.description ?? "",
-		category: w.category ?? "general",
-	})),
-);
+	// Tool list derived from registry
+	const tools = $derived(
+		editorWidgets.map((w: EditorWidget) => ({
+			id: w.key,
+			name: w.title,
+			icon: w.icon ?? 'mdi:cog',
+			description: w.description ?? '',
+			category: w.category ?? 'general'
+		}))
+	);
 
-// Keyboard navigation
-let focusedIndex = $state(0);
-let sidebarRef: HTMLDivElement | undefined = $state(undefined);
-function handleToolClick(tool: any) {
-	if (!hasImage) {
-		return;
-	}
-	onToolSelect(tool.id);
-}
-
-function isToolActive(tool: any): boolean {
-	return activeState === tool.id;
-}
-
-function handleKeyDown(e: KeyboardEvent) {
-	if (!hasImage) {
-		return;
+	// Keyboard navigation
+	let focusedIndex = $state(0);
+	let sidebarRef: HTMLDivElement | undefined = $state(undefined);
+	function handleToolClick(tool: any) {
+		if (!hasImage) {
+			return;
+		}
+		onToolSelect(tool.id);
 	}
 
-	switch (e.key) {
-		case "ArrowDown":
-			e.preventDefault();
-			focusedIndex = (focusedIndex + 1) % tools.length;
-			focusToolButton(focusedIndex);
-			break;
-		case "ArrowUp":
-			e.preventDefault();
-			focusedIndex = (focusedIndex - 1 + tools.length) % tools.length;
-			focusToolButton(focusedIndex);
-			break;
-		case "Enter":
-		case " ":
-			e.preventDefault();
-			handleToolClick(tools[focusedIndex]);
-			break;
+	function isToolActive(tool: any): boolean {
+		return activeState === tool.id;
 	}
-}
 
-function focusToolButton(index: number) {
-	const buttons = sidebarRef?.querySelectorAll("button");
-	if (buttons?.[index]) {
-		(buttons[index] as HTMLElement).focus();
-	}
-}
+	function handleKeyDown(e: KeyboardEvent) {
+		if (!hasImage) {
+			return;
+		}
 
-onMount(() => {
-	// Set initial focus to active tool
-	const activeIndex = tools.findIndex((t) => t.id === activeState);
-	if (activeIndex !== -1) {
-		focusedIndex = activeIndex;
+		switch (e.key) {
+			case 'ArrowDown':
+				e.preventDefault();
+				focusedIndex = (focusedIndex + 1) % tools.length;
+				focusToolButton(focusedIndex);
+				break;
+			case 'ArrowUp':
+				e.preventDefault();
+				focusedIndex = (focusedIndex - 1 + tools.length) % tools.length;
+				focusToolButton(focusedIndex);
+				break;
+			case 'Enter':
+			case ' ':
+				e.preventDefault();
+				handleToolClick(tools[focusedIndex]);
+				break;
+		}
 	}
-});
+
+	function focusToolButton(index: number) {
+		const buttons = sidebarRef?.querySelectorAll('button');
+		if (buttons?.[index]) {
+			(buttons[index] as HTMLElement).focus();
+		}
+	}
+
+	onMount(() => {
+		// Set initial focus to active tool
+		const activeIndex = tools.findIndex((t) => t.id === activeState);
+		if (activeIndex !== -1) {
+			focusedIndex = activeIndex;
+		}
+	});
 </script>
 
 <div

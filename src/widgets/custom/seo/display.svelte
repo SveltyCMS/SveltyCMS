@@ -25,19 +25,19 @@ Renders: SEO icon + "Keyword: svelte cms" with hover tooltip showing full meta d
 -->
 
 <script lang="ts">
-import type { SeoData } from "./types";
-import SystemTooltip from "@src/components/system/system-tooltip.svelte";
+	import type { SeoData } from './types';
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 
-const { value }: { value: SeoData | null | undefined } = $props();
+	const { value }: { value: SeoData | null | undefined } = $props();
 
-// Note: The score is not stored with the data, so we can't display it here.
-// A more advanced implementation might store the score, or we can just show the keyword.
-const displayText = $derived.by(() => {
-	if (!value?.focusKeyword) {
-		return "No SEO data";
-	}
-	return `Keyword: ${value.focusKeyword}`;
-});
+	// Note: The score is not stored with the data, so we can't display it here.
+	// A more advanced implementation might store the score, or we can just show the keyword.
+	const displayText = $derived.by(() => {
+		if (!value?.focusKeyword) {
+			return 'No SEO data';
+		}
+		return `Keyword: ${value.focusKeyword}`;
+	});
 </script>
 
 {#if value}

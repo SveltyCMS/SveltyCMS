@@ -31,13 +31,13 @@ export async function generateContentTypes(
 ): Promise<Record<string, { fields: string[]; type: string }>> {
   try {
     // Load content-manager from server-side (not client store!)
-    const { contentManager } = await server.ssrLoadModule(
+    const { contentSystem } = await server.ssrLoadModule(
       path.join(process.cwd(), "src/content/index.ts"),
     );
 
     // Initializecontent-managerand get collections
-    await contentManager.initialize();
-    const collectionsData = await contentManager.getCollections();
+    await contentSystem.initialize();
+    const collectionsData = await contentSystem.getCollections();
 
     const contentTypes: Record<string, { fields: string[]; type: string }> = {};
 

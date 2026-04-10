@@ -1,113 +1,101 @@
 <!--
-@file src/routes/setup/preset-selector.svelte
+@file src/routes/setup/PresetSelector.svelte
 @component
-**Solution template selector carousel.**
-Allows users to choose from pre-configured project blueprints (Blog, SaaS, etc.) to jumpstart their CMS configuration.
-
-### Props
-- `presets` (Preset[]): List of available project blueprints.
-- `selected` (string | null): Currently active preset ID (bindable).
-
-### Features:
-- horizontal snap-scroll carousel with mouse-drag support
-- intersection observer for active dot synchronization
-- visual complexity indicators for each preset
-- interactive feature list preview
-- real-time selection feedback and persistence
+Horizontal snap-scroll preset carousel for selecting project blueprints.
+Default value is 'blank'.
 -->
 <script lang="ts">
-import SystemTooltip from "@src/components/system/system-tooltip.svelte";
-import type { Preset } from "./presets";
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+	import type { Preset } from './presets';
 
-let { presets, selected = $bindable("blank") } = $props<{
-	presets: Preset[];
-	selected: string | null;
-}>();
+	let { presets, selected = $bindable('blank') } = $props<{
+		presets: Preset[];
+		selected: string | null;
+	}>();
 
-let scrollEl = $state<HTMLDivElement | null>(null);
-let canScrollLeft = $state(false);
-let canScrollRight = $state(true);
+	let scrollEl = $state<HTMLDivElement | null>(null);
+	let canScrollLeft = $state(false);
+	let canScrollRight = $state(true);
 
-// Mouse Drag Scroll State
-let isDragging = $state(false);
-let startX = $state(0);
-let scrollLeft = $state(0);
-let dragMoved = $state(false); // Used to differentiate between click and drag
+	// Mouse Drag Scroll State
+	let isDragging = $state(false);
+	let startX = $state(0);
+	let scrollLeft = $state(0);
+	let dragMoved = $state(false); // Used to differentiate between click and drag
 
-function updateScrollState() {
-	if (!scrollEl) {
-		return;
+	function updateScrollState() {
+		if (!scrollEl) {
+			return;
+		}
+		canScrollLeft = scrollEl.scrollLeft > 8;
+		canScrollRight = scrollEl.scrollLeft < scrollEl.scrollWidth - scrollEl.clientWidth - 8;
 	}
-	canScrollLeft = scrollEl.scrollLeft > 8;
-	canScrollRight =
-		scrollEl.scrollLeft < scrollEl.scrollWidth - scrollEl.clientWidth - 8;
-}
 
-function handleMouseDown(e: MouseEvent) {
-	if (!scrollEl) return;
-	isDragging = true;
-	startX = e.pageX - scrollEl.offsetLeft;
-	scrollLeft = scrollEl.scrollLeft;
-	dragMoved = false;
-}
+	function handleMouseDown(e: MouseEvent) {
+		if (!scrollEl) return;
+		isDragging = true;
+		startX = e.pageX - scrollEl.offsetLeft;
+		scrollLeft = scrollEl.scrollLeft;
+		dragMoved = false;
+	}
 
-function handleMouseMove(e: MouseEvent) {
-	if (!isDragging || !scrollEl) return;
-	e.preventDefault();
-	const x = e.pageX - scrollEl.offsetLeft;
-	const walk = (x - startX) * 1.5; // Scroll speed multiplier
-	if (Math.abs(walk) > 5) dragMoved = true;
-	scrollEl.scrollLeft = scrollLeft - walk;
-}
+	function handleMouseMove(e: MouseEvent) {
+		if (!isDragging || !scrollEl) return;
+		e.preventDefault();
+		const x = e.pageX - scrollEl.offsetLeft;
+		const walk = (x - startX) * 1.5; // Scroll speed multiplier
+		if (Math.abs(walk) > 5) dragMoved = true;
+		scrollEl.scrollLeft = scrollLeft - walk;
+	}
 
-function handleMouseUp() {
-	isDragging = false;
-}
+	function handleMouseUp() {
+		isDragging = false;
+	}
 
-function scrollBy(dir: -1 | 1) {
-	scrollEl?.scrollBy({ left: dir * 300, behavior: "smooth" });
-}
+	function scrollBy(dir: -1 | 1) {
+		scrollEl?.scrollBy({ left: dir * 300, behavior: 'smooth' });
+	}
 
-function select(id: string | null) {
-	// Prevent selection if we were just dragging
-	if (dragMoved) return;
-	selected = id;
-}
+	function select(id: string | null) {
+		// Prevent selection if we were just dragging
+		if (dragMoved) return;
+		selected = id;
+	}
 
-// Update active index based on scroll position for dots
-let visibleIndex = $state(0);
+	// Update active index based on scroll position for dots
+	let visibleIndex = $state(0);
 
-// Setup intersection observer when the component mounts
-$effect(() => {
-	if (!scrollEl) return;
+	// Setup intersection observer when the component mounts
+	$effect(() => {
+		if (!scrollEl) return;
 
-	const observer = new IntersectionObserver(
-		(entries) => {
-			// Find the fully/mostly visible entry
-			entries.forEach((entry) => {
-				if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
-					// Figure out the index of this element
-					const target = entry.target as HTMLElement;
-					const index = Array.from(scrollEl?.children || []).indexOf(target);
-					if (index !== -1) {
-						visibleIndex = index;
+		const observer = new IntersectionObserver(
+			(entries) => {
+				// Find the fully/mostly visible entry
+				entries.forEach((entry) => {
+					if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
+						// Figure out the index of this element
+						const target = entry.target as HTMLElement;
+						const index = Array.from(scrollEl?.children || []).indexOf(target);
+						if (index !== -1) {
+							visibleIndex = index;
+						}
 					}
-				}
-			});
-		},
-		{
-			root: scrollEl,
-			threshold: 0.5, // Trigger when a card is at least 50% visible
-		},
-	);
+				});
+			},
+			{
+				root: scrollEl,
+				threshold: 0.5 // Trigger when a card is at least 50% visible
+			}
+		);
 
-	// Observe all preset cards
-	Array.from(scrollEl.children).forEach((child) => observer.observe(child));
+		// Observe all preset cards
+		Array.from(scrollEl.children).forEach((child) => observer.observe(child));
 
-	return () => {
-		observer.disconnect();
-	};
-});
+		return () => {
+			observer.disconnect();
+		};
+	});
 </script>
 
 <section class="flex flex-col gap-3 overflow-hidden w-full">

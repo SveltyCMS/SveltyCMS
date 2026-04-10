@@ -12,26 +12,8 @@ import { AppError } from "@utils/error-handling";
 // System Logger
 import { logger } from "@utils/logger.server";
 
-import { getPrivateSettingSync } from "@src/services/settings-service";
-
-export const GET = apiHandler(async ({ url, locals }) => {
-  const { user, tenantId } = locals;
-  const isMultiTenant = getPrivateSettingSync("MULTI_TENANT");
-  const isSuperAdmin = user?.role === "super-admin";
-
+export const GET = apiHandler(async ({ url }) => {
   try {
-    // SECURITY: In multi-tenant mode, only super-admins can see global metrics
-    // Regular admins should only see tenant-specific metrics (if implemented)
-    if (isMultiTenant && !isSuperAdmin) {
-      // For now, return empty or limited metrics for regular admins
-      // In a full implementation, we would query metrics scoped to the tenantId
-      return json({
-        success: true,
-        message: "Tenant-specific metrics not yet fully implemented",
-        tenantId,
-      });
-    }
-
     const metrics = metricsService.getReport();
 
     // Add additional system metrics if requested

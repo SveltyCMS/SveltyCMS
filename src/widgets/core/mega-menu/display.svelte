@@ -24,13 +24,13 @@ Renders: Nested <ul> structure with proper hierarchy and localization
 -->
 
 <script lang="ts">
-import { app } from "@src/stores/store.svelte";
-import Sanitize from "@src/utils/sanitize.svelte";
-import Display from "./display.svelte";
-import type { MenuItem } from "./types";
+	import { app } from '@src/stores/store.svelte';
+	import Sanitize from '@src/utils/sanitize.svelte';
+	import Display from './display.svelte';
+	import type { MenuItem } from './types';
 
-let { value }: { value: MenuItem[] | null | undefined } = $props();
-const lang = $derived(app.contentLanguage);
+	let { value }: { value: MenuItem[] | null | undefined } = $props();
+	const lang = $derived(app.contentLanguage);
 </script>
 
 {#if value && value.length > 0}

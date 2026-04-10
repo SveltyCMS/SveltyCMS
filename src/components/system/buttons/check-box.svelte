@@ -17,19 +17,19 @@
  -->
 
 <script lang="ts">
-let checked = $state(false);
-const { svg, callback = () => {}, class: className = "" } = $props();
+	let checked = $state(false);
+	const { svg, callback = () => {}, class: className = '' } = $props();
 
-function toggleCheckbox() {
-	checked = !checked;
-	callback();
-}
-
-function handleKeydown(e: KeyboardEvent) {
-	if (e.key === "Enter" || e.key === " ") {
-		toggleCheckbox();
+	function toggleCheckbox() {
+		checked = !checked;
+		callback();
 	}
-}
+
+	function handleKeydown(e: KeyboardEvent) {
+		if (e.key === 'Enter' || e.key === ' ') {
+			toggleCheckbox();
+		}
+	}
 </script>
 
 <div

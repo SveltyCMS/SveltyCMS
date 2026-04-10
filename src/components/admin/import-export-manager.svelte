@@ -11,341 +11,326 @@
 -->
 
 <script lang="ts">
-// Types
+	// Types
 
-import { Progress as ProgressBar } from "@skeletonlabs/skeleton-svelte";
-import Input from "@src/components/system/inputs/input.svelte";
-import Toggles from "@src/components/system/inputs/toggles.svelte";
-import type { Schema } from "@src/content/types";
-// Utils
-import { getCollections } from "@utils/api-client";
-import { logger } from "@utils/logger";
-// Skeleton components
-import { toast } from "@src/stores/toast.svelte.ts";
+	import { Progress as ProgressBar } from '@skeletonlabs/skeleton-svelte';
+	import Input from '@src/components/system/inputs/input.svelte';
+	import Toggles from '@src/components/system/inputs/toggles.svelte';
+	import type { Schema } from '@src/content/types';
+	// Utils
+	import { getCollections } from '@utils/api-client';
+	import { logger } from '@utils/logger';
+	// Skeleton components
+	import { toast } from '@src/stores/toast.svelte.ts';
 
-interface ExportOptions {
-	collections: string[];
-	format: "json" | "csv";
-	includeMetadata: boolean;
-	limit?: number;
-}
+	interface ExportOptions {
+		collections: string[];
+		format: 'json' | 'csv';
+		includeMetadata: boolean;
+		limit?: number;
+	}
 
-interface ImportOptions {
-	batchSize: number;
-	format: "json" | "csv";
-	overwrite: boolean;
-	skipInvalid: boolean;
-	validate: boolean;
-}
+	interface ImportOptions {
+		batchSize: number;
+		format: 'json' | 'csv';
+		overwrite: boolean;
+		skipInvalid: boolean;
+		validate: boolean;
+	}
 
-interface ImportResult {
-	message: string;
-	results: any[];
-	success: boolean;
-	totalErrors: number;
-	totalImported: number;
-	totalSkipped: number;
-}
+	interface ImportResult {
+		message: string;
+		results: any[];
+		success: boolean;
+		totalErrors: number;
+		totalImported: number;
+		totalSkipped: number;
+	}
 
-// --- State using Svelte 5 Runes ---
-let collections = $state<Partial<Schema>[]>([]);
-let loading = $state(false);
-let showExportModal = $state(false);
-let showImportModal = $state(false);
-let showResultsModal = $state(false);
+	// --- State using Svelte 5 Runes ---
+	let collections = $state<Partial<Schema>[]>([]);
+	let loading = $state(false);
+	let showExportModal = $state(false);
+	let showImportModal = $state(false);
+	let showResultsModal = $state(false);
 
-// Export state
-const exportOptions = $state<ExportOptions>({
-	format: "json",
-	collections: [],
-	includeMetadata: true,
-	limit: undefined,
-});
-let exportProgress = $state(0);
-let exportUrl = $state("");
-let exportLimitString = $state("");
+	// Export state
+	const exportOptions = $state<ExportOptions>({
+		format: 'json',
+		collections: [],
+		includeMetadata: true,
+		limit: undefined
+	});
+	let exportProgress = $state(0);
+	let exportUrl = $state('');
+	let exportLimitString = $state('');
 
-// Import state
-const importOptions = $state<ImportOptions>({
-	format: "json",
-	overwrite: false,
-	validate: true,
-	skipInvalid: true,
-	batchSize: 100,
-});
-let importFiles = $state<FileList | null>(null);
-let importProgress = $state(0);
-let importResult = $state<ImportResult | null>(null);
-let importBatchSizeString = $state("100");
+	// Import state
+	const importOptions = $state<ImportOptions>({
+		format: 'json',
+		overwrite: false,
+		validate: true,
+		skipInvalid: true,
+		batchSize: 100
+	});
+	let importFiles = $state<FileList | null>(null);
+	let importProgress = $state(0);
+	let importResult = $state<ImportResult | null>(null);
+	let importBatchSizeString = $state('100');
 
-// Sync string and number values
-$effect(() => {
-	const limitNum = Number.parseInt(exportLimitString, 10);
-	exportOptions.limit = Number.isNaN(limitNum) ? undefined : limitNum;
-});
+	// Sync string and number values
+	$effect(() => {
+		const limitNum = Number.parseInt(exportLimitString, 10);
+		exportOptions.limit = Number.isNaN(limitNum) ? undefined : limitNum;
+	});
 
-$effect(() => {
-	const batchSizeNum = Number.parseInt(importBatchSizeString, 10);
-	importOptions.batchSize = Number.isNaN(batchSizeNum) ? 100 : batchSizeNum;
-});
+	$effect(() => {
+		const batchSizeNum = Number.parseInt(importBatchSizeString, 10);
+		importOptions.batchSize = Number.isNaN(batchSizeNum) ? 100 : batchSizeNum;
+	});
 
-// --- Data Loading ---
-loadCollections();
+	// --- Data Loading ---
+	loadCollections();
 
-async function loadCollections() {
-	try {
-		loading = true;
-		const response = await getCollections({ includeFields: false });
+	async function loadCollections() {
+		try {
+			loading = true;
+			const response = await getCollections({ includeFields: false });
 
-		if (response.success && response.data) {
-			// Handle different response structures and map to our Collection interface
-			let rawCollections: any[] = [];
-			if (Array.isArray(response.data)) {
-				rawCollections = response.data;
-			} else if (
-				response.data &&
-				typeof response.data === "object" &&
-				"collections" in response.data
-			) {
-				rawCollections = (response.data as any).collections || [];
+			if (response.success && response.data) {
+				// Handle different response structures and map to our Collection interface
+				let rawCollections: any[] = [];
+				if (Array.isArray(response.data)) {
+					rawCollections = response.data;
+				} else if (response.data && typeof response.data === 'object' && 'collections' in response.data) {
+					rawCollections = (response.data as any).collections || [];
+				}
+
+				// Map to our Collection interface
+				collections = rawCollections.map((col) => ({
+					id: col.id || col.name,
+					name: col.name,
+					label: col.label || col.name,
+					description: col.description
+				}));
+
+				// Select all collections by default
+				exportOptions.collections = collections.map((c) => String(c.id));
+			} else {
+				showAlertMessage('Failed to load collections', 'error');
 			}
-
-			// Map to our Collection interface
-			collections = rawCollections.map((col) => ({
-				id: col.id || col.name,
-				name: col.name,
-				label: col.label || col.name,
-				description: col.description,
-			}));
-
-			// Select all collections by default
-			exportOptions.collections = collections.map((c) => String(c.id));
-		} else {
-			showAlertMessage("Failed to load collections", "error");
+		} catch (error) {
+			logger.error('Error loading collections:', error);
+			showAlertMessage('Error loading collections', 'error');
+		} finally {
+			loading = false;
 		}
-	} catch (error) {
-		logger.error("Error loading collections:", error);
-		showAlertMessage("Error loading collections", "error");
-	} finally {
-		loading = false;
-	}
-}
-
-// --- Export Functions ---
-async function exportAllData() {
-	try {
-		loading = true;
-		exportProgress = 0;
-
-		const progressInterval = setInterval(() => {
-			exportProgress = Math.min(exportProgress + 10, 90);
-		}, 200);
-
-		const response = await fetch("/api/exportData", {
-			method: "GET",
-		});
-
-		clearInterval(progressInterval);
-		exportProgress = 100;
-
-		if (response.ok) {
-			showAlertMessage("Data export completed successfully", "success");
-		} else {
-			const error = await response.text();
-			showAlertMessage(`Export failed: ${error}`, "error");
-		}
-	} catch (error) {
-		logger.error("Export error:", error);
-		showAlertMessage("Export failed", "error");
-	} finally {
-		loading = false;
-		exportProgress = 0;
-	}
-}
-
-async function exportSelectedCollections() {
-	if (exportOptions.collections.length === 0) {
-		showAlertMessage(
-			"Please select at least one collection to export",
-			"warning",
-		);
-		return;
 	}
 
-	try {
-		loading = true;
-		exportProgress = 0;
+	// --- Export Functions ---
+	async function exportAllData() {
+		try {
+			loading = true;
+			exportProgress = 0;
 
-		const progressInterval = setInterval(() => {
-			exportProgress = Math.min(exportProgress + 10, 90);
-		}, 100);
+			const progressInterval = setInterval(() => {
+				exportProgress = Math.min(exportProgress + 10, 90);
+			}, 200);
 
-		// Export each collection individually
-		const exportData: Record<string, any> = {};
-
-		for (let i = 0; i < exportOptions.collections.length; i++) {
-			const collectionId = exportOptions.collections[i];
-
-			const params = new URLSearchParams({
-				format: "json",
-				...(exportOptions.limit && { limit: exportOptions.limit.toString() }),
+			const response = await fetch('/api/exportData', {
+				method: 'GET'
 			});
 
-			const response = await fetch(
-				`/api/collections/${collectionId}/export?${params}`,
-			);
+			clearInterval(progressInterval);
+			exportProgress = 100;
 
 			if (response.ok) {
-				const data = await response.json();
-				exportData[collectionId] = data.data;
+				showAlertMessage('Data export completed successfully', 'success');
 			} else {
-				logger.error(`Failed to export collection ${collectionId}`);
+				const error = await response.text();
+				showAlertMessage(`Export failed: ${error}`, 'error');
 			}
+		} catch (error) {
+			logger.error('Export error:', error);
+			showAlertMessage('Export failed', 'error');
+		} finally {
+			loading = false;
+			exportProgress = 0;
+		}
+	}
+
+	async function exportSelectedCollections() {
+		if (exportOptions.collections.length === 0) {
+			showAlertMessage('Please select at least one collection to export', 'warning');
+			return;
 		}
 
-		clearInterval(progressInterval);
-		exportProgress = 100;
+		try {
+			loading = true;
+			exportProgress = 0;
 
-		// Create download
-		const blob = new Blob([JSON.stringify(exportData, null, 2)], {
-			type: "application/json",
-		});
-		exportUrl = URL.createObjectURL(blob);
+			const progressInterval = setInterval(() => {
+				exportProgress = Math.min(exportProgress + 10, 90);
+			}, 100);
 
-		showAlertMessage(
-			`Successfully exported ${exportOptions.collections.length} collections`,
-			"success",
-		);
-	} catch (error) {
-		logger.error("Export error:", error);
-		showAlertMessage("Export failed", "error");
-	} finally {
-		loading = false;
-		exportProgress = 0;
-		showExportModal = false;
-	}
-}
+			// Export each collection individually
+			const exportData: Record<string, any> = {};
 
-// --- Import Functions ---
-async function handleImport() {
-	if (!importFiles || importFiles.length === 0) {
-		showAlertMessage("Please select a file to import", "warning");
-		return;
-	}
+			for (let i = 0; i < exportOptions.collections.length; i++) {
+				const collectionId = exportOptions.collections[i];
 
-	try {
-		loading = true;
-		importProgress = 0;
+				const params = new URLSearchParams({
+					format: 'json',
+					...(exportOptions.limit && { limit: exportOptions.limit.toString() })
+				});
 
-		const file = importFiles[0];
-		let importData: any = null;
+				const response = await fetch(`/api/collections/${collectionId}/export?${params}`);
 
-		// Read file content
-		if (importOptions.format === "json") {
-			const text = await file.text();
-			importData = JSON.parse(text);
-		} else {
-			// CSV format
-			const text = await file.text();
-			importData = text;
-		}
+				if (response.ok) {
+					const data = await response.json();
+					exportData[collectionId] = data.data;
+				} else {
+					logger.error(`Failed to export collection ${collectionId}`);
+				}
+			}
 
-		const progressInterval = setInterval(() => {
-			importProgress = Math.min(importProgress + 5, 90);
-		}, 200);
+			clearInterval(progressInterval);
+			exportProgress = 100;
 
-		// Import data
-		const response = await fetch("/api/importData", {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify({
-				collections: importData,
-				options: importOptions,
-			}),
-		});
+			// Create download
+			const blob = new Blob([JSON.stringify(exportData, null, 2)], {
+				type: 'application/json'
+			});
+			exportUrl = URL.createObjectURL(blob);
 
-		clearInterval(progressInterval);
-		importProgress = 100;
-
-		if (response.ok) {
-			importResult = await response.json();
-			showResultsModal = true;
-			showImportModal = false;
-		} else {
-			const errorText = await response.text();
-			showAlertMessage(`Import failed: ${errorText}`, "error");
-		}
-	} catch (error) {
-		logger.error("Import error:", error);
-		showAlertMessage("Import failed", "error");
-	} finally {
-		loading = false;
-		importProgress = 0;
-	}
-}
-
-// --- UI & Utility Functions ---
-
-function showAlertMessage(
-	message: string,
-	type: "success" | "error" | "info" | "warning",
-) {
-	if (type === "success") {
-		toast.success(message);
-	} else if (type === "error") {
-		toast.error(message);
-	} else if (type === "warning") {
-		toast.warning(message);
-	} else {
-		toast.info(message);
-	}
-}
-
-function downloadExport() {
-	if (exportUrl) {
-		const a = document.createElement("a");
-		a.href = exportUrl;
-		a.download = `collections-export-${new Date().toISOString().split("T")[0]}.json`;
-		document.body.appendChild(a);
-		a.click();
-		document.body.removeChild(a);
-		URL.revokeObjectURL(exportUrl);
-		exportUrl = "";
-	}
-}
-
-function toggleCollectionSelection(collectionId: string) {
-	const index = exportOptions.collections.indexOf(collectionId);
-	if (index > -1) {
-		exportOptions.collections.splice(index, 1);
-	} else {
-		exportOptions.collections.push(collectionId);
-	}
-}
-
-function selectAllCollections() {
-	exportOptions.collections = collections.map((c) => String(c.id));
-}
-
-function clearCollectionSelection() {
-	exportOptions.collections = [];
-}
-
-function handleKeydown(event: KeyboardEvent) {
-	if (event.key === "Escape") {
-		if (showExportModal) {
+			showAlertMessage(`Successfully exported ${exportOptions.collections.length} collections`, 'success');
+		} catch (error) {
+			logger.error('Export error:', error);
+			showAlertMessage('Export failed', 'error');
+		} finally {
+			loading = false;
+			exportProgress = 0;
 			showExportModal = false;
 		}
-		if (showImportModal) {
-			showImportModal = false;
+	}
+
+	// --- Import Functions ---
+	async function handleImport() {
+		if (!importFiles || importFiles.length === 0) {
+			showAlertMessage('Please select a file to import', 'warning');
+			return;
 		}
-		if (showResultsModal) {
-			showResultsModal = false;
+
+		try {
+			loading = true;
+			importProgress = 0;
+
+			const file = importFiles[0];
+			let importData: any = null;
+
+			// Read file content
+			if (importOptions.format === 'json') {
+				const text = await file.text();
+				importData = JSON.parse(text);
+			} else {
+				// CSV format
+				const text = await file.text();
+				importData = text;
+			}
+
+			const progressInterval = setInterval(() => {
+				importProgress = Math.min(importProgress + 5, 90);
+			}, 200);
+
+			// Import data
+			const response = await fetch('/api/importData', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					collections: importData,
+					options: importOptions
+				})
+			});
+
+			clearInterval(progressInterval);
+			importProgress = 100;
+
+			if (response.ok) {
+				importResult = await response.json();
+				showResultsModal = true;
+				showImportModal = false;
+			} else {
+				const errorText = await response.text();
+				showAlertMessage(`Import failed: ${errorText}`, 'error');
+			}
+		} catch (error) {
+			logger.error('Import error:', error);
+			showAlertMessage('Import failed', 'error');
+		} finally {
+			loading = false;
+			importProgress = 0;
 		}
 	}
-}
+
+	// --- UI & Utility Functions ---
+
+	function showAlertMessage(message: string, type: 'success' | 'error' | 'info' | 'warning') {
+		if (type === 'success') {
+			toast.success(message);
+		} else if (type === 'error') {
+			toast.error(message);
+		} else if (type === 'warning') {
+			toast.warning(message);
+		} else {
+			toast.info(message);
+		}
+	}
+
+	function downloadExport() {
+		if (exportUrl) {
+			const a = document.createElement('a');
+			a.href = exportUrl;
+			a.download = `collections-export-${new Date().toISOString().split('T')[0]}.json`;
+			document.body.appendChild(a);
+			a.click();
+			document.body.removeChild(a);
+			URL.revokeObjectURL(exportUrl);
+			exportUrl = '';
+		}
+	}
+
+	function toggleCollectionSelection(collectionId: string) {
+		const index = exportOptions.collections.indexOf(collectionId);
+		if (index > -1) {
+			exportOptions.collections.splice(index, 1);
+		} else {
+			exportOptions.collections.push(collectionId);
+		}
+	}
+
+	function selectAllCollections() {
+		exportOptions.collections = collections.map((c) => String(c.id));
+	}
+
+	function clearCollectionSelection() {
+		exportOptions.collections = [];
+	}
+
+	function handleKeydown(event: KeyboardEvent) {
+		if (event.key === 'Escape') {
+			if (showExportModal) {
+				showExportModal = false;
+			}
+			if (showImportModal) {
+				showImportModal = false;
+			}
+			if (showResultsModal) {
+				showResultsModal = false;
+			}
+		}
+	}
 </script>
 
 <svelte:window onkeydown={handleKeydown} />

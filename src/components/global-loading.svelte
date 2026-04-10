@@ -20,174 +20,171 @@ Full-screen loading overlay with contextual messages, progress indication, and a
 -->
 
 <script lang="ts">
-import {
-	loading_authentication_bottom,
-	loading_authentication_top,
-	loading_collectionLoad_bottom,
-	loading_collectionLoad_top,
-	loading_configSave_bottom,
-	loading_configSave_top,
-	loading_dataFetch_bottom,
-	loading_dataFetch_top,
-	loading_formSubmission_bottom,
-	loading_formSubmission_top,
-	loading_imageUpload_bottom,
-	loading_imageUpload_top,
-	loading_initialization_bottom,
-	loading_initialization_top,
-	loading_loading,
-	loading_navigation_bottom,
-	loading_navigation_top,
-	loading_permissionUpdate_bottom,
-	loading_permissionUpdate_top,
-	loading_pleasewait,
-	loading_roleManagement_bottom,
-	loading_roleManagement_top,
-	loading_tokenGeneration_bottom,
-	loading_tokenGeneration_top,
-	loading_widgetInit_bottom,
-	loading_widgetInit_top,
-} from "@src/paraglide/messages";
-import {
-	globalLoadingStore,
-	loadingOperations,
-} from "@src/stores/loading-store.svelte";
-import { onMount } from "svelte";
-import { fade, scale } from "svelte/transition";
-import SveltyCMSLogo from "./system/icons/svelty-cms-logo.svelte";
+	import {
+		loading_authentication_bottom,
+		loading_authentication_top,
+		loading_collectionLoad_bottom,
+		loading_collectionLoad_top,
+		loading_configSave_bottom,
+		loading_configSave_top,
+		loading_dataFetch_bottom,
+		loading_dataFetch_top,
+		loading_formSubmission_bottom,
+		loading_formSubmission_top,
+		loading_imageUpload_bottom,
+		loading_imageUpload_top,
+		loading_initialization_bottom,
+		loading_initialization_top,
+		loading_loading,
+		loading_navigation_bottom,
+		loading_navigation_top,
+		loading_permissionUpdate_bottom,
+		loading_permissionUpdate_top,
+		loading_pleasewait,
+		loading_roleManagement_bottom,
+		loading_roleManagement_top,
+		loading_tokenGeneration_bottom,
+		loading_tokenGeneration_top,
+		loading_widgetInit_bottom,
+		loading_widgetInit_top
+	} from '@src/paraglide/messages';
+	import { globalLoadingStore, loadingOperations } from '@src/stores/loading-store.svelte';
+	import { onMount } from 'svelte';
+	import { fade, scale } from 'svelte/transition';
+	import SveltyCMSLogo from './system/icons/svelty-cms-logo.svelte';
 
-// Loading text configuration
-interface LoadingText {
-	bottom: string;
-	top: string;
-}
-
-// State
-let prefersReducedMotion = $state(false);
-let startTime = $state(Date.now());
-let elapsedTime = $state(0);
-let intervalId: ReturnType<typeof setInterval> | null = null;
-
-// Derived values
-const isVisible = $derived(globalLoadingStore.isLoading);
-const progress = $derived(globalLoadingStore.progress);
-const hasProgress = $derived(progress !== null && progress !== undefined);
-const canCancel = $derived(globalLoadingStore.canCancel);
-
-// Get contextual loading text
-function getLoadingText(): LoadingText {
-	const reason = globalLoadingStore.loadingReason;
-
-	const loadingTextMap: Record<string, LoadingText> = {
-		[loadingOperations.navigation]: {
-			top: loading_navigation_top(),
-			bottom: loading_navigation_bottom(),
-		},
-		[loadingOperations.dataFetch]: {
-			top: loading_dataFetch_top(),
-			bottom: loading_dataFetch_bottom(),
-		},
-		[loadingOperations.authentication]: {
-			top: loading_authentication_top(),
-			bottom: loading_authentication_bottom(),
-		},
-		[loadingOperations.initialization]: {
-			top: loading_initialization_top(),
-			bottom: loading_initialization_bottom(),
-		},
-		[loadingOperations.imageUpload]: {
-			top: loading_imageUpload_top(),
-			bottom: loading_imageUpload_bottom(),
-		},
-		[loadingOperations.formSubmission]: {
-			top: loading_formSubmission_top(),
-			bottom: loading_formSubmission_bottom(),
-		},
-		[loadingOperations.configSave]: {
-			top: loading_configSave_top(),
-			bottom: loading_configSave_bottom(),
-		},
-		[loadingOperations.roleManagement]: {
-			top: loading_roleManagement_top(),
-			bottom: loading_roleManagement_bottom(),
-		},
-		[loadingOperations.permissionUpdate]: {
-			top: loading_permissionUpdate_top(),
-			bottom: loading_permissionUpdate_bottom(),
-		},
-		[loadingOperations.tokenGeneration]: {
-			top: loading_tokenGeneration_top(),
-			bottom: loading_tokenGeneration_bottom(),
-		},
-		[loadingOperations.collectionLoad]: {
-			top: loading_collectionLoad_top(),
-			bottom: loading_collectionLoad_bottom(),
-		},
-		[loadingOperations.widgetInit]: {
-			top: loading_widgetInit_top(),
-			bottom: loading_widgetInit_bottom(),
-		},
-	};
-
-	return (
-		(reason && loadingTextMap[reason]) || {
-			top: loading_pleasewait(),
-			bottom: loading_loading(),
-		}
-	);
-}
-
-const loadingText = $derived(getLoadingText());
-
-// Format elapsed time
-function formatElapsedTime(ms: number): string {
-	const seconds = Math.floor(ms / 1000);
-	if (seconds < 60) {
-		return `${seconds}s`;
+	// Loading text configuration
+	interface LoadingText {
+		bottom: string;
+		top: string;
 	}
-	const minutes = Math.floor(seconds / 60);
-	const remainingSeconds = seconds % 60;
-	return `${minutes}m ${remainingSeconds}s`;
-}
 
-// Handle cancel
-function handleCancel() {
-	if (canCancel && globalLoadingStore.onCancel) {
-		globalLoadingStore.onCancel();
-	}
-}
+	// State
+	let prefersReducedMotion = $state(false);
+	let startTime = $state(Date.now());
+	let elapsedTime = $state(0);
+	let intervalId: ReturnType<typeof setInterval> | null = null;
 
-// Track elapsed time
-$effect(() => {
-	if (isVisible) {
-		startTime = Date.now();
-		elapsedTime = 0;
+	// Derived values
+	const isVisible = $derived(globalLoadingStore.isLoading);
+	const progress = $derived(globalLoadingStore.progress);
+	const hasProgress = $derived(progress !== null && progress !== undefined);
+	const canCancel = $derived(globalLoadingStore.canCancel);
 
-		intervalId = setInterval(() => {
-			elapsedTime = Date.now() - startTime;
-		}, 100);
+	// Get contextual loading text
+	function getLoadingText(): LoadingText {
+		const reason = globalLoadingStore.loadingReason;
 
-		return () => {
-			if (intervalId) {
-				clearInterval(intervalId);
-				intervalId = null;
+		const loadingTextMap: Record<string, LoadingText> = {
+			[loadingOperations.navigation]: {
+				top: loading_navigation_top(),
+				bottom: loading_navigation_bottom()
+			},
+			[loadingOperations.dataFetch]: {
+				top: loading_dataFetch_top(),
+				bottom: loading_dataFetch_bottom()
+			},
+			[loadingOperations.authentication]: {
+				top: loading_authentication_top(),
+				bottom: loading_authentication_bottom()
+			},
+			[loadingOperations.initialization]: {
+				top: loading_initialization_top(),
+				bottom: loading_initialization_bottom()
+			},
+			[loadingOperations.imageUpload]: {
+				top: loading_imageUpload_top(),
+				bottom: loading_imageUpload_bottom()
+			},
+			[loadingOperations.formSubmission]: {
+				top: loading_formSubmission_top(),
+				bottom: loading_formSubmission_bottom()
+			},
+			[loadingOperations.configSave]: {
+				top: loading_configSave_top(),
+				bottom: loading_configSave_bottom()
+			},
+			[loadingOperations.roleManagement]: {
+				top: loading_roleManagement_top(),
+				bottom: loading_roleManagement_bottom()
+			},
+			[loadingOperations.permissionUpdate]: {
+				top: loading_permissionUpdate_top(),
+				bottom: loading_permissionUpdate_bottom()
+			},
+			[loadingOperations.tokenGeneration]: {
+				top: loading_tokenGeneration_top(),
+				bottom: loading_tokenGeneration_bottom()
+			},
+			[loadingOperations.collectionLoad]: {
+				top: loading_collectionLoad_top(),
+				bottom: loading_collectionLoad_bottom()
+			},
+			[loadingOperations.widgetInit]: {
+				top: loading_widgetInit_top(),
+				bottom: loading_widgetInit_bottom()
 			}
 		};
+
+		return (
+			(reason && loadingTextMap[reason]) || {
+				top: loading_pleasewait(),
+				bottom: loading_loading()
+			}
+		);
 	}
-});
 
-// Lifecycle
-onMount(() => {
-	const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
-	prefersReducedMotion = mediaQuery.matches;
+	const loadingText = $derived(getLoadingText());
 
-	const handleChange = (e: MediaQueryListEvent) => {
-		prefersReducedMotion = e.matches;
-	};
+	// Format elapsed time
+	function formatElapsedTime(ms: number): string {
+		const seconds = Math.floor(ms / 1000);
+		if (seconds < 60) {
+			return `${seconds}s`;
+		}
+		const minutes = Math.floor(seconds / 60);
+		const remainingSeconds = seconds % 60;
+		return `${minutes}m ${remainingSeconds}s`;
+	}
 
-	mediaQuery.addEventListener("change", handleChange);
-	return () => mediaQuery.removeEventListener("change", handleChange);
-});
+	// Handle cancel
+	function handleCancel() {
+		if (canCancel && globalLoadingStore.onCancel) {
+			globalLoadingStore.onCancel();
+		}
+	}
+
+	// Track elapsed time
+	$effect(() => {
+		if (isVisible) {
+			startTime = Date.now();
+			elapsedTime = 0;
+
+			intervalId = setInterval(() => {
+				elapsedTime = Date.now() - startTime;
+			}, 100);
+
+			return () => {
+				if (intervalId) {
+					clearInterval(intervalId);
+					intervalId = null;
+				}
+			};
+		}
+	});
+
+	// Lifecycle
+	onMount(() => {
+		const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+		prefersReducedMotion = mediaQuery.matches;
+
+		const handleChange = (e: MediaQueryListEvent) => {
+			prefersReducedMotion = e.matches;
+		};
+
+		mediaQuery.addEventListener('change', handleChange);
+		return () => mediaQuery.removeEventListener('change', handleChange);
+	});
 </script>
 
 {#if isVisible}

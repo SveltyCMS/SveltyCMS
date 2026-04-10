@@ -23,184 +23,158 @@
 -->
 
 <script lang="ts">
-import type { FieldInstance } from "@content/types";
-import PageTitle from "@src/components/page-title.svelte";
-import { ui } from "@src/stores/ui-store.svelte";
-import { debounce } from "@utils/utils";
-import AddWidget from "./add-widget.svelte";
+	import type { FieldInstance } from '@content/types';
+	import PageTitle from '@src/components/page-title.svelte';
+	import { ui } from '@src/stores/ui-store.svelte';
+	import { debounce } from '@utils/utils';
+	import AddWidget from './add-widget.svelte';
 
-// Props
-const { fields = [], onFieldsUpdate = () => {} } = $props();
+	// Props
+	const { fields = [], onFieldsUpdate = () => {} } = $props();
 
-// State
-let container: HTMLDivElement | null = $state(null);
-let currentFieldKey: string | null = $state(null);
-let currentField: FieldInstance | null = $state(null);
+	// State
+	let container: HTMLDivElement | null = $state(null);
+	let currentFieldKey: string | null = $state(null);
+	let currentField: FieldInstance | null = $state(null);
 
-function initDragAndDrop(node: HTMLElement) {
-	function drag(e: PointerEvent) {
-		let timeOut: ReturnType<typeof setTimeout> | undefined;
-		const pointerID = e.pointerId;
+	function initDragAndDrop(node: HTMLElement) {
+		function drag(e: PointerEvent) {
+			let timeOut: ReturnType<typeof setTimeout> | undefined;
+			const pointerID = e.pointerId;
 
-		let targets = $state(
-			[...(container?.getElementsByClassName("field") || [])].map((el) => {
-				const rect = el.getBoundingClientRect();
-				return { el: el as HTMLElement, center: rect.top + rect.height / 2 };
-			}),
-		);
+			let targets = $state(
+				[...(container?.getElementsByClassName('field') || [])].map((el) => {
+					const rect = el.getBoundingClientRect();
+					return { el: el as HTMLElement, center: rect.top + rect.height / 2 };
+				})
+			);
 
-		const onPointerUp = () => {
-			clearTimeout(timeOut);
-		};
+			const onPointerUp = () => {
+				clearTimeout(timeOut);
+			};
 
-		node.onpointerup = onPointerUp;
-		node.onpointerleave = onPointerUp;
+			node.onpointerup = onPointerUp;
+			node.onpointerleave = onPointerUp;
 
-		timeOut = setTimeout(() => {
-			const clone = node.cloneNode(true) as HTMLElement;
-			// eslint-disable-next-line svelte/no-dom-manipulating
-			container?.appendChild(clone);
-			clone.setPointerCapture(pointerID);
-			node.style.opacity = "0.5";
-			clone.style.left = `${node.getBoundingClientRect().left}px`;
-			clone.style.marginLeft = "0";
-			clone.style.position = "fixed";
-			clone.style.top = `${e.clientY}px`;
-			clone.style.width = `${node.getBoundingClientRect().width}px`;
-			const cloneHeight = `${clone.offsetHeight + 10}px`;
-			const deb = debounce(50);
-			let oldClosest: HTMLElement;
-
-			clone.onpointermove = (e) => {
-				if (
-					e.clientY < container!.offsetTop ||
-					e.clientY > container!.offsetTop + container!.offsetHeight - 60
-				) {
-					if (e.clientY < container!.offsetTop) {
-						container?.scrollBy(0, -5);
-					} else {
-						container?.scrollBy(0, 5);
-					}
-				}
+			timeOut = setTimeout(() => {
+				const clone = node.cloneNode(true) as HTMLElement;
+				// eslint-disable-next-line svelte/no-dom-manipulating
+				container?.appendChild(clone);
+				clone.setPointerCapture(pointerID);
+				node.style.opacity = '0.5';
+				clone.style.left = `${node.getBoundingClientRect().left}px`;
+				clone.style.marginLeft = '0';
+				clone.style.position = 'fixed';
 				clone.style.top = `${e.clientY}px`;
-				deb(() => {
-					targets = [...(container?.getElementsByClassName("field") || [])]
-						.map((el) => {
-							const rect = el.getBoundingClientRect();
-							return {
-								el: el as HTMLElement,
-								center: rect.top + rect.height / 2,
-							};
-						})
-						.filter((el) => el.el !== clone);
-					targets.sort((a, b) =>
-						Math.abs(b.center - e.clientY) < Math.abs(a.center - e.clientY)
-							? 1
-							: -1,
-					);
-					const closest = targets[0];
-					if (closest.el === node) {
-						return;
-					}
-					const closestIndex = Number.parseInt(
-						closest.el.getAttribute("data-index") as string,
-						10,
-					);
-					const cloneIndex = Number.parseInt(
-						clone.getAttribute("data-index") as string,
-						10,
-					);
+				clone.style.width = `${node.getBoundingClientRect().width}px`;
+				const cloneHeight = `${clone.offsetHeight + 10}px`;
+				const deb = debounce(50);
+				let oldClosest: HTMLElement;
 
-					if (oldClosest) {
-						oldClosest.style.removeProperty("border-color");
-						oldClosest.style.margin = "10px 0";
+				clone.onpointermove = (e) => {
+					if (e.clientY < container!.offsetTop || e.clientY > container!.offsetTop + container!.offsetHeight - 60) {
+						if (e.clientY < container!.offsetTop) {
+							container?.scrollBy(0, -5);
+						} else {
+							container?.scrollBy(0, 5);
+						}
 					}
-					if (e.clientY > closest.center && cloneIndex - closestIndex !== 1) {
-						closest.el.style.marginBottom = cloneHeight;
-					} else if (
-						e.clientY < closest.center &&
-						closestIndex - cloneIndex !== 1
-					) {
-						closest.el.style.marginTop = cloneHeight;
-					}
-					closest.el.style.borderColor = "red";
-					oldClosest = closest.el;
-				});
-			};
+					clone.style.top = `${e.clientY}px`;
+					deb(() => {
+						targets = [...(container?.getElementsByClassName('field') || [])]
+							.map((el) => {
+								const rect = el.getBoundingClientRect();
+								return {
+									el: el as HTMLElement,
+									center: rect.top + rect.height / 2
+								};
+							})
+							.filter((el) => el.el !== clone);
+						targets.sort((a, b) => (Math.abs(b.center - e.clientY) < Math.abs(a.center - e.clientY) ? 1 : -1));
+						const closest = targets[0];
+						if (closest.el === node) {
+							return;
+						}
+						const closestIndex = Number.parseInt(closest.el.getAttribute('data-index') as string, 10);
+						const cloneIndex = Number.parseInt(clone.getAttribute('data-index') as string, 10);
 
-			clone.onpointerup = (e) => {
-				node.style.opacity = "1";
-				clone.releasePointerCapture(pointerID);
-				targets.sort((a, b) =>
-					Math.abs(b.center - e.clientY) < Math.abs(a.center - e.clientY)
-						? 1
-						: -1,
-				);
-				const closest = targets[0];
-				let closestIndex = Number.parseInt(
-					closest.el.getAttribute("data-index") as string,
-					10,
-				);
-				const cloneIndex = Number.parseInt(
-					clone.getAttribute("data-index") as string,
-					10,
-				);
-				const newFields = [...fields];
-				const draggedItem = newFields.splice(cloneIndex, 1)[0];
-
-				if (cloneIndex < closestIndex) {
-					closestIndex--;
-				}
-				if (e.clientY > closest.center) {
-					closestIndex++;
-				}
-				newFields.splice(closestIndex, 0, draggedItem);
-				onFieldsUpdate(newFields);
-				clone.remove();
-				setTimeout(() => {
-					targets.forEach((el) => {
-						el.el.style.removeProperty("border-color");
-						el.el.style.margin = "10px 0";
+						if (oldClosest) {
+							oldClosest.style.removeProperty('border-color');
+							oldClosest.style.margin = '10px 0';
+						}
+						if (e.clientY > closest.center && cloneIndex - closestIndex !== 1) {
+							closest.el.style.marginBottom = cloneHeight;
+						} else if (e.clientY < closest.center && closestIndex - cloneIndex !== 1) {
+							closest.el.style.marginTop = cloneHeight;
+						}
+						closest.el.style.borderColor = 'red';
+						oldClosest = closest.el;
 					});
-				}, 50);
-			};
-		}, 200);
+				};
+
+				clone.onpointerup = (e) => {
+					node.style.opacity = '1';
+					clone.releasePointerCapture(pointerID);
+					targets.sort((a, b) => (Math.abs(b.center - e.clientY) < Math.abs(a.center - e.clientY) ? 1 : -1));
+					const closest = targets[0];
+					let closestIndex = Number.parseInt(closest.el.getAttribute('data-index') as string, 10);
+					const cloneIndex = Number.parseInt(clone.getAttribute('data-index') as string, 10);
+					const newFields = [...fields];
+					const draggedItem = newFields.splice(cloneIndex, 1)[0];
+
+					if (cloneIndex < closestIndex) {
+						closestIndex--;
+					}
+					if (e.clientY > closest.center) {
+						closestIndex++;
+					}
+					newFields.splice(closestIndex, 0, draggedItem);
+					onFieldsUpdate(newFields);
+					clone.remove();
+					setTimeout(() => {
+						targets.forEach((el) => {
+							el.el.style.removeProperty('border-color');
+							el.el.style.margin = '10px 0';
+						});
+					}, 50);
+				};
+			}, 200);
+		}
+
+		node.onpointerdown = drag;
+
+		return {
+			destroy() {
+				node.onpointerdown = null;
+			}
+		};
 	}
 
-	node.onpointerdown = drag;
-
-	return {
-		destroy() {
-			node.onpointerdown = null;
-		},
-	};
-}
-
-function handleFieldClick(field: FieldInstance) {
-	currentFieldKey = field.widget.Name;
-	currentField = field;
-}
-
-function handleFieldDelete(field: FieldInstance, event: Event) {
-	event.stopPropagation();
-	const newFields = fields.filter((f: FieldInstance) => f !== field);
-	onFieldsUpdate(newFields);
-}
-
-function handleSave() {
-	// Implement save logic here
-	currentField = null;
-}
-
-function handleCancel() {
-	currentField = null;
-}
-
-$effect(() => {
-	if (currentFieldKey) {
-		// Any side effects related to currentFieldKey changes
+	function handleFieldClick(field: FieldInstance) {
+		currentFieldKey = field.widget.Name;
+		currentField = field;
 	}
-});
+
+	function handleFieldDelete(field: FieldInstance, event: Event) {
+		event.stopPropagation();
+		const newFields = fields.filter((f: FieldInstance) => f !== field);
+		onFieldsUpdate(newFields);
+	}
+
+	function handleSave() {
+		// Implement save logic here
+		currentField = null;
+	}
+
+	function handleCancel() {
+		currentField = null;
+	}
+
+	$effect(() => {
+		if (currentFieldKey) {
+			// Any side effects related to currentFieldKey changes
+		}
+	});
 </script>
 
 <div class="wrapper" bind:this={container}>

@@ -16,7 +16,7 @@ export const SERVICE_BASELINE_TIMES = {
   database: 500, // DB connection is usually fast
   auth: 50, // Auth initialization is nearly instant
   cache: 200, // Cache/media setup
-  contentManager: 300, // Content loading
+  contentSystem: 300, // Content loading
   themeManager: 200, // Theme loading
   widgets: 150, // Widget store initialization
 } as const;
@@ -71,7 +71,7 @@ export const initialState: SystemStateStore = {
       message: "Not initialized",
       metrics: structuredClone(initialServiceMetrics),
     },
-    contentManager: {
+    contentSystem: {
       status: "initializing",
       message: "Not initialized",
       metrics: structuredClone(initialServiceMetrics),

@@ -55,9 +55,7 @@ const PhoneNumberWidget = createWidget<PhoneNumberProps>({
   Name: "PhoneNumber",
   Icon: "ic:baseline-phone-in-talk",
   Description: widget_phoneNumber_description(),
-  inputComponent: () => import("./input.svelte"),
   inputComponentPath: "/src/widgets/custom/phone-number/input.svelte",
-  displayComponent: () => import("./display.svelte"),
   displayComponentPath: "/src/widgets/custom/phone-number/display.svelte",
   validationSchema,
 

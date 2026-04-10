@@ -25,110 +25,110 @@ This modal			class="input text-center font-mono tracking-wider"
 -->
 
 <script lang="ts">
-import {
-	button_cancel,
-	twofa_backup_code_placeholder,
-	twofa_backup_verify_description,
-	twofa_code_placeholder,
-	twofa_error_empty_code,
-	twofa_error_invalid_backup_code,
-	twofa_error_invalid_code,
-	twofa_help_authenticator,
-	twofa_help_backup,
-	twofa_use_authenticator,
-	twofa_use_backup_code,
-	twofa_verify_button,
-	twofa_verify_description,
-	twofa_verify_title,
-	twofa_verifying,
-} from "@src/paraglide/messages";
-import { modalState } from "@utils/modal-state.svelte";
+	import {
+		button_cancel,
+		twofa_backup_code_placeholder,
+		twofa_backup_verify_description,
+		twofa_code_placeholder,
+		twofa_error_empty_code,
+		twofa_error_invalid_backup_code,
+		twofa_error_invalid_code,
+		twofa_help_authenticator,
+		twofa_help_backup,
+		twofa_use_authenticator,
+		twofa_use_backup_code,
+		twofa_verify_button,
+		twofa_verify_description,
+		twofa_verify_title,
+		twofa_verifying
+	} from '@src/paraglide/messages';
+	import { modalState } from '@utils/modal-state.svelte';
 
-// Props
-const { parent, title = "", description = "" } = $props();
+	// Props
+	const { parent, title = '', description = '' } = $props();
 
-// State
-let code = $state("");
-let isVerifying = $state(false);
-let useBackupCode = $state(false);
-let error = $state("");
+	// State
+	let code = $state('');
+	let isVerifying = $state(false);
+	let useBackupCode = $state(false);
+	let error = $state('');
 
-// Handle code input with validation
-function handleInput(event: Event) {
-	const input = event.target as HTMLInputElement;
-	let value = input.value;
+	// Handle code input with validation
+	function handleInput(event: Event) {
+		const input = event.target as HTMLInputElement;
+		let value = input.value;
 
-	if (useBackupCode) {
-		// For backup codes, allow alphanumeric and remove spaces
-		value = value
-			.replace(/[^a-zA-Z0-9]/g, "")
-			.toLowerCase()
-			.slice(0, 10);
-	} else {
-		// For TOTP codes, only allow 6 digits
-		value = value.replace(/\D/g, "").slice(0, 6);
+		if (useBackupCode) {
+			// For backup codes, allow alphanumeric and remove spaces
+			value = value
+				.replace(/[^a-zA-Z0-9]/g, '')
+				.toLowerCase()
+				.slice(0, 10);
+		} else {
+			// For TOTP codes, only allow 6 digits
+			value = value.replace(/\D/g, '').slice(0, 6);
+		}
+
+		code = value;
+		error = '';
 	}
 
-	code = value;
-	error = "";
-}
+	// Submit verification code
+	async function submitCode() {
+		const trimmedCode = code.trim();
 
-// Submit verification code
-async function submitCode() {
-	const trimmedCode = code.trim();
+		if (!trimmedCode) {
+			error = twofa_error_empty_code();
+			return;
+		}
 
-	if (!trimmedCode) {
-		error = twofa_error_empty_code();
-		return;
+		if (!useBackupCode && trimmedCode.length !== 6) {
+			error = twofa_error_invalid_code();
+			return;
+		}
+
+		if (useBackupCode && trimmedCode.length < 8) {
+			error = twofa_error_invalid_backup_code();
+			return;
+		}
+
+		isVerifying = true;
+		error = '';
+
+		try {
+			// Return the code to the parent modal
+			if (parent.onClose) {
+				parent.onClose(trimmedCode);
+			}
+			modalState.close();
+		} catch (err) {
+			error = err instanceof Error ? err.message : 'Verification failed';
+		} finally {
+			isVerifying = false;
+		}
 	}
 
-	if (!useBackupCode && trimmedCode.length !== 6) {
-		error = twofa_error_invalid_code();
-		return;
-	}
-
-	if (useBackupCode && trimmedCode.length < 8) {
-		error = twofa_error_invalid_backup_code();
-		return;
-	}
-
-	isVerifying = true;
-	error = "";
-
-	try {
-		// Return the code to the parent modal
+	// Cancel verification
+	function cancelVerification() {
 		if (parent.onClose) {
-			parent.onClose(trimmedCode);
+			parent.onClose(null);
 		}
 		modalState.close();
-	} catch (err) {
-		error = err instanceof Error ? err.message : "Verification failed";
-	} finally {
-		isVerifying = false;
 	}
-}
 
-// Cancel verification
-function cancelVerification() {
-	if (parent.onClose) {
-		parent.onClose(null);
+	// Toggle between authenticator and backup code
+	function toggleCodeType() {
+		useBackupCode = !useBackupCode;
+		code = '';
+		error = '';
 	}
-	modalState.close();
-}
 
-// Toggle between authenticator and backup code
-function toggleCodeType() {
-	useBackupCode = !useBackupCode;
-	code = "";
-	error = "";
-}
-
-// Handle Enter key press
-function handleKeydown(event: KeyboardEvent) {
-	if (event.key === "Enter" && !isVerifying) {
-		submitCode();
+	// Handle Enter key press
+	function handleKeydown(event: KeyboardEvent) {
+		if (event.key === 'Enter' && !isVerifying) {
+			submitCode();
+		}
 	}
-}
 </script>
 
 <div class="max-w-md p-6">

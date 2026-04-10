@@ -52,7 +52,7 @@ describe("handleSystemState - Host Validation Security", () => {
     mockResolve.mockClear();
 
     // Reset healthy status to all services
-    const services = ["database", "auth", "cache", "contentManager", "themeManager", "widgets"];
+    const services = ["database", "auth", "cache", "contentSystem", "themeManager", "widgets"];
     for (const s of services) {
       updateServiceHealth(s as any, "healthy", "Mocked");
     }

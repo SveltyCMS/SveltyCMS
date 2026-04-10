@@ -458,10 +458,10 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
   // Wait for system initialization
   await dbInitPromise;
-  await contentManager.initialize(tenantId);
+  await contentSystem.initialize(tenantId);
 
   // Get first collection and redirect
-  const redirectUrl = await contentManager.getFirstCollectionRedirectUrl(
+  const redirectUrl = await contentSystem.getFirstCollectionRedirectUrl(
     redirectLanguage,
     tenantId,
   );

@@ -3,7 +3,7 @@
  * @description Service for handling entry revisions.
  */
 
-import { contentManager } from "@src/content";
+import { contentSystem } from "@src/content";
 import type { DatabaseId } from "@src/databases/db-interface";
 import { getPrivateSettingSync } from "@src/services/settings-service";
 
@@ -23,7 +23,7 @@ export async function getRevisions({
   page?: number;
   limit?: number;
 }) {
-  const schema = await contentManager.getCollectionById(collectionId, tenantId);
+  const schema = await contentSystem.getCollectionById(collectionId, tenantId);
   if (!schema) {
     return { success: false, error: { message: "Collection not found" } };
   }

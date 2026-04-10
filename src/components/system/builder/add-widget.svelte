@@ -4,58 +4,58 @@
 -->
 
 <script lang="ts">
-import PageTitle from "@src/components/page-title.svelte";
-import InputSwitch from "@src/components/system/builder/input-switch.svelte";
-import DropDown from "@src/components/system/drop-down/drop-down.svelte";
-import { widgets } from "@src/stores/widget-store.svelte";
-import type { WidgetFactory } from "@src/widgets/types";
+	import PageTitle from '@src/components/page-title.svelte';
+	import InputSwitch from '@src/components/system/builder/input-switch.svelte';
+	import DropDown from '@src/components/system/drop-down/drop-down.svelte';
+	import { widgets } from '@src/stores/widget-store.svelte';
+	import type { WidgetFactory } from '@src/widgets/types';
 
-import type { AddWidgetProps } from "./types";
+	import type { AddWidgetProps } from './types';
 
-let {
-	fields = $bindable([]),
-	addField = $bindable(false),
-	editField = $bindable(false),
-	selected_widget = $bindable(null),
-	field = $bindable({
-		label: "",
-		db_fieldName: "",
-		translated: false,
-		required: false,
-		widget: {
-			key: null as string | null,
-			GuiFields: {} as Record<string, any>,
-		},
-	}),
-}: AddWidgetProps = $props();
+	let {
+		fields = $bindable([]),
+		addField = $bindable(false),
+		editField = $bindable(false),
+		selected_widget = $bindable(null),
+		field = $bindable({
+			label: '',
+			db_fieldName: '',
+			translated: false,
+			required: false,
+			widget: {
+				key: null as string | null,
+				GuiFields: {} as Record<string, any>
+			}
+		})
+	}: AddWidgetProps = $props();
 
-const widgetKeys = $derived(Object.keys(widgets.widgetFunctions));
-let guiSchema = $state<WidgetFactory["GuiSchema"] | undefined>(undefined);
+	const widget_keys = $derived(Object.keys(widgets.widgetFunctions));
+	let guiSchema = $state<WidgetFactory['GuiSchema'] | undefined>(undefined);
 
-$effect(() => {
-	if (selected_widget) {
-		const widgetFn = widgets.widgetFunctions[selected_widget];
-		guiSchema = (widgetFn as WidgetFactory)?.GuiSchema;
+	$effect(() => {
+		if (selected_widget) {
+			const widgetFn = widgets.widgetFunctions[selected_widget];
+			guiSchema = (widgetFn as WidgetFactory)?.GuiSchema;
+		}
+	});
+
+	function handleSave() {
+		if (!selected_widget) {
+			return;
+		}
+		field.widget = { key: selected_widget, GuiFields: field.widget.GuiFields };
+		field.label = String(field.widget.GuiFields.label || '');
+		fields = [...fields, field as any];
+		addField = false;
 	}
-});
 
-function handleSave() {
-	if (!selected_widget) {
-		return;
+	function handleCancel() {
+		addField = false;
 	}
-	field.widget = { key: selected_widget, GuiFields: field.widget.GuiFields };
-	field.label = String(field.widget.GuiFields.label || "");
-	fields = [...fields, field as any];
-	addField = false;
-}
 
-function handleCancel() {
-	addField = false;
-}
-
-function handleWidgetCancel() {
-	selected_widget = null;
-}
+	function handleWidgetCancel() {
+		selected_widget = null;
+	}
 </script>
 
 <div class="fixed -top-16 left-0 flex h-screen w-full flex-col overflow-auto bg-white dark:bg-surface-900">
@@ -69,7 +69,7 @@ function handleWidgetCancel() {
 	{#if !selected_widget && !editField}
 		<div class="flex items-center justify-center">
 			<button type="button" onclick={handleCancel} aria-label="Cancel" class="mb-[20px] ml-auto mr-[40px]">X</button>
-			<DropDown items={widgetKeys} selected={selected_widget} label="Select Widget" />
+			<DropDown items={widget_keys} selected={selected_widget} label="Select Widget" />
 		</div>
 	{:else}
 		<div class="flex-col items-center justify-center overflow-auto">

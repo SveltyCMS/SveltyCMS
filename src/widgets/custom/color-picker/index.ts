@@ -45,9 +45,7 @@ const ColorPickerWidget = createWidget<ColorPickerProps>({
   Name: "ColorPicker",
   Icon: "ic:outline-colorize",
   Description: widget_colorPicker_description(),
-  inputComponent: () => import("./input.svelte"),
   inputComponentPath: "/src/widgets/custom/color-picker/input.svelte",
-  displayComponent: () => import("./display.svelte"),
   displayComponentPath: "/src/widgets/custom/color-picker/display.svelte",
   validationSchema,
 

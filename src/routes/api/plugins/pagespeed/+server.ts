@@ -3,7 +3,7 @@
  * @description API endpoint for PageSpeed Insights plugin
  */
 
-import { contentManager } from "@src/content";
+import { contentSystem } from "@src/content";
 import {
   fetchPageSpeedInsights,
   getCachedResult,
@@ -54,8 +54,8 @@ export const POST = apiHandler(async ({ request, locals }) => {
     }
 
     // Get collection schema
-    await contentManager.initialize(tenantId);
-    const schema = contentManager.getCollectionById(collectionId, tenantId);
+    await contentSystem.initialize(tenantId);
+    const schema = contentSystem.getCollectionById(collectionId, tenantId);
 
     if (!schema) {
       throw new AppError(`Collection ${collectionId} not found`, 404, "COLLECTION_NOT_FOUND");

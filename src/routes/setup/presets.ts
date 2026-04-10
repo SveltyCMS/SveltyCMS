@@ -1,20 +1,7 @@
 /**
  * @file src/routes/setup/presets.ts
- * @description
- * Project blueprint definitions for the SveltyCMS Setup Wizard.
- * Provides a curated list of starting templates with varying complexities.
- *
- * Responsibilities include:
- * - Defining the `Preset` interface for blueprint metadata.
- * - Cataloging available starter kits and their core features.
- * - Mapping visual icons and complexity levels to each template.
- *
- * ### Features:
- * - pre-configured collection schemas
- * - specialized widget configurations
- * - role and permission templates
- * - themed starting points (Agency, SaaS, Corporate)
- * - comprehensive test suites (Demo)
+ * @description Defines available setup presets and starter kits for SveltyCMS.
+ * @author SveltyCMS
  */
 
 export interface Preset {

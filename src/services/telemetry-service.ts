@@ -198,7 +198,7 @@ export const telemetryService = {
           }
 
           // 4. Content Dependency
-          const { contentManager } = await import("@src/content");
+          const { contentSystem } = await import("@src/content");
 
           if (dbAdapter.ensureContent) {
             try {
@@ -208,8 +208,8 @@ export const telemetryService = {
             }
           }
 
-          if (contentManager.isInitialized) {
-            const collections = await contentManager.getCollections();
+          if (contentSystem.isInitialized) {
+            const collections = await contentSystem.getCollections();
             collectionCount = collections.length;
           }
         } catch (err) {

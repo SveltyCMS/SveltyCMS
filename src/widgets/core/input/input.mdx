@@ -1,18 +1,18 @@
 ---
-path: "src/widgets/core/input/input.mdx"
-title: "Text Input Widget"
-description: "A foundational widget for handling multilingual text input with validation, prefixes, suffixes, and character counting."
+path: 'src/widgets/core/Input/input.mdx'
+title: 'Text Input Widget'
+description: 'A foundational widget for handling multilingual text input with validation, prefixes, suffixes, and character counting.'
 order: 1
-icon: "mdi:form-textbox"
-author: "SveltyCMS Team"
-created: "2025-01-01"
-updated: "2026-03-27"
+icon: 'mdi:form-textbox'
+author: 'admin'
+created: '2025-01-01'
+updated: '2026-02-03'
 tags:
-  - "widget"
-  - "input"
-  - "text"
-  - "validation"
-  - "core"
+  - 'widget'
+  - 'input'
+  - 'text'
+  - 'validation'
+  - 'core'
 ---
 
 # Text Input Widget
@@ -58,11 +58,11 @@ graph TD
 
 The widget follows the **Three Pillars Architecture**:
 
-| Component      | Path             | Purpose                                             |
-| -------------- | ---------------- | --------------------------------------------------- |
-| **Definition** | `index.ts`       | Widget configuration, validation schema, GUI schema |
-| **Input**      | `input.svelte`   | User input component with validation                |
-| **Display**    | `display.svelte` | Read-only display of stored values                  |
+| Component      | Path                       | Purpose                                             |
+| -------------- | -------------------------- | --------------------------------------------------- |
+| **Definition** | ` $args[0].Value.ToLower() | Widget configuration, validation schema, GUI schema |
+| **Input**      | ` $args[0].Value.ToLower() | User input component with validation                |
+| **Display**    | ` $args[0].Value.ToLower() | Read-only display of stored values                  |
 
 ---
 
@@ -89,18 +89,6 @@ Configure the widget in your collection schema:
 
 ---
 
-## AI Features
-
-### Magic Wand Translation
-
-The Input Widget integrates with the built-in AI Service to provide one-click translations. When editing a translatable field in a non-default language, a **Magic Wand** (mdi:translate) icon appears. Clicking this icon:
-
-1. Sends the default language content to the configured AI provider (Ollama/OpenAI).
-2. Autonomously generates a high-quality translation for the current target language.
-3. Sanitizes and populates the input field instantly.
-
----
-
 ## Data Structure
 
 The storage format depends on the `translated` setting.
@@ -109,11 +97,11 @@ The storage format depends on the `translated` setting.
 
 ```json
 {
-  "title": {
-    "en": "Hello World",
-    "de": "Hallo Welt",
-    "fr": "Bonjour le monde"
-  }
+	"title": {
+		"en": "Hello World",
+		"de": "Hallo Welt",
+		"fr": "Bonjour le monde"
+	}
 }
 ```
 
@@ -121,7 +109,7 @@ The storage format depends on the `translated` setting.
 
 ```json
 {
-  "slug": "hello-world"
+	"slug": "hello-world"
 }
 ```
 
@@ -148,14 +136,17 @@ Standard configuration for a page title with character limits.
 
 ### Slug / Identifier
 
-For technical IDs or URLs, use the dedicated [Slug Widget](/src/widgets/core/slug/slug.mdx) which provides specialized normalization and multi-tenancy uniqueness control.
+For technical IDs or URLs where translation is disabled.
 
 ```typescript
 {
-  widget: "Slug",
+  widget: InputWidget,
   label: "URL Slug",
   db_fieldName: "slug",
-  tenantScopedUnique: true
+  translated: false,
+  required: true,
+  prefix: "/",
+  helper: "URL-friendly identifier"
 }
 ```
 
@@ -196,20 +187,16 @@ The `createValidationSchema` function dynamically builds Valibot schemas:
 ```typescript
 // From index.ts - SSOT for validation
 export const createValidationSchema = (field) => {
-  const stringRules = [transform((s) => s.trim())];
+	const stringRules = [transform((s) => s.trim())];
 
-  if (field.required) stringRules.push(minLength(1, "This field is required."));
-  if (field.minLength)
-    stringRules.push(minLength(field.minLength, `Must be at least ${field.minLength} characters.`));
-  if (field.maxLength)
-    stringRules.push(
-      maxLength(field.maxLength, `Must be no more than ${field.maxLength} characters.`),
-    );
+	if (field.required) stringRules.push(minLength(1, 'This field is required.'));
+	if (field.minLength) stringRules.push(minLength(field.minLength, `Must be at least ${field.minLength} characters.`));
+	if (field.maxLength) stringRules.push(maxLength(field.maxLength, `Must be no more than ${field.maxLength} characters.`));
 
-  // For translated fields, use record<string, string>
-  if (field.translated) return optional(record(string(), string()), {});
+	// For translated fields, use record<string, string>
+	if (field.translated) return optional(record(string(), string()), {});
 
-  return field.required ? schema : optional(schema, "");
+	return field.required ? schema : optional(schema, '');
 };
 ```
 
@@ -232,7 +219,7 @@ Performs case-insensitive regex search on the language-specific key:
 
 ```typescript
 filters: async ({ field, filter, contentLanguage }) => [
-  { $match: { [`${field.db_fieldName}.${contentLanguage}`]: { $regex: filter, $options: "i" } } },
+	{ $match: { [`${field.db_fieldName}.${contentLanguage}`]: { $regex: filter, $options: 'i' } } }
 ];
 ```
 
@@ -242,7 +229,7 @@ Sorts alphabetically based on the current content language:
 
 ```typescript
 sorts: async ({ field, sortDirection, contentLanguage }) => ({
-  [`${field.db_fieldName}.${contentLanguage}`]: sortDirection,
+	[`${field.db_fieldName}.${contentLanguage}`]: sortDirection
 });
 ```
 
@@ -286,25 +273,25 @@ sorts: async ({ field, sortDirection, contentLanguage }) => ({
 
 ```typescript
 interface InputProps {
-  // Basic UI
-  placeholder?: string;
-  prefix?: string;
-  suffix?: string;
+	// Basic UI
+	placeholder?: string;
+	prefix?: string;
+	suffix?: string;
 
-  // Constraints
-  count?: number; // Target character count
-  minLength?: number;
-  maxLength?: number;
+	// Constraints
+	count?: number; // Target character count
+	minLength?: number;
+	maxLength?: number;
 
-  // Standard Widget Props
-  label: string;
-  db_fieldName?: string;
-  required?: boolean;
-  translated?: boolean;
-  icon?: string;
-  helper?: string;
-  width?: string;
-  permissions?: PermissionConfig;
+	// Standard Widget Props
+	label: string;
+	db_fieldName?: string;
+	required?: boolean;
+	translated?: boolean;
+	icon?: string;
+	helper?: string;
+	width?: string;
+	permissions?: PermissionConfig;
 }
 ```
 
@@ -326,6 +313,6 @@ export type InputWidgetData = ValibotInput<ReturnType<typeof createValidationSch
 
 ## Related Widgets
 
-- [Email Widget](../../custom/email/email.mdx) - For email addresses with format validation
-- [Number Widget](../../custom/number/number.mdx) - For numeric values with min/max constraints
-- [PhoneNumber Widget](../../custom/phone-number/phonenumber.mdx) - For phone numbers with E.164 validation
+- [Email Widget](<$args[0].Value.ToLower()>) - For email addresses with format validation
+- [Number Widget](<$args[0].Value.ToLower()>) - For numeric values with min/max constraints
+- [PhoneNumber Widget](<$args[0].Value.ToLower()>) - For phone numbers with E.164 validation

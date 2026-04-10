@@ -1,12 +1,12 @@
 ---
-path: "src/widgets/core/relation/relation.mdx"
-title: "Relation Widget"
-description: "Universal relationship manager supports One-to-One, One-to-Many, and Many-to-Many linking between collections"
+path: '/widgets/core/relation'
+title: 'Relation Widget'
+description: 'Universal relationship manager supports One-to-One, One-to-Many, and Many-to-Many linking between collections'
 order: 103
-icon: "mdi:relation-one-to-one"
-author: "admin"
-created: "2025-01-15"
-updated: "2026-02-16"
+icon: 'mdi:relation-one-to-one'
+author: 'admin'
+created: '2025-01-15'
+updated: '2026-02-16'
 tags:
   - widget
   - core
@@ -23,9 +23,8 @@ tags:
 # Relation Widget
 
 <blockquote>
-  **Universal relationship manager** that handles One-to-One, One-to-Many, and Many-to-Many
-  connections between collections. It stores foreign key references (IDs) and provides an intuitive
-  modal-based selection UI.
+	**Universal relationship manager** that handles One-to-One, One-to-Many, and Many-to-Many connections between collections. It stores foreign key
+	references (IDs) and provides an intuitive modal-based selection UI.
 </blockquote>
 
 ## Overview
@@ -37,13 +36,12 @@ The **Relation widget** is the primary tool for linking content in SveltyCMS. It
 - ✅ **Universal Support**: One-to-One, One-to-Many, and Many-to-Many
 - ✅ **Foreign Key Storage**: Stores single ID (string) or array of IDs (`string[]`)
 - ✅ **Cross-Collection**: Link to any collection in your CMS
-- ✅ **Premium Modal Selection**: High-performance, searchable picker with real-time deduplication
+- ✅ **Modal Selection**: User-friendly picker with search and preview
 - ✅ **Display Field**: Configure which field shows in the UI (e.g., title, name)
 - ✅ **Advanced Aggregation**: MongoDB $lookup for filtering and sorting
 - ✅ **Non-Translatable**: References are universal across languages
 - ✅ **Validation**: Ensures selected entries exist and meet min/max limits
-- ✅ **Sub-Millisecond Reactivity**: Powered by Svelte 5 Runes for instant UI feedback
-- ✅ **Lazy Loading**: Efficient data fetching via batch API calls
+- ✅ **Lazy Loading**: Efficient data fetching
 
 ---
 
@@ -71,42 +69,42 @@ The **Relation widget** is the primary tool for linking content in SveltyCMS. It
 ### Basic Post Author (One-to-One)
 
 ```typescript
-import Relation from "@src/widgets/core/Relation";
+import Relation from '@src/widgets/core/Relation';
 
 export const postsCollection = {
-  name: "Posts",
-  fields: [
-    Relation({
-      label: "Author",
-      db_fieldName: "authorId",
-      collection: "users",
-      displayField: "name",
-      required: true,
-      helper: "Select the post author",
-    }),
-  ],
+	name: 'Posts',
+	fields: [
+		Relation({
+			label: 'Author',
+			db_fieldName: 'authorId',
+			collection: 'users',
+			displayField: 'name',
+			required: true,
+			helper: 'Select the post author'
+		})
+	]
 };
 ```
 
 ### Product Categories (One-to-Many / Many-to-Many)
 
 ```typescript
-import Relation from "@src/widgets/core/Relation";
+import Relation from '@src/widgets/core/Relation';
 
 export const productsCollection = {
-  name: "Products",
-  fields: [
-    Relation({
-      label: "Categories",
-      db_fieldName: "categoryIds",
-      collection: "categories",
-      displayField: "name",
-      required: true,
-      multiple: true, // ✅ Enables multiple selection
-      min: 1,
-      max: 5,
-    }),
-  ],
+	name: 'Products',
+	fields: [
+		Relation({
+			label: 'Categories',
+			db_fieldName: 'categoryIds',
+			collection: 'categories',
+			displayField: 'name',
+			required: true,
+			multiple: true, // ✅ Enables multiple selection
+			min: 1,
+			max: 5
+		})
+	]
 };
 ```
 
@@ -199,12 +197,12 @@ The `Relation` widget abstraction handles data retrieval regardless of the under
 
 ```typescript
 // Single Relation
-const post = await dbAdapter.find("posts", { id: "post_123" });
-const author = await dbAdapter.find("users", { id: post.authorId });
+const post = await dbAdapter.find('posts', { id: 'post_123' });
+const author = await dbAdapter.find('users', { id: post.authorId });
 
 // Multiple Relation
-const product = await dbAdapter.find("products", { id: "prod_123" });
-const categories = await dbAdapter.findMany("categories", { id: { $in: product.categoryIds } });
+const product = await dbAdapter.find('products', { id: 'prod_123' });
+const categories = await dbAdapter.findMany('categories', { id: { $in: product.categoryIds } });
 ```
 
 ### Advanced Querying
@@ -215,14 +213,14 @@ For complex joins, use the `dbAdapter`'s aggregation or query capabilities.
 
 ```typescript
 db.products.aggregate([
-  {
-    $lookup: {
-      from: "categories",
-      localField: "categoryIds",
-      foreignField: "_id",
-      as: "categories",
-    },
-  },
+	{
+		$lookup: {
+			from: 'categories',
+			localField: 'categoryIds',
+			foreignField: '_id',
+			as: 'categories'
+		}
+	}
 ]);
 ```
 

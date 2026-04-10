@@ -4,16 +4,16 @@
 **updatedPassword Email component to reset password**
 -->
 <script lang="ts">
-// @ts-nocheck
+	// @ts-nocheck
 
-import type { User } from "@src/databases/auth/types";
-import { Section, Text } from "better-svelte-email";
+	import type { User } from '@src/databases/auth/types';
+	import { Section, Text } from 'better-svelte-email';
 
-interface Props {
-	user: User;
-}
+	interface Props {
+		user: User;
+	}
 
-const { user }: Props = $props();
+	const { user }: Props = $props();
 </script>
 
 <Section>

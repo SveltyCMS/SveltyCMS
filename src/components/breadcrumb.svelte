@@ -3,7 +3,7 @@
 @description
 Accessible breadcrumb navigation with icons, keyboard support, and visual feedback.
 
-@component
+@component 
 **Enhanced Breadcrumb - Svelte 5 Optimized**
 
 @example
@@ -29,89 +29,89 @@ Accessible breadcrumb navigation with icons, keyboard support, and visual feedba
 -->
 
 <script lang="ts">
-interface Folder {
-	_id: string;
-	name: string;
-	path: string[];
-}
-
-interface Props {
-	breadcrumb: string[];
-	folders: Folder[];
-	maxVisible?: number;
-	openFolder: (folderId: string | null) => void;
-}
-
-const { breadcrumb, openFolder, folders, maxVisible = 5 }: Props = $props();
-
-// State
-let showAll = $state(false);
-
-// Determine if breadcrumb needs truncation
-const needsTruncation = $derived(breadcrumb.length > maxVisible && !showAll);
-
-// Visible breadcrumb items
-const visibleBreadcrumb = $derived(() => {
-	if (!needsTruncation || showAll) {
-		return breadcrumb;
+	interface Folder {
+		_id: string;
+		name: string;
+		path: string[];
 	}
 
-	// Show first, ellipsis, and last two items
-	return [breadcrumb[0], "...", ...breadcrumb.slice(-2)];
-});
-
-// Get visible indices (maps visible items to original indices)
-const visibleIndices = $derived(() => {
-	if (!needsTruncation || showAll) {
-		return breadcrumb.map((_, i) => i);
+	interface Props {
+		breadcrumb: string[];
+		folders: Folder[];
+		maxVisible?: number;
+		openFolder: (folderId: string | null) => void;
 	}
 
-	return [
-		0,
-		-1, // Ellipsis
-		breadcrumb.length - 2,
-		breadcrumb.length - 1,
-	];
-});
+	const { breadcrumb, openFolder, folders, maxVisible = 5 }: Props = $props();
 
-// Handle breadcrumb click
-function handleBreadcrumbClick(visibleIndex: number) {
-	const actualIndex = visibleIndices()[visibleIndex];
+	// State
+	let showAll = $state(false);
 
-	// Skip ellipsis clicks
-	if (actualIndex === -1) {
-		showAll = true;
-		return;
+	// Determine if breadcrumb needs truncation
+	const needsTruncation = $derived(breadcrumb.length > maxVisible && !showAll);
+
+	// Visible breadcrumb items
+	const visibleBreadcrumb = $derived(() => {
+		if (!needsTruncation || showAll) {
+			return breadcrumb;
+		}
+
+		// Show first, ellipsis, and last two items
+		return [breadcrumb[0], '...', ...breadcrumb.slice(-2)];
+	});
+
+	// Get visible indices (maps visible items to original indices)
+	const visibleIndices = $derived(() => {
+		if (!needsTruncation || showAll) {
+			return breadcrumb.map((_, i) => i);
+		}
+
+		return [
+			0,
+			-1, // Ellipsis
+			breadcrumb.length - 2,
+			breadcrumb.length - 1
+		];
+	});
+
+	// Handle breadcrumb click
+	function handleBreadcrumbClick(visibleIndex: number) {
+		const actualIndex = visibleIndices()[visibleIndex];
+
+		// Skip ellipsis clicks
+		if (actualIndex === -1) {
+			showAll = true;
+			return;
+		}
+
+		if (actualIndex === 0) {
+			// Click on home/root
+			openFolder(null);
+		} else {
+			// Find the folder matching the breadcrumb
+			const folder = folders[actualIndex];
+			openFolder(folder ? folder._id : null);
+		}
 	}
 
-	if (actualIndex === 0) {
-		// Click on home/root
-		openFolder(null);
-	} else {
-		// Find the folder matching the breadcrumb
-		const folder = folders[actualIndex];
-		openFolder(folder ? folder._id : null);
+	// Copy path to clipboard
+	async function copyPath() {
+		const path = breadcrumb.join(' > ');
+		try {
+			await navigator.clipboard.writeText(path);
+			// Could show a toast notification here
+		} catch (err) {
+			console.error('Failed to copy path:', err);
+		}
 	}
-}
 
-// Copy path to clipboard
-async function copyPath() {
-	const path = breadcrumb.join(" > ");
-	try {
-		await navigator.clipboard.writeText(path);
-		// Could show a toast notification here
-	} catch (err) {
-		console.error("Failed to copy path:", err);
+	// Handle keyboard navigation
+	function handleKeydown(event: KeyboardEvent, index: number) {
+		if (event.key === 'Enter' || event.key === ' ') {
+			event.preventDefault();
+			handleBreadcrumbClick(index);
+		}
 	}
-}
-
-// Handle keyboard navigation
-function handleKeydown(event: KeyboardEvent, index: number) {
-	if (event.key === "Enter" || event.key === " ") {
-		event.preventDefault();
-		handleBreadcrumbClick(index);
-	}
-}
 </script>
 
 <nav aria-label="Breadcrumb navigation" class="flex items-center gap-2">
@@ -148,11 +148,11 @@ function handleKeydown(event: KeyboardEvent, index: number) {
 						{#if actualIndex === 0}
 							<!-- Home icon -->
 							<iconify-icon icon="mdi:home" width="18" class="shrink-0 text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-							<span class="max-w-37.5 truncate">{crumb}</span>
+							<span class="max-w-[150px] truncate">{crumb}</span>
 						{:else}
 							<!-- Folder icon -->
 							<iconify-icon icon="mdi:folder" width="18" class="shrink-0 text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-							<span class="max-w-37.5 truncate">{crumb}</span>
+							<span class="max-w-[150px] truncate">{crumb}</span>
 						{/if}
 					</button>
 				{/if}

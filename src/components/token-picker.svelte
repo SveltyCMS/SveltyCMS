@@ -12,323 +12,283 @@
 -->
 
 <script lang="ts">
-import { replaceTokens, TokenRegistry } from "@src/services/token/engine";
-import { modifierMetadata } from "@src/services/token/modifiers";
-import type {
-	ModifierMetadata,
-	TokenDefinition,
-} from "@src/services/token/types";
-import { activeInput } from "@src/stores/active-input-store.svelte";
-import {
-	collection,
-	collectionValue,
-} from "@src/stores/collection-store.svelte";
-import { publicEnv } from "@src/stores/global-settings.svelte";
-import { ui } from "@src/stores/ui-store.svelte";
-import { nowISODateString } from "@utils/date-utils";
-import { fade, slide } from "svelte/transition";
+	import { replaceTokens, TokenRegistry } from '@src/services/token/engine';
+	import { modifierMetadata } from '@src/services/token/modifiers';
+	import type { ModifierMetadata, TokenDefinition } from '@src/services/token/types';
+	import { activeInput } from '@src/stores/active-input-store.svelte';
+	import { collection, collectionValue } from '@src/stores/collection-store.svelte';
+	import { publicEnv } from '@src/stores/global-settings.svelte';
+	import { ui } from '@src/stores/ui-store.svelte';
+	import { nowISODateString } from '@utils/date-utils';
+	import { fade, slide } from 'svelte/transition';
 
-import { page } from "$app/state";
+	import { page } from '$app/state';
 
-const icons: Record<string, string> = {
-	entry: "mdi:file-document-outline",
-	user: "mdi:account-circle-outline",
-	site: "mdi:web",
-	system: "mdi:cog-outline",
-};
+	const icons: Record<string, string> = {
+		entry: 'mdi:file-document-outline',
+		user: 'mdi:account-circle-outline',
+		site: 'mdi:web',
+		system: 'mdi:cog-outline'
+	};
 
-// Reactive state
-let mode = $state<"list" | "configure">("list");
-let search = $state("");
-let selectedToken = $state<TokenDefinition | null>(null);
-let selectedModifiers = $state<{ def: ModifierMetadata; args: unknown[] }[]>(
-	[],
-);
-let resolvedPreview = $state("");
-let isLoadingPreview = $state(false);
-let editablePreview = $state("");
-let previousTokenResult = $state("");
+	// Reactive state
+	let mode = $state<'list' | 'configure'>('list');
+	let search = $state('');
+	let selectedToken = $state<TokenDefinition | null>(null);
+	let selectedModifiers = $state<{ def: ModifierMetadata; args: unknown[] }[]>([]);
+	let resolvedPreview = $state('');
+	let isLoadingPreview = $state(false);
+	let editablePreview = $state('');
+	let previousTokenResult = $state('');
 
-// UI state
-let showInfo = $state<Record<string, boolean>>({});
-let openCategories = $state<Record<string, boolean>>({
-	entry: true,
-	user: false,
-	site: false,
-	system: false,
-});
-
-// Derived data
-let groupedTokens = $derived(
-	TokenRegistry.getTokens(collection.value ?? undefined, page.data?.user),
-);
-
-let filteredGroups = $derived.by(() => {
-	const q = search.toLowerCase();
-	const result: Record<string, TokenDefinition[]> = {};
-	for (const [cat, tokens] of Object.entries(groupedTokens)) {
-		const filtered = tokens.filter(
-			(t) =>
-				t.name.toLowerCase().includes(q) || t.token.toLowerCase().includes(q),
-		);
-		if (filtered.length > 0) {
-			result[cat] = filtered;
-		}
-	}
-	return result;
-});
-
-let availableModifiers = $derived(
-	selectedToken
-		? modifierMetadata.filter(
-				(m) =>
-					m.accepts.includes(selectedToken!.type) || m.accepts.includes("any"),
-			)
-		: [],
-);
-
-let tokenResult = $derived.by(() => {
-	if (!selectedToken) {
-		return "";
-	}
-	let str = `{{ ${selectedToken.token}`;
-	selectedModifiers.forEach((mod) => {
-		str += ` | ${mod.def.name}`;
-		if (
-			mod.args.length > 0 &&
-			mod.args.some((a) => a !== undefined && a !== "")
-		) {
-			const argStr = mod.args
-				.map((a) => (typeof a === "string" ? `'${a}'` : String(a)))
-				.join(",");
-			str += `(${argStr})`;
-		}
+	// UI state
+	let showInfo = $state<Record<string, boolean>>({});
+	let openCategories = $state<Record<string, boolean>>({
+		entry: true,
+		user: false,
+		site: false,
+		system: false
 	});
-	str += " }}";
-	return str;
-});
 
-let rightPosition = $derived(ui.isRightSidebarVisible ? "340px" : "2rem");
+	// Derived data
+	let groupedTokens = $derived(TokenRegistry.getTokens(collection.value ?? undefined, page.data?.user));
 
-// Debounced live preview resolution
-let debounceTimer: ReturnType<typeof setTimeout> | undefined;
-$effect(() => {
-	const text = editablePreview;
-	if (!text) {
-		resolvedPreview = "";
-		isLoadingPreview = false;
-		return;
-	}
+	let filteredGroups = $derived.by(() => {
+		const q = search.toLowerCase();
+		const result: Record<string, TokenDefinition[]> = {};
+		for (const [cat, tokens] of Object.entries(groupedTokens)) {
+			const filtered = tokens.filter((t) => t.name.toLowerCase().includes(q) || t.token.toLowerCase().includes(q));
+			if (filtered.length > 0) {
+				result[cat] = filtered;
+			}
+		}
+		return result;
+	});
 
-	clearTimeout(debounceTimer);
-	debounceTimer = setTimeout(async () => {
-		isLoadingPreview = true;
-		try {
-			const context = {
-				entry: collectionValue.value,
-				user: page.data.user,
-				site: publicEnv,
-				system: { now: nowISODateString() },
-			};
-			resolvedPreview = await replaceTokens(text, context);
-		} catch (e) {
-			console.error("Token preview resolution failed", e);
-			resolvedPreview = "Error";
-		} finally {
+	let availableModifiers = $derived(
+		selectedToken ? modifierMetadata.filter((m) => m.accepts.includes(selectedToken!.type) || m.accepts.includes('any')) : []
+	);
+
+	let tokenResult = $derived.by(() => {
+		if (!selectedToken) {
+			return '';
+		}
+		let str = `{{ ${selectedToken.token}`;
+		selectedModifiers.forEach((mod) => {
+			str += ` | ${mod.def.name}`;
+			if (mod.args.length > 0 && mod.args.some((a) => a !== undefined && a !== '')) {
+				const argStr = mod.args.map((a) => (typeof a === 'string' ? `'${a}'` : String(a))).join(',');
+				str += `(${argStr})`;
+			}
+		});
+		str += ' }}';
+		return str;
+	});
+
+	let rightPosition = $derived(ui.isRightSidebarVisible ? '340px' : '2rem');
+
+	// Debounced live preview resolution
+	let debounceTimer: ReturnType<typeof setTimeout> | undefined;
+	$effect(() => {
+		const text = editablePreview;
+		if (!text) {
+			resolvedPreview = '';
 			isLoadingPreview = false;
-		}
-	}, 150);
-});
-
-// Smart token detection from active input on open/change
-$effect(() => {
-	if (!activeInput.current) {
-		// Reset everything on close
-		mode = "list";
-		selectedToken = null;
-		selectedModifiers = [];
-		search = "";
-		resolvedPreview = "";
-		isLoadingPreview = false;
-		showInfo = {};
-		editablePreview = "";
-		previousTokenResult = "";
-		return;
-	}
-
-	const input = activeInput.current.element;
-	if (!input?.value) {
-		return;
-	}
-
-	const match = input.value.match(/\{\{\s*([^}]+)\s*\}\}/);
-	if (!match) {
-		return;
-	}
-
-	const [tokenPath, ...modParts] = match[1]
-		.split("|")
-		.map((s: string) => s.trim());
-	const foundToken = Object.values(groupedTokens)
-		.flat()
-		.find((t) => t.token === tokenPath);
-
-	if (foundToken) {
-		selectedToken = foundToken;
-		mode = "configure";
-		selectedModifiers = modParts
-			.map((modStr: string) => {
-				const m = modStr.match(/^(\w+)(?:\((.*)\))?$/);
-				if (!m) {
-					return null;
-				}
-				const modDef = modifierMetadata.find(
-					(md) => md.name === m[1].toLowerCase(),
-				);
-				if (!modDef) {
-					return null;
-				}
-				const rawArgs = m[2]
-					? m[2]
-							.split(",")
-							.map((s: string) => s.trim().replace(/^['"]|['"]$/g, ""))
-					: [];
-				const args = modDef.args.map((a, i) => rawArgs[i] ?? a.default);
-				return { def: modDef, args };
-			})
-			.filter(Boolean) as { def: ModifierMetadata; args: unknown[] }[];
-	}
-});
-
-// Smart editable preview handling
-$effect(() => {
-	const currentToken = tokenResult;
-	const active = activeInput.current;
-
-	if (currentToken !== previousTokenResult) {
-		if (previousTokenResult && editablePreview.includes(previousTokenResult)) {
-			editablePreview = editablePreview.replace(
-				previousTokenResult,
-				currentToken,
-			);
-		} else if (!editablePreview && active?.element) {
-			const el = active.element;
-			const start = el.selectionStart ?? el.value.length;
-			editablePreview =
-				el.value.slice(0, start) +
-				currentToken +
-				el.value.slice(el.selectionEnd ?? start);
-		} else if (!editablePreview) {
-			editablePreview = currentToken;
-		}
-		previousTokenResult = currentToken;
-	}
-});
-
-// Actions
-function selectToken(t: TokenDefinition) {
-	selectedToken = t;
-	selectedModifiers = [];
-	mode = "configure";
-	previousTokenResult = "";
-	editablePreview = "";
-}
-
-function addModifier(m: ModifierMetadata) {
-	const args = m.args.map((a) => a.default);
-	selectedModifiers = [...selectedModifiers, { def: m, args }];
-}
-
-function removeModifier(i: number) {
-	selectedModifiers = selectedModifiers.filter((_, idx) => idx !== i);
-}
-
-function insert() {
-	const active = activeInput.current;
-	if (!active) {
-		return;
-	}
-
-	if (active.onInsert) {
-		active.onInsert(editablePreview.trim());
-		activeInput.set(null);
-		return;
-	}
-
-	const el = active.element;
-	if (!el) {
-		return;
-	}
-
-	el.value = editablePreview.trim();
-	el.focus();
-	el.setSelectionRange(el.value.length, el.value.length);
-	el.dispatchEvent(new Event("input", { bubbles: true }));
-	el.dispatchEvent(new Event("change", { bubbles: true }));
-
-	activeInput.set(null);
-}
-
-function addAnotherToken() {
-	mode = "list";
-	selectedToken = null;
-	selectedModifiers = [];
-	previousTokenResult = "";
-}
-
-function back() {
-	mode = "list";
-	selectedToken = null;
-	selectedModifiers = [];
-	previousTokenResult = "";
-}
-
-function deleteToken() {
-	const active = activeInput.current;
-	if (!active?.element) {
-		return;
-	}
-
-	active.element.value = "";
-	active.element.dispatchEvent(new Event("input", { bubbles: true }));
-	active.element.dispatchEvent(new Event("change", { bubbles: true }));
-	activeInput.set(null);
-}
-
-function toggleInfo(token: string, e: Event) {
-	e.stopPropagation();
-	showInfo[token] = !showInfo[token];
-}
-
-// Draggable
-function draggable(node: HTMLElement) {
-	let x = 0,
-		y = 0;
-	const container = node.closest(".token-window") as HTMLElement;
-	const move = (e: MouseEvent) => {
-		container.style.top = `${container.offsetTop + e.clientY - y}px`;
-		container.style.left = `${container.offsetLeft + e.clientX - x}px`;
-		x = e.clientX;
-		y = e.clientY;
-	};
-	const stop = () => {
-		window.removeEventListener("mousemove", move);
-		window.removeEventListener("mouseup", stop);
-	};
-	const handleMouseDown = (e: MouseEvent) => {
-		if ((e.target as HTMLElement).closest("button")) {
 			return;
 		}
-		x = e.clientX;
-		y = e.clientY;
-		window.addEventListener("mousemove", move);
-		window.addEventListener("mouseup", stop);
-	};
-	node.addEventListener("mousedown", handleMouseDown);
-	return {
-		destroy: () => node.removeEventListener("mousedown", handleMouseDown),
-	};
-}
+
+		clearTimeout(debounceTimer);
+		debounceTimer = setTimeout(async () => {
+			isLoadingPreview = true;
+			try {
+				const context = {
+					entry: collectionValue.value,
+					user: page.data.user,
+					site: publicEnv,
+					system: { now: nowISODateString() }
+				};
+				resolvedPreview = await replaceTokens(text, context);
+			} catch (e) {
+				console.error('Token preview resolution failed', e);
+				resolvedPreview = 'Error';
+			} finally {
+				isLoadingPreview = false;
+			}
+		}, 150);
+	});
+
+	// Smart token detection from active input on open/change
+	$effect(() => {
+		if (!activeInput.current) {
+			// Reset everything on close
+			mode = 'list';
+			selectedToken = null;
+			selectedModifiers = [];
+			search = '';
+			resolvedPreview = '';
+			isLoadingPreview = false;
+			showInfo = {};
+			editablePreview = '';
+			previousTokenResult = '';
+			return;
+		}
+
+		const input = activeInput.current.element;
+		if (!input?.value) {
+			return;
+		}
+
+		const match = input.value.match(/\{\{\s*([^}]+)\s*\}\}/);
+		if (!match) {
+			return;
+		}
+
+		const [tokenPath, ...modParts] = match[1].split('|').map((s: string) => s.trim());
+		const foundToken = Object.values(groupedTokens)
+			.flat()
+			.find((t) => t.token === tokenPath);
+
+		if (foundToken) {
+			selectedToken = foundToken;
+			mode = 'configure';
+			selectedModifiers = modParts
+				.map((modStr: string) => {
+					const m = modStr.match(/^(\w+)(?:\((.*)\))?$/);
+					if (!m) {
+						return null;
+					}
+					const modDef = modifierMetadata.find((md) => md.name === m[1].toLowerCase());
+					if (!modDef) {
+						return null;
+					}
+					const rawArgs = m[2] ? m[2].split(',').map((s: string) => s.trim().replace(/^['"]|['"]$/g, '')) : [];
+					const args = modDef.args.map((a, i) => rawArgs[i] ?? a.default);
+					return { def: modDef, args };
+				})
+				.filter(Boolean) as { def: ModifierMetadata; args: unknown[] }[];
+		}
+	});
+
+	// Smart editable preview handling
+	$effect(() => {
+		const currentToken = tokenResult;
+		const active = activeInput.current;
+
+		if (currentToken !== previousTokenResult) {
+			if (previousTokenResult && editablePreview.includes(previousTokenResult)) {
+				editablePreview = editablePreview.replace(previousTokenResult, currentToken);
+			} else if (!editablePreview && active?.element) {
+				const el = active.element;
+				const start = el.selectionStart ?? el.value.length;
+				editablePreview = el.value.slice(0, start) + currentToken + el.value.slice(el.selectionEnd ?? start);
+			} else if (!editablePreview) {
+				editablePreview = currentToken;
+			}
+			previousTokenResult = currentToken;
+		}
+	});
+
+	// Actions
+	function selectToken(t: TokenDefinition) {
+		selectedToken = t;
+		selectedModifiers = [];
+		mode = 'configure';
+		previousTokenResult = '';
+		editablePreview = '';
+	}
+
+	function addModifier(m: ModifierMetadata) {
+		const args = m.args.map((a) => a.default);
+		selectedModifiers = [...selectedModifiers, { def: m, args }];
+	}
+
+	function removeModifier(i: number) {
+		selectedModifiers = selectedModifiers.filter((_, idx) => idx !== i);
+	}
+
+	function insert() {
+		const active = activeInput.current;
+		if (!active) {
+			return;
+		}
+
+		if (active.onInsert) {
+			active.onInsert(editablePreview.trim());
+			activeInput.set(null);
+			return;
+		}
+
+		const el = active.element;
+		if (!el) {
+			return;
+		}
+
+		el.value = editablePreview.trim();
+		el.focus();
+		el.setSelectionRange(el.value.length, el.value.length);
+		el.dispatchEvent(new Event('input', { bubbles: true }));
+		el.dispatchEvent(new Event('change', { bubbles: true }));
+
+		activeInput.set(null);
+	}
+
+	function addAnotherToken() {
+		mode = 'list';
+		selectedToken = null;
+		selectedModifiers = [];
+		previousTokenResult = '';
+	}
+
+	function back() {
+		mode = 'list';
+		selectedToken = null;
+		selectedModifiers = [];
+		previousTokenResult = '';
+	}
+
+	function deleteToken() {
+		const active = activeInput.current;
+		if (!active?.element) {
+			return;
+		}
+
+		active.element.value = '';
+		active.element.dispatchEvent(new Event('input', { bubbles: true }));
+		active.element.dispatchEvent(new Event('change', { bubbles: true }));
+		activeInput.set(null);
+	}
+
+	function toggleInfo(token: string, e: Event) {
+		e.stopPropagation();
+		showInfo[token] = !showInfo[token];
+	}
+
+	// Draggable
+	function draggable(node: HTMLElement) {
+		let x = 0,
+			y = 0;
+		const container = node.closest('.token-window') as HTMLElement;
+		const move = (e: MouseEvent) => {
+			container.style.top = `${container.offsetTop + e.clientY - y}px`;
+			container.style.left = `${container.offsetLeft + e.clientX - x}px`;
+			x = e.clientX;
+			y = e.clientY;
+		};
+		const stop = () => {
+			window.removeEventListener('mousemove', move);
+			window.removeEventListener('mouseup', stop);
+		};
+		node.addEventListener('mousedown', (e) => {
+			if ((e.target as HTMLElement).closest('button')) {
+				return;
+			}
+			x = e.clientX;
+			y = e.clientY;
+			window.addEventListener('mousemove', move);
+			window.addEventListener('mouseup', stop);
+		});
+		return { destroy: () => node.removeEventListener('mousedown', () => {}) };
+	}
 </script>
 
 {#if activeInput.current}

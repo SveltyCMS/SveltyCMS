@@ -33,7 +33,7 @@ When you define collections in `config/collections/`, SveltyCMS automatically:
 
 ### 1. Vite Plugin Watcher
 
-The system uses a Vite plugin (`src/content/vite.ts`) that watches for changes in `.compiledCollections/`. It loads the `contentManager` to retrieve the latest schema state and injects the updated union type into `src/content/types.ts`.
+The system uses a Vite plugin (`src/content/vite.ts`) that watches for changes in `.compiledCollections/`. It loads the `contentSystem` to retrieve the latest schema state and injects the updated union type into `src/content/types.ts`.
 
 ### 2. Marker Comments for Stability
 
@@ -56,7 +56,7 @@ Autocomplete for collection names and validation for field types.
 ```typescript
 import type { ContentTypes } from "@src/content/types";
 function getCollection(name: ContentTypes) {
-  return contentManager.collections.get(name);
+  return contentSystem.collections.get(name);
 }
 ```
 

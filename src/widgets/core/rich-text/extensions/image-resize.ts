@@ -47,11 +47,11 @@ const ImageResize = ImageExtension.extend({
       ...this.parent?.(),
       setImageFloat:
         (side: "left" | "right" | "unset") =>
-        ({ commands }: any) =>
+        ({ commands }) =>
           commands.updateAttributes(this.name, { float: side }),
       setImageDescription:
         (description: string) =>
-        ({ commands }: any) =>
+        ({ commands }) =>
           commands.updateAttributes(this.name, { description }),
     };
   },
@@ -63,58 +63,56 @@ const ImageResize = ImageExtension.extend({
       },
       storage_image: {
         default: null,
-        parseHTML: (element: any) =>
+        parseHTML: (element) =>
           (element.querySelector("img") as HTMLElement).getAttribute("storage_image"),
       },
       src: {
         default: null,
-        parseHTML: (element: any) =>
-          (element.querySelector("img") as HTMLElement).getAttribute("src"),
+        parseHTML: (element) => (element.querySelector("img") as HTMLElement).getAttribute("src"),
       },
       alt: {
         default: null,
-        parseHTML: (element: any) =>
-          (element.querySelector("img") as HTMLElement).getAttribute("alt"),
+        parseHTML: (element) => (element.querySelector("img") as HTMLElement).getAttribute("alt"),
       },
       float: {
         default: "unset",
-        parseHTML: (element: any) => (element as HTMLElement).style.float,
+        parseHTML: (element) => (element as HTMLElement).style.float,
       },
       w: {
         default: "200px",
-        parseHTML: (element: any) => (element as HTMLElement).style.width,
+        parseHTML: (element) => (element as HTMLElement).style.width,
       },
       h: {
         default: null,
-        parseHTML: (element: any) => (element as HTMLElement).style.height,
+        parseHTML: (element) => (element as HTMLElement).style.height,
       },
       margin: {
         default: "unset",
-        parseHTML: (element: any) => (element as HTMLElement).style.margin,
+        parseHTML: (element) => (element as HTMLElement).style.margin,
       },
       textAlign: {
         default: "unset",
-        parseHTML: (element: any) => (element as HTMLElement).style.textAlign,
+        parseHTML: (element) => (element as HTMLElement).style.textAlign,
       },
       default: {
         default: false,
       },
       description: {
         default: "",
-        parseHTML: (element: any) => {
+        parseHTML: (element) => {
           return (element.querySelector(".description") as HTMLElement)?.innerText || "";
         },
       },
       style: {
         default: null,
-        parseHTML: (element: any) => {
+        parseHTML: (element) => {
           return element.style.cssText;
         },
       },
     };
   },
 
-  renderHTML({ HTMLAttributes }: any) {
+  renderHTML({ HTMLAttributes }) {
     const { float, w, h, margin, textAlign, description, ...rest } = HTMLAttributes;
     return [
       "div",
@@ -139,7 +137,7 @@ const ImageResize = ImageExtension.extend({
     return [
       {
         tag: 'div[style*="float"]',
-        getAttrs: (node: any) => {
+        getAttrs: (node) => {
           if ((node as HTMLElement).querySelector("img")) {
             return {};
           }
@@ -148,7 +146,7 @@ const ImageResize = ImageExtension.extend({
       },
       {
         tag: "img[src]",
-        getAttrs: (node: any) => {
+        getAttrs: (node) => {
           if ((node as HTMLElement).closest('div[style*="float"]')) {
             return false;
           }
@@ -159,7 +157,7 @@ const ImageResize = ImageExtension.extend({
   },
 
   addNodeView() {
-    return ({ editor, node, getPos }: any) => {
+    return ({ editor, node, getPos }) => {
       const nodeAttrs = (node as any).attrs as Record<string, unknown>;
       nodeAttrs._ = null;
 

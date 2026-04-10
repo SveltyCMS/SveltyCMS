@@ -1,21 +1,6 @@
 /**
- * @file src/routes/setup/setup-manager.ts
- * @description
- * Singleton service for managing the background orchestration of the SveltyCMS setup process.
- * Tracks seeding progress, handles asynchronous task execution, and manages project initialization state.
- *
- * Responsibilities include:
- * - Orchestrating background seeding tasks to prevent UI blocking.
- * - Tracking and reporting real-time progress for project data initialization.
- * - Capturing and classifying background errors for failure reporting.
- * - Providing a centralized synchronization point for the setup lifecycle.
- *
- * ### Features:
- * - atomic state management for seeding status
- * - real-time progress calculating heuristics
- * - asynchronous "fire-and-forget" background worker
- * - error persistence and logging orchestration
- * - singleton pattern for global state consistency
+ * @file src/routes/setup/setupManager.ts
+ * @description Manages the setup state and progress tracking.
  */
 import { logger } from "@utils/logger";
 

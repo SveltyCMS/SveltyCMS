@@ -1,305 +1,297 @@
 <!--
-@file src/routes/setup/database-config.svelte
-@component
-**Step 1: Database infrastructure configuration.**
-Provides a comprehensive interface for connection strings, credential management, and real-time connectivity testing across multiple database engines.
-
-### Features:
-- multi-engine support (MongoDB, MariaDB, PostgreSQL, SQLite)
-- connection string parsing & auto-fill
-- specialized MongoDB Atlas helper UI
-- real-time connection status monitoring
-- automatic database creation (where supported)
-- driver dependency detection & status indicators
+@file src/routes/setup/DatabaseConfig.svelte
+@description Database configuration step component extracted from +page.svelte for maintainability.
+Provides DB type, host, port, name, user, password inputs, validation display, test button, and change warning.
 -->
 <script lang="ts">
-import SystemTooltip from "@src/components/system/system-tooltip.svelte";
-import {
-	common_confirm_no,
-	common_confirm_yes,
-	setup_button_test_connection,
-	setup_database_host,
-	setup_database_host_placeholder,
-	setup_database_intro,
-	setup_database_name,
-	setup_database_name_placeholder,
-	setup_database_password,
-	setup_database_password_placeholder,
-	setup_database_port,
-	setup_database_port_placeholder,
-	setup_database_user,
-	setup_database_user_placeholder,
-	setup_db_coming_soon,
-	setup_db_not_found_desc,
-	setup_db_not_found_title,
-	setup_db_postgres_mysql_note,
-	setup_db_postgres_mysql_timeline,
-	setup_help_database_host,
-	setup_help_database_name,
-	setup_help_database_password,
-	setup_help_database_port,
-	setup_help_database_type,
-	setup_help_database_user,
-	setup_label_database_type,
-} from "@src/paraglide/messages";
-import type { ValidationErrors } from "@src/stores/setup-store.svelte";
-import { setupStore } from "@src/stores/setup-store.svelte.ts";
-import { dbConfigSchema } from "@utils/form-schemas";
-import { showConfirm } from "@utils/modal-utils";
-import { safeParse } from "valibot";
-import { deserialize } from "$app/forms";
-import { parseConnectionString } from "@utils/connection-parser";
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+	import {
+		common_confirm_no,
+		common_confirm_yes,
+		setup_button_test_connection,
+		setup_database_host,
+		setup_database_host_placeholder,
+		setup_database_intro,
+		setup_database_name,
+		setup_database_name_placeholder,
+		setup_database_password,
+		setup_database_password_placeholder,
+		setup_database_port,
+		setup_database_port_placeholder,
+		setup_database_user,
+		setup_database_user_placeholder,
+		setup_db_coming_soon,
+		setup_db_not_found_desc,
+		setup_db_not_found_title,
+		setup_db_postgres_mysql_note,
+		setup_db_postgres_mysql_timeline,
+		setup_help_database_host,
+		setup_help_database_name,
+		setup_help_database_password,
+		setup_help_database_port,
+		setup_help_database_type,
+		setup_help_database_user,
+		setup_label_database_type
+	} from '@src/paraglide/messages';
+	import type { ValidationErrors } from '@src/stores/setup-store.svelte';
+	import { setupStore } from '@src/stores/setup-store.svelte.ts';
+	import { dbConfigSchema } from '@utils/form-schemas';
+	import { logger } from '@utils/logger';
+	import { showConfirm } from '@utils/modal-utils';
+	import { safeParse } from 'valibot';
+	import { deserialize } from '$app/forms';
 
-// Popup settings (click to toggle)
+	// Popup settings (click to toggle)
 
-// Props from parent wizard (destructure via $props to allow internal mutation without warnings)
-let {
-	dbConfig = $bindable(),
-	validationErrors,
-	isLoading,
-	showDbPassword = $bindable(),
-	toggleDbPassword,
-	testDatabaseConnection,
-	dbConfigChangedSinceTest,
-	clearDbTestError,
-	errorMessage,
-	successMessage,
-} = $props();
+	// Props from parent wizard (destructure via $props to allow internal mutation without warnings)
+	let {
+		dbConfig = $bindable(),
+		validationErrors,
+		isLoading,
+		showDbPassword = $bindable(),
+		toggleDbPassword,
+		testDatabaseConnection,
+		dbConfigChangedSinceTest,
+		clearDbTestError,
+		errorMessage,
+		successMessage
+	} = $props();
 
-let unsupportedDbSelected = $state(false);
-const isAtlas = $derived(dbConfig.type === "mongodb+srv");
-let isInstallingDriver = $state(false);
-let installError = $state("");
-let installSuccess = $state("");
-let showConnectionStringHelper = $state(false);
-let showAtlasHelper = $state(true); // Collapsible Atlas helper
-let showTroubleshooting = $state(false); // Collapsible troubleshooting steps
+	let unsupportedDbSelected = $state(false);
+	const isAtlas = $derived(dbConfig.type === 'mongodb+srv');
+	let isInstallingDriver = $state(false);
+	let installError = $state('');
+	let installSuccess = $state('');
+	let showConnectionStringHelper = $state(false);
+	let showAtlasHelper = $state(true); // Collapsible Atlas helper
 
-// Track which fields have been touched (blurred)
-let touchedFields = $state(new Set<string>());
+	// Track which fields have been touched (blurred)
+	let touchedFields = $state(new Set<string>());
 
-// Real-time validation state (always computed, but only shown for touched fields)
-let localValidationErrors = $state<ValidationErrors>({});
+	// Real-time validation state (always computed, but only shown for touched fields)
+	let localValidationErrors = $state<ValidationErrors>({});
 
-// Validate form data in real-time
-const validationResult = $derived(
-	safeParse(dbConfigSchema, {
-		type: dbConfig.type,
-		host: dbConfig.host,
-		port: dbConfig.port,
-		name: dbConfig.name,
-		user: dbConfig.user,
-		password: dbConfig.password,
-	}),
-);
+	// Validate form data in real-time
+	const validationResult = $derived(
+		safeParse(dbConfigSchema, {
+			type: dbConfig.type,
+			host: dbConfig.host,
+			port: dbConfig.port,
+			name: dbConfig.name,
+			user: dbConfig.user,
+			password: dbConfig.password
+		})
+	);
 
-// Update local validation errors when validation result changes
-$effect(() => {
-	const newErrors: ValidationErrors = {};
-	if (!validationResult.success) {
-		for (const issue of validationResult.issues) {
-			const path = issue.path?.[0]?.key as string;
-			if (path) {
-				newErrors[path] = issue.message;
+	// Update local validation errors when validation result changes
+	$effect(() => {
+		const newErrors: ValidationErrors = {};
+		if (!validationResult.success) {
+			for (const issue of validationResult.issues) {
+				const path = issue.path?.[0]?.key as string;
+				if (path) {
+					newErrors[path] = issue.message;
+				}
+			}
+		}
+		localValidationErrors = newErrors;
+	});
+
+	// Only display errors for fields that have been touched (blurred)
+	const displayErrors = $derived.by(() => {
+		const errors: ValidationErrors = {};
+
+		// Show validation errors only for touched fields
+		for (const field of touchedFields) {
+			if (localValidationErrors[field]) {
+				errors[field] = localValidationErrors[field];
+			}
+		}
+
+		// Parent validation errors always show (from API responses)
+		return {
+			...errors,
+			...validationErrors
+		};
+	}); // Handle field blur to mark as touched
+	function handleBlur(fieldName: string) {
+		touchedFields.add(fieldName);
+		touchedFields = touchedFields; // Trigger reactivity
+	} // Parse MongoDB connection string (Atlas or standard)
+	function parseMongoConnectionString(
+		connStr: string
+	): { host: string; user: string; password: string; database?: string; authSource?: string } | null {
+		try {
+			// Built-in URL parser is more robust for MongoDB URIs
+			const url = new URL(connStr.replace('mongodb+srv://', 'http://').replace('mongodb://', 'http://'));
+
+			const user = url.username ? decodeURIComponent(url.username) : '';
+			const password = url.password ? decodeURIComponent(url.password) : '';
+			const host = url.host;
+			const database = url.pathname.slice(1);
+			const authSource = url.searchParams.get('authSource') || (connStr.startsWith('mongodb+srv') ? undefined : 'admin');
+
+			return {
+				host,
+				user,
+				password: password === '<db_password>' || password === '<password>' ? '' : password,
+				database: database || '',
+				authSource
+			};
+		} catch (error) {
+			logger.error('Error parsing connection string:', error);
+			return null;
+		}
+	}
+
+	// Handle paste event to detect connection strings
+	function handleHostPaste(event: ClipboardEvent) {
+		const pastedText = event.clipboardData?.getData('text') || '';
+
+		if (pastedText.startsWith('mongodb://') || pastedText.startsWith('mongodb+srv://')) {
+			event.preventDefault();
+			const parsed = parseMongoConnectionString(pastedText);
+
+			if (parsed) {
+				// Update dbConfig with parsed values
+				dbConfig.type = pastedText.startsWith('mongodb+srv://') ? 'mongodb+srv' : 'mongodb';
+				dbConfig.host = parsed.host;
+				dbConfig.user = parsed.user;
+				dbConfig.password = parsed.password;
+
+				if (parsed.database) {
+					dbConfig.name = parsed.database;
+				}
+
+				// Clear any previous test errors
+				clearDbTestError();
 			}
 		}
 	}
-	localValidationErrors = newErrors;
-});
 
-// Only display errors for fields that have been touched (blurred)
-const displayErrors = $derived.by(() => {
-	const errors: ValidationErrors = {};
-
-	// Show validation errors only for touched fields
-	for (const field of touchedFields) {
-		if (localValidationErrors[field]) {
-			errors[field] = localValidationErrors[field];
-		}
-	}
-
-	// Parent validation errors always show (from API responses)
-	return {
-		...errors,
-		...validationErrors,
-	};
-});
-
-// Handle field blur to mark as touched
-function handleBlur(fieldName: string) {
-	touchedFields.add(fieldName);
-	touchedFields = new Set(touchedFields); // Trigger reactivity
-}
-
-// Handle paste event to detect connection strings
-function handleHostPaste(event: ClipboardEvent) {
-	const pastedText = event.clipboardData?.getData("text") || "";
-	const parsed = parseConnectionString(pastedText);
-
-	if (parsed) {
-		event.preventDefault();
-
-		// Update dbConfig with parsed values
-		dbConfig.type = parsed.type;
-		dbConfig.host = parsed.host;
-		dbConfig.user = parsed.user;
-		dbConfig.password = parsed.password;
-
-		if (parsed.port) {
-			dbConfig.port = parsed.port;
-		}
-		if (parsed.database) {
-			dbConfig.name = parsed.database;
-		}
-		if (parsed.authSource) {
-			dbConfig.authSource = parsed.authSource;
+	// Expose installDatabaseDriver to parent
+	export async function installDatabaseDriver(dbType: string) {
+		if (!dbType || dbType === 'mongodb' || dbType === 'mongodb+srv' || dbType === 'sqlite') {
+			// MongoDB and SQLite drivers are always available, no installation needed
+			return;
 		}
 
-		// Clear any previous test errors
-		clearDbTestError();
+		isInstallingDriver = true;
+		installError = '';
+		installSuccess = '';
 
-		showConnectionStringHelper = true;
-		setTimeout(() => {
-			showConnectionStringHelper = false;
-		}, 6000);
-	}
-}
+		try {
+			const formData = new FormData();
+			formData.append('dbType', dbType);
 
-// Expose installDatabaseDriver to parent
-export async function installDatabaseDriver(dbType: string) {
-	if (
-		!dbType ||
-		dbType === "mongodb" ||
-		dbType === "mongodb+srv" ||
-		dbType === "sqlite"
-	) {
-		// MongoDB and SQLite drivers are always available, no installation needed
-		return;
-	}
+			const response = await fetch('?/installDriver', {
+				method: 'POST',
+				body: formData
+			});
 
-	isInstallingDriver = true;
-	installError = "";
-	installSuccess = "";
+			const result = deserialize(await response.text());
 
-	try {
-		const formData = new FormData();
-		formData.append("dbType", dbType);
-
-		const response = await fetch("?/installDriver", {
-			method: "POST",
-			body: formData,
-		});
-
-		const result = deserialize(await response.text());
-
-		if (result.type === "success") {
-			const data = result.data as {
-				success: boolean;
-				message?: string;
-				alreadyInstalled?: boolean;
-				error?: string;
-			};
-			if (data.success) {
-				installSuccess =
-					data.message || `Successfully installed driver for ${dbType}`;
-				if (data.alreadyInstalled) {
-					installSuccess = `Driver for ${dbType} is already installed`;
+			if (result.type === 'success') {
+				const data = result.data as {
+					success: boolean;
+					message?: string;
+					alreadyInstalled?: boolean;
+					error?: string;
+				};
+				if (data.success) {
+					installSuccess = data.message || `Successfully installed driver for ${dbType}`;
+					if (data.alreadyInstalled) {
+						installSuccess = `Driver for ${dbType} is already installed`;
+					}
+				} else {
+					installError = data.error || `Failed to install driver for ${dbType}`;
 				}
 			} else {
-				installError = data.error || `Failed to install driver for ${dbType}`;
+				const errorMsg = (result as { data?: { error?: string } }).data?.error || `Failed to install driver for ${dbType}`;
+				installError = errorMsg;
 			}
-		} else {
-			const errorMsg =
-				(result as { data?: { error?: string } }).data?.error ||
-				`Failed to install driver for ${dbType}`;
-			installError = errorMsg;
+		} catch (error) {
+			installError = `Network error while installing driver: ${error instanceof Error ? error.message : String(error)}`;
+		} finally {
+			isInstallingDriver = false;
 		}
-	} catch (error) {
-		installError = `Network error while installing driver: ${error instanceof Error ? error.message : String(error)}`;
-	} finally {
-		isInstallingDriver = false;
-	}
-}
-
-async function handleTestConnection() {
-	await installDatabaseDriver(dbConfig.type);
-	const success = await testDatabaseConnection();
-
-	// Handle missing database confirmation
-	if (!success && setupStore.wizard.lastDbTestResult?.dbDoesNotExist) {
-		showConfirm({
-			title: setup_db_not_found_title({ dbName: dbConfig.name }),
-			body: setup_db_not_found_desc({ dbName: dbConfig.name }),
-			confirmText: common_confirm_yes(),
-			cancelText: common_confirm_no(),
-			onConfirm: async () => {
-				await testDatabaseConnection(true);
-			},
-		});
-	}
-}
-
-function handleTypeChange() {
-	clearDbTestError();
-
-	const isAtlas = dbConfig.type === "mongodb+srv";
-
-	// Smart host selection
-	if (!(isAtlas || dbConfig.host)) {
-		dbConfig.host = "localhost";
-	} else if (isAtlas && dbConfig.host === "localhost") {
-		dbConfig.host = "";
 	}
 
-	// Smart port selection based on database type
-	switch (dbConfig.type) {
-		case "mongodb":
-			dbConfig.port = "27017";
-			if (!dbConfig.name) {
-				dbConfig.name = "sveltycms";
-			}
-			break;
-		case "mariadb":
-			dbConfig.port = "3306";
-			if (!dbConfig.name) {
-				dbConfig.name = "sveltycms";
-			}
-			break;
-		case "postgresql":
-			dbConfig.port = "5432";
-			if (!dbConfig.name) {
-				dbConfig.name = "sveltycms";
-			}
-			break;
-		case "sqlite":
-			// SQLite uses a file path, no port
-			dbConfig.host = "config/database";
-			dbConfig.port = "";
-			if (
-				!dbConfig.name ||
-				dbConfig.name === "SveltyCMS" ||
-				dbConfig.name === "SveltyCMS.db"
-			) {
-				dbConfig.name = "SveltyCMS.db";
-			}
-			break;
-		case "mongodb+srv":
-			dbConfig.port = "";
-			if (!dbConfig.name) {
-				dbConfig.name = "sveltycms";
-			}
-			break;
-	}
-}
+	async function handleTestConnection() {
+		await installDatabaseDriver(dbConfig.type);
+		const success = await testDatabaseConnection();
 
-$effect(() => {
-	// Set default database name if empty
-	if (!dbConfig.name) {
-		dbConfig.name = "sveltycms";
+		// Handle missing database confirmation
+		if (!success && setupStore.wizard.lastDbTestResult?.dbDoesNotExist) {
+			showConfirm({
+				title: setup_db_not_found_title({ dbName: dbConfig.name }),
+				body: setup_db_not_found_desc({ dbName: dbConfig.name }),
+				confirmText: common_confirm_yes(),
+				cancelText: common_confirm_no(),
+				onConfirm: async () => {
+					await testDatabaseConnection(true);
+				}
+			});
+		}
 	}
 
-	unsupportedDbSelected = false; // All database types are now supported
-});
+	function handleTypeChange() {
+		clearDbTestError();
+
+		const isAtlas = dbConfig.type === 'mongodb+srv';
+
+		// Smart host selection
+		if (!(isAtlas || dbConfig.host)) {
+			dbConfig.host = 'localhost';
+		} else if (isAtlas && dbConfig.host === 'localhost') {
+			dbConfig.host = '';
+		}
+
+		// Smart port selection based on database type
+		switch (dbConfig.type) {
+			case 'mongodb':
+				dbConfig.port = '27017';
+				if (!dbConfig.name || dbConfig.name === 'SveltyCMS') {
+					dbConfig.name = 'sveltycms';
+				}
+				break;
+			case 'mariadb':
+				dbConfig.port = '3306';
+				if (!dbConfig.name || dbConfig.name === 'SveltyCMS') {
+					dbConfig.name = 'sveltycms';
+				}
+				break;
+			case 'postgresql':
+				dbConfig.port = '5432';
+				if (!dbConfig.name || dbConfig.name === 'SveltyCMS') {
+					dbConfig.name = 'sveltycms';
+				}
+				break;
+			case 'sqlite':
+				// SQLite uses a file path, no port
+				dbConfig.host = 'config/database';
+				dbConfig.port = '';
+				if (!dbConfig.name || dbConfig.name === 'SveltyCMS' || dbConfig.name === 'SveltyCMS.db') {
+					dbConfig.name = 'sveltycms.db';
+				}
+				break;
+			case 'mongodb+srv':
+				dbConfig.port = '';
+				if (!dbConfig.name || dbConfig.name === 'SveltyCMS') {
+					dbConfig.name = 'sveltycms';
+				}
+				break;
+		}
+	}
+
+	$effect(() => {
+		// Set default database name if empty
+		if (!dbConfig.name) {
+			dbConfig.name = 'sveltycms';
+		}
+
+		unsupportedDbSelected = false; // All database types are now supported
+	});
 </script>
 
 <div class="fade-in">
@@ -365,14 +357,14 @@ $effect(() => {
 			</div>
 			<p class="mt-1 text-sm">MariaDB support via Drizzle is in beta. Please report any issues on GitHub.</p>
 		</div>
-	<!-- {:else if dbConfig.type === 'sqlite'}
+	{:else if dbConfig.type === 'sqlite'}
 		<div class="mb-6 rounded p-4 bg-warning-500 text-white">
 			<div class="flex items-center gap-2">
 				<iconify-icon icon="mdi:flask-outline" width="20" class="text-error-500"></iconify-icon>
 				<p class="font-semibold">SQLite - Beta</p>
 			</div>
 			<p class="mt-1 text-sm">SQLite support via Drizzle is in beta. Perfect for local dev and edge. Please report any issues on GitHub.</p>
-		</div> -->
+		</div>
 	{:else if dbConfig.type === 'mysql'}
 		<div class="mb-6 rounded border border-blue-200 bg-blue-50 p-4 text-blue-900 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-200">
 			<p class="font-semibold">{setup_db_coming_soon()}</p>
@@ -404,42 +396,42 @@ $effect(() => {
 					</SystemTooltip>
 				</label>
 
-				<select id="db-type" data-testid="db-type" bind:value={dbConfig.type} onchange={handleTypeChange} class="input rounded">
+				<select id="db-type" bind:value={dbConfig.type} onchange={handleTypeChange} class="input rounded">
 					<option value="mongodb">MongoDB (localhost/Docker)</option>
 					<option value="mongodb+srv">MongoDB Atlas (SRV)</option>
-					<option value="mariadb">MariaDB (via Drizzle)</option>
-					<option value="postgresql">PostgreSQL (via Drizzle)</option>
-					<option value="sqlite">SQLite (via Drizzle)</option>
+					<option value="mariadb">MariaDB (via Drizzle) (Beta)</option>
+					<option value="postgresql">PostgreSQL (via Drizzle) (Beta)</option>
+					<option value="sqlite">SQLite (via Drizzle) (Beta)</option>
 				</select>
-
-				{#if isInstallingDriver}
-					<div class="mt-2 flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400" role="status">
-						<iconify-icon icon="mdi:loading" class="animate-spin" width="16" aria-hidden="true"></iconify-icon>
-						<span>Installing database driver...</span>
-					</div>
-				{/if}
-				{#if installSuccess}
-					<div class="mt-2 flex items-center gap-2 text-sm text-green-600 dark:text-green-400" role="status">
-						<iconify-icon icon="mdi:check-circle" width="16" aria-hidden="true"></iconify-icon>
-						<span>{installSuccess}</span>
-					</div>
-				{/if}
-				{#if installError}
-					<div
-						class="mt-2 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300"
-						role="alert"
-					>
-						<div class="flex items-center gap-2">
-							<iconify-icon icon="mdi:alert-circle" width="16" aria-hidden="true"></iconify-icon>
-							<span class="font-medium">Driver Installation Failed</span>
-						</div>
-						<p class="mt-1">{installError}</p>
-						<p class="mt-2 text-xs">
-							You can install the driver manually or continue with the setup (connection test will show installation instructions).
-						</p>
-					</div>
-				{/if}
 			</div>
+
+			{#if isInstallingDriver}
+				<div class="mt-2 flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400" role="status">
+					<iconify-icon icon="mdi:loading" class="animate-spin" width="16" aria-hidden="true"></iconify-icon>
+					<span>Installing database driver...</span>
+				</div>
+			{/if}
+			{#if installSuccess}
+				<div class="mt-2 flex items-center gap-2 text-sm text-green-600 dark:text-green-400" role="status">
+					<iconify-icon icon="mdi:check-circle" width="16" aria-hidden="true"></iconify-icon>
+					<span>{installSuccess}</span>
+				</div>
+			{/if}
+			{#if installError}
+				<div
+					class="mt-2 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300"
+					role="alert"
+				>
+					<div class="flex items-center gap-2">
+						<iconify-icon icon="mdi:alert-circle" width="16" aria-hidden="true"></iconify-icon>
+						<span class="font-medium">Driver Installation Failed</span>
+					</div>
+					<p class="mt-1">{installError}</p>
+					<p class="mt-2 text-xs">
+						You can install the driver manually or continue with the setup (connection test will show installation instructions).
+					</p>
+				</div>
+			{/if}
 			<div>
 				<label for="db-host" class="mb-1 flex items-center gap-1 text-sm font-medium">
 					<iconify-icon icon="mdi:server-network" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
@@ -458,7 +450,6 @@ $effect(() => {
 
 				<input
 					id="db-host"
-					data-testid="db-host"
 					bind:value={dbConfig.host}
 					type="text"
 					onchange={clearDbTestError}
@@ -549,7 +540,6 @@ $effect(() => {
 
 				<input
 					id="db-name"
-					data-testid="db-name"
 					bind:value={dbConfig.name}
 					type="text"
 					onchange={clearDbTestError}
@@ -697,28 +687,17 @@ $effect(() => {
 					Connection Failed
 				</div>
 				<div class="mt-1">{errorMessage}</div>
-
 				{#if setupStore.wizard.lastDbTestResult?.hint}
-					<div class="mt-4 border-t border-white/20 pt-3">
-						<button
-							type="button"
-							onclick={() => (showTroubleshooting = !showTroubleshooting)}
-							class="flex w-full items-center justify-between text-xs font-bold uppercase tracking-wider text-white/80 hover:text-white"
-						>
-							<span>Troubleshooting Steps</span>
-							<iconify-icon icon={showTroubleshooting ? 'mdi:chevron-up' : 'mdi:chevron-down'} width="16"></iconify-icon>
-						</button>
-
-						{#if showTroubleshooting}
-							<div class="mt-2 space-y-2 text-xs leading-relaxed text-white/90">
-								{#each setupStore.wizard.lastDbTestResult.hint.split('\n') as step}
-									<div class="flex gap-2">
-										<span class="shrink-0 text-white/50">•</span>
-										<span>{step.replace(/^\d+\.\s*/, '')}</span>
-									</div>
-								{/each}
-							</div>
-						{/if}
+					<div class="mt-3 border-t border-white/20 pt-3 text-xs italic text-white/90">
+						<span class="font-bold uppercase tracking-wider text-white/50">Suggestion:</span>
+						<div class="mt-1 leading-relaxed">
+							{#each setupStore.wizard.lastDbTestResult.hint.split('\n') as step}
+								<div class="flex gap-2">
+									<span class="shrink-0 text-white/50">•</span>
+									<span>{step.replace(/^\d+\.\s*/, '')}</span>
+								</div>
+							{/each}
+						</div>
 					</div>
 				{/if}
 			</div>

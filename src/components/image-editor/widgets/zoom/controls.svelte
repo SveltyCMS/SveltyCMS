@@ -13,54 +13,54 @@ Toolbar controls for the Zoom tool:
 -->
 
 <script lang="ts">
-// Props from Tool.svelte
-let {
-	zoomLevel = 100,
-	minZoom = 10,
-	maxZoom = 500,
-	onZoomIn = () => {},
-	onZoomOut = () => {},
-	onZoomChange = (_percent: number) => {},
-	onFitToScreen = () => {},
-	onFillScreen = () => {},
-	onActualSize = () => {},
-}: {
-	zoomLevel?: number;
-	minZoom?: number;
-	maxZoom?: number;
-	onZoomIn?: () => void;
-	onZoomOut?: () => void;
-	onZoomChange?: (percent: number) => void;
-	onFitToScreen?: () => void;
-	onFillScreen?: () => void;
-	onActualSize?: () => void;
-} = $props();
+	// Props from Tool.svelte
+	let {
+		zoomLevel = 100,
+		minZoom = 10,
+		maxZoom = 500,
+		onZoomIn = () => {},
+		onZoomOut = () => {},
+		onZoomChange = (_percent: number) => {},
+		onFitToScreen = () => {},
+		onFillScreen = () => {},
+		onActualSize = () => {}
+	}: {
+		zoomLevel?: number;
+		minZoom?: number;
+		maxZoom?: number;
+		onZoomIn?: () => void;
+		onZoomOut?: () => void;
+		onZoomChange?: (percent: number) => void;
+		onFitToScreen?: () => void;
+		onFillScreen?: () => void;
+		onActualSize?: () => void;
+	} = $props();
 
-// Local state for slider - derived from props but mutable for local interaction
-let localSliderValue = $state<number | undefined>(undefined);
-let sliderValue = {
-	get value() {
-		return localSliderValue ?? zoomLevel;
-	},
-	set value(v: number) {
-		localSliderValue = v;
-	},
-};
+	// Local state for slider - derived from props but mutable for local interaction
+	let localSliderValue = $state<number | undefined>(undefined);
+	let sliderValue = {
+		get value() {
+			return localSliderValue ?? zoomLevel;
+		},
+		set value(v: number) {
+			localSliderValue = v;
+		}
+	};
 
-function handleSliderChange(e: Event) {
-	const target = e.target as HTMLInputElement;
-	const value = Number.parseInt(target.value, 10) || 100;
-	sliderValue.value = value;
-	onZoomChange(value);
-}
+	function handleSliderChange(e: Event) {
+		const target = e.target as HTMLInputElement;
+		const value = Number.parseInt(target.value, 10) || 100;
+		sliderValue.value = value;
+		onZoomChange(value);
+	}
 
-function handleInputChange(e: Event) {
-	const target = e.target as HTMLInputElement;
-	let value = Number.parseInt(target.value, 10) || 100;
-	value = Math.max(minZoom, Math.min(maxZoom, value));
-	sliderValue.value = value;
-	onZoomChange(value);
-}
+	function handleInputChange(e: Event) {
+		const target = e.target as HTMLInputElement;
+		let value = Number.parseInt(target.value, 10) || 100;
+		value = Math.max(minZoom, Math.min(maxZoom, value));
+		sliderValue.value = value;
+		onZoomChange(value);
+	}
 </script>
 
 <div class="zoom-controls flex flex-wrap items-center justify-center gap-2 px-2">

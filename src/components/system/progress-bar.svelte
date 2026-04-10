@@ -27,119 +27,109 @@ Accessible progress bar with animations, variants, and status indicators.
 -->
 
 <script lang="ts">
-import { onMount } from "svelte";
-import { fade } from "svelte/transition";
+	import { onMount } from 'svelte';
+	import { fade } from 'svelte/transition';
 
-type ColorVariant =
-	| "blue"
-	| "green"
-	| "red"
-	| "yellow"
-	| "purple"
-	| "gray"
-	| "primary"
-	| "success"
-	| "error"
-	| "warning";
-type SizeVariant = "sm" | "md" | "lg";
+	type ColorVariant = 'blue' | 'green' | 'red' | 'yellow' | 'purple' | 'gray' | 'primary' | 'success' | 'error' | 'warning';
+	type SizeVariant = 'sm' | 'md' | 'lg';
 
-interface Props {
-	animated?: boolean;
-	color?: ColorVariant;
-	indeterminate?: boolean;
-	label?: string;
-	showPercentage?: boolean;
-	showStatus?: boolean;
-	size?: SizeVariant;
-	value?: number;
-}
-
-const {
-	value = 0,
-	label = "",
-	color = "blue",
-	size = "md",
-	animated = false,
-	showPercentage = true,
-	indeterminate = false,
-	showStatus = false,
-}: Props = $props();
-
-// State
-let prefersReducedMotion = $state(false);
-
-// Clamp value between 0 and 100
-const clampedValue = $derived(Math.max(0, Math.min(100, value)));
-
-// Size classes
-const sizeClasses = $derived(
-	{
-		sm: "h-2",
-		md: "h-3",
-		lg: "h-4",
-	}[size],
-);
-
-// Color classes
-const colorClasses = $derived(
-	{
-		blue: "bg-blue-600 dark:bg-blue-500",
-		green: "bg-green-600 dark:bg-green-500",
-		red: "bg-red-600 dark:bg-red-500",
-		yellow: "bg-yellow-600 dark:bg-yellow-500",
-		purple: "bg-purple-600 dark:bg-purple-500",
-		gray: "bg-gray-600 dark:bg-gray-500",
-		primary: "bg-primary-500",
-		success: "bg-primary-500",
-		error: "bg-error-500",
-		warning: "bg-warning-500",
-	}[color] || "bg-blue-600",
-);
-
-// Status based on value
-const status = $derived(() => {
-	if (indeterminate) {
-		return "loading";
+	interface Props {
+		animated?: boolean;
+		color?: ColorVariant;
+		indeterminate?: boolean;
+		label?: string;
+		showPercentage?: boolean;
+		showStatus?: boolean;
+		size?: SizeVariant;
+		value?: number;
 	}
-	if (clampedValue >= 100) {
-		return "complete";
-	}
-	if (clampedValue >= 75) {
-		return "high";
-	}
-	if (clampedValue >= 50) {
-		return "medium";
-	}
-	if (clampedValue >= 25) {
-		return "low";
-	}
-	return "minimal";
-});
 
-// Status icon
-const statusIcon = $derived(() => {
-	switch (status()) {
-		case "complete":
-			return "mdi:check-circle";
-		case "loading":
-			return "mdi:loading";
-		default:
-			return null;
-	}
-});
+	const {
+		value = 0,
+		label = '',
+		color = 'blue',
+		size = 'md',
+		animated = false,
+		showPercentage = true,
+		indeterminate = false,
+		showStatus = false
+	}: Props = $props();
 
-// Lifecycle
-onMount(() => {
-	const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
-	prefersReducedMotion = mediaQuery.matches;
+	// State
+	let prefersReducedMotion = $state(false);
 
-	const handleChange = (e: MediaQueryListEvent) => {
-		prefersReducedMotion = e.matches;
-	};
+	// Clamp value between 0 and 100
+	const clampedValue = $derived(Math.max(0, Math.min(100, value)));
 
-	mediaQuery.addEventListener("change", handleChange);
-	return () => mediaQuery.removeEventListener("change", handleChange);
-});
+	// Size classes
+	const sizeClasses = $derived(
+		{
+			sm: 'h-2',
+			md: 'h-3',
+			lg: 'h-4'
+		}[size]
+	);
+
+	// Color classes
+	const colorClasses = $derived(
+		{
+			blue: 'bg-blue-600 dark:bg-blue-500',
+			green: 'bg-green-600 dark:bg-green-500',
+			red: 'bg-red-600 dark:bg-red-500',
+			yellow: 'bg-yellow-600 dark:bg-yellow-500',
+			purple: 'bg-purple-600 dark:bg-purple-500',
+			gray: 'bg-gray-600 dark:bg-gray-500',
+			primary: 'bg-primary-500',
+			success: 'bg-primary-500',
+			error: 'bg-error-500',
+			warning: 'bg-warning-500'
+		}[color] || 'bg-blue-600'
+	);
+
+	// Status based on value
+	const status = $derived(() => {
+		if (indeterminate) {
+			return 'loading';
+		}
+		if (clampedValue >= 100) {
+			return 'complete';
+		}
+		if (clampedValue >= 75) {
+			return 'high';
+		}
+		if (clampedValue >= 50) {
+			return 'medium';
+		}
+		if (clampedValue >= 25) {
+			return 'low';
+		}
+		return 'minimal';
+	});
+
+	// Status icon
+	const statusIcon = $derived(() => {
+		switch (status()) {
+			case 'complete':
+				return 'mdi:check-circle';
+			case 'loading':
+				return 'mdi:loading';
+			default:
+				return null;
+		}
+	});
+
+	// Lifecycle
+	onMount(() => {
+		const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+		prefersReducedMotion = mediaQuery.matches;
+
+		const handleChange = (e: MediaQueryListEvent) => {
+			prefersReducedMotion = e.matches;
+		};
+
+		mediaQuery.addEventListener('change', handleChange);
+		return () => mediaQuery.removeEventListener('change', handleChange);
+	});
 </script>
 
 <div class="progress-container w-full" role="region" aria-label="Progress indicator">

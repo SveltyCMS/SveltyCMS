@@ -9,53 +9,49 @@ It relies entirely on the centralized `themeStore` for its state and logic.
 - Optional tooltip for user guidance
 -->
 <script lang="ts">
-//Stores
+	//Stores
 
-// Componets
-import SystemTooltip from "@src/components/system/system-tooltip.svelte";
-import {
-	setThemePreference,
-	themeStore,
-	useSystemPreference,
-} from "@src/stores/theme-store.svelte.ts";
+	// Componets
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+	import { setThemePreference, themeStore, useSystemPreference } from '@src/stores/theme-store.svelte.ts';
 
-interface Props {
-	buttonClass?: string;
-	iconSize?: number;
-	showTooltip?: boolean;
-	tooltipPlacement?: "top" | "bottom" | "left" | "right";
-}
-
-const {
-	showTooltip = true,
-	tooltipPlacement = "bottom",
-	buttonClass = "preset-outline-surface-500 btn-icon rounded-full",
-	iconSize = 22,
-}: Props = $props();
-
-// Cycle through system -> light -> dark -> system
-function cycleTheme() {
-	const current = themeStore.themePreference;
-	if (current === "system") {
-		setThemePreference("light");
-	} else if (current === "light") {
-		setThemePreference("dark");
-	} else {
-		useSystemPreference();
+	interface Props {
+		buttonClass?: string;
+		iconSize?: number;
+		showTooltip?: boolean;
+		tooltipPlacement?: 'top' | 'bottom' | 'left' | 'right';
 	}
-}
 
-// Get tooltip text based on current preference
-const getTooltipText = $derived(() => {
-	const current = themeStore.themePreference;
-	if (current === "system") {
-		return "System theme (click for Light)";
+	const {
+		showTooltip = true,
+		tooltipPlacement = 'bottom',
+		buttonClass = 'preset-outline-surface-500 btn-icon rounded-full',
+		iconSize = 22
+	}: Props = $props();
+
+	// Cycle through system -> light -> dark -> system
+	function cycleTheme() {
+		const current = themeStore.themePreference;
+		if (current === 'system') {
+			setThemePreference('light');
+		} else if (current === 'light') {
+			setThemePreference('dark');
+		} else {
+			useSystemPreference();
+		}
 	}
-	if (current === "light") {
-		return "Light theme (click for Dark)";
-	}
-	return "Dark theme (click for System)";
-});
+
+	// Get tooltip text based on current preference
+	const getTooltipText = $derived(() => {
+		const current = themeStore.themePreference;
+		if (current === 'system') {
+			return 'System theme (click for Light)';
+		}
+		if (current === 'light') {
+			return 'Light theme (click for Dark)';
+		}
+		return 'Dark theme (click for System)';
+	});
 </script>
 
 {#if showTooltip}

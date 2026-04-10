@@ -28,240 +28,214 @@
 -->
 
 <script lang="ts">
-import TranslationStatus from "@src/components/collection-display/translation-status.svelte";
-import Toggles from "@src/components/system/inputs/toggles.svelte";
-import type { CollectionEntry } from "@src/content/types";
-import { StatusTypes } from "@src/content/types";
-// ParaglideJS
-import {
-	status_publish,
-	status_unpublish,
-	validation_fix_before_save,
-} from "@src/paraglide/messages";
-import {
-	collection,
-	collectionValue,
-	mode,
-	setCollectionValue,
-	setMode,
-} from "@src/stores/collection-store.svelte";
-import { screen } from "@src/stores/screen-size-store.svelte";
-import { statusStore } from "@src/stores/status-store.svelte";
-import {
-	app,
-	dataChangeStore,
-	validationStore,
-} from "@src/stores/store.svelte";
-import { ui } from "@src/stores/ui-store.svelte";
-import { createEntry, invalidateCollectionCache } from "@utils/api-client";
-import { deleteCurrentEntry, saveEntry } from "@utils/entry-actions";
-// --- Derived from page & stores ---
-import { logger } from "@utils/logger";
-import { showCloneModal, showScheduleModal } from "@utils/modal-utils";
-import { navigationManager } from "@utils/navigation-manager";
-import { toast } from "@src/stores/toast.svelte.ts";
-import { untrack } from "svelte";
-// Modal types import
-// Stores
-import { page } from "$app/state";
+	import TranslationStatus from '@src/components/collection-display/translation-status.svelte';
+	import Toggles from '@src/components/system/inputs/toggles.svelte';
+	import type { CollectionEntry } from '@src/content/types';
+	import { StatusTypes } from '@src/content/types';
+	// ParaglideJS
+	import { status_publish, status_unpublish, validation_fix_before_save } from '@src/paraglide/messages';
+	import { collection, collectionValue, mode, setCollectionValue, setMode } from '@src/stores/collection-store.svelte';
+	import { screen } from '@src/stores/screen-size-store.svelte';
+	import { statusStore } from '@src/stores/status-store.svelte';
+	import { app, dataChangeStore, validationStore } from '@src/stores/store.svelte';
+	import { ui } from '@src/stores/ui-store.svelte';
+	import { createEntry, invalidateCollectionCache } from '@utils/api-client';
+	import { deleteCurrentEntry, saveEntry } from '@utils/entry-actions';
+	// --- Derived from page & stores ---
+	import { logger } from '@utils/logger';
+	import { showCloneModal, showScheduleModal } from '@utils/modal-utils';
+	import { navigationManager } from '@utils/navigation-manager';
+	import { toast } from '@src/stores/toast.svelte.ts';
+	import { untrack } from 'svelte';
+	// Modal types import
+	// Stores
+	import { page } from '$app/state';
 
-// --- Derived from page & stores ---
-let user = $derived(page.data.user);
-let isAdmin = $derived(page.data.isAdmin === true);
+	// --- Derived from page & stores ---
+	let user = $derived(page.data.user);
+	let isAdmin = $derived(page.data.isAdmin === true);
 
-let currentMode = $derived(mode.value);
-let currentCollection = $derived(collection.value);
-let currentEntry = $derived(collectionValue.value as CollectionEntry | null);
+	let currentMode = $derived(mode.value);
+	let currentCollection = $derived(collection.value);
+	let currentEntry = $derived(collectionValue.value as CollectionEntry | null);
 
-let isDesktop = $derived(screen.isDesktop);
+	let isDesktop = $derived(screen.isDesktop);
 
-let isFormValid = $derived(validationStore.isValid);
-let hasChanges = $derived(dataChangeStore.hasChanges);
+	let isFormValid = $derived(validationStore.isValid);
+	let hasChanges = $derived(dataChangeStore.hasChanges);
 
-let canWrite = $derived(
-	currentCollection?.permissions?.[user?.role]?.write !== false,
-);
-let canCreate = $derived(
-	currentCollection?.permissions?.[user?.role]?.create !== false,
-);
-let canDelete = $derived(
-	currentCollection?.permissions?.[user?.role]?.delete !== false,
-);
+	let canWrite = $derived(currentCollection?.permissions?.[user?.role]?.write !== false);
+	let canCreate = $derived(currentCollection?.permissions?.[user?.role]?.create !== false);
+	let canDelete = $derived(currentCollection?.permissions?.[user?.role]?.delete !== false);
 
-// --- Local mutable state ---
-let showMore = $state(false);
-let previousLanguage = $state(app.contentLanguage);
-let previousTabSet = $state(app.tabSetState);
-let tempData = $state<Record<string, CollectionEntry>>({});
+	// --- Local mutable state ---
+	let showMore = $state(false);
+	let previousLanguage = $state(app.contentLanguage);
+	let previousTabSet = $state(app.tabSetState);
+	let tempData = $state<Record<string, CollectionEntry>>({});
 
-// Schedule (not used in current logic – kept if needed later)
-let scheduleTimestamp = $derived(
-	currentEntry?._scheduled ? Number(currentEntry._scheduled) : null,
-);
+	// Schedule (not used in current logic – kept if needed later)
+	let scheduleTimestamp = $derived(currentEntry?._scheduled ? Number(currentEntry._scheduled) : null);
 
-// Status toggle state & disable logic
-let publishToggle = $derived(statusStore.isPublish);
-let disableStatusToggle = $derived(
-	(currentMode === "create" && ui.isRightSidebarVisible) ||
-		(currentMode === "edit" && ui.isRightSidebarVisible && isDesktop) ||
-		statusStore.isLoading,
-);
+	// Status toggle state & disable logic
+	let publishToggle = $derived(statusStore.isPublish);
+	let disableStatusToggle = $derived(
+		(currentMode === 'create' && ui.isRightSidebarVisible) ||
+			(currentMode === 'edit' && ui.isRightSidebarVisible && isDesktop) ||
+			statusStore.isLoading
+	);
 
-// Next button visibility (menu wizard)
-let showNextButton = $derived(
-	app.shouldShowNextButton &&
-		currentMode === "create" &&
-		(currentCollection?.name === "Menu" || currentCollection?.slug === "menu"),
-);
+	// Next button visibility (menu wizard)
+	let showNextButton = $derived(
+		app.shouldShowNextButton && currentMode === 'create' && (currentCollection?.name === 'Menu' || currentCollection?.slug === 'menu')
+	);
 
-// --- Effects ---
-$effect(() => {
-	if (app.tabSetState !== previousTabSet) {
-		untrack(() => {
-			tempData[previousLanguage] = { ...currentEntry };
-			previousTabSet = app.tabSetState;
+	// --- Effects ---
+	$effect(() => {
+		if (app.tabSetState !== previousTabSet) {
+			untrack(() => {
+				tempData[previousLanguage] = { ...currentEntry };
+				previousTabSet = app.tabSetState;
+			});
+		}
+	});
+
+	$effect(() => {
+		if (currentMode === 'view') {
+			untrack(() => (tempData = {}));
+		}
+	});
+
+	$effect(() => {
+		if (['edit', 'create'].includes(currentMode)) {
+			untrack(() => (showMore = false));
+		}
+	});
+
+	// --- Helpers ---
+	function isUUID(str: string): boolean {
+		return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+	}
+
+	function getDisplayName(value?: string | null): string {
+		if (!value || isUUID(value)) {
+			if (user?.username && !isUUID(user.username)) {
+				return user.username;
+			}
+			if (user?.firstName || user?.lastName) {
+				return [user.firstName, user.lastName].filter(Boolean).join(' ');
+			}
+			if (user?.email) {
+				return user.email.split('@')[0];
+			}
+			return 'system';
+		}
+		return value;
+	}
+
+	// --- Actions ---
+	async function toggleStatus(newValue: boolean): Promise<void> {
+		await statusStore.toggleStatus(newValue, 'HeaderEdit');
+	}
+
+	function openSchedule(): void {
+		showScheduleModal({
+			onSchedule: (date: Date) => {
+				setCollectionValue({
+					...currentEntry!,
+					status: StatusTypes.schedule,
+					_scheduled: date.getTime()
+				});
+			}
 		});
 	}
-});
 
-$effect(() => {
-	if (currentMode === "view") {
-		untrack(() => (tempData = {}));
-	}
-});
-
-$effect(() => {
-	if (["edit", "create"].includes(currentMode)) {
-		untrack(() => (showMore = false));
-	}
-});
-
-// --- Helpers ---
-function isUUID(str: string): boolean {
-	return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-		str,
-	);
-}
-
-function getDisplayName(value?: string | null): string {
-	if (!value || isUUID(value)) {
-		if (user?.username && !isUUID(user.username)) {
-			return user.username;
+	async function save(): Promise<void> {
+		if (!isFormValid) {
+			toast.warning(validation_fix_before_save());
+			return;
 		}
-		if (user?.firstName || user?.lastName) {
-			return [user.firstName, user.lastName].filter(Boolean).join(" ");
+
+		if (currentMode === 'edit' && !hasChanges) {
+			logger.debug('[HeaderEdit] No changes – returning to list');
+			await navigationManager.navigateToList();
+			return;
 		}
-		if (user?.email) {
-			return user.email.split("@")[0];
+
+		const dataToSave = { ...currentEntry! };
+
+		// Use status from store
+		dataToSave.status = statusStore.getStatusForSave();
+		if (scheduleTimestamp) {
+			dataToSave._scheduled = scheduleTimestamp;
+		} else {
+			dataToSave._scheduled = undefined;
 		}
-		return "system";
-	}
-	return value;
-}
 
-// --- Actions ---
-async function toggleStatus(newValue: boolean): Promise<void> {
-	await statusStore.toggleStatus(newValue, "HeaderEdit");
-}
+		// Metadata
+		if (currentMode === 'create') {
+			dataToSave.createdBy = getDisplayName(user?.username);
+		}
+		dataToSave.updatedBy = getDisplayName(user?.username);
 
-function openSchedule(): void {
-	showScheduleModal({
-		onSchedule: (date: Date) => {
-			setCollectionValue({
-				...currentEntry!,
-				status: StatusTypes.schedule,
-				_scheduled: date.getTime(),
-			});
-		},
-	});
-}
+		const success = await saveEntry(dataToSave);
+		if (!success) {
+			return;
+		}
 
-async function save(): Promise<void> {
-	if (!isFormValid) {
-		toast.warning(validation_fix_before_save());
-		return;
-	}
-
-	if (currentMode === "edit" && !hasChanges) {
-		logger.debug("[HeaderEdit] No changes – returning to list");
 		await navigationManager.navigateToList();
-		return;
 	}
 
-	const dataToSave = { ...currentEntry! };
-
-	// Use status from store
-	dataToSave.status = statusStore.getStatusForSave();
-	if (scheduleTimestamp) {
-		dataToSave._scheduled = scheduleTimestamp;
-	} else {
-		dataToSave._scheduled = undefined;
+	function cancel(): void {
+		document.dispatchEvent(new CustomEvent('cancelEdit', { bubbles: true }));
+		setCollectionValue({});
+		ui.toggle('rightSidebar', 'hidden');
+		ui.toggle('leftSidebar', isDesktop ? 'full' : 'collapsed');
+		ui.toggle('pageheader', 'hidden');
+		navigationManager.navigateToList();
 	}
 
-	// Metadata
-	if (currentMode === "create") {
-		dataToSave.createdBy = getDisplayName(user?.username);
-	}
-	dataToSave.updatedBy = getDisplayName(user?.username);
-
-	const success = await saveEntry(dataToSave);
-	if (!success) {
-		return;
+	function openDelete(): void {
+		deleteCurrentEntry(isAdmin);
 	}
 
-	await navigationManager.navigateToList();
-}
+	function openClone(): void {
+		showCloneModal({
+			count: 1,
+			onConfirm: async () => {
+				if (!(currentEntry && currentCollection?._id)) {
+					toast.warning('No entry or collection selected.');
+					return;
+				}
+				const payload = { ...currentEntry };
+				payload._id = undefined;
+				payload.createdAt = undefined;
+				payload.updatedAt = undefined;
+				payload.status = StatusTypes.draft;
+				payload.clonedFrom = currentEntry._id;
 
-function cancel(): void {
-	document.dispatchEvent(new CustomEvent("cancelEdit", { bubbles: true }));
-	setCollectionValue({});
-	ui.toggle("rightSidebar", "hidden");
-	ui.toggle("leftSidebar", isDesktop ? "full" : "collapsed");
-	ui.toggle("pageheader", "hidden");
-	navigationManager.navigateToList();
-}
-
-function openDelete(): void {
-	deleteCurrentEntry(isAdmin);
-}
-
-function openClone(): void {
-	showCloneModal({
-		count: 1,
-		onConfirm: async () => {
-			if (!(currentEntry && currentCollection?._id)) {
-				toast.warning("No entry or collection selected.");
-				return;
+				const result = await createEntry(currentCollection._id, payload);
+				if (result.success) {
+					toast.success('Entry cloned successfully.');
+					invalidateCollectionCache(currentCollection._id);
+					setMode('view');
+				} else {
+					toast.error(result.error || 'Failed to clone');
+				}
 			}
-			const payload = { ...currentEntry };
-			payload._id = undefined;
-			payload.createdAt = undefined;
-			payload.updatedAt = undefined;
-			payload.status = StatusTypes.draft;
-			payload.clonedFrom = currentEntry._id;
-
-			const result = await createEntry(currentCollection._id, payload);
-			if (result.success) {
-				toast.success("Entry cloned successfully.");
-				invalidateCollectionCache(currentCollection._id);
-				setMode("view");
-			} else {
-				toast.error(result.error || "Failed to clone");
-			}
-		},
-	});
-}
-
-// Menu wizard next action
-function next(): void {
-	logger.debug("[HeaderEdit] Next clicked");
-	if (app.saveLayerStore) {
-		app.saveLayerStore();
-	} else {
-		// Fallback if needed
-		save();
+		});
 	}
-}
+
+	// Menu wizard next action
+	function next(): void {
+		logger.debug('[HeaderEdit] Next clicked');
+		if (app.saveLayerStore) {
+			app.saveLayerStore();
+		} else {
+			// Fallback if needed
+			save();
+		}
+	}
 </script>
 
 <header

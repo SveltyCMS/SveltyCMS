@@ -6,31 +6,27 @@ Displays detailed SEO analysis results in a modal overlay.
 -->
 
 <script lang="ts">
-import { fade, scale } from "svelte/transition";
-import type { SeoAnalysisResult } from "../seo-types";
+	import { fade, scale } from 'svelte/transition';
+	import type { SeoAnalysisResult } from '../seo-types';
 
-interface Props {
-	analysisResult: SeoAnalysisResult | null;
-	onclose?: () => void;
-	show: boolean;
-}
-
-let {
-	show = $bindable(),
-	analysisResult,
-	onclose = () => {},
-}: Props = $props();
-
-function close() {
-	show = false;
-	onclose();
-}
-
-function handleKeydown(event: KeyboardEvent) {
-	if (show && event.key === "Escape") {
-		close();
+	interface Props {
+		analysisResult: SeoAnalysisResult | null;
+		onclose?: () => void;
+		show: boolean;
 	}
-}
+
+	let { show = $bindable(), analysisResult, onclose = () => {} }: Props = $props();
+
+	function close() {
+		show = false;
+		onclose();
+	}
+
+	function handleKeydown(event: KeyboardEvent) {
+		if (show && event.key === 'Escape') {
+			close();
+		}
+	}
 </script>
 
 <svelte:window onkeydown={handleKeydown} />

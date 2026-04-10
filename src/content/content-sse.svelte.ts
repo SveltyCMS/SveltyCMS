@@ -7,7 +7,7 @@
 
 import { browser } from "$app/environment";
 import { logger } from "@utils/logger";
-import { contentManager } from "@src/content";
+import { contentSystem } from "@src/content";
 
 let eventSource: EventSource | null = null;
 
@@ -46,7 +46,7 @@ export const contentLiveSync = {
           debounceTimer = setTimeout(async () => {
             logger.info(`📡 Content update received [${data.type}]. Refreshing...`);
             // Trigger a fast refresh (skip reconciliation on server, just sync state)
-            await contentManager.refresh(null, true);
+            await contentSystem.refresh(null, true);
             debounceTimer = null;
           }, 250); // 250ms debounce
         }

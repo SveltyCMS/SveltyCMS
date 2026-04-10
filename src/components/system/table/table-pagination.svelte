@@ -22,63 +22,53 @@
 -->
 
 <script lang="ts">
-import SystemTooltip from "@src/components/system/system-tooltip.svelte";
-import {
-	entrylist_items,
-	entrylist_of,
-	entrylist_page,
-	entrylist_rows,
-	entrylist_showing,
-} from "@src/paraglide/messages";
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+	import { entrylist_items, entrylist_of, entrylist_page, entrylist_rows, entrylist_showing } from '@src/paraglide/messages';
 
-// Props with default values
-let {
-	currentPage = $bindable(),
-	pagesCount = 1,
-	rowsPerPage = $bindable(),
-	rowsPerPageOptions = [5, 10, 25, 50, 100, 500],
-	totalItems = 0,
-	onUpdatePage,
-	onUpdateRowsPerPage,
-} = $props();
+	// Props with default values
+	let {
+		currentPage = $bindable(),
+		pagesCount = 1,
+		rowsPerPage = $bindable(),
+		rowsPerPageOptions = [5, 10, 25, 50, 100, 500],
+		totalItems = 0,
+		onUpdatePage,
+		onUpdateRowsPerPage
+	} = $props();
 
-// Derived pagesCount if not provided
-const computedPagesCount = $derived.by(() => {
-	if (pagesCount && pagesCount > 0) {
-		return pagesCount;
+	// Derived pagesCount if not provided
+	const computedPagesCount = $derived.by(() => {
+		if (pagesCount && pagesCount > 0) {
+			return pagesCount;
+		}
+		if (rowsPerPage > 0) {
+			return Math.ceil(totalItems / rowsPerPage);
+		}
+		return 1;
+	});
+
+	const isFirstPage = $derived(currentPage === 1);
+	const isLastPage = $derived(currentPage === computedPagesCount);
+
+	// Calculate start and end item numbers for the current page
+	const startItem = $derived(totalItems === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1);
+	const endItem = $derived(totalItems === 0 ? 0 : Math.min(currentPage * rowsPerPage, totalItems));
+
+	// Go to page - IMMEDIATE
+	function goToPage(page: number) {
+		if (page >= 1 && page <= computedPagesCount && page !== currentPage) {
+			currentPage = page;
+			onUpdatePage?.(page);
+		}
 	}
-	if (rowsPerPage > 0) {
-		return Math.ceil(totalItems / rowsPerPage);
+
+	// Update rows per page with immediate reset to page 1
+	function updateRowsPerPage(rows: number) {
+		// Immediately update the bound value to ensure UI consistency
+		rowsPerPage = rows;
+		// Call the callback to handle the change
+		onUpdateRowsPerPage?.(rows);
 	}
-	return 1;
-});
-
-const isFirstPage = $derived(currentPage === 1);
-const isLastPage = $derived(currentPage === computedPagesCount);
-
-// Calculate start and end item numbers for the current page
-const startItem = $derived(
-	totalItems === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1,
-);
-const endItem = $derived(
-	totalItems === 0 ? 0 : Math.min(currentPage * rowsPerPage, totalItems),
-);
-
-// Go to page - IMMEDIATE
-function goToPage(page: number) {
-	if (page >= 1 && page <= computedPagesCount && page !== currentPage) {
-		currentPage = page;
-		onUpdatePage?.(page);
-	}
-}
-
-// Update rows per page with immediate reset to page 1
-function updateRowsPerPage(rows: number) {
-	// Immediately update the bound value to ensure UI consistency
-	rowsPerPage = rows;
-	// Call the callback to handle the change
-	onUpdateRowsPerPage?.(rows);
-}
 </script>
 
 <!-- Pagination info -->

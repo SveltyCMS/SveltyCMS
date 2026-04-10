@@ -28,9 +28,10 @@ interface AggregationField {
 }
 
 //ParaglideJS
+import { widget_dateRange_description } from "@src/paraglide/messages";
 import {
   check,
-  isoTimestamp,
+  isoDate,
   minLength,
   object,
   pipe,
@@ -42,8 +43,8 @@ import type { DateRangeProps } from "./types";
 // Define the validation schema for the `{ start, end }` object.
 const DATE_RANGE_VALIDATION_SCHEMA = pipe(
   object({
-    start: pipe(string(), minLength(1, "Start date is required."), isoTimestamp()),
-    end: pipe(string(), minLength(1, "End date is required."), isoTimestamp()),
+    start: pipe(string(), minLength(1, "Start date is required."), isoDate()),
+    end: pipe(string(), minLength(1, "End date is required."), isoDate()),
   }),
   check(
     (data) => new Date(data.start) <= new Date(data.end),
@@ -55,12 +56,10 @@ const DATE_RANGE_VALIDATION_SCHEMA = pipe(
 const DateRangeWidget = createWidget<DateRangeProps>({
   Name: "DateRange",
   Icon: "mdi:calendar-range",
-  Description: "A widget for selecting a date range with start and end dates.",
+  Description: widget_dateRange_description(),
 
   // Define paths to the dedicated Svelte components.
-  inputComponent: () => import("./input.svelte"),
   inputComponentPath: "/src/widgets/core/date-range/input.svelte",
-  displayComponent: () => import("./display.svelte"),
   displayComponentPath: "/src/widgets/core/date-range/display.svelte",
 
   // Assign the validation schema.

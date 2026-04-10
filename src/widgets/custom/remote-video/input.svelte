@@ -28,193 +28,173 @@ Part of the Three Pillars Architecture for widget system.
 -->
 
 <script lang="ts">
-import SystemTooltip from "@src/components/system/system-tooltip.svelte";
-import { publicEnv } from "@src/stores/global-settings.svelte";
-import { app, validationStore } from "@src/stores/store.svelte";
-import { logger } from "@utils/logger";
-import { debounce, getFieldName } from "@utils/utils";
-// Unified error handling
-import { handleWidgetValidation } from "@widgets/widget-error-handler";
-// Valibot validation
-import { custom, optional, parse, pipe, string, url } from "valibot";
-import type { FieldType } from "./";
-import type { RemoteVideoData } from "./types";
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+	import { publicEnv } from '@src/stores/global-settings.svelte';
+	import { app, validationStore } from '@src/stores/store.svelte';
+	import { logger } from '@utils/logger';
+	import { debounce, getFieldName } from '@utils/utils';
+	// Unified error handling
+	import { handleWidgetValidation } from '@widgets/widget-error-handler';
+	// Valibot validation
+	import { custom, optional, parse, pipe, string, url } from 'valibot';
+	import type { FieldType } from './';
+	import type { RemoteVideoData } from './types';
 
-let {
-	field,
-	value = $bindable(),
-	error,
-}: {
-	field: FieldType;
-	value: RemoteVideoData | null | undefined | Record<string, RemoteVideoData>;
-	error?: string | null;
-} = $props();
+	let {
+		field,
+		value = $bindable(),
+		error
+	}: {
+		field: FieldType;
+		value: RemoteVideoData | null | undefined | Record<string, RemoteVideoData>;
+		error?: string | null;
+	} = $props();
 
-const LANGUAGE = $derived(
-	field.translated
-		? app.contentLanguage
-		: ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || "en").toLowerCase(),
-);
+	const LANGUAGE = $derived(field.translated ? app.contentLanguage : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase());
 
-// Local state for the URL input.
-let urlInput = $state("");
-// Local state to temporarily hold fetched metadata before it's set to `value`.
-let fetchedMetadata = $state<RemoteVideoData | null>(null);
-let isLoading = $state(false);
-let fetchError = $state<string | null>(null);
+	// Local state for the URL input.
+	let urlInput = $state('');
+	// Local state to temporarily hold fetched metadata before it's set to `value`.
+	let fetchedMetadata = $state<RemoteVideoData | null>(null);
+	let isLoading = $state(false);
+	let fetchError = $state<string | null>(null);
 
-// Effect to update local `urlInput` when parent `value` changes externally.
-$effect(() => {
-	const parentVal = value;
-	let extracted: RemoteVideoData | null = null;
+	// Effect to update local `urlInput` when parent `value` changes externally.
+	$effect(() => {
+		const parentVal = value;
+		let extracted: RemoteVideoData | null = null;
 
-	if (field.translated && typeof parentVal === "object" && parentVal !== null) {
-		extracted = (parentVal as Record<string, any>)[LANGUAGE] ?? null;
-	} else if (!field.translated && typeof parentVal === "object") {
-		extracted = parentVal as RemoteVideoData;
-	}
+		if (field.translated && typeof parentVal === 'object' && parentVal !== null) {
+			extracted = (parentVal as Record<string, any>)[LANGUAGE] ?? null;
+		} else if (!field.translated && typeof parentVal === 'object') {
+			extracted = parentVal as RemoteVideoData;
+		}
 
-	if (extracted?.url && extracted.url !== urlInput) {
-		urlInput = extracted.url;
-		fetchedMetadata = extracted;
-	} else if (!extracted) {
-		urlInput = "";
-		fetchedMetadata = null;
-	}
-});
-
-// Validation
-const fieldName = $derived(getFieldName(field));
-
-// Supported video platforms
-const supportedPlatforms = [
-	"youtube.com",
-	"youtu.be",
-	"vimeo.com",
-	"twitch.tv",
-	"tiktok.com",
-];
-
-// Video URL validation schema
-const videoUrlSchema = $derived(
-	field?.required
-		? pipe(
-				string(),
-				url("Invalid URL format"),
-				custom(
-					(val) =>
-						supportedPlatforms.some((domain) =>
-							(val as string).includes(domain),
-						),
-					"Unsupported video platform. Supported: YouTube, Vimeo, Twitch, TikTok",
-				),
-			)
-		: optional(
-				pipe(
-					string(),
-					url("Invalid URL format"),
-					custom(
-						(val) =>
-							(val as string) === "" ||
-							supportedPlatforms.some((domain) =>
-								(val as string).includes(domain),
-							),
-						"Unsupported video platform",
-					),
-				),
-				"",
-			),
-);
-
-// Validation function using unified handler
-function validateVideoUrl(urlValue: string): {
-	valid: boolean;
-	error?: string;
-} {
-	if (!(urlValue || field?.required)) {
-		validationStore.clearError(fieldName);
-		return { valid: true };
-	}
-	const result = handleWidgetValidation(() => parse(videoUrlSchema, urlValue), {
-		fieldName,
-		updateStore: true,
+		if (extracted?.url && extracted.url !== urlInput) {
+			urlInput = extracted.url;
+			fetchedMetadata = extracted;
+		} else if (!extracted) {
+			urlInput = '';
+			fetchedMetadata = null;
+		}
 	});
-	return { valid: result.valid, error: result.message ?? undefined };
-}
 
-// Helper to update parent value
-function updateParent(newData: RemoteVideoData | null) {
-	if (field.translated) {
-		if (!value || typeof value !== "object") {
-			value = {};
+	// Validation
+	const fieldName = $derived(getFieldName(field));
+
+	// Supported video platforms
+	const supportedPlatforms = ['youtube.com', 'youtu.be', 'vimeo.com', 'twitch.tv', 'tiktok.com'];
+
+	// Video URL validation schema
+	const videoUrlSchema = $derived(
+		field?.required
+			? pipe(
+					string(),
+					url('Invalid URL format'),
+					custom(
+						(val) => supportedPlatforms.some((domain) => (val as string).includes(domain)),
+						'Unsupported video platform. Supported: YouTube, Vimeo, Twitch, TikTok'
+					)
+				)
+			: optional(
+					pipe(
+						string(),
+						url('Invalid URL format'),
+						custom(
+							(val) => (val as string) === '' || supportedPlatforms.some((domain) => (val as string).includes(domain)),
+							'Unsupported video platform'
+						)
+					),
+					''
+				)
+	);
+
+	// Validation function using unified handler
+	function validateVideoUrl(urlValue: string): {
+		valid: boolean;
+		error?: string;
+	} {
+		if (!(urlValue || field?.required)) {
+			validationStore.clearError(fieldName);
+			return { valid: true };
 		}
-		value = { ...(value as object), [LANGUAGE]: newData } as Record<
-			string,
-			RemoteVideoData
-		>;
-	} else {
-		value = newData;
-	}
-}
-
-// Debounced function to fetch video metadata from the server.
-const fetchVideoMetadata = debounce.create((...args: unknown[]) => {
-	const url = typeof args[0] === "string" ? args[0] : "";
-	isLoading = true;
-	fetchError = null;
-	fetchedMetadata = null;
-
-	if (!url) {
-		isLoading = false;
-		return;
+		const result = handleWidgetValidation(() => parse(videoUrlSchema, urlValue), {
+			fieldName,
+			updateStore: true
+		});
+		return { valid: result.valid, error: result.message ?? undefined };
 	}
 
-	// SECURITY: Validate URL before making API call
-	const validation = validateVideoUrl(url);
-	if (!validation.valid) {
-		fetchError = validation.error || "Invalid video URL";
-		isLoading = false;
-		updateParent(null);
-		return;
-	}
-
-	// Async fetch wrapped in promise
-	(async () => {
-		try {
-			// Call API endpoint to fetch metadata securely
-			const response = await fetch("/api/remoteVideo", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				// Send a JSON object
-				body: JSON.stringify({
-					url,
-					allowedPlatforms: field.allowedPlatforms,
-				}),
-			});
-
-			const result = await response.json();
-
-			if (response.ok && result.success) {
-				fetchedMetadata = result.data;
-				updateParent(result.data); // Bind the full metadata object back to the parent safely.
-			} else {
-				fetchError = result.error || "Failed to fetch video metadata.";
-				updateParent(null); // Clear parent value on error.
+	// Helper to update parent value
+	function updateParent(newData: RemoteVideoData | null) {
+		if (field.translated) {
+			if (!value || typeof value !== 'object') {
+				value = {};
 			}
-		} catch (e) {
-			logger.error("Error fetching video metadata:", e);
-			fetchError = "An unexpected error occurred while fetching video data.";
-			updateParent(null);
-		} finally {
-			isLoading = false;
+			value = { ...(value as object), [LANGUAGE]: newData } as Record<string, RemoteVideoData>;
+		} else {
+			value = newData;
 		}
-	})();
-}, 500);
+	}
 
-// Trigger fetch when the URL input changes.
-function handleUrlInput() {
-	fetchVideoMetadata(urlInput);
-}
+	// Debounced function to fetch video metadata from the server.
+	const fetchVideoMetadata = debounce.create((...args: unknown[]) => {
+		const url = typeof args[0] === 'string' ? args[0] : '';
+		isLoading = true;
+		fetchError = null;
+		fetchedMetadata = null;
+
+		if (!url) {
+			isLoading = false;
+			return;
+		}
+
+		// SECURITY: Validate URL before making API call
+		const validation = validateVideoUrl(url);
+		if (!validation.valid) {
+			fetchError = validation.error || 'Invalid video URL';
+			isLoading = false;
+			updateParent(null);
+			return;
+		}
+
+		// Async fetch wrapped in promise
+		(async () => {
+			try {
+				// Call API endpoint to fetch metadata securely
+				const response = await fetch('/api/remoteVideo', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					// Send a JSON object
+					body: JSON.stringify({
+						url,
+						allowedPlatforms: field.allowedPlatforms
+					})
+				});
+
+				const result = await response.json();
+
+				if (response.ok && result.success) {
+					fetchedMetadata = result.data;
+					updateParent(result.data); // Bind the full metadata object back to the parent safely.
+				} else {
+					fetchError = result.error || 'Failed to fetch video metadata.';
+					updateParent(null); // Clear parent value on error.
+				}
+			} catch (e) {
+				logger.error('Error fetching video metadata:', e);
+				fetchError = 'An unexpected error occurred while fetching video data.';
+				updateParent(null);
+			} finally {
+				isLoading = false;
+			}
+		})();
+	}, 500);
+
+	// Trigger fetch when the URL input changes.
+	function handleUrlInput() {
+		fetchVideoMetadata(urlInput);
+	}
 </script>
 
 <div class="input-container relative mb-4">

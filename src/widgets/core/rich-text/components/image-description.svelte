@@ -17,61 +17,55 @@
 -->
 
 <script lang="ts">
-interface Props {
-	active?: string;
-	key?: string;
-	onSubmit?: (value: string) => void;
-	show?: boolean;
-	value?: string;
-}
-
-let {
-	show = false,
-	value: propValue = "",
-	key = "",
-	active = $bindable(""),
-	onSubmit,
-}: Props = $props();
-
-let localValue = $state<string | undefined>(undefined);
-
-let VALUE = {
-	get value() {
-		return localValue ?? propValue;
-	},
-
-	set value(v: string) {
-		localValue = v;
-	},
-};
-
-let showInput = $state(false);
-
-$effect(() => {
-	if (key !== active) {
-		showInput = false;
+	interface Props {
+		active?: string;
+		key?: string;
+		onSubmit?: (value: string) => void;
+		show?: boolean;
+		value?: string;
 	}
-});
 
-$effect(() => {
-	if (!show) {
-		showInput = false;
+	let { show = false, value: propValue = '', key = '', active = $bindable(''), onSubmit }: Props = $props();
+
+	let localValue = $state<string | undefined>(undefined);
+
+	let VALUE = {
+		get value() {
+			return localValue ?? propValue;
+		},
+
+		set value(v: string) {
+			localValue = v;
+		}
+	};
+
+	let showInput = $state(false);
+
+	$effect(() => {
+		if (key !== active) {
+			showInput = false;
+		}
+	});
+
+	$effect(() => {
+		if (!show) {
+			showInput = false;
+		}
+	});
+
+	function handleKeydown(e: KeyboardEvent & { currentTarget: HTMLInputElement }) {
+		if (e.key === 'Enter') {
+			showInput = false;
+
+			onSubmit?.(VALUE.value as string);
+		}
 	}
-});
 
-function handleKeydown(e: KeyboardEvent & { currentTarget: HTMLInputElement }) {
-	if (e.key === "Enter") {
-		showInput = false;
+	function handleClick() {
+		showInput = !showInput;
 
-		onSubmit?.(VALUE.value as string);
+		active = key;
 	}
-}
-
-function handleClick() {
-	showInput = !showInput;
-
-	active = key;
-}
 </script>
 
 <div class:hidden={!show} class="relative">

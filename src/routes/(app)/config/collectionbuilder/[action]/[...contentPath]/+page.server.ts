@@ -7,7 +7,7 @@
  * - Checks for authenticated user in locals (set by hooks.server.ts).
  * - Verifies user permissions: Must be admin or have 'config:collection:manage' permission.
  * - Fetches all permissions and roles to pass to the client (for UI selectors).
- * - For 'edit' mode, fetches the specific collection data from contentManager.
+ * - For 'edit' mode, fetches the specific collection data from contentSystem.
  * - For 'new' mode, returns a null collection object.
  * - Serializes collection data, removing functions before sending to the client.
  * - Provides 'saveCollection' and 'deleteCollections' actions for persistence.
@@ -16,7 +16,7 @@
 import fs from "node:fs";
 import path from "node:path";
 // Collections
-import { contentManager } from "@src/content";
+import { contentSystem } from "@src/content";
 import type { Schema } from "@src/content/types";
 // Auth
 // Use hasPermissionWithRoles and roles from locals, like the example pattern
@@ -130,16 +130,16 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
     // 6. Handle 'edit' action (default)
     // Initialize content-manager for this tenant before accessing data
-    await contentManager.initialize(locals.tenantId);
-    await contentManager.refresh(); // Force a refresh to bypass any stale cache
+    await contentSystem.initialize(locals.tenantId);
+    await contentSystem.refresh(); // Force a refresh to bypass any stale cache
     const collectionIdentifier = params.contentPath;
 
     // Try resolving exactly as passed (UUID or relative path)
-    let currentCollection = await contentManager.getCollection(collectionIdentifier);
+    let currentCollection = await contentSystem.getCollection(collectionIdentifier);
 
     // Fallback: Try identifying as an absolute path if not found
     if (!(currentCollection || collectionIdentifier.startsWith("/"))) {
-      currentCollection = await contentManager.getCollection(`/${collectionIdentifier}`);
+      currentCollection = await contentSystem.getCollection(`/${collectionIdentifier}`);
     }
 
     if (!currentCollection) {
@@ -266,9 +266,9 @@ export const actions: Actions = {
 
       // Compile with tenant ID
       await compile({ logger, tenantId });
-      //await contentManager.generateContentTypes();
-      //await contentManager.generateCollectionFieldTypes();
-      await contentManager.refresh(tenantId);
+      //await contentSystem.generateContentTypes();
+      //await contentSystem.generateCollectionFieldTypes();
+      await contentSystem.refresh(tenantId);
       return { status: 200 };
     } catch (err) {
       const message = `Error in saveCollection action: ${err instanceof Error ? err.message : String(err)}`;
@@ -304,7 +304,7 @@ export const actions: Actions = {
       }));
 
       // Update collections with new category paths
-      await contentManager.refresh();
+      await contentSystem.refresh();
 
       return {
         status: 200,
@@ -324,7 +324,7 @@ export const actions: Actions = {
       const contentTypes = JSON.parse(formData.get("contentTypes") as string);
       fs.unlinkSync(`${userCollectionsPath}/${contentTypes}.ts`);
       await compile({ logger });
-      await contentManager.refresh();
+      await contentSystem.refresh();
       return { status: 200 };
     } catch (err) {
       const message = `Error in deleteCollections action: ${err instanceof Error ? err.message : String(err)}`;

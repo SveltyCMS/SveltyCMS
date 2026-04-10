@@ -61,9 +61,7 @@ const NumberWidget = createWidget<NumberProps>({
   Name: "Number",
   Icon: "mdi:numeric",
   Description: widget_number_description(),
-  inputComponent: () => import("./input.svelte"),
   inputComponentPath: "/src/widgets/custom/number/input.svelte",
-  displayComponent: () => import("./display.svelte"),
   displayComponentPath: "/src/widgets/custom/number/display.svelte",
   validationSchema,
 

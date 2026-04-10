@@ -14,24 +14,24 @@
 -->
 
 <script lang="ts">
-import { Slider } from "@skeletonlabs/skeleton-svelte";
+	import { Slider } from '@skeletonlabs/skeleton-svelte';
 
-let {
-	value = $bindable({
-		max: 100,
-		current: 0,
-	}),
-	onChange,
-} = $props(); // Maximum value for the slider
-// Current selected value
-// Callback when value changes
+	let {
+		value = $bindable({
+			max: 100,
+			current: 0
+		}),
+		onChange
+	} = $props(); // Maximum value for the slider
+	// Current selected value
+	// Callback when value changes
 
-// Function to handle value changes
-function handleChange(event: Event) {
-	const customEvent = event as CustomEvent;
-	value.current = customEvent.detail;
-	onChange?.(customEvent.detail);
-}
+	// Function to handle value changes
+	function handleChange(event: Event) {
+		const customEvent = event as CustomEvent;
+		value.current = customEvent.detail;
+		onChange?.(customEvent.detail);
+	}
 </script>
 
 <label class="label" for="range-slider">

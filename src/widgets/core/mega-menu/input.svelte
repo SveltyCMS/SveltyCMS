@@ -35,181 +35,178 @@ Interactive menu builder with add/edit/reorder capabilities
 -->
 
 <script lang="ts">
-import { app } from "@src/stores/store.svelte";
-import { showModal } from "@utils/modal-utils";
-import type { FieldType } from "./";
-import MegaMenuInput from "./input.svelte";
-import MenuItemEditorModal from "./menu-item-editor-modal.svelte";
-import type { MenuEditContext, MenuItem } from "./types";
+	import { app } from '@src/stores/store.svelte';
+	import { showModal } from '@utils/modal-utils';
+	import type { FieldType } from './';
+	// biome-ignore lint/correctness/noUnusedImports: used for recursive rendering in template
+	import MegaMenuInput from './input.svelte';
+	import MenuItemEditorModal from './menu-item-editor-modal.svelte';
+	import type { MenuEditContext, MenuItem } from './types';
 
-let {
-	field,
-	value = $bindable(),
-	error,
-}: {
-	field: FieldType;
-	value: MenuItem[] | null | undefined;
-	error?: string | null;
-} = $props();
+	let {
+		field,
+		value = $bindable(),
+		error
+	}: {
+		field: FieldType;
+		value: MenuItem[] | null | undefined;
+		error?: string | null;
+	} = $props();
 
-// Initialize the value as an empty array if it's null or undefined.
-if (!value) {
-	value = [];
-}
+	// Initialize the value as an empty array if it's null or undefined.
+	if (!value) {
+		value = [];
+	}
 
-// State for drag and drop
-let draggedItem = $state<any | null>(null);
-let dragOverIndex = $state<number | null>(null);
+	// State for drag and drop
+	let draggedItem = $state<any | null>(null);
+	let dragOverIndex = $state<number | null>(null);
 
-// Function to add a new top-level menu item.
-function addItem() {
-	value = [
-		...(value || []),
-		{
+	// Function to add a new top-level menu item.
+	function addItem() {
+		value = [
+			...(value || []),
+			{
+				// biome-ignore lint/style/useNamingConvention: system standard
+				_id: crypto.randomUUID(),
+				// biome-ignore lint/style/useNamingConvention: system standard
+				_fields: {},
+				children: []
+			}
+		];
+	}
+
+	// Function to handle drag start
+	function handleDragStart(event: DragEvent, item: MenuItem) {
+		draggedItem = item;
+		event.dataTransfer!.effectAllowed = 'move';
+		event.dataTransfer?.setData('text/plain', item._id);
+	}
+
+	// Function to handle drag over
+	function handleDragOver(event: DragEvent, index: number) {
+		event.preventDefault();
+		dragOverIndex = index;
+	}
+
+	// Function to handle drop
+	function handleDrop(event: DragEvent, dropIndex: number) {
+		event.preventDefault();
+
+		if (!(draggedItem && value)) {
+			return;
+		}
+
+		const draggedIndex = value.findIndex((item) => item._id === draggedItem?._id);
+		if (draggedIndex === -1) {
+			return;
+		}
+
+		// Remove dragged item from current position
+		const newValue = [...value];
+		const [removed] = newValue.splice(draggedIndex, 1);
+
+		// Insert at new position
+		let insertIndex = dropIndex;
+		if (draggedIndex < dropIndex) {
+			insertIndex--; // Adjust for removed item
+		}
+
+		newValue.splice(insertIndex, 0, removed);
+		value = newValue;
+
+		// Reset drag state
+		draggedItem = null;
+		dragOverIndex = null;
+	}
+
+	// Function to handle drag end
+	function handleDragEnd() {
+		draggedItem = null;
+		dragOverIndex = null;
+	}
+
+	// Keyboard event handler for moving items
+	function handleKeyDown(event: KeyboardEvent, index: number) {
+		if (!value) {
+			return;
+		}
+		if (event.key === 'ArrowUp') {
+			event.preventDefault();
+			if (index > 0) {
+				const newValue = [...value];
+				[newValue[index - 1], newValue[index]] = [newValue[index], newValue[index - 1]];
+				value = newValue;
+				// Focus management would be ideal here, but Svelte's reactivity might rebuild DOM
+			}
+		} else if (event.key === 'ArrowDown') {
+			event.preventDefault();
+			if (index < value.length - 1) {
+				const newValue = [...value];
+				[newValue[index + 1], newValue[index]] = [newValue[index], newValue[index + 1]];
+				value = newValue;
+			}
+		}
+	}
+
+	// Function to open edit modal
+	function editItem(item: MenuItem, level: number) {
+		const modalContext: MenuEditContext = {
+			item,
+			level,
+			fields: (field as any).fields?.[level] || [],
+			isNew: false,
+			parent: undefined,
+			onSave: (data: Record<string, any>) => {
+				item._fields = data;
+				value = [...(value || [])]; // Trigger reactivity
+			},
+			onCancel: () => {
+				// Modal closed without saving
+			}
+		};
+
+		showModal({
+			component: MenuItemEditorModal,
+			meta: modalContext
+		});
+	}
+
+	// Function to delete an item
+	function deleteItem(itemToDelete: MenuItem) {
+		if (!value) {
+			return;
+		}
+
+		const confirmDelete = confirm('Are you sure you want to delete this menu item and all its children?');
+		if (!confirmDelete) {
+			return;
+		}
+
+		value = value.filter((item) => item._id !== itemToDelete._id);
+	}
+
+	// Function to add child item
+	function addChildItem(parentItem: MenuItem) {
+		const newChild: MenuItem = {
+			// biome-ignore lint/style/useNamingConvention: system standard
 			_id: crypto.randomUUID(),
+			// biome-ignore lint/style/useNamingConvention: system standard
 			_fields: {},
-			children: [],
-		},
-	];
-}
+			children: []
+		};
 
-// Function to handle drag start
-function handleDragStart(event: DragEvent, item: MenuItem) {
-	draggedItem = item;
-	event.dataTransfer!.effectAllowed = "move";
-	event.dataTransfer?.setData("text/plain", item._id);
-}
-
-// Function to handle drag over
-function handleDragOver(event: DragEvent, index: number) {
-	event.preventDefault();
-	dragOverIndex = index;
-}
-
-// Function to handle drop
-function handleDrop(event: DragEvent, dropIndex: number) {
-	event.preventDefault();
-
-	if (!(draggedItem && value)) {
-		return;
+		parentItem.children = [...(parentItem.children || []), newChild];
+		value = [...(value || [])]; // Trigger reactivity
 	}
 
-	const draggedIndex = value.findIndex((item) => item._id === draggedItem?._id);
-	if (draggedIndex === -1) {
-		return;
+	// Function to toggle expanded state
+	function toggleExpanded(item: MenuItem) {
+		item._expanded = item._expanded === false; // Toggle true/undefined to false, and false to true
+		value = [...(value || [])]; // Trigger reactivity
 	}
 
-	// Remove dragged item from current position
-	const newValue = [...value];
-	const [removed] = newValue.splice(draggedIndex, 1);
-
-	// Insert at new position
-	let insertIndex = dropIndex;
-	if (draggedIndex < dropIndex) {
-		insertIndex--; // Adjust for removed item
-	}
-
-	newValue.splice(insertIndex, 0, removed);
-	value = newValue;
-
-	// Reset drag state
-	draggedItem = null;
-	dragOverIndex = null;
-}
-
-// Function to handle drag end
-function handleDragEnd() {
-	draggedItem = null;
-	dragOverIndex = null;
-}
-
-// Keyboard event handler for moving items
-function handleKeyDown(event: KeyboardEvent, index: number) {
-	if (!value) {
-		return;
-	}
-	if (event.key === "ArrowUp") {
-		event.preventDefault();
-		if (index > 0) {
-			const newValue = [...value];
-			[newValue[index - 1], newValue[index]] = [
-				newValue[index],
-				newValue[index - 1],
-			];
-			value = newValue;
-			// Focus management would be ideal here, but Svelte's reactivity might rebuild DOM
-		}
-	} else if (event.key === "ArrowDown") {
-		event.preventDefault();
-		if (index < value.length - 1) {
-			const newValue = [...value];
-			[newValue[index + 1], newValue[index]] = [
-				newValue[index],
-				newValue[index + 1],
-			];
-			value = newValue;
-		}
-	}
-}
-
-// Function to open edit modal
-function editItem(item: MenuItem, level: number) {
-	const modalContext: MenuEditContext = {
-		item,
-		level,
-		fields: (field as any).fields?.[level] || [],
-		isNew: false,
-		parent: undefined,
-		onSave: (data: Record<string, any>) => {
-			item._fields = data;
-			value = [...(value || [])]; // Trigger reactivity
-		},
-		onCancel: () => {
-			// Modal closed without saving
-		},
-	};
-
-	showModal({
-		component: MenuItemEditorModal,
-		meta: modalContext,
-	});
-}
-
-// Function to delete an item
-function deleteItem(itemToDelete: MenuItem) {
-	if (!value) {
-		return;
-	}
-
-	const confirmDelete = confirm(
-		"Are you sure you want to delete this menu item and all its children?",
-	);
-	if (!confirmDelete) {
-		return;
-	}
-
-	value = value.filter((item) => item._id !== itemToDelete._id);
-}
-
-// Function to add child item
-function addChildItem(parentItem: MenuItem) {
-	const newChild: MenuItem = {
-		_id: crypto.randomUUID(),
-		_fields: {},
-		children: [],
-	};
-
-	parentItem.children = [...(parentItem.children || []), newChild];
-	value = [...(value || [])]; // Trigger reactivity
-}
-
-// Function to toggle expanded state
-function toggleExpanded(item: MenuItem) {
-	item._expanded = item._expanded === false; // Toggle true/undefined to false, and false to true
-	value = [...(value || [])]; // Trigger reactivity
-}
-
-const lang = $derived(app.contentLanguage);
+	const lang = $derived(app.contentLanguage);
 </script>
 
 <div class="space-y-4">

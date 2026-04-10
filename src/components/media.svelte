@@ -34,236 +34,222 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 -->
 
 <script lang="ts">
-import { goto } from "$app/navigation";
-import { mediagallery_nomedia } from "@src/paraglide/messages";
-import { logger } from "@utils/logger";
-import type { MediaImage } from "@utils/media/media-models";
-// Removed axios import
-import { onDestroy, onMount } from "svelte";
-import { SvelteSet } from "svelte/reactivity";
-import { fade, scale } from "svelte/transition";
+	import { mediagallery_nomedia } from '@src/paraglide/messages';
+	import { logger } from '@utils/logger';
+	import type { MediaImage } from '@utils/media/media-models';
+	// Removed axios import
+	import { onDestroy, onMount } from 'svelte';
+	import { SvelteSet } from 'svelte/reactivity';
+	import { fade, scale } from 'svelte/transition';
 
-type ThumbnailSize = "sm" | "md" | "lg";
-type ViewMode = "grid" | "list";
-type SortBy = "name" | "date" | "size";
+	type ThumbnailSize = 'sm' | 'md' | 'lg';
+	type ViewMode = 'grid' | 'list';
+	type SortBy = 'name' | 'date' | 'size';
 
-interface Props {
-	multiple?: boolean;
-	onselect?: (file: MediaImage | MediaImage[]) => void;
-	viewMode?: ViewMode;
-}
-
-const {
-	onselect = () => {},
-	multiple = false,
-	viewMode = "grid",
-}: Props = $props();
-
-// Constants
-const THUMBNAIL_SIZES: ThumbnailSize[] = ["sm", "md", "lg"];
-const DEBOUNCE_MS = 300;
-
-// State
-let files = $state<MediaImage[]>([]);
-let search = $state("");
-let isLoading = $state(true);
-let error = $state<string | null>(null);
-let showInfoSet = new SvelteSet<number>();
-let selectedFiles = new SvelteSet<string>();
-
-let localViewMode = $state<ViewMode | undefined>(undefined);
-let currentViewMode = {
-	get value() {
-		return localViewMode ?? viewMode;
-	},
-	set value(v: ViewMode) {
-		localViewMode = v;
-	},
-};
-
-let sortBy = $state<SortBy>("name");
-let sortAscending = $state(true);
-let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-let prefersReducedMotion = $state(false);
-
-// Filtered and sorted files
-const filteredFiles = $derived.by(() => {
-	let result = files;
-
-	// Apply search filter
-	if (search.trim()) {
-		const searchLower = search.toLowerCase();
-		result = result.filter((file) =>
-			file.filename.toLowerCase().includes(searchLower),
-		);
+	interface Props {
+		multiple?: boolean;
+		onselect?: (file: MediaImage | MediaImage[]) => void;
+		viewMode?: ViewMode;
 	}
 
-	// Apply sorting
-	result = [...result].sort((a, b) => {
-		let comparison = 0;
+	const { onselect = () => {}, multiple = false, viewMode = 'grid' }: Props = $props();
 
-		switch (sortBy) {
-			case "name":
-				comparison = a.filename.localeCompare(b.filename);
-				break;
-			case "date":
-				// Assuming files have a created/modified date
-				comparison = 0; // Implement based on your data structure
-				break;
-			case "size":
-				// Implement size comparison if available
-				comparison = 0;
-				break;
+	// Constants
+	const THUMBNAIL_SIZES: ThumbnailSize[] = ['sm', 'md', 'lg'];
+	const DEBOUNCE_MS = 300;
+
+	// State
+	let files = $state<MediaImage[]>([]);
+	let search = $state('');
+	let isLoading = $state(true);
+	let error = $state<string | null>(null);
+	let showInfoSet = new SvelteSet<number>();
+	let selectedFiles = new SvelteSet<string>();
+
+	let localViewMode = $state<ViewMode | undefined>(undefined);
+	let currentViewMode = {
+		get value() {
+			return localViewMode ?? viewMode;
+		},
+		set value(v: ViewMode) {
+			localViewMode = v;
 		}
-
-		return sortAscending ? comparison : -comparison;
-	});
-
-	return result;
-});
-
-const hasFiles = $derived(filteredFiles.length > 0);
-const selectedCount = $derived(selectedFiles.size);
-
-// Check if info is shown
-function isInfoShown(index: number): boolean {
-	return showInfoSet.has(index);
-}
-
-// Toggle info display
-function toggleInfo(event: Event, index: number): void {
-	event.stopPropagation();
-	event.preventDefault();
-
-	if (showInfoSet.has(index)) {
-		showInfoSet.delete(index);
-	} else {
-		showInfoSet.add(index);
-	}
-}
-
-// Check if file is selected
-function isSelected(filename: string): boolean {
-	return selectedFiles.has(filename);
-}
-
-// Toggle file selection
-function toggleSelection(file: MediaImage, event?: Event): void {
-	event?.stopPropagation();
-
-	if (multiple) {
-		if (selectedFiles.has(file.filename)) {
-			selectedFiles.delete(file.filename);
-		} else {
-			selectedFiles.add(file.filename);
-		}
-	} else {
-		// Single selection mode
-		selectedFiles.clear();
-		selectedFiles.add(file.filename);
-		handleSelect(file);
-	}
-}
-
-// Fetch all media files
-async function fetchMedia(): Promise<void> {
-	isLoading = true;
-	error = null;
-
-	try {
-		const response = await fetch("/api/media");
-		if (!response.ok) {
-			throw new Error("Failed to load media");
-		}
-		files = await response.json();
-		showInfoSet.clear();
-		selectedFiles.clear();
-	} catch (err) {
-		error = err instanceof Error ? err.message : "Failed to load media";
-		logger.error("Error fetching media:", err);
-	} finally {
-		isLoading = false;
-	}
-}
-
-// Handle file selection
-function handleSelect(file: MediaImage): void {
-	if (multiple) {
-		const selected = files.filter((f) => selectedFiles.has(f.filename));
-		onselect(selected);
-	} else {
-		onselect(file);
-	}
-}
-
-// Confirm multiple selection
-function confirmSelection(): void {
-	const selected = files.filter((f) => selectedFiles.has(f.filename));
-	onselect(selected);
-}
-
-// Clear selection
-function clearSelection(): void {
-	selectedFiles.clear();
-}
-
-// Handle keyboard selection
-function handleKeydown(event: KeyboardEvent, file: MediaImage): void {
-	if (event.key === "Enter" || event.key === " ") {
-		event.preventDefault();
-		toggleSelection(file);
-	}
-}
-
-// Get thumbnail URL
-function getThumbnailUrl(file: MediaImage, size: ThumbnailSize = "sm"): string {
-	return file.thumbnails?.[size]?.url || "";
-}
-
-// Get thumbnail dimensions
-function getThumbnailDimensions(file: MediaImage, size: ThumbnailSize): string {
-	const thumbnail = file.thumbnails?.[size];
-	return thumbnail ? `${thumbnail.width}×${thumbnail.height}` : "N/A";
-}
-
-// Debounced search
-function handleSearch(): void {
-	if (debounceTimer) {
-		clearTimeout(debounceTimer);
-	}
-
-	debounceTimer = setTimeout(() => {
-		// Search is handled by filteredFiles derived state
-	}, DEBOUNCE_MS);
-}
-
-// Navigate to Image Editor
-function goToEditor(event: Event, file: MediaImage): void {
-	event.stopPropagation();
-	event.preventDefault();
-	goto(`/imageEditor?src=${encodeURIComponent(file.url)}`);
-}
-
-// Lifecycle
-onMount(() => {
-	const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
-	prefersReducedMotion = mediaQuery.matches;
-
-	const handleChange = (e: MediaQueryListEvent) => {
-		prefersReducedMotion = e.matches;
 	};
 
-	mediaQuery.addEventListener("change", handleChange);
-	fetchMedia();
+	let sortBy = $state<SortBy>('name');
+	let sortAscending = $state(true);
+	let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+	let prefersReducedMotion = $state(false);
 
-	return () => mediaQuery.removeEventListener("change", handleChange);
-});
+	// Filtered and sorted files
+	const filteredFiles = $derived.by(() => {
+		let result = files;
 
-onDestroy(() => {
-	if (debounceTimer) {
-		clearTimeout(debounceTimer);
+		// Apply search filter
+		if (search.trim()) {
+			const searchLower = search.toLowerCase();
+			result = result.filter((file) => file.filename.toLowerCase().includes(searchLower));
+		}
+
+		// Apply sorting
+		result = [...result].sort((a, b) => {
+			let comparison = 0;
+
+			switch (sortBy) {
+				case 'name':
+					comparison = a.filename.localeCompare(b.filename);
+					break;
+				case 'date':
+					// Assuming files have a created/modified date
+					comparison = 0; // Implement based on your data structure
+					break;
+				case 'size':
+					// Implement size comparison if available
+					comparison = 0;
+					break;
+			}
+
+			return sortAscending ? comparison : -comparison;
+		});
+
+		return result;
+	});
+
+	const hasFiles = $derived(filteredFiles.length > 0);
+	const selectedCount = $derived(selectedFiles.size);
+
+	// Check if info is shown
+	function isInfoShown(index: number): boolean {
+		return showInfoSet.has(index);
 	}
-});
+
+	// Toggle info display
+	function toggleInfo(event: Event, index: number): void {
+		event.stopPropagation();
+		event.preventDefault();
+
+		if (showInfoSet.has(index)) {
+			showInfoSet.delete(index);
+		} else {
+			showInfoSet.add(index);
+		}
+	}
+
+	// Check if file is selected
+	function isSelected(filename: string): boolean {
+		return selectedFiles.has(filename);
+	}
+
+	// Toggle file selection
+	function toggleSelection(file: MediaImage, event?: Event): void {
+		event?.stopPropagation();
+
+		if (multiple) {
+			if (selectedFiles.has(file.filename)) {
+				selectedFiles.delete(file.filename);
+			} else {
+				selectedFiles.add(file.filename);
+			}
+		} else {
+			// Single selection mode
+			selectedFiles.clear();
+			selectedFiles.add(file.filename);
+			handleSelect(file);
+		}
+	}
+
+	// Fetch all media files
+	async function fetchMedia(): Promise<void> {
+		isLoading = true;
+		error = null;
+
+		try {
+			const response = await fetch('/api/media');
+			if (!response.ok) {
+				throw new Error('Failed to load media');
+			}
+			files = await response.json();
+			showInfoSet.clear();
+			selectedFiles.clear();
+		} catch (err) {
+			error = err instanceof Error ? err.message : 'Failed to load media';
+			logger.error('Error fetching media:', err);
+		} finally {
+			isLoading = false;
+		}
+	}
+
+	// Handle file selection
+	function handleSelect(file: MediaImage): void {
+		if (multiple) {
+			const selected = files.filter((f) => selectedFiles.has(f.filename));
+			onselect(selected);
+		} else {
+			onselect(file);
+		}
+	}
+
+	// Confirm multiple selection
+	function confirmSelection(): void {
+		const selected = files.filter((f) => selectedFiles.has(f.filename));
+		onselect(selected);
+	}
+
+	// Clear selection
+	function clearSelection(): void {
+		selectedFiles.clear();
+	}
+
+	// Handle keyboard selection
+	function handleKeydown(event: KeyboardEvent, file: MediaImage): void {
+		if (event.key === 'Enter' || event.key === ' ') {
+			event.preventDefault();
+			toggleSelection(file);
+		}
+	}
+
+	// Get thumbnail URL
+	function getThumbnailUrl(file: MediaImage, size: ThumbnailSize = 'sm'): string {
+		return file.thumbnails?.[size]?.url || '';
+	}
+
+	// Get thumbnail dimensions
+	function getThumbnailDimensions(file: MediaImage, size: ThumbnailSize): string {
+		const thumbnail = file.thumbnails?.[size];
+		return thumbnail ? `${thumbnail.width}×${thumbnail.height}` : 'N/A';
+	}
+
+	// Debounced search
+	function handleSearch(): void {
+		if (debounceTimer) {
+			clearTimeout(debounceTimer);
+		}
+
+		debounceTimer = setTimeout(() => {
+			// Search is handled by filteredFiles derived state
+		}, DEBOUNCE_MS);
+	}
+
+	// Lifecycle
+	onMount(() => {
+		const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+		prefersReducedMotion = mediaQuery.matches;
+
+		const handleChange = (e: MediaQueryListEvent) => {
+			prefersReducedMotion = e.matches;
+		};
+
+		mediaQuery.addEventListener('change', handleChange);
+		fetchMedia();
+
+		return () => mediaQuery.removeEventListener('change', handleChange);
+	});
+
+	onDestroy(() => {
+		if (debounceTimer) {
+			clearTimeout(debounceTimer);
+		}
+	});
 </script>
 
 <div class="flex h-full flex-col gap-4" role="region" aria-label="Media gallery">
@@ -410,19 +396,6 @@ onDestroy(() => {
 						>
 							<iconify-icon icon={isInfoShown(index) ? 'mdi:information-off' : 'mdi:information'} width="20" class="text-primary-500"></iconify-icon>
 						</button>
-
-						<!-- Image Editor Button -->
-						{#if file.type?.startsWith('image/')}
-							<button
-								onclick={(e) => goToEditor(e, file)}
-								aria-label={`Edit ${file.filename} in Image Editor`}
-								class="btn-sm m-1 p-1 hover:bg-surface-600"
-								type="button"
-							>
-								<iconify-icon icon="mdi:image-edit" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-							</button>
-						{/if}
-
 						<p class="flex-1 truncate pr-2 text-center text-sm text-white" title={file.filename}>{file.filename}</p>
 					</div>
 

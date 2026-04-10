@@ -4,7 +4,7 @@
  */
 
 import type { User } from "@src/databases/auth/types";
-import type { DatabaseAdapter, DatabaseId, ISODateString } from "@src/databases/db-interface";
+import type { DatabaseAdapter, ISODateString } from "@src/databases/db-interface";
 import { getPrivateSettingSync } from "@src/services/settings-service";
 import { logger } from "@utils/logger.server";
 
@@ -48,9 +48,9 @@ function generateGraphQLTypeDefsFromType<T extends Record<string, GraphQLValue>>
 
 // Use a partial User object to define the types
 const userTypeSample: Partial<User> = {
-  _id: "" as DatabaseId,
+  _id: "",
   email: "",
-  tenantId: "" as DatabaseId,
+  tenantId: "",
   password: "",
   role: "",
   username: "",
@@ -75,7 +75,6 @@ export function userTypeDefs() {
 
 interface GraphQLContext {
   tenantId?: string | null;
-  bypassTenantIsolation?: boolean;
   user?: User;
 }
 
@@ -98,47 +97,19 @@ export function userResolvers(dbAdapter: DatabaseAdapter) {
       const { page = 1, limit = 10 } = args.pagination || {};
 
       try {
-        // Strict boundary bypass check
-        if (getPrivateSettingSync("MULTI_TENANT")) {
-          const userTenant = context.user.tenantId;
-          if (userTenant && userTenant !== context.tenantId) {
-            if (!context.bypassTenantIsolation) {
-              throw new Error("Forbidden: Tenant isolation mismatch");
-            } else {
-              import("@src/services/audit-log-service")
-                .then((module) => {
-                  module.auditLogService.logEvent({
-                    action: "security_bypass",
-                    actorId: (context.user?._id || "system") as DatabaseId,
-                    eventType: module.AuditEventType.UNAUTHORIZED_ACCESS,
-                    severity: "medium",
-                    result: "success",
-                    details: {
-                      description: "Global admin bypassed tenant isolation in GraphQL Users",
-                      targetTenant: context.tenantId || "",
-                      userTenant: userTenant || "",
-                    },
-                    tenantId: (context.tenantId as DatabaseId) || null,
-                  });
-                })
-                .catch(() => {});
-            }
-          }
-        }
-
         // Build filter for multi-tenant support
         const filter: Record<string, unknown> = {};
+        if (getPrivateSettingSync("MULTI_TENANT") && context.tenantId) {
+          filter.tenantId = context.tenantId;
+        }
 
         // Use auth.getAllUsers instead of queryBuilder for proper model access
-        const result = await dbAdapter.auth.getAllUsers(
-          {
-            filter,
-            sort: { updatedAt: "desc" },
-            offset: (page - 1) * limit,
-            limit,
-          },
-          { tenantId: context.tenantId as DatabaseId },
-        );
+        const result = await dbAdapter.auth.getAllUsers({
+          filter,
+          sort: { updatedAt: "desc" },
+          offset: (page - 1) * limit,
+          limit,
+        });
 
         if (!result.success) {
           throw new Error(result.error?.message || "Query failed");

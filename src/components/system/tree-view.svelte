@@ -27,39 +27,36 @@
  -->
 
 <script lang="ts" module>
-export interface TreeNode {
-	ariaLabel?: string; // Optional aria label for the node
-	badge?: {
-		visible?: boolean; // Whether the badge is visible
-		count?: number; // Count for the badge
-		status?:
-			| "draft"
-			| "publish"
-			| "archive"
-			| "schedule"
-			| "delete"
-			| "clone"
-			| "test"; // Status for the badge
-		color?: string; // Color for the badge
-	};
-	children?: TreeNode[]; // Optional children nodes
-	depth?: number; // Depth of the node
-	icon?: string; // Optional icon for the node
-	id: string; // Unique identifier for the node
-	isCollection?: boolean; // Whether the node is a collection
-	isExpanded?: boolean; // Whether the node is expanded
-	isLoading?: boolean; // Whether the node is loading
-	name: string; // Name of the node
-	nodeType?: string; // Type of the node
-	onClick?: (node: TreeNode) => void;
-	order?: number; // Order of the node
-	path?: string; // Path of the node
-}
+	export interface TreeNode {
+		ariaLabel?: string; // Optional aria label for the node
+		badge?: {
+			visible?: boolean; // Whether the badge is visible
+			count?: number; // Count for the badge
+			status?: 'draft' | 'publish' | 'archive' | 'schedule' | 'delete' | 'clone' | 'test'; // Status for the badge
+			color?: string; // Color for the badge
+		};
+		children?: TreeNode[]; // Optional children nodes
+		depth?: number; // Depth of the node
+		icon?: string; // Optional icon for the node
+		id: string; // Unique identifier for the node
+		isCollection?: boolean; // Whether the node is a collection
+		isExpanded?: boolean; // Whether the node is expanded
+		isLoading?: boolean; // Whether the node is loading
+		name: string; // Name of the node
+		nodeType?: string; // Type of the node
+		onClick?: (node: TreeNode) => void;
+		order?: number; // Order of the node
+		path?: string; // Path of the node
+	}
 </script>
 
 <script lang="ts">
+	type _any = any;
+
 	import { logger } from '@utils/logger';
-	import TreeView from './tree-view.svelte';
+	import TreeViewComponent from './tree-view.svelte';
+
+	const TreeView = TreeViewComponent;
 
 	import { onMount } from 'svelte';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
@@ -72,6 +69,7 @@ export interface TreeNode {
 		compact?: boolean;
 		dir?: 'ltr' | 'rtl' | 'auto';
 		iconColorClass?: string;
+		k?: _any;
 		nodes: TreeNode[];
 		onExpand?: ((node: TreeNode) => void) | null;
 		onHover?: ((node: TreeNode) => void) | null;
@@ -83,6 +81,7 @@ export interface TreeNode {
 
 	// Destructure props with clearer names and defaults
 	const {
+		k = undefined,
 		nodes: initialNodes,
 		selectedId = null,
 		ariaLabel = 'Navigation tree',
@@ -105,16 +104,16 @@ export interface TreeNode {
 	let dropPosition = $state<'before' | 'after' | 'inside' | null>(null);
 	let prefersReducedMotion = $state(false);
 
-	// Helper: check expansion (respects both local state and node prop)
-	function isNodeExpanded(node: TreeNode): boolean {
-		return expandedNodeIds.has(node.id) || !!node.isExpanded;
+	// Helper: check expansion
+	function isNodeExpanded(nodeId: string): boolean {
+		return expandedNodeIds.has(nodeId);
 	}
 
 	// Map nodes with derived expansion state
 	function mapNodesWithDerivedState(nodesToMap: TreeNode[]): TreeNode[] {
 		return nodesToMap.map((node) => ({
 			...node,
-			isExpanded: isNodeExpanded(node),
+			isExpanded: isNodeExpanded(node.id),
 			children: node.children ? mapNodesWithDerivedState(node.children) : undefined
 		}));
 	}
@@ -217,13 +216,13 @@ export interface TreeNode {
 		const nodeData = nodeMap.get(node.id);
 
 		if (direction === expandKey) {
-			if (node.children && !isNodeExpanded(node)) {
+			if (node.children && !isNodeExpanded(node.id)) {
 				toggleNode(node);
-			} else if (node.children && isNodeExpanded(node)) {
+			} else if (node.children && isNodeExpanded(node.id)) {
 				focusNextNode(node.id);
 			}
 		} else if (direction === collapseKey) {
-			if (node.children && isNodeExpanded(node)) {
+			if (node.children && isNodeExpanded(node.id)) {
 				toggleNode(node);
 			} else if (nodeData?.parentId) {
 				focusNodeById(nodeData.parentId);
@@ -238,7 +237,7 @@ export interface TreeNode {
 		function traverse(nodesToTraverse: TreeNode[]) {
 			nodesToTraverse.forEach((n) => {
 				visible.push(n.id);
-				if (n.children && isNodeExpanded(n)) {
+				if (n.children && isNodeExpanded(n.id)) {
 					traverse(n.children);
 				}
 			});
@@ -357,7 +356,7 @@ export interface TreeNode {
 		}
 
 		const related = event?.relatedTarget as Node | null;
-		if (!(related && event?.currentTarget && (event.currentTarget as Node).contains(related))) {
+		if (!(related && (event?.currentTarget as Node).contains(related))) {
 			dragOverNode = null;
 			dropPosition = null;
 		}
@@ -451,7 +450,7 @@ export interface TreeNode {
 				}}
 			>
 				<!-- Expand/Collapse icon with RTL support -->
-				{#if node.children && !compact}
+				{#if node.children}
 					{#if node.isLoading}
 						<div class="flex h-4 w-4 items-center justify-center">
 							<div class="h-3 w-3 animate-spin rounded-full border-2 border-surface-400 border-t-transparent"></div>
@@ -478,29 +477,27 @@ export interface TreeNode {
 							{node.badge.count}
 						</div>
 					{/if}
-				{:else if !compact}
+				{:else}
 					<div class="h-4 w-4" aria-hidden="true"></div>
 				{/if}
 
 				<!-- Icon -->
 				{#if node.icon}
-					<div class="relative flex shrink-0 items-center {compact ? 'mx-auto' : ''}">
-						<iconify-icon icon={node.icon} width={compact ? '24' : '24'} height={compact ? '24' : '24'} class={iconColorClass} aria-hidden="true"
+					<div class="relative flex shrink-0 items-center">
+						<iconify-icon icon={node.icon} width={compact ? '20' : '24'} height={compact ? '20' : '24'} class={iconColorClass} aria-hidden="true"
 						></iconify-icon>
 					</div>
 				{/if}
 
 				<!-- Node label -->
-				{#if !compact}
-					<span
-						class="flex-1 select-none overflow-hidden text-ellipsis whitespace-nowrap text-left dark:text-white
-												 text-sm
-												 {selectedId === node.id ? 'font-semibold' : ''}"
-						style="margin-left: {node.depth ? node.depth * 8 : 0}px"
-					>
-						{node.name}
-					</span>
-				{/if}
+				<span
+					class="flex-1 select-none overflow-hidden text-ellipsis whitespace-nowrap text-left dark:text-white
+									       {compact ? 'text-xs' : 'text-sm'}
+									       {selectedId === node.id ? 'font-semibold' : ''}"
+					style="margin-left: {node.depth ? node.depth * 8 : 0}px"
+				>
+					{node.name}
+				</span>
 			</button>
 
 			<!-- Drop indicator: after -->
@@ -524,6 +521,7 @@ export interface TreeNode {
 					{#if node.isExpanded}
 						<div transition:fly|local={{ y: -10, duration: transitionDuration }}>
 							<TreeView
+								{k}
 								nodes={node.children}
 								{selectedId}
 								ariaLabel={`Children of ${node.name}`}

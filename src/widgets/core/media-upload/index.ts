@@ -12,6 +12,7 @@
  * - **Advanced Aggregation**: Performs a `$lookup` to filter/sort based on actual media metadata.
  */
 
+import { widget_media_description } from "@src/paraglide/messages";
 import { createWidget } from "@src/widgets/widget-factory";
 
 // import Checkbox from '@src/widgets/core/checkbox/index';
@@ -59,10 +60,8 @@ export const createValidationSchema = (
 const MediaWidget = createWidget<MediaProps>({
   Name: "MediaUpload",
   Icon: "mdi:image-multiple",
-  Description: "A powerful media selector widget with support for single or multiple uploads.",
-  inputComponent: () => import("./input.svelte"),
+  Description: widget_media_description(),
   inputComponentPath: "/src/widgets/core/media-upload/input.svelte",
-  displayComponent: () => import("./display.svelte"),
   displayComponentPath: "/src/widgets/core/media-upload/display.svelte",
   validationSchema: createValidationSchema,
 
@@ -78,7 +77,7 @@ const MediaWidget = createWidget<MediaProps>({
       const accessor = data as any;
       const value = accessor.get();
       if (!value) {
-        return;
+        return {};
       }
 
       // We only process if it's a File object (meaning it's a new upload)
@@ -142,6 +141,7 @@ const MediaWidget = createWidget<MediaProps>({
         accessor.update(processedIds);
       }
     }
+    return {};
   },
 
   GuiSchema: {

@@ -220,10 +220,7 @@ export const widgetProxy = new Proxy(registry, {
     );
 
     // Return fallback factory in production, undefined in development
-    const isProd =
-      typeof globalThis !== "undefined" &&
-      (globalThis as any).process?.env?.NODE_ENV === "production";
-    if (isProd) {
+    if (process.env.NODE_ENV === "production") {
       return createMissingWidgetFactory(prop);
     }
 

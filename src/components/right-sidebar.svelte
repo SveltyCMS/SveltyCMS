@@ -12,263 +12,217 @@
 -->
 
 <script lang="ts">
-import { registerHotkey } from "@src/utils/hotkeys";
-import { onMount } from "svelte";
-// Components
-import Toggles from "@src/components/system/inputs/toggles.svelte";
-import { StatusTypes } from "@src/content/types";
-// ParaglideJs
-import {
-	button_delete,
-	button_next,
-	button_save,
-	sidebar_createdby,
-	sidebar_will_publish_on,
-	siedabar_publish_options,
-	status_publish,
-	status_unpublish,
-	validation_fix_before_save,
-} from "@src/paraglide/messages";
-import { getLocale } from "@src/paraglide/runtime";
-import {
-	collection,
-	collectionValue,
-	mode,
-} from "@src/stores/collection-store.svelte";
-// Stores
-import { screen } from "@src/stores/screen-size-store.svelte";
-import { statusStore } from "@src/stores/status-store.svelte";
-import {
-	app,
-	dataChangeStore,
-	validationStore,
-} from "@src/stores/store.svelte";
-import { ui } from "@src/stores/ui-store.svelte";
+	// Components
+	import Toggles from '@src/components/system/inputs/toggles.svelte';
+	import { StatusTypes } from '@src/content/types';
+	// ParaglideJs
+	import {
+		button_delete,
+		button_next,
+		button_save,
+		sidebar_createdby,
+		sidebar_will_publish_on,
+		siedabar_publish_options,
+		status_publish,
+		status_unpublish,
+		validation_fix_before_save
+	} from '@src/paraglide/messages';
+	import { getLocale } from '@src/paraglide/runtime';
+	import { collection, collectionValue, mode } from '@src/stores/collection-store.svelte';
+	// Stores
+	import { screen } from '@src/stores/screen-size-store.svelte';
+	import { statusStore } from '@src/stores/status-store.svelte';
+	import { app, dataChangeStore, validationStore } from '@src/stores/store.svelte';
+	import { ui } from '@src/stores/ui-store.svelte';
 
-// Utils
-import { logger } from "@utils/logger";
-import { showScheduleModal } from "@utils/modal-utils";
-import { navigationManager } from "@utils/navigation-manager";
-import { toast } from "@src/stores/toast.svelte.ts";
-import { page } from "$app/state";
-// Utils
-import {
-	cloneCurrentEntry,
-	deleteCurrentEntry,
-	saveEntry,
-} from "../utils/entry-actions";
+	// Utils
+	import { logger } from '@utils/logger';
+	import { showScheduleModal } from '@utils/modal-utils';
+	import { navigationManager } from '@utils/navigation-manager';
+	import { toast } from '@src/stores/toast.svelte.ts';
+	import { page } from '$app/state';
+	// Utils
+	import { cloneCurrentEntry, deleteCurrentEntry, saveEntry } from '../utils/entry-actions';
 
-interface Entry {
-	_scheduled?: string | number | Date;
-	createdAt?: string;
-	createdBy?: string;
-	status?: string;
-	updatedAt?: string;
-	updatedBy?: string;
-}
-
-// --- Derived from page & stores ---
-let user = $derived(page.data.user);
-let isAdmin = $derived(page.data.isAdmin === true);
-
-let currentMode = $derived(mode.value);
-let currentCollection = $derived(collection.value);
-let currentEntry = $derived(collectionValue.value as Entry | null);
-
-let isFormValid = $derived(validationStore.isValid);
-let hasChanges = $derived(dataChangeStore.hasChanges);
-
-let canWrite = $derived(
-	currentCollection?.permissions?.[user?.role]?.write !== false,
-);
-let canCreate = $derived(
-	currentCollection?.permissions?.[user?.role]?.create !== false,
-);
-let canDelete = $derived(
-	currentCollection?.permissions?.[user?.role]?.delete !== false,
-);
-
-let scheduleTimestamp = $derived(
-	currentEntry?._scheduled ? Number(currentEntry._scheduled) : null,
-);
-
-// --- Permissions & UI logic ---
-let showSidebar = $derived(
-	["edit", "create"].includes(currentMode) && canWrite,
-);
-
-let shouldDisableStatusToggle = $derived(
-	(currentMode === "create" && !ui.isRightSidebarVisible) ||
-		(currentMode === "edit" &&
-			!ui.isRightSidebarVisible &&
-			!screen.isDesktop) ||
-		statusStore.isLoading,
-);
-
-let isMenuCollection = $derived(
-	currentCollection?.name === "Menu" || currentCollection?.slug === "menu",
-);
-
-// --- Next button handling ---
-// Restore logic for MegaMenu wizard support
-let nextAction = $state<(() => void | Promise<void>) | null>(null);
-
-$effect(() => {
-	// Logic: If it's the Menu collection in create mode, we ENABLE the Next button.
-	if (isMenuCollection && currentMode === "create") {
-		app.shouldShowNextButton = true;
-		// If app.saveLayerStore is explicitly set (by widget?), use it.
-		nextAction = app.saveLayerStore;
-	} else {
-		app.shouldShowNextButton = false;
-		nextAction = null;
+	interface Entry {
+		_scheduled?: string | number | Date;
+		createdAt?: string;
+		createdBy?: string;
+		status?: string;
+		updatedAt?: string;
+		updatedBy?: string;
 	}
-});
 
-// --- Helpers ---
-function isUUID(str: string): boolean {
-	// Support both standard UUIDs (with dashes) and dashless UUIDs (32 hex chars)
-	return /^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/i.test(
-		str,
+	// --- Derived from page & stores ---
+	let user = $derived(page.data.user);
+	let isAdmin = $derived(page.data.isAdmin === true);
+
+	let currentMode = $derived(mode.value);
+	let currentCollection = $derived(collection.value);
+	let currentEntry = $derived(collectionValue.value as Entry | null);
+
+	let isFormValid = $derived(validationStore.isValid);
+	let hasChanges = $derived(dataChangeStore.hasChanges);
+
+	let canWrite = $derived(currentCollection?.permissions?.[user?.role]?.write !== false);
+	let canCreate = $derived(currentCollection?.permissions?.[user?.role]?.create !== false);
+	let canDelete = $derived(currentCollection?.permissions?.[user?.role]?.delete !== false);
+
+	let scheduleTimestamp = $derived(currentEntry?._scheduled ? Number(currentEntry._scheduled) : null);
+
+	// --- Permissions & UI logic ---
+	let showSidebar = $derived(['edit', 'create'].includes(currentMode) && canWrite);
+
+	let shouldDisableStatusToggle = $derived(
+		(currentMode === 'create' && !ui.isRightSidebarVisible) ||
+			(currentMode === 'edit' && !ui.isRightSidebarVisible && !screen.isDesktop) ||
+			statusStore.isLoading
 	);
-}
 
-function getDisplayName(value: string | undefined | null): string {
-	if (!value) {
-		return "system";
-	}
+	let isMenuCollection = $derived(currentCollection?.name === 'Menu' || currentCollection?.slug === 'menu');
 
-	if (isUUID(value)) {
-		// If it matches the current user's ID, show their details
-		if (user && user._id === value) {
-			if (user.username && !isUUID(user.username)) {
-				return user.username;
-			}
-			if (user.firstName || user.lastName) {
-				return [user.firstName, user.lastName].filter(Boolean).join(" ");
-			}
-			if (user.email) {
-				return user.email.split("@")[0];
-			}
+	// --- Next button handling ---
+	// Restore logic for MegaMenu wizard support
+	let nextAction = $state<(() => void | Promise<void>) | null>(null);
+
+	$effect(() => {
+		// Logic: If it's the Menu collection in create mode, we ENABLE the Next button.
+		if (isMenuCollection && currentMode === 'create') {
+			app.shouldShowNextButton = true;
+			// If app.saveLayerStore is explicitly set (by widget?), use it.
+			nextAction = app.saveLayerStore;
+		} else {
+			app.shouldShowNextButton = false;
+			nextAction = null;
 		}
-		// TODO: Add lookup for other users if needed (requires a user store or API call)
-		// For now, if it's a UUID and not the current user, it falls back to showing the UUID relative to the context,
-		// or we could show "User ..."
-		// But returning the raw UUID is better than "system".
-	}
-
-	return value;
-}
-
-function formatDate(dateStr: string | undefined | null): string {
-	if (!dateStr) {
-		return "-";
-	}
-	try {
-		return new Date(dateStr).toLocaleString(getLocale(), {
-			year: "numeric",
-			month: "short",
-			day: "2-digit",
-			hour: "2-digit",
-			minute: "2-digit",
-		});
-	} catch {
-		return "-";
-	}
-}
-
-let dates = $derived({
-	created: formatDate(currentEntry?.createdAt as string),
-	updated: formatDate(currentEntry?.updatedAt as string),
-});
-
-// --- Actions ---
-function handleClone() {
-	cloneCurrentEntry();
-}
-
-function handleDelete() {
-	deleteCurrentEntry(isAdmin);
-}
-
-async function toggleStatus(newValue: boolean): Promise<boolean> {
-	return await statusStore.toggleStatus(newValue, "RightSidebar");
-}
-
-function openSchedule() {
-	showScheduleModal({
-		initialAction:
-			currentEntry?.status === StatusTypes.publish ? "publish" : "unpublish",
-		onSchedule: (date: Date, action: string) => {
-			const timestamp = date.getTime();
-			collectionValue.value = {
-				...currentEntry!,
-				status: StatusTypes.schedule,
-				_scheduled: timestamp,
-			};
-			toast.success(`Entry scheduled for ${action}.`);
-		},
 	});
-}
 
-onMount(() => {
-	registerHotkey(
-		"mod+s",
-		() => {
-			if (isFormValid && canWrite) {
-				save();
-			}
-		},
-		"Save entry",
-	);
-});
-
-async function save() {
-	if (!isFormValid) {
-		toast.warning(validation_fix_before_save());
-		return;
+	// --- Helpers ---
+	function isUUID(str: string): boolean {
+		// Support both standard UUIDs (with dashes) and dashless UUIDs (32 hex chars)
+		return /^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/i.test(str);
 	}
 
-	// In edit mode: no changes → just navigate back
-	if (currentMode === "edit" && !hasChanges) {
-		logger.debug("[RightSidebar] No changes – navigating to list");
+	function getDisplayName(value: string | undefined | null): string {
+		if (!value) {
+			return 'system';
+		}
+
+		if (isUUID(value)) {
+			// If it matches the current user's ID, show their details
+			if (user && user._id === value) {
+				if (user.username && !isUUID(user.username)) {
+					return user.username;
+				}
+				if (user.firstName || user.lastName) {
+					return [user.firstName, user.lastName].filter(Boolean).join(' ');
+				}
+				if (user.email) {
+					return user.email.split('@')[0];
+				}
+			}
+			// TODO: Add lookup for other users if needed (requires a user store or API call)
+			// For now, if it's a UUID and not the current user, it falls back to showing the UUID relative to the context,
+			// or we could show "User ..."
+			// But returning the raw UUID is better than "system".
+		}
+
+		return value;
+	}
+
+	function formatDate(dateStr: string | undefined | null): string {
+		if (!dateStr) {
+			return '-';
+		}
+		try {
+			return new Date(dateStr).toLocaleString(getLocale(), {
+				year: 'numeric',
+				month: 'short',
+				day: '2-digit',
+				hour: '2-digit',
+				minute: '2-digit'
+			});
+		} catch {
+			return '-';
+		}
+	}
+
+	let dates = $derived({
+		created: formatDate(currentEntry?.createdAt as string),
+		updated: formatDate(currentEntry?.updatedAt as string)
+	});
+
+	// --- Actions ---
+	function handleClone() {
+		cloneCurrentEntry();
+	}
+
+	function handleDelete() {
+		deleteCurrentEntry(isAdmin);
+	}
+
+	async function toggleStatus(newValue: boolean): Promise<boolean> {
+		return await statusStore.toggleStatus(newValue, 'RightSidebar');
+	}
+
+	function openSchedule() {
+		showScheduleModal({
+			initialAction: currentEntry?.status === StatusTypes.publish ? 'publish' : 'unpublish',
+			onSchedule: (date: Date, action: string) => {
+				const timestamp = date.getTime();
+				collectionValue.value = {
+					...currentEntry!,
+					status: StatusTypes.schedule,
+					_scheduled: timestamp
+				};
+				toast.success(`Entry scheduled for ${action}.`);
+			}
+		});
+	}
+
+	async function save() {
+		if (!isFormValid) {
+			toast.warning(validation_fix_before_save());
+			return;
+		}
+
+		// In edit mode: no changes → just navigate back
+		if (currentMode === 'edit' && !hasChanges) {
+			logger.debug('[RightSidebar] No changes – navigating to list');
+			ui.forceUpdate();
+			await navigationManager.navigateToList();
+			return;
+		}
+
+		// Prepare data
+		const dataToSave = { ...currentEntry! };
+
+		if (scheduleTimestamp) {
+			dataToSave.status = StatusTypes.schedule;
+			dataToSave._scheduled = scheduleTimestamp;
+		} else {
+			dataToSave.status = statusStore.getStatusForSave();
+			dataToSave._scheduled = undefined;
+		}
+
+		// Metadata
+		if (currentMode === 'create') {
+			dataToSave.createdBy = getDisplayName(user?.username);
+		}
+		dataToSave.updatedBy = getDisplayName(user?.username);
+
+		if (process.env.NODE_ENV !== 'production') {
+			logger.debug('[RightSidebar] Saving entry:', dataToSave);
+		}
+
+		const success = await saveEntry(dataToSave);
+		if (!success) {
+			return;
+		}
+
 		ui.forceUpdate();
 		await navigationManager.navigateToList();
-		return;
 	}
-
-	// Prepare data
-	const dataToSave = { ...currentEntry! };
-
-	if (scheduleTimestamp) {
-		dataToSave.status = StatusTypes.schedule;
-		dataToSave._scheduled = scheduleTimestamp;
-	} else {
-		dataToSave.status = statusStore.getStatusForSave();
-		dataToSave._scheduled = undefined;
-	}
-
-	// Metadata
-	if (currentMode === "create") {
-		dataToSave.createdBy = getDisplayName(user?.username);
-	}
-	dataToSave.updatedBy = getDisplayName(user?.username);
-
-	const isProd =
-		typeof globalThis !== "undefined" &&
-		(globalThis as any).process?.env?.NODE_ENV === "production";
-	if (!isProd) {
-		logger.debug("[RightSidebar] Saving entry:", dataToSave);
-	}
-
-	const success = await saveEntry(dataToSave);
-	if (!success) {
-		return;
-	}
-
-	ui.forceUpdate();
-	await navigationManager.navigateToList();
-}
 </script>
 
 {#if showSidebar}
@@ -290,7 +244,6 @@ async function save() {
 					class:opacity-50={!isFormValid || !canWrite}
 					class:cursor-not-allowed={!isFormValid || !canWrite}
 					aria-label="Save"
-					aria-keyshortcuts="mod+s"
 					title={!isFormValid ? 'Fix validation errors before saving' : 'Save changes'}
 				>
 					<iconify-icon icon="material-symbols:save" width="20"></iconify-icon>

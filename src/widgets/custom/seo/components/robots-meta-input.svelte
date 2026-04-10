@@ -14,7 +14,7 @@
 -->
 
 <script lang="ts">
-let { value = $bindable() } = $props();
+	let { value = $bindable() } = $props();
 </script>
 
 <label for="robots-meta-select" class="label text-black dark:text-primary-500">

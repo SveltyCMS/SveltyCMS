@@ -25,108 +25,104 @@ Part of the Three Pillars Architecture for widget system.
 -->
 
 <script lang="ts">
-import { logger } from "@utils/logger";
-import type { DateWidgetData } from "./";
+	import { logger } from '@utils/logger';
+	import type { DateWidgetData } from './';
 
-interface Props {
-	format?: "short" | "medium" | "long" | "full";
-	showRelative?: boolean;
-	value: DateWidgetData;
-}
-
-const { value, format = "medium", showRelative = true }: Props = $props();
-
-// Get the user's preferred language from the browser
-const userLocale = $derived(
-	typeof document !== "undefined"
-		? document.documentElement.lang || "en-US"
-		: "en-US",
-);
-
-// Get date formatting options based on format prop
-const dateOptions = $derived.by(() => {
-	const optionsMap = {
-		short: { dateStyle: "short" as const },
-		medium: { dateStyle: "medium" as const },
-		long: { dateStyle: "long" as const },
-		full: { dateStyle: "full" as const },
-	};
-	return optionsMap[format];
-});
-
-// Calculate relative time for recent dates
-const relativeTime = $derived.by(() => {
-	if (!(value && showRelative)) {
-		return null;
+	interface Props {
+		format?: 'short' | 'medium' | 'long' | 'full';
+		showRelative?: boolean;
+		value: DateWidgetData;
 	}
 
-	try {
-		const date = new Date(value);
-		if (Number.isNaN(date.getTime())) {
+	const { value, format = 'medium', showRelative = true }: Props = $props();
+
+	// Get the user's preferred language from the browser
+	const userLocale = $derived(typeof document !== 'undefined' ? document.documentElement.lang || 'en-US' : 'en-US');
+
+	// Get date formatting options based on format prop
+	const dateOptions = $derived.by(() => {
+		const optionsMap = {
+			short: { dateStyle: 'short' as const },
+			medium: { dateStyle: 'medium' as const },
+			long: { dateStyle: 'long' as const },
+			full: { dateStyle: 'full' as const }
+		};
+		return optionsMap[format];
+	});
+
+	// Calculate relative time for recent dates
+	const relativeTime = $derived.by(() => {
+		if (!(value && showRelative)) {
 			return null;
 		}
 
-		const now = new Date();
-		const diffTime = now.getTime() - date.getTime();
-		const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+		try {
+			const date = new Date(value);
+			if (Number.isNaN(date.getTime())) {
+				return null;
+			}
 
-		// Return relative time for dates within a week
-		if (diffDays === 0) {
-			return "Today";
+			const now = new Date();
+			const diffTime = now.getTime() - date.getTime();
+			const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+			// Return relative time for dates within a week
+			if (diffDays === 0) {
+				return 'Today';
+			}
+			if (diffDays === 1) {
+				return 'Yesterday';
+			}
+			if (diffDays === -1) {
+				return 'Tomorrow';
+			}
+			if (diffDays > 1 && diffDays <= 7) {
+				return `${diffDays} days ago`;
+			}
+			if (diffDays < -1 && diffDays >= -7) {
+				return `In ${Math.abs(diffDays)} days`;
+			}
+
+			return null; // Use formatted date for older dates
+		} catch {
+			return null;
 		}
-		if (diffDays === 1) {
-			return "Yesterday";
-		}
-		if (diffDays === -1) {
-			return "Tomorrow";
-		}
-		if (diffDays > 1 && diffDays <= 7) {
-			return `${diffDays} days ago`;
-		}
-		if (diffDays < -1 && diffDays >= -7) {
-			return `In ${Math.abs(diffDays)} days`;
+	});
+
+	// Format date using Intl.DateTimeFormat
+	const formattedDate = $derived.by(() => {
+		if (!value) {
+			return '–';
 		}
 
-		return null; // Use formatted date for older dates
-	} catch {
-		return null;
-	}
-});
+		try {
+			const date = new Date(value);
+			if (Number.isNaN(date.getTime())) {
+				return 'Invalid Date';
+			}
 
-// Format date using Intl.DateTimeFormat
-const formattedDate = $derived.by(() => {
-	if (!value) {
-		return "–";
-	}
-
-	try {
-		const date = new Date(value);
-		if (Number.isNaN(date.getTime())) {
-			return "Invalid Date";
+			return new Intl.DateTimeFormat(userLocale, dateOptions).format(date);
+		} catch (e) {
+			logger.warn('Date formatting error:', e);
+			return 'Invalid Date';
 		}
+	});
 
-		return new Intl.DateTimeFormat(userLocale, dateOptions).format(date);
-	} catch (e) {
-		logger.warn("Date formatting error:", e);
-		return "Invalid Date";
-	}
-});
+	// Get ISO string for tooltip
+	const isoString = $derived.by(() => {
+		if (!value) {
+			return undefined;
+		}
+		try {
+			const date = new Date(value);
+			return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
+		} catch {
+			return undefined;
+		}
+	});
 
-// Get ISO string for tooltip
-const isoString = $derived.by(() => {
-	if (!value) {
-		return undefined;
-	}
-	try {
-		const date = new Date(value);
-		return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
-	} catch {
-		return undefined;
-	}
-});
-
-// Final display text
-const displayText = $derived(relativeTime || formattedDate);
+	// Final display text
+	const displayText = $derived(relativeTime || formattedDate);
 </script>
 
 <time class="inline-flex items-center font-medium text-gray-900 dark:text-gray-100" title={isoString} datetime={isoString}>

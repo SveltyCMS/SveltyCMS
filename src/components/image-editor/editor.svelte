@@ -1,117 +1,332 @@
-<!-- 
- @file src/components/image-editor/editor.svelte
- @component Primary shell for the Image Editor
- -->
+<!--
+@file: src/components/image-editor/editor.svelte
+@component
+**Enhanced Image Editor - Svelte 5 Optimized**
+
+Comprehensive image editing interface with svelte-canvas integration.
+-->
+
 <script lang="ts">
-import { imageEditorStore } from "@src/stores/image-editor-store.svelte";
-import { onMount, onDestroy } from "svelte";
-import { fade } from "svelte/transition";
-import { registerHotkey } from "@src/utils/hotkeys";
-import Canvas from "./editor-canvas.svelte";
-import Toolbar from "./editor-toolbar.svelte";
-import { editorWidgets } from "./widgets/registry";
+	import { imageEditorStore } from '@src/stores/image-editor-store.svelte';
+	import { logger } from '@utils/logger';
+	import { onDestroy, onMount } from 'svelte';
+	import EditorCanvas from './editor-canvas.svelte';
+	import { editorWidgets } from './widgets/registry';
 
-let { image, onsave, oncancel } = $props<{
-	image: { url: string; _id?: string };
-	oncancel: () => void;
-	onsave: (data: any) => void;
-}>();
+	interface Props {
+		focalPoint?: { x: number; y: number };
+		imageFile?: File | null;
+		initialImageSrc?: string;
+		mediaId?: string;
+		onsave?: (detail: {
+			dataURL?: string;
+			file?: File;
+			focalPoint?: any;
+			mediaId?: string;
+			manipulations?: any;
+			operations?: Record<string, unknown>;
+			saveBehavior?: 'new' | 'overwrite';
+		}) => void;
+	}
 
-// Initialize Editor
-onMount(async () => {
-	imageEditorStore.reset();
+	let { imageFile = null, initialImageSrc = '', mediaId = '', focalPoint = $bindable({ x: 0.5, y: 0.5 }), onsave = () => {} }: Props = $props();
 
-	// Register Standard Hotkeys
-	registerHotkey("mod+s", handleSave, "Save Image");
-	registerHotkey("mod+z", () => imageEditorStore.undo(), "Undo");
-	registerHotkey("mod+shift+z", () => imageEditorStore.redo(), "Redo");
-	registerHotkey("mod+y", () => imageEditorStore.redo(), "Redo (Alternate)");
-	registerHotkey("escape", oncancel, "Cancel Editing", false);
+	// State
+	let selectedImage = $state('');
+	let containerRef = $state<HTMLDivElement | undefined>(undefined);
+	let containerWidth = $state(0);
+	let containerHeight = $state(0);
+	let initialImageLoaded = $state(false);
+	let isProcessing = $state(false);
+	let error = $state<string | null>(null);
+	let activeToolInstance = $state<any>(null);
 
-	// Load image element
-	const img = new Image();
-	img.crossOrigin = "anonymous";
-	img.onload = () => {
-		imageEditorStore.imageElement = img;
-		imageEditorStore.state.crop = {
-			x: 0,
-			y: 0,
-			width: img.width,
-			height: img.height,
-			aspectRatio: undefined,
-			shape: "rect",
-		};
-		imageEditorStore.saveHistory();
-	};
-	img.src = image.url;
+	// Save behavior: 'new' creates a timestamped copy, 'overwrite' replaces the original
+	let saveBehavior = $state<'new' | 'overwrite'>('new');
 
-	// Global event bridges
-	window.addEventListener("image-editor-save", handleSave);
-});
+	// Derived values
+	const storeState = imageEditorStore.state;
+	const activeState = $derived(imageEditorStore.state.activeState);
+	const hasImage = $derived(!!storeState.imageElement);
 
-onDestroy(() => {
-	window.removeEventListener("image-editor-save", handleSave);
-});
-
-async function handleSave() {
-	const canvas = document.querySelector("canvas");
-	if (!canvas) return;
-
-	const dataURL = canvas.toDataURL("image/jpeg", 0.9);
-	const res = await fetch(dataURL);
-	const blob = await res.blob();
-	const file = new File([blob], "edited-image.jpg", { type: "image/jpeg" });
-
-	onsave({
-		dataURL,
-		file,
-		mediaId: image._id,
-		operations: {
-			adjustments: $state.snapshot(imageEditorStore.state.filters),
-			crop: $state.snapshot(imageEditorStore.state.crop),
-			rotation: imageEditorStore.state.rotation,
-			flipH: imageEditorStore.state.flipH,
-			flipV: imageEditorStore.state.flipV,
-		},
-		focalPoint: $state.snapshot(imageEditorStore.state.focalPoint),
-		saveBehavior: imageEditorStore.saveBehavior,
+	// Active tool component
+	const activeToolComponent = $derived.by(() => {
+		if (!activeState) {
+			return null;
+		}
+		const widget = editorWidgets.find((w) => w.key === activeState);
+		return widget?.tool ?? null;
 	});
-}
+
+	// Reset load state when image source changes
+	let lastLoadedSrc = $state('');
+	let lastLoadedFile = $state<File | null>(null);
+
+	$effect(() => {
+		const src = initialImageSrc;
+		const file = imageFile;
+		if (src !== lastLoadedSrc || file !== lastLoadedFile) {
+			initialImageLoaded = false;
+			selectedImage = '';
+		}
+	});
+
+	// Cleanup effect for selected image
+	$effect(() => {
+		return () => {
+			if (selectedImage?.startsWith('blob:')) {
+				URL.revokeObjectURL(selectedImage);
+			}
+		};
+	});
+
+	// Load initial image effect
+	$effect(() => {
+		const src = initialImageSrc;
+		const file = imageFile;
+
+		if (src !== lastLoadedSrc || file !== lastLoadedFile) {
+			initialImageLoaded = false;
+		}
+
+		if (!(containerRef && (src || file))) {
+			return;
+		}
+
+		// Wait for container to have size
+		if (containerWidth === 0 || containerHeight === 0) {
+			const timeoutId = setTimeout(() => {
+				if (containerRef && containerRef.clientWidth > 0) {
+					containerWidth = containerRef.clientWidth;
+					containerHeight = containerRef.clientHeight;
+				}
+			}, 150);
+			return () => clearTimeout(timeoutId);
+		}
+
+		if (initialImageLoaded && src === selectedImage && !file) {
+			return;
+		}
+
+		queueMicrotask(() => {
+			if (src) {
+				selectedImage = src;
+				loadImage(src);
+				lastLoadedSrc = src;
+				lastLoadedFile = null;
+			} else if (file) {
+				const blobUrl = URL.createObjectURL(file);
+				selectedImage = blobUrl;
+				loadImage(blobUrl, file);
+				lastLoadedSrc = '';
+				lastLoadedFile = file;
+			}
+			initialImageLoaded = true;
+		});
+	});
+
+	function loadImage(imageSrc: string, file?: File, retryAttempt = 0) {
+		let cleanedSrc = imageSrc;
+		// Handle duplicate /files/ paths correctly, allowing dynamic paths via regex
+		cleanedSrc = cleanedSrc.replace(/(?:\/files)+\//g, '/files/');
+
+		isProcessing = true;
+		error = null;
+
+		const img = new Image();
+		img.crossOrigin = 'anonymous';
+
+		img.onerror = () => {
+			if (retryAttempt < 3) {
+				setTimeout(() => loadImage(imageSrc, file, retryAttempt + 1), 1000);
+			} else {
+				error = 'Failed to load image after 3 attempts';
+				isProcessing = false;
+			}
+		};
+
+		img.onload = () => {
+			imageEditorStore.setImageElement(img);
+			if (file) {
+				imageEditorStore.setFile(file);
+			}
+
+			// Initial fit
+			const containerWidth = containerRef?.clientWidth;
+			const containerHeight = containerRef?.clientHeight;
+			const scaleX = (containerWidth! * 0.8) / img.width;
+			const scaleY = (containerHeight! * 0.8) / img.height;
+			imageEditorStore.state.zoom = Math.min(scaleX, scaleY);
+
+			imageEditorStore.takeSnapshot();
+			isProcessing = false;
+		};
+
+		img.src = cleanedSrc;
+	}
+
+	function handleKeyDown(event: KeyboardEvent) {
+		// Guard against events with detached targets (e.g. in embedded browser contexts)
+		if (!event?.target || !(event.target as Node).ownerDocument) return;
+		const target = event.target as HTMLElement;
+		if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.contentEditable === 'true') {
+			return;
+		}
+
+		if (event.key === 'Escape') {
+			imageEditorStore.cancelActiveTool();
+			return;
+		}
+
+		const cmdOrCtrl = event.metaKey || event.ctrlKey;
+		const shift = event.shiftKey;
+
+		if (cmdOrCtrl && !shift && event.key === 'z') {
+			event.preventDefault();
+			imageEditorStore.undoState();
+		} else if (cmdOrCtrl && shift && event.key === 'z') {
+			event.preventDefault();
+			imageEditorStore.redoState();
+		}
+	}
+
+	/**
+	 * Convert a data: URL to a Blob without fetch() — avoids CSP connect-src blocking data: URLs.
+	 */
+	function dataURLToBlob(dataURL: string): Blob {
+		const [header, base64] = dataURL.split(',');
+		const mime = header.match(/:(.*?);/)?.[1] || 'image/webp';
+		const binary = atob(base64);
+		const bytes = new Uint8Array(binary.length);
+		for (let i = 0; i < binary.length; i++) {
+			bytes[i] = binary.charCodeAt(i);
+		}
+		return new Blob([bytes], { type: mime });
+	}
+
+	export async function handleSave() {
+		const { imageElement, file, rotation, flipH, flipV, crop, filters } = imageEditorStore.state;
+		const storeMediaId = mediaId;
+
+		// Allow saving when we have either a file or a mediaId (existing image in DB)
+		const canSave = imageElement && (file || storeMediaId);
+		if (!canSave) {
+			error = 'Nothing to save';
+			return;
+		}
+
+		isProcessing = true;
+		try {
+			// Instruction set for server-side Sharp.js baking
+			const manipulations = {
+				rotation,
+				flipH,
+				flipV,
+				focalPoint: $state.snapshot(focalPoint),
+				crop: crop
+					? {
+							x: Math.max(0, crop.x),
+							y: Math.max(0, crop.y),
+							width: Math.min(imageElement.width, crop.width),
+							height: Math.min(imageElement.height, crop.height)
+						}
+					: null,
+				filters: $state.snapshot(filters)
+			};
+
+			const mediaIdFromProp = mediaId;
+			const mediaIdFromFile = (file as any)._id;
+			const targetMediaId = mediaIdFromFile || mediaIdFromProp;
+
+			if (targetMediaId) {
+				// Server-side baking via Sharp.js
+				const response = await fetch(`/api/media/manipulate/${targetMediaId}`, {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify(manipulations)
+				});
+
+				const result = await response.json();
+				if (!result.success) {
+					throw new Error(result.error || 'Server-side manipulation failed');
+				}
+
+				// Return the updated media item data
+				onsave(result.data);
+			} else {
+				// Fallback to client-side blob if no mediaId (e.g. fresh upload not yet in DB)
+				const canvas = containerRef?.querySelector('canvas');
+				if (!canvas) {
+					throw new Error('Canvas not found');
+				}
+
+				const dataURL = canvas.toDataURL('image/webp', 0.95);
+				// Use dataURLToBlob instead of fetch(dataURL) to avoid CSP connect-src issues
+				const blob = dataURLToBlob(dataURL);
+				const timestamp = Date.now();
+				const newFileName = `edited-${timestamp}.webp`;
+				const editedFile = new File([blob], newFileName, { type: 'image/webp' });
+
+				onsave({
+					dataURL,
+					file: editedFile,
+					focalPoint,
+					mediaId: storeMediaId || mediaId,
+					manipulations,
+					saveBehavior
+				});
+			}
+		} catch (err) {
+			logger.error('Save error:', err);
+			error = `Failed to save image: ${err instanceof Error ? err.message : String(err)}`;
+		} finally {
+			isProcessing = false;
+		}
+	}
+
+	onMount(() => {
+		imageEditorStore.reset();
+		window.addEventListener('keydown', handleKeyDown);
+	});
+
+	onDestroy(() => {
+		window.removeEventListener('keydown', handleKeyDown);
+		imageEditorStore.reset();
+	});
 </script>
 
-<div class="flex h-full w-full flex-col bg-surface-950 overflow-hidden" transition:fade={{ duration: 200 }}>
-	<div class="flex items-center justify-between px-4 h-12 bg-surface-900 border-b border-surface-800">
-		<div class="flex items-center gap-2">
-			<iconify-icon icon="mdi:image-edit" width="20" class="text-primary-500"></iconify-icon>
-			<span class="text-sm font-bold text-white uppercase tracking-tighter">Photo Editor</span>
+<div class="image-editor flex h-full w-full flex-col overflow-hidden" role="application" aria-label="Image editor" aria-busy={isProcessing}>
+	{#if error}
+		<div class="error-banner bg-error-50 border-l-4 border-error-500 p-4 text-error-700 dark:bg-error-900/20 dark:text-error-300" role="alert">
+			<div class="flex items-center gap-2">
+				<iconify-icon icon="mdi:alert-circle" width="20"></iconify-icon>
+				<span>{error}</span>
+				<button onclick={() => (error = null)} class="ml-auto text-error-600 hover:text-error-800" aria-label="Dismiss error">
+					<iconify-icon icon="mdi:close" width="18"></iconify-icon>
+				</button>
+			</div>
 		</div>
-		<div class="flex items-center gap-4 text-[10px] text-surface-400 font-mono">
-			{#if imageEditorStore.imageElement}
-				<span>{imageEditorStore.imageElement.width} × {imageEditorStore.imageElement.height} px</span>
-			{/if}
-			<span>ZOOM: {Math.round(imageEditorStore.state.zoom * 100)}%</span>
-		</div>
-	</div>
+	{/if}
 
-	<div class="relative flex-1">
-		<Canvas>
-			{#if imageEditorStore.activeToolId}
-				{@const ToolComponent = editorWidgets.find((w) => w.key === imageEditorStore.activeToolId)?.tool}
-				{#if ToolComponent}
-					<ToolComponent onCancel={() => imageEditorStore.cancelActiveTool()} />
+	{#if isProcessing}
+		<div class="absolute inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+			<div class="text-white flex flex-col items-center gap-2">
+				<iconify-icon icon="mdi:loading" class="animate-spin text-primary-500" width="48"></iconify-icon>
+				<p class="font-medium">Processing image...</p>
+			</div>
+		</div>
+	{/if}
+
+	<div class="editor-main flex min-w-0 flex-1 flex-col">
+		<div class="canvas-wrapper relative flex flex-1 flex-col">
+			<EditorCanvas bind:containerRef bind:containerWidth bind:containerHeight {hasImage} isLoading={isProcessing} activeTool={activeToolInstance}>
+				{#if hasImage}
+					{#if activeToolComponent}
+						{@const Component = activeToolComponent}
+						<Component bind:this={activeToolInstance} onCancel={() => imageEditorStore.cancelActiveTool()} />
+					{/if}
 				{/if}
-			{/if}
-		</Canvas>
-
-		<div class="absolute bottom-4 right-4 flex flex-col gap-2 pointer-events-auto">
-			<button class="btn-icon bg-surface-800/80 hover:bg-surface-700 text-white border border-surface-700 shadow-xl" onclick={() => imageEditorStore.updateZoom(0.1)} title="Zoom In">
-				<iconify-icon icon="mdi:plus" width="20"></iconify-icon>
-			</button>
-			<button class="btn-icon bg-surface-800/80 hover:bg-surface-700 text-white border border-surface-700 shadow-xl" onclick={() => imageEditorStore.updateZoom(-0.1)} title="Zoom Out">
-				<iconify-icon icon="mdi:minus" width="20"></iconify-icon>
-			</button>
+			</EditorCanvas>
 		</div>
 	</div>
-
-	<Toolbar />
 </div>

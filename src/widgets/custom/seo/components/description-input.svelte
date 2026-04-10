@@ -16,47 +16,43 @@
 -->
 
 <script lang="ts">
-import {
-	widget_seo_suggestioncharacter,
-	widget_seo_suggestiondescription,
-	widget_seo_suggestionseodescription,
-	widget_seo_suggestionwidthdesktop,
-	widget_seo_suggestionwidthmobile,
-} from "@src/paraglide/messages";
+	import {
+		widget_seo_suggestioncharacter,
+		widget_seo_suggestiondescription,
+		widget_seo_suggestionseodescription,
+		widget_seo_suggestionwidthdesktop,
+		widget_seo_suggestionwidthmobile
+	} from '@src/paraglide/messages';
 
-interface Props {
-	description: string;
-	descriptionCharacterWidth: number;
-	handleDescriptionChange: (event: Event) => void;
-}
+	interface Props {
+		description: string;
+		descriptionCharacterWidth: number;
+		handleDescriptionChange: (event: Event) => void;
+	}
 
-let {
-	description = $bindable(),
-	descriptionCharacterWidth,
-	handleDescriptionChange,
-}: Props = $props();
+	let { description = $bindable(), descriptionCharacterWidth, handleDescriptionChange }: Props = $props();
 
-// Compute class based on description length
-const computedClass = $derived(
-	description.length >= 120 && description.length <= 165
-		? "input-label green"
-		: description.length >= 30 && description.length <= 119
-			? "input-label orange"
-			: description.length < 30
-				? "input-label"
-				: "input-label red",
-);
+	// Compute class based on description length
+	const computedClass = $derived(
+		description.length >= 120 && description.length <= 165
+			? 'input-label green'
+			: description.length >= 30 && description.length <= 119
+				? 'input-label orange'
+				: description.length < 30
+					? 'input-label'
+					: 'input-label red'
+	);
 
-// Compute status message based on description length
-const descriptionStatus = $derived(
-	description.length >= 120 && description.length <= 165
-		? "Optimal length"
-		: description.length >= 30 && description.length <= 119
-			? "Length is acceptable"
-			: description.length < 30
-				? "Too short"
-				: "Too long",
-);
+	// Compute status message based on description length
+	const descriptionStatus = $derived(
+		description.length >= 120 && description.length <= 165
+			? 'Optimal length'
+			: description.length >= 30 && description.length <= 119
+				? 'Length is acceptable'
+				: description.length < 30
+					? 'Too short'
+					: 'Too long'
+	);
 </script>
 
 <label for="description-input" class={computedClass}>

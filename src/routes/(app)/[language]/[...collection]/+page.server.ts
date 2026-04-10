@@ -40,7 +40,7 @@
  */
 
 // Core SveltyCMS services
-import { contentManager } from "@src/content";
+import { contentSystem } from "@src/content";
 import type { User } from "@src/databases/auth/types";
 import { collectionService } from "@src/services/collection-service";
 import { getPublicSettingSync } from "@src/services/settings-service";
@@ -86,7 +86,7 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
     // 2. GET COLLECTION SCHEMA
     // =================================================================
     // Ensurecontent-manageris initialized before use
-    await contentManager.initialize(tenantId ?? undefined);
+    await contentSystem.initialize(tenantId ?? undefined);
 
     // Check if collection param is a UUID (32 char hex) or a path
     const isUUID = /^[a-f0-9]{32}$/i.test(collection || "");
@@ -94,13 +94,13 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
     if (isUUID) {
       // Direct UUID lookup
       logger.debug(`Loading collection by UUID: \x1b[33m${collection}\x1b[0m`);
-      currentCollection = contentManager.getCollectionById(collection!, tenantId);
+      currentCollection = contentSystem.getCollectionById(collection!, tenantId);
 
       // SELF-HEALING: If not found, it might be a stalecontent-managerafter setup
       if (!currentCollection) {
         logger.warn(`Collection UUID ${collection} not found. Triggeringcontent-managerrefresh...`);
-        await contentManager.refresh(tenantId);
-        currentCollection = contentManager.getCollectionById(collection!, tenantId);
+        await contentSystem.refresh(tenantId);
+        currentCollection = contentSystem.getCollectionById(collection!, tenantId);
       }
 
       // Redirect to pretty path if available (Prevents UUID -> Path flicker on client)
@@ -113,7 +113,7 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
       // Path-based lookup (backward compatibility)
       const collectionPath = `/${collection}`;
       logger.debug(`Loading collection by path: \x1b[34m${collectionPath}\x1b[0m`);
-      currentCollection = contentManager.getCollection(collectionPath, tenantId);
+      currentCollection = contentSystem.getCollection(collectionPath, tenantId);
 
       // SELF-HEALING: If not found, it might be a stalecontent-managerafter setup
       // Optimization: Skip refresh for "Collections" root, as it will be handled by redirect logic below
@@ -121,14 +121,14 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
         logger.warn(
           `Collection path ${collectionPath} not found. Triggeringcontent-managerrefresh...`,
         );
-        await contentManager.refresh(tenantId);
-        currentCollection = contentManager.getCollection(collectionPath, tenantId);
+        await contentSystem.refresh(tenantId);
+        currentCollection = contentSystem.getCollection(collectionPath, tenantId);
       }
     }
 
     if (!currentCollection) {
       if (collectionNameOnly?.toLowerCase() === "collections") {
-        const allCollections = await contentManager.getCollections(tenantId);
+        const allCollections = await contentSystem.getCollections(tenantId);
         if (allCollections.length > 0) {
           throw redirect(302, `/${language}${allCollections[0].path}`);
         }

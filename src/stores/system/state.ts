@@ -511,9 +511,9 @@ export const servicesStatus: Readable<SystemStateStore["services"]> = derived(
 export const databaseStatus: Readable<ServiceStatus> = derived(servicesStatus, (s) => s.database);
 export const authStatus: Readable<ServiceStatus> = derived(servicesStatus, (s) => s.auth);
 export const cacheStatus: Readable<ServiceStatus> = derived(servicesStatus, (s) => s.cache);
-export const contentManagerStatus: Readable<ServiceStatus> = derived(
+export const contentSystemStatus: Readable<ServiceStatus> = derived(
   servicesStatus,
-  (s) => s.contentManager,
+  (s) => s.contentSystem,
 );
 export const themeManagerStatus: Readable<ServiceStatus> = derived(
   servicesStatus,

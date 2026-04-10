@@ -5,7 +5,7 @@
  * This version is updated to use the moderncontent-managerfor cleaner logic.
  */
 
-import { contentManager } from "@src/content";
+import { contentSystem } from "@src/content";
 import type { Role, User } from "@src/databases/auth/types";
 import { dbInitPromise } from "@src/databases/db";
 import { getPrivateSettingSync } from "@src/services/settings-service";
@@ -35,9 +35,9 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     await dbInitPromise;
 
     // Verifycontent-manageris ready (should be from hooks)
-    const healthStatus = contentManager.getHealthStatus();
+    const healthStatus = contentSystem.getHealthStatus();
     if (healthStatus.state !== "initialized") {
-      logger.warn("ContentManager not initialized in page load", {
+      logger.warn("ContentSystem not initialized in page load", {
         state: healthStatus.state,
       });
     }
@@ -70,7 +70,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
     // Use the new, efficient method fromcontent-managerto get the redirect URL
     // Use the new, efficient method fromcontent-managerto get the redirect URL
-    const redirectUrl = await contentManager.getFirstCollectionRedirectUrl(
+    const redirectUrl = await contentSystem.getFirstCollectionRedirectUrl(
       redirectLanguage,
       tenantId,
     );

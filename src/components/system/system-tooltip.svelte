@@ -24,50 +24,48 @@ This component provides a tooltip for any element.
 -->
 
 <script lang="ts">
-interface Props {
-	children?: import("svelte").Snippet;
-	content?: import("svelte").Snippet;
-	contentClass?: string;
-	positioning?: {
-		placement?:
-			| "top"
-			| "top-start"
-			| "top-end"
-			| "bottom"
-			| "bottom-start"
-			| "bottom-end"
-			| "left"
-			| "left-start"
-			| "left-end"
-			| "right"
-			| "right-start"
-			| "right-end";
-		gutter?: number;
-	};
-	title?: string;
-	triggerClass?: string;
-	triggerStyle?: string;
-	wFull?: boolean;
-}
+	interface Props {
+		children?: import('svelte').Snippet;
+		content?: import('svelte').Snippet;
+		contentClass?: string;
+		positioning?: {
+			placement?:
+				| 'top'
+				| 'top-start'
+				| 'top-end'
+				| 'bottom'
+				| 'bottom-start'
+				| 'bottom-end'
+				| 'left'
+				| 'left-start'
+				| 'left-end'
+				| 'right'
+				| 'right-start'
+				| 'right-end';
+			gutter?: number;
+		};
+		title?: string;
+		triggerClass?: string;
+		triggerStyle?: string;
+		wFull?: boolean;
+	}
 
-let {
-	title = "",
-	content,
-	contentClass = "",
-	triggerClass = "",
-	triggerStyle = "",
-	wFull = false,
-	children,
-	positioning = { placement: "top", gutter: 10 },
-}: Props = $props();
+	let {
+		title = '',
+		content,
+		contentClass = '',
+		triggerClass = '',
+		triggerStyle = '',
+		wFull = false,
+		children,
+		positioning = { placement: 'top', gutter: 10 }
+	}: Props = $props();
 
-const TOOLTIP_CLASS =
-	"card rounded-md bg-surface-900 dark:bg-white p-2 text-xs shadow-xl text-white dark:text-surface-900";
-const ARROW_CLASS =
-	"[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-900)] dark:[--arrow-background:var(--color-white)]";
+	const TOOLTIP_CLASS = 'card rounded-md bg-surface-900 dark:bg-white p-2 text-xs shadow-xl text-white dark:text-surface-900';
+	const ARROW_CLASS = '[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-900)] dark:[--arrow-background:var(--color-white)]';
 
-// Skeleton V4
-import { Portal, Tooltip } from "@skeletonlabs/skeleton-svelte";
+	// Skeleton V4
+	import { Portal, Tooltip } from '@skeletonlabs/skeleton-svelte';
 </script>
 
 <Tooltip {positioning}>

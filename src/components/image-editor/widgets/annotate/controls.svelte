@@ -4,23 +4,23 @@
 Controls for the Annotate tool: tool selection (text, arrow, shapes) and styling (colors).
 -->
 <script lang="ts">
-type ToolType = "text" | "arrow" | "rectangle" | "circle" | null;
+	type ToolType = 'text' | 'arrow' | 'rectangle' | 'circle' | null;
 
-let {
-	currentTool,
-	strokeColor,
-	fillColor,
-	onSetTool,
-	onStrokeColorChange,
-	onFillColorChange,
-}: {
-	currentTool: ToolType;
-	strokeColor: string;
-	fillColor: string;
-	onSetTool: (tool: ToolType) => void;
-	onStrokeColorChange: (color: string) => void;
-	onFillColorChange: (color: string) => void;
-} = $props();
+	let {
+		currentTool,
+		strokeColor,
+		fillColor,
+		onSetTool,
+		onStrokeColorChange,
+		onFillColorChange
+	}: {
+		currentTool: ToolType;
+		strokeColor: string;
+		fillColor: string;
+		onSetTool: (tool: ToolType) => void;
+		onStrokeColorChange: (color: string) => void;
+		onFillColorChange: (color: string) => void;
+	} = $props();
 </script>
 
 <div class="annotate-controls">

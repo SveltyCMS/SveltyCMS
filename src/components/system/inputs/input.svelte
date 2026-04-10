@@ -18,26 +18,19 @@
 -->
 
 <script lang="ts">
-interface InputProps {
-	inputClass?: string;
-	label?: string;
-	labelClass?: string;
-	placeholder?: string;
-	type: "text" | "password" | "email";
-	value?: string;
-}
+	interface InputProps {
+		inputClass?: string;
+		label?: string;
+		labelClass?: string;
+		placeholder?: string;
+		type: 'text' | 'password' | 'email';
+		value?: string;
+	}
 
-let {
-	type = "text",
-	label,
-	labelClass,
-	inputClass,
-	placeholder,
-	value = $bindable(""),
-}: InputProps = $props();
-function typeAction(node: HTMLInputElement) {
-	node.type = type;
-}
+	let { type = 'text', label, labelClass, inputClass, placeholder, value = $bindable('') }: InputProps = $props();
+	function typeAction(node: HTMLInputElement) {
+		node.type = type;
+	}
 </script>
 
 <div class="m-1 flex max-w-full items-center justify-between gap-2">

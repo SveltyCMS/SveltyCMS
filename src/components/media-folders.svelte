@@ -12,202 +12,196 @@
 -->
 
 <script lang="ts">
-import TreeView from "@src/components/system/tree-view.svelte";
-import { media_root_title } from "@src/paraglide/messages";
-import { screen } from "@src/stores/screen-size-store.svelte.ts";
-import { ui } from "@src/stores/ui-store.svelte.ts";
-// Using iconify-icon web component
-import { logger } from "@utils/logger";
-import { toast } from "@src/stores/toast.svelte.ts";
-import { SvelteMap, SvelteSet } from "svelte/reactivity";
+	import TreeView from '@src/components/system/tree-view.svelte';
+	import { media_root_title } from '@src/paraglide/messages';
+	import { screen } from '@src/stores/screen-size-store.svelte.ts';
+	import { ui } from '@src/stores/ui-store.svelte.ts';
+	// Using iconify-icon web component
+	import { logger } from '@utils/logger';
+	import { toast } from '@src/stores/toast.svelte.ts';
+	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 
-interface RawFolder {
-	_id: string;
-	name: string;
-	order?: number;
-	parentId?: string | null;
-	path: string;
-}
-
-interface FolderNode {
-	children?: FolderNode[];
-	depth?: number;
-	icon?: string;
-	id: string;
-	isExpanded: boolean;
-	name: string;
-	nodeType: "virtual";
-	onClick: () => void;
-	order: number;
-	parentId?: string | null;
-	path: string;
-}
-
-// Mutable state
-let folders = $state<FolderNode[]>([]);
-let expandedNodes = new SvelteSet<string>();
-let selectedFolderId = $state<string | null>(null);
-let isEditMode = $state(false);
-let isLoading = $state(true);
-let error = $state<string | null>(null);
-
-// Derived UI state
-let isSidebarFull = $derived(ui.state.leftSidebar === "full");
-let isMobile = $derived(screen.isMobile);
-
-// Fetch folders from API
-async function loadFolders(): Promise<void> {
-	isLoading = true;
-	error = null;
-	try {
-		const res = await fetch("/api/system-virtual-folder");
-		if (!res.ok) {
-			throw new Error("Network error");
-		}
-		const { success, data } = await res.json();
-		if (!(success && data)) {
-			throw new Error("Invalid response");
-		}
-
-		folders = data
-			.filter((f: RawFolder) => f.path?.startsWith("/"))
-			.map((f: RawFolder) => ({
-				id: f._id,
-				name: f.name,
-				path: f.path,
-				parentId: f.parentId,
-				isExpanded: expandedNodes.has(f._id),
-				onClick: () => selectFolder(f._id),
-				icon: "bi:folder",
-				nodeType: "virtual" as const,
-				order: f.order ?? 0,
-			}));
-		selectedFolderId = null;
-	} catch (err) {
-		error = "Failed to load folders";
-		logger.error("[MediaFolders] Load error:", err);
-		toast.error("Failed to load folders");
-	} finally {
-		isLoading = false;
-	}
-}
-
-// Build hierarchical tree
-let tree = $derived.by(() => {
-	const root: FolderNode = {
-		id: "root",
-		name: media_root_title(),
-		path: "/",
-		isExpanded: true,
-		onClick: () => selectFolder("root"),
-		icon: "bi:house-door",
-		nodeType: "virtual",
-		order: 0,
-		depth: 0,
-		children: [],
-	};
-
-	if (folders.length === 0) {
-		return [root];
+	interface RawFolder {
+		_id: string;
+		name: string;
+		order?: number;
+		parentId?: string | null;
+		path: string;
 	}
 
-	const map = new SvelteMap<string, FolderNode>();
-	folders.forEach((f) => {
-		map.set(f.id, { ...f, children: [], depth: 0 });
-	});
+	interface FolderNode {
+		children?: FolderNode[];
+		depth?: number;
+		icon?: string;
+		id: string;
+		isExpanded: boolean;
+		name: string;
+		nodeType: 'virtual';
+		onClick: () => void;
+		order: number;
+		parentId?: string | null;
+		path: string;
+	}
 
-	const orphans: FolderNode[] = [];
-	folders.forEach((f) => {
-		const node = map.get(f.id)!;
-		if (f.parentId && map.has(f.parentId)) {
-			map.get(f.parentId)?.children?.push(node);
-		} else {
-			orphans.push(node);
+	// Mutable state
+	let folders = $state<FolderNode[]>([]);
+	let expandedNodes = new SvelteSet<string>();
+	let selectedFolderId = $state<string | null>(null);
+	let isEditMode = $state(false);
+	let isLoading = $state(true);
+	let error = $state<string | null>(null);
+
+	// Derived UI state
+	let isSidebarFull = $derived(ui.state.leftSidebar === 'full');
+	let isMobile = $derived(screen.isMobile);
+
+	// Fetch folders from API
+	async function loadFolders(): Promise<void> {
+		isLoading = true;
+		error = null;
+		try {
+			const res = await fetch('/api/systemVirtualFolder');
+			if (!res.ok) {
+				throw new Error('Network error');
+			}
+			const { success, data } = await res.json();
+			if (!(success && data)) {
+				throw new Error('Invalid response');
+			}
+
+			folders = data
+				.filter((f: RawFolder) => f.path?.startsWith('/'))
+				.map((f: RawFolder) => ({
+					id: f._id,
+					name: f.name,
+					path: f.path,
+					parentId: f.parentId,
+					isExpanded: expandedNodes.has(f._id),
+					onClick: () => selectFolder(f._id),
+					icon: 'bi:folder',
+					nodeType: 'virtual' as const,
+					order: f.order ?? 0
+				}));
+			selectedFolderId = null;
+		} catch (err) {
+			error = 'Failed to load folders';
+			logger.error('[MediaFolders] Load error:', err);
+			toast.error('Failed to load folders');
+		} finally {
+			isLoading = false;
 		}
-	});
+	}
 
-	function sortAndSetDepth(nodes: FolderNode[], depth: number): void {
-		nodes.sort((a, b) => a.order - b.order);
-		nodes.forEach((n) => {
-			n.depth = depth;
-			if (n.children?.length) {
-				sortAndSetDepth(n.children, depth + 1);
+	// Build hierarchical tree
+	let tree = $derived.by(() => {
+		const root: FolderNode = {
+			id: 'root',
+			name: media_root_title(),
+			path: '/',
+			isExpanded: true,
+			onClick: () => selectFolder('root'),
+			icon: 'bi:house-door',
+			nodeType: 'virtual',
+			order: 0,
+			depth: 0,
+			children: []
+		};
+
+		if (folders.length === 0) {
+			return [root];
+		}
+
+		const map = new SvelteMap<string, FolderNode>();
+		folders.forEach((f) => {
+			map.set(f.id, { ...f, children: [], depth: 0 });
+		});
+
+		const orphans: FolderNode[] = [];
+		folders.forEach((f) => {
+			const node = map.get(f.id)!;
+			if (f.parentId && map.has(f.parentId)) {
+				map.get(f.parentId)?.children?.push(node);
+			} else {
+				orphans.push(node);
 			}
 		});
-	}
 
-	sortAndSetDepth(orphans, 1);
-	root.children = orphans;
-	return [root];
-});
-
-function selectFolder(id: string): void {
-	selectedFolderId = id;
-	if (id !== "root") {
-		expandedNodes.add(id);
-	}
-	if (isMobile) {
-		ui.toggle("leftSidebar", "hidden");
-	}
-}
-
-// Drag & drop reordering
-async function reorder(
-	draggedId: string,
-	targetId: string,
-	position: "before" | "after" | "inside",
-): Promise<void> {
-	if (!isEditMode) {
-		return;
-	}
-
-	let newParentId: string | null = null;
-	if (position === "inside") {
-		newParentId = targetId === "root" ? null : targetId;
-	} else {
-		const target = folders.find((f) => f.id === targetId);
-		newParentId = target?.parentId ?? null;
-	}
-
-	try {
-		const res = await fetch("/api/system-virtual-folder", {
-			method: "PATCH",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({
-				action: "reorder",
-				parentId: newParentId,
-				orderUpdates: [
-					{ folderId: draggedId, order: 0, parentId: newParentId },
-				],
-			}),
-		});
-
-		if (!res.ok) {
-			throw new Error("Failed");
+		function sortAndSetDepth(nodes: FolderNode[], depth: number): void {
+			nodes.sort((a, b) => a.order - b.order);
+			nodes.forEach((n) => {
+				n.depth = depth;
+				if (n.children?.length) {
+					sortAndSetDepth(n.children, depth + 1);
+				}
+			});
 		}
-		toast.success("Folder moved");
-		await loadFolders();
-	} catch (e) {
-		toast.error("Move failed");
-		logger.error("[MediaFolders] Reorder error:", e);
+
+		sortAndSetDepth(orphans, 1);
+		root.children = orphans;
+		return [root];
+	});
+
+	function selectFolder(id: string): void {
+		selectedFolderId = id;
+		if (id !== 'root') {
+			expandedNodes.add(id);
+		}
+		if (isMobile) {
+			ui.toggle('leftSidebar', 'hidden');
+		}
 	}
-}
 
-// Initial load + refresh on global events
-$effect(() => {
-	loadFolders();
+	// Drag & drop reordering
+	async function reorder(draggedId: string, targetId: string, position: 'before' | 'after' | 'inside'): Promise<void> {
+		if (!isEditMode) {
+			return;
+		}
 
-	const refresh = () => loadFolders();
-	document.addEventListener("folderCreated", refresh);
-	document.addEventListener("folderUpdated", refresh);
-	document.addEventListener("folderDeleted", refresh);
+		let newParentId: string | null = null;
+		if (position === 'inside') {
+			newParentId = targetId === 'root' ? null : targetId;
+		} else {
+			const target = folders.find((f) => f.id === targetId);
+			newParentId = target?.parentId ?? null;
+		}
 
-	return () => {
-		document.removeEventListener("folderCreated", refresh);
-		document.removeEventListener("folderUpdated", refresh);
-		document.removeEventListener("folderDeleted", refresh);
-	};
-});
+		try {
+			const res = await fetch('/api/systemVirtualFolder', {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					action: 'reorder',
+					parentId: newParentId,
+					orderUpdates: [{ folderId: draggedId, order: 0, parentId: newParentId }]
+				})
+			});
+
+			if (!res.ok) {
+				throw new Error('Failed');
+			}
+			toast.success('Folder moved');
+			await loadFolders();
+		} catch (e) {
+			toast.error('Move failed');
+			logger.error('[MediaFolders] Reorder error:', e);
+		}
+	}
+
+	// Initial load + refresh on global events
+	$effect(() => {
+		loadFolders();
+
+		const refresh = () => loadFolders();
+		document.addEventListener('folderCreated', refresh);
+		document.addEventListener('folderUpdated', refresh);
+		document.addEventListener('folderDeleted', refresh);
+
+		return () => {
+			document.removeEventListener('folderCreated', refresh);
+			document.removeEventListener('folderUpdated', refresh);
+			document.removeEventListener('folderDeleted', refresh);
+		};
+	});
 </script>
 
 <div class="space-y-2" role="navigation" aria-label="Media folders">

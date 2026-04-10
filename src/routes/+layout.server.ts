@@ -85,7 +85,7 @@ export const load: LayoutServerLoad = async ({ cookies, locals, url }) => {
   const contentLanguage = (cookies.get("contentLanguage") as Locale) ?? defaultContentLanguage;
 
   // Content System Hydration with error handling for preview mode
-  const { contentManager } = await import("@src/content");
+  const { contentSystem } = await import("@src/content");
   let navigationStructure: NavigationNode[] = [];
   let contentNodes: any[] = [];
   let contentVersion = 0;
@@ -94,23 +94,23 @@ export const load: LayoutServerLoad = async ({ cookies, locals, url }) => {
   try {
     // Ensurecontent-manageris initialized before use to guarantee sidebar population.
     // This is critical for the first load after setup.
-    await contentManager.initialize(locals.tenantId);
+    await contentSystem.initialize(locals.tenantId);
 
-    navigationStructure = await contentManager.getNavigationStructureProgressive({
+    navigationStructure = await contentSystem.getNavigationStructureProgressive({
       maxDepth: 1,
       tenantId: locals.tenantId,
     });
-    contentNodes = await contentManager.getContentStructure(locals.tenantId);
-    contentVersion = contentManager.getContentVersion();
+    contentNodes = await contentSystem.getContentStructure(locals.tenantId);
+    contentVersion = contentSystem.getContentVersion();
 
     // Get the redirect URL for the first collection
     firstCollectionRedirectUrl =
-      (await contentManager.getFirstCollectionRedirectUrl(
+      (await contentSystem.getFirstCollectionRedirectUrl(
         contentLanguage as string,
         locals.tenantId,
       )) || "";
   } catch (error) {
-    console.error("[Layout]ContentManager error (preview mode?):", error);
+    console.error("[Layout]ContentSystem error (preview mode?):", error);
     // Continue with empty navigation - don't block page load
   }
 

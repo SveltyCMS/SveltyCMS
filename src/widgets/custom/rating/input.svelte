@@ -28,34 +28,34 @@ Interactive star rating with hover states and click selection
 -->
 
 <script lang="ts">
-import { RatingGroup } from "@skeletonlabs/skeleton-svelte";
-import type { FieldType } from "./";
+	import { RatingGroup } from '@skeletonlabs/skeleton-svelte';
+	import type { FieldType } from './';
 
-let {
-	field,
-	value = $bindable(),
-	error,
-}: {
-	field: FieldType;
-	value?: number | null | undefined;
-	error?: string | null;
-} = $props();
+	let {
+		field,
+		value = $bindable(),
+		error
+	}: {
+		field: FieldType;
+		value?: number | null | undefined;
+		error?: string | null;
+	} = $props();
 
-// Handle undefined/null value by defaulting to 0 for the component, but strictly binding back
-// However, if we want to allow "no selection", we might need to handle undefined.
-// Skeleton Ratings usually binds to a number.
-let ratingValue = $state(value ?? 0);
+	// Handle undefined/null value by defaulting to 0 for the component, but strictly binding back
+	// However, if we want to allow "no selection", we might need to handle undefined.
+	// Skeleton Ratings usually binds to a number.
+	let ratingValue = $state(value ?? 0);
 
-$effect(() => {
-	if (value !== undefined && value !== null) {
-		ratingValue = value;
-	}
-});
+	$effect(() => {
+		if (value !== undefined && value !== null) {
+			ratingValue = value;
+		}
+	});
 
-// Sync ratingValue back to prop value
-$effect(() => {
-	value = ratingValue;
-});
+	// Sync ratingValue back to prop value
+	$effect(() => {
+		value = ratingValue;
+	});
 </script>
 
 <div

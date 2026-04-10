@@ -1,25 +1,25 @@
 <!-- @file src/components/system/dialog-manager.svelte @description DialogManager for handling modals features: [modal lifecycle management, backdrop/escape close support, skeleton v4 integration, fullscreen mode support] -->
 
 <script lang="ts">
-// Skeleton V4
-import { Dialog, Portal } from "@skeletonlabs/skeleton-svelte";
-import { modalState } from "@utils/modal-state.svelte";
-import { tick } from "svelte";
+	// Skeleton V4
+	import { Dialog, Portal } from '@skeletonlabs/skeleton-svelte';
+	import { modalState } from '@utils/modal-state.svelte';
+	import { tick } from 'svelte';
 
-// Handle closing via the Store
-function onClose() {
-	modalState.close();
-}
-
-// Handle open change from the Dialog (e.g. clicking backdrop or pressing Escape)
-async function onOpenChange(details: { open: boolean }) {
-	if (!details.open) {
-		await tick();
-		onClose();
+	// Handle closing via the Store
+	function onClose() {
+		modalState.close();
 	}
-}
-/* Derived state for fullscreen mode */
-const isFullscreen = $derived(modalState.active?.props?.size === "fullscreen");
+
+	// Handle open change from the Dialog (e.g. clicking backdrop or pressing Escape)
+	async function onOpenChange(details: { open: boolean }) {
+		if (!details.open) {
+			await tick();
+			onClose();
+		}
+	}
+	/* Derived state for fullscreen mode */
+	const isFullscreen = $derived(modalState.active?.props?.size === 'fullscreen');
 </script>
 
 <Dialog open={modalState.isOpen} {onOpenChange}>

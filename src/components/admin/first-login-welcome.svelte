@@ -9,151 +9,144 @@
 -->
 
 <script lang="ts">
-// Components
-import Button from "@src/components/system/buttons/button.svelte";
-import ImportExportManager from "./import-export-manager.svelte";
-import { logger } from "@utils/logger";
-import { onMount, untrack } from "svelte";
-import { goto } from "$app/navigation";
+	// Utils
 
-// Types
-interface WelcomeStep {
-	action: string;
-	actionUrl?: string;
-	completed?: boolean;
-	description: string;
-	icon: string;
-	id: string;
-	title: string;
-}
+	// Components
+	import Button from '@src/components/system/buttons/button.svelte';
+	import { logger } from '@utils/logger';
+	import { onMount, untrack } from 'svelte';
+	import { goto } from '$app/navigation';
+	import ImportExportManager from './import-export-manager.svelte';
 
-// Props
-let { user, showWelcome: showWelcomeProp = true } = $props();
-
-// State
-let showWelcome = $state(untrack(() => showWelcomeProp));
-
-let currentStep = $state(0);
-let showImportExport = $state(false);
-let dismissedWelcome = $state(false);
-
-function openImportExportModal() {
-	showImportExport = true;
-}
-
-// Welcome steps for new admin users
-const welcomeSteps = $state<WelcomeStep[]>([
-	{
-		id: "data-management",
-		title: "Data Import & Export",
-		description:
-			"Backup and restore your content with our import/export tools. Essential for data migration and backups.",
-		icon: "mdi:database-import",
-		action: "Open Import/Export",
-		completed: false,
-	},
-	{
-		id: "collections",
-		title: "Create Collections",
-		description:
-			"Build your content structure by creating collections. These define the types of content you can manage.",
-		icon: "mdi:folder-plus",
-		action: "Create Collection",
-		actionUrl: "/config/collectionbuilder/create",
-		completed: false,
-	},
-	{
-		id: "users",
-		title: "Manage Users",
-		description:
-			"Invite team members and manage user permissions to collaborate on your content.",
-		icon: "mdi:account-group",
-		action: "Manage Users",
-		actionUrl: "/config/accessManagement",
-		completed: false,
-	},
-	{
-		id: "settings",
-		title: "System Settings",
-		description:
-			"Configure your site settings, themes, and system preferences to match your needs.",
-		icon: "mdi:cog",
-		action: "Open Settings",
-		actionUrl: "/config/system-settings",
-		completed: false,
-	},
-]);
-
-onMount(() => {
-	// Check if user has already seen the welcome screen
-	const hasSeenWelcome = localStorage.getItem("sveltycms-welcome-seen");
-	if (hasSeenWelcome) {
-		showWelcome = false;
+	// Types
+	interface WelcomeStep {
+		action: string;
+		actionUrl?: string;
+		completed?: boolean;
+		description: string;
+		icon: string;
+		id: string;
+		title: string;
 	}
 
-	// Load saved progress
-	try {
-		const savedProgress = localStorage.getItem("sveltycms-welcome-progress");
-		if (savedProgress) {
-			const completedSteps = JSON.parse(savedProgress);
-			welcomeSteps.forEach((step) => {
-				if (completedSteps.includes(step.id)) {
-					step.completed = true;
-				}
-			});
+	// Props
+	let { user, showWelcome: showWelcomeProp = true } = $props();
+
+	// State
+	let showWelcome = $state(untrack(() => showWelcomeProp));
+
+	let currentStep = $state(0);
+	let showImportExport = $state(false);
+	let dismissedWelcome = $state(false);
+
+	function openImportExportModal() {
+		showImportExport = true;
+	}
+
+	// Welcome steps for new admin users
+	const welcomeSteps = $state<WelcomeStep[]>([
+		{
+			id: 'data-management',
+			title: 'Data Import & Export',
+			description: 'Backup and restore your content with our import/export tools. Essential for data migration and backups.',
+			icon: 'mdi:database-import',
+			action: 'Open Import/Export',
+			completed: false
+		},
+		{
+			id: 'collections',
+			title: 'Create Collections',
+			description: 'Build your content structure by creating collections. These define the types of content you can manage.',
+			icon: 'mdi:folder-plus',
+			action: 'Create Collection',
+			actionUrl: '/config/collectionbuilder/create',
+			completed: false
+		},
+		{
+			id: 'users',
+			title: 'Manage Users',
+			description: 'Invite team members and manage user permissions to collaborate on your content.',
+			icon: 'mdi:account-group',
+			action: 'Manage Users',
+			actionUrl: '/config/accessManagement',
+			completed: false
+		},
+		{
+			id: 'settings',
+			title: 'System Settings',
+			description: 'Configure your site settings, themes, and system preferences to match your needs.',
+			icon: 'mdi:cog',
+			action: 'Open Settings',
+			actionUrl: '/config/systemsetting',
+			completed: false
 		}
-	} catch (error) {
-		logger.error("Error loading welcome progress:", error);
+	]);
+
+	onMount(() => {
+		// Check if user has already seen the welcome screen
+		const hasSeenWelcome = localStorage.getItem('sveltycms-welcome-seen');
+		if (hasSeenWelcome) {
+			showWelcome = false;
+		}
+
+		// Load saved progress
+		try {
+			const savedProgress = localStorage.getItem('sveltycms-welcome-progress');
+			if (savedProgress) {
+				const completedSteps = JSON.parse(savedProgress);
+				welcomeSteps.forEach((step) => {
+					if (completedSteps.includes(step.id)) {
+						step.completed = true;
+					}
+				});
+			}
+		} catch (error) {
+			logger.error('Error loading welcome progress:', error);
+		}
+	});
+
+	function handleStepAction(step: WelcomeStep) {
+		if (step.id === 'data-management') {
+			openImportExportModal();
+		} else if (step.actionUrl) {
+			goto(step.actionUrl);
+			markStepCompleted(step.id);
+		}
 	}
-});
 
-function handleStepAction(step: WelcomeStep) {
-	if (step.id === "data-management") {
-		openImportExportModal();
-	} else if (step.actionUrl) {
-		goto(step.actionUrl);
-		markStepCompleted(step.id);
-	}
-}
+	function markStepCompleted(stepId: string) {
+		const index = welcomeSteps.findIndex((s) => s.id === stepId);
+		if (index !== -1) {
+			welcomeSteps[index].completed = true;
+		}
 
-function markStepCompleted(stepId: string) {
-	const index = welcomeSteps.findIndex((s) => s.id === stepId);
-	if (index !== -1) {
-		welcomeSteps[index].completed = true;
+		// Save progress to localStorage
+		const completedSteps = welcomeSteps.filter((s) => s.completed).map((s) => s.id);
+		localStorage.setItem('sveltycms-welcome-progress', JSON.stringify(completedSteps));
 	}
 
-	// Save progress to localStorage
-	const completedSteps = welcomeSteps
-		.filter((s) => s.completed)
-		.map((s) => s.id);
-	localStorage.setItem(
-		"sveltycms-welcome-progress",
-		JSON.stringify(completedSteps),
-	);
-}
-
-function dismissWelcome() {
-	dismissedWelcome = true;
-	showWelcome = false;
-	localStorage.setItem("sveltycms-welcome-seen", "true");
-}
-
-function nextStep() {
-	if (currentStep < welcomeSteps.length - 1) {
-		currentStep++;
+	function dismissWelcome() {
+		dismissedWelcome = true;
+		showWelcome = false;
+		localStorage.setItem('sveltycms-welcome-seen', 'true');
 	}
-}
 
-function previousStep() {
-	if (currentStep > 0) {
-		currentStep--;
+	function nextStep() {
+		if (currentStep < welcomeSteps.length - 1) {
+			currentStep++;
+		}
 	}
-}
 
-function goToDashboard() {
-	dismissWelcome();
-	goto("/dashboard");
-}
+	function previousStep() {
+		if (currentStep > 0) {
+			currentStep--;
+		}
+	}
+
+	function goToDashboard() {
+		dismissWelcome();
+		goto('/dashboard');
+	}
 </script>
 
 {#if showWelcome && !dismissedWelcome}

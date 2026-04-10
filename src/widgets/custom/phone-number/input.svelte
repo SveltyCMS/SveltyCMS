@@ -33,156 +33,136 @@
 -->
 
 <script lang="ts">
-// Components
-import SystemTooltip from "@src/components/system/system-tooltip.svelte";
-import { tokenTarget } from "@src/services/token/token-target";
-import { publicEnv } from "@src/stores/global-settings.svelte";
-// Stores
-import { app, validationStore } from "@src/stores/store.svelte.ts";
-import { getFieldName } from "@utils/utils";
-// Unified error handling
-import { handleWidgetValidation } from "@widgets/widget-error-handler";
-import { onDestroy, onMount } from "svelte";
+	// Components
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+	import { tokenTarget } from '@src/services/token/token-target';
+	import { publicEnv } from '@src/stores/global-settings.svelte';
+	// Stores
+	import { app, validationStore } from '@src/stores/store.svelte.ts';
+	import { getFieldName } from '@utils/utils';
+	// Unified error handling
+	import { handleWidgetValidation } from '@widgets/widget-error-handler';
+	import { onDestroy, onMount } from 'svelte';
 
-// Valibot validation
-import { minLength, optional, parse, pipe, regex, string } from "valibot";
-import type { FieldType } from ".";
+	// Valibot validation
+	import { minLength, optional, parse, pipe, regex, string } from 'valibot';
+	import type { FieldType } from '.';
 
-interface Props {
-	field: FieldType;
-	value?: any;
-}
-
-let { field, value = $bindable() }: Props = $props();
-
-const fieldName = $derived(getFieldName(field));
-// Use current content language for translated fields, default for non-translated
-const LANGUAGE = $derived(
-	field.translated
-		? app.contentLanguage
-		: ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || "en").toLowerCase(),
-);
-
-// Initialize value if null/undefined
-$effect(() => {
-	if (value === undefined || value === null) {
-		value = field.translated ? { [LANGUAGE]: "" } : "";
+	interface Props {
+		field: FieldType;
+		value?: any;
 	}
-});
 
-const safeValue = $derived(value?.[LANGUAGE] ?? "");
-const validationError = $derived(validationStore.getError(fieldName));
-let debounceTimeout: number | undefined;
-let inputElement = $state<HTMLInputElement | null>(null);
-let isTouched = $state(false);
-let isValidating = $state(false);
+	let { field, value = $bindable() }: Props = $props();
 
-// Create validation schema for phone number
-// Default E.164 pattern unless a custom pattern is provided
-const defaultPattern = /^\+?[1-9]\d{1,14}$/;
-const validationPattern = $derived(
-	typeof field.pattern === "string" && field.pattern.trim() !== ""
-		? new RegExp(field.pattern)
-		: defaultPattern,
-);
+	const fieldName = $derived(getFieldName(field));
+	// Use current content language for translated fields, default for non-translated
+	const LANGUAGE = $derived(field.translated ? app.contentLanguage : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase());
 
-const phoneSchema = $derived(
-	field?.required
-		? pipe(
-				string(),
-				minLength(1, "This field is required"),
-				regex(
-					validationPattern,
-					"Invalid phone number format. Please use international format (e.g., +1234567890)",
-				),
-			)
-		: optional(
-				pipe(
+	// Initialize value if null/undefined
+	$effect(() => {
+		if (value === undefined || value === null) {
+			value = field.translated ? { [LANGUAGE]: '' } : '';
+		}
+	});
+
+	const safeValue = $derived(value?.[LANGUAGE] ?? '');
+	const validationError = $derived(validationStore.getError(fieldName));
+	let debounceTimeout: number | undefined;
+	let inputElement = $state<HTMLInputElement | null>(null);
+	let isTouched = $state(false);
+	let isValidating = $state(false);
+
+	// Create validation schema for phone number
+	// Default E.164 pattern unless a custom pattern is provided
+	const defaultPattern = /^\+?[1-9]\d{1,14}$/;
+	const validationPattern = $derived(typeof field.pattern === 'string' && field.pattern.trim() !== '' ? new RegExp(field.pattern) : defaultPattern);
+
+	const phoneSchema = $derived(
+		field?.required
+			? pipe(
 					string(),
-					regex(
-						validationPattern,
-						"Invalid phone number format. Please use international format (e.g., +1234567890)",
-					),
-				),
-				"",
-			),
-);
+					minLength(1, 'This field is required'),
+					regex(validationPattern, 'Invalid phone number format. Please use international format (e.g., +1234567890)')
+				)
+			: optional(pipe(string(), regex(validationPattern, 'Invalid phone number format. Please use international format (e.g., +1234567890)')), '')
+	);
 
-// Validation function with debounce
-function validateInput(immediate = false) {
-	if (debounceTimeout) {
-		clearTimeout(debounceTimeout);
-	}
-
-	const doValidation = () => {
-		isValidating = true;
-		try {
-			const currentValue = safeValue;
-
-			// First validate if required
-			if (field?.required && (!currentValue || currentValue.trim() === "")) {
-				validationStore.setError(fieldName, "This field is required");
-				return;
-			}
-
-			// Then validate phone format if value exists
-			if (currentValue && currentValue.trim() !== "") {
-				// ✅ UNIFIED: Use handleWidgetValidation for standardized error handling
-				handleWidgetValidation(() => parse(phoneSchema, currentValue), {
-					fieldName,
-					updateStore: true,
-				});
-				return;
-			}
-
-			validationStore.clearError(fieldName);
-		} finally {
-			isValidating = false;
+	// Validation function with debounce
+	function validateInput(immediate = false) {
+		if (debounceTimeout) {
+			clearTimeout(debounceTimeout);
 		}
-	};
 
-	if (immediate) {
-		doValidation();
-	} else {
-		debounceTimeout = window.setTimeout(doValidation, 300);
-	}
-}
+		const doValidation = () => {
+			isValidating = true;
+			try {
+				const currentValue = safeValue;
 
-// Handle input changes
-function handleInput(e: Event) {
-	const target = e.currentTarget as HTMLInputElement;
-	if (field.translated) {
-		if (!value || typeof value !== "object") {
-			value = {};
+				// First validate if required
+				if (field?.required && (!currentValue || currentValue.trim() === '')) {
+					validationStore.setError(fieldName, 'This field is required');
+					return;
+				}
+
+				// Then validate phone format if value exists
+				if (currentValue && currentValue.trim() !== '') {
+					// ✅ UNIFIED: Use handleWidgetValidation for standardized error handling
+					handleWidgetValidation(() => parse(phoneSchema, currentValue), {
+						fieldName,
+						updateStore: true
+					});
+					return;
+				}
+
+				validationStore.clearError(fieldName);
+			} finally {
+				isValidating = false;
+			}
+		};
+
+		if (immediate) {
+			doValidation();
+		} else {
+			debounceTimeout = window.setTimeout(doValidation, 300);
 		}
-		value = { ...value, [LANGUAGE]: target.value };
-	} else {
-		value = target.value;
 	}
-}
 
-// Handle blur
-function handleBlur() {
-	isTouched = true;
-	validateInput(true);
-}
-
-// Focus management
-onMount(() => {
-	if (field?.required && !safeValue) {
-		inputElement?.focus();
+	// Handle input changes
+	function handleInput(e: Event) {
+		const target = e.currentTarget as HTMLInputElement;
+		if (field.translated) {
+			if (!value || typeof value !== 'object') {
+				value = {};
+			}
+			value = { ...value, [LANGUAGE]: target.value };
+		} else {
+			value = target.value;
+		}
 	}
-});
 
-// Cleanup
-onDestroy(() => {
-	if (debounceTimeout) {
-		clearTimeout(debounceTimeout);
+	// Handle blur
+	function handleBlur() {
+		isTouched = true;
+		validateInput(true);
 	}
-});
 
-// Export WidgetData for data binding with Fields.svelte
-export const WidgetData = async () => value;
+	// Focus management
+	onMount(() => {
+		if (field?.required && !safeValue) {
+			inputElement?.focus();
+		}
+	});
+
+	// Cleanup
+	onDestroy(() => {
+		if (debounceTimeout) {
+			clearTimeout(debounceTimeout);
+		}
+	});
+
+	// Export WidgetData for data binding with Fields.svelte
+	export const WidgetData = async () => value;
 </script>
 
 <div class="input-container relative mb-4">

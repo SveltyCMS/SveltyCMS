@@ -1,45 +1,32 @@
 <script lang="ts">
-// @ts-nocheck
-/**
- * @file src/components/emails/custom-email.svelte
- * @component
- * Generic email template for custom content
- */
+	// @ts-nocheck
+	/**
+	 * @file src/components/emails/custom-email.svelte
+	 * @component
+	 * Generic email template for custom content
+	 */
 
-import { publicEnv } from "@src/stores/global-settings.svelte";
-import {
-	Body,
-	Container,
-	Head,
-	Hr,
-	Html,
-	Img,
-	Link,
-	Preview,
-	Section,
-	Text,
-} from "better-svelte-email";
-import { dev } from "$app/environment";
+	import { publicEnv } from '@src/stores/global-settings.svelte';
+	import { Body, Container, Head, Hr, Html, Img, Link, Preview, Section, Text } from 'better-svelte-email';
+	import { dev } from '$app/environment';
 
-interface Props {
-	body?: string;
-	hostLink?: string;
-	languageTag?: string;
-	sitename?: string;
-}
+	interface Props {
+		body?: string;
+		hostLink?: string;
+		languageTag?: string;
+		sitename?: string;
+	}
 
-const {
-	sitename = publicEnv?.SITE_NAME || "SveltyCMS",
-	body = "",
-	hostLink = dev
-		? publicEnv?.HOST_DEV
-		: publicEnv?.HOST_PROD || "http://localhost:5173",
-	languageTag = "en",
-}: Props = $props();
+	const {
+		sitename = publicEnv?.SITE_NAME || 'SveltyCMS',
+		body = '',
+		hostLink = dev ? publicEnv?.HOST_DEV : publicEnv?.HOST_PROD || 'http://localhost:5173',
+		languageTag = 'en'
+	}: Props = $props();
 
-const logoSrc = publicEnv?.HOST_PROD
-	? `${publicEnv.HOST_PROD}/SveltyCMS.png`
-	: "https://github.com/SveltyCMS/SveltyCMS/raw/main/static/SveltyCMS.png";
+	const logoSrc = publicEnv?.HOST_PROD
+		? `${publicEnv.HOST_PROD}/SveltyCMS.png`
+		: 'https://github.com/SveltyCMS/SveltyCMS/raw/main/static/SveltyCMS.png';
 </script>
 
 <Html lang={languageTag}>

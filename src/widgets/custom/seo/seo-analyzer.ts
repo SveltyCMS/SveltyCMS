@@ -315,7 +315,7 @@ export class SeoAnalyzer {
     const imagesWithoutAlt = (content.match(/<img(?![^>]*alt=)[^>]*>/gi) || []).length;
 
     const internalLinks = (
-      content.match(/<a[^>]*href=["'][^"']*(?:127.0.0.1|your-domain)[^"']*["'][^>]*>/gi) || []
+      content.match(/<a[^>]*href=["'][^"']*(?:localhost|your-domain)[^"']*["'][^>]*>/gi) || []
     ).length;
     const externalLinks =
       (content.match(/<a[^>]*href=["'](?:https?:\/\/)[^"']*["'][^>]*>/gi) || []).length -

@@ -40,9 +40,7 @@ const RepeaterWidget = createWidget<RepeaterProps>({
   Name: "Repeater",
   Icon: "mdi:view-list-outline",
   Description: "A list of repeatable items",
-  inputComponent: () => import("./input.svelte"),
   inputComponentPath: "/src/widgets/core/repeater/input.svelte",
-  displayComponent: () => import("./display.svelte"),
   displayComponentPath: "/src/widgets/core/repeater/display.svelte",
   validationSchema,
 

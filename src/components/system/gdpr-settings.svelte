@@ -14,86 +14,86 @@
 -->
 
 <script lang="ts">
-import { toast } from "@src/stores/toast.svelte.ts";
-import type { SettingGroup } from "../../routes/(app)/config/system-settings/settings-groups";
+	import { toast } from '@src/stores/toast.svelte.ts';
+	import type { SettingGroup } from '../../routes/(app)/config/systemsetting/settings-groups';
 
-interface Props {
-	group: SettingGroup;
-}
-
-let { group }: Props = $props();
-
-let userIdExport = $state("");
-let userIdAnonymize = $state("");
-let loadingExport = $state(false);
-let loadingAnonymize = $state(false);
-let confirmAnonymize = $state(false);
-
-async function handleExport() {
-	if (!userIdExport) {
-		return;
+	interface Props {
+		group: SettingGroup;
 	}
-	loadingExport = true;
-	try {
-		const res = await fetch("/api/gdpr", {
-			method: "POST",
-			body: JSON.stringify({ action: "export", userId: userIdExport }),
-		});
-		const result = await res.json();
-		if (result.success) {
-			// Trigger download
-			const blob = new Blob([JSON.stringify(result.data, null, 2)], {
-				type: "application/json",
+
+	let { group }: Props = $props();
+
+	let userIdExport = $state('');
+	let userIdAnonymize = $state('');
+	let loadingExport = $state(false);
+	let loadingAnonymize = $state(false);
+	let confirmAnonymize = $state(false);
+
+	async function handleExport() {
+		if (!userIdExport) {
+			return;
+		}
+		loadingExport = true;
+		try {
+			const res = await fetch('/api/gdpr', {
+				method: 'POST',
+				body: JSON.stringify({ action: 'export', userId: userIdExport })
 			});
-			const url = window.URL.createObjectURL(blob);
-			const a = document.createElement("a");
-			a.href = url;
-			a.download = `user-export-${userIdExport}-${new Date().toISOString()}.json`;
-			document.body.appendChild(a);
-			a.click();
-			document.body.removeChild(a);
-			window.URL.revokeObjectURL(url);
-			toast.success("Data export downloaded successfully.");
-		} else {
-			toast.error({ description: result.error || "Export failed" });
+			const result = await res.json();
+			if (result.success) {
+				// Trigger download
+				const blob = new Blob([JSON.stringify(result.data, null, 2)], {
+					type: 'application/json'
+				});
+				const url = window.URL.createObjectURL(blob);
+				const a = document.createElement('a');
+				a.href = url;
+				a.download = `user-export-${userIdExport}-${new Date().toISOString()}.json`;
+				document.body.appendChild(a);
+				a.click();
+				document.body.removeChild(a);
+				window.URL.revokeObjectURL(url);
+				toast.success('Data export downloaded successfully.');
+			} else {
+				toast.error({ description: result.error || 'Export failed' });
+			}
+		} catch (err: any) {
+			toast.error({ description: err.message || 'Export error' });
+		} finally {
+			loadingExport = false;
 		}
-	} catch (err: any) {
-		toast.error({ description: err.message || "Export error" });
-	} finally {
-		loadingExport = false;
-	}
-}
-
-async function handleAnonymize() {
-	if (!userIdAnonymize) {
-		return;
-	}
-	if (!confirmAnonymize) {
-		confirmAnonymize = true;
-		setTimeout(() => (confirmAnonymize = false), 3000); // Reset after 3s
-		return;
 	}
 
-	loadingAnonymize = true;
-	try {
-		const res = await fetch("/api/gdpr", {
-			method: "POST",
-			body: JSON.stringify({ action: "anonymize", userId: userIdAnonymize }),
-		});
-		const result = await res.json();
-		if (result.success) {
-			toast.success(`User ${userIdAnonymize} successfully anonymized.`);
-			userIdAnonymize = "";
-			confirmAnonymize = false;
-		} else {
-			toast.error({ description: result.error || "Anonymization failed" });
+	async function handleAnonymize() {
+		if (!userIdAnonymize) {
+			return;
 		}
-	} catch (err: any) {
-		toast.error({ description: err.message || "Anonymization error" });
-	} finally {
-		loadingAnonymize = false;
+		if (!confirmAnonymize) {
+			confirmAnonymize = true;
+			setTimeout(() => (confirmAnonymize = false), 3000); // Reset after 3s
+			return;
+		}
+
+		loadingAnonymize = true;
+		try {
+			const res = await fetch('/api/gdpr', {
+				method: 'POST',
+				body: JSON.stringify({ action: 'anonymize', userId: userIdAnonymize })
+			});
+			const result = await res.json();
+			if (result.success) {
+				toast.success(`User ${userIdAnonymize} successfully anonymized.`);
+				userIdAnonymize = '';
+				confirmAnonymize = false;
+			} else {
+				toast.error({ description: result.error || 'Anonymization failed' });
+			}
+		} catch (err: any) {
+			toast.error({ description: err.message || 'Anonymization error' });
+		} finally {
+			loadingAnonymize = false;
+		}
 	}
-}
 </script>
 
 <div class="space-y-6 max-w-full pb-32">

@@ -21,9 +21,9 @@ vi.mock("@src/services/settings-service", () => ({
   }),
 }));
 
-// Mocking contentManager
+// Mocking contentSystem
 vi.mock("@src/content", () => ({
-  contentManager: {
+  contentSystem: {
     initialize: vi.fn(),
     getCollections: vi
       .fn()

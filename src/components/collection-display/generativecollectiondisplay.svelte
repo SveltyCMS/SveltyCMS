@@ -8,38 +8,38 @@ It allows for completely AI-generated, interactive layouts that leverage existin
 -->
 
 <script lang="ts">
-import { Renderer, JSONUIProvider, type Spec } from "json-render-svelte";
-import { sveltyRegistry } from "@src/services/json-render/catalog";
-import type { CollectionEntry, Schema } from "@src/content/types";
+	import { Renderer, JSONUIProvider, type Spec } from 'json-render-svelte';
+	import { sveltyRegistry } from '@src/services/json-render/catalog';
+	import type { CollectionEntry, Schema } from '@src/content/types';
 
-interface Props {
-	schema: Schema;
-	entries: CollectionEntry[];
-	context?: Record<string, unknown>;
-}
+	interface Props {
+		schema: Schema;
+		entries: CollectionEntry[];
+		context?: Record<string, unknown>;
+	}
 
-let { schema, entries, context = {} }: Props = $props();
+	let { schema, entries, context = {} }: Props = $props();
 
-// The spec identifies how to render the data
-// If the schema doesn't have a displaySpec, we fallback to a default list (or handled by parent)
-const displaySpec = $derived(
-	(schema.displaySpec as unknown as Spec) || {
-		root: "root",
-		elements: {
-			root: {
-				type: "EntryList",
-				props: { entries },
-			},
-		},
-	},
-);
+	// The spec identifies how to render the data
+	// If the schema doesn't have a displaySpec, we fallback to a default list (or handled by parent)
+	const displaySpec = $derived(
+		(schema.displaySpec as unknown as Spec) || {
+			root: 'root',
+			elements: {
+				root: {
+					type: 'EntryList',
+					props: { entries }
+				}
+			}
+		}
+	);
 
-// Merged context for the renderer
-const initialState = $derived({
-	...context,
-	entries,
-	schema,
-});
+	// Merged context for the renderer
+	const initialState = $derived({
+		...context,
+		entries,
+		schema
+	});
 </script>
 
 <div class="generative-display-container w-full h-full p-4">

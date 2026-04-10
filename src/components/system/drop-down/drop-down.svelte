@@ -18,55 +18,53 @@
 -->
 
 <script lang="ts">
-import { twMerge } from "tailwind-merge";
+	import { twMerge } from 'tailwind-merge';
 
-// Define props using $props
-const {
-	items, // Array of selectable items
-	selected, // Currently selected item (no default here, handled dynamically)
-	label = "", // Optional label for the dropdown
-	modifier = (input: any) => input, // Function to modify how items are displayed
-	class: className = "", // Custom class for the dropdown container
-} = $props();
+	// Define props using $props
+	const {
+		items, // Array of selectable items
+		selected, // Currently selected item (no default here, handled dynamically)
+		label = '', // Optional label for the dropdown
+		modifier = (input: any) => input, // Function to modify how items are displayed
+		class: className = '' // Custom class for the dropdown container
+	} = $props();
 
-// --- STATE ---
-// State for dropdown expansion and selected item
-let expanded = $state(false);
-// Use writable derived to track selected prop changes but allow local override
-let localSelected = $state<any>(undefined);
-let currentSelected = {
-	get value() {
-		if (localSelected !== undefined && localSelected !== null) {
-			return localSelected;
+	// --- STATE ---
+	// State for dropdown expansion and selected item
+	let expanded = $state(false);
+	// Use writable derived to track selected prop changes but allow local override
+	let localSelected = $state<any>(undefined);
+	let currentSelected = {
+		get value() {
+			if (localSelected !== undefined && localSelected !== null) {
+				return localSelected;
+			}
+			if (selected !== undefined) {
+				return selected;
+			}
+			if (items && items.length > 0) {
+				return items[0];
+			}
+			return undefined;
+		},
+		set value(v: any) {
+			localSelected = v;
 		}
-		if (selected !== undefined) {
-			return selected;
-		}
-		if (items && items.length > 0) {
-			return items[0];
-		}
-		return undefined;
-	},
-	set value(v: any) {
-		localSelected = v;
-	},
-};
+	};
 
-// Derived state for filtered items
-const filteredItems = $derived(
-	items.filter((item: any) => item !== currentSelected.value),
-);
+	// Derived state for filtered items
+	const filteredItems = $derived(items.filter((item: any) => item !== currentSelected.value));
 
-// Toggle dropdown expansion
-function toggleExpanded() {
-	expanded = !expanded;
-}
+	// Toggle dropdown expansion
+	function toggleExpanded() {
+		expanded = !expanded;
+	}
 
-// Handle item selection
-function selectItem(item: any) {
-	currentSelected.value = item;
-	expanded = false;
-}
+	// Handle item selection
+	function selectItem(item: any) {
+		currentSelected.value = item;
+		expanded = false;
+	}
 </script>
 
 <!-- Dropdown container -->

@@ -1,82 +1,67 @@
 <script lang="ts">
-// @ts-nocheck
-/**
- * @file src/components/emails/database-failure.svelte
- * @component
- * Database failure notification email for administrators
- * Sent when database connection fails and automatic recovery attempts are exhausted
- */
+	// @ts-nocheck
+	/**
+	 * @file src/components/emails/database-failure.svelte
+	 * @component
+	 * Database failure notification email for administrators
+	 * Sent when database connection fails and automatic recovery attempts are exhausted
+	 */
 
-import { publicEnv } from "@src/stores/global-settings.svelte";
-import {
-	Body,
-	Button,
-	Container,
-	Head,
-	Heading,
-	Hr,
-	Html,
-	Img,
-	Link,
-	Preview,
-	Section,
-	Text,
-} from "better-svelte-email";
-import { dev } from "$app/environment";
+	import { publicEnv } from '@src/stores/global-settings.svelte';
+	import { Body, Button, Container, Head, Heading, Hr, Html, Img, Link, Preview, Section, Text } from 'better-svelte-email';
+	import { dev } from '$app/environment';
 
-interface Props {
-	error?: {
-		code: string;
-		message: string;
-		details?: unknown;
-	};
-	hostLink?: string;
-	languageTag?: string;
-	metrics?: {
-		totalReconnections: number;
-		successfulReconnections: number;
-		failedRetries: number;
-		averageRecoveryTime: number;
-		lastFailureTime: string;
-	};
-	sitename?: string;
-	systemState?: {
-		overall: string;
-		databaseStatus: string;
-		databaseMessage: string;
-	};
-	timestamp?: string;
-}
+	interface Props {
+		error?: {
+			code: string;
+			message: string;
+			details?: unknown;
+		};
+		hostLink?: string;
+		languageTag?: string;
+		metrics?: {
+			totalReconnections: number;
+			successfulReconnections: number;
+			failedRetries: number;
+			averageRecoveryTime: number;
+			lastFailureTime: string;
+		};
+		sitename?: string;
+		systemState?: {
+			overall: string;
+			databaseStatus: string;
+			databaseMessage: string;
+		};
+		timestamp?: string;
+	}
 
-const {
-	sitename = publicEnv?.SITE_NAME || "SveltyCMS",
-	error = {
-		code: "CONNECTION_FAILED",
-		message: "Database connection lost",
-		details: {},
-	},
-	metrics = {
-		totalReconnections: 0,
-		successfulReconnections: 0,
-		failedRetries: 0,
-		averageRecoveryTime: 0,
-		lastFailureTime: new Date().toISOString(),
-	},
-	systemState = {
-		overall: "FAILED",
-		databaseStatus: "unhealthy",
-		databaseMessage: "Connection lost",
-	},
-	timestamp = new Date().toISOString(),
-	hostLink = dev
-		? publicEnv?.HOST_DEV
-		: publicEnv?.HOST_PROD || "http://localhost:5173",
-	languageTag = "en",
-}: Props = $props();
+	const {
+		sitename = publicEnv?.SITE_NAME || 'SveltyCMS',
+		error = {
+			code: 'CONNECTION_FAILED',
+			message: 'Database connection lost',
+			details: {}
+		},
+		metrics = {
+			totalReconnections: 0,
+			successfulReconnections: 0,
+			failedRetries: 0,
+			averageRecoveryTime: 0,
+			lastFailureTime: new Date().toISOString()
+		},
+		systemState = {
+			overall: 'FAILED',
+			databaseStatus: 'unhealthy',
+			databaseMessage: 'Connection lost'
+		},
+		timestamp = new Date().toISOString(),
+		hostLink = dev ? publicEnv?.HOST_DEV : publicEnv?.HOST_PROD || 'http://localhost:5173',
+		languageTag = 'en'
+	}: Props = $props();
 
-const logoSrc = publicEnv?.HOST_PROD
-	? `${publicEnv.HOST_PROD}/SveltyCMS.png`
-	: "https://github.com/SveltyCMS/SveltyCMS/raw/main/static/SveltyCMS.png";
+	const logoSrc = publicEnv?.HOST_PROD
+		? `${publicEnv.HOST_PROD}/SveltyCMS.png`
+		: 'https://github.com/SveltyCMS/SveltyCMS/raw/main/static/SveltyCMS.png';
 </script>
 
 <Html lang={languageTag}>

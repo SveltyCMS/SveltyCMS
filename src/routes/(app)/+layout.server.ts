@@ -15,7 +15,7 @@
  * - Content Versioning is cached
  */
 
-import { contentManager } from "@src/content";
+import { contentSystem } from "@src/content";
 import type { User } from "@src/databases/auth/types";
 import { auth } from "@src/databases/db";
 import type { DatabaseId } from "@src/databases/db-interface";
@@ -88,10 +88,10 @@ export const load: LayoutServerLoad = async ({ locals, depends }) => {
   try {
     // Start initialization but don't await generic content loading for the main thread
     // This prevents the "blank white page" issue
-    const contentPromise = contentManager.initialize(tenantId).then(() => {
+    const contentPromise = contentSystem.initialize(tenantId).then(() => {
       return Promise.all([
-        contentManager.getNavigationStructure(tenantId),
-        contentManager.getFirstCollection(tenantId),
+        contentSystem.getNavigationStructure(tenantId),
+        contentSystem.getFirstCollection(tenantId),
       ]);
     });
 
@@ -111,7 +111,7 @@ export const load: LayoutServerLoad = async ({ locals, depends }) => {
       tenantId,
       // Streamed data (Promises)
       contentStructure: contentPromise.then(async () => {
-        const nodes = await contentManager.getContentStructure(tenantId);
+        const nodes = await contentSystem.getContentStructure(tenantId);
         return nodes.map((node: any) => {
           const sanitized = JSON.parse(JSON.stringify(node));
           return {

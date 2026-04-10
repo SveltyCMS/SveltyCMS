@@ -17,19 +17,19 @@ Values form StatusTypes
 -->
 
 <script lang="ts">
-import { StatusTypes } from "@src/content/types";
+	import { StatusTypes } from '@src/content/types';
 
-const { value } = $props(); // The status value to display
+	const { value } = $props(); // The status value to display
 
-import {
-	button_archive,
-	button_delete,
-	entrylist_multibutton_clone,
-	entrylist_multibutton_draft,
-	entrylist_multibutton_publish,
-	entrylist_multibutton_schedule,
-	entrylist_multibutton_unpublish,
-} from "@src/paraglide/messages";
+	import {
+		button_archive,
+		button_delete,
+		entrylist_multibutton_clone,
+		entrylist_multibutton_draft,
+		entrylist_multibutton_publish,
+		entrylist_multibutton_schedule,
+		entrylist_multibutton_unpublish
+	} from '@src/paraglide/messages';
 </script>
 
 <!-- Display different badges for different statuses -->

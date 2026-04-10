@@ -4,86 +4,82 @@
 Professional fine-tune controls with presets and categories
 -->
 <script lang="ts">
-import type { Adjustments } from "./adjustments";
-import {
-	FILTER_PRESETS,
-	getAdjustmentConfig,
-	getAdjustmentsByCategory,
-} from "./adjustments";
+	import type { Adjustments } from './adjustments';
+	import { FILTER_PRESETS, getAdjustmentConfig, getAdjustmentsByCategory } from './adjustments';
 
-const {
-	activeAdjustment,
-	activeCategory = "basic",
-	value,
-	adjustments,
-	showPresets = false,
-	isComparing = false,
-	onChange,
-	onAdjustmentChange,
-	onCategoryChange,
-	onPresetApply,
-	onReset,
-	onCompareToggle,
-	onAutoAdjust,
-}: {
-	activeAdjustment: keyof Adjustments;
-	activeCategory?: string;
-	value: number;
-	adjustments?: Adjustments;
-	showPresets?: boolean;
-	isComparing?: boolean;
-	onChange: (value: number) => void;
-	onAdjustmentChange: (key: keyof Adjustments) => void;
-	onCategoryChange?: (category: string) => void;
-	onPresetApply?: (preset: string) => void;
-	onReset: () => void;
-	onCompareToggle?: () => void;
-	onAutoAdjust?: () => void;
-} = $props();
+	const {
+		activeAdjustment,
+		activeCategory = 'basic',
+		value,
+		adjustments,
+		showPresets = false,
+		isComparing = false,
+		onChange,
+		onAdjustmentChange,
+		onCategoryChange,
+		onPresetApply,
+		onReset,
+		onCompareToggle,
+		onAutoAdjust
+	}: {
+		activeAdjustment: keyof Adjustments;
+		activeCategory?: string;
+		value: number;
+		adjustments?: Adjustments;
+		showPresets?: boolean;
+		isComparing?: boolean;
+		onChange: (value: number) => void;
+		onAdjustmentChange: (key: keyof Adjustments) => void;
+		onCategoryChange?: (category: string) => void;
+		onPresetApply?: (preset: string) => void;
+		onReset: () => void;
+		onCompareToggle?: () => void;
+		onAutoAdjust?: () => void;
+	} = $props();
 
-const config = $derived(getAdjustmentConfig(activeAdjustment));
-const categories = ["basic", "tone", "color", "detail"] as const;
-const categoryIcons = {
-	basic: "mdi:tune-variant",
-	tone: "mdi:gradient-vertical",
-	color: "mdi:palette",
-	detail: "mdi:details",
-};
+	const config = $derived(getAdjustmentConfig(activeAdjustment));
+	const categories = ['basic', 'tone', 'color', 'detail'] as const;
+	const categoryIcons = {
+		basic: 'mdi:tune-variant',
+		tone: 'mdi:gradient-vertical',
+		color: 'mdi:palette',
+		detail: 'mdi:details'
+	};
 
-let showPresetsPanel = $state(false);
+	let showPresetsPanel = $state(false);
 
-function handleSliderInput(e: Event) {
-	const target = e.currentTarget as HTMLInputElement;
-	onChange(Number.parseInt(target.value, 10));
-}
-
-// Keyboard shortcuts
-function handleKeyDown(e: KeyboardEvent) {
-	if ((e.target as HTMLElement).tagName === "INPUT") {
-		return;
+	function handleSliderInput(e: Event) {
+		const target = e.currentTarget as HTMLInputElement;
+		onChange(Number.parseInt(target.value, 10));
 	}
 
-	switch (e.key) {
-		case "0":
-			e.preventDefault();
-			onReset();
-			break;
-		case "c":
-		case "C":
-			if (onCompareToggle) {
+	// Keyboard shortcuts
+	function handleKeyDown(e: KeyboardEvent) {
+		if ((e.target as HTMLElement).tagName === 'INPUT') {
+			return;
+		}
+
+		switch (e.key) {
+			case '0':
 				e.preventDefault();
-				onCompareToggle();
-			}
-			break;
-		case "a":
-		case "A":
-			if (e.shiftKey && onAutoAdjust) {
-				e.preventDefault();
-				onAutoAdjust();
-			}
-			break;
+				onReset();
+				break;
+			case 'c':
+			case 'C':
+				if (onCompareToggle) {
+					e.preventDefault();
+					onCompareToggle();
+				}
+				break;
+			case 'a':
+			case 'A':
+				if (e.shiftKey && onAutoAdjust) {
+					e.preventDefault();
+					onAutoAdjust();
+				}
+				break;
+		}
 	}
-}
 </script>
 
 <svelte:window onkeydown={handleKeyDown} />

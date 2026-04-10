@@ -9,64 +9,61 @@
 -->
 
 <script lang="ts">
-import FloatingInput from "@src/components/system/inputs/floating-input.svelte";
-// import type { Editor } from '@tiptap/core'; // Removed to avoid SSR resolution issues
-import { onMount } from "svelte";
-import { fade } from "svelte/transition";
+	import FloatingInput from '@src/components/system/inputs/floating-input.svelte';
+	import type { Editor } from '@tiptap/core';
+	import { onMount } from 'svelte';
+	import { fade } from 'svelte/transition';
 
-interface Props {
-	editor: any | null; // Changed from Editor to any
-	show?: boolean;
-}
-
-let { show = $bindable(false), editor }: Props = $props();
-
-let insertUrl = $state(false);
-let youtubeUrl = $state("");
-
-function close() {
-	show = false;
-	// Reset state after a short delay to allow the fade-out transition to complete
-	setTimeout(() => {
-		youtubeUrl = "";
-		insertUrl = false;
-	}, 200);
-}
-
-function handleSubmit(e: Event) {
-	e.preventDefault();
-
-	// SECURITY: Validate YouTube URL to prevent XSS
-	// Only allow youtube.com and youtu.be URLs (HTTPS only)
-	const youtubePattern =
-		/^https:\/\/(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})$/;
-
-	if (youtubeUrl && editor) {
-		if (youtubePattern.test(youtubeUrl)) {
-			editor.chain().focus().setYoutubeVideo({ src: youtubeUrl }).run();
-			close();
-		} else {
-			alert(
-				"Invalid YouTube URL. Please use a valid youtube.com or youtu.be link.",
-			);
-		}
-	} else {
-		close();
+	interface Props {
+		editor: Editor | null;
+		show?: boolean;
 	}
-}
 
-// Add 'Escape' key listener
-onMount(() => {
-	const handleKeydown = (e: KeyboardEvent) => {
-		if (e.key === "Escape" && show) {
+	let { show = $bindable(false), editor }: Props = $props();
+
+	let insertUrl = $state(false);
+	let youtubeUrl = $state('');
+
+	function close() {
+		show = false;
+		// Reset state after a short delay to allow the fade-out transition to complete
+		setTimeout(() => {
+			youtubeUrl = '';
+			insertUrl = false;
+		}, 200);
+	}
+
+	function handleSubmit(e: Event) {
+		e.preventDefault();
+
+		// SECURITY: Validate YouTube URL to prevent XSS
+		// Only allow youtube.com and youtu.be URLs (HTTPS only)
+		const youtubePattern = /^https:\/\/(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})$/;
+
+		if (youtubeUrl && editor) {
+			if (youtubePattern.test(youtubeUrl)) {
+				editor.chain().focus().setYoutubeVideo({ src: youtubeUrl }).run();
+				close();
+			} else {
+				alert('Invalid YouTube URL. Please use a valid youtube.com or youtu.be link.');
+			}
+		} else {
 			close();
 		}
-	};
-	window.addEventListener("keydown", handleKeydown);
-	return () => {
-		window.removeEventListener("keydown", handleKeydown);
-	};
-});
+	}
+
+	// Add 'Escape' key listener
+	onMount(() => {
+		const handleKeydown = (e: KeyboardEvent) => {
+			if (e.key === 'Escape' && show) {
+				close();
+			}
+		};
+		window.addEventListener('keydown', handleKeydown);
+		return () => {
+			window.removeEventListener('keydown', handleKeydown);
+		};
+	});
 </script>
 
 {#if show}

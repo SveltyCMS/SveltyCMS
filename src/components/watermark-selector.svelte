@@ -14,29 +14,29 @@ Usage:
 -->
 
 <script lang="ts">
-import type { MediaItem } from "@utils/media/media-models";
+	import type { MediaItem } from '@utils/media/media-models';
 
-interface Props {
-	// Component props
-	mediaItems?: MediaItem[];
-	onSelect: (media: MediaItem) => void;
-	selectedMedia?: MediaItem | null;
-}
-
-const { mediaItems = [], selectedMedia = null, onSelect }: Props = $props();
-
-// Handle selection of a media item
-function handleSelect(media: MediaItem) {
-	onSelect(media);
-}
-
-// Handle keyboard navigation
-function handleKeydown(event: KeyboardEvent, media: MediaItem) {
-	if (event.key === "Enter" || event.key === " ") {
-		event.preventDefault();
-		handleSelect(media);
+	interface Props {
+		// Component props
+		mediaItems?: MediaItem[];
+		onSelect: (media: MediaItem) => void;
+		selectedMedia?: MediaItem | null;
 	}
-}
+
+	const { mediaItems = [], selectedMedia = null, onSelect }: Props = $props();
+
+	// Handle selection of a media item
+	function handleSelect(media: MediaItem) {
+		onSelect(media);
+	}
+
+	// Handle keyboard navigation
+	function handleKeydown(event: KeyboardEvent, media: MediaItem) {
+		if (event.key === 'Enter' || event.key === ' ') {
+			event.preventDefault();
+			handleSelect(media);
+		}
+	}
 </script>
 
 <div class="grid grid-cols-3 gap-4" role="radiogroup" aria-label="Watermark image selection">

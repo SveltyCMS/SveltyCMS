@@ -4,7 +4,7 @@
  */
 
 // Utils
-import { contentManager } from "@src/content";
+import { contentSystem } from "@src/content";
 import type { DatabaseId, ISODateString } from "@src/content/types";
 // System Logger
 import { generateGoogleAuthUrl, getOAuthRedirectUri } from "@src/databases/auth/google-auth";
@@ -428,7 +428,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
       // Redirect to the first available collection
       const defaultLanguage = publicEnv.DEFAULT_CONTENT_LANGUAGE || "en";
       const userLanguage = url.searchParams.get("lang") || defaultLanguage;
-      const redirectUrl = await contentManager.getFirstCollectionRedirectUrl(userLanguage);
+      const redirectUrl = await contentSystem.getFirstCollectionRedirectUrl(userLanguage);
 
       logger.debug(`Redirecting to: ${redirectUrl || "/"}`);
       throw redirect(302, redirectUrl || "/");

@@ -5,53 +5,29 @@
 -->
 
 <script lang="ts">
-// @ts-nocheck
+	// @ts-nocheck
 
-import {
-	forgottenpassword_ignore,
-	forgottenpassword_resetbutton,
-	forgottenpassword_token,
-	forgottenpassword_valid,
-} from "@src/paraglide/messages";
-import { publicEnv } from "@src/stores/global-settings.svelte";
-import { app } from "@src/stores/store.svelte";
-import { ReadableExpireIn } from "@utils/utils";
-import {
-	Body,
-	Button,
-	Container,
-	Head,
-	Heading,
-	Hr,
-	Html,
-	Img,
-	Link,
-	Preview,
-	Section,
-	Text,
-} from "better-svelte-email";
-import { dev } from "$app/environment";
+	import { forgottenpassword_ignore, forgottenpassword_resetbutton, forgottenpassword_token, forgottenpassword_valid } from '@src/paraglide/messages';
+	import { publicEnv } from '@src/stores/global-settings.svelte';
+	import { app } from '@src/stores/store.svelte';
+	import { ReadableExpireIn } from '@utils/utils';
+	import { Body, Button, Container, Head, Heading, Hr, Html, Img, Link, Preview, Section, Text } from 'better-svelte-email';
+	import { dev } from '$app/environment';
 
-interface Props {
-	email?: string;
-	expiresIn: string;
-	languageTag?: string;
-	resetLink: string;
-	token: string;
-}
+	interface Props {
+		email?: string;
+		expiresIn: string;
+		languageTag?: string;
+		resetLink: string;
+		token: string;
+	}
 
-const {
-	email = "",
-	token,
-	resetLink,
-	expiresIn,
-	languageTag = app.systemLanguage,
-}: Props = $props();
+	const { email = '', token, resetLink, expiresIn, languageTag = app.systemLanguage }: Props = $props();
 
-// Use production host logo if available, otherwise fall back to GitHub
-const logoSrc = publicEnv?.HOST_PROD
-	? `${publicEnv.HOST_PROD}/SveltyCMS.png`
-	: "https://github.com/SveltyCMS/SveltyCMS/raw/main/static/SveltyCMS.png";
+	// Use production host logo if available, otherwise fall back to GitHub
+	const logoSrc = publicEnv?.HOST_PROD
+		? `${publicEnv.HOST_PROD}/SveltyCMS.png`
+		: 'https://github.com/SveltyCMS/SveltyCMS/raw/main/static/SveltyCMS.png';
 </script>
 
 <Html lang={languageTag}>

@@ -6,62 +6,56 @@ Sidebar navigation for System Settings
 -->
 
 <script lang="ts">
-// Components
-import SystemTooltip from "@src/components/system/system-tooltip.svelte";
-import type { SettingGroup } from "@src/routes/(app)/config/system-settings/settings-groups";
-import { getSettingGroupsByRole } from "@src/routes/(app)/config/system-settings/settings-groups";
-// Stores
-import { groupsNeedingConfig } from "@src/stores/config-store.svelte";
-import { goto } from "$app/navigation";
-import { page } from "$app/state";
+	// Components
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+	import type { SettingGroup } from '@src/routes/(app)/config/systemsetting/settings-groups';
+	import { getSettingGroupsByRole } from '@src/routes/(app)/config/systemsetting/settings-groups';
+	// Stores
+	import { groupsNeedingConfig } from '@src/stores/config-store.svelte';
+	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
 
-// Props
-let { isFullSidebar = true } = $props();
+	// Props
+	let { isFullSidebar = true } = $props();
 
-// State
-let searchTerm = $state("");
+	// State
+	let searchTerm = $state('');
 
-// Derived
-const user = $derived(page.data.user);
-const isAdmin = $derived(user?.role === "admin"); // Simple admin check, should match +page logic
-const availableGroups: SettingGroup[] = $derived(
-	getSettingGroupsByRole(isAdmin).sort((a, b) => a.name.localeCompare(b.name)),
-);
-const selectedGroupId = $derived(page.url.searchParams.get("group"));
+	// Derived
+	const user = $derived(page.data.user);
+	const isAdmin = $derived(user?.role === 'admin'); // Simple admin check, should match +page logic
+	const availableGroups: SettingGroup[] = $derived(getSettingGroupsByRole(isAdmin).sort((a, b) => a.name.localeCompare(b.name)));
+	const selectedGroupId = $derived(page.url.searchParams.get('group'));
 
-// Filter logic
-const filteredGroups = $derived.by(() => {
-	if (!searchTerm) {
-		return availableGroups;
-	}
-	const lowerCaseSearchTerm = searchTerm.toLowerCase();
-	return availableGroups.filter((group) => {
-		if (group.name.toLowerCase().includes(lowerCaseSearchTerm)) {
-			return true;
+	// Filter logic
+	const filteredGroups = $derived.by(() => {
+		if (!searchTerm) {
+			return availableGroups;
 		}
-		if (group.description?.toLowerCase().includes(lowerCaseSearchTerm)) {
-			return true;
-		}
-		if (
-			group.fields.some(
-				(field) =>
-					field.label.toLowerCase().includes(lowerCaseSearchTerm) ||
-					field.key.toLowerCase().includes(lowerCaseSearchTerm),
-			)
-		) {
-			return true;
-		}
-		return false;
+		const lowerCaseSearchTerm = searchTerm.toLowerCase();
+		return availableGroups.filter((group) => {
+			if (group.name.toLowerCase().includes(lowerCaseSearchTerm)) {
+				return true;
+			}
+			if (group.description?.toLowerCase().includes(lowerCaseSearchTerm)) {
+				return true;
+			}
+			if (
+				group.fields.some((field) => field.label.toLowerCase().includes(lowerCaseSearchTerm) || field.key.toLowerCase().includes(lowerCaseSearchTerm))
+			) {
+				return true;
+			}
+			return false;
+		});
 	});
-});
 
-function handleGroupClick(groupId: string) {
-	// Update URL query param to switch groups
-	const url = new URL(page.url);
-	url.searchParams.set("group", groupId);
+	function handleGroupClick(groupId: string) {
+		// Update URL query param to switch groups
+		const url = new URL(page.url);
+		url.searchParams.set('group', groupId);
 
-	goto(url.toString());
-}
+		goto(url.toString());
+	}
 </script>
 
 <div class="mt-2 flex flex-col h-full bg-transparent">

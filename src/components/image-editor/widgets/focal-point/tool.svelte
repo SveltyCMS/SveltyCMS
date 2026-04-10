@@ -7,106 +7,91 @@ Allows users to set the focal point using svelte-canvas compatible state.
 -->
 
 <script lang="ts">
-import { imageEditorStore } from "@src/stores/image-editor-store.svelte";
-import { Layer } from "svelte-canvas";
-import FocalPointControls from "./controls.svelte";
+	import { imageEditorStore } from '@src/stores/image-editor-store.svelte';
+	import { Layer } from 'svelte-canvas';
+	import FocalPointControls from './controls.svelte';
 
-const storeState = imageEditorStore.state;
+	const storeState = imageEditorStore.state;
 
-// --- Lifecycle $effect ---
-$effect(() => {
-	const activeState = imageEditorStore.state.activeState;
-	if (activeState === "focalpoint") {
-		imageEditorStore.setToolbarControls({
-			component: FocalPointControls,
-			props: {
-				focalX: Math.round((storeState.focalPoint?.x ?? 0.5) * 100),
-				focalY: Math.round((storeState.focalPoint?.y ?? 0.5) * 100),
-				onReset: () => (storeState.focalPoint = { x: 0.5, y: 0.5 }),
-			},
-		});
-	} else if (
-		imageEditorStore.state.toolbarControls?.component === FocalPointControls
-	) {
-		imageEditorStore.setToolbarControls(null);
-	}
-});
+	// --- Lifecycle $effect ---
+	$effect(() => {
+		const activeState = imageEditorStore.state.activeState;
+		if (activeState === 'focalpoint') {
+			imageEditorStore.setToolbarControls({
+				component: FocalPointControls,
+				props: {
+					focalX: Math.round((storeState.focalPoint?.x ?? 0.5) * 100),
+					focalY: Math.round((storeState.focalPoint?.y ?? 0.5) * 100),
+					onReset: () => (storeState.focalPoint = { x: 0.5, y: 0.5 })
+				}
+			});
+		} else if (imageEditorStore.state.toolbarControls?.component === FocalPointControls) {
+			imageEditorStore.setToolbarControls(null);
+		}
+	});
 
-// Hit testing
-export function handleMouseDown(e: MouseEvent, width: number, height: number) {
-	const { zoom, translateX, translateY, imageElement } = storeState;
-	if (!imageElement) {
-		return;
-	}
+	// Hit testing
+	export function handleMouseDown(e: MouseEvent, width: number, height: number) {
+		const { zoom, translateX, translateY, imageElement } = storeState;
+		if (!imageElement) {
+			return;
+		}
 
-	const rect = (e.target as HTMLElement).getBoundingClientRect();
-	const offsetX = e.clientX - rect.left;
-	const offsetY = e.clientY - rect.top;
+		const rect = (e.target as HTMLElement).getBoundingClientRect();
+		const offsetX = e.clientX - rect.left;
+		const offsetY = e.clientY - rect.top;
 
-	const centerX = width / 2 + translateX;
-	const centerY = height / 2 + translateY;
+		const centerX = width / 2 + translateX;
+		const centerY = height / 2 + translateY;
 
-	const ix = (offsetX - centerX) / zoom + imageElement.width / 2;
-	const iy = (offsetY - centerY) / zoom + imageElement.height / 2;
+		const ix = (offsetX - centerX) / zoom + imageElement.width / 2;
+		const iy = (offsetY - centerY) / zoom + imageElement.height / 2;
 
-	if (
-		ix >= 0 &&
-		ix <= imageElement.width &&
-		iy >= 0 &&
-		iy <= imageElement.height
-	) {
-		storeState.focalPoint = {
-			x: ix / imageElement.width,
-			y: iy / imageElement.height,
-		};
-	}
-}
-
-const renderFocalPoint = ({
-	context,
-	width,
-	height,
-}: {
-	context: CanvasRenderingContext2D;
-	width: number;
-	height: number;
-}) => {
-	const { zoom, translateX, translateY, imageElement, focalPoint } = storeState;
-	if (!imageElement) {
-		return;
+		if (ix >= 0 && ix <= imageElement.width && iy >= 0 && iy <= imageElement.height) {
+			storeState.focalPoint = {
+				x: ix / imageElement.width,
+				y: iy / imageElement.height
+			};
+		}
 	}
 
-	context.save();
-	context.translate(width / 2 + translateX, height / 2 + translateY);
-	context.scale(zoom, zoom);
+	const renderFocalPoint = ({ context, width, height }: { context: CanvasRenderingContext2D; width: number; height: number }) => {
+		const { zoom, translateX, translateY, imageElement, focalPoint } = storeState;
+		if (!imageElement) {
+			return;
+		}
 
-	const offsetX = -imageElement.width / 2;
-	const offsetY = -imageElement.height / 2;
-	const fp = focalPoint || { x: 0.5, y: 0.5 };
-	const fx = offsetX + imageElement.width * fp.x;
-	const fy = offsetY + imageElement.height * fp.y;
+		context.save();
+		context.translate(width / 2 + translateX, height / 2 + translateY);
+		context.scale(zoom, zoom);
 
-	// Draw Crosshair
-	context.strokeStyle = "#ff0000";
-	context.lineWidth = 2 / zoom;
-	context.beginPath();
-	context.moveTo(fx - 20 / zoom, fy);
-	context.lineTo(fx + 20 / zoom, fy);
-	context.moveTo(fx, fy - 20 / zoom);
-	context.lineTo(fx, fy + 20 / zoom);
-	context.stroke();
+		const offsetX = -imageElement.width / 2;
+		const offsetY = -imageElement.height / 2;
+		const fp = focalPoint || { x: 0.5, y: 0.5 };
+		const fx = offsetX + imageElement.width * fp.x;
+		const fy = offsetY + imageElement.height * fp.y;
 
-	// Draw Circle
-	context.beginPath();
-	context.arc(fx, fy, 5 / zoom, 0, Math.PI * 2);
-	context.fillStyle = "#ff0000";
-	context.fill();
+		// Draw Crosshair
+		context.strokeStyle = '#ff0000';
+		context.lineWidth = 2 / zoom;
+		context.beginPath();
+		context.moveTo(fx - 20 / zoom, fy);
+		context.lineTo(fx + 20 / zoom, fy);
+		context.moveTo(fx, fy - 20 / zoom);
+		context.lineTo(fx, fy + 20 / zoom);
+		context.stroke();
 
-	context.restore();
-};
+		// Draw Circle
+		context.beginPath();
+		context.arc(fx, fy, 5 / zoom, 0, Math.PI * 2);
+		context.fillStyle = '#ff0000';
+		context.fill();
 
-export function saveState() {}
-export function beforeExit() {}
+		context.restore();
+	};
+
+	export function saveState() {}
+	export function beforeExit() {}
 </script>
 
 <Layer render={renderFocalPoint} />

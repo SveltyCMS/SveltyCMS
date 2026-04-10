@@ -4,27 +4,20 @@
 -->
 
 <script lang="ts">
-import { collections } from "@src/stores/collection-store.svelte";
+	import { collections } from '@src/stores/collection-store.svelte';
 
-interface Props {
-	collection?: string;
-	value?: string;
-}
+	interface Props {
+		collection?: string;
+		value?: string;
+	}
 
-let { value = $bindable(""), collection = "" }: Props = $props();
+	let { value = $bindable(''), collection = '' }: Props = $props();
 
-import type { Schema } from "@src/content/types";
+	import type { Schema } from '@src/content/types';
 
-// Get fields for the selected collection
-const selectedCollection = $derived(
-	Object.values((collections as any).all as Record<string, Schema>).find(
-		(c) => c.name === collection,
-	),
-);
-const fieldNames = $derived(
-	selectedCollection?.fields?.map((f: any) => f.db_fieldName).filter(Boolean) ||
-		[],
-);
+	// Get fields for the selected collection
+	const selectedCollection = $derived(Object.values((collections as any).all as Record<string, Schema>).find((c) => c.name === collection));
+	const fieldNames = $derived(selectedCollection?.fields?.map((f: any) => f.db_fieldName).filter(Boolean) || []);
 </script>
 
 <div class="m-1 flex max-w-full items-center justify-between gap-2">

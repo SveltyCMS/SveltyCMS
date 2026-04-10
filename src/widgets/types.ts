@@ -11,20 +11,8 @@
 
 import type { User } from "@src/databases/auth/types";
 import type { GuiFieldConfig } from "@utils/utils";
-import type { Component, SvelteComponent } from "svelte";
+import type { SvelteComponent } from "svelte";
 import type { FieldInstance, Schema } from "../content/types";
-
-// ============================================================================
-// Widget Component Loader
-// ============================================================================
-
-/**
- * A function that dynamically imports a Svelte component.
- * Used for code-splitting and type-safe component resolution.
- */
-export type ComponentLoader = () => Promise<{
-  default: Component<any, any, any>;
-}>;
 
 // ============================================================================
 // Widget Type Classification
@@ -63,15 +51,10 @@ export interface WidgetDefinition<
       contentLanguage: string;
     }) => Promise<Record<string, number>>;
   };
-  Description?: string | (() => string);
+  Description?: string;
 
   // Default values for widget-specific props
   defaults?: Partial<TProps>;
-
-  /** Dynamic loader for the DISPLAY component (3rd pillar) */
-  displayComponent?: ComponentLoader;
-
-  /** @deprecated Use displayComponent for type-safety and better tree-shaking */
   displayComponentPath?: string;
 
   // Generic translation support
@@ -83,7 +66,6 @@ export interface WidgetDefinition<
     field: unknown;
     label: string;
     collection: unknown;
-    collections?: unknown[];
     collectionNameMapping?: Map<string, string>;
   }) => {
     typeID: string | null;
@@ -104,8 +86,6 @@ export interface WidgetDefinition<
     tenantId?: string | null;
     type: string;
     user: User;
-    skipValidation?: boolean;
-    action?: string;
   }) => Promise<unknown> | unknown;
 
   /** Optional batch request modification handler */
@@ -117,18 +97,13 @@ export interface WidgetDefinition<
     tenantId?: string | null;
     type: string;
     user: User;
-    skipValidation?: boolean;
-    action?: string;
   }) => Promise<Record<string, unknown>[]>;
 
   /** Optional function to return widget-specific translatable paths. */
   getTranslatablePaths?: (basePath: string) => string[];
   Icon?: string;
 
-  /** Dynamic loader for the INPUT component (2nd pillar) */
-  inputComponent?: ComponentLoader;
-
-  /** @deprecated Use inputComponent for type-safety and better tree-shaking */
+  // 3-Pillar Architecture paths
   inputComponentPath?: string;
 
   // Metadata
@@ -157,9 +132,7 @@ export interface WidgetDefinition<
  */
 export interface WidgetFactory<TProps extends Record<string, unknown> = Record<string, unknown>> {
   __dependencies?: string[];
-  __displayComponent?: ComponentLoader;
   __displayComponentPath?: string;
-  __inputComponent?: ComponentLoader;
   __inputComponentPath?: string;
   __widgetType?: WidgetType;
   aggregations?: WidgetDefinition["aggregations"];

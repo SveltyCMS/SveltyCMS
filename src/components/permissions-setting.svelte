@@ -26,290 +26,268 @@ Advanced permission management interface with bulk actions and presets.
 -->
 
 <script lang="ts">
-import type { Role } from "@src/databases/auth/types";
-import { PermissionAction } from "@src/databases/auth/permission-constants";
-import { toast } from "@src/stores/toast.svelte.ts";
-import { onMount } from "svelte";
-import { fade, slide } from "svelte/transition";
+	import type { Role } from '@src/databases/auth/types';
+	import { PermissionAction } from '@src/databases/auth/types';
+	import { toast } from '@src/stores/toast.svelte.ts';
+	import { onMount } from 'svelte';
+	import { fade, slide } from 'svelte/transition';
 
-type PermissionsMap = Record<string, Record<string, boolean>>;
+	type PermissionsMap = Record<string, Record<string, boolean>>;
 
-interface Props {
-	onUpdate?: (permissions: PermissionsMap) => void;
-	permissions?: PermissionsMap;
-	roles?: Role[];
-}
+	interface Props {
+		onUpdate?: (permissions: PermissionsMap) => void;
+		permissions?: PermissionsMap;
+		roles?: Role[];
+	}
 
-const { permissions = {}, roles = [], onUpdate = () => {} }: Props = $props();
+	const { permissions = {}, roles = [], onUpdate = () => {} }: Props = $props();
 
-// State
-let error = $state<string | null>(null);
-let searchQuery = $state("");
-let showBulkActions = $state(false);
-let prefersReducedMotion = $state(false);
-let historyIndex = $state(-1);
-let permissionsHistory = $state<PermissionsMap[]>([]);
+	// State
+	let error = $state<string | null>(null);
+	let searchQuery = $state('');
+	let showBulkActions = $state(false);
+	let prefersReducedMotion = $state(false);
+	let historyIndex = $state(-1);
+	let permissionsHistory = $state<PermissionsMap[]>([]);
 
-// Icons for permissions
-const actionIcons: Record<PermissionAction, string> = {
-	[PermissionAction.CREATE]: "bi:plus-circle-fill",
-	[PermissionAction.READ]: "bi:eye-fill",
-	[PermissionAction.WRITE]: "bi:pencil-square",
-	[PermissionAction.UPDATE]: "bi:pencil-fill",
-	[PermissionAction.DELETE]: "bi:trash-fill",
-	[PermissionAction.MANAGE]: "bi:gear-fill",
-	[PermissionAction.ACCESS]: "bi:key-fill",
-	[PermissionAction.EXECUTE]: "bi:play-fill",
-	[PermissionAction.SHARE]: "bi:share-fill",
-};
+	// Icons for permissions
+	const actionIcons: Record<PermissionAction, string> = {
+		[PermissionAction.CREATE]: 'bi:plus-circle-fill',
+		[PermissionAction.READ]: 'bi:eye-fill',
+		[PermissionAction.WRITE]: 'bi:pencil-square',
+		[PermissionAction.UPDATE]: 'bi:pencil-fill',
+		[PermissionAction.DELETE]: 'bi:trash-fill',
+		[PermissionAction.MANAGE]: 'bi:gear-fill',
+		[PermissionAction.ACCESS]: 'bi:key-fill',
+		[PermissionAction.EXECUTE]: 'bi:play-fill',
+		[PermissionAction.SHARE]: 'bi:share-fill'
+	};
 
-// Permission presets
-const presets = {
-	"read-only": {
-		name: "Read Only",
-		description: "Can only view content",
-		permissions: {
-			read: true,
-			access: true,
-			create: false,
-			write: false,
-			update: false,
-			delete: false,
-			manage: false,
-			execute: false,
-			share: false,
+	// Permission presets
+	const presets = {
+		'read-only': {
+			name: 'Read Only',
+			description: 'Can only view content',
+			permissions: {
+				read: true,
+				access: true,
+				create: false,
+				write: false,
+				update: false,
+				delete: false,
+				manage: false,
+				execute: false,
+				share: false
+			}
 		},
-	},
-	editor: {
-		name: "Editor",
-		description: "Can create and edit content",
-		permissions: {
-			read: true,
-			access: true,
-			create: true,
-			write: true,
-			update: true,
-			share: true,
-			delete: false,
-			manage: false,
-			execute: false,
+		editor: {
+			name: 'Editor',
+			description: 'Can create and edit content',
+			permissions: {
+				read: true,
+				access: true,
+				create: true,
+				write: true,
+				update: true,
+				share: true,
+				delete: false,
+				manage: false,
+				execute: false
+			}
 		},
-	},
-	admin: {
-		name: "Administrator",
-		description: "Full access to everything",
-		permissions: Object.fromEntries(
-			Object.values(PermissionAction).map((action) => [action, true]),
-		),
-	},
-};
-
-// Initialize permissions with all roles
-function initializePermissions(
-	currentPermissions: PermissionsMap,
-	availableRoles: Role[],
-): PermissionsMap {
-	const initialized: PermissionsMap = { ...currentPermissions };
-
-	availableRoles.forEach((role) => {
-		if (!initialized[role._id]) {
-			initialized[role._id] = Object.fromEntries(
-				Object.values(PermissionAction).map((action) => [action, true]),
-			);
+		admin: {
+			name: 'Administrator',
+			description: 'Full access to everything',
+			permissions: Object.fromEntries(Object.values(PermissionAction).map((action) => [action, true]))
 		}
-	});
+	};
 
-	return initialized;
-}
+	// Initialize permissions with all roles
+	function initializePermissions(currentPermissions: PermissionsMap, availableRoles: Role[]): PermissionsMap {
+		const initialized: PermissionsMap = { ...currentPermissions };
 
-// Initialize state from props - use $derived to react to prop changes
-let permissionsState = $derived(initializePermissions(permissions, roles));
+		availableRoles.forEach((role) => {
+			if (!initialized[role._id]) {
+				initialized[role._id] = Object.fromEntries(Object.values(PermissionAction).map((action) => [action, true]));
+			}
+		});
 
-// Save to history
-function saveToHistory() {
-	const newHistory = permissionsHistory.slice(0, historyIndex + 1);
-	newHistory.push(JSON.parse(JSON.stringify(permissionsState)));
-	permissionsHistory = newHistory;
-	historyIndex = newHistory.length - 1;
-}
-
-// Undo/Redo
-function undo() {
-	if (historyIndex > 0) {
-		historyIndex--;
-		permissionsState = JSON.parse(
-			JSON.stringify(permissionsHistory[historyIndex]),
-		);
-		updateParent();
-	}
-}
-
-function redo() {
-	if (historyIndex < permissionsHistory.length - 1) {
-		historyIndex++;
-		permissionsState = JSON.parse(
-			JSON.stringify(permissionsHistory[historyIndex]),
-		);
-		updateParent();
-	}
-}
-
-const canUndo = $derived(historyIndex > 0);
-const canRedo = $derived(historyIndex < permissionsHistory.length - 1);
-
-// Toggle permission
-function togglePermission(roleId: string, action: PermissionAction) {
-	const role = roles.find((r: Role) => r._id === roleId);
-
-	if (role?.isAdmin) {
-		toast.warning("Cannot modify permissions for admin role");
-		return;
+		return initialized;
 	}
 
-	if (!permissionsState[roleId]) {
-		permissionsState[roleId] = {} as Record<string, boolean>;
+	// Initialize state from props - use $derived to react to prop changes
+	let permissionsState = $derived(initializePermissions(permissions, roles));
+
+	// Save to history
+	function saveToHistory() {
+		const newHistory = permissionsHistory.slice(0, historyIndex + 1);
+		newHistory.push(JSON.parse(JSON.stringify(permissionsState)));
+		permissionsHistory = newHistory;
+		historyIndex = newHistory.length - 1;
 	}
 
-	permissionsState[roleId][action] = !permissionsState[roleId][action];
-	saveToHistory();
-	updateParent();
-}
-
-// Bulk actions
-function setAllPermissionsForRole(roleId: string, value: boolean) {
-	const role = roles.find((r: Role) => r._id === roleId);
-
-	if (role?.isAdmin) {
-		toast.warning("Cannot modify permissions for admin role");
-		return;
-	}
-
-	permissionsState[roleId] = Object.fromEntries(
-		Object.values(PermissionAction).map((action) => [action, value]),
-	);
-
-	saveToHistory();
-	updateParent();
-	toast.success(
-		`All permissions ${value ? "enabled" : "disabled"} for ${role?.name}`,
-	);
-}
-
-function setPermissionForAllRoles(action: PermissionAction, value: boolean) {
-	roles.forEach((role) => {
-		if (!role.isAdmin) {
-			permissionsState[role._id][action] = value;
+	// Undo/Redo
+	function undo() {
+		if (historyIndex > 0) {
+			historyIndex--;
+			permissionsState = JSON.parse(JSON.stringify(permissionsHistory[historyIndex]));
+			updateParent();
 		}
-	});
-
-	saveToHistory();
-	updateParent();
-	toast.success(`${action} ${value ? "enabled" : "disabled"} for all roles`);
-}
-
-// Apply preset
-function applyPreset(roleId: string, presetKey: string) {
-	const role = roles.find((r: Role) => r._id === roleId);
-
-	if (role?.isAdmin) {
-		toast.warning("Cannot modify permissions for admin role");
-		return;
 	}
 
-	const preset = presets[presetKey as keyof typeof presets];
-	if (preset) {
-		permissionsState[roleId] = { ...preset.permissions };
+	function redo() {
+		if (historyIndex < permissionsHistory.length - 1) {
+			historyIndex++;
+			permissionsState = JSON.parse(JSON.stringify(permissionsHistory[historyIndex]));
+			updateParent();
+		}
+	}
+
+	const canUndo = $derived(historyIndex > 0);
+	const canRedo = $derived(historyIndex < permissionsHistory.length - 1);
+
+	// Toggle permission
+	function togglePermission(roleId: string, action: PermissionAction) {
+		const role = roles.find((r: Role) => r._id === roleId);
+
+		if (role?.isAdmin) {
+			toast.warning('Cannot modify permissions for admin role');
+			return;
+		}
+
+		if (!permissionsState[roleId]) {
+			permissionsState[roleId] = {} as Record<string, boolean>;
+		}
+
+		permissionsState[roleId][action] = !permissionsState[roleId][action];
 		saveToHistory();
 		updateParent();
-		toast.success(`Applied "${preset.name}" preset to ${role?.name}`);
 	}
-}
 
-// Update parent
-function updateParent() {
-	const cleanedPermissions = Object.entries(permissionsState).reduce(
-		(acc, [roleId, perms]) => {
-			const hasRestrictions = Object.values(perms).some(
-				(value) => value === false,
-			);
+	// Bulk actions
+	function setAllPermissionsForRole(roleId: string, value: boolean) {
+		const role = roles.find((r: Role) => r._id === roleId);
+
+		if (role?.isAdmin) {
+			toast.warning('Cannot modify permissions for admin role');
+			return;
+		}
+
+		permissionsState[roleId] = Object.fromEntries(Object.values(PermissionAction).map((action) => [action, value]));
+
+		saveToHistory();
+		updateParent();
+		toast.success(`All permissions ${value ? 'enabled' : 'disabled'} for ${role?.name}`);
+	}
+
+	function setPermissionForAllRoles(action: PermissionAction, value: boolean) {
+		roles.forEach((role) => {
+			if (!role.isAdmin) {
+				permissionsState[role._id][action] = value;
+			}
+		});
+
+		saveToHistory();
+		updateParent();
+		toast.success(`${action} ${value ? 'enabled' : 'disabled'} for all roles`);
+	}
+
+	// Apply preset
+	function applyPreset(roleId: string, presetKey: string) {
+		const role = roles.find((r: Role) => r._id === roleId);
+
+		if (role?.isAdmin) {
+			toast.warning('Cannot modify permissions for admin role');
+			return;
+		}
+
+		const preset = presets[presetKey as keyof typeof presets];
+		if (preset) {
+			permissionsState[roleId] = { ...preset.permissions };
+			saveToHistory();
+			updateParent();
+			toast.success(`Applied "${preset.name}" preset to ${role?.name}`);
+		}
+	}
+
+	// Update parent
+	function updateParent() {
+		const cleanedPermissions = Object.entries(permissionsState).reduce((acc, [roleId, perms]) => {
+			const hasRestrictions = Object.values(perms).some((value) => value === false);
 			if (hasRestrictions) {
 				acc[roleId] = perms;
 			}
 			return acc;
-		},
-		{} as PermissionsMap,
+		}, {} as PermissionsMap);
+
+		onUpdate(cleanedPermissions);
+	}
+
+	// Export permissions
+	function exportPermissions() {
+		const data = JSON.stringify(permissionsState, null, 2);
+		const blob = new Blob([data], { type: 'application/json' });
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = `permissions-${new Date().toISOString().split('T')[0]}.json`;
+		a.click();
+		URL.revokeObjectURL(url);
+		toast.success('Permissions exported');
+	}
+
+	// Import permissions
+	async function importPermissions(event: Event) {
+		const input = event.target as HTMLInputElement;
+		const file = input.files?.[0];
+
+		if (!file) {
+			return;
+		}
+
+		try {
+			const text = await file.text();
+			const imported = JSON.parse(text);
+			permissionsState = { ...permissionsState, ...imported };
+			saveToHistory();
+			updateParent();
+			toast.success('Permissions imported successfully');
+		} catch {
+			toast.error('Failed to import permissions');
+			error = 'Invalid permissions file';
+		}
+	}
+
+	// Filter roles
+	const filteredRoles = $derived(
+		roles.filter(
+			(role) => role.name.toLowerCase().includes(searchQuery.toLowerCase()) || role.description?.toLowerCase().includes(searchQuery.toLowerCase())
+		)
 	);
 
-	onUpdate(cleanedPermissions);
-}
-
-// Export permissions
-function exportPermissions() {
-	const data = JSON.stringify(permissionsState, null, 2);
-	const blob = new Blob([data], { type: "application/json" });
-	const url = URL.createObjectURL(blob);
-	const a = document.createElement("a");
-	a.href = url;
-	a.download = `permissions-${new Date().toISOString().split("T")[0]}.json`;
-	a.click();
-	URL.revokeObjectURL(url);
-	toast.success("Permissions exported");
-}
-
-// Import permissions
-async function importPermissions(event: Event) {
-	const input = event.target as HTMLInputElement;
-	const file = input.files?.[0];
-
-	if (!file) {
-		return;
+	// Count enabled permissions per role
+	function countEnabledPermissions(roleId: string): number {
+		return Object.values(permissionsState[roleId] || {}).filter(Boolean).length;
 	}
 
-	try {
-		const text = await file.text();
-		const imported = JSON.parse(text);
-		permissionsState = { ...permissionsState, ...imported };
+	const totalActions = $derived(Object.values(PermissionAction).length);
+
+	// Lifecycle
+	onMount(() => {
+		const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+		prefersReducedMotion = mediaQuery.matches;
+
+		const handleChange = (e: MediaQueryListEvent) => {
+			prefersReducedMotion = e.matches;
+		};
+
+		mediaQuery.addEventListener('change', handleChange);
+
+		// Initialize history
 		saveToHistory();
-		updateParent();
-		toast.success("Permissions imported successfully");
-	} catch {
-		toast.error("Failed to import permissions");
-		error = "Invalid permissions file";
-	}
-}
 
-// Filter roles
-const filteredRoles = $derived(
-	roles.filter(
-		(role) =>
-			role.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-			role.description?.toLowerCase().includes(searchQuery.toLowerCase()),
-	),
-);
-
-// Count enabled permissions per role
-function countEnabledPermissions(roleId: string): number {
-	return Object.values(permissionsState[roleId] || {}).filter(Boolean).length;
-}
-
-const totalActions = $derived(Object.values(PermissionAction).length);
-
-// Lifecycle
-onMount(() => {
-	const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
-	prefersReducedMotion = mediaQuery.matches;
-
-	const handleChange = (e: MediaQueryListEvent) => {
-		prefersReducedMotion = e.matches;
-	};
-
-	mediaQuery.addEventListener("change", handleChange);
-
-	// Initialize history
-	saveToHistory();
-
-	return () => mediaQuery.removeEventListener("change", handleChange);
-});
+		return () => mediaQuery.removeEventListener('change', handleChange);
+	});
 </script>
 
 {#if error}

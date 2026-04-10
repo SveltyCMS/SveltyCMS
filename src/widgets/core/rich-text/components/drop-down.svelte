@@ -18,137 +18,131 @@
 -->
 
 <script lang="ts">
-import { onMount, tick } from "svelte";
-import { twMerge } from "tailwind-merge";
+	import { onMount, tick } from 'svelte';
+	import { twMerge } from 'tailwind-merge';
 
-// Lucide icons
+	// Lucide icons
 
-// Define props using Svelte 5 runes
-let {
-	items = [], // Array of selectable items
-	label = "", // Optional label for the dropdown
-	icon = undefined, // Optional icon for the dropdown button
-	class: className = "", // Custom class for the dropdown container
-	show = true, // Whether to show the dropdown
-	active = $bindable(""), // Currently active dropdown ID
-} = $props();
+	// Define props using Svelte 5 runes
+	let {
+		items = [], // Array of selectable items
+		label = '', // Optional label for the dropdown
+		icon = undefined, // Optional icon for the dropdown button
+		class: className = '', // Custom class for the dropdown container
+		show = true, // Whether to show the dropdown
+		active = $bindable('') // Currently active dropdown ID
+	} = $props();
 
-let expanded = $state(false);
-let dropdownRef: HTMLDivElement | undefined = $state();
-let buttonRef: HTMLButtonElement | undefined = $state();
-const dropdownId = $state(
-	`dropdown-${Math.random().toString(36).substring(2, 9)}`,
-);
-const listboxId = $derived(`${dropdownId}-menu`);
-let focusedIndex = $state(-1); // roving focus index when expanded
-const itemRefs: Array<HTMLButtonElement | null> = [];
+	let expanded = $state(false);
+	let dropdownRef: HTMLDivElement | undefined = $state();
+	let buttonRef: HTMLButtonElement | undefined = $state();
+	const dropdownId = $state(`dropdown-${Math.random().toString(36).substring(2, 9)}`);
+	const listboxId = $derived(`${dropdownId}-menu`);
+	let focusedIndex = $state(-1); // roving focus index when expanded
+	const itemRefs: Array<HTMLButtonElement | null> = [];
 
-// Action to capture each item's button element reference
-function captureItem(node: HTMLButtonElement, index: number) {
-	itemRefs[index] = node;
-	return {
-		destroy() {
-			// Clean up reference on removal
-			if (itemRefs[index] === node) {
-				itemRefs[index] = null;
+	// Action to capture each item's button element reference
+	function captureItem(node: HTMLButtonElement, index: number) {
+		itemRefs[index] = node;
+		return {
+			destroy() {
+				// Clean up reference on removal
+				if (itemRefs[index] === node) {
+					itemRefs[index] = null;
+				}
 			}
-		},
-	};
-}
+		};
+	}
 
-// Get active item based on items with active: true
-function getActiveItem() {
-	return items.find((item) => item.active?.());
-}
+	// Get active item based on items with active: true
+	function getActiveItem() {
+		return items.find((item) => item.active?.());
+	}
 
-// Toggle dropdown expansion
-function open(expandToIndex: number | null = null) {
-	if (expanded) {
-		return;
-	}
-	// close other dropdowns
-	if (active !== dropdownId && active !== "") {
-		active = "";
-	}
-	expanded = true;
-	active = dropdownId;
-	// set initial focus index
-	const activeItem = getActiveItem();
-	let idx = expandToIndex ?? (activeItem ? items.indexOf(activeItem) : 0);
-	if (idx < 0) {
-		idx = 0;
-	}
-	focusedIndex = idx;
-	tick().then(() => itemRefs[focusedIndex]?.focus());
-}
-
-function close(focusButton = true) {
-	if (!expanded) {
-		return;
-	}
-	expanded = false;
-	active = "";
-	focusedIndex = -1;
-	if (focusButton) {
-		buttonRef?.focus();
-	}
-}
-
-function toggleExpanded(e: Event) {
-	e.stopPropagation();
-	if (expanded) {
-		close(true);
-	} else {
-		open();
-	}
-}
-
-// Handle item selection
-function selectItem(item: any, e: Event) {
-	e.stopPropagation();
-	if (item.onClick) {
-		item.onClick();
-	}
-	close(true);
-}
-
-// Effect to handle closing when active changes
-$effect(() => {
-	if (active !== dropdownId) {
-		expanded = false;
-	}
-});
-
-// Add global click event listener to close dropdown when clicking outside
-onMount(() => {
-	const handleClickOutside = (event: MouseEvent) => {
-		if (
-			dropdownRef &&
-			!dropdownRef.contains(event.target as Node) &&
-			expanded
-		) {
-			close(false);
+	// Toggle dropdown expansion
+	function open(expandToIndex: number | null = null) {
+		if (expanded) {
+			return;
 		}
-	};
+		// close other dropdowns
+		if (active !== dropdownId && active !== '') {
+			active = '';
+		}
+		expanded = true;
+		active = dropdownId;
+		// set initial focus index
+		const activeItem = getActiveItem();
+		let idx = expandToIndex ?? (activeItem ? items.indexOf(activeItem) : 0);
+		if (idx < 0) {
+			idx = 0;
+		}
+		focusedIndex = idx;
+		tick().then(() => itemRefs[focusedIndex]?.focus());
+	}
 
-	document.addEventListener("click", handleClickOutside);
+	function close(focusButton = true) {
+		if (!expanded) {
+			return;
+		}
+		expanded = false;
+		active = '';
+		focusedIndex = -1;
+		if (focusButton) {
+			buttonRef?.focus();
+		}
+	}
 
-	return () => {
-		document.removeEventListener("click", handleClickOutside);
-	};
-});
+	function toggleExpanded(e: Event) {
+		e.stopPropagation();
+		if (expanded) {
+			close(true);
+		} else {
+			open();
+		}
+	}
 
-// Button label/icon reflect active item or fallback to provided label/icon
-function getButtonText() {
-	const ai = getActiveItem();
-	return (ai && (ai.name || ai.title)) || label;
-}
+	// Handle item selection
+	function selectItem(item: any, e: Event) {
+		e.stopPropagation();
+		if (item.onClick) {
+			item.onClick();
+		}
+		close(true);
+	}
 
-function getButtonIcon() {
-	const ai = getActiveItem();
-	// If we have an active item with icon use it, else fallback to provided icon
-	return ai?.icon || icon;
-}
+	// Effect to handle closing when active changes
+	$effect(() => {
+		if (active !== dropdownId) {
+			expanded = false;
+		}
+	});
+
+	// Add global click event listener to close dropdown when clicking outside
+	onMount(() => {
+		const handleClickOutside = (event: MouseEvent) => {
+			if (dropdownRef && !dropdownRef.contains(event.target as Node) && expanded) {
+				close(false);
+			}
+		};
+
+		document.addEventListener('click', handleClickOutside);
+
+		return () => {
+			document.removeEventListener('click', handleClickOutside);
+		};
+	});
+
+	// Button label/icon reflect active item or fallback to provided label/icon
+	function getButtonText() {
+		const ai = getActiveItem();
+		return (ai && (ai.name || ai.title)) || label;
+	}
+
+	function getButtonIcon() {
+		const ai = getActiveItem();
+		// If we have an active item with icon use it, else fallback to provided icon
+		return ai?.icon || icon;
+	}
 </script>
 
 <div class={twMerge('relative', className)} class:hidden={!show} bind:this={dropdownRef}>
@@ -175,11 +169,10 @@ function getButtonIcon() {
 		aria-label={label || undefined}
 	>
 		{#if getButtonIcon()}
-			<iconify-icon
-				icon={getButtonIcon().includes(':') ? getButtonIcon() : `lucide:${getButtonIcon()}`}
-				width={18}
-				class={getActiveItem() ? 'text-tertiary-50 dark:text-tertiary-300' : 'text-surface-800 dark:text-surface-200'}
-			></iconify-icon>
+			{#await import(`@lucide/svelte/icons/${getButtonIcon()}`) then _module}
+				{@const Icon = _module.default}
+				<Icon size={18} class={getActiveItem() ? 'text-tertiary-50 dark:text-tertiary-300' : 'text-surface-800 dark:text-surface-200'} />
+			{/await}
 		{/if}
 		<span class="hidden text-sm sm:inline" class:text-tertiary-50={!!getActiveItem()} class:text-surface-800={!getActiveItem()}
 			>{getButtonText()}</span
@@ -237,7 +230,10 @@ function getButtonIcon() {
 					{#if item.active && item.active()}
 						<iconify-icon icon="mdi:check" width={16}></iconify-icon>
 					{:else if item.icon}
-						<iconify-icon icon={item.icon.includes(':') ? item.icon : `lucide:${item.icon}`} width={18}></iconify-icon>
+						{#await import(`@lucide/svelte/icons/${item.icon}`) then _module}
+							{@const Icon = _module.default}
+							<Icon size={18} />
+						{/await}
 					{/if}
 					<span class="whitespace-nowrap text-sm">{item.name || item.title || ''}</span>
 				</button>

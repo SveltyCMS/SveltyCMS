@@ -4,96 +4,96 @@
 Pintura-style controls for the Blur tool with responsive design and keyboard support.
 -->
 <script lang="ts">
-import type { BlurPattern, BlurShape } from "../widgets/blur/types";
+	import type { BlurPattern, BlurShape } from '../widgets/blur/types';
 
-// Constants
-const BLUR_MIN = 5;
-const BLUR_MAX = 100;
-const PIXELATE_MIN = 5;
-const PIXELATE_MAX = 50;
+	// Constants
+	const BLUR_MIN = 5;
+	const BLUR_MAX = 100;
+	const PIXELATE_MIN = 5;
+	const PIXELATE_MAX = 50;
 
-let {
-	blurStrength,
-	shape,
-	pattern,
-	hasActiveRegion = false,
-	regionCount = 0,
-	onStrengthChange,
-	onShapeChange,
-	onPatternChange,
-	onAddRegion,
-	onDeleteRegion,
-	onRotateLeft,
-	onRotateRight,
-	onFlipHorizontal,
-	onReset,
-	onCancel,
-	onApply,
-}: {
-	blurStrength: number;
-	shape: BlurShape;
-	pattern: BlurPattern;
-	hasActiveRegion?: boolean;
-	regionCount?: number;
-	onStrengthChange: (value: number) => void;
-	onShapeChange: (value: BlurShape) => void;
-	onPatternChange: (value: BlurPattern) => void;
-	onAddRegion: () => void;
-	onDeleteRegion: () => void;
-	onRotateLeft: () => void;
-	onRotateRight: () => void;
-	onFlipHorizontal: () => void;
-	onReset: () => void;
-	onCancel: () => void;
-	onApply: () => void;
-} = $props();
+	let {
+		blurStrength,
+		shape,
+		pattern,
+		hasActiveRegion = false,
+		regionCount = 0,
+		onStrengthChange,
+		onShapeChange,
+		onPatternChange,
+		onAddRegion,
+		onDeleteRegion,
+		onRotateLeft,
+		onRotateRight,
+		onFlipHorizontal,
+		onReset,
+		onCancel,
+		onApply
+	}: {
+		blurStrength: number;
+		shape: BlurShape;
+		pattern: BlurPattern;
+		hasActiveRegion?: boolean;
+		regionCount?: number;
+		onStrengthChange: (value: number) => void;
+		onShapeChange: (value: BlurShape) => void;
+		onPatternChange: (value: BlurPattern) => void;
+		onAddRegion: () => void;
+		onDeleteRegion: () => void;
+		onRotateLeft: () => void;
+		onRotateRight: () => void;
+		onFlipHorizontal: () => void;
+		onReset: () => void;
+		onCancel: () => void;
+		onApply: () => void;
+	} = $props();
 
-// Derived values
-const minStrength = $derived(pattern === "pixelate" ? PIXELATE_MIN : BLUR_MIN);
-const maxStrength = $derived(pattern === "pixelate" ? PIXELATE_MAX : BLUR_MAX);
-const strengthLabel = $derived(pattern === "pixelate" ? "Size" : "Strength");
+	// Derived values
+	const minStrength = $derived(pattern === 'pixelate' ? PIXELATE_MIN : BLUR_MIN);
+	const maxStrength = $derived(pattern === 'pixelate' ? PIXELATE_MAX : BLUR_MAX);
+	const strengthLabel = $derived(pattern === 'pixelate' ? 'Size' : 'Strength');
 
-function handleStrengthInput(e: Event) {
-	const target = e.currentTarget as HTMLInputElement;
-	onStrengthChange(Number.parseInt(target.value, 10));
-}
-
-// Keyboard shortcuts
-function handleKeyDown(e: KeyboardEvent) {
-	if (e.target && (e.target as HTMLElement).tagName === "INPUT") {
-		return;
+	function handleStrengthInput(e: Event) {
+		const target = e.currentTarget as HTMLInputElement;
+		onStrengthChange(Number.parseInt(target.value, 10));
 	}
 
-	switch (e.key) {
-		case "r":
-		case "R":
-			e.preventDefault();
-			onShapeChange("rectangle");
-			break;
-		case "e":
-		case "E":
-			e.preventDefault();
-			onShapeChange("ellipse");
-			break;
-		case "b":
-		case "B":
-			e.preventDefault();
-			onPatternChange("blur");
-			break;
-		case "p":
-		case "P":
-			e.preventDefault();
-			onPatternChange("pixelate");
-			break;
-		case "Delete":
-		case "Backspace":
-			if (hasActiveRegion) {
+	// Keyboard shortcuts
+	function handleKeyDown(e: KeyboardEvent) {
+		if (e.target && (e.target as HTMLElement).tagName === 'INPUT') {
+			return;
+		}
+
+		switch (e.key) {
+			case 'r':
+			case 'R':
 				e.preventDefault();
-				onDeleteRegion();
-			}
-			break;
+				onShapeChange('rectangle');
+				break;
+			case 'e':
+			case 'E':
+				e.preventDefault();
+				onShapeChange('ellipse');
+				break;
+			case 'b':
+			case 'B':
+				e.preventDefault();
+				onPatternChange('blur');
+				break;
+			case 'p':
+			case 'P':
+				e.preventDefault();
+				onPatternChange('pixelate');
+				break;
+			case 'Delete':
+			case 'Backspace':
+				if (hasActiveRegion) {
+					e.preventDefault();
+					onDeleteRegion();
+				}
+				break;
+		}
 	}
-}
 </script>
 
 <svelte:window onkeydown={handleKeyDown} />

@@ -5,48 +5,26 @@
 -->
 
 <script lang="ts">
-// @ts-nocheck
+	// @ts-nocheck
 
-import {
-	welcomeuser_discussion1,
-	welcomeuser_discussion2,
-	welcomeuser_headless,
-	welcomeuser_username,
-} from "@src/paraglide/messages";
-import { publicEnv } from "@src/stores/global-settings.svelte";
-import { app } from "@src/stores/store.svelte";
-import {
-	Body,
-	Button,
-	Container,
-	Head,
-	Heading,
-	Hr,
-	Html,
-	Img,
-	Link,
-	Preview,
-	Section,
-	Text,
-} from "better-svelte-email";
-import { dev } from "$app/environment";
+	import { welcomeuser_discussion1, welcomeuser_discussion2, welcomeuser_headless, welcomeuser_username } from '@src/paraglide/messages';
+	import { publicEnv } from '@src/stores/global-settings.svelte';
+	import { app } from '@src/stores/store.svelte';
+	import { Body, Button, Container, Head, Heading, Hr, Html, Img, Link, Preview, Section, Text } from 'better-svelte-email';
+	import { dev } from '$app/environment';
 
-interface Props {
-	hostLink?: string;
-	languageTag?: string;
-	username?: string;
-}
+	interface Props {
+		hostLink?: string;
+		languageTag?: string;
+		username?: string;
+	}
 
-const {
-	username = "",
-	hostLink = dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD,
-	languageTag = app.systemLanguage,
-}: Props = $props();
+	const { username = '', hostLink = dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD, languageTag = app.systemLanguage }: Props = $props();
 
-// Use production host logo if available, otherwise fall back to GitHub
-const logoSrc = publicEnv?.HOST_PROD
-	? `${publicEnv.HOST_PROD}/SveltyCMS.png`
-	: "https://github.com/SveltyCMS/SveltyCMS/raw/main/static/SveltyCMS.png";
+	// Use production host logo if available, otherwise fall back to GitHub
+	const logoSrc = publicEnv?.HOST_PROD
+		? `${publicEnv.HOST_PROD}/SveltyCMS.png`
+		: 'https://github.com/SveltyCMS/SveltyCMS/raw/main/static/SveltyCMS.png';
 </script>
 
 <Html lang={languageTag}>

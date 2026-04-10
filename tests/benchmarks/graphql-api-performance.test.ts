@@ -55,7 +55,7 @@ async function runGraphQLBenchmarkSuite() {
           method: "POST",
           headers: authHeaders,
           body: JSON.stringify({
-            query: "query { contentManagerHealth { state version collectionCount } }",
+            query: "query { contentSystemHealth { state version collectionCount } }",
           }),
         });
         if (!res.ok) throw new Error(`GraphQL Health Query failed: ${res.status}`);

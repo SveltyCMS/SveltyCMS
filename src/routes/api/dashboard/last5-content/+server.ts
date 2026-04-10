@@ -11,7 +11,7 @@
  * - **Multi-Tenant Safe:** All data lookups are scoped to the current tenant.
  */
 
-import { contentManager } from "@src/content";
+import { contentManager } from "@src/content/content-manager";
 import type { BaseEntity, DatabaseId, ISODateString } from "@src/content/types";
 import { dbAdapter } from "@src/databases/db";
 import { getPrivateSettingSync } from "@src/services/settings-service";
@@ -20,7 +20,7 @@ import { nowISODateString } from "@utils/date-utils";
 
 // System Logger
 import { logger } from "@utils/logger.server";
-import { generateUUID as uuidv4 } from "@utils/native-utils";
+import { v4 as uuidv4 } from "uuid";
 // Validation
 import * as v from "valibot";
 
@@ -98,7 +98,7 @@ export const GET = apiHandler(async ({ locals, url }) => {
     name?: string;
     state?: string;
     status?: string;
-    tenantId?: DatabaseId | null;
+    tenantId?: string | null;
     title?: string;
     [key: string]: unknown;
   }
@@ -122,10 +122,13 @@ export const GET = apiHandler(async ({ locals, url }) => {
   const queryPromises = collectionsEntries.map(
     async ([collectionId, collection]: [string, any]) => {
       try {
-        const collectionName = `collection_${collectionId}`;
+        const collectionName = `collection_${collection._id}`;
+        const filter = getPrivateSettingSync("MULTI_TENANT") ? { tenantId } : {};
+
+        // Use database-agnostic CRUD methods with explicit generic
         const result = await adapter.crud.findMany<DashboardRawEntry>(
           collectionName,
-          {},
+          filter as Partial<DashboardRawEntry>,
           {
             limit: query.limit,
             fields: [
@@ -143,9 +146,6 @@ export const GET = apiHandler(async ({ locals, url }) => {
               "status",
               "state",
             ],
-            tenantId: getPrivateSettingSync("MULTI_TENANT")
-              ? (tenantId as DatabaseId | undefined)
-              : undefined,
           },
         );
 

@@ -16,15 +16,15 @@ async function runApiBenchmark() {
   const { dbAdapter, getDbInitPromise } = await import("@src/databases/db");
   const { LocalCMS } = await import("@src/routes/api/cms");
   const { _handler: dispatcher } = await import("@src/routes/api/[...path]/+server");
-  const { contentManager } = await import("@src/content");
+  const { contentSystem } = await import("@src/content");
 
   await getDbInitPromise();
   if (!dbAdapter) throw new Error("DB not initialized");
 
   console.log("📦 Initializing content manager...");
-  await contentManager.initialize("global", false, dbAdapter);
+  await contentSystem.initialize("global", false, dbAdapter);
 
-  const collections = await contentManager.getCollections();
+  const collections = await contentSystem.getCollections();
   const cms = new LocalCMS(dbAdapter);
   const iterations = 500;
 

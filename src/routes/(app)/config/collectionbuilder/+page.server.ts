@@ -3,12 +3,12 @@
  * @description Server-side logic for Collection Builder page authentication and authorization.
  *
  * Updates:
- * - Uses the enhanced functional contentManager facade.
+ * - Uses the enhanced functional contentSystem facade.
  * - Optimized data fetching from the database for organizational changes.
  */
 
 // System Logger
-import { contentManager } from "@src/content";
+import { contentSystem } from "@src/content";
 // Auth - Use cached roles from locals instead of global config
 import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
 import { error, fail, redirect } from "@sveltejs/kit";
@@ -40,12 +40,12 @@ export const load: PageServerLoad = async ({ locals }) => {
     }
 
     // Ensure content system is initialized for this tenant
-    if (!contentManager.isInitialized) {
-      await contentManager.initialize(tenantId, true);
+    if (!contentSystem.isInitialized) {
+      await contentSystem.initialize(tenantId, true);
     }
 
     // Fetch the initial content structure directly from database for organizational work
-    const contentStructure = await contentManager.getContentStructureFromDatabase("flat", tenantId);
+    const contentStructure = await contentSystem.getContentStructureFromDatabase("flat", tenantId);
 
     // Serialize and sanitize structures for client-side usage
     const serializedStructure = contentStructure.map((node: any) => {
@@ -90,7 +90,7 @@ export const actions: Actions = {
 
     try {
       // Find paths for IDs to handle deletion via reconciler
-      const currentStructure = await contentManager.getContentStructureFromDatabase(
+      const currentStructure = await contentSystem.getContentStructureFromDatabase(
         "flat",
         locals.tenantId,
       );
@@ -103,7 +103,7 @@ export const actions: Actions = {
         node: { path } as any,
       }));
 
-      await contentManager.upsertContentNodes(operations, locals.tenantId);
+      await contentSystem.upsertContentNodes(operations, locals.tenantId);
       return { success: true };
     } catch (err) {
       logger.error("Error deleting collections:", err);
@@ -120,8 +120,8 @@ export const actions: Actions = {
     }
 
     try {
-      await contentManager.upsertContentNodes(items, locals.tenantId);
-      const updatedStructure = await contentManager.getContentStructureFromDatabase(
+      await contentSystem.upsertContentNodes(items, locals.tenantId);
+      const updatedStructure = await contentSystem.getContentStructureFromDatabase(
         "flat",
         locals.tenantId,
       );
@@ -165,7 +165,7 @@ export const actions: Actions = {
 
       // Trigger compilation and refresh manager
       await compile();
-      await contentManager.refresh(locals.tenantId);
+      await contentSystem.refresh(locals.tenantId);
 
       return {
         success: true,

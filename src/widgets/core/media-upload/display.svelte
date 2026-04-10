@@ -17,45 +17,45 @@ Renders selected media files as thumbnails for display purposes.
 - **Semantic Colors**: Uses theme-defined semantic colors for borders and backgrounds.
 -->
 <script lang="ts">
-import type { MediaFile } from "./types";
+	import type { MediaFile } from './types';
 
-const { value }: { value: string | string[] | null | undefined } = $props();
+	const { value }: { value: string | string[] | null | undefined } = $props();
 
-// Local state for the resolved file(s).
-let files: MediaFile[] = $state([]);
+	// Local state for the resolved file(s).
+	let files: MediaFile[] = $state([]);
 
-// Fetch media data when the value prop changes.
-$effect(() => {
-	const ids = Array.isArray(value) ? value : value ? [value] : [];
-	if (ids.length > 0) {
-		const fetchAll = async () => {
-			const results: MediaFile[] = [];
-			for (const id of ids) {
-				try {
-					const response = await fetch(`/api/media/${id}`);
-					if (response.ok) {
-						const found = await response.json();
-						results.push({
-							_id: found._id,
-							name: found.filename,
-							type: found.mimeType,
-							size: found.size,
-							url: found.url,
-							thumbnailUrl: found.thumbnails?.sm?.url || found.url,
-							aiTags: found.metadata?.aiTags || [],
-						} as any);
+	// Fetch media data when the value prop changes.
+	$effect(() => {
+		const ids = Array.isArray(value) ? value : value ? [value] : [];
+		if (ids.length > 0) {
+			const fetchAll = async () => {
+				const results: MediaFile[] = [];
+				for (const id of ids) {
+					try {
+						const response = await fetch(`/api/media/${id}`);
+						if (response.ok) {
+							const found = await response.json();
+							results.push({
+								_id: found._id,
+								name: found.filename,
+								type: found.mimeType,
+								size: found.size,
+								url: found.url,
+								thumbnailUrl: found.thumbnails?.sm?.url || found.url,
+								aiTags: found.metadata?.aiTags || []
+							} as any);
+						}
+					} catch (e) {
+						console.error(`Failed to fetch media ${id}`, e);
 					}
-				} catch (e) {
-					console.error(`Failed to fetch media ${id}`, e);
 				}
-			}
-			files = results;
-		};
-		fetchAll();
-	} else {
-		files = [];
-	}
-});
+				files = results;
+			};
+			fetchAll();
+		} else {
+			files = [];
+		}
+	});
 </script>
 
 <div class="flex items-center justify-center gap-1 p-0.5">

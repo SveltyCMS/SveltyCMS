@@ -17,102 +17,98 @@
 -->
 
 <script lang="ts">
-import { browser } from "$app/environment";
-import { toast } from "@src/stores/toast.svelte.ts";
-import { flip } from "svelte/animate";
-import { fade, fly } from "svelte/transition";
-import { sanitize } from "isomorphic-dompurify";
-import type { ToastPosition } from "@src/stores/toast.svelte.ts";
+	import { browser } from '$app/environment';
+	import { toast } from '@src/stores/toast.svelte.ts';
+	import { flip } from 'svelte/animate';
+	import { fade, fly } from 'svelte/transition';
+	import { sanitize } from 'isomorphic-dompurify';
+	import type { ToastPosition } from '@src/stores/toast.svelte.ts';
 
-interface Props {
-	/** Default position - 'responsive' adapts to screen size */
-	position?: ToastPosition;
-	/** Custom responsive breakpoints */
-	responsive?: {
-		mobile?: Exclude<ToastPosition, "responsive">;
-		tablet?: Exclude<ToastPosition, "responsive">;
-		desktop?: Exclude<ToastPosition, "responsive">;
-	};
-	limit?: number;
-}
+	interface Props {
+		/** Default position - 'responsive' adapts to screen size */
+		position?: ToastPosition;
+		/** Custom responsive breakpoints */
+		responsive?: {
+			mobile?: Exclude<ToastPosition, 'responsive'>;
+			tablet?: Exclude<ToastPosition, 'responsive'>;
+			desktop?: Exclude<ToastPosition, 'responsive'>;
+		};
+		limit?: number;
+	}
 
-let { position = "responsive", responsive = {}, limit = 5 }: Props = $props();
+	let { position = 'responsive', responsive = {}, limit = 5 }: Props = $props();
 
-// Merge custom responsive config with defaults
-$effect(() => {
-	toast.setResponsiveConfig({
-		mobile: responsive.mobile ?? "bottom-center",
-		tablet: responsive.tablet ?? "bottom-right",
-		desktop: responsive.desktop ?? "bottom-right",
+	// Merge custom responsive config with defaults
+	$effect(() => {
+		toast.setResponsiveConfig({
+			mobile: responsive.mobile ?? 'bottom-center',
+			tablet: responsive.tablet ?? 'bottom-right',
+			desktop: responsive.desktop ?? 'bottom-right'
+		});
 	});
-});
 
-// Reactive position based on screen size
-const effectivePosition = $derived(toast.getEffectivePosition(position));
+	// Reactive position based on screen size
+	const effectivePosition = $derived(toast.getEffectivePosition(position));
 
-// Position CSS classes
-const positionClasses: Record<Exclude<ToastPosition, "responsive">, string> = {
-	"top-left": "top-4 left-4 items-start",
-	"top-right": "top-4 right-4 items-end",
-	"top-center": "top-4 left-1/2 -translate-x-1/2 items-center",
-	"bottom-left": "bottom-4 left-4 items-start",
-	"bottom-right": "bottom-4 right-4 items-end",
-	"bottom-center": "bottom-4 left-1/2 -translate-x-1/2 items-center",
-};
+	// Position CSS classes
+	const positionClasses: Record<Exclude<ToastPosition, 'responsive'>, string> = {
+		'top-left': 'top-4 left-4 items-start',
+		'top-right': 'top-4 right-4 items-end',
+		'top-center': 'top-4 left-1/2 -translate-x-1/2 items-center',
+		'bottom-left': 'bottom-4 left-4 items-start',
+		'bottom-right': 'bottom-4 right-4 items-end',
+		'bottom-center': 'bottom-4 left-1/2 -translate-x-1/2 items-center'
+	};
 
-// Animation directions based on position and RTL
-const isRTL = $derived(
-	browser && document ? document.documentElement.dir === "rtl" : false,
-);
-const directions = $derived.by(() => {
-	const pos = effectivePosition;
-	const xOffset = isRTL ? -20 : 20; // Flip X direction in RTL
-	return {
-		"top-left": { x: -xOffset, y: 0 },
-		"top-right": { x: xOffset, y: 0 },
-		"top-center": { x: 0, y: -20 },
-		"bottom-left": { x: -xOffset, y: 0 },
-		"bottom-right": { x: xOffset, y: 0 },
-		"bottom-center": { x: 0, y: 20 },
-	}[pos];
-});
+	// Animation directions based on position and RTL
+	const isRTL = $derived(browser && document ? document.documentElement.dir === 'rtl' : false);
+	const directions = $derived.by(() => {
+		const pos = effectivePosition;
+		const xOffset = isRTL ? -20 : 20; // Flip X direction in RTL
+		return {
+			'top-left': { x: -xOffset, y: 0 },
+			'top-right': { x: xOffset, y: 0 },
+			'top-center': { x: 0, y: -20 },
+			'bottom-left': { x: -xOffset, y: 0 },
+			'bottom-right': { x: xOffset, y: 0 },
+			'bottom-center': { x: 0, y: 20 }
+		}[pos];
+	});
 
-// Toast styling
-const styles = {
-	success: "bg-primary-500 text-white",
-	error: "bg-error-500 text-white",
-	warning: "bg-warning-500 text-white",
-	info: "bg-info-500 text-white",
-	loading: "bg-slate-500 text-white",
-};
+	// Toast styling
+	const styles = {
+		success: 'bg-primary-500 text-white',
+		error: 'bg-error-500 text-white',
+		warning: 'bg-warning-500 text-white',
+		info: 'bg-info-500 text-white',
+		loading: 'bg-slate-500 text-white'
+	};
 
-const icons = {
-	success: "mdi:check-circle",
-	error: "mdi:alert-circle",
-	warning: "mdi:alert",
-	info: "mdi:information",
-	loading: "mdi:loading",
-};
+	const icons = {
+		success: 'mdi:check-circle',
+		error: 'mdi:alert-circle',
+		warning: 'mdi:alert',
+		info: 'mdi:information',
+		loading: 'mdi:loading'
+	};
 
-// Get per-toast position or fall back to container position
-function getToastPosition(
-	toastPosition?: ToastPosition,
-): Exclude<ToastPosition, "responsive"> {
-	return toast.getEffectivePosition(toastPosition ?? position);
-}
+	// Get per-toast position or fall back to container position
+	function getToastPosition(toastPosition?: ToastPosition): Exclude<ToastPosition, 'responsive'> {
+		return toast.getEffectivePosition(toastPosition ?? position);
+	}
 
-// Reactive pause state check
-const isToastPaused = (id: string) => toast.pausedIds.has(id);
+	// Reactive pause state check
+	const isToastPaused = (id: string) => toast.pausedIds.has(id);
 
-const visibleToasts = $derived(toast.sortedToasts.slice(0, limit));
+	const visibleToasts = $derived(toast.sortedToasts.slice(0, limit));
 
-function handleMouseEnter(id: string) {
-	toast.pause(id);
-}
+	function handleMouseEnter(id: string) {
+		toast.pause(id);
+	}
 
-function handleMouseLeave(id: string) {
-	toast.resume(id);
-}
+	function handleMouseLeave(id: string) {
+		toast.resume(id);
+	}
 </script>
 
 {#if toast.toasts.length > 0}

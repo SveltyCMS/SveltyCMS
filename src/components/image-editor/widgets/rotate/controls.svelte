@@ -4,117 +4,117 @@
 Professional rotate controls with straighten and snap features
 -->
 <script lang="ts">
-let {
-	rotationAngle,
-	isFlippedH = false,
-	isFlippedV = false,
-	showGrid = false,
-	snapToAngles = true,
-	onRotateLeft,
-	onRotateRight,
-	onRotationChange,
-	onFlipHorizontal,
-	onFlipVertical,
-	onStraighten,
-	onAutoStraighten,
-	onGridToggle,
-	onSnapToggle,
-}: {
-	rotationAngle: number;
-	isFlippedH?: boolean;
-	isFlippedV?: boolean;
-	showGrid?: boolean;
-	snapToAngles?: boolean;
-	onRotateLeft: () => void;
-	onRotateRight: () => void;
-	onRotationChange: (angle: number) => void;
-	onFlipHorizontal: () => void;
-	onFlipVertical: () => void;
-	onStraighten?: () => void;
-	onAutoStraighten?: () => void;
-	onGridToggle?: () => void;
-	onSnapToggle?: () => void;
-} = $props();
+	let {
+		rotationAngle,
+		isFlippedH = false,
+		isFlippedV = false,
+		showGrid = false,
+		snapToAngles = true,
+		onRotateLeft,
+		onRotateRight,
+		onRotationChange,
+		onFlipHorizontal,
+		onFlipVertical,
+		onStraighten,
+		onAutoStraighten,
+		onGridToggle,
+		onSnapToggle
+	}: {
+		rotationAngle: number;
+		isFlippedH?: boolean;
+		isFlippedV?: boolean;
+		showGrid?: boolean;
+		snapToAngles?: boolean;
+		onRotateLeft: () => void;
+		onRotateRight: () => void;
+		onRotationChange: (angle: number) => void;
+		onFlipHorizontal: () => void;
+		onFlipVertical: () => void;
+		onStraighten?: () => void;
+		onAutoStraighten?: () => void;
+		onGridToggle?: () => void;
+		onSnapToggle?: () => void;
+	} = $props();
 
-// Preset angles
-const presetAngles = [-90, 0, 90, 180];
+	// Preset angles
+	const presetAngles = [-90, 0, 90, 180];
 
-// Normalize angle to -180 to 180 for display
-const displayAngle = $derived.by(() => {
-	let angle = rotationAngle % 360;
-	if (angle > 180) {
-		angle -= 360;
-	}
-	if (angle < -180) {
-		angle += 360;
-	}
-	return Math.round(angle * 10) / 10; // Round to 1 decimal
-});
+	// Normalize angle to -180 to 180 for display
+	const displayAngle = $derived.by(() => {
+		let angle = rotationAngle % 360;
+		if (angle > 180) {
+			angle -= 360;
+		}
+		if (angle < -180) {
+			angle += 360;
+		}
+		return Math.round(angle * 10) / 10; // Round to 1 decimal
+	});
 
-function handleAngleInput(e: Event) {
-	const target = e.currentTarget as HTMLInputElement;
-	onRotationChange(Number.parseFloat(target.value));
-}
-
-// Keyboard shortcuts
-function handleKeyDown(e: KeyboardEvent) {
-	if ((e.target as HTMLElement).tagName === "INPUT") {
-		return;
+	function handleAngleInput(e: Event) {
+		const target = e.currentTarget as HTMLInputElement;
+		onRotationChange(Number.parseFloat(target.value));
 	}
 
-	const cmdOrCtrl = e.metaKey || e.ctrlKey;
+	// Keyboard shortcuts
+	function handleKeyDown(e: KeyboardEvent) {
+		if ((e.target as HTMLElement).tagName === 'INPUT') {
+			return;
+		}
 
-	switch (e.key) {
-		case "ArrowLeft":
-			e.preventDefault();
-			if (e.shiftKey) {
-				onRotationChange(rotationAngle - 0.1);
-			} else if (cmdOrCtrl) {
-				onRotateLeft();
-			} else {
-				onRotationChange(rotationAngle - 1);
-			}
-			break;
-		case "ArrowRight":
-			e.preventDefault();
-			if (e.shiftKey) {
-				onRotationChange(rotationAngle + 0.1);
-			} else if (cmdOrCtrl) {
-				onRotateRight();
-			} else {
-				onRotationChange(rotationAngle + 1);
-			}
-			break;
-		case "h":
-		case "H":
-			e.preventDefault();
-			onFlipHorizontal();
-			break;
-		case "v":
-		case "V":
-			e.preventDefault();
-			onFlipVertical();
-			break;
-		case "g":
-		case "G":
-			if (onGridToggle) {
+		const cmdOrCtrl = e.metaKey || e.ctrlKey;
+
+		switch (e.key) {
+			case 'ArrowLeft':
 				e.preventDefault();
-				onGridToggle();
-			}
-			break;
-		case "s":
-		case "S":
-			if (onStraighten && !cmdOrCtrl) {
+				if (e.shiftKey) {
+					onRotationChange(rotationAngle - 0.1);
+				} else if (cmdOrCtrl) {
+					onRotateLeft();
+				} else {
+					onRotationChange(rotationAngle - 1);
+				}
+				break;
+			case 'ArrowRight':
 				e.preventDefault();
-				onStraighten();
-			}
-			break;
-		case "0":
-			e.preventDefault();
-			onRotationChange(0);
-			break;
+				if (e.shiftKey) {
+					onRotationChange(rotationAngle + 0.1);
+				} else if (cmdOrCtrl) {
+					onRotateRight();
+				} else {
+					onRotationChange(rotationAngle + 1);
+				}
+				break;
+			case 'h':
+			case 'H':
+				e.preventDefault();
+				onFlipHorizontal();
+				break;
+			case 'v':
+			case 'V':
+				e.preventDefault();
+				onFlipVertical();
+				break;
+			case 'g':
+			case 'G':
+				if (onGridToggle) {
+					e.preventDefault();
+					onGridToggle();
+				}
+				break;
+			case 's':
+			case 'S':
+				if (onStraighten && !cmdOrCtrl) {
+					e.preventDefault();
+					onStraighten();
+				}
+				break;
+			case '0':
+				e.preventDefault();
+				onRotationChange(0);
+				break;
+		}
 	}
-}
 </script>
 
 <svelte:window onkeydown={handleKeyDown} />

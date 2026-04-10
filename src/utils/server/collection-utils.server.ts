@@ -1,4 +1,4 @@
-import { contentManager } from "@src/content";
+import { contentSystem } from "@src/content";
 import type { Locale } from "@src/paraglide/runtime";
 import { logger } from "@utils/logger.server";
 import { SvelteMap } from "svelte/reactivity";
@@ -12,7 +12,7 @@ export async function fetchAndRedirectToFirstCollection(language: Locale): Promi
   try {
     logger.debug(`Fetching first collection path for language: ${language}`);
 
-    const firstCollection = await contentManager.getFirstCollection();
+    const firstCollection = await contentSystem.getFirstCollection();
     if (firstCollection?.path) {
       // Ensure the collection path has a leading slash
       const collectionPath = firstCollection.path.startsWith("/")

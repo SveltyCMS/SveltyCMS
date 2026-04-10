@@ -8,7 +8,6 @@ import { getPrivateSettingSync } from "@src/services/settings-service";
 import { json } from "@sveltejs/kit";
 import { logger } from "@utils/logger.server";
 import * as v from "valibot";
-import type { DatabaseId } from "@src/content/types";
 
 // Schema for the outgoing API data
 const ONLINE_USER_SCHEMA = v.object({
@@ -64,7 +63,7 @@ export const GET = apiHandler(async ({ locals }) => {
   }
   // Fetch active sessions for all users (not just the current user)
   // We need to get all active sessions, then extract unique user IDs
-  const sessionsResult = await auth.getAllActiveSessions({ tenantId: tenantId as DatabaseId });
+  const sessionsResult = await auth.getAllActiveSessions(tenantId);
   logger.debug("Sessions result from auth.getAllActiveSessions:", {
     success: sessionsResult.success,
     dataLength: sessionsResult.data?.length || 0,
@@ -105,9 +104,7 @@ export const GET = apiHandler(async ({ locals }) => {
 
   for (const uid of uniqueIds) {
     logger.debug("Fetching user by ID:", { uid, tenantId });
-    const userData = await auth.getUserById(uid as DatabaseId, {
-      tenantId: tenantId as DatabaseId,
-    });
+    const userData = await auth.getUserById(uid, tenantId);
     logger.debug("User fetch result:", {
       uid,
       hasData: !!userData,

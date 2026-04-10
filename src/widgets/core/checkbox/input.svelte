@@ -24,33 +24,33 @@ Renders a checkbox with label, color, size, and helper text from field props
 - **Screen Reader Support**: Proper ARIA attributes and semantic markup
 -->
 <script lang="ts">
-import { validationStore } from "@src/stores/store.svelte";
-import { getFieldName } from "@src/utils/utils";
-import type { FieldType } from ".";
+	import { validationStore } from '@src/stores/store.svelte';
+	import { getFieldName } from '@src/utils/utils';
+	import type { FieldType } from '.';
 
-let {
-	field,
-	value = $bindable(),
-}: {
-	field: FieldType;
-	value: boolean | string | null | undefined;
-} = $props();
+	let {
+		field,
+		value = $bindable()
+	}: {
+		field: FieldType;
+		value: boolean | string | null | undefined;
+	} = $props();
 
-// Initialize with proper boolean value if undefined
-$effect(() => {
-	if (value === undefined || value === null) {
-		value = false;
+	// Initialize with proper boolean value if undefined
+	$effect(() => {
+		if (value === undefined || value === null) {
+			value = false;
+		}
+	});
+
+	const fieldName = $derived(getFieldName(field));
+
+	// Update parent value and clear any validation errors
+	function handleChange(e: Event) {
+		const checked = (e.currentTarget as HTMLInputElement).checked;
+		value = checked;
+		validationStore.clearError(fieldName);
 	}
-});
-
-const fieldName = $derived(getFieldName(field));
-
-// Update parent value and clear any validation errors
-function handleChange(e: Event) {
-	const checked = (e.currentTarget as HTMLInputElement).checked;
-	value = checked;
-	validationStore.clearError(fieldName);
-}
 </script>
 
 <div class="mb-4">

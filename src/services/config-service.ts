@@ -154,11 +154,11 @@ class ConfigService {
 
   private async getSourceState(tenantId?: string): Promise<Map<string, ConfigEntity>> {
     const state = new Map<string, ConfigEntity>();
-    const { contentManager } = await import("@src/content");
-    await contentManager.initialize(tenantId);
+    const { contentSystem } = await import("@src/content");
+    await contentSystem.initialize(tenantId);
 
     // 1. Scan Collections (scoped by tenantId)
-    const collections = await contentManager.getCollections(tenantId);
+    const collections = await contentSystem.getCollections(tenantId);
     for (const collection of collections) {
       if (!(collection._id && collection.name)) {
         continue;

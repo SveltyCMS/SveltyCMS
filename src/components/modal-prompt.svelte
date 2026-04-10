@@ -13,31 +13,31 @@
  -->
 
 <script lang="ts">
-import Sanitize from "@src/utils/sanitize.svelte";
+	import Sanitize from '@src/utils/sanitize.svelte';
 
-let {
-	body = "",
-	value = "",
-	type = "text",
-	// The close function is passed down automatically by DialogManager
-	close,
-}: {
-	body?: string;
-	value?: string;
-	type?: string;
-	close?: (result: unknown) => void;
-} = $props();
+	let {
+		body = '',
+		value = '',
+		type = 'text',
+		// The close function is passed down automatically by DialogManager
+		close
+	}: {
+		body?: string;
+		value?: string;
+		type?: string;
+		close?: (result: unknown) => void;
+	} = $props();
 
-// svelte-ignore state_referenced_locally
-let inputValue = $state(value);
+	// svelte-ignore state_referenced_locally
+	let inputValue = $state(value);
 
-function onConfirm() {
-	close?.(inputValue);
-}
+	function onConfirm() {
+		close?.(inputValue);
+	}
 
-function onCancel() {
-	close?.(null); // Return null or false to indicate cancellation
-}
+	function onCancel() {
+		close?.(null); // Return null or false to indicate cancellation
+	}
 </script>
 
 <div class="space-y-4">

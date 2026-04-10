@@ -57,9 +57,7 @@ const RatingWidget = createWidget<RatingProps>({
   Name: "Rating",
   Icon: "material-symbols:star-outline",
   Description: widget_rating_description(),
-  inputComponent: () => import("./input.svelte"),
   inputComponentPath: "/src/widgets/custom/rating/input.svelte",
-  displayComponent: () => import("./display.svelte"),
   displayComponentPath: "/src/widgets/custom/rating/display.svelte",
   validationSchema,
 

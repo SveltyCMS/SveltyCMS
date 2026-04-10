@@ -1,130 +1,198 @@
-<!-- 
- @file src/components/image-editor/widgets/Crop/Controls.svelte
- @component Controls for the Crop tool
- -->
+<!--
+@file: src/components/image-editor/widgets/Crop/Controls.svelte
+@component
+Modern, responsive crop controls with keyboard shortcuts and accessibility
+-->
 <script lang="ts">
-import { imageEditorStore } from "@src/stores/image-editor-store.svelte";
-import { ASPECT_RATIO_PRESETS } from "./aspect";
-import type { CropShape } from "./types";
+	import type { CropShape } from './types';
 
-// Keyboard shortcuts for crop
-$effect(() => {
-	const handleKeydown = (e: KeyboardEvent) => {
-		if (imageEditorStore.activeToolId !== "crop") return;
+	let {
+		onRotateLeft,
+		onRotateRight,
+		onFlipHorizontal,
+		onFlipVertical,
+		onCropShapeChange,
+		onAspectRatio,
+		cropShape
+	}: {
+		onRotateLeft: () => void;
+		onRotateRight: () => void;
+		onFlipHorizontal: () => void;
+		onFlipVertical?: () => void;
+		onCropShapeChange: (shape: CropShape) => void;
+		onAspectRatio: (ratio: number | null) => void;
+		cropShape: CropShape;
+	} = $props();
 
-		// R for rotate right, L for rotate left
-		if (e.key.toLowerCase() === "r") imageEditorStore.rotate(90);
-		if (e.key.toLowerCase() === "l") imageEditorStore.rotate(-90);
+	// Unused presets removed for Square Only enforcement
 
-		// F for flip horizontal
-		if (e.key.toLowerCase() === "f") imageEditorStore.flipH();
+	function handleRatio(ratio: number | null) {
+		onAspectRatio(ratio);
+	}
 
-		// Number keys for presets
-		if (e.key === "1") onAspectChange(1); // Square
-		if (e.key === "0") onAspectChange(null); // Free
-	};
+	// Keyboard shortcuts
+	function handleKeyDown(e: KeyboardEvent) {
+		// Skip if typing in input
+		if ((e.target as HTMLElement).tagName === 'INPUT') {
+			return;
+		}
 
-	window.addEventListener("keydown", handleKeydown);
-	return () => window.removeEventListener("keydown", handleKeydown);
-});
+		const cmdOrCtrl = e.metaKey || e.ctrlKey;
 
-function onAspectChange(ratio: number | null) {
-	const current = imageEditorStore.state.crop;
-	if (!current) return;
-	imageEditorStore.updateCrop({ ...current, aspectRatio: ratio });
-}
-
-function onCropShapeChange(shape: CropShape) {
-	const current = imageEditorStore.state.crop;
-	if (!current) return;
-	imageEditorStore.updateCrop({ ...current, shape });
-}
+		switch (e.key) {
+			case 'r':
+			case 'R':
+				if (!cmdOrCtrl) {
+					e.preventDefault();
+					onRotateRight();
+				}
+				break;
+			case 'l':
+			case 'L':
+				if (!cmdOrCtrl) {
+					e.preventDefault();
+					onRotateLeft();
+				}
+				break;
+			case 'f':
+			case 'F':
+				if (!cmdOrCtrl) {
+					e.preventDefault();
+					onFlipHorizontal();
+				}
+				break;
+			// Quick aspect ratio shortcut (square only)
+			case '1':
+				e.preventDefault();
+				handleRatio(1);
+				break;
+		}
+	}
 </script>
 
-<div class="flex flex-col gap-4 p-4 text-white">
-	<!-- Aspect Ratio Presets -->
-	<div class="flex flex-col gap-2">
-		<span class="text-xs font-bold uppercase tracking-widest text-surface-400">Aspect Ratio</span>
-		<div class="grid grid-cols-3 gap-2">
-			{#each ASPECT_RATIO_PRESETS as preset}
-				<button
-					class="flex flex-col items-center gap-1 rounded-lg border border-surface-700 bg-surface-800 p-2 transition-all hover:border-primary-500 hover:bg-surface-700
-                        {imageEditorStore.state.crop?.aspectRatio === preset.value ? 'border-primary-500 bg-primary-500/10' : ''}"
-					onclick={() => onAspectChange(preset.value)}
-					title={preset.description}
-				>
-					{#if preset.icon}
-						<iconify-icon icon={preset.icon} width="20"></iconify-icon>
-					{:else}
-						<div class="flex h-5 w-5 items-center justify-center text-[10px] font-bold border border-current rounded-sm">
-							{preset.label}
-						</div>
-					{/if}
-					<span class="text-[10px]">{preset.label}</span>
-				</button>
+<svelte:window onkeydown={handleKeyDown} />
+
+<div class="crop-controls" role="toolbar" aria-label="Crop controls">
+	<!-- Group 1: Aspect Ratio Presets (Square Only Enforced) -->
+	<div class="control-group">
+		<div class="aspect-ratios">
+			<!-- Only Square is allowed per requirements -->
+			<button class="aspect-btn active" onclick={() => handleRatio(1)} title="Square (1:1)" aria-label="Aspect ratio 1:1" aria-pressed="true">
+				<iconify-icon icon="mdi:crop-square" width="16"></iconify-icon>
+				<span>Square</span>
+			</button>
+
+			<!-- Hidden other ratios for future expansion if needed -->
+			<!-- 
+			{#each visiblePresets as preset, i}
+				...
 			{/each}
+			-->
 		</div>
 	</div>
 
-	<!-- Crop Shape -->
-	<div class="flex flex-col gap-2">
-		<span class="text-xs font-bold uppercase tracking-widest text-surface-400">Shape</span>
-		<div class="flex gap-2">
+	<!-- Group 2: Tools (Shape & Transform) -->
+	<div class="control-group">
+		<!-- Shape Selection -->
+		<div class="btn-group" role="radiogroup" aria-label="Crop shape">
 			<button
-				class="flex flex-1 items-center justify-center gap-2 rounded-lg border border-surface-700 bg-surface-800 p-2 transition-all hover:border-primary-500
-                    {imageEditorStore.state.crop?.shape === 'rect' ? 'border-primary-500 bg-primary-500/10' : ''}"
-				onclick={() => onCropShapeChange('rect')}
+				class="btn"
+				class:active={cropShape === 'rectangle' || cropShape === 'square'}
+				onclick={() => onCropShapeChange('rectangle')}
+				title="Rectangle"
 			>
-				<iconify-icon icon="mdi:rectangle-outline" width="20"></iconify-icon>
-				<span class="text-xs">Rectangle</span>
+				<iconify-icon icon="mdi:crop-landscape" width="20"></iconify-icon>
 			</button>
-			<button
-				class="flex flex-1 items-center justify-center gap-2 rounded-lg border border-surface-700 bg-surface-800 p-2 transition-all hover:border-primary-500
-                    {imageEditorStore.state.crop?.shape === 'circle' ? 'border-primary-500 bg-primary-500/10' : ''}"
-				onclick={() => onCropShapeChange('circle')}
-			>
+			<button class="btn" class:active={cropShape === 'circular'} onclick={() => onCropShapeChange('circular')} title="Circle">
 				<iconify-icon icon="mdi:circle-outline" width="20"></iconify-icon>
-				<span class="text-xs">Circle</span>
 			</button>
+		</div>
+
+		<!-- Transform Controls -->
+		<div class="btn-group">
+			<button class="btn" onclick={onRotateLeft} title="Rotate Left 90° (L)"><iconify-icon icon="mdi:rotate-left" width="20"></iconify-icon></button>
+			<button class="btn" onclick={onRotateRight} title="Rotate Right 90° (R)">
+				<iconify-icon icon="mdi:rotate-right" width="20"></iconify-icon>
+			</button>
+			<button class="btn" onclick={onFlipHorizontal} title="Flip Horizontal (F)">
+				<iconify-icon icon="mdi:flip-horizontal" width="20"></iconify-icon>
+			</button>
+			{#if onFlipVertical}
+				<button class="btn" onclick={onFlipVertical} title="Flip Vertical"><iconify-icon icon="mdi:flip-vertical" width="20"></iconify-icon></button>
+			{/if}
 		</div>
 	</div>
 
-	<!-- Transformation Shortcuts -->
-	<div class="flex flex-col gap-2 pt-2 border-t border-surface-700">
-		<div class="flex gap-2">
-			<button
-				class="btn btn-sm preset-tonal-surface flex-1"
-				onclick={() => imageEditorStore.rotate(-90)}
-				title="Rotate Left (L)"
-			>
-				<iconify-icon icon="mdi:rotate-left" width="18"></iconify-icon>
-				<span>Left</span>
-			</button>
-			<button
-				class="btn btn-sm preset-tonal-surface flex-1"
-				onclick={() => imageEditorStore.rotate(90)}
-				title="Rotate Right (R)"
-			>
-				<iconify-icon icon="mdi:rotate-right" width="18"></iconify-icon>
-				<span>Right</span>
-			</button>
-		</div>
-		<div class="flex gap-2">
-			<button
-				class="btn btn-sm preset-tonal-surface flex-1"
-				onclick={() => imageEditorStore.flipH()}
-				title="Flip Horizontal (F)"
-			>
-				<iconify-icon icon="mdi:flip-horizontal" width="18"></iconify-icon>
-				<span>Flip H</span>
-			</button>
-			<button
-				class="btn btn-sm preset-tonal-surface flex-1"
-				onclick={() => imageEditorStore.flipV()}
-			>
-				<iconify-icon icon="mdi:flip-vertical" width="18"></iconify-icon>
-				<span>Flip V</span>
-			</button>
-		</div>
-	</div>
+	<!-- Spacer -->
+	<div class="flex-1 hidden lg:block"></div>
+
+	<!-- Action Buttons: Handled by global toolbar -->
+	<div class="h-2"></div>
 </div>
+
+<style>
+	.crop-controls {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 1rem;
+		align-items: center;
+		justify-content: center;
+		width: 100%;
+		padding: 0;
+		background: transparent;
+		border: none;
+	}
+
+	.control-group {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+		align-items: center;
+	}
+
+	.aspect-ratios {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.25rem;
+	}
+
+	.aspect-btn {
+		display: flex;
+		gap: 0.5rem;
+		align-items: center;
+		height: 2.25rem;
+		padding: 0 1rem;
+		font-size: 0.75rem;
+		font-weight: 600;
+		color: #9ca3af;
+		white-space: nowrap;
+		cursor: pointer;
+		background: rgba(255, 255, 255, 0.05);
+		border: 1px solid transparent;
+		border-radius: 9999px;
+		transition: all 0.2s;
+	}
+
+	.aspect-btn:hover {
+		color: white;
+		background: rgba(255, 255, 255, 0.1);
+	}
+
+	.aspect-btn.active {
+		color: white;
+		background: #3b82f6; /* Primary-500 */
+		box-shadow: 0 0 15px rgba(59, 130, 246, 0.3);
+	}
+
+	.btn-group .btn.active {
+		color: white;
+		background: #3b82f6;
+	}
+
+	/* Mobile optimizations */
+	@media (max-width: 1024px) {
+		.crop-controls {
+			row-gap: 1rem;
+		}
+	}
+</style>

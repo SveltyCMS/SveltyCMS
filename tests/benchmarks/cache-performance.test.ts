@@ -18,8 +18,8 @@ test("Local SDK Cache Performance Suite", async () => {
   const cms = new LocalCMS(dbAdapter!);
   const targetCollection = "posts";
 
-  // Mock contentManager to return a schema
-  const { contentManager: cm } = await import("@src/content");
+  // Mock contentSystem to return a schema
+  const { contentSystem: cm } = await import("@src/content");
   (cm as any).getCollectionById = async () => ({ _id: "posts", name: "posts", fields: [] });
 
   const iterations = 1000;

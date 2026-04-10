@@ -1,132 +1,154 @@
-<!-- 
- @file src/components/image-editor/editor-toolbar.svelte
- @component Toolbar for the Image Editor
- -->
+﻿<!--
+@file: src/components/image-editor/editor-toolbar.svelte
+@component
+The new single, intelligent bottom toolbar for the image editor.
+It dynamically renders controls based on the active tool.
+-->
 <script lang="ts">
-import { imageEditorStore } from "@src/stores/image-editor-store.svelte";
-import { slide } from "svelte/transition";
-import { editorWidgets } from "./widgets/registry";
+	import { imageEditorStore } from '@src/stores/image-editor-store.svelte';
+	import { fade, slide } from 'svelte/transition';
 
-const activeToolId = $derived(imageEditorStore.activeToolId);
-const toolbarControls = $derived(
-	activeToolId ? editorWidgets.find((w) => w.key === activeToolId) : null,
-);
+	let {
+		onsave,
+		oncancel,
+		isSaving
+	}: {
+		onsave: () => void;
+		oncancel: () => void;
+		isSaving: boolean;
+	} = $props();
 
-function handleToolToggle(toolId: string) {
-	if (imageEditorStore.activeToolId === toolId) {
-		imageEditorStore.cancelActiveTool();
-	} else {
-		imageEditorStore.setActiveTool(toolId);
-	}
-}
+	/* Restore Tool Icons Logic */
+	import { editorWidgets } from './widgets/registry';
+
+	const activeState = $derived(imageEditorStore.state.activeState);
+	const hasImage = $derived(!!imageEditorStore.state.imageElement);
+	const toolbarControls = $derived(imageEditorStore.state.toolbarControls);
+
+	const canUndo = $derived(imageEditorStore.canUndoState);
+	const canRedo = $derived(imageEditorStore.canRedoState);
+
+	// Get active widget title
+	const activeWidget = $derived(editorWidgets.find((w) => w.key === activeState));
 </script>
 
-<div class="flex flex-col border-t border-surface-700 bg-surface-900 shadow-2xl">
+<div
+	class="fixed bottom-0 left-0 right-0 z-40 flex flex-col bg-surface-900 border-t border-surface-700 shadow-2xl"
+	role="toolbar"
+	aria-label="Editor properties"
+>
 	<!-- Drawer: Tool Controls (Slides up from within the dock) -->
-	{#if toolbarControls?.controls}
-		{@const ControlsComponent = toolbarControls.controls}
+	{#if toolbarControls?.component}
+		{@const Component = toolbarControls.component}
 		<div class="flex flex-col border-b border-surface-700 bg-surface-800/50 backdrop-blur-md" transition:slide={{ axis: 'y', duration: 250 }}>
-			<div class="flex items-center justify-between px-4 py-2 border-b border-surface-700/50">
-				<span class="text-xs font-bold uppercase tracking-widest text-primary-500">
-					{toolbarControls.title} Options
-				</span>
-				<button
-					class="btn-icon btn-icon-sm preset-ghost-surface hover:preset-filled-surface"
-					onclick={() => imageEditorStore.cancelActiveTool()}
-					aria-label="Cancel tool"
-				>
-					<iconify-icon icon="mdi:close" width="16"></iconify-icon>
-				</button>
-			</div>
-			<div class="max-h-64 overflow-y-auto">
-				<ControlsComponent />
-			</div>
+			<!-- Optional: Tool Title Header in Drawer -->
+			{#if activeWidget}
+				<div class="flex items-center justify-between px-4 py-2 border-b border-surface-700/50">
+					<span class="text-xs font-bold uppercase tracking-wider text-surface-400">{activeWidget.title}</span>
+					<div class="flex gap-2">
+						<!-- Inline Undo/Redo for precision editing -->
+						<button
+							class="text-surface-400 hover:text-white disabled:opacity-30"
+							onclick={() => imageEditorStore.handleUndo()}
+							disabled={!canUndo}
+							aria-label="Undo"
+						>
+							<iconify-icon icon="mdi:undo" width="16"></iconify-icon>
+						</button>
+						<button
+							class="text-surface-400 hover:text-white disabled:opacity-30"
+							onclick={() => imageEditorStore.handleRedo()}
+							disabled={!canRedo}
+							aria-label="Redo"
+						>
+							<iconify-icon icon="mdi:redo" width="16"></iconify-icon>
+						</button>
+					</div>
+				</div>
+			{/if}
+
+			<!-- Controls Container -->
+			<div class="flex items-center justify-center p-3 sm:p-4 overflow-x-auto"><Component {...toolbarControls.props} /></div>
 		</div>
 	{/if}
 
-	<!-- Dock: Primary Tools -->
-	<div class="flex items-center justify-between px-4 h-16 sm:h-20">
-		<!-- Left: Cancel/History -->
-		<div class="flex items-center gap-2">
-			<button
-				class="btn-icon sm:btn-md preset-tonal-surface hover:preset-filled-error-500"
-				onclick={() => window.dispatchEvent(new CustomEvent('image-editor-cancel'))}
-				title="Cancel Editing"
-			>
-				<iconify-icon icon="mdi:close" width="24"></iconify-icon>
-			</button>
+	<!-- Main Dock: Navigation & Actions -->
+	<div class="flex h-16 items-center justify-between px-2 sm:px-4">
+		<!-- Left: Cancel -->
+		<button
+			class="flex flex-col items-center justify-center rounded-lg px-2 py-1 text-surface-400 transition-colors hover:text-white hover:bg-surface-800"
+			onclick={oncancel}
+			title="Cancel"
+		>
+			<iconify-icon icon="mdi:close" width="24"></iconify-icon>
+			<span class="text-[10px] font-medium mt-0.5 max-sm:hidden">Cancel</span>
+		</button>
 
-			<div class="h-8 w-px bg-surface-700 mx-2 hidden sm:block"></div>
+		<!-- Center: Tool Strip (Scrollable) -->
+		<div class="no-scrollbar mx-2 flex flex-1 items-center justify-center gap-1 overflow-x-auto sm:gap-2">
+			{#if hasImage}
+				{#each editorWidgets as widget (widget.key)}
+					<button
+						class="group relative flex flex-col items-center justify-center gap-1 rounded-xl p-2 transition-all duration-200"
+						class:text-primary-400={activeState === widget.key}
+						class:text-surface-400={activeState !== widget.key}
+						onclick={() => imageEditorStore.switchTool(widget.key)}
+						aria-label={widget.title}
+						aria-pressed={activeState === widget.key}
+						title={widget.title}
+					>
+						<div
+							class="flex h-8 w-8 items-center justify-center rounded-lg transition-all duration-200 {activeState === widget.key
+								? 'bg-primary-500/20 text-primary-400'
+								: 'group-hover:bg-surface-800'}"
+						>
+							<iconify-icon icon={widget.icon} width="20"></iconify-icon>
+						</div>
+						<span class="text-[10px] font-medium whitespace-nowrap {activeState === widget.key ? 'text-primary-400' : ''}">{widget.title}</span>
 
-			<button
-				class="btn-icon sm:btn-md preset-tonal-surface disabled:opacity-30"
-				onclick={() => imageEditorStore.undo()}
-				disabled={!imageEditorStore.canUndo}
-				title="Undo (Ctrl+Z)"
-			>
-				<iconify-icon icon="mdi:undo" width="24"></iconify-icon>
-			</button>
-			<button
-				class="btn-icon sm:btn-md preset-tonal-surface disabled:opacity-30"
-				onclick={() => imageEditorStore.redo()}
-				disabled={!imageEditorStore.canRedo}
-				title="Redo (Ctrl+Y)"
-			>
-				<iconify-icon icon="mdi:redo" width="24"></iconify-icon>
-			</button>
+						{#if activeState === widget.key}
+							<div class="absolute -bottom-1 h-1 w-1 rounded-full bg-primary-500"></div>
+						{/if}
+					</button>
+				{/each}
+			{:else}
+				<span class="text-sm text-surface-500">No image loaded</span>
+			{/if}
 		</div>
 
-		<!-- Center: Tool Selector (Scrollable on mobile) -->
-		<div class="flex items-center gap-1 sm:gap-2 px-4 overflow-x-auto no-scrollbar">
-			{#each editorWidgets as widget}
-				<button
-					class="flex flex-col items-center justify-center min-w-[64px] sm:min-w-[80px] h-14 sm:h-16 rounded-xl transition-all duration-200
-                        {activeToolId === widget.key ? 'bg-primary-500 text-white shadow-lg' : 'text-surface-400 hover:bg-surface-800 hover:text-white'}"
-					onclick={() => handleToolToggle(widget.key)}
-				>
-					<iconify-icon icon={widget.icon} width="24"></iconify-icon>
-					<span class="text-[10px] sm:text-xs font-medium mt-1">{widget.title}</span>
-				</button>
-			{/each}
-		</div>
-
-		<!-- Right: Save Controls -->
-		<div class="flex items-center gap-3">
-			<!-- Save Behavior Toggle (Copy vs Overwrite) -->
-			<div class="hidden md:flex items-center bg-surface-800 rounded-full p-1 border border-surface-700">
-				<button
-					class="px-3 py-1 text-[10px] font-bold rounded-full transition-all
-                        {imageEditorStore.saveBehavior === 'new' ? 'bg-surface-600 text-white' : 'text-surface-500'}"
-					onclick={() => (imageEditorStore.saveBehavior = 'new')}
-				>
-					COPY
-				</button>
-				<button
-					class="px-3 py-1 text-[10px] font-bold rounded-full transition-all
-                        {imageEditorStore.saveBehavior === 'overwrite' ? 'bg-primary-500 text-white shadow-sm' : 'text-surface-500'}"
-					onclick={() => (imageEditorStore.saveBehavior = 'overwrite')}
-				>
-					REPLACE
-				</button>
-			</div>
-
-			<button
-				class="btn h-10 sm:h-12 px-6 preset-filled-primary-500 font-bold shadow-lg transition-transform active:scale-95"
-				onclick={() => window.dispatchEvent(new CustomEvent('image-editor-save'))}
-			>
-				<iconify-icon icon="mdi:check" width="20" class="mr-2"></iconify-icon>
-				<span>SAVE</span>
-			</button>
-		</div>
+		<!-- Right: Save -->
+		<button
+			class="flex flex-col items-center justify-center rounded-lg px-2 py-1 text-primary-400 transition-colors hover:text-primary-300 hover:bg-primary-500/10 min-w-[50px]"
+			onclick={onsave}
+			disabled={isSaving}
+			title="Done"
+		>
+			{#if isSaving}
+				<iconify-icon icon="mdi:loading" width="24" class="animate-spin"></iconify-icon>
+			{:else}
+				<iconify-icon icon="mdi:check" width="24"></iconify-icon>
+			{/if}
+			<span class="text-[10px] font-medium mt-0.5 max-sm:hidden">Done</span>
+		</button>
 	</div>
+
+	<!-- System Bar Spacer (for mobile gestures) -->
+	<div class="h-[env(safe-area-inset-bottom)] w-full bg-surface-900"></div>
+
+	<!-- Validation Error Toast -->
+	{#if imageEditorStore.state.error}
+		<div
+			class="absolute bottom-full left-1/2 mb-4 flex -translate-x-1/2 items-center justify-center rounded-full bg-error-500/90 px-4 py-2 text-sm font-medium text-white shadow-lg backdrop-blur-sm"
+			transition:fade={{ duration: 200 }}
+		>
+			<iconify-icon icon="mdi:alert-circle" width={16} class="mr-2"></iconify-icon>
+			{imageEditorStore.state.error}
+		</div>
+	{/if}
 </div>
 
 <style>
-	.no-scrollbar::-webkit-scrollbar {
-		display: none;
-	}
-	.no-scrollbar {
-		-ms-overflow-style: none;
-		scrollbar-width: none;
+	:global(.dark) .border-t {
+		border-color: rgb(var(--color-surface-700) / 1);
 	}
 </style>

@@ -33,7 +33,7 @@ describe("System Store - Service Health Management", () => {
     expect(state.services.database.status).toBe("initializing");
     expect(state.services.auth.status).toBe("initializing");
     expect(state.services.cache.status).toBe("initializing");
-    expect(state.services.contentManager.status).toBe("initializing");
+    expect(state.services.contentSystem.status).toBe("initializing");
     expect(state.services.themeManager.status).toBe("initializing");
     expect(state.services.widgets.status).toBe("initializing");
   });
@@ -90,7 +90,7 @@ describe("System Store - Overall State Management", () => {
       "database",
       "auth",
       "cache",
-      "contentManager",
+      "contentSystem",
       "themeManager",
       "widgets",
     ];
@@ -108,7 +108,7 @@ describe("System Store - Overall State Management", () => {
     updateServiceHealth("database", "healthy", "OK");
     updateServiceHealth("auth", "healthy", "OK");
     updateServiceHealth("cache", "unhealthy", "Failed");
-    updateServiceHealth("contentManager", "healthy", "OK");
+    updateServiceHealth("contentSystem", "healthy", "OK");
     updateServiceHealth("themeManager", "healthy", "OK");
     updateServiceHealth("widgets", "healthy", "OK");
 
@@ -168,7 +168,7 @@ describe("System Store - Performance Metrics", () => {
       "database",
       "auth",
       "cache",
-      "contentManager",
+      "contentSystem",
       "themeManager",
       "widgets",
     ];
@@ -201,7 +201,7 @@ describe("System Store - Service Health Checks", () => {
       "database",
       "auth",
       "cache",
-      "contentManager",
+      "contentSystem",
       "themeManager",
       "widgets",
     ];

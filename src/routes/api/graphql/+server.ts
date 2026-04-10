@@ -52,7 +52,7 @@ const cacheClient = getPrivateSettingSync("USE_REDIS")
 import { hasPermissionWithRoles, registerPermission } from "@src/databases/auth/permissions";
 import { PermissionAction, PermissionType, type Role, type User } from "@src/databases/auth/types";
 // Unified Cache Service
-import { cacheService } from "@src/databases/cache/cache-service";
+import { cacheService } from "@src/databases/cache-service";
 // Import shared PubSub instance
 import { pubSub } from "@src/services/pub-sub";
 // Widget Store - ensure widgets are loaded before GraphQL setup
@@ -61,16 +61,13 @@ import { widgets } from "@src/stores/widget-store.svelte.ts";
 import { logger } from "@utils/logger.server";
 import { useServer } from "graphql-ws/use/ws";
 import { createSchema, createYoga } from "graphql-yoga";
-import { useGraphQlJit } from "@envelop/graphql-jit";
 // GraphQL Subscriptions
 import { WebSocketServer } from "ws";
-import { NoSchemaIntrospectionCustomRule } from "graphql";
-import { dev } from "$app/environment";
-
-import { createLoaders } from "./loaders";
-import { createDepthLimitRule, createMaxAliasesRule } from "./rules";
-import { collectionsResolvers, registerCollections } from "./resolvers/collections";
-import { createCleanTypeName } from "@utils/utils";
+import {
+  collectionsResolvers,
+  createCleanTypeName,
+  registerCollections,
+} from "./resolvers/collections";
 import { mediaResolvers, mediaTypeDefs } from "./resolvers/media";
 import { systemResolvers, systemTypeDefs } from "./resolvers/system";
 import { userResolvers, userTypeDefs } from "./resolvers/users";
@@ -268,44 +265,25 @@ async function setupGraphQL(dbAdapter: DatabaseAdapter, tenantId?: string | null
     const yogaApp = createYoga({
       graphqlEndpoint: "/api/graphql",
       landingPage: true,
-      plugins: [useGraphQlJit()],
+      plugins: [],
       cors: false,
       graphiql: {
         subscriptionsProtocol: "WS",
       },
-      parserAndValidationCache: true,
-      // @ts-expect-error Yoga server options type mismatch
-      validationRules: [
-        createDepthLimitRule(8),
-        createMaxAliasesRule(15),
-        ...(dev ? [] : [NoSchemaIntrospectionCustomRule]),
-      ],
+      // @ts-expect-error Yoga schema type mismatch due to context generics
       schema: createSchema({ typeDefs, resolvers }),
       context: async ({ request }) => {
         // Extract the context from the request if it was passed
         const contextData = (
           request as Request & {
-            contextData?: {
-              user: unknown;
-              dbAdapter?: DatabaseAdapter;
-              tenantId?: string | null;
-              bypassTenantIsolation?: boolean;
-            };
+            contextData?: { user: unknown; tenantId?: string | null };
           }
         ).contextData;
-        const loaders = createLoaders(
-          contextData?.dbAdapter as DatabaseAdapter,
-          contextData?.tenantId ?? null,
-        );
-
         return {
           user: contextData?.user,
-          dbAdapter: contextData?.dbAdapter,
           tenantId: contextData?.tenantId,
-          bypassTenantIsolation: contextData?.bypassTenantIsolation,
           locale: request.headers.get("accept-language")?.split(",")[0]?.trim().slice(0, 2) || "en", // Simple locale extraction
           pubSub,
-          loaders,
         };
       },
     });
@@ -321,9 +299,9 @@ async function setupGraphQL(dbAdapter: DatabaseAdapter, tenantId?: string | null
   }
 }
 
-// Store Yoga apps per tenant to prevent schema leakage
-const yogaApps = new Map<string, Promise<ReturnType<typeof createYoga<any, any>>>>();
-let wsInitPromise: Promise<void> | null = null;
+// Store Yoga app promise with a relaxed, generic-any typing to avoid
+// tight coupling to Yoga's internal generics, which are noisy for our use case.
+let yogaAppPromise: Promise<ReturnType<typeof createYoga<any, any>>> | null = null;
 let wsServerInitialized = false;
 
 // Store global instance to prevent HMR EADDRINUSE errors
@@ -336,99 +314,89 @@ const globalWithWs = globalThis as typeof globalThis & {
 // In a production environment, you would ideally integrate this with your main HTTP server.
 async function initializeWebSocketServer(dbAdapter: DatabaseAdapter, tenantId?: string | null) {
   if (globalWithWs.__SVELTY_GRAPHQL_WS__ || wsServerInitialized || building) {
+    logger.debug("WebSocket server already initialized, skipping...");
     return;
   }
 
-  if (wsInitPromise) return wsInitPromise;
+  try {
+    const { typeDefs, resolvers } = await createGraphQLSchema(dbAdapter, tenantId);
+    const schema = createSchema({ typeDefs, resolvers });
 
-  wsInitPromise = (async () => {
-    try {
-      // Re-check state after entering the promise chain
-      if (globalWithWs.__SVELTY_GRAPHQL_WS__ || wsServerInitialized) return;
+    const wsServer = new WebSocketServer({
+      port: 3001,
+      path: "/api/graphql",
+    });
 
-      const { typeDefs, resolvers } = await createGraphQLSchema(dbAdapter, tenantId);
-      const schema = createSchema({ typeDefs, resolvers });
+    globalWithWs.__SVELTY_GRAPHQL_WS__ = wsServer;
 
-      const wsServer = new WebSocketServer({
-        port: 3001,
-        path: "/api/graphql",
-      });
+    useServer(
+      {
+        schema,
+        context: async (ctx) => {
+          // Extract authentication from connection params
+          const connectionParams = ctx.connectionParams as
+            | {
+                authorization?: string;
+                sessionId?: string;
+                cookie?: string;
+              }
+            | undefined;
 
-      globalWithWs.__SVELTY_GRAPHQL_WS__ = wsServer;
+          let user: any = null;
 
-      useServer(
-        {
-          schema,
-          context: async (ctx) => {
-            // Extract authentication from connection params
-            const connectionParams = ctx.connectionParams as
-              | {
-                  authorization?: string;
-                  sessionId?: string;
-                  cookie?: string;
-                }
-              | undefined;
+          // Try multiple authentication methods
+          if (connectionParams) {
+            try {
+              // Method 1: Bearer token (for API tokens)
+              if (connectionParams.authorization) {
+                const token = connectionParams.authorization.replace(/^Bearer\s+/i, "");
+                const tokenValidation = await dbAdapter.auth.validateToken(
+                  token,
+                  undefined,
+                  "access",
+                  tenantId,
+                );
 
-            let user: any = null;
-
-            // Try multiple authentication methods
-            if (connectionParams) {
-              try {
-                // Method 1: Bearer token (for API tokens)
-                if (connectionParams.authorization) {
-                  const token = connectionParams.authorization.replace(/^Bearer\s+/i, "");
-                  const tokenValidation = await dbAdapter.auth.validateToken(
-                    token,
-                    undefined,
-                    "access",
-                    { tenantId: tenantId as DatabaseId },
-                  );
-
-                  if (tokenValidation?.success) {
-                    const tokenData = await dbAdapter.auth.getTokenByValue(token, {
-                      tenantId: tenantId as DatabaseId,
-                    });
-                    if (tokenData?.success && tokenData.data) {
-                      const userResult = await dbAdapter.auth.getUserById(tokenData.data.user_id, {
-                        tenantId: tenantId as DatabaseId,
+                if (tokenValidation?.success) {
+                  const tokenData = await dbAdapter.auth.getTokenByValue(token, tenantId);
+                  if (tokenData?.success && tokenData.data) {
+                    const userResult = await dbAdapter.auth.getUserById(
+                      tokenData.data.user_id,
+                      tenantId,
+                    );
+                    if (userResult?.success) {
+                      user = userResult.data;
+                      logger.info("WebSocket: User authenticated via token", {
+                        userId: user?._id,
                       });
-                      if (userResult?.success) {
-                        user = userResult.data;
-                        logger.info("WebSocket: User authenticated via token", {
-                          userId: user?._id,
-                        });
-                      }
                     }
                   }
                 }
-              } catch (error) {
-                logger.error("WebSocket authentication error:", {
-                  error: error instanceof Error ? error.message : "Unknown error",
-                });
               }
+            } catch (error) {
+              logger.error("WebSocket authentication error:", {
+                error: error instanceof Error ? error.message : "Unknown error",
+              });
             }
+          }
 
-            return {
-              user,
-              pubSub,
-              tenantId,
-            };
-          },
+          return {
+            user,
+            pubSub,
+            tenantId,
+          };
         },
-        wsServer,
-      );
+      },
+      wsServer,
+    );
 
-      wsServerInitialized = true;
-      logger.info("GraphQL WebSocket Server initialized on port 3001");
-    } catch (error) {
-      logger.error("Failed to initialize WebSocket server:", {
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      wsInitPromise = null; // Allow retry on failure
-    }
-  })();
-
-  return wsInitPromise;
+    wsServerInitialized = true;
+    logger.info("GraphQL WebSocket Server initialized on port 3001");
+  } catch (error) {
+    logger.error("Failed to initialize WebSocket server:", {
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
 }
 
 // Unified Error Handling
@@ -438,7 +406,7 @@ import { AppError } from "@utils/error-handling";
 const handler = apiHandler(async (event: RequestEvent) => {
   const { locals, request } = event;
 
-  // Authentication is handled by hooks.server.ts
+  // Authentication is handled by hooks.server.ts, but let's be extra sure
   if (!locals.user) {
     throw new AppError(
       "Unauthorized: You must be logged in to access the GraphQL endpoint.",
@@ -457,22 +425,23 @@ const handler = apiHandler(async (event: RequestEvent) => {
   }
 
   try {
-    const tenantId = locals.tenantId || "system";
-
-    // Initialize/Get Yoga app for this specific tenant
-    if (!yogaApps.has(tenantId)) {
-      logger.debug(`Initializing GraphQL Yoga app for tenant: ${tenantId}`);
-      yogaApps.set(tenantId, setupGraphQL(locals.dbAdapter, locals.tenantId));
+    // Initialize yogaAppPromise if not already done
+    if (!yogaAppPromise) {
+      logger.debug("Initializing GraphQL Yoga app", {
+        tenantId: locals.tenantId,
+      });
+      yogaAppPromise = setupGraphQL(locals.dbAdapter, locals.tenantId);
     }
-
-    const yogaApp = await yogaApps.get(tenantId);
+    const yogaApp = await yogaAppPromise;
     if (!yogaApp) {
       throw new AppError("GraphQL Yoga app failed to initialize", 500, "GRAPHQL_INIT_FAILED");
     }
 
-    // Initialize WebSocket server (global for now, but with tenant context)
+    // Initialize WebSocket server if not already done
     if (!wsServerInitialized) {
-      logger.debug("Initializing WebSocket server");
+      logger.debug("Initializing WebSocket server", {
+        tenantId: locals.tenantId,
+      });
       void initializeWebSocketServer(locals.dbAdapter, locals.tenantId);
     }
 
@@ -490,24 +459,24 @@ const handler = apiHandler(async (event: RequestEvent) => {
       // Assign duplex property for streaming bodies (Node.js fetch polyfill)
       (requestInit as RequestInit & { duplex?: string }).duplex = "half";
     }
+
     const compatibleRequest = new Request(request.url.toString(), requestInit);
 
     // Add context data to the request object for GraphQL Yoga
     (
       compatibleRequest as Request & {
-        contextData?: {
-          user: unknown;
-          dbAdapter: DatabaseAdapter;
-          tenantId?: string | null;
-          bypassTenantIsolation?: boolean;
-        };
+        contextData?: { user: unknown; tenantId?: string | null };
       }
     ).contextData = {
       user: locals.user,
-      dbAdapter: locals.dbAdapter,
       tenantId: locals.tenantId,
-      bypassTenantIsolation: locals.isAdmin === true,
     };
+
+    // Log request headers for transparency
+    logger.debug("GraphQL Request Headers:", {
+      headers: Object.fromEntries(request.headers.entries()),
+      method: request.method,
+    });
 
     // Use GraphQL Yoga's handleRequest method
     const yogaResponse = await yogaApp.handleRequest(compatibleRequest, {
@@ -516,11 +485,35 @@ const handler = apiHandler(async (event: RequestEvent) => {
     });
 
     if (!yogaResponse) {
+      logger.error("GraphQL Yoga returned undefined or null response");
       throw new AppError("GraphQL Yoga returned no response", 500, "GRAPHQL_NO_RESPONSE");
     }
 
-    // Return a SvelteKit-compatible Response that supports streaming (for @defer and SSE)
-    return new Response(yogaResponse.body, {
+    // Return a SvelteKit-compatible Response
+    const bodyBuffer = await yogaResponse.arrayBuffer();
+
+    // Robust Error Handling for failed requests
+    if (!yogaResponse.ok) {
+      try {
+        const bodyText = new TextDecoder().decode(bodyBuffer);
+        const bodyJson = JSON.parse(bodyText);
+
+        logger.error("GraphQL Execution Errors Detected:", {
+          status: yogaResponse.status,
+          statusText: yogaResponse.statusText,
+          errors: bodyJson.errors || "No specific GraphQL errors provided",
+          requestId: request.headers.get("x-request-id") || "N/A",
+        });
+      } catch {
+        logger.error("GraphQL Failed (Raw Body):", {
+          status: yogaResponse.status,
+          statusText: yogaResponse.statusText,
+          rawBodyLength: bodyBuffer.byteLength,
+        });
+      }
+    }
+
+    return new Response(bodyBuffer, {
       status: yogaResponse.status,
       statusText: yogaResponse.statusText,
       headers: yogaResponse.headers,
@@ -531,7 +524,9 @@ const handler = apiHandler(async (event: RequestEvent) => {
       tenantId: locals.tenantId,
     });
 
-    if (error instanceof AppError) throw error;
+    if (error instanceof AppError) {
+      throw error;
+    }
     throw new AppError(
       "An error occurred while processing your GraphQL request.",
       500,

@@ -11,372 +11,348 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 -->
 
 <script lang="ts">
-// Lucide icons
+	// Lucide icons
 
-import { Avatar, FileUpload } from "@skeletonlabs/skeleton-svelte";
-// ParaglideJS
-import {
-	button_cancel,
-	button_delete,
-	button_save,
-	modaledit_avatarfilesallowed,
-	modaledit_avatarfilesize,
-} from "@src/paraglide/messages";
-// Stores
-import { avatarSrc } from "@src/stores/store.svelte.ts";
-import { toast } from "@src/stores/toast.svelte.ts";
-import { logger } from "@src/utils/logger";
-import { modalState } from "@utils/modal-state.svelte";
-import { showConfirm } from "@utils/modal-utils";
-import { invalidateAll } from "$app/navigation";
+	import { Avatar, FileUpload } from '@skeletonlabs/skeleton-svelte';
+	// ParaglideJS
+	import { button_cancel, button_delete, button_save, modaledit_avatarfilesallowed, modaledit_avatarfilesize } from '@src/paraglide/messages';
+	// Stores
+	import { avatarSrc } from '@src/stores/store.svelte.ts';
+	import { toast } from '@src/stores/toast.svelte.ts';
+	import { logger } from '@src/utils/logger';
+	import { modalState } from '@utils/modal-state.svelte';
+	import { showConfirm } from '@utils/modal-utils';
+	import { invalidateAll } from '$app/navigation';
 
-// Removed axios import
+	// Removed axios import
 
-let files = $state<File[]>([]);
-let isUploading = $state(false);
-let uploadProgress = $state(0);
-let previewUrl = $state<string | null>(null); // Local preview URL, separate from global store
-let imageLoadError = $state(false); // Track if current avatar failed to load
+	let files = $state<File[]>([]);
+	let isUploading = $state(false);
+	let uploadProgress = $state(0);
+	let previewUrl = $state<string | null>(null); // Local preview URL, separate from global store
+	let imageLoadError = $state(false); // Track if current avatar failed to load
 
-// Valibot validation schema
-import {
-	check,
-	type InferInput,
-	instance,
-	object,
-	parse,
-	pipe,
-	type ValiError,
-} from "valibot";
+	// Valibot validation schema
+	import { check, type InferInput, instance, object, parse, pipe, type ValiError } from 'valibot';
 
-interface Props {
-	isGivenData?: boolean;
-	parent?: {
-		regionFooter?: string;
-		onClose?: () => void;
-		buttonPositive?: string;
-	};
-}
-
-let { isGivenData: _isGivenData = false, parent: _parent = {} }: Props =
-	$props();
-
-// ... (rest of code) ...
-
-// Computed value for avatar display with fallback
-const displayAvatar = $derived.by(() => {
-	if (previewUrl) {
-		return previewUrl;
-	}
-	if (imageLoadError) {
-		return "/Default_User.svg";
-	}
-	let src = avatarSrc.value || "/Default_User.svg";
-
-	if (src === "/Default_User.svg") {
-		return src;
-	}
-	if (src.startsWith("data:")) {
-		return src;
+	interface Props {
+		isGivenData?: boolean;
+		parent?: {
+			regionFooter?: string;
+			onClose?: () => void;
+			buttonPositive?: string;
+		};
 	}
 
-	// Normalize path
-	src = src.replace(/^\/+/, "");
-	src = src.replace(/^mediaFolder\//, "").replace(/^files\//, "");
-	src = src.replace(/^\/+/, "");
+	let { isGivenData: _isGivenData = false, parent: _parent = {} }: Props = $props();
 
-	return `/files/${src}?t=${Date.now()}`;
-});
+	// ... (rest of code) ...
 
-const imageTypes = [
-	"image/jpeg",
-	"image/png",
-	"image/webp",
-	"image/avif",
-	"image/svg+xml",
-	"image/gif",
-];
-const MAX_FILE_SIZE = 5_242_880; // 5MB
-const COMPRESSION_THRESHOLD = 1024 * 1024; // 1MB - compress files larger than this
-
-// Unified accept string for file inputs
-const acceptMime = imageTypes.join(",");
-
-const blobSchema = instance(Blob);
-type BlobType = InferInput<typeof blobSchema>;
-
-const fileSchema = pipe(
-	blobSchema,
-	check((input: BlobType) => {
-		if (input.size > MAX_FILE_SIZE) {
-			throw new Error(modaledit_avatarfilesize());
+	// Computed value for avatar display with fallback
+	const displayAvatar = $derived.by(() => {
+		if (previewUrl) {
+			return previewUrl;
 		}
-		if (!imageTypes.includes(input.type)) {
-			throw new Error("Invalid file type");
+		if (imageLoadError) {
+			return '/Default_User.svg';
 		}
-		return true;
-	}),
-);
+		let src = avatarSrc.value || '/Default_User.svg';
 
-const avatarSchema = object({
-	file: fileSchema,
-});
+		if (src === '/Default_User.svg') {
+			return src;
+		}
+		if (src.startsWith('data:')) {
+			return src;
+		}
 
-// Handle file input change
-function onFileChange(details: { acceptedFiles: File[] }) {
-	// v4 FileUpload passes details with acceptedFiles array
-	const inputFiles = details.acceptedFiles;
-	if (!inputFiles || inputFiles.length === 0) {
-		return;
+		// Normalize path
+		src = src.replace(/^\/+/, '');
+		src = src.replace(/^mediaFolder\//, '').replace(/^files\//, '');
+		src = src.replace(/^\/+/, '');
+
+		return `/files/${src}?t=${Date.now()}`;
+	});
+
+	const imageTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/svg+xml', 'image/gif'];
+	const MAX_FILE_SIZE = 5_242_880; // 5MB
+	const COMPRESSION_THRESHOLD = 1024 * 1024; // 1MB - compress files larger than this
+
+	// Unified accept string for file inputs
+	const acceptMime = imageTypes.join(',');
+
+	const blobSchema = instance(Blob);
+	type BlobType = InferInput<typeof blobSchema>;
+
+	const fileSchema = pipe(
+		blobSchema,
+		check((input: BlobType) => {
+			if (input.size > MAX_FILE_SIZE) {
+				throw new Error(modaledit_avatarfilesize());
+			}
+			if (!imageTypes.includes(input.type)) {
+				throw new Error('Invalid file type');
+			}
+			return true;
+		})
+	);
+
+	const avatarSchema = object({
+		file: fileSchema
+	});
+
+	// Handle file input change
+	function onFileChange(details: { acceptedFiles: File[] }) {
+		// v4 FileUpload passes details with acceptedFiles array
+		const inputFiles = details.acceptedFiles;
+		if (!inputFiles || inputFiles.length === 0) {
+			return;
+		}
+
+		files = inputFiles;
+		const lastFile = files.at(-1);
+
+		// Reset error state when new file is selected
+		imageLoadError = false;
+
+		// Create optimized preview for large files
+		createOptimizedPreview(lastFile!);
 	}
 
-	files = inputFiles;
-	const lastFile = files.at(-1);
+	// Create optimized preview to avoid blocking UI
+	async function createOptimizedPreview(file: File) {
+		try {
+			// For very large files, create a smaller preview
+			if (file.size > 1024 * 1024) {
+				// 1MB
+				const canvas = document.createElement('canvas');
+				const ctx = canvas.getContext('2d');
+				const img = new Image();
 
-	// Reset error state when new file is selected
-	imageLoadError = false;
+				img.onload = () => {
+					// Scale down large images for preview
+					const maxSize = 200;
+					const ratio = Math.min(maxSize / img.width, maxSize / img.height);
+					canvas.width = img.width * ratio;
+					canvas.height = img.height * ratio;
 
-	// Create optimized preview for large files
-	createOptimizedPreview(lastFile!);
-}
+					ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
+					previewUrl = canvas.toDataURL('image/jpeg', 0.8); // Update local preview only
+				};
 
-// Create optimized preview to avoid blocking UI
-async function createOptimizedPreview(file: File) {
-	try {
-		// For very large files, create a smaller preview
-		if (file.size > 1024 * 1024) {
-			// 1MB
-			const canvas = document.createElement("canvas");
-			const ctx = canvas.getContext("2d");
+				img.src = URL.createObjectURL(file);
+			} else {
+				// For smaller files, use direct FileReader
+				const fileReader = new FileReader();
+				fileReader.onload = (e) => {
+					if (e.target instanceof FileReader) {
+						previewUrl = e.target.result as string; // Update local preview only
+					}
+				};
+				fileReader.readAsDataURL(file);
+			}
+		} catch (error) {
+			logger.error('Error creating preview:', error);
+			// Fallback to default avatar
+			previewUrl = null;
+		}
+	}
+
+	// Handle form submit
+	async function onFormSubmit(): Promise<void> {
+		if (!files || files.length === 0) {
+			return;
+		}
+		if (isUploading) {
+			return; // Prevent double submission
+		}
+
+		const file = files[0];
+
+		try {
+			parse(avatarSchema, { file });
+
+			// Show confirmation if replacing existing avatar
+			if (avatarSrc.value && avatarSrc.value !== '/Default_User.svg') {
+				showConfirm({
+					title: 'Replace Avatar',
+					body: 'Are you sure you want to replace your current avatar?',
+					onConfirm: async () => {
+						await uploadAvatar(file);
+					}
+				});
+			} else {
+				// No existing avatar, upload directly
+				await uploadAvatar(file);
+			}
+		} catch (error) {
+			if ((error as ValiError<typeof avatarSchema>).issues) {
+				const valiError = error as ValiError<typeof avatarSchema>;
+				logger.error(valiError.issues[0]?.message);
+				toast.error({
+					description: valiError.issues[0]?.message || 'Invalid file'
+				});
+				return;
+			}
+			logger.error((error as Error).message);
+			toast.error({ description: (error as Error).message || 'Upload failed' });
+			return;
+		}
+	}
+
+	// Compress large files before upload
+	async function compressFile(file: File): Promise<File> {
+		// Don't compress SVGs or files already small enough
+		if (file.type === 'image/svg+xml' || file.size < COMPRESSION_THRESHOLD) {
+			return file;
+		}
+
+		return new Promise((resolve) => {
+			const canvas = document.createElement('canvas');
+			const ctx = canvas.getContext('2d');
 			const img = new Image();
 
 			img.onload = () => {
-				// Scale down large images for preview
-				const maxSize = 200;
+				// Calculate new dimensions (max 1024px)
+				const maxSize = 1024;
 				const ratio = Math.min(maxSize / img.width, maxSize / img.height);
 				canvas.width = img.width * ratio;
 				canvas.height = img.height * ratio;
 
+				// Draw and compress
 				ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
-				previewUrl = canvas.toDataURL("image/jpeg", 0.8); // Update local preview only
+				canvas.toBlob(
+					(blob) => {
+						if (blob) {
+							const compressedFile = new File([blob], file.name, {
+								type: 'image/jpeg',
+								lastModified: Date.now()
+							});
+							resolve(compressedFile);
+						} else {
+							resolve(file); // Fallback to original
+						}
+					},
+					'image/jpeg',
+					0.85 // Quality
+				);
 			};
 
+			img.onerror = () => resolve(file); // Fallback to original
 			img.src = URL.createObjectURL(file);
-		} else {
-			// For smaller files, use direct FileReader
-			const fileReader = new FileReader();
-			fileReader.onload = (e) => {
-				if (e.target instanceof FileReader) {
-					previewUrl = e.target.result as string; // Update local preview only
-				}
-			};
-			fileReader.readAsDataURL(file);
-		}
-	} catch (error) {
-		logger.error("Error creating preview:", error);
-		// Fallback to default avatar
-		previewUrl = null;
-	}
-}
-
-// Handle form submit
-async function onFormSubmit(): Promise<void> {
-	if (!files || files.length === 0) {
-		return;
-	}
-	if (isUploading) {
-		return; // Prevent double submission
-	}
-
-	const file = files[0];
-
-	try {
-		parse(avatarSchema, { file });
-
-		// Show confirmation if replacing existing avatar
-		if (avatarSrc.value && avatarSrc.value !== "/Default_User.svg") {
-			showConfirm({
-				title: "Replace Avatar",
-				body: "Are you sure you want to replace your current avatar?",
-				onConfirm: async () => {
-					await uploadAvatar(file);
-				},
-			});
-		} else {
-			// No existing avatar, upload directly
-			await uploadAvatar(file);
-		}
-	} catch (error) {
-		if ((error as ValiError<typeof avatarSchema>).issues) {
-			const valiError = error as ValiError<typeof avatarSchema>;
-			logger.error(valiError.issues[0]?.message);
-			toast.error({
-				description: valiError.issues[0]?.message || "Invalid file",
-			});
-			return;
-		}
-		logger.error((error as Error).message);
-		toast.error({ description: (error as Error).message || "Upload failed" });
-		return;
-	}
-}
-
-// Compress large files before upload
-async function compressFile(file: File): Promise<File> {
-	// Don't compress SVGs or files already small enough
-	if (file.type === "image/svg+xml" || file.size < COMPRESSION_THRESHOLD) {
-		return file;
-	}
-
-	return new Promise((resolve) => {
-		const canvas = document.createElement("canvas");
-		const ctx = canvas.getContext("2d");
-		const img = new Image();
-
-		img.onload = () => {
-			// Calculate new dimensions (max 1024px)
-			const maxSize = 1024;
-			const ratio = Math.min(maxSize / img.width, maxSize / img.height);
-			canvas.width = img.width * ratio;
-			canvas.height = img.height * ratio;
-
-			// Draw and compress
-			ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
-			canvas.toBlob(
-				(blob) => {
-					if (blob) {
-						const compressedFile = new File([blob], file.name, {
-							type: "image/jpeg",
-							lastModified: Date.now(),
-						});
-						resolve(compressedFile);
-					} else {
-						resolve(file); // Fallback to original
-					}
-				},
-				"image/jpeg",
-				0.85, // Quality
-			);
-		};
-
-		img.onerror = () => resolve(file); // Fallback to original
-		img.src = URL.createObjectURL(file);
-	});
-}
-
-// Upload avatar
-async function uploadAvatar(file: File): Promise<void> {
-	isUploading = true;
-	uploadProgress = 0;
-
-	try {
-		// Compress large files first
-		const processedFile = await compressFile(file);
-
-		// Create FormData
-		const formData = new FormData();
-		formData.append("avatar", processedFile);
-
-		// Upload with fetch
-		const response = await fetch("/api/user/save-avatar", {
-			method: "POST",
-			body: formData,
 		});
-
-		if (!response.ok) {
-			throw new Error(`HTTP error! status: ${response.status}`);
-		}
-
-		const result = await response.json();
-
-		// Update the avatar store with the new URL from API
-		if (result.avatarUrl) {
-			avatarSrc.value = result.avatarUrl;
-			logger.info("Avatar store updated", { avatarUrl: result.avatarUrl });
-		}
-
-		// Invalidate all data to ensure consistency
-		await invalidateAll();
-
-		// Show success toast
-		toast.success("Avatar updated successfully!");
-		modalState.close();
-	} catch (error) {
-		console.error("Avatar upload failed:", error);
-		imageLoadError = true;
-		toast.error("Failed to update avatar");
-		// Revert preview on error
-		previewUrl = null;
-	} finally {
-		isUploading = false;
-		// Keep progress at 100 briefly so user sees it completed
-		setTimeout(() => {
-			if (!isUploading) {
-				uploadProgress = 0;
-			}
-		}, 1000);
 	}
-}
 
-// Delete avatar with confirmation
-async function deleteAvatar(): Promise<void> {
-	logger.info("deleteAvatar function called");
+	// Upload avatar
+	async function uploadAvatar(file: File): Promise<void> {
+		isUploading = true;
+		uploadProgress = 0;
 
-	showConfirm({
-		title: "Delete Avatar",
-		body: "Are you sure you want to delete your avatar? This action cannot be undone.",
-		onConfirm: async () => {
-			// User confirmed - proceed with deletion
-			try {
-				const currentAvatar = avatarSrc.value;
-				logger.info("Attempting to delete avatar:", currentAvatar);
+		try {
+			// Compress large files first
+			const processedFile = await compressFile(file);
 
-				const response = await fetch("/api/user/delete-avatar", {
-					method: "DELETE",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ avatarUrl: currentAvatar }),
-				});
+			// Create FormData
+			const formData = new FormData();
+			formData.append('avatar', processedFile);
 
-				const result = await response.json();
+			// Upload with fetch
+			const response = await fetch('/api/user/save-avatar', {
+				method: 'POST',
+				body: formData
+			});
 
-				logger.info("Delete response:", result);
+			if (!response.ok) {
+				throw new Error(`HTTP error! status: ${response.status}`);
+			}
 
-				if (response.ok && result.success) {
-					// Update the avatar store
-					avatarSrc.value = "/Default_User.svg";
-					previewUrl = null;
+			const result = await response.json();
 
-					// Show success message
-					toast.success({
-						description:
-							'<iconify-icon icon="radix-icons:avatar" width={24} ></iconify-icon> Avatar Deleted',
+			// Update the avatar store with the new URL from API
+			if (result.avatarUrl) {
+				avatarSrc.value = result.avatarUrl;
+				logger.info('Avatar store updated', { avatarUrl: result.avatarUrl });
+			}
+
+			// Invalidate all data to ensure consistency
+			await invalidateAll();
+
+			// Show success toast
+			toast.success('Avatar updated successfully!');
+			modalState.close();
+		} catch (error) {
+			console.error('Avatar upload failed:', error);
+			imageLoadError = true;
+			toast.error('Failed to update avatar');
+			// Revert preview on error
+			previewUrl = null;
+		} finally {
+			isUploading = false;
+			// Keep progress at 100 briefly so user sees it completed
+			setTimeout(() => {
+				if (!isUploading) {
+					uploadProgress = 0;
+				}
+			}, 1000);
+		}
+	}
+
+	// Delete avatar with confirmation
+	async function deleteAvatar(): Promise<void> {
+		logger.info('deleteAvatar function called');
+
+		showConfirm({
+			title: 'Delete Avatar',
+			body: 'Are you sure you want to delete your avatar? This action cannot be undone.',
+			onConfirm: async () => {
+				// User confirmed - proceed with deletion
+				try {
+					const currentAvatar = avatarSrc.value;
+					logger.info('Attempting to delete avatar:', currentAvatar);
+
+					const response = await fetch('/api/user/delete-avatar', {
+						method: 'DELETE',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({ avatarUrl: currentAvatar })
 					});
 
-					// Close dialog
-					modalState.close();
+					const result = await response.json();
 
-					// Reload page data
-					await invalidateAll();
-				} else {
-					throw new Error(result.message || "Delete failed");
+					logger.info('Delete response:', result);
+
+					if (response.ok && result.success) {
+						// Update the avatar store
+						avatarSrc.value = '/Default_User.svg';
+						previewUrl = null;
+
+						// Show success message
+						toast.success({
+							description: '<iconify-icon icon="radix-icons:avatar" width={24} ></iconify-icon> Avatar Deleted'
+						});
+
+						// Close dialog
+						modalState.close();
+
+						// Reload page data
+						await invalidateAll();
+					} else {
+						throw new Error(result.message || 'Delete failed');
+					}
+				} catch (error) {
+					logger.error('Error deleting avatar:', error);
+
+					const msg = error instanceof Error ? error.message : 'Failed to delete avatar';
+
+					toast.error({
+						description: `<iconify-icon icon="radix-icons:cross-2" width={24} ></iconify-icon> ${msg}`
+					});
 				}
-			} catch (error) {
-				logger.error("Error deleting avatar:", error);
-
-				const msg =
-					error instanceof Error ? error.message : "Failed to delete avatar";
-
-				toast.error({
-					description: `<iconify-icon icon="radix-icons:cross-2" width={24} ></iconify-icon> ${msg}`,
-				});
 			}
-		},
-	});
-}
+		});
+	}
 
-// Base Classes
+	// Base Classes
 
-const cForm = "border border-surface-500 p-4 space-y-4 rounded-xl";
+	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-xl';
 </script>
 
 <div class="modal-avatar space-y-4">

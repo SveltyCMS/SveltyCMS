@@ -21,32 +21,28 @@ Provides actionable information for developers and administrators.
 -->
 
 <script lang="ts">
-import type { FieldInstance } from "@src/content/types";
-import { logger } from "@utils/logger";
+	import type { FieldInstance } from '@src/content/types';
+	import { logger } from '@utils/logger';
 
-interface Props {
-	config: FieldInstance;
-	showDebugInfo?: boolean;
-}
+	interface Props {
+		config: FieldInstance;
+		showDebugInfo?: boolean;
+	}
 
-const { config, showDebugInfo = import.meta.env.DEV }: Props = $props();
+	const { config, showDebugInfo = import.meta.env.DEV }: Props = $props();
 
-// Extract widget information
-const widgetName = $derived(
-	config.widget?.Name || config.__missingWidgetName || "Unknown",
-);
-const fieldLabel = $derived(config.label || "Unnamed Field");
-const fieldName = $derived(config.db_fieldName || "unknown_field");
+	// Extract widget information
+	const widgetName = $derived(config.widget?.Name || config.__missingWidgetName || 'Unknown');
+	const fieldLabel = $derived(config.label || 'Unnamed Field');
+	const fieldName = $derived(config.db_fieldName || 'unknown_field');
 
-// Log the missing widget for debugging
-$effect(() => {
-	logger.warn(
-		`[MissingWidget] Widget "${widgetName}" is missing for field "${fieldLabel}" (${fieldName})`,
-	);
-});
+	// Log the missing widget for debugging
+	$effect(() => {
+		logger.warn(`[MissingWidget] Widget "${widgetName}" is missing for field "${fieldLabel}" (${fieldName})`);
+	});
 
-// Determine the appropriate message based on environment
-const isDevelopment = import.meta.env.DEV;
+	// Determine the appropriate message based on environment
+	const isDevelopment = import.meta.env.DEV;
 </script>
 
 <div

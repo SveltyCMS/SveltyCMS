@@ -4,29 +4,29 @@
 -->
 
 <script lang="ts">
-import { slotRegistry } from "@src/plugins/slot-registry";
-import type { InjectionZone } from "@src/plugins/types";
+	import { slotRegistry } from '@src/plugins/slot-registry';
+	import type { InjectionZone } from '@src/plugins/types';
 
-// We can reuse WidgetLoader or create a simple loader since types definition says component is a promise
-// Actually, WidgetLoader is designed for Widgets with specific props.
-// Let's create a simple internal loader here or use await block.
+	// We can reuse WidgetLoader or create a simple loader since types definition says component is a promise
+	// Actually, WidgetLoader is designed for Widgets with specific props.
+	// Let's create a simple internal loader here or use await block.
 
-interface Props {
-	name: InjectionZone;
-	props?: Record<string, any>; // Context props passed to the slotted component
-}
+	interface Props {
+		name: InjectionZone;
+		props?: Record<string, any>; // Context props passed to the slotted component
+	}
 
-const { name, props = {} }: Props = $props();
+	const { name, props = {} }: Props = $props();
 
-// In a real implementation, this would be reactive to registry changes if we had a comprehensive store.
-// For now, we fetch on mount/reactivity.
+	// In a real implementation, this would be reactive to registry changes if we had a comprehensive store.
+	// For now, we fetch on mount/reactivity.
 
-// We need to import slotRegistry in a way that works on client usage if it's isomorphic,
-// but slotRegistry might be populated on client or server?
-// Plugins usually register on startup. If this is client-side, we need to ensure registry is available.
-// Assuming plugins register isomorphic slots.
+	// We need to import slotRegistry in a way that works on client usage if it's isomorphic,
+	// but slotRegistry might be populated on client or server?
+	// Plugins usually register on startup. If this is client-side, we need to ensure registry is available.
+	// Assuming plugins register isomorphic slots.
 
-const slots = $derived(slotRegistry.getSlots(name));
+	const slots = $derived(slotRegistry.getSlots(name));
 </script>
 
 <div class="slot-zone" data-zone={name}>

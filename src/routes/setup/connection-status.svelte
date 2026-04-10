@@ -1,225 +1,204 @@
 <!--
-@file src/routes/setup/connection-status.svelte
-@component
-**Real-time database connection status indicator.**
-Provides visual feedback, technical latency stats, and intelligent troubleshooting tips during the setup process.
+@file src/routes/setup/ConnectionStatus.svelte
+@description Real-time connection status indicator with detailed feedback
 
-### Features:
-- real-time localized status updates (ParaglideJS)
-- automated error classification & troubleshooting
-- database statistics reporting (collections, data size)
-- animated testing state indicators
-- error retry orchestration
+Features:
+- Real-time connection status updates
+- Success and error details with troubleshooting tips
+- Animated testing indicator
 -->
 <script lang="ts">
-import {
-	setup_connection_authenticated,
-	setup_connection_connecting,
-	setup_connection_failed,
-	setup_connection_latency,
-	setup_connection_mongodb_atlas,
-	setup_connection_ready,
-	setup_connection_retry,
-	setup_connection_sample_collections,
-	setup_connection_stats_collections,
-	setup_connection_stats_objects,
-	setup_connection_stats_size,
-	setup_connection_stats_title,
-	setup_connection_success,
-	setup_connection_technical_details,
-	setup_connection_testing,
-	setup_connection_troubleshooting,
-	setup_troubleshoot_atlas_ip_1,
-	setup_troubleshoot_atlas_ip_2,
-	setup_troubleshoot_atlas_ip_3,
-	setup_troubleshoot_atlas_ip_4,
-	setup_troubleshoot_atlas_ip_5,
-	setup_troubleshoot_auth_1,
-	setup_troubleshoot_auth_2,
-	setup_troubleshoot_auth_3,
-	setup_troubleshoot_auth_4,
-	setup_troubleshoot_auth_5,
-	setup_troubleshoot_cluster_1,
-	setup_troubleshoot_cluster_2,
-	setup_troubleshoot_cluster_3,
-	setup_troubleshoot_cluster_4,
-	setup_troubleshoot_creds_1,
-	setup_troubleshoot_creds_2,
-	setup_troubleshoot_creds_3,
-	setup_troubleshoot_creds_4,
-	setup_troubleshoot_dbnotfound_1,
-	setup_troubleshoot_dbnotfound_2,
-	setup_troubleshoot_dbnotfound_3,
-	setup_troubleshoot_default_1,
-	setup_troubleshoot_default_2,
-	setup_troubleshoot_default_3,
-	setup_troubleshoot_default_4,
-	setup_troubleshoot_default_5,
-	setup_troubleshoot_host_1,
-	setup_troubleshoot_host_2,
-	setup_troubleshoot_host_3,
-	setup_troubleshoot_host_4,
-	setup_troubleshoot_host_5,
-	setup_troubleshoot_timeout_1,
-	setup_troubleshoot_timeout_2,
-	setup_troubleshoot_timeout_3,
-	setup_troubleshoot_timeout_4,
-	setup_troubleshoot_timeout_5,
-	setup_troubleshoot_user_1,
-	setup_troubleshoot_user_2,
-	setup_troubleshoot_user_3,
-	setup_troubleshoot_user_4,
-	setup_troubleshoot_user_5,
-} from "@src/paraglide/messages";
+	import {
+		setup_connection_authenticated,
+		setup_connection_connecting,
+		setup_connection_failed,
+		setup_connection_latency,
+		setup_connection_mongodb_atlas,
+		setup_connection_ready,
+		setup_connection_retry,
+		setup_connection_sample_collections,
+		setup_connection_stats_collections,
+		setup_connection_stats_objects,
+		setup_connection_stats_size,
+		setup_connection_stats_title,
+		setup_connection_success,
+		setup_connection_technical_details,
+		setup_connection_testing,
+		setup_connection_troubleshooting,
+		setup_troubleshoot_atlas_ip_1,
+		setup_troubleshoot_atlas_ip_2,
+		setup_troubleshoot_atlas_ip_3,
+		setup_troubleshoot_atlas_ip_4,
+		setup_troubleshoot_atlas_ip_5,
+		setup_troubleshoot_auth_1,
+		setup_troubleshoot_auth_2,
+		setup_troubleshoot_auth_3,
+		setup_troubleshoot_auth_4,
+		setup_troubleshoot_auth_5,
+		setup_troubleshoot_cluster_1,
+		setup_troubleshoot_cluster_2,
+		setup_troubleshoot_cluster_3,
+		setup_troubleshoot_cluster_4,
+		setup_troubleshoot_creds_1,
+		setup_troubleshoot_creds_2,
+		setup_troubleshoot_creds_3,
+		setup_troubleshoot_creds_4,
+		setup_troubleshoot_dbnotfound_1,
+		setup_troubleshoot_dbnotfound_2,
+		setup_troubleshoot_dbnotfound_3,
+		setup_troubleshoot_default_1,
+		setup_troubleshoot_default_2,
+		setup_troubleshoot_default_3,
+		setup_troubleshoot_default_4,
+		setup_troubleshoot_default_5,
+		setup_troubleshoot_host_1,
+		setup_troubleshoot_host_2,
+		setup_troubleshoot_host_3,
+		setup_troubleshoot_host_4,
+		setup_troubleshoot_host_5,
+		setup_troubleshoot_timeout_1,
+		setup_troubleshoot_timeout_2,
+		setup_troubleshoot_timeout_3,
+		setup_troubleshoot_timeout_4,
+		setup_troubleshoot_timeout_5,
+		setup_troubleshoot_user_1,
+		setup_troubleshoot_user_2,
+		setup_troubleshoot_user_3,
+		setup_troubleshoot_user_4,
+		setup_troubleshoot_user_5
+	} from '@src/paraglide/messages';
 
-type ConnectionState = "idle" | "testing" | "success" | "error";
+	type ConnectionState = 'idle' | 'testing' | 'success' | 'error';
 
-interface TestResult {
-	atlas?: boolean;
-	authenticated?: boolean;
-	classification?: string;
-	collectionsSample?: string[];
-	details?: any;
-	error?: string;
-	latencyMs?: number;
-	message?: string;
-	stats?: {
-		collections?: number;
-		objects?: number;
-		dataSize?: number;
-	};
-	success: boolean;
-	userFriendly?: string;
-}
+	interface TestResult {
+		atlas?: boolean;
+		authenticated?: boolean;
+		classification?: string;
+		collectionsSample?: string[];
+		details?: any;
+		error?: string;
+		latencyMs?: number;
+		message?: string;
+		stats?: {
+			collections?: number;
+			objects?: number;
+			dataSize?: number;
+		};
+		success: boolean;
+		userFriendly?: string;
+	}
 
-const { state, result, onRetry } = $props();
+	const { state, result, onRetry } = $props();
 
-function getStatusIcon(state: ConnectionState): string {
-	if (state === "testing") {
-		return "⏳";
+	function getStatusIcon(state: ConnectionState): string {
+		if (state === 'testing') {
+			return '⏳';
+		}
+		if (state === 'success') {
+			return '✅';
+		}
+		if (state === 'error') {
+			return '❌';
+		}
+		return '⚪';
 	}
-	if (state === "success") {
-		return "✅";
-	}
-	if (state === "error") {
-		return "❌";
-	}
-	return "⚪";
-}
 
-function getStatusColor(state: ConnectionState): string {
-	if (state === "testing") {
-		return "text-blue-600 dark:text-blue-400";
+	function getStatusColor(state: ConnectionState): string {
+		if (state === 'testing') {
+			return 'text-blue-600 dark:text-blue-400';
+		}
+		if (state === 'success') {
+			return 'text-emerald-600 dark:text-emerald-400';
+		}
+		if (state === 'error') {
+			return 'text-red-600 dark:text-red-400';
+		}
+		return 'text-surface-400 dark:text-surface-600';
 	}
-	if (state === "success") {
-		return "text-emerald-600 dark:text-emerald-400";
-	}
-	if (state === "error") {
-		return "text-red-600 dark:text-red-400";
-	}
-	return "text-surface-400 dark:text-surface-600";
-}
 
-function getStatusText(
-	state: ConnectionState,
-	result: TestResult | null,
-): string {
-	if (state === "testing") {
-		return setup_connection_testing();
+	function getStatusText(state: ConnectionState, result: TestResult | null): string {
+		if (state === 'testing') {
+			return setup_connection_testing();
+		}
+		if (state === 'success') {
+			return result?.message || setup_connection_success();
+		}
+		if (state === 'error') {
+			return result?.userFriendly || result?.error || setup_connection_failed();
+		}
+		return setup_connection_ready();
 	}
-	if (state === "success") {
-		return result?.message || setup_connection_success();
-	}
-	if (state === "error") {
-		return result?.userFriendly || result?.error || setup_connection_failed();
-	}
-	return setup_connection_ready();
-}
 
-function formatBytes(bytes: number | undefined): string {
-	if (!bytes) {
-		return "N/A";
+	function formatBytes(bytes: number | undefined): string {
+		if (!bytes) {
+			return 'N/A';
+		}
+		const sizes = ['B', 'KB', 'MB', 'GB'];
+		const i = Math.floor(Math.log(bytes) / Math.log(1024));
+		return `${(bytes / 1024 ** i).toFixed(2)} ${sizes[i]}`;
 	}
-	const sizes = ["B", "KB", "MB", "GB"];
-	const i = Math.floor(Math.log(bytes) / Math.log(1024));
-	return `${(bytes / 1024 ** i).toFixed(2)} ${sizes[i]}`;
-}
 
-function getTroubleshootingTips(classification: string | undefined): string[] {
-	switch (classification) {
-		case "atlas_ip_whitelist":
-			return [
-				setup_troubleshoot_atlas_ip_1(),
-				setup_troubleshoot_atlas_ip_2(),
-				setup_troubleshoot_atlas_ip_3(),
-				setup_troubleshoot_atlas_ip_4(),
-				setup_troubleshoot_atlas_ip_5(),
-			];
-		case "atlas_cluster_not_found":
-			return [
-				setup_troubleshoot_cluster_1(),
-				setup_troubleshoot_cluster_2(),
-				setup_troubleshoot_cluster_3(),
-				setup_troubleshoot_cluster_4(),
-			];
-		case "atlas_user_not_found":
-			return [
-				setup_troubleshoot_user_1(),
-				setup_troubleshoot_user_2(),
-				setup_troubleshoot_user_3(),
-				setup_troubleshoot_user_4(),
-				setup_troubleshoot_user_5(),
-			];
-		case "authentication_failed":
-		case "wrong_password":
-			return [
-				setup_troubleshoot_auth_1(),
-				setup_troubleshoot_auth_2(),
-				setup_troubleshoot_auth_3(),
-				setup_troubleshoot_auth_4(),
-				setup_troubleshoot_auth_5(),
-			];
-		case "credentials_required":
-		case "auth_required":
-			return [
-				setup_troubleshoot_creds_1(),
-				setup_troubleshoot_creds_2(),
-				setup_troubleshoot_creds_3(),
-				setup_troubleshoot_creds_4(),
-			];
-		case "host_unreachable":
-		case "connection_refused":
-			return [
-				setup_troubleshoot_host_1(),
-				setup_troubleshoot_host_2(),
-				setup_troubleshoot_host_3(),
-				setup_troubleshoot_host_4(),
-				setup_troubleshoot_host_5(),
-			];
-		case "database_not_found":
-			return [
-				setup_troubleshoot_dbnotfound_1(),
-				setup_troubleshoot_dbnotfound_2(),
-				setup_troubleshoot_dbnotfound_3(),
-			];
-		case "timeout":
-			return [
-				setup_troubleshoot_timeout_1(),
-				setup_troubleshoot_timeout_2(),
-				setup_troubleshoot_timeout_3(),
-				setup_troubleshoot_timeout_4(),
-				setup_troubleshoot_timeout_5(),
-			];
-		default:
-			return [
-				setup_troubleshoot_default_1(),
-				setup_troubleshoot_default_2(),
-				setup_troubleshoot_default_3(),
-				setup_troubleshoot_default_4(),
-				setup_troubleshoot_default_5(),
-			];
+	function getTroubleshootingTips(classification: string | undefined): string[] {
+		switch (classification) {
+			case 'atlas_ip_whitelist':
+				return [
+					setup_troubleshoot_atlas_ip_1(),
+					setup_troubleshoot_atlas_ip_2(),
+					setup_troubleshoot_atlas_ip_3(),
+					setup_troubleshoot_atlas_ip_4(),
+					setup_troubleshoot_atlas_ip_5()
+				];
+			case 'atlas_cluster_not_found':
+				return [setup_troubleshoot_cluster_1(), setup_troubleshoot_cluster_2(), setup_troubleshoot_cluster_3(), setup_troubleshoot_cluster_4()];
+			case 'atlas_user_not_found':
+				return [
+					setup_troubleshoot_user_1(),
+					setup_troubleshoot_user_2(),
+					setup_troubleshoot_user_3(),
+					setup_troubleshoot_user_4(),
+					setup_troubleshoot_user_5()
+				];
+			case 'authentication_failed':
+			case 'wrong_password':
+				return [
+					setup_troubleshoot_auth_1(),
+					setup_troubleshoot_auth_2(),
+					setup_troubleshoot_auth_3(),
+					setup_troubleshoot_auth_4(),
+					setup_troubleshoot_auth_5()
+				];
+			case 'credentials_required':
+			case 'auth_required':
+				return [setup_troubleshoot_creds_1(), setup_troubleshoot_creds_2(), setup_troubleshoot_creds_3(), setup_troubleshoot_creds_4()];
+			case 'host_unreachable':
+			case 'connection_refused':
+				return [
+					setup_troubleshoot_host_1(),
+					setup_troubleshoot_host_2(),
+					setup_troubleshoot_host_3(),
+					setup_troubleshoot_host_4(),
+					setup_troubleshoot_host_5()
+				];
+			case 'database_not_found':
+				return [setup_troubleshoot_dbnotfound_1(), setup_troubleshoot_dbnotfound_2(), setup_troubleshoot_dbnotfound_3()];
+			case 'timeout':
+				return [
+					setup_troubleshoot_timeout_1(),
+					setup_troubleshoot_timeout_2(),
+					setup_troubleshoot_timeout_3(),
+					setup_troubleshoot_timeout_4(),
+					setup_troubleshoot_timeout_5()
+				];
+			default:
+				return [
+					setup_troubleshoot_default_1(),
+					setup_troubleshoot_default_2(),
+					setup_troubleshoot_default_3(),
+					setup_troubleshoot_default_4(),
+					setup_troubleshoot_default_5()
+				];
+		}
 	}
-}
 </script>
 
 <div

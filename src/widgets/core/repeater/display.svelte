@@ -1,10 +1,10 @@
 <script lang="ts">
-interface Props {
-	field: any;
-	value: any[];
-}
+	interface Props {
+		field: any;
+		value: any[];
+	}
 
-let { value = [] }: Props = $props();
+	let { value = [] }: Props = $props();
 </script>
 
 <div class="text-sm">

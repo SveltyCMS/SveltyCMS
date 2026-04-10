@@ -39,7 +39,7 @@ import type { PageServerLoad } from "./$types";
 // Removed googleapis import
 
 // Content Manager for redirects
-import { contentManager } from "@src/content";
+import { contentSystem } from "@src/content";
 // Utils
 import type { ISODateString, DatabaseId } from "@src/content/types";
 // Stores
@@ -1426,7 +1426,7 @@ export const actions: Actions = {
       logger.info(`Collection lookup triggered for language: ${userLanguage}`);
 
       // Get first collection fromcontent-manager(cached lookup)
-      const firstCollectionSchema = await contentManager.getFirstCollection();
+      const firstCollectionSchema = await contentSystem.getFirstCollection();
       const collectionInfo = firstCollectionSchema
         ? {
             collectionId: firstCollectionSchema._id,

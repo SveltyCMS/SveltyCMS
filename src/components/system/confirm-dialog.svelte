@@ -5,31 +5,25 @@
 -->
 
 <script lang="ts">
-import Sanitize from "@src/utils/sanitize.svelte";
+	import Sanitize from '@src/utils/sanitize.svelte';
 
-interface Props {
-	body?: string;
-	buttonTextCancel?: string;
-	buttonTextConfirm?: string;
-	close?: (result: boolean) => void;
-	htmlTitle?: string;
-}
+	interface Props {
+		body?: string;
+		buttonTextCancel?: string;
+		buttonTextConfirm?: string;
+		close?: (result: boolean) => void;
+		htmlTitle?: string;
+	}
 
-const {
-	htmlTitle,
-	body = "Are you sure?",
-	buttonTextConfirm = "Confirm",
-	buttonTextCancel = "Cancel",
-	close,
-}: Props = $props();
+	const { htmlTitle, body = 'Are you sure?', buttonTextConfirm = 'Confirm', buttonTextCancel = 'Cancel', close }: Props = $props();
 
-function onConfirm() {
-	close?.(true);
-}
+	function onConfirm() {
+		close?.(true);
+	}
 
-function onCancel() {
-	close?.(false);
-}
+	function onCancel() {
+		close?.(false);
+	}
 </script>
 
 <div class="space-y-4">

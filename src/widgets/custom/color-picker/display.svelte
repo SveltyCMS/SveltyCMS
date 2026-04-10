@@ -20,14 +20,14 @@ Renders: color swatch or hex value
 - **Tailwind Styling**: Utility-first CSS for layout and color
 -->
 <script lang="ts">
-let { value }: { value: string | null | undefined } = $props();
+	let { value }: { value: string | null | undefined } = $props();
 
-// SECURITY: Validate hex color to prevent CSS injection
-const isValidHex = (color: string): boolean => {
-	return /^#[0-9a-f]{6}$/i.test(color);
-};
+	// SECURITY: Validate hex color to prevent CSS injection
+	const isValidHex = (color: string): boolean => {
+		return /^#[0-9a-f]{6}$/i.test(color);
+	};
 
-const safeColor = $derived(value && isValidHex(value) ? value : "#000000");
+	const safeColor = $derived(value && isValidHex(value) ? value : '#000000');
 </script>
 
 {#if value && isValidHex(value)}

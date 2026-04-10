@@ -16,47 +16,43 @@
 -->
 
 <script lang="ts">
-import {
-	widget_seo_suggestioncharacter,
-	widget_seo_suggestionseotitle,
-	widget_seo_suggestiontitle,
-	widget_seo_suggestionwidthdesktop,
-	widget_seo_suggestionwidthmobile,
-} from "@src/paraglide/messages";
+	import {
+		widget_seo_suggestioncharacter,
+		widget_seo_suggestionseotitle,
+		widget_seo_suggestiontitle,
+		widget_seo_suggestionwidthdesktop,
+		widget_seo_suggestionwidthmobile
+	} from '@src/paraglide/messages';
 
-interface Props {
-	handleTitleChange: (event: Event) => void;
-	title: string;
-	titleCharacterWidth: number;
-}
+	interface Props {
+		handleTitleChange: (event: Event) => void;
+		title: string;
+		titleCharacterWidth: number;
+	}
 
-let {
-	title = $bindable(),
-	titleCharacterWidth,
-	handleTitleChange,
-}: Props = $props();
+	let { title = $bindable(), titleCharacterWidth, handleTitleChange }: Props = $props();
 
-// Compute class based on title length
-const computedClass = $derived(
-	title.length >= 50 && title.length <= 60
-		? "input-label green"
-		: title.length >= 30 && title.length <= 49
-			? "input-label orange"
-			: title.length < 30
-				? "input-label"
-				: "input-label red",
-);
+	// Compute class based on title length
+	const computedClass = $derived(
+		title.length >= 50 && title.length <= 60
+			? 'input-label green'
+			: title.length >= 30 && title.length <= 49
+				? 'input-label orange'
+				: title.length < 30
+					? 'input-label'
+					: 'input-label red'
+	);
 
-// Compute status message based on title length
-const titleStatus = $derived(
-	title.length >= 50 && title.length <= 60
-		? "Optimal length"
-		: title.length >= 30 && title.length <= 49
-			? "Length is acceptable"
-			: title.length < 30
-				? "Too short"
-				: "Too long",
-);
+	// Compute status message based on title length
+	const titleStatus = $derived(
+		title.length >= 50 && title.length <= 60
+			? 'Optimal length'
+			: title.length >= 30 && title.length <= 49
+				? 'Length is acceptable'
+				: title.length < 30
+					? 'Too short'
+					: 'Too long'
+	);
 </script>
 
 <label for="title-input" class={computedClass}>

@@ -25,30 +25,29 @@ Renders: "1.234,56 €" (German) or "$1,234.56" (US) based on system language
 -->
 
 <script lang="ts">
-import { app } from "@src/stores/store.svelte";
-import type { FieldType } from "./";
+	import { app } from '@src/stores/store.svelte';
+	import type { FieldType } from './';
 
-const { field, value }: { field: FieldType; value: number | null | undefined } =
-	$props();
+	const { field, value }: { field: FieldType; value: number | null | undefined } = $props();
 
-// Get the user's current UI language.
-const lang = $derived(app.systemLanguage);
+	// Get the user's current UI language.
+	const lang = $derived(app.systemLanguage);
 
-// Format the number as a currency string.
-const formattedCurrency = $derived.by(() => {
-	if (typeof value !== "number") {
-		return "–";
-	}
-	try {
-		// Use the browser's built-in localization for perfect formatting.
-		return new Intl.NumberFormat(lang as string, {
-			style: "currency",
-			currency: (field.currencyCode || "EUR") as string,
-		}).format(value);
-	} catch (_e) {
-		return "Invalid amount";
-	}
-});
+	// Format the number as a currency string.
+	const formattedCurrency = $derived.by(() => {
+		if (typeof value !== 'number') {
+			return '–';
+		}
+		try {
+			// Use the browser's built-in localization for perfect formatting.
+			return new Intl.NumberFormat(lang as string, {
+				style: 'currency',
+				currency: (field.currencyCode || 'EUR') as string
+			}).format(value);
+		} catch (_e) {
+			return 'Invalid amount';
+		}
+	});
 </script>
 
 <span>{formattedCurrency}</span>

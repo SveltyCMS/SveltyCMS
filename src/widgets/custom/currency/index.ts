@@ -67,9 +67,7 @@ const CurrencyWidget = createWidget<CurrencyProps>({
   Name: "Currency",
   Icon: "mdi:currency-usd",
   Description: widget_currency_description(),
-  inputComponent: () => import("./input.svelte"),
   inputComponentPath: "/src/widgets/custom/currency/input.svelte",
-  displayComponent: () => import("./display.svelte"),
   displayComponentPath: "/src/widgets/custom/currency/display.svelte",
   validationSchema,
 

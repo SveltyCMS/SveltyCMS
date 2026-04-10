@@ -17,82 +17,70 @@
 -->
 
 <script lang="ts">
-// ParaglideJS
-import { widget_seo_powerwords } from "@src/paraglide/messages";
-import { publicEnv } from "@src/stores/global-settings.svelte";
-import { fade } from "svelte/transition";
-import SystemTooltip from "@src/components/system/system-tooltip.svelte";
+	// ParaglideJS
+	import { widget_seo_powerwords } from '@src/paraglide/messages';
+	import { publicEnv } from '@src/stores/global-settings.svelte';
+	import { fade } from 'svelte/transition';
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 
-// Logic for Heatmap
-const POWER_WORDS = new Set(
-	widget_seo_powerwords()
-		.split(",")
-		.map((w: string) => w.trim().toLowerCase()),
-);
+	// Logic for Heatmap
+	const POWER_WORDS = new Set(
+		widget_seo_powerwords()
+			.split(',')
+			.map((w: string) => w.trim().toLowerCase())
+	);
 
-function getHeatColor(word: string, index: number): string {
-	const lower = word.toLowerCase().replace(/[^a-z0-9]/g, "");
-	if (!lower) {
-		return "transparent";
+	function getHeatColor(word: string, index: number): string {
+		const lower = word.toLowerCase().replace(/[^a-z0-9]/g, '');
+		if (!lower) {
+			return 'transparent';
+		}
+
+		// 1. Keyword match (Highest - Red)
+		if (keywords?.some((k) => lower.includes(k.toLowerCase()) || k.toLowerCase().includes(lower))) {
+			return 'rgba(239, 68, 68, 0.8)';
+		}
+
+		// 2. Power Word match (Yellow - Gold)
+		if (POWER_WORDS.has(lower)) {
+			return 'rgba(234, 179, 8, 0.8)';
+		}
+
+		// 3. Position (Start of sentence is hot/Prominent - Orange)
+		if (index < 3) {
+			return 'rgba(249, 115, 22, 0.6)';
+		}
+
+		// 4. Length / Interest (Green)
+		if (lower.length > 4) {
+			return 'rgba(34, 197, 94, 0.5)';
+		}
+
+		// 5. Neutral (Blue)
+		return 'rgba(59, 130, 246, 0.3)';
 	}
 
-	// 1. Keyword match (Highest - Red)
-	if (
-		keywords?.some(
-			(k) => lower.includes(k.toLowerCase()) || k.toLowerCase().includes(lower),
-		)
-	) {
-		return "rgba(239, 68, 68, 0.8)";
+	function renderHeatmap(text: string) {
+		return text.split(' ').map((word, i) => {
+			const color = getHeatColor(word, i);
+			return { word, color };
+		});
 	}
 
-	// 2. Power Word match (Yellow - Gold)
-	if (POWER_WORDS.has(lower)) {
-		return "rgba(234, 179, 8, 0.8)";
+	interface Props {
+		description: string;
+		hostUrl: string;
+		keywords?: string[];
+		SeoPreviewToggle?: boolean;
+		title: string;
 	}
 
-	// 3. Position (Start of sentence is hot/Prominent - Orange)
-	if (index < 3) {
-		return "rgba(249, 115, 22, 0.6)";
-	}
+	let { title, description, hostUrl, keywords = [], SeoPreviewToggle = $bindable(false) }: Props = $props();
 
-	// 4. Length / Interest (Green)
-	if (lower.length > 4) {
-		return "rgba(34, 197, 94, 0.5)";
-	}
+	let heatmapMode = $state(false);
 
-	// 5. Neutral (Blue)
-	return "rgba(59, 130, 246, 0.3)";
-}
-
-function renderHeatmap(text: string) {
-	return text.split(" ").map((word, i) => {
-		const color = getHeatColor(word, i);
-		return { word, color };
-	});
-}
-
-interface Props {
-	description: string;
-	hostUrl: string;
-	keywords?: string[];
-	SeoPreviewToggle?: boolean;
-	title: string;
-}
-
-let {
-	title,
-	description,
-	hostUrl,
-	keywords = [],
-	SeoPreviewToggle = $bindable(false),
-}: Props = $props();
-
-let heatmapMode = $state(false);
-
-let heatmapDataTitle = $derived(renderHeatmap(title || "Page Title"));
-let heatmapDataDesc = $derived(
-	renderHeatmap(description || "Page description goes here..."),
-);
+	let heatmapDataTitle = $derived(renderHeatmap(title || 'Page Title'));
+	let heatmapDataDesc = $derived(renderHeatmap(description || 'Page description goes here...'));
 </script>
 
 <div class="mt-1 border-t border-surface-500 dark:text-surface-50">

@@ -22,7 +22,6 @@
 // import Toggles from '@components/system/inputs/toggles.svelte';
 
 import type { FieldInstance } from "@src/content/types";
-import { createCleanTypeName, getFieldName } from "@utils/utils";
 import { widget_relation_description } from "@src/paraglide/messages";
 import { createWidget } from "@src/widgets/widget-factory";
 
@@ -77,12 +76,9 @@ const validationSchema = (field: FieldInstance) => {
 // Create the widget definition using the factory.
 const RelationWidget = createWidget<RelationProps>({
   Name: "Relation",
-  Icon: "mdi:relation-many-to-many",
-  Description: widget_relation_description,
-
-  inputComponent: () => import("./input.svelte"),
+  Icon: "mdi:relation-one-to-one",
+  Description: widget_relation_description(),
   inputComponentPath: "/src/widgets/core/relation/input.svelte",
-  displayComponent: () => import("./display.svelte"),
   displayComponentPath: "/src/widgets/core/relation/display.svelte",
   validationSchema,
 
@@ -169,55 +165,11 @@ const RelationWidget = createWidget<RelationProps>({
     },
   },
 
-  // GraphQL schema for relation (returns full object type instead of just ID)
-  GraphqlSchema: ({ field, collections }) => {
-    const props = field as RelationProps;
-    const target = collections?.find(
-      (c: any) => c._id === props.collection || c.name === props.collection,
-    );
-    const typeName = target ? createCleanTypeName(target) : "String";
-
-    return {
-      typeID: props.multiple ? `[${typeName}]` : typeName,
-      graphql: "",
-      resolver: {
-        [getFieldName(props as any)]: async (parent: any, _args: any, context: any) => {
-          const value = parent[getFieldName(props as any)];
-          if (!value) {
-            return props.multiple ? [] : null;
-          }
-
-          const { loaders } = context;
-          if (!loaders) {
-            // Fallback for cases where loaders might not be present (should not happen in optimized flows)
-            const { dbAdapter, tenantId } = context;
-            const collectionId = (target as any)?._id || props.collection;
-            const collectionName = `collection_${collectionId}`;
-            if (props.multiple && Array.isArray(value)) {
-              const result = await dbAdapter.crud.findMany(collectionName, {
-                _id: { $in: value },
-                ...(tenantId ? { tenantId } : {}),
-              });
-              return result.success ? result.data : [];
-            }
-            const result = await dbAdapter.crud.findOne(collectionName, {
-              _id: value,
-              ...(tenantId ? { tenantId } : {}),
-            });
-            return result.success ? result.data : null;
-          }
-
-          const collectionId = (target as any)?._id || props.collection;
-          const loader = loaders.collectionLoader.get(collectionId);
-
-          if (props.multiple && Array.isArray(value)) {
-            return Promise.all(value.map((id) => loader.load(id)));
-          }
-          return loader.load(value as string);
-        },
-      },
-    };
-  },
+  // GraphQL schema for relation (returns ID of related document)
+  GraphqlSchema: ({ field }) => ({
+    typeID: (field as RelationProps).multiple ? "[String]" : "String",
+    graphql: "",
+  }),
 });
 
 export default RelationWidget;

@@ -28,143 +28,115 @@ User types "1234.56" → displays "1.234,56 €" → stores 1234.56 as number
 -->
 
 <script lang="ts">
-// Components
-import SystemTooltip from "@src/components/system/system-tooltip.svelte";
-import { tokenTarget } from "@src/services/token/token-target";
-import { app, validationStore } from "@src/stores/store.svelte";
-import { getFieldName } from "@utils/utils";
+	// Components
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+	import { tokenTarget } from '@src/services/token/token-target';
+	import { app, validationStore } from '@src/stores/store.svelte';
+	import { getFieldName } from '@utils/utils';
 
-// Unified error handling
-import { handleWidgetValidation } from "@widgets/widget-error-handler";
+	// Unified error handling
+	import { handleWidgetValidation } from '@widgets/widget-error-handler';
 
-// Valibot validation
-import {
-	maxValue,
-	minValue,
-	number as numberSchema,
-	optional,
-	parse,
-	pipe,
-} from "valibot";
-import type { FieldType } from "./";
+	// Valibot validation
+	import { maxValue, minValue, number as numberSchema, optional, parse, pipe } from 'valibot';
+	import type { FieldType } from './';
 
-let {
-	field,
-	value,
-	error,
-}: {
-	field: FieldType;
-	value: number | null | undefined;
-	error?: string | null;
-} = $props();
+	let {
+		field,
+		value,
+		error
+	}: {
+		field: FieldType;
+		value: number | null | undefined;
+		error?: string | null;
+	} = $props();
 
-// Get the user's current UI language.
-const lang = $derived(app.systemLanguage);
+	// Get the user's current UI language.
+	const lang = $derived(app.systemLanguage);
 
-// Create a memoized number formatter for the specified currency.
-const formatter = $derived(
-	new Intl.NumberFormat(lang as string, {
-		style: "currency",
-		currency: (field.currencyCode as string) || "EUR",
-	}),
-);
+	// Create a memoized number formatter for the specified currency.
+	const formatter = $derived(
+		new Intl.NumberFormat(lang as string, {
+			style: 'currency',
+			currency: (field.currencyCode as string) || 'EUR'
+		})
+	);
 
-// Local state for the displayed, formatted string.
-let formattedValue = $state("");
+	// Local state for the displayed, formatted string.
+	let formattedValue = $state('');
 
-// Effect 1: When the parent `value` (number) changes, update the local formatted string.
-$effect(() => {
-	// Only update if the number is valid and different from what the input already represents.
-	const currentNumericValue = parseLocalizedNumber(formattedValue, lang);
-	if (typeof value === "number" && value !== currentNumericValue) {
-		formattedValue = formatter.format(value);
-	} else if (value === null || value === undefined) {
-		formattedValue = "";
-	}
-});
-
-// This function is called when the user types in the input.
-function handleInput(event: Event & { currentTarget: HTMLInputElement }) {
-	const inputString = event.currentTarget.value;
-	// Parse the localized string back into a number.
-	const numericValue = parseLocalizedNumber(inputString, lang);
-	// Update the parent's `value` with the clean number.
-	value = Number.isNaN(numericValue) ? null : numericValue;
-}
-
-// This function is called when the user leaves the input field.
-function handleBlur() {
-	// Re-format the input to a clean, canonical currency format.
-	if (typeof value === "number") {
-		formattedValue = formatter.format(value);
-	}
-	// Validate on blur
-	validateCurrency(value);
-}
-
-// Validation
-const fieldName = $derived(getFieldName(field));
-
-// Currency validation schema
-const currencySchema = $derived.by(() => {
-	const rules: any[] = [];
-
-	if (typeof field.min === "number") {
-		rules.push(
-			minValue(
-				field.min,
-				`Amount must be at least ${formatter.format(field.min)}`,
-			),
-		);
-	}
-	if (typeof field.max === "number") {
-		rules.push(
-			maxValue(
-				field.max,
-				`Amount must not exceed ${formatter.format(field.max)}`,
-			),
-		);
-	}
-
-	const schema =
-		rules.length > 0
-			? pipe(numberSchema("Amount must be a number"), ...(rules as []))
-			: numberSchema("Amount must be a number");
-
-	return field.required ? schema : optional(schema);
-});
-
-function validateCurrency(currencyValue: number | null | undefined) {
-	if (
-		(currencyValue === null || currencyValue === undefined) &&
-		!field?.required
-	) {
-		validationStore.clearError(fieldName);
-		return;
-	}
-	if (
-		field?.required &&
-		(currencyValue === null || currencyValue === undefined)
-	) {
-		validationStore.setError(fieldName, "This field is required");
-		return;
-	}
-	handleWidgetValidation(() => parse(currencySchema, currencyValue), {
-		fieldName,
-		updateStore: true,
+	// Effect 1: When the parent `value` (number) changes, update the local formatted string.
+	$effect(() => {
+		// Only update if the number is valid and different from what the input already represents.
+		const currentNumericValue = parseLocalizedNumber(formattedValue, lang);
+		if (typeof value === 'number' && value !== currentNumericValue) {
+			formattedValue = formatter.format(value);
+		} else if (value === null || value === undefined) {
+			formattedValue = '';
+		}
 	});
-}
 
-// A helper function to parse a localized number string (e.g., "1.234,56") into a JS number.
-function parseLocalizedNumber(str: string, locale: string): number {
-	const parts = new Intl.NumberFormat(locale).formatToParts(1234.5);
-	const group = parts.find((p) => p.type === "group")?.value || ",";
-	const decimal = parts.find((p) => p.type === "decimal")?.value || ".";
-	const cleaned = str
-		.replace(new RegExp(`\\${group}`, "g"), "")
-		.replace(decimal, ".");
-	return Number.parseFloat(cleaned.replace(/[^\d.-]/g, ""));
-}
+	// This function is called when the user types in the input.
+	function handleInput(event: Event & { currentTarget: HTMLInputElement }) {
+		const inputString = event.currentTarget.value;
+		// Parse the localized string back into a number.
+		const numericValue = parseLocalizedNumber(inputString, lang);
+		// Update the parent's `value` with the clean number.
+		value = Number.isNaN(numericValue) ? null : numericValue;
+	}
+
+	// This function is called when the user leaves the input field.
+	function handleBlur() {
+		// Re-format the input to a clean, canonical currency format.
+		if (typeof value === 'number') {
+			formattedValue = formatter.format(value);
+		}
+		// Validate on blur
+		validateCurrency(value);
+	}
+
+	// Validation
+	const fieldName = $derived(getFieldName(field));
+
+	// Currency validation schema
+	const currencySchema = $derived.by(() => {
+		const rules: any[] = [];
+
+		if (typeof field.min === 'number') {
+			rules.push(minValue(field.min, `Amount must be at least ${formatter.format(field.min)}`));
+		}
+		if (typeof field.max === 'number') {
+			rules.push(maxValue(field.max, `Amount must not exceed ${formatter.format(field.max)}`));
+		}
+
+		const schema = rules.length > 0 ? pipe(numberSchema('Amount must be a number'), ...(rules as [])) : numberSchema('Amount must be a number');
+
+		return field.required ? schema : optional(schema);
+	});
+
+	function validateCurrency(currencyValue: number | null | undefined) {
+		if ((currencyValue === null || currencyValue === undefined) && !field?.required) {
+			validationStore.clearError(fieldName);
+			return;
+		}
+		if (field?.required && (currencyValue === null || currencyValue === undefined)) {
+			validationStore.setError(fieldName, 'This field is required');
+			return;
+		}
+		handleWidgetValidation(() => parse(currencySchema, currencyValue), {
+			fieldName,
+			updateStore: true
+		});
+	}
+
+	// A helper function to parse a localized number string (e.g., "1.234,56") into a JS number.
+	function parseLocalizedNumber(str: string, locale: string): number {
+		const parts = new Intl.NumberFormat(locale).formatToParts(1234.5);
+		const group = parts.find((p) => p.type === 'group')?.value || ',';
+		const decimal = parts.find((p) => p.type === 'decimal')?.value || '.';
+		const cleaned = str.replace(new RegExp(`\\${group}`, 'g'), '').replace(decimal, '.');
+		return Number.parseFloat(cleaned.replace(/[^\d.-]/g, ''));
+	}
 </script>
 
 <div class="input-container relative mb-4 min-h-10 w-full">

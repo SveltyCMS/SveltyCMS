@@ -78,9 +78,7 @@ const EmailWidget = createWidget<EmailProps>({
   Name: "Email",
   Icon: "ic:outline-email",
   Description: widget_email_description(),
-  inputComponent: () => import("./input.svelte"),
   inputComponentPath: "/src/widgets/custom/email/input.svelte",
-  displayComponent: () => import("./display.svelte"),
   displayComponentPath: "/src/widgets/custom/email/display.svelte",
   validationSchema,
 

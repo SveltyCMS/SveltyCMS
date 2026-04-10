@@ -2,252 +2,345 @@
 @file src/components/collections.svelte
 @description
 Tree navigation for content categories and collections.
-Updated to use the modern Content Context and modular navigation engine.
+Provides an organized interface for navigating hierarchical content structures.
+
+@component
+**Collections** – Hierarchical tree navigation for content orchestration.
+
+### Features:
+- **Hierarchical Tree**: Nested categories and collections with count badges.
+- **Search**: Debounced real-time search with clear functionality.
+- **Validation**: Integrated widget validation warnings for schema health.
+- **Navigation**: Click-based routing with expansion state persistence.
+- **Responsive**: Compact and full sidebar modes support.
+
+### features:
+- hierarchical tree navigation
+- real-time debounced search
+- schema validation integration
+- responsive layout support
 -->
 
 <script lang="ts">
-// Components
-import TreeView from "@src/components/system/tree-view.svelte";
-import type { NavigationNode, StatusType } from "@src/content/types";
-import { useContent, contentStore, sortContentNodes } from "@src/content";
+	// Components
+	import TreeView from '@src/components/system/tree-view.svelte';
+	import type { ContentNode, Schema } from '@src/content/types';
+	import { type StatusType, StatusTypes } from '@src/content/types';
+	import { sortContentNodes } from '@src/content/utils';
+	// Paraglide Messages
+	import { collection_no_collections_found, collections_search } from '@src/paraglide/messages';
+	import { collection, contentStructure, setMode } from '@src/stores/collection-store.svelte.ts';
+	import { app } from '@src/stores/store.svelte';
+	import { ui } from '@src/stores/ui-store.svelte.ts';
+	import { widgets } from '@src/stores/widget-store.svelte.ts';
+	import { debounce } from '@utils/utils';
+	import { validateSchemaWidgets } from '@widgets/widget-validation';
+	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
+	import { goto, invalidateAll } from '$app/navigation';
+	import { page } from '$app/state';
 
-// Paraglide Messages
-import {
-	collection_no_collections_found,
-	collections_search,
-} from "@src/paraglide/messages";
-import { collection, setMode } from "@src/stores/collection-store.svelte.ts";
-import { app } from "@src/stores/store.svelte";
-import { ui } from "@src/stores/ui-store.svelte.ts";
-import { debounce } from "@utils/utils";
-import { SvelteSet } from "svelte/reactivity";
-import { scale } from "svelte/transition";
-import { goto } from "$app/navigation";
-import { page } from "$app/state";
-
-interface CollectionTreeNode {
-	badge?: {
-		count?: number;
-		status?:
-			| "draft"
-			| "publish"
-			| "archive"
-			| "schedule"
-			| "delete"
-			| "clone"
-			| "test";
-		color?: string;
-		visible?: boolean;
-		icon?: string;
-		title?: string;
-	};
-	children?: CollectionTreeNode[];
-	depth: number;
-	icon?: string;
-	id: string;
-	isExpanded: boolean;
-	name: string;
-	onClick: () => void;
-	order: number;
-	path?: string;
-}
-
-// Content Context
-const contentContext = useContent();
-
-// Mutable state
-let search = $state("");
-let debouncedSearch = $state("");
-let isSearching = $state(false);
-let expandedNodes = new SvelteSet<string>();
-
-let updateDebounced = debounce.create((value: unknown) => {
-	debouncedSearch = (value as string).toLowerCase().trim();
-	isSearching = false;
-}, 300);
-
-$effect(() => {
-	if (search) isSearching = true;
-	updateDebounced(search);
-});
-
-// Derived UI & data
-let isFullSidebar = $derived(ui.state.leftSidebar === "full");
-let currentLanguage = $derived(app.contentLanguage);
-let selectedId = $derived(collection.value?._id ?? null);
-
-// Auto-expand parents of selected node
-$effect(() => {
-	if (selectedId) {
-		const node = contentContext.content.getNode(selectedId);
-		if (node?.parentId) {
-			let currentParentId: string | undefined = node.parentId;
-			while (currentParentId) {
-				expandedNodes.add(currentParentId);
-				const parent = contentContext.content.getNode(currentParentId);
-				currentParentId = parent?.parentId;
-			}
-		}
+	interface ExtendedContentNode extends ContentNode {
+		children?: ExtendedContentNode[];
+		fileCount?: number;
+		lastModified?: Date;
 	}
-});
 
-/**
- * Optimized tree generation using the modular navigation service.
- */
-let treeNodes = $derived.by(() => {
-	// Explicitly depend on content version to trigger re-calculation when store is synced
-	void contentStore.version;
+	interface CollectionTreeNode {
+		badge?: {
+			count?: number;
+			status?: 'archive' | 'draft' | 'publish' | 'schedule' | 'clone' | 'test' | 'delete';
+			color?: string;
+			visible?: boolean;
+			icon?: string;
+			title?: string;
+		};
+		children?: CollectionTreeNode[];
+		depth: number;
+		icon?: string;
+		id: string;
+		isExpanded: boolean;
+		name: string;
+		onClick: () => void;
+		order: number;
+		path?: string;
+	}
 
-	const nav = contentContext.navigation;
-	if (nav.length === 0) return [];
+	// Mutable state
+	let search = $state('');
+	let debouncedSearch = $state('');
+	let isSearching = $state(false);
+	let expandedNodes = new SvelteSet<string>();
 
-	function mapToTreeNode(node: NavigationNode, depth = 0): CollectionTreeNode {
-		const translation = node.translations?.find(
-			(t: any) => t.languageTag === currentLanguage,
-		);
-		const label = translation?.translationName || node.name;
-		const isCategory = node.nodeType === "category";
-		const isExpanded = expandedNodes.has(node._id) || selectedId === node._id;
+	let updateDebounced = debounce.create((value: unknown) => {
+		debouncedSearch = (value as string).toLowerCase().trim();
+		isSearching = false;
+	}, 300);
 
-		// Validation check for collections
-		let hasInactiveWidgets = false;
+	$effect(() => {
+		if (search) {
+			isSearching = true;
+		}
+		updateDebounced(search);
+	});
 
-		// Children (recursive)
-		let children: CollectionTreeNode[] | undefined;
-		if (isCategory && node.children) {
-			const sorted = [...node.children].sort(sortContentNodes);
-			children = sorted.map((child: any) =>
-				mapToTreeNode(child as NavigationNode, depth + 1),
-			);
+	// Derived UI & data
+	let isFullSidebar = $derived(ui.state.leftSidebar === 'full');
+	let currentLanguage = $derived(app.contentLanguage);
+	let selectedId = $derived(collection.value?._id ?? null);
+	let activeWidgetList = $derived(widgets.activeWidgets);
+	let structure = $derived(contentStructure.value ?? []);
+
+	let treeNodes = $derived.by(() => {
+		const localCountCache = new SvelteMap<string, number>();
+
+		function countCollections(node: ExtendedContentNode): number {
+			const key = node._id;
+			if (localCountCache.has(key)) {
+				return localCountCache.get(key)!;
+			}
+
+			if (!node.children || node.nodeType !== 'category') {
+				localCountCache.set(key, 0);
+				return 0;
+			}
+
+			let total = 0;
+			for (const child of node.children) {
+				if (child.nodeType === 'collection') {
+					total++;
+				} else if (child.nodeType === 'category') {
+					total += countCollections(child);
+				}
+			}
+			localCountCache.set(key, total);
+			return total;
 		}
 
-		// Badge logic
-		let badge: CollectionTreeNode["badge"];
-		if (isCategory) {
-			badge = {
-				count:
-					node.children?.filter((c: any) => c.nodeType === "collection")
-						.length ?? 0,
-				visible: true,
-				color: "bg-primary-500",
+		function getBadgeColor(status?: StatusType): string {
+			const map: Record<StatusType, string> = {
+				[StatusTypes.publish]: 'bg-primary-500',
+				[StatusTypes.draft]: 'bg-warning-500',
+				[StatusTypes.archive]: 'bg-surface-500',
+				[StatusTypes.schedule]: 'bg-primary-500',
+				[StatusTypes.clone]: 'bg-secondary-500',
+				[StatusTypes.delete]: 'bg-error-500',
+				[StatusTypes.unpublish]: 'bg-warning-400'
 			};
-		} else if (hasInactiveWidgets) {
-			badge = {
-				visible: true,
-				color: "bg-warning-500",
-				icon: "mdi:alert-circle",
-				title: "This collection uses inactive widgets",
-			};
-		} else if (node.status) {
-			const uiStatus = node.status as StatusType;
-			if (uiStatus !== "unpublish") {
+			return status ? (map[status] ?? 'bg-primary-500') : 'bg-primary-500';
+		}
+
+		function mapToTreeNode(node: ExtendedContentNode, depth = 0): CollectionTreeNode {
+			const translation = node.translations?.find((t) => t.languageTag === currentLanguage);
+			const label = translation?.translationName || node.name;
+			const isCategory = node.nodeType === 'category';
+			const isExpanded = expandedNodes.has(node._id) || selectedId === node._id;
+
+			// Inactive widget warning for collections
+			let hasInactiveWidgets = false;
+			if (!isCategory && node.collectionDef?.fields) {
+				const validation = validateSchemaWidgets(node.collectionDef as Schema, activeWidgetList);
+				hasInactiveWidgets = !validation.valid;
+			}
+
+			// Children
+			let children: CollectionTreeNode[] | undefined;
+			if (isCategory && node.children) {
+				const sorted = [...node.children].sort(sortContentNodes);
+				children = sorted.map((child) => mapToTreeNode(child, depth + 1));
+			}
+
+			// Badge
+			let badge: CollectionTreeNode['badge'];
+			if (isCategory) {
+				badge = {
+					count: countCollections(node),
+					visible: true,
+					color: getBadgeColor(node.collectionDef?.status)
+				};
+			} else if (hasInactiveWidgets) {
 				badge = {
 					visible: true,
-					status: uiStatus as any,
-					color: "bg-surface-500",
+					color: 'bg-warning-500',
+					icon: 'mdi:alert-circle',
+					title: 'This collection uses inactive widgets'
 				};
 			}
+
+			return {
+				id: node._id,
+				name: label,
+				isExpanded,
+				onClick: () => selectNode(node),
+				children,
+				icon: node.icon || (isCategory ? 'bi:folder' : 'bi:collection'),
+				badge,
+				path: isCategory ? undefined : `/${currentLanguage}${node.path || `/${node._id}`}`,
+				depth,
+				order: node.order ?? 0
+			};
 		}
 
-		return {
-			id: node._id,
-			name: label,
-			isExpanded,
-			onClick: () => selectNode(node),
-			children,
-			icon: node.icon || (isCategory ? "bi:folder" : "bi:collection"),
-			badge,
-			path: isCategory
-				? undefined
-				: `/${currentLanguage}${node.path || `/${node._id}`}`,
-			depth,
-			order: node.order ?? 0,
-		};
+		function buildTree(nodes: ExtendedContentNode[]): ExtendedContentNode[] {
+			if (!nodes || nodes.length === 0) {
+				return [];
+			}
+
+			const nodeMap = new SvelteMap<string, ExtendedContentNode>();
+			const roots: ExtendedContentNode[] = [];
+
+			// First pass: flattened map of all unique nodes
+			function gatherNodes(itemList: ExtendedContentNode[]) {
+				for (const item of itemList) {
+					const id = String(item._id);
+					if (!nodeMap.has(id)) {
+						nodeMap.set(id, { ...item, children: [] });
+						if (item.children && item.children.length > 0) {
+							gatherNodes(item.children as ExtendedContentNode[]);
+						}
+					}
+				}
+			}
+
+			gatherNodes(nodes);
+
+			// Second pass: link using parentId
+			nodeMap.forEach((node: ExtendedContentNode) => {
+				if (node.parentId) {
+					const parentId = String(node.parentId);
+					const parent = nodeMap.get(parentId);
+					if (parent) {
+						parent.children = parent.children || [];
+						if (!parent.children.some((c: ExtendedContentNode) => String(c._id) === String(node._id))) {
+							parent.children.push(node);
+						}
+					} else {
+						// Parent not in map, promote to root
+						roots.push(node);
+					}
+				} else {
+					// No parentId, it's a root
+					roots.push(node);
+				}
+			});
+
+			return roots;
+		}
+
+		console.log('[Collections] Structure changed, building tree...', {
+			inputSize: structure.length,
+			roots: structure.filter((n) => !n.parentId).map((n) => n.name)
+		});
+
+		const nestedStructure = buildTree(structure as ExtendedContentNode[]);
+
+		console.log('[Collections] Tree results:', {
+			rootCount: nestedStructure.length,
+			roots: nestedStructure.map((n) => n.name)
+		});
+
+		const sorted = [...nestedStructure].sort(sortContentNodes);
+		return sorted.map((n) => mapToTreeNode(n));
+	});
+
+	async function navigate(path: string, force = false): Promise<void> {
+		if (page.url.pathname === path && !force) {
+			return;
+		}
+		if (force || page.url.pathname === path) {
+			await invalidateAll();
+		}
+
+		await goto(path, { invalidateAll: true });
 	}
 
-	return nav.map((n: NavigationNode) => mapToTreeNode(n)) as any;
-});
+	function selectNode(node: ExtendedContentNode): void {
+		if (node.nodeType === 'category') {
+			toggleExpand(node._id);
+			return;
+		}
 
-async function navigate(path: string, force = false): Promise<void> {
-	if (page.url.pathname === path && !force) return;
-	await goto(path, { invalidateAll: force });
-}
+		// Collection selected
+		const same = selectedId === node._id;
+		setMode('view');
+		app.shouldShowNextButton = true;
 
-function selectNode(node: any): void {
-	if (node.nodeType === "category") {
-		toggleExpand(node._id);
-		return;
+		document.dispatchEvent(
+			new CustomEvent('clearEntryListCache', {
+				detail: { resetState: true, reason: 'collection-switch' }
+			})
+		);
+
+		const target = `/${currentLanguage}${node.path || `/${node._id}`}`;
+		navigate(target, same);
 	}
 
-	setMode("view");
-	app.shouldShowNextButton = true;
+	function toggleExpand(id: string): void {
+		if (expandedNodes.has(id)) {
+			expandedNodes.delete(id);
+		} else {
+			expandedNodes.add(id);
+		}
+	}
 
-	document.dispatchEvent(
-		new CustomEvent("clearEntryListCache", {
-			detail: { resetState: true, reason: "collection-switch" },
-		}),
-	);
-
-	const target = `/${currentLanguage}${node.path || `/${node._id}`}`;
-	navigate(target, selectedId === node._id);
-}
-
-function toggleExpand(id: string): void {
-	if (expandedNodes.has(id)) expandedNodes.delete(id);
-	else expandedNodes.add(id);
-}
-
-function clearSearch(): void {
-	search = "";
-	debouncedSearch = "";
-}
+	function clearSearch(): void {
+		search = '';
+		debouncedSearch = '';
+	}
 </script>
 
 <div class="mt-2 space-y-2" role="navigation" aria-label="Collections">
-	<!-- Search - Only show if we have collections -->
-	{#if treeNodes.length > 0}
-		<div class="relative {isFullSidebar ? 'w-full' : 'max-w--33.7'}" transition:scale={{ duration: 200, start: 0.95 }}>
-			<input
-				type="text"
-				bind:value={search}
-				placeholder={collections_search()}
-				class="w-full rounded border border-surface-300 bg-surface-50 px-3 pr-11 text-sm outline-none transition-all hover:border-surface-400 focus:border-tertiary-500 dark:border-surface-600 dark:bg-surface-800 {isFullSidebar
-					? 'h-12 py-3'
-					: 'h-10 py-2'}"
-				aria-label="Search collections"
-			/>
+	<!-- Search -->
+	<div class="relative {isFullSidebar ? 'w-full' : 'max-w--33.7'}">
+		<input
+			type="text"
+			bind:value={search}
+			placeholder={collections_search()}
+			class="w-full rounded border border-surface-300 bg-surface-50 px-3 pr-11 text-sm outline-none transition-all hover:border-surface-400 focus:border-tertiary-500 dark:border-surface-600 dark:bg-surface-800 {isFullSidebar
+				? 'h-12 py-3'
+				: 'h-10 py-2'}"
+			aria-label="Search collections"
+		/>
 
-			<div class="absolute right-0 top-0 flex h-full items-center">
-				{#if isSearching}
-					<div class="flex h-12 w-12 items-center justify-center">
-						<div class="h-2 w-2 animate-pulse rounded-full bg-tertiary-500 dark:bg-primary-500"></div>
-					</div>
-				{:else if search}
-					<button type="button" onclick={clearSearch} class="btn rounded-full preset-outline-surface-500 {isFullSidebar ? 'h-11 w-11' : 'h-10 w-10'}" aria-label="Clear search">
-						<iconify-icon icon="ic:round-close" width={24}></iconify-icon>
-					</button>
-				{:else}
-					<div class="flex items-center justify-center rounded-r bg-secondary-100 dark:bg-surface-700 {isFullSidebar ? 'h-11 w-11 mt-px mr-px' : 'h-8 w-8'}">
-						<iconify-icon icon="ic:outline-search" width={24}></iconify-icon>
-					</div>
-				{/if}
-			</div>
+		<div class="absolute right-0 top-0 flex h-full items-center">
+			{#if isSearching}
+				<div class="flex h-12 w-12 items-center justify-center">
+					<div class="h-2 w-2 animate-pulse rounded-full bg-tertiary-500 dark:bg-primary-500"></div>
+				</div>
+			{:else if search}
+				<button
+					type="button"
+					onclick={clearSearch}
+					class="btn rounded-full preset-outline-surface-500 {isFullSidebar ? 'h-11 w-11' : 'h-10 w-10'}"
+					aria-label="Clear search"
+				>
+					<iconify-icon icon="ic:round-close" width={24}></iconify-icon>
+				</button>
+			{:else}
+				<!-- Search with icon -->
+				<div
+					class="flex items-center justify-center rounded-r bg-secondary-100 dark:bg-surface-700 {isFullSidebar
+						? 'h-11 w-11 mt-px mr-px'
+						: 'h-8 w-8'}"
+				>
+					<iconify-icon icon="ic:outline-search" width={24}></iconify-icon>
+				</div>
+			{/if}
 		</div>
-	{/if}
+	</div>
 
 	<!-- Tree -->
 	<div class="collections-list" role="tree" aria-label="Collection tree">
-		{#if !contentContext.content.isInitialized}
-			<div class="flex h-24 items-center justify-center" transition:scale={{ duration: 200, start: 0.95 }}>
+		{#if !widgets.isLoaded}
+			<div class="flex h-24 items-center justify-center">
 				<div class="h-6 w-6 animate-spin rounded-full border-2 border-surface-300 border-t-tertiary-500"></div>
 			</div>
 		{:else if treeNodes.length === 0}
-			<div class="flex flex-col items-center justify-center gap-2 p-6 text-center opacity-60" transition:scale={{ duration: 200, start: 0.95 }}>
-				<iconify-icon icon="bi:collection" width={32} class="text-surface-400"></iconify-icon>
-				<p class="text-xs text-surface-500 dark:text-surface-300">{collection_no_collections_found()}</p>
+			<div class="flex flex-col items-center justify-center gap-2 p-6 text-center">
+				<iconify-icon icon="bi:collection" width={24}></iconify-icon>
+				<p class="text-sm text-surface-500 dark:text-surface-50">{collection_no_collections_found()}</p>
 			</div>
 		{:else}
-			<TreeView nodes={treeNodes} {selectedId} compact={!isFullSidebar} search={debouncedSearch} iconColorClass="text-tertiary-500" showBadges={true} />
+			<TreeView nodes={treeNodes} {selectedId} compact={!isFullSidebar} search={debouncedSearch} iconColorClass="text-error-500" showBadges={true} />
 		{/if}
 	</div>
 </div>
@@ -257,7 +350,9 @@ function clearSearch(): void {
 		scrollbar-color: rgb(var(--color-primary-500) / 0.3) transparent;
 		scrollbar-width: thin;
 	}
-	.collections-list::-webkit-scrollbar { width: 4px; }
+	.collections-list::-webkit-scrollbar {
+		width: 4px;
+	}
 	.collections-list::-webkit-scrollbar-thumb {
 		background-color: rgb(var(--color-primary-500) / 0.3);
 		border-radius: 2px;

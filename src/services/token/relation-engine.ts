@@ -8,7 +8,7 @@
  * - Token Generation
  */
 
-import { contentManager } from "@src/content";
+import { contentSystem } from "@src/content";
 import type { FieldInstance, Schema } from "@src/content/types";
 import type { User } from "@src/databases/auth/types";
 import { logger } from "@utils/logger";
@@ -53,7 +53,7 @@ export async function getRelationTokens(
 
     // Get the related collection schema to discover its fields
     try {
-      const relatedSchema = await contentManager.getCollectionById(relatedCollection, tenantId);
+      const relatedSchema = await contentSystem.getCollectionById(relatedCollection, tenantId);
       if (!relatedSchema) {
         continue;
       }

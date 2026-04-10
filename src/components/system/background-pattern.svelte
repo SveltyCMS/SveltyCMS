@@ -6,8 +6,8 @@ Performance-optimized version with reduced path count, hardware acceleration,
 and configurable quality settings for weaker devices.
 
 @example
-<BackgroundPattern
-    background="white"
+<BackgroundPattern 
+    background="white" 
     startDirection="TopLeft"
     endDirection="BottomRight"
     animationDirection="normal"
@@ -32,232 +32,309 @@ and configurable quality settings for weaker devices.
 -->
 
 <script lang="ts">
-  import { cubicOut } from "svelte/easing";
-  import { Tween } from "svelte/motion";
-  import { browser } from "$app/environment";
+	import { onDestroy, onMount, untrack } from 'svelte';
+	import { cubicOut } from 'svelte/easing';
+	import { Tween } from 'svelte/motion';
+	import { SvelteMap } from 'svelte/reactivity';
+	import { browser } from '$app/environment';
 
-  const {
-    background = "white",
-    startDirection = "TopLeft",
-    endDirection = "BottomRight",
-    animationDirection = "normal",
-    quality = "medium",
-    autoDetectPerformance = true,
-  } = $props<{
-    background?: "white" | "#242728";
-    startDirection?:
-      | "TopLeft"
-      | "TopRight"
-      | "MiddleLeft"
-      | "MiddleRight"
-      | "BottomLeft"
-      | "BottomRight";
-    endDirection?:
-      | "TopLeft"
-      | "TopRight"
-      | "MiddleLeft"
-      | "MiddleRight"
-      | "BottomLeft"
-      | "BottomRight";
-    animationDirection?: "normal" | "reverse";
-    quality?: "low" | "medium" | "high";
-    autoDetectPerformance?: boolean;
-  }>();
+	// Define props with default values
+	const {
+		background = 'white',
+		startDirection = 'TopLeft',
+		endDirection = 'BottomRight',
+		animationDirection = 'normal',
+		quality = 'medium', // New quality setting
+		autoDetectPerformance = true // Automatically adjust quality based on device
+	} = $props<{
+		background?: 'white' | '#242728';
+		startDirection?: 'TopLeft' | 'TopRight' | 'MiddleLeft' | 'MiddleRight' | 'BottomLeft' | 'BottomRight';
+		endDirection?: 'TopLeft' | 'TopRight' | 'MiddleLeft' | 'MiddleRight' | 'BottomLeft' | 'BottomRight';
+		animationDirection?: 'normal' | 'reverse';
+		quality?: 'low' | 'medium' | 'high';
+		autoDetectPerformance?: boolean;
+	}>();
 
-  // --- Performance & Configuration ---
-  let detectedQuality = $state<"low" | "medium" | "high">("medium");
+	// Performance-based configuration
+	let actualQuality = $state(untrack(() => quality));
+	$effect(() => {
+		// Sync local state when prop changes, but only if not overriding via auto-detection
+		if (!autoDetectPerformance) {
+			actualQuality = quality;
+		}
+	});
+	let pathCount = $state(12); // Reduced from 72
+	let shouldReduceMotion = $state(false);
 
-  // Automatically cascades settings without manual sync functions
-  let effectiveQuality = $derived(
-    autoDetectPerformance ? detectedQuality : quality,
-  );
-  let pathCount = $derived(
-    effectiveQuality === "low" ? 6 : effectiveQuality === "high" ? 18 : 12,
-  );
-  let duration = $derived(
-    effectiveQuality === "low"
-      ? 6000
-      : effectiveQuality === "high"
-        ? 10000
-        : 8000,
-  );
+	// Single animation progress value
+	const animationProgress = new Tween(0, {
+		duration: 8000,
+		easing: cubicOut
+	});
 
-  let shouldReduceMotion = $state(false);
-  let isAnimating = $state(false);
-  let isVisible = $state(true);
-  let svgElement = $state<SVGElement>();
+	// Performance detection with proper types
+	function detectPerformance(): 'low' | 'medium' | 'high' {
+		if (!browser) {
+			return 'medium';
+		}
 
-  const animationProgress = new Tween(0, { duration: 8000, easing: cubicOut });
+		// Properly typed Network Information API
+		interface NavigatorConnection extends Navigator {
+			connection?: {
+				effectiveType?: '4g' | '3g' | '2g' | 'slow-2g';
+			};
+		}
 
-  // Standard Map is faster than SvelteMap since we don't need it to trigger reactivity directly
-  const pathCache = new Map<string, string>();
+		// Properly typed Memory API
+		interface PerformanceMemory extends Performance {
+			memory?: {
+				totalJSHeapSize?: number;
+				usedJSHeapSize?: number;
+				jsHeapSizeLimit?: number;
+			};
+		}
 
-  function detectPerformance(): "low" | "medium" | "high" {
-    if (!browser) return "medium";
+		const connection = (navigator as NavigatorConnection).connection;
+		const memory = (performance as PerformanceMemory).memory;
+		const hardwareConcurrency = navigator.hardwareConcurrency || 4;
 
-    const connection = (navigator as any).connection;
-    const memory = (performance as any).memory;
-    const hardwareConcurrency = navigator.hardwareConcurrency || 4;
+		let score = 0;
 
-    let score = 0;
-    if (hardwareConcurrency >= 8) score += 2;
-    else if (hardwareConcurrency >= 4) score += 1;
+		// CPU cores
+		if (hardwareConcurrency >= 8) {
+			score += 2;
+		} else if (hardwareConcurrency >= 4) {
+			score += 1;
+		}
 
-    if (memory?.totalJSHeapSize) {
-      if (memory.totalJSHeapSize > 100 * 1024 * 1024) score += 2;
-      else if (memory.totalJSHeapSize > 50 * 1024 * 1024) score += 1;
-    }
+		// Memory (if available)
+		if (memory?.totalJSHeapSize) {
+			if (memory.totalJSHeapSize > 100 * 1024 * 1024) {
+				score += 2; // 100MB+
+			} else if (memory.totalJSHeapSize > 50 * 1024 * 1024) {
+				score += 1; // 50MB+
+			}
+		}
 
-    if (connection?.effectiveType) {
-      if (connection.effectiveType === "4g") score += 1;
-      else if (connection.effectiveType === "3g") score -= 1;
-      else if (connection.effectiveType === "2g") score -= 2;
-    }
+		// Connection speed
+		if (connection?.effectiveType) {
+			if (connection.effectiveType === '4g') {
+				score += 1;
+			} else if (connection.effectiveType === '3g') {
+				score -= 1;
+			} else if (connection.effectiveType === '2g') {
+				score -= 2;
+			}
+		}
 
-    if (/Mobile|Android|iPhone|iPad/.test(navigator.userAgent)) score -= 1;
+		// User agent hints (basic mobile detection)
+		if (/Mobile|Android|iPhone|iPad/.test(navigator.userAgent)) {
+			score -= 1;
+		}
 
-    if (score >= 3) return "high";
-    if (score >= 1) return "medium";
-    return "low";
-  }
+		if (score >= 3) {
+			return 'high';
+		}
+		if (score >= 1) {
+			return 'medium';
+		}
+		return 'low';
+	}
 
-  function generatePath(
-    start: string,
-    end: string,
-    index: number,
-    position: number,
-  ): string {
-    const cacheKey = `${start}-${end}-${index}-${position}`;
-    if (pathCache.has(cacheKey)) return pathCache.get(cacheKey)!;
+	// Apply quality settings
+	function applyQualitySettings(detectedQuality: 'low' | 'medium' | 'high') {
+		const settings = {
+			low: { paths: 6, duration: 6000 },
+			medium: { paths: 12, duration: 8000 },
+			high: { paths: 18, duration: 10_000 }
+		};
 
-    const coords = {
-      TopLeft: { x: -200, y: -100 },
-      TopRight: { x: 896, y: -100 },
-      MiddleLeft: { x: -200, y: 158 },
-      MiddleRight: { x: 896, y: 158 },
-      BottomLeft: { x: -200, y: 416 },
-      BottomRight: { x: 896, y: 416 },
-    };
+		const config = settings[detectedQuality];
+		pathCount = config.paths;
 
-    const startCoord = coords[start as keyof typeof coords];
-    const endCoord = coords[end as keyof typeof coords];
+		// Update animation with new duration
+		animationProgress.set(0, { duration: config.duration });
+	}
 
-    const startX = startCoord.x + index * 15 * position;
-    const startY = startCoord.y + index * 8 * position;
-    const endX = endCoord.x + index * 15 * position;
-    const endY = endCoord.y + index * 8 * position;
+	// Optimized path generation with memoization
+	const pathCache = new SvelteMap<string, string>();
 
-    const path = `M${startX},${startY}Q${(startX + endX) / 2},${(startY + endY) / 2} ${endX},${endY}`;
-    pathCache.set(cacheKey, path);
-    return path;
-  }
+	function generatePath(start: string, end: string, index: number, position: number): string {
+		const cacheKey = `${start}-${end}-${index}-${position}`;
+		if (pathCache.has(cacheKey)) {
+			return pathCache.get(cacheKey)!;
+		}
 
-  const paths = $derived(
-    Array.from({ length: pathCount }, (_, i) => {
-      const baseOpacity = 0.15 + (i / pathCount) * 0.4;
-      return {
-        id: i,
-        d: generatePath(startDirection, endDirection, i, i % 2 === 0 ? 1 : -1),
-        width: 0.8 + i * 0.1,
-        opacity: baseOpacity,
-        color:
-          background === "white"
-            ? `rgba(15,23,42,${baseOpacity})`
-            : `rgba(255,255,255,${baseOpacity})`,
-      };
-    }),
-  );
+		// Simplified coordinate calculation
+		const coords = {
+			TopLeft: { x: -200, y: -100 },
+			TopRight: { x: 896, y: -100 },
+			MiddleLeft: { x: -200, y: 158 },
+			MiddleRight: { x: 896, y: 158 },
+			BottomLeft: { x: -200, y: 416 },
+			BottomRight: { x: 896, y: 416 }
+		};
 
-  // --- Animation Loop ---
-  async function animateLoop() {
-    if (!isAnimating || shouldReduceMotion) return;
+		const startCoord = coords[start as keyof typeof coords];
+		const endCoord = coords[end as keyof typeof coords];
 
-    // Use async/await instead of nested .then() blocks
-    await animationProgress.set(1, { duration });
-    if (!isAnimating) return; // Break if stopped mid-animation
+		const startX = startCoord.x + index * 15 * position;
+		const startY = startCoord.y + index * 8 * position;
+		const endX = endCoord.x + index * 15 * position;
+		const endY = endCoord.y + index * 8 * position;
 
-    await animationProgress.set(0, { duration });
+		// Simplified path with less complex curves
+		const path = `M${startX},${startY}Q${(startX + endX) / 2},${(startY + endY) / 2} ${endX},${endY}`;
+		pathCache.set(cacheKey, path);
+		return path;
+	}
 
-    if (isAnimating) {
-      requestAnimationFrame(animateLoop);
-    }
-  }
+	// Generate optimized path array
+	const paths = $derived(
+		Array.from({ length: pathCount }, (_, i) => {
+			const baseOpacity = 0.15 + (i / pathCount) * 0.4;
+			return {
+				id: i,
+				d: generatePath(startDirection, endDirection, i, i % 2 === 0 ? 1 : -1),
+				width: 0.8 + i * 0.1,
+				opacity: baseOpacity,
+				color: background === 'white' ? `rgba(15,23,42,${baseOpacity})` : `rgba(255,255,255,${baseOpacity})`
+			};
+		})
+	);
 
-  function getStrokeDashOffset(pathIndex: number): number {
-    const progress = animationProgress.current;
-    const staggerDelay = pathIndex * 0.1;
-    const adjustedProgress = Math.max(0, Math.min(1, progress - staggerDelay));
+	// Animation control
+	let animationFrame: number;
+	let isAnimating = $state(false);
 
-    return animationDirection === "reverse"
-      ? 1000 * adjustedProgress
-      : 1000 * (1 - adjustedProgress);
-  }
+	// Start/stop animation
+	function startAnimation() {
+		if (shouldReduceMotion || !browser) {
+			return;
+		}
 
-  // --- Effects (Lifecycle) ---
-  $effect(() => {
-    if (!browser) return;
+		isAnimating = true;
 
-    // Reactively listen for accessibility preference changes
-    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
-    shouldReduceMotion = mediaQuery.matches;
+		const animate = () => {
+			animationProgress.set(1).then(() => {
+				animationProgress.set(0).then(() => {
+					if (isAnimating) {
+						animationFrame = requestAnimationFrame(animate);
+					}
+				});
+			});
+		};
 
-    const handler = (e: MediaQueryListEvent) => {
-      shouldReduceMotion = e.matches;
-    };
-    mediaQuery.addEventListener("change", handler);
+		animate();
+	}
 
-    if (autoDetectPerformance) {
-      detectedQuality = detectPerformance();
-    }
+	function stopAnimation() {
+		isAnimating = false;
+		if (animationFrame) {
+			cancelAnimationFrame(animationFrame);
+		}
+	}
 
-    return () => mediaQuery.removeEventListener("change", handler);
-  });
+	// Intersection observer for performance
+	let svgElement: SVGElement | undefined = $state(undefined);
+	let isVisible = $state(true);
 
-  $effect(() => {
-    if (!browser || !svgElement) return;
+	function setupIntersectionObserver() {
+		if (!(browser && svgElement)) {
+			return;
+		}
 
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        isVisible = entry.isIntersecting;
-        if (isVisible && !shouldReduceMotion && !isAnimating) {
-          isAnimating = true;
-          animateLoop();
-        } else if (!isVisible && isAnimating) {
-          isAnimating = false; // Gracefully stops the async loop
-        }
-      },
-      { threshold: 0.1 },
-    );
+		const observer = new IntersectionObserver(
+			(entries) => {
+				entries.forEach((entry) => {
+					isVisible = entry.isIntersecting;
+					if (isVisible && !isAnimating) {
+						startAnimation();
+					} else if (!isVisible && isAnimating) {
+						stopAnimation();
+					}
+				});
+			},
+			{ threshold: 0.1 }
+		);
 
-    observer.observe(svgElement);
-    return () => observer.disconnect();
-  });
+		observer.observe(svgElement);
+
+		return () => observer.disconnect();
+	}
+
+	// Initialize component
+	onMount(() => {
+		if (browser) {
+			// Check for reduced motion preference
+			shouldReduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+			// Auto-detect performance if enabled
+			if (autoDetectPerformance) {
+				const detected = detectPerformance();
+				actualQuality = detected;
+				applyQualitySettings(detected);
+			} else {
+				applyQualitySettings(actualQuality);
+			}
+
+			// Setup intersection observer for visibility-based animation
+			const cleanup = setupIntersectionObserver();
+
+			// Start animation if visible and motion is allowed
+			if (!shouldReduceMotion && isVisible) {
+				startAnimation();
+			}
+
+			return cleanup;
+		}
+	});
+
+	onDestroy(() => {
+		stopAnimation();
+		pathCache.clear();
+	});
+
+	// Calculate stroke dash offset for each path
+	function getStrokeDashOffset(pathIndex: number): number {
+		const progress = animationProgress.current;
+		const staggerDelay = pathIndex * 0.1;
+		const adjustedProgress = Math.max(0, Math.min(1, progress - staggerDelay));
+
+		return animationDirection === 'reverse' ? 1000 * adjustedProgress : 1000 * (1 - adjustedProgress);
+	}
 </script>
 
+<!-- SVG container with viewBox with hardware acceleration -->
 <svg
-  bind:this={svgElement}
-  class="absolute inset-0 h-full w-full"
-  viewBox="0 0 696 316"
-  fill="none"
-  aria-label="Background Pattern"
-  role="presentation"
-  aria-hidden="true"
-  style:z-index="0"
-  style:background-color={background}
-  style:will-change="transform"
-  style:transform="translateZ(0)"
+	bind:this={svgElement}
+	class="absolute inset-0 h-full w-full"
+	viewBox="0 0 696 316"
+	fill="none"
+	aria-label="Background Pattern"
+	role="presentation"
+	aria-hidden="true"
+	style={`
+		z-index: 0; 
+		background-color: ${background};
+		will-change: transform;
+		transform: translateZ(0);
+	`}
 >
-  {#each paths as path (path.id)}
-    <path
-      d={path.d}
-      stroke={path.color}
-      stroke-width={path.width}
-      stroke-linecap="round"
-      stroke-opacity={path.opacity}
-      style:stroke-dasharray="1000px"
-      style:stroke-dashoffset="{getStrokeDashOffset(path.id)}px"
-      style:will-change="stroke-dashoffset"
-      aria-hidden="true"
-    />
-  {/each}
+	{#each paths as path (path.id)}
+		<!-- Render each path with dynamic attributes -->
+		<path
+			d={path.d}
+			stroke={path.color}
+			stroke-width={path.width}
+			stroke-linecap="round"
+			stroke-opacity={path.opacity}
+			style={`
+				stroke-dasharray: 1000px; 
+				stroke-dashoffset: ${getStrokeDashOffset(path.id)}px;
+				will-change: stroke-dashoffset;
+			`}
+			aria-hidden="true"
+		/>
+	{/each}
 </svg>

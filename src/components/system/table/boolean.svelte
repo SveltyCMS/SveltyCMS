@@ -15,14 +15,14 @@
 -->
 
 <script lang="ts">
-import { boolean_no, boolean_yes } from "@src/paraglide/messages";
+	import { boolean_no, boolean_yes } from '@src/paraglide/messages';
 
-// Svelte 5 props
-interface Props {
-	value?: boolean;
-}
+	// Svelte 5 props
+	interface Props {
+		value?: boolean;
+	}
 
-const { value = false }: Props = $props();
+	const { value = false }: Props = $props();
 </script>
 
 <!-- Display 'Yes' for true and 'No' for false with badges -->

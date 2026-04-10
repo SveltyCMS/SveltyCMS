@@ -5,13 +5,13 @@ Toolbar controls for the FocalPoint widget
 -->
 
 <script lang="ts">
-interface Props {
-	focalX?: number;
-	focalY?: number;
-	onReset?: () => void;
-}
+	interface Props {
+		focalX?: number;
+		focalY?: number;
+		onReset?: () => void;
+	}
 
-const { focalX = 50, focalY = 50, onReset = () => {} }: Props = $props();
+	const { focalX = 50, focalY = 50, onReset = () => {} }: Props = $props();
 </script>
 
 <div class="flex items-center gap-4 flex-wrap">

@@ -22,33 +22,33 @@ Interactive level configuration with add/remove level capabilities
 -->
 
 <script lang="ts">
-import WidgetBuilder from "@src/components/system/builder/widget-builder.svelte";
-import type { FieldInstance } from "@src/content/types";
+	import WidgetBuilder from '@src/components/system/builder/widget-builder.svelte';
+	import type { FieldInstance } from '@src/content/types';
 
-let { value = $bindable([]) }: { value: FieldInstance[][] } = $props();
+	let { value = $bindable([]) }: { value: FieldInstance[][] } = $props();
 
-// Initialize with at least one level if empty
-if (!value || value.length === 0) {
-	value = [[]];
-}
-
-// Add a new menu level
-function addLevel() {
-	value = [...value, []];
-}
-
-// Remove a specific level
-function removeLevel(index: number) {
-	if (value.length > 1) {
-		value = value.filter((_, i) => i !== index);
+	// Initialize with at least one level if empty
+	if (!value || value.length === 0) {
+		value = [[]];
 	}
-}
 
-// Update fields for a specific level
-function updateLevelFields(index: number, newFields: FieldInstance[]) {
-	value[index] = newFields;
-	value = [...value]; // Trigger reactivity
-}
+	// Add a new menu level
+	function addLevel() {
+		value = [...value, []];
+	}
+
+	// Remove a specific level
+	function removeLevel(index: number) {
+		if (value.length > 1) {
+			value = value.filter((_, i) => i !== index);
+		}
+	}
+
+	// Update fields for a specific level
+	function updateLevelFields(index: number, newFields: FieldInstance[]) {
+		value[index] = newFields;
+		value = [...value]; // Trigger reactivity
+	}
 </script>
 
 <div class="space-y-6">

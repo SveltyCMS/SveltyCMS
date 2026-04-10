@@ -24,508 +24,495 @@ Advanced icon picker with search, pagination, and favorites.
 -->
 
 <script lang="ts">
-import { loadIcons } from "@iconify/svelte";
-import { iconpicker_placeholder } from "@src/paraglide/messages";
-import { logger } from "@utils/logger";
-import { toast } from "@src/stores/toast.svelte.ts";
-import { onDestroy, onMount } from "svelte";
-import { quintOut } from "svelte/easing";
-import { fade, scale, slide } from "svelte/transition";
+	import { loadIcons } from '@iconify/svelte';
+	import { iconpicker_placeholder } from '@src/paraglide/messages';
+	import { logger } from '@utils/logger';
+	import { toast } from '@src/stores/toast.svelte.ts';
+	import { onDestroy, onMount } from 'svelte';
+	import { quintOut } from 'svelte/easing';
+	import { fade, scale, slide } from 'svelte/transition';
 
-// Constants
-const DEBOUNCE_MS = 300;
-const ICONS_PER_PAGE = 50;
-const DEFAULT_LIBRARY = "ic";
-const ICONIFY_API_BASE = "https://api.iconify.design";
-const MAX_RECENT = 10;
+	// Constants
+	const DEBOUNCE_MS = 300;
+	const ICONS_PER_PAGE = 50;
+	const DEFAULT_LIBRARY = 'ic';
+	const ICONIFY_API_BASE = 'https://api.iconify.design';
+	const MAX_RECENT = 10;
 
-// Types
-interface IconLibrary {
-	author?: string;
-	category?: string;
-	license?: string;
-	name: string;
-	prefix?: string;
-	total: number;
-}
-
-interface IconSearchResponse {
-	collections: Record<string, IconLibrary>;
-	icons: string[];
-	limit: number;
-	prefix?: string;
-	start: number;
-	total: number;
-}
-
-interface Props {
-	iconselected?: string;
-	/** Bindable alias so parent (e.g. InputSwitch) can bind:icon and receive updates when user picks an icon. */
-	icon?: string;
-	searchQuery?: string;
-	showFavorites?: boolean;
-	/** When true, hide the text input; user selects only by clicking icons. Shows a "Browse icons" button instead. */
-	hideSearchInput?: boolean;
-}
-
-let {
-	iconselected = $bindable(),
-	icon = $bindable(""),
-	searchQuery = $bindable(""),
-	showFavorites = true,
-	hideSearchInput = true,
-}: Props = $props();
-
-// Sync icon ↔ iconselected so bind:icon from InputSwitch receives picker updates
-$effect(() => {
-	if (icon !== undefined && icon !== null && icon !== iconselected) {
-		iconselected = icon;
-	}
-});
-
-// State
-let icons = $state<string[]>([]);
-let currentPage = $state(0);
-let selectedLibrary = $state(DEFAULT_LIBRARY);
-let iconLibraries = $state<Record<string, IconLibrary>>({});
-let isLoadingLibraries = $state(false);
-let searchError = $state<string | null>(null);
-let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-let favorites = $state<string[]>([]);
-let recentSelections = $state<string[]>([]);
-let isLoading = $state(false);
-let activeTab = $state<"search" | "favorites" | "recent">("search");
-let showDropdown = $state(false);
-let selectedIndex = $state(-1);
-let prefersReducedMotion = $state(false);
-let previewSize = $state(24);
-
-// Refs
-let dropdownRef = $state<HTMLDivElement | null>(null);
-let gridRef = $state<HTMLDivElement | null>(null);
-
-// Derived values
-// Removed unused 'hasIcons'
-const startIndex = $derived(currentPage * ICONS_PER_PAGE);
-const librariesLoaded = $derived(Object.keys(iconLibraries).length > 0);
-const hasSearchQuery = $derived(searchQuery.trim().length > 0);
-const isFavorite = $derived(favorites.includes(iconselected ?? ""));
-const hasRecent = $derived(recentSelections.length > 0);
-const hasFavorites = $derived(favorites.length > 0);
-
-const sortedLibraries = $derived.by(() => {
-	return Object.entries(iconLibraries).sort(([, a], [, b]) =>
-		a.name.localeCompare(b.name),
-	);
-});
-
-let visibleLimit = $state(50);
-
-// Display icons based on active tab
-const displayIcons = $derived.by(() => {
-	if (activeTab === "favorites") {
-		return favorites;
-	}
-	if (activeTab === "recent") {
-		return recentSelections;
+	// Types
+	interface IconLibrary {
+		author?: string;
+		category?: string;
+		license?: string;
+		name: string;
+		prefix?: string;
+		total: number;
 	}
 
-	// If searching (API results), 'icons' is usually just the current page
-	// BUT if browsing (all icons), we slice.
-	// Since we now use infinite scroll for everything:
-	return icons.slice(0, visibleLimit);
-});
+	interface IconSearchResponse {
+		collections: Record<string, IconLibrary>;
+		icons: string[];
+		limit: number;
+		prefix?: string;
+		start: number;
+		total: number;
+	}
 
-// Intersection Observer Action for Infinite Scroll
-function intersectionObserverAction(node: HTMLElement) {
-	const observer = new IntersectionObserver((entries) => {
-		if (entries[0].isIntersecting) {
-			loadMore();
+	interface Props {
+		iconselected?: string;
+		/** Bindable alias so parent (e.g. InputSwitch) can bind:icon and receive updates when user picks an icon. */
+		icon?: string;
+		searchQuery?: string;
+		showFavorites?: boolean;
+		/** When true, hide the text input; user selects only by clicking icons. Shows a "Browse icons" button instead. */
+		hideSearchInput?: boolean;
+	}
+
+	let {
+		iconselected = $bindable(),
+		icon = $bindable(''),
+		searchQuery = $bindable(''),
+		showFavorites = true,
+		hideSearchInput = true
+	}: Props = $props();
+
+	// Sync icon ↔ iconselected so bind:icon from InputSwitch receives picker updates
+	$effect(() => {
+		if (icon !== undefined && icon !== null && icon !== iconselected) {
+			iconselected = icon;
 		}
 	});
 
-	observer.observe(node);
+	// State
+	let icons = $state<string[]>([]);
+	let currentPage = $state(0);
+	let selectedLibrary = $state(DEFAULT_LIBRARY);
+	let iconLibraries = $state<Record<string, IconLibrary>>({});
+	let isLoadingLibraries = $state(false);
+	let searchError = $state<string | null>(null);
+	let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+	let favorites = $state<string[]>([]);
+	let recentSelections = $state<string[]>([]);
+	let isLoading = $state(false);
+	let activeTab = $state<'search' | 'favorites' | 'recent'>('search');
+	let showDropdown = $state(false);
+	let selectedIndex = $state(-1);
+	let prefersReducedMotion = $state(false);
+	let previewSize = $state(24);
 
-	return {
-		destroy() {
-			observer.disconnect();
-		},
-	};
-}
+	// Refs
+	let dropdownRef = $state<HTMLDivElement | null>(null);
+	let gridRef = $state<HTMLDivElement | null>(null);
 
-function loadMore() {
-	// If browsing (all icons loaded), just increase visible limit
-	if (icons.length > visibleLimit) {
-		visibleLimit += 50;
-	}
-	// If searching (API pagination), fetch more
-	else if (hasSearchQuery || selectedLibrary === "") {
-		// Logic to fetch next page from API and append (requires searchIcons to append)
-		// For simplicity, we can ignore this for now if searchTokens returns 50 at a time
-		// But since we removed Page Next/Prev buttons, we SHOULD implement API pagination here.
-		// Let's assume searchIcons handles appending if we pass a flag?
-		// Actually, let's keep it simple: Browse is infinite scroll local, Search is infinite scroll remote?
-		// Refactoring searchIcons to append:
-		if (!isLoading) {
-			currentPage++;
-			searchIcons(searchQuery, selectedLibrary, true); // true = append
+	// Derived values
+	// Removed unused 'hasIcons'
+	const startIndex = $derived(currentPage * ICONS_PER_PAGE);
+	const librariesLoaded = $derived(Object.keys(iconLibraries).length > 0);
+	const hasSearchQuery = $derived(searchQuery.trim().length > 0);
+	const isFavorite = $derived(favorites.includes(iconselected ?? ''));
+	const hasRecent = $derived(recentSelections.length > 0);
+	const hasFavorites = $derived(favorites.length > 0);
+
+	const sortedLibraries = $derived.by(() => {
+		return Object.entries(iconLibraries).sort(([, a], [, b]) => a.name.localeCompare(b.name));
+	});
+
+	let visibleLimit = $state(50);
+
+	// Display icons based on active tab
+	const displayIcons = $derived.by(() => {
+		if (activeTab === 'favorites') {
+			return favorites;
 		}
-	}
-}
-
-function handleScroll() {
-	// keeping this if needed for manual scroll handling, but IntersectionObserver is better
-}
-
-// Debounced search
-function debouncedSearch(query: string, library: string): void {
-	if (debounceTimer) {
-		clearTimeout(debounceTimer);
-	}
-
-	if (!query.trim()) {
-		icons = [];
-		isLoading = false;
-		return;
-	}
-
-	isLoading = true;
-	debounceTimer = setTimeout(() => {
-		searchIcons(query, library);
-	}, DEBOUNCE_MS);
-}
-
-// Fetch icons from Iconify API
-async function searchIcons(
-	query: string,
-	library: string,
-	append = false,
-): Promise<void> {
-	// If no query, load the library's icons instead of clearing
-	if (!query.trim()) {
-		if (library && !append) {
-			await fetchCollectionIcons(library);
-		}
-		return;
-	}
-
-	isLoading = true;
-	searchError = null;
-
-	try {
-		const url = new URL(`${ICONIFY_API_BASE}/search`);
-		url.searchParams.set("query", query);
-		// Only set prefix if a specific library is selected
-		if (library) {
-			url.searchParams.set("prefix", library);
-		}
-		url.searchParams.set("start", startIndex.toString());
-		url.searchParams.set("limit", ICONS_PER_PAGE.toString());
-
-		const controller = new AbortController();
-		const timeout = setTimeout(() => controller.abort(), 10_000);
-
-		const response = await fetch(url.toString(), {
-			signal: controller.signal,
-		});
-
-		clearTimeout(timeout);
-
-		if (!response.ok) {
-			throw new Error(`API error: ${response.status}`);
+		if (activeTab === 'recent') {
+			return recentSelections;
 		}
 
-		const data: IconSearchResponse = await response.json();
+		// If searching (API results), 'icons' is usually just the current page
+		// BUT if browsing (all icons), we slice.
+		// Since we now use infinite scroll for everything:
+		return icons.slice(0, visibleLimit);
+	});
 
-		if (data?.icons && Array.isArray(data.icons)) {
-			const newIcons = data.icons;
-
-			if (append) {
-				icons = [...icons, ...newIcons];
-				visibleLimit += newIcons.length; // Ensure they are visible
-			} else {
-				icons = newIcons;
-				visibleLimit = 50;
-				currentPage = 0;
+	// Intersection Observer Action for Infinite Scroll
+	function intersectionObserverAction(node: HTMLElement) {
+		const observer = new IntersectionObserver((entries) => {
+			if (entries[0].isIntersecting) {
+				loadMore();
 			}
-
-			// Preload icons for better UX
-			const iconIds = newIcons.map((icon) => {
-				// If global search, icon already includes prefix
-				return library ? `${library}:${icon}` : icon;
-			});
-			await loadIcons(iconIds);
-
-			activeTab = "search";
-		} else if (!append) {
-			icons = [];
-		}
-	} catch (error) {
-		if (error instanceof Error && error.name === "AbortError") {
-			searchError = "Search timeout - please try again";
-		} else {
-			logger.error("Error fetching icons:", error);
-			searchError = "Failed to fetch icons";
-		}
-		icons = [];
-	} finally {
-		isLoading = false;
-	}
-}
-
-// Fetch all icons for a specific collection (browsing mode)
-async function fetchCollectionIcons(library: string): Promise<void> {
-	isLoading = true;
-	searchError = null;
-	icons = [];
-
-	try {
-		const response = await fetch(
-			`${ICONIFY_API_BASE}/collection?prefix=${library}`,
-		);
-		if (!response.ok) {
-			throw new Error(`Failed to load collection: ${response.status}`);
-		}
-
-		const data = await response.json();
-
-		// Flatten the collection data into a simple list of icon names
-		let allIcons: string[] = [];
-
-		// Add uncategorized
-		if (data.uncategorized) {
-			allIcons.push(...data.uncategorized);
-		}
-
-		// Add categorized
-		if (data.categories) {
-			Object.values(data.categories).forEach((categoryIcons: unknown) => {
-				allIcons.push(...(categoryIcons as string[]));
-			});
-		}
-
-		// Add hidden/aliases if needed, but usually main icons are enough
-
-		icons = allIcons;
-		visibleLimit = 50; // Reset for new collection
-		// Reset to page 0 for new collection
-		// currentPage = 0; // Don't reset here, handled by caller if needed
-	} catch (error) {
-		logger.error("Error fetching collection icons:", error);
-		searchError = "Failed to load library icons";
-	} finally {
-		isLoading = false;
-	}
-}
-
-// Fetch available icon libraries
-async function fetchIconLibraries(): Promise<void> {
-	if (librariesLoaded || isLoadingLibraries) {
-		return;
-	}
-
-	isLoadingLibraries = true;
-	searchError = null;
-
-	try {
-		const controller = new AbortController();
-		const timeout = setTimeout(() => controller.abort(), 10_000);
-
-		const response = await fetch(`${ICONIFY_API_BASE}/collections`, {
-			signal: controller.signal,
 		});
 
-		clearTimeout(timeout);
+		observer.observe(node);
 
-		if (!response.ok) {
-			throw new Error(`Failed to fetch libraries: ${response.status}`);
-		}
-
-		const data: Record<string, IconLibrary> = await response.json();
-		iconLibraries = data;
-	} catch (error) {
-		logger.error("Error fetching icon libraries:", error);
-		searchError = "Failed to load libraries";
-	} finally {
-		isLoadingLibraries = false;
-	}
-}
-
-// Navigation handlers
-
-// Icon selection
-function selectIcon(iconName: string): void {
-	const fullIconName = iconName.includes(":")
-		? iconName
-		: `${selectedLibrary}:${iconName}`;
-	iconselected = fullIconName;
-	icon = fullIconName;
-
-	// Add to recent (avoiding duplicates)
-	recentSelections = [
-		fullIconName,
-		...recentSelections.filter((i) => i !== fullIconName),
-	].slice(0, MAX_RECENT);
-
-	showDropdown = false;
-	toast.success(`Icon selected: ${fullIconName}`);
-}
-
-// Favorites management
-function toggleFavorite(icon?: string): void {
-	const targetIcon = icon || iconselected;
-	if (!targetIcon) {
-		return;
-	}
-
-	if (favorites.includes(targetIcon)) {
-		favorites = favorites.filter((i) => i !== targetIcon);
-		toast.info("Removed from favorites");
-	} else {
-		favorites = [...favorites, targetIcon];
-		toast.success("Added to favorites");
-	}
-}
-
-// Copy icon name
-async function copyIconName(): Promise<void> {
-	if (!iconselected) {
-		return;
-	}
-
-	try {
-		await navigator.clipboard.writeText(iconselected);
-		toast.success("Icon name copied to clipboard");
-	} catch (error) {
-		logger.error("Copy failed:", error);
-		toast.error("Failed to copy icon name");
-	}
-}
-
-// Remove icon
-function removeIcon(): void {
-	iconselected = "";
-	icon = "";
-	searchQuery = "";
-	icons = [];
-}
-
-// Library change handler
-function handleLibraryChange(): void {
-	currentPage = 0;
-	if (hasSearchQuery) {
-		searchIcons(searchQuery, selectedLibrary);
-	}
-}
-
-// Show dropdown
-function handleFocus(): void {
-	showDropdown = true;
-	fetchIconLibraries();
-	// If we have no icons yet, try to load something
-	if (icons.length === 0) {
-		if (searchQuery) {
-			searchIcons(searchQuery, selectedLibrary);
-		} else if (selectedLibrary) {
-			fetchCollectionIcons(selectedLibrary);
-		}
-	}
-}
-
-// Close dropdown
-function handleClickOutside(event: MouseEvent): void {
-	const target = event.target as HTMLElement;
-	if (dropdownRef && !dropdownRef.contains(target)) {
-		showDropdown = false;
-	}
-}
-
-// Keyboard navigation
-function handleKeyDown(event: KeyboardEvent): void {
-	if (!showDropdown) {
-		return;
-	}
-
-	const iconsToNavigate = displayIcons;
-
-	switch (event.key) {
-		case "Escape":
-			event.preventDefault();
-			showDropdown = false;
-			break;
-
-		case "ArrowDown":
-			event.preventDefault();
-			selectedIndex = Math.min(selectedIndex + 1, iconsToNavigate.length - 1);
-			scrollToSelected();
-			break;
-
-		case "ArrowUp":
-			event.preventDefault();
-			selectedIndex = Math.max(selectedIndex - 1, -1);
-			scrollToSelected();
-			break;
-
-		case "Enter":
-			event.preventDefault();
-			if (selectedIndex >= 0 && iconsToNavigate[selectedIndex]) {
-				selectIcon(iconsToNavigate[selectedIndex]);
+		return {
+			destroy() {
+				observer.disconnect();
 			}
-			break;
-	}
-}
-
-// Scroll to selected icon
-function scrollToSelected(): void {
-	if (!gridRef || selectedIndex < 0) {
-		return;
-	}
-
-	const selectedElement = gridRef.children[selectedIndex] as HTMLElement;
-	if (selectedElement) {
-		selectedElement.scrollIntoView({
-			block: "nearest",
-			behavior: prefersReducedMotion ? "auto" : "smooth",
-		});
-	}
-}
-
-// Switch tabs
-function switchTab(tab: typeof activeTab): void {
-	activeTab = tab;
-	selectedIndex = -1;
-}
-
-// Effects
-$effect(() => {
-	if (showDropdown) {
-		document.addEventListener("click", handleClickOutside);
-		document.addEventListener("keydown", handleKeyDown);
-		return () => {
-			document.removeEventListener("click", handleClickOutside);
-			document.removeEventListener("keydown", handleKeyDown);
 		};
 	}
-});
 
-// Lifecycle
-onMount(() => {
-	const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
-	prefersReducedMotion = mediaQuery.matches;
-
-	const handleChange = (e: MediaQueryListEvent) => {
-		prefersReducedMotion = e.matches;
-	};
-
-	mediaQuery.addEventListener("change", handleChange);
-	return () => mediaQuery.removeEventListener("change", handleChange);
-});
-
-onDestroy(() => {
-	if (debounceTimer) {
-		clearTimeout(debounceTimer);
+	function loadMore() {
+		// If browsing (all icons loaded), just increase visible limit
+		if (icons.length > visibleLimit) {
+			visibleLimit += 50;
+		}
+		// If searching (API pagination), fetch more
+		else if (hasSearchQuery || selectedLibrary === '') {
+			// Logic to fetch next page from API and append (requires searchIcons to append)
+			// For simplicity, we can ignore this for now if searchTokens returns 50 at a time
+			// But since we removed Page Next/Prev buttons, we SHOULD implement API pagination here.
+			// Let's assume searchIcons handles appending if we pass a flag?
+			// Actually, let's keep it simple: Browse is infinite scroll local, Search is infinite scroll remote?
+			// Refactoring searchIcons to append:
+			if (!isLoading) {
+				currentPage++;
+				searchIcons(searchQuery, selectedLibrary, true); // true = append
+			}
+		}
 	}
-});
+
+	function handleScroll() {
+		// keeping this if needed for manual scroll handling, but IntersectionObserver is better
+	}
+
+	// Debounced search
+	function debouncedSearch(query: string, library: string): void {
+		if (debounceTimer) {
+			clearTimeout(debounceTimer);
+		}
+
+		if (!query.trim()) {
+			icons = [];
+			isLoading = false;
+			return;
+		}
+
+		isLoading = true;
+		debounceTimer = setTimeout(() => {
+			searchIcons(query, library);
+		}, DEBOUNCE_MS);
+	}
+
+	// Fetch icons from Iconify API
+	async function searchIcons(query: string, library: string, append = false): Promise<void> {
+		// If no query, load the library's icons instead of clearing
+		if (!query.trim()) {
+			if (library && !append) {
+				await fetchCollectionIcons(library);
+			}
+			return;
+		}
+
+		isLoading = true;
+		searchError = null;
+
+		try {
+			const url = new URL(`${ICONIFY_API_BASE}/search`);
+			url.searchParams.set('query', query);
+			// Only set prefix if a specific library is selected
+			if (library) {
+				url.searchParams.set('prefix', library);
+			}
+			url.searchParams.set('start', startIndex.toString());
+			url.searchParams.set('limit', ICONS_PER_PAGE.toString());
+
+			const controller = new AbortController();
+			const timeout = setTimeout(() => controller.abort(), 10_000);
+
+			const response = await fetch(url.toString(), {
+				signal: controller.signal
+			});
+
+			clearTimeout(timeout);
+
+			if (!response.ok) {
+				throw new Error(`API error: ${response.status}`);
+			}
+
+			const data: IconSearchResponse = await response.json();
+
+			if (data?.icons && Array.isArray(data.icons)) {
+				const newIcons = data.icons;
+
+				if (append) {
+					icons = [...icons, ...newIcons];
+					visibleLimit += newIcons.length; // Ensure they are visible
+				} else {
+					icons = newIcons;
+					visibleLimit = 50;
+					currentPage = 0;
+				}
+
+				// Preload icons for better UX
+				const iconIds = newIcons.map((icon) => {
+					// If global search, icon already includes prefix
+					return library ? `${library}:${icon}` : icon;
+				});
+				await loadIcons(iconIds);
+
+				activeTab = 'search';
+			} else if (!append) {
+				icons = [];
+			}
+		} catch (error) {
+			if (error instanceof Error && error.name === 'AbortError') {
+				searchError = 'Search timeout - please try again';
+			} else {
+				logger.error('Error fetching icons:', error);
+				searchError = 'Failed to fetch icons';
+			}
+			icons = [];
+		} finally {
+			isLoading = false;
+		}
+	}
+
+	// Fetch all icons for a specific collection (browsing mode)
+	async function fetchCollectionIcons(library: string): Promise<void> {
+		isLoading = true;
+		searchError = null;
+		icons = [];
+
+		try {
+			const response = await fetch(`${ICONIFY_API_BASE}/collection?prefix=${library}`);
+			if (!response.ok) {
+				throw new Error(`Failed to load collection: ${response.status}`);
+			}
+
+			const data = await response.json();
+
+			// Flatten the collection data into a simple list of icon names
+			let allIcons: string[] = [];
+
+			// Add uncategorized
+			if (data.uncategorized) {
+				allIcons.push(...data.uncategorized);
+			}
+
+			// Add categorized
+			if (data.categories) {
+				Object.values(data.categories).forEach((categoryIcons: unknown) => {
+					allIcons.push(...(categoryIcons as string[]));
+				});
+			}
+
+			// Add hidden/aliases if needed, but usually main icons are enough
+
+			icons = allIcons;
+			visibleLimit = 50; // Reset for new collection
+			// Reset to page 0 for new collection
+			// currentPage = 0; // Don't reset here, handled by caller if needed
+		} catch (error) {
+			logger.error('Error fetching collection icons:', error);
+			searchError = 'Failed to load library icons';
+		} finally {
+			isLoading = false;
+		}
+	}
+
+	// Fetch available icon libraries
+	async function fetchIconLibraries(): Promise<void> {
+		if (librariesLoaded || isLoadingLibraries) {
+			return;
+		}
+
+		isLoadingLibraries = true;
+		searchError = null;
+
+		try {
+			const controller = new AbortController();
+			const timeout = setTimeout(() => controller.abort(), 10_000);
+
+			const response = await fetch(`${ICONIFY_API_BASE}/collections`, {
+				signal: controller.signal
+			});
+
+			clearTimeout(timeout);
+
+			if (!response.ok) {
+				throw new Error(`Failed to fetch libraries: ${response.status}`);
+			}
+
+			const data: Record<string, IconLibrary> = await response.json();
+			iconLibraries = data;
+		} catch (error) {
+			logger.error('Error fetching icon libraries:', error);
+			searchError = 'Failed to load libraries';
+		} finally {
+			isLoadingLibraries = false;
+		}
+	}
+
+	// Navigation handlers
+
+	// Icon selection
+	function selectIcon(iconName: string): void {
+		const fullIconName = iconName.includes(':') ? iconName : `${selectedLibrary}:${iconName}`;
+		iconselected = fullIconName;
+		icon = fullIconName;
+
+		// Add to recent (avoiding duplicates)
+		recentSelections = [fullIconName, ...recentSelections.filter((i) => i !== fullIconName)].slice(0, MAX_RECENT);
+
+		showDropdown = false;
+		toast.success(`Icon selected: ${fullIconName}`);
+	}
+
+	// Favorites management
+	function toggleFavorite(icon?: string): void {
+		const targetIcon = icon || iconselected;
+		if (!targetIcon) {
+			return;
+		}
+
+		if (favorites.includes(targetIcon)) {
+			favorites = favorites.filter((i) => i !== targetIcon);
+			toast.info('Removed from favorites');
+		} else {
+			favorites = [...favorites, targetIcon];
+			toast.success('Added to favorites');
+		}
+	}
+
+	// Copy icon name
+	async function copyIconName(): Promise<void> {
+		if (!iconselected) {
+			return;
+		}
+
+		try {
+			await navigator.clipboard.writeText(iconselected);
+			toast.success('Icon name copied to clipboard');
+		} catch (error) {
+			logger.error('Copy failed:', error);
+			toast.error('Failed to copy icon name');
+		}
+	}
+
+	// Remove icon
+	function removeIcon(): void {
+		iconselected = '';
+		icon = '';
+		searchQuery = '';
+		icons = [];
+	}
+
+	// Library change handler
+	function handleLibraryChange(): void {
+		currentPage = 0;
+		if (hasSearchQuery) {
+			searchIcons(searchQuery, selectedLibrary);
+		}
+	}
+
+	// Show dropdown
+	function handleFocus(): void {
+		showDropdown = true;
+		fetchIconLibraries();
+		// If we have no icons yet, try to load something
+		if (icons.length === 0) {
+			if (searchQuery) {
+				searchIcons(searchQuery, selectedLibrary);
+			} else if (selectedLibrary) {
+				fetchCollectionIcons(selectedLibrary);
+			}
+		}
+	}
+
+	// Close dropdown
+	function handleClickOutside(event: MouseEvent): void {
+		const target = event.target as HTMLElement;
+		if (dropdownRef && !dropdownRef.contains(target)) {
+			showDropdown = false;
+		}
+	}
+
+	// Keyboard navigation
+	function handleKeyDown(event: KeyboardEvent): void {
+		if (!showDropdown) {
+			return;
+		}
+
+		const iconsToNavigate = displayIcons;
+
+		switch (event.key) {
+			case 'Escape':
+				event.preventDefault();
+				showDropdown = false;
+				break;
+
+			case 'ArrowDown':
+				event.preventDefault();
+				selectedIndex = Math.min(selectedIndex + 1, iconsToNavigate.length - 1);
+				scrollToSelected();
+				break;
+
+			case 'ArrowUp':
+				event.preventDefault();
+				selectedIndex = Math.max(selectedIndex - 1, -1);
+				scrollToSelected();
+				break;
+
+			case 'Enter':
+				event.preventDefault();
+				if (selectedIndex >= 0 && iconsToNavigate[selectedIndex]) {
+					selectIcon(iconsToNavigate[selectedIndex]);
+				}
+				break;
+		}
+	}
+
+	// Scroll to selected icon
+	function scrollToSelected(): void {
+		if (!gridRef || selectedIndex < 0) {
+			return;
+		}
+
+		const selectedElement = gridRef.children[selectedIndex] as HTMLElement;
+		if (selectedElement) {
+			selectedElement.scrollIntoView({
+				block: 'nearest',
+				behavior: prefersReducedMotion ? 'auto' : 'smooth'
+			});
+		}
+	}
+
+	// Switch tabs
+	function switchTab(tab: typeof activeTab): void {
+		activeTab = tab;
+		selectedIndex = -1;
+	}
+
+	// Effects
+	$effect(() => {
+		if (showDropdown) {
+			document.addEventListener('click', handleClickOutside);
+			document.addEventListener('keydown', handleKeyDown);
+			return () => {
+				document.removeEventListener('click', handleClickOutside);
+				document.removeEventListener('keydown', handleKeyDown);
+			};
+		}
+	});
+
+	// Lifecycle
+	onMount(() => {
+		const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+		prefersReducedMotion = mediaQuery.matches;
+
+		const handleChange = (e: MediaQueryListEvent) => {
+			prefersReducedMotion = e.matches;
+		};
+
+		mediaQuery.addEventListener('change', handleChange);
+		return () => mediaQuery.removeEventListener('change', handleChange);
+	});
+
+	onDestroy(() => {
+		if (debounceTimer) {
+			clearTimeout(debounceTimer);
+		}
+	});
 </script>
 
 <div class="icon-picker-container flex w-full flex-col" bind:this={dropdownRef}>

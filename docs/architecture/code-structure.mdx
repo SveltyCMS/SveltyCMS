@@ -411,7 +411,7 @@ export const globalSettings = new GlobalSettings();
 
 ### 5. Content Management (`src/content/`)
 
-The **ContentManager** handles all content operations.
+The **ContentSystem** handles all content operations.
 
 **Responsibilities:**
 
@@ -424,14 +424,14 @@ The **ContentManager** handles all content operations.
 **Example:**
 
 ```typescript
-import { ContentManager } from "$lib/content";
+import { ContentSystem } from "$lib/content";
 
 // Load collections
-const contentManager = new ContentManager(db);
-await contentManager.loadCollections();
+const contentSystem = new ContentSystem(db);
+await contentSystem.loadCollections();
 
 // CRUD operations
-const post = await contentManager.create("posts", {
+const post = await contentSystem.create("posts", {
   title: "Hello World",
   content: "My first post",
   author: userId,
@@ -633,7 +633,7 @@ class ContentService {
 Decouples components through events.
 
 ```typescript
-class ContentManager {
+class ContentSystem {
   async createContent(data: ContentData): Promise<Content> {
     // Create content
     const content = await this.repository.create(data);

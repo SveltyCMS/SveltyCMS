@@ -16,80 +16,74 @@ Registers and manages the service worker for offline support and caching.
 -->
 
 <script lang="ts">
-import { logger } from "@utils/logger";
-import { onMount } from "svelte";
-import { browser } from "$app/environment";
+	import { logger } from '@utils/logger';
+	import { onMount } from 'svelte';
+	import { browser } from '$app/environment';
 
-let updateAvailable = $state(false);
-let registration: ServiceWorkerRegistration | null = $state(null);
+	let updateAvailable = $state(false);
+	let registration: ServiceWorkerRegistration | null = $state(null);
 
-onMount(() => {
-	// Only register in production and in browser
-	if (!browser || import.meta.env.DEV) {
-		return;
-	}
+	onMount(() => {
+		// Only register in production and in browser
+		if (!browser || import.meta.env.DEV) {
+			return;
+		}
 
-	// Check if service worker is supported
-	if (!("serviceWorker" in navigator)) {
-		return;
-	}
+		// Check if service worker is supported
+		if (!('serviceWorker' in navigator)) {
+			return;
+		}
 
-	registerServiceWorker();
-});
+		registerServiceWorker();
+	});
 
-async function registerServiceWorker() {
-	try {
-		registration = await navigator.serviceWorker.register(
-			"/service-worker.js",
-			{
-				scope: "/",
-			},
-		);
-
-		// Check for updates every hour
-		setInterval(
-			() => {
-				registration?.update();
-			},
-			60 * 60 * 1000,
-		);
-
-		// Listen for updates
-		registration.addEventListener("updatefound", () => {
-			const newWorker = registration?.installing;
-
-			newWorker?.addEventListener("statechange", () => {
-				if (
-					newWorker.state === "installed" &&
-					navigator.serviceWorker.controller
-				) {
-					// New service worker available
-					updateAvailable = true;
-				}
+	async function registerServiceWorker() {
+		try {
+			registration = await navigator.serviceWorker.register('/service-worker.js', {
+				scope: '/'
 			});
-		});
 
-		// Handle controller change (new SW activated)
-		navigator.serviceWorker.addEventListener("controllerchange", () => {
-			window.location.reload();
-		});
-	} catch (error) {
-		logger.error("[ServiceWorker] Registration failed:", error);
-	}
-}
+			// Check for updates every hour
+			setInterval(
+				() => {
+					registration?.update();
+				},
+				60 * 60 * 1000
+			);
 
-function updateServiceWorker() {
-	if (registration?.waiting) {
-		// Tell the service worker to skip waiting
-		registration.waiting.postMessage({ type: "SKIP_WAITING" });
-	}
-}
+			// Listen for updates
+			registration.addEventListener('updatefound', () => {
+				const newWorker = registration?.installing;
 
-function clearCache() {
-	if (registration?.active) {
-		registration.active.postMessage({ type: "CLEAR_CACHE" });
+				newWorker?.addEventListener('statechange', () => {
+					if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+						// New service worker available
+						updateAvailable = true;
+					}
+				});
+			});
+
+			// Handle controller change (new SW activated)
+			navigator.serviceWorker.addEventListener('controllerchange', () => {
+				window.location.reload();
+			});
+		} catch (error) {
+			logger.error('[ServiceWorker] Registration failed:', error);
+		}
 	}
-}
+
+	function updateServiceWorker() {
+		if (registration?.waiting) {
+			// Tell the service worker to skip waiting
+			registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+		}
+	}
+
+	function clearCache() {
+		if (registration?.active) {
+			registration.active.postMessage({ type: 'CLEAR_CACHE' });
+		}
+	}
 </script>
 
 {#if updateAvailable}

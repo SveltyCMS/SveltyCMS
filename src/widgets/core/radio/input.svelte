@@ -27,68 +27,61 @@ Renders radio group with options from field.options array
 -->
 
 <script lang="ts">
-import { publicEnv } from "@src/stores/global-settings.svelte";
-import { app } from "@src/stores/store.svelte";
+	import { publicEnv } from '@src/stores/global-settings.svelte';
+	import { app } from '@src/stores/store.svelte';
 
-import type { FieldType } from "./";
+	import type { FieldType } from './';
 
-interface RadioProps {
-	color?: string;
-	legend?: string;
-	options: Array<{ label: string; value: string | number }>;
-}
-
-let {
-	field,
-	value = $bindable(),
-	error,
-}: {
-	field: FieldType & RadioProps;
-	value?: string | number | null | undefined | Record<string, any>;
-	error?: string | null;
-} = $props();
-
-const fieldId = $derived(field.db_fieldName);
-const LANGUAGE = $derived(
-	field.translated
-		? app.contentLanguage
-		: ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || "en").toLowerCase(),
-);
-
-// Local state to bind the radio group to
-let localValue = $state<string | number | null>(null);
-
-// Sync localValue from parent value
-$effect(() => {
-	const parentVal = value;
-	let extracted: string | number | null = null;
-
-	if (field.translated && typeof parentVal === "object" && parentVal !== null) {
-		extracted = (parentVal as Record<string, any>)[LANGUAGE] ?? null;
-	} else if (
-		!field.translated &&
-		(typeof parentVal === "string" || typeof parentVal === "number")
-	) {
-		extracted = parentVal;
+	interface RadioProps {
+		color?: string;
+		legend?: string;
+		options: Array<{ label: string; value: string | number }>;
 	}
 
-	// Only update local if different to avoid loops (though primitives are safe-ish)
-	if (extracted !== localValue) {
-		localValue = extracted;
-	}
-});
+	let {
+		field,
+		value = $bindable(),
+		error
+	}: {
+		field: FieldType & RadioProps;
+		value?: string | number | null | undefined | Record<string, any>;
+		error?: string | null;
+	} = $props();
 
-// Update parent value when localValue changes
-function updateParent(newVal: string | number | null) {
-	if (field.translated) {
-		if (!value || typeof value !== "object") {
-			value = {};
+	const fieldId = $derived(field.db_fieldName);
+	const LANGUAGE = $derived(field.translated ? app.contentLanguage : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase());
+
+	// Local state to bind the radio group to
+	let localValue = $state<string | number | null>(null);
+
+	// Sync localValue from parent value
+	$effect(() => {
+		const parentVal = value;
+		let extracted: string | number | null = null;
+
+		if (field.translated && typeof parentVal === 'object' && parentVal !== null) {
+			extracted = (parentVal as Record<string, any>)[LANGUAGE] ?? null;
+		} else if (!field.translated && (typeof parentVal === 'string' || typeof parentVal === 'number')) {
+			extracted = parentVal;
 		}
-		value = { ...(value as object), [LANGUAGE]: newVal };
-	} else {
-		value = newVal;
+
+		// Only update local if different to avoid loops (though primitives are safe-ish)
+		if (extracted !== localValue) {
+			localValue = extracted;
+		}
+	});
+
+	// Update parent value when localValue changes
+	function updateParent(newVal: string | number | null) {
+		if (field.translated) {
+			if (!value || typeof value !== 'object') {
+				value = {};
+			}
+			value = { ...(value as object), [LANGUAGE]: newVal };
+		} else {
+			value = newVal;
+		}
 	}
-}
 </script>
 
 <div class="mb-4">

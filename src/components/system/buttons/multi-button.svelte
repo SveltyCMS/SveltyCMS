@@ -23,74 +23,67 @@
 -->
 
 <script lang="ts">
-// Stores
-import { mode, setMode } from "@root/src/stores/collection-store.svelte";
-// Using iconify-icon web component
-import { logger } from "@utils/logger";
+	// Stores
+	import { mode, setMode } from '@root/src/stores/collection-store.svelte';
+	// Using iconify-icon web component
+	import { logger } from '@utils/logger';
 
-// Props
-const props = $props();
-// Event handler props for decoupling
+	// Props
+	const props = $props();
+	// Event handler props for decoupling
 
-// The default functions now call the event handlers passed in as props.
-const defaultButtons = $derived({
-	Create: {
-		fn: props["on:create"] || (() => setMode("create")),
-		icon: "gravity-ui:plus",
-		bg_color: "#15d515",
-		color: "white",
-	},
-	Delete: {
-		fn:
-			props["on:delete"] || (() => logger.warn("Delete handler not provided")),
-		icon: "tdesign:delete-1",
-		bg_color: "red",
-		color: "white",
-	},
-	Publish: {
-		fn:
-			props["on:publish"] ||
-			(() => logger.warn("Publish handler not provided")),
-		icon: "",
-		bg_color: "lime",
-		color: "white",
-	},
-	Unpublish: {
-		fn:
-			props["on:unpublish"] ||
-			(() => logger.warn("Unpublish handler not provided")),
-		icon: "",
-		bg_color: "orange",
-		color: "white",
-	},
-	Test: {
-		fn: props["on:test"] || (() => logger.warn("Test handler not provided")),
-		icon: "",
-		bg_color: "brown",
-		color: "white",
-	},
-});
+	// The default functions now call the event handlers passed in as props.
+	const defaultButtons = $derived({
+		Create: {
+			fn: props['on:create'] || (() => setMode('create')),
+			icon: 'gravity-ui:plus',
+			bg_color: '#15d515',
+			color: 'white'
+		},
+		Delete: {
+			fn: props['on:delete'] || (() => logger.warn('Delete handler not provided')),
+			icon: 'tdesign:delete-1',
+			bg_color: 'red',
+			color: 'white'
+		},
+		Publish: {
+			fn: props['on:publish'] || (() => logger.warn('Publish handler not provided')),
+			icon: '',
+			bg_color: 'lime',
+			color: 'white'
+		},
+		Unpublish: {
+			fn: props['on:unpublish'] || (() => logger.warn('Unpublish handler not provided')),
+			icon: '',
+			bg_color: 'orange',
+			color: 'white'
+		},
+		Test: {
+			fn: props['on:test'] || (() => logger.warn('Test handler not provided')),
+			icon: '',
+			bg_color: 'brown',
+			color: 'white'
+		}
+	});
 
-const buttons = $derived(props.buttons || defaultButtons);
-let EXPANDED = $state(false);
-let expanded = {
-	get value() {
-		return mode.value === "modify" ? EXPANDED : false;
-	},
-	set value(v: boolean) {
-		EXPANDED = v;
-	},
-};
+	const buttons = $derived(props.buttons || defaultButtons);
+	let EXPANDED = $state(false);
+	let expanded = {
+		get value() {
+			return mode.value === 'modify' ? EXPANDED : false;
+		},
+		set value(v: boolean) {
+			EXPANDED = v;
+		}
+	};
 
-const defaultButton = $derived(
-	props.defaultButton || (mode.value === "modify" ? "Delete" : "Create"),
-);
+	const defaultButton = $derived(props.defaultButton || (mode.value === 'modify' ? 'Delete' : 'Create'));
 
-const activeArrow = $derived(mode.value === "modify");
+	const activeArrow = $derived(mode.value === 'modify');
 
-function toggleExpanded() {
-	expanded.value = !expanded.value;
-}
+	function toggleExpanded() {
+		expanded.value = !expanded.value;
+	}
 </script>
 
 <div class="relative flex items-center md:w-[200px]">

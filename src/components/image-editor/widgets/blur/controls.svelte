@@ -4,40 +4,40 @@
 Pintura-style controls for the Blur tool with add/delete/rotate/flip functionality.
 -->
 <script lang="ts">
-import type { BlurPattern, BlurShape } from "./types";
+	import type { BlurPattern, BlurShape } from './types';
 
-let {
-	blurStrength,
-	shape,
-	pattern,
-	hasActiveRegion = false,
-	onStrengthChange,
-	onShapeChange,
-	onPatternChange,
-	onAddRegion,
-	onDeleteRegion,
-	onRotateLeft,
-	onRotateRight,
-	onFlipHorizontal,
-}: {
-	blurStrength: number;
-	shape: BlurShape;
-	pattern: BlurPattern;
-	hasActiveRegion?: boolean;
-	onStrengthChange: (value: number) => void;
-	onShapeChange: (value: BlurShape) => void;
-	onPatternChange: (value: BlurPattern) => void;
-	onAddRegion: () => void;
-	onDeleteRegion: () => void;
-	onRotateLeft: () => void;
-	onRotateRight: () => void;
-	onFlipHorizontal: () => void;
-} = $props();
+	let {
+		blurStrength,
+		shape,
+		pattern,
+		hasActiveRegion = false,
+		onStrengthChange,
+		onShapeChange,
+		onPatternChange,
+		onAddRegion,
+		onDeleteRegion,
+		onRotateLeft,
+		onRotateRight,
+		onFlipHorizontal
+	}: {
+		blurStrength: number;
+		shape: BlurShape;
+		pattern: BlurPattern;
+		hasActiveRegion?: boolean;
+		onStrengthChange: (value: number) => void;
+		onShapeChange: (value: BlurShape) => void;
+		onPatternChange: (value: BlurPattern) => void;
+		onAddRegion: () => void;
+		onDeleteRegion: () => void;
+		onRotateLeft: () => void;
+		onRotateRight: () => void;
+		onFlipHorizontal: () => void;
+	} = $props();
 
-function handleStrengthInput(e: Event) {
-	const target = e.currentTarget as HTMLInputElement;
-	onStrengthChange(Number.parseInt(target.value, 10));
-}
+	function handleStrengthInput(e: Event) {
+		const target = e.currentTarget as HTMLInputElement;
+		onStrengthChange(Number.parseInt(target.value, 10));
+	}
 </script>
 
 <div class="blur-controls" role="toolbar" aria-label="Blur controls">

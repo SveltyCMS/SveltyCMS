@@ -1,162 +1,154 @@
 <script lang="ts">
-import { publicEnv } from "@src/stores/global-settings.svelte.ts";
-// Stores & Props
-import { app } from "@src/stores/store.svelte";
-import { onMount } from "svelte";
-import { slide } from "svelte/transition";
+	import { publicEnv } from '@src/stores/global-settings.svelte.ts';
+	// Stores & Props
+	import { app } from '@src/stores/store.svelte';
+	import { onMount } from 'svelte';
+	import { slide } from 'svelte/transition';
 
-// Lucide Icons
+	// Lucide Icons
 
-import { tokenTarget } from "@src/services/token/token-target";
-import type { SeoWidgetData } from ".";
-import SeoAnalysisPanel from "./components/seo-analysis-panel.svelte";
-import SeoField from "./components/seo-field.svelte";
-// Components
-import SeoPreview from "./components/seo-preview.svelte";
-import SocialPreview from "./components/social-preview.svelte";
-// Logic
-import { analyzeSeo } from "./seo-analyzer";
+	import { tokenTarget } from '@src/services/token/token-target';
+	import type { SeoWidgetData } from '.';
+	import SeoAnalysisPanel from './components/seo-analysis-panel.svelte';
+	import SeoField from './components/seo-field.svelte';
+	// Components
+	import SeoPreview from './components/seo-preview.svelte';
+	import SocialPreview from './components/social-preview.svelte';
+	// Logic
+	import { analyzeSeo } from './seo-analyzer';
 
-interface Props {
-	field: any;
-	validationError?: string | null;
-	value?: Record<string, SeoWidgetData>;
-}
-
-let {
-	field,
-	value = $bindable(),
-	validationError: _validationError,
-}: Props = $props();
-
-// --- State ---
-let activeTab = $state(0);
-let seoPreviewMobile = $state(false);
-let analysisResults: any = $state(null);
-let showAnalysis = $state(false); // Collapsible analysis panel
-let isAnalyzing = $state(false);
-
-// Multi-language handling
-let availableLanguages = $state<string[]>([]);
-// Use contentLanguage store value
-const currentLang = $derived(app.contentLanguage);
-// Fallback to 'en' if no language selected
-let lang = $derived(currentLang || "en");
-
-// --- Lifecycle ---
-onMount(() => {
-	// Initialize value structure if missing
-	if (!value) {
-		value = {};
-	}
-	if (!value[lang]) {
-		value[lang] = {
-			title: "",
-			description: "",
-			focusKeyword: "",
-			robotsMeta: "index, follow",
-			canonicalUrl: "",
-			ogTitle: "",
-			ogDescription: "",
-			ogImage: "",
-			twitterCard: "summary_large_image",
-			twitterTitle: "",
-			twitterDescription: "",
-			twitterImage: "",
-			schemaMarkup: "",
-		} as SeoWidgetData;
+	interface Props {
+		field: any;
+		validationError?: string | null;
+		value?: Record<string, SeoWidgetData>;
 	}
 
-	// Get available languages from config/store if possible
-	if (publicEnv.AVAILABLE_CONTENT_LANGUAGES) {
-		availableLanguages = [
-			publicEnv.DEFAULT_CONTENT_LANGUAGE || "en",
-			...publicEnv.AVAILABLE_CONTENT_LANGUAGES,
-		];
-	} else {
-		availableLanguages = ["en"];
-	}
-});
+	let { field, value = $bindable(), validationError: _validationError }: Props = $props();
 
-// --- Analysis Trigger Optimization ---
-// Only run analysis when relevant fields change to improve performance
-$effect(() => {
-	const langData = value?.[lang];
-	if (!langData) {
-		return;
-	}
+	// --- State ---
+	let activeTab = $state(0);
+	let seoPreviewMobile = $state(false);
+	let analysisResults: any = $state(null);
+	let showAnalysis = $state(false); // Collapsible analysis panel
+	let isAnalyzing = $state(false);
 
-	// Create dependency on relevant fields only
-	void langData.title;
-	void langData.description;
-	void langData.focusKeyword;
-	void langData.canonicalUrl;
-	void langData.robotsMeta;
+	// Multi-language handling
+	let availableLanguages = $state<string[]>([]);
+	// Use contentLanguage store value
+	const currentLang = $derived(app.contentLanguage);
+	// Fallback to 'en' if no language selected
+	let lang = $derived(currentLang || 'en');
 
-	// Debounce slightly to avoid rapid updates
-	const timeout = setTimeout(() => {
-		runAnalysis();
-	}, 300);
-
-	return () => clearTimeout(timeout);
-});
-
-// --- Actions ---
-
-async function runAnalysis() {
-	if (!value?.[lang]) {
-		return;
-	}
-	isAnalyzing = true;
-
-	// TODO: Connect to actual content store when available
-	const contentBody = "";
-
-	try {
-		analysisResults = await analyzeSeo(value[lang], contentBody);
-	} catch (e) {
-		console.error("SEO Analysis failed", e);
-	} finally {
-		isAnalyzing = false;
-	}
-}
-
-function hasFeature(feature: string): boolean {
-	return (field as any).defaults?.features?.includes(feature) ?? true;
-}
-
-// --- Helper: Translation Percentage ---
-function getFieldTranslationPercentage(fieldName: string): number {
-	if (!value || availableLanguages.length === 0) {
-		return 0;
-	}
-	const safeValue = value; // Capture for closure safety
-	const populatedCount = availableLanguages.filter((l) => {
-		const langData = safeValue[l];
-		if (!langData) {
-			return false;
+	// --- Lifecycle ---
+	onMount(() => {
+		// Initialize value structure if missing
+		if (!value) {
+			value = {};
 		}
-		const fieldData = langData[fieldName as keyof SeoWidgetData];
-		return typeof fieldData === "string" && fieldData.trim() !== "";
-	}).length;
-	return Math.round((populatedCount / availableLanguages.length) * 100);
-}
+		if (!value[lang]) {
+			value[lang] = {
+				title: '',
+				description: '',
+				focusKeyword: '',
+				robotsMeta: 'index, follow',
+				canonicalUrl: '',
+				ogTitle: '',
+				ogDescription: '',
+				ogImage: '',
+				twitterCard: 'summary_large_image',
+				twitterTitle: '',
+				twitterDescription: '',
+				twitterImage: '',
+				schemaMarkup: ''
+			} as SeoWidgetData;
+		}
 
-// --- UI Helpers ---
-// Update wrapper for SeoField to bind back to the deeply nested value
-const updateField = (fieldName: keyof SeoWidgetData, newVal: string) => {
-	if (!value?.[lang]) {
-		return;
+		// Get available languages from config/store if possible
+		if (publicEnv.AVAILABLE_CONTENT_LANGUAGES) {
+			availableLanguages = [publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en', ...publicEnv.AVAILABLE_CONTENT_LANGUAGES];
+		} else {
+			availableLanguages = ['en'];
+		}
+	});
+
+	// --- Analysis Trigger Optimization ---
+	// Only run analysis when relevant fields change to improve performance
+	$effect(() => {
+		const langData = value?.[lang];
+		if (!langData) {
+			return;
+		}
+
+		// Create dependency on relevant fields only
+		void langData.title;
+		void langData.description;
+		void langData.focusKeyword;
+		void langData.canonicalUrl;
+		void langData.robotsMeta;
+
+		// Debounce slightly to avoid rapid updates
+		const timeout = setTimeout(() => {
+			runAnalysis();
+		}, 300);
+
+		return () => clearTimeout(timeout);
+	});
+
+	// --- Actions ---
+
+	async function runAnalysis() {
+		if (!value?.[lang]) {
+			return;
+		}
+		isAnalyzing = true;
+
+		// TODO: Connect to actual content store when available
+		const contentBody = '';
+
+		try {
+			analysisResults = await analyzeSeo(value[lang], contentBody);
+		} catch (e) {
+			console.error('SEO Analysis failed', e);
+		} finally {
+			isAnalyzing = false;
+		}
 	}
-	// Cast to any to allow updating union types like twitterCard with strict string
-	(value[lang] as any)[fieldName] = newVal;
-};
 
-// Determine if field is translated based on widget config
-const isTranslated = $derived(field.translated);
+	function hasFeature(feature: string): boolean {
+		return (field as any).defaults?.features?.includes(feature) ?? true;
+	}
 
-const placeholder =
-	'{"@context": "https://schema.org", "@type": "Article", ...}';
+	// --- Helper: Translation Percentage ---
+	function getFieldTranslationPercentage(fieldName: string): number {
+		if (!value || availableLanguages.length === 0) {
+			return 0;
+		}
+		const safeValue = value; // Capture for closure safety
+		const populatedCount = availableLanguages.filter((l) => {
+			const langData = safeValue[l];
+			if (!langData) {
+				return false;
+			}
+			const fieldData = langData[fieldName as keyof SeoWidgetData];
+			return typeof fieldData === 'string' && fieldData.trim() !== '';
+		}).length;
+		return Math.round((populatedCount / availableLanguages.length) * 100);
+	}
+
+	// --- UI Helpers ---
+	// Update wrapper for SeoField to bind back to the deeply nested value
+	const updateField = (fieldName: keyof SeoWidgetData, newVal: string) => {
+		if (!value?.[lang]) {
+			return;
+		}
+		// Cast to any to allow updating union types like twitterCard with strict string
+		(value[lang] as any)[fieldName] = newVal;
+	};
+
+	// Determine if field is translated based on widget config
+	const isTranslated = $derived(field.translated);
+
+	const placeholder = '{"@context": "https://schema.org", "@type": "Article", ...}';
 </script>
 
 <div class="space-y-4">

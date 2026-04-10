@@ -1,68 +1,41 @@
 <!--
-@file src/routes/setup/setup-header.svelte
-@component
-**Global branding and utility header for the SveltyCMS Setup Wizard.**
-Maintains consistent brand identity while providing essential tools for language selection, accessibility, and theme management.
-
-### Props
-- `siteName` (string): The CMS instance name for branding.
-- `systemLanguages` (string[]): Available locales for the setup interface.
-- `currentLanguageTag` (string): The currently active locale.
-- `onselectLanguage` (function): Callback for switching the system language.
-
-### Features:
-- responsive branding with SVG logo animation support
-- real-time version checking and status indicators
-- localized language selector with search/filtering
-- integrated accessibility portal and shortcuts
-- persistent dark mode / light mode toggle
-- SEO-optimized semantic heading hierarchy
+@file src/routes/setup/SetupHeader.svelte
+@component Enhanced Header component for the setup wizard.
+Middle-ground height (h-[38px]), fixed dropdown borders, and right-aligned mobile menu.
 -->
 <script lang="ts">
-// Skeleton V4
-import { Menu, Portal } from "@skeletonlabs/skeleton-svelte";
+	// Skeleton V4
+	import { Menu, Portal } from '@skeletonlabs/skeleton-svelte';
 
-// Components
-import SiteName from "@src/components/site-name.svelte";
-import AccessibilityHelp from "@src/components/system/accessibility-help.svelte";
-import SystemTooltip from "@src/components/system/system-tooltip.svelte";
-import ThemeToggle from "@src/components/theme-toggle.svelte";
-import VersionCheck from "@src/components/version-check.svelte";
-// Paraglide Messages
-import {
-	applayout_systemlanguage,
-	setup_heading_subtitle,
-	setup_search_placeholder,
-} from "@src/paraglide/messages";
-import { getLanguageName } from "@utils/language-utils";
-// Utils
-import { modalState } from "@utils/modal-state.svelte";
+	// Components
+	import SiteName from '@src/components/site-name.svelte';
+	import AccessibilityHelp from '@src/components/system/accessibility-help.svelte';
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+	import ThemeToggle from '@src/components/theme-toggle.svelte';
+	import VersionCheck from '@src/components/version-check.svelte';
+	// Paraglide Messages
+	import { applayout_systemlanguage, setup_heading_subtitle, setup_search_placeholder } from '@src/paraglide/messages';
+	import { getLanguageName } from '@utils/language-utils';
+	// Utils
+	import { modalState } from '@utils/modal-state.svelte';
 
-let {
-	siteName,
-	systemLanguages,
-	currentLanguageTag,
-	onselectLanguage = () => {},
-} = $props();
+	let { siteName, systemLanguages, currentLanguageTag, onselectLanguage = () => {} } = $props();
 
-let langSearch = $state("");
+	let langSearch = $state('');
 
-const filteredLanguages = $derived(
-	systemLanguages
-		.filter((lang: string) => lang !== currentLanguageTag)
-		.filter((lang: string) => {
-			const searchLower = langSearch.toLowerCase();
-			return (
-				getLanguageName(lang).toLowerCase().includes(searchLower) ||
-				lang.toLowerCase().includes(searchLower)
-			);
-		}),
-);
+	const filteredLanguages = $derived(
+		systemLanguages
+			.filter((lang: string) => lang !== currentLanguageTag)
+			.filter((lang: string) => {
+				const searchLower = langSearch.toLowerCase();
+				return getLanguageName(lang).toLowerCase().includes(searchLower) || lang.toLowerCase().includes(searchLower);
+			})
+	);
 
-function selectLanguage(lang: string) {
-	onselectLanguage(lang);
-	langSearch = ""; // Reset search on selection
-}
+	function selectLanguage(lang: string) {
+		onselectLanguage(lang);
+		langSearch = ''; // Reset search on selection
+	}
 </script>
 
 <div

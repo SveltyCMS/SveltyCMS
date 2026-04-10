@@ -84,9 +84,7 @@ const RemoteVideoWidget = createWidget({
   Name: "RemoteVideo",
   Icon: "mdi:video-vintage",
   Description: widget_remoteVideo_description(),
-  inputComponent: () => import("./input.svelte"),
   inputComponentPath: "/src/widgets/custom/remote-video/input.svelte",
-  displayComponent: () => import("./display.svelte"),
   displayComponentPath: "/src/widgets/custom/remote-video/display.svelte",
   validationSchema,
 

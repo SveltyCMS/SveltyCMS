@@ -5,57 +5,31 @@
 -->
 
 <script lang="ts">
-// @ts-nocheck
+	// @ts-nocheck
 
-import {
-	usertoken_button,
-	usertoken_email,
-	usertoken_role,
-	usertoken_token,
-	usertoken_valid,
-} from "@src/paraglide/messages";
-import { publicEnv } from "@src/stores/global-settings.svelte";
-import { app } from "@src/stores/store.svelte";
-import {
-	Body,
-	Button,
-	Container,
-	Head,
-	Heading,
-	Hr,
-	Html,
-	Img,
-	Link,
-	Preview,
-	Section,
-	Text,
-} from "better-svelte-email";
-import { dev } from "$app/environment";
+	import { usertoken_button, usertoken_email, usertoken_role, usertoken_token, usertoken_valid } from '@src/paraglide/messages';
+	import { publicEnv } from '@src/stores/global-settings.svelte';
+	import { app } from '@src/stores/store.svelte';
+	import { Body, Button, Container, Head, Heading, Hr, Html, Img, Link, Preview, Section, Text } from 'better-svelte-email';
+	import { dev } from '$app/environment';
 
-interface Props {
-	email?: string;
-	expiresInLabel?: string | number;
-	languageTag?: string;
-	role?: string;
-	token?: string;
-	tokenLink?: string;
-}
+	interface Props {
+		email?: string;
+		expiresInLabel?: string | number;
+		languageTag?: string;
+		role?: string;
+		token?: string;
+		tokenLink?: string;
+	}
 
-const {
-	email = "",
-	role = "",
-	token = "",
-	tokenLink = "",
-	expiresInLabel = "",
-	languageTag = app.systemLanguage,
-}: Props = $props();
+	const { email = '', role = '', token = '', tokenLink = '', expiresInLabel = '', languageTag = app.systemLanguage }: Props = $props();
 
-// Use production host logo if available, otherwise fall back to GitHub
-const logoSrc = publicEnv?.HOST_PROD
-	? `${publicEnv.HOST_PROD}/SveltyCMS.png`
-	: "https://github.com/SveltyCMS/SveltyCMS/raw/main/static/SveltyCMS.png";
+	// Use production host logo if available, otherwise fall back to GitHub
+	const logoSrc = publicEnv?.HOST_PROD
+		? `${publicEnv.HOST_PROD}/SveltyCMS.png`
+		: 'https://github.com/SveltyCMS/SveltyCMS/raw/main/static/SveltyCMS.png';
 
-// The tokenLink is now passed directly from the API, no need to construct it here.
+	// The tokenLink is now passed directly from the API, no need to construct it here.
 </script>
 
 <Html lang={languageTag}>
