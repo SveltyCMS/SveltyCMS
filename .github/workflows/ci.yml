@@ -294,11 +294,60 @@ jobs:
           retention-days: 7
 
   # ------------------------------------------------
-  # 5. E2E tests (Playwright sharded)
+  # 5a. E2E – Wizard (runs once, not per shard)
+  # ------------------------------------------------
+  e2e-wizard:
+    name: 🧙 E2E (Wizard)
+    needs: [bootstrap, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: oven-sh/setup-bun@v2
+      - uses: actions/download-artifact@v7
+        with: { name: workspace-meta }
+      - uses: actions/download-artifact@v7
+        with: { name: build-output }
+      - uses: actions/cache@v5
+        with:
+          path: |
+            .bun-cache
+            ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+      - uses: actions/cache@v5
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ needs.bootstrap.outputs.pw-version }}
+          restore-keys: playwright-${{ runner.os }}-
+      - run: bun install --frozen-lockfile --prefer-offline --cache-dir .bun-cache
+      - run: bun x playwright install --with-deps chromium
+      - name: Run Wizard E2E tests
+        env:
+          DB_TYPE: sqlite
+          TEST_MODE: true
+          ADMIN_PASSWORD: Password123!
+          PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:4173
+        run: |
+          export TEST_API_SECRET=$(cat tests/e2e/.auth/test-secret.txt)
+          bun run preview --port 4173 --host 127.0.0.1 > preview.log 2>&1 &
+          for i in {1..90}; do
+            curl -s http://127.0.0.1:4173/api/system/health && break || sleep 1
+          done
+          bun run scripts/setup-system.ts
+          bun x playwright test --project=wizard
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: playwright-report-Wizard
+          path: playwright-report
+          retention-days: 14
+
+  # ------------------------------------------------
+  # 5b. E2E tests (Playwright sharded)
   # ------------------------------------------------
   e2e:
     name: 🎭 E2E (${{ matrix.name }})
-    needs: [bootstrap, build]
+    needs: [bootstrap, build, e2e-wizard]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
@@ -306,13 +355,13 @@ jobs:
       matrix:
         include:
           - shard: 1
-            name: "Wizard"
-          - shard: 2
             name: "Auth"
-          - shard: 3
+          - shard: 2
             name: "Content"
-          - shard: 4
+          - shard: 3
             name: "System"
+          - shard: 4
+            name: "Misc"
     steps:
       - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
@@ -357,6 +406,7 @@ jobs:
           name: playwright-report-${{ matrix.name }}
           path: playwright-report
           retention-days: 14
+          overwrite: true
 
   # ------------------------------------------------
   # 6. Benchmarks (runs after db-tests)

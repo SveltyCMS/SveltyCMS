@@ -73,3 +73,5 @@ src/paraglide/**/*.js
 LOCAL.md
 bundle-report.json
 tests/benchmarks/results/*
+project.inlang
+testing-artifacts

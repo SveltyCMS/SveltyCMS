@@ -95,8 +95,10 @@ export default defineConfig({
     {
       name: "auth-setup",
       testMatch: /auth\.setup\.ts/,
-      dependencies: ["wizard"],
-      workers: 1, // Sequential auth setup
+      // No dependency on "wizard": in CI the wizard runs once in its own job.
+      // In local dev, run `playwright test --project=wizard` first manually if needed.
+      // Force sequential to avoid race conditions during auth bootstrapping
+      workers: 1,
     },
     {
       name: "signup",
