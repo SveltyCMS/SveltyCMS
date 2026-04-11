@@ -11,7 +11,7 @@ import { expect, type Page } from "@playwright/test";
  */
 export const ADMIN_CREDENTIALS = {
   email: process.env.ADMIN_EMAIL || "admin@example.com",
-  password: process.env.ADMIN_PASS || "Admin123!",
+  password: process.env.ADMIN_PASSWORD || process.env.ADMIN_PASS || "Admin123!",
 };
 
 /**
