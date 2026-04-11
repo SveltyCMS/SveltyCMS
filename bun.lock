@@ -116,7 +116,7 @@
         "tailwindcss": "^4.2.2",
         "ts-morph": "^27.0.2",
         "tslib": "^2.8.1",
-        "ultracite": "7.5.0",
+        "ultracite": "^7.5.1",
         "vite": "^8.0.8",
         "vite-plus": "^0.1.16",
         "vitest": "^4.1.4",
@@ -2745,7 +2745,7 @@
 
     "uglify-js": ["uglify-js@3.19.3", "", { "bin": { "uglifyjs": "bin/uglifyjs" } }, "sha512-v3Xu+yuwBXisp6QYTcH4UbH+xYJXqnq2m/LtQVWKWzYc1iehYnLixoQDN9FH6/j9/oybfd6W9Ghwkl8+UMKTKQ=="],
 
-    "ultracite": ["ultracite@7.5.0", "", { "dependencies": { "@clack/prompts": "^1.2.0", "commander": "^14.0.3", "cross-spawn": "^7.0.6", "deepmerge": "^4.3.1", "glob": "^13.0.6", "jsonc-parser": "^3.3.1", "nypm": "^0.6.5" }, "peerDependencies": { "oxlint": "^1.0.0" }, "optionalPeers": ["oxlint"], "bin": { "ultracite": "dist/index.js" } }, "sha512-gR8wBA2Ob40UFe9quGKFQpYe6Q6s+PWj55MHK9eNfdZ/Kv/6uU2uS54zYi9iZL7kK7Rv6GS9gtBoe9A5miDv5Q=="],
+    "ultracite": ["ultracite@7.5.1", "", { "dependencies": { "@clack/prompts": "^1.2.0", "commander": "^14.0.3", "cross-spawn": "^7.0.6", "deepmerge": "^4.3.1", "glob": "^13.0.6", "jsonc-parser": "^3.3.1", "nypm": "^0.6.5" }, "peerDependencies": { "oxlint": "^1.0.0" }, "optionalPeers": ["oxlint"], "bin": { "ultracite": "dist/index.js" } }, "sha512-MKr+TtBQpY45LlNkPZ+qVqBKPhv4XfgSs7cYoJIS5LLGKme8e7sKL65CdnhxZbasttMHURgypEAA5BQMkhx90g=="],
 
     "undici": ["undici@7.22.0", "", {}, "sha512-RqslV2Us5BrllB+JeiZnK4peryVTndy9Dnqq62S3yYRRTj0tFQCwEniUy2167skdGOy3vqRzEvl1Dm4sV2ReDg=="],
 

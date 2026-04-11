@@ -65,7 +65,7 @@ class SystemWatchdog {
   /**
    * Attempts an autonomous recovery for a failed service.
    */
-  private async attemptRecovery(serviceName: string, overallState: string) {
+  private async attemptRecovery(serviceName: string, _overallState: string) {
     const now = Date.now();
     const record = this.recoveryAttempts.get(serviceName) || { count: 0, lastAttempt: 0 };
 

@@ -55,7 +55,7 @@
 	});
 
 	let editor: Editor | null = $state(null);
-	let element: HTMLDivElement;
+	let element: HTMLDivElement = $state()!;
 	let createEditor: any = $state(null);
 
 	let isScrolled = $state(false);
@@ -63,7 +63,7 @@
 	let showSlashMenu = $state(false);
 	let showSource = $state(false); // Source View Toggle
 	let activeDropdown = $state<string | null>(null);
-	let colorInput: HTMLInputElement;
+	let colorInput: HTMLInputElement = $state()!;
 
 	// Table Picker State
 	let hoverRows = $state(0);

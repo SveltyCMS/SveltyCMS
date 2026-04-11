@@ -58,8 +58,10 @@
 		checkPasswordRequirements // This is still called by oninput
 	} = $props(); // Now uses imported type
 
+	import { SvelteSet } from 'svelte/reactivity';
+
 	// Local real-time validation state
-	let touchedFields = $state(new Set<string>());
+	let touchedFields = $state(new SvelteSet<string>());
 	let localValidationErrors = $state<Record<string, string>>({});
 
 	const validationResult = $derived(
@@ -100,7 +102,6 @@
 
 	function handleBlur(fieldName: string) {
 		touchedFields.add(fieldName);
-		touchedFields = touchedFields; // Trigger reactivity
 	}
 </script>
 

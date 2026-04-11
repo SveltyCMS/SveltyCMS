@@ -65,8 +65,10 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 	let showConnectionStringHelper = $state(false);
 	let showAtlasHelper = $state(true); // Collapsible Atlas helper
 
+	import { SvelteSet } from 'svelte/reactivity';
+
 	// Track which fields have been touched (blurred)
-	let touchedFields = $state(new Set<string>());
+	let touchedFields = $state(new SvelteSet<string>());
 
 	// Real-time validation state (always computed, but only shown for touched fields)
 	let localValidationErrors = $state<ValidationErrors>({});
@@ -116,7 +118,6 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 	}); // Handle field blur to mark as touched
 	function handleBlur(fieldName: string) {
 		touchedFields.add(fieldName);
-		touchedFields = touchedFields; // Trigger reactivity
 	} // Parse MongoDB connection string (Atlas or standard)
 	function parseMongoConnectionString(
 		connStr: string

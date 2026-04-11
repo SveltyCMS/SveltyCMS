@@ -6,7 +6,7 @@
 import { spawn, execSync, type ChildProcess } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { randomBytes } from "node:crypto";
+
 import { version as pkgVersion } from "../package.json";
 
 interface DatabaseConfig {

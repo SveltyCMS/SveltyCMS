@@ -482,9 +482,20 @@
 			<!-- Version -->
 			<div class="{isSidebarFull ? 'order-6' : 'order-5'} flex items-center justify-center"><VersionCheck compact={!isSidebarFull} /></div>
 
-			<!-- GitHub (only when expanded) -->
+			<!-- Community Links (only when expanded) -->
 			{#if isSidebarFull}
-				<div class="order-7 flex items-center justify-center {isSidebarFull ? '' : 'col-span-2'}">
+				<div class="order-7 flex items-center justify-center gap-1">
+					<SystemTooltip title="Discord Community" positioning={{ placement: 'right' }}>
+						<a
+							href="https://discord.gg/VrvZF6e2sC"
+							target="_blank"
+							rel="noopener noreferrer"
+							aria-label="Discord Community"
+							class="btn-icon flex items-center justify-center hover:bg-surface-500/20"
+						>
+							<iconify-icon icon="ic:baseline-discord" width="30" class=""></iconify-icon>
+						</a>
+					</SystemTooltip>
 					<SystemTooltip title={applayout_githubdiscussion()} positioning={{ placement: 'right' }}>
 						<a
 							href="https://github.com/SveltyCMS/SveltyCMS/discussions"

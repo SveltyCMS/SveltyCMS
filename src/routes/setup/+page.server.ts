@@ -484,7 +484,7 @@ export const actions: Actions = {
           let privateConfigModule: any;
           try {
             privateConfigModule = await import("@config/private");
-          } catch (_e) {
+          } catch {
             logger.debug("Private config not found, proceeding with creation.");
           }
 
