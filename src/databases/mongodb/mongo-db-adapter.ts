@@ -1,6 +1,10 @@
 /**
  * @file src/databases/mongodb/mongo-db-adapter.ts
  * @description MongoDB adapter for SveltyCMS.
+ * 
+ * IMPLEMENTATION NOTE: Using isolated connections (mongoose.createConnection)
+ * instead of the global mongoose singleton to allow safe disconnects during
+ * setup and testing without killing the main server connection.
  */
 
 import { BaseAdapter } from "../base-adapter";
@@ -115,39 +119,22 @@ export class MongoDBAdapter extends BaseAdapter implements IDBAdapter {
           : (connectionStringOrOptions as any).connectionString || "";
 
       // If already connected, just return success
-      if (mongoose.connection.readyState === 1) {
-        this._connection = mongoose.connection;
+      if (this._connection && this._connection.readyState === 1) {
         this.connected = true;
         return { success: true, data: undefined };
       }
 
-      // If already connecting, wait for it
-      if (mongoose.connection.readyState === 2) {
-        await new Promise((resolve, reject) => {
-          const onConnected = () => {
-            cleanup();
-            resolve(true);
-          };
-          const onError = (err: Error) => {
-            cleanup();
-            reject(err);
-          };
-          const cleanup = () => {
-            mongoose.connection.removeListener("connected", onConnected);
-            mongoose.connection.removeListener("error", onError);
-          };
-          mongoose.connection.on("connected", onConnected);
-          mongoose.connection.on("error", onError);
-        });
-        this._connection = mongoose.connection;
-        this.connected = true;
-        return { success: true, data: undefined };
-      }
+      // Prepare connection options
+      const connectOptions = {
+        ...options,
+        // Ensure we don't use global models
+        autoIndex: true,
+      };
 
-      // Otherwise, initiate new connection
-      await mongoose.connect(connectionString, options || {});
-      this._connection = mongoose.connection;
+      // Create isolated connection
+      this._connection = await mongoose.createConnection(connectionString, connectOptions).asPromise();
       this.connected = true;
+      
       return { success: true, data: undefined };
     } catch (err: any) {
       this.connected = false;
@@ -166,8 +153,10 @@ export class MongoDBAdapter extends BaseAdapter implements IDBAdapter {
 
   async disconnect(): Promise<DatabaseResult<void>> {
     try {
-      await mongoose.disconnect();
-      this._connection = null;
+      if (this._connection) {
+        await this._connection.close();
+        this._connection = null;
+      }
       this.connected = false;
       return { success: true, data: undefined };
     } catch (err: any) {
@@ -180,13 +169,13 @@ export class MongoDBAdapter extends BaseAdapter implements IDBAdapter {
   }
 
   override isConnected(): boolean {
-    return !!this._connection && mongoose.connection.readyState === 1;
+    return !!this._connection && this._connection.readyState === 1;
   }
 
   async getVersion(): Promise<DatabaseResult<string>> {
     if (!this.isConnected()) return this.notConnectedError();
     try {
-      const admin = mongoose.connection.db!.admin();
+      const admin = this._connection!.db!.admin();
       const serverStatus = await admin.serverStatus();
       return { success: true, data: serverStatus.version };
     } catch (err: any) {
@@ -201,8 +190,8 @@ export class MongoDBAdapter extends BaseAdapter implements IDBAdapter {
         message: "Not connected",
         error: { code: "NOT_CONNECTED", message: "Not connected" },
       };
-    if (mongoose.connection.db) {
-      await mongoose.connection.db.dropDatabase();
+    if (this._connection!.db) {
+      await this._connection!.db.dropDatabase();
     }
     return { success: true, data: undefined };
   }
@@ -311,7 +300,9 @@ export class MongoDBAdapter extends BaseAdapter implements IDBAdapter {
   async transaction<T>(
     fn: (transaction: DatabaseTransaction) => Promise<DatabaseResult<T>>,
   ): Promise<DatabaseResult<T>> {
-    const session = await mongoose.startSession();
+    if (!this._connection) return { success: false, message: "No connection", error: { code: "NO_CONNECTION", message: "No connection" } };
+    
+    const session = await this._connection.startSession();
     try {
       session.startTransaction();
       const result = await fn(session as unknown as DatabaseTransaction);
@@ -336,13 +327,21 @@ export class MongoDBAdapter extends BaseAdapter implements IDBAdapter {
    * Initializes system models and methods.
    */
   async ensureSystem(): Promise<void> {
-    const { SystemSettingModel, SystemPreferencesModel, ThemeModel } = await import("./models");
+    if (!this._connection) {
+      throw new Error("Cannot ensure system without a connection. Call connect() first.");
+    }
+
     const { MongoSystemMethods } = await import("./methods/system-methods");
     const { MongoThemeMethods } = await import("./methods/theme-methods");
     const { MongoSystemVirtualFolderMethods } =
       await import("./methods/system-virtual-folder-methods");
     const { MongoWidgetMethods } = await import("./methods/widget-methods");
-    const { WidgetModel } = await import("./models/widget");
+
+    // We use _getOrCreateModel to ensure models are registered on THIS connection
+    const SystemSettingModel = this._getOrCreateModel("SystemSetting");
+    const SystemPreferencesModel = this._getOrCreateModel("SystemPreferences");
+    const ThemeModel = this._getOrCreateModel("Theme");
+    const WidgetModel = this._getOrCreateModel("Widget");
 
     this.system.preferences = new MongoSystemMethods(SystemPreferencesModel, SystemSettingModel);
     this.system.themes = new MongoThemeMethods(ThemeModel) as any;
@@ -350,7 +349,7 @@ export class MongoDBAdapter extends BaseAdapter implements IDBAdapter {
     this.system.widgets = new MongoWidgetMethods(WidgetModel) as any;
 
     // Initialize tenants
-    const { TenantModel } = await import("./models/tenant");
+    const TenantModel = this._getOrCreateModel("Tenant");
     const tenantRepo = new MongoCrudMethods(TenantModel);
     this.system.tenants = {
       create: (t) => tenantRepo.insert(t as any),
@@ -361,7 +360,7 @@ export class MongoDBAdapter extends BaseAdapter implements IDBAdapter {
     };
 
     // Initialize jobs
-    const { JobModel } = await import("./models/job");
+    const JobModel = this._getOrCreateModel("Job");
     const jobRepo = new MongoCrudMethods(JobModel);
     this.system.jobs = {
       create: (j) => jobRepo.insert(j as any),
@@ -392,7 +391,7 @@ export class MongoDBAdapter extends BaseAdapter implements IDBAdapter {
    */
   async ensureAuth(): Promise<void> {
     if (this.auth && typeof (this.auth as any).setupAuthModels === "function") {
-      await (this.auth as any).setupAuthModels();
+      await (this.auth as any).setupAuthModels(this._connection);
     }
   }
 
@@ -400,8 +399,12 @@ export class MongoDBAdapter extends BaseAdapter implements IDBAdapter {
    * Initializes collection models and methods.
    */
   async ensureCollections(): Promise<void> {
+    if (!this._connection) {
+      throw new Error("Cannot ensure collections without a connection. Call connect() first.");
+    }
+
     const { MongoCollectionMethods } = await import("./methods/collection-methods");
-    const collectionMethods = new MongoCollectionMethods();
+    const collectionMethods = new MongoCollectionMethods(this._connection);
 
     this.collection = {
       getModel: (id: string) => collectionMethods.getModel(id),
@@ -436,21 +439,25 @@ export class MongoDBAdapter extends BaseAdapter implements IDBAdapter {
    * Initializes media models and methods.
    */
   async ensureMedia(): Promise<void> {
+    if (!this._connection) {
+      throw new Error("Cannot ensure media without a connection. Call connect() first.");
+    }
+
     const { mediaSchema } = await import("./models/media");
     const { SystemVirtualFolderModel } = await import("./models/system-virtual-folder");
     const { MongoMediaMethods } = await import("./methods/media-methods");
 
     // Register media model directly
-    if (!mongoose.models.media) {
-      mongoose.model("media", mediaSchema);
+    if (!this._connection.models.media) {
+      this._connection.model("media", mediaSchema);
     }
 
     // Register media_folders model if not already present
-    if (!mongoose.models.media_folders) {
-      mongoose.model("media_folders", SystemVirtualFolderModel.schema);
+    if (!this._connection.models.media_folders) {
+      this._connection.model("media_folders", SystemVirtualFolderModel.schema);
     }
 
-    const MediaModel = mongoose.models.media;
+    const MediaModel = this._connection.models.media;
     const mediaMethods = new MongoMediaMethods(MediaModel as any);
     const mediaAdapter = {
       files: {
@@ -524,6 +531,10 @@ export class MongoDBAdapter extends BaseAdapter implements IDBAdapter {
    * Initializes content models and methods.
    */
   async ensureContent(): Promise<void> {
+    if (!this._connection) {
+      throw new Error("Cannot ensure content without a connection. Call connect() first.");
+    }
+
     const { MongoContentMethods } = await import("./methods/content-methods");
 
     // Nodes Repo
@@ -643,9 +654,12 @@ export class MongoDBAdapter extends BaseAdapter implements IDBAdapter {
 
   private _getOrCreateModel(name: string): mongoose.Model<any> {
     if (this._models.has(name)) return this._models.get(name)!;
+    if (!this._connection) {
+      throw new Error(`Cannot create model '${name}' without a connection. Call connect() first.`);
+    }
     // CRITICAL: Use String for _id to support UUIDs and prevent Cast to ObjectId errors
     const schema = new mongoose.Schema({ _id: String }, { strict: false, timestamps: true });
-    const model = mongoose.models[name] || mongoose.model(name, schema);
+    const model = this._connection.models[name] || this._connection.model(name, schema);
     this._models.set(name, model);
     return model;
   }

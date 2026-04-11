@@ -1,17 +1,17 @@
 ---
-path: 'src/widgets/custom/Price/README.mdx'
-title: 'Price Widget'
-description: 'Documentation for the Price widget, handling monetary values with currency support.'
+path: "src/widgets/custom/Price/README.mdx"
+title: "Price Widget"
+description: "Documentation for the Price widget, handling monetary values with currency support."
 order: 11
-icon: 'mdi:currency-usd'
-author: 'admin'
-created: '2026-02-17'
-updated: '2026-02-17'
+icon: "mdi:currency-usd"
+author: "admin"
+created: "2026-02-17"
+updated: "2026-02-17"
 tags:
-  - 'widgets'
-  - 'custom'
-  - 'price'
-  - 'ecommerce'
+  - "widgets"
+  - "custom"
+  - "price"
+  - "ecommerce"
 ---
 
 # Price Widget
@@ -32,19 +32,19 @@ The **Price Widget** is a specialized custom widget designed for E-commerce appl
 In your collection schema (e.g., `Products.ts`):
 
 ```typescript
-import { widgets } from '@widgets';
+import { widgets } from "@widgets";
 
 export default {
-	fields: [
-		widgets.Price({
-			label: 'Regular Price',
-			db_fieldName: 'price',
-			required: true,
-			defaultCurrency: 'USD',
-			allowedCurrencies: ['USD', 'EUR', 'GBP'],
-			min: 0
-		})
-	]
+  fields: [
+    widgets.Price({
+      label: "Regular Price",
+      db_fieldName: "price",
+      required: true,
+      defaultCurrency: "USD",
+      allowedCurrencies: ["USD", "EUR", "GBP"],
+      min: 0,
+    }),
+  ],
 };
 ```
 
@@ -54,8 +54,8 @@ The data is stored as an object in the database:
 
 ```json
 {
-	"amount": 29.99,
-	"currency": "USD"
+  "amount": 29.99,
+  "currency": "USD"
 }
 ```
 

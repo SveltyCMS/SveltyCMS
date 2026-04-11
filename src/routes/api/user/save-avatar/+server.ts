@@ -19,7 +19,7 @@
  */
 
 // Media storage
-import { cacheService } from "@src/databases/cache-service";
+import { cacheService } from "@src/databases/cache/cache-service";
 // Auth and permission helpers
 import { auth } from "@src/databases/db";
 

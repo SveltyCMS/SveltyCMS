@@ -11,7 +11,7 @@
  * - **Multi-Tenant Safe:** All data lookups are scoped to the current tenant.
  */
 
-import { contentManager } from "@src/content/content-manager";
+import { contentSystem } from "@src/content";
 import type { BaseEntity, DatabaseId, ISODateString } from "@src/content/types";
 import { dbAdapter } from "@src/databases/db";
 import { getPrivateSettingSync } from "@src/services/settings-service";
@@ -63,7 +63,7 @@ export const GET = apiHandler(async ({ locals, url }) => {
   // 2. Get all collection schemas the user can read (scoped to the tenant)
   let allCollections: any;
   try {
-    allCollections = await contentManager.getCollections();
+    allCollections = await contentSystem.getCollections();
   } catch (err) {
     logger.error("Failed to get collections:", err);
     throw new AppError("Could not access collections", 500, "COLLECTION_FETCH_ERROR");

@@ -1,17 +1,17 @@
 ---
-path: 'src/widgets/core/Repeater/README.mdx'
-title: 'Repeater Widget'
-description: 'Documentation for the Repeater widget, enabling list-based content and complex nested data structures.'
+path: "src/widgets/core/Repeater/README.mdx"
+title: "Repeater Widget"
+description: "Documentation for the Repeater widget, enabling list-based content and complex nested data structures."
 order: 10
-icon: 'mdi:view-list-outline'
-author: 'admin'
-created: '2026-02-17'
-updated: '2026-02-17'
+icon: "mdi:view-list-outline"
+author: "admin"
+created: "2026-02-17"
+updated: "2026-02-17"
 tags:
-  - 'widgets'
-  - 'core'
-  - 'repeater'
-  - 'data-modeling'
+  - "widgets"
+  - "core"
+  - "repeater"
+  - "data-modeling"
 ---
 
 # Repeater Widget
@@ -38,19 +38,22 @@ The **Repeater Widget** is a powerful core widget that allows content editors to
 In your collection schema (e.g., `Products.ts`):
 
 ```typescript
-import { widgets } from '@widgets';
+import { widgets } from "@widgets";
 
 export default {
-	fields: [
-		widgets.Repeater({
-			label: 'Specifications',
-			db_fieldName: 'specs',
-			min: 1,
-			max: 10,
-			addLabel: 'Add Specification',
-			fields: [widgets.Input({ label: 'Label', required: true, width: 6 }), widgets.Input({ label: 'Value', required: true, width: 6 })]
-		})
-	]
+  fields: [
+    widgets.Repeater({
+      label: "Specifications",
+      db_fieldName: "specs",
+      min: 1,
+      max: 10,
+      addLabel: "Add Specification",
+      fields: [
+        widgets.Input({ label: "Label", required: true, width: 6 }),
+        widgets.Input({ label: "Value", required: true, width: 6 }),
+      ],
+    }),
+  ],
 };
 ```
 
@@ -60,8 +63,8 @@ The data is stored as a simple array of objects in the database:
 
 ```json
 [
-	{ "label": "Material", "value": "100% Cotton" },
-	{ "label": "Care", "value": "Machine Wash" }
+  { "label": "Material", "value": "100% Cotton" },
+  { "label": "Care", "value": "Machine Wash" }
 ]
 ```
 

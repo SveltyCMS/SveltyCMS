@@ -44,11 +44,13 @@ flowchart LR
    - "Active Editors" avatar stack in the header.
    - Field-level focus highlights to prevent overlapping edits.
 4. **RichText**: Native Yjs integration for the TipTap/ProseMirror based RichText widget.
+
 ## 🔬 What Makes SveltyCMS's Implementation So Special?
 
 The key is its architectural choice. Instead of building real-time features on top of a traditional database, SveltyCMS has integrated a **CRDT engine** directly into its core editing experience. This enables granular, conflict-free synchronization typically found only in high-end tools like Google Docs or Figma.
 
 ### 1. CRDT Engine: The Gold Standard for Real-Time Sync
+
 Traditional CMSs prevent "lost updates" by locking fields (e.g., Directus) or relying on a central server to resolve conflicts. This can feel clunky and interrupt the creative flow.
 
 SveltyCMS uses **Yjs**, a high-performance Conflict-free Replicated Data Type (CRDT) implementation. CRDTs allow multiple users to edit the same document simultaneously without a central server. Each user's changes are merged mathematically, ensuring consistency without locking or data loss.
@@ -56,9 +58,11 @@ SveltyCMS uses **Yjs**, a high-performance Conflict-free Replicated Data Type (C
 The Yjs framework treats the shared document as the **Single Source of Truth (SSoT)** during an editing session, enabling true real-time collaboration.
 
 ### 2. Hocuspocus: The Sync Engine
+
 **Hocuspocus** is the enterprise WebSocket server that powers our Yjs implementation. It handles the distribution of updates and user presence (awareness) information—such as remote cursors and selections—between all connected clients. This is the engine that makes collaboration feel alive and instantaneous.
 
 ### 3. Character-Level Sync & Remote Cursors
+
 Because of the CRDT foundation, SveltyCMS provides a seamless, collaborative editing experience within its **RichText widget**. Editors see changes character-by-character as they are typed and can view other users' cursors in real-time. This level of fidelity is a hallmark of the SveltyCMS experience, setting it apart from standard CMS implementations.
 
 ---

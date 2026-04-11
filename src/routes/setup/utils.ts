@@ -304,24 +304,26 @@ export async function getSetupDatabaseAdapter(
     }
   }
 
-  // Initialize auth models with error handling
+  // Initialize all database modules with error handling
   try {
-    // Ensure auth module is initialized before accessing it
-    if (dbAdapter.ensureAuth) {
-      await dbAdapter.ensureAuth();
-    } else {
-      // Fallback for adapters that might not implement ensureAuth (though they should)
-      // or if it's already initialized.
+    // Ensure all required modules are initialized before returning
+    if (dbAdapter.ensureAuth) await dbAdapter.ensureAuth();
+    if (dbAdapter.ensureSystem) await dbAdapter.ensureSystem();
+    if (dbAdapter.ensureContent) await dbAdapter.ensureContent();
+    if (dbAdapter.ensureCollections) await dbAdapter.ensureCollections();
+
+    // Fallback for adapters that might not implement ensureAuth (legacy)
+    if (!dbAdapter.ensureAuth && dbAdapter.auth?.setupAuthModels) {
       await dbAdapter.auth.setupAuthModels();
     }
   } catch (err) {
     logger.error(
-      `Model initialization failed: ${err instanceof Error ? err.message : String(err)}`,
+      `Module initialization failed: ${err instanceof Error ? err.message : String(err)}`,
       { correlationId },
     );
     await dbAdapter.disconnect();
     throw new Error(
-      `Model initialization failed: ${err instanceof Error ? err.message : "Unknown error"}`,
+      `Module initialization failed: ${err instanceof Error ? err.message : "Unknown error"}`,
     );
   }
 

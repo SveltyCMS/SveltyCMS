@@ -1,18 +1,18 @@
 ---
-path: 'src/widgets/core/Input/input.mdx'
-title: 'Text Input Widget'
-description: 'A foundational widget for handling multilingual text input with validation, prefixes, suffixes, and character counting.'
+path: "src/widgets/core/Input/input.mdx"
+title: "Text Input Widget"
+description: "A foundational widget for handling multilingual text input with validation, prefixes, suffixes, and character counting."
 order: 1
-icon: 'mdi:form-textbox'
-author: 'admin'
-created: '2025-01-01'
-updated: '2026-02-03'
+icon: "mdi:form-textbox"
+author: "admin"
+created: "2025-01-01"
+updated: "2026-02-03"
 tags:
-  - 'widget'
-  - 'input'
-  - 'text'
-  - 'validation'
-  - 'core'
+  - "widget"
+  - "input"
+  - "text"
+  - "validation"
+  - "core"
 ---
 
 # Text Input Widget
@@ -97,11 +97,11 @@ The storage format depends on the `translated` setting.
 
 ```json
 {
-	"title": {
-		"en": "Hello World",
-		"de": "Hallo Welt",
-		"fr": "Bonjour le monde"
-	}
+  "title": {
+    "en": "Hello World",
+    "de": "Hallo Welt",
+    "fr": "Bonjour le monde"
+  }
 }
 ```
 
@@ -109,7 +109,7 @@ The storage format depends on the `translated` setting.
 
 ```json
 {
-	"slug": "hello-world"
+  "slug": "hello-world"
 }
 ```
 
@@ -187,16 +187,20 @@ The `createValidationSchema` function dynamically builds Valibot schemas:
 ```typescript
 // From index.ts - SSOT for validation
 export const createValidationSchema = (field) => {
-	const stringRules = [transform((s) => s.trim())];
+  const stringRules = [transform((s) => s.trim())];
 
-	if (field.required) stringRules.push(minLength(1, 'This field is required.'));
-	if (field.minLength) stringRules.push(minLength(field.minLength, `Must be at least ${field.minLength} characters.`));
-	if (field.maxLength) stringRules.push(maxLength(field.maxLength, `Must be no more than ${field.maxLength} characters.`));
+  if (field.required) stringRules.push(minLength(1, "This field is required."));
+  if (field.minLength)
+    stringRules.push(minLength(field.minLength, `Must be at least ${field.minLength} characters.`));
+  if (field.maxLength)
+    stringRules.push(
+      maxLength(field.maxLength, `Must be no more than ${field.maxLength} characters.`),
+    );
 
-	// For translated fields, use record<string, string>
-	if (field.translated) return optional(record(string(), string()), {});
+  // For translated fields, use record<string, string>
+  if (field.translated) return optional(record(string(), string()), {});
 
-	return field.required ? schema : optional(schema, '');
+  return field.required ? schema : optional(schema, "");
 };
 ```
 
@@ -219,7 +223,7 @@ Performs case-insensitive regex search on the language-specific key:
 
 ```typescript
 filters: async ({ field, filter, contentLanguage }) => [
-	{ $match: { [`${field.db_fieldName}.${contentLanguage}`]: { $regex: filter, $options: 'i' } } }
+  { $match: { [`${field.db_fieldName}.${contentLanguage}`]: { $regex: filter, $options: "i" } } },
 ];
 ```
 
@@ -229,7 +233,7 @@ Sorts alphabetically based on the current content language:
 
 ```typescript
 sorts: async ({ field, sortDirection, contentLanguage }) => ({
-	[`${field.db_fieldName}.${contentLanguage}`]: sortDirection
+  [`${field.db_fieldName}.${contentLanguage}`]: sortDirection,
 });
 ```
 
@@ -273,25 +277,25 @@ sorts: async ({ field, sortDirection, contentLanguage }) => ({
 
 ```typescript
 interface InputProps {
-	// Basic UI
-	placeholder?: string;
-	prefix?: string;
-	suffix?: string;
+  // Basic UI
+  placeholder?: string;
+  prefix?: string;
+  suffix?: string;
 
-	// Constraints
-	count?: number; // Target character count
-	minLength?: number;
-	maxLength?: number;
+  // Constraints
+  count?: number; // Target character count
+  minLength?: number;
+  maxLength?: number;
 
-	// Standard Widget Props
-	label: string;
-	db_fieldName?: string;
-	required?: boolean;
-	translated?: boolean;
-	icon?: string;
-	helper?: string;
-	width?: string;
-	permissions?: PermissionConfig;
+  // Standard Widget Props
+  label: string;
+  db_fieldName?: string;
+  required?: boolean;
+  translated?: boolean;
+  icon?: string;
+  helper?: string;
+  width?: string;
+  permissions?: PermissionConfig;
 }
 ```
 

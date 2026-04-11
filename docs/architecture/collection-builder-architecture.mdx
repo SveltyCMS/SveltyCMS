@@ -145,7 +145,7 @@ The Collection Builder is designed for rapid iteration using a unified hotkey sy
 | Scenario                      | Handling                                                                                                                       |
 | :---------------------------- | :----------------------------------------------------------------------------------------------------------------------------- |
 | **Invalid Component Loaders** | The `createWidget` factory and TypeScript/Vite validate loaders at compile-time. Broken imports fail during build/development. |
-| **Orphaned Database Nodes**   | The `ContentSystem` validation logic detects nodes with invalid structure and prevents them from loading into memory.         |
+| **Orphaned Database Nodes**   | The `ContentSystem` validation logic detects nodes with invalid structure and prevents them from loading into memory.          |
 | **Disk/DB Mismatch**          | The Filesystem is treated as the "Definition of Done". If a collection is in DB but not Disk, it is flagged for removal.       |
 | **Circular Dependencies**     | The `buildTree` logic includes cycle detection to prevent infinite recursion loop crashing the UI.                             |
 

@@ -16,9 +16,9 @@
 
 // Import inlang settings directly (TypeScript/SvelteKit handles JSON imports)
 import inlangSettings from "@root/project.inlang/settings.json";
-import { scanCompiledCollections } from "@src/content/collection-scanner";
+import { scanCompiledCollections } from "@src/content/content-service.server";
 import type { ContentNode, DatabaseId, Schema } from "@src/content/types";
-import { generateCategoryNodesFromPaths } from "@src/content/utils";
+import { generateCategoryNodesFromPaths } from "@src/content/content-utils";
 import { getAllPermissions } from "@src/databases/auth";
 import { defaultRoles as importedDefaultRoles } from "@src/databases/auth/default-roles";
 import type { DatabaseAdapter, Theme } from "@src/databases/db-interface";
@@ -473,16 +473,16 @@ export async function initSystemFromSetup(
   // Run seeding steps in parallel for maximum performance
   const [seedResults] = await Promise.all([
     (async () => {
-      // NEW: UseContentManager for unified seeding
-      const { contentManager } = await import("@src/content/content-manager");
-      await contentManager.initialize(tenantId, false, adapter);
+      // NEW: UsecontentSystem for unified seeding
+      const { contentSystem } = await import("@src/content");
+      await contentSystem.initialize(tenantId, false, adapter);
 
       if (isDemoSeed) {
         const collections = await scanCompiledCollections();
         await seedDemoRecords(adapter, collections, tenantId);
       }
 
-      const first = await contentManager.getFirstCollection(tenantId);
+      const first = await contentSystem.getFirstCollection(tenantId);
       return {
         firstCollection: first ? { name: first.name as string, path: first.path as string } : null,
       };
@@ -556,14 +556,14 @@ export async function initSystemFast(
     const { loadSettingsFromDB } = await import("@src/databases/db");
     await loadSettingsFromDB();
 
-    // NEW: Pre-register collection models viaContentManager
+    // NEW: Pre-register collection models viacontentSystem
     // This creates the database tables/collections pre-emptively
     try {
       logger.info("📦 Pre-registering collection models...");
-      const { contentManager } = await import("@src/content/content-manager");
-      await contentManager.initialize(tenantId, false, adapter);
+      const { contentSystem } = await import("@src/content");
+      await contentSystem.initialize(tenantId, false, adapter);
     } catch (cmError) {
-      logger.warn("⚠️ContentManager pre-registration failed:", cmError);
+      logger.warn("⚠️contentSystem pre-registration failed:", cmError);
     }
 
     logger.info(
@@ -576,8 +576,8 @@ export async function initSystemFast(
     if (!adapter) {
       return;
     }
-    const { contentManager } = await import("@src/content/content-manager");
-    await contentManager.initialize(tenantId, false, adapter);
+    const { contentSystem } = await import("@src/content");
+    await contentSystem.initialize(tenantId, false, adapter);
   };
 
   return { criticalPromise, backgroundTask };

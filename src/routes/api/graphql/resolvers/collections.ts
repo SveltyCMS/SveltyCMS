@@ -22,7 +22,7 @@
 
 // Collection Manager
 import { modifyRequest } from "@api/collections/modify-request";
-import { contentManager } from "@src/content/content-manager";
+import { contentSystem } from "@src/content";
 import type { FieldInstance, Schema } from "@src/content/types";
 // Types
 import type { User } from "@src/databases/auth/types";
@@ -107,14 +107,14 @@ interface CacheClient {
 
 // Registers collection schemas dynamically, now tenant-aware
 export async function registerCollections(tenantId?: string | null) {
-  await contentManager.initialize(tenantId);
-  const collections: Schema[] = await contentManager.getCollections(tenantId);
+  await contentSystem.initialize(tenantId);
+  const collections: Schema[] = await contentSystem.getCollections(tenantId);
 
   // Use lightweight metadata instead of full schemas where possible
   const collectionStats = await Promise.all(
-    (await contentManager.getCollections(tenantId)).map(async (col) => ({
+    (await contentSystem.getCollections(tenantId)).map(async (col) => ({
       ...col,
-      stats: contentManager.getCollectionStats(col._id!, tenantId),
+      stats: contentSystem.getCollectionStats(col._id!, tenantId),
     })),
   );
 
@@ -352,14 +352,14 @@ export async function collectionsResolvers(
       const locale = ctx.locale || "en";
 
       try {
-        const collectionStats = contentManager.getCollectionStats(collection._id!, ctx.tenantId);
+        const collectionStats = contentSystem.getCollectionStats(collection._id!, ctx.tenantId);
         if (!collectionStats) {
           throw new Error(`Collection not found: ${collection._id}`);
         }
 
         // CACHE: Conforming to Cache Architecture (Category: Query)
         // Key: query:collections:{id}:{page}:{limit}:{locale}:{version}
-        const contentVersion = contentManager.getContentVersion();
+        const contentVersion = contentSystem.getContentVersion();
         const cacheKey = `query:collections:${collection._id}:${page}:${limit}:${locale}:${contentVersion}`;
 
         if (getPrivateSettingSync("USE_REDIS") && cacheClient) {

@@ -461,10 +461,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
   await contentSystem.initialize(tenantId);
 
   // Get first collection and redirect
-  const redirectUrl = await contentSystem.getFirstCollectionRedirectUrl(
-    redirectLanguage,
-    tenantId,
-  );
+  const redirectUrl = await contentSystem.getFirstCollectionRedirectUrl(redirectLanguage, tenantId);
 
   if (redirectUrl) {
     throw redirect(302, redirectUrl);

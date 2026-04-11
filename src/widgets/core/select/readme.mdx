@@ -1,17 +1,17 @@
 ---
-path: 'src/widgets/core/select/README.mdx'
-title: 'Select Widget'
-description: 'Standard dropdown selection widget for choosing a single value from a predefined list.'
+path: "src/widgets/core/select/README.mdx"
+title: "Select Widget"
+description: "Standard dropdown selection widget for choosing a single value from a predefined list."
 order: 5
-icon: 'mdi:form-select'
-author: 'admin'
-created: '2026-02-20'
-updated: '2026-02-20'
+icon: "mdi:form-select"
+author: "admin"
+created: "2026-02-20"
+updated: "2026-02-20"
 tags:
-  - 'widgets'
-  - 'core'
-  - 'select'
-  - 'forms'
+  - "widgets"
+  - "core"
+  - "select"
+  - "forms"
 ---
 
 # Select Widget
@@ -33,17 +33,17 @@ The **Select Widget** provides a standard dropdown interface for users to choose
 In your collection schema (e.g., `Posts.ts`):
 
 ```typescript
-import { widgets } from '@widgets';
+import { widgets } from "@widgets";
 
 export default {
-	fields: [
-		widgets.Select({
-			label: 'Category',
-			db_fieldName: 'category',
-			placeholder: 'Choose a category...',
-			options: ['News', 'Technology', 'Lifestyle', 'Health']
-		})
-	]
+  fields: [
+    widgets.Select({
+      label: "Category",
+      db_fieldName: "category",
+      placeholder: "Choose a category...",
+      options: ["News", "Technology", "Lifestyle", "Health"],
+    }),
+  ],
 };
 ```
 
@@ -53,12 +53,12 @@ For cases where the stored value differs from the display label:
 
 ```typescript
 widgets.Select({
-	label: 'Status',
-	options: [
-		{ label: 'Published', value: 'pub' },
-		{ label: 'Draft', value: 'drf' },
-		{ label: 'Archived', value: 'arc' }
-	]
+  label: "Status",
+  options: [
+    { label: "Published", value: "pub" },
+    { label: "Draft", value: "drf" },
+    { label: "Archived", value: "arc" },
+  ],
 });
 ```
 

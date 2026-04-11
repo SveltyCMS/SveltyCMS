@@ -1,19 +1,19 @@
 ---
-path: 'src/widgets/custom/Email/email.mdx'
-title: 'Email Widget'
-description: 'Email input widget with HTML5 validation, disposable email blocking, and semantic mobile keyboards.'
+path: "src/widgets/custom/Email/email.mdx"
+title: "Email Widget"
+description: "Email input widget with HTML5 validation, disposable email blocking, and semantic mobile keyboards."
 order: 1
-icon: 'ic:outline-email'
-author: 'admin'
-created: '2025-10-01'
-updated: '2026-02-03'
+icon: "ic:outline-email"
+author: "admin"
+created: "2025-10-01"
+updated: "2026-02-03"
 tags:
-  - 'widget'
-  - 'email'
-  - 'form'
-  - 'validation'
-  - 'security'
-  - 'custom'
+  - "widget"
+  - "email"
+  - "form"
+  - "validation"
+  - "security"
+  - "custom"
 ---
 
 # Email Widget
@@ -68,14 +68,14 @@ The widget blocks common disposable email domains to prevent abuse:
 ```typescript
 // Blocked domains (from index.ts)
 const DISPOSABLE_DOMAINS = [
-	'tempmail.com',
-	'guerrillamail.com',
-	'10minutemail.com',
-	'mailinator.com',
-	'throwaway.email',
-	'yopmail.com',
-	'temp-mail.org',
-	'getnada.com'
+  "tempmail.com",
+  "guerrillamail.com",
+  "10minutemail.com",
+  "mailinator.com",
+  "throwaway.email",
+  "yopmail.com",
+  "temp-mail.org",
+  "getnada.com",
 ];
 ```
 
@@ -85,11 +85,11 @@ The Input component applies security sanitization:
 
 ```typescript
 function sanitizeInput(input: string): string {
-	// Remove zero-width characters that could be used for spoofing
-	const sanitized = input.replace(/[\u200B-\u200D\uFEFF]/g, '');
+  // Remove zero-width characters that could be used for spoofing
+  const sanitized = input.replace(/[\u200B-\u200D\uFEFF]/g, "");
 
-	// Normalize Unicode to prevent homograph attacks
-	return sanitized.normalize('NFKC');
+  // Normalize Unicode to prevent homograph attacks
+  return sanitized.normalize("NFKC");
 }
 ```
 
@@ -100,12 +100,12 @@ function sanitizeInput(input: string): string {
 ### Basic Setup
 
 ```typescript
-import widgets from '@widgets';
+import widgets from "@widgets";
 
 widgets.Email({
-	label: 'Email Address',
-	db_fieldName: 'email',
-	required: true
+  label: "Email Address",
+  db_fieldName: "email",
+  required: true,
 });
 ```
 
@@ -113,10 +113,10 @@ widgets.Email({
 
 ```typescript
 widgets.Email({
-	label: 'Contact Email',
-	db_fieldName: 'contact_email',
-	placeholder: 'user@example.com',
-	required: false
+  label: "Contact Email",
+  db_fieldName: "contact_email",
+  placeholder: "user@example.com",
+  required: false,
 });
 ```
 
@@ -124,11 +124,11 @@ widgets.Email({
 
 ```typescript
 widgets.Email({
-	label: 'Newsletter Email',
-	db_fieldName: 'newsletter_email',
-	icon: 'material-symbols:mail-outline',
-	helper: 'We will never share your email address',
-	required: true
+  label: "Newsletter Email",
+  db_fieldName: "newsletter_email",
+  icon: "material-symbols:mail-outline",
+  helper: "We will never share your email address",
+  required: true,
 });
 ```
 
@@ -176,13 +176,22 @@ The Email widget provides comprehensive email validation:
 ```typescript
 // From index.ts - validation includes disposable email blocking
 const validationSchema = (field: FieldInstance) => {
-	const baseSchema = pipe(string(), email('Please enter a valid email address.'), blockDisposableEmail);
+  const baseSchema = pipe(
+    string(),
+    email("Please enter a valid email address."),
+    blockDisposableEmail,
+  );
 
-	const schema = field.required
-		? pipe(string(), minLength(1, 'This field is required.'), email('Please enter a valid email address.'), blockDisposableEmail)
-		: baseSchema;
+  const schema = field.required
+    ? pipe(
+        string(),
+        minLength(1, "This field is required."),
+        email("Please enter a valid email address."),
+        blockDisposableEmail,
+      )
+    : baseSchema;
 
-	return field.required ? schema : optional(schema, '');
+  return field.required ? schema : optional(schema, "");
 };
 ```
 
@@ -211,7 +220,7 @@ Email addresses are stored as non-translatable data:
 
 ```json
 {
-	"email": "user@example.com"
+  "email": "user@example.com"
 }
 ```
 
@@ -232,12 +241,12 @@ Email addresses are universal identifiers that don't change based on language:
 
 ```typescript
 widgets.Email({
-	label: 'Email Address',
-	db_fieldName: 'email',
-	required: true,
-	placeholder: 'Enter your email',
-	icon: 'mdi:email',
-	helper: 'We will send a verification email'
+  label: "Email Address",
+  db_fieldName: "email",
+  required: true,
+  placeholder: "Enter your email",
+  icon: "mdi:email",
+  helper: "We will send a verification email",
 });
 ```
 
@@ -245,12 +254,12 @@ widgets.Email({
 
 ```typescript
 widgets.Email({
-	label: 'Your Email',
-	db_fieldName: 'contact_email',
-	required: true,
-	placeholder: 'your.email@example.com',
-	icon: 'material-symbols:mail',
-	helper: 'So we can respond to your inquiry'
+  label: "Your Email",
+  db_fieldName: "contact_email",
+  required: true,
+  placeholder: "your.email@example.com",
+  icon: "material-symbols:mail",
+  helper: "So we can respond to your inquiry",
 });
 ```
 
@@ -258,12 +267,12 @@ widgets.Email({
 
 ```typescript
 widgets.Email({
-	label: 'Newsletter Subscription',
-	db_fieldName: 'newsletter_email',
-	required: false,
-	placeholder: 'Subscribe to updates (optional)',
-	icon: 'mdi:email-newsletter',
-	helper: 'Leave blank if you prefer not to subscribe'
+  label: "Newsletter Subscription",
+  db_fieldName: "newsletter_email",
+  required: false,
+  placeholder: "Subscribe to updates (optional)",
+  icon: "mdi:email-newsletter",
+  helper: "Leave blank if you prefer not to subscribe",
 });
 ```
 
@@ -271,11 +280,11 @@ widgets.Email({
 
 ```typescript
 widgets.Email({
-	label: 'Author Email',
-	db_fieldName: 'author_email',
-	readonly: true,
-	icon: 'mdi:account-circle',
-	helper: 'Contact the system administrator to change'
+  label: "Author Email",
+  db_fieldName: "author_email",
+  readonly: true,
+  icon: "mdi:account-circle",
+  helper: "Contact the system administrator to change",
 });
 ```
 
@@ -338,10 +347,15 @@ The widget automatically triggers the email-specific keyboard on mobile devices:
 
 ```typescript
 // Required email with disposable blocking
-pipe(string(), minLength(1, 'This field is required'), email('Please enter a valid email address'), blockDisposableEmail);
+pipe(
+  string(),
+  minLength(1, "This field is required"),
+  email("Please enter a valid email address"),
+  blockDisposableEmail,
+);
 
 // Optional email
-optional(pipe(string(), email('Please enter a valid email address'), blockDisposableEmail), '');
+optional(pipe(string(), email("Please enter a valid email address"), blockDisposableEmail), "");
 ```
 
 ### State Management
@@ -390,10 +404,10 @@ If you were using the Input widget with `inputType: 'email'`, migrate to the Ema
 ```typescript
 // ❌ Old approach
 widgets.Input({
-	inputType: 'email',
-	label: 'Email',
-	db_fieldName: 'email',
-	translated: false // Had to remember this!
+  inputType: "email",
+  label: "Email",
+  db_fieldName: "email",
+  translated: false, // Had to remember this!
 });
 ```
 
@@ -402,10 +416,10 @@ widgets.Input({
 ```typescript
 // ✅ New approach
 widgets.Email({
-	label: 'Email',
-	db_fieldName: 'email'
-	// translated: false is automatic
-	// disposable email blocking is automatic
+  label: "Email",
+  db_fieldName: "email",
+  // translated: false is automatic
+  // disposable email blocking is automatic
 });
 ```
 
@@ -471,23 +485,23 @@ widgets.Email({
 
 ```typescript
 type EmailProps = {
-	// Required
-	label: string;
+  // Required
+  label: string;
 
-	// Optional
-	db_fieldName?: string;
-	required?: boolean;
-	placeholder?: string;
-	icon?: string;
-	width?: number;
-	helper?: string;
-	readonly?: boolean;
-	disabled?: boolean;
-	prefix?: string;
-	suffix?: string;
+  // Optional
+  db_fieldName?: string;
+  required?: boolean;
+  placeholder?: string;
+  icon?: string;
+  width?: number;
+  helper?: string;
+  readonly?: boolean;
+  disabled?: boolean;
+  prefix?: string;
+  suffix?: string;
 
-	// Fixed (cannot be changed)
-	translated: false; // Always false for email
+  // Fixed (cannot be changed)
+  translated: false; // Always false for email
 };
 ```
 
@@ -495,8 +509,8 @@ type EmailProps = {
 
 ```typescript
 interface EmailInputProps {
-	field: FieldType;
-	value?: string | Record<string, string> | null | undefined; // Bindable
+  field: FieldType;
+  value?: string | Record<string, string> | null | undefined; // Bindable
 }
 ```
 

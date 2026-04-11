@@ -1,19 +1,19 @@
 ---
-path: 'src/widgets/custom/PhoneNumber/phonenumber.mdx'
-title: 'PhoneNumber Widget'
-description: 'Phone number input widget with E.164 validation, custom patterns, and semantic mobile keyboards.'
+path: "src/widgets/custom/PhoneNumber/phonenumber.mdx"
+title: "PhoneNumber Widget"
+description: "Phone number input widget with E.164 validation, custom patterns, and semantic mobile keyboards."
 order: 3
-icon: 'ic:baseline-phone-in-talk'
-author: 'admin'
-created: '2025-10-01'
-updated: '2026-02-03'
+icon: "ic:baseline-phone-in-talk"
+author: "admin"
+created: "2025-10-01"
+updated: "2026-02-03"
 tags:
-  - 'widget'
-  - 'phone'
-  - 'telephone'
-  - 'form'
-  - 'validation'
-  - 'custom'
+  - "widget"
+  - "phone"
+  - "telephone"
+  - "form"
+  - "validation"
+  - "custom"
 ---
 
 # PhoneNumber Widget
@@ -78,12 +78,12 @@ const phone = "+49 123 456 789";
 ### Basic Setup (E.164 Format)
 
 ```typescript
-import widgets from '@widgets';
+import widgets from "@widgets";
 
 widgets.PhoneNumber({
-	label: 'Phone Number',
-	db_fieldName: 'phone',
-	required: true
+  label: "Phone Number",
+  db_fieldName: "phone",
+  required: true,
 });
 ```
 
@@ -91,11 +91,11 @@ widgets.PhoneNumber({
 
 ```typescript
 widgets.PhoneNumber({
-	label: 'US Phone',
-	db_fieldName: 'us_phone',
-	pattern: '^\\+1[2-9]\\d{9}$', // US format: +1 followed by 10 digits
-	placeholder: '+1 (555) 123-4567',
-	required: true
+  label: "US Phone",
+  db_fieldName: "us_phone",
+  pattern: "^\\+1[2-9]\\d{9}$", // US format: +1 followed by 10 digits
+  placeholder: "+1 (555) 123-4567",
+  required: true,
 });
 ```
 
@@ -103,12 +103,12 @@ widgets.PhoneNumber({
 
 ```typescript
 widgets.PhoneNumber({
-	label: 'Contact Number',
-	db_fieldName: 'contact_phone',
-	icon: 'ph:phone',
-	helper: 'Include country code (e.g., +1 for US)',
-	placeholder: '+1234567890',
-	required: false
+  label: "Contact Number",
+  db_fieldName: "contact_phone",
+  icon: "ph:phone",
+  helper: "Include country code (e.g., +1 for US)",
+  placeholder: "+1234567890",
+  required: false,
 });
 ```
 
@@ -159,9 +159,9 @@ The E.164 international format:
 ```typescript
 // Valid E.164 examples
 +14155552671 + // US
-	442071838750 + // UK
-	861234567890 + // China
-	49301234567; // Germany
+  442071838750 + // UK
+  861234567890 + // China
+  49301234567; // Germany
 ```
 
 ### Custom Patterns
@@ -170,26 +170,26 @@ You can override with custom regex patterns:
 
 ```typescript
 // US format: +1 (XXX) XXX-XXXX
-pattern: '^\\+1\\s\\(\\d{3}\\)\\s\\d{3}-\\d{4}$';
+pattern: "^\\+1\\s\\(\\d{3}\\)\\s\\d{3}-\\d{4}$";
 
 // UK format: +44 XXXX XXXXXX
-pattern: '^\\+44\\s\\d{4}\\s\\d{6}$';
+pattern: "^\\+44\\s\\d{4}\\s\\d{6}$";
 
 // Simple digits only (10-15 digits)
-pattern: '^\\d{10,15}$';
+pattern: "^\\d{10,15}$";
 ```
 
 ### Validation Messages
 
 ```typescript
 // Required field error
-'This field is required';
+"This field is required";
 
 // Invalid format (E.164)
-'Invalid phone number format. Please use international format (e.g., +1234567890)';
+"Invalid phone number format. Please use international format (e.g., +1234567890)";
 
 // Invalid format (custom pattern)
-'Invalid phone number format. Please use international format (e.g., +1234567890)';
+"Invalid phone number format. Please use international format (e.g., +1234567890)";
 ```
 
 ### Validation Behavior
@@ -207,7 +207,7 @@ Phone numbers are stored as strings in the default language:
 
 ```typescript
 {
-	en: '+14155552671'; // Stored as string in default language
+  en: "+14155552671"; // Stored as string in default language
 }
 ```
 
@@ -220,11 +220,11 @@ Phone numbers are stored as strings in the default language:
 
 ```typescript
 // ✅ Good storage format
-'+14155552671';
+"+14155552671";
 
 // ❌ Bad storage formats
-'(415) 555-2671'; // Local format
-'415-555-2671'; // Missing country code
+"(415) 555-2671"; // Local format
+"415-555-2671"; // Missing country code
 4155552671; // Number type (loses leading zeros)
 ```
 
@@ -264,12 +264,12 @@ E.164 is the international telephone numbering plan standard:
 
 ```typescript
 widgets.PhoneNumber({
-	label: 'Phone Number',
-	db_fieldName: 'phone',
-	required: true,
-	placeholder: '+1234567890',
-	icon: 'mdi:phone-in-talk',
-	helper: 'International format with country code'
+  label: "Phone Number",
+  db_fieldName: "phone",
+  required: true,
+  placeholder: "+1234567890",
+  icon: "mdi:phone-in-talk",
+  helper: "International format with country code",
 });
 ```
 
@@ -277,13 +277,13 @@ widgets.PhoneNumber({
 
 ```typescript
 widgets.PhoneNumber({
-	label: 'US Phone',
-	db_fieldName: 'us_phone',
-	pattern: '^\\+1[2-9]\\d{9}$',
-	placeholder: '+1 555 123 4567',
-	icon: 'flag:us-4x3',
-	helper: 'US numbers only (+1 followed by 10 digits)',
-	required: true
+  label: "US Phone",
+  db_fieldName: "us_phone",
+  pattern: "^\\+1[2-9]\\d{9}$",
+  placeholder: "+1 555 123 4567",
+  icon: "flag:us-4x3",
+  helper: "US numbers only (+1 followed by 10 digits)",
+  required: true,
 });
 ```
 
@@ -291,12 +291,12 @@ widgets.PhoneNumber({
 
 ```typescript
 widgets.PhoneNumber({
-	label: 'Emergency Contact',
-	db_fieldName: 'emergency_phone',
-	required: false,
-	placeholder: '+1234567890',
-	icon: 'mdi:phone-alert',
-	helper: 'Person to contact in case of emergency'
+  label: "Emergency Contact",
+  db_fieldName: "emergency_phone",
+  required: false,
+  placeholder: "+1234567890",
+  icon: "mdi:phone-alert",
+  helper: "Person to contact in case of emergency",
 });
 ```
 
@@ -304,12 +304,12 @@ widgets.PhoneNumber({
 
 ```typescript
 widgets.PhoneNumber({
-	label: 'Support Hotline',
-	db_fieldName: 'support_phone',
-	required: true,
-	placeholder: '+1-800-555-1234',
-	icon: 'mdi:headset',
-	helper: 'Customer support phone number'
+  label: "Support Hotline",
+  db_fieldName: "support_phone",
+  required: true,
+  placeholder: "+1-800-555-1234",
+  icon: "mdi:headset",
+  helper: "Customer support phone number",
 });
 ```
 
@@ -317,11 +317,11 @@ widgets.PhoneNumber({
 
 ```typescript
 widgets.PhoneNumber({
-	label: 'Mobile Number',
-	db_fieldName: 'mobile',
-	readonly: true,
-	icon: 'mdi:cellphone',
-	helper: 'Contact admin to update your mobile number'
+  label: "Mobile Number",
+  db_fieldName: "mobile",
+  readonly: true,
+  icon: "mdi:cellphone",
+  helper: "Contact admin to update your mobile number",
 });
 ```
 
@@ -419,13 +419,17 @@ The validation schema uses regex for phone format:
 
 ```typescript
 // Required with E.164
-pipe(string(), minLength(1, 'This field is required'), regex(/^\+?[1-9]\d{1,14}$/, 'Invalid phone number format...'));
+pipe(
+  string(),
+  minLength(1, "This field is required"),
+  regex(/^\+?[1-9]\d{1,14}$/, "Invalid phone number format..."),
+);
 
 // Optional with E.164
-optional(pipe(string(), regex(/^\+?[1-9]\d{1,14}$/, 'Invalid phone number format...')), '');
+optional(pipe(string(), regex(/^\+?[1-9]\d{1,14}$/, "Invalid phone number format...")), "");
 
 // Custom pattern
-pipe(string(), regex(customPattern, 'Invalid phone number format...'));
+pipe(string(), regex(customPattern, "Invalid phone number format..."));
 ```
 
 ### State Management
@@ -502,11 +506,11 @@ If you were using the Input widget with `inputType: 'phone'`, migrate to the Pho
 ```typescript
 // ❌ Old approach
 widgets.Input({
-	inputType: 'phone',
-	label: 'Phone',
-	db_fieldName: 'phone',
-	pattern: '^\\+[1-9]\\d{1,14}$',
-	translated: false // Had to remember this!
+  inputType: "phone",
+  label: "Phone",
+  db_fieldName: "phone",
+  pattern: "^\\+[1-9]\\d{1,14}$",
+  translated: false, // Had to remember this!
 });
 ```
 
@@ -515,10 +519,10 @@ widgets.Input({
 ```typescript
 // ✅ New approach
 widgets.PhoneNumber({
-	label: 'Phone',
-	db_fieldName: 'phone'
-	// E.164 validation and translated: false are automatic
-	// pattern is optional for custom formats
+  label: "Phone",
+  db_fieldName: "phone",
+  // E.164 validation and translated: false are automatic
+  // pattern is optional for custom formats
 });
 ```
 
@@ -565,16 +569,16 @@ Different countries have different phone formats:
 
 ```typescript
 // US: +1 (XXX) XXX-XXXX
-pattern: '^\\+1\\s\\(\\d{3}\\)\\s\\d{3}-\\d{4}$';
+pattern: "^\\+1\\s\\(\\d{3}\\)\\s\\d{3}-\\d{4}$";
 
 // UK: +44 XXXX XXXXXX
-pattern: '^\\+44\\s\\d{4}\\s\\d{6}$';
+pattern: "^\\+44\\s\\d{4}\\s\\d{6}$";
 
 // Germany: +49 XXX XXXXXXX
-pattern: '^\\+49\\s\\d{3}\\s\\d{7}$';
+pattern: "^\\+49\\s\\d{3}\\s\\d{7}$";
 
 // France: +33 X XX XX XX XX
-pattern: '^\\+33\\s\\d\\s\\d{2}\\s\\d{2}\\s\\d{2}\\s\\d{2}$';
+pattern: "^\\+33\\s\\d\\s\\d{2}\\s\\d{2}\\s\\d{2}\\s\\d{2}$";
 ```
 
 ### Recommendations
@@ -597,22 +601,22 @@ pattern: '^\\+33\\s\\d\\s\\d{2}\\s\\d{2}\\s\\d{2}\\s\\d{2}$';
 
 ```typescript
 type PhoneNumberProps = {
-	// Required
-	label: string;
+  // Required
+  label: string;
 
-	// Optional
-	db_fieldName?: string;
-	required?: boolean;
-	pattern?: string; // Custom regex pattern
-	placeholder?: string;
-	icon?: string;
-	width?: number;
-	helper?: string;
-	readonly?: boolean;
-	disabled?: boolean;
+  // Optional
+  db_fieldName?: string;
+  required?: boolean;
+  pattern?: string; // Custom regex pattern
+  placeholder?: string;
+  icon?: string;
+  width?: number;
+  helper?: string;
+  readonly?: boolean;
+  disabled?: boolean;
 
-	// Fixed (cannot be changed)
-	translated: false; // Always false for phone numbers
+  // Fixed (cannot be changed)
+  translated: false; // Always false for phone numbers
 };
 ```
 
@@ -620,8 +624,8 @@ type PhoneNumberProps = {
 
 ```typescript
 interface PhoneNumberInputProps {
-	field: FieldType;
-	value?: any; // Bindable
+  field: FieldType;
+  value?: any; // Bindable
 }
 ```
 

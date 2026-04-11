@@ -21,7 +21,7 @@
 import { verifyPassword } from "@src/databases/auth";
 // Auth and permission helpers
 import { SESSION_COOKIE_NAME } from "@src/databases/auth/constants";
-import { cacheService } from "@src/databases/cache-service";
+import { cacheService } from "@src/databases/cache/cache-service";
 import { auth } from "@src/databases/db";
 import { getPrivateSettingSync } from "@src/services/settings-service";
 import { json } from "@sveltejs/kit";

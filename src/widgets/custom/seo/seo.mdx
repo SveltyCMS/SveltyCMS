@@ -1,12 +1,12 @@
 ---
-path: '/widgets/custom/seo'
-title: 'SEO Widget'
-description: 'SEO management widget with real-time analysis, social media optimization, and structured data for SveltyCMS'
+path: "/widgets/custom/seo"
+title: "SEO Widget"
+description: "SEO management widget with real-time analysis, social media optimization, and structured data for SveltyCMS"
 order: 306
-icon: 'tabler:seo'
-author: 'admin'
-created: '2025-01-15'
-updated: '2025-01-15'
+icon: "tabler:seo"
+author: "admin"
+created: "2025-01-15"
+updated: "2025-01-15"
 tags:
   - widget
   - custom
@@ -22,7 +22,8 @@ tags:
 # SEO Widget
 
 <blockquote>
-	**SEO management widget** with real-time content analysis, social media meta tags, structured data, and AI-powered optimization suggestions.
+  **SEO management widget** with real-time content analysis, social media meta tags, structured
+  data, and AI-powered optimization suggestions.
 </blockquote>
 
 ## Overview
@@ -75,8 +76,8 @@ The SEO widget is included in SveltyCMS by default. For AI-powered features, con
 ```typescript
 // config/private.ts
 export const privateEnv = {
-	OPENAI_API_KEY: 'sk-...', // For AI suggestions
-	ENABLE_AI_SEO: true
+  OPENAI_API_KEY: "sk-...", // For AI suggestions
+  ENABLE_AI_SEO: true,
 };
 ```
 
@@ -87,80 +88,80 @@ export const privateEnv = {
 ### Simple Blog Post SEO
 
 ```typescript
-import SEO from '@src/widgets/custom/Seo';
-import Textarea from '@src/widgets/core/textarea';
+import SEO from "@src/widgets/custom/Seo";
+import Textarea from "@src/widgets/core/textarea";
 
 export const postsCollection = {
-	name: 'Blog Posts',
-	fields: [
-		Input({
-			label: 'Post Title',
-			db_fieldName: 'title',
-			required: true
-		}),
+  name: "Blog Posts",
+  fields: [
+    Input({
+      label: "Post Title",
+      db_fieldName: "title",
+      required: true,
+    }),
 
-		Textarea({
-			label: 'Content',
-			db_fieldName: 'content',
-			required: true,
-			minLength: 300
-		}),
+    Textarea({
+      label: "Content",
+      db_fieldName: "content",
+      required: true,
+      minLength: 300,
+    }),
 
-		SEO({
-			label: 'SEO Settings',
-			db_fieldName: 'seo',
-			required: false,
-			features: ['social', 'advanced'],
-			translated: true
-		})
-	]
+    SEO({
+      label: "SEO Settings",
+      db_fieldName: "seo",
+      required: false,
+      features: ["social", "advanced"],
+      translated: true,
+    }),
+  ],
 };
 ```
 
 ### Product SEO with Social Sharing
 
 ```typescript
-import SEO from '@src/widgets/custom/Seo';
-import Image from '@src/widgets/media/image';
+import SEO from "@src/widgets/custom/Seo";
+import Image from "@src/widgets/media/image";
 
 export const productsCollection = {
-	name: 'Products',
-	fields: [
-		SEO({
-			label: 'SEO & Social',
-			db_fieldName: 'seo',
-			required: true,
-			features: ['social', 'schema'],
-			translated: true,
-			helper: 'Optimize product page for search and social sharing'
-		}),
+  name: "Products",
+  fields: [
+    SEO({
+      label: "SEO & Social",
+      db_fieldName: "seo",
+      required: true,
+      features: ["social", "schema"],
+      translated: true,
+      helper: "Optimize product page for search and social sharing",
+    }),
 
-		Image({
-			label: 'Primary Image',
-			db_fieldName: 'primaryImage',
-			required: true,
-			helper: 'Used as Open Graph image if not specified in SEO'
-		})
-	]
+    Image({
+      label: "Primary Image",
+      db_fieldName: "primaryImage",
+      required: true,
+      helper: "Used as Open Graph image if not specified in SEO",
+    }),
+  ],
 };
 ```
 
 ### Full-Featured SEO
 
 ```typescript
-import SEO from '@src/widgets/custom/Seo';
+import SEO from "@src/widgets/custom/Seo";
 
 export const landingPagesCollection = {
-	name: 'Landing Pages',
-	fields: [
-		SEO({
-			label: 'SEO Configuration',
-			db_fieldName: 'seo',
-			required: true,
-			features: ['social', 'schema', 'advanced', 'ai'],
-			translated: true
-		})
-	]
+  name: "Landing Pages",
+  fields: [
+    SEO({
+      label: "SEO Configuration",
+      db_fieldName: "seo",
+      required: true,
+      features: ["social", "schema", "advanced", "ai"],
+      translated: true,
+    }),
+  ],
 };
 ```
 
@@ -180,12 +181,12 @@ export const landingPagesCollection = {
 ### Available Features
 
 ```typescript
-type SeoFeature = 'basic' | 'social' | 'schema' | 'advanced' | 'ai';
+type SeoFeature = "basic" | "social" | "schema" | "advanced" | "ai";
 
 // Examples:
-features: ['social']; // Basic + Social only
-features: ['social', 'advanced']; // Basic + Social + Advanced
-features: ['social', 'schema', 'advanced', 'ai']; // All features
+features: ["social"]; // Basic + Social only
+features: ["social", "advanced"]; // Basic + Social + Advanced
+features: ["social", "schema", "advanced", "ai"]; // All features
 ```
 
 ---
@@ -240,28 +241,28 @@ SEO data is stored as a **structured object per language** (if translated):
 
 ```typescript
 interface SeoData {
-	// Basic SEO
-	title: string; // Max 60 characters
-	description: string; // Max 160 characters
-	focusKeyword: string; // Primary keyword to optimize for
+  // Basic SEO
+  title: string; // Max 60 characters
+  description: string; // Max 160 characters
+  focusKeyword: string; // Primary keyword to optimize for
 
-	// Advanced
-	robotsMeta: string; // e.g., "index, follow"
-	canonicalUrl?: string; // Canonical URL for duplicate content
+  // Advanced
+  robotsMeta: string; // e.g., "index, follow"
+  canonicalUrl?: string; // Canonical URL for duplicate content
 
-	// Open Graph (Facebook, LinkedIn, etc.)
-	ogTitle?: string; // OG title (can differ from title)
-	ogDescription?: string; // OG description
-	ogImage?: string; // Media ID for OG image
+  // Open Graph (Facebook, LinkedIn, etc.)
+  ogTitle?: string; // OG title (can differ from title)
+  ogDescription?: string; // OG description
+  ogImage?: string; // Media ID for OG image
 
-	// Twitter Cards
-	twitterCard: 'summary' | 'summary_large_image';
-	twitterTitle?: string; // Twitter-specific title
-	twitterDescription?: string; // Twitter-specific description
-	twitterImage?: string; // Media ID for Twitter image
+  // Twitter Cards
+  twitterCard: "summary" | "summary_large_image";
+  twitterTitle?: string; // Twitter-specific title
+  twitterDescription?: string; // Twitter-specific description
+  twitterImage?: string; // Media ID for Twitter image
 
-	// Structured Data
-	schemaMarkup?: string; // JSON-LD schema.org markup
+  // Structured Data
+  schemaMarkup?: string; // JSON-LD schema.org markup
 }
 ```
 
@@ -275,15 +276,15 @@ The default tab includes essential SEO fields:
 
 ```typescript
 // Title (60 character limit)
-title: 'How to Use SveltyCMS - Complete Guide 2025';
+title: "How to Use SveltyCMS - Complete Guide 2025";
 // Character counter: 44/60 (green)
 
 // Description (160 character limit)
-description: 'Learn SveltyCMS with our comprehensive guide...';
+description: "Learn SveltyCMS with our comprehensive guide...";
 // Character counter: 156/160 (green)
 
 // Focus Keyword
-focusKeyword: 'sveltycms tutorial';
+focusKeyword: "sveltycms tutorial";
 // Analysis shows keyword density, prominence
 ```
 
@@ -300,9 +301,9 @@ Optimize how content appears when shared on social platforms:
 #### Open Graph (Facebook, LinkedIn, WhatsApp)
 
 ```typescript
-ogTitle: 'SveltyCMS Complete Guide'; // 65 char limit
-ogDescription: 'Master SveltyCMS in 2025'; // 200 char limit
-ogImage: 'media_id_789'; // 1200x630px recommended
+ogTitle: "SveltyCMS Complete Guide"; // 65 char limit
+ogDescription: "Master SveltyCMS in 2025"; // 200 char limit
+ogImage: "media_id_789"; // 1200x630px recommended
 ```
 
 **Generated meta tags**:
@@ -318,10 +319,10 @@ ogImage: 'media_id_789'; // 1200x630px recommended
 #### Twitter Cards
 
 ```typescript
-twitterCard: 'summary_large_image'; // Or "summary"
-twitterTitle: 'SveltyCMS Guide 2025';
-twitterDescription: 'Complete tutorial';
-twitterImage: 'media_id_790'; // 1200x600px for large card
+twitterCard: "summary_large_image"; // Or "summary"
+twitterTitle: "SveltyCMS Guide 2025";
+twitterDescription: "Complete tutorial";
+twitterImage: "media_id_790"; // 1200x600px for large card
 ```
 
 **Generated meta tags**:
@@ -341,10 +342,10 @@ Advanced SEO controls:
 
 ```typescript
 // Control search engine crawling
-robotsMeta: 'index, follow'; // Default: index and follow links
-robotsMeta: 'noindex, follow'; // Don't index, but follow links
-robotsMeta: 'index, nofollow'; // Index, but don't follow links
-robotsMeta: 'noindex, nofollow'; // Don't index or follow
+robotsMeta: "index, follow"; // Default: index and follow links
+robotsMeta: "noindex, follow"; // Don't index, but follow links
+robotsMeta: "index, nofollow"; // Index, but don't follow links
+robotsMeta: "noindex, nofollow"; // Don't index or follow
 ```
 
 **Generated meta tag**:
@@ -357,7 +358,7 @@ robotsMeta: 'noindex, nofollow'; // Don't index or follow
 
 ```typescript
 // Prevent duplicate content issues
-canonicalUrl: 'https://example.com/original-post';
+canonicalUrl: "https://example.com/original-post";
 ```
 
 **Generated link tag**:
@@ -412,10 +413,10 @@ The SEO widget includes built-in analysis:
 ```typescript
 // Overall SEO score (0-100)
 score = {
-	overall: 85, // Weighted average of all checks
-	basic: 90, // Title, description, keyword checks
-	technical: 80, // Robots, canonical, markup
-	social: 85 // OG and Twitter tags
+  overall: 85, // Weighted average of all checks
+  basic: 90, // Title, description, keyword checks
+  technical: 80, // Robots, canonical, markup
+  social: 85, // OG and Twitter tags
 };
 ```
 
@@ -453,39 +454,39 @@ score = {
 ### Article with Full Schema
 
 ```typescript
-import SEO from '@src/widgets/custom/Seo';
+import SEO from "@src/widgets/custom/Seo";
 
 const articleSchema = {
-	'@context': 'https://schema.org',
-	'@type': 'Article',
-	headline: 'How to Use SveltyCMS',
-	alternativeHeadline: 'SveltyCMS Complete Guide',
-	image: 'https://example.com/image.jpg',
-	author: {
-		'@type': 'Person',
-		name: 'John Doe',
-		url: 'https://example.com/authors/john-doe'
-	},
-	publisher: {
-		'@type': 'Organization',
-		name: 'SveltyCMS',
-		logo: {
-			'@type': 'ImageObject',
-			url: 'https://example.com/logo.jpg'
-		}
-	},
-	datePublished: '2025-01-15T10:00:00Z',
-	dateModified: '2025-01-15T14:30:00Z',
-	mainEntityOfPage: {
-		'@type': 'WebPage',
-		'@id': 'https://example.com/guide'
-	}
+  "@context": "https://schema.org",
+  "@type": "Article",
+  headline: "How to Use SveltyCMS",
+  alternativeHeadline: "SveltyCMS Complete Guide",
+  image: "https://example.com/image.jpg",
+  author: {
+    "@type": "Person",
+    name: "John Doe",
+    url: "https://example.com/authors/john-doe",
+  },
+  publisher: {
+    "@type": "Organization",
+    name: "SveltyCMS",
+    logo: {
+      "@type": "ImageObject",
+      url: "https://example.com/logo.jpg",
+    },
+  },
+  datePublished: "2025-01-15T10:00:00Z",
+  dateModified: "2025-01-15T14:30:00Z",
+  mainEntityOfPage: {
+    "@type": "WebPage",
+    "@id": "https://example.com/guide",
+  },
 };
 
 SEO({
-	label: 'SEO',
-	db_fieldName: 'seo',
-	features: ['social', 'schema', 'advanced']
+  label: "SEO",
+  db_fieldName: "seo",
+  features: ["social", "schema", "advanced"],
 });
 ```
 
@@ -493,27 +494,27 @@ SEO({
 
 ```typescript
 const productSchema = {
-	'@context': 'https://schema.org',
-	'@type': 'Product',
-	name: 'SveltyCMS Pro',
-	image: 'https://example.com/product.jpg',
-	description: 'Professional CMS built with SvelteKit',
-	brand: {
-		'@type': 'Brand',
-		name: 'SveltyCMS'
-	},
-	offers: {
-		'@type': 'Offer',
-		price: '99.00',
-		priceCurrency: 'USD',
-		availability: 'https://schema.org/InStock',
-		url: 'https://example.com/pro'
-	},
-	aggregateRating: {
-		'@type': 'AggregateRating',
-		ratingValue: '4.8',
-		reviewCount: '247'
-	}
+  "@context": "https://schema.org",
+  "@type": "Product",
+  name: "SveltyCMS Pro",
+  image: "https://example.com/product.jpg",
+  description: "Professional CMS built with SvelteKit",
+  brand: {
+    "@type": "Brand",
+    name: "SveltyCMS",
+  },
+  offers: {
+    "@type": "Offer",
+    price: "99.00",
+    priceCurrency: "USD",
+    availability: "https://schema.org/InStock",
+    url: "https://example.com/pro",
+  },
+  aggregateRating: {
+    "@type": "AggregateRating",
+    ratingValue: "4.8",
+    reviewCount: "247",
+  },
 };
 ```
 
@@ -525,15 +526,15 @@ const productSchema = {
 
 ```typescript
 // +page.server.ts
-import type { PageServerLoad } from './$types';
+import type { PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = async ({ params }) => {
-	const post = await db.posts.findOne({ slug: params.slug });
+  const post = await db.posts.findOne({ slug: params.slug });
 
-	return {
-		post,
-		seo: post.seo.en // Get SEO for current language
-	};
+  return {
+    post,
+    seo: post.seo.en, // Get SEO for current language
+  };
 };
 ```
 
@@ -584,19 +585,19 @@ export const load: PageServerLoad = async ({ params }) => {
 1. **Optimize Title Length**
 
    ```typescript
-   title: 'How to Use SveltyCMS - Complete Guide'; // 44 chars ✅
+   title: "How to Use SveltyCMS - Complete Guide"; // 44 chars ✅
    ```
 
 2. **Include Focus Keyword Early**
 
    ```typescript
-   title: 'SveltyCMS Tutorial: Complete Guide'; // Keyword first ✅
+   title: "SveltyCMS Tutorial: Complete Guide"; // Keyword first ✅
    ```
 
 3. **Write Compelling Descriptions**
 
    ```typescript
-   description: 'Learn SveltyCMS with step-by-step tutorials. Master widgets, collections, and deployment in 2025.';
+   description: "Learn SveltyCMS with step-by-step tutorials. Master widgets, collections, and deployment in 2025.";
    ```
 
 4. **Use Language-Specific SEO**
@@ -617,22 +618,22 @@ export const load: PageServerLoad = async ({ params }) => {
 
    ```typescript
    // ❌ Too many keywords
-   title: 'SveltyCMS SveltyCMS Tutorial SveltyCMS Guide SveltyCMS';
+   title: "SveltyCMS SveltyCMS Tutorial SveltyCMS Guide SveltyCMS";
    ```
 
 2. **Don't Ignore Character Limits**
 
    ```typescript
    // ❌ Too long (gets truncated)
-   title: 'How to Use SveltyCMS - The Most Comprehensive and Detailed Complete Guide for Beginners and Advanced Users in 2025';
+   title: "How to Use SveltyCMS - The Most Comprehensive and Detailed Complete Guide for Beginners and Advanced Users in 2025";
    ```
 
 3. **Don't Use Same Title/Description**
 
    ```typescript
    // ❌ Title and description are identical
-   title: 'Learn SveltyCMS';
-   description: 'Learn SveltyCMS';
+   title: "Learn SveltyCMS";
+   description: "Learn SveltyCMS";
    ```
 
 4. **Don't Forget Social Images**
@@ -642,7 +643,7 @@ export const load: PageServerLoad = async ({ params }) => {
    ogImage: null;
 
    // ✅ Always include
-   ogImage: 'media_id_123';
+   ogImage: "media_id_123";
    ```
 
 ---
@@ -655,7 +656,12 @@ SEO widget includes accessible form fields:
 
 ```html
 <label for="seo-title">Meta Title</label>
-<input id="seo-title" type="text" aria-describedby="title-counter title-hint" aria-invalid="false" />
+<input
+  id="seo-title"
+  type="text"
+  aria-describedby="title-counter title-hint"
+  aria-invalid="false"
+/>
 <span id="title-counter" class="counter">44/60</span>
 <span id="title-hint" class="hint">50-60 characters recommended</span>
 ```
@@ -668,30 +674,30 @@ SEO widget includes accessible form fields:
 function SEO(props: SeoProps): FieldInstance;
 
 interface SeoProps {
-	label: string;
-	db_fieldName: string;
-	required?: boolean;
-	features?: SeoFeature[];
-	translated?: boolean;
-	helper?: string;
+  label: string;
+  db_fieldName: string;
+  required?: boolean;
+  features?: SeoFeature[];
+  translated?: boolean;
+  helper?: string;
 }
 
-type SeoFeature = 'basic' | 'social' | 'schema' | 'advanced' | 'ai';
+type SeoFeature = "basic" | "social" | "schema" | "advanced" | "ai";
 
 interface SeoData {
-	title: string;
-	description: string;
-	focusKeyword: string;
-	robotsMeta: string;
-	canonicalUrl?: string;
-	ogTitle?: string;
-	ogDescription?: string;
-	ogImage?: string;
-	twitterCard: 'summary' | 'summary_large_image';
-	twitterTitle?: string;
-	twitterDescription?: string;
-	twitterImage?: string;
-	schemaMarkup?: string;
+  title: string;
+  description: string;
+  focusKeyword: string;
+  robotsMeta: string;
+  canonicalUrl?: string;
+  ogTitle?: string;
+  ogDescription?: string;
+  ogImage?: string;
+  twitterCard: "summary" | "summary_large_image";
+  twitterTitle?: string;
+  twitterDescription?: string;
+  twitterImage?: string;
+  schemaMarkup?: string;
 }
 ```
 

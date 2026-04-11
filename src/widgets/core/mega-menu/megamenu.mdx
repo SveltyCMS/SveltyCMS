@@ -1,22 +1,22 @@
 ---
-path: 'src/widgets/core/MegaMenu/megamenu.mdx'
-title: 'MegaMenu Widget'
-description: 'A comprehensive guide to the powerful, hierarchical MegaMenu widget for building complex navigation.'
+path: "src/widgets/core/MegaMenu/megamenu.mdx"
+title: "MegaMenu Widget"
+description: "A comprehensive guide to the powerful, hierarchical MegaMenu widget for building complex navigation."
 order: 3
-icon: 'mdi:sitemap'
-author: 'admin'
-created: '2025-09-29'
-updated: '2025-09-29'
+icon: "mdi:sitemap"
+author: "admin"
+created: "2025-09-29"
+updated: "2025-09-29"
 tags:
-  - 'widget'
-  - 'menu'
-  - 'navigation'
-  - 'hierarchical'
-  - 'core-widget'
-  - 'builder'
-  - 'three-pillars'
-  - 'drag-drop'
-  - 'modal-editing'
+  - "widget"
+  - "menu"
+  - "navigation"
+  - "hierarchical"
+  - "core-widget"
+  - "builder"
+  - "three-pillars"
+  - "drag-drop"
+  - "modal-editing"
 ---
 
 # MegaMenu Widget
@@ -72,9 +72,9 @@ Full internationalization support with automatic language switching and proper f
 ```typescript
 // Props interface
 interface Props {
-	field: FieldType; // Widget configuration
-	value?: MenuItem[] | null; // Bindable menu data
-	error?: string | null; // Validation errors
+  field: FieldType; // Widget configuration
+  value?: MenuItem[] | null; // Bindable menu data
+  error?: string | null; // Validation errors
 }
 ```
 
@@ -91,7 +91,7 @@ interface Props {
 ```typescript
 // Props interface
 interface Props {
-	value?: MenuItem[] | null; // Menu data to render
+  value?: MenuItem[] | null; // Menu data to render
 }
 ```
 
@@ -107,7 +107,7 @@ interface Props {
 ```typescript
 // Props interface
 interface Props {
-	value?: FieldInstance[][]; // Bindable level configuration
+  value?: FieldInstance[][]; // Bindable level configuration
 }
 ```
 
@@ -125,41 +125,41 @@ interface Props {
 The true power of the MegaMenu is unlocked in its configuration. When defining a collection field, you use the `MegaMenuWidget` factory to create an instance.
 
 ```typescript
-import { MegaMenuWidget, TextWidget, TextareaWidget } from '@src/widgets';
+import { MegaMenuWidget, TextWidget, TextareaWidget } from "@src/widgets";
 
 const MainNavigation = MegaMenuWidget({
-	label: 'Main Navigation Menu',
-	fields: [
-		// Level 1 (Root Items)
-		[
-			TextWidget({
-				label: 'Title',
-				required: true,
-				translated: true
-			}),
-			TextWidget({
-				label: 'URL',
-				required: true,
-				helper: 'Enter a relative path (e.g., /about) or a full URL.'
-			})
-		],
-		// Level 2 (Child Items)
-		[
-			TextWidget({
-				label: 'Title',
-				required: true,
-				translated: true
-			}),
-			TextWidget({
-				label: 'URL',
-				required: true
-			}),
-			TextareaWidget({
-				label: 'Description',
-				helper: 'Optional text shown below the menu item.'
-			})
-		]
-	]
+  label: "Main Navigation Menu",
+  fields: [
+    // Level 1 (Root Items)
+    [
+      TextWidget({
+        label: "Title",
+        required: true,
+        translated: true,
+      }),
+      TextWidget({
+        label: "URL",
+        required: true,
+        helper: "Enter a relative path (e.g., /about) or a full URL.",
+      }),
+    ],
+    // Level 2 (Child Items)
+    [
+      TextWidget({
+        label: "Title",
+        required: true,
+        translated: true,
+      }),
+      TextWidget({
+        label: "URL",
+        required: true,
+      }),
+      TextareaWidget({
+        label: "Description",
+        helper: "Optional text shown below the menu item.",
+      }),
+    ],
+  ],
 });
 ```
 
@@ -167,31 +167,34 @@ const MainNavigation = MegaMenuWidget({
 
 ```typescript
 const AdvancedMenu = MegaMenuWidget({
-	label: 'Advanced Navigation',
-	fields: [
-		// Root level with rich content
-		[
-			TextWidget({ label: 'Title', required: true, translated: true }),
-			TextWidget({ label: 'URL', required: true }),
-			RichTextWidget({ label: 'Description', translated: true }),
-			MediaUploadWidget({ label: 'Icon', multiple: false })
-		],
-		// Child level with simplified fields
-		[TextWidget({ label: 'Title', required: true, translated: true }), TextWidget({ label: 'URL', required: true })]
-	],
+  label: "Advanced Navigation",
+  fields: [
+    // Root level with rich content
+    [
+      TextWidget({ label: "Title", required: true, translated: true }),
+      TextWidget({ label: "URL", required: true }),
+      RichTextWidget({ label: "Description", translated: true }),
+      MediaUploadWidget({ label: "Icon", multiple: false }),
+    ],
+    // Child level with simplified fields
+    [
+      TextWidget({ label: "Title", required: true, translated: true }),
+      TextWidget({ label: "URL", required: true }),
+    ],
+  ],
 
-	// Depth and behavior controls
-	maxDepth: 3,
-	enableDragDrop: true,
-	enableExpandCollapse: true,
+  // Depth and behavior controls
+  maxDepth: 3,
+  enableDragDrop: true,
+  enableExpandCollapse: true,
 
-	// Advanced validation rules
-	validationRules: {
-		minRootItems: 1,
-		maxRootItems: 10,
-		maxChildrenPerParent: 8,
-		requireUniqueTitles: false
-	}
+  // Advanced validation rules
+  validationRules: {
+    minRootItems: 1,
+    maxRootItems: 10,
+    maxChildrenPerParent: 8,
+    requireUniqueTitles: false,
+  },
 });
 ```
 
@@ -210,10 +213,10 @@ const AdvancedMenu = MegaMenuWidget({
 
 ```typescript
 interface MenuValidationRules {
-	minRootItems?: number; // Minimum root level items
-	maxRootItems?: number; // Maximum root level items
-	maxChildrenPerParent?: number; // Max children per parent
-	requireUniqueTitles?: boolean; // Require unique titles within levels
+  minRootItems?: number; // Minimum root level items
+  maxRootItems?: number; // Maximum root level items
+  maxChildrenPerParent?: number; // Max children per parent
+  requireUniqueTitles?: boolean; // Require unique titles within levels
 }
 ```
 
@@ -244,34 +247,34 @@ The MegaMenu widget saves its data as a clean, predictable JSON array of objects
 
 ```json
 [
-	{
-		"_id": "uuid-for-item-1",
-		"_fields": {
-			"title": {
-				"en": "Products",
-				"de": "Produkte"
-			},
-			"url": "/products"
-		},
-		"_expanded": true,
-		"children": [
-			{
-				"_id": "uuid-for-child-1a",
-				"_fields": {
-					"title": {
-						"en": "Software",
-						"de": "Software"
-					},
-					"url": "/products/software",
-					"description": {
-						"en": "Our latest software solutions.",
-						"de": "Unsere neuesten Softwarelösungen."
-					}
-				},
-				"children": []
-			}
-		]
-	}
+  {
+    "_id": "uuid-for-item-1",
+    "_fields": {
+      "title": {
+        "en": "Products",
+        "de": "Produkte"
+      },
+      "url": "/products"
+    },
+    "_expanded": true,
+    "children": [
+      {
+        "_id": "uuid-for-child-1a",
+        "_fields": {
+          "title": {
+            "en": "Software",
+            "de": "Software"
+          },
+          "url": "/products/software",
+          "description": {
+            "en": "Our latest software solutions.",
+            "de": "Unsere neuesten Softwarelösungen."
+          }
+        },
+        "children": []
+      }
+    ]
+  }
 ]
 ```
 
@@ -279,10 +282,10 @@ The MegaMenu widget saves its data as a clean, predictable JSON array of objects
 
 ```typescript
 interface MenuItem {
-	_id: string; // Unique identifier
-	_fields: Record<string, unknown>; // Field data (multilingual objects)
-	children: MenuItem[]; // Nested child items
-	_expanded?: boolean; // UI state (not persisted)
+  _id: string; // Unique identifier
+  _fields: Record<string, unknown>; // Field data (multilingual objects)
+  children: MenuItem[]; // Nested child items
+  _expanded?: boolean; // UI state (not persisted)
 }
 ```
 
@@ -349,11 +352,15 @@ interface MenuItem {
 The MegaMenu provides several helper functions for advanced use cases:
 
 ```typescript
-import { traverseMenuItems, findMenuItemByPath, validateMenuStructure } from '@widgets/core/megaMenu';
+import {
+  traverseMenuItems,
+  findMenuItemByPath,
+  validateMenuStructure,
+} from "@widgets/core/megaMenu";
 
 // Traverse all menu items recursively
 traverseMenuItems(menuData, (item, level, parent) => {
-	console.log(`Level ${level}: ${item._fields.title}`);
+  console.log(`Level ${level}: ${item._fields.title}`);
 });
 
 // Find a specific item by its path in the hierarchy
@@ -362,7 +369,7 @@ const targetItem = findMenuItemByPath(menuData, [0, 2, 1]);
 // Validate menu structure against configuration
 const validation = validateMenuStructure(menuData, menuConfig);
 if (!validation.valid) {
-	console.error('Validation errors:', validation.errors);
+  console.error("Validation errors:", validation.errors);
 }
 ```
 
@@ -414,8 +421,8 @@ Enable debug logging for development:
 ```typescript
 // In development, enable verbose logging
 if (import.meta.env.DEV) {
-	console.log('MegaMenu data:', menuData);
-	console.log('Validation result:', validateMenuStructure(menuData, config));
+  console.log("MegaMenu data:", menuData);
+  console.log("Validation result:", validateMenuStructure(menuData, config));
 }
 ```
 
@@ -433,18 +440,18 @@ When migrating from custom menu implementations:
 
 ```typescript
 // Old format
-const oldMenu = [{ title: 'Home', url: '/', children: [] }];
+const oldMenu = [{ title: "Home", url: "/", children: [] }];
 
 // New MegaMenu format
 const newMenu = [
-	{
-		_id: crypto.randomUUID(),
-		_fields: {
-			title: { en: 'Home' },
-			url: '/'
-		},
-		children: []
-	}
+  {
+    _id: crypto.randomUUID(),
+    _fields: {
+      title: { en: "Home" },
+      url: "/",
+    },
+    children: [],
+  },
 ];
 ```
 

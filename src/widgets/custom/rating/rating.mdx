@@ -1,12 +1,12 @@
 ---
-path: '/widgets/custom/rating'
-title: 'Rating Widget'
-description: 'Interactive star rating widget with customizable icons and maximum values for SveltyCMS'
+path: "/widgets/custom/rating"
+title: "Rating Widget"
+description: "Interactive star rating widget with customizable icons and maximum values for SveltyCMS"
 order: 303
-icon: 'material-symbols:star-outline'
-author: 'admin'
-created: '2025-01-15'
-updated: '2025-01-15'
+icon: "material-symbols:star-outline"
+author: "admin"
+created: "2025-01-15"
+updated: "2025-01-15"
 tags:
   - widget
   - custom
@@ -20,7 +20,8 @@ tags:
 # Rating Widget
 
 <blockquote>
-	**Interactive star rating widget** powered by Skeleton Labs that stores numeric ratings with customizable icons and maximum values.
+  **Interactive star rating widget** powered by Skeleton Labs that stores numeric ratings with
+  customizable icons and maximum values.
 </blockquote>
 
 ## Overview
@@ -70,97 +71,97 @@ The **Rating widget** provides an intuitive star-based rating system for capturi
 ### Simple Product Rating
 
 ```typescript
-import Rating from '@src/widgets/custom/Rating';
+import Rating from "@src/widgets/custom/Rating";
 
 export const productsCollection = {
-	name: 'Products',
-	fields: [
-		Rating({
-			label: 'Customer Rating',
-			db_fieldName: 'rating',
-			max: 5,
-			required: true
-		})
-	]
+  name: "Products",
+  fields: [
+    Rating({
+      label: "Customer Rating",
+      db_fieldName: "rating",
+      max: 5,
+      required: true,
+    }),
+  ],
 };
 ```
 
 ### Review System
 
 ```typescript
-import Rating from '@src/widgets/custom/Rating';
-import Textarea from '@src/widgets/core/textarea';
+import Rating from "@src/widgets/custom/Rating";
+import Textarea from "@src/widgets/core/textarea";
 
 export const reviewsCollection = {
-	name: 'Product Reviews',
-	fields: [
-		Rating({
-			label: 'Overall Rating',
-			db_fieldName: 'overallRating',
-			max: 5,
-			required: true
-		}),
+  name: "Product Reviews",
+  fields: [
+    Rating({
+      label: "Overall Rating",
+      db_fieldName: "overallRating",
+      max: 5,
+      required: true,
+    }),
 
-		Rating({
-			label: 'Quality',
-			db_fieldName: 'qualityRating',
-			max: 5,
-			required: true,
-			iconFull: 'material-symbols:verified',
-			iconEmpty: 'material-symbols:verified-outline'
-		}),
+    Rating({
+      label: "Quality",
+      db_fieldName: "qualityRating",
+      max: 5,
+      required: true,
+      iconFull: "material-symbols:verified",
+      iconEmpty: "material-symbols:verified-outline",
+    }),
 
-		Rating({
-			label: 'Value for Money',
-			db_fieldName: 'valueRating',
-			max: 5,
-			required: true,
-			iconFull: 'mdi:currency-usd',
-			iconEmpty: 'mdi:currency-usd-off'
-		}),
+    Rating({
+      label: "Value for Money",
+      db_fieldName: "valueRating",
+      max: 5,
+      required: true,
+      iconFull: "mdi:currency-usd",
+      iconEmpty: "mdi:currency-usd-off",
+    }),
 
-		Textarea({
-			label: 'Review Text',
-			db_fieldName: 'reviewText',
-			minLength: 50,
-			maxLength: 1000,
-			required: true
-		})
-	]
+    Textarea({
+      label: "Review Text",
+      db_fieldName: "reviewText",
+      minLength: 50,
+      maxLength: 1000,
+      required: true,
+    }),
+  ],
 };
 ```
 
 ### Employee Performance
 
 ```typescript
-import Rating from '@src/widgets/custom/Rating';
+import Rating from "@src/widgets/custom/Rating";
 
 export const performanceReviewsCollection = {
-	name: 'Performance Reviews',
-	fields: [
-		Rating({
-			label: 'Technical Skills',
-			db_fieldName: 'technicalSkills',
-			max: 10,
-			required: true,
-			helper: '1 = Beginner, 10 = Expert'
-		}),
+  name: "Performance Reviews",
+  fields: [
+    Rating({
+      label: "Technical Skills",
+      db_fieldName: "technicalSkills",
+      max: 10,
+      required: true,
+      helper: "1 = Beginner, 10 = Expert",
+    }),
 
-		Rating({
-			label: 'Communication',
-			db_fieldName: 'communication',
-			max: 10,
-			required: true
-		}),
+    Rating({
+      label: "Communication",
+      db_fieldName: "communication",
+      max: 10,
+      required: true,
+    }),
 
-		Rating({
-			label: 'Leadership',
-			db_fieldName: 'leadership',
-			max: 10,
-			required: false,
-			helper: 'Optional for non-leadership roles'
-		})
-	]
+    Rating({
+      label: "Leadership",
+      db_fieldName: "leadership",
+      max: 10,
+      required: false,
+      helper: "Optional for non-leadership roles",
+    }),
+  ],
 };
 ```
 
@@ -215,16 +216,16 @@ export const performanceReviewsCollection = {
 ```typescript
 // Aggregate pipeline
 db.reviews.aggregate([
-	{
-		$match: { productId: 'prod_123' }
-	},
-	{
-		$group: {
-			_id: null,
-			avgRating: { $avg: '$rating' },
-			count: { $sum: 1 }
-		}
-	}
+  {
+    $match: { productId: "prod_123" },
+  },
+  {
+    $group: {
+      _id: null,
+      avgRating: { $avg: "$rating" },
+      count: { $sum: 1 },
+    },
+  },
 ]);
 
 // Result: { avgRating: 4.2, count: 150 }
@@ -235,12 +236,12 @@ db.reviews.aggregate([
 ```typescript
 // 4-star and above
 db.products.find({
-	averageRating: { $gte: 4 }
+  averageRating: { $gte: 4 },
 });
 
 // Between 3 and 4 stars
 db.products.find({
-	averageRating: { $gte: 3, $lte: 4 }
+  averageRating: { $gte: 3, $lte: 4 },
 });
 ```
 
@@ -248,13 +249,13 @@ db.products.find({
 
 ```typescript
 db.reviews.aggregate([
-	{
-		$group: {
-			_id: '$rating',
-			count: { $sum: 1 }
-		}
-	},
-	{ $sort: { _id: -1 } }
+  {
+    $group: {
+      _id: "$rating",
+      count: { $sum: 1 },
+    },
+  },
+  { $sort: { _id: -1 } },
 ]);
 
 // Result:
@@ -274,17 +275,21 @@ db.reviews.aggregate([
 ### Multi-Criteria Rating Summary
 
 ```typescript
-import Rating from '@src/widgets/custom/Rating';
+import Rating from "@src/widgets/custom/Rating";
 
 // Calculate weighted average
 function calculateOverallRating(data: any) {
-	const weights = {
-		quality: 0.4,
-		value: 0.3,
-		service: 0.3
-	};
+  const weights = {
+    quality: 0.4,
+    value: 0.3,
+    service: 0.3,
+  };
 
-	return data.qualityRating * weights.quality + data.valueRating * weights.value + data.serviceRating * weights.service;
+  return (
+    data.qualityRating * weights.quality +
+    data.valueRating * weights.value +
+    data.serviceRating * weights.service
+  );
 }
 ```
 
@@ -293,29 +298,29 @@ function calculateOverallRating(data: any) {
 ```typescript
 // Heart icons for favorites
 Rating({
-	label: 'Favorite Level',
-	db_fieldName: 'favoriteLevel',
-	max: 5,
-	iconFull: 'mdi:heart',
-	iconEmpty: 'mdi:heart-outline'
+  label: "Favorite Level",
+  db_fieldName: "favoriteLevel",
+  max: 5,
+  iconFull: "mdi:heart",
+  iconEmpty: "mdi:heart-outline",
 });
 
 // Thumbs up for approval
 Rating({
-	label: 'Approval',
-	db_fieldName: 'approval',
-	max: 5,
-	iconFull: 'mdi:thumb-up',
-	iconEmpty: 'mdi:thumb-up-outline'
+  label: "Approval",
+  db_fieldName: "approval",
+  max: 5,
+  iconFull: "mdi:thumb-up",
+  iconEmpty: "mdi:thumb-up-outline",
 });
 
 // Fire icons for hotness
 Rating({
-	label: 'Hotness',
-	db_fieldName: 'hotness',
-	max: 5,
-	iconFull: 'mdi:fire',
-	iconEmpty: 'mdi:fire-off'
+  label: "Hotness",
+  db_fieldName: "hotness",
+  max: 5,
+  iconFull: "mdi:fire",
+  iconEmpty: "mdi:fire-off",
 });
 ```
 
@@ -326,8 +331,15 @@ Rating({
 ### ARIA Support
 
 ```html
-<div role="slider" aria-label="Product Rating" aria-valuenow="4" aria-valuemin="1" aria-valuemax="5" aria-required="true">
-	<!-- Stars rendered here -->
+<div
+  role="slider"
+  aria-label="Product Rating"
+  aria-valuenow="4"
+  aria-valuemin="1"
+  aria-valuemax="5"
+  aria-required="true"
+>
+  <!-- Stars rendered here -->
 </div>
 ```
 
@@ -356,8 +368,8 @@ Rating({
 
    ```typescript
    Rating({
-   	label: 'Product Quality',
-   	helper: '1 = Poor, 5 = Excellent'
+     label: "Product Quality",
+     helper: "1 = Poor, 5 = Excellent",
    });
    ```
 
@@ -374,10 +386,10 @@ Rating({
 
    ```typescript
    // ❌ Wrong: Yes/No question
-   Rating({ label: 'Do you recommend this?', max: 2 });
+   Rating({ label: "Do you recommend this?", max: 2 });
 
    // ✅ Correct: Use Toggle
-   Toggles({ label: 'Do you recommend this?' });
+   Toggles({ label: "Do you recommend this?" });
    ```
 
 2. **Don't Use Confusing Scales**
@@ -395,14 +407,14 @@ Rating({
 function Rating(props: RatingProps): FieldInstance;
 
 interface RatingProps {
-	label: string;
-	db_fieldName: string;
-	max?: number; // Default: 5
-	required?: boolean; // Default: false
-	iconFull?: string; // Default: 'material-symbols:star'
-	iconEmpty?: string; // Default: 'material-symbols:star-outline'
-	helper?: string;
-	readonly?: boolean;
+  label: string;
+  db_fieldName: string;
+  max?: number; // Default: 5
+  required?: boolean; // Default: false
+  iconFull?: string; // Default: 'material-symbols:star'
+  iconEmpty?: string; // Default: 'material-symbols:star-outline'
+  helper?: string;
+  readonly?: boolean;
 }
 
 type RatingValue = number | null | undefined;

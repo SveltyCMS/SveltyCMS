@@ -121,17 +121,16 @@ export const actions: Actions = {
         const health = await dbAdapter.getConnectionHealth();
 
         if (!health.success) {
-          logger.error("❌ Database ping failed:", health.message);
-          await dbAdapter.disconnect();
+        	logger.error('❌ Database ping failed:', health.message);
+        	await dbAdapter.disconnect();
 
-          const { classifyDatabaseError, SetupDatabaseError } = await import("./error-classifier");
-          const classified = classifyDatabaseError(health.message, dbConfig.type as any, dbConfig);
-          return new SetupDatabaseError(classified).toClientPayload();
+        	const { classifyDatabaseError, SetupDatabaseError } = await import('./error-classifier');
+        	const classified = classifyDatabaseError(health.message, dbConfig.type as any, dbConfig);
+        	return new SetupDatabaseError(classified).toClientPayload();
         }
 
-        logger.info("✅ Ping successful!");
+        logger.info('✅ Ping successful!');
         await dbAdapter.disconnect();
-
         const latencyMs = Math.round(performance.now() - start);
         return {
           success: true,

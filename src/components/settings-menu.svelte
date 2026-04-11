@@ -8,8 +8,8 @@ Sidebar navigation for System Settings
 <script lang="ts">
 	// Components
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
-	import type { SettingGroup } from '@src/routes/(app)/config/systemsetting/settings-groups';
-	import { getSettingGroupsByRole } from '@src/routes/(app)/config/systemsetting/settings-groups';
+	import type { SettingGroup } from '@src/routes/(app)/config/system-settings/settings-groups';
+	import { getSettingGroupsByRole } from '@src/routes/(app)/config/system-settings/settings-groups';
 	// Stores
 	import { groupsNeedingConfig } from '@src/stores/config-store.svelte';
 	import { goto } from '$app/navigation';

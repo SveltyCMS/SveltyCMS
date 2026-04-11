@@ -1,18 +1,18 @@
 ---
-path: 'src/widgets/core/Checkbox/checkbox.mdx'
-title: 'Checkbox Field'
-description: 'A simple boolean toggle field used for true/false values in collections.'
+path: "src/widgets/core/Checkbox/checkbox.mdx"
+title: "Checkbox Field"
+description: "A simple boolean toggle field used for true/false values in collections."
 order: 6
-icon: 'tabler:checkbox'
-author: 'admin'
-created: '2025-09-29'
-updated: '2025-09-29'
+icon: "tabler:checkbox"
+author: "admin"
+created: "2025-09-29"
+updated: "2025-09-29"
 tags:
-  - 'widget'
-  - 'checkbox'
-  - 'field'
-  - 'boolean'
-  - 'core'
+  - "widget"
+  - "checkbox"
+  - "field"
+  - "boolean"
+  - "core"
 ---
 
 # Checkbox Field
@@ -37,20 +37,20 @@ When editing content, the Checkbox appears as a simple toggle control with an op
 ## Example (Collection)
 
 ```typescript
-import widgets from '@widgets';
+import widgets from "@widgets";
 
 export const schema = {
-	fields: [
-		widgets.Checkbox({
-			label: 'Featured',
-			db_fieldName: 'featured',
-			icon: 'tabler:checkbox',
-			required: false,
-			helper: 'Mark if this item should be featured',
-			color: 'primary',
-			size: 'md'
-		})
-	]
+  fields: [
+    widgets.Checkbox({
+      label: "Featured",
+      db_fieldName: "featured",
+      icon: "tabler:checkbox",
+      required: false,
+      helper: "Mark if this item should be featured",
+      color: "primary",
+      size: "md",
+    }),
+  ],
 };
 ```
 

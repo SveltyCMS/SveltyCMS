@@ -16,34 +16,29 @@ import { createDatabaseError } from "./mongodb-utils";
  * It uses Dependency Injection to allow for a testable, modular setup.
  */
 export class MongoAuthModelRegistrar {
-  private readonly mongoose: typeof Mongoose;
+  private readonly connection: any;
 
   /**
    * Constructs the model registrar.
-   * @param {typeof Mongoose} mongooseInstance - The Mongoose instance to register models with.
+   * @param {any} connection - The Mongoose connection or instance to register models with.
    */
-  constructor(mongooseInstance: typeof Mongoose) {
-    this.mongoose = mongooseInstance;
+  constructor(connection: any) {
+    this.connection = connection;
     logger.info("MongoAuthModelRegistrar initialized.");
   }
 
   /**
    * Registers authentication models (User, Token, Session).
-   * This process is idempotent; it will not re-register models that already exist.
-   * @throws {DatabaseError} If schemas cannot be imported or models fail to register.
    */
-  async setupAuthModels(): Promise<void> {
+  async setupAuthModels(connection?: any): Promise<void> {
+    const conn = connection || this.connection;
     try {
-      // Schemas are now statically imported at top of file
-      // This avoids dynamic import warning and improves code splitting
-
-      // Register each model using the private helper
-      this.registerModel("auth_users", UserSchema);
-      this.registerModel("auth_sessions", SessionSchema);
-      this.registerModel("auth_tokens", TokenSchema);
+      this.registerModel(conn, "auth_users", UserSchema);
+      this.registerModel(conn, "auth_sessions", SessionSchema);
+      this.registerModel(conn, "auth_tokens", TokenSchema);
 
       // Run non-critical session UUID migration after registration
-      this.migrateSessions().catch((err) => {
+      this.migrateSessions(conn).catch((err) => {
         logger.debug("Session migration check completed", {
           error: err instanceof Error ? err.message : String(err),
         });
@@ -61,25 +56,21 @@ export class MongoAuthModelRegistrar {
 
   /**
    * A private helper that checks for a model's existence before registering it.
-   * @param {string} name - The name of the model.
-   * @param {Mongoose.Schema} schema - The Mongoose schema for the model.
    */
-  private registerModel(name: string, schema: Mongoose.Schema): void {
-    // Use the injected mongoose instance
-    if (this.mongoose.models[name]) {
+  private registerModel(conn: any, name: string, schema: Mongoose.Schema): void {
+    if (conn.models[name]) {
       logger.debug(`Model '${name}' already exists and was not re-registered`);
     } else {
-      this.mongoose.model(name, schema);
+      conn.model(name, schema);
       logger.debug(`Model '${name}' was registered`);
     }
   }
 
   /**
    * Migration: Remove old ObjectId-based sessions (from before the UUID migration).
-   * This is a non-critical background task.
    */
-  private async migrateSessions(): Promise<void> {
-    const SessionModel = this.mongoose.model("auth_sessions");
+  private async migrateSessions(conn: any): Promise<void> {
+    const SessionModel = conn.model("auth_sessions");
     const result = await SessionModel.deleteMany({
       $or: [
         { _id: { $type: "objectId" } }, // MongoDB ObjectId type

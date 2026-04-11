@@ -52,7 +52,7 @@ const cacheClient = getPrivateSettingSync("USE_REDIS")
 import { hasPermissionWithRoles, registerPermission } from "@src/databases/auth/permissions";
 import { PermissionAction, PermissionType, type Role, type User } from "@src/databases/auth/types";
 // Unified Cache Service
-import { cacheService } from "@src/databases/cache-service";
+import { cacheService } from "@src/databases/cache/cache-service";
 // Import shared PubSub instance
 import { pubSub } from "@src/services/pub-sub";
 // Widget Store - ensure widgets are loaded before GraphQL setup
@@ -181,9 +181,9 @@ async function createGraphQLSchema(dbAdapter: DatabaseAdapter, tenantId?: string
 			navigationStructure(options: NavigationOptions): [NavigationNode]
 			nodeChildren(nodeId: String!): [NavigationNode]
 			breadcrumb(path: String!): [BreadcrumbItem]
-			contentManagerHealth: ContentManagerHealth
-			contentManagerDiagnostics: ContentManagerDiagnostics
-			contentManagerMetrics: ContentManagerMetrics
+			contentSystemHealth: contentSystemHealth
+			contentSystemDiagnostics: contentSystemDiagnostics
+			contentSystemMetrics: contentSystemMetrics
 			validateContentStructure: StructureValidation
 		}
 	`;

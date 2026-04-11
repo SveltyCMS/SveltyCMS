@@ -1,12 +1,12 @@
 ---
-path: '/widgets/core/group'
-title: 'Group Widget'
-description: 'Organize related fields into logical, collapsible sections for better content management.'
+path: "/widgets/core/group"
+title: "Group Widget"
+description: "Organize related fields into logical, collapsible sections for better content management."
 order: 10
-icon: 'mdi:folder-outline'
-author: 'admin'
-created: '2025-09-29'
-updated: '2026-02-16'
+icon: "mdi:folder-outline"
+author: "admin"
+created: "2025-09-29"
+updated: "2026-02-16"
 tags:
   - widget
   - core
@@ -17,8 +17,8 @@ tags:
 # Group Widget
 
 <blockquote>
-	**Structural widget** that allows you to organize multiple related fields into a single, logical block. Essential for creating clean, navigable
-	content forms.
+  **Structural widget** that allows you to organize multiple related fields into a single, logical
+  block. Essential for creating clean, navigable content forms.
 </blockquote>
 
 ## Overview
@@ -42,34 +42,34 @@ The **Group widget** acts as a container for other fields, allowing you to group
 Group meta tags and search engine settings into a neat, collapsible section.
 
 ```typescript
-import { widgets } from '@src/widgets/proxy';
+import { widgets } from "@src/widgets/proxy";
 
 export const PageSchema = {
-	// ...
-	fields: [
-		widgets.Group({
-			label: 'SEO Settings',
-			db_fieldName: 'seo',
-			icon: 'icon-park-outline:seo',
-			collapsible: true,
-			collapsed: true, // Start collapsed to save space
-			variant: 'card',
-			helper: 'Configure search engine optimization settings.',
-			fields: [
-				widgets.Input({
-					label: 'Meta Title',
-					db_fieldName: 'title',
-					required: true,
-					maxLength: 60
-				}),
-				widgets.Textarea({
-					label: 'Meta Description',
-					db_fieldName: 'description',
-					maxLength: 160
-				})
-			]
-		})
-	]
+  // ...
+  fields: [
+    widgets.Group({
+      label: "SEO Settings",
+      db_fieldName: "seo",
+      icon: "icon-park-outline:seo",
+      collapsible: true,
+      collapsed: true, // Start collapsed to save space
+      variant: "card",
+      helper: "Configure search engine optimization settings.",
+      fields: [
+        widgets.Input({
+          label: "Meta Title",
+          db_fieldName: "title",
+          required: true,
+          maxLength: 60,
+        }),
+        widgets.Textarea({
+          label: "Meta Description",
+          db_fieldName: "description",
+          maxLength: 160,
+        }),
+      ],
+    }),
+  ],
 };
 ```
 
@@ -99,11 +99,11 @@ The Group widget structures data hierarchically. It creates a nested object (JSO
 ```json
 // Stored Data
 {
-	"title": "My Landing Page",
-	"seo": {
-		"title": "Best Landing Page Ever",
-		"description": "Join us today..."
-	}
+  "title": "My Landing Page",
+  "seo": {
+    "title": "Best Landing Page Ever",
+    "description": "Join us today..."
+  }
 }
 ```
 

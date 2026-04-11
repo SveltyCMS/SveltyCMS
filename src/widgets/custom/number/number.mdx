@@ -1,18 +1,18 @@
 ---
-path: 'src/widgets/custom/Number/number.mdx'
-title: 'Number Widget'
-description: 'Numeric input widget with proper number type storage and range validation.'
+path: "src/widgets/custom/Number/number.mdx"
+title: "Number Widget"
+description: "Numeric input widget with proper number type storage and range validation."
 order: 2
-icon: 'mdi:numeric'
-author: 'admin'
-created: '2025-10-01'
-updated: '2026-02-03'
+icon: "mdi:numeric"
+author: "admin"
+created: "2025-10-01"
+updated: "2026-02-03"
 tags:
-  - 'widget'
-  - 'number'
-  - 'form'
-  - 'validation'
-  - 'custom'
+  - "widget"
+  - "number"
+  - "form"
+  - "validation"
+  - "custom"
 ---
 
 # Number Widget
@@ -58,14 +58,14 @@ The Number widget is part of the SveltyCMS specialized widget collection and pro
 ### Basic Setup
 
 ```typescript
-import widgets from '@widgets';
+import widgets from "@widgets";
 
 widgets.Number({
-	label: 'Quantity',
-	db_fieldName: 'quantity',
-	required: true,
-	min: 1,
-	max: 100
+  label: "Quantity",
+  db_fieldName: "quantity",
+  required: true,
+  min: 1,
+  max: 100,
 });
 ```
 
@@ -73,12 +73,12 @@ widgets.Number({
 
 ```typescript
 widgets.Number({
-	label: 'Price',
-	db_fieldName: 'price',
-	min: 0,
-	step: 0.01, // Allows decimals
-	prefix: '$',
-	required: true
+  label: "Price",
+  db_fieldName: "price",
+  min: 0,
+  step: 0.01, // Allows decimals
+  prefix: "$",
+  required: true,
 });
 ```
 
@@ -86,13 +86,13 @@ widgets.Number({
 
 ```typescript
 widgets.Number({
-	label: 'Height',
-	db_fieldName: 'height',
-	min: 0,
-	max: 300,
-	prefix: 'Height:',
-	suffix: 'cm',
-	required: true
+  label: "Height",
+  db_fieldName: "height",
+  min: 0,
+  max: 300,
+  prefix: "Height:",
+  suffix: "cm",
+  required: true,
 });
 ```
 
@@ -146,16 +146,16 @@ The Number widget provides comprehensive numeric validation:
 
 ```typescript
 // Required field error
-'This field is required';
+"This field is required";
 
 // Below minimum
-'Value must be at least {min}';
+"Value must be at least {min}";
 
 // Above maximum
-'Value must not exceed {max}';
+"Value must not exceed {max}";
 
 // Invalid format
-'Value must be a number';
+"Value must be a number";
 ```
 
 ### Validation Behavior
@@ -173,7 +173,7 @@ Numbers are stored as actual number type in the default language:
 
 ```typescript
 {
-	en: 42; // Stored as number, not string "42"
+  en: 42; // Stored as number, not string "42"
 }
 ```
 
@@ -192,18 +192,18 @@ Storing as number type enables:
 ```typescript
 // As number (correct)
 {
-	en: 100;
+  en: 100;
 } // Greater than 20
 {
-	en: 5;
+  en: 5;
 } // Less than 100
 
 // As string (incorrect)
 {
-	en: '100';
+  en: "100";
 } // "100" < "20" (lexicographic!)
 {
-	en: '5';
+  en: "5";
 } // "5" > "100" (lexicographic!)
 ```
 
@@ -234,14 +234,14 @@ The widget automatically:
 
 ```typescript
 widgets.Number({
-	label: 'Quantity',
-	db_fieldName: 'quantity',
-	required: true,
-	min: 1,
-	max: 999,
-	step: 1,
-	icon: 'mdi:package',
-	helper: 'How many units to order'
+  label: "Quantity",
+  db_fieldName: "quantity",
+  required: true,
+  min: 1,
+  max: 999,
+  step: 1,
+  icon: "mdi:package",
+  helper: "How many units to order",
 });
 ```
 
@@ -249,15 +249,15 @@ widgets.Number({
 
 ```typescript
 widgets.Number({
-	label: 'Price',
-	db_fieldName: 'price',
-	required: true,
-	min: 0,
-	step: 0.01,
-	prefix: '$',
-	placeholder: '0.00',
-	icon: 'mdi:currency-usd',
-	helper: 'Product price in USD'
+  label: "Price",
+  db_fieldName: "price",
+  required: true,
+  min: 0,
+  step: 0.01,
+  prefix: "$",
+  placeholder: "0.00",
+  icon: "mdi:currency-usd",
+  helper: "Product price in USD",
 });
 ```
 
@@ -265,15 +265,15 @@ widgets.Number({
 
 ```typescript
 widgets.Number({
-	label: 'Age',
-	db_fieldName: 'age',
-	required: false,
-	min: 0,
-	max: 150,
-	step: 1,
-	suffix: 'years',
-	icon: 'mdi:cake-variant',
-	helper: 'Age in years'
+  label: "Age",
+  db_fieldName: "age",
+  required: false,
+  min: 0,
+  max: 150,
+  step: 1,
+  suffix: "years",
+  icon: "mdi:cake-variant",
+  helper: "Age in years",
 });
 ```
 
@@ -281,14 +281,14 @@ widgets.Number({
 
 ```typescript
 widgets.Number({
-	label: 'Weight',
-	db_fieldName: 'weight',
-	required: true,
-	min: 0,
-	step: 0.1,
-	suffix: 'kg',
-	icon: 'mdi:weight-kilogram',
-	helper: 'Product weight for shipping calculation'
+  label: "Weight",
+  db_fieldName: "weight",
+  required: true,
+  min: 0,
+  step: 0.1,
+  suffix: "kg",
+  icon: "mdi:weight-kilogram",
+  helper: "Product weight for shipping calculation",
 });
 ```
 
@@ -296,15 +296,15 @@ widgets.Number({
 
 ```typescript
 widgets.Number({
-	label: 'Temperature',
-	db_fieldName: 'temperature',
-	required: false,
-	min: -273.15, // Absolute zero
-	max: 1000,
-	step: 0.1,
-	suffix: '°C',
-	icon: 'mdi:thermometer',
-	helper: 'Operating temperature'
+  label: "Temperature",
+  db_fieldName: "temperature",
+  required: false,
+  min: -273.15, // Absolute zero
+  max: 1000,
+  step: 0.1,
+  suffix: "°C",
+  icon: "mdi:thermometer",
+  helper: "Operating temperature",
 });
 ```
 
@@ -312,15 +312,15 @@ widgets.Number({
 
 ```typescript
 widgets.Number({
-	label: 'Rating',
-	db_fieldName: 'rating',
-	required: true,
-	min: 1,
-	max: 5,
-	step: 0.5,
-	suffix: '/ 5',
-	icon: 'mdi:star',
-	helper: 'Rate from 1 to 5 stars'
+  label: "Rating",
+  db_fieldName: "rating",
+  required: true,
+  min: 1,
+  max: 5,
+  step: 0.5,
+  suffix: "/ 5",
+  icon: "mdi:star",
+  helper: "Rate from 1 to 5 stars",
 });
 ```
 
@@ -402,10 +402,14 @@ The validation schema is generated dynamically:
 
 ```typescript
 // Required number with range
-pipe(number('Value must be a number'), minValue(0, 'Value must be at least 0'), maxValue(100, 'Value must not exceed 100'));
+pipe(
+  number("Value must be a number"),
+  minValue(0, "Value must be at least 0"),
+  maxValue(100, "Value must not exceed 100"),
+);
 
 // Optional number
-optional(pipe(number('Value must be a number'), minValue(0, 'Value must be at least 0')));
+optional(pipe(number("Value must be a number"), minValue(0, "Value must be at least 0")));
 ```
 
 ### State Management
@@ -424,9 +428,11 @@ The widget handles locale-specific parsing:
 
 ```typescript
 function parseLocaleNumber(value: string, locale: string): number {
-	const decimalSeparator = getDecimalSeparator(locale);
-	const normalized = value.replace(new RegExp(`[^0-9${decimalSeparator}-]`, 'g'), '').replace(decimalSeparator, '.');
-	return parseFloat(normalized);
+  const decimalSeparator = getDecimalSeparator(locale);
+  const normalized = value
+    .replace(new RegExp(`[^0-9${decimalSeparator}-]`, "g"), "")
+    .replace(decimalSeparator, ".");
+  return parseFloat(normalized);
 }
 ```
 
@@ -455,16 +461,16 @@ The Number widget supports MongoDB aggregation operations:
 ```typescript
 // Ascending
 {
-	$sort: {
-		price: 1;
-	}
+  $sort: {
+    price: 1;
+  }
 }
 
 // Descending
 {
-	$sort: {
-		quantity: -1;
-	}
+  $sort: {
+    quantity: -1;
+  }
 }
 ```
 
@@ -490,12 +496,12 @@ If you were using the Input widget with `inputType: 'number'`, migrate to the Nu
 ```typescript
 // ❌ Old approach
 widgets.Input({
-	inputType: 'number',
-	label: 'Price',
-	db_fieldName: 'price',
-	minLength: 0, // Wrong property name!
-	maxLength: 1000, // Wrong property name!
-	translated: false // Had to remember this!
+  inputType: "number",
+  label: "Price",
+  db_fieldName: "price",
+  minLength: 0, // Wrong property name!
+  maxLength: 1000, // Wrong property name!
+  translated: false, // Had to remember this!
 });
 ```
 
@@ -504,13 +510,13 @@ widgets.Input({
 ```typescript
 // ✅ New approach
 widgets.Number({
-	label: 'Price',
-	db_fieldName: 'price',
-	min: 0, // Correct property
-	max: 1000, // Correct property
-	step: 0.01,
-	prefix: '$'
-	// translated: false is automatic
+  label: "Price",
+  db_fieldName: "price",
+  min: 0, // Correct property
+  max: 1000, // Correct property
+  step: 0.01,
+  prefix: "$",
+  // translated: false is automatic
 });
 ```
 
@@ -521,11 +527,11 @@ If you have existing string data, convert to numbers:
 ```typescript
 // Migration script
 db.collection.updateMany({}, [
-	{
-		$set: {
-			'price.en': { $toDouble: '$price.en' }
-		}
-	}
+  {
+    $set: {
+      "price.en": { $toDouble: "$price.en" },
+    },
+  },
 ]);
 ```
 
@@ -595,26 +601,26 @@ For larger numbers, use string storage or BigInt.
 
 ```typescript
 type NumberProps = {
-	// Required
-	label: string;
+  // Required
+  label: string;
 
-	// Optional
-	db_fieldName?: string;
-	required?: boolean;
-	min?: number;
-	max?: number;
-	step?: number;
-	prefix?: string;
-	suffix?: string;
-	placeholder?: string;
-	icon?: string;
-	width?: number;
-	helper?: string;
-	readonly?: boolean;
-	disabled?: boolean;
+  // Optional
+  db_fieldName?: string;
+  required?: boolean;
+  min?: number;
+  max?: number;
+  step?: number;
+  prefix?: string;
+  suffix?: string;
+  placeholder?: string;
+  icon?: string;
+  width?: number;
+  helper?: string;
+  readonly?: boolean;
+  disabled?: boolean;
 
-	// Fixed (cannot be changed)
-	translated: false; // Always false for numbers
+  // Fixed (cannot be changed)
+  translated: false; // Always false for numbers
 };
 ```
 
@@ -622,8 +628,8 @@ type NumberProps = {
 
 ```typescript
 interface NumberInputProps {
-	field: FieldType;
-	value?: any; // Bindable
+  field: FieldType;
+  value?: any; // Bindable
 }
 ```
 

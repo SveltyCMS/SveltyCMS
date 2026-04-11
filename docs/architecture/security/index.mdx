@@ -123,7 +123,7 @@ SveltyCMS security architecture includes:
 
 Every request to SveltyCMS passes through a strictly ordered pipeline in `hooks.server.ts` to ensure maximum security with minimal overhead:
 
-1.  **🛡️ Security Headers**: CSP, HSTS, and X-Frame-Options applied first to *all* responses.
+1.  **🛡️ Security Headers**: CSP, HSTS, and X-Frame-Options applied first to _all_ responses.
 2.  **🗜️ Compression**: Optimizes response size before further processing.
 3.  **🔥 Dynamic Firewall**: Scans for SQLi, XSS, and Command Injection threat patterns.
 4.  **🐌 Rate Limiting**: Intelligent throttling based on endpoint sensitivity.
@@ -321,15 +321,15 @@ Recommended security testing tools:
 
 While the CMS provides built-in tools, a secure production deployment requires proper environmental configuration.
 
-| Item | Requirement | Status | Verification |
-| :--- | :--- | :--- | :--- |
-| **JWT_SECRET_KEY** | 32+ characters of high entropy. | [ ] | Auth flow |
-| **ENCRYPTION_KEY** | 32+ characters (AES-256-GCM baseline). | [ ] | Data decryption |
-| **HTTPS/SSL** | CMS should *only* be served over TLS 1.3. | [ ] | `security-headers.test` |
-| **Database Access** | DB must reside on a private VPC/Network. | [ ] | Infrastructure |
-| **Admin Password** | Enterprise standard (16+ chars, mixed). | [ ] | `Auth.validatePassword` |
-| **Firewall** | Enable internal firewall via `FIREWALL_ENABLED`. | [ ] | `firewall.test` |
-| **Audit Logs** | Retention policy matches compliance (Default 365). | [ ] | `AuditLogService` |
+| Item                | Requirement                                        | Status | Verification            |
+| :------------------ | :------------------------------------------------- | :----- | :---------------------- |
+| **JWT_SECRET_KEY**  | 32+ characters of high entropy.                    | [ ]    | Auth flow               |
+| **ENCRYPTION_KEY**  | 32+ characters (AES-256-GCM baseline).             | [ ]    | Data decryption         |
+| **HTTPS/SSL**       | CMS should _only_ be served over TLS 1.3.          | [ ]    | `security-headers.test` |
+| **Database Access** | DB must reside on a private VPC/Network.           | [ ]    | Infrastructure          |
+| **Admin Password**  | Enterprise standard (16+ chars, mixed).            | [ ]    | `Auth.validatePassword` |
+| **Firewall**        | Enable internal firewall via `FIREWALL_ENABLED`.   | [ ]    | `firewall.test`         |
+| **Audit Logs**      | Retention policy matches compliance (Default 365). | [ ]    | `AuditLogService`       |
 
 ---
 

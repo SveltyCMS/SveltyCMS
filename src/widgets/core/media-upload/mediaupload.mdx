@@ -1,12 +1,12 @@
 ---
-path: '/widgets/core/mediaupload'
-title: 'MediaUpload Widget'
-description: 'Media selector with modal library, drag-and-drop upload, and multi-file support for SveltyCMS'
+path: "/widgets/core/mediaupload"
+title: "MediaUpload Widget"
+description: "Media selector with modal library, drag-and-drop upload, and multi-file support for SveltyCMS"
 order: 104
-icon: 'mdi:image-multiple'
-author: 'admin'
-created: '2025-01-15'
-updated: '2025-01-15'
+icon: "mdi:image-multiple"
+author: "admin"
+created: "2025-01-15"
+updated: "2025-01-15"
 tags:
   - widget
   - core
@@ -21,7 +21,8 @@ tags:
 # MediaUpload Widget
 
 <blockquote>
-	**Media management widget** with modal-based library, drag-and-drop upload, multi-file support, and optimized file reference storage.
+  **Media management widget** with modal-based library, drag-and-drop upload, multi-file support,
+  and optimized file reference storage.
 </blockquote>
 
 ## Overview
@@ -74,21 +75,21 @@ The **MediaUpload widget** (also called Media widget) provides a powerful interf
 ### Single Featured Image
 
 ```typescript
-import Media from '@src/widgets/core/MediaUpload';
+import Media from "@src/widgets/core/MediaUpload";
 
 export const postsCollection = {
-	name: 'Blog Posts',
-	fields: [
-		Media({
-			label: 'Featured Image',
-			db_fieldName: 'featuredImage',
-			folder: 'blog/featured', // ✅ Organize by collection/purpose
-			multiupload: false,
-			required: true,
-			allowedTypes: ['image/jpeg', 'image/png', 'image/webp'],
-			helper: 'Select a featured image for this post'
-		})
-	]
+  name: "Blog Posts",
+  fields: [
+    Media({
+      label: "Featured Image",
+      db_fieldName: "featuredImage",
+      folder: "blog/featured", // ✅ Organize by collection/purpose
+      multiupload: false,
+      required: true,
+      allowedTypes: ["image/jpeg", "image/png", "image/webp"],
+      helper: "Select a featured image for this post",
+    }),
+  ],
 };
 ```
 
@@ -96,14 +97,14 @@ export const postsCollection = {
 
 ```typescript
 Media({
-	label: 'Product Images',
-	db_fieldName: 'images',
-	multiupload: true,
-	required: true,
-	allowedTypes: ['image/*'],
-	minItems: 1,
-	maxItems: 10,
-	helper: 'Upload 1-10 product images'
+  label: "Product Images",
+  db_fieldName: "images",
+  multiupload: true,
+  required: true,
+  allowedTypes: ["image/*"],
+  minItems: 1,
+  maxItems: 10,
+  helper: "Upload 1-10 product images",
 });
 ```
 
@@ -111,12 +112,12 @@ Media({
 
 ```typescript
 Media({
-	label: 'Avatar',
-	db_fieldName: 'avatar',
-	multiupload: false,
-	required: false,
-	allowedTypes: ['image/jpeg', 'image/png'],
-	helper: 'Optional profile picture'
+  label: "Avatar",
+  db_fieldName: "avatar",
+  multiupload: false,
+  required: false,
+  allowedTypes: ["image/jpeg", "image/png"],
+  helper: "Optional profile picture",
 });
 ```
 
@@ -124,18 +125,18 @@ Media({
 
 ```typescript
 Media({
-	label: 'Attachments',
-	db_fieldName: 'attachments',
-	multiupload: true,
-	required: false,
-	allowedTypes: [
-		'application/pdf',
-		'application/msword',
-		'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-		'application/vnd.ms-excel',
-		'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-	],
-	helper: 'Upload PDF, Word, or Excel files'
+  label: "Attachments",
+  db_fieldName: "attachments",
+  multiupload: true,
+  required: false,
+  allowedTypes: [
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  ],
+  helper: "Upload PDF, Word, or Excel files",
 });
 ```
 
@@ -269,7 +270,7 @@ Media stores IDs as strings (single) or array of strings (multi):
 
 ```typescript
 // Fetch post with populated media
-const post = await db.posts.findOne({ _id: 'post_123' });
+const post = await db.posts.findOne({ _id: "post_123" });
 const media = await db.media_files.findOne({ _id: post.featuredImage });
 
 console.log(`Image URL: ${media.url}`);
@@ -280,24 +281,24 @@ console.log(`Image URL: ${media.url}`);
 ```typescript
 // Aggregate with $lookup to join media files
 db.posts.aggregate([
-	{
-		$lookup: {
-			from: 'media_files',
-			localField: 'featuredImage',
-			foreignField: '_id',
-			as: 'imageData'
-		}
-	},
-	{
-		$unwind: '$imageData'
-	},
-	{
-		$project: {
-			title: 1,
-			imageUrl: '$imageData.url',
-			imageName: '$imageData.name'
-		}
-	}
+  {
+    $lookup: {
+      from: "media_files",
+      localField: "featuredImage",
+      foreignField: "_id",
+      as: "imageData",
+    },
+  },
+  {
+    $unwind: "$imageData",
+  },
+  {
+    $project: {
+      title: 1,
+      imageUrl: "$imageData.url",
+      imageName: "$imageData.name",
+    },
+  },
 ]);
 ```
 
@@ -306,14 +307,14 @@ db.posts.aggregate([
 ```typescript
 // Populate multiple images
 db.products.aggregate([
-	{
-		$lookup: {
-			from: 'media_files',
-			localField: 'images',
-			foreignField: '_id',
-			as: 'imageData'
-		}
-	}
+  {
+    $lookup: {
+      from: "media_files",
+      localField: "images",
+      foreignField: "_id",
+      as: "imageData",
+    },
+  },
 ]);
 
 // Result:
@@ -335,104 +336,104 @@ db.products.aggregate([
 ### Image with Alt Text
 
 ```typescript
-import Media from '@src/widgets/core/MediaUpload';
-import Input from '@src/widgets/core/Input';
+import Media from "@src/widgets/core/MediaUpload";
+import Input from "@src/widgets/core/Input";
 
 export const postsCollection = {
-	name: 'Posts',
-	fields: [
-		Media({
-			label: 'Featured Image',
-			db_fieldName: 'featuredImage',
-			multiupload: false,
-			required: true,
-			allowedTypes: ['image/*']
-		}),
+  name: "Posts",
+  fields: [
+    Media({
+      label: "Featured Image",
+      db_fieldName: "featuredImage",
+      multiupload: false,
+      required: true,
+      allowedTypes: ["image/*"],
+    }),
 
-		Input({
-			label: 'Image Alt Text',
-			db_fieldName: 'imageAlt',
-			required: true,
-			helper: 'Describe the image for accessibility',
-			showIf: (data) => !!data.featuredImage
-		})
-	]
+    Input({
+      label: "Image Alt Text",
+      db_fieldName: "imageAlt",
+      required: true,
+      helper: "Describe the image for accessibility",
+      showIf: (data) => !!data.featuredImage,
+    }),
+  ],
 };
 ```
 
 ### Product Gallery with Cover
 
 ```typescript
-import Media from '@src/widgets/core/MediaUpload';
-import Select from '@src/widgets/core/select';
+import Media from "@src/widgets/core/MediaUpload";
+import Select from "@src/widgets/core/select";
 
 export const productsCollection = {
-	name: 'Products',
-	fields: [
-		Media({
-			label: 'Product Images',
-			db_fieldName: 'images',
-			multiupload: true,
-			required: true,
-			allowedTypes: ['image/*'],
-			minItems: 1,
-			maxItems: 10
-		}),
+  name: "Products",
+  fields: [
+    Media({
+      label: "Product Images",
+      db_fieldName: "images",
+      multiupload: true,
+      required: true,
+      allowedTypes: ["image/*"],
+      minItems: 1,
+      maxItems: 10,
+    }),
 
-		Select({
-			label: 'Cover Image',
-			db_fieldName: 'coverImageId',
-			options: [], // Populated dynamically from images array
-			helper: 'Select which image to use as cover'
-		})
-	]
+    Select({
+      label: "Cover Image",
+      db_fieldName: "coverImageId",
+      options: [], // Populated dynamically from images array
+      helper: "Select which image to use as cover",
+    }),
+  ],
 };
 ```
 
 ### Mixed Media Types
 
 ```typescript
-import Media from '@src/widgets/core/MediaUpload';
-import Select from '@src/widgets/core/select';
+import Media from "@src/widgets/core/MediaUpload";
+import Select from "@src/widgets/core/select";
 
 export const lessonsCollection = {
-	name: 'Lessons',
-	fields: [
-		Select({
-			label: 'Media Type',
-			db_fieldName: 'mediaType',
-			options: [
-				{ label: 'Image', value: 'image' },
-				{ label: 'Video', value: 'video' },
-				{ label: 'PDF', value: 'pdf' }
-			],
-			required: true
-		}),
+  name: "Lessons",
+  fields: [
+    Select({
+      label: "Media Type",
+      db_fieldName: "mediaType",
+      options: [
+        { label: "Image", value: "image" },
+        { label: "Video", value: "video" },
+        { label: "PDF", value: "pdf" },
+      ],
+      required: true,
+    }),
 
-		Media({
-			label: 'Image',
-			db_fieldName: 'image',
-			multiupload: false,
-			allowedTypes: ['image/*'],
-			showIf: (data) => data.mediaType === 'image'
-		}),
+    Media({
+      label: "Image",
+      db_fieldName: "image",
+      multiupload: false,
+      allowedTypes: ["image/*"],
+      showIf: (data) => data.mediaType === "image",
+    }),
 
-		Media({
-			label: 'Video',
-			db_fieldName: 'video',
-			multiupload: false,
-			allowedTypes: ['video/*'],
-			showIf: (data) => data.mediaType === 'video'
-		}),
+    Media({
+      label: "Video",
+      db_fieldName: "video",
+      multiupload: false,
+      allowedTypes: ["video/*"],
+      showIf: (data) => data.mediaType === "video",
+    }),
 
-		Media({
-			label: 'PDF Document',
-			db_fieldName: 'pdf',
-			multiupload: false,
-			allowedTypes: ['application/pdf'],
-			showIf: (data) => data.mediaType === 'pdf'
-		})
-	]
+    Media({
+      label: "PDF Document",
+      db_fieldName: "pdf",
+      multiupload: false,
+      allowedTypes: ["application/pdf"],
+      showIf: (data) => data.mediaType === "pdf",
+    }),
+  ],
 };
 ```
 
@@ -475,10 +476,10 @@ file: [binary data]
 
 ```typescript
 // Widget receives mediaId and stores it
-value = 'media_456';
+value = "media_456";
 
 // For multi-upload:
-value = ['media_456', 'media_457', 'media_458'];
+value = ["media_456", "media_457", "media_458"];
 ```
 
 ---
@@ -488,11 +489,11 @@ value = ['media_456', 'media_457', 'media_458'];
 ```typescript
 // Single file
 Media({
-	label: 'Avatar',
-	db_fieldName: 'avatar',
-	multiupload: false,
-	required: true,
-	allowedTypes: ['image/*']
+  label: "Avatar",
+  db_fieldName: "avatar",
+  multiupload: false,
+  required: true,
+  allowedTypes: ["image/*"],
 });
 
 // Validation:
@@ -501,13 +502,13 @@ Media({
 
 // Multiple files
 Media({
-	label: 'Gallery',
-	db_fieldName: 'gallery',
-	multiupload: true,
-	required: true,
-	minItems: 3,
-	maxItems: 10,
-	allowedTypes: ['image/*']
+  label: "Gallery",
+  db_fieldName: "gallery",
+  multiupload: true,
+  required: true,
+  minItems: 3,
+  maxItems: 10,
+  allowedTypes: ["image/*"],
 });
 
 // Validation:
@@ -570,19 +571,19 @@ const mediaFiles = await db.media_files.find({ _id: { $in: mediaIds } });
 
    ```typescript
    // Images only
-   allowedTypes: ['image/jpeg', 'image/png', 'image/webp'];
+   allowedTypes: ["image/jpeg", "image/png", "image/webp"];
 
    // Documents only
-   allowedTypes: ['application/pdf', 'application/msword'];
+   allowedTypes: ["application/pdf", "application/msword"];
    ```
 
 2. **Set Reasonable Limits**
 
    ```typescript
    Media({
-   	multiupload: true,
-   	minItems: 1,
-   	maxItems: 10 // Prevent excessive uploads
+     multiupload: true,
+     minItems: 1,
+     maxItems: 10, // Prevent excessive uploads
    });
    ```
 
@@ -605,10 +606,10 @@ const mediaFiles = await db.media_files.find({ _id: { $in: mediaIds } });
 
    ```typescript
    // ❌ Wrong: Storing base64 or full file data
-   image: 'data:image/jpeg;base64,/9j/4AAQSkZJRg...';
+   image: "data:image/jpeg;base64,/9j/4AAQSkZJRg...";
 
    // ✅ Correct: Store ID reference
-   image: 'media_456';
+   image: "media_456";
    ```
 
 2. **Don't Skip Validation**
@@ -618,7 +619,7 @@ const mediaFiles = await db.media_files.find({ _id: { $in: mediaIds } });
    allowedTypes: []; // Allows .exe, .bat, .sh
 
    // ✅ Safe: Restrict to safe types
-   allowedTypes: ['image/*', 'application/pdf'];
+   allowedTypes: ["image/*", "application/pdf"];
    ```
 
 ---
@@ -629,14 +630,14 @@ const mediaFiles = await db.media_files.find({ _id: { $in: mediaIds } });
 function Media(props: MediaProps): FieldInstance;
 
 interface MediaProps {
-	label: string;
-	db_fieldName: string;
-	multiupload?: boolean;
-	required?: boolean;
-	allowedTypes?: string[];
-	minItems?: number; // For multiupload
-	maxItems?: number; // For multiupload
-	helper?: string;
+  label: string;
+  db_fieldName: string;
+  multiupload?: boolean;
+  required?: boolean;
+  allowedTypes?: string[];
+  minItems?: number; // For multiupload
+  maxItems?: number; // For multiupload
+  helper?: string;
 }
 
 // Single file

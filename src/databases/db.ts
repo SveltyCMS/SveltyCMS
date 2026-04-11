@@ -39,6 +39,20 @@ let isInitialized = false;
 let initializationPromise: Promise<void> | null = null;
 
 /**
+ * Public getter for the current database adapter.
+ */
+export function getDb(): DatabaseAdapter | null {
+  return dbAdapter;
+}
+
+/**
+ * Public getter for the current authentication service.
+ */
+export function getAuth(): AuthType | null {
+  return auth;
+}
+
+/**
  * Boot Phases for Intelligent Initialization
  * - SETUP: Database connection only (Wizard mode)
  * - CORE: Auth + Critical Settings (Login mode)
@@ -57,19 +71,30 @@ export function getBootPhase(): BootPhase | null {
 /**
  * Initialization entry point.
  */
-export function getDbInitPromise(
+export async function getDbInitPromise(
   forceInit = false,
   targetPhase: BootPhase = "FULL",
 ): Promise<void> {
-  // If we already reached or exceeded the target phase, return existing promise
-  if (isInitialized && !forceInit) {
-    if (targetPhase === "FULL" && currentPhase === "FULL") return initializationPromise!;
-    if (targetPhase === "CORE" && (currentPhase === "CORE" || currentPhase === "FULL"))
-      return initializationPromise!;
-    if (targetPhase === "SETUP" && currentPhase) return initializationPromise!;
+  // If we are currently initializing, wait for it
+  if (initializationPromise && !forceInit) {
+    await initializationPromise;
+
+    // Check if the completed initialization reached our target phase
+    if (targetPhase === "SETUP" && currentPhase) return;
+    if (targetPhase === "CORE" && (currentPhase === "CORE" || currentPhase === "FULL")) return;
+    if (targetPhase === "FULL" && currentPhase === "FULL") return;
+
+    // If not reached, fall through to trigger escalation
   }
 
-  // Otherwise, trigger or extend initialization
+  // If already initialized and phase reached, and not forcing, return
+  if (isInitialized && !forceInit) {
+    if (targetPhase === "SETUP" && currentPhase) return;
+    if (targetPhase === "CORE" && (currentPhase === "CORE" || currentPhase === "FULL")) return;
+    if (targetPhase === "FULL" && currentPhase === "FULL") return;
+  }
+
+  // Trigger or extend initialization
   initializationPromise = initializeSystem(forceInit, targetPhase);
   return initializationPromise;
 }

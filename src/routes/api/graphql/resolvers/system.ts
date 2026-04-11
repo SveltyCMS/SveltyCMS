@@ -3,7 +3,7 @@
  * @description System-level GraphQL resolvers for health, diagnostics, navigation, and collection stats.
  */
 
-import { contentManager } from "@src/content/content-manager";
+import { contentSystem } from "@src/content";
 import type { User } from "@src/databases/auth/types";
 import { logger } from "@utils/logger.server";
 
@@ -47,7 +47,7 @@ export const systemTypeDefs = `
 		path: String!
 	}
 
-	type ContentManagerHealth {
+	type contentSystemHealth {
 		state: String!
 		nodeCount: Int!
 		collectionCount: Int!
@@ -66,7 +66,7 @@ export const systemTypeDefs = `
 		tenantId: String
 	}
 
-	type ContentManagerDiagnostics {
+	type contentSystemDiagnostics {
 		maps: HealthMaps!
 		cache: HealthCache!
 		state: String!
@@ -80,7 +80,7 @@ export const systemTypeDefs = `
 		move: Int!
 	}
 
-	type ContentManagerMetrics {
+	type contentSystemMetrics {
 		initializationTime: Float!
 		cacheHits: Int!
 		cacheMisses: Int!
@@ -109,7 +109,7 @@ export const systemResolvers = {
         throw new Error("Authentication required");
       }
       try {
-        return await contentManager.getCollectionStats(args.collectionId, context.tenantId);
+        return await contentSystem.getCollectionStats(args.collectionId, context.tenantId);
       } catch (error) {
         logger.error("Error in collectionStats:", {
           error,
@@ -125,9 +125,9 @@ export const systemResolvers = {
         throw new Error("Authentication required");
       }
       try {
-        const collections = await contentManager.getCollections(context.tenantId);
+        const collections = await contentSystem.getCollections(context.tenantId);
         return collections
-          .map((col) => contentManager.getCollectionStats(col._id!, context.tenantId))
+          .map((col) => contentSystem.getCollectionStats(col._id!, context.tenantId))
           .filter(Boolean);
       } catch (error) {
         logger.error("Error in allCollectionStats:", {
@@ -149,7 +149,7 @@ export const systemResolvers = {
       }
       try {
         const expandedIds = new Set(args.options?.expandedIds || []);
-        return await contentManager.getNavigationStructureProgressive({
+        return await contentSystem.getNavigationStructureProgressive({
           maxDepth: args.options?.maxDepth ?? 1,
           expandedIds,
           tenantId: context.tenantId,
@@ -168,7 +168,7 @@ export const systemResolvers = {
         throw new Error("Authentication required");
       }
       try {
-        return await contentManager.getNodeChildren(args.nodeId, context.tenantId);
+        return await contentSystem.getNodeChildren(args.nodeId, context.tenantId);
       } catch (error) {
         logger.error("Error in nodeChildren:", {
           error,
@@ -184,7 +184,7 @@ export const systemResolvers = {
         throw new Error("Authentication required");
       }
       try {
-        return await contentManager.getBreadcrumb(args.path);
+        return await contentSystem.getBreadcrumb(args.path);
       } catch (error) {
         logger.error("Error in breadcrumb:", {
           error,
@@ -196,38 +196,38 @@ export const systemResolvers = {
     },
 
     // --- Health & Diagnostics ---
-    contentManagerHealth: async (_: unknown, __: unknown, context: GraphQLContext) => {
+    contentSystemHealth: async (_: unknown, __: unknown, context: GraphQLContext) => {
       if (!context.user) {
         throw new Error("Authentication required");
       }
       try {
-        return await contentManager.getHealthStatus();
+        return await contentSystem.getHealthStatus();
       } catch (error) {
-        logger.error("Error in contentManagerHealth:", { error });
+        logger.error("Error in contentSystemHealth:", { error });
         throw new Error("Failed to fetch health status");
       }
     },
 
-    contentManagerDiagnostics: async (_: unknown, __: unknown, context: GraphQLContext) => {
+    contentSystemDiagnostics: async (_: unknown, __: unknown, context: GraphQLContext) => {
       if (!context.user?.isAdmin) {
         throw new Error("Admin access required");
       }
       try {
-        return await contentManager.getDiagnostics();
+        return await contentSystem.getDiagnostics();
       } catch (error) {
-        logger.error("Error in contentManagerDiagnostics:", { error });
+        logger.error("Error in contentSystemDiagnostics:", { error });
         throw new Error("Failed to fetch diagnostics");
       }
     },
 
-    contentManagerMetrics: async (_: unknown, __: unknown, context: GraphQLContext) => {
+    contentSystemMetrics: async (_: unknown, __: unknown, context: GraphQLContext) => {
       if (!context.user?.isAdmin) {
         throw new Error("Admin access required");
       }
       try {
-        return await contentManager.getMetrics();
+        return await contentSystem.getMetrics();
       } catch (error) {
-        logger.error("Error in contentManagerMetrics:", { error });
+        logger.error("Error in contentSystemMetrics:", { error });
         throw new Error("Failed to fetch metrics");
       }
     },
@@ -237,7 +237,7 @@ export const systemResolvers = {
         throw new Error("Admin access required");
       }
       try {
-        return await contentManager.validateStructure();
+        return await contentSystem.validateStructure();
       } catch (error) {
         logger.error("Error in validateContentStructure:", { error });
         throw new Error("Failed to validate structure");

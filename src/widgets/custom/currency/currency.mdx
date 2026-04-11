@@ -1,12 +1,12 @@
 ---
-path: '/widgets/custom/currency'
-title: 'Currency Widget'
-description: 'Currency input widget with locale-aware formatting, numeric storage, and calculation support for SveltyCMS'
+path: "/widgets/custom/currency"
+title: "Currency Widget"
+description: "Currency input widget with locale-aware formatting, numeric storage, and calculation support for SveltyCMS"
 order: 301
-icon: 'mdi:currency-usd'
-author: 'admin'
-created: '2025-01-15'
-updated: '2026-02-03'
+icon: "mdi:currency-usd"
+author: "admin"
+created: "2025-01-15"
+updated: "2026-02-03"
 tags:
   - widget
   - custom
@@ -21,8 +21,8 @@ tags:
 # Currency Widget
 
 <blockquote>
-	**Currency input widget** that stores precise numeric values while displaying and accepting localized, formatted currency strings with proper
-	symbols and thousand separators.
+  **Currency input widget** that stores precise numeric values while displaying and accepting
+  localized, formatted currency strings with proper symbols and thousand separators.
 </blockquote>
 
 ## Overview
@@ -74,7 +74,7 @@ The Currency widget is included in SveltyCMS by default as a custom widget. No a
 
 ```typescript
 // Already available in your collection definitions
-import Currency from '@src/widgets/custom/Currency';
+import Currency from "@src/widgets/custom/Currency";
 ```
 
 ---
@@ -84,21 +84,21 @@ import Currency from '@src/widgets/custom/Currency';
 ### Simple Product Price
 
 ```typescript
-import Currency from '@src/widgets/custom/Currency';
+import Currency from "@src/widgets/custom/Currency";
 
 export const productsCollection = {
-	name: 'Products',
-	fields: [
-		Currency({
-			label: 'Price',
-			db_fieldName: 'price',
-			currencyCode: 'EUR',
-			required: true,
-			minValue: 0.01,
-			maxValue: 999999.99,
-			placeholder: '€0.00'
-		})
-	]
+  name: "Products",
+  fields: [
+    Currency({
+      label: "Price",
+      db_fieldName: "price",
+      currencyCode: "EUR",
+      required: true,
+      minValue: 0.01,
+      maxValue: 999999.99,
+      placeholder: "€0.00",
+    }),
+  ],
 };
 ```
 
@@ -112,80 +112,80 @@ export const productsCollection = {
 ### Multi-Currency E-commerce
 
 ```typescript
-import Currency from '@src/widgets/custom/Currency';
-import Select from '@src/widgets/core/select';
+import Currency from "@src/widgets/custom/Currency";
+import Select from "@src/widgets/core/select";
 
 export const productsCollection = {
-	name: 'Products',
-	fields: [
-		Select({
-			label: 'Currency',
-			db_fieldName: 'currency',
-			options: [
-				{ value: 'EUR', label: 'Euro (€)' },
-				{ value: 'USD', label: 'US Dollar ($)' },
-				{ value: 'GBP', label: 'British Pound (£)' },
-				{ value: 'JPY', label: 'Japanese Yen (¥)' }
-			],
-			default: 'EUR',
-			required: true
-		}),
+  name: "Products",
+  fields: [
+    Select({
+      label: "Currency",
+      db_fieldName: "currency",
+      options: [
+        { value: "EUR", label: "Euro (€)" },
+        { value: "USD", label: "US Dollar ($)" },
+        { value: "GBP", label: "British Pound (£)" },
+        { value: "JPY", label: "Japanese Yen (¥)" },
+      ],
+      default: "EUR",
+      required: true,
+    }),
 
-		Currency({
-			label: 'Price',
-			db_fieldName: 'price',
-			currencyCode: 'EUR', // Will be overridden by currency selector
-			required: true,
-			minValue: 0
-		}),
+    Currency({
+      label: "Price",
+      db_fieldName: "price",
+      currencyCode: "EUR", // Will be overridden by currency selector
+      required: true,
+      minValue: 0,
+    }),
 
-		Currency({
-			label: 'Discount',
-			db_fieldName: 'discount',
-			currencyCode: 'EUR',
-			required: false,
-			minValue: 0,
-			default: 0
-		})
-	]
+    Currency({
+      label: "Discount",
+      db_fieldName: "discount",
+      currencyCode: "EUR",
+      required: false,
+      minValue: 0,
+      default: 0,
+    }),
+  ],
 };
 ```
 
 ### Subscription Pricing
 
 ```typescript
-import Currency from '@src/widgets/custom/Currency';
+import Currency from "@src/widgets/custom/Currency";
 
 export const subscriptionPlansCollection = {
-	name: 'Subscription Plans',
-	fields: [
-		Currency({
-			label: 'Monthly Price',
-			db_fieldName: 'monthlyPrice',
-			currencyCode: 'USD',
-			required: true,
-			minValue: 0,
-			placeholder: '$0.00'
-		}),
+  name: "Subscription Plans",
+  fields: [
+    Currency({
+      label: "Monthly Price",
+      db_fieldName: "monthlyPrice",
+      currencyCode: "USD",
+      required: true,
+      minValue: 0,
+      placeholder: "$0.00",
+    }),
 
-		Currency({
-			label: 'Annual Price',
-			db_fieldName: 'annualPrice',
-			currencyCode: 'USD',
-			required: true,
-			minValue: 0,
-			placeholder: '$0.00'
-		}),
+    Currency({
+      label: "Annual Price",
+      db_fieldName: "annualPrice",
+      currencyCode: "USD",
+      required: true,
+      minValue: 0,
+      placeholder: "$0.00",
+    }),
 
-		Currency({
-			label: 'Setup Fee',
-			db_fieldName: 'setupFee',
-			currencyCode: 'USD',
-			required: false,
-			minValue: 0,
-			default: 0
-		})
-	]
+    Currency({
+      label: "Setup Fee",
+      db_fieldName: "setupFee",
+      currencyCode: "USD",
+      required: false,
+      minValue: 0,
+      default: 0,
+    }),
+  ],
 };
 ```
 
@@ -237,12 +237,12 @@ The Currency widget uses Valibot for robust validation:
 
 ```typescript
 Currency({
-	label: 'Product Price',
-	db_fieldName: 'price',
-	currencyCode: 'EUR',
-	required: true, // Must have a value
-	minValue: 0.01, // Minimum €0.01
-	maxValue: 9999.99 // Maximum €9,999.99
+  label: "Product Price",
+  db_fieldName: "price",
+  currencyCode: "EUR",
+  required: true, // Must have a value
+  minValue: 0.01, // Minimum €0.01
+  maxValue: 9999.99, // Maximum €9,999.99
 });
 
 // Validation rules generated automatically:
@@ -267,23 +267,23 @@ Currency({
 ### Custom Validation
 
 ```typescript
-import Currency from '@src/widgets/custom/Currency';
-import { pipe, custom } from 'valibot';
+import Currency from "@src/widgets/custom/Currency";
+import { pipe, custom } from "valibot";
 
 // Add custom business logic validation
 Currency({
-	label: 'Discount',
-	db_fieldName: 'discount',
-	currencyCode: 'USD',
-	minValue: 0,
-	maxValue: 100,
-	// Custom validation in collection schema
-	validate: pipe(
-		custom((value) => {
-			// Discount must be less than original price
-			return value < originalPrice;
-		}, 'Discount cannot exceed original price')
-	)
+  label: "Discount",
+  db_fieldName: "discount",
+  currencyCode: "USD",
+  minValue: 0,
+  maxValue: 100,
+  // Custom validation in collection schema
+  validate: pipe(
+    custom((value) => {
+      // Discount must be less than original price
+      return value < originalPrice;
+    }, "Discount cannot exceed original price"),
+  ),
 });
 ```
 
@@ -343,8 +343,8 @@ const hugeAmount = 9999999999999.99; // May lose precision
 
 // ✅ Solution for extreme values:
 // Use a decimal library like decimal.js or big.js
-import Decimal from 'decimal.js';
-const precise = new Decimal('9999999999999.99');
+import Decimal from "decimal.js";
+const precise = new Decimal("9999999999999.99");
 ```
 
 ### Decimal Precision
@@ -378,13 +378,13 @@ The Currency widget uses `Intl.NumberFormat` for automatic locale-specific forma
 
 ```typescript
 // User's locale from publicEnv.LOCALE or browser
-const userLocale = 'de-DE';
-const currencyCode = 'EUR';
+const userLocale = "de-DE";
+const currencyCode = "EUR";
 
 // Create formatter
 const formatter = new Intl.NumberFormat(userLocale, {
-	style: 'currency',
-	currency: currencyCode
+  style: "currency",
+  currency: currencyCode,
 });
 
 // Display
@@ -435,9 +435,9 @@ The widget handles bidirectional conversion:
 // In your environment configuration
 // src/stores/globalSettings.ts
 export const publicEnv = writable({
-	LOCALE: 'de-DE', // German (Germany)
-	// OR detect from browser:
-	LOCALE: navigator.language || 'en-US'
+  LOCALE: "de-DE", // German (Germany)
+  // OR detect from browser:
+  LOCALE: navigator.language || "en-US",
 });
 
 // Currency widget automatically uses this locale
@@ -454,42 +454,42 @@ Currency's numeric storage enables powerful MongoDB aggregations:
 ```typescript
 // Sum all product prices
 db.products.aggregate([
-	{
-		$group: {
-			_id: null,
-			totalValue: { $sum: '$price' },
-			avgPrice: { $avg: '$price' },
-			minPrice: { $min: '$price' },
-			maxPrice: { $max: '$price' },
-			count: { $sum: 1 }
-		}
-	}
+  {
+    $group: {
+      _id: null,
+      totalValue: { $sum: "$price" },
+      avgPrice: { $avg: "$price" },
+      minPrice: { $min: "$price" },
+      maxPrice: { $max: "$price" },
+      count: { $sum: 1 },
+    },
+  },
 ]);
 
 // Revenue by category
 db.products.aggregate([
-	{
-		$group: {
-			_id: '$category',
-			revenue: { $sum: '$price' }
-		}
-	},
-	{ $sort: { revenue: -1 } }
+  {
+    $group: {
+      _id: "$category",
+      revenue: { $sum: "$price" },
+    },
+  },
+  { $sort: { revenue: -1 } },
 ]);
 
 // Price range distribution
 db.products.aggregate([
-	{
-		$bucket: {
-			groupBy: '$price',
-			boundaries: [0, 50, 100, 500, 1000, 5000],
-			default: 'Other',
-			output: {
-				count: { $sum: 1 },
-				products: { $push: '$name' }
-			}
-		}
-	}
+  {
+    $bucket: {
+      groupBy: "$price",
+      boundaries: [0, 50, 100, 500, 1000, 5000],
+      default: "Other",
+      output: {
+        count: { $sum: 1 },
+        products: { $push: "$name" },
+      },
+    },
+  },
 ]);
 ```
 
@@ -498,29 +498,29 @@ db.products.aggregate([
 ```typescript
 // Products between $100 and $500
 db.products.find({
-	price: { $gte: 100, $lte: 500 }
+  price: { $gte: 100, $lte: 500 },
 });
 
 // Products over $1000 with discount
 db.products.find({
-	price: { $gt: 1000 },
-	discount: { $gt: 0 }
+  price: { $gt: 1000 },
+  discount: { $gt: 0 },
 });
 
 // Calculate final price
 db.products.aggregate([
-	{
-		$addFields: {
-			finalPrice: {
-				$subtract: ['$price', '$discount']
-			}
-		}
-	},
-	{
-		$match: {
-			finalPrice: { $lte: 500 }
-		}
-	}
+  {
+    $addFields: {
+      finalPrice: {
+        $subtract: ["$price", "$discount"],
+      },
+    },
+  },
+  {
+    $match: {
+      finalPrice: { $lte: 500 },
+    },
+  },
 ]);
 ```
 
@@ -547,7 +547,7 @@ db.products.createIndex({ price: 1 });
 db.products.createIndex({ category: 1, price: 1 });
 
 // Text search + price filter
-db.products.createIndex({ name: 'text', price: 1 });
+db.products.createIndex({ name: "text", price: 1 });
 
 // Query with index
 db.products.find({ price: { $gte: 100 } }).hint({ price: 1 });
@@ -560,223 +560,223 @@ db.products.find({ price: { $gte: 100 } }).hint({ price: 1 });
 ### Dynamic Currency Conversion
 
 ```typescript
-import Currency from '@src/widgets/custom/Currency';
-import Number from '@src/widgets/custom/Number';
+import Currency from "@src/widgets/custom/Currency";
+import Number from "@src/widgets/custom/Number";
 
 export const productsCollection = {
-	name: 'Products',
-	fields: [
-		// Base price in EUR
-		Currency({
-			label: 'Price (EUR)',
-			db_fieldName: 'priceEur',
-			currencyCode: 'EUR',
-			required: true
-		}),
+  name: "Products",
+  fields: [
+    // Base price in EUR
+    Currency({
+      label: "Price (EUR)",
+      db_fieldName: "priceEur",
+      currencyCode: "EUR",
+      required: true,
+    }),
 
-		// Exchange rate
-		Number({
-			label: 'USD Exchange Rate',
-			db_fieldName: 'usdExchangeRate',
-			min: 0,
-			step: 0.0001,
-			default: 1.1,
-			helper: 'EUR to USD rate'
-		}),
+    // Exchange rate
+    Number({
+      label: "USD Exchange Rate",
+      db_fieldName: "usdExchangeRate",
+      min: 0,
+      step: 0.0001,
+      default: 1.1,
+      helper: "EUR to USD rate",
+    }),
 
-		// Calculated USD price (server-side)
-		Currency({
-			label: 'Price (USD)',
-			db_fieldName: 'priceUsd',
-			currencyCode: 'USD',
-			readonly: true,
-			helper: 'Auto-calculated from EUR price'
-		})
-	]
+    // Calculated USD price (server-side)
+    Currency({
+      label: "Price (USD)",
+      db_fieldName: "priceUsd",
+      currencyCode: "USD",
+      readonly: true,
+      helper: "Auto-calculated from EUR price",
+    }),
+  ],
 };
 
 // Server-side calculation before save
 async function beforeSave(data: any) {
-	data.priceUsd = data.priceEur * data.usdExchangeRate;
-	return data;
+  data.priceUsd = data.priceEur * data.usdExchangeRate;
+  return data;
 }
 ```
 
 ### Tiered Pricing
 
 ```typescript
-import Currency from '@src/widgets/custom/Currency';
-import Number from '@src/widgets/custom/Number';
+import Currency from "@src/widgets/custom/Currency";
+import Number from "@src/widgets/custom/Number";
 
 export const productsCollection = {
-	name: 'Products',
-	fields: [
-		Currency({
-			label: 'Base Price',
-			db_fieldName: 'basePrice',
-			currencyCode: 'USD',
-			required: true,
-			minValue: 0.01
-		}),
+  name: "Products",
+  fields: [
+    Currency({
+      label: "Base Price",
+      db_fieldName: "basePrice",
+      currencyCode: "USD",
+      required: true,
+      minValue: 0.01,
+    }),
 
-		Number({
-			label: 'Quantity Tier 1 (1-10)',
-			db_fieldName: 'tier1Qty',
-			min: 1,
-			max: 10,
-			default: 10,
-			readonly: true
-		}),
+    Number({
+      label: "Quantity Tier 1 (1-10)",
+      db_fieldName: "tier1Qty",
+      min: 1,
+      max: 10,
+      default: 10,
+      readonly: true,
+    }),
 
-		Currency({
-			label: 'Tier 1 Price',
-			db_fieldName: 'tier1Price',
-			currencyCode: 'USD',
-			required: true,
-			helper: 'Full price'
-		}),
+    Currency({
+      label: "Tier 1 Price",
+      db_fieldName: "tier1Price",
+      currencyCode: "USD",
+      required: true,
+      helper: "Full price",
+    }),
 
-		Number({
-			label: 'Quantity Tier 2 (11-50)',
-			db_fieldName: 'tier2Qty',
-			min: 11,
-			max: 50,
-			default: 50,
-			readonly: true
-		}),
+    Number({
+      label: "Quantity Tier 2 (11-50)",
+      db_fieldName: "tier2Qty",
+      min: 11,
+      max: 50,
+      default: 50,
+      readonly: true,
+    }),
 
-		Currency({
-			label: 'Tier 2 Price',
-			db_fieldName: 'tier2Price',
-			currencyCode: 'USD',
-			required: true,
-			helper: '10% discount'
-		}),
+    Currency({
+      label: "Tier 2 Price",
+      db_fieldName: "tier2Price",
+      currencyCode: "USD",
+      required: true,
+      helper: "10% discount",
+    }),
 
-		Number({
-			label: 'Quantity Tier 3 (51+)',
-			db_fieldName: 'tier3Qty',
-			min: 51,
-			readonly: true
-		}),
+    Number({
+      label: "Quantity Tier 3 (51+)",
+      db_fieldName: "tier3Qty",
+      min: 51,
+      readonly: true,
+    }),
 
-		Currency({
-			label: 'Tier 3 Price',
-			db_fieldName: 'tier3Price',
-			currencyCode: 'USD',
-			required: true,
-			helper: '20% discount'
-		})
-	]
+    Currency({
+      label: "Tier 3 Price",
+      db_fieldName: "tier3Price",
+      currencyCode: "USD",
+      required: true,
+      helper: "20% discount",
+    }),
+  ],
 };
 ```
 
 ### Tax Calculation
 
 ```typescript
-import Currency from '@src/widgets/custom/Currency';
-import Number from '@src/widgets/custom/Number';
+import Currency from "@src/widgets/custom/Currency";
+import Number from "@src/widgets/custom/Number";
 
 export const invoicesCollection = {
-	name: 'Invoices',
-	fields: [
-		Currency({
-			label: 'Subtotal',
-			db_fieldName: 'subtotal',
-			currencyCode: 'EUR',
-			required: true
-		}),
+  name: "Invoices",
+  fields: [
+    Currency({
+      label: "Subtotal",
+      db_fieldName: "subtotal",
+      currencyCode: "EUR",
+      required: true,
+    }),
 
-		Number({
-			label: 'Tax Rate (%)',
-			db_fieldName: 'taxRate',
-			min: 0,
-			max: 100,
-			step: 0.01,
-			default: 19, // German VAT
-			suffix: '%'
-		}),
+    Number({
+      label: "Tax Rate (%)",
+      db_fieldName: "taxRate",
+      min: 0,
+      max: 100,
+      step: 0.01,
+      default: 19, // German VAT
+      suffix: "%",
+    }),
 
-		Currency({
-			label: 'Tax Amount',
-			db_fieldName: 'taxAmount',
-			currencyCode: 'EUR',
-			readonly: true,
-			helper: 'Auto-calculated'
-		}),
+    Currency({
+      label: "Tax Amount",
+      db_fieldName: "taxAmount",
+      currencyCode: "EUR",
+      readonly: true,
+      helper: "Auto-calculated",
+    }),
 
-		Currency({
-			label: 'Total',
-			db_fieldName: 'total',
-			currencyCode: 'EUR',
-			readonly: true,
-			helper: 'Subtotal + Tax'
-		})
-	]
+    Currency({
+      label: "Total",
+      db_fieldName: "total",
+      currencyCode: "EUR",
+      readonly: true,
+      helper: "Subtotal + Tax",
+    }),
+  ],
 };
 
 // Calculation logic
 function calculateInvoice(subtotal: number, taxRate: number) {
-	const taxAmount = subtotal * (taxRate / 100);
-	const total = subtotal + taxAmount;
-	return { taxAmount, total };
+  const taxAmount = subtotal * (taxRate / 100);
+  const total = subtotal + taxAmount;
+  return { taxAmount, total };
 }
 ```
 
 ### Discount System
 
 ```typescript
-import Currency from '@src/widgets/custom/Currency';
-import Number from '@src/widgets/custom/Number';
-import Select from '@src/widgets/core/select';
+import Currency from "@src/widgets/custom/Currency";
+import Number from "@src/widgets/custom/Number";
+import Select from "@src/widgets/core/select";
 
 export const productsCollection = {
-	name: 'Products',
-	fields: [
-		Currency({
-			label: 'Original Price',
-			db_fieldName: 'originalPrice',
-			currencyCode: 'USD',
-			required: true
-		}),
+  name: "Products",
+  fields: [
+    Currency({
+      label: "Original Price",
+      db_fieldName: "originalPrice",
+      currencyCode: "USD",
+      required: true,
+    }),
 
-		Select({
-			label: 'Discount Type',
-			db_fieldName: 'discountType',
-			options: [
-				{ value: 'none', label: 'No Discount' },
-				{ value: 'percentage', label: 'Percentage Off' },
-				{ value: 'fixed', label: 'Fixed Amount' }
-			],
-			default: 'none'
-		}),
+    Select({
+      label: "Discount Type",
+      db_fieldName: "discountType",
+      options: [
+        { value: "none", label: "No Discount" },
+        { value: "percentage", label: "Percentage Off" },
+        { value: "fixed", label: "Fixed Amount" },
+      ],
+      default: "none",
+    }),
 
-		Number({
-			label: 'Discount Percentage',
-			db_fieldName: 'discountPercent',
-			min: 0,
-			max: 100,
-			step: 1,
-			suffix: '%',
-			showIf: (data) => data.discountType === 'percentage'
-		}),
+    Number({
+      label: "Discount Percentage",
+      db_fieldName: "discountPercent",
+      min: 0,
+      max: 100,
+      step: 1,
+      suffix: "%",
+      showIf: (data) => data.discountType === "percentage",
+    }),
 
-		Currency({
-			label: 'Discount Amount',
-			db_fieldName: 'discountAmount',
-			currencyCode: 'USD',
-			minValue: 0,
-			showIf: (data) => data.discountType === 'fixed'
-		}),
+    Currency({
+      label: "Discount Amount",
+      db_fieldName: "discountAmount",
+      currencyCode: "USD",
+      minValue: 0,
+      showIf: (data) => data.discountType === "fixed",
+    }),
 
-		Currency({
-			label: 'Final Price',
-			db_fieldName: 'finalPrice',
-			currencyCode: 'USD',
-			readonly: true,
-			helper: 'After discount'
-		})
-	]
+    Currency({
+      label: "Final Price",
+      db_fieldName: "finalPrice",
+      currencyCode: "USD",
+      readonly: true,
+      helper: "After discount",
+    }),
+  ],
 };
 ```
 
@@ -815,14 +815,14 @@ The Currency widget is fully accessible:
 
 ```html
 <input
-	type="text"
-	inputmode="decimal"
-	id="price"
-	name="price"
-	aria-label="Product Price"
-	aria-required="true"
-	aria-invalid="false"
-	aria-describedby="price-error"
+  type="text"
+  inputmode="decimal"
+  id="price"
+  name="price"
+  aria-label="Product Price"
+  aria-required="true"
+  aria-invalid="false"
+  aria-describedby="price-error"
 />
 ```
 
@@ -887,7 +887,7 @@ The widget respects system high contrast settings:
 
 ```typescript
 // ❌ BAD: String storage
-price: '€1,234.56';
+price: "€1,234.56";
 // Problems:
 // - Cannot calculate: price * 1.19 (needs parsing)
 // - Cannot sort: "€9.99" > "€100.00" (string comparison)
@@ -913,7 +913,7 @@ price: 1234.56;
 
    ```typescript
    // ✅ Store as number
-   Currency({ db_fieldName: 'price', currencyCode: 'EUR' });
+   Currency({ db_fieldName: "price", currencyCode: "EUR" });
    // Stores: 1234.56
    ```
 
@@ -922,9 +922,9 @@ price: 1234.56;
    ```typescript
    // ✅ Prevent negative prices
    Currency({
-   	db_fieldName: 'price',
-   	minValue: 0.01, // Minimum 1 cent
-   	maxValue: 999999.99
+     db_fieldName: "price",
+     minValue: 0.01, // Minimum 1 cent
+     maxValue: 999999.99,
    });
    ```
 
@@ -932,9 +932,9 @@ price: 1234.56;
 
    ```typescript
    // ✅ ISO 4217 standard
-   currencyCode: 'EUR'; // Euro
-   currencyCode: 'USD'; // US Dollar
-   currencyCode: 'GBP'; // British Pound
+   currencyCode: "EUR"; // Euro
+   currencyCode: "USD"; // US Dollar
+   currencyCode: "GBP"; // British Pound
    ```
 
 4. **Provide Context**
@@ -942,9 +942,9 @@ price: 1234.56;
    ```typescript
    // ✅ Help users understand the field
    Currency({
-   	label: 'Monthly Subscription',
-   	placeholder: '$0.00',
-   	helper: 'Billed monthly, cancel anytime'
+     label: "Monthly Subscription",
+     placeholder: "$0.00",
+     helper: "Billed monthly, cancel anytime",
    });
    ```
 
@@ -962,7 +962,7 @@ price: 1234.56;
 
    ```typescript
    // ❌ WRONG: String storage
-   Input({ db_fieldName: 'price', inputType: 'text' });
+   Input({ db_fieldName: "price", inputType: "text" });
    // Stores: "€1,234.56" or "$1,234.56"
    // Problems: Can't calculate, sort, or aggregate
    ```
@@ -971,11 +971,11 @@ price: 1234.56;
 
    ```typescript
    // ❌ WRONG: Using currency for quantity
-   Currency({ label: 'Quantity', currencyCode: 'USD' });
+   Currency({ label: "Quantity", currencyCode: "USD" });
    // User sees: "$5.00" (confusing!)
 
    // ✅ CORRECT: Use Number widget
-   Number({ label: 'Quantity', min: 1, suffix: ' items' });
+   Number({ label: "Quantity", min: 1, suffix: " items" });
    ```
 
 3. **Don't Hard-code Locale**
@@ -986,7 +986,7 @@ price: 1234.56;
    // Always shows: "€1234.56" (US format with € symbol)
 
    // ✅ CORRECT: Let widget handle formatting
-   Currency({ currencyCode: 'EUR' });
+   Currency({ currencyCode: "EUR" });
    // Shows: "1.234,56 €" (German), "€1,234.56" (US), "1 234,56 €" (French)
    ```
 
@@ -995,14 +995,14 @@ price: 1234.56;
    ```typescript
    // ❌ WRONG: Storing formatted value
    const product = {
-   	price: '€1.234,56', // ❌ String with formatting
-   	currency: 'EUR'
+     price: "€1.234,56", // ❌ String with formatting
+     currency: "EUR",
    };
 
    // ✅ CORRECT: Store clean number
    const product = {
-   	price: 1234.56, // ✅ Clean number
-   	currency: 'EUR' // Currency code separate
+     price: 1234.56, // ✅ Clean number
+     currency: "EUR", // Currency code separate
    };
    ```
 
@@ -1010,15 +1010,15 @@ price: 1234.56;
 
    ```typescript
    // ❌ WRONG: No validation
-   Currency({ db_fieldName: 'discount' });
+   Currency({ db_fieldName: "discount" });
    // User could enter negative or huge values
 
    // ✅ CORRECT: Set reasonable limits
    Currency({
-   	db_fieldName: 'discount',
-   	minValue: 0,
-   	maxValue: 1000,
-   	required: false
+     db_fieldName: "discount",
+     minValue: 0,
+     maxValue: 1000,
+     required: false,
    });
    ```
 
@@ -1030,20 +1030,20 @@ price: 1234.56;
 
 ```typescript
 // ✅ Efficient: Formatter created once
-const formatter = new Intl.NumberFormat('de-DE', {
-	style: 'currency',
-	currency: 'EUR'
+const formatter = new Intl.NumberFormat("de-DE", {
+  style: "currency",
+  currency: "EUR",
 });
 
 // Use multiple times
 products.forEach((p) => {
-	p.displayPrice = formatter.format(p.price);
+  p.displayPrice = formatter.format(p.price);
 });
 
 // ❌ Inefficient: Creating formatter every time
 products.forEach((p) => {
-	const fmt = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' });
-	p.displayPrice = fmt.format(p.price);
+  const fmt = new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" });
+  p.displayPrice = fmt.format(p.price);
 });
 ```
 
@@ -1076,9 +1076,9 @@ db.products.createIndex({ price: 1, category: 1 });
 
 // ✅ Use indexed queries
 db.products
-	.find({ price: { $gte: 100, $lte: 500 } })
-	.hint({ price: 1 }) // Use price index
-	.sort({ price: 1 });
+  .find({ price: { $gte: 100, $lte: 500 } })
+  .hint({ price: 1 }) // Use price index
+  .sort({ price: 1 });
 ```
 
 ---
@@ -1094,9 +1094,9 @@ db.products
 ```typescript
 // In globalSettings.ts
 export const publicEnv = writable({
-	LOCALE: 'en-US', // Period as decimal: 1,234.56
-	// OR
-	LOCALE: 'de-DE' // Comma as decimal: 1.234,56
+  LOCALE: "en-US", // Period as decimal: 1,234.56
+  // OR
+  LOCALE: "de-DE", // Comma as decimal: 1.234,56
 });
 ```
 
@@ -1108,10 +1108,10 @@ export const publicEnv = writable({
 
 ```typescript
 // Wrong currency code
-Currency({ currencyCode: 'EUR' }); // Shows €
+Currency({ currencyCode: "EUR" }); // Shows €
 
 // Correct currency code
-Currency({ currencyCode: 'USD' }); // Shows $
+Currency({ currencyCode: "USD" }); // Shows $
 ```
 
 ### Issue: Value Not Saving
@@ -1122,8 +1122,8 @@ Currency({ currencyCode: 'USD' }); // Shows $
 
 ```typescript
 Currency({
-	db_fieldName: 'price',
-	readonly: false // ✅ Editable
+  db_fieldName: "price",
+  readonly: false, // ✅ Editable
 });
 ```
 
@@ -1131,10 +1131,10 @@ Currency({
 
 ```typescript
 Currency({
-	db_fieldName: 'price',
-	required: true, // Must have value
-	minValue: 0.01, // Must be positive
-	maxValue: 999999.99 // Must be reasonable
+  db_fieldName: "price",
+  required: true, // Must have value
+  minValue: 0.01, // Must be positive
+  maxValue: 999999.99, // Must be reasonable
 });
 ```
 
@@ -1152,7 +1152,7 @@ const price = 0.1 + 0.2; // 0.30000000000000004
 const price = Math.round((0.1 + 0.2) * 100) / 100; // 0.30
 
 // ✅ Solution 2: Use decimal library
-import Decimal from 'decimal.js';
+import Decimal from "decimal.js";
 const price = new Decimal(0.1).plus(0.2).toNumber(); // 0.3
 
 // ✅ Solution 3: Work in cents
@@ -1168,9 +1168,9 @@ const priceInDollars = priceInCents / 100; // $0.30
 
 ```typescript
 // Check browser support
-if (typeof Intl === 'undefined' || !Intl.NumberFormat) {
-	console.error('Intl.NumberFormat not supported');
-	// Fallback formatting
+if (typeof Intl === "undefined" || !Intl.NumberFormat) {
+  console.error("Intl.NumberFormat not supported");
+  // Fallback formatting
 }
 
 // Modern browsers: All support Intl.NumberFormat
@@ -1202,25 +1202,25 @@ If you previously stored currency as strings, migrate to number storage:
 ```typescript
 // Step 1: Create migration script
 async function migrateCurrencyFields() {
-	const products = await db.products.find({
-		price: { $type: 'string' } // Find string prices
-	});
+  const products = await db.products.find({
+    price: { $type: "string" }, // Find string prices
+  });
 
-	for (const product of products) {
-		// Parse string to number
-		const numericPrice = parseFloat(product.price.replace(/[^0-9.-]/g, ''));
+  for (const product of products) {
+    // Parse string to number
+    const numericPrice = parseFloat(product.price.replace(/[^0-9.-]/g, ""));
 
-		// Update to number
-		await db.products.updateOne({ _id: product._id }, { $set: { price: numericPrice } });
-	}
+    // Update to number
+    await db.products.updateOne({ _id: product._id }, { $set: { price: numericPrice } });
+  }
 }
 
 // Step 2: Update field definition
 // Before:
-Input({ db_fieldName: 'price', inputType: 'text' });
+Input({ db_fieldName: "price", inputType: "text" });
 
 // After:
-Currency({ db_fieldName: 'price', currencyCode: 'EUR' });
+Currency({ db_fieldName: "price", currencyCode: "EUR" });
 
 // Step 3: Run migration
 await migrateCurrencyFields();
@@ -1231,18 +1231,18 @@ await migrateCurrencyFields();
 ```typescript
 // Before: Generic input
 Input({
-	label: 'Price',
-	db_fieldName: 'price',
-	inputType: 'number'
+  label: "Price",
+  db_fieldName: "price",
+  inputType: "number",
 });
 
 // After: Currency widget
 Currency({
-	label: 'Price',
-	db_fieldName: 'price',
-	currencyCode: 'EUR',
-	minValue: 0,
-	required: true
+  label: "Price",
+  db_fieldName: "price",
+  currencyCode: "EUR",
+  minValue: 0,
+  required: true,
 });
 
 // No data migration needed if already storing numbers
@@ -1262,18 +1262,18 @@ function Currency(props: CurrencyProps): FieldInstance;
 
 ```typescript
 interface CurrencyProps {
-	label: string;
-	db_fieldName: string;
-	currencyCode?: string;
-	required?: boolean;
-	minValue?: number;
-	maxValue?: number;
-	placeholder?: string;
-	default?: number;
-	width?: number;
-	helper?: string;
-	readonly?: boolean;
-	showIf?: (data: any) => boolean;
+  label: string;
+  db_fieldName: string;
+  currencyCode?: string;
+  required?: boolean;
+  minValue?: number;
+  maxValue?: number;
+  placeholder?: string;
+  default?: number;
+  width?: number;
+  helper?: string;
+  readonly?: boolean;
+  showIf?: (data: any) => boolean;
 }
 ```
 
@@ -1288,8 +1288,8 @@ const discount: CurrencyValue = 0;
 const optional: CurrencyValue = null;
 
 // ❌ Invalid values
-const wrong: CurrencyValue = '1234.56'; // ❌ String
-const wrong2: CurrencyValue = '€1,234.56'; // ❌ Formatted string
+const wrong: CurrencyValue = "1234.56"; // ❌ String
+const wrong2: CurrencyValue = "€1,234.56"; // ❌ Formatted string
 ```
 
 ---

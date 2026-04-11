@@ -1,12 +1,12 @@
 ---
-path: '/widgets/custom/colorpicker'
-title: 'ColorPicker Widget'
-description: 'Color selection widget with native HTML5 color picker and hex input for SveltyCMS'
+path: "/widgets/custom/colorpicker"
+title: "ColorPicker Widget"
+description: "Color selection widget with native HTML5 color picker and hex input for SveltyCMS"
 order: 302
-icon: 'ic:outline-colorize'
-author: 'admin'
-created: '2025-01-15'
-updated: '2026-02-03'
+icon: "ic:outline-colorize"
+author: "admin"
+created: "2025-01-15"
+updated: "2026-02-03"
 tags:
   - widget
   - custom
@@ -20,7 +20,8 @@ tags:
 # ColorPicker Widget
 
 <blockquote>
-	**Color selection widget** that provides an intuitive interface combining native HTML5 color picker with hex code input for precise color selection.
+  **Color selection widget** that provides an intuitive interface combining native HTML5 color
+  picker with hex code input for precise color selection.
 </blockquote>
 
 ## Overview
@@ -71,7 +72,7 @@ The ColorPicker widget is included in SveltyCMS by default as a custom widget. N
 
 ```typescript
 // Already available in your collection definitions
-import ColorPicker from '@src/widgets/custom/ColorPicker';
+import ColorPicker from "@src/widgets/custom/ColorPicker";
 ```
 
 ---
@@ -81,18 +82,18 @@ import ColorPicker from '@src/widgets/custom/ColorPicker';
 ### Simple Brand Color
 
 ```typescript
-import ColorPicker from '@src/widgets/custom/ColorPicker';
+import ColorPicker from "@src/widgets/custom/ColorPicker";
 
 export const brandCollection = {
-	name: 'Brand Settings',
-	fields: [
-		ColorPicker({
-			label: 'Primary Brand Color',
-			db_fieldName: 'primaryColor',
-			required: true,
-			width: 100
-		})
-	]
+  name: "Brand Settings",
+  fields: [
+    ColorPicker({
+      label: "Primary Brand Color",
+      db_fieldName: "primaryColor",
+      required: true,
+      width: 100,
+    }),
+  ],
 };
 ```
 
@@ -106,99 +107,99 @@ export const brandCollection = {
 ### Complete Brand Color Palette
 
 ```typescript
-import ColorPicker from '@src/widgets/custom/ColorPicker';
+import ColorPicker from "@src/widgets/custom/ColorPicker";
 
 export const brandCollection = {
-	name: 'Brand Settings',
-	fields: [
-		ColorPicker({
-			label: 'Primary Color',
-			db_fieldName: 'primaryColor',
-			required: true,
-			helper: 'Main brand color used throughout the site'
-		}),
+  name: "Brand Settings",
+  fields: [
+    ColorPicker({
+      label: "Primary Color",
+      db_fieldName: "primaryColor",
+      required: true,
+      helper: "Main brand color used throughout the site",
+    }),
 
-		ColorPicker({
-			label: 'Secondary Color',
-			db_fieldName: 'secondaryColor',
-			required: true,
-			helper: 'Accent color for CTAs and highlights'
-		}),
+    ColorPicker({
+      label: "Secondary Color",
+      db_fieldName: "secondaryColor",
+      required: true,
+      helper: "Accent color for CTAs and highlights",
+    }),
 
-		ColorPicker({
-			label: 'Background Color',
-			db_fieldName: 'backgroundColor',
-			required: false,
-			helper: 'Page background color (defaults to white if empty)'
-		}),
+    ColorPicker({
+      label: "Background Color",
+      db_fieldName: "backgroundColor",
+      required: false,
+      helper: "Page background color (defaults to white if empty)",
+    }),
 
-		ColorPicker({
-			label: 'Text Color',
-			db_fieldName: 'textColor',
-			required: true,
-			helper: 'Default text color (ensure good contrast)'
-		}),
+    ColorPicker({
+      label: "Text Color",
+      db_fieldName: "textColor",
+      required: true,
+      helper: "Default text color (ensure good contrast)",
+    }),
 
-		ColorPicker({
-			label: 'Link Color',
-			db_fieldName: 'linkColor',
-			required: true,
-			helper: 'Color for hyperlinks'
-		})
-	]
+    ColorPicker({
+      label: "Link Color",
+      db_fieldName: "linkColor",
+      required: true,
+      helper: "Color for hyperlinks",
+    }),
+  ],
 };
 ```
 
 ### UI Theme Colors
 
 ```typescript
-import ColorPicker from '@src/widgets/custom/ColorPicker';
-import Toggles from '@src/widgets/core/toggles';
+import ColorPicker from "@src/widgets/custom/ColorPicker";
+import Toggles from "@src/widgets/core/toggles";
 
 export const themeCollection = {
-	name: 'UI Themes',
-	fields: [
-		ColorPicker({
-			label: 'Success Color',
-			db_fieldName: 'successColor',
-			required: true,
-			helper: 'Color for success messages and confirmations'
-		}),
+  name: "UI Themes",
+  fields: [
+    ColorPicker({
+      label: "Success Color",
+      db_fieldName: "successColor",
+      required: true,
+      helper: "Color for success messages and confirmations",
+    }),
 
-		ColorPicker({
-			label: 'Warning Color',
-			db_fieldName: 'warningColor',
-			required: true,
-			helper: 'Color for warning messages'
-		}),
+    ColorPicker({
+      label: "Warning Color",
+      db_fieldName: "warningColor",
+      required: true,
+      helper: "Color for warning messages",
+    }),
 
-		ColorPicker({
-			label: 'Error Color',
-			db_fieldName: 'errorColor',
-			required: true,
-			helper: 'Color for error messages'
-		}),
+    ColorPicker({
+      label: "Error Color",
+      db_fieldName: "errorColor",
+      required: true,
+      helper: "Color for error messages",
+    }),
 
-		ColorPicker({
-			label: 'Info Color',
-			db_fieldName: 'infoColor',
-			required: true,
-			helper: 'Color for informational messages'
-		}),
+    ColorPicker({
+      label: "Info Color",
+      db_fieldName: "infoColor",
+      required: true,
+      helper: "Color for informational messages",
+    }),
 
-		Toggles({
-			label: 'Dark Mode Enabled',
-			db_fieldName: 'darkModeEnabled',
-			default: false
-		}),
+    Toggles({
+      label: "Dark Mode Enabled",
+      db_fieldName: "darkModeEnabled",
+      default: false,
+    }),
 
-		ColorPicker({
-			label: 'Dark Mode Background',
-			db_fieldName: 'darkModeBg',
-			required: false,
-			showIf: (data) => data.darkModeEnabled === true
-		})
-	]
+    ColorPicker({
+      label: "Dark Mode Background",
+      db_fieldName: "darkModeBg",
+      required: false,
+      showIf: (data) => data.darkModeEnabled === true,
+    }),
+  ],
 };
 ```
 
@@ -229,9 +230,9 @@ The ColorPicker widget uses Valibot for robust hex color validation:
 
 ```typescript
 ColorPicker({
-	label: 'Brand Color',
-	db_fieldName: 'brandColor',
-	required: true
+  label: "Brand Color",
+  db_fieldName: "brandColor",
+  required: true,
 });
 
 // Validation rules generated automatically:
@@ -246,12 +247,12 @@ ColorPicker({
 
 ```typescript
 // ✅ Valid formats
-'#FF5733'; // 6-digit uppercase
-'#ff5733'; // 6-digit lowercase
-'#Ff5733'; // 6-digit mixed case
-'#FFF'; // 3-digit shorthand
-'#FFFA'; // 4-digit with alpha
-'#FF5733AA'; // 8-digit with alpha
+"#FF5733"; // 6-digit uppercase
+"#ff5733"; // 6-digit lowercase
+"#Ff5733"; // 6-digit mixed case
+"#FFF"; // 3-digit shorthand
+"#FFFA"; // 4-digit with alpha
+"#FF5733AA"; // 8-digit with alpha
 ```
 
 ### Validation Messages
@@ -299,7 +300,7 @@ Color values are stored as **uppercase hex strings** in the database:
 **Hex Color Components**:
 
 ```typescript
-const color = '#FF5733';
+const color = "#FF5733";
 //             ↓↓↓↓↓↓
 //             #RRGGBB
 //
@@ -324,18 +325,18 @@ element.style.backgroundColor = color; // Works directly!
 
 ```typescript
 function hexToRgb(hex: string): { r: number; g: number; b: number } {
-	const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-	return result
-		? {
-				r: parseInt(result[1], 16),
-				g: parseInt(result[2], 16),
-				b: parseInt(result[3], 16)
-			}
-		: { r: 0, g: 0, b: 0 };
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result
+    ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16),
+      }
+    : { r: 0, g: 0, b: 0 };
 }
 
 // Usage
-const rgb = hexToRgb('#FF5733');
+const rgb = hexToRgb("#FF5733");
 // { r: 255, g: 87, b: 51 }
 
 // Use in CSS
@@ -347,15 +348,15 @@ const rgbString = `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`;
 
 ```typescript
 function rgbToHex(r: number, g: number, b: number): string {
-	return (
-		'#' +
-		[r, g, b]
-			.map((x) => {
-				const hex = x.toString(16);
-				return hex.length === 1 ? '0' + hex : hex;
-			})
-			.join('')
-	);
+  return (
+    "#" +
+    [r, g, b]
+      .map((x) => {
+        const hex = x.toString(16);
+        return hex.length === 1 ? "0" + hex : hex;
+      })
+      .join("")
+  );
 }
 
 // Usage
@@ -367,43 +368,43 @@ const hex = rgbToHex(255, 87, 51);
 
 ```typescript
 function hexToHsl(hex: string): { h: number; s: number; l: number } {
-	const { r, g, b } = hexToRgb(hex);
-	const rNorm = r / 255;
-	const gNorm = g / 255;
-	const bNorm = b / 255;
+  const { r, g, b } = hexToRgb(hex);
+  const rNorm = r / 255;
+  const gNorm = g / 255;
+  const bNorm = b / 255;
 
-	const max = Math.max(rNorm, gNorm, bNorm);
-	const min = Math.min(rNorm, gNorm, bNorm);
-	let h = 0,
-		s = 0,
-		l = (max + min) / 2;
+  const max = Math.max(rNorm, gNorm, bNorm);
+  const min = Math.min(rNorm, gNorm, bNorm);
+  let h = 0,
+    s = 0,
+    l = (max + min) / 2;
 
-	if (max !== min) {
-		const d = max - min;
-		s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
 
-		switch (max) {
-			case rNorm:
-				h = ((gNorm - bNorm) / d + (gNorm < bNorm ? 6 : 0)) / 6;
-				break;
-			case gNorm:
-				h = ((bNorm - rNorm) / d + 2) / 6;
-				break;
-			case bNorm:
-				h = ((rNorm - gNorm) / d + 4) / 6;
-				break;
-		}
-	}
+    switch (max) {
+      case rNorm:
+        h = ((gNorm - bNorm) / d + (gNorm < bNorm ? 6 : 0)) / 6;
+        break;
+      case gNorm:
+        h = ((bNorm - rNorm) / d + 2) / 6;
+        break;
+      case bNorm:
+        h = ((rNorm - gNorm) / d + 4) / 6;
+        break;
+    }
+  }
 
-	return {
-		h: Math.round(h * 360),
-		s: Math.round(s * 100),
-		l: Math.round(l * 100)
-	};
+  return {
+    h: Math.round(h * 360),
+    s: Math.round(s * 100),
+    l: Math.round(l * 100),
+  };
 }
 
 // Usage
-const hsl = hexToHsl('#FF5733');
+const hsl = hexToHsl("#FF5733");
 // { h: 9, s: 100, l: 60 }
 
 // Use in CSS
@@ -418,138 +419,138 @@ const hslString = `hsl(${hsl.h}, ${hsl.s}%, ${hsl.l}%)`;
 ### Theme Generator with Color Variants
 
 ```typescript
-import ColorPicker from '@src/widgets/custom/ColorPicker';
+import ColorPicker from "@src/widgets/custom/ColorPicker";
 
 export const themeCollection = {
-	name: 'Theme Generator',
-	fields: [
-		ColorPicker({
-			label: 'Base Color',
-			db_fieldName: 'baseColor',
-			required: true,
-			helper: 'Main theme color - variants will be auto-generated'
-		})
-	]
+  name: "Theme Generator",
+  fields: [
+    ColorPicker({
+      label: "Base Color",
+      db_fieldName: "baseColor",
+      required: true,
+      helper: "Main theme color - variants will be auto-generated",
+    }),
+  ],
 };
 
 // Server-side: Generate color variants
 function generateColorVariants(baseColor: string) {
-	const { h, s, l } = hexToHsl(baseColor);
+  const { h, s, l } = hexToHsl(baseColor);
 
-	return {
-		baseColor,
-		light: hslToHex(h, s, Math.min(l + 20, 95)),
-		lighter: hslToHex(h, s, Math.min(l + 35, 98)),
-		dark: hslToHex(h, s, Math.max(l - 20, 5)),
-		darker: hslToHex(h, s, Math.max(l - 35, 2)),
-		muted: hslToHex(h, Math.max(s - 30, 0), l)
-	};
+  return {
+    baseColor,
+    light: hslToHex(h, s, Math.min(l + 20, 95)),
+    lighter: hslToHex(h, s, Math.min(l + 35, 98)),
+    dark: hslToHex(h, s, Math.max(l - 20, 5)),
+    darker: hslToHex(h, s, Math.max(l - 35, 2)),
+    muted: hslToHex(h, Math.max(s - 30, 0), l),
+  };
 }
 ```
 
 ### Accessibility Contrast Checker
 
 ```typescript
-import ColorPicker from '@src/widgets/custom/ColorPicker';
+import ColorPicker from "@src/widgets/custom/ColorPicker";
 
 export const accessibilityCollection = {
-	name: 'Accessible Color Pairs',
-	fields: [
-		ColorPicker({
-			label: 'Text Color',
-			db_fieldName: 'textColor',
-			required: true
-		}),
+  name: "Accessible Color Pairs",
+  fields: [
+    ColorPicker({
+      label: "Text Color",
+      db_fieldName: "textColor",
+      required: true,
+    }),
 
-		ColorPicker({
-			label: 'Background Color',
-			db_fieldName: 'backgroundColor',
-			required: true
-		})
-	]
+    ColorPicker({
+      label: "Background Color",
+      db_fieldName: "backgroundColor",
+      required: true,
+    }),
+  ],
 };
 
 // Calculate WCAG contrast ratio
 function getContrastRatio(color1: string, color2: string): number {
-	const lum1 = getRelativeLuminance(color1);
-	const lum2 = getRelativeLuminance(color2);
+  const lum1 = getRelativeLuminance(color1);
+  const lum2 = getRelativeLuminance(color2);
 
-	const lighter = Math.max(lum1, lum2);
-	const darker = Math.min(lum1, lum2);
+  const lighter = Math.max(lum1, lum2);
+  const darker = Math.min(lum1, lum2);
 
-	return (lighter + 0.05) / (darker + 0.05);
+  return (lighter + 0.05) / (darker + 0.05);
 }
 
 function getRelativeLuminance(hex: string): number {
-	const { r, g, b } = hexToRgb(hex);
+  const { r, g, b } = hexToRgb(hex);
 
-	const [rs, gs, bs] = [r, g, b].map((val) => {
-		const v = val / 255;
-		return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
-	});
+  const [rs, gs, bs] = [r, g, b].map((val) => {
+    const v = val / 255;
+    return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+  });
 
-	return 0.2126 * rs + 0.7152 * gs + 0.0722 * bs;
+  return 0.2126 * rs + 0.7152 * gs + 0.0722 * bs;
 }
 
 // Check WCAG compliance
 function checkWCAGCompliance(textColor: string, bgColor: string) {
-	const ratio = getContrastRatio(textColor, bgColor);
+  const ratio = getContrastRatio(textColor, bgColor);
 
-	return {
-		ratio: ratio.toFixed(2),
-		wcagAA: ratio >= 4.5, // WCAG AA (normal text)
-		wcagAALarge: ratio >= 3, // WCAG AA (large text)
-		wcagAAA: ratio >= 7, // WCAG AAA (normal text)
-		wcagAAALarge: ratio >= 4.5 // WCAG AAA (large text)
-	};
+  return {
+    ratio: ratio.toFixed(2),
+    wcagAA: ratio >= 4.5, // WCAG AA (normal text)
+    wcagAALarge: ratio >= 3, // WCAG AA (large text)
+    wcagAAA: ratio >= 7, // WCAG AAA (normal text)
+    wcagAAALarge: ratio >= 4.5, // WCAG AAA (large text)
+  };
 }
 ```
 
 ### Product Color Variants
 
 ```typescript
-import ColorPicker from '@src/widgets/custom/ColorPicker';
-import List from '@src/widgets/core/list';
+import ColorPicker from "@src/widgets/custom/ColorPicker";
+import List from "@src/widgets/core/list";
 
 export const productsCollection = {
-	name: 'Products',
-	fields: [
-		List({
-			label: 'Color Variants',
-			db_fieldName: 'colorVariants',
-			fields: [
-				Input({
-					label: 'Color Name',
-					db_fieldName: 'name',
-					required: true,
-					placeholder: 'e.g., Ocean Blue'
-				}),
+  name: "Products",
+  fields: [
+    List({
+      label: "Color Variants",
+      db_fieldName: "colorVariants",
+      fields: [
+        Input({
+          label: "Color Name",
+          db_fieldName: "name",
+          required: true,
+          placeholder: "e.g., Ocean Blue",
+        }),
 
-				ColorPicker({
-					label: 'Color Code',
-					db_fieldName: 'hexCode',
-					required: true
-				}),
+        ColorPicker({
+          label: "Color Code",
+          db_fieldName: "hexCode",
+          required: true,
+        }),
 
-				Input({
-					label: 'SKU Suffix',
-					db_fieldName: 'skuSuffix',
-					required: true,
-					placeholder: 'e.g., -BLU'
-				}),
+        Input({
+          label: "SKU Suffix",
+          db_fieldName: "skuSuffix",
+          required: true,
+          placeholder: "e.g., -BLU",
+        }),
 
-				Currency({
-					label: 'Price Adjustment',
-					db_fieldName: 'priceAdjustment',
-					currencyCode: 'USD',
-					required: false,
-					helper: 'Additional cost for this color (leave empty if same price)'
-				})
-			],
-			minItems: 1,
-			maxItems: 20
-		})
-	]
+        Currency({
+          label: "Price Adjustment",
+          db_fieldName: "priceAdjustment",
+          currencyCode: "USD",
+          required: false,
+          helper: "Additional cost for this color (leave empty if same price)",
+        }),
+      ],
+      minItems: 1,
+      maxItems: 20,
+    }),
+  ],
 };
 ```
 
@@ -582,7 +583,13 @@ The ColorPicker widget is fully accessible:
 ```html
 <input type="color" id="brandColor" aria-label="Color Picker Swatch" />
 
-<input type="text" placeholder="Hex Color Value" aria-label="Hex Color Value" aria-invalid="false" aria-describedby="brandColor-error" />
+<input
+  type="text"
+  placeholder="Hex Color Value"
+  aria-label="Hex Color Value"
+  aria-invalid="false"
+  aria-describedby="brandColor-error"
+/>
 ```
 
 ### Screen Reader Support
@@ -607,7 +614,7 @@ The ColorPicker widget is fully accessible:
 1. **Use Hex Format**
 
    ```typescript
-   ColorPicker({ db_fieldName: 'primaryColor' });
+   ColorPicker({ db_fieldName: "primaryColor" });
    // Stores: "#2563EB" ✅
    ```
 
@@ -615,8 +622,8 @@ The ColorPicker widget is fully accessible:
 
    ```typescript
    ColorPicker({
-   	label: 'Primary Brand Color',
-   	helper: 'Main color used for buttons and links'
+     label: "Primary Brand Color",
+     helper: "Main color used for buttons and links",
    });
    ```
 
@@ -625,7 +632,7 @@ The ColorPicker widget is fully accessible:
    // Always verify text/background contrast for accessibility
    const ratio = getContrastRatio(textColor, bgColor);
    if (ratio < 4.5) {
-   	console.warn('Poor contrast - may not meet WCAG AA');
+     console.warn("Poor contrast - may not meet WCAG AA");
    }
    ```
 
@@ -635,12 +642,12 @@ The ColorPicker widget is fully accessible:
 
    ```typescript
    // ❌ Don't use RGB, HSL, or named colors
-   color: 'rgb(37, 99, 235)'; // Wrong
-   color: 'hsl(221, 83%, 53%)'; // Wrong
-   color: 'blue'; // Wrong
+   color: "rgb(37, 99, 235)"; // Wrong
+   color: "hsl(221, 83%, 53%)"; // Wrong
+   color: "blue"; // Wrong
 
    // ✅ Always use hex
-   color: '#2563EB'; // Correct
+   color: "#2563EB"; // Correct
    ```
 
 2. **Don't Ignore Accessibility**
@@ -658,13 +665,13 @@ The ColorPicker widget is fully accessible:
 function ColorPicker(props: ColorPickerProps): FieldInstance;
 
 interface ColorPickerProps {
-	label: string;
-	db_fieldName: string;
-	required?: boolean;
-	width?: number;
-	helper?: string;
-	default?: string; // Valid hex like "#FF5733"
-	readonly?: boolean;
+  label: string;
+  db_fieldName: string;
+  required?: boolean;
+  width?: number;
+  helper?: string;
+  default?: string; // Valid hex like "#FF5733"
+  readonly?: boolean;
 }
 
 type ColorPickerValue = string | null | undefined;
