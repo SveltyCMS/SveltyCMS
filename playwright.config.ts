@@ -98,13 +98,36 @@ export default defineConfig({
       workers: 1,
     },
     {
-      name: "chromium",
-      use: {
-        ...devices["Desktop Chrome"],
-        headless: !!process.env.CI, // Always headless in CI
-      },
+      name: "auth",
+      testMatch: [
+        /login\.spec\.ts/,
+        /signupfirstuser\.spec\.ts/,
+        /oauth-signup-firstuser\.spec\.ts/,
+        /role-based-access\.spec\.ts/,
+        /permission-change\.spec\.ts/,
+      ],
+      use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
       dependencies: ["auth-setup"],
-      testIgnore: [/setup-wizard\.spec\.ts/, /auth\.setup\.ts/],
+    },
+    {
+      name: "content",
+      testMatch: [
+        /collection\.spec\.ts/,
+        /collection-builder\.spec\.ts/,
+        /user-crud\.spec\.ts/,
+      ],
+      use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
+      dependencies: ["auth-setup"],
+    },
+    {
+      name: "system",
+      testMatch: [
+        /language\.spec\.ts/,
+        /user\.spec\.ts/,
+        /setup-wizard-errors\.spec\.ts/,
+      ],
+      use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
+      dependencies: ["auth-setup"],
     },
   ],
 

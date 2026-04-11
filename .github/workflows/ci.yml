@@ -354,14 +354,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - shard: 1
-            name: "Auth"
-          - shard: 2
-            name: "Content"
-          - shard: 3
-            name: "System"
-          - shard: 4
-            name: "Misc"
+          - name: "Auth"
+            project: "auth"
+          - name: "Content"
+            project: "content"
+          - name: "System"
+            project: "system"
     steps:
       - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
@@ -398,7 +396,7 @@ jobs:
             curl -s http://127.0.0.1:4173/api/system/health && break || sleep 1
           done
           bun run scripts/setup-system.ts
-          bun x playwright test --project=chromium --shard=${{ matrix.shard }}/4
+          bun x playwright test --project=${{ matrix.project }}
 
       - uses: actions/upload-artifact@v7
         if: always()
