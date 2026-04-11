@@ -19,6 +19,7 @@ This page dynamically switches between List views and Field editors based on the
 <script lang="ts">
 import EntryList from "@src/components/collection-display/entry-list.svelte";
 import Fields from "@src/components/collection-display/fields.svelte";
+import WorkflowActions from "@src/components/collection-display/workflow-actions.svelte";
 import type { Schema } from "@src/content/types";
 import { collections } from "@src/stores/collection-store.svelte";
 import { widgets } from "@src/stores/widget-store.svelte";
@@ -602,7 +603,13 @@ beforeNavigate(async ({ cancel }) => {
 			<EntryList {entries} {pagination} contentLanguage={serverContentLanguage} />
 		{/key}
 	{:else if ['edit', 'create'].includes(collections.mode)}
-		<div id="fields_container" class="fields max-h-[calc(100vh-100px)] overflow-y-auto overflow-x-visible max-md:max-h-[calc(100vh-120px)]">
+		<div id="fields_container" class="fields max-h-[calc(100vh-100px)] overflow-y-auto overflow-x-visible max-md:max-h-[calc(100vh-120px)] space-y-6">
+            {#if collections.mode === 'edit' && collections.activeValue?._id}
+                <WorkflowActions 
+                    collectionId={collections.active._id!} 
+                    entryId={collections.activeValue._id} 
+                />
+            {/if}
 			<!-- Pass the server-loaded data directly as props -->
 			<Fields fields={collections.active.fields} {revisions} contentLanguage={serverContentLanguage} />
 		</div>

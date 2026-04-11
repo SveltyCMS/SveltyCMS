@@ -306,6 +306,10 @@ export class CacheService {
     logger.info(`Cache: Full invalidation completed for scope: ${pattern}`);
   }
 
+  public getStats() {
+    return this.l1.getStats();
+  }
+
   getRedisClient(): RedisClientType | null {
     return this.l2 ? this.l2.getClient() : null;
   }

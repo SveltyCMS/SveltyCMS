@@ -46,6 +46,8 @@ interface ModifyRequestParams {
   action?: string;
 }
 
+import { canAccessField, enforceFieldAccess } from "@src/utils/field-access";
+
 // Function to modify request data based on field widgets
 export async function modifyRequest({
   data,
@@ -60,13 +62,27 @@ export async function modifyRequest({
 }: ModifyRequestParams) {
   const start = performance.now();
   try {
+    const operation = type === "GET" ? "read" : "write";
+
+    // 1. Initial FLAC Sanitization (Physical field stripping)
+    for (let i = 0; i < data.length; i++) {
+      data[i] = (await enforceFieldAccess(fields, data[i], user, operation, {
+        collectionName,
+        tenantId,
+        entryId: (data[i] as any)._id,
+      })) as EntryData;
+    }
+
     // User access is already validated by hooks
     logger.trace(
-      `Startingmodify-requestfor type: ${type}, user: ${user._id}, collection: ${collectionName ?? (collection as unknown as { id?: string }).id ?? "unknown"}, tenant: ${tenantId}`,
+      `Starting modify-request for type: ${type}, user: ${user._id}, collection: ${collectionName ?? (collection as unknown as { id?: string }).id ?? "unknown"}, tenant: ${tenantId}, operation: ${operation}`,
     );
 
     // Optimize field iteration
     for (const field of fields) {
+      // 2. Runtime FLAC Check (Skip widget logic if field is blocked)
+      if (!canAccessField(field, user, operation)) continue;
+
       const widget = widgets.widgetFunctions[field.widget.Name];
       if (!widget) continue;
 

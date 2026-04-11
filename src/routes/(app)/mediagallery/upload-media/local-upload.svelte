@@ -22,6 +22,7 @@ import { toast } from "@src/stores/toast.svelte.ts";
 import { logger } from "@utils/logger";
 import { SvelteMap, SvelteSet } from "svelte/reactivity";
 import { goto } from "$app/navigation";
+import { optimizeImage } from "@src/utils/media/webgpu-processor";
 
 interface Props {
 	folder?: string;
@@ -41,6 +42,8 @@ let dropZone: HTMLDivElement | null = $state(null);
 let uploadProgress = $state(0);
 let uploadSpeed = $state(0);
 let isUploading = $state(false);
+let optimizeBeforeUpload = $state(true); // Default to on for 2026 performance
+let optimizationStats = $state({ saved: 0, count: 0 });
 
 // Internal state moved from ModalUploadMedia
 // eslint-disable-next-line svelte/no-unnecessary-state-wrap
@@ -253,8 +256,34 @@ async function uploadLocalFiles() {
 	const startTime = Date.now();
 	let lastLoaded = 0;
 
+    // --- WebGPU OPTIMIZATION STEP ---
+    let filesToUpload = [...files];
+    if (optimizeBeforeUpload) {
+        toast.info("Optimizing media via WebGPU...");
+        const optimized = [];
+        for (const file of files) {
+            if (file.type.startsWith('image/') && file.type !== 'image/svg+xml') {
+                try {
+                    const result = await optimizeImage(file);
+                    optimized.push(result.file);
+                    optimizationStats.saved += (file.size - result.processedSize);
+                    optimizationStats.count++;
+                } catch (err) {
+                    logger.warn(`Optimization failed for ${file.name}, using original.`, err);
+                    optimized.push(file);
+                }
+            } else {
+                optimized.push(file);
+            }
+        }
+        filesToUpload = optimized;
+        if (optimizationStats.count > 0) {
+            toast.success(`Optimized ${optimizationStats.count} images. Saved ${(optimizationStats.saved / 1024).toFixed(2)} KB`);
+        }
+    }
+
 	const formData = new FormData();
-	files.forEach((file) => {
+	filesToUpload.forEach((file) => {
 		formData.append("files", file);
 	});
 	formData.append("folder", folder);
@@ -362,6 +391,11 @@ async function uploadLocalFiles() {
 					<span class="text-tertiary-500 dark:text-primary-500">Media Upload</span>
 					Drag files here to upload
 				</p>
+
+                <label class="flex items-center gap-2 cursor-pointer justify-center mt-2">
+                    <input type="checkbox" bind:checked={optimizeBeforeUpload} class="checkbox checkbox-sm" />
+                    <span class="text-xs font-bold opacity-75">Optimize Images before upload (WebGPU)</span>
+                </label>
 
 				<p class="text-sm opacity-75">Multiple files allowed</p>
 

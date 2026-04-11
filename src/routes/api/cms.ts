@@ -1078,6 +1078,21 @@ class CollectionsNamespace {
       },
     );
 
+    if (result.success && result.data && Array.isArray(result.data)) {
+      const collectionModel = await this._dbAdapter.collection.getModel(schema._id as string);
+      await modifyRequest({
+        data: result.data as any[],
+        fields: schema.fields as FieldInstance[],
+        collection: collectionModel,
+        user: options.user || { _id: "system", role: "admin" },
+        type: "GET",
+        tenantId,
+        collectionName: schema.name,
+        skipValidation: options.skipValidation,
+        action: "find",
+      });
+    }
+
     if (result.success && !bypassCache) {
       try {
         const { CacheCategory } = await import("@src/databases/cache/types");
@@ -1163,6 +1178,23 @@ class CollectionsNamespace {
     );
 
     if (result.success) {
+      // --- WORKFLOW INITIALIZATION HOOK ---
+      try {
+        const { workflowService } = await import("@src/services/workflow-service");
+        // We need the inserted IDs. bulkInsert should return them.
+        // Assuming result.data contains the inserted items or IDs
+        const insertedItems = (result.data as any[]) || [];
+        for (const item of insertedItems) {
+          await workflowService.initializeWorkflow(
+            item._id as string,
+            schema._id as string,
+            tenantId as string,
+          );
+        }
+      } catch (err) {
+        logger.warn(`Failed to initialize workflows for bulk entries:`, err);
+      }
+
       await this.invalidateCache(schema, tenantId);
       // Publish event
       try {
@@ -1335,6 +1367,22 @@ class CollectionsNamespace {
       );
 
       const foundItems = (result.success && result.data ? result.data : []) as any[];
+
+      if (foundItems.length > 0) {
+        const collectionModel = await this._dbAdapter.collection.getModel(schema._id as string);
+        await modifyRequest({
+          data: foundItems,
+          fields: schema.fields as FieldInstance[],
+          collection: collectionModel,
+          user: options.user || { _id: "system", role: "admin" },
+          type: "GET",
+          tenantId,
+          collectionName: schema.name,
+          skipValidation: options.skipValidation,
+          action: "findById_batch",
+        });
+      }
+
       const itemsMap = new Map(foundItems.map((item) => [String(item._id), item]));
 
       // Resolve all waiting promises
@@ -1410,6 +1458,18 @@ class CollectionsNamespace {
     );
 
     if (result && result.success && result.data) {
+      // --- WORKFLOW INITIALIZATION HOOK ---
+      try {
+        const { workflowService } = await import("@src/services/workflow-service");
+        await workflowService.initializeWorkflow(
+          result.data._id as string,
+          schema._id as string,
+          tenantId as string,
+        );
+      } catch (err) {
+        logger.warn(`Failed to initialize workflow for entry ${result.data._id}:`, err);
+      }
+
       await this.afterMutation(
         schema,
         tenantId,

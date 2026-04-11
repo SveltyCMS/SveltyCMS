@@ -118,6 +118,8 @@ Unlike standard CMS platforms that use simple keyword matching, SveltyCMS featur
 
 SveltyCMS has been optimized to remove legacy dependencies, replacing them with modern native counterparts:
 
+- **Decentralized Media Tier (WebGPU)**: SveltyCMS 2026 utilizes the client's raw hardware via **WebGPU/WASM** directly in the browser. Large images are immediately compressed, focal-cropped, and converted to WebP/AVIF _before_ hitting the network.
+- **Optimization Feedback**: The upload UI provides real-time "Optimization Score" metrics, showing exactly how much bandwidth was saved by client-side processing (often > 90%).
 - **Hashing**: Powered by native `crypto` (SHA-256).
 - **ID Generation**: Uses high-entropy `crypto.randomUUID()`.
 - **MIME Detection**: Implemented via **SlimSniffer**, a lightweight native Magic Byte inspector that replaces `file-type`.

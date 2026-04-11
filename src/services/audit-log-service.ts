@@ -94,6 +94,9 @@ export enum AuditEventType {
 
   // Webhook events
   WEBHOOK_TRIGGERED = "webhook_triggered",
+
+  // Workflow events
+  WORKFLOW_TRANSITION = "workflow_transition",
 }
 
 // Severity levels for audit events

@@ -122,6 +122,13 @@ export class InMemoryStore implements CacheStore {
     logger.info("In-memory cache disconnected.");
   }
 
+  public getStats() {
+    return {
+      size: this.cache.size,
+      items: Array.from(this.cache.keys()),
+    };
+  }
+
   getClient(): RedisClientType | null {
     return null;
   }

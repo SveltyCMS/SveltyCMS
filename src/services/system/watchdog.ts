@@ -13,11 +13,14 @@
 import { logger } from "@utils/logger.server";
 import { getSystemState, updateServiceHealth } from "@src/stores/system/state";
 import { getDbInitPromise, getBootPhase } from "@src/databases/db";
+import { maintenanceService } from "./maintenance-service";
 
 class SystemWatchdog {
   private intervalId: NodeJS.Timeout | null = null;
   private recoveryAttempts = new Map<string, { count: number; lastAttempt: number }>();
   private readonly CHECK_INTERVAL = 10_000; // 10 seconds
+  private readonly MAINTENANCE_INTERVAL = 300_000; // 5 minutes
+  private lastMaintenance = 0;
   private readonly MAX_RECOVERY_ATTEMPTS = 3;
   private readonly RECOVERY_BACKOFF_BASE = 5_000; // 5 seconds base backoff
 
@@ -59,6 +62,13 @@ class SystemWatchdog {
         );
         await this.attemptRecovery("database", overallState);
       }
+    }
+
+    // 3. Autonomous Maintenance Cycle
+    const now = Date.now();
+    if (now - this.lastMaintenance > this.MAINTENANCE_INTERVAL) {
+      this.lastMaintenance = now;
+      await maintenanceService.runMaintenance();
     }
   }
 
