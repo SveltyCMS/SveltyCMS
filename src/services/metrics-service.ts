@@ -268,6 +268,10 @@ class MetricsService {
     };
   }
 
+  async getSystemMetrics(): Promise<MetricsReport> {
+    return this.getReport();
+  }
+
   /** Reset all counters (global + tenants) */
   reset(): void {
     this.globalCounters = new MetricsCounters();

@@ -34,11 +34,11 @@ graph TB
         EDITOR[ImageEditor Shell]
     end
 
-    subgraph "API Layer (src/routes/api/media)"
-        API1[GET /]
-        API2[POST /edit]
-        API3[POST /ai-tag]
-        API4[GET /transform]
+    subgraph "API Layer (src/routes/api/[...path])"
+        API1[GET /api/media]
+        API2[POST /api/media/edit]
+        API3[POST /api/media/ai-tag]
+        API4[GET /api/media/transform]
     end
 
     subgraph "Media Engine (src/utils/media/)"

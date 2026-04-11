@@ -26,7 +26,7 @@ export function registerContentTools() {
     },
     execute: async () => {
       // Filter out system collections and provide meaningful schema info
-      const collectionList = collections.all.map((c: any) => ({
+      const collectionList = Object.values(collections.all).map((c: any) => ({
         id: c._id,
         name: c.name,
         label: c.label || c.name,
@@ -35,7 +35,7 @@ export function registerContentTools() {
         fields: c.fields.map((f: any) => ({
           name: f.db_fieldName,
           label: f.label,
-          type: f.widget.Name,
+          type: (f.widget as any).Name,
           required: f.required || false,
           helper: f.helper || "",
         })),

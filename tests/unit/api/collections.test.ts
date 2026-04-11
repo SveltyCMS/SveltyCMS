@@ -122,18 +122,21 @@ describe("Collections API Unit Tests", () => {
     user: any = { _id: "user-123", email: "test@example.com", isAdmin: true },
     tenantId: any = "t1",
   ) => {
-    return createMockRequestEvent({
-      method,
-      url: `http://localhost/api/${path}`,
-      body,
-      user: user === null ? null : { ...user, isAdmin: user?.isAdmin ?? true },
-      tenantId,
-      roles:
-        user === null
-          ? []
-          : [{ _id: "admin", name: "Administrator", isAdmin: true, permissions: [] }],
-      dbAdapter: mockDbAdapter,
-    });
+    return {
+      ...createMockRequestEvent({
+        method,
+        url: `http://localhost/api/${path}`,
+        body,
+        user: user === null ? null : { ...user, isAdmin: user?.isAdmin ?? true },
+        tenantId,
+        roles:
+          user === null
+            ? []
+            : [{ _id: "admin", name: "Administrator", isAdmin: true, permissions: [] }],
+        dbAdapter: mockDbAdapter,
+      }),
+      params: { path },
+    };
   };
 
   describe("GET /api/collections - List Collections", () => {
@@ -141,7 +144,7 @@ describe("Collections API Unit Tests", () => {
       mockContentSystem.getCollections.mockResolvedValue([{ _id: "col-1", name: "posts" }]);
       const event = createMockEvent("GET", "collections", {});
       const response = await GET_LIST(event);
-      const data = await response.json();
+      const data = await response!.json();
       expect(data.success).toBe(true);
       expect(Array.isArray(data.data)).toBe(true);
       expect(data.data[0].name).toBe("posts");
@@ -171,7 +174,7 @@ describe("Collections API Unit Tests", () => {
       mockDbAdapter.crud.update.mockResolvedValue({ success: true, data: { _id: "updated-id" } });
       const event = createMockEvent("PATCH", "collections/col-1/entry-1", { title: "Updated" });
       const response = await PATCH_ENTRY(event);
-      const data = await response.json();
+      const data = await response!.json();
       console.log("DEBUG: response data:", data);
       expect(data.success).toBe(true);
       expect(data.data.data._id).toBe("updated-id");
@@ -187,7 +190,7 @@ describe("Collections API Unit Tests", () => {
       });
       const event = createMockEvent("DELETE", "collections/col-1/entry-1");
       const response = await DELETE_ENTRY(event);
-      const data = await response.json();
+      const data = await response!.json();
       expect(data.success).toBe(true);
     });
   });

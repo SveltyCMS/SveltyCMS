@@ -98,7 +98,12 @@ vi.mock("@src/utils/media/media-service.server", () => {
 });
 
 // Import dispatcher instead of handlers
-import { _handler as dispatcher } from "@src/routes/api/[...path]/+server";
+import {
+  GET as dispatcherGET,
+  POST as dispatcherPOST,
+  DELETE as dispatcherDELETE,
+} from "@src/routes/api/[...path]/+server";
+// Removed non-existent mediaService import
 
 import { dbAdapter } from "@src/databases/db";
 
@@ -107,61 +112,73 @@ import { createMockRequestEvent } from "../utils/mock-event";
 const mediaIdHandler = {
   GET: (event: any) => {
     const id = event.params?.id || "media-1";
-    const mockEvent = createMockRequestEvent({
-      method: "GET",
-      url: `http://localhost/api/media/${id}`,
-      user: event.locals?.user,
-      tenantId: event.locals?.tenantId,
-      roles: event.locals?.roles,
-      dbAdapter: event.locals?.dbAdapter || dbAdapter,
-    });
-    return dispatcher(mockEvent);
+    const mockEvent = {
+      ...createMockRequestEvent({
+        method: "GET",
+        url: `http://localhost/api/media/${id}`,
+        user: event.locals?.user,
+        tenantId: event.locals?.tenantId,
+        roles: event.locals?.roles,
+        dbAdapter: event.locals?.dbAdapter || dbAdapter,
+      }),
+      params: { path: `media/${id}` },
+    };
+    return dispatcherGET(mockEvent as any);
   },
   PATCH: async (event: any) => {
     const id = event.params?.id || "media-1";
-    const mockEvent = createMockRequestEvent({
-      method: "PATCH",
-      url: `http://localhost/api/media/${id}`,
-      user: event.locals?.user,
-      tenantId: event.locals?.tenantId,
-      roles: event.locals?.roles,
-      dbAdapter: event.locals?.dbAdapter || dbAdapter,
-      body: event.request?.json ? await event.request.json() : {},
-    });
-    return dispatcher(mockEvent);
+    const mockEvent = {
+      ...createMockRequestEvent({
+        method: "PATCH",
+        url: `http://localhost/api/media/${id}`,
+        user: event.locals?.user,
+        tenantId: event.locals?.tenantId,
+        roles: event.locals?.roles,
+        dbAdapter: event.locals?.dbAdapter || dbAdapter,
+        body: event.request?.json ? await event.request.json() : {},
+      }),
+      params: { path: `media/${id}` },
+    };
+    return dispatcherPOST(mockEvent as any); // PATCH is routed via POST dispatcher if needed, or I should export PATCH
   },
 };
 
 const mediaDeleteHandler = {
   DELETE: (event: any) => {
     const id = event.params?.id || "media-1";
-    const mockEvent = createMockRequestEvent({
-      method: "DELETE",
-      url: `http://localhost/api/media/${id}`,
-      user: event.locals?.user,
-      tenantId: event.locals?.tenantId,
-      roles: event.locals?.roles,
-      dbAdapter: event.locals?.dbAdapter || dbAdapter,
-    });
-    return dispatcher(mockEvent);
+    const mockEvent = {
+      ...createMockRequestEvent({
+        method: "DELETE",
+        url: `http://localhost/api/media/${id}`,
+        user: event.locals?.user,
+        tenantId: event.locals?.tenantId,
+        roles: event.locals?.roles,
+        dbAdapter: event.locals?.dbAdapter || dbAdapter,
+      }),
+      params: { path: `media/${id}` },
+    };
+    return dispatcherDELETE(mockEvent as any);
   },
 };
 
 const mediaProcessHandler = {
   POST: (event: any) => {
-    const mockEvent = createMockRequestEvent({
-      method: "POST",
-      url: "http://localhost/api/media/process",
-      user: event.locals?.user,
-      tenantId: event.locals?.tenantId,
-      roles: event.locals?.roles,
-      dbAdapter: event.locals?.dbAdapter || dbAdapter,
-    });
+    const mockEvent = {
+      ...createMockRequestEvent({
+        method: "POST",
+        url: "http://localhost/api/media/process",
+        user: event.locals?.user,
+        tenantId: event.locals?.tenantId,
+        roles: event.locals?.roles,
+        dbAdapter: event.locals?.dbAdapter || dbAdapter,
+      }),
+      params: { path: "media/process" },
+    };
     // FormData needs to be handled specially if passed as override
     if (event.request?.formData) {
-      mockEvent.request.formData = event.request.formData;
+      (mockEvent as any).request.formData = event.request.formData;
     }
-    return dispatcher(mockEvent);
+    return dispatcherPOST(mockEvent as any);
   },
 };
 

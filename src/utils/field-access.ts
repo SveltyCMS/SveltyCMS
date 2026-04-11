@@ -5,7 +5,7 @@
 
 import type { User } from "@src/databases/auth/types";
 import type { FieldInstance } from "@src/content/types";
-import { AppError } from "@src/utils/error-handler";
+import { AppError } from "@utils/error-handling";
 import { auditLogService, AuditEventType } from "@src/services/audit-log-service";
 import type { DatabaseId } from "@src/databases/db-interface";
 
@@ -30,7 +30,7 @@ export function canAccessField(
   }
 
   // 3. Visibility check (Read only)
-  if (operation === "read" && permissions.visibility === "hidden") {
+  if (operation === "read" && (field as any).visibility === "hidden") {
     return false;
   }
 
@@ -42,7 +42,7 @@ export function canAccessField(
   // 5. Role-based checks (Fail-Closed)
   const roles = operation === "read" ? permissions.readRoles : permissions.writeRoles;
 
-  if (roles && roles.length > 0) {
+  if (Array.isArray(roles) && roles.length > 0) {
     return roles.includes(user.role);
   }
 

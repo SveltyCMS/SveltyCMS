@@ -82,7 +82,10 @@ export async function runBenchmark(options: BenchmarkOptions): Promise<Benchmark
       const end = performance.now();
       latencies.push(end - start);
       successCount++;
-    } catch {
+    } catch (e: any) {
+      if (failureCount === 0 && !silent) {
+        console.error("First Benchmark Iteration Error:", e);
+      }
       failureCount++;
     }
   });
@@ -126,6 +129,11 @@ export async function runBenchmark(options: BenchmarkOptions): Promise<Benchmark
   if (!silent) {
     printReport(result);
   }
+
+  if (successCount === 0 && iterations > 0) {
+    throw new Error(`Benchmark '${name}' failed: 0 successful out of ${iterations} iterations.`);
+  }
+
   return result;
 }
 

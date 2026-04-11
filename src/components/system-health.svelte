@@ -263,15 +263,15 @@ Displays real-time system state and individual service health with comprehensive
 
 	// Helper functions
 	function getStateColor(state: SystemState): string {
-		return STATE_CONFIG[state]?.color || STATE_CONFIG.IDLE.color;
+		return (STATE_CONFIG as any)[state]?.color || STATE_CONFIG.IDLE.color;
 	}
 
 	function getStateIcon(state: SystemState): string {
-		return STATE_CONFIG[state]?.icon || '❓';
+		return (STATE_CONFIG as any)[state]?.icon || '❓';
 	}
 
 	function getStateLabel(state: SystemState): string {
-		return STATE_CONFIG[state]?.label || 'Unknown';
+		return (STATE_CONFIG as any)[state]?.label || 'Unknown';
 	}
 
 	function getServiceColor(status: ServiceHealth): string {

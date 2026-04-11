@@ -94,7 +94,7 @@ export async function seedDefaultTheme(
     logger.info(`🎨 Seeding default theme${tenantId ? ` for tenant ${tenantId}` : ""}...`);
     const themeToStore = {
       ...defaultTheme,
-      ...(tenantId && { tenantId }),
+      ...(tenantId && { tenantId: tenantId as DatabaseId }),
     };
     await dbAdapter.system.themes.storeThemes([themeToStore]);
     logger.info(`✅ Default theme seeded successfully${tenantId ? ` for tenant ${tenantId}` : ""}`);
@@ -135,13 +135,12 @@ export async function seedRoles(
         // primary key collisions with roles from other tenants
         const roleToCreate = {
           ...role,
-          _id: tenantId ? crypto.randomUUID() : role._id,
+          _id: (tenantId ? crypto.randomUUID() : role._id) as DatabaseId,
           permissions: role._id === "admin" ? adminPermissions : role.permissions,
-          ...(tenantId && { tenantId }),
+          ...(tenantId && { tenantId: tenantId as DatabaseId }),
         };
 
-        const result = await dbAdapter.auth.createRole(roleToCreate);
-        // createRole returns DatabaseResult — check success instead of relying on exceptions
+        const result = await dbAdapter.auth.createRole(roleToCreate); // createRole returns DatabaseResult — check success instead of relying on exceptions
         if (result && "success" in result && !result.success) {
           logger.warn(
             `Role "${role.name}" creation returned failure${tenantId ? ` for tenant ${tenantId}` : ""}: ${result.error?.message || "unknown"}`,
@@ -331,7 +330,7 @@ export async function seedCollectionsForSetup(
       if (updates.length > 0) {
         logger.info(`💾 Persisting ${updates.length} content nodes to database...`);
         const structResult = await dbAdapter.content.nodes.bulkUpdate(updates, {
-          tenantId,
+          tenantId: tenantId as DatabaseId,
           bypassTenantCheck: true,
           bypassCache: true,
         });
@@ -413,40 +412,51 @@ export async function seedDemoRecords(
             content: "This is your first post, created automatically during setup.",
             status: "published",
             author: "Admin",
-            ...(tenantId && { tenantId }),
+            ...(tenantId && { tenantId: tenantId as DatabaseId }),
           },
           {
             title: "Modern CMS Architecture",
             content: "SveltyCMS uses Svelte 5 runes and a database-agnostic adapter pattern.",
             status: "published",
             author: "Admin",
-            ...(tenantId && { tenantId }),
+            ...(tenantId && { tenantId: tenantId as DatabaseId }),
           },
         ];
 
         // Use insertMany to trigger the new dynamic table + packData logic
-        await dbAdapter.crud.insertMany(collectionId, posts, tenantId, true);
+        await dbAdapter.crud.insertMany(collectionId, posts, {
+          tenantId: tenantId as DatabaseId,
+          bypassTenantCheck: true,
+        });
         logger.info(`✅ Seeded ${posts.length} demo posts into ${collectionId}`);
       }
 
       // Seed "Menu" as a demo
       if (schema.name === "Menu") {
         const menuItems = [
-          { label: "Home", url: "/", order: 1, ...(tenantId && { tenantId }) },
+          {
+            label: "Home",
+            url: "/",
+            order: 1,
+            ...(tenantId && { tenantId: tenantId as DatabaseId }),
+          },
           {
             label: "Blog",
             url: "/blog",
             order: 2,
-            ...(tenantId && { tenantId }),
+            ...(tenantId && { tenantId: tenantId as DatabaseId }),
           },
           {
             label: "Contact",
             url: "/contact",
             order: 3,
-            ...(tenantId && { tenantId }),
+            ...(tenantId && { tenantId: tenantId as DatabaseId }),
           },
         ];
-        await dbAdapter.crud.insertMany(collectionId, menuItems, tenantId, true);
+        await dbAdapter.crud.insertMany(collectionId, menuItems, {
+          tenantId: tenantId as DatabaseId,
+          bypassTenantCheck: true,
+        });
         logger.info(`✅ Seeded ${menuItems.length} demo menu items into ${collectionId}`);
       }
     }
@@ -539,10 +549,12 @@ export async function initSystemFast(
           await adapter.crud.deleteMany(
             "system_content_structure",
             {
-              ...(tenantId && { tenantId }),
+              ...(tenantId && { tenantId: tenantId as DatabaseId }),
             },
-            tenantId,
-            true,
+            {
+              tenantId: tenantId as DatabaseId,
+              bypassTenantCheck: true,
+            },
           );
           logger.info("✅ Content structure cleared successfully");
         }
@@ -1253,7 +1265,10 @@ export async function seedDemoTenant(dbAdapter: DatabaseAdapter, tenantId: strin
   // 4. Create Admin User
   // We need to import auth service or use dbAdapter.auth directly
   if (dbAdapter.auth) {
-    const result = await dbAdapter.auth.getRoleById("admin", tenantId, { bypassTenantCheck: true });
+    const result = await dbAdapter.auth.getRoleById("admin" as DatabaseId, {
+      tenantId: tenantId as DatabaseId,
+      bypassTenantCheck: true,
+    });
     const adminRole = result.success ? result.data : null;
     if (adminRole) {
       const email = `demo-${tenantId.substring(0, 8)}@sveltycms.com`;
@@ -1264,7 +1279,7 @@ export async function seedDemoTenant(dbAdapter: DatabaseAdapter, tenantId: strin
           password,
           role: adminRole._id,
           username: "Demo Admin",
-          tenantId,
+          tenantId: tenantId as DatabaseId,
         });
         logger.info(`✅ Demo admin user created: ${email}`);
       } catch (e) {

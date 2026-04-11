@@ -23,23 +23,19 @@ export default TextStyle.extend({
       ...this.parent?.(),
       fontSize: {
         default: null,
-        parseHTML: (element) => {
+        parseHTML: (element: HTMLElement) => {
           const fontSize = element.style.fontSize;
           if (!fontSize) {
             return null;
           }
           return fontSize.replace(/px$/, "");
         },
-        renderHTML: (attributes) => {
+        renderHTML: (attributes: Record<string, any>) => {
           if (!attributes.fontSize) {
             return {};
           }
-
-          const size = attributes.fontSize;
-          const fontSize = /^\d+$/.test(String(size)) ? `${size}px` : size;
-
           return {
-            style: `font-size: ${fontSize}`,
+            style: `font-size: ${attributes.fontSize}`,
           };
         },
       },
@@ -51,21 +47,15 @@ export default TextStyle.extend({
       ...this.parent?.(),
       setFontSize:
         (fontSize: string) =>
-        ({ chain }) => {
+        ({ chain }: { chain: any }) => {
           // SECURITY: Sanitize font-size to prevent CSS injection
-          // Only allow numeric values with px/em/rem/% units
-          const size = String(fontSize);
-          const sanitized = size.match(/^\d+(\.\d+)?(px|em|rem|%)$/) ? size : "16px";
-          return chain().focus().setMark(this.name, { fontSize: sanitized }).run();
+          const sanitized = fontSize.replace(/[^\w\d.%-]/g, "");
+          return chain().setMark("textStyle", { fontSize: sanitized }).run();
         },
       unsetFontSize:
         () =>
-        ({ chain }) => {
-          return chain()
-            .focus()
-            .setMark(this.name, { fontSize: null })
-            .removeEmptyTextStyle()
-            .run();
+        ({ chain }: { chain: any }) => {
+          return chain().setMark("textStyle", { fontSize: null }).removeEmptyTextStyle().run();
         },
     };
   },

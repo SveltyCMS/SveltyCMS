@@ -16,7 +16,7 @@ tags:
 
 <!-- BENCHMARK_START -->
 
-## 📊 Enterprise Benchmark Matrix — 11/04/2026, 09:18:53
+## 📊 Enterprise Benchmark Matrix — 11/04/2026, 19:58:53
 
 ### 🧪 What We Tested
 
@@ -37,15 +37,15 @@ tags:
 - **GraphQL Load Stress** — Executes massive concurrency loads (1000+ requests) to determine the breaking point of the GraphQL resolver engine under pressure.
    📍 `tests/benchmarks/graphql-stress.ts`
 
-| Database | Cold Start | REST (p95) | GQL (avg) | GQL Stress | Relational (avg) | Status |
-|----------|------------|------------|-----------|-------------|------------------|--------|
-| **SQLITE** | 1607ms ⚪ (—) | 0.00ms ⚪ (—) | 0.00ms ⚪ (—) | — | 0.00ms ⚪ (—) | ✅ |
-| **SQLITE+REDIS** | 1745ms ⚪ (—) | 121.84ms ⚪ (—) | 10.54ms ⚪ (—) | — | 6.77ms ⚪ (—) | ✅ |
-| **MONGODB** | 0ms ⚪ (—) | 0.00ms ⚪ (—) | 0.00ms ⚪ (—) | — | 0.00ms ⚪ (—) | ❌ |
-| **MONGODB+REDIS** | 1664ms ⚪ (—) | 12.60ms ⚪ (—) | 11.93ms ⚪ (—) | — | 4.81ms ⚪ (—) | ✅ |
-| **POSTGRESQL** | 1595ms ⚪ (—) | 12.27ms ⚪ (—) | 13.00ms ⚪ (—) | — | 4.88ms ⚪ (—) | ✅ |
-| **POSTGRESQL+REDIS** | 1599ms ⚪ (—) | 16.58ms ⚪ (—) | 14.53ms ⚪ (—) | — | 5.52ms ⚪ (—) | ✅ |
-| **MARIADB** | 2076ms ⚪ (—) | 12.34ms ⚪ (—) | 14.69ms ⚪ (—) | — | 0.00ms ⚪ (—) | ✅ |
+| Database | Cold Start | REST (p95) | GQL (avg) | GQL Stress | Build Time | Status |
+|----------|------------|------------|-----------|-------------|------------|--------|
+| **SQLITE** | 0ms ⚪ (—) | 0.00ms ⚪ (—) | 0.00ms ⚪ (—) | — | — | ❌ |
+| **SQLITE+REDIS** | 1745ms ⚪ (—) | 121.84ms ⚪ (—) | 10.54ms ⚪ (—) | — | — | ✅ |
+| **MONGODB** | 1616ms ⚪ (—) | 25.94ms ⚪ (—) | 20.53ms ⚪ (—) | — | — | ✅ |
+| **MONGODB+REDIS** | 1664ms ⚪ (—) | 12.60ms ⚪ (—) | 11.93ms ⚪ (—) | — | — | ✅ |
+| **POSTGRESQL** | 1595ms ⚪ (—) | 12.27ms ⚪ (—) | 13.00ms ⚪ (—) | — | — | ✅ |
+| **POSTGRESQL+REDIS** | 1599ms ⚪ (—) | 16.58ms ⚪ (—) | 14.53ms ⚪ (—) | — | — | ✅ |
+| **MARIADB** | 2076ms ⚪ (—) | 12.34ms ⚪ (—) | 14.69ms ⚪ (—) | — | — | ✅ |
 
 ### 📈 Latency Trends (last 5 runs — lower is better)
 
@@ -75,6 +75,7 @@ xychart-beta
 | Adapter Variant | Avg Latency | p95 Latency | Throughput (RPS) |
 |----------|-------------|-------------|------------------|
 | SQLITE+REDIS | 16.97ms ⚪ | 121.84ms ⚪ | 583 ⚪ |
+| MONGODB | 15.15ms ⚪ | 25.94ms ⚪ | 653 ⚪ |
 | MONGODB+REDIS | 9.26ms ⚪ | 12.60ms ⚪ | 1070 ⚪ |
 | POSTGRESQL | 9.51ms ⚪ | 12.27ms ⚪ | 1046 ⚪ |
 | POSTGRESQL+REDIS | 10.21ms ⚪ | 16.58ms ⚪ | 971 ⚪ |
@@ -87,6 +88,7 @@ xychart-beta
 | Adapter Variant | Me Query (avg) | Health (avg) | Throughput (RPS) |
 |----------|----------------|--------------|------------------|
 | SQLITE+REDIS | 10.54ms ⚪ | 9.82ms ⚪ | 916 ⚪ |
+| MONGODB | 20.53ms ⚪ | 19.87ms ⚪ | 481 ⚪ |
 | MONGODB+REDIS | 11.93ms ⚪ | 11.59ms ⚪ | 819 ⚪ |
 | POSTGRESQL | 13.00ms ⚪ | 11.27ms ⚪ | 754 ⚪ |
 | POSTGRESQL+REDIS | 14.53ms ⚪ | 13.85ms ⚪ | 671 ⚪ |
@@ -99,6 +101,7 @@ xychart-beta
 | Adapter Variant | GQL Nested (Depth 2) | REST Search (Aggregated) | Throughput (RPS) |
 |----------|-----------------------|--------------------------|------------------|
 | SQLITE+REDIS | 6.77ms ⚪ | 3.55ms ⚪ | 727 ⚪ |
+| MONGODB | 6.91ms ⚪ | 7.16ms ⚪ | 718 ⚪ |
 | MONGODB+REDIS | 4.81ms ⚪ | 3.68ms ⚪ | 1029 ⚪ |
 | POSTGRESQL | 4.88ms ⚪ | 4.83ms ⚪ | 1009 ⚪ |
 | POSTGRESQL+REDIS | 5.52ms ⚪ | 5.41ms ⚪ | 894 ⚪ |
@@ -110,6 +113,7 @@ xychart-beta
 | Adapter Variant | Input (avg) | RichText (avg) | Relation (avg) | Status |
 |----------|-------------|----------------|----------------|--------|
 | SQLITE+REDIS | 1.47ms ⚪ | 1.43ms | 1.68ms | ✅ PASS |
+| MONGODB | 2.31ms ⚪ | 2.44ms | 2.40ms | ✅ PASS |
 | MONGODB+REDIS | 1.96ms ⚪ | 2.08ms | 1.95ms | ✅ PASS |
 | POSTGRESQL | 2.99ms ⚪ | 3.48ms | 2.16ms | ✅ PASS |
 | POSTGRESQL+REDIS | 3.03ms ⚪ | 3.22ms | 3.43ms | ✅ PASS |
@@ -121,6 +125,7 @@ xychart-beta
 | Adapter Variant | Firewall (p95) | Audit Logging | Argon2id (Cost) | Status |
 |----------|----------------|---------------|-----------------|--------|
 | SQLITE+REDIS | 0.003ms | 45.097ms | 42ms | 🟢 CLEAN |
+| MONGODB | 0.008ms | 73.192ms | 43ms | 🟢 CLEAN |
 | MONGODB+REDIS | 0.004ms | 86.603ms | 49ms | 🟢 CLEAN |
 
 ### 🏁 MIDDLWARE PERFORMANCE MATRIX
@@ -130,30 +135,35 @@ xychart-beta
 | Hook | Adapter Variant | Avg (µs) | p95 (µs) | p99 (µs) | Efficiency |
 |------|----------|----------|----------|----------|------------|
 | **handleturbopipeline** | SQLITE+REDIS | 5.14 ⚪ | 7.70 | 13.90 | ⚡ |
+| --- | MONGODB | 7.66 ⚪ | 18.10 | 27.40 | ⚡ |
 | --- | MONGODB+REDIS | 4.42 ⚪ | 6.90 | 10.10 | 🚀 |
 | --- | POSTGRESQL | 4.85 ⚪ | 7.70 | 15.10 | 🚀 |
 | --- | POSTGRESQL+REDIS | 4.55 ⚪ | 7.10 | 15.50 | 🚀 |
 | --- | MARIADB | 9.65 ⚪ | 16.80 | 37.80 | ⚡ |
 | --- | --- | --- | --- | --- | --- |
 | **handleauthentication** | SQLITE+REDIS | 31.33 ⚪ | 39.00 | 83.40 | ⚡ |
+| --- | MONGODB | 25.55 ⚪ | 42.10 | 99.40 | ⚡ |
 | --- | MONGODB+REDIS | 29.12 ⚪ | 76.90 | 121.40 | ⚡ |
 | --- | POSTGRESQL | 25.47 ⚪ | 69.50 | 110.50 | ⚡ |
 | --- | POSTGRESQL+REDIS | 24.12 ⚪ | 32.30 | 91.90 | ⚡ |
 | --- | MARIADB | 31.63 ⚪ | 48.70 | 94.30 | ⚡ |
 | --- | --- | --- | --- | --- | --- |
 | **handleauthorization** | SQLITE+REDIS | 4.24 ⚪ | 6.60 | 13.40 | 🚀 |
+| --- | MONGODB | 4.60 ⚪ | 10.10 | 16.10 | 🚀 |
 | --- | MONGODB+REDIS | 5.35 ⚪ | 11.00 | 37.40 | ⚡ |
 | --- | POSTGRESQL | 3.96 ⚪ | 8.40 | 16.20 | 🚀 |
 | --- | POSTGRESQL+REDIS | 4.04 ⚪ | 8.40 | 18.80 | 🚀 |
 | --- | MARIADB | 4.27 ⚪ | 6.00 | 16.70 | 🚀 |
 | --- | --- | --- | --- | --- | --- |
 | **handlesecurity** | SQLITE+REDIS | 1.65 ⚪ | 2.60 | 12.60 | 🚀 |
+| --- | MONGODB | 1.42 ⚪ | 1.60 | 11.90 | 🚀 |
 | --- | MONGODB+REDIS | 2.21 ⚪ | 3.30 | 12.60 | 🚀 |
 | --- | POSTGRESQL | 2.48 ⚪ | 3.60 | 12.40 | 🚀 |
 | --- | POSTGRESQL+REDIS | 2.20 ⚪ | 2.70 | 10.10 | 🚀 |
 | --- | MARIADB | 2.20 ⚪ | 3.30 | 12.60 | 🚀 |
 | --- | --- | --- | --- | --- | --- |
 | **handleapirequests** | SQLITE+REDIS | 1.74 ⚪ | 2.10 | 7.40 | 🚀 |
+| --- | MONGODB | 1.52 ⚪ | 1.70 | 6.40 | 🚀 |
 | --- | MONGODB+REDIS | 3.00 ⚪ | 5.20 | 14.60 | 🚀 |
 | --- | POSTGRESQL | 2.20 ⚪ | 4.00 | 7.60 | 🚀 |
 | --- | POSTGRESQL+REDIS | 1.70 ⚪ | 2.10 | 6.90 | 🚀 |
@@ -161,6 +171,7 @@ xychart-beta
 | --- | --- | --- | --- | --- | --- |
 
 ### 🚨 Bottleneck Analysis (Latency Distribution)
+📌 **MONGODB** — REST dominates (97% REST vs 3% DB)
 📌 **POSTGRESQL** — REST dominates (84% REST vs 16% DB)
 📌 **MARIADB** — REST dominates (99% REST vs 1% DB)
 

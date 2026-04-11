@@ -101,14 +101,23 @@ export function securityCheckPlugin(options: SecurityCheckOptions = {}): Plugin 
       }
     }
 
+    // Optimization: Quick check for pattern keywords before doing full regex
+    const hasSuspiciousKeywords =
+      code.includes("privateEnv") ||
+      code.includes("getPrivateSetting") ||
+      code.includes("getAllSettings") ||
+      code.includes("getUntypedSetting");
+
+    if (!hasSuspiciousKeywords) return;
+
     const lines = code.split("\n");
 
     // Check for dangerous patterns
     for (const { pattern, severity, message } of DANGEROUS_PATTERNS) {
+      pattern.lastIndex = 0; // Reset stateful regex
       let match: RegExpExecArray | null;
-      const regex = new RegExp(pattern.source, pattern.flags);
 
-      while ((match = regex.exec(code)) !== null) {
+      while ((match = pattern.exec(code)) !== null) {
         const lineNumber = code.substring(0, match.index).split("\n").length;
         const lineContent = lines[lineNumber - 1]?.trim();
 
@@ -125,10 +134,10 @@ export function securityCheckPlugin(options: SecurityCheckOptions = {}): Plugin 
     // Check for suspicious patterns
     if (showWarnings) {
       for (const { pattern, message } of SUSPICIOUS_PATTERNS) {
+        pattern.lastIndex = 0; // Reset stateful regex
         let match: RegExpExecArray | null;
-        const regex = new RegExp(pattern.source, pattern.flags);
 
-        while ((match = regex.exec(code)) !== null) {
+        while ((match = pattern.exec(code)) !== null) {
           const lineNumber = code.substring(0, match.index).split("\n").length;
           const lineContent = lines[lineNumber - 1]?.trim();
 

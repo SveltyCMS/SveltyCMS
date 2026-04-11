@@ -57,7 +57,7 @@ vi.mock("@utils/logger.server", () => ({
 }));
 
 // Import dispatcher
-import { _handler as dispatcher } from "@src/routes/api/[...path]/+server";
+import { GET as dispatcherGET, POST as dispatcherPOST } from "@src/routes/api/[...path]/+server";
 
 describe("Widget API Security - Tenant Isolation", () => {
   let mockDbAdapter: any;
@@ -93,7 +93,9 @@ describe("Widget API Security - Tenant Isolation", () => {
       ...overrides,
     } as unknown as RequestEvent;
 
-    return dispatcher(event);
+    if (method === "GET") return dispatcherGET(event);
+    if (method === "POST") return dispatcherPOST(event);
+    return dispatcherGET(event);
   };
 
   describe("List Widgets (GET /api/widgets/list)", () => {
@@ -106,7 +108,7 @@ describe("Widget API Security - Tenant Isolation", () => {
       const response = await callDispatcher("widgets/list", "GET", {
         locals: { tenantId: "tenant-1" },
       });
-      const data = await response.json();
+      const data = await response!.json();
 
       expect(response.status).toBe(200);
       expect(data.success).toBe(true);
@@ -123,7 +125,7 @@ describe("Widget API Security - Tenant Isolation", () => {
       const response = await callDispatcher("widgets/activate/test-widget", "POST", {
         locals: { tenantId: "tenant-1" },
       });
-      const data = await response.json();
+      const data = await response!.json();
 
       expect(response.status).toBe(200);
       expect(data.success).toBe(true);
@@ -140,7 +142,7 @@ describe("Widget API Security - Tenant Isolation", () => {
       const response = await callDispatcher("widgets/deactivate/test-widget", "POST", {
         locals: { tenantId: "tenant-1" },
       });
-      const data = await response.json();
+      const data = await response!.json();
 
       expect(response.status).toBe(200);
       expect(data.success).toBe(true);

@@ -25,6 +25,7 @@ SveltyCMS 2026 introduces **Autonomous Maintenance**, a background self-healing 
 The Watchdog is a persistent background service initialized during the `WARMING` phase. It executes a health check loop every **5 minutes**.
 
 ### Core Responsibilities
+
 1. **Service Re-initialization**: If a critical adapter (e.g., Database or Auth) reports a `FAILED` state, the Watchdog attempts a surgical `reinitializeSystem()` call.
 2. **Resource Monitoring**: Tracks RAM and CPU spikes, logging anomalies to the **Enterprise Monitor**.
 3. **Drift Detection**: Verifies that the database schema remains in sync with the filesystem-based "Source of Truth."
@@ -53,6 +54,7 @@ The Watchdog analyzes query performance bubbled up through the `DatabaseResilien
 ## 🗑️ Automated Trash Purge
 
 While SveltyCMS uses "Soft Deletes" by default, the maintenance layer manages the archival lifecycle.
+
 - **Retention Policy**: By default, items in the **Trash** are kept for **30 days**.
 - **Autonomous Purge**: During the nightly maintenance window, the Watchdog permanently removes items that have exceeded the retention threshold, reclaiming database storage.
 
@@ -61,6 +63,7 @@ While SveltyCMS uses "Soft Deletes" by default, the maintenance layer manages th
 ## 📊 Monitoring
 
 Admins can track autonomous activity in the **Enterprise Monitor** under the **System Vitals** quadrant.
+
 - **Last Run**: Timestamp of the most recent maintenance cycle.
 - **Heals Performed**: Count of automated service recoveries.
 - **Purge Stats**: Number of items cleared from trash/cache.
@@ -68,6 +71,7 @@ Admins can track autonomous activity in the **Enterprise Monitor** under the **S
 ---
 
 ## 📚 Related Documentation
+
 - [System State Architecture](../../architecture/state-management.mdx)
 - [Enterprise Monitor Dashboard](../configuration/enterprise-monitor.mdx)
 - [Performance Benchmarks](../../project/benchmarks.mdx)

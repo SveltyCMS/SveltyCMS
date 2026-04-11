@@ -33,10 +33,10 @@ export const load = async ({ locals }) => {
   const trashCount = trashCountRes.success ? trashCountRes.data : 0;
 
   // 3. Webhook Health
-  const webhooks = await webhookService.getWebhooks(tenantId || undefined);
+  const webhooks = await webhookService.getWebhooks((tenantId as string) || "");
   const webhookStats = {
     total: webhooks.length,
-    active: webhooks.filter((w) => w.status === "active").length,
+    active: webhooks.filter((w) => w.active).length,
     failures: 0, // In a real scenario, we'd fetch actual failure metrics
   };
 

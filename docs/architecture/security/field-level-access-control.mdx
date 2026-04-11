@@ -29,13 +29,13 @@ graph TD
     A[Incoming Request] --> B[Middleware: Identity & Roles]
     B --> C[API Handler / Local SDK]
     C --> D[modifyRequest Pipeline]
-    
+
     subgraph FLAC Enforcement
         D --> E{Operation?}
         E -- "READ (GET)" --> F[Physical Field Stripping]
         E -- "WRITE (POST/PATCH)" --> G[Strict Permission Guard]
     end
-    
+
     F --> H[Sanitized JSON Response]
     G -- "Unauthorized" --> I[403 Forbidden + Audit Log]
     G -- "Authorized" --> J[Proceed to Database]
@@ -46,18 +46,23 @@ graph TD
 ## 🛡️ Key Security Guarantees
 
 ### 1. Physical Stripping (Read Protection)
+
 When an entry is fetched, the `enforceFieldAccess` utility compares the collection schema against the user's roles. If a field is restricted:
+
 - The key is **deleted** from the JSON object.
 - All localized variants (e.g., `title_de`, `title_fr`) are removed simultaneously.
 - The data never reaches the network, preventing metadata leakage.
 
 ### 2. Strict Write Rejection
+
 If a user attempts to modify a field without the required `writeRoles`:
+
 - The system **throws an AppError(403)** immediately.
 - The entire transaction is aborted.
 - A `UNAUTHORIZED_ACCESS` event is triggered in the Audit Log.
 
 ### 3. Fail-Closed Default
+
 If a field is marked as `private` or has `requiredAuth` enabled, the system defaults to **Deny All** if the user context is ambiguous or the role mapping is missing.
 
 ---
@@ -82,18 +87,19 @@ FLAC is configured per-field in the **Collection Builder** under the **Permissio
 
 ### Permission Matrix
 
-| Visibility | Auth Required | Role Match | Result |
-| :--- | :--- | :--- | :--- |
-| `public` | No | N/A | Accessible to all. |
-| `public` | Yes | No | Stripped from response. |
-| `private` | Yes | Yes | Accessible to matched roles. |
-| `private` | Yes | No | **403 Forbidden on Write.** |
+| Visibility | Auth Required | Role Match | Result                       |
+| :--------- | :------------ | :--------- | :--------------------------- |
+| `public`   | No            | N/A        | Accessible to all.           |
+| `public`   | Yes           | No         | Stripped from response.      |
+| `private`  | Yes           | Yes        | Accessible to matched roles. |
+| `private`  | Yes           | No         | **403 Forbidden on Write.**  |
 
 ---
 
 ## 📊 Performance Impact
 
 The FLAC engine is optimized for high-throughput environments:
+
 - **O(N) Complexity**: Sanitization happens in a single pass over the field schema.
 - **Reference-Aware**: Uses `$state.snapshot()` patterns to ensure UI state remains pure during sanitization.
 - **Micro-telemetry**: Sanitization duration is tracked and bubbled up to the performance dashboard.
@@ -101,6 +107,7 @@ The FLAC engine is optimized for high-throughput environments:
 ---
 
 ## 📚 Related Documentation
+
 - [Security Overview](./index.mdx)
 - [Role-Based Access Control (RBAC)](../admin-user-management.mdx)
 - [Audit Log System](../user-management-overview.mdx)

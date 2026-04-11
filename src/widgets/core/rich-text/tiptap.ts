@@ -61,14 +61,19 @@ export function createEditor(
         openOnClick: false,
       }),
       Placeholder.configure({
-        placeholder: ({ node }) => {
+        placeholder: ({ node }: { node: any }) => {
           if (node.type.name === "heading") {
-            return "Write a heading…";
+            return `Project Title (Level ${node.attrs.level})`;
           }
-          return "Start writing your awesome content…";
+          if (node.type.name === "paragraph" && node.content.size === 0) {
+            return "Start writing your content or '/' for AI assistance...";
+          }
+          return "Start writing...";
         },
-        includeChildren: true,
-        emptyEditorClass: "is-editor-empty",
+      }),
+      // Custom extensions
+      TextStyle.configure({
+        types: ["textStyle"],
       }),
       Table.configure({
         resizable: true,
@@ -92,7 +97,7 @@ export function createEditor(
         name: "Tab",
         addKeyboardShortcuts() {
           return {
-            Tab: ({ editor: e }) => e.commands.insertContent("\t"),
+            Tab: ({ editor: e }: { editor: any }) => e.commands.insertContent("\t"),
           };
         },
       }),

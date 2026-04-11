@@ -39,17 +39,7 @@ Features:
 	function getImageUrl(file: MediaImage) {
 		// Try to get thumbnail, fallback to original url
 		const thumbs = file.thumbnails || {};
-		// Map common keys
-		if ('sm' in thumbs) {
-			return thumbs.sm.url;
-		}
-		if ('thumbnail' in thumbs) {
-			return thumbs.thumbnail.url;
-		}
-		if ('md' in thumbs) {
-			return thumbs.md.url;
-		}
-		return file.url;
+		return thumbs.sm?.url || thumbs.thumbnail?.url || thumbs.md?.url || file.url;
 	}
 
 	async function handleAITagging() {

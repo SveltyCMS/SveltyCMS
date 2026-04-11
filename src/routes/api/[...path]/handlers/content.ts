@@ -6,13 +6,17 @@
 import { json } from "@sveltejs/kit";
 import { AppError } from "@utils/error-handling";
 import type { RequestEvent } from "@sveltejs/kit";
+import type { LocalCMS } from "../../cms";
+import type { DatabaseId } from "@src/content/types";
 
 export async function handleContentRoutes(
   event: RequestEvent,
-  namespace: string,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
   segments: string[],
 ) {
   const { request, url } = event;
+  const namespace = segments[0];
   const method = segments[1];
 
   // --- Content Version ---
@@ -23,18 +27,14 @@ export async function handleContentRoutes(
 
   // --- Content Structure ---
   if (namespace === "content-structure") {
-    const { cms } = event.locals as any;
-    if (!cms) throw new AppError("CMS not initialized", 500);
-    const tenantId = (event.locals as any).tenantId;
-
     if (request.method === "GET") {
       const action = url.searchParams.get("action") || "getStructure";
       if (action === "getStructure" || action === "getContentStructure") {
-        const nodes = await cms.getContentStructure(tenantId ?? undefined);
+        const nodes = await cms.collections.getStructure(tenantId);
         return json({
           success: true,
           contentNodes: nodes,
-          version: cms.version,
+          version: (cms as any).version || "0.0.8",
         });
       }
       throw new AppError(`Invalid GET action: ${action}`, 400);
@@ -46,12 +46,12 @@ export async function handleContentRoutes(
 
       if (action === "reorderContentStructure") {
         if (!Array.isArray(items)) throw new AppError("Items must be an array", 422);
-        const updated = await cms.collections.reorderContentNodes(items, tenantId ?? undefined);
+        const updated = await cms.collections.reorderContentNodes(items, tenantId);
         return json({ success: true, contentStructure: updated });
       }
 
       if (action === "refresh" || action === "recompile" || action === "refreshCollections") {
-        await cms.collections.refresh(tenantId ?? undefined);
+        await cms.collections.refresh(tenantId);
         return json({ success: true, message: "Content structure refreshed" });
       }
       throw new AppError(`Invalid POST action: ${action}`, 400);
@@ -122,5 +122,21 @@ export async function handleContentRoutes(
     });
   }
 
-  throw new AppError(`Content endpoint /api/${segments.join("/")} not implemented`, 404);
+  // --- Global Search ---
+  if (namespace === "search" && request.method === "GET") {
+    const q = url.searchParams.get("q") || "";
+
+    const results = await cms.collections.search(q, {
+      tenantId,
+      collections: url.searchParams.get("type")?.split(",") || undefined,
+      page: Number(url.searchParams.get("page")) || 1,
+      limit: Number(url.searchParams.get("limit")) || 25,
+      status: url.searchParams.get("status") || "published",
+      isAdmin: !!event.locals.user,
+    });
+
+    return json(results);
+  }
+
+  throw new AppError(`Content endpoint /api/${namespace}/${method || ""} not implemented`, 404);
 }

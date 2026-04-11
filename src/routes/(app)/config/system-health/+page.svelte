@@ -16,7 +16,7 @@ import SystemHealth from "@src/components/system-health.svelte";
 	showBackButton={true}
 	backUrl="/config"
 	icon="mdi:heart-pulse"
-	helpUrl="/docs/architecture/state-management"
+
 />
 
 <div class="wrapper p-4"><SystemHealth /></div>

@@ -1,7 +1,7 @@
 /**
  * @file src/databases/mongodb/mongo-db-adapter.ts
  * @description MongoDB adapter for SveltyCMS.
- * 
+ *
  * IMPLEMENTATION NOTE: Using isolated connections (mongoose.createConnection)
  * instead of the global mongoose singleton to allow safe disconnects during
  * setup and testing without killing the main server connection.
@@ -132,9 +132,11 @@ export class MongoDBAdapter extends BaseAdapter implements IDBAdapter {
       };
 
       // Create isolated connection
-      this._connection = await mongoose.createConnection(connectionString, connectOptions).asPromise();
+      this._connection = await mongoose
+        .createConnection(connectionString, connectOptions)
+        .asPromise();
       this.connected = true;
-      
+
       return { success: true, data: undefined };
     } catch (err: any) {
       this.connected = false;
@@ -300,8 +302,13 @@ export class MongoDBAdapter extends BaseAdapter implements IDBAdapter {
   async transaction<T>(
     fn: (transaction: DatabaseTransaction) => Promise<DatabaseResult<T>>,
   ): Promise<DatabaseResult<T>> {
-    if (!this._connection) return { success: false, message: "No connection", error: { code: "NO_CONNECTION", message: "No connection" } };
-    
+    if (!this._connection)
+      return {
+        success: false,
+        message: "No connection",
+        error: { code: "NO_CONNECTION", message: "No connection" },
+      };
+
     const session = await this._connection.startSession();
     try {
       session.startTransaction();

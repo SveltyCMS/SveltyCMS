@@ -63,7 +63,8 @@ export const load: PageServerLoad = async (event) => {
     // This is especially important after profile updates
     let freshUser: User | null = null;
     if (user?._id && auth) {
-      freshUser = await auth.getUserById(user._id.toString(), event.locals.tenantId, {
+      freshUser = await auth.getUserById(user._id.toString() as any, {
+        tenantId: event.locals.tenantId,
         bypassTenantCheck: true,
       });
       if (freshUser) {

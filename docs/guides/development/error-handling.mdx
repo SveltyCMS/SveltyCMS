@@ -110,40 +110,31 @@ Standard error codes used across the application:
 
 ## Server-Side Usage
 
-### The apiHandler Wrapper
+### Unified Gatekeeper Handlers
 
-Wrap all API routes with `apiHandler` to enable automatic error handling:
+In the new architecture, all API logic is encapsulated in handlers within `src/routes/api/[...path]/handlers/`.
 
 ```typescript
-// src/routes/api/users/+server.ts
+// src/routes/api/[...path]/handlers/user.ts
 import { json } from "@sveltejs/kit";
-import { apiHandler } from "@utils/apiHandler";
 import { AppError } from "@utils/errorHandling";
 
-export const GET = apiHandler(async (event) => {
-  const userId = event.params.id;
+export async function handleUserRoutes(event, cms, segments) {
+  const userId = segments[1];
 
   if (!userId) {
     throw new AppError("User ID is required", 400, "MISSING_USER_ID");
   }
 
-  const user = await db.users.findById(userId);
+  const user = await cms.users.findById(userId);
 
   if (!user) {
     throw new AppError("User not found", 404, "NOT_FOUND");
   }
 
   return json({ success: true, data: user });
-});
+}
 ```
-
-### Benefits of apiHandler
-
-1. **No try-catch needed**: Errors are caught automatically
-2. **Consistent responses**: All errors follow `ApiErrorResponse` format
-3. **Valibot integration**: Validation errors are formatted automatically
-4. **Logging**: Errors are logged with request context
-5. **Stack traces**: Available in development mode only
 
 ### Handling Different Error Types
 

@@ -20,8 +20,29 @@ function log(msg: string): void {
 }
 
 async function apiFetch<T = unknown>(url: string, init: RequestInit, label: string): Promise<T> {
+  // Bulletproof header merging for Bun/undici
+  const mergedHeaders: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+
+  if (init.headers) {
+    if (init.headers instanceof Headers) {
+      init.headers.forEach((v, k) => (mergedHeaders[k.toLowerCase()] = v));
+    } else if (Array.isArray(init.headers)) {
+      init.headers.forEach(([k, v]) => (mergedHeaders[k.toLowerCase()] = v));
+    } else {
+      Object.entries(init.headers).forEach(
+        ([k, v]) => (mergedHeaders[k.toLowerCase()] = v as string),
+      );
+    }
+  }
+
+  // Always force the secret
+  mergedHeaders["x-test-secret"] = TEST_API_SECRET;
+
   const res = await fetch(url, {
     ...init,
+    headers: mergedHeaders,
     signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
   });
 

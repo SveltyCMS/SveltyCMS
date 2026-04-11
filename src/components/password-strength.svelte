@@ -1,4 +1,4 @@
-﻿<!--
+<!--
 @file src/components/password-strength.svelte
 @component
 **Enhanced PasswordStrength - Svelte 5 Optimized**
@@ -47,7 +47,7 @@ Visual password strength indicator with match validation and accessibility featu
 	const { password = '', confirmPassword = '', showRequirements = false }: Props = $props();
 
 	// Configuration
-	const MIN_PASSWORD_LENGTH = publicEnv?.PASSWORD_LENGTH ?? 8;
+	const MIN_PASSWORD_LENGTH = publicEnv?.PASSWORD_MIN_LENGTH ?? 8;
 	const YELLOW_LENGTH = MIN_PASSWORD_LENGTH + 3;
 	const GREEN_LENGTH = YELLOW_LENGTH + 4;
 

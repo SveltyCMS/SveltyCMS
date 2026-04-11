@@ -354,16 +354,17 @@ async function initializeWebSocketServer(dbAdapter: DatabaseAdapter, tenantId?: 
                   token,
                   undefined,
                   "access",
-                  tenantId,
+                  { tenantId: tenantId as DatabaseId },
                 );
 
                 if (tokenValidation?.success) {
-                  const tokenData = await dbAdapter.auth.getTokenByValue(token, tenantId);
+                  const tokenData = await dbAdapter.auth.getTokenByValue(token, {
+                    tenantId: tenantId as DatabaseId,
+                  });
                   if (tokenData?.success && tokenData.data) {
-                    const userResult = await dbAdapter.auth.getUserById(
-                      tokenData.data.user_id,
-                      tenantId,
-                    );
+                    const userResult = await dbAdapter.auth.getUserById(tokenData.data.user_id, {
+                      tenantId: tenantId as DatabaseId,
+                    });
                     if (userResult?.success) {
                       user = userResult.data;
                       logger.info("WebSocket: User authenticated via token", {
@@ -417,11 +418,17 @@ const handler = apiHandler(async (event: RequestEvent) => {
 
   // Check if database adapter is available
   if (!locals.dbAdapter) {
-    throw new AppError(
-      "Service Unavailable: Database service is not available.",
-      503,
-      "DB_UNAVAILABLE",
-    );
+    const { getDb } = await import("@src/databases/db");
+    const currentDb = getDb();
+    if (currentDb) {
+      locals.dbAdapter = currentDb;
+    } else {
+      throw new AppError(
+        "Service Unavailable: Database service is not available.",
+        503,
+        "DB_UNAVAILABLE",
+      );
+    }
   }
 
   try {

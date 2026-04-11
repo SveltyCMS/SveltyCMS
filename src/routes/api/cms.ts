@@ -7,7 +7,7 @@
  */
 
 import { contentSystem } from "@src/content";
-import { modifyRequest } from "@src/routes/api/collections/modify-request";
+import { modifyRequest } from "@utils/modify-request";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { logger } from "@utils/logger.server";
 import { AppError } from "@utils/error-handling";
@@ -54,8 +54,8 @@ export type CollectionProxy = {
 };
 
 import { automationService } from "@src/services/automation/automation-service";
-import { metricsService } from "@src/services/metrics-service";
 import { telemetryService } from "@src/services/telemetry-service";
+import { metricsService } from "@src/services/metrics-service";
 import { getRevisions } from "@src/services/revision-service";
 
 export interface LocalApiOptions {
@@ -80,7 +80,7 @@ export class LocalCMS {
   public system: SystemNamespace;
   public websiteTokens: WebsiteTokensNamespace;
   public ai = aiService;
-  public automation = automationService;
+  public automation: AutomationNamespace;
   public metrics = metricsService;
   public telemetry = telemetryService;
   public db: IDBAdapter;
@@ -94,6 +94,7 @@ export class LocalCMS {
     this.widgets = new WidgetsNamespace(this._dbAdapter);
     this.system = new SystemNamespace(this._dbAdapter);
     this.websiteTokens = new WebsiteTokensNamespace(this._dbAdapter);
+    this.automation = new AutomationNamespace();
 
     // Register SDK initialization in metrics
     if (typeof metricsService?.recordMetric === "function") {
@@ -1141,6 +1142,10 @@ class CollectionsNamespace {
     return contentSystem.initialize(tenantId, true); // skipReconciliation = true for speed
   }
 
+  async getStructure(tenantId?: DatabaseId | null) {
+    return contentSystem.getContentStructure(tenantId);
+  }
+
   async reorderContentNodes(items: any[], tenantId?: DatabaseId | null) {
     return contentSystem.reorderContentNodes(items, tenantId);
   }
@@ -1875,6 +1880,45 @@ class SettingsNamespace {
 
   async invalidateCache(tenantId?: string) {
     return invalidateSettingsCache(tenantId);
+  }
+
+  async getPublic(tenantId?: string) {
+    const { loadSettingsCache } = await import("@src/services/settings-service");
+    const { public: p } = await loadSettingsCache(tenantId);
+    return p;
+  }
+
+  async get(key: string, tenantId?: string) {
+    const { getUntypedSetting } = await import("@src/services/settings-service");
+    return getUntypedSetting(key, "private", tenantId);
+  }
+
+  async set(key: string, value: any, tenantId?: string) {
+    const { setPrivateSetting } = await import("@src/services/settings-service");
+    return setPrivateSetting(key as any, value, tenantId);
+  }
+}
+
+/**
+ * Automation Namespace
+ */
+class AutomationNamespace {
+  async getFlow(id: string, tenantId?: string) {
+    return automationService.getFlow(id, tenantId!);
+  }
+
+  async getLogs(flowId: string, options: any = {}) {
+    return automationService.getLogs(flowId, options);
+  }
+
+  async executeFlow(id: string, triggerData: any = {}, tenantId?: string) {
+    const flow = await this.getFlow(id, tenantId!);
+    if (!flow) throw new Error(`Flow ${id} not found`);
+    return automationService.executeFlow(flow, {
+      event: "manual_trigger",
+      tenantId: tenantId!,
+      ...triggerData,
+    });
   }
 }
 

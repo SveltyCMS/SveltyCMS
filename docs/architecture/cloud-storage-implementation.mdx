@@ -265,39 +265,17 @@ else
    return publicUrl; // Cloud URL or /files/ URL
    ```
 
-#### `src/routes/api/user/save-avatar/+server.ts`
+#### `src/routes/api/[...path]/handlers/system.ts`
 
 **Changes**:
 
-- Removed 15+ lines of manual URL normalization
+- Consolidated `save-avatar` and `delete-avatar` into the system handler.
 - Now trusts `saveAvatarImage()` to return correct URL
-- Simplified from ~155 lines to ~140 lines
+- Simplified logic by delegating to the unified dispatcher.
 
-**Before**:
+#### `src/routes/api/[...path]/handlers/media.ts`
 
-```typescript
-const avatarUrl = await saveAvatarImage(...);
-// Complex normalization logic (15+ lines)
-const normalizedUrl = ...;
-user.avatar = normalizedUrl;
-```
-
-**After**:
-
-```typescript
-const avatarUrl = await saveAvatarImage(...);
-user.avatar = avatarUrl; // Already correct
-```
-
-#### `src/routes/api/user/delete-avatar/+server.ts`
-
-**Changes**: None needed - already uses `moveMediaToTrash()` which is now cloud-aware
-
-#### `src/routes/api/media/delete/+server.ts`
-
-#### `src/routes/api/media/exists/+server.ts`
-
-#### `src/routes/api/media/get/+server.ts`
+**Changes**: Unified media handling for delete, exists, and get operations.
 
 **Changes**: None needed - already use updated `deleteFile()`, `fileExists()`, and `getFile()` functions
 

@@ -4,7 +4,7 @@
  */
 
 import type { User } from "@src/databases/auth/types";
-import type { BaseEntity, DatabaseAdapter } from "@src/databases/db-interface";
+import type { BaseEntity, DatabaseAdapter, DatabaseId } from "@src/databases/db-interface";
 import { getPrivateSettingSync } from "@src/services/settings-service";
 import { logger } from "@utils/logger.server";
 
@@ -63,7 +63,7 @@ interface GraphQLContext {
 type MediaResolverParent = unknown;
 
 interface MediaEntity extends BaseEntity {
-  tenantId?: string | null;
+  tenantId?: DatabaseId | null;
   url?: string;
 }
 

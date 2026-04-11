@@ -33,7 +33,12 @@ vi.mock("@utils/api-handler", () => ({
 }));
 
 // Import raw dispatcher handler
-import { _handler as dispatcher } from "@src/routes/api/[...path]/+server";
+import {
+  GET as dispatcherGET,
+  POST as dispatcherPOST,
+  PATCH as dispatcherPATCH,
+  DELETE as dispatcherDELETE,
+} from "@src/routes/api/[...path]/+server";
 
 describe("User API Unit Tests", () => {
   const createMockEvent = (
@@ -81,10 +86,19 @@ describe("User API Unit Tests", () => {
     } as unknown as RequestEvent;
   };
 
+  const callDispatcher = async (event: RequestEvent) => {
+    const method = event.request.method;
+    if (method === "GET") return dispatcherGET(event);
+    if (method === "POST") return dispatcherPOST(event);
+    if (method === "PATCH") return dispatcherPATCH(event);
+    if (method === "DELETE") return dispatcherDELETE(event);
+    return dispatcherGET(event);
+  };
+
   it("should list users", async () => {
     const event = createMockEvent("GET", "user");
-    const response = await dispatcher(event);
-    const result = await response.json();
+    const response = await callDispatcher(event);
+    const result = await response!.json();
     expect(result.success).toBe(true);
     expect(result.data).toBeDefined();
     expect(Array.isArray(result.data.data)).toBe(true);
@@ -95,8 +109,8 @@ describe("User API Unit Tests", () => {
       user_id: "u1",
       newUserData: { name: "New" },
     });
-    const response = await dispatcher(event);
-    const result = await response.json();
+    const response = await dispatcherPATCH(event);
+    const result = await response!.json();
     expect(result.success).toBe(true);
   });
 });

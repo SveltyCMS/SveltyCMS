@@ -124,7 +124,7 @@ beforeNavigate(({ cancel }) => {
 		icon="mdi:account-key"
 		showBackButton={true}
 		backUrl="/config"
-		helpUrl="/docs/guides/configuration/access-management"
+
 	/>
 
 	<div class="mt-2 flex items-center justify-center gap-4 lg:mt-0 lg:justify-end">

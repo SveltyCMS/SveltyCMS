@@ -8,7 +8,7 @@ import type { CollectionEntry, FieldDefinition, RevisionData, Schema } from "@sr
 import type { User } from "@src/databases/auth/types";
 import { cacheService } from "@src/databases/cache/cache-service";
 import type { IDBAdapter } from "@src/databases/db-interface";
-import { modifyRequest } from "@src/routes/api/collections/modify-request";
+import { modifyRequest } from "@utils/modify-request";
 import { getPrivateSettingSync } from "@src/services/settings-service";
 import { error } from "@sveltejs/kit";
 import { logger } from "@utils/logger.server";

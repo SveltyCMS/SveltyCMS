@@ -103,7 +103,7 @@ vi.mock("@src/databases/auth", () => ({
   validateUserPermission: vi.fn().mockReturnValue(true),
 }));
 
-// Import dispatcher (handler)
+// Removed unused auth import
 import { _handler as dispatcher } from "@src/routes/api/[...path]/+server";
 
 const POST_SETUP = (event: any) => dispatcher(event);
@@ -128,16 +128,19 @@ const createMockEvent = (
   const method =
     options.method ||
     (action === "backup-codes" && Object.keys(body).length === 0 ? "GET" : "POST");
-  return createMockRequestEvent({
-    method,
-    url: `http://localhost/api/auth/2fa/${action}`,
-    body,
-    user,
-    tenantId,
-    dbAdapter: mockDbAdapter,
-    headers: options.headers,
-    cookies: options.cookies,
-  });
+  return {
+    ...createMockRequestEvent({
+      method,
+      url: `http://localhost/api/auth/2fa/${action}`,
+      body,
+      user,
+      tenantId,
+      dbAdapter: mockDbAdapter,
+      headers: options.headers,
+      cookies: options.cookies,
+    }),
+    params: { path: `auth/2fa/${action}` },
+  };
 };
 
 describe("2FA API Unit Tests", () => {
@@ -177,7 +180,7 @@ describe("2FA API Unit Tests", () => {
         },
       );
       const response = await POST_VERIFY(event);
-      const result = await response.json();
+      const result = await response!.json();
 
       expect(result.success).toBe(true);
       expect(mockTwoFactorService.verify2FA).toHaveBeenCalledWith("user-1", "123456", "t1");
@@ -200,7 +203,7 @@ describe("2FA API Unit Tests", () => {
         },
       );
       const response = await POST_VERIFY(event);
-      const result = await response.json();
+      const result = await response!.json();
 
       expect(result.success).toBe(true);
     });
@@ -278,7 +281,7 @@ describe("2FA API Unit Tests", () => {
         cookies: { csrf_token: "mock-csrf-token" },
       });
       const response = await POST_SETUP(event);
-      const result = await response.json();
+      const result = await response!.json();
 
       expect(result.success).toBe(true);
       expect(result.data.secret).toBe("secret");
@@ -300,7 +303,7 @@ describe("2FA API Unit Tests", () => {
         cookies: { csrf_token: "mock-csrf-token" },
       });
       const response = await POST_SETUP(event);
-      const result = await response.json();
+      const result = await response!.json();
       expect(result.success).toBe(true);
       expect(result.data.success).toBe(false);
     });
@@ -316,7 +319,7 @@ describe("2FA API Unit Tests", () => {
         cookies: { csrf_token: "mock-csrf-token" },
       });
       const response = await POST_VERIFY_SETUP(event);
-      const result = await response.json();
+      const result = await response!.json();
 
       expect(result.success).toBe(true);
     });
@@ -348,7 +351,7 @@ describe("2FA API Unit Tests", () => {
         cookies: { csrf_token: "mock-csrf-token" },
       });
       const response = await POST_DISABLE(event);
-      const result = await response.json();
+      const result = await response!.json();
 
       expect(result.success).toBe(true);
     });
@@ -382,7 +385,7 @@ describe("2FA API Unit Tests", () => {
         cookies: { csrf_token: "mock-csrf-token" },
       });
       const response = await GET_BACKUP_CODES(event);
-      const result = await response.json();
+      const result = await response!.json();
 
       expect(result.success).toBe(true);
       expect(result.data.enabled).toBe(true);
@@ -398,7 +401,7 @@ describe("2FA API Unit Tests", () => {
         method: "POST",
       });
       const response = await POST_BACKUP_CODES(event);
-      const result = await response.json();
+      const result = await response!.json();
 
       expect(result.success).toBe(true);
       expect(result.data).toEqual(["n1", "n2"]);

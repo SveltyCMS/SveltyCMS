@@ -1,4 +1,4 @@
-﻿<!--
+<!--
 @files src/routes/(app)/config/webhooks/+page.svelte
 @component
 **This file sets up and displays the webhooks page. It provides a user-friendly interface for managing webhooks.**
@@ -144,7 +144,7 @@ function toggleEvent(event: string) {
 onMount(loadWebhooks);
 </script>
 
-<PageTitle name="Webhooks" icon="mdi:webhook" showBackButton={true} backUrl="/config" helpUrl="/docs/api/Webhooks" />
+<PageTitle name="Webhooks" icon="mdi:webhook" showBackButton={true} backUrl="/config" />
 
 <div class="wrapper p-4">
 	<div class="flex items-center justify-between mb-6">

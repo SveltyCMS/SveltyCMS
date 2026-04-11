@@ -1,6 +1,13 @@
 /**
  * @file src/hooks/handle-security.ts
- * @description Unified security middleware consolidating firewall, rate limiting, and payload analysis.
+ * @description
+ * Unified security middleware consolidating firewall, rate limiting, and payload analysis.
+ *
+ * Features:
+ * - AST-level GraphQL complexity analysis (depth × field-cost × list-multiplier)
+ * - Rate limiting and bot detection
+ * - Payload threat scanning (SQLi, XSS)
+ * - CSRF protection passthrough
  */
 
 import { dev } from "$app/environment";
@@ -12,18 +19,129 @@ import { logger } from "@utils/logger.server";
 import { getTenantIdFromHostname } from "@utils/tenant-utils";
 import { getPrivateSettingSync } from "@src/services/settings-service";
 
+// ──────────────────────────────────────────────────────────────
+// GraphQL Complexity Shield (2-Phase: Fast Pre-filter → AST Analysis)
+// ──────────────────────────────────────────────────────────────
+
+/** Max nesting depth allowed (prevents recursive fragment bombs) */
+const MAX_DEPTH = 12;
+/** Max complexity score before rejection */
+const MAX_COMPLEXITY = 1000;
+/** Argument names that indicate list pagination/multiplier */
+const LIST_SIZE_ARGS = new Set(["first", "last", "limit", "pageSize", "take", "count"]);
+/** Query length below which we skip expensive AST parsing */
+const FAST_PATH_MAX_LENGTH = 256;
+
+/**
+ * Phase 1: Ultra-fast string pre-filter (< 0.01ms).
+ * Counts depth and rejects obviously malicious queries before invoking the parser.
+ * Returns `null` if query passes pre-filter and needs full AST analysis.
+ * Returns a score ≥ 0 if the query can be definitively scored without parsing.
+ */
+function quickComplexityCheck(query: string): number | null {
+  let depth = 0;
+  let maxDepth = 0;
+  let braces = 0;
+
+  for (let i = 0; i < query.length; i++) {
+    if (query[i] === "{") {
+      depth++;
+      braces++;
+      if (depth > maxDepth) maxDepth = depth;
+      // Early exit: depth alone exceeds limit
+      if (depth > MAX_DEPTH) return MAX_COMPLEXITY + 1;
+    } else if (query[i] === "}") {
+      depth--;
+    }
+  }
+
+  // Very short, shallow queries are safe — skip AST parse
+  if (query.length <= FAST_PATH_MAX_LENGTH && maxDepth <= 3 && braces <= 6) {
+    return braces * maxDepth;
+  }
+
+  return null; // needs full analysis
+}
+
+/**
+ * Phase 2: Full AST-based complexity analysis.
+ * Walks the parsed GraphQL document and calculates:
+ *   cost = Σ (fieldCost × listMultiplier) at each depth level
+ * where listMultiplier = value of first/last/limit/pageSize arg (or DEFAULT_LIST_SIZE).
+ *
+ * This correctly catches attacks like:
+ *   query { users(first: 99999) { posts(first: 99999) { comments { body } } } }
+ *   → 99999 × 99999 × 1 × 1 = ~10 billion (blocked)
+ */
+function calculateGraphqlComplexity(query: string): number {
+  // Phase 1: fast pre-filter
+  const quickScore = quickComplexityCheck(query);
+  if (quickScore !== null) return quickScore;
+
+  // Phase 2: AST analysis (lazy-loaded so the graphql parser doesn't affect non-GQL requests)
+  try {
+    const { parse, visit, Kind } = require("graphql");
+    const ast = parse(query);
+
+    let complexity = 0;
+    const multiplierStack: number[] = [1]; // stack of cumulative multipliers per depth
+
+    visit(ast, {
+      Field: {
+        enter(node: any) {
+          // Calculate list multiplier from arguments like first, limit, etc.
+          let fieldMultiplier = 1;
+          if (node.arguments && node.arguments.length > 0) {
+            for (const arg of node.arguments) {
+              if (LIST_SIZE_ARGS.has(arg.name.value) && arg.value.kind === Kind.INT) {
+                fieldMultiplier = Math.max(fieldMultiplier, parseInt(arg.value.value, 10));
+              }
+            }
+          }
+
+          // If the field has a selection set (sub-fields), it's a resolver
+          // that multiplies downstream cost by the list size.
+          const parentMultiplier = multiplierStack[multiplierStack.length - 1] || 1;
+          const cumulativeMultiplier = parentMultiplier * fieldMultiplier;
+
+          // Each field costs 1 × cumulative multiplier from all ancestor list sizes
+          complexity += cumulativeMultiplier;
+
+          // Push multiplier for children (only if field has sub-selections)
+          if (node.selectionSet) {
+            multiplierStack.push(cumulativeMultiplier);
+          }
+
+          // Early exit if already over limit
+          if (complexity > MAX_COMPLEXITY) return false;
+        },
+        leave(node: any) {
+          if (node.selectionSet) {
+            multiplierStack.pop();
+          }
+        },
+      },
+    });
+
+    return complexity;
+  } catch {
+    // If parsing fails, treat as potentially malicious
+    return MAX_COMPLEXITY + 1;
+  }
+}
+
 /**
  * Consolidated security hook that performs:
  * 1. Rate Limiting
  * 2. Payload Analysis (SQLi, XSS, etc.)
  * 3. Bot Detection
  * 4. CSRF Protection
+ * 5. GraphQL Complexity Shield
  */
 export const handleSecurity: Handle = async ({ event, resolve }) => {
   const { request, url } = event;
   const clientIp = getClientIp(event);
 
-  // Skip for static assets and dev mode/test mode localhost (unless forced)
   const isTestMode = process.env.TEST_MODE === "true" || process.env.VITE_TEST_MODE === "true";
   const isLocal =
     isLocalhost(clientIp) || url.hostname === "localhost" || url.hostname === "127.0.0.1";
@@ -45,6 +163,21 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
   }
 
   try {
+    // ✨ AST-Level GraphQL Security Shield
+    if (url.pathname.startsWith("/api/graphql") && request.method === "POST") {
+      const clonedReq = request.clone();
+      const body = await clonedReq.json().catch(() => ({}));
+      if (body.query) {
+        const complexity = calculateGraphqlComplexity(body.query);
+        // Reject queries with an excessively high complexity score (e.g. > 1000)
+        if (complexity > 1000) {
+          metricsService.incrementSecurityViolations(tenantId);
+          logger.warn(`GraphQL Complexity Limit Exceeded: Score ${complexity}`, { ip: clientIp });
+          return handleApiError(new AppError("GraphQL Query too complex", 400), event);
+        }
+      }
+    }
+
     // 1. Analyze request for threats (Firewall + Payload Scan + Rate Limiting)
     const securityStatus = await securityResponseService.analyzeRequest(
       request,

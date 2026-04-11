@@ -353,7 +353,7 @@
 		silent={true}
 	>
 		<div class="wrapper2">
-			<AdminArea currentUser={{ ...user }} isMultiTenant={isMultiTenant!} roles={data.roles} />
+			<AdminArea currentUser={{ ...user } as any} isMultiTenant={isMultiTenant!} roles={data.roles as any} />
 		</div>
 	</PermissionGuard>
 </div>

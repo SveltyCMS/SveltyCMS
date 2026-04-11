@@ -21,7 +21,7 @@
  */
 
 // Collection Manager
-import { modifyRequest } from "@api/collections/modify-request";
+import { modifyRequest } from "@utils/modify-request";
 import { contentSystem } from "@src/content";
 import type { FieldInstance, Schema } from "@src/content/types";
 // Types

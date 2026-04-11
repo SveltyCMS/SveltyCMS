@@ -188,6 +188,20 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
             : `/api/${apiEndpoint}`;
           const pattern = `api:${locals.user._id}:${apiPathPrefix}`;
           await cacheService.clearByPattern(`${pattern}*`, locals.tenantId);
+
+          // ✨ SWR: Predictive Cache Pre-warming
+          if (["POST", "PUT", "PATCH"].includes(request.method) && event.url.origin) {
+            const prewarmUrl = new URL(event.url.pathname, event.url.origin);
+            prewarmUrl.searchParams.set("warm-cache", "true");
+            fetch(prewarmUrl.toString(), {
+              headers: {
+                Cookie: event.request.headers.get("Cookie") || "",
+                Authorization: event.request.headers.get("Authorization") || "",
+              },
+            }).catch((e) =>
+              logger.debug(`SWR pre-warm failed for ${apiEndpoint}: ${getErrorMessage(e)}`),
+            );
+          }
         } catch (e) {
           logger.error(`Cache invalidation failed: ${getErrorMessage(e)}`);
         }

@@ -17,103 +17,163 @@ export async function handleCollectionsRoutes(
 ) {
   const { request, url, locals } = event;
   const { user } = locals;
-  const method = segments[1];
+  const collectionId = segments[1];
   const entryId = segments[2];
 
   // --- Collection Search ---
-  if (method === "search" && request.method === "GET") {
-    const query = url.searchParams.get("q") || "";
-    const collectionsParam = url.searchParams.get("collections");
-    const collections = collectionsParam
-      ? collectionsParam.split(",").map((c: string) => c.trim())
-      : undefined;
-    const page = Number(url.searchParams.get("page") ?? 1);
-    const limit = Number(url.searchParams.get("limit") ?? 25);
-    const sortField = url.searchParams.get("sortField") || "updatedAt";
-    const sortDirection = (url.searchParams.get("sortDirection") as "asc" | "desc") || "desc";
-    const status = url.searchParams.get("status") || undefined;
-    const filterParam = url.searchParams.get("filter");
-    let filter = {};
-    if (filterParam) {
-      try {
-        filter = JSON.parse(filterParam);
-      } catch {
-        /* ignore */
-      }
-    }
-
-    const result = await cms.collections.search(query, {
-      collections,
-      tenantId,
-      user,
-      page,
-      limit,
-      sortField,
-      sortDirection,
-      filter,
-      status,
-      isAdmin: (locals as any).isAdmin,
-    });
-    return successResponse(event, result);
+  if (collectionId === "search" && request.method === "GET") {
+    return handleCollectionSearch(event, cms, tenantId, user, url, locals);
   }
-
-  const collectionId = method;
 
   // --- Revisions ---
   if (request.method === "GET" && collectionId && entryId === "revisions") {
-    const result = await cms.collections.getRevisions(collectionId, entryId, tenantId);
-    return successResponse(event, result);
+    return successResponse(
+      event,
+      await cms.collections.getRevisions(collectionId, entryId, tenantId),
+    );
   }
 
   // --- Standard CRUD ---
   if (request.method === "GET") {
-    if (!method || method === "list") {
-      const includeFields = url.searchParams.get("includeFields") === "true";
-      const includeStats = url.searchParams.get("includeStats") === "true";
-      const result = await cms.collections.list({ tenantId, includeFields, includeStats });
-
-      if (url.searchParams.get("raw") === "true") return rawResponse(event, result);
-      return successResponse(event, result);
-    }
-
-    if (entryId) {
-      const data = await cms.collections.findById(collectionId, entryId, { tenantId });
-      return successResponse(event, data);
-    } else {
-      const limit = Number(url.searchParams.get("limit")) || 50;
-      const offset = Number(url.searchParams.get("offset")) || 0;
-      const result = await cms.collections.find(collectionId, { tenantId, limit, offset });
-      return successResponse(event, result);
-    }
+    if (!collectionId || collectionId === "list")
+      return handleCollectionList(event, cms, tenantId, url);
+    if (entryId) return handleCollectionEntry(event, cms, tenantId, collectionId, entryId);
+    return successResponse(
+      event,
+      await cms.collections.find(collectionId, {
+        tenantId,
+        limit: Number(url.searchParams.get("limit")) || 50,
+        offset: Number(url.searchParams.get("offset")) || 0,
+      }),
+    );
   }
 
-  if (request.method === "POST") {
-    const data = await request.json();
-    const result = await cms.collections.create(collectionId, data, { user: user!, tenantId });
-    return successResponse(event, result, 201);
-  }
-
-  if (request.method === "PATCH" && entryId) {
-    const data = await request.json();
-    const result = await cms.collections.update(collectionId, entryId, data, {
-      user: user!,
-      tenantId,
-    });
-    return successResponse(event, result);
-  }
-
-  if (request.method === "DELETE" && entryId) {
-    const permanent = url.searchParams.get("permanent") === "true";
-    const result = await cms.collections.delete(collectionId, entryId, {
-      user: user!,
-      tenantId,
-      permanent,
-    });
-    return successResponse(event, result);
-  }
+  if (request.method === "POST")
+    return handleCollectionCreate(event, cms, tenantId, user, collectionId);
+  if (request.method === "PATCH" && entryId)
+    return handleCollectionUpdate(event, cms, tenantId, user, collectionId, entryId);
+  if (request.method === "DELETE" && entryId)
+    return handleCollectionDelete(event, cms, tenantId, user, url, collectionId, entryId);
 
   throw new AppError(
     `Collections endpoint /api/collections/${segments.join("/")} not implemented`,
     404,
   );
+}
+
+export async function handleCollectionSearch(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+  user: any,
+  url: URL,
+  locals: any,
+) {
+  const query = url.searchParams.get("q") || "";
+  const collectionsParam = url.searchParams.get("collections");
+  const collections = collectionsParam
+    ? collectionsParam.split(",").map((c: string) => c.trim())
+    : undefined;
+  const page = Number(url.searchParams.get("page") ?? 1);
+  const limit = Number(url.searchParams.get("limit") ?? 25);
+  const sortField = url.searchParams.get("sortField") || "updatedAt";
+  const sortDirection = (url.searchParams.get("sortDirection") as "asc" | "desc") || "desc";
+  const status = url.searchParams.get("status") || undefined;
+  const filterParam = url.searchParams.get("filter");
+  let filter = {};
+  if (filterParam) {
+    try {
+      filter = JSON.parse(filterParam);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  const result = await cms.collections.search(query, {
+    collections,
+    tenantId,
+    user,
+    page,
+    limit,
+    sortField,
+    sortDirection,
+    filter,
+    status,
+    isAdmin: (locals as any).isAdmin,
+  });
+  return successResponse(event, result);
+}
+
+export async function handleCollectionList(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+  url: URL,
+) {
+  const includeFields = url.searchParams.get("includeFields") === "true";
+  const includeStats = url.searchParams.get("includeStats") === "true";
+  const result = await cms.collections.list({ tenantId, includeFields, includeStats });
+  return url.searchParams.get("raw") === "true"
+    ? rawResponse(event, result)
+    : successResponse(event, result);
+}
+
+export async function handleCollectionEntry(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+  collectionId: string,
+  entryId: string,
+) {
+  return successResponse(
+    event,
+    await cms.collections.findById(collectionId, entryId, { tenantId }),
+  );
+}
+
+export async function handleCollectionCreate(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+  user: any,
+  collectionId: string,
+) {
+  const result = await cms.collections.create(collectionId, await event.request.json(), {
+    user: user!,
+    tenantId,
+  });
+  return successResponse(event, result, 201);
+}
+
+export async function handleCollectionUpdate(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+  user: any,
+  collectionId: string,
+  entryId: string,
+) {
+  const result = await cms.collections.update(collectionId, entryId, await event.request.json(), {
+    user: user!,
+    tenantId,
+  });
+  return successResponse(event, result);
+}
+
+export async function handleCollectionDelete(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+  user: any,
+  url: URL,
+  collectionId: string,
+  entryId: string,
+) {
+  const permanent = url.searchParams.get("permanent") === "true";
+  const result = await cms.collections.delete(collectionId, entryId, {
+    user: user!,
+    tenantId,
+    permanent,
+  });
+  return successResponse(event, result);
 }

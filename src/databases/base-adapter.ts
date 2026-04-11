@@ -102,3 +102,21 @@ export abstract class BaseAdapter {
     };
   }
 }
+
+/**
+ * Base class for all database domain modules (Auth, CRUD, Media, etc.)
+ */
+export abstract class DatabaseModule<T extends BaseAdapter = BaseAdapter> {
+  constructor(protected readonly adapter: T) {}
+
+  /**
+   * Proxy wrap for consistent error handling within modules
+   */
+  protected async wrap<R>(
+    fn: () => Promise<R>,
+    code: string,
+    message?: string,
+  ): Promise<DatabaseResult<R>> {
+    return this.adapter["wrap"](fn, code, message);
+  }
+}

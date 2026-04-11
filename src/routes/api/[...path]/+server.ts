@@ -1,142 +1,91 @@
 /**
  * @file src/routes/api/[...path]/+server.ts
  * @description
- * Unified HTTP API Gatekeeper for SveltyCMS.
- * Dispatches all external API requests to domain-specific logic handlers.
- *
- * ### Refactored v3
- * - Modular dispatcher delegating to specialized handlers.
- * - Unified permission checks via @src/databases/auth/api-permissions.
- * - Robust multi-tenant validation.
- * - Fast health check with stabilization retry.
+ * Optimized API Gatekeeper using dynamic chunked dispatching.
  */
 
-import { json } from "@sveltejs/kit";
+import { json, type RequestEvent } from "@sveltejs/kit";
 import { dev } from "$app/environment";
 import { validateCsrfForRequest } from "@utils/security/csrf-utils";
-import type { RequestEvent } from "@sveltejs/kit";
 import { apiHandler } from "@utils/api-handler";
 import { AppError } from "@utils/error-handling";
 import { logger } from "@utils/logger.server";
+import { updatePublicEnv } from "@src/stores/global-settings.svelte";
 import { dbAdapter, getDbInitPromise } from "@src/databases/db";
 import { LocalCMS } from "../cms";
 import { getPrivateSettingSync } from "@src/services/settings-service";
 import type { DatabaseId } from "@src/content/types";
 import { hasApiPermission } from "@src/databases/auth/api-permissions";
+import { getSegments } from "./handlers/base";
 
-// Import Handlers
-import { successResponse, rawResponse, getSegments } from "./handlers/base";
-import { handleAuthUserRoutes } from "./handlers/auth";
-import { handleCollectionsRoutes } from "./handlers/collections";
-import { handleMediaRoutes } from "./handlers/media";
-import { handleSystemRoutes } from "./handlers/system";
-import { handleTokenRoutes } from "./handlers/tokens";
-import { handleContentRoutes } from "./handlers/content";
+// Dynamic handlers map for build-time tree-shaking
+const HANDLERS: Record<string, () => Promise<any>> = {
+  auth: () => import("./handlers/auth"),
+  collections: () => import("./handlers/collections"),
+  content: () => import("./handlers/content"),
+  dashboard: () => import("./handlers/dashboard"),
+  media: () => import("./handlers/media"),
+  scim: () => import("./handlers/scim"),
+  system: () => import("./handlers/system"),
+  testing: () => import("./handlers/testing"),
+  tokens: () => import("./handlers/tokens"),
+  utility: () => import("./handlers/utility"),
+  setup: () => import("./handlers/setup"),
+};
 
-// Global Cache for Health Check
+// Map domain namespaces to the correct handler module
+const NAMESPACE_CONFIG: Record<string, { handler: string; fn: string }> = {
+  auth: { handler: "auth", fn: "handleAuthUserRoutes" },
+  user: { handler: "auth", fn: "handleAuthUserRoutes" },
+  permission: { handler: "auth", fn: "handlePermissionRoutes" },
+  collections: { handler: "collections", fn: "handleCollectionsRoutes" },
+  content: { handler: "content", fn: "handleContentRoutes" },
+  "content-structure": { handler: "content", fn: "handleContentRoutes" },
+  dashboard: { handler: "dashboard", fn: "handleDashboardRoutes" },
+  media: { handler: "media", fn: "handleMediaRoutes" },
+  scim: { handler: "scim", fn: "handleScimRoutes" },
+  system: { handler: "system", fn: "handleSystemRoutes" },
+  settings: { handler: "system", fn: "handleSettingsRoutes" },
+  "system-settings": { handler: "system", fn: "handleSettingsRoutes" },
+  importer: { handler: "system", fn: "handleImporterRoutes" },
+  "import-data": { handler: "system", fn: "handleImporterRoutes" },
+  ai: { handler: "system", fn: "handleAiRoutes" },
+  automations: { handler: "system", fn: "handleAutomationRoutes" },
+  setup: { handler: "setup", fn: "handleSetupRoutes" },
+  metrics: { handler: "system", fn: "handleSystemRoutes" },
+  telemetry: { handler: "system", fn: "handleTelemetryRoutes" },
+  theme: { handler: "system", fn: "handleThemeRoutes" },
+  "system-preferences": { handler: "system", fn: "handlePreferenceRoutes" },
+  health: { handler: "system", fn: "handleHealthRoutes" },
+  token: { handler: "tokens", fn: "handleTokenRoutes" },
+  "website-tokens": { handler: "tokens", fn: "handleTokenRoutes" },
+  testing: { handler: "testing", fn: "handleTestingRoutes" },
+  reset: { handler: "testing", fn: "handleTestingRoutes" },
+  seed: { handler: "testing", fn: "handleTestingRoutes" },
+  reinitialize: { handler: "testing", fn: "handleTestingRoutes" },
+  cache: { handler: "utility", fn: "handleUtilityRoutes" },
+  marketplace: { handler: "utility", fn: "handleUtilityRoutes" },
+  "version-check": { handler: "utility", fn: "handleUtilityRoutes" },
+  config_sync: { handler: "utility", fn: "handleUtilityRoutes" },
+  "send-mail": { handler: "utility", fn: "handleUtilityRoutes" },
+  trash: { handler: "utility", fn: "handleUtilityRoutes" },
+  debug: { handler: "utility", fn: "handleUtilityRoutes" },
+};
+
 let cachedDbVersion: string | null = null;
-
-// ──────────────────────────────────────────────────────────────
-// PERMISSION & SECURITY
-// ──────────────────────────────────────────────────────────────
-
-/** Endpoints that bypass authentication entirely */
-const PUBLIC_ENDPOINTS = new Set([
-  "auth/login",
-  "user/login",
-  "auth/saml/acs",
-  "auth/saml/login",
-  "auth/saml/config",
-  "system/health",
-  "settings/public",
-]);
-
-function isPublicEndpoint(namespace: string, subPath: string, method: string): boolean {
-  const fullPath = `${namespace}${subPath ? `/${subPath}` : ""}`;
-  if (PUBLIC_ENDPOINTS.has(fullPath)) return true;
-
-  // Registration flow token validation: /api/token/[tokenId]
-  // Note: subPath is e.g. "create-token" or "[tokenId]"
-  if (method === "GET" && namespace === "token" && subPath && subPath !== "list") return true;
-
-  return false;
-}
-
-async function checkAuthorization(
-  event: RequestEvent,
-  namespace: string,
-  subPath: string,
-): Promise<void> {
-  const { user } = event.locals;
-
-  // 1. Bypass for Public Endpoints
-  if (isPublicEndpoint(namespace, subPath, event.request.method)) return;
-
-  // 2. Authentication Required
-  if (!user) {
-    throw new AppError("Authentication required", 401, "UNAUTHORIZED");
-  }
-
-  // 4. Global Admin Bypass
-  if (user.isAdmin) return;
-
-  // 5. Unified Permission Check
-  // Note: hasApiPermission handles the granular role/permission mapping logic internally
-  if (!hasApiPermission(user.role, namespace, false)) {
-    logger.warn(
-      `Permission denied: ${event.request.method} /api/${namespace}/${subPath} for role ${user.role}`,
-    );
-    throw new AppError(
-      `Forbidden: Your role (${user.role}) does not have permission to access the ${namespace} API.`,
-      403,
-      "FORBIDDEN",
-    );
-  }
-}
-
-// ──────────────────────────────────────────────────────────────
-// MAIN DISPATCHER
-// ──────────────────────────────────────────────────────────────
 
 const dispatch = async (event: RequestEvent) => {
   const { request, url, params, locals, cookies } = event;
   const { path } = params;
   const { user, tenantId } = locals;
-
-  // --- 1. CSRF Protection (State-changing methods) ---
-  const isSecure = url.protocol === "https:" || (!dev && url.hostname !== "localhost");
-  const isStateChanging = ["POST", "PUT", "PATCH", "DELETE"].includes(request.method);
-
-  if (
-    process.env.TEST_MODE !== "true" &&
-    isStateChanging &&
-    !path.includes("/auth/login") &&
-    !path.includes("/auth/saml/acs")
-  ) {
-    const csrfResult = validateCsrfForRequest(cookies, request, isSecure);
-    if (!csrfResult.isValid) {
-      logger.warn(`CSRF validation failed for ${request.method} ${path}: ${csrfResult.error}`);
-      throw new AppError(`Security violation: ${csrfResult.error}`, 403, "CSRF_VIOLATION");
-    }
-  }
-
   const segments = getSegments(path as string);
   const namespace = segments[0];
-  // subPath is everything after namespace
-  const subPath = segments.slice(1).join("/");
 
-  // --- 2. Multi-Tenant Validation ---
-  const MULTI_TENANT = getPrivateSettingSync("MULTI_TENANT");
-  const exemptFromTenant =
-    ["setup", "system", "health", "metrics"].includes(namespace) ||
-    (namespace === "auth" && ["login", "saml"].includes(segments[1])) ||
-    (namespace === "token" && subPath && subPath !== "list"); // Token validation is tenant-agnostic or handles it internally
-
-  if (MULTI_TENANT && !tenantId && !exemptFromTenant) {
-    throw new AppError("Tenant ID required for this endpoint", 400, "TENANT_MISSING");
+  if (!namespace) {
+    return new Response("Not Found", { status: 404 });
   }
 
-  // --- 3. Immediate Health Check (Pre-init) ---
+  // --- Health Check ---
   if (namespace === "system" && segments[1] === "health") {
     const health = {
       status: dbAdapter ? "healthy" : "initializing",
@@ -147,111 +96,39 @@ const dispatch = async (event: RequestEvent) => {
       dbType: process.env.DB_TYPE || "unknown",
       dbVersion: cachedDbVersion || "unknown",
     };
-
     if (dbAdapter && !cachedDbVersion) {
-      try {
-        const versionRes = await dbAdapter.getVersion();
-        if (versionRes.success) {
-          cachedDbVersion = versionRes.data;
-          health.dbVersion = cachedDbVersion;
-        }
-      } catch {
-        /* stabilize */
-      }
+      const v = await dbAdapter.getVersion();
+      if (v.success) cachedDbVersion = v.data;
     }
     return json(health);
   }
 
-  // --- 4. Initialization & Authorization ---
+  // --- CSRF Protection ---
+  const isSecure = url.protocol === "https:" || (!dev && url.hostname !== "localhost");
+  if (
+    process.env.TEST_MODE !== "true" &&
+    ["POST", "PUT", "PATCH", "DELETE"].includes(request.method)
+  ) {
+    const csrfResult = validateCsrfForRequest(cookies, request, isSecure);
+    if (!csrfResult.isValid)
+      throw new AppError(`Security violation: ${csrfResult.error}`, 403, "CSRF_VIOLATION");
+  }
+
+  // --- Init & Auth ---
   await getDbInitPromise();
-
-  logger.info(
-    `Dispatcher TRACE: ${request.method} /api/${path} | TEST_MODE: ${process.env.TEST_MODE} | user: ${locals.user?._id || "none"}`,
-  );
-
-  // Auth logic after DB init to ensure roles/permissions are available
-  await checkAuthorization(event, namespace, subPath);
-
-  // --- 5. Domain Dispatching ---
   const cms = new LocalCMS(dbAdapter!);
 
-  try {
-    if (namespace === "search" && request.method === "GET") {
-      const query = url.searchParams.get("q") || "";
-      const collections = url.searchParams
-        .get("collections")
-        ?.split(",")
-        .map((c) => c.trim());
-      const result = await cms.collections.search(query, {
-        collections,
-        tenantId: tenantId as any,
-        user,
-      });
-      return url.searchParams.get("raw") === "true"
-        ? rawResponse(event, result)
-        : successResponse(event, result);
-    }
+  const config = NAMESPACE_CONFIG[namespace] || { handler: "system", fn: "handleSystemRoutes" };
+  const handlerModule = await HANDLERS[config.handler]();
+  const fn = handlerModule[config.fn];
 
-    if (namespace === "get-tokens-provided" && request.method === "GET") {
-      return rawResponse(event, {
-        google: Boolean(getPrivateSettingSync("GOOGLE_API_KEY", tenantId!)),
-        twitch: Boolean(getPrivateSettingSync("TWITCH_TOKEN", tenantId!)),
-        tiktok: Boolean(getPrivateSettingSync("TIKTOK_TOKEN", tenantId!)),
-      });
-    }
-
-    // ── Delegate to domain handlers ──
-    switch (namespace) {
-      case "auth":
-      case "user":
-        return await handleAuthUserRoutes(event, cms, tenantId as DatabaseId, namespace, segments);
-
-      case "collections":
-        return await handleCollectionsRoutes(event, cms, tenantId as DatabaseId, segments);
-
-      case "media":
-        return await handleMediaRoutes(event, cms, tenantId as DatabaseId, segments);
-
-      case "widgets":
-      case "system":
-      case "settings":
-      case "system-settings":
-      case "importer":
-      case "import-data":
-      case "ai":
-      case "automations":
-      case "metrics":
-      case "telemetry":
-      case "theme":
-        return await handleSystemRoutes(event, cms, tenantId as string, namespace, segments);
-
-      case "token":
-      case "website-tokens":
-        return await handleTokenRoutes(event, cms, tenantId as DatabaseId, namespace, segments);
-
-      case "events":
-      case "content":
-      case "content-structure":
-        return await handleContentRoutes(event, namespace, segments);
-
-      default:
-        throw new AppError(`Endpoint /api/${path} not implemented`, 404);
-    }
-  } catch (err: any) {
-    if (err instanceof AppError) throw err;
-    logger.error(`API Refactored Dispatcher Error: ${err.message}`, {
-      path,
-      method: request.method,
-      stack: err.stack,
-    });
-    throw new AppError(err.message || "Internal Server Error", err.status || 500);
+  if (typeof fn !== "function") {
+    throw new AppError(`Handler function ${config.fn} not found in ${config.handler}`, 500);
   }
+
+  return await fn(event, cms, tenantId as DatabaseId, segments);
 };
 
-/** @internal Export dispatcher logic for unit testing */
-export const _handler = dispatch;
-
-/** API endpoint verbs mapping */
 export const GET = apiHandler(dispatch);
 export const POST = apiHandler(dispatch);
 export const PUT = apiHandler(dispatch);

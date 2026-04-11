@@ -38,6 +38,7 @@ type AuditDetails = Record<string, string | number | boolean | null | undefined>
 // Audit log entry interface extending BaseEntity
 export interface AuditLogEntry extends BaseEntity {
   action: string; // Human-readable action description
+  message?: string; // Optional human-readable detail message
   actorEmail?: string; // For easier querying
   actorId: DatabaseId | null; // User who performed the action
   actorRole?: string;

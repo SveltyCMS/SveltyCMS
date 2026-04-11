@@ -1,23 +1,23 @@
 {
-  "timestamp": "2026-04-05T16:18:15.518Z",
+  "timestamp": "2026-04-11T18:05:02.725Z",
   "stats": {
-    "totalSize": 3314231,
-    "totalGzip": 1085453,
-    "totalBrotli": 902368,
-    "jsCount": 235,
-    "cssCount": 40,
-    "buildTime": 7542.1466,
-    "clientModules": 500,
-    "serverModules": 975
+    "totalSize": 3701209,
+    "totalGzip": 1213532,
+    "totalBrotli": 1005441,
+    "jsCount": 236,
+    "cssCount": 41,
+    "buildTime": 9405.589899999999,
+    "clientModules": 503,
+    "serverModules": 806
   },
   "results": [
     {
-      "name": "0.BhDm5lDw.css",
+      "name": "0.qT--cXU8.css",
       "ext": ".css",
-      "size": 337332,
-      "gzipSize": 40919,
-      "brotliSize": 29317,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\assets\\0.BhDm5lDw.css"
+      "size": 341943,
+      "gzipSize": 41408,
+      "brotliSize": 29630,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\assets\\0.qT--cXU8.css"
     },
     {
       "name": "1.CDAI1NLx.css",
@@ -60,44 +60,44 @@
       "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\assets\\14.zw7t1DKi.css"
     },
     {
-      "name": "15.D2Z8DroR.css",
+      "name": "16.D2Z8DroR.css",
       "ext": ".css",
       "size": 110,
       "gzipSize": 112,
       "brotliSize": 81,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\assets\\15.D2Z8DroR.css"
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\assets\\16.D2Z8DroR.css"
     },
     {
-      "name": "2.BQePOFWw.css",
+      "name": "2.BVYQsJVi.css",
       "ext": ".css",
-      "size": 2032,
-      "gzipSize": 483,
-      "brotliSize": 389,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\assets\\2.BQePOFWw.css"
+      "size": 2103,
+      "gzipSize": 489,
+      "brotliSize": 401,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\assets\\2.BVYQsJVi.css"
     },
     {
-      "name": "20.Can_RHqa.css",
+      "name": "21.Can_RHqa.css",
       "ext": ".css",
       "size": 55,
       "gzipSize": 75,
       "brotliSize": 50,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\assets\\20.Can_RHqa.css"
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\assets\\21.Can_RHqa.css"
     },
     {
-      "name": "22.C1R-wCtI.css",
+      "name": "23.C1R-wCtI.css",
       "ext": ".css",
       "size": 335,
       "gzipSize": 232,
       "brotliSize": 184,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\assets\\22.C1R-wCtI.css"
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\assets\\23.C1R-wCtI.css"
     },
     {
-      "name": "28.C0ceAlUM.css",
+      "name": "29.Cinf78r_.css",
       "ext": ".css",
-      "size": 745,
-      "gzipSize": 300,
-      "brotliSize": 244,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\assets\\28.C0ceAlUM.css"
+      "size": 445,
+      "gzipSize": 174,
+      "brotliSize": 128,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\assets\\29.Cinf78r_.css"
     },
     {
       "name": "3.vUeBIQGX.css",
@@ -108,20 +108,20 @@
       "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\assets\\3.vUeBIQGX.css"
     },
     {
-      "name": "31.LrfIPsWm.css",
+      "name": "32.LrfIPsWm.css",
       "ext": ".css",
       "size": 1684,
       "gzipSize": 486,
       "brotliSize": 404,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\assets\\31.LrfIPsWm.css"
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\assets\\32.LrfIPsWm.css"
     },
     {
-      "name": "34.CWy1P0fR.css",
+      "name": "35.CWy1P0fR.css",
       "ext": ".css",
       "size": 1980,
       "gzipSize": 712,
       "brotliSize": 573,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\assets\\34.CWy1P0fR.css"
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\assets\\35.CWy1P0fR.css"
     },
     {
       "name": "4.rZPG0ehz.css",
@@ -220,12 +220,12 @@
       "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\assets\\image-description.bFre7OOE.css"
     },
     {
-      "name": "image-editor-modal.JbUAzoGy.css",
+      "name": "image-editor-modal.fR4I8OPI.css",
       "ext": ".css",
-      "size": 14563,
-      "gzipSize": 2613,
-      "brotliSize": 2160,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\assets\\image-editor-modal.JbUAzoGy.css"
+      "size": 16371,
+      "gzipSize": 2853,
+      "brotliSize": 2373,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\assets\\image-editor-modal.fR4I8OPI.css"
     },
     {
       "name": "import-export-manager.ZcBW6n_t.css",
@@ -274,6 +274,14 @@
       "gzipSize": 142,
       "brotliSize": 113,
       "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\assets\\missing-widget.DCTtfCGJ.css"
+    },
+    {
+      "name": "relation-modal.BDUgLVas.css",
+      "ext": ".css",
+      "size": 421,
+      "gzipSize": 194,
+      "brotliSize": 150,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\assets\\relation-modal.BDUgLVas.css"
     },
     {
       "name": "sanitize.DHIpgSrv.css",
@@ -332,308 +340,364 @@
       "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\assets\\widget-loader.f9LmZvWC.css"
     },
     {
-      "name": "1AH5FtC1.js",
+      "name": "0QgEOUbV.js",
       "ext": ".js",
-      "size": 1466,
-      "gzipSize": 726,
-      "brotliSize": 640,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\1AH5FtC1.js"
+      "size": 5191,
+      "gzipSize": 2313,
+      "brotliSize": 1565,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\0QgEOUbV.js"
     },
     {
-      "name": "2VQEZLwQ.js",
+      "name": "1dGpOt11.js",
       "ext": ".js",
-      "size": 1700,
-      "gzipSize": 912,
-      "brotliSize": 750,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\2VQEZLwQ.js"
+      "size": 4742,
+      "gzipSize": 2226,
+      "brotliSize": 1871,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\1dGpOt11.js"
     },
     {
-      "name": "4bnrWr3M2.js",
+      "name": "1mZ2f-4i.js",
       "ext": ".js",
-      "size": 1584,
-      "gzipSize": 648,
-      "brotliSize": 544,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\4bnrWr3M2.js"
+      "size": 24205,
+      "gzipSize": 9021,
+      "brotliSize": 7704,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\1mZ2f-4i.js"
     },
     {
-      "name": "4ELQZ7Ty.js",
+      "name": "1O-DWY6x.js",
       "ext": ".js",
-      "size": 9272,
-      "gzipSize": 3724,
-      "brotliSize": 3173,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\4ELQZ7Ty.js"
+      "size": 14879,
+      "gzipSize": 5454,
+      "brotliSize": 4590,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\1O-DWY6x.js"
     },
     {
-      "name": "9HpWFUX2.js",
+      "name": "2Ua1LwlA.js",
       "ext": ".js",
-      "size": 10915,
-      "gzipSize": 3667,
-      "brotliSize": 3231,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\9HpWFUX2.js"
+      "size": 143614,
+      "gzipSize": 52729,
+      "brotliSize": 44803,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\2Ua1LwlA.js"
     },
     {
-      "name": "9UoyYCyH.js",
+      "name": "4bD3ltqj2.js",
       "ext": ".js",
-      "size": 2735,
-      "gzipSize": 1532,
-      "brotliSize": 1330,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\9UoyYCyH.js"
+      "size": 3580,
+      "gzipSize": 1464,
+      "brotliSize": 1218,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\4bD3ltqj2.js"
     },
     {
-      "name": "atIPc6-j.js",
+      "name": "6JOb1Sz4.js",
       "ext": ".js",
-      "size": 58894,
-      "gzipSize": 18220,
-      "brotliSize": 14925,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\atIPc6-j.js"
+      "size": 5330,
+      "gzipSize": 1869,
+      "brotliSize": 1587,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\6JOb1Sz4.js"
     },
     {
-      "name": "AUzpeMmE.js",
+      "name": "7Sw8WDOX.js",
+      "ext": ".js",
+      "size": 3650,
+      "gzipSize": 1332,
+      "brotliSize": 1144,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\7Sw8WDOX.js"
+    },
+    {
+      "name": "8s9Wd4ws.js",
+      "ext": ".js",
+      "size": 359,
+      "gzipSize": 229,
+      "brotliSize": 218,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\8s9Wd4ws.js"
+    },
+    {
+      "name": "8tFvldWy.js",
+      "ext": ".js",
+      "size": 39307,
+      "gzipSize": 9423,
+      "brotliSize": 7823,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\8tFvldWy.js"
+    },
+    {
+      "name": "9yircszd2.js",
+      "ext": ".js",
+      "size": 897,
+      "gzipSize": 587,
+      "brotliSize": 543,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\9yircszd2.js"
+    },
+    {
+      "name": "B1nmxWiR2.js",
+      "ext": ".js",
+      "size": 19984,
+      "gzipSize": 7118,
+      "brotliSize": 6034,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\B1nmxWiR2.js"
+    },
+    {
+      "name": "B2i_UYYw.js",
+      "ext": ".js",
+      "size": 4442,
+      "gzipSize": 2065,
+      "brotliSize": 1755,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\B2i_UYYw.js"
+    },
+    {
+      "name": "B4aE_xKw.js",
       "ext": ".js",
       "size": 59,
       "gzipSize": 74,
       "brotliSize": 63,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\AUzpeMmE.js"
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\B4aE_xKw.js"
     },
     {
-      "name": "B0m30ZM6.js",
+      "name": "B56PZmIG.js",
       "ext": ".js",
-      "size": 2792,
-      "gzipSize": 1300,
-      "brotliSize": 1118,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\B0m30ZM6.js"
+      "size": 249,
+      "gzipSize": 220,
+      "brotliSize": 184,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\B56PZmIG.js"
     },
     {
-      "name": "B1MSL1US.js",
+      "name": "B5a6fcKx2.js",
       "ext": ".js",
-      "size": 135230,
-      "gzipSize": 43055,
-      "brotliSize": 32796,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\B1MSL1US.js"
+      "size": 1261,
+      "gzipSize": 506,
+      "brotliSize": 406,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\B5a6fcKx2.js"
     },
     {
-      "name": "B2AEKdmz.js",
+      "name": "B6I-JVR_2.js",
       "ext": ".js",
-      "size": 170,
-      "gzipSize": 170,
-      "brotliSize": 150,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\B2AEKdmz.js"
-    },
-    {
-      "name": "B2zlMXFl.js",
-      "ext": ".js",
-      "size": 1952,
-      "gzipSize": 1093,
-      "brotliSize": 952,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\B2zlMXFl.js"
-    },
-    {
-      "name": "B5WBgkpO.js",
-      "ext": ".js",
-      "size": 5191,
-      "gzipSize": 2314,
-      "brotliSize": 1567,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\B5WBgkpO.js"
-    },
-    {
-      "name": "B7o4ppRB2.js",
-      "ext": ".js",
-      "size": 6986,
-      "gzipSize": 2945,
-      "brotliSize": 2467,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\B7o4ppRB2.js"
-    },
-    {
-      "name": "B7xxIHbb.js",
-      "ext": ".js",
-      "size": 5568,
-      "gzipSize": 2354,
-      "brotliSize": 1948,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\B7xxIHbb.js"
-    },
-    {
-      "name": "B8aqDuoH.js",
-      "ext": ".js",
-      "size": 16164,
-      "gzipSize": 5985,
-      "brotliSize": 5069,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\B8aqDuoH.js"
-    },
-    {
-      "name": "BAxWpDlA2.js",
-      "ext": ".js",
-      "size": 1809,
-      "gzipSize": 915,
+      "size": 2150,
+      "gzipSize": 946,
       "brotliSize": 776,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BAxWpDlA2.js"
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\B6I-JVR_2.js"
     },
     {
-      "name": "BB4z2CTL2.js",
-      "ext": ".js",
-      "size": 1588,
-      "gzipSize": 886,
-      "brotliSize": 762,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BB4z2CTL2.js"
-    },
-    {
-      "name": "BbNuNK3a.js",
-      "ext": ".js",
-      "size": 6936,
-      "gzipSize": 2963,
-      "brotliSize": 2452,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BbNuNK3a.js"
-    },
-    {
-      "name": "BbRQOKwl2.js",
-      "ext": ".js",
-      "size": 825,
-      "gzipSize": 559,
-      "brotliSize": 489,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BbRQOKwl2.js"
-    },
-    {
-      "name": "BCNYisez2.js",
-      "ext": ".js",
-      "size": 897,
-      "gzipSize": 588,
-      "brotliSize": 536,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BCNYisez2.js"
-    },
-    {
-      "name": "BCrf0JOs.js",
+      "name": "B7h1oq5V.js",
       "ext": ".js",
       "size": 0,
       "gzipSize": 20,
       "brotliSize": 1,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BCrf0JOs.js"
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\B7h1oq5V.js"
     },
     {
-      "name": "BDm328f2.js",
+      "name": "B9E5FbQM.js",
       "ext": ".js",
-      "size": 4235,
-      "gzipSize": 1994,
-      "brotliSize": 1711,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BDm328f2.js"
+      "size": 1500,
+      "gzipSize": 668,
+      "brotliSize": 599,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\B9E5FbQM.js"
     },
     {
-      "name": "BEoxX2Ah.js",
+      "name": "BA5LJDtw2.js",
       "ext": ".js",
-      "size": 11782,
-      "gzipSize": 4319,
-      "brotliSize": 3647,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BEoxX2Ah.js"
+      "size": 797,
+      "gzipSize": 543,
+      "brotliSize": 460,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BA5LJDtw2.js"
     },
     {
-      "name": "BfS1s0qj2.js",
+      "name": "Badjx7Jo.js",
       "ext": ".js",
-      "size": 13094,
-      "gzipSize": 5092,
-      "brotliSize": 4312,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BfS1s0qj2.js"
+      "size": 1466,
+      "gzipSize": 725,
+      "brotliSize": 643,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\Badjx7Jo.js"
     },
     {
-      "name": "BfuGL6Ug.js",
+      "name": "BbJz_uou.js",
       "ext": ".js",
-      "size": 175,
-      "gzipSize": 169,
-      "brotliSize": 164,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BfuGL6Ug.js"
+      "size": 1108,
+      "gzipSize": 649,
+      "brotliSize": 553,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BbJz_uou.js"
     },
     {
-      "name": "BfXh-Z7H.js",
+      "name": "BBMSSsop.js",
       "ext": ".js",
-      "size": 871,
-      "gzipSize": 436,
-      "brotliSize": 372,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BfXh-Z7H.js"
+      "size": 5706,
+      "gzipSize": 2501,
+      "brotliSize": 2095,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BBMSSsop.js"
     },
     {
-      "name": "Bg7Z4fZJ.js",
+      "name": "BC9WMZKC.js",
       "ext": ".js",
-      "size": 2440,
-      "gzipSize": 1254,
-      "brotliSize": 1081,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\Bg7Z4fZJ.js"
+      "size": 6134,
+      "gzipSize": 2276,
+      "brotliSize": 1954,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BC9WMZKC.js"
     },
     {
-      "name": "BGDohXBa.js",
+      "name": "BC_CNqAZ.js",
       "ext": ".js",
-      "size": 22107,
-      "gzipSize": 8687,
-      "brotliSize": 7586,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BGDohXBa.js"
+      "size": 9139,
+      "gzipSize": 4004,
+      "brotliSize": 3386,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BC_CNqAZ.js"
     },
     {
-      "name": "BGFRcTvD.js",
+      "name": "BdficMzQ.js",
       "ext": ".js",
-      "size": 8695,
+      "size": 37853,
+      "gzipSize": 10690,
+      "brotliSize": 9246,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BdficMzQ.js"
+    },
+    {
+      "name": "BDzjkfsr.js",
+      "ext": ".js",
+      "size": 2792,
+      "gzipSize": 1298,
+      "brotliSize": 1113,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BDzjkfsr.js"
+    },
+    {
+      "name": "BeBZ901u.js",
+      "ext": ".js",
+      "size": 58,
+      "gzipSize": 74,
+      "brotliSize": 62,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BeBZ901u.js"
+    },
+    {
+      "name": "BEO3GZyd.js",
+      "ext": ".js",
+      "size": 16164,
+      "gzipSize": 5985,
+      "brotliSize": 5070,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BEO3GZyd.js"
+    },
+    {
+      "name": "Bfq6YZkw.js",
+      "ext": ".js",
+      "size": 16626,
+      "gzipSize": 5466,
+      "brotliSize": 4580,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\Bfq6YZkw.js"
+    },
+    {
+      "name": "Bh0KVWT2.js",
+      "ext": ".js",
+      "size": 23215,
+      "gzipSize": 9152,
+      "brotliSize": 8008,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\Bh0KVWT2.js"
+    },
+    {
+      "name": "BHd-fZ5U2.js",
+      "ext": ".js",
+      "size": 827,
+      "gzipSize": 582,
+      "brotliSize": 496,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BHd-fZ5U2.js"
+    },
+    {
+      "name": "BHKS3dk9.js",
+      "ext": ".js",
+      "size": 6157,
+      "gzipSize": 2828,
+      "brotliSize": 2370,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BHKS3dk9.js"
+    },
+    {
+      "name": "BHMq4YBE.js",
+      "ext": ".js",
+      "size": 1952,
+      "gzipSize": 1095,
+      "brotliSize": 956,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BHMq4YBE.js"
+    },
+    {
+      "name": "BIcCWlS8.js",
+      "ext": ".js",
+      "size": 1246,
+      "gzipSize": 775,
+      "brotliSize": 655,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BIcCWlS8.js"
+    },
+    {
+      "name": "Bilcjlj62.js",
+      "ext": ".js",
+      "size": 3684,
+      "gzipSize": 1794,
+      "brotliSize": 1543,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\Bilcjlj62.js"
+    },
+    {
+      "name": "BirSOPjS2.js",
+      "ext": ".js",
+      "size": 5936,
+      "gzipSize": 2530,
+      "brotliSize": 2112,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BirSOPjS2.js"
+    },
+    {
+      "name": "bJ8W8q7V.js",
+      "ext": ".js",
+      "size": 9272,
+      "gzipSize": 3724,
+      "brotliSize": 3177,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\bJ8W8q7V.js"
+    },
+    {
+      "name": "BK3rTAYO.js",
+      "ext": ".js",
+      "size": 164645,
+      "gzipSize": 59942,
+      "brotliSize": 50348,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BK3rTAYO.js"
+    },
+    {
+      "name": "BKgsVRBW2.js",
+      "ext": ".js",
+      "size": 1588,
+      "gzipSize": 887,
+      "brotliSize": 766,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BKgsVRBW2.js"
+    },
+    {
+      "name": "BkMV2rz8.js",
+      "ext": ".js",
+      "size": 5079,
+      "gzipSize": 2504,
+      "brotliSize": 2122,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BkMV2rz8.js"
+    },
+    {
+      "name": "BkSe2CbI.js",
+      "ext": ".js",
+      "size": 1047,
+      "gzipSize": 522,
+      "brotliSize": 420,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BkSe2CbI.js"
+    },
+    {
+      "name": "BktRgoKa2.js",
+      "ext": ".js",
+      "size": 1598,
+      "gzipSize": 658,
+      "brotliSize": 556,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BktRgoKa2.js"
+    },
+    {
+      "name": "BL1T01Q5.js",
+      "ext": ".js",
+      "size": 6130,
+      "gzipSize": 2501,
+      "brotliSize": 2133,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BL1T01Q5.js"
+    },
+    {
+      "name": "BlBitjjE2.js",
+      "ext": ".js",
+      "size": 8696,
       "gzipSize": 3298,
-      "brotliSize": 2882,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BGFRcTvD.js"
-    },
-    {
-      "name": "BghWfwYZ.js",
-      "ext": ".js",
-      "size": 4326,
-      "gzipSize": 2065,
-      "brotliSize": 1710,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BghWfwYZ.js"
-    },
-    {
-      "name": "BgiF8Dnm.js",
-      "ext": ".js",
-      "size": 464,
-      "gzipSize": 343,
-      "brotliSize": 311,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BgiF8Dnm.js"
-    },
-    {
-      "name": "Bklpk76A.js",
-      "ext": ".js",
-      "size": 30635,
-      "gzipSize": 10057,
-      "brotliSize": 8589,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\Bklpk76A.js"
-    },
-    {
-      "name": "BKtungJi.js",
-      "ext": ".js",
-      "size": 6843,
-      "gzipSize": 3091,
-      "brotliSize": 2585,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BKtungJi.js"
-    },
-    {
-      "name": "BlrACvkp2.js",
-      "ext": ".js",
-      "size": 1261,
-      "gzipSize": 504,
-      "brotliSize": 402,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BlrACvkp2.js"
-    },
-    {
-      "name": "BLWfIuTM2.js",
-      "ext": ".js",
-      "size": 14808,
-      "gzipSize": 4369,
-      "brotliSize": 3426,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BLWfIuTM2.js"
-    },
-    {
-      "name": "BmHPPFu-.js",
-      "ext": ".js",
-      "size": 497,
-      "gzipSize": 364,
-      "brotliSize": 315,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BmHPPFu-.js"
-    },
-    {
-      "name": "Bnf91vwA.js",
-      "ext": ".js",
-      "size": 36102,
-      "gzipSize": 14543,
-      "brotliSize": 12716,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\Bnf91vwA.js"
+      "brotliSize": 2885,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BlBitjjE2.js"
     },
     {
       "name": "BNh3hakL.js",
@@ -644,52 +708,36 @@
       "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BNh3hakL.js"
     },
     {
-      "name": "BNi6W1aR.js",
+      "name": "BO3mbSiS.js",
       "ext": ".js",
-      "size": 892,
-      "gzipSize": 568,
-      "brotliSize": 478,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BNi6W1aR.js"
+      "size": 1910,
+      "gzipSize": 1064,
+      "brotliSize": 937,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BO3mbSiS.js"
     },
     {
-      "name": "BNj9GVbM.js",
+      "name": "BoURgky1.js",
       "ext": ".js",
-      "size": 5079,
-      "gzipSize": 2504,
-      "brotliSize": 2122,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BNj9GVbM.js"
+      "size": 5713,
+      "gzipSize": 1942,
+      "brotliSize": 1634,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BoURgky1.js"
     },
     {
-      "name": "BNYdJDel2.js",
+      "name": "BPGRQk3O.js",
       "ext": ".js",
-      "size": 1723,
-      "gzipSize": 946,
-      "brotliSize": 833,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BNYdJDel2.js"
+      "size": 5049,
+      "gzipSize": 2000,
+      "brotliSize": 1700,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BPGRQk3O.js"
     },
     {
-      "name": "BNZ4iO2F.js",
+      "name": "BPJv3lr32.js",
       "ext": ".js",
-      "size": 173,
-      "gzipSize": 177,
-      "brotliSize": 177,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BNZ4iO2F.js"
-    },
-    {
-      "name": "BOBjysyX.js",
-      "ext": ".js",
-      "size": 539,
-      "gzipSize": 317,
-      "brotliSize": 279,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BOBjysyX.js"
-    },
-    {
-      "name": "BP-hLb_C.js",
-      "ext": ".js",
-      "size": 2337,
-      "gzipSize": 1270,
-      "brotliSize": 1082,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BP-hLb_C.js"
+      "size": 18632,
+      "gzipSize": 7621,
+      "brotliSize": 6794,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BPJv3lr32.js"
     },
     {
       "name": "BQL3bsx1.js",
@@ -700,892 +748,876 @@
       "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BQL3bsx1.js"
     },
     {
-      "name": "BrDtmFwU.js",
+      "name": "BQMeRJEE.js",
       "ext": ".js",
-      "size": 2394,
-      "gzipSize": 1287,
-      "brotliSize": 1088,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BrDtmFwU.js"
+      "size": 7254,
+      "gzipSize": 3022,
+      "brotliSize": 2572,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BQMeRJEE.js"
     },
     {
-      "name": "Bs2VrDwd2.js",
+      "name": "bRLvqSeS.js",
       "ext": ".js",
-      "size": 797,
-      "gzipSize": 543,
-      "brotliSize": 460,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\Bs2VrDwd2.js"
+      "size": 440,
+      "gzipSize": 292,
+      "brotliSize": 248,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\bRLvqSeS.js"
     },
     {
-      "name": "BsmOLaeK.js",
+      "name": "BSRr1NXz.js",
+      "ext": ".js",
+      "size": 43926,
+      "gzipSize": 15669,
+      "brotliSize": 13649,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BSRr1NXz.js"
+    },
+    {
+      "name": "BTzMWdrA2.js",
+      "ext": ".js",
+      "size": 2806,
+      "gzipSize": 1443,
+      "brotliSize": 1256,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BTzMWdrA2.js"
+    },
+    {
+      "name": "BU_1D8f6.js",
+      "ext": ".js",
+      "size": 71837,
+      "gzipSize": 22567,
+      "brotliSize": 18369,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BU_1D8f6.js"
+    },
+    {
+      "name": "Bv-uG7oY.js",
+      "ext": ".js",
+      "size": 767,
+      "gzipSize": 536,
+      "brotliSize": 468,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\Bv-uG7oY.js"
+    },
+    {
+      "name": "BvSCzRnY.js",
+      "ext": ".js",
+      "size": 135230,
+      "gzipSize": 43054,
+      "brotliSize": 32796,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BvSCzRnY.js"
+    },
+    {
+      "name": "BWT0MBUL2.js",
+      "ext": ".js",
+      "size": 3280,
+      "gzipSize": 1576,
+      "brotliSize": 1322,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BWT0MBUL2.js"
+    },
+    {
+      "name": "BXeSsfY7.js",
+      "ext": ".js",
+      "size": 11262,
+      "gzipSize": 4563,
+      "brotliSize": 3870,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BXeSsfY7.js"
+    },
+    {
+      "name": "BygS5yoC.js",
       "ext": ".js",
       "size": 51,
       "gzipSize": 67,
       "brotliSize": 55,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BsmOLaeK.js"
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BygS5yoC.js"
     },
     {
-      "name": "BTCp-ABV2.js",
+      "name": "Byl6IRqK.js",
       "ext": ".js",
-      "size": 26280,
-      "gzipSize": 8560,
-      "brotliSize": 7244,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BTCp-ABV2.js"
+      "size": 12847,
+      "gzipSize": 4337,
+      "brotliSize": 3759,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\Byl6IRqK.js"
     },
     {
-      "name": "BUcV3D6b.js",
+      "name": "BzFrZS1g2.js",
       "ext": ".js",
-      "size": 12658,
-      "gzipSize": 4271,
-      "brotliSize": 3706,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BUcV3D6b.js"
+      "size": 300,
+      "gzipSize": 251,
+      "brotliSize": 209,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BzFrZS1g2.js"
     },
     {
-      "name": "BUZjCh4q.js",
+      "name": "BZhorQ8M.js",
+      "ext": ".js",
+      "size": 418545,
+      "gzipSize": 137605,
+      "brotliSize": 111861,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BZhorQ8M.js"
+    },
+    {
+      "name": "C-fm-KX7.js",
+      "ext": ".js",
+      "size": 2388,
+      "gzipSize": 982,
+      "brotliSize": 822,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\C-fm-KX7.js"
+    },
+    {
+      "name": "C1K-CB022.js",
+      "ext": ".js",
+      "size": 9249,
+      "gzipSize": 4088,
+      "brotliSize": 3514,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\C1K-CB022.js"
+    },
+    {
+      "name": "C2QyAAKy2.js",
+      "ext": ".js",
+      "size": 303,
+      "gzipSize": 253,
+      "brotliSize": 194,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\C2QyAAKy2.js"
+    },
+    {
+      "name": "C2xEuFcn.js",
+      "ext": ".js",
+      "size": 6936,
+      "gzipSize": 2961,
+      "brotliSize": 2458,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\C2xEuFcn.js"
+    },
+    {
+      "name": "C4R0-rPa.js",
+      "ext": ".js",
+      "size": 12354,
+      "gzipSize": 3435,
+      "brotliSize": 2905,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\C4R0-rPa.js"
+    },
+    {
+      "name": "C4z6qHx8.js",
+      "ext": ".js",
+      "size": 14452,
+      "gzipSize": 5027,
+      "brotliSize": 4359,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\C4z6qHx8.js"
+    },
+    {
+      "name": "C6mfN9yN.js",
+      "ext": ".js",
+      "size": 227,
+      "gzipSize": 198,
+      "brotliSize": 194,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\C6mfN9yN.js"
+    },
+    {
+      "name": "C6o-3fhi.js",
+      "ext": ".js",
+      "size": 2209,
+      "gzipSize": 1018,
+      "brotliSize": 851,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\C6o-3fhi.js"
+    },
+    {
+      "name": "C7hSRmRp.js",
+      "ext": ".js",
+      "size": 5696,
+      "gzipSize": 2384,
+      "brotliSize": 2003,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\C7hSRmRp.js"
+    },
+    {
+      "name": "C8gq_xC5.js",
+      "ext": ".js",
+      "size": 10820,
+      "gzipSize": 3465,
+      "brotliSize": 2712,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\C8gq_xC5.js"
+    },
+    {
+      "name": "C8QeSQE8.js",
       "ext": ".js",
       "size": 2902,
-      "gzipSize": 1454,
-      "brotliSize": 1214,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BUZjCh4q.js"
+      "gzipSize": 1457,
+      "brotliSize": 1216,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\C8QeSQE8.js"
     },
     {
-      "name": "BV5yz2Ih2.js",
+      "name": "C8wgjcrN.js",
       "ext": ".js",
-      "size": 2150,
-      "gzipSize": 946,
-      "brotliSize": 775,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BV5yz2Ih2.js"
+      "size": 2250,
+      "gzipSize": 1226,
+      "brotliSize": 1040,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\C8wgjcrN.js"
     },
     {
-      "name": "BVKY0p0A.js",
+      "name": "C9fJ_rKI.js",
       "ext": ".js",
-      "size": 3131,
-      "gzipSize": 1585,
-      "brotliSize": 1362,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BVKY0p0A.js"
+      "size": 14120,
+      "gzipSize": 5915,
+      "brotliSize": 5008,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\C9fJ_rKI.js"
     },
     {
-      "name": "Bw59jlnj2.js",
+      "name": "CbLoxkzT.js",
       "ext": ".js",
-      "size": 15070,
-      "gzipSize": 4646,
-      "brotliSize": 3844,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\Bw59jlnj2.js"
+      "size": 2337,
+      "gzipSize": 1270,
+      "brotliSize": 1086,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\CbLoxkzT.js"
     },
     {
-      "name": "Bwd7w3Lj.js",
+      "name": "CBtOHYOe2.js",
+      "ext": ".js",
+      "size": 14808,
+      "gzipSize": 4369,
+      "brotliSize": 3426,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\CBtOHYOe2.js"
+    },
+    {
+      "name": "Cbuv1QzW.js",
+      "ext": ".js",
+      "size": 49927,
+      "gzipSize": 15048,
+      "brotliSize": 12667,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\Cbuv1QzW.js"
+    },
+    {
+      "name": "CDZy0jfI.js",
       "ext": ".js",
       "size": 56,
       "gzipSize": 71,
       "brotliSize": 60,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\Bwd7w3Lj.js"
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\CDZy0jfI.js"
     },
     {
-      "name": "BxsdZsha.js",
+      "name": "Ce5sEqze.js",
+      "ext": ".js",
+      "size": 2615,
+      "gzipSize": 1362,
+      "brotliSize": 1188,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\Ce5sEqze.js"
+    },
+    {
+      "name": "CexkxAAZ2.js",
+      "ext": ".js",
+      "size": 2929,
+      "gzipSize": 1419,
+      "brotliSize": 1201,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\CexkxAAZ2.js"
+    },
+    {
+      "name": "CeZYEkSx.js",
+      "ext": ".js",
+      "size": 1767,
+      "gzipSize": 886,
+      "brotliSize": 769,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\CeZYEkSx.js"
+    },
+    {
+      "name": "Cf3TbgX-.js",
+      "ext": ".js",
+      "size": 12766,
+      "gzipSize": 5488,
+      "brotliSize": 4849,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\Cf3TbgX-.js"
+    },
+    {
+      "name": "CfO3R_8C2.js",
+      "ext": ".js",
+      "size": 1160,
+      "gzipSize": 679,
+      "brotliSize": 569,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\CfO3R_8C2.js"
+    },
+    {
+      "name": "CGuJwVzJ2.js",
+      "ext": ".js",
+      "size": 2620,
+      "gzipSize": 1088,
+      "brotliSize": 906,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\CGuJwVzJ2.js"
+    },
+    {
+      "name": "ChR6Yg78.js",
+      "ext": ".js",
+      "size": 7827,
+      "gzipSize": 2891,
+      "brotliSize": 2335,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\ChR6Yg78.js"
+    },
+    {
+      "name": "CHrd2Glc.js",
+      "ext": ".js",
+      "size": 3621,
+      "gzipSize": 1482,
+      "brotliSize": 1235,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\CHrd2Glc.js"
+    },
+    {
+      "name": "ChWppORR.js",
+      "ext": ".js",
+      "size": 26960,
+      "gzipSize": 8830,
+      "brotliSize": 7655,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\ChWppORR.js"
+    },
+    {
+      "name": "CkpHGa_i2.js",
+      "ext": ".js",
+      "size": 452,
+      "gzipSize": 337,
+      "brotliSize": 286,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\CkpHGa_i2.js"
+    },
+    {
+      "name": "Cmhb9NUM2.js",
+      "ext": ".js",
+      "size": 22224,
+      "gzipSize": 8535,
+      "brotliSize": 7233,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\Cmhb9NUM2.js"
+    },
+    {
+      "name": "Cn9mfSab.js",
+      "ext": ".js",
+      "size": 1685,
+      "gzipSize": 750,
+      "brotliSize": 622,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\Cn9mfSab.js"
+    },
+    {
+      "name": "CnLifxv_.js",
+      "ext": ".js",
+      "size": 2077,
+      "gzipSize": 1155,
+      "brotliSize": 994,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\CnLifxv_.js"
+    },
+    {
+      "name": "CNU1T7Z62.js",
+      "ext": ".js",
+      "size": 668,
+      "gzipSize": 460,
+      "brotliSize": 384,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\CNU1T7Z62.js"
+    },
+    {
+      "name": "COhapQeM.js",
+      "ext": ".js",
+      "size": 471,
+      "gzipSize": 342,
+      "brotliSize": 296,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\COhapQeM.js"
+    },
+    {
+      "name": "CrG0PUjD2.js",
+      "ext": ".js",
+      "size": 528,
+      "gzipSize": 381,
+      "brotliSize": 333,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\CrG0PUjD2.js"
+    },
+    {
+      "name": "CrntqFZV.js",
+      "ext": ".js",
+      "size": 173,
+      "gzipSize": 175,
+      "brotliSize": 163,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\CrntqFZV.js"
+    },
+    {
+      "name": "CS16q_Un2.js",
+      "ext": ".js",
+      "size": 1622,
+      "gzipSize": 995,
+      "brotliSize": 854,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\CS16q_Un2.js"
+    },
+    {
+      "name": "CS8i1czs.js",
+      "ext": ".js",
+      "size": 754,
+      "gzipSize": 452,
+      "brotliSize": 399,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\CS8i1czs.js"
+    },
+    {
+      "name": "CTjbw9DY.js",
+      "ext": ".js",
+      "size": 5808,
+      "gzipSize": 2614,
+      "brotliSize": 2226,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\CTjbw9DY.js"
+    },
+    {
+      "name": "CtPFpf8g.js",
       "ext": ".js",
       "size": 1230,
       "gzipSize": 720,
       "brotliSize": 595,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BxsdZsha.js"
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\CtPFpf8g.js"
     },
     {
-      "name": "BxYcA25s2.js",
+      "name": "CTXcR06o2.js",
       "ext": ".js",
-      "size": 4661,
-      "gzipSize": 2017,
-      "brotliSize": 1677,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BxYcA25s2.js"
+      "size": 2138,
+      "gzipSize": 1166,
+      "brotliSize": 1007,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\CTXcR06o2.js"
     },
     {
-      "name": "By9yNyyF2.js",
+      "name": "CuW__3y2.js",
       "ext": ".js",
-      "size": 3742,
-      "gzipSize": 1782,
-      "brotliSize": 1502,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\By9yNyyF2.js"
+      "size": 175,
+      "gzipSize": 170,
+      "brotliSize": 162,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\CuW__3y2.js"
     },
     {
-      "name": "BZA2m9TZ.js",
+      "name": "CvBRjWjA2.js",
       "ext": ".js",
-      "size": 7827,
-      "gzipSize": 2891,
-      "brotliSize": 2334,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BZA2m9TZ.js"
+      "size": 3495,
+      "gzipSize": 1565,
+      "brotliSize": 1341,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\CvBRjWjA2.js"
     },
     {
-      "name": "BZUDDqNO2.js",
-      "ext": ".js",
-      "size": 6957,
-      "gzipSize": 2805,
-      "brotliSize": 2380,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BZUDDqNO2.js"
-    },
-    {
-      "name": "BZXf0_XW.js",
-      "ext": ".js",
-      "size": 16626,
-      "gzipSize": 5465,
-      "brotliSize": 4593,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\BZXf0_XW.js"
-    },
-    {
-      "name": "C-Q5WpEM.js",
-      "ext": ".js",
-      "size": 1036,
-      "gzipSize": 629,
-      "brotliSize": 552,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\C-Q5WpEM.js"
-    },
-    {
-      "name": "C0Zu5qPZ.js",
-      "ext": ".js",
-      "size": 227,
-      "gzipSize": 197,
-      "brotliSize": 181,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\C0Zu5qPZ.js"
-    },
-    {
-      "name": "C1_4MGhr.js",
-      "ext": ".js",
-      "size": 14479,
-      "gzipSize": 5035,
-      "brotliSize": 4372,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\C1_4MGhr.js"
-    },
-    {
-      "name": "C4FO3LSw.js",
-      "ext": ".js",
-      "size": 2615,
-      "gzipSize": 1366,
-      "brotliSize": 1198,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\C4FO3LSw.js"
-    },
-    {
-      "name": "C54QbIK72.js",
-      "ext": ".js",
-      "size": 8756,
-      "gzipSize": 3165,
-      "brotliSize": 2671,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\C54QbIK72.js"
-    },
-    {
-      "name": "C5dQ-ZWJ2.js",
-      "ext": ".js",
-      "size": 3447,
-      "gzipSize": 1514,
-      "brotliSize": 1317,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\C5dQ-ZWJ2.js"
-    },
-    {
-      "name": "C7JdIxHm.js",
-      "ext": ".js",
-      "size": 2279,
-      "gzipSize": 1018,
-      "brotliSize": 883,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\C7JdIxHm.js"
-    },
-    {
-      "name": "C9btEQnn2.js",
-      "ext": ".js",
-      "size": 9356,
-      "gzipSize": 3771,
-      "brotliSize": 3209,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\C9btEQnn2.js"
-    },
-    {
-      "name": "CAZfhfmy.js",
-      "ext": ".js",
-      "size": 774,
-      "gzipSize": 441,
-      "brotliSize": 387,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\CAZfhfmy.js"
-    },
-    {
-      "name": "Cb6I81h_2.js",
-      "ext": ".js",
-      "size": 300,
-      "gzipSize": 254,
-      "brotliSize": 205,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\Cb6I81h_2.js"
-    },
-    {
-      "name": "CbkVKSMm.js",
-      "ext": ".js",
-      "size": 11262,
-      "gzipSize": 4564,
-      "brotliSize": 3839,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\CbkVKSMm.js"
-    },
-    {
-      "name": "CBn3emUn.js",
-      "ext": ".js",
-      "size": 15222,
-      "gzipSize": 5573,
-      "brotliSize": 4762,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\CBn3emUn.js"
-    },
-    {
-      "name": "CCagVKQJ2.js",
-      "ext": ".js",
-      "size": 19983,
-      "gzipSize": 7122,
-      "brotliSize": 6044,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\CCagVKQJ2.js"
-    },
-    {
-      "name": "CclVJ_gw.js",
-      "ext": ".js",
-      "size": 58,
-      "gzipSize": 74,
-      "brotliSize": 62,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\CclVJ_gw.js"
-    },
-    {
-      "name": "CcYTzymr.js",
-      "ext": ".js",
-      "size": 2965,
-      "gzipSize": 1519,
-      "brotliSize": 1279,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\CcYTzymr.js"
-    },
-    {
-      "name": "CdorGOb2.js",
-      "ext": ".js",
-      "size": 10513,
-      "gzipSize": 3523,
-      "brotliSize": 2938,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\CdorGOb2.js"
-    },
-    {
-      "name": "CElc0sX32.js",
+      "name": "Cvw_UCwl2.js",
       "ext": ".js",
       "size": 619,
-      "gzipSize": 431,
-      "brotliSize": 377,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\CElc0sX32.js"
+      "gzipSize": 429,
+      "brotliSize": 375,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\Cvw_UCwl2.js"
     },
     {
-      "name": "CEpkLDXh.js",
-      "ext": ".js",
-      "size": 471,
-      "gzipSize": 342,
-      "brotliSize": 323,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\CEpkLDXh.js"
-    },
-    {
-      "name": "Cg9QsKho2.js",
-      "ext": ".js",
-      "size": 10296,
-      "gzipSize": 4096,
-      "brotliSize": 3510,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\Cg9QsKho2.js"
-    },
-    {
-      "name": "CgS-nAAf.js",
-      "ext": ".js",
-      "size": 5262,
-      "gzipSize": 2168,
-      "brotliSize": 1827,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\CgS-nAAf.js"
-    },
-    {
-      "name": "CHIgC-Tw2.js",
-      "ext": ".js",
-      "size": 18632,
-      "gzipSize": 7626,
-      "brotliSize": 6774,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\CHIgC-Tw2.js"
-    },
-    {
-      "name": "Cj1WrZRl.js",
-      "ext": ".js",
-      "size": 57719,
-      "gzipSize": 17408,
-      "brotliSize": 14473,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\Cj1WrZRl.js"
-    },
-    {
-      "name": "CjgljdVm.js",
-      "ext": ".js",
-      "size": 25876,
-      "gzipSize": 8457,
-      "brotliSize": 7311,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\CjgljdVm.js"
-    },
-    {
-      "name": "CKfgHqwd2.js",
-      "ext": ".js",
-      "size": 3580,
-      "gzipSize": 1462,
-      "brotliSize": 1210,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\CKfgHqwd2.js"
-    },
-    {
-      "name": "ClqYKup5.js",
-      "ext": ".js",
-      "size": 359,
-      "gzipSize": 229,
-      "brotliSize": 216,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\ClqYKup5.js"
-    },
-    {
-      "name": "ClvGEllv2.js",
-      "ext": ".js",
-      "size": 3280,
-      "gzipSize": 1575,
-      "brotliSize": 1317,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\ClvGEllv2.js"
-    },
-    {
-      "name": "CM5pC0hr.js",
-      "ext": ".js",
-      "size": 490,
-      "gzipSize": 345,
-      "brotliSize": 295,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\CM5pC0hr.js"
-    },
-    {
-      "name": "CmCaFGGp2.js",
-      "ext": ".js",
-      "size": 100595,
-      "gzipSize": 29866,
-      "brotliSize": 25205,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\CmCaFGGp2.js"
-    },
-    {
-      "name": "CogZqi3r2.js",
-      "ext": ".js",
-      "size": 394,
-      "gzipSize": 284,
-      "brotliSize": 247,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\CogZqi3r2.js"
-    },
-    {
-      "name": "CqR3faEe.js",
-      "ext": ".js",
-      "size": 1499,
-      "gzipSize": 668,
-      "brotliSize": 601,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\CqR3faEe.js"
-    },
-    {
-      "name": "Cqw_23_h.js",
-      "ext": ".js",
-      "size": 0,
-      "gzipSize": 20,
-      "brotliSize": 1,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\Cqw_23_h.js"
-    },
-    {
-      "name": "CsPVAPxd.js",
-      "ext": ".js",
-      "size": 5684,
-      "gzipSize": 2616,
-      "brotliSize": 2229,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\CsPVAPxd.js"
-    },
-    {
-      "name": "Ct_2GmLL.js",
-      "ext": ".js",
-      "size": 3621,
-      "gzipSize": 1483,
-      "brotliSize": 1238,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\Ct_2GmLL.js"
-    },
-    {
-      "name": "Cul3nQLW.js",
-      "ext": ".js",
-      "size": 4911,
-      "gzipSize": 1815,
-      "brotliSize": 1505,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\Cul3nQLW.js"
-    },
-    {
-      "name": "CUmIFSJ-2.js",
-      "ext": ".js",
-      "size": 827,
-      "gzipSize": 585,
-      "brotliSize": 497,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\CUmIFSJ-2.js"
-    },
-    {
-      "name": "CuR8UwNT2.js",
-      "ext": ".js",
-      "size": 2569,
-      "gzipSize": 1204,
-      "brotliSize": 1042,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\CuR8UwNT2.js"
-    },
-    {
-      "name": "CvaqEsWJ.js",
-      "ext": ".js",
-      "size": 1110,
-      "gzipSize": 651,
-      "brotliSize": 583,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\CvaqEsWJ.js"
-    },
-    {
-      "name": "CvhwvHes.js",
-      "ext": ".js",
-      "size": 183,
-      "gzipSize": 177,
-      "brotliSize": 177,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\CvhwvHes.js"
-    },
-    {
-      "name": "CvpmjMah.js",
-      "ext": ".js",
-      "size": 12407,
-      "gzipSize": 5140,
-      "brotliSize": 4347,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\CvpmjMah.js"
-    },
-    {
-      "name": "CVVwt20h.js",
-      "ext": ".js",
-      "size": 0,
-      "gzipSize": 20,
-      "brotliSize": 1,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\CVVwt20h.js"
-    },
-    {
-      "name": "Cw94-aM6.js",
-      "ext": ".js",
-      "size": 1860,
-      "gzipSize": 1017,
-      "brotliSize": 867,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\Cw94-aM6.js"
-    },
-    {
-      "name": "CXak2f1K.js",
-      "ext": ".js",
-      "size": 2209,
-      "gzipSize": 1019,
-      "brotliSize": 904,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\CXak2f1K.js"
-    },
-    {
-      "name": "CxKHosCX.js",
-      "ext": ".js",
-      "size": 164645,
-      "gzipSize": 59939,
-      "brotliSize": 50346,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\CxKHosCX.js"
-    },
-    {
-      "name": "CXqaqL6k.js",
-      "ext": ".js",
-      "size": 714,
-      "gzipSize": 439,
-      "brotliSize": 386,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\CXqaqL6k.js"
-    },
-    {
-      "name": "CxqodWqB2.js",
-      "ext": ".js",
-      "size": 811,
-      "gzipSize": 547,
-      "brotliSize": 487,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\CxqodWqB2.js"
-    },
-    {
-      "name": "CY-BUP6x2.js",
-      "ext": ".js",
-      "size": 452,
-      "gzipSize": 335,
-      "brotliSize": 287,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\CY-BUP6x2.js"
-    },
-    {
-      "name": "CZMa4jFO.js",
-      "ext": ".js",
-      "size": 11364,
-      "gzipSize": 4187,
-      "brotliSize": 3668,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\CZMa4jFO.js"
-    },
-    {
-      "name": "CZO9uPt_.js",
-      "ext": ".js",
-      "size": 10820,
-      "gzipSize": 3461,
-      "brotliSize": 2747,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\CZO9uPt_.js"
-    },
-    {
-      "name": "CzVzDS8l.js",
-      "ext": ".js",
-      "size": 9139,
-      "gzipSize": 4004,
-      "brotliSize": 3382,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\CzVzDS8l.js"
-    },
-    {
-      "name": "C_WMRMF_.js",
-      "ext": ".js",
-      "size": 41936,
-      "gzipSize": 15157,
-      "brotliSize": 13201,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\C_WMRMF_.js"
-    },
-    {
-      "name": "D-V7x7ee.js",
-      "ext": ".js",
-      "size": 4221,
-      "gzipSize": 2048,
-      "brotliSize": 1717,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\D-V7x7ee.js"
-    },
-    {
-      "name": "D-ZSI-kb.js",
-      "ext": ".js",
-      "size": 1910,
-      "gzipSize": 1063,
-      "brotliSize": 935,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\D-ZSI-kb.js"
-    },
-    {
-      "name": "D0hwYka52.js",
-      "ext": ".js",
-      "size": 3684,
-      "gzipSize": 1795,
-      "brotliSize": 1535,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\D0hwYka52.js"
-    },
-    {
-      "name": "D0ux2XAP2.js",
+      "name": "CvymERke.js",
       "ext": ".js",
       "size": 3275,
-      "gzipSize": 1618,
-      "brotliSize": 1354,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\D0ux2XAP2.js"
+      "gzipSize": 1419,
+      "brotliSize": 1206,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\CvymERke.js"
     },
     {
-      "name": "D1IMtQ952.js",
+      "name": "CWNLH6nl2.js",
       "ext": ".js",
-      "size": 303,
-      "gzipSize": 255,
-      "brotliSize": 185,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\D1IMtQ952.js"
+      "size": 10296,
+      "gzipSize": 4098,
+      "brotliSize": 3507,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\CWNLH6nl2.js"
     },
     {
-      "name": "D34xSxtO.js",
+      "name": "CWo22u7p2.js",
+      "ext": ".js",
+      "size": 3742,
+      "gzipSize": 1780,
+      "brotliSize": 1508,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\CWo22u7p2.js"
+    },
+    {
+      "name": "CxbWNlVv.js",
       "ext": ".js",
       "size": 527,
       "gzipSize": 381,
-      "brotliSize": 331,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\D34xSxtO.js"
+      "brotliSize": 324,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\CxbWNlVv.js"
     },
     {
-      "name": "D5Two1Eo.js",
+      "name": "Cx_-tPyQ.js",
       "ext": ".js",
-      "size": 5330,
-      "gzipSize": 1871,
-      "brotliSize": 1585,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\D5Two1Eo.js"
+      "size": 0,
+      "gzipSize": 20,
+      "brotliSize": 1,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\Cx_-tPyQ.js"
     },
     {
-      "name": "D63lF8Et.js",
+      "name": "C_PO5A5T.js",
       "ext": ".js",
-      "size": 2495,
-      "gzipSize": 1219,
-      "brotliSize": 1057,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\D63lF8Et.js"
+      "size": 2965,
+      "gzipSize": 1520,
+      "brotliSize": 1298,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\C_PO5A5T.js"
     },
     {
-      "name": "D7lz62qh.js",
+      "name": "D1fN4xkT2.js",
       "ext": ".js",
-      "size": 24205,
-      "gzipSize": 9023,
-      "brotliSize": 7684,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\D7lz62qh.js"
+      "size": 13094,
+      "gzipSize": 5088,
+      "brotliSize": 4314,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\D1fN4xkT2.js"
     },
     {
-      "name": "D8Bk9vYv.js",
+      "name": "D2kvCaL1.js",
+      "ext": ".js",
+      "size": 2131,
+      "gzipSize": 1059,
+      "brotliSize": 918,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\D2kvCaL1.js"
+    },
+    {
+      "name": "D2mHqtQV.js",
+      "ext": ".js",
+      "size": 3708,
+      "gzipSize": 1734,
+      "brotliSize": 1484,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\D2mHqtQV.js"
+    },
+    {
+      "name": "D3nIRWuC.js",
+      "ext": ".js",
+      "size": 1036,
+      "gzipSize": 630,
+      "brotliSize": 558,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\D3nIRWuC.js"
+    },
+    {
+      "name": "D4g4-mE0.js",
+      "ext": ".js",
+      "size": 30635,
+      "gzipSize": 10059,
+      "brotliSize": 8580,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\D4g4-mE0.js"
+    },
+    {
+      "name": "D7dpmOEC.js",
+      "ext": ".js",
+      "size": 5568,
+      "gzipSize": 2353,
+      "brotliSize": 1949,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\D7dpmOEC.js"
+    },
+    {
+      "name": "D950JMLA.js",
+      "ext": ".js",
+      "size": 167,
+      "gzipSize": 168,
+      "brotliSize": 146,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\D950JMLA.js"
+    },
+    {
+      "name": "D9zu2iLy.js",
+      "ext": ".js",
+      "size": 10513,
+      "gzipSize": 3522,
+      "brotliSize": 2937,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\D9zu2iLy.js"
+    },
+    {
+      "name": "DaubNSdJ2.js",
+      "ext": ".js",
+      "size": 1723,
+      "gzipSize": 946,
+      "brotliSize": 822,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DaubNSdJ2.js"
+    },
+    {
+      "name": "DAvw7HcB.js",
+      "ext": ".js",
+      "size": 4617,
+      "gzipSize": 2257,
+      "brotliSize": 1969,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DAvw7HcB.js"
+    },
+    {
+      "name": "DB2gp7Qt2.js",
+      "ext": ".js",
+      "size": 2167,
+      "gzipSize": 1044,
+      "brotliSize": 941,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DB2gp7Qt2.js"
+    },
+    {
+      "name": "DBj1KOGw.js",
+      "ext": ".js",
+      "size": 871,
+      "gzipSize": 435,
+      "brotliSize": 367,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DBj1KOGw.js"
+    },
+    {
+      "name": "DbLJ_FXr.js",
+      "ext": ".js",
+      "size": 36242,
+      "gzipSize": 14613,
+      "brotliSize": 12760,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DbLJ_FXr.js"
+    },
+    {
+      "name": "dbZwkcz6.js",
+      "ext": ".js",
+      "size": 183,
+      "gzipSize": 179,
+      "brotliSize": 149,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\dbZwkcz6.js"
+    },
+    {
+      "name": "DCheiZ0a2.js",
+      "ext": ".js",
+      "size": 2055,
+      "gzipSize": 1048,
+      "brotliSize": 917,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DCheiZ0a2.js"
+    },
+    {
+      "name": "DegB5BJ_.js",
+      "ext": ".js",
+      "size": 0,
+      "gzipSize": 20,
+      "brotliSize": 1,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DegB5BJ_.js"
+    },
+    {
+      "name": "DeQWt1fo.js",
+      "ext": ".js",
+      "size": 490,
+      "gzipSize": 342,
+      "brotliSize": 299,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DeQWt1fo.js"
+    },
+    {
+      "name": "Dg0yS83J2.js",
+      "ext": ".js",
+      "size": 394,
+      "gzipSize": 288,
+      "brotliSize": 247,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\Dg0yS83J2.js"
+    },
+    {
+      "name": "DgSRlZoS.js",
+      "ext": ".js",
+      "size": 2087,
+      "gzipSize": 1156,
+      "brotliSize": 994,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DgSRlZoS.js"
+    },
+    {
+      "name": "DH5LvJQ82.js",
+      "ext": ".js",
+      "size": 4799,
+      "gzipSize": 2074,
+      "brotliSize": 1778,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DH5LvJQ82.js"
+    },
+    {
+      "name": "DHBwjgjV.js",
+      "ext": ".js",
+      "size": 164,
+      "gzipSize": 160,
+      "brotliSize": 126,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DHBwjgjV.js"
+    },
+    {
+      "name": "DJHDUvnQ.js",
+      "ext": ".js",
+      "size": 1910,
+      "gzipSize": 786,
+      "brotliSize": 660,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DJHDUvnQ.js"
+    },
+    {
+      "name": "DjK8C08A.js",
+      "ext": ".js",
+      "size": 325,
+      "gzipSize": 199,
+      "brotliSize": 172,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DjK8C08A.js"
+    },
+    {
+      "name": "Dj_NN3hR.js",
+      "ext": ".js",
+      "size": 4221,
+      "gzipSize": 2047,
+      "brotliSize": 1736,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\Dj_NN3hR.js"
+    },
+    {
+      "name": "DKEEfo1z.js",
+      "ext": ".js",
+      "size": 4264,
+      "gzipSize": 2012,
+      "brotliSize": 1728,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DKEEfo1z.js"
+    },
+    {
+      "name": "DkOXKU7s.js",
+      "ext": ".js",
+      "size": 1860,
+      "gzipSize": 1015,
+      "brotliSize": 870,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DkOXKU7s.js"
+    },
+    {
+      "name": "DlI-FlLX.js",
+      "ext": ".js",
+      "size": 497,
+      "gzipSize": 365,
+      "brotliSize": 314,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DlI-FlLX.js"
+    },
+    {
+      "name": "Dm3le_EY2.js",
+      "ext": ".js",
+      "size": 1811,
+      "gzipSize": 917,
+      "brotliSize": 769,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\Dm3le_EY2.js"
+    },
+    {
+      "name": "DmRerud0.js",
+      "ext": ".js",
+      "size": 10915,
+      "gzipSize": 3664,
+      "brotliSize": 3217,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DmRerud0.js"
+    },
+    {
+      "name": "Dnk4FGp_.js",
+      "ext": ".js",
+      "size": 22107,
+      "gzipSize": 8687,
+      "brotliSize": 7589,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\Dnk4FGp_.js"
+    },
+    {
+      "name": "DnuQ77Q-.js",
+      "ext": ".js",
+      "size": 5262,
+      "gzipSize": 2170,
+      "brotliSize": 1831,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DnuQ77Q-.js"
+    },
+    {
+      "name": "DO0zYAcb2.js",
+      "ext": ".js",
+      "size": 811,
+      "gzipSize": 548,
+      "brotliSize": 493,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DO0zYAcb2.js"
+    },
+    {
+      "name": "DoELCnZ0.js",
+      "ext": ".js",
+      "size": 1343,
+      "gzipSize": 580,
+      "brotliSize": 512,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DoELCnZ0.js"
+    },
+    {
+      "name": "DoiWCNbJ.js",
+      "ext": ".js",
+      "size": 2735,
+      "gzipSize": 1529,
+      "brotliSize": 1330,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DoiWCNbJ.js"
+    },
+    {
+      "name": "DomJktuz.js",
+      "ext": ".js",
+      "size": 15195,
+      "gzipSize": 5560,
+      "brotliSize": 4736,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DomJktuz.js"
+    },
+    {
+      "name": "DoML9oso2.js",
+      "ext": ".js",
+      "size": 6957,
+      "gzipSize": 2800,
+      "brotliSize": 2400,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DoML9oso2.js"
+    },
+    {
+      "name": "DoyVr6_2.js",
       "ext": ".js",
       "size": 758,
       "gzipSize": 508,
       "brotliSize": 441,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\D8Bk9vYv.js"
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DoyVr6_2.js"
     },
     {
-      "name": "D9DwIS5t.js",
+      "name": "DPd5qLhL.js",
       "ext": ".js",
-      "size": 167,
-      "gzipSize": 168,
-      "brotliSize": 147,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\D9DwIS5t.js"
+      "size": 2440,
+      "gzipSize": 1255,
+      "brotliSize": 1074,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DPd5qLhL.js"
     },
     {
-      "name": "D9u6etz8.js",
+      "name": "DQ-u6O882.js",
       "ext": ".js",
-      "size": 39306,
-      "gzipSize": 9423,
-      "brotliSize": 7834,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\D9u6etz8.js"
+      "size": 3275,
+      "gzipSize": 1618,
+      "brotliSize": 1354,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DQ-u6O882.js"
     },
     {
-      "name": "Dafl5Y7X.js",
+      "name": "DQi7Qp1f.js",
       "ext": ".js",
-      "size": 4442,
-      "gzipSize": 2064,
-      "brotliSize": 1763,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\Dafl5Y7X.js"
+      "size": 3131,
+      "gzipSize": 1583,
+      "brotliSize": 1369,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DQi7Qp1f.js"
     },
     {
-      "name": "DcVADP7F.js",
+      "name": "DqlD7gbw2.js",
       "ext": ".js",
-      "size": 12766,
-      "gzipSize": 5489,
-      "brotliSize": 4849,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DcVADP7F.js"
+      "size": 354,
+      "gzipSize": 264,
+      "brotliSize": 213,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DqlD7gbw2.js"
     },
     {
-      "name": "Dc_iVws7.js",
+      "name": "Dr4UzqqA.js",
       "ext": ".js",
-      "size": 1216,
-      "gzipSize": 664,
-      "brotliSize": 615,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\Dc_iVws7.js"
+      "size": 11364,
+      "gzipSize": 4187,
+      "brotliSize": 3668,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\Dr4UzqqA.js"
     },
     {
-      "name": "DD-HaRNW.js",
+      "name": "DsalEJvO.js",
       "ext": ".js",
-      "size": 14501,
-      "gzipSize": 5905,
-      "brotliSize": 5019,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DD-HaRNW.js"
+      "size": 9133,
+      "gzipSize": 3427,
+      "brotliSize": 2883,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DsalEJvO.js"
     },
     {
-      "name": "DdIwtttU2.js",
+      "name": "DsaZp0Jl.js",
       "ext": ".js",
-      "size": 3495,
-      "gzipSize": 1567,
-      "brotliSize": 1341,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DdIwtttU2.js"
+      "size": 1751,
+      "gzipSize": 934,
+      "brotliSize": 772,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DsaZp0Jl.js"
     },
     {
-      "name": "Ddps1DsC.js",
+      "name": "DSXCxCBg2.js",
       "ext": ".js",
-      "size": 2137,
-      "gzipSize": 1163,
-      "brotliSize": 983,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\Ddps1DsC.js"
+      "size": 4661,
+      "gzipSize": 2018,
+      "brotliSize": 1696,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DSXCxCBg2.js"
     },
     {
-      "name": "DduXSllM2.js",
+      "name": "DSzPf7ER2.js",
       "ext": ".js",
-      "size": 1246,
-      "gzipSize": 710,
-      "brotliSize": 637,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DduXSllM2.js"
+      "size": 9356,
+      "gzipSize": 3772,
+      "brotliSize": 3216,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DSzPf7ER2.js"
     },
     {
-      "name": "DEizKkpB.js",
-      "ext": ".js",
-      "size": 2077,
-      "gzipSize": 1156,
-      "brotliSize": 985,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DEizKkpB.js"
-    },
-    {
-      "name": "DEl7OEXI2.js",
-      "ext": ".js",
-      "size": 2055,
-      "gzipSize": 1049,
-      "brotliSize": 892,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DEl7OEXI2.js"
-    },
-    {
-      "name": "DeR9SfHJ.js",
-      "ext": ".js",
-      "size": 6130,
-      "gzipSize": 2502,
-      "brotliSize": 2126,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DeR9SfHJ.js"
-    },
-    {
-      "name": "DgTJPx9J2.js",
+      "name": "Dtj8WXaK2.js",
       "ext": ".js",
       "size": 9741,
       "gzipSize": 4000,
-      "brotliSize": 3303,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DgTJPx9J2.js"
+      "brotliSize": 3306,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\Dtj8WXaK2.js"
     },
     {
-      "name": "DHbkKE-o.js",
+      "name": "DTpKCut52.js",
       "ext": ".js",
-      "size": 801,
-      "gzipSize": 366,
-      "brotliSize": 310,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DHbkKE-o.js"
-    },
-    {
-      "name": "DhqJi0_q2.js",
-      "ext": ".js",
-      "size": 2620,
-      "gzipSize": 1087,
-      "brotliSize": 907,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DhqJi0_q2.js"
-    },
-    {
-      "name": "DJnjOoZH.js",
-      "ext": ".js",
-      "size": 4798,
-      "gzipSize": 2073,
-      "brotliSize": 1765,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DJnjOoZH.js"
-    },
-    {
-      "name": "DK0o0u6R.js",
-      "ext": ".js",
-      "size": 603,
-      "gzipSize": 422,
-      "brotliSize": 383,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DK0o0u6R.js"
-    },
-    {
-      "name": "DMOG8yRK.js",
-      "ext": ".js",
-      "size": 1246,
-      "gzipSize": 774,
-      "brotliSize": 646,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DMOG8yRK.js"
-    },
-    {
-      "name": "DMwr1pTs2.js",
-      "ext": ".js",
-      "size": 1772,
-      "gzipSize": 940,
-      "brotliSize": 819,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DMwr1pTs2.js"
-    },
-    {
-      "name": "DOiZVSX22.js",
-      "ext": ".js",
-      "size": 3934,
-      "gzipSize": 1835,
-      "brotliSize": 1547,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DOiZVSX22.js"
-    },
-    {
-      "name": "DolLHYT3.js",
-      "ext": ".js",
-      "size": 102225,
-      "gzipSize": 32820,
-      "brotliSize": 28103,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DolLHYT3.js"
-    },
-    {
-      "name": "Dp6HPA3W.js",
-      "ext": ".js",
-      "size": 15205,
-      "gzipSize": 5528,
-      "brotliSize": 4640,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\Dp6HPA3W.js"
-    },
-    {
-      "name": "DRT4AkRv2.js",
-      "ext": ".js",
-      "size": 2169,
-      "gzipSize": 1041,
-      "brotliSize": 940,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DRT4AkRv2.js"
-    },
-    {
-      "name": "DRXFgOpZ2.js",
-      "ext": ".js",
-      "size": 2929,
-      "gzipSize": 1414,
-      "brotliSize": 1201,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DRXFgOpZ2.js"
-    },
-    {
-      "name": "Ds-QYRzh2.js",
-      "ext": ".js",
-      "size": 1773,
-      "gzipSize": 808,
-      "brotliSize": 664,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\Ds-QYRzh2.js"
-    },
-    {
-      "name": "DS2Sb3W7.js",
-      "ext": ".js",
-      "size": 16020,
-      "gzipSize": 5151,
-      "brotliSize": 4339,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DS2Sb3W7.js"
-    },
-    {
-      "name": "DS6_ttqV.js",
-      "ext": ".js",
-      "size": 6134,
-      "gzipSize": 2274,
-      "brotliSize": 1953,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DS6_ttqV.js"
-    },
-    {
-      "name": "Ds7Fgwnb2.js",
-      "ext": ".js",
-      "size": 6827,
-      "gzipSize": 2714,
-      "brotliSize": 2368,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\Ds7Fgwnb2.js"
-    },
-    {
-      "name": "DSE0ZgBJ2.js",
-      "ext": ".js",
-      "size": 19110,
-      "gzipSize": 7335,
-      "brotliSize": 6206,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DSE0ZgBJ2.js"
-    },
-    {
-      "name": "Dsvf6yC02.js",
-      "ext": ".js",
-      "size": 1160,
-      "gzipSize": 679,
-      "brotliSize": 562,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\Dsvf6yC02.js"
-    },
-    {
-      "name": "Dtnwws0N.js",
-      "ext": ".js",
-      "size": 325,
-      "gzipSize": 196,
-      "brotliSize": 172,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\Dtnwws0N.js"
-    },
-    {
-      "name": "DTwIqAsM.js",
-      "ext": ".js",
-      "size": 12459,
-      "gzipSize": 3497,
-      "brotliSize": 2958,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DTwIqAsM.js"
-    },
-    {
-      "name": "Du781h-k.js",
-      "ext": ".js",
-      "size": 4215,
-      "gzipSize": 1797,
-      "brotliSize": 1564,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\Du781h-k.js"
-    },
-    {
-      "name": "Dv8eo77Q.js",
-      "ext": ".js",
-      "size": 2131,
-      "gzipSize": 1059,
-      "brotliSize": 922,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\Dv8eo77Q.js"
-    },
-    {
-      "name": "DvBeNy-D.js",
-      "ext": ".js",
-      "size": 35895,
-      "gzipSize": 10240,
-      "brotliSize": 8870,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DvBeNy-D.js"
+      "size": 825,
+      "gzipSize": 559,
+      "brotliSize": 490,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DTpKCut52.js"
     },
     {
       "name": "Dvu2sQlN.js",
@@ -1596,284 +1628,268 @@
       "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\Dvu2sQlN.js"
     },
     {
-      "name": "DvZlhlmz2.js",
+      "name": "DweKwrpG.js",
+      "ext": ".js",
+      "size": 4326,
+      "gzipSize": 2063,
+      "brotliSize": 1724,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DweKwrpG.js"
+    },
+    {
+      "name": "DwIycdcp.js",
+      "ext": ".js",
+      "size": 2495,
+      "gzipSize": 1216,
+      "brotliSize": 1055,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DwIycdcp.js"
+    },
+    {
+      "name": "dXXM3n2l2.js",
+      "ext": ".js",
+      "size": 3879,
+      "gzipSize": 1207,
+      "brotliSize": 1013,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\dXXM3n2l2.js"
+    },
+    {
+      "name": "DZAIoIRJ.js",
+      "ext": ".js",
+      "size": 464,
+      "gzipSize": 346,
+      "brotliSize": 316,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DZAIoIRJ.js"
+    },
+    {
+      "name": "EhL7gleB2.js",
+      "ext": ".js",
+      "size": 1772,
+      "gzipSize": 944,
+      "brotliSize": 817,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\EhL7gleB2.js"
+    },
+    {
+      "name": "ElRnipi6.js",
+      "ext": ".js",
+      "size": 11603,
+      "gzipSize": 4237,
+      "brotliSize": 3563,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\ElRnipi6.js"
+    },
+    {
+      "name": "EsMRKY46.js",
+      "ext": ".js",
+      "size": 965,
+      "gzipSize": 605,
+      "brotliSize": 507,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\EsMRKY46.js"
+    },
+    {
+      "name": "gEMoI6UB.js",
+      "ext": ".js",
+      "size": 8755,
+      "gzipSize": 3164,
+      "brotliSize": 2672,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\gEMoI6UB.js"
+    },
+    {
+      "name": "gPl8Inwb.js",
+      "ext": ".js",
+      "size": 16719,
+      "gzipSize": 5490,
+      "brotliSize": 4653,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\gPl8Inwb.js"
+    },
+    {
+      "name": "H2JhvlHk.js",
+      "ext": ".js",
+      "size": 19321,
+      "gzipSize": 6624,
+      "brotliSize": 5572,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\H2JhvlHk.js"
+    },
+    {
+      "name": "hPixfV8i.js",
+      "ext": ".js",
+      "size": 5684,
+      "gzipSize": 2618,
+      "brotliSize": 2230,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\hPixfV8i.js"
+    },
+    {
+      "name": "ig-Sfj8Y2.js",
+      "ext": ".js",
+      "size": 6827,
+      "gzipSize": 2717,
+      "brotliSize": 2366,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\ig-Sfj8Y2.js"
+    },
+    {
+      "name": "itNDi-Yh2.js",
+      "ext": ".js",
+      "size": 100596,
+      "gzipSize": 29863,
+      "brotliSize": 25177,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\itNDi-Yh2.js"
+    },
+    {
+      "name": "JMEjY51m.js",
+      "ext": ".js",
+      "size": 8542,
+      "gzipSize": 3439,
+      "brotliSize": 2963,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\JMEjY51m.js"
+    },
+    {
+      "name": "jpLaiM7I.js",
+      "ext": ".js",
+      "size": 3116,
+      "gzipSize": 1176,
+      "brotliSize": 970,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\jpLaiM7I.js"
+    },
+    {
+      "name": "kjbiEigR.js",
+      "ext": ".js",
+      "size": 2279,
+      "gzipSize": 1018,
+      "brotliSize": 876,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\kjbiEigR.js"
+    },
+    {
+      "name": "m1KTmhJL2.js",
+      "ext": ".js",
+      "size": 2569,
+      "gzipSize": 1205,
+      "brotliSize": 1041,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\m1KTmhJL2.js"
+    },
+    {
+      "name": "mlIaZ1u42.js",
+      "ext": ".js",
+      "size": 26280,
+      "gzipSize": 8560,
+      "brotliSize": 7251,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\mlIaZ1u42.js"
+    },
+    {
+      "name": "nhuhIR002.js",
+      "ext": ".js",
+      "size": 3437,
+      "gzipSize": 1662,
+      "brotliSize": 1421,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\nhuhIR002.js"
+    },
+    {
+      "name": "o4oidAbQ2.js",
+      "ext": ".js",
+      "size": 1246,
+      "gzipSize": 709,
+      "brotliSize": 608,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\o4oidAbQ2.js"
+    },
+    {
+      "name": "OF2ZzF5W.js",
+      "ext": ".js",
+      "size": 2495,
+      "gzipSize": 1376,
+      "brotliSize": 1161,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\OF2ZzF5W.js"
+    },
+    {
+      "name": "pezMQpmv.js",
+      "ext": ".js",
+      "size": 482,
+      "gzipSize": 353,
+      "brotliSize": 314,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\pezMQpmv.js"
+    },
+    {
+      "name": "q44V84nA.js",
+      "ext": ".js",
+      "size": 4166,
+      "gzipSize": 1750,
+      "brotliSize": 1488,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\q44V84nA.js"
+    },
+    {
+      "name": "Rt4mJyi6.js",
+      "ext": ".js",
+      "size": 1167,
+      "gzipSize": 625,
+      "brotliSize": 538,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\Rt4mJyi6.js"
+    },
+    {
+      "name": "sfYRhLbC2.js",
       "ext": ".js",
       "size": 112,
       "gzipSize": 114,
-      "brotliSize": 114,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DvZlhlmz2.js"
+      "brotliSize": 112,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\sfYRhLbC2.js"
     },
     {
-      "name": "DwJRYF_X.js",
-      "ext": ".js",
-      "size": 5713,
-      "gzipSize": 1942,
-      "brotliSize": 1635,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DwJRYF_X.js"
-    },
-    {
-      "name": "DWP8tvg42.js",
-      "ext": ".js",
-      "size": 3879,
-      "gzipSize": 1211,
-      "brotliSize": 1019,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DWP8tvg42.js"
-    },
-    {
-      "name": "DXI2bCoq.js",
-      "ext": ".js",
-      "size": 767,
-      "gzipSize": 536,
-      "brotliSize": 468,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DXI2bCoq.js"
-    },
-    {
-      "name": "DxsEH-If.js",
-      "ext": ".js",
-      "size": 5049,
-      "gzipSize": 1996,
-      "brotliSize": 1694,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DxsEH-If.js"
-    },
-    {
-      "name": "Dy6nMu5d.js",
-      "ext": ".js",
-      "size": 2388,
-      "gzipSize": 984,
-      "brotliSize": 822,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\Dy6nMu5d.js"
-    },
-    {
-      "name": "DyCD-N3s.js",
-      "ext": ".js",
-      "size": 4164,
-      "gzipSize": 1715,
-      "brotliSize": 1457,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DyCD-N3s.js"
-    },
-    {
-      "name": "DYR0yzFi2.js",
-      "ext": ".js",
-      "size": 7516,
-      "gzipSize": 3351,
-      "brotliSize": 2882,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DYR0yzFi2.js"
-    },
-    {
-      "name": "DyRfvByI.js",
-      "ext": ".js",
-      "size": 164,
-      "gzipSize": 160,
-      "brotliSize": 126,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DyRfvByI.js"
-    },
-    {
-      "name": "DySAbDjL.js",
-      "ext": ".js",
-      "size": 482,
-      "gzipSize": 357,
-      "brotliSize": 313,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\DySAbDjL.js"
-    },
-    {
-      "name": "D_8951x2.js",
-      "ext": ".js",
-      "size": 440,
-      "gzipSize": 294,
-      "brotliSize": 253,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\D_8951x2.js"
-    },
-    {
-      "name": "fVTP9Inc.js",
-      "ext": ".js",
-      "size": 1047,
-      "gzipSize": 523,
-      "brotliSize": 420,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\fVTP9Inc.js"
-    },
-    {
-      "name": "g7tXdTSM.js",
-      "ext": ".js",
-      "size": 527,
-      "gzipSize": 380,
-      "brotliSize": 328,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\g7tXdTSM.js"
-    },
-    {
-      "name": "GLjme-e0.js",
-      "ext": ".js",
-      "size": 249,
-      "gzipSize": 217,
-      "brotliSize": 183,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\GLjme-e0.js"
-    },
-    {
-      "name": "GWrr5gLy.js",
-      "ext": ".js",
-      "size": 5706,
-      "gzipSize": 2504,
-      "brotliSize": 2097,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\GWrr5gLy.js"
-    },
-    {
-      "name": "HkDDXURr.js",
-      "ext": ".js",
-      "size": 1910,
-      "gzipSize": 785,
-      "brotliSize": 654,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\HkDDXURr.js"
-    },
-    {
-      "name": "HxVcUi1i.js",
-      "ext": ".js",
-      "size": 143069,
-      "gzipSize": 52543,
-      "brotliSize": 44641,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\HxVcUi1i.js"
-    },
-    {
-      "name": "ivYh9Ixz.js",
-      "ext": ".js",
-      "size": 3213,
-      "gzipSize": 1517,
-      "brotliSize": 1288,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\ivYh9Ixz.js"
-    },
-    {
-      "name": "JSiCOTel2.js",
-      "ext": ".js",
-      "size": 668,
-      "gzipSize": 458,
-      "brotliSize": 384,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\JSiCOTel2.js"
-    },
-    {
-      "name": "jZqwK5dW.js",
-      "ext": ".js",
-      "size": 333,
-      "gzipSize": 281,
-      "brotliSize": 251,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\jZqwK5dW.js"
-    },
-    {
-      "name": "KUb7hoLG2.js",
-      "ext": ".js",
-      "size": 3651,
-      "gzipSize": 1332,
-      "brotliSize": 1140,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\KUb7hoLG2.js"
-    },
-    {
-      "name": "lOthBgiJ2.js",
-      "ext": ".js",
-      "size": 23216,
-      "gzipSize": 9153,
-      "brotliSize": 8004,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\lOthBgiJ2.js"
-    },
-    {
-      "name": "mAjzpGXo.js",
-      "ext": ".js",
-      "size": 1685,
-      "gzipSize": 750,
-      "brotliSize": 622,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\mAjzpGXo.js"
-    },
-    {
-      "name": "mJlmdMmd2.js",
-      "ext": ".js",
-      "size": 1622,
-      "gzipSize": 993,
-      "brotliSize": 858,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\mJlmdMmd2.js"
-    },
-    {
-      "name": "mtik0Kg9.js",
-      "ext": ".js",
-      "size": 4027,
-      "gzipSize": 1891,
-      "brotliSize": 1615,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\mtik0Kg9.js"
-    },
-    {
-      "name": "NZ1zaYbx.js",
-      "ext": ".js",
-      "size": 8541,
-      "gzipSize": 3438,
-      "brotliSize": 2962,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\NZ1zaYbx.js"
-    },
-    {
-      "name": "oIytiYJG2.js",
-      "ext": ".js",
-      "size": 354,
-      "gzipSize": 264,
-      "brotliSize": 210,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\oIytiYJG2.js"
-    },
-    {
-      "name": "OsOz-80w.js",
-      "ext": ".js",
-      "size": 1767,
-      "gzipSize": 886,
-      "brotliSize": 749,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\OsOz-80w.js"
-    },
-    {
-      "name": "PhUk8Ju_.js",
-      "ext": ".js",
-      "size": 2250,
-      "gzipSize": 1228,
-      "brotliSize": 1038,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\PhUk8Ju_.js"
-    },
-    {
-      "name": "rck40xlP.js",
-      "ext": ".js",
-      "size": 7254,
-      "gzipSize": 3020,
-      "brotliSize": 2567,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\rck40xlP.js"
-    },
-    {
-      "name": "SW9hS_Hs2.js",
-      "ext": ".js",
-      "size": 14991,
-      "gzipSize": 4678,
-      "brotliSize": 3898,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\SW9hS_Hs2.js"
-    },
-    {
-      "name": "sYnuoYl2.js",
-      "ext": ".js",
-      "size": 2495,
-      "gzipSize": 1377,
-      "brotliSize": 1165,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\sYnuoYl2.js"
-    },
-    {
-      "name": "TRxQHJbc2.js",
-      "ext": ".js",
-      "size": 471,
-      "gzipSize": 281,
-      "brotliSize": 229,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\TRxQHJbc2.js"
-    },
-    {
-      "name": "vGHWKPTF.js",
-      "ext": ".js",
-      "size": 1343,
-      "gzipSize": 581,
-      "brotliSize": 510,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\vGHWKPTF.js"
-    },
-    {
-      "name": "vRHRZH3G.js",
+      "name": "sg27Wj3B.js",
       "ext": ".js",
       "size": 871,
       "gzipSize": 557,
-      "brotliSize": 470,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\vRHRZH3G.js"
+      "brotliSize": 461,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\sg27Wj3B.js"
+    },
+    {
+      "name": "T6e-DwWj2.js",
+      "ext": ".js",
+      "size": 2160,
+      "gzipSize": 938,
+      "brotliSize": 782,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\T6e-DwWj2.js"
+    },
+    {
+      "name": "TFh7XKDC.js",
+      "ext": ".js",
+      "size": 14501,
+      "gzipSize": 5904,
+      "brotliSize": 5026,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\TFh7XKDC.js"
+    },
+    {
+      "name": "TgwKFx8m2.js",
+      "ext": ".js",
+      "size": 15102,
+      "gzipSize": 4692,
+      "brotliSize": 3931,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\TgwKFx8m2.js"
+    },
+    {
+      "name": "Tngl9xf32.js",
+      "ext": ".js",
+      "size": 3447,
+      "gzipSize": 1516,
+      "brotliSize": 1318,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\Tngl9xf32.js"
+    },
+    {
+      "name": "uEkwN8Ut.js",
+      "ext": ".js",
+      "size": 603,
+      "gzipSize": 420,
+      "brotliSize": 364,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\uEkwN8Ut.js"
+    },
+    {
+      "name": "ulVcL1Yk.js",
+      "ext": ".js",
+      "size": 170,
+      "gzipSize": 168,
+      "brotliSize": 149,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\ulVcL1Yk.js"
+    },
+    {
+      "name": "uTolt_nN.js",
+      "ext": ".js",
+      "size": 4027,
+      "gzipSize": 1891,
+      "brotliSize": 1601,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\uTolt_nN.js"
     },
     {
       "name": "W1w0siOJ.js",
@@ -1884,332 +1900,332 @@
       "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\W1w0siOJ.js"
     },
     {
-      "name": "w3Of1jH6.js",
+      "name": "wVNsDswO.js",
       "ext": ".js",
-      "size": 4742,
-      "gzipSize": 2228,
-      "brotliSize": 1860,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\w3Of1jH6.js"
+      "size": 4911,
+      "gzipSize": 1815,
+      "brotliSize": 1504,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\wVNsDswO.js"
     },
     {
-      "name": "wh1H6A-q.js",
+      "name": "XF8Y11zx.js",
       "ext": ".js",
-      "size": 3014,
-      "gzipSize": 1137,
-      "brotliSize": 934,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\wh1H6A-q.js"
+      "size": 2394,
+      "gzipSize": 1286,
+      "brotliSize": 1085,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\XF8Y11zx.js"
     },
     {
-      "name": "WSJ-S9DJ.js",
+      "name": "Y6vlnJ70.js",
       "ext": ".js",
-      "size": 9133,
-      "gzipSize": 3427,
-      "brotliSize": 2885,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\WSJ-S9DJ.js"
+      "size": 801,
+      "gzipSize": 369,
+      "brotliSize": 314,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\Y6vlnJ70.js"
     },
     {
-      "name": "Y5fq4sqA2.js",
+      "name": "yZx0DILd.js",
       "ext": ".js",
-      "size": 3032,
-      "gzipSize": 1554,
-      "brotliSize": 1352,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\Y5fq4sqA2.js"
+      "size": 774,
+      "gzipSize": 442,
+      "brotliSize": 387,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\yZx0DILd.js"
     },
     {
-      "name": "_3ZGlMND.js",
+      "name": "zqSHmSwW2.js",
       "ext": ".js",
-      "size": 2087,
-      "gzipSize": 1155,
-      "brotliSize": 996,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\_3ZGlMND.js"
+      "size": 15181,
+      "gzipSize": 4661,
+      "brotliSize": 3853,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\zqSHmSwW2.js"
     },
     {
-      "name": "_YeLIlHj.js",
+      "name": "app.dCACw1HC.js",
       "ext": ".js",
-      "size": 4388,
-      "gzipSize": 2119,
-      "brotliSize": 1842,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\chunks\\_YeLIlHj.js"
+      "size": 13262,
+      "gzipSize": 4454,
+      "brotliSize": 3724,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\entry\\app.dCACw1HC.js"
     },
     {
-      "name": "app.DFH9DR65.js",
-      "ext": ".js",
-      "size": 13202,
-      "gzipSize": 4451,
-      "brotliSize": 3726,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\entry\\app.DFH9DR65.js"
-    },
-    {
-      "name": "start.BqEtYPCA.js",
+      "name": "start.B0bmu8nC.js",
       "ext": ".js",
       "size": 83,
       "gzipSize": 93,
       "brotliSize": 87,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\entry\\start.BqEtYPCA.js"
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\entry\\start.B0bmu8nC.js"
     },
     {
-      "name": "0.BPbgU9LI.js",
+      "name": "0.B0HqIe4m.js",
       "ext": ".js",
-      "size": 47556,
-      "gzipSize": 15795,
-      "brotliSize": 13345,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\0.BPbgU9LI.js"
+      "size": 50046,
+      "gzipSize": 16297,
+      "brotliSize": 13782,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\0.B0HqIe4m.js"
     },
     {
-      "name": "1.ChOn3xPd.js",
+      "name": "1.CQsX1Ecz.js",
       "ext": ".js",
       "size": 5037,
-      "gzipSize": 2363,
-      "brotliSize": 2042,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\1.ChOn3xPd.js"
+      "gzipSize": 2364,
+      "brotliSize": 2037,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\1.CQsX1Ecz.js"
     },
     {
-      "name": "10.DFz08853.js",
+      "name": "10.Doxy-56h.js",
       "ext": ".js",
       "size": 33746,
-      "gzipSize": 9838,
-      "brotliSize": 8176,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\10.DFz08853.js"
+      "gzipSize": 9836,
+      "brotliSize": 8172,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\10.Doxy-56h.js"
     },
     {
-      "name": "11.QQ3WnzYR.js",
+      "name": "11.CKfZDhuS.js",
       "ext": ".js",
-      "size": 45054,
-      "gzipSize": 15412,
-      "brotliSize": 13165,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\11.QQ3WnzYR.js"
+      "size": 45013,
+      "gzipSize": 15377,
+      "brotliSize": 13059,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\11.CKfZDhuS.js"
     },
     {
-      "name": "12.BfYyA3sP.js",
+      "name": "12.CFeE7LVo.js",
       "ext": ".js",
       "size": 50114,
-      "gzipSize": 16156,
-      "brotliSize": 13524,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\12.BfYyA3sP.js"
+      "gzipSize": 16158,
+      "brotliSize": 13525,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\12.CFeE7LVo.js"
     },
     {
-      "name": "13.CVBCTAfo.js",
+      "name": "13.PXJjxdxr.js",
       "ext": ".js",
       "size": 30302,
-      "gzipSize": 9768,
-      "brotliSize": 8047,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\13.CVBCTAfo.js"
+      "gzipSize": 9766,
+      "brotliSize": 7996,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\13.PXJjxdxr.js"
     },
     {
-      "name": "14.DouZt71L.js",
+      "name": "14.DJCLOdGQ.js",
       "ext": ".js",
       "size": 9131,
-      "gzipSize": 3396,
-      "brotliSize": 2844,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\14.DouZt71L.js"
+      "gzipSize": 3395,
+      "brotliSize": 2835,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\14.DJCLOdGQ.js"
     },
     {
-      "name": "15.CBav03Vt.js",
+      "name": "15.CVE10qvC.js",
+      "ext": ".js",
+      "size": 8614,
+      "gzipSize": 2815,
+      "brotliSize": 2338,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\15.CVE10qvC.js"
+    },
+    {
+      "name": "16.Bpy9E2KF.js",
       "ext": ".js",
       "size": 10576,
-      "gzipSize": 3652,
-      "brotliSize": 3040,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\15.CBav03Vt.js"
+      "gzipSize": 3654,
+      "brotliSize": 3044,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\16.Bpy9E2KF.js"
     },
     {
-      "name": "16.dTyDF8pT.js",
+      "name": "17.DIaz4aB_.js",
       "ext": ".js",
-      "size": 7785,
-      "gzipSize": 3422,
-      "brotliSize": 2914,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\16.dTyDF8pT.js"
+      "size": 7731,
+      "gzipSize": 3398,
+      "brotliSize": 2897,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\17.DIaz4aB_.js"
     },
     {
-      "name": "17.BIr_qV5P.js",
+      "name": "18.CMIhLfg3.js",
       "ext": ".js",
-      "size": 11809,
-      "gzipSize": 4854,
-      "brotliSize": 4041,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\17.BIr_qV5P.js"
+      "size": 11784,
+      "gzipSize": 4836,
+      "brotliSize": 4035,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\18.CMIhLfg3.js"
     },
     {
-      "name": "18.C2JWe1hX.js",
+      "name": "19.C3MgTdYC.js",
       "ext": ".js",
-      "size": 49862,
-      "gzipSize": 14474,
-      "brotliSize": 11703,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\18.C2JWe1hX.js"
+      "size": 49809,
+      "gzipSize": 14451,
+      "brotliSize": 11674,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\19.C3MgTdYC.js"
     },
     {
-      "name": "19.hiliSdoZ.js",
+      "name": "2.B6vINztu.js",
+      "ext": ".js",
+      "size": 109457,
+      "gzipSize": 36721,
+      "brotliSize": 29601,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\2.B6vINztu.js"
+    },
+    {
+      "name": "20.DKJOjcut.js",
       "ext": ".js",
       "size": 3096,
-      "gzipSize": 1560,
-      "brotliSize": 1308,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\19.hiliSdoZ.js"
+      "gzipSize": 1561,
+      "brotliSize": 1301,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\20.DKJOjcut.js"
     },
     {
-      "name": "2.Bx7FlpEl.js",
+      "name": "21.OXPGeek0.js",
       "ext": ".js",
-      "size": 106937,
-      "gzipSize": 35850,
-      "brotliSize": 28950,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\2.Bx7FlpEl.js"
+      "size": 9490,
+      "gzipSize": 3748,
+      "brotliSize": 3144,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\21.OXPGeek0.js"
     },
     {
-      "name": "20.DiS8_aC9.js",
-      "ext": ".js",
-      "size": 9519,
-      "gzipSize": 3760,
-      "brotliSize": 3156,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\20.DiS8_aC9.js"
-    },
-    {
-      "name": "21.DjKm0IDK.js",
+      "name": "22.Dw-nEOHE.js",
       "ext": ".js",
       "size": 3966,
-      "gzipSize": 1926,
-      "brotliSize": 1628,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\21.DjKm0IDK.js"
+      "gzipSize": 1928,
+      "brotliSize": 1630,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\22.Dw-nEOHE.js"
     },
     {
-      "name": "22.BdWw-rgt.js",
+      "name": "23.lSbOJfwY.js",
       "ext": ".js",
-      "size": 25855,
-      "gzipSize": 9247,
-      "brotliSize": 7821,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\22.BdWw-rgt.js"
+      "size": 25807,
+      "gzipSize": 9222,
+      "brotliSize": 7824,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\23.lSbOJfwY.js"
     },
     {
-      "name": "23.C1o3DaAj.js",
+      "name": "24.BqT_3VOx.js",
       "ext": ".js",
       "size": 10497,
-      "gzipSize": 3980,
-      "brotliSize": 3459,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\23.C1o3DaAj.js"
+      "gzipSize": 3981,
+      "brotliSize": 3461,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\24.BqT_3VOx.js"
     },
     {
-      "name": "24.Dz4fesBz.js",
+      "name": "25.DVksTgQV.js",
       "ext": ".js",
-      "size": 15093,
-      "gzipSize": 5798,
-      "brotliSize": 4828,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\24.Dz4fesBz.js"
+      "size": 15426,
+      "gzipSize": 5972,
+      "brotliSize": 4990,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\25.DVksTgQV.js"
     },
     {
-      "name": "25.DGu0HQAW.js",
+      "name": "26.B_3FkGvV.js",
       "ext": ".js",
       "size": 2629,
-      "gzipSize": 1154,
+      "gzipSize": 1156,
       "brotliSize": 976,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\25.DGu0HQAW.js"
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\26.B_3FkGvV.js"
     },
     {
-      "name": "26.BIslqSsM.js",
+      "name": "27.C8XzPE6u.js",
       "ext": ".js",
-      "size": 79966,
-      "gzipSize": 25668,
-      "brotliSize": 21240,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\26.BIslqSsM.js"
+      "size": 77504,
+      "gzipSize": 24724,
+      "brotliSize": 20516,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\27.C8XzPE6u.js"
     },
     {
-      "name": "28.CG4SvOCl.js",
+      "name": "29.B_JeOPXy.js",
       "ext": ".js",
-      "size": 82728,
-      "gzipSize": 28130,
-      "brotliSize": 22979,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\28.CG4SvOCl.js"
+      "size": 94189,
+      "gzipSize": 32138,
+      "brotliSize": 26042,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\29.B_JeOPXy.js"
     },
     {
-      "name": "29.gCIgx1g3.js",
+      "name": "3.DyQ6AiSl.js",
+      "ext": ".js",
+      "size": 4712,
+      "gzipSize": 2208,
+      "brotliSize": 1904,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\3.DyQ6AiSl.js"
+    },
+    {
+      "name": "30.rQIUmDKw.js",
       "ext": ".js",
       "size": 1399,
       "gzipSize": 803,
-      "brotliSize": 693,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\29.gCIgx1g3.js"
+      "brotliSize": 695,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\30.rQIUmDKw.js"
     },
     {
-      "name": "3.DlvnRIpc.js",
-      "ext": ".js",
-      "size": 4712,
-      "gzipSize": 2207,
-      "brotliSize": 1914,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\3.DlvnRIpc.js"
-    },
-    {
-      "name": "30.DwUTzWlN.js",
+      "name": "31.B_Uw-luq.js",
       "ext": ".js",
       "size": 2329,
-      "gzipSize": 1223,
-      "brotliSize": 1011,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\30.DwUTzWlN.js"
+      "gzipSize": 1222,
+      "brotliSize": 1009,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\31.B_Uw-luq.js"
     },
     {
-      "name": "31.tR3qemPX.js",
+      "name": "32.CNbWDGlB.js",
       "ext": ".js",
-      "size": 72804,
-      "gzipSize": 23397,
-      "brotliSize": 19188,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\31.tR3qemPX.js"
+      "size": 72962,
+      "gzipSize": 23481,
+      "brotliSize": 19259,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\32.CNbWDGlB.js"
     },
     {
-      "name": "32.CDb-9UiY.js",
+      "name": "33.lBp6PCXi.js",
       "ext": ".js",
-      "size": 3014,
-      "gzipSize": 1589,
-      "brotliSize": 1358,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\32.CDb-9UiY.js"
+      "size": 3013,
+      "gzipSize": 1590,
+      "brotliSize": 1359,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\33.lBp6PCXi.js"
     },
     {
-      "name": "33.BJvuIyQm.js",
+      "name": "34.CUH7uSnn.js",
       "ext": ".js",
-      "size": 185747,
-      "gzipSize": 49939,
-      "brotliSize": 38900,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\33.BJvuIyQm.js"
+      "size": 182370,
+      "gzipSize": 48809,
+      "brotliSize": 38009,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\34.CUH7uSnn.js"
     },
     {
-      "name": "34.DzMemE7m.js",
+      "name": "35.B62dvuT2.js",
       "ext": ".js",
-      "size": 107356,
-      "gzipSize": 33974,
-      "brotliSize": 28277,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\34.DzMemE7m.js"
+      "size": 107421,
+      "gzipSize": 33987,
+      "brotliSize": 28387,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\35.B62dvuT2.js"
     },
     {
-      "name": "4.lpbGWCxt.js",
+      "name": "4.B_1kGjIB.js",
       "ext": ".js",
       "size": 4706,
-      "gzipSize": 2206,
-      "brotliSize": 1918,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\4.lpbGWCxt.js"
+      "gzipSize": 2208,
+      "brotliSize": 1924,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\4.B_1kGjIB.js"
     },
     {
-      "name": "6.D4KvRG8N.js",
+      "name": "6.DrFo5U23.js",
       "ext": ".js",
       "size": 3442,
       "gzipSize": 1623,
-      "brotliSize": 1336,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\6.D4KvRG8N.js"
+      "brotliSize": 1334,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\6.DrFo5U23.js"
     },
     {
-      "name": "7.dK1Vh_3Z.js",
+      "name": "7.CRCDaT4P.js",
       "ext": ".js",
       "size": 7398,
-      "gzipSize": 2347,
+      "gzipSize": 2344,
       "brotliSize": 1964,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\7.dK1Vh_3Z.js"
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\7.CRCDaT4P.js"
     },
     {
-      "name": "8.CpDIemvZ.js",
+      "name": "8.DKcDplkP.js",
       "ext": ".js",
-      "size": 40295,
-      "gzipSize": 13872,
-      "brotliSize": 11580,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\8.CpDIemvZ.js"
+      "size": 40239,
+      "gzipSize": 13845,
+      "brotliSize": 11558,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\8.DKcDplkP.js"
     },
     {
-      "name": "9.C9C4IeKD.js",
+      "name": "9.Cje9OwV4.js",
       "ext": ".js",
-      "size": 12482,
-      "gzipSize": 4510,
-      "brotliSize": 3774,
-      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\9.C9C4IeKD.js"
+      "size": 11640,
+      "gzipSize": 4270,
+      "brotliSize": 3595,
+      "path": "D:\\SveltyCMS\\.svelte-kit\\output\\client\\_app\\immutable\\nodes\\9.Cje9OwV4.js"
     }
   ]
 }

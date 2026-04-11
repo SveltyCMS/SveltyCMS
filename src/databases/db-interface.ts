@@ -1128,6 +1128,7 @@ export interface IDBAdapter {
 
   isConnected(): boolean;
   getVersion(): Promise<DatabaseResult<string>>;
+  clearDatabase(): Promise<DatabaseResult<void>>;
 
   // Query Builder Entry Point
   queryBuilder<T extends BaseEntity>(collection: string): QueryBuilder<T>;

@@ -27,7 +27,7 @@ Features:
   }
 
   let {
-    filteredFiles = [],
+    filteredFiles = $bindable([]),
     gridSize = "medium",
     isSelectionMode = false,
     selectedFiles = $bindable(),

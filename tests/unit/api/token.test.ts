@@ -40,8 +40,7 @@ vi.mock("@utils/api-handler", () => ({
   apiHandler: (fn: any) => fn,
 }));
 
-// Import raw dispatcher handler
-import { _handler as dispatcher } from "@src/routes/api/[...path]/+server";
+import { GET as dispatcherGET, POST as dispatcherPOST } from "@src/routes/api/[...path]/+server";
 
 describe("Token API Unit Tests", () => {
   const createMockEvent = (
@@ -87,8 +86,8 @@ describe("Token API Unit Tests", () => {
 
   it("should list tokens", async () => {
     const event = createMockEvent("GET", "token");
-    const response = await dispatcher(event);
-    const result = await response.json();
+    const response = await dispatcherGET(event as any);
+    const result = await response!.json();
     expect(result.success).toBe(true);
     expect(result.data).toBeDefined();
     expect(Array.isArray(result.data.data)).toBe(true);
@@ -100,8 +99,8 @@ describe("Token API Unit Tests", () => {
       expires: "2026-01-01",
       role: "admin",
     });
-    const response = await dispatcher(event);
-    const result = await response.json();
+    const response = await dispatcherPOST(event as any);
+    const result = await response!.json();
     expect(result.success).toBe(true);
     expect(result.token).toBeDefined();
     expect(result.token.token).toMatch(/^[a-f0-9]{64}$/);

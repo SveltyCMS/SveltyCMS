@@ -57,7 +57,7 @@ bulk actions, and predictive preloading.
 	// =================================================================
 	// 1. RECEIVE DATA AS PROPS (From +page.server.ts)
 	// =================================================================
-	import type { EntryListProps, PaginationSettings, TableHeader } from '@src/content/types';
+	import type { EntryListProps, PaginationSettings, TableHeader, CollectionEntry } from '@src/content/types';
 	import { StatusTypes } from '@src/content/types';
 	// ParaglideJS
 	import { EntryList_no_collection, entrylist_all, entrylist_dnd } from '@src/paraglide/messages';
@@ -210,7 +210,7 @@ bulk actions, and predictive preloading.
 	const selectedMap: Record<string, boolean> = $state({});
 	const SelectAll = {
 		get value() {
-			return tableData.length > 0 && tableData.every((_, i) => selectedMap[i.toString()]);
+			return tableData.length > 0 && tableData.every((_, i) => !!selectedMap[i.toString()]);
 		},
 		set value(v: boolean) {
 			if (v) {
@@ -593,8 +593,8 @@ bulk actions, and predictive preloading.
 			const newFilters: Record<string, string> = { ...entryListPaginationSettings.filters };
 			let filtersChanged = false;
 			for (const th of tableHeaders) {
-				if (!(th.name in newFilters)) {
-					newFilters[th.name] = '';
+				if (!((newFilters as any)[th.name as string])) {
+					(newFilters as any)[th.name as string] = '';
 					filtersChanged = true;
 				}
 			}
@@ -726,14 +726,17 @@ bulk actions, and predictive preloading.
 	const getSelectedIds = () =>
 		Object.entries(selectedMap)
 			.filter(([, isSelected]) => isSelected)
-			.map(([index]) => tableData[Number(index)]._id as string)
-			.filter(Boolean);
+			.map(([index]) => {
+				const entry = tableData[Number(index)];
+				return entry ? (entry._id as string) : null;
+			})
+			.filter((id): id is string => id !== null);
 
 	const getSelectedRawEntries = () =>
 		Object.entries(selectedMap)
 			.filter(([, isSelected]) => isSelected)
 			.map(([index]) => tableData[Number(index)])
-			.filter(Boolean);
+			.filter((e): e is CollectionEntry => e !== undefined);
 
 	const onCreate = async () => {
 		const newEntry: Record<string, any> = {};
@@ -1024,9 +1027,9 @@ bulk actions, and predictive preloading.
 											type="text"
 											icon="material-symbols:search-rounded"
 											label={`Filter ${(header as TableHeader).label}`}
-											name={(header as TableHeader).name}
-											value={entryListPaginationSettings.filters[(header as TableHeader).name] || ''}
-											onInput={(value: string) => onFilterChange((header as TableHeader).name, value)}
+											name={(header as TableHeader).name || ''}
+											value={(entryListPaginationSettings.filters as any)[(header as TableHeader).name || ''] || ''}
+											onInput={(value: string) => onFilterChange((header as TableHeader).name || '', value)}
 											inputClass="text-xs dark:text-primary-500"
 											textColor=""
 											labelClass="dark:text-white"
@@ -1061,7 +1064,7 @@ bulk actions, and predictive preloading.
 									entryListPaginationSettings.sorting.sortedBy
 										? 'text-primary-500 dark:text-secondary-400'
 										: 'text-tertiary-500 dark:text-primary-500'}"
-									onclick={() => onSortChange((header as TableHeader).name)}
+									onclick={() => onSortChange((header as TableHeader).name || '')}
 								>
 									{(header as TableHeader).label}
 									{#if (header as TableHeader).name === entryListPaginationSettings.sorting.sortedBy && entryListPaginationSettings.sorting.isSorted !== 0}
@@ -1140,9 +1143,8 @@ bulk actions, and predictive preloading.
 															}
 														}
 													});
-												} else {
 													// GUI-FIRST PATTERN: Navigate to edit mode (loads full multilingual data)
-													const originalEntry = tableData.find((e: any) => e._id === entry._id);
+													const originalEntry = tableData.find((e: CollectionEntry) => e._id === entry._id);
 													if (originalEntry) {
 														// Navigate to edit mode - this triggers SSR to load full multilingual data
 														// List view has language-projected data, edit mode needs all languages
@@ -1158,7 +1160,7 @@ bulk actions, and predictive preloading.
 													<div class="flex w-full items-center justify-center"><Status value={entry.status || entry.raw_status || 'draft'} /></div>
 												{:else if (header as TableHeader).component}
 													<!-- Dynamic Plugin Component Injection -->
-													{@const pluginId = (header as TableHeader).id.split('-')[0]}
+													{@const pluginId = ((header as TableHeader).id || '').split('-')[0]}
 
 													<PluginComponent
 														{pluginId}
@@ -1169,14 +1171,14 @@ bulk actions, and predictive preloading.
 												{:else if (header as TableHeader).name === 'createdAt' || (header as TableHeader).name === 'updatedAt'}
 													<div class="flex flex-col text-xs">
 														<div class="font-semibold">
-															{formatDisplayDate(entry[(header as TableHeader).name] as string, 'en', {
+															{formatDisplayDate((entry as any)[(header as TableHeader).name || ''] as string, 'en', {
 																year: 'numeric',
 																month: 'short',
 																day: 'numeric'
 															})}
 														</div>
 														<div class="text-surface-500 dark:text-surface-200">
-															{formatDisplayDate(entry[(header as TableHeader).name] as string, 'en', {
+															{formatDisplayDate((entry as any)[(header as TableHeader).name || ''] as string, 'en', {
 																hour: '2-digit',
 																minute: '2-digit',
 																second: '2-digit',
@@ -1184,8 +1186,8 @@ bulk actions, and predictive preloading.
 															})}
 														</div>
 													</div>
-												{:else if typeof entry[(header as TableHeader).name] === 'object' && entry[(header as TableHeader).name] !== null}
-													{@const fieldData = entry[(header as TableHeader).name] as Record<string, any>}
+												{:else if typeof (entry as any)[(header as TableHeader).name || ''] === 'object' && (entry as any)[(header as TableHeader).name || ''] !== null}
+													{@const fieldData = (entry as any)[(header as TableHeader).name || ''] as Record<string, any>}
 													{@const translatedValue = fieldData[currentLanguage] || Object.values(fieldData)[0] || '-'}
 													{@const debugInfo = `Field: ${(header as TableHeader).name}, Lang: ${currentLanguage}, Data: ${JSON.stringify(fieldData)}, Value: ${translatedValue}`}
 													{#if (header as TableHeader).name === 'last_name'}
@@ -1196,7 +1198,7 @@ bulk actions, and predictive preloading.
 												{:else if (header as TableHeader).name === 'plugin'}
 													<!-- <PluginComponent /> -->
 												{:else}
-													<Sanitize html={String(entry[(header as TableHeader).name] || '-')} profile="strict" />
+													<Sanitize html={String((entry as any)[(header as TableHeader).name || ''] || '-')} profile="strict" />
 												{/if}
 											</SystemTooltip>
 										</td>

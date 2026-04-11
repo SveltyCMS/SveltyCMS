@@ -607,7 +607,7 @@ beforeNavigate(async ({ cancel }) => {
             {#if collections.mode === 'edit' && collections.activeValue?._id}
                 <WorkflowActions 
                     collectionId={collections.active._id!} 
-                    entryId={collections.activeValue._id} 
+                    entryId={String(collections.activeValue?._id || '')} 
                 />
             {/if}
 			<!-- Pass the server-loaded data directly as props -->

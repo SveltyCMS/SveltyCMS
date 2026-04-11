@@ -4,9 +4,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { POST as aiChat } from "@src/routes/api/ai/chat/+server";
-import { POST as aiEnrich } from "@src/routes/api/ai/enrich/+server";
-import { POST as aiGenerateLayout } from "@src/routes/api/ai/generate-layout/+server";
+import { POST as dispatcher } from "@src/routes/api/[...path]/+server";
 import { aiService } from "@src/services/ai-service";
 
 // Mock AI service
@@ -45,30 +43,51 @@ describe("AI API Security - Authentication and Tenant Isolation", () => {
     it("should reject unauthenticated users", async () => {
       const event = {
         locals: { user: null },
-        request: { json: vi.fn().mockResolvedValue({ message: "Hello" }) },
+        params: { path: "ai/chat" },
+        request: {
+          method: "POST",
+          json: vi.fn().mockResolvedValue({ userMessage: "Hello" }),
+          headers: new Headers(),
+        },
+        url: new URL("http://localhost/api/ai/chat"),
+        cookies: { get: vi.fn() },
       } as any;
 
-      const response = await aiChat(event);
+      const response = await dispatcher(event);
       expect(response.status).toBe(401);
     });
 
     it("should reject if tenantId is missing in multi-tenant mode", async () => {
       const event = {
         locals: { user: mockUser, tenantId: null },
-        request: { json: vi.fn().mockResolvedValue({ message: "Hello" }) },
+        params: { path: "ai/chat" },
+        request: {
+          method: "POST",
+          json: vi.fn().mockResolvedValue({ userMessage: "Hello" }),
+          headers: new Headers(),
+        },
+        url: new URL("http://localhost/api/ai/chat"),
+        cookies: { get: vi.fn() },
       } as any;
 
-      const response = await aiChat(event);
-      expect(response.status).toBe(403);
+      const response = await dispatcher(event);
+      expect(response.status).toBe(400); // Dispatcher throws 400 for TENANT_MISSING
     });
 
     it("should allow authenticated users with tenantId", async () => {
       const event = {
         locals: { user: mockUser, tenantId: myTenant },
-        request: { json: vi.fn().mockResolvedValue({ message: "Hello" }) },
+        params: { path: "ai/chat" },
+        request: {
+          method: "POST",
+          json: vi.fn().mockResolvedValue({ userMessage: "Hello" }),
+          headers: new Headers(),
+        },
+        url: new URL("http://localhost/api/ai/chat"),
+        cookies: { get: vi.fn() },
       } as any;
 
-      const response = await aiChat(event);
+      const response = await dispatcher(event);
       expect(response.status).toBe(200);
       expect(aiService.chat).toHaveBeenCalled();
     });
@@ -78,28 +97,38 @@ describe("AI API Security - Authentication and Tenant Isolation", () => {
     it("should reject unauthenticated users", async () => {
       const event = {
         locals: { user: null },
+        params: { path: "ai/enrich" },
         request: {
+          method: "POST",
           json: vi.fn().mockResolvedValue({ text: "Some text", action: "summarize" }),
+          headers: new Headers(),
         },
+        url: new URL("http://localhost/api/ai/enrich"),
+        cookies: { get: vi.fn() },
       } as any;
 
-      const response = await aiEnrich(event);
+      const response = await dispatcher(event);
       expect(response.status).toBe(401);
     });
 
     it("should allow authenticated users with tenantId", async () => {
       const event = {
         locals: { user: mockUser, tenantId: myTenant },
+        params: { path: "ai/enrich" },
         request: {
+          method: "POST",
           json: vi.fn().mockResolvedValue({
             text: "Some text",
             action: "summarize",
             language: "en",
           }),
+          headers: new Headers(),
         },
+        url: new URL("http://localhost/api/ai/enrich"),
+        cookies: { get: vi.fn() },
       } as any;
 
-      const response = await aiEnrich(event);
+      const response = await dispatcher(event);
       expect(response.status).toBe(200);
       expect(aiService.process).toHaveBeenCalled();
     });
@@ -109,24 +138,34 @@ describe("AI API Security - Authentication and Tenant Isolation", () => {
     it("should reject unauthenticated users", async () => {
       const event = {
         locals: { user: null },
+        params: { path: "ai/generate-layout" },
         request: {
+          method: "POST",
           json: vi.fn().mockResolvedValue({ prompt: "Design a form" }),
+          headers: new Headers(),
         },
+        url: new URL("http://localhost/api/ai/generate-layout"),
+        cookies: { get: vi.fn() },
       } as any;
 
-      const response = await aiGenerateLayout(event);
+      const response = await dispatcher(event);
       expect(response.status).toBe(401);
     });
 
     it("should allow authenticated users with tenantId", async () => {
       const event = {
         locals: { user: mockUser, tenantId: myTenant },
+        params: { path: "ai/generate-layout" },
         request: {
+          method: "POST",
           json: vi.fn().mockResolvedValue({ prompt: "Design a form" }),
+          headers: new Headers(),
         },
+        url: new URL("http://localhost/api/ai/generate-layout"),
+        cookies: { get: vi.fn() },
       } as any;
 
-      const response = await aiGenerateLayout(event);
+      const response = await dispatcher(event);
       expect(response.status).toBe(200);
       expect(aiService.generateLayoutSpec).toHaveBeenCalled();
     });

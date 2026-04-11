@@ -7,7 +7,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Important: Import handlers dynamically AFTER any process-level mocks are set up.
 // In this case, we rely on setup.ts for global mocks.
-const { GET: getEvents } = await import("@src/routes/api/events/+server");
+import { GET as dispatcherGET } from "@src/routes/api/[...path]/+server";
 import { eventBus } from "@src/services/automation/event-bus";
 
 describe("Events API Security - Tenant Isolation", () => {
@@ -49,10 +49,14 @@ describe("Events API Security - Tenant Isolation", () => {
 
     try {
       const event = {
+        params: { path: "events" },
+        request: { method: "GET", signal: { addEventListener: vi.fn() } },
         locals: { user: mockUser, tenantId: myTenant },
+        url: new URL("http://localhost/api/events"),
+        cookies: { get: vi.fn() },
       } as any;
 
-      const response = await getEvents(event);
+      const response = await dispatcherGET(event);
       expect(response.status).toBe(200);
 
       expect(capturedListener).toBeDefined();

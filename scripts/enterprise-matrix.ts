@@ -25,6 +25,7 @@ interface BenchmarkResult {
   status: "SUCCESS" | "FAILED";
   coldStartMs?: number;
   metrics?: Record<string, any>;
+  buildTimeMs?: number;
   error?: string;
   isHistorical?: boolean;
 }
@@ -190,6 +191,7 @@ function extractMetrics(metrics: any, dbType: string) {
     securityAuditMs: m["security-audit-logging"]?.p95Ms || 0,
     securityArgon2Ms: m["security-crypto-argon2"]?.avgMs || 0,
     gqlStressRps: m["graphql-stress"]?.profiles?.[0]?.rps || 0,
+    buildMs: m["dx-build"]?.durationMs || 0,
   };
 }
 
@@ -348,7 +350,6 @@ async function ensureDatabaseExists(db: DatabaseConfig) {
         port: db.port,
         user: db.user,
         password: db.password,
-        authProtocol: "mysql_native_password",
       });
       await conn.query(`CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\``);
       await conn.end();
@@ -530,8 +531,8 @@ async function generateFinalReport(results: BenchmarkResult[]) {
   });
   md += `\n`;
 
-  md += `| Database | Cold Start | REST (p95) | GQL (avg) | GQL Stress | Relational (avg) | Status |\n`;
-  md += `|----------|------------|------------|-----------|-------------|------------------|--------|\n`;
+  md += `| Database | Cold Start | REST (p95) | GQL (avg) | GQL Stress | Build Time | Status |\n`;
+  md += `|----------|------------|------------|-----------|-------------|------------|--------|\n`;
 
   let regressions: string[] = [];
   const latestMetrics: Record<string, any> = {};
@@ -588,7 +589,12 @@ async function generateFinalReport(results: BenchmarkResult[]) {
     md += `${metrics.collections.toFixed(2)}ms ${restTrend.icon} (${restTrend.pct}) | `;
     md += `${metrics.graphqlAvg.toFixed(2)}ms ${gqlTrend.icon} (${gqlTrend.pct}) | `;
     md += `${metrics.gqlStressRps > 0 ? metrics.gqlStressRps.toFixed(0) + " RPS" : "—"} | `;
-    md += `${metrics.relationalAvg.toFixed(2)}ms ${relationalTrend.icon} (${relationalTrend.pct}) | `;
+    const buildTrend = getTrendDetails(
+      previousRuns,
+      metrics.buildMs,
+      (run) => extractMetrics(run.metrics, dbConf.type).buildMs,
+    );
+    md += `${metrics.buildMs > 0 ? (metrics.buildMs / 1000).toFixed(1) + "s " + buildTrend.icon : "—"} | `;
     md += `${curr.status === "SUCCESS" ? "✅" : "❌"} |\n`;
   }
 
@@ -879,11 +885,15 @@ async function main() {
 
   log.header(`SveltyCMS Enterprise Audit v${pkgVersion}`);
 
+  let buildMetrics: any = null;
   if (!skipBuild) {
-    log.info("Phase 1: Automated High-Memory Build...");
+    log.info("Phase 1: Automated High-Memory Build (DX Tracking)...");
+    const buildStart = performance.now();
     try {
       execSync("bun run build:high-memory", { stdio: "inherit" });
-      log.success("Build complete.");
+      const buildTimeMs = Math.round(performance.now() - buildStart);
+      log.success(`Build complete in ${(buildTimeMs / 1000).toFixed(1)}s.`);
+      buildMetrics = { durationMs: buildTimeMs };
     } catch {
       log.error("Build failed. Aborting.");
       process.exit(1);
@@ -964,6 +974,7 @@ async function main() {
 
       const metrics: any = {};
       if (db.useRedis) metrics["USE_REDIS"] = "true";
+      if (buildMetrics) metrics["dx-build"] = buildMetrics;
       const files = await fs.readdir(dbDir);
       for (const f of files) {
         if (f.endsWith(".json"))

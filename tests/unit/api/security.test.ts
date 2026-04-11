@@ -11,8 +11,7 @@ import type {} from "vitest";
 const vi = (globalThis as any).vi;
 
 // 2. Import handlers and services dynamically AFTER mocks
-const { GET: getStats } = await import("@src/routes/api/security/stats/+server");
-const { POST: postCspReport } = await import("@src/routes/api/security/csp-report/+server");
+import { GET as dispatcherGET, POST as dispatcherPOST } from "@src/routes/api/[...path]/+server";
 
 // Import services for verification in tests - dynamic for mocking
 const { metricsService: testMetricsService } = await import("@src/services/metrics-service");
@@ -44,27 +43,35 @@ describe("Security API Unit Tests", () => {
   describe("GET /api/security/stats", () => {
     it("should return security stats for authorized admin", async () => {
       const event = {
+        params: { path: "security/stats" },
         locals: {
           user: { _id: "admin1", role: "admin" },
         },
+        request: { method: "GET", headers: new Headers() },
+        url: new URL("http://localhost/api/security/stats"),
+        cookies: { get: vi.fn() },
       } as any;
 
-      const response = await getStats(event);
+      const response = await dispatcherGET(event);
       expect(response.status).toBe(200);
 
-      const data = await response.json();
+      const data = await response!.json();
       expect(data.overallStatus).toBeDefined();
       expect(data.activeIncidents).toBeDefined();
     });
 
     it("should reject unauthorized access", async () => {
       const event = {
+        params: { path: "security/stats" },
         locals: {
           user: { _id: "user1", role: "user" },
         },
+        request: { method: "GET", headers: new Headers() },
+        url: new URL("http://localhost/api/security/stats"),
+        cookies: { get: vi.fn() },
       } as any;
 
-      const response = await getStats(event);
+      const response = await dispatcherGET(event);
       expect(response.status).toBe(403);
     });
   });
@@ -82,20 +89,24 @@ describe("Security API Unit Tests", () => {
       };
 
       const event = {
+        params: { path: "security/csp-report" },
         request: {
+          method: "POST",
           headers: {
             get: (name: string) => (name === "content-type" ? "application/csp-report" : null),
           },
           json: vi.fn().mockResolvedValue(report),
         },
         locals: { tenantId: "tenant1" },
+        url: new URL("http://localhost/api/security/csp-report"),
+        cookies: { get: vi.fn() },
         getClientAddress: () => "127.0.0.1",
       } as any;
 
-      const response = await postCspReport(event);
+      const response = await dispatcherPOST(event);
       expect(response.status).toBe(200);
 
-      const data = await response.json();
+      const data = await response!.json();
       expect(data.status).toBe("received");
 
       // Verify it tracked the violation
@@ -116,7 +127,9 @@ describe("Security API Unit Tests", () => {
       };
 
       const event = {
+        params: { path: "security/csp-report" },
         request: {
+          method: "POST",
           headers: {
             get: (name: string) => (name === "content-type" ? "application/csp-report" : null),
           },
@@ -124,13 +137,15 @@ describe("Security API Unit Tests", () => {
         },
         getClientAddress: () => "127.0.0.1",
         locals: { tenantId: "tenant1" },
+        url: new URL("http://localhost/api/security/csp-report"),
+        cookies: { get: vi.fn() },
       } as any;
 
-      const response = await postCspReport(event);
+      const response = await dispatcherPOST(event);
 
       expect(response.status).toBe(200);
 
-      const data = await response.json();
+      const data = await response!.json();
       expect(data.status).toBe("ignored");
       expect(testMetricsService.incrementCSPViolations).not.toHaveBeenCalled();
     });

@@ -3,219 +3,290 @@
  * @description Authentication and User management handlers for the dispatcher.
  */
 
-import { AppError, handleApiError } from "@utils/error-handling";
+import { AppError } from "@utils/error-handling";
 import type { RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "../../cms";
 import type { DatabaseId } from "@src/content/types";
-import { getAuth } from "@src/databases/db";
 import { SESSION_COOKIE_NAME } from "@src/databases/auth/constants";
-import { successResponse, rawResponse } from "./base";
+import { TwoFactorAuthService } from "@src/databases/auth/two-factor-auth";
+import {
+  handleSAMLResponse,
+  generateSAMLAuthUrl,
+  createSAMLConnection,
+} from "@src/databases/auth/saml-auth";
+import { getAllPermissions } from "@src/databases/auth/permissions";
+import { successResponse } from "./base";
 
 export async function handleAuthUserRoutes(
   event: RequestEvent,
   cms: LocalCMS,
   tenantId: DatabaseId,
-  namespace: string,
   segments: string[],
 ) {
-  const { request, url, locals, cookies } = event;
+  const { request, locals, cookies } = event;
   const { user } = locals;
+  const namespace = segments[0];
   const method = segments[1];
 
   // --- Auth / User Root Endpoints ---
   if (!method) {
-    if (namespace === "user" && request.method === "GET") {
-      const search = url.searchParams.get("search") || undefined;
-      const page = Number(url.searchParams.get("page")) || 1;
-      const limit = Number(url.searchParams.get("limit")) || 10;
-      const sort = url.searchParams.get("sort") || undefined;
-      const order = (url.searchParams.get("order") as "asc" | "desc") || "desc";
-
-      const result = await cms.auth.listUsers({
-        tenantId,
-        search,
-        page,
-        limit,
-        sort,
-        order,
-      });
-
-      return url.searchParams.get("raw") === "true"
-        ? rawResponse(event, result.data)
-        : successResponse(event, result);
-    }
-
-    if (namespace === "auth" && method === "me" && request.method === "GET") {
-      return successResponse(event, user);
-    }
+    if (namespace === "user" && request.method === "GET")
+      return handleListUsers(event, cms, tenantId);
+    if (namespace === "auth" && request.method === "GET") return successResponse(event, user);
   }
 
   // --- 2FA Routes ---
-  if (method === "2fa") {
-    const action = segments[2];
-    const { getDefaultTwoFactorAuthService } = await import("@src/databases/auth/two-factor-auth");
-    const twoFactorService = getDefaultTwoFactorAuthService(cms.db.auth);
-
-    if (action === "setup" && request.method === "POST") {
-      if (!user) throw new AppError("Authentication required", 401);
-      const result = await twoFactorService.initiate2FASetup(
-        user._id as DatabaseId,
-        user.email,
-        tenantId,
-      );
-      return successResponse(event, result);
-    }
-    if (action === "verify-setup" && request.method === "POST") {
-      if (!user) throw new AppError("Authentication required", 401);
-      const { code, secret, backupCodes } = await request.json();
-      const result = await twoFactorService.complete2FASetup(
-        user._id as DatabaseId,
-        secret,
-        code,
-        backupCodes,
-        tenantId,
-      );
-      if (!result) throw new AppError("Invalid verification code format or code", 400);
-      return rawResponse(event, { success: true });
-    }
-    if (action === "verify" && request.method === "POST") {
-      const { userId, code } = await request.json();
-      const result = await twoFactorService.verify2FA(userId as DatabaseId, code, tenantId);
-      if (!result.success) throw new AppError(result.message, 400);
-      return rawResponse(event, result);
-    }
-    if (action === "disable" && request.method === "POST") {
-      if (!user) throw new AppError("Authentication required", 401);
-      const result = await twoFactorService.disable2FA(user._id as DatabaseId, tenantId);
-      if (!result) throw new AppError("Failed to disable 2FA", 400);
-      return rawResponse(event, { success: true });
-    }
-    if (action === "backup-codes") {
-      if (!user) throw new AppError("Authentication required", 401);
-      if (request.method === "GET") {
-        const result = await twoFactorService.get2FAStatus(user._id as DatabaseId, tenantId);
-        return successResponse(event, result);
-      }
-      if (request.method === "POST") {
-        const result = await twoFactorService.regenerateBackupCodes(
-          user._id as DatabaseId,
-          tenantId,
-        );
-        return successResponse(event, result);
-      }
-    }
-  }
+  if (method === "2fa") return handle2FARoutes(event, cms, tenantId, user, segments);
 
   // --- SAML 2.0 Routes ---
-  if (method === "saml") {
-    const action = segments[2];
-    const samlModule = await import("@src/databases/auth/saml-auth");
+  if (method === "saml") return handleSAMLRoutes(event, tenantId, segments);
 
-    if (action === "config") {
-      if (request.method === "GET") {
-        const config = await samlModule.getJackson();
-        return successResponse(event, config);
-      }
-      if (request.method === "POST") {
-        const body = await request.json();
-        const result = await samlModule.createSAMLConnection(body);
-        return successResponse(event, result);
-      }
-    }
-    if (action === "login" && request.method === "POST") {
-      await request.json().catch(() => ({}));
-      const url = await samlModule.generateSAMLAuthUrl(tenantId || "default", "sveltycms");
-      return successResponse(event, { url });
-    }
-    if (action === "acs" && request.method === "POST") {
-      return samlModule.handleSAMLResponse(event as any);
-    }
-  }
+  // --- Auth Standard Routes ---
+  if (method === "login" && request.method === "POST")
+    return handleLogin(event, cms, tenantId, cookies);
+  if (method === "logout" && request.method === "POST")
+    return handleLogout(event, cms, tenantId, cookies);
+  if (method === "me" && request.method === "GET") return successResponse(event, user);
+  if (method === "update-roles" && request.method === "POST")
+    return handleUpdateRoles(event, cms, tenantId, user);
 
   // --- User-specific routes ---
-  if (namespace === "user") {
-    if (method === "create-user" && request.method === "POST") {
-      const body = await request.json();
-      const newUser = await cms.auth.createUser(body, tenantId);
-      if (!newUser.success) {
-        return handleApiError(new Error(newUser.message), event);
-      }
-      return successResponse(event, newUser.data, 201);
-    }
-    if (method === "batch" && request.method === "POST") {
-      const { userIds, action: batchAction } = await request.json();
-      const result = await cms.auth.batchAction(userIds, batchAction, tenantId);
-      return rawResponse(event, result);
-    }
-    if (
-      method === "update-user-attributes" &&
-      (request.method === "PUT" || request.method === "PATCH")
-    ) {
-      const { user_id, newUserData } = await request.json();
-      const resolvedUserId = user_id === "self" ? user?._id : user_id;
-      const result = await cms.auth.updateUserAttributes(
-        resolvedUserId as DatabaseId,
-        newUserData,
-        tenantId,
-      );
-      return rawResponse(event, result);
-    }
-    if (method === "save-avatar" && request.method === "POST") {
-      const formData = await request.formData();
-      const avatarFile = formData.get("avatar") as File;
-      const { saveAvatarImage } = await import("@utils/media/media-storage.server");
-      const avatarUrl = await saveAvatarImage(avatarFile, user?._id || "guest");
-      const result = await cms.auth.saveAvatar(user?._id as DatabaseId, avatarUrl, tenantId);
+  if (namespace === "user")
+    return handleUserSpecificRoutes(event, cms, tenantId, user, method, segments);
 
-      // Return consistent avatarUrl property for test compatibility
-      return rawResponse(event, { success: result.success, avatarUrl });
+  // --- Permission Management ---
+  if (namespace === "permission") return handlePermissionRoutes(event, cms, tenantId, method);
+
+  throw new AppError(`Auth endpoint /api/${segments.join("/")} not implemented`, 404);
+}
+
+/**
+ * Lists all users with pagination and search.
+ */
+export async function handleListUsers(event: RequestEvent, cms: LocalCMS, tenantId: DatabaseId) {
+  const { url } = event;
+  const page = Number(url.searchParams.get("page")) || 1;
+  const limit = Number(url.searchParams.get("limit")) || 10;
+  const search = url.searchParams.get("search") || "";
+  const sort = url.searchParams.get("sort") || "createdAt";
+  const order = (url.searchParams.get("order") as "asc" | "desc") || "desc";
+
+  const result = await cms.auth.listUsers({ tenantId, page, limit, search, sort, order });
+  return successResponse(event, result);
+}
+
+/**
+ * Handles user login and session creation.
+ */
+export async function handleLogin(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+  cookies: any,
+) {
+  const body = await event.request.json();
+  const { email, password } = body;
+
+  const result = await cms.auth.login({ email, password }, { tenantId });
+
+  // Set session cookie
+  const isSecure = event.url.protocol === "https:";
+  const cookieName = isSecure ? `__Host-${SESSION_COOKIE_NAME}` : SESSION_COOKIE_NAME;
+
+  cookies.set(cookieName, result.session._id, {
+    path: "/",
+    httpOnly: true,
+    sameSite: "lax",
+    secure: isSecure,
+    maxAge: 60 * 60 * 24, // 1 day
+  });
+
+  return successResponse(event, { user: result.user, token: result.session._id });
+}
+
+/**
+ * Handles user logout and session termination.
+ */
+export async function handleLogout(
+  event: RequestEvent,
+  cms: LocalCMS,
+  _tenantId: DatabaseId,
+  cookies: any,
+) {
+  const isSecure = event.url.protocol === "https:";
+  const cookieName = isSecure ? `__Host-${SESSION_COOKIE_NAME}` : SESSION_COOKIE_NAME;
+  const sessionId = cookies.get(cookieName) || cookies.get(SESSION_COOKIE_NAME);
+
+  if (sessionId) {
+    await cms.auth.logout(sessionId);
+    cookies.delete(cookieName, { path: "/" });
+    cookies.delete(SESSION_COOKIE_NAME, { path: "/" });
+  }
+
+  return successResponse(event, { message: "Logged out successfully" });
+}
+
+/**
+ * Updates system roles and permissions.
+ */
+export async function handleUpdateRoles(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+  user: any,
+) {
+  const roles = await event.request.json();
+  const result = await cms.auth.updateRoles(roles, { user, tenantId });
+  return successResponse(event, result);
+}
+
+/**
+ * Handles 2FA related routes.
+ */
+export async function handle2FARoutes(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+  user: any,
+  segments: string[],
+) {
+  const action = segments[2];
+  const auth = cms.db.auth;
+  const twoFactorService = new TwoFactorAuthService(auth);
+
+  if (action === "setup" && event.request.method === "POST") {
+    const result = await twoFactorService.initiate2FASetup(user._id, user.email, tenantId);
+    return successResponse(event, result);
+  }
+
+  if (action === "enable" && event.request.method === "POST") {
+    const { code, secret, backupCodes } = await event.request.json();
+    const result = await twoFactorService.complete2FASetup(
+      user._id,
+      secret,
+      code,
+      backupCodes,
+      tenantId,
+    );
+    return successResponse(event, { success: result });
+  }
+
+  if (action === "verify" && event.request.method === "POST") {
+    const { code } = await event.request.json();
+    const result = await twoFactorService.verify2FA(user._id, code, tenantId);
+    return successResponse(event, result);
+  }
+
+  if (action === "disable" && event.request.method === "POST") {
+    const result = await twoFactorService.disable2FA(user._id, tenantId);
+    return successResponse(event, { success: result });
+  }
+
+  if (action === "status" && event.request.method === "GET") {
+    const result = await twoFactorService.get2FAStatus(user._id, tenantId);
+    return successResponse(event, result);
+  }
+
+  if (action === "regenerate-backup-codes" && event.request.method === "POST") {
+    const result = await twoFactorService.regenerateBackupCodes(user._id, tenantId);
+    return successResponse(event, { backupCodes: result });
+  }
+
+  throw new AppError(`2FA action ${action} not found`, 404);
+}
+
+/**
+ * Handles SAML 2.0 / Enterprise SSO routes.
+ */
+export async function handleSAMLRoutes(
+  event: RequestEvent,
+  tenantId: DatabaseId,
+  segments: string[],
+) {
+  const action = segments[2];
+
+  if (action === "acs" && event.request.method === "POST") {
+    return await handleSAMLResponse(event);
+  }
+
+  if (action === "login" && event.request.method === "GET") {
+    const tenant = event.url.searchParams.get("tenant") || (tenantId as string);
+    const product = event.url.searchParams.get("product") || "sveltycms";
+    const url = await generateSAMLAuthUrl(tenant, product);
+    return successResponse(event, { url });
+  }
+
+  if (action === "config" && event.request.method === "POST") {
+    const params = await event.request.json();
+    const result = await createSAMLConnection(params);
+    return successResponse(event, result);
+  }
+
+  throw new AppError(`SAML action ${action} not found`, 404);
+}
+
+/**
+ * Handles user-specific routes (e.g. /api/user/[id]).
+ */
+export async function handleUserSpecificRoutes(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+  _user: any,
+  method: string,
+  segments: string[],
+) {
+  const { request } = event;
+
+  if (method === "batch" && request.method === "POST") {
+    const { ids, action } = await request.json();
+    const result = await cms.auth.batchAction(ids, action, tenantId);
+    return successResponse(event, result);
+  }
+
+  // Assume method is userId
+  const userId = method as DatabaseId;
+  const subAction = segments[2];
+
+  if (!subAction) {
+    if (request.method === "GET") {
+      const targetUser = await cms.auth.getUserById(userId, tenantId);
+      return successResponse(event, targetUser);
     }
-    if (method === "delete-avatar" && request.method === "DELETE") {
-      const { userId } = await request.json().catch(() => ({}));
-      const result = await cms.auth.deleteAvatar((userId || user?._id) as DatabaseId, tenantId);
-      return rawResponse(event, result);
-    }
-    if (method && method !== "me" && !segments[2] && request.method === "GET") {
-      const result = await cms.auth.getUserById(method as DatabaseId, tenantId);
+    if (request.method === "PATCH") {
+      const data = await request.json();
+      const result = await cms.auth.updateUserAttributes(userId, data, tenantId);
       return successResponse(event, result);
     }
   }
 
-  // --- Auth Standard Routes ---
-  if (method === "login" && request.method === "POST") {
-    const credentials = await request.json();
-    const { user: authedUser, session } = await cms.auth.login(credentials, { tenantId });
-    const authInstance = getAuth();
-    if (!authInstance) throw new AppError("Auth system not initialized", 500);
-    const sessionCookie = authInstance.createSessionCookie(session._id);
-    cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes as any);
-    return successResponse(event, { user: authedUser });
-  }
-
-  if (method === "logout" && request.method === "POST") {
-    const sessionCookieKey = cookies.get(SESSION_COOKIE_NAME);
-    if (sessionCookieKey) {
-      const authInstance = getAuth();
-      if (authInstance) await authInstance.logOut(sessionCookieKey as DatabaseId);
-
-      // CRITICAL: Invalidate the in-memory cache in the authentication hook
-      const { invalidateSessionCache } = await import("@src/hooks/handle-authentication");
-      invalidateSessionCache(sessionCookieKey, tenantId as DatabaseId);
-
-      cookies.delete(SESSION_COOKIE_NAME, { path: "/" });
+  if (subAction === "avatar") {
+    if (request.method === "POST") {
+      const { avatar } = await request.json();
+      const result = await cms.auth.saveAvatar(userId, avatar, tenantId);
+      return successResponse(event, result);
     }
-    return successResponse(event, { message: "Logged out successfully" });
+    if (request.method === "DELETE") {
+      const result = await cms.auth.deleteAvatar(userId, tenantId);
+      return successResponse(event, result);
+    }
   }
 
-  if (method === "me" && request.method === "GET") {
-    return successResponse(event, user);
-  }
+  throw new AppError(`User route /api/user/${segments.slice(1).join("/")} not implemented`, 404);
+}
 
-  if (method === "update-roles" && request.method === "POST") {
-    const { roles } = await request.json();
-    const result = await cms.auth.updateRoles(roles, { user: user!, tenantId });
-    return rawResponse(event, result);
+/**
+ * Handles permission management routes.
+ */
+export async function handlePermissionRoutes(
+  event: RequestEvent,
+  _cms: LocalCMS,
+  _tenantId: DatabaseId,
+  method: string,
+) {
+  if (method === "list" && event.request.method === "GET") {
+    const permissions = await getAllPermissions();
+    return successResponse(event, permissions);
   }
-
-  throw new AppError(`Auth endpoint /api/${segments.join("/")} not implemented`, 404);
+  throw new AppError(`Permission route /api/permission/${method} not implemented`, 404);
 }

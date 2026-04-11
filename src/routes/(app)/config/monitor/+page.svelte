@@ -8,6 +8,7 @@ import { onMount } from "svelte";
 import { invalidate } from "$app/navigation";
 
 let { data } = $props();
+const system = $derived(data.system as any);
 
 let isPolling = $state(false);
 
@@ -110,10 +111,10 @@ onMount(() => {
             </div>
             <div>
                 <h3 class="text-sm font-bold opacity-40 uppercase tracking-widest">System Health</h3>
-                <p class="text-3xl font-black">{data.system?.memoryUsage?.toFixed(1) || 0}% RAM</p>
+                <p class="text-3xl font-black">{(system as any)?.memoryUsage?.toFixed(1) || 0}% RAM</p>
             </div>
             <div class="pt-2 border-t border-surface-200 dark:border-surface-800 flex justify-between text-xs">
-                <span>CPU: <b class="text-tertiary-600">{data.system?.cpuLoad?.toFixed(1) || 0}%</b></span>
+                <span>CPU: <b class="text-tertiary-600">{(system as any)?.cpuLoad?.toFixed(1) || 0}%</b></span>
                 <span class="opacity-50">Uptime: 14d 2h</span>
             </div>
         </div>

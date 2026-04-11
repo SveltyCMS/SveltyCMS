@@ -17,8 +17,8 @@ vi.mock("@src/databases/db", () => ({
 
 vi.mock("@src/databases/auth/saml-auth", () => ({
   samlAuth: {
-    getConfig: vi.fn(),
-    initializeLogin: vi.fn(),
+    getConfig: vi.fn().mockResolvedValue({ success: true, config: {} }),
+    initializeLogin: vi.fn().mockResolvedValue({ success: true, url: "http://idp.com/auth" }),
   },
   getJackson: vi.fn().mockResolvedValue({}),
   generateSAMLAuthUrl: vi.fn().mockResolvedValue("http://idp.com/auth"),
@@ -33,8 +33,8 @@ vi.mock("@utils/api-handler", () => ({
   apiHandler: (fn: any) => fn,
 }));
 
-// Import raw dispatcher handler
-import { _handler as dispatcher } from "@src/routes/api/[...path]/+server";
+// Import dispatcher (handler)
+import { GET as dispatcherGET, POST as dispatcherPOST } from "@src/routes/api/[...path]/+server";
 
 describe("SAML API Unit Tests", () => {
   const createMockEvent = (
@@ -44,23 +44,29 @@ describe("SAML API Unit Tests", () => {
     user: any = null,
     tenantId?: string,
   ) => {
-    return createMockRequestEvent({
-      method,
-      url: `http://localhost/api/${path}`,
-      body,
-      user,
-      tenantId,
-      dbAdapter: {
-        auth: { getUserById: vi.fn() },
-      },
-      roles: user ? [] : [{ _id: "admin", name: "Admin", isAdmin: true, permissions: [] }],
-    });
+    return {
+      ...createMockRequestEvent({
+        method,
+        url: `http://localhost/api/${path}`,
+        body,
+        user,
+        tenantId,
+        dbAdapter: {
+          auth: { getUserById: vi.fn() },
+        },
+        roles: user ? [] : [{ _id: "admin", name: "Admin", isAdmin: true, permissions: [] }],
+      }),
+      params: { path },
+    };
   };
 
   it("should return SAML config", async () => {
     const event = createMockEvent("GET", "auth/saml/config", {}, null, "t1");
-    const response = await dispatcher(event);
-    const result = await response.json();
+    (event as any).request = { method: "GET", headers: new Headers() };
+    (event as any).cookies = { get: vi.fn() };
+
+    const response = await dispatcherGET(event as any);
+    const result = await response!.json();
     expect(result.success).toBe(true);
   });
 
@@ -72,8 +78,15 @@ describe("SAML API Unit Tests", () => {
       null,
       "t1",
     );
-    const response = await dispatcher(event);
-    const result = await response.json();
+    (event as any).request = {
+      method: "POST",
+      headers: new Headers(),
+      json: vi.fn().mockResolvedValue({ email: "test@example.com" }),
+    };
+    (event as any).cookies = { get: vi.fn() };
+
+    const response = await dispatcherPOST(event as any);
+    const result = await response!.json();
     expect(result.success).toBe(true);
     expect(result.data.url).toBeDefined();
   });

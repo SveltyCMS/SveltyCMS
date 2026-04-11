@@ -4,8 +4,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { POST as exportData } from "@src/routes/api/export/+server";
-import { POST as importData } from "@src/routes/api/import/full/+server";
+import { POST as dispatcherPOST } from "@src/routes/api/[...path]/+server";
 import { dbAdapter } from "@src/databases/db";
 
 // Mock db adapter
@@ -75,12 +74,18 @@ describe("Export/Import API Security - Tenant Isolation", () => {
   describe("Export API (POST /api/export)", () => {
     it("should only export data for the current tenant for regular admin", async () => {
       const event = {
+        params: { path: "export" },
         locals: { user: mockAdmin, tenantId: myTenant },
-        request: { json: vi.fn().mockResolvedValue({ type: "users" }) },
+        request: {
+          method: "POST",
+          json: vi.fn().mockResolvedValue({ type: "users" }),
+          headers: new Headers(),
+        },
         url: new URL("http://localhost/api/export"),
+        cookies: { get: vi.fn() },
       } as any;
 
-      await exportData(event);
+      await dispatcherPOST(event);
       expect(dbAdapter!.auth.getAllUsers).toHaveBeenCalledWith({
         filter: { tenantId: myTenant },
       });
@@ -88,12 +93,18 @@ describe("Export/Import API Security - Tenant Isolation", () => {
 
     it("should allow super-admin to override tenantId", async () => {
       const event = {
+        params: { path: "export" },
         locals: { user: mockSuperAdmin, tenantId: myTenant },
-        request: { json: vi.fn().mockResolvedValue({ type: "users" }) },
+        request: {
+          method: "POST",
+          json: vi.fn().mockResolvedValue({ type: "users" }),
+          headers: new Headers(),
+        },
         url: new URL(`http://localhost/api/export?tenantId=${otherTenant}`),
+        cookies: { get: vi.fn() },
       } as any;
 
-      await exportData(event);
+      await dispatcherPOST(event);
       expect(dbAdapter!.auth.getAllUsers).toHaveBeenCalledWith({
         filter: { tenantId: otherTenant },
       });
@@ -101,13 +112,19 @@ describe("Export/Import API Security - Tenant Isolation", () => {
 
     it("should prevent regular admin from overriding tenantId", async () => {
       const event = {
+        params: { path: "export" },
         locals: { user: mockAdmin, tenantId: myTenant },
-        request: { json: vi.fn().mockResolvedValue({ type: "users" }) },
+        request: {
+          method: "POST",
+          json: vi.fn().mockResolvedValue({ type: "users" }),
+          headers: new Headers(),
+        },
         url: new URL(`http://localhost/api/export?tenantId=${otherTenant}`),
+        cookies: { get: vi.fn() },
       } as any;
 
       try {
-        await exportData(event);
+        await dispatcherPOST(event);
       } catch (error: any) {
         expect(error.status).toBe(403);
       }
@@ -126,19 +143,22 @@ describe("Export/Import API Security - Tenant Isolation", () => {
 
     it("should only import data to the current tenant for regular admin", async () => {
       const event = {
+        params: { path: "import/full" },
         locals: { user: mockAdmin, tenantId: myTenant },
         request: {
+          method: "POST",
           json: vi.fn().mockResolvedValue({
             data: mockImportData,
             options: { strategy: "overwrite" },
           }),
+          headers: new Headers(),
         },
         url: new URL("http://localhost/api/import/full"),
+        cookies: { get: vi.fn() },
       } as any;
 
-      await importData(event);
+      await dispatcherPOST(event);
       // Check if db.system.preferences.set was called with myTenant
-      // In the implementation, it's called via getDb().system.preferences.set
       const db = (await import("@src/databases/db")).getDb();
       expect(db!.system.preferences.set).toHaveBeenCalledWith(
         expect.any(String),
@@ -150,13 +170,19 @@ describe("Export/Import API Security - Tenant Isolation", () => {
 
     it("should prevent regular admin from importing to another tenant", async () => {
       const event = {
+        params: { path: "import/full" },
         locals: { user: mockAdmin, tenantId: myTenant },
-        request: { json: vi.fn().mockResolvedValue({ data: mockImportData }) },
+        request: {
+          method: "POST",
+          json: vi.fn().mockResolvedValue({ data: mockImportData }),
+          headers: new Headers(),
+        },
         url: new URL(`http://localhost/api/import/full?tenantId=${otherTenant}`),
+        cookies: { get: vi.fn() },
       } as any;
 
       try {
-        await importData(event);
+        await dispatcherPOST(event);
       } catch (error: any) {
         expect(error.status).toBe(403);
       }

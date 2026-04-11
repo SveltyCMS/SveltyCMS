@@ -45,8 +45,9 @@ export function registerForJsonRender(widget: WidgetDefinition) {
 
   // 2. Add to the registry so it can be rendered
   // We use the displayComponent if available, or text fallback
-  if (widget.displayComponent) {
-    sveltyRegistry[widget.Name] = widget.displayComponent;
+  const displayComp = (widget as any).displayComponent;
+  if (displayComp) {
+    sveltyRegistry[widget.Name] = displayComp;
   } else {
     sveltyRegistry[widget.Name] = Text;
   }

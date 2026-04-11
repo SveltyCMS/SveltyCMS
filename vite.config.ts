@@ -48,6 +48,15 @@ function testBackdoorStripperPlugin(): Plugin {
     name: "test-backdoor-stripper",
     enforce: "pre",
     resolveId(id, importer, options) {
+      // 1. FAST BYPASS: Most modules don't need stripping
+      if (
+        !id.includes("testing") &&
+        !id.includes("tiptap") &&
+        !id.includes("prosemirror") &&
+        !id.includes("handle-test-isolation")
+      )
+        return null;
+
       const normalizedId = id.replace(/\\/g, "/");
 
       if (options?.ssr) {
@@ -59,13 +68,6 @@ function testBackdoorStripperPlugin(): Plugin {
         ) {
           return `\0virtual:ssr-stub:${id}`;
         }
-      }
-
-      // CRITICAL: We MUST NOT intercept files that SvelteKit expects to find in src/routes/
-      // during its manifest generation phase, otherwise the build fails.
-      // We only strip them if they are imported as modules elsewhere.
-      if (normalizedId.includes("src/routes/api/testing") && options?.ssr) {
-        return null;
       }
 
       if (process.env.NODE_ENV === "production" && !process.env.TEST_MODE) {
@@ -174,17 +176,15 @@ function privateConfigFallbackPlugin(): Plugin {
     name: "private-config-fallback",
     enforce: "pre",
     resolveId(id) {
+      // 1. Aggressive Early Exit: Check keywords FIRST before any logic
+      if (!id.includes("config/private") && id !== virtualModuleId && id !== virtualTestModuleId)
+        return null;
+
+      // 2. Cache check
+      if (resolutionCache.has(id)) return resolutionCache.get(id);
+
       if (id === virtualModuleId) return resolvedVirtualModuleId;
       if (id === virtualTestModuleId) return resolvedVirtualTestModuleId;
-
-      // Optimization: Quick bail out for internal Vite modules and third party dependencies
-      if (id.startsWith("\0") || id.includes("node_modules")) return null;
-
-      // Quick exit for non-config modules
-      if (!id.includes("config/private")) return null;
-
-      // Return cached result if available
-      if (resolutionCache.has(id)) return resolutionCache.get(id);
 
       const cwd = process.cwd();
       const normalizedId = id.replace(/\\/g, "/");

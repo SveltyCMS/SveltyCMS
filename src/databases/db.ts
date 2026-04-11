@@ -102,6 +102,15 @@ export async function getDbInitPromise(
 export const dbInitPromise = getDbInitPromise();
 
 /**
+ * Reset initialization state (used in resilience tests)
+ */
+export function resetDbInitPromise() {
+  initializationPromise = null;
+  isInitialized = false;
+  currentPhase = null;
+}
+
+/**
  * Core lazy-loader for system initialization.
  */
 async function initializeSystem(

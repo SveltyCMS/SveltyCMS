@@ -100,20 +100,52 @@ export function classifyDatabaseError(
   }
 
   // Common patterns
-  if (/authentication failed|auth.*fail|bad auth|authentication.*error/i.test(lower)) {
+  if (
+    /authentication failed|auth.*fail|bad auth|authentication.*error|not authorized|bad login/i.test(
+      lower,
+    )
+  ) {
     return {
       classification: "AUTH_FAILED",
       userFriendly: "Authentication failed. Please check your username and password.",
-      hint: "Verify your credentials and ensure the user has access to the target database.",
+      hint: "The provided user does not have permission to access this database or the password is incorrect.",
       raw,
     };
   }
 
-  if (/econnrefused|connection refused/i.test(lower) || code === "ECONNREFUSED") {
+  if (
+    /econnrefused|connection refused/i.test(lower) ||
+    code === "ECONNREFUSED" ||
+    code === "ENOTFOUND" ||
+    lower.includes("getaddrinfo")
+  ) {
     return {
       classification: "CONNECTION_REFUSED",
-      userFriendly: "Connection refused. The database server may be down or unreachable.",
-      hint: `Check if your ${engine} service is running and accessible at ${dbConfig?.host}.`,
+      userFriendly:
+        "Connection refused. The database server may be down, unreachable, or the hostname is invalid.",
+      hint: `Check if your ${engine} service is running and accessible at ${dbConfig?.host}. If using a cloud provider (Atlas/Azure/AWS), ensure your IP is whitelisted.`,
+      raw,
+    };
+  }
+
+  if (
+    /timed out|timeout|selection timed out/i.test(lower) ||
+    code === "ETIMEDOUT" ||
+    code === "PROTOCOL_CONNECTION_LOST"
+  ) {
+    return {
+      classification: "CONNECTION_REFUSED",
+      userFriendly: "Connection timed out. The database server is taking too long to respond.",
+      hint: "Verify your network connection and ensure the database server is not overloaded or blocked by a firewall.",
+      raw,
+    };
+  }
+
+  if (/ssl|tls|certificate|handshake/i.test(lower)) {
+    return {
+      classification: "INVALID_CONFIG",
+      userFriendly: "SSL/TLS connection error. Failed to establish a secure connection.",
+      hint: "Check your SSL/TLS certificates and ensure the server supports the required encryption protocol.",
       raw,
     };
   }
@@ -127,6 +159,16 @@ export function classifyDatabaseError(
       classification: "DB_NOT_FOUND",
       userFriendly: `The database "${dbConfig?.name}" was not found.`,
       hint: "SveltyCMS can attempt to create it for you if your user has sufficient permissions.",
+      raw,
+    };
+  }
+
+  if (/not allowed to connect|ip address.*not allowed/i.test(lower)) {
+    return {
+      classification: "CONNECTION_REFUSED",
+      userFriendly:
+        "Connection refused. This server's IP address is not whitelisted in MongoDB Atlas.",
+      hint: "Go to MongoDB Atlas -> Network Access and add your current IP address to the whitelist.",
       raw,
     };
   }

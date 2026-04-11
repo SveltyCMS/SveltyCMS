@@ -4,7 +4,7 @@
  */
 
 import type { User } from "@src/databases/auth/types";
-import type { DatabaseAdapter, ISODateString } from "@src/databases/db-interface";
+import type { DatabaseAdapter, ISODateString, DatabaseId } from "@src/databases/db-interface";
 import { getPrivateSettingSync } from "@src/services/settings-service";
 import { logger } from "@utils/logger.server";
 
@@ -48,9 +48,9 @@ function generateGraphQLTypeDefsFromType<T extends Record<string, GraphQLValue>>
 
 // Use a partial User object to define the types
 const userTypeSample: Partial<User> = {
-  _id: "",
+  _id: "" as DatabaseId,
   email: "",
-  tenantId: "",
+  tenantId: "" as DatabaseId,
   password: "",
   role: "",
   username: "",

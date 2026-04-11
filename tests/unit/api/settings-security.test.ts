@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, vi } from "vitest";
-import type { RequestEvent } from "@sveltejs/kit";
+// Removed unused RequestEvent import
 
 // Mock dependencies
 
@@ -23,53 +23,35 @@ vi.mock("@src/services/settings-service", () => ({
   getPublicSettingSync: vi.fn().mockReturnValue(true),
   getAllSettings: vi.fn().mockResolvedValue({ public: {}, private: {} }),
   updateSettingsFromSnapshot: vi.fn().mockResolvedValue({ success: true }),
+  settingsService: {
+    getPrivateSettingSync: vi.fn().mockReturnValue(false),
+    getPublicSettingSync: vi.fn().mockReturnValue(true),
+    getAllSettings: vi.fn().mockResolvedValue({ public: {}, private: {} }),
+    updateSettingsFromSnapshot: vi.fn().mockResolvedValue({ success: true }),
+  },
 }));
 
 vi.mock("@utils/api-handler", () => ({
   apiHandler: (fn: any) => fn,
 }));
 
-// Import raw dispatcher handler
-import { _handler as dispatcher } from "@src/routes/api/[...path]/+server";
+import { GET as dispatcherGET } from "@src/routes/api/[...path]/+server";
+import * as settingsService from "@src/services/settings-service";
 
 describe("Settings API Security Unit Tests", () => {
-  const createMockEvent = (
-    method: string,
-    path: string,
-    body: any = {},
-    user: any = { _id: "u1", role: "admin" },
-    tenantId?: string,
-  ) => {
-    return {
-      url: new URL(`http://localhost/api/${path}`),
-      params: { path },
-      request: {
-        method,
-        json: vi.fn().mockResolvedValue(body),
-        headers: new Map(),
-      },
-      locals: {
-        user: { ...user, role: "admin", isAdmin: true },
-        tenantId: tenantId ?? "t1",
-        roles: [{ _id: "admin", name: "Administrator", isAdmin: true, permissions: [] }],
-        dbAdapter: {
-          system: { preferences: { getMany: vi.fn() } },
-        },
-      },
-      cookies: { get: vi.fn(), set: vi.fn(), delete: vi.fn() },
-    } as unknown as RequestEvent;
-  };
+  // Removed unused createMockEvent
 
-  it("should return all settings for admin", async () => {
-    const event = createMockEvent(
-      "GET",
-      "settings/all",
-      {},
-      { _id: "admin1", role: "admin" },
-      "t1",
-    );
-    const response = await dispatcher(event);
-    const result = await response.json();
-    expect(result.success).toBe(true);
+  it("should allow authenticated users with tenantId", async () => {
+    const event = {
+      locals: { user: { _id: "u1", role: "admin" }, tenantId: "t1" },
+      params: { path: "settings" },
+      request: { method: "GET", headers: new Headers() },
+      url: new URL("http://localhost/api/settings"),
+      cookies: { get: vi.fn() },
+    } as any;
+
+    const response = await dispatcherGET(event);
+    expect(response.status).toBe(200);
+    expect(settingsService.getAllSettings).toHaveBeenCalled();
   });
 });

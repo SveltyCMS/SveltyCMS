@@ -7,7 +7,7 @@ import { describe, it, expect, vi } from "vitest";
 import type { RequestEvent } from "@sveltejs/kit";
 
 // Import raw dispatcher handler
-import { _handler as dispatcher } from "@src/routes/api/[...path]/+server";
+import { POST as dispatcherPOST } from "@src/routes/api/[...path]/+server";
 
 describe("Media Security Critical Unit Tests", () => {
   const createMockEvent = (
@@ -68,8 +68,8 @@ describe("Media Security Critical Unit Tests", () => {
     };
 
     const event = createMockEvent("POST", "media/process", mockFormData);
-    const response = await dispatcher(event);
-    const result = await response.json();
+    const response = await dispatcherPOST(event);
+    const result = await response!.json();
     expect(result.success).toBe(true);
   });
 });

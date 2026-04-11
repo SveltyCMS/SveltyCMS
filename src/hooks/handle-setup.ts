@@ -64,18 +64,11 @@ export const handleSetup: Handle = async ({ event, resolve }) => {
   const { pathname } = event.url;
   const isApi = pathname.startsWith("/api/");
 
-  const isTestMode = process.env.TEST_MODE === "true" || process.env.VITE_TEST_MODE === "true";
+  const isSystemUser = (event.locals as any).user?._id === "system";
+  const isBypassed = (event.locals as any).__testBypass === true;
 
-  // Bypass setup checks in TEST_MODE to allow /api/testing and setup actions to function
-  // We explicitly check for /api/testing or /api/setup or /setup to allow them
-  const isAllowedTestRoute =
-    pathname.startsWith("/api/testing") ||
-    pathname.startsWith("/api/setup") ||
-    pathname.startsWith("/setup") ||
-    pathname.startsWith("/api/auth") || // Auth must work during setup for admin creation
-    pathname.startsWith("/api/system"); // System health must work
-
-  if (isTestMode && isAllowedTestRoute) {
+  // FAST BYPASS
+  if (isSystemUser || isBypassed) {
     return await resolve(event);
   }
 

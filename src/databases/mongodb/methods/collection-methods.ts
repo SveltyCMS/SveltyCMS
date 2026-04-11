@@ -32,11 +32,17 @@ type MongoQueryFilter<T> = mongoose.QueryFilter<T>;
  * dynamic Mongoose models based on user-defined collection schemas.
  */
 export class MongoCollectionMethods {
+  private readonly connection: mongoose.Connection;
+
   // Internal registry of all dynamically created models
   private readonly models = new Map<
     string,
     { model: Model<Record<string, unknown>>; wrapped: CollectionModel }
   >();
+
+  constructor(connection: mongoose.Connection = mongoose.connection) {
+    this.connection = connection;
+  }
 
   /**
    * Gets a registered collection model by ID
@@ -88,9 +94,9 @@ export class MongoCollectionMethods {
     }
 
     // Remove existing Mongoose model if present (for hot reload)
-    if (mongoose.models[modelName]) {
+    if (this.connection.models[modelName]) {
       logger.debug(`Deleting Mongoose model ${modelName} for refresh...`);
-      delete mongoose.models[modelName];
+      delete (this.connection.models as any)[modelName];
     }
 
     // Build schema definition from collection fields
@@ -141,7 +147,7 @@ export class MongoCollectionMethods {
     });
 
     // Create and register the model
-    const model = mongoose.model(modelName, mongooseSchema);
+    const model = this.connection.model(modelName, mongooseSchema);
 
     // Wrap the model for the interface
     const wrappedModel: CollectionModel = {
@@ -180,12 +186,12 @@ export class MongoCollectionMethods {
    */
   async getSchema(collectionName: string, tenantId?: string | null): Promise<Schema | null> {
     try {
-      const structureCollection = mongoose.connection.collection("system_content_structure");
+      const structureCollection = this.connection.db?.collection("system_content_structure");
       const query: Record<string, unknown> = { name: collectionName };
       if (tenantId) {
         query.tenantId = tenantId;
       }
-      const result = await structureCollection.findOne(query);
+      const result = await structureCollection?.findOne(query);
 
       if (result?.collectionDef) {
         return result.collectionDef as Schema;
@@ -204,7 +210,7 @@ export class MongoCollectionMethods {
   async getSchemaById(collectionId: string, tenantId?: string | null): Promise<Schema | null> {
     try {
       if (!collectionId || String(collectionId).trim() === "") return null;
-      const structureCollection = mongoose.connection.collection("system_content_structure");
+      const structureCollection = this.connection.db?.collection("system_content_structure");
       const idNorm = String(collectionId).trim().replace(/-/g, "");
 
       const query: any = {
@@ -214,7 +220,7 @@ export class MongoCollectionMethods {
         query.tenantId = tenantId;
       }
 
-      const result = await structureCollection.findOne(
+      const result = await structureCollection?.findOne(
         query as unknown as mongoose.mongo.Filter<mongoose.mongo.Document>,
       );
 
@@ -233,12 +239,12 @@ export class MongoCollectionMethods {
    */
   async listSchemas(tenantId?: string | null): Promise<Schema[]> {
     try {
-      const structureCollection = mongoose.connection.collection("system_content_structure");
+      const structureCollection = this.connection.db?.collection("system_content_structure");
       const query: Record<string, unknown> = { nodeType: "collection" };
       if (tenantId) {
         query.tenantId = tenantId;
       }
-      const nodes = await structureCollection.find(query).toArray();
+      const nodes = (await structureCollection?.find(query).toArray()) || [];
 
       return nodes.filter((node) => node.collectionDef).map((node) => node.collectionDef as Schema);
     } catch (error) {
@@ -261,8 +267,8 @@ export class MongoCollectionMethods {
   async deleteModel(id: string): Promise<void> {
     this.models.delete(id);
     const modelName = `collection_${id}`;
-    if (mongoose.models[modelName]) {
-      delete mongoose.models[modelName];
+    if (this.connection.models[modelName]) {
+      delete (this.connection.models as any)[modelName];
     }
     logger.info(`Collection model deleted: ${id}`);
 
@@ -276,7 +282,7 @@ export class MongoCollectionMethods {
   async collectionExists(collectionName: string): Promise<boolean> {
     try {
       const collections =
-        (await mongoose.connection.db
+        (await this.connection.db
           ?.listCollections({
             name: collectionName.toLowerCase(),
           })
@@ -403,7 +409,7 @@ export class MongoCollectionMethods {
       const indexPromises = indexes.map(async (index) => {
         try {
           // 🛡️ Safety Check: Bypass if connection was closed during high-concurrency reloads
-          if (mongoose.connection.readyState !== 1) return;
+          if (this.connection.readyState !== 1) return;
 
           await collection.createIndex(index.fields as any, index.options || {});
           logger.trace(
@@ -412,7 +418,7 @@ export class MongoCollectionMethods {
         } catch (error: any) {
           // 🤫 SILENCE: If the client was closed or we are disconnecting, suppress the warning noise
           if (
-            mongoose.connection.readyState === 0 ||
+            this.connection.readyState === 0 ||
             error?.name === "MongoClientClosedError" ||
             error?.message?.includes("client was closed") ||
             error?.message?.includes("interrupted because client was closed")

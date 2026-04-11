@@ -7,13 +7,19 @@
 import type { WorkflowDefinition, WorkflowInstance } from "@src/types/workflow-types";
 import type { User, Role } from "@src/databases/auth/types";
 import type { IDBAdapter, DatabaseId } from "@src/databases/db-interface";
-import { AppError } from "@src/utils/error-handler";
+import { AppError } from "@utils/error-handling";
 import { logger } from "@utils/logger.server";
 import { auditLogService, AuditEventType } from "@src/services/audit-log-service";
 import { hasPermissionWithRoles, registerPermission } from "@src/databases/auth/permissions";
 
 // Register workflow permission
-registerPermission("workflow:transition", "Can execute content workflow transitions");
+registerPermission({
+  _id: "workflow:transition" as DatabaseId,
+  name: "Workflow Transition",
+  action: "execute",
+  type: "system",
+  description: "Can execute content workflow transitions",
+});
 
 const getDbAdapter = async () => (await import("@src/databases/db")).dbAdapter as IDBAdapter;
 
@@ -53,22 +59,24 @@ export class WorkflowService {
     const toSave = {
       ...definition,
       updatedAt: now,
-      tenantId: tenantId || definition.tenantId,
+      tenantId: (tenantId || definition.tenantId) as DatabaseId | undefined,
     };
 
     if (toSave._id) {
-      await dbAdapter.crud.updateOne(
+      await dbAdapter.crud.update(
         this.DEFINITIONS_COLLECTION,
         toSave._id as DatabaseId,
-        toSave,
+        toSave as any,
         { tenantId: tenantId as DatabaseId },
       );
     } else {
       toSave.createdAt = now;
-      const result = await dbAdapter.crud.insertOne(this.DEFINITIONS_COLLECTION, toSave, {
+      const result = await dbAdapter.crud.insert(this.DEFINITIONS_COLLECTION, toSave as any, {
         tenantId: tenantId as DatabaseId,
       });
-      toSave._id = result.insertedId;
+      if (result.success) {
+        toSave._id = result.data._id as string;
+      }
     }
 
     logger.info(
@@ -86,7 +94,7 @@ export class WorkflowService {
       throw new AppError("Only admins can delete workflows", 403, "FORBIDDEN");
     }
 
-    await dbAdapter.crud.deleteOne(this.DEFINITIONS_COLLECTION, workflowId as DatabaseId, {
+    await dbAdapter.crud.delete(this.DEFINITIONS_COLLECTION, workflowId as DatabaseId, {
       tenantId: tenantId as DatabaseId,
     });
     logger.info(`Workflow ${workflowId} deleted by user: ${user._id}`);
@@ -100,12 +108,18 @@ export class WorkflowService {
     tenantId?: string,
   ): Promise<WorkflowDefinition | null> {
     const dbAdapter = await getDbAdapter();
-    const workflows = await dbAdapter.crud.findMany<WorkflowDefinition>(
+    const workflows = await dbAdapter.crud.findMany<any>(
       this.DEFINITIONS_COLLECTION,
       { collectionId },
       { tenantId: tenantId as DatabaseId },
     );
-    return workflows[0] || null;
+
+    // Fallback: If store is empty, query DB directly
+    if (!workflows.success || workflows.data.length === 0) {
+      return null;
+    }
+
+    return workflows.data[0] as WorkflowDefinition;
   }
 
   /**
@@ -116,12 +130,12 @@ export class WorkflowService {
     tenantId?: string,
   ): Promise<WorkflowInstance | null> {
     const dbAdapter = await getDbAdapter();
-    const instances = await dbAdapter.crud.findMany<WorkflowInstance>(
+    const instances = await dbAdapter.crud.findMany<any>(
       this.INSTANCES_COLLECTION,
       { entryId },
       { tenantId: tenantId as DatabaseId },
     );
-    return instances[0] || null;
+    return instances.success ? (instances.data[0] as WorkflowInstance) : null;
   }
 
   /**
@@ -207,10 +221,10 @@ export class WorkflowService {
       comment,
     });
 
-    await dbAdapter.crud.updateOne(
+    await dbAdapter.crud.update(
       this.INSTANCES_COLLECTION,
       instance._id as DatabaseId,
-      instance,
+      instance as any,
       { tenantId: tenantId as DatabaseId },
     );
 
@@ -245,8 +259,16 @@ export class WorkflowService {
     entryId: string,
     collectionId: string,
     tenantId?: string,
+    retryCount = 3,
   ): Promise<WorkflowInstance | null> {
-    const workflow = await this.getWorkflowForCollection(collectionId, tenantId);
+    let workflow = await this.getWorkflowForCollection(collectionId, tenantId);
+
+    // If workflow not ready yet (async seeding issue), retry with backoff
+    if (!workflow && retryCount > 0) {
+      await new Promise((r) => setTimeout(r, 500));
+      return this.initializeWorkflow(entryId, collectionId, tenantId, retryCount - 1);
+    }
+
     if (!workflow) return null;
 
     const initialState = workflow.states.find((s) => s.isInitial)?.id || workflow.states[0]?.id;
@@ -261,10 +283,12 @@ export class WorkflowService {
       history: [],
     };
 
-    const result = await dbAdapter.crud.insertOne(this.INSTANCES_COLLECTION, instance, {
+    const result = await dbAdapter.crud.insert(this.INSTANCES_COLLECTION, instance as any, {
       tenantId: tenantId as DatabaseId,
     });
-    instance._id = result.insertedId;
+    if (result.success) {
+      instance._id = result.data._id as string;
+    }
     return instance;
   }
 

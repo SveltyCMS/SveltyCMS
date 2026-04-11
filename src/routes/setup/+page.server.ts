@@ -121,15 +121,15 @@ export const actions: Actions = {
         const health = await dbAdapter.getConnectionHealth();
 
         if (!health.success) {
-        	logger.error('❌ Database ping failed:', health.message);
-        	await dbAdapter.disconnect();
+          logger.error("❌ Database ping failed:", health.message);
+          await dbAdapter.disconnect();
 
-        	const { classifyDatabaseError, SetupDatabaseError } = await import('./error-classifier');
-        	const classified = classifyDatabaseError(health.message, dbConfig.type as any, dbConfig);
-        	return new SetupDatabaseError(classified).toClientPayload();
+          const { classifyDatabaseError, SetupDatabaseError } = await import("./error-classifier");
+          const classified = classifyDatabaseError(health.message, dbConfig.type as any, dbConfig);
+          return new SetupDatabaseError(classified).toClientPayload();
         }
 
-        logger.info('✅ Ping successful!');
+        logger.info("✅ Ping successful!");
         await dbAdapter.disconnect();
         const latencyMs = Math.round(performance.now() - start);
         return {
@@ -411,7 +411,6 @@ export const actions: Actions = {
             role: "admin",
             isRegistered: true,
           },
-          undefined,
           { bypassTenantCheck: true },
         );
 
@@ -637,28 +636,21 @@ export const actions: Actions = {
 
       // Initialize global system
       const { initializeWithConfig } = await import("@src/databases/db");
-      await initializeWithConfig(
-        {
-          DB_TYPE: database.type,
-          DB_HOST: database.host,
-          DB_PORT: Number(database.port),
-          DB_NAME: database.name,
-          DB_USER: database.user || "",
-          DB_PASSWORD: database.password || "",
-          DB_AUTH_SOURCE: database.authSource || "admin",
-          JWT_SECRET_KEY: "temp_secret",
-          ENCRYPTION_KEY: "temp_key",
-          USE_REDIS: system.useRedis,
-          REDIS_HOST: system.redisHost,
-          REDIS_PORT: Number(system.redisPort),
-          REDIS_PASSWORD: system.redisPassword,
-        } as any,
-        {
-          multiTenant: system.multiTenant,
-          demoMode: system.demoMode,
-          awaitBackground: true,
-        },
-      );
+      await initializeWithConfig({
+        DB_TYPE: database.type,
+        DB_HOST: database.host,
+        DB_PORT: Number(database.port),
+        DB_NAME: database.name,
+        DB_USER: database.user || "",
+        DB_PASSWORD: database.password || "",
+        DB_AUTH_SOURCE: database.authSource || "admin",
+        JWT_SECRET_KEY: "temp_secret",
+        ENCRYPTION_KEY: "temp_key",
+        USE_REDIS: system.useRedis,
+        REDIS_HOST: system.redisHost,
+        REDIS_PORT: Number(system.redisPort),
+        REDIS_PASSWORD: system.redisPassword,
+      } as any);
 
       // OPTIMIZATION: Initialize content-system IMMEDIATELY with skipReconciliation: true
       // This prevents the 4s blocking delay on the subsequent redirect request.

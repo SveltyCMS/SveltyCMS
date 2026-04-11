@@ -69,8 +69,6 @@ if (!TEST_API_SECRET) {
     // Local fallback for dev convenience
     process.env.TEST_API_SECRET = "SVELTYCMS_TEST_SECRET_2026";
   }
-} else {
-  process.env.TEST_API_SECRET = TEST_API_SECRET;
 }
 
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "Password123!";
@@ -374,7 +372,7 @@ async function startPreviewServer(dbHost?: string): Promise<void> {
       DB_PASSWORD: process.env.DB_PASSWORD ?? "",
       DB_PORT: process.env.DB_PORT ?? "",
       TEST_MODE: "true",
-      TEST_API_SECRET,
+      TEST_API_SECRET: process.env.TEST_API_SECRET || "",
       ORIGIN: API_BASE_URL,
     },
   });
@@ -499,7 +497,7 @@ async function invokeTestApi(action: "reset" | "seed" | "reinitialize"): Promise
         }),
         headers: {
           "Content-Type": "application/json",
-          "x-test-secret": TEST_API_SECRET || "",
+          "x-test-secret": process.env.TEST_API_SECRET || "",
           Origin: API_BASE_URL || "",
         },
         signal: AbortSignal.timeout(15_000),
@@ -567,7 +565,7 @@ async function runTestFile(file: string): Promise<number> {
     env: {
       ...process.env,
       API_BASE_URL: API_BASE_URL || "http://localhost:4173",
-      TEST_API_SECRET: TEST_API_SECRET || "",
+      TEST_API_SECRET: process.env.TEST_API_SECRET || "",
     },
   });
   return code;

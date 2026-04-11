@@ -91,9 +91,7 @@ const SlugWidget = createWidget<SlugProps>({
   Name: "Slug",
   Icon: "mdi:link-variant",
   Description: "URL-friendly identifier generated from text content.",
-  inputComponent: () => import("../input/input.svelte"), // Reuse Input component for now
   inputComponentPath: "/src/widgets/core/input/input.svelte",
-  displayComponent: () => import("../input/display.svelte"),
   displayComponentPath: "/src/widgets/core/input/display.svelte",
 
   validationSchema: createValidationSchema,

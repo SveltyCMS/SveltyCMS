@@ -70,8 +70,17 @@ async function triggerTransition(targetStateId: string) {
     }
 }
 
-const currentState = $derived(instance ? workflow?.states.find(s => s.id === instance.currentState) : null);
-const availableTransitions = $derived(instance && workflow ? workflow.transitions.filter(t => t.from === instance.currentState) : []);
+const currentState = $derived.by(() => {
+	const currentInstance = instance;
+	if (!currentInstance || !workflow) return null;
+	return workflow.states.find((s) => s.id === currentInstance.currentState) || null;
+});
+
+const availableTransitions = $derived.by(() => {
+	const currentInstance = instance;
+	if (!currentInstance || !workflow) return [];
+	return workflow.transitions.filter((t) => t.from === currentInstance.currentState);
+});
 </script>
 
 {#if !loading && workflow}
@@ -130,16 +139,18 @@ const availableTransitions = $derived(instance && workflow ? workflow.transition
             </div>
 
             <!-- History Summary -->
-            {#if instance.history.length > 0}
+            {#if instance && instance.history.length > 0}
                 <div class="pt-2 border-t border-surface-200 dark:border-surface-800">
                     <p class="text-[10px] font-bold opacity-30 uppercase mb-2">Recent History</p>
                     <div class="space-y-2">
-                        {#each instance.history.slice(-3).reverse() as log}
-                            <div class="text-[10px] flex items-center justify-between opacity-60">
-                                <span>{workflow.states.find(s => s.id === log.fromState)?.label} ➔ {workflow.states.find(s => s.id === log.toState)?.label}</span>
-                                <span>{new Date(log.timestamp).toLocaleDateString()}</span>
-                            </div>
-                        {/each}
+                        {#if instance && instance.history}
+                            {#each instance.history.slice(-3).reverse() as log}
+                                <div class="text-[10px] flex items-center justify-between opacity-60">
+                                    <span>{workflow.states.find(s => s.id === log.fromState)?.label} ➔ {workflow.states.find(s => s.id === log.toState)?.label}</span>
+                                    <span>{new Date(log.timestamp).toLocaleDateString()}</span>
+                                </div>
+                            {/each}
+                        {/if}
                     </div>
                 </div>
             {/if}

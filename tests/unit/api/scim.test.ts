@@ -74,11 +74,13 @@ vi.mock("@utils/scim-utils", () => ({
   matchesScimFilter: vi.fn().mockReturnValue(true),
 }));
 
-// Import handlers after mocking
-const usersHandlers = await import("@src/routes/api/scim/v2/Users/+server.ts");
-const userDetailHandlers = await import("@src/routes/api/scim/v2/Users/[id]/+server.ts");
-const groupsHandlers = await import("@src/routes/api/scim/v2/Groups/+server.ts");
-const groupDetailHandlers = await import("@src/routes/api/scim/v2/Groups/[id]/+server.ts");
+// Import dispatcher after mocking
+import {
+  GET as dispatcherGET,
+  POST as dispatcherPOST,
+  PATCH as dispatcherPATCH,
+  DELETE as dispatcherDELETE,
+} from "@src/routes/api/[...path]/+server";
 
 describe("SCIM API Unit Tests", () => {
   let mockAuth: any;
@@ -99,12 +101,15 @@ describe("SCIM API Unit Tests", () => {
       ]);
 
       const event = {
+        params: { path: "scim/v2/Users" },
         url: new URL("http://localhost/api/scim/v2/Users"),
-        request: { headers: new Map([["authorization", "Bearer token"]]) },
+        request: { method: "GET", headers: new Headers([["authorization", "Bearer token"]]) },
+        locals: { user: { isAdmin: true } }, // Bypass dispatcher auth check for SCIM specific units
+        cookies: { get: vi.fn() },
       } as unknown as RequestEvent;
 
-      const response = await usersHandlers.GET(event);
-      const data = await response.json();
+      const response = await dispatcherGET(event);
+      const data = await response!.json();
 
       expect(data.totalResults).toBe(2);
       expect(mockAuth.getAllUsers).toHaveBeenCalledWith(
@@ -122,17 +127,21 @@ describe("SCIM API Unit Tests", () => {
       // Mocking user creation is complex due to internal flows,
       // but we test that checkUser is called with tenantId.
       const event = {
+        params: { path: "scim/v2/Users" },
         request: {
-          headers: new Map([["authorization", "Bearer token"]]),
+          method: "POST",
+          headers: new Headers([["authorization", "Bearer token"]]),
           json: vi.fn().mockResolvedValue({
             userName: "new@t1.com",
             emails: [{ value: "new@t1.com", primary: true }],
           }),
         },
         url: new URL("http://localhost/api/scim/v2/Users"),
+        locals: { user: { isAdmin: true } },
+        cookies: { get: vi.fn() },
       } as unknown as RequestEvent;
 
-      await usersHandlers.POST(event);
+      await dispatcherPOST(event);
       expect(mockAuth.checkUser).toHaveBeenCalledWith({
         email: "new@t1.com",
         tenantId: "tenant-1",
@@ -147,13 +156,15 @@ describe("SCIM API Unit Tests", () => {
     it("GET /Users/[id] should return user details", async () => {
       mockAuth.getUserById.mockResolvedValue({ _id: "u1", email: "u1@t1.com" });
       const event = {
-        params: { id: "u1" },
-        request: { headers: new Map() },
+        params: { path: "scim/v2/Users/u1" }, // path matches userDetailHandlers.GET expectation
+        request: { method: "GET", headers: new Headers([["authorization", "Bearer token"]]) },
         url: new URL("http://localhost/api/scim/v2/Users/u1"),
+        locals: { user: { isAdmin: true } },
+        cookies: { get: vi.fn() },
       } as unknown as RequestEvent;
 
-      const response = await userDetailHandlers.GET(event);
-      const data = await response.json();
+      const response = await dispatcherGET(event);
+      const data = await response!.json();
 
       expect(data.id).toBe("u1");
       expect(mockAuth.getUserById).toHaveBeenCalledWith("u1", { tenantId: "tenant-1" });
@@ -164,12 +175,14 @@ describe("SCIM API Unit Tests", () => {
       mockAuth.updateUser.mockResolvedValue({ success: true });
 
       const event = {
-        params: { id: "u1" },
-        request: { headers: new Map() },
+        params: { path: "scim/v2/Users/u1" },
+        request: { method: "DELETE", headers: new Headers([["authorization", "Bearer token"]]) },
         url: new URL("http://localhost/api/scim/v2/Users/u1"),
+        locals: { user: { isAdmin: true } },
+        cookies: { get: vi.fn() },
       } as unknown as RequestEvent;
 
-      const response = await userDetailHandlers.DELETE(event);
+      const response = await dispatcherDELETE(event);
       expect(response.status).toBe(204);
       expect(mockAuth.updateUser).toHaveBeenCalledWith(
         "u1",
@@ -182,12 +195,15 @@ describe("SCIM API Unit Tests", () => {
       mockAuth.getAllRoles.mockResolvedValue([{ _id: "r1", name: "Role 1" }]);
 
       const event = {
+        params: { path: "scim/v2/Groups" },
         url: new URL("http://localhost/api/scim/v2/Groups"),
-        request: { headers: new Map() },
+        request: { method: "GET", headers: new Headers([["authorization", "Bearer token"]]) },
+        locals: { user: { isAdmin: true } },
+        cookies: { get: vi.fn() },
       } as unknown as RequestEvent;
 
-      const response = await groupsHandlers.GET(event);
-      const data = await response.json();
+      const response = await dispatcherGET(event);
+      const data = await response!.json();
 
       expect(data.Resources).toHaveLength(1);
       expect(mockAuth.getAllRoles).toHaveBeenCalledWith({ tenantId: "tenant-1" });
@@ -206,18 +222,21 @@ describe("SCIM API Unit Tests", () => {
       mockAuth.getUserById.mockResolvedValue({ _id: "u1", roles: [] });
 
       const event = {
-        params: { id: "r1" },
+        params: { path: "scim/v2/Groups/r1" },
         request: {
+          method: "PATCH",
           json: vi.fn().mockResolvedValue({
             schemas: ["urn:ietf:params:scim:api:messages:2.0:PatchOp"],
             Operations: [{ op: "add", path: "members", value: [{ value: "u1" }] }],
           }),
-          headers: new Map(),
+          headers: new Headers(),
         },
         url: new URL("http://localhost/api/scim/v2/Groups/r1"),
+        locals: { user: { isAdmin: true } },
+        cookies: { get: vi.fn() },
       } as unknown as RequestEvent;
 
-      const response = await groupDetailHandlers.PATCH(event);
+      const response = await dispatcherPATCH(event);
       expect(response.status).toBe(200);
 
       expect(mockAuth.authInterface.getRoleById).toHaveBeenCalledWith("r1", {

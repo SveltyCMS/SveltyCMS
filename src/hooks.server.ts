@@ -134,8 +134,8 @@ if (!building) {
 
 // --- Updated middleware sequence (security headers FIRST) ---
 const middleware: Handle[] = [
-  handleTurboPipeline, // ✨ CONSOLIDATED FAST-PATH (Headers, Asset Cache, State Gate, Test Isolation)
   handleCompression,
+  handleTurboPipeline, // ✨ CONSOLIDATED FAST-PATH (Headers, Asset Cache, State Gate, Test Isolation)
   handleSecurity,
   handleSetup,
   handleUserPreferences,

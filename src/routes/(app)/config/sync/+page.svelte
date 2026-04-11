@@ -1,4 +1,4 @@
-﻿<!--
+<!--
 @files src/routes/(app)/config/sync/+page.svelte
 @component
 **Configuration Sync & Backup Manager**
@@ -100,7 +100,7 @@ onMount(() => {
 	icon="mdi:sync-circle"
 	showBackButton={true}
 	backUrl="/config"
-	helpUrl="/docs/architecture/configuration-management"
+
 />
 
 <div class="wrapper">

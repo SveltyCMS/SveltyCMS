@@ -4,12 +4,12 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { GET as getFlows } from "@src/routes/api/automations/+server";
 import {
-  GET as getFlow,
-  PATCH as updateFlow,
-  DELETE as deleteFlow,
-} from "@src/routes/api/automations/[id]/+server";
+  GET as dispatcherGET,
+  POST as dispatcherPOST,
+  PATCH as dispatcherPATCH,
+  DELETE as dispatcherDELETE,
+} from "@src/routes/api/[...path]/+server";
 import { automationService } from "@src/services/automation/automation-service";
 
 // Mock automation service
@@ -52,37 +52,43 @@ describe("Automation API Security - IDOR and Tenant Isolation", () => {
   });
 
   describe("List Automations (GET /api/automations)", () => {
-    it("should only list automations for the current tenant for regular admin", async () => {
+    it("should allow authenticated users with tenantId", async () => {
       const event = {
         locals: { user: mockUser, tenantId: myTenant },
+        params: { path: "automations" },
+        request: { method: "GET", headers: new Headers() },
         url: new URL("http://localhost/api/automations"),
+        cookies: { get: vi.fn() },
       } as any;
 
-      await getFlows(event);
+      await dispatcherGET(event);
       expect(automationService.getFlows).toHaveBeenCalledWith(myTenant);
     });
 
     it("should allow super-admin to override tenantId via query parameter", async () => {
       const event = {
         locals: { user: mockSuperAdmin, tenantId: myTenant },
+        params: { path: "automations" },
+        request: { method: "GET", headers: new Headers() },
         url: new URL(`http://localhost/api/automations?tenantId=${otherTenant}`),
+        cookies: { get: vi.fn() },
       } as any;
 
-      await getFlows(event);
+      await dispatcherGET(event);
       expect(automationService.getFlows).toHaveBeenCalledWith(otherTenant);
     });
 
     it("should prevent regular admin from overriding tenantId", async () => {
       const event = {
         locals: { user: mockUser, tenantId: myTenant },
+        params: { path: "automations" },
+        request: { method: "GET", headers: new Headers() },
         url: new URL(`http://localhost/api/automations?tenantId=${otherTenant}`),
+        cookies: { get: vi.fn() },
       } as any;
 
-      try {
-        await getFlows(event);
-      } catch (error: any) {
-        expect(error.status).toBe(403);
-      }
+      const response = await dispatcherGET(event);
+      expect(response.status).toBe(403);
       expect(automationService.getFlows).not.toHaveBeenCalledWith(otherTenant);
     });
   });
@@ -94,15 +100,15 @@ describe("Automation API Security - IDOR and Tenant Isolation", () => {
       (automationService.getFlow as any).mockResolvedValue(null);
 
       const event = {
-        params: { id: flowId },
+        params: { path: `automations/${flowId}` },
         locals: { user: mockUser, tenantId: myTenant },
+        request: { method: "GET", headers: new Headers() },
+        url: new URL(`http://localhost/api/automations/${flowId}`),
+        cookies: { get: vi.fn() },
       } as any;
 
-      try {
-        await getFlow(event);
-      } catch (error: any) {
-        expect(error.status).toBe(404);
-      }
+      const response = await dispatcherGET(event);
+      expect(response.status).toBe(404);
       expect(automationService.getFlow).toHaveBeenCalledWith(flowId, myTenant);
     });
 
@@ -113,30 +119,55 @@ describe("Automation API Security - IDOR and Tenant Isolation", () => {
       } as any);
 
       const event = {
-        params: { id: flowId },
+        params: { path: `automations/${flowId}` },
         locals: { user: mockUser, tenantId: myTenant },
+        request: { method: "GET", headers: new Headers() },
+        url: new URL(`http://localhost/api/automations/${flowId}`),
+        cookies: { get: vi.fn() },
       } as any;
 
-      const response = await getFlow(event);
-      const data = await response.json();
-      expect(data.success).toBe(true);
+      const response = await dispatcherGET(event);
+      expect(response.status).toBe(200);
       expect(automationService.getFlow).toHaveBeenCalledWith(flowId, myTenant);
+    });
+
+    it("should allow authenticated users with tenantId", async () => {
+      const event = {
+        locals: { user: mockUser, tenantId: myTenant },
+        params: { path: "automations" },
+        request: {
+          method: "POST",
+          json: vi
+            .fn()
+            .mockResolvedValue({ name: "New Flow", trigger: { type: "on_save" }, actions: [] }),
+          headers: new Headers(),
+        },
+        url: new URL("http://localhost/api/automations"),
+        cookies: { get: vi.fn() },
+      } as any;
+
+      const response = await dispatcherPOST(event);
+      expect(response.status).toBe(201);
+      expect(automationService.saveFlow).toHaveBeenCalled();
     });
 
     it("should prevent updating a flow that belongs to another tenant", async () => {
       (automationService.getFlow as any).mockResolvedValue(null);
 
       const event = {
-        params: { id: flowId },
+        params: { path: `automations/${flowId}` },
         locals: { user: mockUser, tenantId: myTenant },
-        request: { json: vi.fn().mockResolvedValue({ name: "Updated" }) },
+        request: {
+          method: "PATCH",
+          json: vi.fn().mockResolvedValue({ name: "Updated" }),
+          headers: new Headers(),
+        },
+        url: new URL(`http://localhost/api/automations/${flowId}`),
+        cookies: { get: vi.fn() },
       } as any;
 
-      try {
-        await updateFlow(event);
-      } catch (error: any) {
-        expect(error.status).toBe(404);
-      }
+      const response = await dispatcherPATCH(event);
+      expect(response.status).toBe(404);
       expect(automationService.saveFlow).not.toHaveBeenCalled();
     });
 
@@ -144,15 +175,15 @@ describe("Automation API Security - IDOR and Tenant Isolation", () => {
       (automationService.getFlow as any).mockResolvedValue(null);
 
       const event = {
-        params: { id: flowId },
+        params: { path: `automations/${flowId}` },
         locals: { user: mockUser, tenantId: myTenant },
+        request: { method: "DELETE", headers: new Headers() },
+        url: new URL(`http://localhost/api/automations/${flowId}`),
+        cookies: { get: vi.fn() },
       } as any;
 
-      try {
-        await deleteFlow(event);
-      } catch (error: any) {
-        expect(error.status).toBe(404);
-      }
+      const response = await dispatcherDELETE(event);
+      expect(response.status).toBe(404);
       expect(automationService.deleteFlow).not.toHaveBeenCalled();
     });
   });

@@ -614,7 +614,7 @@ onMount(() => {
 			icon="bi:bar-chart-line"
 			showBackButton={true}
 			backUrl="/config"
-			helpUrl="/docs/architecture/dashboard-system"
+
 		/>
 		<div class="flex items-center gap-2">
 			<!-- Generate AI Dashboard Button -->

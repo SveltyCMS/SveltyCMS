@@ -222,7 +222,7 @@ async function handleCreateFolder() {
 		icon="bi:images" 
 		showBackButton={true} 
 		backUrl="/" 
-		helpUrl="/docs/guides/media-gallery"
+
 	>
 		{#snippet children()}
 			<div class="flex items-center gap-2">

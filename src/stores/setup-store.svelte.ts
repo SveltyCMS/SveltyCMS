@@ -93,6 +93,7 @@ export interface DatabaseTestResult {
   dbDoesNotExist?: boolean;
   details?: unknown;
   error?: string;
+  hint?: string;
   latencyMs?: number;
   message?: string;
   success: boolean;
@@ -598,7 +599,7 @@ function createSetupStore() {
       // Update the public settings store instantly for near-zero delay
       if (data.publicSettings) {
         logger.debug("[SetupStore] Updating public environment...");
-        updatePublicEnv(data.publicSettings);
+        updatePublicEnv(data.publicSettings, true);
       }
 
       // Success!
